@@ -1,0 +1,72 @@
+{
+	"@voithos-labs/aragonite-admonitions": {
+		"version": "0.11.5",
+		"repository": "https://github.com/voithos-labs/aragonite",
+		"peer": "0.11.5",
+		"editor": "0.11.5",
+		"result": "pass"
+	},
+	"@voithos-labs/aragonite-details": {
+		"version": "0.11.5",
+		"repository": "https://github.com/voithos-labs/aragonite",
+		"peer": "0.11.5",
+		"editor": "0.11.5",
+		"result": "pass"
+	},
+	"@voithos-labs/aragonite-emoji": {
+		"version": "0.11.5",
+		"repository": "https://github.com/voithos-labs/aragonite",
+		"peer": "0.11.5",
+		"editor": "0.11.5",
+		"result": "pass"
+	},
+	"@voithos-labs/aragonite-footnotes": {
+		"version": "0.11.5",
+		"repository": "https://github.com/voithos-labs/aragonite",
+		"peer": "0.11.5",
+		"editor": "0.11.5",
+		"result": "pass"
+	},
+	"@voithos-labs/aragonite-highlight-occurrences": {
+		"version": "0.11.5",
+		"repository": "https://github.com/voithos-labs/aragonite",
+		"peer": "0.11.5",
+		"editor": "0.11.5",
+		"result": "pass"
+	},
+	"@voithos-labs/aragonite-latex": {
+		"version": "0.11.5",
+		"repository": "https://github.com/voithos-labs/aragonite",
+		"peer": "0.11.5",
+		"editor": "0.11.5",
+		"result": "pass"
+	},
+	"@voithos-labs/aragonite-mermaid": {
+		"version": "0.11.5",
+		"repository": "https://github.com/voithos-labs/aragonite",
+		"peer": "0.11.5",
+		"editor": "0.11.5",
+		"result": "pass"
+	},
+	"@voithos-labs/aragonite-parrot": {
+		"version": "0.11.5",
+		"repository": "https://github.com/voithos-labs/aragonite",
+		"peer": "0.11.5",
+		"editor": "0.11.5",
+		"result": "pass"
+	},
+	"@voithos-labs/aragonite-slash-commands": {
+		"version": "0.11.5",
+		"repository": "https://github.com/voithos-labs/aragonite",
+		"peer": "0.11.5",
+		"editor": "0.11.5",
+		"result": "pass"
+	},
+	"@voithos-labs/aragonite-toc": {
+		"version": "0.11.5",
+		"repository": "https://github.com/voithos-labs/aragonite",
+		"peer": "0.11.5",
+		"editor": "0.11.5",
+		"result": "pass"
+	}
+}

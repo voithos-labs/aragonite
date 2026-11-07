@@ -26,7 +26,10 @@ import type { PresentationMode } from '#lib/presentation-mode.js';
 import type { CommandDispatchContext } from '#lib/schema/block-commands.js';
 import type { DocumentView } from '#lib/core/node-views.js';
 import { createDecorationEngine } from '#lib/decorations/decoration-state.svelte.js';
-import { createLinkCardState } from '#lib/components/link-card/link-card-state.svelte.js';
+import {
+	createLinkCardState,
+	linkCardGates
+} from '#lib/components/link-card/link-card-state.svelte.js';
 import { createMenuPresence } from '#lib/components/menu/menu-presence.svelte.js';
 import { createReadingFocus } from '#lib/components/editor-root/reading-focus.svelte.js';
 import { createDraftRegistry } from '#lib/components/draft-registry.js';
@@ -53,7 +56,7 @@ import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 import { createWidgetEdgeHolder, type DrawnCaret } from '#lib/caret/drawn-caret.svelte.js';
 import { bindActivationClick, createPressTracker } from '#lib/activation-click.js';
 import { createTextMoves } from '#lib/components/overlays/text-moves.js';
-import { holdsNativeRange } from '#lib/browser/selection-read.js';
+import { rangeHolder } from '#lib/selection/held-selection.js';
 
 interface HistoryStub {
 	requestUndo: () => void;
@@ -110,12 +113,7 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		scrollOwner: {} as EditorServices['scrollOwner'],
 		// Real: a `link.openCard` keypress asks it to record a target, and the entry rule reads it
 		// back. The checks mirror production, so a component test runs the ones it ships with.
-		linkCard: createLinkCardState({
-			onOpen: () => {},
-			canOpen: () => !selection.isCrossBlock && window.getSelection()?.isCollapsed !== false,
-			canEnter: () => !selection.isCrossBlock,
-			canOpenCreate: () => !selection.isCrossBlock && window.getSelection()?.isCollapsed === false
-		}),
+		linkCard: createLinkCardState(linkCardGates(selection, () => {})),
 		// A bare mount has no inline menu, so no block is ever a combobox.
 		inlineMenuCombobox: () => null,
 		// Filled in by `editorMountContext`, which reads the mode off the document group.
@@ -124,6 +122,8 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		readingFocus: {} as EditorServices['readingFocus'],
 		containerChords: {} as EditorServices['containerChords'],
 		pasteAsBlocks: () => Promise.resolve(false),
+		// A bare mount has no editor root to take a range's copy, and no block to paste into.
+		menuClipboard: { take: () => null, pasteTarget: () => null },
 		stamps,
 		drafts: createDraftRegistry(stamps),
 		shownSource: createShownSourceState(),
@@ -266,8 +266,9 @@ export function editorMountContext(overrides: MountContextOverrides = {}): Map<s
 		pluginEditor: doc.pluginEditor,
 		activation: services.activePlugins,
 		getPresentationMode: () => doc.reading.mode(),
-		isCrossBlockRange: () => services.selection.isCrossBlock,
-		holdsNativeRange,
+		ownsRange: () => services.selection.ownsRange,
+		rangeInOneBlock: () => services.selection.rangeInOneBlock,
+		holdsRange: () => rangeHolder(services.selection) !== null,
 		// Inert: a bare mount has no cross-block range, so every member answers no.
 		crossBlockCommands: { canRun: () => false, run: () => false, isActive: () => false },
 		// Inert too: a bare mount activates no decoration.

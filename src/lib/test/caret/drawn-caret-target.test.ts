@@ -15,7 +15,7 @@ const DRAWING: DrawnCaretReads = {
 	reading: false,
 	windowFocused: true,
 	focused: true,
-	store: { crossBlock: false, wholeBlock: false, gapCaret: false, widget: false },
+	store: { ownsRange: false, wholeBlock: false, gapCaret: false, widget: false },
 	collapsed: true,
 	source: { drawable: true },
 	gap: false,
@@ -46,11 +46,14 @@ const HIDDEN: Array<[string, Partial<DrawnCaretReads>]> = [
 	['focus is outside the editor', { focused: false }],
 	['the window lost focus', { windowFocused: false }],
 	['a range in one block', { collapsed: false }],
-	['a cross-block range', store({ crossBlock: true })],
+	['a range the editor holds', store({ ownsRange: true })],
 	['a block held whole', store({ wholeBlock: true })],
 	['a gap caret while focus is elsewhere', store({ gapCaret: true })],
 	['the gap proxy focused with no gap caret held', { gap: true }],
-	['a cross-block range over a widget edge', { ...store({ crossBlock: true }), widgetEdge: EDGE }],
+	[
+		'a range the editor holds over a widget edge',
+		{ ...store({ ownsRange: true }), widgetEdge: EDGE }
+	],
 	['a widget selected whole', store({ widget: true })],
 	['reading mode', { reading: true }]
 ];

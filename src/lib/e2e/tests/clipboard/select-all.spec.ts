@@ -89,7 +89,7 @@ test.describe('select-all clipboard round-trip', () => {
 			null,
 			{ timeout: 5000, polling: 16 }
 		);
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		expect(await editor.bridge.ownsRange()).toBe(false);
 		const firstSelection = await editor.page.evaluate(
 			() => window.getSelection()?.toString() ?? ''
 		);

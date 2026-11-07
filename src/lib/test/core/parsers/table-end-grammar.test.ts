@@ -7,6 +7,8 @@ import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import type { GrammarView } from '#lib/schema/block-openers.js';
 import { createRegistryView } from '#lib/schema/registry-view.js';
+import { activationFor } from '#lib/schema/plugin-activation.js';
+import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
 import { registerMathBlock } from '#packages/latex/src/latex-kind.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
@@ -20,7 +22,9 @@ function kinds(source: string, grammar?: GrammarView): string[] {
 
 describe('a table under the editor’s grammar', () => {
 	beforeEach(() => {
-		registerMathBlock(testView());
+		installPlugins([
+			definePlugin({ name: 'math', setup: () => void registerMathBlock(testView()) })
+		]);
 	});
 
 	it('ends at a `$$` block that closes below, as a paragraph does', () => {
@@ -45,7 +49,7 @@ describe('a table under the editor’s grammar', () => {
 	});
 
 	it('keeps a plugin kind the editor did not list out of the check', () => {
-		const withoutMath = createRegistryView({ isEnabled: (kind) => kind !== 'mathBlock' }).grammar;
+		const withoutMath = createRegistryView({ plugins: activationFor([]) }).grammar;
 
 		expect(kinds(TABLE + '$$\nx\n$$\n', withoutMath)).toEqual(['table']);
 	});

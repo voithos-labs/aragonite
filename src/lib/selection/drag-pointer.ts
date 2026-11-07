@@ -15,6 +15,7 @@ import { isWholeBlockEndpoint, type SelectionPoint } from './primitives';
 import { comparePaths } from './path-math';
 import { createPointerDragSession, type PointerPosition } from './pointer-session';
 import { blockNearPoint } from './nearest-block';
+import { fingerPress } from './pointer-gesture';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -57,6 +58,9 @@ export function installDragListener(
 	anchorPoint: SelectionEndpoint,
 	down: PointerEvent
 ): { dispose(): void } {
+	// A drag the editor owns under a finger: a selection handle's.
+	const finger = ctx.touch === 'own' ? fingerPress(down) : null;
+
 	function processMove(clientX: number, clientY: number): void {
 		// The nearest block, not the one under the pointer: moves coalesce to one per frame, and
 		// an autoscrolling drag sends nothing but off-block points.
@@ -73,12 +77,20 @@ export function installDragListener(
 				if (ctx.paintSameBlock?.()) takeAnchorBlockWhole();
 				return;
 			}
-			if (ctx.selection.isCrossBlock) {
+			// A finger's handle back in the anchor block: no browser drag runs underneath, so the
+			// range inside the block stays the editor's.
+			const here = near.endpointHere();
+			if (finger && here && 'offset' in here) {
+				if (here.offset !== anchorPoint.offset)
+					ctx.selection.ownBlockRange(anchorPoint, here, finger);
+				return;
+			}
+			if (ctx.selection.ownsRange) {
 				// Back in the anchor block: the browser's drag has been extending the native
 				// selection all along, so collapsing the cross-block range restores its highlight.
 				ctx.selection.collapse();
 			}
-			if (ctx.paintSameBlock?.()) paintSameBlockRange(near.endpointHere());
+			if (ctx.paintSameBlock?.()) paintSameBlockRange(here);
 			return;
 		}
 
@@ -88,7 +100,7 @@ export function installDragListener(
 		const painted = ctx.selection.isCustomRendered;
 		// A whole-block range re-enters rather than extends: entering picks the anchor's side
 		// against the new focus, where extending would keep the block's start as the anchor.
-		if (!ctx.selection.isCrossBlock || ctx.selection.wholeUnitPath) {
+		if (!ctx.selection.ownsRange || ctx.selection.wholeUnitPath) {
 			ctx.selection.enterCrossBlock(anchorPoint, focusPoint);
 		} else {
 			ctx.selection.extendFocus(focusPoint);
@@ -112,7 +124,7 @@ export function installDragListener(
 	): void {
 		const anchorIsChar = 'offset' in anchorPoint && !anchorPoint.cellCoordinate;
 		if (!anchorIsChar || comparePaths(near.path, anchorPoint.path) === 0) {
-			if (ctx.selection.isCrossBlock) ctx.selection.collapse();
+			if (ctx.selection.ownsRange) ctx.selection.collapse();
 			anchorAfter = null;
 			const offset = caretOffsetAtPoint(unit.surface, clientX, clientY);
 			if (offset === null) return;
@@ -133,7 +145,7 @@ export function installDragListener(
 		const focus = isWholeBlockEndpoint(focusPoint)
 			? focusPoint
 			: unit.expandFocus(focusPoint, after ? 'after' : 'before');
-		if (!ctx.selection.isCrossBlock || anchorAfter !== after) {
+		if (!ctx.selection.ownsRange || anchorAfter !== after) {
 			anchorAfter = after;
 			ctx.selection.enterCrossBlock(
 				{
@@ -206,7 +218,7 @@ export function installDragListener(
 		offset: ctx.offset,
 		onMove: (p) => processMove(p.clientX, p.clientY),
 		onEnd: () => {
-			if (ctx.selection.isCrossBlock) parkCaretInFocusBlock(ctx);
+			if (ctx.selection.ownsRange) parkCaretInFocusBlock(ctx);
 		},
 		autoScroll: {
 			getTargets: (clientX, clientY) => {

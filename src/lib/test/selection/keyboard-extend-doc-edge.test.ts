@@ -25,7 +25,7 @@ describe('extendFocusToDocEdge', () => {
 		const doc = parse('alpha\n\nbeta\n');
 		const s = stateAt(doc, [1]);
 		expect(extendFocusToDocEdge(extendCtx(s, doc), el(), [1], 'end')).toBe(true);
-		expect(s.isCrossBlock).toBe(false);
+		expect(s.ownsRange).toBe(false);
 		expect(s.focus).toBeNull();
 	});
 

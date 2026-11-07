@@ -195,19 +195,6 @@ describe('bringing a landing into view', () => {
 		expect(placements).toHaveLength(1);
 	});
 
-	// Miss-analysis: any landing could ask to be held, and the menus and the link card did, which
-	// is how a slash pick came to drag its line to the top of the page.
-	it('only a navigation can hold: no landing option asks for it', () => {
-		const tryToHold = (landing: CaretLanding) => {
-			const held: LandOptions = {
-				// @ts-expect-error a held landing is `navigate`'s alone; widening `RevealPolicy` fails check.
-				reveal: 'into-view-held'
-			};
-			void landing.land(at([0], 0), held);
-		};
-		expect(tryToHold).toBeTypeOf('function');
-	});
-
 	it('a navigation holds its block, even one already in view', async () => {
 		const { scroll, calls } = recordingScroll(true);
 		const { landing } = landingOver('a\n', { scroll });
@@ -301,7 +288,7 @@ describe('the other entry points', () => {
 			await landing.showSelectionEnd();
 		}
 		expect(placements).toEqual([]);
-		expect(selectionState.isCrossBlock).toBe(true);
+		expect(selectionState.ownsRange).toBe(true);
 		expect(calls).toEqual(['showRect', 'showRect']);
 	});
 
@@ -408,3 +395,14 @@ describe('a landing in reading mode', () => {
 		expect(takeDevWarns()).toEqual([]);
 	});
 });
+
+/** Never called: `npm run check` fails once a directive inside goes unused. */
+export function compileTimePins(landing: CaretLanding): void {
+	// Miss-analysis: any landing could ask to be held, and the menus and the link card did, which
+	// is how a slash pick came to drag its line to the top of the page.
+	const held: LandOptions = {
+		// @ts-expect-error a held landing is `navigate`'s alone; widening `RevealPolicy` fails check.
+		reveal: 'into-view-held'
+	};
+	void landing.land(at([0], 0), held);
+}

@@ -11,7 +11,7 @@ import { cellPoint, type SelectionEndpoint } from './primitives';
 import { caretOffsetAtPoint, elementAtPoint, offsetFromViewportPoint } from '../browser/point';
 import { readBlockPath } from './path-lookup';
 import { pathsEqual } from './path-math';
-import { BLOCK_TEXT_SELECTOR } from '../caret/block-content-selector';
+import { BLOCK_TEXT_SELECTOR, SELECTION_PAINT_SELECTOR } from '../caret/block-content-selector';
 
 export interface BlockHit {
 	path: number[];
@@ -53,7 +53,7 @@ export function blockAtPoint(
 				charSurface: dragHitTest
 					? null
 					: (wrapper.querySelector(
-							`[contenteditable]:not([${WHOLE_BLOCK_INPUT_ATTR}]):not(.selection-overlay)`
+							`[contenteditable]:not([${WHOLE_BLOCK_INPUT_ATTR}]):not(${SELECTION_PAINT_SELECTOR})`
 						) as HTMLElement | null),
 				foreignDragHitTest: dragHitTest && ((cx, cy) => dragHitTest(wrapper, cx, cy)),
 				caretTargetAtPoint: caretTarget && ((cx, cy) => caretTarget(wrapper, cx, cy))

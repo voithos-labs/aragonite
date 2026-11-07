@@ -93,7 +93,7 @@ describe('a range over a long list costs in proportion to what it covers', () =>
 		const large = wholeListSelection(4 * N);
 		const cost = ({ doc, start, end }: typeof small) => {
 			const deps = {
-				selection: { isCrossBlock: true, anchor: start, focus: end },
+				selection: { ownsRange: true, anchor: start, focus: end },
 				getDoc: () => doc,
 				crossBlock: { reading: fixtureReading() }
 			} as unknown as CrossBlockClipboardDeps;

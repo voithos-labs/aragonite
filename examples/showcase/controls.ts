@@ -1,5 +1,5 @@
 /**
- * The showcase's controls as data, so the Svelte, React and Vue showcases offer the same controls
+ * The showcase's controls as data, so the showcase and the changelog page offer the same controls
  * under the same test ids and open in the same state. `top-bar.ts` draws them.
  */
 

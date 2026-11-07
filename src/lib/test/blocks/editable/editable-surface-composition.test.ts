@@ -222,11 +222,14 @@ describe('composing gate', () => {
 		// So a block that keeps its place but not the caret (a table cell the range emptied) holds
 		// no composition open.
 		it('a compositionstart over a range across blocks opens nothing here', () => {
+			const selection = { ownsRange: true };
 			const { surface, commits, el } = makeSurface({
-				overrides: { selection: { isCrossBlock: true } as EditableSurfaceDeps['selection'] }
+				overrides: { selection: selection as EditableSurfaceDeps['selection'] }
 			});
 			el.textContent = 'hello';
 			surface.onCompositionStart();
+			// The range's replace ends the range before the IME writes anything.
+			selection.ownsRange = false;
 
 			el.textContent = 'hello!';
 			surface.onInput(new InputEvent('input', { inputType: 'insertText', data: '!' }));
@@ -327,8 +330,7 @@ describe('composed text placement', () => {
 			getNode: () => node,
 			reading: fixtureReading(),
 			caretMemory,
-			heldSpace: () => caretMemory.heldSpace.forBlock({}),
-			insideCloser: () => caretMemory.insideCloser.forBlock({})
+			heldSpace: () => caretMemory.heldSpace.forBlock({})
 		});
 		const surface = makeSurface({
 			compositionSeat: seat,

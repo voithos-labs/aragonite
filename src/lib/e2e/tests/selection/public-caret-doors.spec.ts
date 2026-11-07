@@ -24,7 +24,7 @@ test.describe('public caret entry points with a cross-block range live', () => {
 			anchor: { path: [1], offset: 3 },
 			focus: { path: [1], offset: 3 }
 		});
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		expect(await editor.bridge.ownsRange()).toBe(false);
 
 		await editor.page.keyboard.type('X');
 		await editor.bridge.waitForSourceContains('X');
@@ -45,7 +45,7 @@ test.describe('public caret entry points with a cross-block range live', () => {
 			).__test.focusBlockComponent([1], 3)
 		);
 		expect(placed).toBe(true);
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		expect(await editor.bridge.ownsRange()).toBe(false);
 
 		await editor.page.keyboard.type('X');
 		await editor.bridge.waitForSourceContains('X');
@@ -66,6 +66,6 @@ test.describe('public caret entry points with a cross-block range live', () => {
 			).__test.parkCaretInBlockComponent([1], 3)
 		);
 		expect(parked).toBe(true);
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.ownsRange()).toBe(true);
 	});
 });

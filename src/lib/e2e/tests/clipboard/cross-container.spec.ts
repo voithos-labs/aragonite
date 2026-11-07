@@ -60,17 +60,34 @@ test.describe('cross-container clipboard: blockquote boundary', () => {
 		expect(await editor.bridge.getSource()).toBe(before);
 	});
 
-	test('copy across container boundary collects correct text', async () => {
-		await editor.loadContent('para\n\n> quote\n');
-		await editor.focusBlockEnd(0);
-		await editor.page.keyboard.press('Shift+ArrowDown');
+	test('a copy from a paragraph into a quote writes the quote’s lines with their markers', async () => {
+		await editor.loadContent('para one\n\n> quote two\n');
+		await editor.clickBlockAtPath([0], 5);
+		await editor.shiftClickBlock([1, 0], 5);
 		await editor.waitForCrossBlock(true);
 
-		const before = await editor.bridge.getSource();
-		await editor.pressDeclined('ControlOrMeta+c');
+		await editor.page.keyboard.press('ControlOrMeta+c');
+		await editor.waitForClipboardContains('quote', 5000);
 
-		expect(await editor.bridge.getSource()).toBe(before);
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.readClipboard()).toBe('one\n\n> quote');
+		expect(await editor.bridge.ownsRange()).toBe(true);
+	});
+
+	test('a cut from a paragraph into a nested quote writes every quote level it covers', async () => {
+		await editor.setPresentationMode('live');
+		await editor.loadContent(
+			'alpha bravo charlie\n\n> Ithaka\n> By C. P. Cavafy\n> > As you set out for Ithaka\n> > hope your road is a long one,\n'
+		);
+		await editor.clickBlockAtPath([0], 6);
+		await editor.shiftClickBlock([1, 1, 0], 7);
+		await editor.waitForCrossBlock(true);
+
+		await editor.page.keyboard.press('ControlOrMeta+x');
+		await editor.waitForClipboardContains('Ithaka', 5000);
+
+		expect(await editor.readClipboard()).toBe(
+			'bravo charlie\n\n> Ithaka\n> By C. P. Cavafy\n> > As you '
+		);
 	});
 
 	test('copy from inside blockquote to paragraph then paste reproduces text', async () => {

@@ -97,7 +97,7 @@ describe('runCommandById gates', () => {
 	// Miss-analysis: the scan guarding the set matched only the `format.` prefix, missing other ids.
 	it('a painted cross-block range declines every single-block rewrite and nothing else', () => {
 		const ran: string[] = [];
-		const ctx = context({ isCrossBlockRange: () => true });
+		const ctx = context({ ownsRange: () => true });
 		const rewrites: CommandId[] = [
 			'format.toggleStrong',
 			'format.toggleEmphasis',
@@ -128,7 +128,7 @@ describe('runCommandById gates', () => {
 			{ chord: 'Mod+Alt+G', command: 'format.toggleStrong', kind: 'paragraph' },
 			{ chord: 'Mod+Alt+L', command: 'link.openCard', kind: 'paragraph' }
 		]);
-		const ctx = commandContextWith(overrides, { isCrossBlockRange: () => true });
+		const ctx = commandContextWith(overrides, { ownsRange: () => true });
 		expect(dispatchKeyCommand('Mod+Alt+G', target(ran), ctx)).toBe(false);
 		expect(dispatchKeyCommand('Mod+Alt+L', target(ran), ctx)).toBe(false);
 		expect(ran).toEqual([]);

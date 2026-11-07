@@ -2,7 +2,7 @@
  * A comment naming `<doc>.md § Section` is a claim about a heading, and `check-codebase-map.mjs`
  * resolves it so `npm run lint` fails when the heading is renamed. These are that reader's
  * self-tests: an empty corpus, an empty heading index or a matcher that says yes to everything
- * would let the gate pass on nothing, as would a break in the path and symbol checks beside it.
+ * would let the gate pass on nothing. The path half is `doc-path-references.test.ts`.
  */
 import { describe, it, expect } from 'vitest';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -12,11 +12,8 @@ import {
 	headingKeys,
 	headingsOf,
 	pointersIn,
-	referenceFailures,
-	referencesIn,
 	resolvesAgainst,
-	sectionFragment,
-	stripFencedBlocks
+	sectionFragment
 } from '../../../../../scripts/docs/check-codebase-map.mjs';
 import { SOURCE } from './source-paths';
 
@@ -131,76 +128,5 @@ describe('§ pointer resolution: self-tests', () => {
 			'### Wiring the runes'
 		);
 		expect(resolvesAgainst(headingsOf(renamed), cited!.fragment)).toBe(false);
-	});
-});
-
-// ── The checks that share the script ─────────────────────────────────────────
-// A restructure that broke these checks would still print a clean summary line.
-
-describe('path and symbol references: still enforced', () => {
-	it('parses both spellings of a reference out of a doc', () => {
-		const { references, malformed } = referencesIn(
-			'x.md',
-			'A seam at `src/lib/core/nodes.ts` :: `AnyBlockKind`, and `docs/README.md`.'
-		);
-		expect(references).toEqual([
-			{ file: 'x.md', path: 'src/lib/core/nodes.ts', symbol: 'AnyBlockKind' },
-			{ file: 'x.md', path: 'docs/README.md', symbol: undefined }
-		]);
-		expect(malformed).toEqual([]);
-	});
-
-	// Miss-analysis: the reader resolved spans starting with a path only; no test gave it a command.
-	it('reads the paths inside a backticked command, and nothing out of a plain word', () => {
-		expect(referencesIn('d.md', '`npx vitest run src/lib/nope.test.ts`').references).toEqual([
-			{ file: 'd.md', path: 'src/lib/nope.test.ts' }
-		]);
-		expect(referencesIn('d.md', 'Press `Mod+B` or run `npm test`.').references).toEqual([]);
-	});
-
-	it('reds on a missing file and on a symbol that file never names', () => {
-		expect(referenceFailures([{ file: 'x.md', path: 'src/lib/nope.ts' }])).toEqual([
-			'x.md: src/lib/nope.ts — no such file or directory'
-		]);
-		expect(
-			referenceFailures([{ file: 'x.md', path: SOURCE.cstNodes, symbol: 'NotAThing' }])
-		).toEqual([`x.md: ${SOURCE.cstNodes} :: NotAThing — symbol not found in that file`]);
-		expect(
-			referenceFailures([{ file: 'x.md', path: SOURCE.cstNodes, symbol: 'AnyBlockKind' }])
-		).toEqual([]);
-	});
-
-	// Miss-analysis: resolution asked only whether the file was on disk, so a doc naming a local
-	// record passed on the machine that had one and redded in CI.
-	it('reds on a gitignored file that sits on disk', () => {
-		const planted = 'scripts/zz-map-probe.d.mts';
-		writeFileSync(planted, '');
-		try {
-			expect(referenceFailures([{ file: 'x.md', path: planted }])).toEqual([
-				`x.md: ${planted} — gitignored, so it exists only on this machine`
-			]);
-		} finally {
-			rmSync(planted);
-		}
-	});
-
-	// Miss-analysis: a move left its old directory empty on disk, which git never checks out, so
-	// the docs naming it passed locally and redded in CI.
-	it('reds on an empty directory, which git does not keep', () => {
-		const planted = 'scripts/zz-empty-dir-probe';
-		mkdirSync(planted, { recursive: true });
-		try {
-			expect(referenceFailures([{ file: 'x.md', path: `${planted}/` }])).toEqual([
-				`x.md: ${planted}/ — an empty directory, so a checkout doesn't have it`
-			]);
-		} finally {
-			rmSync(planted, { recursive: true });
-		}
-	});
-
-	it('blanks a fence, so an illustrative snippet claims nothing', () => {
-		const blanked = stripFencedBlocks('Prose `src/a.ts`.\n```\n`src/nope.ts`\n```\nAfter.');
-		expect(blanked).toContain('src/a.ts');
-		expect(blanked).not.toContain('src/nope.ts');
 	});
 });

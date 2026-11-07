@@ -1,7 +1,6 @@
 /**
- * The showcase's top bar as plain DOM, so the Svelte, React and Vue showcases mount one copy: the
- * wordmark, the presentation-mode switcher, the links, report a bug and the settings popover. The
- * host owns the state: it passes each change to `update` and hears clicks through the callbacks.
+ * The showcase's top bar, drawn as plain DOM: the wordmark, the presentation-mode switcher, the
+ * links, report a bug and the settings popover. The host owns the state: it passes each change to `update` and hears clicks through the callbacks.
  */
 import { el, icon, setAttrs } from './bar-dom';
 import { REPO_URL, modKey, segmentedPicker, wordmark } from './bar-parts';

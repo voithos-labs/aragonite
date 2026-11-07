@@ -8,7 +8,7 @@ import type { CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import type { Reading } from '../../schema/reading';
 import { metadataOf } from '../../core/nodes';
-import { splitLines, trailingLineEnding } from '../../core/lines';
+import { trailingLineEnding } from '../../core/lines';
 import { joinIntoLeaf } from '../node-ops';
 import type { SharingState } from '../sharing';
 import { cloneNode } from '../clone';
@@ -18,6 +18,7 @@ import { rebuildListRaw } from '../../schema/container-rebuilders';
 import { walkToDeepestMergeLeaf } from '../../schema/merge-rules';
 import { renumberOrderedList } from './ordered-markers';
 import { dissolveItem } from './item-partition';
+import { bytesWithoutMarkerLine } from './marker-line';
 import { keepingTextAround } from './keeping-order';
 import { assignChildIdsDeep } from '../../block-id';
 import { replacePreservingFirst, type StructuralChange } from '../structural-change';
@@ -135,23 +136,6 @@ function mergeMarkerLine(
 	}
 
 	return { mergePoint: { targetPath, offset: joined.joinOffset }, change };
-}
-
-/** The list's bytes with item `index`'s marker line and its own text gone, the lines under it as
- *  they stood; its blank line above goes with the marker line. */
-function bytesWithoutMarkerLine(items: readonly NodeView[], index: number): string {
-	let bytes = '';
-	for (let i = 0; i < items.length; i++) {
-		bytes += i === index ? linesBelowOwnText(items[i]) : items[i].leadingTrivia + items[i].raw;
-	}
-	return bytes;
-}
-
-/** An item's lines below its own first block, as they stand in the list. */
-function linesBelowOwnText(item: NodeView): string {
-	const own = splitLines(item.children![0].raw).length;
-	const lines = splitLines(item.raw);
-	return lines.length > own ? item.raw.slice(lines[own - 1].end) : '';
 }
 
 /** The list `bytes` read as, when they still read as one list of `list`'s kind. */

@@ -21,7 +21,7 @@ interface PressAftermath {
 
 async function pressAftermath(editor: MermaidPage): Promise<PressAftermath> {
 	return {
-		crossBlock: await editor.bridge.isCrossBlockActive(),
+		crossBlock: await editor.bridge.ownsRange(),
 		...(await editor.page.evaluate(() => ({
 			overlays: document.querySelectorAll('.selection-overlay-middle, .selection-overlay-endpoint')
 				.length,
@@ -84,7 +84,7 @@ test.describe('a diagram pan claims its own drag', () => {
 			y: 20,
 			scale: 1
 		});
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		expect(await editor.bridge.ownsRange()).toBe(false);
 	});
 
 	// An unfocused diagram has no pan to protect, so pointer-down on it is still the editor's and a
@@ -97,7 +97,7 @@ test.describe('a diagram pan claims its own drag', () => {
 		await dragBetweenPoints(page, from, await pointAtRaw(editor.page, [2], 4));
 
 		await editor.waitForCrossBlock(true);
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.ownsRange()).toBe(true);
 		// Nothing panned: a drag the plugin did not take is not one it also ran.
 		expect(await canvasTransform(page, '.mermaid-viewport .mermaid-canvas')).toEqual({
 			x: 0,
@@ -115,6 +115,6 @@ test.describe('a diagram pan claims its own drag', () => {
 		await dragAcross(editor, '.mermaid-surface');
 
 		await editor.waitForCrossBlock(true);
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.ownsRange()).toBe(true);
 	});
 });

@@ -43,7 +43,7 @@ import {
 	type DeleteIntent
 } from '../../../browser/input';
 import { isAtMostOneCharacter } from '../../../core/text-units';
-import { nativeRangeIn } from '../../../browser/selection-read';
+import { rangeHolder } from '../../../selection/held-selection';
 import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkRenderedTextFidelity } from '../../../invariants/render-fidelity';
@@ -380,7 +380,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	async function commitReveal(force = false): Promise<void> {
 		if (mode !== 'render-primary' || !isRevealed()) return;
-		if (selection.isCrossBlock && !force) {
+		if (selection.ownsRange && !force) {
 			void foldAfterRange();
 			return;
 		}
@@ -662,7 +662,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			if (
 				offset !== null &&
 				(offset === 0 || /\s/.test(text[offset - 1] ?? '')) &&
-				!nativeRangeIn(el) &&
+				rangeHolder(selection) === null &&
 				isBlankText(chromeFreeText(el))
 			) {
 				e.preventDefault();

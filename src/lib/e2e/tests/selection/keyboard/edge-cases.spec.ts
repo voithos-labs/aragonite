@@ -18,7 +18,7 @@ test.describe('selection: keyboard: edge cases', () => {
 	});
 
 	// The table sibling of the case above. Asserted through the state, never through
-	// `[data-cross-block]`: that attribute is what a stale pair hides the caret with, so waiting
+	// `[data-painted-range]`: that attribute is what a stale pair hides the caret with, so waiting
 	// on it reads a selection nothing paints as no selection at all.
 	test('Shift+ArrowDown out of a last-block table leaves the cell editable', async () => {
 		await editor.loadContent('intro\n\n| aa | bb |\n| -- | -- |\n| cc | wxyz |\n');
@@ -28,7 +28,7 @@ test.describe('selection: keyboard: edge cases', () => {
 
 		await editor.page.keyboard.press('Shift+ArrowDown');
 		await editor.waitForRenderFlush();
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		expect(await editor.bridge.ownsRange()).toBe(false);
 
 		// One character, not the whole cell: a stored pair would send this keypress into the
 		// rectangular delete, which clears every covered cell at once and paints nothing.

@@ -9,7 +9,7 @@ import { imeOwnsInput } from '../../../browser/composition';
 import { readInput, targetRange } from '../../../browser/input';
 import type { DomPosition } from '../../../browser/offsets';
 import { widgetFollowsText } from '../../../browser/painted';
-import { isPlainTypingKey } from '../text/click-snap-guard';
+import { typesCharacter } from '../../../schema/keybindings';
 
 /** What a block that draws inline widgets writes for a typed insert it takes. */
 export interface TypedInsertWrites {
@@ -60,7 +60,7 @@ export function decideTypedInsert(e: InputEvent, reads: TypedInsertReads): Typed
 /** The same decision at a typed key's keydown, for an engine that sends no `beforeinput` beside a
  *  widget with no text node to type into. True when taken. */
 export function decideTypedKey(e: KeyboardEvent, reads: TypedInsertReads): boolean {
-	if (e.defaultPrevented || !isPlainTypingKey(e) || reads.composing()) return false;
+	if (e.defaultPrevented || !typesCharacter(e) || reads.composing()) return false;
 	const caret = caretFor(reads);
 	if (typeof caret === 'string' || !typeBesideWidget(e.key, caret)) return false;
 	e.preventDefault();

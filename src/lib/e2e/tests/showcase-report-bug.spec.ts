@@ -71,8 +71,8 @@ test.describe('/ showcase report a bug', () => {
 		expect(url.searchParams.get('where')).toMatch(
 			/^\d+\.\d+\.\d+, (Chrome|Firefox|Safari) [\d.]+ on \w+, live mode$/
 		);
-		// The recording rides the clipboard, never the link.
-		expect(url.searchParams.get('recording')).toContain('on your clipboard');
+		// The recording rides the clipboard, never the link, which leaves its field empty.
+		expect(url.searchParams.has('recording')).toBe(false);
 		await expect(page.getByTestId('report-card')).toContainText('on your');
 
 		// The system clipboard on Windows hands the line breaks back as CRLF.
@@ -81,6 +81,14 @@ test.describe('/ showcase report a bug', () => {
 		expect(recording.text).toBe(true);
 		expect(recording.steps.at(-1).after.splice[2]).toBe('q');
 		expect(recording.editor.presentationMode).toBe('live');
+	});
+
+	test('on a phone-width screen the card stays inside the viewport', async ({ page }) => {
+		await page.setViewportSize({ width: 390, height: 844 });
+		await page.getByTestId('report-bug').click();
+		const box = await page.getByTestId('report-card').boundingBox();
+		expect(box?.x).toBeGreaterThanOrEqual(0);
+		expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(390);
 	});
 
 	test('a copy the browser refuses gets a Copy recording button that copies on its own click', async ({

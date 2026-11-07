@@ -75,7 +75,9 @@ export default defineConfig({
 						DEEP_STACK,
 						...NODE_REALM,
 						// The behavior suites only record rows, for `npm run behavior`.
-						...(process.env.BEHAVIOR_RECORD ? [] : ['src/lib/test/behavior/**'])
+						...(process.env.BEHAVIOR_RECORD ? [] : ['src/lib/test/behavior/**']),
+						// The law report is a deep run, for `npm run test:laws:report`.
+						...(process.env.LAW_REPORT ? [] : ['src/lib/test/range-laws/report/**'])
 					]
 				}
 			},

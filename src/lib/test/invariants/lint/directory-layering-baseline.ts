@@ -144,6 +144,7 @@ export const RUNTIME_EDGES: readonly string[] = [
 	'search -> schema',
 	'selection -> a11y-strings.ts',
 	'selection -> block-component.ts',
+	'selection -> block-id.ts',
 	'selection -> block-lists',
 	'selection -> browser',
 	'selection -> caret',

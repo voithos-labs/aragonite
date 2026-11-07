@@ -2,6 +2,7 @@ import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
 import { PluginsPage, capturedErrors } from './helpers';
 import { multiClickElement } from '../../multi-click';
+import { TEXT_FIELD, URL_FIELD } from '../presentation/link-card-helpers';
 
 /**
  * `[[note]]` links as inline widgets in a host whose links follow on a plain click, the limestone
@@ -248,28 +249,28 @@ test.describe('wikilinks that follow on a plain click', () => {
 	});
 });
 
-// Edit link leaves a caret at the URL's end, ready to edit: past a bare URL's last letter, inside
-// an angle one's hidden `>`. A letter typed there lands in the URL, and Backspace takes one.
+// An autolink's text is its URL, so its card holds the URL in both fields. A new URL there rewrites
+// the autolink in its own form; the keys inside the URL still take one letter at a time.
 const AUTOLINKS = [
 	{
 		name: 'a bare URL',
 		block: 4,
-		caret: 24,
-		typed: '\nhttps://example.org/bareXY\n',
-		backspaced: '\nhttps://example.org/bar\n',
-		spaced: '\nhttps://example.org/bare more\n'
+		url: 'https://example.org/bare',
+		end: 24,
+		edited: '\nhttps://example.org/new\n',
+		backspaced: '\nhttps://example.org/bar\n'
 	},
 	{
 		name: 'an angle autolink',
 		block: 5,
-		caret: 30,
-		typed: 'See <https://example.org/angleXY> here',
-		backspaced: 'See <https://example.org/angl> here',
-		spaced: 'See <https://example.org/angle> more here'
+		url: 'https://example.org/angle',
+		end: 30,
+		edited: 'See <https://example.org/new> here',
+		backspaced: 'See <https://example.org/angl> here'
 	}
 ] as const;
 
-test.describe('autolinks a click follows can be edited', () => {
+test.describe('autolinks a click follows open the link card', () => {
 	let editor: PluginsPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -279,12 +280,6 @@ test.describe('autolinks a click follows can be edited', () => {
 		await editor.waitForRenderFlush();
 	});
 
-	async function expectCaretAtUrlEnd(autolink: (typeof AUTOLINKS)[number]): Promise<void> {
-		await expect
-			.poll(async () => (await editor.bridge.getSelectionPaths())?.focus)
-			.toEqual({ path: [autolink.block], offset: autolink.caret });
-	}
-
 	async function editLinkFromMenu(page: Page, on: string): Promise<void> {
 		const box = await page.locator(on).boundingBox();
 		if (!box) throw new Error(`no box for ${on}`);
@@ -292,86 +287,63 @@ test.describe('autolinks a click follows can be edited', () => {
 		await page.getByRole('menuitem', { name: 'Edit link' }).click();
 	}
 
+	async function expectCardHolding(page: Page, url: string): Promise<void> {
+		await expect(page.locator(URL_FIELD)).toBeFocused();
+		await expect(page.locator(URL_FIELD)).toHaveValue(url);
+		await expect(page.locator(TEXT_FIELD)).toHaveValue(url);
+	}
+
 	for (const host of ['plain', 'modifier'] as const) {
 		for (const autolink of AUTOLINKS) {
-			test(`Edit link on ${autolink.name} leaves letters typed in the URL, ${host} click host`, async ({
+			test(`Edit link on ${autolink.name} opens its card and follows nothing, ${host} click host`, async ({
 				page
 			}) => {
 				const opened = await recordOpens(page);
 				if (host === 'modifier') await page.getByTestId('link-click-toggle').click();
 
 				await editLinkFromMenu(page, `[data-block-path="[${autolink.block}]"] a.md-autolink`);
-				await expectCaretAtUrlEnd(autolink);
-				await page.keyboard.type('XY');
 
-				await editor.bridge.waitForSourceContains(autolink.typed);
+				await expectCardHolding(page, autolink.url);
 				expect(await opened()).toEqual([]);
-				await expect(page.locator('[data-link-card]')).toHaveCount(0);
-			});
-
-			test(`Mod+K inside ${autolink.name} leaves Backspace taking one letter, ${host} click host`, async ({
-				page
-			}) => {
-				if (host === 'modifier') await page.getByTestId('link-click-toggle').click();
-				await editor.focusBlockStart(autolink.block);
-				for (let i = 0; i < 8; i++) await page.keyboard.press('ArrowRight');
-
-				await page.keyboard.press('ControlOrMeta+k');
-				await expectCaretAtUrlEnd(autolink);
-				await page.keyboard.press('Backspace');
-
-				await editor.bridge.waitForSourceContains(autolink.backspaced);
-				await expect(page.locator('[data-link-card]')).toHaveCount(0);
 			});
 		}
 	}
 
-	test('Mod+K inside an angle autolink leaves letters typed in the URL', async ({ page }) => {
-		await editor.focusBlockStart(5);
-		for (let i = 0; i < 8; i++) await page.keyboard.press('ArrowRight');
-		await page.keyboard.press('ControlOrMeta+k');
-		await expectCaretAtUrlEnd(AUTOLINKS[1]);
-		await page.keyboard.type('XY');
+	for (const autolink of AUTOLINKS) {
+		test(`a new URL in the card of ${autolink.name} rewrites it in its own form`, async ({
+			page
+		}) => {
+			await editLinkFromMenu(page, `[data-block-path="[${autolink.block}]"] a.md-autolink`);
+			await expectCardHolding(page, autolink.url);
+			await page.keyboard.press('ControlOrMeta+a');
+			await page.keyboard.type('https://example.org/new');
+			await page.keyboard.press('Enter');
 
-		await editor.bridge.waitForSourceContains(AUTOLINKS[1].typed);
-	});
+			await editor.bridge.waitForSourceContains(autolink.edited);
+		});
+
+		test(`Mod+K inside ${autolink.name} enters its card`, async ({ page }) => {
+			await editor.focusBlockAtPath([autolink.block], autolink.end - 2);
+			await page.keyboard.press('ControlOrMeta+k');
+
+			await expectCardHolding(page, autolink.url);
+		});
+
+		test(`Backspace at the end of ${autolink.name} takes one letter`, async ({ page }) => {
+			await editor.focusBlockAtPath([autolink.block], autolink.end - 1);
+			await page.keyboard.press('ArrowRight');
+			await page.keyboard.press('Backspace');
+
+			await editor.bridge.waitForSourceContains(autolink.backspaced);
+		});
+	}
 
 	test('Delete inside an angle autolink takes one letter', async ({ page }) => {
-		await editor.focusBlockStart(5);
-		for (let i = 0; i < 8; i++) await page.keyboard.press('ArrowRight');
-		await page.keyboard.press('ControlOrMeta+k');
-		for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowLeft');
-
+		await editor.focusBlockAtPath([5], 27);
 		await page.keyboard.press('Delete');
 
 		await editor.bridge.waitForSourceContains('See <https://example.org/anle> here');
 	});
-
-	// The edit a user makes to fix a typo at the URL's end: take a letter back, type the right one.
-	test('after Edit link, Backspace then a letter keeps the letter in the URL', async ({ page }) => {
-		await editLinkFromMenu(page, '[data-block-path="[5]"] a.md-autolink');
-		await expectCaretAtUrlEnd(AUTOLINKS[1]);
-		await page.keyboard.press('Backspace');
-		await page.keyboard.type('X');
-
-		await editor.bridge.waitForSourceContains('See <https://example.org/anglX> here');
-	});
-
-	// No URL holds a space, so the word typed after fixing the URL goes after the link.
-	for (const autolink of AUTOLINKS) {
-		test(`after Edit link on ${autolink.name}, a space and a word land past the URL`, async ({
-			page
-		}) => {
-			await editLinkFromMenu(page, `[data-block-path="[${autolink.block}]"] a.md-autolink`);
-			await expectCaretAtUrlEnd(autolink);
-			await page.keyboard.type(' more');
-
-			await editor.bridge.waitForSourceContains(autolink.spaced);
-			await expect(
-				page.locator(`[data-block-path="[${autolink.block}]"] a.md-autolink`)
-			).toHaveCount(1);
-		});
-	}
 
 	for (const host of ['plain', 'modifier'] as const) {
 		test(`a bare URL in a table cell follows its click, ${host} click host`, async ({ page }) => {
@@ -385,21 +357,9 @@ test.describe('autolinks a click follows can be edited', () => {
 		});
 	}
 
-	test('Edit link on a bare URL in a table cell leaves letters typed in the URL', async ({
-		page
-	}) => {
+	test('Edit link on a bare URL in a table cell opens its card', async ({ page }) => {
 		await editLinkFromMenu(page, '.table-cell a.md-autolink');
-		await page.keyboard.type('XY');
 
-		await editor.bridge.waitForSourceContains('https://example.org/cellXY |');
-	});
-
-	test('Edit link on a bare URL in a table cell leaves Backspace taking one letter', async ({
-		page
-	}) => {
-		await editLinkFromMenu(page, '.table-cell a.md-autolink');
-		await page.keyboard.press('Backspace');
-
-		await editor.bridge.waitForSourceContains('https://example.org/cel |');
+		await expectCardHolding(page, 'https://example.org/cell');
 	});
 });

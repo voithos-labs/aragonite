@@ -30,6 +30,9 @@ playwright-report/
 # outside test-results/ so Playwright doesn't wipe them between runs.
 simulation-captures/
 
+# The range-edit law report run (`npm run test:laws:report`) writes its violation list here.
+law-report/
+
 # svelte-package emits a .d.mts beside any .mjs (scripts, the bin) that a compiled
 # src/lib/test file imports; scripts/pack/prune-dist.mjs deletes them after packaging.
 scripts/**/*.d.mts

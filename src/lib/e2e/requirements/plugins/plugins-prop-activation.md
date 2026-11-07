@@ -17,8 +17,8 @@ text, and the fence as the generic directive. Each pane is the other's editor th
 the chord belongs to the second, the parrot syntax to the first.
 
 Miss-analysis: every plugin spec mounted one editor with every plugin it cared about, so no spec
-could see two editors disagree about a plugin. `registry-enablement.md` came closest, but it
-read its answer from the harness-only `__registryEnablement` hook rather than from the prop.
+could see two editors disagree about a plugin. The closest one read its answer from a
+harness-only hook rather than from the prop.
 
 ## Happy paths
 

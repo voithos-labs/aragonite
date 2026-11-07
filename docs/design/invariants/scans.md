@@ -131,7 +131,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.141 | Only the drawn caret writes its element and the mark hiding the browser's caret | L |
 | G4.142 | `caret-color` is declared only for the known surfaces | L |
 | G4.143 | Every caret write asks the drawn caret to repaint, and its frame paint only paints | T·L |
-| G4.144 | The old widget and gap caret painters and the edge ring stay gone | L |
+| G4.144 | No caret blinks but the drawn caret | L |
 | G4.145 | A click decides whether it follows a link or widget through the shared rule only | L |
 | G4.146 | A release tells a click from a drag only through the editor's press tracker | L |
 | G4.147 | Every change to the caret memory repaints the drawn caret, and a no-op asks nothing | harness |
@@ -199,7 +199,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.247 | A production build of the published package carries no dev check | harness |
 | G4.248 | Dev-only code reads one switch, in `dev-checks.ts`, imported by its package name | L |
 | G4.249 | A measured height enters the height table only through `applyMeasured` | L |
-| G4.251 | The bundled blocks that build a render-primary leaf in Svelte are listed | L |
+| G4.251 | No bundled plugin builds a render-primary leaf in Svelte | L |
 | G4.252 | A press's point is read at the press, in `readPress` | L |
 | G4.255 | Every `test.fixme` reason names its issue as `#<n>: ` | L |
 | G4.258 | The fix-up, the chain rebuild and the open tail are imported only by the commit | L |
@@ -220,6 +220,16 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.278 | The plugin template is the bundled parrot and names the editor release it ships with | L |
 | G4.279 | What a finger means, and what kind of pointer this is, is read in one place, `selection/pointer-gesture.ts` | L |
 | G4.280 | Every route into the in-leaf edit is named with its shape, and each shape keeps a reference's destination | L |
+| G4.281 | The selection overlays and handles draw the editor's selection, never the browser's | L |
+| G4.282 | Whether the editor holds the range is asked as `ownsRange`, whatever the range spans | L |
+| G4.284 | Mod+A's steps are decided in one place, where a step that would change nothing goes on to the next | L |
+| G4.289 | A unit test file that writes a rune runs in a DOM environment | L |
+| G4.290 | The `npm create` package ships its bin and the plugin template, nothing else | L |
+| G4.291 | The template's declaration step is the repo's, byte for byte | L |
+| G4.292 | Every documented `npm create` command for a plugin asks for `@latest` | L |
+| G4.295 | The range-edit law harness imports only the routes and reads it names | L |
+| G4.296 | Whether a selection is held is asked of the editor's selection before the browser's, in one module | L |
+| G4.303 | Every block kind's cut, copy and paste facts agree with its registration and its own parse | harness |
 
 ### The entries
 
@@ -426,7 +436,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.107 · An `edit` fires at its write.** The commit frame (every commit and every keystroke written in place), undo and redo, and a replace-all each emit `edit` as their bytes land; a held one would fire against whatever document is there by then. `input` also promises the block kept its kind (`components/link-reference-map.ts` relies on it), so only the in-place write (`editor-actions/commit/leaf-commit.ts`) declares it. `lint/edit-emitters.test.ts` keys each emit on its function.
 
-**G4.108 · One replace for every destructive gesture over a range.** Backspace, Delete, cut, typing, an IME composition, paste and a command key over a cross-block range all go through `range-replace.ts :: replaceRange`, which picks the removal from the coverage and keeps the gesture one undo entry with one landing. Under `selection/cross-block/`, `rangeDelete`, `removeHeldWhole`, `commitGridLineDelete` and opening an `undoStep` are allowed there only; the range indent opens its own step, since it removes nothing. `lint/file-rules.test.ts`.
+**G4.108 · One replace for every destructive gesture over a range.** Backspace, Delete, cut, typing, an IME composition, paste and a command key over a cross-block range all go through `range-replace.ts :: replaceRange`, which picks the removal from the coverage and keeps the gesture one undo entry with one landing. Under `selection/cross-block/`, `rangeDelete`, `removeHeldWhole`, `commitGridLineDelete` and opening an `undoStep` are allowed there only; the range indent opens its own step, since it removes nothing. G1.174 holds a typed key. `lint/file-rules.test.ts`.
 
 **G4.109 · A rebuilt container starts from its source's bytes.** A strip rebuild keeps a line by pairing it with the container's previous bytes, so a container built around another's children (the quote an alert leaves after a lift) starts with that container's `raw`; with an empty `raw` its first rebuild respells every line. `lint/fresh-container-bytes.test.ts` fails an object literal with both `raw: ''` and `children` under `tree-operations/`, `editor-actions/` or `selection/`, outside a short list of builders of genuinely new containers.
 
@@ -466,9 +476,9 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.142 · `caret-color` on the known surfaces only.** The production CSS and Svelte styles declare `caret-color` for `[data-caret-drawn]`, the cross-block rule, `.whole-block-input` and the gap caret's proxy, each with its reason, and nothing else: another rule would hide or recolor the browser's caret behind the drawn caret's back. `lint/drawn-caret-guards.test.ts`.
 
-**G4.143 · Every caret write asks for a paint.** `browser/caret-writer.ts` writes the native selection only inside `createCaretWriter`, whose writes and clears call `drawnCaret.request`; `test/caret/caret-writer-request.test.ts` calls every writer method and counts one request each (its table typed over the writer's keys). The frame callback in `caret/drawn-caret.svelte.ts` calls `paint` and nothing else, keeping G4.4's allowlisted frame paint read-only. `lint/drawn-caret-guards.test.ts`.
+**G4.143 · Every caret write asks for a paint.** `browser/caret-writer.ts` writes the native selection only inside `createCaretWriter`, whose writes and clears call `drawnCaret.request`; `test/browser/caret-writer-request.test.ts` calls every writer method and counts one request each (its table typed over the writer's keys). The frame callback in `caret/drawn-caret.svelte.ts` calls `paint` and nothing else, keeping G4.4's allowlisted frame paint read-only. `lint/drawn-caret-guards.test.ts`.
 
-**G4.144 · The old widget and gap caret painters and the edge ring stay gone.** Nothing under `src/lib`, tests included, names the classes the old widget and gap carets painted with (`md-snap-after`, `md-snap-before`, `md-snap-caret-active`, `gap-caret-line`), the edge ring's names (`md-edge-held`, its token, `EDGE_HELD_CLASS`, `heldElements`), or a caret blink `@keyframes` other than `md-caret-blink-a`/`-b`. A second element painting a caret cue is a second caret; draw it as a state or a look of the drawn caret. `lint/drawn-caret-guards.test.ts`.
+**G4.144 · No caret blinks but the drawn caret.** Nothing under `src/lib`, tests and styles included, declares a caret or blink `@keyframes` other than the drawn caret's `md-caret-blink-a`/`-b`. A cue that blinks beside a widget, at a gap or on a construct at its edge is a second caret; draw it as a state or a look of the drawn caret. `lint/drawn-caret-guards.test.ts`.
 
 **G4.145 · One rule for whether a click follows.** A file that handles a click doesn't test `ctrlKey || metaKey` (or `!ctrlKey && !metaKey`) itself; it asks `src/lib/activation-click.ts` (through `EditorPolicies.activationClick`, `EditorContext.isActivationClick` or a widget's `isActivationClick` prop), which reads the mode and the host's `linkClick` at the click. The allowlist holds the reads that decline a modified key or press, and the diagram's zoom and commit shortcuts. `lint/file-rules.test.ts`.
 
@@ -554,7 +564,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.219 · Popovers don't close on blur.** Safari never focuses a clicked button, so a popover waiting on its opener's `focusout` just stays open. Popovers close through `menuPresence.track` (G4.67) instead, and every `focusout` or `blur` listener left in the library is listed with the focus need it serves (a shown source committing, say). A new one joins the list with its reason, or moves its close onto `track`. `lint/focus-loss-listeners.test.ts`.
 
-**G4.220 · One system clipboard module.** A read or write of the clipboard outside a clipboard event (menu Copy and Paste, whole-block Mod+C, the code block's Copy button) goes through `editor-actions/system-clipboard.ts`, where a refused call resolves to nothing instead of an unhandled rejection. A read waits for a closing menu to leave the page (Safari draws its Paste prompt over it), and a whole block copies through `copyBlockToClipboard`, so every route writes the same text. `lint/system-clipboard-calls.test.ts`.
+**G4.220 · One system clipboard module.** A read or write of the clipboard outside a clipboard event (menu Copy and Paste, whole-block Mod+C, the code block's Copy button) goes through `editor-actions/system-clipboard.ts`, where a refused call resolves to nothing instead of an unhandled rejection. A read waits for a closing menu to leave the page (Safari draws its Paste prompt over it), and a block's text (its Markdown, or a fence's code from the Copy button) copies through `copyBlockToClipboard`, so every route writes the same text. `lint/system-clipboard-calls.test.ts`.
 
 **G4.221 · Clipboard text the engines agree on.** A paste with no paste event of its own (the menus' Paste rows) hands its text to the focused block's `insertMarkdown` or `insertPlainText`, since Firefox empties `clipboardData` on a `new ClipboardEvent(...)`. The selection's shown text is read only through `shownSelectionText` (`browser/selection-read.ts`), which reads LF where Firefox on Windows writes CRLF, and nothing for an empty block's placeholder `<br>` selected alone. `lint/file-rules.test.ts`.
 
@@ -598,7 +608,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.249 · One way into the height table.** A block's measured height is written to the list's height table and the estimator only by `windowing/list-windowing.svelte.ts :: applyMeasured`, which holds a height within a pixel of its record as that record, so a block remounting a fraction of a pixel off moves no scroll. `lint/file-rules.test.ts`.
 
-**G4.251 · The bundled Svelte reveal blocks are listed.** Every bundled plugin file that builds a render-primary leaf in Svelte (`mode: 'render-primary'`) is on a declared list: block math, the outline and the parrot. It's there so moving them onto `defineBlockView` starts from a list, not a grep, and it guards nothing inside a listed file. `lint/file-rules.test.ts`.
+**G4.251 · No bundled block builds its rendered view in Svelte.** A bundled plugin's block that shows a rendered view until clicked builds it with `defineBlockView({ surface: 'render-primary' })`, the way a plugin author would, never with a Svelte component's own `mode: 'render-primary'`. Block math and the outline are allowed until they move to `defineBlockView` with the plugin interface redesign, before 0.12.0. `lint/file-rules.test.ts`.
 
 **G4.252 · A press is read at the press.** The prose blocks' point readers (the widget hit, the source offset it names, the click side, the nearest widget edge, the shown-source test) are called only in `widget-interaction.ts` :: `readPress` and `islandDragAnchor`, which a press runs at pointer-down (`readPress` also serves `placeCaretAtPoint` and the keyboard menu, where no press moves anything). By the click, the press may have closed a shown source and moved the line under the point. `lint/call-site-rules.test.ts`.
 
@@ -626,16 +636,36 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.273 · An IME key is never a command.** A keydown handler that runs a command starts with `imeOwnsKey(e)`, which also catches the key opening a composition (code 229, `isComposing: false` in Chromium and WebKit). The scan counts each file's keydown wirings against its `imeOwnsKey` calls, and lists a forward to a handler that asks, or a listener that runs no command, with why. The bundled plugins ask too, through the `imeOwnsKey` the plugin entry point exports. `lint/ime-key-fence.test.ts`.
 
-**G4.274 · One home for where a typed letter lands.** The `insert` intent (off `readInput`) and `isPlainTypingKey` are read only in `components/blocks/editable/typed-insert.ts` and a short list, each with its reason: the delimiter auto-pair, the range edits (live, across blocks, over a widget), the caret hosts, the composition tracker, a code body and a painted source, the selected widget's splice, the open line and the image dialog's own fields. `lint/typed-insert-home.test.ts`.
+**G4.274 · One home for where a typed letter lands.** The `insert` intent (off `readInput`) and `typesCharacter` (`schema/keybindings.ts`, the one answer to which keys type) are read only in `components/blocks/editable/typed-insert.ts` and a short list, each with its reason: the delimiter auto-pair, the range edits (live, across blocks, over a widget), the caret hosts, the composition tracker, a code body and a painted source, the selected widget's splice, the open line, a text field's own keys and the image dialog's own fields. `lint/typed-insert-home.test.ts`.
 
 **G4.275 · One word rule.** Engines' word segmenters disagree whether a full stop or a colon between two letters joins them (Chromium cuts `foo.bar`, Firefox and WebKit join it) and which segments are words (Firefox calls some Japanese ones none), so `Intl.Segmenter` is read only in `core/text-units.ts`, whose `wordSegments` always cuts there and calls a segment a word when it holds a letter or a digit. The word delete, the word keys and the double-click read words through it. `lint/file-rules.test.ts`.
 
 **G4.276 · One reader for a widget's raw span.** A widget or a decoration says which raw bytes it stands for in `data-source-start` and `data-source-end`, and only `core/inline/widget-shell.ts :: widgetSourceRange` parses them back. It answers null unless both parse, so no reader trusts half a span. Writing them is fine anywhere. `lint/file-rules.test.ts`.
 
-**G4.277 · A bundled plugin is an outside author's package.** Each non-wrapper under `packages/` imports only the core's `/plugin` and `/svelte`, `svelte`, its own files and its declared peers, an engine only from `renderer.ts`. Its manifest carries the core's version, peers on exactly it, keeps other peers optional, lists stylesheet importers in `sideEffects` and publishes `./conformance`, which names `/testing`'s types and loads none of it. `lint/plugin-packages.test.ts`.
+**G4.277 · A bundled plugin is an outside author's package.** Each plugin under `packages/` imports only the core's `/plugin` and `/svelte`, `svelte`, its own files and its declared peers, an engine only from `renderer.ts`, and names every priority as an offset from `OPENER_PRIORITIES` or `INLINE_PRIORITIES`. Its manifest carries the core's version, peers on exactly it, keeps other peers optional, lists stylesheet importers in `sideEffects` and publishes `./conformance`, which names `/testing`'s types and loads none of it. `lint/plugin-packages.test.ts`.
 
-**G4.278 · The template is the parrot, at the editor's version.** `templates/plugin/src` holds the bundled parrot's files byte for byte, as the parrot holds the plugin guide's, so the guide, the package and the template can't disagree. Its exact devDependency, its caret peer, the workflow tag it and the testing guide call, and the tag the guide and README fetch it by all name the core's version. `plugins/parrot/guide-parity.test.ts` · `lint/lockstep-versions.test.ts`.
+**G4.278 · The template is the parrot, at the editor's version.** `packages/create-aragonite-plugin/template/src` holds the bundled parrot's files byte for byte, so the guide, the package and the template can't disagree. Its exact devDependency, its caret peer, the peer its README quotes, and the workflow tag it and the testing guide call all name the core's version. The `npm create` package carries that version and peers nothing, since npm would install the editor with it. `plugins/parrot/guide-parity.test.ts` · `lint/lockstep-versions.test.ts`.
 
-**G4.279 · One answer to "is this a finger?".** A finger's drag is the browser's (a scroll, a long press), so only `selection/pointer-gesture.ts` reads `pointerType` or the page's fine or coarse pointer (the drawn caret is handed `finePointer`); the hover marks and the input recorder read them for their own reasons, and a CSS `@media (pointer: …)` is styling. A drag session names who drags for a finger in its required `touch`, and a clearing press waits for the tap through `clearOnPress`. `lint/file-rules.test.ts`.
+**G4.279 · One answer to "is this a finger?".** A finger's drag is the browser's (a scroll, a long press), so only `selection/pointer-gesture.ts` reads `pointerType` or the page's fine or coarse pointer (the drawn caret is handed `finePointer`); the hover marks and the input recorder read them for their own reasons, and CSS `@media (pointer: …)` is styling. A drag session names who drags for a finger in its `touch`; `clearOnPress` waits for a tap, and hands a long press's range over with a `FingerPress` (G1.170). `lint/file-rules.test.ts`.
 
 **G4.280 · A reference keeps its destination on every route.** A live edit of a shortcut or collapsed reference's text spells it `[text][label]` first, inside `replaceRangeInLeaf`, and the block's text write does it for a keystroke at a caret. Every file calling the in-leaf edit is named with the shapes of edit it makes, so a new route fails until it's listed, and each shape has a row. `tree-operations/reference-label-edit.test.ts`.
+
+**G4.281 · The overlays draw the editor's selection.** A handle on a native range is one a phone already draws its own handles on, and every range a finger makes is in `SelectionState`, so no file under `components/overlays/` reads the native selection. `file-rules.test.ts`.
+
+**G4.282 · One question for who holds the range.** The editor holds a range across blocks, a rectangle of cells, a block held whole, and a finger's range inside one block, and every read of that asks `SelectionState.ownsRange`; a read that means a range inside one block asks `rangeInOneBlock`, and one that means two blocks compares paths (`rangeSpansBlocks`). The old names, `isCrossBlock` and the test surface's `isCrossBlockActive`, read as a span, so the scan fails them anywhere. `file-rules.test.ts`.
+
+**G4.284 · One home for Mod+A's steps.** A press selects the block's text, then the document, and skips the block's step when it would change nothing (an empty block, or one already all selected; `selection/cross-block/keydown.ts`); a block focused whole has no text step. A block planning its own presses would skip that rule, so the scan fails any other file that reads the chord. `file-rules.test.ts`.
+
+**G4.289 · Runes in a test need a DOM environment.** A test file under `src/lib/test` that writes `$state`, `$derived` or `$effect` names jsdom as its environment. Without it the file runs in Node, where Svelte's server build makes `$state` a plain value and never runs an `$effect.root` body, so a test of something reactive passes without testing it. Vitest takes the first `@vitest-environment` tag anywhere in the file, even one inside a string, and so does the scan. `lint/suite-file-rules.test.ts`.
+
+**G4.290 · The starter ships what a checkout holds.** `npm pack` packs everything under a folder `files` names, whatever the repository's `.gitignore` says, so a template someone built or installed in place would ship its `dist` and `node_modules`. The create package's `files` excludes those by name, and its packed file list must equal its files in git, tracked or new and not ignored. `plugins/create-plugin.test.ts`.
+
+**G4.291 · One declaration step.** A stylesheet import in a published `.d.ts` fails a host that type-checks with `skipLibCheck` off (TS2882), so every package's build drops them. The template can't import a repo script, so `packages/create-aragonite-plugin/template/scripts/strip-declaration-css.mjs` is a copy of `scripts/pack/strip-declaration-css.mjs`, byte for byte. `plugins/parrot/guide-parity.test.ts`.
+
+**G4.292 · The documented command asks for `@latest`.** npm runs a starter it fetched before when the command names no version, so a reader who copies a command without `@latest` can get an old template. Every `npm create`, `npm init` or `npx` spelling of it in the docs and the package READMEs says `@latest`; the changelog is exempt. `plugins/create-plugin.test.ts`.
+
+**G4.295 · The law harness drives the editor by its routes.** A file under `src/lib/test/range-laws/` imports the shared test harness, the generators, the public entry point, the e2e case table, and the few reads the law checks need, each listed with its reason; anything else, a tree operation above all, fails. A law checked by calling the core directly would pass while the routes that reach it disagree, which is where the range-edit bugs have lived. `lint/range-laws-imports.test.ts`.
+
+**G4.296 · Whether a selection is held is asked in one place.** While the editor holds a range or a widget, the browser's selection is a caret, so a read of the browser's alone takes the user's selection for none, and a menu's Cut and Copy go dark over a range across blocks. `selection/held-selection.ts` asks the editor's selection first, and only it reads `holdsNativeRange` and `nativeRangeIn`, anywhere in the library. `file-rules.test.ts`.
+
+**G4.303 · Block facts agree with the registrations.** `schema/block-facts.ts :: blockFacts` gives a kind's cut, copy and paste facts as data. With every bundled plugin installed, each one must equal what the registration already says (`bodyWrap`, `mergeRole`, `mustHoldChild`, the title row, a DOM view's surface), and the test writes out only what nothing else states. Every container has a line shape, and a merge key names a field the kind's own parse sets, or every pair would merge. When it fires, fix the kind's declaration. `test/schema/block-facts.test.ts`.

@@ -72,12 +72,22 @@ export function menuAtClipboardRead(page: Page): Promise<boolean | undefined> {
 	return page.evaluate(() => (window as any).__menuAtClipboardRead);
 }
 
-/** Make every clipboard write the page tries fail, as a webview without clipboard access does. */
+/** Make every clipboard write the page tries fail, as a webview without clipboard access does;
+ *  `refusedClipboardWrites` counts them. */
 export async function refuseClipboardWrites(page: Page): Promise<void> {
 	await page.evaluate(() => {
-		navigator.clipboard.writeText = () =>
-			Promise.reject(new DOMException('Write permission denied.', 'NotAllowedError'));
+		(window as any).__refusedWrites = 0;
+		const refused = () => {
+			(window as any).__refusedWrites += 1;
+			return Promise.reject(new DOMException('Write permission denied.', 'NotAllowedError'));
+		};
+		navigator.clipboard.writeText = refused;
+		navigator.clipboard.write = refused;
 	});
+}
+
+export function refusedClipboardWrites(page: Page): Promise<number> {
+	return page.evaluate(() => (window as any).__refusedWrites);
 }
 
 // ── A paste event carrying data ─────────────────────────────────────────────

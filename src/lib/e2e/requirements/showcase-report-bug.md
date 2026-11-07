@@ -4,7 +4,8 @@ The `/` showcase bar's "report a bug" button records the visitor's input and ope
 
 ## Happy paths
 
-- Press the button: a card says the recording includes everything typed and the whole document's text, and that a submitted issue is public. Start recording turns the button into "stop and report"; typing, then pressing it, opens `issues/new?template=bug.yml` in a new tab with `where` (version, browser, OS, mode) filled in. The showcase's own document is too long for a link, so the recording (with text) goes on the clipboard, fenced, and the form's Recording field says to paste it.
+- Press the button: a card says the recording includes everything typed and the whole document's text, and that a submitted issue is public. Start recording turns the button into "stop and report"; typing, then pressing it, opens `issues/new?template=bug.yml` in a new tab with `where` (version, browser, OS, mode) filled in. The showcase's own document is too long for a link, so the recording (with text) goes on the clipboard, fenced, and the card says to paste it into the form's Recording field. The link fills only `where`: GitHub's form puts a link-filled value back over whatever the visitor pastes.
+  Miss-analysis: the link filled the Recording field with an instruction, and no case pasted into the real form.
 
 ## User interactions
 
@@ -14,6 +15,12 @@ The `/` showcase bar's "report a bug" button records the visitor's input and ope
   is the editor's: the card stays and the editor keeps focus.
   Miss-analysis: the first case pressed Escape with focus in the editor and asserted the card
   closed, so it pinned the focus steal as the contract.
+
+## Edge cases
+
+- On a phone-width screen the card stays inside the viewport: it spans the header with a gutter
+  instead of hanging left off the button, which sits too close to the screen's edge for it.
+  Miss-analysis: every case ran at the desktop viewport, where the card fits left of the button.
 
 ## Error cases
 

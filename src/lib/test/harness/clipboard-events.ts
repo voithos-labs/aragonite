@@ -1,12 +1,19 @@
-// jsdom has no clipboard events, no `DataTransfer` and no `execCommand`. These stand in for all
-// three, so a unit test drives a menu's clipboard rows through the events a browser fires.
+// jsdom has no clipboard events, no `DataTransfer`, no `execCommand` and no `navigator.clipboard`.
+// These stand in for all four, so a unit test drives a copy, a cut, a paste and a menu's clipboard
+// rows through the events and calls a browser makes.
 
 import { vi } from 'vitest';
 
-class StubDataTransfer {
+export class StubDataTransfer {
 	readonly files: File[] = [];
 	readonly items: DataTransferItem[] = [];
-	private readonly data = new Map<string, string>();
+	readonly data = new Map<string, string>();
+	constructor(payload: Record<string, string> = {}) {
+		for (const [type, value] of Object.entries(payload)) this.data.set(type, value);
+	}
+	get types(): string[] {
+		return [...this.data.keys()];
+	}
 	setData(type: string, value: string): void {
 		this.data.set(type, value);
 	}
@@ -23,17 +30,72 @@ class StubClipboardEvent extends Event {
 	}
 }
 
+/** A clipboard event of `type` carrying `clipboardData`, sent to `target` as the browser sends it. */
+export function dispatchClipboardEvent(
+	target: EventTarget,
+	type: 'copy' | 'cut' | 'paste',
+	clipboardData: StubDataTransfer
+): Event {
+	const event = new StubClipboardEvent(type, { clipboardData, bubbles: true, cancelable: true });
+	target.dispatchEvent(event);
+	return event;
+}
+
+let commandFires = true;
+let lastCommandData: StubDataTransfer | null = null;
+
+/** `fires: false` is WebKit's command over the lone caret under a range the editor holds: it fires
+ *  no event. */
+export function setCommandFires(fires: boolean): void {
+	commandFires = fires;
+}
+
+/** The clipboard the last scripted copy or cut wrote into, read once. */
+export function takeCommandClipboard(): StubDataTransfer | null {
+	const taken = lastCommandData;
+	lastCommandData = null;
+	return taken;
+}
+
 export function installClipboardEvents(): void {
 	vi.stubGlobal('DataTransfer', StubDataTransfer);
 	vi.stubGlobal('ClipboardEvent', StubClipboardEvent);
+	commandFires = true;
 	document.execCommand = vi.fn((command: string) => {
 		if (command !== 'cut' && command !== 'copy') return false;
-		const event = new StubClipboardEvent(command, {
-			clipboardData: new StubDataTransfer(),
-			bubbles: true,
-			cancelable: true
-		});
-		document.activeElement?.dispatchEvent(event);
+		if (!commandFires) return false;
+		lastCommandData = new StubDataTransfer();
+		dispatchClipboardEvent(document.activeElement ?? document.body, command, lastCommandData);
 		return true;
 	});
+}
+
+// ── The system clipboard ─────────────────────────────────────────────────────
+
+class StubClipboardItem {
+	constructor(readonly items: Record<string, Blob>) {}
+}
+
+/** What the page's `navigator.clipboard` holds, by type. */
+export const systemClipboard = new Map<string, string>();
+
+/** A `navigator.clipboard` that reads and writes {@link systemClipboard}, as a granted permission
+ *  lets a menu's rows do. */
+export function installSystemClipboard(): void {
+	vi.stubGlobal('ClipboardItem', StubClipboardItem);
+	systemClipboard.clear();
+	const clipboard = {
+		readText: async () => systemClipboard.get('text/plain') ?? '',
+		writeText: async (text: string) => {
+			systemClipboard.clear();
+			systemClipboard.set('text/plain', text);
+		},
+		write: async ([item]: StubClipboardItem[]) => {
+			systemClipboard.clear();
+			for (const [type, blob] of Object.entries(item.items)) {
+				systemClipboard.set(type, await blob.text());
+			}
+		}
+	};
+	Object.defineProperty(navigator, 'clipboard', { value: clipboard, configurable: true });
 }

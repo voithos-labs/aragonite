@@ -53,11 +53,11 @@ describe('history swap: a snapshot whose selection no longer resolves', () => {
 			}
 		});
 		deps.selectionState.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 1 });
-		expect(deps.selectionState.isCrossBlock).toBe(true);
+		expect(deps.selectionState.ownsRange).toBe(true);
 
 		await history.requestUndo();
 
-		expect(deps.selectionState.isCrossBlock).toBe(false);
+		expect(deps.selectionState.ownsRange).toBe(false);
 	});
 });
 
@@ -152,7 +152,7 @@ describe('history swap: the restored selection notifies once, after the placemen
 		await history.requestUndo();
 
 		expect(log).toEqual(['notify']);
-		expect(deps.selectionState.isCrossBlock).toBe(false);
+		expect(deps.selectionState.ownsRange).toBe(false);
 	});
 });
 

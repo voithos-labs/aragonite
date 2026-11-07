@@ -83,7 +83,8 @@
 	import { createPasteCoordinator } from '../editor-actions/paste-coordinator';
 	import { createOperationsLog } from '../debug/operations-log';
 	import { createEditorDiagnostics } from '../debug/editor-diagnostics';
-	import { holdsNativeRange, readNativeSelection } from '../browser/selection-read';
+	import { readNativeSelection } from '../browser/selection-read';
+	import { rangeHolder } from '../selection/held-selection';
 	import { readCurrentSelection, readDomPoint } from '../selection/native-bridge';
 	import { createCaretRestore, type CaretRestoreDeps } from '../selection/caret-restore';
 	import { createRoundTripRestore } from '../selection/round-trip-restore';
@@ -142,12 +143,13 @@
 	import { activationFor, everyInstalledPlugin } from '../schema/plugin-activation';
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
 	import { insertCatalogue, type InsertEntry } from '../schema/insert-catalogue';
-	import { createRegistryView, type KindEnablement } from '../schema/registry-view';
+	import { createRegistryView } from '../schema/registry-view';
 	import type { Reading } from '../schema/reading';
 	import { hidesDelimitersAtCaret, type PresentationMode } from '../presentation-mode';
 	import BlockList from './BlockList.svelte';
 	import SearchBar from './SearchBar.svelte';
 	import SelectionToolbar from './menu/SelectionToolbar.svelte';
+	import type { MenuClipboard } from './menu/clipboard-actions';
 	import ImageOverlayHost from './image/ImageOverlayHost.svelte';
 	import SelectionGapFill from './overlays/SelectionGapFill.svelte';
 	import SelectionHandles from './overlays/SelectionHandles.svelte';
@@ -157,7 +159,7 @@
 	import { createInlineMenuState } from '../inline-menu/inline-menu-state.svelte';
 	import type { InlineMenuRegistry } from '../inline-menu/types';
 	import { createInlineRangeCommit } from '../editor-actions/inline-range-commit';
-	import { createLinkCardState } from './link-card/link-card-state.svelte';
+	import { createLinkCardState, linkCardGates } from './link-card/link-card-state.svelte';
 	import { runStartupInvariantChecks } from '../invariants/install';
 	import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 	import { checkMarkerCssParity } from '../invariants/marker-css-parity';
@@ -168,8 +170,6 @@
 	registerEditorBuiltIns();
 	runStartupInvariantChecks();
 
-	// `__registryEnablement` is for tests only; the intersection type keeps it off the
-	// public EditorProps.
 	let {
 		source,
 		resolveImageUrl,
@@ -195,9 +195,8 @@
 		scrollMode = 'self',
 		plugins,
 		syntax,
-		__registryEnablement,
 		..._unlisted
-	}: EditorProps & { __registryEnablement?: KindEnablement } = $props();
+	}: EditorProps = $props();
 	// Every option is named above: an option missing from that list fails to compile here.
 	void ({} satisfies { [K in keyof typeof _unlisted]-?: never });
 
@@ -242,11 +241,9 @@
 
 	// ── State ───────────────────────────────────────────────────────────
 
-	// This editor's view of the global registries; `__registryEnablement` narrows it in tests.
 	// svelte-ignore state_referenced_locally
 	const registryView = createRegistryView({
 		plugins: pluginEntries ? activePlugins : undefined,
-		isEnabled: __registryEnablement,
 		syntax
 	});
 
@@ -353,7 +350,7 @@
 	});
 
 	let selectionDescription = $derived(
-		selectionState.isCrossBlock && selectionState.anchor && selectionState.focus
+		selectionState.ownsRange && selectionState.anchor && selectionState.focus
 			? createSelectionDescription({ anchor: selectionState.anchor, focus: selectionState.focus })
 			: ''
 	);
@@ -504,13 +501,10 @@
 	// ── Link card ───────────────────────────────────────────────────────
 
 	// The caret snapshot and entry checks live on the link card state so no entry path skips
-	// them. Each refuses a cross-block range; a click also refuses a selection, which create needs.
-	const linkCard = createLinkCardState({
-		onOpen: () => linkCardCaret.saveCurrent(),
-		canOpen: () => !selectionState.isCrossBlock && !holdsNativeRange(),
-		canEnter: () => !selectionState.isCrossBlock,
-		canOpenCreate: () => !selectionState.isCrossBlock && holdsNativeRange()
-	});
+	// them. Each refuses a range across blocks; a click also refuses a selection, which create needs.
+	const linkCard = createLinkCardState(
+		linkCardGates(selectionState, () => linkCardCaret.saveCurrent())
+	);
 
 	// ── Hidden-run class check ──────────────────────────────────────────
 
@@ -674,7 +668,7 @@
 		revealPath: (path) => caretLanding.mount(path, { openCollapsed: true }),
 		getEditorRoot: () => editorEl ?? null,
 		scroll: scrollOwner,
-		isCrossBlock: () => selectionState.isCrossBlock,
+		ownsRange: () => selectionState.ownsRange,
 		isHostChrome,
 		landCaretAt: navigateCaret,
 		caretRectAt,
@@ -713,7 +707,7 @@
 	const spellHover = createSpellHover({
 		open: (misspelling, anchor) => rootMenus.openSpellingMenu(misspelling, anchor),
 		menusOpen: () => menuPresence.isOpen,
-		rangeSelected: () => selectionState.isCrossBlock || holdsNativeRange(),
+		rangeSelected: () => rangeHolder(selectionState) !== null,
 		// The menu renders beside the root, not in it, so the page is asked.
 		pointerOnMenu: () => !!document.querySelector('.block-menu:hover')
 	});
@@ -869,8 +863,9 @@
 		pluginEditor: pluginEditorLookup,
 		activation: activePlugins,
 		getPresentationMode: reading.mode,
-		isCrossBlockRange: () => selectionState.isCrossBlock,
-		holdsNativeRange,
+		ownsRange: () => selectionState.ownsRange,
+		rangeInOneBlock: () => selectionState.rangeInOneBlock,
+		holdsRange: () => rangeHolder(selectionState) !== null,
 		crossBlockCommands,
 		markActivation,
 		undoStack: undoManager,
@@ -892,6 +887,12 @@
 		selection: selectionState,
 		getDoc
 	});
+
+	// Read at a row's press, when both halves exist.
+	const menuClipboard: MenuClipboard = {
+		take: () => rootClipboard.takeForMenu(),
+		pasteTarget: () => focusedSurface.aimInsertAtFocus()
+	};
 
 	setContext(EDITOR_SERVICES_KEY, {
 		events,
@@ -918,6 +919,7 @@
 		rects,
 		commands,
 		menuPresence,
+		menuClipboard,
 		drafts,
 		shownSource,
 		stamps,
@@ -1019,6 +1021,7 @@
 		get editorEl() {
 			return editorEl;
 		},
+		finger: () => fingerPress,
 		get mode() {
 			return reading.mode();
 		},
@@ -1028,9 +1031,9 @@
 		placeMenuCaret: (x: number, y: number) =>
 			editorEl ? rootGestures.placeMenuCaret(editorEl, x, y) : false,
 		rangeAtContextPress: () => (editorEl ? rootGestures.rangeAtContextPress(editorEl) : false),
-		holdsWidget: () => selectionState.widget !== null,
+		selection: selectionState,
 		insertMarkdown,
-		aimInsertAtFocus: () => focusedSurface.aimInsertAtFocus(),
+		clipboard: menuClipboard,
 		insertCatalogue: getInsertCatalogue,
 		activation: activePlugins,
 		reading,
@@ -1066,9 +1069,9 @@
 	// test, so a range it does not paint keeps the native one.
 	rootEffect((root) => {
 		if (selectionState.isCustomRendered) {
-			root.setAttribute('data-cross-block', '');
+			root.setAttribute('data-painted-range', '');
 		} else {
-			root.removeAttribute('data-cross-block');
+			root.removeAttribute('data-painted-range');
 		}
 	});
 
@@ -1118,6 +1121,7 @@
 	const editorCrossBlock = createCrossBlockHandlers({
 		getEl: () => editorEl ?? null,
 		getMyPath: () => selectionState.focus?.path ?? [],
+		caretBounds: () => null,
 		selection: selectionState,
 		caretWriter,
 		standInCaret: readingFocus.focusCaret,
@@ -1147,8 +1151,8 @@
 		get canReplace() {
 			return canReplace;
 		},
-		get isCrossBlock() {
-			return selectionState.isCrossBlock;
+		get ownsRange() {
+			return selectionState.ownsRange;
 		},
 		search: searchState,
 		commands,
@@ -1371,6 +1375,7 @@
 			return editorEl;
 		},
 		selection: selectionState,
+		pasteOverRange: (md) => editorCrossBlock.handlePaste(null, md),
 		getDoc,
 		getBlockComponent,
 		isReading: () => effectiveMode === 'reading',
@@ -1505,7 +1510,7 @@
 		getBlockComponent,
 		getUndoStack: () => undoManager.getStacks(),
 		getOperationsLog: () => operationsLog,
-		isCrossBlockActive: () => selectionState.isCrossBlock,
+		ownsRange: () => selectionState.ownsRange,
 		getGapCaret: () => selectionState.gapCaret,
 		getKeyFocus: (e) => keyClaims.readKeyFocus(e),
 		getDecorationEngine: () => decorationEngine,
@@ -1604,6 +1609,7 @@
 			}}
 			root={editorEl}
 			finger={() => fingerPress}
+			clipboard={menuClipboard}
 			{menuPresence}
 		/>
 	{/if}

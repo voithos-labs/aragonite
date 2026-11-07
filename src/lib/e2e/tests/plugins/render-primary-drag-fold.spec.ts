@@ -35,7 +35,7 @@ test.describe('a drag out of a shown render-primary source', () => {
 
 		await expect(page.locator('.math-block-editing')).toHaveCount(0);
 		await expect(page.locator('.math-block-render')).toBeVisible();
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.ownsRange()).toBe(true);
 	});
 
 	test('the range copies what lies between its two ends', async ({ page }) => {

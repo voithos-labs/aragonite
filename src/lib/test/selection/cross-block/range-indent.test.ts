@@ -16,7 +16,7 @@ import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
 
 beforeAll(installLayoutStubs);
 
-type Seam = { getUndoStack(): { undo: UndoEntry[] }; isCrossBlockActive(): boolean };
+type Seam = { getUndoStack(): { undo: UndoEntry[] }; ownsRange(): boolean };
 let mounted: MountedEditor<Seam>;
 afterEach(async () => {
 	if (mounted) await mounted.destroy();
@@ -52,7 +52,7 @@ async function pressOver(
 }
 
 const undoDepth = () => mounted.instance.__test.getUndoStack().undo.length;
-const rangeLive = () => mounted.instance.__test.isCrossBlockActive();
+const rangeLive = () => mounted.instance.__test.ownsRange();
 
 const SECTION = 'intro\n\nAgreed work\n- alpha\n- beta\n- gamma\n\nLoose ends\n';
 // From the end of the last item up to the start of the line above the list, drawn upward.

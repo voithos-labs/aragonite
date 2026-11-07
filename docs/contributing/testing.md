@@ -22,6 +22,7 @@ Where to jump:
 - [Size budgets](#size-budgets): the first-load budget that reds when it moves, how to accept a move on purpose, and the report numbers that don't gate.
 - [The behavior differential](#the-behavior-differential): every key at every offset of a set of documents, compared before and after your change, so a refactor can show it changed nothing.
 - [Every short input](#every-short-input): every string up to a few characters long, parsed, round-tripped and edited at every offset.
+- [The range-edit laws](#the-range-edit-laws): copy, cut, paste, typing and deleting over a range, held to the rules that make them agree with each other.
 - The performance harness (fixtures, instruments, threshold policy) lives in `docs/design/performance.md` § The numbers and the gate.
 - The debug panel, its console helpers, and dumping editor state inside a test are in [`debugging.md`](debugging.md).
 
@@ -49,11 +50,11 @@ $ npm run test:editor:undo
 
 ## Unit tests (Vitest)
 
-No browser. Node by default, with a file opting into jsdom via a `// @vitest-environment jsdom` docblock where it needs a DOM (every `*.svelte.test.ts` that mounts a component does). The round-trip tests at `test/` root check that parsing then serializing gives back the exact input, so if you touch the parser or the serializer, that's the suite to watch first.
+No browser. Node by default, with a file opting into jsdom via a `// @vitest-environment jsdom` docblock where it needs a DOM (every `*.svelte.test.ts` that mounts a component does). A file that writes a rune needs it too, mount or not: in Node, Svelte's server build makes `$state` a plain value and never runs an effect, so the test passes without testing anything (G4.289 catches the file that forgets). The round-trip tests at `test/` root check that parsing then serializing gives back the exact input, so if you touch the parser or the serializer, that's the suite to watch first.
 
 ### Where a test file goes
 
-`src/lib/test/` mirrors the source tree one-for-one, with the leading `components/` segment dropped for its subfolders, so `components/blocks/list/X.ts` maps to `test/blocks/list/X.test.ts`. The files sitting directly in `components/` (`BlockHost.svelte`, `Editor.svelte`) test under `test/components/`; `components/editor-root/` tests under `test/editor-root/`. When the module under test moves into a subdirectory, its test follows.
+`src/lib/test/` mirrors the source tree one-for-one, with the leading `components/` segment dropped for its subfolders, so `components/blocks/list/<name>.ts` maps to `test/blocks/list/<name>.test.ts`. The files sitting directly in `components/` (`BlockHost.svelte`, `Editor.svelte`) test under `test/components/`; `components/editor-root/` tests under `test/editor-root/`. When the module under test moves into a subdirectory, its test follows.
 
 Mirror **import depth**, not just the module's directory: a test importing `tree-operations/list/ordered-markers` directly (rather than the `tree-operations` barrel) lives at `test/tree-operations/list/ordered-markers.test.ts`.
 
@@ -279,7 +280,7 @@ The plugin specs drive `/test/plugins` (`src/routes/test/plugins/+page.svelte`),
 - `hloccur-scan/`: the bundled highlight-occurrences plugin with an `onScan` counter on `window`, for counting rescans. Seed `hloccur-memo`.
 - `sim-mark/` and `sim-island/`: standing decoration sources for the simulation (its own section below). One marks every whole-word `paragraph`; the other turns three sentinel strings in the text into a replace widget, an inline widget, and a block badge. Both under `?seed=sim`, so the simulation runs with the decoration engine live on every keystroke.
 
-Four subroutes carry the multi-editor cases: `multi/` (two editors with per-editor `doc-stats` options and a button that unmounts the second), `staggered/` (editor one installs callout, editor two mounts later with details added, for the staggered-mount spec), `enablement/` (two editors sharing one memo registration, the left with the kind switched off through the harness-only `__registryEnablement` prop), and `activation/` (two editors in one process, only the first listing the parrot and the block badge, for the per-instance activation spec).
+Three subroutes carry the multi-editor cases: `multi/` (two editors with per-editor `doc-stats` options and a button that unmounts the second), `staggered/` (editor one installs callout, editor two mounts later with details added, for the staggered-mount spec), and `activation/` (two editors in one process, only the first listing the parrot and the block badge, for the per-instance activation spec).
 
 ### Browser engines
 
@@ -570,15 +571,13 @@ Locally the example depends on `@voithos-labs/aragonite` as `file:../..` and on 
 
 ## The plugin template and the plugin check
 
-`templates/plugin` is the starter an outside author fetches by tag, and nothing in this repo imports it, so it'd fall behind the editor quietly if CI didn't build it. `scripts/smoke/template-smoke.mjs` copies it out of the repo, installs it against this checkout's packed editor, builds it, runs its unit and browser tests, and runs `aragonite-plugin-check` over its packed package. It leaves every tarball in `tmp/plugin-packs`, and `.github/workflows/plugins.yml` hands those to the reusable `plugin-check.yml` once per bundled plugin and once for the template, so the workflow an author calls is proven on this repo first. The template's source is the bundled parrot's, file for file, and every version it names follows the core's (G4.278).
+The plugin template lives in `packages/create-aragonite-plugin/template`, inside the package `npm create @voithos-labs/aragonite-plugin@latest` runs, and nothing in this repo imports it, so it'd fall behind the editor quietly if CI didn't build it. `scripts/smoke/template-smoke.mjs` walks the stranger's path: it runs the packed create package's bin outside the repo, installs what it made against this checkout's packed editor, builds it, runs its unit and browser tests and its `check:plugin` script, then runs `aragonite-plugin-check` over its packed package in an empty project and type-checks a host there with `skipLibCheck` off, the way a strict app would. It leaves every tarball in `tmp/plugin-packs`, and `.github/workflows/plugins.yml` hands those to the reusable `plugin-check.yml` once per bundled plugin and once for the template, so the workflow an author calls is proven on this repo first. The template's source is the bundled parrot's, file for file, and every version it names follows the core's (G4.278).
 
-The listing in `docs/guide/plugin-gallery/listing.json` gets its `verified` records at each release cut, from a manual run of `plugin-listing.yml`. It checks every listed plugin in CI (an outside plugin's code runs in the check, and your machine holds your tokens) and uploads the listing with every record written, as the `plugin-listing` artifact, for the cut to commit. The same workflow checks a pull request that adds or changes an entry. Either way a bundled plugin is checked from tarballs packed in that run, since the release it names isn't on npm until the cut ships.
+The listing is two files in `docs/guide/plugin-gallery/`: `listing.json`, the package names authors add by pull request, and `checks.json`, what each release's check found, beside the repository and peer range read off each package's own manifest. A manual run of `plugin-listing.yml` at each release cut checks every listed plugin in CI (an outside plugin's code runs in the check, and your machine holds your tokens) and uploads `checks.json` and the regenerated gallery table, as the `plugin-listing` artifact, for the cut to commit. The same workflow checks a pull request that adds a name, and records nothing. Either way a bundled plugin is checked from tarballs packed in that run, since the release it names isn't on npm until the cut ships.
 
 ## The adapter suite
 
 The framework wrappers (`packages/*`) get the consumer smoke's treatment, with one twist: every app renders the same page (the editor, a mirror of the value, load and revert buttons, a theme toggle, an unmount toggle, a header input), so one spec directory in `examples/adapter-suite/` drives all of them. The page is spelled out in `examples/adapter-suite/requirements/page-contract.md`. The apps today are `examples/react` and `examples/vue` (Vite, each built and in dev, plus a build on the oldest React or Vue the wrapper supports), and `examples/next` and `examples/nuxt` (server rendered). `examples/adapter-suite/apps.mjs` lists every project: its app, port, the specs it runs, and whether it gates each PR. A new app goes in there, or a lint test fails (G4.187).
-
-The React and Vue apps also carry the showcase, the same page as the Svelte one at `/`, on a second page the suite doesn't load. To try it by hand, `npm run showcase:react` or `npm run showcase:vue` builds and packs this checkout, installs it into the app the way a user would, and serves `http://localhost:1490/showcase.html` or `http://localhost:1495/showcase.html`.
 
 The wrappers are npm workspaces of the root, so the root `npm install` installs them too, and `npm run package` builds them after the core. Each carries the core's version and peers the core at exactly that version, since the core, the wrappers and the plugin packages publish together (`npm run release:publish`); `src/lib/test/invariants/lint/lockstep-versions.test.ts` fails when one drifts.
 
@@ -692,7 +691,27 @@ Random generators keep missing the tiny inputs, a `>` and a newline and nothing 
 In `npm test` the three take a few seconds. `npm run test:exhaustive` takes several minutes, nearly all of it the length-7 round trip. A branch that touches the parser or the commit runs it once and says so in its report. Before a release, raise the edits to length 4 (about five more minutes):
 
 ```bash
-node scripts/run-with-env.mjs EXHAUSTIVE_FULL=1 EXHAUSTIVE_EDIT_LENGTH=4 -- vitest run src/lib/test/exhaustive
+node scripts/run-with-env.mjs EXHAUSTIVE_FULL=1 EXHAUSTIVE_EDIT_LENGTH=4 -- npx vitest run src/lib/test/exhaustive
 ```
 
 Some inputs already fail, and `KNOWN_DEFECTS` in `src/lib/test/exhaustive/known-failures.ts` names the defects behind them, one entry each: what's broken, the shortest input length that reaches it, and a pattern over its failure lines. A suite fails on a failure no entry matches, and on an entry nothing matched in a run long enough to reach it. So a fix deletes one entry however many inputs it covered, and a longer run reaching a known defect from more inputs passes as is. A failure no entry matches is a new defect: name it in a new entry (or fix it).
+
+## The range-edit laws
+
+Copy, cut, paste, typing over a selection and Backspace over one are separate gestures, and most of their bugs are two of them disagreeing: the copy leaves out markers the cut's delete took, or a cut pasted straight back doesn't give the document back. So `src/lib/test/range-laws/` checks the eleven rules that tie them together (a copy and a cut write the same clipboard, a cut pasted back gives the bytes back, Backspace leaves what a cut leaves, and so on). Ten of them are properties drawn over real document shapes and run through the mounted editor the way a browser would deliver it: the key, then the clipboard event or the input, and the menu rows by their press. Never by calling the code that does the edit, which a scan holds it to (G4.295). The eleventh, a drag-and-drop move, runs only in the browser cases below, since jsdom has no layout to drop on.
+
+Plenty of it fails today, and `src/lib/test/range-laws/known-failures.ts` names each failing class once: its issue, a pattern over its violation lines, what the wrong bytes still share with the right ones (the same words, say, or the same characters in another order) and a repro. Keep a new row that narrow, since a row matching every line of its law hides the next bug there too. The suite fails on a violation no row matches, and on a row whose repro passes, so the fix that closes a class deletes its row.
+
+`npm test` runs a handful of random draws per law, after a few fixed ones in `src/lib/test/range-laws/law-specs.ts` that keep the law today and each reach a part of it the random few can miss (text with a line break pasted into a quote, undo after the menu's paste). The deep run takes hundreds, keeps every violation, shrinks each group (law × container shape × gesture × mode) to its smallest case and writes the list into law-report/, which git ignores. It takes a few minutes per law, so you can run some at a time:
+
+```bash
+npm run test:laws:report
+node scripts/run-with-env.mjs LAW_REPORT=law-report/law-violations.md LAW_REPORT_LAWS=L3,L9 LAW_REPORT_RUNS=300 -- npx vitest run src/lib/test/range-laws/report
+```
+
+```powershell
+npm run test:laws:report
+node scripts/run-with-env.mjs LAW_REPORT=law-report/law-violations.md LAW_REPORT_LAWS=L3,L9 LAW_REPORT_RUNS=300 -- npx vitest run src/lib/test/range-laws/report
+```
+
+jsdom fakes the clipboard, the IME and every default action a browser takes, so `src/lib/e2e/range-law-cases.ts` holds a fixed set of cases that both the unit suite and `src/lib/e2e/tests/clipboard/range-edit-laws.spec.ts` run, against the same bytes. If the two ever disagree, the fake route is wrong, and one of them goes red to say so.

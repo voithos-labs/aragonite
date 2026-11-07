@@ -73,7 +73,7 @@ export function selectWidgetWhole(
 /** Ends whatever the editor had selected (a range, a gap caret, a widget) before a new caret
  *  lands. The native clear covers a whole-block range, which sets no DOM range of its own. */
 function endLiveCaretClaim(selection: SelectionState, writer: CaretWriter): void {
-	const hadRange = selection.isCrossBlock;
+	const hadRange = selection.ownsRange;
 	if (hadRange || selection.gapCaret !== null || selection.widget !== null) selection.clear();
 	if (hadRange) writer.clear();
 }

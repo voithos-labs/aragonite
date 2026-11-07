@@ -64,7 +64,7 @@ describe('a cell drag that leaves the table for dead space', () => {
 		document.dispatchEvent(new MouseEvent('pointermove', { clientX: 10, clientY: 20 }));
 		frame.run();
 
-		expect(selection.isCrossBlock).toBe(true);
+		expect(selection.ownsRange).toBe(true);
 		expect(selection.focus).toEqual({ path: [0], offset: 0 });
 	});
 });

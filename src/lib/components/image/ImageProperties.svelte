@@ -15,13 +15,12 @@
 		IMAGE_REMOVE
 	} from '../../a11y-strings';
 	import MenuIcon from '../menu/MenuIcon.svelte';
-	import type { MenuCloseCause, MenuPresence } from '../menu/menu-presence.svelte';
+	import { keepsDraft, type MenuCloseCause, type MenuPresence } from '../menu/menu-presence.svelte';
 	import type { CaretWriter } from '../../browser/caret-writer';
 	import type { CaretRestore } from '../../selection/caret-restore';
 	import { DEFAULT_CROP, applyCropToWidget, panCrop, zoomCrop, type Size } from './image-crop';
-	import { eventToChord, textKeyRole } from '../../schema/keybindings';
+	import { eventToChord, textKeyRole, typesCharacter } from '../../schema/keybindings';
 	import { isReservedUiChord } from '../../schema/commands';
-	import { isPlainTypingKey } from '../blocks/text/click-snap-guard';
 
 	let {
 		target,
@@ -165,11 +164,11 @@
 		}
 	}
 
-	// Escape drops the draft and a swap lands after the new document is in, so neither saves it;
-	// every other close does. A press elsewhere or a mode change leaves focus where it lands.
+	// Escape gives the caret back to the image; a press elsewhere or a mode change leaves focus
+	// where it lands.
 	function dismissField(cause: MenuCloseCause): boolean {
 		if (cause === 'escape-key') void endField(false);
-		else closeField(cause !== 'document-swap');
+		else closeField(keepsDraft(cause));
 		return true;
 	}
 
@@ -347,7 +346,7 @@
 		// Typing and deleting over the selected image, and the editor's own chords, minus the find
 		// bar's and the unshifted caret keys and copy, which read; Shift+Arrow resizes the image.
 		const writes = (e: KeyboardEvent): boolean => {
-			if (isPlainTypingKey(e) || e.key === 'Backspace' || e.key === 'Delete') return true;
+			if (typesCharacter(e) || e.key === 'Backspace' || e.key === 'Delete') return true;
 			const chord = eventToChord(e);
 			if (chord === null || isReservedUiChord(chord)) return false;
 			if (textKeyRole(e) === 'reads' && !e.shiftKey) return false;

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // On a touch screen a moved finger scrolls and a long press selects natively, so a touch press
-// opens no editor drag, and a range it lands on stays until the press turns out to be a tap.
+// opens no editor drag, a range it lands on stays until the press turns out to be a tap, and the
+// browser's long-press range becomes the editor's own once the press ends.
 // Miss-analysis: no test exercised touch at all, because nothing read `pointerType`.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { installDragListener } from '#lib/selection/drag-pointer.js';
@@ -9,6 +10,8 @@ import type { CrossBlockDispatchContext } from '#lib/selection/cross-block/dispa
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { parse } from '#lib/core/parser.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
+import { blockContentElAt } from '#lib/caret/block-el-lookup.js';
+import { takeDevWarns } from '../support/warn-gate';
 
 const SOURCE = 'first\n\nsecond\n\nthird\n';
 const BOXES = [
@@ -72,21 +75,21 @@ describe('a press dragged into the next block', () => {
 		drag('mouse');
 		move(10, 40);
 		frame.run();
-		expect(selection.isCrossBlock).toBe(true);
+		expect(selection.ownsRange).toBe(true);
 	});
 
 	it('opens a range from a pen, which selects text the way a mouse does', () => {
 		drag('pen');
 		move(10, 40);
 		frame.run();
-		expect(selection.isCrossBlock).toBe(true);
+		expect(selection.ownsRange).toBe(true);
 	});
 
 	it('opens no range from a finger, whose move is a scroll', () => {
 		drag('touch');
 		move(10, 40);
 		frame.run();
-		expect(selection.isCrossBlock).toBe(false);
+		expect(selection.ownsRange).toBe(false);
 	});
 
 	// A selection knob takes the finger (`touch-action: none`), so its drag is the editor's.
@@ -94,7 +97,7 @@ describe('a press dragged into the next block', () => {
 		drag('touch', 'own');
 		move(10, 40);
 		frame.run();
-		expect(selection.isCrossBlock).toBe(true);
+		expect(selection.ownsRange).toBe(true);
 	});
 
 	// The emulator's swipe: a move or two inside one frame, then the browser takes the scroll.
@@ -102,14 +105,17 @@ describe('a press dragged into the next block', () => {
 		drag('touch');
 		move(10, 40);
 		document.dispatchEvent(press('pointercancel', 'touch'));
-		expect(selection.isCrossBlock).toBe(false);
+		expect(selection.ownsRange).toBe(false);
 	});
 });
 
 describe('a press on a block while a range spans blocks', () => {
+	// The editor's lifetime, ended after each case so no press listener outlives its test.
+	let editorLifetime: AbortController;
+
 	function pressBlock(
 		pointerType: string,
-		lifetime = new AbortController().signal,
+		lifetime = editorLifetime.signal,
 		init: MouseEventInit = {}
 	): void {
 		const el = editorRoot.children[0] as HTMLElement;
@@ -123,57 +129,100 @@ describe('a press on a block while a range spans blocks', () => {
 			getEditorRoot: () => editorRoot,
 			getEditorLifetime: () => lifetime,
 			getScrollHost: () => null,
-			getBlockElByPath: () => null
+			getBlockElByPath: (path: number[]) => blockContentElAt(editorRoot, path)
 		} as unknown as CrossBlockDispatchContext);
 		pointer.handlePointerDown(press('pointerdown', pointerType, init));
 	}
 
-	beforeEach(() => selection.enterCrossBlock(RANGE.anchor, RANGE.focus));
+	beforeEach(() => {
+		editorLifetime = new AbortController();
+		giveBlocksText();
+		selection.enterCrossBlock(RANGE.anchor, RANGE.focus);
+	});
+	afterEach(() => editorLifetime.abort());
 
 	it('clears the range at a mouse press', () => {
 		pressBlock('mouse');
-		expect(selection.isCrossBlock).toBe(false);
+		expect(selection.ownsRange).toBe(false);
 	});
 
 	it('keeps the range through a finger press the browser turns into a scroll', () => {
 		pressBlock('touch');
-		expect(selection.isCrossBlock).toBe(true);
+		expect(selection.ownsRange).toBe(true);
 		document.dispatchEvent(press('pointercancel', 'touch'));
-		expect(selection.isCrossBlock).toBe(true);
+		expect(selection.ownsRange).toBe(true);
 	});
 
 	it('clears the range once a finger press ends as a tap', () => {
 		pressBlock('touch');
 		document.dispatchEvent(press('pointerup', 'touch'));
-		expect(selection.isCrossBlock).toBe(false);
+		expect(selection.ownsRange).toBe(false);
 	});
 
 	// A tablet with a keyboard: a Shift press grows the range, and its lift must not clear it.
 	it('keeps the range through a finger press with Shift held', () => {
 		pressBlock('touch', undefined, { shiftKey: true });
 		document.dispatchEvent(press('pointerup', 'touch'));
-		expect(selection.isCrossBlock).toBe(true);
+		expect(selection.ownsRange).toBe(true);
 	});
 
 	// Android's long press: selectstart while the finger is held, the word, then a pointercancel.
 	// Miss-analysis: the rows only had a press end as a scroll or a tap, never as a selection.
-	it("ends the range, keeping the browser's word, when the held finger starts a selection", () => {
+	it("ends the range at the held finger's selection, then takes its word at the pointercancel", () => {
 		pressBlock('touch');
 		document.dispatchEvent(new Event('selectstart', { bubbles: true }));
-		expect(selection.isCrossBlock).toBe(false);
-		const word = selectWord();
+		expect(selection.ownsRange).toBe(false);
+		selectNative(2, 0, 5);
 		document.dispatchEvent(press('pointercancel', 'touch'));
-		expect(String(document.getSelection())).toBe(word);
+		expectOwnedWord(2, 0, 5);
 	});
 
 	// iOS's long press: no selectstart, the word lands while the finger is held, then a pointerup.
-	it("ends the range at the held finger's word and leaves the word to its pointerup", () => {
+	it("ends the range at the held finger's word, then takes the word at the pointerup", () => {
 		pressBlock('touch');
-		const word = selectWord();
+		selectNative(2, 0, 5);
 		document.dispatchEvent(new Event('selectionchange'));
-		expect(selection.isCrossBlock).toBe(false);
+		expect(selection.ownsRange).toBe(false);
 		document.dispatchEvent(press('pointerup', 'touch'));
-		expect(String(document.getSelection())).toBe(word);
+		expectOwnedWord(2, 0, 5);
+	});
+
+	it('adopts the range the browser writes in that block afterwards, until the next press', () => {
+		pressBlock('touch');
+		selectNative(2, 0, 5);
+		document.dispatchEvent(new Event('selectionchange'));
+		document.dispatchEvent(press('pointerup', 'touch'));
+		// Safari writes its word back just after the press ends; Android's held drag grows it.
+		selectNative(2, 0, 3);
+		document.dispatchEvent(new Event('selectionchange'));
+		expectOwnedWord(2, 0, 3);
+		document.dispatchEvent(press('pointerdown', 'mouse'));
+		selectNative(2, 1, 4);
+		document.dispatchEvent(new Event('selectionchange'));
+		expect(selection.end).toEqual({ path: [2], offset: 3 });
+	});
+
+	// G1.169: a range the takeover can't adopt beside the editor's is the one a phone would draw on.
+	it('leaves a range in another block than the taken one, and the dev check names it', () => {
+		pressBlock('touch');
+		selectNative(2, 0, 5);
+		document.dispatchEvent(new Event('selectionchange'));
+		document.dispatchEvent(press('pointerup', 'touch'));
+		selectNative(1, 0, 3);
+		document.dispatchEvent(new Event('selectionchange'));
+		expect([selection.start, selection.end]).toEqual([
+			{ path: [2], offset: 0 },
+			{ path: [2], offset: 5 }
+		]);
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:finger-range-leaves-caret']);
+	});
+
+	it('takes nothing when the held finger left no range', () => {
+		pressBlock('touch');
+		document.dispatchEvent(new Event('selectstart', { bubbles: true }));
+		document.getSelection()!.removeAllRanges();
+		document.dispatchEvent(press('pointercancel', 'touch'));
+		expect(selection.ownsRange).toBe(false);
 	});
 
 	// An editor that unmounts mid-press must not reset a selection state nobody holds any more.
@@ -182,7 +231,7 @@ describe('a press on a block while a range spans blocks', () => {
 		pressBlock('touch', lifetime.signal);
 		lifetime.abort();
 		document.dispatchEvent(press('pointerup', 'touch'));
-		expect(selection.isCrossBlock).toBe(true);
+		expect(selection.ownsRange).toBe(true);
 	});
 });
 
@@ -199,13 +248,30 @@ function press(type: string, pointerType: string, init: MouseEventInit = {}): Po
 	return e as unknown as PointerEvent;
 }
 
-// The word the browser selects under a long press, outside the editor's own blocks.
-function selectWord(): string {
-	const text = document.createElement('p');
-	text.textContent = 'gamma';
-	document.body.appendChild(text);
-	document.getSelection()!.selectAllChildren(text);
-	return 'gamma';
+// Each block's text in an editable, where the browser's long-press range lands.
+function giveBlocksText(): void {
+	[...editorRoot.children].forEach((block, index) => {
+		const text = document.createElement('div');
+		text.setAttribute('contenteditable', 'true');
+		text.textContent = SOURCE.split('\n\n')[index].trim();
+		block.appendChild(text);
+	});
+}
+
+// A native range the browser writes inside block `index`'s text.
+function selectNative(index: number, from: number, to: number): void {
+	const text = blockContentElAt(editorRoot, [index])!.firstChild!;
+	document.getSelection()!.setBaseAndExtent(text, from, text, to);
+}
+
+// The editor holds the word as its own painted range, with only a caret left in the DOM.
+function expectOwnedWord(index: number, from: number, to: number): void {
+	expect([selection.isCustomRendered, selection.start, selection.end]).toEqual([
+		true,
+		{ path: [index], offset: from },
+		{ path: [index], offset: to }
+	]);
+	expect(document.getSelection()!.isCollapsed).toBe(true);
 }
 
 function move(clientX: number, clientY: number): void {

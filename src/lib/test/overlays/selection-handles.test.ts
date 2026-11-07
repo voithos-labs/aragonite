@@ -1,8 +1,13 @@
-// Where a touch screen's selection handles stand: both ends of a range the editor paints, and only
-// the block edges of a range the browser holds inside one block, where its own handles stop.
-// Miss-analysis: the edge was read off the rects, which on a phone measure a sliver past the end.
+// Where a touch screen's selection handles stand: both ends of the range the editor paints, inside
+// one block or across several, and nowhere while it paints none.
 import { describe, it, expect } from 'vitest';
-import { handleSpots, type HandleRange } from '#lib/components/overlays/selection-handles.js';
+import {
+	handleRange,
+	handleSpots,
+	type HandleRange
+} from '#lib/components/overlays/selection-handles.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import { fingerPress } from '#lib/selection/pointer-gesture.js';
 import { SELECTION_END } from '#lib/block-component.js';
 
 // Blocks of ten 10px characters on one line each, 20px tall, stacked 30px apart; block 2 is a rule
@@ -15,8 +20,6 @@ const rects = {
 	rangeRects(path: number[], start: number, end: number): DOMRect[] {
 		const top = path[0] * 30;
 		if (path[0] === 2) return [];
-		// A phone measures a sliver of the line past a block's last character.
-		if (start === CHARS && end === SELECTION_END) return [rect(100, top, 0.4, 20)];
 		const to = end === SELECTION_END ? CHARS : Math.min(end, CHARS);
 		return start < to ? [rect(start * 10, top, (to - start) * 10, 20)] : [];
 	},
@@ -26,15 +29,11 @@ const rects = {
 		return rect(0, path[0] * 30, 100, 20);
 	}
 };
-const reads = {
-	cellPath: (p: { path: number[]; offset: number }) => [
-		...p.path,
-		Math.floor(p.offset / 2),
-		p.offset % 2
-	],
-	// The caret reaches every character of a text block; a rule has none.
-	caretBounds: (path: number[]) => (path[0] === 2 ? null : { start: 0, end: CHARS })
-};
+const cellPath = (p: { path: number[]; offset: number }) => [
+	...p.path,
+	Math.floor(p.offset / 2),
+	p.offset % 2
+];
 
 const at = (path: number[], offset: number, cellCoordinate?: true) => ({
 	path,
@@ -42,45 +41,66 @@ const at = (path: number[], offset: number, cellCoordinate?: true) => ({
 	...(cellCoordinate && { cellCoordinate })
 });
 const spots = (range: HandleRange | null) =>
-	handleSpots(range, rects, reads).map(({ end, x, top, edge }) => ({ end, x, top, edge }));
+	handleSpots(range, rects, cellPath).map(({ end, x, top }) => ({ end, x, top }));
 
 describe('handleSpots', () => {
 	it('stands at both ends of a range across blocks', () => {
-		expect(spots({ start: at([0], 3), end: at([1], 6), painted: true })).toEqual([
-			{ end: 'start', x: 30, top: 0, edge: false },
-			{ end: 'end', x: 60, top: 30, edge: false }
+		expect(spots({ start: at([0], 3), end: at([1], 6) })).toEqual([
+			{ end: 'start', x: 30, top: 0 },
+			{ end: 'end', x: 60, top: 30 }
 		]);
 	});
 
 	it("takes a block held whole by its box's corners", () => {
-		expect(spots({ start: at([2], 0), end: at([2], 3), painted: true })).toEqual([
-			{ end: 'start', x: 0, top: 60, edge: false },
-			{ end: 'end', x: 100, top: 60, edge: false }
+		expect(spots({ start: at([2], 0), end: at([2], 3) })).toEqual([
+			{ end: 'start', x: 0, top: 60 },
+			{ end: 'end', x: 100, top: 60 }
 		]);
 	});
 
 	it("takes a cell rectangle's first and last cells' corners", () => {
-		expect(spots({ start: at([3], 0, true), end: at([3], 3, true), painted: true })).toEqual([
-			{ end: 'start', x: 0, top: 90, edge: false },
-			{ end: 'end', x: 100, top: 110, edge: false }
+		expect(spots({ start: at([3], 0, true), end: at([3], 3, true) })).toEqual([
+			{ end: 'start', x: 0, top: 90 },
+			{ end: 'end', x: 100, top: 110 }
 		]);
 	});
 
-	it('leaves a range inside one block, clear of its edges, to the browser', () => {
-		expect(spots({ start: at([0], 2), end: at([0], 5), painted: false })).toEqual([]);
-	});
-
-	it("adds a handle at each block edge a one-block range's ends reach", () => {
-		expect(spots({ start: at([1], 0), end: at([1], 4), painted: false })).toEqual([
-			{ end: 'start', x: 0, top: 30, edge: true }
+	it("stands at both ends of a finger's range inside one block, its edges included", () => {
+		expect(spots({ start: at([0], 2), end: at([0], 5) })).toEqual([
+			{ end: 'start', x: 20, top: 0 },
+			{ end: 'end', x: 50, top: 0 }
 		]);
-		expect(spots({ start: at([1], 4), end: at([1], CHARS), painted: false })).toEqual([
-			{ end: 'end', x: 100, top: 30, edge: true }
+		expect(spots({ start: at([1], 0), end: at([1], CHARS) })).toEqual([
+			{ end: 'start', x: 0, top: 30 },
+			{ end: 'end', x: 100, top: 30 }
 		]);
 	});
 
-	it('stands nowhere for a caret or no selection', () => {
-		expect(spots({ start: at([0], 0), end: at([0], 0), painted: false })).toEqual([]);
+	it('stands nowhere while the editor paints no range', () => {
 		expect(spots(null)).toEqual([]);
+	});
+});
+
+describe('handleRange', () => {
+	it("is the range the editor paints, a finger's inside one block included", () => {
+		const press = fingerPress({ pointerType: 'touch', pointerId: 1 })!;
+		const selection = createSelectionState();
+		expect(handleRange(selection)).toBeNull();
+		selection.ownBlockRange(at([0], 2), at([0], 5), press);
+		expect(handleRange(selection)).toEqual({ start: at([0], 2), end: at([0], 5) });
+	});
+
+	// Miss-analysis: the rows only held a painted range or none, never one the editor holds unpainted.
+	it("is nothing for a pair the editor holds but doesn't paint, the keyboard's starting pair", () => {
+		const selection = createSelectionState();
+		selection.enterCrossBlock(at([0], 3), at([0], 3));
+		expect(selection.ownsRange).toBe(true);
+		expect(handleRange(selection)).toBeNull();
+	});
+
+	it("is nothing for a range inside one block a mouse made, which the browser's paints", () => {
+		const selection = createSelectionState();
+		selection.enterCrossBlock(at([0], 2), at([0], 5));
+		expect(handleRange(selection)).toBeNull();
 	});
 });

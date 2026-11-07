@@ -18,12 +18,13 @@ import { marksPending, pendMark } from '#lib/test/harness/pending-marks.js';
 function makeDeps(
 	isReading = () => false,
 	keybindings: KeybindingOverride[] = [],
-	selection = { isCrossBlock: false }
+	selection = { ownsRange: false }
 ) {
 	const splitBlock = vi.fn();
 	const deleteBlock = vi.fn();
 	const insertParagraph = vi.fn();
 	const moveFocus = vi.fn();
+	const selectDocument = vi.fn();
 	const caretMemory = createCaretMemory();
 	const overrides = normalizeKeybindingOverrides(keybindings);
 	const deps: WholeBlockKeyDeps = {
@@ -37,9 +38,10 @@ function makeDeps(
 		commandOf: (e) => commandForKey(e, 'thematicBreak', commandContextWith(overrides)),
 		takesKey: () => false,
 		getPath: () => [0],
-		containerChords: { take: () => false }
+		containerChords: { take: () => false },
+		selectDocument
 	};
-	return { deps, splitBlock, deleteBlock, insertParagraph, moveFocus, caretMemory };
+	return { deps, splitBlock, deleteBlock, insertParagraph, moveFocus, selectDocument, caretMemory };
 }
 
 function press(key: string, mods: Partial<KeyboardEvent> = {}): KeyboardEvent {
@@ -72,6 +74,15 @@ describe('handleWholeBlockKeys', () => {
 		const { deps, deleteBlock } = makeDeps();
 		handleWholeBlockKeys(press(key), deps);
 		expect(deleteBlock).toHaveBeenCalledWith(2, key);
+	});
+
+	// A block focused whole has no text for a first press to select, so it goes to the document.
+	it.each([false, true])('Mod+A selects the document, reading mode %s', (reading) => {
+		const { deps, selectDocument } = makeDeps(() => reading);
+		const e = press('a', { ctrlKey: true });
+		handleWholeBlockKeys(e, deps);
+		expect(selectDocument).toHaveBeenCalledOnce();
+		expect(e.preventDefault).toHaveBeenCalled();
 	});
 
 	it('the edit branches gate on reading mode but still consume the key', () => {
@@ -281,7 +292,7 @@ describe('handleWholeBlockKeys: Mod+C / Mod+X clipboard', () => {
 	it.each(['c', 'x'])(
 		'with a range across blocks, Mod+%s leaves the range to the clipboard event',
 		async (key) => {
-			const { deps, deleteBlock } = makeDeps(() => true, [], { isCrossBlock: true });
+			const { deps, deleteBlock } = makeDeps(() => true, [], { ownsRange: true });
 			const e = press(key, { ctrlKey: true });
 			handleWholeBlockKeys(e, deps);
 			await Promise.resolve();

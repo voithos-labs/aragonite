@@ -11,6 +11,10 @@
 - Click-drag that stays inside one block: no cross-block mode entered
 - Click without shift while cross-block active: collapses selection
 - Click collapse restores native caret in the clicked block: typing inserts at click point
+- Shift+click back into the anchor's block of a range across blocks leaves a range in that block,
+  from the anchor to the click
+  - Miss-analysis: the Shift+click rows only went into another block; the extend's fold back into
+    one block left no range anywhere, since only the keyboard's route writes it back.
 
 - A block with no positions inside it (a rendered equation, a diagram, a rule) joins a drag's
   range as a unit once the pointer has crossed its centre line coming from the anchor's side.

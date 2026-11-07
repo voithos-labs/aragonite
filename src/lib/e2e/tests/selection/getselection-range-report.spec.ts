@@ -16,7 +16,7 @@ test.describe('selection: getSelection() reports within-block ranges (Task 4)', 
 			await editor.focusBlock(0, 0);
 			for (let i = 0; i < 5; i++) await editor.page.keyboard.press('Shift+ArrowRight');
 
-			expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+			expect(await editor.bridge.ownsRange()).toBe(false);
 			const sel = await editor.bridge.getSelectionPaths();
 			expect(sel?.anchor).toEqual({ path: [0], offset: 0 });
 			expect(sel?.focus).toEqual({ path: [0], offset: 5 });
@@ -27,7 +27,7 @@ test.describe('selection: getSelection() reports within-block ranges (Task 4)', 
 			await editor.focusBlock(0, 5);
 			for (let i = 0; i < 5; i++) await editor.page.keyboard.press('Shift+ArrowLeft');
 
-			expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+			expect(await editor.bridge.ownsRange()).toBe(false);
 			const sel = await editor.bridge.getSelectionPaths();
 			expect(sel?.anchor).toEqual({ path: [0], offset: 5 });
 			expect(sel?.focus).toEqual({ path: [0], offset: 0 });

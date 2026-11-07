@@ -26,7 +26,7 @@ describe('commit', () => {
 	// What the card decides on top of the byte writer: which fields survive a URL edit, and when the
 	// reference form is kept. The bytes themselves are the writer's business.
 
-	function makeCard(source: string) {
+	function makeCard(source: string, linkStart = source.indexOf('[')) {
 		const harness = makeEditorActionsDeps(parse(source).children);
 		const map = definitionsOf(harness.doc.children);
 		const controller = createUndoController(harness.deps);
@@ -48,7 +48,7 @@ describe('commit', () => {
 			harness,
 			undoDepth: () => harness.deps.undoManager.getStacks().undo.length,
 			landings: harness.landings,
-			target: { path: [0], sourceStart: raw().indexOf('[') } as LinkTarget
+			target: { path: [0], sourceStart: linkStart } as LinkTarget
 		};
 	}
 
@@ -178,6 +178,96 @@ describe('commit', () => {
 	});
 });
 
+// Miss-analysis (#814): an autolink opened no card, so every commit row edited a bracketed link.
+describe('commit on an autolink, whose text is its URL', () => {
+	const BARE = 'See https://a.test/x now\n';
+	const ANGLE = 'See <https://a.test/x> now\n';
+
+	function makeAutolinkCard(source: string) {
+		const harness = makeEditorActionsDeps(parse(source).children);
+		const controller = createUndoController(harness.deps);
+		const committer = createLinkCardCommitter({
+			getDoc: () => harness.doc,
+			getEditorEl: () => null,
+			getTarget: () => null,
+			getCreateTarget: () => null,
+			inlineRange: createInlineRangeCommit({ deps: harness.deps, controller }),
+			events: harness.events,
+			measureRange: () => [],
+			reading: fixtureReading(),
+			textMoves: createTextMoves()
+		});
+		const target: LinkTarget = { path: [0], sourceStart: 4 };
+		return { committer, target, raw: () => harness.doc.children[0].raw };
+	}
+
+	async function commit(source: string, url: string, text?: string): Promise<string> {
+		const card = makeAutolinkCard(source);
+		const resolved = card.committer.resolve(card.target)!;
+		card.committer.commit(card.target, url, text ?? resolved.text);
+		await settleEditor();
+		return card.raw();
+	}
+
+	it('shows the URL in both fields', () => {
+		const card = makeAutolinkCard(BARE);
+		expect(card.committer.resolve(card.target)).toMatchObject({
+			text: 'https://a.test/x',
+			url: 'https://a.test/x',
+			textEditable: true
+		});
+	});
+
+	it('a new URL with the text untouched rewrites the autolink in its own form', async () => {
+		expect(await commit(BARE, 'https://b.test/y')).toBe('See https://b.test/y now\n');
+		expect(await commit(ANGLE, 'https://b.test/y')).toBe('See <https://b.test/y> now\n');
+	});
+
+	it('a www. URL shows its own text, and a new URL replaces both', async () => {
+		const card = makeAutolinkCard('See www.a.test now\n');
+		expect(card.committer.resolve(card.target)).toMatchObject({
+			text: 'www.a.test',
+			url: 'http://www.a.test'
+		});
+		expect(await commit('See www.a.test now\n', 'https://b.test')).toBe('See https://b.test now\n');
+	});
+
+	// Miss-analysis: every URL edit started from an autolink whose text is its whole URL, never an
+	// email or `www.` one, whose text leaves out the scheme the URL has.
+	it.each([
+		['See <foo@bar.test> now\n', 'mailto:zz@bar.test', 'See <zz@bar.test> now\n'],
+		['See foo@bar.test now\n', 'mailto:zz@bar.test', 'See zz@bar.test now\n'],
+		['See www.a.test now\n', 'http://www.zz.test', 'See www.zz.test now\n'],
+		['See <foo@bar.test> now\n', 'mailto:www.zz.test', 'See <mailto:www.zz.test> now\n']
+	])('%s with the URL %s keeps the spelling that leaves out its scheme', async (doc, url, out) => {
+		expect(await commit(doc, url)).toBe(out);
+	});
+
+	it('an email given its own address as text stays an autolink', async () => {
+		expect(await commit('See <foo@bar.test> now\n', 'mailto:zz@bar.test', 'zz@bar.test')).toBe(
+			'See <zz@bar.test> now\n'
+		);
+	});
+
+	it('a URL no autolink form holds takes the brackets, showing that URL', async () => {
+		expect(await commit(BARE, 'mailto:x@y.test?subject=a b')).toBe(
+			'See [mailto:x@y.test?subject=a b](mailto:x@y.test?subject=a%20b) now\n'
+		);
+	});
+
+	it('a new text writes a bracketed link to the same URL', async () => {
+		expect(await commit(BARE, 'https://a.test/x', 'the site')).toBe(
+			'See [the site](https://a.test/x) now\n'
+		);
+	});
+
+	it('a text set to the new URL keeps it an autolink', async () => {
+		expect(await commit(ANGLE, 'https://b.test/y', 'https://b.test/y')).toBe(
+			'See <https://b.test/y> now\n'
+		);
+	});
+});
+
 describe('create entry', () => {
 	// How create mode opens and refuses: the state's own `canOpenCreate` check, and the entry's own
 	// check of the range before it. The chord is the only entry allowed to create.
@@ -229,7 +319,7 @@ describe('create entry', () => {
 			source: string,
 			selection: { start: number; end: number } | null,
 			mode: 'live' | 'source' = 'live',
-			crossBlockRange = false
+			spansBlocks = false
 		): void {
 			enterLinkCardAtCaret({
 				contentEl: document.createElement('div'),
@@ -237,9 +327,8 @@ describe('create entry', () => {
 				path: [0],
 				card,
 				enterWidget: () => {},
-				placeCaretInText: () => {},
 				selection,
-				crossBlockRange,
+				spansBlocks,
 				reading: fixtureReading({}, mode)
 			});
 		}
@@ -319,11 +408,11 @@ describe('range entry', () => {
 		source: string,
 		start: number,
 		end: number,
-		crossBlockRange = false
+		spansBlocks = false
 	): ReturnType<typeof makeCard> {
 		const { el, node, reading } = mount(source);
 		seat(el, start, end);
-		const card = makeCard(crossBlockRange);
+		const card = makeCard(spansBlocks);
 		enterLinkCardAtCaret({
 			contentEl: el,
 			block: node,
@@ -331,9 +420,8 @@ describe('range entry', () => {
 			reading: fixtureReading(reading, 'live'),
 			card,
 			enterWidget: () => {},
-			placeCaretInText: () => {},
 			selection: start === end ? null : { start, end },
-			crossBlockRange
+			spansBlocks
 		});
 		return card;
 	}
@@ -367,6 +455,13 @@ describe('range entry', () => {
 
 		it('a collapsed caret inside the link enters it, as it always did', () => {
 			expect(press(LINKED, 10, 10).getTarget()).toEqual({ path: [0], sourceStart: 6 });
+		});
+
+		it('a collapsed caret inside a bare URL enters its card', () => {
+			expect(press('Visit https://x.com now\n', 10, 10).getTarget()).toEqual({
+				path: [0],
+				sourceStart: 6
+			});
 		});
 
 		// The one check the entry cannot make for itself: block-local offsets are invented there.

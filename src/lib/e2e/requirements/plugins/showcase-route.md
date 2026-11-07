@@ -33,8 +33,7 @@ with its list of gaps in `src/lib/test/plugins/showcase-coverage.test.ts`.
 - every `$$…$$` display and ` ```math ` fence the document holds mounts a math widget with
   KaTeX painted inside it, so the injected renderer ran rather than the component merely
   mounting
-- every ` ```mermaid ` fence the document holds mounts a mermaid widget. The document carries
-  none today, so this passes on zero, and the gap is recorded in the coverage unit test
+- every ` ```mermaid ` fence the document holds mounts a mermaid widget
 - the outline renders exactly when the document holds a `[[toc]]` line, with one entry per
   heading
 - the parrot dances exactly when the document holds a `%%parrot` line: a `.parrot-block` with

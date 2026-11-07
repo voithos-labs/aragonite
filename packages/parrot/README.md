@@ -1,6 +1,6 @@
 # @voithos-labs/aragonite-parrot
 
-A party parrot for [aragonite](https://github.com/voithos-labs/aragonite). Start a line with `%%parrot` and an ASCII parrot dances there, cycling through colors, with whatever follows the marker as its caption. It's the same bird `curl parrot.live` serves, and it does nothing useful whatsoever. Aragonite itself is a Markdown editor; its [readme](https://github.com/voithos-labs/aragonite/blob/main/README.md) says more, and [aragonite.dev](https://aragonite.dev) lets you try it.
+Party parrot plugin for [aragonite](https://github.com/voithos-labs/aragonite).
 
 ## What it reads
 
@@ -8,7 +8,7 @@ A party parrot for [aragonite](https://github.com/voithos-labs/aragonite). Start
 %%parrot ship it
 ```
 
-One line that starts with `%%parrot`. The rest of the line, trimmed, is the caption. Without the plugin it's an ordinary paragraph.
+A line that starts with `%%parrot` turns into an ASCII parrot dancing in colors, and the rest of the line is its caption. It does nothing useful whatsoever.
 
 ## Install
 
@@ -16,7 +16,7 @@ One line that starts with `%%parrot`. The rest of the line, trimmed, is the capt
 npm install @voithos-labs/aragonite @voithos-labs/aragonite-parrot
 ```
 
-The parrot and the editor share a version number, and the parrot insists on it, so update them together.
+Btw, the plugin's version should match the editor's version.
 
 ## Use it
 
@@ -26,17 +26,18 @@ import { parrotPlugin } from '@voithos-labs/aragonite-parrot';
 const plugins = [parrotPlugin()];
 ```
 
-Pass `plugins` to the editor (one array for the app), and if you're not on Svelte, import `@voithos-labs/aragonite-parrot/style.css` too, since the dance itself lives in that file. Not much else to it:
+Hand `plugins` to the editor, and build the array once for the whole app, not once per editor. No options. Not much else to it:
 
-- Click the parrot or its caption to edit the line. It goes back to dancing when the caret leaves, and the whole visit is one undo step.
-- Anyone whose system asks for reduced motion gets a parrot that holds still.
+- On React, Vue or plain JS, import `@voithos-labs/aragonite-parrot/style.css` beside the editor's stylesheet. The dance lives in that file.
+- Click the parrot or its caption to edit the line. It goes back to dancing when the caret leaves.
+- If your system asks for reduced motion, the parrot holds still.
 
 ## More
 
-The plugin guide's [first fifteen minutes](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/plugin-guide.md#the-first-fifteen-minutes) builds this exact parrot from nothing, and [parrot-frames.md](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/plugin-guide/parrot-frames.md) has all ten frames. The [consumer guide](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/consumer-guide.md#bundled-plugins) lists the other bundled plugins.
+The plugin guide's [first fifteen minutes](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/plugin-guide.md#the-first-fifteen-minutes) builds this exact parrot from nothing, and [parrot-frames.md](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/plugin-guide/parrot-frames.md) has all ten frames. The [consumer guide](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/consumer-guide.md#bundled-plugins) lists the first party plugins.
 
 ## License
 
-Free software, released under [MPL-2.0](./LICENSE) like the editor itself: use it, study it, fork it, embed it in whatever you're building, closed source included. The one string attached: if you change this plugin's own files, you share those changes under the same license.
+Aragonite and its first party plugins are free software, released under [MPL-2.0](./LICENSE): use it, study it, fork it, embed it in whatever you're building, closed source included. The one string attached: if you change the lib/plugin's files, you share those changes under the same license.
 
-The ten frames come from terminal-parrot, which is MIT-licensed; its notice is in [THIRD-PARTY-NOTICES.md](./THIRD-PARTY-NOTICES.md).
+The ten frames come from terminal-parrot, which is MIT; see [THIRD-PARTY-NOTICES.md](./THIRD-PARTY-NOTICES.md).

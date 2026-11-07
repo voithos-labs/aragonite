@@ -10,6 +10,7 @@ import path from 'node:path';
 import { publishedEntryPoints } from '../../../../../scripts/lib-alias.mjs';
 import {
 	PLUGIN_KEYWORD,
+	isInitializer,
 	pluginPackages,
 	workspacePackages
 } from '../../../../../scripts/workspace.mjs';
@@ -104,6 +105,10 @@ function cssImportingBuilds(pkg: PluginPackage, files: SourceFile[]): string[] {
 		});
 }
 
+/** A priority spelled as a number, where the plugin contract wants an offset from a named table
+ *  (`OPENER_PRIORITIES`, `INLINE_PRIORITIES`). */
+const BARE_PRIORITY = /\bpriority:\s*[-+]?\d/;
+
 /** Component styles or a stylesheet of its own, either of which the prebuilt build collects. */
 const hasStyles = (pkg: PluginPackage, files: SourceFile[]) =>
 	files.some((file) => file.relPath.endsWith('.svelte') && /<style[\s>]/.test(file.text)) ||
@@ -121,17 +126,18 @@ describe('G4.277 every bundled plugin is a package an outside author could have 
 	);
 	const filesOf = (pkg: PluginPackage) => sourcesOf.get(pkg.dir) ?? [];
 
-	it('finds the bundled plugins, and every other workspace package is a framework wrapper', () => {
+	it('finds the bundled plugins, and every other workspace package is a wrapper or the starter', () => {
 		expect(packages.length).toBeGreaterThan(1);
 		const unlabelled = workspacePackages()
 			.filter(({ manifest }) => !(manifest.keywords ?? []).includes(PLUGIN_KEYWORD))
 			.filter(
 				({ manifest }) => !manifest.peerDependencies?.react && !manifest.peerDependencies?.vue
 			)
+			.filter(({ manifest }) => !isInitializer(manifest.name))
 			.map(({ dir }) => dir);
 		expect(
 			unlabelled,
-			`packages that are neither a wrapper nor marked "${PLUGIN_KEYWORD}"`
+			`packages that are neither a wrapper, the plugin starter, nor marked "${PLUGIN_KEYWORD}"`
 		).toEqual([]);
 	});
 
@@ -171,6 +177,16 @@ describe('G4.277 every bundled plugin is a package an outside author could have 
 				.map((built) => `${pkg.manifest.name}: ${built}`)
 		);
 		expect(missing).toEqual([]);
+	});
+
+	// Authors copy a bundled plugin's opener (the template is the parrot's), number and all.
+	it("names every priority as an offset from the editor's tables, never a bare number", () => {
+		const offenders = packages.flatMap((pkg) =>
+			filesOf(pkg)
+				.filter((file) => BARE_PRIORITY.test(file.code))
+				.map((file) => file.relPath)
+		);
+		expect(offenders).toEqual([]);
 	});
 
 	it('no source file imports past the authoring entry points or its declared peers', () => {
@@ -254,6 +270,13 @@ describe('G4.277 classifier non-vacuity', () => {
 		expect(problems).toMatch(/is at 0\.0\.1/);
 		expect(problems).toMatch(/depends on the core/);
 		expect(problems).toMatch(/requires katex/);
+	});
+
+	it('tells a bare priority from one read off a table', () => {
+		expect(BARE_PRIORITY.test('opener: { priority: 25, tryOpen }')).toBe(true);
+		expect(BARE_PRIORITY.test('{ priority:-5 }')).toBe(true);
+		expect(BARE_PRIORITY.test('priority: OPENER_PRIORITIES.heading + 5,')).toBe(false);
+		expect(BARE_PRIORITY.test('priority: INLINE_PRIORITIES.plugin + 10')).toBe(false);
 	});
 
 	it('flags a peer with no optional entry at all, which npm installs as required', () => {

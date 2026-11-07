@@ -1,7 +1,7 @@
 /**
  * Keystroke batching: one undo entry per burst of typing, ended by a pause, a change of
  * batch key, or a structural commit. The batch groups undo steps only; each keystroke's `edit`
- * fires at its own write (`leaf-write.ts`). Snapshot capture stays with the controller, injected.
+ * fires at its own write (`leaf-commit.ts`). Snapshot capture stays with the controller, injected.
  */
 
 import { devChecksOn } from '@voithos-labs/aragonite/dev-checks';

@@ -55,7 +55,11 @@ beforeEach(() => {
 afterEach(() => {
 	teardowns.splice(0).forEach((teardown) => teardown());
 	document.elementFromPoint = origFromPoint;
+	vi.unstubAllGlobals();
 });
+
+// Control with the primary button opens a context menu only where the platform edits as a Mac.
+const onMac = () => vi.stubGlobal('navigator', { platform: 'MacIntel' });
 
 function harness(opts: { mode?: PresentationMode; linkClick?: LinkClick } = {}) {
 	const root = document.createElement('div');
@@ -213,7 +217,7 @@ describe('editor-root gestures: the margin drag', () => {
 		const h = harness();
 		h.withRange();
 		h.press(h.root);
-		expect(h.selection.isCrossBlock).toBe(false);
+		expect(h.selection.ownsRange).toBe(false);
 		expect(h.startDragAtPoint).toHaveBeenCalledWith(10, 40, expect.any(MouseEvent));
 		expect(h.mouseDown(h.root).defaultPrevented).toBe(true);
 	});
@@ -232,37 +236,43 @@ describe('editor-root gestures: the margin drag', () => {
 
 	it.each<[string, MouseEventInit]>([
 		['a shift press', { shiftKey: true }],
-		['a mod press', { ctrlKey: true }],
-		['a secondary button', { button: 2 }]
+		['a mod press', { ctrlKey: true }]
 	])('%s declines', (_label, init) => {
 		const h = harness();
 		h.withRange();
 		h.press(h.root, init);
-		expect(h.selection.isCrossBlock).toBe(true);
+		expect(h.selection.ownsRange).toBe(true);
 		expect(h.mouseDown(h.root, init).defaultPrevented).toBe(false);
+	});
+
+	it('a secondary button starts no drag', () => {
+		const h = harness();
+		h.press(h.root, { button: 2 });
+		expect(h.startDragAtPoint).not.toHaveBeenCalled();
+		expect(h.mouseDown(h.root, { button: 2 }).defaultPrevented).toBe(false);
 	});
 
 	it('reading mode declines', () => {
 		const h = harness({ mode: 'reading' });
 		h.withRange();
 		h.press(h.root);
-		expect(h.selection.isCrossBlock).toBe(true);
+		expect(h.selection.ownsRange).toBe(true);
 	});
 
 	it("a press inside a widget's own gesture surface declines", () => {
 		const h = harness();
 		h.withRange();
 		h.press(h.widget);
-		expect(h.selection.isCrossBlock).toBe(true);
+		expect(h.selection.ownsRange).toBe(true);
 	});
 
 	it('a press on an editable surface declines; a whole-block input proxy does not', () => {
 		const h = harness();
 		h.withRange();
 		h.press(h.editable);
-		expect(h.selection.isCrossBlock).toBe(true);
+		expect(h.selection.ownsRange).toBe(true);
 		h.press(h.proxy);
-		expect(h.selection.isCrossBlock).toBe(false);
+		expect(h.selection.ownsRange).toBe(false);
 	});
 
 	it('the second press of a click run hands the gesture to the priority order', () => {
@@ -357,7 +367,7 @@ describe('editor-root gestures: the click priority order', () => {
 		h.withRange();
 		expect(h.gestures.placeCaretAtPoint(h.root, BOX.left + 5, 40)).toBe(true);
 		expect(h.focus).toHaveBeenCalledOnce();
-		expect(h.selection.isCrossBlock).toBe(false);
+		expect(h.selection.ownsRange).toBe(false);
 	});
 });
 
@@ -376,10 +386,84 @@ describe('editor-root gestures: the right-click press record', () => {
 
 	it.each([
 		['the right button', { button: 2 }],
-		['Control with the primary button', { button: 0, ctrlKey: true }]
+		['Control with the primary button on a Mac', { button: 0, ctrlKey: true }]
 	])('%s records that the press landed on no range', (_, init) => {
+		onMac();
 		const h = pressThenSelect(init);
 		expect(h.gestures.rangeAtContextPress(h.root)).toBe(false);
+	});
+
+	it('Control with the primary button elsewhere is no context press', () => {
+		const h = pressThenSelect({ button: 0, ctrlKey: true });
+		expect(h.gestures.rangeAtContextPress(h.root)).toBe(true);
+	});
+
+	// Miss-analysis: #820, every row here pressed over the browser's range or none, never one the
+	// editor holds, under which the browser's selection is a caret.
+	describe('over a range the editor holds', () => {
+		/** The overlay's paint over the range, where jsdom draws no box of its own. */
+		function paintRange(h: ReturnType<typeof harness>, box: typeof BOX) {
+			const paint = document.createElement('div');
+			paint.className = 'selection-overlay';
+			paint.getBoundingClientRect = () => box as DOMRect;
+			h.root.append(paint);
+		}
+
+		it('a press on its paint keeps it and lands on it', () => {
+			const h = harness();
+			h.withRange();
+			paintRange(h, { left: 0, right: 500, top: 0, bottom: 100 });
+			h.press(h.editable, { button: 2 });
+			expect(h.selection.ownsRange).toBe(true);
+			expect(h.gestures.rangeAtContextPress(h.root)).toBe(true);
+		});
+
+		/** An element inside a block the right-click menu opens for. */
+		function inBlock(h: ReturnType<typeof harness>, el = document.createElement('div')) {
+			const block = document.createElement('div');
+			block.className = 'block-host';
+			block.setAttribute('data-block-path', '[5]');
+			block.append(el);
+			h.root.querySelector('.block-list')!.append(block);
+			return el;
+		}
+
+		it('a press on a block beside its paint ends it, as a click would', () => {
+			const h = harness();
+			h.withRange();
+			paintRange(h, FAR_BELOW);
+			h.press(inBlock(h), { button: 2 });
+			expect(h.selection.ownsRange).toBe(false);
+			expect(h.gestures.rangeAtContextPress(h.root)).toBe(false);
+		});
+
+		// No menu opens for any of them, so nothing needs the range gone; one open keeps acting on it.
+		it.each<[string, (h: ReturnType<typeof harness>) => Element]>([
+			['the dead space around the blocks', (h) => h.root],
+			[
+				'a block’s own open menu',
+				(h) => {
+					const menu = document.createElement('div');
+					menu.className = 'md-menu';
+					menu.append(document.createElement('button'));
+					return inBlock(h, menu).firstElementChild!;
+				}
+			],
+			['the host’s own content', (h) => h.headerLink]
+		])('a press on %s beside its paint keeps it', (_, target) => {
+			const h = harness();
+			h.withRange();
+			h.press(target(h), { button: 2 });
+			expect(h.selection.ownsRange).toBe(true);
+		});
+
+		it('a menu the keyboard opens acts on it', () => {
+			const h = harness();
+			h.withRange();
+			h.root.dispatchEvent(new KeyboardEvent('keydown', { key: 'ContextMenu', bubbles: true }));
+			expect(window.getSelection()?.isCollapsed ?? true).toBe(true);
+			expect(h.gestures.rangeAtContextPress(h.root)).toBe(true);
+		});
 	});
 
 	it.each([
@@ -412,8 +496,9 @@ describe('editor-root gestures: the right-click press record', () => {
 
 		it.each([
 			['the right button', { button: 2 }],
-			['Control with the primary button', { button: 0, ctrlKey: true }]
+			['Control with the primary button on a Mac', { button: 0, ctrlKey: true }]
 		])('with %s puts the caret at the press for the menu', (_, init) => {
+			onMac();
 			const h = harness();
 			rightClick(h, h.widgetLink, init);
 			expect(h.focus).toHaveBeenCalledOnce();

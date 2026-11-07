@@ -48,6 +48,7 @@ export function makeHandlers(
 		standInCaret: () => null,
 		getEl: () => stubEl,
 		getMyPath: () => myPath,
+		caretBounds: () => null,
 		selection: env.selectionState,
 		getDoc: () => env.doc,
 		getBlockElByPath: () => null,
@@ -66,7 +67,7 @@ export function makeHandlers(
 		controller: env.controller,
 		// The env's own mode, so a reading-mode env's dispatch and commits agree.
 		reading: fixtureReading(opts.grammar ? { grammar: opts.grammar } : {}, env.deps.reading.mode()),
-		commands: commandContext({ isCrossBlockRange: () => env.selectionState.isCrossBlock }),
+		commands: commandContext({ ownsRange: () => env.selectionState.ownsRange }),
 		pasteCoordinator: createPasteCoordinator(env.deps, env.controller),
 		activePlugins: everyInstalledPlugin,
 		events: env.events

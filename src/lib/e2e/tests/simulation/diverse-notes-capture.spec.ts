@@ -28,7 +28,7 @@ test.describe('note-taking simulation: diverse-notes capture', () => {
 	});
 
 	test('builds the structurally-deep project-plan note', async ({ page }) => {
-		await runSession(page, editor, { seed: 23, note: PROJECT_PLAN_NOTE, capture: true });
+		await runSession(page, editor, { seed: 29, note: PROJECT_PLAN_NOTE, capture: true });
 	});
 
 	test('builds the three-level outline note', async ({ page }) => {

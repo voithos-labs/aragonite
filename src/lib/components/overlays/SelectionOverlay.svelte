@@ -21,19 +21,16 @@
 		path,
 		blockRef,
 		blockEl,
-		delegatesPainting = false,
-		containerPaintsRects = false
+		delegatesPainting = false
 	}: {
 		path: number[];
 		/** How the endpoint rects are measured, and where: a delegating container passes neither,
 		 *  since it never measures. */
 		blockRef?: BlockComponent;
 		blockEl?: HTMLElement | null;
-		/** This container's children paint the range's endpoint rects, so it measures none. */
+		/** This container's children paint the range's endpoint rects, so it measures none. Decided
+		 *  at BlockHost, which hands the same answer to DecorationOverlay. */
 		delegatesPainting?: boolean;
-		/** This container measures its own rects instead of delegating. Both are decided
-		 *  at BlockHost, which hands the same pair to DecorationOverlay. */
-		containerPaintsRects?: boolean;
 	} = $props();
 
 	// Optional, like every context BlockHost reads: a mount without the editor shell
@@ -52,13 +49,12 @@
 		coverage !== null && blockPaintsWholeBox(path, coverage, selection?.wholeUnitPath ?? null)
 	);
 
-	// The measuring effect and the markup read this one value, so a painted rectangle is
-	// always one the effect measured; two separate tests would paint a stale box.
+	// The effect and the markup read this one value, so a painted rectangle is one the effect
+	// measured. A range inside one block is a grid's rectangle, or a finger's range in a leaf.
 	const paintsEndpoints = $derived(
 		!delegatesPainting &&
-			(classification === 'start' ||
-				classification === 'end' ||
-				(classification === 'single-block' && containerPaintsRects))
+			!paintsWholeBox &&
+			(classification === 'start' || classification === 'end' || classification === 'single-block')
 	);
 
 	let endpointRects: LocalRect[] = $state([]);

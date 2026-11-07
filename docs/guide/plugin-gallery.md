@@ -23,20 +23,18 @@ Not every plugin is listed here. Search npm for the [`aragonite-plugin` keyword]
 
 Start from the [plugin guide](plugin-guide.md#the-first-fifteen-minutes)'s template if you haven't yet, since it comes with everything below wired up. To be listed, a plugin needs:
 
-- **A package on npm**, named `aragonite-<name>` or `@your-scope/aragonite-<name>`, with the `aragonite-plugin` keyword.
+- **A package on npm** with the `aragonite-plugin` keyword. An `aragonite-<name>` name helps people spot it too.
+- **Two fields in its `package.json`**, which the gallery reads straight off npm: `repository`, pointing at its source on GitHub, GitLab or Codeberg, and a peer dependency on `@voithos-labs/aragonite`, whose range is what the table says your plugin supports.
 - **A `./conformance` export** whose default export is your [conformance suite](plugin-testing.md#the-whole-plugin-at-once-runpluginconformance): your plugins, plus a profile for each container or inline kind they declare.
 - **A passing check.** `npx aragonite-plugin-check your-package` in a project with both installed runs exactly what the listing runs.
 
-Then open a pull request on the editor's repository that adds one entry to [`listing.json`](plugin-gallery/listing.json), in order by package name, and regenerates the table below with `node scripts/plugins/listing.mjs --write`:
+Then open a pull request on the editor's repository that adds your package's name to [`listing.json`](plugin-gallery/listing.json), in alphabetical order (an `@` scope sorts before any letter). That one line is the whole pull request, plus a comma on the line above if yours lands last:
 
-| Field        | What goes there                                              |
-| ------------ | ------------------------------------------------------------ |
-| `package`    | Your npm package's name                                      |
-| `repository` | Its source repository's https URL                            |
-| `editor`     | The editor versions you support, as an npm range (`^0.12.0`) |
-| `verified`   | `null`. The check fills this one in at each release          |
+```json
+	"@you/aragonite-thing"
+```
 
-The pull request runs the check over your published package. Your code stays in your repository, and so do your releases: the listing never hosts a plugin's source.
+The pull request checks that npm's copy of your package carries the keyword and both fields, then runs the plugin check over it. Your row shows up in the table at the editor's next release, once that release's check has recorded it. Your code stays in your repository, and so do your releases: the listing never hosts a plugin's source.
 
 ## The plugins
 
@@ -44,15 +42,15 @@ The pull request runs the check over your published package. Your code stays in 
 
 | Plugin | Source | Supports the editor at | Conformance check |
 | --- | --- | --- | --- |
-| [`@voithos-labs/aragonite-admonitions`](https://www.npmjs.com/package/@voithos-labs/aragonite-admonitions) | [repository](https://github.com/voithos-labs/aragonite) | `>=0.11.5` | passed on 0.11.5 |
-| [`@voithos-labs/aragonite-details`](https://www.npmjs.com/package/@voithos-labs/aragonite-details) | [repository](https://github.com/voithos-labs/aragonite) | `>=0.11.5` | passed on 0.11.5 |
-| [`@voithos-labs/aragonite-emoji`](https://www.npmjs.com/package/@voithos-labs/aragonite-emoji) | [repository](https://github.com/voithos-labs/aragonite) | `>=0.11.5` | passed on 0.11.5 |
-| [`@voithos-labs/aragonite-footnotes`](https://www.npmjs.com/package/@voithos-labs/aragonite-footnotes) | [repository](https://github.com/voithos-labs/aragonite) | `>=0.11.5` | passed on 0.11.5 |
-| [`@voithos-labs/aragonite-highlight-occurrences`](https://www.npmjs.com/package/@voithos-labs/aragonite-highlight-occurrences) | [repository](https://github.com/voithos-labs/aragonite) | `>=0.11.5` | passed on 0.11.5 |
-| [`@voithos-labs/aragonite-latex`](https://www.npmjs.com/package/@voithos-labs/aragonite-latex) | [repository](https://github.com/voithos-labs/aragonite) | `>=0.11.5` | passed on 0.11.5 |
-| [`@voithos-labs/aragonite-mermaid`](https://www.npmjs.com/package/@voithos-labs/aragonite-mermaid) | [repository](https://github.com/voithos-labs/aragonite) | `>=0.11.5` | passed on 0.11.5 |
-| [`@voithos-labs/aragonite-parrot`](https://www.npmjs.com/package/@voithos-labs/aragonite-parrot) | [repository](https://github.com/voithos-labs/aragonite) | `>=0.11.5` | passed on 0.11.5 |
-| [`@voithos-labs/aragonite-slash-commands`](https://www.npmjs.com/package/@voithos-labs/aragonite-slash-commands) | [repository](https://github.com/voithos-labs/aragonite) | `>=0.11.5` | passed on 0.11.5 |
-| [`@voithos-labs/aragonite-toc`](https://www.npmjs.com/package/@voithos-labs/aragonite-toc) | [repository](https://github.com/voithos-labs/aragonite) | `>=0.11.5` | passed on 0.11.5 |
+| [`@voithos-labs/aragonite-admonitions`](https://www.npmjs.com/package/@voithos-labs/aragonite-admonitions) | [repository](https://github.com/voithos-labs/aragonite) | `0.11.5` | passed on 0.11.5 |
+| [`@voithos-labs/aragonite-details`](https://www.npmjs.com/package/@voithos-labs/aragonite-details) | [repository](https://github.com/voithos-labs/aragonite) | `0.11.5` | passed on 0.11.5 |
+| [`@voithos-labs/aragonite-emoji`](https://www.npmjs.com/package/@voithos-labs/aragonite-emoji) | [repository](https://github.com/voithos-labs/aragonite) | `0.11.5` | passed on 0.11.5 |
+| [`@voithos-labs/aragonite-footnotes`](https://www.npmjs.com/package/@voithos-labs/aragonite-footnotes) | [repository](https://github.com/voithos-labs/aragonite) | `0.11.5` | passed on 0.11.5 |
+| [`@voithos-labs/aragonite-highlight-occurrences`](https://www.npmjs.com/package/@voithos-labs/aragonite-highlight-occurrences) | [repository](https://github.com/voithos-labs/aragonite) | `0.11.5` | passed on 0.11.5 |
+| [`@voithos-labs/aragonite-latex`](https://www.npmjs.com/package/@voithos-labs/aragonite-latex) | [repository](https://github.com/voithos-labs/aragonite) | `0.11.5` | passed on 0.11.5 |
+| [`@voithos-labs/aragonite-mermaid`](https://www.npmjs.com/package/@voithos-labs/aragonite-mermaid) | [repository](https://github.com/voithos-labs/aragonite) | `0.11.5` | passed on 0.11.5 |
+| [`@voithos-labs/aragonite-parrot`](https://www.npmjs.com/package/@voithos-labs/aragonite-parrot) | [repository](https://github.com/voithos-labs/aragonite) | `0.11.5` | passed on 0.11.5 |
+| [`@voithos-labs/aragonite-slash-commands`](https://www.npmjs.com/package/@voithos-labs/aragonite-slash-commands) | [repository](https://github.com/voithos-labs/aragonite) | `0.11.5` | passed on 0.11.5 |
+| [`@voithos-labs/aragonite-toc`](https://www.npmjs.com/package/@voithos-labs/aragonite-toc) | [repository](https://github.com/voithos-labs/aragonite) | `0.11.5` | passed on 0.11.5 |
 
 <!-- end of listing table -->

@@ -197,13 +197,7 @@
 		{/snippet}
 	</svelte:boundary>
 	<!-- hostEl is null until mount; the overlay checks for a missing blockEl. -->
-	<SelectionOverlay
-		path={myPath}
-		blockRef={ref}
-		blockEl={hostEl}
-		{delegatesPainting}
-		{containerPaintsRects}
-	/>
+	<SelectionOverlay path={myPath} blockRef={ref} blockEl={hostEl} {delegatesPainting} />
 	<DecorationOverlay
 		path={myPath}
 		blockRef={ref}

@@ -1,0 +1,33 @@
+name: Release
+# Publishes to npm when you push a version tag (`npm version patch`, then `git push --follow-tags`).
+# npm trusts this workflow by its file name instead of a stored token, and adds provenance. Set
+# that up once on npmjs.com after your first publish: the README's Publish section says how.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Lets npm check that this run is this workflow, in place of a token.
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          # A release builds from a clean install, never a cache.
+          package-manager-cache: false
+      # npm publishes the version in package.json, so a tag that names another one stops here.
+      - run: test "$GITHUB_REF_NAME" = "v$(node -p "require('./package.json').version")"
+      - run: npm ci
+      - run: npm test
+      - run: npm publish

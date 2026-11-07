@@ -2,7 +2,7 @@
 
 ## Happy paths
 
-- Drag from cell A to cell B in the same table enters cross-block selection (data-cross-block on editor root).
+- Drag from cell A to cell B in the same table enters cross-block selection (data-painted-range on editor root).
 - Shift+click from cell A to cell B in the same table enters cross-block selection.
 - Drag from a cell out of the table into a paragraph below enters cross-block selection.
 - Drag from a paragraph above into a table cell enters cross-block selection.

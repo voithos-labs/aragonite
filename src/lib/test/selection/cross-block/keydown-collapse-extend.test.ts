@@ -28,7 +28,7 @@ describe('cross-block keydown: collapse', () => {
 
 			expect(await env.keydown.handleKeyDown(press(key))).toBe(true);
 
-			expect(env.selection.isCrossBlock).toBe(false);
+			expect(env.selection.ownsRange).toBe(false);
 			expect(env.revealed.at(-1)).toEqual([0]);
 		});
 	}
@@ -39,7 +39,7 @@ describe('cross-block keydown: collapse', () => {
 
 			expect(await env.keydown.handleKeyDown(press(key))).toBe(true);
 
-			expect(env.selection.isCrossBlock).toBe(false);
+			expect(env.selection.ownsRange).toBe(false);
 			expect(env.revealed.at(-1)).toEqual([1]);
 		});
 	}
@@ -49,7 +49,7 @@ describe('cross-block keydown: collapse', () => {
 
 		expect(await env.keydown.handleKeyDown(press('Escape'))).toBe(true);
 
-		expect(env.selection.isCrossBlock).toBe(false);
+		expect(env.selection.ownsRange).toBe(false);
 		expect(env.revealed.at(-1)).toEqual([0]);
 	});
 
@@ -65,7 +65,7 @@ describe('cross-block keydown: collapse', () => {
 
 			expect(await env.keydown.handleKeyDown(press('Escape', init))).toBe(false);
 
-			expect(env.selection.isCrossBlock).toBe(true);
+			expect(env.selection.ownsRange).toBe(true);
 		});
 	}
 
@@ -75,7 +75,7 @@ describe('cross-block keydown: collapse', () => {
 
 		expect(await env.keydown.handleKeyDown(press('ArrowLeft'))).toBe(true);
 
-		expect(env.selection.isCrossBlock).toBe(false);
+		expect(env.selection.ownsRange).toBe(false);
 	});
 });
 
@@ -97,7 +97,7 @@ describe('cross-block keydown: extend', () => {
 
 		expect(await env.keydown.handleKeyDown(press('ArrowUp', { shiftKey: true }))).toBe(true);
 
-		expect(env.selection.isCrossBlock).toBe(false);
+		expect(env.selection.ownsRange).toBe(false);
 		expect(env.selection.focus).toBeNull();
 		// A range inside one block is put back through the restore, which shows its moving end.
 		expect(env.revealed.at(-1)).toEqual([0]);

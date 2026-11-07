@@ -57,5 +57,5 @@ These run against the mounted blocks:
 
 ## Error / degenerate cases
 
-- Block content changes while cross-block selection exists: overlay should reflect new layout via reactivity. The overlay re-measures on its block's scroll container scrolling, the editor root scrolling and the block's box resizing, and stops once the block goes; `overlay-remeasure.test.ts` pins that
+- Block content changes while cross-block selection exists: overlay should reflect new layout via reactivity. The overlay re-measures on its block's scroll container scrolling, the editor root scrolling and the block's box resizing, and stops once the block goes; `src/lib/test/overlays/remeasure.test.ts` pins that
   - Miss-analysis: no test covered this bullet, and no unit drove the re-measure triggers

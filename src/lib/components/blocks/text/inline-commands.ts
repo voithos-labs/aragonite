@@ -15,9 +15,9 @@ import { inlineMarkForCommand, type InlineMarkKind } from '../../../schema/inlin
 import type { CommandId } from '../../../schema/commands';
 import type { Reading } from '../../../schema/reading';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
+import { pathsEqual } from '../../../selection/path-math';
 import type { UndoController } from '../../../editor-actions/deps';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
-import { asRawOffset } from '../../../core/coordinate-spaces';
 import type { RawRange } from '../../../browser/offsets';
 import { editTargetAt, enterLinkCardAtCaret } from '../../link-card/link-card-entry';
 import type { LinkCardState } from '../../link-card/link-card-state.svelte';
@@ -33,9 +33,9 @@ export interface InlineCommandsDeps {
 	get path(): number[];
 	reading: Reading;
 	cursor: SurfaceBackend;
-	selection: Pick<SelectionState, 'isCrossBlock'>;
+	selection: Pick<SelectionState, 'ownsRange' | 'rangeInOneBlock' | 'start' | 'end'>;
 	widgets: Pick<WidgetInteraction, 'isRevealing' | 'foldRevealBeforeMutation' | 'enterWidget'>;
-	surface: Pick<EditableSurface, 'blockEdit' | 'pendingMarks' | 'insideCloser'>;
+	surface: Pick<EditableSurface, 'blockEdit' | 'pendingMarks'>;
 	controller: Pick<UndoController, 'flushDebouncedCheckpoint'>;
 	linkCard: LinkCardState;
 	/** The text a format toggle rewrites, and the part of it that is the block's content. */
@@ -61,14 +61,20 @@ export interface InlineCommands {
 }
 
 export function createInlineCommands(deps: InlineCommandsDeps): InlineCommands {
-	const linkCardQuery = (contentEl: HTMLElement, range: RawRange | null) => ({
-		contentEl,
-		block: deps.node,
-		path: deps.path,
-		reading: deps.reading,
-		selection: range,
-		crossBlockRange: deps.selection.isCrossBlock
-	});
+	// The editor's own range in this block is the one a link wraps, the browser's then a caret.
+	function linkCardQuery(contentEl: HTMLElement, range: RawRange | null) {
+		const start = deps.selection.rangeInOneBlock ? deps.selection.start : null;
+		const end = start && deps.selection.end;
+		const inThisBlock = !!start && !!end && pathsEqual(start.path, deps.path);
+		return {
+			contentEl,
+			block: deps.node,
+			path: deps.path,
+			reading: deps.reading,
+			selection: inThisBlock ? { start: start.offset, end: end.offset } : range,
+			spansBlocks: deps.selection.ownsRange && !inThisBlock
+		};
+	}
 
 	// A toolbar asks once per button on every selection change, so the buttons share the parse.
 	const formatActive = createInlineFormatActiveMemo();
@@ -122,11 +128,7 @@ export function createInlineCommands(deps: InlineCommandsDeps): InlineCommands {
 		enterLinkCardAtCaret({
 			...linkCardQuery(el, selection),
 			card: deps.linkCard,
-			enterWidget: deps.widgets.enterWidget,
-			placeCaretInText: (offset) => {
-				deps.cursor.setRaw(asRawOffset(offset), { clamp: 'exact' });
-				deps.surface.insideCloser.open(offset);
-			}
+			enterWidget: deps.widgets.enterWidget
 		});
 	}
 

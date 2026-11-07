@@ -62,8 +62,8 @@ export function tableMenuItems(
 	cell: { rowIdx: number; colIdx: number },
 	dims: { rowCount: number; colCount: number },
 	alignments: readonly TableAlignment[],
-	// A live rectangle (`hasRect`) suppresses the cell-local selection but still serves Cut/Copy.
-	clipboard: { hasSelection: boolean; hasRect?: boolean },
+	/** Whether the user holds a selection (`selection/held-selection.ts`), which Cut and Copy act on. */
+	selected: boolean,
 	editsLink = false
 ): TableMenuItem[] {
 	const rows = rowGroup(cell.rowIdx, dims.rowCount);
@@ -77,7 +77,7 @@ export function tableMenuItems(
 		: [];
 	return [
 		...editLink,
-		...clipboardGroup(clipboard.hasSelection || clipboard.hasRect === true),
+		...clipboardGroup(selected),
 		{ kind: 'separator' },
 		{ kind: 'group', id: 'row', label: 'Row', items: rows.filter((i) => !isDelete(i)) },
 		{

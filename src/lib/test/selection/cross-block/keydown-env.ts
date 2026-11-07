@@ -25,7 +25,9 @@ import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { commandContextWith } from '../../harness/command-context';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
-import { holdsNativeRange } from '#lib/browser/selection-read.js';
+import { rangeHolder } from '#lib/selection/held-selection.js';
+import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
+import { displayLength } from '#lib/core/lines.js';
 
 export interface KeydownEnvOptions {
 	presentationMode?: PresentationMode;
@@ -87,6 +89,11 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 	const ctx = {
 		getEl: () => getBlockElByPath(opts.myPath ?? [0]),
 		getMyPath: () => opts.myPath ?? [0],
+		// Source mode reaches every offset of the block's text.
+		caretBounds: () => {
+			const node = blockNodeAt(harness.deps.doc, opts.myPath ?? [0]);
+			return { start: 0, end: node ? displayLength(node.raw) : 0 };
+		},
 		selection,
 		caretWriter: testCaretWriter,
 		getDoc: () => harness.deps.doc,
@@ -101,8 +108,9 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 		commands: commandContextWith(overrides, {
 			history: { requestUndo: vi.fn(), requestRedo: vi.fn() },
 			getPresentationMode: () => opts.presentationMode ?? 'source',
-			isCrossBlockRange: () => selection.isCrossBlock,
-			holdsNativeRange,
+			ownsRange: () => selection.ownsRange,
+			rangeInOneBlock: () => selection.rangeInOneBlock,
+			holdsRange: () => rangeHolder(selection) !== null,
 			crossBlockCommands,
 			onCommandError
 		}),

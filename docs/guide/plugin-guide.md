@@ -34,13 +34,13 @@ All four import paths (`/plugin`, `/svelte`, `/testing` and the root) come with 
 
 The parrot below draws itself with plain DOM, so it runs in every app the editor runs in: Svelte, React, Vue or no framework at all. Rather draw with your own components? Svelte gets `svelteBlockView` and a leaf factory ([Already in Svelte?](plugin-guide/editable-content.md#already-in-svelte)), and React and Vue get theirs too ([React and Vue blocks](plugin-guide/react-and-vue.md)). Everything else on this page carries over as is.
 
-If you'd rather start from the finished thing, the plugin template is this exact parrot as a package: the build, a conformance test, a page to try it on, and CI that runs the check a plugin listing runs. It lives in the editor's repository, tagged with every release, so fetch it at the tag of the editor version you're building against (swap the version in for yours):
+If you'd rather start from the finished thing, the plugin template is this exact parrot as a package: the build, a conformance test, a page to try it on, and CI that runs the check a plugin listing runs. One command makes you a copy, with the package named after its folder:
 
 ```bash
-npx degit voithos-labs/aragonite/templates/plugin#v0.11.5 my-plugin
+npm create @voithos-labs/aragonite-plugin@latest my-plugin
 ```
 
-Its README walks you from there. This page is how it works.
+Keep the `@latest`, or npm may hand you a template it cached a few releases back. The new folder's README walks you from there, all the way to npm and the gallery. This page is how it works.
 
 The plugin we're about to build is an homage to `curl parrot.live`: a line that starts with `%%parrot` renders as an animated ASCII party parrot, and any text after the marker becomes the parrot's caption.
 
@@ -75,6 +75,7 @@ And all of it together, the whole plugin minus its frames and its stylesheet (bo
 ```ts
 // parrot-plugin.ts
 import {
+	OPENER_PRIORITIES,
 	caretOffsetAtPoint,
 	declarePluginKind,
 	defineBlockView,
@@ -167,7 +168,8 @@ function registerParrotBlock(): void {
 	registerBlockKind(parrot, {
 		view: parrotView,
 		opener: {
-			priority: 25,
+			// Nothing built in reads a `%%` line, so any gap between the built-ins will do.
+			priority: OPENER_PRIORITIES.heading + 5,
 			interruptsParagraph: (text) => text.startsWith('%%parrot'),
 			tryOpen(ctx) {
 				if (!ctx.line.text.startsWith('%%parrot')) return null;
@@ -380,7 +382,7 @@ it('parrot conforms', async () => {
 
 That's the loop: describe the kind, render it, install it, verify the bytes. Everything after this is the same four moves at more interesting shapes.
 
-When yours works, publish it as `aragonite-<name>` or `@your-scope/aragonite-<name>` with the `aragonite-plugin` keyword, and the [plugin gallery](plugin-gallery.md#getting-your-plugin-listed) says how to get it listed.
+When yours works, publish it to npm with the `aragonite-plugin` keyword (an `aragonite-` name helps people spot it too), and the [plugin gallery](plugin-gallery.md#getting-your-plugin-listed) says how to get it listed. Started from the template? Its README walks through the first publish.
 
 ## What a plugin is
 

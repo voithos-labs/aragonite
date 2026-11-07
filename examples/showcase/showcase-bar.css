@@ -1,4 +1,4 @@
-/* The demo site's top bars, one stylesheet for the three showcases and the changelog. It reads the
+/* The demo site's top bars, one stylesheet for the showcase and the changelog. It reads the
    editor theme's host tokens from the `.aragonite-editor-theme` wrapper, so it follows light and
    dark with the document. */
 
@@ -464,5 +464,14 @@
 		width: var(--bar-height);
 		padding: 0;
 		justify-content: center;
+	}
+	/* The card is wider than the room left of its button, so it spans the header instead. */
+	.report-anchor {
+		position: static;
+	}
+	.report-card {
+		left: 8px;
+		right: 8px;
+		width: auto;
 	}
 }

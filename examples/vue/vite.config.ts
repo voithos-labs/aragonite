@@ -8,7 +8,7 @@ import vue from '@vitejs/plugin-vue';
 // wrapper supports, compiling the templates with that version's own compiler.
 const vue33 = path.resolve(import.meta.dirname, 'vue-3.3/node_modules/vue');
 
-// Every aragonite package the app installs: the core, its wrapper and the showcase's plugins.
+// Every aragonite package the app installs: the core and its wrapper.
 const aragonitePackages = Object.keys(
 	JSON.parse(readFileSync(path.resolve(import.meta.dirname, 'package.json'), 'utf8')).dependencies
 ).filter((name) => name.startsWith('@voithos-labs/'));
@@ -23,17 +23,8 @@ export default defineConfig(({ mode }) => ({
 	],
 	resolve: {
 		alias: mode === 'vue33' ? { vue: vue33 } : undefined,
-		// `examples/showcase/` sits outside this app, so its package imports must resolve from here,
-		// or they find the repo root's own copy and run a second editor beside this app's.
+		// The adapter suite's shared modules import the core from outside this app, so it must
+		// resolve from here, or they find the repo root's own copy and run a second editor.
 		dedupe: ['vue', ...aragonitePackages]
-	},
-	// The adapter suite's page is `index.html`; the showcase is a second page it never loads.
-	build: {
-		rollupOptions: {
-			input: {
-				main: path.resolve(import.meta.dirname, 'index.html'),
-				showcase: path.resolve(import.meta.dirname, 'showcase.html')
-			}
-		}
 	}
 }));

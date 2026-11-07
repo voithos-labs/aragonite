@@ -21,11 +21,11 @@ test.describe('source prop change', () => {
 		await page.keyboard.up('Shift');
 
 		await editor.waitForCrossBlock(true);
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.ownsRange()).toBe(true);
 
 		await editor.loadContent('Totally different content.\n');
 
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		expect(await editor.bridge.ownsRange()).toBe(false);
 
 		await editor.focusBlockEnd(0);
 		await editor.typeText(' appended');

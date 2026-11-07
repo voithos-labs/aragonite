@@ -22,7 +22,7 @@ it: a pointerdown, then a mousedown only if no block cancelled the pointerdown.
   - Anywhere else (code, a divider, any other inline widget) the caret at the press replaces
     Safari's select, so a widget that goes somewhere offers Edit link and Cut and Copy are off.
 - A real right-click inside a selection keeps it: the clipboard rows act on it, with no Insert
-  flyout.
+  flyout. A range the editor holds across blocks follows the same two rules (`context-menu-range.md`).
 - A right-click on a widget the editor holds selected (an image, a chip in prose or in a cell),
   real or after Safari's own select, keeps it held, with Cut and Copy on, and the rows act on it as
   Ctrl+X, Ctrl+C and Ctrl+V do: Copy carries its bytes and a paste elsewhere gives it back, Cut

@@ -13,6 +13,9 @@ only, and reading mode, which has no change to offer, opens no menu at all.
 ## Edge cases
 
 - In reading mode a right-click on a cell opens no table menu; the browser's own menu shows instead.
+- A finger's long press in a cell (a `contextmenu` after a touch press) opens the cell menu, not
+  nothing: a word in a cell stays the browser's, and the cell menu is its one menu there, with the
+  row and column actions a phone reaches nowhere else. The selection toolbar doesn't show beside it.
 
 ## Notes
 

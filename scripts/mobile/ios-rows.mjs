@@ -32,25 +32,20 @@ export const rows = {
 		return { reasons, evidence: { real: summary(real), control: summary(control) } };
 	},
 
+	"a long press makes the editor's range": async (ctx) => {
+		await ctx.fresh(ctx.url, SHORT);
+		const pressed = await pressWord(ctx, 0, 'takeover');
+		if (pressed.reasons) return pressed;
+		return { reasons: ownedWordReasons(pressed.after, 0, pressed.menu), evidence: pressed };
+	},
+
 	'a long press beside a range across blocks ends it': async (ctx) => {
 		await ctx.fresh(ctx.url, LONG);
-		await ctx.run(`window.__test.setSelection(${JSON.stringify(RANGE)}); return true`);
-		await sleep(800);
-		const at = await webToNative(ctx, BELOW_RANGE);
-		if (!at) return { reasons: [`no native element for block ${BELOW_RANGE}`] };
-		const box = await webBox(ctx, BELOW_RANGE);
-		await holdAt(ctx, at(box.left + 20, box.mid));
-		await ctx.screenshot('press-beside').catch(() => {});
-		const after = await ctx.run(SNAPSHOT);
-		const reasons = [];
-		const word =
-			after.editor && JSON.stringify(after.editor.anchor) !== JSON.stringify(after.editor.focus);
-		if (!word || after.editor.anchor.path[0] !== BELOW_RANGE)
-			reasons.push(
-				`the long press left ${JSON.stringify(after.editor)}, not the word in block ${BELOW_RANGE}`
-			);
-		if (after.painted > 0) reasons.push(`the old range still paints ${after.painted} rect(s)`);
-		return { reasons, evidence: { after } };
+		await setRange(ctx);
+		const pressed = await pressWord(ctx, BELOW_RANGE, 'press-beside');
+		if (pressed.reasons) return pressed;
+		const reasons = ownedWordReasons(pressed.after, BELOW_RANGE, pressed.menu);
+		return { reasons, evidence: pressed };
 	},
 
 	"a range across blocks shows only the editor's handles": async (ctx) => {
@@ -61,42 +56,56 @@ export const rows = {
 		const after = await ctx.run(SNAPSHOT);
 		const reasons = [];
 		if (!after.nativeCollapsed) reasons.push('a native range stands beside the painted one');
-		if (after.handles !== 2) reasons.push(`${after.handles} editor handle(s), not 2`);
+		if (after.handles.length !== 2) reasons.push(`${after.handles.length} editor handle(s), not 2`);
 		return { reasons, evidence: { after } };
 	},
 
-	"a long press's edge handle crosses into the next block": async (ctx) => {
+	'the end handle drags a long-pressed word into the next block': async (ctx) => {
 		await ctx.fresh(ctx.url, SHORT);
-		const at = await webToNative(ctx, 0);
-		if (!at) return { reasons: ['no native element for block 0'] };
-		const box = await webBox(ctx, 0);
-		// The last word, so the browser's range ends at the block's end.
-		await holdAt(ctx, at(box.right - 14, box.mid));
-		await sleep(800);
+		const pressed = await pressWord(ctx, 0, 'end-press');
+		if (pressed.reasons) return pressed;
 		const handle = await ctx.run(HANDLE_BOX);
-		await ctx.screenshot('edge-handle').catch(() => {});
+		await ctx.screenshot('end-handle').catch(() => {});
 		if (!handle)
 			return {
-				reasons: ['no editor handle at the block end'],
-				evidence: { after: await ctx.run(SNAPSHOT) }
+				reasons: ['no editor handle at the end of the long-pressed word'],
+				evidence: pressed
 			};
+		// Mapped again, since the keyboard a caret brings up can scroll the page.
+		const at = await webToNative(ctx, 0);
 		const next = await webBox(ctx, 1);
 		const from = at(handle.x, handle.y);
 		const to = at(handle.x + next.left + 40 - handle.pointX, handle.y + next.mid - handle.pointY);
-		await ctx.native();
-		await ctx.call('POST', ctx.s('/execute/sync'), {
-			script: 'mobile: dragFromToForDuration',
-			args: [{ duration: 0.3, fromX: from.x, fromY: from.y, toX: to.x, toY: to.y }]
+		await mobile(ctx, 'dragFromToForDuration', {
+			duration: 0.3,
+			fromX: from.x,
+			fromY: from.y,
+			toX: to.x,
+			toY: to.y
 		});
 		await sleep(1200);
-		await ctx.web();
-		await ctx.screenshot('edge-crossed').catch(() => {});
+		await ctx.screenshot('end-crossed').catch(() => {});
 		const after = await ctx.run(SNAPSHOT);
 		const reasons = [];
 		if (after.editor?.focus.path[0] !== 1)
 			reasons.push(`the drag left ${JSON.stringify(after.editor)}`);
 		if (!after.nativeCollapsed) reasons.push('a native range stands beside the painted one');
 		return { reasons, evidence: { handle, after } };
+	},
+
+	"the toolbar's copy fills the pasteboard": async (ctx) => {
+		await ctx.fresh(ctx.url, SHORT);
+		await mobile(ctx, 'setPasteboard', { content: 'before the copy', encoding: 'utf8' });
+		const pressed = await pressWord(ctx, 1, 'toolbar-copy');
+		if (pressed.reasons) return pressed;
+		const copy = await ctx.tryFind('css selector', '[data-testid="toolbar-copy"]');
+		if (!copy) return { reasons: ['the toolbar showed no Copy'], evidence: pressed };
+		await ctx.click(copy);
+		await sleep(800);
+		const pasteboard = await mobile(ctx, 'getPasteboard', { encoding: 'utf8' });
+		const reasons =
+			pasteboard === 'gamma' ? [] : [`the pasteboard holds ${JSON.stringify(pasteboard)}`];
+		return { reasons, evidence: { pressed, pasteboard } };
 	}
 };
 
@@ -119,20 +128,98 @@ export const probes = {
 // ── Steps ──────────────────────────
 
 const SNAPSHOT = `const s = document.getSelection();
+	const paint = [...document.querySelectorAll('.selection-overlay')];
 	return {
 		dom: String(s),
 		nativeCollapsed: !s || s.rangeCount === 0 || s.isCollapsed,
 		editor: window.__test.getSelection(),
-		painted: document.querySelectorAll('.selection-overlay').length,
-		handles: document.querySelectorAll('.selection-handle').length
+		painted: paint.length,
+		paintedIn: [...new Set(paint.map((el) => el.closest('[data-block-path]')?.dataset.blockPath ?? null))],
+		handles: [...document.querySelectorAll('.selection-handle')].map((h) => h.dataset.handle),
+		menus: [...document.querySelectorAll('.md-menu')].map((m) => ({ toolbar: m.classList.contains('selection-toolbar'), items: [...m.querySelectorAll('.md-menu-item')].map((i) => i.textContent.trim()) }))
 	};`;
 
-// The editor's end handle's centre and the range end it drags, in page coordinates.
+// The editor's end handle's centre and the range end it drags (it hangs below the end, to its
+// right), in page coordinates.
 const HANDLE_BOX = `const b = document.querySelector('.selection-handle[data-handle="end"]')?.getBoundingClientRect();
-	const s = document.getSelection();
-	const rects = s && s.rangeCount ? s.getRangeAt(0).getClientRects() : [];
-	const last = rects[rects.length - 1];
-	return b && last && { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2, pointX: last.right, pointY: (last.top + last.bottom) / 2 };`;
+	return b && { x: (b.left + b.right) / 2, y: (b.top + b.bottom) / 2, pointX: b.left, pointY: b.top - 8 };`;
+
+// The range is set through the bridge and read back, so a press beside it is a press beside a
+// range that was there; what the row tests is what the touch does to it.
+async function setRange(ctx) {
+	const json = JSON.stringify;
+	await ctx.run(`window.__test.setSelection(${json(RANGE)}); return true`);
+	let range = null;
+	for (let i = 0; i < 40 && json(range) !== json(RANGE); i++) {
+		await sleep(50);
+		range = await ctx.run('return window.__test.getSelection()');
+	}
+	if (json(range) !== json(RANGE))
+		throw new Error(`the bridge set ${json(range)}, not ${json(RANGE)}`);
+}
+
+// A long press on block `index`'s first word, then what it left: the page's state and Safari's menu.
+async function pressWord(ctx, index, name) {
+	const at = await webToNative(ctx, index);
+	if (!at) return { reasons: [`no native element for block ${index}`] };
+	const box = await webBox(ctx, index);
+	await holdAt(ctx, at(box.left + 20, box.mid));
+	await ctx.screenshot(name).catch(() => {});
+	return { after: await ctx.run(SNAPSHOT), menu: await safariMenu(ctx) };
+}
+
+// What a long press leaves: the word as the editor's range in block `index`, painted there alone
+// with no native range under it, the editor's two handles, and the toolbar as the only menu.
+function ownedWordReasons(after, index, menu) {
+	const reasons = [];
+	const { editor } = after;
+	const json = JSON.stringify;
+	const inBlock = editor && editor.anchor.path[0] === index && editor.focus.path[0] === index;
+	if (!inBlock || json(editor.anchor) === json(editor.focus))
+		reasons.push(`the long press left ${json(editor)}, not the word in block ${index}`);
+	if (!after.nativeCollapsed) reasons.push('a native range stands under the word');
+	if (!after.painted || after.paintedIn.some((path) => path !== `[${index}]`))
+		reasons.push(`the paint covers ${json(after.paintedIn)}, not block ${index} alone`);
+	if (after.handles.length !== 2) reasons.push(`${after.handles.length} editor handle(s), not 2`);
+	if (menu.length) reasons.push(`Safari's own menu shows (${menu.join(', ')})`);
+	const menus = after.menus.map((m) => (m.toolbar ? 'toolbar' : 'menu'));
+	if (json(menus) !== json(['toolbar']))
+		reasons.push(`the editor shows ${json(menus)}, not the toolbar alone`);
+	return reasons;
+}
+
+// The items of Safari's own edit menu, by label; the editor's menus are web buttons, not these.
+async function safariMenu(ctx) {
+	await ctx.native();
+	const found = await ctx
+		.call('POST', ctx.s('/elements'), {
+			using: '-ios predicate string',
+			value: "type == 'XCUIElementTypeMenuItem'"
+		})
+		.catch(() => []);
+	const labels = [];
+	for (const el of found.slice(0, 12))
+		labels.push(
+			await ctx.call('GET', ctx.s(`/element/${el[ELEMENT]}/attribute/label`)).catch(() => '?')
+		);
+	await ctx.web();
+	return labels;
+}
+
+// A `mobile:` command, from the native context it runs in.
+async function mobile(ctx, command, args) {
+	await ctx.native();
+	try {
+		return await ctx.call('POST', ctx.s('/execute/sync'), {
+			script: `mobile: ${command}`,
+			args: [args]
+		});
+	} finally {
+		await ctx.web();
+	}
+}
+
+const ELEMENT = 'element-6066-11e4-a52e-4f735466cecf';
 
 // Block `index`'s text in page coordinates: where its text starts and ends, and its line's middle.
 function webBox(ctx, index) {

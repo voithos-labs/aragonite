@@ -63,12 +63,13 @@ function focusedRuleKey(blockEdit: BlockEditActions, key: string, mods = {}): vo
 		blockEdit,
 		focus: recordingFocus(),
 		isReading: () => false,
-		selection: { isCrossBlock: false },
+		selection: { ownsRange: false },
 		caretMemory: createCaretMemory(),
 		commandOf: () => null,
 		takesKey: () => false,
 		getPath: () => [0],
-		containerChords: { take: () => false }
+		containerChords: { take: () => false },
+		selectDocument: () => {}
 	});
 }
 

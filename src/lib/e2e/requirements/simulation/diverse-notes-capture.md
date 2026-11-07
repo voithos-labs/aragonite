@@ -4,13 +4,14 @@ Several note sessions, longer and more varied than the headline biology note, ea
 driven entirely through real keyboard, mouse, and clipboard input from an empty
 document and guarded by the harness's full set of reference checks. They find bugs
 over constructs the biology note avoids, and some deliberately put a construct
-nothing else covers into their **end-state check**, so typing ≡ loading guards it on
-every run: dense inline variety (feature-tour), deep container nesting (project-plan),
-a three-level outline (outline), a nested `> >` blockquote (reading-notes, the
-regression guard for the nested-blockquote-exit fix), plus two genre notes
-(meeting-minutes, README). Gated behind `SIM_CAPTURE` so they stay out of the default
-suite; each records a screenshot and a state manifest per structural unit for a visual
-review by an agent.
+nothing else covers into their **end-state check**: dense inline variety (feature-tour),
+deep container nesting (project-plan), a three-level outline (outline), a nested `> >`
+blockquote (reading-notes, the regression guard for the nested-blockquote-exit fix), plus
+two genre notes (meeting-minutes, README). This file runs only under `SIM_CAPTURE`, and
+each session records a screenshot and a state manifest per structural unit for a visual
+review by an agent. The outline, reading-notes and project-plan sessions also run with the
+screenshots off on every `npm test` (`diverse-notes.md`), which is where their end-state
+check guards those constructs.
 
 ## Happy paths
 
@@ -26,9 +27,10 @@ review by an agent.
 - outline note builds a three-level nested bullet list via the deep-nesting cadence
   (type item, indent the empty trailing item, type the fresh item); the three-level
   structure is part of the end-state check, so a nesting regression fails that check
-- reading-notes note builds a nested `> >` blockquote (typed `>` then `>` then body);
-  the nested quote is part of the end-state check, which is the regression guard for
-  the nested-blockquote-exit fix
+- reading-notes note builds a nested `> >` blockquote (typed `>` then `>` then body)
+  and leaves it with three Enters, one level per Enter on an empty quote line; the
+  nested quote is part of the end-state check, which is the regression guard for the
+  nested-blockquote-exit fix
 - meeting-minutes note builds headings, attendee bullets, a decision blockquote, an
   ordered agenda, and a task list with a nested action item; end-state equals the
   canonical note
@@ -55,8 +57,9 @@ review by an agent.
   the empty trailing item is outdented back to top level before the next item is
   typed
 - deep nesting reaches three levels by pressing Enter, indenting the empty item, then
-  typing the fresh item; indenting the empty item changes no bytes, so the gesture
-  waits for the focused item's path to get longer
+  typing the fresh item. Indenting the empty item writes a blank line above it, since an
+  empty item can't interrupt the text above, so each sublist typed that way reads loose.
+  The gesture waits for the focused item's path to get longer, not for a source change
 - nested blockquote exit: building and round-tripping a `> >` nested quote leaves no
   stranded empty `> >` continuation line (the reading-notes end-state guard for the
   exit-collapse fix)

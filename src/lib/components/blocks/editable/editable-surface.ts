@@ -54,7 +54,6 @@ import { recordCaretLook } from '../../../perf/instruments';
 import { createNextByte } from '../text/next-byte';
 import type { BlockPendingBreak } from '../../../caret/pending-break.svelte';
 import type { HeldSpaceView } from '../../../caret/held-space';
-import type { InsideCloserView } from '../../../caret/inside-closer';
 import type { BlockPendingMarks } from '../../../caret/pending-marks';
 import { findOffsetNearestX } from '../../../caret/sticky-measure';
 import { measurePartialRectsInContentEditable } from '../../overlays/rects';
@@ -106,6 +105,7 @@ import { checkRepaintReadsTree } from '../../../invariants/repaint-reads-tree';
 import { checkCompositionEndPaired } from '../../../invariants/inline-transitions';
 import { checkDeleteDecided } from '../../../invariants/collapsed-delete';
 import { checkTypedInsertAtCaret } from '../../../invariants/typed-insert-at-caret';
+import { checkTypedWriteOutsideRange } from '../../../invariants/typed-write-outside-range';
 import type { DeleteAnswer, DeleteContext, DeleteVerdict } from '../../../caret/delete-extent';
 import {
 	readInput,
@@ -354,8 +354,6 @@ export interface EditableSurface {
 	openBreakAtEnd(lines: number): number;
 	/** A space typed at a hidden closer here, which the next letter takes back inside. */
 	heldSpace: HeldSpaceView;
-	/** The caret Edit link left before a hidden closer here, which types inside the URL. */
-	insideCloser: InsideCloserView;
 	/** The marks a format chord at a collapsed caret here promised the block's next insertion. */
 	pendingMarks: BlockPendingMarks;
 	/** The formats a letter typed at raw offset `caret` would carry (`text/next-byte.ts`); plain
@@ -413,6 +411,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	const crossBlock = createCrossBlockHandlers({
 		getEl: () => deps.getEl(),
 		getMyPath: deps.getMyPath,
+		caretBounds,
 		selection: deps.selection,
 		caretWriter: deps.caretWriter,
 		standInCaret: () => deps.readingFocus.focusCaret(),
@@ -633,7 +632,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 			})
 		: () => ({ marks: [] });
 
-	const writeText = createSurfaceWrite({
+	const surfaceWrite = createSurfaceWrite({
 		getNode: deps.getNode,
 		getIndex: deps.getIndex,
 		getPath: deps.getMyPath,
@@ -646,6 +645,14 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		showsSource: deps.showsSource,
 		reading: deps.reading
 	});
+	function writeText(write: TextWrite): ContentWrite {
+		if (write.intent === 'typed') {
+			assertInvariant('typed-write-outside-range', () =>
+				checkTypedWriteOutsideRange(deps.selection.ownsRange, write.source)
+			);
+		}
+		return surfaceWrite(write);
+	}
 
 	function command<A extends unknown[], R>(run: (...args: A) => R): (...args: A) => R {
 		return function recorded(...args) {
@@ -1054,7 +1061,6 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		pendingBreak,
 		openBreakAtEnd,
 		heldSpace: deps.caretMemory.heldSpace.forBlock(block),
-		insideCloser: deps.caretMemory.insideCloser.forBlock(block),
 		pendingMarks,
 		nextByte,
 		clipboard,

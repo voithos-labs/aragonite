@@ -22,17 +22,22 @@ import type { PluginActivation } from '../../schema/plugin-activation';
 import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
 import type { InsertEntry } from '../../schema/insert-catalogue';
 import type { MenuEntry } from '../menu/BlockMenu.svelte';
-import { runClipboardAction, type ClipboardAction } from '../menu/clipboard-actions';
-import type { AimedInsert } from './focused-surface';
+import {
+	runClipboardAction,
+	type ClipboardAction,
+	type MenuClipboard
+} from '../menu/clipboard-actions';
 import { blockNoun } from '../menu/default-context-actions';
 import { isProseLeaf } from '../../schema/page-role';
 import type { Reading } from '../../schema/reading';
 import { readBlockPath } from '../../selection/path-lookup';
-import { rangeCoversPoint } from '../../selection/cross-block/pointer';
-import { holdsNativeRange, nativeRangeIn } from '../../browser/selection-read';
+import { holdsSelection, selectionCoversPoint } from '../../selection/held-selection';
+import type { SelectionState } from '../../selection/selection-state.svelte';
 import { documentLineEnding } from '../../core/lines';
 import { stampWrites, type DocumentStamps } from '../../editor-actions/commit/document-stamp';
 import type { Misspelling, SpellcheckState } from '../../spell/spell-state.svelte';
+import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
+import { checkMenuOverSelection } from '../../invariants/menu-over-selection';
 
 export interface BlockMenuModel {
 	x: number;
@@ -53,15 +58,17 @@ export interface RootMenusDeps {
 	/** The caret the menu opens over: where the right-click's press pointed, so a right-click on
 	 *  prose acts at the pointer; the event's point when no press opened the menu. */
 	placeMenuCaret(x: number, y: number): boolean;
-	/** Whether the right button's press landed on a selected range, which picks the menu. */
+	/** Whether the right button's press landed on the user's selection, which picks the menu. */
 	rangeAtContextPress(): boolean;
-	/** Whether the editor holds an inline widget selected, which Cut and Copy act on as on a range. */
-	holdsWidget(): boolean;
+	/** The editor's selection, which the clipboard rows act on before the browser's. */
+	selection: Pick<SelectionState, 'ownsRange' | 'widget' | 'isCustomRendered'>;
+	/** Whether the last press was a finger's (`selection/pointer-gesture.ts`), whose long press
+	 *  the editor takes over, its toolbar the one menu over the word. */
+	finger(): boolean;
 	/** The public insert entry point; a flyout row inserts `below` the block the caret is in. */
 	insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean>;
-	/** An insert at the caret aimed at the block focused now, which a Paste row runs once the
-	 *  clipboard read lands; null with no block focused. */
-	aimInsertAtFocus(): AimedInsert | null;
+	/** What the clipboard rows cut, copy and paste through. */
+	clipboard: MenuClipboard;
 	/** The insert entries this editor lists, read fresh per menu. */
 	insertCatalogue(): readonly InsertEntry[];
 	/** The plugins this editor lists, whose block actions and paste transforms the menu offers. */
@@ -107,6 +114,17 @@ const MAX_SUGGESTION_ROWS = 5;
 const isBlockHost = (node: EventTarget): node is HTMLElement =>
 	node instanceof HTMLElement && node.matches('.block-host[data-block-path]');
 
+/** The block a right-click opens its menu for, read off the event's path; null where no menu
+ *  opens: outside every block, on the host's own content, or on one of the editor's menus. */
+export function menuHostOf(
+	e: Event,
+	isHostChrome: (node: Node | null) => boolean
+): HTMLElement | null {
+	const target = e.target instanceof Element ? e.target : null;
+	if (!target || isHostChrome(target) || target.closest('.md-menu')) return null;
+	return e.composedPath().find(isBlockHost) ?? null;
+}
+
 interface Point {
 	x: number;
 	y: number;
@@ -123,18 +141,8 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		};
 	}
 
-	/** The editable element holding focus inside the root, whose selection Cut and Copy act on. */
-	function focusedEditable(): HTMLElement | null {
-		const active = document.activeElement;
-		return active instanceof HTMLElement &&
-			deps.editorEl?.contains(active) &&
-			active.isContentEditable
-			? active
-			: null;
-	}
-
-	function clipboardRows(): MenuEntry[] {
-		const selected = deps.holdsWidget() || (!!focusedEditable() && holdsNativeRange());
+	function clipboardRows(root: HTMLElement): MenuEntry[] {
+		const selected = holdsSelection(deps.selection, root);
 		return [
 			{ id: 'clip.cut', label: 'Cut', icon: 'scissors', disabled: !selected },
 			{ id: 'clip.copy', label: 'Copy', icon: 'copy', disabled: !selected },
@@ -145,7 +153,7 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 
 	function runClipboardRow(id: string): boolean {
 		if (!id.startsWith('clip.')) return false;
-		void runClipboardAction(id.slice('clip.'.length) as ClipboardAction, deps.aimInsertAtFocus());
+		void runClipboardAction(id.slice('clip.'.length) as ClipboardAction, deps.clipboard);
 		return true;
 	}
 
@@ -224,7 +232,12 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 
 	/** `withInsert` adds the "Insert block" flyout, whose rows land below the block the caret was
 	 *  just placed in; false leaves the menu to the clipboard rows alone. */
-	function openClipboardMenu(point: Point, anchorEl: Element, withInsert: boolean): void {
+	function openClipboardMenu(
+		root: HTMLElement,
+		point: Point,
+		anchorEl: Element,
+		withInsert: boolean
+	): void {
 		const catalogue = deps.insertCatalogue();
 		const misspelling = deps.misspellingAtCaret();
 		const editLink: MenuEntry[] = deps.canEditLinkAtCaret()
@@ -251,7 +264,7 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 			items: [
 				...(misspelling ? spellingRows(suggestions, true) : []),
 				...editLink,
-				...clipboardRows(),
+				...clipboardRows(root),
 				...insert
 			],
 			label: BLOCK_ACTIONS_LABEL,
@@ -315,31 +328,33 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		if (e.defaultPrevented || deps.mode === 'reading' || !root) return;
 		const target = e.target instanceof Element ? e.target : null;
 		if (!target || deps.isHostChrome(target)) return;
+		// Cancelled for a finger too, or the phone's own menu shows beside the toolbar.
 		e.preventDefault();
-		// The keyboard's contextmenu event (Windows fires it on the ContextMenu key's release)
-		// lands on the item the keydown's own menu already focused: that menu is the answer.
-		if (target.closest('.md-menu')) return;
-		// Read off the event's path, fixed at dispatch: the caret placed for the menu may have shown
-		// a widget's source, which takes the target out of the page.
-		const host = e.composedPath().find(isBlockHost) ?? null;
+		if (deps.finger()) return;
+		// Off the event's path, fixed at dispatch: the caret placed for the menu may have shown a
+		// widget's source, which takes the target out of the page.
+		const host = menuHostOf(e, deps.isHostChrome);
 		const path = readBlockPath(host);
 		if (!host || !path) return;
 		const point = { x: e.clientX, y: e.clientY };
 		const selected = deps.rangeAtContextPress();
+		assertInvariant('menu-over-selection', () =>
+			checkMenuOverSelection(selected, holdsSelection(deps.selection, root))
+		);
 		// A nested block (a fence inside a list item) gets the clipboard rows.
 		const node = path.length === 1 ? deps.getDoc().children[path[0]] : undefined;
 		const prose = !!node && isProseLeaf(node, deps.reading);
 		// What Safari selected under the pointer stays for the clipboard rows to act on, as a native
 		// right-click's does; anything else, and anything under a block's actions, the caret replaces.
 		if (selected || !node || prose) {
-			if (!selected && !rangeCoversPoint(root, e.clientX, e.clientY)) {
+			if (!selected && !selectionCoversPoint(deps.selection, root, e.clientX, e.clientY)) {
 				deps.placeMenuCaret(e.clientX, e.clientY);
 			}
 			// Top-level prose is where a sibling block makes sense.
-			openClipboardMenu(point, host, !selected && prose);
+			openClipboardMenu(root, point, host, !selected && prose);
 			return;
 		}
-		if (nativeRangeIn(root)) deps.placeMenuCaret(e.clientX, e.clientY);
+		if (holdsSelection(deps.selection, root)) deps.placeMenuCaret(e.clientX, e.clientY);
 		openBlockActions(point, host, path, node);
 	}
 

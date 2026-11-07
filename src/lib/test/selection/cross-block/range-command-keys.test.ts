@@ -19,7 +19,7 @@ import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);
 
-type Seam = { isCrossBlockActive(): boolean };
+type Seam = { ownsRange(): boolean };
 
 const SOURCE = 'alpha\n\nbeta\n';
 const ACROSS = { anchor: { path: [0], offset: 1 }, focus: { path: [1], offset: 2 } };
@@ -70,7 +70,7 @@ describe('a command key over a range', () => {
 			await pressKey(surfaceAt(mounted, [1]), key);
 
 			expect(mounted.source()).toBe(after);
-			if (after === SOURCE) expect(mounted.instance.__test.isCrossBlockActive()).toBe(true);
+			if (after === SOURCE) expect(mounted.instance.__test.ownsRange()).toBe(true);
 		});
 	}
 
@@ -123,7 +123,7 @@ describe('a binding scoped to one kind, over a range', () => {
 			await pressKey(surfaceAt(mounted, [1]), key);
 
 			expect(mounted.source()).toBe(after);
-			expect(mounted.instance.__test.isCrossBlockActive()).toBe(true);
+			expect(mounted.instance.__test.ownsRange()).toBe(true);
 		});
 	}
 
@@ -145,7 +145,7 @@ describe('a binding scoped to one kind, over a range', () => {
 		await pressKey(surfaceAt(mounted, [1]), ENTER);
 
 		expect(mounted.source()).toBe(source);
-		expect(mounted.instance.__test.isCrossBlockActive()).toBe(true);
+		expect(mounted.instance.__test.ownsRange()).toBe(true);
 	});
 
 	// Miss-analysis: no row took blocks whole between neighbours of different kinds, so nothing held

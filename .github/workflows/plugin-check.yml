@@ -171,11 +171,14 @@ jobs:
         env:
           NAME: ${{ needs.check.outputs.name }}
           RECORD: ${{ needs.check.outputs.record }}
+        # The file takes the artifact's name, so a listing run that merges every artifact into one
+        # folder still knows whose result each one is.
         run: |
-          printf '%s\n' "$RECORD" > "$RUNNER_TEMP/result.json"
-          echo "name=plugin-check-$(echo "$NAME" | tr '@/' '-_')" >> "$GITHUB_OUTPUT"
+          artifact="plugin-check-$(echo "$NAME" | tr '@/' '-_')"
+          printf '%s\n' "$RECORD" > "$RUNNER_TEMP/$artifact.json"
+          echo "name=$artifact" >> "$GITHUB_OUTPUT"
       - if: needs.check.outputs.record != ''
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ steps.artifact.outputs.name }}
-          path: ${{ runner.temp }}/result.json
+          path: ${{ runner.temp }}/${{ steps.artifact.outputs.name }}.json

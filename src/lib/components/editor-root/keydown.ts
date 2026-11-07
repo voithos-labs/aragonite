@@ -9,7 +9,7 @@ import type { SearchState } from '../../search/search-state.svelte';
 import type { CrossBlockHandlers } from '../../selection/cross-block/dispatch';
 import type { CommandDispatchContext } from '../../schema/block-commands';
 import { isReservedUiChord, runGlobalChord } from '../../schema/commands';
-import { eventToChord, isCharacterKey } from '../../schema/keybindings';
+import { eventToChord } from '../../schema/keybindings';
 import { shownSelectionText } from '../../browser/selection-read';
 import {
 	chromeHoldsFocus,
@@ -25,11 +25,11 @@ export interface EditorRootKeydownDeps extends KeyFocusDeps {
 	/** One predicate, so the root Mod+H and the bar's chevron cannot diverge on when
 	 *  the replace row may open. */
 	get canReplace(): boolean;
-	get isCrossBlock(): boolean;
+	get ownsRange(): boolean;
 	search: SearchState;
 	/** The editor's command dispatch, which takes only this instance's plugins' chords. */
 	commands: CommandDispatchContext;
-	crossBlock: Pick<CrossBlockHandlers, 'handleKeyDown' | 'insertText'>;
+	crossBlock: Pick<CrossBlockHandlers, 'handleKeyDown'>;
 	/** Snapshot the pre-search selection; the bar's close handler restores it. */
 	saveSearchCaret(): void;
 	setReplaceExpanded(expanded: boolean): void;
@@ -104,16 +104,7 @@ export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRoot
 				return;
 			}
 
-			if (!ownsCaret || !deps.isCrossBlock) return;
-
-			// With nothing editable focused, no `beforeinput` fires for a typed character, so it
-			// comes in here; chorded keys are left alone.
-			if (isCharacterKey(event.key) && !event.ctrlKey && !event.metaKey) {
-				event.preventDefault();
-				void deps.crossBlock.insertText(event.key);
-				return;
-			}
-
+			if (!ownsCaret || !deps.ownsRange) return;
 			void deps.crossBlock.handleKeyDown(event);
 		}
 	};

@@ -39,7 +39,7 @@ export function mountReportBug(options: ReportBugOptions): {
 		glyph,
 		label
 	);
-	const anchor = el('div', { class: 'showcase-popover-anchor' }, button);
+	const anchor = el('div', { class: 'showcase-popover-anchor report-anchor' }, button);
 	let card: HTMLElement | null = null;
 
 	button.addEventListener('click', () => {

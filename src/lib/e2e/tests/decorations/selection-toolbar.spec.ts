@@ -20,6 +20,17 @@ async function firstSelectionRect(page: EditorPage['page']) {
 	});
 }
 
+/** The box of the selection's last line, where a wrapped range ends. */
+async function lastSelectionRect(page: EditorPage['page']) {
+	return page.evaluate(() => {
+		const sel = window.getSelection();
+		if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
+		const rects = [...sel.getRangeAt(0).getClientRects()].filter((rect) => rect.width > 0);
+		const rect = rects[rects.length - 1];
+		return rect ? { top: rect.top, right: rect.right, bottom: rect.bottom } : null;
+	});
+}
+
 test.describe('selection toolbar', () => {
 	let editor: EditorPage;
 
@@ -68,24 +79,26 @@ test.describe('selection toolbar', () => {
 		await editor.bridge.waitForSourceContains('select **some** of this text');
 	});
 
-	test('a mid-line start in a wrapped paragraph anchors at rect[0], not the union', async ({
+	test('a wrapped selection hangs the bar where it ends, not off rect[0] or the union', async ({
 		page
 	}) => {
 		const line = 'word '.repeat(120).trim();
 		await editor.loadContent(`${line}\n`);
 		await editor.focusBlock(0, 40);
-		await page.keyboard.press('Shift+ArrowDown');
-		await page.keyboard.press('Shift+ArrowDown');
+		for (let i = 0; i < 3; i++) await page.keyboard.press('Shift+ArrowDown');
 
 		const toolbar = page.locator(TOOLBAR);
 		await expect(toolbar).toBeVisible();
-		const bar = await toolbar.boundingBox();
-		const rect = await firstSelectionRect(page);
-		// rect[0] starts mid-line; the multi-line union would start at the block's
-		// left edge, far left of the selection start.
-		expect(rect!.left).toBeGreaterThan(50);
-		// The bar hangs off the last line of the selection, so it sits below the first rect.
-		expect(bar!.y).toBeGreaterThanOrEqual(rect!.top);
+		const bar = (await toolbar.boundingBox())!;
+		const first = (await firstSelectionRect(page))!;
+		const last = (await lastSelectionRect(page))!;
+		// The range starts mid-line and ends lines below, so rect[0], the last line and the union
+		// all have different corners.
+		expect(first.left).toBeGreaterThan(50);
+		expect(last.top).toBeGreaterThanOrEqual(first.bottom);
+		// The bar's corner sits at the last line's end, within the bar's own height of it.
+		expect(Math.abs(bar.x - last.right)).toBeLessThan(bar.height);
+		expect(Math.abs(bar.y - last.bottom)).toBeLessThan(bar.height);
 	});
 
 	test('a cross-block selection anchors below the start block via rangeRects', async ({ page }) => {

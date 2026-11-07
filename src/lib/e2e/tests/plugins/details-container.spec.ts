@@ -264,7 +264,7 @@ test.describe('plugin container: <details> collapsible', () => {
 
 		// Drag-select from the prose above into the middle of the summary, then copy.
 		await editor.dragFromTo([0], 2, [1, 0], 3);
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.ownsRange()).toBe(true);
 		await page.keyboard.press('ControlOrMeta+c');
 		await editor.waitForClipboardWrite();
 

@@ -28,9 +28,9 @@ export interface EditorTestSurface {
 	getBlockComponent(path: number[]): BlockComponent | null;
 	getUndoStack(): ReturnType<UndoManager['getStacks']>;
 	getOperationsLog(): OperationsLog;
-	/** The state, not the `data-cross-block` mirror: a deferred `$effect` writes the attribute,
-	 *  and an intra-table rectangle keeps one path on both endpoints. */
-	isCrossBlockActive(): boolean;
+	/** Whether the editor holds the range, read off the state, not the `data-painted-range`
+	 *  mirror a deferred `$effect` writes. */
+	ownsRange(): boolean;
 	/** The gap caret has no public selection shape and no paint, so arrival is observable
 	 *  only here. */
 	getGapCaret(): GapCaretPosition | null;

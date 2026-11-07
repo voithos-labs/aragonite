@@ -45,7 +45,7 @@ A text block's own pointer-down (`src/lib/components/blocks/text/TextEditableBlo
 A press is read when it goes down, not at the click or the menu that comes after it. The press itself can move the caret out of an open formula source, which closes it. The formula draws again, the rest of the line shifts, and by the time the click arrives there's something else under the pointer. Firefox always closes the source before the click, and Chromium does too when the press is held about as long as a person holds one. Three places measure at pointer-down and act later:
 
 - the text block's reading for stage 4 (`widget-interaction.ts` :: `notePress`, guarded by G4.252);
-- the root's right-click record (`gestures.ts` :: `notePress`), which places the menu's caret;
+- the root's right-click record (`gestures.ts` :: `notePress`), which keeps the selection the press lands on, ends one it misses where a menu opens, and places the menu's caret;
 - the dead-space click (`dead-space-caret.ts` :: `planAtPoint`), which also reads the block's own snap before it places a caret.
 
 ## 2. Which block, and where in it
@@ -141,7 +141,7 @@ A letter typed at a caret beside a widget is decided at `beforeinput` too, outsi
 The answer is the word processor's: the byte takes the format of the visible character before the position (at a line start, the one after), whichever of the two raw offsets the browser left the caret at. Three things can change that, in order:
 
 1. **The construct's own row** in `src/lib/schema/inline-construct-policy.ts`. A link never extends, whichever side you type on, and a code chip (`boxed`) has two stops either side of its border, which an arrow key, a click or `End` picks between (`src/lib/components/blocks/text/edge-step.ts`).
-2. **A record on the caret memory** (`src/lib/caret/caret-memory.ts`): a fresh start (Enter's new block, a click past a line's end) or a typed closer means outside, a held space means inside, Edit link's caret before a URL's hidden `>` means inside the URL, a chip stop means its side. Any key that moves the caret ends the record, and so does any caret move that isn't a key. So Backspace on an empty list item under `- **a**` lands on text and types bold, same as at the top level.
+2. **A record on the caret memory** (`src/lib/caret/caret-memory.ts`): a fresh start (Enter's new block, a click past a line's end) or a typed closer means outside, a held space means inside, a chip stop means its side. Any key that moves the caret ends the record, and so does any caret move that isn't a key. So Backspace on an empty list item under `- **a**` lands on text and types bold, same as at the top level.
 3. **The renderer.** A candidate offset is accepted only if what shows on screen afterwards is exactly what showed before, plus the typed byte.
 
 If no candidate passes, it declines and the browser's own placement stands. That's the honest fallback, since it's where the byte was going anyway.

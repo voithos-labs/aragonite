@@ -16,7 +16,6 @@ import { getInlineWidgetEditing } from '../../../core/inline/inline-widgets';
 import { isBlankText, trimTrailingLineEnding } from '../../../core/lines';
 import { type RawOffset } from '../../../core/coordinate-spaces';
 import type { BlockPendingMarks } from '../../../caret/pending-marks';
-import type { InsideCloserView } from '../../../caret/inside-closer';
 import { keptBlockText, hidesBlockPrefix, type EditedBlock } from '../../../browser/block-text';
 import { reachableRawBounds, visibleWalkText } from '../../../browser/offsets';
 import { markerPrefixOf, hidingScreenOf } from '../../../browser/painted';
@@ -30,7 +29,8 @@ import {
 } from '../../../caret/delete-extent';
 import type { DeleteDirection, DeleteIntent } from '../../../browser/input';
 import { recordIslandKeyScan } from '../../../perf/instruments';
-import { hasModifier, isBareKey, isPlainTypingKey } from './click-snap-guard';
+import { hasModifier, isBareKey } from './click-snap-guard';
+import { typesCharacter } from '../../../schema/keybindings';
 import { caretIsInTextContent, readNativeSelection } from '../../../browser/selection-read';
 import { createMarkerCompletion } from './marker-completion';
 import { resolveEdgeDeletion, type EdgeDeletion } from './construct-edge-delete';
@@ -106,8 +106,6 @@ export interface EdgePolicyDispatchDeps {
 	pendingMarks: BlockPendingMarks;
 	/** The editor's caret writer, which selects a decoration widget whole. */
 	caretWriter: CaretWriter;
-	/** The caret Edit link left before a hidden closer, which a letter taken back keeps there. */
-	insideCloser: () => InsideCloserView;
 }
 
 export interface EdgePolicyDispatch {
@@ -267,14 +265,9 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 
 	/** A keypress with no safe rewrite writes nothing: the browser's version would show the
 	 *  delimiters the rule was hiding. */
-	function applyEdgeDeletion(deletion: EdgeDeletion, caret: number): void {
+	function applyEdgeDeletion(deletion: EdgeDeletion): void {
 		if ('swallow' in deletion) return;
-		// A letter taken back from Edit link's caret leaves the caret inside the URL still; the
-		// write ends every record, so it is opened again where the cut left the caret.
-		const tookOnlyBefore = deletion.caret + display().length - deletion.raw.length === caret;
-		const stillInside = deps.insideCloser().at() === caret && tookOnlyBefore;
 		writeDisplay(deletion.raw, deletion.caret, 'construct-delete');
-		if (stillInside) deps.insideCloser().open(deletion.caret);
 		// Pended after the write, since the write clears pending marks; the caret has not moved, so
 		// the format waits for the next insertion (live-mode.md § 4.4).
 		for (const kind of deletion.unwrappedMarks) deps.pendingMarks.toggle(kind);
@@ -294,7 +287,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		if (deps.isRevealing()) return false;
 		if (caretOffset === null) return false;
 		const arrow = e.key === 'ArrowLeft' || e.key === 'ArrowRight';
-		if (!arrow && !isPlainTypingKey(e)) return false;
+		if (!arrow && !typesCharacter(e)) return false;
 		const node = deps.node;
 		// ArrowRight enters the widget after the caret, every other key the one before, so a caret
 		// between two adjacent widgets enters the one the key is aimed at.
@@ -318,7 +311,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		// A key over a range that opens at the widget replaces the range through the join rules; a
 		// key at a caret beside it is the typed-insert decision's.
 		const el = deps.getEl();
-		if (range && el && !caretIsInTextContent(el) && isPlainTypingKey(e) && !deps.isReading()) {
+		if (range && el && !caretIsInTextContent(el) && typesCharacter(e) && !deps.isReading()) {
 			e.preventDefault();
 			deps.setSnapTarget(null);
 			writeTypedByte(caretOffset, e.key, 'widget');
@@ -364,7 +357,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		// A collapsed delete is the `delete-beside` arm's; this one takes a held range's delete.
 		const isDestructive = !hasModifier(e) && (e.key === 'Backspace' || e.key === 'Delete');
 		// A key typed at a caret beside a decoration is the typed-insert decision's, not this arm's.
-		const isTyping = isPlainTypingKey(e) && heldRange() !== null;
+		const isTyping = typesCharacter(e) && heldRange() !== null;
 		if (!isDestructive && !isTyping) return false;
 
 		// Blocks with no decoration widgets, the common case, skip the per-keystroke DOM scan.
@@ -531,7 +524,7 @@ export function createEdgePolicyDispatch(deps: EdgePolicyDispatchDeps): EdgePoli
 		const deletion = edgeDeletionAt(el, caret, intent.direction);
 		if (!deletion) return false;
 		deps.setSnapTarget(null);
-		applyEdgeDeletion(deletion, caret);
+		applyEdgeDeletion(deletion);
 		return true;
 	}
 

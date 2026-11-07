@@ -96,7 +96,7 @@ function moveFocusTo(ctx: KeyboardExtendContext, point: SelectionPoint): void {
 	const { selection } = ctx;
 	const anchor = selection.anchor;
 	selection.extendFocus(point);
-	if (selection.isCrossBlock || !anchor) {
+	if (selection.ownsRange || !anchor) {
 		void ctx.caretLanding.showSelectionEnd();
 		return;
 	}
@@ -105,7 +105,7 @@ function moveFocusTo(ctx: KeyboardExtendContext, point: SelectionPoint): void {
 
 /** Enters cross-block mode from the native caret unless a range is already live. */
 function enterFromCaret(ctx: KeyboardExtendContext, el: HTMLElement, path: number[]): boolean {
-	if (ctx.selection.isCrossBlock) return true;
+	if (ctx.selection.ownsRange) return true;
 	return enterCrossBlockFromKeyboard(ctx.selection, ctx.caretWriter, el, path);
 }
 
@@ -226,7 +226,7 @@ function queuePageStep(
 	const run = async () => {
 		await ctx.caretLanding.showSelectionEnd();
 		const { selection } = ctx;
-		const from = selection.isCrossBlock
+		const from = selection.ownsRange
 			? selection.focus && selection.cellLandingFor(selection.focus)
 			: nativeFocus(ctx);
 		if (from) await step(from);
@@ -383,8 +383,12 @@ export function handleShiftClick(
 	if (clickOffset === null) return false;
 	const focusPoint: SelectionPoint = { path: clickedBlockPath.slice(), offset: clickOffset };
 
-	if (selection.isCrossBlock) {
+	if (selection.ownsRange) {
+		const anchor = selection.anchor;
 		selection.extendFocus(focusPoint);
+		// Folded back into the anchor's block, the range is the browser's again (G1.170).
+		if (!selection.ownsRange && anchor && pathsEqual(anchor.path, focusPoint.path))
+			applySingleBlockRange(writer, clickedBlockEl, anchor.offset, focusPoint.offset);
 		return true;
 	}
 

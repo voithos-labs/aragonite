@@ -64,10 +64,9 @@ export type InlineProseExtent = 'none' | 'content' | 'all';
  *  unmakes it takes it whole (live-mode.md § 4.4). */
 export type SplitBehavior = 'close-and-reopen' | 'whole' | 'plain';
 
-/** `card`: the link card edits the destination, the only way in a mode that hides the URL
- *  (`docs/design/live-mode.md` § 4.6 The link card). `text`: the destination is the construct's
- *  own text, edited with the caret at its end. */
-export type FollowEdit = 'card' | 'text';
+/** `card`: the link card edits the text and the destination, the only way in a mode that hides
+ *  the URL (`docs/design/live-mode.md` § 4.6 The link card). */
+export type FollowEdit = 'card';
 
 // Read with no editor at hand: a row matters only for a node of its kind, and only an editor
 // that activated the kind's plugin parses one, so the rows answer for every installed plugin.

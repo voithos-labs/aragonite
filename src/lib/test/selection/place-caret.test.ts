@@ -9,10 +9,10 @@ import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 const at = (block: number, offset: number) => ({ path: [block], offset });
 
 function liveRange() {
-	const emissions: { isCrossBlock: boolean; landed: number | null }[] = [];
+	const emissions: { ownsRange: boolean; landed: number | null }[] = [];
 	let landed: number | null = null;
 	const selection = createSelectionState({
-		onChange: () => emissions.push({ isCrossBlock: selection.isCrossBlock, landed })
+		onChange: () => emissions.push({ ownsRange: selection.ownsRange, landed })
 	});
 	selection.enterCrossBlock(at(0, 0), at(2, 4));
 	emissions.length = 0;
@@ -34,7 +34,7 @@ describe('placeCaret: the safe caret entry point', () => {
 
 		placeCaret(h.selection, testCaretWriter, h.park)(7);
 
-		expect(h.selection.isCrossBlock).toBe(false);
+		expect(h.selection.ownsRange).toBe(false);
 		expect(h.landed).toBe(7);
 	});
 
@@ -45,7 +45,7 @@ describe('placeCaret: the safe caret entry point', () => {
 
 		h.park(7);
 
-		expect(h.selection.isCrossBlock).toBe(true);
+		expect(h.selection.ownsRange).toBe(true);
 		expect(h.landed).toBe(7);
 	});
 
@@ -56,7 +56,7 @@ describe('placeCaret: the safe caret entry point', () => {
 
 		placeCaret(h.selection, testCaretWriter, h.park)(7);
 
-		expect(h.emissions).toEqual([{ isCrossBlock: false, landed: 7 }]);
+		expect(h.emissions).toEqual([{ ownsRange: false, landed: 7 }]);
 	});
 
 	// Most caret placements happen with no range live, where nothing else notifies, so
@@ -130,6 +130,6 @@ describe('placeCaret: the safe caret entry point', () => {
 			expect(h.emissions).toEqual([]);
 		});
 
-		expect(h.emissions).toEqual([{ isCrossBlock: false, landed: 7 }]);
+		expect(h.emissions).toEqual([{ ownsRange: false, landed: 7 }]);
 	});
 });

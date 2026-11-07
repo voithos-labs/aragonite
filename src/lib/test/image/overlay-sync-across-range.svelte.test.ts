@@ -47,7 +47,7 @@ describe('the image overlay across a range', () => {
 			await editor.settle();
 		}
 
-		expect(editor.instance.__test.isCrossBlockActive()).toBe(true);
+		expect(editor.instance.__test.ownsRange()).toBe(true);
 		expect(syncRuns.count).toBe(0);
 	});
 });

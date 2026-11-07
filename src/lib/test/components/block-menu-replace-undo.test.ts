@@ -4,6 +4,7 @@
 // Miss-analysis: every menu test picked a row on an untouched document, never inside a burst.
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRootMenus, type BlockMenuModel } from '#lib/components/editor-root/menus.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { serialize } from '#lib/core/serializer.js';
 import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
 import { registerBuiltinBlockContextActions } from '#lib/schema/context-actions.js';
@@ -51,9 +52,10 @@ async function typeThenRewrite() {
 		blockEdit: editor.actions,
 		placeMenuCaret: () => true,
 		rangeAtContextPress: () => false,
-		holdsWidget: () => false,
+		selection: createSelectionState(),
+		finger: () => false,
 		insertMarkdown: async () => true,
-		aimInsertAtFocus: () => null,
+		clipboard: { take: () => null, pasteTarget: () => null },
 		insertCatalogue: () => [],
 		activation: everyInstalledPlugin,
 		reading: fixtureReading(),

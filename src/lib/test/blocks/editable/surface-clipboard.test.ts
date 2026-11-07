@@ -61,7 +61,7 @@ describe('step order', () => {
 	function deps(log: string[], over: Partial<ClipboardSurfaceDeps> = {}): ClipboardSurfaceDeps {
 		return {
 			caretMemory: { forget: () => log.push('forget') } as never,
-			selection: { isCrossBlock: false, anchor: null, focus: null } as never,
+			selection: { ownsRange: false, anchor: null, focus: null } as never,
 			getDoc: () => null as never,
 			crossBlock: {
 				handlePaste: async () => {
@@ -442,7 +442,7 @@ describe('image paste', () => {
 		const errors: unknown[] = [];
 		const deps: ClipboardSurfaceDeps = {
 			caretMemory: { forget: () => {} } as never,
-			selection: { isCrossBlock: false } as never,
+			selection: { ownsRange: false } as never,
 			getDoc: () => null as never,
 			crossBlock: {
 				handlePaste: async (_e: ClipboardEvent, replacement?: string) => {

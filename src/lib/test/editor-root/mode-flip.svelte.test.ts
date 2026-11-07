@@ -49,10 +49,12 @@ function harness(
 		selectionEmits: 0,
 		modeEmits: [] as PresentationMode[],
 		restores: [] as [number[], number][],
+		/** The mode held for the outgoing view at each menu and draft close. */
+		heldAtClose: [] as (PresentationMode | null)[],
 		/** The post half's steps in the order they ran. */
 		order: [] as string[]
 	};
-	const selection = { isCrossBlock: false, gapCaret: null, clearGapCaret: () => calls.gapClears++ };
+	const selection = { ownsRange: false, gapCaret: null, clearGapCaret: () => calls.gapClears++ };
 	const events = createEditorEvents();
 	const drafts = createDraftRegistry(createDocumentStamps());
 	events.on('presentationModeChange', (next) => {
@@ -88,11 +90,13 @@ function harness(
 		menus: {
 			closeAll: (cause) => {
 				calls.menuCloses++;
+				calls.heldAtClose.push(held);
 				calls.order.push(`menus:${cause}`);
 			}
 		},
 		drafts: {
 			closeAll: (cause) => {
+				calls.heldAtClose.push(held);
 				calls.order.push(`drafts:${cause}`);
 				drafts.closeAll(cause);
 			}
@@ -155,6 +159,15 @@ describe('editor-root mode flip: the outgoing mode', () => {
 		expect(heldAtBlur).toBe('source');
 		expect(h.held()).toBeNull();
 	});
+
+	// Miss-analysis (#814): the menus closed once the new mode held, so a card's save into reading
+	// mode was declined, and no row read the mode a close saw.
+	it('is held while the menus and drafts close, since a close may save what was typed', () => {
+		const h = harness({ mode: 'live' });
+		h.flipTo('reading');
+		expect(h.calls.heldAtClose).toEqual(['live', 'live']);
+		expect(h.held()).toBeNull();
+	});
 });
 
 describe('editor-root mode flip: the two halves', () => {
@@ -197,7 +210,7 @@ describe('editor-root mode flip: the two halves', () => {
 	});
 
 	// Miss-analysis: the overlays’ rects were never counted among the mode’s geometry.
-	it('the post half closes the menus, forgets the mode’s geometry and announces the mode', () => {
+	it('a flip closes the menus, forgets the mode’s geometry and announces the mode', () => {
 		const h = harness();
 		h.flipTo('live');
 		expect(h.calls).toMatchObject({
@@ -288,7 +301,7 @@ describe('editor-root mode flip: the caret carry', () => {
 
 	it('a cross-block range captures no caret', async () => {
 		const h = harness({ selection: caretAt([1], 3) });
-		h.selection.isCrossBlock = true;
+		h.selection.ownsRange = true;
 		h.flipTo('live');
 		await settleEditor();
 		expect(h.calls.restores).toEqual([]);

@@ -33,11 +33,6 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		note: 'Answers `claimsChord` by asking what each handler on the key’s way asks; it consumes nothing itself.'
 	},
 	{
-		file: 'components/editor-root/keydown.ts',
-		keys: ['Backspace', 'Escape', 'H'],
-		note: "Escape closes the find bar, and Mod+H picks the replace row as the bar opens (reserved UI chords, enumerated). Backspace outside a text field only loses the browser's own default (a step back in history, in some engines) and still reaches every handler. The modifier read is a refusal: an unchorded character over a live range is written as text, a chorded one goes to the handlers below it."
-	},
-	{
 		file: 'debug/input-recorder.ts',
 		keys: ['Process'],
 		note: 'An input recording copies the modifier flags of every key it records, and reads an IME keydown (`Process`) to group a composition: no keystroke is consumed.'
@@ -53,7 +48,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		note: 'A modified multi-click is left to the browser (Shift extends, Mod activates): no keystroke is consumed.'
 	},
 	{
-		file: 'selection/widget-press.ts',
+		file: 'selection/held-selection.ts',
 		keys: [],
 		note: "Control with the primary button is a Mac's right-click, read off a press: no keystroke is consumed."
 	},

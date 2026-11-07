@@ -132,27 +132,44 @@ async function fresh(url, text) {
 	throw new Error('the seeded document never applied, after two page loads');
 }
 
-// Safari's first-run tip ("View Bookmarks, Share Menu, and Open Tabs") covers the page's first
-// blocks. Its close button is the `Close` nearest its text, since the harness page has a `Close`.
+// Safari's first-run tip ("View Bookmarks, Share Menu, and Open Tabs") covers the page and swallows
+// the next touch. It's closed by the button nearest its text's top-right corner, else by a tap on
+// the status bar outside it, which only scrolls a page to its top; a tip that stays fails the row.
 async function dismissSafariTip() {
 	await native();
-	const tip = await tryFind('-ios predicate string', "label BEGINSWITH 'View Bookmarks'");
-	if (tip) {
+	for (let attempt = 1; attempt <= 3; attempt++) {
+		const tip = await tryFind('-ios predicate string', TIP);
+		if (!tip) return web();
+		if (attempt === 1)
+			writeFileSync(path.join(out, 'safari-tip.xml'), String(await call('GET', s('/source'))));
 		const at = await call('GET', s(`/element/${tip}/rect`));
-		const closes = await call('POST', s('/elements'), {
-			using: '-ios predicate string',
-			value: "type == 'XCUIElementTypeButton' AND name == 'Close'"
-		});
-		let nearest = null;
-		for (const found of closes) {
-			const id = found[ELEMENT];
-			const r = await call('GET', s(`/element/${id}/rect`));
-			const d = Math.hypot(r.x - at.x, r.y - at.y);
-			if (!nearest || d < nearest.d) nearest = { id, d };
-		}
-		if (nearest) await click(nearest.id);
+		const close = await nearestButton({ x: at.x + at.width, y: at.y }, 80);
+		if (close) await click(close);
+		else
+			await call('POST', s('/execute/sync'), { script: 'mobile: tap', args: [{ x: 20, y: 12 }] });
+		await sleep(800);
 	}
+	if (await tryFind('-ios predicate string', TIP))
+		throw new Error("Safari's first-run tip stayed over the page after three tries to close it");
 	await web();
+}
+
+const TIP = "label BEGINSWITH 'View Bookmarks'";
+
+// The button whose centre is nearest `point`, within `reach` points.
+async function nearestButton(point, reach) {
+	const buttons = await call('POST', s('/elements'), {
+		using: '-ios predicate string',
+		value: "type == 'XCUIElementTypeButton'"
+	});
+	let nearest = null;
+	for (const found of buttons) {
+		const id = found[ELEMENT];
+		const r = await call('GET', s(`/element/${id}/rect`));
+		const d = Math.hypot(r.x + r.width / 2 - point.x, r.y + r.height / 2 - point.y);
+		if (d <= reach && (!nearest || d < nearest.d)) nearest = { id, d };
+	}
+	return nearest?.id ?? null;
 }
 
 const ctx = {

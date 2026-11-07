@@ -23,7 +23,7 @@ const TOGGLES = [
 
 // Every case has a painted range unless it says otherwise.
 const context = (over: Parameters<typeof commandContext>[0] = {}) =>
-	commandContext({ isCrossBlockRange: () => true, ...over });
+	commandContext({ ownsRange: () => true, ...over });
 
 function router(over: Partial<CrossBlockCommandRouter> = {}): CrossBlockCommandRouter {
 	return { canRun: () => true, run: () => true, isActive: () => true, ...over };
@@ -80,7 +80,7 @@ describe('the pressed-state read follows the same route', () => {
 	it('the branch answers over a range, and the surface answers at a caret', () => {
 		const armed = context({ crossBlockCommands: router({ isActive: () => false }) });
 		expect(isCommandActiveById(TOGGLES[0], surface(), armed)).toBe(false);
-		const collapsed = context({ isCrossBlockRange: () => false });
+		const collapsed = context({ ownsRange: () => false });
 		expect(isCommandActiveById(TOGGLES[0], surface(), collapsed)).toBe(true);
 	});
 

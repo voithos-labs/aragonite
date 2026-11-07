@@ -106,7 +106,7 @@ export function readCurrentSelection(
 ): EditorSelection | null {
 	const widget = selectionState.widgetCaret();
 	if (widget) return collapsedSelectionAt(widget.path, widget.offset);
-	if (selectionState.isCrossBlock && selectionState.anchor && selectionState.focus) {
+	if (selectionState.ownsRange && selectionState.anchor && selectionState.focus) {
 		return {
 			anchor: copySelectionPoint(selectionState.anchor),
 			focus: copySelectionPoint(selectionState.focus)

@@ -59,7 +59,7 @@ describe('the table lands a caret through the entry point and at the offset it w
 		mounted.block.parkCaret!(0);
 
 		expect(document.activeElement).toBe(mounted.cell(0, 0));
-		expect(selection.isCrossBlock).toBe(true);
+		expect(selection.ownsRange).toBe(true);
 	});
 
 	it('carries the offset down the row to the cell, not just the cell address', () => {

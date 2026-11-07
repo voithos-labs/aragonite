@@ -64,11 +64,12 @@ function wholeBlockKey(t: ReturnType<typeof harness>, key: string, mods = {}): v
 		focus: t.focus,
 		isReading: () => false,
 		takesKey: () => false,
-		selection: { isCrossBlock: false },
+		selection: { ownsRange: false },
 		caretMemory: createCaretMemory(),
 		commandOf: () => null,
 		getPath: () => [0],
-		containerChords: { take: () => false }
+		containerChords: { take: () => false },
+		selectDocument: () => {}
 	});
 }
 

@@ -1,8 +1,8 @@
 /**
  * The drawn caret's source guards: one module writes its element and the mark hiding the browser's
  * caret (G4.141); `caret-color` is set only where hidden on purpose (G4.142); every native selection
- * write asks for a repaint, and the frame paint only paints (G4.143); no second caret painter
- * appears (G4.144); every length the bar's rules set rounds to device pixels (G4.166).
+ * write asks for a repaint, and the frame paint only paints (G4.143); no caret blinks but the
+ * drawn one (G4.144); every length the bar's rules set rounds to device pixels (G4.166).
  */
 
 import { describe, expect, it } from 'vitest';
@@ -57,7 +57,7 @@ describeManifests(ONE_WRITER, collectEditorSources());
 const CARET_COLOR_RULES: Record<string, string> = {
 	[`${SOURCE.editorCss} :: :where(.editor) [data-caret-drawn]`]:
 		'the surface the drawn caret is drawing for, in the paint that draws it',
-	[`${SOURCE.editorCss} :: :where(.editor)[data-cross-block] [contenteditable]`]:
+	[`${SOURCE.editorCss} :: :where(.editor)[data-painted-range] [contenteditable]`]:
 		'a cross-block range, whose overlay paints and whose parked caret takes paste only',
 	[`${SOURCE.editorCss} :: :where(.editor) .whole-block-input`]:
 		'the proxy that takes input for a block held whole, which holds no caret anyone sees',
@@ -100,42 +100,26 @@ describe('G4.142 caret-color is declared only for the known surfaces', () => {
 	});
 });
 
-// ── G4.144 no widget or gap painter of their own ────────────────────────────
+// ── G4.144 no caret blink but the drawn caret's ────────────────────────────
 
-// Spelled in parts, so this file's own probes are not a second painter.
-const OLD_NAMES = [
-	...['after', 'before', 'caret-active'].map((part) => `md-snap-${part}`),
-	['gap-caret', 'line'].join('-'),
-	// The edge ring, which the caret's look replaced.
-	['md', 'edge', 'held'].join('-'),
-	['EDGE', 'HELD', 'CLASS'].join('_'),
-	['held', 'Elements'].join('')
-];
-const OLD_PAINTER = new RegExp(`\\b(?:${OLD_NAMES.join('|')})\\b`);
 const OTHER_CARET_BLINK = /@keyframes\s+(?!md-caret-blink-[ab]\b)[\w-]*(?:caret|blink)/;
+// Spelled in parts, so this file's own probes are not a second blink.
 const keyframes = (name: string) => ['@keyframes', name, '{ 50% { opacity: 0; } }'].join(' ');
 
 describeFileRules(
 	[
 		{
-			id: 'G4.144 the old widget and gap caret painters and the edge ring stay gone',
-			matches: (file) => OLD_PAINTER.test(file.code) || OTHER_CARET_BLINK.test(file.code),
+			id: "G4.144 no caret blink keyframes but the drawn caret's",
+			matches: OTHER_CARET_BLINK,
 			reason:
-				'a second element painting a caret (a class drawing one beside a widget, a line at a gap, its own blink, a ring on the construct at an edge) is a second caret cue beside the drawn one; draw it as a state or a look of the drawn caret',
+				'a caret cue with its own blink (beside a widget, at a gap, on a construct at an edge) is a second caret beside the drawn one; draw it as a state or a look of the drawn caret',
 			hits: [
-				`:where(.editor) [data-inline-widget].${OLD_NAMES[0]}::before { width: 1.5px; }`,
-				`<div class="${OLD_NAMES[3]}"></div>`,
-				`el.classList.add('${OLD_NAMES[2]}');`,
 				keyframes(['gap', 'caret', 'blink'].join('-')),
-				`content.classList.add('${OLD_NAMES[4]}');`,
-				`outline: 2px solid var(--${OLD_NAMES[4]}-ring);`,
-				`export const ${OLD_NAMES[5]} = 'x';`,
-				`mark(${OLD_NAMES[6]}(at));`
+				keyframes(['widget', 'blink'].join('-'))
 			],
 			misses: [
 				keyframes('md-caret-blink-a'),
 				keyframes('kind-cue-fade'),
-				`// the ${OLD_NAMES[3]} went into the drawn caret`,
 				"bar.setAttribute('data-caret-state', 'widget');"
 			]
 		}

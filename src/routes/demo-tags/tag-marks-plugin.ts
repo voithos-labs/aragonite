@@ -1,5 +1,4 @@
-// The showcase's `#tag` plugin on repo source; the tags themselves live in `examples/showcase/`,
-// which the React and Vue showcases wrap the same way on the installed package.
+// The showcase's `#tag` plugin on repo source; the tags themselves live in `examples/showcase/`.
 import { definePlugin, type EditorPlugin } from '#lib/plugin.js';
 import { installTagMarks } from '../../../examples/showcase/tag-marks';
 

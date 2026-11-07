@@ -67,13 +67,13 @@ One line per block: its index in its parent, its kind, whichever metadata is wor
 
 ```
 > dumpSelection(selectionState)
-anchor=[1]@5 focus=[1]@5 cross-block=false
+anchor=[1]@5 focus=[1]@5 owns-range=false
 ```
 
-`[path]@offset`: the path is the child indices from the document root down to the block (`[2,1,0]` is the list's second item's paragraph), the offset a character index into that block's raw. A cross-block selection adds its ordered ends:
+`[path]@offset`: the path is the child indices from the document root down to the block (`[2,1,0]` is the list's second item's paragraph), the offset a character index into that block's raw. A range the editor holds adds its ordered ends:
 
 ```
-anchor=[0]@2 focus=[2,1,0]@3 cross-block=true start=[0]@2 end=[2,1,0]@3
+anchor=[0]@2 focus=[2,1,0]@3 owns-range=true start=[0]@2 end=[2,1,0]@3
 ```
 
 That's the unit-test version (`dumpSelection` from `#lib/debug/inspect.js`, given the editor's selection state). The bridge's `__test.dumpSelection()` prints the same pairs, plus a few lines while the caret sits in one block: the mode, and the browser range's own container and offset.

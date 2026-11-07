@@ -28,7 +28,7 @@ function mountMathBlock() {
 		{
 			blockEdit: { updateBlockContent },
 			setPendingCursor: () => {},
-			isCrossBlock: () => false
+			ownsRange: () => false
 		}
 	);
 	const interaction = createWidgetInteraction(deps);

@@ -6,6 +6,7 @@
  */
 
 import type { MenuPresence } from './components/menu/menu-presence.svelte';
+import type { MenuClipboard } from './components/menu/clipboard-actions';
 import type { DraftRegistry } from './components/draft-registry';
 import type { ShownSourceState } from './components/blocks/text/shown-source.svelte';
 import type { DocumentStamps } from './editor-actions/commit/document-stamp';
@@ -149,6 +150,8 @@ export interface EditorServices {
 	commands: CommandDispatchContext;
 	/** How many editor menus are showing; a block's own menu attaches `track` to its root. */
 	menuPresence: MenuPresence;
+	/** What every menu's Cut, Copy and Paste rows act through, a block's own menu included. */
+	menuClipboard: MenuClipboard;
 	/** Edits held outside the document until they commit; a swap drops them (`draft-registry.ts`). */
 	drafts: DraftRegistry;
 	/** The one inline widget showing its source in this editor, which its block draws as bytes. */

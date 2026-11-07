@@ -12,7 +12,7 @@ import type { SelectionState } from './selection-state.svelte';
 import type { CrossBlockHandlers } from './cross-block/dispatch';
 import type { CommandDispatchContext } from '../schema/block-commands';
 import { commandAtBlock, isArrowKey } from './cross-block/keydown';
-import { holdsNativeRange, rawSelectionIn } from '../browser/selection-read';
+import { browserRangeIn } from './held-selection';
 import type { Reading } from '../schema/reading';
 import { extendFocusToNextBlock, extendFocusToPreviousBlock } from './keyboard-extend';
 import { getCurrentCursorEditorRelativeX } from '../caret/sticky-measure';
@@ -192,10 +192,8 @@ function collapseRangeForArrow(
 	el: HTMLElement
 ): boolean {
 	if (!isArrowKey(e.key) || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return false;
-	// A caret, the common case, costs no walk of the block.
-	if (!holdsNativeRange()) return false;
-	const range = rawSelectionIn(el);
-	if (!range || range.collapsed || range.start === null || range.end === null) return false;
+	const range = browserRangeIn(el);
+	if (!range || range.start === null || range.end === null) return false;
 	const at =
 		e.key === 'ArrowLeft' ? range.start : e.key === 'ArrowRight' ? range.end : ctx.getFocusOffset();
 	if (at === null) return false;
@@ -223,7 +221,7 @@ export function handleEdgeStep(
 	e: KeyboardEvent,
 	ctx: Pick<SharedKeydownContext, 'selection' | 'stepEdge'>
 ): boolean {
-	if (ctx.selection.isCrossBlock || !ctx.stepEdge) return false;
+	if (ctx.selection.ownsRange || !ctx.stepEdge) return false;
 	let stepped = edgeStepByEvent.get(e);
 	if (stepped === undefined) {
 		stepped = ctx.stepEdge(e);

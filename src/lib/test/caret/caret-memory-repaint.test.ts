@@ -49,9 +49,6 @@ const CHANGES: Record<
 		change: [HOLD, (m) => m.heldSpace.forBlock(BLOCK).passCloser(6)],
 		noop: [() => {}, (m) => m.heldSpace.forBlock(BLOCK).passCloser(6)]
 	},
-	'insideCloser.forBlock().open': {
-		change: [() => {}, (m) => m.insideCloser.forBlock(BLOCK).open(5)]
-	},
 	pin: {
 		change: [() => {}, (m) => m.pin(3)],
 		noop: [(m) => m.pin(3), (m) => m.pin(3)]
@@ -91,7 +88,6 @@ const EXEMPT: Record<string, string> = {
 	'pendingBreak.forBlock().at': 'a read',
 	'heldSpace.forBlock().at': 'a read',
 	'heldSpace.forBlock().inside': 'a read',
-	'insideCloser.forBlock().at': 'a read',
 	previewInsertion: 'a read: it spends nothing',
 	changeCount: 'a read',
 	holdInsertion:

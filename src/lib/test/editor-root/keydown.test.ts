@@ -42,8 +42,6 @@ interface Harness {
 	press(key: string, init?: KeyboardEventInit, handledBelow?: boolean): KeyboardEvent;
 	search: ReturnType<typeof fakeSearch>;
 	crossBlockKeys: KeyboardEvent[];
-	/** Text the range's own type-to-replace path was handed, in order. */
-	inserted: string[];
 	undoCount(): number;
 	redoCount(): number;
 	searchCaretSaves(): number;
@@ -65,7 +63,6 @@ function harness(): Harness {
 
 	const search = fakeSearch();
 	const crossBlockKeys: KeyboardEvent[] = [];
-	const inserted: string[] = [];
 	let searchCaretSaves = 0;
 	const replaceExpanded: boolean[] = [];
 	let undoCount = 0;
@@ -82,7 +79,7 @@ function harness(): Harness {
 		get canReplace() {
 			return mode !== 'reading';
 		},
-		get isCrossBlock() {
+		get ownsRange() {
 			return crossBlock;
 		},
 		search: search.state as unknown as SearchState,
@@ -95,10 +92,6 @@ function harness(): Harness {
 		crossBlock: {
 			handleKeyDown: (e) => {
 				crossBlockKeys.push(e);
-				return Promise.resolve(true);
-			},
-			insertText: (text) => {
-				inserted.push(text);
 				return Promise.resolve(true);
 			}
 		},
@@ -122,7 +115,6 @@ function harness(): Harness {
 		},
 		search,
 		crossBlockKeys,
-		inserted,
 		undoCount: () => undoCount,
 		redoCount: () => redoCount,
 		searchCaretSaves: () => searchCaretSaves,
@@ -206,26 +198,15 @@ describe('editor-root keydown: dispatch order is required', () => {
 	});
 
 	// A range over a block with no character position focuses the root, where no `beforeinput`
-	// fires: without this branch the character reaches nothing and the range stays untouched.
-	it('a printable key with a cross-block range goes to the range’s text entry point', () => {
+	// fires, so a typed character reaches the range's handler as every other key does.
+	it('a printable key and a chorded one with a cross-block range both go to the range', () => {
 		const h = harness();
 		h.setCrossBlock(true);
 		h.root.focus();
 
-		const event = h.press('x');
-		expect(h.inserted).toEqual(['x']);
-		expect(h.crossBlockKeys).toEqual([]);
-		expect(event.defaultPrevented).toBe(true);
-	});
-
-	it('a chorded key is not text and keeps its own branch', () => {
-		const h = harness();
-		h.setCrossBlock(true);
-		h.root.focus();
-
+		h.press('x');
 		h.press('b', { ctrlKey: true });
-		expect(h.inserted).toEqual([]);
-		expect(h.crossBlockKeys.map((e) => e.key)).toEqual(['b']);
+		expect(h.crossBlockKeys.map((e) => e.key)).toEqual(['x', 'b']);
 	});
 
 	// Miss-analysis: the root asked only `isComposing`, and no row sent the key that opens an IME,
@@ -238,7 +219,7 @@ describe('editor-root keydown: dispatch order is required', () => {
 		h.press('x', { isComposing: true });
 		h.press('x', { keyCode: 229 });
 		h.press('Process');
-		expect([h.inserted, h.crossBlockKeys]).toEqual([[], []]);
+		expect(h.crossBlockKeys).toEqual([]);
 	});
 
 	it('the cross-block branch stays silent on a collapsed caret', () => {
@@ -464,7 +445,6 @@ describe('editor-root keydown: focus inside the root', () => {
 		focusChild(h, document.createElement('button'));
 		h.press('a');
 		h.press('ArrowDown', { shiftKey: true });
-		expect(h.inserted).toEqual([]);
 		expect(h.crossBlockKeys).toEqual([]);
 	});
 });

@@ -19,8 +19,8 @@
 	import { metadataOf } from '../../../core/nodes';
 	import { asEditorX, docPathFrom } from '../../../core/coordinate-spaces';
 	import { observeResize } from '../../../windowing/observe-resize';
-	import { pathsEqual } from '../../../selection/path-math';
 	import { placeCaret } from '../../../selection/place-caret';
+	import { holdsSelection } from '../../../selection/held-selection';
 	import { columnNearestX } from './cell-x-mapping';
 	import { cellAtPoint, installCellDragListener, mountedRowEls, rowCellEls } from './cell-pointer';
 	import { tableCaretAtPoint } from './table-caret-at-point';
@@ -259,18 +259,13 @@
 		x: number;
 		y: number;
 		clipboardSel: CellSelection | null;
+		/** Whether the user held a selection as the menu opened, which Cut and Copy act on. */
+		selected: boolean;
 		/** Where the cell's caret sat when Mod+K there would edit a link or widget, else null. */
 		editLinkAt: number | null;
 		/** Re-reads the open point where its element is now (scroll, resize). */
 		anchor?: () => { x: number; y: number } | null;
 	} | null>(null);
-
-	// A live rectangle suppresses the cell-local selection, so the menu reads it
-	// separately to keep Cut/Copy enabled.
-	const rectActive = $derived.by(() => {
-		const grid = rangeCoverage()?.grid;
-		return !!grid && pathsEqual(grid.path, myPath);
-	});
 
 	const menuItems = $derived(
 		menu
@@ -278,10 +273,7 @@
 					menu.target,
 					{ rowCount, colCount: columnCount },
 					meta.alignments ?? [],
-					{
-						hasSelection: !!menu.clipboardSel && menu.clipboardSel.start !== menu.clipboardSel.end,
-						hasRect: rectActive
-					},
+					menu.selected,
 					menu.editLinkAt !== null
 				)
 			: []
@@ -337,11 +329,13 @@
 		const clipboardSel = cell?.getSelectionOffsets?.() ?? null;
 		const cellEl = cellElementAt(rowIdx, colIdx);
 		const anchor = cellEl ? anchorOn(cellEl, { x, y }) : undefined;
-		// The press left the caret where it landed unless a range or rectangle held it; a live
-		// rectangle keeps the menu to Cut/Copy.
-		const editsLink = !rectActive && (cell?.isCommandActive?.('link.openCard') ?? false);
+		const root = getEditorRoot();
+		const selected = !!root && holdsSelection(selection, root);
+		// The press left the caret where it landed unless the selection held it; a range the editor
+		// holds keeps the menu to the clipboard rows.
+		const editsLink = !selection.ownsRange && (cell?.isCommandActive?.('link.openCard') ?? false);
 		const editLinkAt = editsLink ? (cell?.getCursorOffset() ?? null) : null;
-		menu = { target: { rowIdx, colIdx }, x, y, clipboardSel, editLinkAt, anchor };
+		menu = { target: { rowIdx, colIdx }, x, y, clipboardSel, selected, editLinkAt, anchor };
 	}
 
 	// `preventDefault` only over a cell, so a right-click in the table's padding gaps keeps

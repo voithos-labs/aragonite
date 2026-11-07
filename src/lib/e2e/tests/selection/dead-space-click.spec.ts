@@ -137,7 +137,7 @@ test.describe('dead-space clicks place a caret', () => {
 		const source = await editor.bridge.getSource();
 		expect(source, 'the stale range type-replaced the document away').toContain('first para');
 		expect(source).toContain('third para');
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		expect(await editor.bridge.ownsRange()).toBe(false);
 	});
 
 	// A drag from a block released in the margin reports the root as its click target, the common
@@ -153,7 +153,7 @@ test.describe('dead-space clicks place a caret', () => {
 		await editor.page.mouse.move(root.left + 40, last.bottom + 30, { steps: 10 });
 		await editor.page.mouse.up();
 
-		expect(await editor.bridge.isCrossBlockActive()).toBe(true);
+		expect(await editor.bridge.ownsRange()).toBe(true);
 	});
 
 	// A table addresses cells, not characters, so a click beside it never lands in a cell, as with a
@@ -203,7 +203,7 @@ test.describe('dead-space clicks place a caret', () => {
 		const margin = await rightMargin(editor, 1, cell.y + cell.height / 2);
 
 		await editor.page.mouse.click(margin.x, margin.y);
-		expect(await editor.bridge.isCrossBlockActive()).toBe(false);
+		expect(await editor.bridge.ownsRange()).toBe(false);
 		await editor.page.keyboard.type('!');
 		await editor.waitForNoSourceMutation();
 

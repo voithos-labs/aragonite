@@ -82,7 +82,7 @@ export interface DrawnCaretDeps {
 	isReading(): boolean;
 	/** Read inside the drawn caret's own effect, so a range, a gap caret or a widget selected
 	 *  whole repaints it. */
-	selection: Pick<SelectionState, 'isCrossBlock' | 'wholeUnitPath' | 'gapCaret' | 'widget'>;
+	selection: Pick<SelectionState, 'ownsRange' | 'wholeUnitPath' | 'gapCaret' | 'widget'>;
 	/** The editor's one size observer; its callback only asks for a paint. */
 	watchSize(el: Element, onResize: () => void): () => void;
 	/** A composition hides the bar while it runs, however it ends. */
@@ -248,7 +248,7 @@ export function createDrawnCaret(deps: DrawnCaretDeps): EditorDrawnCaret {
 				focused: active !== null && root.contains(active),
 				pressed: !!press?.moves && press.el === owned?.el,
 				store: {
-					crossBlock: selection.isCrossBlock,
+					ownsRange: selection.ownsRange,
 					wholeBlock: selection.wholeUnitPath !== null,
 					gapCaret: selection.gapCaret !== null,
 					widget: selection.widget !== null
@@ -480,7 +480,7 @@ export function createDrawnCaret(deps: DrawnCaretDeps): EditorDrawnCaret {
 	// What the paint reads from reactive state, so a change there repaints.
 	$effect(() => {
 		const { selection } = deps;
-		void [selection.isCrossBlock, selection.wholeUnitPath, selection.gapCaret, selection.widget];
+		void [selection.ownsRange, selection.wholeUnitPath, selection.gapCaret, selection.widget];
 		void [deps.caretMode(), deps.isReading(), media?.finePointer.current];
 		void media?.forcedColors.current;
 		untrack(request);

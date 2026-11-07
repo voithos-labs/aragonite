@@ -158,7 +158,7 @@ function scrollToB4(f: Fixture): Promise<boolean> {
 		revealPath: async () => {},
 		getEditorRoot: () => null,
 		scroll: f.owner,
-		isCrossBlock: () => false,
+		ownsRange: () => false,
 		isHostChrome: () => false,
 		landCaretAt: async () => true,
 		caretRectAt,
@@ -673,16 +673,13 @@ describe('scroll owner: the edges', () => {
 	});
 });
 
-describe('scroll owner: the port every other module holds', () => {
-	it('has no write method, so a write outside the owner fails to type-check', () => {
-		const tryToWrite = (doc: EditorDoc, services: EditorServices) => {
-			// @ts-expect-error `EditorDoc.scrollport` reads; widening it to the writer fails `npm run check`.
-			doc.scrollport()?.setScrollTop(0);
-			// @ts-expect-error the relative write is the owner's too.
-			doc.scrollport()?.scrollBy(1);
-			// @ts-expect-error the owner hands out the same read-only view.
-			services.scrollOwner.port()?.setScrollTop(0);
-		};
-		expect(tryToWrite).toBeTypeOf('function');
-	});
-});
+/** Never called: the port every other module holds has no write method, and `npm run check`
+ *  fails once a directive inside goes unused. */
+export function compileTimePins(doc: EditorDoc, services: EditorServices): void {
+	// @ts-expect-error `EditorDoc.scrollport` reads; widening it to the writer fails `npm run check`.
+	doc.scrollport()?.setScrollTop(0);
+	// @ts-expect-error the relative write is the owner's too.
+	doc.scrollport()?.scrollBy(1);
+	// @ts-expect-error the owner hands out the same read-only view.
+	services.scrollOwner.port()?.setScrollTop(0);
+}

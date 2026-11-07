@@ -548,8 +548,8 @@ const RULES: FileRule[] = [
 			'src/lib/components/blocks/text/widget-interaction.ts':
 				'a shown source’s whole box, for a double-click’s hit test',
 			'src/lib/editor-rects.ts': 'a selection’s box; a collapsed one goes through `caretRectAt`',
-			'src/lib/selection/cross-block/pointer.ts':
-				'whether a selected range covers a right-click; a collapsed one is never measured'
+			'src/lib/selection/held-selection.ts':
+				'whether the browser’s selected range covers a right-click; a collapsed one is never measured'
 		},
 		reason:
 			'WebKit and Firefox measure a caret right after a `\\n` on the line the `\\n` ends, so a caret measured anywhere else reads the wrong line at every line start: call `caretRectAt`',
@@ -876,8 +876,6 @@ const RULES: FileRule[] = [
 				'table sticky-X exit re-enters the editor column state',
 			'src/lib/components/blocks/text/widget-interaction.ts':
 				'CST inline offsets (unbranded model values) enter cursor IO',
-			'src/lib/components/blocks/text/inline-commands.ts':
-				'Edit link puts the caret at a construct’s text end, a CST offset (unbranded model value)',
 			'src/lib/components/blocks/text/typed-input.ts':
 				'the auto-pair’s caret, counted in the block’s displayed text, enters cursor IO'
 		},
@@ -1566,7 +1564,7 @@ const RULES: FileRule[] = [
 				'a selection handle trading the anchor for the focus before its drag, which moves no end',
 			'src/lib/selection/cross-block/range-indent.ts':
 				'an indent keeping a block held whole, which moves no end',
-			'src/lib/testing/kind-conformance.ts': 'the conformance kit, which sets up a range'
+			'src/lib/testing/conformance-core.ts': 'the conformance kits, which set up a range to copy'
 		},
 		reaches: [SOURCE.keyboardExtend],
 		reason:
@@ -1612,6 +1610,69 @@ const RULES: FileRule[] = [
 				code: '<style>\n\t@media (pointer: coarse) { .a { b: c; } }\n</style>'
 			}
 		]
+	},
+	{
+		id: 'G4.281 the overlays draw the editor’s selection, never the browser’s',
+		population: under(SOURCE_DIR.overlays),
+		matches: /\bgetSelection\(|\breadNativeSelection\b|\breadCurrentSelection\b/,
+		allowed: {},
+		reason:
+			'a handle or a highlight standing on a native range is one a phone already draws its own on; the overlays read `SelectionState`, which holds every range a finger makes',
+		reaches: [`${SOURCE_DIR.overlays}selection-handles.ts`],
+		hits: [
+			at(`${SOURCE_DIR.overlays}rogue.ts`, 'const live = document.getSelection();'),
+			at(`${SOURCE_DIR.overlays}rogue.ts`, 'const range = readNativeSelection();')
+		],
+		misses: [at(`${SOURCE_DIR.overlays}rogue.ts`, 'const range = handleRange(services.selection);')]
+	},
+	{
+		id: 'G4.282 an ownership read asks the ownership predicate',
+		matches: /\bisCrossBlock(?:Active)?\b/,
+		allowed: {},
+		reason:
+			'whether the editor holds the range is `SelectionState.ownsRange`, whatever it spans, since a finger’s range inside one block is the editor’s too; a read that means two blocks compares paths (`rangeSpansBlocks`)',
+		hits: [
+			'if (selection.isCrossBlock) return;',
+			'isCrossBlock: () => state.isCrossBlock,',
+			'expect(await editor.bridge.isCrossBlockActive()).toBe(true);'
+		],
+		misses: ['if (selection.ownsRange) return;', 'if (rangeSpansBlocks(coverage)) paint();']
+	},
+	{
+		id: 'G4.296 whether a selection is held is asked of the editor’s selection first',
+		matches: /\b(?:holdsNativeRange|nativeRangeIn|rangeCoversPoint)\b/,
+		allowed: {
+			[SOURCE.selectionRead]: 'the reads themselves',
+			'src/lib/selection/held-selection.ts':
+				'the one module that asks the browser, once the editor holds no range or widget'
+		},
+		reason:
+			'while the editor holds a range or a widget the browser’s selection is a caret, so a read of the browser’s alone takes the user’s selection for none: ask `selection/held-selection.ts` (`holdsSelection`, `rangeHolder`, `pressLandsOnSelection`, `selectionCoversPoint`, `browserRangeIn`)',
+		hits: [
+			"import { holdsNativeRange } from '../browser/selection-read';",
+			'const selected = !!focused && holdsNativeRange();',
+			'if (nativeRangeIn(root)) place();',
+			'return rangeCoversPoint(root, x, y);'
+		],
+		misses: [
+			'const selected = holdsSelection(deps.selection, root);',
+			'function nativeRangeInFocusedBlock(path: number[]) {}'
+		]
+	},
+	{
+		id: 'G4.284 Mod+A is read where its steps are decided',
+		matches: /\bisSelectAllChord\s*\(|['"]Mod\+A['"]/,
+		allowed: {
+			'src/lib/schema/keybindings.ts': 'the chord itself, and the chords that read text',
+			'src/lib/selection/cross-block/keydown.ts':
+				'the steps: the block’s text, unless selecting it would change nothing, then the document',
+			'src/lib/editor-actions/container-block-component.ts':
+				'a block focused whole, which has no text step, so the document'
+		},
+		reason:
+			'a block that plans its own Mod+A skips the rule that a step changing nothing goes on to the next one: let the press reach the shared keydown, which takes it',
+		hits: ["if (isSelectAllChord(e)) return { kind: 'select-all-step' };", "chord === 'Mod+A'"],
+		misses: ['if (endsSelectAllRun(e)) selection.resetSelectAllCount();', "chord === 'Mod+C'"]
 	},
 	{
 		id: 'G4.225 the drag session hears a release before anything else on the page',
@@ -2406,29 +2467,25 @@ const TYPED_WRITE_ASKS: ManifestRule[] = [
 	}
 ];
 
-// ── G4.251 the bundled reveal blocks still drawn by Svelte ─────────────────
+// ── G4.251 no bundled block builds its rendered view in Svelte ─────────────
 
-const REVEAL_BLOCKS_IN_SVELTE: ManifestRule[] = [
-	{
-		id: 'G4.251 the bundled blocks that build a render-primary leaf in Svelte are listed',
-		population: under(SOURCE_DIR.plugins),
-		matches: /\bmode:\s*['"]render-primary['"]/,
-		declared: {
-			[SOURCE.latexBlockMath]: 'block math, with its layout toggle and live preview',
-			'packages/toc/src/TocBlock.svelte': 'the outline, whose list follows the headings'
-		},
-		reason:
-			'a bundled block that shows a rendered view until clicked can be a `defineBlockView({ surface: "render-primary" })` view; this list is where moving them starts, and it guards nothing inside a listed file',
-		hits: [at('packages/x/src/XBlock.svelte', "mode: 'render-primary',")],
-		misses: [
-			at(
-				'packages/x/src/x-kind.ts',
-				"focus: { mode: 'implemented', via: 'render-primary reveal' },"
-			),
-			at('packages/x/src/x-view.ts', "surface: 'render-primary',")
-		]
-	}
-];
+const MOVES_TO_BLOCK_VIEW = 'moves to `defineBlockView` with the plugin interface redesign';
+const REVEAL_IN_SVELTE: FileRule = {
+	id: 'G4.251 no bundled plugin builds a render-primary leaf in Svelte',
+	population: under(SOURCE_DIR.plugins),
+	matches: /\bmode:\s*['"]render-primary['"]/,
+	allowed: {
+		[SOURCE.latexBlockMath]: `block math, with its layout toggle and live preview; ${MOVES_TO_BLOCK_VIEW}`,
+		'packages/toc/src/TocBlock.svelte': `the outline, whose list follows the headings; ${MOVES_TO_BLOCK_VIEW}`
+	},
+	reason:
+		'a bundled block that shows a rendered view until clicked builds it with `defineBlockView({ surface: "render-primary" })`, the way a plugin author would',
+	hits: [at('packages/x/src/XBlock.svelte', "mode: 'render-primary',")],
+	misses: [
+		at('packages/x/src/x-kind.ts', "focus: { mode: 'implemented', via: 'render-primary reveal' },"),
+		at('packages/x/src/x-view.ts', "surface: 'render-primary',")
+	]
+};
 
 // ── G4.108 one replace for every destructive gesture over a range ──────────
 
@@ -3196,10 +3253,9 @@ describeManifests(ITEM_PIECES, SOURCES);
 describeManifests(RANGE_REPLACE, SOURCES);
 describeManifests(RANGE_INDENT, SOURCES);
 describeManifests(TYPED_WRITE_ASKS, SOURCES);
-describeManifests(REVEAL_BLOCKS_IN_SVELTE, SOURCES);
 describeManifests(SCROLL_WRITERS, SOURCES);
 describeManifests(BARE_FOCUSES, SOURCES);
-describeFileRules([HELD_BRANDS], SOURCES);
+describeFileRules([HELD_BRANDS, REVEAL_IN_SVELTE], SOURCES);
 describeCorrections(SOURCES);
 describeOwnerWrites(SOURCES);
 describeKeyboardEndWrites(SOURCES);

@@ -113,6 +113,11 @@ These checks run in three kinds of place:
 | G1.166 | A plugin installs into the copy of the editor that defined it | A·N |
 | G1.167 | A whole-plugin conformance run checks every kind the plugin declares, and a dev warning fails it | harness·N |
 | G1.168 | A key or a composition over a selection in live mode is written by the editor, never left to the browser | A·N |
+| G1.169 | While a finger's range is the editor's, the DOM holds only a caret | A·N |
+| G1.170 | The editor owns a range inside one block only when a finger's press made it | A·N |
+| G1.171 | A copy into or out of a container reads back inside it, its markers written by its own rebuild | harness·P |
+| G1.174 | A block writes a typed character only while the editor owns no range | A·N |
+| G1.175 | The right-click menu opens over the selection only while one is held | A·N |
 
 ### The entries
 
@@ -307,3 +312,13 @@ These checks run in three kinds of place:
 **G1.167 · A plugin's conformance covers all of it** (`runPluginConformance`). The run installs a plugin's units on a blank platform and runs the kind checkup on every block kind they declared, the container checkup on each container and the inline checkup on each inline profile. A container or inline kind with no profile fails, and so does a profile naming no declared kind. A dev warning fails the run, and with dev checks off it won't start. `testing/plugin-conformance.ts` · `plugin-conformance.test.ts`.
 
 **G1.168 · The editor writes a live edit over a selection** (`live-range-written`). The browser edits the selection as the DOM holds it, and an end of that can sit on either side of a hidden bracket, so in live mode every key and every composition over a selection in one block goes through `replaceDrawnRange`. Dev fails the shared range-edit wrapper declining a key over one; the composition commit takes the block's node and store, so it has no way to skip the write. `checkLiveRangeWritten` · `live-range-written.test.ts`, `live-ranged-edit.test.ts`.
+
+**G1.169 · A finger's range leaves only a caret** (`finger-range-leaves-caret`). A phone draws its own handles and menu on any native range, so once the editor takes a finger's range over, the native selection is a caret. Until the next press, `selection/finger-takeover.ts` adopts every range the browser writes in that block (Safari writes its word back once, Android's held drag grows it); dev fails one it can't adopt, a native range beside the painted one. `checkFingerRangeLeavesCaret` · `touch-press.test.ts`.
+
+**G1.170 · A range inside one block is the editor's only from a finger** (`owned-range-from-finger`). A mouse's or a keyboard's range inside one block is the browser's, and the overlay paints only what the editor owns, so a route that took one would paint over the browser's highlight and route its keys through the range handlers. `SelectionState.ownBlockRange` takes a `FingerPress`, which only `selection/pointer-gesture.ts :: fingerPress` makes, and dev fails one it didn't make. `checkOwnedRangeFromFinger` · `owned-block-range.test.ts`.
+
+**G1.171 · A copy keeps the containers its ends sit in** (`copyMarkers`). A range entering or leaving a container copies the lines it covers with that container's markers, written by its own `rebuildRaw`. The container checkup copies into each kind's `deepNesting` leaf, and out of it for a line-prefixed kind, and reads the copy back under the same containers. `selection/clipboard-text.ts` · `testing/container-conformance.ts` · `clipboard-container-markers.test.ts`.
+
+**G1.174 · A key typed over a range is the range's** (`typed-write-outside-range`). A character typed while the editor owns a range replaces the range (G4.108), and the range's handler takes it at its keydown, since beside a picture no engine sends a `beforeinput`. A block that writes a typed key itself under a range took one that was never its own, so dev fails a typed write through a block's text write (`editable-surface.ts`) while a range is owned. `checkTypedWriteOutsideRange` · `typed-write-outside-range.test.ts`.
+
+**G1.175 · The menu over a selection has one to act on** (`menu-over-selection`). A right-click whose press landed on the selection opens Cut and Copy over it, so something that dropped the selection between the press and the menu (a press handler ending the range, say) would offer them over nothing. Dev fails a menu opened over the selection while `holdsSelection` says none is held (`editor-root/menus.ts`). `checkMenuOverSelection` · `menus.test.ts`.

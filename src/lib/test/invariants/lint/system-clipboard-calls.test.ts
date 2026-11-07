@@ -13,7 +13,7 @@ const CLIPBOARD_WRITES: FileRule = {
 		'src/lib/editor-actions/system-clipboard.ts': 'the reader and writer every route calls'
 	},
 	reason:
-		'a webview without clipboard access refuses the call, a call with no catch is an unhandled rejection, and a read made while a menu still shows gets Safari’s Paste prompt drawn over it: call readClipboardText, writeClipboardText or copyBlockToClipboard from editor-actions/system-clipboard.ts',
+		'a webview without clipboard access refuses the call, a call with no catch is an unhandled rejection, and a read made while a menu still shows gets Safari’s Paste prompt drawn over it: call readClipboardText, writeClipboardPayload or copyBlockToClipboard from editor-actions/system-clipboard.ts',
 	hits: [
 		'await navigator.clipboard.writeText(text);',
 		'navigator.clipboard!.writeText(raw)',

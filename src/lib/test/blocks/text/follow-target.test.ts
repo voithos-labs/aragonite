@@ -1,6 +1,5 @@
-// What you'd go to at an offset: the link the card edits or the autolink edited as its text (live
-// mode only), or a widget the offset touches whose kind claims the activation click. Mod+K and the
-// "Edit link" menu row read this.
+// What you'd go to at an offset: the link or autolink the card edits (live mode only), or a widget
+// the offset touches whose kind claims the activation click. Mod+K and the "Edit link" row read this.
 // Miss-analysis: Mod+K only knew links, so a widget that followed on a click had no editing path
 // but the arrow keys, and no test asked what Mod+K does beside one.
 import { describe, it, expect } from 'vitest';
@@ -35,7 +34,6 @@ function targetAt(offset: number, mode: PresentationMode, source = SOURCE) {
 	const hit = followTargetAt(node, offset, fixtureReading({}, mode));
 	if (hit === null) return null;
 	if (hit.edit === 'card') return `link@${hit.link.start}`;
-	if (hit.edit === 'text') return `caret@${hit.caretAt}`;
 	return `widget@${hit.widget.start}`;
 }
 
@@ -47,11 +45,10 @@ describe('followTargetAt', () => {
 		expect(targetAt(3, 'preview-inline')).toBeNull();
 	});
 
-	it("finds an autolink in live mode only, with the caret at its text's end", () => {
+	it('finds an autolink in live mode only, which the card edits like a link', () => {
 		registerWidget(true);
-		// `https://e.com` spans 2..15; `<https://e.com>` spans 2..17, its text 3..16.
-		expect(targetAt(5, 'live', 'x https://e.com y\n')).toBe('caret@15');
-		expect(targetAt(5, 'live', 'x <https://e.com> y\n')).toBe('caret@16');
+		expect(targetAt(5, 'live', 'x https://e.com y\n')).toBe('link@2');
+		expect(targetAt(5, 'live', 'x <https://e.com> y\n')).toBe('link@2');
 		expect(targetAt(5, 'source', 'x https://e.com y\n')).toBeNull();
 	});
 

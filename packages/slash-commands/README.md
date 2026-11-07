@@ -1,17 +1,17 @@
 # @voithos-labs/aragonite-slash-commands
 
-A `/` menu for [aragonite](https://github.com/voithos-labs/aragonite). Type `/` at the start of a line, pick a block from the list that opens, and it lands right where you are; `/td` and Enter, and you've got a to-do list. What's aragonite? A Markdown editor, which the [readme](https://github.com/voithos-labs/aragonite/blob/main/README.md) explains properly and [aragonite.dev](https://aragonite.dev) demonstrates.
+Slash commands plugin for [aragonite](https://github.com/voithos-labs/aragonite).
 
 ## What it does
 
-The list holds every block the editor's right-click "Insert block" menu offers (your plugins' blocks included), then Heading 1 to 3. Typing narrows it by name or keyword, Enter picks, and Escape closes it and leaves what you typed.
+Type `/` at the start of a line or after a space, and a list opens for all the blocks. Typing narrows it by name or keyword (`/td` finds the to-do list), Enter picks, and Escape closes it.
+
+Note:
 
 - On an empty line, the block replaces the line. On a line with text, the `/query` goes and the block lands below, except a heading, which turns the line itself into one.
-- It opens at the start of a line or after a space, so `and/or` stays text. It never opens in a table cell.
-- Two rows take a word after a space: `/code js` opens a code block tagged `js`, and `/table 3x4` makes a table three columns wide and four rows tall, header row included.
-- `Ctrl+/` (`Cmd+/` on a Mac) types the `/` for you, and `editor.runCommand('slashCommands.open', 'table')` opens the list already narrowed, which is how a toolbar button or a touch UI gets there.
+- Two rows take a word after a space: `/code js` opens a code block tagged `js`, and `/table 3x4` makes a table three columns wide and four rows tall.
 
-What lands is plain Markdown, the same as if you'd typed it. The built-in rows, by id (the ids are what `exclude` below takes):
+The built-in rows, by id:
 
 | id               | Row            | Writes                                      |
 | ---------------- | -------------- | ------------------------------------------- |
@@ -24,7 +24,7 @@ What lands is plain Markdown, the same as if you'd typed it. The built-in rows, 
 | `table`          | Table          | two columns, a header row and one empty row |
 | `h1`, `h2`, `h3` | Heading 1 to 3 | turns the line into that heading            |
 
-The bundled plugins add `note`, `details`, `math`, `mermaid` and `toc` when they're installed.
+The first party plugins add `note`, `details`, `math`, `mermaid` and `toc` when they're installed.
 
 ## Install
 
@@ -32,7 +32,7 @@ The bundled plugins add `note`, `details`, `math`, `mermaid` and `toc` when they
 npm install @voithos-labs/aragonite @voithos-labs/aragonite-slash-commands
 ```
 
-Same release, same version number as the editor, and it asks for exactly that one. Upgrade them as a pair.
+Btw, the plugin's version should match the editor's version.
 
 ## Use it
 
@@ -56,18 +56,20 @@ const plugins = [
 ];
 ```
 
-Pass `plugins` to the editor, built once for the whole app. There are two options, and you can skip both:
+Hand `plugins` to the editor, and build the array once for the whole app, not once per editor. There are two options:
 
-- `entries` adds rows of your own, listed after the built-in ones. Each has an `id` and a `label` (and, if you like, an `icon` and `keywords`), plus exactly one of `insert` (Markdown to drop in) or `run` (a function). A row with both or neither makes the factory throw (in one editor's `{ plugin, options }` entry, the editor reports it on its `error` event instead). Reuse a built-in id and your row replaces that built-in one.
-- `run` is handed an `editor` to write through (`insertMarkdown`, as above), plus the word typed after a space if the row sets `takesArgument: true`. It can be async. If it waits on something (a picker, a fetch), keep writing through that same `editor`. It quietly writes nothing once the app has loaded another note, so a late answer can't land in the wrong document.
+- `entries` adds rows of your own, after the built-in ones. Each has an `id` and a `label` (an `icon` and `keywords` too, if you like), plus exactly one of `insert` (Markdown to drop in) or `run` (a function). Reuse a built-in id and your row shows instead of the built-in one.
+- `run` gets an `editor` to write through (`insertMarkdown`, as above), plus the word typed after a space if the row sets `takesArgument: true`. It can be async, and if it waits on something (a picker, a fetch), keep writing through that same `editor`, so a late answer can't land in another note.
 - `exclude` hides built-in rows by id.
 
-What you pass the factory is every editor's default. An editor's own `{ plugin, options }` entry swaps out only the fields it names, so `{ exclude: ['table'] }` still keeps the factory's `entries`, and `{ entries: [] }` is how one editor drops them.
+What you pass the factory is every editor's default. An editor's own `{ plugin, options }` entry swaps out only the fields it names, so `{ entries: [] }` is how one editor drops the factory's rows.
+
+`Ctrl+/` (`Cmd+/` on a Mac) types the `/` for you, and `editor.runCommand('slashCommands.open', 'table')` opens the list already narrowed, which is how a toolbar button or a touch UI gets there.
 
 ## More
 
-The [consumer guide](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/consumer-guide.md#bundled-plugins) has the other bundled plugins, and the plugin API reference's [section on insert menus](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/plugin-api.md#insert-catalogue) is how a plugin's own block gets into this list (and takes a word after a space, the way `/table 3x4` does).
+The [consumer guide](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/consumer-guide.md#bundled-plugins) lists the first party plugins, and the plugin API reference's [section on insert menus](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/plugin-api.md#insert-catalogue) describes how a plugin's own block gets into this list (and takes a word after a space, the way `/table 3x4` does).
 
 ## License
 
-Free software, released under [MPL-2.0](./LICENSE) like the editor itself: use it, study it, fork it, embed it in whatever you're building, closed source included. The one string attached: if you change this plugin's own files, you share those changes under the same license.
+Aragonite and its first party plugins are free software, released under [MPL-2.0](./LICENSE): use it, study it, fork it, embed it in whatever you're building, closed source included. The one string attached: if you change the lib/plugin's files, you share those changes under the same license.

@@ -6,7 +6,8 @@ import {
 } from '../../../../examples/showcase/bug-report';
 import { INPUT_RECORDING_FORMAT, type InputRecording } from '#lib/debug/input-recording.js';
 
-// Miss-analysis: new module; the e2e row covers only the clipboard path.
+// Miss-analysis: new module; the e2e row covers only the clipboard path. A link-filled Recording
+// field went unpinned: GitHub's form puts a link-filled value back over whatever is pasted.
 
 function recordingOf(source: string): InputRecording {
 	return {
@@ -26,17 +27,15 @@ function recordingOf(source: string): InputRecording {
 	};
 }
 
-const recordingField = (url: string) => new URL(url).searchParams.get('recording') ?? '';
-
 describe('bugReport', () => {
-	it('fills the where field and puts even a short recording on the clipboard, never the link', () => {
+	it('fills only the where field and puts even a short recording on the clipboard, never the link', () => {
 		const report = bugReport(recordingOf('secret\n'), '0.11.1, Chrome 141 on Windows, live mode');
 		const url = new URL(report.url);
 		expect(report.carrier).toBe('clipboard');
 		expect(url.origin + url.pathname).toBe('https://github.com/voithos-labs/aragonite/issues/new');
 		expect(url.searchParams.get('template')).toBe('bug.yml');
 		expect(url.searchParams.get('where')).toBe('0.11.1, Chrome 141 on Windows, live mode');
-		expect(recordingField(report.url)).toContain('on your clipboard');
+		expect(url.searchParams.has('recording')).toBe(false);
 		expect(report.url).not.toContain('secret');
 		expect(JSON.parse(report.attachment.replace(/^```json\n|\n```$/g, ''))).toEqual(
 			recordingOf('secret\n')
@@ -46,7 +45,7 @@ describe('bugReport', () => {
 	it('downloads one too long for an issue body', () => {
 		const report = bugReport(recordingOf('x'.repeat(MAX_BODY_RECORDING)), 'w');
 		expect(report.carrier).toBe('download');
-		expect(recordingField(report.url)).toContain('drag it into this box');
+		expect(new URL(report.url).searchParams.has('recording')).toBe(false);
 		expect(JSON.parse(report.attachment).format).toBe(INPUT_RECORDING_FORMAT);
 	});
 });

@@ -27,7 +27,7 @@ function mountEdgeMathBlock() {
 			{
 				blockEdit: { updateBlockContent: recordingWrite() },
 				setPendingCursor: () => {},
-				isCrossBlock: () => false
+				ownsRange: () => false
 			}
 		)
 	);

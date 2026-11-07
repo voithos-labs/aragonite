@@ -1,0 +1,41 @@
+{
+	"name": "@voithos-labs/create-aragonite-plugin",
+	"version": "0.11.5",
+	"description": "starts a plugin for aragonite, the cute markdown editor lib: npm create @voithos-labs/aragonite-plugin@latest my-plugin",
+	"keywords": [
+		"aragonite",
+		"markdown-editor",
+		"create",
+		"template"
+	],
+	"homepage": "https://aragonite.dev",
+	"bugs": {
+		"url": "https://github.com/voithos-labs/aragonite/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/voithos-labs/aragonite.git",
+		"directory": "packages/create-aragonite-plugin"
+	},
+	"author": "voithos-labs",
+	"type": "module",
+	"license": "MIT",
+	"engines": {
+		"node": "^20.19.0 || >=22.12.0"
+	},
+	"bin": {
+		"create-aragonite-plugin": "bin/create-aragonite-plugin.mjs"
+	},
+	"files": [
+		"bin",
+		"template",
+		"!template/node_modules",
+		"!template/dist",
+		"!template/test-results",
+		"!template/playwright-report",
+		"!template/package-lock.json"
+	],
+	"publishConfig": {
+		"access": "public"
+	}
+}

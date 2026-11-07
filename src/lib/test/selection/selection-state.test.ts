@@ -7,7 +7,7 @@ describe('SelectionState lifecycle', () => {
 	it('enterCrossBlock populates anchor and focus', () => {
 		const s = createSelectionState();
 		s.enterCrossBlock({ path: [0], offset: 2 }, { path: [1], offset: 4 });
-		expect(s.isCrossBlock).toBe(true);
+		expect(s.ownsRange).toBe(true);
 		expect(s.anchor).toEqual({ path: [0], offset: 2 });
 		expect(s.focus).toEqual({ path: [1], offset: 4 });
 	});
@@ -24,7 +24,7 @@ describe('SelectionState lifecycle', () => {
 		const s = createSelectionState();
 		s.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 0 });
 		s.clear();
-		expect(s.isCrossBlock).toBe(false);
+		expect(s.ownsRange).toBe(false);
 		expect(s.anchor).toBeNull();
 		expect(s.focus).toBeNull();
 	});
@@ -39,7 +39,7 @@ describe('SelectionState lifecycle', () => {
 	it('collapses a same-path prose range instead of entering cross-block', () => {
 		const s = createSelectionState();
 		s.enterCrossBlock({ path: [0], offset: 0 }, { path: [0], offset: 5 });
-		expect(s.isCrossBlock).toBe(false);
+		expect(s.ownsRange).toBe(false);
 		expect(s.anchor).toBeNull();
 		expect(s.focus).toBeNull();
 	});
@@ -47,7 +47,7 @@ describe('SelectionState lifecycle', () => {
 	it('keeps the same-offset keyboard seed so its follow-up extend has an anchor', () => {
 		const s = createSelectionState();
 		s.enterCrossBlock({ path: [0], offset: 3 }, { path: [0], offset: 3 });
-		expect(s.isCrossBlock).toBe(true);
+		expect(s.ownsRange).toBe(true);
 		s.extendFocus({ path: [1], offset: 0 });
 		expect(s.anchor).toEqual({ path: [0], offset: 3 });
 		expect(s.focus).toEqual({ path: [1], offset: 0 });
@@ -56,9 +56,9 @@ describe('SelectionState lifecycle', () => {
 	it('collapses when extendFocus contracts onto the anchor prose leaf', () => {
 		const s = createSelectionState();
 		s.enterCrossBlock({ path: [0], offset: 3 }, { path: [1], offset: 0 });
-		expect(s.isCrossBlock).toBe(true);
+		expect(s.ownsRange).toBe(true);
 		s.extendFocus({ path: [0], offset: 8 });
-		expect(s.isCrossBlock).toBe(false);
+		expect(s.ownsRange).toBe(false);
 		expect(s.anchor).toBeNull();
 	});
 });
@@ -107,14 +107,14 @@ describe('SelectionState.isCustomRendered', () => {
 		const doc = parse('paragraph one\n\n> quoted\n');
 		const s = createSelectionState({ getDoc: () => doc });
 		s.enterCrossBlock({ path: [0], offset: 0 }, { path: [0], offset: 5 });
-		expect(s.isCrossBlock).toBe(false);
+		expect(s.ownsRange).toBe(false);
 		expect(s.isCustomRendered).toBe(false);
 		s.enterCrossBlock({ path: [1], offset: 0 }, { path: [1], offset: 3 });
-		expect(s.isCrossBlock).toBe(false);
+		expect(s.ownsRange).toBe(false);
 		expect(s.isCustomRendered).toBe(false);
 	});
 
-	it('falls back to isCrossBlock when getDoc is not provided', () => {
+	it('falls back to ownsRange when getDoc is not provided', () => {
 		const s = createSelectionState();
 		expect(s.isCustomRendered).toBe(false);
 		s.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 0 });
