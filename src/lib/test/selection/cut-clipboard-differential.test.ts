@@ -121,8 +121,11 @@ function onTitleRow(c: CutCase, point: SelectionPoint, atStart = false): boolean
 function divergenceOf(c: CutCase): string | null {
 	const legs = cutLegs(c);
 	if (legs.written === legs.today) return null;
-	if (legs.today !== legs.core)
+	if (legs.today !== legs.core) {
+		if (legs.today.length === legs.core.length)
+			return `unclassified: today's removal took ${legs.today}, the core's ${legs.core}`;
 		return legs.today.length > legs.core.length ? TAKES_MORE : LEAVES_MORE;
+	}
 	const host = checkHost(fixtureReading({}, c.mode));
 	if (startsBelowTableHead(readOf(host, c.source), legs.from, host)) return TABLE_HEAD;
 	if (onTitleRow(c, c.start)) return TITLE_START;
