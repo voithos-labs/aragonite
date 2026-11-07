@@ -61,17 +61,20 @@ async function revealWithDraft(
 }
 
 describe('a render-primary fold writes back only what its reveal measured', () => {
-	// An undo or `source` swap replaces the node at this index before the blur arrives; rewriting
-	// the live node's bytes with no tick in between reproduces that state.
+	// A write from elsewhere (an undo, a host's write) lands on the block before the blur arrives;
+	// the blur runs with no tick after the write, before the shown source repaints.
 	it('declines the fold when the document at the index moved under the open reveal', async () => {
 		const editor = mountEditorWithLiveSource(OPENED);
 		const el = await revealWithDraft(editor, '$$\ndraft\n$$');
 
-		const doc = (
-			instance as unknown as { __test: { getDocument(): { children: { raw: string }[] } } }
-		).__test.getDocument();
-		doc.children[0].raw = '$$\nrestored\n$$\n';
+		const probe = instance as unknown as {
+			__test: {
+				spliceSource(source: string, caret: 'keep', op: { kind: 'input' }): Promise<boolean>;
+			};
+		};
+		const writing = probe.__test.spliceSource('$$\nrestored\n$$\n', 'keep', { kind: 'input' });
 		el.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+		await writing;
 		await editor.settle();
 
 		expect(instance!.getSource()).toBe('$$\nrestored\n$$\n');

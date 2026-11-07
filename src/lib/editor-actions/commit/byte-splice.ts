@@ -15,6 +15,7 @@ import { docPathFrom } from '../../core/coordinate-spaces';
 import { spliceMany } from '../../tree-operations/splice-many';
 import {
 	spliceReading,
+	type ByteChange,
 	type SpliceReading,
 	type SpliceWindow
 } from '../../tree-operations/byte-splice';
@@ -24,7 +25,9 @@ import {
 	stampStructuralChange,
 	type StructuralChange
 } from '../../tree-operations/structural-change';
-import { childRawStarts, leafAtByte } from '../../tree-operations/container-offsets';
+import { byteOfLeaf, childRawStarts, leafAtByte } from '../../tree-operations/container-offsets';
+import { readCurrentSelection } from '../../selection/native-bridge';
+import type { BlockReach } from './change-record';
 import {
 	gapEligibleAt,
 	type GapCaretPosition,
@@ -47,6 +50,7 @@ export function createByteSplice(
 			deps.reading.grammar
 		);
 		const windows = reading?.windows ?? [];
+		const kept = splice.caret === 'keep' ? caretKept(deps, splice.changes, windows) : null;
 		let saved: { children: CstNode[]; ids: string[]; refs: (BlockComponent | undefined)[] } | null =
 			null;
 		return __commit({
@@ -54,7 +58,7 @@ export function createByteSplice(
 			snapshot: splice.snapshot,
 			op: { ...splice.op, eventPath: docPathFrom([windows[0]?.at ?? 0]) },
 			history: splice.history ?? 'entry',
-			changes: splice.changes,
+			reach: () => reachOf(windows),
 			discardIfNoop: true,
 			apply: () => {
 				if (!reading) return false;
@@ -81,7 +85,10 @@ export function createByteSplice(
 				deps.setBlockIds(saved.ids);
 				replaceRefs(deps.blockRefs, saved.refs);
 			},
-			landing: () => landingAt(deps.doc, splice.caret),
+			landing: () => {
+				const caret = splice.caret === 'keep' ? kept : splice.caret;
+				return caret && landingAt(deps.doc, caret);
+			},
 			reveal: splice.reveal
 		});
 	};
@@ -114,6 +121,36 @@ function changeOf({ at, count, blocks }: SpliceWindow): StructuralChange {
 	if (count > 0 && blocks.length > 0) return replacePreservingFirst(at, count, blocks.length);
 	if (blocks.length > 0) return { op: 'insert', at, count: blocks.length };
 	return count > 0 ? { op: 'delete', at, count } : { op: 'noop' };
+}
+
+/** The top-level blocks the windows replace, and every one between them. */
+function reachOf(windows: readonly SpliceWindow[]): BlockReach {
+	const last = windows.at(-1);
+	return last ? { from: windows[0].at, to: last.at + Math.max(last.count, 1) } : { from: 0, to: 0 };
+}
+
+/** The author's caret past `changes`, put back only where a window read its block again: elsewhere
+ *  it stays as it is, an IME composition included. Null with no caret, or none to move. */
+function caretKept(
+	deps: EditorActionsDeps,
+	changes: readonly ByteChange[],
+	windows: readonly SpliceWindow[]
+): SpliceCaret | null {
+	const live = readCurrentSelection(deps.selectionState, deps.blockRefs);
+	if (!live || live.focus.cellCoordinate) return null;
+	const top = live.focus.path[0];
+	const reread = windows.some(({ at, count }) => top >= at && top < at + count);
+	if (!reread && !deps.selectionState.ownsRange) return null;
+	let at = byteOfLeaf(deps.doc, live.focus.path, live.focus.offset);
+	if (at === null) return null;
+	let shift = 0;
+	for (const change of changes) {
+		if (at < change.from) break;
+		if (at < change.to) return { at: change.from + shift + change.insert.length, holds: 'text' };
+		shift += change.insert.length - (change.to - change.from);
+	}
+	at += shift;
+	return { at, holds: 'text' };
 }
 
 /** Where each window's blocks stand once every window is in. */

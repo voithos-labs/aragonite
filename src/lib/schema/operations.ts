@@ -27,7 +27,8 @@ export interface OperationDetailMap {
 					| 'paste-dispatch'
 					| 'paste-dispatch-table-cell'
 					| 'cross-block-covered-block'
-					| 'selection-drop';
+					| 'selection-drop'
+					| 'draft';
 		  };
 	paste:
 		| { count: number }

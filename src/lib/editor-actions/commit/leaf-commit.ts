@@ -65,6 +65,20 @@ export function createLeafCommit(
 			op: { kind: 'input', eventPath: leafPath },
 			snapshot: { path: leafPath, offset: caret },
 			history: 'burst',
+			reach: () => ({ from: leafPath[0], to: leafPath[0] + 1 }),
+			// A fold or a kind change moves the leaf's bytes; the record then reads where the text went.
+			typedEnd: () => {
+				if (folds.length > 0 || reclassified.length > 0) return null;
+				const at = settledCaretPosition(settled, index, caret, body.children);
+				const block = depth > 1 ? leafPath[0] : at.index;
+				const top = deps.doc.children[block];
+				if (!top) return null;
+				const inTop =
+					depth > 1
+						? rawOffsetOfLeaf(top, [...leafPath.slice(1, -1), at.index], at.offset)
+						: at.offset;
+				return inTop === null ? null : { block, offset: top.leadingTrivia.length + inTop };
+			},
 			prepare() {
 				chain = ensureUnsharedPath(deps.doc, leafPath, deps.sharing);
 				// A chain of another depth leaves the leaf's container shared with an undo entry, and

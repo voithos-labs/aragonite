@@ -120,6 +120,7 @@ These checks run in three kinds of place:
 | G1.175 | The right-click menu opens over the selection only while one is held | A·N |
 | G1.178 | A text end inside a table cell pairs only with an end in that same cell | A·N |
 | G1.189 | An undo or redo puts back no block read under a grammar the editor no longer reads | A·N |
+| G1.190 | While a draft is open, every write tells it everything the write changed | A·N |
 
 ### The entries
 
@@ -328,3 +329,5 @@ These checks run in three kinds of place:
 **G1.178 · A cell's text range stays in its cell** (`cell-text-endpoint`). A finger's word in a table cell is stored at the cell's own path with text offsets, which only `SelectionState`'s cell snap keeps, and only while both ends sit in that cell. A text end there paired with one anywhere else is read as text where the delete, the copy and the paint expect a cell index, so dev fails one at every write of the pair. `checkCellTextEndpoint` · `owned-cell-range.test.ts`.
 
 **G1.189 · An undo reads under the editor's grammar** (`restore-grammar`). An undo entry keeps the grammar its tree was read under, and one restored under another has its bytes read again from the live document instead of installed, which leans on every block the undo leaves alone already reading under the editor's grammar. Either way, each block the undo put back reads back alone as itself. `checkRestoredUnderGrammar` (`reads-back.ts`) · `history.ts :: install` · `grammar-restore.test.ts`.
+
+**G1.190 · A draft hears every write** (`change-record`). While a draft is open, each write records the top-level blocks it changed, read over the blocks it names plus one either side, and a draft maps its ranges through the records. Checked after each write (nothing changed past what it named) and at a draft's commit (a range no record touched still holds the bytes it opened on). `checkChangeInReach`, `checkDraftBytesKept` (`change-record.ts`) · `commit-frame.ts`, `draft-registry.svelte.ts` · `change-record.test.ts`, `draft-registry.test.ts`.

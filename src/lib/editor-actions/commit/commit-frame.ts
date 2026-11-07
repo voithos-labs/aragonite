@@ -23,7 +23,8 @@ import {
 	assertReadsBack
 } from '../../invariants/install';
 import type { UndoManager } from '../../undo/types';
-import type { ByteChange } from '../../tree-operations/byte-splice';
+import { captureChange, changeAfter, type BlockReach } from './change-record';
+import { assertChangeInReach } from '../../invariants/install';
 import { admitsWrite } from './reading-write-gate';
 import type { EditorActionsDeps } from '../deps';
 
@@ -47,9 +48,12 @@ export interface FrameWrite {
 	op?: ScopedOpDescriptor;
 	/** Where undo puts the caret back when nothing is focused. */
 	snapshot: CommitSnapshotArg;
-	/** The byte changes the write makes, where it knows them (the byte splice), for a history that
-	 *  records changes rather than snapshots. */
-	changes?: readonly ByteChange[];
+	/** The top-level blocks the write may change, before it; absent, every one. What the open drafts
+	 *  hear is read there. */
+	reach?(): BlockReach | null;
+	/** Where the text a keystroke typed ends, after it: a top-level block and an offset into its
+	 *  blank lines and bytes. */
+	typedEnd?(): { block: number; offset: number } | null;
 	history: FrameHistory;
 	/** Copies what the write will write, before its undo entry; false when it can't, which writes
 	 *  nothing. */
@@ -114,6 +118,11 @@ export function createCommitFrame(
 			write.rollback();
 		};
 		let discarded = false;
+		// Only while a draft is open: otherwise the write reads nothing more.
+		const capture = deps.drafts.watching()
+			? captureChange(deps.doc, write.reach?.() ?? null)
+			: null;
+		const whole = capture && devChecksOn ? captureChange(deps.doc, null) : null;
 		try {
 			// Inside the try: the push reads the live selection through plugin block refs.
 			undo.push(write.snapshot, write.history);
@@ -139,6 +148,11 @@ export function createCommitFrame(
 			return 'failed';
 		}
 		if (discarded) return 'discarded';
+		if (capture) {
+			const change = changeAfter(deps.doc, capture, write.typedEnd?.() ?? null);
+			if (whole) assertChangeInReach(changeAfter(deps.doc, whole, null), change);
+			deps.drafts.record(change);
+		}
 		deps.bumpContentVersion();
 		// A write moves what the gap caret's boundary index names; after the push, so the stored
 		// entry keeps the gap.

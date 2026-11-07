@@ -1,12 +1,12 @@
 // Inert dependencies for `createEditorPluginContexts`, so a test overrides only what it reads.
+import type { DraftSpec } from '#lib/schema/drafts.js';
 import { everyInstalledPlugin, type PluginActivation } from '#lib/schema/plugin-activation.js';
 import type { DecorationRegistry } from '#lib/decorations/types.js';
 import type { EditorRects } from '#lib/editor-rects.js';
 import type { InlineMenuRegistry } from '#lib/inline-menu/types.js';
 import type { InsertMarkdownOptions } from '#lib/editor-props.js';
 import { kitReading } from '#lib/testing/kit-reading.js';
-import { createDraftRegistry } from '#lib/components/draft-registry.js';
-import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
+import { idleDraftRegistry } from './drafts';
 
 export const noopDecorations: DecorationRegistry = {
 	addSource: () => ({ invalidate() {}, dispose() {} })
@@ -46,6 +46,6 @@ export const pluginContextDeps = (
 		options?: InsertMarkdownOptions
 	) => Promise<boolean>,
 	runCommand: (() => false) as (commandId: string, arg?: unknown) => boolean,
-	openDraft: createDraftRegistry(createDocumentStamps()).open,
+	openDraft: (spec: DraftSpec) => idleDraftRegistry().open(spec),
 	reading: kitReading()
 });

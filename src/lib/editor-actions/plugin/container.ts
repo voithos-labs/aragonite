@@ -504,7 +504,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		handleKeydown,
 		moveFocusOut,
 		captureScrollPosition: scrollOwner.keep,
-		openDraft: drafts.open,
+		openDraft: (spec) => drafts.open(spec, deps.getPath()),
 		getPresentationMode,
 		getTheme,
 		getOptions,

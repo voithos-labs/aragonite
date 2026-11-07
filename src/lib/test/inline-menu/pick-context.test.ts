@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { openPick } from '#lib/inline-menu/pick-context.js';
-import { createDraftRegistry } from '#lib/components/draft-registry.js';
+import { idleDraftRegistry } from '../harness/drafts';
 import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
 import type { EditorContext } from '#lib/schema/plugin-install.js';
 
@@ -8,7 +8,7 @@ import type { EditorContext } from '#lib/schema/plugin-install.js';
 // live through it, since a spread would freeze `document` and the other getters.
 function setup() {
 	const stamps = createDocumentStamps();
-	const drafts = createDraftRegistry(stamps);
+	const drafts = idleDraftRegistry(stamps);
 	const calls: string[] = [];
 	let generation = 0;
 	let doc = { children: ['a'] };

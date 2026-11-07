@@ -24,6 +24,7 @@ import { checkContentRange } from './descriptor';
 import { checkChildIdParity } from './child-id-parity';
 import { checkChildSpansLockstep, checkIdsChildrenLockstep } from './structural-descriptor';
 import { checkSnapshotIntegrity, type SnapshotEntry } from './snapshot-integrity';
+import { checkChangeInReach, checkDraftBytesKept } from './change-record';
 import { checkLastLineKept } from './open-tail';
 import { checkKeepsABlock } from './keeps-a-block';
 import {
@@ -126,6 +127,23 @@ export function assertLastLineKept(doc: Document, wasOpen: boolean): void {
 export function assertReadsBack(tops: readonly CstNode[], grammar: GrammarView): void {
 	if (!devChecksOn || perfEnabled()) return;
 	for (const top of tops) assertInvariant('reads-back', () => checkReadsBack(top, grammar));
+}
+
+/** G1.190 after a write the open drafts heard: its record holds every part it changed. */
+export function assertChangeInReach(
+	whole: Parameters<typeof checkChangeInReach>[0],
+	recorded: Parameters<typeof checkChangeInReach>[1]
+): void {
+	assertInvariant('change-record', () => checkChangeInReach(whole, recorded));
+}
+
+/** G1.190 at a draft's commit: a range the record kept still holds the bytes it opened on. */
+export function assertDraftBytesKept(
+	opened: string,
+	now: string,
+	ranges: Parameters<typeof checkDraftBytesKept>[2]
+): void {
+	assertInvariant('change-record', () => checkDraftBytesKept(opened, now, ranges));
 }
 
 /** G1.189 after an undo or redo: each block it put back reads as itself under the editor's grammar. */

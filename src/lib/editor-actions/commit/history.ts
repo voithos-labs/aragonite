@@ -15,6 +15,7 @@ import { admitsHistoryRequest } from './reading-write-gate';
 import { gapAtByte, installReading } from './byte-splice';
 import type { EditorActionsDeps, UndoController } from '../deps';
 import { grammarStamp, sameGrammar } from './grammar-stamp';
+import { captureChange, changeAfter } from './change-record';
 import { serialize } from '../../core/serializer';
 import { changesBetween, spliceReading } from '../../tree-operations/byte-splice';
 import { documentByteMap } from '../../tree-operations/container-offsets';
@@ -49,9 +50,11 @@ export function createHistoryActions(
 		// The standing range addresses the outgoing tree; read during the render below, its path
 		// could name another block in the incoming one.
 		deps.selectionState.dropForDocumentSwap();
+		const capture = deps.drafts.watching() ? captureChange(deps.doc, null) : null;
 		const selection = sameGrammar(entry.grammar, grammarStamp(deps.reading.grammar))
 			? putBack(entry)
 			: readAgain(entry);
+		if (capture) deps.drafts.record(changeAfter(deps.doc, capture, null));
 		deps.bumpContentVersion();
 		// Before the awaits below, so a host that loads another document meanwhile never hears
 		// this undo after its own swap.
