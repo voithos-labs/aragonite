@@ -64,6 +64,7 @@ _(pre-freeze / unstable)_ The installable package, and the per-editor context it
 | `OnEditorCallback` | The callback itself: receives the `EditorContext` of each mounted editor that listed your plugin, may return a cleanup function the editor runs at unmount |
 | [`EditorContext`](#editorcontext) | One editor's view for your plugin, handed to your `onEditor` callback |
 | `InsertMarkdownOptions` | `insertMarkdown`'s second argument: `placement: 'below'` puts the text into a new paragraph after the top-level block holding the caret, in one undo entry; the default inserts at the caret |
+| [`Draft`, `Result`](#draft-result) | A write in the document's bytes from `edit()`, and what its commit came to |
 | `PresentationMode` | The union of the editor's view modes (source, reading, the two previews, live). Switch on it with a default branch, since a new mode would join the union. [Presentation modes](plugin-guide/presentation-modes.md#presentation-modes) |
 | `ClickInput` | What `isActivationClick` reads off a click: its Ctrl and Cmd keys, its click count and its target. A `MouseEvent` is one, so pass the event |
 
@@ -105,7 +106,7 @@ One editor's view for your plugin, handed to your `onEditor` callback once for e
 - `decorations`, `rects` and `inlineMenus`, this editor's [decorations](#decorations), [geometry](#rects) and [inline menus](#inline-menus).
 - `insertCatalogue`, `presentationMode` and `theme`, all live.
 - `insertMarkdown(md, options?)`, a promise resolved when the insert lands, and `runCommand(id, arg?)`. Both act like the instance's own methods and return false where those would.
-- `openDraft(spec)`, for an edit held outside the document ([`Draft`](#draft-draftspec-draftclosecause)).
+- `edit()`, a write in the document's bytes that commits as one undo step, now or after a wait ([`Draft`](#draft-result)).
 - `computeInlineContent(node)`, this editor's inline parse.
 - `isActivationClick(e)`, whether a click on a link your block draws (a footnote's back-link, say) should follow it, by the host's `linkClick` and the mode.
 
@@ -119,6 +120,48 @@ ctx.onEditor((editor) => {
 ```
 
 Per-editor state, and the closure trap that comes with it: [One process, many editors](plugin-guide/per-editor.md#one-process-many-editors).
+
+#### `Draft`, `Result`
+
+```ts
+interface Draft {
+	readonly stale: boolean;
+	replace(range: { from: number; to: number }, text: string): this;
+	insert(markdown: string): this;
+	commit(options?: { caret?: number }): Promise<Result>;
+	end(): void;
+}
+
+type Result =
+	| { ok: true }
+	| { ok: false; reason: 'moved' | 'unloaded' | 'reading' | 'overlap' | 'illegal' | 'empty'; message: string };
+```
+
+The way your plugin writes bytes, from `EditorContext.edit()` (a host gets the same from `EditorInstance.edit()`). Positions are byte offsets into the document's text as it stood when you called `edit()`, so you can measure a range, go fetch something, and write when it comes back:
+
+```ts
+const draft = editor.edit();
+const card = await fetchCard(query); // the author keeps typing meanwhile
+const result = await draft.replace({ from, to }, card).commit();
+if (!result.ok) console.warn(result.reason, result.message); // 'moved': they typed inside it
+```
+
+- `replace(range, text)` swaps bytes `from` to `to` for `text`. Chain as many as you like; two far-apart ranges are still one undo step. These are the document's bytes, markers and all, so a new line you write inside a container carries the container's marker (`> `, a list item's indent) in `text`.
+- `insert(markdown)` pastes Markdown at the caret once the replacements land, the way `insertMarkdown` does.
+- `commit({ caret })` writes it all as one undo step, with the caret at byte `caret` of the new text. Leave `caret` out and the author's caret stays where it is, since a write landing while they type shouldn't drag them anywhere.
+- `stale` turns true once a write elsewhere touches one of your ranges, or the host loads another document. It's reactive, so a Svelte effect reading it reruns.
+- `end()` drops the draft without writing. One you just let go of is dropped eventually too, but ending it stops the editor tracking writes for it right away.
+
+What a commit can come back with (nothing throws, and a refused commit writes nothing):
+
+| `reason` | When |
+| --- | --- |
+| `moved` | Something wrote inside one of your ranges since `edit()`. Text written right before or after a range doesn't count, it just moves the range |
+| `unloaded` | The host loaded another document |
+| `reading` | The editor's in reading mode |
+| `overlap` | Two of your own ranges overlap |
+| `illegal` | A range runs past the document's end or splits a `\r\n`, or the insert had no caret to land at |
+| `empty` | Nothing to write: no ranges, only the bytes already there, or the draft was ended |
 
 ### Kind declaration
 
@@ -583,7 +626,7 @@ _(pre-freeze / unstable)_ A container's **chrome** is its own furniture: the bor
 | `rowContentRange` | Where the title sits on a container's title line, past a `:::name` and the spaces after it, so a view reading the title skips the name |
 | [`ContainerBlock`, `ContainerBlockComponent`](#containerblock-containerblockcomponent) | _(from `/svelte`)_ What the factory returns, and the shape its `containerApi` must satisfy |
 | `ContainerBlockDeps`, `ContainerBlockListProps` | _(from `/svelte`)_ The factory's inputs, live getters rather than captured values, and the props `BlockList` takes |
-| [`Draft`, `DraftSpec`, `DraftCloseCause`](#draft-draftspec-draftclosecause) | An edit your plugin holds outside the document (a textarea's text) |
+| [`DraftSpec`, `DraftCloseCause`](#draftspec-draftclosecause) | An edit your block holds outside the document (a textarea's text), as a draft of its bytes |
 | `RefSlots` | The per-child reference accessors the child-list props carry |
 | `ChildList` | A container's children as the editor walks down to one: their references, their render window, and whether the body is collapsed. `containerApi.childList()` returns it; the factory builds yours, so you'd only write one for a hand-rolled container |
 | `ChromeLeafOptions` | `registerChromeLeaf`'s options: the name a screen reader and the block menu give the line, a CSS class for styling it, keymap overrides, the merge role |
@@ -613,31 +656,17 @@ What the factory returns:
 
 The component that spreads all of it: [The component](plugin-guide/container-walkthrough.md#the-component).
 
-#### `Draft`, `DraftSpec`, `DraftCloseCause`
+#### `DraftSpec`, `DraftCloseCause`
 
 ```ts
 interface DraftSpec {
-	seed: string;
-	current(): string;
 	close(cause: DraftCloseCause): void;
 }
 
-interface Draft {
-	canWrite(): boolean;
-	end(): void;
-}
+type DraftCloseCause = 'mode-change' | 'undo' | 'document-swap';
 ```
 
-An edit your plugin holds outside the document (a textarea's text), from `EditorContext.openDraft(spec)`. The container factory passes it through. The spec:
-
-- `seed`, the bytes you filled the box with;
-- `current()`, those bytes now;
-- `close(cause)`, which the editor calls on a draft still open. `'mode-change'` and `'undo'` (an undo or redo about to replace the document) may still save; `'document-swap'` writes nothing.
-
-What you get back:
-
-- `canWrite()`, to ask before the draft's commit, since a `source` swap or a write to those bytes drops it.
-- `end()`, once it closes or your block unmounts.
+A block holding an edit outside the document (a textarea's text) opens a [`Draft`](#draft-result) of its own bytes with the container factory's `openDraft(spec)`. It goes `stale` once a write elsewhere touches the block, and the editor calls `close(cause)` on one you haven't ended: `'mode-change'` and `'undo'` (an undo or redo about to replace the document) may still save, `'document-swap'` writes nothing. `end()` it once your box closes or your block unmounts. [What your own editing surface has to do](plugin-guide/render-primary.md#what-your-own-editing-surface-has-to-do) walks through it.
 
 #### `rebuildStripRaw`
 

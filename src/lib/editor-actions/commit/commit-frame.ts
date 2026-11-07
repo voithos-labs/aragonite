@@ -150,7 +150,7 @@ export function createCommitFrame(
 		if (discarded) return 'discarded';
 		if (capture) {
 			const change = changeAfter(deps.doc, capture, write.typedEnd?.() ?? null);
-			if (whole) assertChangeInReach(changeAfter(deps.doc, whole, null), change);
+			if (devChecksOn && whole) assertChangeInReach(changeAfter(deps.doc, whole, null), change);
 			deps.drafts.record(change);
 		}
 		deps.bumpContentVersion();

@@ -15,9 +15,7 @@ import {
 const CODE = 'graph TD\n\tA --> B\n';
 const SOURCE = `intro\n\n\`\`\`mermaid\n${CODE}\`\`\`\n\noutro\n`;
 
-let mounted: MountedEditor<{
-	spliceSource(source: string, caret: 'keep', op: { kind: 'input' }): Promise<boolean>;
-}> | null = null;
+let mounted: MountedEditor | null = null;
 
 // No renderer supplied: the block falls back to showing its code, so mermaid never loads and
 // every edit-mode path below is still the shipped one.
@@ -37,13 +35,11 @@ function openEdit(root: HTMLElement): void {
 	flushSync();
 }
 
-/** A rewrite of the diagram's code from elsewhere, through the editor's byte write, with the
- *  caret left where it is. */
+/** A host's rewrite of the diagram's code, while the box is open. */
 async function rewriteCodeExternally(code: string): Promise<void> {
-	const source = mounted!.instance.getSource();
-	await mounted!.instance.__test.spliceSource(source.replace(CODE, code), 'keep', {
-		kind: 'input'
-	});
+	const from = mounted!.instance.getSource().indexOf(CODE);
+	const draft = mounted!.instance.edit().replace({ from, to: from + CODE.length }, code);
+	expect(await draft.commit()).toEqual({ ok: true });
 	flushSync();
 }
 

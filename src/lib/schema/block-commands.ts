@@ -40,7 +40,8 @@ export interface BlockCommandContext extends CommandRun {
 	/** A container's metadata patch, which its `rebuildRaw` writes into the bytes. A leaf's
 	 *  metadata comes from its bytes, so on a leaf this writes nothing and reports an error. */
 	updateMetadata(patch: Record<string, unknown>): void;
-	/** Rewrite the block's bytes as one undo entry; the parse derives its kind and metadata. */
+	/** Rewrite the block's bytes as one undo entry; the parse derives its kind and metadata. Being
+	 *  replaced by `Draft`, once a draft can write a block inside a container without its markers. */
 	replaceRaw(raw: string): void;
 	/**
 	 * The mounted component's view-state hooks, cast by the plugin to its own type. `undefined`

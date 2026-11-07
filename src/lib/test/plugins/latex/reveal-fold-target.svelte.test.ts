@@ -67,12 +67,8 @@ describe('a render-primary fold writes back only what its reveal measured', () =
 		const editor = mountEditorWithLiveSource(OPENED);
 		const el = await revealWithDraft(editor, '$$\ndraft\n$$');
 
-		const probe = instance as unknown as {
-			__test: {
-				spliceSource(source: string, caret: 'keep', op: { kind: 'input' }): Promise<boolean>;
-			};
-		};
-		const writing = probe.__test.spliceSource('$$\nrestored\n$$\n', 'keep', { kind: 'input' });
+		const draft = instance!.edit().replace({ from: 0, to: OPENED.length }, '$$\nrestored\n$$\n');
+		const writing = draft.commit();
 		el.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
 		await writing;
 		await editor.settle();

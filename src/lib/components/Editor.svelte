@@ -5,6 +5,7 @@
 	import type { AnyBlockKind, Document } from '../core/nodes';
 	import type { EditorProps } from './editor-component-props';
 	import type { EditorInstance, EditorDiagnostics, InsertMarkdownOptions } from '../editor-props';
+	import type { Draft } from '../schema/drafts';
 	import type { EditorEvents } from '../editor-events';
 	import {
 		BLOCK_EDIT_KEY,
@@ -420,7 +421,7 @@
 		isReading: () => reading.mode() === 'reading',
 		// Built below; a draft commits post-init.
 		writes: () => ({
-			commitSource: (splice) => controller.commitSource(splice),
+			commitSource: controller.commitSource,
 			undoStep: (seed, run) => controller.undoStep(seed, run),
 			insert: (md, below) =>
 				focusedSurface.insertMarkdown(md, below ? { placement: 'below' } : undefined)
@@ -718,7 +719,7 @@
 		// Called at use, never here: both read state declared further down this component.
 		insertMarkdown: (md, options) => insertMarkdown(md, options),
 		runCommand: (commandId, arg) => runCommand(commandId, arg),
-		openDraft: (spec) => drafts.open(spec),
+		edit: () => drafts.edit(),
 		reading
 	});
 
@@ -1330,8 +1331,18 @@
 		stamps
 	});
 
-	export function insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean> {
-		return focusedSurface.insertMarkdown(md, options);
+	export function edit(): Draft {
+		return drafts.edit();
+	}
+
+	export async function insertMarkdown(
+		md: string,
+		options?: InsertMarkdownOptions
+	): Promise<boolean> {
+		const draft = drafts.edit();
+		if (options?.placement === 'below') draft.insertBelow(md);
+		else draft.insert(md);
+		return (await draft.commit()).ok;
 	}
 
 	export function runCommand(commandId: string, arg?: unknown): boolean {
@@ -1426,6 +1437,7 @@
 		getSelection,
 		setSelection,
 		placeCaretAtPoint,
+		edit,
 		insertMarkdown,
 		runCommand,
 		canRunCommand,

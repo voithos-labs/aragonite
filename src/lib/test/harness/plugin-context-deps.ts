@@ -1,5 +1,4 @@
 // Inert dependencies for `createEditorPluginContexts`, so a test overrides only what it reads.
-import type { DraftSpec } from '#lib/schema/drafts.js';
 import { everyInstalledPlugin, type PluginActivation } from '#lib/schema/plugin-activation.js';
 import type { DecorationRegistry } from '#lib/decorations/types.js';
 import type { EditorRects } from '#lib/editor-rects.js';
@@ -46,6 +45,6 @@ export const pluginContextDeps = (
 		options?: InsertMarkdownOptions
 	) => Promise<boolean>,
 	runCommand: (() => false) as (commandId: string, arg?: unknown) => boolean,
-	openDraft: (spec: DraftSpec) => idleDraftRegistry().open(spec),
+	edit: () => idleDraftRegistry().edit(),
 	reading: kitReading()
 });

@@ -1,4 +1,3 @@
-import { idleDraftRegistry } from '../harness/drafts';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createEditorPluginContexts } from '#lib/schema/plugin-editor-context.js';
 import {
@@ -72,18 +71,6 @@ describe('createEditorPluginContexts', () => {
 	});
 
 	// Miss-analysis: no test asked the plugin context to reach the editor instance.
-	it('openDraft opens the draft in this editor’s registry', () => {
-		const specs: unknown[] = [];
-		const draft = idleDraftRegistry().open({ close() {} });
-		const ctxs = createEditorPluginContexts({
-			...deps({ children: [] }),
-			openDraft: (spec) => (specs.push(spec), draft)
-		});
-		const spec = { close: () => {} };
-		expect(ctxs.get('p')!.openDraft(spec)).toBe(draft);
-		expect(specs).toEqual([spec]);
-	});
-
 	it('insertMarkdown and runCommand reach the instance, with its answer, false included', async () => {
 		const inserted: unknown[][] = [];
 		const ran: unknown[][] = [];

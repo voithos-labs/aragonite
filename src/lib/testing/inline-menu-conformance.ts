@@ -39,7 +39,7 @@ export async function checkInlineMenuCommitAcrossSwap(c: InlineMenuCommitCase): 
 			insert: async (md) => (writes.push(`insertMarkdown(${JSON.stringify(md)})`), true)
 		})
 	});
-	const editor = recordingContext(writes, (spec) => drafts.open(spec), host);
+	const editor = recordingContext(writes, () => drafts.edit(), host);
 	const source = c.source(editor);
 	const query = c.query ?? '';
 	const range = { query, path: [0], start: 0, end: source.trigger.length + query.length };
@@ -73,7 +73,7 @@ export async function checkInlineMenuCommitAcrossSwap(c: InlineMenuCommitCase): 
  *  editor would. */
 function recordingContext(
 	writes: string[],
-	openDraft: EditorContext['openDraft'],
+	edit: EditorContext['edit'],
 	host: { generation: number; document: DocumentView }
 ): EditorContext {
 	return {
@@ -107,7 +107,7 @@ function recordingContext(
 			true
 		),
 		runCommand: (commandId: string) => (writes.push(`runCommand(${commandId})`), true),
-		openDraft,
+		edit,
 		computeInlineContent: () => [],
 		presentationMode: 'source',
 		theme: 'light',

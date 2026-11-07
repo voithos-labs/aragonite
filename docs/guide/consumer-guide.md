@@ -369,6 +369,7 @@ And what you can write:
 | `setSelection(snapshot)` | Puts a `getSelection()` snapshot back on the document (see [Restoring a selection](#restoring-a-selection)) |
 | `placeCaretAtPoint(x, y)` | Lands the caret at a viewport point, exactly as a click there would (see [Placing the caret at a point](#placing-the-caret-at-a-point)) |
 | `insertMarkdown(md, options?)` | Inserts Markdown at the caret, or in a new paragraph below its block, exactly as pasting it would (see [Inserting Markdown at the caret](#inserting-markdown-at-the-caret)) |
+| `edit()` | Writes byte ranges of the document as one undo step, now or after a wait, and is refused with a reason if the author wrote over them meanwhile (see [`Draft`](plugin-api.md#draft-result)) |
 | `runCommand(id, arg?)` | Runs an editor command by name, no keystroke involved (see [Toolbar commands](#toolbar-commands)) |
 
 ### Reading the document and the selection

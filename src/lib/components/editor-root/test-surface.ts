@@ -61,5 +61,5 @@ export interface EditorTestSurface {
 	getCaretWriter(): CaretWriter;
 	/** Writes `source` through the byte splice, the commit the range gestures move onto, until a
 	 *  gesture calls it: the range laws' twin editor and the perf rows reach it here. */
-	spliceSource(source: string, caret: SpliceCaret | 'keep', op: OpDescriptor): Promise<boolean>;
+	spliceSource(source: string, caret: SpliceCaret, op: OpDescriptor): Promise<boolean>;
 }
