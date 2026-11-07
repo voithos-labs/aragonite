@@ -140,7 +140,14 @@
 		type PluginsProp
 	} from '../schema/plugin-install';
 	import { createEditorActivation } from '../schema/plugin-activation';
-	import { installPluginList, type InstalledPlugin, type PluginError } from '../schema/plugin-unit';
+	import { createEditorContributions } from '../schema/editor-contributions';
+	import type { Command } from '../schema/plugin-command';
+	import {
+		installPluginList,
+		type InstalledPlugin,
+		type PluginError,
+		type PluginList
+	} from '../schema/plugin-unit';
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
 	import { insertCatalogue, type InsertEntry } from '../schema/insert-catalogue';
 	import { createEditorGrammar } from '../schema/editor-grammar';
@@ -238,13 +245,18 @@
 	// svelte-ignore state_referenced_locally
 	let pluginEntries = plugins?.length ? normalizePluginEntries(plugins) : undefined;
 	if (pluginEntries) installPlugins(pluginEntries.plugins);
-	let units: readonly InstalledPlugin[] = pluginEntries
-		? installPluginList(pluginEntries.values, reportPluginError)
-		: [];
+	// Commands reach their plugin's scoped editor, which exists once the plugin contexts below do.
+	const contributions = createEditorContributions({
+		editorFor: (plugin) => pluginContexts.scoped(plugin),
+		report: reportPluginError
+	});
+	const installList = (values: PluginList, previous?: readonly InstalledPlugin[]) =>
+		contributions.read(installPluginList(values, reportPluginError, previous));
+	let units: readonly InstalledPlugin[] = pluginEntries ? installList(pluginEntries.values) : [];
 
 	// The editor runs exactly the plugins it lists; with no `plugins` prop, every installed one.
 	const listedNames = () => (pluginEntries ? runningNames(pluginEntries, units) : null);
-	const activePlugins = createEditorActivation(listedNames());
+	const activePlugins = createEditorActivation(listedNames(), contributions);
 	let pluginNames = $state<readonly string[]>(activePlugins.names);
 
 	const overridesMap = $derived(normalizeKeybindingOverrides(keybindings));
@@ -736,8 +748,8 @@
 		activation: activePlugins,
 		// Called at use, never here: these read state declared further down this component.
 		insertMarkdown: (md, options) => insertMarkdown(md, options),
-		runCommand: (commandId, arg) => runCommand(commandId, arg),
-		canRunCommand: (commandId) => canRunCommand(commandId),
+		runCommand: (command, arg) => run(command, arg),
+		canRunCommand: (command, arg) => can(command, arg),
 		claims: (event) => claimsChord(event),
 		openDraft: drafts.open,
 		reading,
@@ -1439,12 +1451,21 @@
 		return events.on(event, listen);
 	}
 
-	export function run(commandId: string, arg?: unknown): boolean {
-		return runCommand(commandId, arg);
+	// A command value runs by the id this editor gave it; one this editor doesn't run, nowhere.
+	const commandIdOf = (command: Command<unknown> | string) =>
+		typeof command === 'string' ? command : contributions.command(command)?.id;
+
+	export function run(command: Command<unknown> | string, arg?: unknown): boolean {
+		const id = commandIdOf(command);
+		return id !== undefined && runCommand(id, arg);
 	}
 
-	export function can(commandId: string): boolean {
-		return canRunCommand(commandId);
+	export function can(command: Command<unknown> | string, arg?: unknown): boolean {
+		const id = commandIdOf(command);
+		return (
+			id !== undefined &&
+			canRunCommandById(id as AnyCommandId, focusedSurface.commandTarget(), commands, arg)
+		);
 	}
 
 	export function claims(event: KeyboardEvent): boolean {
@@ -1461,7 +1482,7 @@
 		const beforeEntries = pluginEntries;
 		const beforeUnits = units;
 		pluginEntries = entries;
-		units = installPluginList(entries.values, reportPluginError, beforeUnits);
+		units = installList(entries.values, beforeUnits);
 		const after = listedNames() ?? [];
 		// A plugin listed again with other options starts over on them, whichever shape it has.
 		const replaced = (name: string) =>

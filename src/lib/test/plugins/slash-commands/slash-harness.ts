@@ -74,6 +74,8 @@ export function slashPluginHarness(
 		const contexts = createEditorPluginContexts({
 			...pluginContextDeps(),
 			...host,
+			// The slash source runs commands by id only.
+			runCommand: (command, arg) => typeof command === 'string' && host.runCommand(command, arg),
 			optionsFor: (name) => optionsByName.get(name),
 			report: ({ cause }) => onError(cause)
 		});

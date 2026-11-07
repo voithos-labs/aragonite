@@ -1,9 +1,10 @@
 /**
  * What the plugins on one editor claim that two can't share: a `:::` name, an inline prefix, a
  * chord. The editor's install pass feeds it each plugin's claims in list order; list order settles a
- * contested claim, as it does a conflict, and a chord the editor's own search takes is never a plugin's.
+ * contested claim, as it does a conflict, and a chord the editor takes everywhere (search, undo,
+ * redo) is never a plugin's.
  */
-import { isReservedUiChord } from './commands';
+import { GLOBAL_KEYMAP, isReservedUiChord } from './commands';
 import { chordDefect, normalizeChord } from './keybindings';
 import { keepFirstListed, type PluginError } from './plugin-unit';
 
@@ -59,6 +60,8 @@ function problemWith({ label, raw, key, defect }: Claim): string | null {
 	if (defect !== null) return `claims ${label} "${raw}", which isn't one: ${defect}`;
 	if (label === 'the chord' && isReservedUiChord(key))
 		return `claims ${label} "${raw}", which search takes`;
+	if (label === 'the chord' && GLOBAL_KEYMAP.some((binding) => binding.chord === key))
+		return `claims ${label} "${raw}", which undo or redo takes`;
 	return null;
 }
 

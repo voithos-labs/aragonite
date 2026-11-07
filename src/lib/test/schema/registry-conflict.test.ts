@@ -8,7 +8,8 @@ import {
 	openerRecords
 } from '#lib/schema/block-kind-descriptor.js';
 import type { BlockOpener } from '#lib/schema/block-openers.js';
-import { registerCommand, getCommand } from '#lib/schema/commands.js';
+import { getCommand } from '#lib/schema/commands.js';
+import { registerGlobalCommand } from '#lib/schema/global-commands.js';
 import { __resetSchemaRegistriesForTests } from '#lib/schema/registry-reset.js';
 import { testClosure } from '#lib/test/harness/closure.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
@@ -36,8 +37,8 @@ describe('schema registries are register-once', () => {
 		expect(() => registerBlockKind(kind, minimal)).toThrow(/already registered/i);
 	});
 
-	it('registerCommand throws on a built-in re-registration', () => {
-		expect(() => registerCommand('history.undo', () => true)).toThrow(/already registered/i);
+	it('registerGlobalCommand refuses a built-in id', () => {
+		expect(() => registerGlobalCommand('history.undo', () => true)).toThrow(/built-in command id/i);
 	});
 });
 

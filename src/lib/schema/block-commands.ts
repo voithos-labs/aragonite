@@ -441,13 +441,14 @@ function runResolvedCommand(
 export function canRunCommandById(
 	id: AnyCommandId,
 	target: KindCommandTarget | null,
-	gates: CommandGates
+	gates: CommandGates,
+	arg?: unknown
 ): boolean {
 	if (isReadingMode(gates.getPresentationMode)) return false;
 	const route = rangeRouteFor(id, gates);
 	if (route.kind !== 'block-local') return route.kind === 'cross-block';
 	const resolved = resolveCommand(id, target, gates.activation);
-	if (resolved.tier === 'global') return canRunGlobalCommand(id, gates.activation, gates);
+	if (resolved.tier === 'global') return canRunGlobalCommand(id, gates.activation, gates, arg);
 	return reachesHandler(resolved);
 }
 

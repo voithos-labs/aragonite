@@ -9,6 +9,7 @@ import { ALL_BLOCK_KINDS, type BlockKind } from '../core/nodes';
 import { ARAGONITE_VERSION } from '../version';
 import type { EditorEventMap } from '../editor-events';
 import type { PresentationMode } from '../presentation-mode';
+import type { Command } from './plugin-command';
 import { isValidPluginName } from './plugin-name';
 import { satisfiesRange } from './version-range';
 
@@ -51,6 +52,8 @@ export type PluginList = readonly Pick<Plugin, 'name' | 'version' | 'editor'>[];
 export interface Contribution {
 	/** Runs once the editor is mounted; what it adds through `editor` goes away with the plugin. */
 	setup?(editor: Editor): void;
+	/** Run by value, by `plugin/id`, or by a command's chord anywhere in the editor. */
+	commands?: readonly Command<unknown>[];
 }
 
 /** The editor as a plugin's `setup` and a host's handle both see it. */
@@ -64,9 +67,12 @@ export interface Editor {
 		event: K,
 		listen: (payload: EditorEventMap[K]) => void
 	): () => void;
-	/** Runs a command by id; false, with nothing written, where `can` would say no. */
-	run(command: string, arg?: unknown): boolean;
-	can(command: string): boolean;
+	/** Runs a command, by value or by id; false, with nothing written, where `can` would say no or
+	 *  the command declines. */
+	run<A>(command: Command<A>, arg: A): boolean;
+	run(command: Command | string, arg?: unknown): boolean;
+	can<A>(command: Command<A>, arg: A): boolean;
+	can(command: Command | string, arg?: unknown): boolean;
 	/** Whether the editor acts on this key, so a host's own shortcut handler can stand back. */
 	claims(event: KeyboardEvent): boolean;
 }

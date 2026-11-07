@@ -26,6 +26,7 @@ import {
 	type EditorEventSubscriptions
 } from './plugin-install';
 import type { Editor, InstalledPlugin, PluginError } from './plugin-unit';
+import type { Command } from './plugin-command';
 
 export interface EditorPluginContexts {
 	/** This editor's context for a plugin it activated; `undefined` for one it did not. The empty
@@ -40,6 +41,9 @@ export interface EditorPluginContexts {
 	/** The context whose `onEditor` callback is running, where a plugin adds its inline-menu
 	 *  sources; undefined outside one. */
 	attaching(): EditorContext | undefined;
+	/** The `Editor` a running plugin value's `setup` and commands get: one per plugin, kept while a
+	 *  `use` keeps the plugin and dropped when it's turned off. */
+	scoped(pluginName: string): Editor | undefined;
 	dispose(): void;
 }
 
@@ -64,8 +68,8 @@ export function createEditorPluginContexts(deps: {
 	activation: PluginActivation;
 	/** The instance's own entry points; the context only delegates. */
 	insertMarkdown: (md: string, options?: InsertMarkdownOptions) => Promise<boolean>;
-	runCommand: (commandId: string, arg?: unknown) => boolean;
-	canRunCommand: (commandId: string) => boolean;
+	runCommand: (command: Command<unknown> | string, arg?: unknown) => boolean;
+	canRunCommand: (command: Command<unknown> | string, arg?: unknown) => boolean;
 	claims: (event: KeyboardEvent) => boolean;
 	openDraft: (spec: DraftSpec) => Draft;
 	/** How the editor reads its bytes, which every plugin inline read follows. */
@@ -76,6 +80,7 @@ export function createEditorPluginContexts(deps: {
 	report: (error: PluginError) => void;
 }): EditorPluginContexts {
 	const contexts = new Map<string, EditorContext>();
+	const editors = new Map<string, Editor>();
 	const disposers: { plugin: string; dispose: () => void }[] = [];
 	const { report } = deps;
 	let attaching: EditorContext | undefined;
@@ -138,6 +143,12 @@ export function createEditorPluginContexts(deps: {
 	}
 
 	function editorFor(plugin: string): Editor {
+		let editor = editors.get(plugin);
+		if (!editor) editors.set(plugin, (editor = scopedEditor(plugin)));
+		return editor;
+	}
+
+	function scopedEditor(plugin: string): Editor {
 		return {
 			get plugins() {
 				return deps.pluginNames();
@@ -153,8 +164,8 @@ export function createEditorPluginContexts(deps: {
 				disposers.push(disposer);
 				return () => disposeOne(disposer);
 			},
-			run: (commandId, arg) => deps.runCommand(commandId, arg),
-			can: (commandId) => deps.canRunCommand(commandId),
+			run: (command: Command<unknown> | string, arg?: unknown) => deps.runCommand(command, arg),
+			can: (command: Command<unknown> | string, arg?: unknown) => deps.canRunCommand(command, arg),
 			claims: (event) => deps.claims(event)
 		};
 	}
@@ -214,11 +225,14 @@ export function createEditorPluginContexts(deps: {
 	return {
 		get,
 		attaching: () => attaching,
+		scoped: (pluginName) =>
+			deps.units().some((unit) => unit.name === pluginName) ? editorFor(pluginName) : undefined,
 		attachAll: () => attach(null),
 		attach: (pluginNames) => attach(new Set(pluginNames)),
 		detach(pluginName) {
 			for (const disposer of disposers.filter((d) => d.plugin === pluginName)) disposeOne(disposer);
 			contexts.delete(pluginName);
+			editors.delete(pluginName);
 		},
 		dispose() {
 			for (const disposer of [...disposers]) disposeOne(disposer);
