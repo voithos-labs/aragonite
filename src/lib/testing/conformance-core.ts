@@ -12,7 +12,7 @@ import { showValue as show } from '../core/metadata-parity';
 import { cellFailure, type CellContract } from './cell-contracts';
 import type { SelectionPoint } from '../selection/primitives';
 import { createSelectionState } from '../selection/selection-state.svelte';
-import { collectCrossBlockText } from '../selection/clipboard-text';
+import { rangeClipboard } from '../selection/range-clipboard';
 import { coverRange, rangeCoverage } from '../selection/range-coverage';
 import { kitReading } from './kit-reading';
 
@@ -238,5 +238,7 @@ export function copyThroughFunnel(
 	selection.enterCrossBlock(anchor, focus);
 	const { start, end } = selection;
 	if (!start || !end) fail('the selection funnel refused the cross-block endpoint pair');
-	return collectCrossBlockText(doc, rangeCoverage(doc, coverRange(doc, start, end)), kitReading());
+	return (
+		rangeClipboard(doc, rangeCoverage(doc, coverRange(doc, start, end)), kitReading())?.text ?? ''
+	);
 }

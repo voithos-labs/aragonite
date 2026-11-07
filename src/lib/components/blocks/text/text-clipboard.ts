@@ -9,8 +9,8 @@ import type { SurfaceBackend } from '../editable/surface-backend';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import type { EditableSurface } from '../editable/editable-surface';
 import type { BlockClipboard, ClipboardHandlers, RevealFold } from '../editable/surface-clipboard';
-import type { ClipboardCopy } from '../editable/clipboard-step';
-import { bytesLeavingLeaf, replaceDrawnRange } from '../../../tree-operations/leaf-range';
+import type { ClipboardTake } from '../editable/clipboard-step';
+import { replaceDrawnRange } from '../../../tree-operations/leaf-range';
 import { replaceSelectedWidget } from './widget-interaction';
 import { widgetSpanIn, type WidgetRange } from './widget-adjacency';
 import type { RawRange } from '../../../browser/offsets';
@@ -24,7 +24,7 @@ export interface TextClipboardDeps {
 	/** Local caret reads go through `cursor`; the surface's `caret` is read only for the caret
 	 *  undo puts back after a cut. */
 	cursor: SurfaceBackend;
-	surface: Pick<EditableSurface, 'clipboard' | 'pasteInline' | 'caret' | 'blockEdit'>;
+	surface: Pick<EditableSurface, 'clipboard' | 'copyRange' | 'pasteInline' | 'caret' | 'blockEdit'>;
 	selection: SelectionState;
 	setPendingCursor: (offset: number | null) => void;
 	/** Close a widget's shown source before a cut or paste, so it lands in the rendered block.
@@ -61,14 +61,10 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 	}
 
 	// Copy never mutates, so the widget stays selected.
-	function copyWidget(e: ClipboardEvent): ClipboardCopy<SelectedWidget> {
+	function copyWidget(): ClipboardTake<SelectedWidget> | null {
 		const widget = selectedWidgetOnThisBlock();
-		if (widget === null) return null;
-		e.clipboardData?.setData(
-			'text/plain',
-			deps.node.raw.slice(widget.inline.start, widget.inline.end)
-		);
-		return { held: widget };
+		const write = widget && deps.surface.copyRange(widget.inline);
+		return write && widget && { write, held: widget };
 	}
 
 	// The caret sat outside the text while the widget was selected, so undo returns it to where
@@ -86,15 +82,6 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 			if (write.admitted) deps.setPendingCursor(write.caret);
 			return write;
 		});
-	}
-
-	// The copy carries what a cut takes, so a paste gives back what was cut.
-	function copyRange(e: ClipboardEvent): ClipboardCopy<RawRange> {
-		const range = deps.cursor.getRawSelection();
-		if (!range || range.start === range.end) return null;
-		const carried = bytesLeavingLeaf(deps.node, range, deps.storedAs());
-		e.clipboardData?.setData('text/plain', carried);
-		return { held: range };
 	}
 
 	// A cut is a delete, so it goes through the same join rules: in live mode the range can span
@@ -115,7 +102,7 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 	const handlers = deps.surface.clipboard({
 		foldReveal: deps.foldRevealBeforeMutation,
 		selectionArms: [{ copy: copyWidget, remove: removeWidget }],
-		rangeArm: { copy: copyRange, remove: removeRange },
+		removeRange,
 		pastePreHook: deps.pastePreHook,
 		pasteTail: (pastedText, { range, held }) => {
 			// A selected widget is the selection a paste replaces, through the same route as any.

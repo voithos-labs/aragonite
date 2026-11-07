@@ -4,15 +4,14 @@
 
 import fc from 'fast-check';
 import type { DocumentView } from '#lib/core/node-views.js';
-import { metadataOf } from '#lib/core/nodes.js';
-import { ownTrailingLineEnding } from '#lib/core/lines.js';
 import { serialize } from '#lib/core/serializer.js';
 import type { GrammarView } from '#lib/schema/block-openers.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
 import type { EditorSelection, SelectionPoint } from '#lib/selection/primitives.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
-import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
-import { hasTextPosition } from '#lib/schema/block-facts.js';
+import { normalizeCharEndpoint } from '#lib/selection/char-endpoint-snap.js';
+import { pathsEqual } from '#lib/selection/path-math.js';
+import { rangeBytes } from '#lib/selection/range-bytes.js';
 import type { Range } from '#lib/range-edit/edit-range.js';
 import type { Mode } from '#lib/range-edit/host.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
@@ -39,7 +38,7 @@ export function lawInputs(count: number, seed: number, grammar: GrammarView): La
 				.sample(arbRangeSeed, { numRuns: 2, seed: seed + 7 * n })
 				.flatMap((rangeSeed, i) => {
 					const via = resolveRange(doc, rangeSeed);
-					const bytes = via && bytesOfRange(doc, via, mode);
+					const bytes = via && bytesOfRange(doc, via);
 					return bytes ? [{ ...bytes, text: clips[(n * 3 + i) % clips.length] }] : [];
 				});
 			const caretSeed = fc.sample(arbEnd, { numRuns: 1, seed: seed + 7 * n + 3 })[0];
@@ -56,46 +55,14 @@ export function lawInputs(count: number, seed: number, grammar: GrammarView): La
 	});
 }
 
-/** The editor's range as the core receives it, widened to each block it takes whole or ends inside
- *  with no text position; null for a pair inside one table, which the editor keeps to itself. */
-function bytesOfRange(doc: DocumentView, selection: EditorSelection, mode: Mode): Range | null {
-	const covered = coverRange(doc, selection.anchor, selection.focus);
-	const { start, end } = covered;
-	if (start.cellCoordinate && end.cellCoordinate && start.path.join() === end.path.join())
-		return null;
-	const layout = documentLayout(doc);
-	const blocks = [...layout.within(0, Infinity)];
-	const blockAt = (path: readonly number[]) => blocks.find((b) => b.path.join() === path.join());
-	const at = (point: SelectionPoint, side: 'start' | 'end'): number | null => {
-		if (!point.cellCoordinate) return layout.byteOf(point.path, point.offset);
-		const table = blockNodeAt(doc, point.path);
-		if (!table) return null;
-		const row = blockAt([
-			...point.path,
-			Math.floor(point.offset / metadataOf(table, 'table').columnCount)
-		]);
-		return row ? (side === 'start' ? row.from : row.to) : null;
-	};
-	let from = at(start, 'start');
-	let to = at(end, 'end');
-	if (from === null || to === null) return null;
-	// A block held whole ends where its last line's text does; its kind takes the line with it.
-	const textEnd = (path: readonly number[], to: number) =>
-		to - ownTrailingLineEnding(blockNodeAt(doc, path)!.raw).length;
-	for (const root of rangeCoverage(doc, covered).wholeRoots) {
-		const block = blockAt(root);
-		if (!block) return null;
-		from = Math.min(from, block.from);
-		to = Math.max(to, textEnd(root, block.to));
-	}
-	for (const block of blocks) {
-		if (block.lines || hasTextPosition(block.type, mode === 'source')) continue;
-		const end = textEnd(block.path, block.to);
-		if (block.from < from && from < end) from = block.from;
-		if (block.from < to && to < end) to = end;
-	}
-	// The editor never puts an end between a line's `\r` and its `\n`.
-	const source = serialize(doc);
-	const offPair = (at: number) => (source[at - 1] === '\r' && source[at] === '\n' ? at - 1 : at);
-	return { from: offPair(from), to: offPair(to) };
+/** The editor's range as the core receives it, its ends snapped as the selection snaps them and
+ *  read by the editor's own adapter; null for a pair inside one table. */
+function bytesOfRange(doc: DocumentView, selection: EditorSelection): Range | null {
+	const { anchor, focus } = selection;
+	const snapped = (point: SelectionPoint, other: SelectionPoint) =>
+		point.cellCoordinate || pathsEqual(point.path, other.path)
+			? point
+			: normalizeCharEndpoint(doc, point, other.path);
+	const covered = coverRange(doc, snapped(anchor, focus), snapped(focus, anchor));
+	return rangeBytes(doc, serialize(doc), rangeCoverage(doc, covered));
 }

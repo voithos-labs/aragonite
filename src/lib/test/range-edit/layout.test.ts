@@ -81,3 +81,16 @@ it('every block and container line reads back from the bytes', () => {
 	}
 	expect(misses.slice(0, 15)).toEqual([]);
 });
+
+// Miss-analysis: every document here held text blocks without a children array; a diagram's
+// parse gives an empty one, and its bytes had no text position the byte map gave them.
+it('a block with an empty children array lays out as the byte map reads it, a block of text', () => {
+	installPlugins([mermaidPlugin()]);
+	const source = 'above\n\n```mermaid\ngraph TD\n```\n';
+	const doc = readAsOpened(source, { grammar: defaultGrammarView, scope: 'document' });
+	expect(blockNodeAt(doc, [1])!.children).toEqual([]);
+	const layout = documentLayout(doc);
+	expect(layout.block([1])!.text).toEqual({ from: 7, to: source.length - 1 });
+	expect(layout.byteOf([1], 0)).toBe(7);
+	expect(layout.pointAt(7)).toEqual({ path: [1], offset: 0 });
+});

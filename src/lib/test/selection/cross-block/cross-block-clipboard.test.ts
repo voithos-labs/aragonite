@@ -35,19 +35,15 @@ function crossBlockSelection(): SelectionState {
 describe('the cross-block clipboard arm', () => {
 	it('declines a selection inside one block, writing nothing', () => {
 		const arm = crossBlockClipboardArm(makeDeps(createSelectionState()));
-		const { event, written } = makeCopyEvent();
 
 		// The null is what lets the block's own range take the copy next.
-		expect(arm.copy(event)).toBeNull();
-		expect(written.size).toBe(0);
+		expect(arm.copy()).toBeNull();
 	});
 
 	it('copies the collected text of a range across blocks', () => {
 		const arm = crossBlockClipboardArm(makeDeps(crossBlockSelection()));
-		const { event, written } = makeCopyEvent();
 
-		expect(arm.copy(event)).not.toBeNull();
-		expect(written.get('text/plain')).toContain('hello');
+		expect(arm.copy()?.write.text).toContain('hello');
 	});
 
 	it('a cut outside a range across blocks deletes nothing', async () => {

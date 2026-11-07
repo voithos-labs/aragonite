@@ -65,7 +65,7 @@
 	import { createTypedPlacement } from '../text/edge-seat';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import { getInlineWidgetEditing, widgetElByStart } from '../../../core/inline/inline-widgets';
-	import { readClipboardText } from '../../../editor-actions/system-clipboard';
+	import { readClipboardText } from '../../../browser/clipboard';
 
 	type ExitDirection = 'up' | 'down';
 

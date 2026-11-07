@@ -63,7 +63,8 @@ describe('the named rows', () => {
 						? { ...back, own: first.own }
 						: row.then.gesture;
 			const at = row.then.at ?? first.caret.at;
-			const second = editRange(first.source, { from: at, to: at }, gesture, mode, host);
+			const on = row.then.source ?? first.source;
+			const second = editRange(on, { from: at, to: at }, gesture, mode, host);
 			expect(differences(second, row.then.expect)).toEqual([]);
 		});
 	}

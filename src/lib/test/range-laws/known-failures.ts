@@ -11,7 +11,7 @@ export interface KnownViolation {
 	/** The issue the class is filed as, or `new: <slug>` until it is. */
 	issue: string;
 	/** The lane whose fix deletes the row. */
-	lane: 'issues-four' | 'range-removal' | 'rebuild';
+	lane: 'issues-four' | 'range-removal' | 'rebuild' | 'range-stage-3';
 	/** What's broken, in one line. */
 	defect: string;
 	/** Matches the class's violation lines, which open `L<law>[.<label>] [<shape>] <gesture> <mode>/<eol>: `. */
@@ -56,13 +56,75 @@ const characters = (text: string) => [...text.replace(/\s+/g, '')].sort().join('
 /** How many lines of `text` `pattern` (a multiline, global one) starts. */
 const count = (text: string, pattern: RegExp) => (text.match(pattern) ?? []).length;
 
-const TABLE_LINE = /^[ \t>]*\|/gm;
 const ITEM_MARKER = /^[ \t>]*(?:[-*+]|\d{1,9}[.)])(?=[ \t]|\r?$)/gm;
 const ALERT_MARKER = /^[ \t>]*\[![A-Za-z]+\]/gm;
 const FENCE_LINE = /^[ \t>]*(?:`{3,}|~{3,})/gm;
+const TABLE_LINE = /^[ \t>]*\|/gm;
+const OPENER = /<details|^[ \t>]*:{3,}\w/gm;
 
 /** Most specific first: a line counts toward the first row it matches. */
 export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
+	// A cut writes the range-edit core's copy while today's removal deletes (G1.188), until stage 3.
+	{
+		issue: 'new: cut-copies-table-head',
+		lane: 'range-stage-3',
+		defect:
+			'a cut leaving a table below its header writes the header it keeps, which pastes back twice',
+		lines: /^L3 \[[^\]]*table → /,
+		keeps: (got, wanted) => count(got, TABLE_LINE) > count(wanted, TABLE_LINE),
+		repro: {
+			law: 'L3',
+			args: [
+				{
+					source: '| A | B |\n| --- | --- |\n| 1 | 2 |\n\nafter\n',
+					mode: 'source',
+					seed: { a: end(0, 'inside', 2), b: end(1, 'inside', 3) }
+				},
+				'key',
+				'key'
+			]
+		}
+	},
+	{
+		issue: 'new: cut-copies-titled-container',
+		lane: 'range-stage-3',
+		defect:
+			'a cut from a title row out writes the whole container, while the removal keeps the title’s head',
+		lines: /^L3 \[[^\]]*(?:details-summary|directiveOpenerLine) → /,
+		keeps: (got, wanted) => count(got, OPENER) > count(wanted, OPENER),
+		repro: {
+			law: 'L3',
+			args: [
+				{
+					source: '<details open>\n<summary>OOOO</summary>\n\nPPPP\n\n</details>\n\nAAAA\n',
+					mode: 'source',
+					seed: { a: end(0, 'inside', 1), b: end(2, 'inside', 2) }
+				},
+				'key',
+				'key'
+			]
+		}
+	},
+	{
+		issue: 'new: cut-copies-empty-opening',
+		lane: 'range-stage-3',
+		defect:
+			'a cut ending at a title’s first text writes the empty container it opens, which pastes back as one',
+		lines: /^L3 \[[^\]]*→ [^\]]*(?:details-summary|directiveOpenerLine)\]/,
+		keeps: (got, wanted) => count(got, OPENER) > count(wanted, OPENER),
+		repro: {
+			law: 'L3',
+			args: [
+				{
+					source: 'MMMM\n\n<details>\n<summary>SSSS</summary>\n\nHHHH\n\n</details>\n',
+					mode: 'source',
+					seed: { a: end(0, 'inside', 1), b: end(1, 'start') }
+				},
+				'key',
+				'key'
+			]
+		}
+	},
 	{
 		issue: '#818',
 		lane: 'rebuild',
@@ -76,25 +138,6 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 					source: ISSUE_DOCUMENTS['#818'],
 					mode: 'source',
 					seed: { a: end(0, 'inside', 4), b: end(1, 'inside', 6) }
-				},
-				'key',
-				'key'
-			]
-		}
-	},
-	{
-		issue: '#819',
-		lane: 'rebuild',
-		defect: 'a cut from text into a table, pasted back, loses the table rows it took',
-		lines: /^L3 \[[^\]]*→ table\]/,
-		keeps: (got, wanted) => count(got, TABLE_LINE) < count(wanted, TABLE_LINE),
-		repro: {
-			law: 'L3',
-			args: [
-				{
-					source: 'x\n# h\n| A | B |\n| - | - |\n',
-					mode: 'source',
-					seed: { a: end(2, 'start'), b: end(0, 'start') }
 				},
 				'key',
 				'key'
@@ -334,26 +377,6 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 					caret: end(0, 'start')
 				},
 				{ replacement: { pasted: 'x', route: 'key' } }
-			]
-		}
-	},
-	{
-		issue: '#819',
-		lane: 'rebuild',
-		defect: 'a copy ending at the start of a list item’s text leaves out the item’s marker',
-		lines: /^L10 \[[^\]]*→ [^\]]*listItem>paragraph\] /,
-		keeps: (got, wanted) =>
-			wanted.startsWith(got) &&
-			/^[\s>]*(?:[-*+]|\d{1,9}[.)])[ \t]*$/.test(wanted.slice(got.length)),
-		repro: {
-			law: 'L10',
-			args: [
-				{
-					source: '# h\n- a\n',
-					mode: 'live',
-					seed: { a: end(44, 'start'), b: end(63, 'start', 31) }
-				},
-				'key at body'
 			]
 		}
 	},

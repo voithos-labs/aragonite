@@ -9,7 +9,7 @@ import type { NodeView } from '../../core/node-views';
 import { pictureImageCount } from '../../core/inline/picture';
 import type { InlineReading } from '../../core/inline/inline-cache';
 import { EVERY_KIND, registerBuiltinBlockContextActions } from '../../schema/context-actions';
-import { copyBlockToClipboard, readClipboardText } from '../../editor-actions/system-clipboard';
+import { copyBlockToClipboard, readClipboardText } from '../../browser/clipboard';
 
 /** The noun the menu uses for a block: its kind's name mid-sentence, and "image" or "images"
  *  for a paragraph holding nothing but images. */

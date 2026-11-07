@@ -3,7 +3,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { runClipboardAction, type MenuClipboard } from '#lib/components/menu/clipboard-actions.js';
 import type { AimedInsert } from '#lib/components/editor-root/focused-surface.js';
-import type { ClipboardPayload } from '#lib/editor-actions/system-clipboard.js';
+import type { ClipboardWrite } from '#lib/browser/clipboard.js';
 
 function seedClipboard(text: string): void {
 	Object.defineProperty(navigator, 'clipboard', {
@@ -101,10 +101,12 @@ describe("a menu Cut or Copy runs the browser's command, and writes itself only 
 		document.execCommand = savedExec;
 	});
 
-	const payload: ClipboardPayload = { 'text/plain': 'world', 'text/html': '<p>world</p>' };
+	// The editor's own entry rides along, and the async write still carries standard types alone:
+	// one type of the editor's own refuses the whole write on every engine.
+	const payload: ClipboardWrite = { text: 'world', html: '<p>world</p>', own: 'entry' };
 	const taking = (removed: string[]) => () => {
 		taken += 1;
-		return { payload, remove: async () => void removed.push('removed') };
+		return { write: payload, remove: async () => void removed.push('removed') };
 	};
 
 	it("Copy the editor's copy step takes writes nothing more, as in a frame with no clipboard permission", async () => {

@@ -82,13 +82,7 @@ describe('what acts on a finger range inside one block', () => {
 		const doc = parse('hello world\n\nnext\n');
 		const crossBlock = { reading: fixtureReading() } as unknown as CrossBlockHandlers;
 		const arm = crossBlockClipboardArm({ selection, getDoc: () => doc, crossBlock });
-		const written = new Map<string, string>();
-		const event = {
-			preventDefault: () => {},
-			clipboardData: { setData: (type: string, value: string) => written.set(type, value) }
-		} as unknown as ClipboardEvent;
-		expect(arm.copy(event)).not.toBeNull();
-		expect(written.get('text/plain')).toBe('world');
+		expect(arm.copy()?.write.text).toBe('world');
 	});
 
 	it('a format toggle wraps it alone', () => {

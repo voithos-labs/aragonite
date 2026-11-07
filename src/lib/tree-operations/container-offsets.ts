@@ -242,6 +242,9 @@ function lineMap(node: NodeView): ContainerMap {
 	const childStarts: number[] = [];
 	let body = '';
 	const add = (i: number) => {
+		// A grid's rebuild may put the line break between rows that their own bytes leave out.
+		if (body !== '' && !/[\r\n]$/.test(body) && !/^[\r\n]/.test(children[i].leadingTrivia))
+			body += '\n';
 		body += children[i].leadingTrivia;
 		childStarts[i] = body.length;
 		body += children[i].raw;

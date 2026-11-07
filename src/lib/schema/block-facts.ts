@@ -64,13 +64,6 @@ export function blockFacts(kind: string): BlockFacts {
 	};
 }
 
-/** Whether a block of this kind has a caret position now; `sourceShows` says whether a block drawn
- *  as a picture of its source is showing that source. */
-export function hasTextPosition(kind: string, sourceShows: boolean): boolean {
-	const { textPosition } = blockFacts(kind);
-	return textPosition === 'always' || (textPosition === 'while-source-shows' && sourceShows);
-}
-
 // ── Internals ────────────────────────────────────────────────────────────────
 
 // Shapes only these built-ins write, so no registration declares them.

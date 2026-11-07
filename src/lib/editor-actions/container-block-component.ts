@@ -20,7 +20,7 @@ import {
 import type { Reading } from '../schema/reading';
 import { eventToChord, isCharacterKey, isSelectAllChord } from '../schema/keybindings';
 import { displayLength } from '../core/lines';
-import { copyBlockToClipboard } from './system-clipboard';
+import { copyBlockToClipboard } from '../browser/clipboard';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
 import type { CaretMemory } from '../caret/caret-memory';
 import type { AnyCommandId } from '../schema/command-id';

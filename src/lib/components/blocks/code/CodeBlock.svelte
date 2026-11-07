@@ -23,7 +23,6 @@
 	import { createSurfaceBackend } from '../editable/surface-backend';
 	import { handleSharedKeydown } from '../../../selection/shared-keydown';
 	import { createEditableSurface, consumePendingRestore } from '../editable/editable-surface';
-	import { writeShownSelection, type ClipboardCopy } from '../editable/clipboard-step';
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../editable/surface-wiring.svelte';
 	import { anchorTrailingNewline, plainTextOf } from '../editable/plain-text-backend';
 	import { renderCodeBlock, sliceFencedCode } from './code-renderer';
@@ -59,7 +58,7 @@
 	import { isInlineFormatCommand } from '../../../schema/built-in-descriptors';
 	import { nodeAt, emptyParagraph } from '../../../tree-operations';
 	import { type CommandId } from '../../../schema/commands';
-	import { copyBlockToClipboard } from '../../../editor-actions/system-clipboard';
+	import { copyBlockToClipboard } from '../../../browser/clipboard';
 
 	const ELECTRIC_INDENT_UNIT = '\t';
 
@@ -733,15 +732,6 @@
 		void crossBlock.handlePointerDown(e);
 	}
 
-	// Copy writes what the browser shows, which leaves out hidden fence lines; the removal clamps to
-	// the body there, so a cut takes what its copy wrote.
-	function copySelection(e: ClipboardEvent): ClipboardCopy<RawRange> {
-		const range = el ? backend.getRawSelection() : null;
-		if (!range) return null;
-		writeShownSelection(e);
-		return { held: range };
-	}
-
 	function removeRange(range: RawRange, source: string): ContentWrite | null {
 		const span = editSpan(node, range, fenceLinesShown);
 		const edit = span && computeRangedEdit(getDisplayText(), span, '');
@@ -749,7 +739,7 @@
 	}
 
 	const clipboard = editableSurface.clipboard({
-		rangeArm: { copy: copySelection, remove: (range: RawRange) => void removeRange(range, 'cut') },
+		removeRange: (range: RawRange) => void removeRange(range, 'cut'),
 		pasteTail: (pastedText, { range }) => {
 			// Paste refuses where typing refuses; the tree-op owns the splice.
 			const span = editSpan(node, range ?? { start: 0, end: 0 }, fenceLinesShown);

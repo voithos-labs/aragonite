@@ -87,16 +87,11 @@ export function inTitleRow(read: Read, at: number, host: CheckHost): boolean {
 /** The deepest container both ends sit in; null for the document. */
 export function sharedContainer(read: Read, from: number, to: number): LaidBlock | null {
 	const ends = new Set(containersAt(read, to, 'end'));
-	// A container the range holds whole, from its first byte through its text, copies whole (§ 5.1).
-	const held = (b: LaidBlock) => b.from === from && to >= b.to - endingAt(read.source, b.to).length;
+	// A container the range starts at the first byte of keeps its markers in the range's bytes.
 	let shared: LaidBlock | null = null;
-	for (const b of containersAt(read, from, 'start')) if (ends.has(b) && !held(b)) shared = b;
+	for (const b of containersAt(read, from, 'start')) if (ends.has(b) && b.from !== from) shared = b;
 	return shared;
 }
-
-/** The line ending just before `at`, or ''. */
-const endingAt = (source: string, at: number) =>
-	source.endsWith('\r\n', at) ? '\r\n' : source.endsWith('\n', at) ? '\n' : '';
 
 function lineOf(container: LaidBlock, byte: number): LaidLine {
 	return container.lines!.find((l) => l.from <= byte && byte < l.to) ?? container.lines!.at(-1)!;
@@ -185,7 +180,7 @@ export function expectedCopy(read: Read, from: number, to: number, host: CheckHo
 		} else if (facts.lines === 'first-line') {
 			const first = firstBodyLine(container);
 			if (first) opening += markerOn(read, first);
-		}
+		} else if (facts.lines === 'rows') opening += tableHeadAbove(read, container, shared, from);
 	}
 	// A fenced block the range enters and ends inside before its closing line is closed around just
 	// what it covers, so a copy never opens a fence that swallows what follows it where it's pasted.
@@ -198,7 +193,8 @@ export function expectedCopy(read: Read, from: number, to: number, host: CheckHo
 			from < b.from &&
 			b.text.from < to &&
 			closesItsFence(treeNodeAt(read.tree, b.path)!.raw) &&
-			to <= closerOf(b)
+			to <= closerOf(b) &&
+			copiesItsFence(read, b, to)
 	);
 	if (literal) {
 		const closerFrom = closerOf(literal);
@@ -213,6 +209,30 @@ export function expectedCopy(read: Read, from: number, to: number, host: CheckHo
 		closing += endingOf(read.source) + closer;
 	}
 	return opening + withoutSharedMarkers(read, shared, from, to) + closing;
+}
+
+/** A table's header and delimiter lines when `from` sits in a row below them, each line followed by
+ *  what `from`'s line holds before it inside `shared`: a copy of its rows still reads as a table. */
+function tableHeadAbove(read: Read, table: LaidBlock, shared: LaidBlock | null, from: number) {
+	const delimiter = table.lines!.findIndex((line) => line.own);
+	if (delimiter < 0 || from < table.lines![delimiter].to) return '';
+	const lineStart = read.source.lastIndexOf('\n', from - 1) + 1;
+	const inside = shared ? Math.max(lineStart, lineOf(shared, lineStart).markerTo) : lineStart;
+	const markers = read.source.slice(inside, from);
+	return table
+		.lines!.slice(0, delimiter + 1)
+		.map((line) => read.source.slice(line.from, line.to) + markers)
+		.join('');
+}
+
+/** Law 3's third declared exception: a range from a table's rows below its delimiter copies the
+ *  header too, so the copy pasted elsewhere reads as a table; pasted back, the header doubles. */
+export function startsBelowTableHead(read: Read, from: number, host: CheckHost): boolean {
+	return read.blocks.some((b) => {
+		if (host.facts(b.type).lines !== 'rows' || !(b.from < from && from < b.to)) return false;
+		const delimiter = b.lines!.find((line) => line.own);
+		return delimiter !== undefined && from >= delimiter.to;
+	});
 }
 
 /** Law 3's first declared exception: a range that takes the line a fenced block opens with and
@@ -250,6 +270,12 @@ export function leavesLiteralBlock(
 /** The run a block's first line opens a fence with (a code, math or diagram fence), read here by
  *  the syntax alone, apart from the host. */
 const fenceRun = (raw: string) => /^ {0,3}(`{3,}|~{3,}|\${2,})/.exec(raw)?.[1];
+
+/** Whether a range ending at `to` copies the fence run `b` opens with: a part of the run opens nothing. */
+function copiesItsFence(read: Read, b: LaidBlock, to: number): boolean {
+	const lineEnd = read.source.indexOf('\n', b.from);
+	return (lineEnd >= 0 && to > lineEnd) || !!fenceRun(read.source.slice(b.from, to));
+}
 
 /** Whether a block's own bytes, its container's markers off, close the fence they open. */
 function closesItsFence(raw: string): boolean {

@@ -11,8 +11,10 @@ import type { TextClipboardDeps } from '#lib/components/blocks/text/text-clipboa
 import type { PasteCommitCoordinator } from '#lib/tree-operations/paste/paste-deps.js';
 import type { PluginActivation } from '#lib/schema/plugin-activation.js';
 import type { Reading } from '#lib/schema/reading.js';
+import type { RawRange } from '#lib/browser/offsets.js';
+import { blockRangeClipboard } from '#lib/selection/range-clipboard.js';
 
-export interface ClipboardSurfaceParts extends SurfaceClipboardContext {
+export interface ClipboardSurfaceParts extends Omit<SurfaceClipboardContext, 'copyRange'> {
 	blockEdit: BlockEditActions;
 	pasteCoordinator: PasteCommitCoordinator;
 	activePlugins: PluginActivation;
@@ -23,6 +25,9 @@ export interface ClipboardSurfaceParts extends SurfaceClipboardContext {
 
 /** Fields are read at each call, so a getter on `parts` stays live. */
 export function clipboardSurface(parts: ClipboardSurfaceParts): TextClipboardDeps['surface'] {
+	// The surface's own copy: the block's range read through the document, as the editor reads it.
+	const copyRange = (range: RawRange) =>
+		blockRangeClipboard(parts.getDoc(), parts.myPath, range, parts.reading);
 	return {
 		get caret() {
 			return parts.caret;
@@ -30,7 +35,8 @@ export function clipboardSurface(parts: ClipboardSurfaceParts): TextClipboardDep
 		get blockEdit() {
 			return parts.blockEdit;
 		},
-		clipboard: (block) => createClipboardHandlers({ ...parts, ...block }),
+		copyRange,
+		clipboard: (block) => createClipboardHandlers({ ...parts, ...block, copyRange }),
 		pasteInline: (paste) =>
 			pasteIntoBlock(
 				{

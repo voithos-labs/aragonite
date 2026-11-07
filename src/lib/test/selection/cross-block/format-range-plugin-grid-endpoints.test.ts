@@ -4,8 +4,7 @@
 // Miss-analysis: every endpoint assertion used a table endpoint, whose cell space no write moves.
 import { describe, expect, it } from 'vitest';
 import type { SelectionPoint } from '#lib/selection/primitives.js';
-import { collectCrossBlockText } from '#lib/selection/clipboard-text.js';
-import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
+import { copiedText } from '#lib/test/harness/copied-text.js';
 import { docAround, gridOf, planStored, registerPluginGrid } from './plugin-grid-kind';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
@@ -66,11 +65,7 @@ describe('a range starting partway into a plugin grid cell', () => {
 		const marked = plan!.writes
 			.flatMap((write) => [...write.newDisplay.matchAll(/\*\*(.+?)\*\*/g)].map((m) => m[1]))
 			.join('');
-		const copied = collectCrossBlockText(
-			doc,
-			rangeCoverage(doc, coverRange(doc, start, end)),
-			SOURCE_READING
-		);
+		const copied = copiedText(doc, start, end, SOURCE_READING);
 		expect(marked).toBe(copied.replace(/\s/g, ''));
 	});
 });

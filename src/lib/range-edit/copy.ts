@@ -30,11 +30,10 @@ export function copyOf(doc: Doc, from: number, to: number): string {
 	if (startRow && startRow === endRow)
 		return doc.source.slice(from, Math.min(to, startRow.text!.to));
 	const titled = new Set([startRow, endRow].map((row) => row && parentOf(doc, row)));
-	// Live, a container the range starts on or runs past the end of is entered or left whole.
-	// A container the range holds whole (select-all over a quote) copies whole, markers and all.
+	// A container the range starts at the first byte of (select-all's) keeps its markers in the
+	// bytes; live, one the range runs past the end of is left whole.
 	const whole = (c: LaidBlock) =>
-		(c.from === from && to >= contentEnd(doc, c)) ||
-		(live && (c.from === from || (to === c.to && doc.source.endsWith('\n', c.to))));
+		c.from === from || (live && to === c.to && doc.source.endsWith('\n', c.to));
 	const shared = sharedContainer(doc, from, to, (c) => !titled.has(c) && !whole(c));
 	const depth = shared ? shared.path.length : 0;
 	let opening = '';
@@ -42,12 +41,15 @@ export function copyOf(doc: Doc, from: number, to: number): string {
 		if (container.path.length <= depth) continue;
 		if (startRow && parentOf(doc, startRow) === container)
 			opening += doc.source.slice(container.from, from);
+		else if (factsOf(doc, container).lines === 'rows')
+			opening += tableHead(doc, shared, container, from);
 		else if (container.from < from) opening += openingOf(doc, container, from);
 	}
 	const end = lineEnd(doc.source, to);
 	const eol =
 		startRow || endRow ? (doc.source[end - 1] === '\r' ? '\r\n' : '\n') : endingOf(doc.source);
-	let closing = live ? '' : fenceCloser(doc, shared, from, to, eol);
+	let closing = endRow ? rowTail(doc, endRow, to, end) : '';
+	if (!live) closing += fenceCloser(doc, shared, from, to, eol);
 	for (const container of containersAt(doc, to, 'end').reverse()) {
 		if (container.path.length <= depth || factsOf(doc, container).lines !== 'fenced') continue;
 		const last = container.lines!.at(-1)!;
@@ -64,20 +66,53 @@ export function copyOf(doc: Doc, from: number, to: number): string {
 	return body + (ended ? (/^\r?\n/.exec(doc.source.slice(to))?.[0] ?? '') : '');
 }
 
+// ── Structure lines outside the range ────────────────────────────────────────
+// A block whose shape is set by lines the range doesn't cover brings them, so the copy pasted
+// elsewhere reads as the same block: a table's header and delimiter, a fence's closing line.
+
+/** A table the range starts in below its delimiter opens with its header and delimiter, each line
+ *  followed by the markers its containers below `shared` write on the range's first line. */
+function tableHead(doc: Doc, shared: LaidBlock | null, table: LaidBlock, from: number): string {
+	const lines = table.lines!;
+	const head = lines.slice(0, lines.findIndex((line) => line.own) + 1);
+	if (head.length === 0 || from < head.at(-1)!.to) return '';
+	const lineStart = doc.source.lastIndexOf('\n', from - 1) + 1;
+	const markers = doc.source.slice(
+		shared ? Math.max(lineStart, lineOf(shared, lineStart).markerTo) : lineStart,
+		from
+	);
+	return head.map((line) => doc.source.slice(line.from, line.to) + markers).join('');
+}
+
+/** A title row the range ends in ends as its line does: a summary's closing tag follows its text. */
+function rowTail(doc: Doc, row: LaidBlock, to: number, end: number): string {
+	const lineTo = doc.source[end - 1] === '\r' ? end - 1 : end;
+	return doc.source.slice(Math.max(to, row.text!.to), lineTo);
+}
+
 /** A fenced block the range enters and ends inside closes with its closing line, so the copy never
  *  opens a block that swallows what follows where it is pasted. */
 function fenceCloser(doc: Doc, shared: LaidBlock | null, from: number, to: number, eol: string) {
 	for (const block of doc.layout.within(from, to)) {
 		if (!block.text || factsOf(doc, block).body !== 'literal') continue;
 		if (from >= block.from || to <= block.from) continue;
-		const closer = doc.host.fence(nodeAt(doc, block.path).raw)?.closer;
+		const raw = nodeAt(doc, block.path).raw;
+		const closer = doc.host.fence(raw)?.closer;
 		if (closer === null || closer === undefined) continue;
 		const lineStart = doc.source.lastIndexOf('\n', byteAt(doc, block, closer) - 1) + 1;
-		if (to > lineStart) continue;
+		if (to > lineStart || !opensFence(doc, block, raw, to)) continue;
 		const start = shared ? Math.max(lineStart, lineOf(shared, lineStart).markerTo) : lineStart;
 		return eol + doc.source.slice(start, contentEnd(doc, block));
 	}
 	return '';
+}
+
+/** Whether the block's bytes before `to` open its fence: a range ending inside the opening marker
+ *  copies text that opens nothing. */
+function opensFence(doc: Doc, block: LaidBlock, raw: string, to: number): boolean {
+	const at = doc.layout.pointAt(to);
+	const head = at && at.path.join() === block.path.join() ? raw.slice(0, at.offset) : raw;
+	return doc.host.fence(head + '\n') !== null;
 }
 
 /** The deepest container both ends sit in, of those `counts` allows; null for the document. */

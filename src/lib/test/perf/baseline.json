@@ -486,6 +486,10 @@
 			"loadMs": 454,
 			"keystrokeP50Ms": 111.6,
 			"keystrokeP95Ms": 127.3
+		},
+		"giant-single-list-copy-10MB": {
+			"keystrokeP50Ms": 172,
+			"keystrokeP95Ms": 223.3
 		}
 	}
 }

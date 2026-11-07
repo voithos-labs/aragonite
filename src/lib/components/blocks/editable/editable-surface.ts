@@ -21,6 +21,8 @@ import {
 	type StickyColumnDirection
 } from '../../../block-component';
 import type { UserScrollport } from '../../../windowing/scroll-ancestors';
+import type { ClipboardWrite } from '../../../browser/clipboard';
+import { blockRangeClipboard } from '../../../selection/range-clipboard';
 import type { DocumentGetter } from '../../../editor-keys';
 import type { BlockElLookup } from '../../../caret/block-el-lookup';
 import type { PasteImageHook } from '../../../host-hooks';
@@ -361,6 +363,8 @@ export interface EditableSurface {
 	nextByte(caret: number): NextByte;
 	/** The block's copy, cut and paste handlers: the shared steps, given what only the block knows. */
 	clipboard(block: BlockClipboard): ClipboardHandlers;
+	/** What a copy of `range` of the block's own bytes writes. */
+	copyRange(range: RawRange): ClipboardWrite | null;
 	/** Pastes into the block's own text through the paste dispatch, then puts the caret where the
 	 *  paste left it. */
 	pasteInline(paste: InlinePaste): Promise<void>;
@@ -941,8 +945,12 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		holdInsertion
 	};
 
+	const copyRange = (range: RawRange): ClipboardWrite | null =>
+		blockRangeClipboard(deps.getDoc(), deps.getMyPath(), range, deps.reading);
+
 	function clipboard(block: BlockClipboard): ClipboardHandlers {
 		return createClipboardHandlers({
+			copyRange,
 			caretMemory: deps.caretMemory,
 			selection: deps.selection,
 			getDoc: deps.getDoc,
@@ -1064,6 +1072,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		pendingMarks,
 		nextByte,
 		clipboard,
+		copyRange,
 		pasteInline,
 		command,
 		afterSelectionRemoved,

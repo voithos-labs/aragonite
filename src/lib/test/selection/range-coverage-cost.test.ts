@@ -97,11 +97,7 @@ describe('a range over a long list costs in proportion to what it covers', () =>
 				getDoc: () => doc,
 				crossBlock: { reading: fixtureReading() }
 			} as unknown as CrossBlockClipboardDeps;
-			const event = {
-				preventDefault: () => {},
-				clipboardData: { setData: () => {} }
-			} as unknown as ClipboardEvent;
-			return counted(() => crossBlockClipboardArm(deps).copy(event));
+			return counted(() => crossBlockClipboardArm(deps).copy());
 		};
 
 		expect(cost(large)).toBeLessThanOrEqual(GROWTH_CEILING * cost(small));

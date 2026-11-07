@@ -6,14 +6,14 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 // A collector that puts an interior offset back on a whole-unit endpoint, the bytes the cell must
 // reject; keyed on the endpoint's own value, so neither side depends on the kit's anchor order.
 const stub = vi.hoisted(() => ({ mode: 'off' as 'off' | 'unit-start' | 'unit-end' }));
-vi.mock('#lib/selection/clipboard-text.js', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('#lib/selection/clipboard-text.js')>();
+vi.mock('#lib/selection/range-clipboard.js', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('#lib/selection/range-clipboard.js')>();
 	// A mock factory is hoisted above the file's imports, so it loads what it needs itself.
 	const { nodeAt } = await import('#lib/tree-operations/node-primitives.js');
 	const { getBlockKindDescriptor } = await import('#lib/schema/block-kind-descriptor.js');
 	const { displayLength } = await import('#lib/core/lines.js');
 	const { coverRange, rangeCoverage } = await import('#lib/selection/range-coverage.js');
-	type Args = Parameters<typeof actual.collectCrossBlockText>;
+	type Args = Parameters<typeof actual.rangeClipboard>;
 	type Point = Args[1]['range']['start'];
 	const cut = (doc: Args[0], point: Point): Point => {
 		const node = nodeAt(doc, point.path);
@@ -24,11 +24,11 @@ vi.mock('#lib/selection/clipboard-text.js', async (importOriginal) => {
 	};
 	return {
 		...actual,
-		collectCrossBlockText: (doc: Args[0], { range }: Args[1]) =>
-			actual.collectCrossBlockText(
+		rangeClipboard: (doc: Args[0], { range }: Args[1], reading: Args[2]) =>
+			actual.rangeClipboard(
 				doc,
 				rangeCoverage(doc, coverRange(doc, cut(doc, range.start), cut(doc, range.end))),
-				SOURCE_READING
+				reading
 			)
 	};
 });
@@ -37,11 +37,7 @@ import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { checkCopyIsRawByteSlice } from '#lib/testing.js';
 import { registerMermaidKind, MERMAID } from '#packages/mermaid/src/mermaid-kind.js';
 import { declaredPluginKind } from '#lib/plugin.js';
-import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { testView } from '#lib/test/harness/test-view.js';
-
-// Source mode, where a copied range carries its bytes as they stand.
-const SOURCE_READING = fixtureReading({}, 'source');
 
 function mermaidFixture() {
 	registerMermaidKind(testView());

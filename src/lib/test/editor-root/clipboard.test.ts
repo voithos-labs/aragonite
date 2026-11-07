@@ -350,7 +350,7 @@ describe("a menu's Cut or Copy of the range the editor holds", () => {
 		const h = harness();
 		h.selection.enterCrossBlock({ path: [0], offset: 2 }, { path: [1], offset: 3 });
 		const taken = h.clipboard.takeForMenu();
-		expect(taken?.payload['text/plain']).toContain('llo');
+		expect(taken?.write.text).toContain('llo');
 		expect(h.deleted).not.toHaveBeenCalled();
 		await taken?.remove();
 		expect(h.deleted).toHaveBeenCalledOnce();

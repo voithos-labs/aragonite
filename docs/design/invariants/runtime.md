@@ -115,10 +115,11 @@ These checks run in three kinds of place:
 | G1.168 | A key or a composition over a selection in live mode is written by the editor, never left to the browser | A·N |
 | G1.169 | While a finger's range is the editor's, the DOM holds only a caret | A·N |
 | G1.170 | The editor owns a range inside one block only when a finger's press made it | A·N |
-| G1.171 | A copy into or out of a container reads back inside it, its markers written by its own rebuild | harness·P |
+| G1.171 | A copy into or out of a container reads back inside it, its markers on every line it holds | harness·P |
 | G1.174 | A block writes a typed character only while the editor owns no range | A·N |
 | G1.175 | The right-click menu opens over the selection only while one is held | A·N |
 | G1.178 | A text end inside a table cell pairs only with an end in that same cell | A·N |
+| G1.188 | A cut writes the words its removal takes, save five named classes, until range stage 3 | harness·N |
 
 ### The entries
 
@@ -318,10 +319,12 @@ These checks run in three kinds of place:
 
 **G1.170 · A range inside one block is the editor's only from a finger** (`owned-range-from-finger`). A mouse's or a keyboard's range inside one block is the browser's, and the overlay paints only what the editor owns, so a route that took one would paint over the browser's highlight and route its keys through the range handlers. `SelectionState.ownBlockRange` takes a `FingerPress`, which only `selection/pointer-gesture.ts :: fingerPress` makes, and dev fails one it didn't make. `checkOwnedRangeFromFinger` · `owned-block-range.test.ts`.
 
-**G1.171 · A copy keeps the containers its ends sit in** (`copyMarkers`). A range entering or leaving a container copies the lines it covers with that container's markers, written by its own `rebuildRaw`. The container checkup copies into each kind's `deepNesting` leaf, and out of it for a line-prefixed kind, and reads the copy back under the same containers. `selection/clipboard-text.ts` · `testing/container-conformance.ts` · `clipboard-container-markers.test.ts`.
+**G1.171 · A copy keeps the containers its ends sit in** (`copyMarkers`). A range entering or leaving a container copies the lines it covers with that container's markers, written by its own `rebuildRaw`. The container checkup copies into each kind's `deepNesting` leaf, and out of it for a line-prefixed kind, and reads the copy back under the same containers. `range-edit/copy.ts` · `testing/container-conformance.ts` · `clipboard-container-markers.test.ts`.
 
 **G1.174 · A key typed over a range is the range's** (`typed-write-outside-range`). A character typed while the editor owns a range replaces the range (G4.108), and the range's handler takes it at its keydown, since beside a picture no engine sends a `beforeinput`. A block that writes a typed key itself under a range took one that was never its own, so dev fails a typed write through a block's text write (`editable-surface.ts`) while a range is owned. `checkTypedWriteOutsideRange` · `typed-write-outside-range.test.ts`.
 
 **G1.175 · The menu over a selection has one to act on** (`menu-over-selection`). A right-click whose press landed on the selection opens Cut and Copy over it, so something that dropped the selection between the press and the menu (a press handler ending the range, say) would offer them over nothing. Dev fails a menu opened over the selection while `holdsSelection` says none is held (`editor-root/menus.ts`). `checkMenuOverSelection` · `menus.test.ts`.
 
 **G1.178 · A cell's text range stays in its cell** (`cell-text-endpoint`). A finger's word in a table cell is stored at the cell's own path with text offsets, which only `SelectionState`'s cell snap keeps, and only while both ends sit in that cell. A text end there paired with one anywhere else is read as text where the delete, the copy and the paint expect a cell index, so dev fails one at every write of the pair. `checkCellTextEndpoint` · `owned-cell-range.test.ts`.
+
+**G1.188 · A cut writes what its removal takes.** Until range stage 3, a cut writes the range-edit core's clipboard and today's removal deletes. Over shaped ranges in both modes, the words the cut writes are the words the removal takes, save five named classes: two law 3 exceptions (a table's header, a title row's container), law 10's open edge, and two ways today's removal parts from the core's. Each class's repro must keep parting that way; the law harness lists the first three. `selection/cut-clipboard-differential.test.ts`, `range-laws/known-failures.ts`.

@@ -69,7 +69,7 @@ export function documentLayout(doc: DocumentView): Layout {
 	};
 	const leaf = (path: readonly number[]): NodeView | null => {
 		const node = blockNodeAt(doc, path);
-		return node && !node.children ? node : null;
+		return node && childless(node) ? node : null;
 	};
 
 	function block(path: readonly number[]): LaidBlock | undefined {
@@ -96,7 +96,7 @@ export function documentLayout(doc: DocumentView): Layout {
 			to: pastLine(path, node.raw, node.raw.length),
 			container: own !== null && 'rawLines' in own
 		};
-		if (!node.children) {
+		if (childless(node)) {
 			const text = getContentRange(node);
 			laidBlock.text = { from: map.byteOf(path, text.start)!, to: map.byteOf(path, text.end)! };
 		} else if (laidBlock.container) {
@@ -157,3 +157,6 @@ export function documentLayout(doc: DocumentView): Layout {
 		}
 	};
 }
+
+// A diagram's parse gives it an empty children array; the byte map reads it as text all the same.
+const childless = (node: NodeView) => !node.children?.length;

@@ -3,6 +3,7 @@
 // rows through the events and calls a browser makes.
 
 import { vi } from 'vitest';
+import { OWN_CLIPBOARD_TYPE, ownEntryFor } from '#lib/browser/clipboard.js';
 
 export class StubDataTransfer {
 	readonly files: File[] = [];
@@ -78,6 +79,14 @@ class StubClipboardItem {
 
 /** What the page's `navigator.clipboard` holds, by type. */
 export const systemClipboard = new Map<string, string>();
+
+/** What a paste reads back from the system clipboard: its types, and the editor's own entry the
+ *  async write leaves in memory beside its text. */
+export function systemClipboardRead(): Record<string, string> {
+	const read = Object.fromEntries(systemClipboard);
+	const own = ownEntryFor(read['text/plain'] ?? '');
+	return own === undefined ? read : { ...read, [OWN_CLIPBOARD_TYPE]: own };
+}
 
 /** A `navigator.clipboard` that reads and writes {@link systemClipboard}, as a granted permission
  *  lets a menu's rows do. */

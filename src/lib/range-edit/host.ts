@@ -94,7 +94,7 @@ export function rangeHost(
 	});
 	const leafAt = (doc: DocumentView, path: readonly number[]) => {
 		const node = blockNodeAt(doc, path);
-		if (!node || node.children) throw new Error(`no text block at [${path.join(',')}]`);
+		if (!node || node.children?.length) throw new Error(`no text block at [${path.join(',')}]`);
 		return node;
 	};
 	// An in-block write as the block stores it: its kind's write rule, then its container's (a fence

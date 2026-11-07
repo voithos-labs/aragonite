@@ -6,7 +6,12 @@ import type { CstNode, Document } from '#lib/core/nodes.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
 import { arbLawDocument } from '../range-laws/shapes';
 import { testReading } from '../range-edit/test-host';
-import { leafAtRawOffset, rawOffsetOfLeaf } from '#lib/tree-operations/container-offsets.js';
+import {
+	documentByteMap,
+	leafAtRawOffset,
+	rawOffsetOfLeaf
+} from '#lib/tree-operations/container-offsets.js';
+import { docAround, gridOf, registerPluginGrid } from '../selection/cross-block/plugin-grid-kind';
 
 // A fix-up that merges blocks tracks the caret as an offset into the merged block's raw, and a
 // container's raw re-prefixes its children's lines, so the offset has to be mapped to a leaf.
@@ -81,5 +86,26 @@ describe('a list holds its items’ bytes and nothing else', () => {
 				expect(items, JSON.stringify(source)).toBe(list.raw);
 			}
 		}
+	});
+});
+
+// Miss-analysis: every grid here was a table, whose rows carry their own line endings; a plugin
+// grid's rebuild may write the break between rows instead, and every cell read as one byte.
+describe('a grid whose rows leave their line breaks to the grid', () => {
+	it('maps each cell to its own bytes', () => {
+		const doc = docAround(
+			gridOf(registerPluginGrid(), [
+				['ab', 'cd'],
+				['ef', 'gh']
+			])
+		);
+		const map = documentByteMap(doc);
+		const starts = [
+			[1, 0, 0],
+			[1, 0, 1],
+			[1, 1, 0],
+			[1, 1, 1]
+		].map((path) => map.byteOf(path, 0));
+		expect(starts).toEqual([5, 8, 11, 14]);
 	});
 });

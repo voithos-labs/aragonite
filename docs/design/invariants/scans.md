@@ -117,7 +117,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.112 | An indent key over a range reaches list items through one route, never removing the range | L |
 | G4.113 | _Retired_: the `$$` shape is G4.131's `$$` row | L |
 | G4.114 | How a block paints under a range is decided in the selection model only | L |
-| G4.115 | A clipboard payload is written only by a copy | L |
+| G4.115 | _Retired upward_: a copy event is written only in `browser/clipboard.ts` (G4.314) | L |
 | G4.116 | The pending break answers a text block's key before the shared keymap | L |
 | G4.122 | Import edges between `src/lib`'s top-level directories match their baseline both ways | L |
 | G4.123 | A dissolving list item's children are split only inside the list order check | L |
@@ -175,7 +175,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.216 | Every built-in kind that binds Enter binds Shift+Enter too | L |
 | G4.218 | A catalog entry holds at most six lines | L |
 | G4.219 | No popover closes on focus leaving; every focus-loss listener serves a listed need | L |
-| G4.220 | A clipboard read or write outside a clipboard event goes through `system-clipboard.ts` | L |
+| G4.220 | A clipboard read or write outside a clipboard event goes through `browser/clipboard.ts` | L |
 | G4.221 | No constructed `ClipboardEvent`; a selection's shown text is read in one place | L |
 | G4.222 | _Retired upward_: the selection is read only under `browser/` (G4.270) | L |
 | G4.223 | The library names no browser engine in code | L |
@@ -233,6 +233,8 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.311 | The range-edit core keeps its laws and its named rows, save the known law 3 residue | harness |
 | G4.312 | One range edit's work doesn't grow with the document | harness |
 | G4.313 | The range-edit layout reads every block and container line back from the document's bytes | harness |
+| G4.314 | A copy or cut event's clipboard is written in one function, the editor's own entry included | L |
+| G4.315 | Under `selection/`, a range is read as bytes in one file | L |
 
 ### The entries
 
@@ -449,8 +451,6 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.114 · One paint decision under a range.** Whether a block under a cross-block range paints one box, its selected text, or nothing is `selection/primitives.ts :: classifyBlockForSelection` (and `blockPaintsWholeBox`), and whether the range spans blocks is `rangeSpansBlocks` beside it. `lint/file-rules.test.ts` fails a read of the coverage's roots, edges or an end table's cell run outside `selection/` (its fields, dotted or destructured), and a `pathsEqual` of a range's two paths. A bracket read gets past it.
 
-**G4.115 · A cut writes its copy's payload.** Each kind of selection a block can copy has one `ClipboardArm`, where that selection lives (shared parts in `clipboard-step.ts`). `runClipboardCut` runs the arm's own copy before anything waits, then its removal, so a cut can't write other bytes than a copy; there's no cut payload type, and an `async` copy doesn't type-check. `lint/call-site-rules.test.ts` fails a `.setData(` outside those copies and `writeShownSelection` (the browser's own string: reading mode, an unclaimed copy, code blocks).
-
 **G4.116 · The pending break hears a key first.** Shift+Enter at the end of a text block opens a line and writes nothing; Backspace and ArrowLeft take it back (`pending-break-keys.ts`). The shared keymap's ArrowLeft would leave an empty paragraph with the line still open, so the pending break asks first. `pending-break-keys.spec.ts` is the guard, and `lint/pending-break-key-order.test.ts` fails when `TextEditableBlock.svelte`'s keydown calls the shared keymap first.
 
 **G4.122 · The directory import graph.** Every production import under `src/lib` goes into a graph of top-level directories (root files as their own nodes), runtime and type-only edges apart, that must match `lint/directory-layering-baseline.ts`: a new edge fails naming its imports, a gone one until its line is deleted. The scan can't refuse an added line, so a new one gets a reviewer's eye. One runtime cycle is still listed. Always: nothing in `tree-operations/` imports `editor-actions/` or `components/`, and an unresolvable import fails. `lint/directory-layering.test.ts`.
@@ -567,7 +567,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.219 · Popovers don't close on blur.** Safari never focuses a clicked button, so a popover waiting on its opener's `focusout` just stays open. Popovers close through `menuPresence.track` (G4.67) instead, and every `focusout` or `blur` listener left in the library is listed with the focus need it serves (a shown source committing, say). A new one joins the list with its reason, or moves its close onto `track`. `lint/focus-loss-listeners.test.ts`.
 
-**G4.220 · One system clipboard module.** A read or write of the clipboard outside a clipboard event (menu Copy and Paste, whole-block Mod+C, the code block's Copy button) goes through `editor-actions/system-clipboard.ts`, where a refused call resolves to nothing instead of an unhandled rejection. A read waits for a closing menu to leave the page (Safari draws its Paste prompt over it), and a block's text (its Markdown, or a fence's code from the Copy button) copies through `copyBlockToClipboard`, so every route writes the same text. `lint/system-clipboard-calls.test.ts`.
+**G4.220 · One system clipboard module.** A read or write of the clipboard outside a clipboard event (menu Copy and Paste, whole-block Mod+C, the code block's Copy button) goes through `browser/clipboard.ts`, where a refused call resolves to nothing instead of an unhandled rejection. A read waits for a closing menu to leave the page (Safari draws its Paste prompt over it), and a block's text (its Markdown, or a fence's code from the Copy button) copies through `copyBlockToClipboard`, so every route writes the same text. `lint/system-clipboard-calls.test.ts`.
 
 **G4.221 · Clipboard text the engines agree on.** A paste with no paste event of its own (the menus' Paste rows) hands its text to the focused block's `insertMarkdown` or `insertPlainText`, since Firefox empties `clipboardData` on a `new ClipboardEvent(...)`. The selection's shown text is read only through `shownSelectionText` (`browser/selection-read.ts`), which reads LF where Firefox on Windows writes CRLF, and nothing for an empty block's placeholder `<br>` selected alone. `lint/file-rules.test.ts`.
 
@@ -678,3 +678,7 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.312 · A range edit costs the range, not the document.** Over documents of 500 and 2,000 blocks, a copy parses nothing (the host answers a read of the editor's own bytes with its own tree) and any other gesture three times at most, the layout lays out the blocks near the range only, and the bytes the in-block writes are handed grow by half plus 4 KB at most. `test/range-edit/cost.test.ts`.
 
 **G4.313 · The range layout reads back from the bytes.** `range-edit/layout.ts` is where the range-edit core reads each block's span and each container line's marker, and it's built on the byte map in `tree-operations/container-offsets.ts`, never a second one. Every block starts at its first byte and ends past its own line ending (not on the next line's markers), and each container line past its marker holds the next line its children write. A tab cut by a marker, a blank line and a title inside a tag are the allowed spellings. `test/range-edit/layout.test.ts`.
+
+**G4.314 · One writer for a copy event.** A copy or cut writes its event's clipboard through `browser/clipboard.ts :: writeClipboardEvent`: the Markdown as text, a cell rectangle's HTML table, and the editor's own entry, as `application/x-aragonite-range` and as an in-memory copy keyed by that text, which a paste reads back. Each `ClipboardArm`'s copy returns what to write, and `takeCopy` writes it before anything waits, so a cut writes what a copy would. `lint/system-clipboard-calls.test.ts` fails a `.setData(` anywhere else.
+
+**G4.315 · One reading of a range as bytes.** `selection/range-bytes.ts :: rangeBytes` turns a covered range into the bytes the range-edit core takes: each end through the layout, widened to the blocks coverage holds whole, select-all to the first byte. Copy and cut read a range through it, so a second reading under `selection/` could hand them other bytes. `lint/selection-byte-math.test.ts` fails a `byteOf`, `leafAtByte` or `documentByteMap` call anywhere else there.

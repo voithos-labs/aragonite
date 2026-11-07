@@ -62,8 +62,7 @@ export const CONTAINER_CELL_CONTRACTS: Record<ConformanceCell | 'coverageFloor',
 		anchor: CONTAINER
 	},
 	copyMarkers: {
-		promise:
-			'a copy into or out of you reads back inside you, your markers written by your rebuild',
+		promise: 'a copy into or out of you reads back inside you, your markers on every line it holds',
 		anchor: CONTAINER
 	},
 	declarations: {

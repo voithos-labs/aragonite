@@ -14,6 +14,8 @@ export interface NamedRow {
 	then?: {
 		gesture: Gesture | 'paste back' | 'paste back with own';
 		at?: number;
+		/** The bytes the second call runs on, where another removal left other bytes than the first. */
+		source?: string;
 		expect: Partial<RangeEditResult>;
 	};
 }
@@ -398,6 +400,84 @@ export const NAMED_ROWS: NamedRow[] = [
 		source: '> a⟦\n>\n> ```\n> xy⟧\n> ```\n',
 		gesture: 'copy',
 		expect: { clipboard: '\n\n```\nxy\n```' }
+	},
+	// Miss-analysis: every entry row pasted on the bytes its own cut left; until stage 3 a cut's
+	// removal is today's, which can leave others.
+	{
+		name: 'L12 an entry pasted where its cut left other bytes lands as its text alone does',
+		source: '⟦a\n# h⟧\nb\n',
+		gesture: 'cut',
+		expect: { source: '\nb\n', clipboard: 'a\n# h' },
+		then: {
+			gesture: 'paste back with own',
+			source: '> zz\n',
+			at: 4,
+			expect: { source: '> zza\n> # h\n' }
+		}
+	},
+	// Miss-analysis: law 10 leaves a range into or out of a title row to these rows, and none held one.
+	{
+		name: 'C13 a copy from a title row out carries its container from the opening line',
+		source: ':::note Ti⟦tle\n\nbody\n:::\n\nbe⟧low\n',
+		gesture: 'copy',
+		expect: { clipboard: ':::note Title\n\nbody\n:::\n\nbe' }
+	},
+	{
+		name: 'C13 a copy from an inner title row out past its outer container opens both',
+		source: '::::note Outer\n\nO1\n\n:::note In⟦ner\n\nI1\n:::\n\nO2\n::::\n\nbe⟧low\n',
+		gesture: 'copy',
+		expect: { clipboard: '::::note Outer\n:::note Inner\n\nI1\n:::\n\nO2\n::::\n\nbe' }
+	},
+	{
+		name: 'C13 a copy ending inside a summary closes the summary, then its section',
+		source: 'ab⟦ove\n\n<details open>\n<summary>Sum⟧mary</summary>\n\nbody\n\n</details>\n',
+		gesture: 'copy',
+		expect: { clipboard: 'ove\n\n<details open>\n<summary>Sum</summary>\n</details>' }
+	},
+	// Miss-analysis: no row started a copy in a table's rows, so its rows pasted elsewhere read as text.
+	{
+		name: 'L10 a copy leaving a table below its header carries the header, so it pastes as a table',
+		source: '| A | B |\n| --- | --- |\n| 1 | 2 |\n⟦| 3 | 4 |\n\nafter⟧\n\nend\n',
+		gesture: 'copy',
+		expect: { clipboard: '| A | B |\n| --- | --- |\n| 3 | 4 |\n\nafter' },
+		then: {
+			gesture: 'paste back',
+			at: 52,
+			expect: {
+				source:
+					'| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n\nafter\n\n| A | B |\n| --- | --- |\n| 3 | 4 |\n\nafterend\n'
+			}
+		}
+	},
+	{
+		name: 'L10 live, the same',
+		source: '| A | B |\n| --- | --- |\n| 1 | 2 |\n⟦| 3 | 4 |\n\nafter⟧\n\nend\n',
+		mode: 'live',
+		gesture: 'copy',
+		expect: { clipboard: '| A | B |\n| --- | --- |\n| 3 | 4 |\n\nafter' }
+	},
+	{
+		name: 'L10 a quoted table carries its header under the quote marker',
+		source: '> | A |\n> | --- |\n> | 1 |\n> ⟦| 2 |\n\nafter⟧\n',
+		gesture: 'copy',
+		expect: { clipboard: '> | A |\n> | --- |\n> | 2 |\n\nafter' }
+	},
+	{
+		name: 'L12 a cut leaving a table below its header pastes back exact with its entry',
+		source: '| A | B |\n| --- | --- |\n| 1 | 2 |\n⟦| 3 | 4 |\n\nafter⟧\n\nend\n',
+		gesture: 'cut',
+		expect: { clipboard: '| A | B |\n| --- | --- |\n| 3 | 4 |\n\nafter' },
+		then: {
+			gesture: 'paste back with own',
+			expect: backToStart('| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n\nafter\n\nend\n')
+		}
+	},
+	// Miss-analysis: every fence row ended in the body; the kit's copy ends inside the opening line.
+	{
+		name: 'L10 a copy ending inside a fence line copies its bytes and adds no closer',
+		source: 'a⟦\n\n`⟧``\nxy\n```\n',
+		gesture: 'copy',
+		expect: { clipboard: '\n\n`' }
 	},
 	{
 		name: 'L9 a nested item cut out pastes back into the item it left, as any paste there lands',
