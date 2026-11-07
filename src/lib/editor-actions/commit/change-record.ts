@@ -8,6 +8,8 @@
 import type { DocumentView, NodeView } from '../../core/node-views';
 import { sharedPrefixLength, sharedSuffixLength } from '../../core/written-span';
 import { documentByteMap } from '../../tree-operations/container-offsets';
+import { splitLines } from '../../core/lines';
+import { unfinishedReadings, type GrammarView } from '../../schema/block-openers';
 
 /** Each part as two pieces (blank lines, then bytes), so an unchanged part compares by reference. */
 export interface RecordedChange {
@@ -82,6 +84,20 @@ export function changeAfter(
 		if (pieces >= 0 && pieces < kept.length) end = lengthOf(kept, pieces) + typedEnd.offset;
 	}
 	return { lo, before: before.slice(head, before.length - tail), after: kept, typedEnd: end };
+}
+
+/** Whether a block written from `before` to `after` leaves the pairing of openers and closers as
+ *  it was: neither leaves a reading waiting, and the lines that open or close one are the same. */
+export function pairsStay(before: string, after: string, grammar: GrammarView): boolean {
+	const readings = unfinishedReadings(grammar);
+	if (readings.some((r) => r.notFinal(before) || r.notFinal(after))) return false;
+	// A line that opens a reading on its own, or could close one.
+	const pairing = (text: string) =>
+		splitLines(text)
+			.map((line) => line.text)
+			.filter((line) => readings.some((r) => r.mayClose(line) || r.notFinal(line + '\n')));
+	const [was, now] = [pairing(before), pairing(after)];
+	return was.length === now.length && was.every((line, i) => line === now[i]);
 }
 
 // ── Positions ────────────────────────────────────────────────────────────────

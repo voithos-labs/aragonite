@@ -107,6 +107,21 @@ describe('a draft', () => {
 		expect(past.source()).toBe(`Say ${CARD}e here\n`);
 	});
 
+	// Miss-analysis: the letter rows typed in a top-level paragraph, never inside a container, where
+	// a keystroke records no caret and every place its letter could have gone counts.
+	it('refuses the same letter typed inside its range in a quote, and lands past another', async () => {
+		const inside = await mounted('> Say @que here\n');
+		const refused = inside.instance.edit().replace({ from: 6, to: 10 }, CARD);
+		await typeAt(inside, [0, 0], 'Say @quee here', 7);
+		expect(await refused.commit()).toMatchObject({ ok: false, reason: 'moved' });
+
+		const past = await mounted('> Say @que here\n');
+		const landed = past.instance.edit().replace({ from: 6, to: 10 }, CARD);
+		await typeAt(past, [0, 0], 'Say @quex here', 9);
+		expect(await landed.commit()).toEqual({ ok: true });
+		expect(past.source()).toBe(`> Say ${CARD}x here\n`);
+	});
+
 	it('gives a query, typing elsewhere, and the card that lands last three undo steps', async () => {
 		const editor = await mounted('Say\n\nNotes\n');
 		await typeAt(editor, [0], 'Say @que', 8);

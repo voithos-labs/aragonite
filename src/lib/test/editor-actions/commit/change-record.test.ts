@@ -2,10 +2,12 @@
 // clear of text written at its edges, and refused when text may have gone inside it.
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
+import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
 import {
 	byteAt,
 	captureChange,
 	changeAfter,
+	pairsStay,
 	partLengths,
 	positionAt,
 	rangeThrough,
@@ -54,6 +56,15 @@ describe('a range through a write', () => {
 	// typing inside a range's last letters from typing just past them.
 	it('is refused by a write that may have gone inside it when no caret says where', () => {
 		expect(through('@que\n', '@quee\n', [0, 4])).toBeNull();
+	});
+
+	// Miss-analysis: a keystroke named only its own block, and the always-on record caught a broken
+	// fence opener re-pairing the blocks below.
+	it('names every block for a keystroke that opens, closes or moves a fence', () => {
+		expect(pairsStay('```js\ncode\n```\n', '```js\ncodes\n```\n', fixtureGrammar)).toBe(true);
+		expect(pairsStay('```js\ncode\n```\n', '``js\ncode\n```\n', fixtureGrammar)).toBe(false);
+		expect(pairsStay('para\n', 'para\n```\n', fixtureGrammar)).toBe(false);
+		expect(pairsStay('one\n', 'one!\n', fixtureGrammar)).toBe(true);
 	});
 
 	it('follows a keystroke caret to where its typed text went', () => {
