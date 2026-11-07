@@ -7,11 +7,20 @@ import type { Document } from '../core/nodes';
 import type { GapCaretSelection } from '../selection/gap-caret';
 import type { EditorSelection } from '../selection/primitives';
 
+/** What a block reading depends on, kept by reference: an undo entry holds the one its tree was read
+ *  under (`editor-actions/commit/grammar-stamp.ts`). */
+export interface GrammarStamp {
+	readonly openers: readonly unknown[];
+	readonly setextHeading: boolean;
+}
+
 export interface UndoEntry {
 	snapshot: Document;
 	blockIds: string[];
 	/** Effective selection at push (`docs/design/commit-and-undo.md` § Undo / redo). */
 	selection: EditorSelection | GapCaretSelection;
+	/** The grammar `snapshot` was read under: restored under another, its bytes are read again. */
+	grammar: GrammarStamp;
 	/** Dev-only digest of `snapshot` at push; restore verifies no mutation wrote through a shared node. */
 	integrity?: number;
 }

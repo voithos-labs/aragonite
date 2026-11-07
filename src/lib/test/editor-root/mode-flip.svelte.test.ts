@@ -4,8 +4,7 @@ import { flushSync } from 'svelte';
 import { aroundRender } from '#lib/around-render.svelte.js';
 import { createModeFlip } from '#lib/components/editor-root/mode-flip.js';
 import { createEditorEvents } from '#lib/editor-events.js';
-import { createDraftRegistry } from '#lib/components/draft-registry.js';
-import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
+import { idleDraftRegistry } from '../harness/drafts';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import type { EditorSelection } from '#lib/selection/primitives.js';
 import { settleEditor } from '#lib/test/harness/settle.js';
@@ -56,7 +55,7 @@ function harness(
 	};
 	const selection = { ownsRange: false, gapCaret: null, clearGapCaret: () => calls.gapClears++ };
 	const events = createEditorEvents();
-	const drafts = createDraftRegistry(createDocumentStamps());
+	const drafts = idleDraftRegistry();
 	events.on('presentationModeChange', (next) => {
 		calls.modeEmits.push(next);
 		calls.order.push('mode');
@@ -228,11 +227,7 @@ describe('editor-root mode flip: the two halves', () => {
 describe('editor-root mode flip: the drafts', () => {
 	function draftOnLeaf(h: ReturnType<typeof harness>) {
 		const writes: string[] = [];
-		const draft = h.drafts.open({
-			seed: 'x',
-			current: () => 'x',
-			close: (cause) => commit(`close:${cause}`)
-		});
+		const draft = h.drafts.open({ close: (cause) => commit(`close:${cause}`) });
 		function commit(how: string) {
 			draft.end();
 			writes.push(how);

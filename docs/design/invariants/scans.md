@@ -235,6 +235,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.313 | The range-edit layout reads every block and container line back from the document's bytes | harness |
 | G4.314 | A copy or cut event's clipboard is written in one function, the editor's own entry included | L |
 | G4.315 | Under `selection/`, a range is read as bytes in one file | L |
+| G4.317 | A plugin or a host writes bytes through a `Draft`; another caller of the byte splice is on a list | L |
 
 ### The entries
 
@@ -682,3 +683,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.314 · One writer for a copy event.** A copy or cut writes its event's clipboard through `browser/clipboard.ts :: writeClipboardEvent`: the Markdown as text, a cell rectangle's HTML table, and the editor's own entry, as `application/x-aragonite-range` and as an in-memory copy keyed by that text, which a paste reads back. Each `ClipboardArm`'s copy returns what to write, and `takeCopy` writes it before anything waits, so a cut writes what a copy would. `lint/system-clipboard-calls.test.ts` fails a `.setData(` anywhere else.
 
 **G4.315 · One reading of a range as bytes.** `selection/range-bytes.ts :: rangeBytes` turns a covered range into the bytes the range-edit core takes: each end through the layout, widened to the blocks coverage holds whole, select-all to the first byte. Copy and cut read a range through it, so a second reading under `selection/` could hand them other bytes. `lint/selection-byte-math.test.ts` fails a `byteOf`, `leafAtByte` or `documentByteMap` call anywhere else there.
+
+**G4.317 · One write for plugins and hosts.** `CommitController.commitSource` is handed its changes only by the draft (`editor-actions/commit/draft-registry.svelte.ts`), which maps a waiting write's ranges past the writes since it opened and refuses with a reason; any other caller is on the row's list with why (today the test bridge's splice). `lint/file-rules.test.ts`.

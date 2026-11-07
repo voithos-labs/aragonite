@@ -120,6 +120,8 @@ These checks run in three kinds of place:
 | G1.175 | The right-click menu opens over the selection only while one is held | A·N |
 | G1.178 | A text end inside a table cell pairs only with an end in that same cell | A·N |
 | G1.188 | A cut writes the words its removal takes, save five named classes, until range stage 3 | harness·N |
+| G1.189 | An undo or redo puts back no block read under a grammar the editor no longer reads | A·N |
+| G1.190 | While a draft is open, every write tells it everything the write changed | A·N |
 
 ### The entries
 
@@ -137,7 +139,7 @@ These checks run in three kinds of place:
 
 **G1.8 · Well-formed content ranges.** `getContentRange` is well-formed for every kind that has one: the prose kinds, plus any non-prose kind declaring its own (the directive leaf does), because the range is consumed without asking `supportsInline` first. Predicate `checkContentRange` (`descriptor.ts`) · commit primitive · `descriptor.test.ts`.
 
-**G1.9 · Snapshot aliasing.** No mutation writes bytes through a node an undo or redo entry shares; moving one within the live tree is fine. Readers and plugins hold bytes-readonly views (G3.8; G4.13 guards the casts), and a writer copies the path, then re-reads the copy through the `$state` tree (`tree-operations/unshare.ts` header); the table rebuild alone writes a child's bytes, to a row the edit already copied. Dev hashes every node's bytes. `checkSnapshotIntegrity` · `snapshot-integrity.test.ts`, `undo-restoration.property.test.ts`; a throwing commit is G2.17.
+**G1.9 · Snapshot aliasing.** No mutation writes bytes through a node an undo or redo entry shares; moving one within the live tree is fine. Readers and plugins hold bytes-readonly views (G3.8; G4.13 guards the casts), and a writer copies the path, then re-reads the copy through the `$state` tree (`tree-operations/unshare.ts` header); the table rebuild alone writes a child's bytes, to a row the edit already copied. Dev hashes every node's bytes. `checkSnapshotIntegrity` · `snapshot-integrity.test.ts`, `undo-restoration.property.test.ts`, `grammar-restore.test.ts`; a throwing commit is G2.17.
 
 **G1.10 · Unique opener priorities.** No two openers share a priority: a tie still dispatches by kind name, but it's almost always a mistake. Predicate `checkOpenerRegistry` (`registry.ts`) · bootstrap · `opener-registry.test.ts`.
 
@@ -295,7 +297,7 @@ These checks run in three kinds of place:
 
 **G1.155 · A write's caret sits in its text** (`caret-in-written-text`). Every write of a block's text puts its caret between the text's start and its end, since the fix-up places that caret by counting through the written block and on into the next. An input read that drops bytes the browser left (a hidden `#` marker) moves the caret with them. `checkCaretInWrittenText` · `block-edit-core.ts :: contentUpdate` · `write-caret.test.ts`, `editable-surface-caret.test.ts`, `atx-closing-run.spec.ts` on Firefox.
 
-**G1.156 · An undo puts back its entry, nothing more** (`history-install`). Once an undo or redo has installed its entry and placed the caret, the document's bytes are the entry's. A write in between (a block tidying itself up as the caret leaves it) would be a new edit inside the undo, and would clear the redo stack, so the write gate declines every write while the install runs. `checkInstalledEntry` · `history.ts :: restore` · `history-install.test.ts`, the behavior rows.
+**G1.156 · An undo puts back its entry, nothing more** (`history-install`). Once an undo or redo has installed its entry and placed the caret, the document's bytes are the entry's. A write in between (a block tidying itself up as the caret leaves it) would be a new edit inside the undo, and would clear the redo stack, so the write gate declines every write while the install runs. `checkInstalledEntry` · `history.ts :: restore` · `history-install.test.ts`, `grammar-restore.test.ts`, the behavior rows.
 
 **G1.158 · A spliced opener takes in no block below** (`spliced-opener-closed`). A block a commit splices or moves in holds no opener it wrote (a `$$`, a `:::note`, a fence) that a block further down would close, since that opener would read in blocks the edit never touched. Every write route closes one first (`legalizeWrite`, `closeWrittenOpeners`); a content write and a removal aren't asked, and a range delete's survivor lands outside a commit's list, where the route rows hold it. `checkSplicedOpenersClosed` · `fix-up/apply.ts` · `written-opener-routes.test.ts`.
 
@@ -328,3 +330,7 @@ These checks run in three kinds of place:
 **G1.178 · A cell's text range stays in its cell** (`cell-text-endpoint`). A finger's word in a table cell is stored at the cell's own path with text offsets, which only `SelectionState`'s cell snap keeps, and only while both ends sit in that cell. A text end there paired with one anywhere else is read as text where the delete, the copy and the paint expect a cell index, so dev fails one at every write of the pair. `checkCellTextEndpoint` · `owned-cell-range.test.ts`.
 
 **G1.188 · A cut writes what its removal takes.** Until range stage 3, a cut writes the range-edit core's clipboard and today's removal deletes. Over shaped ranges in both modes, the words the cut writes are the words the removal takes, save five named classes: two law 3 exceptions (a table's header, a title row's container), law 10's open edge, and two ways today's removal parts from the core's. Each class's repro must keep parting that way; the law harness lists the first three. `selection/cut-clipboard-differential.test.ts`, `range-laws/known-failures.ts`.
+
+**G1.189 · An undo reads under the editor's grammar** (`restore-grammar`). An undo entry keeps the grammar its tree was read under, and one restored under another has its bytes read again from the live document instead of installed, which leans on every block the undo leaves alone already reading under the editor's grammar. Either way, each block the undo put back reads back alone as itself. `checkRestoredUnderGrammar` (`reads-back.ts`) · `history.ts :: install` · `grammar-restore.test.ts`.
+
+**G1.190 · A draft hears every write** (`change-record`). While a draft is open, each write records the top-level blocks it changed, read over the blocks it names plus one either side (every block, for a keystroke that moves a fence), and a draft maps its ranges through the records. Checked after each write (nothing changed past what it named) and at a draft's commit (a range no record touched still holds the bytes it opened on). `checkChangeInReach`, `checkDraftBytesKept` (`change-record.ts`) · `commit-frame.ts`, `draft-registry.svelte.ts` · `change-record.test.ts`, `draft-registry.test.ts`.

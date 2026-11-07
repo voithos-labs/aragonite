@@ -28,6 +28,18 @@ export function checkReadsBack(node: NodeView, grammar: GrammarView): InvariantV
 	return checkRunReadsBack([node], grammar);
 }
 
+/** G1.189: no block an undo or redo puts back keeps a reading another grammar gave it. */
+export function checkRestoredUnderGrammar(
+	tops: readonly NodeView[],
+	grammar: GrammarView
+): InvariantViolation | null {
+	for (const top of tops) {
+		const read = checkReadsBack(top, grammar);
+		if (read) return { code: 'restore-grammar', message: `an undo put back ${read.message}` };
+	}
+	return null;
+}
+
 /** Adjacent top-level blocks, read together from the first one's own bytes. */
 export function checkRunReadsBack(
 	run: readonly NodeView[],

@@ -6,6 +6,8 @@ import { createUndoManager as createManager } from '../../undo/manager';
 import { rangeSelectionOf } from '../harness/undo-entry';
 import type { UndoEntry } from '../../undo/types';
 import type { Document } from '../../core/nodes';
+import { defaultGrammarView } from '../../schema/block-openers';
+import { grammarStamp } from '../../editor-actions/commit/grammar-stamp';
 
 function makeEntry(source: string, blockIndex = 0, offset = 0): UndoEntry {
 	const snapshot = parse(source);
@@ -13,7 +15,8 @@ function makeEntry(source: string, blockIndex = 0, offset = 0): UndoEntry {
 	return {
 		snapshot,
 		blockIds: assignIds(snapshot.children),
-		selection: { anchor: point, focus: point }
+		selection: { anchor: point, focus: point },
+		grammar: grammarStamp(defaultGrammarView)
 	};
 }
 

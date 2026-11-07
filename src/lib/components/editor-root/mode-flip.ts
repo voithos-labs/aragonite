@@ -10,7 +10,7 @@ import { isTextEntrySurface } from '../../active-editor';
 import type { CaretMemory } from '../../caret/caret-memory';
 import type { LayoutState } from '../../windowing/layout-state.svelte';
 import type { MenuPresence } from '../menu/menu-presence.svelte';
-import type { DraftRegistry } from '../draft-registry';
+import type { DraftRegistry } from '../../editor-actions/commit/draft-registry.svelte';
 import { rawOffsetAt } from '../../browser/offsets';
 import type { EditorEvents } from '../../editor-events';
 import type { BlockElLookup } from '../../caret/block-el-lookup';

@@ -3,6 +3,7 @@
  * snippet `header` to these, and `createEditor`'s add an element one. Editor.svelte annotates its
  * props and methods against these, so neither can drift from the component.
  */
+import type { Draft } from './schema/drafts';
 import type { AnyBlockKind } from './core/nodes';
 import type {
 	CodeMenuItemsHook,
@@ -214,10 +215,16 @@ export interface EditorInstance {
 	 */
 	placeCaretAtPoint(x: number, y: number): boolean;
 	/**
+	 * An edit against the document as it is now, in byte offsets of its text: `replace` ranges,
+	 * `insert` Markdown at the caret, then `commit` them as one undo step, now or after a wait. A
+	 * write that landed in a range since makes the commit refuse, with the reason, rather than throw.
+	 */
+	edit(): Draft;
+	/**
 	 * Insert markdown exactly as pasting it would, minus the clipboard: paste transforms,
-	 * delete-selection-first, one undo entry, focus at the end. Resolves true once the insert has
-	 * landed; false, with nothing changed, with no caret, in reading mode, or at a gap caret.
-	 * `placement: 'below'` first adds an empty paragraph after the caret's top-level block.
+	 * delete-selection-first, one undo entry, focus at the end. `edit().insert(md)`, resolved to
+	 * whether it landed: false, with nothing changed, with no caret, in reading mode, or at a gap
+	 * caret. `placement: 'below'` first adds an empty paragraph after the caret's top-level block.
 	 */
 	insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean>;
 	/**
