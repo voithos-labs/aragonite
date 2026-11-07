@@ -30,7 +30,14 @@ export type {
 	PluginList,
 	PluginSpec
 } from './schema/plugin-unit';
-export { builtin } from './schema/plugin-unit';
+export { builtin } from './components/block-makers/builtin';
+
+// ── Block types (pre-freeze) ─────────────────────────────────────────────────
+// A plugin lists its block types in `contributes(...).blocks`; the editor derives how each behaves
+// from its shape and writes its bytes.
+export { lineBlock } from './components/block-makers/line-block';
+export type { BlockCommon, LeafCommon, LineBlockSpec } from './schema/block-shapes';
+export type { Block } from './schema/doc-view';
 export type { EditorPlugin, EditorPluginEntry } from './schema/plugin-install';
 // `setup(ctx)` registers `onEditor` callbacks that receive a per-instance `EditorContext`.
 export type { PluginSetupContext, OnEditorCallback, EditorContext } from './schema/plugin-install';

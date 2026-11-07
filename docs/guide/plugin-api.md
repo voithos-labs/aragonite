@@ -60,11 +60,16 @@ _(pre-freeze / unstable)_ The installable package, and the per-editor context it
 | `PluginSpec` | What you hand `definePlugin` to get a plugin value instead: `name`, `version`, the `editor` range it runs on, `defaults`, `validate`, `needs`, `conflicts`, and `contributes(options)`, which each editor calls with its own options |
 | `Plugin` | The plugin value that comes back. Call it with options (`math({ render })`) to give one editor different ones |
 | `PluginList` | A list of plugin values, whatever their options, as `needs` takes it |
-| `Contribution` | What `contributes` hands back for one editor: for now, a `setup(editor)` that runs once that editor mounts |
+| `Contribution` | What `contributes` hands back for one editor: its `blocks`, and a `setup(editor)` that runs once that editor mounts |
 | `Editor` | What `setup` gets: the plugins on, the mode, the theme, `on`, `run`, `can` and `claims`. A listener you add there goes away with your plugin |
 | `PluginError` | An error your plugin caused: its name, what the editor was doing with it (`install`, `validate`, `contributes`, `setup`, `dispose`, or `on('edit')` for a listener that threw), and the cause |
-| `BlockType` | A block type by name |
+| `BlockType` | A block type: its `name` (yours read `plugin/local` once an editor runs your plugin) and its `label` |
 | `builtin` | The built-in block types by kind (`builtin.blocks.paragraph`), to place yours relative to one or tell what a block is |
+| `lineBlock` | A block type that's exactly one line, matched whole by `match`. A `text` named group is the part you type in, the rest its marker. List it in `contributes(...).blocks` |
+| `LineBlockSpec` | What `lineBlock` takes: `match`, plus `data(match)` and `write(data, text)` together when the line carries data |
+| `BlockCommon` | What every block type answers: `name`, `label`, `icon`, `sample`, `role` (`prose` merges with its neighbours, an `object` is picked up whole), `interrupts`, `before` (the built-in types it goes ahead of) and `height` |
+| `LeafCommon` | What a block holding text adds: `edit` (`source`, or `box` for one focused whole) and `body` (`markdown` or `literal`) |
+| `Block` | A block as your code reads it: its `type`, `data`, `text`, `body` and `children`, and `is(type)` to narrow its data |
 | `EditorPlugin` | The unit's shape; the `plugins` prop and the main entry's `installPlugins` take these |
 | The `plugins` prop | A `setup` plugin installs once per process and a plugin value is read by each editor on its own, but either way an editor runs the hooks, kinds, commands and paste transforms of exactly the plugins it lists (no prop at all runs every installed one). The host's `use` changes the list later |
 | `EditorPluginEntry` | One `plugins` prop entry: a bare unit, or `{ plugin, options }` to vary options per editor. A field you pass replaces the plugin's default for it (arrays too); the rest keep theirs |

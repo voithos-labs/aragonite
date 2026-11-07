@@ -1,0 +1,43 @@
+/**
+ * A block as a plugin reads it: its type, its data, its bytes and its text, read-only. What a
+ * block type's `draw`, `height` and commands receive.
+ */
+import { getPluginMetadata, type AnyBlockKind } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
+import { getContentRange } from '../core/inline';
+import type { BlockType } from './plugin-unit';
+
+/** One block of the document. */
+export interface Block<D = unknown> {
+	readonly type: BlockType<D>;
+	readonly data: D;
+	/** Its bytes, its line ending included. */
+	readonly text: string;
+	/** The text the author writes in it, its markers left out. */
+	readonly body: string;
+	readonly children: readonly Block[];
+	/** Narrows the block to `type`'s data. */
+	is<E>(type: BlockType<E>): this is Block<E>;
+}
+
+/** `node` as a plugin reads it; `typeOf` names each kind's block type. */
+export function blockOf<D>(
+	node: NodeView,
+	typeOf: (kind: AnyBlockKind) => BlockType<unknown>
+): Block<D> {
+	const type = typeOf(node.kind) as BlockType<D>;
+	let children: readonly Block[] | undefined;
+	return {
+		type,
+		data: getPluginMetadata<D>(node) as D,
+		text: node.raw,
+		get body() {
+			const { start, end } = getContentRange(node);
+			return node.raw.slice(start, end);
+		},
+		get children() {
+			return (children ??= (node.children ?? []).map((child) => blockOf(child, typeOf)));
+		},
+		is: <E>(other: BlockType<E>): boolean => other.name === type.name
+	} as Block<D>;
+}

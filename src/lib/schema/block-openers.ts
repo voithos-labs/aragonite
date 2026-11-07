@@ -76,12 +76,16 @@ export type OpenerRecord = RegistryRecord<AnyBlockKind, BlockOpener>;
 // A registration change drops the ordering; each editor's grammar keeps the list it was built from.
 let orderedRecordsCache: OpenerRecord[] | null = null;
 
-// Priority-ascending, ties broken by kind name: dispatch order is a pure function of the
-// declarations, never of registration order.
+type Ordered = Pick<OpenerRecord, 'key' | 'value'>;
+
+/** Dispatch order: priority-ascending, ties broken by kind name, so it is a pure function of the
+ *  declarations, never of registration order. */
+export function byOpenerOrder(a: Ordered, b: Ordered): number {
+	return a.value.priority - b.value.priority || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
+}
+
 function orderedRecords(): readonly OpenerRecord[] {
-	orderedRecordsCache ??= openerRecords().sort(
-		(a, b) => a.value.priority - b.value.priority || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)
-	);
+	orderedRecordsCache ??= openerRecords().sort(byOpenerOrder);
 	return orderedRecordsCache;
 }
 

@@ -5,7 +5,6 @@
  */
 import { assertInvariant, devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 import { checkDefinedByThisCopy, type CoreCopy } from '../invariants/one-core-copy';
-import { ALL_BLOCK_KINDS, type BlockKind } from '../core/nodes';
 import { ARAGONITE_VERSION } from '../version';
 import type { EditorEventMap } from '../editor-events';
 import type { PresentationMode } from '../presentation-mode';
@@ -49,6 +48,9 @@ export type PluginList = readonly Pick<Plugin, 'name' | 'version' | 'editor'>[];
 
 /** What a plugin adds to one editor. */
 export interface Contribution {
+	/** Its block types, made by `lineBlock`, `fencedBlock` or `container`; each is named after the
+	 *  plugin (`callouts/callout`) when an editor first runs it. */
+	blocks?: readonly BlockType<unknown>[];
 	/** Runs once the editor is mounted; what it adds through `editor` goes away with the plugin. */
 	setup?(editor: Editor): void;
 }
@@ -71,19 +73,13 @@ export interface Editor {
 	claims(event: KeyboardEvent): boolean;
 }
 
-/** A block type as the editor holds it: `name` is its kind, qualified by its plugin's name. */
+/** A block type as the editor holds it: `name` is its kind, qualified by its plugin's name once an
+ *  editor runs the plugin, and `label` what a screen reader and the block menu call it. */
 export interface BlockType<D = never> {
 	readonly name: string;
+	readonly label: string;
 	readonly '~data'?: D;
 }
-
-/** The built-in block types, to place a plugin's block relative to one or tell a block's type. */
-export const builtin: { readonly blocks: Readonly<Record<BlockKind, BlockType>> } = {
-	// Marked pure so a build that never reads the table leaves it out.
-	blocks: /* @__PURE__ */ Object.fromEntries(
-		/* @__PURE__ */ ALL_BLOCK_KINDS.map((kind) => [kind, { name: kind }])
-	) as Record<BlockKind, BlockType>
-};
 
 /** An error a plugin caused, naming the plugin and what the editor was doing with it. */
 export interface PluginError {

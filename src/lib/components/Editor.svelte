@@ -144,6 +144,7 @@
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
 	import { insertCatalogue, type InsertEntry } from '../schema/insert-catalogue';
 	import { createEditorGrammar } from '../schema/editor-grammar';
+	import { installBlockTypes } from '../schema/block-type';
 	import type { Reading } from '../schema/reading';
 	import { hidesDelimitersAtCaret, type PresentationMode } from '../presentation-mode';
 	import BlockList from './BlockList.svelte';
@@ -241,6 +242,8 @@
 	let units: readonly InstalledPlugin[] = pluginEntries
 		? installPluginList(pluginEntries.values, reportPluginError)
 		: [];
+	let ownBlocks = installBlockTypes(units, reportPluginError);
+	onDestroy(() => ownBlocks.release());
 
 	// The editor runs exactly the plugins it lists; with no `plugins` prop, every installed one.
 	const listedNames = () => (pluginEntries ? runningNames(pluginEntries, units) : null);
@@ -267,7 +270,11 @@
 	// ── State ───────────────────────────────────────────────────────────
 
 	// svelte-ignore state_referenced_locally
-	const editorGrammar = createEditorGrammar({ plugins: activePlugins, syntax });
+	const editorGrammar = createEditorGrammar({
+		plugins: activePlugins,
+		syntax,
+		blocks: () => ownBlocks.blocks
+	});
 
 	// Plain state, not $derived: structural edits write `doc` and `blockIds` directly.
 	// svelte-ignore state_referenced_locally
@@ -1462,6 +1469,10 @@
 		const beforeUnits = units;
 		pluginEntries = entries;
 		units = installPluginList(entries.values, reportPluginError, beforeUnits);
+		// The new list is held first, so a block type in both lists keeps its facts throughout.
+		const beforeBlocks = ownBlocks;
+		ownBlocks = installBlockTypes(units, reportPluginError);
+		beforeBlocks.release();
 		const after = listedNames() ?? [];
 		// A plugin listed again with other options starts over on them, whichever shape it has.
 		const replaced = (name: string) =>

@@ -1,7 +1,8 @@
 /**
  * One editor's grammar: the block openers it tries, the lines that end its paragraphs and the
- * block views it draws, built from the built-ins and the plugins its own list names. A `parse()`
- * with no editor reads `defaultGrammarView`, the same table over every installed plugin.
+ * block views it draws, built from the built-ins, the plugins its own list names and the block
+ * types those plugins contribute. A `parse()` with no editor reads `defaultGrammarView`, the same
+ * table over every installed plugin.
  */
 import type { AnyBlockKind } from '../core/nodes';
 import type { BlockView } from './block-view';
@@ -12,6 +13,7 @@ import {
 	type BlockKindDescriptor
 } from './block-kind-descriptor';
 import {
+	byOpenerOrder,
 	grammarRecords,
 	type BlockOpener,
 	type GrammarView,
@@ -19,6 +21,7 @@ import {
 } from './block-openers';
 import { everyInstalledPlugin, resolvesIn, type PluginActivation } from './plugin-activation';
 import { pluginInstallGeneration } from './plugin-install';
+import type { InstalledBlock } from './block-type';
 
 /** GFM syntaxes a host can switch off for one editor (the `syntax` prop); each is on by default. */
 export interface SyntaxOptions {
@@ -41,6 +44,8 @@ export function createEditorGrammar(
 		/** The plugins this editor turns on; absent turns on every installed plugin. */
 		plugins?: PluginActivation;
 		syntax?: SyntaxOptions;
+		/** The block types this editor's plugins contribute; a new list after `use`. */
+		blocks?: () => readonly InstalledBlock[];
 	} = {}
 ): EditorGrammar {
 	const activation = options.plugins ?? everyInstalledPlugin;
@@ -50,22 +55,33 @@ export function createEditorGrammar(
 	let builtFrom: readonly OpenerRecord[] | null = null;
 	let builtAt = -1;
 	let builtForList: number | undefined;
+	let builtForBlocks: readonly InstalledBlock[] = [];
 	let openers: readonly BlockOpener[] = [];
 	let interrupts: ((lineText: string) => boolean)[] = [];
+	let ownViews = new Map<AnyBlockKind, BlockView>();
 	const refresh = (): void => {
 		const records = grammarRecords();
 		const generation = pluginInstallGeneration();
-		if (records === builtFrom && generation === builtAt && activation.generation === builtForList)
+		const blocks = options.blocks?.() ?? builtForBlocks;
+		if (
+			records === builtFrom &&
+			generation === builtAt &&
+			activation.generation === builtForList &&
+			blocks === builtForBlocks
+		)
 			return;
 		builtFrom = records;
 		builtAt = generation;
 		builtForList = activation.generation;
+		builtForBlocks = blocks;
+		ownViews = new Map(blocks.map((b) => [b.kind, b.view]));
+		const own = blocks.flatMap((b) => (b.opener ? [{ key: b.kind, value: b.opener }] : []));
 		// A switched-off syntax leaves the grammar only: a block of that kind still renders.
 		const kept = records.filter(
 			(r) => resolvesIn(activation, r.owner) && (indentedCode || r.key !== 'indentedCode')
 		);
-		openers = kept.map((r) => r.value);
-		interrupts = kept.flatMap((r) => r.value.interruptsParagraph || []);
+		openers = (own.length ? [...kept, ...own].sort(byOpenerOrder) : kept).map((r) => r.value);
+		interrupts = openers.flatMap((opener) => opener.interruptsParagraph || []);
 	};
 	return {
 		setextHeading: options.syntax?.setextHeading ?? true,
@@ -78,7 +94,10 @@ export function createEditorGrammar(
 			refresh();
 			return interrupts.some((interrupt) => interrupt(lineText));
 		},
-		blockView: (kind) => blockViewFor(kind, activation),
+		blockView(kind) {
+			refresh();
+			return ownViews.get(kind) ?? blockViewFor(kind, activation);
+		},
 		descriptor: (kind) => getBlockKindDescriptor(kind),
 		tryDescriptor: (kind) => tryGetBlockKindDescriptor(kind)
 	};

@@ -5,12 +5,14 @@ import {
 	type BlockKind,
 	type CstNode
 } from '../core/nodes';
+import { devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';
 import type { DocumentView, NodeView } from '../core/node-views';
 import type { LineEnding } from '../core/lines';
 import type { ContainerBodyWrap } from '../core/parser';
 import { enqueueRegistrationCheck } from './registration-pending';
 import { currentInstallingPlugin } from './plugin-install';
 import { createBlockKindRegistry } from './plugin-kind';
+import { enrollTestReset } from './registry-reset';
 import type { ChildRawChange } from './child-spans';
 import type { StripRebuild } from './strip-rebuild';
 import type { ClosureBlock } from './closure';
@@ -584,7 +586,7 @@ export function blockKindOwner(kind: AnyBlockKind): string | null {
 /** Whether the parser can open this kind from a line: a kind with no opener of its own is only
  *  ever made by its container. */
 export function hasOwnOpener(kind: AnyBlockKind): boolean {
-	return registry.getIgnoringActivation(kind)?.opener !== undefined;
+	return registry.getIgnoringActivation(kind)?.opener !== undefined || !!held.get(kind)?.hasOpener;
 }
 
 /** Every kind's opener with the plugin it answers to, in registration order, for the parser's
@@ -786,7 +788,7 @@ export function augmentBuiltin(kind: AnyBlockKind, fields: BlockKindAugmentation
 }
 
 export function getBlockKindDescriptor(kind: AnyBlockKind): BlockKindDescriptor {
-	const d = registry.getIgnoringActivation(kind)?.descriptor;
+	const d = tryGetBlockKindDescriptor(kind);
 	if (!d) {
 		throw new Error(
 			`getBlockKindDescriptor: no descriptor registered for kind "${kind}". ` +
@@ -797,7 +799,7 @@ export function getBlockKindDescriptor(kind: AnyBlockKind): BlockKindDescriptor 
 }
 
 export function tryGetBlockKindDescriptor(kind: AnyBlockKind): BlockKindDescriptor | undefined {
-	return registry.getIgnoringActivation(kind)?.descriptor;
+	return registry.getIgnoringActivation(kind)?.descriptor ?? held.get(kind)?.descriptor;
 }
 
 /** Whether a kind declares the grid contract: a table and its rows, or a plugin's equivalent. A
@@ -841,7 +843,7 @@ export function clampCellIndex(node: NodeView, cellIdx: number): number {
 
 /** Whether a kind is registered, for the editor's own idempotent bootstraps. Takes a plain name. */
 export function isBlockKindRegistered(kind: string): boolean {
-	return registry.has(kind as AnyBlockKind);
+	return registry.has(kind as AnyBlockKind) || held.has(kind as AnyBlockKind);
 }
 
 /** Every kind currently registered. Caller must not mutate. */
@@ -853,3 +855,53 @@ export function getAllRegisteredKinds(): AnyBlockKind[] {
 export function registeredKinds(activation: PluginActivation): AnyBlockKind[] {
 	return registry.entries(activation).map(([kind]) => kind);
 }
+
+// ── Plugin block types held by mounted editors ──────────────────────────────
+
+interface HeldKind {
+	descriptor: BlockKindDescriptor;
+	hasOpener: boolean;
+	editors: number;
+}
+
+// A plugin block type's facts, page-wide by its qualified name while any editor runs it, so every
+// descriptor read answers for it; its opener and view stay with each editor.
+const held = new Map<AnyBlockKind, HeldKind>();
+enrollTestReset(() => held.clear());
+
+/** Lends a plugin block type's facts to the page while one editor runs it; call the result when
+ *  that editor stops running it. */
+export function holdBlockKind(
+	kind: AnyBlockKind,
+	registration: BuiltinRegistration,
+	hasOpener: boolean
+): () => void {
+	const descriptor = normalizeRegistration(registration);
+	const existing = held.get(kind);
+	if (existing) {
+		existing.editors++;
+		if (devChecksOn && factsOf(existing.descriptor) !== factsOf(descriptor)) {
+			devWarn(
+				'block-type-facts',
+				`"${kind}" reads differently in two editors: a block type's facts can't depend on its options, so the first editor's stand`
+			);
+		}
+	} else {
+		rejectIncoherentPairs(kind, registration);
+		held.set(kind, { descriptor, hasOpener, editors: 1 });
+	}
+	let released = false;
+	return () => {
+		const entry = held.get(kind);
+		if (released || !entry) return;
+		released = true;
+		if (--entry.editors === 0) held.delete(kind);
+	};
+}
+
+// The fields that are data, which two editors running one block type must agree on; a sample may
+// follow the options, since only the checks read it.
+const factsOf = (descriptor: BlockKindDescriptor): string =>
+	JSON.stringify({ ...descriptor, conformanceFixture: undefined }, (_key, value) =>
+		typeof value === 'function' ? undefined : value
+	);
