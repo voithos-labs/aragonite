@@ -5,7 +5,7 @@
  * rather than thrown (`docs/design/commit-and-undo.md` § Drafts).
  */
 
-import type { Draft, DraftCloseCause, DraftSpec, Result } from '../../schema/drafts';
+import type { Draft, DraftCloseCause, DraftResult, DraftSpec } from '../../schema/drafts';
 import type { DocumentView } from '../../core/node-views';
 import type { CommitSnapshotArg, SourceSplice } from '../../action-contracts';
 import type { ByteChange } from '../../tree-operations/byte-splice';
@@ -111,7 +111,7 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 			onEnd(made);
 		}
 
-		async function land(caret: number | undefined): Promise<Result> {
+		async function land(caret: number | undefined): Promise<DraftResult> {
 			if (!openedOn.live)
 				return refused('unloaded', 'another document replaced the one it opened on');
 			if (deps.isReading()) return refused('reading', 'the editor is in reading mode');
@@ -119,12 +119,13 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 				return refused('moved', 'an undo was replacing the document');
 			if (illegal) return refused('illegal', illegal);
 			const doc = deps.doc();
+			if (writes.length === 0) return write(doc, [], caret);
 			const now = partLengths(doc);
 			const unsorted: ByteChange[] = [];
-			for (const write of writes) {
-				const at = current(write.range);
+			for (const pending of writes) {
+				const at = current(pending.range);
 				if (!at) return refused('moved', 'a write elsewhere changed bytes it replaces');
-				unsorted.push({ from: byteAt(now, at.from), to: byteAt(now, at.to), insert: write.text });
+				unsorted.push({ from: byteAt(now, at.from), to: byteAt(now, at.to), insert: pending.text });
 			}
 			const changes = [...unsorted].sort((a, b) => a.from - b.from || a.to - b.to);
 			for (let i = 1; i < changes.length; i++) {
@@ -147,18 +148,20 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 				(c) => splitsLineEnding(text, c.from) || splitsLineEnding(text, c.to)
 			);
 			if (split) return refused('illegal', `a range splits the line ending at byte ${split.from}`);
-			const made = changes.filter((c) => text.slice(c.from, c.to) !== c.insert);
-			if (made.length === 0 && inserts.length === 0)
+			const changed = changes.filter((c) => text.slice(c.from, c.to) !== c.insert);
+			if (changed.length === 0 && inserts.length === 0)
 				return refused('empty', 'it writes only the bytes already there');
-			return write(doc, made, caret);
+			return write(doc, changed, caret);
 		}
 
 		async function write(doc: DocumentView, changes: ByteChange[], caret: number | undefined) {
+			// A draft needs no record of its own write.
+			drop(opened);
 			const writer = deps.writes();
-			const seed = snapshotAt(doc, changes[0]?.from ?? 0);
+			const seed = changes.length > 0 ? snapshotAt(doc, changes[0].from) : null;
 			let landed = true;
 			const run = async () => {
-				if (changes.length > 0) {
+				if (seed) {
 					landed = await writer.commitSource({
 						changes,
 						caret: caret === undefined ? 'keep' : { at: caret, holds: 'text' },
@@ -169,7 +172,7 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 				for (const { markdown, below } of inserts)
 					if (landed) landed = await writer.insert(markdown, below);
 			};
-			if (changes.length > 0 && inserts.length > 0) await writer.undoStep(seed, run);
+			if (seed && inserts.length > 0) await writer.undoStep(seed, run);
 			else await run();
 			return landed
 				? ({ ok: true } as const)
@@ -253,7 +256,10 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 
 // ── Internal ─────────────────────────────────────────────────────────────────
 
-function refused(reason: Exclude<Result, { ok: true }>['reason'], message: string): Result {
+function refused(
+	reason: Exclude<DraftResult, { ok: true }>['reason'],
+	message: string
+): DraftResult {
 	return { ok: false, reason, message };
 }
 

@@ -27,7 +27,7 @@ export type { PluginSetupContext, OnEditorCallback, EditorContext } from './sche
 // `EditorContext.insertMarkdown`'s options: at the caret, or in a new paragraph below its block.
 export type { InsertMarkdownOptions } from './editor-props';
 // `EditorContext.edit()`'s write, in the document's bytes, and what its commit came to.
-export type { Draft, Result } from './schema/drafts';
+export type { Draft, DraftResult } from './schema/drafts';
 // The names every presentation-mode read reports, the `data-presentation` attribute included.
 export type { PresentationMode } from './presentation-mode';
 export type { ClickInput } from './activation-click';

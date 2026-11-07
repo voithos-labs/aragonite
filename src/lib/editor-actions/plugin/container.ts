@@ -152,7 +152,7 @@ export interface ContainerBlock {
 	/** Read the scroll position before swapping this block's view for one of another height, and
 	 *  await the returned restore after the swap renders. A scroll-into-view in progress wins. */
 	captureScrollPosition(): () => Promise<void>;
-	/** `EditorContext.openDraft`, passed through so a component needs no context to hold one. */
+	/** A draft of the block's own bytes, for an edit its view holds outside the document. */
 	openDraft(spec: DraftSpec): Draft;
 }
 

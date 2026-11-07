@@ -15,6 +15,7 @@ import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { endsOpen } from '../../tree-operations/fix-up/apply';
 import { emitCommitError, toEditEvent } from '../../editor-events';
 import {
+	assertChangeInReach,
 	assertCommitPaths,
 	assertCommittedNodes,
 	assertKeepsABlock,
@@ -24,7 +25,6 @@ import {
 } from '../../invariants/install';
 import type { UndoManager } from '../../undo/types';
 import { captureChange, changeAfter, type BlockReach } from './change-record';
-import { assertChangeInReach } from '../../invariants/install';
 import { admitsWrite } from './reading-write-gate';
 import type { EditorActionsDeps } from '../deps';
 

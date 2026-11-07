@@ -16,7 +16,7 @@ export type {
 } from './editor-props';
 
 // `edit()`'s write, in the document's bytes, and what its commit came to.
-export type { Draft, Result } from './schema/drafts';
+export type { Draft, DraftResult } from './schema/drafts';
 
 export type {
 	EditorDiagnostics,

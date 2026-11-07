@@ -28,7 +28,6 @@ import { caretTargetFor, type CaretTarget } from '../selection/caret-target';
 import { createSharingState } from '../tree-operations/sharing';
 import { createUndoManager } from '../undo/manager';
 import { createDocumentStamps } from '../editor-actions/commit/document-stamp';
-import { createDraftRegistry } from '../editor-actions/commit/draft-registry.svelte';
 
 // ── Stubs ────────────────────────────────────────────────────────────────────
 
@@ -208,17 +207,8 @@ export function createHeadlessActions(
 		// An author's suite runs with no editor, so every installed plugin is in the grammar.
 		reading: options.reading ?? kitReading(),
 		stamps,
-		// No controller is built here, so a draft's commit writes nothing.
-		drafts: createDraftRegistry({
-			stamps,
-			doc: () => doc,
-			isReading: () => deps.reading.mode() === 'reading',
-			writes: () => ({
-				commitSource: async () => false,
-				undoStep: async (_seed, run) => void (await run()),
-				insert: async () => false
-			})
-		})
+		// Nothing opens a draft without an editor, so no write records what it changed.
+		drafts: { closeAll() {}, watching: () => false, record() {} }
 	};
 	// No render window: nothing mounts later, so an empty entry counts as out of range.
 	const rootList: ChildList = {

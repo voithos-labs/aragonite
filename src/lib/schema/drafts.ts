@@ -5,7 +5,7 @@
  */
 
 /** What a draft's commit came to: landed, or refused with the reason. */
-export type Result =
+export type DraftResult =
 	| { readonly ok: true }
 	| {
 			readonly ok: false;
@@ -24,7 +24,7 @@ export interface Draft {
 	/** Insert Markdown at the caret the way a paste would, once the replacements land. */
 	insert(markdown: string): this;
 	/** Write it all as one undo step, the caret at byte `caret` of the new text or left where it is. */
-	commit(options?: { caret?: number }): Promise<Result>;
+	commit(options?: { caret?: number }): Promise<DraftResult>;
 	/** Drop it, writing nothing: a closed edit box, a wait given up on. */
 	end(): void;
 }

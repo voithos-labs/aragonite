@@ -6,7 +6,7 @@
  */
 
 import type { DocumentView, NodeView } from '../../core/node-views';
-import { sharedPrefixLength, sharedSuffixLength } from '../../core/written-span';
+import { sharedPrefixLength, sharedSuffixLength, writtenSpan } from '../../core/written-span';
 import { documentByteMap } from '../../tree-operations/container-offsets';
 import { splitLines } from '../../core/lines';
 import { unfinishedReadings, type GrammarView } from '../../schema/block-openers';
@@ -162,19 +162,19 @@ export function blockRange(doc: DocumentView, path: readonly number[]): PartRang
 export function rangeThrough(range: PartRange, change: RecordedChange): PartRange | null {
 	const x = spanOffset(range.from, change.lo, change.before);
 	const y = spanOffset(range.to, change.lo, change.before);
-	if (y === -Infinity || x === Infinity) return shifted(range, change, x);
-	const { from, to, inserted } = runOf(change);
-	const touched = from < to ? from < y && to > x : x < from && from < y;
-	if (touched || (x === y && from < x && x < to)) return null;
-	const delta = inserted - (to - from);
-	const at = (v: number, right: boolean) =>
-		v < from || (v === from && !(right && from === to)) ? v : v + delta;
-	const nx = at(x, true);
-	const ny = x === y ? nx : at(y, false);
-	return {
-		from: positionIn(nx, change, range.from),
-		to: positionIn(ny, change, range.to)
-	};
+	let [nx, ny] = [x, y];
+	// A range wholly before or after the run needs no diff.
+	if (y !== -Infinity && x !== Infinity) {
+		const { from, to, inserted } = runOf(change);
+		const touched = from < to ? from < y && to > x : x < from && from < y;
+		if (touched || (x === y && from < x && x < to)) return null;
+		const delta = inserted - (to - from);
+		const at = (v: number, right: boolean) =>
+			v < from || (v === from && !(right && from === to)) ? v : v + delta;
+		nx = at(x, true);
+		ny = x === y ? nx : at(y, false);
+	}
+	return { from: positionIn(nx, change, range.from), to: positionIn(ny, change, range.to) };
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────
@@ -231,14 +231,6 @@ function positionIn(x: number, change: RecordedChange, was: PartPosition): PartP
 	return { part: change.lo + at.part, offset: at.offset };
 }
 
-function shifted(range: PartRange, change: RecordedChange, x: number): PartRange {
-	if (x !== Infinity) return range;
-	return {
-		from: positionIn(Infinity, change, range.from),
-		to: positionIn(Infinity, change, range.to)
-	};
-}
-
 interface Run {
 	/** The run's old bytes `[from, to)` gave way to `inserted` new bytes. */
 	from: number;
@@ -255,11 +247,9 @@ function runOf(change: RecordedChange): Run {
 	if (run) return run;
 	const a = change.before.join('');
 	const b = change.after.join('');
-	const shorter = Math.min(a.length, b.length);
-	const head = sharedPrefixLength(a, b, shorter);
-	const tail = sharedSuffixLength(a, b, shorter - head);
-	const inserted = b.length - tail - head;
-	const removed = a.length - tail - head;
+	const { start: head, end, removedEnd } = writtenSpan(a, b);
+	const inserted = end - head;
+	const removed = removedEnd - head;
 	const typedFrom = change.typedEnd === null ? -1 : change.typedEnd - inserted;
 	if (
 		typedFrom >= 0 &&
@@ -268,9 +258,10 @@ function runOf(change: RecordedChange): Run {
 	) {
 		run = { from: typedFrom, to: typedFrom + removed, inserted };
 	} else {
-		const tailFirst = sharedSuffixLength(a, b, shorter);
-		const headAfter = sharedPrefixLength(a, b, shorter - tailFirst);
-		run = { from: headAfter, to: a.length - tail, inserted: b.length - tail - headAfter };
+		// The leftmost place the text could have gone, and the rightmost one's end.
+		const shorter = Math.min(a.length, b.length);
+		const headAfter = sharedPrefixLength(a, b, shorter - sharedSuffixLength(a, b, shorter));
+		run = { from: headAfter, to: removedEnd, inserted: end - headAfter };
 	}
 	runs.set(change, run);
 	return run;

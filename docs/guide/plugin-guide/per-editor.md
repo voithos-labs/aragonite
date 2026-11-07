@@ -29,7 +29,7 @@ setup(ctx) {
 | `insertCatalogue` | The blocks this editor's insert menus offer, live, yours included once you `registerInsertEntry` from `setup` |
 | `insertMarkdown(md, options?)` | Insert Markdown the way the instance's own call does ([Inserting Markdown at the caret](../consumer-guide.md#inserting-markdown-at-the-caret)); a promise that resolves false where that call would |
 | `runCommand(id, arg?)` | Run a command by id the way the instance's own call does; false where that would be |
-| `edit()` | Write bytes as one undo step, now or after a wait; a commit is refused with the reason if the author wrote over them meanwhile ([`Draft`](../plugin-api.md#draft-result)) |
+| `edit()` | Write bytes as one undo step, now or after a wait; a commit is refused with the reason if the author wrote over them meanwhile ([`Draft`](../plugin-api.md#draft-draftresult)) |
 | `computeInlineContent(node)` | Parse a prose block's inline content the way this editor draws it: syntax from a plugin its `plugins` prop left out comes back as plain text, and reference links resolve against the document's link definitions (its `[r]: /x` lines). Reach for it wherever you walk inline nodes |
 | `presentationMode` | The effective presentation mode, live, paired with the `presentationModeChange` event ([Presentation modes](presentation-modes.md#presentation-modes)) |
 | `theme` | The editor's theme name, live, paired with the `themeChange` event, for content whose colors an engine paints |

@@ -94,32 +94,42 @@ describe('a draft', () => {
 
 	// Miss-analysis: every waiting-draft row typed a letter unlike its neighbours, where a diff can't
 	// tell typing inside a range's last letters from typing just past them.
-	it('tells the same letter typed inside its range from one typed just past it', async () => {
-		const inside = await mounted('Say @que here\n');
-		const refused = inside.instance.edit().replace({ from: 4, to: 8 }, CARD);
-		await typeAt(inside, [0], 'Say @quee here', 7);
-		expect(await refused.commit()).toMatchObject({ ok: false, reason: 'moved' });
+	describe('with a letter typed beside the same letter', () => {
+		const LEAF = 'Say @que here';
+		// The draft holds `@que`, the leaf's bytes 4 to 8; a letter typed at 4 or at 8 is outside it.
+		const twins = [3, 4, 5, 7, 8, 9].flatMap((at) =>
+			[...new Set([LEAF[at - 1], LEAF[at]])].map((letter) => ({ at, letter }))
+		);
+		const cases = ['top-level', 'quoted'].flatMap((where) => twins.map((t) => ({ where, ...t })));
 
-		const past = await mounted('Say @que here\n');
-		const landed = past.instance.edit().replace({ from: 4, to: 8 }, CARD);
-		await typeAt(past, [0], 'Say @quee here', 9);
-		expect(await landed.commit()).toEqual({ ok: true });
-		expect(past.source()).toBe(`Say ${CARD}e here\n`);
+		it.each(cases)('in a $where paragraph, $letter at $at lands as typed or refuses', async (c) => {
+			const marker = c.where === 'quoted' ? '> ' : '';
+			const editor = await mounted(`${marker}${LEAF}\n`);
+			const draft = editor.instance
+				.edit()
+				.replace({ from: marker.length + 4, to: marker.length + 8 }, CARD);
+			const typed = LEAF.slice(0, c.at) + c.letter + LEAF.slice(c.at);
+			await typeAt(editor, marker ? [0, 0] : [0], typed, c.at + 1);
+
+			const result = await draft.commit();
+			const inside = c.at > 4 && c.at < 8;
+			const before = c.at <= 4 ? 5 : 4;
+			if (result.ok) {
+				expect(editor.source()).toBe(
+					`${marker}${typed.slice(0, before)}${CARD}${typed.slice(before + 4)}\n`
+				);
+			} else expect(result).toMatchObject({ reason: 'moved' });
+			// A top-level keystroke says where it typed; in a container only typing inside must refuse.
+			if (inside || !marker) expect(result.ok).toBe(!inside);
+		});
 	});
 
-	// Miss-analysis: the letter rows typed in a top-level paragraph, never inside a container, where
-	// a keystroke records no caret and every place its letter could have gone counts.
-	it('refuses the same letter typed inside its range in a quote, and lands past another', async () => {
-		const inside = await mounted('> Say @que here\n');
-		const refused = inside.instance.edit().replace({ from: 6, to: 10 }, CARD);
-		await typeAt(inside, [0, 0], 'Say @quee here', 7);
-		expect(await refused.commit()).toMatchObject({ ok: false, reason: 'moved' });
-
-		const past = await mounted('> Say @que here\n');
-		const landed = past.instance.edit().replace({ from: 6, to: 10 }, CARD);
-		await typeAt(past, [0, 0], 'Say @quex here', 9);
-		expect(await landed.commit()).toEqual({ ok: true });
-		expect(past.source()).toBe(`> Say ${CARD}x here\n`);
+	it('lands past a letter typed after its range in a quote', async () => {
+		const editor = await mounted('> Say @que here\n');
+		const draft = editor.instance.edit().replace({ from: 6, to: 10 }, CARD);
+		await typeAt(editor, [0, 0], 'Say @quex here', 9);
+		expect(await draft.commit()).toEqual({ ok: true });
+		expect(editor.source()).toBe(`> Say ${CARD}x here\n`);
 	});
 
 	it('gives a query, typing elsewhere, and the card that lands last three undo steps', async () => {

@@ -64,7 +64,7 @@ _(pre-freeze / unstable)_ The installable package, and the per-editor context it
 | `OnEditorCallback` | The callback itself: receives the `EditorContext` of each mounted editor that listed your plugin, may return a cleanup function the editor runs at unmount |
 | [`EditorContext`](#editorcontext) | One editor's view for your plugin, handed to your `onEditor` callback |
 | `InsertMarkdownOptions` | `insertMarkdown`'s second argument: `placement: 'below'` puts the text into a new paragraph after the top-level block holding the caret, in one undo entry; the default inserts at the caret |
-| [`Draft`, `Result`](#draft-result) | A write in the document's bytes from `edit()`, and what its commit came to |
+| [`Draft`, `DraftResult`](#draft-draftresult) | A write in the document's bytes from `edit()`, and what its commit came to |
 | `PresentationMode` | The union of the editor's view modes (source, reading, the two previews, live). Switch on it with a default branch, since a new mode would join the union. [Presentation modes](plugin-guide/presentation-modes.md#presentation-modes) |
 | `ClickInput` | What `isActivationClick` reads off a click: its Ctrl and Cmd keys, its click count and its target. A `MouseEvent` is one, so pass the event |
 
@@ -106,7 +106,7 @@ One editor's view for your plugin, handed to your `onEditor` callback once for e
 - `decorations`, `rects` and `inlineMenus`, this editor's [decorations](#decorations), [geometry](#rects) and [inline menus](#inline-menus).
 - `insertCatalogue`, `presentationMode` and `theme`, all live.
 - `insertMarkdown(md, options?)`, a promise resolved when the insert lands, and `runCommand(id, arg?)`. Both act like the instance's own methods and return false where those would.
-- `edit()`, a write in the document's bytes that commits as one undo step, now or after a wait ([`Draft`](#draft-result)).
+- `edit()`, a write in the document's bytes that commits as one undo step, now or after a wait ([`Draft`](#draft-draftresult)).
 - `computeInlineContent(node)`, this editor's inline parse.
 - `isActivationClick(e)`, whether a click on a link your block draws (a footnote's back-link, say) should follow it, by the host's `linkClick` and the mode.
 
@@ -121,18 +121,18 @@ ctx.onEditor((editor) => {
 
 Per-editor state, and the closure trap that comes with it: [One process, many editors](plugin-guide/per-editor.md#one-process-many-editors).
 
-#### `Draft`, `Result`
+#### `Draft`, `DraftResult`
 
 ```ts
 interface Draft {
 	readonly stale: boolean;
 	replace(range: { from: number; to: number }, text: string): this;
 	insert(markdown: string): this;
-	commit(options?: { caret?: number }): Promise<Result>;
+	commit(options?: { caret?: number }): Promise<DraftResult>;
 	end(): void;
 }
 
-type Result =
+type DraftResult =
 	| { ok: true }
 	| { ok: false; reason: 'moved' | 'unloaded' | 'reading' | 'overlap' | 'illegal' | 'empty'; message: string };
 ```
@@ -156,7 +156,7 @@ What a commit can come back with (nothing throws, and a refused commit writes no
 
 | `reason` | When |
 | --- | --- |
-| `moved` | Something wrote inside one of your ranges since `edit()`. Text written right before or after a range doesn't count, it just moves the range |
+| `moved` | Something wrote inside one of your ranges since `edit()`. Text written right before or after a range doesn't count, it just moves the range, except inside a quote or a list, where the same letter typed right next to a range counts as inside |
 | `unloaded` | The host loaded another document |
 | `reading` | The editor's in reading mode |
 | `overlap` | Two of your own ranges overlap |
@@ -666,7 +666,7 @@ interface DraftSpec {
 type DraftCloseCause = 'mode-change' | 'undo' | 'document-swap';
 ```
 
-A block holding an edit outside the document (a textarea's text) opens a [`Draft`](#draft-result) of its own bytes with the container factory's `openDraft(spec)`. It goes `stale` once a write elsewhere touches the block, and the editor calls `close(cause)` on one you haven't ended: `'mode-change'` and `'undo'` (an undo or redo about to replace the document) may still save, `'document-swap'` writes nothing. `end()` it once your box closes or your block unmounts. [What your own editing surface has to do](plugin-guide/render-primary.md#what-your-own-editing-surface-has-to-do) walks through it.
+A block holding an edit outside the document (a textarea's text) opens a [`Draft`](#draft-draftresult) of its own bytes with the container factory's `openDraft(spec)`. It goes `stale` once a write elsewhere touches the block, and the editor calls `close(cause)` on one you haven't ended: `'mode-change'` and `'undo'` (an undo or redo about to replace the document) may still save, `'document-swap'` writes nothing. `end()` it once your box closes or your block unmounts. [What your own editing surface has to do](plugin-guide/render-primary.md#what-your-own-editing-surface-has-to-do) walks through it.
 
 #### `rebuildStripRaw`
 
