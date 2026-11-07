@@ -270,9 +270,7 @@ describe('use', () => {
 		target.remove();
 	});
 
-	// Lands with undo entries that remember their grammar (D2): until then a restore installs the
-	// tree parsed before `use`.
-	it.fails('restores an undo step under the grammar the editor reads now', async () => {
+	it('restores an undo step under the grammar the editor reads now', async () => {
 		const m = mountEditor({ source: 'text\n\n@b hi\n', plugins: [marks] });
 		await m.settle();
 		typeInFirstBlock(m.target, 'texts');

@@ -14,7 +14,7 @@ import { readAsOpened } from '../../schema/opened-reading';
 import type { UndoManager } from '../../undo/types';
 import type { EditorEvents } from '../../editor-events';
 import type { MenuPresence } from '../menu/menu-presence.svelte';
-import type { DraftRegistry } from '../draft-registry';
+import type { DraftRegistry } from '../../editor-actions/commit/draft-registry.svelte';
 import type { DocumentStamps } from '../../editor-actions/commit/document-stamp';
 import type { MarkHoverTracker } from '../../decorations/mark-hover';
 

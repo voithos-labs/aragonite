@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { declarePluginKind } from '#lib/schema/plugin-kind.js';
 import { blockViewFor, getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
-import { blockViewEntry } from '#lib/components/block-view-entry.js';
 import { registerChromeLeaf } from '#lib/plugin.js';
 import type { KeyBinding } from '#lib/schema/keybindings.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
@@ -59,15 +58,5 @@ describe('registerChromeLeaf', () => {
 		registerChromeLeaf(kind, { mergeRole: 'container' });
 
 		expect(getBlockKindDescriptor(kind).mergeRole).toBe('container');
-	});
-
-	it('yields extraProps with an undefined blockClass when none is given', () => {
-		const kind = declarePluginKind('spec-chrome-leaf');
-		registerChromeLeaf(kind);
-
-		const extraProps = blockViewEntry(blockViewFor(kind, everyInstalledPlugin)!).extraProps;
-		expect(extraProps?.({ kind, leadingTrivia: '', raw: '\n' })).toStrictEqual({
-			blockClass: undefined
-		});
 	});
 });

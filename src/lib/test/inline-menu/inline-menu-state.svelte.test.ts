@@ -11,8 +11,7 @@ import { declarePluginInlineKind } from '#lib/schema/plugin-kind.js';
 import { registerInlineSyntax } from '#lib/plugin.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { grammarListing } from '../plugins/activation/grammar-listing';
-import { createDraftRegistry } from '#lib/components/draft-registry.js';
-import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
+import { idleDraftRegistry } from '../harness/drafts';
 import type { EditorContext } from '#lib/schema/plugin-install.js';
 
 /** The context a pick's commit is handed here; these suites never write through it. */
@@ -104,7 +103,7 @@ function harness(
 			}
 		},
 		ownerOfNewSource: () => noWrites,
-		drafts: createDraftRegistry(createDocumentStamps())
+		drafts: idleDraftRegistry()
 	});
 
 	// The caret arriving in the block is the editor's first news of it, as a click's would be. It
@@ -759,7 +758,7 @@ describe('a table cell', () => {
 			},
 			undoStep: async (_path, _offset, run) => void (await run()),
 			ownerOfNewSource: () => noWrites,
-			drafts: createDraftRegistry(createDocumentStamps())
+			drafts: idleDraftRegistry()
 		});
 		menu.registry.addSource(tags());
 		return {

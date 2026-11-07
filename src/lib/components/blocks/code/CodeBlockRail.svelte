@@ -12,8 +12,7 @@
 	} from '../../../a11y-strings';
 	import type { CodeMenuItem } from '../../../host-hooks';
 	import type { MenuCloseCause, MenuPresence } from '../../menu/menu-presence.svelte';
-	import type { DraftRegistry } from '../../draft-registry';
-	import type { Draft } from '../../../schema/drafts';
+	import type { Draft, DraftSpec } from '../../../schema/drafts';
 	import type { PluginActivation } from '../../../schema/plugin-activation';
 	import { getLanguageAliases, getLanguageGrammar, listLanguages } from './code-languages';
 	import { fenceLanguage } from '../../../core/parsers/fence-syntax';
@@ -33,7 +32,7 @@
 		onCopy,
 		menuItems,
 		menuPresence,
-		drafts
+		openDraft
 	}: {
 		/** The opener's full info string; the button shows its first token. */
 		info: string;
@@ -56,8 +55,8 @@
 		/** Consulted on each open, so items read live state. Empty renders no affordance. */
 		menuItems?: () => readonly CodeMenuItem[];
 		menuPresence: MenuPresence;
-		/** The open field is a draft of the info string, dropped by a swap or a write to the block. */
-		drafts: Pick<DraftRegistry, 'open'>;
+		/** The open field is a draft of the block, dropped by a swap or a write to the block. */
+		openDraft: (spec: DraftSpec) => Draft;
 	} = $props();
 
 	const language = $derived(fenceLanguage(info) || 'text');
@@ -138,7 +137,7 @@
 		popout = 'languages';
 		fieldDraft?.end();
 		// The field never saves on its own, so a close for either cause just closes it.
-		fieldDraft = drafts.open({ seed: info, current: () => info, close });
+		fieldDraft = openDraft({ close });
 		// Row 0 is the block's own language (see `suggestions`), so the highlight starts where
 		// a bare Enter re-commits what is already set.
 		activeIndex = 0;
@@ -176,7 +175,7 @@
 	}
 
 	function commit(value: string): void {
-		const writable = fieldDraft?.canWrite() ?? true;
+		const writable = !fieldDraft?.stale;
 		close();
 		if (!writable) return;
 		// `text` is the picker's way of saying "no language"; the info string says it with ''.

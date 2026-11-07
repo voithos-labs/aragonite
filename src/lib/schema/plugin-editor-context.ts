@@ -15,7 +15,7 @@ import type { PresentationMode } from '../presentation-mode';
 import type { ActivationClick } from '../activation-click';
 import { insertCatalogue } from './insert-catalogue';
 import type { Reading } from './reading';
-import type { Draft, DraftSpec } from './drafts';
+import type { Draft } from './drafts';
 import { resolvesIn, type PluginActivation } from './plugin-activation';
 import {
 	installedPlugin,
@@ -67,7 +67,7 @@ export function createEditorPluginContexts(deps: {
 	runCommand: (commandId: string, arg?: unknown) => boolean;
 	canRunCommand: (commandId: string) => boolean;
 	claims: (event: KeyboardEvent) => boolean;
-	openDraft: (spec: DraftSpec) => Draft;
+	edit: () => Draft;
 	/** How the editor reads its bytes, which every plugin inline read follows. */
 	reading: Reading;
 	/** The plugin values this editor runs, with what each contributed. */
@@ -120,7 +120,7 @@ export function createEditorPluginContexts(deps: {
 				},
 				insertMarkdown: (md, options) => deps.insertMarkdown(md, options),
 				runCommand: (commandId, arg) => deps.runCommand(commandId, arg),
-				openDraft: (spec) => deps.openDraft(spec),
+				edit: () => deps.edit(),
 				get computeInlineContent() {
 					return inlineReaderFor(deps.reading);
 				},

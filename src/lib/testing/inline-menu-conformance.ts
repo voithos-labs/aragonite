@@ -6,7 +6,7 @@
 
 import { parse } from '../core/parser';
 import type { DocumentView } from '../core/node-views';
-import { createDraftRegistry } from '../components/draft-registry';
+import { createDraftRegistry } from '../editor-actions/commit/draft-registry.svelte';
 import { createDocumentStamps } from '../editor-actions/commit/document-stamp';
 import { openPick } from '../inline-menu/pick-context';
 import type { InlineMenuItem, InlineMenuSource } from '../inline-menu/types';
@@ -28,9 +28,18 @@ export interface InlineMenuCommitCase {
 export async function checkInlineMenuCommitAcrossSwap(c: InlineMenuCommitCase): Promise<void> {
 	const writes: string[] = [];
 	const stamps = createDocumentStamps();
-	const drafts = createDraftRegistry(stamps);
 	const host = { generation: 0, document: parse('\n') };
-	const editor = recordingContext(writes, drafts.open, host);
+	const drafts = createDraftRegistry({
+		stamps,
+		doc: () => host.document,
+		isReading: () => false,
+		writes: () => ({
+			commitSource: async () => (writes.push('commitSource'), true),
+			undoStep: async (_seed, run) => void (await run()),
+			insert: async (md) => (writes.push(`insertMarkdown(${JSON.stringify(md)})`), true)
+		})
+	});
+	const editor = recordingContext(writes, () => drafts.edit(), host);
 	const source = c.source(editor);
 	const query = c.query ?? '';
 	const range = { query, path: [0], start: 0, end: source.trigger.length + query.length };
@@ -64,7 +73,7 @@ export async function checkInlineMenuCommitAcrossSwap(c: InlineMenuCommitCase): 
  *  editor would. */
 function recordingContext(
 	writes: string[],
-	openDraft: EditorContext['openDraft'],
+	edit: EditorContext['edit'],
 	host: { generation: number; document: DocumentView }
 ): EditorContext {
 	return {
@@ -98,7 +107,7 @@ function recordingContext(
 			true
 		),
 		runCommand: (commandId: string) => (writes.push(`runCommand(${commandId})`), true),
-		openDraft,
+		edit,
 		computeInlineContent: () => [],
 		presentationMode: 'source',
 		theme: 'light',

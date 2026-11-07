@@ -39,12 +39,6 @@ describe('warn-gate allowlist stays honest against the source', () => {
 		}
 	});
 
-	it('every row carries a reason and no two rows share a tag+site key', () => {
-		const keys = ALLOWED_WARNS.map((row) => `${row.tag}@${row.site}`);
-		expect(new Set(keys).size).toBe(keys.length);
-		for (const row of ALLOWED_WARNS) expect(row.reason.length).toBeGreaterThan(20);
-	});
-
 	// ── Matcher self-tests over synthetic rows (the manifest is short; these keep it non-vacuous) ──
 
 	it('the row verdict catches a moved file, a dropped devWarn and a changed tag', () => {

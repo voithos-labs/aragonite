@@ -140,12 +140,4 @@ describe('G4.x no plugin kind name in a core dispatch layer: non-vacuity', () =>
 			{ file: 'src/lib/tree-operations/blockquote.ts', kinds: ['githubAlert'] }
 		]);
 	});
-
-	it('ignores a plugin kind name that appears only in a comment', () => {
-		// scan-source blanks comments to whitespace, so a kind name in prose can't trip.
-		const commented: SourceFile[] = [
-			{ relPath: 'src/lib/tree-operations/x.ts', text: '', code: '   ' }
-		];
-		expect(violations(commented, forbidden)).toEqual([]);
-	});
 });

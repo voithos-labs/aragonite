@@ -115,6 +115,16 @@ const EXPECTED: { [Field in keyof BlockFacts]-?: (kind: string) => BlockFacts[Fi
 		return MARKER_LINES[kind] ?? 'none';
 	},
 	lazyParagraphLines: (kind) => LAZY_LINES.includes(kind),
+	indent: (kind) => {
+		if (MARKER_LINES[kind] !== 'first-line') return undefined;
+		// The kind's own sample survives its rebuild, so its later lines show the column it writes.
+		const sample = samples().get(kind)!;
+		const [first, ...later] = sample.raw.split('\n');
+		const width = first.length - sample.children![0].raw.split('\n')[0].length;
+		const line = later.find((text) => text.trim() !== '');
+		const column = line === undefined ? width : line.length - line.trimStart().length;
+		return column === width ? undefined : column;
+	},
 	merges: (kind) => {
 		const key = isDirectiveContainerKind(kind as AnyBlockKind) ? 'name' : MERGE_KEYS[kind];
 		if (key === undefined) return { into: [], onMismatch: 'nest' };

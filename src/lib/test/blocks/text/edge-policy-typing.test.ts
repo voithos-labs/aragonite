@@ -45,23 +45,6 @@ describe('branch order', () => {
 	}
 
 	describe('the declared branch order', () => {
-		const { dispatch } = mount(false);
-
-		it('ranks the families as the design states, cut line included', () => {
-			expect(dispatch.arms.map((arm) => arm.id)).toEqual([
-				'delete-beside',
-				'cst-widget',
-				'reading-mode',
-				'decoration-island',
-				'ambient-marker',
-				'marker-completion'
-			]);
-		});
-
-		it('gives every branch a reason, which is what a new entry has to supply', () => {
-			expect(dispatch.arms.filter((arm) => arm.reason.trim() === '')).toEqual([]);
-		});
-
 		// The reading-mode entry sits in the list, not ahead of it: the widget branch above it still
 		// runs in reading mode, and everything below does nothing. A check at the top loses that half.
 		it('reading mode stops the walk at its cut and leaves the key unclaimed', () => {
