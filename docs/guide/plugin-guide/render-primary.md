@@ -60,23 +60,21 @@ Not drawing it in Svelte? A `defineBlockView({ surface: 'container' })` view get
 
 **First: an arrow that runs off your surface has to leave it.** A textarea swallows every arrow at its own boundaries, so a caret that walks in is stuck there, leaving the mouse as the only way out. Call the factory's `moveFocusOut(event)` when the caret sits at the edge the key points at: first line for ArrowUp, last line for ArrowDown, offset 0 for ArrowLeft, the end for ArrowRight. It returns false for a modified or non-arrow key and moves nothing, so gate your own `preventDefault` on its return value. Logical lines (the newlines around the caret) are enough; you owe an exit, not column-keeping. An exit is a blur, so a surface that commits on `focusout` already commits through it.
 
-**Next: your text is a copy, so keep it fresh.** A box seeded once at open goes stale the moment the document changes underneath it (a host undo, say), and the commit on blur then silently reverts that change. Derive the code from the node, watch that derivation while your surface is open, and re-seed the box when it changes to something you didn't just commit.
+**Next: your text is a copy, so keep it fresh.** A box seeded once at open goes stale the moment the document changes underneath it (a host undo, say), and the commit on blur then silently reverts that change. The draft below tells you when that happened: re-seed the box from the node once it goes `stale`.
 
 **And hold it as a draft, so it can't land in the wrong note.** A host loading another note tears your block down, and the textarea's blur arrives after the new document is in, so a plain blur commit writes the old note's text into the new one. A **draft** is the editor's record of an edit you're holding outside the document. Open one when the box seeds:
 
 ```ts
 const draft = openDraft({
-	seed: code, // the code you filled the box with
-	current: () => codeOf(node), // that code now
 	close: (cause) => {
 		if (cause !== 'document-swap') commit(); // a document swap writes nothing
 	}
 });
-draft.canWrite(); // true; false once a `source` swap or a write to those bytes dropped it
+draft.stale; // false; true once a write elsewhere touched your block, or a `source` swap dropped it
 draft.end(); // your box closed, so the editor stops tracking it
 ```
 
-`openDraft` is on `EditorContext`, and the container factory passes it through. Ask `canWrite()` before every commit, and `end()` the draft when the box closes or your block unmounts with it still open (otherwise a later mode switch calls `close` on a component that's gone). Re-seeding is an `end()` and a fresh `openDraft`. The editor calls `close` only on a draft you haven't ended: a mode switch or an undo may still save it, a document swap never. A `close` ends the draft too, so if your box stays open after one (an undo, say), open a fresh draft for it.
+`openDraft` comes from the container factory, and the draft it opens watches your block's bytes. Check `stale` before every commit, and `end()` the draft when the box closes or your block unmounts with it still open (otherwise a later mode switch calls `close` on a component that's gone). `stale` is reactive, so an effect reading it hears the write underneath while the box is open. Re-seeding is an `end()` and a fresh `openDraft`. The editor calls `close` only on a draft you haven't ended: a mode switch or an undo may still save it, a document swap never. A `close` ends the draft too, so if your box stays open after one (an undo, say), open a fresh draft for it.
 
 The editable leaf does all of this for you (both modes mirror outside changes into the source, and its reveal holds a draft of its own). A plugin-owned surface has to do it itself, and the bundled mermaid block is the worked example.
 

@@ -24,6 +24,7 @@ import { createEditorPluginContexts } from '#lib/schema/plugin-editor-context.js
 import { normalizePluginEntries } from '#lib/schema/plugin-install.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { pluginContextDeps } from '../../harness/plugin-context-deps';
+import { idleDraftRegistry } from '../../harness/drafts';
 
 const typedEdit = (path: number[]): EditEvent => ({ op: 'input', path, timestamp: 0 }) as EditEvent;
 
@@ -127,7 +128,7 @@ function harness(initial: string, attach: (host: HarnessHost) => EditorContext) 
 		undoStep: async (_path, _offset, run) => void (await run()),
 		ownerOfNewSource: () => owner!,
 		// No swap happens here, so a pick's draft can always write.
-		drafts: { open: () => ({ canWrite: () => true, end: () => {} }) }
+		drafts: idleDraftRegistry()
 	});
 
 	const editor = attach({

@@ -24,9 +24,16 @@ import { checkContentRange } from './descriptor';
 import { checkChildIdParity } from './child-id-parity';
 import { checkChildSpansLockstep, checkIdsChildrenLockstep } from './structural-descriptor';
 import { checkSnapshotIntegrity, type SnapshotEntry } from './snapshot-integrity';
+import { checkChangeInReach, checkDraftBytesKept } from './change-record';
 import { checkLastLineKept } from './open-tail';
 import { checkKeepsABlock } from './keeps-a-block';
-import { checkReadsBack, checkRunReadsBack, READ_BACK_LIMIT, spliceRuns } from './reads-back';
+import {
+	checkReadsBack,
+	checkRestoredUnderGrammar,
+	checkRunReadsBack,
+	READ_BACK_LIMIT,
+	spliceRuns
+} from './reads-back';
 import { checkListMarkerWidths } from './list-marker-widths';
 import { perfEnabled } from '../perf/instruments';
 import { checkTopLevelUntouched } from './top-level-untouched';
@@ -120,6 +127,29 @@ export function assertLastLineKept(doc: Document, wasOpen: boolean): void {
 export function assertReadsBack(tops: readonly CstNode[], grammar: GrammarView): void {
 	if (!devChecksOn || perfEnabled()) return;
 	for (const top of tops) assertInvariant('reads-back', () => checkReadsBack(top, grammar));
+}
+
+/** G1.190 after a write the open drafts heard: its record holds every part it changed. */
+export function assertChangeInReach(
+	whole: Parameters<typeof checkChangeInReach>[0],
+	recorded: Parameters<typeof checkChangeInReach>[1]
+): void {
+	assertInvariant('change-record', () => checkChangeInReach(whole, recorded));
+}
+
+/** G1.190 at a draft's commit: a range the record kept still holds the bytes it opened on. */
+export function assertDraftBytesKept(
+	opened: string,
+	now: string,
+	ranges: Parameters<typeof checkDraftBytesKept>[2]
+): void {
+	assertInvariant('change-record', () => checkDraftBytesKept(opened, now, ranges));
+}
+
+/** G1.189 after an undo or redo: each block it put back reads as itself under the editor's grammar. */
+export function assertRestoredUnderGrammar(tops: readonly CstNode[], grammar: GrammarView): void {
+	if (!devChecksOn || perfEnabled()) return;
+	assertInvariant('restore-grammar', () => checkRestoredUnderGrammar(tops, grammar));
 }
 
 /** G1.55 after a byte splice: each window of `top`, read with what could change it, reads as itself. */

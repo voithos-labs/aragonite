@@ -3,6 +3,7 @@ import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { makeEditorActionsDeps, makeNode } from '#lib/test/harness/editor-actions.js';
 import { docPathFrom } from '#lib/core/coordinate-spaces.js';
+import { grammarStamp } from '#lib/editor-actions/commit/grammar-stamp.js';
 
 function makeSetup() {
 	const { deps, events } = makeEditorActionsDeps([makeNode('paragraph', 'aaa\n')]);
@@ -47,6 +48,7 @@ describe('history swap: a snapshot whose selection no longer resolves', () => {
 		deps.undoManager.push({
 			snapshot: differentDoc(deps),
 			blockIds: [...deps.blockIds],
+			grammar: grammarStamp(deps.reading.grammar),
 			selection: {
 				anchor: { path: [pastEnd], offset: 0 },
 				focus: { path: [pastEnd], offset: 0 }
@@ -68,6 +70,7 @@ describe('history swap: the outgoing selection never meets the incoming tree', (
 		deps.undoManager.push({
 			snapshot: differentDoc(deps),
 			blockIds: [...deps.blockIds],
+			grammar: grammarStamp(deps.reading.grammar),
 			selection: { anchor: { path: [0], offset: 1 }, focus: { path: [0], offset: 1 } }
 		});
 		deps.selectionState.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 1 });
@@ -101,6 +104,7 @@ describe('history swap: the restored selection notifies once, after the placemen
 		deps.undoManager.push({
 			snapshot: differentDoc(deps),
 			blockIds: [...deps.blockIds],
+			grammar: grammarStamp(deps.reading.grammar),
 			selection: { anchor: { path: [1], offset: 2 }, focus: { path: [1], offset: 2 } }
 		});
 
@@ -125,6 +129,7 @@ describe('history swap: the restored selection notifies once, after the placemen
 		deps.undoManager.push({
 			snapshot: differentDoc(deps),
 			blockIds: [...deps.blockIds],
+			grammar: grammarStamp(deps.reading.grammar),
 			selection: { anchor: { path: [1], offset: 2 }, focus: { path: [1], offset: 2 } }
 		});
 		deps.selectionState.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 1 });
@@ -144,6 +149,7 @@ describe('history swap: the restored selection notifies once, after the placemen
 		deps.undoManager.push({
 			snapshot: differentDoc(deps),
 			blockIds: [...deps.blockIds],
+			grammar: grammarStamp(deps.reading.grammar),
 			selection: { anchor: { path: [5], offset: 0 }, focus: { path: [5], offset: 0 } }
 		});
 		deps.selectionState.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 1 });

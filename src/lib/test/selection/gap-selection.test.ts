@@ -3,10 +3,17 @@ import { parse } from '../../core/parser';
 import { assignIds } from '../../block-id';
 import { isGapSelection } from '../../selection/gap-caret';
 import type { UndoEntry } from '../../undo/types';
+import { defaultGrammarView } from '../../schema/block-openers';
+import { grammarStamp } from '../../editor-actions/commit/grammar-stamp';
 
 function entryWith(selection: UndoEntry['selection']): UndoEntry {
 	const snapshot = parse('para\n');
-	return { snapshot, blockIds: assignIds(snapshot.children), selection };
+	return {
+		snapshot,
+		blockIds: assignIds(snapshot.children),
+		selection,
+		grammar: grammarStamp(defaultGrammarView)
+	};
 }
 
 describe('isGapSelection', () => {

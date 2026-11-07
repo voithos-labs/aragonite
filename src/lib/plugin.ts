@@ -26,6 +26,8 @@ export type { EditorPlugin, EditorPluginEntry } from './schema/plugin-install';
 export type { PluginSetupContext, OnEditorCallback, EditorContext } from './schema/plugin-install';
 // `EditorContext.insertMarkdown`'s options: at the caret, or in a new paragraph below its block.
 export type { InsertMarkdownOptions } from './editor-props';
+// `EditorContext.edit()`'s write, in the document's bytes, and what its commit came to.
+export type { Draft, DraftResult } from './schema/drafts';
 // The names every presentation-mode read reports, the `data-presentation` attribute included.
 export type { PresentationMode } from './presentation-mode';
 export type { ClickInput } from './activation-click';
@@ -307,7 +309,7 @@ export function computeInlineContent(node: NodeView): InlineNode[] {
 // ── Container-authoring API (pre-freeze) ─────────────────────────────────────
 // The pieces a container plugin shares with the editor; `createContainerBlock` and `BlockList` are
 // on `/svelte`. `registerChromeLeaf` gives a container an editable title row.
-export type { Draft, DraftCloseCause, DraftSpec } from './schema/drafts';
+export type { DraftCloseCause, DraftSpec } from './schema/drafts';
 export type { RefSlots } from './block-lists/child-refs';
 export type { ChildList } from './block-lists/child-list';
 // The one place allowed to import from `components/`, so `editor-actions` keeps no upward

@@ -355,7 +355,7 @@ A container's `ctx` carries more than the conspiracy uses. The Svelte factory re
 | `ctx.editor.options` | This editor's options for the plugin that owns your kind, your `defaults` included, typed `unknown`. It's how a value differs per editor, which a factory argument can't do ([the options recipe](per-editor.md#recipe-per-instance-options-and-the-factory-closure-trap)) |
 | `ctx.editor` | This editor's `EditorContext` for the plugin that owns your kind (the factory's `getEditor()` is undefined in a bare test harness). Its `computeInlineContent` reads the syntax this editor draws. If your helper's reader defaults to the free `computeInlineContent`, pass it this one, and from the factory `getEditor()?.computeInlineContent`, which still parses in a bare harness (the bundled toc and footnotes do exactly this) |
 | `ctx.container.captureScrollPosition` | Your component is about to swap its view for one of a different height (a tall diagram for its short source card) and the reader is scrolled right at it. Call it before the swap, await what it hands back after, and the page stays where the reader left it instead of clamping to the shorter layout in between |
-| `ctx.container.openDraft` | Your component holds an edit outside the document, like a textarea's text. It's `EditorContext.openDraft`, passed through so a component needs no context ([What your own editing surface has to do](render-primary.md#what-your-own-editing-surface-has-to-do)) |
+| `ctx.container.openDraft` | Your component holds an edit outside the document, like a textarea's text, as a draft of your block's bytes ([What your own editing surface has to do](render-primary.md#what-your-own-editing-surface-has-to-do)) |
 
 ```ts
 const { container } = ctx;

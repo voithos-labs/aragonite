@@ -233,6 +233,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.311 | The range-edit core keeps its laws and its named rows, save the known law 3 residue | harness |
 | G4.312 | One range edit's work doesn't grow with the document | harness |
 | G4.313 | The range-edit layout reads every block and container line back from the document's bytes | harness |
+| G4.317 | A plugin or a host writes bytes through a `Draft`; another caller of the byte splice is on a list | L |
 
 ### The entries
 
@@ -678,3 +679,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.312 · A range edit costs the range, not the document.** Over documents of 500 and 2,000 blocks, the core reads the whole document four times at most, and the bytes it hands the in-block writes grow by half plus 4 KB at most. `test/range-edit/cost.test.ts`.
 
 **G4.313 · The range layout reads back from the bytes.** `range-edit/layout.ts` is where the range-edit core reads each block's span and each container line's marker, and it's built on the byte map in `tree-operations/container-offsets.ts`, never a second one. Every block starts at its first byte and ends past its own line ending (not on the next line's markers), and each container line past its marker holds the next line its children write. A tab cut by a marker, a blank line and a title inside a tag are the allowed spellings. `test/range-edit/layout.test.ts`.
+
+**G4.317 · One write for plugins and hosts.** `CommitController.commitSource` is handed its changes only by the draft (`editor-actions/commit/draft-registry.svelte.ts`), which maps a waiting write's ranges past the writes since it opened and refuses with a reason; any other caller is on the row's list with why (today the test bridge's splice). `lint/file-rules.test.ts`.
