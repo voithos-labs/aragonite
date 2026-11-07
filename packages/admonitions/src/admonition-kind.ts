@@ -100,7 +100,7 @@ export function registerAdmonitions(view: BlockView, options?: AdmonitionsOption
 		keymap: [{ chord: 'Mod+7', command: cycleKind }],
 		conformanceFixture: ':::note Heads up\n\nbody\n\n:::\n',
 		closure: containerClosure({
-			roundTripVia: 'container contract=opaque — rebuildAdmonitionRaw (directive)',
+			roundTripVia: 'container lines — the colon shape, written by the container writer',
 			focus: { mode: 'implemented', via: 'focus walks to the opener line / first body child' },
 			mergeBackspace: { mode: 'implemented', via: 'mergeRole=container + unwrapRole' },
 			undo: {

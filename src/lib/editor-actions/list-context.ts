@@ -109,7 +109,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 				// The new item starts from `prevItem`'s bytes, so its marker line takes the indent.
 				newItem = buildListItem(
 					followerMetadata(prevItem ? metadataOf(prevItem, 'listItem') : undefined),
-					// rebuildListItemRaw derives the item's raw from its body's line ending.
+					// The container writer takes the item's line ending from its body.
 					[emptyParagraph('', deps.getLineEnding())],
 					deps.reading.grammar,
 					prevItem
