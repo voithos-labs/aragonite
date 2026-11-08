@@ -125,7 +125,7 @@ export type { ChildRawChange } from './schema/child-spans';
 // ── Block views ──────────────────────────────────────────────────────────────
 // What draws a kind, the registration's `view`: `defineBlockView` draws into an element the
 // editor makes, and `svelteBlockView` on `/svelte` draws with a component.
-export { defineBlockView } from './schema/block-view';
+export { defineBlockView } from './components/dom-block-view/define-block-view';
 export type {
 	BlockView,
 	BlockSurface,

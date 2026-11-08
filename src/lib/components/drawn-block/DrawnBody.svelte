@@ -35,7 +35,7 @@
 	import { checkDomViewContent } from '../../invariants/dom-view-content';
 	import { warnIfForeignRuntime } from '../../foreign-runtime';
 	import { createEditableLeaf } from '../blocks/editable/editable-leaf';
-	import { bindLeafSurface } from '../dom-block-view/leaf-surface-binding.svelte';
+	import { bindLeafSurface } from './leaf-surface-binding.svelte';
 	import { createDrawnBox } from './drawn-box.svelte';
 	import { createContainerBlock } from '../../editor-actions/plugin/container';
 	import BlockList from '../BlockList.svelte';

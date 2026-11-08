@@ -49,7 +49,7 @@
 	import { isEditableEventTarget } from '../../editor-actions/whole-block-focus-surface.svelte';
 	import { commandForKey } from '../../schema/commands';
 	import BlockList from '../BlockList.svelte';
-	import { bindLeafSurface } from './leaf-surface-binding.svelte';
+	import { bindLeafSurface } from '../drawn-block/leaf-surface-binding.svelte';
 	import { handBuiltRef, samePublication } from './hand-built-ref';
 
 	let {

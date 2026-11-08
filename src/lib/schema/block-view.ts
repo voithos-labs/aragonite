@@ -249,22 +249,12 @@ export const HAND_BUILT_MEMBERS = (
 /** What the editor calls on a hand-built block; `editable` comes from the kind's registration. */
 export type HandBuiltBlock = Pick<BlockComponent, HandBuiltMember>;
 
-const SURFACES: readonly BlockSurface[] = ['none', 'leaf', 'render-primary', 'container'];
-
-/** A block view drawn by `spec`. Throws on a `surface` or `mount` it can't use. */
-export function defineBlockView(spec: BlockViewSpec): BlockView {
-	if (!SURFACES.includes(spec?.surface)) {
-		throw new TypeError(
-			`defineBlockView: \`surface\` must be one of ${SURFACES.map((s) => `'${s}'`).join(', ')}`
-		);
-	}
-	if (typeof spec.mount !== 'function') {
-		throw new TypeError('defineBlockView: `mount` must be a function');
-	}
-	return asBlockView({ spec: { ...spec } as BlockViewSpec }, 'dom');
-}
-
 /** The spec behind a DOM view. */
 export function domViewSpec(view: BlockView): BlockViewSpec {
 	return (view as unknown as { spec: BlockViewSpec }).spec;
+}
+
+/** The component that hosts a DOM view, which the view carries so the first load never holds it. */
+export function domViewHost(view: BlockView): unknown {
+	return (view as unknown as { host: unknown }).host;
 }
