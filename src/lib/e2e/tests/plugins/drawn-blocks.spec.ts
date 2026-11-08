@@ -198,9 +198,12 @@ test.describe('a container drawn as a box, under typing and windowing', () => {
 		page.evaluate(() => (window as any).__drawnLog?.updates.aside ?? 0);
 
 	test('typing in its child tells its drawing once per key', async ({ page }) => {
-		await new PluginsPage(page).gotoPlugins('drawn');
-		const before = await updates(page);
+		const editor = new PluginsPage(page);
+		await editor.gotoPlugins('drawn');
+		// After the caret is in: its arrival is an update of its own.
 		await placeCaret(page, [ASIDE, 0], 'end');
+		await editor.waitForRenderFlush();
+		const before = await updates(page);
 		await page.keyboard.type('abc');
 		await expect.poll(() => source(page)).toMatch(/\n%> aside textabc\n$/);
 		expect((await updates(page)) - before).toBe(3);

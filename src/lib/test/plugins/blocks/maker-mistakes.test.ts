@@ -55,6 +55,8 @@ function mistakes(draft: Draft, plain: Block<never>, numbered: Block<number>) {
 	});
 	// @ts-expect-error a block type whose lines carry no data can't be given any
 	draft.data(plain, 1);
+	// @ts-expect-error a block not narrowed to its type can't be given data
+	draft.data(numbered.children[0], 1);
 	draft.data(numbered, 2);
 	return [a, b, c, d, e, f, g, h, i, fine];
 }
