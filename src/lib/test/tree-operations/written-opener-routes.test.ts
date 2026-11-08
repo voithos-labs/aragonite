@@ -187,6 +187,16 @@ describe.each(SPLICE_ROUTES)('an opener %s over a range wider than its write', (
 		await write(h, 0, `x\n\n${below}`.length, `${opener}\n\n${below}`);
 		expect(settled(h.deps.doc)).toBe(`${opener}\n${closer}\n\n${below}\nend\n`);
 	});
+
+	// The e2e harness plugin's write: `write $$` to `$$` changes only the removed `write `.
+	it.each(OPENERS)(
+		'`%s` left by removing the text before it takes in nothing below',
+		async (opener, below, closer) => {
+			const h = makeTopHarness(`write ${opener}\n\n${below}`);
+			await write(h, 0, `write ${opener}`.length, opener);
+			expect(settled(h.deps.doc)).toBe(`${opener}\n${closer}\n\n${below}`);
+		}
+	);
 });
 
 /** A container, its first line's marker and the marker each line after it takes. */
