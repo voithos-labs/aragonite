@@ -62,17 +62,7 @@ async function typeThenRewrite() {
 		stamps: editor.deps.stamps,
 		canEditLinkAtCaret: () => false,
 		editLinkAtCaret: () => {},
-		misspellingAtCaret: () => null,
-		spelling: {
-			peekSuggestions: () => null,
-			suggestionsFor: async () => [],
-			replace: async () => true,
-			canAddWord: false,
-			addWord: async () => {}
-		},
-		getMenu: () => menu,
-		setMenu: (next) => (menu = next),
-		getBlockElByPath: () => null
+		setMenu: (next) => (menu = next)
 	});
 	root.addEventListener('contextmenu', menus.onRootContextMenu);
 

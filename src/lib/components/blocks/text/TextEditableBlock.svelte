@@ -144,8 +144,7 @@
 		imageLoadPolicy,
 		brokenImageUrls: brokenUrlCache,
 		theme: getTheme,
-		activationClick,
-		nativeSpellcheck
+		activationClick
 	} = wiring.policies;
 	const { contentVersion: getContentVersion } = wiring.doc;
 	const readOnly = $derived(reading.mode() === 'reading');
@@ -870,7 +869,6 @@
 	class="text-editable-block {blockClass}"
 	contenteditable={readOnly ? 'false' : 'true'}
 	data-source-at-caret={sourceAtCaret ? '' : undefined}
-	spellcheck={nativeSpellcheck() ? 'true' : 'false'}
 	{...editableSurface.attributes(combobox)}
 	style:--md-prefix-indent={ambientPrefixText ? ambientIndent : null}
 	style:text-indent={ambientPrefixText ? 'calc(-1 * var(--md-prefix-indent))' : null}
