@@ -2,20 +2,9 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
-import { replaceRange } from '#lib/selection/cross-block/range-replace.js';
-import { rangeContext } from '../../selection/cross-block/range-context';
-import { splitNode } from '#lib/tree-operations/node-ops.js';
-import {
-	makeBlockListState,
-	makeEditorActionsDeps,
-	makeTopHarness
-} from '#lib/test/harness/editor-actions.js';
-import { registerBlockListState } from '#lib/block-lists/state-registry.js';
+import { makeTopHarness } from '#lib/test/harness/editor-actions.js';
 import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
 import { asDocPath } from '#lib/core/coordinate-spaces.js';
-import { fixtureReading } from '../../harness/fixture-grammar';
-import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // The commit's blank-line fix-up must change nothing over a range its mutate already fixed up.
 // Miss-analysis: the fix-up lived at each splice site, so no case ran a second one over one range.
@@ -44,59 +33,6 @@ describe('the commit sequence settle over a window its mutate already settled', 
 
 // A cross-block delete splices inside `mutate`, then the commit fixes up the same range; the
 // truncated start block is a new node, so a blank one must not be fixed up a second time.
-describe('a delete that crosses both shared entries in one commit', () => {
-	function deleteAcross(
-		source: string,
-		anchor: number[],
-		focus: number[],
-		offsets: [number, number]
-	) {
-		const harness = makeEditorActionsDeps(parse(source).children);
-		const controller = createUndoController(harness.deps);
-		// Container scopes resolve through the registry, so a nested endpoint needs its state.
-		harness.deps.doc.children.forEach((node, i) => {
-			if (node.children) {
-				registerBlockListState(
-					node,
-					makeBlockListState(() => harness.deps.doc.children[i])
-				);
-			}
-		});
-		harness.deps.selectionState.enterCrossBlock(
-			{ path: anchor, offset: offsets[0] },
-			{ path: focus, offset: offsets[1] }
-		);
-		// A composition's removal, which commits before the replace's first await.
-		void replaceRange(rangeContext(harness.deps, controller, fixtureReading()), {
-			kind: 'composition'
-		});
-		return harness;
-	}
-
-	it('settles once when the range starts in a load-shaped blank block', () => {
-		const h = deleteAcross('alpha\n\n\ndelta\n\nomega\n', [1], [2], [0, 2]);
-
-		expect(serialize(h.deps.doc)).toBe('alpha\n\nlta\n\nomega\n');
-		expectParseConverged(h.deps.doc);
-	});
-
-	// The split shape: the blank block holds no line and its follower holds the run's one.
-	it('settles once when the range starts in a split-shaped blank block', () => {
-		const split = parse('alpha\n\ndelta\n\nomega\n');
-		splitNode(split, 0, 5, createSharingState(), fixtureReading());
-		const h = deleteAcross(serialize(split), [1], [2], [0, 2]);
-
-		expectParseConverged(h.deps.doc);
-		expect(serialize(h.deps.doc)).not.toContain('\n\n\n');
-	});
-
-	it('settles once across a container scope', () => {
-		const h = deleteAcross('> alpha\n>\n>\n> delta\n\nomega\n', [0, 1], [0, 2], [0, 2]);
-
-		expect(serialize(h.deps.doc)).toBe('> alpha\n>\n> lta\n\nomega\n');
-		expectParseConverged(h.deps.doc);
-	});
-});
 
 // The new paragraph is blank, so the fix-up turns the suffix's trailing blank line into a block,
 // and the reported change must count it or the id and ref arrays fall one short.

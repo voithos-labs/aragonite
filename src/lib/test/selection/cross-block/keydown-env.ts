@@ -28,6 +28,7 @@ import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 import { rangeHolder } from '#lib/selection/held-selection.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { displayLength } from '#lib/core/lines.js';
+import { freshBytes } from '../../harness/copied-text';
 
 export interface KeydownEnvOptions {
 	presentationMode?: PresentationMode;
@@ -114,7 +115,8 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 			crossBlockCommands,
 			onCommandError
 		}),
-		activePlugins: everyInstalledPlugin
+		activePlugins: everyInstalledPlugin,
+		bytes: freshBytes(() => harness.deps.doc)
 	} as unknown as CrossBlockDispatchContext;
 
 	return {

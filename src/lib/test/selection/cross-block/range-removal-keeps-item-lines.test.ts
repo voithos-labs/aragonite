@@ -66,7 +66,8 @@ const REMOVALS: [
 		'p0\n\n- i1\n  - i2\n',
 		at([0], 1),
 		at([1, 0, 0], 1),
-		'p|1\n\n  - i2\n'
+		// The blank line between the paragraph and the list lies inside the range, so it goes.
+		'p|1\n  - i2\n'
 	],
 	[
 		'from a paragraph into a first item holding a paragraph',

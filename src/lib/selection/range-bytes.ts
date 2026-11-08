@@ -122,9 +122,8 @@ export function rangePaint(doc: DocumentView, coverage: RangeCoverage, layout: L
 const textEnd = (doc: DocumentView, block: LaidBlock) =>
 	block.to - ownTrailingLineEnding(blockNodeAt(doc, block.path)!.raw).length;
 
-/** A text end's byte; a cell end's row, from its first byte or to its last, or its whole table
- *  where the range enters it at its first row or leaves it at its last; any other block's own edge
- *  on that side, since its offsets address no text. */
+/** A text end's byte; a cell end's row, or its whole table where the range enters by the first row
+ *  or leaves by the last; any other block's own edge, since its offsets address no text. */
 function endByte(
 	doc: DocumentView,
 	layout: Layout,

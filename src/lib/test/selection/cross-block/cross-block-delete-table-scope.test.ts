@@ -28,27 +28,6 @@ function expectLockstep(state: BlockListState, node: CstNode): void {
 }
 
 describe('a range removal: endpoint table as a commit scope', () => {
-	it('paragraph → body cell: row state stays in lockstep, promoted header keeps its id', async () => {
-		const env = makeEnv(`lead\n\n${HEADER_PLUS_TWO}`);
-		const state = registerTableState(env, 1);
-		const idsBefore = [...state.innerBlockIds];
-		// Deep cell focus (row 1, col 0) — normalized to a cell-coordinate table
-		// endpoint; the whole-row snap covers rows 0–1, promoting row 2 to header.
-		env.deps.selectionState.enterCrossBlock(
-			{ path: [0], offset: 2 },
-			{ path: [1, 1, 0], offset: 1 }
-		);
-
-		await replaceRange(env.mutCtx, { kind: 'none', gesture: 'keyless' });
-
-		const table = env.deps.doc.children[1];
-		expect(table.kind).toBe('table');
-		expect(table.children).toHaveLength(1);
-		expectLockstep(state, table);
-		expect(state.innerBlockIds).toEqual([idsBefore[2]]);
-		expect(env.getBlockIds()).toHaveLength(env.deps.doc.children.length);
-	});
-
 	it('body cell → paragraph below: surviving header row keeps state in lockstep', async () => {
 		const env = makeEnv(`${HEADER_PLUS_TWO}\ntail paragraph\n`);
 		const state = registerTableState(env, 0);

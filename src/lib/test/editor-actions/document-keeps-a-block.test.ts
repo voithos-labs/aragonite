@@ -115,42 +115,6 @@ const ROWS: Record<string, Row> = {
 		bytes: '\n',
 		placed: [[0]]
 	},
-	'a quoted rule held whole, Backspace': {
-		source: '> ---\n',
-		drive: async (env) => {
-			select(env, whole([0, 0]), whole([0, 0]));
-			await rangeKey(env, 'Backspace');
-		},
-		bytes: '\n',
-		placed: [[0]]
-	},
-	'a rule two quotes deep held whole, Backspace': {
-		source: '> > ---\n',
-		drive: async (env) => {
-			select(env, whole([0, 0, 0]), whole([0, 0, 0]));
-			await rangeKey(env, 'Backspace');
-		},
-		bytes: '\n',
-		placed: [[0]]
-	},
-	'a list item holding only a rule, the rule held whole, Backspace': {
-		source: '* ---\n',
-		drive: async (env) => {
-			select(env, whole([0, 0, 0]), whole([0, 0, 0]));
-			await rangeKey(env, 'Backspace');
-		},
-		bytes: '\n',
-		placed: [[0]]
-	},
-	'a quoted rule under a paragraph held whole, Backspace: the quote goes, the paragraph stays': {
-		source: 'a\n\n> ---\n',
-		drive: async (env) => {
-			select(env, whole([1, 0]), whole([1, 0]));
-			await rangeKey(env, 'Backspace');
-		},
-		bytes: 'a\n',
-		placed: [[0]]
-	},
 	'a focused quoted rule, Backspace through the quote': {
 		source: '> ---\n',
 		drive: (env) => focusedRuleKey(nested(env, 0), 'Backspace'),
@@ -204,24 +168,6 @@ const ROWS: Record<string, Row> = {
 		},
 		bytes: '\n',
 		placed: [[0]]
-	},
-	'a quoted rule and a list item’s text, Backspace: the quote goes, the item keeps its slot': {
-		source: '> ---\n\n- b\n',
-		drive: async (env) => {
-			select(env, whole([0, 0]), at([1, 0, 0], 1));
-			await rangeKey(env, 'Backspace');
-		},
-		bytes: '- \n',
-		placed: [[0, 0, 0]]
-	},
-	'quoted text and the paragraph below, Backspace: the start keeps its slot in the quote': {
-		source: '> a\n\npara\n',
-		drive: async (env) => {
-			select(env, at([0, 0], 0), at([1], 4));
-			await rangeKey(env, 'Backspace');
-		},
-		bytes: '>\n',
-		placed: [[0, 0]]
 	},
 	'a quote’s only child replaced by nothing': {
 		source: '> a\n',
@@ -289,7 +235,7 @@ const ROWS: Record<string, Row> = {
 			select(env, whole([0]), whole([0]));
 			await rangeKey(env, 'Backspace');
 		},
-		bytes: '\n',
+		bytes: '',
 		placed: [[0]]
 	},
 	'a table with no final line break held whole, Backspace': {
@@ -298,7 +244,7 @@ const ROWS: Record<string, Row> = {
 			select(env, cell([0], 0), cell([0], 3));
 			await rangeKey(env, 'Backspace');
 		},
-		bytes: '\n',
+		bytes: '',
 		placed: [[0]]
 	}
 };

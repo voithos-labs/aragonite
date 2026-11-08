@@ -136,7 +136,8 @@ describe.each(MODES)('%s mode: Enter over a selection never completes a line', (
 describe('Enter over a range spanning blocks that empties a line', () => {
 	it.each([
 		['two items', '- alpha\n- beta\n\nnext\n', [0, 0, 0], [0, 1, 0], '- \n- \n\nnext\n'],
-		['a quote’s lines', '> alpha\n>\n> beta\n\nnext\n', [0, 0], [0, 1], '>\n>\n\nnext\n']
+		// The quote the range only empties keeps its marker's spelling (C10).
+		['a quote’s lines', '> alpha\n>\n> beta\n\nnext\n', [0, 0], [0, 1], '> \n>\n\nnext\n']
 	] as const)('%s splits and stays in the block', async (_, source, from, to, written) => {
 		const editor = mountEditor({ source });
 		await settleEditor();

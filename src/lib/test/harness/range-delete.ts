@@ -1,6 +1,7 @@
 // A range delete between two points, as the editor's removal runs it: cover the range, read it as
-// bytes, and take the range-edit core's answer. Table endpoints must be cell points, as
-// `SelectionState` hands them over.
+// bytes, take the range-edit core's answer and write it into `doc` in place, as the byte splice
+// writes it (a closing line under an opener it writes included). Table endpoints must be cell
+// points, as `SelectionState` hands them over.
 
 import type { Document } from '#lib/core/nodes.js';
 import type { DocumentView } from '#lib/core/node-views.js';
@@ -15,6 +16,9 @@ import { removalOf, type RemovalGesture as CoreGesture } from '#lib/range-edit/e
 import { rangeHost } from '#lib/range-edit/host.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
 import { serialize } from '#lib/core/serializer.js';
+import { changesBetween, changedBytes, spliceReading } from '#lib/tree-operations/byte-splice.js';
+import { splicedOpenerClosers, withSplicedClosers } from '#lib/tree-operations/spliced-openers.js';
+import { offsetPastClosers } from '#lib/tree-operations/written-openers.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
 import { hidesDelimitersAtCaret } from '#lib/presentation-mode.js';
 import type { SharingState } from '#lib/tree-operations/sharing.js';
@@ -31,6 +35,8 @@ export interface RangeDeleteOptions {
 export interface RangeDeleteResult {
 	newDoc: Document;
 	caret: (committed: DocumentView) => SelectionPoint | null;
+	/** Whether the core's caret sits in a block's text. */
+	inText: boolean;
 }
 
 const CORE: Record<RemovalGesture, CoreGesture> = {
@@ -54,7 +60,14 @@ export function deleteRange(
 	const mode = hidesDelimitersAtCaret(reading.mode()) ? 'live' : 'source';
 	const host = rangeHost(reading, { source, tree: doc, layout });
 	const answer = removalOf(source, range, CORE[gesture], mode, host);
-	const bytes = numberedOn(doc, layout, source, range, answer.source);
-	const newDoc = readAsOpened(bytes, { grammar: reading.grammar, scope: 'document' }) as Document;
-	return { newDoc, caret: (committed) => pointAtByte(committed, answer.caret.at) };
+	const changes = changesBetween(source, numberedOn(doc, layout, source, range, answer.source));
+	const read = spliceReading(doc, source, changes, reading.grammar);
+	const closers = read ? splicedOpenerClosers(doc, source, changes, read, reading.grammar) : [];
+	const written = withSplicedClosers(source, changes, closers);
+	const bytes = changedBytes(source, 0, source.length, written);
+	const opened = readAsOpened(bytes, { grammar: reading.grammar, scope: 'document' }) as Document;
+	Object.assign(doc, { prefix: opened.prefix, children: opened.children, suffix: opened.suffix });
+	const at = offsetPastClosers(answer.caret.at, closers);
+	const inText = answer.caret.holds === 'text';
+	return { newDoc: doc, caret: (committed) => pointAtByte(committed, at), inText };
 }

@@ -17,6 +17,7 @@ import type { CaretMemory } from '#lib/caret/caret-memory.js';
 import { commandContext } from './command-context';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 import { createCompositionTracker } from '#lib/browser/composition.js';
+import { freshBytes } from './copied-text';
 
 export interface SurfaceHarness {
 	surface: ReturnType<typeof createEditableSurface>;
@@ -115,6 +116,8 @@ export function makeSurface(
 		handleBeforeInput: options.handleBeforeInput,
 		...options.overrides
 	} as unknown as EditableSurfaceDeps;
+	// Over the document the test hands in, so a range removal reads the bytes it removes from.
+	deps.bytes ??= freshBytes(() => deps.getDoc());
 
 	return {
 		surface: createEditableSurface(deps),
