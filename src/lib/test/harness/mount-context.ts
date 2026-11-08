@@ -165,6 +165,7 @@ function stubbedPolicies(): EditorPolicies {
 		onPasteImage: () => undefined,
 		onRunCode: () => undefined,
 		codeMenuItems: () => undefined,
+		browserSpellcheck: () => true,
 		brokenImageUrls: new Set<string>()
 	};
 }

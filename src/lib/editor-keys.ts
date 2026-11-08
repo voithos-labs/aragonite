@@ -195,6 +195,8 @@ export interface EditorPolicies {
 	onPasteImage: () => PasteImageHook | undefined;
 	onRunCode: () => RunCodeHook | undefined;
 	codeMenuItems: () => CodeMenuItemsHook | undefined;
+	/** Whether a prose surface lets the browser's own spell checker run, read live. */
+	browserSpellcheck: () => boolean;
 	/** Resolved image URLs that failed to load this session, one Set per instance so a failure never
 	 *  suppresses another editor's broken-state recompute. */
 	brokenImageUrls: Set<string>;

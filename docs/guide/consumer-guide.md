@@ -275,6 +275,7 @@ The table is the exports you'll actually reach for, grouped by job. It's not eve
 | `blockDragHandles` | The block drag handle, revealed on hover and shown outright on touch (default on; reading mode hides it). Only blocks you'd pick up whole carry one (code, tables, equations, diagrams, pictures, list items in a list of two or more, dividers, cards), never prose. `false` removes them, except on a picture; keyboard reorder (Alt+Arrow) always works |
 | `searchBar` | The built-in find/replace bar and its Mod+F / Mod+H shortcuts (default on) |
 | `searchBarAnchor` | An element to render that same bar into, instead of inside the editor root (see [Where the find bar lives](#where-the-find-bar-lives)) |
+| `spellcheck` | The browser's own spell checker on your prose (default on). `false` turns it off. Install a spell-check plugin and it turns the browser's off by itself, so a word never gets two underlines |
 | `selectionToolbar` | The built-in formatting popover over a selection: the marks, the link, a heading picker, inline code and copy, plus cut and paste on a touch screen (default on; reading mode never shows it). Off, it's gone for a mouse, but a finger's selection keeps a small bar with just Cut, Copy and Paste, since the editor replaced the phone's own menu. See [Recipe: a selection toolbar](consumer-guide/recipes.md#recipe-a-selection-toolbar) |
 | `placeholder` | Faint text an empty block shows until something's typed: a string for an empty document, or a function asked about each empty block (see [A hint in an empty block](#a-hint-in-an-empty-block)) |
 
@@ -282,7 +283,7 @@ The table is the exports you'll actually reach for, grouped by job. It's not eve
 
 **Hooks:** `onPasteImage`, `onRunCode`, `codeMenuItems`, and `onLinkActivate` can be swapped, added or dropped after mount, and the editor always calls the one you passed last. Same for `resolveImageUrl` and `resolveLinkUrl`, with one catch: they run when a block renders, so an image or link already on screen keeps its URL until its block renders again.
 
-**Read live:** `theme`, `caret`, `searchBar`, `searchBarAnchor`, `selectionToolbar`, `blockDragHandles`, `placeholder`, `presentationMode`, `linkClick`, `keybindings`, and `imageLoadPolicy` may change after mount, and so may `header`.
+**Read live:** `theme`, `caret`, `searchBar`, `searchBarAnchor`, `selectionToolbar`, `blockDragHandles`, `spellcheck`, `placeholder`, `presentationMode`, `linkClick`, `keybindings`, and `imageLoadPolicy` may change after mount, and so may `header`.
 
 ### Loading another document
 

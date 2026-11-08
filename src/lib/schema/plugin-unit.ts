@@ -58,6 +58,9 @@ export interface Contribution {
 	commands?: readonly Command<unknown>[];
 	/** Rows for the insert menus, listed after the built-ins as `plugin/id`. */
 	inserts?: readonly InsertRow[];
+	/** True when the plugin checks spelling itself: the browser's own checker is off on the
+	 *  editor's prose while the plugin runs, so no word gets two underlines. */
+	checksSpelling?: boolean;
 }
 
 /** The editor as a plugin's `setup` and a host's handle both see it. */

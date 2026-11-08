@@ -189,6 +189,7 @@
 		codeMenuItems,
 		header,
 		blockDragHandles = true,
+		spellcheck = true,
 		placeholder,
 		searchBar = true,
 		searchBarAnchor,
@@ -253,12 +254,20 @@
 	});
 	const installList = (values: PluginList, previous?: readonly InstalledPlugin[]) =>
 		contributions.read(installPluginList(values, reportPluginError, previous));
-	let units: readonly InstalledPlugin[] = pluginEntries ? installList(pluginEntries.values) : [];
+	let units = $state.raw<readonly InstalledPlugin[]>(
+		pluginEntries ? installList(pluginEntries.values) : []
+	);
 
 	// The editor runs exactly the plugins it lists; with no `plugins` prop, every installed one.
 	const listedNames = () => (pluginEntries ? runningNames(pluginEntries, units) : null);
 	const activePlugins = createEditorActivation(listedNames(), contributions);
 	let pluginNames = $state<readonly string[]>(activePlugins.names);
+
+	// The one place the prose surfaces' `spellcheck` attribute is decided: the host's prop, off
+	// while a running plugin checks spelling itself.
+	const browserSpellcheck = $derived(
+		spellcheck && !units.some((unit) => unit.contribution.checksSpelling)
+	);
 
 	const overridesMap = $derived(normalizeKeybindingOverrides(keybindings));
 
@@ -961,6 +970,7 @@
 		onPasteImage: () => onPasteImage,
 		onRunCode: () => onRunCode,
 		codeMenuItems: () => codeMenuItems,
+		browserSpellcheck: () => browserSpellcheck,
 		brokenImageUrls
 	} satisfies EditorPolicies);
 

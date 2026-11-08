@@ -60,7 +60,7 @@ _(pre-freeze / unstable)_ The installable package, and the per-editor context it
 | `PluginSpec` | What you hand `definePlugin` to get a plugin value instead: `name`, `version`, the `editor` range it runs on, `defaults`, `validate`, `needs`, `conflicts`, and `contributes(options)`, which each editor calls with its own options |
 | `Plugin` | The plugin value that comes back. Call it with options (`math({ render })`) to give one editor different ones |
 | `PluginList` | A list of plugin values, whatever their options, as `needs` takes it |
-| `Contribution` | What `contributes` hands back for one editor: a `setup(editor)` that runs once that editor mounts, the `commands` it runs, and its `inserts` rows |
+| `Contribution` | What `contributes` hands back for one editor: a `setup(editor)` that runs once that editor mounts, the `commands` it runs, its `inserts` rows, and `checksSpelling: true` if your plugin underlines misspelled words itself (the editor turns the browser's checker off on its prose while your plugin runs) |
 | `Editor` | What `setup` and your commands get: the plugins on, the mode, the theme, the `inserts` rows, `on`, `run` and `can` (a command by value or id, with its argument), `claims` and `edit`. It's one object per plugin per editor, and a listener you add there goes away with your plugin |
 | `PluginError` | An error your plugin caused: its name, what the editor was doing with it (`install`, `validate`, `contributes`, `setup`, `dispose`, `run shout/hello` for a command, or `on('edit')` for a listener that threw), and the cause |
 | `BlockType` | A block type by name |

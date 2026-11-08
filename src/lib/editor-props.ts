@@ -61,6 +61,9 @@ export interface EditorOptions {
 	 *  pictures, list items, dividers, cards), never prose. `false` removes them, except on a
 	 *  picture, whose handle is its only pointer move. Alt+Arrow reorder always works. */
 	blockDragHandles?: boolean;
+	/** The browser's own spell checker on prose (default on). `false` turns it off; a plugin that
+	 *  checks spelling itself turns it off on its own while it runs. */
+	spellcheck?: boolean;
 	/** Faint text an empty block shows until something is typed, read live. A string shows only in
 	 *  an empty document, never in reading mode; a function is asked for each empty block on screen
 	 *  and returns the text or null. Painted in `--md-placeholder-color` and announced as
@@ -153,6 +156,7 @@ export const EDITOR_OPTION_SPECS = {
 	searchBarAnchor: { timing: 'live' },
 	selectionToolbar: { timing: 'live', boolean: true },
 	blockDragHandles: { timing: 'live', boolean: true },
+	spellcheck: { timing: 'live', boolean: true },
 	imageLoadPolicy: { timing: 'live' },
 	header: { timing: 'live' },
 	resolveImageUrl: { timing: 'live' },
