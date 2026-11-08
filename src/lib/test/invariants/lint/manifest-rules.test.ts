@@ -298,6 +298,8 @@ const PLAIN_READS: Record<string, string> = {
 		'probe: re-derives the metadata of a block written in place under its own kind, and installs none of the read’s nodes',
 	'src/lib/tree-operations/written-openers.ts':
 		'probe: reads written bytes, alone and with the blocks below, to find an opener that would read down into them; installs none of what it reads',
+	'src/lib/tree-operations/spliced-openers.ts':
+		'probe: reads the bytes a byte splice writes at their slot to close an opener in them; the splice then reads its changes again with `readAsOpened`, and installs that',
 	'src/lib/tree-operations/stored-as.ts':
 		'probe: answers how a slot reads bytes, for the write rules and the live join’s comparisons; nothing it reads is installed here',
 	'src/lib/tree-operations/paste/paste-replacement.ts':
