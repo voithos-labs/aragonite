@@ -7,15 +7,15 @@
 import {
 	readClipboardText,
 	writeClipboardPayload,
-	type ClipboardPayload
-} from '../../editor-actions/system-clipboard';
+	type ClipboardWrite
+} from '../../browser/clipboard';
 import type { AimedInsert } from '../editor-root/focused-surface';
 
 export type ClipboardAction = 'cut' | 'copy' | 'paste' | 'paste-plain';
 
 /** What a Cut or Copy of the range the editor holds writes, and the removal a Cut runs after. */
 export interface MenuTake {
-	payload: ClipboardPayload;
+	write: ClipboardWrite;
 	remove(): Promise<void>;
 }
 
@@ -40,7 +40,7 @@ export async function runClipboardAction(
 			const taken = clipboard.take();
 			if (!taken) return;
 			// A refused write changes nothing, so a Cut whose write was refused keeps its range.
-			if ((await writeClipboardPayload(taken.payload)) && action === 'cut') await taken.remove();
+			if ((await writeClipboardPayload(taken.write)) && action === 'cut') await taken.remove();
 			return;
 		}
 		case 'paste':

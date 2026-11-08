@@ -392,6 +392,48 @@ export async function measureStructuralRebuild(
 	};
 }
 
+/** Copies of a range across `items` items of a giant list, from item `item` down, each timed from
+ *  the copy command to its return: the copy writes before anything awaits. */
+export async function measureListCopy(
+	page: Page,
+	editor: EditorPage,
+	bytes: number,
+	item: number,
+	items: number,
+	copies: number
+): Promise<LatencyMeasurement> {
+	await editor.goto();
+	const loadMs = await loadFixture(page, editor, generateFixture('giant-single-list', bytes));
+	const leaf = [0, item, 0];
+	await assertMounted(page, leaf, 'list item');
+	await editor.focusBlockAtPath(leaf, 0);
+	for (let i = 0; i < items; i++) await page.keyboard.press('Shift+ArrowDown');
+	await editor.waitForCrossBlock(true);
+	const samples: number[] = [];
+	for (let i = 0; i < copies; i++) {
+		samples.push(
+			await page.evaluate(() => {
+				let written = '';
+				const read = (e: ClipboardEvent) =>
+					(written = e.clipboardData?.getData('text/plain') ?? '');
+				window.addEventListener('copy', read, { once: true });
+				const start = performance.now();
+				document.execCommand('copy');
+				const ms = performance.now() - start;
+				// A copy that wrote nothing would time as fast as one that did.
+				if (written === '') throw new Error('the copy wrote nothing');
+				return ms;
+			})
+		);
+	}
+	return {
+		loadMs,
+		samples,
+		p50Ms: percentileMs(samples, 50),
+		p95Ms: percentileMs(samples, 95)
+	};
+}
+
 /** A paste at the end of item `item` of a giant list, through today's paste and through the byte
  *  splice, each timed to the frame after it lands; either way the whole list is read again. */
 export async function measureListPaste(

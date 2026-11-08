@@ -14,9 +14,14 @@ import {
 } from '#lib/schema/block-kind-descriptor.js';
 import { blockViewForm, domViewSpec } from '#lib/schema/block-view.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
-import { installPlugins, type EditorPlugin } from '#lib/schema/plugin-install.js';
+import {
+	installPlugins,
+	normalizePluginEntries,
+	type PluginsProp
+} from '#lib/schema/plugin-install.js';
 import { reservedChromeKindOf } from '#lib/schema/reserved-chrome.js';
-import { blockFacts, hasTextPosition, type BlockFacts } from '#lib/schema/block-facts.js';
+import { blockFacts, type BlockFacts } from '#lib/schema/block-facts.js';
+import { isWholeBlockUnit } from '#lib/schema/whole-block-unit.js';
 import { bundledPluginDirs } from '../invariants/lint/scan-source';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
@@ -26,11 +31,11 @@ import { highlightOccurrencesPlugin } from '#packages/highlight-occurrences/src/
 import { latexPlugin } from '#packages/latex/src/index.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import { parrotPlugin } from '#packages/parrot/src/index.js';
-import { slashCommandsPlugin } from '#packages/slash-commands/src/index.js';
+import { slashCommands } from '#packages/slash-commands/src/index.js';
 import { tocPlugin } from '#packages/toc/src/index.js';
 
 /** Every bundled plugin by its directory, so a plugin added on disk fails until it is listed. */
-const BUNDLED: Record<string, () => EditorPlugin> = {
+const BUNDLED: Record<string, () => PluginsProp[number]> = {
 	admonitions: admonitionsPlugin,
 	details: detailsPlugin,
 	emoji: emojiPlugin,
@@ -39,11 +44,11 @@ const BUNDLED: Record<string, () => EditorPlugin> = {
 	latex: () => latexPlugin(),
 	mermaid: mermaidPlugin,
 	parrot: parrotPlugin,
-	'slash-commands': slashCommandsPlugin,
+	'slash-commands': () => slashCommands,
 	toc: tocPlugin
 };
 // One instance each: installing a second object under a plugin's name warns.
-const PLUGINS = Object.values(BUNDLED).map((plugin) => plugin());
+const PLUGINS = normalizePluginEntries(Object.values(BUNDLED).map((plugin) => plugin())).plugins;
 
 beforeEach(() => installPlugins(PLUGINS));
 
@@ -195,17 +200,16 @@ describe('block facts agree with every registration', () => {
 	});
 });
 
-describe('a block drawn as a picture of its source', () => {
-	it('has a text position only while its source shows', () => {
-		expect(hasTextPosition('mathBlock', false)).toBe(false);
-		expect(hasTextPosition('mathBlock', true)).toBe(true);
-	});
-
-	it('leaves a text block always reachable and a block focused whole never', () => {
-		expect([false, true].map((shows) => hasTextPosition('paragraph', shows))).toEqual([true, true]);
-		expect([false, true].map((shows) => hasTextPosition('thematicBreak', shows))).toEqual([
-			false,
-			false
-		]);
+// Miss-analysis: the copy widened an end by this fact while the selection held a block whole by
+// `isWholeBlockUnit`; nothing compared the two answers.
+describe('a block no caret enters', () => {
+	it('is the block a selection end holds whole, for every kind, by its parsed sample', () => {
+		const disagree = [...samples()].flatMap(([kind, node]) =>
+			node.children?.length ||
+			isWholeBlockUnit(node) === (blockFacts(kind).textPosition === 'never')
+				? []
+				: [kind]
+		);
+		expect(disagree).toEqual([]);
 	});
 });

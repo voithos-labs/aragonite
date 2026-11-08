@@ -1,17 +1,14 @@
 /**
- * The code block's context menu: dissolve the fence into plain text. Delete is every block's
- * default row. Registered once from the code bootstrap.
+ * The code block's own context-menu row: dissolve the fence into plain text. Copy, replace and
+ * remove are every block's rows.
  */
-import { registerBuiltinBlockContextActions } from '../../../schema/context-actions';
 import { trailingLineEnding, trimTrailingLineEnding } from '../../../core/lines';
+import type { NodeView } from '../../../core/node-views';
+import type { BlockContextAction } from '../../menu/default-context-actions';
 import { sliceFencedCode } from './code-renderer';
 
-let registered = false;
-
-export function registerCodeContextActions(): void {
-	if (registered) return;
-	registered = true;
-	registerBuiltinBlockContextActions('fencedCode', 'code', (node) => [
+export function codeBlockActions(node: NodeView): BlockContextAction[] {
+	return [
 		{
 			id: 'code.dissolve',
 			label: 'Dissolve into text',
@@ -22,5 +19,5 @@ export function registerCodeContextActions(): void {
 				return ctx.replaceRaw(body + trailingLineEnding(node.raw, ctx.lineEnding));
 			}
 		}
-	]);
+	];
 }

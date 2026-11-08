@@ -15,7 +15,6 @@ import {
 	installClipboardEvents,
 	installSystemClipboard
 } from '#lib/test/harness/clipboard-events.js';
-import { registerDefaultContextActions } from '#lib/components/menu/default-context-actions.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { LAW_SPECS, isLawLine, type LawSpec } from '../law-specs';
 import { KNOWN_VIOLATIONS, knownClassOf } from '../known-failures';
@@ -31,7 +30,6 @@ beforeAll(installLayoutStubs);
 beforeEach(() => {
 	installClipboardEvents();
 	installSystemClipboard();
-	registerDefaultContextActions();
 });
 afterEach(async () => {
 	await destroyMountedEditors();

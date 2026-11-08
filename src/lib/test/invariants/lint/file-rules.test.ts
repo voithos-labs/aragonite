@@ -388,6 +388,30 @@ const ONE_WRITE: FileRule = {
 	]
 };
 
+// ── G4.329 bytes read into the tree get their closers ─────────────────────────
+
+const SPLICE_READS: FileRule = {
+	id: 'G4.329 bytes are read into the tree by the byte splice, which closes the openers they write',
+	population: under(SOURCE_DIR.library, SOURCE_DIR.plugins),
+	matches: /(?<!function )\bspliceReading\(/,
+	allowed: {
+		[SOURCE.byteSplice]: 'the byte splice, which gives an opener its changes write a closer first',
+		[SOURCE.historyActions]:
+			"an undo puts back its entry's exact bytes, which were legal when written"
+	},
+	reason:
+		'a route that reads bytes into the tree itself skips the closer every write gives an opener it puts above a block that would close it; hand the bytes to `commitSource` instead',
+	reaches: [SOURCE.byteSplice, SOURCE.historyActions],
+	hits: [
+		at('src/lib/x.ts', 'const reading = spliceReading(deps.doc, before, changes, grammar);'),
+		at('src/lib/x.ts', 'installReading(deps, spliceReading(doc, text, [change], grammar)!);')
+	],
+	misses: [
+		at('src/lib/x.ts', 'export function spliceReading(\n\tdoc: DocumentView,'),
+		at('src/lib/x.ts', 'import { spliceReading } from "./byte-splice";')
+	]
+};
+
 // ── G4.221 the selection's shown text ────────────────────────────────────────
 
 const SELECTION_STRING_RE = /(?:\bgetSelection\(\)|\bsel(?:ection)?)\s*[!?]?\.toString\s*\(/;
@@ -1179,8 +1203,6 @@ const RULES: FileRule[] = [
 			'packages/latex/src/renderer.ts': 'the text of a KaTeX error message',
 			'packages/latex/src/BlockMath.svelte': SHOWS_INK,
 			'packages/mermaid/src/MermaidBlock.svelte': SHOWS_INK,
-			'packages/slash-commands/src/slash-source.ts':
-				'where a typed `/` opens the command menu: a word boundary in typing, not Markdown',
 			'packages/slash-commands/src/filter.ts': 'the words of a menu query the user typed'
 		},
 		reaches: [...GRAMMAR_FILES, SOURCE.directiveGrammar],
@@ -1272,7 +1294,7 @@ const RULES: FileRule[] = [
 			'src/lib/schema/plugin-install.ts':
 				'the function itself, which runs its callback with no plugin installing',
 			'src/lib/components/editor-built-ins.ts':
-				'the editor’s own bootstraps (blocks, code languages, context-menu rows), which the reset keeps',
+				'the editor’s own bootstraps (blocks, code languages), which the reset keeps',
 			'src/lib/schema/plugin-registry.ts':
 				'`registerCore`, which also flags a key the registry can’t tell is built-in so the reset keeps it',
 			'src/lib/schema/built-in-descriptors.ts':
@@ -1304,24 +1326,17 @@ const RULES: FileRule[] = [
 	},
 	{
 		id: 'G4.78 the editor’s built-in bootstraps run only through registerEditorBuiltIns',
-		matches:
-			/\b(?:registerBuiltInBlocks|bootstrapCodeLanguages|registerDefaultContextActions)\s*\(/,
+		matches: /\b(?:registerBuiltInBlocks|bootstrapCodeLanguages)\s*\(/,
 		allowed: {
 			'src/lib/components/editor-built-ins.ts':
-				'`registerEditorBuiltIns`, which runs the three bootstraps as no plugin',
+				'`registerEditorBuiltIns`, which runs the two bootstraps as no plugin',
 			'src/lib/components/built-in-blocks.ts': 'the definition of `registerBuiltInBlocks`',
 			'src/lib/components/blocks/code/code-bootstrap.ts':
-				'the definition of `bootstrapCodeLanguages`',
-			'src/lib/components/menu/default-context-actions.ts':
-				'the definition of `registerDefaultContextActions`'
+				'the definition of `bootstrapCodeLanguages`'
 		},
 		reason:
 			'a bootstrap called anywhere else registers the editor’s built-ins as whichever plugin’s setup reached it first, so they resolve only where that plugin is listed and the test reset drops them: call `registerEditorBuiltIns()` instead',
-		hits: [
-			'bootstrapCodeLanguages();',
-			'registerBuiltInBlocks ();',
-			'registerDefaultContextActions();'
-		],
+		hits: ['bootstrapCodeLanguages();', 'registerBuiltInBlocks ();'],
 		misses: [
 			'registerEditorBuiltIns();',
 			'registerBuiltInDescriptors();',
@@ -2799,7 +2814,7 @@ const SYNTAX_MODULES: FileRule[] = [
 // ── G4.114 one paint decision for a block under a range ─────────────────────
 
 const ROGUE_PAINTER = `${SOURCE_DIR.components}RoguePaint.svelte`;
-const COVERAGE_FIELD = String.raw`\b(?:wholeRoots|coveredWhole|startEdge|endEdge|startCells|endCells)\b`;
+const COVERAGE_FIELD = String.raw`\b(?:wholeRoots|startEdge|endEdge|startCells|endCells)\b`;
 const END_PATH = (end: string) => String.raw`[\w.?]*\b${end}\??\.path\s*`;
 const ENDS_COMPARED = String.raw`pathsEqual\(\s*(?:${END_PATH('start')},\s*${END_PATH('end')}|${END_PATH('end')},\s*${END_PATH('start')})\)`;
 
@@ -2809,25 +2824,25 @@ const RANGE_PAINT: FileRule = {
 	// A dotted read, or an object pattern naming a field, assigned or typed as the coverage; or a
 	// range's two ends compared, which is `rangeSpansBlocks` worked out again.
 	matches: new RegExp(
-		String.raw`\.(?:coveredRootHolding|rootHolding)\s*\(|\.${COVERAGE_FIELD}|\{[^{}]*${COVERAGE_FIELD}[^{}]*\}\s*(?:=(?!=)|:\s*RangeCoverage\b)|${ENDS_COMPARED}`
+		String.raw`\.(?:boxHolding|rootHolding)\s*\(|\.${COVERAGE_FIELD}|\{[^{}]*${COVERAGE_FIELD}[^{}]*\}\s*(?:=(?!=)|:\s*RangeCoverage\b)|${ENDS_COMPARED}`
 	),
 	reaches: [SOURCE.selectionOverlay],
 	reason:
 		'a painter that reads the coverage itself, or compares the range ends, keeps its own copy of which block a range covers whole or whether it spans blocks, and the painters disagree on the shape: ask `classifyBlockForSelection`, `blockPaintsWholeBox` or `rangeSpansBlocks`',
 	hits: [
 		at(ROGUE_PAINTER, 'const boxed = coverage.rootHolding(path) !== null;'),
-		at(ROGUE_PAINTER, 'if (coverage.coveredRootHolding(path)) return;'),
+		at(ROGUE_PAINTER, 'if (paint.boxHolding(path)) return;'),
 		at(ROGUE_PAINTER, 'const roots = live.wholeRoots;'),
 		at(ROGUE_PAINTER, 'const from = coverage.startEdge?.offset ?? 0;'),
 		at(ROGUE_PAINTER, 'const run = coverage.endCells;'),
 		at(ROGUE_PAINTER, 'const { wholeRoots, startEdge } = coverage;'),
-		at(ROGUE_PAINTER, 'const {\n\tstartCells,\n\tcoveredWhole\n} = live;'),
+		at(ROGUE_PAINTER, 'const {\n\tstartCells,\n\twholeRoots\n} = live;'),
 		at(ROGUE_PAINTER, 'function paint({ endEdge }: RangeCoverage): void {}'),
 		at(ROGUE_PAINTER, 'const across = !pathsEqual(start.path, end.path);'),
 		at(ROGUE_PAINTER, 'if (pathsEqual(selection.end?.path, selection.start?.path)) return;')
 	],
 	misses: [
-		at(ROGUE_PAINTER, 'const box = blockPaintsWholeBox(path, coverage, null);'),
+		at(ROGUE_PAINTER, 'const box = blockPaintsWholeBox(path, paint, null);'),
 		at(ROGUE_PAINTER, 'const grid = rangeCoverage()?.grid;'),
 		at(ROGUE_PAINTER, 'const { start, end } = coverage.range;'),
 		at(ROGUE_PAINTER, 'if (a == { startEdge }) return;'),
@@ -3270,7 +3285,8 @@ describeFileRules(
 		...SYNTAX_MODULES,
 		PLUGIN_VIEW_FALLBACK,
 		ONE_VIEW_WRAPPER,
-		ONE_WRITE
+		ONE_WRITE,
+		SPLICE_READS
 	],
 	SOURCES
 );

@@ -16,6 +16,7 @@ import {
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
+import { SYNTAX_PLUGINS } from '../../behavior/corpus';
 
 type Surface = { getDocument(): Document; getUndoStack(): { undo: unknown[] } };
 
@@ -158,6 +159,71 @@ describe('a draft', () => {
 		await editor.settle();
 
 		expect(editor.instance.getSelection()).toEqual(before);
+	});
+});
+
+// Miss-analysis: every draft row wrote prose, so none met the closer every other write gives an opener.
+describe('a draft writing an opener above a block of its family', () => {
+	// A caret named in the draft's own bytes moves past the closer the editor added above it.
+	it.each([
+		['at the top level', 'xy\n\n$$\nx\n$$\n\nend\n', '$$\n$$\n\n$$\nx\n$$\n\nEND\n', [2]],
+		[
+			'inside a quote',
+			'> xy\n>\n> $$\n> x\n> $$\n\nend\n',
+			'> $$\n> $$\n>\n> $$\n> x\n> $$\n\nEND\n',
+			[1]
+		]
+	])('closes it %s, as one undo step', async (_, source, after, endPath) => {
+		const editor = mountEditor<Surface>({ source, plugins: SYNTAX_PLUGINS });
+		await editor.settle();
+		const at = source.indexOf('xy');
+		const end = source.indexOf('end');
+
+		const draft = editor.instance
+			.edit()
+			.replace({ from: at, to: at + 2 }, '$$')
+			.replace({ from: end, to: end + 3 }, 'END');
+		expect(await draft.commit({ caret: end + 3 })).toEqual({ ok: true });
+		await editor.settle();
+
+		expect(editor.source()).toBe(after);
+		const caret = { path: endPath, offset: 3 };
+		expect(editor.instance.getSelection()).toEqual({ anchor: caret, focus: caret });
+		expect(await undo(editor)).toBe(source);
+	});
+
+	// The author's caret inside the write, or a caret named on the opener, stays in front of the closer.
+	describe.each(['source', 'live'] as const)('in %s mode', (presentationMode) => {
+		const rows: [string, string, string, number[], boolean][] = [
+			['at the top level', 'xy\n\n$$\nx\n$$\n', '$$\n$$\n\n$$\nx\n$$\n', [0], false],
+			[
+				'inside a quote',
+				'> xy\n>\n> $$\n> x\n> $$\n',
+				'> $$\n> $$\n>\n> $$\n> x\n> $$\n',
+				[0, 0],
+				false
+			]
+		];
+		it.each(rows.flatMap((row) => [row, [`${row[0]}, named`, ...row.slice(1)] as typeof row]))(
+			'keeps the caret on the opener %s',
+			async (name, source, after, path) => {
+				const editor = mountEditor<Surface>({ source, plugins: SYNTAX_PLUGINS, presentationMode });
+				await editor.settle();
+				placeCaret(surfaceAt(editor, path), 1);
+				const at = source.indexOf('xy');
+
+				const draft = editor.instance.edit().replace({ from: at, to: at + 2 }, '$$');
+				const caret = name.endsWith('named') ? { caret: at + 2 } : undefined;
+				expect(await draft.commit(caret)).toEqual({ ok: true });
+				await editor.settle();
+
+				expect(editor.source()).toBe(after);
+				const { focus } = editor.instance.getSelection()!;
+				expect(focus.path).toEqual(path);
+				// The landing moves a caret off the `$$` line into the empty body, still above the closer.
+				expect(focus.offset).toBeLessThanOrEqual('$$\n'.length);
+			}
+		);
 	});
 });
 

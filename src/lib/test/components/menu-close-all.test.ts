@@ -3,10 +3,9 @@
 // mode and the document it opened over.
 // Miss-analysis: the one mode-change test opened only the block menu, which the editor closed by
 // name; the table menu stayed open, and the code gutter's menu closed only if focus sat in it.
-import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
 import { CODE_MENU_LABEL } from '#lib/a11y-strings.js';
-import { registerDefaultContextActions } from '#lib/components/menu/default-context-actions.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import {
 	destroyMountedEditors,
@@ -20,7 +19,6 @@ import {
 import { pressInCell } from '../blocks/table/mount-table';
 
 beforeAll(installLayoutStubs);
-beforeEach(registerDefaultContextActions);
 afterEach(destroyMountedEditors);
 
 const DOC = 'see [x](https://e.c) now\n\n```js\ncode\n```\n\n| a | b |\n| - | - |\n| 1 | 2 |\n';

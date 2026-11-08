@@ -7,7 +7,9 @@ import {
 	resolveGlobalBinding,
 	pluginGlobalBinding
 } from '#lib/schema/commands.js';
-import { registerGlobalCommand } from '#lib/schema/global-commands.js';
+import { command } from '#lib/schema/plugin-command.js';
+import { definePlugin } from '#lib/schema/plugin-install.js';
+import { valueActivation } from '../harness/value-activation';
 import { normalizeKeybindingOverrides } from '#lib/schema/keybinding-overrides.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
@@ -52,13 +54,21 @@ describe('the editor’s and plugins’ chords yield to the platform’s caret k
 		expect(takeDevWarns()).toEqual([]);
 	});
 
-	it('a plugin global chord on a caret key warns at registration and yields', () => {
+	it("a plugin command's chord on a caret key warns at install and yields", () => {
 		onMac();
-		registerGlobalCommand('motionChords.word', () => true, { chord: 'Alt+ArrowLeft' });
+		const word = command({ id: 'word', title: 'Word', chord: 'Alt+ArrowLeft', run: () => {} });
+		const activation = valueActivation([
+			definePlugin({
+				name: 'motion',
+				version: '1.0.0',
+				editor: '*',
+				contributes: () => ({ commands: [word] })
+			})
+		]);
 		expect(takeDevWarns().map((w) => `${w.tag}: ${w.message}`)).toEqual([
 			expect.stringMatching(/^keybindings: .*Alt\+ArrowLeft.*never fires/)
 		]);
-		expect(pluginGlobalBinding('Alt+ArrowLeft', everyInstalledPlugin)).not.toBeNull();
-		expect(resolveGlobalBinding('Alt+ArrowLeft', undefined, everyInstalledPlugin)).toBeNull();
+		expect(pluginGlobalBinding('Alt+ArrowLeft', activation)).not.toBeNull();
+		expect(resolveGlobalBinding('Alt+ArrowLeft', undefined, activation)).toBeNull();
 	});
 });

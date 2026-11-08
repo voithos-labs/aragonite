@@ -136,15 +136,15 @@ test.describe('the plugins prop is the enablement set', () => {
 	});
 });
 
-// Each pane omits what the other lists: `editor-not-listing` lists `doc-stats`, whose global chord
-// the parrot pane never asked for, and the parrot pane owns `%%parrot`.
+// Each pane omits what the other lists: `editor-not-listing` lists `chord-count`, whose command's
+// chord the parrot pane never asked for, and the parrot pane owns `%%parrot`.
 test.describe('activation scopes the chord and the paste grammar', () => {
 	test.beforeEach(async ({ page }) => {
 		await gotoReady(page, '/test/plugins/activation');
 	});
 
 	// The chord must reach the app around an editor that never listed the plugin, not die there.
-	test('only the editor that listed the plugin claims its global chord', async ({ page }) => {
+	test("only the editor that listed the plugin claims its command's chord", async ({ page }) => {
 		const reserved = await page.evaluate(() => {
 			const door = (window as unknown as { __activation: ActivationHandle }).__activation;
 			return {

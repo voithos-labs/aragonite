@@ -8,13 +8,12 @@ import type { AnyBlockKind } from '../core/nodes';
 import type { AnyCommandId } from './command-id';
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { enrollTestReset } from './registry-reset';
-import { createPluginRegistry } from './plugin-registry';
 import {
 	getAllRegisteredKinds,
 	onBlockKindChange,
 	tryGetBlockKindDescriptor
 } from './block-kind-descriptor';
-import { eventToChord, isMotionChord, registeredChord, type KeyBinding } from './keybindings';
+import { eventToChord, isMotionChord, type KeyBinding } from './keybindings';
 import {
 	lookupOverride,
 	overrideDecision,
@@ -182,23 +181,6 @@ export function isBuiltinCommandId(id: string): boolean {
 	return BUILTIN_COMMAND_IDS.has(id);
 }
 
-const globalCommands = createPluginRegistry<AnyCommandId, RegisteredGlobalCommand>({
-	label: 'registerCommand',
-	isBuiltin: isBuiltinCommandId
-});
-
-export function registerCommand(
-	id: AnyCommandId,
-	run: GlobalCommandRun,
-	canRun?: RegisteredGlobalCommand['canRun']
-): void {
-	globalCommands.register(
-		id,
-		{ run, canRun },
-		`registerCommand: "${id}" is already registered. Commands are register-once.`
-	);
-}
-
 /** The command's handler: a built-in, or a plugin's where `activation` runs that plugin. */
 export function getCommand(
 	id: AnyCommandId,
@@ -217,13 +199,12 @@ export function canRunGlobalCommand(
 	return globalCommandFor(id, activation)?.canRun?.(gates, arg) ?? true;
 }
 
-// The one lookup behind both: the built-ins, a `setup` plugin's registration, then the commands
-// the editor's plugin values contribute.
+// The one lookup behind both: the built-ins, then the commands the editor's plugin values contribute.
 function globalCommandFor(
 	id: AnyCommandId,
 	activation: PluginActivation
 ): RegisteredGlobalCommand | undefined {
-	const found = BUILTIN_GLOBAL_COMMANDS.get(id) ?? globalCommands.get(id, activation);
+	const found = BUILTIN_GLOBAL_COMMANDS.get(id);
 	if (found) return found;
 	const contributions = activation.contributions;
 	const entry = contributions?.command(id);
@@ -233,16 +214,6 @@ function globalCommandFor(
 			canRun: (_gates, arg) => contributions!.can(entry, arg)
 		}
 	);
-}
-
-/** Whether any plugin or built-in registered the id, whatever the activation. */
-export function isCommandRegistered(id: AnyCommandId): boolean {
-	return globalCommands.has(id);
-}
-
-/** The plugin whose setup registered a global command, read at dispatch like a block command's. */
-export function globalCommandOwner(id: AnyCommandId): string | null {
-	return globalCommands.ownerOf(id);
 }
 
 /** Runs a plugin's command handler, global or block, and reports a throw as the plugin's that
@@ -335,15 +306,9 @@ export const GLOBAL_KEYMAP: KeyBinding[] = [
 	{ chord: 'Mod+Shift+Z', command: 'history.redo' }
 ];
 
-// ── Plugin-global chords ─────────────────────────────────────────────────
-// A plugin's global command may bind a chord here. It resolves last, after every override and
-// built-in table, and built-in chords cannot be taken (register-once, throw on collision).
-
-// Keyed by the normalized chord, so a chord binds at most one command.
-const pluginGlobalKeymap = createPluginRegistry<string, KeyBinding>({
-	label: 'registerPluginGlobalBinding',
-	isBuiltin: () => false
-});
+// ── Plugin chords ─────────────────────────────────────────────────────────
+// A plugin value's command may bind a chord. It resolves last, after every override and built-in
+// table; a chord the editor takes leaves the plugin out at install.
 
 // Chords the editor UI intercepts outside the command resolvers (the search bar's
 // document-level listener): a plugin binding one would fire twice on a single keypress.
@@ -362,60 +327,21 @@ export function reservedUiChords(): readonly string[] {
 	return [...RESERVED_UI_CHORDS];
 }
 
-/** The chord's normal form, or a throw when it can't be bound. */
-export function assertPluginGlobalChordAvailable(rawChord: string): string {
-	// Thrown before the id is created (`global-commands.ts`), so a rejected registration leaves
-	// no orphaned command.
-	const chord = registeredChord(rawChord, 'registerGlobalCommand');
-	if (isReservedUiChord(chord)) {
-		throw new Error(
-			`plugin global chord "${rawChord}" is reserved by the editor UI (search): pick another chord`
-		);
-	}
-	// Activation-blind: registration is process-global register-once, so a chord no editor
-	// has activated yet, or a failed plugin's, still collides.
-	const collision =
-		findByChord(GLOBAL_KEYMAP, chord) ?? pluginGlobalKeymap.getIgnoringActivation(chord);
-	if (collision) {
-		throw new Error(
-			`plugin global chord "${rawChord}" is already bound to "${collision.command}": global chords are register-once`
-		);
-	}
-	return chord;
-}
-
-export function registerPluginGlobalBinding(binding: KeyBinding): void {
-	const chord = assertPluginGlobalChordAvailable(binding.chord);
-	if (isMotionChord(chord)) {
-		devWarn(
-			'keybindings',
-			`plugin global chord "${binding.chord}" moves the caret on this platform, so it never fires`
-		);
-	}
-	pluginGlobalKeymap.register(chord, { ...binding, chord });
-}
-
 export function pluginGlobalBinding(
 	chord: string,
 	activation: PluginActivation
 ): KeyBinding | null {
-	const registered = pluginGlobalKeymap.get(chord, activation);
-	if (registered) return registered;
 	const entry = activation.contributions?.atChord(chord);
 	return entry ? { chord, command: entry.id as AnyCommandId } : null;
 }
 
-/** Every plugin-global binding `activation` resolves, each with the plugin that installed it. */
+/** Every plugin chord `activation` resolves, each with the plugin whose command binds it. */
 export function pluginGlobalBindings(
 	activation: PluginActivation
 ): readonly (KeyBinding & { plugin: string | null })[] {
-	const registered = pluginGlobalKeymap
-		.entries(activation)
-		.map(([chord, binding]) => ({ ...binding, plugin: pluginGlobalKeymap.ownerOf(chord) }));
-	const contributed = (activation.contributions?.commands ?? []).flatMap(({ chord, id, plugin }) =>
+	return (activation.contributions?.commands ?? []).flatMap(({ chord, id, plugin }) =>
 		chord ? [{ chord, command: id as AnyCommandId, plugin }] : []
 	);
-	return [...registered, ...contributed];
 }
 
 /** The chords of {@link pluginGlobalBindings}, normalized. */

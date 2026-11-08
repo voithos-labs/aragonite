@@ -1,6 +1,6 @@
 // An example of the per-instance context: the plugin reads the document, the editor's identity,
 // its events and its options from it.
-import { definePlugin, registerGlobalCommand, type EditorContext } from '#lib/plugin.js';
+import { definePlugin, type EditorContext } from '#lib/plugin.js';
 
 export interface DocStatsOptions {
 	label: string;
@@ -37,16 +37,6 @@ export const docStatsPlugin = definePlugin<DocStatsOptions>({
 	name: 'doc-stats',
 	defaults: { label: 'default' },
 	setup(ctx) {
-		registerGlobalCommand(
-			'docStats.publish',
-			(editor) => {
-				// Typed for any plugin, but a global command's handler gets its own plugin's context.
-				const own = editor as EditorContext<DocStatsOptions>;
-				recompute(own, statsByEditor.get(own.editorId)?.edits ?? 0);
-				return true;
-			},
-			{ chord: 'Mod+Shift+S' }
-		);
 		ctx.onEditor((editor) => {
 			let edits = 0;
 			recompute(editor, edits);

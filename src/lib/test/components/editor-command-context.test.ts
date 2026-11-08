@@ -11,7 +11,7 @@ import {
 	surfaceAt
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { pressKey } from '#lib/test/harness/settle.js';
-import { definePlugin, registerGlobalCommand } from '#lib/plugin.js';
+import { command, definePlugin } from '#lib/plugin.js';
 import type { EditorError } from '#lib/editor-events.js';
 
 beforeEach(() => {
@@ -23,17 +23,19 @@ afterEach(async () => {
 
 describe("a mounted editor's command context", () => {
 	it('reports a throwing plugin command on the error event, once', async () => {
+		const fire = command({
+			id: 'fire',
+			title: 'Fire',
+			chord: 'Mod+Shift+9',
+			run() {
+				throw new Error('kaboom');
+			}
+		});
 		const boom = definePlugin({
 			name: 'boom',
-			setup() {
-				registerGlobalCommand(
-					'boom.fire',
-					() => {
-						throw new Error('kaboom');
-					},
-					{ chord: 'Mod+Shift+9' }
-				);
-			}
+			version: '1.0.0',
+			editor: '*',
+			contributes: () => ({ commands: [fire] })
 		});
 		const mounted = mountEditor({ source: 'alpha\n', plugins: [boom] });
 		const errors: EditorError[] = [];
@@ -42,7 +44,7 @@ describe("a mounted editor's command context", () => {
 
 		await pressKey(surfaceAt(mounted, [0]), { key: '9', ctrlKey: true, shiftKey: true });
 
-		expect(errors.map((e) => [e.origin, e.context?.command])).toEqual([['command', 'boom.fire']]);
+		expect(errors.map((e) => [e.origin, e.context?.plugin])).toEqual([['subscriber', 'boom']]);
 	});
 
 	it('applies keybindings changed after mount on the next press', async () => {

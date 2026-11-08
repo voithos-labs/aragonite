@@ -44,7 +44,7 @@ const besideSpaces = (read: Read, { from, to }: Range) =>
 /** The blocks directly inside `container`, its title row aside. */
 function bodyOf(read: Read, container: LaidBlock, host: CheckHost): LaidBlock[] {
 	const title = host.facts(container.type).titleRow?.type;
-	return read.layout.blocks.filter(
+	return read.blocks.filter(
 		(b) => b.path.slice(0, -1).join() === container.path.join() && b.type !== title
 	);
 }
@@ -81,7 +81,7 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 			const start = read.source.lastIndexOf('\n', range.from - 1) + 1;
 			const marked = (type: string) =>
 				['every-line', 'first-line'].includes(host.facts(type).lines);
-			return read.layout.blocks.some((b) =>
+			return read.blocks.some((b) =>
 				(marked(b.type) ? (b.lines ?? []) : []).some(
 					(line) =>
 						!line.own &&
@@ -93,9 +93,10 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 			);
 		},
 		repro: {
-			source: '> [!NOTE]\n   > `c`\nword\nword\n\n[^1]:- x\n- x',
-			mode: 'live',
-			range: { from: 15, to: 38 }
+			source:
+				'> [!Warning]\r\n>\t>a\n   > - x\r\n`c`\n\r\n  [^n]:  >  > `c`\n    > q\r\n    > x y\n     >\t>\t\r\n     >\t > word\n',
+			mode: 'source',
+			range: { from: 32, to: 71 }
 		}
 	},
 	{
@@ -123,7 +124,7 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 			const end = leafAt(read, range.to);
 			const endTakesNone = !!end && host.facts(end.type).joins === 'never';
 			return containersAt(read, range.from, 'start').some((c) => {
-				const first = read.layout.blocks.find((b) => b.text && b.from >= c.from && b.to <= c.to);
+				const first = read.blocks.find((b) => b.text && b.from >= c.from && b.to <= c.to);
 				const fromText = first?.text?.from === range.from && endTakesNone;
 				return c.to < range.to && (c.lines!.at(0)!.own || fromText);
 			});
@@ -141,7 +142,7 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 		matches: (read, range, host) => {
 			const end = leafAt(read, range.to);
 			if (!end || end.path.length < 2) return false;
-			const owner = read.layout.blocks.find((b) => b.path.join() === end.path.slice(0, -1).join());
+			const owner = read.blocks.find((b) => b.path.join() === end.path.slice(0, -1).join());
 			return !!owner && owner.from > range.from && host.facts(owner.type).joins === 'never';
 		},
 		repro: { source: 'a[^1]\n\n[^1]: b\n', mode: 'source', range: { from: 5, to: 13 } }
@@ -173,7 +174,7 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 				)
 			);
 		},
-		repro: { source: '[^1]:1. n\n汉字\nword', mode: 'source', range: { from: 9, to: 17 } }
+		repro: { source: '[^1]:1. n\r\n汉字\r\nword', mode: 'source', range: { from: 9, to: 17 } }
 	},
 	{
 		gap: 'the spaces a cut leaves at a line’s start join the other side’s text and read as another block',
@@ -204,7 +205,7 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 		lane: '2b',
 		law: 'L3',
 		matches: (read, range, host) =>
-			read.layout.blocks.some(
+			read.blocks.some(
 				(b) =>
 					b.from === range.from &&
 					range.to < b.to &&
@@ -212,13 +213,6 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 					/^(?: {4}|\t)/.test(read.source.slice(b.from))
 			),
 		repro: { source: '    word\n', mode: 'source', range: { from: 0, to: 6 } }
-	},
-	{
-		gap: 'blocks pasted on a line holding only spaces take it as the blank line before them, where law 9 adds one',
-		lane: '2b',
-		law: 'L9',
-		matches: besideSpaces,
-		repro: { source: '   \n> [r]: <u>\n', mode: 'source', range: { from: 2, to: 6 } }
 	}
 ];
 

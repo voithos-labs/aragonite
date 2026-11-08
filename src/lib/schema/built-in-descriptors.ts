@@ -25,7 +25,7 @@ import { fencedCodeWrite } from './fenced-code-raw';
 import { setextHeadingContentRange, setextHeadingWrite } from './setext-raw';
 import { registerInlineConstructPolicy } from './inline-construct-policy';
 import { registerAsCore } from './plugin-install';
-import { registerBuiltInRangeIndent } from './range-indent-forms';
+import { setBuiltInRangeIndent } from './range-indent-forms';
 import { registerTableCompleter } from '../core/parsers/table-completion';
 import { asCodeSpan } from '../core/inline/scan/code-span';
 import {
@@ -444,6 +444,6 @@ function registerBuiltIns(): void {
 		conformanceFixture: '- item\n'
 	});
 	// Over a range, the item holding each covered line nests or lifts, as at a caret.
-	registerBuiltInRangeIndent('listItem', 'list.indent', { item: 'nest' });
-	registerBuiltInRangeIndent('listItem', 'list.unindent', { item: 'lift' });
+	setBuiltInRangeIndent('listItem', 'list.indent', { item: 'nest' });
+	setBuiltInRangeIndent('listItem', 'list.unindent', { item: 'lift' });
 }

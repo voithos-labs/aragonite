@@ -5,9 +5,10 @@ import { createSelectionState } from '../../selection/selection-state.svelte';
 import { resolveSelectionPoint } from '../../selection/selection-restore';
 import { restoreLandingOver } from '../harness/restore-landing';
 import { parse } from '../../core/parser';
-import { collectCrossBlockText } from '../../selection/clipboard-text';
-import { coverRange, rangeCoverage } from '../../selection/range-coverage';
+import { crossBlockClipboardArm } from '#lib/selection/cross-block/clipboard.js';
+import type { CrossBlockHandlers } from '#lib/selection/cross-block/dispatch.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { freshBytes } from '#lib/test/harness/copied-text.js';
 
 // Source mode, where a copied range carries its bytes as they stand.
 const SOURCE_READING = fixtureReading({}, 'source');
@@ -50,13 +51,12 @@ describe('an endpoint on a table path is stored as a cell index', () => {
 		state.enterCrossBlock({ path: [0], wholeBlock: true }, { path: [0], wholeBlock: true });
 		expect([state.anchor, state.focus, state.wholeUnitPath]).toEqual([cell(0), cell(5), [0]]);
 		const doc = parse(TABLE);
-		expect(
-			collectCrossBlockText(
-				doc,
-				rangeCoverage(doc, coverRange(doc, state.anchor!, state.focus!)),
-				SOURCE_READING
-			)
-		).toBe('| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n');
+		const crossBlock = {
+			reading: SOURCE_READING,
+			bytes: freshBytes(() => doc)
+		} as unknown as CrossBlockHandlers;
+		const arm = crossBlockClipboardArm({ selection: state, getDoc: () => doc, crossBlock });
+		expect(arm.copy()?.write.text).toBe('| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n');
 	});
 
 	it('extendFocus out of a whole-table unit turns its anchor into the facing cell', () => {

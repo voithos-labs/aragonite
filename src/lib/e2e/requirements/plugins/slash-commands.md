@@ -4,7 +4,7 @@ The bundled slash-commands plugin, listed in the `inline-menu` seed of the plugi
 `/` at the start of a line or after a space opens a list of the blocks the insert catalogue offers,
 three heading levels and any rows the host adds. The query narrows it; a pick removes the `/query`
 bytes and inserts the block. `Mod+/` types the `/` for an author who cannot reach a right-click,
-and `runCommand('slashCommands.open', query)` opens the list already narrowed.
+and `run('slash-commands/open', query)` opens the list already narrowed.
 
 ## Picks
 
@@ -52,7 +52,7 @@ kept an entry of their own.
 - A row draws its menu glyph beside the label.
 - `Mod+/` on an empty line types the `/` and opens the list there; typing `ta` narrows it to
   To-do list, Table and Table of contents.
-- `runCommand('slashCommands.open', 'table')` types `/table` and opens the list narrowed to the
+- `run('slash-commands/open', 'table')` types `/table` and opens the list narrowed to the
   rows `table` starts: Table, then Table of contents.
 
 ## A table cell
@@ -74,8 +74,8 @@ every source; `inline-menu.md` holds those cases.
 
 ## A waiting run across a source swap
 
-A host row's `run` gets the same context as any source's `onCommit`, so a run that waits past a
-`source` swap is the held commit in `inline-menu-held-commit.md`.
+A host row's `run` writes through the same `MenuPick` as any menu's pick, so a run that waits past
+a `source` swap is the waiting pick in `inline-menu-held-commit.md`.
 
 ## Error cases
 

@@ -27,6 +27,7 @@ import {
 } from './plugin-install';
 import type { Editor, InstalledPlugin, PluginError } from './plugin-unit';
 import type { Command } from './plugin-command';
+import type { CaretMenu } from './caret-menu';
 
 export interface EditorPluginContexts {
 	/** This editor's context for a plugin it activated; `undefined` for one it did not. The empty
@@ -40,9 +41,6 @@ export interface EditorPluginContexts {
 	detach(pluginName: string): void;
 	/** The editor a plugin value sees, scoped to it, as its `setup` and its drawings get it. */
 	editor(pluginName: string): Editor;
-	/** The context whose `onEditor` callback is running, where a plugin adds its inline-menu
-	 *  sources; undefined outside one. */
-	attaching(): EditorContext | undefined;
 	/** The `Editor` a running plugin value's `setup` and commands get: one per plugin, kept while a
 	 *  `use` keeps the plugin and dropped when it's turned off. */
 	scoped(pluginName: string): Editor | undefined;
@@ -73,6 +71,8 @@ export function createEditorPluginContexts(deps: {
 	runCommand: (command: Command<unknown> | string, arg?: unknown) => boolean;
 	canRunCommand: (command: Command<unknown> | string, arg?: unknown) => boolean;
 	claims: (event: KeyboardEvent) => boolean;
+	openMenu: (menu: CaretMenu<unknown>, query?: string) => boolean;
+	openRows: Editor['openRows'];
 	/** A draft; `plugin` names the plugin it's refused for once that plugin is off. */
 	edit: (plugin?: string) => Draft;
 	/** How the editor reads its bytes, which every plugin inline read follows. */
@@ -86,7 +86,6 @@ export function createEditorPluginContexts(deps: {
 	const editors = new Map<string, Editor>();
 	const disposers: { plugin: string; dispose: () => void }[] = [];
 	const { report } = deps;
-	let attaching: EditorContext | undefined;
 
 	function optionsFor(pluginName: string): unknown {
 		const plugin = installedPlugin(pluginName) ?? {};
@@ -173,6 +172,8 @@ export function createEditorPluginContexts(deps: {
 			run: (command: Command<unknown> | string, arg?: unknown) => deps.runCommand(command, arg),
 			can: (command: Command<unknown> | string, arg?: unknown) => deps.canRunCommand(command, arg),
 			claims: (event) => deps.claims(event),
+			openMenu: (menu, query) => deps.openMenu(menu as CaretMenu<unknown>, query),
+			openRows: (action, range, anchor) => deps.openRows(action, range, anchor),
 			edit: () => deps.edit(plugin)
 		};
 	}
@@ -197,14 +198,11 @@ export function createEditorPluginContexts(deps: {
 		for (const plugin of installedPluginNames()) {
 			if (!resolvesIn(deps.activation, plugin) || (names && !names.has(plugin))) continue;
 			for (const cb of onEditorCallbacks(plugin)) {
-				attaching = get(plugin)!;
 				try {
-					const dispose = cb(attaching);
+					const dispose = cb(get(plugin)!);
 					if (typeof dispose === 'function') disposers.push({ plugin, dispose });
 				} catch (cause) {
 					report({ plugin, doing: 'setup', cause });
-				} finally {
-					attaching = undefined;
 				}
 			}
 		}
@@ -232,7 +230,6 @@ export function createEditorPluginContexts(deps: {
 	return {
 		get,
 		editor: editorFor,
-		attaching: () => attaching,
 		scoped: (pluginName) =>
 			deps.units().some((unit) => unit.name === pluginName) ? editorFor(pluginName) : undefined,
 		attachAll: () => attach(null),

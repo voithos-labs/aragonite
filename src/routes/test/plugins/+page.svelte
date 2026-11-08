@@ -14,6 +14,7 @@
 	} from '../../demo-plugins';
 	import { memoPlugin } from './memo/register';
 	import { docStatsPlugin } from './doc-stats/doc-stats-plugin';
+	import { chordCountPlugin } from './chord-count/chord-count-plugin';
 	import { hloccurScanProbePlugin } from './hloccur-scan/hloccur-scan-plugin';
 	import { ghostTextPlugin } from './ghost-text/ghost-text-plugin';
 	import { foldPlugin } from './fold/fold-plugin';
@@ -25,14 +26,15 @@
 	import { wikiLinksPlugin } from './wikilinks/link-plugin';
 	import { chipsPlugin } from './chips/chip-plugin';
 	import { tagMarksPlugin, TAG_MENU } from '../../demo-tags/tag-marks-plugin';
-	import { docLinkMenuPlugin, DOC_LINK_MENU } from './inline-menu/doc-link-menu-plugin';
+	import { docLinkMenu, docLinkMenuPlugin } from './inline-menu/doc-link-menu-plugin';
 	import { heldCommitMenuPlugin } from './inline-menu/held-commit-menu-plugin';
 	import { drawnPlugin } from './drawn/drawn-plugin';
+	import { draftWriterPlugin } from './draft-writer/draft-writer-plugin';
 	import '../../../../examples/showcase/tag-marks.css';
 	import type { PluginsProp } from '#lib';
 
-	// docStatsPlugin is a bare entry (no options), so it runs on its defaults.
-	const basePlugins = [
+	// docStatsPlugin and chordCountPlugin are bare entries, so they run on their defaults.
+	const basePlugins: PluginsProp = [
 		calloutPlugin(),
 		DEMO_DETAILS,
 		DEMO_LATEX,
@@ -40,6 +42,7 @@
 		DEMO_MERMAID,
 		memoPlugin(),
 		docStatsPlugin,
+		chordCountPlugin,
 		DEMO_TOC
 	];
 
@@ -70,7 +73,7 @@
 		// The same tags as mark decorations over plain text: no widget, no source to show.
 		'tags-marks': [tagMarks],
 		// Every inline-menu source at once: `#`, `[[`, `@` and `/` must not take each other's keys.
-		'inline-menu': [tagMarks, docLinkMenuPlugin(), heldCommitMenuPlugin(), DEMO_SLASH_COMMANDS],
+		'inline-menu': [tagMarks, docLinkMenuPlugin, heldCommitMenuPlugin, DEMO_SLASH_COMMANDS],
 		// `%%parrot` is a narrower form of the base memo fixture's `%%`, and the bird animates on
 		// an interval; kept to its own seed so neither reaches another suite.
 		parrot: [DEMO_PARROT],
@@ -84,6 +87,8 @@
 		badge: [blockBadgePlugin],
 		// Blocks drawn by a block type's `draw`; their types open only in this seed.
 		drawn: [drawnPlugin],
+		// A command that writes through `edit()`; the openers suite runs on this seed.
+		math: [draftWriterPlugin],
 		// `?seed=sim` puts long-lived decoration sources under the simulation's corruption
 		// checks; the widget source keys on markers only the simulation's own document holds.
 		sim: [simMarkPlugin, simIslandPlugin]
@@ -334,7 +339,7 @@
 			<button
 				data-testid="open-doc-link-menu"
 				onmousedown={(e) => e.preventDefault()}
-				onclick={() => editor?.getInlineMenus().open(DOC_LINK_MENU)}
+				onclick={() => editor?.openMenu(docLinkMenu)}
 			>
 				Link document
 			</button>

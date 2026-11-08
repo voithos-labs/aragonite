@@ -11,11 +11,14 @@ export interface Read {
 	source: string;
 	tree: DocumentView;
 	layout: Layout;
+	/** Every block, parents before children. */
+	blocks: LaidBlock[];
 }
 
 export function readOf(host: CheckHost, source: string): Read {
 	const tree = host.read(source);
-	return { source, tree, layout: host.layout(tree) };
+	const layout = host.layout(tree);
+	return { source, tree, layout, blocks: [...layout.within(0, Infinity)] };
 }
 
 /** The document's line ending: its first. */
@@ -37,7 +40,7 @@ const MARKED: readonly string[] = ['every-line', 'first-line'];
 /** The containers whose own bytes hold `byte`, outermost first; at a container's last byte only
  *  the `end` side counts it. */
 export function containersAt(read: Read, byte: number, side: 'start' | 'end'): LaidBlock[] {
-	return read.layout.blocks.filter(
+	return read.blocks.filter(
 		(b) =>
 			b.lines !== undefined &&
 			(side === 'start' ? b.from <= byte && byte < b.to : b.from < byte && byte <= b.to)
@@ -47,7 +50,7 @@ export function containersAt(read: Read, byte: number, side: 'start' | 'end'): L
 /** The containers a caret at `at` sits in: a container's last byte counts when no line ending
  *  closes it there (a document's last line). */
 export function containersHolding(read: Read, at: number): LaidBlock[] {
-	return read.layout.blocks.filter(
+	return read.blocks.filter(
 		(b) =>
 			b.lines !== undefined &&
 			b.from <= at &&
@@ -58,7 +61,7 @@ export function containersHolding(read: Read, at: number): LaidBlock[] {
 /** The leaf a caret at `at` sits in, when `at` is inside its text. */
 export function leafAt(read: Read, at: number): LaidBlock | null {
 	const point = read.layout.pointAt(at);
-	const leaf = point && read.layout.blocks.find((b) => b.path.join() === point.path.join());
+	const leaf = point && read.blocks.find((b) => b.path.join() === point.path.join());
 	if (!leaf?.text || at < leaf.text.from || at > leaf.text.to) return null;
 	// Past a text's own last line ending sits the line after it: a code block's closing fence.
 	return at === leaf.text.to && read.source[at - 1] === '\n' && at > leaf.text.from ? null : leaf;
@@ -66,10 +69,10 @@ export function leafAt(read: Read, at: number): LaidBlock | null {
 
 /** Whether `at` is inside a container's title row. */
 export function inTitleRow(read: Read, at: number, host: CheckHost): boolean {
-	return read.layout.blocks.some(
+	return read.blocks.some(
 		(c) =>
 			c.lines &&
-			read.layout.blocks.some(
+			read.blocks.some(
 				(row) =>
 					row.type === host.facts(c.type).titleRow?.type &&
 					row.path.length === c.path.length + 1 &&
@@ -84,8 +87,9 @@ export function inTitleRow(read: Read, at: number, host: CheckHost): boolean {
 /** The deepest container both ends sit in; null for the document. */
 export function sharedContainer(read: Read, from: number, to: number): LaidBlock | null {
 	const ends = new Set(containersAt(read, to, 'end'));
+	// A container the range starts at the first byte of keeps its markers in the range's bytes.
 	let shared: LaidBlock | null = null;
-	for (const b of containersAt(read, from, 'start')) if (ends.has(b)) shared = b;
+	for (const b of containersAt(read, from, 'start')) if (ends.has(b) && b.from !== from) shared = b;
 	return shared;
 }
 
@@ -142,7 +146,7 @@ function openingLines(read: Read, container: LaidBlock, host: CheckHost): string
 	const title = host.facts(container.type).titleRow;
 	const row =
 		title &&
-		read.layout.blocks.find(
+		read.blocks.find(
 			(b) =>
 				b.type === title.type &&
 				b.path.length === container.path.length + 1 &&
@@ -176,20 +180,21 @@ export function expectedCopy(read: Read, from: number, to: number, host: CheckHo
 		} else if (facts.lines === 'first-line') {
 			const first = firstBodyLine(container);
 			if (first) opening += markerOn(read, first);
-		}
+		} else if (facts.lines === 'rows') opening += tableHeadAbove(read, container, shared, from);
 	}
 	// A fenced block the range enters and ends inside before its closing line is closed around just
 	// what it covers, so a copy never opens a fence that swallows what follows it where it's pasted.
 	let closing = '';
 	const closerOf = (b: LaidBlock) => read.source.lastIndexOf('\n', b.to - 2) + 1;
-	const literal = read.layout.blocks.find(
+	const literal = read.blocks.find(
 		(b) =>
 			b.text &&
 			host.facts(b.type).body === 'literal' &&
 			from < b.from &&
 			b.text.from < to &&
 			closesItsFence(treeNodeAt(read.tree, b.path)!.raw) &&
-			to <= closerOf(b)
+			to <= closerOf(b) &&
+			copiesItsFence(read, b, to)
 	);
 	if (literal) {
 		const closerFrom = closerOf(literal);
@@ -206,6 +211,30 @@ export function expectedCopy(read: Read, from: number, to: number, host: CheckHo
 	return opening + withoutSharedMarkers(read, shared, from, to) + closing;
 }
 
+/** A table's header and delimiter lines when `from` sits in a row below them, each line followed by
+ *  what `from`'s line holds before it inside `shared`: a copy of its rows still reads as a table. */
+function tableHeadAbove(read: Read, table: LaidBlock, shared: LaidBlock | null, from: number) {
+	const delimiter = table.lines!.findIndex((line) => line.own);
+	if (delimiter < 0 || from < table.lines![delimiter].to) return '';
+	const lineStart = read.source.lastIndexOf('\n', from - 1) + 1;
+	const inside = shared ? Math.max(lineStart, lineOf(shared, lineStart).markerTo) : lineStart;
+	const markers = read.source.slice(inside, from);
+	return table
+		.lines!.slice(0, delimiter + 1)
+		.map((line) => read.source.slice(line.from, line.to) + markers)
+		.join('');
+}
+
+/** Law 3's third declared exception: a range from a table's rows below its delimiter copies the
+ *  header too, so the copy pasted elsewhere reads as a table; pasted back, the header doubles. */
+export function startsBelowTableHead(read: Read, from: number, host: CheckHost): boolean {
+	return read.blocks.some((b) => {
+		if (host.facts(b.type).lines !== 'rows' || !(b.from < from && from < b.to)) return false;
+		const delimiter = b.lines!.find((line) => line.own);
+		return delimiter !== undefined && from >= delimiter.to;
+	});
+}
+
 /** Law 3's first declared exception: a range that takes the line a fenced block opens with and
  *  ends inside it, whose opening a plain-text paste can't rebuild. */
 export function opensWithoutClosing(
@@ -214,7 +243,7 @@ export function opensWithoutClosing(
 	to: number,
 	host: CheckHost
 ): boolean {
-	return read.layout.blocks.some((b) => {
+	return read.blocks.some((b) => {
 		if (!(b.from >= from && b.from < to && to < b.to)) return false;
 		return b.type === 'fencedCode' || host.facts(b.type).lines === 'fenced';
 	});
@@ -241,6 +270,12 @@ export function leavesLiteralBlock(
 /** The run a block's first line opens a fence with (a code, math or diagram fence), read here by
  *  the syntax alone, apart from the host. */
 const fenceRun = (raw: string) => /^ {0,3}(`{3,}|~{3,}|\${2,})/.exec(raw)?.[1];
+
+/** Whether a range ending at `to` copies the fence run `b` opens with: a part of the run opens nothing. */
+function copiesItsFence(read: Read, b: LaidBlock, to: number): boolean {
+	const lineEnd = read.source.indexOf('\n', b.from);
+	return (lineEnd >= 0 && to > lineEnd) || !!fenceRun(read.source.slice(b.from, to));
+}
 
 /** Whether a block's own bytes, its container's markers off, close the fence they open. */
 function closesItsFence(raw: string): boolean {
@@ -312,7 +347,7 @@ function shapeOf(host: CheckHost, source: string): string {
 			: [n.kind, flags(n), trimmed(n.raw)];
 	const read = readOf(host, source);
 	// A container's own lines (`:::note Title`, `> [!NOTE]`, a summary) name it.
-	const titles = read.layout.blocks.flatMap((b) =>
+	const titles = read.blocks.flatMap((b) =>
 		(b.lines ?? []).filter((l) => l.own).map((l) => trimmed(source.slice(l.from, l.to)))
 	);
 	const blocks = read.tree.children.filter((n) => !(n.kind === 'paragraph' && n.raw.trim() === ''));
@@ -324,7 +359,7 @@ function shapeOf(host: CheckHost, source: string): string {
 export function liveSplitsRun(read: Read, from: number, to: number, host: CheckHost): boolean {
 	return [from, to].some((byte) => {
 		const point = read.layout.pointAt(byte);
-		const leaf = point && read.layout.blocks.find((b) => b.path.join() === point.path.join());
+		const leaf = point && read.blocks.find((b) => b.path.join() === point.path.join());
 		if (!point || !leaf?.text) return false;
 		const end = read.layout.pointAt(leaf.text.to);
 		if (!end || end.path.join() !== point.path.join()) return false;
@@ -354,7 +389,7 @@ export function expectedPaste(
 	host: CheckHost
 ): { shape: PasteShape; bytes: string[] } {
 	const clip = readOf(host, lf(text));
-	const tops = clip.layout.blocks.filter(
+	const tops = clip.blocks.filter(
 		(b) =>
 			b.path.length === 1 &&
 			!(b.type === 'paragraph' && clip.source.slice(b.from, b.to).trim() === '')
@@ -373,7 +408,7 @@ export function expectedPaste(
 	if (!target || host.facts(target.type).textPosition === 'never')
 		return { shape: 'other', bytes: [] };
 	const targetFacts = host.facts(target.type);
-	const isTitle = read.layout.blocks.some(
+	const isTitle = read.blocks.some(
 		(b) =>
 			b.lines &&
 			host.facts(b.type).titleRow?.type === target.type &&
@@ -406,7 +441,7 @@ export function expectedPaste(
 	if (taker && host.facts(first.type).lines !== 'fenced' && lastJoins) {
 		const outside = continuationAt(read, at, host, (c) => c !== taker);
 		// The block's own opening (its marker, a title line) is the taker's already.
-		const firstText = clip.layout.blocks.find((b) => b.text && b.from >= first.from)?.text?.from;
+		const firstText = clip.blocks.find((b) => b.text && b.from >= first.from)?.text?.from;
 		const rest = clip.source.slice(firstText ?? first.from).split('\n');
 		return {
 			shape: 'absorbed',
@@ -414,17 +449,18 @@ export function expectedPaste(
 		};
 	}
 	const point = read.layout.pointAt(at);
-	const leaf = point && read.layout.blocks.find((b) => b.path.join() === point.path.join());
+	const leaf = point && read.blocks.find((b) => b.path.join() === point.path.join());
 	if (leaf?.type === 'paragraph' && leaf.text && at > leaf.text.from && lastJoins) {
 		const prefix = continuationAt(read, at, host);
 		// A blank line before the pasted block, or one line break where that alone reads it apart.
 		const line = splice(prefix, eol + prefix)(lines);
 		const startsAt = at + eol.length + prefix.length;
-		const own = readOf(host, line).layout.blocks.some(
-			(b) => b.type === first.type && b.from === startsAt
-		);
-		// A clipboard that opens with its own line break already stands for that separation.
+		const own = readOf(host, line).blocks.some((b) => b.type === first.type && b.from === startsAt);
+		// A clipboard that opens with its own line break already stands for that separation, and a
+		// caret line holding only spaces is a blank line already (§ 5.4 rule 6, ruled 2026-11-06).
 		if (lines[0] === '') return { shape: 'split', bytes: [splice(prefix, '')(lines)] };
+		if (read.source.slice(leaf.text.from, at).trim() === '')
+			return { shape: 'split', bytes: [line] };
 		const blank = splice(prefix, eol + prefix.trimEnd() + eol + prefix)(lines);
 		return { shape: 'split', bytes: own ? [blank, line] : [blank] };
 	}
@@ -500,7 +536,7 @@ export function plainPasteHolds(
 		return false;
 	const inserted = got.slice(at, at + grown);
 	const point = read.layout.pointAt(at);
-	const leaf = point && read.layout.blocks.find((b) => b.path.join() === point.path.join());
+	const leaf = point && read.blocks.find((b) => b.path.join() === point.path.join());
 	const literal = leaf ? host.facts(leaf.type).body === 'literal' : false;
 	const unprefixed = lf(inserted).replace(/\n[ \t>]*/g, '\n');
 	const bare = (t: string) => t.replace(/\n$/, '');

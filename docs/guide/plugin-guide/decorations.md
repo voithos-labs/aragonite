@@ -146,15 +146,19 @@ What you can count on:
 
 When marks overlap, the shortest range wins, then the earlier-registered source, then the earlier mark in its answer. The pointer follows the same rule, for hovers and clicks alike. A table cell is the one place marks merge: every mark in the cell paints as one whole-cell rect, and the same rule picks which mark the click and the hover go to.
 
-The keyboard's way in is one command instead of a tab stop per mark. `decorations.activateAtCaret` runs the `onActivate` of the mark under the caret (a caret on either edge counts, and over a selection it's the end you're extending). It ships with no chord. A host binds one through its `keybindings` prop (`{ chord: 'Alt+Enter', command: 'decorations.activateAtCaret' }`), and a plugin that wants its own key wraps it in a global command:
+The keyboard's way in is one command instead of a tab stop per mark. `decorations.activateAtCaret` runs the `onActivate` of the mark under the caret (a caret on either edge counts, and over a selection it's the end you're extending). It ships with no chord. A host binds one through its `keybindings` prop (`{ chord: 'Alt+Enter', command: 'decorations.activateAtCaret' }`), and a plugin that wants its own key wraps it in a command:
 
 ```ts
-registerGlobalCommand('glossary.lookup', (editor) => editor.runCommand('decorations.activateAtCaret'), {
-	chord: 'Alt+L'
+command({
+	id: 'lookup',
+	title: 'Look up the word',
+	chord: 'Alt+L',
+	when: (editor) => editor.can('decorations.activateAtCaret'),
+	run: (editor) => editor.run('decorations.activateAtCaret')
 });
 ```
 
-The built-in id answers like any other command, which is handy for a host's own button (a plugin's wrapper can't pass that on, so its `canRunCommand` stays true):
+The built-in id answers like any other command, which is handy for a host's own button:
 
 ```ts
 editor.canRunCommand('decorations.activateAtCaret'); // false: no mark with onActivate under the caret

@@ -33,7 +33,8 @@ export interface DrawnBoxDeps {
 export function createDrawnBox(deps: DrawnBoxDeps) {
 	const wiring = wireSurfaceContexts();
 	const { blockEdit, focusActions, caretMemory, caretWriter, selection } = wiring.deps;
-	const { getDoc, getBlockElByPath, reading, commands, readingFocus, composition } = wiring.deps;
+	const { getDoc, getBlockElByPath, reading, bytes, commands, readingFocus, composition } =
+		wiring.deps;
 	const isReading = () => reading.mode() === 'reading';
 	const focusEl = () => deps.drawn()?.dom ?? null;
 
@@ -106,6 +107,8 @@ export function createDrawnBox(deps: DrawnBoxDeps) {
 		handleWholeBlockKeys(e, {
 			getIndex: deps.getIndex,
 			getRaw: () => deps.getNode().raw,
+			bytes,
+			reading,
 			blockEdit,
 			focus: focusActions,
 			isReading,

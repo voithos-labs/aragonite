@@ -225,7 +225,7 @@ test.describe('slash commands', () => {
 		test('runCommand with a query opens the list already narrowed', async () => {
 			await editor.page.keyboard.press('Enter');
 			const ran = await editor.page.evaluate(
-				() => (window as any).__test.runCommand('slashCommands.open', 'table') as boolean
+				() => (window as any).__test.runCommand('slash-commands/open', 'table') as boolean
 			);
 			expect(ran).toBe(true);
 			await expect.poll(() => rows(editor)).toEqual(['Table', 'Table of contents']);

@@ -28,7 +28,7 @@ And a map, so you can jump straight at your question:
 | [The kind checkup](#the-kind-checkup-runkindconformance) | The checks every block kind has to pass: bytes survive, one edit is one undo step, copying invents nothing |
 | [The container checkup](#the-container-checkup-runcontainerconformance) | Extra checks for a block that holds other blocks, starring the body line that ends the container early |
 | [The inline checkup](#the-inline-checkup-runinlinekindconformance) | Checks for syntax recognized mid-sentence: claiming your own bytes, declining everyone else's |
-| [A menu pick across a note switch](#a-menu-pick-across-a-note-switch-checkinlinemenucommitacrossswap) | One cell for an inline-menu source: a commit that waits writes nothing into a note the host loaded meanwhile |
+| [A menu pick across a note switch](#a-menu-pick-across-a-note-switch-checkmenupickacrossswap) | One cell for a caret menu: a pick that waits writes nothing into a note the host loaded meanwhile |
 | [The whole plugin at once](#the-whole-plugin-at-once-runpluginconformance) | Every kit over every kind your plugin declares, the check a listing runs |
 | [The check a listing runs](#the-check-a-listing-runs-aragonite-plugin-check) | The same run over your built package, from a terminal or your CI |
 
@@ -228,7 +228,7 @@ Takes your kind (the value `declaredPluginKind` returns) and runs one cell per e
 
 - The fixture round-trips, and a kind declaring `rebuildRaw` also has it checked twice over: it keeps the parsed bytes exactly, and it emits the same bytes on every run.
 - Backspace-merge eligibility is held to your declared `mergeRole`.
-- A copy is a plain byte slice, with your kind at each end of the copied range in turn.
+- A copy is a plain byte slice, with your kind at each end of the copied range in turn. A kind with no text of its own (a container, or a block focused whole) gets copied whole there, since a range ending on it holds all of it.
 - One structural operation pushes exactly one undo entry.
 - A kind that isn't `editable` gets nothing found in it by the document scan, since search skips it.
 - The raw-write cell. It reads your descriptor's `rawWrite` (the rule that makes any bytes written into your block legal, like a fence growing past a body line that would close it) and comes after the system cells in the report:
@@ -293,7 +293,7 @@ The harness the built-in containers are held to, pointed at your own container k
 | `terminatorCollision` | A body line reproducing your container's own closing line stays inside the container |
 | `titleRow` | Always on, and excused for a kind with no title row or one that isn't opaque. A `:::` container's opener line counts as a title row, and so does one you declare with `reservedChrome`. It needs your kind's own `conformanceFixture` to type in: it types into your title row the way a keystroke does, then checks your block against a fresh parse of its bytes, metadata included. The editor doesn't re-read your metadata on a title keystroke, so none of it may come from the title's bytes. On a `:::` opener line the title is the text after the name; a change to `:::name` itself does re-read the container |
 | `openerLine` | Always on, and excused when no start of your fixture's first line waits on a closer below. For each start that does (`:::c`, `:::co`, and so on), it types it above your fixture, where the editor closes it at once, and checks the caret's offset still sits in a line you can type in. A `:::` container passes on its own, since its opener line is that line; it's here for an opener of your own whose first line would otherwise send the next letter into the body |
-| `copyMarkers` | Always on, and excused for a grid or a kind whose `deepNesting` leaf isn't inside it. It copies from a paragraph above your container into the `deepNesting` leaf, and for a line-prefixed (`strip`) kind out of that leaf to a paragraph below, then parses the copy and checks the copied end still sits under every container it sat under. Your `rebuildRaw` writes those markers, so there's nothing to add for this one; it fails when your rebuild can't write your container around just part of its children |
+| `copyMarkers` | Always on, and excused for a grid or a kind whose `deepNesting` leaf isn't inside it. It copies from a paragraph above your container into the `deepNesting` leaf, and for a line-prefixed (`strip`) kind out of that leaf to a paragraph below, then parses the copy and checks the copied end still sits under every container it sat under. The copy takes those markers from your container's own lines as they sit in the document, not from your `rebuildRaw`, so there's nothing to add for this one. It fails when part of your container, copied out, doesn't read back as your container |
 | `declarations` | The kit's own cell, always on, and it also needs your kind's `conformanceFixture` (a top-level block of your kind; a grid container needs none). Your `unwrapRole` names strategies that exist, `containerPaste` is shaped right, `rebuildRaw` keeps the parsed bytes, rewrites only the edited child's lines when one child of your `deepNesting` source changes (so spell that source the way your rebuild wouldn't), and answers its changed-child shortcut with the same bytes as a full rebuild, `bodyWrap` matches what your parse does, the child your `lastLineChild` names (or the default one) really ends on your last line (and when the answer is -1, your own last line can give its ending up without a rebuild writing it back), and a declared `contentStartSpace` writes the space it took as your marker's when an empty line gains text |
 
 You supply the fixtures, on top of the `conformanceFixture` your descriptor already carries. For the guide's `:::conspiracy` container ([the walkthrough](plugin-guide/container-walkthrough.md#walkthrough-a-conspiracy-container-end-to-end)), a full profile looks like this:
@@ -502,28 +502,27 @@ One thing worth knowing about `widget`: it asserts your claimed slice is **self-
 
 `registerInlineSyntax` already refuses most of that up front, so those are cross-checks on the editor rather than things you can get wrong. What you _can_ get wrong is your recognizer not being there at all (a setup step that ran under the wrong guard, say), and that one doesn't wait for the cell: the run throws before any cell starts, telling you to register the plugin first.
 
-### A menu pick across a note switch: `checkInlineMenuCommitAcrossSwap`
+### A menu pick across a note switch: `checkMenuPickAcrossSwap`
 
-**`checkInlineMenuCommitAcrossSwap({ source, item, query?, release })`**
+**`checkMenuPickAcrossSwap({ plugin, row, query?, release })`**
 
-One cell, for an inline-menu source whose `onCommit` waits on something (a fetch for a title, a picker) before it writes. If the host loads another note meanwhile, the write has to land nowhere. The editor makes sure of that for the context `onCommit` hands you as its third argument: once the note's gone, its `insertMarkdown` and `runCommand` write nothing and answer false. The one you closed over in `onEditor` can't know which note you meant, so writing through it after the wait is the bug this cell catches, unless you check `documentGeneration` (how many times the host has replaced the document, read off the context) first. A source that reads it before the wait and compares after passes.
+One cell, for a caret menu whose `pick` waits on something (a fetch for a title, a picker) before it writes. If the host loads another note meanwhile, the write has to land nowhere. The editor makes sure of that for the `MenuPick` your `pick` gets: once the note's gone, its writes come back refused as `unloaded`. An editor you kept from `setup` can't know which note you meant, so a draft you open on it after the wait is the bug this cell catches.
 
-Hand it a function that builds your source from an editor context, the row to pick, and a `release` that ends your source's wait. The cell picks the row, swaps the note while your commit waits, calls `release`, and throws if your commit wrote anything after the swap:
+Hand it your plugin value (the cell runs its `setup`, then picks from its first caret menu), the row to pick, and a `release` that ends your pick's wait. The cell picks the row, swaps the note while your pick waits, calls `release`, and throws if anything got written after the swap:
 
 ```ts
-import { checkInlineMenuCommitAcrossSwap } from '@voithos-labs/aragonite/testing';
+import { checkMenuPickAcrossSwap } from '@voithos-labs/aragonite/testing';
 
 let release = () => {};
 const titleFetched = new Promise<void>((r) => (release = r));
 
-await checkInlineMenuCommitAcrossSwap({
-	source: (editor) => createMentionSource(editor, { fetchTitle: () => titleFetched }),
-	item: { id: 'ada', label: 'Ada', insert: '@Ada' },
+await checkMenuPickAcrossSwap({
+	plugin: mentions({ fetchTitle: () => titleFetched }),
+	row: { label: 'Ada' },
 	release
 });
-// Error: inline-menu source 'mentions': its commit wrote insertMarkdown("> card") after the host
-// loaded another document; write through the context onCommit hands you, or compare
-// documentGeneration across the wait
+// Error: plugin 'mentions': its menu's pick made a draft commit after the host loaded another
+// document; write through the pick the menu hands you
 ```
 
 ### The whole plugin at once: `runPluginConformance`

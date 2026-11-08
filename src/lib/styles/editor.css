@@ -767,6 +767,16 @@
 	color: var(--color-ui-muted);
 }
 
+/* A plugin's own SVG markup, sized to the glyph box whatever its width and height say. */
+:where(.editor) .md-menu-svg {
+	display: inline-flex;
+}
+
+:where(.editor) .md-menu-svg > svg {
+	width: 100%;
+	height: 100%;
+}
+
 :where(.editor) .md-menu-divider {
 	height: 1px;
 	margin: 4px 6px;

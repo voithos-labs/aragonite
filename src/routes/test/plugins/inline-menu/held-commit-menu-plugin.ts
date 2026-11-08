@@ -1,10 +1,9 @@
 /**
- * A mention menu on `@` whose `onCommit` waits on the page before it inserts a card below, the
- * shape a source takes when it fetches a title first. The spec releases the wait through
- * `window.__releaseHeldCommit`, so it can type while the pick's commit is still pending.
+ * A card picker on `@` whose pick waits on the page before it puts a card below in place of the
+ * query, the shape a menu takes when it fetches first. The spec releases the wait through
+ * `window.__releaseHeldCommit`, so it can type while the pick is still waiting.
  */
-import { definePlugin } from '#lib/plugin.js';
-import type { EditorPlugin } from '#lib/plugin.js';
+import { definePlugin, menu, type MenuRow } from '#lib/plugin.js';
 
 declare global {
 	interface Window {
@@ -12,24 +11,22 @@ declare global {
 	}
 }
 
-export const HELD_COMMIT_MENU = 'harness-held-commit';
-
-export function heldCommitMenuPlugin(): EditorPlugin {
-	return definePlugin({
-		name: 'harness-held-commit-menu',
-		setup(ctx) {
-			ctx.onEditor((editor) => {
-				const handle = editor.inlineMenus.addSource({
-					name: HELD_COMMIT_MENU,
-					trigger: '@',
-					items: () => [{ id: 'ada', label: 'Ada', insert: '@Ada' }],
-					onCommit: async (_item, _range, pick) => {
-						await new Promise<void>((release) => (window.__releaseHeldCommit = release));
-						await pick.insertMarkdown('> card', { placement: 'below' });
-					}
-				});
-				return () => handle.dispose();
-			});
-		}
-	});
-}
+export const heldCommitMenuPlugin = definePlugin({
+	name: 'harness-held-commit-menu',
+	version: '1.0.0',
+	editor: '*',
+	contributes: () => ({
+		menus: [
+			menu<MenuRow>({
+				label: 'Mention',
+				trigger: '@',
+				where: 'anywhere',
+				rows: () => [{ label: 'Ada' }],
+				async pick(_row, pick) {
+					await new Promise<void>((release) => (window.__releaseHeldCommit = release));
+					await pick.insertBlock('> card');
+				}
+			})
+		]
+	})
+});

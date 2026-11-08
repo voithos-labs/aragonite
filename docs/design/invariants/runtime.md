@@ -104,7 +104,7 @@ These checks run in three kinds of place:
 | G1.154 | A content write's fixed-up window holds the block it wrote | A·N |
 | G1.155 | A block's write puts its caret inside the text it writes | A·N |
 | G1.156 | An undo or redo leaves the document at its entry's bytes; nothing writes while it installs | A·N |
-| G1.158 | A block a commit splices in holds no opener it wrote that a block below would close | A·N |
+| G1.158 | A block a commit or a byte splice puts in holds no opener it wrote that a block below would close | A·N |
 | G1.159 | The caret writer writes a caret only where something shows it | A·N |
 | G1.160 | A widget beside a caret the writer puts down lays out inline | A·N |
 | G1.161 | A typed letter the editor leaves to the browser lands at its caret | A·N |
@@ -115,10 +115,12 @@ These checks run in three kinds of place:
 | G1.168 | A key or a composition over a selection in live mode is written by the editor, never left to the browser | A·N |
 | G1.169 | While a finger's range is the editor's, the DOM holds only a caret | A·N |
 | G1.170 | The editor owns a range inside one block only when a finger's press made it | A·N |
-| G1.171 | A copy into or out of a container reads back inside it, its markers written by its own rebuild | harness·P |
+| G1.171 | A copy into or out of a container reads back inside it, its markers on every line it holds | harness·P |
 | G1.174 | A block writes a typed character only while the editor owns no range | A·N |
 | G1.175 | The right-click menu opens over the selection only while one is held | A·N |
 | G1.178 | A text end inside a table cell pairs only with an end in that same cell | A·N |
+| G1.187 | A range across blocks paints a box over exactly the blocks whose bytes a copy of it takes | harness·P |
+| G1.188 | A cut writes the words its removal takes, save five named classes, until range stage 3 | harness·N |
 | G1.189 | An undo or redo puts back no block read under a grammar the editor no longer reads | A·N |
 | G1.190 | While a draft is open, every write tells it everything the write changed | A·N |
 
@@ -188,7 +190,7 @@ These checks run in three kinds of place:
 
 **G1.35 · Single-node sink.** A slot that installs exactly one node never installs bytes that reparse to several (bytes arriving plural are fine). Every join (Backspace, Delete, the list-item merge) writes through `joinIntoLeaf`, which refuses a join whose bytes read as two blocks: nothing changes, and the caret moves across the boundary instead. Predicate `checkSingleNodeSink` (`single-node-sink.ts`) · `tree-operations/node-ops.ts :: mergedLeafFor` · `test/tree-operations/merge-multi-block-refusal.test.ts`.
 
-**G1.36 · Structural-descriptor coherence.** A `StructuralChange` (a splice's record for the id and ref arrays) fits its array, and a commit leaves one id and one `childSpans` pair per child at every depth. It's checked where applied and where the commit publishes ids (a record can fit and name the wrong window) and, over the whole document, at e2e teardown. `applyStructuralChangeToIdsRefs`, `assertCommittedNodes` · `structural-descriptor.test.ts`, `child-spans.test.ts`, `cross-block-delete-seam-fold.test.ts`, `child-id-parity.test.ts`.
+**G1.36 · Structural-descriptor coherence.** A `StructuralChange` (a splice's record for the id and ref arrays) fits its array, and a commit leaves one id and one `childSpans` pair per child at every depth, a list's pairs where its items' bytes sit. It's checked where applied and where the commit publishes ids (a record can fit and name the wrong window) and, over the whole document, at e2e teardown. `applyStructuralChangeToIdsRefs`, `assertCommittedNodes` · `structural-descriptor.test.ts`, `child-spans.test.ts`, `cross-block-delete-seam-fold.test.ts`, `child-id-parity.test.ts`.
 
 **G1.38 · Faithful container splices** (`child-spans-faithful`). After every one-region splice, dev re-derives the container raw on a scratch node and, on a difference, names the kind and refuses the splice for the full rebuild. Code moving bytes beside the spliced child (a separator the fix-up retires, a borrowed wrap slot) retires the spans itself in `schema/child-spans.ts`; this is the backstop, and the only guard seeing a stale container raw between commits. `spliceIsFaithful` there · `child-spans.test.ts`, `child-spans-settle.test.ts`, `child-spans.property.test.ts`.
 
@@ -216,7 +218,7 @@ These checks run in three kinds of place:
 
 **G1.55 · A written block reads back as itself** (`reads-back`). After a keystroke's rebuild and every commit, dev reads each top-level block the edit names alone, as a file opens (`readAsOpened`, so a bare `- ` keeps its empty paragraph), and compares kinds, child counts and metadata: a dropped space that re-nests a list, or a paragraph that reloads as a heading, fails. A splice's window reads with its neighbours, or to the far end around an unclosed opener. Skipped: a top-level keystroke, anything over 16K characters, perf runs. `checkRunReadsBack` · `commit-frame.ts` · `reads-back.test.ts`.
 
-**G1.58 · An indent key over a range keeps every word, in order** (`range-indent-keeps-text`). Tab, Shift+Tab or a rebound indent key over a range moves list items, shifts code lines, or does what a kind's `registerRangeIndent` says, and nothing else. After each press dev compares the spanned blocks' leaf text (`leafTexts`, shared with G1.61), whitespace aside: a renumbered marker or an added tab passes, a lost or moved word fails. `checkIndentKeepsText` · `range-indent.ts` · `range-indent-keeps-text.test.ts`.
+**G1.58 · An indent key over a range keeps every word, in order** (`range-indent-keeps-text`). Tab, Shift+Tab or a rebound indent key over a range moves list items or shifts code lines, and nothing else. After each press dev compares the spanned blocks' leaf text (`leafTexts`, shared with G1.61), whitespace aside: a renumbered marker or an added tab passes, a lost or moved word fails. `checkIndentKeepsText` · `range-indent.ts` · `range-indent-keeps-text.test.ts`.
 
 **G1.61 · A list move keeps the order** (`list-move-keeps-order`). Every nest, lift, unwrap and merge that moves blocks between list levels (Tab, Shift+Tab, Backspace at a sublist's start or on a first item, Enter in an empty item) keeps the list's leaf text in order, read as G1.58 reads it. A merge reads only the two lines it joins, since a live join can drop markers. `checkListMoveKeepsOrder`, run by `keeping-order.ts` · `item-moves.ts`, `item-partition.ts` (G4.123), `unwrap-merge.ts` · `list-move-keeps-order.test.ts`, `indent-keeps-order.property.test.ts`.
 
@@ -298,7 +300,7 @@ These checks run in three kinds of place:
 
 **G1.156 · An undo puts back its entry, nothing more** (`history-install`). Once an undo or redo has installed its entry and placed the caret, the document's bytes are the entry's. A write in between (a block tidying itself up as the caret leaves it) would be a new edit inside the undo, and would clear the redo stack, so the write gate declines every write while the install runs. `checkInstalledEntry` · `history.ts :: restore` · `history-install.test.ts`, `grammar-restore.test.ts`, the behavior rows.
 
-**G1.158 · A spliced opener takes in no block below** (`spliced-opener-closed`). A block a commit splices or moves in holds no opener it wrote (a `$$`, a `:::note`, a fence) that a block further down would close, since that opener would read in blocks the edit never touched. Every write route closes one first (`legalizeWrite`, `closeWrittenOpeners`); a content write and a removal aren't asked, and a range delete's survivor lands outside a commit's list, where the route rows hold it. `checkSplicedOpenersClosed` · `fix-up/apply.ts` · `written-opener-routes.test.ts`.
+**G1.158 · A spliced opener takes in no block below** (`spliced-opener-closed`). A block a commit splices or moves in, or a byte splice writes, holds no opener it wrote (a `$$`, a `:::note`, a fence) that a block further down would close. Every write route closes one first; a content write and a removal aren't asked, and a range delete's survivor is held by the route rows. The byte splice's check runs the rule's own code, so it catches a skipped rule; the route rows catch a wrong closer. `checkSplicedOpenersClosed` · `checkSplicedChangesClosed` · `written-opener-routes.test.ts`.
 
 **G1.159 · A written caret shows** (`caret-paints`). The caret writer writes a caret only where something shows it: text, a line the browser paints, or a widget's side (beside a picture, the drawn caret's bar). A spot with only hidden marker runs beside it, in a block holding focus (focus decides what hides), moves to visible text at the same offset, or is refused (no write, a false return); only a plugin block drawing nothing but markers gets there. `checkCaretPaints` · `browser/caret-writer.ts` · `caret-spot.test.ts`, `caret-shows`.
 
@@ -320,13 +322,17 @@ These checks run in three kinds of place:
 
 **G1.170 · A range inside one block is the editor's only from a finger** (`owned-range-from-finger`). A mouse's or a keyboard's range inside one block is the browser's, and the overlay paints only what the editor owns, so a route that took one would paint over the browser's highlight and route its keys through the range handlers. `SelectionState.ownBlockRange` takes a `FingerPress`, which only `selection/pointer-gesture.ts :: fingerPress` makes, and dev fails one it didn't make. `checkOwnedRangeFromFinger` · `owned-block-range.test.ts`.
 
-**G1.171 · A copy keeps the containers its ends sit in** (`copyMarkers`). A range entering or leaving a container copies the lines it covers with that container's markers, written by its own `rebuildRaw`. The container checkup copies into each kind's `deepNesting` leaf, and out of it for a line-prefixed kind, and reads the copy back under the same containers. `selection/clipboard-text.ts` · `testing/container-conformance.ts` · `clipboard-container-markers.test.ts`.
+**G1.171 · A copy keeps the containers its ends sit in** (`copyMarkers`). A range entering or leaving a container copies the lines it covers with that container's markers, read off its own lines in the document. The container checkup copies into each kind's `deepNesting` leaf, and out of it for a line-prefixed kind, and reads the copy back under the same containers. `range-edit/copy.ts` · `testing/container-conformance.ts` · `clipboard-container-markers.test.ts`.
 
 **G1.174 · A key typed over a range is the range's** (`typed-write-outside-range`). A character typed while the editor owns a range replaces the range (G4.108), and the range's handler takes it at its keydown, since beside a picture no engine sends a `beforeinput`. A block that writes a typed key itself under a range took one that was never its own, so dev fails a typed write through a block's text write (`editable-surface.ts`) while a range is owned. `checkTypedWriteOutsideRange` · `typed-write-outside-range.test.ts`.
 
 **G1.175 · The menu over a selection has one to act on** (`menu-over-selection`). A right-click whose press landed on the selection opens Cut and Copy over it, so something that dropped the selection between the press and the menu (a press handler ending the range, say) would offer them over nothing. Dev fails a menu opened over the selection while `holdsSelection` says none is held (`editor-root/menus.ts`). `checkMenuOverSelection` · `menus.test.ts`.
 
 **G1.178 · A cell's text range stays in its cell** (`cell-text-endpoint`). A finger's word in a table cell is stored at the cell's own path with text offsets, which only `SelectionState`'s cell snap keeps, and only while both ends sit in that cell. A text end there paired with one anywhere else is read as text where the delete, the copy and the paint expect a cell index, so dev fails one at every write of the pair. `checkCellTextEndpoint` · `owned-cell-range.test.ts`.
+
+**G1.187 · The overlay paints what a copy takes.** A range across blocks paints one box over each block whose own bytes, up to its last line's text, lie inside the range's bytes (`rangeBytes`, what a copy takes) while its parent's don't, and over no other block. A table's rows paint through its cells, never as boxes. Checked both ways, each its own row, over the selection-partition draw, with an empty item and a fenced body at the range's end as named rows. `selection/range-bytes.ts :: rangePaint` · `selection-paint.property.test.ts`, `classify-block-selection.test.ts`.
+
+**G1.188 · A cut writes what its removal takes.** Until range stage 3, a cut writes the range-edit core's clipboard and today's removal deletes. Over shaped ranges in both modes they agree in words, save five classes: a table's header and a title row's container (law 3's exceptions), a title row the range ends on (law 10's open edge), and two ways today's removal parts from the core's. The copy must hold the range's words, a class may only add its own lines to the core's, and its repro must keep parting that way. `selection/cut-clipboard-differential.test.ts`, `range-laws/known-failures.ts`.
 
 **G1.189 · An undo reads under the editor's grammar** (`restore-grammar`). An undo entry keeps the grammar its tree was read under, and one restored under another has its bytes read again from the live document instead of installed, which leans on every block the undo leaves alone already reading under the editor's grammar. Either way, each block the undo put back that read alone as itself under the entry's grammar still does under the editor's (a block misread under both is G1.55's). `checkRestoredUnderGrammar` (`reads-back.ts`) · `history.ts :: install` · `grammar-restore.test.ts`.
 

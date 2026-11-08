@@ -7,7 +7,6 @@
 import { registerBuiltinLanguage } from './code-languages';
 import { registerPasteSurface } from '../../../tree-operations/paste-surfaces';
 import { codePasteSurface } from './code-paste-surface';
-import { registerCodeContextActions } from './code-context-actions';
 
 import javascript from 'highlight.js/lib/languages/javascript';
 import typescript from 'highlight.js/lib/languages/typescript';
@@ -70,5 +69,4 @@ export function bootstrapCodeLanguages(): void {
 	registerBuiltinLanguage('dockerfile', dockerfile, ['docker']);
 
 	registerPasteSurface(codePasteSurface);
-	registerCodeContextActions();
 }

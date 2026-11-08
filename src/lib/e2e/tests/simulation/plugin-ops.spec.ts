@@ -144,16 +144,16 @@ test.describe('plugin-container ops simulation', () => {
 		expect(await containerRaw(page, 'callout')).toContain(':::aside');
 		await assertCheckpoint(ctx, 'note-set-kind');
 
-		// ── A global command that only reads changes nothing ──────────────────────
-		// The source and the undo stack must be identical across a global plugin shortcut that commits
-		// nothing.
+		// ── A plugin command that writes nothing changes nothing ──────────────────
+		// The source and the undo stack must be identical across a plugin command's chord that
+		// commits nothing.
 		await g.pause();
-		const beforeDocStats = await editor.bridge.getSource();
+		const beforeChord = await editor.bridge.getSource();
 		const undoBefore = await page.evaluate(() => (window as any).__test.dumpUndoStack());
-		await g.publishDocStats();
-		expect(await editor.bridge.getSource()).toBe(beforeDocStats);
+		await g.countChord();
+		expect(await editor.bridge.getSource()).toBe(beforeChord);
 		expect(await page.evaluate(() => (window as any).__test.dumpUndoStack())).toBe(undoBefore);
-		await assertCheckpoint(ctx, 'global-command-docstats');
+		await assertCheckpoint(ctx, 'plugin-command-chord');
 
 		// ── Split the callout body, then undo/redo the split's typing ───────────
 		await g.pause();

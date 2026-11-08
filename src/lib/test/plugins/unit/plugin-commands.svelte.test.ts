@@ -188,9 +188,10 @@ describe("a command's chord", () => {
 		]);
 	});
 
-	it('binds only to a command with no argument, which a key can supply', () => {
+	it('binds only to a command that runs without an argument, since a key supplies none', () => {
 		const run = () => {};
 		command({ id: 'bare', title: 'Bare', chord: 'Mod+Alt+B', run });
+		command<string | undefined>({ id: 'maybe', title: 'Maybe', chord: 'Mod+Alt+M', run });
 		// @ts-expect-error a key hands a command no string
 		command<string>({ id: 'word', title: 'Word', chord: 'Mod+Alt+W', run });
 	});

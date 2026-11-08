@@ -3,8 +3,7 @@
 // displayLength(raw): anything between makes every byte consumer slice a whole block in half.
 import { describe, it, expect } from 'vitest';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
-import { collectCrossBlockText } from '#lib/selection/clipboard-text.js';
-import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
+import { copiedText } from '#lib/test/harness/copied-text.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
@@ -31,11 +30,7 @@ function mermaidDoc(): Document {
 }
 
 function copySelected(doc: Document, s: ReturnType<typeof stateOver>): string {
-	return collectCrossBlockText(
-		doc,
-		rangeCoverage(doc, coverRange(doc, s.start!, s.end!)),
-		SOURCE_READING
-	);
+	return copiedText(doc, s.start!, s.end!, SOURCE_READING);
 }
 
 function deleteSelected(doc: Document, s: ReturnType<typeof stateOver>): string {

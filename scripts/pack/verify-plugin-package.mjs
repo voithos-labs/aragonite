@@ -90,8 +90,13 @@ const testing = await import('@voithos-labs/aragonite/testing');
 testing.configureEditorEnv({ isDev: true });
 const plugin = await import(${JSON.stringify(pathToFileURL(path.resolve(index)).href)});
 const factories = Object.entries(plugin).filter(([name, value]) => /Plugin$/.test(name) && typeof value === 'function');
-if (factories.length === 0) throw new Error('exports no plugin factory');
+const values = Object.values(plugin).filter((value) => typeof value === 'function' && typeof value.editor === 'string');
+if (factories.length + values.length === 0) throw new Error('exports no plugin');
 core.installPlugins(factories.map(([, factory]) => factory()));
+if (values.length > 0) {
+	testing.configureEditorEnv({ isDev: true, isTest: true });
+	await testing.runPluginConformance({ plugins: values });
+}
 `;
 	const run = spawnSync(
 		process.execPath,

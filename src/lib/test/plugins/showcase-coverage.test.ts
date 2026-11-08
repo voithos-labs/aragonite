@@ -2,6 +2,7 @@ import { beforeEach, describe, it, expect } from 'vitest';
 import { bundledPluginDirs } from '../invariants/lint/scan-source';
 import { parse } from '#lib/core/parser.js';
 import { installPlugins } from '#lib';
+import { normalizePluginEntries } from '#lib/schema/plugin-install.js';
 import { getAllRegisteredKinds } from '#lib/schema/block-kind-descriptor.js';
 import {
 	ALL_BLOCK_KINDS,
@@ -90,7 +91,7 @@ let demonstrated: Set<string>;
 let expected: Set<string>;
 
 beforeEach(() => {
-	installPlugins(DEMO_PLUGINS);
+	installPlugins(normalizePluginEntries(DEMO_PLUGINS).plugins);
 	demonstrated = kindsIn(parse(SHOWCASE_DOCUMENT));
 	expected = new Set([
 		...ALL_BLOCK_KINDS,

@@ -83,7 +83,9 @@ async function applyGesture(
 	} else {
 		const event = {
 			preventDefault: () => {},
-			clipboardData: { setData: (_type: string, value: string) => (copied = value) }
+			clipboardData: {
+				setData: (type: string, value: string) => void (type === 'text/plain' && (copied = value))
+			}
 		} as unknown as ClipboardEvent;
 		const arm = crossBlockClipboardArm({
 			selection: env.selectionState,

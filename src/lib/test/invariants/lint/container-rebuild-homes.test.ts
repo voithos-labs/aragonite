@@ -55,6 +55,10 @@ const PINNED: Record<string, Pin> = {
 		calls: { rebuildTableRowRaw: 1 },
 		why: 'the rows a pair inside one table clears, below the table the delete owns and the commit rebuilds'
 	},
+	'src/lib/tree-operations/spliced-openers.ts': {
+		calls: { rebuildAncestryRaw: 1 },
+		why: 'rebuilds a clone of the container a byte splice writes into, to find the bytes its closing line takes'
+	},
 	'src/lib/selection/selection-drop.ts': {
 		calls: { rebuildAncestryRaw: 1 },
 		why: 'rebuilds a clone of the dragged cell’s table to measure the cut'
@@ -70,10 +74,6 @@ const PINNED: Record<string, Pin> = {
 	'src/lib/testing/conformance-core.ts': {
 		calls: { writeContainerRaw: 1 },
 		why: 'the shared kit check rebuilds a parsed fixture, outside any commit'
-	},
-	'src/lib/selection/clipboard-text.ts': {
-		calls: { writeContainerRaw: 1 },
-		why: 'a copy writes each container it enters or leaves around what it copied, a node no commit has seen'
 	},
 	'src/lib/tree-operations/blockquote.ts': {
 		calls: { rebuildContainerRaw: 2 },

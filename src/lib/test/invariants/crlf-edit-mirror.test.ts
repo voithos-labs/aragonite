@@ -31,9 +31,7 @@ import {
 	makePasteCommit
 } from '../harness/editor-actions';
 import { createFocusActions } from '../../editor-actions/focus/focus';
-import { blockContextActionsFor } from '../../schema/context-actions';
-import { everyInstalledPlugin } from '../../schema/plugin-activation';
-import { registerCodeContextActions } from '../../components/blocks/code/code-context-actions';
+import { codeBlockActions } from '../../components/blocks/code/code-context-actions';
 import { ensurePasteSurface } from '#lib/test/harness/paste-surface.js';
 import { deleteRange } from '../harness/range-delete';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
@@ -244,17 +242,14 @@ const GESTURES: EditGesture[] = [
 
 /** The bytes the code block's "Dissolve into text" row writes for the block at `index`. */
 async function dissolveBlock(doc: Document, index: number): Promise<string> {
-	registerCodeContextActions();
 	const node = doc.children[index];
-	const dissolve = blockContextActionsFor(node, [index], everyInstalledPlugin, 'block').find(
-		(action) => action.id === 'code.dissolve'
-	);
+	const dissolve = codeBlockActions(node).find((action) => action.id === 'code.dissolve');
 	const written: string[] = [];
 	await dissolve!.run({
 		node,
 		path: [index],
 		deleteBlock: async () => {},
-		replaceRaw: async (raw) => void written.push(raw),
+		replaceRaw: async (raw) => (written.push(raw), true),
 		transformPaste: (text) => text,
 		lineEnding: documentLineEnding(doc)
 	});

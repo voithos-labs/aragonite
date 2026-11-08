@@ -10,6 +10,8 @@ import type { EditorEventMap } from '../editor-events';
 import type { PresentationMode } from '../presentation-mode';
 import type { Command } from './plugin-command';
 import type { InsertRow } from './insert-catalogue';
+import type { CaretMenu } from './caret-menu';
+import type { SelectionAction } from './selection-action';
 import type { Draft } from './drafts';
 import { isValidPluginName } from './plugin-name';
 import { satisfiesRange } from './version-range';
@@ -60,6 +62,11 @@ export interface Contribution {
 	commands?: readonly Command<unknown>[];
 	/** Rows for the insert menus, listed after the built-ins as `plugin/id`. */
 	inserts?: readonly InsertRow[];
+	/** Lists that open under the caret when their trigger is typed. */
+	menus?: readonly CaretMenu<unknown>[];
+	/** Rows over the selection, or a range captured around the caret, in the right-click menu, the
+	 *  selection toolbar and `openRows`. */
+	actions?: readonly SelectionAction[];
 }
 
 /** The editor as a plugin's `setup` and a host's handle both see it. */
@@ -83,6 +90,16 @@ export interface Editor {
 	can(command: Command | string, arg?: unknown): boolean;
 	/** Whether the editor acts on this key, so a host's own shortcut handler can stand back. */
 	claims(event: KeyboardEvent): boolean;
+	/** Types a caret menu's trigger and `query` at the caret and opens it there, even where a typed
+	 *  trigger wouldn't; false, writing nothing, away from prose or for a menu not listed here. */
+	openMenu<R>(menu: CaretMenu<R>, query?: string): boolean;
+	/** Opens the editor's menu with an action's rows over `range` (captured as the action says) at
+	 *  `anchor`, taking no focus; any edit, Escape or a press elsewhere closes it. */
+	openRows(
+		action: SelectionAction,
+		range: { readonly from: number; readonly to: number },
+		anchor: DOMRect | { readonly x: number; readonly y: number }
+	): { readonly isOpen: boolean; close(): void };
 	/** A write in the document's bytes, committed as one undo step now or after a wait; a plugin's
 	 *  is refused as `off` once the plugin is. */
 	edit(): Draft;
