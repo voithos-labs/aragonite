@@ -35,23 +35,36 @@ export function splicedOpenerClosers(
 	const out: WrittenCloser[] = [];
 	let after: readonly NodeView[] | null = null;
 	let shift = 0;
-	for (const group of groupsOf(children, ends, changes)) {
+	const narrow = changes.flatMap((change) => narrowed(before, change));
+	for (const group of groupsOf(children, ends, narrow)) {
 		const { first, hi } = group;
-		const from = Math.min(ends[first] - children[first].raw.length, group.changes[0].from);
-		const to = Math.max(ends[hi], group.changes[group.changes.length - 1].to);
 		const node = children[first];
-		const inside = first === hi && from === ends[first] - node.raw.length && isContainer(node);
-		// The bytes before the change are as they were, so the container starts where it stood.
+		const grown = group.changes.reduce((n, c) => n + c.insert.length - (c.to - c.from), 0);
+		// The bytes on either side of the change are as they were: the container starts or ends there.
 		const start = (first === 0 ? doc.prefix.length : ends[first - 1]) + shift;
-		const now = inside
-			? childAt((after ??= afterReading(doc, reading)), doc.prefix.length, start)
-			: null;
-		const nested = now?.node.kind === node.kind ? closersInside(node, now.node, grammar) : null;
-		const text = changedBytes(before, from, to, group.changes);
-		const was = before.slice(from, to);
-		const closers = nested ?? closersIn(children, undefined, first, hi, was, text, grammar);
-		for (const closer of closers) out.push({ at: from + shift + closer.at, text: closer.text });
-		for (const change of group.changes) shift += change.insert.length - (change.to - change.from);
+		const now =
+			first === hi && isContainer(node)
+				? counterpart(
+						(after ??= afterReading(doc, reading)),
+						doc.prefix.length,
+						node.kind,
+						start,
+						ends[hi] + shift + grown
+					)
+				: null;
+		const nested = now && closersInside(node, now.node, grammar);
+		if (nested) {
+			const base = now.at + now.node.leadingTrivia.length;
+			for (const closer of nested) out.push({ at: base + closer.at, text: closer.text });
+		} else {
+			const from = Math.min(ends[first] - node.raw.length, group.changes[0].from);
+			const to = Math.max(ends[hi], group.changes[group.changes.length - 1].to);
+			const text = changedBytes(before, from, to, group.changes);
+			const was = before.slice(from, to);
+			const closers = closersIn(children, undefined, first, hi, was, text, grammar);
+			for (const closer of closers) out.push({ at: from + shift + closer.at, text: closer.text });
+		}
+		shift += grown;
 	}
 	return out;
 }
@@ -137,38 +150,51 @@ function closersInside(was: NodeView, now: NodeView, grammar: GrammarView): Writ
 	let old = was;
 	let is = now;
 	for (;;) {
-		const [change] = changesBetween(bodyOf(old), bodyOf(is));
-		if (!change) return path.length === 0 ? null : [];
 		const kids = old.children!;
-		const ends = segmentEnds({ prefix: '', children: kids });
-		const first = ends.findIndex((end) => change.from < end);
+		const head = 0;
+		const olds = kids;
+		const news = is.children!;
+		const [change] = changesBetween(bytesOf(olds), bytesOf(news));
+		if (!change) return path.length === 0 ? null : [];
+		const ends = segmentEnds({ prefix: '', children: olds });
+		let first = ends.findIndex((end) => change.from < end);
 		const hi = Math.max(
 			first,
 			ends.findIndex((end) => Math.max(change.to - 1, change.from) < end)
 		);
-		if (first < 0 || hi < 0) return [];
+		if (first < 0) return [];
+		// A container's own first line (`:::tip`) holds no opener, so the write starts below it.
+		while (first < hi && contextual(olds[first]) && news[first]?.kind === olds[first].kind) first++;
 		const start = first === 0 ? 0 : ends[first - 1];
-		const inner = kids[first];
-		const next = first === hi && isContainer(inner) ? childAt(is.children!, 0, start) : null;
-		if (next && next.node.kind === inner.kind) {
-			path.push(next.index);
-			old = inner;
+		const from = bytesOf(news.slice(0, first)).length;
+		const to = ends[hi] + change.insert.length - (change.to - change.from);
+		const next =
+			first === hi && isContainer(olds[first])
+				? counterpart(news, 0, olds[first].kind, from, to)
+				: null;
+		if (next) {
+			path.push(head + next.index);
+			old = olds[first];
 			is = next.node;
 			continue;
 		}
-		const grown = change.insert.length - (change.to - change.from);
-		const text = bodyOf(is).slice(start, ends[hi] + grown);
-		const replaced = bodyOf(old).slice(start, ends[hi]);
-		const closers = closersIn(kids, old, first, hi, replaced, text, grammar);
+		const text = bytesOf(news).slice(from, to);
+		const replaced = bytesOf(olds).slice(start, ends[hi]);
+		const at = head + first;
+		const closers = closersIn(kids, old, at, head + hi, replaced, text, grammar);
 		if (closers.length === 0) return [];
-		const placed = fragmentReaderAt(old, first, grammar)(withClosers(text, closers));
+		const placed = fragmentReaderAt(old, at, grammar)(withClosers(text, closers));
 		const blocks = placed.children.map((block, k) =>
 			k === 0 ? { ...block, leadingTrivia: placed.prefix + block.leadingTrivia } : block
 		);
 		if (blocks.length === 0) return [];
 		blocks[blocks.length - 1] = { ...blocks.at(-1)!, raw: blocks.at(-1)!.raw + placed.suffix };
 		const closed = copyAlong(now, path);
-		closed.at.children = [...kids.slice(0, first), ...blocks, ...kids.slice(hi + 1)] as CstNode[];
+		closed.at.children = [
+			...is.children!.slice(0, at),
+			...blocks,
+			...kids.slice(head + hi + 1)
+		] as CstNode[];
 		rebuildAncestryRaw(closed.root, [...path, 0], grammar);
 		return insertedLines(now.raw, closed.root.raw) ?? [];
 	}
@@ -190,20 +216,34 @@ function closersIn(
 	return writtenOpenerClosers(children, hi, was, text, read, unfinishedReadings(grammar));
 }
 
-/** A container's children's bytes as they read on their own, blank lines and all. */
-const bodyOf = (node: NodeView): string =>
-	(node.children ?? []).map((child) => child.leadingTrivia + child.raw).join('');
+/** `change` cut down to the bytes it changes, so a range wider than them names the blocks they
+ *  sit in. */
+const narrowed = (before: string, { from, to, insert }: ByteChange): ByteChange[] =>
+	changesBetween(before.slice(from, to), insert).map((c) => ({
+		from: from + c.from,
+		to: from + c.to,
+		insert: c.insert
+	}));
 
-/** The block of `children`, laid out from byte `base`, whose blank lines start at byte `at`. */
-function childAt(
+/** Blocks' bytes as they read on their own, blank lines and all. */
+const bytesOf = (blocks: readonly NodeView[]): string =>
+	blocks.map((block) => block.leadingTrivia + block.raw).join('');
+
+/** The block of `children`, laid out from byte `base`, of `kind` whose blank lines start at byte
+ *  `start` or that ends at byte `end`, and the byte its blank lines start at. */
+function counterpart(
 	children: readonly NodeView[],
 	base: number,
-	at: number
-): { node: NodeView; index: number } | null {
-	let pos = base;
-	for (let index = 0; index < children.length && pos <= at; index++) {
-		if (pos === at) return { node: children[index], index };
-		pos += children[index].leadingTrivia.length + children[index].raw.length;
+	kind: string,
+	start: number,
+	end: number
+): { node: NodeView; index: number; at: number } | null {
+	let at = base;
+	for (let index = 0; index < children.length && at <= end; index++) {
+		const node = children[index];
+		const next = at + node.leadingTrivia.length + node.raw.length;
+		if (node.kind === kind && (at === start || next === end)) return { node, index, at };
+		at = next;
 	}
 	return null;
 }

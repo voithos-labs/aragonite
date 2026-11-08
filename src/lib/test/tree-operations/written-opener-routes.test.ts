@@ -180,6 +180,15 @@ const SPLICE_ROUTES: Array<
 	['spliced in as bytes', spliced]
 ];
 
+// Miss-analysis: every splice row's range held only the bytes it changed.
+describe.each(SPLICE_ROUTES)('an opener %s over a range wider than its write', (_name, write) => {
+	it.each(OPENERS)('`%s` takes in nothing below', async (opener, below, closer) => {
+		const h = makeTopHarness(`x\n\n${below}\nend\n`);
+		await write(h, 0, `x\n\n${below}`.length, `${opener}\n\n${below}`);
+		expect(settled(h.deps.doc)).toBe(`${opener}\n${closer}\n\n${below}\nend\n`);
+	});
+});
+
 /** A container, its first line's marker and the marker each line after it takes. */
 const CONTAINERS: Array<[name: string, first: string, rest: string, blank: string]> = [
 	['a quote', '> ', '> ', '>'],
@@ -202,6 +211,18 @@ describe.each(SPLICE_ROUTES)('an opener %s inside a container', (_name, write) =
 			await write(h, container[1].length, container[1].length + 1, opener);
 			expect(settled(h.deps.doc)).toBe(inside(`${opener}\n${closer}\n\n${below}`, container));
 		});
+
+		// Miss-analysis: every container row's range started on the written line itself.
+		it.each([
+			['reaching up into the blank line above it', 'para\n'.length, 'para\n\n'],
+			['adding a blank line above it', 'para\n\n'.length, 'para\n\n\n']
+		])('`$$` written %s takes in nothing below', async (_, from, above) => {
+			const [, below, closer] = OPENERS[0];
+			const h = makeTopHarness(`para\n\n${inside(`x\n\n${below}`, container)}`);
+			const to = 'para\n\n'.length + container[1].length + 1;
+			await write(h, from, to, `\n${container[1]}$$`);
+			expect(settled(h.deps.doc)).toBe(above + inside(`$$\n${closer}\n\n${below}`, container));
+		});
 	});
 });
 
@@ -220,6 +241,23 @@ describe.each(SPLICE_ROUTES)('an opener %s inside a fenced container', (_name, w
 		const at = source.indexOf('x\n');
 		await write(h, at, at + 1, '$$');
 		expect(settled(h.deps.doc)).toBe(after);
+	});
+
+	// Miss-analysis: no fenced row rewrote the container's own first line in the same change.
+	it.each([
+		['an admonition', ':::tip\nx\n\n$$\ny\n$$\n:::\n', ':::tip\nx', ':::note\n$$'],
+		[
+			'a details block',
+			`${DETAILS}x\n\n$$\ny\n$$\n\n</details>\n`,
+			'S</summary>\n\nx',
+			'T</summary>\n\n$$'
+		]
+	])('in %s, `$$` written with its own line takes in nothing below', async (_, source, was, is) => {
+		const h = makeTopHarness(source);
+		const at = source.indexOf(was);
+		await write(h, at, at + was.length, is);
+		const closed = source.replace(was, () => `${is}\n$$`);
+		expect(settled(h.deps.doc)).toBe(closed);
 	});
 });
 
