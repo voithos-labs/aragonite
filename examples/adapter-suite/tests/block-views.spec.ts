@@ -64,6 +64,16 @@ test('a click-to-edit block opens on a click, and its edit is one undo step', as
 	await expect(page.locator('.label-text')).toHaveText('a label');
 });
 
+test('a click at the end of the caption opens the label there, where its component says', async ({
+	page
+}) => {
+	const caption = page.locator('.label-text');
+	const box = (await caption.boundingBox())!;
+	await caption.click({ position: { x: box.width - 1, y: box.height / 2 } });
+	await page.keyboard.type('Z');
+	await expect(page.locator('.label-source [contenteditable="true"]')).toHaveText('@@ a labelZ');
+});
+
 test('a click-to-edit block previews its source key by key, before anything commits', async ({
 	page
 }) => {

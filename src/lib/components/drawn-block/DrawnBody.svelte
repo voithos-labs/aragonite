@@ -214,7 +214,7 @@
 			el.append(made.dom);
 			target = el;
 			const host = el.parentElement as (HTMLElement & { [CARET_AT]?: unknown }) | null;
-			if (host && made.caret) host[CARET_AT] = (x: number, y: number) => clickedAt(made, x, y);
+			if (host) host[CARET_AT] = (x: number, y: number) => clickedAt(made, x, y);
 			seen = watched();
 			if (text) assertInvariant('dom-view-content', () => checkDomViewContent(el, source));
 			const offs = [
@@ -240,9 +240,11 @@
 		});
 	}
 
-	// A click on the drawing's picture of the text lands at that offset of the text.
+	// A click on the drawing's picture of the text lands at that offset of the text. Read per click:
+	// a framework component declares its `caret` once it has rendered.
 	function clickedAt(made: Drawn<unknown>, x: number, y: number): number | null {
-		const caret = made.caret!;
+		const caret = made.caret;
+		if (!caret) return null;
 		const at = typeof caret === 'function' ? caret({ x, y }) : caretOffsetAtPoint(caret, x, y);
 		return at === null ? null : getContentRange(node).start + at;
 	}

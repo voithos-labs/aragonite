@@ -10,7 +10,13 @@ import {
 	type KeyboardEvent,
 	type ReactNode
 } from 'react';
-import { Aragonite, reactBlock, reactView, type BlockProps } from '@voithos-labs/aragonite-react';
+import {
+	Aragonite,
+	reactBlock,
+	reactView,
+	useDrawn,
+	type BlockProps
+} from '@voithos-labs/aragonite-react';
 import type {
 	BoxDrawContext,
 	ContainerDrawContext,
@@ -47,11 +53,18 @@ function Memo({ Slot }: BlockProps<never, TextDrawContext>) {
 }
 
 // While open, a preview beside the text follows it as it's typed, block math's side-by-side shape.
+// A click in the caption opens the text at that letter.
 function Label({ block, ctx, Slot }: BlockProps<never, TextDrawContext>) {
 	const caption = (ctx.typed ?? block.text).slice('@@ '.length).trim();
+	const shown = useRef<HTMLSpanElement | null>(null);
+	useDrawn(() => ({ caret: shown.current ?? undefined }));
 	return (
 		<>
-			{!ctx.focused && <span className="label-text">{caption}</span>}
+			{!ctx.focused && (
+				<span className="label-text" ref={shown}>
+					{caption}
+				</span>
+			)}
 			<span className="label-source">
 				<Slot of="source" />
 			</span>
@@ -118,12 +131,19 @@ function Note({ block, ctx }: BlockProps<never, BoxDrawContext>) {
 	);
 }
 
-// A die the component draws whole: its button takes the caret, and it rolls in order, since a fair
-// die would make a flaky test. ArrowRight rolls it too; ArrowUp and ArrowDown leave it. `!! boom`
-// throws.
+// A die the component draws whole: its button takes the caret the editor hands the die, and it
+// rolls in order, since a fair die would make a flaky test. ArrowRight rolls it too; ArrowUp and
+// ArrowDown leave it. `!! boom` throws.
 function Dice({ block, ctx }: BlockProps<never, BoxDrawContext>) {
 	const sides = diceSides(block);
 	const [rolled, setRolled] = useState(0);
+	const button = useRef<HTMLButtonElement | null>(null);
+	useDrawn(() => ({
+		focus: {
+			enter: () => button.current?.focus(),
+			offset: () => (document.activeElement === button.current ? 0 : null)
+		}
+	}));
 	if (block.text.startsWith(DICE_BOOM)) throw new Error('the die went boom');
 	const next = () => setRolled((n) => (n % sides) + 1);
 	function onKeyDown(e: KeyboardEvent<HTMLButtonElement>) {
@@ -134,7 +154,7 @@ function Dice({ block, ctx }: BlockProps<never, BoxDrawContext>) {
 		e.preventDefault();
 	}
 	return (
-		<button className="dice-roll" onClick={next} onKeyDown={onKeyDown}>
+		<button ref={button} className="dice-roll" onClick={next} onKeyDown={onKeyDown}>
 			d{sides}: {rolled || 'roll me'}
 		</button>
 	);

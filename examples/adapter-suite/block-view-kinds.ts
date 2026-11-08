@@ -113,7 +113,7 @@ export function blockViewsPlugins(views: BlockViews) {
 					insert,
 					interrupts: true,
 					edit: 'box',
-					draw: (block, ctx) => buttonFocus(views.dice(block, ctx))
+					draw: views.dice
 				})
 			]
 		})
@@ -129,18 +129,6 @@ export function blockViewsPlugins(views: BlockViews) {
 		}
 	});
 	return [blocks, inline];
-}
-
-// The die's button takes the caret the editor hands the die, so its own keys roll it.
-function buttonFocus(drawn: Drawn<never, BoxDrawContext>): Drawn<never, BoxDrawContext> {
-	const button = () => drawn.dom.querySelector('button');
-	return {
-		...drawn,
-		focus: {
-			enter: () => button()?.focus(),
-			offset: () => (document.activeElement === button() ? 0 : null)
-		}
-	};
 }
 
 // Escape in the note's edit box hands focus to the note's element, which gives it to the editor:

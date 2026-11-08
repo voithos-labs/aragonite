@@ -2,11 +2,10 @@
 
 The `?block-views` page (`block-views.md`) ends with a `!! d6` die: a block the app's component
 draws entirely (`reactBlock` or `vueBlock`, on a `lineBlock` with `edit: 'box'`), with no editable
-text and no children. It's one button that rolls the die in order (1, 2, 3, ...). The die's `draw`
-adds a `focus` to what the component drew: `enter` puts focus on the button and `offset` says
-whether the button has it, so the button's own keys are its own, and the component hands the caret
-on with `ctx.leave` at ArrowUp and ArrowDown. The die sits
-between `after the blocks` and `the end`. Every scenario fails on any console error, page error or
+text and no children. It's one button that rolls the die in order (1, 2, 3, ...). The component
+declares a `focus` with `useDrawn`: `enter` puts focus on the button and `offset` says whether the
+button has it, so the button's own keys are its own, and the component hands the caret on with
+`ctx.leave` at ArrowUp and ArrowDown. The die sits between `after the blocks` and `the end`. Every scenario fails on any console error, page error or
 console warning.
 
 ## Happy paths

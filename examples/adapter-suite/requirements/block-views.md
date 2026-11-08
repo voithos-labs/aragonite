@@ -21,8 +21,11 @@ warning, not only the editor's own.
 - Typing at the end of the memo reaches the mirror; Ctrl+Z takes it back.
 - A click on the label opens its source with the caret in it; End and typing edit it, and clicking
   into the paragraph below commits the edit once. One Ctrl+Z restores the old label whole.
+- A click at the end of the label's caption opens its source with the caret after the caption's
+  last letter, since the component names the caption as the label's text with `useDrawn`; a key
+  typed there lands at the label's end.
 - With the label open, a preview beside its source follows each key typed and each Backspace
-  (the component's `draft`) while the mirror stays unchanged; clicking away commits, folds the
+  (the context's `typed`) while the mirror stays unchanged; clicking away commits, folds the
   label and removes the preview.
 - Typing in the box's child, then Enter and more typing, lands inside the box; Ctrl+Z takes the
   last typing back. The element around the box's `children` slot carries an attribute that

@@ -1,11 +1,18 @@
 'use client';
 /**
  * `reactBlock`: a block type's `draw` from a React component, which places the editor's elements
- * with `<Slot of="source" />` (or `children`, `title`). It renders synchronously, so a slot is in
- * place by the time `draw` returns.
+ * with `<Slot of="source" />` (or `children`, `title`) and adds to what it draws with `useDrawn`.
+ * It renders synchronously, so a slot is in place by the time `draw` returns.
  */
 
-import { createContext, useCallback, useContext, type ComponentType, type ReactNode } from 'react';
+import {
+	createContext,
+	useCallback,
+	useContext,
+	useLayoutEffect,
+	type ComponentType,
+	type ReactNode
+} from 'react';
 import type { Block, DrawContext, Drawn } from '@voithos-labs/aragonite/plugin';
 import { createViewRoot } from './view-root.js';
 
@@ -34,22 +41,52 @@ export function reactBlock<D = never, C extends DrawContext = DrawContext>(
 		const dom = document.createElement('div');
 		if (className) dom.className = className;
 		const root = createViewRoot(dom, wrap);
+		const declared: Declared = { parts: () => ({}) };
 		const render = (next: Block<D>, nextCtx: C) =>
 			root.render(
-				<SlotContext.Provider value={nextCtx}>
-					<Component block={next} ctx={nextCtx} Slot={Slot} />
-				</SlotContext.Provider>
+				<DrawnContext.Provider value={declared}>
+					<SlotContext.Provider value={nextCtx}>
+						<Component block={next} ctx={nextCtx} Slot={Slot} />
+					</SlotContext.Provider>
+				</DrawnContext.Provider>
 			);
 		render(block, ctx);
-		return { dom, update: render, destroy: root.unmount };
+		return {
+			dom,
+			update: render,
+			destroy: root.unmount,
+			get focus() {
+				return declared.parts().focus;
+			},
+			get keep() {
+				return declared.parts().keep;
+			},
+			get caret() {
+				return declared.parts().caret;
+			}
+		};
 	};
+}
+
+/** Called in a `reactBlock` component: `parts` says what it adds to the drawing, its block's
+ *  `focus`, `keep` or `caret`, read each time the editor needs it (a ref's element, say). */
+export function useDrawn(parts: () => DrawnParts): void {
+	const declared = useContext(DrawnContext);
+	if (!declared) throw new Error('useDrawn runs only inside a reactBlock component');
+	// A layout effect runs inside the synchronous render, so the parts are there when `draw` returns.
+	useLayoutEffect(() => {
+		declared.parts = parts;
+	});
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
 
 type SlotName = 'source' | 'children' | 'title';
+type DrawnParts = Pick<Drawn<never>, 'focus' | 'keep' | 'caret'>;
+type Declared = { parts: () => DrawnParts };
 
 const SlotContext = createContext<DrawContext | null>(null);
+const DrawnContext = createContext<Declared | null>(null);
 
 function Slot({ of }: { of: SlotName }) {
 	const ctx = useContext(SlotContext);

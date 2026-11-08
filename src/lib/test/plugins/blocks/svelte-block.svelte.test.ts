@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // A line block drawn by a Svelte component through `svelteBlock`: its `<Slot>` holds the editor's
-// text element by the time `draw` returns, and the component follows each edit.
+// text element by the time `draw` returns, the component follows each edit, and what it declares
+// with `useDrawn` reaches the editor.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { definePlugin } from '#lib/schema/plugin-install.js';
 import { lineBlock } from '#lib/components/block-makers/line-block.js';
@@ -12,9 +13,11 @@ import {
 	installLayoutStubs,
 	mountEditor,
 	surfaceAt,
-	typeInto
+	typeInto,
+	type BlockLookup
 } from '#lib/test/harness/mount-editor.svelte.js';
 import SlottedNote from '../fixtures/SlottedNote.svelte';
+import DrawnDie from '../fixtures/DrawnDie.svelte';
 
 beforeEach(installLayoutStubs);
 afterEach(async () => {
@@ -39,6 +42,15 @@ const notes = definePlugin({
 				insert: { none: 'a test block type' },
 				edit: 'text',
 				draw: svelteBlock(SlottedNote)
+			}),
+			lineBlock({
+				name: 'die',
+				label: 'Die',
+				match: /^!! .*$/,
+				sample: '!! d6',
+				insert: { none: 'a test block type' },
+				edit: 'box',
+				draw: svelteBlock(DrawnDie)
 			})
 		]
 	})
@@ -63,5 +75,13 @@ describe('svelteBlock', () => {
 		await editor.settle();
 		expect(editor.source()).toBe(SOURCE.replace('abcd', 'abcdX'));
 		expect(blockHostAt(editor, NOTE).querySelector('.caption')?.textContent).toBe('abcdX');
+	});
+
+	it('hands the caret to the focus its component declares with `useDrawn`', async () => {
+		const editor = mountEditor<BlockLookup>({ source: 'intro\n\n!! d6\n', plugins: [notes] });
+		await editor.settle();
+		editor.instance.__test.getBlockComponent([1]).focus?.(0);
+		await editor.settle();
+		expect(document.activeElement).toBe(blockHostAt(editor, [1]).querySelector('.die'));
 	});
 });

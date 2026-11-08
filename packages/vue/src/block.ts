@@ -1,7 +1,7 @@
 /**
  * `vueBlock`: a block type's `draw` from a Vue component, which places the editor's elements with
- * `<Slot of="source" />` (or `children`, `title`). It patches synchronously, so a slot is in place
- * by the time `draw` returns.
+ * `<Slot of="source" />` (or `children`, `title`) and adds to what it draws with `useDrawn`. It
+ * patches synchronously, so a slot is in place by the time `draw` returns.
  */
 
 import {
@@ -41,29 +41,58 @@ export function vueBlock<D = never, C extends DrawContext = DrawContext>(
 		const dom = document.createElement('div');
 		if (className) dom.className = className;
 		const root = createViewRoot(dom, app);
+		const declared: Declared = { parts: () => ({}) };
 		// A context of its own per render: its fields are getters Vue can't watch, so a computed
 		// reading `ctx.typed` would never run again on the same object.
 		const render = (next: Block<D>, nextCtx: C) =>
 			root.render(
-				h(Provide, { ctx: nextCtx }, () =>
+				h(Provide, { ctx: nextCtx, declared }, () =>
 					h(component, { block: next, ctx: Object.create(nextCtx) as C, Slot })
 				)
 			);
 		render(block, ctx);
-		return { dom, update: render, destroy: root.unmount };
+		return {
+			dom,
+			update: render,
+			destroy: root.unmount,
+			get focus() {
+				return declared.parts().focus;
+			},
+			get keep() {
+				return declared.parts().keep;
+			},
+			get caret() {
+				return declared.parts().caret;
+			}
+		};
 	};
+}
+
+/** Called in a `vueBlock` component's `setup`: `parts` says what it adds to the drawing, its
+ *  block's `focus`, `keep` or `caret`, read each time the editor needs it (a template ref, say). */
+export function useDrawn(parts: () => DrawnParts): void {
+	const declared = inject(DRAWN_CONTEXT, null);
+	if (!declared) throw new Error('useDrawn runs only inside a vueBlock component');
+	declared.parts = parts;
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
 
 type SlotName = 'source' | 'children' | 'title';
+type DrawnParts = Pick<Drawn<never>, 'focus' | 'keep' | 'caret'>;
+type Declared = { parts: () => DrawnParts };
 
 const SLOT_CONTEXT: InjectionKey<() => DrawContext> = Symbol('vue-block-slot');
+const DRAWN_CONTEXT: InjectionKey<Declared> = Symbol('vue-block-drawn');
 
 const Provide = defineComponent({
-	props: { ctx: { type: Object as PropType<DrawContext>, required: true } },
+	props: {
+		ctx: { type: Object as PropType<DrawContext>, required: true },
+		declared: { type: Object as PropType<Declared>, required: true }
+	},
 	setup(props, { slots }) {
 		provide(SLOT_CONTEXT, () => props.ctx);
+		provide(DRAWN_CONTEXT, props.declared);
 		return () => slots.default?.();
 	}
 });
