@@ -698,6 +698,12 @@ export const NAMED_ROWS: NamedRow[] = [
 		expect: { source: '$$\nx\n$$\nb\n', caret: text(4) }
 	},
 	{
+		name: 'L4 the same in a CRLF document keeps the closing line before its line ending',
+		source: '$$\r\nx⟦\r\n$$\r\n\r\nb⟧b\r\n',
+		gesture: 'backspace',
+		expect: { source: '$$\r\nx\r\n$$\r\nb\r\n', caret: text(5) }
+	},
+	{
 		name: 'L4 a range starting past a code block keeps its closing line once',
 		source: 'alpha\n\n```js\nbody\n```⟦\n\nom⟧ega\n',
 		gesture: 'backspace',
