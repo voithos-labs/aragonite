@@ -40,7 +40,7 @@ export interface BlockCommon<D> {
 	/** Its row in the insert menus, listed as `plugin/name`, or why it has none. */
 	insert: BlockInsert;
 	/** `prose` merges with its neighbours and has no drag handle; an `object` is picked up whole.
-	 *  Default `prose` for a text block drawn as text, `object` otherwise. */
+	 *  Default `prose` for one line of text drawn as text and for a marked container. */
 	role?: 'prose' | 'object';
 	/** Its first line may cut a paragraph short, as a heading's does. */
 	interrupts?: boolean;
@@ -163,13 +163,16 @@ export function leafRegistration(spec: LeafCommon<unknown>, text: LeafText): Bui
 	const { range, multiLine, writes } = text;
 	const edit = editOf(spec);
 	const box = edit === 'box';
-	const role = spec.role ?? (edit === 'text' && !spec.draw ? 'prose' : 'object');
+	// Plain one-line text reads as prose, as a heading does; a fenced text reads as code.
+	const role = spec.role ?? (edit === 'text' && !spec.draw && !multiLine ? 'prose' : 'object');
 	const shared = {
 		label: spec.label,
 		editable: true,
 		pageRole: role,
 		mergeRole: role === 'prose' ? ('prose-absorber' as const) : ('not-mergeable' as const),
-		gapEdges: edit === 'text' ? ('none' as const) : ('both' as const),
+		// An edge where Enter already makes a paragraph takes no gap caret: a one-line text splits
+		// at either end, a box focused whole opens one below.
+		gapEdges: box ? ('before' as const) : multiLine ? ('both' as const) : ('none' as const),
 		...fixtureOf(spec.sample),
 		...(spec.height ? { estimateHeight: heightEstimate(spec.height) } : {}),
 		...(writes ? { rawWrite: writes } : {})
