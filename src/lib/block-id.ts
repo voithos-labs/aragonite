@@ -65,7 +65,7 @@ const same = (a: NodeView, b: NodeView): boolean =>
 	a.kind === b.kind && a.leadingTrivia === b.leadingTrivia && a.raw === b.raw;
 
 /** How many blocks at the start, then at the end, `next` holds as `previous` did. */
-function unchangedEnds(previous: readonly NodeView[], next: readonly NodeView[]) {
+export function unchangedEnds(previous: readonly NodeView[], next: readonly NodeView[]) {
 	const shorter = Math.min(previous.length, next.length);
 	let head = 0;
 	while (head < shorter && same(previous[head], next[head])) head++;

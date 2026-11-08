@@ -9,6 +9,7 @@ import type { DocumentView, NodeView } from '../core/node-views';
 import { unfinishedReadings, type GrammarView } from '../schema/block-openers';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { rebuildAncestryRaw } from '../schema/container-raw';
+import { unchangedEnds } from '../block-id';
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
 import {
 	changedBytes,
@@ -151,9 +152,10 @@ function closersInside(was: NodeView, now: NodeView, grammar: GrammarView): Writ
 	let is = now;
 	for (;;) {
 		const kids = old.children!;
-		const head = 0;
-		const olds = kids;
-		const news = is.children!;
+		// Only the children that changed are joined, so a long container costs no more than a short one.
+		const { head, tail } = unchangedEnds(kids, is.children!);
+		const olds = kids.slice(head, kids.length - tail);
+		const news = is.children!.slice(head, is.children!.length - tail);
 		const [change] = changesBetween(bytesOf(olds), bytesOf(news));
 		if (!change) return path.length === 0 ? null : [];
 		const ends = segmentEnds({ prefix: '', children: olds });
