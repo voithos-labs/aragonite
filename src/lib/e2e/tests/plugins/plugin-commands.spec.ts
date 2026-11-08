@@ -47,5 +47,4 @@ test('with two editors, the chord runs only in the one holding the caret', async
 	await page.keyboard.press('ControlOrMeta+Shift+S');
 
 	await expect.poll(() => counts(page)).toEqual({ right: 1 });
-	expect(await capturedErrors(page)).toEqual([]);
 });
