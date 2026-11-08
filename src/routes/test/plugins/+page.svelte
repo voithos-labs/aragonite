@@ -27,7 +27,6 @@
 	import { tagMarksPlugin, TAG_MENU } from '../../demo-tags/tag-marks-plugin';
 	import { docLinkMenuPlugin, DOC_LINK_MENU } from './inline-menu/doc-link-menu-plugin';
 	import { heldCommitMenuPlugin } from './inline-menu/held-commit-menu-plugin';
-	import { domViewPlugin } from './dom-view/dom-view-plugin';
 	import { drawnPlugin } from './drawn/drawn-plugin';
 	import '../../../../examples/showcase/tag-marks.css';
 	import type { PluginsProp } from '#lib';
@@ -83,8 +82,6 @@
 		fold: [foldPlugin],
 		'fold-table': [foldPlugin],
 		badge: [blockBadgePlugin],
-		// Blocks drawn by `defineBlockView`, one per surface; their kinds open only in this seed.
-		'dom-view': [domViewPlugin],
 		// Blocks drawn by a block type's `draw`; their types open only in this seed.
 		drawn: [drawnPlugin],
 		// `?seed=sim` puts long-lived decoration sources under the simulation's corruption
@@ -216,8 +213,6 @@
 		'fold-table': '| a [>SECRET<] b | c |\n| --- | --- |\n| d | e |\n',
 		// Two headings among paragraphs for the badge predicate's positive and negative.
 		badge: '# Title\n\nfirst para\n\n## Sub\n\nsecond para\n',
-		// One block per DOM view surface, between paragraphs to walk in from and out to.
-		'dom-view': 'Before\n\n@@ memo text\n\n[[dom-badge]]\n\n:::dombox Box\nInside\n:::\n\nAfter\n',
 		// A field box between two lines to walk in from and out to, a fence drawn as a preview, and
 		// a container drawn as a box.
 		drawn:

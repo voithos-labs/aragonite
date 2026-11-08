@@ -1,8 +1,8 @@
 /**
  * Block types drawn with `draw`, for the e2e suite that drives the draw host in a real browser: a
- * `^^field` box holding a two-line field of its own, which takes the caret from a neighbour's arrow
- * and hands it back at its edges, a ```` ```shown ```` fence drawn as a preview until the caret comes
- * in, and a `%>` container drawn as a box around its children. Dev and e2e harness only.
+ * `^^field` box with a field of its own, a ```` ```shown ```` fence drawn as a preview, a `%>`
+ * container drawn as a box, an `@@ ` memo with a badge before its text and a `[[badge]]` box drawn
+ * whole. The aside and the badge count their draws on `window.__drawnLog`. Dev and e2e harness only.
  */
 
 import {
@@ -52,6 +52,24 @@ export const drawnPlugin = definePlugin({
 				sample: '%> aside',
 				insert: { none: 'a test block type' },
 				draw: (_block, ctx) => drawAside(ctx)
+			}),
+			lineBlock({
+				name: 'memo',
+				label: 'Memo',
+				match: /^@@ (?<text>.*)$/,
+				sample: '@@ memo',
+				insert: { none: 'a test block type' },
+				edit: 'text',
+				draw: (_block, ctx) => drawMemo(ctx)
+			}),
+			lineBlock({
+				name: 'badge',
+				label: 'Badge',
+				match: /^\[\[badge\]\]$/,
+				sample: '[[badge]]',
+				insert: { none: 'a test block type' },
+				edit: 'box',
+				draw: drawBadge
 			})
 		]
 	})
@@ -77,7 +95,34 @@ function drawAside(ctx: ContainerDrawContext) {
 	dom.className = 'drawn-aside';
 	dom.style.cssText = 'border-left: 3px solid; padding-left: 1em;';
 	dom.append(ctx.children);
+	return { dom, update: () => void count('updates', 'aside') };
+}
+
+// A badge drawn before the editor's text, which is never part of it.
+function drawMemo(ctx: TextDrawContext) {
+	const dom = document.createElement('div');
+	dom.className = 'drawn-memo';
+	const badge = document.createElement('span');
+	badge.textContent = 'memo';
+	badge.contentEditable = 'false';
+	dom.append(badge, ctx.source);
 	return { dom };
+}
+
+function drawBadge() {
+	const dom = document.createElement('div');
+	dom.className = 'drawn-badge';
+	dom.textContent = 'a badge drawn whole';
+	count('mounts', 'badge');
+	return { dom, destroy: () => count('destroys', 'badge') };
+}
+
+type DrawnLog = Record<'mounts' | 'updates' | 'destroys', Record<string, number>>;
+
+function count(what: keyof DrawnLog, name: string): void {
+	const host = window as unknown as { __drawnLog?: DrawnLog };
+	const log = (host.__drawnLog ??= { mounts: {}, updates: {}, destroys: {} });
+	log[what][name] = (log[what][name] ?? 0) + 1;
 }
 
 // A monospace field, so a column and an x convert by one character width.
