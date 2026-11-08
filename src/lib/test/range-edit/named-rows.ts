@@ -434,6 +434,22 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: 'copy',
 		expect: { clipboard: 'ove\n\n<details open>\n<summary>Sum</summary>\n</details>' }
 	},
+	// Miss-analysis: every title-row and fence-leaving row ran in source mode, where the live code
+	// block's fence narrowing never runs, so a live cut over visible text took and copied nothing.
+	{
+		name: 'C13 a live cut from a title row into its body takes the body text',
+		source: ':::note Ti⟦tle\na⟧\n:::\n',
+		mode: 'live',
+		gesture: 'cut',
+		expect: { source: ':::note Ti\n\n:::\n', clipboard: ':::note Title\na\n:::' }
+	},
+	{
+		name: 'L10 a live copy leaving a code block’s text carries the text the range holds',
+		source: '```\nx⟦\n```\nb⟧\n',
+		mode: 'live',
+		gesture: 'copy',
+		expect: { clipboard: '\n```\nb' }
+	},
 	// Miss-analysis: no row started a copy in a table's rows, so its rows pasted elsewhere read as text.
 	{
 		name: 'L10 a copy leaving a table below its header carries the header, so it pastes as a table',

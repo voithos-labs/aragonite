@@ -113,6 +113,7 @@ function cutLegs(c: CutCase) {
 		written: words(written),
 		today: wordsTaken(source, serialize(today)),
 		core: wordsTaken(source, core.source),
+		inRange: words(source.slice(bytes.from, bytes.to)),
 		from: bytes.from
 	};
 }
@@ -125,9 +126,11 @@ function onTitleRow(c: CutCase, point: SelectionPoint): boolean {
 }
 
 /** The class a cut falls in: null where the clipboard holds what today's removal takes. The copy
- *  must hold the core's removal's words, and only a class's own lines may add to them. */
+ *  holds the range's words and the core's removal's, and only a class's own lines add to them. */
 function divergenceOf(c: CutCase): string | null {
 	const legs = cutLegs(c);
+	if (!legs.written.includes(legs.inRange))
+		return `unclassified: the copy wrote ${legs.written}, the range holds ${legs.inRange}`;
 	if (legs.written === legs.today) return null;
 	const unclassified = `unclassified: the copy wrote ${legs.written}, today's removal took ${legs.today}, the core's ${legs.core}`;
 	const at = legs.written.indexOf(legs.core);
@@ -194,6 +197,18 @@ describe('a cut writes the words its removal takes, save the named classes', () 
 		it('select-all over a document that is one closed details', () => {
 			const c = { source: CLOSED, mode, start: point([0, 0], 0), end: point([0, 1], 4) };
 			expect(divergenceOf(c)).toBeNull();
+		});
+
+		// Miss-analysis: the shapes held no `:::` title row and no code block, and a copy holding
+		// none of the range's words passed as a removal split.
+		it.each([
+			['an empty title row', ':::note\na\n:::\n', point([0, 0], 7)],
+			['a title row', ':::note Title\na\n:::\n', point([0, 0], 13)],
+			['a code block’s text', '```\nx\n```\nb\n', point([0], 5)],
+			['a code block’s closing line', '```\nx\n```\nb\n', point([0], 9)]
+		])('a range from %s into the next block', (_, source, start) => {
+			const end = start.path.length === 2 ? point([0, 1], 1) : point([1], 1);
+			expect(CLASSES).toContain(divergenceOf({ source, mode, start, end }));
 		});
 	});
 });
