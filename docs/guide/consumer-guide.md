@@ -1088,7 +1088,7 @@ The Find / replace chords ignore `keybindings` and aren't rebindable today; `sea
 
 **The editor's own chords and plugins' yield to the caret keys** (the list's under [Keyboard shortcuts](#keyboard-shortcuts)). A caret key moves the caret on its platform, so no built-in or plugin binding takes one there, and on a Mac `Option+←` / `→` is the word key, which is why the table's column chords are Windows and Linux only. Your own `keybindings` entry overrides one, as it does for `Backspace`: bind `Alt+ArrowRight` to `table.moveColumnRight` for `tableCell` and a Mac moves the column again, at the price of the word key in cells. Up and down aren't on the list, so `Alt+↑` stays a block move.
 
-**Plugin-global chords resolve last.** A plugin's global command (see the [plugin guide](plugin-guide/commands.md#block-commands)) may claim a chord, and it resolves after every `keybindings` override, built-in kind chord, and built-in global chord, so a plugin chord never shadows a built-in binding, and `Mod+F` / `Mod+H` are reserved outright. So a plugin's `Mod+B` fires on a thematic break (which binds no `Mod+B`) but yields to bold-toggle inside a paragraph.
+**Plugin-global chords resolve last.** A plugin's command (see the [plugin guide](plugin-guide/commands.md#block-commands)) may claim a chord, and it resolves after every `keybindings` override, built-in kind chord, and built-in global chord, so a plugin chord never shadows a built-in binding, and `Mod+F` / `Mod+H` are reserved outright (a plugin claiming one is left out of the editor, and `onError` hears why). So a plugin's `Mod+B` fires on a thematic break (which binds no `Mod+B`) but yields to bold-toggle inside a paragraph.
 
 ### Which shortcuts the editor consumes
 

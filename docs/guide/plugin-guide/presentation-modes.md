@@ -26,7 +26,7 @@ el.closest('[data-presentation]')?.getAttribute('data-presentation') ?? 'source'
 In `reading` mode the platform does most of it for you, which is why most plugins need no mode code at all:
 
 - your editable leaf never reveals and never commits;
-- chord dispatch (block commands, global commands, keymaps) is swallowed at the dispatcher;
+- chord dispatch (block commands, plugin commands, keymaps) is swallowed at the dispatcher;
 - the container factory gates whole-block Enter and Backspace;
 - marker spans hide by CSS.
 
