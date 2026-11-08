@@ -17,6 +17,7 @@ import {
 } from '../../editor-actions/container-block-component';
 import { createWholeBlockInputProxy } from '../../editor-actions/whole-block-focus-surface.svelte';
 import { placeCaret } from '../../selection/place-caret';
+import type { LandsRestoredCaret } from '../../selection/restored-caret';
 import { selectWholeDocument } from '../../selection/keyboard-extend';
 import { wireSurfaceContexts } from '../blocks/editable/surface-wiring.svelte';
 
@@ -66,7 +67,9 @@ export function createDrawnBox(deps: DrawnBoxDeps) {
 		else enter({ offset });
 	}
 
-	const blockApi: BlockComponent = {
+	const blockApi: BlockComponent & LandsRestoredCaret = {
+		// An undo or a redo puts the caret back where `offset()` said it was.
+		landRestoredCaret: (offset) => enter({ offset }),
 		editable: false,
 		focusable: true,
 		focus: placeCaret(selection, caretWriter, parkCaret),

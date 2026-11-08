@@ -1,6 +1,6 @@
 /**
  * Block types drawn with `lineBlock({ draw })`, for the e2e suite that drives the draw host in a
- * real browser: a `%%field` box holding a two-line field of its own, which takes the caret from a
+ * real browser: a `^^field` box holding a two-line field of its own, which takes the caret from a
  * neighbour's arrow and hands it back at its edges. Dev and e2e harness only.
  */
 
@@ -21,8 +21,8 @@ export const drawnPlugin = definePlugin({
 			lineBlock({
 				name: 'field',
 				label: 'Field',
-				match: /^%%field$/,
-				sample: '%%field',
+				match: /^\^\^field$/,
+				sample: '^^field',
 				edit: 'box',
 				draw: (_block, ctx) => drawField(ctx)
 			})

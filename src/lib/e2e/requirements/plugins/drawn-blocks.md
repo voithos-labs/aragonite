@@ -1,6 +1,6 @@
 # Feature: blocks a plugin draws with `draw`
 
-A `%%field` box (`edit: 'box'`, `routes/test/plugins/drawn`) draws a two-line field of its own and
+A `^^field` box (`edit: 'box'`, `routes/test/plugins/drawn`) draws a two-line field of its own and
 takes the caret through `Drawn.focus`, handing it back with `ctx.leave`. The seed puts a paragraph
 above it and one below.
 

@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
 	import { getContext, untrack } from 'svelte';
+	import { BROWSER } from 'esm-env';
 	import { on } from 'svelte/events';
 	import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 	import type { BlockComponent } from '../../block-component';
@@ -51,9 +52,10 @@
 	const policies = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const services = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY);
 
-	// The editor's own text element, made before `draw` runs so the plugin only places it.
-	const source = document.createElement('div');
-	source.setAttribute(VIEW_TEXT_ATTR, '');
+	// The editor's own text element, made before `draw` runs so the plugin only places it. A server
+	// render draws nothing, so it never reads it.
+	const source = BROWSER ? document.createElement('div') : (null as unknown as HTMLElement);
+	source?.setAttribute(VIEW_TEXT_ATTR, '');
 	let target: HTMLElement | null = $state(null);
 	let revealed = $state(false);
 	let focusedWithin = $state(false);

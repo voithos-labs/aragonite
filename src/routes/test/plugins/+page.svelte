@@ -219,7 +219,7 @@
 		// One block per DOM view surface, between paragraphs to walk in from and out to.
 		'dom-view': 'Before\n\n@@ memo text\n\n[[dom-badge]]\n\n:::dombox Box\nInside\n:::\n\nAfter\n',
 		// A field box between two lines to walk in from and out to.
-		drawn: 'above the field, a line\n\n%%field\n\nbelow the field, a line\n',
+		drawn: 'above the field, a line\n\n^^field\n\nbelow the field, a line\n',
 		// A footnote definition whose body is one editable paragraph: the container's editing,
 		// Backspace and undo case.
 		footnotes: 'A note reference [^a] in prose.\n\n[^a]: The note body.\n',

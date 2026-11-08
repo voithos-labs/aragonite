@@ -4,7 +4,7 @@ import { PluginsPage } from './helpers';
 
 /**
  * A box a plugin draws with an editing surface of its own (requirements/plugins/drawn-blocks.md):
- * the `%%field` block from `routes/test/plugins/drawn`, between a line above and a line below.
+ * the `^^field` block from `routes/test/plugins/drawn`, between a line above and a line below.
  */
 
 const ABOVE = 0;
@@ -21,13 +21,16 @@ interface FieldCaret {
 const fieldCaret = (page: Page): Promise<FieldCaret | null> =>
 	page.evaluate(() => (window as any).__drawnField?.() ?? null);
 
+// The native caret's x, which is where the text block's own caret sits.
 const caretX = async (page: Page): Promise<number> => {
-	const rect = await page.evaluate(() => {
-		const r = (window as any).__test.caretRect() as DOMRect | null;
-		return r && { left: r.left };
+	const left = await page.evaluate(() => {
+		const selection = window.getSelection();
+		if (!selection?.rangeCount) return null;
+		const rects = selection.getRangeAt(0).getClientRects();
+		return rects.length ? rects[0].left : null;
 	});
-	expect(rect).not.toBeNull();
-	return rect!.left;
+	expect(left).not.toBeNull();
+	return left!;
 };
 
 const caretPath = (page: Page): Promise<number[] | null> =>
@@ -121,11 +124,11 @@ test.describe('a drawn box with its own editing surface', () => {
 		await page.keyboard.press('Alt+ArrowDown');
 		await expect
 			.poll(() => page.evaluate(() => (window as any).__test.getSource() as string))
-			.toMatch(/below the field, a line\n\n%%field\n$/);
+			.toMatch(/below the field, a line\n\n\^\^field\n$/);
 		await page.keyboard.press('ControlOrMeta+z');
 		await expect
 			.poll(() => page.evaluate(() => (window as any).__test.getSource() as string))
-			.toMatch(/^above the field, a line\n\n%%field\n/);
+			.toMatch(/^above the field, a line\n\n\^\^field\n/);
 		await expect.poll(() => fieldCaret(page)).toMatchObject({ offset: 7 });
 		expect(await caretPath(page)).toEqual([FIELD]);
 	});
