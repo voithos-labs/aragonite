@@ -10,7 +10,7 @@ import {
 	type BlockLookup,
 	type MountedEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
-import { bundledPluginDirs } from '../invariants/lint/scan-source';
+import { bundledPluginDirs, PLUGIN_VALUE_DIRS } from '../invariants/lint/scan-source';
 import { getAllRegisteredKinds } from '#lib/schema/block-kind-descriptor.js';
 import type { EditorPluginEntry, PlaceholderBlock } from '#lib';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
@@ -94,7 +94,7 @@ function mountWithEveryPlugin(source: string): MountedEditor<BlockLookup> {
 
 describe('placeholder: every registered kind', () => {
 	it('enrolls every bundled plugin directory', () => {
-		expect(Object.keys(BUNDLED).sort()).toEqual(bundledPluginDirs());
+		expect([...Object.keys(BUNDLED), ...PLUGIN_VALUE_DIRS].sort()).toEqual(bundledPluginDirs());
 	});
 
 	it('names every registered kind once, as one that shows the hint or one never asked', () => {

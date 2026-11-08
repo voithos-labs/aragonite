@@ -43,6 +43,10 @@
 			"@voithos-labs/aragonite-slash-commands/conformance": [
 				"./packages/slash-commands/src/conformance.ts"
 			],
+			"@voithos-labs/aragonite-spellcheck": ["./packages/spellcheck/src/index.ts"],
+			"@voithos-labs/aragonite-spellcheck/conformance": [
+				"./packages/spellcheck/src/conformance.ts"
+			],
 			"@voithos-labs/aragonite-toc": ["./packages/toc/src/index.ts"],
 			"@voithos-labs/aragonite-toc/conformance": ["./packages/toc/src/conformance.ts"]
 		},

@@ -8,6 +8,7 @@ import { devChecksOn, setDevWarnSink, type DevWarnEntry } from '@voithos-labs/ar
 import type { AnyBlockKind } from '../core/nodes';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { installPlugins, type EditorPlugin } from '../schema/plugin-install';
+import type { PluginList } from '../schema/plugin-unit';
 import {
 	declaredPluginInlineKind,
 	pluginInlineKindsDeclaredBy,
@@ -29,7 +30,7 @@ import { resetPluginPlatformForTests } from './platform-reset';
 /** A plugin package's conformance suite: its units, plus a profile per container and inline
  *  kind they declare, each keyed by the kind's name since the kinds exist only after install. */
 export interface PluginConformanceSuite {
-	plugins: readonly EditorPlugin[];
+	plugins: readonly (EditorPlugin | PluginList[number])[];
 	containers?: Readonly<Record<string, ContainerConformanceProfile>>;
 	inline?: readonly (Omit<InlineConformanceProfile, 'kind'> & { kind?: string })[];
 }
@@ -60,7 +61,8 @@ export async function runPluginConformance(
 	const report: PluginConformanceReport = { plugins: names, kinds: [], containers: [], inline: [] };
 	try {
 		resetPluginPlatformForTests();
-		installPlugins(suite.plugins);
+		// A plugin value defines nothing page-wide, so only the `setup` plugins install here.
+		installPlugins(suite.plugins.filter((plugin): plugin is EditorPlugin => 'setup' in plugin));
 		const blockKinds: AnyBlockKind[] = names.flatMap(pluginKindsDeclaredBy);
 		const inlineKinds = names.flatMap(pluginInlineKindsDeclaredBy);
 		for (const problem of missingProfiles(suite, blockKinds, inlineKinds)) failures.push(problem);

@@ -12,7 +12,7 @@ import { verifyTypes } from './verify-types.mjs';
 
 // Gzipped bytes of each package's prebuilt JS, a little above what it measured. Measured:
 // admonitions 4,173, details 3,794, emoji 16,297, footnotes 4,110, highlight-occurrences 1,520,
-// latex 7,210, mermaid 6,718, parrot 4,162, slash-commands 1,913, toc 2,632.
+// latex 7,210, mermaid 6,718, parrot 4,162, slash-commands 1,913, spellcheck 3,382, toc 2,632.
 /** @type {Record<string, number>} */
 const BUDGET = {
 	admonitions: 4_650,
@@ -24,10 +24,19 @@ const BUDGET = {
 	mermaid: 7_050,
 	parrot: 4_450,
 	'slash-commands': 2_100,
+	spellcheck: 3_500,
 	toc: 2_950
 };
 
+// A chunk a package loads only when first needed, and its own budget, out of the eager count above.
+// Measured: spellcheck's word list 197,277.
+/** @type {Record<string, { chunk: string, budget: number }>} */
+const LAZY = {
+	spellcheck: { chunk: 'en-us-data', budget: 200_000 }
+};
+
 const CORE_HOOK = pathToFileURL(path.resolve('scripts/pack/core-from-checkout.mjs')).href;
+const PLUGIN_COPY = pathToFileURL(path.resolve('scripts/pack/plugin-copy.mjs')).href;
 const PLUGIN_CHECK = path.resolve('bin/aragonite-plugin-check.mjs');
 // Only a plugin listing loads the conformance suite, so it isn't JS a host pays for.
 const HOST_UNLOADED = new Set(['conformance.js']);
@@ -63,7 +72,12 @@ export function verifyPluginPackage(dir) {
 	failures.push(...verifyTypes(dir).map((failure) => `${pkg.name}: ${failure}`));
 
 	const name = path.basename(dir);
-	const js = gzipped(scripts.filter((file) => !HOST_UNLOADED.has(path.basename(file))));
+	const lazy = LAZY[name];
+	const isLazy = (/** @type {string} */ file) =>
+		!!lazy && path.basename(file).startsWith(`${lazy.chunk}-`);
+	const js = gzipped(
+		scripts.filter((file) => !HOST_UNLOADED.has(path.basename(file)) && !isLazy(file))
+	);
 	const css = gzipped(listFiles(prebuilt).filter((file) => file.endsWith('.css')));
 	console.log(`verify-plugin-package: ${pkg.name} ${js} B of JS and ${css} B of CSS, gzipped`);
 	if (BUDGET[name] === undefined) failures.push(`${pkg.name} has no JS budget`);
@@ -72,25 +86,41 @@ export function verifyPluginPackage(dir) {
 			`${pkg.name}'s prebuilt JS is ${js} B gzipped, over its ${BUDGET[name]} B budget`
 		);
 	}
+	if (lazy) {
+		const later = gzipped(scripts.filter(isLazy));
+		console.log(`verify-plugin-package: ${pkg.name} loads ${later} B of JS later, gzipped`);
+		if (later === 0) failures.push(`${pkg.name} has no ${lazy.chunk} chunk to load later`);
+		else if (later > lazy.budget) {
+			failures.push(
+				`${pkg.name}'s ${lazy.chunk} chunk is ${later} B gzipped, over its ${lazy.budget} B budget`
+			);
+		}
+	}
 	return failures;
 }
 
 // ── Checks ───────────────────────────────────────────────────────────────────
 
 /**
- * Installs every plugin the package's prebuilt index exports into the core's prebuilt, with dev
- * checks on, in a Node process of its own: a plugin that brought its own copy of the core warns.
+ * Installs every `setup` plugin the package's prebuilt index exports into the core's prebuilt, with
+ * dev checks on, in a Node process of its own: a plugin that brought its own copy of the core warns.
+ * A plugin value installs per editor, so it's compared with one the core in hand defines instead.
  * @param {{ name: string }} pkg
  * @param {string} index
  */
 function installsAsOneCopy(pkg, index) {
 	const script = `
 const core = await import('@voithos-labs/aragonite');
+const { definePlugin } = await import('@voithos-labs/aragonite/plugin');
 const testing = await import('@voithos-labs/aragonite/testing');
+const { pluginExports, fromAnotherCopy } = await import(${JSON.stringify(PLUGIN_COPY)});
 testing.configureEditorEnv({ isDev: true });
 const plugin = await import(${JSON.stringify(pathToFileURL(path.resolve(index)).href)});
-const factories = Object.entries(plugin).filter(([name, value]) => /Plugin$/.test(name) && typeof value === 'function');
-if (factories.length === 0) throw new Error('exports no plugin factory');
+const { factories, values } = pluginExports(plugin);
+if (factories.length + values.length === 0) throw new Error('exports no plugin factory');
+const probe = definePlugin({ name: 'copy-probe', version: '0.0.0', editor: '*', contributes: () => ({}) });
+const strays = fromAnotherCopy(values, probe);
+if (strays.length > 0) console.error(${JSON.stringify(SECOND_COPY)}, strays.join(', '));
 core.installPlugins(factories.map(([, factory]) => factory()));
 `;
 	const run = spawnSync(

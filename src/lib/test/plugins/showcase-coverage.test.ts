@@ -60,7 +60,9 @@ const PLUGIN_DEMONSTRATED_BY: Record<string, string[]> = {
 	// on its own below and chosen the same way by `plugins/showcase-occurrences.spec.ts`.
 	'highlight-occurrences': [],
 	// Declares no kind either: typing `/` opens it, which a document's bytes cannot show.
-	'slash-commands': []
+	'slash-commands': [],
+	// Declares no kind: its marks paint over any prose, which a document's bytes cannot show.
+	spellcheck: []
 };
 
 /** The inline kinds the bundled plugins add. No registry lists them, so the plugin

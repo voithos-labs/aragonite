@@ -23,12 +23,8 @@ export const EDITOR_SRC = path.resolve(SOURCE_DIR.library);
 /** The demo/dev harness tree. Reachable only with `includeTests`: most of it sits under `test`. */
 export const ROUTES_SRC = path.resolve(SOURCE_DIR.routes);
 
-/** Each bundled plugin's source directory, `packages/<name>/src`. The spellcheck package's joins
- *  them by name until it has the manifest that makes it a plugin package. */
-export const PLUGIN_SOURCE_ROOTS = [
-	...pluginPackages().map(({ dir }) => path.resolve(dir, 'src')),
-	path.resolve(SOURCE_DIR.spellcheckSource)
-];
+/** Each bundled plugin's source directory, `packages/<name>/src`. */
+export const PLUGIN_SOURCE_ROOTS = pluginPackages().map(({ dir }) => path.resolve(dir, 'src'));
 
 /** The library and the bundled plugins: the source the published packages build from. */
 export const LIBRARY_ROOTS = [EDITOR_SRC, ...PLUGIN_SOURCE_ROOTS];
@@ -117,6 +113,10 @@ export function collectEditorSources(
 		.filter((relPath) => !relPath.endsWith('.d.ts') && !isIgnoredBy(ignored, relPath))
 		.map(readSource);
 }
+
+/** The bundled plugins that are plugin values: they install per editor, so a table of the plugins
+ *  a test installs page-wide leaves them out. */
+export const PLUGIN_VALUE_DIRS: readonly string[] = ['spellcheck'];
 
 /** The bundled plugins, by directory name under `packages/`. */
 export function bundledPluginDirs(): string[] {

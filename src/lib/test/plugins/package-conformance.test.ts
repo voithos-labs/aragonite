@@ -17,6 +17,6 @@ describe('every bundled plugin passes its own published conformance suite', () =
 	});
 
 	it('enrolls every bundled plugin', () => {
-		expect(bundledPluginDirs()).toHaveLength(10);
+		expect(bundledPluginDirs()).toHaveLength(11);
 	});
 });

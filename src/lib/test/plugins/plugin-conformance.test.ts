@@ -44,6 +44,19 @@ describe('runPluginConformance', () => {
 		expect(report.kinds.map((k) => k.kind)).toEqual(['pair-a', 'pair-b']);
 	});
 
+	it('passes a plugin value through, installing only the setup plugins beside it', async () => {
+		const value = definePlugin({
+			name: 'unit-value',
+			version: '1.0.0',
+			editor: '*',
+			contributes: () => ({})
+		});
+		const pair = plugin('pair', () => testLeaf('pair-a', markerLeaf('%%a')));
+		const report = await runPluginConformance({ plugins: [value, pair] });
+		expect(report.plugins).toEqual(['unit-value', 'pair']);
+		expect(report.kinds.map((k) => k.kind)).toEqual(['pair-a']);
+	});
+
 	it("leaves out the editor's own kinds a plugin's setup switches on", async () => {
 		const directives = plugin('directive-user', () => activateDirectives());
 		expect((await runPluginConformance({ plugins: [directives] })).kinds).toEqual([]);

@@ -196,7 +196,12 @@ const BUNDLED_INSTALLS: { dir: string; kind: string; install: (view: BlockView) 
 	{ dir: 'parrot', kind: PARROT, install: () => installPlugins([parrotPlugin()]) }
 ];
 
-const NO_BLOCK_KIND_DIRS = new Set(['highlight-occurrences', 'emoji', 'slash-commands']);
+const NO_BLOCK_KIND_DIRS = new Set([
+	'highlight-occurrences',
+	'emoji',
+	'slash-commands',
+	'spellcheck'
+]);
 
 describe('kind conformance: bundled plugin kinds enroll', () => {
 	// Every kind the registrar registers, not only the headline one: title kinds with no

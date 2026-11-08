@@ -8,5 +8,6 @@
 	"@voithos-labs/aragonite-mermaid",
 	"@voithos-labs/aragonite-parrot",
 	"@voithos-labs/aragonite-slash-commands",
+	"@voithos-labs/aragonite-spellcheck",
 	"@voithos-labs/aragonite-toc"
 ]

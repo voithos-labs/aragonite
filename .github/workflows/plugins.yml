@@ -58,6 +58,7 @@ jobs:
             mermaid,
             parrot,
             slash-commands,
+            spellcheck,
             toc,
             template
           ]

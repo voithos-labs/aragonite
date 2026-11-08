@@ -17,7 +17,7 @@ import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { installPlugins, type EditorPlugin } from '#lib/schema/plugin-install.js';
 import { reservedChromeKindOf } from '#lib/schema/reserved-chrome.js';
 import { blockFacts, hasTextPosition, type BlockFacts } from '#lib/schema/block-facts.js';
-import { bundledPluginDirs } from '../invariants/lint/scan-source';
+import { bundledPluginDirs, PLUGIN_VALUE_DIRS } from '../invariants/lint/scan-source';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
 import { emojiPlugin } from '#packages/emoji/src/index.js';
@@ -152,7 +152,7 @@ const EXPECTED: { [Field in keyof BlockFacts]-?: (kind: string) => BlockFacts[Fi
 
 describe('block facts agree with every registration', () => {
 	it('enrolls every bundled plugin directory', () => {
-		expect(Object.keys(BUNDLED).sort()).toEqual(bundledPluginDirs());
+		expect([...Object.keys(BUNDLED), ...PLUGIN_VALUE_DIRS].sort()).toEqual(bundledPluginDirs());
 	});
 
 	it('names only registered kinds in the tables of facts nothing else states', () => {

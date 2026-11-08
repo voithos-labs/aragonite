@@ -12,7 +12,10 @@ const WAVE = '.spell-overlay';
 const TEXT = 'This is a tset of speling.\n';
 
 test.describe('spell check', () => {
-	test.skip(true, 'parked until the spellcheck package installs on the plugins route');
+	test.skip(
+		true,
+		'parked until slice S5: it waits on per-block paint and the SelectionAction rows'
+	);
 	let editor: EditorPage;
 
 	test.beforeEach(async ({ page }) => {
@@ -130,7 +133,10 @@ test.describe('spell check', () => {
 });
 
 test.describe('spell check: the native mode', () => {
-	test.skip(true, 'parked until the spellcheck package installs on the plugins route');
+	test.skip(
+		true,
+		'parked until slice S5: it waits on per-block paint and the SelectionAction rows'
+	);
 	test('hands the words to the browser checker and draws no waves of its own', async ({ page }) => {
 		const editor = new EditorPage(page);
 		await editor.goto('?spellcheck=native');
@@ -142,7 +148,10 @@ test.describe('spell check: the native mode', () => {
 });
 
 test.describe('spell check: off', () => {
-	test.skip(true, 'parked until the spellcheck package installs on the plugins route');
+	test.skip(
+		true,
+		'parked until slice S5: it waits on per-block paint and the SelectionAction rows'
+	);
 	test('draws no waves and keeps the browser checker off', async ({ page }) => {
 		const editor = new EditorPage(page);
 		await editor.goto('?spellcheck=off');

@@ -10,7 +10,7 @@ import { insertRows, rowMarkdown } from '#lib/schema/insert-catalogue.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { installPlugins, type EditorPlugin } from '#lib/schema/plugin-install.js';
 import { pluginKindOwner } from '#lib/schema/plugin-kind.js';
-import { bundledPluginDirs } from '../invariants/lint/scan-source';
+import { bundledPluginDirs, PLUGIN_VALUE_DIRS } from '../invariants/lint/scan-source';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
 import { emojiPlugin } from '#packages/emoji/src/index.js';
@@ -63,7 +63,7 @@ function insertedKinds(): Set<string> {
 
 describe('insertable plugin kinds', () => {
 	it('enrolls every bundled plugin directory', () => {
-		expect(Object.keys(BUNDLED).sort()).toEqual(bundledPluginDirs());
+		expect([...Object.keys(BUNDLED), ...PLUGIN_VALUE_DIRS].sort()).toEqual(bundledPluginDirs());
 	});
 
 	it('inserts every installed plugin kind from an entry, or lists why not', () => {
