@@ -34,7 +34,12 @@ const ALLOWED: Record<string, string> = {
 		'the byte a caret sits at, which the byte-splice replay hands the splice (a read)',
 	'src/lib/tree-operations/node-primitives.ts': 'the block at a caret’s path (a read)',
 	'src/lib/schema/whole-block-unit.ts': 'whether a caret’s block is held whole (a read)',
-	'src/lib/core/parser.ts': 'whether a block is a blank line (a read)'
+	'src/lib/core/parser.ts': 'whether a block is a blank line (a read)',
+	'src/lib/core/serializer.ts': 'the bytes the range-edit core answers, as a document (a read)',
+	'src/lib/selection/primitives.ts': 'a named range’s cell end',
+	'src/lib/selection/selection-state.svelte.ts':
+		'a named range’s ends as the editor orders and snaps them, which the core’s answer reads',
+	'src/lib/selection/range-clipboard.ts': 'the core’s copy of a range, which a cut must write'
 };
 const PACKAGES = new Set(['vitest', 'fast-check', 'node:fs', 'node:path']);
 
