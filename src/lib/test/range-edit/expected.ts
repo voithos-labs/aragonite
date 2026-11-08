@@ -267,6 +267,32 @@ export function leavesLiteralBlock(
 	return to > leaf.to || (closesItsFence(raw) && to > closer);
 }
 
+/** Whether some block's text, as the mode shows it, lies partly inside `[from, to)`: in live mode a
+ *  fenced code block shows its body alone, and a format run's delimiters show nothing. */
+export function holdsShownText(
+	read: Read,
+	from: number,
+	to: number,
+	host: CheckHost,
+	mode: Mode
+): boolean {
+	return read.blocks.some((b) => {
+		if (!b.text) return false;
+		let { from: start, to: end } = b.text;
+		const raw = treeNodeAt(read.tree, b.path)!.raw;
+		const facts = host.facts(b.type);
+		if (mode === 'live' && facts.body === 'literal' && facts.textPosition === 'always') {
+			if (fenceRun(raw)) start = read.source.indexOf('\n', b.from) + 1;
+			if (closesItsFence(raw)) {
+				const closer = read.source.lastIndexOf('\n', b.to - 2);
+				end = read.source[closer - 1] === '\r' ? closer - 1 : closer;
+			}
+		}
+		const held = read.source.slice(Math.max(start, from), Math.min(end, to));
+		return (mode === 'live' ? held.replace(/[*_~`]/g, '') : held) !== '';
+	});
+}
+
 /** The run a block's first line opens a fence with (a code, math or diagram fence), read here by
  *  the syntax alone, apart from the host. */
 const fenceRun = (raw: string) => /^ {0,3}(`{3,}|~{3,}|\${2,})/.exec(raw)?.[1];

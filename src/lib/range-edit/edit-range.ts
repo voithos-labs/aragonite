@@ -9,12 +9,12 @@ import type { SpliceCaret } from '../action-contracts';
 import { isBlankText } from '../core/lines';
 import type { Mode, RangeHost } from './host';
 import { copyOf } from './copy';
-import { contentEnd, factsOf, findWithin, readDoc, type Doc } from './document';
+import { contentEnd, factsOf, findWithin, pointedBlock, readDoc, type Doc } from './document';
 import type { LaidBlock } from './layout';
 import type { Edit } from './leaf-splice';
 import { ownEntry, restored } from './own-entry';
 import { pasteAt } from './paste';
-import { removeRange } from './removal';
+import { removeRange, type Removal } from './removal';
 import { holdsText } from './removal-range';
 
 /** Two byte offsets, `from <= to`, after the editor widened the range to every block it takes
@@ -58,9 +58,11 @@ export function editRange(
 	const doc = readDoc(source, host, mode);
 	const { from, to } = range;
 	const read = (edit: Edit) => readDoc(edit.source, host, mode);
-	const answer = (edit: Edit): RangeEditResult => ({
+	// Backspace and a command key take the side before a block the range took whole.
+	const backward = gesture === 'backspace' || gesture === 'command';
+	const answer = (edit: Removal): RangeEditResult => ({
 		source: edit.source,
-		caret: caretOf(edit, read(edit))
+		caret: caretOf(edit, read(edit), backward)
 	});
 	// Text typed or pasted over one block held whole takes its place, and the line stays.
 	const inPlace = { source: source.slice(0, from) + source.slice(to), caret: from };
@@ -120,13 +122,27 @@ function heldAlone(doc: Doc, from: number, to: number): boolean {
 	return from < to && findWithin(doc, from, from, alone) !== undefined;
 }
 
-/** The caret named by what the new bytes hold there: text, or failing that the text just before it
- *  on its line, or the start of a block, or the boundary between two. */
-function caretOf(edit: Edit, result: Doc): SpliceCaret {
+/** The caret named by what the new bytes hold there: text, the text before it on its line, a block
+ *  start or a boundary; `back` (Backspace's side) takes the block before where no text stayed. */
+function caretOf(edit: Removal, result: Doc, back = false): SpliceCaret {
+	const before = back && edit.gone ? endBefore(result, edit.caret) : null;
+	if (before) return before;
 	let at = edit.caret;
 	const lineStart = edit.source.lastIndexOf('\n', at - 1) + 1;
 	while (at > lineStart && !result.layout.pointAt(at)) at--;
 	if (edit.source === '' || result.layout.pointAt(at)) return { at, holds: 'text' };
 	const block = findWithin(result, edit.caret, edit.caret, (b) => b.from === edit.caret);
 	return { at: edit.caret, holds: block ? 'block' : 'boundary' };
+}
+
+/** The end of the block before byte `at`: its text's end, or the block itself where it has no text
+ *  position (a rule). Null where no block comes before. */
+function endBefore(doc: Doc, at: number): SpliceCaret | null {
+	for (let byte = at - 1; byte >= 0; byte--) {
+		const block = pointedBlock(doc, byte);
+		if (!block) continue;
+		if (factsOf(doc, block).textPosition === 'never') return { at: block.from, holds: 'block' };
+		return { at: Math.min(byte, block.text?.to ?? byte), holds: 'text' };
+	}
+	return null;
 }

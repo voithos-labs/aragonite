@@ -10,6 +10,7 @@ import {
 	endingOf,
 	expectedCopy,
 	expectedPaste,
+	holdsShownText,
 	inTitleRow,
 	leavesLiteralBlock,
 	lf,
@@ -324,10 +325,9 @@ export function pasteAtCutCaret(
 	return texts.flatMap((t) => pasteAtCaret(call, host, { ...at, text: t }));
 }
 
-/** L10, in source mode: a copy carries the markers of the containers it enters or leaves, none of
- *  the one both ends share; a range the cut takes nothing from holds no text and copies none. */
+/** L10: a range the cut takes nothing from holds no text the mode shows and copies none; in source
+ *  mode, a copy carries the markers of the containers it enters or leaves, none of the shared one. */
 export function copyMarkers(call: Call, host: CheckHost, input: RangeInput): string[] {
-	if (input.mode !== 'source') return [];
 	const copy = call(input.source, input.range, 'copy', input.mode);
 	if (!copy || copy.clipboard === undefined) return [];
 	const read = readOf(host, input.source);
@@ -336,12 +336,13 @@ export function copyMarkers(call: Call, host: CheckHost, input: RangeInput): str
 	const { from, to } = input.range;
 	const cut = call(input.source, input.range, 'cut', input.mode);
 	if (cut?.source === input.source) {
-		if (read.blocks.some((b) => b.text && b.text.from < to && from < b.text.to))
+		if (holdsShownText(read, from, to, host, input.mode))
 			return [`L10 the cut took nothing from a range holding text`];
 		return copy.clipboard.trim() === ''
 			? []
 			: [`L10 copy wrote ${q(copy.clipboard)}, the cut nothing`];
 	}
+	if (input.mode !== 'source') return [];
 	const want = expectedCopy(read, from, to, host);
 	return copy.clipboard === want ? [] : [`L10 copy wrote ${q(copy.clipboard)}, not ${q(want)}`];
 }

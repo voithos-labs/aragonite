@@ -576,5 +576,76 @@ export const NAMED_ROWS: NamedRow[] = [
 			at: `${LONG}\n\n- ab\n\n${LONG}`.length,
 			expect: { source: `${LONG}\n\n- ab\n\n${LONG}\n\n- \n- \n\n${LONG}\n` }
 		}
+	},
+	// ── The removal the editor runs from range stage 3 (law 4, spec § 5.2 and § 5.3) ──
+	// Miss-analysis: every removal row ended in prose or entered a fence from prose, so a title row
+	// left open, a body kept between, a live fence leaving and a quoted block's line went unseen.
+	{
+		name: 'C13 a cut from a title row out keeps the row closed, its closing tag after its text',
+		source: '<details open>\n<summary>O⟦OOO</summary>\n\nPPPP\n\n</details>\n\nAA⟧AA\n',
+		gesture: 'cut',
+		expect: { source: '<details open>\n<summary>O</summary>\n</details>\nAA\n', caret: text(25) }
+	},
+	{
+		name: 'L4 a cut into a fenced block takes the blocks before it, keeping only its opening',
+		source: 'a⟦\n\nfoo\n\n```\nxy⟧\n```\n',
+		gesture: 'cut',
+		expect: { source: 'a\n\n```\n\n```\n', caret: text(1) }
+	},
+	{
+		name: 'L4 a cut from a title row into the next titled container takes the body between',
+		source:
+			'<details open>\n<summary>O⟦OOO</summary>\n\nPPPP\n\n</details>\n\n<details>\n<summary>⟧SSSS</summary>\n\nHHHH\n\n</details>\n\nEEEE\n',
+		gesture: 'cut',
+		expect: {
+			source:
+				'<details open>\n<summary>O</summary>\n</details>\n\n<details>\n<summary>SSSS</summary>\n\nHHHH\n\n</details>\n\nEEEE\n',
+			caret: text(25)
+		}
+	},
+	{
+		name: 'L10 live, a cut leaving a code block takes the text past it, the hidden closing line stays',
+		source: '```\nx⟦\n```\nb⟧\n',
+		mode: 'live',
+		gesture: 'cut',
+		expect: { source: '```\nx\n```\n\n', clipboard: '\n```\nb', caret: text(5) }
+	},
+	{
+		name: 'L10 live, a range holding a code block whole from its first byte takes it, fences and all',
+		source: '⟦```\n```⟧\n\npara\n',
+		mode: 'live',
+		gesture: 'cut',
+		expect: { source: '\npara\n', clipboard: '```\n```', caret: text(0) }
+	},
+	{
+		name: 'L10 live, the same from inside its text',
+		source: 'a\n\n```\nx⟦y\n```\nb⟧\n',
+		mode: 'live',
+		gesture: 'cut',
+		expect: { source: 'a\n\n```\nx\n```\n\n', clipboard: 'y\n```\nb', caret: text(8) }
+	},
+	{
+		name: 'L4 Backspace over a block held whole lands at the end of the block before',
+		source: 'a\n\n⟦---⟧\n\nb\n',
+		gesture: 'backspace',
+		expect: { source: 'a\n\n\nb\n', caret: text(1) }
+	},
+	{
+		name: 'L4 Delete over it lands at the start of what comes after',
+		source: 'a\n\n⟦---⟧\n\nb\n',
+		gesture: 'delete',
+		expect: { source: 'a\n\n\nb\n', caret: text(3) }
+	},
+	{
+		name: 'L4 a block held whole behind a quote marker keeps the marker its line, never nesting',
+		source: '> a\n>\n> ⟦---⟧\n>\n> b\n',
+		gesture: 'backspace',
+		expect: { source: '> a\n>\n> \n>\n> b\n', caret: text(3) }
+	},
+	{
+		name: 'L4 blocks held whole go with their lines, the blank lines outside the range stay',
+		source: 'a\n\n⟦---\n\n---⟧\n\nb\n',
+		gesture: 'delete',
+		expect: { source: 'a\n\n\nb\n', caret: text(3) }
 	}
 ];
