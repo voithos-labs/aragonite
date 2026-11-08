@@ -84,6 +84,12 @@ export const lineHead = (source: string, at: number) =>
 export const lineRest = (source: string, at: number) =>
 	source.slice(at, lineEnd(source, at)).replace(/\r$/, '');
 
+/** Where the line holding \`at\` ends, before its \`\r\n\` as well as its \`\n\`. */
+export function lineEndBefore(source: string, at: number): number {
+	const end = lineEnd(source, at);
+	return source[end - 1] === '\r' && end > at ? end - 1 : end;
+}
+
 export function lineEnd(source: string, at: number): number {
 	const end = source.indexOf('\n', at);
 	return end < 0 ? source.length : end;

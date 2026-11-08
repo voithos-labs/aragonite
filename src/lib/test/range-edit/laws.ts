@@ -256,8 +256,8 @@ function onSyntax(host: CheckHost, removal: Result): boolean {
 	return !leaf?.text || removal.caret.at < leaf.text.from || removal.caret.at > leaf.text.to;
 }
 
-/** L6: a drop moves what a cut takes to where a paste at the drop point puts it; a copying drop is
- *  a paste of the copy there. */
+/** L6: a drop moves what a cut takes to where a paste of its text and own entry at the drop point
+ *  puts it (spec § 5.13); a copying drop is a paste of the copy there. */
 export function dropLaws(call: Call, input: RangeInput, at: number): string[] {
 	const out: string[] = [];
 	const copy = call(input.source, input.range, 'copy', input.mode);
@@ -271,7 +271,8 @@ export function dropLaws(call: Call, input: RangeInput, at: number): string[] {
 	if (!cut || !moved) return out;
 	const mapped = mapThrough(input.source, cut.source, at);
 	if (mapped === null) return out;
-	const then = call(cut.source, caretRange(mapped), paste(cut.clipboard ?? ''), input.mode);
+	const carried: Gesture = { paste: cut.clipboard ?? '', plain: false, own: cut.own };
+	const then = call(cut.source, caretRange(mapped), carried, input.mode);
 	if (then && then.source !== moved.source)
 		out.push(`L6 drop gave ${q(moved.source)}, a cut then a paste at the drop ${q(then.source)}`);
 	return out;

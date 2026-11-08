@@ -19,10 +19,11 @@ import {
 	titleRowOf,
 	type Doc
 } from './document';
-import { fenceBody, heldAt, heldWhole, removalRange } from './removal-range';
+import { heldAt, heldWhole, removalRange } from './removal-range';
 import {
 	byteAt,
 	lineEnd,
+	lineEndBefore,
 	lineHead,
 	lineRest,
 	lineTextStart,
@@ -80,7 +81,12 @@ function across(
 	// document's; a line keeping markers before them keeps its ending too, so nothing joins them.
 	const ending = /^\r?\n/.exec(tail)?.[0] ?? '';
 	const withLine = held && lineHead(source, from) === '' && endsHoldingWhole(doc, from, to);
-	if (withLine && ending && to + ending.length < source.length) tail = tail.slice(ending.length);
+	if (withLine && ending && to + ending.length < source.length) {
+		tail = tail.slice(ending.length);
+		// Where blank lines stand on both sides, one goes too, so no empty paragraph is left behind.
+		const blank = /^[ \t]*\r?\n/.exec(tail)?.[0];
+		if (blank && /(^|\n)[ \t]*\r?\n$/.test(source.slice(0, from))) tail = tail.slice(blank.length);
+	}
 	if (!joins) {
 		const lineStart = source.lastIndexOf('\n', to - 1) + 1;
 		const textStart = end ? lineTextStart(doc, end.leaf, end.offset) : to;
@@ -91,7 +97,7 @@ function across(
 	}
 	const joined = source.slice(0, from) + rowTail(doc, from, to) + tail;
 	const kept = closers(doc, from, to);
-	const at = lineEnd(joined, from);
+	const at = lineEndBefore(joined, from);
 	const closed = kept ? joined.slice(0, at) + kept + joined.slice(at) : joined;
 	const gone = held && (withLine || !joins || isBlankText(lineRest(tail, 0)));
 	return {
@@ -159,14 +165,19 @@ function rowTail(doc: Doc, from: number, to: number): string {
 	return doc.source.slice(row.text!.to, lineTo).replace(/\r$/, '');
 }
 
-/** The closing lines the range starts inside and leaves, innermost first: a live code block's
- *  hidden closing line, then each fenced container's. They stay after the joined text. */
+/** The closing lines the range starts inside and leaves, innermost first: a fenced block's, the
+ *  way its own write rule closes it, then each fenced container's. They stay after the joined text. */
 function closers(doc: Doc, from: number, to: number): string {
 	let out = '';
-	const code = doc.mode === 'live' ? leafAt(doc, from) : null;
-	const body = code && fenceBody(doc, code.leaf);
-	if (body && to > contentEnd(doc, code.leaf))
-		out += doc.source.slice(body.to, contentEnd(doc, code.leaf));
+	const start = leafAt(doc, from)?.leaf;
+	const fence = start && !titleOwner(doc, start) && doc.host.fence(nodeAt(doc, start.path).raw);
+	if (start && fence && fence.closer !== null && to > contentEnd(doc, start)) {
+		const closer = byteAt(doc, start, fence.closer);
+		// From the line ending before the closing line, so that line keeps its own ending.
+		const before = doc.source.lastIndexOf('\n', closer - 1);
+		const at = doc.source[before - 1] === '\r' ? before - 1 : before;
+		if (from >= byteAt(doc, start, fence.body)) out += doc.source.slice(at, contentEnd(doc, start));
+	}
 	for (const c of containersAt(doc, from, 'start').reverse()) {
 		if (factsOf(doc, c).lines !== 'fenced' || c.from >= from) continue;
 		const last = c.lines!.at(-1)!;

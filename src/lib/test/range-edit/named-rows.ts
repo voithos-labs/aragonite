@@ -628,13 +628,13 @@ export const NAMED_ROWS: NamedRow[] = [
 		name: 'L4 Backspace over a block held whole lands at the end of the block before',
 		source: 'a\n\n⟦---⟧\n\nb\n',
 		gesture: 'backspace',
-		expect: { source: 'a\n\n\nb\n', caret: text(1) }
+		expect: { source: 'a\n\nb\n', caret: text(1) }
 	},
 	{
 		name: 'L4 Delete over it lands at the start of what comes after',
 		source: 'a\n\n⟦---⟧\n\nb\n',
 		gesture: 'delete',
-		expect: { source: 'a\n\n\nb\n', caret: text(3) }
+		expect: { source: 'a\n\nb\n', caret: text(3) }
 	},
 	{
 		name: 'L4 a block held whole behind a quote marker keeps the marker its line, never nesting',
@@ -643,9 +643,41 @@ export const NAMED_ROWS: NamedRow[] = [
 		expect: { source: '> a\n>\n> \n>\n> b\n', caret: text(3) }
 	},
 	{
-		name: 'L4 blocks held whole go with their lines, the blank lines outside the range stay',
+		name: 'L12 a block cut whole with a blank line pastes back exact with its entry',
+		source: 'a\n\n⟦---⟧\n\nb\n',
+		gesture: 'cut',
+		expect: { source: 'a\n\nb\n', clipboard: '---', caret: text(3) },
+		then: { gesture: 'paste back with own', expect: backToStart('a\n\n---\n\nb\n') }
+	},
+	{
+		name: 'L3 the same as plain text pastes back as the same blocks, the blank line it took aside',
+		source: 'a\n\n⟦---⟧\n\nb\n',
+		gesture: 'cut',
+		expect: { source: 'a\n\nb\n' },
+		then: { gesture: 'paste back', expect: { source: 'a\n\n---\nb\n' } }
+	},
+	{
+		name: 'L4 blocks held whole go with their lines and one of the blank lines either side',
 		source: 'a\n\n⟦---\n\n---⟧\n\nb\n',
 		gesture: 'delete',
-		expect: { source: 'a\n\n\nb\n', caret: text(3) }
+		expect: { source: 'a\n\nb\n', caret: text(3) }
+	},
+	{
+		name: 'L4 a range from a code block out past its closing line keeps that line',
+		source: '```\nx⟦\n```\n\nb⟧b\n',
+		gesture: 'backspace',
+		expect: { source: '```\nx\n```\nb\n', caret: text(5) }
+	},
+	{
+		name: 'L4 a fenced container left in a CRLF document keeps its closing line whole',
+		source: ':::note\r\nalpha ⟦bravo\r\n:::\r\n\r\ndelta ⟧echo\r\n',
+		gesture: 'cut',
+		expect: { source: ':::note\r\nalpha echo\r\n:::\r\n', caret: text(15) }
+	},
+	{
+		name: 'L4 the same out of a math block keeps its closing $$',
+		source: '$$\nx⟦\n$$\n\nb⟧b\n',
+		gesture: 'backspace',
+		expect: { source: '$$\nx\n$$\nb\n', caret: text(4) }
 	}
 ];
