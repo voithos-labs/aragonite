@@ -192,20 +192,38 @@ describe('a draft writing an opener above a block of its family', () => {
 		expect(await undo(editor)).toBe(source);
 	});
 
-	it('keeps the author caret it wrote over on the opener, in front of the closer', async () => {
-		const editor = mountEditor<Surface>({ source: 'xy\n\n$$\nx\n$$\n', plugins: SYNTAX_PLUGINS });
-		await editor.settle();
-		placeCaret(surfaceAt(editor, [0]), 1);
+	// The author's caret inside the write, or a caret named on the opener, stays in front of the closer.
+	describe.each(['source', 'live'] as const)('in %s mode', (presentationMode) => {
+		const rows: [string, string, string, number[], boolean][] = [
+			['at the top level', 'xy\n\n$$\nx\n$$\n', '$$\n$$\n\n$$\nx\n$$\n', [0], false],
+			[
+				'inside a quote',
+				'> xy\n>\n> $$\n> x\n> $$\n',
+				'> $$\n> $$\n>\n> $$\n> x\n> $$\n',
+				[0, 0],
+				false
+			]
+		];
+		it.each(rows.flatMap((row) => [row, [`${row[0]}, named`, ...row.slice(1)] as typeof row]))(
+			'keeps the caret on the opener %s',
+			async (name, source, after, path) => {
+				const editor = mountEditor<Surface>({ source, plugins: SYNTAX_PLUGINS, presentationMode });
+				await editor.settle();
+				placeCaret(surfaceAt(editor, path), 1);
+				const at = source.indexOf('xy');
 
-		expect(await editor.instance.edit().replace({ from: 0, to: 2 }, '$$').commit()).toEqual({
-			ok: true
-		});
-		await editor.settle();
+				const draft = editor.instance.edit().replace({ from: at, to: at + 2 }, '$$');
+				const caret = name.endsWith('named') ? { caret: at + 2 } : undefined;
+				expect(await draft.commit(caret)).toEqual({ ok: true });
+				await editor.settle();
 
-		expect(editor.source()).toBe('$$\n$$\n\n$$\nx\n$$\n');
-		const { focus } = editor.instance.getSelection()!;
-		expect(focus.path).toEqual([0]);
-		expect(focus.offset).toBeLessThanOrEqual('$$\n'.length);
+				expect(editor.source()).toBe(after);
+				const { focus } = editor.instance.getSelection()!;
+				expect(focus.path).toEqual(path);
+				// The landing moves a caret off the `$$` line into the empty body, still above the closer.
+				expect(focus.offset).toBeLessThanOrEqual('$$\n'.length);
+			}
+		);
 	});
 });
 
