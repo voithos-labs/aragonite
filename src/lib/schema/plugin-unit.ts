@@ -8,6 +8,8 @@ import { checkDefinedByThisCopy, type CoreCopy } from '../invariants/one-core-co
 import { ARAGONITE_VERSION } from '../version';
 import type { EditorEventMap } from '../editor-events';
 import type { PresentationMode } from '../presentation-mode';
+import type { Command } from './plugin-command';
+import type { InsertRow } from './insert-catalogue';
 import type { Draft } from './drafts';
 import { isValidPluginName } from './plugin-name';
 import { satisfiesRange } from './version-range';
@@ -54,6 +56,10 @@ export interface Contribution {
 	blocks?: readonly BlockType<unknown>[];
 	/** Runs once the editor is mounted; what it adds through `editor` goes away with the plugin. */
 	setup?(editor: Editor): void;
+	/** Run by value, by `plugin/id`, or by a command's chord anywhere in the editor. */
+	commands?: readonly Command<unknown>[];
+	/** Rows for the insert menus, listed after the built-ins as `plugin/id`. */
+	inserts?: readonly InsertRow[];
 }
 
 /** The editor as a plugin's `setup` and a host's handle both see it. */
@@ -62,14 +68,19 @@ export interface Editor {
 	readonly plugins: readonly string[];
 	readonly mode: PresentationMode;
 	readonly theme: string;
+	/** Every row this editor's insert menus offer, live. */
+	readonly inserts: readonly InsertRow[];
 	/** Listens until `dispose` is called, the plugin is turned off, or the editor unmounts. */
 	on<K extends keyof EditorEventMap>(
 		event: K,
 		listen: (payload: EditorEventMap[K]) => void
 	): () => void;
-	/** Runs a command by id; false, with nothing written, where `can` would say no. */
-	run(command: string, arg?: unknown): boolean;
-	can(command: string): boolean;
+	/** Runs a command, by value or by id; false, with nothing written, where `can` would say no or
+	 *  the command declines. */
+	run<A>(command: Command<A>, arg: A): boolean;
+	run(command: Command | string, arg?: unknown): boolean;
+	can<A>(command: Command<A>, arg: A): boolean;
+	can(command: Command | string, arg?: unknown): boolean;
 	/** Whether the editor acts on this key, so a host's own shortcut handler can stand back. */
 	claims(event: KeyboardEvent): boolean;
 	/** A write in the document's bytes, committed as one undo step now or after a wait; a plugin's

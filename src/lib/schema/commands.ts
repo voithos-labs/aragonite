@@ -21,12 +21,13 @@ import {
 	type KeybindingOverrideMap
 } from './keybinding-overrides';
 // Type-only imports, so this file has no runtime dependency on plugin-install or block-commands.
-import { registerAsCore, type EditorContext } from './plugin-install';
+import type { EditorContext } from './plugin-install';
 import type { PluginActivation } from './plugin-activation';
 import type { CommandDispatchContext, CommandErrorSink, CommandGates } from './block-commands';
 import type { MarkActivation } from '../decorations/mark-activation';
 import { isReadingMode, type PresentationMode } from '../presentation-mode';
 
+// Built-in ids keep their dots: hosts already bind them, and a plugin's id always has a slash.
 export const GLOBAL_COMMAND_IDS = [
 	'history.undo',
 	'history.redo',
@@ -171,7 +172,7 @@ export type GlobalCommandRun = (ctx: GlobalCommandContext) => boolean;
 /** A global command's handler, and what `canRunCommand` asks it; without `canRun` it can always run. */
 interface RegisteredGlobalCommand {
 	run: GlobalCommandRun;
-	canRun?: (gates: CommandGates) => boolean;
+	canRun?: (gates: CommandGates, arg: unknown) => boolean;
 }
 
 const BUILTIN_COMMAND_IDS = new Set<string>([...GLOBAL_COMMAND_IDS, ...BLOCK_COMMAND_IDS]);
@@ -198,21 +199,40 @@ export function registerCommand(
 	);
 }
 
-/** The command's handler where `activation` resolves the plugin that registered it. */
+/** The command's handler: a built-in, or a plugin's where `activation` runs that plugin. */
 export function getCommand(
 	id: AnyCommandId,
 	activation: PluginActivation
 ): GlobalCommandRun | undefined {
-	return globalCommands.get(id, activation)?.run;
+	return globalCommandFor(id, activation)?.run;
 }
 
-/** Whether the command `activation` resolves can run now, by its own check. */
+/** Whether the command `activation` resolves can run now, with this argument, by its own check. */
 export function canRunGlobalCommand(
 	id: AnyCommandId,
 	activation: PluginActivation,
-	gates: CommandGates
+	gates: CommandGates,
+	arg?: unknown
 ): boolean {
-	return globalCommands.get(id, activation)?.canRun?.(gates) ?? true;
+	return globalCommandFor(id, activation)?.canRun?.(gates, arg) ?? true;
+}
+
+// The one lookup behind both: the built-ins, a `setup` plugin's registration, then the commands
+// the editor's plugin values contribute.
+function globalCommandFor(
+	id: AnyCommandId,
+	activation: PluginActivation
+): RegisteredGlobalCommand | undefined {
+	const found = BUILTIN_GLOBAL_COMMANDS.get(id) ?? globalCommands.get(id, activation);
+	if (found) return found;
+	const contributions = activation.contributions;
+	const entry = contributions?.command(id);
+	return (
+		entry && {
+			run: (ctx) => contributions!.run(entry, ctx.arg),
+			canRun: (_gates, arg) => contributions!.can(entry, arg)
+		}
+	);
 }
 
 /** Whether any plugin or built-in registered the id, whatever the activation. */
@@ -284,31 +304,30 @@ function __resetCommandWarningsForTests(): void {
 }
 enrollTestReset(__resetCommandWarningsForTests);
 
-// The editor's own, so they belong to no plugin and a dev server's re-evaluation replaces them.
-registerAsCore(() => {
+const BUILTIN_GLOBAL_COMMANDS = new Map<string, RegisteredGlobalCommand>([
 	// Taken even with nothing to undo, so the chord never falls through to the browser's own undo.
-	registerCommand(
+	[
 		'history.undo',
-		(ctx) => {
-			void ctx.history.requestUndo();
-			return true;
-		},
-		(gates) => gates.undoStack.canUndo
-	);
-	registerCommand(
+		{
+			run: (ctx) => (void ctx.history.requestUndo(), true),
+			canRun: (gates) => gates.undoStack.canUndo
+		}
+	],
+	[
 		'history.redo',
-		(ctx) => {
-			void ctx.history.requestRedo();
-			return true;
-		},
-		(gates) => gates.undoStack.canRedo
-	);
-	registerCommand(
+		{
+			run: (ctx) => (void ctx.history.requestRedo(), true),
+			canRun: (gates) => gates.undoStack.canRedo
+		}
+	],
+	[
 		'decorations.activateAtCaret',
-		(ctx) => ctx.markActivation.activate(),
-		(gates) => gates.markActivation.canActivate()
-	);
-});
+		{
+			run: (ctx) => ctx.markActivation.activate(),
+			canRun: (gates) => gates.markActivation.canActivate()
+		}
+	]
+]);
 
 export const GLOBAL_KEYMAP: KeyBinding[] = [
 	{ chord: 'Mod+Z', command: 'history.undo' },
@@ -380,21 +399,28 @@ export function pluginGlobalBinding(
 	chord: string,
 	activation: PluginActivation
 ): KeyBinding | null {
-	return pluginGlobalKeymap.get(chord, activation) ?? null;
+	const registered = pluginGlobalKeymap.get(chord, activation);
+	if (registered) return registered;
+	const entry = activation.contributions?.atChord(chord);
+	return entry ? { chord, command: entry.id as AnyCommandId } : null;
 }
 
 /** Every plugin-global binding `activation` resolves, each with the plugin that installed it. */
 export function pluginGlobalBindings(
 	activation: PluginActivation
 ): readonly (KeyBinding & { plugin: string | null })[] {
-	return pluginGlobalKeymap
+	const registered = pluginGlobalKeymap
 		.entries(activation)
 		.map(([chord, binding]) => ({ ...binding, plugin: pluginGlobalKeymap.ownerOf(chord) }));
+	const contributed = (activation.contributions?.commands ?? []).flatMap(({ chord, id, plugin }) =>
+		chord ? [{ chord, command: id as AnyCommandId, plugin }] : []
+	);
+	return [...registered, ...contributed];
 }
 
 /** The chords of {@link pluginGlobalBindings}, normalized. */
 export function pluginGlobalChords(activation: PluginActivation): readonly string[] {
-	return pluginGlobalKeymap.entries(activation).map(([chord]) => chord);
+	return pluginGlobalBindings(activation).map((binding) => binding.chord);
 }
 
 /** First binding in `bindings` for `chord`; every stored chord is normalized already. */

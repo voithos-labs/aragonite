@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { insertCatalogue } from '#lib/schema/insert-catalogue.js';
+import { insertRows, rowMarkdown } from '#lib/schema/insert-catalogue.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 
-const builtIn = (id: string) => insertCatalogue(everyInstalledPlugin).find((e) => e.id === id)!;
+const builtIn = (id: string) => insertRows(everyInstalledPlugin).find((e) => e.id === id)!;
 
-const withArgument = (id: string, argument: string) => builtIn(id).withArgument!(argument);
+const withArgument = (id: string, argument: string) => {
+	const { insert } = builtIn(id);
+	if (typeof insert === 'string') throw new Error(`${id} takes no word`);
+	return insert(argument);
+};
 
 describe('the table entry', () => {
 	it.each(['3X4', '3×4'])('%j reads as 3x4', (size) => {
@@ -13,7 +17,7 @@ describe('the table entry', () => {
 	});
 
 	it('2x2 is the entry’s own table', () => {
-		expect(withArgument('table', '2x2').markdown).toBe(builtIn('table').markdown);
+		expect(withArgument('table', '2x2').markdown).toBe(rowMarkdown(builtIn('table')));
 	});
 
 	it('reads the largest size it allows, 20 columns by 100 rows', () => {
@@ -24,7 +28,7 @@ describe('the table entry', () => {
 		'%j inserts the default and says how to write a size',
 		(size) => {
 			const parsed = withArgument('table', size);
-			expect(parsed.markdown).toBe(builtIn('table').markdown);
+			expect(parsed.markdown).toBe(rowMarkdown(builtIn('table')));
 			expect(parsed.detail).toMatch(/^2×2 · .*3x4/);
 		}
 	);

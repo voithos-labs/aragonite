@@ -5,11 +5,14 @@
  * (`docs/design/plugin-contract.md` § Per-instance enablement).
  */
 import { installedPluginNames, isPluginInstalled } from './plugin-install';
+import type { EditorContributions } from './editor-contributions';
 
 export interface PluginActivation {
 	isActive(pluginName: string): boolean;
 	/** Counts the changes to an activation that changes in place, so a list built from it rebuilds. */
 	readonly generation?: number;
+	/** What the editor's plugin values contribute; absent outside an editor, where none run. */
+	readonly contributions?: EditorContributions;
 }
 
 /** One editor's plugins, by name, which `use` changes in place; `null` turns on every installed one. */
@@ -30,10 +33,14 @@ export function activationFor(pluginNames: readonly string[]): PluginActivation 
 	return { isActive: (name) => active.has(name) && isPluginInstalled(name) };
 }
 
-export function createEditorActivation(names: readonly string[] | null): EditorActivation {
+export function createEditorActivation(
+	names: readonly string[] | null,
+	contributions?: EditorContributions
+): EditorActivation {
 	let active = names && new Set(names);
 	let generation = 0;
 	return {
+		contributions,
 		isActive: (name) => (active ? active.has(name) : isPluginInstalled(name)),
 		get generation() {
 			return generation;

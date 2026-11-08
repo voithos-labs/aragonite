@@ -108,13 +108,13 @@ describe('createEditor', () => {
 
 	it('ignores plugins passed after mount', async () => {
 		const { editor } = create({ source: '$$\nx\n$$\n' });
-		const catalogue = editor.getInsertCatalogue().length;
+		const catalogue = editor.inserts.length;
 
 		await update(editor, { plugins: [latexPlugin()] });
 		await update(editor, { source: '$$\ny\n$$\n' });
 
 		expect(editor.getBlockKindAt([0])).toBe('paragraph');
-		expect(editor.getInsertCatalogue().length).toBe(catalogue);
+		expect(editor.inserts.length).toBe(catalogue);
 	});
 });
 

@@ -1,6 +1,6 @@
 /**
- * The blocks a menu can insert: the built-ins, then the entries plugins register, each with the
- * Markdown it inserts. The right-click flyout, `EditorInstance.getInsertCatalogue()` and a plugin's
+ * The blocks a menu can insert: the built-ins, then the rows plugins add, each with the Markdown it
+ * inserts. The right-click flyout, an editor's `inserts` and a `setup` plugin's
  * `editor.insertCatalogue` all read this one list, so no two of them can disagree.
  */
 import { newTableLines } from '../core/parsers/table-line';
@@ -8,7 +8,22 @@ import { isMenuIconName, type MenuIconName } from '../menu-icons';
 import { legalFenceInfo } from './fenced-code-raw';
 import type { PluginActivation } from './plugin-activation';
 import { createPluginRegistry } from './plugin-registry';
+import { isValidPluginName } from './plugin-name';
 
+/** A row of the insert menus (the right-click flyout, the `/` list, a host's `+` button). */
+export interface InsertRow {
+	/** Unique in the list; an editor lists a plugin's as `plugin/id`. */
+	readonly id: string;
+	readonly label: string;
+	readonly icon: MenuIconName;
+	/** Other words a filter should find the row by: `todo` for "To-do list". */
+	readonly keywords?: readonly string[];
+	/** The Markdown it inserts, or a function of the word typed after it (`/table 3x4`, empty when
+	 *  none was) giving the Markdown and the dim text saying how the word was read. */
+	readonly insert: string | ((word: string) => { markdown: string; detail?: string });
+}
+
+/** What `registerInsertEntry` takes: a `setup` plugin's row. */
 export interface InsertEntry {
 	readonly id: string;
 	readonly label: string;
@@ -34,19 +49,31 @@ const MAX_ROWS = 100;
 const TABLE_HINT = 'columns×rows, like 3x4';
 
 // A heading is not here: it is text turned into a heading, which the selection toolbar offers.
-const BUILT_IN: readonly InsertEntry[] = [
-	entry('bullet', 'Bulleted list', 'list', ['bullet', 'unordered', 'ul', 'list'], '- '),
-	entry('numbered', 'Numbered list', 'list-ordered', ['number', 'ordered', 'ol', 'list'], '1. '),
-	entry('todo', 'To-do list', 'square-check', ['todo', 'td', 'task', 'checkbox', 'list'], '- [ ] '),
-	entry('quote', 'Quote', 'text-quote', ['blockquote', 'citation'], '> '),
-	entry('divider', 'Divider', 'minus', ['rule', 'separator', 'line'], '---\n'),
-	entry('code', 'Code block', 'code', ['fence', 'pre', 'snippet'], codeFence(''), codeArgument),
-	entry('table', 'Table', 'table', ['grid'], tableMarkdown(DEFAULT_TABLE), tableArgument)
+const BUILT_IN: readonly InsertRow[] = [
+	frozenRow('bullet', 'Bulleted list', 'list', ['bullet', 'unordered', 'ul', 'list'], '- '),
+	frozenRow(
+		'numbered',
+		'Numbered list',
+		'list-ordered',
+		['number', 'ordered', 'ol', 'list'],
+		'1. '
+	),
+	frozenRow(
+		'todo',
+		'To-do list',
+		'square-check',
+		['todo', 'td', 'task', 'checkbox', 'list'],
+		'- [ ] '
+	),
+	frozenRow('quote', 'Quote', 'text-quote', ['blockquote', 'citation'], '> '),
+	frozenRow('divider', 'Divider', 'minus', ['rule', 'separator', 'line'], '---\n'),
+	frozenRow('code', 'Code block', 'code', ['fence', 'pre', 'snippet'], codeArgument),
+	frozenRow('table', 'Table', 'table', ['grid'], tableArgument)
 ];
 const BUILT_IN_IDS = new Set(BUILT_IN.map((e) => e.id));
 
 // Listed in registration order.
-const fromPlugins = createPluginRegistry<string, InsertEntry>({
+const fromPlugins = createPluginRegistry<string, InsertRow>({
 	label: 'registerInsertEntry',
 	isBuiltin: () => false
 });
@@ -66,40 +93,50 @@ export function registerInsertEntry(entry: InsertEntry): void {
 	}
 	fromPlugins.register(
 		entry.id,
-		freezeEntry(entry),
+		rowOf(entry),
 		`registerInsertEntry: an insert entry '${entry.id}' is already registered`
 	);
 }
 
-/** Every entry one editor lists: the built-ins, then each plugin entry `activation` resolves. A
- *  fresh frozen list per call. */
-export function insertCatalogue(activation: PluginActivation): readonly InsertEntry[] {
-	const listed = fromPlugins.entries(activation).map(([, entry]) => entry);
-	return Object.freeze([...BUILT_IN, ...listed]);
+/** Every row one editor lists: the built-ins, each `setup` plugin entry `activation` resolves,
+ *  then the rows its plugin values contribute. A fresh frozen list per call. */
+export function insertRows(activation: PluginActivation): readonly InsertRow[] {
+	const registered = fromPlugins.entries(activation).map(([, entry]) => entry);
+	return Object.freeze([...BUILT_IN, ...registered, ...(activation.contributions?.inserts ?? [])]);
+}
+
+/** The Markdown a row inserts for the word typed after it, empty when none was. */
+export function rowMarkdown(row: InsertRow, word = ''): string {
+	return typeof row.insert === 'string' ? row.insert : row.insert(word).markdown;
+}
+
+/** Why a plugin value's row can't be listed, or null. */
+export function insertRowProblem(row: InsertRow): string | null {
+	if (!isValidPluginName(row.id)) {
+		return `has an insert row id "${row.id}"; lowercase first letter, then letters/digits/hyphens`;
+	}
+	return isMenuIconName(row.icon) ? null : `names icon '${row.icon}', which the menu cannot draw`;
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────
 
-function entry(
+function frozenRow(
 	id: string,
 	label: string,
 	icon: MenuIconName,
 	keywords: string[],
-	markdown: string,
-	withArgument?: InsertEntry['withArgument']
-): InsertEntry {
-	return freezeEntry({
-		id,
-		label,
-		icon,
-		keywords,
-		markdown,
-		...(withArgument && { withArgument })
-	});
+	insert: InsertRow['insert']
+): InsertRow {
+	return Object.freeze({ id, label, icon, keywords: Object.freeze(keywords), insert });
 }
 
-function freezeEntry(entry: InsertEntry): InsertEntry {
-	return Object.freeze({ ...entry, keywords: Object.freeze([...entry.keywords]) });
+// A `setup` plugin's entry reads its default Markdown until a word is typed.
+function rowOf(entry: InsertEntry): InsertRow {
+	const { withArgument, markdown } = entry;
+	const insert = withArgument
+		? (word: string) => (word ? withArgument(word) : { markdown })
+		: markdown;
+	return frozenRow(entry.id, entry.label, entry.icon, [...entry.keywords], insert);
 }
 
 // ── Arguments ────────────────────────────────────────────────────────────────

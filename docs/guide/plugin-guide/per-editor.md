@@ -26,7 +26,7 @@ setup(ctx) {
 | `decorations` | This editor's decoration registry, where you register a source ([Decorations](decorations.md#decorations)) |
 | `rects` | This editor's viewport-space geometry: block box, range rects, caret, reveal, `scrollTo`, `navigateTo` |
 | `inlineMenus` | This editor's registry for lists opened by a typed trigger ([Recipe: a typed-trigger menu](../consumer-guide/recipes.md#recipe-a-typed-trigger-menu)) |
-| `insertCatalogue` | The blocks this editor's insert menus offer, live, yours included once you `registerInsertEntry` from `setup` |
+| `insertCatalogue` | The rows this editor's insert menus offer, live, yours included once you `registerInsertEntry` from `setup`; the same list as `Editor.inserts` |
 | `insertMarkdown(md, options?)` | Insert Markdown the way the instance's own call does ([Inserting Markdown at the caret](../consumer-guide.md#inserting-markdown-at-the-caret)); a promise that resolves false where that call would |
 | `runCommand(id, arg?)` | Run a command by id the way the instance's own call does; false where that would be |
 | `edit()` | Write bytes as one undo step, now or after a wait; a commit is refused with the reason if the author wrote over them meanwhile ([`Draft`](../plugin-api.md#draft-draftresult)) |
