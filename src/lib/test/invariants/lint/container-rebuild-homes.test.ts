@@ -76,10 +76,6 @@ const PINNED: Record<string, Pin> = {
 		calls: { '.rebuildRaw': 1 },
 		why: 'the shared kit check rebuilds a parsed fixture, outside any commit'
 	},
-	'src/lib/selection/clipboard-text.ts': {
-		calls: { '.rebuildRaw': 1 },
-		why: 'a copy writes each container it enters or leaves around what it copied, a node no commit has seen'
-	},
 	'src/lib/tree-operations/blockquote.ts': {
 		calls: { rebuildContainerRaw: 2 },
 		why: 'builds the quote left over after a lift, a node no commit has seen'

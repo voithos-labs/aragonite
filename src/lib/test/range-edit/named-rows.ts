@@ -14,6 +14,8 @@ export interface NamedRow {
 	then?: {
 		gesture: Gesture | 'paste back' | 'paste back with own';
 		at?: number;
+		/** The bytes the second call runs on, where another removal left other bytes than the first. */
+		source?: string;
 		expect: Partial<RangeEditResult>;
 	};
 }
@@ -153,6 +155,22 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: 'cut',
 		expect: { source: '- i0\n  - \n', clipboard: '- i1\n  - i2\n- i3', caret: text(9) },
 		then: { gesture: 'paste back', expect: backToStart('- i0\n  - i1\n    - i2\n  - i3\n') }
+	},
+	// Miss-analysis: the merge ran only for a clipboard whose last block takes joined text, and no
+	// row emptied a container and pasted a container ending in code back on its line.
+	{
+		name: 'L3 a quote cut out past its end into code pastes back into the quote it emptied',
+		source: '> ⟦q\n\n    code⟧\n',
+		gesture: 'cut',
+		expect: { source: '> \n', clipboard: '> q\n\n    code', caret: text(2) },
+		then: { gesture: 'paste back', expect: backToStart('> q\n\n    code\n') }
+	},
+	{
+		name: 'L3 an alert cut out past its end pastes back into the alert it emptied',
+		source: '> [!TIP]\n> ⟦a\n\n[^1]: x\n    - y⟧\n',
+		gesture: 'cut',
+		expect: {},
+		then: { gesture: 'paste back', expect: backToStart('> [!TIP]\n> a\n\n[^1]: x\n    - y\n') }
 	},
 	{
 		name: 'L3 a quote line read without its marker comes back with it',
@@ -383,6 +401,84 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: 'copy',
 		expect: { clipboard: '\n\n```\nxy\n```' }
 	},
+	// Miss-analysis: every entry row pasted on the bytes its own cut left; until stage 3 a cut's
+	// removal is today's, which can leave others.
+	{
+		name: 'L12 an entry pasted where its cut left other bytes lands as its text alone does',
+		source: '⟦a\n# h⟧\nb\n',
+		gesture: 'cut',
+		expect: { source: '\nb\n', clipboard: 'a\n# h' },
+		then: {
+			gesture: 'paste back with own',
+			source: '> zz\n',
+			at: 4,
+			expect: { source: '> zza\n> # h\n' }
+		}
+	},
+	// Miss-analysis: law 10 leaves a range into or out of a title row to these rows, and none held one.
+	{
+		name: 'C13 a copy from a title row out carries its container from the opening line',
+		source: ':::note Ti⟦tle\n\nbody\n:::\n\nbe⟧low\n',
+		gesture: 'copy',
+		expect: { clipboard: ':::note Title\n\nbody\n:::\n\nbe' }
+	},
+	{
+		name: 'C13 a copy from an inner title row out past its outer container opens both',
+		source: '::::note Outer\n\nO1\n\n:::note In⟦ner\n\nI1\n:::\n\nO2\n::::\n\nbe⟧low\n',
+		gesture: 'copy',
+		expect: { clipboard: '::::note Outer\n:::note Inner\n\nI1\n:::\n\nO2\n::::\n\nbe' }
+	},
+	{
+		name: 'C13 a copy ending inside a summary closes the summary, then its section',
+		source: 'ab⟦ove\n\n<details open>\n<summary>Sum⟧mary</summary>\n\nbody\n\n</details>\n',
+		gesture: 'copy',
+		expect: { clipboard: 'ove\n\n<details open>\n<summary>Sum</summary>\n</details>' }
+	},
+	// Miss-analysis: no row started a copy in a table's rows, so its rows pasted elsewhere read as text.
+	{
+		name: 'L10 a copy leaving a table below its header carries the header, so it pastes as a table',
+		source: '| A | B |\n| --- | --- |\n| 1 | 2 |\n⟦| 3 | 4 |\n\nafter⟧\n\nend\n',
+		gesture: 'copy',
+		expect: { clipboard: '| A | B |\n| --- | --- |\n| 3 | 4 |\n\nafter' },
+		then: {
+			gesture: 'paste back',
+			at: 52,
+			expect: {
+				source:
+					'| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n\nafter\n\n| A | B |\n| --- | --- |\n| 3 | 4 |\n\nafterend\n'
+			}
+		}
+	},
+	{
+		name: 'L10 live, the same',
+		source: '| A | B |\n| --- | --- |\n| 1 | 2 |\n⟦| 3 | 4 |\n\nafter⟧\n\nend\n',
+		mode: 'live',
+		gesture: 'copy',
+		expect: { clipboard: '| A | B |\n| --- | --- |\n| 3 | 4 |\n\nafter' }
+	},
+	{
+		name: 'L10 a quoted table carries its header under the quote marker',
+		source: '> | A |\n> | --- |\n> | 1 |\n> ⟦| 2 |\n\nafter⟧\n',
+		gesture: 'copy',
+		expect: { clipboard: '> | A |\n> | --- |\n> | 2 |\n\nafter' }
+	},
+	{
+		name: 'L12 a cut leaving a table below its header pastes back exact with its entry',
+		source: '| A | B |\n| --- | --- |\n| 1 | 2 |\n⟦| 3 | 4 |\n\nafter⟧\n\nend\n',
+		gesture: 'cut',
+		expect: { clipboard: '| A | B |\n| --- | --- |\n| 3 | 4 |\n\nafter' },
+		then: {
+			gesture: 'paste back with own',
+			expect: backToStart('| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n\nafter\n\nend\n')
+		}
+	},
+	// Miss-analysis: every fence row ended in the body; the kit's copy ends inside the opening line.
+	{
+		name: 'L10 a copy ending inside a fence line copies its bytes and adds no closer',
+		source: 'a⟦\n\n`⟧``\nxy\n```\n',
+		gesture: 'copy',
+		expect: { clipboard: '\n\n`' }
+	},
 	{
 		name: 'L9 a nested item cut out pastes back into the item it left, as any paste there lands',
 		source: '- a⟦\n  - b⟧\n',
@@ -396,7 +492,35 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: 'cut',
 		expect: { source: 'a\n\n```\n\n```\n', caret: text(1) }
 	},
+	// Miss-analysis: no row held a container whole from its first byte, select-all's range.
+	{
+		name: 'L10 a quote the range holds whole copies whole, markers and all',
+		source: '⟦> a\n>\n> b⟧\n',
+		gesture: 'copy',
+		expect: { clipboard: '> a\n>\n> b' }
+	},
+	// Miss-analysis: law 10 runs in source mode, and the live copy rows all sat inside one block.
+	{
+		name: 'L10 a live copy across blocks closes the format run it starts inside',
+		source: '**bo⟦ld** and\n\nne⟧xt\n',
+		mode: 'live',
+		gesture: 'copy',
+		expect: { clipboard: '**ld** and\n\nne' }
+	},
 	// ── Rulings at the land (2026-11-06) ──
+	// § 5.4 rule 6: a line holding only spaces is blank already, so blocks pasted on it add none.
+	{
+		name: 'L9 blocks pasted on a line holding only spaces add no blank line',
+		source: '  ⟦⟧\nafter\n',
+		gesture: paste(' \n> q'),
+		expect: { source: '  \n \n> q\nafter\n' }
+	},
+	{
+		name: 'L9 the same blocks pasted after text take a blank line first',
+		source: 'ab⟦⟧\n',
+		gesture: paste(' \n> q'),
+		expect: { source: 'ab\n\n \n> q\n' }
+	},
 	{
 		name: 'L12 a cut from a code block text through its closing line pastes back exact with its entry',
 		source: '```\nco⟦de\n```⟧\n\nafter\n',

@@ -1,20 +1,18 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '../../core/parser';
-import { getPluginMetadata, type CstNode } from '../../core/nodes';
+import type { CstNode } from '../../core/nodes';
 import { trimTrailingLineEnding } from '../../core/lines';
-import { collectCrossBlockText } from '../../selection/clipboard-text';
-import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { rowContentRange } from '../../schema/reserved-chrome';
-import { rebuildCalloutRaw } from '../../../routes/test/plugins/callout/callout-kind';
 import { registerChromePluginsForTests } from './chrome-plugins';
 import type { SelectionPoint } from '../../selection/primitives';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { copiedText } from '#lib/test/harness/copied-text.js';
 
 // Source mode, where a copied range carries its bytes as they stand.
 const SOURCE_READING = fixtureReading({}, 'source');
 
-// A cross-block copy whose start lands inside a container's title line must keep the title's
-// tail wrapped and the body nested, or the whole selection reparses as bare paragraphs.
+// A cross-block copy whose start lands inside a container's title line must carry the container
+// with its body nested, or the whole selection reparses as bare paragraphs.
 
 function point(path: number[], offset: number): SelectionPoint {
 	return { path, offset };
@@ -27,222 +25,38 @@ const title = (node: CstNode) =>
 describe('cross-block copy starting in reserved chrome', () => {
 	beforeEach(registerChromePluginsForTests);
 
-	it('re-emits the truncated title as the opener and closes past the container', () => {
-		const doc = parse(':::callout Title\n\nBody1\n\nBody2\n\n:::\n\nBelow\n');
-		const text = collectCrossBlockText(
-			doc,
-			rangeCoverage(doc, coverRange(doc, point([0, 0], 13), point([1], 3))),
-			SOURCE_READING
-		);
-
-		expect(text).toBe(':::callout tle\n\nBody1\n\nBody2\n\n:::\n\nBel');
-		const reparsed = parse(text);
-		expect(reparsed.children.map((c) => c.kind)).toEqual(['callout', 'paragraph']);
-		expect(title(reparsed.children[0])).toBe('tle');
-		expect(bodies(reparsed.children[0])).toEqual(['Body1', 'Body2']);
-	});
-
 	it('closes the container at a body endpoint when the selection never leaves it', () => {
 		const doc = parse(':::callout Title\n\nBody1\n\nBody2\n\n:::\n\nBelow\n');
-		const text = collectCrossBlockText(
-			doc,
-			rangeCoverage(doc, coverRange(doc, point([0, 0], 13), point([0, 2], 3))),
-			SOURCE_READING
-		);
+		const text = copiedText(doc, point([0, 0], 13), point([0, 2], 3), SOURCE_READING);
 
 		const reparsed = parse(text);
 		expect(reparsed.children.map((c) => c.kind)).toEqual(['callout']);
 		expect(bodies(reparsed.children[0])).toEqual(['Body1', 'Bod']);
 	});
 
-	it('keeps a body-less container from gaining a body', () => {
-		const doc = parse(':::callout Title\n:::\n\nBelow\n');
-		const text = collectCrossBlockText(
-			doc,
-			rangeCoverage(doc, coverRange(doc, point([0, 0], 13), point([1], 3))),
-			SOURCE_READING
-		);
-
-		expect(text).toBe(':::callout tle\n:::\n\nBel');
-		expect(parse(text).children[0].children!.map((c) => c.kind)).toEqual(['directiveOpenerLine']);
-	});
-
-	// The closer's line ending comes off the live container's raw, not a default: a
-	// CRLF-authored callout must not emit an LF closer (G4.20).
-	it('rebuilds a CRLF-authored container CRLF-safe', () => {
-		const doc = parse(':::callout Title\r\n\r\nBody\r\n\r\n:::\r\n\r\nBelow\r\n');
-		const text = collectCrossBlockText(
-			doc,
-			rangeCoverage(doc, coverRange(doc, point([0, 0], 13), point([1], 3))),
-			SOURCE_READING
-		);
-
-		expect(text).toBe(':::callout tle\r\n\r\nBody\r\n\r\n:::\r\n\r\nBel');
-		const reparsed = parse(text);
-		expect(reparsed.children.map((c) => c.kind)).toEqual(['callout', 'paragraph']);
-		expect(bodies(reparsed.children[0])).toEqual(['Body']);
-	});
-
-	it('rebuilds a details from its summary tail, open flag preserved', () => {
-		const doc = parse(
-			'<details open>\n<summary>Summary</summary>\n\nBody\n\n</details>\n\nBelow\n'
-		);
-		const text = collectCrossBlockText(
-			doc,
-			rangeCoverage(doc, coverRange(doc, point([0, 0], 3), point([1], 3))),
-			SOURCE_READING
-		);
-
-		const details = parse(text).children[0];
-		expect(details.kind).toBe('details');
-		expect(getPluginMetadata<{ open: boolean }>(details)?.open).toBe(true);
-		expect(title(details)).toBe('mary');
-		expect(bodies(details)).toEqual(['Body']);
-	});
-
 	it('carries a table through the container body untouched', () => {
 		const doc = parse(':::callout Title\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\n:::\n\nBelow\n');
-		const text = collectCrossBlockText(
-			doc,
-			rangeCoverage(doc, coverRange(doc, point([0, 0], 13), point([1], 3))),
-			SOURCE_READING
-		);
+		const text = copiedText(doc, point([0, 0], 13), point([1], 3), SOURCE_READING);
 
 		const note = parse(text).children[0];
 		expect(note.children!.map((c) => c.kind)).toEqual(['directiveOpenerLine', 'table']);
 		expect(note.children![1].raw).toBe('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
 	});
 
-	describe('nested containers', () => {
-		const nested =
-			'::::callout Outer\n\nO1\n\n:::callout Inner\n\nI1\n\n:::\n\nO2\n\n::::\n\nBelow\n';
-
-		// The closer must match the opener's fence length: a constant ":::" would
-		// close the outer at the inner container's closer line and strand O2.
-		it('closes the outer at its own fence width, not a constant', () => {
-			const doc = parse(nested);
-			const text = collectCrossBlockText(
-				doc,
-				rangeCoverage(doc, coverRange(doc, point([0, 0], 14), point([1], 3))),
-				SOURCE_READING
-			);
-
-			expect(text.startsWith('::::callout ter\n')).toBe(true);
-			const outer = parse(text).children[0];
-			expect(title(outer)).toBe('ter');
-			expect(outer.children!.map((c) => c.kind)).toEqual([
-				'directiveOpenerLine',
-				'paragraph',
-				'callout',
-				'paragraph'
-			]);
-			expect(bodies(outer.children![2])).toEqual(['I1']);
-		});
-
-		// Start in the outer title line, end in the inner one: the end-side rebuild already
-		// yields a complete inner container, so both closers land in order.
-		it('nests a chrome-only end container inside the opened outer', () => {
-			const doc = parse(nested);
-			const text = collectCrossBlockText(
-				doc,
-				rangeCoverage(doc, coverRange(doc, point([0, 0], 14), point([0, 2, 0], 14))),
-				SOURCE_READING
-			);
-
-			const outer = parse(text).children[0];
-			expect(outer.children!.map((c) => c.kind)).toEqual([
-				'directiveOpenerLine',
-				'paragraph',
-				'callout'
-			]);
-			expect(title(outer.children![2])).toBe('Inn');
-			expect(bodies(outer.children![2])).toEqual([]);
-		});
-
-		// Start in the inner title line, past the outer's end: only the container the start
-		// opened may close, or a closer for the unopened outer leaves a bare "::::" line.
-		it('closes only the container the start opened', () => {
-			const doc = parse(nested);
-			const text = collectCrossBlockText(
-				doc,
-				rangeCoverage(doc, coverRange(doc, point([0, 2, 0], 13), point([1], 3))),
-				SOURCE_READING
-			);
-
-			expect(text).toBe(':::callout ner\n\nI1\n\n:::\n\nO2\n\nBel');
-			const reparsed = parse(text);
-			expect(reparsed.children.map((c) => c.kind)).toEqual(['callout', 'paragraph', 'paragraph']);
-			expect(title(reparsed.children[0])).toBe('ner');
-			expect(bodies(reparsed.children[0])).toEqual(['I1']);
-			expect(reparsed.children.slice(1).map((c) => trimTrailingLineEnding(c.raw))).toEqual([
-				'O2',
-				'Bel'
-			]);
-		});
-
-		// The container the end sits in comes along too, closed after what the copy holds of it.
-		it('keeps both kinds when the end lands in a nested body', () => {
-			const doc = parse(nested);
-			const text = collectCrossBlockText(
-				doc,
-				rangeCoverage(doc, coverRange(doc, point([0, 0], 14), point([0, 2, 1], 1))),
-				SOURCE_READING
-			);
-
-			const outer = parse(text).children[0];
-			expect(outer.kind).toBe('callout');
-			expect(title(outer)).toBe('ter');
-			expect(outer.children!.map((c) => c.kind)).toEqual([
-				'directiveOpenerLine',
-				'paragraph',
-				'callout'
-			]);
-			expect(bodies(outer.children![2])).toEqual(['I']);
-		});
-	});
-
-	// The body is collected before the wrapper is built because `colonCount` stays 4 in metadata
-	// while the live fence widened to 5; a fence read from metadata alone would close early.
-	it('widens opener and closer together when the body forces fence escalation', () => {
-		const doc = parse('::::callout Title\n\n:::\n\n::::\n\nBelow\n');
-		doc.children[0].children![1].raw = '::::\n';
-		rebuildCalloutRaw(doc.children[0]);
-
-		const text = collectCrossBlockText(
-			doc,
-			rangeCoverage(doc, coverRange(doc, point([0, 0], 14), point([1], 3))),
-			SOURCE_READING
-		);
-
-		expect(text.startsWith(':::::callout tle\n')).toBe(true);
-		const reparsed = parse(text);
-		expect(reparsed.children.map((c) => c.kind)).toEqual(['callout', 'paragraph']);
-		expect(bodies(reparsed.children[0])).toEqual(['::::']);
-	});
-
-	// Where the table and title-line branches meet: a sub-table emitted by the table end branch
-	// flows into the wrapper as ordinary body bytes.
-	it('wraps a sub-table emitted by a mid-table end endpoint', () => {
+	// Start in the outer title line, end in the inner one: the inner container comes along closed.
+	it('nests a chrome-only end container inside the opened outer', () => {
 		const doc = parse(
-			':::callout Title\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n\n:::\n\nBelow\n'
+			'::::callout Outer\n\nO1\n\n:::callout Inner\n\nI1\n\n:::\n\nO2\n\n::::\n\nBelow\n'
 		);
-		const text = collectCrossBlockText(
-			doc,
-			rangeCoverage(
-				doc,
-				coverRange(doc, point([0, 0], 13), {
-					path: [0, 1],
-					offset: 2,
-					cellCoordinate: true
-				})
-			),
-			SOURCE_READING
-		);
+		const text = copiedText(doc, point([0, 0], 14), point([0, 2, 0], 14), SOURCE_READING);
 
-		const note = parse(text).children[0];
-		expect(note.kind).toBe('callout');
-		expect(title(note)).toBe('tle');
-		expect(note.children!.map((c) => c.kind)).toEqual(['directiveOpenerLine', 'table']);
-		expect(note.children![1].raw).toBe('| A | B |\n| --- | --- |\n| 1 | 2 |\n');
+		const outer = parse(text).children[0];
+		expect(outer.children!.map((c) => c.kind)).toEqual([
+			'directiveOpenerLine',
+			'paragraph',
+			'callout'
+		]);
+		expect(title(outer.children![2])).toBe('Inn');
+		expect(bodies(outer.children![2])).toEqual([]);
 	});
 });

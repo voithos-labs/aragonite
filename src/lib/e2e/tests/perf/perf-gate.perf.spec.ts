@@ -4,6 +4,7 @@ import { EditorPage } from '../../editor-page';
 import { type FixtureShape } from '../../../test/perf/fixtures/generate';
 import {
 	measureContainerInteriorTyping,
+	measureListCopy,
 	measureListPaste,
 	measureStructuralRebuild,
 	measureTypingLatency
@@ -155,6 +156,22 @@ test.describe('perf gate: structural edit p50 within budget', () => {
 			expect(m.p50Ms, `${key} p50 regressed past baseline+budget`).toBeLessThanOrEqual(ceilingMs);
 		});
 	}
+});
+
+// A copy reads its range through the range-edit core, over the document's bytes and layout the
+// editor makes once per content version, so a copy of a few items is timed in the largest list.
+test.describe('perf gate: a copy over a range in a giant list', () => {
+	test('giant single list copy 10MB', async ({ page }) => {
+		const key = 'giant-single-list-copy-10MB';
+		const { baselineMs, ceilingMs } = gateFor(key);
+		const m = await measureListCopy(page, new EditorPage(page), SIZE_BYTES['10MB'], 3, 4, 15);
+		console.log(
+			`PERF-GATE ${key} p50=${m.p50Ms.toFixed(1)}ms ` +
+				`ceiling=${ceilingMs.toFixed(1)}ms (baseline ${baselineMs}ms) p95=${m.p95Ms.toFixed(1)}ms ` +
+				`first=${m.samples[0].toFixed(1)}ms`
+		);
+		expect(m.p50Ms, `${key} p50 regressed past baseline+budget`).toBeLessThanOrEqual(ceilingMs);
+	});
 });
 
 // A paste into a giant list re-reads the whole list either way, today's paste or the byte splice

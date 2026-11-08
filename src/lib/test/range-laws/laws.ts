@@ -8,6 +8,8 @@ import type { EditorSelection, SelectionPoint } from '#lib/selection/primitives.
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { parse, serialize, getContentRange } from '#lib/index.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
+import { rangePaint } from '#lib/selection/range-bytes.js';
+import { documentLayout } from '#lib/range-edit/layout.js';
 import { visibleText } from '#lib/core/inline/link-source-bytes.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { reloadDivergence } from '#lib/test/exhaustive/edit-driver.js';
@@ -610,10 +612,8 @@ export async function law10(input: LawInput, copy: ClipboardRoute): Promise<LawR
 		const expected = body.slice(from, to);
 		// A block or container the range holds whole is copied whole (`docs/design/selection.md` § Clipboard), so
 		// an end at its edge reads by the coverage rule, which the laws leave open there.
-		const whole = rangeCoverage(tree, covered).coveredWhole;
-		const atEdge = whole.some((unit) =>
-			[start.path, end.path].some((p) => unit.every((step, i) => p[i] === step))
-		);
+		const paint = rangePaint(tree, rangeCoverage(tree, covered), documentLayout(tree));
+		const atEdge = [start.path, end.path].some((p) => paint.boxHolding(p) !== null);
 		const copied = (await clipboardGesture(at.editor, 'copy', copy))['text/plain'] ?? '';
 		takeDevWarns();
 		if (copied !== expected) {

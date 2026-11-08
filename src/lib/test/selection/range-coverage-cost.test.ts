@@ -30,11 +30,14 @@ import {
 	type SelectionPoint
 } from '../../selection/primitives';
 import { coverRange, rangeCoverage, type RangeCoverage } from '../../selection/range-coverage';
+import { rangePaint } from '../../selection/range-bytes';
+import { documentLayout } from '../../range-edit/layout';
 import {
 	crossBlockClipboardArm,
 	type CrossBlockClipboardDeps
 } from '../../selection/cross-block/clipboard';
 import { fixtureReading } from '../harness/fixture-grammar';
+import { freshBytes } from '../harness/copied-text';
 import {
 	BOUNDED_GROWTH_CEILING,
 	expectBoundedGrowth,
@@ -69,9 +72,13 @@ function counted(run: () => void): number {
 
 /** The same list selected from one character into the first item to one character into the last,
  *  so every item between is its own covered root and the list itself isn't covered. */
-function midTextCoverageOf(items: number): RangeCoverage {
+function midTextCoverageOf(items: number): { doc: Document; coverage: RangeCoverage } {
 	const { doc, start, end } = wholeListSelection(items);
-	return rangeCoverage(doc, coverRange(doc, { ...start, offset: 1 }, { ...end, offset: 1 }));
+	const coverage = rangeCoverage(
+		doc,
+		coverRange(doc, { ...start, offset: 1 }, { ...end, offset: 1 })
+	);
+	return { doc, coverage };
 }
 
 describe('a range over a long list costs in proportion to what it covers', () => {
@@ -95,13 +102,9 @@ describe('a range over a long list costs in proportion to what it covers', () =>
 			const deps = {
 				selection: { ownsRange: true, anchor: start, focus: end },
 				getDoc: () => doc,
-				crossBlock: { reading: fixtureReading() }
+				crossBlock: { reading: fixtureReading(), bytes: freshBytes(() => doc) }
 			} as unknown as CrossBlockClipboardDeps;
-			const event = {
-				preventDefault: () => {},
-				clipboardData: { setData: () => {} }
-			} as unknown as ClipboardEvent;
-			return counted(() => crossBlockClipboardArm(deps).copy(event));
+			return counted(() => crossBlockClipboardArm(deps).copy());
 		};
 
 		expect(cost(large)).toBeLessThanOrEqual(GROWTH_CEILING * cost(small));
@@ -118,20 +121,28 @@ describe('a range over a long list costs in proportion to what it covers', () =>
 	// Miss-analysis: the row's range covered the whole list, one covered root at any size, so a
 	// lookup scanning every root (each mounted overlay asks once per paint) cost the same at N and 4N.
 	it('places a block in the range without reading every covered root', () => {
-		const small = midTextCoverageOf(N);
-		const large = midTextCoverageOf(4 * N);
-		const cost = (coverage: RangeCoverage, items: number) => {
+		/** Path comparisons and blocks laid out for one block's paint, once the paint has its bytes. */
+		const cost = (items: number) => {
+			const { doc, coverage } = midTextCoverageOf(items);
+			const layout = documentLayout(doc);
+			let laid = 0;
+			const counting = {
+				...layout,
+				block: (path: readonly number[]) => (laid++, layout.block(path))
+			};
+			const paint = rangePaint(doc, coverage, counting);
+			expect(coverage.wholeRoots).toHaveLength(items - 2);
+			expect(blockPaintsWholeBox([0, 1], paint, null)).toBe(true);
+			laid = 0;
 			const item = [0, items - 2];
-			return counted(() => {
-				classifyBlockForSelection(item, coverage);
-				blockPaintsWholeBox(item, coverage, null);
+			const compared = counted(() => {
+				expect(classifyBlockForSelection(item, paint)).toBe('whole');
+				expect(blockPaintsWholeBox(item, paint, null)).toBe(true);
 			});
+			return compared + laid;
 		};
 
-		expect(small.coveredWhole).toHaveLength(N - 2);
-		expect(classifyBlockForSelection([0, N - 2], small)).toBe('whole');
-		expect(blockPaintsWholeBox([0, N - 2], small, null)).toBe(true);
-		expect(cost(large, 4 * N)).toBeLessThanOrEqual(cost(small, N) + 2);
+		expect(cost(4 * N)).toBeLessThanOrEqual(cost(N) + 2);
 	});
 });
 

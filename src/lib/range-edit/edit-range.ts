@@ -9,7 +9,8 @@ import type { SpliceCaret } from '../action-contracts';
 import { isBlankText } from '../core/lines';
 import type { Mode, RangeHost } from './host';
 import { copyOf } from './copy';
-import { contentEnd, factsOf, readDoc, type Doc } from './document';
+import { contentEnd, factsOf, findWithin, readDoc, type Doc } from './document';
+import type { LaidBlock } from './layout';
 import type { Edit } from './leaf-splice';
 import { ownEntry, restored } from './own-entry';
 import { pasteAt } from './paste';
@@ -63,17 +64,9 @@ export function editRange(
 	// Text typed or pasted over one block held whole takes its place, and the line stays.
 	const inPlace = { source: source.slice(0, from) + source.slice(to), caret: from };
 	const replaced = heldAlone(doc, from, to);
-	// A range a cut takes nothing from (a hidden fence, a title row's line ending, markers alone)
-	// copies only blank lines, so pasting it back changes no block.
-	const copied = (cut: { source: string }) => {
-		const copy = copyOf(doc, from, to);
-		return cut.source !== source || isBlankText(copy) ? copy : '';
-	};
 	if (gesture === 'copy' || gesture === 'cut') {
-		const cut = answer(removeRange(doc, from, to));
-		const clipboard = copied(cut);
-		const own = ownEntry(source, from, to, { source: cut.source, caret: cut.caret.at });
-		if (gesture === 'cut') return { ...cut, clipboard, own };
+		const { removed, clipboard, own } = taken(doc, from, to);
+		if (gesture === 'cut') return { ...answer(removed), clipboard, own };
 		return { source, caret: { at: to, holds: 'text' }, clipboard, own };
 	}
 	if (typeof gesture === 'string')
@@ -88,24 +81,42 @@ export function editRange(
 		const after = read(removed);
 		return answer(pasteAt(after, caretOf(removed, after).at, gesture.paste, gesture.plain));
 	}
-	const removed = removeRange(doc, from, to);
-	const clipboard = copied(removed);
+	const { removed, clipboard, own } = taken(doc, from, to);
 	if (gesture.copy) return answer(pasteAt(doc, gesture.drop, clipboard, false));
 	// A moving drop is a cut, then a paste of its text and own entry at the drop point.
 	const after = read(removed);
-	const own = ownEntry(source, from, to, { ...removed, caret: caretOf(removed, after).at });
 	const at =
 		gesture.drop <= from ? gesture.drop : gesture.drop - (source.length - removed.source.length);
 	return answer(restored(removed.source, at, at, own) ?? pasteAt(after, at, clipboard, false));
 }
 
+/** What a copy of `range` writes, the copy gesture alone: it reads nothing but `source`, so an
+ *  editor whose host answers that read with its own tree parses nothing. */
+export function copyRange(
+	source: string,
+	range: Range,
+	mode: Mode,
+	host: RangeHost
+): { clipboard: string; own: string } {
+	const { clipboard, own } = taken(readDoc(source, host, mode), range.from, range.to);
+	return { clipboard, own };
+}
+
+/** What a removal of `[from, to)` takes, as a copy and a cut both write it; a range it takes
+ *  nothing from (a hidden fence, markers alone) copies blank lines at most. */
+function taken(doc: Doc, from: number, to: number) {
+	const removed = removeRange(doc, from, to);
+	const copy = copyOf(doc, from, to);
+	const clipboard = removed.source !== doc.source || isBlankText(copy) ? copy : '';
+	return { removed, clipboard, own: ownEntry(doc.source, from, to, removed) };
+}
+
 /** The range is exactly one block other than a paragraph, from its first byte to the end of its
  *  last line. */
 function heldAlone(doc: Doc, from: number, to: number): boolean {
-	return doc.layout.blocks.some(
-		(b) =>
-			b.from === from && contentEnd(doc, b) === to && from < to && factsOf(doc, b).joins !== 'text'
-	);
+	const alone = (b: LaidBlock) =>
+		b.from === from && contentEnd(doc, b) === to && factsOf(doc, b).joins !== 'text';
+	return from < to && findWithin(doc, from, from, alone) !== undefined;
 }
 
 /** The caret named by what the new bytes hold there: text, or failing that the text just before it
@@ -115,6 +126,6 @@ function caretOf(edit: Edit, result: Doc): SpliceCaret {
 	const lineStart = edit.source.lastIndexOf('\n', at - 1) + 1;
 	while (at > lineStart && !result.layout.pointAt(at)) at--;
 	if (edit.source === '' || result.layout.pointAt(at)) return { at, holds: 'text' };
-	const block = result.layout.blocks.some((b) => b.from === edit.caret);
+	const block = findWithin(result, edit.caret, edit.caret, (b) => b.from === edit.caret);
 	return { at: edit.caret, holds: block ? 'block' : 'boundary' };
 }

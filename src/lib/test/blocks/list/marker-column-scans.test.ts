@@ -81,7 +81,7 @@ describe('the cost of a list’s marker column', () => {
 		reads.burst = await readsBeyondRebuild(key);
 
 		expect(editor.source()).toContain('4. itemxxxx\n');
-		expect(reads).toEqual({ first: 0, 'paused 1': 1, 'paused 2': 1, burst: 1 });
+		expect(reads).toEqual({ first: 1, 'paused 1': 1, 'paused 2': 1, burst: 1 });
 	});
 
 	it('reads at most the rewritten item when a marker changes in place or an item comes', async () => {

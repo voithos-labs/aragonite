@@ -254,7 +254,7 @@ const TOKEN_FAMILIES: Record<string, TokenFamily> = {
 	Clipboard: {
 		files: [SOURCE.containerBlockComponent, SOURCE.textClipboard],
 		tokens: {
-			'Mod+C': ["chord === 'Mod+C'", 'widget.inline.start'],
+			'Mod+C': ["chord === 'Mod+C'", 'copyRange(widget.inline)'],
 			'Mod+X': ["chord === 'Mod+X'", "replaceSelectedWidget(deps, inline, ''"]
 		}
 	},

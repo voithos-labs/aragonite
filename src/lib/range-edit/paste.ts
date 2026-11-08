@@ -58,7 +58,7 @@ export function pasteAt(doc: Doc, at: number, clipboard: string, plain: boolean)
 	}
 	const pasted = readDoc(clip, doc.host, doc.mode);
 	const isText = (b: LaidBlock) => factsOf(pasted, b).joins === 'text';
-	const tops = pasted.layout.blocks.filter(
+	const tops = [...pasted.layout.within(0, clip.length)].filter(
 		(b) => b.path.length === 1 && !(isText(b) && isBlankText(clip.slice(b.from, b.to)))
 	);
 	const first = tops[0];
@@ -73,9 +73,9 @@ export function pasteAt(doc: Doc, at: number, clipboard: string, plain: boolean)
 	if (!first) return insertBytes(doc, at, clip);
 	const joins = isText(first) || afterText(doc, leaf, offset, clip);
 	// A pasted container the caret's container takes in joins it from its first text, a line
-	// break before it included.
+	// break before it included, where its last block can take the text after the caret or none follows.
 	const taker = joins ? null : takerOf(doc, at, pasted, first);
-	if (taker && lastJoins) {
+	if (taker && (lastJoins || !visibleAfter)) {
 		const keep = (c: LaidBlock) => c !== taker;
 		const edit = insertText(doc, leaf, offset, withoutOpening(pasted, first), keep);
 		return closedBy(doc, pasted, first, taker, edit);

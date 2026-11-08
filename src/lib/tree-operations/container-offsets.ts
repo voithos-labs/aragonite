@@ -13,6 +13,7 @@ import {
 	splitLines,
 	type ParsedLine
 } from '../core/lines';
+import { blockFacts } from '../schema/block-facts';
 import { isGridKind, tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf, rowIsOpenerLine } from '../schema/reserved-chrome';
 
@@ -68,12 +69,20 @@ export function documentByteMap(doc: DocumentView): DocumentByteMap {
 		return map;
 	};
 	const tops = doc.children;
-	const rawStarts: number[] = [];
-	let start = doc.prefix.length;
-	for (const top of tops) {
-		rawStarts.push(start + top.leadingTrivia.length);
-		start += top.leadingTrivia.length + top.raw.length;
-	}
+	// Summed at the first question, so a map made ahead of one reads no block.
+	let rawStarts: number[] | undefined;
+	const rawStartOf = (i: number): number => {
+		if (!rawStarts) {
+			rawStarts = [];
+			let start = doc.prefix.length;
+			for (let j = 0; j < tops.length; j++) {
+				const top = tops[j];
+				rawStarts.push(start + top.leadingTrivia.length);
+				start += top.leadingTrivia.length + top.raw.length;
+			}
+		}
+		return rawStarts[i];
+	};
 	return {
 		leafAt(at) {
 			if (tops.length === 0) return null;
@@ -82,17 +91,17 @@ export function documentByteMap(doc: DocumentView): DocumentByteMap {
 			let hi = tops.length - 1;
 			while (lo < hi) {
 				const mid = (lo + hi) >> 1;
-				if (at < rawStarts[mid] + tops[mid].raw.length) hi = mid;
+				if (at < rawStartOf(mid) + tops[mid].raw.length) hi = mid;
 				else lo = mid + 1;
 			}
-			const leaf = leafIn(tops[lo], at - rawStarts[lo], false, mapOf);
+			const leaf = leafIn(tops[lo], at - rawStartOf(lo), false, mapOf);
 			return leaf && { path: [lo, ...leaf.path], offset: leaf.offset };
 		},
 		byteOf(path, offset) {
 			const top = tops[path[0]];
 			if (!top) return null;
 			const inBlock = byteIn(top, path.slice(1), offset, false, mapOf);
-			return inBlock === null ? null : rawStarts[path[0]] + inBlock;
+			return inBlock === null ? null : rawStartOf(path[0]) + inBlock;
 		},
 		containerMap: (node) => (isMapped(node) ? mapOf(node) : null)
 	};
@@ -113,13 +122,13 @@ export function containerLines(map: ContainerMap): ContainerLine[] | null {
 
 /** Where child `index` of `node` starts its blank lines, in `node`'s raw. */
 export function childTriviaStart(map: ContainerMap, node: NodeView, index: number): number {
-	return map.toRaw(map.childStarts[index] - node.children![index].leadingTrivia.length);
+	return map.toRaw(map.childStart(index) - node.children![index].leadingTrivia.length);
 }
 
 /** Where each child of the container `node` starts in its raw, past the child's blank lines. */
 export function childRawStarts(node: NodeView): number[] {
 	const map = bodyMap(node);
-	return map.childStarts.map((start) => map.toRaw(start));
+	return (node.children ?? []).map((_, i) => map.toRaw(map.childStart(i)));
 }
 
 // The two below keep a strip-only refusal (null past a fenced or grid container's opener line)
@@ -180,14 +189,16 @@ function leafIn(
 	if (stripOnly && tryGetBlockKindDescriptor(node.kind)?.containerContract !== 'strip') return null;
 	const map = mapOf(node);
 	const inner = map.toBody(rawOffset);
-	for (let i = 0; i < children.length; i++) {
-		const start = map.childStarts[i];
-		if (inner <= start + displayLength(children[i].raw) || i === children.length - 1) {
-			const leaf = leafIn(children[i], Math.max(inner - start, 0), stripOnly, mapOf);
-			return leaf && { path: [i, ...leaf.path], offset: leaf.offset };
-		}
+	// The first child whose text runs to `inner`, or the last.
+	let lo = 0;
+	let hi = children.length - 1;
+	while (lo < hi) {
+		const mid = (lo + hi) >> 1;
+		if (inner <= map.childStart(mid) + displayLength(children[mid].raw)) hi = mid;
+		else lo = mid + 1;
 	}
-	return null;
+	const leaf = leafIn(children[lo], Math.max(inner - map.childStart(lo), 0), stripOnly, mapOf);
+	return leaf && { path: [lo, ...leaf.path], offset: leaf.offset };
 }
 
 function byteIn(
@@ -206,15 +217,15 @@ function byteIn(
 	const inChild = byteIn(child, path.slice(1), offset, stripOnly, mapOf);
 	if (inChild === null) return null;
 	const map = mapOf(node);
-	return map.toRaw(map.childStarts[path[0]] + inChild);
+	return map.toRaw(map.childStart(path[0]) + inChild);
 }
 
 // ── Line mapping ─────────────────────────────────────────────────────────────
 
 /** A container's body (its children's bytes as they read on their own) against its raw. */
 export interface ContainerMap {
-	/** Where each child's own bytes start in the body, past its blank lines. */
-	childStarts: number[];
+	/** Where child `index`'s own bytes start in the body, past its blank lines. */
+	childStart(index: number): number;
 	/** The container's raw lines, and the body line and text column each carries; a table row,
 	 *  whose cells share one line, has neither. */
 	rawLines?: ParsedLine[];
@@ -234,9 +245,14 @@ function bodyMap(node: NodeView): ContainerMap {
 function lineMap(node: NodeView): ContainerMap {
 	const children = node.children ?? [];
 	const titled = reservedChromeKindOf(node.kind) !== undefined;
+	const verbatim = !titled && verbatimStarts(node);
+	if (verbatim) return identityMap(node.raw, verbatim);
 	const childStarts: number[] = [];
 	let body = '';
 	const add = (i: number) => {
+		// A grid's rebuild may put the line break between rows that their own bytes leave out.
+		if (body !== '' && !/[\r\n]$/.test(body) && !/^[\r\n]/.test(children[i].leadingTrivia))
+			body += '\n';
 		body += children[i].leadingTrivia;
 		childStarts[i] = body.length;
 		body += children[i].raw;
@@ -258,7 +274,7 @@ function lineMap(node: NodeView): ContainerMap {
 		if (at !== null) carrier[next++] = r;
 	}
 	return {
-		childStarts,
+		childStart: (index) => childStarts[index],
 		rawLines: raw,
 		paired,
 		toBody(rawOffset) {
@@ -290,6 +306,57 @@ function lineMap(node: NodeView): ContainerMap {
 	};
 }
 
+/** Where each child starts in a list's raw, its items' bytes and nothing else; null for any other
+ *  container. The list's child spans answer for an item they hold, reading no item before it. */
+function verbatimStarts(node: NodeView): ((index: number) => number) | null {
+	if (blockFacts(node.kind).lines !== 'items' || node.innerPrefix || node.innerSuffix) return null;
+	const children = node.children ?? [];
+	const { raw, childSpans: spans } = node;
+	let summed: number[] | null | undefined;
+	const sum = () => (summed ??= summedStarts(children, raw));
+	if (spans?.length !== children.length * 2 || spans[spans.length - 1] !== raw.length) {
+		const starts = sum();
+		return starts && ((index) => starts[index]);
+	}
+	return (index) => {
+		const child = children[index];
+		const start = spans[index * 2 + 1] - child.raw.length;
+		return raw.startsWith(child.raw, start) ? start : (sum()?.[index] ?? start);
+	};
+}
+
+/** Each child's start, summed over every child before it; null when they don't add up to `raw`. */
+function summedStarts(children: readonly NodeView[], raw: string): number[] | null {
+	const starts: number[] = [];
+	let at = 0;
+	// Indexed: the items may be a `$state` proxy, where an iterator pays a trap per step.
+	for (let i = 0; i < children.length; i++) {
+		const child = children[i];
+		at += child.leadingTrivia.length;
+		starts.push(at);
+		at += child.raw.length;
+	}
+	return at === raw.length ? starts : null;
+}
+
+/** A container that adds no bytes to its children's (a list): every offset is the same in both,
+ *  and its lines are split only when a caller asks for them. */
+function identityMap(raw: string, childStart: (index: number) => number): ContainerMap {
+	let lines: ParsedLine[] | undefined;
+	const rawLines = () => (lines ??= splitLines(raw));
+	return {
+		childStart,
+		get rawLines() {
+			return rawLines();
+		},
+		get paired() {
+			return rawLines().map((_, line) => ({ line, at: 0 }));
+		},
+		toBody: (rawOffset) => rawOffset,
+		toRaw: (bodyOffset) => bodyOffset
+	};
+}
+
 /** A table row: its cells lie in order inside its one line, the bytes taken as they stand. */
 function cellMap(node: NodeView): ContainerMap {
 	let cursor = 0;
@@ -301,7 +368,11 @@ function cellMap(node: NodeView): ContainerMap {
 		cursor = start + cell.raw.length;
 		return start;
 	});
-	return { childStarts, toBody: (rawOffset) => rawOffset, toRaw: (bodyOffset) => bodyOffset };
+	return {
+		childStart: (index) => childStarts[index],
+		toBody: (rawOffset) => rawOffset,
+		toRaw: (bodyOffset) => bodyOffset
+	};
 }
 
 /** A marker run alone on a line: quote markers, a list marker and its task box, a footnote label. */

@@ -122,6 +122,8 @@ export function parseList(
 	const ordered = firstMatch.ordered;
 	const items: CstNode[] = [];
 	const widths = markerWidthTally();
+	// Where each item's bytes sit in the list's, which a list's rebuild keeps as its child spans.
+	const spans: number[] = [];
 	let i = startIndex;
 
 	while (i < endIndex) {
@@ -168,6 +170,8 @@ export function parseList(
 		}
 
 		const itemRaw = joinRaw(lines, itemStartIndex, i);
+		const itemStart = spans.at(-1) ?? 0;
+		spans.push(itemStart, itemStart + itemRaw.length);
 		// A leading `[ ] ` is the task marker, and the rest of its line starts the item's paragraph
 		// (GFM task lists).
 		const shape = readItemShape(lines[itemStartIndex].text)!;
@@ -211,6 +215,7 @@ export function parseList(
 			raw,
 			metadata: { ordered },
 			markerWidths: widths.counts(),
+			childSpans: Uint32Array.from(spans),
 			innerPrefix: '',
 			children: items,
 			innerSuffix: ''

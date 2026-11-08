@@ -3,8 +3,9 @@
  * edges really fall.
  */
 
+import { ownTrailingLineEnding } from '../core/lines';
 import type { LaidBlock } from './layout';
-import { contentEnd, factsOf, leafAt, nodeAt, titleAt, type Doc } from './document';
+import { contentEnd, factsOf, findWithin, leafAt, nodeAt, titleAt, type Doc } from './document';
 import { byteAt } from './leaf-splice';
 
 /** The range narrowed to what a removal takes: a live code block's hidden fences and the last line
@@ -14,27 +15,36 @@ export function removalRange(doc: Doc, start: number, end: number): { from: numb
 	const body = code && fenceBody(doc, code.leaf);
 	const from = body ? Math.max(start, body.from) : start;
 	let to = body ? Math.max(from, Math.min(end, body.to)) : end;
-	const final = /\r?\n$/.exec(doc.source)?.[0] ?? '';
+	const final = ownTrailingLineEnding(doc.source);
 	if (to === doc.source.length && to - final.length > from) to -= final.length;
 	const row = titleAt(doc, from);
 	if (row && row === titleAt(doc, to)) return { from, to: Math.min(to, row.text!.to) };
 	// A start at a title row's line ending moves to the body's first text.
 	if (row && from >= row.text!.to) {
-		const first = doc.layout.blocks.find((b) => b.text && b.text.from > row.text!.to);
+		const after = row.text!.to;
+		const first = findWithin(doc, after, doc.source.length, (b) => !!b.text && b.text.from > after);
 		return { from: Math.min(first?.text!.from ?? to, to), to };
 	}
-	if (leafAt(doc, from) || doc.layout.blocks.some((b) => heldWhole(doc, b, from, to)))
-		return { from, to };
-	const text = doc.layout.blocks.find((b) => b.text && b.text.from >= from && b.text.from <= to);
+	if (leafAt(doc, from) || heldAt(doc, from, to)) return { from, to };
+	const text = findWithin(
+		doc,
+		from,
+		to,
+		(b) => !!b.text && b.text.from >= from && b.text.from <= to
+	);
 	const between = text ? doc.source.slice(from, text.text!.from) : '\n';
 	return { from: /\n/.test(between) ? from : text!.text!.from, to };
 }
+
+/** The first block, outermost first, that the range starting at its first byte holds whole. */
+export const heldAt = (doc: Doc, from: number, to: number): LaidBlock | undefined =>
+	findWithin(doc, from, from, (b) => heldWhole(doc, b, from, to));
 
 /** A block other than a paragraph that the range covers from its first byte through its text, or
  *  through its last row or closing line: it goes whole. */
 export function heldWhole(doc: Doc, block: LaidBlock, from: number, to: number): boolean {
 	const facts = factsOf(doc, block);
-	const whole = !block.lines || facts.lines === 'rows' || facts.lines === 'fenced';
+	const whole = !block.container || facts.lines === 'rows' || facts.lines === 'fenced';
 	if (block.from !== from || facts.joins === 'text' || !whole) return false;
 	return to >= (block.text?.to ?? contentEnd(doc, block));
 }

@@ -11,6 +11,8 @@ import {
 } from '#lib/selection/cross-block/format-range.js';
 import { classifyBlockForSelection, type SelectionPoint } from '#lib/selection/primitives.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
+import { rangePaint } from '#lib/selection/range-bytes.js';
+import { documentLayout } from '#lib/range-edit/layout.js';
 import type { CrossBlockHandlers } from '#lib/selection/cross-block/dispatch.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
@@ -19,6 +21,7 @@ import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { writtenBelow } from '#lib/test/harness/settle-funnel.js';
 import { takeDevWarns } from '../support/warn-gate';
+import { freshBytes } from '#lib/test/harness/copied-text.js';
 import { rangeHandlers, rangeKey, rangeKeyEnv } from './cross-block/range-key-env';
 import { makeBeforeInputEvent } from './cross-block/typed-char-env';
 
@@ -52,8 +55,9 @@ describe('the state a finger range inside one block leaves', () => {
 	it('its block paints the range as its own, one block', () => {
 		const doc = parse('hello world\n\nnext\n');
 		const coverage = rangeCoverage(doc, coverRange(doc, WORD.anchor, WORD.focus));
-		expect(classifyBlockForSelection([0], coverage)).toBe('single-block');
-		expect(classifyBlockForSelection([1], coverage)).toBe('outside');
+		const paint = rangePaint(doc, coverage, documentLayout(doc));
+		expect(classifyBlockForSelection([0], paint)).toBe('single-block');
+		expect(classifyBlockForSelection([1], paint)).toBe('outside');
 	});
 });
 
@@ -80,15 +84,12 @@ describe('what acts on a finger range inside one block', () => {
 		const selection = createSelectionState();
 		selection.ownBlockRange(WORD.anchor, WORD.focus, finger());
 		const doc = parse('hello world\n\nnext\n');
-		const crossBlock = { reading: fixtureReading() } as unknown as CrossBlockHandlers;
+		const crossBlock = {
+			reading: fixtureReading(),
+			bytes: freshBytes(() => doc)
+		} as unknown as CrossBlockHandlers;
 		const arm = crossBlockClipboardArm({ selection, getDoc: () => doc, crossBlock });
-		const written = new Map<string, string>();
-		const event = {
-			preventDefault: () => {},
-			clipboardData: { setData: (type: string, value: string) => written.set(type, value) }
-		} as unknown as ClipboardEvent;
-		expect(arm.copy(event)).not.toBeNull();
-		expect(written.get('text/plain')).toBe('world');
+		expect(arm.copy()?.write.text).toBe('world');
 	});
 
 	it('a format toggle wraps it alone', () => {

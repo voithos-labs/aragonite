@@ -20,6 +20,7 @@ import {
 	readOf,
 	sameBlocks,
 	sameDocument,
+	startsBelowTableHead,
 	type Read
 } from './expected';
 
@@ -54,7 +55,7 @@ const paste = (text: string): Gesture => ({ paste: text, plain: false });
  *  last line's text: it goes whole, and typing or a paste over it takes its place. */
 export function blockHeldWhole(read: Read, range: Range) {
 	return (
-		read.layout.blocks.find(
+		read.blocks.find(
 			(b) =>
 				b.type !== 'paragraph' &&
 				b.from === range.from &&
@@ -72,7 +73,7 @@ function endingLength(source: string, to: number): number {
  *  deleting the whole text leaves a paragraph, so a paste back gives the text as a paragraph. */
 export function liveWholeText(read: Read, range: Range, mode: Mode): boolean {
 	if (mode !== 'live') return false;
-	return read.layout.blocks.some(
+	return read.blocks.some(
 		(b) =>
 			b.text &&
 			b.text.from >= range.from &&
@@ -141,6 +142,7 @@ export function cutPasteBack(call: Call, host: CheckHost, input: RangeInput): st
 		return [];
 	if (opensWithoutClosing(read, input.range.from, input.range.to, host)) return [];
 	if (leavesLiteralBlock(read, input.range.from, input.range.to, host, input.mode)) return [];
+	if (startsBelowTableHead(read, input.range.from, host)) return [];
 	const cut = call(input.source, input.range, 'cut', input.mode);
 	if (!cut || cut.clipboard === undefined) return [];
 	// The editor hands a paste its text with LF line endings.
@@ -168,7 +170,7 @@ export function keepsOutside(call: Call, host: CheckHost, input: RangeInput): st
 	const read = readOf(host, source);
 	if (liveWholeText(read, input.range, input.mode)) return [];
 	const point = read.layout.pointAt(to);
-	const leaf = point && read.layout.blocks.find((b) => b.path.join() === point.path.join());
+	const leaf = point && read.blocks.find((b) => b.path.join() === point.path.join());
 	const breakAt = source.indexOf('\n', to);
 	const textStop = Math.min(leaf?.text?.to ?? to, breakAt < 0 ? source.length : breakAt);
 	const tail =
@@ -249,7 +251,7 @@ function onSyntax(host: CheckHost, removal: Result): boolean {
 	if (removal.caret.holds !== 'text') return true;
 	const read = readOf(host, removal.source);
 	const point = read.layout.pointAt(removal.caret.at);
-	const leaf = point && read.layout.blocks.find((b) => b.path.join() === point.path.join());
+	const leaf = point && read.blocks.find((b) => b.path.join() === point.path.join());
 	return !leaf?.text || removal.caret.at < leaf.text.from || removal.caret.at > leaf.text.to;
 }
 
@@ -290,7 +292,7 @@ export function caretLaw(host: CheckHost, result: Result, what: string): string[
 	const read = readOf(host, result.source);
 	if (holds === 'text' && !read.layout.pointAt(at) && result.source !== '')
 		return [`L8 ${what} caret ${at} is in no block's text`];
-	if (holds === 'block' && !read.layout.blocks.some((b) => b.from === at))
+	if (holds === 'block' && !read.blocks.some((b) => b.from === at))
 		return [`L8 ${what} caret ${at} starts no block`];
 	return [];
 }
@@ -334,7 +336,7 @@ export function copyMarkers(call: Call, host: CheckHost, input: RangeInput): str
 	const { from, to } = input.range;
 	const cut = call(input.source, input.range, 'cut', input.mode);
 	if (cut?.source === input.source) {
-		if (read.layout.blocks.some((b) => b.text && b.text.from < to && from < b.text.to))
+		if (read.blocks.some((b) => b.text && b.text.from < to && from < b.text.to))
 			return [`L10 the cut took nothing from a range holding text`];
 		return copy.clipboard.trim() === ''
 			? []

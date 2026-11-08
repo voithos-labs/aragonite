@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
-// One range edit's work doesn't grow with the document (G4.312): the core reads the whole document
-// a few times at most, and hands the host's in-block writes only the blocks near the range.
+// One range edit's work doesn't grow with the document (G4.312): a copy parses nothing beyond the
+// editor's own tree, every gesture lays out only the blocks near its range, and the host's in-block
+// writes are handed only those blocks.
 
 import { describe, expect, it } from 'vitest';
 import type { DocumentView } from '#lib/core/node-views.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { editRange, type Gesture } from '#lib/range-edit/edit-range.js';
 import { rangeHost, type RangeHost } from '#lib/range-edit/host.js';
+import { readAsOpened } from '#lib/schema/opened-reading.js';
 import { testReading } from './test-host';
 
 const SHAPES: Record<string, (n: number) => string> = {
@@ -20,15 +22,27 @@ const SHAPES: Record<string, (n: number) => string> = {
 
 const GESTURES: Gesture[] = ['copy', 'cut', 'backspace', { paste: 'one\n\ntwo', plain: false }];
 
-/** The host, counting whole-document reads and the block bytes its in-block writes are handed. */
-function counted(host: RangeHost) {
-	const work = { reads: 0, bytes: 0 };
+/** The host, counting whole-document parses, the blocks laid out and the block bytes its in-block
+ *  writes are handed. */
+function counted(host: RangeHost, current: DocumentView) {
+	const work = { reads: 0, laid: 0, bytes: 0 };
 	const handed = (doc: DocumentView, path: readonly number[]) =>
 		(work.bytes += blockNodeAt(doc, path)!.raw.length);
 	const { leaf } = host;
 	const counting: RangeHost = {
 		...host,
-		read: (source) => (work.reads++, host.read(source)),
+		read: (source) => {
+			const tree = host.read(source);
+			if (tree !== current) work.reads++;
+			return tree;
+		},
+		layout: (doc) => {
+			const layout = host.layout(doc);
+			function* within(from: number, to: number) {
+				for (const block of layout.within(from, to)) yield (work.laid++, block);
+			}
+			return { ...layout, within, block: (path) => (work.laid++, layout.block(path)) };
+		},
 		leaf: {
 			replace: (doc, path, ...rest) => (handed(doc, path), leaf.replace(doc, path, ...rest)),
 			insert: (doc, path, ...rest) => (handed(doc, path), leaf.insert(doc, path, ...rest)),
@@ -43,7 +57,9 @@ function counted(host: RangeHost) {
 function cost(source: string, gesture: Gesture) {
 	const from = source.indexOf('with', Math.floor(source.length / 2));
 	const to = source.indexOf('with', from + 10) + 2;
-	const { work, host } = counted(rangeHost(testReading()));
+	const reading = testReading();
+	const tree = readAsOpened(source, { grammar: reading.grammar, scope: 'document' });
+	const { work, host } = counted(rangeHost(reading, { source, tree }), tree);
 	editRange(source, { from, to }, gesture, 'source', host);
 	return work;
 }
@@ -54,7 +70,13 @@ describe('work per gesture', () => {
 			it(`${shape}, ${JSON.stringify(gesture)}`, () => {
 				const small = cost(make(500), gesture);
 				const large = cost(make(2000), gesture);
-				expect(large.reads, 'whole-document reads').toBeLessThanOrEqual(4);
+				expect(large.reads, 'whole-document parses').toBeLessThanOrEqual(
+					gesture === 'copy' ? 0 : 3
+				);
+				expect(
+					large.laid,
+					`blocks laid out: ${small.laid} at 500 blocks, ${large.laid} at 2,000`
+				).toBeLessThanOrEqual(small.laid * 1.5 + 64);
 				expect(
 					large.bytes,
 					`bytes handed the host: ${small.bytes} at 500 blocks, ${large.bytes} at 2,000`

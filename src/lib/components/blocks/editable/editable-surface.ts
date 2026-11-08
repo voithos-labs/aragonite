@@ -21,6 +21,8 @@ import {
 	type StickyColumnDirection
 } from '../../../block-component';
 import type { UserScrollport } from '../../../windowing/scroll-ancestors';
+import type { ClipboardWrite } from '../../../browser/clipboard';
+import { blockRangeClipboard } from '../../../selection/range-clipboard';
 import type { DocumentGetter } from '../../../editor-keys';
 import type { BlockElLookup } from '../../../caret/block-el-lookup';
 import type { PasteImageHook } from '../../../host-hooks';
@@ -126,6 +128,7 @@ import {
 	type TypedVerdict
 } from './typed-insert';
 import type { Reading } from '../../../schema/reading';
+import type { DocumentBytes } from '../../../selection/range-bytes';
 import { createPlaceholderHint, type PlaceholderPolicy } from '../placeholder-hint.svelte';
 import type { CompositionSeat } from '../text/composition-seat';
 import {
@@ -242,6 +245,8 @@ export interface EditableSurfaceDeps {
 	/** How this editor reads its bytes, for the cross-block join rules, the join-paste reparse and
 	 *  the reading-mode check. */
 	reading: Reading;
+	/** The document's bytes and their layout, made once per content version, which a copy reads. */
+	bytes: DocumentBytes;
 	/** The editor's command dispatch, which the keydown and cross-block handlers read. */
 	commands: CommandDispatchContext;
 	pasteCoordinator: PasteCommitCoordinator;
@@ -361,6 +366,8 @@ export interface EditableSurface {
 	nextByte(caret: number): NextByte;
 	/** The block's copy, cut and paste handlers: the shared steps, given what only the block knows. */
 	clipboard(block: BlockClipboard): ClipboardHandlers;
+	/** What a copy of `range` of the block's own bytes writes. */
+	copyRange(range: RawRange): ClipboardWrite | null;
 	/** Pastes into the block's own text through the paste dispatch, then puts the caret where the
 	 *  paste left it. */
 	pasteInline(paste: InlinePaste): Promise<void>;
@@ -426,6 +433,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		blockEdit: deps.blockEdit,
 		controller: deps.controller,
 		reading: deps.reading,
+		bytes: deps.bytes,
 		commands: deps.commands,
 		pasteCoordinator: deps.pasteCoordinator,
 		activePlugins: deps.activePlugins,
@@ -941,8 +949,12 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		holdInsertion
 	};
 
+	const copyRange = (range: RawRange): ClipboardWrite | null =>
+		blockRangeClipboard(deps.bytes, deps.getMyPath(), range, deps.reading);
+
 	function clipboard(block: BlockClipboard): ClipboardHandlers {
 		return createClipboardHandlers({
+			copyRange,
 			caretMemory: deps.caretMemory,
 			selection: deps.selection,
 			getDoc: deps.getDoc,
@@ -1064,6 +1076,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		pendingMarks,
 		nextByte,
 		clipboard,
+		copyRange,
 		pasteInline,
 		command,
 		afterSelectionRemoved,

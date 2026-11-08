@@ -77,7 +77,12 @@ export interface Fence {
 	mayClose(line: string): boolean;
 }
 
-export function rangeHost(reading: Reading): RangeHost {
+/** The host over `reading`. With `current`, the editor's own tree answers a read of its own bytes,
+ *  and its layout, when given, is laid out already; the core never writes to either. */
+export function rangeHost(
+	reading: Reading,
+	current?: { source: string; tree: DocumentView; layout?: Layout }
+): RangeHost {
 	// The editor's reading at the moment of the write, in the gesture's mode.
 	const readingIn = (mode: Mode): Reading => ({
 		grammar: reading.grammar,
@@ -89,7 +94,7 @@ export function rangeHost(reading: Reading): RangeHost {
 	});
 	const leafAt = (doc: DocumentView, path: readonly number[]) => {
 		const node = blockNodeAt(doc, path);
-		if (!node || node.children) throw new Error(`no text block at [${path.join(',')}]`);
+		if (!node || node.children?.length) throw new Error(`no text block at [${path.join(',')}]`);
 		return node;
 	};
 	// An in-block write as the block stores it: its kind's write rule, then its container's (a fence
@@ -103,9 +108,16 @@ export function rangeHost(reading: Reading): RangeHost {
 			after: legal.storedOffset(edit.afterRange)
 		};
 	};
+	let currentLayout: Layout | undefined;
 	return {
-		read: (source) => readAsOpened(source, { grammar: reading.grammar, scope: 'document' }),
-		layout: documentLayout,
+		read: (source) =>
+			source === current?.source
+				? current.tree
+				: readAsOpened(source, { grammar: reading.grammar, scope: 'document' }),
+		layout: (doc) =>
+			doc === current?.tree
+				? (currentLayout ??= current.layout ?? documentLayout(doc))
+				: documentLayout(doc),
 		facts: blockFacts,
 		leaf: {
 			replace(doc, path, from, to, text, mode) {

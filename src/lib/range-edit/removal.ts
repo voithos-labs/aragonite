@@ -8,6 +8,7 @@ import type { LaidBlock } from './layout';
 import {
 	containersAt,
 	contentEnd,
+	findWithin,
 	endingOf,
 	factsOf,
 	leafAt,
@@ -16,7 +17,7 @@ import {
 	titleOwner,
 	type Doc
 } from './document';
-import { heldWhole, removalRange } from './removal-range';
+import { heldAt, removalRange } from './removal-range';
 import { byteAt, lineEnd, lineRest, lineTextStart, writeLeaf, type Edit } from './leaf-splice';
 
 export function removeRange(doc: Doc, start: number, end: number): Edit {
@@ -24,7 +25,7 @@ export function removeRange(doc: Doc, start: number, end: number): Edit {
 	if (from === to) return { source: doc.source, caret: from };
 	const head = leafAt(doc, from);
 	const tail = leafAt(doc, to);
-	const held = doc.layout.blocks.find((b) => heldWhole(doc, b, from, to));
+	const held = heldAt(doc, from, to);
 	if (head && tail && head.leaf === tail.leaf && !held) {
 		const { leaf } = head;
 		const write = doc.host.leaf.replace(
@@ -47,7 +48,7 @@ function entering(doc: Doc, from: number, to: number): Edit | null {
 		containersAt(doc, to, 'end').find(
 			(c) => factsOf(doc, c).lines === 'fenced' && c.from > from && c.lines!.at(-1)!.from >= to
 		) ??
-		doc.layout.blocks.find((b) => {
+		findWithin(doc, from, to, (b) => {
 			if (!b.text || b.from <= from || to <= b.from) return false;
 			const closer = doc.host.fence(nodeAt(doc, b.path).raw)?.closer;
 			return closer !== null && closer !== undefined && to <= byteAt(doc, b, closer);
@@ -101,9 +102,9 @@ function across(
 function closers(doc: Doc, from: number, to: number): string {
 	let out = '';
 	for (const c of containersAt(doc, from, 'start').reverse()) {
+		if (factsOf(doc, c).lines !== 'fenced' || c.from >= from) continue;
 		const last = c.lines!.at(-1)!;
-		if (factsOf(doc, c).lines !== 'fenced' || !last.own || last.from >= to || c.from >= from)
-			continue;
+		if (!last.own || last.from >= to) continue;
 		const lineStart = doc.source.lastIndexOf('\n', last.from - 1) + 1;
 		out += endingOf(doc.source) + doc.source.slice(lineStart, last.to).replace(/\r?\n$/, '');
 	}
@@ -117,8 +118,8 @@ function movedMarkers(doc: Doc, from: number, to: number, out: string): string {
 	if (!end) return out;
 	const shift = out.length - doc.source.length;
 	let result = out;
-	for (const c of doc.layout.blocks) {
-		const moves = c.lines && factsOf(doc, c).lines === 'first-line';
+	for (const c of doc.layout.within(from, to)) {
+		const moves = c.container && factsOf(doc, c).lines === 'first-line';
 		if (!moves || c.from < from || c.from >= to || c.to <= to) continue;
 		if (end.path.slice(0, c.path.length).join() !== c.path.join()) continue;
 		const firstLine = c.lines!.find((l) => !l.own)!;

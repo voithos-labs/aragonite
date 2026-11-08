@@ -19,7 +19,6 @@ import {
 	REMOVED_IN_PLACE,
 	type EditableSurfaceAttributes
 } from './editable-surface';
-import type { ClipboardCopy } from './clipboard-step';
 import { wireSurfaceContexts } from './surface-wiring.svelte';
 import { anchorTrailingNewline, plainTextOf } from './plain-text-backend';
 import {
@@ -604,23 +603,15 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	// ── Clipboard ────────────────────────────────────────────────────────────
 
-	// The leaf's DOM text is its raw, so copy writes a slice of it, hidden fence lines included, and
-	// cut and paste splice verbatim; the commit's reparse splits the block where the grammar demands.
-	function copyRange(e: ClipboardEvent): ClipboardCopy<RawRange> {
-		const el = deps.getEl();
-		const range = el ? backend.getRawSelection() : null;
-		if (!el || !range || range.start === range.end) return null;
-		e.clipboardData?.setData('text/plain', (el.textContent ?? '').slice(range.start, range.end));
-		return { held: range };
-	}
-
+	// The leaf's DOM text is its raw, so cut and paste splice verbatim; the commit's reparse splits
+	// the block where the grammar demands.
 	function removeRange(range: RawRange): void {
 		const el = deps.getEl();
 		if (el) spliceSourceText(el, range.start, range.end, '');
 	}
 
 	const clipboard = editableSurface.clipboard({
-		rangeArm: { copy: copyRange, remove: removeRange },
+		removeRange,
 		pasteTail: (pastedText, { range }) => {
 			const el = deps.getEl();
 			if (!el) return;

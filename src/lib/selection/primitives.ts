@@ -6,6 +6,7 @@
 import type { CommitSnapshotArg } from '../action-contracts';
 import { SELECTION_END } from '../block-component';
 import type { RangeCoverage } from './range-coverage';
+import type { RangePaint } from './range-bytes';
 import { comparePaths, pathsEqual } from './path-math';
 import {
 	type DocPath,
@@ -164,18 +165,19 @@ export function rangeSpansBlocks(coverage: RangeCoverage): boolean {
 	return !pathsEqual(coverage.range.start.path, coverage.range.end.path);
 }
 
-/** Where a block stands in a range, which decides how it paints: a subtree the range covers end to
- *  end is 'whole' even when it holds an endpoint, and nothing inside it paints. */
+/** Where a block stands in a range, which decides how it paints: a block whose bytes lie inside the
+ *  range's is 'whole' even when it holds an endpoint, and nothing inside it paints. */
 export function classifyBlockForSelection(
 	path: readonly number[],
-	coverage: RangeCoverage
+	paint: RangePaint
 ): BlockSelectionClass {
+	const { coverage } = paint;
 	const { start, end } = coverage.range;
 	if (!rangeSpansBlocks(coverage)) {
 		return pathsEqual(path, start.path) ? 'single-block' : 'outside';
 	}
-	const root = coverage.coveredRootHolding(path);
-	if (root) return pathsEqual(root, path) ? 'whole' : 'outside';
+	const box = paint.boxHolding(path);
+	if (box) return pathsEqual(box, path) ? 'whole' : 'outside';
 	if (coverage.startEdge && pathsEqual(path, start.path)) return 'start';
 	if (coverage.endEdge && pathsEqual(path, end.path)) return 'end';
 	return 'outside';
@@ -185,11 +187,11 @@ export function classifyBlockForSelection(
  *  alert's badge), which no child host covers, is painted too; its children then paint nothing. */
 export function blockPaintsWholeBox(
 	path: readonly number[],
-	coverage: RangeCoverage,
+	paint: RangePaint,
 	wholeUnitPath: readonly number[] | null
 ): boolean {
 	if (wholeUnitPath) return pathsEqual(path, wholeUnitPath);
-	return classifyBlockForSelection(path, coverage) === 'whole';
+	return classifyBlockForSelection(path, paint) === 'whole';
 }
 
 /** The end-exclusive offsets an endpoint block measures its highlight between, a kept table edge's

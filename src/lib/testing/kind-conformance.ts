@@ -496,7 +496,7 @@ function checkCopyFromKind(kind: AnyBlockKind, fixture: string): void {
 		{ path: [0], offset: startOffset },
 		{ path: [lastIndex], offset: endOffset }
 	);
-	const tail = isWholeBlockUnit(kindNode) ? kindNode.raw : kindNode.raw.slice(startOffset);
+	const tail = heldByItsEdges(kindNode) ? kindNode.raw : kindNode.raw.slice(startOffset);
 	assertIs(
 		copied,
 		tail +
@@ -521,7 +521,7 @@ function checkCopyIntoKind(kind: AnyBlockKind, fixture: string): void {
 		{ path: [0], offset: startOffset },
 		{ path: [kindIndex], offset: interiorOffset(kindNode) }
 	);
-	const head = isWholeBlockUnit(kindNode)
+	const head = heldByItsEdges(kindNode)
 		? trimTrailingLineEnding(kindNode.raw)
 		: kindNode.raw.slice(0, interiorOffset(kindNode));
 	assertIs(
@@ -533,6 +533,11 @@ function checkCopyIntoKind(kind: AnyBlockKind, fixture: string): void {
 		`"${kind}" copy is a raw byte slice — no kind-specific synthesis`
 	);
 }
+
+/** An end on a block with no text of its own (a whole-block unit, a container) reads as that
+ *  block's edge, so the range holds the block whole. */
+const heldByItsEdges = (node: CstNode) =>
+	isWholeBlockUnit(node) || (node.children?.length ?? 0) > 0;
 
 /** The blocks a sweep crosses whole: a blank run beside the sentinel materializes as these. */
 function bytesBetween(children: CstNode[], from: number, to: number): string {

@@ -18,6 +18,7 @@ import {
 	dispatchClipboardEvent,
 	setCommandFires,
 	systemClipboard,
+	systemClipboardRead,
 	takeCommandClipboard
 } from '#lib/test/harness/clipboard-events.js';
 import {
@@ -119,13 +120,13 @@ async function writeClipboard(
 		const command = takeCommandClipboard();
 		return command && command.data.size > 0
 			? Object.fromEntries(command.data)
-			: Object.fromEntries(systemClipboard);
+			: systemClipboardRead();
 	}
 	const at = focused();
 	const key = dispatchKey(at, chord(type === 'copy' ? 'c' : 'x'));
 	if (key.defaultPrevented) {
 		await editor.settle();
-		return Object.fromEntries(systemClipboard);
+		return systemClipboardRead();
 	}
 	const data = new StubDataTransfer();
 	// Chromium aims the event at the body only where the selection's end has no caret: a range or

@@ -42,6 +42,7 @@
 	import { componentAt, type ChildList } from '../block-lists/child-list';
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { coverRange, rangeCoverage } from '../selection/range-coverage';
+	import { documentBytes, rangePaint } from '../selection/range-bytes';
 	import { findSurfacePathForElement } from '../selection/path-lookup';
 	import { createSelectionDescription } from '../selection/selection-description';
 	import { EDITOR_LABEL } from '../a11y-strings';
@@ -256,6 +257,11 @@
 	// decoration engine's `editEpoch` follows it a tick later.
 	const contentVersion = createContentVersion();
 	const currentSource = createCurrentSource({ version: contentVersion.read, doc: () => doc });
+	const bytes = documentBytes({
+		version: contentVersion.read,
+		doc: () => doc,
+		source: currentSource.read
+	});
 	let currentResolver = $state<LinkReferenceResolver>(initial.resolver);
 	let currentSignature = $state<string>(initial.signature);
 	// Reference-bearing render memos key on this instead of the whole (~MB) signature.
@@ -341,6 +347,8 @@
 		if (!selectionState.isCustomRendered || !anchor || !focus) return null;
 		return rangeCoverage(doc, coverRange(doc, anchor, focus));
 	});
+	// Per content version too: the layout is read again only after the bytes change.
+	const paint = $derived(coverage && rangePaint(doc, coverage, bytes.layout()));
 
 	let selectionDescription = $derived(
 		selectionState.ownsRange && selectionState.anchor && selectionState.focus
@@ -869,6 +877,7 @@
 		decorations: decorationEngine,
 		selection: selectionState,
 		rangeCoverage: () => coverage,
+		rangePaint: () => paint,
 		search: searchState,
 		caretMemory,
 		caretWriter,
@@ -1096,6 +1105,7 @@
 		blockEdit,
 		controller,
 		reading,
+		bytes,
 		commands,
 		pasteCoordinator,
 		activePlugins,
@@ -1229,6 +1239,7 @@
 		doc: getDoc,
 		contentVersion: contentVersion.read,
 		reading,
+		bytes,
 		pluginEditor: pluginEditorLookup,
 		lifetime: lifetimeController.signal,
 		editorRoot: () => editorEl ?? null,

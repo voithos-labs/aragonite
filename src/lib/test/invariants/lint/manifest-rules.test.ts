@@ -52,7 +52,7 @@ const READ_SITE_ROUTES: Record<string, { handoff: string; why: string }> = {
 		handoff: 'pasteTail',
 		why: 'the shared paste handler hands the text to the block’s pasteTail, which dispatches through the paste tree-op'
 	},
-	'src/lib/editor-actions/system-clipboard.ts': {
+	'src/lib/browser/clipboard.ts': {
 		handoff: 'return await navigator.clipboard.readText()',
 		why: 'the one reader of the system clipboard outside a paste event; it returns the text to the read sites below, each carrying its own handoff'
 	},

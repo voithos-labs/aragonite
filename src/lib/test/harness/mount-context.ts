@@ -40,6 +40,8 @@ import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { createEditorEvents, emitCommandError } from '#lib/editor-events.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
+import { rangePaint } from '#lib/selection/range-bytes.js';
+import { documentLayout } from '#lib/range-edit/layout.js';
 import { createScrollOwner } from '#lib/windowing/scroll-owner.js';
 import { createAutoPairRecord } from '#lib/components/blocks/text/auto-pair-record.js';
 import { createHeightOracle } from '#lib/windowing/height-estimator.js';
@@ -52,6 +54,7 @@ import {
 	makeStubFocus
 } from './editor-actions';
 import { fixtureReading } from './fixture-grammar';
+import { freshBytes } from './copied-text';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 import { createWidgetEdgeHolder, type DrawnCaret } from '#lib/caret/drawn-caret.svelte.js';
 import { bindActivationClick, createPressTracker } from '#lib/activation-click.js';
@@ -102,6 +105,7 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		decorations: createDecorationEngine({ getDoc }),
 		selection,
 		rangeCoverage: () => null,
+		rangePaint: () => null,
 		search: {} as EditorServices['search'],
 		caretMemory: makeCaretMemory(),
 		drawnCaret: bareDrawnCaret(),
@@ -177,6 +181,8 @@ function stubbedDoc(emptyDoc: Document): EditorDoc {
 		doc: () => emptyDoc,
 		contentVersion: () => ++version,
 		reading: fixtureReading(),
+		// Replaced below by one over the document a test hands in.
+		bytes: freshBytes(() => emptyDoc),
 		pluginEditor: (() => undefined) as unknown as EditorDoc['pluginEditor'],
 		lifetime: new AbortController().signal,
 		editorRoot: () => null,
@@ -216,6 +222,7 @@ export function editorMountContext(overrides: MountContextOverrides = {}): Map<s
 		mode: overrides.mode ?? (() => 'source')
 	});
 	const doc: EditorDoc = { ...docBase, ...overrides.doc };
+	if (!overrides.doc?.bytes) doc.bytes = freshBytes(() => doc.doc());
 	const services: EditorServices = { ...stubbedServices(doc.doc), ...overrides.services };
 	// An editor root given no scroll container is its own, as in production, so geometry a harness
 	// stubs on the root is what windowing reads.
@@ -256,6 +263,12 @@ export function editorMountContext(overrides: MountContextOverrides = {}): Map<s
 			const { anchor, focus } = services.selection;
 			if (!services.selection.isCustomRendered || !anchor || !focus) return null;
 			return rangeCoverage(doc.doc(), coverRange(doc.doc(), anchor, focus));
+		});
+	services.rangePaint =
+		overrides.services?.rangePaint ??
+		(() => {
+			const coverage = services.rangeCoverage();
+			return coverage && rangePaint(doc.doc(), coverage, documentLayout(doc.doc()));
 		});
 	const history = overrides.history ?? { requestUndo: vi.fn(), requestRedo: vi.fn() };
 	// The editor's one command context, read from the groups above so a test's override of the

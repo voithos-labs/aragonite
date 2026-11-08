@@ -9,6 +9,7 @@ import type { GrammarView } from '#lib/schema/block-openers.js';
 import type { SelectionState } from '#lib/selection/selection-state.svelte.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
+import { freshBytes } from '../../harness/copied-text';
 import type { Reading } from '#lib/schema/reading.js';
 import { commandContext } from '../../harness/command-context';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
@@ -67,6 +68,7 @@ export function makeHandlers(
 		controller: env.controller,
 		// The env's own mode, so a reading-mode env's dispatch and commits agree.
 		reading: fixtureReading(opts.grammar ? { grammar: opts.grammar } : {}, env.deps.reading.mode()),
+		bytes: freshBytes(() => env.doc),
 		commands: commandContext({ ownsRange: () => env.selectionState.ownsRange }),
 		pasteCoordinator: createPasteCoordinator(env.deps, env.controller),
 		activePlugins: everyInstalledPlugin,
