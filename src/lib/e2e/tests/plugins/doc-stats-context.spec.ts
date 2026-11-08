@@ -38,14 +38,6 @@ async function waitForStats(
 	return readStats(page);
 }
 
-// The plugin's `window.__docStats` entries are its own records, so this write corrupts them, and
-// only a recompute for one editor replaces that editor's record.
-async function poisonStats(page: Page): Promise<void> {
-	await page.evaluate(() => {
-		for (const record of Object.values(window.__docStats ?? {})) record.blocks = -1;
-	});
-}
-
 const soleRecord = (stats: StatsMap): StatsRecord => Object.values(stats)[0];
 
 // ── Single instance: /test/plugins?seed=docstats (two paragraphs) ───────────
@@ -75,25 +67,14 @@ test.describe('doc-stats context chain: single instance', () => {
 			(s) => (Object.values(s)[0]?.edits ?? 0) >= 1 && Object.values(s)[0]?.blocks === 2
 		);
 	});
-
-	test('the chord from a focused paragraph republishes stats for the focused instance', async ({
-		page
-	}) => {
-		await editor.clickBlock(0);
-		await poisonStats(page);
-		await page.keyboard.press('ControlOrMeta+Shift+S');
-		await waitForStats(page, (s) => Object.values(s)[0]?.blocks === 2);
-	});
 });
 
 // ── The attach survives a structural edit ───────────────────────────────────
 // Attaching inside a tracking effect would re-run on the first `children` change, resetting the
-// edit count and dropping the record; a split, an undo, an input and a working chord rule that out.
+// edit count and dropping the record; a split, an undo and an input rule that out.
 
 test.describe('doc-stats context chain: attach survives a structural edit', () => {
-	test('Enter split + undo leave the subscription live and the chord resolving', async ({
-		page
-	}) => {
+	test('Enter split + undo leave the subscription live', async ({ page }) => {
 		const editor = new PluginsPage(page);
 		await editor.gotoPlugins('docstats');
 		await waitForStats(page, (s) => Object.values(s)[0]?.blocks === 2);
@@ -113,10 +94,6 @@ test.describe('doc-stats context chain: attach survives a structural edit', () =
 		await editor.typeSlowly('x');
 		const afterType = await waitForStats(page, (s) => (Object.values(s)[0]?.edits ?? 0) >= 3);
 		expect(soleRecord(afterType).blocks).toBe(2);
-
-		await poisonStats(page);
-		await page.keyboard.press('ControlOrMeta+Shift+S');
-		await waitForStats(page, (s) => Object.values(s)[0]?.blocks === 2);
 	});
 });
 
@@ -138,18 +115,6 @@ test.describe('doc-stats context chain: two editors', () => {
 		const byLabel = Object.fromEntries(Object.values(stats).map((r) => [r.label, r]));
 		expect(byLabel['left']).toMatchObject({ blocks: 1, edits: 0 });
 		expect(byLabel['right']).toMatchObject({ blocks: 2, edits: 0 });
-	});
-
-	test('the chord recomputes only the dispatching instance', async ({ page }) => {
-		await page.locator('.editor').nth(1).getByText('Para').click();
-		await poisonStats(page);
-		await page.keyboard.press('ControlOrMeta+Shift+S');
-
-		const stats = await waitForStats(page, (s) =>
-			Object.values(s).some((r) => r.label === 'right' && r.blocks === 2)
-		);
-		const left = Object.values(stats).find((r) => r.label === 'left');
-		expect(left?.blocks).toBe(-1);
 	});
 
 	test('unmounting an editor runs the disposer: its record leaves the registry', async ({

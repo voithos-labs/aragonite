@@ -1,14 +1,18 @@
 /**
  * What the plugin values one editor runs contribute: their commands, by value, by `plugin/id` and
- * by chord, and their insert rows. Read from each installed list, so `use` rebuilds it, and reached through the editor's
- * activation, which every command lookup already takes, so no route that runs or lists a command
- * can miss a plugin's.
+ * by chord, their insert rows and their caret menus. Read from each installed list, so `use`
+ * rebuilds it, and reached through the editor's activation, which every command lookup already
+ * takes, so no route that runs or lists a command can miss a plugin's.
  */
 import type { Editor, InstalledPlugin, PluginError } from './plugin-unit';
 import { claimCommand, commandSpec, type Command, type CommandSpec } from './plugin-command';
-import { normalizeChord } from './keybindings';
+import { devWarn } from '@voithos-labs/aragonite/dev-checks';
+import { isMotionChord, normalizeChord } from './keybindings';
 import { refusedClaims } from './plugin-claims';
 import { insertRowProblem, type InsertRow } from './insert-catalogue';
+import type { ContributedMenu } from './caret-menu';
+import { iconProblem } from '../menu-icons';
+import type { ContributedAction } from './selection-action';
 
 export interface ContributedCommand {
 	readonly plugin: string;
@@ -25,6 +29,10 @@ export interface EditorContributions {
 	readonly commands: readonly ContributedCommand[];
 	/** Each plugin's rows in list order, ids as `plugin/id`. */
 	readonly inserts: readonly InsertRow[];
+	/** Each plugin's caret menus, in list order. */
+	readonly menus: readonly ContributedMenu[];
+	/** Each plugin's selection actions, in list order. */
+	readonly actions: readonly ContributedAction[];
 	/** Runs a command against its plugin's scoped editor; false where `when` or the command declines.
 	 *  A throw counts as run, so the key goes no further, and is reported. */
 	run(command: ContributedCommand, arg: unknown): boolean;
@@ -43,6 +51,8 @@ export function createEditorContributions(deps: {
 	let byId = new Map<string, ContributedCommand>();
 	let byChord = new Map<string, ContributedCommand>();
 	let inserts: readonly InsertRow[] = [];
+	let menus: readonly ContributedMenu[] = [];
+	let actions: readonly ContributedAction[] = [];
 
 	function guarded<T>(entry: ContributedCommand, fallback: T, call: () => T): T {
 		try {
@@ -55,7 +65,8 @@ export function createEditorContributions(deps: {
 
 	function read(units: readonly InstalledPlugin[]): InstalledPlugin[] {
 		const usable = units.filter((unit) => {
-			const problem = commandProblem(unit) ?? insertProblem(unit);
+			const problem =
+				commandProblem(unit) ?? insertProblem(unit) ?? menuProblem(unit) ?? actionProblem(unit);
 			if (problem) deps.report(installError(unit.name, problem));
 			return !problem;
 		});
@@ -71,10 +82,23 @@ export function createEditorContributions(deps: {
 		byValue = new Map(listed);
 		byId = new Map(commands.map((entry) => [entry.id, entry]));
 		byChord = new Map(commands.flatMap((entry) => (entry.chord ? [[entry.chord, entry]] : [])));
+		for (const { chord, plugin } of commands) {
+			if (chord && isMotionChord(chord))
+				devWarn(
+					'keybindings',
+					`plugin '${plugin}' binds "${chord}", which moves the caret on this platform, so it never fires`
+				);
+		}
 		inserts = kept.flatMap((unit) =>
 			(unit.contribution.inserts ?? []).map((row) =>
 				Object.freeze({ ...row, id: `${unit.name}/${row.id}` })
 			)
+		);
+		menus = kept.flatMap((unit) =>
+			(unit.contribution.menus ?? []).map((menu) => ({ plugin: unit.name, menu }))
+		);
+		actions = kept.flatMap((unit) =>
+			(unit.contribution.actions ?? []).map((action) => ({ plugin: unit.name, action }))
 		);
 		return kept;
 	}
@@ -108,6 +132,12 @@ export function createEditorContributions(deps: {
 		get inserts() {
 			return inserts;
 		},
+		get menus() {
+			return menus;
+		},
+		get actions() {
+			return actions;
+		},
 		run,
 		can,
 		read
@@ -139,6 +169,21 @@ function insertProblem(unit: InstalledPlugin): string | null {
 	return null;
 }
 
+function menuProblem(unit: InstalledPlugin): string | null {
+	const bad = (unit.contribution.menus ?? []).find(
+		(menu) => menu.trigger === '' || /[\r\n]/.test(menu.trigger)
+	);
+	return bad ? `has a caret menu whose trigger isn't one line of text: "${bad.trigger}"` : null;
+}
+
+function actionProblem(unit: InstalledPlugin): string | null {
+	for (const action of unit.contribution.actions ?? []) {
+		const problem = iconProblem(action.icon);
+		if (problem) return `has a selection action that ${problem}`;
+	}
+	return null;
+}
+
 function entryOf(plugin: string, value: Command<unknown>): ContributedCommand {
 	const spec = commandSpec(value)!;
 	return { plugin, id: value.id, chord: spec.chord ? normalizeChord(spec.chord) : null, spec };
@@ -152,6 +197,6 @@ function installError(plugin: string, problem: string): PluginError {
 	return { plugin, doing: 'install', cause: new Error(`plugin '${plugin}' ${problem}`) };
 }
 
-function isThenable(value: unknown): value is PromiseLike<unknown> {
+export function isThenable(value: unknown): value is PromiseLike<unknown> {
 	return typeof (value as PromiseLike<unknown> | null)?.then === 'function';
 }

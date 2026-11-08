@@ -1,21 +1,18 @@
 /**
- * The `/` list: the insert catalogue, three heading rows and the host's own entries, read fresh
- * from the editor on every keystroke. A pick removes the `/query` bytes first (its `insert` is
- * empty), then `onCommit` does the row's work through the editor's own entry points.
+ * The `/` list: the editor's insert rows, three heading rows and the host's own entries, read fresh
+ * from the editor on every keystroke. A pick writes through the editor's `MenuPick`, which removes
+ * the `/query` bytes in the same undo step as the block or heading it writes.
  */
 
 import {
-	blockNodeAt,
-	isBlankText,
-	type EditorContext,
-	type InlineMenuCommit,
-	type InlineMenuSource,
+	menu,
+	type CaretMenu,
+	type Editor,
 	type InsertRow,
-	type MenuIconName
+	type MenuIconName,
+	type MenuPick
 } from '@voithos-labs/aragonite/plugin';
 import { acceptsQuery, readQuery, type FilterableEntry } from './filter';
-
-export const SLASH_COMMANDS_MENU = 'slash-commands';
 
 interface SlashCommandEntryBase {
 	/** Unique among host rows; a built-in id here replaces that built-in row. */
@@ -31,9 +28,9 @@ export type SlashCommandEntry = SlashCommandEntryBase &
 	(
 		| { insert: string; run?: never; takesArgument?: never }
 		| {
-				/** Runs after the `/query` bytes are gone, with the argument typed after a space. `editor`
-				 *  writes nothing once the host loads another note, so a `run` that awaits uses it. */
-				run: (editor: InlineMenuCommit, argument?: string) => void | Promise<void>;
+				/** Runs with the pick and the argument typed after a space. The `/query` bytes stay until
+				 *  it writes through `pick`, which refuses once the host loads another note. */
+				run: (pick: MenuPick, argument?: string) => void | Promise<void>;
 				/** Lets the list survive a space, so `/name word` hands `word` to `run`. */
 				takesArgument?: boolean;
 				insert?: never;
@@ -43,7 +40,7 @@ export type SlashCommandEntry = SlashCommandEntryBase &
 export interface SlashCommandsOptions {
 	/** Rows added after the built-in ones. */
 	entries?: readonly SlashCommandEntry[];
-	/** Built-in row ids to leave out: an insert catalogue id, or `h1`, `h2`, `h3`. */
+	/** Built-in row ids to leave out: an insert row id, or `h1`, `h2`, `h3`. */
 	exclude?: readonly string[];
 }
 
@@ -53,72 +50,61 @@ type BuiltInsert = { markdown: string; detail?: string };
 type SlashAction =
 	| { kind: 'insert'; build: (argument: string | null) => BuiltInsert }
 	| { kind: 'heading'; level: number }
-	| { kind: 'run'; run: (editor: InlineMenuCommit, argument?: string) => void | Promise<void> };
+	| { kind: 'run'; run: (pick: MenuPick, argument?: string) => void | Promise<void> };
 
-interface SlashRow extends FilterableEntry {
+interface SlashEntry extends FilterableEntry {
 	id: string;
 	icon?: MenuIconName;
 	action: SlashAction;
 }
 
+/** A row as the list shows it, with the word typed after a space when this row takes it. */
+interface SlashRow {
+	entry: SlashEntry;
+	id: string;
+	label: string;
+	icon?: MenuIconName;
+	detail?: string;
+	argument: string | null;
+}
+
 const HEADING_LEVELS = [1, 2, 3];
 
-/** The `/` source for one editor: its rows come from `editor.options` and the live catalogue. */
-export function createSlashSource(editor: EditorContext<SlashCommandsOptions>): InlineMenuSource {
-	function rows(): SlashRow[] {
-		const { entries = [], exclude = [] } = editor.options;
-		const hidden = new Set([...exclude, ...entries.map((entry) => entry.id)]);
-		const builtIn = [
-			...editor.insertCatalogue.map(catalogueRow),
-			...HEADING_LEVELS.map(headingRow)
-		];
-		return [...builtIn.filter((row) => !hidden.has(row.id)), ...entries.map(hostRow)];
-	}
+/** The `/` menu for one editor's options. */
+export function slashMenu(options: SlashCommandsOptions): CaretMenu<SlashRow> {
+	const { entries = [], exclude = [] } = options;
+	const hidden = new Set([...exclude, ...entries.map((entry) => entry.id)]);
+	const hostEntries = entries.map(hostEntry);
+	const entriesOf = (editor: Editor): SlashEntry[] => [
+		...[...editor.inserts.map(insertEntry), ...HEADING_LEVELS.map(headingEntry)].filter(
+			(entry) => !hidden.has(entry.id)
+		),
+		...hostEntries
+	];
 
-	return {
-		name: SLASH_COMMANDS_MENU,
+	return menu<SlashRow>({
+		label: 'Insert a block',
 		trigger: '/',
-		// A slash inside a word (`and/or`, `9/22`) is text.
-		opensAt: (raw, pos) => pos === 0 || /\s/.test(raw[pos - 1]),
-		accepts: (query) => acceptsQuery(rows(), query),
-		items: ({ query }) => {
-			const reading = readQuery(rows(), query);
-			return (reading?.listed ?? []).map((row) => ({
-				id: row.id,
-				label: row.label,
-				icon: row.icon,
-				detail: reading?.argument ? argumentDetail(row, reading.argument) : undefined,
-				insert: ''
-			}));
+		accepts: (query, { editor }) => acceptsQuery(entriesOf(editor), query),
+		rows(query, { editor }) {
+			const reading = readQuery(entriesOf(editor), query);
+			return (reading?.listed ?? []).map((entry) => {
+				const { argument } = reading!;
+				const detail = argument === null ? undefined : argumentDetail(entry, argument);
+				return { entry, id: entry.id, label: entry.label, icon: entry.icon, detail, argument };
+			});
 		},
-		// `pick` is the editor's context for this pick: it writes nothing once the host loads another
-		// note, so a `run` that waits on a picker is safe through it.
-		onCommit: async (item, range, pick) => {
-			const row = rows().find((candidate) => candidate.id === item.id);
-			if (!row) return;
-			// With a word typed, its taker is the only row listed, so it's the one picked.
-			const argument = readQuery(rows(), range.query)?.argument ?? null;
-			const action = row.action;
-			if (action.kind === 'heading') {
-				pick.runCommand('heading.cycle', action.level);
-			} else if (action.kind === 'run') {
-				// Awaited, so what a waiting run writes lands inside the pick's undo entry.
-				await action.run(pick, argument ?? undefined);
-			} else {
-				// An empty line becomes the block; a line with text keeps it and gets the block below.
-				const empty = isBlankText(blockNodeAt(pick.document, range.path)?.raw ?? '');
-				// Awaited, so the block lands inside the pick's undo entry.
-				await pick.insertMarkdown(action.build(argument).markdown, {
-					placement: empty ? 'caret' : 'below'
-				});
-			}
+		async pick({ entry: { action }, argument }, pick) {
+			if (action.kind === 'heading') await pick.run('heading.cycle', action.level);
+			else if (action.kind === 'run') await action.run(pick, argument ?? undefined);
+			else await pick.insertBlock(action.build(argument).markdown);
 		}
-	};
+	});
 }
 
 // ── Rows ─────────────────────────────────────────────────────────────────────
 
-function catalogueRow(row: InsertRow): SlashRow {
+function insertEntry(row: InsertRow): SlashEntry {
 	const { insert } = row;
 	return {
 		id: row.id,
@@ -135,7 +121,7 @@ function catalogueRow(row: InsertRow): SlashRow {
 	};
 }
 
-function headingRow(level: number): SlashRow {
+function headingEntry(level: number): SlashEntry {
 	return {
 		id: `h${level}`,
 		label: `Heading ${level}`,
@@ -146,7 +132,7 @@ function headingRow(level: number): SlashRow {
 	};
 }
 
-function hostRow(entry: SlashCommandEntry): SlashRow {
+function hostEntry(entry: SlashCommandEntry): SlashEntry {
 	const base = {
 		id: entry.id,
 		label: entry.label,
@@ -164,7 +150,7 @@ function hostRow(entry: SlashCommandEntry): SlashRow {
 	return { ...base, takesArgument: false, action: { kind: 'insert', build: () => ({ markdown }) } };
 }
 
-function argumentDetail(row: SlashRow, argument: string): string | undefined {
-	if (row.action.kind === 'insert') return row.action.build(argument).detail;
+function argumentDetail(entry: SlashEntry, argument: string): string | undefined {
+	if (entry.action.kind === 'insert') return entry.action.build(argument).detail;
 	return argument === '' ? undefined : argument;
 }

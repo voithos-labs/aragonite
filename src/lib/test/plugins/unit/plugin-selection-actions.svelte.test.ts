@@ -1,0 +1,246 @@
+// @vitest-environment jsdom
+// A plugin value's selection actions in a mounted editor: one capture for the right-click menu and
+// `openRows`, rows asked only when one opens, and a draft opened at the pick that the menu's
+// closing refuses. The toolbar's row is `decorations/selection-toolbar.spec.ts`, since jsdom
+// never places the bar.
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { flushSync } from 'svelte';
+import { definePlugin } from '#lib/schema/plugin-install.js';
+import type { ActionRow, Captured, SelectionAction } from '#lib/schema/selection-action.js';
+import type { DraftResult } from '#lib/schema/drafts.js';
+import type { PluginError } from '#lib/schema/plugin-unit.js';
+import {
+	destroyMountedEditors,
+	installLayoutStubs,
+	mountEditor,
+	selectRange,
+	surfaceAt
+} from '#lib/test/harness/mount-editor.svelte.js';
+
+beforeAll(installLayoutStubs);
+afterEach(destroyMountedEditors);
+
+const withActions = (...actions: SelectionAction[]) =>
+	definePlugin({
+		name: 'acts',
+		version: '1.0.0',
+		editor: '*',
+		contributes: () => ({ actions })
+	});
+
+/** The open block menu's row labels, dividers as `|`. */
+const menuRows = () =>
+	[...document.querySelectorAll('.block-menu .md-menu-item, .block-menu .md-menu-divider')].map(
+		(el) => (el.classList.contains('md-menu-divider') ? '|' : (el.textContent ?? '').trim())
+	);
+const menuRow = (label: string) =>
+	[...document.querySelectorAll<HTMLButtonElement>('.block-menu .md-menu-item')].find(
+		(el) => el.textContent?.trim() === label
+	);
+
+/** The word around byte `at` of `abc def ghi`. */
+const wordAt = (text: string, at: number) => {
+	let from = at;
+	let to = at;
+	while (from > 0 && /\w/.test(text[from - 1])) from--;
+	while (to < text.length && /\w/.test(text[to])) to++;
+	return from < to ? { from, to } : null;
+};
+
+function rightClick(m: ReturnType<typeof mountEditor>) {
+	surfaceAt(m, [0]).dispatchEvent(
+		new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
+	);
+}
+
+describe('selection action rows in the right-click menu', () => {
+	it('captures the selection by default, and puts a lead group first with a divider', async () => {
+		const seen: Captured[] = [];
+		const trailing: SelectionAction = {
+			label: 'Shout',
+			rows: (captured) => (seen.push(captured), [{ label: 'Upper', run: () => {} }])
+		};
+		const lead: SelectionAction = {
+			label: 'Spell',
+			lead: true,
+			rows: () => [{ label: 'Fix', run: () => {} }]
+		};
+		const m = mountEditor({ source: 'abc def ghi\n', plugins: [withActions(trailing, lead)] });
+		await m.settle();
+		selectRange(surfaceAt(m, [0]), 4, 7);
+		await m.settle();
+		rightClick(m);
+		await m.settle();
+
+		expect(seen.map(({ text, range }) => [text, range])).toEqual([['def', { from: 4, to: 7 }]]);
+		const rows = menuRows();
+		expect(rows.slice(0, 2)).toEqual(['Fix', '|']);
+		expect(rows.indexOf('Upper')).toBeGreaterThan(rows.indexOf('Copy'));
+	});
+
+	// The spellcheck shape: the word under a bare caret, rows that come late, the group first.
+	it('shows a lead group captured at a caret first, pending until its rows come', async () => {
+		let release = (_rows: readonly ActionRow[]) => {};
+		const spell: SelectionAction = {
+			label: 'Spelling',
+			lead: true,
+			capture: (_editor, { from }) => wordAt('abc def ghi', from),
+			rows: () => new Promise((resolve) => (release = resolve))
+		};
+		const m = mountEditor({ source: 'abc def ghi\n', plugins: [withActions(spell)] });
+		await m.settle();
+		selectRange(surfaceAt(m, [0]), 5, 5);
+		await m.settle();
+		rightClick(m);
+		await m.settle();
+		expect(menuRows().slice(0, 2)).toEqual(['Loading…', '|']);
+
+		release([{ label: 'deaf', run: () => {} }]);
+		await m.settle();
+		expect(menuRows().slice(0, 2)).toEqual(['deaf', '|']);
+	});
+
+	it('captures nothing at a bare caret unless the action captures a range there', async () => {
+		const plain: SelectionAction = { label: 'Plain', rows: () => [{ label: 'P', run: () => {} }] };
+		const word: SelectionAction = {
+			label: 'Word',
+			capture: (_editor, { from }) => wordAt('abc def ghi', from),
+			rows: (captured) => [{ label: `W ${captured.text}`, run: () => {} }]
+		};
+		const m = mountEditor({ source: 'abc def ghi\n', plugins: [withActions(plain, word)] });
+		await m.settle();
+		selectRange(surfaceAt(m, [0]), 5, 5);
+		await m.settle();
+		rightClick(m);
+		await m.settle();
+
+		expect(menuRows()).toContain('W def');
+		expect(menuRows()).not.toContain('P');
+	});
+});
+
+describe('openRows', () => {
+	it('opens the editor menu with the rows at the anchor, and closes it again', async () => {
+		let asked = 0;
+		const action: SelectionAction = {
+			label: 'Word',
+			rows: () => (asked++, [{ label: 'One', run: () => {} }])
+		};
+		const m = mountEditor({ source: 'abc def ghi\n', plugins: [withActions(action)] });
+		await m.settle();
+
+		const open = m.instance.openRows(action, { from: 4, to: 7 }, { x: 10, y: 20 });
+		await m.settle();
+		expect(open.isOpen).toBe(true);
+		expect(menuRows()).toEqual(['One']);
+		expect(asked).toBe(1);
+
+		open.close();
+		await m.settle();
+		expect(open.isOpen).toBe(false);
+		expect(menuRows()).toEqual([]);
+	});
+
+	it('shows a pending row while promised rows come, then the rows', async () => {
+		let release = (_rows: readonly ActionRow[]) => {};
+		const action: SelectionAction = {
+			label: 'Word',
+			rows: () => new Promise((resolve) => (release = resolve))
+		};
+		const m = mountEditor({ source: 'abc def ghi\n', plugins: [withActions(action)] });
+		await m.settle();
+		m.instance.openRows(action, { from: 4, to: 7 }, { x: 10, y: 20 });
+		await m.settle();
+		expect(menuRows()).toEqual(['Loading…']);
+
+		release([{ label: 'Late', run: () => {} }]);
+		await m.settle();
+		expect(menuRows()).toEqual(['Late']);
+	});
+});
+
+describe('a picked row', () => {
+	it('writes through a draft opened at the pick, as one undo step', async () => {
+		let range = { from: 0, to: 0 };
+		const action: SelectionAction = {
+			label: 'Shout',
+			rows: (captured) => (
+				(range = { ...captured.range }),
+				[
+					{
+						label: 'Upper',
+						run: (draft) => void draft.replace(range, captured.text.toUpperCase()).commit()
+					}
+				]
+			)
+		};
+		const m = mountEditor({ source: 'abc def ghi\n', plugins: [withActions(action)] });
+		await m.settle();
+		m.instance.openRows(action, { from: 4, to: 7 }, { x: 10, y: 20 });
+		await m.settle();
+		menuRow('Upper')!.click();
+		flushSync();
+		await m.settle();
+
+		expect(m.source()).toBe('abc DEF ghi\n');
+		expect(menuRows()).toEqual([]);
+	});
+
+	it('keeps the menu open while its run waits, and refuses its write as closed once the menu goes', async () => {
+		let release = () => {};
+		const results: DraftResult[] = [];
+		const action: SelectionAction = {
+			label: 'Slow',
+			rows: () => [
+				{
+					label: 'Fetch',
+					run: async (draft) => {
+						await new Promise<void>((resolve) => (release = resolve));
+						results.push(await draft.replace({ from: 4, to: 7 }, 'X').commit());
+					}
+				}
+			]
+		};
+		const m = mountEditor({ source: 'abc def ghi\n', plugins: [withActions(action)] });
+		await m.settle();
+		const open = m.instance.openRows(action, { from: 4, to: 7 }, { x: 10, y: 20 });
+		await m.settle();
+		menuRow('Fetch')!.click();
+		flushSync();
+		await m.settle();
+		expect(open.isOpen).toBe(true);
+		expect(menuRow('Fetch')!.disabled).toBe(true);
+
+		open.close();
+		release();
+		await m.settle();
+		expect(results.map((r) => !r.ok && r.reason)).toEqual(['closed']);
+		expect(m.source()).toBe('abc def ghi\n');
+	});
+});
+
+describe('icons', () => {
+	it('draws an action row given as SVG markup, and leaves out a plugin naming an unknown glyph', async () => {
+		const svg = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/></svg>';
+		const drawn: SelectionAction = {
+			label: 'Dot',
+			rows: () => [{ label: 'Dot', icon: { svg }, run: () => {} }]
+		};
+		const m = mountEditor({ source: 'abc def ghi\n', plugins: [withActions(drawn)] });
+		await m.settle();
+		m.instance.openRows(drawn, { from: 4, to: 7 }, { x: 10, y: 20 });
+		await m.settle();
+		expect(menuRow('Dot')!.querySelector('circle')).not.toBeNull();
+
+		const errors: PluginError[] = [];
+		const bad = { label: 'Bad', icon: 'no-such-glyph', rows: () => [] } as never as SelectionAction;
+		const other = mountEditor({
+			source: 'x\n',
+			plugins: [withActions(bad)],
+			onError: (e) => errors.push(e)
+		});
+		await other.settle();
+		expect(other.instance.plugins).toEqual([]);
+		expect(String((errors[0].cause as Error).message)).toMatch(/no-such-glyph/);
+	});
+});

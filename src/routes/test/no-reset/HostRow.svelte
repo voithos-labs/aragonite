@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type { InlineMenuRowProps } from '#lib';
+	import type { MenuRow, MenuRowProps } from '#lib/plugin.js';
 
-	let { item }: InlineMenuRowProps = $props();
+	let { row }: MenuRowProps<MenuRow> = $props();
 </script>
 
-<button type="button" class="host-button">{item.label}</button>
+<button type="button" class="host-button">{row.label}</button>

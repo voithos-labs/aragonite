@@ -1,26 +1,20 @@
 // @vitest-environment jsdom
-// A block menu row that rewrites the block right after typing in it is its own undo step, and its
-// bytes are no keystroke's.
+// A block menu row writes through a draft opened at the pick: right after typing it's its own undo
+// step, and an edit to the block while a clipboard read waits refuses it.
 // Miss-analysis: every menu test picked a row on an untouched document, never inside a burst.
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRootMenus, type BlockMenuModel } from '#lib/components/editor-root/menus.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { serialize } from '#lib/core/serializer.js';
 import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
-import { registerBuiltinBlockContextActions } from '#lib/schema/context-actions.js';
+import { createDraftRegistry } from '#lib/editor-actions/commit/draft-registry.svelte.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { makeTopHarness } from '../harness/editor-actions';
 import { settleEditor } from '../harness/settle';
+import { noSelectionActions } from '#lib/test/harness/no-selection-actions.js';
 
 const TYPED = '```\ncodex\n```\n';
-const REWRITTEN = '```\nother\n```\n';
-
-beforeAll(() => {
-	registerBuiltinBlockContextActions('fencedCode', 'test-rewrite', () => [
-		{ id: 'test.rewrite', label: 'Rewrite', run: (ctx) => ctx.replaceRaw(REWRITTEN) }
-	]);
-});
 
 beforeEach(() => {
 	vi.useFakeTimers();
@@ -31,9 +25,21 @@ afterEach(() => {
 	vi.useRealTimers();
 });
 
-/** Types one character into the fence's body, then picks the rewrite row before the pause. */
-async function typeThenRewrite() {
-	const editor = makeTopHarness('```\ncode\n```\n');
+/** A fence's block menu over a harness whose commits tell a real draft registry what changed. */
+function fenceMenu(source: string) {
+	const editor = makeTopHarness(source);
+	const drafts = createDraftRegistry({
+		stamps: editor.deps.stamps,
+		doc: () => editor.doc,
+		isReading: () => false,
+		isOn: () => true,
+		writes: () => ({
+			commitSource: editor.controller.commitSource,
+			undoStep: (seed, run) => editor.controller.undoStep(seed, run),
+			insert: async () => false
+		})
+	});
+	editor.deps.drafts = drafts;
 	const root = document.createElement('div');
 	const fence = document.createElement('div');
 	fence.className = 'block-host';
@@ -50,6 +56,7 @@ async function typeThenRewrite() {
 		getDoc: () => editor.doc,
 		isHostChrome: () => false,
 		blockEdit: editor.actions,
+		openDraft: (spec, path) => drafts.open(spec, path),
 		placeMenuCaret: () => true,
 		rangeAtContextPress: () => false,
 		selection: createSelectionState(),
@@ -62,23 +69,33 @@ async function typeThenRewrite() {
 		stamps: editor.deps.stamps,
 		canEditLinkAtCaret: () => false,
 		editLinkAtCaret: () => {},
-		setMenu: (next) => (menu = next)
+		setMenu: (next) => (menu = next),
+		currentMenu: () => menu,
+		actions: noSelectionActions
 	});
 	root.addEventListener('contextmenu', menus.onRootContextMenu);
+	const pick = (id: string) => {
+		fence.firstElementChild!.dispatchEvent(
+			new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
+		);
+		menu!.pick(id);
+	};
+	return { editor, pick };
+}
 
+/** Types one character into the fence's body, then dissolves it before the pause. */
+async function typeThenDissolve() {
+	const { editor, pick } = fenceMenu('```\ncode\n```\n');
 	await editor.actions.updateBlockContent(0, TYPED, 'authored', 'join-typing', 8, 9);
-	fence.firstElementChild!.dispatchEvent(
-		new MouseEvent('contextmenu', { bubbles: true, cancelable: true })
-	);
-	menu!.pick('test.rewrite');
+	pick('code.dissolve');
 	await settleEditor();
 	return editor;
 }
 
 describe('a block menu rewrite inside a typing burst', () => {
 	it('one Ctrl+Z takes back the rewrite alone', async () => {
-		const editor = await typeThenRewrite();
-		expect(serialize(editor.doc)).toBe(REWRITTEN);
+		const editor = await typeThenDissolve();
+		expect(serialize(editor.doc)).toBe('codex\n');
 
 		await createHistoryActions(editor.deps, editor.controller).requestUndo();
 
@@ -86,9 +103,39 @@ describe('a block menu rewrite inside a typing burst', () => {
 	});
 
 	it('reports only the typed write as input', async () => {
-		const editor = await typeThenRewrite();
+		const editor = await typeThenDissolve();
 		await vi.runAllTimersAsync();
 
 		expect(editor.edits.filter((e) => e.op === 'input').map((e) => e.path)).toEqual([[0]]);
+	});
+});
+
+describe('"Replace with clipboard" while the clipboard read waits', () => {
+	// Miss-analysis: the row wrote by block index after the read, so an edit in between was overwritten.
+	it('writes nothing over an edit made to the block in the meantime', async () => {
+		let release: (text: string) => void = () => {};
+		Object.defineProperty(navigator, 'clipboard', {
+			value: { readText: () => new Promise<string>((resolve) => (release = resolve)) },
+			configurable: true
+		});
+		const { editor, pick } = fenceMenu('```\ncode\n```\n');
+		pick('block.replace');
+		await editor.actions.updateBlockContent(0, TYPED, 'authored', 'join-typing', 8, 9);
+		release('pasted\n');
+		await settleEditor();
+
+		expect(serialize(editor.doc)).toBe(TYPED);
+	});
+
+	it('writes the clipboard when nothing moved', async () => {
+		Object.defineProperty(navigator, 'clipboard', {
+			value: { readText: async () => 'pasted\n' },
+			configurable: true
+		});
+		const { editor, pick } = fenceMenu('```\ncode\n```\n\nafter\n');
+		pick('block.replace');
+		await settleEditor();
+
+		expect(serialize(editor.doc)).toBe('pasted\n\nafter\n');
 	});
 });

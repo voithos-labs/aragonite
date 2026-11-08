@@ -24,7 +24,7 @@ This page is the first read: [a working plugin in fifteen minutes](#the-first-fi
 | [Recipe: reading the document above your block](plugin-guide/reading-the-document.md) | Your block is built from the rest of the document, like a table of contents |
 | [Inline kinds](plugin-guide/inline-kinds.md) | Your syntax lives mid-paragraph (`:shortcode:`, `[^1]`, `$x$`) |
 | [Decorations](plugin-guide/decorations.md) | You want to paint over content you don't own: highlights, ghost text, badges |
-| [Block commands](plugin-guide/commands.md) | Your block (or the whole editor) needs keyboard shortcuts, commands, or rows in the right-click menu |
+| [Block commands](plugin-guide/commands.md) | Your block (or the whole editor) needs keyboard shortcuts or commands |
 | [Paste transforms](plugin-guide/paste-transforms.md) | Pasted text should turn into something else before it parses |
 | [Recipe: a kind only a menu creates](plugin-guide/menu-only-kinds.md) | A block should come from a menu instead of being typed, and still survive a reload |
 
@@ -452,7 +452,7 @@ Install by passing units to the editor's **`plugins` prop**, set once at mount, 
 - Units install in array order.
 - A `setup` that throws stays failed. The throw comes out of the install (so out of the editor's mount), the units after it in the array don't install, and a later attempt rethrows and tells you to reload, because a partial setup can't re-run against the register-once registries.
 - Two editors passing the same plugin share one registration, but their _configuration_ isn't shared: an editor may pass `{ plugin, options }` and the plugin reads its own `options` off each instance ([the options recipe](plugin-guide/per-editor.md#recipe-per-instance-options-and-the-factory-closure-trap)).
-- **The prop is also the enablement set.** Registration is process-wide, but an editor only runs the plugins its own array lists. A plugin another editor on the page installed but this one left out does nothing here: its syntax reads as the plain Markdown it is, and its `onEditor` hooks, global commands, completers and paste transforms never run. An editor with no `plugins` prop at all (or an empty array) is the exception: it activates everything installed.
+- **The prop is also the enablement set.** Registration is process-wide, but an editor only runs the plugins its own array lists. A plugin another editor on the page installed but this one left out does nothing here: its syntax reads as the plain Markdown it is, and its `onEditor` hooks, commands, completers and paste transforms never run. An editor with no `plugins` prop at all (or an empty array) is the exception: it activates everything installed.
 
 Two smaller routes. For an editor-less `parse()` pipeline that needs the grammar live without mounting `<Editor>`, call `installPlugins(units)` from `@voithos-labs/aragonite`, with the same once-per-process semantics. And `isPluginInstalled(name)` probes an install, for the rare setup that has to branch on it; the prop and `installPlugins` are already safe to call twice, and most people never reach for it.
 

@@ -17,7 +17,7 @@ import {
 import { registerBuiltInDescriptors } from '../schema/built-in-descriptors';
 import { augmentInlineWidgetKind } from '../core/inline/inline-widgets';
 import { registerPasteSurface } from '../tree-operations/paste-surfaces';
-import { registerBuiltInRangeIndent } from '../schema/range-indent-forms';
+import { setBuiltInRangeIndent } from '../schema/range-indent-forms';
 import { shiftBodyLines } from './blocks/code/code-indent';
 import { codeBodyRange } from './blocks/code/code-renderer';
 import { imageWidgetOnSelectedKey } from './image/image-widget-editing';
@@ -84,10 +84,10 @@ export function registerBuiltInBlocks(): void {
 	});
 
 	// Over a range, a code block shifts the body lines the range covers, as its own Tab does.
-	registerBuiltInRangeIndent('fencedCode', 'code.indent', {
+	setBuiltInRangeIndent('fencedCode', 'code.indent', {
 		lines: (node, range) => shiftBodyLines(node, range, 'indent')
 	});
-	registerBuiltInRangeIndent('fencedCode', 'code.dedent', {
+	setBuiltInRangeIndent('fencedCode', 'code.dedent', {
 		lines: (node, range) => shiftBodyLines(node, range, 'dedent')
 	});
 

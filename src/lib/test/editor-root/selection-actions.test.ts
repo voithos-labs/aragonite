@@ -1,0 +1,65 @@
+// @vitest-environment jsdom
+// What the selection toolbar asks the actions on every selection change: nothing at a bare caret,
+// and no layout read for a capture until its box is read.
+// Miss-analysis: every action row asked once per menu open, never what a caret move costs.
+import { describe, expect, it } from 'vitest';
+import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { createSelectionActions } from '#lib/components/editor-root/selection-actions.js';
+import type { InternalDraft } from '#lib/editor-actions/commit/draft-registry.svelte.js';
+import type { Editor } from '#lib/schema/plugin-unit.js';
+import type { SelectionAction } from '#lib/schema/selection-action.js';
+import type { EditorSelection } from '#lib/selection/primitives.js';
+
+const doc = parse('abc def ghi\n');
+
+function actionsOver(selection: EditorSelection, action: SelectionAction) {
+	const asked = { captures: 0, rects: 0 };
+	const counted: SelectionAction = {
+		...action,
+		capture: (editor, over) => (asked.captures++, action.capture?.(editor, over) ?? over)
+	};
+	const actions = createSelectionActions({
+		actions: () => [{ plugin: 'acts', action: counted }],
+		editorFor: () => ({}) as Editor,
+		getDoc: () => doc,
+		source: () => serialize(doc),
+		getSelection: () => selection,
+		editable: () => true,
+		rangeRects: () => (asked.rects++, [new DOMRect(10, 20, 30, 16)]),
+		edit: () => ({}) as InternalDraft,
+		report: () => {}
+	});
+	return { actions, asked };
+}
+
+const at = (from: number, to = from): EditorSelection => ({
+	anchor: { path: [0], offset: from },
+	focus: { path: [0], offset: to }
+});
+
+const shout: SelectionAction = { label: 'Shout', rows: () => [] };
+
+describe("the toolbar's captures", () => {
+	it('asks no action anything at a bare caret', () => {
+		const { actions, asked } = actionsOver(at(5), shout);
+		expect(actions.wholeSelection()).toEqual([]);
+		expect(asked.captures).toBe(0);
+	});
+
+	it('keeps only a capture that takes the selection whole', () => {
+		const word = { ...shout, capture: () => ({ from: 4, to: 7 }) };
+		expect(actionsOver(at(4, 7), word).actions.wholeSelection()).toHaveLength(1);
+		expect(actionsOver(at(4, 6), word).actions.wholeSelection()).toEqual([]);
+	});
+
+	it('measures the range only when its box is read', () => {
+		const { actions, asked } = actionsOver(at(4, 7), shout);
+		const [group] = actions.wholeSelection();
+		expect(group.captured.text).toBe('def');
+		expect(asked.rects).toBe(0);
+		expect(group.captured.box).toEqual(new DOMRect(10, 20, 30, 16));
+		expect(group.captured.box).toBe(group.captured.box);
+		expect(asked.rects).toBe(1);
+	});
+});

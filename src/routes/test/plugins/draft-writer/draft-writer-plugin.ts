@@ -1,32 +1,24 @@
-// A plugin whose command writes through `edit()`, the one write a plugin makes: Mod+Shift+Y turns
-// the first paragraph reading `write <text>` into `<text>`, for the suites that check that write.
-import { definePlugin, registerGlobalCommand } from '#lib/plugin.js';
-import { firstDisplayLine } from '#lib/core/lines.js';
+// A plugin whose command writes through `edit()`, the one write a plugin makes: Mod+Shift+Y drops
+// the `write ` prefix from the suite's second paragraph, leaving the text after it in place.
+import { command, definePlugin } from '#lib/plugin.js';
 
-const PREFIX = 'write ';
+// The suites seed `Top` and a blank line first, so the prefix sits at these bytes.
+const PREFIX = { from: 'Top\n\n'.length, to: 'Top\n\nwrite '.length };
 
 export const draftWriterPlugin = definePlugin({
 	name: 'draft-writer',
-	setup() {
-		registerGlobalCommand(
-			'draftWriter.write',
-			(editor) => {
-				let at = editor.document.prefix.length;
-				for (const block of editor.document.children) {
-					at += block.leadingTrivia.length;
-					const line = firstDisplayLine(block.raw).text;
-					if (block.kind === 'paragraph' && line.startsWith(PREFIX)) {
-						const draft = editor
-							.edit()
-							.replace({ from: at, to: at + line.length }, line.slice(PREFIX.length));
-						void draft.commit();
-						return true;
-					}
-					at += block.raw.length;
+	version: '1.0.0',
+	editor: '*',
+	contributes: () => ({
+		commands: [
+			command({
+				id: 'write',
+				title: 'Write the paragraph through a draft',
+				chord: 'Mod+Shift+Y',
+				run(editor) {
+					void editor.edit().replace(PREFIX, '').commit();
 				}
-				return false;
-			},
-			{ chord: 'Mod+Shift+Y' }
-		);
-	}
+			})
+		]
+	})
 });

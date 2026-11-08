@@ -1,9 +1,9 @@
 /**
  * Editor-root menus: the block context menu (a right-click on a block runs its kind's registered
- * actions; prose and a selection get the clipboard rows, and prose an insert flyout; over a link
- * or a widget that goes somewhere, an "Edit link" row first). The open menu is `$state` in
- * `Editor.svelte`, written through `setMenu`; a menu takes no focus, so the caret it acts on
- * stays exactly where it is.
+ * actions; prose and a selection get the clipboard rows, the plugins' selection action rows, and
+ * prose an insert flyout; over a link or a widget that goes somewhere, an "Edit link" row first).
+ * The open menu is `$state` in `Editor.svelte`, written through `setMenu`; a menu takes no focus,
+ * so the caret it acts on stays exactly where it is.
  */
 
 import type { BlockEditActions } from '../../action-contracts';
@@ -12,12 +12,8 @@ import type { NodeView } from '../../core/node-views';
 import type { DocumentGetter } from '../../editor-keys';
 import type { InsertMarkdownOptions } from '../../editor-props';
 import type { PresentationMode } from '../../presentation-mode';
-import {
-	blockContextActionsFor,
-	type BlockActionContext,
-	type BlockContextAction
-} from '../../schema/context-actions';
 import type { PluginActivation } from '../../schema/plugin-activation';
+import type { Draft, DraftSpec } from '../../schema/drafts';
 import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
 import { rowMarkdown, type InsertRow } from '../../schema/insert-catalogue';
 import type { MenuEntry } from '../menu/BlockMenu.svelte';
@@ -26,7 +22,12 @@ import {
 	type ClipboardAction,
 	type MenuClipboard
 } from '../menu/clipboard-actions';
-import { blockNoun } from '../menu/default-context-actions';
+import {
+	blockActionsFor,
+	blockNoun,
+	type BlockActionContext,
+	type BlockContextAction
+} from '../menu/default-context-actions';
 import { isProseLeaf } from '../../schema/page-role';
 import type { Reading } from '../../schema/reading';
 import { readBlockPath } from '../../selection/path-lookup';
@@ -36,6 +37,7 @@ import { documentLineEnding } from '../../core/lines';
 import { stampWrites, type DocumentStamps } from '../../editor-actions/commit/document-stamp';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkMenuOverSelection } from '../../invariants/menu-over-selection';
+import type { ActionGroup, ActionRows, SelectionActions } from './selection-actions';
 
 export interface BlockMenuModel {
 	x: number;
@@ -44,6 +46,8 @@ export interface BlockMenuModel {
 	items: MenuEntry[];
 	label: string;
 	pick: (id: string) => void;
+	/** Called once when the menu closes or another replaces it; a redraw of the same menu keeps it. */
+	closed?: () => void;
 }
 
 export interface RootMenusDeps {
@@ -53,6 +57,8 @@ export interface RootMenusDeps {
 	getDoc: DocumentGetter;
 	isHostChrome(node: Node | null): boolean;
 	blockEdit: Pick<BlockEditActions, 'deleteBlock' | 'replaceRaw'>;
+	/** A draft watching the block at `path`, which a write from anywhere else marks stale. */
+	openDraft(spec: DraftSpec, path: readonly number[]): Draft;
 	/** The caret the menu opens over: where the right-click's press pointed, so a right-click on
 	 *  prose acts at the pointer; the event's point when no press opened the menu. */
 	placeMenuCaret(x: number, y: number): boolean;
@@ -69,7 +75,7 @@ export interface RootMenusDeps {
 	clipboard: MenuClipboard;
 	/** The insert rows this editor lists, read fresh per menu. */
 	inserts(): readonly InsertRow[];
-	/** The plugins this editor lists, whose block actions and paste transforms the menu offers. */
+	/** The plugins this editor lists, whose paste transforms the menu applies. */
 	activation: PluginActivation;
 	/** The editor's reading, which tells a paragraph of pictures from prose. */
 	reading: Reading;
@@ -79,10 +85,23 @@ export interface RootMenusDeps {
 	canEditLinkAtCaret(): boolean;
 	editLinkAtCaret(): void;
 	setMenu(menu: BlockMenuModel | null): void;
+	/** The open menu, which a late redraw or close checks is still its own. */
+	currentMenu(): BlockMenuModel | null;
+	/** The plugins' selection actions, whose rows join the clipboard menu. */
+	actions: SelectionActions;
 }
 
 export interface RootMenus {
 	onRootContextMenu(event: MouseEvent): void;
+	/** Opens the editor's menu with the groups' rows at `point`; the handle reads whether it's
+	 *  still open. */
+	openGroups(groups: readonly ActionGroup[], point: Point): OpenRows;
+}
+
+/** What `openRows` hands back. */
+export interface OpenRows {
+	readonly isOpen: boolean;
+	close(): void;
 }
 
 const EDIT_LINK = 'link.edit';
@@ -133,6 +152,51 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		return true;
 	}
 
+	/** Shows `build`'s entries, redrawn as late action rows land; `pick` runs the rows that aren't
+	 *  actions'. */
+	function showMenu(
+		point: Point,
+		anchor: () => Point,
+		groups: readonly ActionGroup[],
+		build: (rows: ActionRows) => MenuEntry[],
+		pick: (id: string) => void
+	): OpenRows {
+		let model: BlockMenuModel | null = null;
+		const ours = () => model !== null && deps.currentMenu()?.closed === model.closed;
+		const close = () => void (ours() && deps.setMenu(null));
+		const redraw = () => void (ours() && deps.setMenu({ ...model!, items: build(rows) }));
+		const rows = deps.actions.rows(groups, redraw, close);
+		model = {
+			...point,
+			anchor,
+			items: build(rows),
+			label: BLOCK_ACTIONS_LABEL,
+			pick: (id) => {
+				if (rows.pick(id)) return;
+				deps.setMenu(null);
+				pick(id);
+			},
+			closed: rows.closed
+		};
+		deps.setMenu(model);
+		return {
+			get isOpen() {
+				return ours();
+			},
+			close
+		};
+	}
+
+	function openGroups(groups: readonly ActionGroup[], point: Point): OpenRows {
+		return showMenu(
+			point,
+			() => point,
+			groups,
+			(rows) => rows.entries(),
+			() => {}
+		);
+	}
+
 	/** `withInsert` adds the "Insert block" flyout, whose rows land below the block the caret was
 	 *  just placed in; false leaves the menu to the clipboard rows alone. */
 	function openClipboardMenu(
@@ -159,57 +223,62 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 						children: rows.map(({ id, label, icon }) => ({ id, label, icon }))
 					}
 				];
-		deps.setMenu({
-			...point,
-			anchor: anchorOn(anchorEl, point),
-			items: [...editLink, ...clipboardRows(root), ...insert],
-			label: BLOCK_ACTIONS_LABEL,
-			pick: (id) => {
-				deps.setMenu(null);
-				if (id === EDIT_LINK) return deps.editLinkAtCaret();
-				if (runClipboardRow(id)) return;
-				const row = rows.find((r) => r.id === id);
-				if (row && withInsert) void deps.insertMarkdown(rowMarkdown(row), { placement: 'below' });
-			}
+		const divided = (entries: MenuEntry[], at: 'before' | 'after'): MenuEntry[] => {
+			if (entries.length === 0) return [];
+			const divider = { id: `sep-act-${at}`, label: '', divider: true };
+			return at === 'before' ? [divider, ...entries] : [...entries, divider];
+		};
+		const build = (actions: ActionRows): MenuEntry[] => [
+			...divided(actions.entries(true), 'after'),
+			...editLink,
+			...clipboardRows(root),
+			...divided(actions.entries(false), 'before'),
+			...insert
+		];
+		showMenu(point, anchorOn(anchorEl, point), deps.actions.atSelection(), build, (id) => {
+			if (id === EDIT_LINK) return deps.editLinkAtCaret();
+			if (runClipboardRow(id)) return;
+			const row = rows.find((r) => r.id === id);
+			if (row && withInsert) void deps.insertMarkdown(rowMarkdown(row), { placement: 'below' });
 		});
 	}
 
 	function openBlockActions(point: Point, host: HTMLElement, path: number[], node: NodeView): void {
 		const noun = blockNoun(node, deps.reading);
-		const actions = blockContextActionsFor(node, path, deps.activation, noun);
-		if (actions.length === 0) return;
+		const actions = blockActionsFor(node, noun);
 		const index = path[0];
-		// A row may write after a slow clipboard read; one a `source` swap outran writes nothing.
-		const ctx: BlockActionContext = stampWrites(
-			{
-				node,
-				path,
-				deleteBlock: async () => {
-					await deps.blockEdit.deleteBlock(index, 'keyless');
+		// A row may write after a slow clipboard read; one the block changed under, or a `source`
+		// swap outran, writes nothing.
+		const contextFor = (draft: Draft, closed: () => boolean): BlockActionContext =>
+			stampWrites(
+				{
+					node,
+					path,
+					deleteBlock: async () => {
+						await deps.blockEdit.deleteBlock(index, 'keyless');
+					},
+					replaceRaw: async (raw: string) =>
+						!closed() && !draft.stale && (await deps.blockEdit.replaceRaw(index, raw)),
+					transformPaste: (text) => applyPasteTransforms(text, deps.activation),
+					lineEnding: documentLineEnding(deps.getDoc())
 				},
-				replaceRaw: async (raw: string) => {
-					await deps.blockEdit.replaceRaw(index, raw);
-				},
-				transformPaste: (text) => applyPasteTransforms(text, deps.activation),
-				lineEnding: documentLineEnding(deps.getDoc())
-			},
-			deps.stamps.current(),
-			deps.stamps
-		);
+				deps.stamps.current(),
+				deps.stamps
+			);
 		deps.setMenu({
 			...point,
 			anchor: anchorOn(host, point),
-			items: actions.map(({ id, label, icon, danger }) => ({
-				id,
-				label,
-				icon: icon as MenuEntry['icon'],
-				danger
-			})),
+			items: actions.map(({ id, label, icon }) => ({ id, label, icon })),
 			label: BLOCK_ACTIONS_LABEL,
 			pick: (id) => {
 				deps.setMenu(null);
 				const action = actions.find((a: BlockContextAction) => a.id === id);
-				if (action) void action.run(ctx);
+				if (!action) return;
+				// Opened at the pick, so an edit to the block before the row writes refuses it.
+				let closed = false;
+				const draft = deps.openDraft({ close: () => (closed = true) }, path);
+				const run = action.run(contextFor(draft, () => closed));
+				void Promise.resolve(run).finally(() => draft.end());
 			}
 		});
 	}
@@ -251,5 +320,5 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		openBlockActions(point, host, path, node);
 	}
 
-	return { onRootContextMenu };
+	return { onRootContextMenu, openGroups };
 }

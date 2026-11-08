@@ -3,9 +3,10 @@ import { afterEach, describe, it, expect, vi } from 'vitest';
 import { registerBuiltInDescriptors } from '#lib/schema/built-in-descriptors.js';
 import { collectReservedChords } from '#lib/schema/reserved-chords.js';
 import { normalizeKeybindingOverrides } from '#lib/schema/keybinding-overrides.js';
-import { registerGlobalCommand } from '#lib/schema/global-commands.js';
+import { command } from '#lib/schema/plugin-command.js';
+import { definePlugin } from '#lib/schema/plugin-install.js';
+import { valueActivation } from '../harness/value-activation';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
-import { __resetSchemaRegistriesForTests } from '#lib/schema/registry-reset.js';
 
 registerBuiltInDescriptors();
 
@@ -50,12 +51,19 @@ describe('collectReservedChords: sources', () => {
 		expect(chords(false).has('Mod+H')).toBe(false);
 	});
 
-	it('reflects a plugin global chord as it registers and unregisters', () => {
+	it("reflects a plugin command's chord in the editor that lists the plugin", () => {
+		const reserved = command({ id: 'reserved', title: 'R', chord: 'Mod+Shift+7', run: () => {} });
+		const demo = definePlugin({
+			name: 'demo',
+			version: '1.0.0',
+			editor: '*',
+			contributes: () => ({ commands: [reserved] })
+		});
+		const listing = valueActivation([demo]);
 		expect(chords().has('Mod+Shift+7')).toBe(false);
-		registerGlobalCommand('demo.reserved', () => true, { chord: 'Mod+Shift+7' });
-		expect(chords().has('Mod+Shift+7')).toBe(true);
-		__resetSchemaRegistriesForTests();
-		expect(chords().has('Mod+Shift+7')).toBe(false);
+		expect(collectReservedChords({ searchBar: true, activation: listing }).has('Mod+Shift+7')).toBe(
+			true
+		);
 	});
 });
 

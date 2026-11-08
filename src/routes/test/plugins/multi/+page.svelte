@@ -1,10 +1,17 @@
 <script module lang="ts">
 	import { docStatsPlugin } from '../doc-stats/doc-stats-plugin';
+	import { chordCountPlugin } from '../chord-count/chord-count-plugin';
 
 	// Module scope so the entry arrays stay the same objects across renders, SSR included:
 	// installPlugins skips a re-install of the same object, and the options travel with them.
-	const leftPlugins = [{ plugin: docStatsPlugin, options: { label: 'left' } }];
-	const rightPlugins = [{ plugin: docStatsPlugin, options: { label: 'right' } }];
+	const leftPlugins = [
+		{ plugin: docStatsPlugin, options: { label: 'left' } },
+		chordCountPlugin({ label: 'left' })
+	];
+	const rightPlugins = [
+		{ plugin: docStatsPlugin, options: { label: 'right' } },
+		chordCountPlugin({ label: 'right' })
+	];
 </script>
 
 <script lang="ts">

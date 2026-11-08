@@ -29,9 +29,9 @@ corruption checks.
   summary descends into the body without creating a block or moving the root
 - collapsing a `<details>` rewrites `<details open>` to `<details>` and unmounts
   the body; expanding restores both; every toggle leaves the tree consistent
-- a read-only plugin global command, doc-stats' `Mod+Shift+S` chord, reads the
-  per-instance `EditorContext` and writes `window.__docStats` again mid-session
-  while leaving the document and the undo stack byte-identical
+- a plugin value's command that writes nothing, chord-count's `Mod+Shift+S` chord,
+  runs mid-session and counts the press in `window.__chordCounts` while leaving the
+  document and the undo stack byte-identical
 
 ## Edge cases
 
@@ -50,9 +50,9 @@ corruption checks.
   by per-character keyboard typing
 - the collapse toggle is a real click on the summary's toggle control; the session
   waits for `aria-expanded` to flip before continuing
-- the global command is a real `Mod+Shift+S` keyboard chord; the session corrupts the
-  published record, presses the chord, and waits for this editor's block count to come
-  back before asserting the source and undo stack are unchanged
+- the plugin command is a real `Mod+Shift+S` keyboard chord; the session presses it
+  and waits for the press count to move before asserting the source and undo stack
+  are unchanged
 - a cross-container selection is a real click-drag from the callout body, across
   the list and both container boundaries, to the details summary; it is copied,
   the caret repositioned to the trailing paragraph, and pasted

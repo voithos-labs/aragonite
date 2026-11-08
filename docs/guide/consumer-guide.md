@@ -358,7 +358,9 @@ You set the editor up with props when it mounts. After that you talk to it throu
 | `getSearch()` | The find/replace controller (see [Driving search yourself](#driving-search-yourself)) |
 | `getRects()` | Where things are on screen (see [Screen geometry](#screen-geometry)) |
 | `getDecorations()` | The registry for your own view-only annotations (see [Decorations](#decorations)) |
-| `getInlineMenus()` | The registry for lists opened by a typed trigger (see [Recipe: a typed-trigger menu](consumer-guide/recipes.md#recipe-a-typed-trigger-menu)) |
+| `openMenu(menu, query?)` | Types a caret menu's trigger (and the query) at the caret and opens it, the way a shortcut or a toolbar button does; `false`, writing nothing, in a table cell, in reading mode, or for a menu this editor doesn't list |
+| `openRows(action, range, anchor)` | Opens a plugin's selection action rows over `range` at `anchor` (a rect or a point), taking no focus, for a hover card over a mark; hands back `{ isOpen, close() }` |
+| `getInlineMenus()` | The registry for a typed-trigger list whose rows read the document, which a plugin value's caret menu can't do yet (see [Recipe: a typed-trigger menu](consumer-guide/recipes.md#recipe-a-typed-trigger-menu)) |
 | `inserts` | The blocks the insert menus offer, plugin blocks included (see [Inserting Markdown at the caret](#inserting-markdown-at-the-caret)) |
 | `getDiagnostics()` | The bug-report tooling (see [Diagnostics](consumer-guide/shipping.md#diagnostics)) |
 | `reservedChords()` / `claimsChord(event)` | Which shortcuts this editor consumes (see [Which shortcuts the editor consumes](#which-shortcuts-the-editor-consumes)) |
@@ -512,7 +514,7 @@ The ids you can pass:
 
 - **`TOOLBAR_COMMANDS`** (exported from the package) has what a selection toolbar needs: `toggleStrong`, `toggleEmphasis`, `toggleStrikethrough`, `toggleCode`, `editLink`, and `setHeading`. Any other id in the exported `CommandId` union runs too (`history.undo`, `block.moveUp`, and so on); those just don't get a named constant.
 - **`setHeading`, with a level.** The command behind `Mod+0` to `Mod+6`: `runCommand(TOOLBAR_COMMANDS.setHeading, 2)` re-marks the focused prose block as a level-2 heading and `0` makes it a paragraph, which is what a heading picker calls. A heading level belongs to one block, so over a selection spanning blocks it declines rather than guessing which block you meant.
-- **A plugin's global command name**, the kind `registerGlobalCommand` registers (see the [plugin guide](plugin-guide.md)), so you can fire a plugin's editor-wide action without a keystroke. A plugin's per-block command stays keyboard-only.
+- **A plugin's command**, as `plugin/id` (a plugin value's `command`, see the [plugin guide](plugin-guide.md); `run` takes the command itself too), so you can fire a plugin's editor-wide action without a keystroke. A plugin's per-block command stays keyboard-only.
 
 `arg` is the argument a keymap binding would bake in (`{ chord: 'Mod+2', command: 'heading.cycle', arg: 2 }`), handed to the command as it is; a command that takes none ignores it.
 
@@ -821,7 +823,7 @@ import { highlightOccurrencesPlugin } from '@voithos-labs/aragonite-highlight-oc
 import { latexPlugin } from '@voithos-labs/aragonite-latex';
 import { mermaidPlugin } from '@voithos-labs/aragonite-mermaid';
 import { parrotPlugin } from '@voithos-labs/aragonite-parrot';
-import { slashCommandsPlugin } from '@voithos-labs/aragonite-slash-commands';
+import { slashCommands } from '@voithos-labs/aragonite-slash-commands';
 ```
 
 | Plugin | What it teaches the editor |
@@ -835,7 +837,7 @@ import { slashCommandsPlugin } from '@voithos-labs/aragonite-slash-commands';
 | `latexPlugin({ renderer?, blockLayout? })` | All three GitHub math forms through one injected engine: inline `$…$`, block `$$…$$`, and the fenced ` ```math ` form; without an engine each formula shows its source. `blockLayout` (`'split'` default, `'stacked'`, `'source'`) is how a block opens for editing; an editor's `{ plugin, options: { blockLayout } }` entry overrides it per instance |
 | `mermaidPlugin({ renderer? })` | A ` ```mermaid ` fence renders as a diagram through an injected engine; without one, the fence renders statically (the source, styled) |
 | `parrotPlugin()` | A `%%parrot` line renders as an animated ASCII party parrot, with whatever follows the marker as its caption |
-| `slashCommandsPlugin({ entries?, exclude? })` | `/` at the start of a line or after a space opens a list of blocks to insert and headings to turn the line into |
+| `slashCommands` or `slashCommands({ entries?, exclude? })` | `/` at the start of a line or after a space opens a list of blocks to insert and headings to turn the line into |
 
 A few of them take options or need a word more.
 
@@ -853,14 +855,14 @@ Two editors in one process can list different depths this way; the factory form,
 
 **Footnotes.** A reference jumps to its definition on the click a link follows: a plain click in reading mode, Ctrl/Cmd+click while editing, or a plain click in live mode too if you set `linkClick: 'plain'`. Any other plain click opens the reference's source to edit. The definition's own `[^label]` marker is the way back, on the same gesture, and it lands the caret right after the first citation. In reading mode both are links a keyboard reaches with Tab and follows with Enter, and the way back focuses that first citation, so Tab carries on from it; the editing modes give them no tab stop.
 
-**Slash commands.** Type `/` at the start of a line or after a space and a list opens under the caret: every block the right-click "Insert block" menu offers (your plugins' blocks included), then Heading 1 to 3. Typing narrows it by label or keyword (`/td` finds the to-do list), Enter picks, and Escape closes it and leaves what you typed. On an empty line the block replaces the line. On a line with text, the `/query` goes and the block lands below it, except a heading row, which turns the line itself into a heading. It never opens in a table cell. Two built-in rows take a word after a space: `/code js` opens a fence tagged `js`, and `/table 3x4` makes three columns by four rows. A plugin's block can take one too, if its insert entry declares [`withArgument`](plugin-api.md#insert-catalogue). `Mod+/` types the `/` for you, and `runCommand('slashCommands.open', 'table')` opens the list already narrowed, which is how a toolbar button or a touch UI gets there.
+**Slash commands.** Type `/` at the start of a line or after a space and a list opens under the caret: every block the right-click "Insert block" menu offers (your plugins' blocks included), then Heading 1 to 3. Typing narrows it by label or keyword (`/td` finds the to-do list), Enter picks, and Escape closes it and leaves what you typed. On an empty line the block replaces the line. On a line with text, the `/query` goes and the block lands below it, except a heading row, which turns the line itself into a heading. It never opens in a table cell. Two built-in rows take a word after a space: `/code js` opens a fence tagged `js`, and `/table 3x4` makes three columns by four rows. A plugin's block can take one too, if its insert entry declares [`withArgument`](plugin-api.md#insert-catalogue). `Mod+/` types the `/` for you, and `run('slash-commands/open', 'table')` opens the list already narrowed, which is how a toolbar button or a touch UI gets there.
 
 The two options:
 
-- `entries` adds rows of your own, listed after the built-in ones. A row either inserts Markdown (`insert`) or runs a function (`run`, handed the editor's context for that pick and, if the row sets `takesArgument: true`, the word typed after a space). A `run` may be async: if it opens a picker and waits, the context it was handed writes nothing once you've loaded another note, so a choice made after a note switch lands nowhere. A row whose id matches a built-in one hides that built-in, and yours shows up with your other rows.
+- `entries` adds rows of your own, listed after the built-in ones. A row either inserts Markdown (`insert`) or runs a function (`run`, handed the pick and, if the row sets `takesArgument: true`, the word typed after a space). The `/query` stays until `run` writes through the pick (`pick.write(text)` or `pick.insertBlock(markdown)`). A `run` may be async: if it opens a picker and waits, the pick writes nothing once you've loaded another note, so a choice made after a note switch lands nowhere. A row whose id matches a built-in one hides that built-in, and yours shows up with your other rows.
 - `exclude` hides built-in rows by id: `bullet`, `numbered`, `todo`, `quote`, `divider`, `code`, `table`, `h1`, `h2`, `h3`, plus whatever ids your installed plugins add to `inserts` (the bundled ones add `note`, `details`, `math`, `mermaid` and `toc`).
 
-Options passed to the factory are every editor's defaults, and an editor's `{ plugin, options }` entry swaps out only the fields it names. So an entry of `{ exclude: ['table'] }` still lists the factory's `entries`, and `{ entries: [] }` is how one editor drops them. A row with both `insert` and `run`, or neither, is refused: the factory throws, and in an editor's entry the editor reports it (to `onError`, and on the `error` event) and keeps the factory's options.
+Calling `slashCommands` with options again lays them over the first ones field by field. So `slashCommands({ entries: [stamp] })({ exclude: ['table'] })` still lists the stamp row, and `({ entries: [] })` is how one editor drops them. A row with both `insert` and `run`, or neither, is refused: the editor reports it (to `onError`, and on the `error` event) and runs the plugin on its defaults.
 
 **Math and diagrams.** latex and mermaid render through injected engines that never ride the main bundle: each package has a `/renderer` subpath adapter, and its engine (`katex` / `mermaid`) is an optional peer dependency you install only if you use it.
 
@@ -1041,7 +1043,7 @@ Right-clicking any cell opens the table's action menu: "Edit link" first when yo
 | Finish editing a diagram | `Mod+Enter` (in the diagram's source box; `Esc` cancels; needs `mermaidPlugin`) |
 | Open the diagram's focus view | `Mod+M` (the diagram focused; `Esc` closes it; needs `mermaidPlugin`) |
 | **Slash commands** |  |
-| Open the list at the caret | `Mod+/` (types the `/` for you; needs `slashCommandsPlugin`) |
+| Open the list at the caret | `Mod+/` (types the `/` for you; needs `slashCommands`) |
 
 **Typing a table into existence.** `Enter` in a paragraph holding just a header row of two or more cells (`| a | b |`) completes it into a table (delimiter, one empty body row, caret in the first body cell), and one undo gives you the row back. It needs the leading pipe, so `ls | grep foo` is left alone.
 
@@ -1086,7 +1088,7 @@ The Find / replace chords ignore `keybindings` and aren't rebindable today; `sea
 
 **The editor's own chords and plugins' yield to the caret keys** (the list's under [Keyboard shortcuts](#keyboard-shortcuts)). A caret key moves the caret on its platform, so no built-in or plugin binding takes one there, and on a Mac `Option+←` / `→` is the word key, which is why the table's column chords are Windows and Linux only. Your own `keybindings` entry overrides one, as it does for `Backspace`: bind `Alt+ArrowRight` to `table.moveColumnRight` for `tableCell` and a Mac moves the column again, at the price of the word key in cells. Up and down aren't on the list, so `Alt+↑` stays a block move.
 
-**Plugin-global chords resolve last.** A plugin's global command (see the [plugin guide](plugin-guide/commands.md#block-commands)) may claim a chord, and it resolves after every `keybindings` override, built-in kind chord, and built-in global chord, so a plugin chord never shadows a built-in binding, and `Mod+F` / `Mod+H` are reserved outright. So a plugin's `Mod+B` fires on a thematic break (which binds no `Mod+B`) but yields to bold-toggle inside a paragraph.
+**Plugin-global chords resolve last.** A plugin's command (see the [plugin guide](plugin-guide/commands.md#block-commands)) may claim a chord, and it resolves after every `keybindings` override, built-in kind chord, and built-in global chord, so a plugin chord never shadows a built-in binding, and `Mod+F` / `Mod+H` are reserved outright (a plugin claiming one is left out of the editor, and `onError` hears why). So a plugin's `Mod+B` fires on a thematic break (which binds no `Mod+B`) but yields to bold-toggle inside a paragraph.
 
 ### Which shortcuts the editor consumes
 

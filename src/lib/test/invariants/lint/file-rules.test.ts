@@ -1199,8 +1199,6 @@ const RULES: FileRule[] = [
 			'packages/latex/src/renderer.ts': 'the text of a KaTeX error message',
 			'packages/latex/src/BlockMath.svelte': SHOWS_INK,
 			'packages/mermaid/src/MermaidBlock.svelte': SHOWS_INK,
-			'packages/slash-commands/src/slash-source.ts':
-				'where a typed `/` opens the command menu: a word boundary in typing, not Markdown',
 			'packages/slash-commands/src/filter.ts': 'the words of a menu query the user typed'
 		},
 		reaches: [...GRAMMAR_FILES, SOURCE.directiveGrammar],
@@ -1292,7 +1290,7 @@ const RULES: FileRule[] = [
 			'src/lib/schema/plugin-install.ts':
 				'the function itself, which runs its callback with no plugin installing',
 			'src/lib/components/editor-built-ins.ts':
-				'the editor’s own bootstraps (blocks, code languages, context-menu rows), which the reset keeps',
+				'the editor’s own bootstraps (blocks, code languages), which the reset keeps',
 			'src/lib/schema/plugin-registry.ts':
 				'`registerCore`, which also flags a key the registry can’t tell is built-in so the reset keeps it',
 			'src/lib/schema/built-in-descriptors.ts':
@@ -1324,24 +1322,17 @@ const RULES: FileRule[] = [
 	},
 	{
 		id: 'G4.78 the editor’s built-in bootstraps run only through registerEditorBuiltIns',
-		matches:
-			/\b(?:registerBuiltInBlocks|bootstrapCodeLanguages|registerDefaultContextActions)\s*\(/,
+		matches: /\b(?:registerBuiltInBlocks|bootstrapCodeLanguages)\s*\(/,
 		allowed: {
 			'src/lib/components/editor-built-ins.ts':
-				'`registerEditorBuiltIns`, which runs the three bootstraps as no plugin',
+				'`registerEditorBuiltIns`, which runs the two bootstraps as no plugin',
 			'src/lib/components/built-in-blocks.ts': 'the definition of `registerBuiltInBlocks`',
 			'src/lib/components/blocks/code/code-bootstrap.ts':
-				'the definition of `bootstrapCodeLanguages`',
-			'src/lib/components/menu/default-context-actions.ts':
-				'the definition of `registerDefaultContextActions`'
+				'the definition of `bootstrapCodeLanguages`'
 		},
 		reason:
 			'a bootstrap called anywhere else registers the editor’s built-ins as whichever plugin’s setup reached it first, so they resolve only where that plugin is listed and the test reset drops them: call `registerEditorBuiltIns()` instead',
-		hits: [
-			'bootstrapCodeLanguages();',
-			'registerBuiltInBlocks ();',
-			'registerDefaultContextActions();'
-		],
+		hits: ['bootstrapCodeLanguages();', 'registerBuiltInBlocks ();'],
 		misses: [
 			'registerEditorBuiltIns();',
 			'registerBuiltInDescriptors();',

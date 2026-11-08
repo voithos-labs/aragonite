@@ -85,7 +85,7 @@ export function indentFormsFor(
 	return (node) => {
 		if (!byKind.has(node.kind)) {
 			const command = commandForKey(e, node.kind, commands);
-			byKind.set(node.kind, rangeIndentForm(node.kind, command, commands.activation));
+			byKind.set(node.kind, rangeIndentForm(node.kind, command));
 		}
 		return byKind.get(node.kind) ?? null;
 	};

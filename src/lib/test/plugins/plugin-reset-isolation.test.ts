@@ -10,16 +10,11 @@ import {
 	definePlugin,
 	highlightCode,
 	registerBlockCompleter,
-	registerBlockContextActions,
 	registerInlineWidgetKind,
 	registerLanguage
 } from '#lib/plugin.js';
 import { installPlugins } from '#lib/schema/plugin-install.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
-import {
-	blockContextActionsFor,
-	registerBuiltinBlockContextActions
-} from '#lib/schema/context-actions.js';
 import {
 	getLanguageGrammar,
 	registerBuiltinLanguage
@@ -28,11 +23,6 @@ import { completeTypedLine } from '#lib/schema/block-completions.js';
 import { isInlineWidgetKind } from '#lib/core/inline/inline-widgets.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import type { LanguageFn } from 'highlight.js';
-import type { NodeView } from '#lib/core/node-views.js';
-
-const probeBlock = { kind: 'probe-rows', raw: 'x\n' } as unknown as NodeView;
-const rowIds = () =>
-	blockContextActionsFor(probeBlock, [0], everyInstalledPlugin, 'block').map((a) => a.id);
 
 /** The highlighted spans, as `class:text`. */
 const tokens = (body: string) =>
@@ -41,32 +31,22 @@ const tokens = (body: string) =>
 		.map((n) => `${(n as HTMLElement).className}:${n.textContent}`);
 const BODY = 'def f(): pass\nconst x = 1';
 
-function installRowsPlugin(grammar: LanguageFn): void {
+function installLanguagePlugin(grammar: LanguageFn): void {
 	installPlugins([
-		definePlugin({
-			name: 'rows',
-			setup() {
-				registerBlockContextActions('probe-rows', 'rows', () => [
-					{ id: 'rows.one', label: 'One', run: () => {} }
-				]);
-				registerLanguage('probelang', grammar);
-			}
-		})
+		definePlugin({ name: 'rows', setup: () => registerLanguage('probelang', grammar) })
 	]);
 }
 
 describe('resetPluginPlatformForTests between cases', () => {
 	beforeEach(() => resetPluginPlatformForTests());
 
-	it('case 1 sees its own row and highlights with its own grammar', () => {
-		installRowsPlugin(javascript);
-		expect(rowIds()).toEqual(['rows.one']);
+	it('case 1 highlights with its own grammar', () => {
+		installLanguagePlugin(javascript);
 		expect(tokens(BODY)).toContain('code-tok-keyword:const');
 	});
 
-	it('case 2 sees one row, not one per earlier case, and highlights with its own grammar', () => {
-		installRowsPlugin(python);
-		expect(rowIds()).toEqual(['rows.one']);
+	it("case 2 highlights with its own grammar, not an earlier case's", () => {
+		installLanguagePlugin(python);
 		expect(tokens(BODY)).toContain('code-tok-keyword:def');
 		expect(tokens(BODY)).not.toContain('code-tok-keyword:const');
 	});
@@ -78,16 +58,10 @@ describe('a built-in registered from inside a plugin install', () => {
 		installPlugins([
 			definePlugin({
 				name: 'lazy',
-				setup() {
-					registerBuiltinBlockContextActions('probe-rows', 'lazy', () => [
-						{ id: 'lazy.row', label: 'Lazy', run: () => {} }
-					]);
-					registerBuiltinLanguage('lazylang', python);
-				}
+				setup: () => registerBuiltinLanguage('lazylang', python)
 			})
 		]);
 		resetPluginPlatformForTests();
-		expect(rowIds()).toEqual(['lazy.row']);
 		expect(getLanguageGrammar('lazylang', everyInstalledPlugin)).not.toBeNull();
 	});
 });

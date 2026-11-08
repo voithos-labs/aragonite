@@ -29,7 +29,7 @@ const ALLOWED: Record<string, string> = {
 	'src/lib/range-edit/layout.ts': 'where those blocks sit in the bytes (a read)',
 	'src/lib/core/inline/link-source-bytes.ts': 'the text a block shows, which law 11 reads',
 	'src/lib/components/menu/default-context-actions.ts':
-		'the menu rows the editor registers at startup, which the menu routes press',
+		'the block menu rows, which the menu routes press',
 	'src/lib/tree-operations/container-offsets.ts':
 		'the byte a caret sits at, which the byte-splice replay hands the splice (a read)',
 	'src/lib/tree-operations/node-primitives.ts': 'the block at a caret’s path (a read)',

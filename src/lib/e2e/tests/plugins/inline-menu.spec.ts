@@ -4,13 +4,13 @@ import { activeBlockPath, PluginsPage, capturedErrors } from './helpers';
 import { edgeKey } from '../../platform-keys';
 
 /**
- * Inline menus (`editor.inlineMenus`): the list under the caret on a typed trigger. Seed
- * `inline-menu` installs a synchronous tag source on `#` and an asynchronous document picker
- * on `[[`. Requirements: e2e/requirements/plugins/inline-menu.md.
+ * Inline menus: the list under the caret on a typed trigger. Seed `inline-menu` installs a
+ * synchronous tag source on `#` and an asynchronous document picker on `[[`.
+ * Requirements: e2e/requirements/plugins/inline-menu.md.
  */
 
 const TAGS = 'harness-tags';
-const DOCS = 'harness-doc-links';
+const DOCS = 'harness-doc-link-menu';
 /** `Type here`, the plain typing target. */
 const TARGET = 2;
 
@@ -352,8 +352,8 @@ test.describe('inline menus', () => {
 		});
 	});
 
-	test('open(name), from a shortcut or a button, types the trigger and opens there', async () => {
-		await test.step('open(name) types the trigger at the caret and opens there', async () => {
+	test('openMenu, from a shortcut or a button, types the trigger and opens there', async () => {
+		await test.step('openMenu types the trigger at the caret and opens there', async () => {
 			await editor.page.getByTestId('open-doc-link-menu').click();
 			await editor.bridge.waitForSourceContains('Type here[[');
 			await expect(menu(editor, DOCS)).toBeVisible();

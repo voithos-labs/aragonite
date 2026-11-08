@@ -59,12 +59,7 @@ import {
 	backspaceTwoStepDeleteUndoMermaid,
 	enterBelowUndoMermaid
 } from './gestures/mermaid';
-import {
-	pasteGithubAlert,
-	publishDocStats,
-	setCalloutKind,
-	toggleCollapse
-} from './gestures/plugin';
+import { pasteGithubAlert, countChord, setCalloutKind, toggleCollapse } from './gestures/plugin';
 import {
 	editContainerBody,
 	editLeafInfo,
@@ -471,10 +466,10 @@ export class Gestures {
 		return pasteGithubAlert(this.ctx);
 	}
 
-	// A global shortcut that only reads: it rewrites `window.__docStats` and commits nothing, so
-	// the bytes are unchanged. Needs the doc-stats plugin installed.
-	publishDocStats(): Promise<void> {
-		return publishDocStats(this.ctx);
+	// A plugin command's chord that writes nothing to the document, so the bytes are unchanged.
+	// Needs the chord-count plugin installed.
+	countChord(): Promise<void> {
+		return countChord(this.ctx);
 	}
 
 	// ── Directives (`:::name` primitive, plugins route) ──────────────────────────

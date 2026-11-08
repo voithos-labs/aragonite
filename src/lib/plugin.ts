@@ -34,6 +34,12 @@ export { builtin } from './schema/plugin-unit';
 // A command a plugin lists, run by value, by `plugin/id` or by its chord.
 export { command } from './schema/plugin-command';
 export type { Chord, Command, CommandSpec } from './schema/plugin-command';
+// A list under the caret, opened by its trigger; a pick writes through a `MenuPick`.
+export { menu } from './schema/caret-menu';
+export type { CaretMenu, MenuPick, MenuRow, MenuRowProps } from './schema/caret-menu';
+// Rows over the selection, or a range captured around the caret, in the editor's menus.
+export type { ActionRow, Captured, SelectionAction } from './schema/selection-action';
+export type { Icon } from './menu-icons';
 export type { EditorPlugin, EditorPluginEntry } from './schema/plugin-install';
 // `setup(ctx)` registers `onEditor` callbacks that receive a per-instance `EditorContext`.
 export type { PluginSetupContext, OnEditorCallback, EditorContext } from './schema/plugin-install';
@@ -197,13 +203,6 @@ export type { KeyBinding } from './schema/keybindings';
 // ── Registering commands (pre-freeze) ────────────────────────────────────────
 // A (kind, name) block command creates a `PluginCommandId`; `AnyCommandId` covers both.
 export { registerBlockCommand } from './schema/block-commands';
-// The block context menu: a kind's right-click actions, empty unless something registers them.
-export { registerBlockContextActions } from './schema/context-actions';
-export type {
-	BlockContextAction,
-	BlockActionContext,
-	BlockContextActionProvider
-} from './schema/context-actions';
 export type {
 	BlockCommandContext,
 	BlockCommandHandler,
@@ -211,13 +210,7 @@ export type {
 	BlockCommandTarget,
 	CommandRun
 } from './schema/block-commands';
-// What a kind's own indent command does over a selection spanning blocks.
-export { registerRangeIndent } from './schema/range-indent-forms';
-export type { RangeLineShift } from './schema/range-indent-forms';
 export type { PluginCommandId, AnyCommandId } from './schema/command-id';
-// A global command is process-wide but runs against the dispatching instance's `EditorContext`,
-// with the argument `runCommand(id, arg)` or the chord's binding carried.
-export { registerGlobalCommand } from './schema/global-commands';
 
 // ── Parse / serialize helpers (pre-freeze) ───────────────────────────────────
 // Re-exported so an opener needn't reach into core/ deep paths the packaged artifact
@@ -434,7 +427,6 @@ export type {
 	InlineMenuSourceHandle,
 	InlineMenuItem,
 	InlineMenuQuery,
-	InlineMenuCommit,
 	InlineMenuRowProps
 } from './inline-menu/types';
 

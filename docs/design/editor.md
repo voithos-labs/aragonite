@@ -252,7 +252,7 @@ A focused leaf resolves a chord through the consumer's overrides first, then thr
 1. an override on the kind (the `keybindings` prop, scoped by `kind`), then an override on the global table,
 2. the kind's own keymap,
 3. the editor-global keymap,
-4. the plugin-global tier, where a plugin's `registerGlobalCommand` binds its chord.
+4. the plugin-global tier, where a plugin value's `command` binds its chord.
 
 Override source beats specificity, so a consumer disabling a chord globally suppresses one a kind defines; and a plugin's global chord never beats a built-in one, on any kind. Tiers 2 to 4 skip a caret key of the platform (an arrow, a word key, Home, End and their Mac spellings, `schema/keybindings.ts` :: `isMotionChord`), so only a consumer's override can take one from the caret.
 

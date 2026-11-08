@@ -60,8 +60,8 @@ _(pre-freeze / unstable)_ The installable package, and the per-editor context it
 | `PluginSpec` | What you hand `definePlugin` to get a plugin value instead: `name`, `version`, the `editor` range it runs on, `defaults`, `validate`, `needs`, `conflicts`, and `contributes(options)`, which each editor calls with its own options |
 | `Plugin` | The plugin value that comes back. Call it with options (`math({ render })`) to give one editor different ones |
 | `PluginList` | A list of plugin values, whatever their options, as `needs` takes it |
-| `Contribution` | What `contributes` hands back for one editor: a `setup(editor)` that runs once that editor mounts, the `commands` it runs, and its `inserts` rows |
-| `Editor` | What `setup` and your commands get: the plugins on, the mode, the theme, the `inserts` rows, `on`, `run` and `can` (a command by value or id, with its argument), `claims` and `edit`. It's one object per plugin per editor, and a listener you add there goes away with your plugin |
+| `Contribution` | What `contributes` hands back for one editor: a `setup(editor)` that runs once that editor mounts, the `commands` it runs, its `inserts` rows, its caret `menus`, and its selection `actions` |
+| `Editor` | What `setup` and your commands get: the plugins on, the mode, the theme, the `inserts` rows, `on`, `run` and `can` (a command by value or id, with its argument), `claims`, `openMenu` (types a caret menu's trigger at the caret and opens it), `openRows` (opens a selection action's rows over a range) and `edit`. It's one object per plugin per editor, and a listener you add there goes away with your plugin |
 | `PluginError` | An error your plugin caused: its name, what the editor was doing with it (`install`, `validate`, `contributes`, `setup`, `dispose`, `run shout/hello` for a command, or `on('edit')` for a listener that threw), and the cause |
 | `BlockType` | A block type by name |
 | `builtin` | The built-in block types by kind (`builtin.blocks.paragraph`), to place yours relative to one or tell what a block is |
@@ -171,6 +171,7 @@ What a commit can come back with (nothing throws, and a refused commit writes no
 | `overlap` | Two of your own ranges overlap |
 | `illegal` | A range runs past the document's end or splits a `\r\n`, or the insert had no caret to land at |
 | `empty` | Nothing to write: no ranges, only the bytes already there, or the draft was ended |
+| `closed` | The menu the row was picked from closed before the write (a selection action's row) |
 
 ### Kind declaration
 
@@ -860,22 +861,15 @@ _(pre-freeze / unstable)_ Which tier dispatches what: [Block commands](plugin-gu
 | [`command`](#command) | Make a command your plugin lists in `contributes`. An editor runs it by value, as `yourplugin/id`, or by its chord |
 | `Command` | What `command` hands back. Its `id` reads `yourplugin/id` once an editor installs your plugin |
 | `CommandSpec` | What `command` takes: `id`, `title`, an optional `chord`, `when(editor, arg)` and `run(editor, arg)`, both handed your plugin's own `Editor` |
-| `Chord` | A chord as a type: `Mod`, `Alt` and `Shift` in any combination, then the key. Only a command with no argument takes one, since a key can't hand it anything |
+| `Chord` | A chord as a type: `Mod`, `Alt` and `Shift` in any combination, then the key. Only a command that can run without its argument takes one, since a key can't hand it anything |
 | [`registerBlockCommand`](#registerblockcommand) | Create a `(kind, name)` command and get back its id, for a keymap binding to target |
-| `registerRangeIndent` | Let your kind's own indent command work over a selection spanning blocks: `(kind, command, shift)`, where `shift` rewrites the lines the selection covers in each of your blocks. Without it, an indent key over a range leaves your blocks alone |
-| `RangeLineShift` | That `shift`: `(node, range) => { text, selection } \| null`, over the block's text without its final line ending; null when no line changes |
-| `registerBlockContextActions` | Add, under a name unique to `kind`, the actions a right-click on a block of `kind` offers (its context menu), ahead of the editor's own copy, replace and remove rows; listed only in the editors that activate your plugin |
-| `BlockContextAction` | One such action: id, label, optional glyph and danger flag, and `run(ctx)` |
-| [`BlockActionContext`](#blockactioncontext) | What a context action's `run` receives |
-| `BlockContextActionProvider` | The registered function: `(node, path, noun) => BlockContextAction[]`, consulted on every open; `noun` is what the menu calls the block |
-| `registerGlobalCommand` | Create a process-wide command run against whichever editor dispatched it, optionally on a global chord; also returns its id. The handler receives that editor's `EditorContext` and the argument `runCommand(id, arg)` or the chord's binding carried |
 | `CommandId` | A built-in command's id; a vocabulary your keymaps may bind too. `decorations.activateAtCaret` ships with no chord at all: it runs the `onActivate` of the mark under the caret ([Interactive marks](plugin-guide/decorations.md#interactive-marks-click-hover-and-the-keyboard)) |
 | `KeyBinding` | One keymap entry: a chord (`Mod` / `Alt` / `Shift` plus the key, normalized to that order), a command id, an optional baked argument. A chord with an unknown modifier or no key throws when the kind registers or is augmented |
 | [`CommandRun`](#commandrun) | The third argument a block's `runCommand` gets: `afterRemoval` |
 | [`BlockCommandContext`, `BlockCommandHandler`](#blockcommandcontext-blockcommandhandler) | What a block command's handler receives, and the handler's signature |
 | `BlockCommandTarget` | What a block hands a block command to run against (the node, `updateMetadata`, `replaceRaw`, the component's hooks), and what `BlockComponent.getCommandContext` returns, so a hand-built component can let the editor run your `afterRemoval` commands in it |
 | `BlockCommandOptions` | That fourth argument's type |
-| `PluginCommandId`, `AnyCommandId` | The id `registerBlockCommand` or `registerGlobalCommand` hands back, and the union of that and a built-in `CommandId` |
+| `PluginCommandId`, `AnyCommandId` | The id `registerBlockCommand` hands back, and the union of that and a built-in `CommandId` |
 | [`imeOwnsKey`](#imeownskey) | Whether a keydown belongs to the IME |
 
 #### `command`
@@ -902,7 +896,7 @@ handle.run('shout/hello'); // true, and "hello" in the console
 handle.can('shout/hello'); // true; false in reading mode, or where `when` says no
 ```
 
-`run` comes back `false` when the command didn't run here (its plugin isn't on, the editor's reading, `when` said no) or your `run` returned `false`, which also lets a chord go on to the browser. A throw counts as run, and it reaches `onError` as `run shout/hello`, the same as a rejected promise.
+`run` comes back `false` when the command didn't run here (its plugin isn't on, the editor's reading, `when` said no) or your `run` returned `false` (that doesn't hand your chord's key back to the browser, though). A throw counts as run, and it reaches `onError` as `run shout/hello`, the same as a rejected promise.
 
 A chord goes to the first of three owners. One the editor takes everywhere (search's `Mod+F` and `Mod+H`, undo and redo) leaves your plugin out at install. Then the host's `keybindings` beat yours. Then, between two plugins in one editor, the one listed first keeps it and the later one's left out. The editor tells `onError` about each plugin it leaves out.
 
@@ -932,28 +926,6 @@ const tag = registerBlockCommand(memo, 'memo.tag', (ctx) => {
 ```
 
 Names, metadata writes and the selection options at length: [Block commands](plugin-guide/commands.md#block-commands).
-
-#### `BlockActionContext`
-
-```ts
-interface BlockActionContext {
-	node: NodeView;
-	path: number[];
-	deleteBlock(): Promise<void>;
-	replaceRaw(raw: string): Promise<void>;
-	transformPaste(text: string): string;
-	lineEnding: LineEnding;
-}
-```
-
-What a context action's `run` receives:
-
-- the node and its path;
-- `deleteBlock()` and `replaceRaw(raw)`, one undo entry each. `replaceRaw`'s bytes go through your kind's write rule, every line break in the document's ending;
-- `transformPaste(text)`, the paste transforms of the plugins that editor lists;
-- `lineEnding`, the document's, for a line you rebuild from the block's own bytes.
-
-A provider and its actions in full: [Block context actions](plugin-guide/commands.md#block-context-actions).
 
 #### `CommandRun`
 
@@ -1025,18 +997,53 @@ _(pre-freeze / unstable)_ View-only annotations drawn over the rendered document
 
 ### Inline menus
 
-_(pre-freeze / unstable)_ A list the editor opens under the caret while the author types after a trigger: `#` for a tag, `[[` for a link to another document. You register a source per editor through `editor.inlineMenus` (your `onEditor` context); a host that owns the data reaches the same registry as `getInlineMenus()`. The editor owns the session: it notices the typed trigger, holds the arrow keys, Enter, Tab and Escape while a list is up, anchors the list to the typed range, and writes the pick over the trigger and the query as one undo entry. The caret never leaves the document. The recipe: [Recipe: a typed-trigger menu](consumer-guide/recipes.md#recipe-a-typed-trigger-menu).
+_(pre-freeze / unstable)_ A list the editor opens under the caret while the author types after a trigger: `#` for a tag, `[[` for a link to another document. A plugin value lists one in `contributes` as `menus` (`menu`, below). The editor owns the session: it notices the typed trigger, holds the arrow keys, Enter, Tab and Escape while a list is up, anchors the list to the typed range, and writes the pick over the trigger and the query as one undo entry. The caret never leaves the document. The recipe: [Recipe: a typed-trigger menu](consumer-guide/recipes.md#recipe-a-typed-trigger-menu).
+
+A menu whose rows read the document (every tag in the note, say) can't be a plugin value's yet, since a value has no document read; until it has one, that menu is an inline-menu source on a `setup` plugin's `editor.inlineMenus` (or a host's `getInlineMenus()`), the `InlineMenu*` rows below.
 
 | Export | Role |
 | --- | --- |
+| [`menu`](#menu) | Make a list your plugin lists in `contributes` as `menus`: it opens when its trigger is typed, and a pick writes nothing until you commit it through the `MenuPick` |
+| `CaretMenu` | What `menu` takes: a `label` for screen readers, the `trigger`, `where` it opens (after a space or at a line's start by default, only at a line's start, or anywhere), `accepts(query, { editor })` to close the list on a query that's no longer yours, `rows(query, { editor })`, an optional `view` that draws a row, and `pick(row, pick)` |
+| `MenuRow` | The row the editor draws when your menu has no `view`: a `label`, maybe a `detail` and an `icon`, and an `id` that keeps a screen reader on the same row as the query narrows the list (the label does that job without one) |
+| `MenuRowProps` | What a menu's `view` gets, at mount and on each `update`: your `row`, whether it's `active`, and the `query` (for highlighting the match) |
+| `MenuPick` | A `Draft` over the trigger and the query, with the `trigger`, the `query` and their `range`, plus `write(inline)`, `insertBlock(markdown)` and `run(command, arg?)` |
 | [`InlineMenuRegistry`](#inlinemenuregistry) | The `editor.inlineMenus` surface |
 | [`InlineMenuSource`](#inlinemenusource) | A named source: its trigger, its list, and what happens around a pick |
 | `InlineMenuOpenOptions` | `open`'s second argument: a `query` typed after the trigger, so the list opens already narrowed |
 | `InlineMenuSourceHandle` | The handle back: `dispose()` removes the source and closes its list |
 | [`InlineMenuItem`](#inlinemenuitem) | One row of the list |
-| [`InlineMenuCommit`](#inlinemenucommit) | What `onCommit` gets as its third argument |
 | `InlineMenuQuery` | What `items` is asked: the `query` typed so far, the leaf's `path`, the raw range `[start, end)` a pick would replace, and a `signal` aborted once a later keystroke supersedes the read |
 | `InlineMenuRowProps` | What a `row` view receives, at mount and on each `update`: the `item`, whether it is `active`, and the `query` (for highlighting the match) |
+
+#### `menu`
+
+```ts
+function menu<R>(spec: CaretMenu<R>): CaretMenu<R>;
+```
+
+A list under the caret. Picking a row hands it to your `pick` with a `MenuPick`, and nothing is written until you write through it: `write(inline)` swaps the trigger and the query for one line of text, `insertBlock(markdown)` takes them out and drops a block in (below the line, when the line has other text), and `run(command, arg)` takes them out and runs a command at the caret, in the same undo step. A shortcut or a toolbar button opens your menu with `editor.openMenu(menu, query?)`, which types the trigger for the author.
+
+```ts
+const mentions = definePlugin({
+	name: 'mentions',
+	version: '1.0.0',
+	editor: '*',
+	contributes: () => ({
+		menus: [
+			menu<MenuRow>({
+				label: 'People',
+				trigger: '@',
+				rows: (query) => people.filter((p) => p.label.startsWith(query)),
+				pick: (row, pick) => void pick.write(`@${row.label}`)
+			})
+		]
+	})
+});
+// type "@ad", Enter: "@ad" becomes "@Ada", one undo step
+```
+
+A pick can wait (a fetch, a dialog). Whatever you write then lands as its own undo step, after the typing that came before it, or comes back refused: `moved` when the author changed the trigger or the query meanwhile, `unloaded` when the host loaded another document. It lands where the query was, wherever the author's caret has wandered off to.
 
 #### `InlineMenuRegistry`
 
@@ -1065,7 +1072,6 @@ interface InlineMenuSource {
 	items(query: InlineMenuQuery): InlineMenuItem[] | Promise<InlineMenuItem[]>;
 	opensAt?(raw: string, pos: number): boolean;
 	accepts?(query: string): boolean;
-	onCommit?(item, query, editor: InlineMenuCommit): void | Promise<void>;
 	row?: PluginView<InlineMenuRowProps>;
 }
 ```
@@ -1079,7 +1085,6 @@ And optionally:
 
 - `opensAt`, to decline a trigger by position;
 - `accepts`, to end the session on a query that is no longer yours;
-- `onCommit`, run after the bytes land, with the range the pick replaced (so the caret is at `start + insert.length`) and an `InlineMenuCommit`, the editor context to write through. If it returns a promise, every write that lands while it's pending, up to the author's next input, is part of the pick's undo entry;
 - `row`, a `PluginView` that paints a row's content and takes `update` as the row turns active or the query changes. A row whose view throws shows the default label, and the throw is reported on the `error` event.
 
 ```ts
@@ -1112,17 +1117,35 @@ One row:
 - a `label`;
 - an optional dim `detail`;
 - an optional `icon`, a menu glyph name the default row draws;
-- `insert`, the bytes that replace the trigger and the query. It's one line of inline bytes, empty allowed. A line break is refused and reported, and a block belongs in `onCommit`.
+- `insert`, the bytes that replace the trigger and the query. It's one line of inline bytes, empty allowed. A line break is refused and reported; a pick that writes a block, or writes later, is a caret menu's (`menu`).
 
-#### `InlineMenuCommit`
+### Selection actions
+
+_(pre-freeze / unstable)_ Rows your plugin offers over a range: what the author selected, or a range you capture around the caret (the misspelled word under it, say). List them in `contributes` as `actions`. They show in the right-click menu, as one row in the selection toolbar where your capture is exactly the selection (its rows open beside it), and wherever you call `editor.openRows`. The editor asks for your rows only when one of those opens, never as the toolbar redraws.
+
+| Export | Role |
+| --- | --- |
+| `SelectionAction` | One action: a `label`, an `icon`, `lead` to sit first in the right-click menu with a divider after, an optional `capture(editor, selection)` returning the range to act on (or null), and `rows(captured)`, an array or a promise of one |
+| `ActionRow` | One row: a `label`, an `icon`, `disabled`, and `run(draft)` |
+| `Captured` | What `rows` is asked about: the range's `text` (its bytes), the `range` in document bytes, the `box` it paints in, measured when you read it (null when it isn't drawn, or runs from one text block into the next), and whether it's `editable` |
+| `Icon` | A menu glyph's name, or `{ svg }`, your own markup, drawn as given at the menu's icon size |
 
 ```ts
-interface InlineMenuCommit extends EditorContext {
-	readonly signal: AbortSignal;
-}
+const shout: SelectionAction = {
+	label: 'Shout',
+	rows: (captured) => [
+		{
+			label: 'Upper case',
+			run: (draft) => draft.replace(captured.range, captured.text.toUpperCase()).commit()
+		}
+	]
+};
+// select "def" in "abc def ghi", right-click, Upper case: "abc DEF ghi", one undo step
 ```
 
-What `onCommit` gets as its third argument: your plugin's `EditorContext` scoped to the pick, live like it, except that `insertMarkdown` and `runCommand` write nothing and answer false once the host has loaded another document. The `signal` aborts then too. Write through it, not the context you closed over in `onEditor`.
+Without `capture`, an action acts on the selection and offers nothing at a bare caret. A promise from `rows` shows one pending row until it settles, and a rejection drops your rows and reaches `onError`. `run` gets a draft opened when the row is picked. If it returns a promise the row stays pending and the menu stays open until it settles; close the menu first and the draft's commit comes back refused as `closed`.
+
+`editor.openRows(action, range, anchor)` opens the same rows over `range` (captured the way your action says) at `anchor`, a rect or a point, taking no focus: what a hover card over a mark calls. It hands back `{ isOpen, close() }`, and any edit, Escape or a press elsewhere closes it.
 
 ### Insert catalogue
 
@@ -1279,7 +1302,7 @@ _(pre-freeze / unstable)_ The editor's own parse and serialize entries, re-expor
 | `isUnicodeWhitespace` | Whether one character is the Unicode whitespace emphasis reads beside a `*`: a space, a tab, a line break, a form feed or any space separator, the non-breaking space included. Ask this beside a delimiter of your own, like latex's `$` |
 | `trimTrailingLineEnding` | Cut the one trailing line ending (LF or CRLF) off a block's bytes, giving the text you display |
 | `ownTrailingLineEnding` | The ending a block's bytes close with (`''` when they have none): what you put back after editing the display |
-| `trailingLineEnding` | The ending a line rebuilt from a block's bytes takes: the block's own, else the fallback you pass (a write rule's or a context action's `ctx.lineEnding`, or `documentLineEnding` of a document you hold) |
+| `trailingLineEnding` | The ending a line rebuilt from a block's bytes takes: the block's own, else the fallback you pass (a write rule's, or `documentLineEnding` of a document you hold) |
 | `firstLineEnding` | The first line break in some bytes, or `null`. In a document with one ending (nearly all of them), any break in your block's bytes is the document's |
 | `documentLineEnding` | The ending every line written into a document takes: its first line break, else LF |
 | `LineEnding` | `'\n'` or `'\r\n'` |

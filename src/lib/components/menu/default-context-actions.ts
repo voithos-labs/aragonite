@@ -1,15 +1,39 @@
 /**
- * What every non-prose block's context menu offers after the kind's own rows: copy it (its
- * Markdown), replace it with the clipboard, remove it, each named for what the block is
- * ("Remove code block", "Copy image"). Plain, not red: every one is a Ctrl+Z away. Prose blocks
- * are the page's background and take the clipboard rows instead (`editor-root/menus.ts`).
+ * What a non-prose block's context menu offers: its kind's own rows, then copy it (its Markdown),
+ * replace it with the clipboard and remove it, each named for what the block is ("Remove code
+ * block", "Copy image"). Plain, not red: every one is a Ctrl+Z away. Prose blocks are the page's
+ * background and take the clipboard rows instead (`editor-root/menus.ts`).
  */
 import { blockKindLabel } from '../../a11y-strings';
+import type { LineEnding } from '../../core/lines';
+import type { BlockKind } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import { pictureImageCount } from '../../core/inline/picture';
 import type { InlineReading } from '../../core/inline/inline-cache';
-import { EVERY_KIND, registerBuiltinBlockContextActions } from '../../schema/context-actions';
+import type { MenuIconName } from '../../menu-icons';
 import { copyBlockToClipboard, readClipboardText } from '../../browser/clipboard';
+import { codeBlockActions } from '../blocks/code/code-context-actions';
+
+export interface BlockActionContext {
+	node: NodeView;
+	/** The block's path from the document root. Top-level blocks only, for now. */
+	path: number[];
+	deleteBlock(): Promise<void>;
+	/** Replaces the block's bytes as one undo step, every line break in the document's ending;
+	 *  false, writing nothing, if the block changed since its row was picked. */
+	replaceRaw(raw: string): Promise<boolean>;
+	/** The document's line ending, for a line rebuilt from the block's own bytes. */
+	lineEnding: LineEnding;
+	/** Pasted text through the paste transforms of the plugins this editor lists. */
+	transformPaste(text: string): string;
+}
+
+export interface BlockContextAction {
+	id: string;
+	label: string;
+	icon?: MenuIconName;
+	run(ctx: BlockActionContext): void | Promise<unknown>;
+}
 
 /** The noun the menu uses for a block: its kind's name mid-sentence, and "image" or "images"
  *  for a paragraph holding nothing but images. */
@@ -21,12 +45,19 @@ export function blockNoun(node: NodeView, reading: InlineReading): string {
 	return /^.[A-Z]/.test(label) ? label : label.charAt(0).toLowerCase() + label.slice(1);
 }
 
-let registered = false;
+/** The rows a right-click on `node` offers, read on every open so they see the block as it is. */
+export function blockActionsFor(node: NodeView, noun: string): BlockContextAction[] {
+	return [...(KIND_ROWS[node.kind as BlockKind]?.(node) ?? []), ...everyBlockRows(node, noun)];
+}
 
-export function registerDefaultContextActions(): void {
-	if (registered) return;
-	registered = true;
-	registerBuiltinBlockContextActions(EVERY_KIND, 'block', (node, _path, noun) => [
+// ── Internal ─────────────────────────────────────────────────────────────────
+
+const KIND_ROWS: Partial<Record<BlockKind, (node: NodeView) => BlockContextAction[]>> = {
+	fencedCode: codeBlockActions
+};
+
+function everyBlockRows(node: NodeView, noun: string): BlockContextAction[] {
+	return [
 		{
 			id: 'block.copy',
 			label: `Copy ${noun}`,
@@ -53,5 +84,5 @@ export function registerDefaultContextActions(): void {
 			icon: 'trash',
 			run: (ctx) => ctx.deleteBlock()
 		}
-	]);
+	];
 }
