@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-	insertCatalogue,
+	insertRows,
 	registerInsertEntry,
+	rowMarkdown,
 	type InsertEntry
 } from '#lib/schema/insert-catalogue.js';
 import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
@@ -9,8 +10,7 @@ import { everyInstalledPlugin, type PluginActivation } from '#lib/schema/plugin-
 import { __resetSchemaRegistriesForTests } from '#lib/schema/registry-reset.js';
 
 const everyone = everyInstalledPlugin;
-const ids = (activation: PluginActivation = everyone) =>
-	insertCatalogue(activation).map((e) => e.id);
+const ids = (activation: PluginActivation = everyone) => insertRows(activation).map((e) => e.id);
 
 const BUILT_IN_IDS = ['bullet', 'numbered', 'todo', 'quote', 'divider', 'code', 'table'];
 
@@ -27,20 +27,20 @@ const block = (id: string, over: Partial<InsertEntry> = {}): InsertEntry => ({
 const pluginWith = (name: string, ...entries: InsertEntry[]) =>
 	definePlugin({ name, setup: () => entries.forEach(registerInsertEntry) });
 
-describe('insertCatalogue', () => {
+describe('insertRows', () => {
 	it('lists the built-ins in menu order, then plugin entries in registration order', () => {
 		installPlugins([pluginWith('first', block('one')), pluginWith('second', block('two'))]);
 		expect(ids()).toEqual([...BUILT_IN_IDS, 'one', 'two']);
 	});
 
 	it('keeps the built-in bytes the flyout has always inserted', () => {
-		const byId = new Map(insertCatalogue(everyone).map((e) => [e.id, e.markdown]));
+		const byId = new Map(insertRows(everyone).map((e) => [e.id, rowMarkdown(e)]));
 		expect(byId.get('code')).toBe('```\n\n```\n');
 		expect(byId.get('divider')).toBe('---\n');
 	});
 
 	it('carries the keywords a filter narrows by: `td` for the to-do list, `rule` for the divider', () => {
-		const keywords = new Map(insertCatalogue(everyone).map((e) => [e.id, e.keywords]));
+		const keywords = new Map(insertRows(everyone).map((e) => [e.id, e.keywords]));
 		expect(keywords.get('todo')).toContain('td');
 		expect(keywords.get('divider')).toContain('rule');
 		// An `h` keyword on the divider would put it ahead of the headings when a slash list reads `/h`.
@@ -69,7 +69,7 @@ describe('insertCatalogue', () => {
 	});
 
 	it('hands out frozen entries, so a reader cannot rewrite what the flyout inserts', () => {
-		const [first] = insertCatalogue(everyone);
+		const [first] = insertRows(everyone);
 		expect(Object.isFrozen(first)).toBe(true);
 		expect(Object.isFrozen(first.keywords)).toBe(true);
 	});

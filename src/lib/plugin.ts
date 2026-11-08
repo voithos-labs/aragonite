@@ -31,6 +31,9 @@ export type {
 	PluginSpec
 } from './schema/plugin-unit';
 export { builtin } from './schema/plugin-unit';
+// A command a plugin lists, run by value, by `plugin/id` or by its chord.
+export { command } from './schema/plugin-command';
+export type { Chord, Command, CommandSpec } from './schema/plugin-command';
 export type { EditorPlugin, EditorPluginEntry } from './schema/plugin-install';
 // `setup(ctx)` registers `onEditor` callbacks that receive a per-instance `EditorContext`.
 export type { PluginSetupContext, OnEditorCallback, EditorContext } from './schema/plugin-install';
@@ -436,10 +439,10 @@ export type {
 } from './inline-menu/types';
 
 // ── Insert catalogue (pre-freeze) ────────────────────────────────────────────
-// The blocks the insert menus offer, read through `editor.insertCatalogue`. A plugin adds its own
-// block from `setup`, listed only in the editors that activate it; the icon is a menu glyph name.
+// The rows the insert menus offer, read through `editor.inserts`. A plugin value lists its own in
+// `contributes`, a `setup` plugin registers one; the icon is a menu glyph name.
 export { registerInsertEntry } from './schema/insert-catalogue';
-export type { InsertEntry } from './schema/insert-catalogue';
+export type { InsertEntry, InsertRow } from './schema/insert-catalogue';
 export type { MenuIconName } from './menu-icons';
 
 // ── Rects (pre-freeze) ───────────────────────────────────────────────────────

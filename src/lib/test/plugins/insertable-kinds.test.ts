@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { walkBlocks } from '#lib/core/paths.js';
 import { getAllRegisteredKinds } from '#lib/schema/block-kind-descriptor.js';
-import { insertCatalogue } from '#lib/schema/insert-catalogue.js';
+import { insertRows, rowMarkdown } from '#lib/schema/insert-catalogue.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { installPlugins, type EditorPlugin } from '#lib/schema/plugin-install.js';
 import { pluginKindOwner } from '#lib/schema/plugin-kind.js';
@@ -55,8 +55,8 @@ function installedPluginKinds(): string[] {
 /** Every kind in the trees the catalogue's entries parse to, title rows and children included. */
 function insertedKinds(): Set<string> {
 	const kinds = new Set<string>();
-	for (const entry of insertCatalogue(everyInstalledPlugin)) {
-		walkBlocks(parse(entry.markdown), (node) => void kinds.add(node.kind));
+	for (const entry of insertRows(everyInstalledPlugin)) {
+		walkBlocks(parse(rowMarkdown(entry)), (node) => void kinds.add(node.kind));
 	}
 	return kinds;
 }
@@ -84,7 +84,7 @@ describe('insertable plugin kinds', () => {
 	});
 
 	it('registers the details entry with the list-collapse icon', () => {
-		const entry = insertCatalogue(everyInstalledPlugin).find((e) => e.id === 'details');
+		const entry = insertRows(everyInstalledPlugin).find((e) => e.id === 'details');
 		expect(entry?.icon).toBe('list-collapse');
 	});
 });

@@ -244,7 +244,7 @@ The table is the exports you'll actually reach for, grouped by job. It's not eve
 | **Plugin views** | `PluginView`, `PluginViewHandle` | The shape a decoration widget and an inline menu row draw with (a function that fills an element the editor makes); `/svelte`'s `svelteView()` makes one from a component |
 | **Rects** | `EditorRects`, `SELECTION_END`, `SelectionEnd` | What `getRects()` returns, and the value its range calls take as "through the end of the block" |
 | **Inline menus** | `InlineMenuRegistry`, `InlineMenuSource`, `InlineMenuSourceHandle`, `InlineMenuItem`, `InlineMenuQuery`, `InlineMenuOpenOptions`, `InlineMenuRowProps` | What `getInlineMenus()` returns, and the shapes it takes and hands back |
-| **Insert catalogue** | `InsertEntry`, `MenuIconName`, `registerInsertEntry` | One row of `getInsertCatalogue()`, the glyph names its icon takes, and adding a row |
+| **Insert catalogue** | `InsertRow`, `MenuIconName` | One row of `inserts`, and the glyph names its icon takes |
 | **Parsing** | `parse`, `ParseScope`, `serialize`, `parseInline`, `getContentRange`, `ContentRange`, `isProseKind` | Round-tripping Markdown outside the component, and inspecting a block's inline content and editable range |
 | **Node types** | `CstNode`, `Document`, `AnyBlockKind`, `InlineNode`, `NodeView`, `DocumentView`, `BlockComponent` | The parsed document's vocabulary (CST: the concrete syntax tree, the parsed form of a document). Every node the editor hands you to read is a view, so writing to one won't compile. A block component is what a mounted block exposes to the editor |
 | **Events** | `EditorEvents`, `EditorEventMap`, `EditEvent`, `SelectionChangeEvent`, `SourceSwapEvent`, `EditorError` | What `getEvents()` returns, and the payload each channel carries |
@@ -359,7 +359,7 @@ You set the editor up with props when it mounts. After that you talk to it throu
 | `getRects()` | Where things are on screen (see [Screen geometry](#screen-geometry)) |
 | `getDecorations()` | The registry for your own view-only annotations (see [Decorations](#decorations)) |
 | `getInlineMenus()` | The registry for lists opened by a typed trigger (see [Recipe: a typed-trigger menu](consumer-guide/recipes.md#recipe-a-typed-trigger-menu)) |
-| `getInsertCatalogue()` | The blocks the insert menus offer, plugin blocks included (see [Inserting Markdown at the caret](#inserting-markdown-at-the-caret)) |
+| `inserts` | The blocks the insert menus offer, plugin blocks included (see [Inserting Markdown at the caret](#inserting-markdown-at-the-caret)) |
 | `getDiagnostics()` | The bug-report tooling (see [Diagnostics](consumer-guide/shipping.md#diagnostics)) |
 | `reservedChords()` / `claimsChord(event)` | Which shortcuts this editor consumes (see [Which shortcuts the editor consumes](#which-shortcuts-the-editor-consumes)) |
 
@@ -492,7 +492,7 @@ The caret is read when you call, and the promise resolves once the edit has land
 
 `placement: 'below'` is what the right-click "Insert block" rows do: an empty paragraph goes in after the top-level block holding the caret, and the text is pasted into it, so a sentence is never split around a new block. The paragraph and the insert are one undo entry.
 
-`getInsertCatalogue()` lists the blocks those rows offer, in their order: an `id`, a `label`, an `icon` name, `keywords`, the `markdown` to hand this call, and on some an optional `withArgument(word)` that answers the Markdown for a typed argument (`/table 3x4`). A plugin's block is in the list while this editor lists its plugin, so a `+` button or a menu of your own shows it without naming it.
+`inserts` lists the blocks those rows offer, in their order: an `id`, a `label`, an `icon` name, maybe some `keywords`, and `insert`, the Markdown to hand this call. On the code block and the table, `insert` is a function of a typed word (`/table 3x4`) instead, and calling it with `''` gives the plain block. A plugin's block is in the list while this editor lists its plugin, so a `+` button or a menu of your own shows it without naming it.
 
 ### Toolbar commands
 
@@ -858,7 +858,7 @@ Two editors in one process can list different depths this way; the factory form,
 The two options:
 
 - `entries` adds rows of your own, listed after the built-in ones. A row either inserts Markdown (`insert`) or runs a function (`run`, handed the editor's context for that pick and, if the row sets `takesArgument: true`, the word typed after a space). A `run` may be async: if it opens a picker and waits, the context it was handed writes nothing once you've loaded another note, so a choice made after a note switch lands nowhere. A row whose id matches a built-in one hides that built-in, and yours shows up with your other rows.
-- `exclude` hides built-in rows by id: `bullet`, `numbered`, `todo`, `quote`, `divider`, `code`, `table`, `h1`, `h2`, `h3`, plus whatever ids your installed plugins add to `getInsertCatalogue()` (the bundled ones add `note`, `details`, `math`, `mermaid` and `toc`).
+- `exclude` hides built-in rows by id: `bullet`, `numbered`, `todo`, `quote`, `divider`, `code`, `table`, `h1`, `h2`, `h3`, plus whatever ids your installed plugins add to `inserts` (the bundled ones add `note`, `details`, `math`, `mermaid` and `toc`).
 
 Options passed to the factory are every editor's defaults, and an editor's `{ plugin, options }` entry swaps out only the fields it names. So an entry of `{ exclude: ['table'] }` still lists the factory's `entries`, and `{ entries: [] }` is how one editor drops them. A row with both `insert` and `run`, or neither, is refused: the factory throws, and in an editor's entry the editor reports it (to `onError`, and on the `error` event) and keeps the factory's options.
 

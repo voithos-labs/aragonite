@@ -56,7 +56,7 @@ async function typeThenRewrite() {
 		finger: () => false,
 		insertMarkdown: async () => true,
 		clipboard: { take: () => null, pasteTarget: () => null },
-		insertCatalogue: () => [],
+		inserts: () => [],
 		activation: everyInstalledPlugin,
 		reading: fixtureReading(),
 		stamps: editor.deps.stamps,
