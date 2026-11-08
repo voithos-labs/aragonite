@@ -29,4 +29,4 @@ A ` ```shown ` fenced block (`fencedBlock`, same harness) draws a preview of its
 A `%>` container (`container`, same harness) draws a bordered box and places the editor's children inside it.
 
 - Typing at the end of its child writes ` more` with the `%> ` marker kept, and one Ctrl+Z takes it back out.
-- Enter in the middle of its child splits it into two children inside the box, each line written with the marker, and the caret lands in the second.
+- Enter at the end of its child opens a second child inside the box: typing there writes a new line with the marker below a marked blank line (`%>`), as a quote does, and the caret is in that second child.

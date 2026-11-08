@@ -178,10 +178,12 @@ test.describe('a container drawn as a box around its children', () => {
 		await expect.poll(() => source(page)).toMatch(/\n%> aside text\n$/);
 	});
 
-	test('Enter in its child splits it inside the box, both lines marked', async ({ page }) => {
-		await placeCaret(page, [ASIDE, 0], 5);
+	test('Enter at the end of its child opens a marked child inside the box', async ({ page }) => {
+		await placeCaret(page, [ASIDE, 0], 'end');
 		await page.keyboard.press('Enter');
-		await expect.poll(() => source(page)).toMatch(/\n%> aside\n%> text\n$/);
+		await page.keyboard.type('word');
+		// A marked blank line separates the two, as in a quote, or the word would continue the text.
+		await expect.poll(() => source(page)).toMatch(/\n%> aside text\n%>\n%> word\n$/);
 		expect(await caretPath(page)).toEqual([ASIDE, 1]);
 	});
 });

@@ -16,6 +16,7 @@ import {
 	destroyMountedEditors,
 	installLayoutStubs,
 	mountEditor,
+	pressKeyAt,
 	surfaceAt,
 	typeInto
 } from '#lib/test/harness/mount-editor.svelte.js';
@@ -68,6 +69,15 @@ describe('a marked container', () => {
 		]);
 		expect(rawAt(m, 0)).toBe('%> # Title\n%> some text\nlazy\n');
 		expect(m.instance.getSource()).toBe(source);
+	});
+
+	it('takes Enter in a child as a new child, a marked blank line between the two', async () => {
+		const m = mountEditor({ source: '%> one\n', plugins: [boxes({ lines: MARKED })] });
+		await m.settle();
+		await pressKeyAt(m, [0, 0], 3, { key: 'Enter' });
+		await m.settle();
+		expect(m.instance.getSource()).toBe('%> one\n%>\n%>\n');
+		expect(kinds(m, [[0, 1]])).toEqual(['paragraph']);
 	});
 
 	it('is a paragraph in an editor that does not run its plugin', async () => {
