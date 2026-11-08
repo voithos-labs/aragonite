@@ -2,8 +2,8 @@ import { test, expect, caretAtEnd, mirror } from './fixtures';
 import { BLOCK_VIEWS_SOURCE, LONG_SOURCE } from '../block-views-source';
 import type { Page } from '@playwright/test';
 
-// A die the app's framework component draws whole (`surface: 'none'`), publishing its members
-// through `useBlockHandle`, on the `?block-views` page. Requirements: requirements/hand-built.md.
+// A die the app's framework component draws whole, its button taking the caret through the die's
+// `focus`, on the `?block-views` page. Requirements: requirements/hand-built.md.
 
 test.use({ anyWarning: true });
 

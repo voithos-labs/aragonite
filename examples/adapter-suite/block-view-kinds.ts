@@ -1,49 +1,40 @@
-// The kinds the `?block-views` page draws with each framework's own components
-// (`requirements/block-views.md`): a `%% ` memo line, a `@@ ` click-to-edit label, a `:::box`
-// container, a `{{name}}` inline chip, a badge on each memo giving its length, a ```` ```note ````
-// block focused whole with an edit box of its own, and a `!! d6` die the component draws whole.
-// Each app passes its views; the grammar here is shared.
+// The block types the `?block-views` page draws with each framework's own components
+// (`requirements/block-views.md`): a `%% ` memo line, a `@@ ` click-to-edit label, a `%> ` box
+// holding blocks, a ```` ```note ```` block focused whole with an edit box of its own, and a
+// `!! d6` die the component draws whole; beside them a `{{name}}` inline chip and a badge on each
+// memo giving its length. Each app passes its draws; the grammar here is shared.
 import {
-	activateDirectives,
+	container,
 	declarePluginInlineKind,
-	declarePluginKind,
-	declaredPluginKind,
-	escalatedFenceLength,
-	fenceRawWrite,
-	fenceReading,
-	fenceShapeOfRaw,
-	getPluginMetadata,
-	matchFenceInfo,
-	OPENER_PRIORITIES,
-	registerBlockCommand,
 	definePlugin,
-	COLON_LINES,
-	registerBlockKind,
-	registerDirective,
+	fencedBlock,
+	lineBlock,
 	registerInlineSyntax,
 	registerInlineWidgetKind,
-	scanFence,
-	setPluginMetadata,
-	type BlockView,
-	type CstNode,
+	type Block,
+	type BlockType,
+	type BoxDrawContext,
+	type ContainerDrawContext,
 	type Decoration,
+	type DrawContext,
 	type DecorationSource,
-	type EditorPlugin,
+	type Drawn,
 	type InlineNode,
 	type InlineWidgetComponentProps,
-	type NodeView,
-	type ParsedDirective,
-	type PluginView
+	type PluginView,
+	type TextDrawContext
 } from '@voithos-labs/aragonite/plugin';
 
 export { BLOCK_VIEWS_SOURCE, LONG_SOURCE } from './block-views-source';
 
+type Draw<C extends DrawContext> = (block: Block<never>, ctx: C) => Drawn<never, C>;
+
 export interface BlockViews {
-	memo: BlockView;
-	label: BlockView;
-	box: BlockView;
-	note: BlockView;
-	dice: BlockView;
+	memo: Draw<TextDrawContext>;
+	label: Draw<TextDrawContext>;
+	box: Draw<ContainerDrawContext>;
+	note: Draw<BoxDrawContext>;
+	dice: Draw<BoxDrawContext>;
 	chip: PluginView<InlineWidgetComponentProps>;
 	/** Shows the `data-memo-length` attribute of the decoration it's given. */
 	memoLength: PluginView<{ decoration: Decoration }>;
@@ -58,30 +49,108 @@ export const BOOM = '{{boom}}';
 export const DICE_BOOM = '!! boom';
 
 /** A die's sides, from its `!! d<sides>` line. */
-export const diceSides = (node: NodeView): number => Number(/d(\d+)/.exec(node.raw)?.[1] ?? 6);
+export const diceSides = (block: Block<never>): number =>
+	Number(/d(\d+)/.exec(block.text)?.[1] ?? 6);
 
-export function blockViewsPlugin(views: BlockViews): EditorPlugin {
-	return definePlugin({
+/** The note's text written back into its fence, at the note's bytes as they are now. */
+export function saveNote(block: Block<never>, ctx: BoxDrawContext, text: string): void {
+	const fence = '```note\n' + text + '\n```\n';
+	void ctx.editor.edit().replace({ from: block.from, to: block.to }, fence).commit();
+}
+
+/** The page's plugins: its block types, then its chip and the badges on its memos. */
+export function blockViewsPlugins(views: BlockViews) {
+	const insert = { none: 'an adapter suite block' };
+	const memo = lineBlock({
+		name: 'memo',
+		label: 'Memo',
+		match: /^%% (?<text>.*)$/,
+		sample: '%% a memo',
+		insert,
+		interrupts: true,
+		edit: 'text',
+		draw: views.memo
+	});
+	const blocks = definePlugin({
 		name: 'block-views',
+		version: '1.0.0',
+		editor: '*',
+		contributes: () => ({
+			blocks: [
+				memo,
+				lineBlock({
+					name: 'label',
+					label: 'Label',
+					match: /^@@ (?<text>.*)$/,
+					sample: '@@ a label',
+					insert,
+					interrupts: true,
+					edit: 'source',
+					draw: views.label
+				}),
+				container({
+					name: 'box',
+					label: 'Box',
+					lines: { shape: 'marked', first: '%> ', rest: '%> ', reads: /^%> ?/, lazy: true },
+					sample: '%> inside the box',
+					insert,
+					draw: views.box
+				}),
+				fencedBlock({
+					name: 'note',
+					label: 'Note',
+					fence: { info: 'note' },
+					sample: '```note\nhello\n```',
+					insert,
+					edit: 'box',
+					draw: (block, ctx) => focusBack(views.note(block, ctx))
+				}),
+				lineBlock<never>({
+					name: 'dice',
+					label: 'Die',
+					match: /^!! .*$/,
+					sample: '!! d6',
+					insert,
+					interrupts: true,
+					edit: 'box',
+					draw: (block, ctx) => buttonFocus(views.dice(block, ctx))
+				})
+			]
+		})
+	});
+	const inline = definePlugin({
+		name: 'block-views-inline',
 		setup(ctx) {
-			registerLine('memo', '%% ', 25, views.memo, 'leaf: every keystroke commits');
-			registerLine(
-				'label',
-				'@@ ',
-				26,
-				views.label,
-				'render-primary: one commit when the caret leaves'
-			);
-			registerBox(views.box);
-			registerNote(views.note);
-			registerDice(views.dice);
 			registerChip(views.chip);
 			ctx.onEditor((editor) => {
-				const handle = editor.decorations.addSource(memoLengths(views.memoLength));
+				const handle = editor.decorations.addSource(memoLengths(memo, views.memoLength));
 				return () => handle.dispose();
 			});
 		}
 	});
+	return [blocks, inline];
+}
+
+// The die's button takes the caret the editor hands the die, so its own keys roll it.
+function buttonFocus(drawn: Drawn<never, BoxDrawContext>): Drawn<never, BoxDrawContext> {
+	const button = () => drawn.dom.querySelector('button');
+	return {
+		...drawn,
+		focus: {
+			enter: () => button()?.focus(),
+			offset: () => (document.activeElement === button() ? 0 : null)
+		}
+	};
+}
+
+// Escape in the note's edit box hands focus to the note's element, which gives it to the editor:
+// the note is focused whole again.
+function focusBack(drawn: Drawn<never, BoxDrawContext>): Drawn<never, BoxDrawContext> {
+	drawn.dom.tabIndex = -1;
+	drawn.dom.addEventListener('keydown', (e) => {
+		if (e.key === 'Escape') drawn.dom.focus();
+	});
+	return drawn;
 }
 
 function registerChip(view: PluginView<InlineWidgetComponentProps>): void {
@@ -100,12 +169,15 @@ function registerChip(view: PluginView<InlineWidgetComponentProps>): void {
 }
 
 // A badge on every top-level memo, carrying the memo's length, so an edit changes its decoration.
-function memoLengths(view: PluginView<{ decoration: Decoration }>): DecorationSource {
+function memoLengths(
+	memo: BlockType<never>,
+	view: PluginView<{ decoration: Decoration }>
+): DecorationSource {
 	return {
 		name: 'memo-length',
 		provide: (doc) =>
 			doc.children.flatMap((node, index): Decoration[] =>
-				node.kind === declaredPluginKind('memo')
+				node.kind === memo.name
 					? [
 							{
 								type: 'block',
@@ -117,180 +189,4 @@ function memoLengths(view: PluginView<{ decoration: Decoration }>): DecorationSo
 					: []
 			)
 	};
-}
-
-function registerLine(
-	name: string,
-	marker: string,
-	priority: number,
-	view: BlockView,
-	undo: string
-): void {
-	const kind = declarePluginKind(name);
-	registerBlockKind(kind, {
-		view,
-		opener: {
-			priority,
-			interruptsParagraph: (text) => text.startsWith(marker),
-			tryOpen: (ctx) =>
-				ctx.line.text.startsWith(marker)
-					? { node: { kind, leadingTrivia: ctx.leadingTrivia, raw: ctx.line.raw }, consumed: 1 }
-					: null
-		},
-		gapEdges: 'none',
-		mergeRole: 'not-mergeable',
-		editable: true,
-		supportsInline: false,
-		conformanceFixture: `${marker}text\n`
-	});
-}
-
-interface BoxMetadata {
-	colonCount: number;
-	lineEnding: string;
-}
-
-function boxFromDirective(parsed: ParsedDirective): CstNode {
-	const node: CstNode = {
-		kind: declaredPluginKind('box'),
-		leadingTrivia: parsed.leadingTrivia,
-		raw: parsed.raw,
-		innerPrefix: parsed.body?.prefix ?? '',
-		children: parsed.body?.children ?? [],
-		innerSuffix: parsed.body?.suffix ?? ''
-	};
-	setPluginMetadata<BoxMetadata>(node, {
-		colonCount: parsed.fence.colonCount,
-		lineEnding: parsed.lineEnding
-	});
-	return node;
-}
-
-function registerBox(view: BlockView): void {
-	activateDirectives();
-	const box = declarePluginKind('box');
-	registerDirective('container', 'box', { kind: box, fromDirective: boxFromDirective });
-	registerBlockKind(box, {
-		view,
-		mergeRole: 'container',
-		editable: true,
-		supportsInline: false,
-		gapEdges: 'both',
-		container: {
-			lines: COLON_LINES
-		},
-		conformanceFixture: ':::box Title\nbody\n:::\n'
-	});
-}
-
-// ── The note block ───────────────────────────────────────────────────────────
-
-/** The note's text and its fence, everything `rebuildNoteRaw` writes back. */
-export interface NoteMetadata {
-	text: string;
-	indent: string;
-	marker: '`' | '~';
-	fenceLength: number;
-	infoRaw: string;
-	lineEnding: string;
-	closerRaw: string;
-}
-
-/** What the note's `note.edit` command (Mod+M) reaches through the view's command hooks. */
-export interface NoteHooks {
-	openEdit(): void;
-}
-
-export const noteText = (node: NodeView): string =>
-	getPluginMetadata<NoteMetadata>(node)?.text ?? '';
-
-function rebuildNoteRaw(node: CstNode): void {
-	const meta = getPluginMetadata<NoteMetadata>(node);
-	if (!meta) return;
-	const length = escalatedFenceLength(meta.text, meta.marker, meta.fenceLength);
-	const fence = meta.marker.repeat(length);
-	// An unterminated note has no closer and gains none; one a longer fence outgrows is rewritten.
-	const closer = !meta.closerRaw
-		? ''
-		: length > meta.fenceLength
-			? fence + meta.lineEnding
-			: meta.closerRaw;
-	node.raw = meta.indent + fence + meta.infoRaw + meta.lineEnding + meta.text + closer;
-}
-
-function registerNote(view: BlockView): void {
-	const note = declarePluginKind('note');
-	const matchNote = matchFenceInfo('note');
-	const edit = registerBlockCommand(note, 'note.edit', (ctx) => {
-		const hooks = ctx.hooks as NoteHooks | undefined;
-		if (!hooks) return false;
-		hooks.openEdit();
-		return true;
-	});
-	registerBlockKind(note, {
-		view,
-		opener: {
-			priority: OPENER_PRIORITIES.fencedCode - 4,
-			interruptsParagraph: (line) => matchNote(line) !== null,
-			readingNotFinal: fenceReading,
-			tryOpen(ctx) {
-				const fence = matchNote(ctx.line.text);
-				if (!fence) return null;
-				const scan = scanFence(ctx, fence);
-				const node: CstNode = {
-					kind: note,
-					leadingTrivia: ctx.leadingTrivia,
-					raw: '',
-					children: []
-				};
-				setPluginMetadata<NoteMetadata>(node, {
-					text: scan.body,
-					indent: fence.indent,
-					marker: fence.marker,
-					fenceLength: fence.length,
-					infoRaw: fence.infoRaw,
-					lineEnding: ctx.line.lineEnding,
-					closerRaw: scan.closer === -1 ? '' : ctx.lines[scan.closer].raw
-				});
-				rebuildNoteRaw(node);
-				return { node, consumed: scan.consumed };
-			}
-		},
-		label: 'Note',
-		mergeRole: 'not-mergeable',
-		editable: true,
-		supportsInline: false,
-		blockFocus: 'whole-block',
-		gapEdges: 'before',
-		container: { contract: 'opaque', rebuildRaw: rebuildNoteRaw },
-		rawWrite: fenceRawWrite(fenceShapeOfRaw),
-		keymap: [{ chord: 'Mod+M', command: edit }],
-		conformanceFixture: '```note\nhello\n```\n'
-	});
-}
-
-// ── The die ──────────────────────────────────────────────────────────────────
-
-function registerDice(view: BlockView): void {
-	const dice = declarePluginKind('dice');
-	registerBlockKind(dice, {
-		view,
-		opener: {
-			priority: 27,
-			interruptsParagraph: (text) => text.startsWith('!! '),
-			tryOpen: (ctx) =>
-				ctx.line.text.startsWith('!! ')
-					? {
-							node: { kind: dice, leadingTrivia: ctx.leadingTrivia, raw: ctx.line.raw },
-							consumed: 1
-						}
-					: null
-		},
-		label: 'Die',
-		gapEdges: 'none',
-		mergeRole: 'not-mergeable',
-		editable: false,
-		supportsInline: false,
-		conformanceFixture: '!! d6\n'
-	});
 }

@@ -48,7 +48,7 @@ test('a leaf keeps every key typed at full speed, in order', async ({ page }) =>
 
 test('a click-to-edit block opens on a click, and its edit is one undo step', async ({ page }) => {
 	await page.locator('.label-text').click();
-	const source = page.locator('.label-source');
+	const source = page.locator('.label-source [contenteditable="true"]');
 	await expect(source).toBeFocused();
 	await page.keyboard.press('End');
 	await page.keyboard.type(' edited');
@@ -91,7 +91,9 @@ test('a container holds editable children: typing and Enter land inside it', asy
 	const children = page.locator('.box .box-children');
 	await expect(children).toContainText('inside the box typed');
 	await expect(children).toContainText('second');
-	await expect.poll(() => mirror(page).textContent()).toMatch(/inside the box typed\n+second\n:::/);
+	await expect
+		.poll(() => mirror(page).textContent())
+		.toContain('%> inside the box typed\n%>\n%> second\n');
 	await page.keyboard.press('ControlOrMeta+z');
 	await expect(children).not.toContainText('second');
 });

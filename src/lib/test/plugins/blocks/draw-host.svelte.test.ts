@@ -277,4 +277,23 @@ describe('a box (edit: box)', () => {
 		await editor.settle();
 		expect(document.activeElement).toBe(surfaceAt(editor, [0]));
 	});
+
+	// Miss-analysis: every box with a field of its own declared `focus`, so none typed into one without.
+	it('leaves a key typed in a field of its own to the field, without `focus`', async () => {
+		const plugin = notes({
+			edit: 'box',
+			draw: () => {
+				const dom = document.createElement('div');
+				dom.append(document.createElement('textarea'));
+				return { dom };
+			}
+		});
+		const editor = mountEditor({ source: SOURCE, plugins: [plugin] });
+		await editor.settle();
+		const field = blockHostAt(editor, NOTE).querySelector('textarea')!;
+		field.focus();
+		await pressKey(field, { key: 'x' });
+		await editor.settle();
+		expect(editor.source()).toBe(SOURCE);
+	});
 });

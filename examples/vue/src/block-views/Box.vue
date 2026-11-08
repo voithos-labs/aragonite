@@ -1,12 +1,13 @@
-<!-- A box whose children the editor mounts into `BlockChildren`. `data-length` changes with every
-     edit inside the box, so `BlockChildren` re-renders while its children are typed in. -->
+<!-- A box whose child blocks the editor mounts in the `children` slot. `data-length` changes with
+     every edit inside the box, so the slot's parent renders again while its children are typed in. -->
 <script setup lang="ts">
-import { BlockChildren, type BlockViewProps } from '@voithos-labs/aragonite-vue';
+import type { BlockProps } from '@voithos-labs/aragonite-vue';
+import type { ContainerDrawContext } from '@voithos-labs/aragonite/plugin';
 
-defineProps<BlockViewProps<'container'>>();
+defineProps<BlockProps<never, ContainerDrawContext>>();
 </script>
 
 <template>
 	<span class="box-badge">box by vue</span>
-	<BlockChildren class="box-children" :data-length="state.node.raw.length" />
+	<div class="box-children" :data-length="block.text.length"><Slot of="children" /></div>
 </template>

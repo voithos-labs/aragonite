@@ -41,9 +41,13 @@ export function vueBlock<D = never, C extends DrawContext = DrawContext>(
 		const dom = document.createElement('div');
 		if (className) dom.className = className;
 		const root = createViewRoot(dom, app);
+		// A context of its own per render: its fields are getters Vue can't watch, so a computed
+		// reading `ctx.typed` would never run again on the same object.
 		const render = (next: Block<D>, nextCtx: C) =>
 			root.render(
-				h(Provide, { ctx: nextCtx }, () => h(component, { block: next, ctx: nextCtx, Slot }))
+				h(Provide, { ctx: nextCtx }, () =>
+					h(component, { block: next, ctx: Object.create(nextCtx) as C, Slot })
+				)
 			);
 		render(block, ctx);
 		return { dom, update: render, destroy: root.unmount };

@@ -15,7 +15,10 @@ import {
 	dispatchWholeBlockGlobalChord,
 	handleWholeBlockKeys
 } from '../../editor-actions/container-block-component';
-import { createWholeBlockInputProxy } from '../../editor-actions/whole-block-focus-surface.svelte';
+import {
+	createWholeBlockInputProxy,
+	isEditableEventTarget
+} from '../../editor-actions/whole-block-focus-surface.svelte';
 import { placeCaret } from '../../selection/place-caret';
 import type { LandsRestoredCaret } from '../../selection/restored-caret';
 import { selectWholeDocument } from '../../selection/keyboard-extend';
@@ -96,9 +99,10 @@ export function createDrawnBox(deps: DrawnBoxDeps) {
 		if (imeOwnsKey(e)) return;
 		const drawn = deps.drawn();
 		if (!drawn || drawn.keep?.(e)) return;
-		// In the drawing's own editing surface a plain key is the surface's (it leaves through
-		// `ctx.leave`), while a chord still reaches the editor unless `keep` took it.
-		const own = !!drawn.focus && e.target !== drawn.dom && drawn.dom.contains(e.target as Node);
+		// In the drawing's own editing surface (`focus`, or a field of its own) a plain key is the
+		// surface's, while a chord still reaches the editor unless `keep` took it.
+		const inside = e.target !== drawn.dom && drawn.dom.contains(e.target as Node);
+		const own = inside && (!!drawn.focus || isEditableEventTarget(e.target));
 		if (own && !(e.ctrlKey || e.metaKey || e.altKey)) return;
 		const kind = deps.getNode().kind;
 		if (dispatchWholeBlockGlobalChord(e, kind, commands)) return;

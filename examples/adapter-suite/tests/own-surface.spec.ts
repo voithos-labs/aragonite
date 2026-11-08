@@ -7,11 +7,12 @@ import type { Page } from '@playwright/test';
 
 test.use({ anyWarning: true });
 
-/** Focus sits on the note's editing host, inside the note. */
+/** Focus sits on the editor's editing host in the note's block. */
 const noteFocusedWhole = (page: Page) =>
 	page.evaluate(() => {
 		const active = document.activeElement;
-		return !!active?.closest('.note') && active.hasAttribute('data-whole-block-input');
+		const note = active?.closest('[data-block-kind="block-views/note"]');
+		return !!note && active!.hasAttribute('data-whole-block-input');
 	});
 
 const activeText = (page: Page) => page.evaluate(() => document.activeElement?.textContent ?? '');
@@ -72,12 +73,6 @@ test('a double click opens the textarea, and leaving it commits one undo step', 
 
 	await page.keyboard.press('ControlOrMeta+z');
 	await expectMirror(page, BLOCK_VIEWS_SOURCE);
-});
-
-test('the kind’s command opens the textarea at the focused note', async ({ page }) => {
-	await focusNoteFromAbove(page);
-	await page.keyboard.press('ControlOrMeta+m');
-	await expect(page.locator('.note-source')).toBeFocused();
 });
 
 test('a character typed at the focused note lands in a new paragraph below', async ({ page }) => {

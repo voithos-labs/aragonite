@@ -1,12 +1,11 @@
 # Feature: a block with its own editing surface, drawn by the app's framework
 
 The `?block-views` page (`block-views.md`) also draws a ` ```note ` block with the app's
-component (`reactBlockView` or `vueBlockView` on the container surface). The kind declares
-`blockFocus: 'whole-block'`, so the note has no editable text of the editor's: it's focused as a
-whole, like the bundled diagram, and the component hands the editor the element that takes focus
-(`ctx.container.attachFocus`). A double click, or Mod+M (the kind's command, which reaches the
-component through `ctx.container.setCommandHooks`), swaps in a textarea of the component's own.
-Leaving the textarea commits its text through `updateOwnMetadata`; Escape drops the edit. The note
+component (`reactBlock` or `vueBlock`). It's a `fencedBlock` with `edit: 'box'`, so the note has
+no editable text of the editor's: it's focused as a whole, like the bundled diagram. A double click
+swaps in a textarea of the component's own, whose keys are its own. Leaving the textarea writes its
+text back into the fence through `edit().replace` at the note's `from` and `to`; Escape drops the
+edit and focuses the note's element, which hands focus back to the editor. The note
 sits between the chip paragraph and `after the blocks`. Every scenario fails on any console error,
 page error or console warning.
 
@@ -17,7 +16,6 @@ page error or console warning.
 - A double click opens the textarea with the caret in it; typing a sentence at full speed keeps
   every key, clicking into the paragraph below commits the note once, and one Ctrl+Z restores the
   old text.
-- Mod+M at the focused note opens the textarea too, with the caret in it.
 
 ## Edge cases
 

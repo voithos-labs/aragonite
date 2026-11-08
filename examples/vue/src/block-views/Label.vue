@@ -2,16 +2,15 @@
      follows it as it's typed. -->
 <script setup lang="ts">
 import { computed } from 'vue';
-import { LeafContent, type BlockViewProps } from '@voithos-labs/aragonite-vue';
+import type { BlockProps } from '@voithos-labs/aragonite-vue';
+import type { TextDrawContext } from '@voithos-labs/aragonite/plugin';
 
-const props = defineProps<BlockViewProps<'render-primary'>>();
-const caption = computed(() => (props.draft ?? props.state.node.raw).slice('@@ '.length).trim());
+const props = defineProps<BlockProps<never, TextDrawContext>>();
+const caption = computed(() => (props.ctx.typed ?? props.block.text).slice('@@ '.length).trim());
 </script>
 
 <template>
-	<template v-if="state.revealed">
-		<LeafContent class="label-source" />
-		<span class="label-preview">{{ caption }}</span>
-	</template>
-	<span v-else class="label-text">{{ caption }}</span>
+	<span v-if="!ctx.focused" class="label-text">{{ caption }}</span>
+	<span class="label-source"><Slot of="source" /></span>
+	<span v-if="ctx.focused" class="label-preview">{{ caption }}</span>
 </template>
