@@ -99,7 +99,8 @@ function across(
 				lineStart > from && textStart >= lineStart ? source.slice(lineStart, textStart) : '';
 			tail = (opening ? kept + source.slice(opening.endLine, textStart) : markers) + tail;
 		}
-		tail = endingOf(source) + tail;
+		// Nothing left after the range needs no line of its own.
+		if (tail !== '') tail = endingOf(source) + tail;
 	}
 	const before =
 		lines?.before ?? (start ? start.source.slice(0, start.end) : source.slice(0, from));

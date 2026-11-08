@@ -834,5 +834,11 @@ export const NAMED_ROWS: NamedRow[] = [
 		source: '⟦---⟧\n',
 		gesture: 'backspace',
 		expect: { source: '\n', caret: text(0) }
+	},
+	{
+		name: 'L4 a range from a block that takes no text to the document end adds no line',
+		source: '    a\n\n⟦    b\n\nafter⟧',
+		gesture: 'backspace',
+		expect: { source: '    a\n\n' }
 	}
 ];
