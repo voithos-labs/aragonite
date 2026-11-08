@@ -310,7 +310,9 @@ const PLUGIN_VIEW_FALLBACK: FileRule = {
 	allowed: {
 		'src/lib/create-editor.ts': 'mounts the editor itself, which no plugin supplies',
 		'src/lib/svelte-view.svelte.ts':
-			'its views mount only through `plugin-view.ts :: mountPluginView`, which contains their throws'
+			'its views mount only through `plugin-view.ts :: mountPluginView`, which contains their throws',
+		'src/lib/components/drawn-block/svelte-block.svelte.ts':
+			"its component mounts only inside a block type's `draw`, which `DrawnBody.svelte` contains and reports"
 	},
 	reason:
 		'a plugin view that throws must fall back, report on the `error` event and name a foreign Svelte runtime in dev: catch it and call `warnIfForeignRuntime` with the reporter, as `plugin-view.ts` does',

@@ -10,6 +10,8 @@ export type { EditorProps } from './components/editor-component-props';
 // ── Plugin views from Svelte components ──────────────────────────────────────
 
 export { svelteBlockView } from './components/svelte-block-view';
+// A block type's `draw` from a Svelte component, placing the editor's elements with `<Slot>`.
+export { svelteBlock, type SvelteBlockProps } from './components/drawn-block/svelte-block.svelte';
 export { svelteView } from './svelte-view.svelte';
 
 // ── Editable-leaf authoring (pre-freeze) ─────────────────────────────────────
