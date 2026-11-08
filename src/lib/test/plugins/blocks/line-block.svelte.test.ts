@@ -7,7 +7,8 @@ import { lineBlock } from '#lib/components/block-makers/line-block.js';
 import { builtin } from '#lib/components/block-makers/builtin.js';
 import { tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { blockKindLabel } from '#lib/a11y-strings.js';
-import type { AnyBlockKind } from '#lib/core/nodes.js';
+import { getPluginMetadata, type AnyBlockKind } from '#lib/core/nodes.js';
+import type { NodeView } from '#lib/core/node-views.js';
 import type { PluginError } from '#lib/schema/plugin-unit.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import {
@@ -183,6 +184,47 @@ describe('a line block', () => {
 		await n.settle();
 		expect(kindAt(n, 0)).toBe('paragraph');
 		expect(n.instance.getSource()).toBe('text\n%%q\n');
+	});
+
+	it('reads a line through a function, its text short of a closing run and its data its own', async () => {
+		// A closing `!` run counts only after a space, as a heading's closing `#` run does.
+		const titled = (line: string) => {
+			const open = /^(!{1,3}) /.exec(line);
+			if (!open) return null;
+			let end = line.length;
+			while (end > open[0].length && line[end - 1] === '!') end--;
+			const closed = end < line.length && line[end - 1] === ' ';
+			const text = [open[0].length, closed ? end - 1 : line.length] as const;
+			return { text, data: open[1].length };
+		};
+		const titles = definePlugin({
+			name: 'titles',
+			version: '1.0.0',
+			editor: '*',
+			contributes: () => ({
+				blocks: [
+					lineBlock<number>({
+						name: 'title',
+						label: 'Title',
+						match: titled,
+						write: (level, text) => `${'!'.repeat(level)} ${text}`,
+						sample: '! hi'
+					})
+				]
+			})
+		});
+		const m = mountEditor({ source: '!! Big news !!!\n\n! a!b\n', plugins: [titles] });
+		await m.settle();
+		expect([kindAt(m, 0), kindAt(m, 1)]).toEqual(['titles/title', 'titles/title']);
+		const doc = (m.instance.__test as { getDocument(): { children: NodeView[] } }).getDocument();
+		const range = tryGetBlockKindDescriptor('titles/title' as AnyBlockKind)!.getContentRange!;
+		expect([range(doc.children[0]), range(doc.children[1])]).toEqual([
+			{ start: 3, end: 11 },
+			{ start: 2, end: 5 }
+		]);
+		expect([getPluginMetadata(doc.children[0]), getPluginMetadata(doc.children[1])]).toEqual([
+			2, 1
+		]);
 	});
 });
 

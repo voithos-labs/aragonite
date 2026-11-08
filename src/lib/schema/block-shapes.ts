@@ -95,14 +95,22 @@ export type LeafDraw<D> =
 
 /** A block that's exactly one line, matched whole by `match`; a `text` named group is the text the
  *  author writes, the rest its marker. Data read from the line comes with the writer that puts it back. */
-export type LineBlockSpec<D> = LeafCommon<D> & { match: RegExp } & (
-		| { data?: never; write?: never }
+export type LineBlockSpec<D> = LeafCommon<D> &
+	(
+		| ({ match: RegExp } & LineData<D>)
 		| {
-				data(match: RegExpExecArray): D;
-				/** The line for this data around `text`, the `text` group's content. */
-				write(data: D, text: string): string;
+				/** For a line a regex can't read: the text's range in the line (null for a line with no
+				 *  text of its own) and its data, or null for a line that isn't this block type. */
+				match(line: string): { text: readonly [number, number] | null; data?: D } | null;
+				data?: never;
+				write?(data: D, text: string): string;
 		  }
 	);
+
+/** Data read from the line, with the writer that puts it back around the text. */
+type LineData<D> =
+	| { data?: never; write?: never }
+	| { data(match: RegExpExecArray): D; write(data: D, text: string): string };
 
 /** A block opened by one line and closed by a later one: a code fence with one of these info
  *  strings, or its own opening line and closing line. */
@@ -222,19 +230,13 @@ export function editOf(spec: LeafDraw<unknown>): 'text' | 'source' | 'box' {
 
 /** The opener and text range of a line block. */
 export function lineShape(spec: LineBlockSpec<unknown>, priority: number) {
-	// `d` for the `text` group's indices; `g` and `y` would carry a position between calls.
-	const flags = spec.match.flags.replace(/[gyd]/g, '') + 'd';
-	const pattern = new RegExp(spec.match.source, flags);
-	const wholeLine = (text: string): RegExpExecArray | null => {
-		const match = pattern.exec(text);
-		return match && match.index === 0 && match[0].length === text.length ? match : null;
-	};
-	const hasText = /\(\?<text>/.test(spec.match.source);
+	const wholeLine = lineReader(spec);
+	const hasText = typeof spec.match === 'function' || /\(\?<text>/.test(spec.match.source);
 	return {
 		range: hasText
 			? (node: NodeView) => {
 					const text = trimTrailingLineEnding(node.raw);
-					const at = wholeLine(text)?.indices?.groups?.text;
+					const at = wholeLine(text)?.text;
 					return at ? { start: at[0], end: at[1] } : { start: text.length, end: text.length };
 				}
 			: null,
@@ -248,11 +250,35 @@ export function lineShape(spec: LineBlockSpec<unknown>, priority: number) {
 					const match = wholeLine(ctx.line.text);
 					if (!match) return null;
 					const node: CstNode = { kind, leadingTrivia: ctx.leadingTrivia, raw: ctx.line.raw };
-					if (spec.data) setPluginMetadata(node, spec.data(match));
+					const data = match.data();
+					if (data !== undefined) setPluginMetadata(node, data);
 					return { node, consumed: 1 };
 				}
 			};
 		}
+	};
+}
+
+/** A line block's matcher, a regex or a function, read as the text's range and the line's data. */
+function lineReader(spec: LineBlockSpec<unknown>) {
+	const { match, data } = spec as {
+		match:
+			| RegExp
+			| ((line: string) => { text: readonly [number, number] | null; data?: unknown } | null);
+		data?(read: RegExpExecArray): unknown;
+	};
+	if (typeof match === 'function') {
+		return (line: string) => {
+			const found = match(line);
+			return found && { text: found.text, data: () => found.data };
+		};
+	}
+	// `d` for the `text` group's indices; `g` and `y` would carry a position between calls.
+	const pattern = new RegExp(match.source, match.flags.replace(/[gyd]/g, '') + 'd');
+	return (line: string) => {
+		const found = pattern.exec(line);
+		if (!found || found.index !== 0 || found[0].length !== line.length) return null;
+		return { text: found.indices?.groups?.text ?? null, data: () => data?.(found) };
 	};
 }
 
