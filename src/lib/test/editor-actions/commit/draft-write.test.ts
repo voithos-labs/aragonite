@@ -16,6 +16,7 @@ import {
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
+import { SYNTAX_PLUGINS } from '../../behavior/corpus';
 
 type Surface = { getDocument(): Document; getUndoStack(): { undo: unknown[] } };
 
@@ -158,6 +159,37 @@ describe('a draft', () => {
 		await editor.settle();
 
 		expect(editor.instance.getSelection()).toEqual(before);
+	});
+});
+
+// Miss-analysis: every draft row wrote prose, so none met the closer every other write gives an opener.
+describe('a draft writing an opener above a block of its family', () => {
+	// A caret named in the draft's own bytes moves past the closer the editor added above it.
+	it.each([
+		['at the top level', 'xy\n\n$$\nx\n$$\n\nend\n', '$$\n$$\n\n$$\nx\n$$\n\nEND\n', [2]],
+		[
+			'inside a quote',
+			'> xy\n>\n> $$\n> x\n> $$\n\nend\n',
+			'> $$\n> $$\n>\n> $$\n> x\n> $$\n\nEND\n',
+			[1]
+		]
+	])('closes it %s, as one undo step', async (_, source, after, endPath) => {
+		const editor = mountEditor<Surface>({ source, plugins: SYNTAX_PLUGINS });
+		await editor.settle();
+		const at = source.indexOf('xy');
+		const end = source.indexOf('end');
+
+		const draft = editor.instance
+			.edit()
+			.replace({ from: at, to: at + 2 }, '$$')
+			.replace({ from: end, to: end + 3 }, 'END');
+		expect(await draft.commit({ caret: end + 3 })).toEqual({ ok: true });
+		await editor.settle();
+
+		expect(editor.source()).toBe(after);
+		const caret = { path: endPath, offset: 3 };
+		expect(editor.instance.getSelection()).toEqual({ anchor: caret, focus: caret });
+		expect(await undo(editor)).toBe(source);
 	});
 });
 

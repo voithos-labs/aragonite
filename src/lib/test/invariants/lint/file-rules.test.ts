@@ -386,6 +386,30 @@ const ONE_WRITE: FileRule = {
 	]
 };
 
+// ── G4.329 bytes read into the tree get their closers ─────────────────────────
+
+const SPLICE_READS: FileRule = {
+	id: 'G4.329 bytes are read into the tree by the byte splice, which closes the openers they write',
+	population: under(SOURCE_DIR.library, SOURCE_DIR.plugins),
+	matches: /(?<!function )\bspliceReading\(/,
+	allowed: {
+		[SOURCE.byteSplice]: 'the byte splice, which gives an opener its changes write a closer first',
+		[SOURCE.historyActions]:
+			"an undo puts back its entry's exact bytes, which were legal when written"
+	},
+	reason:
+		'a route that reads bytes into the tree itself skips the closer every write gives an opener it puts above a block that would close it; hand the bytes to `commitSource` instead',
+	reaches: [SOURCE.byteSplice, SOURCE.historyActions],
+	hits: [
+		at('src/lib/x.ts', 'const reading = spliceReading(deps.doc, before, changes, grammar);'),
+		at('src/lib/x.ts', 'installReading(deps, spliceReading(doc, text, [change], grammar)!);')
+	],
+	misses: [
+		at('src/lib/x.ts', 'export function spliceReading(\n\tdoc: DocumentView,'),
+		at('src/lib/x.ts', 'import { spliceReading } from "./byte-splice";')
+	]
+};
+
 // ── G4.221 the selection's shown text ────────────────────────────────────────
 
 const SELECTION_STRING_RE = /(?:\bgetSelection\(\)|\bsel(?:ection)?)\s*[!?]?\.toString\s*\(/;
@@ -3269,7 +3293,8 @@ describeFileRules(
 		...SYNTAX_MODULES,
 		PLUGIN_VIEW_FALLBACK,
 		ONE_VIEW_WRAPPER,
-		ONE_WRITE
+		ONE_WRITE,
+		SPLICE_READS
 	],
 	SOURCES
 );

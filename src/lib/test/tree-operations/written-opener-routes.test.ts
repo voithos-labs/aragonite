@@ -2,20 +2,25 @@
 // block below would close it otherwise, so the blocks below stay as they were.
 // Miss-analysis (#800, #801): the closer lived in the content write and every row wrote through it,
 // so no row drove a route that splices blocks (a drop, a split, a merge, a range delete, a move).
+// Miss-analysis: no row wrote through the byte splice, the commit a draft and the range edits use.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '#lib';
 import type { Document } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { latexPlugin } from '#packages/latex/src/index.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
 import { createReorderAction } from '#lib/editor-actions/reorder-action.js';
-import { makeTopHarness } from '#lib/test/harness/editor-actions.js';
+import { makeTopHarness, type TopHarness } from '#lib/test/harness/editor-actions.js';
+import { draftRegistryOver } from '#lib/test/harness/drafts.js';
 import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
 import { deleteRange } from '#lib/test/harness/range-delete.js';
 import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
 import { checkSplicedOpenersClosed } from '#lib/tree-operations/written-openers.js';
+import { checkSplicedChangesClosed } from '#lib/tree-operations/spliced-openers.js';
+import { spliceReading } from '#lib/tree-operations/byte-splice.js';
 
 beforeEach(() => {
 	installPlugins([latexPlugin(), admonitionsPlugin(), detailsPlugin()]);
@@ -24,7 +29,8 @@ beforeEach(() => {
 /** Each opener, the block below it, the closer it gets, and a cut whose two halves open nothing. */
 const OPENERS: Array<[opener: string, below: string, closer: string, cut: number]> = [
 	['$$', '$$\nx\n$$\n', '$$', 1],
-	[':::note', ':::tip\nbody\n:::\n', ':::', 3]
+	[':::note', ':::tip\nbody\n:::\n', ':::', 3],
+	['```', '```\nx\n```\n', '```', 1]
 ];
 
 /** A route, given a document whose first blocks it rewrites so `opener` lands above `below`. */
@@ -88,12 +94,49 @@ const ROUTES: Array<[name: string, route: Route]> = [
 			await createReorderAction(h.deps, h.controller).moveReorderUnit([1], 0);
 			return settled(h.deps.doc);
 		}
+	],
+	[
+		'written by a draft',
+		async (opener, below) => {
+			const h = makeTopHarness(`x\n\n${below}`);
+			const draft = draftRegistryOver(h).edit().replace({ from: 0, to: 1 }, opener);
+			expect(await draft.commit()).toEqual({ ok: true });
+			return settled(h.deps.doc);
+		}
+	],
+	[
+		'spliced in as bytes',
+		async (opener, below) => {
+			const h = makeTopHarness(`x\n\n${below}`);
+			await spliced(h, 0, 1, opener);
+			return settled(h.deps.doc);
+		}
+	],
+	[
+		'joined by a byte removal',
+		async (opener, below, cut) => {
+			const between = '!\n\nmid\n\nz';
+			const h = makeTopHarness(`${opener.slice(0, cut)}${between}${opener.slice(cut)}\n\n${below}`);
+			await spliced(h, cut, cut + between.length, '');
+			return settled(h.deps.doc);
+		}
 	]
 ];
 
 function settled(doc: Document): string {
 	expectParseConverged(doc);
 	return serialize(doc);
+}
+
+/** `insert` over bytes `[from, to)` of the harness's document through the byte splice. */
+async function spliced(h: TopHarness, from: number, to: number, insert: string): Promise<void> {
+	const wrote = await h.controller.commitSource({
+		changes: [{ from, to, insert }],
+		caret: { at: from + insert.length, holds: 'text' },
+		op: { kind: 'replaceBlock', detail: { source: 'draft' } },
+		snapshot: { path: docPathFrom([0]), offset: 0 }
+	});
+	expect(wrote).toBe(true);
 }
 
 describe.each(ROUTES)('an opener %s', (_name, route) => {
@@ -106,7 +149,9 @@ describe.each(ROUTES)('an opener %s', (_name, route) => {
 
 // A fragment's opener need not be its last block: each waiting block is closed at its own end.
 describe('a written fragment whose middle block waits', () => {
-	it.each(OPENERS)('`%s` is closed where its block ends', async (opener, below, closer) => {
+	// An open code fence takes in the rest of its fragment, so it is never a middle block.
+	const middle = OPENERS.filter(([opener]) => opener !== '```');
+	it.each(middle)('`%s` is closed where its block ends', async (opener, below, closer) => {
 		const h = makeTopHarness(`x\n\n${below}`);
 		await h.actions.replaceBlock(0, parse(`${opener}\n\nfoo\n`).children, undefined, {
 			snapshotOffset: 0
@@ -118,6 +163,74 @@ describe('a written fragment whose middle block waits', () => {
 		const h = makeTopHarness('x\n\n$$\nx\n$$\n');
 		await h.actions.updateBlockContent(0, '$$\n\nfoo\n', 'authored', 'join-typing', 1);
 		expect(settled(h.deps.doc)).toBe('$$\n$$\n\nfoo\n\n$$\nx\n$$\n');
+	});
+});
+
+/** The routes that hand the byte splice document bytes, writing `insert` over `[from, to)`. */
+const SPLICE_ROUTES: Array<
+	[name: string, write: (h: TopHarness, from: number, to: number, insert: string) => Promise<void>]
+> = [
+	[
+		'written by a draft',
+		async (h, from, to, insert) => {
+			const draft = draftRegistryOver(h).edit().replace({ from, to }, insert);
+			expect(await draft.commit()).toEqual({ ok: true });
+		}
+	],
+	['spliced in as bytes', spliced]
+];
+
+/** A container, its first line's marker and the marker each line after it takes. */
+const CONTAINERS: Array<[name: string, first: string, rest: string, blank: string]> = [
+	['a quote', '> ', '> ', '>'],
+	['a list item', '- ', '  ', '']
+];
+
+/** `text`'s lines inside the container. */
+function inside(text: string, [, first, rest, blank]: (typeof CONTAINERS)[number]): string {
+	return text
+		.split('\n')
+		.slice(0, -1)
+		.map((line, i) => (i === 0 ? first : line === '' ? blank : rest) + line + '\n')
+		.join('');
+}
+
+describe.each(SPLICE_ROUTES)('an opener %s inside a container', (_name, write) => {
+	describe.each(CONTAINERS)('%s', (...container) => {
+		it.each(OPENERS)('`%s` takes in nothing below', async (opener, below, closer) => {
+			const h = makeTopHarness(inside(`x\n\n${below}`, container));
+			await write(h, container[1].length, container[1].length + 1, opener);
+			expect(settled(h.deps.doc)).toBe(inside(`${opener}\n${closer}\n\n${below}`, container));
+		});
+	});
+});
+
+// The range edits write bytes their in-block write already closed, so the splice adds nothing to them.
+describe('bytes that carry their closer already', () => {
+	it.each(OPENERS)(
+		'`%s` gets no second closer from the byte splice',
+		async (opener, below, closer) => {
+			const h = makeTopHarness(`x\n\n${below}`);
+			await spliced(h, 0, 1, `${opener}\n${closer}`);
+			expect(settled(h.deps.doc)).toBe(`${opener}\n${closer}\n\n${below}`);
+		}
+	);
+});
+
+// A removal counts only the line it joins as written, so an opener whose closer it took reads on.
+describe('a removal that takes a closing line', () => {
+	const source = ':::note\nx\n:::\n\npara\n\n:::tip\ny\n:::\n';
+	const removed = { from: source.indexOf('\n:::'), to: source.indexOf('\n:::') + 4 };
+	const left = ':::note\nx\n\npara\n\n:::tip\ny\n:::\n';
+
+	it('adds no closer through the byte splice, as the range delete adds none', async () => {
+		const h = makeTopHarness(source);
+		await spliced(h, removed.from, removed.to, '');
+		expect(settled(h.deps.doc)).toBe(left);
+
+		const deleted = parse(source);
+		deleteRange(deleted, { path: [0], offset: removed.from }, { path: [0], offset: removed.to });
+		expect(settled(deleted)).toBe(left);
 	});
 });
 
@@ -133,6 +246,24 @@ describe('a spliced opener a block below would close', () => {
 		const closed = parse(`${opener}\n${closer}\n\n${below}`);
 		expect(checkSplicedOpenersClosed(closed, 0, 1, 'x\n', fixtureGrammar)).toBeNull();
 	});
+
+	// The byte splice asks it of its changes before it reads them, at the depth each one sits.
+	it.each(CONTAINERS.flatMap((c) => OPENERS.map((o) => [c[0], ...o] as const)))(
+		'in %s, `%s` written by a byte splice fails the check, and passes once closed',
+		(where, opener, below, closer) => {
+			const container = CONTAINERS.find(([name]) => name === where)!;
+			const doc = parse(inside(`x\n\n${below}`, container));
+			const before = serialize(doc);
+			const at = container[1].length;
+			const check = (insert: string) => {
+				const changes = [{ from: at, to: at + 1, insert }];
+				const reading = spliceReading(doc, before, changes, fixtureGrammar)!;
+				return checkSplicedChangesClosed(doc, before, changes, reading, fixtureGrammar);
+			};
+			expect(check(opener)?.code).toBe('spliced-opener-closed');
+			expect(check(`${opener}\n${container[2]}${closer}`)).toBeNull();
+		}
+	);
 
 	it('an opener the splice only exposed is not asked', () => {
 		const doc = parse('x\n```\n\n# Heading\n');

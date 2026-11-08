@@ -99,13 +99,6 @@ describe('a byte splice', () => {
 		expect(editor.instance.__test.getGapCaret()).toEqual({ parentPath: [], index: 1 });
 	});
 
-	it('reads in every block an unclosed fence at the top takes in', async () => {
-		const editor = await mounted('a\n\nb\n\n- c\n');
-		await editor.instance.__test.spliceSource('```\na\n\nb\n\n- c\n', text(4), OP);
-		const kinds = editor.instance.__test.getDocument().children.map((n) => n.kind);
-		expect(kinds).toEqual(['fencedCode']);
-	});
-
 	// Miss-analysis: every commit test's opener and closer sat in one window.
 	it('reads a closer typed far below the opener it finishes', async () => {
 		const editor = await mounted(':::note\na\n\nb\n\nc\n');

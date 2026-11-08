@@ -49,6 +49,19 @@ export function changesBetween(before: string, after: string): ByteChange[] {
 	return [{ from, to: before.length - tail, insert: after.slice(from, after.length - tail) }];
 }
 
+/** Where each block of a list's bytes ends, its blank lines and its own bytes counted, from
+ *  the end of the blank lines above them all. */
+export function segmentEnds(list: {
+	readonly prefix: string;
+	readonly children: readonly NodeView[];
+}): number[] {
+	const ends: number[] = [];
+	let at = list.prefix.length;
+	for (const child of list.children)
+		ends.push((at += child.leadingTrivia.length + child.raw.length));
+	return ends;
+}
+
 /** `doc`, whose bytes are `before`, read again with `changes` made (sorted, none overlapping),
  *  each change in its own window unless they grow into each other; null when none changes a byte. */
 export function spliceReading(
@@ -208,15 +221,6 @@ interface Span {
 
 const readOpened = (text: string, grammar: GrammarView) =>
 	readAsOpened(text, { grammar, scope: 'document' });
-
-/** Where each top-level block's bytes end, its blank lines and its own bytes counted. */
-function segmentEnds(doc: DocumentView): number[] {
-	const ends: number[] = [];
-	let at = doc.prefix.length;
-	for (const child of doc.children)
-		ends.push((at += child.leadingTrivia.length + child.raw.length));
-	return ends;
-}
 
 const emptyBlock = (): CstNode => ({ kind: 'paragraph', leadingTrivia: '', raw: '' });
 

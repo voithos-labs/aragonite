@@ -1,8 +1,8 @@
 /**
  * The byte splice: the commit for an edit that decided its bytes before touching the tree. It makes
- * the byte changes, reads the top-level blocks they reach again, and lands the caret at a byte of
- * the new bytes. The bytes are final, so neither the list fix-up nor the open-tail step runs; the
- * commit frame does the rest (`docs/design/commit-and-undo.md` § The byte splice).
+ * the byte changes, plus a closing line under any opener they write that a block below would close,
+ * reads the top-level blocks they reach again, and lands the caret at a byte of the new bytes. No
+ * list fix-up or open-tail step runs (`docs/design/commit-and-undo.md` § The byte splice).
  */
 
 import type { CstNode } from '../../core/nodes';
@@ -35,6 +35,13 @@ import {
 } from '../../selection/gap-caret';
 import { replaceRefs } from '../../block-lists/child-refs';
 import { assertIdsInLockstep, assertSpliceReadsBack } from '../../invariants/install';
+import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
+import {
+	checkSplicedChangesClosed,
+	splicedOpenerClosers,
+	withSplicedClosers
+} from '../../tree-operations/spliced-openers';
+import { offsetPastClosers } from '../../tree-operations/written-openers';
 import type { EditorActionsDeps } from '../deps';
 import type { CommitArgs } from './structural-commit';
 
@@ -43,14 +50,20 @@ export function createByteSplice(
 	__commit: (args: CommitArgs) => Promise<boolean>
 ): (splice: SourceSplice) => Promise<boolean> {
 	return (splice) => {
-		const reading = spliceReading(
-			deps.doc,
-			serialize(deps.doc),
-			splice.changes,
-			deps.reading.grammar
-		);
+		const { grammar } = deps.reading;
+		const was = { ...deps.doc };
+		const before = serialize(was);
+		const read = spliceReading(was, before, splice.changes, grammar);
+		const closers = read ? splicedOpenerClosers(was, before, splice.changes, read, grammar) : [];
+		const changes =
+			closers.length > 0 ? withSplicedClosers(before, splice.changes, closers) : splice.changes;
+		const reading = closers.length > 0 ? spliceReading(was, before, changes, grammar) : read;
 		const windows = reading?.windows ?? [];
-		const kept = splice.caret === 'keep' ? caretKept(deps, splice.changes, windows) : null;
+		const kept = splice.caret === 'keep' ? caretKept(deps, changes, windows) : null;
+		const caret =
+			splice.caret === 'keep'
+				? kept
+				: { ...splice.caret, at: offsetPastClosers(splice.caret.at, closers) };
 		let saved: { children: CstNode[]; ids: string[]; refs: (BlockComponent | undefined)[] } | null =
 			null;
 		return __commit({
@@ -78,17 +91,20 @@ export function createByteSplice(
 				);
 				return { nodes: tops, tops };
 			},
-			check: () => assertSpliceReadsBack(deps.doc.children, placed(windows), deps.reading.grammar),
+			check: () => {
+				assertSpliceReadsBack(deps.doc.children, placed(windows), grammar);
+				if (reading)
+					assertInvariant('spliced-opener-closed', () =>
+						checkSplicedChangesClosed(was, before, changes, reading, grammar)
+					);
+			},
 			rollback: () => {
 				if (!saved) return;
 				deps.doc.children = saved.children;
 				deps.setBlockIds(saved.ids);
 				replaceRefs(deps.blockRefs, saved.refs);
 			},
-			landing: () => {
-				const caret = splice.caret === 'keep' ? kept : splice.caret;
-				return caret && landingAt(deps.doc, caret);
-			},
+			landing: () => caret && landingAt(deps.doc, caret),
 			reveal: splice.reveal
 		});
 	};
