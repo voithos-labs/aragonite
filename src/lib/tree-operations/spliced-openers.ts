@@ -11,15 +11,9 @@ import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { rebuildAncestryRaw } from '../schema/container-raw';
 import { unchangedEnds } from '../block-id';
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
-import {
-	changedBytes,
-	changesBetween,
-	segmentEnds,
-	type ByteChange,
-	type SpliceReading
-} from './byte-splice';
+import { applied, segmentEnds, type SpliceReading } from './byte-splice';
+import { changedBytes, changesBetween, narrowed, type ByteChange } from './byte-changes';
 import { fragmentReaderAt } from './list/task-paragraph';
-import { spliceMany } from './splice-many';
 import { withClosers, writtenOpenerClosers, type WrittenCloser } from './written-openers';
 
 /** The closing lines `changes` to `before`, the bytes of `doc`, need, each at a byte of the changed
@@ -46,7 +40,7 @@ export function splicedOpenerClosers(
 		const now =
 			first === hi && isContainer(node)
 				? counterpart(
-						(after ??= afterReading(doc, reading)),
+						(after ??= applied(doc, reading).children),
 						doc.prefix.length,
 						node.kind,
 						start,
@@ -218,15 +212,6 @@ function closersIn(
 	return writtenOpenerClosers(children, hi, was, text, read, unfinishedReadings(grammar));
 }
 
-/** `change` cut down to the bytes it changes, so a range wider than them names the blocks they
- *  sit in. */
-const narrowed = (before: string, { from, to, insert }: ByteChange): ByteChange[] =>
-	changesBetween(before.slice(from, to), insert).map((c) => ({
-		from: from + c.from,
-		to: from + c.to,
-		insert: c.insert
-	}));
-
 /** Blocks' bytes as they read on their own, blank lines and all. */
 const bytesOf = (blocks: readonly NodeView[]): string =>
 	blocks.map((block) => block.leadingTrivia + block.raw).join('');
@@ -248,14 +233,6 @@ function counterpart(
 		at = next;
 	}
 	return null;
-}
-
-/** The document's top-level blocks once `reading` is in. */
-function afterReading(doc: DocumentView, reading: SpliceReading): readonly NodeView[] {
-	const children: NodeView[] = [...doc.children];
-	for (const window of [...reading.windows].reverse())
-		spliceMany(children, window.at, window.count, window.blocks);
-	return children;
 }
 
 /** `root` copied down `path`, each container on the way with a children array of its own. */

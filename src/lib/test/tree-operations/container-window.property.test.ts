@@ -1,0 +1,326 @@
+// A splice inside a list, quote or table reads only the children it reaches, and comes out as the
+// top-level window would: the same bytes, the same tree, the same nodes and ids kept, and what a
+// reload reads. The shapes at the run's edges are drawn by name, so each fallback has a row.
+import { describe, it, expect, afterEach } from 'vitest';
+import fc from 'fast-check';
+import type { Document } from '#lib/core/nodes.js';
+import type { NodeView } from '#lib/core/node-views.js';
+import { serialize } from '#lib/core/serializer.js';
+import { describeShapeDivergence } from '#lib/core/shape-divergence.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { installPlugins } from '#lib/schema/plugin-install.js';
+import { initDocument } from '#lib/components/editor-root/document-swap.js';
+import { assignChildIdsDeep } from '#lib/block-id.js';
+import {
+	spliceReading,
+	topLevelReading,
+	type SpliceReading
+} from '#lib/tree-operations/byte-splice.js';
+import { changesBetween, type ByteChange } from '#lib/tree-operations/byte-changes.js';
+import {
+	disablePerfInstruments,
+	enablePerfInstruments,
+	perfSnapshot,
+	resetPerfInstruments
+} from '#lib/perf/instruments.js';
+import { reloadDivergence } from '#lib/test/exhaustive/edit-driver.js';
+import { SYNTAX_PLUGINS } from '../behavior/corpus';
+import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
+
+afterEach(() => disablePerfInstruments());
+
+/** `source` opened as the editor opens it, every container carrying its children's ids. */
+function open(source: string): Document {
+	installPlugins(SYNTAX_PLUGINS);
+	const doc = initDocument(source, defaultGrammarView).doc;
+	for (const block of doc.children) assignChildIdsDeep(block);
+	return doc;
+}
+
+function install(doc: Document, reading: SpliceReading | null): void {
+	for (const window of [...(reading?.windows ?? [])].reverse()) {
+		doc.children.splice(window.at, window.count, ...window.blocks);
+	}
+	if (reading) doc.suffix = reading.suffix;
+}
+
+/** Each child as the index of the node `was` held there, or `new`, and whether its id is `was`'s. */
+function kept(was: readonly NodeView[], wasIds: readonly string[] | undefined, node: NodeView) {
+	return (node.children ?? []).map((child, i) => [
+		was.includes(child) ? was.indexOf(child) : 'new',
+		node.childIds && wasIds?.includes(node.childIds[i]) ? 'kept id' : 'new id'
+	]);
+}
+
+/** Why the splice inside a container came out other than the top-level one or a reload; null
+ *  when it didn't. Also the bytes the window's read parsed. */
+function divergence(source: string, changes: (before: string) => ByteChange[]) {
+	const inside = open(source);
+	const outside = open(source);
+	const before = serialize(inside);
+	const made = changes(before);
+	const olds = inside.children.map((block) => ({
+		kids: block.children ?? [],
+		ids: block.childIds
+	}));
+	enablePerfInstruments();
+	resetPerfInstruments();
+	const reading = spliceReading(inside, before, made, defaultGrammarView);
+	const parsed = perfSnapshot().parseBytes;
+	disablePerfInstruments();
+	const oldsOut = outside.children.map((b) => ({ kids: b.children ?? [], ids: b.childIds }));
+	install(inside, reading);
+	install(outside, topLevelReading(outside, before, made, defaultGrammarView));
+	const bytes = serialize(inside);
+	const failure = (() => {
+		if (bytes !== serialize(outside)) return `bytes ${JSON.stringify(bytes)}`;
+		const shape = describeShapeDivergence(inside, outside);
+		if (shape) return `the tree: ${shape}`;
+		for (const window of reading?.windows ?? []) {
+			for (let i = 0; i < window.blocks.length; i++) {
+				const at = window.at + i;
+				const was = olds[at];
+				const wasOut = oldsOut[at];
+				if (!was || !wasOut) continue;
+				const a = JSON.stringify(kept(was.kids, was.ids, inside.children[at]));
+				const b = JSON.stringify(kept(wasOut.kids, wasOut.ids, outside.children[at]));
+				if (a !== b) return `kept nodes ${a}, not ${b}`;
+				const spans = inside.children[at].childSpans;
+				const reload = open(bytes).children[at]?.childSpans;
+				if (spans && reload && String(Array.from(spans)) !== String(Array.from(reload))) {
+					return `child spans ${Array.from(spans)}, not ${Array.from(reload)}`;
+				}
+			}
+		}
+		return bytes === '' ? null : reloadDivergence(inside, bytes);
+	})();
+	return { failure, parsed, size: before.length };
+}
+
+const to = (after: string) => (before: string) => changesBetween(before, after);
+
+// ── Generated documents ──────────────────────────────────────────────────────
+
+const LIST_ITEM = ['- a', '- two words', '  continued', '- [ ] task', '- $$', '  $$', '- ```', '-'];
+const ORDERED_ITEM = ['1. a', '2. b', '10. c', '   lazy?', '3. ``` x'];
+const QUOTE_LINE = [
+	'> a',
+	'>',
+	'> two words',
+	'lazy',
+	'> > nested',
+	'> - item',
+	'> $$',
+	'> :::note',
+	'> :::'
+];
+const TABLE_ROW = ['| a | b |', '| one |', '| x | y | z |', '| $$ | x |', 'a | b'];
+
+/** One container of `count` lines drawn from its kind's lines, with blocks above and below. */
+const arbContainerDoc = fc
+	.record({
+		kind: fc.constantFrom('list', 'ordered', 'quote', 'table'),
+		lines: fc.array(fc.nat({ max: 99 }), { minLength: 6, maxLength: 40 }),
+		above: fc.constantFrom('', 'para\n\n', ':::note\n\n', '$$\n\n', '```\n\n'),
+		below: fc.constantFrom('', '\npara\n', '\n:::\n', '\n$$\n', 'next\n', '\n- other\n'),
+		ending: fc.constantFrom('\n', '\r\n')
+	})
+	.map(({ kind, lines, above, below, ending }) => {
+		const pool = { list: LIST_ITEM, ordered: ORDERED_ITEM, quote: QUOTE_LINE, table: TABLE_ROW }[
+			kind
+		];
+		const first = {
+			list: '- first',
+			ordered: '1. first',
+			quote: '> first',
+			table: '| h | i |\n| - | - |'
+		}[kind];
+		const body = [first, ...lines.map((n) => pool[n % pool.length])].join('\n') + '\n';
+		return (above + body + below).replace(/\n/g, ending);
+	});
+
+/** What an edit writes: plain text, line breaks, and every opener and closer that reaches past
+ *  its own line. */
+const INSERTS = [
+	'x',
+	'two words',
+	'\n',
+	'\n\n',
+	'  ',
+	'- ',
+	'> ',
+	'$$',
+	'```',
+	':::note',
+	':::',
+	'| ',
+	'\n> b',
+	'\n  c',
+	''
+];
+
+/** One or two changes, drawn mostly inside the container's lines. */
+const arbEdit = fc.record({
+	source: arbContainerDoc,
+	spots: fc.array(
+		fc.record({
+			at: fc.double({ min: 0.05, max: 0.95, noNaN: true }),
+			span: fc.oneof(fc.constant(0), fc.double({ min: 0, max: 0.15, noNaN: true })),
+			insert: fc.constantFrom(...INSERTS)
+		}),
+		{ minLength: 1, maxLength: 2 }
+	)
+});
+
+function changesAt(before: string, spots: { at: number; span: number; insert: string }[]) {
+	const whole = (n: number) => (before[n - 1] === '\r' && before[n] === '\n' ? n - 1 : n);
+	const changes: ByteChange[] = [];
+	let floor = 0;
+	for (const spot of [...spots].sort((a, b) => a.at - b.at)) {
+		const from = whole(Math.max(floor, Math.floor(spot.at * before.length)));
+		const end = whole(Math.min(before.length, from + Math.floor(spot.span * before.length)));
+		if (from < floor || end < from) continue;
+		changes.push({ from, to: end, insert: spot.insert });
+		floor = end;
+	}
+	return changes;
+}
+
+describe('a splice inside a container comes out as the top-level window does', () => {
+	it('over generated containers and edits', () => {
+		fc.assert(
+			fc.property(arbEdit, ({ source, spots }) => {
+				expect(divergence(source, (before) => changesAt(before, spots)).failure).toBeNull();
+			}),
+			{ numRuns: 400, seed: freshOrFixedSeed(20261108) }
+		);
+	});
+});
+
+// ── Named rows ───────────────────────────────────────────────────────────────
+
+const ITEMS = (n: number) => Array.from({ length: n }, (_, i) => `- item ${i}\n`).join('');
+const QUOTED = (n: number) => Array.from({ length: n }, (_, i) => `> line ${i}\n>\n`).join('');
+const ROWS = (n: number) =>
+	'| a | b |\n| - | - |\n' + Array.from({ length: n }, (_, i) => `| r ${i} | x |\n`).join('');
+
+/** `before` with `find` replaced by `put`, at its first match. */
+const edit = (before: string, find: string, put: string) => before.replace(find, put);
+
+describe('the window inside a container, by its edges', () => {
+	// Rows that read a few children: far less than the container.
+	it.each([
+		[
+			'a paste inside a list',
+			ITEMS(40),
+			(s: string) => edit(s, 'item 20\n', 'item 20one\n  two\n')
+		],
+		['a removal over list items', ITEMS(40), (s: string) => edit(s, 'em 20\n- item 21\n- it', '')],
+		[
+			'a paste inside a quote',
+			QUOTED(40),
+			(s: string) => edit(s, 'line 20\n', 'line 20one\n> two\n')
+		],
+		[
+			'a removal over quote lines',
+			QUOTED(40),
+			(s: string) => edit(s, 'ne 20\n>\n> line 21\n>\n> li', '')
+		],
+		['a paste into a table cell', ROWS(40), (s: string) => edit(s, '| r 20 |', '| r 20 one |')],
+		[
+			'the last item, a block below',
+			ITEMS(40) + '\npara\n',
+			(s: string) => edit(s, 'item 39', 'item 39!')
+		],
+		['the last item, to the end', ITEMS(40), (s: string) => edit(s, 'item 39', 'item 39!')],
+		// The next line flips between continuing the item and opening one, by its indent.
+		[
+			'an item line indented into the one above',
+			ITEMS(40),
+			(s: string) => edit(s, '- item 21', '  item 21')
+		],
+		[
+			'a continuation line out-dented into an item',
+			edit(ITEMS(40), '- item 21\n', '- item 21\n  more\n'),
+			(s: string) => edit(s, '  more', '- more')
+		],
+		// A lazy line as the first line after the run's start child.
+		[
+			'a lazy line after the start child',
+			edit(QUOTED(40), '> line 20\n', '> line 20\nlazy\n'),
+			(s: string) => edit(s, 'line 21', 'line 21!')
+		]
+	])('%s reads a few children', (_name, source, after) => {
+		const { failure, parsed, size } = divergence(source, to(after(source)));
+		expect(failure).toBeNull();
+		expect(parsed).toBeLessThan(size / 4);
+	});
+
+	// Rows that fall back to the top-level window: the change may reach past its run.
+	it.each([
+		[
+			'a `$$` opened in an item, closed in the next',
+			ITEMS(40),
+			(s: string) => edit(s, '- item 20', '- $$')
+		],
+		['a fence opened in a quote line', QUOTED(40), (s: string) => edit(s, 'line 20', '```')],
+		[
+			'a `$$` closer taken',
+			edit(QUOTED(40), '> line 20\n', '> $$\n> x\n> $$\n'),
+			(s: string) => edit(s, '> $$\n>\n', '')
+		],
+		[
+			'a directive closer written',
+			':::note\n' + QUOTED(40) + '\n',
+			(s: string) => edit(s, 'line 20', ':::')
+		],
+		['the first item', ITEMS(40), (s: string) => edit(s, '- item 0', '1. item 0')],
+		[
+			'a blank line splitting the list',
+			ITEMS(40),
+			(s: string) => edit(s, '- item 21', '\n- item 21')
+		],
+		[
+			'a nested quote at the run start',
+			edit(QUOTED(40), '> line 19\n', '> > line 19\n'),
+			(s: string) => edit(s, 'line 20', 'line 20!')
+		],
+		['the table delimiter line', ROWS(40), (s: string) => edit(s, '| - | - |', '| :- | - |')],
+		[
+			'a `$$` line in a table, its closer a row far below',
+			edit(ROWS(40), '| r 35 | x |', '$$'),
+			(s: string) => edit(s, '| r 20 | x |', '$$')
+		],
+		// A closer written far below its opener: nothing in the run's own reading waits on it.
+		[
+			'a directive closer in a table, its opener a row far above',
+			edit(ROWS(40), '| r 5 | x |', ':::note'),
+			(s: string) => edit(s, '| r 30 | x |', ':::')
+		],
+		[
+			'a directive closer in a quote, its opener a line far above',
+			edit(QUOTED(40), '> line 5\n', '> :::note\n'),
+			(s: string) => edit(s, '> line 30', '> :::')
+		],
+		// Only a list opening at 1 interrupts a paragraph, so the paragraph takes in every item.
+		[
+			'the first item renumbered under a paragraph',
+			'para\n' + Array.from({ length: 40 }, (_, i) => `${i + 1}. item ${i}\n`).join(''),
+			(s: string) => edit(s, '1. item 0', '2. item 0')
+		],
+		// A change at the last child makes the paragraph below a lazy line of the quote.
+		[
+			'a paragraph below the container absorbed',
+			'> first\n> - a\nb\n',
+			(s: string) => edit(s, '> - a', '> a')
+		],
+		[
+			'a CRLF closer finished mid-line',
+			':::note\r\n' + QUOTED(10).replace(/\n/g, '\r\n') + '::\r\n',
+			(s: string) => edit(s, '::\r\n', ':::\r\n')
+		]
+	])('%s takes the top-level window', (_name, source, after) => {
+		const { failure } = divergence(source, to(after(source)));
+		expect(failure).toBeNull();
+	});
+});

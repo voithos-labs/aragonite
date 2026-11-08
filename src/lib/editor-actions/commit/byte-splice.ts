@@ -15,14 +15,14 @@ import { docPathFrom } from '../../core/coordinate-spaces';
 import { spliceMany } from '../../tree-operations/splice-many';
 import {
 	spliceReading,
-	type ByteChange,
 	type SpliceReading,
 	type SpliceWindow
 } from '../../tree-operations/byte-splice';
+import type { ByteChange } from '../../tree-operations/byte-changes';
 import {
 	applyStructuralChangeToIdsRefs,
 	replacePreservingFirst,
-	stampStructuralChange,
+	stampOwned,
 	type StructuralChange
 } from '../../tree-operations/structural-change';
 import { byteOfLeaf, childRawStarts, leafAtByte } from '../../tree-operations/container-offsets';
@@ -119,7 +119,9 @@ export function installReading(deps: EditorActionsDeps, reading: SpliceReading):
 	for (const window of [...reading.windows].reverse()) {
 		spliceMany(children, window.at, window.count, window.blocks);
 		const change = changeOf(window);
-		stampStructuralChange(children, change, deps.sharing);
+		// The reading gave its blocks their ids, so a window holding a long container's kept
+		// children walks none of them.
+		stampOwned(children, change, deps.sharing);
 		applyStructuralChangeToIdsRefs(change, ids, refs);
 	}
 	deps.doc.children = children;
