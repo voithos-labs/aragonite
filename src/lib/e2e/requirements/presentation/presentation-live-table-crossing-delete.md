@@ -16,7 +16,7 @@ truncation goes through the same cleaner as a join. Driven on `/test/editor` via
 ## Edge cases
 
 - source mode: the same gesture keeps the truncation byte-literal, delimiters
-  included (pinned by unit tests in `range-delete-truncation-cleanup.test.ts`)
+  included (pinned by the range-edit core's law that a cut pasted back gives the source back)
 
 ## User interactions
 

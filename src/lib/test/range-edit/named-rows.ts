@@ -316,7 +316,7 @@ export const NAMED_ROWS: NamedRow[] = [
 		expect: { source: 'p\n\n[^1]: b\n', caret: text(1) }
 	},
 	// A list item's marker line goes with the text it joins, and the lines under it keep their bytes,
-	// as Backspace at the item's start does (`structural-edits.md` § Delete).
+	// as Backspace at the item's start does (`structural-edits.md` § Structural operations).
 	{
 		name: 'M1 a range from mid-paragraph into an item first line takes the marker line',
 		source: 'p⟦q\n\n- a⟧b\n\n  c\n',

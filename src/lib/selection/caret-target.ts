@@ -94,15 +94,6 @@ export function neighbourBeside<T>(forward: boolean, before: T | null, after: T 
 	return forward ? (after ?? before) : (before ?? after);
 }
 
-/** Where a range picks up once it took the block at `removedPath` whole and ran on past it: the
- *  start of what's left of its end, whatever removed it. */
-export function survivorWhereRangeResumes(
-	doc: DocumentView,
-	removedPath: readonly number[]
-): CaretPosition | null {
-	return survivorBeside(doc, removedPath, true);
-}
-
 /** `removedPath`, or its nearest ancestor's position when the removal emptied the parent and took
  *  it too (the path then resolves to nothing, or to a childless neighbour or the new empty block). */
 export function liveSlot(doc: DocumentView, removedPath: readonly number[]): number[] | null {

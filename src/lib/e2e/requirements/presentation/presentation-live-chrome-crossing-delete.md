@@ -19,8 +19,8 @@ bridge is what each scenario checks against.
 ## Edge cases
 
 - source mode keeps the truncation byte-literal, and an endpoint in the title row
-  stays byte-literal even in live mode (both pinned by unit tests in
-  `range-delete-truncation-cleanup.test.ts`)
+  stays byte-literal even in live mode (both pinned by the range-edit core's rows in
+  `range-edit/named-rows.ts` and its law that a cut pasted back gives the source back)
 
 ## User interactions
 

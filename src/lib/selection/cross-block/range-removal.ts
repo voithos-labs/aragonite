@@ -60,9 +60,8 @@ export async function removeThroughCore(
 
 // ── Ordered lists numbered on ────────────────────────────────────────────────
 
-/** `after`, the removal of `range` from `before`, with each ordered list the range took items from
- *  numbered on: the items after the range follow the item before it, or take the list's first
- *  number where its first item went (`docs/design/structural-edits.md` § Delete). */
+/** `after`, the removal of `range` from `before`, with each ordered list it shortened numbered on
+ *  (`docs/design/structural-edits.md` § Structural operations). */
 export function numberedOn(
 	tree: DocumentView,
 	layout: Layout,
@@ -71,7 +70,7 @@ export function numberedOn(
 	after: string
 ): string {
 	const shift = after.length - before.length;
-	const edits: { at: number; remove: number; insert: string }[] = [];
+	const edits: Edit[] = [];
 	for (const list of layout.within(range.from, range.to)) {
 		const node = blockNodeAt(tree, list.path);
 		if (!node?.children || !metadataIfKind(node, 'list')?.ordered) continue;
@@ -83,16 +82,26 @@ export function numberedOn(
 		if (above) next++;
 		for (const item of kept) {
 			const marker = markerOf(before, item);
-			if (marker && marker.number !== next) edits.push(...renumbered(before, item, marker, next));
+			if (marker && marker.number !== next) renumber(edits, before, item, marker, next);
 			next++;
 		}
 	}
-	let out = after;
-	for (const edit of edits.sort((a, b) => b.at - a.at)) {
-		const at = edit.at + shift;
-		out = out.slice(0, at) + edit.insert + out.slice(at + edit.remove);
+	if (edits.length === 0) return after;
+	// One pass over the bytes: a long list renumbers every item after the range.
+	const parts: string[] = [];
+	let read = 0;
+	for (const edit of edits.sort((a, b) => a.at - b.at)) {
+		parts.push(after.slice(read, edit.at + shift), edit.insert);
+		read = edit.at + shift + edit.remove;
 	}
-	return out;
+	parts.push(after.slice(read));
+	return parts.join('');
+}
+
+interface Edit {
+	at: number;
+	remove: number;
+	insert: string;
 }
 
 interface Marker {
@@ -112,11 +121,11 @@ function markerOf(source: string, item: LaidBlock): Marker | null {
 	return { number: Number(digits[1]), from, to: from + digits[1].length };
 }
 
-/** The item's digits rewritten as `number`, and each later line indented to the item's text
- *  column where a wider or narrower number moves it. */
-function renumbered(source: string, item: LaidBlock, marker: Marker, number: number) {
+/** Adds the edits that rewrite the item's digits as `number`, each later line indented to the
+ *  item's text column where a wider or narrower number moves it. */
+function renumber(edits: Edit[], source: string, item: LaidBlock, marker: Marker, number: number) {
 	const insert = String(number);
-	const edits = [{ at: marker.from, remove: marker.to - marker.from, insert }];
+	edits.push({ at: marker.from, remove: marker.to - marker.from, insert });
 	const widened = insert.length - (marker.to - marker.from);
 	const lines = item.lines!;
 	const column = lines[0].markerTo - lines[0].from;
@@ -126,14 +135,12 @@ function renumbered(source: string, item: LaidBlock, marker: Marker, number: num
 		else if (/^ +$/.test(source.slice(line.markerTo + widened, line.markerTo)))
 			edits.push({ at: line.markerTo + widened, remove: -widened, insert: '' });
 	}
-	return edits;
 }
 
 // ── Where the removal leaves the caret, read around it ───────────────────────
 
 /** The kind of the block a command key's removal leaves the caret in, read before the removal, so
- *  the key is claimed by the keymap of the block the command then runs in: the start's block where
- *  its text stays, else the block the range runs on into, else the block before what it took. */
+ *  the keymap of the block the command then runs in claims the key. */
 export function commandLandingKind(doc: DocumentView, coverage: RangeCoverage): AnyBlockKind {
 	const { start, end } = coverage.range;
 	const grid = coverage.grid;

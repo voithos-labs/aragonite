@@ -120,7 +120,7 @@ These checks run in three kinds of place:
 | G1.175 | The right-click menu opens over the selection only while one is held | A·N |
 | G1.178 | A text end inside a table cell pairs only with an end in that same cell | A·N |
 | G1.187 | A range across blocks paints a box over exactly the blocks whose bytes a copy of it takes | harness·P |
-| G1.188 | A cut writes the words its removal takes, save five named classes, until range stage 3 | harness·N |
+| G1.188 | _Retired upward_: the removal is the range-edit core's, so a cut writes what it takes (G1.199) | harness |
 | G1.189 | An undo or redo puts back no block read under a grammar the editor no longer reads | A·N |
 | G1.190 | While a draft is open, every write tells it everything the write changed | A·N |
 
@@ -222,7 +222,7 @@ These checks run in three kinds of place:
 
 **G1.61 · A list move keeps the order** (`list-move-keeps-order`). Every nest, lift, unwrap and merge that moves blocks between list levels (Tab, Shift+Tab, Backspace at a sublist's start or on a first item, Enter in an empty item) keeps the list's leaf text in order, read as G1.58 reads it. A merge reads only the two lines it joins, since a live join can drop markers. `checkListMoveKeepsOrder`, run by `keeping-order.ts` · `item-moves.ts`, `item-partition.ts` (G4.123), `unwrap-merge.ts` · `list-move-keeps-order.test.ts`, `indent-keeps-order.property.test.ts`.
 
-**G1.71 · A command key over a range runs where it was claimed** (`command-key-landing`). Over a range, a key is a command key when the keymap of the block the removal leaves the caret in binds it (`selection/removal-landing.ts :: removalLanding` picks that block before anything moves), and after the removal the command must run in a block of that kind (kinds only, since a join can move the offset). Predicate `invariants/command-key-landing.ts :: checkCommandLanding` · `selection/cross-block/range-replace.ts` · `test/invariants/command-key-landing.test.ts`.
+**G1.71 · A command key over a range runs where it was claimed** (`command-key-landing`). Over a range, a key is a command key when the keymap of the block the removal leaves the caret in binds it (`selection/cross-block/range-removal.ts :: commandLandingKind` picks that block before anything moves), and after the removal the command must run in a block of that kind (kinds only, since a join can move the offset). Predicate `invariants/command-key-landing.ts :: checkCommandLanding` · `selection/cross-block/range-replace.ts` · `test/invariants/command-key-landing.test.ts`.
 
 **G1.75 · The caret goes before a block's closing `<br>`** (`caret-before-break`). An empty editable holds one `<br>`, and so does a block whose content ends on a picture (the anchor its line's text height comes from). A caret looks the same on either side, but after an empty block's, Chromium drops a composition after its first update, losing or doubling the text. Every caret and range the editor writes passes `browser/caret-writer.ts :: writeSelection`, which checks both ends in dev (G4.270 keeps every selection write there). `checkCaretBeforeBreak` · `caret-before-break.test.ts`.
 
@@ -332,7 +332,7 @@ These checks run in three kinds of place:
 
 **G1.187 · The overlay paints what a copy takes.** A range across blocks paints one box over each block whose own bytes, up to its last line's text, lie inside the range's bytes (`rangeBytes`, what a copy takes) while its parent's don't, and over no other block. A table's rows paint through its cells, never as boxes. Checked both ways, each its own row, over the selection-partition draw, with an empty item and a fenced body at the range's end as named rows. `selection/range-bytes.ts :: rangePaint` · `selection-paint.property.test.ts`, `classify-block-selection.test.ts`.
 
-**G1.188 · A cut writes what its removal takes.** Until range stage 3, a cut writes the range-edit core's clipboard and today's removal deletes. Over shaped ranges in both modes they agree in words, save five classes: a table's header and a title row's container (law 3's exceptions), a title row the range ends on (law 10's open edge), and two ways today's removal parts from the core's. The copy must hold the range's words, a class may only add its own lines to the core's, and its repro must keep parting that way. `selection/cut-clipboard-differential.test.ts`, `range-laws/known-failures.ts`.
+**G1.188 · Retired upward.** Backspace, Delete and a cut remove a range through the range-edit core that writes the cut's clipboard, so the two can't part; G1.199 holds every removal route to the core's bytes.
 
 **G1.189 · An undo reads under the editor's grammar** (`restore-grammar`). An undo entry keeps the grammar its tree was read under, and one restored under another has its bytes read again from the live document instead of installed, which leans on every block the undo leaves alone already reading under the editor's grammar. Either way, each block the undo put back that read alone as itself under the entry's grammar still does under the editor's (a block misread under both is G1.55's). `checkRestoredUnderGrammar` (`reads-back.ts`) · `history.ts :: install` · `grammar-restore.test.ts`.
 

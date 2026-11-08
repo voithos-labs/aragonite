@@ -279,8 +279,8 @@ function closers(doc: Doc, from: number, to: number): string {
 	return out;
 }
 
-/** A first-line marker whose line the range took moves to the container's next line from `past`;
- *  a list item's goes instead (`structural-edits.md` § Delete). `out` is the removal's source. */
+/** A first-line marker whose line the range took moves to the container's next line from `past`
+ *  in `out`; a list item's goes instead (`structural-edits.md` § Structural operations). */
 function movedMarkers(doc: Doc, from: number, to: number, out: string, past: number): string {
 	const end = leafAt(doc, to)?.leaf;
 	if (!end) return out;
