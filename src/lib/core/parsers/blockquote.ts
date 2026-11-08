@@ -3,14 +3,15 @@
  * approximated per line (non-blank, not a block opener), not tracked as parser state.
  */
 
-import { remapStrippedLines, type ParsedLine } from '../lines';
-import { joinRaw, parseBlocks } from '../parser';
+import type { ParsedLine } from '../lines';
+import { joinRaw } from '../parser';
 import { codecFromShape, INNER_LINE, keepsParagraphOpen, type MarkedLines } from '../strip-lines';
 import {
 	lineStartsOuterBlock,
-	type BlockOpenerResult,
+	type BlockOpener,
 	type GrammarView
 } from '../../schema/block-openers';
+import { stripOpener } from './strip-container';
 import { defaultGrammarView } from '../../schema/editor-grammar';
 
 export function matchBlockquote(text: string): boolean {
@@ -67,41 +68,22 @@ export function blockquoteExtent(
 	return { raw: joinRaw(lines, startIndex, i), nextIndex: i };
 }
 
-export function parseBlockquote(
-	lines: ParsedLine[],
-	startIndex: number,
-	endIndex: number,
-	leadingTrivia: string,
-	grammar: GrammarView,
-	depth: number = 0,
-	isDocumentParse: boolean = false
-): BlockOpenerResult {
-	const { raw, nextIndex: i } = blockquoteExtent(lines, startIndex, endIndex, grammar);
-
-	// Lazy lines have no `> ` to strip; verbatim keeps the recursive parse seeing one paragraph.
-	const strippedLines = remapStrippedLines(lines.slice(startIndex, i), (line) =>
-		matchBlockquote(line.text) ? stripBlockquotePrefix(line.text) : line.text
-	);
-
-	const inner = parseBlocks(strippedLines, 0, strippedLines.length, {
-		grammar,
-		scope: isDocumentParse ? 'document' : 'fragment',
-		depth: depth + 1
-	});
-
-	const quotePrefix = lines[startIndex].text.match(/^ {0,3}(>[ \t]?)+/)![0];
-	const quoteDepth = quotePrefix.match(/>/g)!.length;
-
+/** The quote's opener: its lines read as any marked container's are, the `>` count of its first
+ *  line kept as its depth. */
+export function quoteOpener(priority: number): BlockOpener {
+	// Made at the first read: this module sits on the parser's import cycle.
+	let reader: BlockOpener | undefined;
 	return {
-		node: {
-			kind: 'blockquote',
-			leadingTrivia,
-			raw,
-			metadata: { quoteDepth },
-			innerPrefix: '',
-			children: inner.children,
-			innerSuffix: inner.suffix
-		},
-		consumed: i - startIndex
+		priority,
+		interruptsParagraph: matchBlockquote,
+		tryOpen(ctx) {
+			reader ??= stripOpener('blockquote', QUOTE_LINES, priority, true);
+			const opened = reader.tryOpen(ctx);
+			const markers = QUOTE_MARKERS.exec(ctx.line.text)?.[0] ?? '';
+			if (opened) opened.node.metadata = { quoteDepth: markers.split('>').length - 1 };
+			return opened;
+		}
 	};
 }
+
+const QUOTE_MARKERS = /^ {0,3}(?:>[ \t]?)+/;

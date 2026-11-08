@@ -6,11 +6,11 @@ import { checkLocalName, completerOf, priorityBefore } from '../../schema/block-
 import {
 	ambientMarker,
 	containerRegistration,
-	stripClaims,
-	stripOpener,
-	writtenLines,
 	type ContainerSpec
 } from '../../schema/container-block';
+import { stripClaims, stripOpener, type ContainerLines } from '../../core/parsers/strip-container';
+import { headedLines } from '../../schema/headed-lines';
+import type { IndentedLines, MarkedLines } from '../../core/strip-lines';
 
 /** Makes a container block type; the editor reads and writes its lines from `lines`, so the plugin
  *  never writes its bytes. */
@@ -38,3 +38,8 @@ export function container<D = never>(spec: ContainerSpec<D>): BlockType<D> {
 }
 
 const children = (ctx: object): HTMLElement => (ctx as { children: HTMLElement }).children;
+
+// A head line brings its own writer.
+function writtenLines<D>(lines: ContainerLines<D>): MarkedLines | IndentedLines<D> {
+	return lines.shape === 'marked' && 'head' in lines ? headedLines(lines) : lines;
+}
