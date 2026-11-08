@@ -77,7 +77,7 @@ export interface EditorContext<Options = unknown> {
 	 *  `Editor.inserts`. */
 	readonly insertCatalogue: readonly InsertRow[];
 	/** `EditorInstance.insertMarkdown` for this editor: false, nothing written, with no caret, in
-	 *  reading mode or at a gap caret. Await it in `onCommit` to keep one undo entry for the pick. */
+	 *  reading mode or at a gap caret. */
 	readonly insertMarkdown: (md: string, options?: InsertMarkdownOptions) => Promise<boolean>;
 	/** `EditorInstance.runCommand` for this editor: false, and nothing written, on an unknown id,
 	 *  in reading mode, or with nothing focused for a block command. */

@@ -18,8 +18,8 @@ interface CommandSpecBase<A> {
 	title: string;
 	/** Whether it can run with this argument now; false greys a button and refuses `run`. */
 	when?(editor: Editor, arg: A): boolean;
-	/** Returning `false` declines, so a chord goes on to the browser; a throw or a rejection is
-	 *  reported under the plugin's name. */
+	/** Returning `false` declines, so `run` answers false; a throw or a rejection is reported under
+	 *  the plugin's name. */
 	run(editor: Editor, arg: A): boolean | void | Promise<unknown>;
 }
 

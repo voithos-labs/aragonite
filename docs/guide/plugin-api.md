@@ -896,7 +896,7 @@ handle.run('shout/hello'); // true, and "hello" in the console
 handle.can('shout/hello'); // true; false in reading mode, or where `when` says no
 ```
 
-`run` comes back `false` when the command didn't run here (its plugin isn't on, the editor's reading, `when` said no) or your `run` returned `false`, which also lets a chord go on to the browser. A throw counts as run, and it reaches `onError` as `run shout/hello`, the same as a rejected promise.
+`run` comes back `false` when the command didn't run here (its plugin isn't on, the editor's reading, `when` said no) or your `run` returned `false` (that doesn't hand your chord's key back to the browser, though). A throw counts as run, and it reaches `onError` as `run shout/hello`, the same as a rejected promise.
 
 A chord goes to the first of three owners. One the editor takes everywhere (search's `Mod+F` and `Mod+H`, undo and redo) leaves your plugin out at install. Then the host's `keybindings` beat yours. Then, between two plugins in one editor, the one listed first keeps it and the later one's left out. The editor tells `onError` about each plugin it leaves out.
 
@@ -1127,7 +1127,7 @@ _(pre-freeze / unstable)_ Rows your plugin offers over a range: what the author 
 | --- | --- |
 | `SelectionAction` | One action: a `label`, an `icon`, `lead` to sit first in the right-click menu with a divider after, an optional `capture(editor, selection)` returning the range to act on (or null), and `rows(captured)`, an array or a promise of one |
 | `ActionRow` | One row: a `label`, an `icon`, `disabled`, and `run(draft)` |
-| `Captured` | What `rows` is asked about: the range's `text` (its bytes), the `range` in document bytes, the `box` it paints in (null when it isn't drawn in one leaf), and whether it's `editable` |
+| `Captured` | What `rows` is asked about: the range's `text` (its bytes), the `range` in document bytes, the `box` it paints in, measured when you read it (null when it isn't drawn, or runs from one text block into the next), and whether it's `editable` |
 | `Icon` | A menu glyph's name, or `{ svg }`, your own markup, drawn as given at the menu's icon size |
 
 ```ts
