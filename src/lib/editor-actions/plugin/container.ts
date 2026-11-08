@@ -279,6 +279,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 	const {
 		pluginEditor,
 		reading,
+		bytes,
 		doc: getDoc,
 		blockElLookup
 	} = getContext<EditorDoc>(EDITOR_DOC_KEY);
@@ -484,6 +485,8 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		handleWholeBlockKeys(e, {
 			getIndex: deps.getIndex,
 			getRaw: () => deps.getNode().raw,
+			bytes,
+			reading,
 			blockEdit: parentBlockEdit,
 			focus: parentFocus,
 			isReading: () => isReadingMode(getPresentationMode),

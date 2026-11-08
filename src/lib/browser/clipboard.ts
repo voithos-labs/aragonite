@@ -45,10 +45,10 @@ export async function writeClipboardPayload(write: ClipboardWrite): Promise<bool
 	return true;
 }
 
-/** A block's text on the clipboard (its Markdown, or a fence's code) without the line ending that
- *  closes it, so every route that copies one writes the same text. */
-export function copyBlockToClipboard(raw: string): Promise<boolean> {
-	return writeClipboardText({ text: trimTrailingLineEnding(raw) });
+/** A block's text on the clipboard (its Markdown, or a fence's code) without its closing line
+ *  ending, so every route that copies one writes the same text; an own entry stays in memory. */
+export function copyBlockToClipboard(write: ClipboardWrite): Promise<boolean> {
+	return writeClipboardText({ ...write, text: trimTrailingLineEnding(write.text) });
 }
 
 /** The clipboard's text, or null when the read is refused. It reads once a menu that just closed

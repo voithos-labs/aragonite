@@ -32,7 +32,7 @@ export function registerDefaultContextActions(): void {
 			label: `Copy ${noun}`,
 			icon: 'copy',
 			run: async () => {
-				await copyBlockToClipboard(node.raw);
+				await copyBlockToClipboard({ text: node.raw });
 			}
 		},
 		{

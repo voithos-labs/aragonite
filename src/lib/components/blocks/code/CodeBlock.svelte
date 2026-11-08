@@ -296,7 +296,7 @@
 	}
 
 	// A refused write reports nothing copied.
-	const copyBody = (): Promise<boolean> => copyBlockToClipboard(bodyText());
+	const copyBody = (): Promise<boolean> => copyBlockToClipboard({ text: bodyText() });
 
 	// What the language chip writes: the opener's info string, through the surface's write so the
 	// fence rule runs over it, kept apart so no typing on either side joins its undo entry.

@@ -4,6 +4,8 @@
  */
 
 import { hidesDelimitersAtCaret } from '../presentation-mode';
+import { displayLength } from '../core/lines';
+import { blockNodeAt } from '../tree-operations/node-primitives';
 import type { Reading } from '../schema/reading';
 import type { ClipboardWrite } from '../browser/clipboard';
 import type { RawRange } from '../browser/offsets';
@@ -44,4 +46,15 @@ export function blockRangeClipboard(
 	const start = { path: path.slice(), offset: range.start };
 	const end = { path: path.slice(), offset: range.end };
 	return rangeClipboard(bytes, rangeCoverage(doc, coverRange(doc, start, end)), reading);
+}
+
+/** The copy of the block at `path` taken whole, a block focused as one unit. */
+export function wholeBlockClipboard(
+	bytes: DocumentBytes,
+	path: readonly number[],
+	reading: Reading
+): ClipboardWrite | null {
+	const node = blockNodeAt(bytes.doc(), path);
+	if (!node) return null;
+	return blockRangeClipboard(bytes, path, { start: 0, end: displayLength(node.raw) }, reading);
 }

@@ -6,7 +6,10 @@ import type { SelectionPoint } from '../../selection/primitives';
 import { parse } from '../../core/parser';
 import { registerChromePluginsForTests } from './chrome-plugins';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
-import { copiedText } from '#lib/test/harness/copied-text.js';
+import { copiedText, freshBytes } from '#lib/test/harness/copied-text.js';
+import { wholeBlockClipboard } from '#lib/selection/range-clipboard.js';
+import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
+import { trimTrailingLineEnding } from '#lib/core/lines.js';
 
 // Source mode, where a copied range carries its bytes as they stand.
 const SOURCE_READING = fixtureReading({}, 'source');
@@ -152,5 +155,27 @@ describe('a copy across blocks', () => {
 			const a = { path: [0], offset: 1 };
 			expect(copy('# head\n\nend\n', a, { path: [1], offset: 3 })).toBe(' head\n\nend');
 		});
+	});
+});
+
+// Miss-analysis: the focused block's Mod+C wrote its raw past the range-edit core, and no row held
+// it to the text the block menu's Copy writes.
+describe('a block focused whole copies the text its menu’s Copy writes', () => {
+	it.each([
+		['a rule', 'above\n\n---\n\nbelow\n', [1]],
+		['a code block', 'above\n\n```js\nx\n```\n\nbelow\n', [1]],
+		['a callout', 'above\n\n:::callout Title\nbody\n:::\n\nbelow\n', [1]],
+		['a quote’s last rule', '> a\n>\n> ---\n', [0, 1]]
+	])('%s, in both modes', (_, source, path) => {
+		const doc = parse(source);
+		const block = blockNodeAt(doc, path)!;
+		for (const reading of [SOURCE_READING, LIVE_READING]) {
+			const write = wholeBlockClipboard(
+				freshBytes(() => doc),
+				path,
+				reading
+			);
+			expect(write?.text).toBe(trimTrailingLineEnding(block.raw));
+		}
 	});
 });

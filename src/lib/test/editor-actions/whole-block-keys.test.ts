@@ -14,6 +14,10 @@ import {
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { commandContextWith } from '#lib/test/harness/command-context.js';
 import { marksPending, pendMark } from '#lib/test/harness/pending-marks.js';
+import { parse } from '#lib/core/parser.js';
+import { ownEntryFor } from '#lib/browser/clipboard.js';
+import { freshBytes } from '#lib/test/harness/copied-text.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 function makeDeps(
 	isReading = () => false,
@@ -27,9 +31,12 @@ function makeDeps(
 	const selectDocument = vi.fn();
 	const caretMemory = createCaretMemory();
 	const overrides = normalizeKeybindingOverrides(keybindings);
+	const doc = parse('---\n');
 	const deps: WholeBlockKeyDeps = {
 		getIndex: () => 2,
 		getRaw: () => '---\n',
+		bytes: freshBytes(() => doc),
+		reading: fixtureReading(),
 		blockEdit: { splitBlock, deleteBlock, insertParagraph },
 		focus: { moveFocus },
 		isReading,
@@ -259,6 +266,13 @@ describe('handleWholeBlockKeys: Mod+C / Mod+X clipboard', () => {
 			expect(deleteBlock).not.toHaveBeenCalled();
 		}
 	);
+
+	// Miss-analysis: every copy row read the clipboard's text, none the editor's own entry beside it.
+	it('Mod+C writes the range-edit core’s copy, the editor’s own entry beside it', async () => {
+		const { deps } = makeDeps();
+		handleWholeBlockKeys(press('c', { ctrlKey: true }), deps);
+		await vi.waitFor(() => expect(ownEntryFor('---')).toBeDefined());
+	});
 
 	it('Mod+X copies the raw and deletes the block after the write resolves', async () => {
 		const { deps, deleteBlock } = makeDeps();
