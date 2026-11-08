@@ -46,38 +46,52 @@ function wire(parts: ReturnType<typeof mountParts>, blockRef?: BlockComponent) {
 }
 
 describe('wireOverlayRemeasure', () => {
-	it('measures once on wiring, reading the table row window first', () => {
+	it('reads the table row window at once, and measures on the next frame', () => {
 		const mountedRowWindow = vi.fn();
+		const frames: FrameRequestCallback[] = [];
+		vi.stubGlobal('requestAnimationFrame', (run: FrameRequestCallback) => frames.push(run));
 
 		const { measure } = wire(mountParts(), { mountedRowWindow } as unknown as BlockComponent);
 
-		expect(measure).toHaveBeenCalledTimes(1);
 		expect(mountedRowWindow).toHaveBeenCalledTimes(1);
+		expect(measure).not.toHaveBeenCalled();
+		frames.forEach((run) => run(0));
+		expect(measure).toHaveBeenCalledTimes(1);
 	});
 
-	it('measures again when the editor root scrolls', () => {
+	it('measures before returning when asked to, for an element focus is about to enter', () => {
+		const measure = vi.fn();
+		wireOverlayRemeasure({ ...mountParts(), blockRef: undefined, measure, measureNow: true });
+
+		expect(measure).toHaveBeenCalledTimes(1);
+	});
+
+	it('measures again when the editor root scrolls', async () => {
 		const parts = mountParts();
 		const { measure } = wire(parts);
+		await tick();
 
 		parts.editorRoot.dispatchEvent(new Event('scroll'));
 
 		expect(measure).toHaveBeenCalledTimes(2);
 	});
 
-	it('measures again when the block’s own scroll container scrolls', () => {
+	it('measures again when the block’s own scroll container scrolls', async () => {
 		const parts = mountParts();
 		const inner = document.createElement('div');
 		inner.style.overflowY = 'auto';
 		parts.el.appendChild(inner);
 		const { measure } = wire(parts);
+		await tick();
 
 		inner.dispatchEvent(new Event('scroll'));
 
 		expect(measure).toHaveBeenCalledTimes(2);
 	});
 
-	it('measures again when the block’s box resizes', () => {
+	it('measures again when the block’s box resizes', async () => {
 		const { measure } = wire(mountParts());
+		await tick();
 
 		resizeCallback!([], {} as ResizeObserver);
 
@@ -107,6 +121,7 @@ describe('wireOverlayRemeasure', () => {
 		textMoves.movedEverywhere();
 		await tick();
 
+		// The stubbed frame ran the setup measure at once; nothing after the dispose measured.
 		expect(measure).toHaveBeenCalledTimes(1);
 		expect(resizeCallback).toBeNull();
 	});

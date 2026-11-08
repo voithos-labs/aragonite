@@ -30,7 +30,9 @@ afterEach(async () => {
 	document.body.innerHTML = '';
 });
 
-function mountOverlay(interactive: MarkInteractions): { path: number[]; error: unknown }[] {
+async function mountOverlay(
+	interactive: MarkInteractions
+): Promise<{ path: number[]; error: unknown }[]> {
 	const target = document.createElement('div');
 	document.body.appendChild(target);
 	const blockEl = document.createElement('div');
@@ -57,6 +59,8 @@ function mountOverlay(interactive: MarkInteractions): { path: number[]; error: u
 		props: { path: [0], blockRef: paintingLeaf(), blockEl },
 		context: editorMountContext({ services: { decorations: engine } })
 	});
+	// The overlay measures on the frame after it mounts.
+	await new Promise(requestAnimationFrame);
 	flushSync();
 	return errors;
 }
@@ -68,8 +72,8 @@ function clickPaintedMark(): void {
 }
 
 describe('an interactive mark contains and attributes its click handler', () => {
-	it("reports a throwing onClick with the mark's path", () => {
-		const errors = mountOverlay({
+	it("reports a throwing onClick with the mark's path", async () => {
+		const errors = await mountOverlay({
 			onClick: () => {
 				throw new Error('plugin onClick blew up');
 			}
@@ -82,9 +86,9 @@ describe('an interactive mark contains and attributes its click handler', () => 
 		expect((errors[0].error as Error).message).toBe('plugin onClick blew up');
 	});
 
-	it('leaves a well-behaved onClick untouched', () => {
+	it('leaves a well-behaved onClick untouched', async () => {
 		const onClick = vi.fn();
-		const errors = mountOverlay({ onClick });
+		const errors = await mountOverlay({ onClick });
 
 		clickPaintedMark();
 

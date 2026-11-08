@@ -186,14 +186,14 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 			cardEl.style.left = `${rect.left - editorRect.left - borderLeft + editorEl.scrollLeft}px`;
 		};
 
-		// Untracked setup measure, or the caller's $effect would re-wire these listeners on every
-		// keystroke; the `edit` subscription below is the document trigger.
+		// Placed before the URL field takes focus, or the focus scroll would land on an unplaced
+		// card; the `edit` subscription below is the document trigger.
 		const unwireScroll = wireOverlayRemeasure({
 			el: cardEl,
 			editorRoot: editorEl,
 			blockRef: undefined,
 			measure,
-			untrackSetupMeasure: true,
+			measureNow: true,
 			textMoves: deps.textMoves
 		});
 		// An edit anywhere above the link shifts its y without touching the link itself; an undo
