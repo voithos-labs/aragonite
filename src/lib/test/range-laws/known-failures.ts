@@ -63,7 +63,6 @@ const OPENER = /<details|^[ \t>]*:{3,}\w/gm;
 
 /** Most specific first: a line counts toward the first row it matches. */
 export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
-	// A cut writes the range-edit core's copy while today's removal deletes (G1.188), until stage 3.
 	{
 		issue: 'new: cut-copies-titled-container',
 		lane: 'range-stage-3',
@@ -78,26 +77,6 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 					source: '<details open>\n<summary>OOOO</summary>\n\nPPPP\n\n</details>\n\nAAAA\n',
 					mode: 'source',
 					seed: { a: end(0, 'inside', 1), b: end(2, 'inside', 2) }
-				},
-				'key',
-				'key'
-			]
-		}
-	},
-	{
-		issue: 'new: cut-copies-empty-opening',
-		lane: 'range-stage-3',
-		defect:
-			'a cut ending at a title’s first text writes the empty container it opens, which pastes back as one',
-		lines: /^L3 \[[^\]]*→ [^\]]*(?:details-summary|directiveOpenerLine)\]/,
-		keeps: (got, wanted) => count(got, OPENER) > count(wanted, OPENER),
-		repro: {
-			law: 'L3',
-			args: [
-				{
-					source: 'MMMM\n\n<details>\n<summary>SSSS</summary>\n\nHHHH\n\n</details>\n',
-					mode: 'source',
-					seed: { a: end(0, 'inside', 1), b: end(1, 'start') }
 				},
 				'key',
 				'key'

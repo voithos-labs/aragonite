@@ -77,10 +77,11 @@ describe('cross-block endpoints inside a whole-block kind', () => {
 		const doc = mermaidDoc();
 		const s = stateOver(doc);
 
-		// Shift+ArrowDown out of the paragraph above lands at offset 0 and selects none of it.
+		// Shift+ArrowDown out of the paragraph above lands at offset 0 and selects none of it, nor
+		// the blank line before it, since a diagram joins no text.
 		s.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 0 });
 		expect(s.end).toEqual({ path: [1], offset: 0 });
-		expect(copySelected(doc, s)).toBe('Above text\n\n');
+		expect(copySelected(doc, s)).toBe('Above text');
 
 		s.extendFocus({ path: [1], offset: DIAGRAM_END });
 		expect(s.end).toEqual({ path: [1], offset: DIAGRAM_END });

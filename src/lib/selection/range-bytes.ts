@@ -1,7 +1,7 @@
 /**
  * A selection read as the bytes the range-edit core takes (`range-edit/edit-range.ts :: Range`):
- * each end's byte in the document, widened to every block the coverage holds whole. Copy, cut and
- * the overlay read a range through here.
+ * each end's byte in the document, widened to every block the coverage holds whole and kept off a
+ * block its start can't join. Copy, cut and the overlay read a range through here.
  */
 
 import { untrack } from 'svelte';
@@ -10,11 +10,13 @@ import { displayLength, ownTrailingLineEnding } from '../core/lines';
 import { metadataOf } from '../core/nodes';
 import { docPathFrom, type DocPath } from '../core/coordinate-spaces';
 import { countsCells } from '../schema/block-kind-descriptor';
+import { isMergeEligible } from '../schema/merge-rules';
 import { blockNodeAt } from '../tree-operations/node-primitives';
 import { leafAtByte } from '../tree-operations/container-offsets';
 import type { Range } from '../range-edit/edit-range';
 import { documentLayout, type LaidBlock, type Layout } from '../range-edit/layout';
 import { pathsEqual } from './path-math';
+import { previousCaretPath } from './path-lookup';
 import type { SelectionPoint } from './primitives';
 import type { RangeCoverage } from './range-coverage';
 
@@ -60,6 +62,7 @@ export function rangeBytes(
 		from = Math.min(from, block.from);
 		to = Math.max(to, textEnd(doc, block));
 	}
+	to = Math.max(from, endBesideText(doc, layout, coverage, to));
 	// A range across blocks from the first caret position to the last is select-all's, which takes
 	// every container's markers with it.
 	const edges = !pathsEqual(start.path, end.path) && caretEdges(doc, layout);
@@ -145,6 +148,28 @@ function endByte(
 	const block = layout.block(row === null || whole ? point.path : [...point.path, row]);
 	if (!block) return null;
 	return side === 'start' ? block.from : row === null || whole ? textEnd(doc, block) : block.to;
+}
+
+/** An end on the first byte of a block the start's block can't join moves back to the text before
+ *  that block, so the range takes neither the block nor the blank lines that keep it apart. */
+function endBesideText(
+	doc: DocumentView,
+	layout: Layout,
+	coverage: RangeCoverage,
+	to: number
+): number {
+	const { start, end } = coverage.range;
+	if (start.cellCoordinate || end.cellCoordinate || layout.block(end.path)?.from !== to) return to;
+	const startKind = blockNodeAt(doc, start.path)?.kind;
+	const endKind = blockNodeAt(doc, end.path)?.kind;
+	if (!startKind || !endKind || isMergeEligible(startKind, endKind)) return to;
+	const before = previousCaretPath(doc, end.path);
+	if (!before) return to;
+	// A cell's text ends where its table does.
+	const table = before.findIndex((_, i) => countsCells(blockNodeAt(doc, before.slice(0, i + 1))!));
+	if (table < 0) return layout.byteOf(before, displayLength(blockNodeAt(doc, before)!.raw)) ?? to;
+	const block = layout.block(before.slice(0, table + 1));
+	return block ? textEnd(doc, block) : to;
 }
 
 /** The document's first and last caret positions, as bytes. */

@@ -160,6 +160,9 @@ export function cutPasteBack(call: Call, host: CheckHost, input: RangeInput): st
 	const { from, to } = input.range;
 	// Plain text can't carry how each covered line spelled its markers: the same blocks will do.
 	if (sameDocument(host, source, got, from, to)) return [];
+	// A block taken whole takes a blank line beside it, which plain text can't give back (spec § 4).
+	const taken = input.source.length - cut.source.length - (to - from);
+	if (taken > endingOf(input.source).length && sameBlocks(host, source, got)) return [];
 	return [`L3 cut ${q(cut.source)}, pasted back ${q(back.source)}`];
 }
 

@@ -765,7 +765,7 @@ export const NAMED_ROWS: NamedRow[] = [
 		expect: { source: 'after\n', caret: text(0) }
 	},
 	{
-		name: 'L4 a block taken whole at the document end takes its line ending too',
+		name: 'L4 a block taken whole at the document end leaves the blank line before it',
 		source: 'lead\n\n⟦---⟧\n',
 		gesture: 'backspace',
 		expect: { source: 'lead\n\n', caret: text(4) }
