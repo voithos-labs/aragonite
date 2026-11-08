@@ -9,12 +9,16 @@ below and gets no closer.
 
 Driven on `/test/plugins?seed=math` in source and live mode, one row per route and opener. Each row
 reads the whole document's bytes, the last block's kind, and whether the tree reloads as itself.
-The rows for `$$` and `:::note` go red with the closing step taken out of `legalizeWrite` and
-`closeWrittenOpeners`, except the typed `$$`, which the completer closes on its own.
+The rows for `$$` and `:::note` go red with the closing step taken out of `legalizeWrite`,
+`closeWrittenOpeners` and the byte splice, except the typed `$$`, which the completer closes on
+its own.
 
 Miss-analysis (#800, #801): every row typed its opener, so the routes that write by other means (a
 paste, a drop, a split, a range delete, a move, find and replace, a block command) had no row and
 four of them never reached the step that adds the closer.
+
+Miss-analysis: no row wrote through a plugin's `edit()`, whose commit hands its bytes to the byte
+splice, the one write that never reached the closing step.
 
 ## Happy paths
 
@@ -34,6 +38,8 @@ four of them never reached the step that adds the closer.
 - written by find and replace: Replace All turns `QQ` into the opener
 - written by the block menu's Replace with clipboard on a code block, the command that writes a
   block's bytes wholesale
+- written by a plugin through `edit()`: Mod+Shift+Y runs the page's harness command, which turns
+  the paragraph `write <opener>` into the opener
 - moved above the block with Alt+ArrowUp from the end of the document
 
 ## Edge cases
@@ -44,7 +50,8 @@ four of them never reached the step that adds the closer.
 
 ## User interactions
 
-- keys, Shift+click, a drag, a right-click menu, the find bar and Alt+ArrowUp through the browser;
+- keys, Shift+click, a drag, a right-click menu, the find bar, a plugin's chord and Alt+ArrowUp
+  through the browser;
   the caret before each gesture is placed by the editor's own selection call
 
 ## Error cases

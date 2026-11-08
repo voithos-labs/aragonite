@@ -16,7 +16,8 @@ import { blockViewForm, domViewSpec } from '#lib/schema/block-view.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { installPlugins, type EditorPlugin } from '#lib/schema/plugin-install.js';
 import { reservedChromeKindOf } from '#lib/schema/reserved-chrome.js';
-import { blockFacts, hasTextPosition, type BlockFacts } from '#lib/schema/block-facts.js';
+import { blockFacts, type BlockFacts } from '#lib/schema/block-facts.js';
+import { isWholeBlockUnit } from '#lib/schema/whole-block-unit.js';
 import { bundledPluginDirs } from '../invariants/lint/scan-source';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
@@ -195,17 +196,16 @@ describe('block facts agree with every registration', () => {
 	});
 });
 
-describe('a block drawn as a picture of its source', () => {
-	it('has a text position only while its source shows', () => {
-		expect(hasTextPosition('mathBlock', false)).toBe(false);
-		expect(hasTextPosition('mathBlock', true)).toBe(true);
-	});
-
-	it('leaves a text block always reachable and a block focused whole never', () => {
-		expect([false, true].map((shows) => hasTextPosition('paragraph', shows))).toEqual([true, true]);
-		expect([false, true].map((shows) => hasTextPosition('thematicBreak', shows))).toEqual([
-			false,
-			false
-		]);
+// Miss-analysis: the copy widened an end by this fact while the selection held a block whole by
+// `isWholeBlockUnit`; nothing compared the two answers.
+describe('a block no caret enters', () => {
+	it('is the block a selection end holds whole, for every kind, by its parsed sample', () => {
+		const disagree = [...samples()].flatMap(([kind, node]) =>
+			node.children?.length ||
+			isWholeBlockUnit(node) === (blockFacts(kind).textPosition === 'never')
+				? []
+				: [kind]
+		);
+		expect(disagree).toEqual([]);
 	});
 });

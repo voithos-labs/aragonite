@@ -28,6 +28,7 @@
 	import { docLinkMenuPlugin, DOC_LINK_MENU } from './inline-menu/doc-link-menu-plugin';
 	import { heldCommitMenuPlugin } from './inline-menu/held-commit-menu-plugin';
 	import { domViewPlugin } from './dom-view/dom-view-plugin';
+	import { draftWriterPlugin } from './draft-writer/draft-writer-plugin';
 	import '../../../../examples/showcase/tag-marks.css';
 	import type { EditorPluginEntry } from '#lib';
 
@@ -84,6 +85,8 @@
 		badge: [blockBadgePlugin],
 		// Blocks drawn by `defineBlockView`, one per surface; their kinds open only in this seed.
 		'dom-view': [domViewPlugin],
+		// A command that writes through `edit()`; the openers suite runs on this seed.
+		math: [draftWriterPlugin],
 		// `?seed=sim` puts long-lived decoration sources under the simulation's corruption
 		// checks; the widget source keys on markers only the simulation's own document holds.
 		sim: [simMarkPlugin, simIslandPlugin]

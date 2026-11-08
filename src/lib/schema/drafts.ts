@@ -18,12 +18,13 @@ export interface Draft {
 	/** True once a write elsewhere touched bytes it holds (its block's, for a block's draft), or
 	 *  another document replaced the one it opened on. */
 	readonly stale: boolean;
-	/** Replace the bytes `from` to `to` with `text`. These are document bytes, so a new line inside a
-	 *  container carries the container's marker (`> `, an item's indent) in `text`. */
+	/** Replace bytes `from` to `to` with `text`, a new line inside a container carrying its marker;
+	 *  an opener written above a block that would close it gets its closing line from the editor. */
 	replace(range: { readonly from: number; readonly to: number }, text: string): this;
 	/** Insert Markdown at the caret the way a paste would, once the replacements land. */
 	insert(markdown: string): this;
-	/** Write it all as one undo step, the caret at byte `caret` of the new text or left where it is. */
+	/** Write it all as one undo step, the caret at byte `caret` of the text as written (past any
+	 *  closing line the editor added above it) or left where it is. */
 	commit(options?: { caret?: number }): Promise<DraftResult>;
 	/** Drop it, writing nothing: a closed edit box, a wait given up on. */
 	end(): void;

@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test';
 import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
 import { pointAtRaw } from '../text-runs';
+import { isMacOS } from '../platform-keys';
 
 // A right-click on a range the editor paints keeps it for the clipboard rows; one anywhere else
 // ends it. Requirements: `requirements/context-menu-range.md`.
@@ -100,7 +101,9 @@ test.describe('the right-click menu over a range the editor holds', () => {
 		await selectAcross();
 		await rightClick(await pointAtRaw(page, [0], 0));
 		await expect(menuItem(page, 'Insert block')).toBeVisible();
-		await expect(menuItem(page, 'Cut')).toBeDisabled();
+		// macOS selects the word under a right-click, as Safari does, so Cut has that word to take.
+		const cut = expect(menuItem(page, 'Cut'));
+		await (isMacOS ? cut.toBeEnabled() : cut.toBeDisabled());
 		expect(await editor.bridge.ownsRange()).toBe(false);
 	});
 

@@ -49,7 +49,7 @@ async function pushEntry({ controller, deps }: Setup, insert = '!'): Promise<voi
 }
 
 /** What `use()` does: the editor reads another grammar, and the live document is read under it. */
-function switchGrammar({ deps }: Setup): void {
+function switchGrammar({ deps }: Pick<Setup, 'deps'>): void {
 	deps.reading = fixtureReading({ grammar: withoutIndentedCode });
 	const reread = parse(serialize(deps.doc), { grammar: withoutIndentedCode });
 	deps.setDoc(reread);
@@ -130,6 +130,25 @@ describe('an undo across a grammar change', () => {
 		await s.history.requestRedo();
 		expect(serialize(s.deps.doc)).toBe(edited);
 		expect(kinds(s)).not.toContain('indentedCode');
+	});
+
+	// G1.156 on the re-read path: the undo reads the entry's bytes as given, an opener that took in
+	// the block below on load included, where a write would give it a closer.
+	it('puts back an opener the entry held unclosed, adding no closer', async () => {
+		const source = '```\n\n```\nx\n```\n';
+		const s = makeTopHarness(source, { reading: fixtureReading() });
+		const history = createHistoryActions(s.deps, s.controller);
+		vi.spyOn(s.deps.caretLanding, 'restore');
+		const wrote = await s.controller.commitSource({
+			changes: [{ from: 0, to: 3, insert: 'xy' }],
+			caret: { at: 2, holds: 'text' },
+			op: { kind: 'input' },
+			snapshot: { path: docPathFrom([0]), offset: 0 }
+		});
+		expect(wrote).toBe(true);
+		switchGrammar(s);
+		await history.requestUndo();
+		expect(serialize(s.deps.doc)).toBe(source);
 	});
 
 	it('installs the snapshot as it stands when the grammar did not change', async () => {

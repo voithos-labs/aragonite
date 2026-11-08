@@ -48,6 +48,7 @@ export type SharedSurfaceDeps = Pick<
 	| 'events'
 	| 'kindCue'
 	| 'reading'
+	| 'bytes'
 	| 'commands'
 	| 'placeholder'
 	| 'onPasteImage'
@@ -99,7 +100,8 @@ export function wireSurfaceContexts(): SurfaceWiring {
 		editorRoot: getEditorRoot,
 		scrollHost: getScrollHost,
 		lifetime: editorLifetime,
-		reading
+		reading,
+		bytes
 	} = doc;
 	const { placeholder, onPasteImage } = policies;
 
@@ -124,6 +126,7 @@ export function wireSurfaceContexts(): SurfaceWiring {
 		events,
 		kindCue,
 		reading,
+		bytes,
 		commands,
 		placeholder,
 		onPasteImage,

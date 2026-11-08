@@ -11,13 +11,12 @@ import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { trimTrailingLineEnding } from '#lib/core/lines.js';
 import type { CstNode } from '#lib/core/nodes.js';
-import type { Reading } from '#lib/schema/reading.js';
 import { asDomTextOffset, asRawOffset } from '#lib/core/coordinate-spaces.js';
 import { createRangeAtDomTextOffsets } from '#lib/browser/offsets.js';
 import { nodeAt } from '#lib/tree-operations/node-primitives.js';
 import { storedAsAt } from '#lib/tree-operations/stored-as.js';
-import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
-import { collectCrossBlockText } from '#lib/selection/clipboard-text.js';
+import { copiedText } from '#lib/test/harness/copied-text.js';
+import type { Reading } from '#lib/schema/reading.js';
 import type { SelectionPoint } from '#lib/selection/primitives.js';
 import { movedText, runDrop } from '#lib/selection/selection-drop.js';
 import { createInlineRangeCommit } from '#lib/editor-actions/inline-range-commit.js';
@@ -187,7 +186,7 @@ function copied(mounted: Mounted, range: typeof X): string {
 	let text = '';
 	const e = new Event('copy', { bubbles: true, cancelable: true });
 	const clipboardData = {
-		setData: (_type: string, value: string) => (text = value),
+		setData: (type: string, value: string) => void (type === 'text/plain' && (text = value)),
 		getData: () => ''
 	};
 	Object.defineProperty(e, 'clipboardData', { value: clipboardData });
@@ -198,7 +197,7 @@ function copied(mounted: Mounted, range: typeof X): string {
 /** What a copy from `start` in the first leaf to `end` in the next block puts on the clipboard. */
 function copiedAcross(source: string, start: SelectionPoint, end: SelectionPoint): string {
 	const doc = parse(source);
-	return collectCrossBlockText(doc, rangeCoverage(doc, coverRange(doc, start, end)), LIVE);
+	return copiedText(doc, start, end, LIVE);
 }
 
 /** An IME run typed over `range`, the DOM left holding `composed` when it ends. */
@@ -615,10 +614,7 @@ const FAMILIES: Family[] = [
 		// The copy starts at the bold's hidden closer, which empties it, so the closer goes and `# y`
 		// reads as text in a to-do or a cell; at the top level it is a heading, so the closer stays.
 		name: 'the bytes a copy carries',
-		stores: {
-			'components/blocks/text/text-clipboard.ts': 1,
-			'selection/clipboard-text.ts': 1
-		},
+		stores: {},
 		rows: [
 			{ shape: 'a to-do', run: () => copied(mountText(TODO), { start: 3, end: 8 }), want: '# y' },
 			{

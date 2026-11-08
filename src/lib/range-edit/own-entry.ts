@@ -2,7 +2,7 @@
  * The editor's own clipboard entry: the bytes a cut of the range changes, with what the cut left in
  * their place and hashes of what stands around them, so a paste of it where that cut left its caret,
  * or over the range it came from, puts those bytes back exactly. Anywhere else it doesn't match and
- * the clipboard's text pastes alone.
+ * the clipboard's text pastes alone. It reads only the removal's bytes, so a copy reads nothing new.
  */
 
 import { sharedPrefixLength, sharedSuffixLength } from '../core/written-span';
@@ -12,7 +12,7 @@ import type { Edit } from './leaf-splice';
 /** Bytes of surroundings that identify where the entry belongs. */
 const AROUND = 64;
 
-/** The entry for `[from, to)` of `source`, whose cut gave `cut`. */
+/** The entry for `[from, to)` of `source`, whose removal gave `cut`, its caret before it lands. */
 export function ownEntry(source: string, from: number, to: number, cut: Edit): string {
 	const after = cut.source;
 	const start = sharedPrefixLength(source, after, Math.min(from, cut.caret));

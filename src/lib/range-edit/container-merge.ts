@@ -22,9 +22,10 @@ export function takerOf(doc: Doc, at: number, pasted: Doc, first: LaidBlock): La
 /** A caret right after an emptied container's marker takes a pasted container opening with that
  *  marker from its first text; the line is read as written, as a bare marker can read as a setext underline. */
 export function emptiedRest(doc: Doc, at: number, pasted: Doc): string | null {
-	const first = pasted.layout.blocks.find((b) => factsOf(pasted, b).lines === 'first-line');
+	const blocks = [...pasted.layout.within(0, pasted.source.length)];
+	const first = blocks.find((b) => factsOf(pasted, b).lines === 'first-line');
 	const line = first?.lines!.find((l) => !l.own);
-	if (!first || !line || first.from !== pasted.layout.blocks[0].from) return null;
+	if (!first || !line || first.from !== blocks[0].from) return null;
 	const marker = pasted.source.slice(line.from, line.markerTo);
 	return lineHead(doc.source, at) === continuation(doc, at) + marker
 		? withoutOpening(pasted, first)
@@ -34,7 +35,8 @@ export function emptiedRest(doc: Doc, at: number, pasted: Doc): string | null {
 /** The clipboard from the pasted container's first body text on. */
 export function withoutOpening(pasted: Doc, first: LaidBlock): string {
 	const body = (b: LaidBlock) => b.text && b.from >= first.from && !titleOwner(pasted, b);
-	return pasted.source.slice(pasted.layout.blocks.find(body)?.text?.from ?? first.from);
+	const blocks = pasted.layout.within(first.from, pasted.source.length);
+	return pasted.source.slice([...blocks].find(body)?.text?.from ?? first.from);
 }
 
 /** `edit` pasted the rest of `first` into `taker`: where `first` brought its own closing line, the

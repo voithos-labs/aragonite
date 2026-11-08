@@ -6,8 +6,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import fc from 'fast-check';
 import { installPlugins, parse } from '#lib';
 import type { CstNode, Document } from '#lib/core/nodes.js';
-import { collectCrossBlockText } from '#lib/selection/clipboard-text.js';
-import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
+import { copiedText } from '#lib/test/harness/copied-text.js';
 import type { SelectionPoint } from '#lib/selection/primitives.js';
 import { displayLength } from '#lib/core/lines.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
@@ -26,11 +25,7 @@ const at = (path: number[], offset: number): SelectionPoint => ({ path, offset }
 
 function copied(source: string, start: SelectionPoint, end: SelectionPoint): string {
 	const doc = parse(source);
-	return collectCrossBlockText(
-		doc,
-		rangeCoverage(doc, coverRange(doc, start, end)),
-		SOURCE_READING
-	);
+	return copiedText(doc, start, end, SOURCE_READING);
 }
 
 const POEM =

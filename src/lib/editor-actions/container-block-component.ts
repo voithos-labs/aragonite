@@ -20,7 +20,9 @@ import {
 import type { Reading } from '../schema/reading';
 import { eventToChord, isCharacterKey, isSelectAllChord } from '../schema/keybindings';
 import { displayLength } from '../core/lines';
-import { copyBlockToClipboard } from './system-clipboard';
+import { copyBlockToClipboard } from '../browser/clipboard';
+import type { DocumentBytes } from '../selection/range-bytes';
+import { wholeBlockClipboard } from '../selection/range-clipboard';
 import { isVerticallyTransparentNode } from '../core/inline/transparency';
 import type { CaretMemory } from '../caret/caret-memory';
 import type { AnyCommandId } from '../schema/command-id';
@@ -100,6 +102,9 @@ export function moveFocusOutByArrow(
 
 export interface WholeBlockKeyDeps extends BlockEdgeExitDeps {
 	getRaw: () => string;
+	/** The document's bytes and how the editor reads them, which a copy of the block reads. */
+	bytes: DocumentBytes;
+	reading: Reading;
 	blockEdit: Pick<BlockEditActions, 'splitBlock' | 'deleteBlock' | 'insertParagraph'>;
 	isReading: () => boolean;
 	selection: Pick<SelectionState, 'ownsRange'>;
@@ -169,7 +174,8 @@ export function handleWholeBlockKeys(e: KeyboardEvent, deps: WholeBlockKeyDeps):
 // Copy is a read, so it is never blocked; cut's delete is blocked in reading mode and only
 // runs once the clipboard write lands, so a refused write leaves the block in place.
 async function copyFocusedWholeBlock(deps: WholeBlockKeyDeps, cut: boolean): Promise<void> {
-	if (!(await copyBlockToClipboard(deps.getRaw()))) return;
+	const write = wholeBlockClipboard(deps.bytes, deps.getPath(), deps.reading);
+	if (!write || !(await copyBlockToClipboard(write))) return;
 	if (cut && !deps.isReading()) void deps.blockEdit.deleteBlock(deps.getIndex(), 'cut');
 }
 

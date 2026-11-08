@@ -155,6 +155,7 @@ export const RUNTIME_EDGES: readonly string[] = [
 	'selection -> editor-events.ts',
 	'selection -> invariants',
 	'selection -> presentation-mode.ts',
+	'selection -> range-edit',
 	'selection -> schema',
 	'selection -> tree-operations',
 	'svelte.ts -> components',
