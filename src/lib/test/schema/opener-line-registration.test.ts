@@ -47,10 +47,7 @@ function registerBox(
 				children: parsed.body?.children ?? [],
 				innerSuffix: parsed.body?.suffix ?? ''
 			};
-			setPluginMetadata(node, {
-				closerColonCount: parsed.closerColonCount,
-				closerNewline: parsed.closerNewline
-			});
+			setPluginMetadata(node, {});
 			return node;
 		}
 	});

@@ -23,8 +23,6 @@ import { allowDevWarns } from '#lib/test/support/warn-gate.js';
 interface TitledMetadata {
 	title: string;
 	colonCount: number;
-	closerColonCount: number;
-	closerNewline: boolean;
 	lineEnding: string;
 }
 
@@ -47,8 +45,6 @@ function registerTitledKind(): PluginBlockKind {
 			setPluginMetadata<TitledMetadata>(node, {
 				title,
 				colonCount: parsed.fence.colonCount,
-				closerColonCount: parsed.closerColonCount,
-				closerNewline: parsed.closerNewline,
 				lineEnding: parsed.lineEnding
 			});
 			return node;

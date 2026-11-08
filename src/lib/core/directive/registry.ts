@@ -20,8 +20,6 @@ export interface ParsedDirective {
 	/** The exact consumed slice (opener + body + closer); a factory sets `node.raw` to this. The
 	 *  grammar puts the opener line in front of the children the factory returns. */
 	raw: string;
-	closerColonCount: number;
-	closerNewline: boolean;
 	/** Opener line ending; a factory stores it so a rebuild keeps CRLF fence lines. */
 	lineEnding: string;
 }

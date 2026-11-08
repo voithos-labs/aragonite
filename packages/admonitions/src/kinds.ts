@@ -21,12 +21,10 @@ export function capitalize(name: string): string {
 	return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
-/** The name and the closing line's shape, read at parse; the opener line itself is child 0.
- *  Primitive-valued only: the undo clone shallow-copies metadata. */
+/** The name, read at parse; the opener line itself is child 0. Primitive-valued only: the undo
+ *  clone shallow-copies metadata. */
 export interface AdmonitionMetadata {
 	name: string;
-	closerColonCount: number;
-	closerNewline: boolean;
 }
 
 /** The marker's type as typed (`NOTE`, `Note`), stored verbatim so the writer re-emits

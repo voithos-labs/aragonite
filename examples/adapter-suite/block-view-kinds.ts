@@ -155,8 +155,6 @@ function registerLine(
 
 interface BoxMetadata {
 	colonCount: number;
-	closerColonCount: number;
-	closerNewline: boolean;
 	lineEnding: string;
 }
 
@@ -171,8 +169,6 @@ function boxFromDirective(parsed: ParsedDirective): CstNode {
 	};
 	setPluginMetadata<BoxMetadata>(node, {
 		colonCount: parsed.fence.colonCount,
-		closerColonCount: parsed.closerColonCount,
-		closerNewline: parsed.closerNewline,
 		lineEnding: parsed.lineEnding
 	});
 	return node;

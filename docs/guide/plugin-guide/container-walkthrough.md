@@ -158,8 +158,6 @@ export function conspiracyPlugin(): EditorPlugin {
 	},
 	leadingTrivia: '',
 	raw: ':::conspiracy Birds are government drones\nThe quickstart parrot has danced since section one and never once eaten.\n:::\n',
-	closerColonCount: 3,
-	closerNewline: true,
 	lineEnding: '\n'
 }
 

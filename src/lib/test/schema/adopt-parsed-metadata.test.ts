@@ -20,7 +20,7 @@ describe('adoptParsedMetadata', () => {
 
 	it('takes the parse’s object when a key changed', () => {
 		const node = parse(':::spoiler\nhidden\n:::\n').children[0];
-		const reparsed = parse('::::spoiler\nhidden\n::::\n').children;
+		const reparsed = parse(':::secret\nhidden\n:::\n').children;
 
 		expect(adoptParsedMetadata(node, reparsed)).toBe(true);
 		expect(node.metadata).toBe(reparsed[0].metadata);

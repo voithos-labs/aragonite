@@ -29,8 +29,6 @@ export const ASIDE = 'aside';
 interface CalloutMetadata {
 	calloutType: string;
 	colonCount: number;
-	closerColonCount: number;
-	closerNewline: boolean;
 	lineEnding: string;
 }
 
@@ -47,8 +45,6 @@ function calloutFromDirective(parsed: ParsedDirective): CstNode {
 	setPluginMetadata<CalloutMetadata>(node, {
 		calloutType: parsed.fence.name,
 		colonCount: parsed.fence.colonCount,
-		closerColonCount: parsed.closerColonCount,
-		closerNewline: parsed.closerNewline,
 		lineEnding: parsed.lineEnding
 	});
 	return node;

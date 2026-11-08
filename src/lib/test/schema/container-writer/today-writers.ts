@@ -207,14 +207,15 @@ function rebuildGithubAlertRaw(node: CstNode, changed?: ChildRawChange) {
 // ── `:::` containers and `<details>` ─────────────────────────────────────────
 
 function rebuildDirectiveContainerRaw(node: CstNode): void {
-	const meta = getPluginMetadata<{ closerColonCount: number; closerNewline: boolean }>(node);
 	const [row, ...body] = node.children ?? [];
 	const line = row ? trimTrailingLineEnding(row.raw) : '';
 	const fence = matchDirectiveOpener(line);
 	const innerPrefix = node.innerPrefix ?? '';
 	const innerSuffix = node.innerSuffix ?? '';
-	const closerColonCount = meta?.closerColonCount ?? fence?.colonCount ?? 3;
-	const closerNewline = meta?.closerNewline ?? true;
+	// The closing line as the parse once stored it, read off the bytes it replaces.
+	const last = trimTrailingLineEnding(node.raw).split('\n').pop() ?? '';
+	const closerColonCount = /^:+$/.test(last) ? last.length : (fence?.colonCount ?? 3);
+	const closerNewline = ownTrailingLineEnding(node.raw) !== '';
 	const closerLineEnding = ownTrailingLineEnding(node.raw) || undefined;
 	const lineEnding = (row && ownTrailingLineEnding(row.raw)) || '\n';
 	node.raw = fence

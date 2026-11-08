@@ -111,12 +111,7 @@ registerDirective('container', 'note', {
 			children: parsed.body?.children ?? [],
 			innerSuffix: parsed.body?.suffix ?? ''
 		};
-		setPluginMetadata(node, {
-			name: parsed.fence.name,
-			// how the closing line looked (the end of this page says why)
-			closerColonCount: parsed.closerColonCount,
-			closerNewline: parsed.closerNewline
-		});
+		setPluginMetadata(node, { name: parsed.fence.name });
 		return node;
 	}
 });
@@ -211,7 +206,7 @@ The one type worth knowing by heart is `ParsedDirective`, because it is what you
 | `fence` | the opener line, taken apart: `tier`, `colonCount`, `name`, `info` |
 | `body` | everything between the fences, already parsed (a leaf has none); its `children` become your node's body blocks |
 | `leadingTrivia`, `raw` | the blank lines before the block, and the block's exact source text; copy both onto your node untouched, or it will not save back to what was read |
-| `closerColonCount`, `closerNewline`, `lineEnding` | how the closing fence looked and which line ending the file used, so the fence can be written back exactly, CRLF included |
+| `lineEnding` | the opener line's line ending, for a writer of your own that has to keep CRLF |
 
 For the `:::note Heads up` fence at the top of this page, your factory gets:
 
@@ -226,8 +221,6 @@ For the `:::note Heads up` fence at the top of this page, your factory gets:
 	},
 	leadingTrivia: '',
 	raw: ':::note Heads up\nSome body markdown.\n:::\n',
-	closerColonCount: 3,
-	closerNewline: true,
 	lineEnding: '\n'
 }
 ```

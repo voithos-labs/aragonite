@@ -22,11 +22,6 @@ import DevProbeBlock from './DevProbeBlock.svelte';
 
 export const DEVPROBE = 'devprobe';
 
-interface DevProbeMetadata {
-	closerColonCount: number;
-	closerNewline: boolean;
-}
-
 function devprobeFromDirective(parsed: ParsedDirective): CstNode {
 	const node: CstNode = {
 		kind: declaredPluginKind(DEVPROBE),
@@ -36,10 +31,6 @@ function devprobeFromDirective(parsed: ParsedDirective): CstNode {
 		children: parsed.body?.children ?? [],
 		innerSuffix: parsed.body?.suffix ?? ''
 	};
-	setPluginMetadata<DevProbeMetadata>(node, {
-		closerColonCount: parsed.closerColonCount,
-		closerNewline: parsed.closerNewline
-	});
 	return node;
 }
 

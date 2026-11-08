@@ -49,9 +49,7 @@ function admonitionFromDirective(kind: PluginBlockKind) {
 			innerSuffix: parsed.body?.suffix ?? ''
 		};
 		setPluginMetadata<AdmonitionMetadata>(node, {
-			name: parsed.fence.name,
-			closerColonCount: parsed.closerColonCount,
-			closerNewline: parsed.closerNewline
+			name: parsed.fence.name
 		});
 		return node;
 	};

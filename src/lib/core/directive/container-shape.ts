@@ -14,10 +14,7 @@ export const DIRECTIVE_BODY_WRAP: ContainerBodyWrap = {
 export const DIRECTIVE_CONTAINER = 'directiveContainer';
 export const DIRECTIVE_OPENER_LINE = 'directiveOpenerLine' as PluginBlockKind;
 
-/** A generic container's name and the closing line, which no child holds; the opener line is
- *  its first child. */
+/** A generic container's name; the opener line is its first child. */
 export interface DirectiveContainerMetadata {
 	name: string;
-	closerColonCount: number;
-	closerNewline: boolean;
 }

@@ -92,8 +92,6 @@ const boxView = defineBlockView({
 
 interface DomBoxMetadata {
 	colonCount: number;
-	closerColonCount: number;
-	closerNewline: boolean;
 	lineEnding: string;
 }
 
@@ -108,8 +106,6 @@ function domBoxFromDirective(parsed: ParsedDirective): CstNode {
 	};
 	setPluginMetadata<DomBoxMetadata>(node, {
 		colonCount: parsed.fence.colonCount,
-		closerColonCount: parsed.closerColonCount,
-		closerNewline: parsed.closerNewline,
 		lineEnding: parsed.lineEnding
 	});
 	return node;
