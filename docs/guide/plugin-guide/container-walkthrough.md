@@ -223,7 +223,7 @@ Two rules for that view, each earned the hard way:
 - **`target` is the block.** The editor measures the element it hands you for the selection highlight and the drag handle, so put your classes on it and fill it, rather than wrapping a second box inside (and never `display: contents`, which measures as nothing).
 - **Chrome CSS reads the editor's theme tokens**, plain (`var(--color-ui-muted)`). Inside the editor every one of them has a value, the host's own or the built-in palette's for the current `theme`, so a read needs no fallback. The stable token set by role is the [consumer guide's theme-token manifest](../consumer-guide.md#theme-tokens).
 
-The children mount after anything you've already put in the box you hand `mountChildren` (`target` here, or an element inside it). In React or Vue, `<BlockChildren>` does the handing over ([React and Vue blocks](react-and-vue.md#a-block-that-holds-blocks)).
+The children mount after anything you've already put in the box you hand `mountChildren` (`target` here, or an element inside it). React or Vue? [React and Vue blocks](react-and-vue.md#a-block-that-holds-blocks) draws a container with your own component.
 
 ### Already in Svelte?
 

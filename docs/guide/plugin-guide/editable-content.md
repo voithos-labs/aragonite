@@ -48,7 +48,7 @@ const noteView = defineBlockView({
 });
 ```
 
-In return your block behaves like any built-in text block: the caret walks in and out (keeping its column), IME composition works, undo batches like prose, copy and paste go through the editor, and a cross-block selection sweeps through your text. (React or Vue? `<LeafContent>` does the `attach` for you, see [React and Vue blocks](react-and-vue.md#a-memo-in-react).)
+In return your block behaves like any built-in text block: the caret walks in and out (keeping its column), IME composition works, undo batches like prose, copy and paste go through the editor, and a cross-block selection sweeps through your text. (React or Vue? See [React and Vue blocks](react-and-vue.md#a-memo-in-react).)
 
 **The attached element is the editor's.** The editor fills it so that **`textContent === source`**, which is what the caret's mapping between screen positions and bytes relies on, so your own elements (the badge) go beside it, never inside. It also puts every handler and attribute the text needs on it, a textbox role and an `aria-label` naming your kind (its descriptor's `label`) included. Reading mode swaps those out, since a block there is text to read: a heading reads as a heading, anything else as its text. That covers the element's tab stop too, so don't give it a `tabindex` yourself: in reading mode the editor keeps one tab stop for the whole document and moves it to whichever block the reader was last in.
 

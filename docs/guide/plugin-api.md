@@ -324,9 +324,6 @@ A declared title line already decides what Backspace does at its start, so its `
 | `AmbientPrefix`, `AmbientInteractiveRange` | What `ambientPrefix` returns: the marker's text, or `{ text, interactive }` with ranges of it clickable, each with its class, click handler, role and an optional tab stop ([the container walkthrough](plugin-guide/container-walkthrough.md)) |
 | [`HandBuiltSurface`, `HandBuiltBlock`](#handbuiltsurface-handbuiltblock) | A `'none'` view's `ctx.block`, and what you publish through it |
 | `svelteBlockView` | _(from `/svelte`)_ Make a view from your Svelte component, plus an optional per-node extra-props hook; a component that forgot to publish its surface fails the typecheck here |
-| [`reactBlockView`, `vueBlockView`](#reactblockview-vueblockview) | _(from `@voithos-labs/aragonite-react` and `-vue`)_ Make a view from a React or Vue component |
-| `LeafContent`, `BlockChildren` | _(from the same two packages)_ The element the editor edits a leaf's text in, and the one it mounts a container's children into. Both render empty, so your chrome goes beside them |
-| [`useBlockHandle`](#useblockhandle) | _(from the same two packages)_ How a `'none'` block's component hands the editor `focus` and friends |
 | `textBlockView` | The editor's own plain text block as a view, with an optional `blockClass` on its element: for a kind that's just editable text |
 | `BlockView` | What draws a kind, the registration's `view`. You can't look inside one: `defineBlockView`, `svelteBlockView` or `textBlockView` makes it, and `registerBlockKind` throws on anything else, a hand-built object included |
 | `BlockComponent`, `BlockComponentExports` | The surface a block component publishes: a factory leaf's single `blockApi` export, a container's single `containerApi` export, or a hand-built leaf's own members |
@@ -475,49 +472,37 @@ A plain arrow pressed inside the block moves to the neighbour it points at, unle
 
 A `'none'` block can't write its own bytes or run a plugin block command at itself, since nothing hands it the writes (`replaceRaw`, `updateMetadata`) a `getCommandContext` would have to return. A block that edits itself goes on the container surface with `blockFocus: 'whole-block'`.
 
-#### `reactBlockView`, `vueBlockView`
+#### `reactBlock`, `vueBlock`, `svelteBlock`, `useDrawn`
 
-_(from `@voithos-labs/aragonite-react` and `-vue`)_
-
-```ts
-function reactBlockView(Component, options: { surface } & ReactBlockViewOptions): BlockView;
-function vueBlockView(component, options: { surface } & VueBlockViewOptions): BlockView;
-```
-
-Make a view from a React or Vue component, which gets `state`, `ctx` and a click-to-edit block's `draft` as props (`BlockViewProps`). The options (`ReactBlockViewOptions`, `VueBlockViewOptions`) are `defineBlockView`'s minus `mount`, for a `'none'`, `'leaf'`, `'render-primary'` or `'container'` surface (`FrameworkSurface`), plus:
-
-- `className` for the block's element;
-- `afterInput`;
-- React's `wrap` or Vue's `app`, for your providers.
-
-```tsx
-export const memoView = reactBlockView(Memo, { surface: 'leaf', singleLine: true, className: 'memo' });
-```
-
-The options one by one, and a block for every surface: [React and Vue blocks](plugin-guide/react-and-vue.md).
-
-#### `useBlockHandle`
-
-_(from `@voithos-labs/aragonite-react` and `-vue`)_
+_(`svelteBlock` and its `useDrawn` from `/svelte`; the others from `@voithos-labs/aragonite-react` and `-vue`)_
 
 ```ts
-function useBlockHandle(create: () => HandBuiltBlock, deps?): void;
+function reactBlock(Component, options?: { className?; wrap? }): (block, ctx) => Drawn;
+function vueBlock(component, options?: { className?; app? }): (block, ctx) => Drawn;
+function svelteBlock(Component): (block, ctx) => Drawn;
+function useDrawn(parts: () => { focus?; keep?; caret? }): void;
 ```
 
-How a `'none'` block's component hands the editor `focus`, `getCursorOffset`, `focusable` and friends (a `HandBuiltBlock`). It's a hook in React and a composable in Vue. It makes the handle again when `deps` change and takes it back on unmount.
+Make a block type's `draw` from a component, which gets `block`, `ctx` and `Slot` as props (`BlockProps`, `SvelteBlockProps`). `<Slot of="source" />` (or `"children"`, `"title"`) places the editor's element. `className` lands on the block's element; React's `wrap` and Vue's `app` hand your providers in.
+
+`useDrawn`, called in the component (a hook in React, in `setup` in Vue, at init in Svelte), adds what a plain `draw` hands back beside its `dom`: `caret`, `focus` and `keep`. The editor calls the function each time it needs one, so a ref's element is there by then.
 
 ```tsx
-useBlockHandle(
-	() => ({
-		focusable: true,
-		focus: () => button.current?.focus(),
-		getCursorOffset: () => (document.activeElement === button.current ? 0 : null)
-	}),
-	[]
-);
+const draw = reactBlock(Dice, { className: 'dice' });
+
+function Dice({ ctx }: BlockProps<never, BoxDrawContext>) {
+	const button = useRef<HTMLButtonElement | null>(null);
+	useDrawn(() => ({
+		focus: {
+			enter: () => button.current?.focus(),
+			offset: () => (document.activeElement === button.current ? 0 : null)
+		}
+	}));
+	return <button ref={button}>roll</button>;
+}
 ```
 
-The whole die that goes with it: [a block you draw whole](plugin-guide/react-and-vue.md#a-block-you-draw-whole).
+A block for each shape, the die whole: [React and Vue blocks](plugin-guide/react-and-vue.md).
 
 #### `BlockComponentProps`
 
