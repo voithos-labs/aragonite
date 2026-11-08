@@ -145,9 +145,10 @@ function wholeLines(doc: Doc, from: number, to: number) {
 	const shared = holder !== undefined && (nodeAt(doc, holder.path).children?.length ?? 0) > 1;
 	if ((marks !== '' && !shared) || !endsHoldingWhole(doc, from, to)) return null;
 	const ending = /^\r?\n/.exec(source.slice(to))?.[0];
-	if (ending === undefined) return null;
 	const above = source.slice(0, from - marks.length);
-	let tail = source.slice(to + ending.length);
+	let tail = ending === undefined ? '' : source.slice(to + ending.length);
+	// A document emptied whole keeps its last line ending, as the line its one empty block holds.
+	if (ending === undefined || (above === '' && tail === '')) return null;
 	// At the document's start a blank line after it would read as an empty paragraph.
 	const blankAfter = /^[ \t>]*\r?\n/.exec(tail)?.[0];
 	if (blankAfter && (above === '' || /(^|\n)[ \t>]*\r?\n$/.test(above)))

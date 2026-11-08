@@ -828,5 +828,11 @@ export const NAMED_ROWS: NamedRow[] = [
 		source: '- one\n⟦- two⟧\n- three\n',
 		gesture: 'delete',
 		expect: { source: '- one\n- three\n' }
+	},
+	{
+		name: 'L4 a block that is the whole document leaves its last line ending, its one empty line',
+		source: '⟦---⟧\n',
+		gesture: 'backspace',
+		expect: { source: '\n', caret: text(0) }
 	}
 ];
