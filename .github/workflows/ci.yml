@@ -1,9 +1,9 @@
 name: CI
 on:
-  # Every dev push runs the Linux matrix, so a Linux or engine red shows on the merge that made it.
+  # Every dev and next push runs the Linux matrix, so a Linux or engine red shows on the merge that made it.
   # macOS WebKit is its own workflow, webkit-macos.yml.
   push:
-    branches: [main, dev]
+    branches: [main, dev, next]
   pull_request:
     branches: [main, dev]
   workflow_dispatch:

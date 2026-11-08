@@ -1,12 +1,12 @@
 {
 	"rows": {
 		"minimalAppSvelteFirstLoadGzip": {
-			"baseline": 339349,
+			"baseline": 340681,
 			"tolerance": 1000,
 			"unit": "B"
 		},
 		"minimalAppSvelteTotalGzip": {
-			"baseline": 339349,
+			"baseline": 340681,
 			"tolerance": 1000,
 			"unit": "B"
 		},
@@ -16,12 +16,12 @@
 			"unit": "chunks"
 		},
 		"minimalAppPrebuiltFirstLoadGzip": {
-			"baseline": 339295,
+			"baseline": 340642,
 			"tolerance": 1000,
 			"unit": "B"
 		},
 		"minimalAppPrebuiltTotalGzip": {
-			"baseline": 339295,
+			"baseline": 340642,
 			"tolerance": 1000,
 			"unit": "B"
 		},

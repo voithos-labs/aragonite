@@ -1,7 +1,8 @@
 name: WebKit macOS
 # Playwright's WebKit on macOS, the nearest a runner gets to Safari's own key bindings and fonts
 # (docs/contributing/testing.md § Browser engines). macOS runners are few, so it runs nightly on
-# dev, skipping a dev that already ran green here, and on every pull request to main.
+# next (the branch dev moves to each day), skipping a commit already green here, and on every pull
+# request to main.
 on:
   schedule:
     - cron: '17 6 * * *'
@@ -11,7 +12,7 @@ on:
     inputs:
       ref:
         description: The branch or commit to test
-        default: dev
+        default: next
       nightly:
         description: Run as the nightly does, skipping a commit already green and recording a green one
         type: boolean
@@ -31,7 +32,7 @@ concurrency:
 # Actions pinned to commit SHAs (a major tag is mutable); bump SHA and comment together.
 jobs:
   # Which commit to test and whether to. The record of a green nightly is a cache entry keyed on the
-  # commit it tested: a scheduled run's own sha is main's, never the dev commit it checks out.
+  # commit it tested: a scheduled run's own sha is main's, never the next commit it checks out.
   gate:
     runs-on: ubuntu-latest
     outputs:
@@ -41,7 +42,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event_name == 'schedule' && 'dev' || inputs.ref || '' }}
+          ref: ${{ github.event_name == 'schedule' && 'next' || inputs.ref || '' }}
           fetch-depth: 0
       - id: target
         run: |
@@ -99,7 +100,7 @@ jobs:
           name: e2e-webkit-macos-traces-${{ strategy.job-index }}
           path: test-results/**/trace.zip
 
-  # Every shard passed: the next nightly skips this commit until dev moves.
+  # Every shard passed: the next nightly skips this commit until next moves.
   record:
     needs: [gate, e2e-webkit-macos]
     if: needs.gate.outputs.run == 'true' && needs.gate.outputs.nightly == 'true'
