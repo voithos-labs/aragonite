@@ -24,15 +24,19 @@ export interface Range {
 	to: number;
 }
 
-export type Gesture =
-	| 'copy'
+/** A gesture that removes the range and pastes nothing. */
+export type RemovalGesture =
 	| 'cut'
 	| 'backspace'
 	| 'delete'
 	/** The removal a typed character, a composition or a command key makes first. */
 	| 'type'
 	| 'compose'
-	| 'command'
+	| 'command';
+
+export type Gesture =
+	| 'copy'
+	| RemovalGesture
 	/** Clipboard text with LF line endings, and the editor's own entry an earlier copy or cut
 	 *  wrote, while the clipboard still holds it. */
 	| { paste: string; plain: boolean; own?: string }
@@ -72,8 +76,7 @@ export function editRange(
 		if (gesture === 'cut') return { ...answer(removed), clipboard, own };
 		return { source, caret: { at: to, holds: 'text' }, clipboard, own };
 	}
-	if (typeof gesture === 'string')
-		return answer(gesture === 'type' && replaced ? inPlace : removeRange(doc, from, to));
+	if (typeof gesture === 'string') return answer(removalEdit(doc, from, to, gesture));
 	if ('paste' in gesture) {
 		const own = gesture.plain ? undefined : gesture.own;
 		const back = own === undefined ? null : restored(source, from, to, own);
@@ -91,6 +94,29 @@ export function editRange(
 	const at =
 		gesture.drop <= from ? gesture.drop : gesture.drop - (source.length - removed.source.length);
 	return answer(restored(removed.source, at, at, own) ?? pasteAt(after, at, clipboard, false));
+}
+
+/** A removal's answer alone, for a caller that never pastes, so the paste stays unloaded. */
+export function removalOf(
+	source: string,
+	range: Range,
+	gesture: RemovalGesture,
+	mode: Mode,
+	host: RangeHost
+): RangeEditResult {
+	const removed = removalEdit(readDoc(source, host, mode), range.from, range.to, gesture);
+	const back = gesture === 'backspace' || gesture === 'command';
+	return {
+		source: removed.source,
+		caret: caretOf(removed, readDoc(removed.source, host, mode), back)
+	};
+}
+
+/** What a removal gesture leaves: text typed over one block held whole takes its place, and the
+ *  line stays. */
+function removalEdit(doc: Doc, from: number, to: number, gesture: RemovalGesture): Removal {
+	if (gesture !== 'type' || !heldAlone(doc, from, to)) return removeRange(doc, from, to);
+	return { source: doc.source.slice(0, from) + doc.source.slice(to), caret: from };
 }
 
 /** What a copy of `range` writes, the copy gesture alone: it reads nothing but `source`, so an

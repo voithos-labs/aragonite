@@ -9,30 +9,21 @@
 import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
 import { documentLineEnding } from '../../core/lines';
 import { CURSOR_END } from '../../block-component';
-import type { HeldLanding, MultiScopeTarget, ScopeWrites } from '../../action-contracts';
+import type { HeldLanding } from '../../action-contracts';
 import type { CrossBlockDispatchContext } from './dispatch';
 import { charOffsetOf, deleteSnapshot, type SelectionPoint } from '../primitives';
-import { rangeDelete, removeHeldWhole, type RangeDeleteResult } from './range-delete/range-delete';
 import { coverRange, rangeCoverage, type RangeCoverage } from '../range-coverage';
-import { commitGridLineDelete } from './range-delete/range-delete-table-coverage';
 import type { RemovalGesture } from '../caret-target';
-import { emptiedPlace, landingKind, removalLanding, type RangeRemoval } from '../removal-landing';
+import type { RemovalGesture as CoreGesture } from '../../range-edit/edit-range';
 import { pathsEqual } from '../path-math';
-import { trackChildIds, type StructuralChange } from '../../tree-operations/structural-change';
-import {
-	blockNodeAt,
-	documentBody,
-	isBlockNode,
-	nodeAt
-} from '../../tree-operations/node-primitives';
+import { blockNodeAt, isBlockNode } from '../../tree-operations/node-primitives';
+import { commitGridClear, commitGridLineDelete } from './grid-removal';
+import { commandLandingKind, emptiedPlace, removeThroughCore, type Removed } from './range-removal';
 import { pasteDispatch } from '../../tree-operations/paste/dispatch';
 import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
 import { parseReplacement } from '../../tree-operations/paste/replacement-parse';
 import { slotReaderAt } from '../../tree-operations/list/task-paragraph';
-import { countsCells } from '../../schema/block-kind-descriptor';
 import { dispatchKeyCommand } from '../../schema/block-commands';
-import { docPathFrom } from '../../core/coordinate-spaces';
-import { scopeStateFor } from '../../block-lists/state-registry';
 import { emitClipboardError } from '../../editor-events';
 import { assertInvariant, devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { checkCommandLanding } from '../../invariants/command-key-landing';
@@ -64,6 +55,7 @@ export type CrossBlockMutationContext = Pick<
 	| 'pasteCoordinator'
 	| 'activePlugins'
 	| 'commands'
+	| 'bytes'
 >;
 
 /**
@@ -94,14 +86,6 @@ export async function replaceRange(
 		ctx.controller.continueTypingBurst();
 	}
 	return outcome;
-}
-
-/** The kind of the block a command key's removal leaves the caret in, read before the removal, so
- *  the key is claimed by the keymap of the block the command then runs in. */
-export function commandLandingKind(doc: Document, coverage: RangeCoverage): AnyBlockKind {
-	const landing = removalLanding(coverage, STRUCTURAL_REMOVAL[reachOf(coverage)]);
-	// A command key names no gesture of its own, so its removal is keyless (`gestureOf`).
-	return landingKind(doc, coverage, landing, KEYLESS);
 }
 
 /** The kind of the deepest block `path` resolves to; the document root reads as its own kind. */
@@ -140,10 +124,7 @@ async function replaceInStep(
 		removeRange(ctx, coverage, removal, insertion)
 	);
 	if (!removed.wrote) return 'nothing';
-	const place =
-		family !== 'structural' && removed.caret
-			? emptiedPlace(ctx.getDoc(), coverage, removal, removed.caret)
-			: null;
+	const place = family !== 'structural' ? emptiedPlace(ctx.getDoc(), coverage, removed) : null;
 	if (place) return insertInEmptiedPlace(ctx, coverage, insertion, place, removalCaret);
 
 	const at = removed.caret;
@@ -228,6 +209,10 @@ type Family = 'structural' | 'content' | 'composition';
  *  a rectangle of its cells, or anything else. */
 type Reach = 'unit' | 'lines' | 'cells' | 'other';
 
+/** Removes what the range covers and keeps what it can, takes the blocks it holds whole out, or
+ *  takes a table's whole rows or columns. */
+type RangeRemoval = 'delete' | 'remove-whole' | 'remove-lines';
+
 type Removal = 'replace-in-slot' | RangeRemoval;
 
 const STRUCTURAL_REMOVAL: Record<Reach, RangeRemoval> = {
@@ -242,13 +227,6 @@ const REMOVAL: Record<Family, Record<Reach, Removal>> = {
 	content: { unit: 'replace-in-slot', lines: 'delete', cells: 'delete', other: 'delete' },
 	composition: { unit: 'delete', lines: 'delete', cells: 'delete', other: 'delete' }
 };
-
-/** The gesture a removal lands its caret by: a key's own, else a delete no key asked for. */
-function gestureOf(insertion: RangeInsertion): RemovalGesture {
-	return insertion.kind === 'none' ? insertion.gesture : KEYLESS;
-}
-
-const KEYLESS: RemovalGesture = 'keyless';
 
 /** Typing nothing is a keyless delete. */
 function familyOf(insertion: RangeInsertion): Family {
@@ -271,115 +249,43 @@ function reachOf(coverage: RangeCoverage): Reach {
 	return coverage.grid ? 'cells' : 'other';
 }
 
-interface Removed {
-	wrote: boolean;
-	/** Where the removal left the caret, read on the committed tree. */
-	caret: SelectionPoint | null;
-}
-
+/** The removal a gesture over the range makes: a table's cells by the grid, all else by the
+ *  range-edit core. */
 function removeRange(
 	ctx: CrossBlockMutationContext,
 	coverage: RangeCoverage,
 	removal: Exclude<Removal, 'replace-in-slot'>,
 	insertion: RangeInsertion
 ): Promise<Removed> {
-	const gesture = gestureOf(insertion);
 	const grid = coverage.grid;
-	if (removal === 'remove-lines' && (grid?.kind === 'row' || grid?.kind === 'column')) {
-		return commitGridLineDelete(ctx, grid).then((caret) => ({ wrote: caret !== null, caret }));
+	if (grid && removal === 'remove-lines' && (grid.kind === 'row' || grid.kind === 'column'))
+		return commitGridLineDelete(ctx, grid).then(inCell);
+	if (grid && removal !== 'remove-whole') return commitGridClear(ctx, coverage, grid).then(inCell);
+	return removeThroughCore(ctx, coverage, coreGestureOf(insertion));
+}
+
+const inCell = (caret: SelectionPoint | null): Removed => ({
+	wrote: caret !== null,
+	caret,
+	inText: true
+});
+
+/** How the core names the removal a gesture makes: typed or pasted text removes as a cut does, a
+ *  composition as Delete does, a command key and a delete no key asked for as Backspace does. */
+function coreGestureOf(insertion: RangeInsertion): CoreGesture {
+	switch (insertion.kind) {
+		case 'none':
+			return { Backspace: 'backspace', Delete: 'delete', cut: 'cut', keyless: 'command' }[
+				insertion.gesture
+			] as CoreGesture;
+		case 'text':
+		case 'paste':
+			return insertion.text ? 'type' : 'command';
+		case 'composition':
+			return 'compose';
+		case 'command':
+			return 'command';
 	}
-	return commitRemoval(ctx, coverage, (body, scope) =>
-		removal === 'remove-whole'
-			? removeHeldWhole(body, coverage, scope, ctx.reading, gesture)
-			: rangeDelete(body, coverage, scope, ctx.reading, gesture)
-	);
-}
-
-/** One commit over the document and every container either endpoint splices. */
-async function commitRemoval(
-	ctx: CrossBlockMutationContext,
-	coverage: RangeCoverage,
-	remove: (body: Document, scope: ScopeWrites) => RangeDeleteResult
-): Promise<Removed> {
-	const { start, end } = coverage.range;
-	const doc = ctx.getDoc();
-	// The document goes first and always: it holds every endpoint, and a block taken whole at the
-	// top level leaves its array.
-	const scopes: MultiScopeTarget[] = [
-		ctx.controller.getDocScope(),
-		...touchedContainers(doc, start.path, end.path)
-	];
-	let result: RangeDeleteResult | null = null;
-	const caret = () => result?.caret(ctx.getDoc()) ?? null;
-	const wrote = await ctx.controller.commitMultiScope({
-		scopes,
-		snapshot: deleteSnapshot(start.path, start.offset),
-		mutate: (views) => {
-			// The document's working list, read through `top` and spliced through the scope, whose
-			// body carries the ids the ledger below tracks.
-			const top = documentBody(doc, views[0].children);
-			// Opened before the removal: paths go stale as it splices, the scope nodes don't.
-			const ledgers = views.map((v, i) => trackChildIds(i === 0 ? views[0].body : v.node));
-			const removed = remove(top, views[0]);
-			result = removed;
-			ctx.selection.collapse();
-			// An endpoint table's scope reports the row splice the removal made, matched on the copied
-			// node, never a snap worked out again.
-			const rowSplices = removed.tableRowSplices ?? [];
-			return ledgers.map((ledger, i): StructuralChange => {
-				const rowSplice = rowSplices.find((s) => s.table === views[i].node);
-				const change = rowSplice
-					? ({ op: 'delete', at: rowSplice.at, count: rowSplice.count } as const)
-					: ledger.read();
-				ledger.release();
-				return change;
-			});
-		},
-		op: { kind: 'delete', detail: { crossBlock: true }, eventPath: docPathFrom([start.path[0]]) },
-		landing: () => {
-			const at = caret();
-			return at && { path: docPathFrom(at.path), offset: at.offset };
-		}
-	});
-	return { wrote, caret: caret() };
-}
-
-/** Every container holding ids on either endpoint path whose children the removal splices: the
- *  ancestors, a grid endpoint itself, and none for a range whose ends are both top-level prose. */
-function touchedContainers(
-	doc: Document,
-	startPath: number[],
-	endPath: number[]
-): MultiScopeTarget[] {
-	const touched: MultiScopeTarget[] = [];
-	const seen = new Set<string>();
-	// A pair on one top-level block, a grid's cells included, splices the document's array alone.
-	if (pathsEqual(startPath, endPath) && startPath.length === 1) return touched;
-
-	function visit(leafPath: number[]): void {
-		for (let depth = 1; depth <= leafPath.length; depth++) {
-			const ancestorPath = leafPath.slice(0, depth);
-			const node = nodeAt(doc, ancestorPath);
-			if (!node || !isBlockNode(node) || !node.children) continue;
-			if (depth === leafPath.length && !countsCells(node)) continue;
-			const key = ancestorPath.join('.');
-			if (seen.has(key)) continue;
-			seen.add(key);
-			const state = scopeStateFor(node);
-			if (!state) continue;
-			touched.push({ path: ancestorPath, node, state });
-		}
-	}
-
-	visit(startPath);
-	visit(endPath);
-	touched.sort((a, b) => a.path.length - b.path.length || comparePathOrder(a.path, b.path));
-	return touched;
-}
-
-function comparePathOrder(a: number[], b: number[]): number {
-	for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] - b[i];
-	return 0;
 }
 
 // ── The insertion ──────────────────────────────────────────────────────────

@@ -11,6 +11,7 @@ import { metadataOf } from '../core/nodes';
 import { docPathFrom, type DocPath } from '../core/coordinate-spaces';
 import { countsCells } from '../schema/block-kind-descriptor';
 import { blockNodeAt } from '../tree-operations/node-primitives';
+import { leafAtByte } from '../tree-operations/container-offsets';
 import type { Range } from '../range-edit/edit-range';
 import { documentLayout, type LaidBlock, type Layout } from '../range-edit/layout';
 import { pathsEqual } from './path-math';
@@ -64,6 +65,23 @@ export function rangeBytes(
 	const edges = !pathsEqual(start.path, end.path) && caretEdges(doc, layout);
 	if (edges && from <= edges.first && to >= edges.last) from = 0;
 	return { from, to };
+}
+
+/** The bytes a removal takes: the range's, or a table whose every cell the range holds. */
+export function removalBytes(
+	doc: DocumentView,
+	coverage: RangeCoverage,
+	layout: Layout
+): Range | null {
+	if (coverage.grid?.kind !== 'table') return rangeBytes(doc, coverage, layout);
+	const table = layout.block(coverage.grid.path);
+	return table ? { from: table.from, to: textEnd(doc, table) } : null;
+}
+
+/** The selection point naming byte `at`: the text block holding it and the offset there. */
+export function pointAtByte(doc: DocumentView, at: number): SelectionPoint | null {
+	const leaf = leafAtByte(doc, at);
+	return leaf && { path: leaf.path.slice(), offset: leaf.offset };
 }
 
 /** How a range across blocks paints: one box over each block whose bytes lie inside the range's
