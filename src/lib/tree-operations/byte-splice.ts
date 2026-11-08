@@ -27,6 +27,8 @@ export interface SpliceWindow {
 	at: number;
 	count: number;
 	blocks: CstNode[];
+	/** Inside one container: its children `[at, at + count)` were read again, the rest kept. */
+	run?: { at: number; count: number };
 }
 
 /** The windows a splice replaces, in document order, and the document's trailing blank line. */

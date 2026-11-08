@@ -10,6 +10,7 @@ import { unfinishedReadings, type GrammarView } from '../schema/block-openers';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { rebuildAncestryRaw } from '../schema/container-raw';
 import { unchangedEnds } from '../block-id';
+import { recordSiblingsCompared } from '../perf/instruments';
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
 import { applied, segmentEnds, type SpliceReading } from './byte-splice';
 import { changedBytes, changesBetween, narrowed, type ByteChange } from './byte-changes';
@@ -47,7 +48,8 @@ export function splicedOpenerClosers(
 						ends[hi] + shift + grown
 					)
 				: null;
-		const nested = now && closersInside(node, now.node, grammar);
+		const read = reading.windows.find((window) => window.at === first)?.run;
+		const nested = now && closersInside(node, now.node, grammar, read);
 		if (nested) {
 			const base = now.at + now.node.leadingTrivia.length;
 			for (const closer of nested) out.push({ at: base + closer.at, text: closer.text });
@@ -140,14 +142,29 @@ function groupsOf(
 
 /** The closers a change inside container `was`, read again as `now`, needs in `now`'s bytes; null
  *  when it changed no child's bytes, as a change to the container's own lines does. */
-function closersInside(was: NodeView, now: NodeView, grammar: GrammarView): WrittenCloser[] | null {
+/** How many children at either end `now` holds as `was` did, counted for the cost row. */
+function keptEnds(was: readonly NodeView[], now: readonly NodeView[]) {
+	const ends = unchangedEnds(was, now);
+	recordSiblingsCompared(ends.head + ends.tail);
+	return ends;
+}
+
+function closersInside(
+	was: NodeView,
+	now: NodeView,
+	grammar: GrammarView,
+	read?: { at: number; count: number }
+): WrittenCloser[] | null {
 	const path: number[] = [];
 	let old = was;
 	let is = now;
 	for (;;) {
 		const kids = old.children!;
-		// Only the children that changed are joined, so a long container costs no more than a short one.
-		const { head, tail } = unchangedEnds(kids, is.children!);
+		// Only the children that changed are joined: the run the read named, else the ones that differ.
+		const { head, tail } =
+			read && old === was
+				? { head: read.at, tail: kids.length - read.at - read.count }
+				: keptEnds(kids, is.children!);
 		const olds = kids.slice(head, kids.length - tail);
 		const news = is.children!.slice(head, is.children!.length - tail);
 		const [change] = changesBetween(bytesOf(olds), bytesOf(news));

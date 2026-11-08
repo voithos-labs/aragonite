@@ -1,5 +1,5 @@
 // A byte splice inside a long list, quote or table reads only the children its change reaches:
-// the bytes it parses, and the children its commit joins, come out the same at N and 4N children.
+// the bytes it parses, and the children its commit joins and compares, are the same at N and 4N.
 import { describe, it, expect, afterEach } from 'vitest';
 import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { serialize } from '#lib/core/serializer.js';
@@ -87,8 +87,8 @@ async function cost(shape: keyof typeof SHAPES, n: number, edit: 'paste' | 'remo
 		snapshot: { path: docPathFrom([0]), offset: 0 }
 	});
 	expect(wrote).toBe(true);
-	const { parseBytes, joinedChildReads } = perfSnapshot();
-	return { read, commit: parseBytes, joined: joinedChildReads };
+	const { parseBytes, joinedChildReads, siblingsCompared } = perfSnapshot();
+	return { read, commit: parseBytes, joined: joinedChildReads, compared: siblingsCompared };
 }
 
 afterEach(() => disablePerfInstruments());

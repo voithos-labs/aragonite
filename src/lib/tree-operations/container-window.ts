@@ -90,7 +90,12 @@ export function containerWindow(
 		}
 		// A block left waiting on its closer may take in lines past the run.
 		if (now.blocks.some((block) => waitingReading(block.raw, top.readings))) return null;
-		const window = { at: t, count: 1, blocks: [spliced(run, text, to - from, now)] };
+		const window = {
+			at: t,
+			count: 1,
+			blocks: [spliced(run, text, to - from, now)],
+			run: { at: run.lo, count: run.hi - run.lo + 1 }
+		};
 		return { window, suffix: now.suffix };
 	}
 }
