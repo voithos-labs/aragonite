@@ -74,7 +74,10 @@ function across(
 	const opening = enteredOpening(doc, from, to);
 	const takes = (b: LaidBlock) => !titleOwner(doc, b) && factsOf(doc, b).joins !== 'never';
 	const ends = !last || last === first || takes(last) || to > last.from;
-	const joins = opening === null && (held || (first !== undefined && takes(first))) && ends;
+	// What follows never takes the place of a table's row.
+	const parent = held && first ? parentOf(doc, first) : undefined;
+	const takesPlace = held && (!parent || factsOf(doc, parent).lines !== 'rows');
+	const joins = opening === null && (takesPlace || (first !== undefined && takes(first))) && ends;
 	const head = held ? null : leafAt(doc, from);
 	if (joins && head && end && head.leaf !== end.leaf) return joinedLeaves(doc, from, to, head, end);
 	const lines = held ? wholeLines(doc, from, to) : null;
@@ -159,7 +162,7 @@ function withClosers(doc: Doc, from: number, to: number, joined: string, at: num
 function enteredOpening(doc: Doc, from: number, to: number): string | null {
 	const entered =
 		containersAt(doc, to, 'end').find(
-			(c) => factsOf(doc, c).lines === 'fenced' && c.from > from && c.lines!.at(-1)!.from >= to
+			(c) => opensFenced(doc, c, to) && c.from > from && c.lines!.at(-1)!.from >= to
 		) ??
 		findWithin(doc, from, to, (b) => {
 			if (!b.text || b.from <= from || to <= b.from) return false;
@@ -183,13 +186,22 @@ function enteredOpening(doc: Doc, from: number, to: number): string | null {
 	);
 }
 
-/** Where a fenced block's opening ends: a fence's at its body, a container's past its opening lines
- *  and its title row. */
+/** A container whose structure opens it, entered past that opening: a fenced container, or a table
+ *  the range enters below its delimiter (one ending in its header takes the header's text). */
+function opensFenced(doc: Doc, c: LaidBlock, to: number): boolean {
+	const { lines } = factsOf(doc, c);
+	return lines === 'fenced' || (lines === 'rows' && to >= openingEnd(doc, c));
+}
+
+/** Where a fenced block's opening ends: a fence's at its body, a table's past its delimiter line, a
+ *  container's past its opening lines and its title row. */
 function openingEnd(doc: Doc, block: LaidBlock): number {
 	if (!block.container) {
 		const body = doc.host.fence(nodeAt(doc, block.path).raw)?.body;
 		return body === undefined ? block.from : byteAt(doc, block, body);
 	}
+	if (factsOf(doc, block).lines === 'rows')
+		return block.lines!.find((l) => l.own)?.to ?? block.from;
 	let at = block.from;
 	for (const line of block.lines!) {
 		if (!line.own) break;

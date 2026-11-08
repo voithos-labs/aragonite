@@ -775,5 +775,18 @@ export const NAMED_ROWS: NamedRow[] = [
 		source: '> a\n>\n> ⟦---⟧\n>\n> b\n',
 		gesture: 'delete',
 		expect: { source: '> a\n>\n> b\n', caret: text(8) }
+	},
+	// ── A table the range enters or leaves keeps its header, and takes no prose into its rows ──
+	{
+		name: 'L4 a range entering a table below its header keeps the header and delimiter',
+		source: 'intro⟦ paragraph\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n⟧| 3 | 4 |\n',
+		gesture: 'backspace',
+		expect: { source: 'intro\n\n| A | B |\n| --- | --- |\n| 3 | 4 |\n', caret: text(5) }
+	},
+	{
+		name: 'L4 a range leaving a table from its body rows leaves the prose after it a block of its own',
+		source: '| A | B |\n| --- | --- |\n⟦| 1 | 2 |\n| 3 | 4 |\n\nfollow ⟧paragraph\n',
+		gesture: 'delete',
+		expect: { source: '| A | B |\n| --- | --- |\n\nparagraph\n' }
 	}
 ];

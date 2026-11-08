@@ -235,8 +235,8 @@ export function startsBelowTableHead(read: Read, from: number, host: CheckHost):
 	});
 }
 
-/** Law 3's first declared exception: a range that takes the line a fenced block opens with and
- *  ends inside it, whose opening a plain-text paste can't rebuild. */
+/** Law 3's first declared exception: a range that takes the line a fenced block opens with (a
+ *  table's header) and ends inside it, whose opening a plain-text paste can't rebuild. */
 export function opensWithoutClosing(
 	read: Read,
 	from: number,
@@ -245,7 +245,8 @@ export function opensWithoutClosing(
 ): boolean {
 	return read.blocks.some((b) => {
 		if (!(b.from >= from && b.from < to && to < b.to)) return false;
-		return b.type === 'fencedCode' || host.facts(b.type).lines === 'fenced';
+		const lines = host.facts(b.type).lines;
+		return b.type === 'fencedCode' || lines === 'fenced' || lines === 'rows';
 	});
 }
 
