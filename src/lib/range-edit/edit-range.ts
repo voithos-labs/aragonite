@@ -15,6 +15,7 @@ import type { Edit } from './leaf-splice';
 import { ownEntry, restored } from './own-entry';
 import { pasteAt } from './paste';
 import { removeRange } from './removal';
+import { holdsText } from './removal-range';
 
 /** Two byte offsets, `from <= to`, after the editor widened the range to every block it takes
  *  whole; a caret is a range with `from === to`. */
@@ -102,13 +103,13 @@ export function copyRange(
 	return { clipboard, own };
 }
 
-/** What a removal of `[from, to)` takes, as a copy and a cut both write it; a range it takes
- *  nothing from (a hidden fence, markers alone) copies blank lines at most. */
+/** What a removal of `[from, to)` takes, as a copy and a cut both write it; a range holding no text
+ *  that it takes nothing from (a hidden fence, markers alone) copies blank lines at most. */
 function taken(doc: Doc, from: number, to: number) {
 	const removed = removeRange(doc, from, to);
 	const copy = copyOf(doc, from, to);
-	const clipboard = removed.source !== doc.source || isBlankText(copy) ? copy : '';
-	return { removed, clipboard, own: ownEntry(doc.source, from, to, removed) };
+	const copies = removed.source !== doc.source || isBlankText(copy) || holdsText(doc, from, to);
+	return { removed, clipboard: copies ? copy : '', own: ownEntry(doc.source, from, to, removed) };
 }
 
 /** The range is exactly one block other than a paragraph, from its first byte to the end of its

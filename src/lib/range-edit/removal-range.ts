@@ -5,7 +5,16 @@
 
 import { ownTrailingLineEnding } from '../core/lines';
 import type { LaidBlock } from './layout';
-import { contentEnd, factsOf, findWithin, leafAt, nodeAt, titleAt, type Doc } from './document';
+import {
+	contentEnd,
+	factsOf,
+	findWithin,
+	leafAt,
+	nodeAt,
+	titleAt,
+	titleOwner,
+	type Doc
+} from './document';
 import { byteAt } from './leaf-splice';
 
 /** The range narrowed to what a removal takes: a live code block's hidden fences and the last line
@@ -49,11 +58,25 @@ export function heldWhole(doc: Doc, block: LaidBlock, from: number, to: number):
 	return to >= (block.text?.to ?? contentEnd(doc, block));
 }
 
+/** Whether some block's text lies partly inside `[from, to)`, a live code block's body alone since
+ *  its fence lines are hidden. */
+export function holdsText(doc: Doc, from: number, to: number): boolean {
+	const shown = (b: LaidBlock) => (doc.mode === 'live' && fenceBody(doc, b)) || b.text;
+	return (
+		findWithin(doc, from, to, (b) => {
+			const text = b.text && shown(b);
+			return !!text && text.from < to && from < text.to;
+		}) !== undefined
+	);
+}
+
 /** The body of a fenced block a caret can enter, between its fence lines; null for any other block.
  *  A block drawn as a picture of its source is held whole, never entered. */
 function fenceBody(doc: Doc, leaf: LaidBlock): { from: number; to: number } | null {
 	const facts = factsOf(doc, leaf);
-	if (facts.body !== 'literal' || facts.textPosition !== 'always') return null;
+	// A `:::` title row's line reads as an opening fence too, but it has no body to stay inside.
+	if (facts.body !== 'literal' || facts.textPosition !== 'always' || titleOwner(doc, leaf))
+		return null;
 	const raw = nodeAt(doc, leaf.path).raw;
 	const fence = doc.host.fence(raw);
 	if (!fence) return null;
