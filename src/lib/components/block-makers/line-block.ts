@@ -31,6 +31,7 @@ export function lineBlock<D = never>(spec: LineBlockSpec<D>): BlockType<D> {
 		view: drawing ? drawnView(drawing) : textBlockView(),
 		opener: shape.opener,
 		completer: completerOf(spec.complete, shape.claims),
+		bodyRange: shape.range,
 		writeData: shape.writeData
 	});
 	return type;

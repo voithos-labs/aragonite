@@ -25,6 +25,8 @@ export interface BlockMaking {
 	opener(kind: PluginBlockKind): BlockOpener | null;
 	readonly completer: BlockCompleter | null;
 	readonly insert: BlockInsert;
+	/** Where a leaf's text sits in its bytes, read for `Block.body` however the leaf edits. */
+	readonly bodyRange?: ((node: NodeView) => { start: number; end: number }) | null;
 	/** The block's bytes with `data` written into them; null where the type has no writer for it. */
 	readonly writeData?: (node: NodeView, data: unknown, grammar: GrammarView) => string | null;
 }

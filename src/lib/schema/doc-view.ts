@@ -6,6 +6,7 @@ import { getPluginMetadata, type AnyBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { getContentRange } from '../core/inline';
 import type { BlockType } from './plugin-unit';
+import { makingOf } from './block-type';
 
 /** One block of the document. */
 export interface Block<D = unknown> {
@@ -39,7 +40,7 @@ export function blockOf<D>(
 		data: getPluginMetadata<D>(node) as D,
 		text: node.raw,
 		get body() {
-			const { start, end } = getContentRange(node);
+			const { start, end } = (makingOf(type)?.bodyRange ?? getContentRange)(node);
 			return node.raw.slice(start, end);
 		},
 		get children() {
