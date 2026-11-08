@@ -5,7 +5,6 @@
 // Each app passes its views; the grammar here is shared.
 import {
 	activateDirectives,
-	containerClosure,
 	declarePluginInlineKind,
 	declarePluginKind,
 	declaredPluginKind,
@@ -25,7 +24,6 @@ import {
 	registerInlineWidgetKind,
 	scanFence,
 	setPluginMetadata,
-	simpleLeafClosure,
 	type BlockView,
 	type CstNode,
 	type Decoration,
@@ -143,13 +141,7 @@ function registerLine(
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
-		conformanceFixture: `${marker}text\n`,
-		closure: simpleLeafClosure({
-			focus: { mode: 'implemented', via: 'the leaf surface' },
-			searchPaint: { mode: 'inherit-default' },
-			undo: { mode: 'implemented', via: undo },
-			simOracle: { mode: 'inherit-default' }
-		})
+		conformanceFixture: `${marker}text\n`
 	});
 }
 
@@ -187,15 +179,7 @@ function registerBox(view: BlockView): void {
 		container: {
 			lines: COLON_LINES
 		},
-		conformanceFixture: ':::box Title\nbody\n:::\n',
-		closure: containerClosure({
-			roundTripVia: 'container lines — the colon shape',
-			focus: { mode: 'implemented', via: 'focus walks to the opener line' },
-			mergeBackspace: { mode: 'implemented', via: 'mergeRole=container + unwrapRole' },
-			undo: { mode: 'implemented', via: 'children commit as ordinary blocks' },
-			simOracle: { mode: 'inherit-default' },
-			clipboard: { mode: 'implemented', via: 'byte-slice copy' }
-		})
+		conformanceFixture: ':::box Title\nbody\n:::\n'
 	});
 }
 
@@ -281,21 +265,7 @@ function registerNote(view: BlockView): void {
 		container: { contract: 'opaque', rebuildRaw: rebuildNoteRaw },
 		rawWrite: fenceRawWrite(fenceShapeOfRaw),
 		keymap: [{ chord: 'Mod+M', command: edit }],
-		conformanceFixture: '```note\nhello\n```\n',
-		closure: {
-			roundTrip: { mode: 'implemented', via: 'container contract=opaque, rebuildNoteRaw' },
-			focus: {
-				mode: 'implemented',
-				via: 'blockFocus=whole-block, the view attaches its focus element'
-			},
-			mergeBackspace: { mode: 'implemented', via: 'blockFocus=whole-block' },
-			selectionPaint: { mode: 'implemented', via: 'whole-block cover rect' },
-			searchPaint: { mode: 'implemented', via: 'raw scans as a leaf' },
-			reorder: { mode: 'implemented', via: 'whole-block reorder' },
-			undo: { mode: 'implemented', via: 'updateOwnMetadata, one entry per edit' },
-			clipboard: { mode: 'implemented', via: 'focused-block copy and cut' },
-			simOracle: { mode: 'inherit-default' }
-		}
+		conformanceFixture: '```note\nhello\n```\n'
 	});
 }
 
@@ -321,12 +291,6 @@ function registerDice(view: BlockView): void {
 		mergeRole: 'not-mergeable',
 		editable: false,
 		supportsInline: false,
-		conformanceFixture: '!! d6\n',
-		closure: simpleLeafClosure({
-			focus: { mode: 'implemented', via: 'the component publishes focus through useBlockHandle' },
-			searchPaint: { mode: 'not-supported', reason: 'its drawn buttons hold no source' },
-			undo: { mode: 'not-supported', reason: 'the die writes no bytes' },
-			simOracle: { mode: 'inherit-default' }
-		})
+		conformanceFixture: '!! d6\n'
 	});
 }

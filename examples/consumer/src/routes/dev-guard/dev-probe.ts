@@ -46,21 +46,7 @@ export function devProbePlugin(): EditorPlugin {
 				gapEdges: 'none',
 				supportsInline: false,
 				container: { lines: COLON_LINES },
-				conformanceFixture: ':::devprobe\n\nbody\n\n:::\n',
-				closure: {
-					roundTrip: { mode: 'implemented', via: 'container lines — the colon shape' },
-					focus: { mode: 'implemented', via: 'focus walks into the first body child' },
-					mergeBackspace: { mode: 'implemented', via: 'mergeRole=container + unwrapRole' },
-					selectionPaint: { mode: 'implemented', via: 'body child blocks paint; container cover' },
-					searchPaint: {
-						mode: 'implemented',
-						via: 'children are real blocks — search descends and paints'
-					},
-					reorder: { mode: 'implemented', via: 'whole-block reorder through the parent BlockList' },
-					undo: { mode: 'inherit-default' },
-					clipboard: { mode: 'not-supported', reason: 'dev-guard harness only' },
-					simOracle: { mode: 'implemented', via: 'dev-guard e2e under the [invariant:] watcher' }
-				}
+				conformanceFixture: ':::devprobe\n\nbody\n\n:::\n'
 			});
 
 			registerDirective('container', DEVPROBE, {

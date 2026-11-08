@@ -10,7 +10,6 @@ import {
 	registeredKinds
 } from '#lib/schema/block-kind-descriptor.js';
 import { unfinishedReadings, type BlockOpener } from '#lib/schema/block-openers.js';
-import { testClosure } from '#lib/test/harness/closure.js';
 import {
 	blockContextActionsFor,
 	registerBlockContextActions
@@ -137,7 +136,6 @@ describe('one activation rule for every plugin registration', () => {
 					mergeRole: 'not-mergeable',
 					editable: true,
 					supportsInline: false,
-					closure: testClosure,
 					view: stubView
 				});
 				throw new Error('setup failed halfway');

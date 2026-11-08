@@ -9,7 +9,6 @@ import {
 	registerBlockKind,
 	registerBlockCommand,
 	setPluginMetadata,
-	simpleLeafClosure,
 	type BlockView,
 	type CstNode
 } from '#lib/plugin.js';
@@ -54,21 +53,6 @@ export function registerMemoBlock(view: BlockView): void {
 			{ chord: 'Mod+Shift+K', command: tag },
 			{ chord: 'Mod+Shift+J', command: boom }
 		],
-		conformanceFixture: '%%a memo\n',
-		closure: simpleLeafClosure({
-			focus: {
-				mode: 'implemented',
-				via: 'createEditableLeaf plain — always-editable source caret'
-			},
-			searchPaint: { mode: 'implemented', via: 'source raw scanned; matches painted as marks' },
-			undo: {
-				mode: 'implemented',
-				via: 'plain mode — per-keystroke commits with prose undo batching'
-			},
-			simOracle: {
-				mode: 'implemented',
-				via: 'editable-leaf-plain / editable-leaf-command e2e'
-			}
-		})
+		conformanceFixture: '%%a memo\n'
 	});
 }

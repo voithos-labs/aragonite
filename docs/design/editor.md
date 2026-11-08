@@ -213,7 +213,7 @@ registerBuiltinBlockKind('thematicBreak', {
 	supportsInline: false,
 	blockFocus: 'whole-block',
 	gapEdges: 'before'
-	// closure, conformanceFixture, ...: plugin-contract.md § The descriptor field reference
+	// conformanceFixture, label, ...: plugin-contract.md § The descriptor field reference
 });
 ```
 

@@ -10,7 +10,6 @@ import type { MenuIconName } from '../menu-icons';
 import type { BlockOpener } from './block-openers';
 import type { BuiltinRegistration, WriteRule } from './block-kind-descriptor';
 import type { BlockCompleter } from './block-completions';
-import { simpleLeafClosure } from './closure';
 import { pluginTextKeymap } from './built-in-descriptors';
 import { OPENER_PRIORITIES } from './opener-priorities';
 import { isValidPluginName } from './plugin-name';
@@ -167,8 +166,7 @@ export function leafRegistration(spec: LeafCommon<unknown>, text: LeafText): Bui
 		gapEdges: edit === 'text' ? ('none' as const) : ('both' as const),
 		...fixtureOf(spec.sample),
 		...(spec.height ? { estimateHeight: heightEstimate(spec.height) } : {}),
-		...(writes ? { rawWrite: writes } : {}),
-		closure: LEAF_CLOSURE
+		...(writes ? { rawWrite: writes } : {})
 	};
 	if (box) return { ...shared, blockFocus: 'whole-block', supportsInline: false };
 	return {
@@ -292,14 +290,6 @@ export function checkLocalName(maker: string, name: string): void {
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────
-
-// Every leaf a maker builds answers the editor's systems the same way, through the editor's text.
-const LEAF_CLOSURE = simpleLeafClosure({
-	focus: { mode: 'implemented', via: 'derived from the block type' },
-	searchPaint: { mode: 'implemented', via: 'derived from the block type' },
-	undo: { mode: 'implemented', via: 'derived from the block type' },
-	simOracle: { mode: 'inherit-default' }
-});
 
 /** A block type's first sample as the checks' fixture; a JavaScript author can leave it out, which
  *  the published checks report. */

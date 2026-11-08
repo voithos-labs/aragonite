@@ -4,7 +4,6 @@
  */
 import {
 	activateDirectives,
-	containerClosure,
 	declarePluginKind,
 	COLON_LINES,
 	registerBlockKind,
@@ -96,24 +95,7 @@ export function registerAdmonitions(view: BlockView, options?: AdmonitionsOption
 			lines: COLON_LINES
 		},
 		keymap: [{ chord: 'Mod+7', command: cycleKind }],
-		conformanceFixture: ':::note Heads up\n\nbody\n\n:::\n',
-		closure: containerClosure({
-			roundTripVia: 'container lines — the colon shape, written by the container writer',
-			focus: { mode: 'implemented', via: 'focus walks to the opener line / first body child' },
-			mergeBackspace: { mode: 'implemented', via: 'mergeRole=container + unwrapRole' },
-			undo: {
-				mode: 'implemented',
-				via: 'replaceRaw: the kind cycle rewrites the opener line as one undoable edit'
-			},
-			clipboard: {
-				mode: 'implemented',
-				via: 'byte-slice copy; a slice touching the opener line re-emits the admonition: a mid-title start reopens it around the collected body, a mid-title end yields a title-only admonition'
-			},
-			simOracle: {
-				mode: 'implemented',
-				via: 'admonition + paste-transform e2e under the [invariant:] watcher'
-			}
-		})
+		conformanceFixture: ':::note Heads up\n\nbody\n\n:::\n'
 	});
 
 	if (options?.convertAlertsOnPaste) {

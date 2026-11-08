@@ -10,7 +10,6 @@ import { componentPluginEditor } from '#lib/schema/block-kind-plugin.js';
 import { declareOwnedKind } from '#lib/test/harness/owned-kind.js';
 import { registerBlockKind } from '#lib/schema/block-kind-descriptor.js';
 import { __resetSchemaRegistriesForTests } from '#lib/schema/registry-reset.js';
-import { testClosure } from '#lib/test/harness/closure.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
@@ -29,7 +28,6 @@ const minimalRegistration = {
 	mergeRole: 'not-mergeable',
 	editable: false,
 	supportsInline: false,
-	closure: testClosure,
 	view: testView()
 } as const;
 

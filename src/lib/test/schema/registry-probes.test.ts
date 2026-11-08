@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { declarePluginKind } from '../../schema/plugin-kind';
 import { registerBlockKind, isBlockKindRegistered } from '../../schema/block-kind-descriptor';
-import { testClosure } from '#lib/test/harness/closure.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
 describe('registration probes', () => {
@@ -17,7 +16,6 @@ describe('registration probes', () => {
 			mergeRole: 'not-mergeable',
 			editable: false,
 			supportsInline: false,
-			closure: testClosure,
 			view: testView()
 		});
 		expect(isBlockKindRegistered('probeKind')).toBe(true);

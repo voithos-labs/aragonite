@@ -54,7 +54,6 @@ import {
 	interactionTraceKeydownCount,
 	interactionTraceSnapshot
 } from '#lib/debug/interaction-trace.js';
-import type { ClosureBlock } from '#lib/schema/closure.js';
 import { blockContentElAt } from '#lib/caret/block-el-lookup.js';
 import { TABLE_CELL_SELECTOR } from '#lib/caret/block-content-selector.js';
 import { domDescendants } from '#lib/browser/dom-descendants.js';
@@ -66,23 +65,6 @@ import ThrowOnRenderBlock from './ThrowOnRenderBlock.svelte';
 
 type EditorInstance = ReturnType<typeof Editor>;
 
-// These kinds only reach BlockHost's fallback paths, never a real editable block, so every
-// cross-cutting system is honestly not-supported.
-const HARNESS_PROBE_CLOSURE: ClosureBlock = {
-	roundTrip: { mode: 'inherit-default' },
-	focus: {
-		mode: 'not-supported',
-		reason: 'harness probe — a single BlockHost fallback path, not an editing surface'
-	},
-	mergeBackspace: { mode: 'not-supported', reason: 'harness probe — not a real editing surface' },
-	selectionPaint: { mode: 'not-supported', reason: 'harness probe — visible-raw fallback' },
-	searchPaint: { mode: 'not-supported', reason: 'harness probe — not exercised by search' },
-	reorder: { mode: 'not-supported', reason: 'harness probe — not reorder-tested' },
-	undo: { mode: 'not-supported', reason: 'harness probe — not undo-tested' },
-	clipboard: { mode: 'not-supported', reason: 'harness probe — not clipboard-tested' },
-	simOracle: { mode: 'not-supported', reason: 'harness probe — drives the fallback path only' }
-};
-
 // A kind whose component throws on render: a throwing stub isn't a full BlockComponent, but it
 // throws before any method is read.
 const throwProbePlugin = definePlugin({
@@ -93,7 +75,6 @@ const throwProbePlugin = definePlugin({
 			mergeRole: 'not-mergeable',
 			editable: false,
 			supportsInline: false,
-			closure: HARNESS_PROBE_CLOSURE,
 			view: svelteBlockView(ThrowOnRenderBlock as never)
 		});
 	}
@@ -132,7 +113,6 @@ function installOrphanKind(): PluginBlockKind {
 						mergeRole: 'not-mergeable',
 						editable: true,
 						supportsInline: false,
-						closure: HARNESS_PROBE_CLOSURE,
 						view: textBlockView()
 					});
 					throw new Error('orphan-probe: setup fails on purpose');
@@ -161,8 +141,8 @@ export interface TestProbeDeps {
 
 // ── Conformance sweep entries (backs the browser sweep e2e) ────────────────
 
-// The three closure columns the headless suite records as `boundary`: they work only against
-// mounted DOM, so the browser sweep runs them per kind.
+// The focus, selection and search cells the headless suite records as `boundary`: they work only
+// against mounted DOM, so the browser sweep runs them per kind.
 interface ConformanceSweepEntry {
 	kind: string;
 	fixture: string;
@@ -171,11 +151,8 @@ interface ConformanceSweepEntry {
 	token: string | null;
 	/** Focused as one unit, so arrival puts DOM focus on the block's hidden editing host. */
 	wholeBlock: boolean;
-	cells: {
-		focus: { mode: string };
-		selectionPaint: { mode: string };
-		searchPaint: { mode: string };
-	};
+	/** Search reads its text: it's editable, or a container whose children are. */
+	searchable: boolean;
 }
 
 function firstNodeOfKind(node: CstNode | Document, kind: string): CstNode | null {
@@ -214,11 +191,7 @@ function collectConformanceEntries(grammar: GrammarView): ConformanceSweepEntry[
 			fixture,
 			token: node ? firstTextLeafToken(node) : null,
 			wholeBlock: descriptor.blockFocus === 'whole-block',
-			cells: {
-				focus: { mode: descriptor.closure.focus.mode },
-				selectionPaint: { mode: descriptor.closure.selectionPaint.mode },
-				searchPaint: { mode: descriptor.closure.searchPaint.mode }
-			}
+			searchable: descriptor.editable || descriptor.isContainer
 		});
 	}
 	// A sweep over zero rows checks nothing about any kind, so this fails loudly instead.

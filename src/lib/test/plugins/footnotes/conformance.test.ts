@@ -23,7 +23,7 @@ describe('footnote definition conformance', () => {
 		installPlugins([footnotesPlugin()]);
 	});
 
-	it('answers every closure column and the raw-write cell as a container with real children', async () => {
+	it('answers every kind cell as a container with real children', async () => {
 		const report = await runKindConformance(declaredPluginKind(FOOTNOTE_DEF_KIND));
 		expect(report.cells.map((c) => c.cell).sort()).toEqual([...ALL_CELLS].sort());
 	});
@@ -38,6 +38,5 @@ describe('footnote definition conformance', () => {
 
 		const merge = cells.find((c) => c.cell === 'mergeBackspace')!;
 		expect(merge.status).toBe('asserted');
-		expect(merge.mode).toBe('implemented');
 	});
 });

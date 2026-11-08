@@ -8,7 +8,6 @@
 
 import {
 	activateDirectives,
-	containerClosure,
 	declarePluginKind,
 	declaredPluginKind,
 	COLON_LINES,
@@ -75,23 +74,6 @@ export function registerCalloutKind(view: BlockView): void {
 		supportsInline: false,
 		container: { lines: COLON_LINES },
 		conformanceFixture: ':::callout My Title\n\nbody\n\n:::\n',
-		closure: containerClosure({
-			roundTripVia: 'container lines — the colon shape, written by the container writer',
-			focus: { mode: 'implemented', via: 'focus walks to the title chrome / first body child' },
-			mergeBackspace: { mode: 'implemented', via: 'mergeRole=container + unwrapRole' },
-			undo: {
-				mode: 'implemented',
-				via: 'replaceRaw: the type switch rewrites the opener line as one undoable edit'
-			},
-			clipboard: {
-				mode: 'implemented',
-				via: 'byte-slice copy; a slice touching the opener line re-emits the callout: a mid-title start reopens it around the collected body, a mid-title end yields a title-only callout'
-			},
-			simOracle: {
-				mode: 'implemented',
-				via: 'callout chrome/range-delete e2e under the [invariant:] watcher'
-			}
-		}),
 		// Not Mod+Shift+digit: the browser turns a Shift-held digit into its layout's symbol, so
 		// the chord would never match. Mod+0 to Mod+6 belong to heading.cycle.
 		keymap: [

@@ -8,7 +8,6 @@ import { builtin } from '#lib/components/block-makers/builtin.js';
 import { registerBlockKind } from '#lib/schema/block-kind-descriptor.js';
 import { declarePluginKind } from '#lib/schema/plugin-kind.js';
 import { textBlockView } from '#lib/components/blocks/text/text-block-view.js';
-import { containerClosure } from '#lib/schema/closure.js';
 import type { ContainerSpec } from '#lib/schema/container-block.js';
 import type { ContainerDrawContext } from '#lib/schema/drawing.js';
 import {
@@ -175,14 +174,7 @@ describe("a marked line shape's `reads`", () => {
 				supportsInline: false,
 				gapEdges: 'none',
 				mergeRole: 'container',
-				container: { lines: { ...MARKED, reads: /^%>/ } },
-				closure: containerClosure({
-					roundTripVia: 'container lines',
-					focus: { mode: 'inherit-default' },
-					mergeBackspace: { mode: 'inherit-default' },
-					undo: { mode: 'inherit-default' },
-					simOracle: { mode: 'inherit-default' }
-				})
+				container: { lines: { ...MARKED, reads: /^%>/ } }
 			})
 		).toThrow(/must read the marker "%> " whole/);
 	});

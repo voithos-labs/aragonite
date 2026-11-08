@@ -203,7 +203,7 @@ Every kind starts here. No other call accepts a bare string where a kind goes.
 
 ### The block-kind descriptor
 
-The **descriptor** is a kind's written behavior: how it merges, whether it's editable, its container shape. Its required `closure` field is the kind's answer to each cross-cutting editor system (undo, search, selection, clipboard and friends), so a new kind can't ship silently broken under a subsystem nobody asked about. Cell by cell: [The closure block](plugin-guide/container-walkthrough.md#the-closure-block).
+The **descriptor** is a kind's written behavior: how it merges, whether it's editable, its container shape.
 
 | Export | Role |
 | --- | --- |
@@ -216,9 +216,6 @@ The **descriptor** is a kind's written behavior: how it merges, whether it's edi
 | [`ContainerDescriptorGroup`](#containerdescriptorgroup) | The descriptor's container-only half |
 | `MergeRole`, `ContainerUnwrapRole` | Closed sets naming how a kind merges on Backspace, and how a container releases a child at its edge |
 | `ChildRawChange` | `rebuildRaw`'s optional second argument: which one child's bytes just moved, for a rebuilder that re-emits only that region. Ignoring it and re-deriving the whole raw is always correct, just slower |
-| `ClosureBlock`, `ClosureColumn`, `ClosureCell` | The closure matrix: nine columns, one cell each, and a cell is `implemented` (name the mechanism), `inherit-default`, or `not-supported` (name the degradation). A missing column fails the typecheck |
-| `simpleLeafClosure`, `SimpleLeafClosureCells` | Closure preset for a plain text leaf: bakes the five cells every such leaf answers alike, requires the four your component determines (`focus`, `searchPaint`, `undo`, `simOracle`) |
-| `containerClosure`, `ContainerClosureCells` | Closure preset for a container of real child blocks: bakes the four structural cells plus `roundTrip: implemented`, requires the round trip's `via` string and the four the container determines |
 
 #### `BlockKindRegistration`
 

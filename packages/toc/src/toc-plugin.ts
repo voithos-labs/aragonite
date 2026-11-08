@@ -9,7 +9,6 @@ import {
 	declarePluginKind,
 	registerBlockKind,
 	registerInsertEntry,
-	simpleLeafClosure,
 	OPENER_PRIORITIES,
 	type BlockView,
 	type EditorPlugin
@@ -52,26 +51,7 @@ export function registerTocBlock(view: BlockView): void {
 		// Render-primary like the math blocks: the rendered view gives the caret nowhere to sit
 		// at either edge, so both edges take the gap caret.
 		gapEdges: 'both',
-		conformanceFixture: '[[toc]]\n',
-		closure: simpleLeafClosure({
-			focus: {
-				mode: 'implemented',
-				via: 'createEditableLeaf render-primary reveal (source ⇄ folded heading list)'
-			},
-			selectionPaint: {
-				mode: 'implemented',
-				via: 'measurePartialRects (raw offsets) while the source is revealed'
-			},
-			searchPaint: {
-				mode: 'implemented',
-				via: 'source raw scanned and navigable; while folded, createEditableLeaf covers the rendered block box (opaque single-unit fallback)'
-			},
-			undo: {
-				mode: 'implemented',
-				via: 'render-primary — the reveal→edit→blur cycle commits as one undo entry'
-			},
-			simOracle: { mode: 'implemented', via: 'toc document-prop e2e' }
-		})
+		conformanceFixture: '[[toc]]\n'
 	});
 }
 

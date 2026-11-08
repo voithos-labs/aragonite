@@ -1,12 +1,7 @@
 // The childless whole-block container fixture, registered the way a plugin registers one and
 // mounted on its own over the standard block context.
 import { mount, unmount, flushSync } from 'svelte';
-import {
-	declarePluginKind,
-	declaredPluginKind,
-	registerBlockKind,
-	containerClosure
-} from '#lib/plugin.js';
+import { declarePluginKind, declaredPluginKind, registerBlockKind } from '#lib/plugin.js';
 import { svelteBlockView } from '#lib/svelte.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import type { ContainerBlockComponent } from '#lib/block-component.js';
@@ -26,14 +21,7 @@ export function registerOpaqueKind(): void {
 		editable: false,
 		supportsInline: false,
 		blockFocus: 'whole-block',
-		container: { contract: 'opaque', rebuildRaw: () => {} },
-		closure: containerClosure({
-			roundTripVia: 'opaque — raw is authoritative, rebuilt verbatim',
-			focus: { mode: 'implemented', via: 'blockFocus=whole-block via the container shim' },
-			mergeBackspace: { mode: 'implemented', via: 'blockFocus=whole-block focus-then-delete' },
-			undo: { mode: 'not-supported', reason: 'the fixture commits no bytes of its own' },
-			simOracle: { mode: 'not-supported', reason: 'test fixture, never in a shipped document' }
-		})
+		container: { contract: 'opaque', rebuildRaw: () => {} }
 	});
 }
 

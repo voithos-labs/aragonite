@@ -6,7 +6,6 @@ import {
 	defineBlockView,
 	definePlugin,
 	registerBlockKind,
-	simpleLeafClosure,
 	trimWhitespace,
 	type BlockViewState,
 	type CaretTarget,
@@ -107,13 +106,7 @@ function registerParrotBlock(): void {
 		editable: true,
 		supportsInline: false,
 		conformanceFixture: '%%parrot party responsibly\n',
-		caretTargetAtPoint: parrotCaretAtPoint,
-		closure: simpleLeafClosure({
-			focus: { mode: 'implemented', via: 'the render-primary surface reveals on focus' },
-			searchPaint: { mode: 'implemented', via: 'source raw scanned, matches painted as marks' },
-			undo: { mode: 'implemented', via: 'render-primary: one commit when the caret leaves' },
-			simOracle: { mode: 'inherit-default' }
-		})
+		caretTargetAtPoint: parrotCaretAtPoint
 	});
 }
 

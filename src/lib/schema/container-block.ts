@@ -7,7 +7,6 @@ import type { NodeView } from '../core/node-views';
 import type { IndentedLines, MarkedLines } from '../core/strip-lines';
 import type { ContainerLines } from '../core/parsers/strip-container';
 import type { BuiltinRegistration } from './block-kind-descriptor';
-import { containerClosure } from './closure';
 import { fixtureOf, heightEstimate, type BlockCommon } from './block-shapes';
 import type { Block } from './doc-view';
 import type { ContainerDrawContext, Drawn } from './drawing';
@@ -59,8 +58,7 @@ export function containerRegistration(
 					: 'lift-first-child-keep-container',
 				middleChildBackspace: 'default-merge'
 			}
-		},
-		closure: CONTAINER_CLOSURE
+		}
 	};
 }
 
@@ -68,14 +66,3 @@ export function containerRegistration(
 export function ambientMarker<D>(lines: IndentedLines<D>, node: NodeView): string {
 	return lines.first(getPluginMetadata<D>(node) as D);
 }
-
-// ── Internal ─────────────────────────────────────────────────────────────────
-
-// Every container a maker builds answers the editor's systems through the editor's own children.
-const CONTAINER_CLOSURE = containerClosure({
-	roundTripVia: 'the container writer, from the block type line shape',
-	focus: { mode: 'implemented', via: 'derived from the block type' },
-	mergeBackspace: { mode: 'implemented', via: 'derived from the block type' },
-	undo: { mode: 'inherit-default' },
-	simOracle: { mode: 'inherit-default' }
-});

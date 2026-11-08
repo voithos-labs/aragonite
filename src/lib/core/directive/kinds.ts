@@ -12,7 +12,6 @@ import {
 } from '../../schema/plugin-kind';
 import { registerBlockKind, isBlockKindRegistered } from '../../schema/block-kind-descriptor';
 import type { BlockView } from '../../schema/block-view';
-import { containerClosure } from '../../schema/closure';
 import { registerTitleRowLeaf } from '../../schema/title-row-leaf';
 import type { KeyBinding } from '../../schema/keybindings';
 import type { InlineNode } from '../nodes';
@@ -58,21 +57,7 @@ export function registerDirectiveKinds(views: DirectiveViews): void {
 		// An opaque container has no text of its own at either edge, so both take the gap caret.
 		gapEdges: 'both',
 		container: { lines: COLON_LINES },
-		conformanceFixture: ':::spoiler\n\nhidden\n\n:::\n',
-		closure: containerClosure({
-			roundTripVia: 'container lines — the colon shape, written by the container writer',
-			focus: { mode: 'implemented', via: 'focus walks to the opener line / first body child' },
-			mergeBackspace: {
-				mode: 'implemented',
-				via: 'mergeRole=container; Backspace at the body start goes to the opener line, as in any container with a title row'
-			},
-			undo: { mode: 'inherit-default' },
-			clipboard: {
-				mode: 'implemented',
-				via: 'byte-slice copy; a slice touching the opener line re-emits the container around what it collected'
-			},
-			simOracle: { mode: 'implemented', via: 'directive e2e under the [invariant:] watcher' }
-		})
+		conformanceFixture: ':::spoiler\n\nhidden\n\n:::\n'
 	});
 
 	registerBlockKind(leaf, {
@@ -84,24 +69,7 @@ export function registerDirectiveKinds(views: DirectiveViews): void {
 		supportsInline: false,
 		contentStart: { range: directiveLineContentRange },
 		keymap: DIRECTIVE_LEAF_KEYMAP,
-		conformanceFixture: '::spoiler\n',
-		closure: {
-			roundTrip: { mode: 'inherit-default' },
-			focus: { mode: 'implemented', via: 'native caret in the raw-editable contenteditable' },
-			mergeBackspace: {
-				mode: 'implemented',
-				via: 'not-mergeable — Backspace moves focus (mergePrev walk), never concatenates'
-			},
-			selectionPaint: { mode: 'implemented', via: 'measurePartialRects (raw offsets)' },
-			searchPaint: {
-				mode: 'implemented',
-				via: 'content-range raw scanned (::name marker skipped); marks'
-			},
-			reorder: { mode: 'implemented', via: 'Alt+Arrow block.move keymap' },
-			undo: { mode: 'inherit-default' },
-			clipboard: { mode: 'inherit-default' },
-			simOracle: { mode: 'implemented', via: 'directive e2e under the [invariant:] watcher' }
-		}
+		conformanceFixture: '::spoiler\n'
 	});
 }
 

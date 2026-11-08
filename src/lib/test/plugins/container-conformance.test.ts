@@ -12,7 +12,6 @@ import {
 	type ContainerConformanceProfile
 } from '#lib/testing.js';
 import { checkDeclarationSanity } from '#lib/testing/container-conformance.js';
-import { testClosure } from '#lib/test/harness/closure.js';
 import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callout/callout-kind';
 import { registerDetailsKind, DETAILS } from '#packages/details/src/details-kind.js';
 import { registerGithubAlert } from '#packages/admonitions/src/github-alert-kind.js';
@@ -156,7 +155,6 @@ describe('G4.3 conformance kit: a broken plugin container fails', () => {
 			mergeRole: 'container',
 			editable: true,
 			supportsInline: false,
-			closure: testClosure,
 			container: {
 				contract: 'strip',
 				rebuildRaw: () => {},
@@ -343,7 +341,6 @@ function respellingAlert(name: string, respell: (raw: string) => string): AnyBlo
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,
-		closure: testClosure,
 		opener: {
 			...opener,
 			priority: opener.priority - 0.5,

@@ -15,7 +15,7 @@ This page is the first read: [a working plugin in fifteen minutes](#the-first-fi
 | Page | Reach for it when |
 | --- | --- |
 | [One process, many editors](plugin-guide/per-editor.md) | Your plugin keeps state per editor, listens for edits, or takes options that differ between two editors on one page |
-| [Walkthrough: a `:::conspiracy` container end to end](plugin-guide/container-walkthrough.md) | Your block holds other blocks (a callout, a box with a title), or you're filling in a descriptor's `closure` cells. It's the biggest worked example |
+| [Walkthrough: a `:::conspiracy` container end to end](plugin-guide/container-walkthrough.md) | Your block holds other blocks (a callout, a box with a title). It's the biggest worked example |
 | [Teaching the parser](plugin-guide/parser.md) | Your syntax needs an opener of its own: its place among the built-ins, a construct that spans lines, one that only counts at the top of the document |
 | [Editable-content tiers](plugin-guide/editable-content.md) | You're picking how your block hosts editable content, or building a text block (block math's shape) |
 | [Recipe: a render-primary block](plugin-guide/render-primary.md) | Your block is a picture (a diagram, a chart) that's edited through your own UI |
@@ -53,7 +53,7 @@ A block's **raw** is its exact source bytes, markers included. The editor saves 
 **Declare and describe.** Registering a kind is two calls inside a plugin. The rest of the guide keeps coming back to them, and so will you. Here's each one properly, plus the plugin that holds them:
 
 - **`declarePluginKind(name)`** creates a new kind and returns it (a name that's already taken throws). Every other call here takes that return value, and the type system won't accept the bare string in its place. A module that didn't create the kind recovers it with `declaredPluginKind(name)`, which throws for an undeclared name (a typo, say) rather than registering against a kind that doesn't exist.
-- **`registerBlockKind(kind, registration)`** describes how the kind behaves and what draws it: does it merge, is it editable, does it host inline content, where can a caret sit beside it, how it answers every cross-cutting editor system (the `closure` field), its `view`, and its `opener`. Two of those need a word:
+- **`registerBlockKind(kind, registration)`** describes how the kind behaves and what draws it: does it merge, is it editable, does it host inline content, where can a caret sit beside it, its `view`, and its `opener`. Two of those need a word:
   - A **view** is what draws the block. `defineBlockView({ surface, mount })` draws it with plain DOM, into an element the editor makes for it, and wires in editable text or child blocks for you if the `surface` asks. `svelteBlockView(YourComponent)`, from `@voithos-labs/aragonite/svelte`, makes one from a Svelte component, and `textBlockView()` hands you the editor's own plain text block.
   - An **opener** is the part of the parser that spots the line a block starts with: you give it a `priority` (its place in the dispatch order), an `interruptsParagraph` predicate (or `false`, for never), and a `tryOpen` that claims lines or declines. [Teaching the parser](plugin-guide/parser.md#teaching-the-parser) is its full story. Leave it out for a kind no line starts, like one only a menu inserts.
 
@@ -81,7 +81,6 @@ import {
 	defineBlockView,
 	definePlugin,
 	registerBlockKind,
-	simpleLeafClosure,
 	trimWhitespace,
 	type BlockViewState,
 	type CaretTarget,
@@ -182,13 +181,7 @@ function registerParrotBlock(): void {
 		editable: true,
 		supportsInline: false,
 		conformanceFixture: '%%parrot party responsibly\n',
-		caretTargetAtPoint: parrotCaretAtPoint,
-		closure: simpleLeafClosure({
-			focus: { mode: 'implemented', via: 'the render-primary surface reveals on focus' },
-			searchPaint: { mode: 'implemented', via: 'source raw scanned, matches painted as marks' },
-			undo: { mode: 'implemented', via: 'render-primary: one commit when the caret leaves' },
-			simOracle: { mode: 'inherit-default' }
-		})
+		caretTargetAtPoint: parrotCaretAtPoint
 	});
 }
 
@@ -197,10 +190,9 @@ export function parrotPlugin(): EditorPlugin {
 }
 ```
 
-The object you handed `registerBlockKind` is the kind's **descriptor**. Most of its fields read as they sound. Five don't:
+The object you handed `registerBlockKind` is the kind's **descriptor**. Most of its fields read as they sound. Four don't:
 
 - `gapEdges` is required so a caret can always reach the space beside your block ([Editable-content tiers](plugin-guide/editable-content.md#editable-content-tiers) has the full story).
-- `closure` is required so every cross-cutting editor system (undo, search, selection, and the rest) gets a written answer from your kind. [The closure block](plugin-guide/container-walkthrough.md#the-closure-block) explains every cell.
 - `conformanceFixture` is optional, but the conformance kits ([plugin-testing.md](plugin-testing.md)) need it: it's the Markdown their headless checks parse and round-trip. Without one, the kind checkup reports those cells `boundary` (unchecked), and the container checkup fails outright.
 - `pageRole` is optional, and it's how your block reads on the page. Say `'prose'` if it reads as part of the text around it, the way a quote or a note does. A prose block gets no drag handle, and right-clicking its text gives the clipboard rows. Leave it out and your block is an object someone picks up whole, with its own handle and menu, which is what the parrot is. (If your block's text would make a silly label on the drag ghost, a formula's source say, give it a `dragLabel` too.)
 - `caretTargetAtPoint` is optional too: where a click inside your block puts the caret. Leave it out and a click anywhere on the parrot shows the source with the caret on its first byte, which is a letdown when you clicked halfway into the caption.
@@ -365,7 +357,7 @@ It dances through your view.
 
 ![The parrot block, mid-party](./plugin-guide/parrot.gif)
 
-**Verify.** Registering a kind enrolls it in the conformance kit, which parses your fixture, round-trips it (parse, serialize, compare the bytes), and checks the closure cells it can reach without a browser against what you claimed.
+**Verify.** Registering a kind enrolls it in the conformance kit, which parses your fixture, round-trips it (parse, serialize, compare the bytes), and runs every check it can reach without a browser (copy, undo, merge and the rest).
 
 ```ts
 import { installPlugins } from '@voithos-labs/aragonite';

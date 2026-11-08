@@ -57,7 +57,7 @@ export type {
 } from './testing/container-conformance';
 
 // ── Generic per-kind conformance battery ─────────────────────────────────────
-// Registering a kind signs it up for the closure cells that run without a browser;
+// Registering a kind signs it up for every cell that runs without a browser;
 // the browser pass runs the browser-only ones.
 
 export { runKindConformance, checkCopyIsRawByteSlice } from './testing/kind-conformance';

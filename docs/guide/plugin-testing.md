@@ -224,19 +224,19 @@ Conformance here means: your kind behaves the way the built-in kinds are require
 
 **`runKindConformance(kind, profile?)`**
 
-Takes your kind (the value `declaredPluginKind` returns) and executes the headless half of its `closure` block, the descriptor field where every kind answers the cross-cutting editor systems ([the closure block](plugin-guide/container-walkthrough.md#the-closure-block)). One cell per system, derived from your declarations and your `conformanceFixture`. What runs now, with no browser:
+Takes your kind (the value `declaredPluginKind` returns) and runs one cell per editor system your block takes part in (undo, copy, search and friends), each one wherever your descriptor and your `conformanceFixture` say it applies. There's nothing to declare per cell, and no way to opt out of one. What runs now, with no browser:
 
 - The fixture round-trips, and a kind declaring `rebuildRaw` also has it checked twice over: it keeps the parsed bytes exactly, and it emits the same bytes on every run.
 - Backspace-merge eligibility is held to your declared `mergeRole`.
-- A `clipboard: inherit-default` cell proves a copy is a plain byte slice, with your kind at each end of the copied range in turn.
-- An `undo: inherit-default` cell proves one structural operation pushes exactly one undo entry.
-- A `searchPaint: not-supported` cell proves the document scan genuinely finds nothing in your kind.
-- The raw-write cell. It reads your descriptor's `rawWrite` (the rule that makes any bytes written into your block legal, like a fence growing past a body line that would close it) rather than your closure block, so it comes last in the report and carries no `mode`:
+- A copy is a plain byte slice, with your kind at each end of the copied range in turn.
+- One structural operation pushes exactly one undo entry.
+- A kind that isn't `editable` gets nothing found in it by the document scan, since search skips it.
+- The raw-write cell. It reads your descriptor's `rawWrite` (the rule that makes any bytes written into your block legal, like a fence growing past a body line that would close it) and comes after the system cells in the report:
   - With no `rawWrite`, it cuts the fixture's closing line and checks the block after it stays its own. It fails if the cut swallows that block (an unclosed fence reads everything below as its body), and the failure asks you to declare the rule.
   - With one, it drives the rule through a handful of damaging writes: the closing line cut, everything past the first line cut, an empty write, and, for a fixture of two or more lines, the first line cut and the closing line copied into the body. Each result has to come back unchanged from a second pass of the rule and keep every byte the write left alone (a rule may add bytes, never delete ones outside what was written). Every write but the first line cut also has to leave the block after it alone; the first line cut leaves your closing line behind, and that line is allowed to read on the way a reload reads it. On a fixture of three or more lines the closing line cut also has to keep your kind.
   - Your `mapOffset` is checked against `normalize` at every offset of each write: an offset before every byte the rule changed stays put, one after them moves by what the rule added or dropped, and none goes backwards.
   - It's `boundary` for a kind with the rule and no top-level fixture (none at all, or one sitting inside a container), and `exempt` for a kind with neither the rule nor a top-level fixture.
-- The unfinished-reading cell, last, also with no `mode`. If your opener declares `readingNotFinal`, because it backs out without its closer or reads on like a fence ([A reading that isn't final](plugin-guide/parser.md#a-reading-that-isnt-final)), it takes your fixture's last line off and checks `mayClose` says yes to that line, the closer that finishes it, and that `closer` hands back a line that closes the rest into your kind again. A `closer` of `null` fails it: without one, your opener written above another block of its kind swallows everything down to that block. It's `exempt` when your fixture minus its last line doesn't read as waiting, which covers every kind that neither backs out nor reads on. One catch: if your fixture is a fence and your opener declares no `readingNotFinal`, the cell fails and asks for `fenceReading`.
+- The unfinished-reading cell, last. If your opener declares `readingNotFinal`, because it backs out without its closer or reads on like a fence ([A reading that isn't final](plugin-guide/parser.md#a-reading-that-isnt-final)), it takes your fixture's last line off and checks `mayClose` says yes to that line, the closer that finishes it, and that `closer` hands back a line that closes the rest into your kind again. A `closer` of `null` fails it: without one, your opener written above another block of its kind swallows everything down to that block. It's `exempt` when your fixture minus its last line doesn't read as waiting, which covers every kind that neither backs out nor reads on. One catch: if your fixture is a fence and your opener declares no `readingNotFinal`, the cell fails and asks for `fenceReading`.
 
 Cells whose mechanism only exists in a browser (focus, selection and search painting, reorder, and the note-taking simulation aragonite runs over its own kinds) are recorded `boundary`; the kit won't fake them green. Covering those is your own browser tests' job. For the parrot, the whole checkup is the test the [guide's quickstart](plugin-guide.md#the-first-fifteen-minutes) ends on:
 
@@ -246,7 +246,7 @@ it('parrot conforms', async () => {
 });
 ```
 
-It resolves with a report, one cell per closure column and then the raw-write and unfinished-reading cells. For the parrot exactly as the guide declares it:
+It resolves with a report, one cell per editor system and then the raw-write and unfinished-reading cells. For the parrot exactly as the guide declares it:
 
 ```ts
 const report = await runKindConformance(declaredPluginKind(PARROT));
@@ -256,9 +256,9 @@ report.cells.map((c) => `${c.cell}: ${c.status}`);
 //   'focus: boundary',          // browser only
 //   'mergeBackspace: asserted', // eligibility matches mergeRole
 //   'selectionPaint: boundary', // browser only
-//   'searchPaint: boundary',    // you declared it implemented, so it's yours to prove
+//   'searchPaint: boundary',    // browser only, since the parrot is searchable
 //   'reorder: boundary',        // browser only
-//   'undo: boundary',           // implemented too, so the kit can't drive it generically
+//   'undo: asserted',           // one edit, one undo entry
 //   'clipboard: asserted',      // copy is a raw byte slice
 //   'simOracle: boundary',      // aragonite's own simulation, never this runner
 //   'rawWrite: asserted',       // no rule, and cutting the closing line swallows nothing
@@ -266,7 +266,7 @@ report.cells.map((c) => `${c.cell}: ${c.status}`);
 // ]
 ```
 
-Each closure cell also carries the `mode` you declared. When something's wrong the run throws instead of resolving; a fixture that stopped producing your kind reads like this:
+When something's wrong the run throws instead of resolving; a fixture that stopped producing your kind reads like this:
 
 ```
 Error: kind conformance failed for "parrot": conformanceFixture parses to no "parrot" node
@@ -274,7 +274,7 @@ Error: kind conformance failed for "parrot": conformanceFixture parses to no "pa
 
 **The fixture contract.** Your `conformanceFixture` has to hold your kind inside its **first** top-level block, or the run fails outright: the undo and clipboard cells drive the fixture's first block, next to a throwaway neighbour block the kit adds. A kind that only ever appears nested still enrolls, sitting inside the first block; its clipboard cell then reports `boundary`, because its bytes get copied as part of the enclosing container.
 
-Where a cell claims a mechanism the runner can't reach generically (a kind-specific copy, say), supply the check yourself: `runKindConformance(kind, { cells: { clipboard: { check: async (ctx) => … } } })`, where `ctx` hands you the parsed fixture and your kind's node. A custom check is only accepted on a cell you declared `implemented`; anywhere else it would contradict the declaration and silence the check for the mode you did declare.
+Where your kind does something the generic check can't follow (a copy that builds new bytes, like a table range copying out as a smaller table), supply the check yourself: `runKindConformance(kind, { cells: { clipboard: { check: async (ctx) => … } } })`, where `ctx` hands you the parsed fixture and your kind's node. Your check runs instead of the generic one, so make it at least as strict.
 
 The clipboard executor is also exported on its own as `checkCopyIsRawByteSlice(kind, fixture)`, for driving that one check directly in a regression test.
 

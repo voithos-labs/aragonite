@@ -4,12 +4,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { Component } from 'svelte';
 import type { BlockComponent, BlockComponentExports, BlockComponentProps } from '#lib/plugin.js';
-import {
-	definePlugin,
-	simpleLeafClosure,
-	OPENER_PRIORITIES,
-	type EditorPlugin
-} from '#lib/plugin.js';
+import { definePlugin, OPENER_PRIORITIES, type EditorPlugin } from '#lib/plugin.js';
 import { svelteBlockView } from '#lib/svelte.js';
 import { installEditorDomStubsForTests } from '#lib/testing.js';
 import { mountEditor, type MountedEditor } from '#lib/test/harness/mount-editor.svelte.js';
@@ -50,13 +45,7 @@ function markerLinePlugin<P extends Partial<BlockComponentProps> & Record<string
 								}
 							: null
 				},
-				view: svelteBlockView(component),
-				closure: simpleLeafClosure({
-					focus: { mode: 'implemented', via: 'the fixture owns the caret door under test' },
-					searchPaint: { mode: 'inherit-default' },
-					undo: { mode: 'inherit-default' },
-					simOracle: { mode: 'inherit-default' }
-				})
+				view: svelteBlockView(component)
 			}));
 		}
 	});

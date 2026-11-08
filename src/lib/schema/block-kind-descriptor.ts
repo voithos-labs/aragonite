@@ -15,7 +15,6 @@ import { createBlockKindRegistry } from './plugin-kind';
 import { enrollTestReset } from './registry-reset';
 import type { ChildRawChange } from './child-spans';
 import type { StripRebuild } from './strip-rebuild';
-import type { ClosureBlock } from './closure';
 import { registeredChord, type KeyBinding } from './keybindings';
 import type { HeightEstimateEnv } from './height-estimates';
 import { rejectIncoherentPairs } from './registration-pairs';
@@ -141,18 +140,13 @@ export interface BlockKindDescriptor {
 	mergeRole: MergeRole;
 	editable: boolean;
 	/**
-	 * The kind's row in the closure matrix: its answer for every cross-cutting editor system.
-	 * Required, so a kind cannot ship without answering for a subsystem nobody asked about.
-	 */
-	closure: ClosureBlock;
-	/**
 	 * The block's name, to a screen reader and in the block menu ("Diagram"). Omitted, the kind
 	 * name in words stands in. Built-in kinds are named in `a11y-strings.ts`, not here.
 	 */
 	label?: string;
 	/**
 	 * Markdown that parses to a tree holding this kind, for the conformance suite. Omit it for a
-	 * kind no document parse yields alone; only a declared fixture is checked (G1.24).
+	 * kind no document parse yields alone; the conformance kit fails a fixture that parses to none.
 	 */
 	conformanceFixture?: string;
 	/**
@@ -271,7 +265,6 @@ export interface BlockKindDescriptor {
 export const DESCRIPTOR_FIELDS = [
 	'mergeRole',
 	'editable',
-	'closure',
 	'label',
 	'conformanceFixture',
 	'blockFocus',

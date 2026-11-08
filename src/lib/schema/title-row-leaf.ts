@@ -57,37 +57,8 @@ export function registerTitleRowLeaf(
 		editable: true,
 		supportsInline: false,
 		contextDependentKind: true,
-		keymap: mergeChromeKeymap(opts.keymap),
+		keymap: mergeChromeKeymap(opts.keymap)
 		// No conformanceFixture: the container's parser creates child 0, so a title-row leaf
 		// never comes out of a document parse on its own.
-		closure: {
-			roundTrip: {
-				mode: 'implemented',
-				via: 'contextDependentKind — the container writer emits the chrome bytes into its opener line'
-			},
-			focus: {
-				mode: 'implemented',
-				via: 'native caret; Enter descends to the body (chrome.descendToBody)'
-			},
-			mergeBackspace: {
-				mode: 'implemented',
-				via: 'not-mergeable chrome — cleared-not-deleted by range ops; Backspace/Delete take the merge walk'
-			},
-			selectionPaint: { mode: 'implemented', via: 'measurePartialRects (raw offsets)' },
-			searchPaint: { mode: 'implemented', via: 'chrome raw scanned; matches painted as marks' },
-			reorder: {
-				mode: 'not-supported',
-				reason: 'reserved child 0: no independent block identity to move'
-			},
-			undo: { mode: 'inherit-default' },
-			clipboard: {
-				mode: 'implemented',
-				via: 'byte-slice copy; a slice touching the chrome re-emits the container — a mid-chrome start reopens it around the collected body, a mid-chrome end yields a chrome-only container'
-			},
-			simOracle: {
-				mode: 'implemented',
-				via: 'reserved-chrome structural-ops e2e under the [invariant:] watcher'
-			}
-		}
 	});
 }

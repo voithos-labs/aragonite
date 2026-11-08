@@ -23,17 +23,17 @@ const ROOT = path.resolve('.');
 describe('in-pack anchors: the index', () => {
 	// The guide is an entry page plus the pages beside it, and a heading may sit on any of them.
 	const pages = pluginGuidePages().map((relPath) => readFileSync(path.join(ROOT, relPath), 'utf8'));
-	const closurePage = pages.find((page) => /^#+ The closure block$/m.test(page)) ?? '';
+	const wirePage = pages.find((page) => /^#+ Wire it into a page$/m.test(page)) ?? '';
 
 	it('indexes a real pack doc rather than an empty set', () => {
 		expect(pages.flatMap((page) => [...anchorsOf(page)]).length).toBeGreaterThan(20);
-		expect(anchorsOf(closurePage)).toContain('the-closure-block');
+		expect(anchorsOf(wirePage)).toContain('wire-it-into-a-page');
 	});
 
 	it('drops the anchor a renamed heading no longer defines', () => {
-		const renamed = closurePage.replace(/^#+ The closure block$/m, '## The closure');
-		expect(anchorsOf(renamed).has('the-closure-block')).toBe(false);
-		expect(anchorsOf(renamed)).toContain('the-closure');
+		const renamed = wirePage.replace(/^#+ Wire it into a page$/m, '## Wire it in');
+		expect(anchorsOf(renamed).has('wire-it-into-a-page')).toBe(false);
+		expect(anchorsOf(renamed)).toContain('wire-it-in');
 	});
 
 	// A `# comment` in a shell snippet is no heading, and an anchor resolving against one would

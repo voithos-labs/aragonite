@@ -22,7 +22,6 @@ import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
 import { makeTopHarness, type TopHarness } from '#lib/test/harness/editor-actions.js';
 import { scanCompiled } from '#lib/test/harness/search-replace.js';
-import { testClosure } from '#lib/test/harness/closure.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
 // ── A third-party kind following the guide's "Code in metadata" recipe ──────
@@ -85,8 +84,7 @@ function registerSketchKind(): void {
 		supportsInline: false,
 		// A container with no children has no caret target inside it, so it is focused whole.
 		blockFocus: 'whole-block',
-		container: { contract: 'opaque', rebuildRaw: rebuildSketchRaw },
-		closure: testClosure
+		container: { contract: 'opaque', rebuildRaw: rebuildSketchRaw }
 	});
 }
 

@@ -33,7 +33,7 @@ These checks run in three kinds of place:
 | G1.21 | A column edit's row scopes are the owned table's own children | A |
 | G1.22 | Every index on an unshare path addresses a live child | A |
 | G1.23 | Decoration sources never run mid-commit | A |
-| G1.24 | A kind's closure block agrees with the rest of its descriptor | A·N |
+| G1.24 | _Retired_: kinds declare no per-system answers; the kind kit runs every cell their facts make apply | none |
 | G1.25 | Widget-pool acquires happen only inside an open render pass | A·N |
 | G1.26 | A fold implies an active reveal, and an open reveal blocks command mutation | A·N |
 | G1.27 | `compositionend` lands only inside a composition the surface opened | A·N |
@@ -168,7 +168,7 @@ These checks run in three kinds of place:
 
 **G1.23 · No decoration sources mid-commit.** A decoration source running mid-commit would read a half-written tree, so `notifyEdit` and `runAll` assert no commit is open, and a source handle's `invalidate()` waits until the last one ends. The commit helper opens and closes the scope in `src/lib/commit-scope.ts`. Inline closure, watcher-netted. In `decorations/decoration-state.svelte.ts`.
 
-**G1.24 · Closure-block coherence.** A kind's closure block (its answer to each editor system) agrees with its descriptor: no `inherit-default` for a container's `roundTrip` (its `rebuildRaw` is the round trip), a `not-mergeable` kind's `mergeBackspace` or a title-row kind's `clipboard`, and a cell claiming focus-then-delete needs `blockFocus: 'whole-block'`. A `conformanceFixture` must parse to its kind, checked in the unit sweep since a `parse` import in the flush is a cycle. `checkClosureCoherence` · bootstrap · `closure-coherence.test.ts`, `closure-fixtures.test.ts`.
+**G1.24 · Retired.** The per-system answers it checked are gone from the descriptor. The kind kit (`testing/kind-conformance.ts`) runs every cell a kind's descriptor and fixture make apply, and fails a `conformanceFixture` that doesn't open with its kind.
 
 **G1.25 · Widget-pool pass bracket.** Inline widgets (the rendered stand-ins for inline constructs) are recycled through a pool, one bracket per render pass: every `acquire` sits inside an open `beginPass`/`sweep` bracket, `beginPass` never opens over an unswept pass, and `sweep` never closes one that isn't open. Outside a bracket, byte-identical duplicate widgets can't be told apart. Predicate `checkPoolBracket` (`inline-transitions.ts`) · run in `components/blocks/widget-portal.ts` · `inline-transitions.test.ts`, `test/blocks/widget-portal-bracket.test.ts`.
 

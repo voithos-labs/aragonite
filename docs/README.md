@@ -45,7 +45,7 @@ The published pack: the docs people outside the repo read, on GitHub. Its links 
 | [`guide/consumer-guide/shipping.md`](guide/consumer-guide/shipping.md) | Running inside a desktop shell (Tauri, Electron), and getting a bug report out of a user's session |
 | [`guide/plugin-guide.md`](guide/plugin-guide.md) | Teaching the editor your own blocks and inline syntax: a first working plugin, the model behind it, and a map of the recipe pages below |
 | [`guide/plugin-guide/per-editor.md`](guide/plugin-guide/per-editor.md) | Per-editor state, events and options, for a page with more than one editor on it |
-| [`guide/plugin-guide/container-walkthrough.md`](guide/plugin-guide/container-walkthrough.md) | The biggest worked example, a `:::conspiracy` box end to end, then the `closure` checklist every block kind fills in |
+| [`guide/plugin-guide/container-walkthrough.md`](guide/plugin-guide/container-walkthrough.md) | The biggest worked example, a `:::conspiracy` box end to end |
 | [`guide/plugin-guide/parser.md`](guide/plugin-guide/parser.md) | Openers in full: what one returns, where it sits in the order, multi-line constructs, document position |
 | [`guide/plugin-guide/editable-content.md`](guide/plugin-guide/editable-content.md) | The four ways a block hosts editable content, and the text-leaf factory in depth |
 | [`guide/plugin-guide/render-primary.md`](guide/plugin-guide/render-primary.md) | A diagram-shaped block: a rendered picture, edited through the plugin's own UI |

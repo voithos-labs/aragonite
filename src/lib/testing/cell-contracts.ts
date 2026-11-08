@@ -25,7 +25,7 @@ export const KIND_CELL_CONTRACTS: Record<KindCell, CellContract> = {
 		anchor: KIND
 	},
 	selectionPaint: { promise: 'a selection across your block paints what it covers', anchor: KIND },
-	searchPaint: { promise: 'search finds the text your closure says it finds', anchor: KIND },
+	searchPaint: { promise: 'search skips your block only if it is not editable', anchor: KIND },
 	reorder: { promise: 'moving your block moves its bytes whole', anchor: KIND },
 	undo: { promise: 'one edit to your block is one undo step', anchor: KIND },
 	clipboard: { promise: 'copying your block copies its bytes and nothing else', anchor: KIND },

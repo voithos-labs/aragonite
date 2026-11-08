@@ -51,7 +51,7 @@ Two rules place a plugin opener on it:
 
 Ties break by kind name, never by registration order. A shared priority is a smell all the same, and the dev build warns on it. Price into a gap instead.
 
-**Claiming ahead of a built-in is also how you replace one.** Price your kind below the built-in whose syntax you want (the Mermaid fence is exactly this), and your kind owns those bytes: its own component, its own descriptor, its own closure row. Remove your plugin and the built-in takes the bytes back unchanged. There's no other way to override a built-in's component or descriptor.
+**Claiming ahead of a built-in is also how you replace one.** Price your kind below the built-in whose syntax you want (the Mermaid fence is exactly this), and your kind owns those bytes: its own component, its own descriptor. Remove your plugin and the built-in takes the bytes back unchanged. There's no other way to override a built-in's component or descriptor.
 
 For your pricing map: the opt-in `:::name` directive grammar registers its container opener at 45, between `blockquote` and `list`.
 

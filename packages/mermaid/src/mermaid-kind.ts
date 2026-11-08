@@ -168,41 +168,6 @@ export function registerMermaidKind(view: BlockView): void {
 		estimateHeight: () => 320,
 		rawWrite: fenceRawWrite(fenceShapeOfRaw),
 		keymap: [{ chord: 'Mod+M', command: focusCommand }],
-		conformanceFixture: '```mermaid\ngraph TD\n```\n',
-		closure: {
-			roundTrip: {
-				mode: 'implemented',
-				via: 'container contract=opaque — rebuildMermaidRaw from metadata'
-			},
-			focus: {
-				mode: 'implemented',
-				via: 'blockFocus=whole-block — focus-then-delete; the component supplies the focus surface'
-			},
-			mergeBackspace: {
-				mode: 'implemented',
-				via: 'blockFocus=whole-block — caret-adjacent Backspace focuses, a second press deletes'
-			},
-			selectionPaint: { mode: 'implemented', via: 'whole-block cover rect via the container shim' },
-			searchPaint: {
-				mode: 'implemented',
-				via: 'raw scans as a leaf, painted via the container shim measurePartialRects; replace reparses the substituted bytes and applies when the kind survives'
-			},
-			reorder: {
-				mode: 'implemented',
-				via: 'Alt+ArrowUp/Down whole-block reorder (nudgeReorderUnit)'
-			},
-			undo: {
-				mode: 'implemented',
-				via: 'updateOwnMetadata — a code edit commits as one undoable metadataUpdate'
-			},
-			clipboard: {
-				mode: 'implemented',
-				via: 'focused-block Mod+C/Mod+X (handleWholeBlockKeys); a cross-block range carries the unit whole, per the kit byte-slice check'
-			},
-			simOracle: {
-				mode: 'implemented',
-				via: 'mermaid decoration/selection overlay e2e under the [invariant:] watcher'
-			}
-		}
+		conformanceFixture: '```mermaid\ngraph TD\n```\n'
 	});
 }

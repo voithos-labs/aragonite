@@ -3,7 +3,6 @@ import { declarePluginKind } from '../../schema/plugin-kind';
 import { registerBlockKind, getBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { isBuiltinBlockKind, type CstNode, type Document } from '../../core/nodes';
 import { serialize } from '../../core/serializer';
-import { testClosure } from '#lib/test/harness/closure.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
 describe('plugin-kind node is a first-class CST citizen', () => {
@@ -15,8 +14,7 @@ describe('plugin-kind node is a first-class CST citizen', () => {
 			gapEdges: 'none',
 			mergeRole: 'not-mergeable',
 			editable: true,
-			supportsInline: false,
-			closure: testClosure
+			supportsInline: false
 		});
 		expect(getBlockKindDescriptor(kind).editable).toBe(true);
 

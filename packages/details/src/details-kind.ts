@@ -7,7 +7,6 @@
 
 import {
 	chromeChild,
-	containerClosure,
 	declarePluginKind,
 	declaredPluginKind,
 	registerBlockKind,
@@ -256,27 +255,7 @@ export function registerDetailsKind(view: BlockView): void {
 			unwrapRole: { middleChildBackspace: 'default-merge' },
 			bodyWrite: { normalize: escapeStrayDetailsTags, mapOffset: mapStrayEscapeOffset }
 		},
-		conformanceFixture: '<details>\n<summary>Title</summary>\n\nbody\n\n</details>\n',
-		closure: containerClosure({
-			roundTripVia: 'container lines — a fenced shape, written by the container writer',
-			focus: { mode: 'implemented', via: 'focus walks to the summary chrome / first body child' },
-			mergeBackspace: {
-				mode: 'implemented',
-				via: 'mergeRole=container + unwrapRole; collapse-aware merge walk'
-			},
-			undo: {
-				mode: 'implemented',
-				via: 'updateOwnMetadata — an open-state flip (disclosure toggle, or a reveal opening the expandPatch door) commits as one undoable metadataUpdate'
-			},
-			clipboard: {
-				mode: 'implemented',
-				via: 'byte-slice copy; a slice touching the summary re-emits the details — a mid-summary start reopens it around the collected body, a mid-summary end yields a summary-only details'
-			},
-			simOracle: {
-				mode: 'implemented',
-				via: 'details container/windowing e2e under the [invariant:] watcher'
-			}
-		})
+		conformanceFixture: '<details>\n<summary>Title</summary>\n\nbody\n\n</details>\n'
 	});
 
 	registerChromeLeaf(detailsSummary, { label: 'Summary', blockClass: 'details-summary' });

@@ -8,7 +8,6 @@
 import {
 	OPENER_PRIORITIES,
 	blockquoteExtent,
-	containerClosure,
 	declarePluginKind,
 	declaredPluginKind,
 	headedLines,
@@ -101,23 +100,6 @@ export function registerGithubAlert(view: BlockView): void {
 			},
 			// The head line holds no child, so the body's children move under it freely.
 			reorderChildren: {}
-		},
-		closure: containerClosure({
-			roundTripVia:
-				'container lines — a quote shape with a > [!TYPE] head line, written by the container writer',
-			focus: {
-				mode: 'implemented',
-				via: 'focus walks into the first body child via createContainerBlock'
-			},
-			mergeBackspace: {
-				mode: 'implemented',
-				via: 'mergeRole=container + unwrapRole (lift-first-child-drop-opener; default-merge) — Backspace at the body start lifts the first child out and drops the marker, leaving a plain blockquote'
-			},
-			undo: { mode: 'inherit-default' },
-			simOracle: {
-				mode: 'implemented',
-				via: 'github-alert-ops simulation under the loaded-ops corruption oracles (formation, contained merge, marker-dropping unwrap)'
-			}
-		})
+		}
 	});
 }

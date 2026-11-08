@@ -8,7 +8,6 @@
 import {
 	OPENER_PRIORITIES,
 	activateDirectives,
-	containerClosure,
 	declarePluginKind,
 	declaredPluginKind,
 	defineBlockView,
@@ -17,7 +16,6 @@ import {
 	registerBlockKind,
 	registerDirective,
 	setPluginMetadata,
-	simpleLeafClosure,
 	type BlockViewHandle,
 	type CstNode,
 	type EditorPlugin,
@@ -133,13 +131,7 @@ function registerDomViews(): void {
 		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: true,
-		supportsInline: false,
-		closure: simpleLeafClosure({
-			focus: { mode: 'implemented', via: 'the leaf surface' },
-			searchPaint: { mode: 'inherit-default' },
-			undo: { mode: 'implemented', via: 'plain mode, a commit per keystroke' },
-			simOracle: { mode: 'inherit-default' }
-		})
+		supportsInline: false
 	});
 
 	registerBlockKind(badge, {
@@ -159,13 +151,7 @@ function registerDomViews(): void {
 		gapEdges: 'none',
 		mergeRole: 'not-mergeable',
 		editable: false,
-		supportsInline: false,
-		closure: simpleLeafClosure({
-			focus: { mode: 'implemented', via: 'the view focuses its own element' },
-			searchPaint: { mode: 'not-supported', reason: 'its drawn text holds no source' },
-			undo: { mode: 'inherit-default' },
-			simOracle: { mode: 'inherit-default' }
-		})
+		supportsInline: false
 	});
 
 	registerDirective('container', DOM_BOX, { kind: box, fromDirective: domBoxFromDirective });
@@ -177,18 +163,7 @@ function registerDomViews(): void {
 		supportsInline: false,
 		container: {
 			lines: COLON_LINES
-		},
-		closure: containerClosure({
-			roundTripVia: 'container lines — the colon shape, written by the container writer',
-			focus: { mode: 'implemented', via: 'the container surface' },
-			mergeBackspace: { mode: 'implemented', via: 'mergeRole=container + unwrapRole' },
-			undo: { mode: 'inherit-default' },
-			clipboard: {
-				mode: 'implemented',
-				via: 'byte-slice copy; a slice touching the title re-emits the box, as the callout does'
-			},
-			simOracle: { mode: 'inherit-default' }
-		})
+		}
 	});
 }
 

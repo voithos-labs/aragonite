@@ -10,7 +10,6 @@ import {
 	declarePluginKind,
 	definePlugin,
 	registerBlockKind,
-	simpleLeafClosure,
 	textBlockView,
 	OPENER_PRIORITIES,
 	type EditorPlugin,
@@ -60,13 +59,7 @@ function markerLeafPlugin(view = svelteBlockView(PlainLeafBlock)): EditorPlugin 
 				gapEdges: 'none',
 				mergeRole: 'not-mergeable',
 				editable: true,
-				supportsInline: false,
-				closure: simpleLeafClosure({
-					focus: { mode: 'implemented', via: 'createEditableLeaf plain mode' },
-					searchPaint: { mode: 'inherit-default' },
-					undo: { mode: 'implemented', via: 'plain mode — every keystroke commits' },
-					simOracle: { mode: 'inherit-default' }
-				})
+				supportsInline: false
 			});
 		}
 	});

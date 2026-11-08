@@ -9,7 +9,6 @@ import DomBlockHost from '#lib/components/dom-block-view/DomBlockHost.svelte';
 import {
 	defineBlockView,
 	definePlugin,
-	simpleLeafClosure,
 	type BlockView,
 	type BlockViewState,
 	type EditorPlugin
@@ -68,12 +67,6 @@ function revealLeafView(form: RevealLeafForm | BlockView): BlockView {
 
 export function registerRevealLeafKind(name: string, over: TestKindFields = {}): PluginBlockKind {
 	return testLeaf(name, (kind) => ({
-		closure: simpleLeafClosure({
-			focus: { mode: 'implemented', via: 'createEditableLeaf render-primary reveal' },
-			searchPaint: { mode: 'inherit-default' },
-			undo: { mode: 'implemented', via: 'render-primary: one commit when the caret leaves' },
-			simOracle: { mode: 'inherit-default' }
-		}),
 		...(typeof over === 'function' ? over(kind) : over)
 	}));
 }

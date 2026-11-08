@@ -111,16 +111,6 @@ export type { HeightEstimateEnv } from './schema/height-estimates';
 // `rebuildRaw`'s optional second argument, the one child whose raw moved (ignoring it is correct);
 // a rebuild returns `{ rereads: true }` when its bytes must then be read whole.
 export type { ChildRawChange } from './schema/child-spans';
-// The closure block every registration must answer the cross-cutting systems with.
-// `simpleLeafClosure` and `containerClosure` fill in the fixed columns for a leaf and a container.
-export type {
-	ClosureBlock,
-	ClosureColumn,
-	ClosureCell,
-	SimpleLeafClosureCells,
-	ContainerClosureCells
-} from './schema/closure';
-export { simpleLeafClosure, containerClosure } from './schema/closure';
 
 // ── Block views ──────────────────────────────────────────────────────────────
 // What draws a kind, the registration's `view`: `defineBlockView` draws into an element the

@@ -15,7 +15,6 @@ import {
 } from '#lib/schema/block-kind-descriptor.js';
 import { activateDirectives } from '#lib/plugin.js';
 import { DIRECTIVE_CONTAINER } from '#lib/core/directive/kinds.js';
-import { testClosure } from '#lib/test/harness/closure.js';
 import { testView } from '#lib/test/harness/test-view.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 
@@ -101,7 +100,6 @@ describe('a plugin registering a built-in key on a dev server', () => {
 			mergeRole: 'not-mergeable',
 			editable: true,
 			supportsInline: false,
-			closure: testClosure,
 			view: testView()
 		});
 

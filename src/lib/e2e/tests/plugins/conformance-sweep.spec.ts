@@ -2,25 +2,21 @@ import { test, expect } from '../../fixtures';
 import type { Locator, Page } from '@playwright/test';
 import { PluginsPage, activeBlockPath } from './helpers';
 
-// The three DOM-only closure columns, run for every registered kind. One test per column walks the
-// live registry entries, collects a failure line per kind and asserts on the whole list at the end,
-// because Playwright cannot parametrize on runtime data across workers and one roll-up names every
-// offender in a single failure.
+// The three DOM-only conformance cells (focus, selection paint, search paint), run for every
+// registered kind. One test per cell walks the live registry entries, collects a failure line per
+// kind and asserts on the whole list at the end, because Playwright cannot parametrize on runtime
+// data across workers and one roll-up names every offender in a single failure.
 
 interface SweepEntry {
 	kind: string;
 	fixture: string;
 	token: string | null;
 	wholeBlock: boolean;
-	cells: {
-		focus: { mode: string };
-		selectionPaint: { mode: string };
-		searchPaint: { mode: string };
-	};
+	searchable: boolean;
 }
 
-// Neighbour paragraphs around the fixture. Both hold `filler`, so the not-supported search case
-// has two matches to move between, and no letter a single-character fixture token could match.
+// Neighbour paragraphs around the fixture. Both hold `filler`, so the unsearched kind's case has
+// two matches to move between, and no letter a single-character fixture token could match.
 const BEFORE = 'top filler';
 const AFTER = 'end filler';
 const NEIGHBOUR_TOKEN = 'filler';
@@ -159,7 +155,7 @@ async function closeSearch(page: Page, find: Locator): Promise<void> {
 }
 
 // Advance the active match `steps` times; report whether it ever lands inside the
-// given block subtree. The not-supported degradation requires it never does.
+// given block subtree. An unsearched kind requires it never does.
 async function activeMatchEverLandsIn(
 	page: Page,
 	plugins: PluginsPage,
@@ -237,16 +233,8 @@ async function sweepFocusWalk(page: Page, plugins: PluginsPage): Promise<SweepRe
 			);
 			continue;
 		}
-		if (entry.cells.focus.mode === 'not-supported') {
-			if (entered) {
-				failures.push(
-					`${entry.kind} [focus]: declared not-supported but the caret entered its subtree`
-				);
-			}
-		} else if (!entered) {
-			failures.push(
-				`${entry.kind} [focus]: declared ${entry.cells.focus.mode} but the caret skipped its subtree`
-			);
+		if (!entered) {
+			failures.push(`${entry.kind} [focus]: the caret skipped its subtree`);
 		}
 		if (offHost) {
 			failures.push(
@@ -344,7 +332,7 @@ test('search paints or degrades per kind', async ({ page }) => {
 
 		await openSearch(page, plugins, find);
 
-		if (entry.cells.searchPaint.mode === 'not-supported') {
+		if (!entry.searchable) {
 			// A token both neighbours share paints on them, never inside the block, and navigation cycles
 			// without trapping; waiting for two matches keeps "block stays clean" from passing vacuously.
 			if (!(await runQuery(page, plugins, find, NEIGHBOUR_TOKEN, 2))) {
@@ -355,7 +343,7 @@ test('search paints or degrades per kind', async ({ page }) => {
 				const inBlock = await matchOverlaysIn(page, topIndex);
 				if (inBlock > 0) {
 					failures.push(
-						`${entry.kind} [searchPaint]: not-supported but ${inBlock} match overlay(s) painted inside the block`
+						`${entry.kind} [searchPaint]: not searchable but ${inBlock} match overlay(s) painted inside the block`
 					);
 				}
 				if (await activeMatchEverLandsIn(page, plugins, topIndex, 4)) {
@@ -368,10 +356,9 @@ test('search paints or degrades per kind', async ({ page }) => {
 			continue;
 		}
 
-		// A kind that implements search paint.
 		if (!entry.token) {
 			failures.push(
-				`${entry.kind} [searchPaint]: implemented but the fixture yielded no search token`
+				`${entry.kind} [searchPaint]: searchable but the fixture yielded no search token`
 			);
 			await closeSearch(page, find);
 			continue;
