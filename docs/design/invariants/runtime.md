@@ -104,7 +104,7 @@ These checks run in three kinds of place:
 | G1.154 | A content write's fixed-up window holds the block it wrote | A·N |
 | G1.155 | A block's write puts its caret inside the text it writes | A·N |
 | G1.156 | An undo or redo leaves the document at its entry's bytes; nothing writes while it installs | A·N |
-| G1.158 | A block a commit splices in holds no opener it wrote that a block below would close | A·N |
+| G1.158 | A block a commit or a byte splice puts in holds no opener it wrote that a block below would close | A·N |
 | G1.159 | The caret writer writes a caret only where something shows it | A·N |
 | G1.160 | A widget beside a caret the writer puts down lays out inline | A·N |
 | G1.161 | A typed letter the editor leaves to the browser lands at its caret | A·N |
@@ -300,7 +300,7 @@ These checks run in three kinds of place:
 
 **G1.156 · An undo puts back its entry, nothing more** (`history-install`). Once an undo or redo has installed its entry and placed the caret, the document's bytes are the entry's. A write in between (a block tidying itself up as the caret leaves it) would be a new edit inside the undo, and would clear the redo stack, so the write gate declines every write while the install runs. `checkInstalledEntry` · `history.ts :: restore` · `history-install.test.ts`, `grammar-restore.test.ts`, the behavior rows.
 
-**G1.158 · A spliced opener takes in no block below** (`spliced-opener-closed`). A block a commit splices or moves in holds no opener it wrote (a `$$`, a `:::note`, a fence) that a block further down would close, since that opener would read in blocks the edit never touched. Every write route closes one first (`legalizeWrite`, `closeWrittenOpeners`); a content write and a removal aren't asked, and a range delete's survivor lands outside a commit's list, where the route rows hold it. `checkSplicedOpenersClosed` · `fix-up/apply.ts` · `written-opener-routes.test.ts`.
+**G1.158 · A spliced opener takes in no block below** (`spliced-opener-closed`). A block a commit splices or moves in, or a byte splice writes, holds no opener it wrote (a `$$`, a `:::note`, a fence) that a block further down would close. Every write route closes one first; a content write and a removal aren't asked, and a range delete's survivor is held by the route rows. The byte splice's check runs the rule's own code, so it catches a skipped rule; the route rows catch a wrong closer. `checkSplicedOpenersClosed` · `checkSplicedChangesClosed` · `written-opener-routes.test.ts`.
 
 **G1.159 · A written caret shows** (`caret-paints`). The caret writer writes a caret only where something shows it: text, a line the browser paints, or a widget's side (beside a picture, the drawn caret's bar). A spot with only hidden marker runs beside it, in a block holding focus (focus decides what hides), moves to visible text at the same offset, or is refused (no write, a false return); only a plugin block drawing nothing but markers gets there. `checkCaretPaints` · `browser/caret-writer.ts` · `caret-spot.test.ts`, `caret-shows`.
 

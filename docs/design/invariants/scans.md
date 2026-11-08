@@ -236,6 +236,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.314 | A copy or cut event's clipboard is written in one function, the editor's own entry included | L |
 | G4.315 | Under `selection/`, a range is read as bytes in one file | L |
 | G4.317 | A plugin or a host writes bytes through a `Draft`; another caller of the byte splice is on a list | L |
+| G4.329 | Bytes are read into the tree by the byte splice, which closes the openers they write, or by an undo | L |
 
 ### The entries
 
@@ -685,3 +686,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.315 · One reading of a range as bytes.** `selection/range-bytes.ts :: rangeBytes` turns a covered range into the bytes the range-edit core takes: each end through the layout, widened to the blocks coverage holds whole, select-all to the first byte. Copy and cut read a range through it, so a second reading under `selection/` could hand them other bytes. `lint/selection-byte-math.test.ts` fails a `byteOf`, `leafAtByte` or `documentByteMap` call anywhere else there.
 
 **G4.317 · One write for plugins and hosts.** `CommitController.commitSource` is handed its changes only by the draft (`editor-actions/commit/draft-registry.svelte.ts`), which maps a waiting write's ranges past the writes since it opened and refuses with a reason; any other caller is on the row's list with why (today the test bridge's splice). `lint/file-rules.test.ts`.
+
+**G4.329 · Bytes reach the tree through the byte splice.** `tree-operations/byte-splice.ts :: spliceReading` reads bytes as given, so a route that called it itself would skip the closer the byte splice (`editor-actions/commit/byte-splice.ts`) gives an opener its changes write. The one other caller is an undo under a changed grammar (`commit/history.ts`), which puts back an entry's exact bytes. `lint/file-rules.test.ts`.
