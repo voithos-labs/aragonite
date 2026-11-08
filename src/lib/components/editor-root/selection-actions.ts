@@ -3,8 +3,8 @@
  * toolbar and `openRows`, rows asked only when one of those opens, and a picked row's draft,
  * opened at the pick and closed with its menu.
  */
+import { ACTION_ROWS_PENDING } from '../../a11y-strings';
 import type { DocumentView } from '../../core/node-views';
-import { serialize } from '../../core/serializer';
 import type { InternalDraft } from '../../editor-actions/commit/draft-registry.svelte';
 import type { Editor, PluginError } from '../../schema/plugin-unit';
 import type {
@@ -14,8 +14,9 @@ import type {
 	SelectionAction
 } from '../../schema/selection-action';
 import type { EditorSelection } from '../../selection/primitives';
-import { byteOfLeaf, leafAtByte } from '../../tree-operations/container-offsets';
+import { documentByteMap } from '../../tree-operations/container-offsets';
 import { isThenable } from '../../schema/editor-contributions';
+import type { MenuEntry } from '../menu/BlockMenu.svelte';
 
 /** An action's capture over one range, which its rows are asked about. */
 export interface ActionGroup {
@@ -24,29 +25,35 @@ export interface ActionGroup {
 	readonly captured: Captured;
 }
 
-/** A picked row whose `run` is still pending: closing its menu refuses what it writes after. */
-export interface PendingPick {
-	readonly settled: Promise<void>;
-	close(): void;
+/** One open menu's action rows. */
+export interface ActionRows {
+	/** The rows as menu entries, a pending row where a group's rows are still coming; `lead` keeps
+	 *  only the groups that sit first, or only the rest. */
+	entries(lead?: boolean): MenuEntry[];
+	/** Runs the row an entry id names against a draft opened now; false for an id that isn't one. */
+	pick(id: string): boolean;
+	/** The menu closed, so a pending row's later write is refused. */
+	closed(): void;
 }
 
 export interface SelectionActions {
 	/** Each action's capture over the selection, in list order. */
 	atSelection(): ActionGroup[];
-	/** The selection in document bytes, or null where it isn't in prose. */
-	selectionBytes(): { from: number; to: number } | null;
+	/** The captures that take a selected range whole, none at a bare caret: the toolbar's rows. */
+	wholeSelection(): ActionGroup[];
 	/** One action's capture over `range`, or null where it captures nothing. */
 	over(action: SelectionAction, range: { from: number; to: number }): ActionGroup | null;
-	/** The group's rows; a throw or a rejection is reported and reads as none. */
-	rows(group: ActionGroup): readonly ActionRow[] | Promise<readonly ActionRow[]>;
-	/** Runs the row against a draft opened now; null once it has settled. */
-	pick(group: ActionGroup, row: ActionRow): PendingPick | null;
+	/** Asks the groups for their rows: `redraw` when late rows land or a picked row waits, `close`
+	 *  once a pick is done. A throw or a rejection is reported and reads as no rows. */
+	rows(groups: readonly ActionGroup[], redraw: () => void, close: () => void): ActionRows;
 }
 
 export function createSelectionActions(deps: {
 	actions(): readonly ContributedAction[];
 	editorFor(plugin: string): Editor | undefined;
 	getDoc(): DocumentView;
+	/** The document's bytes, serialized once per content version. */
+	source(): string;
 	getSelection(): EditorSelection | null;
 	editable(): boolean;
 	/** The rects over offsets `start` to `end` of the leaf at `path`. */
@@ -58,21 +65,20 @@ export function createSelectionActions(deps: {
 		const selection = deps.getSelection();
 		if (!selection || selection.anchor.cellCoordinate || selection.focus.cellCoordinate)
 			return null;
-		const doc = deps.getDoc();
-		const a = byteOfLeaf(doc, selection.anchor.path, selection.anchor.offset);
-		const f = byteOfLeaf(doc, selection.focus.path, selection.focus.offset);
+		const map = documentByteMap(deps.getDoc());
+		const a = map.byteOf(selection.anchor.path, selection.anchor.offset);
+		const f = map.byteOf(selection.focus.path, selection.focus.offset);
 		return a === null || f === null ? null : { from: Math.min(a, f), to: Math.max(a, f) };
 	}
 
 	// One leaf's rects joined; a range across leaves has no one box.
-	function box({ from, to }: { from: number; to: number }): DOMRect | null {
-		const doc = deps.getDoc();
-		const start = leafAtByte(doc, from);
-		const end = leafAtByte(doc, to);
+	function box(from: number, to: number): DOMRect | null {
+		const map = documentByteMap(deps.getDoc());
+		const start = map.leafAt(from);
+		const end = map.leafAt(to);
 		if (!start || !end || start.path.join() !== end.path.join()) return null;
-		const rects = deps.rangeRects(start.path, start.offset, end.offset);
-		if (rects.length === 0) return null;
-		const [first, ...rest] = rects;
+		const [first, ...rest] = deps.rangeRects(start.path, start.offset, end.offset);
+		if (!first) return null;
 		let { left, top, right, bottom } = first;
 		for (const r of rest) {
 			left = Math.min(left, r.left);
@@ -86,7 +92,7 @@ export function createSelectionActions(deps: {
 	function capture(
 		{ plugin, action }: ContributedAction,
 		over: { from: number; to: number },
-		text: string
+		source: string
 	): ActionGroup | null {
 		const editor = deps.editorFor(plugin);
 		if (!editor) return null;
@@ -97,13 +103,17 @@ export function createSelectionActions(deps: {
 			deps.report({ plugin, doing: `capture for '${action.label}'`, cause });
 			return null;
 		}
-		if (!range || !(0 <= range.from && range.from <= range.to && range.to <= text.length))
+		if (!range || !(0 <= range.from && range.from <= range.to && range.to <= source.length))
 			return null;
 		const { from, to } = range;
+		// Measured on read, so a capture the toolbar makes per selection change reads no layout.
+		let measured: DOMRect | null | undefined;
 		const captured: Captured = Object.freeze({
-			text: text.slice(from, to),
+			text: source.slice(from, to),
 			range: Object.freeze({ from, to }),
-			box: box({ from, to }),
+			get box() {
+				return measured === undefined ? (measured = box(from, to)) : measured;
+			},
 			editable: deps.editable()
 		});
 		return { plugin, action, captured };
@@ -113,52 +123,99 @@ export function createSelectionActions(deps: {
 		deps.report({ plugin: group.plugin, doing: `${doing} '${group.action.label}'`, cause });
 	}
 
+	function rowsOf(group: ActionGroup): readonly ActionRow[] | Promise<readonly ActionRow[]> {
+		try {
+			const rows = group.action.rows(group.captured);
+			if (Array.isArray(rows)) return rows;
+			return Promise.resolve(rows).then(undefined, (cause: unknown) => {
+				report(group, 'rows for', cause);
+				return [];
+			});
+		} catch (cause) {
+			report(group, 'rows for', cause);
+			return [];
+		}
+	}
+
+	/** Runs the row against a draft opened now; the draft's `close`, or null once it has settled. */
+	function pick(group: ActionGroup, row: ActionRow, settled: () => void): (() => void) | null {
+		const draft = deps.edit(group.plugin);
+		let ran: unknown;
+		try {
+			ran = row.run(draft);
+		} catch (cause) {
+			report(group, 'run', cause);
+		}
+		if (!isThenable(ran)) {
+			draft.end();
+			return null;
+		}
+		void Promise.resolve(ran)
+			.then(undefined, (cause: unknown) => report(group, 'run', cause))
+			.then(() => (draft.end(), settled()));
+		return () => draft.close();
+	}
+
+	function rows(groups: readonly ActionGroup[], redraw: () => void, close: () => void): ActionRows {
+		const answers = new Map<ActionGroup, readonly ActionRow[] | null>();
+		const running = new Set<ActionRow>();
+		const pending: (() => void)[] = [];
+		for (const group of groups) {
+			const asked = rowsOf(group);
+			answers.set(group, isThenable(asked) ? null : asked);
+			if (isThenable(asked)) void asked.then((late) => (answers.set(group, late), redraw()));
+		}
+		return {
+			entries: (lead) =>
+				groups.flatMap((group, g): MenuEntry[] => {
+					if (lead !== undefined && !!group.action.lead !== lead) return [];
+					const answer = answers.get(group);
+					if (answer === null)
+						return [{ id: `act:${g}:-`, label: ACTION_ROWS_PENDING, disabled: true }];
+					return (answer ?? []).map((row, r) => ({
+						id: `act:${g}:${r}`,
+						label: row.label,
+						icon: row.icon,
+						disabled: row.disabled || running.has(row)
+					}));
+				}),
+			pick(id) {
+				const at = /^act:(\d+):(\d+)$/.exec(id);
+				if (!at) return false;
+				const group = groups[Number(at[1])];
+				const row = answers.get(group)?.[Number(at[2])];
+				const closeDraft = row ? pick(group, row, () => (running.delete(row), close())) : null;
+				if (!row || !closeDraft) return (close(), true);
+				running.add(row);
+				pending.push(closeDraft);
+				redraw();
+				return true;
+			},
+			closed: () => pending.forEach((closeDraft) => closeDraft())
+		};
+	}
+
+	function captures(over: { from: number; to: number } | null): ActionGroup[] {
+		const entries = deps.actions();
+		if (!over || entries.length === 0) return [];
+		const source = deps.source();
+		return entries.flatMap((entry) => capture(entry, over, source) ?? []);
+	}
+
 	return {
-		selectionBytes,
-		atSelection() {
+		atSelection: () => captures(selectionBytes()),
+		wholeSelection() {
 			const over = selectionBytes();
-			const entries = deps.actions();
-			if (!over || entries.length === 0) return [];
-			const text = serialize(deps.getDoc());
-			return entries.flatMap((entry) => capture(entry, over, text) ?? []);
+			return over && over.from < over.to
+				? captures(over).filter(
+						({ captured: { range } }) => range.from === over.from && range.to === over.to
+					)
+				: [];
 		},
 		over(action, range) {
 			const entry = deps.actions().find((candidate) => candidate.action === action);
-			return entry ? capture(entry, range, serialize(deps.getDoc())) : null;
+			return entry ? capture(entry, range, deps.source()) : null;
 		},
-		rows(group) {
-			try {
-				const rows = group.action.rows(group.captured);
-				if (Array.isArray(rows)) return rows;
-				return Promise.resolve(rows).then(undefined, (cause: unknown) => {
-					report(group, 'rows for', cause);
-					return [];
-				});
-			} catch (cause) {
-				report(group, 'rows for', cause);
-				return [];
-			}
-		},
-		pick(group, row) {
-			const draft = deps.edit(group.plugin);
-			let ran: unknown;
-			try {
-				ran = row.run(draft);
-			} catch (cause) {
-				report(group, 'run', cause);
-			}
-			if (!isThenable(ran)) {
-				draft.end();
-				return null;
-			}
-			const settled = Promise.resolve(ran).then(
-				() => draft.end(),
-				(cause: unknown) => {
-					report(group, 'run', cause);
-					draft.end();
-				}
-			);
-			return { settled, close: () => draft.close() };
-		}
+		rows
 	};
 }

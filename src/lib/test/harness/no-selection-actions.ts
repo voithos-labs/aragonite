@@ -3,8 +3,7 @@ import type { SelectionActions } from '#lib/components/editor-root/selection-act
 
 export const noSelectionActions: SelectionActions = {
 	atSelection: () => [],
-	selectionBytes: () => null,
+	wholeSelection: () => [],
 	over: () => null,
-	rows: () => [],
-	pick: () => null
+	rows: () => ({ entries: () => [], pick: () => false, closed: () => {} })
 };

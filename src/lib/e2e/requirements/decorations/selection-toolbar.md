@@ -30,6 +30,10 @@ often its rows are asked for; its one row, `Upper`, writes the captured text upp
 - Selecting text shows a `Shout` row in the bar. Moving the selection twice redraws the bar and
   asks for no rows; clicking `Shout` asks once and lists `Upper` beside it, and picking `Upper`
   writes the selection upper-cased as one undo step.
+- The `Shout` row's flyout behaves like Set heading's: a hover opens it inside the bar, hovering
+  Set heading swaps one flyout for the other, and Escape closes it with the bar left up.
+  Miss-analysis: the first row asserted only that `Upper` showed somewhere, so a click that hid
+  the bar and opened the block menu in its place passed.
 
 ## Happy paths (state paint)
 

@@ -7,7 +7,7 @@
  */
 
 import type { BlockEditActions } from '../../action-contracts';
-import { ACTION_ROWS_PENDING, BLOCK_ACTIONS_LABEL } from '../../a11y-strings';
+import { BLOCK_ACTIONS_LABEL } from '../../a11y-strings';
 import type { NodeView } from '../../core/node-views';
 import type { DocumentGetter } from '../../editor-keys';
 import type { InsertMarkdownOptions } from '../../editor-props';
@@ -37,9 +37,7 @@ import { documentLineEnding } from '../../core/lines';
 import { stampWrites, type DocumentStamps } from '../../editor-actions/commit/document-stamp';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkMenuOverSelection } from '../../invariants/menu-over-selection';
-import type { ActionRow } from '../../schema/selection-action';
-import { isThenable } from '../../schema/editor-contributions';
-import type { ActionGroup, PendingPick, SelectionActions } from './selection-actions';
+import type { ActionGroup, ActionRows, SelectionActions } from './selection-actions';
 
 export interface BlockMenuModel {
 	x: number;
@@ -154,68 +152,20 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		return true;
 	}
 
-	// ── Selection action rows ──────────────────────────────────────────────
-
-	/** The groups' rows as menu entries, a pending row where a group's rows are still coming. Each
-	 *  pick runs on a draft opened then, and the menu stays open while its `run` is pending. */
-	function actionRows(groups: readonly ActionGroup[], redraw: () => void, close: () => void) {
-		const answers = new Map<ActionGroup, readonly ActionRow[] | null>();
-		const running = new Set<ActionRow>();
-		const picks: PendingPick[] = [];
-		for (const group of groups) {
-			const rows = deps.actions.rows(group);
-			if (!isThenable(rows)) answers.set(group, rows);
-			else {
-				answers.set(group, null);
-				void Promise.resolve(rows).then((late) => (answers.set(group, late), redraw()));
-			}
-		}
-		const entries = (lead: boolean): MenuEntry[] =>
-			groups.flatMap((group, g): MenuEntry[] => {
-				if (!!group.action.lead !== lead) return [];
-				const rows = answers.get(group);
-				if (rows === null)
-					return [{ id: `act:${g}:-`, label: ACTION_ROWS_PENDING, disabled: true }];
-				return (rows ?? []).map((row, r) => ({
-					id: `act:${g}:${r}`,
-					label: row.label,
-					icon: row.icon,
-					disabled: row.disabled || running.has(row)
-				}));
-			});
-		return {
-			entries,
-			/** False for an id that isn't an action row. */
-			pick(id: string): boolean {
-				const at = /^act:(\d+):(\d+)$/.exec(id);
-				if (!at) return false;
-				const group = groups[Number(at[1])];
-				const row = answers.get(group)?.[Number(at[2])];
-				const picked = row ? deps.actions.pick(group, row) : null;
-				if (!row || !picked) return (close(), true);
-				running.add(row);
-				picks.push(picked);
-				redraw();
-				void picked.settled.then(() => (running.delete(row), close()));
-				return true;
-			},
-			closed: () => picks.forEach((picked) => picked.close())
-		};
-	}
-
-	/** Shows `build`'s entries, redrawn as late rows land; `pick` runs the rows that aren't actions'. */
+	/** Shows `build`'s entries, redrawn as late action rows land; `pick` runs the rows that aren't
+	 *  actions'. */
 	function showMenu(
 		point: Point,
 		anchor: () => Point,
 		groups: readonly ActionGroup[],
-		build: (rows: ReturnType<typeof actionRows>) => MenuEntry[],
+		build: (rows: ActionRows) => MenuEntry[],
 		pick: (id: string) => void
 	): OpenRows {
 		let model: BlockMenuModel | null = null;
 		const ours = () => model !== null && deps.currentMenu()?.closed === model.closed;
 		const close = () => void (ours() && deps.setMenu(null));
 		const redraw = () => void (ours() && deps.setMenu({ ...model!, items: build(rows) }));
-		const rows = actionRows(groups, redraw, close);
+		const rows = deps.actions.rows(groups, redraw, close);
 		model = {
 			...point,
 			anchor,
@@ -238,15 +188,11 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 	}
 
 	function openGroups(groups: readonly ActionGroup[], point: Point): OpenRows {
-		const build = (rows: ReturnType<typeof actionRows>) => [
-			...rows.entries(true),
-			...rows.entries(false)
-		];
 		return showMenu(
 			point,
 			() => point,
 			groups,
-			build,
+			(rows) => rows.entries(),
 			() => {}
 		);
 	}
@@ -282,7 +228,7 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 			const divider = { id: `sep-act-${at}`, label: '', divider: true };
 			return at === 'before' ? [divider, ...entries] : [...entries, divider];
 		};
-		const build = (actions: ReturnType<typeof actionRows>): MenuEntry[] => [
+		const build = (actions: ActionRows): MenuEntry[] => [
 			...divided(actions.entries(true), 'after'),
 			...editLink,
 			...clipboardRows(root),

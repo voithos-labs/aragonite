@@ -93,7 +93,7 @@
 	import { createFocusAttribution } from './editor-root/focus';
 	import { createRootGestures } from './editor-root/gestures';
 	import { createRootMenus, type BlockMenuModel, type OpenRows } from './editor-root/menus';
-	import { createSelectionActions, type ActionGroup } from './editor-root/selection-actions';
+	import { createSelectionActions } from './editor-root/selection-actions';
 	import type { SelectionAction } from '../schema/selection-action';
 	import { createFocusedSurface } from './editor-root/focused-surface';
 	import type { EditorTestSurface } from './editor-root/test-surface';
@@ -1045,24 +1045,13 @@
 		actions: () => contributions.actions,
 		editorFor: (plugin) => pluginContexts.scoped(plugin),
 		getDoc,
+		source: currentSource.readUnchecked,
 		getSelection,
 		editable: () => reading.mode() !== 'reading',
 		rangeRects: (path, start, end) => rects.rangeRects(path, start, end),
 		edit: (plugin) => drafts.edit(plugin),
 		report: reportPluginError
 	});
-
-	// The toolbar's action rows: an action shows there only where it captures the selection whole.
-	const toolbarActions = {
-		atSelection: () => {
-			const over = selectionActions.selectionBytes();
-			return selectionActions
-				.atSelection()
-				.filter(({ captured: { range } }) => range.from === over?.from && range.to === over.to);
-		},
-		open: (group: ActionGroup, beside: DOMRect) =>
-			void rootMenus.openGroups([group], { x: beside.right, y: beside.top })
-	};
 
 	// A menu told it closed, unless the next one is the same menu redrawn.
 	function swapMenu(next: BlockMenuModel | null): void {
@@ -1749,7 +1738,7 @@
 			formatting={() => selectionToolbar}
 			clipboard={menuClipboard}
 			{menuPresence}
-			actions={toolbarActions}
+			actions={selectionActions}
 		/>
 	{/if}
 	<ImageOverlayHost

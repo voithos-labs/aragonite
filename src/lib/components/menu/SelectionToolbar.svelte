@@ -13,10 +13,12 @@
 	import { SELECTION_TOOLBAR_LABEL } from '../../a11y-strings';
 	import { keepFlyoutOnScreen } from './flyout-placement';
 	import { runClipboardAction, type MenuClipboard } from './clipboard-actions';
+	import type { Snippet } from 'svelte';
 	import MenuIcon from './MenuIcon.svelte';
-	import type { MenuIconName } from '../../menu-icons';
+	import type { Icon, MenuIconName } from '../../menu-icons';
 	import type { MenuPresence } from './menu-presence.svelte';
-	import type { ActionGroup } from '../editor-root/selection-actions';
+	import type { MenuEntry } from './BlockMenu.svelte';
+	import type { ActionGroup, ActionRows, SelectionActions } from '../editor-root/selection-actions';
 
 	type ToolbarEditor = Pick<
 		EditorInstance,
@@ -89,13 +91,15 @@
 		/** What the Cut, Copy and Paste rows act through. */
 		clipboard: MenuClipboard;
 		menuPresence: MenuPresence;
-		/** The plugins' actions whose capture is exactly the selection, each a row whose rows open
-		 *  beside it; asked per selection change, never for its rows. */
-		actions: { atSelection(): ActionGroup[]; open(group: ActionGroup, beside: DOMRect): void };
+		/** The plugins' actions whose capture is exactly the selection, each a row with a flyout;
+		 *  captured per selection change, their rows asked only when the flyout opens. */
+		actions: Pick<SelectionActions, 'wholeSelection' | 'rows'>;
 	} = $props();
 
 	let turnIntoOpen = $state(false);
 	let actionGroups = $state.raw<ActionGroup[]>([]);
+	/** The open action flyout: its row's index, its rows, and their entries as they land. */
+	let actionOpen = $state.raw<{ at: number; rows: ActionRows; entries: MenuEntry[] } | null>(null);
 	let blockKind = $state<string | null>(null);
 	let placement = $state<Placement | null>(null);
 	let declined = $state<ReadonlySet<string>>(new Set());
@@ -217,7 +221,7 @@
 
 	function update(selection: EditorSelection | null): void {
 		current = selection;
-		turnIntoOpen = false;
+		closeFlyouts();
 		blockKind = selection ? editor.getBlockKindAt(normalizeSelection(selection).start.path) : null;
 		// Asked per selection change, not per render: the answers are snapshots of this selection.
 		declined = new Set(
@@ -226,7 +230,7 @@
 		active = new Set(
 			BUTTONS.filter((b) => editor.isCommandActive(b.command)).map((b) => b.command)
 		);
-		actionGroups = selection ? actions.atSelection() : [];
+		actionGroups = selection ? actions.wholeSelection() : [];
 		placement = selection ? shownOver(selection) : null;
 	}
 
@@ -280,27 +284,84 @@
 		};
 	}
 
+	// One flyout at a time. Closing an action's tells its rows, so a pick still waiting writes nothing.
+	function closeFlyouts(): void {
+		turnIntoOpen = false;
+		actionOpen?.rows.closed();
+		actionOpen = null;
+	}
 	// A click opens and never toggles, since a pointer's click lands after its hover opened it.
-	function openFlyout(): void {
+	function openTurnInto(): void {
+		if (turnIntoOpen) return;
+		closeFlyouts();
 		turnIntoOpen = true;
+	}
+	function openAction(at: number): void {
+		if (actionOpen?.at === at) return;
+		closeFlyouts();
+		const rows = actions.rows(
+			[actionGroups[at]],
+			() =>
+				void (actionOpen === open && (actionOpen = open = { ...open, entries: rows.entries() })),
+			() => void (actionOpen === open && closeFlyouts())
+		);
+		let open = { at, rows, entries: rows.entries() };
+		actionOpen = open;
 	}
 	// A finger leaves the bar after every tap, before that tap's click, so only a mouse closes it.
 	function closeOnLeave(): void {
-		if (!finger()) turnIntoOpen = false;
+		if (!finger()) closeFlyouts();
 	}
 	// Escape and a press outside the bar close the flyout; the bar stays over the selection.
 	function closeFlyout(): boolean {
-		turnIntoOpen = false;
+		closeFlyouts();
 		return true;
 	}
 
 	// The command id, not a made-up keystroke: a host rebind moves the shortcut and leaves the
 	// button. A refused run means what the bar assumed has changed, so the bar hides.
 	function fire(command: string, arg?: unknown): void {
-		turnIntoOpen = false;
+		closeFlyouts();
 		if (!editor.runCommand(command, arg)) placement = null;
 	}
 </script>
+
+<!-- A labelled row whose flyout hangs beside it, opened by a hover or a click. -->
+{#snippet flyoutRow(
+	row: { icon?: Icon; label: string; testid: string; open: boolean; show: () => void },
+	items: Snippet
+)}
+	<div class="selection-toolbar-row" role="presentation" onpointerenter={row.show}>
+		<button
+			type="button"
+			class="md-menu-item"
+			data-testid={row.testid}
+			aria-haspopup="menu"
+			aria-expanded={row.open}
+			onmousedown={(e) => e.preventDefault()}
+			onclick={row.show}
+		>
+			<span class="md-menu-icon"
+				>{#if row.icon}<MenuIcon name={row.icon} size={14} />{/if}</span
+			>
+			<span class="selection-toolbar-label">{row.label}</span>
+			<span class="md-menu-icon"><MenuIcon name="chevron-right" size={13} /></span>
+		</button>
+		{#if row.open}
+			<div
+				class="md-menu selection-toolbar-flyout"
+				role="menu"
+				{@attach keepFlyoutOnScreen}
+				{@attach menuPresence.trackUncounted(closeFlyout, {
+					edits: true,
+					inside: () => [barEl]
+				})}
+			>
+				{@render items()}
+			</div>
+		{/if}
+	</div>
+{/snippet}
 
 {#if shown}
 	<div
@@ -332,71 +393,64 @@
 				{/each}
 			</div>
 			<div class="md-menu-divider" aria-hidden="true"></div>
-			{#if offersHeading}
-				<div
-					class="selection-toolbar-row"
-					role="presentation"
-					onpointerenter={() => (turnIntoOpen = true)}
-				>
-					<button
-						type="button"
-						class="md-menu-item"
-						data-testid="toolbar-set-heading"
-						aria-haspopup="menu"
-						aria-expanded={turnIntoOpen}
-						onmousedown={(e) => e.preventDefault()}
-						onclick={openFlyout}
-					>
-						<span class="md-menu-icon"><MenuIcon name="heading" size={14} /></span>
-						<span class="selection-toolbar-label">Set heading</span>
-						<span class="md-menu-icon"><MenuIcon name="chevron-right" size={13} /></span>
-					</button>
-					{#if turnIntoOpen}
-						<div
-							class="md-menu selection-toolbar-flyout"
-							role="menu"
-							{@attach keepFlyoutOnScreen}
-							{@attach menuPresence.trackUncounted(closeFlyout, {
-								edits: true,
-								inside: () => [barEl]
-							})}
-						>
-							{#each TURN_INTO as option (option.level)}
-								{@const chosen = option.level === 0 ? blockKind === 'paragraph' : false}
-								<button
-									type="button"
-									class="md-menu-item"
-									role="menuitemradio"
-									data-testid="toolbar-set-heading-{option.level}"
-									aria-checked={chosen}
-									onmousedown={(e) => e.preventDefault()}
-									onclick={() => fire(TURN_INTO_COMMAND, option.level)}
-								>
-									<span class="selection-toolbar-label">{option.label}</span>
-									{#if chosen}<span class="md-menu-icon"><MenuIcon name="check" size={13} /></span
-										>{/if}
-								</button>
-							{/each}
-						</div>
-					{/if}
-				</div>
-			{/if}
 			{#each actionGroups as group, g (g)}
-				<button
-					type="button"
-					class="md-menu-item"
-					data-testid="toolbar-action-{g}"
-					aria-haspopup="menu"
-					onmousedown={(e) => e.preventDefault()}
-					onclick={(e) => actions.open(group, e.currentTarget.getBoundingClientRect())}
-				>
-					<span class="md-menu-icon">
-						{#if group.action.icon}<MenuIcon name={group.action.icon} size={14} />{/if}
-					</span>
-					<span class="selection-toolbar-label">{group.action.label}</span>
-					<span class="md-menu-icon"><MenuIcon name="chevron-right" size={13} /></span>
-				</button>
+				{#snippet actionRows()}
+					{#each actionOpen?.entries ?? [] as entry (entry.id)}
+						<button
+							type="button"
+							class="md-menu-item"
+							role="menuitem"
+							disabled={entry.disabled}
+							onmousedown={(e) => e.preventDefault()}
+							onclick={() => actionOpen?.rows.pick(entry.id)}
+						>
+							{#if entry.icon}<span class="md-menu-icon"
+									><MenuIcon name={entry.icon} size={14} /></span
+								>{/if}
+							<span class="selection-toolbar-label">{entry.label}</span>
+						</button>
+					{/each}
+				{/snippet}
+				{@render flyoutRow(
+					{
+						icon: group.action.icon,
+						label: group.action.label,
+						testid: `toolbar-action-${g}`,
+						open: actionOpen?.at === g,
+						show: () => openAction(g)
+					},
+					actionRows
+				)}
 			{/each}
+			{#if offersHeading}
+				{#snippet headings()}
+					{#each TURN_INTO as option (option.level)}
+						{@const chosen = option.level === 0 ? blockKind === 'paragraph' : false}
+						<button
+							type="button"
+							class="md-menu-item"
+							role="menuitemradio"
+							data-testid="toolbar-set-heading-{option.level}"
+							aria-checked={chosen}
+							onmousedown={(e) => e.preventDefault()}
+							onclick={() => fire(TURN_INTO_COMMAND, option.level)}
+						>
+							<span class="selection-toolbar-label">{option.label}</span>
+							{#if chosen}<span class="md-menu-icon"><MenuIcon name="check" size={13} /></span>{/if}
+						</button>
+					{/each}
+				{/snippet}
+				{@render flyoutRow(
+					{
+						icon: 'heading',
+						label: 'Set heading',
+						testid: 'toolbar-set-heading',
+						open: turnIntoOpen,
+						show: openTurnInto
+					},
+					headings
+				)}
+			{/if}
 			{#each rows as row (row.command)}
 				<button
 					type="button"
