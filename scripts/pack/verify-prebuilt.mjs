@@ -114,13 +114,7 @@ async function sharesOneRegistry(entries) {
 								consumed: 1
 							};
 						}
-					},
-					closure: plugin.simpleLeafClosure({
-						focus: { mode: 'implemented', via: 'probe' },
-						searchPaint: { mode: 'implemented', via: 'probe' },
-						undo: { mode: 'implemented', via: 'probe' },
-						simOracle: { mode: 'inherit-default' }
-					})
+					}
 				});
 			}
 		})
