@@ -46,6 +46,11 @@ function counted(host: RangeHost, current: DocumentView) {
 		leaf: {
 			replace: (doc, path, ...rest) => (handed(doc, path), leaf.replace(doc, path, ...rest)),
 			insert: (doc, path, ...rest) => (handed(doc, path), leaf.insert(doc, path, ...rest)),
+			join: (doc, head, tail, mode) => (
+				handed(doc, head.path),
+				handed(doc, tail.path),
+				leaf.join(doc, head, tail, mode)
+			),
 			carried: (doc, path, ...rest) => (handed(doc, path), leaf.carried(doc, path, ...rest)),
 			plain: (doc, path, text) => (handed(doc, path), leaf.plain(doc, path, text))
 		}

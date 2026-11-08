@@ -122,11 +122,14 @@ export const NAMED_ROWS: NamedRow[] = [
 		then: { gesture: 'paste back', expect: backToStart('alpha bravo\n\n> charlie delta\n') }
 	},
 	{
-		name: 'L3 a code block held whole goes with its line',
+		name: 'L3 a code block held whole goes with its line, and the blank line under it at the top',
 		source: '⟦```\ncode();\n```⟧\n\n| H0 |\n| --- |\n',
 		gesture: 'cut',
-		expect: { source: '\n| H0 |\n| --- |\n', clipboard: '```\ncode();\n```' },
-		then: { gesture: 'paste back', expect: backToStart('```\ncode();\n```\n\n| H0 |\n| --- |\n') }
+		expect: { source: '| H0 |\n| --- |\n', clipboard: '```\ncode();\n```' },
+		then: {
+			gesture: 'paste back with own',
+			expect: backToStart('```\ncode();\n```\n\n| H0 |\n| --- |\n')
+		}
 	},
 	{
 		name: 'L3 into a table at its first row takes the table whole',
@@ -312,17 +315,25 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: 'backspace',
 		expect: { source: 'p\n\n[^1]: b\n', caret: text(1) }
 	},
+	// A list item's marker line goes with the text it joins, and the lines under it keep their bytes,
+	// as Backspace at the item's start does (`structural-edits.md` § Delete).
 	{
-		name: 'C5 a range from mid-paragraph into an item first line keeps the item marker',
+		name: 'M1 a range from mid-paragraph into an item first line takes the marker line',
 		source: 'p⟦q\n\n- a⟧b\n\n  c\n',
 		gesture: 'backspace',
-		expect: { source: 'pb\n\n- c\n', caret: text(1) }
+		expect: { source: 'pb\n\n  c\n', caret: text(1) }
 	},
 	{
-		name: 'C5 a list item keeps its marker when the range takes its first line',
+		name: 'M1 a range taking an item first line leaves the line under it as it stood',
 		source: 'p⟦\n\n- a⟧\n\n  b\n',
 		gesture: 'backspace',
-		expect: { source: 'p\n\n- b\n', caret: text(1) }
+		expect: { source: 'p\n\n  b\n', caret: text(1) }
+	},
+	{
+		name: 'M1 a deeper item under the joined one keeps its line, never a second marker (#816)',
+		source: '- i0\n  - i1\n    - i⟦2\n  - i⟧3\n    - i4\n\n    p5\n',
+		gesture: 'backspace',
+		expect: { source: '- i0\n  - i1\n    - i3\n    - i4\n\n    p5\n', caret: text(19) }
 	},
 	// ── A container's first text byte, and Mod+Shift+V (both ruled 2026-11-05) ──
 	{
@@ -615,7 +626,7 @@ export const NAMED_ROWS: NamedRow[] = [
 		source: '⟦```\n```⟧\n\npara\n',
 		mode: 'live',
 		gesture: 'cut',
-		expect: { source: '\npara\n', clipboard: '```\n```', caret: text(0) }
+		expect: { source: 'para\n', clipboard: '```\n```', caret: text(0) }
 	},
 	{
 		name: 'L10 live, the same from inside its text',
@@ -637,10 +648,16 @@ export const NAMED_ROWS: NamedRow[] = [
 		expect: { source: 'a\n\nb\n', caret: text(3) }
 	},
 	{
-		name: 'L4 a block held whole behind a quote marker keeps the marker its line, never nesting',
+		name: 'L4 a block held whole behind a quote marker goes with its marker line, never nesting',
 		source: '> a\n>\n> ⟦---⟧\n>\n> b\n',
 		gesture: 'backspace',
-		expect: { source: '> a\n>\n> \n>\n> b\n', caret: text(3) }
+		expect: { source: '> a\n>\n> b\n', caret: text(3) }
+	},
+	{
+		name: 'L4 the same block alone in its quote leaves the quote emptied',
+		source: 'a\n\n> ⟦---⟧\n\nb\n',
+		gesture: 'backspace',
+		expect: { source: 'a\n\n> \n\nb\n', caret: text(1) }
 	},
 	{
 		name: 'L12 a block cut whole with a blank line pastes back exact with its entry',
@@ -679,5 +696,84 @@ export const NAMED_ROWS: NamedRow[] = [
 		source: '$$\nx⟦\n$$\n\nb⟧b\n',
 		gesture: 'backspace',
 		expect: { source: '$$\nx\n$$\nb\n', caret: text(4) }
+	},
+	{
+		name: 'L4 a range starting past a code block keeps its closing line once',
+		source: 'alpha\n\n```js\nbody\n```⟦\n\nom⟧ega\n',
+		gesture: 'backspace',
+		expect: { source: 'alpha\n\n```js\nbody\n```\nega\n', caret: text(21) }
+	},
+	// ── The join writes through the start block's write rule (spec § 5.2, `host.leaf.join`) ──
+	{
+		name: 'C9 a setext heading the range starts in keeps its underline under the joined text',
+		source: 'Set⟦ext\n======\n\nne⟧xt\n',
+		gesture: 'backspace',
+		expect: { source: 'Setxt\n======\n', caret: text(3) }
+	},
+	{
+		name: 'C9 a setext title the range ends in loses its underline, the start keeps its own',
+		source: 'Set⟦ext\n===\n\nOth⟧er\n---\n',
+		gesture: 'backspace',
+		expect: { source: 'Seter\n===\n', caret: text(3) }
+	},
+	{
+		name: 'C9 a heading joined with a setext title below takes its text alone',
+		source: '# Ti⟦tle\n\nOth⟧er\n---\n',
+		gesture: 'delete',
+		expect: { source: '# Tier\n', caret: text(4) }
+	},
+	{
+		name: 'C9 a setext heading the range leaves for a block that takes no text keeps its underline',
+		source: 'Set⟦ext\n===\n\n```\nco⟧de\n```\n',
+		gesture: 'backspace',
+		expect: { source: 'Set\n===\n\n```\nde\n```\n', caret: text(3) }
+	},
+	{
+		name: 'L4 live, a join closes the run the start keeps and reopens the run the end keeps',
+		source: 'a **b⟦old** b\n\nc *it⟧al* d\n',
+		mode: 'live',
+		gesture: 'backspace',
+		expect: { source: 'a **b***al* d\n', caret: text(5) }
+	},
+	{
+		name: 'L4 a join that makes a closing tag line in a section body writes it escaped',
+		source:
+			'<details>\n<summary>T</summary>\n\nalpha\n⟦beta\n\nxx⟧</details>\nmore\n\n</details>\n',
+		gesture: 'backspace',
+		expect: {
+			source: '<details>\n<summary>T</summary>\n\nalpha\n&lt;/details>\nmore\n\n</details>\n'
+		}
+	},
+	// ── A range entering a titled container keeps its opening (spec § 5.2, law 3's exception) ──
+	{
+		name: 'L4 a range into a title row keeps the opening line, the title losing what it covers',
+		source: 'pa⟦ra\n\n:::note Ti⟧tle\nbody\n:::\n\nafter\n',
+		gesture: 'backspace',
+		expect: { source: 'pa\n\n:::note tle\nbody\n:::\n\nafter\n', caret: text(2) }
+	},
+	{
+		name: 'L4 a range ending inside a container opening takes nothing of it',
+		source: 'pa⟦ra\n\n:::⟧note Title\nbody\n:::\n\nafter\n',
+		gesture: 'backspace',
+		expect: { source: 'pa\n\n:::note Title\nbody\n:::\n\nafter\n', caret: text(2) }
+	},
+	// ── The blank line a block taken whole takes, at the document's edges and behind markers ──
+	{
+		name: 'L4 a block taken whole at the document start takes the blank line after it',
+		source: '⟦---⟧\n\nafter\n',
+		gesture: 'backspace',
+		expect: { source: 'after\n', caret: text(0) }
+	},
+	{
+		name: 'L4 a block taken whole at the document end takes its line ending too',
+		source: 'lead\n\n⟦---⟧\n',
+		gesture: 'backspace',
+		expect: { source: 'lead\n\n', caret: text(4) }
+	},
+	{
+		name: 'L4 Delete over a block taken whole behind a quote marker lands in the next quoted line',
+		source: '> a\n>\n> ⟦---⟧\n>\n> b\n',
+		gesture: 'delete',
+		expect: { source: '> a\n>\n> b\n', caret: text(8) }
 	}
 ];

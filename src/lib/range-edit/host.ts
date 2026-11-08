@@ -5,6 +5,7 @@
  */
 
 import type { DocumentView } from '../core/node-views';
+import { documentLineEnding } from '../core/lines';
 import { hidesDelimitersAtCaret } from '../presentation-mode';
 import { blockFacts, type BlockFacts } from '../schema/block-facts';
 import { unfinishedReadings } from '../schema/block-openers';
@@ -13,6 +14,7 @@ import type { Reading } from '../schema/reading';
 import { legalizeWrite } from '../tree-operations/content-write';
 import {
 	bytesLeavingLeaf,
+	joinLeaves,
 	replaceDrawnRange,
 	replaceRangeInLeaf,
 	type LeafRangeEdit
@@ -50,6 +52,14 @@ export interface RangeHost {
 			path: readonly number[],
 			at: number,
 			text: string,
+			mode: Mode
+		): LeafWrite;
+		/** The block at `head.path` cut at its offset, with the text of the block at `tail.path` from
+		 *  its offset joined on: the tail's own syntax (a setext underline) goes, the head's stays. */
+		join(
+			doc: DocumentView,
+			head: { path: readonly number[]; offset: number },
+			tail: { path: readonly number[]; offset: number },
 			mode: Mode
 		): LeafWrite;
 		/** The bytes `[from, to)` of the block carry out of it, a format run they cut closed. */
@@ -99,7 +109,11 @@ export function rangeHost(
 	};
 	// An in-block write as the block stores it: its kind's write rule, then its container's (a fence
 	// grows past a fence line written into its body), with the offsets carried through that rule.
-	const stored = (doc: DocumentView, path: readonly number[], edit: LeafRangeEdit): LeafWrite => {
+	const stored = (
+		doc: DocumentView,
+		path: readonly number[],
+		edit: Pick<LeafRangeEdit, 'raw' | 'caret' | 'afterRange'>
+	): LeafWrite => {
 		const { holder, index } = writeTargetAt(doc, path);
 		const legal = legalizeWrite(holder, index, edit.raw, 'literal', reading.grammar);
 		return {
@@ -129,6 +143,17 @@ export function rangeHost(
 				const store = storedAsAt(doc, path, readingIn(mode));
 				const edit = replaceRangeInLeaf(leafAt(doc, path), { start: at, end: at }, text, store);
 				return stored(doc, path, edit);
+			},
+			join(doc, head, tail, mode) {
+				const store = storedAsAt(doc, head.path, readingIn(mode));
+				const { raw, seam } = joinLeaves(
+					{ node: leafAt(doc, head.path), offset: head.offset },
+					{ node: leafAt(doc, tail.path), offset: tail.offset },
+					'',
+					store,
+					documentLineEnding(doc)
+				);
+				return stored(doc, head.path, { raw, caret: seam, afterRange: seam });
 			},
 			carried(doc, path, from, to, mode) {
 				const store = storedAsAt(doc, path, readingIn(mode));

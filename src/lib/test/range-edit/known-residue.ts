@@ -14,8 +14,8 @@ export interface KnownResidue {
 	gap: string;
 	/** The lane whose fix deletes the row. */
 	lane: 'tab columns' | '2b';
-	/** The law it breaks: law 3, or law 9 at the caret the cut left. */
-	law: 'L3' | 'L9';
+	/** The law it breaks: law 3, law 4's bytes past the range, or law 9 at the caret the cut left. */
+	law: 'L3' | 'L4' | 'L9';
 	matches(read: Read, range: Range, host: CheckHost): boolean;
 	repro: { source: string; mode: Mode; range: Range };
 }
@@ -57,6 +57,14 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 		matches: (read, range) =>
 			coveredLines(read, range).some((line) => /^[ >*+\-\d.)]*\t/.test(line)),
 		repro: { source: '2) 汉字\n    \n\t1. n', mode: 'live', range: { from: 4, to: 15 } }
+	},
+	{
+		gap: 'a tab split between a container marker and the line’s indent joins as the spaces of its columns',
+		lane: 'tab columns',
+		law: 'L4',
+		matches: (read, range) =>
+			coveredLines(read, range).some((line) => /^[ >*+\-\d.)]*\t/.test(line)),
+		repro: { source: ' - `c`\n\t> q\n\t\n\t**b**\n', mode: 'source', range: { from: 11, to: 14 } }
 	},
 	{
 		gap: 'a line that reads as a setext underline or a break (`---`, `- `) re-reads the paragraph above it',

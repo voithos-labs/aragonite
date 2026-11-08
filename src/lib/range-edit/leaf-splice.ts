@@ -25,10 +25,11 @@ export function byteAt(doc: Doc, leaf: LaidBlock, at: number): number {
 	return doc.layout.byteOf(leaf.path, at)!;
 }
 
-/** Where the block's text starts on the line holding its offset `at`, past that line's markers. */
+/** Where the block's text starts on the line holding its offset `at`: past that line's markers
+ *  and, on its first line, the block's own opening (a heading's `# `, a title row's `:::note `). */
 export function lineTextStart(doc: Doc, leaf: LaidBlock, at: number): number {
 	const raw = nodeAt(doc, leaf.path).raw;
-	return byteAt(doc, leaf, raw.lastIndexOf('\n', at - 1) + 1);
+	return Math.max(byteAt(doc, leaf, raw.lastIndexOf('\n', at - 1) + 1), leaf.text!.from);
 }
 
 /** `write` replaced `[from, to)` of the block's bytes: what changed goes into the source, each new

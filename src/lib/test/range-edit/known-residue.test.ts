@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { editRange } from '#lib/range-edit/edit-range.js';
 import { KNOWN_RESIDUE, knownResidue } from './known-residue';
-import { cutPasteBack, pasteAtCutCaret, type Call } from './laws';
+import { cutPasteBack, keepsOutside, pasteAtCutCaret, type Call } from './laws';
 import { checkHost } from './test-host';
 
 describe('the known residue', () => {
@@ -14,10 +14,11 @@ describe('the known residue', () => {
 			const host = checkHost();
 			const call: Call = (source, range, gesture, mode) =>
 				editRange(source, range, gesture, mode, host);
-			const broken =
-				known.law === 'L3'
-					? cutPasteBack(call, host, known.repro)
-					: pasteAtCutCaret(call, host, known.repro);
+			const broken = {
+				L3: () => cutPasteBack(call, host, known.repro),
+				L4: () => keepsOutside(call, host, known.repro),
+				L9: () => pasteAtCutCaret(call, host, known.repro)
+			}[known.law]();
 			expect(broken).not.toEqual([]);
 			const { source, range } = known.repro;
 			expect(knownResidue(host, source, range, known.law)?.gap).toBe(known.gap);

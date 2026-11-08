@@ -3,7 +3,7 @@
  * end's line every byte after it, and the containers around them stay readable.
  */
 
-import { isBlankText } from '../core/lines';
+import { isBlankText, ownTrailingLineEnding } from '../core/lines';
 import type { LaidBlock } from './layout';
 import {
 	containersAt,
@@ -14,7 +14,7 @@ import {
 	leafAt,
 	lineOf,
 	nodeAt,
-	titleAt,
+	parentOf,
 	titleOwner,
 	titleRowOf,
 	type Doc
@@ -22,7 +22,6 @@ import {
 import { heldAt, heldWhole, removalRange } from './removal-range';
 import {
 	byteAt,
-	lineEnd,
 	lineEndBefore,
 	lineHead,
 	lineRest,
@@ -76,17 +75,10 @@ function across(
 	const takes = (b: LaidBlock) => !titleOwner(doc, b) && factsOf(doc, b).joins !== 'never';
 	const ends = !last || last === first || takes(last) || to > last.from;
 	const joins = opening === null && (held || (first !== undefined && takes(first))) && ends;
-	let tail = source.slice(to);
-	// Blocks taken whole from a line's start go with their lines, unless the last ending is the
-	// document's; a line keeping markers before them keeps its ending too, so nothing joins them.
-	const ending = /^\r?\n/.exec(tail)?.[0] ?? '';
-	const withLine = held && lineHead(source, from) === '' && endsHoldingWhole(doc, from, to);
-	if (withLine && ending && to + ending.length < source.length) {
-		tail = tail.slice(ending.length);
-		// Where blank lines stand on both sides, one goes too, so no empty paragraph is left behind.
-		const blank = /^[ \t]*\r?\n/.exec(tail)?.[0];
-		if (blank && /(^|\n)[ \t]*\r?\n$/.test(source.slice(0, from))) tail = tail.slice(blank.length);
-	}
+	const head = held ? null : leafAt(doc, from);
+	if (joins && head && end && head.leaf !== end.leaf) return joinedLeaves(doc, from, to, head, end);
+	const lines = held ? wholeLines(doc, from, to) : null;
+	let tail = lines?.tail ?? source.slice(to);
 	if (!joins) {
 		const lineStart = source.lastIndexOf('\n', to - 1) + 1;
 		const textStart = end ? lineTextStart(doc, end.leaf, end.offset) : to;
@@ -95,16 +87,71 @@ function across(
 			(lineStart > from && textStart >= lineStart ? source.slice(lineStart, textStart) : '');
 		tail = endingOf(source) + markers + tail;
 	}
-	const joined = source.slice(0, from) + rowTail(doc, from, to) + tail;
-	const kept = closers(doc, from, to);
-	const at = lineEndBefore(joined, from);
-	const closed = kept ? joined.slice(0, at) + kept + joined.slice(at) : joined;
-	const gone = held && (withLine || !joins || isBlankText(lineRest(tail, 0)));
+	const before = lines?.before ?? source.slice(0, from);
+	const joined = before + keptPast(doc, from, to) + tail;
+	const closed = withClosers(doc, from, to, joined, lineEndBefore(joined, before.length));
+	const gone = held && (!!lines || !joins || isBlankText(lineRest(tail, 0)));
 	return {
-		source: joins ? movedMarkers(doc, from, to, closed) : closed,
-		caret: from,
+		source: joins ? movedMarkers(doc, from, to, closed, to) : closed,
+		caret: lines?.caret ?? from,
 		...(gone && { gone })
 	};
+}
+
+/** Blocks taken whole go with their line (behind markers, the next line's markers go instead), and
+ *  with the blank line after them where one stands before them too (spec § 5.2). Null: it stays. */
+function wholeLines(doc: Doc, from: number, to: number) {
+	const { source } = doc;
+	const marks = lineHead(source, from);
+	const holder = containersAt(doc, from, 'start').at(-1);
+	// A container holding only the block keeps its line, emptied (C10).
+	const shared = holder !== undefined && (nodeAt(doc, holder.path).children?.length ?? 0) > 1;
+	if ((marks !== '' && !shared) || !endsHoldingWhole(doc, from, to)) return null;
+	const ending = /^\r?\n/.exec(source.slice(to))?.[0];
+	if (ending === undefined) return null;
+	const above = source.slice(0, from - marks.length);
+	let tail = source.slice(to + ending.length);
+	// At the document's start a blank line after it would read as an empty paragraph.
+	const blankAfter = /^[ \t>]*\r?\n/.exec(tail)?.[0];
+	if (blankAfter && (above === '' || /(^|\n)[ \t>]*\r?\n$/.test(above)))
+		tail = tail.slice(blankAfter.length);
+	if (marks !== '' && !tail.startsWith(marks)) return null;
+	return { before: source.slice(0, from), tail: tail.slice(marks.length), caret: from };
+}
+
+type LeafPoint = NonNullable<ReturnType<typeof leafAt>>;
+
+/** The end block's text joined onto the start block's through the host's join, so the joined line
+ *  takes the start block's write rule, keeps its syntax and drops the end block's (spec § 5.2). */
+function joinedLeaves(doc: Doc, from: number, to: number, head: LeafPoint, end: LeafPoint) {
+	const { source } = doc;
+	const write = doc.host.leaf.join(
+		doc.tree,
+		{ path: head.leaf.path, offset: head.offset },
+		{ path: end.leaf.path, offset: end.offset },
+		doc.mode
+	);
+	const raw = nodeAt(doc, head.leaf.path).raw;
+	// Up to the block's last line ending, so the line after it keeps its own markers.
+	const written = writeLeaf(
+		doc,
+		head.leaf,
+		write,
+		head.offset,
+		raw.length - ownTrailingLineEnding(raw).length
+	);
+	const shift = written.source.length - source.length;
+	const leafEnd = head.leaf.to + shift;
+	const joined = written.source.slice(0, leafEnd) + written.source.slice(end.leaf.to + shift);
+	const closerAt = leafEnd - ownTrailingLineEnding(write.bytes).length;
+	const closed = withClosers(doc, from, to, joined, closerAt);
+	return { source: movedMarkers(doc, from, to, closed, end.leaf.to), caret: written.caret };
+}
+
+/** `joined` with the closing lines the range starts inside and leaves put back at `at`. */
+function withClosers(doc: Doc, from: number, to: number, joined: string, at: number): string {
+	const kept = closers(doc, from, to);
+	return kept ? joined.slice(0, at) + kept + joined.slice(at) : joined;
 }
 
 /** The opening of a fenced block the range enters from outside, kept with the blank lines and
@@ -119,10 +166,11 @@ function enteredOpening(doc: Doc, from: number, to: number): string | null {
 			const closer = doc.host.fence(nodeAt(doc, b.path).raw)?.closer;
 			return closer !== null && closer !== undefined && to <= byteAt(doc, b, closer);
 		});
+	if (!entered) return null;
 	const end = leafAt(doc, to);
-	if (!entered || !end) return null;
 	const { source } = doc;
-	const textStart = lineTextStart(doc, end.leaf, end.offset);
+	// An end inside the opening's own syntax, before any text, keeps the bytes up to it.
+	const textStart = end ? lineTextStart(doc, end.leaf, end.offset) : to;
 	const endLine = source.lastIndexOf('\n', textStart - 1) + 1;
 	const opened = Math.min(openingEnd(doc, entered), endLine);
 	const outer =
@@ -155,14 +203,13 @@ function openingEnd(doc: Doc, block: LaidBlock): number {
 const endsHoldingWhole = (doc: Doc, from: number, to: number) =>
 	findWithin(doc, from, to, (b) => b.from >= from && heldWhole(doc, b, b.from, to)) !== undefined;
 
-/** A title row the range starts in and leaves keeps its line past its text: a summary's closing
- *  tag, so the row stays a title row. */
-function rowTail(doc: Doc, from: number, to: number): string {
-	const row = titleAt(doc, from);
-	if (!row || from > row.text!.to) return '';
-	const lineTo = lineEnd(doc.source, row.text!.to);
-	if (to <= lineTo) return '';
-	return doc.source.slice(row.text!.to, lineTo).replace(/\r$/, '');
+/** What a block the range starts in and leaves keeps past its text, so it keeps its kind: a
+ *  summary's closing tag, a setext underline (a fence's closing line is `closers`'). */
+function keptPast(doc: Doc, from: number, to: number): string {
+	const start = leafAt(doc, from)?.leaf;
+	if (!start || to <= contentEnd(doc, start) || doc.host.fence(nodeAt(doc, start.path).raw))
+		return '';
+	return doc.source.slice(start.text!.to, contentEnd(doc, start));
 }
 
 /** The closing lines the range starts inside and leaves, innermost first: a fenced block's, the
@@ -176,7 +223,9 @@ function closers(doc: Doc, from: number, to: number): string {
 		// From the line ending before the closing line, so that line keeps its own ending.
 		const before = doc.source.lastIndexOf('\n', closer - 1);
 		const at = doc.source[before - 1] === '\r' ? before - 1 : before;
-		if (from >= byteAt(doc, start, fence.body)) out += doc.source.slice(at, contentEnd(doc, start));
+		// A range starting on or past the closing line leaves it standing.
+		if (from >= byteAt(doc, start, fence.body) && from <= closer)
+			out += doc.source.slice(at, contentEnd(doc, start));
 	}
 	for (const c of containersAt(doc, from, 'start').reverse()) {
 		if (factsOf(doc, c).lines !== 'fenced' || c.from >= from) continue;
@@ -188,9 +237,9 @@ function closers(doc: Doc, from: number, to: number): string {
 	return out;
 }
 
-/** A container whose first-line marker rode on a line the range took keeps it on the line that now
- *  starts it. `out` is the source after the removal, every change before that line. */
-function movedMarkers(doc: Doc, from: number, to: number, out: string): string {
+/** A first-line marker whose line the range took moves to the container's next line from `past`;
+ *  a list item's goes instead (`structural-edits.md` § Delete). `out` is the removal's source. */
+function movedMarkers(doc: Doc, from: number, to: number, out: string, past: number): string {
 	const end = leafAt(doc, to)?.leaf;
 	if (!end) return out;
 	const shift = out.length - doc.source.length;
@@ -199,9 +248,11 @@ function movedMarkers(doc: Doc, from: number, to: number, out: string): string {
 		const moves = c.container && factsOf(doc, c).lines === 'first-line';
 		if (!moves || c.from < from || c.from >= to || c.to <= to) continue;
 		if (end.path.slice(0, c.path.length).join() !== c.path.join()) continue;
+		const parent = parentOf(doc, c);
+		if (parent && factsOf(doc, parent).lines === 'items') continue;
 		const firstLine = c.lines!.find((l) => !l.own)!;
 		const next = c.lines!.find(
-			(l) => l.from >= to && !isBlankText(lineRest(doc.source, l.markerTo))
+			(l) => l.from >= past && !isBlankText(lineRest(doc.source, l.markerTo))
 		);
 		if (!next || next === lineOf(c, to)) continue;
 		const marker = doc.source.slice(firstLine.from, firstLine.markerTo);

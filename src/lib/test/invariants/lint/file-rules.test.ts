@@ -1879,7 +1879,9 @@ const LEAF_RANGE_RULES: FileRule[] = [
 		matches: /(?<![\w.])joinLeaves\s*\(/,
 		allowed: {
 			'src/lib/tree-operations/leaf-range.ts': 'defines it',
-			'src/lib/tree-operations/node-ops.ts': "`joinIntoLeaf`, the merge's one join into a leaf"
+			'src/lib/tree-operations/node-ops.ts': "`joinIntoLeaf`, the merge's one join into a leaf",
+			'src/lib/range-edit/host.ts':
+				"the range removal's join of the end block's text onto the start's"
 		},
 		reason:
 			'a join of two leaves runs the tail kind’s write rule and the live cleanup once, here; declare a new caller with what it joins',

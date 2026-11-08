@@ -95,7 +95,7 @@ export function pasteAt(doc: Doc, at: number, clipboard: string, plain: boolean)
 /** One line pasted after text on the caret's line reads as that line reads. */
 function afterText(doc: Doc, leaf: LaidBlock, offset: number, clip: string): boolean {
 	if (clip.includes('\n')) return false;
-	const lineStart = Math.max(lineTextStart(doc, leaf, offset), leaf.text!.from);
+	const lineStart = lineTextStart(doc, leaf, offset);
 	return !isBlankText(doc.source.slice(lineStart, byteAt(doc, leaf, offset)));
 }
 
