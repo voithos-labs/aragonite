@@ -8,6 +8,7 @@ import { checkDefinedByThisCopy, type CoreCopy } from '../invariants/one-core-co
 import { ARAGONITE_VERSION } from '../version';
 import type { EditorEventMap } from '../editor-events';
 import type { PresentationMode } from '../presentation-mode';
+import type { Draft } from './drafts';
 import { isValidPluginName } from './plugin-name';
 import { satisfiesRange } from './version-range';
 
@@ -71,6 +72,9 @@ export interface Editor {
 	can(command: string): boolean;
 	/** Whether the editor acts on this key, so a host's own shortcut handler can stand back. */
 	claims(event: KeyboardEvent): boolean;
+	/** A write in the document's bytes, committed as one undo step now or after a wait; a plugin's
+	 *  is refused as `off` once the plugin is. */
+	edit(): Draft;
 }
 
 /** A block type as the editor holds it: `name` is its kind, qualified by its plugin's name once an

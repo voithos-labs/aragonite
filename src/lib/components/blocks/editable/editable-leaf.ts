@@ -335,20 +335,21 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	// ── Commit ─────────────────────────────────────────────────────────────────
 
 	function openDraft(): Draft {
-		return drafts.open({
-			seed: sourceText(),
-			current: sourceText,
-			close: (cause) => {
-				if (cause === 'undo') saveBeforeUndo();
-				else if (cause === 'mode-change') void commitReveal(true);
-			}
-		});
+		return drafts.open(
+			{
+				close: (cause) => {
+					if (cause === 'undo') saveBeforeUndo();
+					else if (cause === 'mode-change') void commitReveal(true);
+				}
+			},
+			deps.getPath()
+		);
 	}
 
 	// The source stays shown through an undo: its edit lands as a step the undo then takes back.
 	function saveBeforeUndo(): void {
 		const edited = deps.getEl()?.textContent ?? sourceText();
-		if (draft?.canWrite() && edited !== sourceText()) void commitSource(edited);
+		if (draft && !draft.stale && edited !== sourceText()) void commitSource(edited);
 		draft = openDraft();
 	}
 
@@ -391,7 +392,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		setRevealed(false);
 		// An undo or a `source` swap can put another block at this index before the destroyed
 		// component's blur arrives, so the edit lands only where its draft still can.
-		if (open && !open.canWrite()) return;
+		if (open?.stale) return;
 		if (edited === sourceText()) return;
 		await commitSource(edited);
 	}

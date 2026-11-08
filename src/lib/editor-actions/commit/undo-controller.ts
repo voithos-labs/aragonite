@@ -12,6 +12,7 @@ import type { LandOptions } from '../../selection/caret-landing';
 import type { UndoEntry } from '../../undo/types';
 import type { SelectionPoint } from '../../selection/primitives';
 import { digestDoc } from '../../invariants/snapshot-integrity';
+import { grammarStamp } from './grammar-stamp';
 import { readCurrentSelection } from '../../selection/native-bridge';
 import { pathsEqual } from '../../selection/path-math';
 import { checkLandingIsAValue, readCaretWhereabouts } from '../../invariants/landing-value';
@@ -66,7 +67,7 @@ export function createUndoController(
 
 	/** Snapshots share the live tree's nodes and copy only the top-level children array, so an
 	 *  edit copies the path it writes first (G1.9, `tree-operations/unshare.ts`). */
-	function shareSnapshot(): Pick<UndoEntry, 'snapshot' | 'integrity'> {
+	function shareSnapshot(): Pick<UndoEntry, 'snapshot' | 'integrity' | 'grammar'> {
 		deps.sharing.markSnapshotTaken();
 		const snapshot: Document = {
 			kind: 'document',
@@ -74,7 +75,11 @@ export function createUndoController(
 			children: [...deps.doc.children],
 			suffix: deps.doc.suffix
 		};
-		return { snapshot, integrity: devChecksOn ? digestDoc(snapshot) : undefined };
+		return {
+			snapshot,
+			integrity: devChecksOn ? digestDoc(snapshot) : undefined,
+			grammar: grammarStamp(deps.reading.grammar)
+		};
 	}
 
 	function recordSnapshotPerf(): void {

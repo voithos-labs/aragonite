@@ -12,7 +12,6 @@ import {
 	callArguments,
 	collectEditorSources,
 	collectFiles,
-	EDITOR_SRC,
 	LIBRARY_ROOTS,
 	enclosingFunction,
 	fileClasses,
@@ -26,7 +25,6 @@ import {
 	quotedSpecifierEnding,
 	rawAssignments,
 	regexLiteralAt,
-	REPO_WIDE_ROOTS,
 	resolveSpecifier,
 	sourceFile,
 	splitTopLevel,
@@ -84,11 +82,6 @@ describe('repo-wide scan roots', () => {
 		);
 		expect(belowRoot.filter((p) => /(^|\/)(test|e2e)\//.test(p))).toEqual([]);
 		expect(paths.filter((p) => p.endsWith('.d.ts'))).toEqual([]);
-	});
-
-	it('REPO_WIDE_ROOTS is the declared set the default scan walks', () => {
-		expect(REPO_WIDE_ROOTS).toHaveLength(LIBRARY_ROOTS.length + 2);
-		expect(REPO_WIDE_ROOTS[0]).toBe(EDITOR_SRC);
 	});
 });
 

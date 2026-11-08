@@ -44,7 +44,12 @@ describe('the swap commit sequence', () => {
 			grammar: defaultGrammarView,
 			currentSource: () => (adopted ? serialize(adopted) : 'held\n'),
 			stamps: { retire: step('stamps') },
-			drafts: { closeAll: (cause) => void order.push(`drafts:${cause}`) },
+			doc: () => adopted ?? initDocument('held\n', defaultGrammarView).doc,
+			drafts: {
+				closeAll: (cause) => void order.push(`drafts:${cause}`),
+				watching: () => false,
+				record: () => {}
+			},
 			markHover: { end: step('hover') },
 			flushDebouncedCheckpoint: step('flush'),
 			noteTreeSwap: step('landings'),

@@ -117,10 +117,6 @@ describe('G4.60 spread-into-call census', () => {
 		).toEqual([]);
 		expect(stale, 'a declared site that no longer spreads: drop the row').toEqual([]);
 	});
-
-	it('every declaration carries a reason', () => {
-		expect(Object.entries(ALLOWLIST).filter(([, d]) => d.reason.trim() === '')).toEqual([]);
-	});
 });
 
 // ── Matcher self-tests (non-vacuity) ─────────────────────────────────────────

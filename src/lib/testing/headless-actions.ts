@@ -28,7 +28,6 @@ import { caretTargetFor, type CaretTarget } from '../selection/caret-target';
 import { createSharingState } from '../tree-operations/sharing';
 import { createUndoManager } from '../undo/manager';
 import { createDocumentStamps } from '../editor-actions/commit/document-stamp';
-import { createDraftRegistry } from '../components/draft-registry';
 
 // ── Stubs ────────────────────────────────────────────────────────────────────
 
@@ -208,7 +207,8 @@ export function createHeadlessActions(
 		// An author's suite runs with no editor, so every installed plugin is in the grammar.
 		reading: options.reading ?? kitReading(),
 		stamps,
-		drafts: createDraftRegistry(stamps)
+		// Nothing opens a draft without an editor, so no write records what it changed.
+		drafts: { closeAll() {}, watching: () => false, record() {} }
 	};
 	// No render window: nothing mounts later, so an empty entry counts as out of range.
 	const rootList: ChildList = {

@@ -132,6 +132,11 @@ const isBare = (source: MathSource | null): boolean =>
 	isBlankText(source.body);
 
 const BOTH_FORMS = [...DOLLAR_SHAPES, ...FENCE_SHAPES];
+// Routes that never read the line ending get one row per source text, not one per line ending.
+const byText = (list: Shape[]): Shape[] =>
+	list.filter((shape, i) => list.findIndex((other) => other.text === shape.text) === i);
+const SPLIT_SOURCES = byText(DOLLAR_SHAPES);
+const EOL_BLIND_FORMS = byText(BOTH_FORMS);
 const DOLLAR_SOURCES = DOLLAR_SHAPES.filter((shape) => shape.split !== null);
 
 type Route = [name: string, check: (shape: Shape) => void, shapes: Shape[]];
@@ -184,7 +189,7 @@ const ROUTES: Route[] = [
 			expect(renderMathSource(text).textContent).toBe(text);
 			expect(paintedSplit(text)).toEqual(split && { ...split, body: fenceBodyAsDrawn(split) });
 		},
-		BOTH_FORMS
+		EOL_BLIND_FORMS
 	],
 	[
 		'the body span',
@@ -193,14 +198,14 @@ const ROUTES: Route[] = [
 			expect(start).toBe(split?.opener.length ?? 0);
 			expect(text.slice(start, end)).toBe(split ? fenceBodyAsDrawn(split) : text);
 		},
-		BOTH_FORMS
+		EOL_BLIND_FORMS
 	],
 	[
 		'the rendered formula',
 		({ text, split }) => {
 			expect(mathDisplaySource(text)).toBe(trimWhitespace(split?.body ?? text));
 		},
-		BOTH_FORMS
+		EOL_BLIND_FORMS
 	],
 	[
 		'the edit’s reshape',
@@ -223,7 +228,7 @@ const ROUTES: Route[] = [
 // ── Rows ─────────────────────────────────────────────────────────────────────
 
 describe('the $$ split', () => {
-	for (const { label, text, split: expected } of DOLLAR_SHAPES) {
+	for (const { label, text, split: expected } of SPLIT_SOURCES) {
 		it(label, () => {
 			expect(readMathSource(text)).toEqual(expected);
 		});

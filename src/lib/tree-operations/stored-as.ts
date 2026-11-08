@@ -15,13 +15,19 @@ import { childSlotAt, fragmentReaderAt, readThroughItemMarker } from './list/tas
 
 /** The leaf at `path` in `doc`: the store its bytes go through, read when first asked. */
 export function storedAsAt(doc: DocumentView, path: readonly number[], reading: Reading): StoredAs {
-	return storeOver(reading, () => {
-		const { owner, index } = childSlotAt(doc, path);
-		const holder: WriteTarget = owner
-			? { owner, children: owner.children ?? [], lineEnding: documentLineEnding(doc) }
-			: doc;
-		return { holder, index };
-	});
+	return storeOver(reading, () => writeTargetAt(doc, path));
+}
+
+/** The leaf at `path`: its parent as a write reads it, and its index there. */
+export function writeTargetAt(
+	doc: DocumentView,
+	path: readonly number[]
+): { holder: WriteTarget; index: number } {
+	const { owner, index } = childSlotAt(doc, path);
+	const holder: WriteTarget = owner
+		? { owner, children: owner.children ?? [], lineEnding: documentLineEnding(doc) }
+		: doc;
+	return { holder, index };
 }
 
 /** The same for slot `index` of a holder a caller already walked to. `inserted` names a block no

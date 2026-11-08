@@ -58,11 +58,12 @@ export interface SpliceCaret {
 	holds: 'text' | 'block' | 'boundary';
 }
 
-/** A byte splice: sorted, non-overlapping changes to the current bytes and the caret after them.
- *  The edit event names `op` at the first block the splice replaced. */
+/** A byte splice: sorted, non-overlapping changes to the current bytes and the caret after them, or
+ *  `keep` for the author's caret, moved past the changes. The edit event names `op` at the first
+ *  block the splice replaced. */
 export interface SourceSplice {
 	changes: readonly ByteChange[];
-	caret: SpliceCaret;
+	caret: SpliceCaret | 'keep';
 	op: OpDescriptor;
 	snapshot: CommitSnapshotArg;
 	history?: UndoGrouping;

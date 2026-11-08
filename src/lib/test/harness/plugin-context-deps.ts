@@ -5,9 +5,8 @@ import type { EditorRects } from '#lib/editor-rects.js';
 import type { InlineMenuRegistry } from '#lib/inline-menu/types.js';
 import type { InsertMarkdownOptions } from '#lib/editor-props.js';
 import { kitReading } from '#lib/testing/kit-reading.js';
-import { createDraftRegistry } from '#lib/components/draft-registry.js';
-import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
 import type { InstalledPlugin, PluginError } from '#lib/schema/plugin-unit.js';
+import { idleDraftRegistry } from './drafts';
 
 export const noopDecorations: DecorationRegistry = {
 	addSource: () => ({ invalidate() {}, dispose() {} })
@@ -52,6 +51,6 @@ export const pluginContextDeps = (
 	units: (): readonly InstalledPlugin[] => [],
 	pluginNames: (): readonly string[] => [],
 	report: (() => {}) as (error: PluginError) => void,
-	openDraft: createDraftRegistry(createDocumentStamps()).open,
+	edit: () => idleDraftRegistry().edit(),
 	reading: kitReading()
 });

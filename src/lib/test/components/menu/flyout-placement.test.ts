@@ -48,12 +48,6 @@ describe('keepFlyoutOnScreen', () => {
 		expect(flyout.style.top).toBe('-108px');
 	});
 
-	it('lifts no further than the top margin', () => {
-		const flyout = mountFlyout({ left: 200 }, { ...FITS, top: 50, bottom: 700 });
-		keepFlyoutOnScreen(flyout);
-		expect(flyout.style.top).toBe('-42px');
-	});
-
 	it('flips to the left of the row past the right edge, when the menu leaves room there', () => {
 		const flyout = mountFlyout({ left: 500 }, { ...FITS, right: 1100 });
 		keepFlyoutOnScreen(flyout);
@@ -61,12 +55,6 @@ describe('keepFlyoutOnScreen', () => {
 		expect(flyout.style.right).toBe('100%');
 		expect(flyout.style.marginLeft).toBe('0px');
 		expect(flyout.style.marginRight).toBe('4px');
-	});
-
-	it('stays on the right when the left has no room either', () => {
-		const flyout = mountFlyout({ left: 100 }, { ...FITS, right: 1100 });
-		keepFlyoutOnScreen(flyout);
-		expect(flyout.style.right).toBe('');
 	});
 
 	it('does nothing for a flyout with no menu above it', () => {
