@@ -1126,7 +1126,7 @@ _(pre-freeze / unstable)_ Rows your plugin offers over a range: what the author 
 | Export | Role |
 | --- | --- |
 | `SelectionAction` | One action: a `label`, an `icon`, `lead` to sit first in the right-click menu with a divider after, an optional `capture(editor, selection)` returning the range to act on (or null), and `rows(captured)`, an array or a promise of one |
-| `ActionRow` | One row: a `label`, an `icon`, a `detail`, `disabled`, and `run(draft)` |
+| `ActionRow` | One row: a `label`, an `icon`, `disabled`, and `run(draft)` |
 | `Captured` | What `rows` is asked about: the range's `text` (its bytes), the `range` in document bytes, the `box` it paints in (null when it isn't drawn in one leaf), and whether it's `editable` |
 | `Icon` | A menu glyph's name, or `{ svg }`, your own markup, drawn as given at the menu's icon size |
 

@@ -28,7 +28,6 @@ export interface SelectionAction {
 export interface ActionRow {
 	label: string;
 	icon?: Icon;
-	detail?: string;
 	disabled?: boolean;
 	/** Writes through `draft`, opened when the row is picked. A promise keeps the row pending and
 	 *  the menu open; a write after the menu closed is refused as `closed`. */
