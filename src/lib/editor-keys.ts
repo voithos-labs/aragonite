@@ -45,6 +45,7 @@ import type { TextMoves } from './components/overlays/text-moves';
 import type { ContainerChords } from './editor-actions/container-chords';
 import type { FocusedSurface } from './components/editor-root/focused-surface';
 import type { ReadingFocus } from './components/editor-root/reading-focus.svelte';
+import type { Editor } from './schema/plugin-unit';
 import type { PlaceholderPolicy } from './components/blocks/placeholder-hint.svelte';
 import type { BlockElLookup } from './caret/block-el-lookup';
 import type {
@@ -212,6 +213,8 @@ export interface EditorDoc {
 	/** Resolves a plugin's per-instance `EditorContext`: the one object `onEditor` callbacks,
 	 *  global-command handlers and `BlockCommandContext.editor` all share. */
 	pluginEditor: PluginEditorLookup;
+	/** The editor a plugin value sees, scoped to that plugin: what its block drawings get. */
+	scopedEditor: (pluginName: string) => Editor;
 	/** AbortSignal tied to the editor's mount lifetime; document-level listeners
 	 *  observe it to tear down if the editor unmounts mid-operation. */
 	lifetime: AbortSignal;

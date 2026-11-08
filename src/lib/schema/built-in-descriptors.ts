@@ -86,6 +86,14 @@ const TEXT_EDITABLE_KEYMAP: KeyBinding[] = [
 	{ chord: 'Mod+6', command: 'heading.cycle', arg: 6 }
 ];
 
+/** The keys a plugin's text block binds: a paragraph's without the heading chords, and without the
+ *  format chords where its text is literal. */
+export function pluginTextKeymap(markdown: boolean): KeyBinding[] {
+	return TEXT_EDITABLE_KEYMAP.filter(
+		(b) => b.command !== 'heading.cycle' && (markdown || !isInlineFormatCommand(b.command))
+	);
+}
+
 // The cell holds the caret inside a table, so the table's keys bind here; a `table` override would
 // miss. Plain arrows depend on the caret's position, so `cell-keydown-plan.ts` handles them.
 const TABLE_CELL_KEYMAP: KeyBinding[] = [

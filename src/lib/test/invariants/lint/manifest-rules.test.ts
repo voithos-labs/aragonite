@@ -418,6 +418,7 @@ const MANIFESTS: ManifestRule[] = [
 			'src/lib/components/blocks/editable/editable-surface.ts': 'the shared editable factory',
 			'src/lib/components/blocks/table/TableBlock.svelte': 'the cell-addressed grid surface',
 			'src/lib/components/blocks/ThematicBreakBlock.svelte': 'the whole-block-focus leaf',
+			'src/lib/components/drawn-block/drawn-box.svelte.ts': 'a drawn block focused whole',
 			'src/lib/editor-actions/container-block-component.ts': 'the container walk-in shim'
 		},
 		reason: 'a new surface building its focus is a new caret writer',

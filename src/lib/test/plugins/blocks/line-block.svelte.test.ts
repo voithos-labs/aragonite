@@ -13,7 +13,8 @@ import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
-	mountEditor
+	mountEditor,
+	pressKeyAt
 } from '#lib/test/harness/mount-editor.svelte.js';
 
 beforeAll(() => installLayoutStubs());
@@ -155,6 +156,15 @@ describe('a line block', () => {
 		const m = mountEditor({ source: '> !flag\n', plugins: [callouts] });
 		await m.settle();
 		expect(kindAt(m, 0)).toBe('callouts/flag');
+	});
+
+	it('splits at Enter, as a paragraph does', async () => {
+		const m = mountEditor({ source: '%%note abcd\n', plugins: [notes()] });
+		await m.settle();
+		await pressKeyAt(m, [0], '%%note ab'.length, { key: 'Enter' });
+		await m.settle();
+		expect([kindAt(m, 0), kindAt(m, 1)]).toEqual(['notes/note', 'paragraph']);
+		expect(m.instance.getSource()).toMatch(/^%%note ab\n\n?cd\n$/);
 	});
 
 	it('cuts a paragraph short only where it says so', async () => {

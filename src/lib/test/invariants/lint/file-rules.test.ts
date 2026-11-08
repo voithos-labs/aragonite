@@ -897,6 +897,8 @@ const RULES: FileRule[] = [
 				'zero-prefix cell: a widget edge offset brands across the identity',
 			'src/lib/components/blocks/table/TableBlock.svelte':
 				'table sticky-X exit re-enters the editor column state',
+			'src/lib/components/drawn-block/drawn-box.svelte.ts':
+				'a sticky column arriving at a drawn box becomes the viewport x its drawing reads',
 			'src/lib/components/blocks/text/widget-interaction.ts':
 				'CST inline offsets (unbranded model values) enter cursor IO',
 			'src/lib/components/blocks/text/typed-input.ts':

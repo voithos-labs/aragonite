@@ -1274,6 +1274,7 @@
 		contentVersion: contentVersion.read,
 		reading,
 		pluginEditor: pluginEditorLookup,
+		scopedEditor: (name: string) => pluginContexts.editor(name),
 		lifetime: lifetimeController.signal,
 		editorRoot: () => editorEl ?? null,
 		scrollHost: getScrollHost,

@@ -37,6 +37,8 @@ export interface EditorPluginContexts {
 	attach(pluginNames: readonly string[]): void;
 	/** Disposes what a plugin `use` turned off added, and forgets its views. */
 	detach(pluginName: string): void;
+	/** The editor a plugin value sees, scoped to it, as its `setup` and its drawings get it. */
+	editor(pluginName: string): Editor;
 	/** The context whose `onEditor` callback is running, where a plugin adds its inline-menu
 	 *  sources; undefined outside one. */
 	attaching(): EditorContext | undefined;
@@ -215,6 +217,7 @@ export function createEditorPluginContexts(deps: {
 
 	return {
 		get,
+		editor: editorFor,
 		attaching: () => attaching,
 		attachAll: () => attach(null),
 		attach: (pluginNames) => attach(new Set(pluginNames)),

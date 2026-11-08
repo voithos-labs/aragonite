@@ -101,6 +101,8 @@ const NON_CARET_PRESS_FILES: Record<string, string> = {
 	'src/lib/editor-actions/reorder-drag.ts': 'starts a block reorder drag off the handle',
 	'src/lib/components/dom-block-view/DomBlockView.svelte':
 		'binds the shared editable-leaf reveal handler on a render-primary view’s rendered half; the reset lives there',
+	'src/lib/components/drawn-block/DrawnBody.svelte':
+		'marks a press the drawing keeps as its own gesture; the reveal handler it binds places the caret',
 	'packages/details/src/DetailsBlock.svelte':
 		'preventDefault on the summary so the disclosure toggle takes no focus',
 	'packages/latex/src/BlockMath.svelte':

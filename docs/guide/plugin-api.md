@@ -68,7 +68,13 @@ _(pre-freeze / unstable)_ The installable package, and the per-editor context it
 | `lineBlock` | A block type that's exactly one line, matched whole by `match`. A `text` named group is the part you type in, the rest its marker. List it in `contributes(...).blocks` |
 | `LineBlockSpec` | What `lineBlock` takes: `match`, plus `data(match)` and `write(data, text)` together when the line carries data |
 | `BlockCommon` | What every block type answers: `name`, `label`, `icon`, `sample`, `role` (`prose` merges with its neighbours, an `object` is picked up whole), `interrupts`, `before` (the built-in types it goes ahead of) and `height` |
-| `LeafCommon` | What a block holding text adds: `edit` (`source`, or `box` for one focused whole) and `body` (`markdown` or `literal`) |
+| `LeafCommon` | What a block holding text adds: `body` (`markdown` or `literal`) and how it draws (`LeafDraw`) |
+| `LeafDraw` | `edit` and `draw`. `edit: 'text'` keeps the text always editable, writing every keystroke; `edit: 'source'` shows your drawing until the caret comes in and writes the text once as it leaves; `edit: 'box'` lets no caret in. Without `draw` a block is plain text; with it the default is `'source'`. `renderSource` and `reshapeSource` paint and reshape the shown text |
+| `Drawn` | What `draw(block, ctx)` hands back: your `dom`, and optionally `caret` (where a click on your picture of the text lands), `update`, `keep` (events the editor leaves to you), `focus` and `destroy` |
+| `DrawContext` | What every drawing gets: `editor`, `mode`, `theme`, `focused`, `render(el, produce)` (a renderer's output cached per bytes and theme, the source and the error when it throws) and `keepScroll()` |
+| `TextDrawContext` | Adds `source`, the editor's element for the block's text, for you to place, and `typed`, the text as typed before an `edit: 'source'` block writes it |
+| `BoxDrawContext` | Adds `leave(edge, x?)`, which hands the caret to the neighbour past `edge` from an editing surface of your own |
+| `BoxFocus` | `Drawn.focus` for a box with an editing surface of its own: `enter` takes the caret at an edge (with the column an up or down arrow keeps) or back at an offset, and `offset()` says where its caret is |
 | `Block` | A block as your code reads it: its `type`, `data`, `text`, `body` and `children`, and `is(type)` to narrow its data |
 | `EditorPlugin` | The unit's shape; the `plugins` prop and the main entry's `installPlugins` take these |
 | The `plugins` prop | A `setup` plugin installs once per process and a plugin value is read by each editor on its own, but either way an editor runs the hooks, kinds, commands and paste transforms of exactly the plugins it lists (no prop at all runs every installed one). The host's `use` changes the list later |

@@ -178,6 +178,9 @@ function stubbedDoc(emptyDoc: Document): EditorDoc {
 		contentVersion: () => ++version,
 		reading: fixtureReading(),
 		pluginEditor: (() => undefined) as unknown as EditorDoc['pluginEditor'],
+		scopedEditor: () => {
+			throw new Error('a block mounted alone has no editor to scope');
+		},
 		lifetime: new AbortController().signal,
 		editorRoot: () => null,
 		blockElLookup: () => null,

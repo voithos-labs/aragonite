@@ -28,8 +28,9 @@
 	import { docLinkMenuPlugin, DOC_LINK_MENU } from './inline-menu/doc-link-menu-plugin';
 	import { heldCommitMenuPlugin } from './inline-menu/held-commit-menu-plugin';
 	import { domViewPlugin } from './dom-view/dom-view-plugin';
+	import { drawnPlugin } from './drawn/drawn-plugin';
 	import '../../../../examples/showcase/tag-marks.css';
-	import type { EditorPluginEntry } from '#lib';
+	import type { PluginsProp } from '#lib';
 
 	// docStatsPlugin is a bare entry (no options), so it runs on its defaults.
 	const basePlugins = [
@@ -49,7 +50,7 @@
 
 	// The decoration examples annotate whatever text is there, so each installs only under its
 	// own seed: leaking into the others, their decorations would disturb those suites.
-	const seedPlugins: Record<string, EditorPluginEntry[]> = {
+	const seedPlugins: Record<string, PluginsProp> = {
 		// Kept to its own seed so the `[^…]:` opener takes lines only in the footnotes
 		// suite, leaving the other seeds to parse as they did.
 		footnotes: [DEMO_FOOTNOTES],
@@ -84,6 +85,8 @@
 		badge: [blockBadgePlugin],
 		// Blocks drawn by `defineBlockView`, one per surface; their kinds open only in this seed.
 		'dom-view': [domViewPlugin],
+		// Blocks drawn by a block type's `draw`; their types open only in this seed.
+		drawn: [drawnPlugin],
 		// `?seed=sim` puts long-lived decoration sources under the simulation's corruption
 		// checks; the widget source keys on markers only the simulation's own document holds.
 		sim: [simMarkPlugin, simIslandPlugin]
@@ -215,6 +218,8 @@
 		badge: '# Title\n\nfirst para\n\n## Sub\n\nsecond para\n',
 		// One block per DOM view surface, between paragraphs to walk in from and out to.
 		'dom-view': 'Before\n\n@@ memo text\n\n[[dom-badge]]\n\n:::dombox Box\nInside\n:::\n\nAfter\n',
+		// A field box between two lines to walk in from and out to.
+		drawn: 'above the field, a line\n\n%%field\n\nbelow the field, a line\n',
 		// A footnote definition whose body is one editable paragraph: the container's editing,
 		// Backspace and undo case.
 		footnotes: 'A note reference [^a] in prose.\n\n[^a]: The note body.\n',

@@ -18,8 +18,9 @@ export interface BlockView {
 	readonly [blockViewBrand]: true;
 }
 
-/** How a view draws: a Svelte component BlockHost renders inline, or a DOM spec its host mounts. */
-export type BlockViewForm = 'svelte' | 'dom';
+/** How a view draws: a Svelte component BlockHost renders inline, a DOM spec its host mounts, or a
+ *  block type's `draw`, which the editor's draw host runs. */
+export type BlockViewForm = 'svelte' | 'dom' | 'drawn';
 
 /** Marks `body` as a block view of `form`; only the functions that build a view call it. */
 export function asBlockView<T extends object>(body: T, form: BlockViewForm): T & BlockView {

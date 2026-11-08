@@ -50,7 +50,9 @@ const LEAF_EXPORT: FileRule = {
 	population: (file) => svelteOnly(file) && LEAF_FACTORY_RE.test(file.code),
 	matches: (file) => !publishesOnlyBlockApi(file.code),
 	allowed: {
-		[SOURCE.domBlockView]: 'publishes the leaf’s blockApi whole, through viewRef'
+		[SOURCE.domBlockView]: 'publishes the leaf’s blockApi whole, through viewRef',
+		'src/lib/components/drawn-block/DrawnBody.svelte':
+			'publishes the leaf’s blockApi whole, through viewRef'
 	},
 	reason:
 		'export the leaf as `export const blockApi = leaf.blockApi;` and nothing else from its block surface: a flat copy compiles while dropping whatever it skipped (afterSourceCommit loses an open edit on editor.runCommand, insertMarkdown declines)',

@@ -10,11 +10,20 @@ import type { MenuIconName } from '../menu-icons';
 import type { BlockOpener } from './block-openers';
 import type { BuiltinRegistration } from './block-kind-descriptor';
 import { simpleLeafClosure } from './closure';
+import { pluginTextKeymap } from './built-in-descriptors';
 import { OPENER_PRIORITIES } from './opener-priorities';
 import { isValidPluginName } from './plugin-name';
 import { makingOf } from './block-type';
 import type { BlockType } from './plugin-unit';
 import { blockOf, type Block } from './doc-view';
+import {
+	drawnCaretAt,
+	type BoxDrawContext,
+	type Drawing,
+	type Drawn,
+	type TextDrawContext
+} from './drawing';
+import type { LineEnding } from '../core/lines';
 
 // ── Specs ────────────────────────────────────────────────────────────────────
 
@@ -38,13 +47,36 @@ export interface BlockCommon<D> {
 	height?(block: Block<NoInfer<D>>): number;
 }
 
-/** What a block holding text answers besides. */
-export interface LeafCommon<D> extends BlockCommon<D> {
-	/** `source`, the default: a caret edits its text. `box`: no caret enters; it's focused whole. */
-	edit?: 'source' | 'box';
+/** What a block holding text answers besides, and how it draws. */
+export type LeafCommon<D> = BlockCommon<D> & {
 	/** Its text reads inline Markdown; default `literal`. */
 	body?: 'markdown' | 'literal';
-}
+} & LeafDraw<D>;
+
+/**
+ * How a leaf draws. `text`: its text is always the editable view and every keystroke writes it.
+ * `source`: a picture until the caret comes in, its text then, written once as it leaves. `box`: no
+ * caret enters; it's focused whole. Default `text` without `draw`, `source` with it.
+ */
+export type LeafDraw<D> =
+	| {
+			edit?: 'text' | 'source';
+			draw?(block: Block<NoInfer<D>>, ctx: TextDrawContext): Drawn<NoInfer<D>, TextDrawContext>;
+			/** Draws the shown text as DOM (fence lines to hide, highlight tokens); the fragment's
+			 *  `textContent` must stay `text`. */
+			renderSource?(text: string): DocumentFragment;
+			/** The text as the block type keeps it, asked on show and after each edit, with the caret
+			 *  carried; an added line takes `lineEnding`. Null keeps it. */
+			reshapeSource?(
+				text: string,
+				caret: number,
+				lineEnding: LineEnding
+			): { text: string; caret: number } | null;
+	  }
+	| {
+			edit: 'box';
+			draw(block: Block<NoInfer<D>>, ctx: BoxDrawContext): Drawn<NoInfer<D>, BoxDrawContext>;
+	  };
 
 /** A block that's exactly one line, matched whole by `match`; a `text` named group is the text the
  *  author writes, the rest its marker. Data read from the line comes with the writer that puts it back. */
@@ -79,17 +111,17 @@ export function priorityBefore(before: BlockCommon<unknown>['before']): number {
 /** The registration a text or box leaf derives from its spec: `range` is its text in its bytes. */
 export function leafRegistration(
 	spec: LeafCommon<unknown>,
-	range: ((node: NodeView) => { start: number; end: number }) | null,
-	drawn: boolean
+	range: ((node: NodeView) => { start: number; end: number }) | null
 ): BuiltinRegistration {
-	const box = spec.edit === 'box';
-	const role = spec.role ?? (box || drawn ? 'object' : 'prose');
+	const edit = editOf(spec);
+	const box = edit === 'box';
+	const role = spec.role ?? (edit === 'text' && !spec.draw ? 'prose' : 'object');
 	const shared = {
 		label: spec.label,
 		editable: true,
 		pageRole: role,
 		mergeRole: role === 'prose' ? ('prose-absorber' as const) : ('not-mergeable' as const),
-		gapEdges: box || drawn ? ('both' as const) : ('none' as const),
+		gapEdges: edit === 'text' ? ('none' as const) : ('both' as const),
 		...fixtureOf(spec.sample),
 		...(spec.height ? { estimateHeight: heightEstimate(spec.height) } : {}),
 		closure: LEAF_CLOSURE
@@ -98,8 +130,30 @@ export function leafRegistration(
 	return {
 		...shared,
 		supportsInline: spec.body === 'markdown',
-		...(range ? { contentStart: { range, backspace: 'demote-first' as const } } : {})
+		keymap: pluginTextKeymap(spec.body === 'markdown'),
+		...(range ? { contentStart: { range, backspace: 'demote-first' as const } } : {}),
+		...(edit === 'source'
+			? { textPosition: 'while-source-shows' as const, caretTargetAtPoint: drawnCaretAt }
+			: {})
 	};
+}
+
+/** What the draw host runs for a leaf with a `draw`; null for one drawn as plain text. */
+export function leafDrawing(
+	spec: LeafDraw<unknown>,
+	type: () => BlockType<unknown>,
+	singleLine: boolean
+): Drawing | null {
+	if (!spec.draw) return null;
+	const draw = spec.draw as Drawing['draw'];
+	if (spec.edit === 'box') return { type, edit: 'box', singleLine, draw };
+	const { renderSource, reshapeSource } = spec;
+	return { type, edit: editOf(spec), singleLine, draw, renderSource, reshapeSource };
+}
+
+/** How a leaf edits, its default read off whether it draws. */
+export function editOf(spec: LeafDraw<unknown>): 'text' | 'source' | 'box' {
+	return spec.edit ?? (spec.draw ? 'source' : 'text');
 }
 
 // ── Line blocks ──────────────────────────────────────────────────────────────
