@@ -10,6 +10,7 @@
 	import type { BlockComponent } from '../../block-component';
 	import type { NodeView } from '../../core/node-views';
 	import { blockOf } from '../../schema/doc-view';
+	import { blockRangeOf } from '../../editor-actions/commit/change-record';
 	import { pluginOfKind } from '../../schema/plugin-name';
 	import {
 		CARET_AT,
@@ -186,7 +187,11 @@
 	};
 
 	const read = () =>
-		blockOf(node, (kind) => (kind === node.kind ? view.type() : { name: kind, label: kind }));
+		blockOf(
+			node,
+			(kind) => (kind === node.kind ? view.type() : { name: kind, label: kind }),
+			(at) => blockRangeOf(editorDoc.doc(), at)
+		);
 
 	// ── Mount, update, destroy ────────────────────────────────────────────────
 

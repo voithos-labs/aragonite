@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { PluginsPage, activeBlockPath } from './helpers';
-import { extendKey } from '../../platform-keys';
+import { edgeKey, extendKey } from '../../platform-keys';
 import { clickInPlace } from '../../click-in-place';
 
 /**
@@ -134,6 +134,30 @@ test.describe('a drawn box with its own editing surface', () => {
 			.toMatch(/^above the field, a line\n\n\^\^field\n/);
 		await expect.poll(() => fieldCaret(page)).toMatchObject({ offset: 7 });
 		expect(await caretPath(page)).toEqual([FIELD]);
+	});
+});
+
+test.describe('a drawn box writing its own bytes', () => {
+	const source = (page: Page) => page.evaluate(() => (window as any).__test.getSource() as string);
+
+	test('leaving the field writes its text into the fence, after an edit above moved it', async ({
+		page
+	}) => {
+		await new PluginsPage(page).gotoPlugins('drawn');
+		await placeCaret(page, [ABOVE], 'end');
+		await page.keyboard.type('!');
+		await page.keyboard.press('ArrowDown');
+		await page.keyboard.press(edgeKey('lineEnd'));
+		await page.keyboard.type(' more');
+		await page.keyboard.press('ArrowUp');
+		await expect
+			.poll(() => source(page))
+			.toContain('a line!\n\n```field\nfirst line here more\nsecond line here\n```\n');
+
+		await page.keyboard.press('ControlOrMeta+z');
+		await expect
+			.poll(() => source(page))
+			.toContain('```field\nfirst line here\nsecond line here\n```');
 	});
 });
 

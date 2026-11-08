@@ -16,13 +16,13 @@ import { assertDraftBytesKept } from '../../invariants/install';
 import { docPathFrom } from '../../core/coordinate-spaces';
 import { leafAtByte } from '../../tree-operations/container-offsets';
 import { splitLines } from '../../core/lines';
-import { walkBlocks } from '../../core/paths';
 import type { GrammarView } from '../../schema/block-openers';
 import { makingOf } from '../../schema/block-type';
 import { nodeOfBlock, type Block } from '../../schema/doc-view';
 import {
 	blockByteOf,
 	blockRange,
+	pathOfNode,
 	byteAt,
 	lengthsBefore,
 	partLengths,
@@ -293,9 +293,7 @@ function dataChanges(
 	grammar: GrammarView
 ): ByteChange[] | DraftResult {
 	const node = nodeOfBlock(block);
-	// Cast, so the type checker doesn't read it as still null past the walk that sets it.
-	let path = null as number[] | null;
-	if (node) walkBlocks(doc, (each, at) => (each === node ? ((path = at), 'stop') : undefined));
+	const path = node && pathOfNode(doc, node);
 	const byteOf = path && blockByteOf(doc, path);
 	if (!node || !byteOf) return refused('moved', 'its block was rewritten or removed');
 	const written = makingOf(block.type)?.writeData?.(node, data, grammar) ?? null;

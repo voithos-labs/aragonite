@@ -1,6 +1,7 @@
 /**
  * Block types drawn with `draw`, for the e2e suite that drives the draw host in a real browser: a
- * `^^field` box with a field of its own, a ```` ```shown ```` fence drawn as a preview, a `%>`
+ * ```` ```field ```` box editing its body in a field of its own, saved as it leaves, a
+ * ```` ```shown ```` fence drawn as a preview, a `%>`
  * container drawn as a box, an `@@ ` memo with a badge before its text and a `[[badge]]` box drawn
  * whole. The aside and the badge count their draws on `window.__drawnLog`. Dev and e2e harness only.
  */
@@ -11,6 +12,7 @@ import {
 	displayLines,
 	fencedBlock,
 	lineBlock,
+	type Block,
 	type BoxDrawContext,
 	type ContainerDrawContext,
 	type TextDrawContext
@@ -28,14 +30,14 @@ export const drawnPlugin = definePlugin({
 	editor: '*',
 	contributes: () => ({
 		blocks: [
-			lineBlock({
+			fencedBlock({
 				name: 'field',
 				label: 'Field',
-				match: /^\^\^field$/,
-				sample: '^^field',
+				fence: { info: 'field' },
+				sample: '```field\nfirst line here\nsecond line here\n```',
 				insert: { none: 'a test block type' },
 				edit: 'box',
-				draw: (_block, ctx) => drawField(ctx)
+				draw: drawField
 			}),
 			fencedBlock({
 				name: 'shown',
@@ -125,13 +127,21 @@ function count(what: keyof DrawnLog, name: string): void {
 	log[what][name] = (log[what][name] ?? 0) + 1;
 }
 
-// A monospace field, so a column and an x convert by one character width.
-function drawField(ctx: BoxDrawContext) {
+// A monospace field, so a column and an x convert by one character width. Leaving it writes its
+// text back as the fence's body, at the block's bytes as they are then.
+function drawField(block: Block<never>, ctx: BoxDrawContext) {
 	const dom = document.createElement('div');
 	dom.className = 'drawn-field';
 	const field = document.createElement('textarea');
 	field.rows = 2;
-	field.value = 'first line here\nsecond line here';
+	const bodyOf = (of: Block<never>) => of.body.replace(/\n$/, '');
+	let current = block;
+	field.value = bodyOf(block);
+	field.addEventListener('blur', () => {
+		if (field.value === bodyOf(current)) return;
+		const fence = '```field\n' + field.value + '\n```\n';
+		void ctx.editor.edit().replace({ from: current.from, to: current.to }, fence).commit();
+	});
 	field.style.cssText = 'font: 16px monospace; padding: 0; border: 0; width: 24ch; resize: none;';
 	dom.append(field);
 
@@ -172,6 +182,10 @@ function drawField(ctx: BoxDrawContext) {
 
 	return {
 		dom,
+		update(next: Block<never>) {
+			current = next;
+			if (!focused()) field.value = bodyOf(next);
+		},
 		focus: {
 			enter(at: { edge: 'start' | 'end'; x: number | null } | { offset: number }) {
 				if ('offset' in at) return place(at.offset);

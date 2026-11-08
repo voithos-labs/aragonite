@@ -216,7 +216,7 @@
 		// A field box between two lines to walk in from and out to, a fence drawn as a preview, and
 		// a container drawn as a box.
 		drawn:
-			'above the field, a line\n\n^^field\n\nbelow the field, a line\n\n```shown\nhello\n```\n\n%> aside text\n',
+			'above the field, a line\n\n```field\nfirst line here\nsecond line here\n```\n\nbelow the field, a line\n\n```shown\nhello\n```\n\n%> aside text\n',
 		// A footnote definition whose body is one editable paragraph: the container's editing,
 		// Backspace and undo case.
 		footnotes: 'A note reference [^a] in prose.\n\n[^a]: The note body.\n',
