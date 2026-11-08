@@ -1,12 +1,10 @@
 /**
- * The spelling menu a hover opens: the suggestions alone, under the misspelled word the pointer
- * rests on, and the same menu from the keyboard through `decorations.activateAtCaret`. The
- * pointer must rest on the word a while first, so passing over prose opens nothing, and a hover
- * ending starts a short grace, so the pointer can travel from the word onto the menu.
+ * When the spelling menu a hover opens shows and hides: the pointer rests on a misspelled word a
+ * while before it opens, so passing over prose opens nothing, and a hover ending starts a short
+ * grace, so the pointer can travel from the word onto the menu. The keyboard route opens at once.
  */
 
-import type { MarkInteractions } from '../../decorations/types';
-import type { Misspelling } from '../../spell/spell-state.svelte';
+import type { Misspelling } from './words';
 
 /** How long the pointer rests on a word before its menu opens. */
 export const HOVER_OPEN_MS = 800;
@@ -30,8 +28,10 @@ export interface SpellHoverDeps {
 }
 
 export interface SpellHover {
-	/** The handlers a misspelled word's mark carries. */
-	interactions(misspelling: Misspelling): MarkInteractions;
+	/** The pointer came onto a misspelled word (its rect), or left it (null). */
+	hover(misspelling: Misspelling, anchor: DOMRect | null): void;
+	/** The keyboard asked for the word's menu. */
+	activate(misspelling: Misspelling, anchor: DOMRect): void;
 	/** The pointer left the open menu: it closes after the grace, unless a hover takes it back. */
 	menuLeft(): void;
 	dispose(): void;
@@ -55,22 +55,25 @@ export function createSpellHover(deps: SpellHoverDeps): SpellHover {
 		closing = null;
 	}
 
+	const showing = (misspelling: Misspelling): boolean =>
+		!!menu?.isOpen() && !!shown && sameWord(shown, misspelling);
+
 	function open(misspelling: Misspelling, anchor: DOMRect): void {
 		cancelOpen();
 		cancelClose();
 		// Back onto the word whose menu is showing (from the menu, say): nothing to reopen.
-		if (menu?.isOpen() && shown && sameWord(shown, misspelling)) return;
+		if (showing(misspelling)) return;
 		if (deps.menusOpen() && !menu?.isOpen()) return;
 		menu?.close();
 		menu = deps.open(misspelling, anchor);
 		shown = menu ? misspelling : null;
 	}
 
-	// Both timers are wall-clock (G4.4 allowlist): how long the pointer rests, and how long its
-	// travel from the word to the menu takes.
+	// Both timers are wall-clock, allowed by the timer scan: how long the pointer rests, and how
+	// long its travel from the word to the menu takes.
 	function openAfterRest(misspelling: Misspelling, anchor: DOMRect): void {
 		cancelClose();
-		if (menu?.isOpen() && shown && sameWord(shown, misspelling)) return;
+		if (showing(misspelling)) return;
 		cancelOpen();
 		opening = setTimeout(() => {
 			opening = null;
@@ -90,16 +93,12 @@ export function createSpellHover(deps: SpellHoverDeps): SpellHover {
 	}
 
 	return {
-		interactions(misspelling) {
-			return {
-				onHover: (_dec, hover) => {
-					if (hover) return openAfterRest(misspelling, hover.anchor);
-					cancelOpen();
-					if (menu?.isOpen()) closeAfterGrace();
-				},
-				onActivate: (_dec, { anchor }) => open(misspelling, anchor)
-			};
+		hover(misspelling, anchor) {
+			if (anchor) return openAfterRest(misspelling, anchor);
+			cancelOpen();
+			if (menu?.isOpen()) closeAfterGrace();
 		},
+		activate: open,
 		menuLeft() {
 			if (menu?.isOpen()) closeAfterGrace();
 		},
@@ -112,11 +111,4 @@ export function createSpellHover(deps: SpellHoverDeps): SpellHover {
 	};
 }
 
-function sameWord(a: Misspelling, b: Misspelling): boolean {
-	return (
-		a.start === b.start &&
-		a.end === b.end &&
-		a.path.length === b.path.length &&
-		a.path.every((step, i) => step === b.path[i])
-	);
-}
+const sameWord = (a: Misspelling, b: Misspelling): boolean => a.from === b.from && a.to === b.to;

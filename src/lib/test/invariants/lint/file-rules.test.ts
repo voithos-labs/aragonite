@@ -431,7 +431,7 @@ const RULES: FileRule[] = [
 				'rAF pointermove coalescing: the one place every drag lifecycle runs',
 			'src/lib/editor-actions/commit/text-batch.ts':
 				'setTimeout wall-clock undo debounce, a pause detection tick() cannot express',
-			'src/lib/components/editor-root/spell-hover.ts':
+			'packages/spellcheck/src/hover.ts':
 				"setTimeout rest before a hovered word's spelling menu opens and grace before it closes: how long the pointer stays, which tick() cannot time",
 			'packages/highlight-occurrences/src/highlight-occurrences-plugin.ts':
 				'setTimeout typing pause before the occurrence marks return, a pause detection tick() cannot express',
@@ -1179,7 +1179,9 @@ const RULES: FileRule[] = [
 			'packages/mermaid/src/MermaidBlock.svelte': SHOWS_INK,
 			'packages/slash-commands/src/slash-source.ts':
 				'where a typed `/` opens the command menu: a word boundary in typing, not Markdown',
-			'packages/slash-commands/src/filter.ts': 'the words of a menu query the user typed'
+			'packages/slash-commands/src/filter.ts': 'the words of a menu query the user typed',
+			'packages/spellcheck/src/english/hunspell.ts':
+				'the fields of a Hunspell affix file, which any whitespace separates: not Markdown'
 		},
 		reaches: [...GRAMMAR_FILES, SOURCE.directiveGrammar],
 		reason:

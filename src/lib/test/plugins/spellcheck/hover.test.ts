@@ -4,18 +4,12 @@ import {
 	HOVER_GRACE_MS,
 	HOVER_OPEN_MS,
 	type SpellMenuHandle
-} from '#lib/components/editor-root/spell-hover.js';
-import type { Misspelling } from '#lib/spell/spell-state.svelte.js';
-import type { MarkDecoration, MarkHover } from '#lib/decorations/types.js';
+} from '#packages/spellcheck/src/hover.js';
+import type { Misspelling } from '#packages/spellcheck/src/words.js';
 
-// Miss-analysis: the rest before the menu opens and the grace before it closes are wall-clock,
-// which no mounted test can wait on without a timer of its own.
-
-const word: Misspelling = { path: [0], start: 4, end: 8, word: 'tset' };
-const other: Misspelling = { path: [0], start: 12, end: 19, word: 'speling' };
-const dec = { type: 'mark', path: [0], start: 4, end: 8, class: 'spell-overlay' } as MarkDecoration;
+const word: Misspelling = { from: 4, to: 8, word: 'tset' };
+const other: Misspelling = { from: 12, to: 19, word: 'speling' };
 const rect = (x: number) => ({ left: x, top: 10, right: x + 30, bottom: 30 }) as DOMRect;
-const hover = (x: number): MarkHover => ({ anchor: rect(x), rects: [rect(x)] });
 
 function harness(state: { menus?: boolean; range?: boolean; onMenu?: boolean } = {}) {
 	const opened: { word: string; x: number }[] = [];
@@ -42,10 +36,10 @@ function harness(state: { menus?: boolean; range?: boolean; onMenu?: boolean } =
 	});
 	// The pointer settles on the word: hover, then the rest the menu waits for.
 	const rest = (m: Misspelling, x: number) => {
-		hoverer.interactions(m).onHover!(dec, hover(x));
+		hoverer.hover(m, rect(x));
 		vi.advanceTimersByTime(HOVER_OPEN_MS);
 	};
-	return { hoverer, opened, closed, open, rest, isOpen: () => !!live?.isOpen() };
+	return { hoverer, opened, closed, rest, isOpen: () => !!live?.isOpen() };
 }
 
 beforeEach(() => vi.useFakeTimers());
@@ -54,7 +48,7 @@ afterEach(() => vi.useRealTimers());
 describe('createSpellHover', () => {
 	it('opens the menu once the pointer has rested on the word, not before', () => {
 		const h = harness();
-		h.hoverer.interactions(word).onHover!(dec, hover(40));
+		h.hoverer.hover(word, rect(40));
 		vi.advanceTimersByTime(HOVER_OPEN_MS - 1);
 		expect(h.opened).toEqual([]);
 		vi.advanceTimersByTime(1);
@@ -63,9 +57,9 @@ describe('createSpellHover', () => {
 
 	it('a pointer that passes over the word opens nothing', () => {
 		const h = harness();
-		h.hoverer.interactions(word).onHover!(dec, hover(40));
+		h.hoverer.hover(word, rect(40));
 		vi.advanceTimersByTime(HOVER_OPEN_MS / 2);
-		h.hoverer.interactions(word).onHover!(dec, null);
+		h.hoverer.hover(word, null);
 		vi.advanceTimersByTime(HOVER_OPEN_MS);
 		expect(h.opened).toEqual([]);
 	});
@@ -73,8 +67,8 @@ describe('createSpellHover', () => {
 	it('moving on to another word restarts the rest, then moves the menu there', () => {
 		const h = harness();
 		h.rest(word, 40);
-		h.hoverer.interactions(word).onHover!(dec, null);
-		h.hoverer.interactions(other).onHover!(dec, hover(120));
+		h.hoverer.hover(word, null);
+		h.hoverer.hover(other, rect(120));
 		vi.advanceTimersByTime(HOVER_OPEN_MS - 1);
 		expect(h.opened).toHaveLength(1);
 		vi.advanceTimersByTime(1);
@@ -85,7 +79,7 @@ describe('createSpellHover', () => {
 	it('keeps the menu through the grace after the hover ends, then closes it', () => {
 		const h = harness();
 		h.rest(word, 40);
-		h.hoverer.interactions(word).onHover!(dec, null);
+		h.hoverer.hover(word, null);
 		vi.advanceTimersByTime(HOVER_GRACE_MS - 1);
 		expect(h.isOpen()).toBe(true);
 		vi.advanceTimersByTime(1);
@@ -97,7 +91,7 @@ describe('createSpellHover', () => {
 		const h = harness(state);
 		h.rest(word, 40);
 		state.onMenu = true;
-		h.hoverer.interactions(word).onHover!(dec, null);
+		h.hoverer.hover(word, null);
 		vi.advanceTimersByTime(HOVER_GRACE_MS);
 		expect(h.isOpen()).toBe(true);
 		state.onMenu = false;
@@ -106,15 +100,14 @@ describe('createSpellHover', () => {
 		expect(h.isOpen()).toBe(false);
 	});
 
-	it('a hover back onto the word within the grace cancels the close', () => {
+	it('a hover back onto the word within the grace cancels the close and keeps the same menu', () => {
 		const h = harness();
 		h.rest(word, 40);
-		h.hoverer.interactions(word).onHover!(dec, null);
+		h.hoverer.hover(word, null);
 		vi.advanceTimersByTime(HOVER_GRACE_MS / 2);
-		h.hoverer.interactions(word).onHover!(dec, hover(40));
+		h.hoverer.hover(word, rect(40));
 		vi.advanceTimersByTime(HOVER_OPEN_MS);
 		expect(h.isOpen()).toBe(true);
-		// The same word again keeps the menu it has rather than reopening it.
 		expect(h.opened).toHaveLength(1);
 	});
 
@@ -125,15 +118,23 @@ describe('createSpellHover', () => {
 		const selecting = harness({ range: true });
 		selecting.rest(word, 40);
 		expect(selecting.opened).toEqual([]);
-		selecting.hoverer.interactions(word).onActivate!(dec, { anchor: rect(40) });
+		selecting.hoverer.activate(word, rect(40));
 		expect(selecting.opened).toEqual([{ word: 'tset', x: 40 }]);
+	});
+
+	it('the keyboard route on the word whose menu shows keeps that menu', () => {
+		const h = harness();
+		h.rest(word, 40);
+		h.hoverer.activate(word, rect(40));
+		expect(h.opened).toHaveLength(1);
+		expect(h.closed).toEqual([]);
 	});
 
 	it('dispose closes what is open and drops a pending open and close', () => {
 		const h = harness();
 		h.rest(word, 40);
-		h.hoverer.interactions(word).onHover!(dec, null);
-		h.hoverer.interactions(other).onHover!(dec, hover(120));
+		h.hoverer.hover(word, null);
+		h.hoverer.hover(other, rect(120));
 		h.hoverer.dispose();
 		expect(h.isOpen()).toBe(false);
 		vi.advanceTimersByTime(HOVER_OPEN_MS + HOVER_GRACE_MS);
