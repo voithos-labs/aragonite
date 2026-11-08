@@ -439,10 +439,10 @@ export type {
 } from './inline-menu/types';
 
 // ── Insert catalogue (pre-freeze) ────────────────────────────────────────────
-// The blocks the insert menus offer, read through `editor.insertCatalogue`. A plugin adds its own
-// block from `setup`, listed only in the editors that activate it; the icon is a menu glyph name.
+// The rows the insert menus offer, read through `editor.inserts`. A plugin value lists its own in
+// `contributes`, a `setup` plugin registers one; the icon is a menu glyph name.
 export { registerInsertEntry } from './schema/insert-catalogue';
-export type { InsertEntry } from './schema/insert-catalogue';
+export type { InsertEntry, InsertRow } from './schema/insert-catalogue';
 export type { MenuIconName } from './menu-icons';
 
 // ── Rects (pre-freeze) ───────────────────────────────────────────────────────

@@ -5,7 +5,7 @@ import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { registerDefaultContextActions } from '#lib/components/menu/default-context-actions.js';
 import { BLOCK_ACTIONS_LABEL } from '#lib/a11y-strings.js';
 import { parse } from '#lib/core/parser.js';
-import { insertCatalogue } from '#lib/schema/insert-catalogue.js';
+import { insertRows } from '#lib/schema/insert-catalogue.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
@@ -84,7 +84,7 @@ function harness(
 		finger: () => opts.finger ?? false,
 		insertMarkdown,
 		clipboard: { take: () => null, pasteTarget: aimInsertAtFocus },
-		insertCatalogue: () => insertCatalogue(everyInstalledPlugin),
+		inserts: () => insertRows(everyInstalledPlugin),
 		activation: everyInstalledPlugin,
 		reading: fixtureReading(),
 		stamps: createDocumentStamps(),

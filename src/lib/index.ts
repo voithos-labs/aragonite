@@ -157,7 +157,6 @@ export type {
 
 // ── Insert catalogue ───────────────────────────────────────────────────────────
 
-// The blocks the insert menus offer, plugin blocks included, via `editor.getInsertCatalogue()`.
-export { registerInsertEntry } from './schema/insert-catalogue';
-export type { InsertEntry } from './schema/insert-catalogue';
+// A row of the editor's `inserts`: the blocks the insert menus offer, plugin blocks included.
+export type { InsertRow } from './schema/insert-catalogue';
 export type { MenuIconName } from './menu-icons';

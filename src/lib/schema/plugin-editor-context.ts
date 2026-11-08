@@ -13,7 +13,7 @@ import type { InsertMarkdownOptions } from '../editor-props';
 import type { InlineMenuRegistry } from '../inline-menu/types';
 import type { PresentationMode } from '../presentation-mode';
 import type { ActivationClick } from '../activation-click';
-import { insertCatalogue } from './insert-catalogue';
+import { insertRows } from './insert-catalogue';
 import type { Reading } from './reading';
 import type { Draft } from './drafts';
 import { resolvesIn, type PluginActivation } from './plugin-activation';
@@ -122,7 +122,7 @@ export function createEditorPluginContexts(deps: {
 				rects: deps.rects,
 				inlineMenus: deps.inlineMenus,
 				get insertCatalogue() {
-					return insertCatalogue(deps.activation);
+					return insertRows(deps.activation);
 				},
 				insertMarkdown: (md, options) => deps.insertMarkdown(md, options),
 				runCommand: (commandId, arg) => deps.runCommand(commandId, arg),
@@ -159,6 +159,9 @@ export function createEditorPluginContexts(deps: {
 			},
 			get theme() {
 				return deps.getTheme();
+			},
+			get inserts() {
+				return insertRows(deps.activation);
 			},
 			on(event, listen) {
 				const disposer = { plugin, dispose: listenAs(plugin, event, listen) };

@@ -12,7 +12,7 @@ import {
 } from '#lib/tree-operations/table-mutations.js';
 import { copyRectangleAsSubTable } from '#lib/tree-operations/sub-table-copy.js';
 import { tryCompleteTableRow } from '#lib/core/parsers/table-completion.js';
-import { insertCatalogue } from '#lib/schema/insert-catalogue.js';
+import { insertRows, rowMarkdown } from '#lib/schema/insert-catalogue.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
 import { runPasteDispatch, makePasteCommit } from '#lib/test/harness/editor-actions.js';
@@ -186,7 +186,7 @@ describe.each(ENDINGS)('the table rows each route writes, %s', (_, ending) => {
 		await blockEdit.insertParagraph(1, '');
 		await runPasteDispatch(
 			h,
-			{ pastedText: tableEntry().markdown, targetPath: [1], offset: 0 },
+			{ pastedText: rowMarkdown(tableEntry()), targetPath: [1], offset: 0 },
 			{ blockEdit }
 		);
 		expect(serialize(h.doc)).toBe(
@@ -201,11 +201,11 @@ describe('the lines the Enter completer answers a header with', () => {
 	});
 });
 
-const tableEntry = () => insertCatalogue(everyInstalledPlugin).find((e) => e.id === 'table')!;
+const tableEntry = () => insertRows(everyInstalledPlugin).find((e) => e.id === 'table')!;
 
 describe('the insert menu’s table', () => {
 	it('with no size', () => {
-		expect(tableEntry().markdown).toBe('| Column | Column |\n| --- | --- |\n|  |  |\n');
+		expect(rowMarkdown(tableEntry())).toBe('| Column | Column |\n| --- | --- |\n|  |  |\n');
 	});
 
 	it.each([
@@ -216,6 +216,6 @@ describe('the insert menu’s table', () => {
 			'| Column | Column | Column |\n| --- | --- | --- |\n|  |  |  |\n|  |  |  |\n|  |  |  |\n'
 		]
 	])('%s', (size, markdown) => {
-		expect(tableEntry().withArgument!(size).markdown).toBe(markdown);
+		expect(rowMarkdown(tableEntry(), size)).toBe(markdown);
 	});
 });

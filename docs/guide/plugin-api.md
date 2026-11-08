@@ -60,8 +60,8 @@ _(pre-freeze / unstable)_ The installable package, and the per-editor context it
 | `PluginSpec` | What you hand `definePlugin` to get a plugin value instead: `name`, `version`, the `editor` range it runs on, `defaults`, `validate`, `needs`, `conflicts`, and `contributes(options)`, which each editor calls with its own options |
 | `Plugin` | The plugin value that comes back. Call it with options (`math({ render })`) to give one editor different ones |
 | `PluginList` | A list of plugin values, whatever their options, as `needs` takes it |
-| `Contribution` | What `contributes` hands back for one editor: a `setup(editor)` that runs once that editor mounts, and the `commands` it runs |
-| `Editor` | What `setup` and your commands get: the plugins on, the mode, the theme, `on`, `run` and `can` (a command by value or id, with its argument), `claims` and `edit`. It's one object per plugin per editor, and a listener you add there goes away with your plugin |
+| `Contribution` | What `contributes` hands back for one editor: a `setup(editor)` that runs once that editor mounts, the `commands` it runs, and its `inserts` rows |
+| `Editor` | What `setup` and your commands get: the plugins on, the mode, the theme, the `inserts` rows, `on`, `run` and `can` (a command by value or id, with its argument), `claims` and `edit`. It's one object per plugin per editor, and a listener you add there goes away with your plugin |
 | `PluginError` | An error your plugin caused: its name, what the editor was doing with it (`install`, `validate`, `contributes`, `setup`, `dispose`, `run shout/hello` for a command, or `on('edit')` for a listener that threw), and the cause |
 | `BlockType` | A block type by name |
 | `builtin` | The built-in block types by kind (`builtin.blocks.paragraph`), to place yours relative to one or tell what a block is |
@@ -1126,12 +1126,13 @@ What `onCommit` gets as its third argument: your plugin's `EditorContext` scoped
 
 ### Insert catalogue
 
-_(pre-freeze / unstable)_ The blocks the insert menus offer: the built-in lists, quote, divider, code block and table, then the blocks plugins add. Read it through `editor.insertCatalogue` (your `onEditor` context); a host reads the same list as `getInsertCatalogue()`.
+_(pre-freeze / unstable)_ The blocks the insert menus offer: the built-in lists, quote, divider, code block and table, then the rows plugins add. Read it as `editor.inserts`; a `setup` plugin's `onEditor` context and the host's handle read the same list (`insertCatalogue` and `inserts`).
 
 | Export | Role |
 | --- | --- |
-| `registerInsertEntry` | Add your block to every insert menu, called from `setup`. It is listed only in the editors that activate your plugin. Throws on a duplicate id and on an icon the menu cannot draw |
-| `InsertEntry` | One entry: an `id`, a `label`, an `icon`, `keywords` a filter should also match, its `markdown`, and an optional `withArgument` giving the Markdown and dim text for `/table 3x4` |
+| `InsertRow` | One row: an `id`, a `label`, an `icon`, optional `keywords` a filter should also match, and `insert`, the Markdown, or a function of the word typed after the row (`/table 3x4`, empty when there's none) giving the Markdown and the dim text saying how it read the word. List yours in `contributes` as `inserts`, and an editor shows each as `yourplugin/id`, only where your plugin is on. An icon the menu can't draw, or an id twice, leaves your plugin out |
+| `registerInsertEntry` | A `setup` plugin's way to add its block, called from `setup`. It is listed only in the editors that activate your plugin. Throws on a duplicate id and on an icon the menu cannot draw |
+| `InsertEntry` | What `registerInsertEntry` takes: an `id`, a `label`, an `icon`, `keywords`, its `markdown`, and an optional `withArgument` giving the Markdown and dim text for a typed word |
 | `MenuIconName` | The glyph names a menu row can draw |
 
 ### Events

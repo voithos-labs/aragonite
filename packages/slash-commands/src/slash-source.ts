@@ -10,7 +10,7 @@ import {
 	type EditorContext,
 	type InlineMenuCommit,
 	type InlineMenuSource,
-	type InsertEntry,
+	type InsertRow,
 	type MenuIconName
 } from '@voithos-labs/aragonite/plugin';
 import { acceptsQuery, readQuery, type FilterableEntry } from './filter';
@@ -48,7 +48,7 @@ export interface SlashCommandsOptions {
 }
 
 /** The Markdown a pick inserts, and the row's dim text. */
-type BuiltInsert = ReturnType<NonNullable<InsertEntry['withArgument']>>;
+type BuiltInsert = { markdown: string; detail?: string };
 
 type SlashAction =
 	| { kind: 'insert'; build: (argument: string | null) => BuiltInsert }
@@ -118,19 +118,19 @@ export function createSlashSource(editor: EditorContext<SlashCommandsOptions>): 
 
 // ── Rows ─────────────────────────────────────────────────────────────────────
 
-function catalogueRow(entry: InsertEntry): SlashRow {
-	const { withArgument } = entry;
+function catalogueRow(row: InsertRow): SlashRow {
+	const { insert } = row;
 	return {
-		id: entry.id,
-		label: entry.label,
-		icon: entry.icon,
-		keywords: entry.keywords,
-		takesArgument: withArgument !== undefined,
+		id: row.id,
+		label: row.label,
+		icon: row.icon,
+		keywords: row.keywords ?? [],
+		takesArgument: typeof insert === 'function',
 		action: {
 			kind: 'insert',
-			// A space with no word after it yet is no argument, so `withArgument` only sees a word.
+			// A space with no word after it yet is no argument, so the row reads an empty word.
 			build: (argument) =>
-				argument && withArgument ? withArgument(argument) : { markdown: entry.markdown }
+				typeof insert === 'string' ? { markdown: insert } : insert(argument ?? '')
 		}
 	};
 }

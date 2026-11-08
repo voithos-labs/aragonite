@@ -150,7 +150,7 @@
 		type PluginList
 	} from '../schema/plugin-unit';
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
-	import { insertCatalogue, type InsertEntry } from '../schema/insert-catalogue';
+	import { insertRows } from '../schema/insert-catalogue';
 	import { createEditorGrammar } from '../schema/editor-grammar';
 	import type { Reading } from '../schema/reading';
 	import { hidesDelimitersAtCaret, type PresentationMode } from '../presentation-mode';
@@ -1052,7 +1052,7 @@
 		selection: selectionState,
 		insertMarkdown,
 		clipboard: menuClipboard,
-		insertCatalogue: getInsertCatalogue,
+		inserts: () => inserts,
 		activation: activePlugins,
 		reading,
 		stamps,
@@ -1424,10 +1424,6 @@
 		return inlineMenus;
 	}
 
-	export function getInsertCatalogue(): readonly InsertEntry[] {
-		return insertCatalogue(activePlugins);
-	}
-
 	export function getRects(): EditorRects {
 		return rects;
 	}
@@ -1466,7 +1462,9 @@
 	const pluginList = $derived(pluginNames);
 	const mode = $derived(effectiveMode);
 	const themeName = $derived(theme);
-	export { pluginList as plugins, mode, themeName as theme };
+	// Read again whenever `use` changes the list.
+	const inserts = $derived.by(() => (void pluginNames, insertRows(activePlugins)));
+	export { pluginList as plugins, mode, themeName as theme, inserts };
 
 	export function on<K extends keyof EditorEventMap>(
 		event: K,
@@ -1555,7 +1553,6 @@
 		getSearch,
 		getDecorations,
 		getInlineMenus,
-		getInsertCatalogue,
 		getRects,
 		getDiagnostics,
 		reservedChords,
@@ -1569,6 +1566,9 @@
 		},
 		get theme() {
 			return themeName;
+		},
+		get inserts() {
+			return inserts;
 		},
 		on,
 		run,

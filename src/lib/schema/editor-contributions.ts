@@ -1,6 +1,6 @@
 /**
  * What the plugin values one editor runs contribute: their commands, by value, by `plugin/id` and
- * by chord. Read from each installed list, so `use` rebuilds it, and reached through the editor's
+ * by chord, and their insert rows. Read from each installed list, so `use` rebuilds it, and reached through the editor's
  * activation, which every command lookup already takes, so no route that runs or lists a command
  * can miss a plugin's.
  */
@@ -8,6 +8,7 @@ import type { Editor, InstalledPlugin, PluginError } from './plugin-unit';
 import { claimCommand, commandSpec, type Command, type CommandSpec } from './plugin-command';
 import { normalizeChord } from './keybindings';
 import { refusedClaims } from './plugin-claims';
+import { insertRowProblem, type InsertRow } from './insert-catalogue';
 
 export interface ContributedCommand {
 	readonly plugin: string;
@@ -22,6 +23,8 @@ export interface EditorContributions {
 	command(command: Command<unknown> | string): ContributedCommand | undefined;
 	atChord(chord: string): ContributedCommand | undefined;
 	readonly commands: readonly ContributedCommand[];
+	/** Each plugin's rows in list order, ids as `plugin/id`. */
+	readonly inserts: readonly InsertRow[];
 	/** Runs a command against its plugin's scoped editor; false where `when` or the command declines.
 	 *  A throw counts as run, so the key goes no further, and is reported. */
 	run(command: ContributedCommand, arg: unknown): boolean;
@@ -39,6 +42,7 @@ export function createEditorContributions(deps: {
 	let byValue = new Map<Command<unknown>, ContributedCommand>();
 	let byId = new Map<string, ContributedCommand>();
 	let byChord = new Map<string, ContributedCommand>();
+	let inserts: readonly InsertRow[] = [];
 
 	function guarded<T>(entry: ContributedCommand, fallback: T, call: () => T): T {
 		try {
@@ -51,7 +55,7 @@ export function createEditorContributions(deps: {
 
 	function read(units: readonly InstalledPlugin[]): InstalledPlugin[] {
 		const usable = units.filter((unit) => {
-			const problem = commandProblem(unit);
+			const problem = commandProblem(unit) ?? insertProblem(unit);
 			if (problem) deps.report(installError(unit.name, problem));
 			return !problem;
 		});
@@ -67,6 +71,11 @@ export function createEditorContributions(deps: {
 		byValue = new Map(listed);
 		byId = new Map(commands.map((entry) => [entry.id, entry]));
 		byChord = new Map(commands.flatMap((entry) => (entry.chord ? [[entry.chord, entry]] : [])));
+		inserts = kept.flatMap((unit) =>
+			(unit.contribution.inserts ?? []).map((row) =>
+				Object.freeze({ ...row, id: `${unit.name}/${row.id}` })
+			)
+		);
 		return kept;
 	}
 
@@ -96,6 +105,9 @@ export function createEditorContributions(deps: {
 		get commands() {
 			return commands;
 		},
+		get inserts() {
+			return inserts;
+		},
 		run,
 		can,
 		read
@@ -112,6 +124,17 @@ function commandProblem(unit: InstalledPlugin): string | null {
 		if (problem) return problem;
 		if (ids.has(value.id)) return `lists two commands with the id "${value.id}"`;
 		ids.add(value.id);
+	}
+	return null;
+}
+
+function insertProblem(unit: InstalledPlugin): string | null {
+	const ids = new Set<string>();
+	for (const row of unit.contribution.inserts ?? []) {
+		const problem = insertRowProblem(row);
+		if (problem) return problem;
+		if (ids.has(row.id)) return `lists two insert rows with the id "${row.id}"`;
+		ids.add(row.id);
 	}
 	return null;
 }

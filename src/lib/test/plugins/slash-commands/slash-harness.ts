@@ -14,7 +14,7 @@ import type {
 } from '#lib/plugin.js';
 import { createEditorEvents, type EditEvent } from '#lib/editor-events.js';
 import { createInlineMenuState } from '#lib/inline-menu/inline-menu-state.svelte.js';
-import { insertCatalogue } from '#lib/schema/insert-catalogue.js';
+import { insertRows } from '#lib/schema/insert-catalogue.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import {
 	createSlashSource,
@@ -48,7 +48,7 @@ export function slashHarness(initial: string, options: SlashCommandsOptions = {}
 			},
 			// The real catalogue, so a plugin a test installs lists its entries as in an editor.
 			get insertCatalogue() {
-				return insertCatalogue(everyInstalledPlugin);
+				return insertRows(everyInstalledPlugin);
 			},
 			inlineMenus: host.inlineMenus,
 			options,

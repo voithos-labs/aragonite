@@ -30,7 +30,7 @@ import type { EditorRects } from '../editor-rects';
 import type { InlineMenuRegistry } from '../inline-menu/types';
 import type { PresentationMode } from '../presentation-mode';
 import type { ClickInput } from '../activation-click';
-import type { InsertEntry } from './insert-catalogue';
+import type { InsertRow } from './insert-catalogue';
 import type { Draft } from './drafts';
 
 export interface EditorPlugin<Options = unknown> {
@@ -72,9 +72,9 @@ export interface EditorContext<Options = unknown> {
 	readonly rects: EditorRects;
 	/** Menus opened under the caret by a typed trigger: tag autocomplete, a document picker. */
 	readonly inlineMenus: InlineMenuRegistry;
-	/** A getter, so always live: the blocks the insert menus offer in this editor, plugin blocks
-	 *  included; the same list as `EditorInstance.getInsertCatalogue()`. */
-	readonly insertCatalogue: readonly InsertEntry[];
+	/** A getter, so always live: the rows this editor's insert menus offer, the same list as
+	 *  `Editor.inserts`. */
+	readonly insertCatalogue: readonly InsertRow[];
 	/** `EditorInstance.insertMarkdown` for this editor: false, nothing written, with no caret, in
 	 *  reading mode or at a gap caret. Await it in `onCommit` to keep one undo entry for the pick. */
 	readonly insertMarkdown: (md: string, options?: InsertMarkdownOptions) => Promise<boolean>;

@@ -10,6 +10,7 @@ import { ARAGONITE_VERSION } from '../version';
 import type { EditorEventMap } from '../editor-events';
 import type { PresentationMode } from '../presentation-mode';
 import type { Command } from './plugin-command';
+import type { InsertRow } from './insert-catalogue';
 import type { Draft } from './drafts';
 import { isValidPluginName } from './plugin-name';
 import { satisfiesRange } from './version-range';
@@ -55,6 +56,8 @@ export interface Contribution {
 	setup?(editor: Editor): void;
 	/** Run by value, by `plugin/id`, or by a command's chord anywhere in the editor. */
 	commands?: readonly Command<unknown>[];
+	/** Rows for the insert menus, listed after the built-ins as `plugin/id`. */
+	inserts?: readonly InsertRow[];
 }
 
 /** The editor as a plugin's `setup` and a host's handle both see it. */
@@ -63,6 +66,8 @@ export interface Editor {
 	readonly plugins: readonly string[];
 	readonly mode: PresentationMode;
 	readonly theme: string;
+	/** Every row this editor's insert menus offer, live. */
+	readonly inserts: readonly InsertRow[];
 	/** Listens until `dispose` is called, the plugin is turned off, or the editor unmounts. */
 	on<K extends keyof EditorEventMap>(
 		event: K,
