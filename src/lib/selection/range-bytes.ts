@@ -122,8 +122,9 @@ export function rangePaint(doc: DocumentView, coverage: RangeCoverage, layout: L
 const textEnd = (doc: DocumentView, block: LaidBlock) =>
 	block.to - ownTrailingLineEnding(blockNodeAt(doc, block.path)!.raw).length;
 
-/** A text end's byte; a cell end's row, from its first byte or to its last; any other block's own
- *  edge on that side, since its offsets address no text. */
+/** A text end's byte; a cell end's row, from its first byte or to its last, or its whole table
+ *  where the range enters it at its first row or leaves it at its last; any other block's own edge
+ *  on that side, since its offsets address no text. */
 function endByte(
 	doc: DocumentView,
 	layout: Layout,
@@ -141,9 +142,10 @@ function endByte(
 	const row = point.cellCoordinate
 		? Math.floor(point.offset / metadataOf(node, 'table').columnCount)
 		: null;
-	const block = layout.block(row === null ? point.path : [...point.path, row]);
+	const whole = row !== null && row === (side === 'end' ? 0 : (node.children?.length ?? 0) - 1);
+	const block = layout.block(row === null || whole ? point.path : [...point.path, row]);
 	if (!block) return null;
-	return side === 'start' ? block.from : row === null ? textEnd(doc, block) : block.to;
+	return side === 'start' ? block.from : row === null || whole ? textEnd(doc, block) : block.to;
 }
 
 /** The document's first and last caret positions, as bytes. */
