@@ -146,9 +146,9 @@ const result = await draft.replace({ from, to }, card).commit();
 if (!result.ok) console.warn(result.reason, result.message); // 'moved': they typed inside it
 ```
 
-- `replace(range, text)` swaps bytes `from` to `to` for `text`. Chain as many as you like; two far-apart ranges are still one undo step. These are the document's bytes, markers and all, so a new line you write inside a container carries the container's marker (`> `, a list item's indent) in `text`.
+- `replace(range, text)` swaps bytes `from` to `to` for `text`. Chain as many as you like; two far-apart ranges are still one undo step. These are the document's bytes, markers and all, so a new line you write inside a container carries the container's marker (`> `, a list item's indent) in `text`. Write an opener on a line of its own (a `$$`, a fence, a `:::note`) above a block that would close it, and the editor adds its closing line under it, same as it does for one the author types.
 - `insert(markdown)` pastes Markdown at the caret once the replacements land, the way `insertMarkdown` does.
-- `commit({ caret })` writes it all as one undo step, with the caret at byte `caret` of the new text. Leave `caret` out and the author's caret stays where it is, since a write landing while they type shouldn't drag them anywhere.
+- `commit({ caret })` writes it all as one undo step, with the caret at byte `caret` of the text as you wrote it (a closing line the editor added above it pushes it down for you). Leave `caret` out and the author's caret stays where it is, since a write landing while they type shouldn't drag them anywhere.
 - `stale` turns true once a write elsewhere touches one of your ranges, or the host loads another document. It's reactive, so a Svelte effect reading it reruns.
 - `end()` drops the draft without writing. One you just let go of is dropped eventually too, but ending it stops the editor tracking writes for it right away.
 
@@ -542,7 +542,7 @@ An opener whose reading a line further down can still change (an unclosed `$$` b
 
 - `notFinal(raw)` says whether lines further down could still change how a block reads.
 - `mayClose(line)` says whether a line could be the one that does.
-- `closer(raw)` gives the line that closes it (`null` where no line does). An opener written on a line of its own above such a line gets it at once, whether it was typed, pasted, dropped or moved there.
+- `closer(raw)` gives the line that closes it (`null` where no line does). An opener written on a line of its own above such a line gets it at once, whether it was typed, pasted, dropped, moved there or written by a `Draft`.
 - `readsOn` marks a reading that takes in every line below until its closer, like an open fence.
 
 The parrot's opener is a whole one ([The first fifteen minutes](plugin-guide.md#the-first-fifteen-minutes)), and [A reading that isn't final](plugin-guide/parser.md#a-reading-that-isnt-final) has the rest of `readingNotFinal`.

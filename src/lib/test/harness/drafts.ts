@@ -1,4 +1,5 @@
-// A draft registry for a suite that opens and closes drafts but never commits one.
+// Draft registries for suites without a mounted editor: one that never commits, and one that
+// commits through a harness's byte splice, as the editor wires its own.
 import { createDraftRegistry } from '#lib/editor-actions/commit/draft-registry.svelte.js';
 import {
 	createDocumentStamps,
@@ -6,6 +7,7 @@ import {
 } from '#lib/editor-actions/commit/document-stamp.js';
 import { parse } from '#lib/core/parser.js';
 import type { DocumentView } from '#lib/core/node-views.js';
+import type { TopHarness } from './editor-actions';
 
 export function idleDraftRegistry(
 	stamps: DocumentStamps = createDocumentStamps(),
@@ -18,6 +20,19 @@ export function idleDraftRegistry(
 		writes: () => ({
 			commitSource: async () => false,
 			undoStep: async (_seed, run) => void (await run()),
+			insert: async () => false
+		})
+	});
+}
+
+export function draftRegistryOver(h: TopHarness) {
+	return createDraftRegistry({
+		stamps: createDocumentStamps(),
+		doc: () => h.deps.doc,
+		isReading: () => false,
+		writes: () => ({
+			commitSource: h.controller.commitSource,
+			undoStep: (seed, run) => h.controller.undoStep(seed, run),
 			insert: async () => false
 		})
 	});
