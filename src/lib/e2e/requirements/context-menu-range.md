@@ -13,7 +13,7 @@ A range across blocks is the editor's own: it paints the range itself and leaves
 ## Edge cases
 
 - Right-click the same four targets below the range: each ends the range and opens the menu of what's under the pointer.
-- Right-click the first line's text before the range starts, where nothing is painted: the range ends and the prose menu opens with Insert block.
+- Right-click the first line's text before the range starts, where nothing is painted: the range ends and the prose menu opens with Insert block and nothing to cut (on macOS, which selects the word under a right-click, Cut takes that word).
 - With the menu open over the range, right-click one of its rows, then pick Copy: the clipboard holds what Ctrl+C writes, since no menu opens for a press on the editor's own menu.
 - Right-click the editor's padding beside the range, where no menu opens: the range stays.
 

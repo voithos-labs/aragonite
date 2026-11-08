@@ -3,13 +3,13 @@ import { EditorPage } from '../../editor-page';
 import { pointAtRaw } from '../../text-runs';
 import { attachIme } from '../../simulation/ime';
 import { isChromium } from '../../browser-engine';
+import { dragSelection } from '../../selection-drag';
 import { extendKey } from '../../platform-keys';
 import {
 	RANGE_LAW_CASES,
 	type CaseObserved,
 	type CasePoint,
 	type CaseStep,
-	type OtherEngine,
 	type RangeLawCase
 } from '../../range-law-cases';
 
@@ -104,10 +104,7 @@ async function run(editor: EditorPage, row: RangeLawCase, step: CaseStep): Promi
 		case 'drop': {
 			const from = await pointAtRaw(page, row.select.anchor.path, row.select.anchor.offset + 1);
 			const to = await pointAtRaw(page, step.at.path, step.at.offset);
-			await page.mouse.move(from.x, from.y);
-			await page.mouse.down();
-			await page.mouse.move(to.x, to.y, { steps: 10 });
-			await page.mouse.up();
+			await dragSelection(page, from, to);
 		}
 	}
 }
@@ -131,13 +128,8 @@ test.describe('the range-edit law cases, in a browser', () => {
 	});
 
 	for (const row of RANGE_LAW_CASES) {
-		test(`${row.law}: ${row.name}${row.issue ? ` (${row.issue})` : ''}`, async ({
-			page,
-			browserName
-		}) => {
+		test(`${row.law}: ${row.name}${row.issue ? ` (${row.issue})` : ''}`, async ({ page }) => {
 			test.skip(row.only?.run === 'chromium' && !isChromium(page), row.only?.reason);
-			const engine = browserName as OtherEngine;
-			test.skip(!!row.skipIn?.[engine], row.skipIn?.[engine]);
 			await editor.loadContent(row.source);
 			await editor.setPresentationMode(row.mode);
 			await select(editor, row);
