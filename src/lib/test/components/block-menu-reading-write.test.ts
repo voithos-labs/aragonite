@@ -50,7 +50,7 @@ async function removeFenceAfterSwitchToReading() {
 		finger: () => false,
 		insertMarkdown: async () => true,
 		clipboard: { take: () => null, pasteTarget: () => null },
-		edit: () => idleDraftRegistry().edit(),
+		openDraft: (spec, path) => idleDraftRegistry().open(spec, path),
 		inserts: () => [],
 		activation: everyInstalledPlugin,
 		reading: fixtureReading(),

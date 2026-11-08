@@ -249,7 +249,7 @@ async function dissolveBlock(doc: Document, index: number): Promise<string> {
 		node,
 		path: [index],
 		deleteBlock: async () => {},
-		replaceRaw: async (raw) => (written.push(raw), { ok: true }),
+		replaceRaw: async (raw) => (written.push(raw), true),
 		transformPaste: (text) => text,
 		lineEnding: documentLineEnding(doc)
 	});

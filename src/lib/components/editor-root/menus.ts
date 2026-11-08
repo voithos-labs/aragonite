@@ -13,7 +13,7 @@ import type { DocumentGetter } from '../../editor-keys';
 import type { InsertMarkdownOptions } from '../../editor-props';
 import type { PresentationMode } from '../../presentation-mode';
 import type { PluginActivation } from '../../schema/plugin-activation';
-import type { Draft, DraftResult } from '../../schema/drafts';
+import type { Draft, DraftSpec } from '../../schema/drafts';
 import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
 import { rowMarkdown, type InsertRow } from '../../schema/insert-catalogue';
 import type { MenuEntry } from '../menu/BlockMenu.svelte';
@@ -33,8 +33,7 @@ import type { Reading } from '../../schema/reading';
 import { readBlockPath } from '../../selection/path-lookup';
 import { holdsSelection, selectionCoversPoint } from '../../selection/held-selection';
 import type { SelectionState } from '../../selection/selection-state.svelte';
-import { documentLineEnding, withLineEnding } from '../../core/lines';
-import { blockBytes } from '../../editor-actions/commit/change-record';
+import { documentLineEnding } from '../../core/lines';
 import { stampWrites, type DocumentStamps } from '../../editor-actions/commit/document-stamp';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkMenuOverSelection } from '../../invariants/menu-over-selection';
@@ -54,9 +53,9 @@ export interface RootMenusDeps {
 	get mode(): PresentationMode;
 	getDoc: DocumentGetter;
 	isHostChrome(node: Node | null): boolean;
-	blockEdit: Pick<BlockEditActions, 'deleteBlock'>;
-	/** A draft against the document as it is now, which a row's write goes through. */
-	edit(): Draft;
+	blockEdit: Pick<BlockEditActions, 'deleteBlock' | 'replaceRaw'>;
+	/** A draft watching the block at `path`, which a write from anywhere else marks stale. */
+	openDraft(spec: DraftSpec, path: readonly number[]): Draft;
 	/** The caret the menu opens over: where the right-click's press pointed, so a right-click on
 	 *  prose acts at the pointer; the event's point when no press opened the menu. */
 	placeMenuCaret(x: number, y: number): boolean;
@@ -90,7 +89,6 @@ export interface RootMenus {
 }
 
 const EDIT_LINK = 'link.edit';
-const NOT_FOUND: DraftResult = { ok: false, reason: 'moved', message: 'the block is gone' };
 
 const isBlockHost = (node: EventTarget): node is HTMLElement =>
 	node instanceof HTMLElement && node.matches('.block-host[data-block-path]');
@@ -183,30 +181,24 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		const noun = blockNoun(node, deps.reading);
 		const actions = blockActionsFor(node, noun);
 		const index = path[0];
-		// A row may write after a slow clipboard read; one a `source` swap outran writes nothing.
-		const contextFor = (draft: Draft): BlockActionContext => {
-			const doc = deps.getDoc();
-			const lineEnding = documentLineEnding(doc);
-			const bytes = blockBytes(doc, path);
-			return stampWrites(
+		// A row may write after a slow clipboard read; one the block changed under, or a `source`
+		// swap outran, writes nothing.
+		const contextFor = (draft: Draft, closed: () => boolean): BlockActionContext =>
+			stampWrites(
 				{
 					node,
 					path,
 					deleteBlock: async () => {
 						await deps.blockEdit.deleteBlock(index, 'keyless');
 					},
-					// The caret lands where the block started, at the text it became.
-					replaceRaw: (raw: string) =>
-						bytes
-							? draft.replace(bytes, withLineEnding(raw, lineEnding)).commit({ caret: bytes.from })
-							: Promise.resolve(NOT_FOUND),
+					replaceRaw: async (raw: string) =>
+						!closed() && !draft.stale && (await deps.blockEdit.replaceRaw(index, raw)),
 					transformPaste: (text) => applyPasteTransforms(text, deps.activation),
-					lineEnding
+					lineEnding: documentLineEnding(deps.getDoc())
 				},
 				deps.stamps.current(),
 				deps.stamps
 			);
-		};
 		deps.setMenu({
 			...point,
 			anchor: anchorOn(host, point),
@@ -217,8 +209,10 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 				const action = actions.find((a: BlockContextAction) => a.id === id);
 				if (!action) return;
 				// Opened at the pick, so an edit to the block before the row writes refuses it.
-				const draft = deps.edit();
-				void Promise.resolve(action.run(contextFor(draft))).finally(() => draft.end());
+				let closed = false;
+				const draft = deps.openDraft({ close: () => (closed = true) }, path);
+				const run = action.run(contextFor(draft, () => closed));
+				void Promise.resolve(run).finally(() => draft.end());
 			}
 		});
 	}

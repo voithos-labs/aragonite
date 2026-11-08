@@ -157,17 +157,6 @@ export function blockRange(doc: DocumentView, path: readonly number[]): PartRang
 	return { from: { part, offset: blank + start }, to };
 }
 
-/** The document bytes of the block at `path`, without the blank lines above it. */
-export function blockBytes(
-	doc: DocumentView,
-	path: readonly number[]
-): { from: number; to: number } | null {
-	const range = blockRange(doc, path);
-	if (!range) return null;
-	const lengths = partLengths(doc);
-	return { from: byteAt(lengths, range.from), to: byteAt(lengths, range.to) };
-}
-
 /** `range` after `change`, or null when the change wrote inside it. Text written at either edge
  *  lands outside it; an empty range moves past text written where it stands. */
 export function rangeThrough(range: PartRange, change: RecordedChange): PartRange | null {

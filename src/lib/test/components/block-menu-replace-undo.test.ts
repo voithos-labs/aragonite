@@ -55,7 +55,7 @@ function fenceMenu(source: string) {
 		getDoc: () => editor.doc,
 		isHostChrome: () => false,
 		blockEdit: editor.actions,
-		edit: () => drafts.edit(),
+		openDraft: (spec, path) => drafts.open(spec, path),
 		placeMenuCaret: () => true,
 		rangeAtContextPress: () => false,
 		selection: createSelectionState(),

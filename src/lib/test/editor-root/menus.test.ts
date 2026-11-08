@@ -53,7 +53,8 @@ function harness(
 
 	let menu: BlockMenuModel | null = null;
 	const blockEdit = {
-		deleteBlock: vi.fn(async () => true)
+		deleteBlock: vi.fn(async () => true),
+		replaceRaw: vi.fn(async () => true)
 	};
 	const placeMenuCaret = vi.fn(() => true);
 	const insertMarkdown = vi.fn(async () => true);
@@ -82,7 +83,7 @@ function harness(
 		finger: () => opts.finger ?? false,
 		insertMarkdown,
 		clipboard: { take: () => null, pasteTarget: aimInsertAtFocus },
-		edit: () => idleDraftRegistry().edit(),
+		openDraft: (spec, path) => idleDraftRegistry().open(spec, path),
 		inserts: () => insertRows(everyInstalledPlugin),
 		activation: everyInstalledPlugin,
 		reading: fixtureReading(),

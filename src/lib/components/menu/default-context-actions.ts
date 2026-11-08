@@ -11,7 +11,6 @@ import type { NodeView } from '../../core/node-views';
 import { pictureImageCount } from '../../core/inline/picture';
 import type { InlineReading } from '../../core/inline/inline-cache';
 import type { MenuIconName } from '../../menu-icons';
-import type { DraftResult } from '../../schema/drafts';
 import { copyBlockToClipboard, readClipboardText } from '../../editor-actions/system-clipboard';
 import { codeBlockActions } from '../blocks/code/code-context-actions';
 
@@ -21,8 +20,8 @@ export interface BlockActionContext {
 	path: number[];
 	deleteBlock(): Promise<void>;
 	/** Replaces the block's bytes as one undo step, every line break in the document's ending;
-	 *  refused if the block changed since its row was picked. */
-	replaceRaw(raw: string): Promise<DraftResult>;
+	 *  false, writing nothing, if the block changed since its row was picked. */
+	replaceRaw(raw: string): Promise<boolean>;
 	/** The document's line ending, for a line rebuilt from the block's own bytes. */
 	lineEnding: LineEnding;
 	/** Pasted text through the paste transforms of the plugins this editor lists. */
