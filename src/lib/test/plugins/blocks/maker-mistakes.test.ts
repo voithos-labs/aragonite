@@ -2,6 +2,7 @@
 // its mistake compiles again. The rows are type-checked, never run.
 import { describe, expect, it } from 'vitest';
 import { lineBlock } from '#lib/components/block-makers/line-block.js';
+import { fencedBlock } from '#lib/components/block-makers/fenced-block.js';
 import { builtin } from '#lib/components/block-makers/builtin.js';
 
 const line = { label: 'L', sample: '%%l' };
@@ -22,6 +23,23 @@ function mistakes() {
 	const d = lineBlock({ name: 'd', label: 'D', match: /^%%d$/ });
 	// @ts-expect-error not an icon the menus draw
 	const e = lineBlock({ ...line, name: 'e', match: /^%%e$/, icon: 'sparkly-unicorn' });
+	// prettier-ignore
+	// @ts-expect-error a box has no text for the editor to show, so `edit: 'box'` needs `draw`
+	const f = fencedBlock({ ...line, name: 'f', fence: { info: 'f' }, edit: 'box' });
+	const g = lineBlock({
+		...line,
+		name: 'g',
+		match: /^%%g$/,
+		edit: 'box',
+		draw: (_block, ctx) => {
+			// @ts-expect-error a box's context has no text element to place
+			const dom = ctx.source;
+			return { dom };
+		}
+	});
+	// prettier-ignore
+	// @ts-expect-error a fenced block's lines carry no data
+	const h = fencedBlock({ ...line, name: 'h', fence: { info: 'h' }, data: () => 1, write: () => '' });
 	const fine = lineBlock({
 		...line,
 		name: 'f',
@@ -30,7 +48,7 @@ function mistakes() {
 		write: (n) => `%%f ${n}`,
 		before: builtin.blocks.heading
 	});
-	return [a, b, c, d, e, fine];
+	return [a, b, c, d, e, f, g, h, fine];
 }
 
 describe('a block type mistake', () => {

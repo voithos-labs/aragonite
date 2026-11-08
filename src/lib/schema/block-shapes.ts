@@ -8,7 +8,8 @@ import type { NodeView } from '../core/node-views';
 import { trimTrailingLineEnding } from '../core/lines';
 import type { MenuIconName } from '../menu-icons';
 import type { BlockOpener } from './block-openers';
-import type { BuiltinRegistration } from './block-kind-descriptor';
+import type { BuiltinRegistration, WriteRule } from './block-kind-descriptor';
+import type { BlockCompleter } from './block-completions';
 import { simpleLeafClosure } from './closure';
 import { pluginTextKeymap } from './built-in-descriptors';
 import { OPENER_PRIORITIES } from './opener-priorities';
@@ -45,6 +46,20 @@ export interface BlockCommon<D> {
 	before?: BlockType<unknown> | readonly BlockType<unknown>[];
 	/** The height to hold, in pixels, before the block is drawn. */
 	height?(block: Block<NoInfer<D>>): number;
+	/** A line typed, or entered, that this block type completes into its full form. */
+	complete?: Completion;
+}
+
+/** A line completed into a block type's full lines, written with the document's line ending as one
+ *  undo step; a completion that wouldn't read back as this block type is refused. */
+export interface Completion {
+	on: 'typed' | 'enter' | 'both';
+	line: RegExp;
+	/** The lines to write and where the caret lands, or null to leave the line. */
+	complete(match: RegExpExecArray): {
+		lines: readonly string[];
+		caret: { line: number; col: number };
+	} | null;
 }
 
 /** What a block holding text answers besides, and how it draws. */
@@ -89,6 +104,20 @@ export type LineBlockSpec<D> = LeafCommon<D> & { match: RegExp } & (
 		  }
 	);
 
+/** A block opened by one line and closed by a later one: a code fence with one of these info
+ *  strings, or its own opening line and closing line. */
+export type FencedBlockSpec = LeafCommon<never> & { fence: Fence | readonly Fence[] };
+
+/** One spelling of a fenced block. A body line that would close a fixed closer early is passed to
+ *  `escape`; without it, the block ends there. */
+export type Fence =
+	| { info: string | readonly string[] }
+	| {
+			open: RegExp;
+			close: string | ((open: RegExpExecArray) => string);
+			escape?(bodyLine: string): string;
+	  };
+
 // ── Derived facts ────────────────────────────────────────────────────────────
 
 const UNPLACED = 1000;
@@ -108,11 +137,17 @@ export function priorityBefore(before: BlockCommon<unknown>['before']): number {
 	return earliest - 1;
 }
 
-/** The registration a text or box leaf derives from its spec: `range` is its text in its bytes. */
-export function leafRegistration(
-	spec: LeafCommon<unknown>,
-	range: ((node: NodeView) => { start: number; end: number }) | null
-): BuiltinRegistration {
+/** What a leaf's shape says about its text: where it sits in its bytes, whether it spans lines (so
+ *  Enter types a line break), and the rule that keeps a write of its bytes legal. */
+export interface LeafText {
+	range: ((node: NodeView) => { start: number; end: number }) | null;
+	multiLine: boolean;
+	writes?: WriteRule;
+}
+
+/** The registration a text or box leaf derives from its spec and its shape. */
+export function leafRegistration(spec: LeafCommon<unknown>, text: LeafText): BuiltinRegistration {
+	const { range, multiLine, writes } = text;
 	const edit = editOf(spec);
 	const box = edit === 'box';
 	const role = spec.role ?? (edit === 'text' && !spec.draw ? 'prose' : 'object');
@@ -124,14 +159,18 @@ export function leafRegistration(
 		gapEdges: edit === 'text' ? ('none' as const) : ('both' as const),
 		...fixtureOf(spec.sample),
 		...(spec.height ? { estimateHeight: heightEstimate(spec.height) } : {}),
+		...(writes ? { rawWrite: writes } : {}),
 		closure: LEAF_CLOSURE
 	};
 	if (box) return { ...shared, blockFocus: 'whole-block', supportsInline: false };
 	return {
 		...shared,
 		supportsInline: spec.body === 'markdown',
-		keymap: pluginTextKeymap(spec.body === 'markdown'),
-		...(range ? { contentStart: { range, backspace: 'demote-first' as const } } : {}),
+		keymap: pluginTextKeymap(spec.body === 'markdown', multiLine),
+		// A one-line marker drops first, as `## ` does; a fence's lines aren't a marker to drop.
+		...(range
+			? { contentStart: multiLine ? { range } : { range, backspace: 'demote-first' as const } }
+			: {}),
 		...(edit === 'source'
 			? { textPosition: 'while-source-shows' as const, caretTargetAtPoint: drawnCaretAt }
 			: {})
@@ -149,6 +188,29 @@ export function leafDrawing(
 	if (spec.edit === 'box') return { type, edit: 'box', singleLine, draw };
 	const { renderSource, reshapeSource } = spec;
 	return { type, edit: editOf(spec), singleLine, draw, renderSource, reshapeSource };
+}
+
+/** The completer a block type's `complete` makes, refusing what `claims` wouldn't read as it. */
+export function completerOf(
+	completion: Completion | undefined,
+	claims: (lines: readonly string[]) => boolean
+): BlockCompleter | null {
+	if (!completion) return null;
+	const pattern = new RegExp(completion.line.source, completion.line.flags.replace(/[gy]/g, ''));
+	return {
+		onType: completion.on !== 'enter',
+		onEnter: completion.on !== 'typed',
+		tryComplete(line) {
+			const match = pattern.exec(line);
+			if (!match || match.index !== 0 || match[0].length !== line.length) return null;
+			const made = completion.complete(match);
+			if (!made || !claims(made.lines)) return null;
+			return {
+				lines: [...made.lines],
+				caret: { path: [], line: made.caret.line, column: made.caret.col }
+			};
+		}
+	};
 }
 
 /** How a leaf edits, its default read off whether it draws. */
@@ -176,6 +238,8 @@ export function lineShape(spec: LineBlockSpec<unknown>, priority: number) {
 					return at ? { start: at[0], end: at[1] } : { start: text.length, end: text.length };
 				}
 			: null,
+		/** Lines a completion wrote: exactly one, matched whole. */
+		claims: (lines: readonly string[]) => lines.length === 1 && wholeLine(lines[0]) !== null,
 		opener(kind: PluginBlockKind): BlockOpener {
 			return {
 				priority,

@@ -124,12 +124,36 @@ test.describe('a drawn box with its own editing surface', () => {
 		await page.keyboard.press('Alt+ArrowDown');
 		await expect
 			.poll(() => page.evaluate(() => (window as any).__test.getSource() as string))
-			.toMatch(/below the field, a line\n\n\^\^field\n$/);
+			.toMatch(/below the field, a line\n\n\^\^field\n/);
 		await page.keyboard.press('ControlOrMeta+z');
 		await expect
 			.poll(() => page.evaluate(() => (window as any).__test.getSource() as string))
 			.toMatch(/^above the field, a line\n\n\^\^field\n/);
 		await expect.poll(() => fieldCaret(page)).toMatchObject({ offset: 7 });
 		expect(await caretPath(page)).toEqual([FIELD]);
+	});
+});
+
+test.describe('a fence drawn as a preview until the caret comes in', () => {
+	const source = (page: Page) => page.evaluate(() => (window as any).__test.getSource() as string);
+
+	test.beforeEach(async ({ page }) => {
+		await new PluginsPage(page).gotoPlugins('drawn');
+	});
+
+	test('a click shows its text, and typing then leaving is one undo step', async ({ page }) => {
+		const preview = page.locator('.drawn-preview');
+		await expect(preview).toHaveText('preview: hello');
+		await preview.click();
+		await expect(preview).toBeHidden();
+		// The click opens the text at its start, the fence line; the body is the line below.
+		await page.keyboard.press('ArrowDown');
+		await page.keyboard.type('XY');
+		await page.locator('[data-block-path="[0]"]').click();
+		await expect.poll(() => source(page)).toContain('```shown\nXYhello\n```');
+		await expect(preview).toHaveText('preview: XYhello');
+
+		await page.keyboard.press('ControlOrMeta+z');
+		await expect.poll(() => source(page)).toContain('```shown\nhello\n```');
 	});
 });

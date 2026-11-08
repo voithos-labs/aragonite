@@ -5,7 +5,6 @@
 -->
 <script lang="ts">
 	import { getContext, untrack } from 'svelte';
-	import { BROWSER } from 'esm-env';
 	import { on } from 'svelte/events';
 	import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 	import type { BlockComponent } from '../../block-component';
@@ -54,8 +53,13 @@
 
 	// The editor's own text element, made before `draw` runs so the plugin only places it. A server
 	// render draws nothing, so it never reads it.
-	const source = BROWSER ? document.createElement('div') : (null as unknown as HTMLElement);
+	const source =
+		typeof document === 'undefined'
+			? (null as unknown as HTMLElement)
+			: document.createElement('div');
 	source?.setAttribute(VIEW_TEXT_ATTR, '');
+	// Its line breaks are text, so they show as breaks: the caret's line moves read them.
+	if (source) source.style.whiteSpace = 'pre-wrap';
 	let target: HTMLElement | null = $state(null);
 	let revealed = $state(false);
 	let focusedWithin = $state(false);
@@ -86,6 +90,9 @@
 					isRevealed: () => revealed,
 					setRevealed: (value) => {
 						revealed = value;
+						// At once, not in an effect: the leaf focuses the text next, and a hidden
+						// element takes no focus.
+						source.hidden = !value;
 						if (!value) typed = null;
 					}
 				})
@@ -171,6 +178,7 @@
 	function mountDrawing(el: HTMLElement): () => void {
 		return untrack(() => {
 			if (view.edit !== 'box') el.setAttribute(VIEW_TEXT_HOST_ATTR, '');
+			if (view.edit === 'source') source.hidden = !revealed;
 			const made = view.draw(read(), ctx);
 			drawn = made;
 			el.append(made.dom);
@@ -232,10 +240,6 @@
 			if (drawn.update?.(read(), ctx) === false) generation++;
 			void restore();
 		});
-	});
-
-	$effect(() => {
-		if (view.edit === 'source') source.hidden = !revealed;
 	});
 </script>
 

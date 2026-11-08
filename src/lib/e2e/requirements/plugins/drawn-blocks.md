@@ -16,3 +16,10 @@ above it and one below.
 - ArrowRight at the end of the line above enters the field at its start; ArrowLeft there leaves back to that line's end.
 - ArrowLeft at the start of the line below enters the field at its end; ArrowRight there leaves back to that line's start.
 - The caret at an offset inside the field, Alt+ArrowDown moves the box down a block and Ctrl+Z puts it back, with the caret at that same offset in the field.
+
+## A fence drawn as a preview (`edit: 'source'`)
+
+A ` ```shown ` fenced block (`fencedBlock`, same harness) draws a preview of its body until the caret comes in.
+
+- Clicking the preview shows the fence's text in its place and hides the preview.
+- Typing in the shown text and clicking away writes it, and one Ctrl+Z takes all of it back.

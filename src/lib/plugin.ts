@@ -36,7 +36,16 @@ export { builtin } from './components/block-makers/builtin';
 // A plugin lists its block types in `contributes(...).blocks`; the editor derives how each behaves
 // from its shape and writes its bytes.
 export { lineBlock } from './components/block-makers/line-block';
-export type { BlockCommon, LeafCommon, LeafDraw, LineBlockSpec } from './schema/block-shapes';
+export { fencedBlock } from './components/block-makers/fenced-block';
+export type {
+	BlockCommon,
+	Completion,
+	Fence,
+	FencedBlockSpec,
+	LeafCommon,
+	LeafDraw,
+	LineBlockSpec
+} from './schema/block-shapes';
 export type { Block } from './schema/doc-view';
 // What a block type's `draw` gets and hands back; the editor makes every editable element.
 export type {

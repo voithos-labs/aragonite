@@ -1,10 +1,18 @@
 /**
- * Block types drawn with `lineBlock({ draw })`, for the e2e suite that drives the draw host in a
- * real browser: a `^^field` box holding a two-line field of its own, which takes the caret from a
- * neighbour's arrow and hands it back at its edges. Dev and e2e harness only.
+ * Block types drawn with `draw`, for the e2e suite that drives the draw host in a real browser: a
+ * `^^field` box holding a two-line field of its own, which takes the caret from a neighbour's arrow
+ * and hands it back at its edges, and a ```` ```shown ```` fence drawn as a preview until the caret
+ * comes in. Dev and e2e harness only.
  */
 
-import { definePlugin, displayLines, lineBlock, type BoxDrawContext } from '#lib/plugin.js';
+import {
+	definePlugin,
+	displayLines,
+	fencedBlock,
+	lineBlock,
+	type BoxDrawContext,
+	type TextDrawContext
+} from '#lib/plugin.js';
 
 /** Where the field's caret is, as the e2e suite reads it: its offset and its viewport x. */
 export interface FieldCaret {
@@ -25,10 +33,31 @@ export const drawnPlugin = definePlugin({
 				sample: '^^field',
 				edit: 'box',
 				draw: (_block, ctx) => drawField(ctx)
+			}),
+			fencedBlock({
+				name: 'shown',
+				label: 'Shown',
+				fence: { info: 'shown' },
+				sample: '```shown\nhello\n```',
+				draw: (block, ctx) => drawShown(block.body, ctx)
 			})
 		]
 	})
 });
+
+// A preview of the body, hidden while the editor shows the text instead.
+function drawShown(body: string, ctx: TextDrawContext) {
+	const dom = document.createElement('div');
+	const preview = document.createElement('output');
+	preview.className = 'drawn-preview';
+	dom.append(preview, ctx.source);
+	const show = (text: string) => {
+		preview.textContent = `preview: ${text.trim()}`;
+		preview.hidden = ctx.focused;
+	};
+	show(body);
+	return { dom, update: (next: { body: string }) => show(next.body) };
+}
 
 // A monospace field, so a column and an x convert by one character width.
 function drawField(ctx: BoxDrawContext) {

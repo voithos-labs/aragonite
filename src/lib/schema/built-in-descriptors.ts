@@ -88,9 +88,13 @@ const TEXT_EDITABLE_KEYMAP: KeyBinding[] = [
 
 /** The keys a plugin's text block binds: a paragraph's without the heading chords, and without the
  *  format chords where its text is literal. */
-export function pluginTextKeymap(markdown: boolean): KeyBinding[] {
+export function pluginTextKeymap(markdown: boolean, multiLine: boolean): KeyBinding[] {
+	// A text spanning lines takes Enter as a line break, as a code block's does.
+	const skipped = multiLine
+		? ['heading.cycle', 'block.split', 'block.hardBreak']
+		: ['heading.cycle'];
 	return TEXT_EDITABLE_KEYMAP.filter(
-		(b) => b.command !== 'heading.cycle' && (markdown || !isInlineFormatCommand(b.command))
+		(b) => !skipped.includes(b.command) && (markdown || !isInlineFormatCommand(b.command))
 	);
 }
 

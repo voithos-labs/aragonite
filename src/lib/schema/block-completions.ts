@@ -29,6 +29,8 @@ export interface BlockCompleter {
 	 * Off by default, since a table's header row may be a longer row the user is still typing.
 	 */
 	onType?: boolean;
+	/** Tried when Enter is pressed on the line; on by default. */
+	onEnter?: boolean;
 }
 
 let orderedCache: RegistryRecord<AnyBlockKind, BlockCompleter>[] | null = null;
@@ -57,8 +59,14 @@ function ordered(): readonly RegistryRecord<AnyBlockKind, BlockCompleter>[] {
 	return orderedCache;
 }
 
-/** The first completion for `line`, or null when no completer the editor's grammar allows takes it. */
+/** The first completion for `line`, or null when no completer the editor's grammar allows takes it.
+ *  The block types the editor's plugins contribute answer first. */
 export function completeTypedLine(line: string, grammar: GrammarView): CompletionResult | null {
+	for (const completer of grammar.completers?.() ?? []) {
+		if (completer.onEnter === false) continue;
+		const claim = completer.tryComplete(line);
+		if (claim) return claim;
+	}
 	for (const { value: completer, owner } of ordered()) {
 		if (!resolvesIn(grammar.activation, owner)) continue;
 		const claim = completer.tryComplete(line);
@@ -69,6 +77,11 @@ export function completeTypedLine(line: string, grammar: GrammarView): Completio
 
 /** The first completion for `line` among the completers that answer as the line is typed. */
 export function completeLineOnType(line: string, grammar: GrammarView): CompletionResult | null {
+	for (const completer of grammar.completers?.() ?? []) {
+		if (!completer.onType) continue;
+		const claim = completer.tryComplete(line);
+		if (claim) return claim;
+	}
 	for (const { value: completer, owner } of ordered()) {
 		if (!completer.onType || !resolvesIn(grammar.activation, owner)) continue;
 		const claim = completer.tryComplete(line);

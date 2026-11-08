@@ -22,6 +22,7 @@ import {
 import { everyInstalledPlugin, resolvesIn, type PluginActivation } from './plugin-activation';
 import { pluginInstallGeneration } from './plugin-install';
 import type { InstalledBlock } from './block-type';
+import type { BlockCompleter } from './block-completions';
 
 /** GFM syntaxes a host can switch off for one editor (the `syntax` prop); each is on by default. */
 export interface SyntaxOptions {
@@ -59,6 +60,7 @@ export function createEditorGrammar(
 	let openers: readonly BlockOpener[] = [];
 	let interrupts: ((lineText: string) => boolean)[] = [];
 	let ownViews = new Map<AnyBlockKind, BlockView>();
+	let ownCompleters: readonly BlockCompleter[] = [];
 	const refresh = (): void => {
 		const records = grammarRecords();
 		const generation = pluginInstallGeneration();
@@ -75,6 +77,7 @@ export function createEditorGrammar(
 		builtForList = activation.generation;
 		builtForBlocks = blocks;
 		ownViews = new Map(blocks.map((b) => [b.kind, b.view]));
+		ownCompleters = blocks.flatMap((b) => b.completer ?? []);
 		const own = blocks.flatMap((b) => (b.opener ? [{ key: b.kind, value: b.opener }] : []));
 		// A switched-off syntax leaves the grammar only: a block of that kind still renders.
 		const kept = records.filter(
@@ -93,6 +96,10 @@ export function createEditorGrammar(
 		interruptsParagraph(lineText) {
 			refresh();
 			return interrupts.some((interrupt) => interrupt(lineText));
+		},
+		completers() {
+			refresh();
+			return ownCompleters;
 		},
 		blockView(kind) {
 			refresh();

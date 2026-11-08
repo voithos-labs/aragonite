@@ -12,6 +12,7 @@ import type { RegistryRecord } from './plugin-registry';
 import type { PluginActivation } from './plugin-activation';
 import { onBlockKindChange, openerRecords } from './block-kind-descriptor';
 import { registerBuiltInDescriptors } from './built-in-descriptors';
+import type { BlockCompleter } from './block-completions';
 
 /** Created fresh for each block and read synchronously; never keep it past the call. */
 export interface OpenContext {
@@ -172,6 +173,8 @@ export interface GrammarView {
 	readonly setextHeading: boolean;
 	/** The plugins this editor turned on; every plugin-registered entry resolves through it. */
 	readonly activation: PluginActivation;
+	/** The completers of the block types this editor's plugins contribute. */
+	completers?(): readonly BlockCompleter[];
 }
 
 // ── Outer block starts ──────────────────────────────────────────────────

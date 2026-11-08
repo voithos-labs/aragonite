@@ -2978,6 +2978,10 @@ const DOM_PRESENCE: Record<string, { branches: number; reason: string }> = {
 		branches: 1,
 		reason: 'with no document nothing holds focus, so the caret goes back where the write left it'
 	},
+	'src/lib/components/drawn-block/DrawnBody.svelte :: <module>': {
+		branches: 1,
+		reason: 'a server render draws nothing, so the text element a drawing places is never made'
+	},
 	'src/lib/selection/pointer-gesture.ts :: coarsePointer': {
 		branches: 1,
 		reason: 'with no media queries there is no pointer to ask about, so no finger is assumed'

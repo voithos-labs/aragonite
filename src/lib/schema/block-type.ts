@@ -5,6 +5,7 @@
  */
 import type { AnyBlockKind, PluginBlockKind } from '../core/nodes';
 import type { BlockOpener } from './block-openers';
+import type { BlockCompleter } from './block-completions';
 import type { BlockView } from './block-view';
 import { holdBlockKind, type BuiltinRegistration } from './block-kind-descriptor';
 import { qualifiedName } from './plugin-name';
@@ -20,6 +21,7 @@ export interface BlockMaking {
 	readonly view: BlockView;
 	/** The parser's way into the type, for the kind its editor named it; null for one no line opens. */
 	opener(kind: PluginBlockKind): BlockOpener | null;
+	readonly completer: BlockCompleter | null;
 }
 
 /** One of an editor's own block types, named and ready to read. */
@@ -27,6 +29,7 @@ export interface InstalledBlock {
 	readonly kind: AnyBlockKind;
 	readonly opener: BlockOpener | null;
 	readonly view: BlockView;
+	readonly completer: BlockCompleter | null;
 }
 
 /** A block type a maker made; `name` is its local name until an editor names it after its plugin. */
@@ -70,7 +73,7 @@ export function installBlockTypes(
 			const kind = type.name as PluginBlockKind;
 			const opener = making.opener(kind);
 			releases.push(holdBlockKind(kind, making.registration, opener !== null));
-			blocks.push({ kind, opener, view: making.view });
+			blocks.push({ kind, opener, view: making.view, completer: making.completer });
 		}
 	}
 	return { blocks, release: () => releases.forEach((release) => release()) };

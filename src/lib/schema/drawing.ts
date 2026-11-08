@@ -94,13 +94,13 @@ export function drawingOf(view: BlockView): Drawing {
 /** Where a drawn block's click lands, for each block element the draw host runs; set by the host. */
 export const CARET_AT = Symbol('Drawn.caretAt');
 
-/** A drawn block's `caretTargetAtPoint`: what its drawing's `caret` makes of a point. */
+/** A drawn block's `caretTargetAtPoint`: what its drawing's `caret` makes of a point, else the
+ *  text's start, so a click on any part of the picture opens the text. */
 export function drawnCaretAt(
 	blockEl: HTMLElement,
 	x: number,
 	y: number
-): { path: number[]; offset: number } | null {
+): { path: number[]; offset: number } {
 	const caretAt = (blockEl as { [CARET_AT]?: (x: number, y: number) => number | null })[CARET_AT];
-	const offset = caretAt?.(x, y);
-	return offset === undefined || offset === null ? null : { path: [], offset };
+	return { path: [], offset: caretAt?.(x, y) ?? 0 };
 }

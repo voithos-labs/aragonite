@@ -4,6 +4,7 @@ import { madeBlockType } from '../../schema/block-type';
 import { drawnView } from '../../schema/drawing';
 import {
 	checkLocalName,
+	completerOf,
 	leafDrawing,
 	leafRegistration,
 	lineShape,
@@ -22,9 +23,13 @@ export function lineBlock<D = never>(spec: LineBlockSpec<D>): BlockType<D> {
 		local: spec.name,
 		label: spec.label,
 		priority,
-		registration: leafRegistration(spec as LineBlockSpec<unknown>, shape.range),
+		registration: leafRegistration(spec as LineBlockSpec<unknown>, {
+			range: shape.range,
+			multiLine: false
+		}),
 		view: drawing ? drawnView(drawing) : textBlockView(),
-		opener: shape.opener
+		opener: shape.opener,
+		completer: completerOf(spec.complete, shape.claims)
 	});
 	return type;
 }
