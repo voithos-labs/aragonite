@@ -488,8 +488,8 @@
 			"keystrokeP95Ms": 127.3
 		},
 		"giant-single-list-copy-10MB": {
-			"keystrokeP50Ms": 172,
-			"keystrokeP95Ms": 223.3
+			"keystrokeP50Ms": 3.5,
+			"keystrokeP95Ms": 5.7
 		}
 	}
 }
