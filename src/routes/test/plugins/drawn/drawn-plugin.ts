@@ -1,16 +1,18 @@
 /**
  * Block types drawn with `draw`, for the e2e suite that drives the draw host in a real browser: a
  * `^^field` box holding a two-line field of its own, which takes the caret from a neighbour's arrow
- * and hands it back at its edges, and a ```` ```shown ```` fence drawn as a preview until the caret
- * comes in. Dev and e2e harness only.
+ * and hands it back at its edges, a ```` ```shown ```` fence drawn as a preview until the caret comes
+ * in, and a `%>` container drawn as a box around its children. Dev and e2e harness only.
  */
 
 import {
+	container,
 	definePlugin,
 	displayLines,
 	fencedBlock,
 	lineBlock,
 	type BoxDrawContext,
+	type ContainerDrawContext,
 	type TextDrawContext
 } from '#lib/plugin.js';
 
@@ -40,6 +42,13 @@ export const drawnPlugin = definePlugin({
 				fence: { info: 'shown' },
 				sample: '```shown\nhello\n```',
 				draw: (block, ctx) => drawShown(block.body, ctx)
+			}),
+			container({
+				name: 'aside',
+				label: 'Aside',
+				lines: { shape: 'marked', first: '%> ', rest: '%> ', reads: /^%> ?/, lazy: true },
+				sample: '%> aside',
+				draw: (_block, ctx) => drawAside(ctx)
 			})
 		]
 	})
@@ -57,6 +66,15 @@ function drawShown(body: string, ctx: TextDrawContext) {
 	};
 	show(body);
 	return { dom, update: (next: { body: string }) => show(next.body) };
+}
+
+// A bordered box the editor's children go into.
+function drawAside(ctx: ContainerDrawContext) {
+	const dom = document.createElement('aside');
+	dom.className = 'drawn-aside';
+	dom.style.cssText = 'border-left: 3px solid; padding-left: 1em;';
+	dom.append(ctx.children);
+	return { dom };
 }
 
 // A monospace field, so a column and an x convert by one character width.

@@ -23,3 +23,10 @@ A ` ```shown ` fenced block (`fencedBlock`, same harness) draws a preview of its
 
 - Clicking the preview shows the fence's text in its place and hides the preview.
 - Typing in the shown text and clicking away writes it, and one Ctrl+Z takes all of it back.
+
+## A container drawn as a box (`container`)
+
+A `%>` container (`container`, same harness) draws a bordered box and places the editor's children inside it.
+
+- Typing at the end of its child writes ` more` with the `%> ` marker kept, and one Ctrl+Z takes it back out.
+- Enter in the middle of its child splits it into two children inside the box, each line written with the marker, and the caret lands in the second.

@@ -3,6 +3,7 @@
  * block's source with the error when it throws or rejects. A promise keeps what the element shows
  * until it settles.
  */
+import { createBoundedMemo } from '../../bounded-memo';
 
 export interface RenderCacheDeps {
 	theme(): string;
@@ -13,15 +14,8 @@ export interface RenderCacheDeps {
 type Made = Node | Promise<Node> | { failed: unknown };
 
 export function createRenderCache(deps: RenderCacheDeps) {
-	const made = new Map<string, Made>();
 	// A handful of entries: a block's own bytes in each theme, and the last few edits.
-	const memo = (key: string, produce: () => Made): Made => {
-		const kept = made.get(key) ?? produce();
-		made.delete(key);
-		made.set(key, kept);
-		if (made.size > 8) made.delete(made.keys().next().value!);
-		return kept;
-	};
+	const memo = createBoundedMemo<string, Made>({ cap: 8 });
 	// Each element shows what its latest call asked for, so a late promise never overwrites it.
 	const latest = new WeakMap<HTMLElement, string>();
 	return (el: HTMLElement, produce: (theme: string) => Node | Promise<Node>): void => {

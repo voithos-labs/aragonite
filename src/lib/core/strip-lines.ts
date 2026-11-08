@@ -5,15 +5,18 @@
 
 import type { CstNode } from './nodes';
 import { lineStartsOuterBlock, type GrammarView } from '../schema/block-openers';
+import type { ChildRawChange } from '../schema/child-spans';
+import type { StripRebuild } from '../schema/strip-rebuild';
 import { indentColumns, isBlankLine, stripIndentColumns } from './lines';
 
 // ── Line shapes ──────────────────────────────────────────────────────────────
 
 /** How a container's lines are written; the editor writes its bytes from this and its children. */
-export type LineShape<D = never> = MarkedLines<D> | IndentedLines<D> | FencedLines<D> | ColonLines;
+export type LineShape<D = never> =
+	MarkedLines | HeadedLines<D> | IndentedLines<D> | FencedLines<D> | ColonLines;
 
 /** A marker on every line (a quote, an alert); a line with no text drops the marker's last space. */
-export interface MarkedLines<D = never> {
+export interface MarkedLines {
 	shape: 'marked';
 	first: string;
 	rest: string;
@@ -21,8 +24,13 @@ export interface MarkedLines<D = never> {
 	reads: RegExp;
 	/** Whether a line with no marker still continues a paragraph left open above it. */
 	lazy: boolean;
-	/** A first line that holds no child (`> [!NOTE]`), read after the marker. */
-	head?: { match: RegExp; data(match: RegExpExecArray): D; write(data: D): string };
+}
+
+/** Marked lines under a first line that holds no child (`> [!NOTE]`), read after the marker;
+ *  `headedLines` makes one. */
+export interface HeadedLines<D> extends MarkedLines {
+	head: { match: RegExp; data(match: RegExpExecArray): D; write(data: D): string };
+	readonly [WRITES_LINES]: ShapeWriter;
 }
 
 /** A marker on the first line and an indent on the rest (a list item, a footnote definition). */
@@ -40,24 +48,31 @@ export interface IndentedLines<D> {
 	paragraphHead?(data: D): string;
 }
 
-/** The writer a fenced or colon shape brings along, so an app that never uses one doesn't ship it. */
+/** The writer a headed, fenced or colon shape brings along, so an app that never uses one doesn't
+ *  ship it. */
 export const WRITES_LINES = Symbol('writes the container');
+
+export type ShapeWriter = (
+	node: CstNode,
+	grammar: GrammarView,
+	changed?: ChildRawChange
+) => StripRebuild | void;
 
 /** Opening lines and a closing line around the body, the title row as child 0 (`<details>`). */
 export interface FencedLines<D> {
 	shape: 'fenced';
 	write: { open(data: D, title: string): readonly string[]; close(data: D): string };
-	readonly [WRITES_LINES]: (node: CstNode) => void;
+	readonly [WRITES_LINES]: ShapeWriter;
 }
 
 /** A `:::name` fence around the body, the opener line as child 0. */
 export interface ColonLines {
 	shape: 'colon';
-	readonly [WRITES_LINES]: (node: CstNode) => void;
+	readonly [WRITES_LINES]: ShapeWriter;
 }
 
 /** The shapes whose every line reads through a line syntax. */
-export type StripShape<D> = MarkedLines<D> | IndentedLines<D>;
+export type StripShape<D> = MarkedLines | IndentedLines<D>;
 
 // ── Line syntax ──────────────────────────────────────────────────────────────
 
@@ -125,7 +140,7 @@ function opensOuterBlock(line: string, grammar: GrammarView): boolean {
 // A marked shape holds no data, so its syntax is derived once.
 const markedCodecs = new WeakMap<object, LineCodec>();
 
-function markedCodec<D>(shape: MarkedLines<D>): LineCodec {
+function markedCodec(shape: MarkedLines): LineCodec {
 	const known = markedCodecs.get(shape);
 	if (known) return known;
 	const write = (text: string, place: LinePlace): string => {

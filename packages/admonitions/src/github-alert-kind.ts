@@ -11,6 +11,7 @@ import {
 	containerClosure,
 	declarePluginKind,
 	declaredPluginKind,
+	headedLines,
 	parseContainerBody,
 	QUOTE_LINES,
 	registerBlockKind,
@@ -20,7 +21,6 @@ import {
 	type BlockView,
 	type ContainerBodyWrap,
 	type CstNode,
-	type MarkedLines,
 	type OpenContext
 } from '@voithos-labs/aragonite/plugin';
 import { matchAlertMarker } from './gh-alert';
@@ -61,14 +61,14 @@ function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
 }
 
 /** The alert's lines: a quote's, under a `> [!TYPE]` head line that holds no child. */
-const ALERT_LINES: MarkedLines<GithubAlertMetadata> = {
+const ALERT_LINES = headedLines<GithubAlertMetadata>({
 	...QUOTE_LINES,
 	head: {
 		match: /^[ \t]*\[!([A-Za-z]+)\][ \t]*$/,
 		data: (match) => ({ alertType: match[1] }),
 		write: (data) => `[!${data.alertType}]`
 	}
-};
+});
 
 export function registerGithubAlert(view: BlockView): void {
 	const kind = declarePluginKind(GITHUB_ALERT);

@@ -275,14 +275,15 @@ const LEAF_CLOSURE = simpleLeafClosure({
 	simOracle: { mode: 'inherit-default' }
 });
 
-// A JavaScript author can leave the sample out; the published checks report that.
-function fixtureOf(sample: string | readonly string[] | undefined) {
+/** A block type's first sample as the checks' fixture; a JavaScript author can leave it out, which
+ *  the published checks report. */
+export function fixtureOf(sample: string | readonly string[] | undefined) {
 	const first = typeof sample === 'string' ? sample : sample?.[0];
 	if (first === undefined) return {};
 	return { conformanceFixture: first.endsWith('\n') ? first : `${first}\n` };
 }
 
-function heightEstimate(height: (block: Block<never>) => number) {
+export function heightEstimate(height: (block: Block<never>) => number) {
 	// A type named by the kind is enough here: `is` compares names.
 	return (node: NodeView) => height(blockOf<never>(node, (kind) => ({ name: kind, label: kind })));
 }

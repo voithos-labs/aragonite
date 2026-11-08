@@ -30,6 +30,7 @@ export const RUNTIME_EDGES: readonly string[] = [
 	'components -> active-editor.ts',
 	'components -> around-render.svelte.ts',
 	'components -> block-component.ts',
+	'components -> bounded-memo.ts',
 	'components -> block-id.ts',
 	'components -> block-lists',
 	'components -> browser',

@@ -4,6 +4,7 @@
  * owns every editable element; the drawing only places them.
  */
 import type { LineEnding } from '../core/lines';
+import type { NodeView } from '../core/node-views';
 import type { PresentationMode } from '../presentation-mode';
 import type { Block } from './doc-view';
 import { asBlockView, type BlockView } from './block-view';
@@ -32,6 +33,13 @@ export interface TextDrawContext extends DrawContext {
 	readonly source: HTMLElement;
 	/** The source as typed and not yet written, while an `edit: 'source'` block is open; else null. */
 	readonly typed: string | null;
+}
+
+/** The context of a block holding blocks: `children` is the editor's element for them, to place in
+ *  your drawing (the editor fills it); `title` is its title row's, or null for one without. */
+export interface ContainerDrawContext extends DrawContext {
+	readonly children: HTMLElement;
+	readonly title: HTMLElement | null;
 }
 
 /** The context of a block focused whole (`edit: 'box'`). */
@@ -67,11 +75,11 @@ export interface BoxFocus {
 
 // ── Internal ─────────────────────────────────────────────────────────────────
 
-/** How a text or box block draws, as its maker hands it to the editor. */
+/** How a block draws, as its maker hands it to the editor. */
 export interface Drawing {
 	/** The block type drawn, read once an editor has named it. */
 	type(): BlockType<unknown>;
-	readonly edit: 'text' | 'source' | 'box';
+	readonly edit: 'text' | 'source' | 'box' | 'container';
 	readonly singleLine: boolean;
 	draw(block: Block<unknown>, ctx: DrawContext): Drawn<unknown, DrawContext>;
 	renderSource?(text: string): DocumentFragment;
@@ -80,6 +88,8 @@ export interface Drawing {
 		caret: number,
 		lineEnding: LineEnding
 	): { text: string; caret: number } | null;
+	/** The read-only marker shown ahead of a container's first child (a footnote's `[^1]: `). */
+	ambientPrefix?(node: NodeView): string;
 }
 
 /** A view the editor's draw host renders. */

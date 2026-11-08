@@ -37,6 +37,8 @@ export { builtin } from './components/block-makers/builtin';
 // from its shape and writes its bytes.
 export { lineBlock } from './components/block-makers/line-block';
 export { fencedBlock } from './components/block-makers/fenced-block';
+export { container } from './components/block-makers/container';
+export type { ContainerLines, ContainerSpec } from './schema/container-block';
 export type {
 	BlockCommon,
 	Completion,
@@ -51,6 +53,7 @@ export type { Block } from './schema/doc-view';
 export type {
 	BoxDrawContext,
 	BoxFocus,
+	ContainerDrawContext,
 	DrawContext,
 	Drawn,
 	TextDrawContext
@@ -307,9 +310,11 @@ export { blockquoteExtent } from './core/parsers/blockquote';
 export { QUOTE_LINES } from './core/parsers/blockquote';
 export { stripShapedLines } from './core/strip-shaped-lines';
 export { fencedLines } from './schema/fenced-lines';
+export { headedLines } from './schema/headed-lines';
 export type {
 	LineShape,
 	MarkedLines,
+	HeadedLines,
 	IndentedLines,
 	FencedLines,
 	ColonLines

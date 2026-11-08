@@ -69,6 +69,9 @@ _(pre-freeze / unstable)_ The installable package, and the per-editor context it
 | `LineBlockSpec` | What `lineBlock` takes: `match`, plus `data(match)` and `write(data, text)` together when the line carries data |
 | `fencedBlock` | A block type opened by one line and closed by a later one: a code fence with your info string (` ```math `), or your own opening and closing lines. A code fence's closer grows past a body line that would close it |
 | `FencedBlockSpec` | What `fencedBlock` takes: `fence`, one spelling or several |
+| `container` | A block type holding other blocks. You say how its lines look in `lines` and the editor reads and writes them, so there's no opener or writer to write. Its children are the editor's to draw, inside your drawing |
+| `ContainerSpec` | What `container` takes: `lines`, plus `joins` (default true: text joined to its end from below lands in its deepest text block), `merges` (the data field a pasted one must share with the one it lands in to join it, rather than nest) and `draw` |
+| `ContainerLines` | The line shapes a `container` takes: a `marked` one (a marker on every line, with a `head` line or not) or an `indented` one, the same shapes as [`LineShape`](#lineshape-markedlines-indentedlines). An indented container shows its marker ahead of its first child's text, read-only |
 | `Fence` | `{ info }` takes over code fences with that info string; `{ open, close, escape? }` opens on a line `open` matches and closes on the line `close` spells. A body line spelling the closer goes through `escape`, or ends the block there without one. Unclosed, the opening line stays plain text |
 | `Completion` | A block type's `complete`: a typed or entered line (`on`) that `line` matches, written out as `complete(match)`'s lines with the caret where it says. A completion that wouldn't read back as the block type is refused |
 | `BlockCommon` | What every block type answers: `name`, `label`, `icon`, `sample`, `role` (`prose` merges with its neighbours, an `object` is picked up whole), `interrupts`, `before` (the built-in types it goes ahead of), `height` and `complete` |
@@ -77,6 +80,7 @@ _(pre-freeze / unstable)_ The installable package, and the per-editor context it
 | `Drawn` | What `draw(block, ctx)` hands back: your `dom`, and optionally `caret` (where a click on your picture of the text lands), `update`, `keep` (events the editor leaves to you), `focus` and `destroy` |
 | `DrawContext` | What every drawing gets: `editor`, `mode`, `theme`, `focused`, `render(el, produce)` (a renderer's output cached per bytes and theme, the source and the error when it throws) and `keepScroll()` |
 | `TextDrawContext` | Adds `source`, the editor's element for the block's text, for you to place, and `typed`, the text as typed before an `edit: 'source'` block writes it |
+| `ContainerDrawContext` | Adds `children`, the editor's element holding the block's children, for you to place, and `title`, its title row's element, or null |
 | `BoxDrawContext` | Adds `leave(edge, x?)`, which hands the caret to the neighbour past `edge` from an editing surface of your own |
 | `BoxFocus` | `Drawn.focus` for a box with an editing surface of its own: `enter` takes the caret at an edge (with the column an up or down arrow keeps) or back at an offset, and `offset()` says where its caret is |
 | `Block` | A block as your code reads it: its `type`, `data`, `text`, `body` and `children`, and `is(type)` to narrow its data |
@@ -650,7 +654,8 @@ _(pre-freeze / unstable)_ A container's **chrome** is its own furniture: the bor
 | `fencedLines`, `FencedLines` | Lines of your own around the body, like `<details>` and `</details>`: `fencedLines({ open, close })` writes the opening lines from your metadata and the title row (child 0), and the closing line after the body |
 | `ColonLines` | The type of `COLON_LINES` |
 | `QUOTE_LINES` | The built-in quote's lines, to build yours on (an alert is a quote with a head line) |
-| `stripShapedLines` | Your opener's lines read the way the editor writes them, so the two can't disagree. It goes away once the editor parses a shaped container itself |
+| `headedLines`, `HeadedLines` | Marked lines under a head line that holds no child, like an alert's `> [!NOTE]`. `headedLines({ ...QUOTE_LINES, head })` makes one |
+| `stripShapedLines` | Your opener's lines read the way the editor writes them, so the two can't disagree. A `container` doesn't need it, since the editor reads its lines itself |
 | `StripRebuild` | What a `rebuildRaw` may return: `rereads` says a kept line stopped continuing a paragraph, so the bytes have to be read whole |
 
 #### `ContainerBlock`, `ContainerBlockComponent`
@@ -692,7 +697,7 @@ container: { lines: LineShape<YourMetadata> }
 
 Say how your container's lines look and the editor writes them for you. It keeps every line an edit didn't touch the way the author spelled it, and writes new lines your way. A container with `lines` declares no `contract`, `rebuildRaw` or `bodyWrap`, since the shape already says them.
 
-- `marked`: a marker on every line, like a quote's `>`. `first` and `rest` are what it writes; `reads` is how a marker reads back, and it has to read `first` and `rest` whole. `lazy` says a line without the marker can still continue a paragraph. A `head` is a first line that holds no child (an alert's `> [!NOTE]`): `match` reads it after the marker, `data` turns the match into your metadata, and `write` spells it, for a new head or one whose data changed (an untouched one keeps the author's spelling). A blank line gets `first` or `rest` without its last space, except in a body emptied of all its text, whose lines keep their markers as spelled.
+- `marked`: a marker on every line, like a quote's `>`. `first` and `rest` are what it writes; `reads` is how a marker reads back, and it has to read `first` and `rest` whole. `lazy` says a line without the marker can still continue a paragraph. A `head` is a first line that holds no child (an alert's `> [!NOTE]`), and you give the shape one with `headedLines({ ...lines, head })`: `match` reads it after the marker, `data` turns the match into your metadata, and `write` spells it, for a new head or one whose data changed (an untouched one keeps the author's spelling). A blank line gets `first` or `rest` without its last space, except in a body emptied of all its text, whose lines keep their markers as spelled.
 - `indented`: a marker on the first line and an indent after, like a footnote. `open` reads the marker, `data` turns the match into your metadata, `first(data)` writes the marker back, and `rest(data)` is the indent. It's spaces only, and its width is the column the body starts at (a tab counts to the next multiple of four, same as the parser).
 
 The editor writes with your kind's metadata, so store what `data` returns as the metadata. The bundled footnote definition, whole:

@@ -4,7 +4,7 @@
   `update`. A throw in `draw` or `update` reaches BlockHost's error boundary.
 -->
 <script lang="ts">
-	import { getContext, untrack } from 'svelte';
+	import { getAllContexts, getContext, mount, unmount, untrack } from 'svelte';
 	import { on } from 'svelte/events';
 	import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 	import type { BlockComponent } from '../../block-component';
@@ -14,6 +14,7 @@
 	import {
 		CARET_AT,
 		type BoxDrawContext,
+		type ContainerDrawContext,
 		type Drawing,
 		type Drawn,
 		type TextDrawContext
@@ -35,6 +36,8 @@
 	import { createEditableLeaf } from '../blocks/editable/editable-leaf';
 	import { bindLeafSurface } from '../dom-block-view/leaf-surface-binding.svelte';
 	import { createDrawnBox } from './drawn-box.svelte';
+	import { createContainerBlock } from '../../editor-actions/plugin/container';
+	import BlockList from '../BlockList.svelte';
 	import { createRenderCache } from './render-cache';
 	import { POINTER_GESTURE_ATTR } from '../../selection/pointer-gesture';
 
@@ -51,12 +54,14 @@
 	const policies = getContext<EditorPolicies>(EDITOR_POLICIES_KEY);
 	const services = getContext<EditorServices | undefined>(EDITOR_SERVICES_KEY);
 
-	// The editor's own text element, made before `draw` runs so the plugin only places it. A server
-	// render draws nothing, so it never reads it.
-	const source =
+	// The editor's own elements, made before `draw` runs so the plugin only places them. A server
+	// render draws nothing, so it never reads them.
+	const element = () =>
 		typeof document === 'undefined'
 			? (null as unknown as HTMLElement)
 			: document.createElement('div');
+	const source = element();
+	const childBox = view.edit === 'container' ? element() : null;
 	source?.setAttribute(VIEW_TEXT_ATTR, '');
 	// Its line breaks are text, so they show as breaks: the caret's line moves read them.
 	if (source) source.style.whiteSpace = 'pre-wrap';
@@ -124,8 +129,21 @@
 				})
 			: null;
 
+	const container =
+		view.edit === 'container'
+			? createContainerBlock({
+					getNode: () => node,
+					getIndex: () => index,
+					getPath: () => myPath,
+					getBoxEl: () => childBox ?? undefined,
+					...(view.ambientPrefix && { getAmbientPrefix: () => view.ambientPrefix!(node) })
+				})
+			: null;
+	// Read after the container factory, which sets the children's windowing context.
+	const contexts = getAllContexts();
+
 	export function viewRef(): BlockComponent | undefined {
-		return leaf?.blockApi ?? box?.blockApi;
+		return leaf?.blockApi ?? box?.blockApi ?? container?.containerApi;
 	}
 
 	// ── The drawing's context ──────────────────────────────────────────────────
@@ -140,7 +158,7 @@
 		return services ? services.scrollOwner.keep() : () => Promise.resolve();
 	}
 
-	const ctx: TextDrawContext & BoxDrawContext = {
+	const ctx: TextDrawContext & BoxDrawContext & ContainerDrawContext = {
 		get editor() {
 			return editorDoc.scopedEditor(pluginOfKind(node.kind));
 		},
@@ -159,6 +177,8 @@
 		},
 		render,
 		keepScroll,
+		children: childBox!,
+		title: null,
 		leave(edge, x) {
 			if (!box || !target) return;
 			box.leave(edge, x === undefined ? null : editorXOf(target, x));
@@ -177,8 +197,13 @@
 
 	function mountDrawing(el: HTMLElement): () => void {
 		return untrack(() => {
-			if (view.edit !== 'box') el.setAttribute(VIEW_TEXT_HOST_ATTR, '');
+			const text = view.edit === 'text' || view.edit === 'source';
+			if (text) el.setAttribute(VIEW_TEXT_HOST_ATTR, '');
 			if (view.edit === 'source') source.hidden = !revealed;
+			// Mounted before `draw`, so the children are in place wherever the drawing puts them.
+			const list =
+				container &&
+				mount(BlockList, { target: childBox!, props: container.blockListProps, context: contexts });
 			const made = view.draw(read(), ctx);
 			drawn = made;
 			el.append(made.dom);
@@ -186,10 +211,9 @@
 			const host = el.parentElement as (HTMLElement & { [CARET_AT]?: unknown }) | null;
 			if (host && made.caret) host[CARET_AT] = (x: number, y: number) => clickedAt(made, x, y);
 			seen = watched();
-			if (view.edit !== 'box') {
-				assertInvariant('dom-view-content', () => checkDomViewContent(el, source));
-			}
+			if (text) assertInvariant('dom-view-content', () => checkDomViewContent(el, source));
 			const offs = [
+				...(container ? [on(el, 'keydown', container.handleKeydown)] : []),
 				on(el, 'focusin', () => (focusedWithin = true)),
 				on(el, 'focusout', (e) => (focusedWithin = el.contains(e.relatedTarget as Node))),
 				...['pointerdown', 'mousedown'].map((type) =>
@@ -200,6 +224,7 @@
 				offs.forEach((off) => off());
 				drawn = null;
 				target = null;
+				if (list) void unmount(list);
 				made.dom.remove();
 				try {
 					made.destroy?.();

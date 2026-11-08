@@ -157,3 +157,31 @@ test.describe('a fence drawn as a preview until the caret comes in', () => {
 		await expect.poll(() => source(page)).toContain('```shown\nhello\n```');
 	});
 });
+
+test.describe('a container drawn as a box around its children', () => {
+	const ASIDE = 4;
+	const source = (page: Page) => page.evaluate(() => (window as any).__test.getSource() as string);
+
+	test.beforeEach(async ({ page }) => {
+		await new PluginsPage(page).gotoPlugins('drawn');
+	});
+
+	test('typing in its child writes the marker back, and one Ctrl+Z takes it out', async ({
+		page
+	}) => {
+		await expect(page.locator('.drawn-aside [data-block-path="[4,0]"]')).toHaveText('aside text');
+		await placeCaret(page, [ASIDE, 0], 'end');
+		await page.keyboard.type(' more');
+		await expect.poll(() => source(page)).toMatch(/\n%> aside text more\n$/);
+
+		await page.keyboard.press('ControlOrMeta+z');
+		await expect.poll(() => source(page)).toMatch(/\n%> aside text\n$/);
+	});
+
+	test('Enter in its child splits it inside the box, both lines marked', async ({ page }) => {
+		await placeCaret(page, [ASIDE, 0], 5);
+		await page.keyboard.press('Enter');
+		await expect.poll(() => source(page)).toMatch(/\n%> aside\n%> text\n$/);
+		expect(await caretPath(page)).toEqual([ASIDE, 1]);
+	});
+});

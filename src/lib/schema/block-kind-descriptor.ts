@@ -23,7 +23,7 @@ import { blockViewForm, domViewSpec, isBlockView, type BlockView } from './block
 import type { PluginActivation } from './plugin-activation';
 import type { RegistryRecord } from './plugin-registry';
 import type { BlockOpener } from './block-openers';
-import type { LineShape } from '../core/strip-lines';
+import type { LineShape, MarkedLines } from '../core/strip-lines';
 
 /**
  * The Backspace-merge roles (`docs/design/structural-edits.md` § Merge eligibility: roles, not pairs).
@@ -615,7 +615,7 @@ function storeKind(
 	rejectBlankLabel(entry, kind, 'dragLabel', registration.dragLabel);
 	rejectIncoherentPairs(kind, registration);
 	const { opener } = registration;
-	const descriptor = normalizeRegistration(registration);
+	const descriptor = normalizeRegistration(kind, registration);
 	if (view && opensTextOnClick(view)) descriptor.textPosition = 'while-source-shows';
 	if (descriptor.keymap) descriptor.keymap = registeredKeymap(entry, kind, descriptor.keymap);
 	const owner = registry.ownerOf(kind);
@@ -667,7 +667,10 @@ function registeredKeymap(entry: string, kind: AnyBlockKind, keymap: KeyBinding[
 
 // The flat part is stripped and isContainer derived, so each group is the only source of its
 // fields: a widened or stale-keyed registration object cannot leak through.
-function normalizeRegistration(registration: BuiltinRegistration): BlockKindDescriptor {
+function normalizeRegistration(
+	kind: AnyBlockKind,
+	registration: BuiltinRegistration
+): BlockKindDescriptor {
 	// The opener lives beside the descriptor, never in it.
 	const { container, contentStart, opener: _opener, ...rest } = registration;
 	const flat: BlockKindDescriptor = { ...stripGroupedKeys(rest), isContainer: false };
@@ -676,6 +679,7 @@ function normalizeRegistration(registration: BuiltinRegistration): BlockKindDesc
 		if (contentStart.backspace) flat.contentStartBackspace = contentStart.backspace;
 	}
 	if (!container) return flat;
+	if (devChecksOn && container.lines?.shape === 'marked') checkMarkedReads(kind, container.lines);
 	const { contract, unwrapRole, ...containerFields } = container;
 	const descriptor: BlockKindDescriptor = {
 		...flat,
@@ -695,6 +699,23 @@ function normalizeRegistration(registration: BuiltinRegistration): BlockKindDesc
 	return descriptor;
 }
 
+/** A marked shape's `reads` takes each marker it writes whole and stops there, a blank line's
+ *  trimmed marker too, or a line it wrote would read back holding other text. */
+function checkMarkedReads(kind: AnyBlockKind, lines: MarkedLines): void {
+	const written = [lines.first, lines.rest].flatMap((m) => [
+		[m, 'x'],
+		[m.trimEnd(), '']
+	]);
+	for (const [marker, text] of written) {
+		const read = lines.reads.exec(marker + text)?.[0];
+		if (read !== marker) {
+			throw new Error(
+				`"${kind}": its line shape's \`reads\` must read the marker "${marker}" whole and stop there, but it read ${read === undefined ? 'nothing' : `"${read}"`}`
+			);
+		}
+	}
+}
+
 /** A marked or indented shape writes its markers on the body's own lines; the others write lines of
  *  their own around the body. */
 function contractOf(lines: LineShape<unknown>): 'strip' | 'opaque' {
@@ -704,7 +725,7 @@ function contractOf(lines: LineShape<unknown>): 'strip' | 'opaque' {
 /** The blank lines next to a shape's own lines that are the container's, not the body's. */
 function bodyWrapOf(lines: LineShape<unknown>): ContainerBodyWrap | undefined {
 	if (lines.shape === 'indented') return undefined;
-	if (lines.shape === 'marked') return lines.head ? { afterOpenerLine: true } : undefined;
+	if (lines.shape === 'marked') return 'head' in lines ? { afterOpenerLine: true } : undefined;
 	return { afterOpenerLine: true, beforeCloserLine: true };
 }
 
@@ -876,7 +897,7 @@ export function holdBlockKind(
 	registration: BuiltinRegistration,
 	hasOpener: boolean
 ): () => void {
-	const descriptor = normalizeRegistration(registration);
+	const descriptor = normalizeRegistration(kind, registration);
 	const existing = held.get(kind);
 	if (existing) {
 		existing.editors++;
