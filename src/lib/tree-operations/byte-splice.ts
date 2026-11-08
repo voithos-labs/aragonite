@@ -49,6 +49,22 @@ export function changesBetween(before: string, after: string): ByteChange[] {
 	return [{ from, to: before.length - tail, insert: after.slice(from, after.length - tail) }];
 }
 
+/** `before[from, to)` with `made`, the changes inside it, made. */
+export function changedBytes(
+	before: string,
+	from: number,
+	to: number,
+	made: readonly ByteChange[]
+): string {
+	let text = '';
+	let at = from;
+	for (const change of made) {
+		text += before.slice(at, change.from) + change.insert;
+		at = change.to;
+	}
+	return text + before.slice(at, to);
+}
+
 /** Where each block of a list's bytes ends, its blank lines and its own bytes counted, from
  *  the end of the blank lines above them all. */
 export function segmentEnds(list: {
@@ -147,20 +163,9 @@ export function spliceReading(
 		return k;
 	}
 
-	/** `before[from, to)` with the changes inside it made. */
-	function changed(from: number, to: number, made: readonly ByteChange[]): string {
-		let text = '';
-		let at = from;
-		for (const change of made) {
-			text += before.slice(at, change.from) + change.insert;
-			at = change.to;
-		}
-		return text + before.slice(at, to);
-	}
-
 	/** The window from `start` to the document's end, its trailing blank line included. */
 	function readTail(start: number, made: readonly ByteChange[]) {
-		const read = readOpened(changed(start, before.length, made), grammar);
+		const read = readOpened(changedBytes(before, start, before.length, made), grammar);
 		// An emptied document keeps one empty paragraph, with no bytes of its own.
 		const blocks = read.children.length > 0 || start > 0 ? read.children : [emptyBlock()];
 		return { blocks, suffix: read.suffix };
@@ -175,7 +180,7 @@ export function spliceReading(
 	): { blocks: CstNode[]; suffix?: undefined } | { closerAt: number } | null {
 		const { hi } = span;
 		if (isBlankParagraph(children[k])) return null;
-		const head = changed(start, ends[hi], span.changes);
+		const head = changedBytes(before, start, ends[hi], span.changes);
 		const next = children[k].raw;
 		const lookahead =
 			before.slice(ends[hi], rawStartOf(k)) + next.slice(0, next.indexOf('\n') + 1 || next.length);

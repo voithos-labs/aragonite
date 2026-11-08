@@ -10,7 +10,13 @@ import { unfinishedReadings, type GrammarView } from '../schema/block-openers';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { rebuildAncestryRaw } from '../schema/container-raw';
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
-import { changesBetween, segmentEnds, type ByteChange, type SpliceReading } from './byte-splice';
+import {
+	changedBytes,
+	changesBetween,
+	segmentEnds,
+	type ByteChange,
+	type SpliceReading
+} from './byte-splice';
 import { fragmentReaderAt } from './list/task-paragraph';
 import { spliceMany } from './splice-many';
 import { withClosers, writtenOpenerClosers, type WrittenCloser } from './written-openers';
@@ -41,16 +47,9 @@ export function splicedOpenerClosers(
 			? childAt((after ??= afterReading(doc, reading)), doc.prefix.length, start)
 			: null;
 		const nested = now?.node.kind === node.kind ? closersInside(node, now.node, grammar) : null;
-		const closers =
-			nested ??
-			writtenOpenerClosers(
-				children,
-				hi,
-				before.slice(from, to),
-				changed(before, from, to, group.changes),
-				fragmentReaderAt(undefined, hi, grammar),
-				unfinishedReadings(grammar)
-			);
+		const text = changedBytes(before, from, to, group.changes);
+		const was = before.slice(from, to);
+		const closers = nested ?? closersIn(children, undefined, first, hi, was, text, grammar);
 		for (const closer of closers) out.push({ at: from + shift + closer.at, text: closer.text });
 		for (const change of group.changes) shift += change.insert.length - (change.to - change.from);
 	}
@@ -131,17 +130,6 @@ function groupsOf(
 	return groups;
 }
 
-/** `before[from, to)` with `made` (inside it) made. */
-function changed(before: string, from: number, to: number, made: readonly ByteChange[]): string {
-	let text = '';
-	let at = from;
-	for (const change of made) {
-		text += before.slice(at, change.from) + change.insert;
-		at = change.to;
-	}
-	return text + before.slice(at, to);
-}
-
 /** The closers a change inside container `was`, read again as `now`, needs in `now`'s bytes; null
  *  when it changed no child's bytes, as a change to the container's own lines does. */
 function closersInside(was: NodeView, now: NodeView, grammar: GrammarView): WrittenCloser[] | null {
@@ -168,21 +156,12 @@ function closersInside(was: NodeView, now: NodeView, grammar: GrammarView): Writ
 			is = next.node;
 			continue;
 		}
-		if (kids.slice(first, hi + 1).some(contextual)) return [];
 		const grown = change.insert.length - (change.to - change.from);
 		const text = bodyOf(is).slice(start, ends[hi] + grown);
-		const read = fragmentReaderAt(old, first, grammar);
-		const readings = unfinishedReadings(grammar);
-		const closers = writtenOpenerClosers(
-			kids,
-			hi,
-			bodyOf(old).slice(start, ends[hi]),
-			text,
-			read,
-			readings
-		);
+		const replaced = bodyOf(old).slice(start, ends[hi]);
+		const closers = closersIn(kids, old, first, hi, replaced, text, grammar);
 		if (closers.length === 0) return [];
-		const placed = read(withClosers(text, closers));
+		const placed = fragmentReaderAt(old, first, grammar)(withClosers(text, closers));
 		const blocks = placed.children.map((block, k) =>
 			k === 0 ? { ...block, leadingTrivia: placed.prefix + block.leadingTrivia } : block
 		);
@@ -193,6 +172,22 @@ function closersInside(was: NodeView, now: NodeView, grammar: GrammarView): Writ
 		rebuildAncestryRaw(closed.root, [...path, 0], grammar);
 		return insertedLines(now.raw, closed.root.raw) ?? [];
 	}
+}
+
+/** The closers blocks `[first, hi]` of `children`, under `owner`, need when their bytes `was` are
+ *  written as `text`; a kind with no reading of its own (a table cell) holds no opener. */
+function closersIn(
+	children: readonly NodeView[],
+	owner: NodeView | undefined,
+	first: number,
+	hi: number,
+	was: string,
+	text: string,
+	grammar: GrammarView
+): WrittenCloser[] {
+	if (children.slice(first, hi + 1).some(contextual)) return [];
+	const read = fragmentReaderAt(owner, first, grammar);
+	return writtenOpenerClosers(children, hi, was, text, read, unfinishedReadings(grammar));
 }
 
 /** A container's children's bytes as they read on their own, blank lines and all. */
