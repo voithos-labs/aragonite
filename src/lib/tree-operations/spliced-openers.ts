@@ -12,6 +12,7 @@ import { rebuildAncestryRaw } from '../schema/container-raw';
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
 import { changesBetween, segmentEnds, type ByteChange, type SpliceReading } from './byte-splice';
 import { fragmentReaderAt } from './list/task-paragraph';
+import { spliceMany } from './splice-many';
 import { withClosers, writtenOpenerClosers, type WrittenCloser } from './written-openers';
 
 /** The closing lines `changes` to `before`, the bytes of `doc`, need, each at a byte of the changed
@@ -216,7 +217,7 @@ function childAt(
 function afterReading(doc: DocumentView, reading: SpliceReading): readonly NodeView[] {
 	const children: NodeView[] = [...doc.children];
 	for (const window of [...reading.windows].reverse())
-		children.splice(window.at, window.count, ...window.blocks);
+		spliceMany(children, window.at, window.count, window.blocks);
 	return children;
 }
 
