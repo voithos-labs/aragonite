@@ -300,7 +300,7 @@ node scripts/run-with-env.mjs ENGINE=webkit -- npm run test:e2e:clipboard
 
 Run them alone. Firefox and WebKit are slower than Chromium, and a machine already busy with another battery makes their timing-sensitive rows flake for a reason the product never had.
 
-**In CI.** All three engines' full suites run, sharded, on every pull request to `dev` or `main` and every push to either. A change that only touches docs skips the e2e and perf work. macOS WebKit runs nightly on `dev` and on every pull request to `main` (`webkit-macos.yml`). How the shards split and which engine checks block a merge are in the headers of `scripts/ci/e2e-shards.mjs` and `scripts/release/branch-protection-contexts.mjs`.
+**In CI.** All three engines' full suites run, sharded, on every pull request to `dev` or `main` and every push to `dev`, `next` or `main` (`next` is the maintainers' working branch, merged into `dev` about once a day). A change that only touches docs skips the e2e and perf work. macOS WebKit runs nightly on `next` and on every pull request to `main` (`webkit-macos.yml`). How the shards split and which engine checks block a merge are in the headers of `scripts/ci/e2e-shards.mjs` and `scripts/release/branch-protection-contexts.mjs`.
 
 To read a red run, open the job summary: it has the pass, fail, flaky and skip counts and every failing test, and the job's artifact holds the same rows as `ci-summary.json`. A failure you can't match to an open issue is new, and it's yours.
 
@@ -597,7 +597,7 @@ Heads up if you're mutating a wrapper to see what reds: outside CI the config re
 
 Playwright's touch and IME are a script's idea of a phone. `mobile-input.yml` runs the editor on the real thing, or as close as a free runner gets: Chrome with Gboard on an Android emulator, and Mobile Safari on the iOS Simulator (driven by Appium). Every tap, swipe and key is a touch on the device's own screen and keyboard. The page connection only seeds the document and reads back the result and an input recording (`shipping.md` § Recording input has the format).
 
-Android runs on a push to `dev` that touches the editor's code (anything in `src/lib/` but its tests, the plugin packages, or the harness), which costs about five minutes. iOS takes a macOS runner, which is scarce, so it runs nightly on `dev` (skipping a commit already green). Both run on pull requests to `main`, and by hand from the Actions tab. Neither is a required check on `main`.
+Android runs on a push to `dev` or `next` that touches the editor's code (anything in `src/lib/` but its tests, the plugin packages, or the harness), which costs about five minutes. iOS takes a macOS runner, which is scarce, so it runs nightly on `next` (skipping a commit already green). Both run on pull requests to `main`, and by hand from the Actions tab. Neither is a required check on `main`.
 
 Each job runs a list of rows, and each row is a scenario in `src/lib/e2e/requirements/mobile/<platform>.md`, named the same as the row's key in `scripts/mobile/<platform>-rows.mjs`. `src/lib/e2e/lint/mobile-rows-lockstep.test.ts` fails when the two lists drift. To add one: write the scenario, then a function under that name that returns the reasons it failed (an empty list is a pass). It gets a freshly loaded page and the device helpers in `scripts/mobile/android-device.mjs`. A `probes` entry beside the rows is reported and judges nothing, for when you want to see what a phone does before you know what to assert.
 

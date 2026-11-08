@@ -2,12 +2,12 @@ name: Mobile input
 # The editor under real phone input: an Android emulator (Chrome, Gboard) and the iOS Simulator
 # (Mobile Safari, driven by Appium), typing and touching through the platform's own keyboard and
 # touch screen. Each job runs the rows in `scripts/mobile/` and uploads its recordings. Android
-# runs on a dev push that touches the editor's code; iOS, on macOS runners that are few, runs
-# nightly on dev (skipping a commit already green). Both run on pull requests to main. Neither job
+# runs on a dev or next push that touches the editor's code; iOS, on macOS runners that are few,
+# runs nightly on next (skipping a commit already green). Both run on pull requests to main. Neither job
 # is a required check on main, so a red here blocks nothing.
 on:
   push:
-    branches: [dev]
+    branches: [dev, next]
     paths:
       - 'src/lib/**'
       - '!src/lib/test/**'
@@ -24,7 +24,7 @@ on:
     inputs:
       ref:
         description: The branch or commit to test
-        default: dev
+        default: next
       platform:
         description: Which platform to run
         type: choice
@@ -75,7 +75,7 @@ jobs:
             mobile-out/
             preview.log
 
-  # Which commit iOS tests and whether to. A scheduled run's own sha is main's, never the dev commit
+  # Which commit iOS tests and whether to. A scheduled run's own sha is main's, never the next commit
   # it checks out, so the record of a green nightly is a cache entry keyed on the tested commit.
   ios-gate:
     if: github.event_name != 'push' && (github.event_name != 'workflow_dispatch' || inputs.platform != 'android')
@@ -86,7 +86,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event_name == 'schedule' && 'dev' || inputs.ref || '' }}
+          ref: ${{ github.event_name == 'schedule' && 'next' || inputs.ref || '' }}
       - id: target
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
       - id: green
@@ -149,7 +149,7 @@ jobs:
             mobile-out/
             preview.log
 
-  # The nightly passed: the next one skips this commit until dev moves.
+  # The nightly passed: the next one skips this commit until next moves.
   ios-record:
     needs: [ios-gate, ios]
     if: github.event_name == 'schedule'
