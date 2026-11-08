@@ -83,8 +83,10 @@ function across(
 	if (joins && head && end && head.leaf !== end.leaf) return joinedLeaves(doc, from, to, head, end);
 	const lines = held ? wholeLines(doc, from, to) : null;
 	let tail = lines?.tail ?? source.slice(to);
-	// Where the two ends stay apart, each is cut through its own block's write (spec § 5.11).
-	const start = !joins && head ? cutLeaf(doc, head.leaf, head.offset, 'after') : null;
+	// Where no text joins it, each end the range leaves is cut through its own block's write (spec
+	// § 5.11); a range ending in the start block's own trailing syntax splices the bytes alone.
+	const leaves = head !== null && to >= contentEnd(doc, head.leaf);
+	const start = leaves ? cutLeaf(doc, head.leaf, head.offset, 'after') : null;
 	if (!joins) {
 		const lineStart = source.lastIndexOf('\n', to - 1) + 1;
 		const kept = opening?.kept ?? '';
@@ -119,8 +121,14 @@ function cutLeaf(doc: Doc, leaf: LaidBlock, at: number, side: 'after' | 'before'
 	const text = getContentRange(node);
 	const lineStart = Math.max(node.raw.lastIndexOf('\n', at - 1) + 1, text.start);
 	const [cutFrom, cutTo] = side === 'after' ? [at, text.end] : [lineStart, at];
-	if (cutFrom >= cutTo)
-		return { source: doc.source, caret: leaf.text!.to, end: contentEnd(doc, leaf) };
+	// Nothing cut, or the whole text: the bytes alone, since a live write of a block's whole text
+	// takes its markers too, which lie outside the range.
+	if (cutFrom >= cutTo || (cutFrom <= text.start && cutTo >= text.end)) {
+		const a = byteAt(doc, leaf, cutFrom);
+		const b = Math.max(a, byteAt(doc, leaf, cutTo));
+		const source = doc.source.slice(0, a) + doc.source.slice(b);
+		return { source, caret: a, end: contentEnd(doc, leaf) - (b - a) };
+	}
 	const write = doc.host.leaf.replace(doc.tree, leaf.path, cutFrom, cutTo, '', doc.mode);
 	const written = writeLeaf(doc, leaf, write, cutFrom, cutTo);
 	const shift = written.source.length - doc.source.length;

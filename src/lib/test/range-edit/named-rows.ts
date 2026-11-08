@@ -803,5 +803,18 @@ export const NAMED_ROWS: NamedRow[] = [
 		mode: 'live',
 		gesture: 'backspace',
 		expect: { source: 'Above\n\n:::note Ti\n**ld** text\n:::\n' }
+	},
+	{
+		name: 'C9 a setext heading the range starts in keeps its underline when the range ends past text',
+		source: 'Set⟦ext\n===\n\nOther\n---⟧\n',
+		gesture: 'backspace',
+		expect: { source: 'Set\n===\n', caret: text(3) }
+	},
+	{
+		name: 'L4 live, a range from a run through a table to its end closes the run',
+		source: 'Some **bo⟦ld** text\n\n| A | B |\n| --- | --- |\n| 1 | 2 |⟧\n',
+		mode: 'live',
+		gesture: 'backspace',
+		expect: { source: 'Some **bo**\n' }
 	}
 ];
