@@ -862,12 +862,6 @@ _(pre-freeze / unstable)_ Which tier dispatches what: [Block commands](plugin-gu
 | `CommandSpec` | What `command` takes: `id`, `title`, an optional `chord`, `when(editor, arg)` and `run(editor, arg)`, both handed your plugin's own `Editor` |
 | `Chord` | A chord as a type: `Mod`, `Alt` and `Shift` in any combination, then the key. Only a command with no argument takes one, since a key can't hand it anything |
 | [`registerBlockCommand`](#registerblockcommand) | Create a `(kind, name)` command and get back its id, for a keymap binding to target |
-| `registerRangeIndent` | Let your kind's own indent command work over a selection spanning blocks: `(kind, command, shift)`, where `shift` rewrites the lines the selection covers in each of your blocks. Without it, an indent key over a range leaves your blocks alone |
-| `RangeLineShift` | That `shift`: `(node, range) => { text, selection } \| null`, over the block's text without its final line ending; null when no line changes |
-| `registerBlockContextActions` | Add, under a name unique to `kind`, the actions a right-click on a block of `kind` offers (its context menu), ahead of the editor's own copy, replace and remove rows; listed only in the editors that activate your plugin |
-| `BlockContextAction` | One such action: id, label, optional glyph and danger flag, and `run(ctx)` |
-| [`BlockActionContext`](#blockactioncontext) | What a context action's `run` receives |
-| `BlockContextActionProvider` | The registered function: `(node, path, noun) => BlockContextAction[]`, consulted on every open; `noun` is what the menu calls the block |
 | `registerGlobalCommand` | Create a process-wide command run against whichever editor dispatched it, optionally on a global chord; also returns its id. The handler receives that editor's `EditorContext` and the argument `runCommand(id, arg)` or the chord's binding carried |
 | `CommandId` | A built-in command's id; a vocabulary your keymaps may bind too. `decorations.activateAtCaret` ships with no chord at all: it runs the `onActivate` of the mark under the caret ([Interactive marks](plugin-guide/decorations.md#interactive-marks-click-hover-and-the-keyboard)) |
 | `KeyBinding` | One keymap entry: a chord (`Mod` / `Alt` / `Shift` plus the key, normalized to that order), a command id, an optional baked argument. A chord with an unknown modifier or no key throws when the kind registers or is augmented |
@@ -932,28 +926,6 @@ const tag = registerBlockCommand(memo, 'memo.tag', (ctx) => {
 ```
 
 Names, metadata writes and the selection options at length: [Block commands](plugin-guide/commands.md#block-commands).
-
-#### `BlockActionContext`
-
-```ts
-interface BlockActionContext {
-	node: NodeView;
-	path: number[];
-	deleteBlock(): Promise<void>;
-	replaceRaw(raw: string): Promise<void>;
-	transformPaste(text: string): string;
-	lineEnding: LineEnding;
-}
-```
-
-What a context action's `run` receives:
-
-- the node and its path;
-- `deleteBlock()` and `replaceRaw(raw)`, one undo entry each. `replaceRaw`'s bytes go through your kind's write rule, every line break in the document's ending;
-- `transformPaste(text)`, the paste transforms of the plugins that editor lists;
-- `lineEnding`, the document's, for a line you rebuild from the block's own bytes.
-
-A provider and its actions in full: [Block context actions](plugin-guide/commands.md#block-context-actions).
 
 #### `CommandRun`
 
@@ -1279,7 +1251,7 @@ _(pre-freeze / unstable)_ The editor's own parse and serialize entries, re-expor
 | `isUnicodeWhitespace` | Whether one character is the Unicode whitespace emphasis reads beside a `*`: a space, a tab, a line break, a form feed or any space separator, the non-breaking space included. Ask this beside a delimiter of your own, like latex's `$` |
 | `trimTrailingLineEnding` | Cut the one trailing line ending (LF or CRLF) off a block's bytes, giving the text you display |
 | `ownTrailingLineEnding` | The ending a block's bytes close with (`''` when they have none): what you put back after editing the display |
-| `trailingLineEnding` | The ending a line rebuilt from a block's bytes takes: the block's own, else the fallback you pass (a write rule's or a context action's `ctx.lineEnding`, or `documentLineEnding` of a document you hold) |
+| `trailingLineEnding` | The ending a line rebuilt from a block's bytes takes: the block's own, else the fallback you pass (a write rule's, or `documentLineEnding` of a document you hold) |
 | `firstLineEnding` | The first line break in some bytes, or `null`. In a document with one ending (nearly all of them), any break in your block's bytes is the document's |
 | `documentLineEnding` | The ending every line written into a document takes: its first line break, else LF |
 | `LineEnding` | `'\n'` or `'\r\n'` |

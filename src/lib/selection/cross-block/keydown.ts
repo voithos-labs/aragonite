@@ -367,7 +367,7 @@ export function isIndentKey(e: KeyboardEvent, reads: RangeKeyReads): boolean {
 	const chord = eventToChord(e);
 	if (!anchor || !focus || !chord) return false;
 	// The range is walked only for a chord some keymap binds to indent; any other key costs nothing.
-	const indents = rangeIndentCommands(reads.commands.activation);
+	const indents = rangeIndentCommands();
 	if (!chordsBoundTo(indents, reads.commands).has(chord)) return false;
 	const doc = reads.getDoc();
 	const coverage = rangeCoverage(doc, coverRange(doc, anchor, focus));

@@ -24,7 +24,7 @@ This page is the first read: [a working plugin in fifteen minutes](#the-first-fi
 | [Recipe: reading the document above your block](plugin-guide/reading-the-document.md) | Your block is built from the rest of the document, like a table of contents |
 | [Inline kinds](plugin-guide/inline-kinds.md) | Your syntax lives mid-paragraph (`:shortcode:`, `[^1]`, `$x$`) |
 | [Decorations](plugin-guide/decorations.md) | You want to paint over content you don't own: highlights, ghost text, badges |
-| [Block commands](plugin-guide/commands.md) | Your block (or the whole editor) needs keyboard shortcuts, commands, or rows in the right-click menu |
+| [Block commands](plugin-guide/commands.md) | Your block (or the whole editor) needs keyboard shortcuts or commands |
 | [Paste transforms](plugin-guide/paste-transforms.md) | Pasted text should turn into something else before it parses |
 | [Recipe: a kind only a menu creates](plugin-guide/menu-only-kinds.md) | A block should come from a menu instead of being typed, and still survive a reload |
 

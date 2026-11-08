@@ -470,7 +470,6 @@ A handler throw is contained at the dispatch boundary and surfaces as an `error`
 - `BlockCommandOptions.overSelection: 'afterRemoval'`, the same over a selection inside the command's own block, with `ctx.afterRemoval` true so an "empty line" branch can tell the removal's emptiness from the user's.
 - `BlockComponent.getCommandContext` (returning a `BlockCommandTarget`) and `BlockComponent.afterSelectionRemoved`: how the editor runs a plugin's command at a block after a removal. Optional members on a published type; the editable leaf supplies both, and a hand-built component that leaves them out gets a dev warning (or, for the second, a command run with the selection still there).
 - `CommandRun`, the record of how a command came to run, with one field so far, `afterRemoval`: an optional third parameter to a block's `runCommand`, and extended by `BlockCommandContext`. A new field on it is an addition.
-- `registerRangeIndent(kind, command, shift)`, with `shift` a `RangeLineShift`: what the kind's own indent command does to the lines a range covers in each of its blocks. A registry beside the command, so nothing bound changes.
 
 ### The root document, in a component
 

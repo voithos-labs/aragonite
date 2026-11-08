@@ -11,11 +11,6 @@ import {
 } from '#lib/schema/block-kind-descriptor.js';
 import { unfinishedReadings, type BlockOpener } from '#lib/schema/block-openers.js';
 import { testClosure } from '#lib/test/harness/closure.js';
-import {
-	blockContextActionsFor,
-	registerBlockContextActions
-} from '#lib/schema/context-actions.js';
-import type { NodeView } from '#lib/core/node-views.js';
 import type { PluginBlockKind } from '#lib/core/nodes.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
 import { testView } from '#lib/test/harness/test-view.js';
@@ -106,25 +101,8 @@ describe("a block's reading on the edit route reads the editor's own grammar", (
 	});
 });
 
-// Miss-analysis: no activation test used a failed plugin, and context actions had no activation.
+// Miss-analysis: no activation test used a failed plugin.
 describe('one activation rule for every plugin registration', () => {
-	it('shows a plugin context action only in an editor that lists the plugin', () => {
-		installPlugins([
-			definePlugin({
-				name: 'rows',
-				setup() {
-					registerBlockContextActions('probe-rows', 'rows', () => [
-						{ id: 'rows.one', label: 'One', run: () => {} }
-					]);
-				}
-			})
-		]);
-		const node = { kind: 'probe-rows', raw: 'x\n' } as unknown as NodeView;
-
-		expect(blockContextActionsFor(node, [0], activationFor(['rows']), 'block')).toHaveLength(1);
-		expect(blockContextActionsFor(node, [0], activationFor([]), 'block')).toEqual([]);
-	});
-
 	it('resolves nothing a plugin registered before its setup threw, in a default editor too', () => {
 		let kind: PluginBlockKind | undefined;
 		const setupThrows = definePlugin({

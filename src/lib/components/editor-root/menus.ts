@@ -12,12 +12,8 @@ import type { NodeView } from '../../core/node-views';
 import type { DocumentGetter } from '../../editor-keys';
 import type { InsertMarkdownOptions } from '../../editor-props';
 import type { PresentationMode } from '../../presentation-mode';
-import {
-	blockContextActionsFor,
-	type BlockActionContext,
-	type BlockContextAction
-} from '../../schema/context-actions';
 import type { PluginActivation } from '../../schema/plugin-activation';
+import type { Draft, DraftResult } from '../../schema/drafts';
 import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
 import { rowMarkdown, type InsertRow } from '../../schema/insert-catalogue';
 import type { MenuEntry } from '../menu/BlockMenu.svelte';
@@ -26,13 +22,19 @@ import {
 	type ClipboardAction,
 	type MenuClipboard
 } from '../menu/clipboard-actions';
-import { blockNoun } from '../menu/default-context-actions';
+import {
+	blockActionsFor,
+	blockNoun,
+	type BlockActionContext,
+	type BlockContextAction
+} from '../menu/default-context-actions';
 import { isProseLeaf } from '../../schema/page-role';
 import type { Reading } from '../../schema/reading';
 import { readBlockPath } from '../../selection/path-lookup';
 import { holdsSelection, selectionCoversPoint } from '../../selection/held-selection';
 import type { SelectionState } from '../../selection/selection-state.svelte';
-import { documentLineEnding } from '../../core/lines';
+import { documentLineEnding, withLineEnding } from '../../core/lines';
+import { blockBytes } from '../../editor-actions/commit/change-record';
 import { stampWrites, type DocumentStamps } from '../../editor-actions/commit/document-stamp';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkMenuOverSelection } from '../../invariants/menu-over-selection';
@@ -52,7 +54,9 @@ export interface RootMenusDeps {
 	get mode(): PresentationMode;
 	getDoc: DocumentGetter;
 	isHostChrome(node: Node | null): boolean;
-	blockEdit: Pick<BlockEditActions, 'deleteBlock' | 'replaceRaw'>;
+	blockEdit: Pick<BlockEditActions, 'deleteBlock'>;
+	/** A draft against the document as it is now, which a row's write goes through. */
+	edit(): Draft;
 	/** The caret the menu opens over: where the right-click's press pointed, so a right-click on
 	 *  prose acts at the pointer; the event's point when no press opened the menu. */
 	placeMenuCaret(x: number, y: number): boolean;
@@ -69,7 +73,7 @@ export interface RootMenusDeps {
 	clipboard: MenuClipboard;
 	/** The insert rows this editor lists, read fresh per menu. */
 	inserts(): readonly InsertRow[];
-	/** The plugins this editor lists, whose block actions and paste transforms the menu offers. */
+	/** The plugins this editor lists, whose paste transforms the menu applies. */
 	activation: PluginActivation;
 	/** The editor's reading, which tells a paragraph of pictures from prose. */
 	reading: Reading;
@@ -86,6 +90,7 @@ export interface RootMenus {
 }
 
 const EDIT_LINK = 'link.edit';
+const NOT_FOUND: DraftResult = { ok: false, reason: 'moved', message: 'the block is gone' };
 
 const isBlockHost = (node: EventTarget): node is HTMLElement =>
 	node instanceof HTMLElement && node.matches('.block-host[data-block-path]');
@@ -176,40 +181,44 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 
 	function openBlockActions(point: Point, host: HTMLElement, path: number[], node: NodeView): void {
 		const noun = blockNoun(node, deps.reading);
-		const actions = blockContextActionsFor(node, path, deps.activation, noun);
-		if (actions.length === 0) return;
+		const actions = blockActionsFor(node, noun);
 		const index = path[0];
 		// A row may write after a slow clipboard read; one a `source` swap outran writes nothing.
-		const ctx: BlockActionContext = stampWrites(
-			{
-				node,
-				path,
-				deleteBlock: async () => {
-					await deps.blockEdit.deleteBlock(index, 'keyless');
+		const contextFor = (draft: Draft): BlockActionContext => {
+			const doc = deps.getDoc();
+			const lineEnding = documentLineEnding(doc);
+			const bytes = blockBytes(doc, path);
+			return stampWrites(
+				{
+					node,
+					path,
+					deleteBlock: async () => {
+						await deps.blockEdit.deleteBlock(index, 'keyless');
+					},
+					// The caret lands where the block started, at the text it became.
+					replaceRaw: (raw: string) =>
+						bytes
+							? draft.replace(bytes, withLineEnding(raw, lineEnding)).commit({ caret: bytes.from })
+							: Promise.resolve(NOT_FOUND),
+					transformPaste: (text) => applyPasteTransforms(text, deps.activation),
+					lineEnding
 				},
-				replaceRaw: async (raw: string) => {
-					await deps.blockEdit.replaceRaw(index, raw);
-				},
-				transformPaste: (text) => applyPasteTransforms(text, deps.activation),
-				lineEnding: documentLineEnding(deps.getDoc())
-			},
-			deps.stamps.current(),
-			deps.stamps
-		);
+				deps.stamps.current(),
+				deps.stamps
+			);
+		};
 		deps.setMenu({
 			...point,
 			anchor: anchorOn(host, point),
-			items: actions.map(({ id, label, icon, danger }) => ({
-				id,
-				label,
-				icon: icon as MenuEntry['icon'],
-				danger
-			})),
+			items: actions.map(({ id, label, icon }) => ({ id, label, icon })),
 			label: BLOCK_ACTIONS_LABEL,
 			pick: (id) => {
 				deps.setMenu(null);
 				const action = actions.find((a: BlockContextAction) => a.id === id);
-				if (action) void action.run(ctx);
+				if (!action) return;
+				// Opened at the pick, so an edit to the block before the row writes refuses it.
+				const draft = deps.edit();
+				void Promise.resolve(action.run(contextFor(draft))).finally(() => draft.end());
 			}
 		});
 	}

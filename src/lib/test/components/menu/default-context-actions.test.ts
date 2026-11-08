@@ -1,21 +1,15 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import type { NodeView } from '#lib/core/node-views.js';
 import {
-	EVERY_KIND,
-	blockContextActionsFor,
-	registerBlockContextActions,
+	blockActionsFor,
+	blockNoun,
 	type BlockActionContext,
 	type BlockContextAction
-} from '#lib/schema/context-actions.js';
-import {
-	blockNoun,
-	registerDefaultContextActions
 } from '#lib/components/menu/default-context-actions.js';
 import { isProseLeaf } from '#lib/schema/page-role.js';
 import { definitionsOf } from '#lib/core/inline/scan/definitions.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
-import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 
 const block = (md: string): NodeView => parse(md).children[0];
 // The document's own link definitions, as the editor's reading carries them.
@@ -43,7 +37,7 @@ function context(node: NodeView): BlockActionContext & { deleted: number; replac
 		deleted: 0,
 		replaced: [] as string[],
 		deleteBlock: async () => void ctx.deleted++,
-		replaceRaw: async (raw: string) => void ctx.replaced.push(raw),
+		replaceRaw: async (raw: string) => (ctx.replaced.push(raw), { ok: true as const }),
 		transformPaste: (text: string) => text,
 		lineEnding: '\n' as const
 	};
@@ -51,8 +45,8 @@ function context(node: NodeView): BlockActionContext & { deleted: number; replac
 }
 
 const ids = (actions: BlockContextAction[]) => actions.map((a) => a.id);
-const actionsFor = (node: NodeView) =>
-	blockContextActionsFor(node, [0], everyInstalledPlugin, blockNoun(node, fixtureReading()));
+const actionsFor = (node: NodeView) => blockActionsFor(node, blockNoun(node, fixtureReading()));
+const row = (node: NodeView, id: string) => actionsFor(node).find((a) => a.id === id)!;
 
 describe("the noun a block's menu uses", () => {
 	it('names the kind the way a user would', () => {
@@ -109,45 +103,18 @@ describe('prose is the page background', () => {
 });
 
 describe('the default context actions', () => {
-	beforeEach(() => {
-		registerDefaultContextActions();
-	});
-
-	it('offers copy, replace and remove, named for the block', () => {
+	it("offers copy, replace and remove, named for the block, after its kind's own rows", () => {
 		const actions = actionsFor(block(FENCE));
-		expect(ids(actions)).toEqual(['block.copy', 'block.replace', 'block.remove']);
-		expect(actions.map((a) => a.label)).toEqual([
+		expect(ids(actions)).toEqual(['code.dissolve', 'block.copy', 'block.replace', 'block.remove']);
+		expect(actions.slice(1).map((a) => a.label)).toEqual([
 			'Copy code block',
 			'Replace with clipboard',
 			'Remove code block'
 		]);
-	});
-
-	it('registers once however often bootstrap asks', () => {
-		registerDefaultContextActions();
-		expect(ids(actionsFor(block(FENCE)))).toHaveLength(3);
-	});
-
-	it("puts a kind's own actions ahead of the defaults, and refuses a taken provider name", () => {
-		const run = vi.fn();
-		const provider = () => [{ id: 'fence.run', label: 'Run', run }];
-		registerBlockContextActions('fencedCode', 'runner', provider);
-		expect(() => registerBlockContextActions('fencedCode', 'runner', provider)).toThrow(
-			/already registered/
-		);
-		registerBlockContextActions(EVERY_KIND, 'tagger', () => [{ id: 'any.tag', label: 'Tag', run }]);
-		expect(ids(actionsFor(block(FENCE)))).toEqual([
-			'fence.run',
-			'block.copy',
-			'block.replace',
-			'block.remove',
-			'any.tag'
-		]);
 		expect(ids(actionsFor(block('---\n')))).toEqual([
 			'block.copy',
 			'block.replace',
-			'block.remove',
-			'any.tag'
+			'block.remove'
 		]);
 	});
 
@@ -155,7 +122,9 @@ describe('the default context actions', () => {
 		const written = clipboard('pasted\n');
 		const node = block(FENCE);
 		const ctx = context(node);
-		const [copy, replace, remove] = actionsFor(node);
+		const [copy, replace, remove] = ['block.copy', 'block.replace', 'block.remove'].map((id) =>
+			row(node, id)
+		);
 		await copy.run(ctx);
 		// Without the closing line ending, as whole-block Mod+C writes it.
 		expect(written).toEqual([FENCE.slice(0, -1)]);
@@ -171,17 +140,17 @@ describe('the default context actions', () => {
 			configurable: true
 		});
 		const node = block(FENCE);
-		await expect(actionsFor(node)[0].run(context(node))).resolves.toBeUndefined();
+		await expect(row(node, 'block.copy').run(context(node))).resolves.toBeUndefined();
 	});
 
 	it('terminates a replacement that arrives without its line ending, and declines a blank one', async () => {
 		const node = block(FENCE);
 		clipboard('plain');
 		const ctx = context(node);
-		await actionsFor(node)[1].run(ctx);
+		await row(node, 'block.replace').run(ctx);
 		expect(ctx.replaced).toEqual(['plain\n']);
 		clipboard('   ');
-		await actionsFor(node)[1].run(ctx);
+		await row(node, 'block.replace').run(ctx);
 		expect(ctx.replaced).toEqual(['plain\n']);
 	});
 });

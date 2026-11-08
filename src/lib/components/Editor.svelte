@@ -1052,6 +1052,7 @@
 		selection: selectionState,
 		insertMarkdown,
 		clipboard: menuClipboard,
+		edit: () => drafts.edit(),
 		inserts: () => inserts,
 		activation: activePlugins,
 		reading,

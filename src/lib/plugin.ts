@@ -197,13 +197,6 @@ export type { KeyBinding } from './schema/keybindings';
 // ── Registering commands (pre-freeze) ────────────────────────────────────────
 // A (kind, name) block command creates a `PluginCommandId`; `AnyCommandId` covers both.
 export { registerBlockCommand } from './schema/block-commands';
-// The block context menu: a kind's right-click actions, empty unless something registers them.
-export { registerBlockContextActions } from './schema/context-actions';
-export type {
-	BlockContextAction,
-	BlockActionContext,
-	BlockContextActionProvider
-} from './schema/context-actions';
 export type {
 	BlockCommandContext,
 	BlockCommandHandler,
@@ -211,9 +204,6 @@ export type {
 	BlockCommandTarget,
 	CommandRun
 } from './schema/block-commands';
-// What a kind's own indent command does over a selection spanning blocks.
-export { registerRangeIndent } from './schema/range-indent-forms';
-export type { RangeLineShift } from './schema/range-indent-forms';
 export type { PluginCommandId, AnyCommandId } from './schema/command-id';
 // A global command is process-wide but runs against the dispatching instance's `EditorContext`,
 // with the argument `runCommand(id, arg)` or the chord's binding carried.

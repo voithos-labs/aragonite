@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createRootMenus, type BlockMenuModel } from '#lib/components/editor-root/menus.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
-import { registerDefaultContextActions } from '#lib/components/menu/default-context-actions.js';
+import { idleDraftRegistry } from '#lib/test/harness/drafts.js';
 import { BLOCK_ACTIONS_LABEL } from '#lib/a11y-strings.js';
 import { parse } from '#lib/core/parser.js';
 import { insertRows } from '#lib/schema/insert-catalogue.js';
@@ -16,7 +16,6 @@ import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 
 beforeEach(() => {
 	document.body.replaceChildren();
-	registerDefaultContextActions();
 });
 
 function hostAt(path: number[]): HTMLElement {
@@ -54,8 +53,7 @@ function harness(
 
 	let menu: BlockMenuModel | null = null;
 	const blockEdit = {
-		deleteBlock: vi.fn(async () => true),
-		replaceRaw: vi.fn(async () => true)
+		deleteBlock: vi.fn(async () => true)
 	};
 	const placeMenuCaret = vi.fn(() => true);
 	const insertMarkdown = vi.fn(async () => true);
@@ -84,6 +82,7 @@ function harness(
 		finger: () => opts.finger ?? false,
 		insertMarkdown,
 		clipboard: { take: () => null, pasteTarget: aimInsertAtFocus },
+		edit: () => idleDraftRegistry().edit(),
 		inserts: () => insertRows(everyInstalledPlugin),
 		activation: everyInstalledPlugin,
 		reading: fixtureReading(),
