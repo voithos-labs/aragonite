@@ -30,7 +30,15 @@ function boxes<D>(spec: Partial<ContainerSpec<D>> & Pick<ContainerSpec<D>, 'line
 		version: '1.0.0',
 		editor: '*',
 		contributes: () => ({
-			blocks: [container<D>({ name: 'box', label: 'Box', sample: '%> x', ...spec })]
+			blocks: [
+				container<D>({
+					name: 'box',
+					label: 'Box',
+					sample: '%> x',
+					insert: { none: 'a test block type' },
+					...spec
+				})
+			]
 		})
 	});
 }
@@ -116,7 +124,15 @@ describe('a marked container', () => {
 			version: '1.0.0',
 			editor: '*',
 			contributes: () => ({
-				blocks: [container({ name: 'alert', label: 'Alert', sample: '%> [!NOTE]\n%> x', lines })]
+				blocks: [
+					container({
+						name: 'alert',
+						label: 'Alert',
+						sample: '%> [!NOTE]\n%> x',
+						insert: { none: 'a test block type' },
+						lines
+					})
+				]
 			})
 		});
 		const m = mountEditor({ source: '%> [!NOTE]\n%> one\n', plugins: [plugin] });

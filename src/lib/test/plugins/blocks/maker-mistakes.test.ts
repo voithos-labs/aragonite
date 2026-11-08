@@ -4,11 +4,13 @@ import { describe, expect, it } from 'vitest';
 import { lineBlock } from '#lib/components/block-makers/line-block.js';
 import { fencedBlock } from '#lib/components/block-makers/fenced-block.js';
 import { builtin } from '#lib/components/block-makers/builtin.js';
+import type { Block } from '#lib/schema/doc-view.js';
+import type { Draft } from '#lib/schema/drafts.js';
 
-const line = { label: 'L', sample: '%%l' };
+const line = { label: 'L', sample: '%%l', insert: { none: 'a compile row' } };
 
 // Never called: a mistaken spec is only ever read by the type checker.
-function mistakes() {
+function mistakes(draft: Draft, plain: Block<never>, numbered: Block<number>) {
 	// prettier-ignore
 	// @ts-expect-error data read from the line needs a `write` to put it back
 	const a = lineBlock({ ...line, name: 'a', match: /^%%a (\d)$/, data: (m: RegExpExecArray) => m[1] });
@@ -21,6 +23,9 @@ function mistakes() {
 	// The checks drive a block type through its sample.
 	// @ts-expect-error `sample` is required
 	const d = lineBlock({ name: 'd', label: 'D', match: /^%%d$/ });
+	// The insert menus list every block type that doesn't say why they can't.
+	// @ts-expect-error `insert` is required
+	const i = lineBlock({ name: 'i', label: 'I', sample: '%%i', match: /^%%i$/ });
 	// @ts-expect-error not an icon the menus draw
 	const e = lineBlock({ ...line, name: 'e', match: /^%%e$/, icon: 'sparkly-unicorn' });
 	// prettier-ignore
@@ -48,7 +53,10 @@ function mistakes() {
 		write: (n) => `%%f ${n}`,
 		before: builtin.blocks.heading
 	});
-	return [a, b, c, d, e, f, g, h, fine];
+	// @ts-expect-error a block type whose lines carry no data can't be given any
+	draft.data(plain, 1);
+	draft.data(numbered, 2);
+	return [a, b, c, d, e, f, g, h, i, fine];
 }
 
 describe('a block type mistake', () => {

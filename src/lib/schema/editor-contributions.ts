@@ -1,14 +1,15 @@
 /**
  * What the plugin values one editor runs contribute: their commands, by value, by `plugin/id` and
- * by chord, and their insert rows. Read from each installed list, so `use` rebuilds it, and reached through the editor's
- * activation, which every command lookup already takes, so no route that runs or lists a command
- * can miss a plugin's.
+ * by chord, and their insert rows, their block types' among them. Read from each installed list, so
+ * `use` rebuilds it, and reached through the editor's activation, which every command lookup
+ * already takes, so no route that runs or lists a command can miss a plugin's.
  */
 import type { Editor, InstalledPlugin, PluginError } from './plugin-unit';
 import { claimCommand, commandSpec, type Command, type CommandSpec } from './plugin-command';
 import { normalizeChord } from './keybindings';
 import { refusedClaims } from './plugin-claims';
 import { insertRowProblem, type InsertRow } from './insert-catalogue';
+import { makingOf } from './block-type';
 
 export interface ContributedCommand {
 	readonly plugin: string;
@@ -72,9 +73,7 @@ export function createEditorContributions(deps: {
 		byId = new Map(commands.map((entry) => [entry.id, entry]));
 		byChord = new Map(commands.flatMap((entry) => (entry.chord ? [[entry.chord, entry]] : [])));
 		inserts = kept.flatMap((unit) =>
-			(unit.contribution.inserts ?? []).map((row) =>
-				Object.freeze({ ...row, id: `${unit.name}/${row.id}` })
-			)
+			rowsOf(unit).map((row) => Object.freeze({ ...row, id: `${unit.name}/${row.id}` }))
 		);
 		return kept;
 	}
@@ -128,9 +127,18 @@ function commandProblem(unit: InstalledPlugin): string | null {
 	return null;
 }
 
+/** A plugin's insert rows: its block types' first, each under the type's own name. */
+function rowsOf(unit: InstalledPlugin): InsertRow[] {
+	const blockRows = (unit.contribution.blocks ?? []).flatMap((type) => {
+		const making = makingOf(type);
+		return making && !('none' in making.insert) ? [{ ...making.insert, id: making.local }] : [];
+	});
+	return [...blockRows, ...(unit.contribution.inserts ?? [])];
+}
+
 function insertProblem(unit: InstalledPlugin): string | null {
 	const ids = new Set<string>();
-	for (const row of unit.contribution.inserts ?? []) {
+	for (const row of rowsOf(unit)) {
 		const problem = insertRowProblem(row);
 		if (problem) return problem;
 		if (ids.has(row.id)) return `lists two insert rows with the id "${row.id}"`;

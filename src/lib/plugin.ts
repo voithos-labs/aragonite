@@ -44,6 +44,7 @@ export { container } from './components/block-makers/container';
 export type { ContainerLines, ContainerSpec } from './schema/container-block';
 export type {
 	BlockCommon,
+	BlockInsert,
 	Completion,
 	Fence,
 	FencedBlockSpec,

@@ -73,8 +73,9 @@ _(pre-freeze / unstable)_ The installable package, and the per-editor context it
 | `ContainerSpec` | What `container` takes: `lines`, plus `joins` (default true: text joined to its end from below lands in its deepest text block), `merges` (the data field a pasted one must share with the one it lands in to join it, rather than nest) and `draw` |
 | `ContainerLines` | The line shapes a `container` takes: a `marked` one (a marker on every line, with a `head` line or not) or an `indented` one, the same shapes as [`LineShape`](#lineshape-markedlines-indentedlines). An indented container shows its marker ahead of its first child's text, read-only |
 | `Fence` | `{ info }` takes over code fences with that info string; `{ open, close, escape? }` opens on a line `open` matches and closes on the line `close` spells. A body line spelling the closer goes through `escape`, or ends the block there without one. Unclosed, the opening line stays plain text |
+| `BlockInsert` | A block type's `insert`: its row in the insert menus (`label`, `icon`, `keywords`, the Markdown it `insert`s), listed as `plugin/name`, or `{ none: 'why' }` for a type nobody inserts from a menu |
 | `Completion` | A block type's `complete`: a typed or entered line (`on`) that `line` matches, written out as `complete(match)`'s lines with the caret where it says. A completion that wouldn't read back as the block type is refused |
-| `BlockCommon` | What every block type answers: `name`, `label`, `icon`, `sample`, `role` (`prose` merges with its neighbours, an `object` is picked up whole), `interrupts`, `before` (the built-in types it goes ahead of), `height` and `complete` |
+| `BlockCommon` | What every block type answers: `name`, `label`, `icon`, `sample`, `insert`, `role` (`prose` merges with its neighbours, an `object` is picked up whole), `interrupts`, `before` (the built-in types it goes ahead of), `height` and `complete` |
 | `LeafCommon` | What a block holding text adds: `body` (`markdown` or `literal`) and how it draws (`LeafDraw`) |
 | `LeafDraw` | `edit` and `draw`. `edit: 'text'` keeps the text always editable, writing every keystroke; `edit: 'source'` shows your drawing until the caret comes in and writes the text once as it leaves; `edit: 'box'` lets no caret in. Without `draw` a block is plain text; with it the default is `'source'`. `renderSource` and `reshapeSource` paint and reshape the shown text |
 | `Drawn` | What `draw(block, ctx)` hands back: your `dom`, and optionally `caret` (where a click on your picture of the text lands), `update`, `keep` (events the editor leaves to you), `focus` and `destroy` |
@@ -156,6 +157,7 @@ interface Draft {
 	readonly stale: boolean;
 	replace(range: { from: number; to: number }, text: string): this;
 	insert(markdown: string): this;
+	data<D>(block: Block<D>, data: D): this;
 	commit(options?: { caret?: number }): Promise<DraftResult>;
 	end(): void;
 }
@@ -176,6 +178,7 @@ if (!result.ok) console.warn(result.reason, result.message); // 'moved': they ty
 
 - `replace(range, text)` swaps bytes `from` to `to` for `text`. Chain as many as you like; two far-apart ranges are still one undo step. These are the document's bytes, markers and all, so a new line you write inside a container carries the container's marker (`> `, a list item's indent) in `text`.
 - `insert(markdown)` pastes Markdown at the caret once the replacements land, the way `insertMarkdown` does.
+- `data(block, data)` sets the data of a block your `draw` was handed, rewriting only the bytes that carry it: a line block's line through its `write`, a container's head or first line. Inside a quote the `> ` stays. It's refused as `moved` if the block changed since you read it, and a block type with no data won't compile here.
 - `commit({ caret })` writes it all as one undo step, with the caret at byte `caret` of the new text. Leave `caret` out and the author's caret stays where it is, since a write landing while they type shouldn't drag them anywhere.
 - `stale` turns true once a write elsewhere touches one of your ranges, or the host loads another document. It's reactive, so a Svelte effect reading it reruns.
 - `end()` drops the draft without writing. One you just let go of is dropped eventually too, but ending it stops the editor tracking writes for it right away.

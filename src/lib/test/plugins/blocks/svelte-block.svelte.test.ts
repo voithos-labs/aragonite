@@ -36,6 +36,7 @@ const notes = definePlugin({
 				label: 'Note',
 				match: /^%%note(?: (?<text>.*))?$/,
 				sample: '%%note hi',
+				insert: { none: 'a test block type' },
 				edit: 'text',
 				draw: svelteBlock(SlottedNote)
 			})

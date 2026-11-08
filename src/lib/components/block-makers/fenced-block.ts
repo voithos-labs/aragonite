@@ -30,6 +30,7 @@ export function fencedBlock(spec: FencedBlockSpec): BlockType<never> {
 	const type: BlockType<never> = madeBlockType<never>({
 		local: spec.name,
 		label: spec.label,
+		insert: spec.insert,
 		priority,
 		registration: leafRegistration(spec, shape),
 		view: drawing ? drawnView(drawing) : textBlockView(),

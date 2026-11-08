@@ -42,6 +42,7 @@ function notes(spec: Partial<LineBlockSpec<never>>) {
 					label: 'Note',
 					match: /^%%note(?: (?<text>.*))?$/,
 					sample: '%%note hi',
+					insert: { none: 'a test block type' },
 					...spec
 				} as LineBlockSpec<never>)
 			]

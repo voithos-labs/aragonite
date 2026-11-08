@@ -30,6 +30,7 @@ function fenced(spec: Partial<FencedBlockSpec>) {
 					label: 'Demo',
 					fence: { info: 'demo' },
 					sample: '```demo\nx\n```',
+					insert: { none: 'a test block type' },
 					...spec
 				} as FencedBlockSpec)
 			]
@@ -63,7 +64,8 @@ describe('a fenced block on its own lines', () => {
 	const own = (escape?: (line: string) => string) =>
 		fenced({
 			fence: { open: /^%%begin$/, close: '%%end', ...(escape ? { escape } : {}) },
-			sample: '%%begin\nx\n%%end'
+			sample: '%%begin\nx\n%%end',
+			insert: { none: 'a test block type' }
 		});
 
 	it('is its opening line to its closing line', async () => {
@@ -93,6 +95,7 @@ describe('a completion', () => {
 		fenced({
 			fence: { open: /^\$\$$/, close: '$$' },
 			sample: '$$\nx\n$$',
+			insert: { none: 'a test block type' },
 			complete: {
 				on: 'enter',
 				line: /^\$\$$/,

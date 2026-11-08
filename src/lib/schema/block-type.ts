@@ -4,9 +4,11 @@
  * opener and view itself, and lends its facts to the page for as long as it runs it.
  */
 import type { AnyBlockKind, PluginBlockKind } from '../core/nodes';
-import type { BlockOpener } from './block-openers';
+import type { NodeView } from '../core/node-views';
+import type { BlockOpener, GrammarView } from './block-openers';
 import type { BlockCompleter } from './block-completions';
 import type { BlockView } from './block-view';
+import type { BlockInsert } from './block-shapes';
 import { holdBlockKind, type BuiltinRegistration } from './block-kind-descriptor';
 import { qualifiedName } from './plugin-name';
 import type { BlockType, InstalledPlugin, PluginError } from './plugin-unit';
@@ -22,6 +24,9 @@ export interface BlockMaking {
 	/** The parser's way into the type, for the kind its editor named it; null for one no line opens. */
 	opener(kind: PluginBlockKind): BlockOpener | null;
 	readonly completer: BlockCompleter | null;
+	readonly insert: BlockInsert;
+	/** The block's bytes with `data` written into them; null where the type has no writer for it. */
+	readonly writeData?: (node: NodeView, data: unknown, grammar: GrammarView) => string | null;
 }
 
 /** One of an editor's own block types, named and ready to read. */

@@ -159,6 +159,26 @@ export function blockRange(doc: DocumentView, path: readonly number[]): PartRang
 
 /** `range` after `change`, or null when the change wrote inside it. Text written at either edge
  *  lands outside it; an empty range moves past text written where it stands. */
+/** Where a byte of the block at `path` sits in the document's text, its ancestors' markers
+ *  counted; null for a path that holds no block. */
+export function blockByteOf(
+	doc: DocumentView,
+	path: readonly number[]
+): ((offset: number) => number | null) | null {
+	const top = doc.children[path[0]];
+	if (!top) return null;
+	const before = partLengths(doc).slice(0, path[0] + 1);
+	const start = before.reduce((sum, length) => sum + length, 0) + top.leadingTrivia.length;
+	if (path.length === 1) return (offset) => start + offset;
+	if (!blockAt(top, path.slice(1))) return null;
+	const alone = documentByteMap({ kind: 'document', prefix: '', children: [top], suffix: '' });
+	const inner = [0, ...path.slice(1)];
+	return (offset) => {
+		const at = alone.byteOf(inner, offset);
+		return at === null ? null : start + at;
+	};
+}
+
 export function rangeThrough(range: PartRange, change: RecordedChange): PartRange | null {
 	const x = spanOffset(range.from, change.lo, change.before);
 	const y = spanOffset(range.to, change.lo, change.before);

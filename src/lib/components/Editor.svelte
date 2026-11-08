@@ -469,6 +469,7 @@
 		doc: () => doc,
 		isReading: () => reading.mode() === 'reading',
 		isOn: (plugin) => activePlugins.isActive(plugin),
+		grammar: editorGrammar,
 		// Built below; a draft commits post-init.
 		writes: () => ({
 			commitSource: controller.commitSource,

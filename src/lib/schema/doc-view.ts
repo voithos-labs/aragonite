@@ -28,6 +28,7 @@ export function blockOf<D>(
 	const type = typeOf(node.kind) as BlockType<D>;
 	let children: readonly Block[] | undefined;
 	return {
+		[NODE]: node,
 		type,
 		data: getPluginMetadata<D>(node) as D,
 		text: node.raw,
@@ -39,5 +40,12 @@ export function blockOf<D>(
 			return (children ??= (node.children ?? []).map((child) => blockOf(child, typeOf)));
 		},
 		is: <E>(other: BlockType<E>): boolean => other.name === type.name
-	} as Block<D>;
+	} as unknown as Block<D>;
 }
+
+/** The node a block was read from, which a draft finds again in the document it commits to. */
+export function nodeOfBlock(block: Block<unknown>): NodeView | undefined {
+	return (block as { [NODE]?: NodeView })[NODE];
+}
+
+const NODE = Symbol('Block.node');

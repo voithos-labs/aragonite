@@ -7,6 +7,7 @@ import { setPluginMetadata, type CstNode, type PluginBlockKind } from '../core/n
 import type { NodeView } from '../core/node-views';
 import { trimTrailingLineEnding } from '../core/lines';
 import type { MenuIconName } from '../menu-icons';
+import type { InsertRow } from './insert-catalogue';
 import type { BlockOpener } from './block-openers';
 import type { BuiltinRegistration, WriteRule } from './block-kind-descriptor';
 import type { BlockCompleter } from './block-completions';
@@ -36,6 +37,8 @@ export interface BlockCommon<D> {
 	icon?: MenuIconName;
 	/** Markdown holding this block, which the published checks parse and drive. */
 	sample: string | readonly string[];
+	/** Its row in the insert menus, listed as `plugin/name`, or why it has none. */
+	insert: BlockInsert;
 	/** `prose` merges with its neighbours and has no drag handle; an `object` is picked up whole.
 	 *  Default `prose` for a text block drawn as text, `object` otherwise. */
 	role?: 'prose' | 'object';
@@ -48,6 +51,9 @@ export interface BlockCommon<D> {
 	/** A line typed, or entered, that this block type completes into its full form. */
 	complete?: Completion;
 }
+
+/** A block type's insert row, its id the block type's own name; or why it can't be inserted. */
+export type BlockInsert = Omit<InsertRow, 'id'> | { none: string };
 
 /** A line completed into a block type's full lines, written with the document's line ending as one
  *  undo step; a completion that wouldn't read back as this block type is refused. */
@@ -230,7 +236,17 @@ export function editOf(spec: LeafDraw<unknown>): 'text' | 'source' | 'box' {
 export function lineShape(spec: LineBlockSpec<unknown>, priority: number) {
 	const wholeLine = lineReader(spec);
 	const hasText = typeof spec.match === 'function' || /\(\?<text>/.test(spec.match.source);
+	const { write } = spec as { write?(data: unknown, text: string): string };
 	return {
+		/** The line rewritten around its text by `write`; null when it wouldn't read back as the type. */
+		writeData: write
+			? (node: NodeView, data: unknown): string | null => {
+					const line = trimTrailingLineEnding(node.raw);
+					const at = wholeLine(line)?.text;
+					const written = write(data, at ? line.slice(at[0], at[1]) : '');
+					return wholeLine(written) ? written + node.raw.slice(line.length) : null;
+				}
+			: undefined,
 		range: hasText
 			? (node: NodeView) => {
 					const text = trimTrailingLineEnding(node.raw);

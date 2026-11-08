@@ -33,6 +33,7 @@ export const drawnPlugin = definePlugin({
 				label: 'Field',
 				match: /^\^\^field$/,
 				sample: '^^field',
+				insert: { none: 'a test block type' },
 				edit: 'box',
 				draw: (_block, ctx) => drawField(ctx)
 			}),
@@ -41,6 +42,7 @@ export const drawnPlugin = definePlugin({
 				label: 'Shown',
 				fence: { info: 'shown' },
 				sample: '```shown\nhello\n```',
+				insert: { none: 'a test block type' },
 				draw: (block, ctx) => drawShown(block.body, ctx)
 			}),
 			container({
@@ -48,6 +50,7 @@ export const drawnPlugin = definePlugin({
 				label: 'Aside',
 				lines: { shape: 'marked', first: '%> ', rest: '%> ', reads: /^%> ?/, lazy: true },
 				sample: '%> aside',
+				insert: { none: 'a test block type' },
 				draw: (_block, ctx) => drawAside(ctx)
 			})
 		]

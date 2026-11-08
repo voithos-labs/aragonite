@@ -39,6 +39,10 @@ const PINNED: Record<string, Pin> = {
 		calls: { '.rebuild': 2 },
 		why: 'a Tab’s new sublist and a lifted item that took the blocks after it sit below the commit’s chain, which never rebuilds them, and the blank-line rule reads their bytes before the commit returns'
 	},
+	'src/lib/components/block-makers/container.ts': {
+		calls: { writeContainerRaw: 1 },
+		why: 'writes new data into a scratch clone to read its bytes back, which a draft then writes'
+	},
 	'src/lib/editor-actions/search-replace.ts': {
 		calls: { rebuildContainerRaw: 1 },
 		why: 'rebuilds a scratch clone to read the replacement back before any commit'

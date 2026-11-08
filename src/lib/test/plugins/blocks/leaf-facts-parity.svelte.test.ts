@@ -39,6 +39,7 @@ const TWINS: { kind: string; twin: BlockType<unknown> }[] = [
 			label: 'Math block',
 			fence: [{ info: 'math' }, { open: /^\$\$$/, close: '$$' }],
 			sample: '$$\nx\n$$',
+			insert: { none: 'a test block type' },
 			draw: source
 		})
 	},
@@ -49,6 +50,7 @@ const TWINS: { kind: string; twin: BlockType<unknown> }[] = [
 			label: 'Diagram',
 			fence: { info: 'mermaid' },
 			sample: '```mermaid\ngraph TD\n```',
+			insert: { none: 'a test block type' },
 			edit: 'box',
 			draw: picture
 		})
@@ -60,6 +62,7 @@ const TWINS: { kind: string; twin: BlockType<unknown> }[] = [
 			label: 'Party parrot',
 			match: /^%%parrot(?: (?<text>.*))?$/,
 			sample: '%%parrot hi',
+			insert: { none: 'a test block type' },
 			draw: source
 		})
 	},
@@ -70,6 +73,7 @@ const TWINS: { kind: string; twin: BlockType<unknown> }[] = [
 			label: 'Table of contents',
 			match: /^\[\[toc\]\]$/,
 			sample: '[[toc]]',
+			insert: { none: 'a test block type' },
 			draw: source
 		})
 	}

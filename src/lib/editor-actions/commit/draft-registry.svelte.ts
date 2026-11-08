@@ -15,7 +15,13 @@ import { devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 import { assertDraftBytesKept } from '../../invariants/install';
 import { docPathFrom } from '../../core/coordinate-spaces';
 import { leafAtByte } from '../../tree-operations/container-offsets';
+import { splitLines } from '../../core/lines';
+import { walkBlocks } from '../../core/paths';
+import type { GrammarView } from '../../schema/block-openers';
+import { makingOf } from '../../schema/block-type';
+import { nodeOfBlock, type Block } from '../../schema/doc-view';
 import {
+	blockByteOf,
 	blockRange,
 	byteAt,
 	lengthsBefore,
@@ -59,6 +65,7 @@ export interface DraftRegistryDeps {
 	isReading(): boolean;
 	/** Whether the editor still runs the plugin. */
 	isOn(plugin: string): boolean;
+	grammar: GrammarView;
 	writes(): DraftWrites;
 }
 
@@ -95,6 +102,7 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 		open.add(opened);
 		const since = () => (open.has(opened) ? log.slice(opened.start - base) : []);
 		const writes: { range: PartRange; text: string }[] = [];
+		const datas: { block: Block<unknown>; data: unknown }[] = [];
 		const inserts: { markdown: string; below: boolean }[] = [];
 		let lengths: number[] | null = null;
 		let illegal: string | null = null;
@@ -129,13 +137,18 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 				return refused('moved', 'an undo was replacing the document');
 			if (illegal) return refused('illegal', illegal);
 			const doc = deps.doc();
-			if (writes.length === 0) return write(doc, [], caret);
+			if (writes.length === 0 && datas.length === 0) return write(doc, [], caret);
 			const now = partLengths(doc);
 			const unsorted: ByteChange[] = [];
 			for (const pending of writes) {
 				const at = current(pending.range);
 				if (!at) return refused('moved', 'a write elsewhere changed bytes it replaces');
 				unsorted.push({ from: byteAt(now, at.from), to: byteAt(now, at.to), insert: pending.text });
+			}
+			for (const { block, data } of datas) {
+				const changes = dataChanges(doc, block, data, deps.grammar);
+				if (!Array.isArray(changes)) return changes;
+				for (const change of changes) unsorted.push(change);
 			}
 			const changes = [...unsorted].sort((a, b) => a.from - b.from || a.to - b.to);
 			for (let i = 1; i < changes.length; i++) {
@@ -217,13 +230,17 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 				if (markdown !== '') inserts.push({ markdown, below: false });
 				return this;
 			},
+			data(block, data) {
+				datas.push({ block, data });
+				return this;
+			},
 			insertBelow(markdown) {
 				inserts.push({ markdown, below: true });
 				return this;
 			},
 			async commit(options) {
 				if (ended) return refused('empty', 'the draft was ended');
-				if (writes.length === 0 && inserts.length === 0 && !illegal)
+				if (writes.length === 0 && datas.length === 0 && inserts.length === 0 && !illegal)
 					return refused('empty', 'nothing was written to it');
 				try {
 					return await land(options?.caret);
@@ -266,6 +283,40 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────
+
+/** The changes that write `data` into `block` as the document holds it now: one per line that
+ *  differs, so the markers of the containers around it stay. */
+function dataChanges(
+	doc: DocumentView,
+	block: Block<unknown>,
+	data: unknown,
+	grammar: GrammarView
+): ByteChange[] | DraftResult {
+	const node = nodeOfBlock(block);
+	// Cast, so the type checker doesn't read it as still null past the walk that sets it.
+	let path = null as number[] | null;
+	if (node) walkBlocks(doc, (each, at) => (each === node ? ((path = at), 'stop') : undefined));
+	const byteOf = path && blockByteOf(doc, path);
+	if (!node || !byteOf) return refused('moved', 'its block was rewritten or removed');
+	const written = makingOf(block.type)?.writeData?.(node, data, grammar) ?? null;
+	if (written === null)
+		return refused('illegal', `block type '${block.type.name}' has no writer for that data`);
+	const was = splitLines(node.raw);
+	const now = splitLines(written);
+	if (was.length !== now.length)
+		return refused('illegal', 'that data changes how many lines the block has');
+	return was.flatMap((line, i) =>
+		line.text === now[i].text
+			? []
+			: [
+					{
+						from: byteOf(line.start)!,
+						to: byteOf(line.start + line.text.length)!,
+						insert: now[i].text
+					}
+				]
+	);
+}
 
 /** An open draft: where its writes start in the log, and the document it was opened on. */
 interface Opened {

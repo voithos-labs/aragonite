@@ -11,6 +11,7 @@ import { createDocumentStamps } from '../editor-actions/commit/document-stamp';
 import { openPick } from '../inline-menu/pick-context';
 import type { InlineMenuItem, InlineMenuSource } from '../inline-menu/types';
 import type { EditorContext } from '../schema/plugin-install';
+import { defaultGrammarView } from '../schema/editor-grammar';
 
 export interface InlineMenuCommitCase {
 	/** Builds the source from the per-editor context, as a plugin's `onEditor` callback does. */
@@ -34,6 +35,7 @@ export async function checkInlineMenuCommitAcrossSwap(c: InlineMenuCommitCase): 
 		doc: () => host.document,
 		isReading: () => false,
 		isOn: () => true,
+		grammar: defaultGrammarView,
 		writes: () => ({
 			commitSource: async () => (writes.push('commitSource'), true),
 			undoStep: async (_seed, run) => void (await run()),

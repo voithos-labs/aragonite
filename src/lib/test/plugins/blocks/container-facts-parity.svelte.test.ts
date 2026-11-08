@@ -42,7 +42,8 @@ const TWINS: { kind: string; twin: BlockType<unknown> }[] = [
 			merges: { key: 'alertType' },
 			interrupts: true,
 			before: builtin.blocks.blockquote,
-			sample: '> [!NOTE]\n> Heads up.'
+			sample: '> [!NOTE]\n> Heads up.',
+			insert: { none: 'a test block type' }
 		})
 	},
 	{
@@ -61,7 +62,8 @@ const TWINS: { kind: string; twin: BlockType<unknown> }[] = [
 			joins: false,
 			merges: { key: 'label' },
 			before: builtin.blocks.linkReferenceDefinition,
-			sample: '[^1]: A footnote definition.\n    with an indented continuation.'
+			sample: '[^1]: A footnote definition.\n    with an indented continuation.',
+			insert: { none: 'a test block type' }
 		})
 	}
 ];

@@ -22,6 +22,7 @@ export function lineBlock<D = never>(spec: LineBlockSpec<D>): BlockType<D> {
 	const type: BlockType<D> = madeBlockType<D>({
 		local: spec.name,
 		label: spec.label,
+		insert: spec.insert,
 		priority,
 		registration: leafRegistration(spec as LineBlockSpec<unknown>, {
 			range: shape.range,
@@ -29,7 +30,8 @@ export function lineBlock<D = never>(spec: LineBlockSpec<D>): BlockType<D> {
 		}),
 		view: drawing ? drawnView(drawing) : textBlockView(),
 		opener: shape.opener,
-		completer: completerOf(spec.complete, shape.claims)
+		completer: completerOf(spec.complete, shape.claims),
+		writeData: shape.writeData
 	});
 	return type;
 }

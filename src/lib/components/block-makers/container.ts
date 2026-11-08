@@ -11,6 +11,9 @@ import {
 import { stripClaims, stripOpener, type ContainerLines } from '../../core/parsers/strip-container';
 import { headedLines } from '../../schema/headed-lines';
 import type { IndentedLines, MarkedLines } from '../../core/strip-lines';
+import type { CstNode } from '../../core/nodes';
+import { writeContainerRaw } from '../../schema/container-writer';
+import { cloneNode } from '../../tree-operations/clone';
 
 /** Makes a container block type; the editor reads and writes its lines from `lines`, so the plugin
  *  never writes its bytes. */
@@ -28,11 +31,18 @@ export function container<D = never>(spec: ContainerSpec<D>): BlockType<D> {
 	const type: BlockType<D> = madeBlockType<D>({
 		local: spec.name,
 		label: spec.label,
+		insert: spec.insert,
 		priority,
 		registration: containerRegistration(spec as ContainerSpec<unknown>, lines),
 		view: drawnView(drawing),
 		opener: (kind) => stripOpener(kind, spec.lines, priority, spec.interrupts ?? false),
-		completer: completerOf(spec.complete, (written) => stripClaims(spec.lines, written))
+		completer: completerOf(spec.complete, (written) => stripClaims(spec.lines, written)),
+		writeData(node, data, grammar) {
+			const copy = cloneNode(node);
+			copy.metadata = data as CstNode['metadata'];
+			writeContainerRaw(copy, grammar);
+			return copy.raw;
+		}
 	});
 	return type;
 }

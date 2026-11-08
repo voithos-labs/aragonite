@@ -4,6 +4,8 @@
  * stood when the draft opened, and its commit lands as one undo step or is refused with a reason.
  */
 
+import type { Block } from './doc-view';
+
 /** What a draft's commit came to: landed, or refused with the reason. */
 export type DraftResult =
 	| { readonly ok: true }
@@ -23,6 +25,9 @@ export interface Draft {
 	replace(range: { readonly from: number; readonly to: number }, text: string): this;
 	/** Insert Markdown at the caret the way a paste would, once the replacements land. */
 	insert(markdown: string): this;
+	/** Set a block's data, rewriting only the bytes that carry it; refused as `moved` when the
+	 *  block's bytes changed since it was read. A block type with no data takes none. */
+	data<D>(block: Block<D>, data: [D] extends [never] ? never : D): this;
 	/** Write it all as one undo step, the caret at byte `caret` of the new text or left where it is. */
 	commit(options?: { caret?: number }): Promise<DraftResult>;
 	/** Drop it, writing nothing: a closed edit box, a wait given up on. */

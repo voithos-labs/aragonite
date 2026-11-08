@@ -6,6 +6,7 @@ import {
 } from '#lib/editor-actions/commit/document-stamp.js';
 import { parse } from '#lib/core/parser.js';
 import type { DocumentView } from '#lib/core/node-views.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 export function idleDraftRegistry(
 	stamps: DocumentStamps = createDocumentStamps(),
@@ -16,6 +17,7 @@ export function idleDraftRegistry(
 		doc,
 		isReading: () => false,
 		isOn: () => true,
+		grammar: defaultGrammarView,
 		writes: () => ({
 			commitSource: async () => false,
 			undoStep: async (_seed, run) => void (await run()),

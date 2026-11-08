@@ -36,7 +36,8 @@ function notes(name = 'notes') {
 					match: new RegExp(`^${marker}note(?: (?<text>.*))?$`),
 					interrupts: true,
 					body: 'markdown',
-					sample: `${marker}note hello`
+					sample: `${marker}note hello`,
+					insert: { none: 'a test block type' }
 				})
 			]
 		})
@@ -84,7 +85,16 @@ describe('a line block', () => {
 			editor: '*',
 			defaults: { role: 'prose' as 'prose' | 'object' },
 			contributes: ({ role }) => ({
-				blocks: [lineBlock({ name: 't', label: 'T', match: /^%%t$/, role, sample: '%%t' })]
+				blocks: [
+					lineBlock({
+						name: 't',
+						label: 'T',
+						match: /^%%t$/,
+						role,
+						sample: '%%t',
+						insert: { none: 'a test block type' }
+					})
+				]
 			})
 		});
 		mountEditor({ source: '%%t\n', plugins: [a] });
@@ -93,7 +103,13 @@ describe('a line block', () => {
 	});
 
 	it('is named after the plugin that lists it; a second plugin listing it is reported', async () => {
-		const shared = lineBlock({ name: 'shared', label: 'S', match: /^%%s$/, sample: '%%s' });
+		const shared = lineBlock({
+			name: 'shared',
+			label: 'S',
+			match: /^%%s$/,
+			sample: '%%s',
+			insert: { none: 'a test block type' }
+		});
 		const plugin = (name: string) =>
 			definePlugin({
 				name,
@@ -123,8 +139,20 @@ describe('a line block', () => {
 			editor: '*',
 			contributes: () => ({
 				blocks: [
-					lineBlock({ name: 'x', label: 'X', match: /^%%x$/, sample: '%%x' }),
-					lineBlock({ name: 'x', label: 'X', match: /^%%y$/, sample: '%%y' })
+					lineBlock({
+						name: 'x',
+						label: 'X',
+						match: /^%%x$/,
+						sample: '%%x',
+						insert: { none: 'a test block type' }
+					}),
+					lineBlock({
+						name: 'x',
+						label: 'X',
+						match: /^%%y$/,
+						sample: '%%y',
+						insert: { none: 'a test block type' }
+					})
 				]
 			})
 		});
@@ -149,7 +177,8 @@ describe('a line block', () => {
 						label: 'Flag',
 						match: /^> !flag$/,
 						before: builtin.blocks.blockquote,
-						sample: '> !flag'
+						sample: '> !flag',
+						insert: { none: 'a test block type' }
 					})
 				]
 			})
@@ -177,7 +206,15 @@ describe('a line block', () => {
 			version: '1.0.0',
 			editor: '*',
 			contributes: () => ({
-				blocks: [lineBlock({ name: 'q', label: 'Q', match: /^%%q$/, sample: '%%q' })]
+				blocks: [
+					lineBlock({
+						name: 'q',
+						label: 'Q',
+						match: /^%%q$/,
+						sample: '%%q',
+						insert: { none: 'a test block type' }
+					})
+				]
 			})
 		});
 		const n = mountEditor({ source: 'text\n%%q\n', plugins: [quiet] });
@@ -208,7 +245,8 @@ describe('a line block', () => {
 						label: 'Title',
 						match: titled,
 						write: (level, text) => `${'!'.repeat(level)} ${text}`,
-						sample: '! hi'
+						sample: '! hi',
+						insert: { none: 'a test block type' }
 					})
 				]
 			})
