@@ -1,7 +1,7 @@
 // A range ending on the first byte of a block its start's block can't join stops at the text
 // before that block, so the blank lines between stay and the block keeps its own line.
 // Miss-analysis: removals were only driven into blocks that join, so no row met a rule's edge.
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import type { SelectionPoint } from '#lib/selection/primitives.js';
@@ -10,6 +10,9 @@ import { rangeBytes, rangePaint } from '#lib/selection/range-bytes.js';
 import { classifyBlockForSelection } from '#lib/selection/primitives.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
 import { deleteRange } from '../harness/range-delete';
+import { registerChromePluginsForTests } from './chrome-plugins';
+
+beforeEach(registerChromePluginsForTests);
 
 function read(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const doc = parse(source);
@@ -53,6 +56,14 @@ describe('a range ending on the edge of a block its start cannot join', () => {
 		const source = 'alpha\n\n| a |\n| - |\n| 1 |\n\n---\n';
 		expect(read(source, { path: [0], offset: 2 }, { path: [2], offset: 0 })).toMatchObject({
 			bytes: 'pha\n\n| a |\n| - |\n| 1 |'
+		});
+	});
+
+	it('stops before a section whose title row it would end on', () => {
+		const source = 'MMMM\n\n<details>\n<summary>SSSS</summary>\n\nHHHH\n\n</details>\n';
+		expect(read(source, { path: [0], offset: 1 }, { path: [1, 0], offset: 0 })).toMatchObject({
+			bytes: 'MMM',
+			removed: 'M\n\n<details>\n<summary>SSSS</summary>\n\nHHHH\n\n</details>\n'
 		});
 	});
 
