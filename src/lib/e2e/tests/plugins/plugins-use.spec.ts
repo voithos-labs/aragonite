@@ -19,10 +19,6 @@ const EVERY_BUT_LATEX = [
 ];
 
 test.describe('use turns a plugin off and keeps the history', () => {
-	// An undo step taken before the switch restores the math block it was parsed into, which the
-	// editor draws raw and warns about; undo entries that remember their grammar (D2) end it.
-	test.use({ expectWarns: ['block-host'] });
-
 	test('three edits, latex off, three undos walk back byte for byte', async ({ page }) => {
 		const editor = new PluginsPage(page);
 		await editor.gotoPlugins('mathblock');
@@ -52,5 +48,9 @@ test.describe('use turns a plugin off and keeps the history', () => {
 			await editor.undo();
 			await expect.poll(source).toBe(before);
 		}
+		await expect(page.locator('.editor [data-block-path="[1]"]')).toHaveAttribute(
+			'data-block-kind',
+			'paragraph'
+		);
 	});
 });

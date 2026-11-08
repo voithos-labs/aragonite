@@ -4,10 +4,10 @@
  * both read this list, so a recording can't sit in the folder run by neither. The checks a replay
  * needs (the hash chain, the key to press, the events to reproduce) live here too.
  */
+import { hashSource } from '../core/string-hash';
 import { readFileSync } from 'node:fs';
 import { collectFiles } from '../test/invariants/lint/scan-source';
 import {
-	hashSource,
 	isModifierKeydown,
 	readInputRecording,
 	type InputRecording,

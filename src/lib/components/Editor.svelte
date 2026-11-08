@@ -5,6 +5,7 @@
 	import type { AnyBlockKind, Document } from '../core/nodes';
 	import type { EditorProps } from './editor-component-props';
 	import type { EditorInstance, EditorDiagnostics, InsertMarkdownOptions } from '../editor-props';
+	import type { Draft } from '../schema/drafts';
 	import type { EditorEventMap, EditorEvents } from '../editor-events';
 	import {
 		BLOCK_EDIT_KEY,
@@ -48,7 +49,7 @@
 	import BlockMenu from './menu/BlockMenu.svelte';
 	import { createMenuPresence } from './menu/menu-presence.svelte';
 	import { createReadingFocus } from './editor-root/reading-focus.svelte';
-	import { createDraftRegistry } from './draft-registry';
+	import { createDraftRegistry } from '../editor-actions/commit/draft-registry.svelte';
 	import { createShownSourceState } from './blocks/text/shown-source.svelte';
 	import { createDocumentStamps } from '../editor-actions/commit/document-stamp';
 	import { selectionsEqual, type EditorSelection } from '../selection/primitives';
@@ -456,7 +457,19 @@
 		caretLanding.noteTreeSwap();
 	});
 	// Apart from the menus, so a shown source fires no `menuChange`.
-	const drafts = createDraftRegistry(stamps);
+	const drafts = createDraftRegistry({
+		stamps,
+		doc: () => doc,
+		isReading: () => reading.mode() === 'reading',
+		isOn: (plugin) => activePlugins.isActive(plugin),
+		// Built below; a draft commits post-init.
+		writes: () => ({
+			commitSource: controller.commitSource,
+			undoStep: (seed, run) => controller.undoStep(seed, run),
+			insert: (md, below) =>
+				focusedSurface.insertMarkdown(md, below ? { placement: 'below' } : undefined)
+		})
+	});
 	const shownSource = createShownSourceState();
 	// Emits on open/close transitions only, so a subscriber's first event is a real menu.
 	let menuWasOpen = false;
@@ -470,6 +483,7 @@
 	const documentSwap = createDocumentSwap({
 		grammar: editorGrammar,
 		currentSource: currentSource.readUnchecked,
+		doc: () => doc,
 		// Built below; a swap runs post-init, so the closures read past the TDZ.
 		flushDebouncedCheckpoint: () => controller.flushDebouncedCheckpoint(),
 		noteTreeSwap: () => caretLanding.noteTreeSwap(),
@@ -751,7 +765,7 @@
 		runCommand: (command, arg) => run(command, arg),
 		canRunCommand: (command, arg) => can(command, arg),
 		claims: (event) => claimsChord(event),
-		openDraft: drafts.open,
+		edit: (plugin) => drafts.edit(plugin),
 		reading,
 		units: () => units,
 		pluginNames: () => pluginNames,
@@ -1366,8 +1380,18 @@
 		stamps
 	});
 
-	export function insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean> {
-		return focusedSurface.insertMarkdown(md, options);
+	export function edit(): Draft {
+		return drafts.edit();
+	}
+
+	export async function insertMarkdown(
+		md: string,
+		options?: InsertMarkdownOptions
+	): Promise<boolean> {
+		const draft = drafts.edit();
+		if (options?.placement === 'below') draft.insertBelow(md);
+		else draft.insert(md);
+		return (await draft.commit()).ok;
 	}
 
 	export function runCommand(commandId: string, arg?: unknown): boolean {
@@ -1522,6 +1546,7 @@
 		getSelection,
 		setSelection,
 		placeCaretAtPoint,
+		edit,
 		insertMarkdown,
 		runCommand,
 		canRunCommand,

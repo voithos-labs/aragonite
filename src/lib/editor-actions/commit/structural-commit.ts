@@ -358,6 +358,15 @@ export function createStructuralCommit(
 		return __commit({
 			entry: args.entry,
 			snapshot,
+			// A container scope names its top-level block; the document's can reach any.
+			reach: () => {
+				if (scopes.some(isDocScope)) return null;
+				const tops = scopes.map((s) => s.path[0]);
+				return {
+					from: tops.reduce((a, b) => Math.min(a, b)),
+					to: tops.reduce((a, b) => Math.max(a, b)) + 1
+				};
+			},
 			apply: (wasOpen) => {
 				startCommitSettles();
 				for (const s of scopes) {

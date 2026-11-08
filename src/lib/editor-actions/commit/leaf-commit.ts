@@ -29,7 +29,7 @@ import {
 	type AncestrySeamFold,
 	type ContainerReclassification
 } from '../../tree-operations/chain-rebuild';
-import { attachedChainPrefix } from '../../tree-operations/node-primitives';
+import { attachedChainPrefix, blockNodeAt } from '../../tree-operations/node-primitives';
 import {
 	foldLandingFor,
 	publishAncestryFolds,
@@ -37,6 +37,7 @@ import {
 	restoreFoldedChildren
 } from '../ancestry-folds';
 import { saveBytes } from './saved-bytes';
+import { pairsStay } from './change-record';
 import type { EditorActionsDeps } from '../deps';
 import type { FrameOutcome, FrameWrite } from './commit-frame';
 
@@ -65,6 +66,19 @@ export function createLeafCommit(
 			op: { kind: 'input', eventPath: leafPath },
 			snapshot: { path: leafPath, offset: caret },
 			history: 'burst',
+			// A top-level write that opens, closes or moves a fence re-pairs blocks however far below.
+			reach: () =>
+				depth > 1 ||
+				pairsStay(blockNodeAt(deps.doc, leafPath)?.raw ?? '', write.text, deps.reading.grammar)
+					? { from: leafPath[0], to: leafPath[0] + 1 }
+					: null,
+			// Inside a container the caret's byte costs a walk over its lines, so the record counts every
+			// place the typed text could have gone instead.
+			typedEnd: () => {
+				if (depth > 1 || settled.change.op !== 'noop') return null;
+				const top = deps.doc.children[index];
+				return top ? { block: index, offset: top.leadingTrivia.length + caret } : null;
+			},
 			prepare() {
 				chain = ensureUnsharedPath(deps.doc, leafPath, deps.sharing);
 				// A chain of another depth leaves the leaf's container shared with an undo entry, and

@@ -804,7 +804,7 @@
 		onCopy={copyBody}
 		menuItems={codeMenuItems() ? () => codeMenuItems()?.(runRequest()) ?? [] : undefined}
 		{menuPresence}
-		{drafts}
+		openDraft={(spec) => drafts.open(spec, myPath)}
 	/>
 {/if}
 

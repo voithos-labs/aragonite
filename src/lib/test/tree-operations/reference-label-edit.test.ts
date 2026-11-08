@@ -96,6 +96,7 @@ const ROUTES: Record<string, Shape[]> = {
 	'components/blocks/text/TextEditableBlock.svelte': ['a selection deleted'],
 	'components/blocks/text/widget-interaction.ts': ['a selection typed over'],
 	'editor-actions/inline-range-commit.ts': ['a link rewritten whole'],
+	'range-edit/host.ts': ['typed at a caret', 'a selection deleted'],
 	'selection/selection-drop.ts': ['typed at a caret', 'a selection deleted'],
 	'tree-operations/paste/dispatch.ts': ['a selection deleted'],
 	'tree-operations/paste/hooks.ts': ['typed at a caret', 'a selection typed over']

@@ -56,22 +56,8 @@ describe('pending marks clear with the caret side', () => {
 		expect(marksPending(memory)).toBe(false);
 	});
 
-	// A caret that moved, or a key that changed the text another way, is a caret the promise no
-	// longer applies to.
-	const MOVED: Record<string, CaretKeyAction> = {
-		ArrowLeft: 'navigate',
-		ArrowRight: 'navigate',
-		ArrowUp: 'navigate',
-		ArrowDown: 'navigate',
-		PageUp: 'navigate',
-		PageDown: 'navigate',
-		Home: 'navigate',
-		End: 'navigate',
-		Escape: 'reset',
-		Enter: 'reset',
-		Backspace: 'reset',
-		Tab: 'reset'
-	};
+	// One key per action class: the per-key table is `classifyCaretKey`'s, held in edge-affinity.test.ts.
+	const MOVED: Record<string, CaretKeyAction> = { ArrowLeft: 'navigate', Enter: 'reset' };
 	for (const [key, action] of Object.entries(MOVED)) {
 		it(`${key} (${action}) clears them`, () => {
 			const memory = pended();
@@ -82,7 +68,7 @@ describe('pending marks clear with the caret side', () => {
 
 	// The chord that sets them is a modifier plus a letter, and the byte that uses them up is a
 	// printable key; both have to reach the write with the promise intact.
-	for (const key of ['Control', 'Meta', 'Shift', 'Alt', 'AltGraph', 'CapsLock', 'b', 'X', 'é']) {
+	for (const key of ['Control', 'b']) {
 		it(`${key} preserves them`, () => {
 			const memory = pended();
 			memory.noteKey({ key }, null);

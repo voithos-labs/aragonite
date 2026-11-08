@@ -15,7 +15,7 @@ import type { PresentationMode } from '../presentation-mode';
 import type { ActivationClick } from '../activation-click';
 import { insertCatalogue } from './insert-catalogue';
 import type { Reading } from './reading';
-import type { Draft, DraftSpec } from './drafts';
+import type { Draft } from './drafts';
 import { resolvesIn, type PluginActivation } from './plugin-activation';
 import {
 	installedPlugin,
@@ -71,7 +71,8 @@ export function createEditorPluginContexts(deps: {
 	runCommand: (command: Command<unknown> | string, arg?: unknown) => boolean;
 	canRunCommand: (command: Command<unknown> | string, arg?: unknown) => boolean;
 	claims: (event: KeyboardEvent) => boolean;
-	openDraft: (spec: DraftSpec) => Draft;
+	/** A draft; `plugin` names the plugin it's refused for once that plugin is off. */
+	edit: (plugin?: string) => Draft;
 	/** How the editor reads its bytes, which every plugin inline read follows. */
 	reading: Reading;
 	/** The plugin values this editor runs, with what each contributed. */
@@ -125,7 +126,7 @@ export function createEditorPluginContexts(deps: {
 				},
 				insertMarkdown: (md, options) => deps.insertMarkdown(md, options),
 				runCommand: (commandId, arg) => deps.runCommand(commandId, arg),
-				openDraft: (spec) => deps.openDraft(spec),
+				edit: () => deps.edit(pluginName || undefined),
 				get computeInlineContent() {
 					return inlineReaderFor(deps.reading);
 				},
@@ -166,7 +167,8 @@ export function createEditorPluginContexts(deps: {
 			},
 			run: (command: Command<unknown> | string, arg?: unknown) => deps.runCommand(command, arg),
 			can: (command: Command<unknown> | string, arg?: unknown) => deps.canRunCommand(command, arg),
-			claims: (event) => deps.claims(event)
+			claims: (event) => deps.claims(event),
+			edit: () => deps.edit(plugin)
 		};
 	}
 

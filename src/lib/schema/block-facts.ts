@@ -23,6 +23,8 @@ export interface BlockFacts {
 	lines: 'every-line' | 'first-line' | 'fenced' | 'items' | 'rows' | 'cells' | 'none';
 	/** A line without its marker still continues a paragraph open inside it. */
 	lazyParagraphLines: boolean;
+	/** The columns a line after the first takes, where that isn't the first line's marker width. */
+	indent?: number;
 	/** The kinds a pasted block of this kind joins rather than nesting in, the metadata field both
 	 *  must share, and what a same-kind block with another value does. */
 	merges: { into: string[]; key?: string; onMismatch: 'nest' | 'break-out' };
@@ -44,10 +46,12 @@ export function blockFacts(kind: string): BlockFacts {
 	const container = mustHoldChild(kind as AnyBlockKind);
 	const lines = container ? linesOf(kind, descriptor) : 'none';
 	const titleRow = reservedChromeKindOf(kind as AnyBlockKind);
+	const indent = container ? fixedIndent(descriptor?.lines) : undefined;
 	return {
 		container,
 		lines,
 		lazyParagraphLines: container && lazyLines(descriptor?.lines),
+		...(indent === undefined ? {} : { indent }),
 		merges: container ? mergesOf(kind, descriptor, lines) : { into: [], onMismatch: 'nest' },
 		countsMarkers: lines === 'items',
 		...(titleRow
@@ -94,6 +98,13 @@ function linesOf(kind: string, descriptor: BlockKindDescriptor | undefined): Blo
 
 function lazyLines(lines: LineShape<unknown> | undefined): boolean {
 	return (lines?.shape === 'marked' || lines?.shape === 'indented') && lines.lazy;
+}
+
+/** The columns every later line takes when an indented shape's `rest` reads none of the first
+ *  line (a footnote's four, not a list item's marker width). */
+function fixedIndent(lines: LineShape<unknown> | undefined): number | undefined {
+	if (lines?.shape !== 'indented' || lines.rest.length > 0) return undefined;
+	return lines.rest(undefined).length;
 }
 
 function mergesOf(

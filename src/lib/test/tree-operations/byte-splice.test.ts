@@ -56,6 +56,10 @@ function divergence(source: string, changes: (before: string) => ByteChange[]): 
 
 const to = (after: string) => (before: string) => changesBetween(before, after);
 
+/** An ordered list of `count` one-letter items. */
+const ITEMS = (count: number) =>
+	Array.from({ length: count }, (_, i) => `${i + 1}. ${'abcdefghij'[i]}\n`).join('');
+
 /** What an edit types: the openers and closers that reach past their own line, and plain text. */
 const INSERTS = [
 	'```\n',
@@ -150,6 +154,8 @@ describe('a splice reads as the document it leaves', () => {
 		['CRLF and no final line break', 'a\r\n\r\nb', 'a\r\nx\r\n\r\nb'],
 		['an emptied document', 'a\n\nb\n', ''],
 		['a closed fence below stays closed', '```\na\n```\n\nb\n', '```\na\n```\n\nbc\n'],
+		['a blank line splits a list, its first item kept', '- a\n- b\n- c\n', '- a\n\n- b\n- c\n'],
+		['a tenth item widens the marker column', ITEMS(9), `${ITEMS(9)}10. j\n`],
 		// Miss-analysis: the generator drew openers and closers, never one far from the other.
 		['an opener finds its closer far below', 'a\n\nb\n\n:::\n', ':::note\na\n\nb\n\n:::\n'],
 		[

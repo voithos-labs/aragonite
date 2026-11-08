@@ -151,6 +151,7 @@ describe('cellKeydownPlan: a cell with no caret', () => {
 describe('cellCommandPlan: the keymap moves', () => {
 	const cases: Array<[string, CellMoveCommand, Partial<CellKeyState>, CellKeyPlan]> = [
 		['Tab mid-table', 'cell.tab', {}, cell(1, 2, 'start')],
+		['Tab at a row end wraps to the next row', 'cell.tab', { colIdx: 2 }, cell(2, 0, 'start')],
 		['Tab last cell', 'cell.tab', { rowIdx: 2, colIdx: 2 }, { kind: 'insert-row-below' }],
 		['Shift+Tab mid-table', 'cell.shiftTab', {}, cell(1, 0, 'end')],
 		[

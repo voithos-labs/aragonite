@@ -102,6 +102,7 @@ Test files take turns in a shared Node process, which bites in three ways:
 | `test:editor:debug` | Debug engine helpers and operations log |
 | `test:editor:perf` | Perf commit gate: counter ceilings, amplification report, fixture goldens |
 | `test:editor:exhaustive` | Every short input, at the lengths `npm test` runs |
+| `test:editor:range-edit` | The range-edit core (copy, cut and paste over a range, in bytes): its laws, named rows and cost |
 
 The inline-scanner suite (`test/core/inline/scan/`) and the directive suite (`test/core/directive/`) fold under `test:editor:core`. Anything without a script of its own (the root-level tests, `test/components/`, `test/editor-root/`, `test/inline-menu/`) runs in the full `test:editor` suite. A new area is one `vitest run src/lib/test/<dir>` line in `package.json`.
 

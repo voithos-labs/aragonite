@@ -7,7 +7,7 @@
 
 ## Edge cases
 
-- until undo entries remember the grammar they were parsed under (D2), an undo step from before the switch restores the math block it held, drawn raw with a `block-host` warning; the spec claims that warning, and a claimed warning that never fires fails the run, so it reds once the restore reparses
+- an undo step from before the switch puts its bytes back read the way the editor reads now: the `$x^2$` line stays prose after all three undos, and no block is drawn raw
 
 ## User interactions
 

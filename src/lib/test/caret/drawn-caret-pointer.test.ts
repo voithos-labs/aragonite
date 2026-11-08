@@ -36,14 +36,21 @@ describe.each(MEDIA)('on %s', (pointer, install) => {
 		install();
 		expect(drawsCaret('auto', caretMedia(finePointer()))).toBe(fine);
 	});
+});
 
-	it('native never draws', () => {
-		install();
+// The prop beats the media, so each override is tested where the media would say the opposite.
+describe('the caret prop overrides the pointer', () => {
+	it('native never draws, on a fine pointer', () => {
+		installMedia(['(pointer: fine)']);
 		expect(drawsCaret('native', caretMedia(finePointer()))).toBe(false);
 	});
 
-	it('drawn always draws', () => {
-		install();
+	it('drawn always draws, on a coarse pointer', () => {
+		installMedia([]);
+		expect(drawsCaret('drawn', caretMedia(finePointer()))).toBe(true);
+	});
+
+	it('drawn always draws, with no media queries at all', () => {
 		expect(drawsCaret('drawn', caretMedia(finePointer()))).toBe(true);
 	});
 });

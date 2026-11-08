@@ -24,6 +24,7 @@ import type { EditorActionsDeps, UndoController } from './deps';
 import { toEditEvent } from '../editor-events';
 import { docPathFrom } from '../core/coordinate-spaces';
 import { documentLineEnding } from '../core/lines';
+import { keepUnchanged } from '../block-id';
 
 function descend(root: CstNode, rel: number[]): CstNode | null {
 	let node: CstNode | undefined = root;
@@ -136,6 +137,8 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 				const wrote = await controller.commitStructural({
 					snapshot: { path: docPathFrom([topIndex]), offset: 0 },
 					mutate: (children) => {
+						// The blocks the replacement left alone stay as they were, so they stay mounted.
+						keepUnchanged(children[topIndex], newNodes[0]);
 						spliceMany(children, topIndex, 1, newNodes);
 						const change = replacePreservingFirst(topIndex, 1, newNodes.length);
 						stampStructuralChange(children, change, deps.sharing);

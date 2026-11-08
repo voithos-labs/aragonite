@@ -25,15 +25,17 @@ interface Shape {
 	hidden: Span | null;
 }
 
-const SHAPES: Shape[] = [
+// Where the lines are hidden, one range per outcome of `editSpan` (kept, clamped, refused); its
+// other shapes are that function's own table in code-fence-boundary.test.ts.
+const HIDDEN_SHAPES: Shape[] = [
 	{ name: 'inside the body', range: [7, 12], hidden: [7, 12] },
-	{ name: 'over the info string', range: [3, 5], hidden: [3, 5] },
-	{ name: 'from the opener into the body', range: [2, 10], hidden: [6, 10] },
 	{ name: 'from the body into the closer', range: [12, 20], hidden: [12, 17] },
-	{ name: 'over the whole block', range: [0, 21], hidden: [6, 17] },
-	{ name: 'over the closer alone', range: [18, 21], hidden: null },
-	{ name: 'over the opener marker run', range: [0, 3], hidden: null },
-	{ name: "over the body's line ending", range: [17, 18], hidden: null }
+	{ name: 'over the closer alone', range: [18, 21], hidden: null }
+];
+
+// Where they are shown the span is the range itself, whatever it crosses.
+const SHOWN_SHAPES: Shape[] = [
+	{ name: 'from the body into the closer', range: [12, 20], hidden: [12, 17] }
 ];
 
 let mounted: MountedCode;
@@ -161,14 +163,14 @@ afterEach(async () => {
 	document.body.innerHTML = '';
 });
 
-const MODES: { label: string; mode: PresentationMode; shown: boolean }[] = [
-	{ label: 'shown', mode: 'source', shown: true },
-	{ label: 'hidden', mode: 'live', shown: false }
+const MODES: { label: string; mode: PresentationMode; shown: boolean; shapes: Shape[] }[] = [
+	{ label: 'shown', mode: 'source', shown: true, shapes: SHOWN_SHAPES },
+	{ label: 'hidden', mode: 'live', shown: false, shapes: HIDDEN_SHAPES }
 ];
 
-describe.each(MODES)('code block write routes, fence lines $label', ({ mode, shown }) => {
+describe.each(MODES)('code block write routes, fence lines $label', ({ mode, shown, shapes }) => {
 	for (const route of ROUTES) {
-		it.each(SHAPES)(`${route.name} over a range $name`, async ({ range, hidden }) => {
+		it.each(shapes)(`${route.name} over a range $name`, async ({ range, hidden }) => {
 			mounted = mountCode(`${DISPLAY}\n`, { mode: () => mode });
 			select(range);
 			const e = route.act();

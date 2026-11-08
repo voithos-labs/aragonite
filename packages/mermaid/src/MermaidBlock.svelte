@@ -201,8 +201,6 @@
 		draft = editSeed;
 		session?.end();
 		session = openDraft({
-			seed: editSeed,
-			current: () => displayCode,
 			close: (cause) => {
 				if (cause !== 'document-swap') commitEdit(false);
 			}
@@ -214,11 +212,11 @@
 		session = null;
 	}
 
-	// The document can change under an open box (a host undo, a structural replace), and the
+	// The block's bytes can change under an open box (a host undo, a structural replace), and the
 	// blur commit would then write a draft seeded from bytes that are gone.
 	$effect(() => {
 		if (!editing) return endSession();
-		if (displayCode !== editSeed || !session) seedDraft();
+		if (!session || session.stale) seedDraft();
 	});
 	// Unregistered only: the blur of a box a swap tore down still reads the dropped session.
 	$effect(() => () => session?.end());
@@ -260,7 +258,7 @@
 	function commitEdit(refocus: boolean): void {
 		if (!editing) return;
 		const value = draft;
-		const writable = session?.canWrite() ?? true;
+		const writable = !session?.stale;
 		editRequested = false;
 		if (!writable) return;
 		// The textarea value is LF-normalized, so the seed must be compared the same way:
