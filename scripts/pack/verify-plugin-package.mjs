@@ -93,7 +93,10 @@ const factories = Object.entries(plugin).filter(([name, value]) => /Plugin$/.tes
 const values = Object.values(plugin).filter((value) => typeof value === 'function' && typeof value.editor === 'string');
 if (factories.length + values.length === 0) throw new Error('exports no plugin');
 core.installPlugins(factories.map(([, factory]) => factory()));
-if (values.length > 0) await testing.runPluginConformance({ plugins: values });
+if (values.length > 0) {
+	testing.configureEditorEnv({ isDev: true, isTest: true });
+	await testing.runPluginConformance({ plugins: values });
+}
 `;
 	const run = spawnSync(
 		process.execPath,
