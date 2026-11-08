@@ -22,6 +22,7 @@ import {
 import { blockNodeAt } from '../tree-operations/node-primitives';
 import { escapeMarkdownLiteral } from '../tree-operations/paste/markdown-literal';
 import { storedAsAt, writeTargetAt } from '../tree-operations/stored-as';
+import { cellText } from '../core/parsers/table-line';
 import { documentLayout, type Layout } from './layout';
 
 export type Mode = 'source' | 'live';
@@ -116,10 +117,15 @@ export function rangeHost(
 	): LeafWrite => {
 		const { holder, index } = writeTargetAt(doc, path);
 		const legal = legalizeWrite(holder, index, edit.raw, 'literal', reading.grammar);
+		const row = blockNodeAt(doc, path.slice(0, -1));
+		// A row writes a cell's edge spaces as padding, so the cell keeps its text without them.
+		const bytes = row && blockFacts(row.kind).lines === 'cells' ? cellText(legal.text) : legal.text;
+		const lead = legal.text.indexOf(bytes);
+		const at = (offset: number) => Math.min(Math.max(offset - lead, 0), bytes.length);
 		return {
-			bytes: legal.text,
-			caret: legal.storedOffset(edit.caret),
-			after: legal.storedOffset(edit.afterRange)
+			bytes,
+			caret: at(legal.storedOffset(edit.caret)),
+			after: at(legal.storedOffset(edit.afterRange))
 		};
 	};
 	let currentLayout: Layout | undefined;
