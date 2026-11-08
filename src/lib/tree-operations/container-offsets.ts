@@ -249,18 +249,24 @@ function lineMap(node: NodeView): ContainerMap {
 	if (verbatim) return identityMap(node.raw, verbatim);
 	const childStarts: number[] = [];
 	let body = '';
+	// Read off each piece as it goes on, since testing the growing body rescans it once per child.
+	let endsLine = false;
+	const append = (text: string) => {
+		if (text === '') return;
+		body += text;
+		endsLine = text.endsWith('\n') || text.endsWith('\r');
+	};
 	const add = (i: number) => {
 		// A grid's rebuild may put the line break between rows that their own bytes leave out.
-		if (body !== '' && !/[\r\n]$/.test(body) && !/^[\r\n]/.test(children[i].leadingTrivia))
-			body += '\n';
-		body += children[i].leadingTrivia;
+		if (body !== '' && !endsLine && !/^[\r\n]/.test(children[i].leadingTrivia)) append('\n');
+		append(children[i].leadingTrivia);
 		childStarts[i] = body.length;
-		body += children[i].raw;
+		append(children[i].raw);
 	};
 	if (titled) add(0);
-	body += node.innerPrefix ?? '';
+	append(node.innerPrefix ?? '');
 	for (let i = titled ? 1 : 0; i < children.length; i++) add(i);
-	body += node.innerSuffix ?? '';
+	append(node.innerSuffix ?? '');
 
 	const raw = splitLines(node.raw);
 	const bodyLines = splitLines(body);
