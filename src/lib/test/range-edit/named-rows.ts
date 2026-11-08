@@ -816,5 +816,17 @@ export const NAMED_ROWS: NamedRow[] = [
 		mode: 'live',
 		gesture: 'backspace',
 		expect: { source: 'Some **bo**\n' }
+	},
+	{
+		name: 'L4 a quote the range holds from its first byte goes whole, with its line',
+		source: 'lead\n\n⟦> quoted line⟧\n\ntail\n',
+		gesture: 'cut',
+		expect: { source: 'lead\n\ntail\n' }
+	},
+	{
+		name: 'L4 a list item the range holds from its marker goes whole, with its line',
+		source: '- one\n⟦- two⟧\n- three\n',
+		gesture: 'delete',
+		expect: { source: '- one\n- three\n' }
 	}
 ];

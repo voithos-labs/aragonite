@@ -53,11 +53,9 @@ export const heldAt = (doc: Doc, from: number, to: number): LaidBlock | undefine
 	findWithin(doc, from, from, (b) => heldWhole(doc, b, from, to));
 
 /** A block other than a paragraph that the range covers from its first byte through its text, or
- *  through its last row or closing line: it goes whole. */
+ *  through its last line, its markers included: it goes whole. */
 export function heldWhole(doc: Doc, block: LaidBlock, from: number, to: number): boolean {
-	const facts = factsOf(doc, block);
-	const whole = !block.container || facts.lines === 'rows' || facts.lines === 'fenced';
-	if (block.from !== from || facts.joins === 'text' || !whole) return false;
+	if (block.from !== from || factsOf(doc, block).joins === 'text') return false;
 	return to >= (block.text?.to ?? contentEnd(doc, block));
 }
 
