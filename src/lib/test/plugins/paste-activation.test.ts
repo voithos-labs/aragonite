@@ -3,7 +3,7 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { installPlugins } from '#lib';
 import { parse } from '#lib/core/parser.js';
-import { parrotPlugin, PARROT } from '#packages/parrot/src/index.js';
+import { tocPlugin, TOC_BLOCK } from '#packages/toc/src/index.js';
 import { normalizeReplacementForBody } from '#lib/tree-operations/paste/body-write.js';
 import { declaredPluginKind } from '#lib/schema/plugin-kind.js';
 import { DETAILS, registerDetailsKind } from '#packages/details/src/details-kind.js';
@@ -20,7 +20,7 @@ import {
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
-const PARROT_LINE = '%%parrot party responsibly\n';
+const TOC_LINE = '[[toc]]\n';
 
 /** The grammar an editor whose `plugins` prop lists `names` parses through. */
 function grammarListing(names: string[]) {
@@ -28,7 +28,7 @@ function grammarListing(names: string[]) {
 }
 
 beforeEach(() => {
-	installPlugins([parrotPlugin()]);
+	installPlugins([tocPlugin()]);
 	// A bodyWrite-declaring owner, so the escape below has a reparse to run.
 	registerDetailsKind(testView());
 });
@@ -38,7 +38,7 @@ async function pasteInto(grammar: ReturnType<typeof grammarListing>) {
 	const blockEdit = makeStubBlockEdit();
 	await runPasteDispatch(
 		h,
-		{ pastedText: PARROT_LINE, targetPath: [0], offset: 'target'.length },
+		{ pastedText: TOC_LINE, targetPath: [0], offset: 'target'.length },
 		{ blockEdit, reading: fixtureReading({ grammar }) }
 	);
 	return { doc: h.doc, blockEdit };
@@ -46,17 +46,17 @@ async function pasteInto(grammar: ReturnType<typeof grammarListing>) {
 
 describe('a paste parses through the instance grammar, not the global one', () => {
 	it('lands the plugin kind for an editor that lists the plugin', async () => {
-		const { doc } = await pasteInto(grammarListing(['parrot']));
-		expect(doc.children.map((c) => c.kind)).toContain(PARROT);
+		const { doc } = await pasteInto(grammarListing(['toc']));
+		expect(doc.children.map((c) => c.kind)).toContain(TOC_BLOCK);
 	});
 
 	// The unlisted opener is gone, so the clipboard is one paragraph: inline, with the marker
 	// bytes arriving as prose rather than creating a kind this editor has no component for.
 	it('falls back to prose for an editor that does not', async () => {
 		const { doc, blockEdit } = await pasteInto(grammarListing([]));
-		expect(doc.children.map((c) => c.kind)).not.toContain(PARROT);
+		expect(doc.children.map((c) => c.kind)).not.toContain(TOC_BLOCK);
 		const write = vi.mocked(blockEdit.updateBlockContent).mock.calls[0];
-		expect(write[1]).toContain('target%%parrot party responsibly');
+		expect(write[1]).toContain('target[[toc]]');
 	});
 });
 
@@ -64,7 +64,7 @@ describe('a paste parses through the instance grammar, not the global one', () =
 // escapes the pasted bytes and re-reads them, so it has to use the grammar the clipboard used.
 describe('the bodyWrite escape reparse reads the instance grammar', () => {
 	const pasted = (): CstNode[] => [
-		{ kind: 'paragraph', leadingTrivia: '', raw: PARROT_LINE + '</details>\n' } as CstNode
+		{ kind: 'paragraph', leadingTrivia: '', raw: TOC_LINE + '</details>\n' } as CstNode
 	];
 	const landedKinds = (grammar: GrammarView) =>
 		normalizeReplacementForBody(
@@ -75,10 +75,10 @@ describe('the bodyWrite escape reparse reads the instance grammar', () => {
 		).replacement.map((n) => n.kind);
 
 	it('the global grammar creates the plugin kind', () => {
-		expect(landedKinds(defaultGrammarView)).toContain(PARROT);
+		expect(landedKinds(defaultGrammarView)).toContain(TOC_BLOCK);
 	});
 
 	it('the grammar of an editor without the plugin keeps it prose', () => {
-		expect(landedKinds(grammarListing([]))).not.toContain(PARROT);
+		expect(landedKinds(grammarListing([]))).not.toContain(TOC_BLOCK);
 	});
 });

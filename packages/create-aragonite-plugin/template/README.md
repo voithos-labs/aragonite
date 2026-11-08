@@ -42,8 +42,8 @@ Keep the `package-lock.json` that `npm install` wrote in that first commit (`git
 The parrot already ships as `@voithos-labs/aragonite-parrot`, so rename before the two ever meet on one page:
 
 - `name` in `package.json` is your folder's name. `aragonite-<name>` or `@your-scope/aragonite-<name>` helps people spot it on npm. Keep the `aragonite-plugin` keyword either way, it's how people find plugins.
-- The plugin's `name` in `definePlugin`, and the kind name (`PARROT`).
-- The marker your opener looks for (`%%parrot`), and the class names in `parrot.css`.
+- The plugin's `name` in `definePlugin`, and the block type's `name` and `label` in `lineBlock`.
+- The marker your `match` looks for (`%%parrot`), and the class names in `parrot.css`.
 - `"private": true` in `package.json` stops an accidental `npm publish` of the parrot. [Publish](#publish) says when to delete it.
 - `LICENSE` is MIT, which asks only that you keep its notice in what you copy from the template, so put your own license beside it. The parrot frames are MIT (`THIRD-PARTY-NOTICES.md`); drop that file along with the frames.
 

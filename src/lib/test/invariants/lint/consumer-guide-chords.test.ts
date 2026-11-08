@@ -54,7 +54,6 @@ const BUNDLED_PLUGINS = [
 		}
 	}),
 	mermaidPlugin(),
-	parrotPlugin(),
 	tocPlugin()
 ];
 // Installed as the file loads too, so the row tables below can name the bundled kinds.
@@ -69,7 +68,7 @@ const contributions = createEditorContributions({
 	}
 });
 contributions.read(
-	installPluginList([slashCommands], ({ cause }) => {
+	installPluginList([slashCommands, parrotPlugin()], ({ cause }) => {
 		throw cause;
 	})
 );

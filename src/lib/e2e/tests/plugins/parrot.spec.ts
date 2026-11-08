@@ -5,7 +5,7 @@ import { edgeKey } from '../../platform-keys';
 
 /**
  * The bundled party parrot (requirements/plugins/parrot.md), the plugin guide's quickstart built:
- * a render-first block showing its caption, whose source line exists only while the caret is in the
+ * a render-first block showing its caption, whose source line shows only while the caret is in the
  * block. Seed `parrot`: block 0 `%%parrot party responsibly`, block 1 `After`. The bytes themselves
  * are the unit suite's.
  */
@@ -34,7 +34,7 @@ class ParrotPage extends PluginsPage {
 	/** Click the caption and wait for the source line to appear, with the caret inside it. */
 	async revealByClick(): Promise<void> {
 		await this.caption.click();
-		await expect(this.source).toHaveCount(1);
+		await expect(this.source).toBeVisible();
 		await expect(this.source).toBeFocused();
 	}
 
@@ -68,10 +68,10 @@ class ParrotPage extends PluginsPage {
 		return this.sourceCaretOffset();
 	}
 
-	/** Leave the block downward into `After`; the blur closes the source, so it unmounts. */
+	/** Leave the block downward into `After`; the blur closes the source, so it hides. */
 	async leaveDownward(): Promise<void> {
 		await this.page.keyboard.press('ArrowDown');
-		await expect(this.source).toHaveCount(0);
+		await expect(this.source).toBeHidden();
 	}
 
 	/** What the animation actually moves: the strip's own transform, as a viewer sees it. */
@@ -121,7 +121,7 @@ test.describe('the bundled party parrot', () => {
 		// Art, not an empty box: the frame carries the bird's own characters.
 		await expect(editor.frame).toContainText('kkkk');
 		await expect(editor.caption).toHaveText('party responsibly');
-		await expect(editor.source).toHaveCount(0);
+		await expect(editor.source).toBeHidden();
 		// One frame on screen, the canonical ten in the strip behind it.
 		expect(await editor.reelFrameFit()).toBe(10);
 		expect(await editor.bridge.getSource()).toBe(SEED);
@@ -156,7 +156,7 @@ test.describe('the bundled party parrot', () => {
 	test('a click on the caption reveals the source line, bytes untouched', async ({ page }) => {
 		await editor.revealByClick();
 		await expect(editor.source).toHaveText('%%parrot party responsibly');
-		await expect(editor.caption).toHaveCount(0);
+		await expect(editor.caption).toBeHidden();
 		expect(await editor.bridge.getSource()).toBe(SEED);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
@@ -181,7 +181,7 @@ test.describe('the bundled party parrot', () => {
 
 		await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 
-		await expect(editor.source).toHaveCount(1);
+		await expect(editor.source).toBeVisible();
 		await expect(editor.source).toBeFocused();
 		expect(await editor.bridge.getSource()).toBe(SEED);
 		expect(await capturedErrors(page)).toEqual([]);
@@ -219,7 +219,7 @@ test.describe('the bundled party parrot', () => {
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals(SEED);
 		await expect(editor.caption).toHaveText('party responsibly');
-		await expect(editor.source).toHaveCount(0);
+		await expect(editor.source).toBeHidden();
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
@@ -244,12 +244,12 @@ test.describe('the bundled party parrot', () => {
 		await editor.getBlock(1).click();
 		await page.keyboard.press(edgeKey('lineStart'));
 		await page.keyboard.press('ArrowLeft');
-		await expect(editor.source).toHaveCount(1);
+		await expect(editor.source).toBeVisible();
 		expect(await activeBlockPath(page)).toEqual([0]);
 
 		await page.keyboard.press(edgeKey('lineEnd'));
 		await page.keyboard.press('ArrowRight');
-		await expect(editor.source).toHaveCount(0);
+		await expect(editor.source).toBeHidden();
 		expect(await activeBlockPath(page)).toEqual([1]);
 		expect(await capturedErrors(page)).toEqual([]);
 	});
@@ -263,7 +263,7 @@ test.describe('the bundled party parrot', () => {
 
 		// The shape a heading's Enter writes at the same offset, byte for byte.
 		await editor.bridge.waitForSourceEquals('%%parrot party responsibly\n\n\nAfter\n');
-		await expect(editor.source).toHaveCount(0);
+		await expect(editor.source).toBeHidden();
 		await expect(editor.caption).toHaveText('party responsibly');
 		expect(await activeBlockPath(page)).toEqual([1]);
 		expect(await roundTripStable(page)).toBe(true);
@@ -322,12 +322,12 @@ test.describe('the bundled party parrot', () => {
 		await page.keyboard.type('%%parrot');
 		// Changing kind mounts the bird with its source open and the caret still at the end.
 		await expect(editor.block).toHaveCount(2);
-		await expect(editor.source).toHaveCount(1);
+		await expect(editor.source).toBeVisible();
 
 		await page.keyboard.press('Enter');
 
 		await editor.bridge.waitForSourceEquals('%%parrot party responsibly\n\n%%parrot\n\n\n');
-		await expect(editor.source).toHaveCount(0);
+		await expect(editor.source).toBeHidden();
 		expect(await activeBlockPath(page)).toEqual([2]);
 		expect(await roundTripStable(page)).toBe(true);
 		expect(await capturedErrors(page)).toEqual([]);
@@ -338,11 +338,11 @@ test.describe('the bundled party parrot', () => {
 	}) => {
 		await editor.setPresentationMode('reading');
 		await expect(editor.caption).toHaveText('party responsibly');
-		await expect(editor.source).toHaveCount(0);
+		await expect(editor.source).toBeHidden();
 
 		await editor.caption.click();
-		await expect(editor.caption).toHaveCount(1);
-		await expect(editor.source).toHaveCount(0);
+		await expect(editor.caption).toBeVisible();
+		await expect(editor.source).toBeHidden();
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 });

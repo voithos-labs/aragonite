@@ -65,13 +65,13 @@ Empties every registry a plugin writes into, so each case re-installs from nothi
 ```ts
 import { installPlugins } from '@voithos-labs/aragonite';
 import { resetPluginPlatformForTests } from '@voithos-labs/aragonite/testing';
-import { parrotPlugin } from './parrot-plugin';
+import { conspiracyPlugin } from './conspiracy-plugin';
 
-const parrot = parrotPlugin(); // one unit instance for the whole file
+const conspiracy = conspiracyPlugin(); // one unit instance for the whole file
 
 beforeEach(() => {
 	resetPluginPlatformForTests(); // empty the registries
-	installPlugins([parrot]); // the unit, exactly as the `plugins` prop installs it
+	installPlugins([conspiracy]); // the unit, exactly as the `plugins` prop installs it
 });
 ```
 
@@ -80,10 +80,10 @@ Seen from outside, a reset takes the plugin's whole footprint with it:
 ```ts
 import { isPluginInstalled } from '@voithos-labs/aragonite/plugin';
 
-installPlugins([parrot]);
-isPluginInstalled('parrot'); // true
+installPlugins([conspiracy]);
+isPluginInstalled('conspiracy'); // true
 resetPluginPlatformForTests();
-isPluginInstalled('parrot'); // false, and declaredPluginKind('parrot') throws until the next install
+isPluginInstalled('conspiracy'); // false, and declaredPluginKind('conspiracy') throws until the next install
 ```
 
 What that clears, and what it deliberately leaves alone:
@@ -100,9 +100,9 @@ beforeAll(() => configureEditorEnv({ isTest: true })); // "yes, this really is a
 afterAll(() => resetEditorEnv());
 ```
 
-**Install the unit, not your register function.** Your registrations answer to your plugin only when its setup runs them, and that's how an editor's `plugins` list turns your kind on or off. Call `registerParrotBlock(view)` yourself and the kind belongs to no plugin at all, so every editor shows it and your activation tests pass against a setup no user runs. Three more identity rules keep a suite honest:
+**Install the unit, not your register function.** Your registrations answer to your plugin only when its setup runs them, and that's how an editor's `plugins` list turns your kind on or off. Call `registerConspiracy(view)` yourself and the kind belongs to no plugin at all, so every editor shows it and your activation tests pass against a setup no user runs. Three more identity rules keep a suite honest:
 
-- Installing the **same unit instance** twice (the `beforeEach` above plus an editor's `plugins` prop, say) is a no-op, which is why the sample builds `parrot` once at module scope.
+- Installing the **same unit instance** twice (the `beforeEach` above plus an editor's `plugins` prop, say) is a no-op, which is why the sample builds `conspiracy` once at module scope.
 - A **different instance under the same name** is kept out by a first-wins rule, with a dev warning naming the loser.
 - Calling your register function directly **beside** a unit install makes the unit's setup re-register your kind, which **throws**. The register-once throw stays live under test on purpose, so the collision fails your suite instead of silently winning.
 
@@ -238,38 +238,38 @@ Takes your kind (the value `declaredPluginKind` returns) and runs one cell per e
   - It's `boundary` for a kind with the rule and no top-level fixture (none at all, or one sitting inside a container), and `exempt` for a kind with neither the rule nor a top-level fixture.
 - The unfinished-reading cell, last. If your opener declares `readingNotFinal`, because it backs out without its closer or reads on like a fence ([A reading that isn't final](plugin-guide/parser.md#a-reading-that-isnt-final)), it takes your fixture's last line off and checks `mayClose` says yes to that line, the closer that finishes it, and that `closer` hands back a line that closes the rest into your kind again. A `closer` of `null` fails it: without one, your opener written above another block of its kind swallows everything down to that block. It's `exempt` when your fixture minus its last line doesn't read as waiting, which covers every kind that neither backs out nor reads on. One catch: if your fixture is a fence and your opener declares no `readingNotFinal`, the cell fails and asks for `fenceReading`.
 
-Cells whose mechanism only exists in a browser (focus, selection and search painting, reorder, and the note-taking simulation aragonite runs over its own kinds) are recorded `boundary`; the kit won't fake them green. Covering those is your own browser tests' job. For the parrot, the whole checkup is the test the [guide's quickstart](plugin-guide.md#the-first-fifteen-minutes) ends on:
+Cells whose mechanism only exists in a browser (focus, selection and search painting, reorder, and the note-taking simulation aragonite runs over its own kinds) are recorded `boundary`; the kit won't fake them green. Covering those is your own browser tests' job. The checkup reads kinds registered with `registerBlockKind`. A block type from `lineBlock` and friends isn't one, so for those `runPluginConformance` checks the plugin's install and stops there, the way the [guide's quickstart](plugin-guide.md#the-first-fifteen-minutes) ends. For the bundled `[[toc]]` block, the whole checkup is one call:
 
 ```ts
-it('parrot conforms', async () => {
-	await runKindConformance(declaredPluginKind(PARROT));
+it('toc conforms', async () => {
+	await runKindConformance(declaredPluginKind('toc'));
 });
 ```
 
-It resolves with a report, one cell per editor system and then the raw-write and unfinished-reading cells. For the parrot exactly as the guide declares it:
+It resolves with a report, one cell per editor system and then the raw-write and unfinished-reading cells. For the toc as it ships:
 
 ```ts
-const report = await runKindConformance(declaredPluginKind(PARROT));
+const report = await runKindConformance(declaredPluginKind('toc'));
 report.cells.map((c) => `${c.cell}: ${c.status}`);
 // [
 //   'roundTrip: asserted',      // the fixture round-trips
 //   'focus: boundary',          // browser only
 //   'mergeBackspace: asserted', // eligibility matches mergeRole
 //   'selectionPaint: boundary', // browser only
-//   'searchPaint: boundary',    // browser only, since the parrot is searchable
+//   'searchPaint: boundary',    // browser only, since the toc is searchable
 //   'reorder: boundary',        // browser only
 //   'undo: asserted',           // one edit, one undo entry
 //   'clipboard: asserted',      // copy is a raw byte slice
 //   'simOracle: boundary',      // aragonite's own simulation, never this runner
 //   'rawWrite: asserted',       // no rule, and cutting the closing line swallows nothing
-//   'unfinishedReading: exempt' // the parrot never backs out
+//   'unfinishedReading: exempt' // the toc never backs out
 // ]
 ```
 
 When something's wrong the run throws instead of resolving; a fixture that stopped producing your kind reads like this:
 
 ```
-Error: kind conformance failed for "parrot": conformanceFixture parses to no "parrot" node
+Error: kind conformance failed for "toc": conformanceFixture parses to no "toc" node
 ```
 
 **The fixture contract.** Your `conformanceFixture` has to hold your kind inside its **first** top-level block, or the run fails outright: the undo and clipboard cells drive the fixture's first block, next to a throwaway neighbour block the kit adds. A kind that only ever appears nested still enrolls, sitting inside the first block; its clipboard cell then reports `boundary`, because its bytes get copied as part of the enclosing container.
@@ -569,9 +569,10 @@ The same run from outside your test suite, over your built package the way a hos
 ```
 $ npx aragonite-plugin-check .
 checking aragonite-parrot@0.1.0 against @voithos-labs/aragonite@0.12.0
-  kind checkup, parrot: 4 asserted, 6 boundary, 1 exempt
 aragonite-plugin-check: passed
 ```
+
+A plugin with kinds registered by hand gets a line per checkup in between (`kind checkup, toc: 4 asserted, 6 boundary, 1 exempt`, say).
 
 It exits 0 when every cell passed, 1 when a contract broke (with the same message `runPluginConformance` throws), and 2 when the package publishes no suite. `--json` also writes the result to a file.
 

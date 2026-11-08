@@ -42,8 +42,8 @@ test.describe('the plugins prop is the enablement set', () => {
 	}) => {
 		await test.step('the listing editor renders the plugin component and its decorations', async () => {
 			const pane = page.getByTestId('editor-listing');
-			await expect(pane.locator('[data-block-kind="parrot"] .parrot-block')).toBeVisible();
-			await expect(pane.locator('[data-block-kind="parrot"] .raw-block')).toHaveCount(0);
+			await expect(pane.locator('[data-block-kind="parrot/parrot"] .parrot-block')).toBeVisible();
+			await expect(pane.locator('[data-block-kind="parrot/parrot"] .raw-block')).toHaveCount(0);
 			await expect(pane.locator('[data-block-kind="heading"] .badge-h')).toHaveCount(1);
 		});
 
@@ -65,7 +65,7 @@ test.describe('the plugins prop is the enablement set', () => {
 	test('the editor that did not list a plugin reads its syntax as prose', async ({ page }) => {
 		await test.step('reads the unlisted syntax as the prose it is', async () => {
 			const pane = page.getByTestId('editor-not-listing');
-			await expect(pane.locator('[data-block-kind="parrot"]')).toHaveCount(0);
+			await expect(pane.locator('[data-block-kind="parrot/parrot"]')).toHaveCount(0);
 			await expect(pane.locator('[data-block-kind="paragraph"]').first()).toHaveText(
 				/%%parrot party responsibly/
 			);
@@ -106,7 +106,7 @@ test.describe('the plugins prop is the enablement set', () => {
 
 		// The new empty paragraph, the parrot bytes, the note's body, the dollars and `Body`.
 		await expect(pane.locator('[data-block-kind="paragraph"]')).toHaveCount(5);
-		await expect(pane.locator('[data-block-kind="parrot"]')).toHaveCount(0);
+		await expect(pane.locator('[data-block-kind="parrot/parrot"]')).toHaveCount(0);
 		expect(await convergedIn(page, 'notListing')).toBe(true);
 	});
 
@@ -182,6 +182,6 @@ test.describe('activation scopes the chord and the paste grammar', () => {
 		await clipboard.paste();
 
 		await expect(body).toHaveText(/%%parrot dance/);
-		await expect(pane.locator('[data-block-kind="parrot"]')).toHaveCount(0);
+		await expect(pane.locator('[data-block-kind="parrot/parrot"]')).toHaveCount(0);
 	});
 });

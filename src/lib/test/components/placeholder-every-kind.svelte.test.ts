@@ -68,7 +68,6 @@ const NEVER_ASKED: Record<string, string> = {
 	htmlBlock: NO_BLANK_FORM,
 	linkReferenceDefinition: NO_BLANK_FORM,
 	toc: NO_BLANK_FORM,
-	parrot: NO_BLANK_FORM,
 	unrecognized: 'no opener produces it, and it keeps the bytes it was given',
 	table: 'its cells are not blocks and are not asked',
 	tableRow: 'rendered inside its table, whose cells are not asked',

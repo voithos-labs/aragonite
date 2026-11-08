@@ -5,5 +5,5 @@ import suite from '../src/conformance';
 
 it('the parrot passes the conformance kits', async () => {
 	const report = await runPluginConformance(suite);
-	expect(report.kinds.map((k) => k.kind)).toEqual(['parrot']);
+	expect(report.plugins).toEqual(['parrot']);
 });

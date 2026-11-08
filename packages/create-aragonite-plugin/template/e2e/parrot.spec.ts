@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
 test('renders the bird and its caption, the source folded', async ({ page }) => {
 	await expect(page.locator('.parrot')).toContainText('kkkk');
 	await expect(page.locator('.parrot-caption')).toHaveText('party responsibly');
-	await expect(page.locator('.parrot-source')).toHaveCount(0);
+	await expect(page.locator('.parrot-source')).toBeHidden();
 	expect(await source(page)).toBe(SEED);
 });
 
@@ -31,7 +31,7 @@ test('typing then leaving folds the block, and the caption shows the new text', 
 	await page.keyboard.press('End');
 	await page.keyboard.type(' hard');
 	await page.keyboard.press('ArrowDown');
-	await expect(page.locator('.parrot-source')).toHaveCount(0);
+	await expect(page.locator('.parrot-source')).toBeHidden();
 	await expect(page.locator('.parrot-caption')).toHaveText('party responsibly hard');
 	expect(await source(page)).toBe('%%parrot party responsibly hard\n\nAfter\n');
 });

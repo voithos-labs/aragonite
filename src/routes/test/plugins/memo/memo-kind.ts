@@ -34,12 +34,10 @@ export function registerMemoBlock(view: BlockView): void {
 	registerBlockKind(memo, {
 		view,
 		opener: {
-			// Lower priorities try first, so 27 lets the bundled parrot opener (25) take `%%parrot`
-			// lines before the memo sees them.
 			priority: 27,
-			interruptsParagraph: (text) => text.startsWith('%%'),
+			interruptsParagraph: (text) => isMemoLine(text),
 			tryOpen(ctx) {
-				if (!ctx.line.text.startsWith('%%')) return null;
+				if (!isMemoLine(ctx.line.text)) return null;
 				const node: CstNode = { kind: memo, leadingTrivia: ctx.leadingTrivia, raw: ctx.line.raw };
 				if (ctx.line.text.startsWith(TAGGED)) setPluginMetadata(node, { memoTagged: true });
 				return { node, consumed: 1 };
@@ -55,4 +53,10 @@ export function registerMemoBlock(view: BlockView): void {
 		],
 		conformanceFixture: '%%a memo\n'
 	});
+}
+
+// The bundled parrot's `%%parrot` lines are its own: a plugin's block type sorts after every
+// opener registered by hand, so the memo declines them.
+function isMemoLine(text: string): boolean {
+	return text.startsWith('%%') && !text.startsWith('%%parrot');
 }

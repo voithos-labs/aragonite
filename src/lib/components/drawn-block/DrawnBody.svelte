@@ -245,7 +245,9 @@
 	function clickedAt(made: Drawn<unknown>, x: number, y: number): number | null {
 		const caret = made.caret;
 		if (!caret) return null;
-		const at = typeof caret === 'function' ? caret({ x, y }) : caretOffsetAtPoint(caret, x, y);
+		// An element with no text to measure (an empty caption) lands at the text's start.
+		const at =
+			typeof caret === 'function' ? caret({ x, y }) : (caretOffsetAtPoint(caret, x, y) ?? 0);
 		return at === null ? null : getContentRange(node).start + at;
 	}
 

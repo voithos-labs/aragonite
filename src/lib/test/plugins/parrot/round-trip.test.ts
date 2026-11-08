@@ -1,27 +1,35 @@
-import { beforeEach, describe, it, expect } from 'vitest';
-import { installPlugins, parse, serialize } from '#lib';
-import { parrotPlugin, PARROT } from '#packages/parrot/src/index.js';
-import { roundTripCases } from '#lib/test/harness/round-trip.js';
+// @vitest-environment jsdom
+// The parrot's line read by an editor running the plugin, and its bytes kept whole.
+import { afterEach, beforeAll, describe, it, expect } from 'vitest';
+import { parse, serialize } from '#lib';
+import { parrotPlugin, parrot } from '#packages/parrot/src/index.js';
+import {
+	destroyMountedEditors,
+	installLayoutStubs,
+	mountEditor
+} from '#lib/test/harness/mount-editor.svelte.js';
 
-// The parrot's registration function is module-private (the plugin keeps the guide's bytes),
-// so installing the plugin is the only way in, which is what a consumer does.
-const installParrot = () => installPlugins([parrotPlugin()]);
+beforeAll(() => installLayoutStubs());
+afterEach(destroyMountedEditors);
 
-// Uninstalled, the marker is ordinary prose: the bytes a consumer without the plugin
-// reads back are bare GFM, which is the whole uninstall story for a leaf like this.
-describe('parrot is dormant until installed', () => {
-	it('leaves a %%parrot line as a paragraph with nothing installed', () => {
+async function mounted(source: string) {
+	const m = mountEditor({ source, plugins: [parrotPlugin()] });
+	await m.settle();
+	return m;
+}
+
+// Without the plugin, the marker is ordinary prose: bare GFM is the whole uninstall story.
+describe('parrot is dormant where no editor runs it', () => {
+	it('leaves a %%parrot line as a paragraph', () => {
 		const src = '%%parrot party responsibly\n';
 		expect(parse(src).children[0].kind).toBe('paragraph');
 		expect(serialize(parse(src))).toBe(src);
 	});
 });
 
-// The opener takes a line on the bare `%%parrot` prefix, with no separator required, so
-// `%%parrots` is a parrot whose caption starts mid-word.
+// The line takes the bare `%%parrot` prefix, with no separator required, so `%%parrots` is a parrot
+// whose caption starts mid-word.
 describe('parrot recognition', () => {
-	beforeEach(installParrot);
-
 	const recognition: Array<[string, string, boolean]> = [
 		['marker with a caption', '%%parrot party responsibly\n', true],
 		['bare marker', '%%parrot\n', true],
@@ -32,55 +40,28 @@ describe('parrot recognition', () => {
 		['single percent', '%parrot\n', false],
 		['marker mid-line', 'see %%parrot\n', false]
 	];
-	for (const [name, src, claimed] of recognition) {
-		it(`${name} → ${claimed ? 'parrot' : 'paragraph'}`, () => {
-			expect(parse(src).children[0].kind).toBe(claimed ? PARROT : 'paragraph');
-		});
-	}
-
-	it('parses the line to a single source-holding leaf (no children)', () => {
-		const node = parse('%%parrot party responsibly\n').children[0];
-		expect(node.children).toBeUndefined();
-		expect(node.raw).toBe('%%parrot party responsibly\n');
+	it.each(recognition)('%s', async (_name, src, claimed) => {
+		const m = await mounted(src);
+		expect(m.instance.getBlockKindAt([0])).toBe(claimed ? parrot.name : 'paragraph');
 	});
 
-	it('interrupts an open paragraph, splitting the parrot onto its own block', () => {
-		expect(parse('intro\n%%parrot hi\n').children.map((c) => c.kind)).toEqual([
+	it('interrupts an open paragraph, splitting the parrot onto its own block', async () => {
+		const m = await mounted('intro\n%%parrot hi\n');
+		expect([m.instance.getBlockKindAt([0]), m.instance.getBlockKindAt([1])]).toEqual([
 			'paragraph',
-			PARROT
+			parrot.name
 		]);
 	});
 
-	it('is recognized inside a blockquote', () => {
-		const quote = parse('> %%parrot hi\n').children[0];
-		expect(quote.kind).toBe('blockquote');
-		expect(quote.children?.[0].kind).toBe(PARROT);
+	it('is recognized inside a blockquote', async () => {
+		const m = await mounted('> %%parrot hi\n');
+		expect(m.instance.getBlockKindAt([0])).toBe('blockquote');
+		expect(m.instance.getBlockKindAt([0, 0])).toBe(parrot.name);
 	});
 });
 
-// The component derives its caption as `node.raw.slice('%%parrot'.length).trim()`, so the parser
-// must keep the whole line in `raw`; the rendered caption belongs to the e2e.
-describe('the caption bytes survive in the node raw', () => {
-	beforeEach(installParrot);
-
-	const caption = (src: string) => parse(src).children[0].raw.slice('%%parrot'.length).trim();
-
-	it('recovers the text after the marker', () => {
-		expect(caption('%%parrot party responsibly\n')).toBe('party responsibly');
-	});
-
-	it('is empty for a bare marker, and for a marker with only spacing after it', () => {
-		expect(caption('%%parrot\n')).toBe('');
-		expect(caption('%%parrot   \n')).toBe('');
-	});
-});
-
-// Serialize re-emits `leadingTrivia + raw`, so a `raw` taken verbatim from the line round-trips;
-// the declined shapes prove the opener leaves every byte it does not take alone.
 describe('parrot round-trip', () => {
-	beforeEach(installParrot);
-
-	roundTripCases([
+	it.each([
 		'%%parrot party responsibly\n',
 		'%%parrot\n',
 		'Before\n\n%%parrot party responsibly\n\nAfter\n',
@@ -90,5 +71,7 @@ describe('parrot round-trip', () => {
 		' %%parrot hi\n',
 		'see %%parrot\n',
 		'```\n%%parrot in code\n```\n'
-	]);
+	])('keeps %j whole', async (src) => {
+		expect((await mounted(src)).source()).toBe(src);
+	});
 });

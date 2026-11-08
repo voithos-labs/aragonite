@@ -38,8 +38,8 @@ it(
 			activateDirectives();
 			installPlugins(normalizePluginEntries(plugins).plugins);
 		}).not.toThrow();
-		expect(parse('%%parrot hi\n\n:::note\nx\n:::\n').children.map((c) => c.kind)).toEqual([
-			'parrot',
+		expect(parse('[[toc]]\n\n:::note\nx\n:::\n').children.map((c) => c.kind)).toEqual([
+			'toc',
 			'admonition'
 		]);
 		// The guard is live in this module graph, so the silence above is the package's own.

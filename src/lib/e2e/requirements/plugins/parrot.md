@@ -9,7 +9,7 @@ source back into a caption and commits the edit once. Seed `parrot`: block 0
 ## Happy paths
 
 - Seed render: block 0 shows one `.parrot-block` holding the bird's clip window (`.parrot`) and
-  a `.parrot-caption` reading `party responsibly`; no `.parrot-source` is mounted, and the
+  a `.parrot-caption` reading `party responsibly`; the `.parrot-source` line is hidden, and the
   `%%parrot party responsibly` bytes stay in the source. The strip inside the window
   (`.parrot-reel`) is exactly ten windows tall, so a step lands on the next frame rather than
   part way into it.
@@ -22,8 +22,8 @@ source back into a caption and commits the edit once. Seed `parrot`: block 0
 
 ## User interactions
 
-- A click shows the source: a click on the caption mounts `.parrot-source` holding the whole
-  line, marker included, with the caret in it, and unmounts the caption; the bytes are untouched,
+- A click shows the source: a click on the caption shows `.parrot-source` holding the whole
+  line, marker included, with the caret in it, and hides the caption; the bytes are untouched,
   since only what is shown changed.
 - Click position: the source opens with the caret at the character clicked, past the marker, and
   a click further right along the caption lands further along the source.

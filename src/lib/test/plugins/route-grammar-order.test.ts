@@ -1,4 +1,5 @@
-import { describe, it, expect, afterEach } from 'vitest';
+// @vitest-environment jsdom
+import { describe, it, expect, afterEach, beforeAll } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { installPlugins } from '#lib';
 import { resetPluginPlatformForTests } from '#lib/testing.js';
@@ -10,7 +11,12 @@ import { emojiPlugin } from '#packages/emoji/src/index.js';
 import { highlightOccurrencesPlugin } from '#packages/highlight-occurrences/src/index.js';
 import { latexPlugin } from '#packages/latex/src/index.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
-import { parrotPlugin } from '#packages/parrot/src/index.js';
+import { parrot, parrotPlugin } from '#packages/parrot/src/index.js';
+import {
+	destroyMountedEditors,
+	installLayoutStubs,
+	mountEditor
+} from '#lib/test/harness/mount-editor.svelte.js';
 import type { EditorPlugin } from '#lib/plugin.js';
 import { calloutPlugin } from '../../../routes/test/plugins/callout/register';
 import { memoPlugin } from '../../../routes/test/plugins/memo/register';
@@ -43,8 +49,7 @@ const demoRouteSet = (): EditorPlugin[] => [
 	emojiPlugin(),
 	highlightOccurrencesPlugin(),
 	stubLatex(),
-	stubMermaid(),
-	parrotPlugin()
+	stubMermaid()
 ];
 
 const harnessSet = (): EditorPlugin[] => [
@@ -93,14 +98,24 @@ describe('a route parses its own document the same however other routes installe
 			kindsUnder([demoRouteSet()], changelog)
 		);
 	});
+});
 
-	// The harness memo takes every `%%` line, `%%parrot` included, so the openers sort right only
-	// while the parrot registers below the memo; a tie would hand `%%parrot` to the memo.
-	const BOTH_MARKERS = '%%parrot party responsibly\n\n%% memo text\n';
-	it.each([
-		['demo first', [demoRouteSet(), harnessSet()]],
-		['harness first', [harnessSet(), demoRouteSet()]]
-	])('the co-installed memo and parrot each claim their own marker (%s)', (_, order) => {
-		expect(kindsUnder(order as EditorPlugin[][], BOTH_MARKERS)).toEqual(['parrot', 'memo']);
+// The harness memo takes `%%` lines and sorts ahead of every plugin's block type, so it has to
+// leave `%%parrot` to the parrot where one editor runs both (the harness's parrot seed).
+describe('an editor running the harness memo and the parrot', () => {
+	beforeAll(() => installLayoutStubs());
+	afterEach(destroyMountedEditors);
+
+	it('gives each its own marker', async () => {
+		resetPluginPlatformForTests();
+		const m = mountEditor({
+			source: '%%parrot party responsibly\n\n%% memo text\n',
+			plugins: [memoPlugin(), parrotPlugin()]
+		});
+		await m.settle();
+		expect([m.instance.getBlockKindAt([0]), m.instance.getBlockKindAt([1])]).toEqual([
+			parrot.name,
+			'memo'
+		]);
 	});
 });

@@ -17,12 +17,11 @@ import {
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { latexPlugin } from '#packages/latex/src/index.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
-import { parrotPlugin } from '#packages/parrot/src/index.js';
 import { tocPlugin } from '#packages/toc/src/index.js';
 
 beforeAll(() => installLayoutStubs());
 // Each test starts with the registries reset, so the hand-registered kinds go in again.
-beforeEach(() => installPlugins([latexPlugin(), mermaidPlugin(), parrotPlugin(), tocPlugin()]));
+beforeEach(() => installPlugins([latexPlugin(), mermaidPlugin(), tocPlugin()]));
 afterEach(destroyMountedEditors);
 
 const picture = () => ({ dom: document.createElement('div') });
@@ -64,17 +63,6 @@ const TWINS: { kind: string; twin: BlockType<unknown>; differs?: Partial<Facts> 
 			insert: { none: 'a test block type' },
 			edit: 'box',
 			draw: picture
-		})
-	},
-	{
-		kind: 'parrot',
-		twin: lineBlock({
-			name: 'parrot',
-			label: 'Party parrot',
-			match: /^%%parrot(?: (?<text>.*))?$/,
-			sample: '%%parrot hi',
-			insert: { none: 'a test block type' },
-			draw: source
 		})
 	},
 	{

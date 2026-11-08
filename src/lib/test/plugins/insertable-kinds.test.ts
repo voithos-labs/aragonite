@@ -44,8 +44,7 @@ const BUNDLED: Record<string, () => PluginsProp[number]> = {
 const NOT_INSERTED: Record<string, string> = {
 	'footnote-def': 'typing `[^x]:` makes one, under the reference it belongs to',
 	githubAlert: 'the note entry inserts the admonition spelling of the same callout',
-	mathFence: 'the math entry inserts the `$$` spelling of the same block',
-	parrot: "the plugin guide's toy block, not one a writer reaches for"
+	mathFence: 'the math entry inserts the `$$` spelling of the same block'
 };
 
 beforeEach(() => {

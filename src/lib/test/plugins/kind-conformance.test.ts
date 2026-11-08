@@ -20,8 +20,6 @@ import { ADMONITION, GITHUB_ALERT } from '#packages/admonitions/src/kinds.js';
 import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '#packages/latex/src/latex-kind.js';
 import { registerMermaidKind, MERMAID } from '#packages/mermaid/src/mermaid-kind.js';
 import { registerTocBlock, TOC_BLOCK } from '#packages/toc/src/toc-plugin.js';
-import { parrotPlugin, PARROT } from '#packages/parrot/src/index.js';
-import { installPlugins } from '#lib';
 import { testView } from '#lib/test/harness/test-view.js';
 import type { BlockView } from '#lib/schema/block-view.js';
 import type { UnfinishedReading } from '#lib/schema/block-openers.js';
@@ -185,13 +183,13 @@ const BUNDLED_INSTALLS: { dir: string; kind: string; install: (view: BlockView) 
 	{ dir: 'admonitions', kind: ADMONITION, install: registerAdmonitions },
 	{ dir: 'latex', kind: MATH_BLOCK, install: registerMathBlock },
 	{ dir: 'mermaid', kind: MERMAID, install: registerMermaidKind },
-	{ dir: 'toc', kind: TOC_BLOCK, install: registerTocBlock },
-	// The parrot's registration function is module-private (it keeps the guide's bytes), so
-	// installing the plugin is the way in, the same one a consumer uses.
-	{ dir: 'parrot', kind: PARROT, install: () => installPlugins([parrotPlugin()]) }
+	{ dir: 'toc', kind: TOC_BLOCK, install: registerTocBlock }
 ];
 
 const NO_BLOCK_KIND_DIRS = new Set(['highlight-occurrences', 'emoji', 'slash-commands']);
+// Plugins whose blocks are block types, which only an editor running them parses: the kit reads
+// the page's grammar, so it doesn't reach them yet.
+const BLOCK_TYPE_DIRS = new Set(['parrot']);
 
 describe('kind conformance: bundled plugin kinds enroll', () => {
 	// Every kind the registrar registers, not only the headline one: title kinds with no
@@ -220,9 +218,10 @@ describe('kind conformance: bundled plugin kinds enroll', () => {
 	it('every plugin directory on disk is enrolled or a declared exception', () => {
 		const dirs = bundledPluginDirs();
 		const enrolled = new Set(BUNDLED_INSTALLS.map((b) => b.dir));
-		const unaccounted = dirs.filter((d) => !enrolled.has(d) && !NO_BLOCK_KIND_DIRS.has(d));
-		expect(unaccounted, 'plugin dirs neither enrolled nor declared kind-less').toEqual([]);
-		const stale = [...enrolled, ...NO_BLOCK_KIND_DIRS].filter((d) => !dirs.includes(d));
+		const excepted = new Set([...NO_BLOCK_KIND_DIRS, ...BLOCK_TYPE_DIRS]);
+		const unaccounted = dirs.filter((d) => !enrolled.has(d) && !excepted.has(d));
+		expect(unaccounted, 'plugin dirs neither enrolled nor declared exceptions').toEqual([]);
+		const stale = [...enrolled, ...excepted].filter((d) => !dirs.includes(d));
 		expect(stale, 'enrolled/exception entries with no plugin directory').toEqual([]);
 	});
 
