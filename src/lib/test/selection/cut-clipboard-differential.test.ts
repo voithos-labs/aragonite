@@ -10,7 +10,7 @@ import { sharedPrefixLength, sharedSuffixLength } from '#lib/core/written-span.j
 import { editRange } from '#lib/range-edit/edit-range.js';
 import { rangeHost, type Mode } from '#lib/range-edit/host.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
-import { isReservedChromeChild, rowContentRange } from '#lib/schema/reserved-chrome.js';
+import { isReservedChromeChild } from '#lib/schema/reserved-chrome.js';
 import { rangeDelete } from '../../selection/cross-block/range-delete/range-delete';
 import { rangeBytes } from '#lib/selection/range-bytes.js';
 import { rangeClipboard } from '#lib/selection/range-clipboard.js';
@@ -33,7 +33,8 @@ interface CutCase {
 
 const TABLE_HEAD = 'the copy carries the table header both removals keep';
 const TITLE_START = 'the copy carries the container a title row it starts in opens';
-const TITLE_EDGE = 'the copy carries the empty opening of a container whose title it ends at';
+const TITLE_EDGE =
+	'the copy carries the opening or the close of a container whose title it ends on';
 const TAKES_MORE = 'today’s removal takes words the core’s removal leaves';
 const LEAVES_MORE = 'today’s removal leaves words the core’s removal takes';
 
@@ -116,28 +117,37 @@ function cutLegs(c: CutCase) {
 	};
 }
 
-/** Whether `point` sits on a container's title row, at or before its title text when `atStart`. */
-function onTitleRow(c: CutCase, point: SelectionPoint, atStart = false): boolean {
+/** Whether `point` sits on a container's title row. */
+function onTitleRow(c: CutCase, point: SelectionPoint): boolean {
 	const doc = parse(c.source);
 	const parent = blockNodeAt(doc, point.path.slice(0, -1));
-	if (!parent || !isReservedChromeChild(parent, point.path.at(-1)!)) return false;
-	return !atStart || point.offset <= rowContentRange(parent).start;
+	return !!parent && isReservedChromeChild(parent, point.path.at(-1)!);
 }
 
-/** The class a cut falls in: null where the clipboard holds what today's removal takes. */
+/** The class a cut falls in: null where the clipboard holds what today's removal takes. The copy
+ *  must hold the core's removal's words, and only a class's own lines may add to them. */
 function divergenceOf(c: CutCase): string | null {
 	const legs = cutLegs(c);
 	if (legs.written === legs.today) return null;
+	const unclassified = `unclassified: the copy wrote ${legs.written}, today's removal took ${legs.today}, the core's ${legs.core}`;
+	const at = legs.written.indexOf(legs.core);
+	if (at < 0) return unclassified;
 	if (legs.today !== legs.core) {
-		if (legs.today.length === legs.core.length)
-			return `unclassified: today's removal took ${legs.today}, the core's ${legs.core}`;
-		return legs.today.length > legs.core.length ? TAKES_MORE : LEAVES_MORE;
+		if (legs.today.includes(legs.core)) return TAKES_MORE;
+		if (legs.core.includes(legs.today)) return LEAVES_MORE;
+		return unclassified;
 	}
 	const host = checkHost(fixtureReading({}, c.mode));
-	if (startsBelowTableHead(readOf(host, c.source), legs.from, host)) return TABLE_HEAD;
-	if (onTitleRow(c, c.start)) return TITLE_START;
-	if (onTitleRow(c, c.end, true)) return TITLE_EDGE;
-	return `unclassified: the copy wrote ${legs.written}, both removals took ${legs.core}`;
+	const below = startsBelowTableHead(readOf(host, c.source), legs.from, host);
+	// A table's header or a title row's container comes before the core's words; the container
+	// whose title row the range ends on comes after them.
+	const before =
+		at > 0 && (below ? TABLE_HEAD : onTitleRow(c, c.start) ? TITLE_START : unclassified);
+	const after =
+		at + legs.core.length < legs.written.length &&
+		(onTitleRow(c, c.end) ? TITLE_EDGE : unclassified);
+	if (before === unclassified || after === unclassified) return unclassified;
+	return before || after || unclassified;
 }
 
 const CLASSES = [null, ...Object.keys(DIVERGENCES)];
@@ -160,6 +170,8 @@ const TITLE_OFFSETS = { 'offset 0': 0, inside: 1, end: 4 } as const;
 beforeEach(registerChromePluginsForTests);
 
 describe('a cut writes the words its removal takes, save the named classes', () => {
+	// Miss-analysis: a class was told by where the range sat, so a copy missing its last letter
+	// still read as one, and every row here stayed green.
 	it.each(Object.entries(DIVERGENCES))('%s: its repro still parts that way', (name, c) => {
 		expect(divergenceOf(c)).toBe(name);
 	});
