@@ -92,7 +92,9 @@
 	import { aroundRender } from '../around-render.svelte';
 	import { createFocusAttribution } from './editor-root/focus';
 	import { createRootGestures } from './editor-root/gestures';
-	import { createRootMenus, type BlockMenuModel } from './editor-root/menus';
+	import { createRootMenus, type BlockMenuModel, type OpenRows } from './editor-root/menus';
+	import { createSelectionActions, type ActionGroup } from './editor-root/selection-actions';
+	import type { SelectionAction } from '../schema/selection-action';
 	import { createFocusedSurface } from './editor-root/focused-surface';
 	import type { EditorTestSurface } from './editor-root/test-surface';
 	import {
@@ -768,6 +770,7 @@
 		canRunCommand: (command, arg) => can(command, arg),
 		claims: (event) => claimsChord(event),
 		openMenu: (menu, query) => inlineMenu.openMenu(menu, query),
+		openRows: (action, range, anchor) => openRows(action, range, anchor),
 		edit: (plugin) => drafts.edit(plugin),
 		reading,
 		units: () => units,
@@ -1038,6 +1041,36 @@
 		);
 	});
 
+	const selectionActions = createSelectionActions({
+		actions: () => contributions.actions,
+		editorFor: (plugin) => pluginContexts.scoped(plugin),
+		getDoc,
+		getSelection,
+		editable: () => reading.mode() !== 'reading',
+		rangeRects: (path, start, end) => rects.rangeRects(path, start, end),
+		edit: (plugin) => drafts.edit(plugin),
+		report: reportPluginError
+	});
+
+	// The toolbar's action rows: an action shows there only where it captures the selection whole.
+	const toolbarActions = {
+		atSelection: () => {
+			const over = selectionActions.selectionBytes();
+			return selectionActions
+				.atSelection()
+				.filter(({ captured: { range } }) => range.from === over?.from && range.to === over.to);
+		},
+		open: (group: ActionGroup, beside: DOMRect) =>
+			void rootMenus.openGroups([group], { x: beside.right, y: beside.top })
+	};
+
+	// A menu told it closed, unless the next one is the same menu redrawn.
+	function swapMenu(next: BlockMenuModel | null): void {
+		const was = blockMenu;
+		blockMenu = next;
+		if (was && was.closed !== next?.closed) was.closed?.();
+	}
+
 	const rootMenus = createRootMenus({
 		get editorEl() {
 			return editorEl;
@@ -1063,7 +1096,9 @@
 		// The row does what Mod+K does at the caret the right-click just placed.
 		canEditLinkAtCaret: () => isCommandActive('link.openCard'),
 		editLinkAtCaret: () => void runCommand('link.openCard'),
-		setMenu: (menu) => (blockMenu = menu)
+		setMenu: swapMenu,
+		currentMenu: () => blockMenu,
+		actions: selectionActions
 	});
 
 	// Announced for plugins that paint their own colors and cannot see a theme change in CSS.
@@ -1502,6 +1537,17 @@
 		return inlineMenu.openMenu(menu as CaretMenu<unknown>, query);
 	}
 
+	export function openRows(
+		action: SelectionAction,
+		range: { readonly from: number; readonly to: number },
+		anchor: DOMRect | { readonly x: number; readonly y: number }
+	): OpenRows {
+		const group = selectionActions.over(action, { from: range.from, to: range.to });
+		if (!group) return { isOpen: false, close() {} };
+		const point = 'bottom' in anchor ? { x: anchor.left, y: anchor.bottom } : anchor;
+		return rootMenus.openGroups([group], { x: point.x, y: point.y });
+	}
+
 	/** Turns plugins on and off in this editor, reading the document again; the history stays. */
 	export function use(next: PluginsProp): void {
 		// Read before installing: with no list, the names are whatever the page has installed.
@@ -1583,7 +1629,8 @@
 		run,
 		can,
 		claims,
-		openMenu
+		openMenu,
+		openRows
 	} satisfies EditorInstance);
 
 	// ── Test-only hooks ─────────────────────────────────────────────────
@@ -1682,7 +1729,7 @@
 			items={blockMenu.items}
 			label={blockMenu.label}
 			onPick={blockMenu.pick}
-			onClose={() => (blockMenu = null)}
+			onClose={() => swapMenu(null)}
 			{menuPresence}
 		/>
 	{/if}
@@ -1702,6 +1749,7 @@
 			formatting={() => selectionToolbar}
 			clipboard={menuClipboard}
 			{menuPresence}
+			actions={toolbarActions}
 		/>
 	{/if}
 	<ImageOverlayHost

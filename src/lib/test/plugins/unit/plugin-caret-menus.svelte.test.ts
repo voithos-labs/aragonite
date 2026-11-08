@@ -250,6 +250,43 @@ describe("a plugin value's caret menu", () => {
 		expect(betaId()).toBe(before);
 	});
 
+	it.each([
+		[
+			'unloaded',
+			'once the host loads another note',
+			(m: ReturnType<typeof mountEditor>) => void (m.props.source = 'other\n')
+		],
+		[
+			'off',
+			'once the plugin is turned off',
+			(m: ReturnType<typeof mountEditor>) => m.instance.use([])
+		]
+	])('refuses a waiting write as %s %s', async (reason, _, interrupt) => {
+		const gate = held();
+		const results: Promise<DraftResult>[] = [];
+		const m = mountEditor({
+			source: 'note\n',
+			plugins: [
+				slashPlugin(async (pick) => {
+					await gate.wait;
+					results.push(pick.write('[card]'));
+				})
+			]
+		});
+		await m.settle();
+		await type(m, 'note ', 'note /que');
+		await pressKey(surfaceAt(m, [0]), { key: 'Enter' });
+		await m.settle();
+		interrupt(m);
+		await m.settle();
+		gate.release();
+		await m.settle();
+
+		const result = await results[0];
+		expect(!result.ok && result.reason).toBe(reason);
+		expect(m.source()).not.toContain('[card]');
+	});
+
 	// Miss-analysis: every block or command row ran on a one-block note or a line with other text,
 	// so none emptied a line between two blocks.
 	it.each([

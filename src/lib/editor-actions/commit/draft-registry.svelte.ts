@@ -46,6 +46,8 @@ export interface InternalDraft extends Draft {
 	insertBelow(markdown: string): this;
 	/** Where byte `at` of the text it opened on sits now, or null once a write replaced it. */
 	now(at: number): number | null;
+	/** Ends it because the menu it was picked from closed, so a later commit says `closed`. */
+	close(): void;
 }
 
 /** How a draft writes; read at its commit, so the editor can build the writers after the drafts. */
@@ -102,6 +104,7 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 		let lengths: number[] | null = null;
 		let illegal: string | null = null;
 		let ended = false;
+		let closed = false;
 		// Fixed at its end, since an ended draft stops hearing writes.
 		let touchedAtEnd = false;
 
@@ -224,6 +227,10 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 				inserts.push({ markdown, below: true });
 				return this;
 			},
+			close() {
+				closed = !ended;
+				end();
+			},
 			now(at) {
 				lengths ??= lengthsBefore(partLengths(deps.doc()), since());
 				const position = positionAt(lengths, at);
@@ -231,6 +238,7 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 				return mapped && byteAt(partLengths(deps.doc()), mapped.from);
 			},
 			async commit(options) {
+				if (closed) return refused('closed', 'the menu it was picked from closed first');
 				if (ended) return refused('empty', 'the draft was ended');
 				if (writes.length === 0 && inserts.length === 0 && !illegal)
 					return refused('empty', 'nothing was written to it');

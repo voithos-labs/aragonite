@@ -60,8 +60,8 @@ _(pre-freeze / unstable)_ The installable package, and the per-editor context it
 | `PluginSpec` | What you hand `definePlugin` to get a plugin value instead: `name`, `version`, the `editor` range it runs on, `defaults`, `validate`, `needs`, `conflicts`, and `contributes(options)`, which each editor calls with its own options |
 | `Plugin` | The plugin value that comes back. Call it with options (`math({ render })`) to give one editor different ones |
 | `PluginList` | A list of plugin values, whatever their options, as `needs` takes it |
-| `Contribution` | What `contributes` hands back for one editor: a `setup(editor)` that runs once that editor mounts, the `commands` it runs, its `inserts` rows, and its caret `menus` |
-| `Editor` | What `setup` and your commands get: the plugins on, the mode, the theme, the `inserts` rows, `on`, `run` and `can` (a command by value or id, with its argument), `claims`, `openMenu` (types a caret menu's trigger at the caret and opens it) and `edit`. It's one object per plugin per editor, and a listener you add there goes away with your plugin |
+| `Contribution` | What `contributes` hands back for one editor: a `setup(editor)` that runs once that editor mounts, the `commands` it runs, its `inserts` rows, its caret `menus`, and its selection `actions` |
+| `Editor` | What `setup` and your commands get: the plugins on, the mode, the theme, the `inserts` rows, `on`, `run` and `can` (a command by value or id, with its argument), `claims`, `openMenu` (types a caret menu's trigger at the caret and opens it), `openRows` (opens a selection action's rows over a range) and `edit`. It's one object per plugin per editor, and a listener you add there goes away with your plugin |
 | `PluginError` | An error your plugin caused: its name, what the editor was doing with it (`install`, `validate`, `contributes`, `setup`, `dispose`, `run shout/hello` for a command, or `on('edit')` for a listener that threw), and the cause |
 | `BlockType` | A block type by name |
 | `builtin` | The built-in block types by kind (`builtin.blocks.paragraph`), to place yours relative to one or tell what a block is |
@@ -171,6 +171,7 @@ What a commit can come back with (nothing throws, and a refused commit writes no
 | `overlap` | Two of your own ranges overlap |
 | `illegal` | A range runs past the document's end or splits a `\r\n`, or the insert had no caret to land at |
 | `empty` | Nothing to write: no ranges, only the bytes already there, or the draft was ended |
+| `closed` | The menu the row was picked from closed before the write (a selection action's row) |
 
 ### Kind declaration
 
@@ -1117,6 +1118,34 @@ One row:
 - an optional dim `detail`;
 - an optional `icon`, a menu glyph name the default row draws;
 - `insert`, the bytes that replace the trigger and the query. It's one line of inline bytes, empty allowed. A line break is refused and reported; a pick that writes a block, or writes later, is a caret menu's (`menu`).
+
+### Selection actions
+
+_(pre-freeze / unstable)_ Rows your plugin offers over a range: what the author selected, or a range you capture around the caret (the misspelled word under it, say). List them in `contributes` as `actions`. They show in the right-click menu, as one row in the selection toolbar where your capture is exactly the selection (its rows open beside it), and wherever you call `editor.openRows`. The editor asks for your rows only when one of those opens, never as the toolbar redraws.
+
+| Export | Role |
+| --- | --- |
+| `SelectionAction` | One action: a `label`, an `icon`, `lead` to sit first in the right-click menu with a divider after, an optional `capture(editor, selection)` returning the range to act on (or null), and `rows(captured)`, an array or a promise of one |
+| `ActionRow` | One row: a `label`, an `icon`, a `detail`, `disabled`, and `run(draft)` |
+| `Captured` | What `rows` is asked about: the range's `text` (its bytes), the `range` in document bytes, the `box` it paints in (null when it isn't drawn in one leaf), and whether it's `editable` |
+| `Icon` | A menu glyph's name, or `{ svg }`, your own markup, drawn as given at the menu's icon size |
+
+```ts
+const shout: SelectionAction = {
+	label: 'Shout',
+	rows: (captured) => [
+		{
+			label: 'Upper case',
+			run: (draft) => draft.replace(captured.range, captured.text.toUpperCase()).commit()
+		}
+	]
+};
+// select "def" in "abc def ghi", right-click, Upper case: "abc DEF ghi", one undo step
+```
+
+Without `capture`, an action acts on the selection and offers nothing at a bare caret. A promise from `rows` shows one pending row until it settles, and a rejection drops your rows and reaches `onError`. `run` gets a draft opened when the row is picked. If it returns a promise the row stays pending and the menu stays open until it settles; close the menu first and the draft's commit comes back refused as `closed`.
+
+`editor.openRows(action, range, anchor)` opens the same rows over `range` (captured the way your action says) at `anchor`, a rect or a point, taking no focus: what a hover card over a mark calls. It hands back `{ isOpen, close() }`, and any edit, Escape or a press elsewhere closes it.
 
 ### Insert catalogue
 

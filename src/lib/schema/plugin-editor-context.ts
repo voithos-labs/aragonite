@@ -70,6 +70,7 @@ export function createEditorPluginContexts(deps: {
 	canRunCommand: (command: Command<unknown> | string, arg?: unknown) => boolean;
 	claims: (event: KeyboardEvent) => boolean;
 	openMenu: (menu: CaretMenu<unknown>, query?: string) => boolean;
+	openRows: Editor['openRows'];
 	/** A draft; `plugin` names the plugin it's refused for once that plugin is off. */
 	edit: (plugin?: string) => Draft;
 	/** How the editor reads its bytes, which every plugin inline read follows. */
@@ -170,6 +171,7 @@ export function createEditorPluginContexts(deps: {
 			can: (command: Command<unknown> | string, arg?: unknown) => deps.canRunCommand(command, arg),
 			claims: (event) => deps.claims(event),
 			openMenu: (menu, query) => deps.openMenu(menu as CaretMenu<unknown>, query),
+			openRows: (action, range, anchor) => deps.openRows(action, range, anchor),
 			edit: () => deps.edit(plugin)
 		};
 	}

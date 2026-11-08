@@ -11,6 +11,7 @@ import { isMotionChord, normalizeChord } from './keybindings';
 import { refusedClaims } from './plugin-claims';
 import { insertRowProblem, type InsertRow } from './insert-catalogue';
 import type { ContributedMenu } from './caret-menu';
+import { iconProblem, type ContributedAction } from './selection-action';
 
 export interface ContributedCommand {
 	readonly plugin: string;
@@ -29,6 +30,8 @@ export interface EditorContributions {
 	readonly inserts: readonly InsertRow[];
 	/** Each plugin's caret menus, in list order. */
 	readonly menus: readonly ContributedMenu[];
+	/** Each plugin's selection actions, in list order. */
+	readonly actions: readonly ContributedAction[];
 	/** Runs a command against its plugin's scoped editor; false where `when` or the command declines.
 	 *  A throw counts as run, so the key goes no further, and is reported. */
 	run(command: ContributedCommand, arg: unknown): boolean;
@@ -48,6 +51,7 @@ export function createEditorContributions(deps: {
 	let byChord = new Map<string, ContributedCommand>();
 	let inserts: readonly InsertRow[] = [];
 	let menus: readonly ContributedMenu[] = [];
+	let actions: readonly ContributedAction[] = [];
 
 	function guarded<T>(entry: ContributedCommand, fallback: T, call: () => T): T {
 		try {
@@ -60,7 +64,8 @@ export function createEditorContributions(deps: {
 
 	function read(units: readonly InstalledPlugin[]): InstalledPlugin[] {
 		const usable = units.filter((unit) => {
-			const problem = commandProblem(unit) ?? insertProblem(unit) ?? menuProblem(unit);
+			const problem =
+				commandProblem(unit) ?? insertProblem(unit) ?? menuProblem(unit) ?? actionProblem(unit);
 			if (problem) deps.report(installError(unit.name, problem));
 			return !problem;
 		});
@@ -90,6 +95,9 @@ export function createEditorContributions(deps: {
 		);
 		menus = kept.flatMap((unit) =>
 			(unit.contribution.menus ?? []).map((menu) => ({ plugin: unit.name, menu }))
+		);
+		actions = kept.flatMap((unit) =>
+			(unit.contribution.actions ?? []).map((action) => ({ plugin: unit.name, action }))
 		);
 		return kept;
 	}
@@ -125,6 +133,9 @@ export function createEditorContributions(deps: {
 		},
 		get menus() {
 			return menus;
+		},
+		get actions() {
+			return actions;
 		},
 		run,
 		can,
@@ -164,6 +175,14 @@ function menuProblem(unit: InstalledPlugin): string | null {
 	return bad ? `has a caret menu whose trigger isn't one line of text: "${bad.trigger}"` : null;
 }
 
+function actionProblem(unit: InstalledPlugin): string | null {
+	for (const action of unit.contribution.actions ?? []) {
+		const problem = iconProblem(action.icon);
+		if (problem) return `has a selection action that ${problem}`;
+	}
+	return null;
+}
+
 function entryOf(plugin: string, value: Command<unknown>): ContributedCommand {
 	const spec = commandSpec(value)!;
 	return { plugin, id: value.id, chord: spec.chord ? normalizeChord(spec.chord) : null, spec };
@@ -177,6 +196,6 @@ function installError(plugin: string, problem: string): PluginError {
 	return { plugin, doing: 'install', cause: new Error(`plugin '${plugin}' ${problem}`) };
 }
 
-function isThenable(value: unknown): value is PromiseLike<unknown> {
+export function isThenable(value: unknown): value is PromiseLike<unknown> {
 	return typeof (value as PromiseLike<unknown> | null)?.then === 'function';
 }

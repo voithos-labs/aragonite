@@ -1,6 +1,7 @@
 <script lang="ts" module>
 	/** One menu glyph by name: its stroked paths, or a letter for the three text marks. */
-	import { MENU_GLYPHS as GLYPHS, type MenuIconName } from '../../menu-icons';
+	import { MENU_GLYPHS as GLYPHS } from '../../menu-icons';
+	import type { Icon } from '../../schema/selection-action';
 
 	/**
 	 * The marks as letters, the way a formatting bar draws them: a bold B, a slanted I, an S with
@@ -14,11 +15,18 @@
 </script>
 
 <script lang="ts">
-	let { name, size = 14 }: { name: MenuIconName; size?: number } = $props();
-	const letter = $derived(name in LETTERS ? LETTERS[name as keyof typeof LETTERS] : null);
+	let { name, size = 14 }: { name: Icon; size?: number } = $props();
+	const letter = $derived(
+		typeof name === 'string' && name in LETTERS ? LETTERS[name as keyof typeof LETTERS] : null
+	);
 </script>
 
-{#if letter}
+{#if typeof name === 'object'}
+	<span class="md-menu-svg" style:width="{size}px" style:height="{size}px" aria-hidden="true">
+		<!-- eslint-disable-next-line svelte/no-at-html-tags -- a plugin's own glyph, drawn as given: plugin code runs with the page's trust -->
+		{@html name.svg}
+	</span>
+{:else if letter}
 	<svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
 		<text
 			x="12"

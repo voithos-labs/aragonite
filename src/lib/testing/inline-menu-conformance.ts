@@ -95,6 +95,7 @@ function recordingEditor(writes: string[], edit: Editor['edit'], plugin: string)
 		can: () => true,
 		claims: () => false,
 		openMenu: () => false,
+		openRows: () => ({ isOpen: false, close() {} }),
 		edit
 	};
 }

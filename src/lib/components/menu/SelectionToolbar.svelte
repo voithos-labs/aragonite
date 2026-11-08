@@ -16,6 +16,7 @@
 	import MenuIcon from './MenuIcon.svelte';
 	import type { MenuIconName } from '../../menu-icons';
 	import type { MenuPresence } from './menu-presence.svelte';
+	import type { ActionGroup } from '../editor-root/selection-actions';
 
 	type ToolbarEditor = Pick<
 		EditorInstance,
@@ -75,7 +76,8 @@
 		finger,
 		formatting,
 		clipboard,
-		menuPresence
+		menuPresence,
+		actions
 	}: {
 		editor: ToolbarEditor;
 		root: HTMLElement | undefined;
@@ -87,9 +89,13 @@
 		/** What the Cut, Copy and Paste rows act through. */
 		clipboard: MenuClipboard;
 		menuPresence: MenuPresence;
+		/** The plugins' actions whose capture is exactly the selection, each a row whose rows open
+		 *  beside it; asked per selection change, never for its rows. */
+		actions: { atSelection(): ActionGroup[]; open(group: ActionGroup, beside: DOMRect): void };
 	} = $props();
 
 	let turnIntoOpen = $state(false);
+	let actionGroups = $state.raw<ActionGroup[]>([]);
 	let blockKind = $state<string | null>(null);
 	let placement = $state<Placement | null>(null);
 	let declined = $state<ReadonlySet<string>>(new Set());
@@ -220,6 +226,7 @@
 		active = new Set(
 			BUTTONS.filter((b) => editor.isCommandActive(b.command)).map((b) => b.command)
 		);
+		actionGroups = selection ? actions.atSelection() : [];
 		placement = selection ? shownOver(selection) : null;
 	}
 
@@ -374,6 +381,22 @@
 					{/if}
 				</div>
 			{/if}
+			{#each actionGroups as group, g (g)}
+				<button
+					type="button"
+					class="md-menu-item"
+					data-testid="toolbar-action-{g}"
+					aria-haspopup="menu"
+					onmousedown={(e) => e.preventDefault()}
+					onclick={(e) => actions.open(group, e.currentTarget.getBoundingClientRect())}
+				>
+					<span class="md-menu-icon">
+						{#if group.action.icon}<MenuIcon name={group.action.icon} size={14} />{/if}
+					</span>
+					<span class="selection-toolbar-label">{group.action.label}</span>
+					<span class="md-menu-icon"><MenuIcon name="chevron-right" size={13} /></span>
+				</button>
+			{/each}
 			{#each rows as row (row.command)}
 				<button
 					type="button"

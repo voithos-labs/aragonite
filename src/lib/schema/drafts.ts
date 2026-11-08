@@ -9,7 +9,8 @@ export type DraftResult =
 	| { readonly ok: true }
 	| {
 			readonly ok: false;
-			readonly reason: 'moved' | 'unloaded' | 'off' | 'reading' | 'overlap' | 'illegal' | 'empty';
+			readonly reason:
+				'moved' | 'unloaded' | 'off' | 'reading' | 'overlap' | 'illegal' | 'empty' | 'closed';
 			readonly message: string;
 	  };
 

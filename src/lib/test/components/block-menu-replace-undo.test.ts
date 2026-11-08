@@ -12,6 +12,7 @@ import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { makeTopHarness } from '../harness/editor-actions';
 import { settleEditor } from '../harness/settle';
+import { noSelectionActions } from '#lib/test/harness/no-selection-actions.js';
 
 const TYPED = '```\ncodex\n```\n';
 
@@ -68,7 +69,9 @@ function fenceMenu(source: string) {
 		stamps: editor.deps.stamps,
 		canEditLinkAtCaret: () => false,
 		editLinkAtCaret: () => {},
-		setMenu: (next) => (menu = next)
+		setMenu: (next) => (menu = next),
+		currentMenu: () => menu,
+		actions: noSelectionActions
 	});
 	root.addEventListener('contextmenu', menus.onRootContextMenu);
 	const pick = (id: string) => {

@@ -11,6 +11,7 @@ import type { PresentationMode } from '#lib/presentation-mode.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { noSelectionActions } from '#lib/test/harness/no-selection-actions.js';
 
 // Miss-analysis: which menu a right-click opens was tested only through Playwright.
 
@@ -90,7 +91,9 @@ function harness(
 		stamps: createDocumentStamps(),
 		canEditLinkAtCaret: () => (order.push('ask'), !!opts.editsLink),
 		editLinkAtCaret,
-		setMenu: (next) => (menu = next)
+		setMenu: (next) => (menu = next),
+		currentMenu: () => menu,
+		actions: noSelectionActions
 	});
 	root.addEventListener('contextmenu', menus.onRootContextMenu);
 

@@ -14,6 +14,7 @@ import { fixtureReading } from '../harness/fixture-grammar';
 import { makeTopHarness } from '../harness/editor-actions';
 import { settleEditor } from '../harness/settle';
 import { takeDevWarns } from '../support/warn-gate';
+import { noSelectionActions } from '#lib/test/harness/no-selection-actions.js';
 
 const SOURCE = '```\ncode\n```\n\nprose here\n';
 
@@ -57,7 +58,9 @@ async function removeFenceAfterSwitchToReading() {
 		stamps: editor.deps.stamps,
 		canEditLinkAtCaret: () => false,
 		editLinkAtCaret: () => {},
-		setMenu: (next) => (menu = next)
+		setMenu: (next) => (menu = next),
+		currentMenu: () => menu,
+		actions: noSelectionActions
 	});
 	root.addEventListener('contextmenu', menus.onRootContextMenu);
 	fence.firstElementChild!.dispatchEvent(
