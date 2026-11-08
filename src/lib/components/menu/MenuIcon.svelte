@@ -1,7 +1,6 @@
 <script lang="ts" module>
 	/** One menu glyph by name: its stroked paths, or a letter for the three text marks. */
-	import { MENU_GLYPHS as GLYPHS } from '../../menu-icons';
-	import type { Icon } from '../../schema/selection-action';
+	import { MENU_GLYPHS as GLYPHS, type Icon } from '../../menu-icons';
 
 	/**
 	 * The marks as letters, the way a formatting bar draws them: a bold B, a slanted I, an S with

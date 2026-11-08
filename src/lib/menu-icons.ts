@@ -163,3 +163,14 @@ export type MenuIconName = keyof typeof MENU_GLYPHS;
 export function isMenuIconName(name: string): name is MenuIconName {
 	return Object.hasOwn(MENU_GLYPHS, name);
 }
+
+/** A menu glyph by name, or your own SVG markup, drawn as given at the menu's icon size. */
+export type Icon = MenuIconName | { readonly svg: string };
+
+/** A sentence when the icon can't be drawn, or null. */
+export function iconProblem(icon: Icon | undefined): string | null {
+	if (icon === undefined || (typeof icon === 'object' && typeof icon.svg === 'string')) return null;
+	return typeof icon === 'string' && isMenuIconName(icon)
+		? null
+		: `names icon '${String(icon)}', which the menu cannot draw`;
+}

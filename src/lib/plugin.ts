@@ -38,7 +38,8 @@ export type { Chord, Command, CommandSpec } from './schema/plugin-command';
 export { menu } from './schema/caret-menu';
 export type { CaretMenu, MenuPick, MenuRow, MenuRowProps } from './schema/caret-menu';
 // Rows over the selection, or a range captured around the caret, in the editor's menus.
-export type { ActionRow, Captured, Icon, SelectionAction } from './schema/selection-action';
+export type { ActionRow, Captured, SelectionAction } from './schema/selection-action';
+export type { Icon } from './menu-icons';
 export type { EditorPlugin, EditorPluginEntry } from './schema/plugin-install';
 // `setup(ctx)` registers `onEditor` callbacks that receive a per-instance `EditorContext`.
 export type { PluginSetupContext, OnEditorCallback, EditorContext } from './schema/plugin-install';

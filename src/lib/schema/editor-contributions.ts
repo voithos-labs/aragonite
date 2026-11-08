@@ -11,7 +11,8 @@ import { isMotionChord, normalizeChord } from './keybindings';
 import { refusedClaims } from './plugin-claims';
 import { insertRowProblem, type InsertRow } from './insert-catalogue';
 import type { ContributedMenu } from './caret-menu';
-import { iconProblem, type ContributedAction } from './selection-action';
+import { iconProblem } from '../menu-icons';
+import type { ContributedAction } from './selection-action';
 
 export interface ContributedCommand {
 	readonly plugin: string;
