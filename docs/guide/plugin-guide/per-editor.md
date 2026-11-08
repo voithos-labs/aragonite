@@ -84,11 +84,11 @@ Two editors share one process-global registration but may still want different o
 <Editor source={right} plugins={[{ plugin: wordCountPlugin, options: { live: false } }]} />
 ```
 
-Whatever an editor passes lands on your `defaults` one field at a time. A field it passes replaces yours whole (an array too, nothing gets concatenated), and a field it leaves out keeps its default. The bundled slash commands plugin shows it best, since its factory argument is its `defaults`:
+Whatever an editor passes lands on your `defaults` one field at a time. A field it passes replaces yours whole (an array too, nothing gets concatenated), and a field it leaves out keeps its default. Say your defaults hold a list of rows:
 
 ```ts
-const stamp = { id: 'stamp', label: 'Stamp', insert: 'approved' }; // one host row
-slashCommandsPlugin({ entries: [stamp] }); // defaults: { entries: [stamp] }
+const stamp = { id: 'stamp', label: 'Stamp', insert: 'approved' }; // one row
+definePlugin({ name: 'stamps', defaults: { entries: [stamp] }, setup /* … */ });
 
 // this editor's options      editor.options
 // (none, a bare unit)        { entries: [stamp] }

@@ -12,7 +12,7 @@ import {
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { bundledPluginDirs } from '../invariants/lint/scan-source';
 import { getAllRegisteredKinds } from '#lib/schema/block-kind-descriptor.js';
-import type { EditorPluginEntry, PlaceholderBlock } from '#lib';
+import type { PlaceholderBlock, PluginsProp } from '#lib';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
 import { emojiPlugin } from '#packages/emoji/src/index.js';
@@ -21,14 +21,14 @@ import { highlightOccurrencesPlugin } from '#packages/highlight-occurrences/src/
 import { latexPlugin } from '#packages/latex/src/index.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import { parrotPlugin } from '#packages/parrot/src/index.js';
-import { slashCommandsPlugin } from '#packages/slash-commands/src/index.js';
+import { slashCommands } from '#packages/slash-commands/src/index.js';
 import { tocPlugin } from '#packages/toc/src/index.js';
 
 installLayoutStubs();
 afterEach(destroyMountedEditors);
 
 /** Every bundled plugin by its directory, so a plugin added on disk fails until it is listed. */
-const BUNDLED: Record<string, () => EditorPluginEntry> = {
+const BUNDLED: Record<string, () => PluginsProp[number]> = {
 	admonitions: admonitionsPlugin,
 	details: detailsPlugin,
 	emoji: emojiPlugin,
@@ -37,7 +37,7 @@ const BUNDLED: Record<string, () => EditorPluginEntry> = {
 	latex: latexPlugin,
 	mermaid: mermaidPlugin,
 	parrot: parrotPlugin,
-	'slash-commands': slashCommandsPlugin,
+	'slash-commands': () => slashCommands,
 	toc: tocPlugin
 };
 

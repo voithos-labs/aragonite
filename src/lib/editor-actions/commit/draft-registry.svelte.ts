@@ -27,8 +27,9 @@ import {
 } from './change-record';
 
 export interface DraftRegistry {
-	/** An edit against the document as it is now; one a plugin opens is refused once it's off. */
-	edit(plugin?: string): InternalDraft;
+	/** An edit against the document as it is now; one a plugin opens is refused once it's off, and
+	 *  one watching a range goes stale when a write touches it. */
+	edit(plugin?: string, watch?: { from: number; to: number }): InternalDraft;
 	/** A block's draft over the bytes of the block at `path`, or over none, which the editor closes
 	 *  through `spec` until it ends. */
 	open(spec: DraftSpec, path?: readonly number[]): Draft;
@@ -43,6 +44,8 @@ export interface DraftRegistry {
 /** A draft whose Markdown can also go into a new paragraph below the caret's block. */
 export interface InternalDraft extends Draft {
 	insertBelow(markdown: string): this;
+	/** Where byte `at` of the text it opened on sits now, or null once a write replaced it. */
+	now(at: number): number | null;
 }
 
 /** How a draft writes; read at its commit, so the editor can build the writers after the drafts. */
@@ -221,6 +224,12 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 				inserts.push({ markdown, below: true });
 				return this;
 			},
+			now(at) {
+				lengths ??= lengthsBefore(partLengths(deps.doc()), since());
+				const position = positionAt(lengths, at);
+				const mapped = current({ from: position, to: position });
+				return mapped && byteAt(partLengths(deps.doc()), mapped.from);
+			},
 			async commit(options) {
 				if (ended) return refused('empty', 'the draft was ended');
 				if (writes.length === 0 && inserts.length === 0 && !illegal)
@@ -238,7 +247,14 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 	}
 
 	return {
-		edit: (plugin) => draft(null, () => {}, plugin),
+		edit(plugin, watch) {
+			const lengths = watch && partLengths(deps.doc());
+			const watched = lengths && {
+				from: positionAt(lengths, watch.from),
+				to: positionAt(lengths, watch.to)
+			};
+			return draft(watched || null, () => {}, plugin);
+		},
 		open(spec, path) {
 			const watched = path ? blockRange(deps.doc(), path) : null;
 			const made = draft(watched, (ended) => closers.delete(ended));

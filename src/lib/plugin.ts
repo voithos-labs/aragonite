@@ -36,7 +36,7 @@ export { command } from './schema/plugin-command';
 export type { Chord, Command, CommandSpec } from './schema/plugin-command';
 // A list under the caret, opened by its trigger; a pick writes through a `MenuPick`.
 export { menu } from './schema/caret-menu';
-export type { CaretMenu, MenuPick, MenuRow } from './schema/caret-menu';
+export type { CaretMenu, MenuPick, MenuRow, MenuRowProps } from './schema/caret-menu';
 export type { EditorPlugin, EditorPluginEntry } from './schema/plugin-install';
 // `setup(ctx)` registers `onEditor` callbacks that receive a per-instance `EditorContext`.
 export type { PluginSetupContext, OnEditorCallback, EditorContext } from './schema/plugin-install';

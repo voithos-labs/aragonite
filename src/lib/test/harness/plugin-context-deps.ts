@@ -49,6 +49,7 @@ export const pluginContextDeps = (
 	runCommand: (() => false) as (command: Command<unknown> | string, arg?: unknown) => boolean,
 	canRunCommand: (() => false) as (command: Command<unknown> | string, arg?: unknown) => boolean,
 	claims: (() => false) as (event: KeyboardEvent) => boolean,
+	openMenu: () => false,
 	units: (): readonly InstalledPlugin[] => [],
 	pluginNames: (): readonly string[] => [],
 	report: (() => {}) as (error: PluginError) => void,

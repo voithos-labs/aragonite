@@ -27,6 +27,7 @@ import {
 } from './plugin-install';
 import type { Editor, InstalledPlugin, PluginError } from './plugin-unit';
 import type { Command } from './plugin-command';
+import type { CaretMenu } from './caret-menu';
 
 export interface EditorPluginContexts {
 	/** This editor's context for a plugin it activated; `undefined` for one it did not. The empty
@@ -71,6 +72,7 @@ export function createEditorPluginContexts(deps: {
 	runCommand: (command: Command<unknown> | string, arg?: unknown) => boolean;
 	canRunCommand: (command: Command<unknown> | string, arg?: unknown) => boolean;
 	claims: (event: KeyboardEvent) => boolean;
+	openMenu: (menu: CaretMenu<unknown>, query?: string) => boolean;
 	/** A draft; `plugin` names the plugin it's refused for once that plugin is off. */
 	edit: (plugin?: string) => Draft;
 	/** How the editor reads its bytes, which every plugin inline read follows. */
@@ -171,6 +173,7 @@ export function createEditorPluginContexts(deps: {
 			run: (command: Command<unknown> | string, arg?: unknown) => deps.runCommand(command, arg),
 			can: (command: Command<unknown> | string, arg?: unknown) => deps.canRunCommand(command, arg),
 			claims: (event) => deps.claims(event),
+			openMenu: (menu, query) => deps.openMenu(menu as CaretMenu<unknown>, query),
 			edit: () => deps.edit(plugin)
 		};
 	}

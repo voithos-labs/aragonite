@@ -28,7 +28,7 @@ And a map, so you can jump straight at your question:
 | [The kind checkup](#the-kind-checkup-runkindconformance) | The checks every block kind has to pass: bytes survive, one edit is one undo step, copying invents nothing |
 | [The container checkup](#the-container-checkup-runcontainerconformance) | Extra checks for a block that holds other blocks, starring the body line that ends the container early |
 | [The inline checkup](#the-inline-checkup-runinlinekindconformance) | Checks for syntax recognized mid-sentence: claiming your own bytes, declining everyone else's |
-| [A menu pick across a note switch](#a-menu-pick-across-a-note-switch-checkinlinemenucommitacrossswap) | One cell for an inline-menu source: a commit that waits writes nothing into a note the host loaded meanwhile |
+| [A menu pick across a note switch](#a-menu-pick-across-a-note-switch-checkmenupickacrossswap) | One cell for a caret menu: a pick that waits writes nothing into a note the host loaded meanwhile |
 | [The whole plugin at once](#the-whole-plugin-at-once-runpluginconformance) | Every kit over every kind your plugin declares, the check a listing runs |
 | [The check a listing runs](#the-check-a-listing-runs-aragonite-plugin-check) | The same run over your built package, from a terminal or your CI |
 
@@ -502,28 +502,27 @@ One thing worth knowing about `widget`: it asserts your claimed slice is **self-
 
 `registerInlineSyntax` already refuses most of that up front, so those are cross-checks on the editor rather than things you can get wrong. What you _can_ get wrong is your recognizer not being there at all (a setup step that ran under the wrong guard, say), and that one doesn't wait for the cell: the run throws before any cell starts, telling you to register the plugin first.
 
-### A menu pick across a note switch: `checkInlineMenuCommitAcrossSwap`
+### A menu pick across a note switch: `checkMenuPickAcrossSwap`
 
-**`checkInlineMenuCommitAcrossSwap({ source, item, query?, release })`**
+**`checkMenuPickAcrossSwap({ plugin, row, query?, release })`**
 
-One cell, for an inline-menu source whose `onCommit` waits on something (a fetch for a title, a picker) before it writes. If the host loads another note meanwhile, the write has to land nowhere. The editor makes sure of that for the context `onCommit` hands you as its third argument: once the note's gone, its `insertMarkdown` and `runCommand` write nothing and answer false. The one you closed over in `onEditor` can't know which note you meant, so writing through it after the wait is the bug this cell catches, unless you check `documentGeneration` (how many times the host has replaced the document, read off the context) first. A source that reads it before the wait and compares after passes.
+One cell, for a caret menu whose `pick` waits on something (a fetch for a title, a picker) before it writes. If the host loads another note meanwhile, the write has to land nowhere. The editor makes sure of that for the `MenuPick` your `pick` gets: once the note's gone, its writes come back refused as `unloaded`. An editor you kept from `setup` can't know which note you meant, so a draft you open on it after the wait is the bug this cell catches.
 
-Hand it a function that builds your source from an editor context, the row to pick, and a `release` that ends your source's wait. The cell picks the row, swaps the note while your commit waits, calls `release`, and throws if your commit wrote anything after the swap:
+Hand it your plugin value (the cell runs its `setup`, then picks from its first caret menu), the row to pick, and a `release` that ends your pick's wait. The cell picks the row, swaps the note while your pick waits, calls `release`, and throws if anything got written after the swap:
 
 ```ts
-import { checkInlineMenuCommitAcrossSwap } from '@voithos-labs/aragonite/testing';
+import { checkMenuPickAcrossSwap } from '@voithos-labs/aragonite/testing';
 
 let release = () => {};
 const titleFetched = new Promise<void>((r) => (release = r));
 
-await checkInlineMenuCommitAcrossSwap({
-	source: (editor) => createMentionSource(editor, { fetchTitle: () => titleFetched }),
-	item: { id: 'ada', label: 'Ada', insert: '@Ada' },
+await checkMenuPickAcrossSwap({
+	plugin: mentions({ fetchTitle: () => titleFetched }),
+	row: { label: 'Ada' },
 	release
 });
-// Error: inline-menu source 'mentions': its commit wrote insertMarkdown("> card") after the host
-// loaded another document; write through the context onCommit hands you, or compare
-// documentGeneration across the wait
+// Error: plugin 'mentions': its menu's pick made a draft commit after the host loaded another
+// document; write through the pick the menu hands you
 ```
 
 ### The whole plugin at once: `runPluginConformance`

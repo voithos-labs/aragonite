@@ -1,62 +1,41 @@
-import { describe, expect, it, vi } from 'vitest';
-import { installPlugins } from '#lib';
-import type { EditorContext } from '#lib/plugin.js';
-import {
-	SLASH_COMMANDS_MENU,
-	SLASH_COMMANDS_OPEN,
-	slashCommandsPlugin
-} from '#packages/slash-commands/src/index.js';
-import { getCommand, resolveGlobalBinding } from '#lib/schema/commands.js';
-import { eventToChord } from '#lib/schema/keybindings.js';
-import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
-import { INERT_MARK_ACTIVATION } from '../../harness/command-context';
+import { describe, expect, it } from 'vitest';
+import { slashCommands } from '#packages/slash-commands/src/index.js';
+import { commandSpec } from '#lib/schema/plugin-command.js';
+import { slashHarness } from './slash-harness';
 
-const slashKey = {
-	key: '/',
-	ctrlKey: true,
-	metaKey: false,
-	altKey: false,
-	shiftKey: false
-} as KeyboardEvent;
+describe('the slash-commands open command', () => {
+	it('opens its own menu through the editor that runs it, narrowed by a string argument', () => {
+		const h = slashHarness('');
+		const opened: unknown[][] = [];
+		const editor = { openMenu: (...args: unknown[]) => (opened.push(args), true) };
+		const [open] = h.unit.contribution.commands!;
+		const run = (arg?: unknown) => commandSpec(open)!.run(editor as never, arg);
 
-describe('slashCommands.open', () => {
-	it('opens the list through the editor that dispatched it, narrowed by the argument', () => {
-		installPlugins([slashCommandsPlugin()]);
-		const open = vi.fn(() => true);
-		const editor = { inlineMenus: { open } } as unknown as EditorContext;
-		const run = getCommand(SLASH_COMMANDS_OPEN as never, everyInstalledPlugin)!;
-		const dispatch = (arg?: unknown) =>
-			run({
-				history: { requestUndo() {}, requestRedo() {} },
-				activation: everyInstalledPlugin,
-				pluginEditor: () => editor,
-				getPresentationMode: () => 'source',
-				onCommandError: () => {},
-				markActivation: INERT_MARK_ACTIVATION,
-				arg
-			});
-
-		expect(dispatch('table')).toBe(true);
-		expect(dispatch()).toBe(true);
-		expect(dispatch(3)).toBe(true);
-		expect(open.mock.calls).toEqual([
-			[SLASH_COMMANDS_MENU, { query: 'table' }],
-			[SLASH_COMMANDS_MENU, { query: undefined }],
-			[SLASH_COMMANDS_MENU, { query: undefined }]
+		expect([run('table'), run(), run(3)]).toEqual([true, true, true]);
+		const menu = h.unit.contribution.menus![0];
+		expect(opened).toEqual([
+			[menu, 'table'],
+			[menu, undefined],
+			[menu, undefined]
 		]);
 	});
 
-	it('is bound to the Mod+/ a slash keydown with Ctrl or Cmd makes', () => {
-		installPlugins([slashCommandsPlugin()]);
-		const chord = eventToChord(slashKey);
-		expect(chord).toBe('Mod+/');
-		expect(resolveGlobalBinding(chord!, undefined, everyInstalledPlugin)?.command).toBe(
-			SLASH_COMMANDS_OPEN
-		);
+	it('is bound to Mod+/', () => {
+		const [open] = slashHarness('').unit.contribution.commands!;
+		expect(commandSpec(open)!.chord).toBe('Mod+/');
 	});
 
-	it('refuses a host row that neither inserts nor runs', () => {
+	it('reports a host row that neither inserts nor runs, and runs on the defaults', async () => {
+		const reports: unknown[] = [];
 		const neither = { id: 'odd', label: 'Odd' } as never;
-		expect(() => slashCommandsPlugin({ entries: [neither] })).toThrow(/odd/);
+		const h = slashHarness('', slashCommands({ entries: [neither] }), (error) =>
+			reports.push(error)
+		);
+		expect(String((reports[0] as Error).message)).toMatch(
+			/'odd' needs exactly one of insert and run/
+		);
+		await h.type('/');
+		expect(h.rows()).toContain('Quote');
+		expect(h.rows()).not.toContain('Odd');
 	});
 });

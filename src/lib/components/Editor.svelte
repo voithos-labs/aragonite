@@ -143,6 +143,7 @@
 	import { createEditorActivation } from '../schema/plugin-activation';
 	import { createEditorContributions } from '../schema/editor-contributions';
 	import type { Command } from '../schema/plugin-command';
+	import type { CaretMenu } from '../schema/caret-menu';
 	import {
 		installPluginList,
 		type InstalledPlugin,
@@ -743,7 +744,7 @@
 		drafts,
 		showsSource: shownSource.holds,
 		editorFor: (plugin) => pluginContexts.scoped(plugin),
-		pickDraft: (plugin) => drafts.edit(plugin),
+		pickDraft: (plugin, watch) => drafts.edit(plugin, watch),
 		endBurst: () => controller.flushDebouncedCheckpoint()
 	});
 	inlineMenu.setMenus(contributions.menus);
@@ -769,6 +770,7 @@
 		runCommand: (command, arg) => run(command, arg),
 		canRunCommand: (command, arg) => can(command, arg),
 		claims: (event) => claimsChord(event),
+		openMenu: (menu, query) => inlineMenu.openMenu(menu, query),
 		edit: (plugin) => drafts.edit(plugin),
 		reading,
 		units: () => units,
@@ -1499,6 +1501,10 @@
 		return claimsChord(event);
 	}
 
+	export function openMenu<R>(menu: CaretMenu<R>, query?: string): boolean {
+		return inlineMenu.openMenu(menu as CaretMenu<unknown>, query);
+	}
+
 	/** Turns plugins on and off in this editor, reading the document again; the history stays. */
 	export function use(next: PluginsProp): void {
 		// Read before installing: with no list, the names are whatever the page has installed.
@@ -1579,7 +1585,8 @@
 		on,
 		run,
 		can,
-		claims
+		claims,
+		openMenu
 	} satisfies EditorInstance);
 
 	// ── Test-only hooks ─────────────────────────────────────────────────

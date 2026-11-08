@@ -44,7 +44,7 @@ import {
 } from '../schema/caret-menu';
 import type { Editor } from '../schema/plugin-unit';
 import { isBlankText } from '../core/lines';
-import { byteOfLeaf } from '../tree-operations/container-offsets';
+import { byteOfLeaf, leafAtByte } from '../tree-operations/container-offsets';
 import type { PluginView } from '../plugin-view';
 
 export interface InlineMenuStateDeps {
@@ -77,8 +77,9 @@ export interface InlineMenuStateDeps {
 	showsSource: (path: readonly number[], leaf: NodeView, offset: number) => boolean;
 	/** The scoped editor of a running plugin, which its menu's `rows` reads. */
 	editorFor: (plugin: string) => Editor | undefined;
-	/** A draft for a plugin's pick, refused once the plugin is turned off. */
-	pickDraft: (plugin: string) => PickDraft;
+	/** A draft for a plugin's pick watching the trigger and the query, refused once the plugin is
+	 *  turned off. */
+	pickDraft: (plugin: string, watch: { from: number; to: number }) => PickDraft;
 	/** Ends the author's typing burst, so what a pick writes later is its own undo step. */
 	endBurst: () => void;
 }
@@ -109,6 +110,9 @@ export interface InlineMenuState {
 	reportSourceError(error: unknown, source: string): void;
 	/** The caret menus the editor's plugin values contribute, replacing the last list. */
 	setMenus(menus: readonly ContributedMenu[]): void;
+	/** Types a contributed menu's trigger and `query` at the caret and opens it there, as `open`
+	 *  does a source; false for a menu this editor doesn't list. */
+	openMenu(menu: CaretMenu<unknown>, query?: string): boolean;
 	dispose(): void;
 }
 
@@ -122,6 +126,8 @@ export interface InlineMenuCombobox {
 
 export interface InlineMenuOpenView {
 	source: InlineMenuSource;
+	/** The row a caret menu gave for an item, or the item itself for a source's. */
+	rowOf(item: InlineMenuItem): unknown;
 	path: number[];
 	start: number;
 	end: number;
@@ -459,18 +465,27 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 			seen = null;
 			heldBack = false;
 		}
-		list.forEach((entry, i) => {
-			const name = `${entry.plugin}:${i}`;
+		const counts = new Map<string, number>();
+		for (const entry of list) {
+			// A plugin's first menu goes by the plugin's name, which the list's element carries.
+			const n = counts.get(entry.plugin) ?? 0;
+			counts.set(entry.plugin, n + 1);
+			const name = n === 0 ? entry.plugin : `${entry.plugin}:${n}`;
 			menus.set(name, entry);
 			sources.set(name, menuSource(name, entry));
-		});
+		}
 	}
 
 	function menuSource(name: string, { plugin, menu }: ContributedMenu): InlineMenuSource {
+		const withEditor = (read: (editor: Editor) => boolean) => {
+			const editor = deps.editorFor(plugin);
+			return editor !== undefined && read(editor);
+		};
 		const toItems = (rows: readonly unknown[]) =>
 			rows.map((row, i) => {
-				const { label = '', detail, icon } = (row ?? {}) as Partial<MenuRow>;
-				const item: InlineMenuItem = { id: String(i), label, detail, icon, insert: '' };
+				const { id, label = '', detail, icon } = (row ?? {}) as Partial<MenuRow>;
+				const key = id ?? (label || String(i));
+				const item: InlineMenuItem = { id: key, label, detail, icon, insert: '' };
 				rowOfItem.set(item, row);
 				return item;
 			});
@@ -478,13 +493,17 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 			name,
 			trigger: menu.trigger,
 			opensAt: OPENS_AT[menu.where ?? 'word-start'],
+			label: menu.label,
+			accepts:
+				menu.accepts && ((query) => withEditor((editor) => menu.accepts!(query, { editor }))),
 			items({ query }) {
 				const editor = deps.editorFor(plugin);
 				if (!editor) return [];
 				const rows = menu.rows(query, { editor });
 				return Array.isArray(rows) ? toItems(rows) : Promise.resolve(rows).then(toItems);
 			},
-			row: menu.draw && drawnRow(menu.draw, (item) => rowOfItem.get(item))
+			// The list hands every row view the item's `row` beside it, which is what a menu's view reads.
+			row: menu.view as PluginView<InlineMenuRowProps> | undefined
 		};
 	}
 
@@ -495,21 +514,20 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 	): Promise<void> {
 		const doc = deps.getDoc();
 		const raw = nodeRaw(live.path);
-		const path = [...live.path];
-		const queryEnd = end;
-		const from = byteOfLeaf(doc, path, live.start);
-		const to = byteOfLeaf(doc, path, queryEnd);
+		const from = byteOfLeaf(doc, live.path, live.start);
+		const to = byteOfLeaf(doc, live.path, end);
 		const pickedQuery = query;
 		close();
 		deps.endBurst();
 		if (from === null || to === null) return;
 		const pick = createMenuPick({
-			draft: deps.pickDraft(plugin),
+			draft: deps.pickDraft(plugin, { from, to }),
 			trigger: raw.slice(live.start, live.start + live.triggerLength),
 			query: pickedQuery,
 			range: { from, to },
-			lineHasText: !isBlankText(raw.slice(0, live.start)) || !isBlankText(raw.slice(queryEnd)),
-			caretStays: () => caretAt(path, queryEnd)
+			removeQuery: (at) => removeQuery(at, raw.slice(live.start, end)),
+			editor: () => deps.editorFor(plugin),
+			undoStep: (run) => deps.undoStep(live.path, live.start, run)
 		});
 		try {
 			await menu.pick(rowOfItem.get(item), pick);
@@ -520,9 +538,26 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		}
 	}
 
-	function caretAt(path: readonly number[], offset: number): boolean {
-		const caret = caretLeaf();
-		return caret !== null && caret.offset === offset && caret.path.join() === path.join();
+	/** Takes `typed` out of the leaf it starts in at byte `at`, landing the caret where it was. */
+	async function removeQuery(at: number | null, typed: string) {
+		const leaf = at === null ? null : leafAtByte(deps.getDoc(), at);
+		const raw = leaf ? nodeRaw(leaf.path) : '';
+		const end = leaf ? leaf.offset + typed.length : 0;
+		if (!leaf || raw.slice(leaf.offset, end) !== typed) return null;
+		const lineHasText = !isBlankText(raw.slice(0, leaf.offset)) || !isBlankText(raw.slice(end));
+		writing = true;
+		try {
+			const landed = await deps.commitRange(leaf.path, leaf.offset, end, '', leaf.offset);
+			return landed ? { lineHasText } : null;
+		} finally {
+			writing = false;
+			resnap();
+		}
+	}
+
+	function openMenu(menu: CaretMenu<unknown>, typed?: string): boolean {
+		for (const [name, entry] of menus) if (entry.menu === menu) return open(name, { query: typed });
+		return false;
 	}
 
 	const registry: InlineMenuRegistry = {
@@ -590,6 +625,7 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 			if (!source) return null;
 			return {
 				source,
+				rowOf: (item) => (rowOfItem.has(item) ? rowOfItem.get(item) : item),
 				path: session.path,
 				start: session.start,
 				end,
@@ -616,6 +652,7 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		close,
 		reportSourceError: report,
 		setMenus,
+		openMenu,
 		primeBaseline,
 		dispose() {
 			disposed = true;
@@ -635,19 +672,3 @@ const OPENS_AT: Record<NonNullable<CaretMenu<unknown>['where']>, InlineMenuSourc
 	'line-start': (raw, pos) => pos === 0 || raw[pos - 1] === '\n',
 	anywhere: undefined
 };
-
-/** A menu's `draw` as the row view the list mounts. */
-function drawnRow(
-	draw: (row: unknown, el: HTMLElement) => void,
-	rowOf: (item: InlineMenuItem) => unknown
-): PluginView<InlineMenuRowProps> {
-	return (target, props) => {
-		draw(rowOf(props.item), target);
-		return {
-			update(next) {
-				target.replaceChildren();
-				draw(rowOf(next.item), target);
-			}
-		};
-	};
-}

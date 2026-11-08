@@ -23,7 +23,7 @@
 	import { harnessPasteImage, installTestProbes } from './test-probes';
 	import { HarnessSource } from './harness-source.svelte';
 	import { trackParityDocument } from '../../parity-documents.svelte';
-	import { slashCommandsPlugin } from '@voithos-labs/aragonite-slash-commands';
+	import { slashCommands } from '@voithos-labs/aragonite-slash-commands';
 
 	// Harness flags all arrive as URL params; SSR has no location, so the guard lives here once.
 	const param = (name: string): string | null =>
@@ -58,7 +58,7 @@
 
 	// Off by default: `/` would open a menu in every spec that types one after a space. Created
 	// here because the showcase's plugin module would load KaTeX's stylesheet into this page.
-	const slashPlugins = param('slash') === 'on' ? [slashCommandsPlugin()] : undefined;
+	const slashPlugins = param('slash') === 'on' ? [slashCommands] : undefined;
 
 	// Stand-in host hooks, so the code block gutter's run and overflow buttons render. Off by
 	// default, since the block specs measure that gutter's width.

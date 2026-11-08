@@ -37,18 +37,16 @@ Btw, the plugin's version should match the editor's version.
 ## Use it
 
 ```ts
-import { slashCommandsPlugin } from '@voithos-labs/aragonite-slash-commands';
+import { slashCommands } from '@voithos-labs/aragonite-slash-commands';
 
 const plugins = [
-	slashCommandsPlugin({
+	slashCommands({
 		entries: [
 			{ id: 'shrug', label: 'Shrug', insert: '¯\\_(ツ)_/¯' },
 			{
 				id: 'today',
 				label: 'Today',
-				run: async (editor) => {
-					await editor.insertMarkdown(new Date().toDateString());
-				}
+				run: (pick) => pick.write(new Date().toDateString())
 			}
 		],
 		exclude: ['divider']
@@ -56,15 +54,15 @@ const plugins = [
 ];
 ```
 
-Hand `plugins` to the editor, and build the array once for the whole app, not once per editor. There are two options:
+Hand `plugins` to the editor. `slashCommands` on its own works too, if you're happy with the built-in rows. There are two options:
 
 - `entries` adds rows of your own, after the built-in ones. Each has an `id` and a `label` (an `icon` and `keywords` too, if you like), plus exactly one of `insert` (Markdown to drop in) or `run` (a function). Reuse a built-in id and your row shows instead of the built-in one.
-- `run` gets an `editor` to write through (`insertMarkdown`, as above), plus the word typed after a space if the row sets `takesArgument: true`. It can be async, and if it waits on something (a picker, a fetch), keep writing through that same `editor`, so a late answer can't land in another note.
+- `run` gets the pick, plus the word typed after a space if the row sets `takesArgument: true`. The `/query` stays in the text until you write through the pick: `pick.write(text)` swaps it for a line of text, `pick.insertBlock(markdown)` for a block. It can be async, and if it waits on something (a picker, a fetch), a late answer can't land in another note: the pick refuses once the host loads one.
 - `exclude` hides built-in rows by id.
 
-What you pass the factory is every editor's default. An editor's own `{ plugin, options }` entry swaps out only the fields it names, so `{ entries: [] }` is how one editor drops the factory's rows.
+Calling the plugin again lays the new options over the old ones field by field, so `slashCommands({ entries: [stamp] })({ exclude: ['table'] })` keeps the stamp row, and `({ entries: [] })` is how one editor drops them. A row with neither `insert` nor `run` (or both) gets reported, and that editor runs the plugin on its defaults.
 
-`Ctrl+/` (`Cmd+/` on a Mac) types the `/` for you, and `editor.runCommand('slashCommands.open', 'table')` opens the list already narrowed, which is how a toolbar button or a touch UI gets there.
+`Ctrl+/` (`Cmd+/` on a Mac) types the `/` for you, and `editor.run('slash-commands/open', 'table')` opens the list already narrowed, which is how a toolbar button or a touch UI gets there.
 
 ## More
 

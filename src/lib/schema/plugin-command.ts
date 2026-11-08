@@ -23,9 +23,10 @@ interface CommandSpecBase<A> {
 	run(editor: Editor, arg: A): boolean | void | Promise<unknown>;
 }
 
-/** What `command` takes. Only a command with no argument binds a chord, since a key supplies none. */
+/** What `command` takes. Only a command that runs without an argument binds a chord, since a key
+ *  supplies none. */
 export type CommandSpec<A = void> = CommandSpecBase<A> &
-	([A] extends [void] ? { chord?: Chord } : { chord?: never });
+	([undefined] extends [A] ? { chord?: Chord } : { chord?: never });
 
 /** A command as an editor holds it: run it with `editor.run(command, arg)`. */
 export interface Command<A = void> {

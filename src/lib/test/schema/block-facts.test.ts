@@ -14,7 +14,11 @@ import {
 } from '#lib/schema/block-kind-descriptor.js';
 import { blockViewForm, domViewSpec } from '#lib/schema/block-view.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
-import { installPlugins, type EditorPlugin } from '#lib/schema/plugin-install.js';
+import {
+	installPlugins,
+	normalizePluginEntries,
+	type PluginsProp
+} from '#lib/schema/plugin-install.js';
 import { reservedChromeKindOf } from '#lib/schema/reserved-chrome.js';
 import { blockFacts, hasTextPosition, type BlockFacts } from '#lib/schema/block-facts.js';
 import { bundledPluginDirs } from '../invariants/lint/scan-source';
@@ -26,11 +30,11 @@ import { highlightOccurrencesPlugin } from '#packages/highlight-occurrences/src/
 import { latexPlugin } from '#packages/latex/src/index.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import { parrotPlugin } from '#packages/parrot/src/index.js';
-import { slashCommandsPlugin } from '#packages/slash-commands/src/index.js';
+import { slashCommands } from '#packages/slash-commands/src/index.js';
 import { tocPlugin } from '#packages/toc/src/index.js';
 
 /** Every bundled plugin by its directory, so a plugin added on disk fails until it is listed. */
-const BUNDLED: Record<string, () => EditorPlugin> = {
+const BUNDLED: Record<string, () => PluginsProp[number]> = {
 	admonitions: admonitionsPlugin,
 	details: detailsPlugin,
 	emoji: emojiPlugin,
@@ -39,11 +43,11 @@ const BUNDLED: Record<string, () => EditorPlugin> = {
 	latex: () => latexPlugin(),
 	mermaid: mermaidPlugin,
 	parrot: parrotPlugin,
-	'slash-commands': slashCommandsPlugin,
+	'slash-commands': () => slashCommands,
 	toc: tocPlugin
 };
 // One instance each: installing a second object under a plugin's name warns.
-const PLUGINS = Object.values(BUNDLED).map((plugin) => plugin());
+const PLUGINS = normalizePluginEntries(Object.values(BUNDLED).map((plugin) => plugin())).plugins;
 
 beforeEach(() => installPlugins(PLUGINS));
 

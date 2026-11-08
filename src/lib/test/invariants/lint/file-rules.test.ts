@@ -1175,8 +1175,6 @@ const RULES: FileRule[] = [
 			'packages/latex/src/renderer.ts': 'the text of a KaTeX error message',
 			'packages/latex/src/BlockMath.svelte': SHOWS_INK,
 			'packages/mermaid/src/MermaidBlock.svelte': SHOWS_INK,
-			'packages/slash-commands/src/slash-source.ts':
-				'where a typed `/` opens the command menu: a word boundary in typing, not Markdown',
 			'packages/slash-commands/src/filter.ts': 'the words of a menu query the user typed'
 		},
 		reaches: [...GRAMMAR_FILES, SOURCE.directiveGrammar],

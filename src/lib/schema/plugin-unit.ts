@@ -84,6 +84,9 @@ export interface Editor {
 	can(command: Command | string, arg?: unknown): boolean;
 	/** Whether the editor acts on this key, so a host's own shortcut handler can stand back. */
 	claims(event: KeyboardEvent): boolean;
+	/** Types a caret menu's trigger and `query` at the caret and opens it there, even where a typed
+	 *  trigger wouldn't; false, writing nothing, away from prose or for a menu not listed here. */
+	openMenu<R>(menu: CaretMenu<R>, query?: string): boolean;
 	/** A write in the document's bytes, committed as one undo step now or after a wait; a plugin's
 	 *  is refused as `off` once the plugin is. */
 	edit(): Draft;

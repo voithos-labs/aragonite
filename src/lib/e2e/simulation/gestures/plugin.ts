@@ -63,23 +63,19 @@ export async function pasteGithubAlert(ctx: SimContext): Promise<void> {
 }
 
 /**
- * The command only reads: it spoils the block count in every `window.__docStats` record, then
- * waits for a correct one, which only the command's recompute writes, so a dead binding times out.
+ * The chord-count plugin's command writes nothing to the document: it counts a press in
+ * `window.__chordCounts`, so the wait for the count to move times out on a dead binding.
  */
-export async function publishDocStats(ctx: SimContext): Promise<void> {
-	await ctx.page.evaluate(() => {
-		const stats = (window as any).__docStats as Record<string, { blocks: number }> | undefined;
-		for (const record of Object.values(stats ?? {})) record.blocks = -1;
-	});
+export async function countChord(ctx: SimContext): Promise<void> {
+	const total = () =>
+		ctx.page.evaluate(() =>
+			Object.values(window.__chordCounts ?? {}).reduce((sum, n) => sum + n, 0)
+		);
+	const before = await total();
 	await ctx.page.keyboard.press('ControlOrMeta+Shift+S');
 	await ctx.page.waitForFunction(
-		() => {
-			const stats = (window as any).__docStats as Record<string, { blocks: number }> | undefined;
-			if (!stats) return false;
-			const live = (window as any).__test.getDocument().children.length;
-			return Object.values(stats).some((r) => r.blocks === live);
-		},
-		null,
+		(was) => Object.values(window.__chordCounts ?? {}).reduce((sum, n) => sum + n, 0) > was,
+		before,
 		{ timeout: 5000, polling: 16 }
 	);
 	await ctx.editor.waitForRenderFlush();

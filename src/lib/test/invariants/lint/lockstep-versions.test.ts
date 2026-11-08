@@ -8,8 +8,11 @@ import { describe, it, expect } from 'vitest';
 import {
 	libraryVersionDrift,
 	lockstepDrift,
+	PLUGIN_VALUE_SITES,
 	readManifests,
+	readSites,
 	readTemplate,
+	siteDrift,
 	templateDrift
 } from '../../../../../scripts/release/check-lockstep.mjs';
 
@@ -31,6 +34,11 @@ describe('lockstep versions', () => {
 		expect(names).toContain('@voithos-labs/create-aragonite-plugin');
 		expect(lockstepDrift(root, packages)).toEqual([]);
 		expect(libraryVersionDrift(root, libraryVersion)).toEqual([]);
+	});
+
+	it('holds each first-party plugin value to the version it states', () => {
+		const { root } = readManifests();
+		expect(siteDrift(root, readSites(PLUGIN_VALUE_SITES))).toEqual([]);
 	});
 
 	it('reports a version constant left behind by a release', () => {

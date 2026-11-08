@@ -61,7 +61,7 @@ _(pre-freeze / unstable)_ The installable package, and the per-editor context it
 | `Plugin` | The plugin value that comes back. Call it with options (`math({ render })`) to give one editor different ones |
 | `PluginList` | A list of plugin values, whatever their options, as `needs` takes it |
 | `Contribution` | What `contributes` hands back for one editor: a `setup(editor)` that runs once that editor mounts, the `commands` it runs, its `inserts` rows, and its caret `menus` |
-| `Editor` | What `setup` and your commands get: the plugins on, the mode, the theme, the `inserts` rows, `on`, `run` and `can` (a command by value or id, with its argument), `claims` and `edit`. It's one object per plugin per editor, and a listener you add there goes away with your plugin |
+| `Editor` | What `setup` and your commands get: the plugins on, the mode, the theme, the `inserts` rows, `on`, `run` and `can` (a command by value or id, with its argument), `claims`, `openMenu` (types a caret menu's trigger at the caret and opens it) and `edit`. It's one object per plugin per editor, and a listener you add there goes away with your plugin |
 | `PluginError` | An error your plugin caused: its name, what the editor was doing with it (`install`, `validate`, `contributes`, `setup`, `dispose`, `run shout/hello` for a command, or `on('edit')` for a listener that threw), and the cause |
 | `BlockType` | A block type by name |
 | `builtin` | The built-in block types by kind (`builtin.blocks.paragraph`), to place yours relative to one or tell what a block is |
@@ -860,7 +860,7 @@ _(pre-freeze / unstable)_ Which tier dispatches what: [Block commands](plugin-gu
 | [`command`](#command) | Make a command your plugin lists in `contributes`. An editor runs it by value, as `yourplugin/id`, or by its chord |
 | `Command` | What `command` hands back. Its `id` reads `yourplugin/id` once an editor installs your plugin |
 | `CommandSpec` | What `command` takes: `id`, `title`, an optional `chord`, `when(editor, arg)` and `run(editor, arg)`, both handed your plugin's own `Editor` |
-| `Chord` | A chord as a type: `Mod`, `Alt` and `Shift` in any combination, then the key. Only a command with no argument takes one, since a key can't hand it anything |
+| `Chord` | A chord as a type: `Mod`, `Alt` and `Shift` in any combination, then the key. Only a command that can run without its argument takes one, since a key can't hand it anything |
 | [`registerBlockCommand`](#registerblockcommand) | Create a `(kind, name)` command and get back its id, for a keymap binding to target |
 | `registerGlobalCommand` | Create a process-wide command run against whichever editor dispatched it, optionally on a global chord; also returns its id. The handler receives that editor's `EditorContext` and the argument `runCommand(id, arg)` or the chord's binding carried |
 | `CommandId` | A built-in command's id; a vocabulary your keymaps may bind too. `decorations.activateAtCaret` ships with no chord at all: it runs the `onActivate` of the mark under the caret ([Interactive marks](plugin-guide/decorations.md#interactive-marks-click-hover-and-the-keyboard)) |
@@ -1002,9 +1002,10 @@ _(pre-freeze / unstable)_ A list the editor opens under the caret while the auth
 | Export | Role |
 | --- | --- |
 | [`menu`](#menu) | Make a list your plugin lists in `contributes` as `menus`: it opens when its trigger is typed, and a pick writes nothing until you commit it through the `MenuPick` |
-| `CaretMenu` | What `menu` takes: a `label` for screen readers, the `trigger`, `where` it opens (after a space or at a line's start by default, only at a line's start, or anywhere), `rows(query, { editor })`, an optional `draw(row, el)`, and `pick(row, pick)` |
-| `MenuRow` | The row the editor draws when your menu has no `draw`: a `label`, maybe a `detail` and an `icon` |
-| `MenuPick` | A `Draft` over the trigger and the query, with the `trigger`, the `query` and their `range`, plus `write(inline)` and `insertBlock(markdown)` |
+| `CaretMenu` | What `menu` takes: a `label` for screen readers, the `trigger`, `where` it opens (after a space or at a line's start by default, only at a line's start, or anywhere), `accepts(query, { editor })` to close the list on a query that's no longer yours, `rows(query, { editor })`, an optional `view` that draws a row, and `pick(row, pick)` |
+| `MenuRow` | The row the editor draws when your menu has no `view`: a `label`, maybe a `detail` and an `icon`, and an `id` that keeps a screen reader on the same row as the query narrows the list (the label does that job without one) |
+| `MenuRowProps` | What a menu's `view` gets, at mount and on each `update`: your `row`, whether it's `active`, and the `query` (for highlighting the match) |
+| `MenuPick` | A `Draft` over the trigger and the query, with the `trigger`, the `query` and their `range`, plus `write(inline)`, `insertBlock(markdown)` and `run(command, arg?)` |
 | [`InlineMenuRegistry`](#inlinemenuregistry) | The `editor.inlineMenus` surface |
 | [`InlineMenuSource`](#inlinemenusource) | A named source: its trigger, its list, and what happens around a pick |
 | `InlineMenuOpenOptions` | `open`'s second argument: a `query` typed after the trigger, so the list opens already narrowed |
@@ -1020,7 +1021,7 @@ _(pre-freeze / unstable)_ A list the editor opens under the caret while the auth
 function menu<R>(spec: CaretMenu<R>): CaretMenu<R>;
 ```
 
-A list under the caret. Picking a row hands it to your `pick` with a `MenuPick`, and nothing is written until you write through it: `write(inline)` swaps the trigger and the query for one line of text, `insertBlock(markdown)` takes them out and drops a block in, below the line when the line has other text.
+A list under the caret. Picking a row hands it to your `pick` with a `MenuPick`, and nothing is written until you write through it: `write(inline)` swaps the trigger and the query for one line of text, `insertBlock(markdown)` takes them out and drops a block in (below the line, when the line has other text), and `run(command, arg)` takes them out and runs a command at the caret, in the same undo step. A shortcut or a toolbar button opens your menu with `editor.openMenu(menu, query?)`, which types the trigger for the author.
 
 ```ts
 const mentions = definePlugin({
@@ -1041,7 +1042,7 @@ const mentions = definePlugin({
 // type "@ad", Enter: "@ad" becomes "@Ada", one undo step
 ```
 
-A pick can wait (a fetch, a dialog). Whatever you write then lands as its own undo step, after the typing that came before it, or comes back refused: `moved` when the author changed the trigger or the query meanwhile, `unloaded` when the host loaded another document. `insertBlock` is also refused as `moved` once the caret has left the query, since the block goes in where the caret is.
+A pick can wait (a fetch, a dialog). Whatever you write then lands as its own undo step, after the typing that came before it, or comes back refused: `moved` when the author changed the trigger or the query meanwhile, `unloaded` when the host loaded another document. It lands where the query was, wherever the author's caret has wandered off to.
 
 #### `InlineMenuRegistry`
 

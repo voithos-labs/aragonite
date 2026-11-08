@@ -5,6 +5,7 @@
 	import { DEMO_FOOTNOTES, DEMO_LATEX, DEMO_TOC } from '../../../demo-plugins';
 	import { blockBadgePlugin } from '../block-badge/block-badge-plugin';
 	import { docStatsPlugin } from '../doc-stats/doc-stats-plugin';
+	import { chordCountPlugin } from '../chord-count/chord-count-plugin';
 
 	// Module scope so the entry arrays stay identity-stable across (SSR) renders.
 	const listedPlugins = [
@@ -14,7 +15,7 @@
 		admonitionsPlugin(),
 		DEMO_LATEX
 	];
-	const unlistedPlugins = [docStatsPlugin];
+	const unlistedPlugins = [docStatsPlugin, chordCountPlugin];
 
 	// The `?reads` variant: live mode, so the link card and pending marks run, and the toc and
 	// footnotes in both editors, so their labels and numbers show which inline syntax each reads.

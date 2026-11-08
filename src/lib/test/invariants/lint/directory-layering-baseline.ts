@@ -167,7 +167,6 @@ export const RUNTIME_EDGES: readonly string[] = [
 	'testing -> dev-checks.ts',
 	'testing -> editor-actions',
 	'testing -> editor-events.ts',
-	'testing -> inline-menu',
 	'testing -> invariants',
 	'testing -> presentation-mode.ts',
 	'testing -> schema',

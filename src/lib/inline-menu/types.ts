@@ -53,6 +53,8 @@ export interface InlineMenuRowProps {
 export interface InlineMenuSource {
 	/** Unique per editor; the name `open()` addresses. */
 	name: string;
+	/** What a screen reader calls the list; without it, "Suggestions". */
+	label?: string;
 	/**
 	 * The typed opener, one line and never empty; `addSource` throws otherwise. Where two sources'
 	 * triggers both end at the caret, the longer wins.

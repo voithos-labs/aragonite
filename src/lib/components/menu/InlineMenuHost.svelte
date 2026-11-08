@@ -161,7 +161,7 @@
 		role="listbox"
 		{@attach menuPresence.track(dismiss, { edits: true, inside: () => [openBlockEl()] })}
 		tabindex="-1"
-		aria-label={INLINE_MENU_LABEL}
+		aria-label={view.source.label ?? INLINE_MENU_LABEL}
 		data-inline-menu={sourceName}
 		style:left="{position?.left ?? 0}px"
 		style:top="{position?.top ?? 0}px"
@@ -190,6 +190,7 @@
 						<InlineMenuRowView
 							view={row}
 							{item}
+							row={view.rowOf(item)}
 							{active}
 							{query}
 							report={rowReporter(sourceName)}

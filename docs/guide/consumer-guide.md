@@ -821,7 +821,7 @@ import { highlightOccurrencesPlugin } from '@voithos-labs/aragonite-highlight-oc
 import { latexPlugin } from '@voithos-labs/aragonite-latex';
 import { mermaidPlugin } from '@voithos-labs/aragonite-mermaid';
 import { parrotPlugin } from '@voithos-labs/aragonite-parrot';
-import { slashCommandsPlugin } from '@voithos-labs/aragonite-slash-commands';
+import { slashCommands } from '@voithos-labs/aragonite-slash-commands';
 ```
 
 | Plugin | What it teaches the editor |
@@ -835,7 +835,7 @@ import { slashCommandsPlugin } from '@voithos-labs/aragonite-slash-commands';
 | `latexPlugin({ renderer?, blockLayout? })` | All three GitHub math forms through one injected engine: inline `$…$`, block `$$…$$`, and the fenced ` ```math ` form; without an engine each formula shows its source. `blockLayout` (`'split'` default, `'stacked'`, `'source'`) is how a block opens for editing; an editor's `{ plugin, options: { blockLayout } }` entry overrides it per instance |
 | `mermaidPlugin({ renderer? })` | A ` ```mermaid ` fence renders as a diagram through an injected engine; without one, the fence renders statically (the source, styled) |
 | `parrotPlugin()` | A `%%parrot` line renders as an animated ASCII party parrot, with whatever follows the marker as its caption |
-| `slashCommandsPlugin({ entries?, exclude? })` | `/` at the start of a line or after a space opens a list of blocks to insert and headings to turn the line into |
+| `slashCommands` or `slashCommands({ entries?, exclude? })` | `/` at the start of a line or after a space opens a list of blocks to insert and headings to turn the line into |
 
 A few of them take options or need a word more.
 
@@ -853,14 +853,14 @@ Two editors in one process can list different depths this way; the factory form,
 
 **Footnotes.** A reference jumps to its definition on the click a link follows: a plain click in reading mode, Ctrl/Cmd+click while editing, or a plain click in live mode too if you set `linkClick: 'plain'`. Any other plain click opens the reference's source to edit. The definition's own `[^label]` marker is the way back, on the same gesture, and it lands the caret right after the first citation. In reading mode both are links a keyboard reaches with Tab and follows with Enter, and the way back focuses that first citation, so Tab carries on from it; the editing modes give them no tab stop.
 
-**Slash commands.** Type `/` at the start of a line or after a space and a list opens under the caret: every block the right-click "Insert block" menu offers (your plugins' blocks included), then Heading 1 to 3. Typing narrows it by label or keyword (`/td` finds the to-do list), Enter picks, and Escape closes it and leaves what you typed. On an empty line the block replaces the line. On a line with text, the `/query` goes and the block lands below it, except a heading row, which turns the line itself into a heading. It never opens in a table cell. Two built-in rows take a word after a space: `/code js` opens a fence tagged `js`, and `/table 3x4` makes three columns by four rows. A plugin's block can take one too, if its insert entry declares [`withArgument`](plugin-api.md#insert-catalogue). `Mod+/` types the `/` for you, and `runCommand('slashCommands.open', 'table')` opens the list already narrowed, which is how a toolbar button or a touch UI gets there.
+**Slash commands.** Type `/` at the start of a line or after a space and a list opens under the caret: every block the right-click "Insert block" menu offers (your plugins' blocks included), then Heading 1 to 3. Typing narrows it by label or keyword (`/td` finds the to-do list), Enter picks, and Escape closes it and leaves what you typed. On an empty line the block replaces the line. On a line with text, the `/query` goes and the block lands below it, except a heading row, which turns the line itself into a heading. It never opens in a table cell. Two built-in rows take a word after a space: `/code js` opens a fence tagged `js`, and `/table 3x4` makes three columns by four rows. A plugin's block can take one too, if its insert entry declares [`withArgument`](plugin-api.md#insert-catalogue). `Mod+/` types the `/` for you, and `run('slash-commands/open', 'table')` opens the list already narrowed, which is how a toolbar button or a touch UI gets there.
 
 The two options:
 
-- `entries` adds rows of your own, listed after the built-in ones. A row either inserts Markdown (`insert`) or runs a function (`run`, handed the editor's context for that pick and, if the row sets `takesArgument: true`, the word typed after a space). A `run` may be async: if it opens a picker and waits, the context it was handed writes nothing once you've loaded another note, so a choice made after a note switch lands nowhere. A row whose id matches a built-in one hides that built-in, and yours shows up with your other rows.
+- `entries` adds rows of your own, listed after the built-in ones. A row either inserts Markdown (`insert`) or runs a function (`run`, handed the pick and, if the row sets `takesArgument: true`, the word typed after a space). The `/query` stays until `run` writes through the pick (`pick.write(text)` or `pick.insertBlock(markdown)`). A `run` may be async: if it opens a picker and waits, the pick writes nothing once you've loaded another note, so a choice made after a note switch lands nowhere. A row whose id matches a built-in one hides that built-in, and yours shows up with your other rows.
 - `exclude` hides built-in rows by id: `bullet`, `numbered`, `todo`, `quote`, `divider`, `code`, `table`, `h1`, `h2`, `h3`, plus whatever ids your installed plugins add to `inserts` (the bundled ones add `note`, `details`, `math`, `mermaid` and `toc`).
 
-Options passed to the factory are every editor's defaults, and an editor's `{ plugin, options }` entry swaps out only the fields it names. So an entry of `{ exclude: ['table'] }` still lists the factory's `entries`, and `{ entries: [] }` is how one editor drops them. A row with both `insert` and `run`, or neither, is refused: the factory throws, and in an editor's entry the editor reports it (to `onError`, and on the `error` event) and keeps the factory's options.
+Calling `slashCommands` with options again lays them over the first ones field by field. So `slashCommands({ entries: [stamp] })({ exclude: ['table'] })` still lists the stamp row, and `({ entries: [] })` is how one editor drops them. A row with both `insert` and `run`, or neither, is refused: the editor reports it (to `onError`, and on the `error` event) and runs the plugin on its defaults.
 
 **Math and diagrams.** latex and mermaid render through injected engines that never ride the main bundle: each package has a `/renderer` subpath adapter, and its engine (`katex` / `mermaid`) is an optional peer dependency you install only if you use it.
 
@@ -1041,7 +1041,7 @@ Right-clicking any cell opens the table's action menu: "Edit link" first when yo
 | Finish editing a diagram | `Mod+Enter` (in the diagram's source box; `Esc` cancels; needs `mermaidPlugin`) |
 | Open the diagram's focus view | `Mod+M` (the diagram focused; `Esc` closes it; needs `mermaidPlugin`) |
 | **Slash commands** |  |
-| Open the list at the caret | `Mod+/` (types the `/` for you; needs `slashCommandsPlugin`) |
+| Open the list at the caret | `Mod+/` (types the `/` for you; needs `slashCommands`) |
 
 **Typing a table into existence.** `Enter` in a paragraph holding just a header row of two or more cells (`| a | b |`) completes it into a table (delimiter, one empty body row, caret in the first body cell), and one undo gives you the row back. It needs the leading pipe, so `ls | grep foo` is left alone.
 
