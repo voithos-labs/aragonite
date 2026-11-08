@@ -60,41 +60,36 @@ const newVerse = registerBlockCommand(poem, 'poem.newVerse', splitVerse, {
 
 Two things are different once a removal came first. `ctx.afterRemoval` is `true`, so if your command has an "Enter on an empty line" branch of its own (leaving the block, say), skip it then: the line is empty because the selection went, not because the user left it empty. That's how the built-in Enter keeps a whole-item selection inside its list. And the key is taken once the removal runs, whatever your handler returns: `false` can't hand it on to the browser or another binding, since the selection is already gone.
 
-**`registerGlobalCommand(name, handler, { chord }?)`**
+**`command({ id, title, chord?, when?, run })`**
 
-The editor-wide sibling: it creates a process-wide command whose handler receives the dispatching instance's `EditorContext` rather than a block, so it runs regardless of which block holds focus, for editor-scope actions like opening a panel. Its second argument is whatever `runCommand(id, arg)` or the chord's binding passed, `undefined` when neither did. The chord is optional; without one the command runs only through `runCommand`. Call it from `setup`:
+The editor-wide sibling, for a plugin value: list it in `contributes` as `commands`, and it runs regardless of which block holds focus, for editor-scope actions like opening a panel. `run` gets your plugin's `Editor` and whatever argument `editor.run(command, arg)` passed (`undefined` from a chord). The editor puts your plugin's name in front of the id, so it runs by value, as `word-count/log`, or by its chord:
 
 ```ts
-setup(ctx) {
-	registerGlobalCommand(
-		'wordCount.log',
-		(editor) => {
-			// The handler isn't bound to your options type: it gets EditorContext<unknown>,
-			// so cast options here (onEditor's callback is where they read typed).
-			const opts = editor.options as WordCountOptions;
-			console.log(`[${editor.editorId}]`, countByEditor.get(editor.editorId), opts);
-			return true; // handled
-		},
-		{ chord: 'Mod+Shift+L' }
-	);
-	ctx.onEditor(/* … */);
-}
+export const wordCount = definePlugin<WordCountOptions>({
+	name: 'word-count',
+	version: '1.0.0',
+	editor: '*',
+	defaults: { live: true },
+	contributes: (options) => ({
+		commands: [
+			command({
+				id: 'log',
+				title: 'Log the word count',
+				chord: 'Mod+Shift+L',
+				run: () => console.log(count, options) // your options, typed, from the closure
+			})
+		]
+	})
+});
 ```
 
-A handler that waits on something before it writes (a fetch, a dialog) should read `editor.documentGeneration` before the wait and compare it after: if the host loaded another note meanwhile, a write through `editor` lands in that one.
+A `run` that waits on something before it writes (a fetch, a dialog) writes through `editor.edit()`, which comes back refused as `unloaded` if the host loaded another note meanwhile.
 
 The chord binds in the **plugin-global tier**, the last step in the chord priority order [the consumer guide's Rebinding chords](../consumer-guide.md#rebinding-chords) lays out. Four consequences:
 
 - A plugin chord never shadows a built-in: a built-in kind's own chord beats yours **on that kind, not elsewhere**.
-- A chord the global tier already binds (undo and redo, or another plugin's global chord) or the search bar reserves (`Mod+F` / `Mod+H`) can't be taken, and the collision **throws before the command is created**.
-- A caret key of the platform the editor runs on (an arrow left or right, a word key, `Home`, `End`, the full list's in [the consumer guide](../consumer-guide.md#keyboard-shortcuts)) yields to the caret: a chord on one registers with a `keybindings` warning in a dev build and never fires there, though a host's own `keybindings` entry can still bind it.
-- A handler throw is contained the same way a block command's is.
+- A chord the editor takes everywhere (undo, redo, and the search bar's `Mod+F` / `Mod+H`), or one an earlier plugin in the same list holds, leaves your plugin out of that editor, and the editor tells `onError` why. Only a command that can run without its argument takes a chord, since a key hands it nothing.
+- A caret key of the platform the editor runs on (an arrow left or right, a word key, `Home`, `End`, the full list's in [the consumer guide](../consumer-guide.md#keyboard-shortcuts)) yields to the caret: a chord on one warns under `keybindings` in a dev build and never fires there, though a host's own `keybindings` entry can still bind it.
+- A throw, or a rejected promise, reaches `onError` under your plugin's name, and counts as run, so the key goes no further.
 
-```ts
-registerGlobalCommand('wordCount.log', handler, { chord: 'Mod+Shift+L' }); // 'wordCount.log', branded as a command id
-registerGlobalCommand('mine.find', handler, { chord: 'Mod+F' }); // throws: reserved by the editor UI (search)
-registerGlobalCommand('mine.undo', handler, { chord: 'Mod+Z' }); // throws: already bound to "history.undo"
-registerGlobalCommand('mine.bold', handler, { chord: 'Mod+B' }); // fine: fires on a thematic break, yields to bold in a paragraph
-```
-
-Chord strings follow the consumer guide's chord model: fixed-order `Mod` / `Alt` / `Shift` plus the key's own value. Shifted-symbol chords aren't modeled, so bind plain digits and letters. A chord the editor can't read throws when you register it, here and in a kind's `keymap` alike (`registerBlockKind`, `augmentBlockKind`). So `Ctrl+B` (it's `Mod+B`) fails at startup instead of quietly becoming a bare `B` that fires on every keypress.
+Chord strings follow the consumer guide's chord model: fixed-order `Mod` / `Alt` / `Shift` plus the key's own value. Shifted-symbol chords aren't modeled, so bind plain digits and letters. A chord the editor can't read is refused up front: in a command it leaves the plugin out with one report, and in a kind's `keymap` (`registerBlockKind`, `augmentBlockKind`) it throws. So `Ctrl+B` (it's `Mod+B`) fails at startup instead of quietly becoming a bare `B` that fires on every keypress.

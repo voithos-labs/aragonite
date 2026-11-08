@@ -12,13 +12,6 @@ import { registerInlineSyntax } from '#lib/plugin.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { grammarListing } from '../plugins/activation/grammar-listing';
 import { idleDraftRegistry } from '../harness/drafts';
-import type { EditorContext } from '#lib/schema/plugin-install.js';
-
-/** The context a pick's commit is handed here; these suites never write through it. */
-const noWrites = {
-	insertMarkdown: async () => false,
-	runCommand: () => false
-} as unknown as EditorContext;
 
 // `%%…%%` takes its bytes ahead of any code span inside it, in an editor that lists the plugin.
 const masker = definePlugin({
@@ -57,8 +50,6 @@ function harness(
 	/** Each range splice, one undo entry apiece. */
 	const commits: string[] = [];
 	/** How deep the undo join is, and whether each splice ran inside one. */
-	let joinDepth = 0;
-	const splicesInJoin: boolean[] = [];
 
 	/** Put `raw` in one block, reparsing the document the way an edit there would. */
 	function write(index: number, raw: string): void {
@@ -86,7 +77,6 @@ function harness(
 			if (writeFails) throw new Error('write refused');
 			if (writeDeclines) return false;
 			commits.push(bytes);
-			splicesInJoin.push(joinDepth > 0);
 			const raw = doc.children[path[0]].raw;
 			write(path[0], raw.slice(0, start) + bytes + raw.slice(end));
 			events.emit('edit', typedEdit(path));
@@ -97,16 +87,7 @@ function harness(
 			await tick();
 			return true;
 		},
-		undoStep: async (_path, _offset, run) => {
-			joinDepth++;
-			try {
-				await run();
-			} finally {
-				joinDepth--;
-			}
-		},
-		ownerOfNewSource: () => noWrites,
-		drafts: idleDraftRegistry()
+		undoStep: async (_path, _offset, run) => void (await run())
 	});
 
 	// The caret arriving in the block is the editor's first news of it, as a click's would be. It
@@ -125,8 +106,6 @@ function harness(
 		errors,
 		landed,
 		commits,
-		splicesInJoin,
-		insideJoin: () => joinDepth > 0,
 		raw: (index = 0) => doc.children[index].raw,
 		setMode: (next: PresentationMode) => (mode = next),
 		/** Type at the caret, one keystroke per character: the byte lands, then its `edit`. */
@@ -453,20 +432,16 @@ describe('navigation and commit', () => {
 	});
 
 	it('replaces the trigger and the query with the pick, and lands the caret after it', async () => {
-		const onCommit = vi.fn();
 		const h = harness('see ');
-		h.menu.registry.addSource(tags({ onCommit }));
+		h.menu.registry.addSource(tags());
 		await h.type('#wo');
 		h.menu.move(1);
 
 		expect(h.menu.commit()).toBe(true);
-		await vi.waitFor(() => expect(onCommit).toHaveBeenCalled());
+		await vi.waitFor(() => expect(h.raw()).toBe('see #world'));
 
-		expect(h.raw()).toBe('see #world');
 		expect(h.landed).toEqual([10]);
 		expect(h.menu.getOpen()).toBeNull();
-		expect(onCommit.mock.calls[0][0]).toMatchObject({ id: 'world' });
-		expect(onCommit.mock.calls[0][1]).toMatchObject({ query: 'wo', path: [0], start: 4, end: 7 });
 	});
 
 	// Miss-analysis: every pick here came after the last key's read had run, never ahead of it.
@@ -476,41 +451,15 @@ describe('navigation and commit', () => {
 	])(
 		'replaces the whole typed query when the pick comes before the last key: %s',
 		async (_, notified) => {
-			const onCommit = vi.fn();
 			const h = harness('see ');
-			h.menu.registry.addSource(tags({ onCommit }));
+			h.menu.registry.addSource(tags());
 			await h.type('#wo');
 			h.typeUnread('r', { notified });
 
 			expect(h.menu.commit()).toBe(true);
-			await vi.waitFor(() => expect(onCommit).toHaveBeenCalled());
-
-			expect(h.raw()).toBe('see #work');
-			expect(onCommit.mock.calls[0][1]).toMatchObject({
-				query: 'wor',
-				path: [0],
-				start: 4,
-				end: 8
-			});
+			await vi.waitFor(() => expect(h.raw()).toBe('see #work'));
 		}
 	);
-
-	// Miss-analysis: no test asked whether the block onCommit inserts shares the pick's undo entry.
-	it('runs the splice and an awaited onCommit inside one undo join', async () => {
-		const h = harness('see ');
-		let release!: () => void;
-		const onCommit = vi.fn(() => new Promise<void>((resolve) => (release = resolve)));
-		h.menu.registry.addSource(tags({ onCommit }));
-		await h.type('#wo');
-
-		h.menu.commit();
-		await vi.waitFor(() => expect(onCommit).toHaveBeenCalled());
-		await tick();
-		expect(h.splicesInJoin).toEqual([true]);
-		expect(h.insideJoin()).toBe(true);
-		release();
-		await vi.waitFor(() => expect(h.insideJoin()).toBe(false));
-	});
 
 	// Miss-analysis: every commit test used a one-line insert, never bytes a paragraph cannot hold.
 	it('refuses a pick whose insert holds a line break, and reports it', async () => {
@@ -551,10 +500,9 @@ describe('navigation and commit', () => {
 	});
 
 	// Miss-analysis: the refusal cases threw, so none let the splice resolve having written nothing.
-	it('a pick whose write is declined lands no caret and runs no onCommit', async () => {
-		const onCommit = vi.fn();
+	it('a pick whose write is declined lands no caret', async () => {
 		const h = harness('see ', { writeDeclines: true });
-		h.menu.registry.addSource(tags({ onCommit }));
+		h.menu.registry.addSource(tags());
 		await h.type('#wo');
 
 		expect(h.menu.commit()).toBe(true);
@@ -564,7 +512,6 @@ describe('navigation and commit', () => {
 
 		expect(h.raw()).toBe('see #wo');
 		expect(h.landed).toEqual([]);
-		expect(onCommit).not.toHaveBeenCalled();
 	});
 
 	it('does not reopen on its own write, even where the pick ends in a trigger', async () => {
@@ -652,9 +599,7 @@ describe('open(name): opening by name, a shortcut or a button', () => {
 	it('types a given query after the trigger in the same write, and opens over it', async () => {
 		const h = harness('see ');
 		const writes: string[] = [];
-		h.menu.registry.addSource(
-			tags({ onCommit: () => {}, items: ({ query }) => (writes.push(query), [item(query)]) })
-		);
+		h.menu.registry.addSource(tags({ items: ({ query }) => (writes.push(query), [item(query)]) }));
 		expect(h.menu.registry.open('tags', { query: 'wo' })).toBe(true);
 		await vi.waitFor(() => expect(h.menu.getOpen()).not.toBeNull());
 		expect(h.raw()).toBe('see #wo');
@@ -762,9 +707,7 @@ describe('a table cell', () => {
 				commits.push(bytes);
 				return true;
 			},
-			undoStep: async (_path, _offset, run) => void (await run()),
-			ownerOfNewSource: () => noWrites,
-			drafts: idleDraftRegistry()
+			undoStep: async (_path, _offset, run) => void (await run())
 		});
 		menu.registry.addSource(tags());
 		return {

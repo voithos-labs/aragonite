@@ -1,6 +1,5 @@
 // Miss-analysis: GH #265; each plugin-global chord suite used one editor, never asking a second.
 import { describe, it, expect, beforeEach } from 'vitest';
-import { registerGlobalCommand } from '#lib/schema/global-commands.js';
 import {
 	isDefaultGlobalChord,
 	resolveBinding,
@@ -11,41 +10,38 @@ import {
 } from '#lib/schema/commands.js';
 import type { CommandDispatchContext } from '#lib/schema/block-commands.js';
 import { collectReservedChords } from '#lib/schema/reserved-chords.js';
-import { activationFor, everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
-import { definePlugin, installPlugins, type EditorContext } from '#lib/schema/plugin-install.js';
+import type { PluginActivation } from '#lib/schema/plugin-activation.js';
+import { command } from '#lib/schema/plugin-command.js';
+import { definePlugin } from '#lib/schema/plugin-install.js';
 import { commandContext } from '../harness/command-context';
+import { valueActivation } from '../harness/value-activation';
 
 const CHORD = 'Mod+Shift+9';
 
-const listing = activationFor(['scoped']);
-const notListing = activationFor(['other']);
-
 let ran = 0;
 
-function chordContext(activation: typeof listing): CommandDispatchContext {
-	return commandContext({
-		pluginEditor: (name) =>
-			activation.isActive(name) ? ({} as never as EditorContext) : undefined,
-		activation
-	});
-}
+const scoped = definePlugin({
+	name: 'scoped',
+	version: '1.0.0',
+	editor: '*',
+	contributes: () => ({
+		commands: [command({ id: 'act', title: 'Act', chord: CHORD, run: () => void ran++ })]
+	})
+});
+const listing = valueActivation([scoped]);
+const notListing = valueActivation([]);
+
+const chordContext = (activation: PluginActivation): CommandDispatchContext =>
+	commandContext({ activation });
 
 beforeEach(() => {
 	ran = 0;
-	installPlugins([
-		definePlugin({
-			name: 'scoped',
-			setup() {
-				registerGlobalCommand('scoped.act', () => (ran++, true), { chord: CHORD });
-			}
-		})
-	]);
 });
 
 describe('a plugin-global chord is claimed only where the plugin is activated', () => {
 	it('the listing editor resolves the binding and consumes the press', () => {
-		expect(resolveGlobalBinding(CHORD, undefined, listing)?.command).toBe('scoped.act');
-		expect(resolveBinding(CHORD, 'paragraph', undefined, listing)?.command).toBe('scoped.act');
+		expect(resolveGlobalBinding(CHORD, undefined, listing)?.command).toBe('scoped/act');
+		expect(resolveBinding(CHORD, 'paragraph', undefined, listing)?.command).toBe('scoped/act');
 		expect(isDefaultGlobalChord(CHORD, listing)).toBe(true);
 		expect(runGlobalChord(CHORD, chordContext(listing))).toBe(true);
 		expect(ran).toBe(1);
@@ -61,15 +57,14 @@ describe('a plugin-global chord is claimed only where the plugin is activated', 
 		expect(ran).toBe(0);
 	});
 
-	it('the process-wide level still enumerates every registered chord', () => {
-		expect(pluginGlobalChords(everyInstalledPlugin)).toContain(CHORD);
+	it("each editor's level enumerates only its own plugins' chords", () => {
 		expect(pluginGlobalChords(listing)).toContain(CHORD);
 		expect(pluginGlobalChords(notListing)).not.toContain(CHORD);
 	});
 });
 
 describe('reservedChords answers for the instance that asks', () => {
-	const reserved = (activation: typeof listing) =>
+	const reserved = (activation: PluginActivation) =>
 		collectReservedChords({ searchBar: false, activation });
 
 	it('reports the chord to the listing editor and withholds it from the other', () => {

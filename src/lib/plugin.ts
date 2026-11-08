@@ -208,9 +208,6 @@ export type {
 	CommandRun
 } from './schema/block-commands';
 export type { PluginCommandId, AnyCommandId } from './schema/command-id';
-// A global command is process-wide but runs against the dispatching instance's `EditorContext`,
-// with the argument `runCommand(id, arg)` or the chord's binding carried.
-export { registerGlobalCommand } from './schema/global-commands';
 
 // ── Parse / serialize helpers (pre-freeze) ───────────────────────────────────
 // Re-exported so an opener needn't reach into core/ deep paths the packaged artifact
@@ -427,7 +424,6 @@ export type {
 	InlineMenuSourceHandle,
 	InlineMenuItem,
 	InlineMenuQuery,
-	InlineMenuCommit,
 	InlineMenuRowProps
 } from './inline-menu/types';
 

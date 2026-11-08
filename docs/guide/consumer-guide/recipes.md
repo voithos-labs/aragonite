@@ -79,41 +79,46 @@ The showcase's insert strip is this recipe, built out (`src/routes/InsertToolbar
 
 ## Recipe: a typed-trigger menu
 
-Tag autocomplete on `#`, a document picker on `[[`, a mention on `@`: a list that follows the caret while the author keeps typing, an inline menu. This is the one piece of chrome not to build yourself from `getRects()` and a key listener, because the editor has to be the one to notice the trigger, hold the keys, and write the pick. You hand it a trigger and a list; `getInlineMenus()` does the rest.
+Tag autocomplete on `#`, a document picker on `[[`, a mention on `@`: a list that follows the caret while the author keeps typing, a caret menu. This is the one piece of chrome not to build yourself from `getRects()` and a key listener, because the editor has to be the one to notice the trigger, hold the keys, and write the pick. You hand it a trigger and some rows, as a plugin value written inline:
 
 ```ts
-const handle = editor.getInlineMenus().addSource({
-	name: 'doc-links',
+import { definePlugin, menu, type MenuRow } from '@voithos-labs/aragonite/plugin';
+
+export const docLinks = menu<MenuRow & { linkText: string }>({
+	label: 'Link a document',
 	trigger: '[[',
+	where: 'anywhere',
 	// End the session once the author closes the link by hand.
 	accepts: (query) => !/[\]\n]/.test(query),
-	items: async ({ query, signal }) => {
-		const hits = await searchTitles(query, { signal });
-		return hits.map((doc) => ({
+	rows: async (query) =>
+		(await searchTitles(query)).map((doc) => ({
 			id: doc.id,
 			label: doc.title,
 			detail: doc.folder,
-			insert: `[[${doc.linkText}]]`
-		}));
-	}
+			linkText: doc.linkText
+		})),
+	pick: (row, pick) => void pick.write(`[[${row.linkText}]]`)
 });
+
+const plugins = [
+	definePlugin({ name: 'doc-links', version: '1.0.0', editor: '*', contributes: () => ({ menus: [docLinks] }) })
+];
 // A shortcut or a toolbar button: types `[[` at the caret and opens the same list.
-editor.getInlineMenus().open('doc-links');
+editor.openMenu(docLinks);
 ```
 
-1. **`items` is the whole data contract.** Return an array, or a promise of one for a list read off an index. A slow answer a later keystroke superseded is dropped, and its `signal` aborts so you can cancel the read. A rejection is reported on the `error` event and reads as an empty list.
-2. **`insert` is bytes.** The pick replaces the trigger and the query, the caret lands after it, and the whole replacement is one undo entry. There is no construct-specific call: a tag inserts `#work`, a link `[[Roadmap]]`. Add a trailing space there if your construct wants one. One line only: a line break is refused and reported on the `error` event, because those bytes belong to one block.
-3. **A pick that inserts a block goes through `onCommit`.** That's the shape for a `/` command: give the row an empty `insert`, which just removes the trigger and the query, and have `onCommit` call `insertMarkdown` on the editor context it gets as its third argument, which puts the block in the way a paste would. The bundled slash-commands plugin works exactly like this. Two things about that context:
-   - Make `onCommit` async and await the insert. Every write that lands while its promise is pending, up to the author's next input in this editor, joins the pick's undo entry, so one undo takes back the block and the cleared query together.
-   - It's scoped to the pick. If your commit waits on something (a fetch for a title, say) and the host loads another note meanwhile, its writes land nowhere instead of in the new one.
-4. **An empty list holds no key.** While rows are showing, the editor takes ArrowUp, ArrowDown, Enter, Tab and Escape before the focused block sees them. With nothing to show, the list is gone and Enter is the author's own Enter again, while the session stays alive for the next keystroke.
-5. **`opensAt` and `accepts` are your grammar.** A tag declines a mid-word `#` (so `C#` stays text) and ends on a space; a link accepts spaces and ends on `]`. `open(name)` skips `opensAt`: the gesture is the author's say-so. `open(name, { query })` types a query after the trigger too, so the list opens narrowed.
-6. **Some places never open a list, whatever your grammar says.** A trigger you type only opens where the bytes are prose: inside an inline code span, a link's destination or title, an image, an autolink or raw HTML it opens nothing, so a `#` in a URL fragment stays a fragment, and a destination still being typed (its closing `)` hasn't arrived yet) counts as a destination too. A link's own text is prose, and a trigger there opens. And no list opens at all in a table cell, in reading mode, or over a selection.
-7. **Escape dismisses for good.** What was typed stays, and typing on does not reopen the list; only a new trigger does.
-8. **Style it as you would the editor's other menus.** The list is the shared `.md-menu` surface and reads the same tokens. For rows richer than a label and a detail (a snippet, a highlighted match), pass a `row` view: a function that fills the element the editor hands it, given the `item`, whether it's `active`, and the `query`. It hands back an `update`, called as the row turns active or the query changes, and a `destroy`, where you unmount whatever you rendered there. In Svelte, `row: svelteView(TagRow)` (from `@voithos-labs/aragonite/svelte`) makes one from a component. A row whose view throws falls back to the default label, and the throw shows up on the `error` event. Your row keeps your page's styles, since the editor's reset stops at it.
-9. **From a plugin, the same registry is `editor.inlineMenus`** on your `onEditor` context; return the handle's `dispose` from the callback. Add your source in `onEditor` itself, not after an `await` there: a pick's context is built on the context of the plugin that added the source, and a source added late gets the editor's own context instead, which belongs to no plugin, so its `options` reads as `{}`. A source you add through `editor.getInlineMenus()` gets that same context.
+1. **`rows` is the whole data contract.** Return an array, or a promise of one for a list read off an index. A slow answer a later keystroke superseded is dropped, and a rejection is reported on the `error` event and reads as an empty list. Give a row an `id` if two rows can share a label; it's also what keeps a screen reader on the same row as the query narrows the list.
+2. **A pick writes nothing until you write through it.** `pick.write(text)` swaps the trigger and the query for one line of text, caret after it, as one undo entry; add a trailing space there if your construct wants one. A line break is refused, because those bytes belong to one block.
+3. **A block goes in with `pick.insertBlock(markdown)`.** It takes the trigger and the query out and puts the block in the way a paste would: on a line with nothing else on it the block replaces the line, and on a line with text it lands in a new paragraph below. That's the shape for a `/` command, and the bundled slash-commands plugin works exactly like this. `pick.run(command, arg)` does the same with a command instead (slash's heading rows turn the line into a heading that way), still one undo step.
+4. **A pick can wait.** If you fetch a title first, the author keeps typing meanwhile, and whatever you write when the answer comes lands as its own undo step, after their typing, where the query was. It comes back refused instead (`moved`) if they changed the trigger or the query, or (`unloaded`) if the host loaded another note.
+5. **An empty list holds no key.** While rows are showing, the editor takes ArrowUp, ArrowDown, Enter, Tab and Escape before the focused block sees them. With nothing to show, the list is gone and Enter is the author's own Enter again, while the session stays alive for the next keystroke.
+6. **`where` and `accepts` are your grammar.** A tag opens only after a space or at a line's start (the default, so `C#` stays text) and ends on a space; a link opens `anywhere`, accepts spaces and ends on `]`. `openMenu(menu)` skips `where`: the gesture is the author's say-so. `openMenu(menu, query)` types a query after the trigger too, so the list opens narrowed.
+7. **Some places never open a list, whatever your grammar says.** A trigger you type only opens where the bytes are prose: inside an inline code span, a link's destination or title, an image, an autolink or raw HTML it opens nothing, so a `#` in a URL fragment stays a fragment, and a destination still being typed (its closing `)` hasn't arrived yet) counts as a destination too. A link's own text is prose, and a trigger there opens. And no list opens at all in a table cell, in reading mode, or over a selection.
+8. **Escape dismisses for good.** What was typed stays, and typing on does not reopen the list; only a new trigger does.
+9. **Style it as you would the editor's other menus.** The list is the shared `.md-menu` surface and reads the same tokens. For rows richer than a label and a detail (a snippet, a highlighted match), pass a `view`: a function that fills the element the editor hands it, given your `row`, whether it's `active`, and the `query`. It hands back an `update`, called as the row turns active or the query changes, and a `destroy`, where you unmount whatever you rendered there. In Svelte, `view: svelteView(TagRow)` (from `@voithos-labs/aragonite/svelte`) makes one from a component. A row whose view throws falls back to the default label, and the throw shows up on the `error` event. Your row keeps your page's styles, since the editor's reset stops at it.
+10. **A menu whose rows read the document stays a source for now.** A plugin value can't read the document yet, so a tag list built from every tag in the note is still an inline-menu source on `getInlineMenus()` (or a `setup` plugin's `editor.inlineMenus`); [the plugin API reference](../plugin-api.md#inline-menus) has its shape.
 
-In the aragonite repo, the tag source in `examples/showcase/tag-marks.ts` is this recipe over a synchronous list, `src/routes/test/plugins/inline-menu/doc-link-menu-plugin.ts` over a late one, and `packages/slash-commands/src/slash-source.ts` over picks that insert blocks.
+In the aragonite repo, `src/routes/test/plugins/inline-menu/doc-link-menu-plugin.ts` is this recipe over a late list, `packages/slash-commands/src/slash-source.ts` over picks that insert blocks, and the tag source in `examples/showcase/tag-marks.ts` is the document-reading kind from the last point.
 
 ## Rewriting a document
 

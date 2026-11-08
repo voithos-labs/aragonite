@@ -1,12 +1,13 @@
 /**
  * What the plugin values one editor runs contribute: their commands, by value, by `plugin/id` and
- * by chord, and their insert rows. Read from each installed list, so `use` rebuilds it, and reached through the editor's
- * activation, which every command lookup already takes, so no route that runs or lists a command
- * can miss a plugin's.
+ * by chord, their insert rows and their caret menus. Read from each installed list, so `use`
+ * rebuilds it, and reached through the editor's activation, which every command lookup already
+ * takes, so no route that runs or lists a command can miss a plugin's.
  */
 import type { Editor, InstalledPlugin, PluginError } from './plugin-unit';
 import { claimCommand, commandSpec, type Command, type CommandSpec } from './plugin-command';
-import { normalizeChord } from './keybindings';
+import { devWarn } from '@voithos-labs/aragonite/dev-checks';
+import { isMotionChord, normalizeChord } from './keybindings';
 import { refusedClaims } from './plugin-claims';
 import { insertRowProblem, type InsertRow } from './insert-catalogue';
 import type { ContributedMenu } from './caret-menu';
@@ -75,6 +76,13 @@ export function createEditorContributions(deps: {
 		byValue = new Map(listed);
 		byId = new Map(commands.map((entry) => [entry.id, entry]));
 		byChord = new Map(commands.flatMap((entry) => (entry.chord ? [[entry.chord, entry]] : [])));
+		for (const { chord, plugin } of commands) {
+			if (chord && isMotionChord(chord))
+				devWarn(
+					'keybindings',
+					`plugin '${plugin}' binds "${chord}", which moves the caret on this platform, so it never fires`
+				);
+		}
 		inserts = kept.flatMap((unit) =>
 			(unit.contribution.inserts ?? []).map((row) =>
 				Object.freeze({ ...row, id: `${unit.name}/${row.id}` })

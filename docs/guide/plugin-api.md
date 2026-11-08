@@ -862,14 +862,13 @@ _(pre-freeze / unstable)_ Which tier dispatches what: [Block commands](plugin-gu
 | `CommandSpec` | What `command` takes: `id`, `title`, an optional `chord`, `when(editor, arg)` and `run(editor, arg)`, both handed your plugin's own `Editor` |
 | `Chord` | A chord as a type: `Mod`, `Alt` and `Shift` in any combination, then the key. Only a command that can run without its argument takes one, since a key can't hand it anything |
 | [`registerBlockCommand`](#registerblockcommand) | Create a `(kind, name)` command and get back its id, for a keymap binding to target |
-| `registerGlobalCommand` | Create a process-wide command run against whichever editor dispatched it, optionally on a global chord; also returns its id. The handler receives that editor's `EditorContext` and the argument `runCommand(id, arg)` or the chord's binding carried |
 | `CommandId` | A built-in command's id; a vocabulary your keymaps may bind too. `decorations.activateAtCaret` ships with no chord at all: it runs the `onActivate` of the mark under the caret ([Interactive marks](plugin-guide/decorations.md#interactive-marks-click-hover-and-the-keyboard)) |
 | `KeyBinding` | One keymap entry: a chord (`Mod` / `Alt` / `Shift` plus the key, normalized to that order), a command id, an optional baked argument. A chord with an unknown modifier or no key throws when the kind registers or is augmented |
 | [`CommandRun`](#commandrun) | The third argument a block's `runCommand` gets: `afterRemoval` |
 | [`BlockCommandContext`, `BlockCommandHandler`](#blockcommandcontext-blockcommandhandler) | What a block command's handler receives, and the handler's signature |
 | `BlockCommandTarget` | What a block hands a block command to run against (the node, `updateMetadata`, `replaceRaw`, the component's hooks), and what `BlockComponent.getCommandContext` returns, so a hand-built component can let the editor run your `afterRemoval` commands in it |
 | `BlockCommandOptions` | That fourth argument's type |
-| `PluginCommandId`, `AnyCommandId` | The id `registerBlockCommand` or `registerGlobalCommand` hands back, and the union of that and a built-in `CommandId` |
+| `PluginCommandId`, `AnyCommandId` | The id `registerBlockCommand` hands back, and the union of that and a built-in `CommandId` |
 | [`imeOwnsKey`](#imeownskey) | Whether a keydown belongs to the IME |
 
 #### `command`
@@ -997,7 +996,9 @@ _(pre-freeze / unstable)_ View-only annotations drawn over the rendered document
 
 ### Inline menus
 
-_(pre-freeze / unstable)_ A list the editor opens under the caret while the author types after a trigger: `#` for a tag, `[[` for a link to another document. You register a source per editor through `editor.inlineMenus` (your `onEditor` context); a host that owns the data reaches the same registry as `getInlineMenus()`. The editor owns the session: it notices the typed trigger, holds the arrow keys, Enter, Tab and Escape while a list is up, anchors the list to the typed range, and writes the pick over the trigger and the query as one undo entry. The caret never leaves the document. The recipe: [Recipe: a typed-trigger menu](consumer-guide/recipes.md#recipe-a-typed-trigger-menu).
+_(pre-freeze / unstable)_ A list the editor opens under the caret while the author types after a trigger: `#` for a tag, `[[` for a link to another document. A plugin value lists one in `contributes` as `menus` (`menu`, below). The editor owns the session: it notices the typed trigger, holds the arrow keys, Enter, Tab and Escape while a list is up, anchors the list to the typed range, and writes the pick over the trigger and the query as one undo entry. The caret never leaves the document. The recipe: [Recipe: a typed-trigger menu](consumer-guide/recipes.md#recipe-a-typed-trigger-menu).
+
+A menu whose rows read the document (every tag in the note, say) can't be a plugin value's yet, since a value has no document read; until it has one, that menu is an inline-menu source on a `setup` plugin's `editor.inlineMenus` (or a host's `getInlineMenus()`), the `InlineMenu*` rows below.
 
 | Export | Role |
 | --- | --- |
@@ -1011,7 +1012,6 @@ _(pre-freeze / unstable)_ A list the editor opens under the caret while the auth
 | `InlineMenuOpenOptions` | `open`'s second argument: a `query` typed after the trigger, so the list opens already narrowed |
 | `InlineMenuSourceHandle` | The handle back: `dispose()` removes the source and closes its list |
 | [`InlineMenuItem`](#inlinemenuitem) | One row of the list |
-| [`InlineMenuCommit`](#inlinemenucommit) | What `onCommit` gets as its third argument |
 | `InlineMenuQuery` | What `items` is asked: the `query` typed so far, the leaf's `path`, the raw range `[start, end)` a pick would replace, and a `signal` aborted once a later keystroke supersedes the read |
 | `InlineMenuRowProps` | What a `row` view receives, at mount and on each `update`: the `item`, whether it is `active`, and the `query` (for highlighting the match) |
 
@@ -1071,7 +1071,6 @@ interface InlineMenuSource {
 	items(query: InlineMenuQuery): InlineMenuItem[] | Promise<InlineMenuItem[]>;
 	opensAt?(raw: string, pos: number): boolean;
 	accepts?(query: string): boolean;
-	onCommit?(item, query, editor: InlineMenuCommit): void | Promise<void>;
 	row?: PluginView<InlineMenuRowProps>;
 }
 ```
@@ -1085,7 +1084,6 @@ And optionally:
 
 - `opensAt`, to decline a trigger by position;
 - `accepts`, to end the session on a query that is no longer yours;
-- `onCommit`, run after the bytes land, with the range the pick replaced (so the caret is at `start + insert.length`) and an `InlineMenuCommit`, the editor context to write through. If it returns a promise, every write that lands while it's pending, up to the author's next input, is part of the pick's undo entry;
 - `row`, a `PluginView` that paints a row's content and takes `update` as the row turns active or the query changes. A row whose view throws shows the default label, and the throw is reported on the `error` event.
 
 ```ts
@@ -1118,17 +1116,7 @@ One row:
 - a `label`;
 - an optional dim `detail`;
 - an optional `icon`, a menu glyph name the default row draws;
-- `insert`, the bytes that replace the trigger and the query. It's one line of inline bytes, empty allowed. A line break is refused and reported, and a block belongs in `onCommit`.
-
-#### `InlineMenuCommit`
-
-```ts
-interface InlineMenuCommit extends EditorContext {
-	readonly signal: AbortSignal;
-}
-```
-
-What `onCommit` gets as its third argument: your plugin's `EditorContext` scoped to the pick, live like it, except that `insertMarkdown` and `runCommand` write nothing and answer false once the host has loaded another document. The `signal` aborts then too. Write through it, not the context you closed over in `onEditor`.
+- `insert`, the bytes that replace the trigger and the query. It's one line of inline bytes, empty allowed. A line break is refused and reported; a pick that writes a block, or writes later, is a caret menu's (`menu`).
 
 ### Insert catalogue
 

@@ -32,9 +32,6 @@ import type {
 	InlineMenuSourceHandle
 } from './types';
 import type { Reading } from '../schema/reading';
-import type { Draft, DraftSpec } from '../schema/drafts';
-import type { EditorContext } from '../schema/plugin-install';
-import { openPick } from './pick-context';
 import {
 	createMenuPick,
 	type CaretMenu,
@@ -65,13 +62,9 @@ export interface InlineMenuStateDeps {
 		bytes: string,
 		caretAfter: number
 	) => Promise<boolean>;
-	/** One undo entry for a pick and the block its source inserts; `path` and `offset` are where undo
-	 *  puts the caret back when nothing is focused. */
+	/** One undo entry for a pick's removal and the block or command after it; `path` and `offset`
+	 *  are where undo puts the caret back when nothing is focused. */
 	undoStep: (path: number[], offset: number, run: () => Promise<unknown>) => Promise<void>;
-	/** The context of the plugin adding a source now; a pick's commit writes through a copy of it. */
-	ownerOfNewSource: () => EditorContext;
-	/** A pick waiting on its commit is a draft of the note it was made in. */
-	drafts: { open(spec: DraftSpec): Draft };
 	/** Whether `offset` in the leaf at `path` sits inside an inline widget's shown source, where
 	 *  the bytes are a construct being edited and no trigger opens a list. */
 	showsSource: (path: readonly number[], leaf: NodeView, offset: number) => boolean;
@@ -151,8 +144,6 @@ function isGridCell(doc: DocumentView, path: readonly number[]): boolean {
 
 export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuState {
 	const sources = new Map<string, InlineMenuSource>();
-	/** Whose `EditorContext` each source's commit is handed. */
-	const owners = new Map<string, EditorContext>();
 	const listboxId = `${deps.editorId}-inline-menu`;
 	// A row is named after its own item, not its place in the list, so the row a narrower query
 	// leaves active keeps the id the attribute pointing at it already held.
@@ -375,13 +366,11 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		if (!live) return;
 		const contributed = menus.get(live.source);
 		if (contributed) return pickFromMenu(live, item, contributed);
-		// One entry for the pick's own bytes and every block its source writes after them.
-		await deps.undoStep(live.path, live.start, () => writePick(live, item));
+		await writePick(live, item);
 	}
 
 	async function writePick(live: InlineMenuSession, item: InlineMenuItem): Promise<void> {
-		const source = sources.get(live.source);
-		const range = { query, path: [...live.path], start: live.start, end };
+		const range = { path: [...live.path], start: live.start, end };
 		close();
 		// One leaf's raw must not hold a blank line: the tree would say one paragraph where a
 		// reload reads two.
@@ -389,7 +378,7 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 			report(
 				new Error(
 					`inlineMenus: source '${live.source}' offered an insert with a line break; a pick ` +
-						`writes one line of inline bytes, and a block belongs in onCommit`
+						`writes one line of inline bytes`
 				),
 				live.source
 			);
@@ -399,28 +388,13 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		// The write is this menu's own, not a keystroke: bytes ending in a trigger reopen nothing.
 		writing = true;
 		try {
-			// A pick whose bytes never landed has nothing for onCommit to follow.
-			if (!(await deps.commitRange(range.path, range.start, range.end, item.insert, caretAfter))) {
-				return;
-			}
+			await deps.commitRange(range.path, range.start, range.end, item.insert, caretAfter);
 		} catch (error) {
 			// Nobody is waiting on this write, so a refused one has to be reported here or vanish.
 			report(error, live.source);
-			return;
 		} finally {
 			writing = false;
 			resnap();
-		}
-		const owner = owners.get(live.source);
-		if (!source?.onCommit || !owner) return;
-		// A commit can wait on a fetch past a `source` swap; what it writes then belongs to no document.
-		const pick = openPick(owner, deps.drafts);
-		try {
-			await source.onCommit(item, range, pick.editor);
-		} catch (error) {
-			report(error, live.source);
-		} finally {
-			pick.end();
 		}
 	}
 
@@ -584,12 +558,10 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 				heldBack = false;
 			}
 			sources.set(source.name, source);
-			owners.set(source.name, deps.ownerOfNewSource());
 			return {
 				dispose: () => {
 					if (sources.get(source.name) !== source) return;
 					sources.delete(source.name);
-					owners.delete(source.name);
 					if (session?.source === source.name) close();
 				}
 			};

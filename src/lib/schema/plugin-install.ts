@@ -70,7 +70,8 @@ export interface EditorContext<Options = unknown> {
 	readonly options: Options;
 	readonly decorations: DecorationRegistry;
 	readonly rects: EditorRects;
-	/** Menus opened under the caret by a typed trigger: tag autocomplete, a document picker. */
+	/** Lists under the caret whose rows read the document (tags in the note); any other list is a
+	 *  plugin value's caret menu. */
 	readonly inlineMenus: InlineMenuRegistry;
 	/** A getter, so always live: the rows this editor's insert menus offer, the same list as
 	 *  `Editor.inserts`. */

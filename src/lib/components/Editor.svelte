@@ -739,9 +739,6 @@
 		commitRange: (path, start, end, bytes, caretAfter) =>
 			inlineRange.commitInlineRange(path, start, end, bytes, caretAfter, { landCaret: true }),
 		undoStep: (path, offset, run) => controller.undoStep({ path: docPathFrom(path), offset }, run),
-		// A source added outside any plugin's `onEditor` is the editor's own: the base context.
-		ownerOfNewSource: () => pluginContexts.attaching() ?? pluginContexts.get('')!,
-		drafts,
 		showsSource: shownSource.holds,
 		editorFor: (plugin) => pluginContexts.scoped(plugin),
 		pickDraft: (plugin, watch) => drafts.edit(plugin, watch),

@@ -18,7 +18,6 @@ import {
 	registerBlockCompleter,
 	registerBlockCommand,
 	registerChromeLeaf,
-	registerGlobalCommand,
 	registerInlineSyntax,
 	registerInlineWidgetKind,
 	registerInsertEntry,
@@ -35,7 +34,6 @@ import {
 } from '#lib/plugin.js';
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { installPlugins, onEditorCallbacks } from '#lib/schema/plugin-install.js';
-import { pluginGlobalBinding } from '#lib/schema/commands.js';
 import { getBlockCommand } from '#lib/schema/block-commands.js';
 import { insertRows } from '#lib/schema/insert-catalogue.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
@@ -109,12 +107,6 @@ const PROBES: { entry: string; register(): void; registered(): boolean }[] = [
 		entry: 'registerChromeLeaf',
 		register: () => registerChromeLeaf(chrome),
 		registered: () => isBlockKindRegistered('probe-chrome')
-	},
-	{
-		entry: 'registerGlobalCommand',
-		register: () =>
-			void registerGlobalCommand('probe.global', () => true, { chord: 'Mod+Shift+1' }),
-		registered: () => pluginGlobalBinding('Mod+Shift+1', everyInstalledPlugin) !== null
 	},
 	{
 		entry: 'registerInlineSyntax',

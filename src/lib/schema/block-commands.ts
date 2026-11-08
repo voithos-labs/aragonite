@@ -15,7 +15,6 @@ import {
 	resolveKindBinding,
 	getCommand,
 	canRunGlobalCommand,
-	isCommandRegistered,
 	warnDeadKeyCommand,
 	isBuiltinCommandId,
 	runPluginCommand,
@@ -295,8 +294,7 @@ function resolveBlockLocalCommand(
 	if (isBuiltinCommandId(id)) {
 		return target.runCommand ? { tier: 'builtin', target } : { tier: 'no-surface' };
 	}
-	const installedElsewhere =
-		isCommandRegistered(id) || blockCommands.has(compositeKey(target.kind, id));
+	const installedElsewhere = blockCommands.has(compositeKey(target.kind, id));
 	return installedElsewhere && !handler ? { tier: 'unlisted' } : { tier: 'dead' };
 }
 

@@ -358,7 +358,8 @@ You set the editor up with props when it mounts. After that you talk to it throu
 | `getSearch()` | The find/replace controller (see [Driving search yourself](#driving-search-yourself)) |
 | `getRects()` | Where things are on screen (see [Screen geometry](#screen-geometry)) |
 | `getDecorations()` | The registry for your own view-only annotations (see [Decorations](#decorations)) |
-| `getInlineMenus()` | The registry for lists opened by a typed trigger (see [Recipe: a typed-trigger menu](consumer-guide/recipes.md#recipe-a-typed-trigger-menu)) |
+| `openMenu(menu, query?)` | Types a caret menu's trigger (and the query) at the caret and opens it, the way a shortcut or a toolbar button does; `false`, writing nothing, in a table cell, in reading mode, or for a menu this editor doesn't list |
+| `getInlineMenus()` | The registry for a typed-trigger list whose rows read the document, which a plugin value's caret menu can't do yet (see [Recipe: a typed-trigger menu](consumer-guide/recipes.md#recipe-a-typed-trigger-menu)) |
 | `inserts` | The blocks the insert menus offer, plugin blocks included (see [Inserting Markdown at the caret](#inserting-markdown-at-the-caret)) |
 | `getDiagnostics()` | The bug-report tooling (see [Diagnostics](consumer-guide/shipping.md#diagnostics)) |
 | `reservedChords()` / `claimsChord(event)` | Which shortcuts this editor consumes (see [Which shortcuts the editor consumes](#which-shortcuts-the-editor-consumes)) |
@@ -512,7 +513,7 @@ The ids you can pass:
 
 - **`TOOLBAR_COMMANDS`** (exported from the package) has what a selection toolbar needs: `toggleStrong`, `toggleEmphasis`, `toggleStrikethrough`, `toggleCode`, `editLink`, and `setHeading`. Any other id in the exported `CommandId` union runs too (`history.undo`, `block.moveUp`, and so on); those just don't get a named constant.
 - **`setHeading`, with a level.** The command behind `Mod+0` to `Mod+6`: `runCommand(TOOLBAR_COMMANDS.setHeading, 2)` re-marks the focused prose block as a level-2 heading and `0` makes it a paragraph, which is what a heading picker calls. A heading level belongs to one block, so over a selection spanning blocks it declines rather than guessing which block you meant.
-- **A plugin's global command name**, the kind `registerGlobalCommand` registers (see the [plugin guide](plugin-guide.md)), so you can fire a plugin's editor-wide action without a keystroke. A plugin's per-block command stays keyboard-only.
+- **A plugin's command**, as `plugin/id` (a plugin value's `command`, see the [plugin guide](plugin-guide.md); `run` takes the command itself too), so you can fire a plugin's editor-wide action without a keystroke. A plugin's per-block command stays keyboard-only.
 
 `arg` is the argument a keymap binding would bake in (`{ chord: 'Mod+2', command: 'heading.cycle', arg: 2 }`), handed to the command as it is; a command that takes none ignores it.
 

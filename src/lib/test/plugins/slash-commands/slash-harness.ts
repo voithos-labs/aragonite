@@ -15,7 +15,6 @@ import type { PickDraft } from '#lib/schema/caret-menu.js';
 import type { DraftResult } from '#lib/schema/drafts.js';
 import { slashCommands, type SlashCommandsOptions } from '#packages/slash-commands/src/index.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
-import { idleDraftRegistry } from '../../harness/drafts';
 
 const typedEdit = (path: number[]): EditEvent => ({ op: 'input', path, timestamp: 0 }) as EditEvent;
 
@@ -107,11 +106,7 @@ export function slashHarness(
 			await tick();
 			return true;
 		},
-		undoStep: async (_path, _offset, run) => void (await run()),
-		ownerOfNewSource: () => {
-			throw new Error('the slash menu adds no source');
-		},
-		drafts: idleDraftRegistry()
+		undoStep: async (_path, _offset, run) => void (await run())
 	});
 	menu.setMenus((unit?.contribution.menus ?? []).map((m) => ({ plugin: plugin.name, menu: m })));
 
