@@ -788,5 +788,20 @@ export const NAMED_ROWS: NamedRow[] = [
 		source: '| A | B |\n| --- | --- |\n⟦| 1 | 2 |\n| 3 | 4 |\n\nfollow ⟧paragraph\n',
 		gesture: 'delete',
 		expect: { source: '| A | B |\n| --- | --- |\n\nparagraph\n' }
+	},
+	// ── Ends that stay apart are each cut through their own block's write (spec § 5.11) ──
+	{
+		name: 'L4 live, a start kept apart from the end closes the run the range cuts',
+		source: 'Some **bo⟦ld** text\n\n:::note T⟧itle\nbody\n:::\n',
+		mode: 'live',
+		gesture: 'backspace',
+		expect: { source: 'Some **bo**\n\n:::note itle\nbody\n:::\n' }
+	},
+	{
+		name: 'L4 live, an end kept apart from the start reopens the run the range cuts',
+		source: 'Above\n\n:::note Ti⟦tle\nSome **bo⟧ld** text\n:::\n',
+		mode: 'live',
+		gesture: 'backspace',
+		expect: { source: 'Above\n\n:::note Ti\n**ld** text\n:::\n' }
 	}
 ];

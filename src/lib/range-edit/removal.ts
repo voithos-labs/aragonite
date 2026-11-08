@@ -4,6 +4,7 @@
  */
 
 import { isBlankText, ownTrailingLineEnding } from '../core/lines';
+import { getContentRange } from '../core/inline';
 import type { LaidBlock } from './layout';
 import {
 	containersAt,
@@ -82,23 +83,48 @@ function across(
 	if (joins && head && end && head.leaf !== end.leaf) return joinedLeaves(doc, from, to, head, end);
 	const lines = held ? wholeLines(doc, from, to) : null;
 	let tail = lines?.tail ?? source.slice(to);
+	// Where the two ends stay apart, each is cut through its own block's write (spec § 5.11).
+	const start = !joins && head ? cutLeaf(doc, head.leaf, head.offset, 'after') : null;
 	if (!joins) {
 		const lineStart = source.lastIndexOf('\n', to - 1) + 1;
-		const textStart = end ? lineTextStart(doc, end.leaf, end.offset) : to;
-		const markers =
-			opening ??
-			(lineStart > from && textStart >= lineStart ? source.slice(lineStart, textStart) : '');
-		tail = endingOf(source) + markers + tail;
+		const kept = opening?.kept ?? '';
+		const cut =
+			end && !lines && lineStart > from ? cutLeaf(doc, end.leaf, end.offset, 'before') : null;
+		if (cut) tail = kept + cut.source.slice(lineStart);
+		else {
+			const textStart = end ? lineTextStart(doc, end.leaf, end.offset) : to;
+			const markers =
+				lineStart > from && textStart >= lineStart ? source.slice(lineStart, textStart) : '';
+			tail = (opening ? kept + source.slice(opening.endLine, textStart) : markers) + tail;
+		}
+		tail = endingOf(source) + tail;
 	}
-	const before = lines?.before ?? source.slice(0, from);
-	const joined = before + keptPast(doc, from, to) + tail;
+	const before =
+		lines?.before ?? (start ? start.source.slice(0, start.end) : source.slice(0, from));
+	const joined = before + tail;
 	const closed = withClosers(doc, from, to, joined, lineEndBefore(joined, before.length));
 	const gone = held && (!!lines || !joins || isBlankText(lineRest(tail, 0)));
 	return {
 		source: joins ? movedMarkers(doc, from, to, closed, to) : closed,
-		caret: lines?.caret ?? from,
+		caret: lines?.caret ?? start?.caret ?? from,
 		...(gone && { gone })
 	};
+}
+
+/** A text block cut through its own write, the text `after` the offset or `before` it on its line,
+ *  so a run the cut leaves open closes. Null for a fenced block, whose closer `closers` keeps. */
+function cutLeaf(doc: Doc, leaf: LaidBlock, at: number, side: 'after' | 'before') {
+	const node = nodeAt(doc, leaf.path);
+	if (doc.host.fence(node.raw)) return null;
+	const text = getContentRange(node);
+	const lineStart = Math.max(node.raw.lastIndexOf('\n', at - 1) + 1, text.start);
+	const [cutFrom, cutTo] = side === 'after' ? [at, text.end] : [lineStart, at];
+	if (cutFrom >= cutTo)
+		return { source: doc.source, caret: leaf.text!.to, end: contentEnd(doc, leaf) };
+	const write = doc.host.leaf.replace(doc.tree, leaf.path, cutFrom, cutTo, '', doc.mode);
+	const written = writeLeaf(doc, leaf, write, cutFrom, cutTo);
+	const shift = written.source.length - doc.source.length;
+	return { ...written, end: contentEnd(doc, leaf) + shift };
 }
 
 /** Blocks taken whole go with their line (behind markers, the next line's markers go instead), and
@@ -157,9 +183,13 @@ function withClosers(doc: Doc, from: number, to: number, joined: string, at: num
 	return kept ? joined.slice(0, at) + kept + joined.slice(at) : joined;
 }
 
-/** The opening of a fenced block the range enters from outside, kept with the blank lines and
- *  markers before it so no closing line is left alone; null where it enters none. */
-function enteredOpening(doc: Doc, from: number, to: number): string | null {
+/** The opening of a fenced block the range enters from outside, kept with the blank lines before
+ *  it so no closing line is left alone, and where the end's line starts; null where it enters none. */
+function enteredOpening(
+	doc: Doc,
+	from: number,
+	to: number
+): { kept: string; endLine: number } | null {
 	const entered =
 		containersAt(doc, to, 'end').find(
 			(c) => opensFenced(doc, c, to) && c.from > from && c.lines!.at(-1)!.from >= to
@@ -179,11 +209,10 @@ function enteredOpening(doc: Doc, from: number, to: number): string | null {
 	const outer =
 		containersAt(doc, entered.from, 'start').find((c) => c.from > from && c !== entered) ?? entered;
 	const first = Math.max(from, source.lastIndexOf('\n', entered.from - 1) + 1);
-	return (
+	const kept =
 		source.slice(Math.max(from, outer.start), Math.max(from, outer.from)) +
-		source.slice(first, Math.max(first, opened)) +
-		source.slice(Math.max(opened, endLine), textStart)
-	);
+		source.slice(first, Math.max(first, opened));
+	return { kept, endLine: Math.max(opened, endLine) };
 }
 
 /** A container whose structure opens it, entered past that opening: a fenced container, or a table
@@ -214,15 +243,6 @@ function openingEnd(doc: Doc, block: LaidBlock): number {
  *  block's first byte. */
 const endsHoldingWhole = (doc: Doc, from: number, to: number) =>
 	findWithin(doc, from, to, (b) => b.from >= from && heldWhole(doc, b, b.from, to)) !== undefined;
-
-/** What a block the range starts in and leaves keeps past its text, so it keeps its kind: a
- *  summary's closing tag, a setext underline (a fence's closing line is `closers`'). */
-function keptPast(doc: Doc, from: number, to: number): string {
-	const start = leafAt(doc, from)?.leaf;
-	if (!start || to <= contentEnd(doc, start) || doc.host.fence(nodeAt(doc, start.path).raw))
-		return '';
-	return doc.source.slice(start.text!.to, contentEnd(doc, start));
-}
 
 /** The closing lines the range starts inside and leaves, innermost first: a fenced block's, the
  *  way its own write rule closes it, then each fenced container's. They stay after the joined text. */
