@@ -138,7 +138,7 @@ function readAgain(
 	while (pending.length > 0) {
 		const span = pending.shift()!;
 		const within = inside ? insideOneBlock(span.changes) : null;
-		const read = within && containerWindow(top, within.block, span.changes, within.changes);
+		const read = within && containerWindow(top, within.block, within.changes);
 		if (read) {
 			windows.push(read.window);
 			if (read.suffix !== undefined) suffix = read.suffix;

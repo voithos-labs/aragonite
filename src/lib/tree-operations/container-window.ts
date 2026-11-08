@@ -28,13 +28,12 @@ export interface TopLevel {
 	read(text: string): { children: CstNode[]; suffix: string };
 }
 
-/** The window `changes` take inside top-level block `t`, which holds every byte of `narrowed`;
- *  null where only the top-level window will do. */
+/** The window `changes`, cut down to the bytes they change, take inside top-level block `t`, which
+ *  holds them all; null where only the top-level window will do. */
 export function containerWindow(
 	top: TopLevel,
 	t: number,
-	changes: readonly ByteChange[],
-	narrowed: readonly ByteChange[]
+	changes: readonly ByteChange[]
 ): { window: SpliceWindow; suffix?: string } | null {
 	const node = top.doc.children[t];
 	const kids = node.children;
@@ -45,7 +44,7 @@ export function containerWindow(
 	const base = top.rawStartOf(t);
 	let first = kids.length;
 	let hi = -1;
-	for (const change of narrowed) {
+	for (const change of changes) {
 		const from = childAt(spans, change.from - base);
 		const to = childAt(spans, Math.max(change.to - 1, change.from) - base);
 		if (from < 0 || to < 0) return null;
@@ -53,7 +52,7 @@ export function containerWindow(
 		hi = Math.max(hi, to);
 	}
 	// Child 0 holds the container's own first line, and a table's header sits above its delimiter.
-	if (first < 1 || reachesPast(top.before, narrowed, top.readings)) return null;
+	if (first < 1 || reachesPast(top.before, changes, top.readings)) return null;
 	// Every item and every quote line opens its container again; a table's rows need its head.
 	const head = lines === 'rows' ? 1 : 0;
 	let lo = first - 1;
@@ -151,7 +150,9 @@ function readRun(run: Run, text: string): RunRead | 'moved' | 'mismatch' {
 	}
 	const ownTail = container.innerSuffix ?? '';
 	if (container.children.length !== m + 1 || ownTail !== (node.innerSuffix ?? '')) return 'moved';
-	return standsBelow(top, t, read.children) ? { ...found, suffix: read.suffix } : 'moved';
+	if (!standsBelow(top, t, read.children)) return 'moved';
+	// Only a read that ran to the document's end saw its trailing blank line.
+	return t === top.doc.children.length - 1 ? { ...found, suffix: read.suffix } : found;
 }
 
 /** Whether the blocks read after the container are the top-level blocks below it as they stood,

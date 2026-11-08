@@ -92,7 +92,11 @@ function divergence(source: string, changes: (before: string) => ByteChange[]) {
 				}
 			}
 		}
-		return bytes === '' ? null : reloadDivergence(inside, bytes);
+		if (bytes === '') return null;
+		// One the top-level window shares (a table read anew keeps rows another column count spelt)
+		// is that window's own, booked apart; only the window inside a container is judged here.
+		const reload = reloadDivergence(inside, bytes);
+		return reload && !reloadDivergence(outside, bytes) ? reload : null;
 	})();
 	return { failure, parsed, size: before.length };
 }
@@ -122,7 +126,16 @@ const arbContainerDoc = fc
 		kind: fc.constantFrom('list', 'ordered', 'quote', 'table'),
 		lines: fc.array(fc.nat({ max: 99 }), { minLength: 6, maxLength: 40 }),
 		above: fc.constantFrom('', 'para\n\n', ':::note\n\n', '$$\n\n', '```\n\n'),
-		below: fc.constantFrom('', '\npara\n', '\n:::\n', '\n$$\n', 'next\n', '\n- other\n'),
+		below: fc.constantFrom(
+			'',
+			'\npara\n',
+			'\npara\n\n',
+			'\n\n',
+			'\n:::\n',
+			'\n$$\n',
+			'next\n',
+			'\n- other\n'
+		),
 		ending: fc.constantFrom('\n', '\r\n')
 	})
 	.map(({ kind, lines, above, below, ending }) => {
@@ -166,13 +179,18 @@ const arbEdit = fc.record({
 		fc.record({
 			at: fc.double({ min: 0.05, max: 0.95, noNaN: true }),
 			span: fc.oneof(fc.constant(0), fc.double({ min: 0, max: 0.15, noNaN: true })),
-			insert: fc.constantFrom(...INSERTS)
+			insert: fc.constantFrom(...INSERTS),
+			// A change wider than its bytes: the insert carries the bytes on either side again.
+			widen: fc.constantFrom(0, 0, 3, 12)
 		}),
 		{ minLength: 1, maxLength: 2 }
 	)
 });
 
-function changesAt(before: string, spots: { at: number; span: number; insert: string }[]) {
+function changesAt(
+	before: string,
+	spots: { at: number; span: number; insert: string; widen: number }[]
+) {
 	const whole = (n: number) => (before[n - 1] === '\r' && before[n] === '\n' ? n - 1 : n);
 	const changes: ByteChange[] = [];
 	let floor = 0;
@@ -180,8 +198,11 @@ function changesAt(before: string, spots: { at: number; span: number; insert: st
 		const from = whole(Math.max(floor, Math.floor(spot.at * before.length)));
 		const end = whole(Math.min(before.length, from + Math.floor(spot.span * before.length)));
 		if (from < floor || end < from) continue;
-		changes.push({ from, to: end, insert: spot.insert });
-		floor = end;
+		const lo = whole(Math.max(floor, from - spot.widen));
+		const hi = whole(Math.min(before.length, end + spot.widen));
+		const insert = before.slice(lo, from) + spot.insert + before.slice(end, hi);
+		changes.push({ from: lo, to: hi, insert });
+		floor = hi;
 	}
 	return changes;
 }
@@ -208,6 +229,25 @@ const ROWS = (n: number) =>
 const edit = (before: string, find: string, put: string) => before.replace(find, put);
 
 describe('the window inside a container, by its edges', () => {
+	// Miss-analysis: every row and draw made a change exactly as wide as its bytes, and every
+	// document ended on one line break, so the window's own bytes and blank line were never asked.
+	it('writes a change wider than the bytes it changes once', () => {
+		const source = ITEMS(40);
+		const { failure } = divergence(source, (before) => {
+			const from = before.indexOf('- item 18');
+			const to = before.indexOf('- item 23');
+			const insert = before.slice(from, to).replace('item 20', 'item 2X');
+			return [{ from, to, insert }];
+		});
+		expect(failure).toBeNull();
+	});
+
+	it("keeps the document's trailing blank line under a block below", () => {
+		const source = ITEMS(40) + '\npara\n\n';
+		const { failure } = divergence(source, to(edit(source, 'item 39', 'item 39!')));
+		expect(failure).toBeNull();
+	});
+
 	// Rows that read a few children: far less than the container.
 	it.each([
 		[
