@@ -3,6 +3,7 @@
  * approximated per line (non-blank, not a block opener), not tracked as parser state.
  */
 
+import type { CstNode } from '../nodes';
 import { remapStrippedLines, type ParsedLine } from '../lines';
 import { joinRaw, parseBlocks, isBlankLine } from '../parser';
 import { INNER_LINE, opensOuterBlock, type LineCodec } from '../strip-lines';
@@ -116,9 +117,34 @@ export function parseBlockquote(
 			raw,
 			metadata: { quoteDepth },
 			innerPrefix: '',
+			childSpans: childLineSpans(lines, startIndex, inner.children),
 			children: inner.children,
 			innerSuffix: inner.suffix
 		},
 		consumed: i - startIndex
 	};
+}
+
+/** Where each child's lines sit in the quote's bytes; none with no child yet, or with a child
+ *  opening on a lazy line, whose bytes only a full rebuild writes back as they stand. */
+function childLineSpans(
+	lines: ParsedLine[],
+	start: number,
+	children: CstNode[]
+): Uint32Array | undefined {
+	if (children.length === 0) return undefined;
+	const base = lines[start].start;
+	const at = (line: number) => (line < lines.length ? lines[line].start : lines.at(-1)!.end) - base;
+	const spans = new Uint32Array(children.length * 2);
+	let line = start;
+	for (let i = 0; i < children.length; i++) {
+		const bytes = children[i].leadingTrivia + children[i].raw;
+		if (!matchBlockquote(lines[line].text)) return undefined;
+		spans[i * 2] = at(line);
+		for (let end = bytes.indexOf('\n'); end >= 0; end = bytes.indexOf('\n', end + 1)) line++;
+		// A last line with no ending is a line of its own too.
+		if (bytes !== '' && !bytes.endsWith('\n')) line++;
+		spans[i * 2 + 1] = at(line);
+	}
+	return spans;
 }
