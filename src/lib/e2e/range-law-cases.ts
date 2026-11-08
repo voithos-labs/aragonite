@@ -42,11 +42,7 @@ export interface RangeLawCase {
 	issue?: string;
 	/** A row one run can't drive, and why. */
 	only?: { run: 'browser' | 'chromium'; reason: string };
-	/** An engine the browser run skips the row in, and why. */
-	skipIn?: Partial<Record<OtherEngine, string>>;
 }
-
-export type OtherEngine = 'firefox' | 'webkit';
 
 const caret = (path: number[], offset: number) => ({
 	anchor: { path, offset },
@@ -245,10 +241,6 @@ export const RANGE_LAW_CASES: readonly RangeLawCase[] = [
 		only: {
 			run: 'browser',
 			reason: 'jsdom lays nothing out, so a drop point has no block under it'
-		},
-		skipIn: {
-			firefox:
-				'Playwright’s drag in Firefox sends dragstart and dragover, which the editor accepts, and never the drop'
 		}
 	}
 ];

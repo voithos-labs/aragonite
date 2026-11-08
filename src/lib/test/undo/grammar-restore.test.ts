@@ -17,6 +17,8 @@ import { grammarStamp, sameGrammar } from '#lib/editor-actions/commit/grammar-st
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { isGapSelection, type GapCaretSelection } from '#lib/selection/gap-caret.js';
 import type { EditorSelection } from '#lib/selection/primitives.js';
+import { checkRestoredUnderGrammar } from '#lib/invariants/reads-back.js';
+import type { Document } from '#lib/core/nodes.js';
 
 const withoutIndentedCode = createGrammarView((key) => key !== 'indentedCode');
 
@@ -146,5 +148,43 @@ describe('the grammar an entry was read under', () => {
 		const again = grammarStamp(createGrammarView((key) => key !== 'indentedCode'));
 		expect(sameGrammar(grammarStamp(withoutIndentedCode), again)).toBe(true);
 		expect(sameGrammar(grammarStamp(fixtureReading().grammar), again)).toBe(false);
+	});
+});
+
+// Miss-analysis: every restore row held blocks that read back, so a block the read-back check
+// already failed was reported again by each undo that put it back.
+describe('the check on what an undo put back', () => {
+	const indented = parse('    one\n').children;
+
+	it('fails a block that read as itself under the entry grammar and not under the editor one', () => {
+		expect(
+			checkRestoredUnderGrammar(indented, withoutIndentedCode, fixtureReading().grammar)
+		).toMatchObject({ code: 'restore-grammar' });
+	});
+
+	it('passes a block that reads as another tree under both', () => {
+		const misread = [{ ...parse('Title\n').children[0], raw: '# Title\n' }];
+		expect(
+			checkRestoredUnderGrammar(misread, fixtureReading().grammar, fixtureReading().grammar)
+		).toBeNull();
+	});
+
+	it('stays quiet when an undo puts back a snapshot block that never read back', async () => {
+		const doc: Document = parse('Title\n\nNext\n');
+		// A paragraph whose bytes read as a heading: the read-back check already fails it.
+		doc.children[0] = { ...doc.children[0], raw: '# Title\n' };
+		const s = makeTopHarness(doc, { reading: fixtureReading() });
+		const history = createHistoryActions(s.deps, s.controller);
+		vi.spyOn(s.deps.caretLanding, 'restore');
+		const wrote = await s.controller.commitSource({
+			changes: [{ from: 2, to: 7, insert: 'Name' }],
+			caret: { at: 6, holds: 'text' },
+			op: { kind: 'input' },
+			snapshot: { path: docPathFrom([0]), offset: 0 }
+		});
+		expect(wrote).toBe(true);
+		await history.requestUndo();
+		expect(serialize(s.deps.doc)).toBe('# Title\n\nNext\n');
+		expect(takeDevWarns()).toEqual([]);
 	});
 });

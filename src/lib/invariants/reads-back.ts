@@ -28,14 +28,17 @@ export function checkReadsBack(node: NodeView, grammar: GrammarView): InvariantV
 	return checkRunReadsBack([node], grammar);
 }
 
-/** G1.189: no block an undo or redo puts back keeps a reading another grammar gave it. */
+/** G1.189: no block an undo or redo puts back reads as itself under `was`, the grammar its entry
+ *  was read under, and as another tree under the editor's. One misread under both is G1.55's. */
 export function checkRestoredUnderGrammar(
 	tops: readonly NodeView[],
-	grammar: GrammarView
+	grammar: GrammarView,
+	was: GrammarView
 ): InvariantViolation | null {
 	for (const top of tops) {
 		const read = checkReadsBack(top, grammar);
-		if (read) return { code: 'restore-grammar', message: `an undo put back ${read.message}` };
+		if (read && !checkReadsBack(top, was))
+			return { code: 'restore-grammar', message: `an undo put back ${read.message}` };
 	}
 	return null;
 }

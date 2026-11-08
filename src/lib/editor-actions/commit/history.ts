@@ -85,7 +85,7 @@ export function createHistoryActions(
 		deps.setBlockIds([...entry.blockIds]);
 		if (before) {
 			const swapped = deps.doc.children.filter((top) => !before.has(top));
-			assertRestoredUnderGrammar(swapped, deps.reading.grammar);
+			assertRestoredUnderGrammar(swapped, deps.reading.grammar, entry.grammar);
 		}
 		return entry.selection;
 	}
@@ -98,7 +98,7 @@ export function createHistoryActions(
 		const changes = changesBetween(live, serialize(entry.snapshot));
 		const reading = spliceReading(deps.doc, live, changes, deps.reading.grammar);
 		if (reading) installReading(deps, reading);
-		assertRestoredUnderGrammar(deps.doc.children, deps.reading.grammar);
+		assertRestoredUnderGrammar(deps.doc.children, deps.reading.grammar, entry.grammar);
 		return caret && selectionAtBytes(deps.doc, caret);
 	}
 
