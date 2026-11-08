@@ -11,7 +11,7 @@ import { makeStubBlockEdit } from '../../harness/editor-actions';
 import { mountCell } from './mount-cell';
 import { settleEditor } from '#lib/test/harness/settle.js';
 import { installClipboardEvents } from '#lib/test/harness/clipboard-events.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 /** A children array as the body parent a write reads, owned by nothing, in an LF document. */

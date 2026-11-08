@@ -14,11 +14,10 @@ One file declares the kinds, describes them along with the component that draws 
 // conspiracy-kind.ts
 import {
 	activateDirectives,
-	createDirectiveRebuild,
+	COLON_LINES,
 	declarePluginKind,
 	declaredPluginKind,
 	definePlugin,
-	DIRECTIVE_BODY_WRAP,
 	isDirectiveRegistered,
 	registerBlockKind,
 	registerBlockCommand,
@@ -36,13 +35,11 @@ const CONSPIRACY = 'conspiracy';
 
 export interface ConspiracyMetadata {
 	name: string; // 'conspiracy' or 'debunked', read off the opener line
-	closerColonCount: number; // how the closing line looked, which no child holds
-	closerNewline: boolean;
 }
 
 // Build the node from a parsed :::conspiracy fence. The grammar puts the opener line (the
 // name and the theory) in front as child 0, so this hands back only the evidence: the
-// body's blocks. The closing line's shape goes to metadata so the raw can be rebuilt.
+// body's blocks.
 function conspiracyFromDirective(parsed: ParsedDirective): CstNode {
 	const node: CstNode = {
 		kind: declaredPluginKind(CONSPIRACY),
@@ -52,17 +49,9 @@ function conspiracyFromDirective(parsed: ParsedDirective): CstNode {
 		children: parsed.body?.children ?? [],
 		innerSuffix: parsed.body?.suffix ?? ''
 	};
-	setPluginMetadata<ConspiracyMetadata>(node, {
-		name: parsed.fence.name,
-		closerColonCount: parsed.closerColonCount,
-		closerNewline: parsed.closerNewline
-	});
+	setPluginMetadata<ConspiracyMetadata>(node, { name: parsed.fence.name });
 	return node;
 }
-
-// Re-emit raw from the children after any edit: the opener line as it stands, the body,
-// and the closing line, in the authored line ending (the byte a hand-written copy drops).
-const rebuildConspiracyRaw = createDirectiveRebuild();
 
 function registerConspiracy(view: BlockView): void {
 	activateDirectives(); // idempotent; the shared grammar must be live before the first parse
@@ -101,13 +90,10 @@ function registerConspiracy(view: BlockView): void {
 		// this, two adjacent conspiracies give the user nowhere to type a paragraph between them.
 		gapEdges: 'both',
 		container: {
-			// The closing line is no child's, so raw is not a strip of the children:
-			// 'opaque' marks raw authoritative.
-			contract: 'opaque',
-			rebuildRaw: rebuildConspiracyRaw,
-			// Every `:::` body parses against this wrap. Skip it and a filled innerPrefix
-			// trips a dev assertion the moment someone edits a conspiracy with a blank first line.
-			bodyWrap: DIRECTIVE_BODY_WRAP
+			// The editor writes the fence lines around the body from this: the opener line as
+			// it stands, then a closing line as long as the one it replaces, every colon run
+			// widened past a body line that would close it.
+			lines: COLON_LINES
 			// No title row or Backspace rules to declare: the opener line is child 0 for every
 			// `:::` container, Backspace at its start leaves it be, and Backspace at the first
 			// body block's start goes to the end of that line.
@@ -125,7 +111,7 @@ function registerConspiracy(view: BlockView): void {
 		// cell or column is a compile error, and a dev build warns on four more rules when an
 		// editor mounts. See the guide's "The closure block" section for all of them.
 		closure: {
-			roundTrip: { mode: 'implemented', via: 'container contract=opaque, rebuildConspiracyRaw' },
+			roundTrip: { mode: 'implemented', via: 'container lines, COLON_LINES' },
 			focus: { mode: 'implemented', via: 'focus walks to the opener line / first body child' },
 			mergeBackspace: { mode: 'implemented', via: 'mergeRole=container; nothing merges into the opener line' },
 			selectionPaint: { mode: 'implemented', via: 'body child blocks paint; container cover' },
@@ -183,7 +169,7 @@ conspiracyFromDirective(parsed).children.map((child) => child.kind); // ['paragr
 // and the node in the document, once the grammar puts the opener line in front
 node.children.map((child) => child.kind); // ['directiveOpenerLine', 'paragraph']
 node.children[0].raw; // ':::conspiracy Birds are government drones\n'
-getPluginMetadata<ConspiracyMetadata>(node); // { name: 'conspiracy', closerColonCount: 3, closerNewline: true }
+getPluginMetadata<ConspiracyMetadata>(node); // { name: 'conspiracy' }
 ```
 
 Child 0 is the whole opener line, `:::conspiracy` included, kind `directiveOpenerLine`. Every `:::` container gets one, built by the grammar, which is why the factory doesn't. It's a line you type in like any other, with a few manners: a selection that runs onto it from the blocks around clears only the theory, nothing merges into it, and a paste with the caret on the name lands in the theory. So the box doesn't lose its name by accident. Renaming it on purpose (the verdict command, or someone typing over the name) reads the container again under the new name. If your view wants just the theory, `rowContentRange` says where it sits on the line:
@@ -355,11 +341,11 @@ A container's `ctx` carries more than the conspiracy uses. The Svelte factory re
 | `ctx.editor.options` | This editor's options for the plugin that owns your kind, your `defaults` included, typed `unknown`. It's how a value differs per editor, which a factory argument can't do ([the options recipe](per-editor.md#recipe-per-instance-options-and-the-factory-closure-trap)) |
 | `ctx.editor` | This editor's `EditorContext` for the plugin that owns your kind (the factory's `getEditor()` is undefined in a bare test harness). Its `computeInlineContent` reads the syntax this editor draws. If your helper's reader defaults to the free `computeInlineContent`, pass it this one, and from the factory `getEditor()?.computeInlineContent`, which still parses in a bare harness (the bundled toc and footnotes do exactly this) |
 | `ctx.container.captureScrollPosition` | Your component is about to swap its view for one of a different height (a tall diagram for its short source card) and the reader is scrolled right at it. Call it before the swap, await what it hands back after, and the page stays where the reader left it instead of clamping to the shorter layout in between |
-| `ctx.container.openDraft` | Your component holds an edit outside the document, like a textarea's text. It's `EditorContext.openDraft`, passed through so a component needs no context ([What your own editing surface has to do](render-primary.md#what-your-own-editing-surface-has-to-do)) |
+| `ctx.container.openDraft` | Your component holds an edit outside the document, like a textarea's text, as a draft of your block's bytes ([What your own editing surface has to do](render-primary.md#what-your-own-editing-surface-has-to-do)) |
 
 ```ts
 const { container } = ctx;
-container.updateOwnMetadata({ open: false }); // one undo entry; your rebuildRaw runs after the patch
+container.updateOwnMetadata({ open: false }); // one undo entry; the bytes are rewritten after the patch
 container.updateOwnMetadata({ open: false }, { caret: { path: [0], offset: 0 } }); // ...and the caret lands on child 0's start
 ctx.state().presentationMode; // 'source'
 ctx.state().theme; // 'dark'
@@ -428,7 +414,7 @@ Want a collapse toggle? That's how `<details>` folds: its descriptor declares it
 
 The type does the nagging: a missing column or a missing block is a compile error. Four coherence rules are checked too, by a dev-build warning when an editor mounts. Nothing throws, and a production build or a headless test (no editor mounted) never checks them:
 
-1. A container can't declare `roundTrip: inherit-default`; its `rebuildRaw` is the mechanism.
+1. A container can't declare `roundTrip: inherit-default`; its `lines` (or its `rebuildRaw`) is the mechanism.
 2. A `not-mergeable` kind can't declare `mergeBackspace: inherit-default`; it has no default merge to inherit.
 3. A cell claiming the focus-then-delete model (a `focus` or `mergeBackspace` `via` saying `focus-then-delete` or `a second press deletes`) must be backed by `blockFocus: 'whole-block'`.
 4. A kind with a title row (a declared `reservedChrome`, or the opener line every `:::` container has) can't leave `clipboard: inherit-default`; the row's bytes live in the container's own raw, so the default byte slice is wrong for it.
@@ -463,11 +449,11 @@ simpleLeafClosure({ focus, searchPaint, undo, simOracle });
 
 **`simOracle` is the cell most authors hesitate over**, because it's about aragonite's own simulation suite (a repo script that drives the editor through random edits and checks the document never goes wrong), not a kit you run. The question is still about your **mechanism**. The example above is `implemented` because that kind has its own end-to-end tests driving it under those checks. A plugin with no simulation machinery of its own writes `inherit-default`, the honest answer for most plugins: it claims no coverage, just that your kind meets the simulation the way the generic behaviour does.
 
-**Containers with real children: `containerClosure`.** A container of real child blocks answers four columns the same structural way (its children are the paint and search surfaces, it reorders whole-block through the parent `BlockList`, and it holds no clipboard anchor of its own), and its `roundTrip` is always `implemented`, because its `rebuildRaw` is the mechanism. `containerClosure` bakes those, asking for the `roundTripVia` string plus the four the container determines: `focus`, `mergeBackspace`, `undo`, `simOracle`. Here's the walkthrough's closure rewritten on it:
+**Containers with real children: `containerClosure`.** A container of real child blocks answers four columns the same structural way (its children are the paint and search surfaces, it reorders whole-block through the parent `BlockList`, and it holds no clipboard anchor of its own), and its `roundTrip` is always `implemented`, because its `lines` (or its `rebuildRaw`) is the mechanism. `containerClosure` bakes those, asking for the `roundTripVia` string plus the four the container determines: `focus`, `mergeBackspace`, `undo`, `simOracle`. Here's the walkthrough's closure rewritten on it:
 
 ```ts
 closure: containerClosure({
-	roundTripVia: 'container contract=opaque, rebuildConspiracyRaw',
+	roundTripVia: 'container lines, COLON_LINES',
 	focus: { mode: 'implemented', via: 'focus walks to the opener line / first body child' },
 	mergeBackspace: { mode: 'implemented', via: 'mergeRole=container; nothing merges into the opener line' },
 	undo: {

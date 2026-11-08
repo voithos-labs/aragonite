@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
-import { rebuildDirectiveContainerRaw } from '#lib/core/directive/kinds.js';
 import { testDirectiveViews } from '#lib/test/harness/test-view.js';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 // Only a rebuild is at risk: an unedited container emits `raw` verbatim, but a structural
 // edit re-synthesizes the fence lines, which must not normalize CRLF to `\n`.
@@ -14,7 +15,7 @@ describe('directive rebuild preserves CRLF chrome line endings', () => {
 		const node = parse(':::custom\r\nbody\r\n:::\r\n').children[0];
 
 		node.children![1].raw = 'edited\r\n';
-		rebuildDirectiveContainerRaw(node);
+		writeContainerRaw(node, defaultGrammarView);
 
 		expect(node.raw).toBe(':::custom\r\nedited\r\n:::\r\n');
 	});
@@ -23,7 +24,7 @@ describe('directive rebuild preserves CRLF chrome line endings', () => {
 		const node = parse(':::custom\nbody\n:::\n').children[0];
 
 		node.children![1].raw = 'edited\n';
-		rebuildDirectiveContainerRaw(node);
+		writeContainerRaw(node, defaultGrammarView);
 
 		expect(node.raw).toBe(':::custom\nedited\n:::\n');
 	});
@@ -33,7 +34,7 @@ describe('directive rebuild preserves CRLF chrome line endings', () => {
 		const node = parse(':::custom\nbody\n:::\r\n').children[0];
 
 		node.children![1].raw = 'edited\n';
-		rebuildDirectiveContainerRaw(node);
+		writeContainerRaw(node, defaultGrammarView);
 
 		expect(node.raw).toBe(':::custom\nedited\n:::\r\n');
 	});

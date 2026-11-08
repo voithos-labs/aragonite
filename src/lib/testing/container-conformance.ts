@@ -31,7 +31,8 @@ import {
 } from '../editor-actions/unwrap-strategies';
 import type { EditEvent } from '../editor-events';
 import { isDirectiveKind } from '../core/directive/registry';
-import { defaultGrammarView, unfinishedReadings, waitingReading } from '../schema/block-openers';
+import { unfinishedReadings, waitingReading } from '../schema/block-openers';
+import { defaultGrammarView } from '../schema/editor-grammar';
 import { kitReading } from './kit-reading';
 import { cellFailure, CONTAINER_CELL_CONTRACTS } from './cell-contracts';
 import {
@@ -40,11 +41,8 @@ import {
 	type BlockKindDescriptor,
 	hasOwnOpener
 } from '../schema/block-kind-descriptor';
-import {
-	childHoldingLastLine,
-	lastLine,
-	rebuildContainerRawIfContainer
-} from '../schema/container-raw';
+import { childHoldingLastLine, lastLine } from '../schema/container-raw';
+import { writeContainerRaw } from '../schema/container-writer';
 import { createSharingState } from '../tree-operations/sharing';
 import { rebuildUnsharedAncestry } from '../tree-operations/chain-rebuild';
 import { legalizeWrite } from '../tree-operations/content-write';
@@ -393,7 +391,8 @@ export function reversedAncestryLeavesRootStale(profile: ContainerConformancePro
 	leaf.raw = marker + '\n';
 
 	// Outermost-first: each ancestor rebuilt before its descendants are fresh.
-	for (const ancestor of ancestorsOf(doc, leafPath)) rebuildContainerRawIfContainer(ancestor);
+	for (const ancestor of ancestorsOf(doc, leafPath))
+		writeContainerRaw(ancestor, defaultGrammarView);
 
 	return !root.raw.includes(marker);
 }
@@ -662,7 +661,10 @@ export function checkDeclarationSanity(
 		);
 	}
 
-	assertIs(typeof descriptor.rebuildRaw, 'function', `${kind} declares rebuildRaw`);
+	assert(
+		descriptor.lines !== undefined || typeof descriptor.rebuildRaw === 'function',
+		`${kind} declares its lines or a rebuildRaw`
+	);
 	const node = subjectNode(parse(profile.deepNesting.source), kind, 'first', 'deepNesting');
 	assertLastLineChildHoldsIt(kind, node);
 	assertOwnLastLineHoldsIt(kind, descriptor, profile.deepNesting.source);
@@ -698,7 +700,7 @@ function assertOwnLastLineHoldsIt(
 	const doc: Document = { kind: 'document', prefix: '', children: [node], suffix: '' };
 	keepOpenTail(doc, true, createSharingState(), defaultGrammarView);
 	const released = doc.children[0].raw;
-	descriptor.rebuildRaw!(doc.children[0]);
+	writeContainerRaw(doc.children[0], defaultGrammarView);
 	assertIs(
 		doc.children[0].raw,
 		released,
@@ -727,7 +729,7 @@ function assertUntouchedLinesKept(
 	const previousRaw = children[index].raw;
 	// The edit adds a marked line, so the lines after the mark are the ones below the child.
 	children[index].raw = previousRaw + EDIT_MARK + ownTrailingLineEnding(previousRaw);
-	descriptor.rebuildRaw!(node, { index, previousRaw });
+	writeContainerRaw(node, defaultGrammarView, { index, previousRaw });
 	const after = splitLines(node.raw).map((line) => line.raw);
 	let mark = after.length - 1;
 	while (mark >= 0 && !after[mark].includes(EDIT_MARK)) mark--;
@@ -738,15 +740,15 @@ function assertUntouchedLinesKept(
 	const moved = before.findIndex(
 		(line, i) => (i < above || i >= before.length - below) && line !== after[at(i)]
 	);
-	assert(mark >= 0, `${kind} rebuildRaw dropped the line the edit added to its last child`);
+	assert(mark >= 0, `${kind}'s writer dropped the line the edit added to its last child`);
 	assert(
 		moved < 0,
-		`${kind} rebuildRaw rewrote lines outside the child it was told changed: line ${moved + 1} ` +
+		`${kind}'s writer rewrote lines outside the child it was told changed: line ${moved + 1} ` +
 			`"${before[moved]}" became "${after[at(moved)]}"`
 	);
 }
 
-/** `rebuildRaw`'s changed-child hint is a shortcut, never a different answer: the same children
+/** The writer's changed-child hint is a shortcut, never a different answer: the same children
  *  rebuilt with and without it give the same bytes. */
 function assertHintedRebuildMatchesFull(
 	kind: AnyBlockKind,
@@ -761,13 +763,13 @@ function assertHintedRebuildMatchesFull(
 	// still reads it as the kind re-emitting its own bytes.
 	children[index].raw = previousRaw.repeat(2);
 
-	descriptor.rebuildRaw!(node, { index, previousRaw });
+	writeContainerRaw(node, defaultGrammarView, { index, previousRaw });
 	const hinted = node.raw;
-	descriptor.rebuildRaw!(node);
+	writeContainerRaw(node, defaultGrammarView);
 	assertIs(
 		hinted,
 		node.raw,
-		`${kind} rebuildRaw writes the same bytes for a changed-child hint as for a full rebuild`
+		`${kind}'s writer writes the same bytes for a changed-child hint as for a full rebuild`
 	);
 }
 
@@ -796,9 +798,9 @@ function assertContentStartSpaceIsRebuilt(
 	const ending = trailingLineEnding(last.raw, documentLineEnding(doc));
 	// Emptied first, the way a bare marker opens its container with an empty child.
 	last.raw = ending;
-	descriptor.rebuildRaw!(node);
+	writeContainerRaw(node, defaultGrammarView);
 	last.raw = CONTENT_START_PROBE + ending;
-	descriptor.rebuildRaw!(node);
+	writeContainerRaw(node, defaultGrammarView);
 
 	const lines = splitLines(node.raw)
 		.map((line) => line.text)
@@ -807,7 +809,7 @@ function assertContentStartSpaceIsRebuilt(
 	const line = lines[0];
 	assert(
 		line.endsWith(` ${CONTENT_START_PROBE}`) && line.length > CONTENT_START_PROBE.length + 1,
-		`${kind} declares container.contentStartSpace but its rebuildRaw emits "${line}" for an ` +
+		`${kind} declares container.contentStartSpace but its writer emits "${line}" for an ` +
 			`empty body child given "${CONTENT_START_PROBE}": the consumed space only appears where ` +
 			`the rebuild writes the marker's own space on a line that gains text`
 	);
@@ -851,10 +853,10 @@ function assertBodyWrapMatchesParse(kind: AnyBlockKind, descriptor: BlockKindDes
 	const expected = node.children.length;
 	const ending = trailingLineEnding(node.raw, documentLineEnding(doc));
 	node.innerPrefix = '';
-	descriptor.rebuildRaw!(node);
+	writeContainerRaw(node, defaultGrammarView);
 	const withoutPrefix = node.raw;
 	node.innerPrefix = ending;
-	descriptor.rebuildRaw!(node);
+	writeContainerRaw(node, defaultGrammarView);
 
 	// A rebuild that ignores innerPrefix leaves the field inert, which is a non-wrapping kind.
 	const peels =
@@ -873,7 +875,7 @@ function assertBodyWrapMatchesParse(kind: AnyBlockKind, descriptor: BlockKindDes
 	node.innerPrefix = '';
 	node.innerSuffix = '';
 	node.children.push({ kind: 'paragraph', leadingTrivia: ending, raw: ending });
-	descriptor.rebuildRaw!(node);
+	writeContainerRaw(node, defaultGrammarView);
 	const keepsBlankTail = findFirstOfKind(parse(node.raw), kind)?.children?.length === expected + 1;
 	assertIs(
 		!keepsBlankTail,

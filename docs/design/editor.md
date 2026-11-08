@@ -230,8 +230,7 @@ registerBuiltinBlockKind('blockquote', {
 	supportsInline: false,
 	gapEdges: 'none',
 	container: {
-		contract: 'strip',
-		rebuildRaw: rebuildBlockquoteRaw,
+		lines: QUOTE_LINES,
 		containerPaste: { matchesAncestor: () => true, siblingAbsorb: false },
 		unwrapRole: { firstChildBackspace: 'lift-first-child-drop-opener', middleChildBackspace: 'default-merge' },
 		contentStartSpace: 'complete-marker',
@@ -242,7 +241,7 @@ registerBuiltinBlockKind('blockquote', {
 
 Every field, and what leaving it out means, is in `plugin-contract.md` § The descriptor field reference. One pair is worth knowing here. `rawWrite` is a kind's rule for its own bytes, and `bodyWrite` is a container's rule for a child's. Every content write runs the block's rule, then its container's (`tree-operations/content-write.ts :: legalizeWrite`), and hands the caller a caret that's already been moved to match, so no block has to map a caret by hand.
 
-The group is why an illegal leaf/container mix is a compile error rather than a runtime surprise: `contract` and `rebuildRaw` are required together inside it, and `isContainer` is derived from the group's presence, never declared.
+The group is why an illegal leaf/container mix is a compile error rather than a runtime surprise: it holds either the container's `lines`, which the editor writes its bytes from, or a `contract` and the `rebuildRaw` that goes with it, and `isContainer` is derived from the group's presence, never declared.
 
 ### Commands and keybindings
 
@@ -298,7 +297,7 @@ The same dispatch point answers `EditorInstance.canRunCommand`, the read a host 
   });
   ```
 
-  Both the parser's dispatch order and its paragraph-interrupt scan derive from the registrations (`schema/block-openers.ts`). Built-in openers live in `core/parsers/built-in-openers.ts`, ride on the built-in registrations, and register on the first read of the grammar, so a parse finds them whichever module loaded first (G4.197), and their priorities are published as one constant, `OPENER_PRIORITIES` (`schema/opener-priorities.ts`), so a plugin opener whose matcher is a superset of a built-in's prices below that built-in's entry, and one that only slots between built-ins prices into the gap.
+  Both the parser's dispatch order and its paragraph-interrupt scan derive from the registrations (`schema/block-openers.ts`), and each editor keeps only the ones its own plugin list turns on (`schema/editor-grammar.ts`). Built-in openers live in `core/parsers/built-in-openers.ts`, ride on the built-in registrations, and register on the first read of the grammar, so a parse finds them whichever module loaded first (G4.197), and their priorities are published as one constant, `OPENER_PRIORITIES` (`schema/opener-priorities.ts`), so a plugin opener whose matcher is a superset of a built-in's prices below that built-in's entry, and one that only slots between built-ins prices into the gap.
 
 - **Enter completion.** The opener's sibling, for kinds whose grammar spans adjacent lines and so can't be typed into existence. A registered completer reads one typed line and answers the lines completing it plus where the caret lands; `structural-edits.md` § Structural operations shows the call.
 - **Views.** Not a registry of their own: what draws a kind rides on its `registerBlockKind` call, and `BlockHost` reads it through the editor's activation (`schema/block-kind-descriptor.ts` :: `blockViewFor`). Built-ins register without one, since `schema/` can't import a component, and get theirs from `components/built-in-blocks.ts`, which every editor calls when it's created; only the first call does anything.

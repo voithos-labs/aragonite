@@ -6,7 +6,6 @@
 import {
 	activateDirectives,
 	containerClosure,
-	createDirectiveRebuild,
 	declarePluginInlineKind,
 	declarePluginKind,
 	declaredPluginKind,
@@ -19,7 +18,7 @@ import {
 	OPENER_PRIORITIES,
 	registerBlockCommand,
 	definePlugin,
-	DIRECTIVE_BODY_WRAP,
+	COLON_LINES,
 	registerBlockKind,
 	registerDirective,
 	registerInlineSyntax,
@@ -190,13 +189,11 @@ function registerBox(view: BlockView): void {
 		supportsInline: false,
 		gapEdges: 'both',
 		container: {
-			contract: 'opaque',
-			rebuildRaw: createDirectiveRebuild(),
-			bodyWrap: DIRECTIVE_BODY_WRAP
+			lines: COLON_LINES
 		},
 		conformanceFixture: ':::box Title\nbody\n:::\n',
 		closure: containerClosure({
-			roundTripVia: 'createDirectiveRebuild',
+			roundTripVia: 'container lines — the colon shape',
 			focus: { mode: 'implemented', via: 'focus walks to the opener line' },
 			mergeBackspace: { mode: 'implemented', via: 'mergeRole=container + unwrapRole' },
 			undo: { mode: 'implemented', via: 'children commit as ordinary blocks' },

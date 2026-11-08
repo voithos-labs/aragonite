@@ -244,7 +244,7 @@ The table is the exports you'll actually reach for, grouped by job. It's not eve
 | **Plugin views** | `PluginView`, `PluginViewHandle` | The shape a decoration widget and an inline menu row draw with (a function that fills an element the editor makes); `/svelte`'s `svelteView()` makes one from a component |
 | **Rects** | `EditorRects`, `SELECTION_END`, `SelectionEnd` | What `getRects()` returns, and the value its range calls take as "through the end of the block" |
 | **Inline menus** | `InlineMenuRegistry`, `InlineMenuSource`, `InlineMenuSourceHandle`, `InlineMenuItem`, `InlineMenuQuery`, `InlineMenuOpenOptions`, `InlineMenuRowProps` | What `getInlineMenus()` returns, and the shapes it takes and hands back |
-| **Insert catalogue** | `InsertEntry`, `MenuIconName`, `registerInsertEntry` | One row of `getInsertCatalogue()`, the glyph names its icon takes, and adding a row |
+| **Insert catalogue** | `InsertRow`, `MenuIconName` | One row of `inserts`, and the glyph names its icon takes |
 | **Parsing** | `parse`, `ParseScope`, `serialize`, `parseInline`, `getContentRange`, `ContentRange`, `isProseKind` | Round-tripping Markdown outside the component, and inspecting a block's inline content and editable range |
 | **Node types** | `CstNode`, `Document`, `AnyBlockKind`, `InlineNode`, `NodeView`, `DocumentView`, `BlockComponent` | The parsed document's vocabulary (CST: the concrete syntax tree, the parsed form of a document). Every node the editor hands you to read is a view, so writing to one won't compile. A block component is what a mounted block exposes to the editor |
 | **Events** | `EditorEvents`, `EditorEventMap`, `EditEvent`, `SelectionChangeEvent`, `SourceSwapEvent`, `EditorError` | What `getEvents()` returns, and the payload each channel carries |
@@ -260,6 +260,7 @@ The table is the exports you'll actually reach for, grouped by job. It's not eve
 | `linkClick` | Which click follows a link in live mode: `'modifier'` (default) is Ctrl/Cmd-click, so a plain click puts the caret in it; `'plain'` is any click, like a web page, and you edit it with the arrow keys, `Mod+K` or "Edit link". Reading mode follows any click either way, and source and preview modes, which show a link's syntax, keep Ctrl/Cmd. Plugin widgets that go somewhere (a footnote reference, say) follow the same click |
 | `caret` | Who draws the caret: `'auto'` (default) on a fine pointer, not a touch screen; `'drawn'` on any pointer; `'native'` keeps the browser's plain caret, which can't show bold or italic before you type. Beside an inline widget, between blocks with no text to type into, or at a code chip's edge, the browser can't, so the editor does. Forced colors keep the browser's everywhere. Selection, IME and screen readers stay the browser's |
 | `plugins` | Plugin units installed once at mount, in array order, before the first parse; the array is also the set this editor activates (see [Plugins](#plugins)) |
+| `onError` | Called with each error a plugin throws installing, reading its options, setting up or in a listener, including the ones raised while the editor mounts, which an `error` listener added in your `onMount` is too late for (see [Events](#events)) |
 | `syntax` | Switch a GFM syntax off for this editor: `{ indentedCode: false, setextHeading: false }` (see [Switching a syntax off](#switching-a-syntax-off)) |
 | `keybindings` | Rebind or disable the editor's shortcuts, per instance (see [Rebinding chords](#rebinding-chords)) |
 | `resolveImageUrl` | Rewrite a raw image URL before it reaches `img.src` (to resolve a relative path, say) |
@@ -277,7 +278,7 @@ The table is the exports you'll actually reach for, grouped by job. It's not eve
 | `selectionToolbar` | The built-in formatting popover over a selection: the marks, the link, a heading picker, inline code and copy, plus cut and paste on a touch screen (default on; reading mode never shows it). Off, it's gone for a mouse, but a finger's selection keeps a small bar with just Cut, Copy and Paste, since the editor replaced the phone's own menu. See [Recipe: a selection toolbar](consumer-guide/recipes.md#recipe-a-selection-toolbar) |
 | `placeholder` | Faint text an empty block shows until something's typed: a string for an empty document, or a function asked about each empty block (see [A hint in an empty block](#a-hint-in-an-empty-block)) |
 
-**Set once at mount:** `scrollMode`, `plugins`, and `syntax`. A later value is ignored, so set them at mount and leave them.
+**Set once at mount:** `scrollMode`, `plugins`, and `syntax`. A later value is ignored, so set them at mount and leave them. (`plugins` has a way back in, though: the handle's `use`, below.)
 
 **Hooks:** `onPasteImage`, `onRunCode`, `codeMenuItems`, and `onLinkActivate` can be swapped, added or dropped after mount, and the editor always calls the one you passed last. Same for `resolveImageUrl` and `resolveLinkUrl`, with one catch: they run when a block renders, so an image or link already on screen keeps its URL until its block renders again.
 
@@ -358,7 +359,7 @@ You set the editor up with props when it mounts. After that you talk to it throu
 | `getRects()` | Where things are on screen (see [Screen geometry](#screen-geometry)) |
 | `getDecorations()` | The registry for your own view-only annotations (see [Decorations](#decorations)) |
 | `getInlineMenus()` | The registry for lists opened by a typed trigger (see [Recipe: a typed-trigger menu](consumer-guide/recipes.md#recipe-a-typed-trigger-menu)) |
-| `getInsertCatalogue()` | The blocks the insert menus offer, plugin blocks included (see [Inserting Markdown at the caret](#inserting-markdown-at-the-caret)) |
+| `inserts` | The blocks the insert menus offer, plugin blocks included (see [Inserting Markdown at the caret](#inserting-markdown-at-the-caret)) |
 | `getDiagnostics()` | The bug-report tooling (see [Diagnostics](consumer-guide/shipping.md#diagnostics)) |
 | `reservedChords()` / `claimsChord(event)` | Which shortcuts this editor consumes (see [Which shortcuts the editor consumes](#which-shortcuts-the-editor-consumes)) |
 
@@ -369,7 +370,9 @@ And what you can write:
 | `setSelection(snapshot)` | Puts a `getSelection()` snapshot back on the document (see [Restoring a selection](#restoring-a-selection)) |
 | `placeCaretAtPoint(x, y)` | Lands the caret at a viewport point, exactly as a click there would (see [Placing the caret at a point](#placing-the-caret-at-a-point)) |
 | `insertMarkdown(md, options?)` | Inserts Markdown at the caret, or in a new paragraph below its block, exactly as pasting it would (see [Inserting Markdown at the caret](#inserting-markdown-at-the-caret)) |
+| `edit()` | Writes byte ranges of the document as one undo step, now or after a wait, and is refused with a reason if the author wrote over them meanwhile (see [`Draft`](plugin-api.md#draft-draftresult)) |
 | `runCommand(id, arg?)` | Runs an editor command by name, no keystroke involved (see [Toolbar commands](#toolbar-commands)) |
+| `use(plugins)` | Swaps this editor's plugin list for a new one and reads the document again under it, keeping the bytes and the undo history. Whatever a plugin you took off added goes with it |
 
 ### Reading the document and the selection
 
@@ -489,7 +492,7 @@ The caret is read when you call, and the promise resolves once the edit has land
 
 `placement: 'below'` is what the right-click "Insert block" rows do: an empty paragraph goes in after the top-level block holding the caret, and the text is pasted into it, so a sentence is never split around a new block. The paragraph and the insert are one undo entry.
 
-`getInsertCatalogue()` lists the blocks those rows offer, in their order: an `id`, a `label`, an `icon` name, `keywords`, the `markdown` to hand this call, and on some an optional `withArgument(word)` that answers the Markdown for a typed argument (`/table 3x4`). A plugin's block is in the list while this editor lists its plugin, so a `+` button or a menu of your own shows it without naming it.
+`inserts` lists the blocks those rows offer, in their order: an `id`, a `label`, an `icon` name, maybe some `keywords`, and `insert`, the Markdown to hand this call. On the code block and the table, `insert` is a function of a typed word (`/table 3x4`) instead, and calling it with `''` gives the plain block. A plugin's block is in the list while this editor lists its plugin, so a `+` button or a menu of your own shows it without naming it.
 
 ### Toolbar commands
 
@@ -634,6 +637,8 @@ events.on('error', (err) => err);
 | `clipboard` | `path` the paste was aimed at, when it was aimed at a range |
 | `link` | `url` the editor refused |
 | `subscriber` | nothing when one of your own handlers threw; `plugin` when a plugin's callback threw; `source` when an inline menu source threw |
+
+A plugin error raised while the editor mounts fires before a Svelte parent's `onMount` runs (the editor mounts first), so a listener added there misses it. Pass `onError` to hear those.
 
 **`presentationModeChange`** and **`themeChange`** carry bare values (`'reading'`, `'light'`), not envelopes, and never fire at mount. Only plugin content that paints its own colors needs `themeChange`; anything styled through the tokens rethemes itself through the CSS cascade.
 
@@ -853,9 +858,9 @@ Two editors in one process can list different depths this way; the factory form,
 The two options:
 
 - `entries` adds rows of your own, listed after the built-in ones. A row either inserts Markdown (`insert`) or runs a function (`run`, handed the editor's context for that pick and, if the row sets `takesArgument: true`, the word typed after a space). A `run` may be async: if it opens a picker and waits, the context it was handed writes nothing once you've loaded another note, so a choice made after a note switch lands nowhere. A row whose id matches a built-in one hides that built-in, and yours shows up with your other rows.
-- `exclude` hides built-in rows by id: `bullet`, `numbered`, `todo`, `quote`, `divider`, `code`, `table`, `h1`, `h2`, `h3`, plus whatever ids your installed plugins add to `getInsertCatalogue()` (the bundled ones add `note`, `details`, `math`, `mermaid` and `toc`).
+- `exclude` hides built-in rows by id: `bullet`, `numbered`, `todo`, `quote`, `divider`, `code`, `table`, `h1`, `h2`, `h3`, plus whatever ids your installed plugins add to `inserts` (the bundled ones add `note`, `details`, `math`, `mermaid` and `toc`).
 
-Options passed to the factory are every editor's defaults, and an editor's `{ plugin, options }` entry swaps out only the fields it names. So an entry of `{ exclude: ['table'] }` still lists the factory's `entries`, and `{ entries: [] }` is how one editor drops them. A row with both `insert` and `run`, or neither, is refused: the factory throws, and in an editor's entry the editor reports it on the `error` event and keeps the factory's options.
+Options passed to the factory are every editor's defaults, and an editor's `{ plugin, options }` entry swaps out only the fields it names. So an entry of `{ exclude: ['table'] }` still lists the factory's `entries`, and `{ entries: [] }` is how one editor drops them. A row with both `insert` and `run`, or neither, is refused: the factory throws, and in an editor's entry the editor reports it (to `onError`, and on the `error` event) and keeps the factory's options.
 
 **Math and diagrams.** latex and mermaid render through injected engines that never ride the main bundle: each package has a `/renderer` subpath adapter, and its engine (`katex` / `mermaid`) is an optional peer dependency you install only if you use it.
 

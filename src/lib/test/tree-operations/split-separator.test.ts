@@ -8,14 +8,15 @@ import { serialize } from '../../core/serializer';
 import { splitNode } from '../../tree-operations';
 import { NEXT_PROSE_LINE } from '../../tree-operations/node-primitives';
 import { probeLineOpensAsProse } from '../../tree-operations/content-write';
-import { rebuildBlockquoteRaw } from '../../schema/container-rebuilders';
+
 import { describeConvergence } from '../harness/parse-converged';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { documentLineEnding } from '#lib/core/lines.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
 
 describe('split separator: the half that absorbs gets one', () => {
 	it('Enter at the end of a paragraph, then typing, still reparses as two blocks', () => {
@@ -57,7 +58,7 @@ describe('split separator: the half that absorbs gets one', () => {
 			fixtureReading()
 		);
 		quote.children![1].raw = 'so we sequence it later.\n';
-		rebuildBlockquoteRaw(quote);
+		writeContainerRaw(quote, defaultGrammarView);
 
 		expect(describeConvergence(doc)).toBeNull();
 		expect(serialize(doc)).toBe('> Risk noted,\n>\n> so we sequence it later.\n');

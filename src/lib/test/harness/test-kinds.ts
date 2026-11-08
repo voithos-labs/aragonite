@@ -31,7 +31,7 @@ export function testLeaf(name: string, over: TestKindFields = {}): PluginBlockKi
 		closure: testClosure,
 		view: testView(),
 		...(typeof over === 'function' ? over(kind) : over)
-	});
+	} as BlockKindRegistration);
 	return kind;
 }
 

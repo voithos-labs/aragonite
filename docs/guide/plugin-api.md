@@ -57,13 +57,22 @@ _(pre-freeze / unstable)_ The installable package, and the per-editor context it
 | --- | --- |
 | [`definePlugin`](#defineplugin) | Validate a plugin unit and return it, ready for the editor's `plugins` prop |
 | `isPluginInstalled` | Has a plugin of this name installed? For the rare setup that has to branch on it |
+| `PluginSpec` | What you hand `definePlugin` to get a plugin value instead: `name`, `version`, the `editor` range it runs on, `defaults`, `validate`, `needs`, `conflicts`, and `contributes(options)`, which each editor calls with its own options |
+| `Plugin` | The plugin value that comes back. Call it with options (`math({ render })`) to give one editor different ones |
+| `PluginList` | A list of plugin values, whatever their options, as `needs` takes it |
+| `Contribution` | What `contributes` hands back for one editor: a `setup(editor)` that runs once that editor mounts, the `commands` it runs, and its `inserts` rows |
+| `Editor` | What `setup` and your commands get: the plugins on, the mode, the theme, the `inserts` rows, `on`, `run` and `can` (a command by value or id, with its argument), `claims` and `edit`. It's one object per plugin per editor, and a listener you add there goes away with your plugin |
+| `PluginError` | An error your plugin caused: its name, what the editor was doing with it (`install`, `validate`, `contributes`, `setup`, `dispose`, `run shout/hello` for a command, or `on('edit')` for a listener that threw), and the cause |
+| `BlockType` | A block type by name |
+| `builtin` | The built-in block types by kind (`builtin.blocks.paragraph`), to place yours relative to one or tell what a block is |
 | `EditorPlugin` | The unit's shape; the `plugins` prop and the main entry's `installPlugins` take these |
-| The `plugins` prop | Installs once per process, and activates per editor: an editor runs the hooks, kinds, commands and paste transforms of exactly the plugins it lists (no prop at all activates every installed one) |
+| The `plugins` prop | A `setup` plugin installs once per process and a plugin value is read by each editor on its own, but either way an editor runs the hooks, kinds, commands and paste transforms of exactly the plugins it lists (no prop at all runs every installed one). The host's `use` changes the list later |
 | `EditorPluginEntry` | One `plugins` prop entry: a bare unit, or `{ plugin, options }` to vary options per editor. A field you pass replaces the plugin's default for it (arrays too); the rest keep theirs |
 | `PluginSetupContext` | What `setup(ctx)` receives; its `onEditor(cb)` registers a per-editor callback (call it from `setup`, synchronously) |
 | `OnEditorCallback` | The callback itself: receives the `EditorContext` of each mounted editor that listed your plugin, may return a cleanup function the editor runs at unmount |
 | [`EditorContext`](#editorcontext) | One editor's view for your plugin, handed to your `onEditor` callback |
 | `InsertMarkdownOptions` | `insertMarkdown`'s second argument: `placement: 'below'` puts the text into a new paragraph after the top-level block holding the caret, in one undo entry; the default inserts at the caret |
+| [`Draft`, `DraftResult`](#draft-draftresult) | A write in the document's bytes from `edit()`, and what its commit came to |
 | `PresentationMode` | The union of the editor's view modes (source, reading, the two previews, live). Switch on it with a default branch, since a new mode would join the union. [Presentation modes](plugin-guide/presentation-modes.md#presentation-modes) |
 | `ClickInput` | What `isActivationClick` reads off a click: its Ctrl and Cmd keys, its click count and its target. A `MouseEvent` is one, so pass the event |
 
@@ -105,7 +114,7 @@ One editor's view for your plugin, handed to your `onEditor` callback once for e
 - `decorations`, `rects` and `inlineMenus`, this editor's [decorations](#decorations), [geometry](#rects) and [inline menus](#inline-menus).
 - `insertCatalogue`, `presentationMode` and `theme`, all live.
 - `insertMarkdown(md, options?)`, a promise resolved when the insert lands, and `runCommand(id, arg?)`. Both act like the instance's own methods and return false where those would.
-- `openDraft(spec)`, for an edit held outside the document ([`Draft`](#draft-draftspec-draftclosecause)).
+- `edit()`, a write in the document's bytes that commits as one undo step, now or after a wait ([`Draft`](#draft-draftresult)).
 - `computeInlineContent(node)`, this editor's inline parse.
 - `isActivationClick(e)`, whether a click on a link your block draws (a footnote's back-link, say) should follow it, by the host's `linkClick` and the mode.
 
@@ -119,6 +128,49 @@ ctx.onEditor((editor) => {
 ```
 
 Per-editor state, and the closure trap that comes with it: [One process, many editors](plugin-guide/per-editor.md#one-process-many-editors).
+
+#### `Draft`, `DraftResult`
+
+```ts
+interface Draft {
+	readonly stale: boolean;
+	replace(range: { from: number; to: number }, text: string): this;
+	insert(markdown: string): this;
+	commit(options?: { caret?: number }): Promise<DraftResult>;
+	end(): void;
+}
+
+type DraftResult =
+	| { ok: true }
+	| { ok: false; reason: 'moved' | 'unloaded' | 'off' | 'reading' | 'overlap' | 'illegal' | 'empty'; message: string };
+```
+
+The way your plugin writes bytes, from `edit()` on the `Editor` your `setup` gets or on an `EditorContext` (a host gets the same from `EditorInstance.edit()`). Positions are byte offsets into the document's text as it stood when you called `edit()`, so you can measure a range, go fetch something, and write when it comes back:
+
+```ts
+const draft = editor.edit();
+const card = await fetchCard(query); // the author keeps typing meanwhile
+const result = await draft.replace({ from, to }, card).commit();
+if (!result.ok) console.warn(result.reason, result.message); // 'moved': they typed inside it
+```
+
+- `replace(range, text)` swaps bytes `from` to `to` for `text`. Chain as many as you like; two far-apart ranges are still one undo step. These are the document's bytes, markers and all, so a new line you write inside a container carries the container's marker (`> `, a list item's indent) in `text`.
+- `insert(markdown)` pastes Markdown at the caret once the replacements land, the way `insertMarkdown` does.
+- `commit({ caret })` writes it all as one undo step, with the caret at byte `caret` of the new text. Leave `caret` out and the author's caret stays where it is, since a write landing while they type shouldn't drag them anywhere.
+- `stale` turns true once a write elsewhere touches one of your ranges, or the host loads another document. It's reactive, so a Svelte effect reading it reruns.
+- `end()` drops the draft without writing. One you just let go of is dropped eventually too, but ending it stops the editor tracking writes for it right away.
+
+What a commit can come back with (nothing throws, and a refused commit writes nothing):
+
+| `reason` | When |
+| --- | --- |
+| `moved` | Something wrote inside one of your ranges since `edit()`. Text written right before or after a range doesn't count, it just moves the range, except inside a quote or a list, where the same letter typed right next to a range counts as inside |
+| `unloaded` | The host loaded another document |
+| `off` | The host turned your plugin off in this editor (`use`). Turning other plugins on or off doesn't count, your ranges just follow the bytes |
+| `reading` | The editor's in reading mode |
+| `overlap` | Two of your own ranges overlap |
+| `illegal` | A range runs past the document's end or splits a `\r\n`, or the insert had no caret to land at |
+| `empty` | Nothing to write: no ranges, only the bytes already there, or the draft was ended |
 
 ### Kind declaration
 
@@ -546,27 +598,19 @@ _(pre-freeze / unstable)_ The `:::name` grammar itself is the [directives guide]
 | `parseDirectiveAttributes` | Opt-in reader pulling a `[label]` and a `{#id .class key=val}` block out of a directive's info string; one-way, it reads and never writes back |
 | `serializeDirective` | Re-emit a directive's exact bytes from its parts (colon count, name, verbatim info string, body, closer shape), growing the fences itself so no body line reads as the closer |
 | `escalatedColonCount` | The fence length a body forces, for an emitter building `:::name` text by hand instead of through `serializeDirective` |
-| [`createDirectiveRebuild`](#createdirectiverebuild) | Build the `rebuildRaw` hook for a `:::` container |
+| [`COLON_LINES`](#colon_lines) | A `:::` container's lines, for your kind's `container.lines`: the editor writes its bytes from them |
 | `withDirectiveName` | Rename a `:::` container by rewriting its opener line, for a command that switches variants through `replaceRaw` |
-| `DIRECTIVE_BODY_WRAP` | The wrap every `:::` body parses with; declare it as your container kind's `bodyWrap` so a blank line against the fence stays with the fence |
+| `DIRECTIVE_BODY_WRAP` | The wrap every `:::` body parses with, for a parser of your own (a kind with `lines: COLON_LINES` gets it without asking) |
 | `DIRECTIVE_OPENER_LINE` | The kind of every `:::` container's first row, its opener line; a `:::` kind that folds names it as `reservedChrome.kind` |
 | `DirectiveDefinition`, `ParsedDirective` | The registration's shape, and the parsed fence your factory receives: the fence parts, the parsed body, the exact consumed bytes |
 | `DirectiveTier`, `DirectiveFence`, `DirectiveAttributes` | The three tiers (container, leaf, text), one parsed opener line, and what the attribute reader returns |
 
-#### `createDirectiveRebuild`
+#### `COLON_LINES`
+
+The lines of a `:::` container, as your kind's `container.lines`. The editor writes the opener line (child 0) back as typed, then the body, then a closing line as long as the one it replaces, widening every colon run past a body line that would close it. The grammar builds that child 0 for every `:::` container (kind `directiveOpenerLine`), so your factory returns only the body.
 
 ```ts
-function createDirectiveRebuild(): (node: CstNode) => void;
-```
-
-Builds the raw-recompute hook (`rebuildRaw`) for a `:::` container. It writes child 0, the opener line, back as typed, then the body and the closer, CRLF included. The grammar builds that child 0 for every `:::` container (kind `directiveOpenerLine`), so your factory returns only the body.
-
-```ts
-container: {
-	contract: 'opaque',
-	rebuildRaw: createDirectiveRebuild(),
-	bodyWrap: DIRECTIVE_BODY_WRAP
-}
+container: { lines: COLON_LINES }
 ```
 
 ### Container authoring
@@ -583,16 +627,16 @@ _(pre-freeze / unstable)_ A container's **chrome** is its own furniture: the bor
 | `rowContentRange` | Where the title sits on a container's title line, past a `:::name` and the spaces after it, so a view reading the title skips the name |
 | [`ContainerBlock`, `ContainerBlockComponent`](#containerblock-containerblockcomponent) | _(from `/svelte`)_ What the factory returns, and the shape its `containerApi` must satisfy |
 | `ContainerBlockDeps`, `ContainerBlockListProps` | _(from `/svelte`)_ The factory's inputs, live getters rather than captured values, and the props `BlockList` takes |
-| [`Draft`, `DraftSpec`, `DraftCloseCause`](#draft-draftspec-draftclosecause) | An edit your plugin holds outside the document (a textarea's text) |
+| [`DraftSpec`, `DraftCloseCause`](#draftspec-draftclosecause) | An edit your block holds outside the document (a textarea's text), as a draft of its bytes |
 | `RefSlots` | The per-child reference accessors the child-list props carry |
 | `ChildList` | A container's children as the editor walks down to one: their references, their render window, and whether the body is collapsed. `containerApi.childList()` returns it; the factory builds yours, so you'd only write one for a hand-rolled container |
 | `ChromeLeafOptions` | `registerChromeLeaf`'s options: the name a screen reader and the block menu give the line, a CSS class for styling it, keymap overrides, the merge role |
-| [`rebuildStripRaw`](#rebuildstripraw) | Your `rebuildRaw` for a container that puts a prefix on every line |
-| `StripRebuild` | What `rebuildStripRaw` returns: `rereads` says a kept line stopped continuing a paragraph, so the bytes have to be read whole. Your `rebuildRaw` returns it as it came |
-| `StripRebuildOptions` | `rebuildStripRaw`'s last argument: the `changed` hint, the `previous` codec when your metadata changed the prefix, and an `opener` line |
-| `quoteLines` | The codec for `>`-prefixed lines, the one the built-in blockquote uses |
-| [`hangingIndentLines`](#hangingindentlines) | Build the codec for a container written like a list item |
-| [`LineCodec`, `LinePlace`, `BodyLine`](#linecodec-lineplace-bodyline) | What a codec is, if neither of the two fits |
+| [`LineShape`, `MarkedLines`, `IndentedLines`](#lineshape-markedlines-indentedlines) | How your container's lines look, as data on `container.lines`. The editor writes the bytes from it, so there's no `rebuildRaw` to write |
+| `fencedLines`, `FencedLines` | Lines of your own around the body, like `<details>` and `</details>`: `fencedLines({ open, close })` writes the opening lines from your metadata and the title row (child 0), and the closing line after the body |
+| `ColonLines` | The type of `COLON_LINES` |
+| `QUOTE_LINES` | The built-in quote's lines, to build yours on (an alert is a quote with a head line) |
+| `stripShapedLines` | Your opener's lines read the way the editor writes them, so the two can't disagree. It goes away once the editor parses a shaped container itself |
+| `StripRebuild` | What a `rebuildRaw` may return: `rereads` says a kept line stopped continuing a paragraph, so the bytes have to be read whole |
 
 #### `ContainerBlock`, `ContainerBlockComponent`
 
@@ -613,98 +657,44 @@ What the factory returns:
 
 The component that spreads all of it: [The component](plugin-guide/container-walkthrough.md#the-component).
 
-#### `Draft`, `DraftSpec`, `DraftCloseCause`
+#### `DraftSpec`, `DraftCloseCause`
 
 ```ts
 interface DraftSpec {
-	seed: string;
-	current(): string;
 	close(cause: DraftCloseCause): void;
 }
 
-interface Draft {
-	canWrite(): boolean;
-	end(): void;
-}
+type DraftCloseCause = 'mode-change' | 'undo' | 'document-swap';
 ```
 
-An edit your plugin holds outside the document (a textarea's text), from `EditorContext.openDraft(spec)`. The container factory passes it through. The spec:
+A block holding an edit outside the document (a textarea's text) opens a [`Draft`](#draft-draftresult) of its own bytes with the container factory's `openDraft(spec)`. It goes `stale` once a write elsewhere touches the block, and the editor calls `close(cause)` on one you haven't ended: `'mode-change'` and `'undo'` (an undo or redo about to replace the document) may still save, `'document-swap'` (another document, or the host switching plugins) writes nothing. `end()` it once your box closes or your block unmounts. [What your own editing surface has to do](plugin-guide/render-primary.md#what-your-own-editing-surface-has-to-do) walks through it.
 
-- `seed`, the bytes you filled the box with;
-- `current()`, those bytes now;
-- `close(cause)`, which the editor calls on a draft still open. `'mode-change'` and `'undo'` (an undo or redo about to replace the document) may still save; `'document-swap'` writes nothing.
-
-What you get back:
-
-- `canWrite()`, to ask before the draft's commit, since a `source` swap or a write to those bytes drops it.
-- `end()`, once it closes or your block unmounts.
-
-#### `rebuildStripRaw`
+#### `LineShape`, `MarkedLines`, `IndentedLines`
 
 ```ts
-function rebuildStripRaw(node: CstNode, lines: LineCodec, options?: StripRebuildOptions): StripRebuild;
+container: { lines: LineShape<YourMetadata> }
 ```
 
-Your `rebuildRaw` for a container that puts a prefix on every line (a quote's `>`, a footnote's indent). It rebuilds the bytes from the children and keeps every line the edit didn't touch, as the author spelled it. Pass:
+Say how your container's lines look and the editor writes them for you. It keeps every line an edit didn't touch the way the author spelled it, and writes new lines your way. A container with `lines` declares no `contract`, `rebuildRaw` or `bodyWrap`, since the shape already says them.
 
-- the codec (`quoteLines`, `hangingIndentLines`, or your own `LineCodec`);
-- the `changed` hint `rebuildRaw` got;
-- `opener`, for a line above the body that holds none of it (an alert's `> [!NOTE]`).
+- `marked`: a marker on every line, like a quote's `>`. `first` and `rest` are what it writes; `reads` is how a marker reads back, and it has to read `first` and `rest` whole. `lazy` says a line without the marker can still continue a paragraph. A `head` is a first line that holds no child (an alert's `> [!NOTE]`): `match` reads it after the marker, `data` turns the match into your metadata, and `write` spells it, for a new head or one whose data changed (an untouched one keeps the author's spelling). A blank line gets `first` or `rest` without its last space, except in a body emptied of all its text, whose lines keep their markers as spelled.
+- `indented`: a marker on the first line and an indent after, like a footnote. `open` reads the marker, `data` turns the match into your metadata, `first(data)` writes the marker back, and `rest(data)` is the indent. It's spaces only, and its width is the column the body starts at (a tab counts to the next multiple of four, same as the parser).
 
-Return what it returns. The bundled alert's whole rebuild:
+The editor writes with your kind's metadata, so store what `data` returns as the metadata. The bundled footnote definition, whole:
 
 ```ts
-function rebuildGithubAlertRaw(node: CstNode, changed?: ChildRawChange) {
-	const alertType = getPluginMetadata<GithubAlertMetadata>(node)?.alertType ?? 'NOTE';
-	return rebuildStripRaw(node, quoteLines, { changed, opener: `> [!${alertType}]` });
-}
+const DEFINITION_LINES: IndentedLines<{ label: string }> = {
+	shape: 'indented',
+	open: /^ {0,3}\[\^([^\]]+)\]: ?/,
+	data: (match) => ({ label: match[1] }),
+	first: (data) => `[^${data.label}]: `,
+	rest: () => '    ',
+	lazy: true
+};
+// in the opener: setPluginMetadata(node, { label }), and the body read with
+// stripShapedLines(DEFINITION_LINES, { label }, lines)
+registerBlockKind(kind, { ..., container: { lines: DEFINITION_LINES } });
 ```
-
-#### `hangingIndentLines`
-
-```ts
-function hangingIndentLines(shape: {
-	opener: string;
-	column: number;
-	readOpener: (line: string) => string | null;
-	continuesLazily?: LineCodec['continuesLazily'];
-}): LineCodec;
-```
-
-Builds the codec for a container written like a list item: `opener` starts the first line, and every other line is indented `column` columns.
-
-- `readOpener` says how the parser reads the first line's marker back (any spelling it accepts).
-- `continuesLazily` is the parser's lazy-line rule, CommonMark's by default.
-
-```ts
-const footnote = hangingIndentLines({
-	opener: '[^1]: ',
-	column: 4,
-	readOpener: (line) => (line.startsWith('[^1]: ') ? '[^1]: ' : null)
-});
-footnote.write('first', { first: true, trailingBlank: false }); // '[^1]: first'
-footnote.write('second', { first: false, trailingBlank: false }); // '    second'
-```
-
-#### `LineCodec`, `LinePlace`, `BodyLine`
-
-```ts
-interface LineCodec {
-	read(line: string, place: LinePlace): BodyLine | null;
-	write(text: string, place: LinePlace): string;
-	spells(line: string, text: string, place: LinePlace): boolean;
-	continuesLazily(above: string, line: string, aboveFirst: boolean): boolean;
-}
-```
-
-What a codec is, if neither of the two fits:
-
-- `read` reads a line into the body line it holds (a `BodyLine`).
-- `write` writes one back.
-- `spells` is a cheap is-this-already-it check.
-- `continuesLazily` is the lazy-line rule.
-
-`LinePlace` says whether the line opens the container or sits in the blank run that ends it. Read the line the same way your parser strips it, or the rebuild respells lines it should have kept.
 
 ### Editable-leaf authoring
 
@@ -867,6 +857,10 @@ _(pre-freeze / unstable)_ Which tier dispatches what: [Block commands](plugin-gu
 
 | Export | Role |
 | --- | --- |
+| [`command`](#command) | Make a command your plugin lists in `contributes`. An editor runs it by value, as `yourplugin/id`, or by its chord |
+| `Command` | What `command` hands back. Its `id` reads `yourplugin/id` once an editor installs your plugin |
+| `CommandSpec` | What `command` takes: `id`, `title`, an optional `chord`, `when(editor, arg)` and `run(editor, arg)`, both handed your plugin's own `Editor` |
+| `Chord` | A chord as a type: `Mod`, `Alt` and `Shift` in any combination, then the key. Only a command with no argument takes one, since a key can't hand it anything |
 | [`registerBlockCommand`](#registerblockcommand) | Create a `(kind, name)` command and get back its id, for a keymap binding to target |
 | `registerRangeIndent` | Let your kind's own indent command work over a selection spanning blocks: `(kind, command, shift)`, where `shift` rewrites the lines the selection covers in each of your blocks. Without it, an indent key over a range leaves your blocks alone |
 | `RangeLineShift` | That `shift`: `(node, range) => { text, selection } \| null`, over the block's text without its final line ending; null when no line changes |
@@ -883,6 +877,34 @@ _(pre-freeze / unstable)_ Which tier dispatches what: [Block commands](plugin-gu
 | `BlockCommandOptions` | That fourth argument's type |
 | `PluginCommandId`, `AnyCommandId` | The id `registerBlockCommand` or `registerGlobalCommand` hands back, and the union of that and a built-in `CommandId` |
 | [`imeOwnsKey`](#imeownskey) | Whether a keydown belongs to the IME |
+
+#### `command`
+
+```ts
+function command<A = void>(spec: CommandSpec<A>): Command<A>;
+```
+
+A command your plugin lists in `contributes`. The editor puts your plugin's name in front of the id, so `id: 'hello'` in a plugin named `shout` runs as `shout/hello`.
+
+```ts
+const shout = definePlugin({
+	name: 'shout',
+	version: '1.0.0',
+	editor: '*',
+	contributes: () => ({
+		commands: [
+			command({ id: 'hello', title: 'Say hello', chord: 'Mod+Alt+H', run: () => console.log('hello') })
+		]
+	})
+});
+
+handle.run('shout/hello'); // true, and "hello" in the console
+handle.can('shout/hello'); // true; false in reading mode, or where `when` says no
+```
+
+`run` comes back `false` when the command didn't run here (its plugin isn't on, the editor's reading, `when` said no) or your `run` returned `false`, which also lets a chord go on to the browser. A throw counts as run, and it reaches `onError` as `run shout/hello`, the same as a rejected promise.
+
+A chord goes to the first of three owners. One the editor takes everywhere (search's `Mod+F` and `Mod+H`, undo and redo) leaves your plugin out at install. Then the host's `keybindings` beat yours. Then, between two plugins in one editor, the one listed first keeps it and the later one's left out. The editor tells `onError` about each plugin it leaves out.
 
 #### `registerBlockCommand`
 
@@ -1104,12 +1126,13 @@ What `onCommit` gets as its third argument: your plugin's `EditorContext` scoped
 
 ### Insert catalogue
 
-_(pre-freeze / unstable)_ The blocks the insert menus offer: the built-in lists, quote, divider, code block and table, then the blocks plugins add. Read it through `editor.insertCatalogue` (your `onEditor` context); a host reads the same list as `getInsertCatalogue()`.
+_(pre-freeze / unstable)_ The blocks the insert menus offer: the built-in lists, quote, divider, code block and table, then the rows plugins add. Read it as `editor.inserts`; a `setup` plugin's `onEditor` context and the host's handle read the same list (`insertCatalogue` and `inserts`).
 
 | Export | Role |
 | --- | --- |
-| `registerInsertEntry` | Add your block to every insert menu, called from `setup`. It is listed only in the editors that activate your plugin. Throws on a duplicate id and on an icon the menu cannot draw |
-| `InsertEntry` | One entry: an `id`, a `label`, an `icon`, `keywords` a filter should also match, its `markdown`, and an optional `withArgument` giving the Markdown and dim text for `/table 3x4` |
+| `InsertRow` | One row: an `id`, a `label`, an `icon`, optional `keywords` a filter should also match, and `insert`, the Markdown, or a function of the word typed after the row (`/table 3x4`, empty when there's none) giving the Markdown and the dim text saying how it read the word. List yours in `contributes` as `inserts`, and an editor shows each as `yourplugin/id`, only where your plugin is on. An icon the menu can't draw, or an id twice, leaves your plugin out |
+| `registerInsertEntry` | A `setup` plugin's way to add its block, called from `setup`. It is listed only in the editors that activate your plugin. Throws on a duplicate id and on an icon the menu cannot draw |
+| `InsertEntry` | What `registerInsertEntry` takes: an `id`, a `label`, an `icon`, `keywords`, its `markdown`, and an optional `withArgument` giving the Markdown and dim text for a typed word |
 | `MenuIconName` | The glyph names a menu row can draw |
 
 ### Events

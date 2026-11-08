@@ -10,20 +10,17 @@ import {
 	containerClosure,
 	declarePluginKind,
 	declaredPluginKind,
-	getPluginMetadata,
-	hangingIndentLines,
 	isBlankLine,
 	isWhitespaceChar,
 	lineStartsOuterBlock,
 	parseContainerBody,
-	rebuildStripRaw,
 	registerBlockKind,
 	setPluginMetadata,
+	stripShapedLines,
 	type BlockOpenerResult,
 	type BlockView,
-	type ChildRawChange,
 	type CstNode,
-	type LineCodec,
+	type IndentedLines,
 	type OpenContext
 } from '@voithos-labs/aragonite/plugin';
 import { FOOTNOTE_DEF_KIND } from './constants';
@@ -33,10 +30,19 @@ export interface FootnoteDefMetadata {
 }
 
 const OPENER = /^ {0,3}\[\^([^\]]+)\]:/;
-const MARKER_STRIP = /^ {0,3}\[\^[^\]]+\]: ?/;
+const MARKER_STRIP = /^ {0,3}\[\^([^\]]+)\]: ?/;
 // Four columns, a tab counting to the next multiple of four, so no tab reaches past the body.
 const CONTINUATION_INDENT = /^(?: {0,3}\t| {4})/;
-const CONTINUATION_COLUMN = 4;
+
+/** A definition's lines: the `[^label]:` marker on the first, the rest indented four columns. */
+const DEFINITION_LINES: IndentedLines<FootnoteDefMetadata> = {
+	shape: 'indented',
+	open: MARKER_STRIP,
+	data: (match) => ({ label: match[1] }),
+	first: (data) => `[^${data.label}]: `,
+	rest: () => '    ',
+	lazy: true
+};
 
 /** The `[^label]:` a line opens with, where the label holds no Markdown whitespace. */
 function matchOpener(text: string): RegExpExecArray | null {
@@ -98,14 +104,8 @@ function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
 	const defLines = ctx.lines.slice(ctx.index, next);
 
 	const raw = defLines.map((line) => line.raw).join('');
-	// Read through the rebuild's own line syntax, so a rebuild keeps every line it didn't change.
-	const lines = definitionLines(match[1]);
-	const stripped = defLines
-		.map((line, i) => {
-			const place = { first: i === 0, trailingBlank: false };
-			return (lines.read(line.text, place)?.text ?? line.text) + line.lineEnding;
-		})
-		.join('');
+	// Read through the lines the writer writes, so a write keeps every line it didn't change.
+	const stripped = stripShapedLines(DEFINITION_LINES, { label: match[1] }, defLines);
 	// A fresh parse entry, so the body's own line 0 must not read as the document top. The body has
 	// no fence lines of its own, so no blank line is set aside from it.
 	const body = parseContainerBody(stripped, {}, { scope: 'fragment', grammar: ctx.grammar });
@@ -120,29 +120,6 @@ function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
 	};
 	setPluginMetadata<FootnoteDefMetadata>(node, { label: match[1] });
 	return { node, consumed: next - ctx.index };
-}
-
-/** The `[^label]:` line with the body's first line on it, the rest indented four columns, each
- *  line kept as it stood unless the edit changed it. */
-export function rebuildFootnoteDefRaw(node: CstNode, changed?: ChildRawChange) {
-	const label = getPluginMetadata<FootnoteDefMetadata>(node)?.label ?? '';
-	return rebuildStripRaw(node, definitionLines(label), { changed });
-}
-
-/** A definition's line syntax: its marker read back only with the same label, as the parser
- *  spells it (up to three spaces before, one optional after). */
-function definitionLines(label: string): LineCodec {
-	const mark = `[^${label}]:`;
-	return hangingIndentLines({
-		opener: mark + ' ',
-		column: CONTINUATION_COLUMN,
-		readOpener(line) {
-			const lead = /^ {0,3}/.exec(line)![0].length;
-			if (!line.startsWith(mark, lead)) return null;
-			const end = lead + mark.length;
-			return line.slice(0, line[end] === ' ' ? end + 1 : end);
-		}
-	});
 }
 
 export function registerFootnoteDefinition(view: BlockView): void {
@@ -162,15 +139,13 @@ export function registerFootnoteDefinition(view: BlockView): void {
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
-		// A conformance fixture has to survive rebuildRaw unchanged, so the continuation line
-		// is indented: the lazy form would be rewritten.
+		// A conformance fixture has to survive a write unchanged, so the continuation line is
+		// indented: the lazy form would be rewritten.
 		conformanceFixture: '[^1]: A footnote definition.\n    with an indented continuation.\n',
 		// Body blocks reorder inside the definition, unlike a list item, which moves under its
-		// list; the marker does not depend on position, so rebuildRaw re-emits it.
+		// list; the marker does not depend on position, so the writer puts it back.
 		container: {
-			contract: 'strip',
-			rebuildRaw: rebuildFootnoteDefRaw,
-			lines: { marker: 'first-line', lazy: true, indent: CONTINUATION_COLUMN },
+			lines: DEFINITION_LINES,
 			merges: { key: 'label' },
 			reorderChildren: {},
 			// The marker lives in metadata rather than the first line, so lifting the first child
@@ -182,7 +157,7 @@ export function registerFootnoteDefinition(view: BlockView): void {
 		},
 		closure: containerClosure({
 			roundTripVia:
-				'container contract=strip — rebuildFootnoteDefRaw writes the edited lines under the [^label]: marker and a four-column indent, keeping the rest',
+				'container lines — an indented shape, the [^label]: marker and a four-column indent, written by the container writer',
 			focus: {
 				mode: 'implemented',
 				via: 'focus walks into the first child block via createContainerBlock'

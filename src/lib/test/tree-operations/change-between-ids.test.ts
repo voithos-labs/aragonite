@@ -9,7 +9,7 @@ import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { createScopeWriter } from '#lib/editor-actions/commit/scope-writes.js';
 import { documentBody } from '#lib/tree-operations/node-primitives.js';
 import type { BlockComponent } from '#lib/block-component.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 // How a caller running several splice functions reports: each writes its net splice into the id
 // array, and one contiguous window is read back off which ids survived where.

@@ -5,10 +5,11 @@ import { trimTrailingLineEnding } from '../../core/lines';
 import { collectCrossBlockText } from '../../selection/clipboard-text';
 import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { rowContentRange } from '../../schema/reserved-chrome';
-import { rebuildCalloutRaw } from '../../../routes/test/plugins/callout/callout-kind';
 import { registerChromePluginsForTests } from './chrome-plugins';
 import type { SelectionPoint } from '../../selection/primitives';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 // Source mode, where a copied range carries its bytes as they stand.
 const SOURCE_READING = fixtureReading({}, 'source');
@@ -206,7 +207,7 @@ describe('cross-block copy starting in reserved chrome', () => {
 	it('widens opener and closer together when the body forces fence escalation', () => {
 		const doc = parse('::::callout Title\n\n:::\n\n::::\n\nBelow\n');
 		doc.children[0].children![1].raw = '::::\n';
-		rebuildCalloutRaw(doc.children[0]);
+		writeContainerRaw(doc.children[0], defaultGrammarView);
 
 		const text = collectCrossBlockText(
 			doc,

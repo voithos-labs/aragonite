@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '../../../core/parser';
 import { serialize } from '../../../core/serializer';
-import { rebuildListItemRaw } from '../../../schema/container-rebuilders';
+
 import type { Document } from '../../../core/nodes';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 // CommonMark §5.2 lazy continuation for list items, mirroring the blockquote laziness pins
 // in parser-structure.test.ts. Every fixture asserts the byte round-trip, because the
@@ -84,7 +86,7 @@ describe('list lazy continuation: rebuild', () => {
 	// A lazily-parsed item has no indent on its continuation line, and a rebuild keeps it so.
 	it('keeps the lazy continuation as it was, reparse-stable', () => {
 		const item = parse('- item one\nwrapped tail\n').children[0].children![0];
-		rebuildListItemRaw(item);
+		writeContainerRaw(item, defaultGrammarView);
 		expect(item.raw).toBe('- item one\nwrapped tail\n');
 
 		const reparsed = parse(item.raw);

@@ -3,7 +3,7 @@
 // finishes the opener above it.
 import { splitLines } from '../../core/lines';
 import type { CstNode } from '../../core/nodes';
-import type { UnfinishedReading } from '../../schema/block-openers';
+import type { GrammarReading } from '../../schema/block-openers';
 import type { Host } from './types';
 import { bytesOf, readAt } from './reading';
 import { replace, type Work } from './work';
@@ -27,7 +27,7 @@ function lookDown(
 	work: Work,
 	from: number,
 	to: number,
-	readings: readonly UnfinishedReading[],
+	readings: readonly GrammarReading[],
 	host: Host
 ): void {
 	for (let i = from; i < to && i < work.blocks.length; i++) {

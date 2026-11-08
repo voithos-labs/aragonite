@@ -14,7 +14,8 @@ import {
 import { declaredPluginInlineKind, isInlineKindDeclared } from '../../schema/plugin-kind';
 import { registerInlineSyntax } from '../inline/scan/plugin-syntax';
 import { recognizeTextDirective } from './text-recognizer';
-import { defaultGrammarView, type GrammarView } from '../../schema/block-openers';
+import { type GrammarView } from '../../schema/block-openers';
+import { defaultGrammarView } from '../../schema/editor-grammar';
 
 export function activateDirectiveGrammar(views: DirectiveViews): void {
 	// The inline handler has no registration of its own to check, so it borrows the

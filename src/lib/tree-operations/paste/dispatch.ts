@@ -35,7 +35,7 @@ import { isReservedChromeChild, titleInsertionPoint } from '../../schema/reserve
 import { applyInlineResult, applyStructuralResult } from './apply';
 import { normalizeClipboardForBody } from './body-write';
 import { applyContainerMatchingPaste, findContainerMatchingUnwrap } from './container-match';
-import { defaultInlineHook, defaultStructuralHook } from './hooks';
+import { defaultInlineHook, defaultStructuralHook, takesDefaultHooks } from './hooks';
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { applyListAbsorb, findListAbsorb } from './list-absorb';
 import { applyListBreakOut, findListBreakOut } from './list-break-out';
@@ -183,8 +183,13 @@ export async function pasteDispatch(
 	}
 
 	const surface = getPasteSurface(targetNode.kind, activePlugins);
-	// A plugin's surface this editor left out is no gap to warn about: the default hooks are meant.
-	if (surface === undefined && !isPasteSurfaceRegistered(targetNode.kind)) {
+	// A built-in kind that takes inline text, or a plugin's surface this editor left out, is no gap
+	// to warn about: the default hooks are meant.
+	if (
+		surface === undefined &&
+		!takesDefaultHooks(targetNode.kind) &&
+		!isPasteSurfaceRegistered(targetNode.kind)
+	) {
 		devWarn(
 			'paste-dispatch',
 			'no paste surface registered for this kind; falling through to default hooks. Register ' +

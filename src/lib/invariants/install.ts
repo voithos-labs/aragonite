@@ -4,7 +4,7 @@
  */
 
 import type { CstNode, Document } from '../core/nodes';
-import type { GrammarView } from '../schema/block-openers';
+import type { BlockOpener, GrammarView } from '../schema/block-openers';
 import type { DocPath } from '../core/coordinate-spaces';
 import { assertInvariant, devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 import { checkCommitPathAddressable } from './commit-paths';
@@ -24,9 +24,16 @@ import { checkContentRange } from './descriptor';
 import { checkChildIdParity } from './child-id-parity';
 import { checkChildSpansLockstep, checkIdsChildrenLockstep } from './structural-descriptor';
 import { checkSnapshotIntegrity, type SnapshotEntry } from './snapshot-integrity';
+import { checkChangeInReach, checkDraftBytesKept } from './change-record';
 import { checkLastLineKept } from './open-tail';
 import { checkKeepsABlock } from './keeps-a-block';
-import { checkReadsBack, checkRunReadsBack, READ_BACK_LIMIT, spliceRuns } from './reads-back';
+import {
+	checkReadsBack,
+	checkRestoredUnderGrammar,
+	checkRunReadsBack,
+	READ_BACK_LIMIT,
+	spliceRuns
+} from './reads-back';
 import { checkListMarkerWidths } from './list-marker-widths';
 import { perfEnabled } from '../perf/instruments';
 import { checkTopLevelUntouched } from './top-level-untouched';
@@ -36,15 +43,17 @@ import { concatChildren } from '../core/serializer';
 import { checkWrittenUnshared } from './written-unshared';
 import type { SharingState } from '../tree-operations/sharing';
 
-/** Checks only the nodes a commit touched. Call it after the commit's `rebuildRaw`, so a strip
- *  container's raw is that rebuild's output. */
+/** Checks only the nodes a commit touched. Call it after the commit writes its containers, so a
+ *  strip container's raw is that write's output. */
 export function assertCommittedNodes(nodes: CstNode[], grammar: GrammarView): void {
 	// Off under the perf instruments, as G1.55 is: the stale-raw check re-reads each container.
 	if (perfEnabled()) return;
 	for (const node of nodes) {
 		assertInvariant('stale-raw', () => checkStaleRaw(node, grammar));
 		assertInvariant('opaque-stale-raw', () => checkOpaqueStaleRaw(node, grammar));
-		assertInvariant('opaque-rebuild-determinism', () => checkOpaqueRebuildDeterminism(node));
+		assertInvariant('opaque-rebuild-determinism', () =>
+			checkOpaqueRebuildDeterminism(node, grammar)
+		);
 		assertInvariant('reserved-chrome-slot', () => checkReservedChromeSlot(node));
 		assertInvariant('category-fields', () => checkCategoryFields(node));
 		assertInvariant('content-range', () => checkContentRange(node));
@@ -120,6 +129,43 @@ export function assertLastLineKept(doc: Document, wasOpen: boolean): void {
 export function assertReadsBack(tops: readonly CstNode[], grammar: GrammarView): void {
 	if (!devChecksOn || perfEnabled()) return;
 	for (const top of tops) assertInvariant('reads-back', () => checkReadsBack(top, grammar));
+}
+
+/** G1.190 after a write the open drafts heard: its record holds every part it changed. */
+export function assertChangeInReach(
+	whole: Parameters<typeof checkChangeInReach>[0],
+	recorded: Parameters<typeof checkChangeInReach>[1]
+): void {
+	assertInvariant('change-record', () => checkChangeInReach(whole, recorded));
+}
+
+/** G1.190 at a draft's commit: a range the record kept still holds the bytes it opened on. */
+export function assertDraftBytesKept(
+	opened: string,
+	now: string,
+	ranges: Parameters<typeof checkDraftBytesKept>[2]
+): void {
+	assertInvariant('change-record', () => checkDraftBytesKept(opened, now, ranges));
+}
+
+/** G1.189 after an undo or redo: each block it put back that read as itself under its entry's
+ *  grammar still does under the editor's. */
+export function assertRestoredUnderGrammar(
+	tops: readonly CstNode[],
+	grammar: GrammarView,
+	entry: { readonly openers: readonly unknown[]; readonly setextHeading: boolean }
+): void {
+	if (!devChecksOn || perfEnabled()) return;
+	// The entry's grammar stamp: the opener list its grammar returned, untyped on the undo side.
+	const openers = entry.openers as readonly BlockOpener[];
+	const was: GrammarView = {
+		orderedOpeners: () => openers,
+		interruptsParagraph: (line) =>
+			openers.some((o) => o.interruptsParagraph && o.interruptsParagraph(line)),
+		setextHeading: entry.setextHeading,
+		activation: grammar.activation
+	};
+	assertInvariant('restore-grammar', () => checkRestoredUnderGrammar(tops, grammar, was));
 }
 
 /** G1.55 after a byte splice: each window of `top`, read with what could change it, reads as itself. */

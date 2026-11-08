@@ -73,14 +73,17 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		count: 4,
 		why: 'the strip container shape re-emitting its own bytes from its children: its span-seeding rebuild, the whole-body fallback, and the opener line set aside and put back around them'
 	},
-	'src/lib/core/directive/kinds.ts': { count: 1, why: 'the rebuildRaw every `:::` container uses' },
-	'packages/admonitions/src/github-alert-kind.ts': {
+	'src/lib/schema/container-writer.ts': {
 		count: 1,
-		why: "the alert's own rebuildRaw for an empty body; a filled one rebuilds through `rebuildStripRaw`"
+		why: "an emptied head-line container's own bytes, written from its line shape"
 	},
-	'packages/details/src/details-kind.ts': {
+	'src/lib/schema/colon-lines.ts': {
+		count: 2,
+		why: "a `:::` container's own bytes, written from its children around its fence lines"
+	},
+	'src/lib/schema/fenced-lines.ts': {
 		count: 1,
-		why: "the details container's rebuildRaw"
+		why: "a container's own bytes, written from its children inside the lines its shape writes"
 	},
 	'packages/mermaid/src/mermaid-kind.ts': {
 		count: 1,

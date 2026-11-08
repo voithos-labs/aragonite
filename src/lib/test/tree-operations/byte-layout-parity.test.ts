@@ -4,7 +4,7 @@
 
 import { it, expect } from 'vitest';
 import fc from 'fast-check';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { installPlugins } from '#lib/schema/plugin-install.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
 import { displayLength } from '#lib/core/lines.js';

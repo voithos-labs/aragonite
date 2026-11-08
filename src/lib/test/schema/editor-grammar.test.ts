@@ -3,7 +3,7 @@ import { parse } from '#lib/core/parser.js';
 import { blockViewFor, getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { testView } from '#lib/test/harness/test-view.js';
 import type { BlockOpener } from '#lib/schema/block-openers.js';
-import { createRegistryView, defaultRegistryView } from '#lib/schema/registry-view.js';
+import { createEditorGrammar, defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import type { PluginBlockKind } from '#lib/core/nodes.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
 import { activationFor, everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
@@ -30,19 +30,14 @@ function registerCallout(): PluginBlockKind {
 	return kind;
 }
 
-// The default view is the global read, which the rest of the unit suite (mounting BlockHost on
+// The default grammar is the global read, which the rest of the unit suite (mounting BlockHost on
 // its own) relies on.
-describe('defaultRegistryView resolves the global definitions verbatim', () => {
+describe('defaultGrammarView resolves every installed definition', () => {
 	it('component + descriptor + grammar match the global registry', () => {
 		const kind = registerCallout();
-		expect(defaultRegistryView.blockView(kind)).toBe(blockViewFor(kind, everyInstalledPlugin));
-		expect(defaultRegistryView.descriptor(kind)).toBe(getBlockKindDescriptor(kind));
-		expect(parse('@x hi\n', { grammar: defaultRegistryView.grammar }).children[0].kind).toBe(kind);
-	});
-
-	it('createRegistryView with no filter returns the default view', () => {
-		expect(createRegistryView()).toBe(defaultRegistryView);
-		expect(createRegistryView({})).toBe(defaultRegistryView);
+		expect(defaultGrammarView.blockView(kind)).toBe(blockViewFor(kind, everyInstalledPlugin));
+		expect(defaultGrammarView.descriptor(kind)).toBe(getBlockKindDescriptor(kind));
+		expect(parse('@x hi\n', { grammar: defaultGrammarView }).children[0].kind).toBe(kind);
 	});
 });
 
@@ -54,28 +49,24 @@ describe('an editor that lists no plugin', () => {
 		installPlugins([
 			definePlugin({ name: 'callouts', setup: () => void (kind = registerCallout()) })
 		]);
-		const listsNone = createRegistryView({ plugins: activationFor([]) });
-		const builtinOpenerCount = defaultRegistryView.grammar.orderedOpeners().length - 1;
-		expect(listsNone.grammar.orderedOpeners().length).toBe(builtinOpenerCount);
+		const listsNone = createEditorGrammar({ plugins: activationFor([]) });
+		const builtinOpenerCount = defaultGrammarView.orderedOpeners().length - 1;
+		expect(listsNone.orderedOpeners().length).toBe(builtinOpenerCount);
 		expect(builtinOpenerCount).toBeGreaterThan(0);
 		expect(listsNone.blockView(kind!)).toBeUndefined();
+		expect(listsNone.interruptsParagraph('@x hi')).toBe(false);
+		expect(defaultGrammarView.interruptsParagraph('@x hi')).toBe(true);
 	});
 });
 
 describe('the syntax switch composes with the plugins an editor lists', () => {
 	it('drops an unlisted plugin kind and indented code together', () => {
 		installPlugins([definePlugin({ name: 'callouts', setup: () => void registerCallout() })]);
-		const view = createRegistryView({
+		const grammar = createEditorGrammar({
 			plugins: activationFor([]),
 			syntax: { indentedCode: false }
 		});
-		const doc = parse('@x one\n\n\tnotes\n', { grammar: view.grammar });
+		const doc = parse('@x one\n\n\tnotes\n', { grammar });
 		expect(doc.children.map((c) => c.kind)).toEqual(['paragraph', 'paragraph']);
-	});
-
-	it('a view with every syntax on and no filter is the default view', () => {
-		expect(createRegistryView({ syntax: { indentedCode: true, setextHeading: true } })).toBe(
-			defaultRegistryView
-		);
 	});
 });

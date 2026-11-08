@@ -5,7 +5,7 @@ import { writtenBelow } from '#lib/test/harness/settle-funnel.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { rebuildOwnedContainer } from '#lib/tree-operations/unshare.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 // A splice outside a commit can merge at any depth no commit descriptor reaches, so it keeps
 // `childIds` in step itself.
@@ -21,7 +21,7 @@ describe('a scope splice whose settle folds', () => {
 		const sharing = createSharingState();
 		writtenBelow(doc, (scope) => scope.splice([0], 1, 1, []), defaultGrammarView, sharing);
 		// The function splices and fixes up; rebuilding the container's own bytes is its caller's job.
-		rebuildOwnedContainer(quote);
+		rebuildOwnedContainer(quote, defaultGrammarView);
 
 		expect(serialize(doc)).toBe('> a\n> b\n');
 		expect(describeConvergence(doc)).toBeNull();

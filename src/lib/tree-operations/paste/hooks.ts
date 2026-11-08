@@ -4,7 +4,8 @@
  */
 
 import { CURSOR_END } from '../../block-component';
-import { isBuiltinBlockKind, type BlockKind, type CstNode } from '../../core/nodes';
+import { isBuiltinBlockKind, type AnyBlockKind, type CstNode } from '../../core/nodes';
+import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
 import { trailingLineEnding, trimTrailingLineEnding, type LineEnding } from '../../core/lines';
 import { buildPastedReplacement } from './paste-replacement';
 import type { ChildSlot } from '../list/task-paragraph';
@@ -12,21 +13,17 @@ import { replaceDrawnRange, type LeafRangeEdit } from '../leaf-range';
 import { getContentRange, readInline } from '../../core/inline';
 import { CONTENT_VISIBILITY, visibleRuns } from '../../core/inline/visibility';
 import {
-	getAllRegisteredKinds,
-	tryGetBlockKindDescriptor
-} from '../../schema/block-kind-descriptor';
-import {
-	registerPasteSurface,
 	type PasteRange,
 	type InlinePasteResult,
 	type StructuralPasteResult
 } from '../paste-surfaces';
 import type { StoredAs } from '../../schema/stored-as';
-import { registerAsCore } from '../../schema/plugin-install';
 
-// Registered by their own component instead of the loop below. One registrar per kind, so
-// correctness doesn't hinge on module load order.
-const BESPOKE_SURFACE_KINDS = new Set<BlockKind>(['tableCell']);
+/** Whether a kind pastes through the default hooks without a surface of its own: a built-in kind
+ *  that takes inline text. */
+export function takesDefaultHooks(kind: AnyBlockKind): boolean {
+	return isBuiltinBlockKind(kind) && tryGetBlockKindDescriptor(kind)?.supportsInline === true;
+}
 
 /** The pasted text over the selection, or at the caret, written as typing it there would be. */
 export function defaultInlineHook(
@@ -107,19 +104,3 @@ export function defaultStructuralHook(
 	// residue into the last pasted block.
 	return { replacement: nodes, focusReplacementIndex: lastPastedIndex, focusOffset: CURSOR_END };
 }
-
-// Built-in kinds are all registered by the time this top level runs; a plugin kind
-// registering later must register its own paste surface.
-registerAsCore(() => {
-	for (const kind of getAllRegisteredKinds()) {
-		if (!isBuiltinBlockKind(kind)) continue;
-		if (BESPOKE_SURFACE_KINDS.has(kind)) continue;
-		if (tryGetBlockKindDescriptor(kind)?.supportsInline) {
-			registerPasteSurface({
-				kind,
-				onInlinePaste: defaultInlineHook,
-				onStructuralPaste: defaultStructuralHook
-			});
-		}
-	}
-});

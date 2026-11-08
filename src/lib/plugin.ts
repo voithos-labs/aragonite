@@ -6,7 +6,7 @@
 import { registerChromeLeaf as bindChromeLeaf } from './editor-actions/plugin/chrome-leaf';
 import { textBlockView } from './components/blocks/text/text-block-view';
 import { computeInlineContent as parseLeafInline } from './core/inline';
-import { defaultGrammarView } from './schema/block-openers';
+import { defaultGrammarView } from './schema/editor-grammar';
 import { everyInstalledPlugin } from './schema/plugin-activation';
 import {
 	getLanguageAliases as aliasesIn,
@@ -18,14 +18,29 @@ import type { NodeView } from './core/node-views';
 import type { ChromeLeafOptions } from './editor-actions/plugin/chrome-leaf';
 
 // ── Plugin unit (pre-freeze) ─────────────────────────────────────────────────
-// Installation happens once per process; the editor's `plugins` prop does it, so a
-// consumer rarely calls `installPlugins` directly.
+// A spec with `contributes` makes a plugin value each editor reads for itself; a spec with
+// `setup` installs once per process, through the editor's `plugins` prop.
 export { definePlugin, isPluginInstalled } from './schema/plugin-install';
+export type {
+	BlockType,
+	Contribution,
+	Editor,
+	Plugin,
+	PluginError,
+	PluginList,
+	PluginSpec
+} from './schema/plugin-unit';
+export { builtin } from './schema/plugin-unit';
+// A command a plugin lists, run by value, by `plugin/id` or by its chord.
+export { command } from './schema/plugin-command';
+export type { Chord, Command, CommandSpec } from './schema/plugin-command';
 export type { EditorPlugin, EditorPluginEntry } from './schema/plugin-install';
 // `setup(ctx)` registers `onEditor` callbacks that receive a per-instance `EditorContext`.
 export type { PluginSetupContext, OnEditorCallback, EditorContext } from './schema/plugin-install';
 // `EditorContext.insertMarkdown`'s options: at the caret, or in a new paragraph below its block.
 export type { InsertMarkdownOptions } from './editor-props';
+// `EditorContext.edit()`'s write, in the document's bytes, and what its commit came to.
+export type { Draft, DraftResult } from './schema/drafts';
 // The names every presentation-mode read reports, the `data-presentation` attribute included.
 export type { PresentationMode } from './presentation-mode';
 export type { ClickInput } from './activation-click';
@@ -265,14 +280,20 @@ export { htmlBlockTagLineMatcher } from './core/parsers/html-block';
 // construct (`> [!NOTE]`) reuses CommonMark §5.1 lazy continuation instead of writing its own.
 export { blockquoteExtent } from './core/parsers/blockquote';
 
-// ── Line-prefixed container rebuild (pre-freeze) ─────────────────────────────
-// A container whose every line carries a prefix rebuilds through `rebuildStripRaw`, which keeps
-// every line an edit didn't touch; a `LineCodec` (`quoteLines`, `hangingIndentLines`) is the prefix.
-export { rebuildStripRaw } from './schema/strip-rebuild';
-export type { StripRebuild, StripRebuildOptions } from './schema/strip-rebuild';
-export { quoteLines } from './core/parsers/blockquote';
-export { hangingIndentLines } from './core/strip-lines';
-export type { LineCodec, LinePlace, BodyLine } from './core/strip-lines';
+// ── Container line shapes (pre-freeze) ───────────────────────────────────────
+// A container states how its lines look as `container.lines`, and the editor writes its bytes from
+// that. `stripShapedLines` reads an opener's lines the same way, until the editor parses them itself.
+export { QUOTE_LINES } from './core/parsers/blockquote';
+export { stripShapedLines } from './core/strip-shaped-lines';
+export { fencedLines } from './schema/fenced-lines';
+export type {
+	LineShape,
+	MarkedLines,
+	IndentedLines,
+	FencedLines,
+	ColonLines
+} from './core/strip-lines';
+export type { StripRebuild } from './schema/strip-rebuild';
 
 // ── CST node access (pre-freeze; the metadata pair below is stable) ──────────
 export type { CstNode } from './core/nodes';
@@ -307,7 +328,7 @@ export function computeInlineContent(node: NodeView): InlineNode[] {
 // ── Container-authoring API (pre-freeze) ─────────────────────────────────────
 // The pieces a container plugin shares with the editor; `createContainerBlock` and `BlockList` are
 // on `/svelte`. `registerChromeLeaf` gives a container an editable title row.
-export type { Draft, DraftCloseCause, DraftSpec } from './schema/drafts';
+export type { DraftCloseCause, DraftSpec } from './schema/drafts';
 export type { RefSlots } from './block-lists/child-refs';
 export type { ChildList } from './block-lists/child-list';
 // The one place allowed to import from `components/`, so `editor-actions` keeps no upward
@@ -342,10 +363,11 @@ export {
 	withDirectiveName
 } from './core/directive/grammar';
 export type { DirectiveTier, DirectiveFence, DirectiveAttributes } from './core/directive/grammar';
-// The `rebuildRaw` for a `:::` container: child 0 is its opener line, which the grammar puts there.
-export { createDirectiveRebuild } from './editor-actions/plugin/directive-container';
-// The wrap every `:::` body parses with (a kind's `container.bodyWrap`), and the kind of every `:::`
-// container's opener-line row (what a folding `:::` kind names as its `reservedChrome.kind`).
+// The lines of a `:::` container (`container.lines`): child 0 is its opener line, which the grammar
+// puts there, and the editor widens every colon run past a body line that would close it.
+export { COLON_LINES } from './schema/colon-lines';
+// The wrap every `:::` body parses with (`COLON_LINES` gives it a kind), and the kind of each
+// `:::` container's opener-line row (what a folding `:::` kind names as its `reservedChrome.kind`).
 export { DIRECTIVE_BODY_WRAP, DIRECTIVE_OPENER_LINE } from './core/directive/container-shape';
 
 // ── Renderer utilities (pre-freeze) ──────────────────────────────────────────
@@ -417,10 +439,10 @@ export type {
 } from './inline-menu/types';
 
 // ── Insert catalogue (pre-freeze) ────────────────────────────────────────────
-// The blocks the insert menus offer, read through `editor.insertCatalogue`. A plugin adds its own
-// block from `setup`, listed only in the editors that activate it; the icon is a menu glyph name.
+// The rows the insert menus offer, read through `editor.inserts`. A plugin value lists its own in
+// `contributes`, a `setup` plugin registers one; the icon is a menu glyph name.
 export { registerInsertEntry } from './schema/insert-catalogue';
-export type { InsertEntry } from './schema/insert-catalogue';
+export type { InsertEntry, InsertRow } from './schema/insert-catalogue';
 export type { MenuIconName } from './menu-icons';
 
 // ── Rects (pre-freeze) ───────────────────────────────────────────────────────

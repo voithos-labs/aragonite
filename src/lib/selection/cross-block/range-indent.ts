@@ -296,7 +296,12 @@ function nestItem(ctx: RangeIndentContext, itemPath: number[]): Promise<boolean>
 		state: containerScopeState(ctx.pasteCoordinator, list),
 		path: listPath
 	};
-	return nestListItem(ctx.pasteCoordinator, target, itemPath[itemPath.length - 1]);
+	return nestListItem(
+		ctx.pasteCoordinator,
+		ctx.reading.grammar,
+		target,
+		itemPath[itemPath.length - 1]
+	);
 }
 
 /** Lifts the item out of the sublist its parent item holds; a list with no item above it, or one
@@ -315,6 +320,7 @@ function liftItem(ctx: RangeIndentContext, itemPath: number[]): Promise<boolean>
 	};
 	return liftNestedItem(
 		ctx.pasteCoordinator,
+		ctx.reading.grammar,
 		target,
 		nestedPath[nestedPath.length - 2],
 		nested,

@@ -42,9 +42,9 @@ import { pluginGlobalBinding } from '#lib/schema/commands.js';
 import { getBlockCommand } from '#lib/schema/block-commands.js';
 import { rangeIndentForm } from '#lib/schema/range-indent-forms.js';
 import { blockContextActionsFor } from '#lib/schema/context-actions.js';
-import { insertCatalogue } from '#lib/schema/insert-catalogue.js';
+import { insertRows } from '#lib/schema/insert-catalogue.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { isInlineWidget } from '#lib/core/inline/inline-widgets.js';
 import { handlersFor } from '#lib/core/inline/scan/plugin-syntax.js';
 import { isBlockKindRegistered } from '#lib/schema/block-kind-descriptor.js';
@@ -157,7 +157,7 @@ const PROBES: { entry: string; register(): void; registered(): boolean }[] = [
 				keywords: [],
 				markdown: 'probe\n'
 			}),
-		registered: () => insertCatalogue(everyInstalledPlugin).some((e) => e.id === 'probe-entry')
+		registered: () => insertRows(everyInstalledPlugin).some((e) => e.id === 'probe-entry')
 	},
 	{
 		entry: 'registerLanguage',

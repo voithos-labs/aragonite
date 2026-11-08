@@ -3,7 +3,7 @@ import { parse } from '#lib/core/parser.js';
 import { assignIds } from '#lib/block-id.js';
 import { createSharingState, type SharingState } from '#lib/tree-operations/sharing.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { documentBody } from '#lib/tree-operations/node-primitives.js';
 import { createScopeWriter, type ScopeWriter } from '#lib/editor-actions/commit/scope-writes.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';

@@ -1,9 +1,8 @@
 /**
- * Per-container-kind raw rebuilders. Kept apart from `container-raw.ts`, which walks a node's
- * ancestors, so the built-in registrations can declare `rebuildRaw` directly: this file imports
- * no registry, that walk must, and one file holding both would cycle. The two shared rebuild
- * shapes live in `child-spans.ts` and `strip-rebuild.ts`; each kind here adds only its own per-line
- * syntax.
+ * The list's and the table's own rebuilds, the containers no line shape states. Kept apart from
+ * `container-raw.ts`, which walks a node's ancestors, so the built-in registrations can declare
+ * `rebuildRaw` directly: this file imports no registry, that walk must, and one file holding both
+ * would cycle.
  */
 
 import type { CstNode, TableAlignment, TableRowMetadata } from '../core/nodes';
@@ -12,10 +11,8 @@ import { generateBlockId } from '../block-id';
 import type { NodeView } from '../core/node-views';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { recordListMarkerReads } from '../perf/instruments';
-import { quoteLines } from '../core/parsers/blockquote';
 import {
 	countsAfterRewrite,
-	listItemLines,
 	markerWidthCounts,
 	markerWidthTally,
 	readItemShape,
@@ -23,7 +20,6 @@ import {
 	type MarkerWidths
 } from '../core/parsers/list';
 import {
-	firstDisplayLine,
 	firstLineEnding,
 	isBlankLine,
 	ownTrailingLineEnding,
@@ -45,40 +41,8 @@ import {
 	type CellSpan
 } from '../core/parsers/table-line';
 import { rebuildConcatRaw, spliceVerbatimChild, type ChildRawChange } from './child-spans';
-import { rebuildStripRaw, type StripRebuild } from './strip-rebuild';
-
-// ── Blockquote ───────────────────────────────────────────────────────────────
-
-export function rebuildBlockquoteRaw(
-	node: CstNode,
-	changed?: ChildRawChange
-): StripRebuild | undefined {
-	if (!node.children) return;
-	return rebuildStripRaw(node, quoteLines, { changed });
-}
 
 // ── List ─────────────────────────────────────────────────────────────────────
-
-/** The item's lines written under its metadata, at the indent its own first line had; its
- *  previous bytes are read under the shape that first line was written in. */
-export function rebuildListItemRaw(
-	node: CstNode,
-	changed?: ChildRawChange
-): StripRebuild | undefined {
-	if (!node.children || !node.metadata) return;
-	const meta = metadataOf(node, 'listItem');
-	const previous = readItemShape(firstDisplayLine(node.raw).text);
-	const shape = {
-		indent: previous?.indent ?? '',
-		marker: meta.marker ?? '- ',
-		taskMarker: meta.taskMarker ?? null
-	};
-	const lines = listItemLines(shape);
-	const unchanged =
-		!previous || (previous.marker === shape.marker && previous.taskMarker === shape.taskMarker);
-	const was = unchanged ? lines : listItemLines(previous);
-	return rebuildStripRaw(node, lines, { changed, previous: was });
-}
 
 export function rebuildListRaw(node: CstNode, changed?: ChildRawChange): void {
 	if (!node.children) return;

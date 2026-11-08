@@ -6,7 +6,7 @@ import {
 	assembleListHalf,
 	buildListItemWithContent
 } from '../../tree-operations/list/list-builders';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 function firstBlock(source: string): CstNode {
 	return parse(source).children[0];
@@ -59,7 +59,7 @@ describe('checkStaleRaw (G1.1)', () => {
 		expect(emptyItem.raw).toBe('- \n');
 		expect(checkStaleRaw(emptyItem, defaultGrammarView)).toBeNull();
 
-		const list = assembleListHalf(listTemplate, [emptyItem], 1);
+		const list = assembleListHalf(listTemplate, [emptyItem], 1, defaultGrammarView);
 		expect(list.raw).toBe('- \n');
 		expect(checkStaleRaw(list, defaultGrammarView)).toBeNull();
 	});

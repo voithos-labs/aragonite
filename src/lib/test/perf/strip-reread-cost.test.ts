@@ -1,6 +1,6 @@
 // Miss-analysis: the rederive gate counted parses per keystroke but never their size, so nothing
 // said a list item's re-read stays the size of the item in a long list.
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { CstNode } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';

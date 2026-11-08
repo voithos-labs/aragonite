@@ -47,7 +47,9 @@ import {
 	type KitCell
 } from './conformance-core';
 import { installOwnRaw } from '../tree-operations/node-primitives';
-import { defaultGrammarView, type BlockOpener, type OpenContext } from '../schema/block-openers';
+import { writeContainerRaw } from '../schema/container-writer';
+import { type BlockOpener, type OpenContext } from '../schema/block-openers';
+import { defaultGrammarView } from '../schema/editor-grammar';
 import { createHeadlessActions } from './headless-actions';
 import { KIND_CELL_CONTRACTS } from './cell-contracts';
 import { assertParseConverged } from './parse-convergence';
@@ -238,12 +240,12 @@ function execRoundTrip(
 		ctx.fixture,
 		`serialize(parse(fixture)) round-trips for "${kind}"`
 	);
-	if (descriptor.rebuildRaw) {
-		const first = rebuildRawOf(ctx, descriptor);
-		const second = rebuildRawOf(ctx, descriptor);
-		assertIs(first, second, `"${kind}" rebuildRaw is deterministic`);
+	if (descriptor.isContainer) {
+		const first = rebuildRawOf(ctx);
+		const second = rebuildRawOf(ctx);
+		assertIs(first, second, `"${kind}"'s writer is deterministic`);
 		assertRebuildKeepsParsedBytes(descriptor, freshSubject(ctx), `"${kind}"`);
-		return 'byte round-trip + rebuildRaw parse-identity + determinism';
+		return 'byte round-trip + writer parse-identity + determinism';
 	}
 	return 'byte round-trip';
 }
@@ -406,12 +408,12 @@ function execUnfinishedReading({ parsed: ctx }: KindRun): CellOutcome {
 			(opener) =>
 				lines.length > 1 &&
 				opensKind(opener, ctx.node.raw, ctx.kind) &&
-				opener.readingNotFinal?.notFinal(opened)
+				opener.readingNotFinal?.notFinal(opened, defaultGrammarView)
 		);
 	if (waiting.length === 0) {
 		// A fence that nothing closes takes in every block below, so its opener has to say so.
 		assert(
-			lines.length < 2 || !fenceReading.notFinal(opened),
+			lines.length < 2 || !fenceReading.notFinal(opened, defaultGrammarView),
 			`${ctx.kind}'s fixture is a fence, but its opener declares no readingNotFinal: declare ` +
 				`fenceReading, or an edit that moves where the fence closes leaves the blocks below ` +
 				`paired the old way`
@@ -554,9 +556,9 @@ function freshSubject(ctx: KindCellContext): CstNode {
 	return subjectNode(parse(ctx.fixture), ctx.kind, ctx.nodePath, 'conformanceFixture');
 }
 
-function rebuildRawOf(ctx: KindCellContext, descriptor: BlockKindDescriptor): string {
+function rebuildRawOf(ctx: KindCellContext): string {
 	const node = freshSubject(ctx);
-	descriptor.rebuildRaw!(node);
+	writeContainerRaw(node, defaultGrammarView);
 	return node.raw;
 }
 

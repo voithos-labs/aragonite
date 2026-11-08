@@ -5,7 +5,7 @@ import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { documentBody } from '../../tree-operations/node-primitives';
 import { createSharingState } from '../../tree-operations/sharing';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { reorderSettled } from '#lib/test/harness/settle-funnel.js';
 
 // Blocks a paragraph can continue into and blocks it can't, with doubled blank lines, since an

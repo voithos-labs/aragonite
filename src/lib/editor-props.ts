@@ -3,6 +3,7 @@
  * snippet `header` to these, and `createEditor`'s add an element one. Editor.svelte annotates its
  * props and methods against these, so neither can drift from the component.
  */
+import type { Draft } from './schema/drafts';
 import type { AnyBlockKind } from './core/nodes';
 import type {
 	CodeMenuItemsHook,
@@ -21,14 +22,14 @@ import type { SearchState } from './search/search-state.svelte';
 import type { DecorationRegistry } from './decorations/types';
 import type { EditorRects } from './editor-rects';
 import type { InlineMenuRegistry } from './inline-menu/types';
-import type { InsertEntry } from './schema/insert-catalogue';
-import type { EditorPluginEntry } from './schema/plugin-install';
-import type { SyntaxOptions } from './schema/registry-view';
+import type { PluginsProp } from './schema/plugin-install';
+import type { Editor, PluginError } from './schema/plugin-unit';
+import type { SyntaxOptions } from './schema/editor-grammar';
 import type { InteractionTraceEntry } from './debug/interaction-trace';
 import type { InputRecordingHandle, InputRecordingOptions } from './debug/input-recorder';
 
 export type { EditorPluginEntry } from './schema/plugin-install';
-export type { SyntaxOptions } from './schema/registry-view';
+export type { SyntaxOptions } from './schema/editor-grammar';
 export type { InteractionTraceEntry } from './debug/interaction-trace';
 export type { InputRecordingHandle, InputRecordingOptions } from './debug/input-recorder';
 export type { InputRecording } from './debug/input-recording';
@@ -104,12 +105,15 @@ export interface EditorOptions {
 	linkClick?: LinkClick;
 	/** Per-instance keymap overrides over the built-in command vocabulary. */
 	keybindings?: KeybindingOverride[];
-	/** Plugins installed once, in array order, at mount. Set-once: a later change to this
-	 *  prop is ignored, because installation is process-global and cannot re-run. An entry
-	 *  may be a plugin on its own or `{ plugin, options }` for per-instance options. The
-	 *  array also says which plugins are enabled: this editor activates exactly what it
-	 *  lists, and no prop at all activates everything installed. */
-	plugins?: readonly EditorPluginEntry[];
+	/** The plugins this editor runs, read at mount; `use` changes them later, a new value here
+	 *  doesn't. A plugin value is read for this editor alone (call it with options for
+	 *  per-editor ones); a `setup` plugin installs once per process, and `{ plugin, options }`
+	 *  gives it options here. No prop at all runs every installed `setup` plugin. */
+	plugins?: PluginsProp;
+	/** Hears what a plugin throws installing, reading its options, setting up or in a listener, the
+	 *  errors raised while the editor mounts included. Its commands, views and decorations still
+	 *  report on the `error` event alone. */
+	onError?: (error: PluginError) => void;
 	/** GFM syntaxes to switch off in this editor, each on by default and read once at mount:
 	 *  `indentedCode: false` reads a line indented by a tab or four spaces as prose, and
 	 *  `setextHeading: false` reads `===` or `---` under text as prose or a divider. Only the
@@ -158,6 +162,7 @@ export const EDITOR_OPTION_SPECS = {
 	onRunCode: { timing: 'live' },
 	codeMenuItems: { timing: 'live' },
 	plugins: { timing: 'once' },
+	onError: { timing: 'live' },
 	syntax: { timing: 'once' },
 	scrollMode: { timing: 'once' }
 } as const satisfies EditorOptionSpecs;
@@ -182,7 +187,10 @@ export interface InsertMarkdownOptions {
 }
 
 /** The `bind:this` handle a consumer can name and hold a ref to. */
-export interface EditorInstance {
+export interface EditorInstance extends Editor {
+	/** Turns plugins on and off in this editor and reads the document again; undo history stays.
+	 *  What a plugin turned off added goes away with it. */
+	use(plugins: PluginsProp): void;
 	getSource(): string;
 	/**
 	 * The block kind at `path` (child indices from the document root), or null when the path
@@ -214,10 +222,16 @@ export interface EditorInstance {
 	 */
 	placeCaretAtPoint(x: number, y: number): boolean;
 	/**
+	 * An edit against the document as it is now, in byte offsets of its text: `replace` ranges,
+	 * `insert` Markdown at the caret, then `commit` them as one undo step, now or after a wait. A
+	 * write that landed in a range since makes the commit refuse, with the reason, rather than throw.
+	 */
+	edit(): Draft;
+	/**
 	 * Insert markdown exactly as pasting it would, minus the clipboard: paste transforms,
-	 * delete-selection-first, one undo entry, focus at the end. Resolves true once the insert has
-	 * landed; false, with nothing changed, with no caret, in reading mode, or at a gap caret.
-	 * `placement: 'below'` first adds an empty paragraph after the caret's top-level block.
+	 * delete-selection-first, one undo entry, focus at the end. `edit().insert(md)`, resolved to
+	 * whether it landed: false, with nothing changed, with no caret, in reading mode, or at a gap
+	 * caret. `placement: 'below'` first adds an empty paragraph after the caret's top-level block.
 	 */
 	insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean>;
 	/**
@@ -249,12 +263,6 @@ export interface EditorInstance {
 	/** The same registry a plugin reaches as `editor.inlineMenus`, for a host that owns the menu's
 	 *  data (its document index, its tag list) rather than shipping a plugin for it. */
 	getInlineMenus(): InlineMenuRegistry;
-	/**
-	 * The blocks the insert menus offer, in menu order: the built-ins, then each block a plugin this
-	 * editor activated registered. The list the right-click flyout draws, for a host building its own
-	 * insert button; each entry's `markdown` is what to hand `insertMarkdown`. A fresh frozen list per call.
-	 */
-	getInsertCatalogue(): readonly InsertEntry[];
 	getRects(): EditorRects;
 	getDiagnostics(): EditorDiagnostics;
 	/**

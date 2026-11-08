@@ -31,7 +31,7 @@ import type {
 	InlineMenuSourceHandle
 } from './types';
 import type { Reading } from '../schema/reading';
-import type { DraftRegistry } from '../components/draft-registry';
+import type { Draft, DraftSpec } from '../schema/drafts';
 import type { EditorContext } from '../schema/plugin-install';
 import { openPick } from './pick-context';
 
@@ -59,7 +59,7 @@ export interface InlineMenuStateDeps {
 	/** The context of the plugin adding a source now; a pick's commit writes through a copy of it. */
 	ownerOfNewSource: () => EditorContext;
 	/** A pick waiting on its commit is a draft of the note it was made in. */
-	drafts: Pick<DraftRegistry, 'open'>;
+	drafts: { open(spec: DraftSpec): Draft };
 	/** Whether `offset` in the leaf at `path` sits inside an inline widget's shown source, where
 	 *  the bytes are a construct being edited and no trigger opens a list. */
 	showsSource: (path: readonly number[], leaf: NodeView, offset: number) => boolean;

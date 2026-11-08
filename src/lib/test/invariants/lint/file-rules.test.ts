@@ -361,6 +361,31 @@ const ONE_VIEW_WRAPPER: FileRule = {
 	]
 };
 
+// ── G4.317 the one write ─────────────────────────────────────────────────────
+
+const ONE_WRITE: FileRule = {
+	id: 'G4.317 bytes are handed to the byte splice by a draft, or by a caller the list names',
+	population: under(SOURCE_DIR.library, SOURCE_DIR.plugins),
+	matches: /\.commitSource\(\s*\{/,
+	allowed: {
+		[SOURCE.draftRegistry]: 'the draft, the one write a plugin or a host makes',
+		'src/lib/components/Editor.svelte':
+			"the test bridge's splice, which tests the splice commit itself"
+	},
+	reason:
+		'a plugin or a host writes bytes through a `Draft`, which maps its ranges past the writes since it opened and refuses with a reason; an editor route that knows its bytes joins this list with why',
+	reaches: [SOURCE.draftRegistry],
+	hits: [
+		at('src/lib/x.ts', 'await controller.commitSource({ changes, caret, op, snapshot });'),
+		at('src/lib/x.ts', 'return deps.controller.commitSource({\n\tchanges: [change],')
+	],
+	misses: [
+		at('src/lib/x.ts', 'await draft.replace(range, text).commit();'),
+		at('src/lib/x.ts', 'commitSource: (text) => leaf.commitSource(text),'),
+		at('src/lib/x.ts', 'if (open && !open.stale) void commitSource(edited);')
+	]
+};
+
 // ── G4.221 the selection's shown text ────────────────────────────────────────
 
 const SELECTION_STRING_RE = /(?:\bgetSelection\(\)|\bsel(?:ection)?)\s*[!?]?\.toString\s*\(/;
@@ -1252,12 +1277,6 @@ const RULES: FileRule[] = [
 				'the built-in kinds, whose first registration can fall inside a plugin’s setup (the first grammar read)',
 			'src/lib/components/blocks/directive/activate-directives.ts':
 				'the directive grammar and its components, which a consumer may turn on from a plugin’s setup and the reset drops',
-			'src/lib/schema/commands.ts':
-				'the editor’s own global commands, registered as the module loads',
-			'src/lib/tree-operations/paste/hooks.ts':
-				'the built-in kinds’ default paste surfaces, registered as the module loads',
-			'src/lib/core/parsers/table-completion.ts':
-				'the table’s Enter completer, registered as the parser loads',
 			'src/lib/core/inline/inline-widgets.ts':
 				'`registerCoreInlineWidget`, the inline widgets the editor draws itself'
 		},
@@ -1477,7 +1496,6 @@ const RULES: FileRule[] = [
 		id: 'G4.86 a list item’s marker is read where the list is built, drawn or dumped',
 		matches: LIST_MARKER_READ,
 		allowed: {
-			'src/lib/schema/container-rebuilders.ts': 'writes the marker back in front of the item',
 			'src/lib/tree-operations/list/ordered-markers.ts':
 				'renumbers an ordered list, and asks whether two items read as one list',
 			'src/lib/tree-operations/list/task-paragraph.ts':
@@ -3245,7 +3263,8 @@ describeFileRules(
 		...CODE_EDIT_SPAN,
 		...SYNTAX_MODULES,
 		PLUGIN_VIEW_FALLBACK,
-		ONE_VIEW_WRAPPER
+		ONE_VIEW_WRAPPER,
+		ONE_WRITE
 	],
 	SOURCES
 );

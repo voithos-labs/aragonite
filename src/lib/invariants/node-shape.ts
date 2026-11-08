@@ -6,6 +6,7 @@ import { concatChildren } from '../core/serializer';
 import { countsCells, getBlockKindDescriptor, hasOwnOpener } from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf, rowIsOpenerLine } from '../schema/reserved-chrome';
 import type { GrammarView } from '../schema/block-openers';
+import { writeContainerRaw } from '../schema/container-writer';
 import { isDirectiveKind } from '../core/directive/registry';
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
 import { describeMetadataDivergence } from '../core/metadata-parity';
@@ -203,29 +204,30 @@ function opaqueRawFaithful(reparsed: CstNode, node: CstNode): boolean {
 
 // ── G1.13: opaque rebuild determinism ─────────────────────────────────────────
 
-/** G1.13: a plugin's `rebuildRaw` gives the same bytes every time for the same state, which G1.12's
- *  single reparse relies on. The two trial runs compare to each other, never to `node.raw`. */
-export function checkOpaqueRebuildDeterminism(node: CstNode): InvariantViolation | null {
-	const descriptor = getBlockKindDescriptor(node.kind);
-	if (descriptor.containerContract !== 'opaque' || !descriptor.rebuildRaw) return null;
-
-	const first = probeRebuild(node, descriptor.rebuildRaw);
-	const second = probeRebuild(node, descriptor.rebuildRaw);
+/** G1.13: an opaque container's writer gives the same bytes every time for the same state, which
+ *  G1.12's single reparse relies on. The two trial runs compare to each other, never to `node.raw`. */
+export function checkOpaqueRebuildDeterminism(
+	node: CstNode,
+	grammar: GrammarView
+): InvariantViolation | null {
+	if (getBlockKindDescriptor(node.kind).containerContract !== 'opaque') return null;
+	const first = probeRebuild(node, grammar);
+	const second = probeRebuild(node, grammar);
 	if (first === second) return null;
 	return {
 		code: 'opaque-rebuild-nondeterministic',
-		message: `${node.kind} rebuildRaw emitted different bytes over identical committed state`,
+		message: `${node.kind}'s writer emitted different bytes over identical committed state`,
 		detail: { kind: node.kind, first: clampForDetail(first), second: clampForDetail(second) }
 	};
 }
 
-/** `rebuildRaw` writes only `raw` (the editor re-reads metadata from it), so the trial copies the
+/** The writer writes only `raw` (the editor re-reads metadata from it), so the trial copies the
  *  children array and metadata and shares the child nodes, since copying those is a deep clone. */
-function probeRebuild(node: CstNode, rebuildRaw: (probe: CstNode) => void): string {
+function probeRebuild(node: CstNode, grammar: GrammarView): string {
 	const probe = { ...node };
 	if (probe.children) probe.children = [...probe.children];
 	if (probe.metadata) probe.metadata = { ...probe.metadata };
-	rebuildRaw(probe);
+	writeContainerRaw(probe, grammar);
 	return probe.raw;
 }
 

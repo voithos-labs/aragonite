@@ -4,7 +4,7 @@ import { serialize } from '#lib/core/serializer.js';
 import { updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { rebuildContainerRaw } from '#lib/schema/container-raw.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 

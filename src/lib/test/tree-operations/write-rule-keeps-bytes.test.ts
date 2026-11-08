@@ -10,7 +10,7 @@ import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { legalizeWrite, updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { registerMathBlock } from '#packages/latex/src/latex-kind.js';
 import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';

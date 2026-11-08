@@ -7,11 +7,11 @@ import type { CstNode, Document } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { documentLineEnding, trailingLineEnding } from '#lib/core/lines.js';
-import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { deleteSettled } from '#lib/test/harness/settle-funnel.js';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
 
 // A blockquote keeps its body's one trailing blank line in `innerSuffix` only while its last block
 // is non-blank, so once that block turns blank the fix-up makes the line a block.
@@ -34,7 +34,7 @@ function containersAlong(doc: Document, path: number[]): CstNode[] {
 
 function rebuild(chain: CstNode[]): void {
 	for (let i = chain.length - 1; i >= 0; i--) {
-		getBlockKindDescriptor(chain[i].kind).rebuildRaw?.(chain[i]);
+		writeContainerRaw(chain[i], defaultGrammarView);
 	}
 }
 
@@ -65,7 +65,7 @@ describe("blanking a blockquote's last block turns its trailing line into a bloc
 		empty(doc, [0, 0]);
 
 		const quote = doc.children[0];
-		expect(serialize(doc)).toBe('>\n>\n');
+		expect(serialize(doc)).toBe('> \n>\n');
 		expect(quote.children!.map((c) => [c.leadingTrivia, c.raw])).toEqual([
 			['', '\n'],
 			['', '\n']

@@ -9,7 +9,7 @@ import type { CstNode } from '#lib/core/nodes.js';
 import { createTableMutationsContext } from '#lib/editor-actions/table-context.js';
 import { sliceTableAtRow } from '#lib/tree-operations/paste/table-slice.js';
 import { checkReadsBack } from '#lib/invariants/reads-back.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { makeBlockListState } from '#lib/test/harness/editor-actions.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';

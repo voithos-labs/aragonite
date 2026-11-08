@@ -12,7 +12,7 @@ import { installPlugins } from '#lib';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
 import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { rebuildUnsharedChain } from '#lib/tree-operations/chain-rebuild.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';

@@ -12,7 +12,7 @@ import {
 	mountEveryBlock
 } from '#lib/test/harness/editor-actions.js';
 
-// rebuildListItemRaw no-ops without `children`, so raw-assertion cases need a child.
+// The container writer writes nothing without `children`, so raw-assertion cases need a child.
 function makeTaskListItem(text: string, taskMarker: string): any {
 	const checked = taskMarker.trim().toLowerCase() === '[x]';
 	return {

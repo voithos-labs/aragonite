@@ -4,11 +4,13 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse, serialize } from '#lib';
 import { footnotesPlugin } from '#packages/footnotes/src/index.js';
-import { rebuildFootnoteDefRaw } from '#packages/footnotes/src/footnote-definition.js';
+
 import { splitNode } from '#lib/tree-operations/index.js';
 import { describeConvergence } from '#lib/testing/parse-convergence.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 describe('footnote definition Enter at the end of the body', () => {
 	beforeEach(() => {
@@ -26,7 +28,7 @@ describe('footnote definition Enter at the end of the body', () => {
 			fixtureReading()
 		);
 		def.children![1].raw = 'two\n';
-		rebuildFootnoteDefRaw(def);
+		writeContainerRaw(def, defaultGrammarView);
 
 		expect(describeConvergence(doc)).toBeNull();
 		expect(serialize(doc)).toBe('[^a]: one\n\n    two\n');

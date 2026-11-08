@@ -166,7 +166,7 @@ export interface ContainerSurface extends CommandHooksSurface {
 	/** Mount the child blocks into `box` (`target` or inside it, after the view's children; the box
 	 *  they're already in changes nothing); a child's chord resolves against the kind's keymap. */
 	mountChildren(box: HTMLElement): void;
-	/** Commit a shallow metadata patch as one undo entry, through the kind's `rebuildRaw`. */
+	/** Commit a shallow metadata patch as one undo entry, written into the container's bytes. */
 	updateOwnMetadata(
 		patch: Record<string, unknown>,
 		options?: { caret?: { path: number[]; offset: number } }

@@ -14,7 +14,8 @@ import {
 	trimTrailingLineEnding,
 	type LineEnding
 } from '../../core/lines';
-import { rebuildListItemRaw, rebuildListRaw } from '../../schema/container-rebuilders';
+import { rebuildListRaw } from '../../schema/container-rebuilders';
+import { writeContainerRaw } from '../../schema/container-writer';
 import { readItemShape } from '../../core/parsers/list';
 import { cloneMetadata, cloneNode } from '../clone';
 import { parseCutResidue, parseFirstBlock } from '../parse-block';
@@ -36,7 +37,8 @@ import { emptyParagraph } from '../node-primitives';
 export function assembleListHalf(
 	template: NodeView,
 	items: CstNode[],
-	startNumber: number
+	startNumber: number,
+	grammar: GrammarView
 ): CstNode {
 	const half: CstNode = {
 		kind: 'list',
@@ -52,7 +54,7 @@ export function assembleListHalf(
 	};
 	if (items[0]) items[0].leadingTrivia = '';
 	// The caller owns the items, so a fresh sharing state copies none of them.
-	renumberOrderedListFrom(half, startNumber, createSharingState());
+	renumberOrderedListFrom(half, startNumber, createSharingState(), grammar);
 	rebuildListRaw(half);
 	return half;
 }
@@ -100,12 +102,12 @@ function mintListItem(
 		innerSuffix: source.innerSuffix ?? ''
 	};
 	if (children[0]) children[0].leadingTrivia = '';
-	rebuildListItemRaw(item);
+	writeContainerRaw(item, grammar);
 	// A first line the marker line doesn't hold as this item takes the wider marker it reads as,
 	// or else opens below an empty marker (`docs/design/structural-edits.md` § The container `raw` contract).
 	if (adoptOwnReading(item, grammar)) return item;
 	if (takeWidenedMarker(item, grammar) && adoptOwnReading(item, grammar)) return item;
-	openBelowMarker(item);
+	openBelowMarker(item, grammar);
 	adoptOwnReading(item, grammar);
 	return item;
 }
@@ -120,7 +122,7 @@ function takeWidenedMarker(item: CstNode, grammar: GrammarView): boolean {
 	item.metadata = widened.metadata;
 	first.raw = first.raw.slice(widened.taken);
 	item.raw = shiftedBelowFirst(item.raw, column, widened.width.to - widened.width.from);
-	rebuildListItemRaw(item);
+	writeContainerRaw(item, grammar);
 	return true;
 }
 
@@ -140,18 +142,18 @@ function shiftedBelowFirst(raw: string, column: number, grow: number): string {
 
 /** `item` with an empty first line, its blocks below it: a first line no marker holds (a line of
  *  dashes reads as a divider) reads as the item's own there. */
-function openBelowMarker(item: CstNode): void {
+function openBelowMarker(item: CstNode, grammar: GrammarView): void {
 	const children = item.children!;
 	children.unshift(emptyParagraph('', trailingLineEnding(children[0]?.raw ?? '', '\n')));
 	item.childIds = assignIds(children);
-	rewriteFromOpener(item);
+	rewriteFromOpener(item, grammar);
 }
 
 /** Rebuilds `item` from its opener line alone, so no line below keeps a column it was written at. */
-function rewriteFromOpener(item: CstNode): void {
+function rewriteFromOpener(item: CstNode, grammar: GrammarView): void {
 	const { marker, taskMarker } = metadataOf(item, 'listItem');
 	item.raw = (readItemShape(item.raw)?.indent ?? '') + marker + (taskMarker ?? '');
-	rebuildListItemRaw(item);
+	writeContainerRaw(item, grammar);
 }
 
 /**

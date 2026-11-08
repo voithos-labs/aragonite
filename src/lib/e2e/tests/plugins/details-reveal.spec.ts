@@ -66,8 +66,8 @@ test.describe('plugin container: <details> reveal-into-collapsed', () => {
 		// edit, which touches only the summary's bytes.
 		await editor.typeText('!');
 		await editor.bridge.waitForSourceContains('<summary>Sum!</summary>');
-		// `rebuildDetailsRaw` regenerates the opener line from metadata on every child write, so a
-		// summary keystroke is where a committed `open` would be dropped.
+		// The writer regenerates the opener line from metadata on every child write, so a summary
+		// keystroke is where a committed `open` would be dropped.
 		expect(await editor.bridge.getSource()).toContain('<details open>\n');
 		expect(await capturedErrors(page)).toEqual([]);
 	});

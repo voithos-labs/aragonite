@@ -5,7 +5,9 @@
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import { makeBlockNode, type BlockMetadata, type CstNode } from '#lib/core/nodes.js';
-import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
+import type { ChildRawChange } from '#lib/schema/child-spans.js';
 import { spliceChildren } from '#lib/tree-operations/children.js';
 
 import { makeNestedHarness } from '#lib/test/harness/editor-actions.js';
@@ -105,7 +107,9 @@ function buildContainer(c: Case): CstNode {
 	});
 }
 
-const rebuilderFor = (node: CstNode) => getBlockKindDescriptor(node.kind).rebuildRaw!;
+const rebuild = (node: CstNode, changed?: ChildRawChange): void => {
+	writeContainerRaw(node, defaultGrammarView, changed);
+};
 
 /** The same children rebuilt from scratch, the reference every spliced state is compared to. */
 function fullRebuildOf(node: CstNode): CstNode {
@@ -117,7 +121,7 @@ function fullRebuildOf(node: CstNode): CstNode {
 		children: node.children!.map((child) => ({ ...child })),
 		innerSuffix: node.innerSuffix
 	});
-	rebuilderFor(copy)(copy);
+	rebuild(copy);
 	return copy;
 }
 
@@ -135,7 +139,6 @@ function expectAgreesWithFullRebuild(node: CstNode, step: string): void {
 /** True when the rebuild kept the spans array it was handed, which only the splice path does. */
 function applyEdit(node: CstNode, edit: Edit): boolean {
 	const children = node.children!;
-	const rebuild = rebuilderFor(node);
 	if (edit.op === 'push') {
 		spliceChildren(node, children.length, 0, [paragraph('', edit.body)]);
 		rebuild(node);
@@ -200,7 +203,7 @@ describe('container child spans', () => {
 		fc.assert(
 			fc.property(arbCase, (c) => {
 				const node = buildContainer(c);
-				rebuilderFor(node)(node);
+				rebuild(node);
 				expectAgreesWithFullRebuild(node, 'seed');
 				c.edits.forEach((edit, i) => {
 					if (applyEdit(node, edit)) splices++;

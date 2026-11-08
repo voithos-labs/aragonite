@@ -4,6 +4,7 @@
  * owned; the input is not mutated.
  */
 
+import type { GrammarView } from '../../schema/block-openers';
 import type { CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import { metadataOf } from '../../core/nodes';
@@ -26,6 +27,7 @@ export interface DissolvedItem {
 export function dissolveItem(
 	list: NodeView,
 	itemIndex: number,
+	grammar: GrammarView,
 	firstBlock?: CstNode
 ): DissolvedItem {
 	return keepingListOrder(
@@ -34,7 +36,8 @@ export function dissolveItem(
 			const own = list.children![itemIndex].children ?? [];
 			const children = firstBlock ? [firstBlock, ...own.slice(1)] : own;
 			const parentOrdered = metadataOf(list, 'list')?.ordered ?? false;
-			return assembleInOrder(list, itemIndex, itemPiecesInOrder(children, parentOrdered));
+			const pieces = itemPiecesInOrder(children, parentOrdered);
+			return assembleInOrder(list, itemIndex, pieces, grammar);
 		},
 		({ blocks }) => blocks
 	);
@@ -62,7 +65,12 @@ function itemPiecesInOrder(children: readonly NodeView[], parentOrdered: boolean
 	return pieces;
 }
 
-function assembleInOrder(list: NodeView, itemIndex: number, pieces: ItemPiece[]): DissolvedItem {
+function assembleInOrder(
+	list: NodeView,
+	itemIndex: number,
+	pieces: ItemPiece[],
+	grammar: GrammarView
+): DissolvedItem {
 	const items = list.children!;
 	// The list's later items join the sublist items when those come last.
 	const last = pieces.at(-1);
@@ -74,7 +82,7 @@ function assembleInOrder(list: NodeView, itemIndex: number, pieces: ItemPiece[])
 	const base = orderedBaseOf(items[0]);
 	const blocks: CstNode[] = [];
 	if (itemIndex > 0)
-		blocks.push(assembleListHalf(list, items.slice(0, itemIndex).map(cloneNode), base));
+		blocks.push(assembleListHalf(list, items.slice(0, itemIndex).map(cloneNode), base, grammar));
 	const firstBlockIndex = blocks.length;
 	let number = base + itemIndex;
 	for (let k = 0; k < pieces.length; k++) {
@@ -90,7 +98,7 @@ function assembleInOrder(list: NodeView, itemIndex: number, pieces: ItemPiece[])
 			blocks.push(piece.block);
 			continue;
 		}
-		const half = assembleListHalf(list, piece.items, number);
+		const half = assembleListHalf(list, piece.items, number, grammar);
 		number += piece.items.length;
 		half.leadingTrivia = lineAboveList(blocks.at(-1), half, piece.leadingTrivia);
 		blocks.push(half);

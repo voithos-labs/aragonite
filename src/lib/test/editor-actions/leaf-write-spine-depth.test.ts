@@ -1,6 +1,6 @@
 // The copied chain must be as deep as the leaf path, or the write lands on a node the undo
 // snapshot shares and corrupts history at a later undo.
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { describe, it, expect, vi } from 'vitest';
 import * as unshare from '#lib/tree-operations/unshare.js';
 import { serialize } from '#lib/core/serializer.js';

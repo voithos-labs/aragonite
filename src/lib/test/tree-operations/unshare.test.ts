@@ -10,7 +10,7 @@ import {
 	rebuildOwnedContainer
 } from '../../tree-operations/unshare';
 import { rebuildUnsharedAncestry } from '../../tree-operations/chain-rebuild';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 function sharedDoc(src: string) {
 	const sharing = createSharingState();
@@ -80,7 +80,7 @@ it('rebuildOwnedContainer leaves a table’s rows shared when it keeps their byt
 	const [table] = ensureUnsharedPath(doc, [0], sharing);
 	const rows = [...table.children!];
 
-	rebuildOwnedContainer(table);
+	rebuildOwnedContainer(table, defaultGrammarView);
 
 	table.children!.forEach((row, i) => expect(row).toBe(rows[i]));
 	expect(table.children!.every((row) => sharing.isShared(row))).toBe(true);

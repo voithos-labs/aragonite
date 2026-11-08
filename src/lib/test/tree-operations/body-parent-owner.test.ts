@@ -3,7 +3,7 @@ import { parse } from '#lib/core/parser.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { documentBody, type BodyParent } from '#lib/tree-operations/node-primitives.js';
 import { fixUpEdit } from '#lib/tree-operations/fix-up/apply.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // A body names its container once, as `owner`, and the document root names none. The fix-up

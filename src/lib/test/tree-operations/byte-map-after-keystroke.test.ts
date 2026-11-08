@@ -3,7 +3,7 @@
 // Miss-analysis: every byte map test read a freshly parsed document, never one a commit had written.
 
 import { describe, expect, it } from 'vitest';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { documentLineEnding } from '#lib/core/lines.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';

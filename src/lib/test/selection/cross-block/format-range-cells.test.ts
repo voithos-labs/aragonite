@@ -3,7 +3,7 @@
 // a range covers is the grid's own question: a run to the endpoint cell with one side outside,
 // a rectangle with both inside. Every cell span is whole-cell.
 // Miss-analysis: no test in either suite handed the plan a table endpoint, in either space.
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';

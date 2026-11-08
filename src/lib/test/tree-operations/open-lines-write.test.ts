@@ -3,7 +3,7 @@
 // writes it: a reload reads that break as a backslash, so the write drops it and the lines.
 // Miss-analysis: #733, the only rows over that text drove the key route, so a cut or any other
 // write through the content write went unchecked.
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { describe, it, expect } from 'vitest';
 import { openLinesAtEnd, withHardBreak } from '#lib/core/inline/index.js';
 import { parse } from '#lib/core/parser.js';

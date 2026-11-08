@@ -4,11 +4,11 @@ import { describe, it, expect } from 'vitest';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { documentLineEnding } from '#lib/core/lines.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
 
 // A write into a task item's first paragraph reads its text the way the parser reads the item:
 // the line after the marker is paragraph text, so typing `# ` there keeps the paragraph and box.
@@ -27,8 +27,8 @@ function writeFirstTaskChild(doc: Document, text: string): CstNode {
 		defaultGrammarView,
 		createSharingState()
 	);
-	getBlockKindDescriptor('listItem').rebuildRaw?.(item);
-	getBlockKindDescriptor('list').rebuildRaw?.(list);
+	writeContainerRaw(item, defaultGrammarView);
+	writeContainerRaw(list, defaultGrammarView);
 	return item;
 }
 

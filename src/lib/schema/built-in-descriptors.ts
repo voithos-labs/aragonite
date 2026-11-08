@@ -1,7 +1,8 @@
 /**
- * Built-in block kinds (descriptor and opener) and inline-construct policies. Nothing registers on
- * import: the first grammar read, `core/inline/index.ts` and `components/built-in-blocks.ts` call
- * `registerBuiltInDescriptors()`, since tree-shaking keeps only a called binding.
+ * Built-in block kinds (descriptor and opener), the table's Enter completer and inline-construct
+ * policies. Nothing registers on import: the first grammar read, `core/inline/index.ts` and
+ * `components/built-in-blocks.ts` call `registerBuiltInDescriptors()`, since tree-shaking keeps
+ * only a called binding.
  */
 
 import { metadataOf } from '../core/nodes';
@@ -12,9 +13,9 @@ import { containerClosure, type ClosureBlock } from './closure';
 import type { KeyBinding } from './keybindings';
 import { registerBuiltinBlockKind } from './block-kind-descriptor';
 import { BUILT_IN_OPENERS } from '../core/parsers/built-in-openers';
+import { QUOTE_LINES } from '../core/parsers/blockquote';
+import { LIST_ITEM_LINES } from '../core/parsers/list';
 import {
-	rebuildBlockquoteRaw,
-	rebuildListItemRaw,
 	rebuildListRaw,
 	rebuildTableRaw,
 	rebuildTableRowRaw,
@@ -26,6 +27,7 @@ import { setextHeadingContentRange, setextHeadingWrite } from './setext-raw';
 import { registerInlineConstructPolicy } from './inline-construct-policy';
 import { registerAsCore } from './plugin-install';
 import { registerBuiltInRangeIndent } from './range-indent-forms';
+import { registerTableCompleter } from '../core/parsers/table-completion';
 import { asCodeSpan } from '../core/inline/scan/code-span';
 import {
 	containerEstimate,
@@ -249,6 +251,7 @@ export function registerBuiltInDescriptors(): void {
 
 function registerBuiltIns(): void {
 	registerBuiltInInlinePolicies();
+	registerTableCompleter();
 
 	registerBuiltinBlockKind('paragraph', {
 		pageRole: 'prose',
@@ -553,10 +556,8 @@ function registerBuiltIns(): void {
 		editable: true,
 		supportsInline: false,
 		container: {
-			contract: 'strip',
-			rebuildRaw: rebuildBlockquoteRaw,
+			lines: QUOTE_LINES,
 			containerPaste: { matchesAncestor: () => true, siblingAbsorb: false },
-			lines: { marker: 'every-line', lazy: true },
 			merges: {},
 			unwrapRole: {
 				firstChildBackspace: 'lift-first-child-drop-opener',
@@ -567,7 +568,7 @@ function registerBuiltIns(): void {
 		},
 		conformanceFixture: '> quoted\n',
 		closure: containerClosure({
-			roundTripVia: 'container contract=strip — rebuildBlockquoteRaw',
+			roundTripVia: 'container lines — the quote shape, written by the container writer',
 			focus: { mode: 'implemented', via: 'focus walks into the first child' },
 			mergeBackspace: {
 				mode: 'implemented',
@@ -629,11 +630,7 @@ function registerBuiltIns(): void {
 		mergeRole: 'container',
 		editable: true,
 		supportsInline: false,
-		container: {
-			contract: 'strip',
-			rebuildRaw: rebuildListItemRaw,
-			lines: { marker: 'first-line', lazy: true }
-		},
+		container: { lines: LIST_ITEM_LINES },
 		keymap: [
 			{ chord: 'Tab', command: 'list.indent' },
 			{ chord: 'Shift+Tab', command: 'list.unindent' },
@@ -641,7 +638,7 @@ function registerBuiltIns(): void {
 		],
 		conformanceFixture: '- item\n',
 		closure: containerClosure({
-			roundTripVia: 'container contract=strip — rebuildListItemRaw',
+			roundTripVia: 'container lines — the list item shape, written by the container writer',
 			focus: { mode: 'implemented', via: 'focus walks into the first child' },
 			mergeBackspace: {
 				mode: 'implemented',

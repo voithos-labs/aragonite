@@ -3,12 +3,12 @@ import { serialize } from '#lib/core/serializer.js';
 import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { rangeSelectionOf } from '#lib/test/harness/undo-entry.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
-import { createGrammarView } from '#lib/schema/block-openers.js';
 import { makeSearchReplace, scanCompiled } from '#lib/test/harness/search-replace.js';
 import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
 import { testLeaf, testContainer } from '#lib/test/harness/test-kinds.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { testView } from '#lib/test/harness/test-view.js';
+import { grammarWithout } from '#lib/test/harness/grammar-without.js';
 
 // A minimal stand-in for search/document-scan.ts, which the container cases below use instead.
 function scanForLiteral(doc: Document, needle: string) {
@@ -156,7 +156,7 @@ describe('replaceOne: single-subtree case', () => {
 	// Parity with the top-level content commit: the reparse honors the instance grammar.
 	it('honors the instance grammar: a disabled heading marker stays paragraph', async () => {
 		const { deps, sr } = makeSearchReplace('title\n');
-		deps.reading = fixtureReading({ grammar: createGrammarView((kind) => kind !== 'heading') });
+		deps.reading = fixtureReading({ grammar: grammarWithout('heading') });
 		await sr.replaceOne({ path: [0], start: 0, end: 0 }, '# ');
 		expect(deps.doc.children[0].kind).toBe('paragraph');
 	});

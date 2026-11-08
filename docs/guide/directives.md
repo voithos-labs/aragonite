@@ -156,7 +156,7 @@ You don't build the first line. The grammar takes `:::note Heads up` verbatim an
 | Leaf | optional | without one, the leaf just restamps its kind; with one, you build the node |
 | Text | refused | inline nodes are kind-only; a factory would never be called |
 
-p.s. Please, for chrissake, don't hand-write `rebuildRaw` for a container, lest you enjoy watching a car crash. `createDirectiveRebuild` does all of it; the plugin guide's walkthrough shows it in use.
+p.s. Please, for chrissake, don't hand-write `rebuildRaw` for a container, lest you enjoy watching a car crash. Give your kind `container: { lines: COLON_LINES }` and the editor writes the bytes for you; the plugin guide's walkthrough shows it in use.
 
 ## The info string and attributes
 
@@ -191,15 +191,15 @@ The ones you will actually use:
 | `activateDirectives` | once, at startup, to turn directives on at all |
 | `registerDirective` | to claim a name for your kind (this whole page) |
 | `isDirectiveRegistered` | to check whether a name is already taken, if you want first-wins instead of a throw |
-| `createDirectiveRebuild` | to get a `rebuildRaw` for your container without writing one (the thing you were told not to hand-write); it writes the opener line back as it stands, then the body and the closing line |
-| `DIRECTIVE_BODY_WRAP` | put it in your container kind's `bodyWrap`; it tells the parser how a `:::` body is wrapped in blank lines |
+| `COLON_LINES` | your container kind's `container.lines`, so the editor writes its bytes (the thing you were told not to hand-write): the opener line back as it stands, then the body and the closing line |
 
 The ones you probably won't:
 
 | Entry | When you reach for it |
 | --- | --- |
 | `parseDirectiveAttributes` | if your info strings use the `[label]{#id .class key=value}` convention and you want them read into an object |
-| `serializeDirective` | writes a fence back out from its parts; `createDirectiveRebuild` already calls it for you |
+| `serializeDirective` | writes a fence back out from its parts, if you build `:::name` text yourself |
+| `DIRECTIVE_BODY_WRAP` | how a `:::` body is wrapped in blank lines, for a parser of your own; `COLON_LINES` already says it |
 | `escalatedColonCount` | how many colons a fence needs to hold a given body; only if you build `:::name` text by hand |
 
 Plus the types: `DirectiveTier`, `DirectiveDefinition`, `ParsedDirective`, `DirectiveFence` and `DirectiveAttributes`.
@@ -232,4 +232,4 @@ For the `:::note Heads up` fence at the top of this page, your factory gets:
 }
 ```
 
-One thing to know before you write your metadata type: keep `closerColonCount` and `closerNewline` in it, under exactly those names. The closing line belongs to no child, so those two are how `createDirectiveRebuild` writes it back the way it was read (a `::::` closer under a `:::` opener, say, or a file that ends without a newline). Leave them out and you get a plain `:::` and a newline, which is a byte off for those files. The opener line needs nothing from metadata, since it's child 0 and goes back as it stands.
+Your metadata needs nothing for the fence lines. The opener line is child 0 and goes back as it stands, and the editor writes the closing line as long as the one it replaces, with or without its newline (a `::::` closer under a `:::` opener, say, or a file that ends without one).

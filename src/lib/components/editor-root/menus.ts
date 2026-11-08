@@ -19,7 +19,7 @@ import {
 } from '../../schema/context-actions';
 import type { PluginActivation } from '../../schema/plugin-activation';
 import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
-import type { InsertEntry } from '../../schema/insert-catalogue';
+import { rowMarkdown, type InsertRow } from '../../schema/insert-catalogue';
 import type { MenuEntry } from '../menu/BlockMenu.svelte';
 import {
 	runClipboardAction,
@@ -67,8 +67,8 @@ export interface RootMenusDeps {
 	insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean>;
 	/** What the clipboard rows cut, copy and paste through. */
 	clipboard: MenuClipboard;
-	/** The insert entries this editor lists, read fresh per menu. */
-	insertCatalogue(): readonly InsertEntry[];
+	/** The insert rows this editor lists, read fresh per menu. */
+	inserts(): readonly InsertRow[];
 	/** The plugins this editor lists, whose block actions and paste transforms the menu offers. */
 	activation: PluginActivation;
 	/** The editor's reading, which tells a paragraph of pictures from prose. */
@@ -141,7 +141,7 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		anchorEl: Element,
 		withInsert: boolean
 	): void {
-		const catalogue = deps.insertCatalogue();
+		const rows = deps.inserts();
 		const editLink: MenuEntry[] = deps.canEditLinkAtCaret()
 			? [
 					{ id: EDIT_LINK, label: 'Edit link', icon: 'link' },
@@ -156,7 +156,7 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 						id: 'insert',
 						label: 'Insert block',
 						icon: 'plus',
-						children: catalogue.map(({ id, label, icon }) => ({ id, label, icon }))
+						children: rows.map(({ id, label, icon }) => ({ id, label, icon }))
 					}
 				];
 		deps.setMenu({
@@ -168,8 +168,8 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 				deps.setMenu(null);
 				if (id === EDIT_LINK) return deps.editLinkAtCaret();
 				if (runClipboardRow(id)) return;
-				const entry = catalogue.find((e) => e.id === id);
-				if (entry && withInsert) void deps.insertMarkdown(entry.markdown, { placement: 'below' });
+				const row = rows.find((r) => r.id === id);
+				if (row && withInsert) void deps.insertMarkdown(rowMarkdown(row), { placement: 'below' });
 			}
 		});
 	}

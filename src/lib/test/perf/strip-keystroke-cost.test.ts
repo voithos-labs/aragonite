@@ -2,7 +2,7 @@
 // the typing costs no parse.
 // Miss-analysis: the keystroke cost tests counted rebuild depth and re-reads, never how many lines
 // a rebuild read, so a rebuild that walked every line of its container per key passed them.
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { CstNode } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';

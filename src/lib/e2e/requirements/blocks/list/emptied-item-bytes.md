@@ -14,7 +14,7 @@ An item at the very end of the document has no line ending, so once its text is 
 - Load `- a\n- b`, select `b`, Backspace: the source is `- a\n- ` and a reload still shows two bullets
 - Load `- a\n- b\n- c`, select `c`, Backspace, then Backspace at the start of `b`: the source is `- ab\n- `, two bullets show, a reload still shows two, and a typed character lands in the second
 - Load `- [ ] a`, select `a`, Backspace: the source is `- [ ] ` and a reload still shows a task item
-- Load `> a`, select `a`, Backspace: the source is `>` and a reload still shows a quote
+- Load `> a`, select `a`, Backspace: the source is `> `, the marker as spelled, and a reload still shows a quote
 
 ## Miss-analysis
 

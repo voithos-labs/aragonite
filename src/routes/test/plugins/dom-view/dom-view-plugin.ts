@@ -9,12 +9,11 @@ import {
 	OPENER_PRIORITIES,
 	activateDirectives,
 	containerClosure,
-	createDirectiveRebuild,
 	declarePluginKind,
 	declaredPluginKind,
 	defineBlockView,
 	definePlugin,
-	DIRECTIVE_BODY_WRAP,
+	COLON_LINES,
 	registerBlockKind,
 	registerDirective,
 	setPluginMetadata,
@@ -181,12 +180,10 @@ function registerDomViews(): void {
 		editable: true,
 		supportsInline: false,
 		container: {
-			contract: 'opaque',
-			rebuildRaw: createDirectiveRebuild(),
-			bodyWrap: DIRECTIVE_BODY_WRAP
+			lines: COLON_LINES
 		},
 		closure: containerClosure({
-			roundTripVia: 'container contract=opaque, the directive rebuild',
+			roundTripVia: 'container lines — the colon shape, written by the container writer',
 			focus: { mode: 'implemented', via: 'the container surface' },
 			mergeBackspace: { mode: 'implemented', via: 'mergeRole=container + unwrapRole' },
 			undo: { mode: 'inherit-default' },

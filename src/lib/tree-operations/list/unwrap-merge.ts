@@ -27,7 +27,7 @@ import { replacePreservingFirst, type StructuralChange } from '../structural-cha
  * Unwrap a list's first item without mutating the input: its children in the order they read, then
  * the rest of the list, which joins the sublist items when they come last.
  */
-export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
+export function unwrapFirstItemFromList(list: NodeView, grammar: GrammarView): CstNode[] {
 	if (list.kind !== 'list' || !list.children || list.children.length === 0) {
 		return [];
 	}
@@ -45,7 +45,7 @@ export function unwrapFirstItemFromList(list: NodeView): CstNode[] {
 		return [clonedList];
 	}
 
-	return dissolveItem(list, 0).blocks;
+	return dissolveItem(list, 0, grammar).blocks;
 }
 
 /** The merge target's path; null when no prose leaf is reachable. */
@@ -132,7 +132,7 @@ function mergeMarkerLine(
 	if (metadataOf(list, 'list')?.ordered) {
 		// The merge only removes a non-first item, so children[0] keeps the list's starting number;
 		// renumber from 1 to continue it rather than resetting the sequence.
-		renumberOrderedList(list, 1, sharing);
+		renumberOrderedList(list, 1, sharing, reading.grammar);
 	}
 
 	return { mergePoint: { targetPath, offset: joined.joinOffset }, change };

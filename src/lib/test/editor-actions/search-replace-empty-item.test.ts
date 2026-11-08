@@ -6,7 +6,7 @@ import { createSearchReplace } from '#lib/editor-actions/search-replace.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { describeShapeDivergence } from '#lib/core/shape-divergence.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { initDocument } from '#lib/components/editor-root/document-swap.js';
 
 // A replace that empties an item or a quote leaves bytes that reload as the container still shown:
@@ -35,7 +35,7 @@ describe('a replace that empties the first item under a paragraph', () => {
 describe('a replace that empties the last container at the end of the document', () => {
 	it.each([
 		['an item', '- x', [0, 0, 0], '- \n'],
-		['a quote', '> x', [0, 0], '>\n']
+		['a quote', '> x', [0, 0], '> \n']
 	])('keeps %s a reload reads the same', async (_, source, path, after) => {
 		const { deps } = makeEditorActionsDeps(initDocument(source, defaultGrammarView).doc);
 		const sr = createSearchReplace(deps, createUndoController(deps));

@@ -8,12 +8,13 @@ import {
 	registerBlockKind,
 	type BlockKindRegistration
 } from '#lib/schema/block-kind-descriptor.js';
-import { lineInterruptsParagraph, type BlockOpener } from '#lib/schema/block-openers.js';
+import type { BlockOpener } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { testClosure } from '#lib/test/harness/closure.js';
 import { collector } from '#lib/test/harness/violation-collector.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
-// lineInterruptsParagraph reads the same grammar as getOrderedOpeners, so it has the same duties
+// The interrupt scan reads the same records as the opener list, so it has the same duties
 // around pending registrations: the two sibling paths must behave alike.
 
 const leaf: BlockKindRegistration = {
@@ -31,21 +32,21 @@ const opener = (priority: number): BlockOpener => ({
 	interruptsParagraph: false
 });
 
-describe('lineInterruptsParagraph as a grammar-consumption join', () => {
-	it('drains pending registration checks like getOrderedOpeners', () => {
+describe('the interrupt scan as a read of the grammar', () => {
+	it('drains pending registration checks like the opener read', () => {
 		flushPendingRegistrationChecks();
 		const kind = declarePluginKind('interrupt-flushed');
 		registerBlockKind(kind, { ...leaf, opener: opener(9201) });
 		expect(hasPendingRegistrationChecks()).toBe(true);
 
-		lineInterruptsParagraph('# h');
+		defaultGrammarView.interruptsParagraph('# h');
 
 		expect(hasPendingRegistrationChecks()).toBe(false);
 	});
 
 	it('trips the latch: an opener registered after an interrupt read warns late', () => {
 		flushPendingRegistrationChecks();
-		lineInterruptsParagraph('# h');
+		defaultGrammarView.interruptsParagraph('# h');
 
 		const kind = declarePluginKind('interrupt-late');
 		registerBlockKind(kind, { ...leaf, opener: opener(9202) });

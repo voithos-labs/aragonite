@@ -32,10 +32,10 @@ import {
 } from '#lib/components/link-card/link-card-state.svelte.js';
 import { createMenuPresence } from '#lib/components/menu/menu-presence.svelte.js';
 import { createReadingFocus } from '#lib/components/editor-root/reading-focus.svelte.js';
-import { createDraftRegistry } from '#lib/components/draft-registry.js';
+import { idleDraftRegistry } from './drafts';
 import { createShownSourceState } from '#lib/components/blocks/text/shown-source.svelte.js';
 import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
-import { defaultRegistryView } from '#lib/schema/registry-view.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { createEditorEvents, emitCommandError } from '#lib/editor-events.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
@@ -124,7 +124,7 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		// A bare mount has no editor root to take a range's copy, and no block to paste into.
 		menuClipboard: { take: () => null, pasteTarget: () => null },
 		stamps,
-		drafts: createDraftRegistry(stamps),
+		drafts: idleDraftRegistry(stamps),
 		shownSource: createShownSourceState(),
 		// The members a format toggle or a compositionend reaches on a bare mount; the rest keep the
 		// cast.
@@ -136,7 +136,7 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		caretLanding: {} as EditorServices['caretLanding'],
 		pasteCoordinator: {} as EditorServices['pasteCoordinator'],
 		reorder: {} as EditorServices['reorder'],
-		registryView: defaultRegistryView,
+		grammar: defaultGrammarView,
 		activePlugins: everyInstalledPlugin,
 		rects: {} as EditorServices['rects'],
 		// Filled in by `editorMountContext`, which reads the other groups' overrides.
@@ -211,7 +211,7 @@ export function editorMountContext(overrides: MountContextOverrides = {}): Map<s
 	// own. The grammar is a getter because the services are built from the document below.
 	docBase.reading = fixtureReading({
 		get grammar() {
-			return services.registryView.grammar;
+			return services.grammar;
 		},
 		mode: overrides.mode ?? (() => 'source')
 	});

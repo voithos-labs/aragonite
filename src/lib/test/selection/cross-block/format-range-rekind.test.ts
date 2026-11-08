@@ -14,7 +14,7 @@ import {
 } from '#lib/selection/cross-block/format-range.js';
 import type { SelectionPoint } from '#lib/selection/primitives.js';
 import { coverRange } from '#lib/selection/range-coverage.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';

@@ -137,8 +137,8 @@ export interface ContainerBlock {
 	getEditor(): EditorContext | undefined;
 	/** The `BlockComponent` the host re-exports for BlockHost. */
 	containerApi: ContainerBlockComponent;
-	/** Commit a shallow metadata patch as one undo entry, through the kind's `rebuildRaw`; the commit
-	 *  puts the caret at `caret`, relative to this container (`[]` is the block), once it renders. */
+	/** Commit a shallow metadata patch as one undo entry, written into the container's bytes; the
+	 *  caret lands at `caret`, relative to this container (`[]` is the block), once it renders. */
 	updateOwnMetadata(
 		patch: Record<string, unknown>,
 		options?: { caret?: { path: number[]; offset: number } }
@@ -152,7 +152,7 @@ export interface ContainerBlock {
 	/** Read the scroll position before swapping this block's view for one of another height, and
 	 *  await the returned restore after the swap renders. A scroll-into-view in progress wins. */
 	captureScrollPosition(): () => Promise<void>;
-	/** `EditorContext.openDraft`, passed through so a component needs no context to hold one. */
+	/** A draft of the block's own bytes, for an edit its view holds outside the document. */
 	openDraft(spec: DraftSpec): Draft;
 }
 
@@ -504,7 +504,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 		handleKeydown,
 		moveFocusOut,
 		captureScrollPosition: scrollOwner.keep,
-		openDraft: drafts.open,
+		openDraft: (spec) => drafts.open(spec, deps.getPath()),
 		getPresentationMode,
 		getTheme,
 		getOptions,

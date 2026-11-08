@@ -13,7 +13,7 @@ import {
 	makeStubBlockEdit,
 	pasteContext
 } from '#lib/test/harness/editor-actions.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
 // Miss-analysis: no test pasted into a bodyWrite container, only typed, split or deleted (GH #40).

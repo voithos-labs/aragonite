@@ -1,6 +1,6 @@
 // G1.143: a kind's write rule never deletes bytes outside the written span, but an emptied block's
 // own marker; both places that run a rule (the content write, a raw write) check it.
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { describe, it, expect } from 'vitest';
 import type { CstNode } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';

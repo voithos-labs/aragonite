@@ -2,7 +2,7 @@
  * Native GitHub alerts as a strip container shaped like a blockquote: the source bytes are
  * kept, never rewritten to `:::note`. The marker lives only in the container's raw and
  * metadata, so `strip(raw)` equals the serialized children. Its own kind rather than a
- * variant of the directive admonition, so kind stability and rebuildRaw stay unambiguous.
+ * variant of the directive admonition, so kind stability and the line shape stay unambiguous.
  */
 
 import {
@@ -11,22 +11,19 @@ import {
 	containerClosure,
 	declarePluginKind,
 	declaredPluginKind,
-	getPluginMetadata,
-	ownTrailingLineEnding,
 	parseContainerBody,
-	quoteLines,
-	rebuildStripRaw,
+	QUOTE_LINES,
 	registerBlockKind,
 	setPluginMetadata,
+	stripShapedLines,
 	type BlockOpenerResult,
 	type BlockView,
-	type ChildRawChange,
 	type ContainerBodyWrap,
 	type CstNode,
-	type OpenContext,
-	type ParsedLine
+	type MarkedLines,
+	type OpenContext
 } from '@voithos-labs/aragonite/plugin';
-import { matchAlertMarker, stripQuoteMarker } from './gh-alert';
+import { matchAlertMarker } from './gh-alert';
 import { GITHUB_ALERT, type GithubAlertMetadata } from './kinds';
 
 /** The `> [!TYPE]` line is the alert's own marker, so a blank line against it separates
@@ -43,8 +40,10 @@ function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
 	const consumed = nextIndex - ctx.index;
 	if (consumed <= 0) return null;
 
-	// A fresh parse entry, so the body's own line 0 must not read as the document top.
-	const body = parseContainerBody(stripBody(ctx.lines, ctx.index + 1, nextIndex), BODY_WRAP, {
+	// Read through the lines the writer writes, as a fresh parse entry, so the body's own line 0
+	// must not read as the document top.
+	const lines = ctx.lines.slice(ctx.index + 1, nextIndex);
+	const body = parseContainerBody(stripShapedLines(ALERT_LINES, { alertType }, lines), BODY_WRAP, {
 		scope: 'fragment',
 		grammar: ctx.grammar
 	});
@@ -61,29 +60,15 @@ function tryOpen(ctx: OpenContext): BlockOpenerResult | null {
 	return { node, consumed };
 }
 
-function stripBody(lines: ParsedLine[], start: number, end: number): string {
-	let out = '';
-	for (let i = start; i < end; i++) out += stripQuoteMarker(lines[i].text) + lines[i].lineEnding;
-	return out;
-}
-
-/** The marker line written from the metadata, and below it the body as quote lines, each kept as
- *  it stood unless the edit changed it. */
-export function rebuildGithubAlertRaw(node: CstNode, changed?: ChildRawChange) {
-	const alertType = getPluginMetadata<GithubAlertMetadata>(node)?.alertType ?? 'NOTE';
-	const marker = `> [!${alertType}]`;
-	if (bodyIsEmpty(node)) {
-		node.raw = marker + ownTrailingLineEnding(node.raw);
-		return;
+/** The alert's lines: a quote's, under a `> [!TYPE]` head line that holds no child. */
+const ALERT_LINES: MarkedLines<GithubAlertMetadata> = {
+	...QUOTE_LINES,
+	head: {
+		match: /^[ \t]*\[!([A-Za-z]+)\][ \t]*$/,
+		data: (match) => ({ alertType: match[1] }),
+		write: (data) => `[!${data.alertType}]`
 	}
-	return rebuildStripRaw(node, quoteLines, { changed, opener: marker });
-}
-
-/** Stops at the first byte, so a keystroke in a long alert reads one child. */
-const bodyIsEmpty = (node: CstNode): boolean =>
-	!node.innerPrefix &&
-	!node.innerSuffix &&
-	(node.children ?? []).every((child) => child.leadingTrivia === '' && child.raw === '');
+};
 
 export function registerGithubAlert(view: BlockView): void {
 	const kind = declarePluginKind(GITHUB_ALERT);
@@ -106,10 +91,7 @@ export function registerGithubAlert(view: BlockView): void {
 		supportsInline: false,
 		conformanceFixture: '> [!NOTE]\n> Heads up.\n',
 		container: {
-			contract: 'strip',
-			rebuildRaw: rebuildGithubAlertRaw,
-			bodyWrap: BODY_WRAP,
-			lines: { marker: 'every-line', lazy: true },
+			lines: ALERT_LINES,
 			merges: { key: 'alertType' },
 			// The alert is a blockquote with a marker, so it unwraps as one: lifting the
 			// first child out drops the marker and reparses plain.
@@ -117,12 +99,12 @@ export function registerGithubAlert(view: BlockView): void {
 				firstChildBackspace: 'lift-first-child-drop-opener',
 				middleChildBackspace: 'default-merge'
 			},
-			// The marker is position-independent, so rebuildRaw re-emits it after a move.
+			// The head line holds no child, so the body's children move under it freely.
 			reorderChildren: {}
 		},
 		closure: containerClosure({
 			roundTripVia:
-				'container contract=strip — rebuildGithubAlertRaw writes the > [!TYPE] marker from metadata and the edited body lines with >, keeping the rest, CRLF threaded',
+				'container lines — a quote shape with a > [!TYPE] head line, written by the container writer',
 			focus: {
 				mode: 'implemented',
 				via: 'focus walks into the first body child via createContainerBlock'

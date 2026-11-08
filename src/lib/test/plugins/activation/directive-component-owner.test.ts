@@ -4,14 +4,14 @@ import { describe, expect, it } from 'vitest';
 import { activateDirectives } from '#lib/plugin.js';
 import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
 import { activationFor } from '#lib/schema/plugin-activation.js';
-import { createRegistryView } from '#lib/schema/registry-view.js';
+import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
 import { declaredPluginKind } from '#lib/schema/plugin-kind.js';
 import { DIRECTIVE_CONTAINER, DIRECTIVE_LEAF } from '#lib/core/directive/kinds.js';
 
 describe('directives turned on from inside a plugin’s setup', () => {
 	it('draw their generic blocks in an editor that leaves that plugin out', () => {
 		installPlugins([definePlugin({ name: 'turns-on-directives', setup: activateDirectives })]);
-		const view = createRegistryView({ plugins: activationFor([]) });
+		const view = createEditorGrammar({ plugins: activationFor([]) });
 		expect(view.blockView(declaredPluginKind(DIRECTIVE_CONTAINER))).toBeDefined();
 		expect(view.blockView(declaredPluginKind(DIRECTIVE_LEAF))).toBeDefined();
 	});

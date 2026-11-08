@@ -8,7 +8,7 @@ import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 /** Past V8's argument limit (~125k), so one spread would raise a RangeError. */

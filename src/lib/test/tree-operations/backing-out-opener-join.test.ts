@@ -20,7 +20,7 @@ import { commitLeafText } from '#lib/editor-actions/block-edit-core.js';
 import { describeConvergence, expectParseConverged } from '#lib/test/harness/parse-converged.js';
 import { serialize } from '#lib/core/serializer.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { latexPlugin } from '#packages/latex/src/index.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';

@@ -1,6 +1,6 @@
 // Miss-analysis: the join a same-kind keystroke asks was costed by the perf gate's wall clock only,
 // so nothing said how many of a flush neighbour's bytes one keystroke parses.
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { CstNode } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';

@@ -8,7 +8,8 @@ import { registerInlineWidgetKind } from '#lib/core/inline/inline-widgets.js';
 import { mintWidgetShell } from '#lib/core/inline/widget-shell.js';
 import { parseInline } from '#lib/core/inline/index.js';
 import { renderInlineNodes } from '#lib/core/inline-render.js';
-import { defaultGrammarView, type GrammarView } from '#lib/schema/block-openers.js';
+import { type GrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import type { InlineNode } from '#lib/core/nodes.js';
 import { grammarListing } from './grammar-listing';
 

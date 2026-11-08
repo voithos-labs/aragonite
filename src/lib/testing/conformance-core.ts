@@ -15,6 +15,8 @@ import { createSelectionState } from '../selection/selection-state.svelte';
 import { collectCrossBlockText } from '../selection/clipboard-text';
 import { coverRange, rangeCoverage } from '../selection/range-coverage';
 import { kitReading } from './kit-reading';
+import { writeContainerRaw } from '../schema/container-writer';
+import { defaultGrammarView } from '../schema/editor-grammar';
 
 export { show };
 
@@ -144,11 +146,11 @@ export function assertRebuildKeepsParsedBytes(
 ): void {
 	const before = node.raw;
 	try {
-		descriptor.rebuildRaw!(node);
+		writeContainerRaw(node, defaultGrammarView);
 	} catch (error) {
-		fail(`${label} rebuildRaw throws over a parsed fixture: ${(error as Error).message}`);
+		fail(`${label}'s writer throws over a parsed fixture: ${(error as Error).message}`);
 	}
-	assertIs(node.raw, before, `${label} rebuildRaw keeps the bytes it was parsed from`);
+	assertIs(node.raw, before, `${label}'s writer keeps the bytes it was parsed from`);
 }
 
 // ── Cell subjects ────────────────────────────────────────────────────────────

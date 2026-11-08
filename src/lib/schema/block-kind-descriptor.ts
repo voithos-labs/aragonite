@@ -21,6 +21,7 @@ import { blockViewForm, domViewSpec, isBlockView, type BlockView } from './block
 import type { PluginActivation } from './plugin-activation';
 import type { RegistryRecord } from './plugin-registry';
 import type { BlockOpener } from './block-openers';
+import type { LineShape } from '../core/strip-lines';
 
 /**
  * The Backspace-merge roles (`docs/design/structural-edits.md` § Merge eligibility: roles, not pairs).
@@ -178,7 +179,7 @@ export interface BlockKindDescriptor {
 	lastLineChild?: (node: NodeView) => number;
 	/**
 	 * The kind has no opener of its own, so `parse(raw)` would not reproduce it: its container's
-	 * `rebuildRaw` owns the syntax, and a content edit writes `raw` without reparsing the kind.
+	 * writer owns the syntax, and a content edit writes `raw` without reparsing the kind.
 	 */
 	contextDependentKind?: boolean;
 	/**
@@ -193,16 +194,16 @@ export interface BlockKindDescriptor {
 	bodyWrite?: WriteRule;
 	reservedChrome?: ReservedChrome;
 	containerPaste?: ContainerPaste;
-	/** How a strip container's lines carry its marker: on every line, or the first (later lines take
-	 *  `indent` columns, else the marker's width); `lazy`: an unmarked line continues its paragraph. */
-	lines?: { marker: 'every-line' | 'first-line'; lazy: boolean; indent?: number };
+	/** How the container's lines are written: the editor writes its bytes from this and its
+	 *  children, and reads its markers, lazy lines and contract from it. */
+	lines?: LineShape<unknown>;
 	/** Two containers of this kind are one when they share metadata field `key` (any two, with no key).
 	 *  Quote and list repeat it in `containerPaste` until `tree-operations/paste/` reads this field. */
 	merges?: { key?: string };
 	unwrapRole?: UnwrapRole;
 	/**
 	 * The first space typed at a child's content start, while its marker lacks one, is the marker's:
-	 * written into the marker's line at once, or by `rebuildRaw` when an empty line gains text.
+	 * written into the marker's line at once, or by the writer when an empty line gains text.
 	 */
 	contentStartSpace?: 'complete-marker';
 	/** This container's direct children reorder among themselves. Absent means they do not. */
@@ -327,33 +328,48 @@ export interface ContentStart {
 
 /** Container-only fields as one unit, so a leaf can't carry any of them. Each is documented on
  *  `BlockKindDescriptor`, the flat read shape this group normalizes into. */
-interface ContainerBase {
-	contract: 'strip' | 'grid' | 'opaque';
-	rebuildRaw: (node: CstNode, changed?: ChildRawChange) => void | StripRebuild;
-	bodyWrap?: ContainerBodyWrap;
-	lastLineChild?: (node: NodeView) => number;
+interface ContainerFields {
 	containerPaste?: ContainerPaste;
-	lines?: BlockKindDescriptor['lines'];
 	merges?: BlockKindDescriptor['merges'];
 	contentStartSpace?: 'complete-marker';
 	reorderChildren?: ReorderChildrenRole;
 	bodyWrite?: WriteRule;
 }
 
-interface ContainerWithoutChrome extends ContainerBase {
-	reservedChrome?: never;
-	unwrapRole?: ContainerUnwrapRole;
+/** The editor writes the bytes from `lines`, which also gives the contract and the body wrap. */
+interface ShapedContainer extends ContainerFields {
+	lines: LineShape<unknown>;
+	contract?: never;
+	rebuildRaw?: never;
+	bodyWrap?: never;
+	lastLineChild?: never;
 }
 
+/** The kind's own rebuild writes the bytes: a list, a table, a kind registered with one. */
+interface RebuiltContainer extends ContainerFields {
+	contract: 'strip' | 'grid' | 'opaque';
+	rebuildRaw: (node: CstNode, changed?: ChildRawChange) => void | StripRebuild;
+	bodyWrap?: ContainerBodyWrap;
+	lastLineChild?: (node: NodeView) => number;
+	lines?: never;
+}
+
+type ContainerBase = ShapedContainer | RebuiltContainer;
+
+type ContainerWithoutChrome = ContainerBase & {
+	reservedChrome?: never;
+	unwrapRole?: ContainerUnwrapRole;
+};
+
 /** Backspace at a title row's start never lifts it out, so only the middle strategy is declared. */
-interface ContainerWithChrome extends ContainerBase {
+type ContainerWithChrome = ContainerBase & {
 	reservedChrome: ReservedChrome;
 	unwrapRole?: {
 		/** Implied: Backspace at the start of the title row keeps it. */
 		firstChildBackspace?: never;
 		middleChildBackspace: ContainerUnwrapRole['middleChildBackspace'];
 	};
-}
+};
 
 export type ContainerDescriptorGroup = ContainerWithChrome | ContainerWithoutChrome;
 
@@ -450,7 +466,7 @@ interface CaretContainerRegistration extends RegistrationBase {
 
 /**
  * The parser's way into the kind. A context-dependent kind has none of its own: its container's
- * `rebuildRaw` owns the syntax, so an opener beside it would never re-derive the kind.
+ * writer owns the syntax, so an opener beside it would never re-derive the kind.
  */
 type OpenerFacet =
 	| { contextDependentKind: true; opener?: never }
@@ -663,8 +679,10 @@ function normalizeRegistration(registration: BuiltinRegistration): BlockKindDesc
 		...flat,
 		...containerFields,
 		isContainer: true,
-		containerContract: contract
+		containerContract: container.lines ? contractOf(container.lines) : contract
 	};
+	const wrap = container.lines && bodyWrapOf(container.lines);
+	if (wrap) descriptor.bodyWrap = wrap;
 	// A title row implies its first-child strategy; the read shape spells it out for the dispatch.
 	if (container.reservedChrome) {
 		descriptor.unwrapRole = {
@@ -673,6 +691,19 @@ function normalizeRegistration(registration: BuiltinRegistration): BlockKindDesc
 		};
 	} else if (container.unwrapRole) descriptor.unwrapRole = container.unwrapRole;
 	return descriptor;
+}
+
+/** A marked or indented shape writes its markers on the body's own lines; the others write lines of
+ *  their own around the body. */
+function contractOf(lines: LineShape<unknown>): 'strip' | 'opaque' {
+	return lines.shape === 'marked' || lines.shape === 'indented' ? 'strip' : 'opaque';
+}
+
+/** The blank lines next to a shape's own lines that are the container's, not the body's. */
+function bodyWrapOf(lines: LineShape<unknown>): ContainerBodyWrap | undefined {
+	if (lines.shape === 'indented') return undefined;
+	if (lines.shape === 'marked') return lines.head ? { afterOpenerLine: true } : undefined;
+	return { afterOpenerLine: true, beforeCloserLine: true };
 }
 
 // A JavaScript caller or a cast gets past the augment types. Presence alone refuses, since an
@@ -816,4 +847,9 @@ export function isBlockKindRegistered(kind: string): boolean {
 /** Every kind currently registered. Caller must not mutate. */
 export function getAllRegisteredKinds(): AnyBlockKind[] {
 	return registry.records().map((r) => r.key);
+}
+
+/** The kinds an editor with this activation resolves: a kind its plugin left out isn't one. */
+export function registeredKinds(activation: PluginActivation): AnyBlockKind[] {
+	return registry.entries(activation).map(([kind]) => kind);
 }

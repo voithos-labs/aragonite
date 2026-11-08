@@ -12,7 +12,7 @@ import {
 import { createAutoPairRecord } from '../../components/blocks/text/auto-pair-record';
 import { isBuiltinBlockKind } from '../../core/nodes';
 import { parse } from '../../core/parser';
-import { defaultGrammarView } from '../../schema/block-openers';
+import { defaultGrammarView } from '../../schema/editor-grammar';
 import { kitReading } from '../../testing/kit-reading';
 
 /** Kinds whose editable area does no auto-pairing: a typed byte there is literal. */

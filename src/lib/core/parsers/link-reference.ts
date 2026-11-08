@@ -14,18 +14,19 @@ import {
 	STILL_OPEN,
 	titleValue
 } from '../inline/scan/link-grammar';
-import { lineInterruptsParagraph, type BlockOpenerResult } from '../../schema/block-openers';
+import type { BlockOpenerResult, GrammarView } from '../../schema/block-openers';
 import { matchSetextUnderline } from './paragraph';
 
 export function parseLinkReferenceDefinition(
 	lines: ParsedLine[],
 	startIndex: number,
 	endIndex: number,
-	leadingTrivia: string
+	leadingTrivia: string,
+	grammar: GrammarView
 ): BlockOpenerResult | null {
 	const labelStart = labelOpenerOffset(lines[startIndex].text);
 	if (labelStart < 0) return null;
-	const window = new DefinitionWindow(lines, startIndex, endIndex);
+	const window = new DefinitionWindow(lines, startIndex, endIndex, grammar);
 	const opener = readLabel(window, labelStart);
 	if (!opener) return null;
 	const { label, afterColon } = opener;
@@ -81,7 +82,8 @@ class DefinitionWindow {
 	constructor(
 		private readonly lines: ParsedLine[],
 		private readonly startIndex: number,
-		private readonly endIndex: number
+		private readonly endIndex: number,
+		private readonly grammar: GrammarView
 	) {
 		this.text = lines[startIndex].text;
 		this.lineEnds = [this.text.length];
@@ -92,7 +94,7 @@ class DefinitionWindow {
 	grow(): boolean {
 		if (this.next >= this.endIndex) return false;
 		const line = this.lines[this.next].text;
-		if (isBlankLine(line) || lineInterruptsParagraph(line) || matchSetextUnderline(line)) {
+		if (isBlankLine(line) || this.grammar.interruptsParagraph(line) || matchSetextUnderline(line)) {
 			return false;
 		}
 		this.text += '\n' + line.replace(/^[ \t]+/, '');
@@ -143,16 +145,16 @@ function skipSpaces(text: string, pos: number): number {
 
 /** Whether lines below a block with these bytes could still change it: a label not closed yet, a
  *  `]:` awaiting its destination, or a definition with no title, which takes one from below. */
-export function definitionReadingNotFinal(raw: string): boolean {
+export function definitionReadingNotFinal(raw: string, grammar: GrammarView): boolean {
 	// The first line decides before any line is split, since a walk asks this of every block.
 	if (labelOpenerOffset(raw) < 0) return false;
 	const lines = splitLines(raw);
 	const labelStart = labelOpenerOffset(lines[0].text);
-	const window = new DefinitionWindow(lines, 0, lines.length);
+	const window = new DefinitionWindow(lines, 0, lines.length, grammar);
 	const labelClose = readSpan(window, labelStart, labelEnd);
 	// A label that never closed may still close below; one followed by anything but `:` is a link.
 	if (labelClose >= 0 && window.text[labelClose] !== ':') return false;
-	const definition = parseLinkReferenceDefinition(lines, 0, lines.length, '');
+	const definition = parseLinkReferenceDefinition(lines, 0, lines.length, '', grammar);
 	return definition === null || !('title' in (definition.node.metadata ?? {}));
 }
 

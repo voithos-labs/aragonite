@@ -9,7 +9,7 @@ import { fixUpWrite } from '#lib/tree-operations/fix-up/apply.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { settled } from '#lib/test/harness/settle-funnel.js';
 import { fixtureReading } from '../harness/fixture-grammar';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 
 // The parser keeps a document's one trailing blank line in `doc.suffix` only while the tail block
@@ -67,7 +67,7 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 		expect(doc.suffix).toBe('\n');
 
 		const change = settled(doc, (body) => ({
-			change: deleteNode(body, 2, createSharingState()),
+			change: deleteNode(body, 2, createSharingState(), defaultGrammarView),
 			removed: true
 		}));
 
@@ -83,7 +83,7 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 		const doc = parse('a\n\n');
 
 		const change = settled(doc, (body) => ({
-			change: deleteNode(body, 0, createSharingState()),
+			change: deleteNode(body, 0, createSharingState(), defaultGrammarView),
 			removed: true
 		}));
 
@@ -99,7 +99,7 @@ describe('the folded trailing blank materializes when the tail turns blank (GH #
 		const doc = parse('| H |\n| - |\n\n');
 
 		const change = settled(doc, (body) => {
-			deleteNode(body, 0, createSharingState());
+			deleteNode(body, 0, createSharingState(), defaultGrammarView);
 			body.children.push(emptyParagraph('', '\n'));
 			return { op: 'replace', at: 0, count: 1, newCount: 1 };
 		});

@@ -37,10 +37,11 @@ export interface BlockCommandContext extends CommandRun {
 	/** A read-only view of the node; a command changes it through one of the writes below. */
 	node: NodeView;
 	arg: unknown;
-	/** A container's metadata patch, which its `rebuildRaw` writes into the bytes. A leaf's
+	/** A container's metadata patch, which the editor writes into its bytes. A leaf's
 	 *  metadata comes from its bytes, so on a leaf this writes nothing and reports an error. */
 	updateMetadata(patch: Record<string, unknown>): void;
-	/** Rewrite the block's bytes as one undo entry; the parse derives its kind and metadata. */
+	/** Rewrite the block's bytes as one undo entry; the parse derives its kind and metadata. Being
+	 *  replaced by `Draft`, once a draft can write a block inside a container without its markers. */
 	replaceRaw(raw: string): void;
 	/**
 	 * The mounted component's view-state hooks, cast by the plugin to its own type. `undefined`
@@ -441,13 +442,14 @@ function runResolvedCommand(
 export function canRunCommandById(
 	id: AnyCommandId,
 	target: KindCommandTarget | null,
-	gates: CommandGates
+	gates: CommandGates,
+	arg?: unknown
 ): boolean {
 	if (isReadingMode(gates.getPresentationMode)) return false;
 	const route = rangeRouteFor(id, gates);
 	if (route.kind !== 'block-local') return route.kind === 'cross-block';
 	const resolved = resolveCommand(id, target, gates.activation);
-	if (resolved.tier === 'global') return canRunGlobalCommand(id, gates.activation, gates);
+	if (resolved.tier === 'global') return canRunGlobalCommand(id, gates.activation, gates, arg);
 	return reachesHandler(resolved);
 }
 

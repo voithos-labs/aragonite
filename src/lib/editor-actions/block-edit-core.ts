@@ -97,7 +97,7 @@ async function handleIneligibleNeighbor(
 		op: { kind: 'delete' },
 		mutate: (view) => {
 			view.describeEdit({ removed: true });
-			return performDelete(view.body, neighbor, view.sharing);
+			return performDelete(view.body, neighbor, view.sharing, scope.reading.grammar);
 		},
 		// The block the key was pressed in, which a delete above has moved up to `neighbor`.
 		landing: () => scope.at(dir < 0 ? neighbor : i, [], dir < 0 ? CURSOR_START : CURSOR_END),
@@ -452,7 +452,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				op: { kind: 'delete' },
 				mutate: (view) => {
 					view.describeEdit({ removed: true });
-					return performDelete(view.body, i, view.sharing);
+					return performDelete(view.body, i, view.sharing, scope.reading.grammar);
 				},
 				landing: () => scope.survivor(i, gesture),
 				discardIfNoop: true

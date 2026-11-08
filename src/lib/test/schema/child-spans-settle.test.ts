@@ -6,14 +6,14 @@ import { describe, expect, it } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import type { CstNode } from '#lib/core/nodes.js';
-import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { dropChildSpans } from '#lib/schema/child-spans.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { ensureUnsharedPath } from '#lib/tree-operations/unshare.js';
 import { rebuildUnsharedChain } from '#lib/tree-operations/chain-rebuild.js';
 import { updateNodeContent } from '#lib/tree-operations/content-write.js';
 import { makeNestedHarness } from '#lib/test/harness/editor-actions.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
 
 // The first keystroke fills in the spans and the second one uses them, so a single keypress
 // cannot show stale spans.
@@ -67,7 +67,7 @@ function fullRebuildRawOf(node: CstNode): string {
 		children: node.children!.map((child) => ({ ...child })),
 		childSpans: undefined
 	} as CstNode;
-	getBlockKindDescriptor(copy.kind).rebuildRaw!(copy);
+	writeContainerRaw(copy, defaultGrammarView);
 	return copy.raw;
 }
 

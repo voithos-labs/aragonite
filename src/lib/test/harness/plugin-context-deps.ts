@@ -5,8 +5,9 @@ import type { EditorRects } from '#lib/editor-rects.js';
 import type { InlineMenuRegistry } from '#lib/inline-menu/types.js';
 import type { InsertMarkdownOptions } from '#lib/editor-props.js';
 import { kitReading } from '#lib/testing/kit-reading.js';
-import { createDraftRegistry } from '#lib/components/draft-registry.js';
-import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
+import type { InstalledPlugin, PluginError } from '#lib/schema/plugin-unit.js';
+import type { Command } from '#lib/schema/plugin-command.js';
+import { idleDraftRegistry } from './drafts';
 
 export const noopDecorations: DecorationRegistry = {
 	addSource: () => ({ invalidate() {}, dispose() {} })
@@ -45,7 +46,12 @@ export const pluginContextDeps = (
 		md: string,
 		options?: InsertMarkdownOptions
 	) => Promise<boolean>,
-	runCommand: (() => false) as (commandId: string, arg?: unknown) => boolean,
-	openDraft: createDraftRegistry(createDocumentStamps()).open,
+	runCommand: (() => false) as (command: Command<unknown> | string, arg?: unknown) => boolean,
+	canRunCommand: (() => false) as (command: Command<unknown> | string, arg?: unknown) => boolean,
+	claims: (() => false) as (event: KeyboardEvent) => boolean,
+	units: (): readonly InstalledPlugin[] => [],
+	pluginNames: (): readonly string[] => [],
+	report: (() => {}) as (error: PluginError) => void,
+	edit: () => idleDraftRegistry().edit(),
 	reading: kitReading()
 });

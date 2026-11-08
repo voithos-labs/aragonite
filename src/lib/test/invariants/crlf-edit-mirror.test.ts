@@ -15,12 +15,7 @@ import { computeFenceExit } from '../../components/blocks/code/code-fence-exit';
 import { codePasteSurface } from '../../components/blocks/code/code-paste-surface';
 import { tableCellPasteSurface } from '../../components/blocks/table/table-cell-paste';
 import { metadataOf } from '../../core/nodes';
-import {
-	rebuildBlockquoteRaw,
-	rebuildListItemRaw,
-	rebuildTableRaw,
-	rebuildTableRowRaw
-} from '../../schema/container-rebuilders';
+import { rebuildTableRaw, rebuildTableRowRaw } from '../../schema/container-rebuilders';
 import { insertEmptyRow } from '../../tree-operations/table-mutations';
 import type { SelectionPoint } from '../../selection/primitives';
 import { ensureEditableContainers } from '#lib/schema/opened-reading.js';
@@ -41,6 +36,8 @@ import { everyInstalledPlugin } from '../../schema/plugin-activation';
 import { registerCodeContextActions } from '../../components/blocks/code/code-context-actions';
 import { ensurePasteSurface } from '#lib/test/harness/paste-surface.js';
 import { deleteRange } from '../harness/range-delete';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 interface EditGesture {
 	name: string;
@@ -95,7 +92,7 @@ const GESTURES: EditGesture[] = [
 		name: 'blockquote rebuild across a blank quote line',
 		source: '> a\n>\n> b\n',
 		apply: (doc) => {
-			rebuildBlockquoteRaw(doc.children[0]);
+			writeContainerRaw(doc.children[0], defaultGrammarView);
 			return doc.children[0].raw;
 		}
 	},
@@ -104,7 +101,7 @@ const GESTURES: EditGesture[] = [
 		source: '- a\n\n  b\n',
 		apply: (doc) => {
 			const item = doc.children[0].children![0];
-			rebuildListItemRaw(item);
+			writeContainerRaw(item, defaultGrammarView);
 			return item.raw;
 		}
 	},
@@ -131,7 +128,9 @@ const GESTURES: EditGesture[] = [
 		name: 'list exit minting the paragraph below the list',
 		source: '- a\n- \n',
 		apply: (doc) =>
-			serializeNodes(buildExitReplacement(doc.children[0], 1, documentLineEnding(doc)).blocks)
+			serializeNodes(
+				buildExitReplacement(doc.children[0], 1, documentLineEnding(doc), defaultGrammarView).blocks
+			)
 	},
 	{
 		name: 'empty-container backfill',
@@ -302,7 +301,10 @@ function unterminatedTail(): EditGesture[] {
 			name: 'list exit below an unterminated list',
 			source: 'abc\n\n- a\n- ',
 			apply: (doc) =>
-				serializeNodes(buildExitReplacement(doc.children[1], 1, documentLineEnding(doc)).blocks)
+				serializeNodes(
+					buildExitReplacement(doc.children[1], 1, documentLineEnding(doc), defaultGrammarView)
+						.blocks
+				)
 		},
 		{
 			name: 'table rebuild of an unterminated table',

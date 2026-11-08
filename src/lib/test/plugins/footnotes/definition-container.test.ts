@@ -2,10 +2,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { installPlugins, parse } from '#lib';
 import { footnotesPlugin, FOOTNOTE_DEF_KIND } from '#packages/footnotes/src/index.js';
 import { getPluginMetadata } from '#lib/plugin.js';
-import {
-	rebuildFootnoteDefRaw,
-	type FootnoteDefMetadata
-} from '#packages/footnotes/src/footnote-definition.js';
+import { type FootnoteDefMetadata } from '#packages/footnotes/src/footnote-definition.js';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 // The definition is a strip container shaped like a list item: its `[^label]: ` marker is
 // syntax living only in the container's own raw, never in a child, which is what makes
@@ -53,14 +52,14 @@ describe('footnote definition rebuildRaw re-emits marker + continuation indent',
 		const def = parse('[^a]: one\n    two\n').children[0];
 		expect(def.children?.length).toBe(1);
 		def.children![0].raw = 'ONE\nTWO\n';
-		rebuildFootnoteDefRaw(def);
+		writeContainerRaw(def, defaultGrammarView);
 		expect(def.raw).toBe('[^a]: ONE\n    TWO\n');
 	});
 
 	it('reproduces a multi-block body, blank line unindented', () => {
 		const def = parse('[^a]: para\n\n    - item\n').children[0];
 		expect(def.children?.map((c) => c.kind)).toEqual(['paragraph', 'list']);
-		rebuildFootnoteDefRaw(def);
+		writeContainerRaw(def, defaultGrammarView);
 		expect(def.raw).toBe('[^a]: para\n\n    - item\n');
 	});
 
@@ -68,7 +67,7 @@ describe('footnote definition rebuildRaw re-emits marker + continuation indent',
 		const def = parse('[^a]: one\r\n    two\r\n').children[0];
 		expect(def.children?.length).toBe(1);
 		def.children![0].raw = 'x\r\ny\r\n';
-		rebuildFootnoteDefRaw(def);
+		writeContainerRaw(def, defaultGrammarView);
 		expect(def.raw).toBe('[^a]: x\r\n    y\r\n');
 	});
 });
@@ -93,7 +92,7 @@ describe('footnote definition treats a non-breaking space as content', () => {
 	it('re-emits the indented nbsp line through a rebuild', () => {
 		const src = `[^a]: one\n    ${NBSP}\n    two\n`;
 		const def = parse(src).children[0];
-		rebuildFootnoteDefRaw(def);
+		writeContainerRaw(def, defaultGrammarView);
 		expect(def.raw).toBe(src);
 	});
 

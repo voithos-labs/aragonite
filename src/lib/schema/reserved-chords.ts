@@ -3,11 +3,10 @@
  * keys from `textKeyRole`. A hand-written keydown branch takes only chords those already name; a
  * source scan holds every file that reads a modifier flag to that (G4.29).
  */
-import { getAllRegisteredKinds } from './block-kind-descriptor';
+import { registeredKinds } from './block-kind-descriptor';
 import { GLOBAL_KEYMAP, kindKeymap, pluginGlobalChords, reservedUiChords } from './commands';
 import type { KeybindingOverrideMap } from './keybinding-overrides';
 import type { PluginActivation } from './plugin-activation';
-import { kindEnablementFor } from './registry-view';
 import { textKeyChords } from './keybindings';
 
 // ── Composition ──────────────────────────────────────────────────────────────
@@ -52,10 +51,9 @@ function carriesModifier(chord: string): boolean {
 /** Only the kinds this editor resolves: an unlisted plugin's kind renders nowhere here, so its
  *  keymap takes no chord. */
 function registeredKeymapChords(activation: PluginActivation): string[] {
-	const isEnabled = kindEnablementFor(activation);
-	return getAllRegisteredKinds()
-		.filter(isEnabled)
-		.flatMap((kind) => kindKeymap(kind).map((binding) => binding.chord));
+	return registeredKinds(activation).flatMap((kind) =>
+		kindKeymap(kind).map((binding) => binding.chord)
+	);
 }
 
 function overrideBoundChords(overrides: KeybindingOverrideMap | undefined): string[] {

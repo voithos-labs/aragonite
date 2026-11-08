@@ -2,7 +2,7 @@
 // stands in faithfully for the render's own widget element: the interaction code reads only those
 // attributes and the source text between the surrounding prose. Mounting the real MathInline
 // (Svelte plus KaTeX) is the e2e's job.
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { afterEach, beforeEach } from 'vitest';
 import { registerMathInline } from '#packages/latex/src/latex-kind.js';
 import { parse } from '#lib/core/parser.js';

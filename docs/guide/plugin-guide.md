@@ -526,15 +526,15 @@ function rebuildBoxRaw(node: CstNode): void {
 // the editor calls it after a child edit; node.raw now reads ':::box\nedited line\n:::\n'
 ```
 
-A `:::` directive container doesn't hand-write this at all: `createDirectiveRebuild` in the walkthrough does the same job with the opener line, the closing line and the line ending handled for you.
+A `:::` directive container doesn't hand-write this at all: `container: { lines: COLON_LINES }` in the walkthrough has the editor write the opener line, the closing line and the line ending for you.
 
-The optional `changed` argument (`ChildRawChange`, shaped `{ index, previousRaw }`) is a performance opt-in for a container big enough that re-reading every child on every keystroke costs real time (the built-in list and quote use it). It names the one child whose raw just changed and the bytes it held before, so you can re-emit that child's region alone. If you take it:
+The optional `changed` argument (`ChildRawChange`, shaped `{ index, previousRaw }`) is a performance opt-in for a container big enough that re-reading every child on every keystroke costs real time (the built-in list's rebuild takes it). It names the one child whose raw just changed and the bytes it held before, so you can re-emit that child's region alone. If you take it:
 
 - Your kind has to know exactly where each child's bytes sit inside its raw.
 - Keep those offsets in `node.childSpans` (a start and an end offset per child). It's the one cache the editor clears for you when its own edits move a sibling's bytes, and a span that no longer matches falls back to the full rebuild. Offsets you cache anywhere else are yours to invalidate.
 - The conformance kit compares the two paths for your kind, so a fast path that drifts from the full rebuild fails your tests.
 
-One rule holds either way: an edit to one child rewrites that child's lines and nobody else's. If your author wrote `>b` with no space, it stays `>b` when they type somewhere else in the container (people have strong feelings about their spacing, and they're allowed to). The kit holds you to it with your profile's `deepNesting` source, so spell that one the way your rebuild wouldn't. For a container that puts a prefix on every line, `rebuildStripRaw` handles all of it, the changed-child shortcut included: hand it `quoteLines` for `>`, or `hangingIndentLines` for a marker and an indent, the way the bundled alert and footnote do ([the API table](plugin-api.md#container-authoring)).
+One rule holds either way: an edit to one child rewrites that child's lines and nobody else's. If your author wrote `>b` with no space, it stays `>b` when they type somewhere else in the container (people have strong feelings about their spacing, and they're allowed to). The kit holds you to it with your profile's `deepNesting` source, so spell that one the way your rebuild wouldn't. For a container that puts a marker on its lines, skip `rebuildRaw` entirely: say how the lines look in `container.lines` and the editor writes them, the changed-child shortcut included, the way the bundled alert and footnote do ([the API table](plugin-api.md#container-authoring)).
 
 ## What a plugin may and may not do
 

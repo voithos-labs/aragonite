@@ -163,7 +163,7 @@ export function checkClosureCoherence(
 		if (entry.hasContainerContract && entry.roundTripMode === 'inherit-default') {
 			return {
 				code: 'closure-coherence',
-				message: `kind "${entry.kind}" declares a container contract but its closure roundTrip is inherit-default: the container's rebuildRaw is the round-trip mechanism; declare roundTrip: implemented`,
+				message: `kind "${entry.kind}" declares a container contract but its closure roundTrip is inherit-default: the container's writer is the round-trip mechanism; declare roundTrip: implemented`,
 				detail: { kind: entry.kind, column: 'roundTrip' }
 			};
 		}

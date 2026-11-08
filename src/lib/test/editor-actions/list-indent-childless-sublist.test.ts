@@ -2,13 +2,15 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { registerBlockListState } from '#lib/block-lists/state-registry.js';
-import { rebuildListItemRaw, rebuildListRaw } from '#lib/schema/container-rebuilders.js';
+import { rebuildListRaw } from '#lib/schema/container-rebuilders.js';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
 	makeListContextAt
 } from '#lib/test/harness/editor-actions.js';
 import type { CstNode } from '#lib/core/nodes.js';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 // Miss-analysis (GH #220): each list action was tested only over sublists that held items.
 
@@ -38,7 +40,7 @@ function listWithChildlessSublist(spelling: 'undefined' | 'empty'): CstNode {
 		delete sublist.childIds;
 	}
 	sublist.raw = '';
-	rebuildListItemRaw(item);
+	writeContainerRaw(item, defaultGrammarView);
 	rebuildListRaw(list);
 	return list;
 }

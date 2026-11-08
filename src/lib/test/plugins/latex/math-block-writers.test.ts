@@ -3,14 +3,14 @@
 import { describe, expect, it } from 'vitest';
 import { installPlugins, parse } from '#lib';
 import { tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
-import { insertCatalogue } from '#lib/schema/insert-catalogue.js';
+import { insertRows, rowMarkdown } from '#lib/schema/insert-catalogue.js';
 import { latexPlugin } from '#packages/latex/src/index.js';
 
 describe('a new $$ block is written as it always was', () => {
 	it('by the insert menu', () => {
 		installPlugins([latexPlugin()]);
-		const entry = insertCatalogue({ isActive: () => true }).find((e) => e.id === 'math');
-		expect(entry?.markdown).toBe('$$\n\n$$\n');
+		const entry = insertRows({ isActive: () => true }).find((e) => e.id === 'math');
+		expect(entry && rowMarkdown(entry)).toBe('$$\n\n$$\n');
 	});
 
 	it('by the kind conformance kit’s fixture', () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseFirstBlock } from '#lib/tree-operations/parse-block.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { fragmentReaderAt } from '#lib/tree-operations/list/task-paragraph.js';
 
 describe('parseFirstBlock', () => {

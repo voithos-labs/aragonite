@@ -1,14 +1,65 @@
 /**
- * One strip container kind's line syntax: how a line of a quote or list item maps to the body line
- * it holds, written once so the parser and the rebuild read a line the same way.
+ * A container's line shape, stated as data, and the line syntax derived from it: how a line of a
+ * quote or list item maps to the body line it holds, so the parser and the writer read it alike.
  */
 
-import {
-	defaultGrammarView,
-	lineInterruptsParagraph,
-	lineStartsOuterBlock
-} from '../schema/block-openers';
+import type { CstNode } from './nodes';
+import { lineStartsOuterBlock, type GrammarView } from '../schema/block-openers';
 import { indentColumns, isBlankLine, stripIndentColumns } from './lines';
+
+// ── Line shapes ──────────────────────────────────────────────────────────────
+
+/** How a container's lines are written; the editor writes its bytes from this and its children. */
+export type LineShape<D = never> = MarkedLines<D> | IndentedLines<D> | FencedLines<D> | ColonLines;
+
+/** A marker on every line (a quote, an alert); a line with no text drops the marker's last space. */
+export interface MarkedLines<D = never> {
+	shape: 'marked';
+	first: string;
+	rest: string;
+	/** The marker as read at a line's start; it reads all of `first` and `rest`, and nothing more. */
+	reads: RegExp;
+	/** Whether a line with no marker still continues a paragraph left open above it. */
+	lazy: boolean;
+	/** A first line that holds no child (`> [!NOTE]`), read after the marker. */
+	head?: { match: RegExp; data(match: RegExpExecArray): D; write(data: D): string };
+}
+
+/** A marker on the first line and an indent on the rest (a list item, a footnote definition). */
+export interface IndentedLines<D> {
+	shape: 'indented';
+	/** The first line's marker, read at the line's start. */
+	open: RegExp;
+	data(match: RegExpExecArray): D;
+	first(data: D): string;
+	/** Spaces only: their width is the column a later line's text starts at, a tab reaching the
+	 *  next multiple of four. */
+	rest(data: D): string;
+	lazy: boolean;
+	/** First-line text ahead of the child's that a lazy line's paragraph rule reads (a task box). */
+	paragraphHead?(data: D): string;
+}
+
+/** The writer a fenced or colon shape brings along, so an app that never uses one doesn't ship it. */
+export const WRITES_LINES = Symbol('writes the container');
+
+/** Opening lines and a closing line around the body, the title row as child 0 (`<details>`). */
+export interface FencedLines<D> {
+	shape: 'fenced';
+	write: { open(data: D, title: string): readonly string[]; close(data: D): string };
+	readonly [WRITES_LINES]: (node: CstNode) => void;
+}
+
+/** A `:::name` fence around the body, the opener line as child 0. */
+export interface ColonLines {
+	shape: 'colon';
+	readonly [WRITES_LINES]: (node: CstNode) => void;
+}
+
+/** The shapes whose every line reads through a line syntax. */
+export type StripShape<D> = MarkedLines<D> | IndentedLines<D>;
+
+// ── Line syntax ──────────────────────────────────────────────────────────────
 
 /** Where a body line sits: on the container's opening line, or in the blank run that ends it. */
 export interface LinePlace {
@@ -35,9 +86,12 @@ export interface LineCodec {
 	/** Whether `line` is {@link write}'s spelling of `text` at `place` and reads back as `text`,
 	 *  answered without reading `line`; false whenever unsure. */
 	spells(line: string, text: string, place: LinePlace): boolean;
-	/** Whether the parser takes `line`, with no prefix, as continuing a paragraph the body line
+	/** Whether `grammar` takes `line`, with no prefix, as continuing a paragraph the body line
 	 *  `above` leaves open; `aboveFirst` when that line is the container's opening one. */
-	continuesLazily(above: string, line: string, aboveFirst: boolean): boolean;
+	continuesLazily(above: string, line: string, aboveFirst: boolean, grammar: GrammarView): boolean;
+	/** Whether the lines of a body emptied of its text keep their markers as spelled (a quote's
+	 *  `> `), where a blank line is otherwise written the container's way. */
+	blankKeepsMarker?: boolean;
 }
 
 /** A line read anywhere but a body's opening or blank-tail line. */
@@ -46,38 +100,72 @@ export const INNER_LINE: LinePlace = { first: false, trailingBlank: false };
 /** A body's opening line. */
 export const FIRST_LINE: LinePlace = { first: true, trailingBlank: false };
 
-/** Whether `line` opens a block at the outer level under every installed plugin, which ends a
- *  lazy continuation. */
-export function opensOuterBlock(line: string): boolean {
+/** The line syntax `shape` states, its markers written from `data`. */
+export function codecFromShape<D>(shape: StripShape<D>, data?: D): LineCodec {
+	return shape.shape === 'marked' ? markedCodec(shape) : indentedCodec(shape, data as D);
+}
+
+/** Whether a body line holding `text` leaves a paragraph open for a lazy line, read per line: not
+ *  blank, not the shape's own marker, and nothing `grammar` lets interrupt a paragraph. */
+export function keepsParagraphOpen<D>(
+	shape: StripShape<D>,
+	text: string,
+	grammar: GrammarView
+): boolean {
+	const own = shape.shape === 'marked' ? shape.reads : shape.open;
+	return !isBlankLine(text) && !own.test(text) && !grammar.interruptsParagraph(text);
+}
+
+/** Whether `line` opens a block at the outer level, which ends a lazy continuation. */
+function opensOuterBlock(line: string, grammar: GrammarView): boolean {
 	const parsed = { raw: line, text: line, lineEnding: '', start: 0, end: line.length };
-	return lineStartsOuterBlock(parsed, { paragraphOpen: true, grammar: defaultGrammarView });
+	return lineStartsOuterBlock(parsed, { paragraphOpen: true, grammar });
 }
 
-/** A container written like a list item: a marker opening its first line, every other line
- *  indented to one column. */
-export interface HangingIndent {
-	/** The marker the rebuild writes at the start of the first line. */
-	opener: string;
-	/** The column every later line's text starts at, a tab reaching the next multiple of four. */
-	column: number;
-	/** The marker `line` opens with, read the way the parser reads it, or null when it opens no
-	 *  such container. */
-	readOpener: (line: string) => string | null;
-	/** Whether the parser takes `line` as continuing the paragraph `above` leaves open; by default
-	 *  when neither is blank or interrupts a paragraph, and `line` opens no block. */
-	continuesLazily?: LineCodec['continuesLazily'];
+// A marked shape holds no data, so its syntax is derived once.
+const markedCodecs = new WeakMap<object, LineCodec>();
+
+function markedCodec<D>(shape: MarkedLines<D>): LineCodec {
+	const known = markedCodecs.get(shape);
+	if (known) return known;
+	const write = (text: string, place: LinePlace): string => {
+		const marker = place.first ? shape.first : shape.rest;
+		return text === '' ? marker.trimEnd() : marker + text;
+	};
+	const codec: LineCodec = {
+		read(line, place) {
+			const prefix = shape.reads.exec(line)?.[0];
+			if (prefix !== undefined) return { text: line.slice(prefix.length), prefix, lazy: false };
+			if (!shape.lazy || place.first || isBlankLine(line)) return null;
+			return { text: line, prefix: '', lazy: true };
+		},
+		write,
+		// `reads` takes the written marker whole, so the written spelling always reads back.
+		spells: (line, text, place) => line === write(text, place),
+		blankKeepsMarker: true,
+		continuesLazily: (above, line, _aboveFirst, grammar) =>
+			keepsParagraphOpen(shape, above, grammar) &&
+			keepsParagraphOpen(shape, line, grammar) &&
+			!opensOuterBlock(line, grammar)
+	};
+	markedCodecs.set(shape, codec);
+	return codec;
 }
 
-/** The line syntax of a container written like a list item: a blank separator stays bare, and a
- *  blank line ending the body is indented, or a reload would read it outside the container. */
-export function hangingIndentLines(shape: HangingIndent): LineCodec {
-	const { opener, column, readOpener } = shape;
-	const pad = ' '.repeat(column);
+/** A blank separator stays bare, and a blank line ending the body is indented, or a reload would
+ *  read it outside the container. */
+function indentedCodec<D>(shape: IndentedLines<D>, data: D): LineCodec {
+	const opener = shape.first(data);
+	const pad = shape.rest(data);
+	const column = pad.length;
+	const head = shape.paragraphHead?.(data) ?? '';
 	return {
 		read(line, place) {
 			if (place.first) {
-				const prefix = readOpener(line);
-				return prefix === null ? null : { text: line.slice(prefix.length), prefix, lazy: false };
+				const match = shape.open.exec(line);
+				// The marker reads back only while it is the one this data writes.
+				if (!match || shape.first(shape.data(match)) !== opener) return null;
+				return { text: line.slice(match[0].length), prefix: match[0], lazy: false };
 			}
 			const text = stripIndentColumns(line, column);
 			if (indentColumns(line) >= column) {
@@ -89,6 +177,7 @@ export function hangingIndentLines(shape: HangingIndent): LineCodec {
 			// Below the content column a blank line still separates, but can't end the body.
 			if (isBlankLine(line))
 				return place.trailingBlank ? null : { text, prefix: line, lazy: false };
+			if (!shape.lazy) return null;
 			return { text, prefix: line.slice(0, line.length - text.length), lazy: true };
 		},
 		write(text, place) {
@@ -106,15 +195,12 @@ export function hangingIndentLines(shape: HangingIndent): LineCodec {
 				!(column % 4 !== 0 && leadingTab(text))
 			);
 		},
-		continuesLazily:
-			shape.continuesLazily ??
-			((above, line) => keepsParagraph(above) && keepsParagraph(line) && !opensOuterBlock(line))
+		continuesLazily: (above, line, aboveFirst, grammar) =>
+			keepsParagraphOpen(shape, aboveFirst ? head + above : above, grammar) &&
+			keepsParagraphOpen(shape, line, grammar) &&
+			!opensOuterBlock(line, grammar)
 	};
 }
-
-/** CommonMark's paragraph continuation, read per line: not blank, and not a paragraph interrupter. */
-const keepsParagraph = (text: string): boolean =>
-	!isBlankLine(text) && !lineInterruptsParagraph(text);
 
 /** Whether a tab sits in `text`'s leading whitespace, which a read at a column off the tab stops
  *  rewrites as spaces. */

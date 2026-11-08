@@ -9,7 +9,7 @@ import { metadataOf } from '#lib/core/nodes.js';
 import { splitLines } from '#lib/core/lines.js';
 import { walkBlocks } from '#lib/core/paths.js';
 import { rebuildTableRaw, rebuildTableRowRaw } from '#lib/schema/container-rebuilders.js';
-import { rebuildContainerRawIfContainer } from '#lib/schema/container-raw.js';
+
 import {
 	arbGfmDoc,
 	arbIndentedGfmDoc,
@@ -17,6 +17,8 @@ import {
 	arbRespelledTableDoc,
 	freshOrFixedSeed
 } from './arbitraries';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 const PARAMS = { numRuns: 300, seed: freshOrFixedSeed(151515) } as const;
 
@@ -56,7 +58,7 @@ function everyContainerRebuildsToItsBytes(source: string): void {
 	const rebuildAll = (nodes: readonly CstNode[]) => {
 		for (const node of nodes) {
 			rebuildAll(node.children ?? []);
-			rebuildContainerRawIfContainer(node);
+			writeContainerRaw(node, defaultGrammarView);
 		}
 	};
 	rebuildAll(doc.children);

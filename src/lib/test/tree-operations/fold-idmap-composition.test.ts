@@ -4,7 +4,7 @@ import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { applyStructuralChangeToIdsRefs } from '#lib/tree-operations/structural-change.js';
 import { parse } from '#lib/core/parser.js';
 import type { BlockComponent } from '#lib/block-component.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { reorderSettled } from '#lib/test/harness/settle-funnel.js';
 
 // A reorder whose window a merge then collapses keeps the ids of the blocks it never touched, or

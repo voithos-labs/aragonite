@@ -1,11 +1,10 @@
 /**
  * The table's Enter completer: a lone header-shaped row completes into that header, the
- * canonical delimiter row and one empty body row, caret in the first body cell. Registered from
- * `core/parser.ts`, the guaranteed load path the built-in openers already ride.
+ * canonical delimiter row and one empty body row, caret in the first body cell. Registered with
+ * the built-in kinds, on the first grammar read.
  */
 
 import { registerBlockCompleter, type CompletionResult } from '../../schema/block-completions';
-import { registerAsCore } from '../../schema/plugin-install';
 import { tableHeaderCells } from './table';
 import { newTableLines, opensOnPipe } from './table-line';
 
@@ -26,5 +25,5 @@ export function tryCompleteTableRow(line: string): CompletionResult | null {
 }
 
 export function registerTableCompleter(): void {
-	registerAsCore(() => registerBlockCompleter('table', { tryComplete: tryCompleteTableRow }));
+	registerBlockCompleter('table', { tryComplete: tryCompleteTableRow });
 }

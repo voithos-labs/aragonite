@@ -102,7 +102,7 @@ export async function applyListAbsorb(
 
 	const outerOrdered = metadataOf(outer, 'list')?.ordered ?? false;
 
-	templatePastedItemMarkers(replacement, outer, plan.itemIndex);
+	templatePastedItemMarkers(replacement, outer, plan.itemIndex, ctx.reading.grammar);
 
 	await ctx.controller.commitMultiScope({
 		scopes: [{ node: outer, state: outerState, path: plan.listPath }],
@@ -115,7 +115,7 @@ export async function applyListAbsorb(
 			// mutations propagate to the DOM.
 			const afterReplacementIdx = plan.itemIndex + replacement.length;
 			if (outerOrdered && afterReplacementIdx < scopeView.children.length) {
-				renumberOrderedList(scopeView.node, afterReplacementIdx, sharing);
+				renumberOrderedList(scopeView.node, afterReplacementIdx, sharing, ctx.reading.grammar);
 			}
 
 			const change: StructuralChange = {

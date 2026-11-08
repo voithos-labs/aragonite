@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createRegistryView } from '#lib/schema/registry-view.js';
+import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
 import { registerMathBlock } from '#packages/latex/src/latex-kind.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
@@ -10,7 +10,7 @@ import { liftFirstChild } from '#lib/tree-operations/container-lift.js';
 import { describeConvergence, layoutOf } from '#lib/test/harness/parse-converged.js';
 import { settled, deleteSettled } from '#lib/test/harness/settle-funnel.js';
 import type { CstNode, Document } from '#lib/core/nodes.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
@@ -110,7 +110,7 @@ describe('the blank line a follower takes depends on the editor’s grammar', ()
 	});
 
 	it('an indented line with indented code switched off would be a row, so it takes one', () => {
-		const off = createRegistryView({ syntax: { indentedCode: false } }).grammar;
+		const off = createEditorGrammar({ syntax: { indentedCode: false } });
 		const doc = parse(`${T}---\n    code\n`, { grammar: off });
 
 		deleteSettled(doc, 1, off);

@@ -108,7 +108,7 @@ export interface ContainerState {
 	childKinds: string[];
 	// Leaf raws with trailing newlines stripped, so they read as the visible text.
 	childTexts: string[];
-	// The container's own raw, which rebuildRaw regenerates after every edit: childTexts and
+	// The container's own raw, which the writer regenerates after every edit: childTexts and
 	// roundTripStable both pass with a stale container raw, so only this shows the rebuild ran.
 	raw: string;
 }

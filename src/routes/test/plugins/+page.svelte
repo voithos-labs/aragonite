@@ -273,6 +273,7 @@
 		installTestProbes({
 			editor,
 			source,
+			plugins,
 			setKeybindings: (overrides) => {
 				keybindings = overrides;
 			},

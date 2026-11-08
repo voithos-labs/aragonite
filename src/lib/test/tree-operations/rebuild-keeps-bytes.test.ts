@@ -16,7 +16,7 @@ import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { buildQuoteExitReplacement, plainQuote } from '#lib/tree-operations/blockquote.js';
 import { liftFirstChild } from '#lib/tree-operations/container-lift.js';
 import { buildExitReplacement } from '#lib/tree-operations/list/exit-replacement.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import {
 	makeBlockListState,
@@ -283,7 +283,7 @@ describe('a container built from another keeps its source’s bytes', () => {
 
 	it('a list exit keeps the items it leaves', () => {
 		const list = parse('- a\n\tb\n- \n- c\n').children[0];
-		const { blocks } = buildExitReplacement(list, 1, '\n');
+		const { blocks } = buildExitReplacement(list, 1, '\n', defaultGrammarView);
 		expect([blocks[0].raw, blocks.at(-1)!.raw]).toEqual(['- a\n\tb\n', '- c\n']);
 	});
 });

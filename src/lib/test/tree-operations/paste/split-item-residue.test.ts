@@ -10,7 +10,7 @@ import {
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { buildListBreakOutReplacement } from '#lib/tree-operations/paste/list-break-out.js';
 import type { Document } from '#lib/core/nodes.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 // The text after the caret opens a new item on its marker line, and the tree takes its reload.
 // Miss-analysis: GH #446, every split-item fixture put a paragraph after the caret.

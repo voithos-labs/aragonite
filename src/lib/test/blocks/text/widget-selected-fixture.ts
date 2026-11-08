@@ -8,7 +8,7 @@ import { selectWidgetWhole } from '#lib/selection/place-caret.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { fixtureReading, topLevelStore } from '../../harness/fixture-grammar';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import type { Reading } from '#lib/schema/reading.js';
 import type { BlockEditActions } from '#lib/action-contracts.js';
 import { createSurfaceWrite } from '#lib/components/blocks/editable/surface-write.js';

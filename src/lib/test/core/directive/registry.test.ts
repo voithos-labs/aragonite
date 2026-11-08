@@ -7,7 +7,7 @@ import {
 	isDirectiveRegistered,
 	type DirectiveDefinition
 } from '#lib/core/directive/registry.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { __resetSchemaRegistriesForTests } from '#lib/schema/registry-reset.js';
 
 let kind: PluginBlockKind;

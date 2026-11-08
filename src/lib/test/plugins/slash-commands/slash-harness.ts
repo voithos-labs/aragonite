@@ -14,7 +14,7 @@ import type {
 } from '#lib/plugin.js';
 import { createEditorEvents, type EditEvent } from '#lib/editor-events.js';
 import { createInlineMenuState } from '#lib/inline-menu/inline-menu-state.svelte.js';
-import { insertCatalogue } from '#lib/schema/insert-catalogue.js';
+import { insertRows } from '#lib/schema/insert-catalogue.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import {
 	createSlashSource,
@@ -24,6 +24,7 @@ import { createEditorPluginContexts } from '#lib/schema/plugin-editor-context.js
 import { normalizePluginEntries } from '#lib/schema/plugin-install.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { pluginContextDeps } from '../../harness/plugin-context-deps';
+import { idleDraftRegistry } from '../../harness/drafts';
 
 const typedEdit = (path: number[]): EditEvent => ({ op: 'input', path, timestamp: 0 }) as EditEvent;
 
@@ -47,7 +48,7 @@ export function slashHarness(initial: string, options: SlashCommandsOptions = {}
 			},
 			// The real catalogue, so a plugin a test installs lists its entries as in an editor.
 			get insertCatalogue() {
-				return insertCatalogue(everyInstalledPlugin);
+				return insertRows(everyInstalledPlugin);
 			},
 			inlineMenus: host.inlineMenus,
 			options,
@@ -74,10 +75,13 @@ export function slashPluginHarness(
 		const contexts = createEditorPluginContexts({
 			...pluginContextDeps(),
 			...host,
-			optionsFor: (name) => optionsByName.get(name)
+			// The slash source runs commands by id only.
+			runCommand: (command, arg) => typeof command === 'string' && host.runCommand(command, arg),
+			optionsFor: (name) => optionsByName.get(name),
+			report: ({ cause }) => onError(cause)
 		});
 		host.ownSources(contexts.get(plugins[0].name)!);
-		contexts.attachAll(({ error }) => onError(error));
+		contexts.attachAll();
 		return contexts.get(plugins[0].name)!;
 	});
 }
@@ -127,7 +131,7 @@ function harness(initial: string, attach: (host: HarnessHost) => EditorContext) 
 		undoStep: async (_path, _offset, run) => void (await run()),
 		ownerOfNewSource: () => owner!,
 		// No swap happens here, so a pick's draft can always write.
-		drafts: { open: () => ({ canWrite: () => true, end: () => {} }) }
+		drafts: idleDraftRegistry()
 	});
 
 	const editor = attach({

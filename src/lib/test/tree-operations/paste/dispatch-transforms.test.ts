@@ -39,7 +39,7 @@ describe('paste-dispatch opaque-fallback warning', () => {
 	});
 
 	it('does not warn when target kind has a registered surface', async () => {
-		// The built-in paragraph surface, registered when the paste hooks load.
+		// A paragraph pastes through the default hooks, which need no surface of their own.
 		const doc = makeDocWithOneBlock('paragraph', 'hello\n');
 		await pasteDispatch(
 			{ pastedText: 'X', targetPath: [0], offset: 0 },

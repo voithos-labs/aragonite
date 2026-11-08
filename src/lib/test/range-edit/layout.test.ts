@@ -10,7 +10,7 @@ import { splitLines } from '#lib/core/lines.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
 import { reservedChromeKindOf } from '#lib/schema/reserved-chrome.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { installPlugins } from '#lib/schema/plugin-install.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import { documentLayout } from '#lib/range-edit/layout.js';

@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '#lib';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { rebuildGithubAlertRaw } from '#packages/admonitions/src/github-alert-kind.js';
+
 import { roundTripCases } from '#lib/test/harness/round-trip.js';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 // Load is byte-exact off the stored raw; a post-edit rebuild re-emits the marker
 // (casing preserved from metadata) + `> `-prefixed body, CRLF threaded, and reparses
@@ -28,7 +30,7 @@ describe('github alert: rebuild after an inner edit', () => {
 	const edit = (source: string, newBody: string) => {
 		const node = parse(source).children[0];
 		node.children![0].raw = newBody;
-		rebuildGithubAlertRaw(node);
+		writeContainerRaw(node, defaultGrammarView);
 		return node;
 	};
 

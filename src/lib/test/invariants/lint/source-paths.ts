@@ -40,7 +40,7 @@ export const SOURCE = {
 
 	// ── Block-kind registries, commands and raw rules ───────────────────────
 	blockOpeners: 'src/lib/schema/block-openers.ts',
-	registryView: 'src/lib/schema/registry-view.ts',
+	editorGrammar: 'src/lib/schema/editor-grammar.ts',
 	pluginActivation: 'src/lib/schema/plugin-activation.ts',
 	inlineConstructPolicy: 'src/lib/schema/inline-construct-policy.ts',
 	commands: 'src/lib/schema/commands.ts',
@@ -67,6 +67,7 @@ export const SOURCE = {
 	blockEditCore: 'src/lib/editor-actions/block-edit-core.ts',
 	leafCommit: 'src/lib/editor-actions/commit/leaf-commit.ts',
 	commitFrame: 'src/lib/editor-actions/commit/commit-frame.ts',
+	draftRegistry: 'src/lib/editor-actions/commit/draft-registry.svelte.ts',
 	commitScope: 'src/lib/commit-scope.ts',
 	containerBlockComponent: 'src/lib/editor-actions/container-block-component.ts',
 	pluginContainer: 'src/lib/editor-actions/plugin/container.ts',
@@ -206,7 +207,7 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 
 	// ── Block-kind registries, commands and raw rules ───────────────────────
 	blockOpeners: 'export interface OpenContext',
-	registryView: 'export type KindEnablement',
+	editorGrammar: 'export interface EditorGrammar',
 	pluginActivation: 'export interface PluginActivation',
 	inlineConstructPolicy: 'export type InlineMarkKind',
 	commands: 'export const GLOBAL_COMMAND_IDS',
@@ -233,6 +234,7 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	blockEditCore: 'export function contentUpdate',
 	leafCommit: 'export function createLeafCommit',
 	commitFrame: 'export function createCommitFrame',
+	draftRegistry: 'export function createDraftRegistry',
 	commitScope: 'export function isCommitInProgress',
 	containerBlockComponent: 'export function dispatchWholeBlockGlobalChord',
 	pluginContainer: 'export interface ContainerBlockDeps',

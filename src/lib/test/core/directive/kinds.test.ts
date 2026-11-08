@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { CstNode } from '#lib/core/nodes.js';
-import { makeBlockNode, setPluginMetadata } from '#lib/core/nodes.js';
 import { declaredPluginKind } from '#lib/schema/plugin-kind.js';
 import {
 	getBlockKindDescriptor,
@@ -9,12 +8,12 @@ import {
 import {
 	DIRECTIVE_CONTAINER,
 	DIRECTIVE_LEAF,
-	DIRECTIVE_OPENER_LINE,
-	registerDirectiveKinds,
-	rebuildDirectiveContainerRaw
+	registerDirectiveKinds
 } from '#lib/core/directive/kinds.js';
-import type { DirectiveContainerMetadata } from '#lib/core/directive/container-shape.js';
 import { testDirectiveViews } from '#lib/test/harness/test-view.js';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
+import { readBlocks } from '#lib/core/parser.js';
 
 describe('registerDirectiveKinds', () => {
 	it('registers the generic container and leaf fallback kinds', () => {
@@ -66,71 +65,21 @@ describe('directiveLeaf render descriptor', () => {
 	});
 });
 
-// The losslessness pin: the opener writes `raw` verbatim, so only the inverse (rebuilding from
-// the captured metadata and children after a structural edit) can prove the capture.
-describe('rebuildDirectiveContainerRaw', () => {
+// The losslessness pin: the writer gives a parse's bytes back from the children and the bytes it
+// replaces, opener colons, info, inner blank lines and the closing line included.
+describe('the colon writer', () => {
 	beforeEach(() => {
 		registerDirectiveKinds(testDirectiveViews());
 	});
 
-	const build = (
-		meta: DirectiveContainerMetadata,
-		fields: Pick<CstNode, 'innerPrefix' | 'children' | 'innerSuffix'>
-	): CstNode => {
-		const node: CstNode = {
-			kind: declaredPluginKind(DIRECTIVE_CONTAINER),
-			leadingTrivia: '',
-			raw: '',
-			...fields
-		};
-		setPluginMetadata<DirectiveContainerMetadata>(node, meta);
-		return node;
-	};
-
-	const paragraph = (raw: string): CstNode => ({ kind: 'paragraph', leadingTrivia: '', raw });
-	const openerLine = (raw: string): CstNode =>
-		makeBlockNode({ kind: declaredPluginKind(DIRECTIVE_OPENER_LINE), leadingTrivia: '', raw });
-
-	it('re-emits opener colons, verbatim info, inner blank lines, and the closer', () => {
-		const node = build(
-			{
-				name: 'x',
-				closerColonCount: 3,
-				closerNewline: true
-			},
-			{
-				innerPrefix: '\n',
-				children: [openerLine(':::x t\n'), paragraph('body\n')],
-				innerSuffix: '\n'
-			}
-		);
-		rebuildDirectiveContainerRaw(node);
-		expect(node.raw).toBe(':::x t\n\nbody\n\n:::\n');
-	});
-
-	it("keeps the opener line's own colon count", () => {
-		const node = build(
-			{
-				name: 'x',
-				closerColonCount: 4,
-				closerNewline: true
-			},
-			{ innerPrefix: '', children: [openerLine('::::x\n'), paragraph('body\n')], innerSuffix: '' }
-		);
-		rebuildDirectiveContainerRaw(node);
-		expect(node.raw).toBe('::::x\nbody\n::::\n');
-	});
-
-	it('drops the closer newline for a document-final directive', () => {
-		const node = build(
-			{
-				name: 'x',
-				closerColonCount: 3,
-				closerNewline: false
-			},
-			{ innerPrefix: '', children: [openerLine(':::x\n'), paragraph('body\n')], innerSuffix: '' }
-		);
-		rebuildDirectiveContainerRaw(node);
-		expect(node.raw).toBe(':::x\nbody\n:::');
+	it.each([
+		[':::x t\n\nbody\n\n:::\n', 'the opener colons, its info, inner blank lines and the closer'],
+		['::::x\nbody\n::::\n', "the opener line's own colon count"],
+		[':::x\nbody\n:::', 'no closer newline for a document-final directive']
+	])('gives back %j: %s', (source) => {
+		const node = readBlocks(source, { grammar: defaultGrammarView, scope: 'fragment' }).children[0];
+		expect(node.kind).toBe(DIRECTIVE_CONTAINER);
+		writeContainerRaw(node, defaultGrammarView);
+		expect(node.raw).toBe(source);
 	});
 });

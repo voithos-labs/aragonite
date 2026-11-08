@@ -15,7 +15,7 @@ import {
 	setPluginMetadata,
 	getPluginMetadata,
 	parseContainerBody,
-	serializeChildren,
+	fencedLines,
 	trimTrailingLineEnding,
 	displayLines,
 	matchFenceOpen,
@@ -40,17 +40,15 @@ const BODY_WRAP: ContainerBodyWrap = { afterOpenerLine: true, beforeCloserLine: 
 
 export interface DetailsMetadata {
 	open: boolean;
-	/** One captured ending is used for all three tag lines: a well-formed document has
-	 *  uniform endings, so the rebuild reproduces them byte for byte. */
+	/** The opening tag line's ending, as parsed. */
 	lineEnding: string;
-	/** False for a document-final details with no trailing newline, so the rebuild
-	 *  does not add one. */
+	/** False for a document-final details with no trailing newline. */
 	closerNewline: boolean;
 }
 
 type TagVerdict = 'open' | 'close' | null;
 
-/** The canonical spelling: what `parse` reproduces, and the only form `rebuildDetailsRaw` emits. */
+/** The canonical spelling: what `parse` reproduces, and the only form the writer emits. */
 const canonicalTagLine = (text: string): TagVerdict =>
 	OPEN_LINE.test(text) ? 'open' : CLOSE_LINE.test(text) ? 'close' : null;
 
@@ -172,22 +170,11 @@ function mapStrayEscapeOffset(raw: string, offset: number): number {
 	return strayEscapePoints(raw).reduce((at, point) => (point < offset ? at + grown : at), offset);
 }
 
-/**
- * Child 0 is the summary, children 1+ the body. `innerPrefix`/`innerSuffix` carry the
- * body's blank-line wrap verbatim so a canonical parse rebuilds byte-identically.
- */
-export function rebuildDetailsRaw(node: CstNode): void {
-	const meta = getPluginMetadata<DetailsMetadata>(node);
-	const open = meta?.open ?? false;
-	const lineEnding = meta?.lineEnding ?? '\n';
-	const closerEnd = (meta?.closerNewline ?? true) ? lineEnding : '';
-	const children = node.children ?? [];
-	const summaryText = children[0] ? trimTrailingLineEnding(children[0].raw) : '';
-	const body = children.slice(1);
-	const inner = (node.innerPrefix ?? '') + serializeChildren(body) + (node.innerSuffix ?? '');
-	const opener = `<details${open ? ' open' : ''}>${lineEnding}<summary>${summaryText}</summary>`;
-	node.raw = `${opener}${lineEnding}${inner}</details>${closerEnd}`;
-}
+/** The tag lines around the body: `<details>` (`open` when shown) and the summary, `</details>`. */
+const DETAILS_LINES = fencedLines<DetailsMetadata>({
+	open: (data, title) => [`<details${data.open ? ' open' : ''}>`, `<summary>${title}</summary>`],
+	close: () => CLOSE_TAG
+});
 
 export function registerDetailsKind(view: BlockView): void {
 	const details = declarePluginKind(DETAILS);
@@ -260,9 +247,7 @@ export function registerDetailsKind(view: BlockView): void {
 		// edges take the gap caret.
 		gapEdges: 'both',
 		container: {
-			contract: 'opaque',
-			rebuildRaw: rebuildDetailsRaw,
-			bodyWrap: BODY_WRAP,
+			lines: DETAILS_LINES,
 			reservedChrome: {
 				kind: detailsSummary,
 				isCollapsed: (node) => !getPluginMetadata<DetailsMetadata>(node)?.open,
@@ -273,7 +258,7 @@ export function registerDetailsKind(view: BlockView): void {
 		},
 		conformanceFixture: '<details>\n<summary>Title</summary>\n\nbody\n\n</details>\n',
 		closure: containerClosure({
-			roundTripVia: 'container contract=opaque — rebuildDetailsRaw',
+			roundTripVia: 'container lines — a fenced shape, written by the container writer',
 			focus: { mode: 'implemented', via: 'focus walks to the summary chrome / first body child' },
 			mergeBackspace: {
 				mode: 'implemented',

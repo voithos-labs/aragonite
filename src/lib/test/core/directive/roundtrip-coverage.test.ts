@@ -8,15 +8,13 @@ import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { parseInline } from '#lib/core/inline/index.js';
 import { declarePluginKind } from '#lib/schema/plugin-kind.js';
-import {
-	rebuildDirectiveContainerRaw,
-	DIRECTIVE_CONTAINER,
-	DIRECTIVE_TEXT
-} from '#lib/core/directive/kinds.js';
+import { DIRECTIVE_CONTAINER, DIRECTIVE_TEXT } from '#lib/core/directive/kinds.js';
 import { registerDirective, type ParsedDirective } from '#lib/core/directive/registry.js';
 import { arbGfmDoc, freshOrFixedSeed } from '../../invariants/arbitraries';
 import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
 import { testDirectiveViews } from '#lib/test/harness/test-view.js';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 let NOTE: PluginBlockKind;
 let WARNING: PluginBlockKind;
@@ -283,7 +281,7 @@ describe('directive total-coverage round-trip', () => {
 			fc.property(arbDirectiveDoc, (src) => {
 				eachGenericContainer(parse(src).children, (node) => {
 					const before = node.raw;
-					rebuildDirectiveContainerRaw(node);
+					writeContainerRaw(node, defaultGrammarView);
 					if (node.raw !== before) {
 						throw new Error(
 							`rebuild changed raw:\n${JSON.stringify(before)}\n→ ${JSON.stringify(node.raw)}`

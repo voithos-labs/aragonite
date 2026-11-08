@@ -4,6 +4,8 @@
  */
 
 import type { Document } from '../../core/nodes';
+import type { DocumentView } from '../../core/node-views';
+import { captureChange, changeAfter } from '../../editor-actions/commit/change-record';
 import type { GrammarView } from '../../schema/block-openers';
 import { definitionsOf, type LinkReferenceResolver } from '../../core/inline/scan/definitions';
 import type { CaretMemory } from '../../caret/caret-memory';
@@ -14,7 +16,7 @@ import { readAsOpened } from '../../schema/opened-reading';
 import type { UndoManager } from '../../undo/types';
 import type { EditorEvents } from '../../editor-events';
 import type { MenuPresence } from '../menu/menu-presence.svelte';
-import type { DraftRegistry } from '../draft-registry';
+import type { DraftRegistry } from '../../editor-actions/commit/draft-registry.svelte';
 import type { DocumentStamps } from '../../editor-actions/commit/document-stamp';
 import type { MarkHoverTracker } from '../../decorations/mark-hover';
 
@@ -40,12 +42,15 @@ export interface DocumentSwapDeps {
 	grammar: GrammarView;
 	/** The text the editor holds now, the same string `getSource()` returns. */
 	currentSource(): string;
+	/** The tree the editor holds now, which a re-read records its change against. */
+	doc(): DocumentView;
 	/** Ends the typing batch: it groups the outgoing document's undo steps, which go with it. */
 	flushDebouncedCheckpoint(): void;
-	/** Retired first: from here on, a write made for the outgoing document is refused. */
+	/** Retired first at a swap: from here on, a write made for the outgoing document is refused. */
 	stamps: Pick<DocumentStamps, 'retire'>;
-	/** Then dropped, so a block the swap tears down blurs without trying to commit its draft. */
-	drafts: Pick<DraftRegistry, 'closeAll'>;
+	/** Then closed, so a block the swap tears down blurs without trying to commit its draft. A
+	 *  re-read keeps a waiting `edit()` and tells it the bytes stayed. */
+	drafts: Pick<DraftRegistry, 'closeAll' | 'watching' | 'record'>;
 	/** A hovered mark belongs to the outgoing document; ended while that document is still the
 	 *  one a host's handler reads. */
 	markHover: Pick<MarkHoverTracker, 'end'>;
@@ -71,6 +76,8 @@ export interface DocumentSwap {
 	/** Replaces the document, unless `source` is the text it already holds: a host echoing
 	 *  `getSource()` back keeps its undo history. */
 	swapTo(source: string): void;
+	/** Reads the same bytes again under a changed grammar, keeping the undo history. */
+	reparse(): void;
 	/** Counts whole-document replacements, which `editEpoch` cannot tell from a keystroke. */
 	generation(): number;
 }
@@ -83,15 +90,22 @@ export function createDocumentSwap(deps: DocumentSwapDeps): DocumentSwap {
 	return {
 		swapTo(source) {
 			if (source === deps.currentSource()) return;
-			replace(source);
+			adopt(source, 'clear');
+			generation++;
 			// Last, so a subscriber reading the document sees the new tree, selection and resolver.
 			deps.events.emit('sourceSwap', { generation });
+		},
+		reparse() {
+			const capture = deps.drafts.watching() ? captureChange(deps.doc(), null) : null;
+			adopt(deps.currentSource(), 'keep');
+			if (capture) deps.drafts.record(changeAfter(deps.doc(), capture, null));
 		},
 		generation: () => generation
 	};
 
-	function replace(source: string): void {
-		deps.stamps.retire();
+	function adopt(source: string, history: 'clear' | 'keep'): void {
+		// A re-read keeps the bytes, so a write waiting on them still lands.
+		if (history === 'clear') deps.stamps.retire();
 		deps.drafts.closeAll('document-swap');
 		deps.markHover.end();
 		deps.flushDebouncedCheckpoint();
@@ -102,7 +116,7 @@ export function createDocumentSwap(deps: DocumentSwapDeps): DocumentSwap {
 		deps.clearBlockRefs();
 		// Block ids never recur, so every measured height belongs to a block that can't come back.
 		deps.layout.forgetMeasuredHeights();
-		deps.undoManager.clear();
+		if (history === 'clear') deps.undoManager.clear();
 		deps.caretMemory.forget();
 		deps.menus.closeAll('document-swap');
 		// Announced explicitly: on a native-only caret the clear sees no change, and subscribers
@@ -111,7 +125,6 @@ export function createDocumentSwap(deps: DocumentSwapDeps): DocumentSwap {
 			deps.selection.clear();
 			deps.selection.announceSelection();
 		});
-		generation++;
 		deps.adoptLinkReferences(reset.resolver, reset.signature);
 	}
 }

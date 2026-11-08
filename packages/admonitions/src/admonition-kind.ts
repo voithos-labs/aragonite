@@ -5,9 +5,8 @@
 import {
 	activateDirectives,
 	containerClosure,
-	createDirectiveRebuild,
 	declarePluginKind,
-	DIRECTIVE_BODY_WRAP,
+	COLON_LINES,
 	registerBlockKind,
 	registerBlockCommand,
 	registerDirective,
@@ -58,8 +57,6 @@ function admonitionFromDirective(kind: PluginBlockKind) {
 	};
 }
 
-const rebuildAdmonitionRaw = createDirectiveRebuild();
-
 /** `view` draws both the admonition and the GitHub alert. */
 export function registerAdmonitions(view: BlockView, options?: AdmonitionsOptions): void {
 	activateDirectives(); // idempotent; the shared grammar must be live before the first parse
@@ -98,14 +95,12 @@ export function registerAdmonitions(view: BlockView, options?: AdmonitionsOption
 		gapEdges: 'both',
 		container: {
 			// The fence lines frame the children, so raw is not a strip of them.
-			contract: 'opaque',
-			rebuildRaw: rebuildAdmonitionRaw,
-			bodyWrap: DIRECTIVE_BODY_WRAP
+			lines: COLON_LINES
 		},
 		keymap: [{ chord: 'Mod+7', command: cycleKind }],
 		conformanceFixture: ':::note Heads up\n\nbody\n\n:::\n',
 		closure: containerClosure({
-			roundTripVia: 'container contract=opaque — rebuildAdmonitionRaw (directive)',
+			roundTripVia: 'container lines — the colon shape, written by the container writer',
 			focus: { mode: 'implemented', via: 'focus walks to the opener line / first body child' },
 			mergeBackspace: { mode: 'implemented', via: 'mergeRole=container + unwrapRole' },
 			undo: {

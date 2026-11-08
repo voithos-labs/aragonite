@@ -81,7 +81,7 @@ const ROUTES: RangeRoute[] = [
 			await editor.focusBlockAtPath([0, 1], 3);
 			await drawIntoPrevious(editor, 'ArrowUp');
 		},
-		after: (text) => (text ? `> ${text}\n\nafter\n` : '>\n\nafter\n')
+		after: (text) => `> ${text}\n\nafter\n`
 	},
 	{
 		name: 'both items of a list',

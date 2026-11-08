@@ -37,7 +37,7 @@ import { reorderChildrenWithTrivia } from '#lib/tree-operations/reorder.js';
 import type { StructuralChange } from '#lib/tree-operations/structural-change.js';
 import type { GrammarView } from '#lib/schema/block-openers.js';
 import type { Reading } from '#lib/schema/reading.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { createSharingState, type SharingState } from '#lib/tree-operations/sharing.js';
 
 /** What a test's edit reports: its change, plus what it did beyond the splice. */
@@ -94,7 +94,7 @@ export function deleteSettled(
 	sharing: SharingState = createSharingState()
 ): StructuralChange {
 	const removal = (body: BodyParent) => ({
-		change: deleteNode(body, index, sharing),
+		change: deleteNode(body, index, sharing, defaultGrammarView),
 		removed: true as const
 	});
 	return settledIn(parent, removal, grammar, sharing);

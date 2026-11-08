@@ -14,6 +14,7 @@ import {
 	type MergeRole
 } from './block-kind-descriptor';
 import { reservedChromeKindOf, rowIsOpenerLine } from './reserved-chrome';
+import type { LineShape } from '../core/strip-lines';
 
 export interface BlockFacts {
 	/** It holds blocks a caret enters; a container focused as one unit doesn't. */
@@ -45,13 +46,12 @@ export function blockFacts(kind: string): BlockFacts {
 	const container = mustHoldChild(kind as AnyBlockKind);
 	const lines = container ? linesOf(kind, descriptor) : 'none';
 	const titleRow = reservedChromeKindOf(kind as AnyBlockKind);
+	const indent = container ? fixedIndent(descriptor?.lines) : undefined;
 	return {
 		container,
 		lines,
-		lazyParagraphLines: container && (descriptor?.lines?.lazy ?? false),
-		...(container && descriptor?.lines?.indent !== undefined
-			? { indent: descriptor.lines.indent }
-			: {}),
+		lazyParagraphLines: container && lazyLines(descriptor?.lines),
+		...(indent === undefined ? {} : { indent }),
 		merges: container ? mergesOf(kind, descriptor, lines) : { into: [], onMismatch: 'nest' },
 		countsMarkers: lines === 'items',
 		...(titleRow
@@ -92,7 +92,19 @@ function linesOf(kind: string, descriptor: BlockKindDescriptor | undefined): Blo
 	const builtIn = BUILT_IN_LINES[kind];
 	if (builtIn) return builtIn;
 	if (descriptor?.bodyWrap?.beforeCloserLine) return 'fenced';
-	return descriptor?.lines?.marker ?? 'none';
+	const shape = descriptor?.lines?.shape;
+	return shape === 'marked' ? 'every-line' : shape === 'indented' ? 'first-line' : 'none';
+}
+
+function lazyLines(lines: LineShape<unknown> | undefined): boolean {
+	return (lines?.shape === 'marked' || lines?.shape === 'indented') && lines.lazy;
+}
+
+/** The columns every later line takes when an indented shape's `rest` reads none of the first
+ *  line (a footnote's four, not a list item's marker width). */
+function fixedIndent(lines: LineShape<unknown> | undefined): number | undefined {
+	if (lines?.shape !== 'indented' || lines.rest.length > 0) return undefined;
+	return lines.rest(undefined).length;
 }
 
 function mergesOf(

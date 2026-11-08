@@ -2,11 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { emptyParagraph, nodeAt } from '../../tree-operations/node-primitives';
 import { ensureEditableContainers } from '#lib/schema/opened-reading.js';
-import { rebuildListItemRaw, rebuildBlockquoteRaw } from '../../schema/container-rebuilders';
+
 import { checkOpaqueStaleRaw } from '../../invariants/node-shape';
 import type { CstNode } from '../../core/nodes';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
 
 describe('emptyParagraph', () => {
 	it('creates the empty-paragraph placeholder shape, blank lines and ending parameterized', () => {
@@ -137,7 +138,7 @@ describe('parse + backfill + edit + rebuild: round-trip after empty-item edit', 
 		// The edit pipeline's shape: the synthesized paragraph receives content, then the
 		// container's raw is rebuilt from children.
 		item.children![0].raw = 'X\n';
-		rebuildListItemRaw(item);
+		writeContainerRaw(item, defaultGrammarView);
 		expect(item.raw).toBe('- X\n');
 	});
 
@@ -147,7 +148,7 @@ describe('parse + backfill + edit + rebuild: round-trip after empty-item edit', 
 		ensureEditableContainers(bq, '\n');
 
 		bq.children![0].raw = 'X\n';
-		rebuildBlockquoteRaw(bq);
+		writeContainerRaw(bq, defaultGrammarView);
 		expect(bq.raw).toBe('> X\n');
 	});
 });

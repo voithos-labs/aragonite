@@ -1,4 +1,4 @@
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { parseInline, type InlineNode } from '#lib';
 import { resetPluginPlatformForTests } from '#lib/testing.js';

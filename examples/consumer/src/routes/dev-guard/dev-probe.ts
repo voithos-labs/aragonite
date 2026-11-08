@@ -11,7 +11,7 @@ import {
 	declaredPluginKind,
 	registerBlockKind,
 	registerDirective,
-	createDirectiveRebuild,
+	COLON_LINES,
 	setPluginMetadata,
 	type CstNode,
 	type EditorPlugin,
@@ -54,13 +54,10 @@ export function devProbePlugin(): EditorPlugin {
 				editable: true,
 				gapEdges: 'none',
 				supportsInline: false,
-				container: {
-					contract: 'opaque',
-					rebuildRaw: createDirectiveRebuild()
-				},
+				container: { lines: COLON_LINES },
 				conformanceFixture: ':::devprobe\n\nbody\n\n:::\n',
 				closure: {
-					roundTrip: { mode: 'implemented', via: 'container contract=opaque — rebuildDevProbeRaw' },
+					roundTrip: { mode: 'implemented', via: 'container lines — the colon shape' },
 					focus: { mode: 'implemented', via: 'focus walks into the first body child' },
 					mergeBackspace: { mode: 'implemented', via: 'mergeRole=container + unwrapRole' },
 					selectionPaint: { mode: 'implemented', via: 'body child blocks paint; container cover' },

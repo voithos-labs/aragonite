@@ -215,7 +215,7 @@ const ROWS: Record<string, Row> = {
 			select(env, at([0, 0], 0), at([1], 4));
 			await rangeKey(env, 'Backspace');
 		},
-		bytes: '>\n',
+		bytes: '> \n',
 		placed: [[0, 0]]
 	},
 	'a quote’s only child replaced by nothing': {

@@ -26,10 +26,10 @@ setup(ctx) {
 | `decorations` | This editor's decoration registry, where you register a source ([Decorations](decorations.md#decorations)) |
 | `rects` | This editor's viewport-space geometry: block box, range rects, caret, reveal, `scrollTo`, `navigateTo` |
 | `inlineMenus` | This editor's registry for lists opened by a typed trigger ([Recipe: a typed-trigger menu](../consumer-guide/recipes.md#recipe-a-typed-trigger-menu)) |
-| `insertCatalogue` | The blocks this editor's insert menus offer, live, yours included once you `registerInsertEntry` from `setup` |
+| `insertCatalogue` | The rows this editor's insert menus offer, live, yours included once you `registerInsertEntry` from `setup`; the same list as `Editor.inserts` |
 | `insertMarkdown(md, options?)` | Insert Markdown the way the instance's own call does ([Inserting Markdown at the caret](../consumer-guide.md#inserting-markdown-at-the-caret)); a promise that resolves false where that call would |
 | `runCommand(id, arg?)` | Run a command by id the way the instance's own call does; false where that would be |
-| `openDraft(spec)` | Hold an edit outside the document (a textarea's text) so a host loading another note can't land it in the wrong one ([What your own editing surface has to do](render-primary.md#what-your-own-editing-surface-has-to-do)) |
+| `edit()` | Write bytes as one undo step, now or after a wait; a commit is refused with the reason if the author wrote over them meanwhile ([`Draft`](../plugin-api.md#draft-draftresult)) |
 | `computeInlineContent(node)` | Parse a prose block's inline content the way this editor draws it: syntax from a plugin its `plugins` prop left out comes back as plain text, and reference links resolve against the document's link definitions (its `[r]: /x` lines). Reach for it wherever you walk inline nodes |
 | `presentationMode` | The effective presentation mode, live, paired with the `presentationModeChange` event ([Presentation modes](presentation-modes.md#presentation-modes)) |
 | `theme` | The editor's theme name, live, paired with the `themeChange` event, for content whose colors an engine paints |
@@ -96,7 +96,7 @@ slashCommandsPlugin({ entries: [stamp] }); // defaults: { entries: [stamp] }
 // { entries: [] }            { entries: [] }
 ```
 
-`definePlugin<WordCountOptions>` carries the type through, so `editor.options` reads typed inside `onEditor` with no cast. The type is your word, though, not a check. What checks is **`parseOptions(raw)`**: it gets an editor's options exactly as the host wrote them (once per editor, and only if the host wrote some) and returns the fields to apply. Leave a field out and it keeps its default. Throw, and the editor reports it on its `error` event (origin `subscriber`, naming your plugin) and runs your plugin on its defaults, so somebody's typo never takes their document down.
+`definePlugin<WordCountOptions>` carries the type through, so `editor.options` reads typed inside `onEditor` with no cast. The type is your word, though, not a check. What checks is **`parseOptions(raw)`**: it gets an editor's options exactly as the host wrote them (once per editor, and only if the host wrote some) and returns the fields to apply. Leave a field out and it keeps its default. Throw, and the editor reports it, naming your plugin, to the host's `onError` and on its `error` event (origin `subscriber`), and runs your plugin on its defaults, so somebody's typo never takes their document down.
 
 ```ts
 export const wordCountPlugin = definePlugin<WordCountOptions>({

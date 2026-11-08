@@ -377,7 +377,7 @@ export function mergeIntoPrevDeepLeaf(
 	const at = rawOffsetOfLeaf(parent.children[blockIndex - 1], mergeTarget.path, joinOffset);
 	if (at !== null) Object.assign(tracked, { index: blockIndex - 1, offset: at });
 	return {
-		change: deleteNode(parent, blockIndex, sharing),
+		change: deleteNode(parent, blockIndex, sharing, reading.grammar),
 		landing: (children) =>
 			landingAfterFixUp(children, joined, at, at === null ? undefined : tracked)
 	};
@@ -509,13 +509,14 @@ function reparseAsNodes(
 export function deleteNode(
 	parent: BodyParentArg,
 	blockIndex: number,
-	sharing: SharingState
+	sharing: SharingState,
+	grammar: GrammarView
 ): StructuralChange {
 	const body = asBody(parent);
 	if (blockIndex < 0 || blockIndex >= body.children.length) return { op: 'noop' };
 	retireChildSpans(body);
 	const renumber = body.owner ? holdOrderedNumbering(body.owner) : undefined;
 	body.children.splice(blockIndex, 1);
-	renumber?.(sharing);
+	renumber?.(sharing, grammar);
 	return { op: 'delete', at: blockIndex, count: 1 };
 }

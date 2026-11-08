@@ -3,7 +3,7 @@ import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { describeShapeDivergence } from '#lib/core/shape-divergence.js';
 import { initDocument } from '#lib/components/editor-root/document-swap.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { deleteRange } from '../../../harness/range-delete';
 
 // A range delete whose joined survivor reads as a bare list item installs the item a reload shows,

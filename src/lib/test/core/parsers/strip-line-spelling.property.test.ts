@@ -3,19 +3,27 @@
 // other text.
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
-import { quoteLines } from '#lib/core/parsers/blockquote.js';
-import { listItemLines } from '#lib/core/parsers/list.js';
-import { FIRST_LINE, INNER_LINE, type LineCodec, type LinePlace } from '#lib/core/strip-lines.js';
+import { QUOTE_LINES } from '#lib/core/parsers/blockquote.js';
+import { LIST_ITEM_LINES, type ItemLineShape } from '#lib/core/parsers/list.js';
+import {
+	codecFromShape,
+	FIRST_LINE,
+	INNER_LINE,
+	type LineCodec,
+	type LinePlace
+} from '#lib/core/strip-lines.js';
 import { freshOrFixedSeed } from '../../invariants/arbitraries';
 
 const PARAMS = { numRuns: 2000, seed: freshOrFixedSeed(626262) } as const;
 
+const item = (data: ItemLineShape): LineCodec => codecFromShape(LIST_ITEM_LINES, data);
+
 const CODECS: [string, LineCodec][] = [
-	['quote', quoteLines],
-	['bullet item', listItemLines({ indent: '', marker: '- ', taskMarker: null })],
-	['wide ordered item', listItemLines({ indent: ' ', marker: '10. ', taskMarker: null })],
-	['tab-gapped item', listItemLines({ indent: '', marker: '-\t', taskMarker: null })],
-	['to-do', listItemLines({ indent: '', marker: '* ', taskMarker: '[ ] ' })]
+	['quote', codecFromShape(QUOTE_LINES)],
+	['bullet item', item({ indent: '', marker: '- ', taskMarker: null })],
+	['wide ordered item', item({ indent: ' ', marker: '10. ', taskMarker: null })],
+	['tab-gapped item', item({ indent: '', marker: '-\t', taskMarker: null })],
+	['to-do', item({ indent: '', marker: '* ', taskMarker: '[ ] ' })]
 ];
 
 const PLACES: LinePlace[] = [FIRST_LINE, INNER_LINE, { first: false, trailingBlank: true }];

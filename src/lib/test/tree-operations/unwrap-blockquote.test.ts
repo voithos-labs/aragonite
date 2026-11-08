@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { liftFirstChild, plainQuote } from '../../tree-operations';
-import { defaultGrammarView } from '../../schema/block-openers';
+import { defaultGrammarView } from '../../schema/editor-grammar';
 import type { CstNode } from '../../core/nodes';
 
 // Blockquote coverage for lifting the first child out of a quote-shaped container. The

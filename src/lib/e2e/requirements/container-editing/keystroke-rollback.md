@@ -7,18 +7,18 @@ drew goes away, because the block repaints from the tree.
 
 ## Happy paths
 
-- Type `x` at the end of `> ab` while the quote's rebuild throws: the `error` event fires with
-  origin `commit`, the source stays `> ab`, and the paragraph shows `ab`
-- Then stop the throw and type `y`: the source becomes `> aby`, and one Ctrl+Z gives back `> ab`
+- Type `x` at the end of `- ab` while the list's rebuild throws: the `error` event fires with
+  origin `commit`, the source stays `- ab`, and the paragraph shows `ab`
+- Then stop the throw and type `y`: the source becomes `- aby`, and one Ctrl+Z gives back `- ab`
   with the paragraph showing `ab`
-- Type `x` in a code block inside the quote, then in a table cell inside it, while the rebuild
+- Type `x` in a code block inside the list item, then in a table cell inside it, while the rebuild
   throws: the source stays as it was and neither shows the `x`, since each kind of element
   repaints itself
 
 ## User interactions
 
 - An IME composition committed as `か` while the rebuild throws: the `error` event fires, the source
-  stays `> ab`, and the paragraph shows `ab`
+  stays `- ab`, and the paragraph shows `ab`
 
 ## Miss-analysis
 

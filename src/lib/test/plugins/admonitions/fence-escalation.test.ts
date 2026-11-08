@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins, parse } from '#lib';
-import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { checkOpaqueRebuildDeterminism, checkOpaqueStaleRaw } from '#lib/invariants/node-shape.js';
 import { admonitionsPlugin, convertGithubAlerts } from '#packages/admonitions/src/index.js';
 import { convertGithubAlertsInDocument } from '#packages/admonitions/src/convert-document.js';
 import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { rebuildUnsharedAncestry } from '#lib/tree-operations/chain-rebuild.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
+import { writeContainerRaw } from '#lib/schema/container-writer.js';
 
 beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
@@ -51,10 +52,10 @@ describe('admonition fence escalation past body colon runs', () => {
 	// bytes from it.
 	it('stays deterministic across repeated rebuilds (G1.13)', () => {
 		const node = rebuiltWithBody(':::note T\n\nbody\n\n:::\n', 'before\n:::\nafter\n');
-		expect(checkOpaqueRebuildDeterminism(node)).toBeNull();
+		expect(checkOpaqueRebuildDeterminism(node, defaultGrammarView)).toBeNull();
 
 		const once = node.raw;
-		getBlockKindDescriptor(node.kind).rebuildRaw!(node);
+		writeContainerRaw(node, defaultGrammarView);
 		expect(node.raw).toBe(once);
 	});
 

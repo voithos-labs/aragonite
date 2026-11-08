@@ -79,7 +79,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 	return {
 		indentItem(itemIndex: number): Promise<boolean> {
 			// The moved item's last leaf, at its start; the walk runs over this list's own items.
-			return nestListItem(itemMoves, ownScope(), itemIndex, (movedTo) => {
+			return nestListItem(itemMoves, deps.reading.grammar, ownScope(), itemIndex, (movedTo) => {
 				const items: DocumentView = {
 					kind: 'document',
 					prefix: '',
@@ -109,7 +109,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 				// The new item starts from `prevItem`'s bytes, so its marker line takes the indent.
 				newItem = buildListItem(
 					followerMetadata(prevItem ? metadataOf(prevItem, 'listItem') : undefined),
-					// rebuildListItemRaw derives the item's raw from its body's line ending.
+					// The container writer takes the item's line ending from its body.
 					[emptyParagraph('', deps.getLineEnding())],
 					deps.reading.grammar,
 					prevItem
@@ -123,7 +123,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					const sharing = scope.sharing;
 					sharing.stamp(newItem!);
 					scope.children.splice(itemIndex + 1, 0, newItem!);
-					renumberOrderedList(scope.node, itemIndex + 1, sharing);
+					renumberOrderedList(scope.node, itemIndex + 1, sharing, deps.reading.grammar);
 					return [{ op: 'insert', at: itemIndex + 1, count: 1 }];
 				},
 				op: {
@@ -196,7 +196,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					sharing.stamp(newItem);
 
 					outerScope.children.splice(itemIndex + 1, 0, newItem);
-					renumberOrderedList(outerScope.node, itemIndex + 1, sharing);
+					renumberOrderedList(outerScope.node, itemIndex + 1, sharing, deps.reading.grammar);
 
 					// Net item change: [innerIndex .. preSpliceLen) replaced by the first half's
 					// blocks, several when the cut bytes reparse to more than one.
@@ -221,6 +221,7 @@ export function createListContext(deps: ListContextDeps): ListContext {
 		): Promise<boolean> {
 			return liftNestedItem(
 				itemMoves,
+				deps.reading.grammar,
 				ownScope(),
 				parentItemIdx,
 				nestedListNode,
@@ -248,7 +249,12 @@ export function createListContext(deps: ListContextDeps): ListContext {
 				);
 			}
 
-			const replacement = buildExitReplacement(node, itemIndex, deps.getLineEnding());
+			const replacement = buildExitReplacement(
+				node,
+				itemIndex,
+				deps.getLineEnding(),
+				deps.reading.grammar
+			);
 			// The caret sat in an item, which an offset into the list can't name; the live read
 			// records it.
 			return deps.parentBlockEdit.replaceBlock(

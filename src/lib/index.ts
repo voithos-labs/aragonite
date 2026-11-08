@@ -15,6 +15,9 @@ export type {
 	SyntaxOptions
 } from './editor-props';
 
+// `edit()`'s write, in the document's bytes, and what its commit came to.
+export type { Draft, DraftResult } from './schema/drafts';
+
 export type {
 	EditorDiagnostics,
 	InteractionTraceEntry,
@@ -45,7 +48,8 @@ export type { Match } from './search/document-scan';
 // installPlugins is for editor-less `parse()` pipelines that need the grammar live
 // without mounting <Editor>.
 export { installPlugins } from './schema/plugin-install';
-export type { EditorPlugin, EditorPluginEntry } from './schema/plugin-install';
+export type { EditorPlugin, EditorPluginEntry, PluginsProp } from './schema/plugin-install';
+export type { PluginError } from './schema/plugin-unit';
 
 // ── Selection + keybindings ────────────────────────────────────────────────────
 
@@ -153,7 +157,6 @@ export type {
 
 // ── Insert catalogue ───────────────────────────────────────────────────────────
 
-// The blocks the insert menus offer, plugin blocks included, via `editor.getInsertCatalogue()`.
-export { registerInsertEntry } from './schema/insert-catalogue';
-export type { InsertEntry } from './schema/insert-catalogue';
+// A row of the editor's `inserts`: the blocks the insert menus offer, plugin blocks included.
+export type { InsertRow } from './schema/insert-catalogue';
 export type { MenuIconName } from './menu-icons';

@@ -101,7 +101,7 @@ const STRIP_CONTAINER_BAKED: Pick<
 };
 
 /**
- * A container's `rebuildRaw` is its round-trip mechanism, so the preset fixes `roundTrip` to
+ * A container's writer is its round-trip mechanism, so the preset fixes `roundTrip` to
  * `implemented` and asks only for its `via` (G1.24). The cells that vary with the container are
  * required; the four structural columns stay overridable.
  */

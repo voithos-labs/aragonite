@@ -32,7 +32,7 @@ import {
 	resetPerfInstruments,
 	setUndoGauge
 } from '../../perf/instruments';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 const EMPTY: PerfSnapshot = {
 	snapshotCount: 0,

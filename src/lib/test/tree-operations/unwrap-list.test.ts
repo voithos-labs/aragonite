@@ -4,6 +4,7 @@ import { serialize } from '../../core/serializer';
 import { unwrapFirstItemFromList } from '../../tree-operations';
 import { assertContainerParity, seedChildIdsRecursive } from '../harness/container-parity';
 import type { CstNode } from '../../core/nodes';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
 describe('unwrapFirstItemFromList', () => {
 	function parseList(src: string): CstNode {
@@ -18,7 +19,7 @@ describe('unwrapFirstItemFromList', () => {
 	it('single-item list with paragraph only: returns just the lifted paragraph', () => {
 		const list = parseList('- Only item\n');
 
-		const result = unwrapFirstItemFromList(list);
+		const result = unwrapFirstItemFromList(list, defaultGrammarView);
 
 		expect(result).toHaveLength(1);
 		expect(result[0].kind).toBe('paragraph');
@@ -28,7 +29,7 @@ describe('unwrapFirstItemFromList', () => {
 	it('multi-item list: lifts first paragraph, shrinks the list', () => {
 		const list = parseList('- First\n- Second\n- Third\n');
 
-		const result = unwrapFirstItemFromList(list);
+		const result = unwrapFirstItemFromList(list, defaultGrammarView);
 
 		expect(result).toHaveLength(2);
 		expect(result[0].kind).toBe('paragraph');
@@ -44,7 +45,7 @@ describe('unwrapFirstItemFromList', () => {
 	it('first item with matching-type nested sub-list: items promote to shrunk parent list', () => {
 		const list = parseList('- First\n  - Nested\n- Second\n');
 
-		const result = unwrapFirstItemFromList(list);
+		const result = unwrapFirstItemFromList(list, defaultGrammarView);
 
 		expect(result).toHaveLength(2);
 		expect(result[0].kind).toBe('paragraph');
@@ -62,7 +63,7 @@ describe('unwrapFirstItemFromList', () => {
 	it('first item with mismatched-type nested sub-list: sub-list becomes separate block', () => {
 		const list = parseList('- First\n  1. OrderedNested\n- Second\n');
 
-		const result = unwrapFirstItemFromList(list);
+		const result = unwrapFirstItemFromList(list, defaultGrammarView);
 
 		expect(result.length).toBeGreaterThanOrEqual(3);
 		expect(result[0].kind).toBe('paragraph');
@@ -79,7 +80,7 @@ describe('unwrapFirstItemFromList', () => {
 	it('single-item list whose only item has matching nested sub-list: remaining list is the promoted nested items', () => {
 		const list = parseList('- Only\n  - Nested1\n  - Nested2\n');
 
-		const result = unwrapFirstItemFromList(list);
+		const result = unwrapFirstItemFromList(list, defaultGrammarView);
 
 		expect(result).toHaveLength(2);
 		expect(result[0].kind).toBe('paragraph');
@@ -91,7 +92,7 @@ describe('unwrapFirstItemFromList', () => {
 	it('ordered list: remaining items renumber from the original base', () => {
 		const list = parseList('1. First\n2. Second\n3. Third\n');
 
-		const result = unwrapFirstItemFromList(list);
+		const result = unwrapFirstItemFromList(list, defaultGrammarView);
 
 		expect(result).toHaveLength(2);
 		expect(result[0].kind).toBe('paragraph');
@@ -107,7 +108,7 @@ describe('unwrapFirstItemFromList', () => {
 	it('loose item (multiple paragraphs): all paragraphs flow out in order', () => {
 		const list = parseList('- First\n\n  More text\n- Second\n');
 
-		const result = unwrapFirstItemFromList(list);
+		const result = unwrapFirstItemFromList(list, defaultGrammarView);
 
 		expect(result.length).toBeGreaterThanOrEqual(3);
 		expect(result[0].kind).toBe('paragraph');
@@ -126,7 +127,7 @@ describe('unwrapFirstItemFromList', () => {
 		seedChildIdsRecursive(list);
 		const secondId = list.childIds![1];
 
-		const result = unwrapFirstItemFromList(list);
+		const result = unwrapFirstItemFromList(list, defaultGrammarView);
 
 		expect(result).toHaveLength(1);
 		assertContainerParity(result[0]);
@@ -141,7 +142,7 @@ describe('unwrapFirstItemFromList', () => {
 			suffix: ''
 		});
 
-		unwrapFirstItemFromList(list);
+		unwrapFirstItemFromList(list, defaultGrammarView);
 
 		const after = serialize({
 			children: [list],

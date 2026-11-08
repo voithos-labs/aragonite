@@ -3,7 +3,7 @@
  * spy controller. Shared by every committer suite; registering a syntax handler stays per test.
  */
 
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { vi } from 'vitest';
 import { createImageEditCommitter } from '../../components/image/image-edit-commit';
 import { imageFieldsFromInline } from '../../core/inline/image-source-bytes';

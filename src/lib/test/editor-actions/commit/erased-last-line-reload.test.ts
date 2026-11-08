@@ -2,7 +2,7 @@
 // own, and the run below gives up the separator it doubled, so a reload reads the same blocks.
 // Miss-analysis: the rebuild tests fed parser-built trees, where a paragraph never ends in a blank
 // line, and no row put a blank line under the erased block, whose separator then counted twice.
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { Document } from '#lib/core/nodes.js';
 import { serialize } from '#lib/core/serializer.js';

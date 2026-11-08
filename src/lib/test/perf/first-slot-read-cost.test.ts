@@ -1,6 +1,6 @@
 // Miss-analysis: the item reader's rows checked what it read, never how much, so a reader that
 // parsed every keystroke's paragraph behind a rebuilt marker line passed them all.
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { describe, it, expect, afterEach } from 'vitest';
 import type { CstNode } from '#lib/core/nodes.js';
 import { documentLineEnding } from '#lib/core/lines.js';

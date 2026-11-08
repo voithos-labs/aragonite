@@ -4,7 +4,7 @@ import {
 	resolveEmptyPairBackspace
 } from '#lib/components/blocks/text/delimiter-autopair.js';
 import type { ContentRange } from '#lib/core/inline/index.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
 // The auto-pair drops the partner of an empty pair it wrote, but a tilde pairs only as a double

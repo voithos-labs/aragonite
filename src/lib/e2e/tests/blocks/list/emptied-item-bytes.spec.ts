@@ -104,7 +104,7 @@ test.describe('deleting the last text of other emptied containers', () => {
 
 		await page.keyboard.press('Backspace');
 
-		await editor.bridge.waitForSourceEquals('>');
+		await editor.bridge.waitForSourceEquals('> ');
 		await reload(editor);
 		expect(await editor.bridge.getBlockKind(0)).toBe('blockquote');
 	});

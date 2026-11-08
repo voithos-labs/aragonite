@@ -29,20 +29,29 @@ interface Exemption {
 /** Publishing the entry point an entry waits on empties that entry, and a dead one fails below. */
 const ALLOWLIST: Record<string, Exemption> = {
 	'src/lib/test/plugins/admonitions/blockquote-indent-cap.test.ts': {
-		specifiers: ['#lib/schema/block-kind-descriptor.js'],
-		reason: 'no registry read-back: a kind can be registered and probed, never read back'
+		specifiers: ['#lib/schema/container-writer.js', '#lib/schema/editor-grammar.js'],
+		reason: 'nothing published writes a container from its line shape outside a commit'
+	},
+	'src/lib/test/plugins/admonitions/github-alert-round-trip.test.ts': {
+		specifiers: ['#lib/schema/container-writer.js', '#lib/schema/editor-grammar.js'],
+		reason: 'nothing published writes a container from its line shape outside a commit'
+	},
+	'src/lib/test/plugins/footnotes/definition-container.test.ts': {
+		specifiers: ['#lib/schema/container-writer.js', '#lib/schema/editor-grammar.js'],
+		reason: 'nothing published writes a container from its line shape outside a commit'
 	},
 	'src/lib/test/plugins/admonitions/fence-escalation.test.ts': {
 		specifiers: [
-			'#lib/schema/block-kind-descriptor.js',
 			'#lib/invariants/node-shape.js',
 			'#lib/tree-operations/sharing.js',
-			'#lib/tree-operations/chain-rebuild.js'
+			'#lib/tree-operations/chain-rebuild.js',
+			'#lib/schema/editor-grammar.js',
+			'#lib/schema/container-writer.js'
 		],
 		reason:
-			'no registry read-back, the opaque stale-raw / rebuild-determinism predicates are off the ' +
-			'testing barrel (only checkCopyIsRawByteSlice is published), and nothing published runs ' +
-			'the ancestor rebuild a commit runs over a parsed document'
+			'the opaque stale-raw / rebuild-determinism predicates are off the testing barrel (only ' +
+			'checkCopyIsRawByteSlice is published), and nothing published runs the ancestor rebuild a ' +
+			'commit runs over a parsed document or writes a container alone'
 	},
 	'src/lib/test/plugins/admonitions/formation-harness.ts': {
 		specifiers: [
@@ -88,7 +97,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'reads a node by path out of a parsed document'
 	},
 	'src/lib/test/plugins/admonitions/github-alert-unwrap.test.ts': {
-		specifiers: ['#lib/tree-operations/index.js', '#lib/schema/block-openers.js'],
+		specifiers: ['#lib/tree-operations/index.js', '#lib/schema/editor-grammar.js'],
 		reason:
 			'nothing published unwraps a child from its quote off a parsed document, or names the grammar the unwrap reads its remainder with'
 	},
@@ -111,7 +120,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'#lib/editor-actions/paste-coordinator.js',
 			'#lib/invariants/node-shape.js',
 			'#lib/block-lists/state-registry.js',
-			'#lib/schema/block-openers.js',
+			'#lib/schema/editor-grammar.js',
 			'#lib/tree-operations/paste/dispatch.js'
 		],
 		reason:
@@ -124,11 +133,21 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'#lib/selection/cross-block/range-delete/range-delete.js',
 			'#lib/selection/range-coverage.js',
 			'#lib/tree-operations/node-ops.js',
-			'#lib/tree-operations/sharing.js'
+			'#lib/tree-operations/sharing.js',
+			'#lib/schema/container-writer.js',
+			'#lib/schema/editor-grammar.js'
 		],
 		reason:
-			'nothing published splits, joins or range-deletes a parsed document, and no published opaque ' +
-			'stale-raw predicate to hold the result to'
+			'nothing published splits, joins or range-deletes a parsed document or writes a container ' +
+			'alone, and no published opaque stale-raw predicate to hold the result to'
+	},
+	'src/lib/test/plugins/details/crlf-rebuild.test.ts': {
+		specifiers: ['#lib/schema/container-writer.js', '#lib/schema/editor-grammar.js'],
+		reason: 'nothing published writes a container from its line shape outside a commit'
+	},
+	'src/lib/test/plugins/details/round-trip.test.ts': {
+		specifiers: ['#lib/schema/container-writer.js', '#lib/schema/editor-grammar.js'],
+		reason: 'nothing published writes a container from its line shape outside a commit'
 	},
 	'src/lib/test/plugins/emoji/coexistence.test.ts': {
 		specifiers: ['#lib/core/directive/kinds.js'],
@@ -140,7 +159,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 		specifiers: [
 			'#lib/core/inline/inline-widgets.js',
 			'#lib/core/inline/widget-shell.js',
-			'#lib/schema/block-openers.js'
+			'#lib/schema/editor-grammar.js'
 		],
 		reason:
 			'no registry read-back: a widget kind registers its editing policy but never reads it, ' +
@@ -150,11 +169,14 @@ const ALLOWLIST: Record<string, Exemption> = {
 		specifiers: [
 			'#lib/tree-operations/index.js',
 			'#lib/tree-operations/sharing.js',
-			'#lib/testing/parse-convergence.js'
+			'#lib/testing/parse-convergence.js',
+			'#lib/schema/container-writer.js',
+			'#lib/schema/editor-grammar.js'
 		],
 		reason:
 			'nothing published splits a parsed document (nor makes the sharing state the split takes), ' +
-			'and no published parse convergence'
+			'no published parse convergence, and nothing published writes a container from its line ' +
+			'shape outside a commit'
 	},
 	'src/lib/test/plugins/footnotes/numbering-incremental.test.ts': {
 		specifiers: [
@@ -177,7 +199,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'renders into'
 	},
 	'src/lib/test/plugins/footnotes/reference.test.ts': {
-		specifiers: ['#lib/core/inline/inline-widgets.js', '#lib/schema/block-openers.js'],
+		specifiers: ['#lib/core/inline/inline-widgets.js', '#lib/schema/editor-grammar.js'],
 		reason:
 			'no registry read-back: a widget kind registers its component but never reads it, and ' +
 			'the read takes a grammar no entry point publishes'
@@ -194,7 +216,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'no registry read-back: an inline syntax handler registers on a trigger but is never listed back'
 	},
 	'src/lib/test/plugins/latex/inline.test.ts': {
-		specifiers: ['#lib/core/inline/inline-widgets.js', '#lib/schema/block-openers.js'],
+		specifiers: ['#lib/core/inline/inline-widgets.js', '#lib/schema/editor-grammar.js'],
 		reason:
 			'no registry read-back for a widget kind, no published core widget shell builder, and ' +
 			'no published grammar for either read'
@@ -234,7 +256,7 @@ const ALLOWLIST: Record<string, Exemption> = {
 		specifiers: [
 			'#lib/editor-actions/enter-completion.js',
 			'#lib/schema/block-completions.js',
-			'#lib/schema/block-openers.js'
+			'#lib/schema/editor-grammar.js'
 		],
 		reason:
 			'a completer registers but nothing published runs one, and the Enter handler that consults ' +
