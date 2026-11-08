@@ -501,16 +501,18 @@ function lineEditOf(before: string, after: string): LineEdit {
 	};
 }
 
-/** `edit` made `lines` lines further down `source`: the new bytes and the caret after the
- *  insert. Runs in the page. */
+/** `edit` made again `lines` lines below where it was made, in `source`, the bytes it left: the
+ *  new bytes and the caret after the insert. Runs in the page. */
 function lineEditAt(
 	source: string,
 	edit: LineEdit,
 	lines: number
 ): { next: string; caret: number } {
+	// The lines `edit` added or took, since `lines` counts the lines before it was made.
+	const moved = edit.insert.split('\n').length - 1 - (edit.to.line - edit.from.line);
 	const byteOf = ({ line, column, fromEnd }: LinePlace): number => {
 		let start = 0;
-		for (let i = 0; i < line + lines; i++) start = source.indexOf('\n', start) + 1;
+		for (let i = 0; i < line + lines + moved; i++) start = source.indexOf('\n', start) + 1;
 		const end = source.indexOf('\n', start);
 		return fromEnd ? (end < 0 ? source.length : end) - column : start + column;
 	};
@@ -572,6 +574,15 @@ export async function measureContainerEdit(
 				{ editOf: lineEditOf.toString(), editAt: lineEditAt.toString(), lines }
 			)
 		);
+		// Both edits undone, so each sample starts on the bytes the first did: a table's cell clear
+		// leaves its rows, and a second clear of them would write nothing.
+		await editor.undo();
+		await editor.undo();
+		await page.waitForFunction(
+			(fnSrc) => new Function(`return (${fnSrc})();`)() === (window as any).__editBefore.length,
+			docLengthInPage.toString(),
+			{ timeout: KEYSTROKE_TIMEOUT_MS, polling: 16 }
+		);
 	}
 	const measured = (samples: number[]): LatencyMeasurement => ({
 		loadMs,
@@ -592,29 +603,30 @@ async function timedPaste(page: Page): Promise<number> {
 }
 
 /** Backspace over the live range, timed in the page from its keydown to the frame after block 0
- *  shrinks; a removal that took nothing times out rather than reading fast. */
+ *  shrinks; a removal that took nothing fails the row rather than reading fast. */
 async function timedBackspace(page: Page): Promise<number> {
-	await page.evaluate(() => {
+	await page.evaluate((timeout) => {
 		const w = window as any;
 		const length = () => {
 			const block = w.__test.getDocument().children[0];
 			return block.leadingTrivia.length + block.raw.length;
 		};
 		const before = length();
-		w.__removal = new Promise<number>((done) => {
+		w.__removal = new Promise<number>((done, fail) => {
 			const listen = () => {
 				const start = performance.now();
 				const poll = () =>
-					requestAnimationFrame(() =>
-						length() < before
-							? requestAnimationFrame(() => done(performance.now() - start))
-							: poll()
-					);
+					requestAnimationFrame(() => {
+						if (length() < before) requestAnimationFrame(() => done(performance.now() - start));
+						else if (performance.now() - start > timeout)
+							fail(new Error('the removal wrote nothing'));
+						else poll();
+					});
 				poll();
 			};
 			window.addEventListener('keydown', listen, { capture: true, once: true });
 		});
-	});
+	}, KEYSTROKE_TIMEOUT_MS);
 	await page.keyboard.press('Backspace');
 	return page.evaluate(() => (window as any).__removal as Promise<number>);
 }

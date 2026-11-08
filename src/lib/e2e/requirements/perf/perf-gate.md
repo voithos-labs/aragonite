@@ -68,7 +68,9 @@ large container, most of it Svelte's dev-only bookkeeping.
   today, then the same bytes written through the byte splice a few children lower. Both are
   timed to the frame after the edit lands and printed side by side, so the splice has a today
   figure to match before any gesture moves onto it.
-- a splice that writes nothing fails its row instead of timing as fast as one that wrote.
+- a splice or a removal that writes nothing fails its row instead of timing as fast as one
+  that wrote, and each sample undoes both edits first, so a table's cleared cells are full again
+  for the next one.
 
 ## Error cases
 
