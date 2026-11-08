@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { readDictionary } from '#lib/spell/english/dictionary.js';
+import { readHunspell } from '#packages/spellcheck/src/english/hunspell.js';
 
 const AFF = `
 SET UTF-8
@@ -31,8 +31,8 @@ damn/!
 and\\/or
 `;
 
-describe('readDictionary', () => {
-	const dict = readDictionary(AFF, DIC);
+describe('readHunspell', () => {
+	const dict = readHunspell(AFF, DIC);
 
 	it('expands suffix rules under their conditions and strips', () => {
 		expect(dict.forms.has('tied')).toBe(true);
@@ -64,5 +64,11 @@ describe('readDictionary', () => {
 			{ from: 'alot', to: 'a lot' }
 		]);
 		expect(dict.tryChars).toBe('abc');
+	});
+
+	it('reads files saved with Windows line endings the same', () => {
+		const crlf = readHunspell(AFF.replace(/\n/g, '\r\n'), DIC.replace(/\n/g, '\r\n'));
+		expect([...crlf.forms].sort()).toEqual([...dict.forms].sort());
+		expect(crlf.tryChars).toBe('abc');
 	});
 });

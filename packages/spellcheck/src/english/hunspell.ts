@@ -1,12 +1,9 @@
 /**
- * A Hunspell dictionary read into word sets: the affix file's prefix and suffix rules expand every
- * entry's flagged forms up front, so a check is one set lookup and the suggester has a plain word
- * list to test candidates against. Reads what the SCOWL English files use (PFX, SFX, REP, TRY,
- * NOSUGGEST, ONLYINCOMPOUND); compounding rules are left out, since digit-bearing words are not
- * checked anyway.
+ * A Hunspell affix file and word file read into word sets: the affix rules expand every entry's
+ * flagged forms up front, so a check is one set lookup and the suggester has a plain word list to
+ * test candidates against. Reads what the SCOWL English files use (PFX, SFX, REP, TRY, NOSUGGEST,
+ * ONLYINCOMPOUND); compounding is left out, since a word with a digit is never checked.
  */
-
-import { splitLines } from '../../core/lines';
 
 interface AffixRule {
 	flag: string;
@@ -22,7 +19,7 @@ export interface Replacement {
 	to: string;
 }
 
-export interface Dictionary {
+export interface WordList {
 	/** Every form as the dictionary spells it. */
 	readonly forms: ReadonlySet<string>;
 	/** Every form lower-cased, for a word written in capitals. */
@@ -35,14 +32,14 @@ export interface Dictionary {
 	readonly tryChars: string;
 }
 
-export function readDictionary(aff: string, dic: string): Dictionary {
+export function readHunspell(aff: string, dic: string): WordList {
 	const affix = parseAffix(aff);
 	const forms = new Set<string>();
 	const noSuggest = new Set<string>();
-	const lines = splitLines(dic);
+	const lines = linesOf(dic);
 	// The first line is the entry count, and a trailing field after a tab is morphology.
 	for (let i = 1; i < lines.length; i++) {
-		const line = lines[i].text;
+		const line = lines[i];
 		if (line === '') continue;
 		const entry = parseEntry(line);
 		if (!entry) continue;
@@ -66,6 +63,21 @@ export function readDictionary(aff: string, dic: string): Dictionary {
 	};
 }
 
+/** The list's own spelling of `word`, or null: a capitalised word matches its lower-case entry (a
+ *  sentence start), and a word in capitals matches any casing. */
+export function knownForm(words: WordList, word: string): string | null {
+	if (words.forms.has(word)) return word;
+	const lower = word.toLowerCase();
+	if (word === lower) return null;
+	if (isCapitalised(word) && words.forms.has(lower)) return lower;
+	if (word === word.toUpperCase() && words.lowerForms.has(lower)) return word;
+	return null;
+}
+
+export function isCapitalised(word: string): boolean {
+	return word[0] !== word[0].toLowerCase() && word.slice(1) === word.slice(1).toLowerCase();
+}
+
 // ── The affix file ───────────────────────────────────────────────────────────
 
 interface AffixTable {
@@ -87,8 +99,8 @@ function parseAffix(aff: string): AffixTable {
 		onlyInCompound: null
 	};
 	const crossFlags = new Map<string, boolean>();
-	for (const rawLine of splitLines(aff)) {
-		const line = rawLine.text.replace(/#.*$/, '').trim();
+	for (const rawLine of linesOf(aff)) {
+		const line = rawLine.replace(/#.*$/, '').trim();
 		if (line === '') continue;
 		const fields = line.split(/\s+/);
 		const [keyword] = fields;
@@ -187,3 +199,5 @@ function applyPrefix(word: string, rule: AffixRule): string | null {
 	if (rule.strip !== '' && !word.startsWith(rule.strip)) return null;
 	return rule.add + word.slice(rule.strip.length);
 }
+
+const linesOf = (text: string): string[] => text.split(/\r\n|\n|\r/);
