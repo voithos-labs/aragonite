@@ -205,6 +205,24 @@ describe.each(SPLICE_ROUTES)('an opener %s inside a container', (_name, write) =
 	});
 });
 
+// A fenced container rebuilds its own opening and closing lines around the closer it gets.
+describe.each(SPLICE_ROUTES)('an opener %s inside a fenced container', (_name, write) => {
+	const DETAILS = '<details>\n<summary>S</summary>\n\n';
+	it.each([
+		['an admonition', ':::tip\nx\n\n$$\ny\n$$\n:::\n', ':::tip\n$$\n$$\n\n$$\ny\n$$\n:::\n'],
+		[
+			'a details block',
+			`${DETAILS}x\n\n$$\ny\n$$\n\n</details>\n`,
+			`${DETAILS}$$\n$$\n\n$$\ny\n$$\n\n</details>\n`
+		]
+	])('in %s, `$$` takes in nothing below', async (_, source, after) => {
+		const h = makeTopHarness(source);
+		const at = source.indexOf('x\n');
+		await write(h, at, at + 1, '$$');
+		expect(settled(h.deps.doc)).toBe(after);
+	});
+});
+
 // The range edits write bytes their in-block write already closed, so the splice adds nothing to them.
 describe('bytes that carry their closer already', () => {
 	it.each(OPENERS)(

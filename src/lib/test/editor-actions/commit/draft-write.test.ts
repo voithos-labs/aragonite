@@ -191,6 +191,22 @@ describe('a draft writing an opener above a block of its family', () => {
 		expect(editor.instance.getSelection()).toEqual({ anchor: caret, focus: caret });
 		expect(await undo(editor)).toBe(source);
 	});
+
+	it('keeps the author caret it wrote over on the opener, in front of the closer', async () => {
+		const editor = mountEditor<Surface>({ source: 'xy\n\n$$\nx\n$$\n', plugins: SYNTAX_PLUGINS });
+		await editor.settle();
+		placeCaret(surfaceAt(editor, [0]), 1);
+
+		expect(await editor.instance.edit().replace({ from: 0, to: 2 }, '$$').commit()).toEqual({
+			ok: true
+		});
+		await editor.settle();
+
+		expect(editor.source()).toBe('$$\n$$\n\n$$\nx\n$$\n');
+		const { focus } = editor.instance.getSelection()!;
+		expect(focus.path).toEqual([0]);
+		expect(focus.offset).toBeLessThanOrEqual('$$\n'.length);
+	});
 });
 
 describe('a draft refused', () => {
