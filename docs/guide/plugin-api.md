@@ -60,7 +60,7 @@ _(pre-freeze / unstable)_ The installable package, and the per-editor context it
 | `PluginSpec` | What you hand `definePlugin` to get a plugin value instead: `name`, `version`, the `editor` range it runs on, `defaults`, `validate`, `needs`, `conflicts`, and `contributes(options)`, which each editor calls with its own options |
 | `Plugin` | The plugin value that comes back. Call it with options (`math({ render })`) to give one editor different ones |
 | `PluginList` | A list of plugin values, whatever their options, as `needs` takes it |
-| `Contribution` | What `contributes` hands back for one editor: a `setup(editor)` that runs once that editor mounts, the `commands` it runs, and its `inserts` rows |
+| `Contribution` | What `contributes` hands back for one editor: a `setup(editor)` that runs once that editor mounts, the `commands` it runs, its `inserts` rows, and its caret `menus` |
 | `Editor` | What `setup` and your commands get: the plugins on, the mode, the theme, the `inserts` rows, `on`, `run` and `can` (a command by value or id, with its argument), `claims` and `edit`. It's one object per plugin per editor, and a listener you add there goes away with your plugin |
 | `PluginError` | An error your plugin caused: its name, what the editor was doing with it (`install`, `validate`, `contributes`, `setup`, `dispose`, `run shout/hello` for a command, or `on('edit')` for a listener that threw), and the cause |
 | `BlockType` | A block type by name |
@@ -1001,6 +1001,10 @@ _(pre-freeze / unstable)_ A list the editor opens under the caret while the auth
 
 | Export | Role |
 | --- | --- |
+| [`menu`](#menu) | Make a list your plugin lists in `contributes` as `menus`: it opens when its trigger is typed, and a pick writes nothing until you commit it through the `MenuPick` |
+| `CaretMenu` | What `menu` takes: a `label` for screen readers, the `trigger`, `where` it opens (after a space or at a line's start by default, only at a line's start, or anywhere), `rows(query, { editor })`, an optional `draw(row, el)`, and `pick(row, pick)` |
+| `MenuRow` | The row the editor draws when your menu has no `draw`: a `label`, maybe a `detail` and an `icon` |
+| `MenuPick` | A `Draft` over the trigger and the query, with the `trigger`, the `query` and their `range`, plus `write(inline)` and `insertBlock(markdown)` |
 | [`InlineMenuRegistry`](#inlinemenuregistry) | The `editor.inlineMenus` surface |
 | [`InlineMenuSource`](#inlinemenusource) | A named source: its trigger, its list, and what happens around a pick |
 | `InlineMenuOpenOptions` | `open`'s second argument: a `query` typed after the trigger, so the list opens already narrowed |
@@ -1009,6 +1013,35 @@ _(pre-freeze / unstable)_ A list the editor opens under the caret while the auth
 | [`InlineMenuCommit`](#inlinemenucommit) | What `onCommit` gets as its third argument |
 | `InlineMenuQuery` | What `items` is asked: the `query` typed so far, the leaf's `path`, the raw range `[start, end)` a pick would replace, and a `signal` aborted once a later keystroke supersedes the read |
 | `InlineMenuRowProps` | What a `row` view receives, at mount and on each `update`: the `item`, whether it is `active`, and the `query` (for highlighting the match) |
+
+#### `menu`
+
+```ts
+function menu<R>(spec: CaretMenu<R>): CaretMenu<R>;
+```
+
+A list under the caret. Picking a row hands it to your `pick` with a `MenuPick`, and nothing is written until you write through it: `write(inline)` swaps the trigger and the query for one line of text, `insertBlock(markdown)` takes them out and drops a block in, below the line when the line has other text.
+
+```ts
+const mentions = definePlugin({
+	name: 'mentions',
+	version: '1.0.0',
+	editor: '*',
+	contributes: () => ({
+		menus: [
+			menu<MenuRow>({
+				label: 'People',
+				trigger: '@',
+				rows: (query) => people.filter((p) => p.label.startsWith(query)),
+				pick: (row, pick) => void pick.write(`@${row.label}`)
+			})
+		]
+	})
+});
+// type "@ad", Enter: "@ad" becomes "@Ada", one undo step
+```
+
+A pick can wait (a fetch, a dialog). Whatever you write then lands as its own undo step, after the typing that came before it, or comes back refused: `moved` when the author changed the trigger or the query meanwhile, `unloaded` when the host loaded another document. `insertBlock` is also refused as `moved` once the caret has left the query, since the block goes in where the caret is.
 
 #### `InlineMenuRegistry`
 

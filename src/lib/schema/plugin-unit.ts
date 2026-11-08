@@ -11,6 +11,7 @@ import type { EditorEventMap } from '../editor-events';
 import type { PresentationMode } from '../presentation-mode';
 import type { Command } from './plugin-command';
 import type { InsertRow } from './insert-catalogue';
+import type { CaretMenu } from './caret-menu';
 import type { Draft } from './drafts';
 import { isValidPluginName } from './plugin-name';
 import { satisfiesRange } from './version-range';
@@ -58,6 +59,8 @@ export interface Contribution {
 	commands?: readonly Command<unknown>[];
 	/** Rows for the insert menus, listed after the built-ins as `plugin/id`. */
 	inserts?: readonly InsertRow[];
+	/** Lists that open under the caret when their trigger is typed. */
+	menus?: readonly CaretMenu<unknown>[];
 }
 
 /** The editor as a plugin's `setup` and a host's handle both see it. */

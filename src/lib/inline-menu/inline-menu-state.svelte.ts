@@ -27,6 +27,7 @@ import type {
 	InlineMenuItem,
 	InlineMenuOpenOptions,
 	InlineMenuRegistry,
+	InlineMenuRowProps,
 	InlineMenuSource,
 	InlineMenuSourceHandle
 } from './types';
@@ -34,6 +35,17 @@ import type { Reading } from '../schema/reading';
 import type { Draft, DraftSpec } from '../schema/drafts';
 import type { EditorContext } from '../schema/plugin-install';
 import { openPick } from './pick-context';
+import {
+	createMenuPick,
+	type CaretMenu,
+	type ContributedMenu,
+	type MenuRow,
+	type PickDraft
+} from '../schema/caret-menu';
+import type { Editor } from '../schema/plugin-unit';
+import { isBlankText } from '../core/lines';
+import { byteOfLeaf } from '../tree-operations/container-offsets';
+import type { PluginView } from '../plugin-view';
 
 export interface InlineMenuStateDeps {
 	getDoc: () => DocumentView;
@@ -63,6 +75,12 @@ export interface InlineMenuStateDeps {
 	/** Whether `offset` in the leaf at `path` sits inside an inline widget's shown source, where
 	 *  the bytes are a construct being edited and no trigger opens a list. */
 	showsSource: (path: readonly number[], leaf: NodeView, offset: number) => boolean;
+	/** The scoped editor of a running plugin, which its menu's `rows` reads. */
+	editorFor: (plugin: string) => Editor | undefined;
+	/** A draft for a plugin's pick, refused once the plugin is turned off. */
+	pickDraft: (plugin: string) => PickDraft;
+	/** Ends the author's typing burst, so what a pick writes later is its own undo step. */
+	endBurst: () => void;
 }
 
 export interface InlineMenuState {
@@ -89,6 +107,8 @@ export interface InlineMenuState {
 	close(): void;
 	/** Report a failure of the source named `source` on the `error` event, as its other failures are. */
 	reportSourceError(error: unknown, source: string): void;
+	/** The caret menus the editor's plugin values contribute, replacing the last list. */
+	setMenus(menus: readonly ContributedMenu[]): void;
 	dispose(): void;
 }
 
@@ -347,6 +367,8 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 	async function commitItem(item: InlineMenuItem): Promise<void> {
 		const live = session;
 		if (!live) return;
+		const contributed = menus.get(live.source);
+		if (contributed) return pickFromMenu(live, item, contributed);
 		// One entry for the pick's own bytes and every block its source writes after them.
 		await deps.undoStep(live.path, live.start, () => writePick(live, item));
 	}
@@ -420,6 +442,87 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 			begin(source, caret.path, start, caretAfter);
 		})();
 		return true;
+	}
+
+	// ── Caret menus from plugin values ─────────────────────────────────────
+
+	const menus = new Map<string, ContributedMenu>();
+	const rowOfItem = new WeakMap<InlineMenuItem, unknown>();
+
+	function setMenus(list: readonly ContributedMenu[]): void {
+		for (const name of menus.keys()) {
+			sources.delete(name);
+			if (session?.source === name) close();
+		}
+		menus.clear();
+		if (sources.size === 0) {
+			seen = null;
+			heldBack = false;
+		}
+		list.forEach((entry, i) => {
+			const name = `${entry.plugin}:${i}`;
+			menus.set(name, entry);
+			sources.set(name, menuSource(name, entry));
+		});
+	}
+
+	function menuSource(name: string, { plugin, menu }: ContributedMenu): InlineMenuSource {
+		const toItems = (rows: readonly unknown[]) =>
+			rows.map((row, i) => {
+				const { label = '', detail, icon } = (row ?? {}) as Partial<MenuRow>;
+				const item: InlineMenuItem = { id: String(i), label, detail, icon, insert: '' };
+				rowOfItem.set(item, row);
+				return item;
+			});
+		return {
+			name,
+			trigger: menu.trigger,
+			opensAt: OPENS_AT[menu.where ?? 'word-start'],
+			items({ query }) {
+				const editor = deps.editorFor(plugin);
+				if (!editor) return [];
+				const rows = menu.rows(query, { editor });
+				return Array.isArray(rows) ? toItems(rows) : Promise.resolve(rows).then(toItems);
+			},
+			row: menu.draw && drawnRow(menu.draw, (item) => rowOfItem.get(item))
+		};
+	}
+
+	async function pickFromMenu(
+		live: InlineMenuSession,
+		item: InlineMenuItem,
+		{ plugin, menu }: ContributedMenu
+	): Promise<void> {
+		const doc = deps.getDoc();
+		const raw = nodeRaw(live.path);
+		const path = [...live.path];
+		const queryEnd = end;
+		const from = byteOfLeaf(doc, path, live.start);
+		const to = byteOfLeaf(doc, path, queryEnd);
+		const pickedQuery = query;
+		close();
+		deps.endBurst();
+		if (from === null || to === null) return;
+		const pick = createMenuPick({
+			draft: deps.pickDraft(plugin),
+			trigger: raw.slice(live.start, live.start + live.triggerLength),
+			query: pickedQuery,
+			range: { from, to },
+			lineHasText: !isBlankText(raw.slice(0, live.start)) || !isBlankText(raw.slice(queryEnd)),
+			caretStays: () => caretAt(path, queryEnd)
+		});
+		try {
+			await menu.pick(rowOfItem.get(item), pick);
+		} catch (error) {
+			report(error, live.source);
+		} finally {
+			pick.end();
+		}
+	}
+
+	function caretAt(path: readonly number[], offset: number): boolean {
+		const caret = caretLeaf();
+		return caret !== null && caret.offset === offset && caret.path.join() === path.join();
 	}
 
 	const registry: InlineMenuRegistry = {
@@ -512,6 +615,7 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		},
 		close,
 		reportSourceError: report,
+		setMenus,
 		primeBaseline,
 		dispose() {
 			disposed = true;
@@ -521,5 +625,29 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 			unsubscribeSelection();
 			unsubscribeMode();
 		}
+	};
+}
+
+// ── Internal ─────────────────────────────────────────────────────────────────
+
+const OPENS_AT: Record<NonNullable<CaretMenu<unknown>['where']>, InlineMenuSource['opensAt']> = {
+	'word-start': (raw, pos) => pos === 0 || /\s/.test(raw[pos - 1]),
+	'line-start': (raw, pos) => pos === 0 || raw[pos - 1] === '\n',
+	anywhere: undefined
+};
+
+/** A menu's `draw` as the row view the list mounts. */
+function drawnRow(
+	draw: (row: unknown, el: HTMLElement) => void,
+	rowOf: (item: InlineMenuItem) => unknown
+): PluginView<InlineMenuRowProps> {
+	return (target, props) => {
+		draw(rowOf(props.item), target);
+		return {
+			update(next) {
+				target.replaceChildren();
+				draw(rowOf(next.item), target);
+			}
+		};
 	};
 }

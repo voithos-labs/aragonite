@@ -9,6 +9,7 @@ import { claimCommand, commandSpec, type Command, type CommandSpec } from './plu
 import { normalizeChord } from './keybindings';
 import { refusedClaims } from './plugin-claims';
 import { insertRowProblem, type InsertRow } from './insert-catalogue';
+import type { ContributedMenu } from './caret-menu';
 
 export interface ContributedCommand {
 	readonly plugin: string;
@@ -25,6 +26,8 @@ export interface EditorContributions {
 	readonly commands: readonly ContributedCommand[];
 	/** Each plugin's rows in list order, ids as `plugin/id`. */
 	readonly inserts: readonly InsertRow[];
+	/** Each plugin's caret menus, in list order. */
+	readonly menus: readonly ContributedMenu[];
 	/** Runs a command against its plugin's scoped editor; false where `when` or the command declines.
 	 *  A throw counts as run, so the key goes no further, and is reported. */
 	run(command: ContributedCommand, arg: unknown): boolean;
@@ -43,6 +46,7 @@ export function createEditorContributions(deps: {
 	let byId = new Map<string, ContributedCommand>();
 	let byChord = new Map<string, ContributedCommand>();
 	let inserts: readonly InsertRow[] = [];
+	let menus: readonly ContributedMenu[] = [];
 
 	function guarded<T>(entry: ContributedCommand, fallback: T, call: () => T): T {
 		try {
@@ -55,7 +59,7 @@ export function createEditorContributions(deps: {
 
 	function read(units: readonly InstalledPlugin[]): InstalledPlugin[] {
 		const usable = units.filter((unit) => {
-			const problem = commandProblem(unit) ?? insertProblem(unit);
+			const problem = commandProblem(unit) ?? insertProblem(unit) ?? menuProblem(unit);
 			if (problem) deps.report(installError(unit.name, problem));
 			return !problem;
 		});
@@ -75,6 +79,9 @@ export function createEditorContributions(deps: {
 			(unit.contribution.inserts ?? []).map((row) =>
 				Object.freeze({ ...row, id: `${unit.name}/${row.id}` })
 			)
+		);
+		menus = kept.flatMap((unit) =>
+			(unit.contribution.menus ?? []).map((menu) => ({ plugin: unit.name, menu }))
 		);
 		return kept;
 	}
@@ -108,6 +115,9 @@ export function createEditorContributions(deps: {
 		get inserts() {
 			return inserts;
 		},
+		get menus() {
+			return menus;
+		},
 		run,
 		can,
 		read
@@ -137,6 +147,13 @@ function insertProblem(unit: InstalledPlugin): string | null {
 		ids.add(row.id);
 	}
 	return null;
+}
+
+function menuProblem(unit: InstalledPlugin): string | null {
+	const bad = (unit.contribution.menus ?? []).find(
+		(menu) => menu.trigger === '' || /[\r\n]/.test(menu.trigger)
+	);
+	return bad ? `has a caret menu whose trigger isn't one line of text: "${bad.trigger}"` : null;
 }
 
 function entryOf(plugin: string, value: Command<unknown>): ContributedCommand {

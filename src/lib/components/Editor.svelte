@@ -741,8 +741,12 @@
 		// A source added outside any plugin's `onEditor` is the editor's own: the base context.
 		ownerOfNewSource: () => pluginContexts.attaching() ?? pluginContexts.get('')!,
 		drafts,
-		showsSource: shownSource.holds
+		showsSource: shownSource.holds,
+		editorFor: (plugin) => pluginContexts.scoped(plugin),
+		pickDraft: (plugin) => drafts.edit(plugin),
+		endBurst: () => controller.flushDebouncedCheckpoint()
 	});
+	inlineMenu.setMenus(contributions.menus);
 	const inlineMenus: InlineMenuRegistry = inlineMenu.registry;
 	$effect(() => () => inlineMenu.dispose());
 
@@ -1506,6 +1510,7 @@
 		const beforeUnits = units;
 		pluginEntries = entries;
 		units = installList(entries.values, beforeUnits);
+		inlineMenu.setMenus(contributions.menus);
 		const after = listedNames() ?? [];
 		// A plugin listed again with other options starts over on them, whichever shape it has.
 		const replaced = (name: string) =>
