@@ -3,7 +3,7 @@
  * split into two words, then two edits, each scored by how often that slip happens.
  */
 
-import { isCapitalised, knownForm, type WordList } from './hunspell';
+import { isCapitalised, knownForm, type WordList } from './word-form';
 
 export const MAX_SUGGESTIONS = 5;
 /** Two-edit candidates grow with the square of the word, so a long word gets one edit only. */

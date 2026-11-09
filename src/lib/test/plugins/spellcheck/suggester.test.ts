@@ -2,7 +2,8 @@
 // the two-edit search a word with no fix falls through to (1.4 s on the main thread).
 import { describe, expect, it } from 'vitest';
 import { AFF, DIC } from '#packages/spellcheck/src/english/en-us-data.js';
-import { readHunspell, type WordList } from '#packages/spellcheck/src/english/hunspell.js';
+import { readHunspell } from '#packages/spellcheck/src/english/hunspell.js';
+import type { WordList } from '#packages/spellcheck/src/english/word-form.js';
 import { suggestFor } from '#packages/spellcheck/src/english/suggester.js';
 
 const words = readHunspell(AFF, DIC);
