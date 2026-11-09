@@ -458,7 +458,10 @@
 		const version = contentVersion.read();
 		if (version === notifiedVersion) return; // the mount run announces nothing
 		notifiedVersion = version;
-		if (decorationEngine.sourceCount > 0) void tick().then(() => decorationEngine.notifyEdit());
+		void tick().then(() => {
+			if (decorationEngine.sourceCount > 0) decorationEngine.notifyEdit();
+			searchState.documentChanged();
+		});
 	});
 
 	// ── Open menus ──────────────────────────────────────────────────────
@@ -721,7 +724,7 @@
 			events.emit('error', { origin: 'decoration', error, context: { source } }),
 		onMarkError: (path, error) =>
 			events.emit('error', { origin: 'decoration', error, context: { path } }),
-		blockSources: () => paintSources,
+		blockSources: () => blockSources,
 		landClick: (event) =>
 			passPointerThrough(event, () => placeCaretAtPoint(event.clientX, event.clientY))
 	});
@@ -753,7 +756,11 @@
 		}
 		return source;
 	}
-	// Read again whenever `use` changes the list.
+	// Read again whenever `use` changes the list; the find bar's highlights come first while it's open.
+	const blockSources = $derived.by(() => {
+		const highlights = searchState.highlights;
+		return highlights ? [highlights, ...paintSources] : paintSources;
+	});
 	const paintSources = $derived.by(
 		() => (
 			void pluginNames,
@@ -919,7 +926,6 @@
 	const searchState = createSearchState({
 		getDoc,
 		getDocumentGeneration: documentSwap.generation,
-		decorations,
 		replace: searchReplace,
 		// The public scroll call holds the match in place, so a late image decode cannot move it.
 		reveal: (p) => rects.scrollTo(p),

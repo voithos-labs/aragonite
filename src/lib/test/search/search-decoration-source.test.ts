@@ -6,8 +6,7 @@ function makeHarness(source: string, replace?: ReplaceStub) {
 	let scans = 0;
 	const h = makeSearchHarness(source, {
 		replace,
-		// The rescan reads the generation exactly once at its top, and scans the document the
-		// registry hands `provide` rather than this getter, so this read counts rescans.
+		// The rescan reads the generation exactly once at its top, so this read counts rescans.
 		getDocumentGeneration: () => {
 			scans++;
 			return 0;
@@ -16,14 +15,14 @@ function makeHarness(source: string, replace?: ReplaceStub) {
 	return { ...h, scanCount: () => scans };
 }
 
-describe('search as decoration source', () => {
-	it('open registers editor:search; close disposes it (zero-cost when closed)', () => {
-		const { engine, state } = makeHarness('cat\n');
-		expect(engine.sourceCount).toBe(0);
+describe('search highlights', () => {
+	it('are read only while the bar is open', () => {
+		const { state } = makeHarness('cat\n');
+		expect(state.highlights).toBeNull();
 		state.open();
-		expect(engine.sourceCount).toBe(1);
+		expect(state.highlights?.name).toBe('editor:search');
 		state.close();
-		expect(engine.sourceCount).toBe(0);
+		expect(state.highlights).toBeNull();
 	});
 
 	it('setQuery publishes marks synchronously, active class on the active match', () => {
@@ -45,13 +44,20 @@ describe('search as decoration source', () => {
 		expect(classes).toEqual(['match-overlay', 'match-overlay match-overlay-active']);
 	});
 
-	it('an edit-epoch bump forces a rescan: memo miss', () => {
-		const { engine, state, scanCount } = makeHarness('cat cat\n');
+	it('a document change forces a rescan: memo miss', () => {
+		const { state, scanCount } = makeHarness('cat cat\n');
 		state.open();
 		state.setQuery('cat');
 		const scans = scanCount();
-		engine.notifyEdit(); // what the editor's edit subscriber calls post-commit
+		state.documentChanged(); // what the editor calls once an edit's flush is done
 		expect(scanCount()).toBe(scans + 1);
+	});
+
+	it('a document change while the bar is closed scans nothing', () => {
+		const { state, scanCount } = makeHarness('cat cat\n');
+		const scans = scanCount();
+		state.documentChanged();
+		expect(scanCount()).toBe(scans);
 	});
 
 	it('in-place typing (children identity unchanged) reaches the next scan', () => {
@@ -62,13 +68,13 @@ describe('search as decoration source', () => {
 		state.setQuery('cat');
 		expect(state.matches).toHaveLength(1);
 		doc.children[0].raw = 'cat cat\n';
-		engine.notifyEdit();
+		state.documentChanged();
 		expect(state.matches).toHaveLength(2);
 		expect(paintAt(engine, [0]).marks).toHaveLength(2);
 	});
 
 	// Replace mutates the document before the deferred edit notification changes the memo key, so
-	// the rescan must come before the invalidate or the bar serves the matches from before it.
+	// it rescans itself or the bar serves the matches from before it.
 	it('replaceCurrent refreshes matches synchronously on the bar-open path', async () => {
 		const { doc, state } = makeHarness('cat cat\n', {
 			replaceOne: async (_m, text) => {
@@ -101,6 +107,18 @@ describe('search as decoration source', () => {
 		expect(state.matches).toHaveLength(0);
 	});
 
+	it('a rescan keeps the marks of a block whose matches came out the same', () => {
+		const { doc, engine, state } = makeHarness('cat\n\ncat\n');
+		state.open();
+		state.setQuery('cat');
+		const second = () => engine.paintOf(doc.children[1], [1]).marks;
+		const before = second();
+		doc.children[0].raw = 'cat cat\n';
+		state.documentChanged();
+		expect(state.matches).toHaveLength(3);
+		expect(second()).toBe(before);
+	});
+
 	it('close clears the published marks', () => {
 		const { engine, state } = makeHarness('cat\n');
 		state.open();
@@ -110,18 +128,21 @@ describe('search as decoration source', () => {
 		expect(paintAt(engine, [0]).marks).toHaveLength(0);
 	});
 
-	it('reopen after close re-registers without a duplicate-name throw', () => {
+	it('reopen after close paints the query again', () => {
 		const { engine, state } = makeHarness('cat\n');
 		state.open();
+		state.setQuery('cat');
 		state.close();
-		expect(() => state.open()).not.toThrow();
-		expect(engine.sourceCount).toBe(1);
+		state.open();
+		expect(paintAt(engine, [0]).marks).toHaveLength(1);
 	});
 
-	it('a second open while already open is a no-op, not a duplicate source', () => {
-		const { engine, state } = makeHarness('cat\n');
+	it('a second open while already open scans nothing', () => {
+		const { state, scanCount } = makeHarness('cat\n');
 		state.open();
-		expect(() => state.open()).not.toThrow(); // Ctrl+H over an open find bar
-		expect(engine.sourceCount).toBe(1);
+		state.setQuery('cat');
+		const scans = scanCount();
+		state.open(); // Ctrl+H over an open find bar
+		expect(scanCount()).toBe(scans);
 	});
 });

@@ -1,7 +1,7 @@
 # Feature: an open find bar rescans across a `source` swap
 
-The search source uses the same edit generation counter as any other decoration
-source: its scan is cached on `editEpoch + options + query`. A whole-document
+The find bar's scan is cached on a count of document changes plus the options and
+the query, and a swap counts as a change. A whole-document
 `source` swap under an open find bar must therefore re-scan, or the bar keeps the
 previous document's count and paints overlays over text that holds no match.
 
