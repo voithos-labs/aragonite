@@ -34,6 +34,7 @@
 			"svelte": "./dist/conformance.js",
 			"default": "./dist/prebuilt/conformance.js"
 		},
+		"./style.css": "./dist/prebuilt/style.css",
 		"./package.json": "./package.json"
 	},
 	"files": [
@@ -41,7 +42,9 @@
 		"THIRD-PARTY-NOTICES.md"
 	],
 	"sideEffects": [
-		"**/*.css"
+		"**/*.css",
+		"./dist/spellcheck-plugin.js",
+		"./dist/prebuilt/spellcheck-plugin.js"
 	],
 	"scripts": {
 		"build": "svelte-package -i src -o dist && node ../../scripts/pack/strip-declaration-css.mjs dist && vite build",

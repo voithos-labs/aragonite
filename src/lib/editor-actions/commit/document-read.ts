@@ -11,6 +11,7 @@ import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { pathOfNode } from './change-record';
 import { blockOf, type Block, type BlockReading } from '../../schema/doc-view';
 import type { BlockType } from '../../schema/plugin-unit';
+import type { EditorSelection } from '../../selection/primitives';
 
 export interface DocumentRead {
 	/** The deepest block holding document byte `at`: a byte of a marker or a container's own line
@@ -18,6 +19,8 @@ export interface DocumentRead {
 	blockAt(at: number): Block | null;
 	/** The block view of `node`, last seen at `path`. */
 	blockOf(node: NodeView, path: readonly number[]): Block;
+	/** `selection` in document bytes, `from` first; null for none or a cell selection. */
+	rangeOf(selection: EditorSelection | null): { from: number; to: number } | null;
 }
 
 export function createDocumentRead(deps: {
@@ -66,7 +69,15 @@ export function createDocumentRead(deps: {
 			const node = leaf && blockNodeAt(deps.getDoc(), leaf.path);
 			return node ? blockOf(node, reading, leaf.path) : null;
 		},
-		blockOf: (node, path) => blockOf(node, reading, path)
+		blockOf: (node, path) => blockOf(node, reading, path),
+		rangeOf(selection) {
+			if (!selection || selection.anchor.cellCoordinate || selection.focus.cellCoordinate)
+				return null;
+			const { map } = layout();
+			const a = map.byteOf(selection.anchor.path, selection.anchor.offset);
+			const f = map.byteOf(selection.focus.path, selection.focus.offset);
+			return a === null || f === null ? null : { from: Math.min(a, f), to: Math.max(a, f) };
+		}
 	};
 }
 

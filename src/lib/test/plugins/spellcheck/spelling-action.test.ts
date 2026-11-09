@@ -1,11 +1,19 @@
+// @vitest-environment jsdom
 // The Spelling action as an editor lists it: what it captures around a caret or a selection, the
 // rows it offers there, and what a picked row writes through the draft the editor opens for it.
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { installPluginList } from '#lib/schema/plugin-unit.js';
 import type { ActionRow, Captured, Draft, Editor, SelectionAction } from '#lib/plugin.js';
 import { spellcheckPlugin, type SpellcheckOptions } from '#packages/spellcheck/src/index.js';
 import type { Dictionary } from '#packages/spellcheck/src/dictionary.js';
-import { readingEditor, textBlock } from './text-block';
+import {
+	destroyMountedEditors,
+	installLayoutStubs
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { readingEditor } from './reading-editor';
+
+beforeAll(() => installLayoutStubs());
+afterEach(() => destroyMountedEditors());
 
 const SUGGESTIONS: Record<string, string[]> = { teh: ['the', 'ten'], speling: [] };
 
@@ -30,8 +38,10 @@ function spellingAction(options: Partial<SpellcheckOptions> = {}): SelectionActi
 	return action;
 }
 
-const RAW = 'say teh `teh` cat';
-const editor = readingEditor([textBlock(RAW, 20)]);
+// Twenty bytes ahead of the line, so its words sit at 24 (`teh`) and 30 (the code span's).
+const DOC = 'Padding paragraph.\n\nsay teh `teh` cat\n';
+let editor: Editor;
+beforeEach(async () => void ({ editor } = await readingEditor(DOC)));
 
 function captured(range: { from: number; to: number }, text: string): Captured {
 	return { text, range, box: null, editable: true };
@@ -77,26 +87,16 @@ describe('what the Spelling action captures', () => {
 	});
 
 	it('reads no pieces for a selection holding a space, which the toolbar asks about per change', () => {
-		const block = textBlock(RAW, 20);
+		const block = editor.blockAt(20)!;
 		let reads = 0;
-		const counted = {
-			...block,
-			get pieces() {
-				reads++;
-				return block.pieces;
-			}
-		};
-		expect(spellingAction().capture!(readingEditor([counted]), { from: 20, to: 27 })).toBeNull();
+		const counted = Object.create(block, { pieces: { get: () => (reads++, block.pieces) } });
+		const reader = { blockAt: () => counted } as unknown as Editor;
+		expect(spellingAction().capture!(reader, { from: 20, to: 27 })).toBeNull();
 		expect(reads).toBe(0);
 	});
 
 	it('never takes a word inside a code span', () => {
 		expect(spellingAction().capture!(editor, { from: 30, to: 30 })).toBeNull();
-	});
-
-	it('takes nothing from an editor with no block reads', () => {
-		const bare = {} as Editor;
-		expect(spellingAction().capture!(bare, { from: 25, to: 25 })).toBeNull();
 	});
 });
 

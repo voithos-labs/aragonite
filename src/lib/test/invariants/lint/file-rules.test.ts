@@ -1207,7 +1207,9 @@ const RULES: FileRule[] = [
 			'packages/mermaid/src/MermaidBlock.svelte': SHOWS_INK,
 			'packages/slash-commands/src/filter.ts': 'the words of a menu query the user typed',
 			'packages/spellcheck/src/english/hunspell.ts':
-				'the fields of a Hunspell affix file, which any whitespace separates: not Markdown'
+				'the fields of a Hunspell affix file, which any whitespace separates: not Markdown',
+			'packages/spellcheck/src/spelling-action.ts':
+				'the text of a selection, where any space, a non-breaking one too, ends a word'
 		},
 		reaches: [...GRAMMAR_FILES, SOURCE.directiveGrammar],
 		reason:

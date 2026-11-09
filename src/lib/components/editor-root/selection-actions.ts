@@ -13,7 +13,6 @@ import type {
 	ContributedAction,
 	SelectionAction
 } from '../../schema/selection-action';
-import type { EditorSelection } from '../../selection/primitives';
 import { documentByteMap } from '../../tree-operations/container-offsets';
 import { isThenable } from '../../schema/editor-contributions';
 import type { MenuEntry } from '../menu/BlockMenu.svelte';
@@ -54,23 +53,14 @@ export function createSelectionActions(deps: {
 	getDoc(): DocumentView;
 	/** The document's bytes, serialized once per content version. */
 	source(): string;
-	getSelection(): EditorSelection | null;
+	/** The selection in document bytes, null for none or a cell selection. */
+	selection(): { from: number; to: number } | null;
 	editable(): boolean;
 	/** The rects over offsets `start` to `end` of the leaf at `path`. */
 	rangeRects(path: number[], start: number, end: number): DOMRect[];
 	edit(plugin: string): InternalDraft;
 	report(error: PluginError): void;
 }): SelectionActions {
-	function selectionBytes(): { from: number; to: number } | null {
-		const selection = deps.getSelection();
-		if (!selection || selection.anchor.cellCoordinate || selection.focus.cellCoordinate)
-			return null;
-		const map = documentByteMap(deps.getDoc());
-		const a = map.byteOf(selection.anchor.path, selection.anchor.offset);
-		const f = map.byteOf(selection.focus.path, selection.focus.offset);
-		return a === null || f === null ? null : { from: Math.min(a, f), to: Math.max(a, f) };
-	}
-
 	// One leaf's rects joined; a range across leaves has no one box.
 	function box(from: number, to: number): DOMRect | null {
 		const map = documentByteMap(deps.getDoc());
@@ -203,9 +193,9 @@ export function createSelectionActions(deps: {
 	}
 
 	return {
-		atSelection: () => captures(selectionBytes()),
+		atSelection: () => captures(deps.selection()),
 		wholeSelection() {
-			const over = selectionBytes();
+			const over = deps.selection();
 			return over && over.from < over.to
 				? captures(over).filter(
 						({ captured: { range } }) => range.from === over.from && range.to === over.to

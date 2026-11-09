@@ -1,55 +1,50 @@
+// @vitest-environment jsdom
 // The host's two operations over the document: the misspelled word at a byte, and the one write
 // that replaces it.
-import { describe, expect, it, vi } from 'vitest';
-import type { Draft } from '#lib/plugin.js';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { misspellingAt, replaceWord } from '#packages/spellcheck/src/index.js';
 import type { Dictionary } from '#packages/spellcheck/src/dictionary.js';
-import { readingEditor, textBlock } from './text-block';
+import {
+	destroyMountedEditors,
+	installLayoutStubs
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { readingEditor } from './reading-editor';
+
+beforeAll(() => installLayoutStubs());
+afterEach(() => destroyMountedEditors());
 
 const dictionary: Dictionary = {
 	check: async (word) => word !== 'teh',
 	suggest: () => ['the']
 };
 
-function draftRecorder() {
-	const writes: unknown[] = [];
-	const draft = {
-		replace: (range: unknown, text: string) => (writes.push({ range, text }), draft),
-		commit: async (options: unknown) => (writes.push({ commit: options }), { ok: true as const })
-	};
-	return { writes, edit: vi.fn(() => draft as unknown as Draft) };
-}
+// Ten bytes ahead of the line, so `teh` sits at 14.
+const DOC = 'Prologue\n\nsay teh cat\n';
+const TEH = { word: 'teh', from: 14, to: 17 };
 
 describe('misspellingAt', () => {
-	const editor = readingEditor([textBlock('say teh cat', 10)]);
-
 	it('names the misspelled word holding a byte, and nothing over a word spelled right', async () => {
-		expect(await misspellingAt(editor, 15, dictionary)).toEqual({ word: 'teh', from: 14, to: 17 });
+		const { editor } = await readingEditor(DOC);
+		expect(await misspellingAt(editor, 15, dictionary)).toEqual(TEH);
 		expect(await misspellingAt(editor, 11, dictionary)).toBeNull();
 		expect(await misspellingAt(editor, 2, dictionary)).toBeNull();
 	});
 });
 
 describe('replaceWord', () => {
-	it('writes the new word over the old as one commit, the caret after it', async () => {
-		const { writes, edit } = draftRecorder();
-		const editor = readingEditor([textBlock('say teh cat', 10)], edit);
-		const result = await replaceWord(editor, { word: 'teh', from: 14, to: 17 }, 'the');
-		expect(result).toEqual({ ok: true });
-		expect(writes).toEqual([
-			{ range: { from: 14, to: 17 }, text: 'the' },
-			{ commit: { caret: 17 } }
-		]);
+	it('writes the new word over the old as one commit', async () => {
+		const { editor, m } = await readingEditor(DOC);
+		expect(await replaceWord(editor, TEH, 'the')).toEqual({ ok: true });
+		expect(m.source()).toBe('Prologue\n\nsay the cat\n');
 	});
 
 	// Miss-analysis: the PR's replace spliced the saved offsets, and no test replaced a word after an
 	// edit had moved it.
 	it('refuses as moved once the word is no longer at its bytes, writing nothing', async () => {
-		const { writes, edit } = draftRecorder();
-		const editor = readingEditor([textBlock('the extra teh cat', 10)], edit);
-		const result = await replaceWord(editor, { word: 'teh', from: 14, to: 17 }, 'the');
-		expect(result).toMatchObject({ ok: false, reason: 'moved' });
-		expect(edit).not.toHaveBeenCalled();
-		expect(writes).toEqual([]);
+		const { editor, m } = await readingEditor(DOC);
+		await editor.edit().replace({ from: 10, to: 10 }, 'the extra ').commit();
+		const moved = m.source();
+		expect(await replaceWord(editor, TEH, 'the')).toMatchObject({ ok: false, reason: 'moved' });
+		expect(m.source()).toBe(moved);
 	});
 });

@@ -100,6 +100,7 @@ function recordingEditor(writes: string[], edit: Editor['edit'], plugin: string)
 		openRows: () => ({ isOpen: false, close() {} }),
 		edit,
 		blockAt: () => null,
+		selectedRange: () => null,
 		repaint: () => {}
 	};
 }

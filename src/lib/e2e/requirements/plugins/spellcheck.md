@@ -3,8 +3,7 @@
 The spellcheck package (`@voithos-labs/aragonite-spellcheck`) on `/test/editor?spell=on`, which
 keeps added words in localStorage, or `?spell=bare`, which keeps none. A misspelled word in prose
 gets a red wave, and its Spelling rows (the suggestions, then "Add to dictionary" where the host
-keeps words) show in the right-click menu, in the selection toolbar, and on a hover card. Every
-row waits for the editor to read blocks and paint, so both groups are parked until then.
+keeps words) show in the right-click menu, in the selection toolbar, and on a hover card.
 
 ## The spelling rows
 
@@ -21,7 +20,8 @@ row waits for the editor to read blocks and paint, so both groups are parked unt
   as they were; ArrowDown then Enter picks the second suggestion
 - rewrite the word behind live mode's hidden markers: `**tset**` in live mode becomes `**test**`
 - keep a CRLF document's line endings around the word: only the word's bytes change
-- rewrite a word in a table cell: the cell's word is captured and rewritten in place
+- rewrite a word in a table cell: the cell's word, selected, gets the toolbar's Spelling row (a
+  right-click in a cell opens the table's own menu), and a pick rewrites it in place
 
 ## The waves and the hover card
 

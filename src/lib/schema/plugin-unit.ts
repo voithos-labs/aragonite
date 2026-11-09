@@ -118,6 +118,9 @@ export interface Editor {
 	/** The deepest block holding document byte `at` (a list item's paragraph, a table cell): a
 	 *  marker's byte goes to the text on its line. Null outside the document. */
 	blockAt(at: number): Block | null;
+	/** The selection in document bytes, `from` first (equal at a caret); null with none, or with
+	 *  table cells selected. */
+	selectedRange(): { readonly from: number; readonly to: number } | null;
 	/** Asks the plugin's `paint` again for `blocks` (one that left the document is skipped), or
 	 *  for every block on screen; a host's handle asks every plugin's. */
 	repaint(blocks?: readonly Block[]): void;

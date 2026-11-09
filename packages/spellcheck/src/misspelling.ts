@@ -5,16 +5,11 @@
 
 import type { Draft, DraftResult, Editor } from '@voithos-labs/aragonite/plugin';
 import type { Dictionary } from './dictionary';
-import { spanAt, wordSpans, type Misspelling, type TextBlock } from './words';
-
-/** The text block holding byte `at`, or null; an editor without `blockAt` yet reads no text. */
-export function blockAt(editor: Editor, at: number): TextBlock | null {
-	return (editor as { blockAt?(at: number): TextBlock | null }).blockAt?.(at) ?? null;
-}
+import { spanAt, wordSpans, type Misspelling } from './words';
 
 /** The checkable word holding byte `at`, misspelled or not. */
-export function wordAt(editor: Editor, at: number): Misspelling | null {
-	const block = blockAt(editor, at);
+export function wordAt(editor: Pick<Editor, 'blockAt'>, at: number): Misspelling | null {
+	const block = editor.blockAt(at);
 	return block ? spanAt(wordSpans(block), at) : null;
 }
 

@@ -4,7 +4,7 @@
  */
 
 import type { ActionRow, Captured, SelectionAction } from '@voithos-labs/aragonite/plugin';
-import { blockAt, writeWord } from './misspelling';
+import { writeWord } from './misspelling';
 import { spellingRows, type SpellingRow } from './rows';
 import type { Verdicts } from './verdicts';
 import { spanAt, wordSpans } from './words';
@@ -35,9 +35,11 @@ export function spellingAction(verdicts: Verdicts): SelectionAction {
 		icon: ICON,
 		lead: true,
 		capture(editor, { from, to }) {
-			const block = blockAt(editor, from);
+			const block = editor.blockAt(from);
+			const start = block?.offsetAt(from);
+			const end = block?.offsetAt(to);
 			// The toolbar asks at every selection change; a range holding a space is no one word.
-			if (!block || /\s/.test(block.text.slice(block.offsetAt(from), block.offsetAt(to))))
+			if (!block || start == null || end == null || /\s/.test(block.text.slice(start, end)))
 				return null;
 			const word = spanAt(wordSpans(block), from);
 			if (!word || (from !== to && (word.from !== from || word.to !== to))) return null;

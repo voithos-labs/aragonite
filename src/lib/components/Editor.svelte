@@ -852,6 +852,7 @@
 		openMenu: (menu, query) => inlineMenu.openMenu(menu, query),
 		openRows: (action, range, anchor) => openRows(action, range, anchor),
 		blockAt: (at) => blockAt(at),
+		selectedRange: () => selectedRange(),
 		repaint: (plugin, blocks) => repaintPlugin(plugin, blocks),
 		edit: (plugin) => drafts.edit(plugin),
 		reading,
@@ -1130,7 +1131,7 @@
 		editorFor: (plugin) => pluginContexts.scoped(plugin),
 		getDoc,
 		source: currentSource.readUnchecked,
-		getSelection,
+		selection: () => selectedRange(),
 		editable: () => reading.mode() !== 'reading',
 		rangeRects: (path, start, end) => rects.rangeRects(path, start, end),
 		edit: (plugin) => drafts.edit(plugin),
@@ -1617,6 +1618,10 @@
 		return documentRead.blockAt(at);
 	}
 
+	export function selectedRange(): { from: number; to: number } | null {
+		return documentRead.rangeOf(getSelection());
+	}
+
 	export function repaint(blocks?: readonly Block[]): void {
 		repaintPlugin(null, blocks);
 	}
@@ -1720,6 +1725,7 @@
 		openMenu,
 		openRows,
 		blockAt,
+		selectedRange,
 		repaint
 	} satisfies EditorInstance);
 

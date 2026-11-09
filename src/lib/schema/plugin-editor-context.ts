@@ -74,6 +74,7 @@ export function createEditorPluginContexts(deps: {
 	openMenu: (menu: CaretMenu<unknown>, query?: string) => boolean;
 	openRows: Editor['openRows'];
 	blockAt: Editor['blockAt'];
+	selectedRange: Editor['selectedRange'];
 	/** Asks `plugin`'s paint again. */
 	repaint: (plugin: string, blocks?: Parameters<Editor['repaint']>[0]) => void;
 	/** A draft; `plugin` names the plugin it's refused for once that plugin is off. */
@@ -179,6 +180,7 @@ export function createEditorPluginContexts(deps: {
 			openRows: (action, range, anchor) => deps.openRows(action, range, anchor),
 			edit: () => deps.edit(plugin),
 			blockAt: (at) => deps.blockAt(at),
+			selectedRange: () => deps.selectedRange(),
 			repaint: (blocks) => deps.repaint(plugin, blocks)
 		};
 	}

@@ -9,7 +9,7 @@ import { textRunRect } from '../../text-runs';
  * in the right-click menu and the selection toolbar, and what a pick writes.
  */
 
-const PARKED = 'parked until the editor reads blocks (`Editor.blockAt`) and paints: the paint lane';
+const PARKED = 'parked until the hover card opens the rows';
 const WAVE = '.spell-overlay';
 const TEXT = 'This is a tset of speling.\n';
 
@@ -49,8 +49,6 @@ async function open(
 }
 
 test.describe('the spelling rows', () => {
-	test.skip(true, PARKED);
-
 	test('lead the right-click menu with a divider, and a pick rewrites one word in one undo step', async ({
 		page
 	}) => {
@@ -133,18 +131,22 @@ test.describe('the spelling rows', () => {
 		await editor.bridge.waitForSourceEquals('One test.\r\n\r\nTwo lines.\r\n');
 	});
 
+	// A right-click in a cell opens the table's own menu, so the cell's word goes through the toolbar.
 	test('rewrite a word in a table cell', async ({ page }) => {
-		const md = '| a | b |\n| - | - |\n| tset | ok |\n';
+		const md = '| a | b |\n| - | - |\n| tset | fine |\n';
 		const editor = await open(page, '?spell=on', md, 1);
-		await rightClickWord(page, 'tset');
-		await page.getByRole('menuitem', { name: 'test', exact: true }).click();
-		await editor.bridge.waitForSourceEquals('| a | b |\n| - | - |\n| test | ok |\n');
+		await editor.focusBlockAtPath([0, 1, 0], 0);
+		for (let i = 0; i < 4; i++) await page.keyboard.press('Shift+ArrowRight');
+		await page.getByTestId('toolbar-action-0').click();
+		await page
+			.getByTestId('selection-toolbar')
+			.getByRole('menuitem', { name: 'test', exact: true })
+			.click();
+		await editor.bridge.waitForSourceEquals('| a | b |\n| - | - |\n| test | fine |\n');
 	});
 });
 
 test.describe('the waves and the hover card', () => {
-	test.skip(true, PARKED);
-
 	test('a misspelled word gets a wave, a right one and code none, and the browser checker is off', async ({
 		page
 	}) => {
@@ -155,6 +157,7 @@ test.describe('the waves and the hover card', () => {
 	test('resting the pointer on the word opens its rows alone, and a pick rewrites it', async ({
 		page
 	}) => {
+		test.skip(true, PARKED);
 		const editor = await open(page, '?spell=on', TEXT, 2);
 		const word = await wordPoint(page, 'tset');
 		await page.mouse.move(word.x, word.y - 40);

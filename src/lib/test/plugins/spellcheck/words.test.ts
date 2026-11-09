@@ -1,48 +1,60 @@
-import { describe, expect, it } from 'vitest';
-import { isCheckable, spanAt, wordSpans, type Piece } from '#packages/spellcheck/src/words.js';
-import { textBlock } from './text-block';
+// @vitest-environment jsdom
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import type { Piece } from '#lib/plugin.js';
+import { isCheckable, spanAt, wordSpans } from '#packages/spellcheck/src/words.js';
+import {
+	destroyMountedEditors,
+	installLayoutStubs
+} from '#lib/test/harness/mount-editor.svelte.js';
+import { blockIn } from './reading-editor';
 
-const spans = (raw: string) => wordSpans(textBlock(raw));
-const words = (raw: string) => spans(raw).map((s) => s.word);
+beforeAll(() => installLayoutStubs());
+afterEach(() => destroyMountedEditors());
+
+const spans = async (raw: string) => wordSpans(await blockIn(raw, 0));
+const words = async (raw: string) => (await spans(raw)).map((s) => s.word);
 const text = (raw: string, from: number, to: number): Piece => ({
 	kind: 'text',
 	from,
 	to,
 	text: raw.slice(from, to),
-	children: []
+	children: [],
+	is: () => false
 });
 
 describe('wordSpans', () => {
-	it('reads plain words in document bytes', () => {
-		expect(wordSpans(textBlock('one two', 40))).toEqual([
-			{ word: 'one', from: 40, to: 43 },
-			{ word: 'two', from: 44, to: 47 }
+	it('reads plain words in document bytes', async () => {
+		const doc = 'first block\n\none two\n';
+		expect(wordSpans(await blockIn(doc, doc.indexOf('one')))).toEqual([
+			{ word: 'one', from: doc.indexOf('one'), to: doc.indexOf('one') + 3 },
+			{ word: 'two', from: doc.indexOf('two'), to: doc.indexOf('two') + 3 }
 		]);
 	});
 
-	it('maps a word on a later line past the container marker in front of it', () => {
-		expect(wordSpans(textBlock('one\ntwo', 10, '> '))).toEqual([
-			{ word: 'one', from: 10, to: 13 },
-			{ word: 'two', from: 16, to: 19 }
+	it('maps a word on a later line past the container marker in front of it', async () => {
+		const doc = '> one\n> two\n';
+		expect(wordSpans(await blockIn(doc, doc.indexOf('two')))).toEqual([
+			{ word: 'one', from: 2, to: 5 },
+			{ word: 'two', from: 8, to: 11 }
 		]);
 	});
 
-	it('keeps apostrophes inside a word, plain or typographic', () => {
-		expect(words("don't it’s dogs'")).toEqual(["don't", 'it’s', 'dogs']);
+	it('keeps apostrophes inside a word, plain or typographic', async () => {
+		expect(await words("don't it’s dogs'")).toEqual(["don't", 'it’s', 'dogs']);
 	});
 
-	it('reads words inside emphasis and a link’s label at their bytes', () => {
-		expect(spans('a **bold** word')).toEqual([
+	it('reads words inside emphasis and a link’s label at their bytes', async () => {
+		expect(await spans('a **bold** word')).toEqual([
 			{ word: 'bold', from: 4, to: 8 },
 			{ word: 'word', from: 11, to: 15 }
 		]);
-		expect(words('[teh label](http://exmaple.com)')).toEqual(['teh', 'label']);
-		expect(words('*soft* ~~gone~~')).toEqual(['soft', 'gone']);
+		expect(await words('[teh label](http://exmaple.com)')).toEqual(['teh', 'label']);
+		expect(await words('*soft* ~~gone~~')).toEqual(['soft', 'gone']);
 	});
 
-	it('skips code spans, destinations, autolinks, bare links, emails, raw HTML, alts and escapes', () => {
+	it('skips code spans, destinations, autolinks, bare links, emails, raw HTML, alts and escapes', async () => {
 		expect(
-			words(
+			await words(
 				'see `teh` <http://exmaple.com> https://exmaple.com/teh mail@exmaple.com <b>x</b> ![teh](a.png) \\*star ok'
 			)
 		).toEqual(['see', 'star', 'ok']);
@@ -55,19 +67,18 @@ describe('wordSpans', () => {
 			{ ...text(raw, 6, 11), kind: 'inlineCode', children: [text(raw, 7, 10)] },
 			text(raw, 11, 14)
 		];
-		const block = { ...textBlock(raw), pieces };
-		expect(wordSpans(block).map((s) => s.word)).toEqual(['ok']);
+		expect(wordSpans({ pieces }).map((s) => s.word)).toEqual(['ok']);
 	});
 
-	it('splits at a line ending, CRLF included, with the offsets of the bytes', () => {
-		expect(spans('one\r\ntwo')).toEqual([
+	it('splits at a line ending, CRLF included, with the offsets of the bytes', async () => {
+		expect(await spans('one\r\ntwo')).toEqual([
 			{ word: 'one', from: 0, to: 3 },
 			{ word: 'two', from: 5, to: 8 }
 		]);
 	});
 
-	it('skips identifiers, numbers, camelCase and single letters', () => {
-		expect(words('x abc123 snake_case camelCase 42nd e.g. ok')).toEqual(['ok']);
+	it('skips identifiers, numbers, camelCase and single letters', async () => {
+		expect(await words('x abc123 snake_case camelCase 42nd e.g. ok')).toEqual(['ok']);
 	});
 });
 
@@ -85,15 +96,12 @@ describe('isCheckable', () => {
 });
 
 describe('spanAt', () => {
-	const list = spans('one two');
-	it('names the word at a byte, both bounds included', () => {
-		expect(spanAt(list, 0)?.word).toBe('one');
-		expect(spanAt(list, 3)?.word).toBe('one');
-		expect(spanAt(list, 4)?.word).toBe('two');
-		expect(spanAt(list, 7)?.word).toBe('two');
+	it('names the word at a byte, both bounds included', async () => {
+		const list = await spans('one two');
+		expect([0, 3, 4, 7].map((at) => spanAt(list, at)?.word)).toEqual(['one', 'one', 'two', 'two']);
 	});
-	it('is null between words and past the end', () => {
-		expect(spanAt(spans('one  two'), 4)).toBeNull();
-		expect(spanAt(list, 8)).toBeNull();
+	it('is null between words and past the end', async () => {
+		expect(spanAt(await spans('one  two'), 4)).toBeNull();
+		expect(spanAt(await spans('one two'), 8)).toBeNull();
 	});
 });

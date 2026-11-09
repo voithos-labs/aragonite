@@ -52,6 +52,7 @@ export const pluginContextDeps = (
 	openMenu: () => false,
 	openRows: () => ({ isOpen: false, close() {} }),
 	blockAt: () => null,
+	selectedRange: () => null,
 	repaint: () => {},
 	units: (): readonly InstalledPlugin[] => [],
 	pluginNames: (): readonly string[] => [],

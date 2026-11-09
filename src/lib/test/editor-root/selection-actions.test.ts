@@ -9,11 +9,12 @@ import { createSelectionActions } from '#lib/components/editor-root/selection-ac
 import type { InternalDraft } from '#lib/editor-actions/commit/draft-registry.svelte.js';
 import type { Editor } from '#lib/schema/plugin-unit.js';
 import type { SelectionAction } from '#lib/schema/selection-action.js';
-import type { EditorSelection } from '#lib/selection/primitives.js';
 
 const doc = parse('abc def ghi\n');
 
-function actionsOver(selection: EditorSelection, action: SelectionAction) {
+type Range = { from: number; to: number };
+
+function actionsOver(selection: Range, action: SelectionAction) {
 	const asked = { captures: 0, rects: 0 };
 	const counted: SelectionAction = {
 		...action,
@@ -24,7 +25,7 @@ function actionsOver(selection: EditorSelection, action: SelectionAction) {
 		editorFor: () => ({}) as Editor,
 		getDoc: () => doc,
 		source: () => serialize(doc),
-		getSelection: () => selection,
+		selection: () => selection,
 		editable: () => true,
 		rangeRects: () => (asked.rects++, [new DOMRect(10, 20, 30, 16)]),
 		edit: () => ({}) as InternalDraft,
@@ -33,10 +34,7 @@ function actionsOver(selection: EditorSelection, action: SelectionAction) {
 	return { actions, asked };
 }
 
-const at = (from: number, to = from): EditorSelection => ({
-	anchor: { path: [0], offset: from },
-	focus: { path: [0], offset: to }
-});
+const at = (from: number, to = from): Range => ({ from, to });
 
 const shout: SelectionAction = { label: 'Shout', rows: () => [] };
 

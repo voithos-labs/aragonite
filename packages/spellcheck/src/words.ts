@@ -4,23 +4,7 @@
  * doesn't know is never a word. Every span is in document bytes, for the menus and the paint alike.
  */
 
-/** One inline construct of a block, in document bytes, as `Block.pieces` holds it. */
-export interface Piece {
-	readonly kind: string;
-	readonly from: number;
-	readonly to: number;
-	readonly text: string;
-	readonly children: readonly Piece[];
-}
-
-/** A text block as the editor's `blockAt` reads it: its text, its pieces, and the map between a
- *  text offset and a document byte, which a container's markers between lines break apart. */
-export interface TextBlock {
-	readonly text: string;
-	readonly pieces: readonly Piece[];
-	byteAt(textOffset: number): number;
-	offsetAt(byte: number): number;
-}
+import type { Block, Piece } from '@voithos-labs/aragonite/plugin';
 
 /** A word in the document: its bytes, and what it says. */
 export interface Misspelling {
@@ -39,15 +23,15 @@ const INNER_CAPITAL = /\p{Ll}\p{Lu}/u;
 const PROSE = new Set(['emphasis', 'strong', 'strikethrough', 'link', 'unresolvedReference']);
 
 /** The checkable words of a block, in order. */
-export function wordSpans(block: TextBlock): Misspelling[] {
+export function wordSpans(block: Pick<Block, 'pieces'>): Misspelling[] {
 	const out: Misspelling[] = [];
 	for (const piece of proseText(block.pieces)) {
-		const base = block.offsetAt(piece.from);
 		for (const match of piece.text.matchAll(RUN)) {
 			const word = match[0];
 			if (!isCheckable(word)) continue;
-			const start = base + match.index;
-			out.push({ word, from: block.byteAt(start), to: block.byteAt(start + word.length) });
+			// A text piece holds one line, so its characters are consecutive document bytes.
+			const from = piece.from + match.index;
+			out.push({ word, from, to: from + word.length });
 		}
 	}
 	return out;
