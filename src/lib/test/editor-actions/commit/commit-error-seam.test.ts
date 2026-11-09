@@ -1,6 +1,6 @@
 // The `error` event reports every contained failure, and `origin: 'commit'` is the commit's
-// share of it. Both throw sites here run plugin code: the snapshot push's ref walk and the
-// post-tick callback.
+// share of it. Every throw site here runs plugin code: the snapshot push's ref walk, the post-tick
+// callback, and a block opener reading a byte splice's new bytes.
 import { describe, it, expect, afterEach } from 'vitest';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { parse } from '#lib/core/parser.js';
@@ -14,6 +14,23 @@ import {
 	stubBlockComponent
 } from '#lib/test/harness/editor-actions.js';
 import { allowDevWarns } from '#lib/test/support/warn-gate.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
+
+const BOOM = '@@boom';
+
+/** A block kind whose opener throws on any line starting with {@link BOOM}. */
+function registerThrowingOpener(): void {
+	testLeaf('splice-boom', {
+		opener: {
+			priority: 1,
+			interruptsParagraph: false,
+			tryOpen: (ctx) => {
+				if (ctx.line.text.startsWith(BOOM)) throw new Error('plugin opener blew up');
+				return null;
+			}
+		}
+	});
+}
 
 // The container fixtures are hand-built, not parser output, so the dev-mode stale-raw check
 // reads them as stale.
@@ -82,5 +99,33 @@ describe('the commit sequence contains and attributes every throw site', () => {
 		expect(errors[0].origin).toBe('commit');
 		// The throw precedes every mutation, so the tree never moved.
 		expect(serialize(deps.doc)).toBe(treeBefore);
+	});
+
+	// Missed while the splice read its bytes before the frame opened: the throw left the call
+	// unreported, so no row drove a plugin opener through `commitSource`.
+	it('reports an opener throwing on the bytes a byte splice reads, and writes nothing', async () => {
+		registerThrowingOpener();
+		const { deps, events } = makeEditorActionsDeps('one\n\ntwo\n');
+		const errors: EditorError[] = [];
+		events.on('error', (e) => errors.push(e));
+		const controller = createUndoController(deps);
+		let thrown: unknown = null;
+		try {
+			await controller.commitSource({
+				changes: [{ from: 5, to: 8, insert: BOOM }],
+				caret: { at: 5, holds: 'text' },
+				op: { kind: 'delete', detail: { crossBlock: true } },
+				snapshot: { path: asDocPath([1]), offset: 0 }
+			});
+		} catch (err) {
+			thrown = err;
+		}
+
+		expect((thrown as Error | null)?.message).toBe('plugin opener blew up');
+		expect(errors).toHaveLength(1);
+		expect(errors[0].origin).toBe('commit');
+		expect(errors[0].context?.op).toBe('delete');
+		expect(serialize(deps.doc)).toBe('one\n\ntwo\n');
+		expect(deps.undoManager.getStacks().undo).toHaveLength(0);
 	});
 });

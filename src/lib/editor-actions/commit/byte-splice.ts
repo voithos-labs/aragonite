@@ -10,6 +10,7 @@ import type { DocumentView } from '../../core/node-views';
 import type { Landing } from '../../selection/primitives';
 import type { BlockComponent } from '../../block-component';
 import type { SourceSplice, SpliceCaret } from '../../action-contracts';
+import type { ScopedOpDescriptor } from '../../schema/operations';
 import { blockFacts } from '../../schema/block-facts';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { serialize } from '../../core/serializer';
@@ -52,24 +53,41 @@ export function createByteSplice(
 		const { grammar } = deps.reading;
 		const was = { ...deps.doc };
 		const before = serialize(was);
-		const read = spliceReading(was, before, splice.changes, grammar);
-		const closers = read ? splicedOpenerClosers(was, before, splice.changes, read, grammar) : [];
-		const changes =
-			closers.length > 0 ? withSplicedClosers(before, splice.changes, closers) : splice.changes;
-		const reading = closers.length > 0 ? spliceReading(was, before, changes, grammar) : read;
-		const windows = reading?.windows ?? [];
-		// Measured in the caller's bytes, then past the closers, so a caret inside a write stays in front.
-		const named = splice.caret === 'keep' ? caretKept(deps, splice.changes, windows) : splice.caret;
-		const caret = named && { ...named, at: offsetPastClosers(named.at, closers) };
+		let changes = splice.changes;
+		let reading: SpliceReading | null = null;
+		let windows: SpliceWindow[] = [];
+		let caret: SpliceCaret | null = null;
+		// Until the read finds the first window, the event names the block the snapshot sits in.
+		const op: ScopedOpDescriptor = {
+			eventPath: docPathFrom([splice.snapshot.path[0] ?? 0]),
+			...splice.op
+		};
 		let saved: { children: CstNode[]; ids: string[]; refs: (BlockComponent | undefined)[] } | null =
 			null;
 		return __commit({
 			entry: 'commitSource',
 			snapshot: splice.snapshot,
-			op: { eventPath: docPathFrom([windows[0]?.at ?? 0]), ...splice.op },
+			op,
 			history: splice.history ?? 'entry',
 			reach: () => reachOf(windows),
 			discardIfNoop: true,
+			// Inside the frame, so a block opener that throws on the new bytes fails the write.
+			prepare: () => {
+				const read = spliceReading(was, before, splice.changes, grammar);
+				const closers = read
+					? splicedOpenerClosers(was, before, splice.changes, read, grammar)
+					: [];
+				if (closers.length > 0) changes = withSplicedClosers(before, splice.changes, closers);
+				reading = closers.length > 0 ? spliceReading(was, before, changes, grammar) : read;
+				windows = reading?.windows ?? [];
+				if (!('eventPath' in splice.op)) op.eventPath = docPathFrom([windows[0]?.at ?? 0]);
+				// Measured in the caller's bytes, then past the closers, so a caret inside a write stays
+				// in front.
+				const named =
+					splice.caret === 'keep' ? caretKept(deps, splice.changes, windows) : splice.caret;
+				caret = named && { ...named, at: offsetPastClosers(named.at, closers) };
+				return true;
+			},
 			apply: () => {
 				if (!reading) return false;
 				saved = { children: deps.doc.children, ids: deps.blockIds, refs: [...deps.blockRefs] };
@@ -92,7 +110,7 @@ export function createByteSplice(
 				assertSpliceReadsBack(deps.doc.children, placed(windows), grammar);
 				if (reading)
 					assertInvariant('spliced-opener-closed', () =>
-						checkSplicedChangesClosed(was, before, changes, reading, grammar)
+						checkSplicedChangesClosed(was, before, changes, reading!, grammar)
 					);
 			},
 			rollback: () => {
