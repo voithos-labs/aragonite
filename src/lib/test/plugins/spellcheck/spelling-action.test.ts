@@ -76,6 +76,20 @@ describe('what the Spelling action captures', () => {
 		expect(action.capture!(editor, { from: 20, to: 27 })).toBeNull();
 	});
 
+	it('reads no pieces for a selection holding a space, which the toolbar asks about per change', () => {
+		const block = textBlock(RAW, 20);
+		let reads = 0;
+		const counted = {
+			...block,
+			get pieces() {
+				reads++;
+				return block.pieces;
+			}
+		};
+		expect(spellingAction().capture!(readingEditor([counted]), { from: 20, to: 27 })).toBeNull();
+		expect(reads).toBe(0);
+	});
+
 	it('never takes a word inside a code span', () => {
 		expect(spellingAction().capture!(editor, { from: 30, to: 30 })).toBeNull();
 	});

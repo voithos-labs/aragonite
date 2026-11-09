@@ -4,9 +4,10 @@
  */
 
 import type { ActionRow, Captured, SelectionAction } from '@voithos-labs/aragonite/plugin';
-import { wordAt, writeWord } from './misspelling';
+import { blockAt, writeWord } from './misspelling';
 import { spellingRows, type SpellingRow } from './rows';
 import type { Verdicts } from './verdicts';
+import { spanAt, wordSpans } from './words';
 
 // Lucide's spell-check glyph, stroked like the editor's own menu icons.
 const ICON = {
@@ -34,7 +35,11 @@ export function spellingAction(verdicts: Verdicts): SelectionAction {
 		icon: ICON,
 		lead: true,
 		capture(editor, { from, to }) {
-			const word = wordAt(editor, from);
+			const block = blockAt(editor, from);
+			// The toolbar asks at every selection change; a range holding a space is no one word.
+			if (!block || /\s/.test(block.text.slice(block.offsetAt(from), block.offsetAt(to))))
+				return null;
+			const word = spanAt(wordSpans(block), from);
 			if (!word || (from !== to && (word.from !== from || word.to !== to))) return null;
 			verdicts.ask([word.word]);
 			return verdicts.misspelled(word.word) ? { from: word.from, to: word.to } : null;
