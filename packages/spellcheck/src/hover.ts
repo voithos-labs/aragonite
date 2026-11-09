@@ -28,8 +28,10 @@ export interface SpellHoverDeps {
 }
 
 export interface SpellHover {
-	/** The pointer came onto a misspelled word (its rect), or left it (null). */
-	hover(misspelling: Misspelling, anchor: DOMRect | null): void;
+	/** The pointer came onto a misspelled word, whose rect is `anchor`. */
+	hover(misspelling: Misspelling, anchor: DOMRect): void;
+	/** The pointer left the word. */
+	left(): void;
 	/** The keyboard asked for the word's menu. */
 	activate(misspelling: Misspelling, anchor: DOMRect): void;
 	/** The pointer left the open menu: it closes after the grace, unless a hover takes it back. */
@@ -93,8 +95,8 @@ export function createSpellHover(deps: SpellHoverDeps): SpellHover {
 	}
 
 	return {
-		hover(misspelling, anchor) {
-			if (anchor) return openAfterRest(misspelling, anchor);
+		hover: openAfterRest,
+		left() {
 			cancelOpen();
 			if (menu?.isOpen()) closeAfterGrace();
 		},

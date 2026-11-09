@@ -59,7 +59,7 @@ describe('createSpellHover', () => {
 		const h = harness();
 		h.hoverer.hover(word, rect(40));
 		vi.advanceTimersByTime(HOVER_OPEN_MS / 2);
-		h.hoverer.hover(word, null);
+		h.hoverer.left();
 		vi.advanceTimersByTime(HOVER_OPEN_MS);
 		expect(h.opened).toEqual([]);
 	});
@@ -67,7 +67,7 @@ describe('createSpellHover', () => {
 	it('moving on to another word restarts the rest, then moves the menu there', () => {
 		const h = harness();
 		h.rest(word, 40);
-		h.hoverer.hover(word, null);
+		h.hoverer.left();
 		h.hoverer.hover(other, rect(120));
 		vi.advanceTimersByTime(HOVER_OPEN_MS - 1);
 		expect(h.opened).toHaveLength(1);
@@ -79,7 +79,7 @@ describe('createSpellHover', () => {
 	it('keeps the menu through the grace after the hover ends, then closes it', () => {
 		const h = harness();
 		h.rest(word, 40);
-		h.hoverer.hover(word, null);
+		h.hoverer.left();
 		vi.advanceTimersByTime(HOVER_GRACE_MS - 1);
 		expect(h.isOpen()).toBe(true);
 		vi.advanceTimersByTime(1);
@@ -91,7 +91,7 @@ describe('createSpellHover', () => {
 		const h = harness(state);
 		h.rest(word, 40);
 		state.onMenu = true;
-		h.hoverer.hover(word, null);
+		h.hoverer.left();
 		vi.advanceTimersByTime(HOVER_GRACE_MS);
 		expect(h.isOpen()).toBe(true);
 		state.onMenu = false;
@@ -103,7 +103,7 @@ describe('createSpellHover', () => {
 	it('a hover back onto the word within the grace cancels the close and keeps the same menu', () => {
 		const h = harness();
 		h.rest(word, 40);
-		h.hoverer.hover(word, null);
+		h.hoverer.left();
 		vi.advanceTimersByTime(HOVER_GRACE_MS / 2);
 		h.hoverer.hover(word, rect(40));
 		vi.advanceTimersByTime(HOVER_OPEN_MS);
@@ -133,7 +133,7 @@ describe('createSpellHover', () => {
 	it('dispose closes what is open and drops a pending open and close', () => {
 		const h = harness();
 		h.rest(word, 40);
-		h.hoverer.hover(word, null);
+		h.hoverer.left();
 		h.hoverer.hover(other, rect(120));
 		h.hoverer.dispose();
 		expect(h.isOpen()).toBe(false);

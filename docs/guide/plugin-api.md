@@ -1101,7 +1101,7 @@ _(pre-freeze / unstable)_ Rows your plugin offers over a range: what the author 
 
 | Export | Role |
 | --- | --- |
-| `SelectionAction` | One action: a `label`, an `icon`, `lead` to sit first in the right-click menu with a divider after, an optional `capture(editor, selection)` returning the range to act on (or null), and `rows(captured)`, an array or a promise of one |
+| `SelectionAction` | One action: a `label`, an `icon`, `lead` to sit first in the right-click menu with a divider after, an optional `capture(editor, selection)` returning the range to act on (or null), `rows(captured)`, an array or a promise of one, and `pending`, the pending row's text while that promise is out ("Loading…" without it) |
 | `ActionRow` | One row: a `label`, an `icon`, `disabled`, and `run(draft)` |
 | `Captured` | What `rows` is asked about: the range's `text` (its bytes), the `range` in document bytes, the `box` it paints in, measured when you read it (null when it isn't drawn, or runs from one text block into the next), and whether it's `editable` |
 | `Icon` | A menu glyph's name, or `{ svg }`, your own markup, drawn as given at the menu's icon size |
@@ -1121,7 +1121,7 @@ const shout: SelectionAction = {
 
 Without `capture`, an action acts on the selection and offers nothing at a bare caret. A promise from `rows` shows one pending row until it settles, and a rejection drops your rows and reaches `onError`. `run` gets a draft opened when the row is picked. If it returns a promise the row stays pending and the menu stays open until it settles; close the menu first and the draft's commit comes back refused as `closed`.
 
-`editor.openRows(action, range, anchor)` opens the same rows over `range` (captured the way your action says) at `anchor`, a rect or a point, taking no focus: what a hover card over a mark calls. It hands back `{ isOpen, close() }`, and any edit, Escape or a press elsewhere closes it.
+`editor.openRows(action, range, anchor, pointer?)` opens the same rows over `range` (captured the way your action says) at `anchor`, a rect or a point, taking no focus: what a hover card over a mark calls. It hands back `{ isOpen, close() }`, and any edit, Escape or a press elsewhere closes it. `pointer` hears `true` as the pointer comes onto the menu and `false` as it leaves, so a hover card can close once the pointer has left both the card and its word.
 
 ### Insert catalogue
 

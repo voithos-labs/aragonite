@@ -3,10 +3,11 @@
 import { definePlugin, type Editor } from '@voithos-labs/aragonite/plugin';
 import type { Dictionary } from './dictionary';
 import { englishDictionary, type EnglishDictionaryOptions } from './english/english-dictionary';
+import { createHoverCard, type HoverCard } from './hover-card';
 import { spellingAction } from './spelling-action';
 import { createTypingWord, followTyping } from './typing-word';
 import { createVerdicts } from './verdicts';
-import { paintWaves } from './waves';
+import { paintWaves, type WaveHandlers } from './waves';
 import './spellcheck.css';
 
 export interface SpellcheckOptions extends EnglishDictionaryOptions {
@@ -24,20 +25,28 @@ export const spellcheckPlugin = definePlugin<SpellcheckOptions>({
 		const typing = createTypingWord();
 		// Set in the same mount pass as the first paint, before any answer can come back.
 		let editor: Editor | null = null;
+		let card: HoverCard | null = null;
 		const verdicts = createVerdicts({
 			dictionary: options.dictionary ?? englishDictionary({ words, onAddWord }),
 			changed: () => editor?.repaint(),
 			onError: (error) => (globalThis.reportError ?? console.error)(error)
 		});
+		const action = spellingAction(verdicts);
+		const handlers: WaveHandlers = {
+			hover: (at) => card?.hover(at),
+			activate: (at) => card?.activate(at)
+		};
 		return {
 			checksSpelling: true,
-			actions: [spellingAction(verdicts)],
-			paint: (block) => paintWaves(block, verdicts, typing),
+			actions: [action],
+			paint: (block) => paintWaves(block, verdicts, typing, handlers),
 			setup(mounted) {
 				editor = mounted;
+				card = createHoverCard(mounted, action);
 				followTyping(mounted, typing);
 				return () => {
-					editor = null;
+					card?.dispose();
+					editor = card = null;
 					verdicts.dispose();
 				};
 			}

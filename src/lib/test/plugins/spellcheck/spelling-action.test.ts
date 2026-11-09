@@ -66,10 +66,13 @@ function recordingDraft(): Draft & { writes: unknown[] } {
 }
 
 describe('what the Spelling action captures', () => {
-	it('leads the right-click menu as one Spelling group', () => {
+	it('leads the right-click menu as one Spelling group, finding suggestions meanwhile', () => {
 		const action = spellingAction();
-		expect(action.label).toBe('Spelling');
-		expect(action.lead).toBe(true);
+		expect([action.label, action.lead, action.pending]).toEqual([
+			'Spelling',
+			true,
+			'Finding suggestions…'
+		]);
 	});
 
 	it('takes the misspelled word under a caret, its end included, and nothing at a right one', () => {

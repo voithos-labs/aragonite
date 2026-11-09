@@ -34,6 +34,7 @@ export function spellingAction(verdicts: Verdicts): SelectionAction {
 		label: 'Spelling',
 		icon: ICON,
 		lead: true,
+		pending: 'Finding suggestions…',
 		capture(editor, { from, to }) {
 			const block = editor.blockAt(from);
 			const start = block?.offsetAt(from);

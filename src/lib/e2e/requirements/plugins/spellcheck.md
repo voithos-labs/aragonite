@@ -28,8 +28,12 @@ keeps words) show in the right-click menu, in the selection toolbar, and on a ho
 - a misspelled word gets a wave, a right one and code none, and the browser checker is off: two
   misspelled words in a paragraph show two waves and the same word in a code fence none; the
   paragraph carries `spellcheck="false"` while the plugin runs
-- resting the pointer on the word opens its rows alone, and a pick rewrites it: the hover card shows
-  the suggestions without the clipboard rows, and its pick rewrites the word (its 800 ms rest and
-  300 ms grace are the hover unit's rows)
+- resting the pointer on the word opens its rows alone, leaving both closes them, and a pick
+  rewrites it: the hover card shows the suggestions without the clipboard rows; the pointer moving
+  onto the card and then off both closes it; a pick rewrites the word (its 800 ms rest, its 300 ms
+  grace and a pointer passing over opening nothing are the hover unit's rows)
+- the keyboard opens the rows from the caret, and Escape closes them: with
+  `decorations.activateAtCaret` bound to a chord, the chord in the word opens its suggestions
+  alone; Escape closes them, writing nothing
 - the word being typed stays plain until the caret leaves it: the space after the word brings its
   wave

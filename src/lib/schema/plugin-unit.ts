@@ -110,7 +110,9 @@ export interface Editor {
 	openRows(
 		action: SelectionAction,
 		range: { readonly from: number; readonly to: number },
-		anchor: DOMRect | { readonly x: number; readonly y: number }
+		anchor: DOMRect | { readonly x: number; readonly y: number },
+		/** Told true as the pointer comes onto the menu and false as it leaves, for a hover card. */
+		pointer?: (inside: boolean) => void
 	): { readonly isOpen: boolean; close(): void };
 	/** A write in the document's bytes, committed as one undo step now or after a wait; a plugin's
 	 *  is refused as `off` once the plugin is. */

@@ -9,7 +9,6 @@ import { textRunRect } from '../../text-runs';
  * in the right-click menu and the selection toolbar, and what a pick writes.
  */
 
-const PARKED = 'parked until the hover card opens the rows';
 const WAVE = '.spell-overlay';
 const TEXT = 'This is a tset of speling.\n';
 
@@ -154,18 +153,40 @@ test.describe('the waves and the hover card', () => {
 		await expect(editor.getBlock(0)).toHaveAttribute('spellcheck', 'false');
 	});
 
-	test('resting the pointer on the word opens its rows alone, and a pick rewrites it', async ({
+	test('resting the pointer on the word opens its rows alone, leaving both closes them, and a pick rewrites it', async ({
 		page
 	}) => {
-		test.skip(true, PARKED);
 		const editor = await open(page, '?spell=on', TEXT, 2);
 		const word = await wordPoint(page, 'tset');
-		await page.mouse.move(word.x, word.y - 40);
-		await page.mouse.move(word.x, word.y);
-		await expect(page.getByRole('menuitem').first()).toHaveText('test');
+		const rest = async () => {
+			await page.mouse.move(word.x, word.y - 40);
+			await page.mouse.move(word.x, word.y);
+			await expect(page.getByRole('menuitem').first()).toHaveText('test');
+		};
+		await rest();
 		await expect(page.getByRole('menuitem', { name: 'Paste', exact: true })).toHaveCount(0);
+		await page.getByRole('menuitem').first().hover();
+		await page.mouse.move(word.x, word.y + 300);
+		await expect(page.getByRole('menu')).toHaveCount(0);
+
+		await rest();
 		await page.getByRole('menuitem').first().click();
 		await editor.bridge.waitForSourceEquals('This is a test of speling.\n');
+	});
+
+	test('the keyboard opens the rows from the caret, and Escape closes them', async ({ page }) => {
+		const editor = await open(page, '?spell=on', TEXT, 2);
+		await page.evaluate(
+			(command) => (window as any).__test.setKeybindings([{ chord: 'Alt+Enter', command }]),
+			'decorations.activateAtCaret'
+		);
+		await editor.focusBlock(0, TEXT.indexOf('tset') + 2);
+		await page.keyboard.press('Alt+Enter');
+		await expect(page.getByRole('menuitem').first()).toHaveText('test');
+		await expect(page.getByRole('menuitem', { name: 'Paste', exact: true })).toHaveCount(0);
+		await page.keyboard.press('Escape');
+		await expect(page.getByRole('menu')).toHaveCount(0);
+		expect(await editor.bridge.getSource()).toBe(TEXT);
 	});
 
 	test('the word being typed stays plain until the caret leaves it', async ({ page }) => {

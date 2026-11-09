@@ -13,15 +13,15 @@ import { wordSpans } from './words';
 export const WAVE_CLASS = 'spell-overlay';
 
 export interface WaveHandlers {
-	hover?(at: MarkAt | null): void;
-	activate?(at: MarkAt): void;
+	hover(at: MarkAt | null): void;
+	activate(at: MarkAt): void;
 }
 
 export function paintWaves(
 	block: Block,
 	verdicts: Verdicts,
 	typing: TypingWord,
-	handlers: WaveHandlers = {}
+	handlers: WaveHandlers
 ): Paint[] {
 	const spans = wordSpans(block);
 	if (spans.length === 0) return [];

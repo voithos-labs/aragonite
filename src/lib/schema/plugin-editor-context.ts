@@ -177,7 +177,7 @@ export function createEditorPluginContexts(deps: {
 			can: (command: Command<unknown> | string, arg?: unknown) => deps.canRunCommand(command, arg),
 			claims: (event) => deps.claims(event),
 			openMenu: (menu, query) => deps.openMenu(menu as CaretMenu<unknown>, query),
-			openRows: (action, range, anchor) => deps.openRows(action, range, anchor),
+			openRows: (action, range, anchor, pointer) => deps.openRows(action, range, anchor, pointer),
 			edit: () => deps.edit(plugin),
 			blockAt: (at) => deps.blockAt(at),
 			selectedRange: () => deps.selectedRange(),

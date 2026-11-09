@@ -48,6 +48,8 @@ export interface BlockMenuModel {
 	pick: (id: string) => void;
 	/** Called once when the menu closes or another replaces it; a redraw of the same menu keeps it. */
 	closed?: () => void;
+	/** Told as the pointer comes onto the menu (true) and leaves it (false). */
+	pointer?: (inside: boolean) => void;
 }
 
 export interface RootMenusDeps {
@@ -95,7 +97,11 @@ export interface RootMenus {
 	onRootContextMenu(event: MouseEvent): void;
 	/** Opens the editor's menu with the groups' rows at `point`; the handle reads whether it's
 	 *  still open. */
-	openGroups(groups: readonly ActionGroup[], point: Point): OpenRows;
+	openGroups(
+		groups: readonly ActionGroup[],
+		point: Point,
+		pointer?: (inside: boolean) => void
+	): OpenRows;
 }
 
 /** What `openRows` hands back. */
@@ -159,7 +165,8 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		anchor: () => Point,
 		groups: readonly ActionGroup[],
 		build: (rows: ActionRows) => MenuEntry[],
-		pick: (id: string) => void
+		pick: (id: string) => void,
+		pointer?: (inside: boolean) => void
 	): OpenRows {
 		let model: BlockMenuModel | null = null;
 		const ours = () => model !== null && deps.currentMenu()?.closed === model.closed;
@@ -176,7 +183,8 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 				deps.setMenu(null);
 				pick(id);
 			},
-			closed: rows.closed
+			closed: rows.closed,
+			pointer
 		};
 		deps.setMenu(model);
 		return {
@@ -187,13 +195,18 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		};
 	}
 
-	function openGroups(groups: readonly ActionGroup[], point: Point): OpenRows {
+	function openGroups(
+		groups: readonly ActionGroup[],
+		point: Point,
+		pointer?: (inside: boolean) => void
+	): OpenRows {
 		return showMenu(
 			point,
 			() => point,
 			groups,
 			(rows) => rows.entries(),
-			() => {}
+			() => {},
+			pointer
 		);
 	}
 

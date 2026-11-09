@@ -35,6 +35,7 @@
 		items,
 		label = BLOCK_MENU_LABEL,
 		onPick,
+		onPointer,
 		onClose,
 		menuPresence
 	}: {
@@ -45,6 +46,7 @@
 		items: MenuEntry[];
 		label?: string;
 		onPick: (id: string) => void;
+		onPointer?: (inside: boolean) => void;
 		onClose: () => void;
 		menuPresence: MenuPresence;
 	} = $props();
@@ -159,6 +161,8 @@
 	});
 </script>
 
+<!-- No tabindex: the menu never takes focus, and its keys are read at the document above. -->
+<!-- svelte-ignore a11y_interactive_supports_focus -->
 <div
 	bind:this={menuEl}
 	class="md-menu block-menu"
@@ -167,6 +171,8 @@
 	{@attach menuPresence.track(dismiss, { edits: true })}
 	style:left="{left}px"
 	style:top="{top}px"
+	onpointerenter={() => onPointer?.(true)}
+	onpointerleave={() => onPointer?.(false)}
 >
 	{#each items as item, i (item.id)}
 		{#if item.divider}

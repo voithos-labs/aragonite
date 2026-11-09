@@ -850,7 +850,7 @@
 		canRunCommand: (command, arg) => can(command, arg),
 		claims: (event) => claimsChord(event),
 		openMenu: (menu, query) => inlineMenu.openMenu(menu, query),
-		openRows: (action, range, anchor) => openRows(action, range, anchor),
+		openRows: (action, range, anchor, pointer) => openRows(action, range, anchor, pointer),
 		blockAt: (at) => blockAt(at),
 		selectedRange: () => selectedRange(),
 		repaint: (plugin, blocks) => repaintPlugin(plugin, blocks),
@@ -1629,12 +1629,13 @@
 	export function openRows(
 		action: SelectionAction,
 		range: { readonly from: number; readonly to: number },
-		anchor: DOMRect | { readonly x: number; readonly y: number }
+		anchor: DOMRect | { readonly x: number; readonly y: number },
+		pointer?: (inside: boolean) => void
 	): OpenRows {
 		const group = selectionActions.over(action, { from: range.from, to: range.to });
 		if (!group) return { isOpen: false, close() {} };
 		const point = 'bottom' in anchor ? { x: anchor.left, y: anchor.bottom } : anchor;
-		return rootMenus.openGroups([group], { x: point.x, y: point.y });
+		return rootMenus.openGroups([group], { x: point.x, y: point.y }, pointer);
 	}
 
 	/** Turns plugins on and off in this editor, reading the document again; the history stays. */
@@ -1825,6 +1826,7 @@
 			items={blockMenu.items}
 			label={blockMenu.label}
 			onPick={blockMenu.pick}
+			onPointer={blockMenu.pointer}
 			onClose={() => swapMenu(null)}
 			{menuPresence}
 		/>

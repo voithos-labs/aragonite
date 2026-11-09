@@ -157,6 +157,34 @@ describe('openRows', () => {
 		await m.settle();
 		expect(menuRows()).toEqual(['Late']);
 	});
+
+	it('names the pending row as the action does', async () => {
+		const action: SelectionAction = {
+			label: 'Word',
+			pending: 'Finding words…',
+			rows: () => new Promise(() => {})
+		};
+		const m = mountEditor({ source: 'abc def ghi\n', plugins: [withActions(action)] });
+		await m.settle();
+		m.instance.openRows(action, { from: 4, to: 7 }, { x: 10, y: 20 });
+		await m.settle();
+		expect(menuRows()).toEqual(['Finding words…']);
+	});
+});
+
+describe('rows opened over a range', () => {
+	it('tell their opener as the pointer comes onto the menu and leaves it', async () => {
+		const action: SelectionAction = { label: 'Word', rows: () => [{ label: 'W', run: () => {} }] };
+		const m = mountEditor({ source: 'abc def ghi\n', plugins: [withActions(action)] });
+		await m.settle();
+		const seen: boolean[] = [];
+		m.instance.openRows(action, { from: 4, to: 7 }, { x: 10, y: 20 }, (on) => seen.push(on));
+		await m.settle();
+		const menu = document.querySelector('.block-menu')!;
+		menu.dispatchEvent(new PointerEvent('pointerenter'));
+		menu.dispatchEvent(new PointerEvent('pointerleave'));
+		expect(seen).toEqual([true, false]);
+	});
 });
 
 describe('a picked row', () => {

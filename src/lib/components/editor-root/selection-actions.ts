@@ -161,7 +161,13 @@ export function createSelectionActions(deps: {
 					if (lead !== undefined && !!group.action.lead !== lead) return [];
 					const answer = answers.get(group);
 					if (answer === null)
-						return [{ id: `act:${g}:-`, label: ACTION_ROWS_PENDING, disabled: true }];
+						return [
+							{
+								id: `act:${g}:-`,
+								label: group.action.pending ?? ACTION_ROWS_PENDING,
+								disabled: true
+							}
+						];
 					return (answer ?? []).map((row, r) => ({
 						id: `act:${g}:${r}`,
 						label: row.label,

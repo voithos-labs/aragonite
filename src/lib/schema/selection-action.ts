@@ -23,6 +23,8 @@ export interface SelectionAction {
 	): { from: number; to: number } | null;
 	/** Asked when a menu over the range opens; a promise shows one pending row until it settles. */
 	rows(captured: Captured): readonly ActionRow[] | Promise<readonly ActionRow[]>;
+	/** The pending row's text; "Loading…" without it. */
+	pending?: string;
 }
 
 export interface ActionRow {
