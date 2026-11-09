@@ -68,9 +68,9 @@
 	const owner = {};
 	$effect(() => () => engine?.markHover.unpaint(owner));
 
+	// The press keeps the caret (its mousedown is prevented), so the handler runs before it moves.
 	function click(r: Painted, ev: MouseEvent): void {
-		const mark = r.clickMark;
-		if (mark) engine?.runMarkHandler(mark, () => mark.interactive?.onClick?.(mark, ev));
+		if (r.clickMark) engine?.clickMark(r.clickMark, ev);
 	}
 
 	// Untracked: the hit-test runs plugin code, whose reads must not subscribe this effect.
@@ -192,5 +192,6 @@
 		contenteditable="false"
 		style="left:{r.left}px;top:{r.top}px;width:{r.width}px;height:{r.height}px;"
 		onclick={r.clickMark ? (ev) => click(r, ev) : undefined}
+		onmousedown={r.clickMark ? (ev) => ev.preventDefault() : undefined}
 	></div>
 {/each}

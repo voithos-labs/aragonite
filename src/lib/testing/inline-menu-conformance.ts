@@ -99,6 +99,7 @@ function recordingEditor(writes: string[], edit: Editor['edit'], plugin: string)
 		openMenu: () => false,
 		openRows: () => ({ isOpen: false, close() {} }),
 		edit,
-		blockAt: () => null
+		blockAt: () => null,
+		repaint: () => {}
 	};
 }

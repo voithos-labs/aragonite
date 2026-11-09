@@ -59,6 +59,8 @@ export type {
 	LineBlockSpec
 } from './schema/block-shapes';
 export type { Block, InlineType, Piece } from './schema/doc-view';
+// What `contributes(...).paint` lays over a block, in document bytes; `editor.repaint` asks again.
+export type { MarkAt, Paint } from './decorations/paint';
 // What a block type's `draw` gets and hands back; the editor makes every editable element.
 export type {
 	BoxDrawContext,

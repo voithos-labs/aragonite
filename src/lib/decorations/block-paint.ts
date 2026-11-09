@@ -3,6 +3,7 @@
  * the block's own classes. A part equal to the one a block held is kept as that same array, so a
  * reader whose part didn't change is never told.
  */
+import type { NodeView } from '../core/node-views';
 import type { IndexedDecoration } from './buckets';
 import { islandPosition } from './island-dom';
 import type {
@@ -23,6 +24,14 @@ export interface BlockPaint {
 
 export const NO_PAINT: BlockPaint = Object.freeze({ marks: [], islands: [], blocks: [] });
 
+/** Paint asked for one block at a time, which the engine lays after the whole-document input. */
+export interface BlockSource {
+	/** Names the source in a hover's identity. */
+	readonly name: string;
+	/** `node`'s decorations at `path`, for a reactive read: the same array until they change. */
+	decorationsOf(node: NodeView, path: readonly number[]): readonly Decoration[];
+}
+
 /** One block's decorations, in precedence order, split into the three parts. */
 export function splitBucket(decs: readonly Decoration[]): BlockPaint {
 	const marks: IndexedDecoration<MarkDecoration>[] = [];
@@ -35,6 +44,12 @@ export function splitBucket(decs: readonly Decoration[]): BlockPaint {
 	});
 	islands.sort((a, b) => islandPosition(a.dec) - islandPosition(b.dec));
 	return { marks, islands, blocks };
+}
+
+/** `base` with `decs` laid after it, split as one list would be. */
+export function withDecorations(base: BlockPaint, decs: readonly Decoration[]): BlockPaint {
+	const islands = [...base.islands].sort((a, b) => a.index - b.index).map((i) => i.dec);
+	return splitBucket([...base.marks.map((m) => m.dec), ...islands, ...base.blocks, ...decs]);
 }
 
 /** `next`, with each part equal to `held`'s replaced by `held`'s own array, and `held` itself when
@@ -53,6 +68,7 @@ export function keepEqualParts(held: BlockPaint, next: BlockPaint): BlockPaint {
 /** Equal fields, with handlers and views compared by identity. */
 export function sameDecoration(a: Decoration, b: Decoration): boolean {
 	if (a === b) return true;
+	if (!samePath(a.path, b.path)) return false;
 	if (a.type === 'mark' && b.type === 'mark') {
 		return (
 			a.start === b.start &&
@@ -68,6 +84,11 @@ export function sameDecoration(a: Decoration, b: Decoration): boolean {
 		return !a.badge && !b.badge && a.class === b.class && sameAttrs(a.attrs, b.attrs);
 	}
 	return false;
+}
+
+// A kept decoration names its block's path now, which an insert above it moves.
+function samePath(a: readonly number[], b: readonly number[]): boolean {
+	return a.length === b.length && a.every((step, i) => step === b[i]);
 }
 
 function sameList<T>(a: readonly T[], b: readonly T[], same: (x: T, y: T) => boolean): boolean {

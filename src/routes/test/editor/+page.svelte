@@ -25,6 +25,7 @@
 	import { trackParityDocument } from '../../parity-documents.svelte';
 	import { slashCommands } from '@voithos-labs/aragonite-slash-commands';
 	import { countActionPlugin } from './count-action-plugin';
+	import { paintProbePlugin } from './paint-probe-plugin';
 
 	// Harness flags all arrive as URL params; SSR has no location, so the guard lives here once.
 	const param = (name: string): string | null =>
@@ -62,7 +63,9 @@
 	const slashPlugins = param('slash') === 'on' ? [slashCommands] : [];
 	// `?actions=on` lists one selection action, for the toolbar's and the right-click menu's rows.
 	const actionPlugins = param('actions') === 'on' ? [countActionPlugin] : [];
-	const pagePlugins = [...slashPlugins, ...actionPlugins];
+	// `?paint=on` lists a plugin whose `paint` a spec sets through `__test.paint`.
+	const paintPlugins = param('paint') === 'on' ? [paintProbePlugin] : [];
+	const pagePlugins = [...slashPlugins, ...actionPlugins, ...paintPlugins];
 
 	// Stand-in host hooks, so the code block gutter's run and overflow buttons render. Off by
 	// default, since the block specs measure that gutter's width.

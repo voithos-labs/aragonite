@@ -1,10 +1,10 @@
 /**
  * What the plugin values one editor runs contribute: their commands, by value, by `plugin/id` and
- * by chord, their insert rows (their block types' among them) and their caret menus. Read from each
+ * by chord, their insert rows (their block types' among them), caret menus and paint. Read from each
  * installed list, so `use` rebuilds it, and reached through the editor's activation, which every
  * command lookup already takes, so no route that runs or lists a command can miss a plugin's.
  */
-import type { Editor, InstalledPlugin, PluginError } from './plugin-unit';
+import type { Contribution, Editor, InstalledPlugin, PluginError } from './plugin-unit';
 import { claimCommand, commandSpec, type Command, type CommandSpec } from './plugin-command';
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { isMotionChord, normalizeChord } from './keybindings';
@@ -34,6 +34,8 @@ export interface EditorContributions {
 	readonly menus: readonly ContributedMenu[];
 	/** Each plugin's selection actions, in list order. */
 	readonly actions: readonly ContributedAction[];
+	/** The plugins that paint, in list order. */
+	readonly paints: readonly { readonly plugin: string; readonly contribution: Contribution }[];
 	/** Runs a command against its plugin's scoped editor; false where `when` or the command declines.
 	 *  A throw counts as run, so the key goes no further, and is reported. */
 	run(command: ContributedCommand, arg: unknown): boolean;
@@ -54,6 +56,7 @@ export function createEditorContributions(deps: {
 	let inserts: readonly InsertRow[] = [];
 	let menus: readonly ContributedMenu[] = [];
 	let actions: readonly ContributedAction[] = [];
+	let paints: EditorContributions['paints'] = [];
 
 	function guarded<T>(entry: ContributedCommand, fallback: T, call: () => T): T {
 		try {
@@ -99,6 +102,9 @@ export function createEditorContributions(deps: {
 		actions = kept.flatMap((unit) =>
 			(unit.contribution.actions ?? []).map((action) => ({ plugin: unit.name, action }))
 		);
+		paints = kept.flatMap(({ name, contribution }) =>
+			contribution.paint ? [{ plugin: name, contribution }] : []
+		);
 		return kept;
 	}
 
@@ -136,6 +142,9 @@ export function createEditorContributions(deps: {
 		},
 		get actions() {
 			return actions;
+		},
+		get paints() {
+			return paints;
 		},
 		run,
 		can,

@@ -71,7 +71,7 @@
 	import { createSearchState, type SearchState } from '../search/search-state.svelte';
 	import { createDecorationEngine } from '../decorations/decoration-state.svelte';
 	import { createMarkActivation } from '../decorations/mark-activation';
-	import { paintedMarkRects } from '../decorations/mark-interactions';
+	import { paintedMarkRects, passPointerThrough } from '../decorations/mark-interactions';
 	import type { DecorationRegistry } from '../decorations/types';
 	import { createEditorRects, type EditorRects } from '../editor-rects';
 	import { createCaretLanding } from '../selection/caret-landing';
@@ -154,7 +154,9 @@
 		type PluginError,
 		type PluginList
 	} from '../schema/plugin-unit';
-	import type { Block } from '../schema/doc-view';
+	import { nodeOfBlock, type Block } from '../schema/doc-view';
+	import type { Contribution } from '../schema/plugin-unit';
+	import { createPaintSource, type PaintSource } from '../decorations/plugin-paint.svelte';
 	import { createDocumentRead } from '../editor-actions/commit/document-read';
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
 	import { insertRows } from '../schema/insert-catalogue';
@@ -718,7 +720,10 @@
 		onSourceError: (source, error) =>
 			events.emit('error', { origin: 'decoration', error, context: { source } }),
 		onMarkError: (path, error) =>
-			events.emit('error', { origin: 'decoration', error, context: { path } })
+			events.emit('error', { origin: 'decoration', error, context: { path } }),
+		blockSources: () => paintSources,
+		landClick: (event) =>
+			passPointerThrough(event, () => placeCaretAtPoint(event.clientX, event.clientY))
 	});
 	const decorations: DecorationRegistry = { addSource: decorationEngine.addSource };
 	const documentRead = createDocumentRead({
@@ -727,6 +732,41 @@
 		typeOf: blockTypeOf,
 		reading
 	});
+
+	// One per contribution, so a plugin that `use` keeps holds on to what it painted.
+	const paintSourceOf = new WeakMap<Contribution, PaintSource>();
+	function paintSourceFor(plugin: string, contribution: Contribution): PaintSource {
+		let source = paintSourceOf.get(contribution);
+		if (!source) {
+			source = createPaintSource({
+				plugin,
+				paint: (block) => contribution.paint?.(block) ?? [],
+				blockOf: documentRead.blockOf,
+				blockAt: (path) => {
+					const node = blockNodeAt(doc, path);
+					return node ? documentRead.blockOf(node, path) : null;
+				},
+				rectsOf: (dec) => paintedMarkRects(dec, getBlockComponent),
+				report: reportPluginError
+			});
+			paintSourceOf.set(contribution, source);
+		}
+		return source;
+	}
+	// Read again whenever `use` changes the list.
+	const paintSources = $derived.by(
+		() => (
+			void pluginNames,
+			contributions.paints.map((p) => paintSourceFor(p.plugin, p.contribution))
+		)
+	);
+
+	function repaintPlugin(plugin: string | null, blocks?: readonly Block[]): void {
+		const nodes = blocks?.flatMap((block) => nodeOfBlock(block) ?? []);
+		for (const { plugin: name, contribution } of contributions.paints) {
+			if (plugin === null || name === plugin) paintSourceFor(name, contribution).repaint(nodes);
+		}
+	}
 
 	// A plugin's own block type, else one named by its kind, which `is` matches to `builtin.blocks`.
 	function blockTypeOf(kind: AnyBlockKind): BlockType<unknown> {
@@ -812,6 +852,7 @@
 		openMenu: (menu, query) => inlineMenu.openMenu(menu, query),
 		openRows: (action, range, anchor) => openRows(action, range, anchor),
 		blockAt: (at) => blockAt(at),
+		repaint: (plugin, blocks) => repaintPlugin(plugin, blocks),
 		edit: (plugin) => drafts.edit(plugin),
 		reading,
 		units: () => units,
@@ -1576,6 +1617,10 @@
 		return documentRead.blockAt(at);
 	}
 
+	export function repaint(blocks?: readonly Block[]): void {
+		repaintPlugin(null, blocks);
+	}
+
 	export function openRows(
 		action: SelectionAction,
 		range: { readonly from: number; readonly to: number },
@@ -1674,7 +1719,8 @@
 		claims,
 		openMenu,
 		openRows,
-		blockAt
+		blockAt,
+		repaint
 	} satisfies EditorInstance);
 
 	// ── Test-only hooks ─────────────────────────────────────────────────

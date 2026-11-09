@@ -15,3 +15,25 @@ around it.
 
 - With a whole-document source marking every block, typing in one block measures no other
   block's marks again
+
+## What a plugin's paint is asked for
+
+- With a painted mark on each of 30 blocks, a keystroke asks only the edited block's paint again
+  and measures only its marks
+- In a 25,000-item list, item 3,500's paint is asked once it's scrolled into view, never before,
+  and not again after scrolling away and back
+- `repaint` of one block asks only that block; `repaint()` asks every mounted block and no other
+
+## A painted mark's handlers
+
+- In a paragraph, a quote's second line and a table cell, a mark painted at a word's document
+  bytes covers exactly that word, and hovering it hands `hover` those bytes
+- In each of the three, the keyboard's activate chord hands `activate` those bytes
+- A click on a mark with `click` runs before the caret lands: as the handler runs, the caret is
+  where it was; `preventDefault` keeps it there, and without it the caret lands where the press was
+
+## Widget, replace and block paint
+
+- A widget, a replaced range with a class, block classes and attributes, and a badge each land;
+  the views get the paint they came from and follow it through a repaint, and everything leaves
+  when the paint returns nothing, the bytes untouched

@@ -13,6 +13,12 @@ export function elementAtPoint(doc: Document, clientX: number, clientY: number):
 	return doc.elementFromPoint(clientX, clientY);
 }
 
+/** Every element at a viewport point, topmost first; empty where the document lays nothing out. */
+export function elementsAtPoint(doc: Document, clientX: number, clientY: number): Element[] {
+	if (typeof doc.elementsFromPoint !== 'function') return [];
+	return doc.elementsFromPoint(clientX, clientY);
+}
+
 /** The caret offset in `el` nearest a viewport point, clamped into `el`'s box first so a click on
  *  the frame still names one. Null where `el` holds no text. */
 export function caretOffsetAtPoint(

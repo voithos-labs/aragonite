@@ -2223,15 +2223,15 @@ const MEASURE_CHANNEL: ManifestRule = {
 /** A mark's handlers are plugin code: called from one place per gesture, each through the
  *  engine's guarded runner, so a new route cannot skip the hover lifecycle or the error event. */
 const MARK_HANDLER_CALLERS: ManifestRule = {
-	id: 'G4.163 a mark’s interactive handlers are called only by the hover lifecycle, the activate command and the overlay’s click',
+	id: 'G4.163 a mark’s interactive handlers are called only by the hover lifecycle, the activate command and the engine’s click',
 	matches: /\binteractive\s*\??\.\s*on(?:Click|Hover|Activate)\s*(?:\?\.)?\s*\(/,
 	declared: {
 		'src/lib/decorations/mark-hover.ts':
 			'`onHover`, started and ended by the one lifecycle keyed on the decoration',
 		'src/lib/decorations/mark-activation.ts':
 			'`onActivate`, run by `decorations.activateAtCaret` on the mark the precedence rule picks',
-		'src/lib/components/overlays/DecorationOverlay.svelte':
-			'`onClick`, on the rect the click landed on'
+		'src/lib/decorations/decoration-state.svelte.ts':
+			'`onClick`, for the rect the click landed on, before the caret lands there'
 	},
 	reason:
 		'a mark handler called from anywhere else skips the hover lifecycle’s one-end rule or the `error` event: route the gesture through `DecorationEngine.markHover` or `runMarkHandler`',
