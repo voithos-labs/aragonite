@@ -13,6 +13,7 @@ import { contentEnd, factsOf, findWithin, pointedBlock, readDoc, type Doc } from
 import type { LaidBlock } from './layout';
 import type { Edit } from './leaf-splice';
 import { ownEntry, restored } from './own-entry';
+import { numberedOn } from './list-numbers';
 import { pasteAt } from './paste';
 import { removeRange, type Removal } from './removal';
 import { holdsText } from './removal-range';
@@ -68,9 +69,6 @@ export function editRange(
 		source: edit.source,
 		caret: caretOf(edit, read(edit), backward)
 	});
-	// Text typed or pasted over one block held whole takes its place, and the line stays.
-	const inPlace = { source: source.slice(0, from) + source.slice(to), caret: from };
-	const replaced = heldAlone(doc, from, to);
 	if (gesture === 'copy' || gesture === 'cut') {
 		const { removed, clipboard, own } = taken(doc, from, to);
 		if (gesture === 'cut') return { ...answer(removed), clipboard, own };
@@ -82,8 +80,9 @@ export function editRange(
 		const back = own === undefined ? null : restored(source, from, to, own);
 		if (back) return answer(back);
 		if (from === to) return answer(pasteAt(doc, from, gesture.paste, gesture.plain));
-		// The paste lands where the removal's caret does, as a cut's then a paste's would.
-		const removed = replaced ? inPlace : removeRange(doc, from, to);
+		// The paste lands where the removal's caret does, as a cut's then a paste's would, and over
+		// one block held whole takes its place, as typed text does.
+		const removed = removalEdit(doc, from, to, 'type');
 		const after = read(removed);
 		return answer(pasteAt(after, caretOf(removed, after).at, gesture.paste, gesture.plain));
 	}
@@ -135,7 +134,8 @@ export function wholeBlocksRemovalOf(
  *  line stays. */
 function removalEdit(doc: Doc, from: number, to: number, gesture: RemovalGesture): Removal {
 	if (gesture !== 'type' || !heldAlone(doc, from, to)) return removeRange(doc, from, to);
-	return { source: doc.source.slice(0, from) + doc.source.slice(to), caret: from };
+	const out = doc.source.slice(0, from) + doc.source.slice(to);
+	return { source: numberedOn(doc, from, to, out), caret: from };
 }
 
 /** What a copy of `range` writes, the copy gesture alone: it reads nothing but `source`, so an

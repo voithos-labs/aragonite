@@ -11,11 +11,7 @@ import type { SelectionPoint } from '#lib/selection/primitives.js';
 import type { RemovalGesture } from '#lib/selection/caret-target.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
 import { pointAtByte, removalBytes } from '#lib/selection/range-bytes.js';
-import {
-	CORE_GESTURE,
-	numberedOn,
-	type Removed
-} from '#lib/selection/cross-block/range-removal.js';
+import { CORE_GESTURE, type Removed } from '#lib/selection/cross-block/range-removal.js';
 import { removalOf } from '#lib/range-edit/edit-range.js';
 import { rangeHost } from '#lib/range-edit/host.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
@@ -58,7 +54,7 @@ export function deleteRange(
 	const mode = hidesDelimitersAtCaret(reading.mode()) ? 'live' : 'source';
 	const host = rangeHost(reading, { source, tree: doc, layout });
 	const answer = removalOf(source, range, CORE_GESTURE[gesture], mode, host);
-	const changes = changesBetween(source, numberedOn(doc, layout, source, range, answer.source));
+	const changes = changesBetween(source, answer.source);
 	const read = spliceReading(doc, source, changes, reading.grammar);
 	const closers = read ? splicedOpenerClosers(doc, source, changes, read, reading.grammar) : [];
 	const written = withSplicedClosers(source, changes, closers);

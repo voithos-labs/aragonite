@@ -81,6 +81,12 @@ describe('a block removed whole against a range over its whole span', () => {
 			'> > a\n> > # h\n> | A |\n> | - |\n',
 			[0, 0, 1],
 			'> > a\n>\n> | A |\n> | - |\n'
+		],
+		[
+			'an ordered list numbered on still interrupts the paragraph',
+			'a\n1. x\n2. y\n',
+			[1, 0],
+			'a\n1. y\n'
 		]
 	])('leaves the pair around it the join question’s blank line: %s', (_, source, path, left) => {
 		const host = checkHost();

@@ -1,23 +1,17 @@
 /**
- * A range's removal through the range-edit core: the selection read as bytes, the core's answer
- * with every ordered list it shortened numbered on, landed as one byte splice. Every gesture that
- * removes a range the editor holds goes through here, and so does a block removed whole.
+ * A range's removal through the range-edit core: the selection read as bytes and the core's answer
+ * landed as one byte splice. Every gesture that removes a range the editor holds goes through here,
+ * and so does a block removed whole.
  */
 
 import type { SourceSplice, SpliceCaret } from '../../action-contracts';
 import type { DocumentView } from '../../core/node-views';
-import { metadataIfKind, type AnyBlockKind } from '../../core/nodes';
+import type { AnyBlockKind } from '../../core/nodes';
 import { getContentRange, isProseKind } from '../../core/inline';
 import { serialize } from '../../core/serializer';
 import { hidesDelimitersAtCaret } from '../../presentation-mode';
-import {
-	removalOf,
-	wholeBlocksRemovalOf,
-	type Range,
-	type RemovalGesture
-} from '../../range-edit/edit-range';
+import { removalOf, wholeBlocksRemovalOf, type RemovalGesture } from '../../range-edit/edit-range';
 import { rangeHost } from '../../range-edit/host';
-import type { LaidBlock, Layout } from '../../range-edit/layout';
 import { changesBetween } from '../../tree-operations/byte-changes';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { deleteSnapshot, type SelectionPoint } from '../primitives';
@@ -74,7 +68,7 @@ export async function removeThroughCore(
 	if (answer.source === source)
 		return { wrote: false, caret: pointAtByte(tree, landed.at), landed, took: null };
 	const { start } = coverage.range;
-	const wrote = await commitRemoval(ctx, range, answer.source, {
+	const wrote = await commitRemoval(ctx, answer.source, {
 		caret: landed,
 		op: { kind: 'delete', detail: { crossBlock: true } },
 		snapshot: deleteSnapshot(start.path, start.offset)
@@ -93,20 +87,13 @@ export function removeWholeBlock(
 	const range = wholeBlockBytes(ctx.bytes.doc(), ctx.bytes.layout(), path);
 	if (!range) return Promise.resolve(false);
 	const after = wholeBlocksRemovalOf(ctx.bytes.source(), range, modeOf(ctx), hostOf(ctx));
-	return commitRemoval(ctx, range, after, commit);
+	return commitRemoval(ctx, after, commit);
 }
 
-/** The core's new bytes landed as one byte splice, each ordered list they shortened numbered on. */
-function commitRemoval(
-	ctx: CommitContext,
-	range: Range,
-	removed: string,
-	splice: RemovalCommit
-): Promise<boolean> {
-	const tree = ctx.bytes.doc();
-	const source = ctx.bytes.source();
-	const after = numberedOn(tree, ctx.bytes.layout(), source, range, removed);
-	return ctx.controller.commitSource({ changes: changesBetween(source, after), ...splice });
+/** The core's new bytes landed as one byte splice. */
+function commitRemoval(ctx: CommitContext, after: string, splice: RemovalCommit): Promise<boolean> {
+	const changes = changesBetween(ctx.bytes.source(), after);
+	return ctx.controller.commitSource({ changes, ...splice });
 }
 
 const modeOf = (ctx: CommitContext) =>
@@ -118,85 +105,6 @@ const hostOf = (ctx: CommitContext) =>
 		tree: ctx.bytes.doc(),
 		layout: ctx.bytes.layout()
 	});
-
-// ── Ordered lists numbered on ────────────────────────────────────────────────
-
-/** `after`, the removal of `range` from `before`, with each ordered list it shortened numbered on
- *  (`docs/design/structural-edits.md` § Structural operations). */
-export function numberedOn(
-	tree: DocumentView,
-	layout: Layout,
-	before: string,
-	range: Range,
-	after: string
-): string {
-	const shift = after.length - before.length;
-	const edits: Edit[] = [];
-	for (const list of layout.within(range.from, range.to)) {
-		const node = blockNodeAt(tree, list.path);
-		if (!node?.children || !metadataIfKind(node, 'list')?.ordered) continue;
-		const items = node.children.map((_, i) => layout.block([...list.path, i])!);
-		const kept = items.filter((item) => item.from >= range.to);
-		if (kept.length === 0 || kept.length === items.length) continue;
-		const above = items.filter((item) => item.from < range.from).at(-1);
-		let next = markerOf(before, above ?? items[0])?.number ?? 1;
-		if (above) next++;
-		for (const item of kept) {
-			const marker = markerOf(before, item);
-			if (marker && marker.number !== next) renumber(edits, before, item, marker, next);
-			next++;
-		}
-	}
-	if (edits.length === 0) return after;
-	// One pass over the bytes: a long list renumbers every item after the range.
-	const parts: string[] = [];
-	let read = 0;
-	for (const edit of edits.sort((a, b) => a.at - b.at)) {
-		parts.push(after.slice(read, edit.at + shift), edit.insert);
-		read = edit.at + shift + edit.remove;
-	}
-	parts.push(after.slice(read));
-	return parts.join('');
-}
-
-interface Edit {
-	at: number;
-	remove: number;
-	insert: string;
-}
-
-interface Marker {
-	number: number;
-	/** Where its digits sit in the bytes. */
-	from: number;
-	to: number;
-}
-
-/** An ordered item's number and where its digits sit; null for an item opening with none. */
-function markerOf(source: string, item: LaidBlock): Marker | null {
-	const line = item.lines?.[0];
-	if (!line) return null;
-	const digits = /^[ \t]*(\d+)/.exec(source.slice(line.from, line.markerTo));
-	if (!digits) return null;
-	const from = line.from + digits[0].length - digits[1].length;
-	return { number: Number(digits[1]), from, to: from + digits[1].length };
-}
-
-/** Adds the edits that rewrite the item's digits as `number`, each later line indented to the
- *  item's text column where a wider or narrower number moves it. */
-function renumber(edits: Edit[], source: string, item: LaidBlock, marker: Marker, number: number) {
-	const insert = String(number);
-	edits.push({ at: marker.from, remove: marker.to - marker.from, insert });
-	const widened = insert.length - (marker.to - marker.from);
-	const lines = item.lines!;
-	const column = lines[0].markerTo - lines[0].from;
-	for (const line of widened === 0 ? [] : lines.slice(1)) {
-		if (line.markerTo - line.from !== column) continue;
-		if (widened > 0) edits.push({ at: line.markerTo, remove: 0, insert: ' '.repeat(widened) });
-		else if (/^ +$/.test(source.slice(line.markerTo + widened, line.markerTo)))
-			edits.push({ at: line.markerTo + widened, remove: -widened, insert: '' });
-	}
-}
 
 // ── Where the removal leaves the caret, read around it ───────────────────────
 

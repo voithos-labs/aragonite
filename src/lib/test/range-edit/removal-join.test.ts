@@ -114,6 +114,12 @@ const ROWS: [name: string, marked: string, left: string, blocks: string][] = [
 		'a\n⟦# h\n\nal⟧pha\n',
 		'a\npha\n',
 		'paragraph'
+	],
+	[
+		'an ordered list the range shortened, numbered on, stays apart from the paragraph',
+		'p⟦p\n\n8. aa\n9. b⟧b\n10. cc\n',
+		'pb\n\n8. cc\n',
+		'paragraph list(listItem(paragraph))'
 	]
 ];
 

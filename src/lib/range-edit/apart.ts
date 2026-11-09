@@ -84,7 +84,12 @@ function siblingsAt(doc: Doc, join: Join, out: string, at: number): Pair | null 
 		return raw === null ? null : { ...nodeAt(doc, above.path), raw };
 	};
 	const up = side(above, rewritten.upper, contentEnd(doc, above) <= from) ?? changed();
-	const down = side(below, rewritten.lower, below.from >= to);
+	// A top-level lower side the removal changed reads off its new bytes from its line on; every
+	// byte the removal changed sits before its end.
+	const shift = out.length - doc.source.length;
+	const down =
+		side(below, rewritten.lower, below.from >= to) ??
+		(k === 0 ? { ...nodeAt(doc, below.path), raw: out.slice(at, below.to + shift) } : null);
 	return up && down
 		? { parent: upper.path.slice(0, k), index: upper.path[k], upper: up, lower: down }
 		: null;

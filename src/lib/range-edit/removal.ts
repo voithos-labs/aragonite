@@ -25,7 +25,8 @@ import {
 	titleRowOf,
 	type Doc
 } from './document';
-import { apartAt, deepestAt, pastMarkers } from './apart';
+import { apartAt, deepestAt, pastMarkers, type Join } from './apart';
+import { numberedOn } from './list-numbers';
 import { heldAt, heldWhole, removalRange } from './removal-range';
 import {
 	byteAt,
@@ -68,6 +69,12 @@ export function removeRange(doc: Doc, start: number, end: number): Removal {
 	return across(doc, from, to, held ?? head?.leaf, held !== undefined);
 }
 
+/** `out` with each ordered list the removal shortened numbered on, then a blank line at `at` where
+ *  the pair `join` leaves touching needs one, so the join question reads the numbers shown. */
+function numberedApart(doc: Doc, out: string, at: number, join: Join, placed: boolean): string {
+	return apartAt(doc, numberedOn(doc, join.from, join.to, out), at, join, placed);
+}
+
 /** A block removed whole as the last of its parent goes with the line break and blank lines before
  *  it, so the block above ends as it did, open or closed; a blank last line above keeps its break. */
 function endingItsParent(doc: Doc, block: LaidBlock, to: number): Removal | null {
@@ -85,7 +92,7 @@ function endingItsParent(doc: Doc, block: LaidBlock, to: number): Removal | null
 	const ending = /^\r?\n/.exec(doc.source.slice(end, end + 2))?.[0].length ?? 0;
 	const below = ending > 0 ? deepestAt(doc, pastMarkers(doc.source, end + ending)) : undefined;
 	const join = { from: at, to: end, upper: prev, lower: below, rewritten: {} };
-	const source = apartAt(
+	const source = numberedApart(
 		doc,
 		doc.source.slice(0, at) + doc.source.slice(end),
 		at + ending,
@@ -189,7 +196,7 @@ function across(
 		...(end && cut && { lower: { block: end.leaf, raw: cut.raw, kind: end.leaf.type } }),
 		...(end && rest !== null && { lower: { block: end.leaf, raw: rest } })
 	};
-	const parted = apartAt(doc, closed, at, { from, to, upper, lower, rewritten }, !joins);
+	const parted = numberedApart(doc, closed, at, { from, to, upper, lower, rewritten }, !joins);
 	const gone = held && (!!lines || !joins || isBlankText(lineRest(tail, 0)));
 	const out = joins ? movedMarkers(doc, from, to, parted, to) : parted;
 	return {
@@ -294,7 +301,7 @@ function joinedLeaves(doc: Doc, from: number, to: number, head: LeafPoint, end: 
 	const leafEnd = head.leaf.to + shift;
 	const joined = written.source.slice(0, leafEnd) + written.source.slice(end.leaf.to + shift);
 	const upper = trimTrailingLineEnding(write.bytes) + ownTrailingLineEnding(raw);
-	const parted = apartAt(
+	const parted = numberedApart(
 		doc,
 		joined,
 		leafEnd,

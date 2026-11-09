@@ -14,7 +14,6 @@ import { documentBytes, wholeBlockBytes } from '#lib/selection/range-bytes.js';
 import { wholeBlocksRemovalOf } from '#lib/range-edit/edit-range.js';
 import { rangeHost } from '#lib/range-edit/host.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
-import { numberedOn } from '#lib/selection/cross-block/range-removal.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { rangeClipboard } from '#lib/selection/range-clipboard.js';
 import type { RemovalGesture } from '#lib/selection/caret-target.js';
@@ -211,7 +210,7 @@ function wholeAnswer(editor: Editor, mode: PresentationMode, path: number[]) {
 	const range = wholeBlockBytes(doc, layout, path)!;
 	const host = rangeHost(reading, { source, tree: doc, layout });
 	const core = mode === 'live' ? 'live' : 'source';
-	return numberedOn(doc, layout, source, range, wholeBlocksRemovalOf(source, range, core, host));
+	return wholeBlocksRemovalOf(source, range, core, host);
 }
 
 async function driveWhole(editor: Editor, path: number[], route: WholeRoute): Promise<boolean> {

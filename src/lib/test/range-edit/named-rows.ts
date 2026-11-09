@@ -1051,5 +1051,25 @@ export const NAMED_ROWS: NamedRow[] = [
 		source: '> a⟦\n\n<div>\nb⟧c\n</div>\n',
 		gesture: 'delete',
 		expect: { source: '> a\n\nc\n</div>\n' }
+	},
+	// ── An ordered list the removal shortens numbers on from where it was ──
+	{
+		name: 'L4 a range across ordered items numbers the items after it on',
+		source: '1. o⟦ne\n2. t⟧wo\n3. three\n',
+		gesture: 'delete',
+		expect: { source: '1. owo\n2. three\n', caret: text(4) }
+	},
+	{
+		name: 'L12 that cut pasted back with its entry gives the old numbers back',
+		source: '1. o⟦ne\n2. t⟧wo\n3. three\n',
+		gesture: 'cut',
+		expect: { source: '1. owo\n2. three\n' },
+		then: { gesture: 'paste back with own', expect: backToStart('1. one\n2. two\n3. three\n') }
+	},
+	{
+		name: 'L4 a narrower number moves the item’s later lines to its text',
+		source: '8. a⟦a\n9. b⟧b\n10. c\n\n    more\n',
+		gesture: 'delete',
+		expect: { source: '8. ab\n9. c\n\n   more\n' }
 	}
 ];
