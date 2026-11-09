@@ -1,7 +1,8 @@
 /**
- * When DecorationOverlay and SelectionOverlay measure again: on mount, on scroll, when the block's
- * box resizes, when text inside it moves without a resize (`text-moves.ts`), and when a windowed
- * table's mounted rows change, since a raw scroll fires before those rows mount.
+ * When DecorationOverlay and SelectionOverlay measure: on the frame after they wire (blocks that
+ * mount together then measure in one layout, VR-4), on scroll, when the block's box resizes, when
+ * text inside it moves without a resize (`text-moves.ts`), and when a windowed table's mounted
+ * rows change, since a raw scroll fires before those rows mount.
  */
 
 import { untrack } from 'svelte';
@@ -18,25 +19,32 @@ export function wireOverlayRemeasure(opts: {
 	editorRoot: HTMLElement | null;
 	blockRef: BlockComponent | undefined;
 	measure: () => void;
-	/** Run the setup measure untracked, so a `measure` that reads the document doesn't re-wire these
-	 *  listeners on every keystroke. Only that call: the row-window read below must stay tracked. */
-	untrackSetupMeasure?: boolean;
+	/** Measure before returning (untracked): for one element that must sit in place before focus
+	 *  moves into it, the link card. Blocks that mount together leave this off. */
+	measureNow?: boolean;
 	/** Absent only for an overlay mounted without the editor, which has no services to read. */
 	textMoves?: TextMoves;
 }): () => void {
 	const { el, editorRoot, blockRef, measure, textMoves } = opts;
 
-	// Plain synchronous read so the enclosing $effect depends on the table's row-window
-	// $derived; it must not be inside untrack().
+	// A plain synchronous read, so the enclosing $effect depends on the table's row-window $derived.
 	blockRef?.mountedRowWindow?.();
 
-	if (opts.untrackSetupMeasure) untrack(measure);
-	else measure();
+	// Next frame: a read between two mounting blocks' writes forces a layout per block, and one
+	// inside a resize delivery turns another element's pending write into a loop error.
+	let live = true;
+	const cancelFrame = opts.measureNow ? () => {} : onNextFrame(() => live && measure());
+	if (opts.measureNow) untrack(measure);
 
 	const scrollEl =
 		firstScrollableDescendant(el) ?? (editorRoot ? nearestScrollContainer(el, editorRoot) : null);
 
-	const disposers: Array<() => void> = [];
+	const disposers: Array<() => void> = [
+		() => {
+			live = false;
+			cancelFrame();
+		}
+	];
 
 	if (scrollEl) {
 		scrollEl.addEventListener('scroll', measure, { passive: true });
@@ -56,4 +64,27 @@ export function wireOverlayRemeasure(opts: {
 	if (textMoves) disposers.push(textMoves.watch(el, measure));
 
 	return () => disposers.forEach((dispose) => dispose());
+}
+
+// ── The shared frame ─────────────────────────────────────────────────────────
+
+const pendingReads: Array<() => void> = [];
+let frameAsked = false;
+
+/** Runs `read` with every other overlay's on the next frame (G4.4 allowlist), one after another,
+ *  so their state writes flush once after all the reads. Returns the cancel. */
+function onNextFrame(read: () => void): () => void {
+	pendingReads.push(read);
+	if (!frameAsked) {
+		frameAsked = true;
+		requestAnimationFrame(() => {
+			frameAsked = false;
+			const reads = pendingReads.splice(0);
+			for (const run of reads) run();
+		});
+	}
+	return () => {
+		const i = pendingReads.indexOf(read);
+		if (i >= 0) pendingReads.splice(i, 1);
+	};
 }

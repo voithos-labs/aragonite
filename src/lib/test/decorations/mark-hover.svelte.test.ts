@@ -83,16 +83,23 @@ function setup(opts: { path?: number[]; leaf?: BlockComponent; container?: boole
 	return { engine, errors, pointer, blockEl };
 }
 
-/** A source whose answer the test swaps, then re-runs with `invalidate`. */
-function swappableSource(engine: ReturnType<typeof setup>['engine'], first: Decoration[]) {
+/** A source whose answer the test swaps, then re-runs with `invalidate`. Each run settles the
+ *  overlay's measure, which lands once the mounting flush is over. */
+async function swappableSource(engine: ReturnType<typeof setup>['engine'], first: Decoration[]) {
 	let answer = first;
 	const handle = engine.addSource({ name: 'probe', provide: () => answer });
-	flushSync();
-	return (next: Decoration[]) => {
+	await settle();
+	return async (next: Decoration[]) => {
 		answer = next;
 		handle.invalidate();
-		flushSync();
+		await settle();
 	};
+}
+
+async function settle(): Promise<void> {
+	flushSync();
+	await new Promise(requestAnimationFrame);
+	flushSync();
 }
 
 function hoverMark(calls: HoverCall[], over: Partial<MarkDecoration> = {}): MarkDecoration {
@@ -108,10 +115,10 @@ function hoverMark(calls: HoverCall[], over: Partial<MarkDecoration> = {}): Mark
 }
 
 describe('a mark reports one hover per decoration', () => {
-	it('reports the rect under the pointer as the anchor, then one end off the mark', () => {
+	it('reports the rect under the pointer as the anchor, then one end off the mark', async () => {
 		const calls: HoverCall[] = [];
 		const { engine, pointer } = setup();
-		swappableSource(engine, [hoverMark(calls)]);
+		await swappableSource(engine, [hoverMark(calls)]);
 
 		pointer(10, 8);
 		pointer(20, 8);
@@ -123,10 +130,10 @@ describe('a mark reports one hover per decoration', () => {
 		expect(calls[1].hover).toBeNull();
 	});
 
-	it('fires nothing across the space between two lines of a mark, and ends once off it', () => {
+	it('fires nothing across the space between two lines of a mark, and ends once off it', async () => {
 		const calls: HoverCall[] = [];
 		const { engine, pointer } = setup({ leaf: paintingLeaf(3) });
-		swappableSource(engine, [hoverMark(calls)]);
+		await swappableSource(engine, [hoverMark(calls)]);
 
 		pointer(4, 8);
 		pointer(4, 19);
@@ -140,17 +147,17 @@ describe('a mark reports one hover per decoration', () => {
 });
 
 describe('a started hover ends exactly once, whatever ends it', () => {
-	it('survives the source re-providing the same mark, and ends once when it is gone', () => {
+	it('survives the source re-providing the same mark, and ends once when it is gone', async () => {
 		const calls: HoverCall[] = [];
 		const { engine, pointer } = setup();
-		const provide = swappableSource(engine, [hoverMark(calls)]);
+		const provide = await swappableSource(engine, [hoverMark(calls)]);
 		pointer(10, 8);
 
-		provide([hoverMark(calls)]);
-		provide([hoverMark(calls, { class: 'probe probe-hovered' })]);
+		await provide([hoverMark(calls)]);
+		await provide([hoverMark(calls, { class: 'probe probe-hovered' })]);
 		expect(calls, 'a re-provided mark fired a leave/enter pair').toHaveLength(1);
 
-		provide([]);
+		await provide([]);
 		expect(calls).toHaveLength(2);
 		expect(calls[1]).toEqual({ cls: 'probe probe-hovered', hover: null });
 	});
@@ -158,7 +165,7 @@ describe('a started hover ends exactly once, whatever ends it', () => {
 	it('ends once when the overlay unmounts, as a block windowed out does', async () => {
 		const calls: HoverCall[] = [];
 		const { engine, pointer } = setup();
-		swappableSource(engine, [hoverMark(calls)]);
+		await swappableSource(engine, [hoverMark(calls)]);
 		pointer(10, 8);
 
 		await unmount(instance!);
@@ -168,7 +175,7 @@ describe('a started hover ends exactly once, whatever ends it', () => {
 		expect(calls.map((c) => c.hover === null)).toEqual([false, true]);
 	});
 
-	it('routes a throwing onHover to the error sink and keeps reporting later hovers', () => {
+	it('routes a throwing onHover to the error sink and keeps reporting later hovers', async () => {
 		const calls: HoverCall[] = [];
 		const { engine, errors, pointer } = setup();
 		const boom: MarkDecoration = {
@@ -179,7 +186,7 @@ describe('a started hover ends exactly once, whatever ends it', () => {
 				}
 			}
 		};
-		const provide = swappableSource(engine, [boom]);
+		const provide = await swappableSource(engine, [boom]);
 		pointer(10, 8);
 		pointer(60, 8);
 		expect(errors.map((e) => (e.error as Error).message)).toEqual([
@@ -188,17 +195,17 @@ describe('a started hover ends exactly once, whatever ends it', () => {
 		]);
 		expect(errors[0].path).toEqual([0]);
 
-		provide([hoverMark(calls)]);
+		await provide([hoverMark(calls)]);
 		pointer(10, 8);
 		expect(calls).toHaveLength(1);
 	});
 });
 
 describe('a scroll under a still pointer', () => {
-	it('re-runs the check from a scroll anywhere on the page, with no repaint', () => {
+	it('re-runs the check from a scroll anywhere on the page, with no repaint', async () => {
 		const calls: HoverCall[] = [];
 		const { engine, pointer, blockEl } = setup();
-		swappableSource(engine, [hoverMark(calls)]);
+		await swappableSource(engine, [hoverMark(calls)]);
 		pointer(10, 8);
 
 		// The block moves up under the pointer, as a host scroller or the window scrolling does.
@@ -210,7 +217,7 @@ describe('a scroll under a still pointer', () => {
 		expect(calls.map((c) => c.hover === null)).toEqual([false, true]);
 	});
 
-	it('listens for scrolls only while the pointer is over the editor', () => {
+	it('listens for scrolls only while the pointer is over the editor', async () => {
 		const add = vi.spyOn(window, 'addEventListener');
 		const remove = vi.spyOn(window, 'removeEventListener');
 		const { engine, pointer } = setup();
@@ -228,10 +235,10 @@ describe('a scroll under a still pointer', () => {
 });
 
 describe('which pointers hover', () => {
-	it('never starts a hover from a touch', () => {
+	it('never starts a hover from a touch', async () => {
 		const calls: HoverCall[] = [];
 		const { engine, pointer } = setup();
-		swappableSource(engine, [hoverMark(calls)]);
+		await swappableSource(engine, [hoverMark(calls)]);
 
 		pointer(10, 8, { pointerType: 'touch' });
 		expect(calls).toHaveLength(0);
@@ -239,10 +246,10 @@ describe('which pointers hover', () => {
 		expect(calls).toHaveLength(1);
 	});
 
-	it('ends the hover when a button goes down, and starts none until it is up', () => {
+	it('ends the hover when a button goes down, and starts none until it is up', async () => {
 		const calls: HoverCall[] = [];
 		const { engine, pointer } = setup();
-		swappableSource(engine, [
+		await swappableSource(engine, [
 			hoverMark(calls),
 			hoverMark(calls, { start: 6, end: 11, class: 'b' })
 		]);
@@ -258,10 +265,10 @@ describe('which pointers hover', () => {
 		expect(calls.at(-1)?.cls).toBe('b');
 	});
 
-	it('ends the hover over anything outside the blocks, such as a host popup in the root', () => {
+	it('ends the hover over anything outside the blocks, such as a host popup in the root', async () => {
 		const calls: HoverCall[] = [];
 		const { engine, pointer } = setup();
-		swappableSource(engine, [hoverMark(calls)]);
+		await swappableSource(engine, [hoverMark(calls)]);
 		const popup = document.createElement('div');
 		document.body.append(popup);
 
@@ -271,10 +278,10 @@ describe('which pointers hover', () => {
 	});
 
 	// Miss-analysis: the popup row put its popup outside every block; none covered a menu a block renders inside itself.
-	it('ends the hover over a menu a block renders over its own text', () => {
+	it('ends the hover over a menu a block renders over its own text', async () => {
 		const calls: HoverCall[] = [];
 		const { engine, pointer, blockEl } = setup();
-		swappableSource(engine, [hoverMark(calls)]);
+		await swappableSource(engine, [hoverMark(calls)]);
 		const menu = document.createElement('div');
 		menu.setAttribute('role', 'menu');
 		const item = document.createElement('button');
@@ -288,7 +295,7 @@ describe('which pointers hover', () => {
 });
 
 describe('only marks with a click handler take pointer events', () => {
-	it('gives hover-only, keyboard-only and plain marks no pointer-taking element', () => {
+	it('gives hover-only, keyboard-only and plain marks no pointer-taking element', async () => {
 		const calls: HoverCall[] = [];
 		const { engine } = setup();
 		const plain: Decoration[] = Array.from({ length: 200 }, (_, i) => ({
@@ -311,7 +318,7 @@ describe('only marks with a click handler take pointer events', () => {
 			class: 'click',
 			interactive: { onClick: () => {}, onHover: () => {} }
 		};
-		swappableSource(engine, [...plain, keyboardOnly, hoverMark(calls), clickable]);
+		await swappableSource(engine, [...plain, keyboardOnly, hoverMark(calls), clickable]);
 
 		expect(document.querySelectorAll('.decoration-overlay')).toHaveLength(203);
 		const taking = document.querySelectorAll('.decoration-overlay-interactive');
@@ -320,11 +327,11 @@ describe('only marks with a click handler take pointer events', () => {
 });
 
 describe('a table cell names its decoration by the precedence rule', () => {
-	it('hovers the innermost of the hover marks collapsed into one cell rect', () => {
+	it('hovers the innermost of the hover marks collapsed into one cell rect', async () => {
 		const calls: HoverCall[] = [];
 		const { engine, pointer } = setup({ path: [1], leaf: paintingGrid(), container: true });
 		const cell = [1, 1, 0];
-		swappableSource(engine, [
+		await swappableSource(engine, [
 			hoverMark(calls, { path: cell, start: 0, end: 3, class: 'outer' }),
 			hoverMark(calls, { path: cell, start: 1, end: 2, class: 'inner' }),
 			hoverMark(calls, { path: cell, start: 1, end: 2, class: 'later-same-span' })
@@ -334,7 +341,7 @@ describe('a table cell names its decoration by the precedence rule', () => {
 	});
 
 	// Miss-analysis: no test clicked a mark in a table cell; every click-mark row was prose.
-	it('keeps a cell clickable when a plain mark from a later source shares it', () => {
+	it('keeps a cell clickable when a plain mark from a later source shares it', async () => {
 		let clicks = 0;
 		const { engine } = setup({ path: [1], leaf: paintingGrid(), container: true });
 		engine.addSource({
@@ -355,13 +362,15 @@ describe('a table cell names its decoration by the precedence rule', () => {
 			provide: () => [{ type: 'mark', path: [1, 1, 0], start: 0, end: 1, class: 'hl' }]
 		});
 		flushSync();
+		await new Promise(requestAnimationFrame);
+		flushSync();
 		document
 			.querySelector('.decoration-overlay')!
 			.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 		expect(clicks).toBe(1);
 	});
 
-	it("reports a throwing onClick on a cell with the cell's path, not the table's", () => {
+	it("reports a throwing onClick on a cell with the cell's path, not the table's", async () => {
 		const { engine, errors } = setup({ path: [1], leaf: paintingGrid(), container: true });
 		engine.addSource({
 			name: 'boom',
@@ -381,6 +390,8 @@ describe('a table cell names its decoration by the precedence rule', () => {
 			]
 		});
 		flushSync();
+		await new Promise(requestAnimationFrame);
+		flushSync();
 		document
 			.querySelector('.decoration-overlay')!
 			.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -389,7 +400,7 @@ describe('a table cell names its decoration by the precedence rule', () => {
 });
 
 describe('what a pointer move costs', () => {
-	it('identifies the hovered mark once, not on every move inside it', () => {
+	it('identifies the hovered mark once, not on every move inside it', async () => {
 		let identifies = 0;
 		const dec = hoverMark([]);
 		const tracker = createMarkHover({
