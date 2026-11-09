@@ -237,6 +237,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.315 | Under `selection/`, a range is read as bytes in one file | L |
 | G4.317 | A plugin or a host writes bytes through a `Draft`; another caller of the byte splice is on a list | L |
 | G4.329 | Bytes are read into the tree by the byte splice, which closes the openers they write, or by an undo | L |
+| G4.330 | A key, clipboard or input handler that removes prevents the browser's default before it waits | L |
 
 ### The entries
 
@@ -688,3 +689,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.317 · One write for plugins and hosts.** `CommitController.commitSource` is handed its changes only by the draft (`editor-actions/commit/draft-registry.svelte.ts`), which maps a waiting write's ranges past the writes since it opened and refuses with a reason; any other caller is on the row's list with why (today the test bridge's splice). `lint/file-rules.test.ts`.
 
 **G4.329 · Bytes reach the tree through the byte splice.** `tree-operations/byte-splice.ts :: spliceReading` reads bytes as given, so a route that called it itself would skip the closer the byte splice (`editor-actions/commit/byte-splice.ts`) gives an opener its changes write. The one other caller is an undo under a changed grammar (`commit/history.ts`), which puts back an entry's exact bytes. `lint/file-rules.test.ts`.
+
+**G4.330 · A key or a cut removes before the browser edits the page.** The byte splice keeps the nodes of blocks its bytes leave alone, down to the leaf, and a kept block doesn't redraw, so it mustn't show text the browser typed. So every function taking a `KeyboardEvent`, `ClipboardEvent` or `InputEvent` that removes (the range replace, a block's delete, a cut's arm) calls `preventDefault()` before it waits, and one handing the event on doesn't wait first. A composition can't be prevented, so it isn't covered. `lint/removal-prevents-default.test.ts`.
