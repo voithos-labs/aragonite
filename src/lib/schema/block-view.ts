@@ -2,7 +2,6 @@
  *  function that builds a view brands one, and registration refuses anything unbranded. */
 
 import type { AmbientPrefix, BlockComponent } from '../block-component';
-import type { LineEnding } from '../core/lines';
 import type { NodeView } from '../core/node-views';
 import type { PresentationMode } from '../presentation-mode';
 import type { BlockCommandContext } from './block-commands';
@@ -37,17 +36,15 @@ export function blockViewForm(view: BlockView): BlockViewForm {
 
 // ── DOM block views ─────────────────────────────────────────────────────────
 
-/** What the editor builds around a DOM view: nothing, an editable text leaf (shown always, or
- *  behind a rendered view until a click), or child blocks. */
+/** What the editor builds around a DOM view: nothing, or child blocks. */
 export type BlockSurface = BlockViewSpec['surface'];
 
 /**
  * A block drawn into an element the editor makes for it. The view fills `target` itself (classes,
  * children) and never wraps a second box inside, because the editor measures `target` as the
- * block. `surface` says what the editor wires in: a leaf's editable text, a container's children.
+ * block. `surface` says what the editor wires in: nothing, or a container's children.
  */
-export type BlockViewSpec =
-	HandBuiltViewSpec | LeafViewSpec | RenderPrimaryViewSpec | ContainerViewSpec;
+export type BlockViewSpec = HandBuiltViewSpec | ContainerViewSpec;
 
 interface ViewSpecBase {
 	/** Calls `update` on every change to the document, not only to this block. */
@@ -58,36 +55,6 @@ interface ViewSpecBase {
 export interface HandBuiltViewSpec extends ViewSpecBase {
 	surface: 'none';
 	mount(target: HTMLElement, ctx: HandBuiltViewContext): BlockViewHandle;
-}
-
-/** A block whose text the editor edits, in the element the view hands to `ctx.leaf.attach`. */
-export interface LeafViewSpec extends ViewSpecBase {
-	surface: 'leaf';
-	/** The kind's bytes are one line: Enter splits the block rather than typing a newline. */
-	singleLine?: boolean;
-	mount(target: HTMLElement, ctx: LeafViewContext): LeafViewHandle;
-}
-
-/**
- * A block that shows a rendered view until a click opens its text, block math's shape. The view
- * swaps its halves on `state.revealed` and commits nothing itself: the shown text is written as
- * one undo entry when focus leaves it.
- */
-export interface RenderPrimaryViewSpec extends ViewSpecBase {
-	surface: 'render-primary';
-	/** The kind's bytes are one line: Enter splits the block rather than typing a newline. */
-	singleLine?: boolean;
-	/** Draws the shown text as DOM (hidden fence lines, highlight tokens); must keep
-	 *  `fragment.textContent === text`, or caret offsets drift. */
-	renderSource?(text: string): DocumentFragment;
-	/** The text as the kind keeps it, asked on show and after every edit, with the caret carried;
-	 *  an added line takes `lineEnding`. Null keeps it. */
-	reshapeSource?(
-		text: string,
-		caret: number,
-		lineEnding: LineEnding
-	): { text: string; caret: number } | null;
-	mount(target: HTMLElement, ctx: RenderPrimaryViewContext): LeafViewHandle;
 }
 
 /** A block holding child blocks, which the editor mounts into the box the view names; or, for a
@@ -106,8 +73,6 @@ export interface BlockViewState {
 	path: readonly number[];
 	presentationMode: PresentationMode;
 	theme: string;
-	/** A render-primary block's text is showing; false on every other surface. */
-	revealed: boolean;
 }
 
 export interface BlockViewContext {
@@ -119,14 +84,6 @@ export interface BlockViewContext {
 
 export interface HandBuiltViewContext extends BlockViewContext {
 	readonly block: HandBuiltSurface;
-}
-
-export interface LeafViewContext extends BlockViewContext {
-	readonly leaf: LeafSurface;
-}
-
-export interface RenderPrimaryViewContext extends BlockViewContext {
-	readonly leaf: RenderPrimarySurface;
 }
 
 export interface ContainerViewContext extends BlockViewContext {
@@ -143,24 +100,6 @@ export interface HandBuiltSurface {
 	/** What the editor calls on the block from now on, replacing the last. Before the first call
 	 *  and after `null`, the block publishes nothing: it takes no focus, and arrows pass over it. */
 	publish(block: HandBuiltBlock | null): void;
-}
-
-export interface LeafSurface extends CommandHooksSurface {
-	/** The element inside `target` the editor edits the block's text in, holding no element of
-	 *  the view's own (chrome goes beside it); null hands it back empty. */
-	attach(el: HTMLElement | null): void;
-	/** Focus the text with the caret at `offset`. */
-	reveal(offset?: number): Promise<void>;
-	/** Replace the block's text as one undo entry. */
-	commitSource(text: string): void;
-}
-
-/** A render-primary leaf: call `attach` from inside the `update` that reveals, so the caret lands
- *  with the render, and `attach(null)` when it folds. */
-export interface RenderPrimarySurface extends LeafSurface {
-	/** The rendered half, `target` or inside it: a click there opens the text where the kind's
-	 *  `caretTargetAtPoint` says, and a chord pressed there runs at this block. */
-	attachRendered(el: HTMLElement | null): void;
 }
 
 export interface ContainerSurface extends CommandHooksSurface {
@@ -189,17 +128,11 @@ export interface BlockViewHandle {
 	destroy?(): void | Promise<void>;
 }
 
-export interface LeafViewHandle extends BlockViewHandle {
-	/** After each change to the attached element's text (typing, a delete, a paste, an IME
-	 *  commit, an undo), once, with that text; never mid-composition. A throw is reported on `error`. */
-	afterInput?(text: string): void;
-}
-
 // ── Where a DOM view's members come from ────────────────────────────────────
 
 /** Who supplies a `BlockComponent` member for a DOM view: what it publishes, its host (from the kind's
- *  registration), the leaf or container surface, or nobody outside the editor. */
-export type MemberSource = 'view' | 'host' | 'leaf-surface' | 'container-surface' | 'editor';
+ *  registration), the container surface, or nobody outside the editor. */
+export type MemberSource = 'view' | 'host' | 'container-surface' | 'editor';
 
 /** G3.18: every `BlockComponent` member has a source, so a new member fails `npm run check`
  *  until it's given one. */
@@ -217,11 +150,11 @@ export const MEMBER_SOURCES = {
 	isCommandActive: 'view',
 	runCommand: 'view',
 	editable: 'host',
-	insertMarkdown: 'leaf-surface',
-	insertPlainText: 'leaf-surface',
-	typeText: 'leaf-surface',
-	afterSourceCommit: 'leaf-surface',
-	afterSelectionRemoved: 'leaf-surface',
+	insertMarkdown: 'editor',
+	insertPlainText: 'editor',
+	typeText: 'editor',
+	afterSourceCommit: 'editor',
+	afterSelectionRemoved: 'editor',
 	childList: 'container-surface',
 	focusByPath: 'container-surface',
 	getCursorPosition: 'container-surface',

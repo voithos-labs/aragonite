@@ -78,4 +78,4 @@ draft.end(); // your box closed, so the editor stops tracking it
 
 The editable leaf does all of this for you (both modes mirror outside changes into the source, and its reveal holds a draft of its own). A plugin-owned surface has to do it itself, and the bundled mermaid block is the worked example.
 
-Want a source view with a native caret instead? That's [the editable-leaf tier](editable-content.md#the-editable-leaf), and rebuilding a render-primary block on the editable leaf (block math's shape: `createEditableLeaf` in Svelte, or `defineBlockView({ surface: 'render-primary' })` without it) is this recipe's upgrade path.
+Want a source view with a native caret instead? That's [the editable-leaf tier](editable-content.md#the-editable-leaf), and rebuilding a render-primary block on the editable leaf (block math's shape: a `fencedBlock` with `edit: 'source'`, or `createEditableLeaf` in a Svelte component) is this recipe's upgrade path.

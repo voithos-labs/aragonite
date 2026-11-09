@@ -32,21 +32,11 @@ export const onTheHandle = defineBlockView({
 	mount: () => ({ focus() {}, getCursorOffset: () => null, focusable: true })
 });
 
-export const leaf = defineBlockView({
-	surface: 'leaf',
-	mount(target, ctx) {
-		ctx.leaf.attach(target);
-		// @ts-expect-error a leaf view has no container surface
-		void ctx.container;
-		return {};
-	}
-});
-
 export const none = defineBlockView({
 	surface: 'none',
 	mount(_target, ctx) {
-		// @ts-expect-error a hand-built view has no leaf surface
-		void ctx.leaf;
+		// @ts-expect-error a hand-built view has no container surface
+		void ctx.container;
 		return {};
 	}
 });
@@ -55,8 +45,8 @@ export const container = defineBlockView({
 	surface: 'container',
 	mount(target, ctx) {
 		ctx.container.mountChildren(target);
-		// @ts-expect-error a container view has no leaf surface
-		void ctx.leaf;
+		// @ts-expect-error a container view publishes nothing by hand
+		void ctx.block;
 		return {};
 	}
 });
@@ -76,5 +66,5 @@ export const internal: HandBuiltBlock = {
 export const everyMember: Record<keyof BlockComponent, MemberSource> = MEMBER_SOURCES;
 
 it('compiles the pins above', () => {
-	expect(handBuilt && noFocus && onTheHandle && leaf && none && container && internal).toBeTruthy();
+	expect(handBuilt && noFocus && onTheHandle && none && container && internal).toBeTruthy();
 });

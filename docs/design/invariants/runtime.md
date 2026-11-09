@@ -90,13 +90,13 @@ These checks run in three kinds of place:
 | G1.131 | A landing in reading mode leaves no browser selection in the block it landed in | A·N |
 | G1.132 | A Backspace or Delete at a caret the editor decides never reaches `input` undecided | A·N |
 | G1.133 | Reading mode leaves one block in the tab order; anything else there is a control | A·N |
-| G1.136 | A DOM block view that moves or hides the element it was given, or fills its text element | A·N |
+| G1.136 | A drawn block that moves or hides the element it was given, or fills its text element | A·N |
 | G1.138 | A commit never addresses a container state whose component has unmounted | A·N |
 | G1.139 | _Retired upward_: a fix-up's blank lines read back through G1.145 | A·P·N |
 | G1.141 | Asking which line a caret at a soft wrap is on leaves the selection's focus where it was | A·N |
 | G1.143 | A kind's write rule never deletes bytes outside the written span, but an emptied marker | A·N |
 | G1.145 | The blocks a fix-up wrote read back as themselves, blank lines included | A·N |
-| G1.147 | A render-primary DOM view's rendered half sits in its element; its text comes in time | A·N |
+| G1.147 | _Retired upward_: a drawing gets its text element before `draw` runs, so it can't arrive late | none |
 | G1.149 | The editor fills a host with a height on every mount route, and grows in one without | harness |
 | G1.150 | A block repaints from its bytes after an input the tree took back | A·N |
 | G1.151 | A keystroke written in place leaves no node it wrote shared with an undo entry | A·N |
@@ -276,7 +276,7 @@ These checks run in three kinds of place:
 
 **G1.133 · Reading mode has one block stop** (`reading-tab-stops`). In reading mode Tab is the page's focus walk, so the editor keeps one block in it, the one whose own element last took focus (`components/editor-root/reading-focus.svelte.ts`), and every other block's focus element sits at -1. Dev fails a second element in the tab order that isn't a control (one left editable counts, the host's header doesn't). The same check ships as `readingTabOrderProblem` for a plugin's tests. `checkReadingTabStops` · `reading-focus.test.ts`, `reading-keyboard.spec.ts`.
 
-**G1.136 · A DOM view fills the element it was given** (`dom-view-content`). A `defineBlockView` view draws into a `div` under the block's host, which rects and the drag handle measure as the block, so it stays the host's first content child and never turns `display: contents`. A leaf view's text element sits inside it holding no element of its own. `blockContentElAt` hands every caret route that text element and `blockBoxElAt` hands rects and scrolling the `div`, so chrome beside the text moves no offset and no rect. `checkDomViewContent` · `block-view-leaf.test.ts`.
+**G1.136 · A drawn block fills the element it was given** (`dom-view-content`). A DOM view or a `draw` fills a `div` under the block's host, which rects and the drag handle measure as the block, so it stays the host's first content child and never turns `display: contents`. A text block's `ctx.source` sits inside it holding no element of its own. `blockContentElAt` hands caret routes that text element and `blockBoxElAt` hands rects the `div`, so chrome beside the text moves no offset and no rect. `checkDomViewContent` · `draw-host-text.svelte.test.ts`.
 
 **G1.138 · A commit addresses live container states** (`block-list-state-mounted`). A container's state leaves the registry when it unmounts, and a commit reaching an unmounted one uses its node's ids (`scopeStateFor`). The check is for what the registry can't see: a state looked up before an `await` and committed after its container unmounted, whose getters read the dead component's props. `isUnmountedBlockListState` · `state-registry-lifetime.svelte.test.ts`, `range-edit-unmounted-container.spec.ts`.
 
@@ -286,7 +286,7 @@ These checks run in three kinds of place:
 
 **G1.145 · A fixed-up window reads back as itself** (`settled-window-reads-back`). A window a fix-up reports, with one block either side, reparsed as one stretch gives the same blocks and the same hidden lines above each block of each blank run (a leaf's own trailing blank line counts as one), so no fence keeps an old pairing and no separator sits on the wrong block. A list item, which reads otherwise alone, is skipped; unseen: a body's lines beside its own fence lines. `checkSettledWindowReadsBack` · `fix-up/apply.ts` · `settled-window-reads-back.test.ts`, `blank-run-layout.test.ts`.
 
-**G1.147 · A render-primary view hands over both halves in time** (`render-primary-attach`). A `defineBlockView({ surface: 'render-primary' })` view's rendered element sits inside the element it was given, since that's where a click opens the text and a chord runs at the block. Its text element arrives inside the `update` that reveals it. One that arrives later still gets the caret, but only when it attaches, so dev warns. `checkRenderedInTarget`, `checkRevealAttached` · `DomBlockView.svelte` · `block-view-render-primary.test.ts`.
+**G1.147 · Retired upward.** The draw host makes a text block's `ctx.source` before it calls `draw`, so the text element can't arrive after the reveal looks for it, and a drawing has no rendered half to hand over: the whole folded drawing is the click target.
 
 **G1.149 · The editor fills its host.** Every mount route (the Svelte component, `createEditor`, the React and Vue wrappers) puts the editor root straight into an element the consumer owns, so the root's own rule is the one place a host's height can reach it: `height: 100%` beside `flex: 1`, and `height: auto` in host scroll mode. A sized host keeps the scroll and windowing inside it. `Editor.svelte` · `e2e/tests/host-fill.spec.ts` (Svelte, `createEditor`), `examples/adapter-suite/tests/host-fill.spec.ts` (every framework app).
 

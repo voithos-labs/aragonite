@@ -234,7 +234,7 @@ What `registerBlockKind` accepts: the descriptor's fields, plus the `view` that 
 - `pageRole`, whether it reads as prose (no drag handle) or as an object.
 - `estimateHeight(node, env)`, its height guess before it's measured (`env` is a `HeightEstimateEnv`).
 - `dragLabel`, what the drag ghost calls it.
-- `textPosition: 'while-source-shows'`, for a block your own component draws as a picture of its source until a click opens the text. Cut, copy and paste only reach the text while it's open. A DOM view with `surface: 'render-primary'` already says this, so it doesn't need the field.
+- `textPosition: 'while-source-shows'`, for a block your own component draws as a picture of its source until a click opens the text. Cut, copy and paste only reach the text while it's open. A block type drawn with `edit: 'source'` already says this, so it doesn't need the field.
 
 Fields that only work together are declared together:
 
@@ -316,11 +316,9 @@ A declared title line already decides what Backspace does at its start, so its `
 | [`defineBlockView`](#defineblockview) | Make a view that draws into an element the editor makes for the block, no framework needed |
 | [`BlockViewSpec`](#blockviewspec) | What `defineBlockView` takes, one shape per surface |
 | [`BlockViewContext`](#blockviewcontext) | What `mount` gets |
-| `LeafSurface` | `attach(el)`, the element whose text the editor edits. It holds nothing of yours, since the editor owns its text, so chrome goes beside it. Also `reveal(offset?)` to focus it, `commitSource(text)` to replace the block's text as one undo step, and `setCommandHooks(hooks)` |
-| [`RenderPrimarySurface`](#renderprimarysurface) | A render-primary leaf's `ctx.leaf`: the `LeafSurface` calls plus the rendered half |
 | [`ContainerSurface`](#containersurface) | A container's `ctx.container`: where the child blocks mount, plus the container helpers |
-| [`BlockViewHandle`, `LeafViewHandle`](#blockviewhandle-leafviewhandle) | What `mount` returns |
-| `CommandHooksSurface` | `setCommandHooks(hooks)`, on the leaf and container surfaces: what a block command running on this block gets as `ctx.hooks` (open your own editor, say). The last value set wins ([commands](plugin-guide/commands.md)) |
+| [`BlockViewHandle`](#blockviewhandle) | What `mount` returns |
+| `CommandHooksSurface` | `setCommandHooks(hooks)`, on the container surface: what a block command running on this block gets as `ctx.hooks` (open your own editor, say). The last value set wins ([commands](plugin-guide/commands.md)) |
 | `AmbientPrefix`, `AmbientInteractiveRange` | What `ambientPrefix` returns: the marker's text, or `{ text, interactive }` with ranges of it clickable, each with its class, click handler, role and an optional tab stop ([the container walkthrough](plugin-guide/container-walkthrough.md)) |
 | [`HandBuiltSurface`, `HandBuiltBlock`](#handbuiltsurface-handbuiltblock) | A `'none'` view's `ctx.block`, and what you publish through it |
 | `svelteBlockView` | _(from `/svelte`)_ Make a view from your Svelte component, plus an optional per-node extra-props hook; a component that forgot to publish its surface fails the typecheck here |
@@ -340,35 +338,25 @@ Makes a view that draws into an element the editor makes for the block, no frame
 | `surface` | What the editor builds | What you call |
 | --- | --- | --- |
 | `'none'` | Nothing: you draw all of it | `ctx.block.publish`, to hand over `focus` and friends |
-| `'leaf'` | Editable text, caret, IME and undo included | `ctx.leaf.attach(el)`, with the element to edit in |
-| `'render-primary'` | The same text, behind a rendered view you draw until a click opens it (block math's shape) | `ctx.leaf.attach` and `ctx.leaf.attachRendered` |
 | `'container'` | The child blocks | `ctx.container.mountChildren(box)`, with the box they mount in |
 
-`registerBlockKind` refuses a surface that doesn't fit the kind: a container kind takes `'container'`, anything else `'none'`, `'leaf'` or `'render-primary'`.
+`registerBlockKind` refuses a surface that doesn't fit the kind: a container kind takes `'container'`, anything else `'none'`. A block with text the editor edits is a block type with a `draw` instead ([The editable leaf](plugin-guide/editable-content.md#the-editable-leaf)).
 
 ```ts
-const shoutView = defineBlockView({
-	surface: 'leaf',
-	singleLine: true,
-	mount(target, ctx) {
-		target.className = 'shout';
-		const badge = document.createElement('span');
-		badge.textContent = 'LOUD';
-		const text = document.createElement('span');
-		target.append(badge, text);
-		ctx.leaf.attach(text); // the block's text goes here, caret, undo and IME included
-		return {};
+const stampView = defineBlockView({
+	surface: 'none',
+	mount(target) {
+		target.className = 'stamp';
+		target.textContent = 'APPROVED';
+		return {}; // it publishes nothing, so arrows pass over it
 	}
 });
-// the badge sits beside the text, where the editor never types into it
 ```
-
-The quickstart's parrot is a whole render-primary view ([The first fifteen minutes](plugin-guide.md#the-first-fifteen-minutes)).
 
 #### `BlockViewSpec`
 
 ```ts
-type BlockViewSpec = HandBuiltViewSpec | LeafViewSpec | RenderPrimaryViewSpec | ContainerViewSpec;
+type BlockViewSpec = HandBuiltViewSpec | ContainerViewSpec;
 ```
 
 What `defineBlockView` takes, one shape per surface (`BlockSurface` is the surface's name). Every shape has these:
@@ -380,8 +368,6 @@ What `defineBlockView` takes, one shape per surface (`BlockSurface` is the surfa
 The surfaces add their own:
 
 - `HandBuiltViewSpec`, the `'none'` surface's, takes nothing more.
-- `LeafViewSpec` takes `singleLine`.
-- `RenderPrimaryViewSpec` takes `singleLine`, `renderSource` and `reshapeSource`, the same painter and reshaper `createEditableLeaf` takes.
 - `ContainerViewSpec` takes `ambientPrefix(state, editor)`, the read-only marker drawn before its first child's text (a footnote definition's `[^label]: `), read live.
 
 #### `BlockViewContext`
@@ -393,27 +379,11 @@ interface BlockViewContext {
 }
 ```
 
-What `mount` gets, one shape per surface: `HandBuiltViewContext`, `LeafViewContext`, `RenderPrimaryViewContext` and `ContainerViewContext`. Each has:
+What `mount` gets, one shape per surface: `HandBuiltViewContext` and `ContainerViewContext`. Each has:
 
-- `state()`, which reads a `BlockViewState` when you call it: the node, its path, the presentation mode, the theme name and `revealed` (a render-primary block's text is showing).
+- `state()`, which reads a `BlockViewState` when you call it: the node, its path, the presentation mode and the theme name.
 - `editor`, your plugin's `EditorContext` in the editor drawing the block. It's always there, since a view only mounts inside an editor.
-- Plus `block`, `leaf` or `container` on those surfaces.
-
-#### `RenderPrimarySurface`
-
-```ts
-interface RenderPrimarySurface extends LeafSurface {
-	attachRendered(el: HTMLElement | null): void;
-}
-```
-
-A render-primary leaf's `ctx.leaf`: the `LeafSurface` calls plus `attachRendered(el)`, the rendered half. A click there opens the text at the spot your kind's `caretTargetAtPoint` names.
-
-- Swap your halves in `update` on `state.revealed`.
-- Call `attach` from inside the `update` that reveals, so the caret lands with the render. A later attach still gets the caret, a beat late, and dev warns.
-- Call `attach(null)` when it folds. That hands the element back empty, so you can attach the same one next time.
-
-The parrot's `draw` does all three ([The first fifteen minutes](plugin-guide.md#the-first-fifteen-minutes)).
+- Plus `block` or `container` on those surfaces.
 
 #### `ContainerSurface`
 
@@ -432,16 +402,12 @@ A container's `ctx.container`. `mountChildren(box)` mounts the child blocks into
 
 A kind declaring `blockFocus: 'whole-block'` mounts no children and calls `attachFocus(el)` instead, with the element the block takes focus on (its edit box included). Any other kind that calls it throws ([React and Vue](plugin-guide/react-and-vue.md#a-block-with-its-own-editing-surface)).
 
-#### `BlockViewHandle`, `LeafViewHandle`
+#### `BlockViewHandle`
 
 ```ts
 interface BlockViewHandle {
 	update?(state: BlockViewState): boolean | void;
 	destroy?(): void | Promise<void>;
-}
-
-interface LeafViewHandle extends BlockViewHandle {
-	afterInput?(text: string): void;
 }
 ```
 
@@ -449,9 +415,8 @@ What `mount` returns.
 
 - `update(state)` runs when the block's bytes, path, mode or theme change. Inside a container that's every keystroke in a child, so keep it cheap. Return `false` and the view is destroyed and mounted again from scratch.
 - `destroy()` runs when the block leaves the screen.
-- A leaf's `afterInput(text)` runs once after each change to its text (typing, a delete, a paste, an IME commit, an undo), never mid-composition.
 
-A throw in `mount` or `update` shows the block's source with a notice, like a broken Svelte block. One in `destroy` or `afterInput`, or a rejection of a promise `destroy` returns, is reported on the `error` event.
+A throw in `mount` or `update` shows the block's source with a notice, like a broken Svelte block. One in `destroy`, or a rejection of a promise `destroy` returns, is reported on the `error` event.
 
 #### `HandBuiltSurface`, `HandBuiltBlock`
 

@@ -304,7 +304,9 @@ When yours works, publish it to npm with the `aragonite-plugin` keyword (an `ara
 
 ## What a plugin is
 
-A plugin teaches the editor a new kind, one that parses, renders, and saves alongside the built-ins. You declare the kind, then wire up to three things (the descriptor, the view and a block opener all go in one `registerBlockKind` call):
+A plugin teaches the editor new block types that parse, render and save alongside the built-ins. A block type is a value one of three makers builds: `lineBlock` for one line, `fencedBlock` for a block between fence lines, `container` for a block that holds other blocks. The spec you hand a maker says how the block reads from its lines, how it's edited and how it draws, and the plugin lists the type in `contributes`. That's what the quickstart above did.
+
+A couple of shapes don't have a maker yet: a `:::name` container with a title line, and a block that redraws on every edit anywhere in the document (a table of contents, say). Those still declare a **kind** (the older name for a block type) inside the plugin's `setup` and wire up to three things, the descriptor, the view and a block opener, all in one `registerBlockKind` call:
 
 ```
 declare a kind ──┬─▶ descriptor   how it merges, its container shape, its keymap
@@ -404,14 +406,14 @@ A break is anything the changelog files under its breaking entries for plugins.
 
 Two shapes draw everything a plugin puts on screen. (Not to be confused with the read-only node types in [Views](#views-what-you-read-what-you-own), below; same word, different job.)
 
-- **A block draws through a `BlockView`**, the `view` its `registerBlockKind` call takes. `defineBlockView` makes one with no framework involved: it fills an element the editor made for the block, and its `surface` says whether the editor wires editable text (always shown, or behind a rendered view until a click, as block math does) or child blocks into it ([Block views](plugin-api.md#block-views) has the shapes). `svelteBlockView(YourComponent)`, from `@voithos-labs/aragonite/svelte`, makes one from a Svelte component, and `textBlockView()` is the editor's own plain text block. In a React or Vue app, `reactBlock` and `vueBlock` (from `@voithos-labs/aragonite-react` and `-vue`) make a block type's `draw` from your own components ([React and Vue blocks](plugin-guide/react-and-vue.md)).
+- **A block type draws through its `draw`**, the function its maker takes. It gets the block and the editor's own elements to place (the text as `ctx.source`, child blocks as `ctx.children`) and hands back the DOM it built, no framework involved. `svelteBlock` (from `@voithos-labs/aragonite/svelte`), `reactBlock` and `vueBlock` (from `@voithos-labs/aragonite-react` and `-vue`) make a `draw` from your own components ([React and Vue blocks](plugin-guide/react-and-vue.md)). A kind you register with `registerBlockKind` draws through a `BlockView` instead: `defineBlockView` with `surface: 'container'` for child blocks or `'none'` to draw it all yourself, `svelteBlockView(YourComponent)`, or `textBlockView()`, the editor's own plain text block ([Block views](plugin-api.md#block-views)).
 - **Everything else draws through a `PluginView`**: an inline widget, a decoration's widget or badge, and an inline menu row. It's a plain function, `(target, props) => ({ update?, destroy? })`, that fills an element the editor made for it ([Rendering it as a widget](plugin-guide/inline-kinds.md#rendering-it-as-a-widget) walks one through). Already writing Svelte? `svelteView(Component)`, also from `/svelte`, turns a component into one for any of those slots.
 
 Which apps can run your plugin follows from that. An app whose bundler compiles Svelte (a Svelte app, say) compiles the editor from source, along with your components. An app whose bundler doesn't (most React, Vue and plain JavaScript apps) runs a prebuilt copy with its own Svelte compiled in, and a Svelte component of yours can't run on that copy's Svelte. So:
 
 | Your plugin draws with | It runs in |
 | --- | --- |
-| Plain DOM views (`defineBlockView` blocks, widgets, decorations, menu rows), or nothing at all (syntax, commands, paste transforms) | Every app |
+| Plain DOM (a block type's `draw`, `defineBlockView` blocks, widgets, decorations, menu rows), or nothing at all (syntax, commands, paste transforms) | Every app |
 | React or Vue components, through `reactBlock` or `vueBlock` | Every app with that framework installed |
 | Any Svelte component | An app whose bundler compiles Svelte (a Svelte app, say) |
 

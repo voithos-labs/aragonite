@@ -1,26 +1,17 @@
 // @vitest-environment jsdom
-// A click on a render-primary leaf's rendered half, over both forms of the leaf.
+// A click on a render-primary leaf's rendered half.
 // Miss-analysis: reveals came only through `parkCaret`, and no fixture spread `renderProps`.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { unmount } from 'svelte';
 import type { BlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { installLayoutStubs } from '#lib/test/harness/mount-editor.svelte.js';
 import { settleEditor } from '#lib/test/harness/settle.js';
-import {
-	REVEAL_LEAF_FORMS,
-	leafDocument,
-	mountRevealLeaf,
-	registerRevealLeafKind,
-	type RevealLeafForm
-} from '../fixtures/reveal-leaf';
+import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from '../fixtures/reveal-leaf';
 
 const KIND = 'reveal-point-leaf';
 const RAW = '@@ one two\n';
 
-function mountLeaf(
-	form: RevealLeafForm,
-	caretTargetAtPoint?: BlockKindDescriptor['caretTargetAtPoint']
-) {
+function mountLeaf(caretTargetAtPoint?: BlockKindDescriptor['caretTargetAtPoint']) {
 	const kind = registerRevealLeafKind(KIND, { caretTargetAtPoint });
 	// Every caller of `caretTargetAtPoint` binds the hook to BlockHost's `data-block-path`
 	// element, not the component's own root.
@@ -29,7 +20,6 @@ function mountLeaf(
 	document.body.appendChild(host);
 	const history = { requestUndo: vi.fn(), requestRedo: vi.fn() };
 	const mounted = mountRevealLeaf(leafDocument(kind, RAW), {
-		form,
 		target: host,
 		overrides: {
 			history,
@@ -69,9 +59,9 @@ afterEach(async () => {
 	document.body.innerHTML = '';
 });
 
-describe.each(REVEAL_LEAF_FORMS)('a reveal click on a render-primary leaf drawn by %s', (form) => {
+describe('a reveal click on a render-primary leaf', () => {
 	it('lands the caret where the kind’s caretTargetAtPoint names', async () => {
-		mounted = mountLeaf(form, () => ({ path: [], offset: 6 }));
+		mounted = mountLeaf(() => ({ path: [], offset: 6 }));
 
 		await mounted.clickRendered(40, 12);
 
@@ -80,7 +70,7 @@ describe.each(REVEAL_LEAF_FORMS)('a reveal click on a render-primary leaf drawn 
 
 	it('hands the hook the block host and the pressed point', async () => {
 		const hook = vi.fn(() => ({ path: [], offset: 3 }));
-		mounted = mountLeaf(form, hook);
+		mounted = mountLeaf(hook);
 
 		await mounted.clickRendered(40, 12);
 
@@ -88,7 +78,7 @@ describe.each(REVEAL_LEAF_FORMS)('a reveal click on a render-primary leaf drawn 
 	});
 
 	it('reveals at the source start for a kind declaring no hook', async () => {
-		mounted = mountLeaf(form);
+		mounted = mountLeaf();
 
 		await mounted.clickRendered(40, 12);
 
@@ -96,7 +86,7 @@ describe.each(REVEAL_LEAF_FORMS)('a reveal click on a render-primary leaf drawn 
 	});
 
 	it('reveals at the source start when the hook declines the point', async () => {
-		mounted = mountLeaf(form, () => null);
+		mounted = mountLeaf(() => null);
 
 		await mounted.clickRendered(40, 12);
 
@@ -104,10 +94,10 @@ describe.each(REVEAL_LEAF_FORMS)('a reveal click on a render-primary leaf drawn 
 	});
 });
 
-describe.each(REVEAL_LEAF_FORMS)('the rendered half’s handlers on %s', (form) => {
+describe('the rendered half’s handlers', () => {
 	it('leaves a press inside the source to the source', async () => {
 		const hook = vi.fn(() => ({ path: [], offset: 3 }));
-		mounted = mountLeaf(form, hook);
+		mounted = mountLeaf(hook);
 		const source = await mounted.revealAtEnd();
 
 		source.dispatchEvent(
@@ -119,7 +109,7 @@ describe.each(REVEAL_LEAF_FORMS)('the rendered half’s handlers on %s', (form) 
 	});
 
 	it('spends a chord pressed on the folded view once, at this block', async () => {
-		mounted = mountLeaf(form);
+		mounted = mountLeaf();
 		const rendered = mounted.host.querySelector<HTMLElement>('.reveal-leaf-render')!;
 
 		rendered.dispatchEvent(
@@ -131,7 +121,7 @@ describe.each(REVEAL_LEAF_FORMS)('the rendered half’s handlers on %s', (form) 
 	});
 
 	it('spends a chord from the source once, not twice on the way up', async () => {
-		mounted = mountLeaf(form);
+		mounted = mountLeaf();
 		const source = await mounted.revealAtEnd();
 
 		source.dispatchEvent(

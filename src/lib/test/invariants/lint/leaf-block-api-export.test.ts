@@ -50,7 +50,6 @@ const LEAF_EXPORT: FileRule = {
 	population: (file) => svelteOnly(file) && LEAF_FACTORY_RE.test(file.code),
 	matches: (file) => !publishesOnlyBlockApi(file.code),
 	allowed: {
-		[SOURCE.domBlockView]: 'publishes the leaf’s blockApi whole, through viewRef',
 		'src/lib/components/drawn-block/DrawnBody.svelte':
 			'publishes the leaf’s blockApi whole, through viewRef'
 	},

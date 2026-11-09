@@ -210,7 +210,7 @@ export interface BlockKindDescriptor {
 	/** True when the block's raw contains inline syntax the inline parser should process on every edit. */
 	supportsInline: boolean;
 	/** The block draws a picture of its source until a click shows the source, so a caret reaches its
-	 *  text only then. A DOM view's `surface: 'render-primary'` sets it. */
+	 *  text only then. A block type drawn with `edit: 'source'` sets it. */
 	textPosition?: 'while-source-shows';
 	/** The registration's `contentStart.range`. Absent = the default `start=0, end=displayLength`. */
 	getContentRange?: ContentStart['range'];
@@ -542,7 +542,7 @@ function rejectSurfaceMismatch(kind: AnyBlockKind, view: BlockView, isContainer:
 	throw new TypeError(
 		`registerBlockKind: "${kind}" ${isContainer ? 'is a container' : 'has no container group'}, ` +
 			`but its view's surface is '${surface}': a container kind takes ` +
-			"`defineBlockView({ surface: 'container', ... })`, any other kind 'none', 'leaf' or 'render-primary'"
+			"`defineBlockView({ surface: 'container', ... })`, any other kind 'none'"
 	);
 }
 
@@ -609,7 +609,6 @@ function storeKind(
 	rejectIncoherentPairs(kind, registration);
 	const { opener } = registration;
 	const descriptor = normalizeRegistration(kind, registration);
-	if (view && opensTextOnClick(view)) descriptor.textPosition = 'while-source-shows';
 	if (descriptor.keymap) descriptor.keymap = registeredKeymap(entry, kind, descriptor.keymap);
 	const owner = registry.ownerOf(kind);
 	registry.register(
@@ -620,11 +619,6 @@ function storeKind(
 			(owner ? ` — first declared by plugin '${owner}'` : '')
 	);
 	enqueueRegistrationCheck(kind, opener ? 'opener' : 'descriptor');
-}
-
-// A DOM view's surface already says what `textPosition` declares for a kind a component draws.
-function opensTextOnClick(view: BlockView): boolean {
-	return blockViewForm(view) === 'dom' && domViewSpec(view).surface === 'render-primary';
 }
 
 function existingEntry(entry: string, kind: AnyBlockKind): KindEntry {

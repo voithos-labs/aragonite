@@ -99,8 +99,6 @@ const NON_CARET_PRESS_FILES: Record<string, string> = {
 		'closes an open menu on a press outside it; the press places its own caret through the ordinary door',
 	'src/lib/components/image/ImageResizeHandles.svelte': 'starts a resize drag',
 	'src/lib/editor-actions/reorder-drag.ts': 'starts a block reorder drag off the handle',
-	'src/lib/components/dom-block-view/DomBlockView.svelte':
-		'binds the shared editable-leaf reveal handler on a render-primary view’s rendered half; the reset lives there',
 	'src/lib/components/drawn-block/DrawnBody.svelte':
 		'marks a press the drawing keeps as its own gesture; the reveal handler it binds places the caret',
 	'packages/details/src/DetailsBlock.svelte':

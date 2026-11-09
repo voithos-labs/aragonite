@@ -6,14 +6,11 @@ import type { AnyBlockKind, CstNode } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
 import { isDirectiveContainerKind } from '#lib/core/directive/registry.js';
 import {
-	blockViewFor,
 	getAllRegisteredKinds,
 	mustHoldChild,
 	tryGetBlockKindDescriptor,
 	type MergeRole
 } from '#lib/schema/block-kind-descriptor.js';
-import { blockViewForm, domViewSpec } from '#lib/schema/block-view.js';
-import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import {
 	installPlugins,
 	normalizePluginEntries,
@@ -88,15 +85,6 @@ const JOINS_BY_ROLE: Record<MergeRole, BlockFacts['joins']> = {
 const descriptorOf = (kind: string) => tryGetBlockKindDescriptor(kind as AnyBlockKind);
 const holdsBlocks = (kind: string) => mustHoldChild(kind as AnyBlockKind);
 
-function drawnAsPicture(kind: string): boolean {
-	const view = blockViewFor(kind as AnyBlockKind, everyInstalledPlugin);
-	const opensOnClick =
-		view !== undefined &&
-		blockViewForm(view) === 'dom' &&
-		domViewSpec(view).surface === 'render-primary';
-	return opensOnClick || PICTURES_BY_COMPONENT.includes(kind);
-}
-
 /** The first block of each kind in the parse of every kind's own sample. */
 function samples(): Map<string, CstNode> {
 	const found = new Map<string, CstNode>();
@@ -149,7 +137,7 @@ const EXPECTED: { [Field in keyof BlockFacts]-?: (kind: string) => BlockFacts[Fi
 	joins: (kind) => JOINS_BY_ROLE[descriptorOf(kind)!.mergeRole],
 	textPosition: (kind) => {
 		if (descriptorOf(kind)?.blockFocus === 'whole-block') return 'never';
-		return drawnAsPicture(kind) ? 'while-source-shows' : 'always';
+		return PICTURES_BY_COMPONENT.includes(kind) ? 'while-source-shows' : 'always';
 	}
 };
 
