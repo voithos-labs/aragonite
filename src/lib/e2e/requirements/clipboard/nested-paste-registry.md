@@ -4,7 +4,7 @@ Regression coverage for the 0.5.1 rewrite that routed `handlePaste`'s nested str
 
 ## Happy paths
 
-- Cross-block selection across two inner paragraphs of a blockquote, paste of multi-block markdown (3 paragraphs): pasted blocks land as inner children of the blockquote, the surviving tail paragraph is preserved, and the caret lands at the end of the last pasted block (verified by typing a marker and asserting its position at the tail of the last pasted paragraph)
+- Cross-block selection across two inner paragraphs of a blockquote, paste of multi-block markdown (3 paragraphs): pasted blocks land as inner children of the blockquote, the surviving tail paragraph is preserved, the line the emptied paragraphs leave stays below the pasted blocks (the clipboard's last line ending is its own), and the caret lands at the end of the last pasted block (verified by typing a marker and asserting its position at the tail of the last pasted paragraph)
 
 ## User interactions
 

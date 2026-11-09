@@ -36,7 +36,7 @@ describe('the commit sequence settle over a window its mutate already settled', 
 
 // The new paragraph is blank, so the fix-up turns the suffix's trailing blank line into a block,
 // and the reported change must count it or the id and ref arrays fall one short.
-describe('an insert whose settle materializes the folded tail line', () => {
+describe('an insert past the folded tail line', () => {
 	// Miss-analysis: `makeEditorActionsDeps` hardcoded `suffix: ''`, so no fixture had a tail line.
 	it('keeps blockIds and refs in step with the tree', async () => {
 		const h = makeTopHarness(parse('alpha\n\n'));
@@ -44,10 +44,9 @@ describe('an insert whose settle materializes the folded tail line', () => {
 
 		await h.actions.insertParagraph(1, '');
 
-		// Three blocks: the new paragraph is blank, so the suffix line cannot stay in the suffix;
-		// it is a block a reload would read anyway.
-		expect(serialize(h.deps.doc)).toBe('alpha\n\n\n\n');
-		expect(h.deps.doc.children).toHaveLength(3);
+		// Two blocks: the tail line is the new paragraph's separator, not a block of its own.
+		expect(serialize(h.deps.doc)).toBe('alpha\n\n\n');
+		expect(h.deps.doc.children).toHaveLength(2);
 		expect(h.getBlockIds()).toHaveLength(h.deps.doc.children.length);
 		expect(h.getBlockRefs()).toHaveLength(h.deps.doc.children.length);
 		expectParseConverged(h.deps.doc);

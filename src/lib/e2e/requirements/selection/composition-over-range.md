@@ -16,7 +16,8 @@ through a real CDP composition.
   - first block to last, drawn upward, so the caret starts in the last block
   - the last block alone, drawn upward from its end into the end of the block before
   - first block to last, drawn downward, so the caret starts in the block the removal keeps
-  - both paragraphs of a quote, which the removal empties
+  - both paragraphs of a quote, which the removal empties: the quote stays, holding the `> ` the
+    range started after, as a container a range only empties does
   - both items of a list, which the removal empties
   - a long document drawn downward from its first block with Mod+Shift+End, which pushes that first
     block out of the rendered window, so the caret has to move to the end it reached
@@ -24,7 +25,8 @@ through a real CDP composition.
     the second. The removal empties both cells and the text lands in the first one, where typing
     over the same cells puts it.
   - a code block's body into the paragraph after it, so the removal keeps the code block and the
-    text lands in its body
+    text lands in its body; the paragraph the range emptied stays as an empty line after the
+    closing fence
 - A range whose removal leaves the caret on a block's syntax (a rule, a fence, a heading's `#`)
   composes in a new paragraph where the range was; `text-over-range-syntax.md` holds those rows.
 

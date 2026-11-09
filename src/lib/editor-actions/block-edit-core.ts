@@ -359,10 +359,20 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				eventTarget: i,
 				op: { kind: 'insertBlock' },
 				mutate: (view) => {
-					const lineEnding = view.body.lineEnding;
+					const { body } = view;
+					const lineEnding = body.lineEnding;
+					// Past the last block, a trailing blank line is the separator, or it would read
+					// as an empty paragraph after the new one.
+					const trailing =
+						i > 0 && i === body.children.length ? /^[ \t]*\r?\n/.exec(body.suffix ?? '') : null;
+					if (trailing) body.suffix = body.suffix!.slice(trailing[0].length);
 					// Only a list's first block has no separator; anywhere else the new paragraph needs
 					// a blank line after its predecessor, whatever the displaced sibling carried.
-					const trivia = i > 0 ? lineEnding : (view.body.children[0]?.leadingTrivia ?? '');
+					const trivia = trailing
+						? trailing[0]
+						: i > 0
+							? lineEnding
+							: (body.children[0]?.leadingTrivia ?? '');
 					view.body.children.splice(i, 0, paragraphNode(trivia, text, lineEnding));
 					const change: StructuralChange = { op: 'insert', at: i, count: 1 };
 					stampStructuralChange(view.body.children, change, view.sharing);

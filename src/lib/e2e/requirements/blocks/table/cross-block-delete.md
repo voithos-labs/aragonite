@@ -12,9 +12,9 @@ all of them flag the table endpoints as cell coordinates.
 ## Happy paths
 
 - Case 1 (paragraph above → cell mid-table): drag from paragraph head into a body cell, Backspace.
-  Anchor paragraph head preserved; every row the selection touches is cleared in full and rows
-  fully covered are removed; if the header row is consumed, the next surviving row is promoted to
-  header. Surviving paragraph and surviving table remain adjacent (no merge).
+  Anchor paragraph head preserved; every body row the selection touches goes in full, and the
+  header row with its delimiter stays, since a range entering a table below its header keeps it.
+  Surviving paragraph and surviving table remain adjacent (no merge).
 - Case 2 (cell mid-table → paragraph below): drag from a body cell into the paragraph below, Backspace.
   The anchor cell's entire row (and every row below it) is cleared or removed; the head of the
   paragraph below is dropped. Surviving table + surviving paragraph remain adjacent.
@@ -60,8 +60,9 @@ Backspace, Delete and cut over cells of one table go by what the selection cover
 - Whole-column coverage (every row's same column, no other columns): delete the column. It does
   nothing when only one column remains (≥2 columns required), mirroring Alt+Shift+Backspace.
 - Subset / mixed coverage: clear the selected cells and preserve the table structure.
-- A whole table inside a quote or a list item goes too, taking the quote or item it leaves empty with it
-  (the paragraph below stays). One Ctrl+Z brings the table back.
+- A whole table inside a quote or a list item goes, and the quote or item stays with its line
+  emptied (`> `, `- `), since the range holds the table and not its container (the paragraph
+  below stays). One Ctrl+Z brings the table back.
 
 ## User interactions
 
@@ -70,12 +71,15 @@ Backspace, Delete and cut over cells of one table go by what the selection cover
 - Entering the cross-block selection by **keyboard** (Shift+ArrowDown from a cell into the
   paragraph below) produces the same table-aware delete as a pointer drag: the table endpoint is
   held as a cell index (`[tableIdx]` + cell), not as a deep path to a cell leaf, so the delete never
-  falls through to the generic merge that would fuse paragraph text into a cell.
-- Typing a character over a cross-block selection spanning two **separate top-level tables** lands
-  the typed character inside a surviving cell of the start table, and never slices the table's grid
-  markup (`| A | B |`) mid-row. Both table endpoints are flagged cell coordinates, so the whole-row
-  snap removes the touched rows in each table and the collapsed caret is a deep path to a surviving
-  cell with a character offset, not a cell-index offset on the table block.
+  falls through to the generic merge that would fuse paragraph text into a cell. From the last
+  row, the range takes the whole table and the paragraph stays.
+- Typing a character over a cross-block selection spanning two **separate top-level tables**, from
+  a body row of the first into the header of the second, never slices the grid markup
+  (`| A | B |`) mid-row: the first table keeps its header, the second goes whole, and the typed
+  character opens a paragraph after the first table, where the caret the removal left sits between
+  blocks.
+  - Miss-analysis: the boundary caret a removal can leave was only ever met by Delete, so no row
+    typed at one.
 
 ## Pinned below the browser
 

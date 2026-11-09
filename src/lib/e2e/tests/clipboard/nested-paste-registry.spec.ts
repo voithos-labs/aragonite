@@ -28,8 +28,10 @@ test.describe('nested structural paste: ref alignment via registry', () => {
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains('gammaX');
 
+		// The paragraph line the range emptied stays below the paste with its `> `, as the clipboard's
+		// last line ending is its own.
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
-			['> alpha', '>', '> beta', '>', '> gammaX', '>', '> tail para'].join('\n')
+			['> alpha', '>', '> beta', '>', '> gammaX', '> ', '>', '> tail para'].join('\n')
 		);
 	});
 });

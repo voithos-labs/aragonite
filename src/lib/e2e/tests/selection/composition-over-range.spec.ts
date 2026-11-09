@@ -81,7 +81,7 @@ const ROUTES: RangeRoute[] = [
 			await editor.focusBlockAtPath([0, 1], 3);
 			await drawIntoPrevious(editor, 'ArrowUp');
 		},
-		after: (text) => (text ? `> ${text}\n\nafter\n` : '>\n\nafter\n')
+		after: (text) => `> ${text}\n\nafter\n`
 	},
 	{
 		name: 'both items of a list',
@@ -111,7 +111,8 @@ const ROUTES: RangeRoute[] = [
 			await editor.focusBlock(0, '```\nco'.length);
 			await editor.page.keyboard.press(extendKey('docEnd'));
 		},
-		after: (text) => `\`\`\`\nco${text}\n\`\`\`\n`
+		// The paragraph the range empties keeps its line after the closing fence.
+		after: (text) => `\`\`\`\nco${text}\n\`\`\`\n\n`
 	}
 ];
 

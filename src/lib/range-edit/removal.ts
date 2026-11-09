@@ -123,32 +123,40 @@ function across(
 	const leaves = head !== null && to >= contentEnd(doc, head.leaf);
 	const start = leaves ? cutLeaf(doc, head.leaf, head.offset, 'after') : null;
 	const lineStart = source.lastIndexOf('\n', to - 1) + 1;
+	// An end block the range takes whole (a rule, a table) goes with its line, markers included, so
+	// nothing of it is left to cut; an emptied paragraph keeps its line. Whole lines took that line.
+	const ending = last ?? containersAt(doc, to, 'end').at(-1);
+	const goes = !!ending && ending.from > from && heldWhole(doc, ending, ending.from, to);
+	const lineGoes = goes && !lines;
 	const cut =
-		!joins && end && !lines && lineStart > from
+		!joins && end && !lines && !goes && lineStart > from
 			? cutLeaf(doc, end.leaf, end.offset, 'before')
 			: null;
-	if (!joins) {
-		const kept = opening?.kept ?? '';
-		if (cut) tail = kept + cut.source.slice(lineStart);
-		else {
-			const textStart = end ? lineTextStart(doc, end.leaf, end.offset) : to;
-			const markers =
-				lineStart > from && textStart >= lineStart ? source.slice(lineStart, textStart) : '';
-			tail = (opening ? kept + source.slice(opening.endLine, textStart) : markers) + tail;
-		}
-		// An end block the range takes whole (a rule) goes with its line, markers included; an emptied
-		// paragraph keeps its line, and nothing left after the range needs one.
-		const goes =
-			!lines &&
-			kept === '' &&
-			!!end &&
-			end.leaf.from > from &&
-			heldWhole(doc, end.leaf, end.leaf.from, to);
-		if (goes) tail = tail.replace(/^[ \t>]*(?=\r?\n|$)/, '');
-		else if (tail !== '') tail = endingOf(source) + tail;
-	}
 	const before =
 		lines?.before ?? (start ? start.source.slice(0, start.end) : source.slice(0, from));
+	if (!joins) {
+		// Nothing stays before the tail at the document's start, where a blank line before an
+		// opening would read as an empty paragraph; an emptied start block keeps its line.
+		const first = before === '' && !start;
+		const opened = opening?.kept ?? '';
+		const kept = first ? opened.replace(/^(?:[ \t]*\r?\n)+/, '') : opened;
+		if (cut) tail = kept + cut.source.slice(lineStart);
+		else {
+			// An end on no block's text keeps its line's bytes, only the markers of a whole end block's.
+			const textStart = end
+				? lineTextStart(doc, end.leaf, end.offset)
+				: goes
+					? Math.min(to, pastMarkers(source, lineStart))
+					: to;
+			const markers =
+				lineStart > from && textStart >= lineStart ? source.slice(lineStart, textStart) : '';
+			const rest = (opening ? source.slice(opening.endLine, textStart) : markers) + tail;
+			// A kept opening ends the line itself, so the line a whole end block leaves goes too.
+			const gone = kept ? /^[ \t>]*\r?\n/ : /^[ \t>]*(?=\r?\n|$)/;
+			tail = kept + (lineGoes ? rest.replace(gone, '') : rest);
+		}
+		if (tail !== '' && !first && !(lineGoes && kept === '')) tail = endingOf(source) + tail;
+	}
 	const joined = before + tail;
 	const closerAt = lineEndBefore(joined, before.length);
 	const closed = withClosers(doc, from, to, joined, closerAt);

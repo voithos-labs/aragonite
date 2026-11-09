@@ -909,5 +909,56 @@ export const NAMED_ROWS: NamedRow[] = [
 		source: '    a\n\n⟦    b\n\nafter⟧',
 		gesture: 'backspace',
 		expect: { source: '    a\n\n' }
+	},
+
+	// ── What a removal leaves at the document's start and in a container's opening (e2e, 2026-11-09) ──
+	{
+		name: 'L4 a range from the document start to a rule it cannot join adds no line before it',
+		source: '⟦| c |\n| - |\n\n⟧---\n',
+		gesture: 'delete',
+		expect: { source: '---\n', caret: text(0) }
+	},
+	{
+		name: 'L4 a range from the document start into a list item it enters adds no line before it',
+		source: '⟦| c |\n| - |\n\n- ⟧```js\n  body\n  ```\n',
+		gesture: 'type',
+		expect: { source: '- ```js\n  body\n  ```\n' }
+	},
+	{
+		name: 'L4 a range from a table taken whole into a table body keeps the header first',
+		source: '⟦| c |\n| - |\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n⟧| 3 | 4 |\n',
+		gesture: 'delete',
+		expect: { source: '| a | b |\n| --- | --- |\n| 3 | 4 |\n' }
+	},
+	{
+		name: 'L4 a first paragraph the range empties keeps its line before a table body it enters',
+		source: '⟦para\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n⟧| 3 | 4 |\n',
+		gesture: 'delete',
+		expect: { source: '\n\n| a | b |\n| --- | --- |\n| 3 | 4 |\n', caret: text(0) }
+	},
+	{
+		name: 'L4 a title row a range starts in keeps its closing tag, its text emptied',
+		source: 'Above\n\n<details open>\n<summary>⟦Sum</summary>\n\nShown⟧\n\n</details>\n\nMid\n',
+		gesture: 'backspace',
+		expect: { source: 'Above\n\n<details open>\n<summary></summary>\n\n\n</details>\n\nMid\n' }
+	},
+	{
+		name: "L4 a range from a title row's opening syntax keeps the opening, its title emptied",
+		source: 'Above\n\n⟦:::note Title\nBody⟧\n:::\n',
+		gesture: 'delete',
+		expect: { source: 'Above\n\n:::note \n\n:::\n' }
+	},
+	{
+		name: 'L4 a block a range takes whole inside a container it enters goes with its line',
+		source: 'Ab⟦ove\n\n:::note Title\n| a | b |\n| --- | --- |\n| 1 | 2 |⟧\n:::\n\nBelow\n',
+		gesture: 'delete',
+		expect: { source: 'Ab\n\n:::note Title\n:::\n\nBelow\n' }
+	},
+	{
+		name: 'L4 a table taken whole, then one taken whole inside a container, keep only its opening',
+		source:
+			'⟦| a | b |\n| --- | --- |\n| 1 | 2 |\n\n:::note Title\n| c | d |\n| --- | --- |\n| 3 | 4 |⟧\n:::\n\nBelow\n',
+		gesture: 'delete',
+		expect: { source: ':::note Title\n:::\n\nBelow\n' }
 	}
 ];
