@@ -743,7 +743,7 @@
 		if (!source) {
 			source = createPaintSource({
 				plugin,
-				paint: (block) => contribution.paint?.(block) ?? [],
+				contribution,
 				blockOf: documentRead.blockOf,
 				blockAt: (path) => {
 					const node = blockNodeAt(doc, path);

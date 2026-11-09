@@ -33,7 +33,8 @@ export interface PaintedBlock {
 
 export interface PaintSourceDeps<B extends PaintedBlock> {
 	plugin: string;
-	paint(block: B): readonly Paint[];
+	/** The plugin's contribution, whose `paint` only this source calls. */
+	contribution: { paint?(block: B): readonly Paint[] };
 	blockOf(node: NodeView, path: readonly number[]): B;
 	/** The block at `path` in the document now, which a handler reads its range through. */
 	blockAt(path: readonly number[]): B | null;
@@ -89,7 +90,7 @@ export function createPaintSource<B extends PaintedBlock>(deps: PaintSourceDeps<
 		const block = deps.blockOf(node, path);
 		let paints: readonly Paint[];
 		try {
-			paints = deps.paint(block) ?? NONE;
+			paints = deps.contribution.paint?.(block) ?? NONE;
 		} catch (cause) {
 			// The block keeps what it painted last; the same bytes aren't asked again.
 			reportLater({ plugin, doing: 'paint', cause });

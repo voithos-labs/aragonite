@@ -956,7 +956,7 @@ _(pre-freeze / unstable)_ The recipe: [Paste transforms](plugin-guide/paste-tran
 
 ### Decorations
 
-_(pre-freeze / unstable)_ View-only annotations drawn over the rendered document. They live outside the tree, so they reach neither the saved bytes nor the undo stack. You register a source per editor through `editor.decorations` (your `onEditor` context). The recipe and both authoring contracts: [Decorations](plugin-guide/decorations.md#decorations).
+_(pre-freeze / unstable)_ View-only annotations drawn over the rendered document. They live outside the tree, so they reach neither the saved bytes nor the undo stack. A `setup` plugin registers a source per editor through `editor.decorations` (your `onEditor` context); a plugin value paints with `Contribution.paint` instead (`Paint` and `MarkAt`, in [The plugin unit](#the-plugin-unit)). The recipe and both authoring contracts: [Decorations](plugin-guide/decorations.md#decorations).
 
 | Export | Role |
 | --- | --- |

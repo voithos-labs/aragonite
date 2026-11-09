@@ -509,6 +509,8 @@ Widget and replace decorations are atomic inline widgets (spans the caret can't 
 
 Cost contract: an idle source's per-edit re-run is O(sources), never per-block, and a block with no widget or replace decorations keeps its render key unchanged. The perf suite pins both.
 
+A plugin value paints a block at a time instead, through `Contribution.paint(block)`. The editor asks it only for a block it renders and keeps the answer while that block's bytes hold, so an edit asks the edited block and its containers again and nothing else (G2.19). Its positions are document bytes, stored in the block's own offsets, so an edit above a block moves its paint without asking. When something other than the bytes changes the answer, the plugin calls `editor.repaint(blocks?)`. Every overlay, widget slot and block class reads either kind through one per-block read, `src/lib/decorations/decoration-state.svelte.ts` :: `paintOf`, whole-document sources first.
+
 A mark's hover has one lifecycle the editor owns, `src/lib/decorations/mark-hover.ts` :: `createMarkHover`, and what it promises a plugin is the guide's to say ([Interactive marks](../guide/plugin-guide/decorations.md#interactive-marks-click-hover-and-the-keyboard)). Where marks overlap, one precedence rule, `src/lib/decorations/mark-interactions.ts` :: `comparePrecedence`, picks the mark for the pointer and the keyboard alike.
 
 ### Rects
