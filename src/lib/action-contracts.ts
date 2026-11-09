@@ -21,7 +21,7 @@ import type { LandingOutcome, RevealPolicy } from './selection/caret-landing';
 import type { RemovalGesture } from './selection/caret-target';
 import type { CommandRun } from './schema/block-commands';
 import type { GapCaretSelection } from './selection/gap-caret';
-import type { ByteChange } from './tree-operations/byte-splice';
+import type { ByteChange } from './tree-operations/byte-changes';
 import type { OpDescriptor } from './schema/operations';
 
 /**

@@ -8,7 +8,7 @@
 import type { Draft, DraftCloseCause, DraftResult, DraftSpec } from '../../schema/drafts';
 import type { DocumentView } from '../../core/node-views';
 import type { CommitSnapshotArg, SourceSplice } from '../../action-contracts';
-import type { ByteChange } from '../../tree-operations/byte-splice';
+import type { ByteChange } from '../../tree-operations/byte-changes';
 import type { DocumentStamps } from './document-stamp';
 import { serialize } from '../../core/serializer';
 import { devChecksOn } from '@voithos-labs/aragonite/dev-checks';

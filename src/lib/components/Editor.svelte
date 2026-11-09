@@ -28,7 +28,7 @@
 	import { createCompositionTracker } from '../browser/composition';
 	import { caretRectAt } from '../browser/visual-lines';
 	import { docPathFrom } from '../core/coordinate-spaces';
-	import { changesBetween } from '../tree-operations/byte-splice';
+	import { changesBetween } from '../tree-operations/byte-changes';
 	import { createAutoPairRecord } from './blocks/text/auto-pair-record';
 	import { createScrollOwner } from '../windowing/scroll-owner';
 	import { createScrollHostResolution } from './editor-root/scroll-host';

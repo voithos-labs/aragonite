@@ -5,7 +5,7 @@ The tour:
 1. [The one idea](#the-one-idea): why typing cost doesn't grow with document size, and the exceptions this doc refuses to hide.
 2. [Scale claims](#scale-claims): what a keystroke and a load cost, qualitatively.
 3. [The four axes windowing does not bound](#the-four-axes-windowing-does-not-bound): the exceptions, and what each one costs.
-4. [Costs beside the keystroke rows](#costs-beside-the-keystroke-rows): selection coverage, toolbar reads, and kind re-derivation.
+4. [Costs beside the keystroke rows](#costs-beside-the-keystroke-rows): selection coverage, toolbar reads, kind re-derivation, and a byte splice inside a big container.
 5. [The numbers and the gate](#the-numbers-and-the-gate): where the exact numbers live, the three commands, what's gated versus report-only, and why a red run on your machine is expected.
 6. [Two architectural decisions](#two-architectural-decisions): why containers store their full source, and why windowing is the only lever that matters.
 
@@ -59,7 +59,7 @@ It's the interior-typing axis's twin at the other end, and a different cost: the
 
 ## Costs beside the keystroke rows
 
-Four more costs are measured without being keystroke axes.
+Five more costs are measured without being keystroke axes.
 
 **What a range covers** gets worked out once per selection change (`rangeCoverage`, what the overlay paints from; a copy or a delete asks again when it runs). It walks every block the range covers, so it grows with the selection rather than the screen, but it grows linearly. Ctrl+Shift+End from the top of a 2MB single list (about 51k items) takes **~115 ms** in node, measured 2026-09-29, and `src/lib/test/selection/range-coverage-cost.test.ts` keeps it linear by pricing the same selection at N and 4N blocks. Not gated.
 
@@ -74,6 +74,8 @@ Over a grid the walk is per covered cell: a whole-table selection across a 180k-
 - **An opaque container** (a `:::` directive, a diagram) reads its metadata from a parse of its bytes. An edit that moves its opener or closing line pays one parse of the container, which is what the keystroke that lengthens a fence costs. Typing in a titled directive's title moves the opener too, but skips the parse, because no metadata comes from the title row. Typing in the body moves neither line. `kind-rederive-gate.test.ts` counts all three on the keystroke's own route.
 - **A list item or a quote** keeps its metadata on its first line, so a keystroke there reads that one line alone. It parses the item's own bytes only on the keystroke that changes what the marker reads as (a space typed right after `- `), and that parse is the size of the item, never the list; `strip-reread-cost.test.ts` counts the bytes.
 - **A wider marker that moves lines out of the item** is the one case that reads more: the list then reads whole, and so does each container around it whose shape changed (a list in a quote reads the quote too).
+
+**A byte splice inside a big container** (a plugin's `edit()`, and the range gestures moving onto it) reads only the children its change reaches, so its read doesn't grow with the container. `src/lib/test/perf/splice-window-cost.test.ts` counts the bytes parsed at N and 4N children for a list, a quote and a table. Putting the caret down afterwards works the same way: the child spans say which child holds the caret's byte, and only that child's lines get matched up with the container's, so the whole commit is ~10 ms at 10 MB in node for all three (measured 2026-11-08; `byte-map-growth.test.ts` counts those lines at N and 4N). A splice deeper than one level, or one that might reach past its children, reads the whole top-level block (`commit-and-undo.md` § The byte splice says when). A copy in there is still O(container), though: it reads the marker off every line of the container it sits in, ~150-200 ms at 10 MB.
 
 **And flat documents**, since someone always asks: a keystroke there is O(viewport) like every other shape, unless a whole-document derivation is live (the third axis above). If a harness of yours says otherwise, check it isn't reading the whole `$state` children array while it waits for the edit to land: that once passed for an O(top-level count) axis.
 

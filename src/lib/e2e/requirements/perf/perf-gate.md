@@ -61,6 +61,17 @@ Rows run against a built-and-previewed app, so the numbers are the editor's rath
 than the dev server's. A dev run of the same rows reads several times higher on a
 large container, most of it Svelte's dev-only bookkeeping.
 
+## What it reports beside the gate
+
+- an edit inside a giant list, quote or table, in source and live mode: a paste of two lines at
+  a child's end, or Backspace over a range three lines long, made the way the editor makes it
+  today, then the same bytes written through the byte splice a few children lower. Both are
+  timed to the frame after the edit lands and printed side by side, so the splice has a today
+  figure to match before any gesture moves onto it.
+- a splice or a removal that writes nothing fails its row instead of timing as fast as one
+  that wrote, and each sample undoes both edits first, so a table's cleared cells are full again
+  for the next one.
+
 ## Error cases
 
 - a keystroke whose CST commit never lands fails the row when the wait times out

@@ -10,11 +10,8 @@ import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { installPlugins } from '#lib/schema/plugin-install.js';
 import { initDocument } from '#lib/components/editor-root/document-swap.js';
 import { assignChildIdsDeep } from '#lib/block-id.js';
-import {
-	changesBetween,
-	spliceReading,
-	type ByteChange
-} from '#lib/tree-operations/byte-splice.js';
+import { spliceReading } from '#lib/tree-operations/byte-splice.js';
+import { changesBetween, type ByteChange } from '#lib/tree-operations/byte-changes.js';
 import { reloadDivergence } from '#lib/test/exhaustive/edit-driver.js';
 import { SYNTAX_PLUGINS } from '../behavior/corpus';
 import { arbLawDocument } from '../range-laws/shapes';

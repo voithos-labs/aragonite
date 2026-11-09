@@ -47,12 +47,21 @@ export function stampStructuralChange(
 	change: StructuralChange,
 	sharing: SharingState
 ): void {
-	if (change.op !== 'insert' && change.op !== 'replace') return;
+	for (const node of stampOwned(children, change, sharing)) assignChildIdsDeep(node);
+}
+
+/** Mark the nodes the change's window created as owned by the live tree, for a caller whose nodes
+ *  already carry their child ids; returns them. */
+export function stampOwned(
+	children: CstNode[],
+	change: StructuralChange,
+	sharing: SharingState
+): CstNode[] {
+	if (change.op !== 'insert' && change.op !== 'replace') return [];
 	const count = change.op === 'insert' ? change.count : change.newCount;
-	for (let i = change.at; i < change.at + count; i++) {
-		sharing.stamp(children[i]);
-		assignChildIdsDeep(children[i]);
-	}
+	const created = children.slice(change.at, change.at + count);
+	for (const node of created) sharing.stamp(node);
+	return created;
 }
 
 /**
