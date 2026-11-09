@@ -54,7 +54,9 @@ export function removeRange(doc: Doc, start: number, end: number): Removal {
 	const held = heldAt(doc, from, to);
 	const last = held && doc.wholeBlocks ? endingItsParent(doc, held, to) : null;
 	if (last) return last;
-	if (head && tail && head.leaf === tail.leaf && !held) {
+	if (held) return across(doc, from, to, held, true);
+	let removed: Removal;
+	if (head && tail && head.leaf === tail.leaf) {
 		const { leaf } = head;
 		const write = doc.host.leaf.replace(
 			doc.tree,
@@ -64,9 +66,10 @@ export function removeRange(doc: Doc, start: number, end: number): Removal {
 			'',
 			doc.mode
 		);
-		return writeLeaf(doc, leaf, write, head.offset, tail.offset);
-	}
-	return across(doc, from, to, held ?? head?.leaf, held !== undefined);
+		removed = writeLeaf(doc, leaf, write, head.offset, tail.offset);
+	} else removed = across(doc, from, to, head?.leaf, false);
+	const line = from - lineHead(doc.source, from).length;
+	return { ...removed, source: oneEmptyLine(removed.source, line) };
 }
 
 /** `out` with each ordered list the removal shortened numbered on, then a blank line at `at` where
@@ -200,7 +203,7 @@ function across(
 	const gone = held && (!!lines || !joins || isBlankText(lineRest(tail, 0)));
 	const out = joins ? movedMarkers(doc, from, to, parted, to) : parted;
 	return {
-		source: held ? out : oneEmptyLine(out, from - lineHead(source, from).length),
+		source: out,
 		caret: lines?.caret ?? start?.caret ?? from,
 		...(gone && { gone }),
 		...(held && first && { took: first.path })
@@ -316,11 +319,7 @@ function joinedLeaves(doc: Doc, from: number, to: number, head: LeafPoint, end: 
 	);
 	const closerAt = leafEnd - ownTrailingLineEnding(write.bytes).length;
 	const closed = withClosers(doc, from, to, parted, closerAt);
-	const moved = movedMarkers(doc, from, to, closed, end.leaf.to);
-	return {
-		source: oneEmptyLine(moved, from - lineHead(source, from).length),
-		caret: written.caret
-	};
+	return { source: movedMarkers(doc, from, to, closed, end.leaf.to), caret: written.caret };
 }
 
 /** `joined` with the closing lines the range starts inside and leaves put back at `at`. */

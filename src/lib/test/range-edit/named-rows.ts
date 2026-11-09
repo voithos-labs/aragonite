@@ -1024,6 +1024,20 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: plain('*x*'),
 		expect: { source: 'Top\n\n\\*x\\*\n\nNext\n' }
 	},
+	// Miss-analysis: every row above spans two blocks, so the write inside one never met the rule.
+	{
+		name: 'L4 one paragraph’s whole text leaves one empty line too',
+		source: 'Top\n\n⟦aa⟧\n\nNext\n',
+		gesture: 'delete',
+		expect: { source: 'Top\n\n\nNext\n', caret: text(5) }
+	},
+	{
+		name: 'L4 the text typed over it removed first, at the document start',
+		source: '⟦Before⟧\n\nNext\n',
+		gesture: 'type',
+		expect: { source: '\nNext\n', caret: text(0) },
+		then: { gesture: paste('x'), expect: { source: 'x\n\nNext\n' } }
+	},
 
 	// ── An end block that takes no joined text, entered by the range, stays a block ──
 	{
@@ -1053,6 +1067,7 @@ export const NAMED_ROWS: NamedRow[] = [
 		expect: { source: '> a\n\nc\n</div>\n' }
 	},
 	// ── An ordered list the removal shortens numbers on from where it was ──
+	// Miss-analysis: the editor renumbered after the core, so no core row read the numbers shown.
 	{
 		name: 'L4 a range across ordered items numbers the items after it on',
 		source: '1. o⟦ne\n2. t⟧wo\n3. three\n',
