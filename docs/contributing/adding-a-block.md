@@ -2,7 +2,7 @@
 
 So you want the editor to understand a new kind of Markdown block: a callout, a spoiler, a footnote. This doc walks you through it, **for built-in blocks only**, meaning kinds that ship inside aragonite. If you're writing a plugin against the published library, stop here and read [`docs/guide/plugin-guide.md`](../guide/plugin-guide.md) instead; plugins get most of what's below through `createContainerBlock` and `createEditableLeaf` from `@voithos-labs/aragonite/svelte`. Everything here is internal machinery, and honestly, a block that belongs in the core is rarer than it feels at the moment you want one.
 
-The plugin guide is also where the concepts live: what a kind is, what a descriptor declares, how an opener claims lines, what the closure block promises. This doc glosses each and covers only what a built-in author touches that a plugin author never sees. Orient from `docs/design/editor.md` first if you haven't; it'll save you at least one wrong turn.
+The plugin guide is also where the concepts live: what a kind is, what a descriptor declares, how an opener claims lines. This doc glosses each and covers only what a built-in author touches that a plugin author never sees. Orient from `docs/design/editor.md` first if you haven't; it'll save you at least one wrong turn.
 
 | Section | What it covers |
 | --- | --- |
@@ -99,19 +99,13 @@ registerBuiltinBlockKind('thematicBreak', {
 	blockFocus: 'whole-block',
 	// Leading edge only: its focused Enter already inserts a paragraph below.
 	gapEdges: 'before',
-	conformanceFixture: '---\n',
-	closure: {
-		roundTrip: { mode: 'inherit-default' },
-		reorder: { mode: 'implemented', via: 'Alt+Arrow block.move keymap' },
-		undo: { mode: 'inherit-default' }
-		// ...one cell per column; a missing one is a compile error
-	}
+	conformanceFixture: '---\n'
 });
 ```
 
 What you have to declare:
 
-- **Five fields every kind declares**: `gapEdges`, `mergeRole`, `editable`, `supportsInline`, and the `closure` block.
+- **Four fields every kind declares**: `gapEdges`, `mergeRole`, `editable` and `supportsInline`.
 - **Two more that only a built-in has to**: `pageRole` and `estimateHeight`. A plugin that skips them gets defaults; a built-in that skips them fails a dev check when an editor mounts, so nobody gets the defaults without deciding to.
 - **The name, which isn't a descriptor field for you.** A built-in's name (the word a screen reader and the block menu use for it) lives in `BUILT_IN_BLOCK_LABELS` in `src/lib/a11y-strings.ts`. That table is a `Record<BlockKind, string>`, so the compiler flags the entry you forgot.
 
@@ -122,13 +116,6 @@ What you have to declare:
 `pageRole` is how the block reads on the page. A `'prose'` block (a paragraph, a heading, a quote) gets no drag handle, and right-clicking its text opens the clipboard rows. An `'object'` (code, a table, a divider) gets a handle and its own block menu. There's one exception you don't declare: a paragraph holding nothing but images counts as an object whatever its kind says (`src/lib/schema/page-role.ts`).
 
 `estimateHeight` is the block's height guess until windowing (only mounting the blocks near the screen) gets to measure it. You prob don't need to write one. `src/lib/schema/height-estimates.ts` has one per common shape (wrapped prose, a single line, source lines, and `containerEstimate` for anything with children), so pick the closest.
-
-The `closure` block is the kind's written answer to every cross-cutting editor system (focus, selection paint, search, undo, and so on), one cell per column. The plugin guide teaches it cell by cell in ["The closure block"](../guide/plugin-guide/container-walkthrough.md#the-closure-block), and `docs/design/plugin-contract.md` § "Editable content and the closure matrix" is the full reference, so I won't repeat it. What's built-in specific is where the presets live:
-
-- `simpleLeafClosure` (`schema/closure.ts`): a not-mergeable, source-editable leaf. Bakes the five cells such leaves always answer the same way, and still demands the four your component decides (`focus`, `searchPaint`, `undo`, `simOracle`).
-- `containerClosure` (`schema/closure.ts`): a container whose body is its children's bytes inside its own markers (the `'strip'` contract, below). Bakes the four structural cells and `roundTrip`, demands the rest.
-- `proseLeafClosure`, file-local to `built-in-descriptors.ts`: the prose trio (paragraph, heading, setext heading).
-- Anything else writes its cells by hand, like the thematic break above. A missing cell is a compile error either way.
 
 Every other field is optional, and they're all in `docs/design/plugin-contract.md` § The descriptor field reference, with what leaving each one out means. A lint holds that table to the descriptor type, so read it there rather than from a copy here.
 
@@ -531,7 +518,7 @@ Complex blocks (lists, tables) get a requirement file in `src/lib/e2e/requiremen
 
 **A `conformanceFixture` enrols your kind in the conformance kit.** The field is optional and the enrolment gates on it: declare a source snippet that parses to your kind (`'---\n'` for the thematic break), or the kit never sees your kind and nothing warns you. That's the trap.
 
-With it declared, the live registry is the enrolment list, and the cells derive from your closure block's columns: the headless cells run at the unit gate, the mounted-DOM cells in the browser sweep. A cell you declared `implemented` but didn't is caught here, because the kit runs the closure block's promises instead of taking them on faith. Omit the field only for a kind no document scan yields in isolation (a table cell), and say so in review. [`docs/guide/plugin-testing.md`](../guide/plugin-testing.md) documents the kit itself; built-ins run through the same one.
+With it declared, the live registry is the enrolment list, and every cell your kind's descriptor makes apply runs: the headless ones at the unit gate, the mounted-DOM ones in the browser sweep. There's no field to opt a kind out of a cell, so a kind that copies, undoes or searches wrong fails here. Omit the field only for a kind no document scan yields in isolation (a table cell), and say so in review. [`docs/guide/plugin-testing.md`](../guide/plugin-testing.md) documents the kit itself; built-ins run through the same one.
 
 **A built-in container needs a conformance profile too.** `src/lib/test/invariants/builtin-container-profiles.ts` holds one entry per built-in container kind, and `src/lib/test/invariants/container-conformance.test.ts` keeps that map in lockstep with the registry: a registered container with no profile and a profile for no container each fail the suite. Where a contract makes a cell moot, declare it `boundary` or `exempt` with a reason. Never just leave it out. The blockquote's:
 

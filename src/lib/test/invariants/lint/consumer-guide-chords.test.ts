@@ -19,7 +19,9 @@ import {
 	tryGetBlockKindDescriptor
 } from '#lib/schema/block-kind-descriptor.js';
 import { normalizeChord } from '#lib/schema/keybindings.js';
-import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
+import { everyInstalledPlugin, type PluginActivation } from '#lib/schema/plugin-activation.js';
+import { createEditorContributions } from '#lib/schema/editor-contributions.js';
+import { installPluginList } from '#lib/schema/plugin-unit.js';
 import { HARDCODED_CHORD_SITES } from './hardcoded-chord-sites';
 import { installPlugins } from '#lib';
 import { declaredPluginKind } from '#lib/plugin.js';
@@ -32,7 +34,7 @@ import { highlightOccurrencesPlugin } from '#packages/highlight-occurrences/src/
 import { latexPlugin } from '#packages/latex/src/index.js';
 import { mermaidPlugin, MERMAID } from '#packages/mermaid/src/index.js';
 import { parrotPlugin } from '#packages/parrot/src/index.js';
-import { slashCommandsPlugin, SLASH_COMMANDS_OPEN } from '#packages/slash-commands/src/index.js';
+import { slashCommands } from '#packages/slash-commands/src/index.js';
 import { tocPlugin } from '#packages/toc/src/index.js';
 import { readSource } from './scan-source';
 import { SOURCE, SOURCE_DIR } from './source-paths';
@@ -52,12 +54,25 @@ const BUNDLED_PLUGINS = [
 		}
 	}),
 	mermaidPlugin(),
-	parrotPlugin(),
-	slashCommandsPlugin(),
 	tocPlugin()
 ];
 // Installed as the file loads too, so the row tables below can name the bundled kinds.
 installPlugins(BUNDLED_PLUGINS);
+
+// The bundled plugin values, read the way one editor reads its list, so their commands' chords
+// resolve beside the installed plugins' keymaps.
+const contributions = createEditorContributions({
+	editorFor: () => undefined,
+	report: ({ cause }) => {
+		throw cause;
+	}
+});
+contributions.read(
+	installPluginList([slashCommands, parrotPlugin()], ({ cause }) => {
+		throw cause;
+	})
+);
+const BUNDLED: PluginActivation = { isActive: everyInstalledPlugin.isActive, contributions };
 beforeEach(() => installPlugins(BUNDLED_PLUGINS));
 
 // ── Doc parsing ─────────────────────────────────────────────────────────────
@@ -197,7 +212,7 @@ const ROW_TARGETS: Record<string, { kind: AnyBlockKind; commands: CommandId[] }>
 	// A plugin-global chord resolves on any kind that binds nothing of its own.
 	'Open the list at the caret': {
 		kind: 'paragraph',
-		commands: [SLASH_COMMANDS_OPEN as CommandId]
+		commands: ['slash-commands/open' as CommandId]
 	},
 	'Cycle the admonition kind': {
 		kind: declaredPluginKind(ADMONITION),
@@ -254,7 +269,7 @@ const TOKEN_FAMILIES: Record<string, TokenFamily> = {
 	Clipboard: {
 		files: [SOURCE.containerBlockComponent, SOURCE.textClipboard],
 		tokens: {
-			'Mod+C': ["chord === 'Mod+C'", 'widget.inline.start'],
+			'Mod+C': ["chord === 'Mod+C'", 'copyRange(widget.inline)'],
 			'Mod+X': ["chord === 'Mod+X'", "replaceSelectedWidget(deps, inline, ''"]
 		}
 	},
@@ -311,13 +326,11 @@ function boundClaims(): BoundClaim[] {
 		owner: 'global',
 		command
 	}));
-	const pluginClaims = pluginGlobalBindings(everyInstalledPlugin).map(
-		({ chord, command, plugin }) => ({
-			chord: normalizeChord(chord),
-			owner: plugin ?? 'global',
-			command
-		})
-	);
+	const pluginClaims = pluginGlobalBindings(BUNDLED).map(({ chord, command, plugin }) => ({
+		chord: normalizeChord(chord),
+		owner: plugin ?? 'global',
+		command
+	}));
 	return [...kindClaims, ...globalClaims, ...pluginClaims];
 }
 
@@ -393,7 +406,7 @@ export function claimRowProblem(docRows: DocRow[], key: ClaimKey, entry: ClaimRo
 	if (!target.commands.includes(entry.command)) {
 		return `the row "${entry.row}" documents ${target.commands.join(', ')}, not ${entry.command}`;
 	}
-	const resolved = resolveBinding(chord, entry.kind, undefined, everyInstalledPlugin)?.command;
+	const resolved = resolveBinding(chord, entry.kind, undefined, BUNDLED)?.command;
 	if (resolved !== entry.command) {
 		return `${chord} runs ${resolved} on ${entry.kind}, not ${entry.command}`;
 	}
@@ -459,8 +472,7 @@ describe('consumer-guide § Keyboard shortcuts → code', () => {
 		const target = ROW_TARGETS[row.action];
 		expect(target, `no ROW_TARGETS entry for "${row.action}"`).toBeDefined();
 		const resolved = row.chords.map(
-			(chord) =>
-				resolveBinding(chord, target.kind, undefined, everyInstalledPlugin)?.command ?? null
+			(chord) => resolveBinding(chord, target.kind, undefined, BUNDLED)?.command ?? null
 		);
 		expect(
 			[...new Set(resolved)].sort(),

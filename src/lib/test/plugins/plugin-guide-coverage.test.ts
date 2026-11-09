@@ -95,16 +95,16 @@ describe('plugin-api § API reference catalogs the whole aragonite/svelte surfac
 const WRAPPER_COMPONENT = ['Aragonite', 'AragoniteProps', 'AragoniteInstance', 'EditorHandle'];
 
 describe.each(['react', 'vue'])(
-	'plugin-api § API reference catalogs the %s wrapper’s block-view exports',
+	'plugin-api § API reference catalogs the %s wrapper’s plugin exports',
 	(framework) => {
 		const exportNames = barrelExports(`packages/${framework}/src/index.ts`).filter(
 			(name) => !WRAPPER_COMPONENT.includes(name)
 		);
 		const section = guideSection(CATALOG_DOC, CATALOG_HEADING);
 
-		it('finds the block-view exports', () => {
-			expect(exportNames).toContain('LeafContent');
-			expect(exportNames).toContain(`${framework}BlockView`);
+		it('finds the plugin exports', () => {
+			expect(exportNames).toContain('useDrawn');
+			expect(exportNames).toContain(`${framework}Block`);
 		});
 
 		it('lists every one verbatim in the catalog', () => {
@@ -112,8 +112,8 @@ describe.each(['react', 'vue'])(
 		});
 
 		it('is not vacuous: a dropped catalog entry is detected', () => {
-			const withoutOne = section.replaceAll('`BlockChildren`', '`__dropped__`');
-			expect(undocumented(exportNames, withoutOne)).toEqual(['BlockChildren']);
+			const withoutOne = section.replaceAll('`useDrawn`', '`__dropped__`');
+			expect(undocumented(exportNames, withoutOne)).toEqual(['useDrawn']);
 		});
 	}
 );

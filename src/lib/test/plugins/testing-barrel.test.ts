@@ -17,10 +17,7 @@ import {
 	registerBlockKind,
 	registerBlockCompleter,
 	registerBlockCommand,
-	registerRangeIndent,
-	registerBlockContextActions,
 	registerChromeLeaf,
-	registerGlobalCommand,
 	registerInlineSyntax,
 	registerInlineWidgetKind,
 	registerInsertEntry,
@@ -32,16 +29,12 @@ import {
 	definePlugin,
 	isPluginInstalled,
 	textBlockView,
-	type NodeView,
 	type PluginBlockKind,
 	type PluginInlineKind
 } from '#lib/plugin.js';
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { installPlugins, onEditorCallbacks } from '#lib/schema/plugin-install.js';
-import { pluginGlobalBinding } from '#lib/schema/commands.js';
 import { getBlockCommand } from '#lib/schema/block-commands.js';
-import { rangeIndentForm } from '#lib/schema/range-indent-forms.js';
-import { blockContextActionsFor } from '#lib/schema/context-actions.js';
 import { insertRows } from '#lib/schema/insert-catalogue.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
@@ -51,7 +44,6 @@ import { isBlockKindRegistered } from '#lib/schema/block-kind-descriptor.js';
 import { declaredPluginKind, isInlineKindDeclared } from '#lib/schema/plugin-kind.js';
 import { completeTypedLine } from '#lib/schema/block-completions.js';
 import { collectFiles, importSpecifiers, readSource } from '../invariants/lint/scan-source';
-import { testClosure } from '#lib/test/harness/closure.js';
 
 // ── One probe per public registration ────────────────────────────────────────
 // Each check registers through an exported register or declare function and reports whether it
@@ -60,7 +52,6 @@ import { testClosure } from '#lib/test/harness/closure.js';
 let block: PluginBlockKind;
 let chrome: PluginBlockKind;
 let inline: PluginInlineKind;
-const blockNode = () => ({ kind: block, raw: 'x\n' }) as unknown as NodeView;
 
 const PROBES: { entry: string; register(): void; registered(): boolean }[] = [
 	{
@@ -91,7 +82,6 @@ const PROBES: { entry: string; register(): void; registered(): boolean }[] = [
 				mergeRole: 'not-mergeable',
 				editable: false,
 				supportsInline: false,
-				closure: testClosure,
 				view: textBlockView()
 			}),
 		registered: () => isBlockKindRegistered('probe-block')
@@ -112,29 +102,9 @@ const PROBES: { entry: string; register(): void; registered(): boolean }[] = [
 			getBlockCommand(block, 'probe.cmd' as never, everyInstalledPlugin) !== undefined
 	},
 	{
-		entry: 'registerRangeIndent',
-		register: () => registerRangeIndent(block, 'probe.indent' as never, () => null),
-		registered: () => rangeIndentForm(block, 'probe.indent' as never, everyInstalledPlugin) !== null
-	},
-	{
-		entry: 'registerBlockContextActions',
-		register: () =>
-			registerBlockContextActions('probe-block', 'probe', () => [
-				{ id: 'probe.row', label: 'Probe', run: () => {} }
-			]),
-		registered: () =>
-			blockContextActionsFor(blockNode(), [0], everyInstalledPlugin, 'block').length > 0
-	},
-	{
 		entry: 'registerChromeLeaf',
 		register: () => registerChromeLeaf(chrome),
 		registered: () => isBlockKindRegistered('probe-chrome')
-	},
-	{
-		entry: 'registerGlobalCommand',
-		register: () =>
-			void registerGlobalCommand('probe.global', () => true, { chord: 'Mod+Shift+1' }),
-		registered: () => pluginGlobalBinding('Mod+Shift+1', everyInstalledPlugin) !== null
 	},
 	{
 		entry: 'registerInlineSyntax',

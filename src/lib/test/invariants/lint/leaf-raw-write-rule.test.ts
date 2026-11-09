@@ -73,7 +73,7 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		count: 4,
 		why: 'the strip container shape re-emitting its own bytes from its children: its span-seeding rebuild, the whole-body fallback, and the opener line set aside and put back around them'
 	},
-	'src/lib/schema/container-writer.ts': {
+	'src/lib/schema/headed-lines.ts': {
 		count: 1,
 		why: "an emptied head-line container's own bytes, written from its line shape"
 	},

@@ -10,15 +10,14 @@ import {
 	type CellReport
 } from '#lib/testing.js';
 import { emojiPlugin, EMOJI_KIND } from '#packages/emoji/src/index.js';
-import { getBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 
 const STATUSES = ['asserted', 'exempt', 'boundary'];
 const EXCUSED = 'the vocabulary suite reads the report shape, not what this cell would prove';
 
-function expectVocabulary(cells: readonly CellReport[], extra: readonly string[] = []): void {
+function expectVocabulary(cells: readonly CellReport[]): void {
 	for (const report of cells) {
 		for (const key of Object.keys(report)) {
-			expect(['cell', 'status', 'detail', ...extra], JSON.stringify(report)).toContain(key);
+			expect(['cell', 'status', 'detail'], JSON.stringify(report)).toContain(key);
 		}
 		expect(STATUSES).toContain(report.status);
 	}
@@ -43,19 +42,10 @@ describe('conformance kit reports share one vocabulary', () => {
 		});
 	});
 
-	it('the kind kit reports raw-write as a cell and the declared mode on the rest', async () => {
+	it('the kind kit reports raw-write as a cell like the rest', async () => {
 		const { cells } = await runKindConformance('fencedCode');
-		expectVocabulary(cells, ['mode']);
-		const rawWrite = cells.find((c) => c.cell === 'rawWrite');
-		expect(rawWrite?.status).toBe('asserted');
-		expect(rawWrite).not.toHaveProperty('mode');
-		const { closure } = getBlockKindDescriptor('fencedCode');
-		const closureCells = cells.filter(
-			(c) => c.cell !== 'rawWrite' && c.cell !== 'unfinishedReading'
-		);
-		for (const report of closureCells) {
-			expect(report.mode).toBe(closure[report.cell as keyof typeof closure].mode);
-		}
+		expectVocabulary(cells);
+		expect(cells.find((c) => c.cell === 'rawWrite')?.status).toBe('asserted');
 	});
 
 	it('the inline kit resolves its report like the other two', async () => {

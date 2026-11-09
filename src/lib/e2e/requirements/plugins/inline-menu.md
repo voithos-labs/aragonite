@@ -1,22 +1,22 @@
 # Feature: inline menus
 
 A list the editor opens under the caret while the author types after a trigger: `#` for a tag,
-`[[` for a link to another document. A source registers the trigger and supplies the items
-(`editor.inlineMenus.addSource`, or `getInlineMenus()` on the host's instance); the editor owns
-the rest, because it is the part a host cannot do from outside without racing the editor:
-noticing the trigger as the bytes are typed, holding the navigation keys while the list is up,
-anchoring to the typed range, and replacing that range with the pick as one undo entry.
+`[[` for a link to another document. A plugin's caret menu (`menu()` in what it contributes) names
+the trigger and supplies the rows; the editor owns the rest, because it is the part a host cannot
+do from outside without racing the editor: noticing the trigger as the bytes are typed, holding the
+navigation keys while the list is up, anchoring to the typed range, and replacing that range with
+the pick as one undo entry.
 
 The caret never leaves the document. The list takes no focus, so the author keeps typing the
 query, and an empty list holds no key at all.
 
-Seed `inline-menu` installs two plugin sources at once: tag autocomplete over the document's own
-tags (`examples/showcase/tag-marks.ts`, synchronous) and a document picker on `[[` whose
-list arrives asynchronously (`inline-menu/doc-link-menu-plugin.ts`), the shape a host's wikilink
-menu takes. The seed also lists the bundled slash-commands plugin, a `/` list whose pick inserts a
-block: `insert` is empty and `onCommit` goes through the context's `insertMarkdown`. Its own
-cases are `slash-commands.md`; here it is the third source sharing the page. A fourth, on `@`, holds its
-commit open until the spec releases it; its cases are `inline-menu-held-commit.md`.
+Seed `inline-menu` installs two menus at once: tag autocomplete over the document's own tags
+(`examples/showcase/tag-marks.ts`, synchronous, still an inline-menu source since it reads the
+document) and a document picker on `[[` whose list arrives asynchronously
+(`inline-menu/doc-link-menu-plugin.ts`), the shape a host's wikilink menu takes. The seed also
+lists the bundled slash-commands plugin, a `/` list whose pick inserts a block through
+`pick.insertBlock`. Its own cases are `slash-commands.md`; here it is the third menu sharing the
+page. A fourth, on `@`, waits until the spec releases it; its cases are `inline-menu-held-commit.md`.
 
 ## Opening
 
@@ -64,18 +64,18 @@ commit open until the spec releases it; its cases are `inline-menu-held-commit.m
 - One undo restores the typed query; the pick was one entry.
 - A click on a row commits it, and the document keeps its caret (the press does not blur).
 - An asynchronous list settles on the last query typed. (A slow answer a later keystroke
-  superseded being dropped, and its signal aborted, is pinned in the unit battery, which can hold
-  a promise open; the fixture keeps no timer.)
+  superseded being dropped is pinned in the unit battery, which can hold a promise open; the
+  fixture keeps no timer.)
 
 ## Closing
 
-- A query the source does not accept ends the session: a space ends a tag.
+- A query the menu does not accept ends the session: a space ends a tag.
 - Moving the caret out of the query closes the list.
 - Focus leaving the editor closes the list.
 
-## Opening by name: a shortcut or a button
+## Opening from a shortcut or a button
 
-- `open(name)` types the trigger at the caret and opens the list there, exactly as if typed.
+- `openMenu(menu)` types the trigger at the caret and opens the list there, exactly as if typed.
 - It opens where the typed trigger would have been declined by position: the gesture is the
   author's say-so.
 

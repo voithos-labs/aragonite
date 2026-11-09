@@ -264,8 +264,8 @@ export interface EditorInstance extends Editor {
 	getEvents(): EditorEvents;
 	getSearch(): SearchState;
 	getDecorations(): DecorationRegistry;
-	/** The same registry a plugin reaches as `editor.inlineMenus`, for a host that owns the menu's
-	 *  data (its document index, its tag list) rather than shipping a plugin for it. */
+	/** The registry for a typed-trigger list whose rows read the document, which a plugin value's
+	 *  caret menu can't do yet; any other list is a caret menu (`menu()` in a plugin value). */
 	getInlineMenus(): InlineMenuRegistry;
 	getRects(): EditorRects;
 	getDiagnostics(): EditorDiagnostics;

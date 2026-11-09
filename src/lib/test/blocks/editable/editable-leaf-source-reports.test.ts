@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // A shown painted source repaints and reports its new text exactly once per change, whatever made
-// it and in whichever order the engine fires an IME commit's events, over both forms of the leaf.
+// it and in whichever order the engine fires an IME commit's events.
 // Miss-analysis: Chromium ends a commit on a composing input, and no row composed in a painted source.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { unmount } from 'svelte';
@@ -8,18 +8,12 @@ import { installLayoutStubs, placeCaret } from '#lib/test/harness/mount-editor.s
 import { settleEditor } from '#lib/test/harness/settle.js';
 import { createRangeAtDomTextOffsets } from '#lib/browser/offsets.js';
 import { asDomTextOffset } from '#lib/core/coordinate-spaces.js';
-import {
-	REVEAL_LEAF_FORMS,
-	leafDocument,
-	mountRevealLeaf,
-	registerRevealLeafKind,
-	type RevealLeafForm
-} from '../fixtures/reveal-leaf';
+import { leafDocument, mountRevealLeaf, registerRevealLeafKind } from '../fixtures/reveal-leaf';
 
 const SOURCE = '@@ one';
 const COMMITTED = '@@ one漢';
 
-function mountLeaf(form: RevealLeafForm) {
+function mountLeaf() {
 	const paint = vi.fn((text: string) => {
 		const frag = document.createDocumentFragment();
 		frag.appendChild(document.createElement('span')).textContent = text;
@@ -28,7 +22,6 @@ function mountLeaf(form: RevealLeafForm) {
 	const reports = vi.fn<(text: string) => void>();
 	const kind = registerRevealLeafKind('source-reports-leaf');
 	const mounted = mountRevealLeaf(leafDocument(kind, `${SOURCE}\n`), {
-		form,
 		props: { paint, onSourceEdit: reports }
 	});
 	return { ...mounted, paint, reports };
@@ -55,9 +48,9 @@ afterEach(async () => {
 	document.body.innerHTML = '';
 });
 
-describe.each(REVEAL_LEAF_FORMS)('a shown painted source drawn by %s', (form) => {
+describe('a shown painted source', () => {
 	async function openSource() {
-		mounted = mountLeaf(form);
+		mounted = mountLeaf();
 		const el = await mounted.revealAtEnd();
 		mounted.paint.mockClear();
 		mounted.reports.mockClear();

@@ -15,8 +15,14 @@ import { devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 import { assertDraftBytesKept } from '../../invariants/install';
 import { docPathFrom } from '../../core/coordinate-spaces';
 import { leafAtByte } from '../../tree-operations/container-offsets';
+import { splitLines } from '../../core/lines';
+import type { GrammarView } from '../../schema/block-openers';
+import { makingOf } from '../../schema/block-type';
+import { nodeOfBlock, type Block } from '../../schema/doc-view';
 import {
+	blockByteOf,
 	blockRange,
+	pathOfNode,
 	byteAt,
 	lengthsBefore,
 	partLengths,
@@ -27,8 +33,9 @@ import {
 } from './change-record';
 
 export interface DraftRegistry {
-	/** An edit against the document as it is now; one a plugin opens is refused once it's off. */
-	edit(plugin?: string): InternalDraft;
+	/** An edit against the document as it is now; one a plugin opens is refused once it's off, and
+	 *  one watching a range goes stale when a write touches it. */
+	edit(plugin?: string, watch?: { from: number; to: number }): InternalDraft;
 	/** A block's draft over the bytes of the block at `path`, or over none, which the editor closes
 	 *  through `spec` until it ends. */
 	open(spec: DraftSpec, path?: readonly number[]): Draft;
@@ -43,6 +50,10 @@ export interface DraftRegistry {
 /** A draft whose Markdown can also go into a new paragraph below the caret's block. */
 export interface InternalDraft extends Draft {
 	insertBelow(markdown: string): this;
+	/** Where byte `at` of the text it opened on sits now, or null once a write replaced it. */
+	now(at: number): number | null;
+	/** Ends it because the menu it was picked from closed, so a later commit says `closed`. */
+	close(): void;
 }
 
 /** How a draft writes; read at its commit, so the editor can build the writers after the drafts. */
@@ -59,6 +70,7 @@ export interface DraftRegistryDeps {
 	isReading(): boolean;
 	/** Whether the editor still runs the plugin. */
 	isOn(plugin: string): boolean;
+	grammar: GrammarView;
 	writes(): DraftWrites;
 }
 
@@ -95,10 +107,12 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 		open.add(opened);
 		const since = () => (open.has(opened) ? log.slice(opened.start - base) : []);
 		const writes: { range: PartRange; text: string }[] = [];
+		const datas: { block: Block<unknown>; data: unknown }[] = [];
 		const inserts: { markdown: string; below: boolean }[] = [];
 		let lengths: number[] | null = null;
 		let illegal: string | null = null;
 		let ended = false;
+		let closed = false;
 		// Fixed at its end, since an ended draft stops hearing writes.
 		let touchedAtEnd = false;
 
@@ -129,13 +143,18 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 				return refused('moved', 'an undo was replacing the document');
 			if (illegal) return refused('illegal', illegal);
 			const doc = deps.doc();
-			if (writes.length === 0) return write(doc, [], caret);
+			if (writes.length === 0 && datas.length === 0) return write(doc, [], caret);
 			const now = partLengths(doc);
 			const unsorted: ByteChange[] = [];
 			for (const pending of writes) {
 				const at = current(pending.range);
 				if (!at) return refused('moved', 'a write elsewhere changed bytes it replaces');
 				unsorted.push({ from: byteAt(now, at.from), to: byteAt(now, at.to), insert: pending.text });
+			}
+			for (const { block, data } of datas) {
+				const changes = dataChanges(doc, block, data, deps.grammar);
+				if (!Array.isArray(changes)) return changes;
+				for (const change of changes) unsorted.push(change);
 			}
 			const changes = [...unsorted].sort((a, b) => a.from - b.from || a.to - b.to);
 			for (let i = 1; i < changes.length; i++) {
@@ -217,13 +236,28 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 				if (markdown !== '') inserts.push({ markdown, below: false });
 				return this;
 			},
+			data(block, data) {
+				datas.push({ block, data });
+				return this;
+			},
 			insertBelow(markdown) {
 				inserts.push({ markdown, below: true });
 				return this;
 			},
+			close() {
+				closed = !ended;
+				end();
+			},
+			now(at) {
+				lengths ??= lengthsBefore(partLengths(deps.doc()), since());
+				const position = positionAt(lengths, at);
+				const mapped = current({ from: position, to: position });
+				return mapped && byteAt(partLengths(deps.doc()), mapped.from);
+			},
 			async commit(options) {
+				if (closed) return refused('closed', 'the menu it was picked from closed first');
 				if (ended) return refused('empty', 'the draft was ended');
-				if (writes.length === 0 && inserts.length === 0 && !illegal)
+				if (writes.length === 0 && datas.length === 0 && inserts.length === 0 && !illegal)
 					return refused('empty', 'nothing was written to it');
 				try {
 					return await land(options?.caret);
@@ -238,7 +272,14 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 	}
 
 	return {
-		edit: (plugin) => draft(null, () => {}, plugin),
+		edit(plugin, watch) {
+			const lengths = watch && partLengths(deps.doc());
+			const watched = lengths && {
+				from: positionAt(lengths, watch.from),
+				to: positionAt(lengths, watch.to)
+			};
+			return draft(watched || null, () => {}, plugin);
+		},
 		open(spec, path) {
 			const watched = path ? blockRange(deps.doc(), path) : null;
 			const made = draft(watched, (ended) => closers.delete(ended));
@@ -266,6 +307,38 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────
+
+/** The changes that write `data` into `block` as the document holds it now: one per line that
+ *  differs, so the markers of the containers around it stay. */
+function dataChanges(
+	doc: DocumentView,
+	block: Block<unknown>,
+	data: unknown,
+	grammar: GrammarView
+): ByteChange[] | DraftResult {
+	const node = nodeOfBlock(block);
+	const path = node && pathOfNode(doc, node);
+	const byteOf = path && blockByteOf(doc, path);
+	if (!node || !byteOf) return refused('moved', 'its block was rewritten or removed');
+	const written = makingOf(block.type)?.writeData?.(node, data, grammar) ?? null;
+	if (written === null)
+		return refused('illegal', `block type '${block.type.name}' has no writer for that data`);
+	const was = splitLines(node.raw);
+	const now = splitLines(written);
+	if (was.length !== now.length)
+		return refused('illegal', 'that data changes how many lines the block has');
+	return was.flatMap((line, i) =>
+		line.text === now[i].text
+			? []
+			: [
+					{
+						from: byteOf(line.start)!,
+						to: byteOf(line.start + line.text.length)!,
+						insert: now[i].text
+					}
+				]
+	);
+}
 
 /** An open draft: where its writes start in the log, and the document it was opened on. */
 interface Opened {

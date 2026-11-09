@@ -8,7 +8,8 @@ import {
 	getBlockKindDescriptor,
 	openerRecords
 } from '#lib/schema/block-kind-descriptor.js';
-import { checkCopyIsRawByteSlice, runKindConformance } from '#lib/testing.js';
+import { runKindConformance } from '#lib/testing.js';
+import { KIND_CELL_CONTRACTS } from '#lib/testing/cell-contracts.js';
 import { registerMemoBlock, MEMO_BLOCK } from '../../../routes/test/plugins/memo/memo-kind';
 import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callout/callout-kind';
 import { registerDetailsKind, DETAILS } from '#packages/details/src/details-kind.js';
@@ -19,8 +20,6 @@ import { ADMONITION, GITHUB_ALERT } from '#packages/admonitions/src/kinds.js';
 import { registerMathBlock, MATH_BLOCK, MATH_FENCE } from '#packages/latex/src/latex-kind.js';
 import { registerMermaidKind, MERMAID } from '#packages/mermaid/src/mermaid-kind.js';
 import { registerTocBlock, TOC_BLOCK } from '#packages/toc/src/toc-plugin.js';
-import { parrotPlugin, PARROT } from '#packages/parrot/src/index.js';
-import { installPlugins } from '#lib';
 import { testView } from '#lib/test/harness/test-view.js';
 import type { BlockView } from '#lib/schema/block-view.js';
 import type { UnfinishedReading } from '#lib/schema/block-openers.js';
@@ -50,8 +49,8 @@ describe('kind conformance: plugin kinds enroll', () => {
 		registerCalloutKind(testView());
 	});
 
-	// The byte-slice copy cell runs through the same runner the built-ins use, so the
-	// closure battery is not built-in only.
+	// The byte-slice copy cell runs through the same runner the built-ins use, so the battery
+	// is not built-in only.
 	it('executes the byte-slice clipboard cell for an editable leaf', async () => {
 		const report = await runKindConformance(MEMO_KIND());
 		expect(statusOf(report, 'roundTrip')).toBe('asserted');
@@ -60,13 +59,11 @@ describe('kind conformance: plugin kinds enroll', () => {
 		expect(statusOf(report, 'focus')).toBe('boundary');
 	});
 
-	// A container kind: round-trip (rebuildRaw) and merge-role eligibility execute;
-	// its kind-specific clipboard mechanism is boundary until the browser sweep.
-	it('executes round-trip and merge cells for a container kind', async () => {
+	it('executes round-trip, merge and copy cells for a container kind', async () => {
 		const report = await runKindConformance(CALLOUT_KIND());
 		expect(statusOf(report, 'roundTrip')).toBe('asserted');
 		expect(statusOf(report, 'mergeBackspace')).toBe('asserted');
-		expect(statusOf(report, 'clipboard')).toBe('boundary');
+		expect(statusOf(report, 'clipboard')).toBe('asserted');
 	});
 
 	// Mirrors the bundled sweep below: the extra kinds a registrar adds run their
@@ -77,11 +74,7 @@ describe('kind conformance: plugin kinds enroll', () => {
 		for (const k of registered) {
 			const report = await runKindConformance(k);
 			expect(new Set(report.cells.map((c) => c.cell))).toEqual(
-				new Set([
-					...Object.keys(getBlockKindDescriptor(k).closure),
-					'rawWrite',
-					'unfinishedReading'
-				])
+				new Set(Object.keys(KIND_CELL_CONTRACTS))
 			);
 		}
 	});
@@ -190,10 +183,7 @@ const BUNDLED_INSTALLS: { dir: string; kind: string; install: (view: BlockView) 
 	{ dir: 'admonitions', kind: ADMONITION, install: registerAdmonitions },
 	{ dir: 'latex', kind: MATH_BLOCK, install: registerMathBlock },
 	{ dir: 'mermaid', kind: MERMAID, install: registerMermaidKind },
-	{ dir: 'toc', kind: TOC_BLOCK, install: registerTocBlock },
-	// The parrot's registration function is module-private (it keeps the guide's bytes), so
-	// installing the plugin is the way in, the same one a consumer uses.
-	{ dir: 'parrot', kind: PARROT, install: () => installPlugins([parrotPlugin()]) }
+	{ dir: 'toc', kind: TOC_BLOCK, install: registerTocBlock }
 ];
 
 const NO_BLOCK_KIND_DIRS = new Set([
@@ -202,6 +192,9 @@ const NO_BLOCK_KIND_DIRS = new Set([
 	'slash-commands',
 	'spellcheck'
 ]);
+// Plugins whose blocks are block types, which only an editor running them parses: the kit reads
+// the page's grammar, so it doesn't reach them yet.
+const BLOCK_TYPE_DIRS = new Set(['parrot']);
 
 describe('kind conformance: bundled plugin kinds enroll', () => {
 	// Every kind the registrar registers, not only the headline one: title kinds with no
@@ -214,44 +207,31 @@ describe('kind conformance: bundled plugin kinds enroll', () => {
 			expect(registered).toContain(declaredPluginKind(kind));
 			for (const k of registered) {
 				const report = await runKindConformance(k);
-				// One recorded cell per declared closure column plus the raw-write cell, so none is dropped.
 				expect(new Set(report.cells.map((c) => c.cell))).toEqual(
-					new Set([
-						...Object.keys(getBlockKindDescriptor(k).closure),
-						'rawWrite',
-						'unfinishedReading'
-					])
+					new Set(Object.keys(KIND_CELL_CONTRACTS))
 				);
 			}
 			const report = await runKindConformance(declaredPluginKind(kind));
-			expect(statusOf(report, 'roundTrip')).toBe('asserted');
-			expect(statusOf(report, 'mergeBackspace')).toBe('asserted');
+			for (const cell of ['roundTrip', 'mergeBackspace', 'undo', 'clipboard']) {
+				expect(statusOf(report, cell), cell).toBe('asserted');
+			}
 		}
 	);
-
-	// Mermaid's claim that a cross-block copy carries it whole needs the kit's byte check, since
-	// the runner sends an `implemented` cell to the browser sweep and would never run it.
-	it('mermaid backs its cross-block clipboard claim with the byte-slice check', () => {
-		registerMermaidKind(testView());
-		const kind = declaredPluginKind(MERMAID);
-		expect(() =>
-			checkCopyIsRawByteSlice(kind, getBlockKindDescriptor(kind).conformanceFixture!)
-		).not.toThrow();
-	});
 
 	// Checked both ways at the directory level, so neither an unenrolled new plugin nor a
 	// stale entry for a deleted one survives.
 	it('every plugin directory on disk is enrolled or a declared exception', () => {
 		const dirs = bundledPluginDirs();
 		const enrolled = new Set(BUNDLED_INSTALLS.map((b) => b.dir));
-		const unaccounted = dirs.filter((d) => !enrolled.has(d) && !NO_BLOCK_KIND_DIRS.has(d));
-		expect(unaccounted, 'plugin dirs neither enrolled nor declared kind-less').toEqual([]);
-		const stale = [...enrolled, ...NO_BLOCK_KIND_DIRS].filter((d) => !dirs.includes(d));
+		const excepted = new Set([...NO_BLOCK_KIND_DIRS, ...BLOCK_TYPE_DIRS]);
+		const unaccounted = dirs.filter((d) => !enrolled.has(d) && !excepted.has(d));
+		expect(unaccounted, 'plugin dirs neither enrolled nor declared exceptions').toEqual([]);
+		const stale = [...enrolled, ...excepted].filter((d) => !dirs.includes(d));
 		expect(stale, 'enrolled/exception entries with no plugin directory').toEqual([]);
 	});
 
 	// The same check per kind, for a directory's second fixtured kind. The directive-fallback
-	// kinds `registerAdmonitions` adds are core, covered by `closure-fixtures.test.ts`.
+	// kinds `registerAdmonitions` adds are core, run by the registrar sweep above.
 	const CO_REGISTERED_FIXTURED = [GITHUB_ALERT, MATH_FENCE];
 	it('sweeps exactly the bundled fixtured kinds', () => {
 		for (const { install } of BUNDLED_INSTALLS) install(testView());
@@ -299,22 +279,6 @@ describe('kind conformance: a broken plugin registration fails', () => {
 		);
 	});
 
-	// A false `not-supported` fails because the degradation check asserts the scan finds nothing
-	// in scannable text; the clipboard case is in `test/invariants/kind-conformance.test.ts`.
-	it('rejects a false searchPaint:not-supported on searchable text', async () => {
-		const closure = getBlockKindDescriptor(MEMO_KIND()).closure;
-		augmentBlockKind(MEMO_KIND(), {
-			closure: {
-				...closure,
-				searchPaint: {
-					mode: 'not-supported',
-					reason: 'FALSE: memo text is searchable; red-test bait'
-				}
-			}
-		});
-		await expect(runKindConformance(MEMO_KIND())).rejects.toThrow(/finds no match/);
-	});
-
 	// Undo and the byte-slice copy both act on the fixture's first block, so a kind under a
 	// later block lets the undo cell delete something else and still report `asserted`.
 	it('rejects a conformanceFixture whose kind is not under the first block', async () => {
@@ -334,24 +298,8 @@ describe('kind conformance: a broken plugin registration fails', () => {
 	it('rejects a conformanceFixture that swallows the undo cell sentinel', async () => {
 		registerMermaidKind(testView());
 		const kind = declaredPluginKind(MERMAID);
-		const closure = getBlockKindDescriptor(kind).closure;
-		augmentBlockKind(kind, {
-			conformanceFixture: '```mermaid\ngraph TD\n',
-			closure: { ...closure, undo: { mode: 'inherit-default' } }
-		});
+		augmentBlockKind(kind, { conformanceFixture: '```mermaid\ngraph TD\n' });
 
 		await expect(runKindConformance(kind)).rejects.toThrow(/trailing sentinel/);
-	});
-
-	// Parity with the container kit's `assertExemptionDocumented`: an exempt cell must
-	// carry a substantive reason, never a one-word placeholder that documents nothing.
-	it('rejects an exempt cell whose declared reason is not substantive', async () => {
-		const closure = getBlockKindDescriptor(MEMO_KIND()).closure;
-		augmentBlockKind(MEMO_KIND(), {
-			closure: { ...closure, reorder: { mode: 'not-supported', reason: 'n/a' } }
-		});
-		await expect(runKindConformance(MEMO_KIND())).rejects.toThrow(
-			/reorder exempt reason is documented/
-		);
 	});
 });

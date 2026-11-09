@@ -1,12 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { installPlugins } from '#lib';
-import {
-	definePlugin,
-	registerInsertEntry,
-	type EditorContext,
-	type InsertEntry
-} from '#lib/plugin.js';
-import type { SlashCommandEntry } from '#packages/slash-commands/src/index.js';
+import { definePlugin, registerInsertEntry, type InsertEntry } from '#lib/plugin.js';
+import { slashCommands, type SlashCommandEntry } from '#packages/slash-commands/src/index.js';
 import { slashHarness } from './slash-harness';
 
 describe('the slash list', () => {
@@ -20,7 +15,7 @@ describe('the slash list', () => {
 
 	it('lists the catalogue, then the headings, then host rows, and hides excluded ids', async () => {
 		const host: SlashCommandEntry = { id: 'stamp', label: 'Stamp', insert: 'ok' };
-		const h = slashHarness('', { entries: [host], exclude: ['divider', 'h3'] });
+		const h = slashHarness('', slashCommands({ entries: [host], exclude: ['divider', 'h3'] }));
 		await h.type('/');
 		expect(h.rows()).toEqual([
 			'Bulleted list',
@@ -37,7 +32,7 @@ describe('the slash list', () => {
 
 	it("a host row with a built-in id takes that row's place, and the pick is the host's", async () => {
 		const pullQuote: SlashCommandEntry = { id: 'quote', label: 'Pull quote', insert: '> Pull: ' };
-		const h = slashHarness('', { entries: [pullQuote] });
+		const h = slashHarness('', slashCommands({ entries: [pullQuote] }));
 		await h.type('/');
 		expect(h.rows()).toContain('Pull quote');
 		expect(h.rows()).not.toContain('Quote');
@@ -167,7 +162,7 @@ describe('a label typed in full, spaces and all', () => {
 	it('a host row taking a word gets none when its own label was typed', async () => {
 		const run = vi.fn();
 		const stamp: SlashCommandEntry = { id: 'stamp', label: 'Stamp date', run, takesArgument: true };
-		const h = slashHarness('', { entries: [stamp] });
+		const h = slashHarness('', slashCommands({ entries: [stamp] }));
 		await h.type('/stamp d');
 		expect(h.rows()).toEqual(['Stamp date']);
 		await h.pick();
@@ -206,23 +201,24 @@ describe('a pick', () => {
 		expect(h.inserted).toEqual([{ markdown: '```js\n\n```\n', placement: 'caret' }]);
 	});
 
-	it('a host run entry receives the pick’s context and the argument, an insert entry its Markdown', async () => {
+	it('a host run entry receives the pick and the argument, an insert entry its Markdown', async () => {
 		const run = vi.fn();
 		const entries: SlashCommandEntry[] = [
 			{ id: 'cite', label: 'Cite', run, takesArgument: true },
 			{ id: 'stamp', label: 'Stamp', insert: '**ok**' }
 		];
-		const h = slashHarness('', { entries });
+		const h = slashHarness('', slashCommands({ entries }));
 		await h.type('/cite knuth');
 		await h.pick();
-		// The editor's context scoped to the pick, so a run that waits writes nothing after a swap.
 		const [pick, argument] = run.mock.calls[0];
-		expect(Object.getPrototypeOf(pick)).toBe(h.editor);
-		expect(pick.signal).toBeInstanceOf(AbortSignal);
+		expect(pick).toMatchObject({ trigger: '/', query: 'cite knuth', range: { from: 0, to: 11 } });
 		expect(argument).toBe('knuth');
-		await h.type('/stamp');
-		await h.pick();
-		expect(h.inserted).toEqual([{ markdown: '**ok**', placement: 'caret' }]);
+		// The run wrote nothing through the pick, so the query's bytes stay.
+		expect(h.raw()).toBe('/cite knuth');
+		const stamped = slashHarness('', slashCommands({ entries }));
+		await stamped.type('/stamp');
+		await stamped.pick();
+		expect(stamped.inserted).toEqual([{ markdown: '**ok**', placement: 'caret' }]);
 	});
 });
 
@@ -257,13 +253,3 @@ describe('leaving the list', () => {
 export const both: SlashCommandEntry = { id: 'x', label: 'X', insert: 'a', run: () => {} };
 // @ts-expect-error neither insert nor run
 export const neither: SlashCommandEntry = { id: 'y', label: 'Y' };
-
-// A row's `run` takes the pick's context: one written against plain `EditorContext` still fits, and
-// one that reads `signal` needs no cast. `npm run check` holds both.
-const contextRun = (editor: EditorContext) => void editor.editorId;
-export const plainRow: SlashCommandEntry = { id: 'p', label: 'P', run: contextRun };
-export const signalRow: SlashCommandEntry = {
-	id: 's',
-	label: 'S',
-	run: (editor) => void editor.signal.aborted
-};

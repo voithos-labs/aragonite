@@ -17,6 +17,7 @@ import type { CommitController } from '../../action-contracts';
 import type { CommandDispatchContext } from '../../schema/block-commands';
 import type { EditorEvents } from '../../editor-events';
 import type { Reading } from '../../schema/reading';
+import type { DocumentBytes } from '../range-bytes';
 import type { PluginActivation } from '../../schema/plugin-activation';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 import { normalizeLineEndings } from '../../core/lines';
@@ -57,6 +58,8 @@ export interface CrossBlockDispatchContext {
 	controller: CommitController;
 	/** How the editor reads its bytes: the removal's join cleanup and the paste reparse read it. */
 	reading: Reading;
+	/** The document's bytes and their layout, made once per content version, which a copy reads. */
+	bytes: DocumentBytes;
 	/** The editor's command dispatch, which runs a chord pressed over a range. */
 	commands: CommandDispatchContext;
 	pasteCoordinator: PasteCommitCoordinator;
@@ -97,6 +100,7 @@ export interface CrossBlockHandlers {
 	performCrossBlockCut(): Promise<void>;
 	/** How the editor reads its bytes, which decides what a copied range carries. */
 	readonly reading: Reading;
+	readonly bytes: DocumentBytes;
 }
 
 export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossBlockHandlers {
@@ -109,6 +113,9 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 	return {
 		get reading() {
 			return ctx.reading;
+		},
+		get bytes() {
+			return ctx.bytes;
 		},
 		handleKeyDown: keydown.handleKeyDown,
 		handleCompositionStart: keydown.handleCompositionStart,

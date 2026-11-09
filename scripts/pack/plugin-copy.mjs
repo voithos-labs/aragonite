@@ -1,24 +1,34 @@
-// Reads a plugin package's `*Plugin` exports as `setup` plugin factories or plugin values, and finds a
-// value another copy of the core defined: every copy marks what it defines under one shared key.
+// Reads a plugin package's exports as `setup` plugin factories or plugin values, and finds a value
+// another copy of the core defined: every copy marks what it defines under one shared key.
 
 const UNIT = Symbol.for('@voithos-labs/aragonite:plugin-unit');
 const DEFINED_BY = Symbol.for('@voithos-labs/aragonite:defined-by');
 
+/** @param {unknown} value */
+export function isPluginValue(value) {
+	return typeof value === 'function' && UNIT in value;
+}
+
 /**
+ * Every plugin value the module exports, whatever its name, and every `*Plugin` factory; a factory
+ * that returns a plugin value counts as that value.
  * @param {Record<string, unknown>} module
- * @returns {{ factories: [string, () => unknown][], values: [string, object][] }}
+ * @returns {{ setups: [string, unknown][], values: [string, object][] }}
  */
 export function pluginExports(module) {
-	/** @type {[string, () => unknown][]} */
-	const factories = [];
+	/** @type {[string, unknown][]} */
+	const setups = [];
 	/** @type {[string, object][]} */
 	const values = [];
 	for (const [name, value] of Object.entries(module)) {
-		if (!/Plugin$/.test(name) || typeof value !== 'function') continue;
-		if (UNIT in value) values.push([name, value]);
-		else factories.push([name, /** @type {() => unknown} */ (value)]);
+		if (isPluginValue(value)) values.push([name, /** @type {object} */ (value)]);
+		else if (/Plugin$/.test(name) && typeof value === 'function') {
+			const made = value();
+			if (isPluginValue(made)) values.push([name, made]);
+			else setups.push([name, made]);
+		}
 	}
-	return { factories, values };
+	return { setups, values };
 }
 
 /**

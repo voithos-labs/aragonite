@@ -13,14 +13,15 @@ const value = definePlugin({
 const factory = () => definePlugin({ name: 'copy-setup', setup: () => {} });
 
 describe('pluginExports', () => {
-	it('tells factories from plugin values, and reads only the `*Plugin` exports', () => {
-		const { factories, values } = pluginExports({
-			valuePlugin: value,
+	it('reads a value by its mark, whatever its name, and a factory only under a `*Plugin` name', () => {
+		const { setups, values } = pluginExports({
+			namedValue: value,
 			setupPlugin: factory,
+			madePlugin: () => value,
 			helper: () => 1
 		});
-		expect(factories.map(([name]) => name)).toEqual(['setupPlugin']);
-		expect(values.map(([name]) => name)).toEqual(['valuePlugin']);
+		expect(setups.map(([name]) => name)).toEqual(['setupPlugin']);
+		expect(values.map(([name]) => name)).toEqual(['namedValue', 'madePlugin']);
 	});
 });
 

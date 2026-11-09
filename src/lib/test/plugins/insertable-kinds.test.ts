@@ -8,7 +8,11 @@ import { walkBlocks } from '#lib/core/paths.js';
 import { getAllRegisteredKinds } from '#lib/schema/block-kind-descriptor.js';
 import { insertRows, rowMarkdown } from '#lib/schema/insert-catalogue.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
-import { installPlugins, type EditorPlugin } from '#lib/schema/plugin-install.js';
+import {
+	installPlugins,
+	normalizePluginEntries,
+	type PluginsProp
+} from '#lib/schema/plugin-install.js';
 import { pluginKindOwner } from '#lib/schema/plugin-kind.js';
 import { bundledPluginDirs, PLUGIN_VALUE_DIRS } from '../invariants/lint/scan-source';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
@@ -19,11 +23,11 @@ import { highlightOccurrencesPlugin } from '#packages/highlight-occurrences/src/
 import { latexPlugin } from '#packages/latex/src/index.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import { parrotPlugin } from '#packages/parrot/src/index.js';
-import { slashCommandsPlugin } from '#packages/slash-commands/src/index.js';
+import { slashCommands } from '#packages/slash-commands/src/index.js';
 import { tocPlugin } from '#packages/toc/src/index.js';
 
 /** Every bundled plugin by its directory, so a plugin added on disk fails until it is listed. */
-const BUNDLED: Record<string, () => EditorPlugin> = {
+const BUNDLED: Record<string, () => PluginsProp[number]> = {
 	admonitions: admonitionsPlugin,
 	details: detailsPlugin,
 	emoji: emojiPlugin,
@@ -32,7 +36,7 @@ const BUNDLED: Record<string, () => EditorPlugin> = {
 	latex: latexPlugin,
 	mermaid: mermaidPlugin,
 	parrot: parrotPlugin,
-	'slash-commands': slashCommandsPlugin,
+	'slash-commands': () => slashCommands,
 	toc: tocPlugin
 };
 
@@ -40,12 +44,11 @@ const BUNDLED: Record<string, () => EditorPlugin> = {
 const NOT_INSERTED: Record<string, string> = {
 	'footnote-def': 'typing `[^x]:` makes one, under the reference it belongs to',
 	githubAlert: 'the note entry inserts the admonition spelling of the same callout',
-	mathFence: 'the math entry inserts the `$$` spelling of the same block',
-	parrot: "the plugin guide's toy block, not one a writer reaches for"
+	mathFence: 'the math entry inserts the `$$` spelling of the same block'
 };
 
 beforeEach(() => {
-	installPlugins(Object.values(BUNDLED).map((plugin) => plugin()));
+	installPlugins(normalizePluginEntries(Object.values(BUNDLED).map((plugin) => plugin())).plugins);
 });
 
 function installedPluginKinds(): string[] {

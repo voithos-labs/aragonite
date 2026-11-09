@@ -13,7 +13,7 @@ import type { SelectionState } from '../../selection/selection-state.svelte';
 import type { CrossBlockHandlers } from '../../selection/cross-block/dispatch';
 import { emitClipboardError, type EditorEvents } from '../../editor-events';
 import { createImagePasteArm } from '../paste-image-arm';
-import { runClipboardCut, takeCopy } from '../blocks/editable/clipboard-step';
+import { runClipboardCut, takeArm, takeCopy } from '../blocks/editable/clipboard-step';
 import { crossBlockClipboardArm } from '../../selection/cross-block/clipboard';
 import { isWholeBlockInputProxy } from '../../selection/whole-block-input';
 import type { MenuTake } from '../menu/clipboard-actions';
@@ -39,18 +39,6 @@ export interface EditorRootClipboard {
 	/** A menu's Cut or Copy of the range the editor holds, taken as Ctrl+C takes it; null for
 	 *  anything else, which the browser's own command copies. */
 	takeForMenu(): MenuTake | null;
-}
-
-// The copy step writes into whatever event it is handed; a menu has none, so it hands one whose
-// clipboard only records, never a constructed `ClipboardEvent` (Firefox empties those).
-function collectingEvent(): { event: ClipboardEvent; written: Map<string, string> } {
-	const written = new Map<string, string>();
-	const clipboardData = {
-		setData: (type: string, value: string) => void written.set(type, value),
-		getData: (type: string) => written.get(type) ?? ''
-	};
-	const event = { clipboardData, preventDefault: () => {} } as unknown as ClipboardEvent;
-	return { event, written };
 }
 
 /** The two states whose events land here, in the order they are tried. */
@@ -112,14 +100,9 @@ export function createEditorRootClipboard(deps: EditorRootClipboardDeps): Editor
 		},
 		takeForMenu() {
 			if (!deps.selection.ownsRange || deps.selection.widget) return null;
-			const { event, written } = collectingEvent();
-			const taken = takeCopy(event, crossBlockArms);
-			const text = written.get('text/plain');
-			if (!taken || !text) return null;
-			return {
-				payload: { 'text/plain': text, 'text/html': written.get('text/html') },
-				remove: async () => taken.arm.remove(taken.held)
-			};
+			const taken = takeArm(crossBlockArms);
+			if (!taken || !taken.take.write.text) return null;
+			return { write: taken.take.write, remove: async () => taken.arm.remove(taken.take.held) };
 		}
 	};
 

@@ -9,6 +9,7 @@ import type { DocumentView, NodeView } from '../../core/node-views';
 import { sharedPrefixLength, sharedSuffixLength, writtenSpan } from '../../core/written-span';
 import { documentByteMap } from '../../tree-operations/container-offsets';
 import { splitLines } from '../../core/lines';
+import { walkBlocks } from '../../core/paths';
 import { unfinishedReadings, type GrammarView } from '../../schema/block-openers';
 
 /** Each part as two pieces (blank lines, then bytes), so an unchanged part compares by reference. */
@@ -155,6 +156,46 @@ export function blockRange(doc: DocumentView, path: readonly number[]): PartRang
 	if (start === null || end === null) return null;
 	const to = end === top.raw.length ? { part: part + 1, offset: 0 } : { part, offset: blank + end };
 	return { from: { part, offset: blank + start }, to };
+}
+
+/** Where `node` sits in the document now, found by identity; null once it has left it. */
+export function pathOfNode(doc: DocumentView, node: NodeView): number[] | null {
+	// Cast, so the type checker doesn't read it as still null past the walk that sets it.
+	let path = null as number[] | null;
+	walkBlocks(doc, (each, at) => (each === node ? ((path = at), 'stop') : undefined));
+	return path;
+}
+
+/** `node`'s bytes in the document's text now, from its first byte to past its last. */
+export function blockRangeOf(
+	doc: DocumentView,
+	node: NodeView
+): { from: number; to: number } | null {
+	const path = pathOfNode(doc, node);
+	const byteOf = path && blockByteOf(doc, path);
+	const from = byteOf?.(0) ?? null;
+	const to = byteOf?.(node.raw.length) ?? null;
+	return from === null || to === null ? null : { from, to };
+}
+
+/** Where a byte of the block at `path` sits in the document's text, its ancestors' markers
+ *  counted; null for a path that holds no block. */
+export function blockByteOf(
+	doc: DocumentView,
+	path: readonly number[]
+): ((offset: number) => number | null) | null {
+	const top = doc.children[path[0]];
+	if (!top) return null;
+	const before = partLengths(doc).slice(0, path[0] + 1);
+	const start = before.reduce((sum, length) => sum + length, 0) + top.leadingTrivia.length;
+	if (path.length === 1) return (offset) => start + offset;
+	if (!blockAt(top, path.slice(1))) return null;
+	const alone = documentByteMap({ kind: 'document', prefix: '', children: [top], suffix: '' });
+	const inner = [0, ...path.slice(1)];
+	return (offset) => {
+		const at = alone.byteOf(inner, offset);
+		return at === null ? null : start + at;
+	};
 }
 
 /** `range` after `change`, or null when the change wrote inside it. Text written at either edge

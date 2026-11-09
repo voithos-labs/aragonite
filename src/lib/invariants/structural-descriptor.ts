@@ -1,4 +1,5 @@
 import type { CstNode } from '../core/nodes';
+import { blockFacts } from '../schema/block-facts';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
 
@@ -50,16 +51,36 @@ export function checkIdsChildrenLockstep(
 	};
 }
 
-/** G1.36 over the child spans: one pair of span bounds per child once a rebuild has run, or the
- *  next keystroke splices a stale region. */
+/** G1.36 over the child spans: one pair of span bounds per child once a rebuild has run, and a
+ *  list's where its joined items sit, or a byte lookup reads a stale start. */
 export function checkChildSpansLockstep(node: CstNode): InvariantViolation | null {
 	const spans = node.childSpans;
 	if (!spans) return null;
 	const childCount = node.children?.length ?? 0;
-	if (spans.length === childCount * 2) return null;
+	if (spans.length === childCount * 2) {
+		const stale = blockFacts(node.kind).lines === 'items' ? staleItemSpan(node, spans) : -1;
+		if (stale < 0) return null;
+		return {
+			code: 'child-spans-lockstep',
+			message: `${node.kind}: item ${stale}'s span bounds don't sit where its bytes do`,
+			detail: { kind: node.kind, item: stale }
+		};
+	}
 	return {
 		code: 'child-spans-lockstep',
 		message: `${node.kind}: ${spans.length} span bounds for ${childCount} children`,
 		detail: { kind: node.kind, spanCount: spans.length, childCount }
 	};
+}
+
+/** The first item whose span bounds aren't where the list's joined bytes put it; -1 for none. */
+function staleItemSpan(node: CstNode, spans: Uint32Array): number {
+	const children = node.children ?? [];
+	let at = 0;
+	for (let i = 0; i < children.length; i++) {
+		const end = at + children[i].leadingTrivia.length + children[i].raw.length;
+		if (spans[i * 2] !== at || spans[i * 2 + 1] !== end) return i;
+		at = end;
+	}
+	return -1;
 }

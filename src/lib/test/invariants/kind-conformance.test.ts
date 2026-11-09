@@ -5,6 +5,7 @@ import {
 	getBlockKindDescriptor
 } from '#lib/schema/block-kind-descriptor.js';
 import { checkCopyIsRawByteSlice, runKindConformance } from '#lib/testing.js';
+import { KIND_CELL_CONTRACTS } from '#lib/testing/cell-contracts.js';
 import { BUILTIN_KIND_PROFILES } from './builtin-kind-profiles';
 
 // Swept over the descriptor registry, so registering a built-in kind enrolls it here:
@@ -15,14 +16,10 @@ const fixturedKinds = builtinKinds.filter((k) => getBlockKindDescriptor(k).confo
 // ── Enrollment sweep ─────────────────────────────────────────────────────────
 
 describe.each(builtinKinds)('kind conformance — %s', (kind) => {
-	it('every headless closure cell holds or is recorded', async () => {
+	it('every headless cell holds or is recorded', async () => {
 		const report = await runKindConformance(kind, BUILTIN_KIND_PROFILES[kind]);
 		expect(new Set(report.cells.map((c) => c.cell))).toEqual(
-			new Set([
-				...Object.keys(getBlockKindDescriptor(kind).closure),
-				'rawWrite',
-				'unfinishedReading'
-			])
+			new Set(Object.keys(KIND_CELL_CONTRACTS))
 		);
 		for (const cell of report.cells) expect(cell.detail?.length).toBeGreaterThan(0);
 	});
@@ -59,18 +56,15 @@ describe('kind conformance: a fixtured kind produces green generic cells', () =>
 		asserted('undo');
 	});
 
-	// Reverting the declared mode to `inherit-default` with the profile intact makes this
-	// throw rather than silently downgrade: the mode-contradiction guard below.
 	it('table clipboard executes its rectangular-copy mechanism', async () => {
 		const report = await runKindConformance('table', BUILTIN_KIND_PROFILES.table);
 		expect(report.cells.find((c) => c.cell === 'clipboard')?.status).toBe('asserted');
 	});
 
-	it('thematicBreak searchPaint executes the not-supported degradation', async () => {
+	// The one built-in that isn't editable, so the scan has to skip it.
+	it('thematicBreak searchPaint asserts the scan finds nothing in it', async () => {
 		const report = await runKindConformance('thematicBreak');
-		const cell = report.cells.find((c) => c.cell === 'searchPaint');
-		expect(cell?.mode).toBe('not-supported');
-		expect(cell?.status).toBe('asserted');
+		expect(report.cells.find((c) => c.cell === 'searchPaint')?.status).toBe('asserted');
 	});
 });
 
@@ -79,7 +73,7 @@ describe('kind conformance: a fixtured kind produces green generic cells', () =>
 // The prose case proves the executor discriminates rather than always throwing.
 
 describe('kind conformance: byte-slice clipboard executor is the false-cell guard', () => {
-	it('throws for a table declared inherit-default (the shipped bug shape)', () => {
+	it('throws for a table, whose copy synthesizes a sub-table', () => {
 		const fixture = getBlockKindDescriptor('table').conformanceFixture!;
 		expect(() => checkCopyIsRawByteSlice('table', fixture)).toThrow(/raw byte slice/);
 	});
@@ -87,18 +81,5 @@ describe('kind conformance: byte-slice clipboard executor is the false-cell guar
 	it('passes for a prose leaf whose copy is a true byte slice', () => {
 		const fixture = getBlockKindDescriptor('paragraph').conformanceFixture!;
 		expect(() => checkCopyIsRawByteSlice('paragraph', fixture)).not.toThrow();
-	});
-});
-
-// ── Regression: a profile check may only cover an `implemented` cell ──────────
-// Miss-analysis: a profiled path bypassing the declared mode reported `asserted` whatever the cell said.
-
-describe('kind conformance: a profile check is refused on a non-implemented cell', () => {
-	it('rejects a custom check declared over an inherit-default cell', async () => {
-		// paragraph.clipboard is inherit-default, so a profile clipboard check contradicts
-		// it: the same shape a reverted table.clipboard raises against its own profile.
-		await expect(
-			runKindConformance('paragraph', { cells: { clipboard: { check: () => {} } } })
-		).rejects.toThrow(/custom check is only valid on an 'implemented' cell/);
 	});
 });

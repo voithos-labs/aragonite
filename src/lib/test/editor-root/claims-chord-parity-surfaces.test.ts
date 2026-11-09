@@ -3,7 +3,7 @@
 // of the surfaces with no text block focused: the gap caret, the root, a range, the find bar, a card,
 // and an open menu, which takes Escape at the document wherever the caret is.
 import { afterEach, beforeAll, expect } from 'vitest';
-import { defineBlockView } from '#lib/plugin.js';
+import { defineBlockView, definePlugin, lineBlock } from '#lib/plugin.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { registerBuiltInDescriptors } from '#lib/schema/built-in-descriptors.js';
 import {
@@ -37,6 +37,30 @@ const badge = markerLeafPlugin(
 	}),
 	'claims-badge'
 );
+
+// A box with a field of its own, which leaves its keys to the field and its Escape to the editor.
+const fieldBox = definePlugin({
+	name: 'claims-box',
+	version: '1.0.0',
+	editor: '*',
+	contributes: () => ({
+		blocks: [
+			lineBlock({
+				name: 'field',
+				label: 'Field',
+				match: /^%%field$/,
+				sample: '%%field',
+				insert: { none: 'a test block type' },
+				edit: 'box',
+				draw: () => {
+					const dom = document.createElement('div');
+					dom.append(document.createElement('textarea'));
+					return { dom };
+				}
+			})
+		]
+	})
+});
 
 const TAG = { id: 'a', label: 'a', insert: '#a' };
 
@@ -185,6 +209,15 @@ const CONTEXTS: ClaimContext[] = [
 		focus: { at: 'field', path: [1] },
 		source: 'intro\n\n@@ badge\n\noutro\n',
 		plugins: [badge],
+		enter: async (editor) =>
+			focusIn(editor.target.querySelector('[data-block-path="[1]"] textarea'))
+	},
+	{
+		name: 'drawn box text field',
+		focus: { at: 'plugin-editor', path: [1] },
+		source: 'intro\n\n%%field\n\noutro\n',
+		plugins: [fieldBox],
+		only: ['Escape'],
 		enter: async (editor) =>
 			focusIn(editor.target.querySelector('[data-block-path="[1]"] textarea'))
 	}

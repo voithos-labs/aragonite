@@ -33,7 +33,7 @@ These checks run in three kinds of place:
 | G1.21 | A column edit's row scopes are the owned table's own children | A |
 | G1.22 | Every index on an unshare path addresses a live child | A |
 | G1.23 | Decoration sources never run mid-commit | A |
-| G1.24 | A kind's closure block agrees with the rest of its descriptor | A·N |
+| G1.24 | _Retired_: kinds declare no per-system answers; the kind kit runs every cell their facts make apply | none |
 | G1.25 | Widget-pool acquires happen only inside an open render pass | A·N |
 | G1.26 | A fold implies an active reveal, and an open reveal blocks command mutation | A·N |
 | G1.27 | `compositionend` lands only inside a composition the surface opened | A·N |
@@ -90,13 +90,13 @@ These checks run in three kinds of place:
 | G1.131 | A landing in reading mode leaves no browser selection in the block it landed in | A·N |
 | G1.132 | A Backspace or Delete at a caret the editor decides never reaches `input` undecided | A·N |
 | G1.133 | Reading mode leaves one block in the tab order; anything else there is a control | A·N |
-| G1.136 | A DOM block view that moves or hides the element it was given, or fills its text element | A·N |
+| G1.136 | A drawn block that moves or hides the element it was given, or fills its text element | A·N |
 | G1.138 | A commit never addresses a container state whose component has unmounted | A·N |
 | G1.139 | _Retired upward_: a fix-up's blank lines read back through G1.145 | A·P·N |
 | G1.141 | Asking which line a caret at a soft wrap is on leaves the selection's focus where it was | A·N |
 | G1.143 | A kind's write rule never deletes bytes outside the written span, but an emptied marker | A·N |
 | G1.145 | The blocks a fix-up wrote read back as themselves, blank lines included | A·N |
-| G1.147 | A render-primary DOM view's rendered half sits in its element; its text comes in time | A·N |
+| G1.147 | _Retired upward_: a drawing gets its text element before `draw` runs, so it can't arrive late | none |
 | G1.149 | The editor fills a host with a height on every mount route, and grows in one without | harness |
 | G1.150 | A block repaints from its bytes after an input the tree took back | A·N |
 | G1.151 | A keystroke written in place leaves no node it wrote shared with an undo entry | A·N |
@@ -104,7 +104,7 @@ These checks run in three kinds of place:
 | G1.154 | A content write's fixed-up window holds the block it wrote | A·N |
 | G1.155 | A block's write puts its caret inside the text it writes | A·N |
 | G1.156 | An undo or redo leaves the document at its entry's bytes; nothing writes while it installs | A·N |
-| G1.158 | A block a commit splices in holds no opener it wrote that a block below would close | A·N |
+| G1.158 | A block a commit or a byte splice puts in holds no opener it wrote that a block below would close | A·N |
 | G1.159 | The caret writer writes a caret only where something shows it | A·N |
 | G1.160 | A widget beside a caret the writer puts down lays out inline | A·N |
 | G1.161 | A typed letter the editor leaves to the browser lands at its caret | A·N |
@@ -115,12 +115,16 @@ These checks run in three kinds of place:
 | G1.168 | A key or a composition over a selection in live mode is written by the editor, never left to the browser | A·N |
 | G1.169 | While a finger's range is the editor's, the DOM holds only a caret | A·N |
 | G1.170 | The editor owns a range inside one block only when a finger's press made it | A·N |
-| G1.171 | A copy into or out of a container reads back inside it, its markers written by its own rebuild | harness·P |
+| G1.171 | A copy into or out of a container reads back inside it, its markers on every line it holds | harness·P |
 | G1.174 | A block writes a typed character only while the editor owns no range | A·N |
 | G1.175 | The right-click menu opens over the selection only while one is held | A·N |
 | G1.178 | A text end inside a table cell pairs only with an end in that same cell | A·N |
+| G1.187 | A range across blocks paints a box over exactly the blocks whose bytes a copy of it takes | harness·P |
+| G1.188 | A cut writes the words its removal takes, save five named classes, until range stage 3 | harness·N |
 | G1.189 | An undo or redo puts back no block read under a grammar the editor no longer reads | A·N |
 | G1.190 | While a draft is open, every write tells it everything the write changed | A·N |
+| G1.191 | A marked line shape's `reads` takes the markers it writes whole | A·N |
+| G1.192 | One block type name reads the same facts in every editor running it | A·N |
 
 ### The entries
 
@@ -168,7 +172,7 @@ These checks run in three kinds of place:
 
 **G1.23 · No decoration sources mid-commit.** A decoration source running mid-commit would read a half-written tree, so `notifyEdit` and `runAll` assert no commit is open, and a source handle's `invalidate()` waits until the last one ends. The commit helper opens and closes the scope in `src/lib/commit-scope.ts`. Inline closure, watcher-netted. In `decorations/decoration-state.svelte.ts`.
 
-**G1.24 · Closure-block coherence.** A kind's closure block (its answer to each editor system) agrees with its descriptor: no `inherit-default` for a container's `roundTrip` (its `rebuildRaw` is the round trip), a `not-mergeable` kind's `mergeBackspace` or a title-row kind's `clipboard`, and a cell claiming focus-then-delete needs `blockFocus: 'whole-block'`. A `conformanceFixture` must parse to its kind, checked in the unit sweep since a `parse` import in the flush is a cycle. `checkClosureCoherence` · bootstrap · `closure-coherence.test.ts`, `closure-fixtures.test.ts`.
+**G1.24 · Retired.** The per-system answers it checked are gone from the descriptor. The kind kit (`testing/kind-conformance.ts`) runs every cell a kind's descriptor and fixture make apply, and fails a `conformanceFixture` that doesn't open with its kind.
 
 **G1.25 · Widget-pool pass bracket.** Inline widgets (the rendered stand-ins for inline constructs) are recycled through a pool, one bracket per render pass: every `acquire` sits inside an open `beginPass`/`sweep` bracket, `beginPass` never opens over an unswept pass, and `sweep` never closes one that isn't open. Outside a bracket, byte-identical duplicate widgets can't be told apart. Predicate `checkPoolBracket` (`inline-transitions.ts`) · run in `components/blocks/widget-portal.ts` · `inline-transitions.test.ts`, `test/blocks/widget-portal-bracket.test.ts`.
 
@@ -188,7 +192,7 @@ These checks run in three kinds of place:
 
 **G1.35 · Single-node sink.** A slot that installs exactly one node never installs bytes that reparse to several (bytes arriving plural are fine). Every join (Backspace, Delete, the list-item merge) writes through `joinIntoLeaf`, which refuses a join whose bytes read as two blocks: nothing changes, and the caret moves across the boundary instead. Predicate `checkSingleNodeSink` (`single-node-sink.ts`) · `tree-operations/node-ops.ts :: mergedLeafFor` · `test/tree-operations/merge-multi-block-refusal.test.ts`.
 
-**G1.36 · Structural-descriptor coherence.** A `StructuralChange` (a splice's record for the id and ref arrays) fits its array, and a commit leaves one id and one `childSpans` pair per child at every depth. It's checked where applied and where the commit publishes ids (a record can fit and name the wrong window) and, over the whole document, at e2e teardown. `applyStructuralChangeToIdsRefs`, `assertCommittedNodes` · `structural-descriptor.test.ts`, `child-spans.test.ts`, `cross-block-delete-seam-fold.test.ts`, `child-id-parity.test.ts`.
+**G1.36 · Structural-descriptor coherence.** A `StructuralChange` (a splice's record for the id and ref arrays) fits its array, and a commit leaves one id and one `childSpans` pair per child at every depth, a list's pairs where its items' bytes sit. It's checked where applied and where the commit publishes ids (a record can fit and name the wrong window) and, over the whole document, at e2e teardown. `applyStructuralChangeToIdsRefs`, `assertCommittedNodes` · `structural-descriptor.test.ts`, `child-spans.test.ts`, `cross-block-delete-seam-fold.test.ts`, `child-id-parity.test.ts`.
 
 **G1.38 · Faithful container splices** (`child-spans-faithful`). After every one-region splice, dev re-derives the container raw on a scratch node and, on a difference, names the kind and refuses the splice for the full rebuild. Code moving bytes beside the spliced child (a separator the fix-up retires, a borrowed wrap slot) retires the spans itself in `schema/child-spans.ts`; this is the backstop, and the only guard seeing a stale container raw between commits. `spliceIsFaithful` there · `child-spans.test.ts`, `child-spans-settle.test.ts`, `child-spans.property.test.ts`.
 
@@ -216,7 +220,7 @@ These checks run in three kinds of place:
 
 **G1.55 · A written block reads back as itself** (`reads-back`). After a keystroke's rebuild and every commit, dev reads each top-level block the edit names alone, as a file opens (`readAsOpened`, so a bare `- ` keeps its empty paragraph), and compares kinds, child counts and metadata: a dropped space that re-nests a list, or a paragraph that reloads as a heading, fails. A splice's window reads with its neighbours, or to the far end around an unclosed opener. Skipped: a top-level keystroke, anything over 16K characters, perf runs. `checkRunReadsBack` · `commit-frame.ts` · `reads-back.test.ts`.
 
-**G1.58 · An indent key over a range keeps every word, in order** (`range-indent-keeps-text`). Tab, Shift+Tab or a rebound indent key over a range moves list items, shifts code lines, or does what a kind's `registerRangeIndent` says, and nothing else. After each press dev compares the spanned blocks' leaf text (`leafTexts`, shared with G1.61), whitespace aside: a renumbered marker or an added tab passes, a lost or moved word fails. `checkIndentKeepsText` · `range-indent.ts` · `range-indent-keeps-text.test.ts`.
+**G1.58 · An indent key over a range keeps every word, in order** (`range-indent-keeps-text`). Tab, Shift+Tab or a rebound indent key over a range moves list items or shifts code lines, and nothing else. After each press dev compares the spanned blocks' leaf text (`leafTexts`, shared with G1.61), whitespace aside: a renumbered marker or an added tab passes, a lost or moved word fails. `checkIndentKeepsText` · `range-indent.ts` · `range-indent-keeps-text.test.ts`.
 
 **G1.61 · A list move keeps the order** (`list-move-keeps-order`). Every nest, lift, unwrap and merge that moves blocks between list levels (Tab, Shift+Tab, Backspace at a sublist's start or on a first item, Enter in an empty item) keeps the list's leaf text in order, read as G1.58 reads it. A merge reads only the two lines it joins, since a live join can drop markers. `checkListMoveKeepsOrder`, run by `keeping-order.ts` · `item-moves.ts`, `item-partition.ts` (G4.123), `unwrap-merge.ts` · `list-move-keeps-order.test.ts`, `indent-keeps-order.property.test.ts`.
 
@@ -246,7 +250,7 @@ These checks run in three kinds of place:
 
 **G1.106 · A kept table edge loses whole rows.** A selection that starts or ends inside a table and runs past it deletes whole rows of that table, never part of one. `coverRange` in `selection/range-coverage.ts` snaps both ends to a row's edge first. If a run that splits a row still shows up (only an end that skipped the snap could hand one over), `rangeCoverage` warns `invariant:kept-table-edge`. `test/selection/range-coverage.test.ts`.
 
-**G1.110 · A leaf takes no metadata write.** A leaf's metadata is what its opener reads from its bytes (a heading's level, a code block's language), so a metadata-only write is gone on reload. `updateBlockMetadata` refuses any non-container before writing (no bytes, no undo entry, no edit event); dev warns `invariant:metadata-without-rebuild` naming the kind, and every build reports an `error` event (`origin: 'commit'`) pointing at `replaceRaw`, the bytes write to use instead. `update-block-metadata.test.ts`.
+**G1.110 · A leaf takes no metadata write.** A leaf's metadata is what its opener reads from its bytes (a heading's level), so a metadata-only write is gone on reload. `updateBlockMetadata` refuses any non-container before writing (no bytes, no undo entry, no edit event); dev warns `invariant:metadata-without-rebuild`, and every build reports an `error` event (`origin: 'commit'`) pointing at `replaceRaw`. A maker-built type's data goes through `Draft.data`, which writes the bytes through the type's own writer. `update-block-metadata.test.ts`, `draft-data.svelte.test.ts`.
 
 **G1.112 · One fix-up per list.** A commit fixes up (`fixUpEdit`) each list it wrote once, so a mutation writes with `writeNodeContent`, reports through its scope's `describeEdit`, and leaves the fix-up to the commit; one using `updateNodeContent` and reporting there gets it twice, and dev warns `invariant:settle-once`. Unseen: two edits calling a separator helper by hand (codebase-map § Blank lines and separators). A scope's `writeLeaf` fixes up its slot as it lands and the commit the rest, so the check skips its lists. `settle-once.test.ts`, `settle-passes.test.ts`.
 
@@ -274,7 +278,7 @@ These checks run in three kinds of place:
 
 **G1.133 · Reading mode has one block stop** (`reading-tab-stops`). In reading mode Tab is the page's focus walk, so the editor keeps one block in it, the one whose own element last took focus (`components/editor-root/reading-focus.svelte.ts`), and every other block's focus element sits at -1. Dev fails a second element in the tab order that isn't a control (one left editable counts, the host's header doesn't). The same check ships as `readingTabOrderProblem` for a plugin's tests. `checkReadingTabStops` · `reading-focus.test.ts`, `reading-keyboard.spec.ts`.
 
-**G1.136 · A DOM view fills the element it was given** (`dom-view-content`). A `defineBlockView` view draws into a `div` under the block's host, which rects and the drag handle measure as the block, so it stays the host's first content child and never turns `display: contents`. A leaf view's text element sits inside it holding no element of its own. `blockContentElAt` hands every caret route that text element and `blockBoxElAt` hands rects and scrolling the `div`, so chrome beside the text moves no offset and no rect. `checkDomViewContent` · `block-view-leaf.test.ts`.
+**G1.136 · A drawn block fills the element it was given** (`dom-view-content`). A DOM view or a `draw` fills a `div` under the block's host, which rects and the drag handle measure as the block, so it stays the host's first content child and never turns `display: contents`. A text block's `ctx.source` sits inside it holding no element of its own. `blockContentElAt` hands caret routes that text element and `blockBoxElAt` hands rects the `div`, so chrome beside the text moves no offset and no rect. `checkDomViewContent` · `draw-host-text.svelte.test.ts`.
 
 **G1.138 · A commit addresses live container states** (`block-list-state-mounted`). A container's state leaves the registry when it unmounts, and a commit reaching an unmounted one uses its node's ids (`scopeStateFor`). The check is for what the registry can't see: a state looked up before an `await` and committed after its container unmounted, whose getters read the dead component's props. `isUnmountedBlockListState` · `state-registry-lifetime.svelte.test.ts`, `range-edit-unmounted-container.spec.ts`.
 
@@ -284,7 +288,7 @@ These checks run in three kinds of place:
 
 **G1.145 · A fixed-up window reads back as itself** (`settled-window-reads-back`). A window a fix-up reports, with one block either side, reparsed as one stretch gives the same blocks and the same hidden lines above each block of each blank run (a leaf's own trailing blank line counts as one), so no fence keeps an old pairing and no separator sits on the wrong block. A list item, which reads otherwise alone, is skipped; unseen: a body's lines beside its own fence lines. `checkSettledWindowReadsBack` · `fix-up/apply.ts` · `settled-window-reads-back.test.ts`, `blank-run-layout.test.ts`.
 
-**G1.147 · A render-primary view hands over both halves in time** (`render-primary-attach`). A `defineBlockView({ surface: 'render-primary' })` view's rendered element sits inside the element it was given, since that's where a click opens the text and a chord runs at the block. Its text element arrives inside the `update` that reveals it. One that arrives later still gets the caret, but only when it attaches, so dev warns. `checkRenderedInTarget`, `checkRevealAttached` · `DomBlockView.svelte` · `block-view-render-primary.test.ts`.
+**G1.147 · Retired upward.** The draw host makes a text block's `ctx.source` before it calls `draw`, so the text element can't arrive after the reveal looks for it, and a drawing has no rendered half to hand over: the whole folded drawing is the click target.
 
 **G1.149 · The editor fills its host.** Every mount route (the Svelte component, `createEditor`, the React and Vue wrappers) puts the editor root straight into an element the consumer owns, so the root's own rule is the one place a host's height can reach it: `height: 100%` beside `flex: 1`, and `height: auto` in host scroll mode. A sized host keeps the scroll and windowing inside it. `Editor.svelte` · `e2e/tests/host-fill.spec.ts` (Svelte, `createEditor`), `examples/adapter-suite/tests/host-fill.spec.ts` (every framework app).
 
@@ -298,7 +302,7 @@ These checks run in three kinds of place:
 
 **G1.156 · An undo puts back its entry, nothing more** (`history-install`). Once an undo or redo has installed its entry and placed the caret, the document's bytes are the entry's. A write in between (a block tidying itself up as the caret leaves it) would be a new edit inside the undo, and would clear the redo stack, so the write gate declines every write while the install runs. `checkInstalledEntry` · `history.ts :: restore` · `history-install.test.ts`, `grammar-restore.test.ts`, the behavior rows.
 
-**G1.158 · A spliced opener takes in no block below** (`spliced-opener-closed`). A block a commit splices or moves in holds no opener it wrote (a `$$`, a `:::note`, a fence) that a block further down would close, since that opener would read in blocks the edit never touched. Every write route closes one first (`legalizeWrite`, `closeWrittenOpeners`); a content write and a removal aren't asked, and a range delete's survivor lands outside a commit's list, where the route rows hold it. `checkSplicedOpenersClosed` · `fix-up/apply.ts` · `written-opener-routes.test.ts`.
+**G1.158 · A spliced opener takes in no block below** (`spliced-opener-closed`). A block a commit splices or moves in, or a byte splice writes, holds no opener it wrote (a `$$`, a `:::note`, a fence) that a block further down would close. Every write route closes one first; a content write and a removal aren't asked, and a range delete's survivor is held by the route rows. The byte splice's check runs the rule's own code, so it catches a skipped rule; the route rows catch a wrong closer. `checkSplicedOpenersClosed` · `checkSplicedChangesClosed` · `written-opener-routes.test.ts`.
 
 **G1.159 · A written caret shows** (`caret-paints`). The caret writer writes a caret only where something shows it: text, a line the browser paints, or a widget's side (beside a picture, the drawn caret's bar). A spot with only hidden marker runs beside it, in a block holding focus (focus decides what hides), moves to visible text at the same offset, or is refused (no write, a false return); only a plugin block drawing nothing but markers gets there. `checkCaretPaints` · `browser/caret-writer.ts` · `caret-spot.test.ts`, `caret-shows`.
 
@@ -320,7 +324,7 @@ These checks run in three kinds of place:
 
 **G1.170 · A range inside one block is the editor's only from a finger** (`owned-range-from-finger`). A mouse's or a keyboard's range inside one block is the browser's, and the overlay paints only what the editor owns, so a route that took one would paint over the browser's highlight and route its keys through the range handlers. `SelectionState.ownBlockRange` takes a `FingerPress`, which only `selection/pointer-gesture.ts :: fingerPress` makes, and dev fails one it didn't make. `checkOwnedRangeFromFinger` · `owned-block-range.test.ts`.
 
-**G1.171 · A copy keeps the containers its ends sit in** (`copyMarkers`). A range entering or leaving a container copies the lines it covers with that container's markers, written by its own `rebuildRaw`. The container checkup copies into each kind's `deepNesting` leaf, and out of it for a line-prefixed kind, and reads the copy back under the same containers. `selection/clipboard-text.ts` · `testing/container-conformance.ts` · `clipboard-container-markers.test.ts`.
+**G1.171 · A copy keeps the containers its ends sit in** (`copyMarkers`). A range entering or leaving a container copies the lines it covers with that container's markers, read off its own lines in the document. The container checkup copies into each kind's `deepNesting` leaf, and out of it for a line-prefixed kind, and reads the copy back under the same containers. `range-edit/copy.ts` · `testing/container-conformance.ts` · `clipboard-container-markers.test.ts`.
 
 **G1.174 · A key typed over a range is the range's** (`typed-write-outside-range`). A character typed while the editor owns a range replaces the range (G4.108), and the range's handler takes it at its keydown, since beside a picture no engine sends a `beforeinput`. A block that writes a typed key itself under a range took one that was never its own, so dev fails a typed write through a block's text write (`editable-surface.ts`) while a range is owned. `checkTypedWriteOutsideRange` · `typed-write-outside-range.test.ts`.
 
@@ -328,6 +332,14 @@ These checks run in three kinds of place:
 
 **G1.178 · A cell's text range stays in its cell** (`cell-text-endpoint`). A finger's word in a table cell is stored at the cell's own path with text offsets, which only `SelectionState`'s cell snap keeps, and only while both ends sit in that cell. A text end there paired with one anywhere else is read as text where the delete, the copy and the paint expect a cell index, so dev fails one at every write of the pair. `checkCellTextEndpoint` · `owned-cell-range.test.ts`.
 
+**G1.187 · The overlay paints what a copy takes.** A range across blocks paints one box over each block whose own bytes, up to its last line's text, lie inside the range's bytes (`rangeBytes`, what a copy takes) while its parent's don't, and over no other block. A table's rows paint through its cells, never as boxes. Checked both ways, each its own row, over the selection-partition draw, with an empty item and a fenced body at the range's end as named rows. `selection/range-bytes.ts :: rangePaint` · `selection-paint.property.test.ts`, `classify-block-selection.test.ts`.
+
+**G1.188 · A cut writes what its removal takes.** Until range stage 3, a cut writes the range-edit core's clipboard and today's removal deletes. Over shaped ranges in both modes they agree in words, save five classes: a table's header and a title row's container (law 3's exceptions), a title row the range ends on (law 10's open edge), and two ways today's removal parts from the core's. The copy must hold the range's words, a class may only add its own lines to the core's, and its repro must keep parting that way. `selection/cut-clipboard-differential.test.ts`, `range-laws/known-failures.ts`.
+
 **G1.189 · An undo reads under the editor's grammar** (`restore-grammar`). An undo entry keeps the grammar its tree was read under, and one restored under another has its bytes read again from the live document instead of installed, which leans on every block the undo leaves alone already reading under the editor's grammar. Either way, each block the undo put back that read alone as itself under the entry's grammar still does under the editor's (a block misread under both is G1.55's). `checkRestoredUnderGrammar` (`reads-back.ts`) · `history.ts :: install` · `grammar-restore.test.ts`.
 
 **G1.190 · A draft hears every write** (`change-record`). While a draft is open, each write records the top-level blocks it changed, read over the blocks it names plus one either side (every block, for a keystroke that moves a fence), and a draft maps its ranges through the records. Checked after each write (nothing changed past what it named) and at a draft's commit (a range no record touched still holds the bytes it opened on). `checkChangeInReach`, `checkDraftBytesKept` (`change-record.ts`) · `commit-frame.ts`, `draft-registry.svelte.ts` · `change-record.test.ts`, `draft-registry.test.ts`.
+
+**G1.191 · A marked shape reads what it writes** (a dev throw at registration). A `marked` line shape's `reads` has to take `first` and `rest` whole and stop there, and each one's trimmed blank-line form too, or a line the writer wrote reads back with marker left in its text. `normalizeRegistration` checks it for a `registerBlockKind` kind and a `container` block type alike, before any line is read. `checkMarkedReads` (`schema/block-kind-descriptor.ts`) · `container-block.svelte.test.ts`.
+
+**G1.192 · A block type's facts are page-wide** (`block-type-facts`). Every descriptor read is by kind, so a block type lends its derived facts to the page by its `plugin/name` while an editor runs it, and a second editor holding the same name doesn't replace them. When it derives other facts (they came from its options), dev warns and the first editor's stand: a fact can't depend on options, only a `draw` can. `holdBlockKind` (`schema/block-kind-descriptor.ts`) · `line-block.svelte.test.ts`.

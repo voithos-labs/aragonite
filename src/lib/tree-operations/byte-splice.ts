@@ -49,6 +49,35 @@ export function changesBetween(before: string, after: string): ByteChange[] {
 	return [{ from, to: before.length - tail, insert: after.slice(from, after.length - tail) }];
 }
 
+/** `before[from, to)` with `made`, the changes inside it, made. */
+export function changedBytes(
+	before: string,
+	from: number,
+	to: number,
+	made: readonly ByteChange[]
+): string {
+	let text = '';
+	let at = from;
+	for (const change of made) {
+		text += before.slice(at, change.from) + change.insert;
+		at = change.to;
+	}
+	return text + before.slice(at, to);
+}
+
+/** Where each block of a list's bytes ends, its blank lines and its own bytes counted, from
+ *  the end of the blank lines above them all. */
+export function segmentEnds(list: {
+	readonly prefix: string;
+	readonly children: readonly NodeView[];
+}): number[] {
+	const ends: number[] = [];
+	let at = list.prefix.length;
+	for (const child of list.children)
+		ends.push((at += child.leadingTrivia.length + child.raw.length));
+	return ends;
+}
+
 /** `doc`, whose bytes are `before`, read again with `changes` made (sorted, none overlapping),
  *  each change in its own window unless they grow into each other; null when none changes a byte. */
 export function spliceReading(
@@ -134,20 +163,9 @@ export function spliceReading(
 		return k;
 	}
 
-	/** `before[from, to)` with the changes inside it made. */
-	function changed(from: number, to: number, made: readonly ByteChange[]): string {
-		let text = '';
-		let at = from;
-		for (const change of made) {
-			text += before.slice(at, change.from) + change.insert;
-			at = change.to;
-		}
-		return text + before.slice(at, to);
-	}
-
 	/** The window from `start` to the document's end, its trailing blank line included. */
 	function readTail(start: number, made: readonly ByteChange[]) {
-		const read = readOpened(changed(start, before.length, made), grammar);
+		const read = readOpened(changedBytes(before, start, before.length, made), grammar);
 		// An emptied document keeps one empty paragraph, with no bytes of its own.
 		const blocks = read.children.length > 0 || start > 0 ? read.children : [emptyBlock()];
 		return { blocks, suffix: read.suffix };
@@ -162,7 +180,7 @@ export function spliceReading(
 	): { blocks: CstNode[]; suffix?: undefined } | { closerAt: number } | null {
 		const { hi } = span;
 		if (isBlankParagraph(children[k])) return null;
-		const head = changed(start, ends[hi], span.changes);
+		const head = changedBytes(before, start, ends[hi], span.changes);
 		const next = children[k].raw;
 		const lookahead =
 			before.slice(ends[hi], rawStartOf(k)) + next.slice(0, next.indexOf('\n') + 1 || next.length);
@@ -208,15 +226,6 @@ interface Span {
 
 const readOpened = (text: string, grammar: GrammarView) =>
 	readAsOpened(text, { grammar, scope: 'document' });
-
-/** Where each top-level block's bytes end, its blank lines and its own bytes counted. */
-function segmentEnds(doc: DocumentView): number[] {
-	const ends: number[] = [];
-	let at = doc.prefix.length;
-	for (const child of doc.children)
-		ends.push((at += child.leadingTrivia.length + child.raw.length));
-	return ends;
-}
 
 const emptyBlock = (): CstNode => ({ kind: 'paragraph', leadingTrivia: '', raw: '' });
 

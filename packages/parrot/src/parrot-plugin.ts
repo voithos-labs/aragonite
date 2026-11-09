@@ -1,21 +1,12 @@
 // parrot-plugin.ts
 import {
-	OPENER_PRIORITIES,
-	caretOffsetAtPoint,
-	declarePluginKind,
-	defineBlockView,
 	definePlugin,
-	registerBlockKind,
-	simpleLeafClosure,
-	trimWhitespace,
-	type BlockViewState,
-	type CaretTarget,
-	type EditorPlugin
+	lineBlock,
+	type Block,
+	type TextDrawContext
 } from '@voithos-labs/aragonite/plugin';
 import { PARROT_FRAMES } from './parrot-frames';
 import './parrot.css';
-
-export const PARROT = 'parrot';
 
 // One strip the CSS scrolls a frame at a time. The closing newline matters: a `pre` drops a
 // trailing blank line, and a strip a row short steps a fraction off every frame.
@@ -23,21 +14,19 @@ const REEL = PARROT_FRAMES.join('\n') + '\n';
 // The clip window's height, which is why every frame has to be the same number of rows.
 const FRAME_ROWS = PARROT_FRAMES[0].split('\n').length;
 
-/** The caption is the rest of the marker line, trimmed, and `start` is where it sits in the
- *  source, so a press in the caption can be mapped back to a byte. */
-function parrotCaption(raw: string): { text: string; start: number } {
-	const rest = raw.slice('%%parrot'.length);
-	const text = trimWhitespace(rest);
-	return { text, start: '%%parrot'.length + rest.indexOf(text) };
-}
-
-const parrotView = defineBlockView({
-	surface: 'render-primary',
-	singleLine: true,
-	mount(target, ctx) {
-		target.className = 'parrot-block';
-		target.style.setProperty('--parrot-rows', String(FRAME_ROWS));
-		target.style.setProperty('--parrot-frames', String(PARROT_FRAMES.length));
+export const parrot = lineBlock({
+	name: 'parrot',
+	label: 'Party parrot',
+	// The caption is whatever follows the marker, minus the spaces and tabs around it.
+	match: /^%%parrot[ \t]*(?<text>.*?)[ \t]*$/,
+	interrupts: true,
+	sample: '%%parrot party responsibly',
+	insert: { none: 'a toy, not a block anyone writes with' },
+	draw(block, ctx) {
+		const dom = document.createElement('div');
+		dom.className = 'parrot-block';
+		dom.style.setProperty('--parrot-rows', String(FRAME_ROWS));
+		dom.style.setProperty('--parrot-frames', String(PARROT_FRAMES.length));
 
 		const bird = document.createElement('div');
 		bird.className = 'parrot';
@@ -49,74 +38,25 @@ const parrotView = defineBlockView({
 
 		const caption = document.createElement('div');
 		caption.className = 'parrot-caption';
-		caption.setAttribute('role', 'button');
-		caption.setAttribute('aria-label', 'Party parrot caption (click to edit)');
-		caption.tabIndex = -1;
-		const source = document.createElement('div');
-		source.className = 'parrot-source';
-		target.append(bird, caption);
-		// The whole folded block takes the click, bird included.
-		ctx.leaf.attachRendered(target);
+		// The editor's element for the line: it shows while the caret is in the block.
+		ctx.source.classList.add('parrot-source');
+		dom.append(bird, caption, ctx.source);
 
-		const draw = ({ node, revealed }: BlockViewState) => {
-			const { text, start } = parrotCaption(node.raw);
-			caption.textContent = text;
-			caption.dataset.captionStart = String(start);
-			// Only on a flip: a fresh source element mid-edit would lose the typing in it.
-			const shown = revealed ? source : caption;
-			if (shown.isConnected) return;
-			(revealed ? caption : source).replaceWith(shown);
-			ctx.leaf.attach(revealed ? source : null);
+		const show = (next: Block<never>, now: TextDrawContext) => {
+			caption.textContent = next.body;
+			caption.hidden = now.focused;
 		};
-		draw(ctx.state());
-		return { update: draw };
+		show(block, ctx);
+		// A click on the caption lands on the letter clicked: its text is the block's text.
+		return { dom, caret: caption, update: show };
 	}
 });
 
-/** Where a click in the block puts the caret. The caption says where it starts in the source,
- *  so an offset in it sits that far along; the shown source is the source itself. */
-function parrotCaretAtPoint(
-	blockEl: HTMLElement,
-	clientX: number,
-	clientY: number
-): CaretTarget | null {
-	const source = blockEl.querySelector<HTMLElement>('.parrot-source');
-	const view = source ?? blockEl.querySelector<HTMLElement>('.parrot-caption');
-	if (!view) return null;
-	const offset = caretOffsetAtPoint(view, clientX, clientY) ?? 0;
-	return { path: [], offset: source ? offset : offset + Number(view.dataset.captionStart) };
-}
-
-function registerParrotBlock(): void {
-	const parrot = declarePluginKind(PARROT);
-
-	registerBlockKind(parrot, {
-		view: parrotView,
-		opener: {
-			// Nothing built in reads a `%%` line, so any gap between the built-ins will do.
-			priority: OPENER_PRIORITIES.heading + 5,
-			interruptsParagraph: (text) => text.startsWith('%%parrot'),
-			tryOpen(ctx) {
-				if (!ctx.line.text.startsWith('%%parrot')) return null;
-				const node = { kind: parrot, leadingTrivia: ctx.leadingTrivia, raw: ctx.line.raw };
-				return { node, consumed: 1 };
-			}
-		},
-		gapEdges: 'none',
-		mergeRole: 'not-mergeable',
-		editable: true,
-		supportsInline: false,
-		conformanceFixture: '%%parrot party responsibly\n',
-		caretTargetAtPoint: parrotCaretAtPoint,
-		closure: simpleLeafClosure({
-			focus: { mode: 'implemented', via: 'the render-primary surface reveals on focus' },
-			searchPaint: { mode: 'implemented', via: 'source raw scanned, matches painted as marks' },
-			undo: { mode: 'implemented', via: 'render-primary: one commit when the caret leaves' },
-			simOracle: { mode: 'inherit-default' }
-		})
+export function parrotPlugin() {
+	return definePlugin({
+		name: 'parrot',
+		version: '0.1.0',
+		editor: '^0.11.5',
+		contributes: () => ({ blocks: [parrot] })
 	});
-}
-
-export function parrotPlugin(): EditorPlugin {
-	return definePlugin({ name: 'parrot', setup: registerParrotBlock });
 }

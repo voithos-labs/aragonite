@@ -60,11 +60,32 @@ _(pre-freeze / unstable)_ The installable package, and the per-editor context it
 | `PluginSpec` | What you hand `definePlugin` to get a plugin value instead: `name`, `version`, the `editor` range it runs on, `defaults`, `validate`, `needs`, `conflicts`, and `contributes(options)`, which each editor calls with its own options |
 | `Plugin` | The plugin value that comes back. Call it with options (`math({ render })`) to give one editor different ones |
 | `PluginList` | A list of plugin values, whatever their options, as `needs` takes it |
-| `Contribution` | What `contributes` hands back for one editor: a `setup(editor)` that runs once that editor mounts, the `commands` it runs, its `inserts` rows, and `checksSpelling: true` if your plugin underlines misspelled words itself (the editor turns the browser's checker off on its prose while your plugin runs) |
-| `Editor` | What `setup` and your commands get: the plugins on, the mode, the theme, the `inserts` rows, `on`, `run` and `can` (a command by value or id, with its argument), `claims` and `edit`. It's one object per plugin per editor, and a listener you add there goes away with your plugin |
+| `Contribution` | What `contributes` hands back for one editor: its `blocks`, a `setup(editor)` that runs once that editor mounts, the `commands` it runs, its `inserts` rows, its caret `menus`, its selection `actions`, and `checksSpelling: true` if your plugin underlines misspelled words itself (the editor turns the browser's checker off on its prose while your plugin runs) |
+| `Editor` | What `setup` and your commands get: the plugins on, the mode, the theme, the `inserts` rows, `on`, `run` and `can` (a command by value or id, with its argument), `claims`, `openMenu` (types a caret menu's trigger at the caret and opens it), `openRows` (opens a selection action's rows over a range) and `edit`. It's one object per plugin per editor, and a listener you add there goes away with your plugin |
 | `PluginError` | An error your plugin caused: its name, what the editor was doing with it (`install`, `validate`, `contributes`, `setup`, `dispose`, `run shout/hello` for a command, or `on('edit')` for a listener that threw), and the cause |
-| `BlockType` | A block type by name |
+| `BlockType` | A block type: its `name` (yours read `plugin/local` once an editor runs your plugin) and its `label` |
 | `builtin` | The built-in block types by kind (`builtin.blocks.paragraph`), to place yours relative to one or tell what a block is |
+| `lineBlock` | A block type that's exactly one line, matched whole by `match`. A `text` named group is the part you type in, the rest its marker. List it in `contributes(...).blocks` |
+| `LineBlockSpec` | What `lineBlock` takes: `match`, plus `data(match)` and `write(data, text)` together when the line carries data. For a line a regex can't read (a closing run that counts only after a space, say), `match` is a function returning the text's `[start, end]` and the line's `data`, or null, with `write` beside it |
+| `fencedBlock` | A block type opened by one line and closed by a later one: a code fence with your info string (` ```math `), or your own opening and closing lines. A code fence's closer grows past a body line that would close it |
+| `FencedBlockSpec` | What `fencedBlock` takes: `fence`, one spelling or several |
+| `container` | A block type holding other blocks. You say how its lines look in `lines` and the editor reads and writes them, so there's no opener or writer to write. Its children are the editor's to draw, inside your drawing |
+| `ContainerSpec` | What `container` takes: `lines`, plus `joins` (default true: text joined to its end from below lands in its deepest text block), `merges` (the data field a pasted one must share with the one it lands in to join it, rather than nest) and `draw` |
+| `ContainerLines` | The line shapes a `container` takes: a `marked` one (a marker on every line, with a `head` line or not) or an `indented` one, the same shapes as [`LineShape`](#lineshape-markedlines-indentedlines). An indented container shows its marker ahead of its first child's text, read-only |
+| `Fence` | `{ info }` takes over code fences with that info string; `{ open, close, escape? }` opens on a line `open` matches and closes on the line `close` spells. A body line spelling the closer goes through `escape`, or ends the block there without one. Unclosed, the opening line stays plain text |
+| `BlockInsert` | A block type's `insert`: its row in the insert menus (`label`, `icon`, `keywords`, the Markdown it `insert`s), listed as `plugin/name`, or `{ none: 'why' }` for a type nobody inserts from a menu |
+| `Completion` | A block type's `complete`: a typed or entered line (`on`) that `line` matches, written out as `complete(match)`'s lines with the caret where it says. A completion that wouldn't read back as the block type is refused |
+| `BlockCommon` | What every block type answers: `name`, `label`, `icon`, `sample`, `insert`, `role` (`prose` merges with its neighbours, an `object` is picked up whole), `interrupts`, `before` (the built-in types it goes ahead of), `height` and `complete` |
+| `LeafCommon` | What a block holding text adds: `body` (`markdown` or `literal`) and how it draws (`LeafDraw`) |
+| `LeafDraw` | `edit` and `draw`. `edit: 'text'` keeps the text always editable, writing every keystroke; `edit: 'source'` shows your drawing until the caret comes in and writes the text once as it leaves; `edit: 'box'` lets no caret in. Without `draw` a block is plain text; with it the default is `'source'`. `renderSource` and `reshapeSource` paint and reshape the shown text |
+| `Drawn` | What `draw(block, ctx)` hands back: your `dom`, and optionally `caret` (where a click on your picture of the text lands), `update`, `keep` (events the editor leaves to you), `focus` and `destroy` |
+| `DrawContext` | What every drawing gets: `editor`, `mode`, `theme`, `focused`, `render(el, produce)` (a renderer's output cached per bytes and theme, the source and the error when it throws) and `keepScroll()` |
+| `TextDrawContext` | Adds `source`, the editor's element for the block's text, for you to place, and `typed`, the text as typed before an `edit: 'source'` block writes it |
+| `ContainerDrawContext` | Adds `children`, the editor's element holding the block's children, for you to place, and `title`, its title row's element, or null |
+| `BoxDrawContext` | Adds `leave(edge, x?)`, which hands the caret to the neighbour past `edge` from an editing surface of your own, and `focusWhole()`, which gives the box whole-block focus back from a surface of your own. An Escape in a field of yours does that too, unless your handler calls `preventDefault` |
+| `BoxFocus` | `Drawn.focus` for a box with an editing surface of its own: `enter` takes the caret at an edge (with the column an up or down arrow keeps) or back at an offset, and `offset()` says where its caret is |
+| `svelteBlock`, `SvelteBlockProps`, `reactBlock`, `vueBlock`, `BlockProps`, `ReactBlockOptions`, `VueBlockOptions`, `useDrawn` | _(`svelteBlock` from `/svelte`, the others from `@voithos-labs/aragonite-react` and `-vue`, and each has its own `useDrawn`)_ A `draw` from your component. It gets `{ block, ctx, Slot }`, and `<Slot of="source" />` (or `"children"`, `"title"`) is where the editor's element goes. `className` lands on the block's element; React's `wrap` adds your providers, Vue's `app` renders in your app's context. Your component adds a `focus`, `keep` or `caret` with `useDrawn(() => ({ focus }))`, and the editor calls that function each time it needs one, so a ref's element is there by then |
+| `Block` | A block as your code reads it: its `type`, `data`, `text`, `body` and `children`, `from` and `to` (its bytes in the document, read when you ask, so a box writes itself with `edit().replace({ from: block.from, to: block.to }, text)`; both -1 once it's gone), and `is(type)` to narrow its data |
 | `EditorPlugin` | The unit's shape; the `plugins` prop and the main entry's `installPlugins` take these |
 | The `plugins` prop | A `setup` plugin installs once per process and a plugin value is read by each editor on its own, but either way an editor runs the hooks, kinds, commands and paste transforms of exactly the plugins it lists (no prop at all runs every installed one). The host's `use` changes the list later |
 | `EditorPluginEntry` | One `plugins` prop entry: a bare unit, or `{ plugin, options }` to vary options per editor. A field you pass replaces the plugin's default for it (arrays too); the rest keep theirs |
@@ -136,6 +157,7 @@ interface Draft {
 	readonly stale: boolean;
 	replace(range: { from: number; to: number }, text: string): this;
 	insert(markdown: string): this;
+	data<D>(block: Block<D>, data: D): this;
 	commit(options?: { caret?: number }): Promise<DraftResult>;
 	end(): void;
 }
@@ -154,9 +176,10 @@ const result = await draft.replace({ from, to }, card).commit();
 if (!result.ok) console.warn(result.reason, result.message); // 'moved': they typed inside it
 ```
 
-- `replace(range, text)` swaps bytes `from` to `to` for `text`. Chain as many as you like; two far-apart ranges are still one undo step. These are the document's bytes, markers and all, so a new line you write inside a container carries the container's marker (`> `, a list item's indent) in `text`.
+- `replace(range, text)` swaps bytes `from` to `to` for `text`. Chain as many as you like; two far-apart ranges are still one undo step. These are the document's bytes, markers and all, so a new line you write inside a container carries the container's marker (`> `, a list item's indent) in `text`. Write an opener on a line of its own (a `$$`, a fence, a `:::note`) above a block that would close it, and the editor adds its closing line under it, same as it does for one the author types.
 - `insert(markdown)` pastes Markdown at the caret once the replacements land, the way `insertMarkdown` does.
-- `commit({ caret })` writes it all as one undo step, with the caret at byte `caret` of the new text. Leave `caret` out and the author's caret stays where it is, since a write landing while they type shouldn't drag them anywhere.
+- `data(block, data)` sets the data of a block your `draw` was handed, rewriting only the bytes that carry it: a line block's line through its `write`, a container's head or first line. Inside a quote the `> ` stays. It's refused as `moved` if the block changed since you read it (checked at commit, so `stale` doesn't watch it), and a block with no data, or one you haven't narrowed with `is`, won't compile here.
+- `commit({ caret })` writes it all as one undo step, with the caret at byte `caret` of the text as you wrote it (a closing line the editor added above it pushes it down for you). Leave `caret` out and the author's caret stays where it is, since a write landing while they type shouldn't drag them anywhere.
 - `stale` turns true once a write elsewhere touches one of your ranges, or the host loads another document. It's reactive, so a Svelte effect reading it reruns.
 - `end()` drops the draft without writing. One you just let go of is dropped eventually too, but ending it stops the editor tracking writes for it right away.
 
@@ -171,6 +194,7 @@ What a commit can come back with (nothing throws, and a refused commit writes no
 | `overlap` | Two of your own ranges overlap |
 | `illegal` | A range runs past the document's end or splits a `\r\n`, or the insert had no caret to land at |
 | `empty` | Nothing to write: no ranges, only the bytes already there, or the draft was ended |
+| `closed` | The menu the row was picked from closed before the write (a selection action's row) |
 
 ### Kind declaration
 
@@ -184,7 +208,7 @@ Every kind starts here. No other call accepts a bare string where a kind goes.
 
 ### The block-kind descriptor
 
-The **descriptor** is a kind's written behavior: how it merges, whether it's editable, its container shape. Its required `closure` field is the kind's answer to each cross-cutting editor system (undo, search, selection, clipboard and friends), so a new kind can't ship silently broken under a subsystem nobody asked about. Cell by cell: [The closure block](plugin-guide/container-walkthrough.md#the-closure-block).
+The **descriptor** is a kind's written behavior: how it merges, whether it's editable, its container shape.
 
 | Export | Role |
 | --- | --- |
@@ -197,9 +221,6 @@ The **descriptor** is a kind's written behavior: how it merges, whether it's edi
 | [`ContainerDescriptorGroup`](#containerdescriptorgroup) | The descriptor's container-only half |
 | `MergeRole`, `ContainerUnwrapRole` | Closed sets naming how a kind merges on Backspace, and how a container releases a child at its edge |
 | `ChildRawChange` | `rebuildRaw`'s optional second argument: which one child's bytes just moved, for a rebuilder that re-emits only that region. Ignoring it and re-deriving the whole raw is always correct, just slower |
-| `ClosureBlock`, `ClosureColumn`, `ClosureCell` | The closure matrix: nine columns, one cell each, and a cell is `implemented` (name the mechanism), `inherit-default`, or `not-supported` (name the degradation). A missing column fails the typecheck |
-| `simpleLeafClosure`, `SimpleLeafClosureCells` | Closure preset for a plain text leaf: bakes the five cells every such leaf answers alike, requires the four your component determines (`focus`, `searchPaint`, `undo`, `simOracle`) |
-| `containerClosure`, `ContainerClosureCells` | Closure preset for a container of real child blocks: bakes the four structural cells plus `roundTrip: implemented`, requires the round trip's `via` string and the four the container determines |
 
 #### `BlockKindRegistration`
 
@@ -213,7 +234,7 @@ What `registerBlockKind` accepts: the descriptor's fields, plus the `view` that 
 - `pageRole`, whether it reads as prose (no drag handle) or as an object.
 - `estimateHeight(node, env)`, its height guess before it's measured (`env` is a `HeightEstimateEnv`).
 - `dragLabel`, what the drag ghost calls it.
-- `textPosition: 'while-source-shows'`, for a block your own component draws as a picture of its source until a click opens the text. Cut, copy and paste only reach the text while it's open. A DOM view with `surface: 'render-primary'` already says this, so it doesn't need the field.
+- `textPosition: 'while-source-shows'`, for a block your own component draws as a picture of its source until a click opens the text. Cut, copy and paste only reach the text while it's open. A block type drawn with `edit: 'source'` already says this, so it doesn't need the field.
 
 Fields that only work together are declared together:
 
@@ -295,17 +316,12 @@ A declared title line already decides what Backspace does at its start, so its `
 | [`defineBlockView`](#defineblockview) | Make a view that draws into an element the editor makes for the block, no framework needed |
 | [`BlockViewSpec`](#blockviewspec) | What `defineBlockView` takes, one shape per surface |
 | [`BlockViewContext`](#blockviewcontext) | What `mount` gets |
-| `LeafSurface` | `attach(el)`, the element whose text the editor edits. It holds nothing of yours, since the editor owns its text, so chrome goes beside it. Also `reveal(offset?)` to focus it, `commitSource(text)` to replace the block's text as one undo step, and `setCommandHooks(hooks)` |
-| [`RenderPrimarySurface`](#renderprimarysurface) | A render-primary leaf's `ctx.leaf`: the `LeafSurface` calls plus the rendered half |
 | [`ContainerSurface`](#containersurface) | A container's `ctx.container`: where the child blocks mount, plus the container helpers |
-| [`BlockViewHandle`, `LeafViewHandle`](#blockviewhandle-leafviewhandle) | What `mount` returns |
-| `CommandHooksSurface` | `setCommandHooks(hooks)`, on the leaf and container surfaces: what a block command running on this block gets as `ctx.hooks` (open your own editor, say). The last value set wins ([commands](plugin-guide/commands.md)) |
+| [`BlockViewHandle`](#blockviewhandle) | What `mount` returns |
+| `CommandHooksSurface` | `setCommandHooks(hooks)`, on the container surface: what a block command running on this block gets as `ctx.hooks` (open your own editor, say). The last value set wins ([commands](plugin-guide/commands.md)) |
 | `AmbientPrefix`, `AmbientInteractiveRange` | What `ambientPrefix` returns: the marker's text, or `{ text, interactive }` with ranges of it clickable, each with its class, click handler, role and an optional tab stop ([the container walkthrough](plugin-guide/container-walkthrough.md)) |
 | [`HandBuiltSurface`, `HandBuiltBlock`](#handbuiltsurface-handbuiltblock) | A `'none'` view's `ctx.block`, and what you publish through it |
 | `svelteBlockView` | _(from `/svelte`)_ Make a view from your Svelte component, plus an optional per-node extra-props hook; a component that forgot to publish its surface fails the typecheck here |
-| [`reactBlockView`, `vueBlockView`](#reactblockview-vueblockview) | _(from `@voithos-labs/aragonite-react` and `-vue`)_ Make a view from a React or Vue component |
-| `LeafContent`, `BlockChildren` | _(from the same two packages)_ The element the editor edits a leaf's text in, and the one it mounts a container's children into. Both render empty, so your chrome goes beside them |
-| [`useBlockHandle`](#useblockhandle) | _(from the same two packages)_ How a `'none'` block's component hands the editor `focus` and friends |
 | `textBlockView` | The editor's own plain text block as a view, with an optional `blockClass` on its element: for a kind that's just editable text |
 | `BlockView` | What draws a kind, the registration's `view`. You can't look inside one: `defineBlockView`, `svelteBlockView` or `textBlockView` makes it, and `registerBlockKind` throws on anything else, a hand-built object included |
 | `BlockComponent`, `BlockComponentExports` | The surface a block component publishes: a factory leaf's single `blockApi` export, a container's single `containerApi` export, or a hand-built leaf's own members |
@@ -322,35 +338,25 @@ Makes a view that draws into an element the editor makes for the block, no frame
 | `surface` | What the editor builds | What you call |
 | --- | --- | --- |
 | `'none'` | Nothing: you draw all of it | `ctx.block.publish`, to hand over `focus` and friends |
-| `'leaf'` | Editable text, caret, IME and undo included | `ctx.leaf.attach(el)`, with the element to edit in |
-| `'render-primary'` | The same text, behind a rendered view you draw until a click opens it (block math's shape) | `ctx.leaf.attach` and `ctx.leaf.attachRendered` |
 | `'container'` | The child blocks | `ctx.container.mountChildren(box)`, with the box they mount in |
 
-`registerBlockKind` refuses a surface that doesn't fit the kind: a container kind takes `'container'`, anything else `'none'`, `'leaf'` or `'render-primary'`.
+`registerBlockKind` refuses a surface that doesn't fit the kind: a container kind takes `'container'`, anything else `'none'`. A block with text the editor edits is a block type with a `draw` instead ([The editable leaf](plugin-guide/editable-content.md#the-editable-leaf)).
 
 ```ts
-const shoutView = defineBlockView({
-	surface: 'leaf',
-	singleLine: true,
-	mount(target, ctx) {
-		target.className = 'shout';
-		const badge = document.createElement('span');
-		badge.textContent = 'LOUD';
-		const text = document.createElement('span');
-		target.append(badge, text);
-		ctx.leaf.attach(text); // the block's text goes here, caret, undo and IME included
-		return {};
+const stampView = defineBlockView({
+	surface: 'none',
+	mount(target) {
+		target.className = 'stamp';
+		target.textContent = 'APPROVED';
+		return {}; // it publishes nothing, so arrows pass over it
 	}
 });
-// the badge sits beside the text, where the editor never types into it
 ```
-
-The quickstart's parrot is a whole render-primary view ([The first fifteen minutes](plugin-guide.md#the-first-fifteen-minutes)).
 
 #### `BlockViewSpec`
 
 ```ts
-type BlockViewSpec = HandBuiltViewSpec | LeafViewSpec | RenderPrimaryViewSpec | ContainerViewSpec;
+type BlockViewSpec = HandBuiltViewSpec | ContainerViewSpec;
 ```
 
 What `defineBlockView` takes, one shape per surface (`BlockSurface` is the surface's name). Every shape has these:
@@ -362,8 +368,6 @@ What `defineBlockView` takes, one shape per surface (`BlockSurface` is the surfa
 The surfaces add their own:
 
 - `HandBuiltViewSpec`, the `'none'` surface's, takes nothing more.
-- `LeafViewSpec` takes `singleLine`.
-- `RenderPrimaryViewSpec` takes `singleLine`, `renderSource` and `reshapeSource`, the same painter and reshaper `createEditableLeaf` takes.
 - `ContainerViewSpec` takes `ambientPrefix(state, editor)`, the read-only marker drawn before its first child's text (a footnote definition's `[^label]: `), read live.
 
 #### `BlockViewContext`
@@ -375,27 +379,11 @@ interface BlockViewContext {
 }
 ```
 
-What `mount` gets, one shape per surface: `HandBuiltViewContext`, `LeafViewContext`, `RenderPrimaryViewContext` and `ContainerViewContext`. Each has:
+What `mount` gets, one shape per surface: `HandBuiltViewContext` and `ContainerViewContext`. Each has:
 
-- `state()`, which reads a `BlockViewState` when you call it: the node, its path, the presentation mode, the theme name and `revealed` (a render-primary block's text is showing).
+- `state()`, which reads a `BlockViewState` when you call it: the node, its path, the presentation mode and the theme name.
 - `editor`, your plugin's `EditorContext` in the editor drawing the block. It's always there, since a view only mounts inside an editor.
-- Plus `block`, `leaf` or `container` on those surfaces.
-
-#### `RenderPrimarySurface`
-
-```ts
-interface RenderPrimarySurface extends LeafSurface {
-	attachRendered(el: HTMLElement | null): void;
-}
-```
-
-A render-primary leaf's `ctx.leaf`: the `LeafSurface` calls plus `attachRendered(el)`, the rendered half. A click there opens the text at the spot your kind's `caretTargetAtPoint` names.
-
-- Swap your halves in `update` on `state.revealed`.
-- Call `attach` from inside the `update` that reveals, so the caret lands with the render. A later attach still gets the caret, a beat late, and dev warns.
-- Call `attach(null)` when it folds. That hands the element back empty, so you can attach the same one next time.
-
-The parrot's `draw` does all three ([The first fifteen minutes](plugin-guide.md#the-first-fifteen-minutes)).
+- Plus `block` or `container` on those surfaces.
 
 #### `ContainerSurface`
 
@@ -414,16 +402,12 @@ A container's `ctx.container`. `mountChildren(box)` mounts the child blocks into
 
 A kind declaring `blockFocus: 'whole-block'` mounts no children and calls `attachFocus(el)` instead, with the element the block takes focus on (its edit box included). Any other kind that calls it throws ([React and Vue](plugin-guide/react-and-vue.md#a-block-with-its-own-editing-surface)).
 
-#### `BlockViewHandle`, `LeafViewHandle`
+#### `BlockViewHandle`
 
 ```ts
 interface BlockViewHandle {
 	update?(state: BlockViewState): boolean | void;
 	destroy?(): void | Promise<void>;
-}
-
-interface LeafViewHandle extends BlockViewHandle {
-	afterInput?(text: string): void;
 }
 ```
 
@@ -431,9 +415,8 @@ What `mount` returns.
 
 - `update(state)` runs when the block's bytes, path, mode or theme change. Inside a container that's every keystroke in a child, so keep it cheap. Return `false` and the view is destroyed and mounted again from scratch.
 - `destroy()` runs when the block leaves the screen.
-- A leaf's `afterInput(text)` runs once after each change to its text (typing, a delete, a paste, an IME commit, an undo), never mid-composition.
 
-A throw in `mount` or `update` shows the block's source with a notice, like a broken Svelte block. One in `destroy` or `afterInput`, or a rejection of a promise `destroy` returns, is reported on the `error` event.
+A throw in `mount` or `update` shows the block's source with a notice, like a broken Svelte block. One in `destroy`, or a rejection of a promise `destroy` returns, is reported on the `error` event.
 
 #### `HandBuiltSurface`, `HandBuiltBlock`
 
@@ -454,49 +437,37 @@ A plain arrow pressed inside the block moves to the neighbour it points at, unle
 
 A `'none'` block can't write its own bytes or run a plugin block command at itself, since nothing hands it the writes (`replaceRaw`, `updateMetadata`) a `getCommandContext` would have to return. A block that edits itself goes on the container surface with `blockFocus: 'whole-block'`.
 
-#### `reactBlockView`, `vueBlockView`
+#### `reactBlock`, `vueBlock`, `svelteBlock`, `useDrawn`
 
-_(from `@voithos-labs/aragonite-react` and `-vue`)_
-
-```ts
-function reactBlockView(Component, options: { surface } & ReactBlockViewOptions): BlockView;
-function vueBlockView(component, options: { surface } & VueBlockViewOptions): BlockView;
-```
-
-Make a view from a React or Vue component, which gets `state`, `ctx` and a click-to-edit block's `draft` as props (`BlockViewProps`). The options (`ReactBlockViewOptions`, `VueBlockViewOptions`) are `defineBlockView`'s minus `mount`, for a `'none'`, `'leaf'`, `'render-primary'` or `'container'` surface (`FrameworkSurface`), plus:
-
-- `className` for the block's element;
-- `afterInput`;
-- React's `wrap` or Vue's `app`, for your providers.
-
-```tsx
-export const memoView = reactBlockView(Memo, { surface: 'leaf', singleLine: true, className: 'memo' });
-```
-
-The options one by one, and a block for every surface: [React and Vue blocks](plugin-guide/react-and-vue.md).
-
-#### `useBlockHandle`
-
-_(from `@voithos-labs/aragonite-react` and `-vue`)_
+_(`svelteBlock` and its `useDrawn` from `/svelte`; the others from `@voithos-labs/aragonite-react` and `-vue`)_
 
 ```ts
-function useBlockHandle(create: () => HandBuiltBlock, deps?): void;
+function reactBlock(Component, options?: { className?; wrap? }): (block, ctx) => Drawn;
+function vueBlock(component, options?: { className?; app? }): (block, ctx) => Drawn;
+function svelteBlock(Component): (block, ctx) => Drawn;
+function useDrawn(parts: () => { focus?; keep?; caret? }): void;
 ```
 
-How a `'none'` block's component hands the editor `focus`, `getCursorOffset`, `focusable` and friends (a `HandBuiltBlock`). It's a hook in React and a composable in Vue. It makes the handle again when `deps` change and takes it back on unmount.
+Make a block type's `draw` from a component, which gets `block`, `ctx` and `Slot` as props (`BlockProps`, `SvelteBlockProps`). `<Slot of="source" />` (or `"children"`, `"title"`) places the editor's element. `className` lands on the block's element; React's `wrap` and Vue's `app` hand your providers in.
+
+`useDrawn`, called in the component (a hook in React, in `setup` in Vue, at init in Svelte), adds what a plain `draw` hands back beside its `dom`: `caret`, `focus` and `keep`. The editor calls the function each time it needs one, so a ref's element is there by then.
 
 ```tsx
-useBlockHandle(
-	() => ({
-		focusable: true,
-		focus: () => button.current?.focus(),
-		getCursorOffset: () => (document.activeElement === button.current ? 0 : null)
-	}),
-	[]
-);
+const draw = reactBlock(Dice, { className: 'dice' });
+
+function Dice({ ctx }: BlockProps<never, BoxDrawContext>) {
+	const button = useRef<HTMLButtonElement | null>(null);
+	useDrawn(() => ({
+		focus: {
+			enter: () => button.current?.focus(),
+			offset: () => (document.activeElement === button.current ? 0 : null)
+		}
+	}));
+	return <button ref={button}>roll</button>;
+}
 ```
 
-The whole die that goes with it: [a block you draw whole](plugin-guide/react-and-vue.md#a-block-you-draw-whole).
+A block for each shape, the die whole: [React and Vue blocks](plugin-guide/react-and-vue.md).
 
 #### `BlockComponentProps`
 
@@ -551,7 +522,7 @@ An opener whose reading a line further down can still change (an unclosed `$$` b
 
 - `notFinal(raw)` says whether lines further down could still change how a block reads.
 - `mayClose(line)` says whether a line could be the one that does.
-- `closer(raw)` gives the line that closes it (`null` where no line does). An opener written on a line of its own above such a line gets it at once, whether it was typed, pasted, dropped or moved there.
+- `closer(raw)` gives the line that closes it (`null` where no line does). An opener written on a line of its own above such a line gets it at once, whether it was typed, pasted, dropped, moved there or written by a `Draft`.
 - `readsOn` marks a reading that takes in every line below until its closer, like an open fence.
 
 The parrot's opener is a whole one ([The first fifteen minutes](plugin-guide.md#the-first-fifteen-minutes)), and [A reading that isn't final](plugin-guide/parser.md#a-reading-that-isnt-final) has the rest of `readingNotFinal`.
@@ -635,7 +606,8 @@ _(pre-freeze / unstable)_ A container's **chrome** is its own furniture: the bor
 | `fencedLines`, `FencedLines` | Lines of your own around the body, like `<details>` and `</details>`: `fencedLines({ open, close })` writes the opening lines from your metadata and the title row (child 0), and the closing line after the body |
 | `ColonLines` | The type of `COLON_LINES` |
 | `QUOTE_LINES` | The built-in quote's lines, to build yours on (an alert is a quote with a head line) |
-| `stripShapedLines` | Your opener's lines read the way the editor writes them, so the two can't disagree. It goes away once the editor parses a shaped container itself |
+| `headedLines`, `HeadedLines` | Marked lines under a head line that holds no child, like an alert's `> [!NOTE]`. `headedLines({ ...QUOTE_LINES, head })` makes one |
+| `stripShapedLines` | Your opener's lines read the way the editor writes them, so the two can't disagree. A `container` doesn't need it, since the editor reads its lines itself |
 | `StripRebuild` | What a `rebuildRaw` may return: `rereads` says a kept line stopped continuing a paragraph, so the bytes have to be read whole |
 
 #### `ContainerBlock`, `ContainerBlockComponent`
@@ -677,7 +649,7 @@ container: { lines: LineShape<YourMetadata> }
 
 Say how your container's lines look and the editor writes them for you. It keeps every line an edit didn't touch the way the author spelled it, and writes new lines your way. A container with `lines` declares no `contract`, `rebuildRaw` or `bodyWrap`, since the shape already says them.
 
-- `marked`: a marker on every line, like a quote's `>`. `first` and `rest` are what it writes; `reads` is how a marker reads back, and it has to read `first` and `rest` whole. `lazy` says a line without the marker can still continue a paragraph. A `head` is a first line that holds no child (an alert's `> [!NOTE]`): `match` reads it after the marker, `data` turns the match into your metadata, and `write` spells it, for a new head or one whose data changed (an untouched one keeps the author's spelling). A blank line gets `first` or `rest` without its last space, except in a body emptied of all its text, whose lines keep their markers as spelled.
+- `marked`: a marker on every line, like a quote's `>`. `first` and `rest` are what it writes; `reads` is how a marker reads back, and it has to read `first` and `rest` whole (a dev build throws where the kind registers if it doesn't). `lazy` says a line without the marker can still continue a paragraph. A `head` is a first line that holds no child (an alert's `> [!NOTE]`), and you give the shape one with `headedLines({ ...lines, head })`: `match` reads it after the marker, `data` turns the match into your metadata, and `write` spells it, for a new head or one whose data changed (an untouched one keeps the author's spelling). A blank line gets `first` or `rest` without its last space, except in a body emptied of all its text, whose lines keep their markers as spelled.
 - `indented`: a marker on the first line and an indent after, like a footnote. `open` reads the marker, `data` turns the match into your metadata, `first(data)` writes the marker back, and `rest(data)` is the indent. It's spaces only, and its width is the column the body starts at (a tab counts to the next multiple of four, same as the parser).
 
 The editor writes with your kind's metadata, so store what `data` returns as the metadata. The bundled footnote definition, whole:
@@ -860,22 +832,15 @@ _(pre-freeze / unstable)_ Which tier dispatches what: [Block commands](plugin-gu
 | [`command`](#command) | Make a command your plugin lists in `contributes`. An editor runs it by value, as `yourplugin/id`, or by its chord |
 | `Command` | What `command` hands back. Its `id` reads `yourplugin/id` once an editor installs your plugin |
 | `CommandSpec` | What `command` takes: `id`, `title`, an optional `chord`, `when(editor, arg)` and `run(editor, arg)`, both handed your plugin's own `Editor` |
-| `Chord` | A chord as a type: `Mod`, `Alt` and `Shift` in any combination, then the key. Only a command with no argument takes one, since a key can't hand it anything |
+| `Chord` | A chord as a type: `Mod`, `Alt` and `Shift` in any combination, then the key. Only a command that can run without its argument takes one, since a key can't hand it anything |
 | [`registerBlockCommand`](#registerblockcommand) | Create a `(kind, name)` command and get back its id, for a keymap binding to target |
-| `registerRangeIndent` | Let your kind's own indent command work over a selection spanning blocks: `(kind, command, shift)`, where `shift` rewrites the lines the selection covers in each of your blocks. Without it, an indent key over a range leaves your blocks alone |
-| `RangeLineShift` | That `shift`: `(node, range) => { text, selection } \| null`, over the block's text without its final line ending; null when no line changes |
-| `registerBlockContextActions` | Add, under a name unique to `kind`, the actions a right-click on a block of `kind` offers (its context menu), ahead of the editor's own copy, replace and remove rows; listed only in the editors that activate your plugin |
-| `BlockContextAction` | One such action: id, label, optional glyph and danger flag, and `run(ctx)` |
-| [`BlockActionContext`](#blockactioncontext) | What a context action's `run` receives |
-| `BlockContextActionProvider` | The registered function: `(node, path, noun) => BlockContextAction[]`, consulted on every open; `noun` is what the menu calls the block |
-| `registerGlobalCommand` | Create a process-wide command run against whichever editor dispatched it, optionally on a global chord; also returns its id. The handler receives that editor's `EditorContext` and the argument `runCommand(id, arg)` or the chord's binding carried |
 | `CommandId` | A built-in command's id; a vocabulary your keymaps may bind too. `decorations.activateAtCaret` ships with no chord at all: it runs the `onActivate` of the mark under the caret ([Interactive marks](plugin-guide/decorations.md#interactive-marks-click-hover-and-the-keyboard)) |
 | `KeyBinding` | One keymap entry: a chord (`Mod` / `Alt` / `Shift` plus the key, normalized to that order), a command id, an optional baked argument. A chord with an unknown modifier or no key throws when the kind registers or is augmented |
 | [`CommandRun`](#commandrun) | The third argument a block's `runCommand` gets: `afterRemoval` |
 | [`BlockCommandContext`, `BlockCommandHandler`](#blockcommandcontext-blockcommandhandler) | What a block command's handler receives, and the handler's signature |
 | `BlockCommandTarget` | What a block hands a block command to run against (the node, `updateMetadata`, `replaceRaw`, the component's hooks), and what `BlockComponent.getCommandContext` returns, so a hand-built component can let the editor run your `afterRemoval` commands in it |
 | `BlockCommandOptions` | That fourth argument's type |
-| `PluginCommandId`, `AnyCommandId` | The id `registerBlockCommand` or `registerGlobalCommand` hands back, and the union of that and a built-in `CommandId` |
+| `PluginCommandId`, `AnyCommandId` | The id `registerBlockCommand` hands back, and the union of that and a built-in `CommandId` |
 | [`imeOwnsKey`](#imeownskey) | Whether a keydown belongs to the IME |
 
 #### `command`
@@ -902,7 +867,7 @@ handle.run('shout/hello'); // true, and "hello" in the console
 handle.can('shout/hello'); // true; false in reading mode, or where `when` says no
 ```
 
-`run` comes back `false` when the command didn't run here (its plugin isn't on, the editor's reading, `when` said no) or your `run` returned `false`, which also lets a chord go on to the browser. A throw counts as run, and it reaches `onError` as `run shout/hello`, the same as a rejected promise.
+`run` comes back `false` when the command didn't run here (its plugin isn't on, the editor's reading, `when` said no) or your `run` returned `false` (that doesn't hand your chord's key back to the browser, though). A throw counts as run, and it reaches `onError` as `run shout/hello`, the same as a rejected promise.
 
 A chord goes to the first of three owners. One the editor takes everywhere (search's `Mod+F` and `Mod+H`, undo and redo) leaves your plugin out at install. Then the host's `keybindings` beat yours. Then, between two plugins in one editor, the one listed first keeps it and the later one's left out. The editor tells `onError` about each plugin it leaves out.
 
@@ -932,28 +897,6 @@ const tag = registerBlockCommand(memo, 'memo.tag', (ctx) => {
 ```
 
 Names, metadata writes and the selection options at length: [Block commands](plugin-guide/commands.md#block-commands).
-
-#### `BlockActionContext`
-
-```ts
-interface BlockActionContext {
-	node: NodeView;
-	path: number[];
-	deleteBlock(): Promise<void>;
-	replaceRaw(raw: string): Promise<void>;
-	transformPaste(text: string): string;
-	lineEnding: LineEnding;
-}
-```
-
-What a context action's `run` receives:
-
-- the node and its path;
-- `deleteBlock()` and `replaceRaw(raw)`, one undo entry each. `replaceRaw`'s bytes go through your kind's write rule, every line break in the document's ending;
-- `transformPaste(text)`, the paste transforms of the plugins that editor lists;
-- `lineEnding`, the document's, for a line you rebuild from the block's own bytes.
-
-A provider and its actions in full: [Block context actions](plugin-guide/commands.md#block-context-actions).
 
 #### `CommandRun`
 
@@ -1025,18 +968,53 @@ _(pre-freeze / unstable)_ View-only annotations drawn over the rendered document
 
 ### Inline menus
 
-_(pre-freeze / unstable)_ A list the editor opens under the caret while the author types after a trigger: `#` for a tag, `[[` for a link to another document. You register a source per editor through `editor.inlineMenus` (your `onEditor` context); a host that owns the data reaches the same registry as `getInlineMenus()`. The editor owns the session: it notices the typed trigger, holds the arrow keys, Enter, Tab and Escape while a list is up, anchors the list to the typed range, and writes the pick over the trigger and the query as one undo entry. The caret never leaves the document. The recipe: [Recipe: a typed-trigger menu](consumer-guide/recipes.md#recipe-a-typed-trigger-menu).
+_(pre-freeze / unstable)_ A list the editor opens under the caret while the author types after a trigger: `#` for a tag, `[[` for a link to another document. A plugin value lists one in `contributes` as `menus` (`menu`, below). The editor owns the session: it notices the typed trigger, holds the arrow keys, Enter, Tab and Escape while a list is up, anchors the list to the typed range, and writes the pick over the trigger and the query as one undo entry. The caret never leaves the document. The recipe: [Recipe: a typed-trigger menu](consumer-guide/recipes.md#recipe-a-typed-trigger-menu).
+
+A menu whose rows read the document (every tag in the note, say) can't be a plugin value's yet, since a value has no document read; until it has one, that menu is an inline-menu source on a `setup` plugin's `editor.inlineMenus` (or a host's `getInlineMenus()`), the `InlineMenu*` rows below.
 
 | Export | Role |
 | --- | --- |
+| [`menu`](#menu) | Make a list your plugin lists in `contributes` as `menus`: it opens when its trigger is typed, and a pick writes nothing until you commit it through the `MenuPick` |
+| `CaretMenu` | What `menu` takes: a `label` for screen readers, the `trigger`, `where` it opens (after a space or at a line's start by default, only at a line's start, or anywhere), `accepts(query, { editor })` to close the list on a query that's no longer yours, `rows(query, { editor })`, an optional `view` that draws a row, and `pick(row, pick)` |
+| `MenuRow` | The row the editor draws when your menu has no `view`: a `label`, maybe a `detail` and an `icon`, and an `id` that keeps a screen reader on the same row as the query narrows the list (the label does that job without one) |
+| `MenuRowProps` | What a menu's `view` gets, at mount and on each `update`: your `row`, whether it's `active`, and the `query` (for highlighting the match) |
+| `MenuPick` | A `Draft` over the trigger and the query, with the `trigger`, the `query` and their `range`, plus `write(inline)`, `insertBlock(markdown)` and `run(command, arg?)` |
 | [`InlineMenuRegistry`](#inlinemenuregistry) | The `editor.inlineMenus` surface |
 | [`InlineMenuSource`](#inlinemenusource) | A named source: its trigger, its list, and what happens around a pick |
 | `InlineMenuOpenOptions` | `open`'s second argument: a `query` typed after the trigger, so the list opens already narrowed |
 | `InlineMenuSourceHandle` | The handle back: `dispose()` removes the source and closes its list |
 | [`InlineMenuItem`](#inlinemenuitem) | One row of the list |
-| [`InlineMenuCommit`](#inlinemenucommit) | What `onCommit` gets as its third argument |
 | `InlineMenuQuery` | What `items` is asked: the `query` typed so far, the leaf's `path`, the raw range `[start, end)` a pick would replace, and a `signal` aborted once a later keystroke supersedes the read |
 | `InlineMenuRowProps` | What a `row` view receives, at mount and on each `update`: the `item`, whether it is `active`, and the `query` (for highlighting the match) |
+
+#### `menu`
+
+```ts
+function menu<R>(spec: CaretMenu<R>): CaretMenu<R>;
+```
+
+A list under the caret. Picking a row hands it to your `pick` with a `MenuPick`, and nothing is written until you write through it: `write(inline)` swaps the trigger and the query for one line of text, `insertBlock(markdown)` takes them out and drops a block in (below the line, when the line has other text), and `run(command, arg)` takes them out and runs a command at the caret, in the same undo step. A shortcut or a toolbar button opens your menu with `editor.openMenu(menu, query?)`, which types the trigger for the author.
+
+```ts
+const mentions = definePlugin({
+	name: 'mentions',
+	version: '1.0.0',
+	editor: '*',
+	contributes: () => ({
+		menus: [
+			menu<MenuRow>({
+				label: 'People',
+				trigger: '@',
+				rows: (query) => people.filter((p) => p.label.startsWith(query)),
+				pick: (row, pick) => void pick.write(`@${row.label}`)
+			})
+		]
+	})
+});
+// type "@ad", Enter: "@ad" becomes "@Ada", one undo step
+```
+
+A pick can wait (a fetch, a dialog). Whatever you write then lands as its own undo step, after the typing that came before it, or comes back refused: `moved` when the author changed the trigger or the query meanwhile, `unloaded` when the host loaded another document. It lands where the query was, wherever the author's caret has wandered off to.
 
 #### `InlineMenuRegistry`
 
@@ -1065,7 +1043,6 @@ interface InlineMenuSource {
 	items(query: InlineMenuQuery): InlineMenuItem[] | Promise<InlineMenuItem[]>;
 	opensAt?(raw: string, pos: number): boolean;
 	accepts?(query: string): boolean;
-	onCommit?(item, query, editor: InlineMenuCommit): void | Promise<void>;
 	row?: PluginView<InlineMenuRowProps>;
 }
 ```
@@ -1079,7 +1056,6 @@ And optionally:
 
 - `opensAt`, to decline a trigger by position;
 - `accepts`, to end the session on a query that is no longer yours;
-- `onCommit`, run after the bytes land, with the range the pick replaced (so the caret is at `start + insert.length`) and an `InlineMenuCommit`, the editor context to write through. If it returns a promise, every write that lands while it's pending, up to the author's next input, is part of the pick's undo entry;
 - `row`, a `PluginView` that paints a row's content and takes `update` as the row turns active or the query changes. A row whose view throws shows the default label, and the throw is reported on the `error` event.
 
 ```ts
@@ -1112,17 +1088,35 @@ One row:
 - a `label`;
 - an optional dim `detail`;
 - an optional `icon`, a menu glyph name the default row draws;
-- `insert`, the bytes that replace the trigger and the query. It's one line of inline bytes, empty allowed. A line break is refused and reported, and a block belongs in `onCommit`.
+- `insert`, the bytes that replace the trigger and the query. It's one line of inline bytes, empty allowed. A line break is refused and reported; a pick that writes a block, or writes later, is a caret menu's (`menu`).
 
-#### `InlineMenuCommit`
+### Selection actions
+
+_(pre-freeze / unstable)_ Rows your plugin offers over a range: what the author selected, or a range you capture around the caret (the misspelled word under it, say). List them in `contributes` as `actions`. They show in the right-click menu, as one row in the selection toolbar where your capture is exactly the selection (its rows open beside it), and wherever you call `editor.openRows`. The editor asks for your rows only when one of those opens, never as the toolbar redraws.
+
+| Export | Role |
+| --- | --- |
+| `SelectionAction` | One action: a `label`, an `icon`, `lead` to sit first in the right-click menu with a divider after, an optional `capture(editor, selection)` returning the range to act on (or null), and `rows(captured)`, an array or a promise of one |
+| `ActionRow` | One row: a `label`, an `icon`, `disabled`, and `run(draft)` |
+| `Captured` | What `rows` is asked about: the range's `text` (its bytes), the `range` in document bytes, the `box` it paints in, measured when you read it (null when it isn't drawn, or runs from one text block into the next), and whether it's `editable` |
+| `Icon` | A menu glyph's name, or `{ svg }`, your own markup, drawn as given at the menu's icon size |
 
 ```ts
-interface InlineMenuCommit extends EditorContext {
-	readonly signal: AbortSignal;
-}
+const shout: SelectionAction = {
+	label: 'Shout',
+	rows: (captured) => [
+		{
+			label: 'Upper case',
+			run: (draft) => draft.replace(captured.range, captured.text.toUpperCase()).commit()
+		}
+	]
+};
+// select "def" in "abc def ghi", right-click, Upper case: "abc DEF ghi", one undo step
 ```
 
-What `onCommit` gets as its third argument: your plugin's `EditorContext` scoped to the pick, live like it, except that `insertMarkdown` and `runCommand` write nothing and answer false once the host has loaded another document. The `signal` aborts then too. Write through it, not the context you closed over in `onEditor`.
+Without `capture`, an action acts on the selection and offers nothing at a bare caret. A promise from `rows` shows one pending row until it settles, and a rejection drops your rows and reaches `onError`. `run` gets a draft opened when the row is picked. If it returns a promise the row stays pending and the menu stays open until it settles; close the menu first and the draft's commit comes back refused as `closed`.
+
+`editor.openRows(action, range, anchor)` opens the same rows over `range` (captured the way your action says) at `anchor`, a rect or a point, taking no focus: what a hover card over a mark calls. It hands back `{ isOpen, close() }`, and any edit, Escape or a press elsewhere closes it.
 
 ### Insert catalogue
 
@@ -1279,7 +1273,7 @@ _(pre-freeze / unstable)_ The editor's own parse and serialize entries, re-expor
 | `isUnicodeWhitespace` | Whether one character is the Unicode whitespace emphasis reads beside a `*`: a space, a tab, a line break, a form feed or any space separator, the non-breaking space included. Ask this beside a delimiter of your own, like latex's `$` |
 | `trimTrailingLineEnding` | Cut the one trailing line ending (LF or CRLF) off a block's bytes, giving the text you display |
 | `ownTrailingLineEnding` | The ending a block's bytes close with (`''` when they have none): what you put back after editing the display |
-| `trailingLineEnding` | The ending a line rebuilt from a block's bytes takes: the block's own, else the fallback you pass (a write rule's or a context action's `ctx.lineEnding`, or `documentLineEnding` of a document you hold) |
+| `trailingLineEnding` | The ending a line rebuilt from a block's bytes takes: the block's own, else the fallback you pass (a write rule's, or `documentLineEnding` of a document you hold) |
 | `firstLineEnding` | The first line break in some bytes, or `null`. In a document with one ending (nearly all of them), any break in your block's bytes is the document's |
 | `documentLineEnding` | The ending every line written into a document takes: its first line break, else LF |
 | `LineEnding` | `'\n'` or `'\r\n'` |

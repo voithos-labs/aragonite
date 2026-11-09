@@ -52,7 +52,7 @@ const READ_SITE_ROUTES: Record<string, { handoff: string; why: string }> = {
 		handoff: 'pasteTail',
 		why: 'the shared paste handler hands the text to the block’s pasteTail, which dispatches through the paste tree-op'
 	},
-	'src/lib/editor-actions/system-clipboard.ts': {
+	'src/lib/browser/clipboard.ts': {
 		handoff: 'return await navigator.clipboard.readText()',
 		why: 'the one reader of the system clipboard outside a paste event; it returns the text to the read sites below, each carrying its own handoff'
 	},
@@ -298,6 +298,8 @@ const PLAIN_READS: Record<string, string> = {
 		'probe: re-derives the metadata of a block written in place under its own kind, and installs none of the read’s nodes',
 	'src/lib/tree-operations/written-openers.ts':
 		'probe: reads written bytes, alone and with the blocks below, to find an opener that would read down into them; installs none of what it reads',
+	'src/lib/tree-operations/spliced-openers.ts':
+		'probe: reads the bytes a byte splice writes at their slot to close an opener in them; the splice then reads its changes again with `readAsOpened`, and installs that',
 	'src/lib/tree-operations/stored-as.ts':
 		'probe: answers how a slot reads bytes, for the write rules and the live join’s comparisons; nothing it reads is installed here',
 	'src/lib/tree-operations/paste/paste-replacement.ts':
@@ -418,6 +420,7 @@ const MANIFESTS: ManifestRule[] = [
 			'src/lib/components/blocks/editable/editable-surface.ts': 'the shared editable factory',
 			'src/lib/components/blocks/table/TableBlock.svelte': 'the cell-addressed grid surface',
 			'src/lib/components/blocks/ThematicBreakBlock.svelte': 'the whole-block-focus leaf',
+			'src/lib/components/drawn-block/drawn-box.svelte.ts': 'a drawn block focused whole',
 			'src/lib/editor-actions/container-block-component.ts': 'the container walk-in shim'
 		},
 		reason: 'a new surface building its focus is a new caret writer',

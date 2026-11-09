@@ -10,6 +10,7 @@ import type { BlockComponent } from '#lib/block-component.js';
 import type { PasteImageHook } from '#lib/host-hooks.js';
 import type { CrossBlockHandlers } from '#lib/selection/cross-block/dispatch.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { freshBytes } from '#lib/test/harness/copied-text.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 import { WHOLE_BLOCK_INPUT_ATTR } from '#lib/selection/whole-block-input.js';
 
@@ -52,7 +53,8 @@ function harness(options: HarnessOptions = {}) {
 			return false;
 		},
 		performCrossBlockCut: deleted,
-		reading: fixtureReading()
+		reading: fixtureReading(),
+		bytes: freshBytes(() => doc)
 	} as unknown as CrossBlockHandlers;
 
 	const events = createEditorEvents();
@@ -350,7 +352,7 @@ describe("a menu's Cut or Copy of the range the editor holds", () => {
 		const h = harness();
 		h.selection.enterCrossBlock({ path: [0], offset: 2 }, { path: [1], offset: 3 });
 		const taken = h.clipboard.takeForMenu();
-		expect(taken?.payload['text/plain']).toContain('llo');
+		expect(taken?.write.text).toContain('llo');
 		expect(h.deleted).not.toHaveBeenCalled();
 		await taken?.remove();
 		expect(h.deleted).toHaveBeenCalledOnce();

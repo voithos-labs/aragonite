@@ -13,7 +13,6 @@ import {
 	registerInlineSyntax,
 	registerInlineWidgetKind,
 	registerBlockKind,
-	simpleLeafClosure,
 	fenceRawWrite,
 	fenceShapeOfRaw,
 	fenceReading,
@@ -255,26 +254,7 @@ export function registerMathBlock(view: BlockView): void {
 		conformanceFixture: `${mathBlockLines('x^2').join('\n')}\n`,
 		caretTargetAtPoint: mathCaretAtPoint,
 		bodyRange: mathBodyRange,
-		rawWrite: mathBlockWrite,
-		closure: simpleLeafClosure({
-			focus: {
-				mode: 'implemented',
-				via: 'createEditableLeaf render-primary reveal (source ⇄ rendered)'
-			},
-			selectionPaint: {
-				mode: 'implemented',
-				via: 'measurePartialRects (raw offsets) while the source is revealed'
-			},
-			searchPaint: {
-				mode: 'implemented',
-				via: 'source raw scanned and navigable; while folded, createEditableLeaf covers the rendered block box (opaque single-unit fallback)'
-			},
-			undo: {
-				mode: 'implemented',
-				via: 'render-primary — the reveal→edit→blur cycle commits as one undo entry'
-			},
-			simOracle: { mode: 'implemented', via: 'block-math editable-leaf e2e' }
-		})
+		rawWrite: mathBlockWrite
 	});
 
 	// The open/close pair needs its lines adjacent, which Enter alone can never type.
@@ -322,27 +302,6 @@ export function registerMathFence(view: BlockView): void {
 		caretTargetAtPoint: mathCaretAtPoint,
 		bodyRange: mathBodyRange,
 		conformanceFixture: '```math\nx^2\n```\n',
-		rawWrite: fenceRawWrite(fenceShapeOfRaw),
-		closure: simpleLeafClosure({
-			focus: {
-				mode: 'implemented',
-				via: 'createEditableLeaf render-primary reveal (source ⇄ rendered)'
-			},
-			selectionPaint: {
-				mode: 'implemented',
-				via: 'measurePartialRects (raw offsets) while the source is revealed'
-			},
-			searchPaint: {
-				mode: 'implemented',
-				via: 'source raw scanned and navigable; while folded, createEditableLeaf covers the rendered block box (opaque single-unit fallback)'
-			},
-			undo: {
-				mode: 'implemented',
-				via: 'render-primary reveal→edit→blur cycle commits as one undo entry'
-			},
-			// No note-taking simulation drives a ```math fence; its interactive path is pinned
-			// by the plugins e2e battery instead.
-			simOracle: { mode: 'inherit-default' }
-		})
+		rawWrite: fenceRawWrite(fenceShapeOfRaw)
 	});
 }

@@ -16,3 +16,8 @@ export function qualifiedName(pluginName: string, localName: string): string {
 	}
 	return `${pluginName}/${localName}`;
 }
+
+/** The plugin a qualified name belongs to: `callouts` for `callouts/callout`. */
+export function pluginOfKind(qualified: string): string {
+	return qualified.slice(0, qualified.indexOf('/'));
+}

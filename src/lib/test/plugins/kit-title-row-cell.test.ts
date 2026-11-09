@@ -15,7 +15,6 @@ import {
 } from '#lib/plugin.js';
 import { runContainerConformance, type ContainerConformanceProfile } from '#lib/testing.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
-import { testClosure } from '#lib/test/harness/closure.js';
 import { registerCalloutKind, CALLOUT } from '../../../routes/test/plugins/callout/callout-kind';
 import { testView } from '#lib/test/harness/test-view.js';
 import { allowDevWarns } from '#lib/test/support/warn-gate.js';
@@ -23,8 +22,6 @@ import { allowDevWarns } from '#lib/test/support/warn-gate.js';
 interface TitledMetadata {
 	title: string;
 	colonCount: number;
-	closerColonCount: number;
-	closerNewline: boolean;
 	lineEnding: string;
 }
 
@@ -47,8 +44,6 @@ function registerTitledKind(): PluginBlockKind {
 			setPluginMetadata<TitledMetadata>(node, {
 				title,
 				colonCount: parsed.fence.colonCount,
-				closerColonCount: parsed.closerColonCount,
-				closerNewline: parsed.closerNewline,
 				lineEnding: parsed.lineEnding
 			});
 			return node;
@@ -63,8 +58,7 @@ function registerTitledKind(): PluginBlockKind {
 		container: {
 			lines: COLON_LINES
 		},
-		conformanceFixture: ':::titled T\n\nbody\n\n:::\n',
-		closure: testClosure
+		conformanceFixture: ':::titled T\n\nbody\n\n:::\n'
 	});
 	return kind;
 }

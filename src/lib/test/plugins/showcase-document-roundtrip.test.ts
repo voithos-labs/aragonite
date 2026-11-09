@@ -11,7 +11,6 @@ import { emojiPlugin } from '#packages/emoji/src/index.js';
 import { highlightOccurrencesPlugin } from '#packages/highlight-occurrences/src/index.js';
 import { latexPlugin, MATH_BLOCK } from '#packages/latex/src/index.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
-import { parrotPlugin } from '#packages/parrot/src/index.js';
 import SHOWCASE_DOCUMENT from '../../../../examples/showcase/showcase-content.md?raw';
 
 /**
@@ -30,8 +29,7 @@ beforeEach(() => {
 		emojiPlugin(),
 		highlightOccurrencesPlugin(),
 		latexPlugin(),
-		mermaidPlugin(),
-		parrotPlugin()
+		mermaidPlugin()
 	]);
 });
 

@@ -24,6 +24,7 @@
 		getDoc,
 		getBlockElByPath,
 		reading,
+		bytes,
 		commands,
 		readingFocus,
 		composition
@@ -96,6 +97,8 @@
 		handleWholeBlockKeys(e, {
 			getIndex: () => index,
 			getRaw: () => node.raw,
+			bytes,
+			reading,
 			blockEdit,
 			focus: focusActions,
 			isReading,

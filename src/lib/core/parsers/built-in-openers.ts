@@ -10,7 +10,7 @@ import { fenceReading, matchFenceOpen } from './fence-syntax';
 import { parseFencedCode } from './fenced-code';
 import { matchHeading } from './heading';
 import { matchThematicBreak } from './thematic-break';
-import { matchBlockquote, parseBlockquote } from './blockquote';
+import { quoteOpener } from './blockquote';
 import { matchListItem, parseList, canInterruptParagraph as listCanInterrupt } from './list';
 import { matchIndentedCode, parseIndentedCode } from './indented-code';
 import {
@@ -74,22 +74,7 @@ export const BUILT_IN_OPENERS = {
 		}
 	},
 
-	blockquote: {
-		priority: OPENER_PRIORITIES.blockquote,
-		tryOpen(ctx) {
-			if (!matchBlockquote(ctx.line.text)) return null;
-			return parseBlockquote(
-				ctx.lines,
-				ctx.index,
-				ctx.end,
-				ctx.leadingTrivia,
-				ctx.grammar,
-				ctx.depth,
-				ctx.isDocumentParse
-			);
-		},
-		interruptsParagraph: matchBlockquote
-	},
+	blockquote: quoteOpener(OPENER_PRIORITIES.blockquote),
 
 	list: {
 		priority: OPENER_PRIORITIES.list,

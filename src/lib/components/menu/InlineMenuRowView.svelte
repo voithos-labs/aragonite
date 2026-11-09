@@ -9,12 +9,15 @@
 	let {
 		view,
 		item,
+		row,
 		active,
 		query,
 		report,
 		subject,
 		fallback
 	}: InlineMenuRowProps & {
+		/** What a caret menu's view reads in place of `item`. */
+		row: unknown;
 		view: PluginView<InlineMenuRowProps>;
 		report: (error: unknown) => void;
 		subject: string;
@@ -24,7 +27,7 @@
 	let failed = $state(false);
 
 	const drawRow: Attachment<HTMLElement> = (target) => {
-		const props = () => ({ item, active, query });
+		const props = () => ({ item, row, active, query });
 		const rowView = view;
 		const mounted = untrack(() => mountPluginView(rowView, target, props(), { report, subject }));
 		if (!mounted) {

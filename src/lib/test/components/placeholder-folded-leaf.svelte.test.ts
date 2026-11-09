@@ -2,7 +2,7 @@
 // A render-primary leaf's hint judges its shown source only while that source is open: once it
 // folds, an undo that empties the block brings the hint back without reopening it.
 import { describe, it, expect, afterEach } from 'vitest';
-import { definePlugin, simpleLeafClosure, OPENER_PRIORITIES } from '#lib/plugin.js';
+import { definePlugin, OPENER_PRIORITIES } from '#lib/plugin.js';
 import { svelteBlockView } from '#lib/svelte.js';
 import { displayLength } from '#lib/core/lines.js';
 import {
@@ -38,12 +38,6 @@ const hintRevealPlugin = definePlugin({
 						: null
 			},
 			view: svelteBlockView(HintRevealBlock),
-			closure: simpleLeafClosure({
-				focus: { mode: 'implemented', via: 'the render-primary leaf under test' },
-				searchPaint: { mode: 'inherit-default' },
-				undo: { mode: 'inherit-default' },
-				simOracle: { mode: 'inherit-default' }
-			}),
 			bodyRange: (node) =>
 				node.raw.startsWith(`${MARKER} `)
 					? { start: MARKER.length + 1, end: displayLength(node.raw) }

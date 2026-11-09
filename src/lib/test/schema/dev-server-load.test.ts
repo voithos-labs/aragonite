@@ -16,7 +16,8 @@ it(
 		await import('#lib/svelte.js');
 		const { activateDirectives, declarePluginKind, parse } = await import('#lib/plugin.js');
 		const { registerEditorBuiltIns } = await import('#lib/components/editor-built-ins.js');
-		const { installPlugins } = await import('#lib/schema/plugin-install.js');
+		const { installPlugins, normalizePluginEntries } =
+			await import('#lib/schema/plugin-install.js');
 		const plugins = await Promise.all([
 			import('#packages/admonitions/src/index.js').then((m) => m.admonitionsPlugin()),
 			import('#packages/details/src/index.js').then((m) => m.detailsPlugin()),
@@ -28,17 +29,17 @@ it(
 			import('#packages/latex/src/index.js').then((m) => m.latexPlugin()),
 			import('#packages/mermaid/src/index.js').then((m) => m.mermaidPlugin()),
 			import('#packages/parrot/src/index.js').then((m) => m.parrotPlugin()),
-			import('#packages/slash-commands/src/index.js').then((m) => m.slashCommandsPlugin()),
+			import('#packages/slash-commands/src/index.js').then((m) => m.slashCommands),
 			import('#packages/toc/src/index.js').then((m) => m.tocPlugin())
 		]);
 
 		expect(() => {
 			registerEditorBuiltIns();
 			activateDirectives();
-			installPlugins(plugins);
+			installPlugins(normalizePluginEntries(plugins).plugins);
 		}).not.toThrow();
-		expect(parse('%%parrot hi\n\n:::note\nx\n:::\n').children.map((c) => c.kind)).toEqual([
-			'parrot',
+		expect(parse('[[toc]]\n\n:::note\nx\n:::\n').children.map((c) => c.kind)).toEqual([
+			'toc',
 			'admonition'
 		]);
 		// The guard is live in this module graph, so the silence above is the package's own.

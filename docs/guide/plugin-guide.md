@@ -15,7 +15,7 @@ This page is the first read: [a working plugin in fifteen minutes](#the-first-fi
 | Page | Reach for it when |
 | --- | --- |
 | [One process, many editors](plugin-guide/per-editor.md) | Your plugin keeps state per editor, listens for edits, or takes options that differ between two editors on one page |
-| [Walkthrough: a `:::conspiracy` container end to end](plugin-guide/container-walkthrough.md) | Your block holds other blocks (a callout, a box with a title), or you're filling in a descriptor's `closure` cells. It's the biggest worked example |
+| [Walkthrough: a `:::conspiracy` container end to end](plugin-guide/container-walkthrough.md) | Your block holds other blocks (a callout, a box with a title). It's the biggest worked example |
 | [Teaching the parser](plugin-guide/parser.md) | Your syntax needs an opener of its own: its place among the built-ins, a construct that spans lines, one that only counts at the top of the document |
 | [Editable-content tiers](plugin-guide/editable-content.md) | You're picking how your block hosts editable content, or building a text block (block math's shape) |
 | [Recipe: a render-primary block](plugin-guide/render-primary.md) | Your block is a picture (a diagram, a chart) that's edited through your own UI |
@@ -24,7 +24,7 @@ This page is the first read: [a working plugin in fifteen minutes](#the-first-fi
 | [Recipe: reading the document above your block](plugin-guide/reading-the-document.md) | Your block is built from the rest of the document, like a table of contents |
 | [Inline kinds](plugin-guide/inline-kinds.md) | Your syntax lives mid-paragraph (`:shortcode:`, `[^1]`, `$x$`) |
 | [Decorations](plugin-guide/decorations.md) | You want to paint over content you don't own: highlights, ghost text, badges |
-| [Block commands](plugin-guide/commands.md) | Your block (or the whole editor) needs keyboard shortcuts, commands, or rows in the right-click menu |
+| [Block commands](plugin-guide/commands.md) | Your block (or the whole editor) needs keyboard shortcuts or commands |
 | [Paste transforms](plugin-guide/paste-transforms.md) | Pasted text should turn into something else before it parses |
 | [Recipe: a kind only a menu creates](plugin-guide/menu-only-kinds.md) | A block should come from a menu instead of being typed, and still survive a reload |
 
@@ -32,7 +32,7 @@ This page is the first read: [a working plugin in fifteen minutes](#the-first-fi
 
 All four import paths (`/plugin`, `/svelte`, `/testing` and the root) come with `@voithos-labs/aragonite` itself, so there's nothing else to install.
 
-The parrot below draws itself with plain DOM, so it runs in every app the editor runs in: Svelte, React, Vue or no framework at all. Rather draw with your own components? Svelte gets `svelteBlockView` and a leaf factory ([Already in Svelte?](plugin-guide/editable-content.md#already-in-svelte)), and React and Vue get theirs too ([React and Vue blocks](plugin-guide/react-and-vue.md)). Everything else on this page carries over as is.
+The parrot below draws itself with plain DOM, so it runs in every app the editor runs in: Svelte, React, Vue or no framework at all. Rather draw with your own components? `svelteBlock`, `reactBlock` and `vueBlock` turn one into a `draw` ([React and Vue blocks](plugin-guide/react-and-vue.md)), and everything else on this page carries over as is.
 
 If you'd rather start from the finished thing, the plugin template is this exact parrot as a package: the build, a conformance test, a page to try it on, and CI that runs the check a plugin listing runs. One command makes you a copy, with the package named after its folder:
 
@@ -46,51 +46,27 @@ The plugin we're about to build is an homage to `curl parrot.live`: a line that 
 
 Before the code, two terms everything below leans on.
 
-A **kind** is aragonite's word for a block type. Paragraph is a kind, fenced code is a kind, the parrot is about to be one.
+A **block type** is what aragonite calls a kind of block. Paragraph is one, fenced code is one, and the parrot's about to be one.
 
-A block's **raw** is its exact source bytes, markers included. The editor saves a document by joining raws (plus the blank lines kept between blocks) and nothing else, so whatever your plugin writes into that field is exactly what lands in the user's file.
+A block's **raw** is its exact source bytes, markers included. The editor saves a document by joining raws (plus the blank lines kept between blocks) and nothing else, so whatever lands in a block's raw is exactly what lands in the user's file.
 
-**Declare and describe.** Registering a kind is two calls inside a plugin. The rest of the guide keeps coming back to them, and so will you. Here's each one properly, plus the plugin that holds them:
+**Two calls.** The rest of the guide keeps coming back to them, and so will you:
 
-- **`declarePluginKind(name)`** creates a new kind and returns it (a name that's already taken throws). Every other call here takes that return value, and the type system won't accept the bare string in its place. A module that didn't create the kind recovers it with `declaredPluginKind(name)`, which throws for an undeclared name (a typo, say) rather than registering against a kind that doesn't exist.
-- **`registerBlockKind(kind, registration)`** describes how the kind behaves and what draws it: does it merge, is it editable, does it host inline content, where can a caret sit beside it, how it answers every cross-cutting editor system (the `closure` field), its `view`, and its `opener`. Two of those need a word:
-  - A **view** is what draws the block. `defineBlockView({ surface, mount })` draws it with plain DOM, into an element the editor makes for it, and wires in editable text or child blocks for you if the `surface` asks. `svelteBlockView(YourComponent)`, from `@voithos-labs/aragonite/svelte`, makes one from a Svelte component, and `textBlockView()` hands you the editor's own plain text block.
-  - An **opener** is the part of the parser that spots the line a block starts with: you give it a `priority` (its place in the dispatch order), an `interruptsParagraph` predicate (or `false`, for never), and a `tryOpen` that claims lines or declines. [Teaching the parser](plugin-guide/parser.md#teaching-the-parser) is its full story. Leave it out for a kind no line starts, like one only a menu inserts.
+- **`lineBlock(spec)`** makes a block type that's exactly one line. `match` is a regex the whole line has to match, and its `text` group is the part the writer types (the parrot's caption); the rest of the line is marker. `draw` builds what the block looks like. What you get back is a plain value, so import it wherever you need it. A block that spans lines or holds other blocks has a maker of its own, `fencedBlock` or `container` ([The plugin unit](plugin-api.md#the-plugin-unit) lists them).
+- **`definePlugin({ name, version, editor, contributes })`** packages it as one installable plugin. `contributes` returns the block types it brings, `version` is your plugin's own, and `editor` is the range of aragonite versions it runs on, npm style. [`definePlugin`](plugin-api.md#defineplugin) has the rest.
 
-  A leaf needs only what the sample below fills.
-
-- **`definePlugin({ name, setup })`** packages the lot as one installable unit, and the editor runs your `setup` once per page. [The plugin unit](#the-plugin-unit) has the rest: per-editor options, and `onEditor` for work each editor does.
-
-The first one in action (a kind is a plain string underneath, with a type brand on top):
-
-```ts
-const parrot = declarePluginKind('parrot'); // 'parrot', branded as a kind
-declaredPluginKind('parrot') === parrot; // true, same brand
-declaredPluginKind('parot'); // throws: "parot" has not been declared
-declarePluginKind('paragraph'); // throws: "paragraph" is a built-in BlockKind
-```
-
-And all of it together, the whole plugin minus its frames and its stylesheet (both come right after the view):
+All of it together, the whole plugin minus its frames and its stylesheet (both come right after):
 
 ```ts
 // parrot-plugin.ts
 import {
-	OPENER_PRIORITIES,
-	caretOffsetAtPoint,
-	declarePluginKind,
-	defineBlockView,
 	definePlugin,
-	registerBlockKind,
-	simpleLeafClosure,
-	trimWhitespace,
-	type BlockViewState,
-	type CaretTarget,
-	type EditorPlugin
+	lineBlock,
+	type Block,
+	type TextDrawContext
 } from '@voithos-labs/aragonite/plugin';
 import { PARROT_FRAMES } from './parrot-frames';
 import './parrot.css';
-
-export const PARROT = 'parrot';
 
 // One strip the CSS scrolls a frame at a time. The closing newline matters: a `pre` drops a
 // trailing blank line, and a strip a row short steps a fraction off every frame.
@@ -98,21 +74,19 @@ const REEL = PARROT_FRAMES.join('\n') + '\n';
 // The clip window's height, which is why every frame has to be the same number of rows.
 const FRAME_ROWS = PARROT_FRAMES[0].split('\n').length;
 
-/** The caption is the rest of the marker line, trimmed, and `start` is where it sits in the
- *  source, so a press in the caption can be mapped back to a byte. */
-function parrotCaption(raw: string): { text: string; start: number } {
-	const rest = raw.slice('%%parrot'.length);
-	const text = trimWhitespace(rest);
-	return { text, start: '%%parrot'.length + rest.indexOf(text) };
-}
-
-const parrotView = defineBlockView({
-	surface: 'render-primary',
-	singleLine: true,
-	mount(target, ctx) {
-		target.className = 'parrot-block';
-		target.style.setProperty('--parrot-rows', String(FRAME_ROWS));
-		target.style.setProperty('--parrot-frames', String(PARROT_FRAMES.length));
+export const parrot = lineBlock({
+	name: 'parrot',
+	label: 'Party parrot',
+	// The caption is whatever follows the marker, minus the spaces and tabs around it.
+	match: /^%%parrot[ \t]*(?<text>.*?)[ \t]*$/,
+	interrupts: true,
+	sample: '%%parrot party responsibly',
+	insert: { none: 'a toy, not a block anyone writes with' },
+	draw(block, ctx) {
+		const dom = document.createElement('div');
+		dom.className = 'parrot-block';
+		dom.style.setProperty('--parrot-rows', String(FRAME_ROWS));
+		dom.style.setProperty('--parrot-frames', String(PARROT_FRAMES.length));
 
 		const bird = document.createElement('div');
 		bird.className = 'parrot';
@@ -124,104 +98,49 @@ const parrotView = defineBlockView({
 
 		const caption = document.createElement('div');
 		caption.className = 'parrot-caption';
-		caption.setAttribute('role', 'button');
-		caption.setAttribute('aria-label', 'Party parrot caption (click to edit)');
-		caption.tabIndex = -1;
-		const source = document.createElement('div');
-		source.className = 'parrot-source';
-		target.append(bird, caption);
-		// The whole folded block takes the click, bird included.
-		ctx.leaf.attachRendered(target);
+		// The editor's element for the line: it shows while the caret is in the block.
+		ctx.source.classList.add('parrot-source');
+		dom.append(bird, caption, ctx.source);
 
-		const draw = ({ node, revealed }: BlockViewState) => {
-			const { text, start } = parrotCaption(node.raw);
-			caption.textContent = text;
-			caption.dataset.captionStart = String(start);
-			// Only on a flip: a fresh source element mid-edit would lose the typing in it.
-			const shown = revealed ? source : caption;
-			if (shown.isConnected) return;
-			(revealed ? caption : source).replaceWith(shown);
-			ctx.leaf.attach(revealed ? source : null);
+		const show = (next: Block<never>, now: TextDrawContext) => {
+			caption.textContent = next.body;
+			caption.hidden = now.focused;
 		};
-		draw(ctx.state());
-		return { update: draw };
+		show(block, ctx);
+		// A click on the caption lands on the letter clicked: its text is the block's text.
+		return { dom, caret: caption, update: show };
 	}
 });
 
-/** Where a click in the block puts the caret. The caption says where it starts in the source,
- *  so an offset in it sits that far along; the shown source is the source itself. */
-function parrotCaretAtPoint(
-	blockEl: HTMLElement,
-	clientX: number,
-	clientY: number
-): CaretTarget | null {
-	const source = blockEl.querySelector<HTMLElement>('.parrot-source');
-	const view = source ?? blockEl.querySelector<HTMLElement>('.parrot-caption');
-	if (!view) return null;
-	const offset = caretOffsetAtPoint(view, clientX, clientY) ?? 0;
-	return { path: [], offset: source ? offset : offset + Number(view.dataset.captionStart) };
-}
-
-function registerParrotBlock(): void {
-	const parrot = declarePluginKind(PARROT);
-
-	registerBlockKind(parrot, {
-		view: parrotView,
-		opener: {
-			// Nothing built in reads a `%%` line, so any gap between the built-ins will do.
-			priority: OPENER_PRIORITIES.heading + 5,
-			interruptsParagraph: (text) => text.startsWith('%%parrot'),
-			tryOpen(ctx) {
-				if (!ctx.line.text.startsWith('%%parrot')) return null;
-				const node = { kind: parrot, leadingTrivia: ctx.leadingTrivia, raw: ctx.line.raw };
-				return { node, consumed: 1 };
-			}
-		},
-		gapEdges: 'none',
-		mergeRole: 'not-mergeable',
-		editable: true,
-		supportsInline: false,
-		conformanceFixture: '%%parrot party responsibly\n',
-		caretTargetAtPoint: parrotCaretAtPoint,
-		closure: simpleLeafClosure({
-			focus: { mode: 'implemented', via: 'the render-primary surface reveals on focus' },
-			searchPaint: { mode: 'implemented', via: 'source raw scanned, matches painted as marks' },
-			undo: { mode: 'implemented', via: 'render-primary: one commit when the caret leaves' },
-			simOracle: { mode: 'inherit-default' }
-		})
+export function parrotPlugin() {
+	return definePlugin({
+		name: 'parrot',
+		version: '0.1.0',
+		editor: '^0.11.5',
+		contributes: () => ({ blocks: [parrot] })
 	});
-}
-
-export function parrotPlugin(): EditorPlugin {
-	return definePlugin({ name: 'parrot', setup: registerParrotBlock });
 }
 ```
 
-The object you handed `registerBlockKind` is the kind's **descriptor**. Most of its fields read as they sound. Five don't:
+Most of the spec reads the way it sounds. A few fields don't:
 
-- `gapEdges` is required so a caret can always reach the space beside your block ([Editable-content tiers](plugin-guide/editable-content.md#editable-content-tiers) has the full story).
-- `closure` is required so every cross-cutting editor system (undo, search, selection, and the rest) gets a written answer from your kind. [The closure block](plugin-guide/container-walkthrough.md#the-closure-block) explains every cell.
-- `conformanceFixture` is optional, but the conformance kits ([plugin-testing.md](plugin-testing.md)) need it: it's the Markdown their headless checks parse and round-trip. Without one, the kind checkup reports those cells `boundary` (unchecked), and the container checkup fails outright.
-- `pageRole` is optional, and it's how your block reads on the page. Say `'prose'` if it reads as part of the text around it, the way a quote or a note does. A prose block gets no drag handle, and right-clicking its text gives the clipboard rows. Leave it out and your block is an object someone picks up whole, with its own handle and menu, which is what the parrot is. (If your block's text would make a silly label on the drag ghost, a formula's source say, give it a `dragLabel` too.)
-- `caretTargetAtPoint` is optional too: where a click inside your block puts the caret. Leave it out and a click anywhere on the parrot shows the source with the caret on its first byte, which is a letdown when you clicked halfway into the caption.
+- `label` is what a screen reader and the block menu call your block.
+- `sample` is Markdown holding one of your blocks. The conformance kit ([plugin-testing.md](plugin-testing.md)) parses it and drives it, which is why it's required.
+- `insert` is your block's row in the insert menus (`{ label, icon, markdown }`), or `{ none }` with the reason it has none. A toy parrot doesn't need a menu row, and writing the reason down makes leaving it out a decision rather than an accident.
+- `interrupts: true` lets a `%%parrot` line cut a paragraph short, the way a heading does. Leave it off and the line joins the paragraph above it.
 
-The parrot's answer is two steps. The caption and the source line are different strings, and `caretOffsetAtPoint` does the pixel half: hand it one of your own elements and the click, and it gives back the character offset nearest that point, clamped into the element's box, so a click on the bird above the caption still lands on the character under it. The arithmetic between the two strings is yours. The parrot's caption is its line minus the marker and the whitespace around the text, so the view works out where the caption starts in the source, puts that on the caption element as `data-caption-start`, and the hook adds it to the offset. (Hardcoding `'%%parrot '.length` works right up until someone types two spaces.)
+**Render.** The parrot is a **leaf**, a block with no child blocks (a container holds other blocks; [the walkthrough](plugin-guide/container-walkthrough.md) builds one). `draw(block, ctx)` runs once when the block mounts and hands back what it drew. The parrot's `dom` holds three things: the bird, the caption, and `ctx.source`.
 
-On the opener, `priority` decides where you sit in the built-in openers' dispatch order ([Opener priority](plugin-guide/parser.md#opener-priority)) and `consumed` is the number of lines you claimed ([What an opener returns](plugin-guide/parser.md#what-an-opener-returns)).
+That last one is the editor's own element for the line. The editor fills it and shows it only while the caret is in the block, and it gets everything a built-in text block has: a native caret, IME composition (typing through an input method, the way Chinese or Japanese is typed), undo, selection and clipboard. All you do is put it somewhere, and give it a class if you want to style it.
 
-**Render.** The parrot is a **leaf**, a block with no child blocks (a container holds other blocks; [the walkthrough](plugin-guide/container-walkthrough.md) builds one). Its view is `parrotView` up there, a `defineBlockView` on the `render-primary` surface: the caption is what you see at rest, and the source line only shows while the caret is in the block. That source line gets everything a built-in text block has, a native caret, IME composition (typing through an input method, the way Chinese or Japanese is typed), undo, selection and clipboard. The bird itself is ordinary **chrome** (a block's furniture, as opposed to its content): every frame stacked in one `<pre>` that CSS scrolls a frame at a time. If you ever give your chrome a button that shows on hover in the block's top-right corner (where the bundled diagram block keeps its toolbar), put `data-corner-control` on it. The find bar opens in that same corner, and the attribute is how it knows to move your button below itself instead of sitting on top of it.
+- `update` runs whenever something the drawing shows changes: the block's bytes, the caret coming or going (`ctx.focused`), the theme. The parrot's hides the caption while the source line shows and writes the new caption in when it doesn't.
+- `caret` says where a click lands. The caption's text is the block's text (the `text` group), so handing over the caption element is enough: click halfway into the caption and the source opens with the caret on that letter. Leave it out and a click anywhere opens the source with the caret at the start of the text.
+- The commit happens when the caret leaves, not per keystroke. Click in, type, arrow out: one undo entry, and the caption follows the new raw.
+- A line block is one line, so Enter ends it instead of typing a newline nothing could show you. Whatever sits after the caret becomes a paragraph below and the caret goes with it, same as in a heading.
 
-The view has an editing half and a parrot half, and the parrot half never touches the editor.
+The bird itself is ordinary **chrome** (a block's furniture, as opposed to its content): every frame stacked in one `<pre>` that CSS scrolls a frame at a time. If you ever give your chrome a button that shows on hover in the block's top-right corner (where the bundled diagram block keeps its toolbar), put `data-corner-control` on it. The find bar opens in that same corner, and the attribute is how it knows to move your button below itself instead of sitting on top of it.
 
-The editing half is `mount`, two `ctx.leaf` calls and `draw`:
-
-- `mount` fills `target`, the element the editor made for the block and measures as the block. That's why the parrot puts its class on `target` instead of wrapping a second box inside it.
-- `ctx.leaf.attachRendered(target)` makes the whole folded block one click target, bird included, and a click lands where `caretTargetAtPoint` said.
-- `draw` runs once on mount and again on every `update`. It reads `revealed` off the state the editor hands it (on when a click or an arrow lands in the block, off when the caret leaves) and swaps the caption for the source line when that flips, handing the source to `ctx.leaf.attach` as it shows and `attach(null)` as it folds. The flip check matters: a fresh source element mid-edit would lose whatever you'd typed into it.
-- The commit happens when the caret leaves, not per keystroke. Reveal, type, arrow out: one undo entry, and the caption follows the new raw.
-- `singleLine: true` says the bytes are one line (the opener claims exactly one), so Enter ends the block instead of typing a newline nothing could show you: whatever sits after the caret becomes a paragraph below, and the caret goes with it, same as in a heading. A leaf whose bytes can span lines leaves the flag off and gives its source element `white-space: pre-wrap` instead, for a reason [The editable leaf](plugin-guide/editable-content.md#the-editable-leaf) explains.
-
-The parrot half is the frames, the stylesheet, and the caption reading straight off `node.raw`:
+The parrot half is the frames, the stylesheet, and the caption reading straight off `block.body` (the bytes the `text` group matched):
 
 ```ts
 // parrot-frames.ts
@@ -354,39 +273,40 @@ No script runs per frame, and `prefers-reduced-motion` parks the bird on its fir
 
 And the full ten-frame dance? Go see [parrot-frames.md](plugin-guide/parrot-frames.md) for the actual frames; not gonna put them all here.
 
-**Install.** Pass the unit to the editor's `plugins` prop: build the array once at module scope, then `<Editor {source} {plugins} />` ([The plugin unit](#the-plugin-unit) shows the wiring and why module scope matters). This exact parrot also ships as a package, `@voithos-labs/aragonite-parrot`, so if you're building your own, rename it before the two meet. A `%%parrot` line now parses to your kind (`parse` is on the plugin path too, if you want to see it outside the editor):
+**Install.** Pass the plugin to the editor's `plugins` prop: build the array once at module scope, then `<Editor {source} {plugins} />` ([The plugin unit](#the-plugin-unit) shows the wiring and why module scope matters). This exact parrot also ships as a package, `@voithos-labs/aragonite-parrot`, so if you're building your own, rename it before the two meet. In an editor running it, a `%%parrot` line now reads as your block type, named after the plugin and then the type:
 
 ```ts
-parse('%%parrot party responsibly\n').children[0];
-// { kind: 'parrot', leadingTrivia: '', raw: '%%parrot party responsibly\n' }
+editor.getBlockKindAt([0]); // 'parrot/parrot'
 ```
 
-It dances through your view.
+An editor without the plugin reads the same line as a paragraph, bytes untouched.
+
+It dances through your `draw`.
 
 ![The parrot block, mid-party](./plugin-guide/parrot.gif)
 
-**Verify.** Registering a kind enrolls it in the conformance kit, which parses your fixture, round-trips it (parse, serialize, compare the bytes), and checks the closure cells it can reach without a browser against what you claimed.
+**Verify.** The conformance kit checks a plugin the way a plugin listing does: it installs it as an editor would and fails on anything the listing would refuse.
 
 ```ts
-import { installPlugins } from '@voithos-labs/aragonite';
-import { declaredPluginKind } from '@voithos-labs/aragonite/plugin';
-import { resetPluginPlatformForTests, runKindConformance } from '@voithos-labs/aragonite/testing';
-import { PARROT, parrotPlugin } from './parrot-plugin';
+import { runPluginConformance } from '@voithos-labs/aragonite/testing';
+import { parrotPlugin } from './parrot-plugin';
 
 it('parrot conforms', async () => {
-	resetPluginPlatformForTests();
-	installPlugins([parrotPlugin()]);
-	await runKindConformance(declaredPluginKind(PARROT));
+	await runPluginConformance({ plugins: [parrotPlugin()] });
 });
 ```
 
-That's the loop: describe the kind, render it, install it, verify the bytes. Everything after this is the same four moves at more interesting shapes.
+The kit's per-block cells (round trip, copy, undo and the rest) run over kinds registered with `registerBlockKind`, and a block type isn't one, so for the parrot it checks the install. Your own tests and a look in the browser cover the rest.
+
+That's the loop: describe the block, draw it, install it, verify it. Everything after this is the same four moves at more interesting shapes.
 
 When yours works, publish it to npm with the `aragonite-plugin` keyword (an `aragonite-` name helps people spot it too), and the [plugin gallery](plugin-gallery.md#getting-your-plugin-listed) says how to get it listed. Started from the template? Its README walks through the first publish.
 
 ## What a plugin is
 
-A plugin teaches the editor a new kind, one that parses, renders, and saves alongside the built-ins. You declare the kind, then wire up to three things (the descriptor, the view and a block opener all go in one `registerBlockKind` call):
+A plugin teaches the editor new block types that parse, render and save alongside the built-ins. A block type is a value one of three makers builds: `lineBlock` for one line, `fencedBlock` for a block between fence lines, `container` for a block that holds other blocks. The spec you hand a maker says how the block reads from its lines, how it's edited and how it draws, and the plugin lists the type in `contributes`. That's what the quickstart above did.
+
+A couple of shapes don't have a maker yet: a `:::name` container with a title line, and a block that redraws on every edit anywhere in the document (a table of contents, say). Those still declare a **kind** (the older name for a block type) inside the plugin's `setup` and wire up to three things, the descriptor, the view and a block opener, all in one `registerBlockKind` call:
 
 ```
 declare a kind ──┬─▶ descriptor   how it merges, its container shape, its keymap
@@ -452,7 +372,7 @@ Install by passing units to the editor's **`plugins` prop**, set once at mount, 
 - Units install in array order.
 - A `setup` that throws stays failed. The throw comes out of the install (so out of the editor's mount), the units after it in the array don't install, and a later attempt rethrows and tells you to reload, because a partial setup can't re-run against the register-once registries.
 - Two editors passing the same plugin share one registration, but their _configuration_ isn't shared: an editor may pass `{ plugin, options }` and the plugin reads its own `options` off each instance ([the options recipe](plugin-guide/per-editor.md#recipe-per-instance-options-and-the-factory-closure-trap)).
-- **The prop is also the enablement set.** Registration is process-wide, but an editor only runs the plugins its own array lists. A plugin another editor on the page installed but this one left out does nothing here: its syntax reads as the plain Markdown it is, and its `onEditor` hooks, global commands, completers and paste transforms never run. An editor with no `plugins` prop at all (or an empty array) is the exception: it activates everything installed.
+- **The prop is also the enablement set.** Registration is process-wide, but an editor only runs the plugins its own array lists. A plugin another editor on the page installed but this one left out does nothing here: its syntax reads as the plain Markdown it is, and its `onEditor` hooks, commands, completers and paste transforms never run. An editor with no `plugins` prop at all (or an empty array) is the exception: it activates everything installed.
 
 Two smaller routes. For an editor-less `parse()` pipeline that needs the grammar live without mounting `<Editor>`, call `installPlugins(units)` from `@voithos-labs/aragonite`, with the same once-per-process semantics. And `isPluginInstalled(name)` probes an install, for the rare setup that has to branch on it; the prop and `installPlugins` are already safe to call twice, and most people never reach for it.
 
@@ -460,11 +380,11 @@ Two smaller routes. For an editor-less `parse()` pipeline that needs the grammar
 import { installPlugins } from '@voithos-labs/aragonite';
 import { isPluginInstalled } from '@voithos-labs/aragonite/plugin';
 
-const parrot = parrotPlugin();
-isPluginInstalled('parrot'); // false
-installPlugins([parrot]);
-isPluginInstalled('parrot'); // true
-installPlugins([parrot]); // no-op (a fresh parrotPlugin() here would no-op too, with a dev warning)
+const toc = tocPlugin();
+isPluginInstalled('toc'); // false
+installPlugins([toc]);
+isPluginInstalled('toc'); // true
+installPlugins([toc]); // no-op (a fresh tocPlugin() here would no-op too, with a dev warning)
 ```
 
 ### What is stable, what is not
@@ -486,15 +406,15 @@ A break is anything the changelog files under its breaking entries for plugins.
 
 Two shapes draw everything a plugin puts on screen. (Not to be confused with the read-only node types in [Views](#views-what-you-read-what-you-own), below; same word, different job.)
 
-- **A block draws through a `BlockView`**, the `view` its `registerBlockKind` call takes. `defineBlockView` makes one with no framework involved: it fills an element the editor made for the block, and its `surface` says whether the editor wires editable text (always shown, or behind a rendered view until a click, as block math does) or child blocks into it ([Block views](plugin-api.md#block-views) has the shapes). `svelteBlockView(YourComponent)`, from `@voithos-labs/aragonite/svelte`, makes one from a Svelte component, and `textBlockView()` is the editor's own plain text block. In a React or Vue app, `reactBlockView` and `vueBlockView` (from `@voithos-labs/aragonite-react` and `-vue`) make one from your own components ([React and Vue blocks](plugin-guide/react-and-vue.md)).
+- **A block type draws through its `draw`**, the function its maker takes. It gets the block and the editor's own elements to place (the text as `ctx.source`, child blocks as `ctx.children`) and hands back the DOM it built, no framework involved. `svelteBlock` (from `@voithos-labs/aragonite/svelte`), `reactBlock` and `vueBlock` (from `@voithos-labs/aragonite-react` and `-vue`) make a `draw` from your own components ([React and Vue blocks](plugin-guide/react-and-vue.md)). A kind you register with `registerBlockKind` draws through a `BlockView` instead: `defineBlockView` with `surface: 'container'` for child blocks or `'none'` to draw it all yourself, `svelteBlockView(YourComponent)`, or `textBlockView()`, the editor's own plain text block ([Block views](plugin-api.md#block-views)).
 - **Everything else draws through a `PluginView`**: an inline widget, a decoration's widget or badge, and an inline menu row. It's a plain function, `(target, props) => ({ update?, destroy? })`, that fills an element the editor made for it ([Rendering it as a widget](plugin-guide/inline-kinds.md#rendering-it-as-a-widget) walks one through). Already writing Svelte? `svelteView(Component)`, also from `/svelte`, turns a component into one for any of those slots.
 
 Which apps can run your plugin follows from that. An app whose bundler compiles Svelte (a Svelte app, say) compiles the editor from source, along with your components. An app whose bundler doesn't (most React, Vue and plain JavaScript apps) runs a prebuilt copy with its own Svelte compiled in, and a Svelte component of yours can't run on that copy's Svelte. So:
 
 | Your plugin draws with | It runs in |
 | --- | --- |
-| Plain DOM views (`defineBlockView` blocks, widgets, decorations, menu rows), or nothing at all (syntax, commands, paste transforms) | Every app |
-| React or Vue components, through `reactBlockView` or `vueBlockView` | Every app with that framework installed |
+| Plain DOM (a block type's `draw`, `defineBlockView` blocks, widgets, decorations, menu rows), or nothing at all (syntax, commands, paste transforms) | Every app |
+| React or Vue components, through `reactBlock` or `vueBlock` | Every app with that framework installed |
 | Any Svelte component | An app whose bundler compiles Svelte (a Svelte app, say) |
 
 The bundled plugins run everywhere, since each one's prebuilt build is compiled against the editor's own copy of Svelte. That copy sits on the editor's `runtime/svelte` subpaths, which are for the bundled plugins only: they carry just the bits of Svelte those plugins use, and that list moves whenever they do. A plugin of yours that should run everywhere draws with plain DOM, the way the parrot does. Mount a Svelte component of yours in an app that doesn't compile Svelte, and it fails the way any throwing view does: a block shows a "block failed to render" notice above its source, a widget shows just its source. In a dev build the notice and the console name the cause: the component was compiled against a different copy of Svelte.
@@ -503,7 +423,7 @@ The bundled plugins run everywhere, since each one's prebuilt build is compiled 
 
 Every surface that hands your plugin a node to **read** types it as a view: `NodeView` for a block node, `DocumentView` for the root document. A view is deep-readonly on the serialized bytes: a byte write through one is a compile error. "Never mutate the tree from the view layer" isn't a rule you have to remember.
 
-The readonly covers `raw`, `kind`, `metadata` (the typed per-node data a plugin stores beside the bytes), trivia (the preserved blank-line bytes around a block, the `leadingTrivia` your parrot opener copied), and the children structure.
+The readonly covers `raw`, `kind`, `metadata` (the typed per-node data a plugin stores beside the bytes), trivia (the preserved blank-line bytes around a block, a node's `leadingTrivia`), and the children structure.
 
 `CstNode` and `Document` are the shapes a plugin **constructs and owns**: an opener or directive factory builds a `CstNode`, and `rebuildRaw` receives one to write. A document you parsed yourself is mutable, and feeds every view-typed parameter with no conversion.
 

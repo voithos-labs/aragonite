@@ -248,7 +248,8 @@ export function createKeyClaims(deps: KeyClaimsDeps): KeyClaims {
 	return { readKeyFocus, claimsAt, claims: (e) => claimsAt(e, readKeyFocus(e)) };
 }
 
-// A plugin's own editor reads these itself, modified or not.
+// A plugin's own editor reads these itself, modified or not; a drawn box takes an Escape its field
+// leaves unhandled, focusing itself whole.
 const PLUGIN_EDITOR_KEYS = new Set(['Enter', 'Tab', 'Escape']);
 
 // An open card's field takes its focus trap and its Enter, modified or not.

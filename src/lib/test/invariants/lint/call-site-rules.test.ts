@@ -151,34 +151,6 @@ const RULES: CallSiteRule[] = [
 		]
 	},
 	{
-		id: 'G4.115 a clipboard payload is written only by a copy',
-		calls: ['.setData'],
-		holds: () => false,
-		allowed: {
-			'src/lib/components/blocks/editable/clipboard-step.ts :: writeShownSelection':
-				'the copy of what the user sees: reading mode, a copy no `ClipboardArm` takes, and the code block',
-			'src/lib/components/blocks/text/text-clipboard.ts :: copyWidget':
-				'the text block’s copy of a selected widget',
-			'src/lib/components/blocks/text/text-clipboard.ts :: copyRange':
-				'a text block’s or a table cell’s copy of its own range',
-			'src/lib/components/blocks/editable/editable-leaf.ts :: copyRange':
-				'a plugin leaf’s copy of its own range',
-			'src/lib/selection/cross-block/clipboard.ts :: copyCrossBlock':
-				'the copy of a range across blocks, a cell rectangle included'
-		},
-		reason:
-			'a payload is written by a `ClipboardArm`’s `copy`, which a cut reuses before anything awaits; written anywhere else, a cut’s payload can differ from the copy’s, or land after a scripted cut’s data has closed',
-		hits: [
-			at(ROGUE_BLOCK, "e.clipboardData?.setData('text/plain', text);"),
-			at('src/lib/selection/rogue.ts', "event.clipboardData!.setData('text/html', html);"),
-			at('src/lib/editor-actions/rogue.ts', "e.clipboardData?.setData('text/plain', raw);")
-		],
-		misses: [
-			at(ROGUE_BLOCK, "const text = e.clipboardData?.getData('text/plain');"),
-			at(ROGUE_BLOCK, "// e.clipboardData?.setData('text/plain', text) was the old cut")
-		]
-	},
-	{
 		id: 'G4.100 the typed line break’s ending is read only where a line break is typed',
 		population: (file) => file.relPath.startsWith(SOURCE_DIR.blocks),
 		calls: ['editableSurface.lineEnding', 'deps.lineEnding'],

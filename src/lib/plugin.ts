@@ -30,10 +30,44 @@ export type {
 	PluginList,
 	PluginSpec
 } from './schema/plugin-unit';
-export { builtin } from './schema/plugin-unit';
+export { builtin } from './components/block-makers/builtin';
 // A command a plugin lists, run by value, by `plugin/id` or by its chord.
 export { command } from './schema/plugin-command';
 export type { Chord, Command, CommandSpec } from './schema/plugin-command';
+// A list under the caret, opened by its trigger; a pick writes through a `MenuPick`.
+export { menu } from './schema/caret-menu';
+export type { CaretMenu, MenuPick, MenuRow, MenuRowProps } from './schema/caret-menu';
+// Rows over the selection, or a range captured around the caret, in the editor's menus.
+export type { ActionRow, Captured, SelectionAction } from './schema/selection-action';
+export type { Icon } from './menu-icons';
+
+// ── Block types (pre-freeze) ─────────────────────────────────────────────────
+// A plugin lists its block types in `contributes(...).blocks`; the editor derives how each behaves
+// from its shape and writes its bytes.
+export { lineBlock } from './components/block-makers/line-block';
+export { fencedBlock } from './components/block-makers/fenced-block';
+export { container } from './components/block-makers/container';
+export type { ContainerLines, ContainerSpec } from './schema/container-block';
+export type {
+	BlockCommon,
+	BlockInsert,
+	Completion,
+	Fence,
+	FencedBlockSpec,
+	LeafCommon,
+	LeafDraw,
+	LineBlockSpec
+} from './schema/block-shapes';
+export type { Block } from './schema/doc-view';
+// What a block type's `draw` gets and hands back; the editor makes every editable element.
+export type {
+	BoxDrawContext,
+	BoxFocus,
+	ContainerDrawContext,
+	DrawContext,
+	Drawn,
+	TextDrawContext
+} from './schema/drawing';
 export type { EditorPlugin, EditorPluginEntry } from './schema/plugin-install';
 // `setup(ctx)` registers `onEditor` callbacks that receive a per-instance `EditorContext`.
 export type { PluginSetupContext, OnEditorCallback, EditorContext } from './schema/plugin-install';
@@ -87,42 +121,25 @@ export type { HeightEstimateEnv } from './schema/height-estimates';
 // `rebuildRaw`'s optional second argument, the one child whose raw moved (ignoring it is correct);
 // a rebuild returns `{ rereads: true }` when its bytes must then be read whole.
 export type { ChildRawChange } from './schema/child-spans';
-// The closure block every registration must answer the cross-cutting systems with.
-// `simpleLeafClosure` and `containerClosure` fill in the fixed columns for a leaf and a container.
-export type {
-	ClosureBlock,
-	ClosureColumn,
-	ClosureCell,
-	SimpleLeafClosureCells,
-	ContainerClosureCells
-} from './schema/closure';
-export { simpleLeafClosure, containerClosure } from './schema/closure';
 
 // ── Block views ──────────────────────────────────────────────────────────────
 // What draws a kind, the registration's `view`: `defineBlockView` draws into an element the
 // editor makes, and `svelteBlockView` on `/svelte` draws with a component.
-export { defineBlockView } from './schema/block-view';
+export { defineBlockView } from './components/dom-block-view/define-block-view';
 export type {
 	BlockView,
 	BlockSurface,
 	BlockViewSpec,
 	HandBuiltViewSpec,
-	LeafViewSpec,
-	RenderPrimaryViewSpec,
 	ContainerViewSpec,
 	BlockViewState,
 	BlockViewContext,
 	HandBuiltViewContext,
-	LeafViewContext,
-	RenderPrimaryViewContext,
 	ContainerViewContext,
 	CommandHooksSurface,
 	HandBuiltSurface,
-	LeafSurface,
-	RenderPrimarySurface,
 	ContainerSurface,
 	BlockViewHandle,
-	LeafViewHandle,
 	HandBuiltBlock
 } from './schema/block-view';
 // The editor's plain editable text block, for a kind drawn as plain text; `blockClass` lands on
@@ -197,13 +214,6 @@ export type { KeyBinding } from './schema/keybindings';
 // ── Registering commands (pre-freeze) ────────────────────────────────────────
 // A (kind, name) block command creates a `PluginCommandId`; `AnyCommandId` covers both.
 export { registerBlockCommand } from './schema/block-commands';
-// The block context menu: a kind's right-click actions, empty unless something registers them.
-export { registerBlockContextActions } from './schema/context-actions';
-export type {
-	BlockContextAction,
-	BlockActionContext,
-	BlockContextActionProvider
-} from './schema/context-actions';
 export type {
 	BlockCommandContext,
 	BlockCommandHandler,
@@ -211,13 +221,7 @@ export type {
 	BlockCommandTarget,
 	CommandRun
 } from './schema/block-commands';
-// What a kind's own indent command does over a selection spanning blocks.
-export { registerRangeIndent } from './schema/range-indent-forms';
-export type { RangeLineShift } from './schema/range-indent-forms';
 export type { PluginCommandId, AnyCommandId } from './schema/command-id';
-// A global command is process-wide but runs against the dispatching instance's `EditorContext`,
-// with the argument `runCommand(id, arg)` or the chord's binding carried.
-export { registerGlobalCommand } from './schema/global-commands';
 
 // ── Parse / serialize helpers (pre-freeze) ───────────────────────────────────
 // Re-exported so an opener needn't reach into core/ deep paths the packaged artifact
@@ -286,9 +290,11 @@ export { blockquoteExtent } from './core/parsers/blockquote';
 export { QUOTE_LINES } from './core/parsers/blockquote';
 export { stripShapedLines } from './core/strip-shaped-lines';
 export { fencedLines } from './schema/fenced-lines';
+export { headedLines } from './schema/headed-lines';
 export type {
 	LineShape,
 	MarkedLines,
+	HeadedLines,
 	IndentedLines,
 	FencedLines,
 	ColonLines
@@ -434,7 +440,6 @@ export type {
 	InlineMenuSourceHandle,
 	InlineMenuItem,
 	InlineMenuQuery,
-	InlineMenuCommit,
 	InlineMenuRowProps
 } from './inline-menu/types';
 

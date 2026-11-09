@@ -29,7 +29,7 @@ function parsesToTable(payload: string, columns: number, rows: number, label: st
 		throw new Error(`${label}: payload is not lossless GFM`);
 }
 
-/** Drives `copyRectangleAsSubTable`, the closure's `via`; only a synthesized copy, never a byte
+/** Drives `copyRectangleAsSubTable`, the table's copy; only a synthesized copy, never a byte
  *  slice, reparses a single-column sub-rectangle as a narrower table. */
 function checkTableRectCopy(ctx: KindCellContext): void {
 	const table = ctx.node;

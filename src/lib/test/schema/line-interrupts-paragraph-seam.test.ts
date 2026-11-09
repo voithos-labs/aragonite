@@ -10,7 +10,6 @@ import {
 } from '#lib/schema/block-kind-descriptor.js';
 import type { BlockOpener } from '#lib/schema/block-openers.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
-import { testClosure } from '#lib/test/harness/closure.js';
 import { collector } from '#lib/test/harness/violation-collector.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
@@ -22,8 +21,7 @@ const leaf: BlockKindRegistration = {
 	gapEdges: 'none',
 	mergeRole: 'not-mergeable',
 	editable: true,
-	supportsInline: false,
-	closure: testClosure
+	supportsInline: false
 };
 
 const opener = (priority: number): BlockOpener => ({

@@ -12,6 +12,7 @@ import type { RegistryRecord } from './plugin-registry';
 import type { PluginActivation } from './plugin-activation';
 import { onBlockKindChange, openerRecords } from './block-kind-descriptor';
 import { registerBuiltInDescriptors } from './built-in-descriptors';
+import type { BlockCompleter } from './block-completions';
 
 /** Created fresh for each block and read synchronously; never keep it past the call. */
 export interface OpenContext {
@@ -76,12 +77,16 @@ export type OpenerRecord = RegistryRecord<AnyBlockKind, BlockOpener>;
 // A registration change drops the ordering; each editor's grammar keeps the list it was built from.
 let orderedRecordsCache: OpenerRecord[] | null = null;
 
-// Priority-ascending, ties broken by kind name: dispatch order is a pure function of the
-// declarations, never of registration order.
+type Ordered = Pick<OpenerRecord, 'key' | 'value'>;
+
+/** Dispatch order: priority-ascending, ties broken by kind name, so it is a pure function of the
+ *  declarations, never of registration order. */
+export function byOpenerOrder(a: Ordered, b: Ordered): number {
+	return a.value.priority - b.value.priority || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
+}
+
 function orderedRecords(): readonly OpenerRecord[] {
-	orderedRecordsCache ??= openerRecords().sort(
-		(a, b) => a.value.priority - b.value.priority || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)
-	);
+	orderedRecordsCache ??= openerRecords().sort(byOpenerOrder);
 	return orderedRecordsCache;
 }
 
@@ -168,6 +173,8 @@ export interface GrammarView {
 	readonly setextHeading: boolean;
 	/** The plugins this editor turned on; every plugin-registered entry resolves through it. */
 	readonly activation: PluginActivation;
+	/** The completers of the block types this editor's plugins contribute. */
+	completers?(): readonly BlockCompleter[];
 }
 
 // ── Outer block starts ──────────────────────────────────────────────────

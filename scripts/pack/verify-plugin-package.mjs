@@ -102,9 +102,9 @@ export function verifyPluginPackage(dir) {
 // ── Checks ───────────────────────────────────────────────────────────────────
 
 /**
- * Installs every `setup` plugin the package's prebuilt index exports into the core's prebuilt, with
- * dev checks on, in a Node process of its own: a plugin that brought its own copy of the core warns.
- * A plugin value installs per editor, so it's compared with one the core in hand defines instead.
+ * Installs every `setup` plugin the package's prebuilt index exports into the core's prebuilt, and
+ * reads every plugin value, with dev checks on, in a Node process of its own: a plugin that brought
+ * its own copy of the core warns, a value by carrying another copy's mark.
  * @param {{ name: string }} pkg
  * @param {string} index
  */
@@ -116,12 +116,16 @@ const testing = await import('@voithos-labs/aragonite/testing');
 const { pluginExports, fromAnotherCopy } = await import(${JSON.stringify(PLUGIN_COPY)});
 testing.configureEditorEnv({ isDev: true });
 const plugin = await import(${JSON.stringify(pathToFileURL(path.resolve(index)).href)});
-const { factories, values } = pluginExports(plugin);
-if (factories.length + values.length === 0) throw new Error('exports no plugin factory');
+const { setups, values } = pluginExports(plugin);
+if (setups.length + values.length === 0) throw new Error('exports no plugin');
 const probe = definePlugin({ name: 'copy-probe', version: '0.0.0', editor: '*', contributes: () => ({}) });
 const strays = fromAnotherCopy(values, probe);
 if (strays.length > 0) console.error(${JSON.stringify(SECOND_COPY)}, strays.join(', '));
-core.installPlugins(factories.map(([, factory]) => factory()));
+core.installPlugins(setups.map(([, setup]) => setup));
+if (values.length > 0) {
+	testing.configureEditorEnv({ isDev: true, isTest: true });
+	await testing.runPluginConformance({ plugins: values.map(([, value]) => value) });
+}
 `;
 	const run = spawnSync(
 		process.execPath,

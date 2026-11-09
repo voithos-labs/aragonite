@@ -41,7 +41,7 @@ export const contentsView = defineBlockView({
 });
 ```
 
-Every edit anywhere now redraws the list, so keep the walk cheap (this one is). In React or Vue it's the same list in a component: `reactBlockView` or `vueBlockView` with `surface: 'none'` and `watchDocument: true`, reading `ctx.editor.document` ([React and Vue blocks](react-and-vue.md#a-block-you-draw-whole)).
+Every edit anywhere now redraws the list, so keep the walk cheap (this one is).
 
 **Already in Svelte?** `BlockComponentProps.document` delivers the same document to every component, at any nesting depth, and a `$derived` over it re-runs only when it changes:
 

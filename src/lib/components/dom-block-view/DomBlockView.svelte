@@ -1,6 +1,6 @@
 <!--
-  A block drawn by a DOM view: builds the surface the view asked for, makes the element the view
-  fills, and mounts the view into it. A throw in the view's `mount` or `update` reaches BlockHost's
+  A block drawn by a DOM view: builds the surface the view asked for (nothing, or a container's
+  children), makes the element the view fills, and mounts the view into it. A throw in the view's `mount` or `update` reaches BlockHost's
   error boundary, as a Svelte block's does.
 -->
 <script lang="ts">
@@ -18,10 +18,7 @@
 		HandBuiltBlock,
 		HandBuiltSurface,
 		BlockViewState,
-		ContainerSurface,
-		LeafSurface,
-		LeafViewHandle,
-		RenderPrimarySurface
+		ContainerSurface
 	} from '../../schema/block-view';
 	import { componentPluginEditor } from '../../schema/block-kind-plugin';
 	import { tryGetBlockKindDescriptor } from '../../schema/block-kind-descriptor';
@@ -35,21 +32,13 @@
 		type EditorServices
 	} from '../../editor-keys';
 	import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
-	import { VIEW_TEXT_ATTR, VIEW_TEXT_HOST_ATTR } from '../../caret/block-content-selector';
-	import {
-		checkAttachedLeaf,
-		checkDomViewContent,
-		checkRenderedInTarget,
-		checkRevealAttached
-	} from '../../invariants/dom-view-content';
+	import { checkDomViewContent } from '../../invariants/dom-view-content';
 	import { warnIfForeignRuntime } from '../../foreign-runtime';
-	import { createEditableLeaf } from '../blocks/editable/editable-leaf';
 	import { createContainerBlock } from '../../editor-actions/plugin/container';
 	import { moveFocusOutByArrow } from '../../editor-actions/container-block-component';
 	import { isEditableEventTarget } from '../../editor-actions/whole-block-focus-surface.svelte';
 	import { commandForKey } from '../../schema/commands';
 	import BlockList from '../BlockList.svelte';
-	import { bindLeafSurface } from './leaf-surface-binding.svelte';
 	import { handBuiltRef, samePublication } from './hand-built-ref';
 
 	let {
@@ -68,9 +57,6 @@
 	// Read before the container factory, which sets the focus its children see.
 	const focusActions = getContext<FocusActions>(FOCUS_KEY);
 
-	let leafEl: HTMLElement | null = $state(null);
-	let renderedEl: HTMLElement | null = $state(null);
-	let revealed = $state(false);
 	let childBox: HTMLElement | undefined = $state();
 	let handBuilt: BlockComponent | undefined = $state();
 	let generation = $state(0);
@@ -89,21 +75,6 @@
 		getPath: () => myPath,
 		commandHooks: () => commandHooks
 	};
-	const leafDeps = { ...blockDeps, getEl: () => leafEl, onSourceEdit: afterInput };
-	const leaf =
-		view.surface === 'render-primary'
-			? createEditableLeaf({
-					...leafDeps,
-					mode: 'render-primary',
-					singleLine: view.singleLine,
-					renderSource: view.renderSource,
-					reshapeSource: view.reshapeSource,
-					isRevealed: () => revealed,
-					setRevealed: (value) => (revealed = value)
-				})
-			: view.surface === 'leaf'
-				? createEditableLeaf({ ...leafDeps, mode: 'plain', singleLine: view.singleLine })
-				: null;
 	const container =
 		view.surface === 'container'
 			? createContainerBlock({
@@ -119,7 +90,7 @@
 	const contexts = getAllContexts();
 
 	export function viewRef(): BlockComponent | undefined {
-		return leaf?.blockApi ?? container?.containerApi ?? handBuilt;
+		return container?.containerApi ?? handBuilt;
 	}
 
 	function report(error: unknown): void {
@@ -132,8 +103,7 @@
 			node,
 			path: myPath,
 			presentationMode: editorDoc.reading.mode(),
-			theme: policies.theme(),
-			revealed
+			theme: policies.theme()
 		};
 	}
 
@@ -155,13 +125,7 @@
 
 	// A framework unmounts a little after `destroy`, handing things back as it goes; once a mount
 	// ends, its calls that hand the editor something do nothing, so a remounted view keeps its own.
-	const HAND_OVERS = new Set([
-		'attach',
-		'attachRendered',
-		'mountChildren',
-		'attachFocus',
-		'publish'
-	]);
+	const HAND_OVERS = new Set(['mountChildren', 'attachFocus', 'publish']);
 	function untilDestroyed<T extends object>(surface: T, mount: { ended: boolean }): T {
 		const guarded = { ...surface } as Record<string, unknown>;
 		for (const [key, call] of Object.entries(surface)) {
@@ -176,56 +140,6 @@
 	const hooksSurface: CommandHooksSurface = {
 		setCommandHooks(hooks) {
 			commandHooks = hooks;
-		}
-	};
-
-	// ── Leaf surface ──────────────────────────────────────────────────────────
-
-	function afterInput(text: string): void {
-		const after = (handle as LeafViewHandle | null)?.afterInput;
-		if (!after) return;
-		try {
-			after.call(handle, text);
-		} catch (error) {
-			report(error);
-		}
-	}
-
-	if (leaf) {
-		bindLeafSurface({
-			getEl: () => leafEl,
-			props: () => leaf.surfaceProps as unknown as Record<string | symbol, unknown>
-		});
-	}
-	if (leaf && view.surface === 'render-primary') {
-		bindLeafSurface({
-			getEl: () => renderedEl,
-			props: () => leaf.renderProps as unknown as Record<string | symbol, unknown>
-		});
-	}
-
-	const leafSurface: LeafSurface | null = leaf && {
-		attach(el) {
-			// The editor's text leaves with it, so an element attached again holds nothing yet.
-			if (leafEl !== el) leafEl?.replaceChildren();
-			leafEl?.removeAttribute(VIEW_TEXT_ATTR);
-			el?.setAttribute(VIEW_TEXT_ATTR, '');
-			leafEl = el;
-			assertInvariant('dom-view-content', () =>
-				mountedTarget ? checkDomViewContent(mountedTarget, el) : checkAttachedLeaf(el)
-			);
-		},
-		reveal: (offset) => leaf.reveal(offset),
-		commitSource: (text) => leaf.commitSource(text),
-		...hooksSurface
-	};
-	const renderPrimarySurface: RenderPrimarySurface | null = leafSurface && {
-		...leafSurface,
-		attachRendered(el) {
-			renderedEl = el;
-			assertInvariant('render-primary-attach', () =>
-				mountedTarget ? checkRenderedInTarget(mountedTarget, el) : null
-			);
 		}
 	};
 
@@ -301,15 +215,6 @@
 	// ── Mount, update, destroy ────────────────────────────────────────────────
 
 	function mountSpec(target: HTMLElement, mount: { ended: boolean }): BlockViewHandle {
-		if (view.surface === 'leaf') {
-			target.setAttribute(VIEW_TEXT_HOST_ATTR, '');
-			return view.mount(target, viewContext({ leaf: untilDestroyed(leafSurface!, mount) }));
-		}
-		if (view.surface === 'render-primary') {
-			target.setAttribute(VIEW_TEXT_HOST_ATTR, '');
-			const leaf = untilDestroyed(renderPrimarySurface!, mount);
-			return view.mount(target, viewContext({ leaf }));
-		}
 		if (view.surface === 'container') {
 			const surface = untilDestroyed(containerSurface!, mount);
 			return view.mount(target, viewContext({ container: surface }));
@@ -331,8 +236,7 @@
 			const offArrows = view.surface === 'none' ? on(target, 'keydown', handBuiltKeydown) : null;
 			mountedTarget = target;
 			seen = watched();
-			assertInvariant('dom-view-content', () => checkDomViewContent(target, leafEl));
-			assertInvariant('render-primary-attach', () => checkRenderedInTarget(target, renderedEl));
+			assertInvariant('dom-view-content', () => checkDomViewContent(target, null));
 			return () => {
 				mount.ended = true;
 				offKeys?.();
@@ -342,8 +246,6 @@
 				mountedTarget = null;
 				focusEl = null;
 				unmountChildren();
-				leafEl = null;
-				renderedEl = null;
 				handBuilt = undefined;
 				try {
 					ending?.destroy?.()?.catch(report);
@@ -361,7 +263,6 @@
 			myPath.join(),
 			editorDoc.reading.mode(),
 			policies.theme(),
-			revealed,
 			view.watchDocument ? editorDoc.contentVersion() : 0
 		];
 	}
@@ -373,8 +274,6 @@
 			if (!handle || now.every((value, i) => Object.is(value, seen[i]))) return;
 			seen = now;
 			if (handle.update?.(currentState()) === false) generation++;
-			else if (revealed)
-				assertInvariant('render-primary-attach', () => checkRevealAttached(leafEl));
 		});
 	});
 </script>

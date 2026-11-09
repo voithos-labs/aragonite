@@ -28,6 +28,7 @@ import type { PasteCommitCoordinator } from './tree-operations/paste/paste-deps'
 import type { SelectionState } from './selection/selection-state.svelte';
 import type { CaretLanding } from './selection/caret-landing';
 import type { RangeCoverage } from './selection/range-coverage';
+import type { DocumentBytes, RangePaint } from './selection/range-bytes';
 import type { SearchState } from './search/search-state.svelte';
 import type { DecorationEngine } from './decorations/decoration-state.svelte';
 import type { CaretMemory } from './caret/caret-memory';
@@ -45,6 +46,7 @@ import type { TextMoves } from './components/overlays/text-moves';
 import type { ContainerChords } from './editor-actions/container-chords';
 import type { FocusedSurface } from './components/editor-root/focused-surface';
 import type { ReadingFocus } from './components/editor-root/reading-focus.svelte';
+import type { Editor } from './schema/plugin-unit';
 import type { PlaceholderPolicy } from './components/blocks/placeholder-hint.svelte';
 import type { BlockElLookup } from './caret/block-el-lookup';
 import type {
@@ -106,6 +108,8 @@ export interface EditorServices {
 	/** What the live range covers, read once per selection change so every overlay paints the
 	 *  answer the delete and the copy read; null with no range. */
 	rangeCoverage: () => RangeCoverage | null;
+	/** How the live range paints, from the bytes a copy of it takes; null with no range. */
+	rangePaint: () => RangePaint | null;
 	search: SearchState;
 	/** How the caret arrived: the sticky column, the side of a hidden marker run and the
 	 *  pending marks, kept and dropped as one. */
@@ -211,9 +215,13 @@ export interface EditorDoc {
 	contentVersion: () => number;
 	/** How this editor reads its bytes: grammar, link definitions, mode. */
 	reading: Reading;
+	/** The document's bytes and their layout, each made once per content version. */
+	bytes: DocumentBytes;
 	/** Resolves a plugin's per-instance `EditorContext`: the one object `onEditor` callbacks,
 	 *  global-command handlers and `BlockCommandContext.editor` all share. */
 	pluginEditor: PluginEditorLookup;
+	/** The editor a plugin value sees, scoped to that plugin: what its block drawings get. */
+	scopedEditor: (pluginName: string) => Editor;
 	/** AbortSignal tied to the editor's mount lifetime; document-level listeners
 	 *  observe it to tear down if the editor unmounts mid-operation. */
 	lifetime: AbortSignal;

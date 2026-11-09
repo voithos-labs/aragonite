@@ -28,7 +28,7 @@ And a map, so you can jump straight at your question:
 | [The kind checkup](#the-kind-checkup-runkindconformance) | The checks every block kind has to pass: bytes survive, one edit is one undo step, copying invents nothing |
 | [The container checkup](#the-container-checkup-runcontainerconformance) | Extra checks for a block that holds other blocks, starring the body line that ends the container early |
 | [The inline checkup](#the-inline-checkup-runinlinekindconformance) | Checks for syntax recognized mid-sentence: claiming your own bytes, declining everyone else's |
-| [A menu pick across a note switch](#a-menu-pick-across-a-note-switch-checkinlinemenucommitacrossswap) | One cell for an inline-menu source: a commit that waits writes nothing into a note the host loaded meanwhile |
+| [A menu pick across a note switch](#a-menu-pick-across-a-note-switch-checkmenupickacrossswap) | One cell for a caret menu: a pick that waits writes nothing into a note the host loaded meanwhile |
 | [The whole plugin at once](#the-whole-plugin-at-once-runpluginconformance) | Every kit over every kind your plugin declares, the check a listing runs |
 | [The check a listing runs](#the-check-a-listing-runs-aragonite-plugin-check) | The same run over your built package, from a terminal or your CI |
 
@@ -65,13 +65,13 @@ Empties every registry a plugin writes into, so each case re-installs from nothi
 ```ts
 import { installPlugins } from '@voithos-labs/aragonite';
 import { resetPluginPlatformForTests } from '@voithos-labs/aragonite/testing';
-import { parrotPlugin } from './parrot-plugin';
+import { conspiracyPlugin } from './conspiracy-plugin';
 
-const parrot = parrotPlugin(); // one unit instance for the whole file
+const conspiracy = conspiracyPlugin(); // one unit instance for the whole file
 
 beforeEach(() => {
 	resetPluginPlatformForTests(); // empty the registries
-	installPlugins([parrot]); // the unit, exactly as the `plugins` prop installs it
+	installPlugins([conspiracy]); // the unit, exactly as the `plugins` prop installs it
 });
 ```
 
@@ -80,10 +80,10 @@ Seen from outside, a reset takes the plugin's whole footprint with it:
 ```ts
 import { isPluginInstalled } from '@voithos-labs/aragonite/plugin';
 
-installPlugins([parrot]);
-isPluginInstalled('parrot'); // true
+installPlugins([conspiracy]);
+isPluginInstalled('conspiracy'); // true
 resetPluginPlatformForTests();
-isPluginInstalled('parrot'); // false, and declaredPluginKind('parrot') throws until the next install
+isPluginInstalled('conspiracy'); // false, and declaredPluginKind('conspiracy') throws until the next install
 ```
 
 What that clears, and what it deliberately leaves alone:
@@ -100,9 +100,9 @@ beforeAll(() => configureEditorEnv({ isTest: true })); // "yes, this really is a
 afterAll(() => resetEditorEnv());
 ```
 
-**Install the unit, not your register function.** Your registrations answer to your plugin only when its setup runs them, and that's how an editor's `plugins` list turns your kind on or off. Call `registerParrotBlock(view)` yourself and the kind belongs to no plugin at all, so every editor shows it and your activation tests pass against a setup no user runs. Three more identity rules keep a suite honest:
+**Install the unit, not your register function.** Your registrations answer to your plugin only when its setup runs them, and that's how an editor's `plugins` list turns your kind on or off. Call `registerConspiracy(view)` yourself and the kind belongs to no plugin at all, so every editor shows it and your activation tests pass against a setup no user runs. Three more identity rules keep a suite honest:
 
-- Installing the **same unit instance** twice (the `beforeEach` above plus an editor's `plugins` prop, say) is a no-op, which is why the sample builds `parrot` once at module scope.
+- Installing the **same unit instance** twice (the `beforeEach` above plus an editor's `plugins` prop, say) is a no-op, which is why the sample builds `conspiracy` once at module scope.
 - A **different instance under the same name** is kept out by a first-wins rule, with a dev warning naming the loser.
 - Calling your register function directly **beside** a unit install makes the unit's setup re-register your kind, which **throws**. The register-once throw stays live under test on purpose, so the collision fails your suite instead of silently winning.
 
@@ -224,57 +224,57 @@ Conformance here means: your kind behaves the way the built-in kinds are require
 
 **`runKindConformance(kind, profile?)`**
 
-Takes your kind (the value `declaredPluginKind` returns) and executes the headless half of its `closure` block, the descriptor field where every kind answers the cross-cutting editor systems ([the closure block](plugin-guide/container-walkthrough.md#the-closure-block)). One cell per system, derived from your declarations and your `conformanceFixture`. What runs now, with no browser:
+Takes your kind (the value `declaredPluginKind` returns) and runs one cell per editor system your block takes part in (undo, copy, search and friends), each one wherever your descriptor and your `conformanceFixture` say it applies. There's nothing to declare per cell, and no way to opt out of one. What runs now, with no browser:
 
 - The fixture round-trips, and a kind declaring `rebuildRaw` also has it checked twice over: it keeps the parsed bytes exactly, and it emits the same bytes on every run.
 - Backspace-merge eligibility is held to your declared `mergeRole`.
-- A `clipboard: inherit-default` cell proves a copy is a plain byte slice, with your kind at each end of the copied range in turn.
-- An `undo: inherit-default` cell proves one structural operation pushes exactly one undo entry.
-- A `searchPaint: not-supported` cell proves the document scan genuinely finds nothing in your kind.
-- The raw-write cell. It reads your descriptor's `rawWrite` (the rule that makes any bytes written into your block legal, like a fence growing past a body line that would close it) rather than your closure block, so it comes last in the report and carries no `mode`:
+- A copy is a plain byte slice, with your kind at each end of the copied range in turn. A kind with no text of its own (a container, or a block focused whole) gets copied whole there, since a range ending on it holds all of it.
+- One structural operation pushes exactly one undo entry.
+- A kind that isn't `editable` gets nothing found in it by the document scan, since search skips it.
+- The raw-write cell. It reads your descriptor's `rawWrite` (the rule that makes any bytes written into your block legal, like a fence growing past a body line that would close it) and comes after the system cells in the report:
   - With no `rawWrite`, it cuts the fixture's closing line and checks the block after it stays its own. It fails if the cut swallows that block (an unclosed fence reads everything below as its body), and the failure asks you to declare the rule.
   - With one, it drives the rule through a handful of damaging writes: the closing line cut, everything past the first line cut, an empty write, and, for a fixture of two or more lines, the first line cut and the closing line copied into the body. Each result has to come back unchanged from a second pass of the rule and keep every byte the write left alone (a rule may add bytes, never delete ones outside what was written). Every write but the first line cut also has to leave the block after it alone; the first line cut leaves your closing line behind, and that line is allowed to read on the way a reload reads it. On a fixture of three or more lines the closing line cut also has to keep your kind.
   - Your `mapOffset` is checked against `normalize` at every offset of each write: an offset before every byte the rule changed stays put, one after them moves by what the rule added or dropped, and none goes backwards.
   - It's `boundary` for a kind with the rule and no top-level fixture (none at all, or one sitting inside a container), and `exempt` for a kind with neither the rule nor a top-level fixture.
-- The unfinished-reading cell, last, also with no `mode`. If your opener declares `readingNotFinal`, because it backs out without its closer or reads on like a fence ([A reading that isn't final](plugin-guide/parser.md#a-reading-that-isnt-final)), it takes your fixture's last line off and checks `mayClose` says yes to that line, the closer that finishes it, and that `closer` hands back a line that closes the rest into your kind again. A `closer` of `null` fails it: without one, your opener written above another block of its kind swallows everything down to that block. It's `exempt` when your fixture minus its last line doesn't read as waiting, which covers every kind that neither backs out nor reads on. One catch: if your fixture is a fence and your opener declares no `readingNotFinal`, the cell fails and asks for `fenceReading`.
+- The unfinished-reading cell, last. If your opener declares `readingNotFinal`, because it backs out without its closer or reads on like a fence ([A reading that isn't final](plugin-guide/parser.md#a-reading-that-isnt-final)), it takes your fixture's last line off and checks `mayClose` says yes to that line, the closer that finishes it, and that `closer` hands back a line that closes the rest into your kind again. A `closer` of `null` fails it: without one, your opener written above another block of its kind swallows everything down to that block. It's `exempt` when your fixture minus its last line doesn't read as waiting, which covers every kind that neither backs out nor reads on. One catch: if your fixture is a fence and your opener declares no `readingNotFinal`, the cell fails and asks for `fenceReading`.
 
-Cells whose mechanism only exists in a browser (focus, selection and search painting, reorder, and the note-taking simulation aragonite runs over its own kinds) are recorded `boundary`; the kit won't fake them green. Covering those is your own browser tests' job. For the parrot, the whole checkup is the test the [guide's quickstart](plugin-guide.md#the-first-fifteen-minutes) ends on:
+Cells whose mechanism only exists in a browser (focus, selection and search painting, reorder, and the note-taking simulation aragonite runs over its own kinds) are recorded `boundary`; the kit won't fake them green. Covering those is your own browser tests' job. The checkup reads kinds registered with `registerBlockKind`. A block type from `lineBlock` and friends isn't one, so for those `runPluginConformance` checks the plugin's install and stops there, the way the [guide's quickstart](plugin-guide.md#the-first-fifteen-minutes) ends. For the bundled `[[toc]]` block, the whole checkup is one call:
 
 ```ts
-it('parrot conforms', async () => {
-	await runKindConformance(declaredPluginKind(PARROT));
+it('toc conforms', async () => {
+	await runKindConformance(declaredPluginKind('toc'));
 });
 ```
 
-It resolves with a report, one cell per closure column and then the raw-write and unfinished-reading cells. For the parrot exactly as the guide declares it:
+It resolves with a report, one cell per editor system and then the raw-write and unfinished-reading cells. For the toc as it ships:
 
 ```ts
-const report = await runKindConformance(declaredPluginKind(PARROT));
+const report = await runKindConformance(declaredPluginKind('toc'));
 report.cells.map((c) => `${c.cell}: ${c.status}`);
 // [
 //   'roundTrip: asserted',      // the fixture round-trips
 //   'focus: boundary',          // browser only
 //   'mergeBackspace: asserted', // eligibility matches mergeRole
 //   'selectionPaint: boundary', // browser only
-//   'searchPaint: boundary',    // you declared it implemented, so it's yours to prove
+//   'searchPaint: boundary',    // browser only, since the toc is searchable
 //   'reorder: boundary',        // browser only
-//   'undo: boundary',           // implemented too, so the kit can't drive it generically
+//   'undo: asserted',           // one edit, one undo entry
 //   'clipboard: asserted',      // copy is a raw byte slice
 //   'simOracle: boundary',      // aragonite's own simulation, never this runner
 //   'rawWrite: asserted',       // no rule, and cutting the closing line swallows nothing
-//   'unfinishedReading: exempt' // the parrot never backs out
+//   'unfinishedReading: exempt' // the toc never backs out
 // ]
 ```
 
-Each closure cell also carries the `mode` you declared. When something's wrong the run throws instead of resolving; a fixture that stopped producing your kind reads like this:
+When something's wrong the run throws instead of resolving; a fixture that stopped producing your kind reads like this:
 
 ```
-Error: kind conformance failed for "parrot": conformanceFixture parses to no "parrot" node
+Error: kind conformance failed for "toc": conformanceFixture parses to no "toc" node
 ```
 
 **The fixture contract.** Your `conformanceFixture` has to hold your kind inside its **first** top-level block, or the run fails outright: the undo and clipboard cells drive the fixture's first block, next to a throwaway neighbour block the kit adds. A kind that only ever appears nested still enrolls, sitting inside the first block; its clipboard cell then reports `boundary`, because its bytes get copied as part of the enclosing container.
 
-Where a cell claims a mechanism the runner can't reach generically (a kind-specific copy, say), supply the check yourself: `runKindConformance(kind, { cells: { clipboard: { check: async (ctx) => … } } })`, where `ctx` hands you the parsed fixture and your kind's node. A custom check is only accepted on a cell you declared `implemented`; anywhere else it would contradict the declaration and silence the check for the mode you did declare.
+Where your kind does something the generic check can't follow (a copy that builds new bytes, like a table range copying out as a smaller table), supply the check yourself: `runKindConformance(kind, { cells: { clipboard: { check: async (ctx) => … } } })`, where `ctx` hands you the parsed fixture and your kind's node. Your check runs instead of the generic one, so make it at least as strict.
 
 The clipboard executor is also exported on its own as `checkCopyIsRawByteSlice(kind, fixture)`, for driving that one check directly in a regression test.
 
@@ -293,7 +293,7 @@ The harness the built-in containers are held to, pointed at your own container k
 | `terminatorCollision` | A body line reproducing your container's own closing line stays inside the container |
 | `titleRow` | Always on, and excused for a kind with no title row or one that isn't opaque. A `:::` container's opener line counts as a title row, and so does one you declare with `reservedChrome`. It needs your kind's own `conformanceFixture` to type in: it types into your title row the way a keystroke does, then checks your block against a fresh parse of its bytes, metadata included. The editor doesn't re-read your metadata on a title keystroke, so none of it may come from the title's bytes. On a `:::` opener line the title is the text after the name; a change to `:::name` itself does re-read the container |
 | `openerLine` | Always on, and excused when no start of your fixture's first line waits on a closer below. For each start that does (`:::c`, `:::co`, and so on), it types it above your fixture, where the editor closes it at once, and checks the caret's offset still sits in a line you can type in. A `:::` container passes on its own, since its opener line is that line; it's here for an opener of your own whose first line would otherwise send the next letter into the body |
-| `copyMarkers` | Always on, and excused for a grid or a kind whose `deepNesting` leaf isn't inside it. It copies from a paragraph above your container into the `deepNesting` leaf, and for a line-prefixed (`strip`) kind out of that leaf to a paragraph below, then parses the copy and checks the copied end still sits under every container it sat under. Your `rebuildRaw` writes those markers, so there's nothing to add for this one; it fails when your rebuild can't write your container around just part of its children |
+| `copyMarkers` | Always on, and excused for a grid or a kind whose `deepNesting` leaf isn't inside it. It copies from a paragraph above your container into the `deepNesting` leaf, and for a line-prefixed (`strip`) kind out of that leaf to a paragraph below, then parses the copy and checks the copied end still sits under every container it sat under. The copy takes those markers from your container's own lines as they sit in the document, not from your `rebuildRaw`, so there's nothing to add for this one. It fails when part of your container, copied out, doesn't read back as your container |
 | `declarations` | The kit's own cell, always on, and it also needs your kind's `conformanceFixture` (a top-level block of your kind; a grid container needs none). Your `unwrapRole` names strategies that exist, `containerPaste` is shaped right, `rebuildRaw` keeps the parsed bytes, rewrites only the edited child's lines when one child of your `deepNesting` source changes (so spell that source the way your rebuild wouldn't), and answers its changed-child shortcut with the same bytes as a full rebuild, `bodyWrap` matches what your parse does, the child your `lastLineChild` names (or the default one) really ends on your last line (and when the answer is -1, your own last line can give its ending up without a rebuild writing it back), and a declared `contentStartSpace` writes the space it took as your marker's when an empty line gains text |
 
 You supply the fixtures, on top of the `conformanceFixture` your descriptor already carries. For the guide's `:::conspiracy` container ([the walkthrough](plugin-guide/container-walkthrough.md#walkthrough-a-conspiracy-container-end-to-end)), a full profile looks like this:
@@ -502,28 +502,27 @@ One thing worth knowing about `widget`: it asserts your claimed slice is **self-
 
 `registerInlineSyntax` already refuses most of that up front, so those are cross-checks on the editor rather than things you can get wrong. What you _can_ get wrong is your recognizer not being there at all (a setup step that ran under the wrong guard, say), and that one doesn't wait for the cell: the run throws before any cell starts, telling you to register the plugin first.
 
-### A menu pick across a note switch: `checkInlineMenuCommitAcrossSwap`
+### A menu pick across a note switch: `checkMenuPickAcrossSwap`
 
-**`checkInlineMenuCommitAcrossSwap({ source, item, query?, release })`**
+**`checkMenuPickAcrossSwap({ plugin, row, query?, release })`**
 
-One cell, for an inline-menu source whose `onCommit` waits on something (a fetch for a title, a picker) before it writes. If the host loads another note meanwhile, the write has to land nowhere. The editor makes sure of that for the context `onCommit` hands you as its third argument: once the note's gone, its `insertMarkdown` and `runCommand` write nothing and answer false. The one you closed over in `onEditor` can't know which note you meant, so writing through it after the wait is the bug this cell catches, unless you check `documentGeneration` (how many times the host has replaced the document, read off the context) first. A source that reads it before the wait and compares after passes.
+One cell, for a caret menu whose `pick` waits on something (a fetch for a title, a picker) before it writes. If the host loads another note meanwhile, the write has to land nowhere. The editor makes sure of that for the `MenuPick` your `pick` gets: once the note's gone, its writes come back refused as `unloaded`. An editor you kept from `setup` can't know which note you meant, so a draft you open on it after the wait is the bug this cell catches.
 
-Hand it a function that builds your source from an editor context, the row to pick, and a `release` that ends your source's wait. The cell picks the row, swaps the note while your commit waits, calls `release`, and throws if your commit wrote anything after the swap:
+Hand it your plugin value (the cell runs its `setup`, then picks from its first caret menu), the row to pick, and a `release` that ends your pick's wait. The cell picks the row, swaps the note while your pick waits, calls `release`, and throws if anything got written after the swap:
 
 ```ts
-import { checkInlineMenuCommitAcrossSwap } from '@voithos-labs/aragonite/testing';
+import { checkMenuPickAcrossSwap } from '@voithos-labs/aragonite/testing';
 
 let release = () => {};
 const titleFetched = new Promise<void>((r) => (release = r));
 
-await checkInlineMenuCommitAcrossSwap({
-	source: (editor) => createMentionSource(editor, { fetchTitle: () => titleFetched }),
-	item: { id: 'ada', label: 'Ada', insert: '@Ada' },
+await checkMenuPickAcrossSwap({
+	plugin: mentions({ fetchTitle: () => titleFetched }),
+	row: { label: 'Ada' },
 	release
 });
-// Error: inline-menu source 'mentions': its commit wrote insertMarkdown("> card") after the host
-// loaded another document; write through the context onCommit hands you, or compare
-// documentGeneration across the wait
+// Error: plugin 'mentions': its menu's pick made a draft commit after the host loaded another
+// document; write through the pick the menu hands you
 ```
 
 ### The whole plugin at once: `runPluginConformance`
@@ -570,9 +569,10 @@ The same run from outside your test suite, over your built package the way a hos
 ```
 $ npx aragonite-plugin-check .
 checking aragonite-parrot@0.1.0 against @voithos-labs/aragonite@0.12.0
-  kind checkup, parrot: 4 asserted, 6 boundary, 1 exempt
 aragonite-plugin-check: passed
 ```
+
+A plugin with kinds registered by hand gets a line per checkup in between (`kind checkup, toc: 4 asserted, 6 boundary, 1 exempt`, say).
 
 It exits 0 when every cell passed, 1 when a contract broke (with the same message `runPluginConformance` throws), and 2 when the package publishes no suite. `--json` also writes the result to a file.
 

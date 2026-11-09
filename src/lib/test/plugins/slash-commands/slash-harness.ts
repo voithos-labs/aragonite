@@ -1,97 +1,37 @@
 /**
- * The `/` source on a real inline-menu state over one parsed document, typed into a byte at a
- * time. The editor's own entry points are recorded instead of run, so a test reads what a pick
- * asked for: which Markdown, where, and which command. `slashPluginHarness` lists through the
- * installed plugin and its editor context instead, so the options are the ones an editor merges.
+ * The `/` menu on a real inline-menu state over one parsed paragraph, typed into a byte at a time.
+ * The plugin is read the way an editor reads its list, so its options are the ones an editor
+ * merges; the pick's draft and the editor's commands are recorded instead of run, so a test reads
+ * what a pick asked for: which Markdown, where, and which command.
  */
 import { tick } from 'svelte';
-import { installPlugins, parse, type DocumentView, type EditorEvents } from '#lib';
-import type {
-	EditorContext,
-	EditorPluginEntry,
-	InlineMenuRegistry,
-	InsertMarkdownOptions
-} from '#lib/plugin.js';
+import { parse, type DocumentView } from '#lib';
 import { createEditorEvents, type EditEvent } from '#lib/editor-events.js';
 import { createInlineMenuState } from '#lib/inline-menu/inline-menu-state.svelte.js';
 import { insertRows } from '#lib/schema/insert-catalogue.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
-import {
-	createSlashSource,
-	type SlashCommandsOptions
-} from '#packages/slash-commands/src/slash-source.js';
-import { createEditorPluginContexts } from '#lib/schema/plugin-editor-context.js';
-import { normalizePluginEntries } from '#lib/schema/plugin-install.js';
+import { installPluginList, type Editor, type Plugin } from '#lib/schema/plugin-unit.js';
+import type { PickDraft } from '#lib/schema/caret-menu.js';
+import type { DraftResult } from '#lib/schema/drafts.js';
+import { slashCommands, type SlashCommandsOptions } from '#packages/slash-commands/src/index.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
-import { pluginContextDeps } from '../../harness/plugin-context-deps';
-import { idleDraftRegistry } from '../../harness/drafts';
 
 const typedEdit = (path: number[]): EditEvent => ({ op: 'input', path, timestamp: 0 }) as EditEvent;
 
-/** What a harness hands the code that attaches the `/` source. */
-interface HarnessHost {
-	getDoc: () => DocumentView;
-	events: EditorEvents;
-	inlineMenus: InlineMenuRegistry;
-	insertMarkdown: (markdown: string, opts?: InsertMarkdownOptions) => Promise<boolean>;
-	runCommand: (id: string, arg?: unknown) => boolean;
-	/** The context the sources added next belong to, as an editor's `onEditor` hands it. */
-	ownSources: (editor: EditorContext) => void;
-}
-
-export function slashHarness(initial: string, options: SlashCommandsOptions = {}) {
-	return harness(initial, (host) => {
-		const editor = {
-			editorId: 'editor-slash',
-			get document() {
-				return host.getDoc();
-			},
-			// The real catalogue, so a plugin a test installs lists its entries as in an editor.
-			get insertCatalogue() {
-				return insertRows(everyInstalledPlugin);
-			},
-			inlineMenus: host.inlineMenus,
-			options,
-			insertMarkdown: host.insertMarkdown,
-			runCommand: host.runCommand
-		} as unknown as EditorContext<SlashCommandsOptions>;
-		host.ownSources(editor);
-		host.inlineMenus.addSource(createSlashSource(editor));
-		return editor;
-	});
-}
-
-/** Installs the entry's plugin; reset the plugin platform around each case. */
-export function slashPluginHarness(
+/** The slash plugin as an editor lists it; `onError` hears what the install reports. */
+export function slashHarness(
 	initial: string,
-	entry: EditorPluginEntry,
+	plugin: Plugin<SlashCommandsOptions> = slashCommands,
 	onError: (error: unknown) => void = (error) => {
 		throw error;
 	}
 ) {
-	return harness(initial, (host) => {
-		const { plugins, optionsByName } = normalizePluginEntries([entry]);
-		installPlugins(plugins);
-		const contexts = createEditorPluginContexts({
-			...pluginContextDeps(),
-			...host,
-			// The slash source runs commands by id only.
-			runCommand: (command, arg) => typeof command === 'string' && host.runCommand(command, arg),
-			optionsFor: (name) => optionsByName.get(name),
-			report: ({ cause }) => onError(cause)
-		});
-		host.ownSources(contexts.get(plugins[0].name)!);
-		contexts.attachAll();
-		return contexts.get(plugins[0].name)!;
-	});
-}
-
-function harness(initial: string, attach: (host: HarnessHost) => EditorContext) {
 	let doc: DocumentView;
 	let caret = initial.length;
 	const events = createEditorEvents();
-	const inserted: { markdown: string; placement: InsertMarkdownOptions['placement'] }[] = [];
-	const ran: { id: string; arg: unknown }[] = [];
+	const inserted: { markdown: string; placement: 'caret' | 'below' }[] = [];
+	const ran: { id: unknown; arg: unknown }[] = [];
+	const results: DraftResult[] = [];
 
 	// Empty bytes parse to no block at all, where the editor holds an empty paragraph on an empty
 	// line; that paragraph is what the caret sits in.
@@ -102,12 +42,48 @@ function harness(initial: string, attach: (host: HarnessHost) => EditorContext) 
 	const raw = () => doc.children[0]?.raw ?? '';
 	write(initial);
 
-	const insertMarkdown = (markdown: string, opts?: InsertMarkdownOptions) => {
-		inserted.push({ markdown, placement: opts?.placement ?? 'caret' });
-		return Promise.resolve(true);
-	};
+	const [unit] = installPluginList([plugin], ({ cause }) => onError(cause));
+	const editor = {
+		// The real rows, so a plugin a test installs lists its entries as in an editor.
+		get inserts() {
+			return insertRows(everyInstalledPlugin);
+		},
+		run: (id: unknown, arg?: unknown) => (ran.push({ id, arg }), true)
+	} as unknown as Editor;
 
-	let owner: EditorContext | undefined;
+	/** One paragraph, so its bytes are the document's. */
+	function recordingDraft(): PickDraft {
+		const writes: { from: number; to: number; text: string }[] = [];
+		const queued: typeof inserted = [];
+		const draft: PickDraft = {
+			stale: false,
+			replace({ from, to }, text) {
+				writes.push({ from, to, text });
+				return draft;
+			},
+			insert(markdown) {
+				queued.push({ markdown, placement: 'caret' });
+				return draft;
+			},
+			insertBelow(markdown) {
+				queued.push({ markdown, placement: 'below' });
+				return draft;
+			},
+			data: () => draft,
+			now: (at) => at,
+			async commit(options) {
+				for (const { from, to, text } of writes)
+					write(raw().slice(0, from) + text + raw().slice(to));
+				if (options?.caret !== undefined) caret = options.caret;
+				inserted.push(...queued);
+				results.push({ ok: true });
+				return { ok: true };
+			},
+			end() {}
+		};
+		return draft;
+	}
+
 	const menu = createInlineMenuState({
 		getDoc: () => doc,
 		getSelection: () => ({
@@ -116,6 +92,9 @@ function harness(initial: string, attach: (host: HarnessHost) => EditorContext) 
 		}),
 		getMode: () => 'source',
 		showsSource: () => false,
+		editorFor: () => editor,
+		pickDraft: recordingDraft,
+		endBurst: () => {},
 		events,
 		editorId: 'editor-slash',
 		reading: fixtureReading(),
@@ -128,27 +107,18 @@ function harness(initial: string, attach: (host: HarnessHost) => EditorContext) 
 			await tick();
 			return true;
 		},
-		undoStep: async (_path, _offset, run) => void (await run()),
-		ownerOfNewSource: () => owner!,
-		// No swap happens here, so a pick's draft can always write.
-		drafts: idleDraftRegistry()
+		undoStep: async (_path, _offset, run) => void (await run())
 	});
-
-	const editor = attach({
-		getDoc: () => doc,
-		events,
-		inlineMenus: menu.registry,
-		insertMarkdown,
-		runCommand: (id, arg) => (ran.push({ id, arg }), true),
-		ownSources: (context) => (owner = context)
-	});
+	menu.setMenus((unit?.contribution.menus ?? []).map((m) => ({ plugin: plugin.name, menu: m })));
 
 	let arrived = false;
 	return {
 		menu,
+		unit,
 		editor,
 		inserted,
 		ran,
+		results,
 		raw,
 		caret: () => caret,
 		rows: () => menu.getOpen()?.items.map((item) => item.label) ?? [],
@@ -170,7 +140,6 @@ function harness(initial: string, attach: (host: HarnessHost) => EditorContext) 
 		/** Enter on the open list; false where the list holds no key and Enter would split. */
 		async pick(): Promise<boolean> {
 			const taken = menu.registry.isOpen && menu.commit();
-			// The pick's write and its caret landing each take a tick before `onCommit` runs.
 			for (let i = 0; i < 4; i++) await tick();
 			return taken;
 		}

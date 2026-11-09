@@ -7,7 +7,6 @@
 
 import type { PluginView } from '../plugin-view';
 import type { MenuIconName } from '../menu-icons';
-import type { EditorContext } from '../schema/plugin-install';
 
 export interface InlineMenuItem {
 	/** The row's key, unique within one result list. Where two rows share one, the first is kept
@@ -19,7 +18,7 @@ export interface InlineMenuItem {
 	/** A menu glyph drawn before the label by the default row. */
 	icon?: MenuIconName;
 	/** The bytes that replace the trigger and the query, the caret after them. One line: a line break
-	 *  is refused and reported, and a block-level insert is `onCommit`'s job. Empty is legal. */
+	 *  is refused and reported. Empty is legal. */
 	insert: string;
 }
 
@@ -35,15 +34,6 @@ export interface InlineMenuQuery {
 	signal: AbortSignal;
 }
 
-/**
- * The `EditorContext` a pick's `onCommit` gets: the context of the plugin that added the source,
- * live like it, except that `insertMarkdown` and `runCommand` refuse (write nothing, answer false,
- * as reading mode does) once the host has loaded another document, which `signal` reports too.
- */
-export interface InlineMenuCommit extends EditorContext {
-	readonly signal: AbortSignal;
-}
-
 export interface InlineMenuRowProps {
 	item: InlineMenuItem;
 	active: boolean;
@@ -53,6 +43,8 @@ export interface InlineMenuRowProps {
 export interface InlineMenuSource {
 	/** Unique per editor; the name `open()` addresses. */
 	name: string;
+	/** What a screen reader calls the list; without it, "Suggestions". */
+	label?: string;
 	/**
 	 * The typed opener, one line and never empty; `addSource` throws otherwise. Where two sources'
 	 * triggers both end at the caret, the longer wins.
@@ -66,13 +58,6 @@ export interface InlineMenuSource {
 	/** The list for a query. An empty list hides the menu and releases the keys but keeps the
 	 *  session; a rejected promise reads as empty and is reported on the `error` event. */
 	items(query: InlineMenuQuery): InlineMenuItem[] | Promise<InlineMenuItem[]>;
-	/** Runs after the pick's bytes land, with the caret at `start + insert.length`. Writes made while
-	 *  a returned promise is pending join the pick's undo entry; make them through `editor`. */
-	onCommit?(
-		item: InlineMenuItem,
-		query: Omit<InlineMenuQuery, 'signal'>,
-		editor: InlineMenuCommit
-	): void | Promise<void>;
 	/** Paints a row in place of the default label and detail, updated as it turns active or the
 	 *  query changes. A row whose view throws shows the default, and the throw goes to `error`. */
 	row?: PluginView<InlineMenuRowProps>;

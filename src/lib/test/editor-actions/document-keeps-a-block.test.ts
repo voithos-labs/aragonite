@@ -9,6 +9,9 @@ import type { Document } from '#lib/core/nodes.js';
 import { serialize } from '#lib/core/serializer.js';
 import { createCaretMemory } from '#lib/caret/caret-memory.js';
 import { handleWholeBlockKeys } from '#lib/editor-actions/container-block-component.js';
+import { parse } from '#lib/core/parser.js';
+import { freshBytes } from '#lib/test/harness/copied-text.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { createContainerEditActions } from '#lib/editor-actions/container-edit.js';
 import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
 import { createStandardNestedActions } from '#lib/editor-actions/nested/nested-actions.js';
@@ -60,6 +63,8 @@ function focusedRuleKey(blockEdit: BlockEditActions, key: string, mods = {}): vo
 	handleWholeBlockKeys({ ...e, preventDefault: () => {} } as unknown as KeyboardEvent, {
 		getIndex: () => 0,
 		getRaw: () => '---\n',
+		bytes: freshBytes(() => parse('---\n')),
+		reading: fixtureReading(),
 		blockEdit,
 		focus: recordingFocus(),
 		isReading: () => false,

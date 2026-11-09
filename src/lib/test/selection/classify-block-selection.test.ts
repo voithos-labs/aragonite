@@ -8,20 +8,22 @@ import {
 	endpointMeasureSpan
 } from '../../selection/primitives';
 import { SELECTION_END } from '../../block-component';
-import { coverRange, rangeCoverage, type RangeCoverage } from '../../selection/range-coverage';
+import { coverRange, rangeCoverage } from '../../selection/range-coverage';
+import { rangePaint, type RangePaint } from '../../selection/range-bytes';
+import { documentLayout } from '../../range-edit/layout';
 
 const FIVE = 'p0\n\np1\n\np2\n\np3\n\np4\n';
 /** [0] and [2] quotes of two paragraphs each, [1] a paragraph between them. */
 const QUOTES = '> a\n>\n> b\n\nmid\n\n> c\n>\n> d\n';
 
-/** The pair as the overlay reads it, off the one coverage the delete and the copy read too. */
+/** The pair as the overlay reads it, off the coverage and the bytes the copy reads too. */
 function sel(
 	anchor: { path: number[]; offset: number },
 	focus: { path: number[]; offset: number },
 	source = FIVE
-): RangeCoverage {
+): RangePaint {
 	const doc = parse(source);
-	return rangeCoverage(doc, coverRange(doc, anchor, focus));
+	return rangePaint(doc, rangeCoverage(doc, coverRange(doc, anchor, focus)), documentLayout(doc));
 }
 
 describe('classifyBlockForSelection', () => {
@@ -156,6 +158,23 @@ describe('an end block the range covers whole', () => {
 		expect(blockPaintsWholeBox([0], s, null)).toBe(true);
 		expect(blockPaintsWholeBox([1], s, null)).toBe(false);
 		expect(classifyBlockForSelection([1], s)).toBe('end');
+		for (const row of [0, 1]) expect(classifyBlockForSelection([1, row], s)).toBe('outside');
+	});
+});
+
+// Miss-analysis: the box came from the coverage, which counted a text end at a block's first byte
+// as holding its container, so a range from a quote's first letter boxed the quote's marker too.
+describe('a range entered at a container’s first text', () => {
+	it.each([
+		['a quote', '> quoted\n\nafter\n', [0, 0]],
+		['a list item', '- item\n\nafter\n', [0, 0, 0]]
+	])('boxes %s’s paragraph, not the container whose marker it leaves out', (_, source, text) => {
+		const s = sel({ path: text, offset: 0 }, { path: [1], offset: 3 }, source);
+		expect(blockPaintsWholeBox(text, s, null)).toBe(true);
+		for (let depth = 1; depth < text.length; depth++) {
+			expect(blockPaintsWholeBox(text.slice(0, depth), s, null)).toBe(false);
+		}
+		expect(classifyBlockForSelection([1], s)).toBe('end');
 	});
 });
 
@@ -173,7 +192,7 @@ describe('a closed details the range takes whole', () => {
 		['starting on its title row', { path: [1, 0], offset: 1 }, { path: [2], offset: 2 }]
 	])('%s paints one box, and its title row paints no endpoint', (_, anchor, focus) => {
 		const d = doc();
-		const range = rangeCoverage(d, coverRange(d, anchor, focus));
+		const range = rangePaint(d, rangeCoverage(d, coverRange(d, anchor, focus)), documentLayout(d));
 		expect(blockPaintsWholeBox([1], range, null)).toBe(true);
 		expect(classifyBlockForSelection([1], range)).toBe('whole');
 		for (const inside of [
@@ -191,22 +210,26 @@ describe('endpointMeasureSpan', () => {
 
 	it('measures a text edge from the start, or up to the end, out to its line edges', () => {
 		const s = sel({ path: [0], offset: 2 }, { path: [2], offset: 3 }, TABLE);
-		expect(endpointMeasureSpan('start', s)).toEqual({
+		expect(endpointMeasureSpan('start', s.coverage)).toEqual({
 			from: 2,
 			to: SELECTION_END,
 			textSide: 'start'
 		});
-		expect(endpointMeasureSpan('end', s)).toEqual({ from: 0, to: 3, textSide: 'end' });
+		expect(endpointMeasureSpan('end', s.coverage)).toEqual({ from: 0, to: 3, textSide: 'end' });
 	});
 
 	// Cell 2 sits mid-row, so the snap takes the end to its row's last cell, and the run past it.
 	it('measures a kept table end through the cells the coverage hands over', () => {
 		const s = sel({ path: [0], offset: 2 }, cellPoint([1], 2), TABLE);
-		expect(endpointMeasureSpan('end', s)).toEqual({ from: 0, to: 4, textSide: null });
+		expect(endpointMeasureSpan('end', s.coverage)).toEqual({ from: 0, to: 4, textSide: null });
 	});
 
 	it('measures a kept table start from the first cell of its row', () => {
 		const s = sel(cellPoint([1], 3), { path: [2], offset: 3 }, TABLE);
-		expect(endpointMeasureSpan('start', s)).toEqual({ from: 2, to: SELECTION_END, textSide: null });
+		expect(endpointMeasureSpan('start', s.coverage)).toEqual({
+			from: 2,
+			to: SELECTION_END,
+			textSide: null
+		});
 	});
 });

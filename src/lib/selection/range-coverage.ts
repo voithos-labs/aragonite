@@ -103,7 +103,6 @@ export function coverRange(doc: DocumentView, a: SelectionPoint, b: SelectionPoi
 export class RangeCoverage {
 	// Private, so the type is nominal as `CoveredRange` is; keyed so a lookup costs the path's depth.
 	readonly #wholeByKey: ReadonlyMap<string, DocPath>;
-	readonly #coveredByKey: ReadonlyMap<string, DocPath>;
 	readonly range: CoveredRange;
 	/** The start block's kept head, from its first byte or cell to the start; null where the
 	 *  range holds the block whole. */
@@ -112,9 +111,6 @@ export class RangeCoverage {
 	readonly endEdge: SelectionPoint | null;
 	/** Every subtree the range removes whole, outermost only, in document order. */
 	readonly wholeRoots: readonly DocPath[];
-	/** Every subtree whose bytes the range covers end to end, outermost only: the whole roots and
-	 *  a kept edge at its block's first or last byte, with the containers they complete. */
-	readonly coveredWhole: readonly DocPath[];
 	/** For a pair inside one table, which of its cells the range holds; null otherwise. */
 	readonly grid: GridCoverage | null;
 	/** The cells a kept table edge hands to the range, as a half-open row-major run: from the
@@ -129,23 +125,16 @@ export class RangeCoverage {
 		this.startEdge = fields.startEdge;
 		this.endEdge = fields.endEdge;
 		this.wholeRoots = fields.wholeRoots;
-		this.coveredWhole = fields.coveredWhole;
 		this.grid = fields.grid;
 		this.startCells = fields.startCells;
 		this.endCells = fields.endCells;
 		this.#wholeByKey = byKey(fields.wholeRoots);
-		this.#coveredByKey = byKey(fields.coveredWhole);
 		Object.freeze(this);
 	}
 
 	/** The whole root holding `path`, or null. */
 	rootHolding(path: readonly number[]): DocPath | null {
 		return rootAmong(this.#wholeByKey, path);
-	}
-
-	/** The subtree in `coveredWhole` holding `path`, or null. */
-	coveredRootHolding(path: readonly number[]): DocPath | null {
-		return rootAmong(this.#coveredByKey, path);
 	}
 }
 
@@ -164,15 +153,10 @@ export function rangeCoverage(doc: DocumentView, range: CoveredRange): RangeCove
 	const endHeld = range.unitHolding(end.path) !== null || endConsumed(doc, range);
 	if (startHeld) held.push(start.path);
 	if (endHeld) held.push(end.path);
-	// A kept edge still hands over every byte of its block when it sits on that block's edge.
-	const covered = held.slice();
-	if (!startHeld && edgeCoversBlock(doc, start, 'start')) covered.push(start.path);
-	if (!endHeld && edgeCoversBlock(doc, end, 'end')) covered.push(end.path);
 	return new RangeCoverage(SEAL, range, {
 		startEdge: startHeld ? null : start,
 		endEdge: endHeld ? null : end,
 		wholeRoots: outermost(withWholeParents(doc, held)),
-		coveredWhole: outermost(withWholeParents(doc, covered)),
 		grid: null,
 		startCells: startHeld ? null : keptTableRun(doc, start, 'start'),
 		endCells: endHeld ? null : keptTableRun(doc, end, 'end')
@@ -263,7 +247,6 @@ interface CoverageFields {
 	startEdge: SelectionPoint | null;
 	endEdge: SelectionPoint | null;
 	wholeRoots: readonly DocPath[];
-	coveredWhole: readonly DocPath[];
 	grid: GridCoverage | null;
 	startCells: CellRun | null;
 	endCells: CellRun | null;
@@ -298,7 +281,6 @@ function kept(start: SelectionPoint, end: SelectionPoint): CoverageFields {
 		startEdge: start,
 		endEdge: end,
 		wholeRoots: [],
-		coveredWhole: [],
 		grid: null,
 		startCells: null,
 		endCells: null
@@ -310,7 +292,6 @@ function heldWhole(path: DocPath, grid: GridCoverage | null): CoverageFields {
 		startEdge: null,
 		endEdge: null,
 		wholeRoots: [path],
-		coveredWhole: [path],
 		grid,
 		startCells: null,
 		endCells: null
@@ -370,14 +351,6 @@ function edgeHeld(doc: DocumentView, point: SelectionPoint, side: 'start' | 'end
 	}
 	if (isGridKind(node.kind)) return true;
 	if (!isWholeBlockUnit(node)) return false;
-	return side === 'start' ? point.offset === 0 : point.offset >= displayLength(node.raw);
-}
-
-/** A text edge at its block's first byte (a start) or last (an end), so a copy takes the block. */
-function edgeCoversBlock(doc: DocumentView, point: SelectionPoint, side: 'start' | 'end'): boolean {
-	if (point.cellCoordinate) return false;
-	const node = nodeAt(doc, point.path);
-	if (!node || !isBlockNode(node)) return false;
 	return side === 'start' ? point.offset === 0 : point.offset >= displayLength(node.raw);
 }
 

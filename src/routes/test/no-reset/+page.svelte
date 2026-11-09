@@ -1,11 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import {
-		type Decoration,
-		type DecorationSource,
-		type InlineMenuSource,
-		type PluginView
-	} from '#lib';
+	import { type Decoration, type DecorationSource, type PluginView } from '#lib';
+	import { definePlugin, menu, type CaretMenu, type MenuRow } from '#lib/plugin.js';
 	import { Editor, svelteView } from '#lib/svelte.js';
 	import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
 	import { installTestProbes } from '../editor/test-probes';
@@ -52,12 +48,31 @@
 					]
 	};
 
-	const hostMenu = (name: string, trigger: string, row: InlineMenuSource['row']) => ({
-		name,
-		trigger,
-		row,
-		items: () => [{ id: name, label: name, insert: name }]
-	});
+	// Each menu is its plugin's first, so the list carries the plugin's name.
+	const hostMenu = (name: string, trigger: string, view: CaretMenu<MenuRow>['view']) =>
+		definePlugin({
+			name,
+			version: '1.0.0',
+			editor: '*',
+			contributes: () => ({
+				menus: [
+					menu<MenuRow>({
+						label: name,
+						trigger,
+						view,
+						rows: () => [{ label: name }],
+						pick: (row, pick) => void pick.write(row.label)
+					})
+				]
+			})
+		});
+	const hostMenus = [
+		hostMenu('component-row', '@@', svelteView(HostRow)),
+		hostMenu('dom-row', '%%', (target, { row }) => {
+			target.append(hostButton(row.label)());
+			return {};
+		})
+	];
 
 	$effect(() => {
 		if (!editor) return;
@@ -73,16 +88,7 @@
 		const instance = editor;
 		if (!instance || !data.hostContent) return;
 		// Untracked: adding a source reads the state it then writes.
-		const handles = untrack(() => [
-			instance.getDecorations().addSource(hostDecorations),
-			instance.getInlineMenus().addSource(hostMenu('component-row', '@@', svelteView(HostRow))),
-			instance.getInlineMenus().addSource(
-				hostMenu('dom-row', '%%', (target, { item }) => {
-					target.append(hostButton(item.label)());
-					return {};
-				})
-			)
-		]);
+		const handles = untrack(() => [instance.getDecorations().addSource(hostDecorations)]);
 		return () => handles.forEach((handle) => handle.dispose());
 	});
 </script>
@@ -113,6 +119,7 @@
 			{keybindings}
 			blockDragHandles
 			header={data.hostContent ? hostHeader : undefined}
+			plugins={data.hostContent ? hostMenus : undefined}
 			searchBarAnchor={findBarSlot}
 		/>
 	</div>

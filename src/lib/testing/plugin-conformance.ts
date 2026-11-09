@@ -7,8 +7,12 @@
 import { devChecksOn, setDevWarnSink, type DevWarnEntry } from '@voithos-labs/aragonite/dev-checks';
 import type { AnyBlockKind } from '../core/nodes';
 import { getBlockKindDescriptor } from '../schema/block-kind-descriptor';
-import { installPlugins, type EditorPlugin } from '../schema/plugin-install';
-import type { PluginList } from '../schema/plugin-unit';
+import {
+	installPlugins,
+	normalizePluginEntries,
+	type EditorPlugin
+} from '../schema/plugin-install';
+import { installPluginList, type PluginList } from '../schema/plugin-unit';
 import {
 	declaredPluginInlineKind,
 	pluginInlineKindsDeclaredBy,
@@ -61,8 +65,10 @@ export async function runPluginConformance(
 	const report: PluginConformanceReport = { plugins: names, kinds: [], containers: [], inline: [] };
 	try {
 		resetPluginPlatformForTests();
-		// A plugin value defines nothing page-wide, so only the `setup` plugins install here.
-		installPlugins(suite.plugins.filter((plugin): plugin is EditorPlugin => 'setup' in plugin));
+		const { plugins, values } = normalizePluginEntries(suite.plugins);
+		installPlugins(plugins);
+		// A plugin value installs per editor: reading its list is where it's refused.
+		installPluginList(values, ({ cause }) => failures.push(String((cause as Error)?.message)));
 		const blockKinds: AnyBlockKind[] = names.flatMap(pluginKindsDeclaredBy);
 		const inlineKinds = names.flatMap(pluginInlineKindsDeclaredBy);
 		for (const problem of missingProfiles(suite, blockKinds, inlineKinds)) failures.push(problem);

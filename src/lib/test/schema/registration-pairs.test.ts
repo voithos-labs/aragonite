@@ -12,7 +12,6 @@ import {
 	INCOHERENT_REGISTRATION_PAIRS,
 	type IncoherentPairId
 } from '#lib/schema/registration-pairs.js';
-import { testClosure } from '#lib/test/harness/closure.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
 const leaf = {
@@ -20,7 +19,6 @@ const leaf = {
 	mergeRole: 'not-mergeable',
 	editable: true,
 	supportsInline: false,
-	closure: testClosure,
 	view: testView()
 };
 const group = { contract: 'opaque', rebuildRaw: () => {} };

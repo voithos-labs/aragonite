@@ -20,19 +20,14 @@ import {
 	type PluginBlockKind
 } from '#lib/plugin.js';
 import { parse } from '#lib/core/parser.js';
-import { checkClosureCoherence } from '#lib/invariants/registry.js';
-import { getBlockKindDescriptor, type ReservedChrome } from '#lib/schema/block-kind-descriptor.js';
+import type { ReservedChrome } from '#lib/schema/block-kind-descriptor.js';
 import { isCollapsedContainer } from '#lib/schema/reserved-chrome.js';
-import {
-	closureCoherenceEntry,
-	flushPendingRegistrationChecks
-} from '#lib/schema/registration-checks.js';
-import { testClosure } from '#lib/test/harness/closure.js';
+import { flushPendingRegistrationChecks } from '#lib/schema/registration-checks.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
 function registerBox(
 	name: string,
-	over: { reservedChrome?: ReservedChrome; clipboardInherits?: boolean } = {}
+	over: { reservedChrome?: ReservedChrome } = {}
 ): PluginBlockKind {
 	activateDirectives();
 	const kind = declarePluginKind(name);
@@ -47,10 +42,7 @@ function registerBox(
 				children: parsed.body?.children ?? [],
 				innerSuffix: parsed.body?.suffix ?? ''
 			};
-			setPluginMetadata(node, {
-				closerColonCount: parsed.closerColonCount,
-				closerNewline: parsed.closerNewline
-			});
+			setPluginMetadata(node, {});
 			return node;
 		}
 	});
@@ -63,10 +55,7 @@ function registerBox(
 		container: {
 			lines: COLON_LINES,
 			...(over.reservedChrome ? { reservedChrome: over.reservedChrome } : {})
-		},
-		closure: over.clipboardInherits
-			? { ...testClosure, clipboard: { mode: 'inherit-default' } }
-			: testClosure
+		}
 	});
 	return kind;
 }
@@ -81,12 +70,6 @@ function violationsAt(tag: string): InvariantViolation[] {
 }
 
 describe('a `:::` container registers against the opener line it holds', () => {
-	it('names what a copy of the opener line produces', () => {
-		const kind = registerBox('rumor', { clipboardInherits: true });
-		const entry = closureCoherenceEntry(kind, getBlockKindDescriptor(kind));
-		expect(checkClosureCoherence([entry])?.detail).toMatchObject({ kind, column: 'clipboard' });
-	});
-
 	it('names no title row kind of its own', () => {
 		const title = declarePluginKind('hearsay-title');
 		registerChromeLeaf(title);

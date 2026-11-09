@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createRootMenus, type BlockMenuModel } from '#lib/components/editor-root/menus.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
-import { registerDefaultContextActions } from '#lib/components/menu/default-context-actions.js';
+import { idleDraftRegistry } from '#lib/test/harness/drafts.js';
 import { BLOCK_ACTIONS_LABEL } from '#lib/a11y-strings.js';
 import { parse } from '#lib/core/parser.js';
 import { insertRows } from '#lib/schema/insert-catalogue.js';
@@ -11,12 +11,12 @@ import type { PresentationMode } from '#lib/presentation-mode.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { noSelectionActions } from '#lib/test/harness/no-selection-actions.js';
 
 // Miss-analysis: which menu a right-click opens was tested only through Playwright.
 
 beforeEach(() => {
 	document.body.replaceChildren();
-	registerDefaultContextActions();
 });
 
 function hostAt(path: number[]): HTMLElement {
@@ -84,13 +84,16 @@ function harness(
 		finger: () => opts.finger ?? false,
 		insertMarkdown,
 		clipboard: { take: () => null, pasteTarget: aimInsertAtFocus },
+		openDraft: (spec, path) => idleDraftRegistry().open(spec, path),
 		inserts: () => insertRows(everyInstalledPlugin),
 		activation: everyInstalledPlugin,
 		reading: fixtureReading(),
 		stamps: createDocumentStamps(),
 		canEditLinkAtCaret: () => (order.push('ask'), !!opts.editsLink),
 		editLinkAtCaret,
-		setMenu: (next) => (menu = next)
+		setMenu: (next) => (menu = next),
+		currentMenu: () => menu,
+		actions: noSelectionActions
 	});
 	root.addEventListener('contextmenu', menus.onRootContextMenu);
 

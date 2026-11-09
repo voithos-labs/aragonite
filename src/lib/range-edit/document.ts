@@ -16,22 +16,30 @@ export interface Doc {
 	layout: Layout;
 	host: RangeHost;
 	mode: Mode;
-	byPath: Map<string, LaidBlock>;
 }
 
 export function readDoc(source: string, host: RangeHost, mode: Mode): Doc {
 	const tree = host.read(source);
-	const layout = host.layout(tree);
-	const byPath = new Map(layout.blocks.map((b) => [b.path.join(), b]));
-	return { source, tree, layout, host, mode, byPath };
+	return { source, tree, layout: host.layout(tree), host, mode };
 }
 
 export const factsOf = (doc: Doc, block: LaidBlock): BlockFacts => doc.host.facts(block.type);
 
+/** The first block reaching `[from, to]` that `matches`, parents before children. */
+export function findWithin(
+	doc: Doc,
+	from: number,
+	to: number,
+	matches: (block: LaidBlock) => boolean
+): LaidBlock | undefined {
+	for (const block of doc.layout.within(from, to)) if (matches(block)) return block;
+	return undefined;
+}
+
 export const nodeAt = (doc: Doc, path: readonly number[]): NodeView => blockNodeAt(doc.tree, path)!;
 
 export const parentOf = (doc: Doc, block: LaidBlock): LaidBlock | undefined =>
-	doc.byPath.get(block.path.slice(0, -1).join());
+	doc.layout.block(block.path.slice(0, -1));
 
 /** Where a block's last line ends, before its line ending. */
 export const contentEnd = (doc: Doc, block: LaidBlock) =>
@@ -43,7 +51,7 @@ export const endingOf = (source: string): LineEnding => firstLineEnding(source) 
 /** The text block whose text holds `byte`, with the offset into its bytes. */
 export function leafAt(doc: Doc, byte: number): { leaf: LaidBlock; offset: number } | null {
 	const point = doc.layout.pointAt(byte);
-	const leaf = point && doc.byPath.get(point.path.join());
+	const leaf = point && doc.layout.block(point.path);
 	if (!leaf?.text || byte < leaf.text.from || byte > leaf.text.to) return null;
 	// A hidden body maps every offset to one byte, where no place in the text is; an empty text's
 	// one place is that byte.
@@ -55,15 +63,15 @@ export function leafAt(doc: Doc, byte: number): { leaf: LaidBlock; offset: numbe
 /** The block a byte's text position names, in its text or past it. */
 export function pointedBlock(doc: Doc, byte: number): LaidBlock | undefined {
 	const point = doc.layout.pointAt(byte);
-	return point ? doc.byPath.get(point.path.join()) : undefined;
+	return point ? doc.layout.block(point.path) : undefined;
 }
 
 /** The containers whose bytes hold `byte`, outermost first; at a container's last byte only the
  *  `end` side counts it. */
 export function containersAt(doc: Doc, byte: number, side: 'start' | 'end'): LaidBlock[] {
-	return doc.layout.blocks.filter(
+	return [...doc.layout.within(byte, byte)].filter(
 		(b) =>
-			b.lines !== undefined &&
+			b.container &&
 			(side === 'start' ? b.from <= byte && byte < b.to : b.from < byte && byte <= b.to)
 	);
 }
@@ -71,31 +79,45 @@ export function containersAt(doc: Doc, byte: number, side: 'start' | 'end'): Lai
 /** The containers a caret at `at` sits in; a container's last byte counts where no line ending
  *  closes it (the document's last line). */
 export function containersHolding(doc: Doc, at: number): LaidBlock[] {
-	return doc.layout.blocks.filter(
+	return [...doc.layout.within(at, at)].filter(
 		(b) =>
-			b.lines !== undefined &&
+			b.container &&
 			b.from <= at &&
 			(at < b.to || (at === b.to && !doc.source.endsWith('\n', b.to)))
 	);
 }
 
-export const lineOf = (container: LaidBlock, byte: number): LaidLine =>
-	container.lines!.find((l) => l.from <= byte && byte < l.to) ?? container.lines!.at(-1)!;
+/** The container's line holding `byte`, or its last. */
+export function lineOf(container: LaidBlock, byte: number): LaidLine {
+	const lines = container.lines!;
+	let lo = 0;
+	let hi = lines.length - 1;
+	while (lo < hi) {
+		const mid = (lo + hi) >> 1;
+		if (byte < lines[mid].to) hi = mid;
+		else lo = mid + 1;
+	}
+	return lines[lo];
+}
 
 export const firstBodyLine = (container: LaidBlock) => container.lines!.find((l) => !l.own);
 
 /** The block that is a container's title row, when it has one. */
 export function titleRowOf(doc: Doc, container: LaidBlock): LaidBlock | undefined {
 	const type = factsOf(doc, container).titleRow?.type;
-	return type === undefined
-		? undefined
-		: doc.layout.blocks.find((b) => b.type === type && parentOf(doc, b) === container);
+	if (type === undefined) return undefined;
+	const count = nodeAt(doc, container.path).children?.length ?? 0;
+	for (let i = 0; i < count; i++) {
+		const child = doc.layout.block([...container.path, i]);
+		if (child?.type === type) return child;
+	}
+	return undefined;
 }
 
 /** The title row whose line holds `byte`, when one does. */
 export function titleAt(doc: Doc, byte: number): LaidBlock | undefined {
-	for (const owner of doc.layout.blocks) {
-		const row = owner.lines && titleRowOf(doc, owner);
+	for (const owner of doc.layout.within(byte, byte)) {
+		const row = owner.container && titleRowOf(doc, owner);
 		if (!row) continue;
 		const end = doc.source.indexOf('\n', row.from);
 		if (row.from <= byte && byte <= (end < 0 ? doc.source.length : end)) return row;

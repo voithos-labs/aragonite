@@ -9,7 +9,6 @@ import {
 	registerBlockKind,
 	registerBlockCommand,
 	setPluginMetadata,
-	simpleLeafClosure,
 	type BlockView,
 	type CstNode
 } from '#lib/plugin.js';
@@ -35,12 +34,10 @@ export function registerMemoBlock(view: BlockView): void {
 	registerBlockKind(memo, {
 		view,
 		opener: {
-			// Lower priorities try first, so 27 lets the bundled parrot opener (25) take `%%parrot`
-			// lines before the memo sees them.
 			priority: 27,
-			interruptsParagraph: (text) => text.startsWith('%%'),
+			interruptsParagraph: (text) => isMemoLine(text),
 			tryOpen(ctx) {
-				if (!ctx.line.text.startsWith('%%')) return null;
+				if (!isMemoLine(ctx.line.text)) return null;
 				const node: CstNode = { kind: memo, leadingTrivia: ctx.leadingTrivia, raw: ctx.line.raw };
 				if (ctx.line.text.startsWith(TAGGED)) setPluginMetadata(node, { memoTagged: true });
 				return { node, consumed: 1 };
@@ -54,21 +51,12 @@ export function registerMemoBlock(view: BlockView): void {
 			{ chord: 'Mod+Shift+K', command: tag },
 			{ chord: 'Mod+Shift+J', command: boom }
 		],
-		conformanceFixture: '%%a memo\n',
-		closure: simpleLeafClosure({
-			focus: {
-				mode: 'implemented',
-				via: 'createEditableLeaf plain — always-editable source caret'
-			},
-			searchPaint: { mode: 'implemented', via: 'source raw scanned; matches painted as marks' },
-			undo: {
-				mode: 'implemented',
-				via: 'plain mode — per-keystroke commits with prose undo batching'
-			},
-			simOracle: {
-				mode: 'implemented',
-				via: 'editable-leaf-plain / editable-leaf-command e2e'
-			}
-		})
+		conformanceFixture: '%%a memo\n'
 	});
+}
+
+// The bundled parrot's `%%parrot` lines are its own: a plugin's block type sorts after every
+// opener registered by hand, so the memo declines them.
+function isMemoLine(text: string): boolean {
+	return text.startsWith('%%') && !text.startsWith('%%parrot');
 }

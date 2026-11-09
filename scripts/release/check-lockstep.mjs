@@ -51,6 +51,12 @@ export const TEMPLATE_VERSION_SITES = /** @type {const} */ ([
 	['docs/guide/plugin-testing.md', /plugin-check\.yml@v(\d[\w.-]*)/g]
 ]);
 
+/** Each first-party plugin value's source, with the pattern that captures the version and the
+ *  editor it states. */
+export const PLUGIN_VALUE_SITES = /** @type {const} */ ([
+	['packages/slash-commands/src/slash-commands-plugin.ts', /(?:version|editor): '(\d[\w.-]*)'/g]
+]);
+
 /**
  * Every version the plugin template names that isn't the root's, as messages; empty when in step.
  * The template asks for the editor the way an outside plugin does: an exact devDependency and a
@@ -68,6 +74,17 @@ export function templateDrift(root, manifest, sites) {
 	if (manifest.peerDependencies?.[CORE] !== `^${root.version}`) {
 		problems.push(`the template's peer on ${CORE} isn't ^${root.version}`);
 	}
+	return [...problems, ...siteDrift(root, sites)];
+}
+
+/**
+ * Every version the sites name that isn't the root's, and each site naming none, as messages.
+ * @param {{ version: string }} root
+ * @param {[file: string, text: string, pattern: RegExp][]} sites
+ * @returns {string[]}
+ */
+export function siteDrift(root, sites) {
+	const problems = [];
 	for (const [file, text, pattern] of sites) {
 		const found = [...text.matchAll(pattern)].map((match) => match[1]);
 		if (found.length === 0) problems.push(`${file} names no editor version`);
@@ -81,13 +98,16 @@ export function templateDrift(root, manifest, sites) {
 /** The plugin template's manifest and the text of each file naming its editor version. */
 export function readTemplate() {
 	const manifest = JSON.parse(readFileSync(`${TEMPLATE_DIR}/package.json`, 'utf8'));
-	/** @type {[string, string, RegExp][]} */
-	const sites = TEMPLATE_VERSION_SITES.map(([file, pattern]) => [
-		file,
-		readFileSync(file, 'utf8'),
-		pattern
-	]);
-	return { manifest, sites };
+	return { manifest, sites: readSites(TEMPLATE_VERSION_SITES) };
+}
+
+/**
+ * Each site's text, read beside its file and pattern.
+ * @param {readonly (readonly [string, RegExp])[]} list
+ * @returns {[string, string, RegExp][]}
+ */
+export function readSites(list) {
+	return list.map(([file, pattern]) => [file, readFileSync(file, 'utf8'), pattern]);
 }
 
 /** The root manifest, every workspace package's manifest and the library's version constant. */
@@ -110,7 +130,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 	const problems = [
 		...lockstepDrift(root, packages),
 		...libraryVersionDrift(root, libraryVersion),
-		...templateDrift(root, template.manifest, template.sites)
+		...templateDrift(root, template.manifest, template.sites),
+		...siteDrift(root, readSites(PLUGIN_VALUE_SITES))
 	];
 	if (problems.length > 0) {
 		console.error('check-lockstep:\n  ' + problems.join('\n  '));

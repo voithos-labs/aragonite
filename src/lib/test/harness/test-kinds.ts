@@ -11,7 +11,6 @@ import {
 	type ContainerDescriptorGroup
 } from '#lib/schema/block-kind-descriptor.js';
 import { declarePluginKind } from '#lib/schema/plugin-kind.js';
-import { testClosure } from '#lib/test/harness/closure.js';
 import { testView } from '#lib/test/harness/test-view.js';
 import type { BlockOpener } from '#lib/schema/block-openers.js';
 
@@ -28,7 +27,6 @@ export function testLeaf(name: string, over: TestKindFields = {}): PluginBlockKi
 		mergeRole: 'not-mergeable',
 		editable: true,
 		supportsInline: false,
-		closure: testClosure,
 		view: testView(),
 		...(typeof over === 'function' ? over(kind) : over)
 	} as BlockKindRegistration);

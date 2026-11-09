@@ -10,7 +10,6 @@ import {
 	type BlockKindAugmentation
 } from '#lib/schema/block-kind-descriptor.js';
 import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
-import { testClosure } from '#lib/test/harness/closure.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
 const minimal = {
@@ -18,7 +17,6 @@ const minimal = {
 	mergeRole: 'not-mergeable',
 	editable: true,
 	supportsInline: false,
-	closure: testClosure,
 	view: testView()
 } as const;
 

@@ -346,3 +346,55 @@ test.describe('selection toolbar in live mode', () => {
 		await expect(page.locator('[data-link-card] input[aria-label="Link URL"]')).toBeFocused();
 	});
 });
+
+test("a plugin's selection action row asks for its rows only when it's clicked", async ({
+	page
+}) => {
+	const editor = new EditorPage(page);
+	await editor.goto('?actions=on');
+	await editor.loadContent('abc def ghi\n');
+	await editor.focusBlock(0, 4);
+	for (let i = 0; i < 3; i++) await page.keyboard.press('Shift+ArrowRight');
+	const shout = page.locator(TOOLBAR).getByText('Shout');
+	await expect(shout).toBeVisible();
+	await page.keyboard.press('Shift+ArrowRight');
+	await page.keyboard.press('Shift+ArrowLeft');
+	await expect(shout).toBeVisible();
+	expect(await page.evaluate(() => window.__actionRows ?? 0)).toBe(0);
+
+	await shout.click();
+	const upper = page.locator(TOOLBAR).getByRole('menuitem', { name: 'Upper' });
+	await expect(upper).toBeVisible();
+	expect(await page.evaluate(() => window.__actionRows)).toBe(1);
+	await upper.click();
+	await editor.bridge.waitForSourceContains('abc DEF ghi');
+	await editor.undo();
+	await editor.bridge.waitForSourceContains('abc def ghi');
+});
+
+test("a plugin's selection action row opens its rows beside it the way Set heading does", async ({
+	page
+}) => {
+	const editor = new EditorPage(page);
+	await editor.goto('?actions=on');
+	await editor.loadContent('abc def ghi\n');
+	await editor.focusBlock(0, 4);
+	for (let i = 0; i < 3; i++) await page.keyboard.press('Shift+ArrowRight');
+	const bar = page.locator(TOOLBAR);
+	const shout = page.locator('[data-testid="toolbar-action-0"]');
+	const upper = bar.getByRole('menuitem', { name: 'Upper' });
+
+	await shout.hover();
+	await expect(upper).toBeVisible();
+	await expect(shout).toHaveAttribute('aria-expanded', 'true');
+
+	await page.locator('[data-testid="toolbar-set-heading"]').hover();
+	await expect(upper).toHaveCount(0);
+	await expect(page.locator('[data-testid="toolbar-set-heading-2"]')).toBeVisible();
+
+	await shout.hover();
+	await expect(upper).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(upper).toHaveCount(0);
+	await expect(bar).toBeVisible();
+});

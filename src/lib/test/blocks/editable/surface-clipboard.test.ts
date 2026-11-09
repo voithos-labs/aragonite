@@ -46,13 +46,25 @@ describe('step order', () => {
 	/** A `ClipboardArm` that logs its copy and removal; `takes: false` stands in for another kind. */
 	function arm(log: string[], name: string, takes = true): ClipboardArm<string> {
 		return {
-			copy(e) {
+			copy() {
 				log.push(`${name}.copy`);
-				if (!takes) return null;
-				e.clipboardData?.setData('text/plain', name);
-				return { held: name };
+				return takes ? { write: { text: name }, held: name } : null;
 			},
 			remove: (held) => void log.push(`${name}.remove:${held}`)
+		};
+	}
+
+	/** The block's own range, copied as `range`; `takes: false` copies nothing there. */
+	function blockRange(
+		log: string[],
+		takes = true
+	): Pick<ClipboardSurfaceDeps, 'copyRange' | 'removeRange'> {
+		return {
+			copyRange: () => {
+				log.push('range.copy');
+				return takes ? { text: 'range' } : null;
+			},
+			removeRange: (held) => void log.push(`range.remove:${held.start}-${held.end}`)
 		};
 	}
 
@@ -77,14 +89,14 @@ describe('step order', () => {
 				focus: () => {},
 				recordPreEditOffset: () => void log.push('record'),
 				getPreEditOffset: () => 0,
-				getSelection: () => null,
+				getSelection: () => ({ start: 0, end: 5 }),
 				holdInsertion: () => createInsertionRecords([]).hold({}, null)
 			},
 			events: { on: () => () => {}, emit: () => {} },
 			onPasteImage: () => undefined,
 			endTypingBurst: () => void log.push('end-burst'),
 			readsMarkdown: () => true,
-			rangeArm: arm(log, 'range'),
+			...blockRange(log),
 			pasteTail: (text) => void log.push(`pasteTail:${text}`),
 			...over
 		};
@@ -120,7 +132,7 @@ describe('step order', () => {
 		it('a copy no arm takes writes the visible selection', () => {
 			const log: string[] = [];
 			const rec = recorder();
-			createClipboardHandlers(deps(log, { rangeArm: arm(log, 'range', false) })).onCopy(rec.e);
+			createClipboardHandlers(deps(log, blockRange(log, false))).onCopy(rec.e);
 			expect(log).toEqual(['forget', 'range.copy']);
 			expect(rec.written()).toBe('');
 		});
@@ -148,7 +160,7 @@ describe('step order', () => {
 				'end-burst',
 				'range.copy',
 				'fold',
-				'range.remove:range',
+				'range.remove:0-5',
 				'end-burst'
 			]);
 			expect(rec.prevented).toBe(true);
@@ -191,7 +203,7 @@ describe('step order', () => {
 		it('a cut no arm takes writes nothing and removes nothing', async () => {
 			const log: string[] = [];
 			const rec = recorder();
-			await createClipboardHandlers(deps(log, { rangeArm: arm(log, 'range', false) })).onCut(rec.e);
+			await createClipboardHandlers(deps(log, blockRange(log, false))).onCut(rec.e);
 			expect(log).toEqual(['forget', 'record', 'end-burst', 'range.copy', 'end-burst']);
 			expect(rec.written()).toBeNull();
 			expect(rec.prevented).toBe(true);
@@ -467,7 +479,8 @@ describe('image paste', () => {
 			onPasteImage: () => onPasteImage,
 			endTypingBurst: () => {},
 			readsMarkdown: () => true,
-			rangeArm: { copy: () => null, remove: () => {} },
+			copyRange: () => null,
+			removeRange: () => {},
 			pasteTail: (text, target) => {
 				inserted.push(text);
 				targets.push(target.range?.start ?? null);

@@ -63,8 +63,6 @@ export function directiveContainerOpener(
 						body: undefined,
 						leadingTrivia: ctx.leadingTrivia,
 						raw: ctx.line.raw,
-						closerColonCount: 0,
-						closerNewline: false,
 						lineEnding
 					};
 					return { node: factory(parsed), consumed: 1 };
@@ -82,7 +80,6 @@ export function directiveContainerOpener(
 			const closerIdx = findDirectiveCloser(ctx.lines, ctx.index, ctx.end, fence.colonCount);
 			if (closerIdx === -1) return null; // unterminated declines to paragraph
 
-			const closerLine = ctx.lines[closerIdx];
 			const bodyText = joinRaw(ctx.lines, ctx.index + 1, closerIdx);
 			const raw = joinRaw(ctx.lines, ctx.index, closerIdx + 1);
 			// One nesting level deeper, so nested directives share the container-depth cap; the
@@ -92,10 +89,6 @@ export function directiveContainerOpener(
 				depth: ctx.depth + 1,
 				grammar: ctx.grammar
 			});
-			// isDirectiveCloser guarantees an all-colon line, so its length is the colon count.
-			const closerColonCount = closerLine.text.length;
-			const closerNewline = closerLine.raw.endsWith('\n');
-
 			const openerLine = makeBlockNode({
 				kind: DIRECTIVE_OPENER_LINE,
 				leadingTrivia: '',
@@ -108,8 +101,6 @@ export function directiveContainerOpener(
 					body,
 					leadingTrivia: ctx.leadingTrivia,
 					raw,
-					closerColonCount,
-					closerNewline,
 					lineEnding
 				};
 				const node = factory(parsed);
@@ -126,9 +117,7 @@ export function directiveContainerOpener(
 				innerSuffix: body.suffix
 			};
 			setPluginMetadata<DirectiveContainerMetadata>(node, {
-				name: fence.name,
-				closerColonCount,
-				closerNewline
+				name: fence.name
 			});
 			return { node, consumed: closerIdx + 1 - ctx.index };
 		}

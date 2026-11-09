@@ -48,7 +48,7 @@ test('a leaf keeps every key typed at full speed, in order', async ({ page }) =>
 
 test('a click-to-edit block opens on a click, and its edit is one undo step', async ({ page }) => {
 	await page.locator('.label-text').click();
-	const source = page.locator('.label-source');
+	const source = page.locator('.label-source [contenteditable="true"]');
 	await expect(source).toBeFocused();
 	await page.keyboard.press('End');
 	await page.keyboard.type(' edited');
@@ -62,6 +62,16 @@ test('a click-to-edit block opens on a click, and its edit is one undo step', as
 	await page.keyboard.press('ControlOrMeta+z');
 	await expectMirror(page, BLOCK_VIEWS_SOURCE);
 	await expect(page.locator('.label-text')).toHaveText('a label');
+});
+
+test('a click at the end of the caption opens the label there, where its component says', async ({
+	page
+}) => {
+	const caption = page.locator('.label-text');
+	const box = (await caption.boundingBox())!;
+	await caption.click({ position: { x: box.width - 1, y: box.height / 2 } });
+	await page.keyboard.type('Z');
+	await expect(page.locator('.label-source [contenteditable="true"]')).toHaveText('@@ a labelZ');
 });
 
 test('a click-to-edit block previews its source key by key, before anything commits', async ({
@@ -91,7 +101,9 @@ test('a container holds editable children: typing and Enter land inside it', asy
 	const children = page.locator('.box .box-children');
 	await expect(children).toContainText('inside the box typed');
 	await expect(children).toContainText('second');
-	await expect.poll(() => mirror(page).textContent()).toMatch(/inside the box typed\n+second\n:::/);
+	await expect
+		.poll(() => mirror(page).textContent())
+		.toContain('%> inside the box typed\n%>\n%> second\n');
 	await page.keyboard.press('ControlOrMeta+z');
 	await expect(children).not.toContainText('second');
 });

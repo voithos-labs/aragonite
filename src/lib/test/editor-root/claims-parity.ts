@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import type { BlockComponent } from '#lib/block-component.js';
 import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
-import type { EditorPlugin } from '#lib/plugin.js';
+import type { PluginsProp } from '#lib/schema/plugin-install.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import { getAllRegisteredKinds } from '#lib/schema/block-kind-descriptor.js';
 import { kindKeymap } from '#lib/schema/commands.js';
@@ -27,7 +27,7 @@ export interface ClaimContext {
 	name: string;
 	source: string;
 	mode?: PresentationMode;
-	plugins?: EditorPlugin[];
+	plugins?: PluginsProp;
 	keybindings?: KeybindingOverride[];
 	/** Chords the context's plugins bind, which register only once it mounts. A `-t` filter for one
 	 *  of them escapes the `+` (`-t "container.*Mod.7"`). */

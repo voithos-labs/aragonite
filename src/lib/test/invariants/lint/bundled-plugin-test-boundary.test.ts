@@ -284,24 +284,20 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'#lib/inline-menu/inline-menu-state.svelte.js',
 			'#lib/schema/insert-catalogue.js',
 			'#lib/schema/plugin-activation.js',
-			'#lib/schema/plugin-editor-context.js',
-			'#lib/schema/plugin-install.js'
+			'#lib/schema/plugin-unit.js',
+			'#lib/schema/caret-menu.js',
+			'#lib/schema/drafts.js'
 		],
 		reason:
-			'no headless inline-menu session on the testing barrel: a source can be called directly, ' +
-			'but typing a trigger and the write a pick makes need the menu state of the editor itself; ' +
-			'only a mounted editor or a plugin context lists the insert catalogue, and only a headless ' +
-			"editor context merges an entry's options over the defaults"
+			'no headless caret-menu session on the testing barrel: typing a trigger and the draft a pick ' +
+			"writes through need the editor's own menu state; only an editor's install pass reads a " +
+			"plugin value's options and contribution, and only a mounted editor lists the insert rows"
 	},
 	'src/lib/test/plugins/slash-commands/open-command.test.ts': {
-		specifiers: [
-			'#lib/schema/commands.js',
-			'#lib/schema/keybindings.js',
-			'#lib/schema/plugin-activation.js'
-		],
+		specifiers: ['#lib/schema/plugin-command.js'],
 		reason:
-			'no command dispatch or chord read off a mounted editor: the handler of a global command, ' +
-			'its chord binding and the activation it resolves under are reachable only through the schema registries'
+			"no read of a command's spec: its chord and its `run` against a stand-in editor are " +
+			'reachable only through the schema module that keeps them'
 	}
 };
 

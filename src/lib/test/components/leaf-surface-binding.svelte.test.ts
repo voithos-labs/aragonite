@@ -4,7 +4,7 @@
 // Miss-analysis: new module; the editor-level rows can't see an attachment re-run a blur hides.
 import { afterEach, describe, expect, it } from 'vitest';
 import { flushSync } from 'svelte';
-import { bindLeafSurface } from '#lib/components/dom-block-view/leaf-surface-binding.svelte.js';
+import { bindLeafSurface } from '#lib/components/drawn-block/leaf-surface-binding.svelte.js';
 
 let teardown: (() => void) | null = null;
 afterEach(() => {

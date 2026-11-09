@@ -5,15 +5,16 @@ import {
 	type BlockKind,
 	type CstNode
 } from '../core/nodes';
+import { devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';
 import type { DocumentView, NodeView } from '../core/node-views';
 import type { LineEnding } from '../core/lines';
 import type { ContainerBodyWrap } from '../core/parser';
 import { enqueueRegistrationCheck } from './registration-pending';
 import { currentInstallingPlugin } from './plugin-install';
 import { createBlockKindRegistry } from './plugin-kind';
+import { enrollTestReset } from './registry-reset';
 import type { ChildRawChange } from './child-spans';
 import type { StripRebuild } from './strip-rebuild';
-import type { ClosureBlock } from './closure';
 import { registeredChord, type KeyBinding } from './keybindings';
 import type { HeightEstimateEnv } from './height-estimates';
 import { rejectIncoherentPairs } from './registration-pairs';
@@ -21,7 +22,7 @@ import { blockViewForm, domViewSpec, isBlockView, type BlockView } from './block
 import type { PluginActivation } from './plugin-activation';
 import type { RegistryRecord } from './plugin-registry';
 import type { BlockOpener } from './block-openers';
-import type { LineShape } from '../core/strip-lines';
+import type { LineShape, MarkedLines } from '../core/strip-lines';
 
 /**
  * The Backspace-merge roles (`docs/design/structural-edits.md` § Merge eligibility: roles, not pairs).
@@ -139,18 +140,13 @@ export interface BlockKindDescriptor {
 	mergeRole: MergeRole;
 	editable: boolean;
 	/**
-	 * The kind's row in the closure matrix: its answer for every cross-cutting editor system.
-	 * Required, so a kind cannot ship without answering for a subsystem nobody asked about.
-	 */
-	closure: ClosureBlock;
-	/**
 	 * The block's name, to a screen reader and in the block menu ("Diagram"). Omitted, the kind
 	 * name in words stands in. Built-in kinds are named in `a11y-strings.ts`, not here.
 	 */
 	label?: string;
 	/**
 	 * Markdown that parses to a tree holding this kind, for the conformance suite. Omit it for a
-	 * kind no document parse yields alone; only a declared fixture is checked (G1.24).
+	 * kind no document parse yields alone; the conformance kit fails a fixture that parses to none.
 	 */
 	conformanceFixture?: string;
 	/**
@@ -214,7 +210,7 @@ export interface BlockKindDescriptor {
 	/** True when the block's raw contains inline syntax the inline parser should process on every edit. */
 	supportsInline: boolean;
 	/** The block draws a picture of its source until a click shows the source, so a caret reaches its
-	 *  text only then. A DOM view's `surface: 'render-primary'` sets it. */
+	 *  text only then. A block type drawn with `edit: 'source'` sets it. */
 	textPosition?: 'while-source-shows';
 	/** The registration's `contentStart.range`. Absent = the default `start=0, end=displayLength`. */
 	getContentRange?: ContentStart['range'];
@@ -269,7 +265,6 @@ export interface BlockKindDescriptor {
 export const DESCRIPTOR_FIELDS = [
 	'mergeRole',
 	'editable',
-	'closure',
 	'label',
 	'conformanceFixture',
 	'blockFocus',
@@ -547,7 +542,7 @@ function rejectSurfaceMismatch(kind: AnyBlockKind, view: BlockView, isContainer:
 	throw new TypeError(
 		`registerBlockKind: "${kind}" ${isContainer ? 'is a container' : 'has no container group'}, ` +
 			`but its view's surface is '${surface}': a container kind takes ` +
-			"`defineBlockView({ surface: 'container', ... })`, any other kind 'none', 'leaf' or 'render-primary'"
+			"`defineBlockView({ surface: 'container', ... })`, any other kind 'none'"
 	);
 }
 
@@ -584,7 +579,7 @@ export function blockKindOwner(kind: AnyBlockKind): string | null {
 /** Whether the parser can open this kind from a line: a kind with no opener of its own is only
  *  ever made by its container. */
 export function hasOwnOpener(kind: AnyBlockKind): boolean {
-	return registry.getIgnoringActivation(kind)?.opener !== undefined;
+	return registry.getIgnoringActivation(kind)?.opener !== undefined || !!held.get(kind)?.hasOpener;
 }
 
 /** Every kind's opener with the plugin it answers to, in registration order, for the parser's
@@ -613,8 +608,7 @@ function storeKind(
 	rejectBlankLabel(entry, kind, 'dragLabel', registration.dragLabel);
 	rejectIncoherentPairs(kind, registration);
 	const { opener } = registration;
-	const descriptor = normalizeRegistration(registration);
-	if (view && opensTextOnClick(view)) descriptor.textPosition = 'while-source-shows';
+	const descriptor = normalizeRegistration(kind, registration);
 	if (descriptor.keymap) descriptor.keymap = registeredKeymap(entry, kind, descriptor.keymap);
 	const owner = registry.ownerOf(kind);
 	registry.register(
@@ -625,11 +619,6 @@ function storeKind(
 			(owner ? ` — first declared by plugin '${owner}'` : '')
 	);
 	enqueueRegistrationCheck(kind, opener ? 'opener' : 'descriptor');
-}
-
-// A DOM view's surface already says what `textPosition` declares for a kind a component draws.
-function opensTextOnClick(view: BlockView): boolean {
-	return blockViewForm(view) === 'dom' && domViewSpec(view).surface === 'render-primary';
 }
 
 function existingEntry(entry: string, kind: AnyBlockKind): KindEntry {
@@ -665,7 +654,10 @@ function registeredKeymap(entry: string, kind: AnyBlockKind, keymap: KeyBinding[
 
 // The flat part is stripped and isContainer derived, so each group is the only source of its
 // fields: a widened or stale-keyed registration object cannot leak through.
-function normalizeRegistration(registration: BuiltinRegistration): BlockKindDescriptor {
+function normalizeRegistration(
+	kind: AnyBlockKind,
+	registration: BuiltinRegistration
+): BlockKindDescriptor {
 	// The opener lives beside the descriptor, never in it.
 	const { container, contentStart, opener: _opener, ...rest } = registration;
 	const flat: BlockKindDescriptor = { ...stripGroupedKeys(rest), isContainer: false };
@@ -674,6 +666,7 @@ function normalizeRegistration(registration: BuiltinRegistration): BlockKindDesc
 		if (contentStart.backspace) flat.contentStartBackspace = contentStart.backspace;
 	}
 	if (!container) return flat;
+	if (devChecksOn && container.lines?.shape === 'marked') checkMarkedReads(kind, container.lines);
 	const { contract, unwrapRole, ...containerFields } = container;
 	const descriptor: BlockKindDescriptor = {
 		...flat,
@@ -693,6 +686,23 @@ function normalizeRegistration(registration: BuiltinRegistration): BlockKindDesc
 	return descriptor;
 }
 
+/** A marked shape's `reads` takes each marker it writes whole and stops there, a blank line's
+ *  trimmed marker too, or a line it wrote would read back holding other text (G1.191). */
+function checkMarkedReads(kind: AnyBlockKind, lines: MarkedLines): void {
+	const written = [lines.first, lines.rest].flatMap((m) => [
+		[m, 'x'],
+		[m.trimEnd(), '']
+	]);
+	for (const [marker, text] of written) {
+		const read = lines.reads.exec(marker + text)?.[0];
+		if (read !== marker) {
+			throw new Error(
+				`"${kind}": its line shape's \`reads\` must read the marker "${marker}" whole and stop there, but it read ${read === undefined ? 'nothing' : `"${read}"`}`
+			);
+		}
+	}
+}
+
 /** A marked or indented shape writes its markers on the body's own lines; the others write lines of
  *  their own around the body. */
 function contractOf(lines: LineShape<unknown>): 'strip' | 'opaque' {
@@ -702,7 +712,7 @@ function contractOf(lines: LineShape<unknown>): 'strip' | 'opaque' {
 /** The blank lines next to a shape's own lines that are the container's, not the body's. */
 function bodyWrapOf(lines: LineShape<unknown>): ContainerBodyWrap | undefined {
 	if (lines.shape === 'indented') return undefined;
-	if (lines.shape === 'marked') return lines.head ? { afterOpenerLine: true } : undefined;
+	if (lines.shape === 'marked') return 'head' in lines ? { afterOpenerLine: true } : undefined;
 	return { afterOpenerLine: true, beforeCloserLine: true };
 }
 
@@ -786,7 +796,7 @@ export function augmentBuiltin(kind: AnyBlockKind, fields: BlockKindAugmentation
 }
 
 export function getBlockKindDescriptor(kind: AnyBlockKind): BlockKindDescriptor {
-	const d = registry.getIgnoringActivation(kind)?.descriptor;
+	const d = tryGetBlockKindDescriptor(kind);
 	if (!d) {
 		throw new Error(
 			`getBlockKindDescriptor: no descriptor registered for kind "${kind}". ` +
@@ -797,7 +807,7 @@ export function getBlockKindDescriptor(kind: AnyBlockKind): BlockKindDescriptor 
 }
 
 export function tryGetBlockKindDescriptor(kind: AnyBlockKind): BlockKindDescriptor | undefined {
-	return registry.getIgnoringActivation(kind)?.descriptor;
+	return registry.getIgnoringActivation(kind)?.descriptor ?? held.get(kind)?.descriptor;
 }
 
 /** Whether a kind declares the grid contract: a table and its rows, or a plugin's equivalent. A
@@ -841,7 +851,7 @@ export function clampCellIndex(node: NodeView, cellIdx: number): number {
 
 /** Whether a kind is registered, for the editor's own idempotent bootstraps. Takes a plain name. */
 export function isBlockKindRegistered(kind: string): boolean {
-	return registry.has(kind as AnyBlockKind);
+	return registry.has(kind as AnyBlockKind) || held.has(kind as AnyBlockKind);
 }
 
 /** Every kind currently registered. Caller must not mutate. */
@@ -853,3 +863,54 @@ export function getAllRegisteredKinds(): AnyBlockKind[] {
 export function registeredKinds(activation: PluginActivation): AnyBlockKind[] {
 	return registry.entries(activation).map(([kind]) => kind);
 }
+
+// ── Plugin block types held by mounted editors ──────────────────────────────
+
+interface HeldKind {
+	descriptor: BlockKindDescriptor;
+	hasOpener: boolean;
+	editors: number;
+}
+
+// A plugin block type's facts, page-wide by its qualified name while any editor runs it, so every
+// descriptor read answers for it; its opener and view stay with each editor.
+const held = new Map<AnyBlockKind, HeldKind>();
+enrollTestReset(() => held.clear());
+
+/** Lends a plugin block type's facts to the page while one editor runs it; call the result when
+ *  that editor stops running it. */
+export function holdBlockKind(
+	kind: AnyBlockKind,
+	registration: BuiltinRegistration,
+	hasOpener: boolean
+): () => void {
+	const descriptor = normalizeRegistration(kind, registration);
+	const existing = held.get(kind);
+	if (existing) {
+		existing.editors++;
+		// G1.192: facts are page-wide by name, so a second editor can't make them read otherwise.
+		if (devChecksOn && factsOf(existing.descriptor) !== factsOf(descriptor)) {
+			devWarn(
+				'block-type-facts',
+				`"${kind}" reads differently in two editors: a block type's facts can't depend on its options, so the first editor's stand`
+			);
+		}
+	} else {
+		rejectIncoherentPairs(kind, registration);
+		held.set(kind, { descriptor, hasOpener, editors: 1 });
+	}
+	let released = false;
+	return () => {
+		const entry = held.get(kind);
+		if (released || !entry) return;
+		released = true;
+		if (--entry.editors === 0) held.delete(kind);
+	};
+}
+
+// The fields that are data, which two editors running one block type must agree on; a sample may
+// follow the options, since only the checks read it.
+const factsOf = (descriptor: BlockKindDescriptor): string =>
+	JSON.stringify({ ...descriptor, conformanceFixture: undefined }, (_key, value) =>
+		typeof value === 'function' ? undefined : value
+	);

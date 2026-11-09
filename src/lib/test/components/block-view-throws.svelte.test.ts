@@ -99,22 +99,29 @@ describe.each(FORMS)('a block drawn by $form', ({ atMount, onChange }) => {
 	});
 });
 
-describe('a DOM view whose destroy throws', () => {
+// Miss-analysis: only a synchronous throw from `destroy` had a row, and a framework's unmount
+// rejects a promise instead, which went unhandled.
+describe.each([
+	[
+		'throws',
+		() => {
+			throw new Error('destroy exploded');
+		}
+	],
+	['returns a rejected promise', () => Promise.reject(new Error('unmount exploded'))]
+])('a DOM view whose destroy %s', (_name, destroy) => {
 	it('is reported, and the block still tears down', async () => {
 		const view = defineBlockView({
 			surface: 'none',
 			mount(target) {
 				target.textContent = 'drawn';
-				return {
-					destroy() {
-						throw new Error('destroy exploded');
-					}
-				};
+				return { destroy };
 			}
 		});
 		const { host, errors } = mountHost(view, 'text\n');
 		const el = host.el;
 		await host.dispose();
+		await Promise.resolve();
 		mounted = null;
 		expect(errors).toEqual([expect.objectContaining({ origin: 'render' })]);
 		expect(el.isConnected).toBe(false);

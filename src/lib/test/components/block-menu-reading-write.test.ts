@@ -5,7 +5,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createRootMenus, type BlockMenuModel } from '#lib/components/editor-root/menus.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
-import { registerDefaultContextActions } from '#lib/components/menu/default-context-actions.js';
+import { idleDraftRegistry } from '../harness/drafts';
 import { serialize } from '#lib/core/serializer.js';
 import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
@@ -14,12 +14,12 @@ import { fixtureReading } from '../harness/fixture-grammar';
 import { makeTopHarness } from '../harness/editor-actions';
 import { settleEditor } from '../harness/settle';
 import { takeDevWarns } from '../support/warn-gate';
+import { noSelectionActions } from '#lib/test/harness/no-selection-actions.js';
 
 const SOURCE = '```\ncode\n```\n\nprose here\n';
 
 beforeEach(() => {
 	document.body.replaceChildren();
-	registerDefaultContextActions();
 });
 
 /** Right-clicks the fence in source mode, switches to reading, then picks "Remove". */
@@ -51,13 +51,16 @@ async function removeFenceAfterSwitchToReading() {
 		finger: () => false,
 		insertMarkdown: async () => true,
 		clipboard: { take: () => null, pasteTarget: () => null },
+		openDraft: (spec, path) => idleDraftRegistry().open(spec, path),
 		inserts: () => [],
 		activation: everyInstalledPlugin,
 		reading: fixtureReading(),
 		stamps: editor.deps.stamps,
 		canEditLinkAtCaret: () => false,
 		editLinkAtCaret: () => {},
-		setMenu: (next) => (menu = next)
+		setMenu: (next) => (menu = next),
+		currentMenu: () => menu,
+		actions: noSelectionActions
 	});
 	root.addEventListener('contextmenu', menus.onRootContextMenu);
 	fence.firstElementChild!.dispatchEvent(

@@ -18,14 +18,15 @@ interface CommandSpecBase<A> {
 	title: string;
 	/** Whether it can run with this argument now; false greys a button and refuses `run`. */
 	when?(editor: Editor, arg: A): boolean;
-	/** Returning `false` declines, so a chord goes on to the browser; a throw or a rejection is
-	 *  reported under the plugin's name. */
+	/** Returning `false` declines, so `run` answers false; a throw or a rejection is reported under
+	 *  the plugin's name. */
 	run(editor: Editor, arg: A): boolean | void | Promise<unknown>;
 }
 
-/** What `command` takes. Only a command with no argument binds a chord, since a key supplies none. */
+/** What `command` takes. Only a command that runs without an argument binds a chord, since a key
+ *  supplies none. */
 export type CommandSpec<A = void> = CommandSpecBase<A> &
-	([A] extends [void] ? { chord?: Chord } : { chord?: never });
+	([undefined] extends [A] ? { chord?: Chord } : { chord?: never });
 
 /** A command as an editor holds it: run it with `editor.run(command, arg)`. */
 export interface Command<A = void> {

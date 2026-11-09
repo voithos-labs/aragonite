@@ -70,13 +70,14 @@ export interface EditorContext<Options = unknown> {
 	readonly options: Options;
 	readonly decorations: DecorationRegistry;
 	readonly rects: EditorRects;
-	/** Menus opened under the caret by a typed trigger: tag autocomplete, a document picker. */
+	/** Lists under the caret whose rows read the document (tags in the note); any other list is a
+	 *  plugin value's caret menu. */
 	readonly inlineMenus: InlineMenuRegistry;
 	/** A getter, so always live: the rows this editor's insert menus offer, the same list as
 	 *  `Editor.inserts`. */
 	readonly insertCatalogue: readonly InsertRow[];
 	/** `EditorInstance.insertMarkdown` for this editor: false, nothing written, with no caret, in
-	 *  reading mode or at a gap caret. Await it in `onCommit` to keep one undo entry for the pick. */
+	 *  reading mode or at a gap caret. */
 	readonly insertMarkdown: (md: string, options?: InsertMarkdownOptions) => Promise<boolean>;
 	/** `EditorInstance.runCommand` for this editor: false, and nothing written, on an unknown id,
 	 *  in reading mode, or with nothing focused for a block command. */

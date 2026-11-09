@@ -1,8 +1,8 @@
 # React and Vue blocks
 
-Part of the [plugin guide](../plugin-guide.md). It assumes you've met `registerBlockKind` in [the quickstart](../plugin-guide.md#the-first-fifteen-minutes), since this page only swaps out the part that draws the block.
+Part of the [plugin guide](../plugin-guide.md). It assumes you've built the parrot in [the quickstart](../plugin-guide.md#the-first-fifteen-minutes), since this page only swaps out the part that draws the block.
 
-If your app is React or Vue, you can draw a plugin block with your own components. The packages that give you the `<Aragonite>` component, `@voithos-labs/aragonite-react` and `@voithos-labs/aragonite-vue`, each carry a helper that turns a component into a block view: `reactBlockView` and `vueBlockView`. Under the hood they're `defineBlockView` with your component rendered into the element the editor makes for the block, so they run wherever the editor runs, the prebuilt copy a React or Vue app installs included. For the smaller things a plugin draws (an inline widget, a decoration, a menu row) there's `reactView` and `vueView`.
+If your app is React or Vue, you can draw a plugin block with your own components. The packages that give you the `<Aragonite>` component, `@voithos-labs/aragonite-react` and `@voithos-labs/aragonite-vue`, each carry a helper that turns a component into a block type's `draw`: `reactBlock` and `vueBlock` (Svelte's is `svelteBlock`, from `@voithos-labs/aragonite/svelte`). Your component renders into the element the editor makes for the block, so it runs wherever the editor runs, the prebuilt copy a React or Vue app installs included. For the smaller things a plugin draws (an inline widget, a decoration, a menu row) there's `reactView` and `vueView`.
 
 Sections: [a memo in React](#a-memo-in-react) · [what your component gets](#what-your-component-gets) · [a click-to-edit block](#a-click-to-edit-block) · [a block that holds blocks](#a-block-that-holds-blocks) · [a block with its own editing surface](#a-block-with-its-own-editing-surface) · [a block you draw whole](#a-block-you-draw-whole) · [the same in Vue](#the-same-in-vue) · [widgets, decorations and menu rows](#widgets-decorations-and-menu-rows) · [providers and app context](#providers-and-app-context)
 
@@ -11,269 +11,301 @@ Sections: [a memo in React](#a-memo-in-react) · [what your component gets](#wha
 A memo here is a line starting `%% `, drawn with a little badge beside its text. The text is ordinary editable text: the editor owns the caret, IME, undo and the clipboard in it, and your component only says where it goes.
 
 ```tsx
-// memo-view.tsx
-import { LeafContent, reactBlockView, type BlockViewProps } from '@voithos-labs/aragonite-react';
+// memo.tsx
+import { reactBlock, type BlockProps } from '@voithos-labs/aragonite-react';
+import { lineBlock, type TextDrawContext } from '@voithos-labs/aragonite/plugin';
 
-function Memo(_: BlockViewProps<'leaf'>) {
+function Memo({ Slot }: BlockProps<never, TextDrawContext>) {
 	return (
 		<>
 			<span className="memo-badge">memo</span>
-			<LeafContent className="memo-text" />
+			<span className="memo-text">
+				<Slot of="source" />
+			</span>
 		</>
 	);
 }
 
-export const memoView = reactBlockView(Memo, { surface: 'leaf', singleLine: true, className: 'memo' });
+export const memo = lineBlock({
+	name: 'memo',
+	label: 'Memo',
+	match: /^%% (?<text>.*)$/,
+	sample: '%% buy milk',
+	insert: { none: 'typed, never picked from a menu' },
+	edit: 'text',
+	draw: reactBlock(Memo, { className: 'memo' })
+});
 ```
 
-`memoView` goes in the `view` field of your `registerBlockKind` call, the same slot the quickstart filled with `parrotView`. Everything else in the registration (the opener, the descriptor, the closure) doesn't care what drew the block.
+`memo` goes in your plugin's `contributes(...).blocks`, the way the quickstart lists `parrot`. `edit: 'text'` keeps the text showing all the time, and every keystroke commits, the way it does in a paragraph. Leave `edit` out and a block with a `draw` shows its text only while the caret is in it ([below](#a-click-to-edit-block)).
 
-**`reactBlockView(Component, options)`** takes the component and the options `defineBlockView` takes, minus `mount`:
-
-| Option | What it does |
-| --- | --- |
-| `surface` | `'leaf'` (editable text, always shown), `'render-primary'` (a rendered view until a click opens the text), `'container'` (child blocks) or `'none'` (you draw it all, [below](#a-block-you-draw-whole)) |
-| `singleLine` | Leaf surfaces: the bytes are one line, so Enter ends the block instead of typing a newline |
-| `renderSource`, `reshapeSource` | Render-primary: draw the shown text as DOM, and put an edited text back in the shape your kind keeps ([the editable leaf](editable-content.md#the-editable-leaf)) |
-| `watchDocument` | Re-render on every change to the document, not just to this block (a table of contents wants this) |
-| `className` | Classes for the element the editor made for the block |
-| `afterInput(text, ctx)` | Leaf surfaces: hears each change to the shown text once, never mid-composition; on a click-to-edit block that's before anything is committed |
-| `wrap(block)` | Wraps your component, for providers ([below](#providers-and-app-context)) |
-
-`<LeafContent>` is the element the editor edits your text in. It renders empty, and it has to stay that way: the editor puts its own text node in there, so your badge, icon or whatever else goes beside it, never inside. It takes the usual HTML attributes plus `as` (`'div'` by default, or `'span'`, `'p'`, `'pre'`).
+`<Slot of="source" />` is where the editor's element for the text goes. The editor fills it, so your badge, icon or whatever else goes beside it, never inside.
 
 Two rules make a framework block behave:
 
 - **Style the block's element with `className`, and keep your component's own root margin-free** (a fragment, like the memo, is easiest). The editor measures the element it made as the block, and a margin on a wrapper inside sits outside what the editor measures, so the selection highlight and the drag handle come out a little off.
-- **Let `<LeafContent>` and `<BlockChildren>` stay mounted while they're shown.** Showing and hiding `<LeafContent>` is fine (that's how the click-to-edit block below works), but a fresh `key` per render, say, hands the element back and forth, and an element handed back to the editor comes back empty. `<BlockChildren>` stays for the block's whole life, since the editor has no way to take the children back.
+- **Render each `<Slot>` every time, never behind a condition.** The editor shows and hides its own text, and it puts the caret in before your component hears the block has focus, so a slot that only mounts once the block is focused is one the caret never reaches. A fresh `key` per render is the same trouble in a different hat: the element moves, and text that moves drops its caret.
 
 ## What your component gets
 
-Three props: `state`, `ctx` and, for a click-to-edit block, `draft` ([below](#a-click-to-edit-block)).
+Three props: `block`, `ctx` and `Slot`. Your component renders again whenever the block's bytes change, or its place in the document, the presentation mode, the theme, whether the caret is in it, or the text typed so far.
 
-`state` is the block as it is right now, and your component re-renders whenever one of these changes:
+`block` is the block as it is right now:
 
 ```ts
-state.node; // { kind: 'memo', leadingTrivia: '', raw: '%% buy milk\n' }, read-only
-state.path; // [2]: where the block sits in the document
-state.presentationMode; // 'source'
-state.theme; // 'dark'
-state.revealed; // a render-primary block's text is showing; false on the other surfaces
+block.text; // '%% buy milk\n': its bytes, line ending included
+block.body; // 'buy milk': what the `text` group matched
+block.from; // 120: where its bytes start in the document, read when you ask
+block.to; // 132
 ```
 
-On a plain leaf every keystroke commits, so `state.node.raw` changes, and the memo re-renders, once per key. Keep the render cheap.
+On a memo every keystroke commits, so `block.text` changes, and the memo renders again, once per key. Keep the render cheap.
 
-`ctx` is the editor's side. `ctx.editor` is your plugin's `EditorContext` in the editor drawing the block (its options, its document, its events, the same object the [per-editor recipes](per-editor.md#one-process-many-editors) use). The rest depends on the surface:
+`ctx` is the editor's side, and what it carries depends on how the block edits:
 
-| Surface | `ctx` also has |
+| The block | `ctx` has |
 | --- | --- |
-| `'leaf'` | `ctx.leaf.reveal(offset?)` to put the caret in the text, `ctx.leaf.commitSource(text)` to replace it as one undo step |
-| `'render-primary'` | the same `ctx.leaf` calls |
-| `'container'` | `ctx.container.updateOwnMetadata(patch)`, `moveFocusOut(event)`, `captureScrollPosition()` and `openDraft(spec)`, the container helpers the [walkthrough](container-walkthrough.md#the-component) uses |
-| `'none'` | nothing more: what the editor calls on your block goes the other way, through `useBlockHandle` ([below](#a-block-you-draw-whole)) |
+| any | `ctx.editor` (your plugin's `EditorContext` in the editor drawing the block, the same object the [per-editor recipes](per-editor.md#one-process-many-editors) use), `ctx.mode`, `ctx.theme`, `ctx.focused` (the caret is in the block) |
+| a line or fence with text | `ctx.source`, the element `<Slot of="source" />` places, and `ctx.typed`, the text as typed and not yet written, while a click-to-edit block is open |
+| a container | `ctx.children`, the element `<Slot of="children" />` places |
+| a box (`edit: 'box'`) | `ctx.leave(edge, x?)`, to hand the caret to the block above or below, and `ctx.focusWhole()`, to focus the box whole again from a field of your own |
 
 ## A click-to-edit block
 
-A render-primary block shows something rendered (a caption, a formula, a chart) until you click it, then shows its source to edit. This one is a `@@ ` line that shows as a bold label:
+A click-to-edit block shows something rendered (a caption, a formula, a chart) until you click it, then shows its text to edit. That's what a block with a `draw` and no `edit` does. This one is a `@@ ` line that shows as a bold label:
 
 ```tsx
-function Label({ state }: BlockViewProps<'render-primary'>) {
-	if (state.revealed) return <LeafContent className="label-source" />;
-	return <strong>{state.node.raw.slice('@@ '.length).trim()}</strong>;
+function Label({ block, ctx, Slot }: BlockProps<never, TextDrawContext>) {
+	const caption = block.body;
+	return (
+		<>
+			{!ctx.focused && <strong>{caption}</strong>}
+			<span className="label-source">
+				<Slot of="source" />
+			</span>
+		</>
+	);
 }
 
-export const labelView = reactBlockView(Label, {
-	surface: 'render-primary',
-	singleLine: true,
-	className: 'label'
+export const label = lineBlock({
+	name: 'label',
+	label: 'Label',
+	match: /^@@ (?<text>.*)$/,
+	sample: '@@ a label',
+	insert: { none: 'typed, never picked from a menu' },
+	draw: reactBlock(Label, { className: 'label' })
 });
 ```
 
-A click anywhere in the block flips `state.revealed` on, your component swaps in `<LeafContent>`, and the caret lands in the source (at the spot your kind's `caretTargetAtPoint` names, or the first byte without one). Typing edits the source without committing anything; moving the caret out of the block commits the whole edit as one undo step and flips `revealed` back off. So reveal, type, click away, Ctrl+Z, and the old label is back in one go.
+A click anywhere in the block puts the caret in its text, the editor shows the text, and `ctx.focused` turns true, so the caption steps aside. Typing edits the text without committing anything. Moving the caret out of the block commits the whole edit as one undo step and hides the text again. So click, type, click away, Ctrl+Z, and the old label is back in one go.
 
-Want a live preview while the source is open (block math's side-by-side layout)? That's `draft`: the source as it's typed, before anything commits, and your component re-renders with it on every key. It's null while the block is folded and before the first edit, so fall back to the node:
+Want a live preview while the text is open (block math's side-by-side layout)? That's `ctx.typed`: the line as it's typed, before anything commits, and your component renders again with it on every key. It's null while the block is closed, so fall back to the block:
 
 ```tsx
-function Label({ state, draft }: BlockViewProps<'render-primary'>) {
-	const caption = (draft ?? state.node.raw).slice('@@ '.length).trim();
-	if (!state.revealed) return <strong>{caption}</strong>;
+function Label({ block, ctx, Slot }: BlockProps<never, TextDrawContext>) {
+	const caption = (ctx.typed ?? block.text).slice('@@ '.length).trim();
 	return (
 		<>
-			<LeafContent className="label-source" />
-			<em>{caption}</em>
+			{!ctx.focused && <strong>{caption}</strong>}
+			<span className="label-source">
+				<Slot of="source" />
+			</span>
+			{ctx.focused && <em>{caption}</em>}
 		</>
 	);
 }
 ```
+
+A click lands at the start of the text unless you say otherwise, which is a letdown when you clicked the end of the caption. The caption's text is the block's text here, so hand the editor the caption with `useDrawn` and a click lands on the letter you clicked:
+
+```tsx
+import { useRef } from 'react';
+import { reactBlock, useDrawn, type BlockProps } from '@voithos-labs/aragonite-react';
+
+function Label({ block, ctx, Slot }: BlockProps<never, TextDrawContext>) {
+	const shown = useRef<HTMLElement | null>(null);
+	useDrawn(() => ({ caret: shown.current ?? undefined }));
+	return (
+		<>
+			{!ctx.focused && <strong ref={shown}>{block.body}</strong>}
+			<span className="label-source">
+				<Slot of="source" />
+			</span>
+		</>
+	);
+}
+```
+
+`useDrawn` takes a function, and the editor calls it each time it needs an answer, so `shown.current` is there by the time anyone clicks. It answers three things, the same three a plain `draw` hands back beside its `dom`: `caret` (where a click on your picture of the text lands), `focus` ([below](#a-block-you-draw-whole)), and `keep`, for events the editor should leave to your component (a drag that pans a diagram).
 
 ## A block that holds blocks
 
-A container's children are real document blocks: the editor mounts them, windows them, and runs selection, undo and everything else through them. You say where they go with `<BlockChildren>`:
+A container's children are real document blocks: the editor mounts them, windows them, and runs selection, undo and everything else through them. You say where they go with `<Slot of="children" />`:
 
 ```tsx
-function Box(_: BlockViewProps<'container'>) {
+import { container, type ContainerDrawContext } from '@voithos-labs/aragonite/plugin';
+
+function Box({ Slot }: BlockProps<never, ContainerDrawContext>) {
 	return (
 		<>
 			<span className="box-badge">box</span>
-			<BlockChildren className="box-children" />
+			<div className="box-children">
+				<Slot of="children" />
+			</div>
 		</>
 	);
 }
 
-export const boxView = reactBlockView(Box, { surface: 'container', className: 'box' });
+export const box = container({
+	name: 'box',
+	label: 'Box',
+	lines: { shape: 'marked', first: '%> ', rest: '%> ', reads: /^%> ?/, lazy: true },
+	sample: '%> inside the box',
+	insert: { none: 'typed, never picked from a menu' },
+	draw: reactBlock(Box, { className: 'box' })
+});
 ```
 
-`<BlockChildren>` renders empty, like `<LeafContent>`, and the children land in it, so your chrome goes beside it. The kind itself is the container from [the walkthrough](container-walkthrough.md#the-registration-module): its registration doesn't change, only its `view` does.
+`lines` says how a line inside the box is marked, the way a blockquote's lines start with `> `, and the editor writes those markers for you on every edit. The children land in the slot, so your chrome goes beside it.
 
 ## A block with its own editing surface
 
-Some blocks don't want the editor's text at all. The bundled diagram block shows a picture, and editing it means a `<textarea>` of its own. A block like that has no caret inside it, so the editor focuses it as a whole: arrows stop on it, Backspace next to it focuses it and a second press deletes it, Enter adds a paragraph below, and a character typed at it starts one. You declare that on the kind, `blockFocus: 'whole-block'`, with `container: { contract: 'opaque', rebuildRaw }` since the block keeps its text in metadata (the [render-primary recipe](render-primary.md#recipe-a-render-primary-block) walks through that registration). Then you draw it on the container surface and skip the children.
+Some blocks don't want the editor's text at all. The bundled diagram block shows a picture, and editing it means a `<textarea>` of its own. A block like that has no caret inside it, so the editor focuses it as a whole: arrows stop on it, Backspace next to it focuses it and a second press deletes it, Enter adds a paragraph below, and a character typed at it starts one. That's `edit: 'box'`.
 
-What your component hands over is the element that takes focus, through `ctx.container.attachFocus`, as a ref. A note shown as text until a double click opens a textarea:
+A note shown as text until a double click opens a textarea, kept in a ` ```note ` fence:
 
-```tsx
+````tsx
 import { useState } from 'react';
-import { reactBlockView, type BlockViewProps } from '@voithos-labs/aragonite-react';
-import { getPluginMetadata } from '@voithos-labs/aragonite/plugin';
+import { fencedBlock, type BoxDrawContext } from '@voithos-labs/aragonite/plugin';
 
-function Note({ state, ctx }: BlockViewProps<'container'>) {
-	const text = getPluginMetadata<{ text: string }>(state.node)?.text ?? '';
+function Note({ block, ctx }: BlockProps<never, BoxDrawContext>) {
 	const [editing, setEditing] = useState(false);
-	ctx.container.setCommandHooks({ openEdit: () => setEditing(true) });
-
+	const save = (text: string) => {
+		const fence = '```note\n' + text + '\n```\n';
+		void ctx.editor.edit().replace({ from: block.from, to: block.to }, fence).commit();
+	};
 	if (editing) {
 		return (
 			<textarea
-				ref={ctx.container.attachFocus}
 				autoFocus
-				defaultValue={text}
+				defaultValue={block.body.replace(/\n$/, '')}
 				onBlur={(e) => {
 					setEditing(false);
-					const next = e.currentTarget.value;
-					if (next !== text) void ctx.container.updateOwnMetadata({ text: next });
+					if (e.currentTarget.value + '\n' !== block.body) save(e.currentTarget.value);
 				}}
 			/>
 		);
 	}
-	return (
-		<pre ref={ctx.container.attachFocus} tabIndex={-1} onDoubleClick={() => setEditing(true)}>
-			{text}
-		</pre>
-	);
+	return <pre onDoubleClick={() => setEditing(true)}>{block.body}</pre>;
 }
 
-export const noteView = reactBlockView(Note, { surface: 'container', className: 'note' });
-```
+export const note = fencedBlock({
+	name: 'note',
+	label: 'Note',
+	fence: { info: 'note' },
+	sample: '```note\nhello\n```',
+	insert: { none: 'typed, never picked from a menu' },
+	edit: 'box',
+	draw: reactBlock(Note, { className: 'note' })
+});
+````
 
-Arrow down onto the note and it's focused whole (a `.note:focus-within` border lights up), double-click and you're typing in the textarea, click away and the text commits as one undo step. A few things make it behave:
+Arrow down onto the note and it's focused whole, double-click and you're typing in the textarea, click away and the text goes back into the fence as one undo step. A few things make it behave:
 
-- **Attach a focus element for every state**, the textarea included. `attachFocus` keeps its identity for the mount, so passing it straight as a `ref` is fine, and so is React handing it `null` on the way out.
-- **DOM focus goes to a hidden editing host**, not to your `<pre>`. The editor puts it in the block's element, next to what you render, since that's where AltGr and IME input arrive. So style focus with `:focus-within`, and give the block's element `position: relative`.
-- **Keys in your textarea are the textarea's.** The kind's keymap stays out of it, and so do the editor's chords. To leave by arrow key on the first or last line, call `ctx.container.moveFocusOut(e.nativeEvent)` and `preventDefault` when it returns true.
-- **A block command reaches your component through `setCommandHooks`.** Bind a `note.edit` command to `Mod+M` in the kind's keymap, have its handler call `ctx.hooks.openEdit()`, and the key opens the textarea ([commands](commands.md)).
-
-In Vue it's the same component shape, with `:ref="ctx.container.attachFocus"` on the textarea and the `<pre>`.
-
-A container with a marker before its first child's text (a footnote definition's `[^label]: `) gets one more option for that: `ambientPrefix(state, editor)`, beside `surface`, returning the marker ([the container walkthrough](container-walkthrough.md)).
+- **Write with `block.from` and `block.to`.** They're read when you ask, so they're right even after an edit above moved the note, which a value you saved at render time wouldn't be.
+- **DOM focus goes to a hidden editing host**, not to your `<pre>`. The editor puts it in the block's element, next to what you render, since that's where AltGr and IME input arrive. So style focus with `:focus-within`.
+- **Keys in your textarea are the textarea's.** The editor's chords still reach it (Ctrl+Z, say) unless your component's `keep` takes them. To leave by arrow key on the first or last line, call `ctx.leave('start')` or `ctx.leave('end')` and `preventDefault`. Escape hands the note back to the editor focused whole, and from there Enter opens a paragraph below it, which is the only way to get one between two boxes back to back. If you use Escape yourself (to drop the edit, say), call `preventDefault`, or the box takes whole focus too; `ctx.focusWhole()` gets you there from your own code.
 
 ## A block you draw whole
 
-Some blocks have no text for the editor and no children either: an embed with its own buttons, a little widget, a die. Draw one on the `'none'` surface and the editor builds nothing inside it. What it needs from you is the other direction: how to put focus on the block, and whether focus is in it right now. You hand that over with `useBlockHandle`, which works like React's `useImperativeHandle`.
-
-A die that rolls when you press its button (in order, because this is a docs page and not a casino):
+Some blocks have no text for the editor and no children either: an embed with its own buttons, a little widget, a die. A box like that still needs one thing from you, if it has a control of its own: where the caret goes when it arrives. You hand that over with `useDrawn`'s `focus`, and without it the editor focuses the block whole.
 
 ```tsx
-import { useRef, useState } from 'react';
-import { reactBlockView, useBlockHandle, type BlockViewProps } from '@voithos-labs/aragonite-react';
+import { useRef, useState, type KeyboardEvent } from 'react';
+import { reactBlock, useDrawn, type BlockProps } from '@voithos-labs/aragonite-react';
+import { lineBlock, type BoxDrawContext } from '@voithos-labs/aragonite/plugin';
 
-function Die({ state }: BlockViewProps<'none'>) {
-	const sides = Number(/d(\d+)/.exec(state.node.raw)?.[1] ?? 6);
+function Dice({ ctx }: BlockProps<never, BoxDrawContext>) {
 	const [rolled, setRolled] = useState(0);
-	const button = useRef<HTMLButtonElement>(null);
-
-	useBlockHandle(
-		() => ({
-			focusable: true,
-			focus: () => button.current?.focus(),
-			getCursorOffset: () => (document.activeElement === button.current ? 0 : null)
-		}),
-		[]
-	);
-
+	const button = useRef<HTMLButtonElement | null>(null);
+	useDrawn(() => ({
+		focus: {
+			enter: () => button.current?.focus(),
+			offset: () => (document.activeElement === button.current ? 0 : null)
+		}
+	}));
+	function onKeyDown(e: KeyboardEvent) {
+		if (e.key === 'ArrowUp') ctx.leave('start');
+		else if (e.key === 'ArrowDown') ctx.leave('end');
+		else return;
+		e.preventDefault();
+	}
 	return (
-		<button ref={button} onClick={() => setRolled((n) => (n % sides) + 1)}>
-			d{sides}: {rolled || 'roll me'}
+		<button ref={button} onClick={() => setRolled((rolled % 6) + 1)} onKeyDown={onKeyDown}>
+			d6: {rolled || 'roll me'}
 		</button>
 	);
 }
 
-export const dieView = reactBlockView(Die, { surface: 'none', className: 'die' });
+export const dice = lineBlock({
+	name: 'dice',
+	label: 'Die',
+	match: /^!! d6$/,
+	sample: '!! d6',
+	insert: { none: 'typed, never picked from a menu' },
+	edit: 'box',
+	draw: reactBlock(Dice, { className: 'dice' })
+});
 ```
 
-Register it on a leaf kind with `editable: false` and a line like `!! d6` draws a button. ArrowDown from the paragraph above lands on the button, Enter rolls it, and ArrowDown again moves on to the paragraph below. What to know:
-
-- **Three members are the minimum.** `focus(offset)` puts focus in your block (the offset means nothing to a block with no text, so ignore it), `getCursorOffset()` is `0` while focus is inside and `null` otherwise, and `focusable` says whether arrows should stop here at all. You can add the optional ones from the [Block views](../plugin-api.md#block-views) list, like `measurePartialRects` to paint a selection over your block.
-- **Until you publish, arrows pass over the block.** The same goes for a component that stops calling `useBlockHandle`, or unmounts. Both helpers render your component before the editor needs anything from it, so in practice this only matters for a component that publishes conditionally.
-- **`deps` work like `useImperativeHandle`'s.** Leave them out and you publish a fresh object every render, which works but makes the editor rebuild its handle on every render. Pass `[]` when your functions read refs.
-- **Plain arrows leave the block.** An arrow pressed on your button moves to the neighbour it points at. Keys in a text field of yours stay there, and so does any arrow you `preventDefault` (two buttons you arrow between, say).
-- **It can't write its own bytes.** A `'none'` block has no way to change its Markdown or run a block command at itself. If your block edits itself, draw it on the container surface with `blockFocus: 'whole-block'`, like [the note above](#a-block-with-its-own-editing-surface).
-
-In Vue, `useBlockHandle` is a composable you call in `setup`, and `deps` is what you'd hand `watch`, a ref, a getter or an array of them:
-
-```vue
-<script setup lang="ts">
-import { ref } from 'vue';
-import { useBlockHandle, type BlockViewProps } from '@voithos-labs/aragonite-vue';
-
-defineProps<BlockViewProps<'none'>>();
-const rolled = ref(0);
-const button = ref<HTMLButtonElement | null>(null);
-
-useBlockHandle(() => ({
-	focusable: true,
-	focus: () => button.value?.focus(),
-	getCursorOffset: () => (document.activeElement === button.value ? 0 : null)
-}));
-</script>
-
-<template>
-	<button ref="button" @click="rolled = (rolled % 6) + 1">d6: {{ rolled || 'roll me' }}</button>
-</template>
-```
+`enter` runs when an arrow brings the caret in (it's told which edge, and the column an up or down arrow keeps, if you want them), and `offset` says where the caret sits in your block, or null while it's elsewhere, which is what undo puts back. Plain keys in your button are its own. The die rolls with a click and hands the caret on with `ctx.leave` at ArrowUp and ArrowDown.
 
 ## The same in Vue
 
-`vueBlockView(component, options)` takes the same options, and the package has its own `LeafContent` and `BlockChildren`. The memo, as a single-file component:
+`vueBlock(component, options)` takes the same `className`, and the component gets the same `block`, `ctx` and `Slot` as props. The memo, as a single-file component:
 
 ```vue
 <!-- Memo.vue -->
 <script setup lang="ts">
-import { LeafContent, type BlockViewProps } from '@voithos-labs/aragonite-vue';
+import type { BlockProps } from '@voithos-labs/aragonite-vue';
+import type { TextDrawContext } from '@voithos-labs/aragonite/plugin';
 
-defineProps<BlockViewProps<'leaf'>>();
+defineProps<BlockProps<never, TextDrawContext>>();
 </script>
 
 <template>
 	<span class="memo-badge">memo</span>
-	<LeafContent class="memo-text" />
+	<span class="memo-text"><Slot of="source" /></span>
 </template>
 ```
 
 ```ts
-import { vueBlockView } from '@voithos-labs/aragonite-vue';
+import { vueBlock } from '@voithos-labs/aragonite-vue';
 import Memo from './Memo.vue';
 
-export const memoView = vueBlockView(Memo, { surface: 'leaf', singleLine: true, className: 'memo' });
+export const memo = lineBlock({ /* the same spec as above */ draw: vueBlock(Memo, { className: 'memo' }) });
 ```
 
-The click-to-edit label is a `v-if` on `state.revealed`, and the box puts `<BlockChildren>` where its children go:
+The click-to-edit label is a `v-if` on `ctx.focused`, and the box puts `<Slot of="children" />` where its children go. `useDrawn` is the package's own too, called in `setup`, with a template ref where React has `useRef`:
 
 ```vue
+<script setup lang="ts">
+import { ref } from 'vue';
+import { useDrawn, type BlockProps } from '@voithos-labs/aragonite-vue';
+import type { TextDrawContext } from '@voithos-labs/aragonite/plugin';
+
+defineProps<BlockProps<never, TextDrawContext>>();
+const shown = ref<HTMLElement | null>(null);
+useDrawn(() => ({ caret: shown.value ?? undefined }));
+</script>
+
 <template>
-	<LeafContent v-if="state.revealed" class="label-source" />
-	<strong v-else>{{ state.node.raw.slice('@@ '.length).trim() }}</strong>
+	<strong v-if="!ctx.focused" ref="shown">{{ block.body }}</strong>
+	<span class="label-source"><Slot of="source" /></span>
 </template>
 ```
+
+Svelte's `svelteBlock(Component)` is the same deal: `block`, `ctx` and `Slot` as props, and `useDrawn` from `@voithos-labs/aragonite/svelte`, called while the component initialises.
 
 ## Widgets, decorations and menu rows
 
@@ -333,6 +365,6 @@ Each block and view renders in a root of its own (a React root, or a Vue render 
 ```ts
 const app = createApp(App);
 app.use(pinia);
-const memoView = vueBlockView(Memo, { surface: 'leaf', singleLine: true, app });
+const drawMemo = vueBlock(Memo, { className: 'memo', app });
 app.mount('#app');
 ```

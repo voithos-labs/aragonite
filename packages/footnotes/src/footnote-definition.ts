@@ -7,7 +7,6 @@
 
 import {
 	OPENER_PRIORITIES,
-	containerClosure,
 	declarePluginKind,
 	declaredPluginKind,
 	isBlankLine,
@@ -154,20 +153,6 @@ export function registerFootnoteDefinition(view: BlockView): void {
 				firstChildBackspace: 'lift-first-child-keep-container',
 				middleChildBackspace: 'default-merge'
 			}
-		},
-		closure: containerClosure({
-			roundTripVia:
-				'container lines — an indented shape, the [^label]: marker and a four-column indent, written by the container writer',
-			focus: {
-				mode: 'implemented',
-				via: 'focus walks into the first child block via createContainerBlock'
-			},
-			mergeBackspace: {
-				mode: 'implemented',
-				via: 'not-mergeable outward, so nothing below concatenates into the note; within the body, unwrapRole lifts the first block out (lift-first-child-keep-container) and later blocks default-merge'
-			},
-			undo: { mode: 'inherit-default' },
-			simOracle: { mode: 'inherit-default' }
-		})
+		}
 	});
 }

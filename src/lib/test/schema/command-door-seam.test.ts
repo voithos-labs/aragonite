@@ -5,11 +5,10 @@ import { describe, it, expect } from 'vitest';
 import {
 	runCommandById,
 	dispatchKeyCommand,
-	registerBlockCommand,
 	type CommandDispatchContext,
 	type KindCommandTarget
 } from '#lib/schema/block-commands.js';
-import { registerCommand, type CommandId } from '#lib/schema/commands.js';
+import type { CommandId } from '#lib/schema/commands.js';
 import { normalizeKeybindingOverrides } from '#lib/schema/keybinding-overrides.js';
 import type { AnyCommandId } from '#lib/schema/command-id.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
@@ -32,38 +31,6 @@ function target(ran: string[]): KindCommandTarget {
 const reading = (): PresentationMode => 'reading';
 
 describe('runCommandById level order', () => {
-	it('the global table wins over a block command registered under the same id', () => {
-		const ranBlock: string[] = [];
-		const id = registerBlockCommand('paragraph', 'demo.dual', () => {
-			ranBlock.push('block');
-			return true;
-		});
-		let globals = 0;
-		registerCommand(id, () => {
-			globals++;
-			return true;
-		});
-		const surface: KindCommandTarget = {
-			kind: 'paragraph',
-			runCommand: () => false,
-			getCommandContext: () => ({
-				node: { raw: '' } as never,
-				updateMetadata: () => {},
-				replaceRaw: () => {}
-			})
-		};
-
-		expect(runCommandById(id, undefined, surface, context())).toBe(true);
-		// The same answer by chord: a direct call enters the dispatch the chord path resolves into.
-		const overrides = normalizeKeybindingOverrides([
-			{ chord: 'Mod+Shift+K', command: id, kind: 'paragraph' }
-		]);
-		expect(dispatchKeyCommand('Mod+Shift+K', surface, commandContextWith(overrides))).toBe(true);
-
-		expect(globals).toBe(2);
-		expect(ranBlock).toEqual([]);
-	});
-
 	it('a global command runs with no focused surface; a block-local one declines', () => {
 		const before = undos;
 		expect(runCommandById('history.undo', undefined, null, context())).toBe(true);

@@ -13,6 +13,7 @@ import type { CaretMemory } from '../../../caret/caret-memory';
 import type { HeldInsertion } from '../../../caret/next-insertion';
 import type { RawRange } from '../../../browser/offsets';
 import { normalizeLineEndings } from '../../../core/lines';
+import type { ClipboardWrite } from '../../../browser/clipboard';
 import { escapeMarkdownLiteral } from '../../../tree-operations/paste/markdown-literal';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import type { CrossBlockHandlers } from '../../../selection/cross-block/dispatch';
@@ -80,6 +81,8 @@ export interface SurfaceClipboardContext {
 	/** Whether the block's own text reads Markdown; false where a paste lands byte for byte (a
 	 *  code body), which plain text then needs no escape for. */
 	readsMarkdown: () => boolean;
+	/** What a copy of `range` of the block's own bytes writes. */
+	copyRange: (range: RawRange) => ClipboardWrite | null;
 }
 
 /** The block's half: the selections it owns and how a paste lands in its own text. */
@@ -89,8 +92,8 @@ export interface BlockClipboard {
 	foldReveal?: () => RevealFold | null;
 	/** Selections tried before a range across blocks: a selected widget. */
 	selectionArms?: readonly ClipboardArm[];
-	/** The block's own range, tried last. */
-	rangeArm: ClipboardArm;
+	/** Removes a cut range of the block's own bytes, the selection tried last. */
+	removeRange: (range: RawRange) => void | Promise<void>;
 	/** The paste step before cross-block handling, given the normalised text while a rectangle is
 	 *  readable (a grid into a table's cells). True when it consumed the paste. */
 	pastePreHook?: (text: string) => boolean | Promise<boolean>;
@@ -154,7 +157,15 @@ export function createClipboardHandlers(deps: ClipboardSurfaceDeps): ClipboardHa
 			crossBlock: deps.crossBlock
 		})
 	];
-	const arms: readonly ClipboardArm[] = [...editorSelectionArms, deps.rangeArm];
+	const rangeArm: ClipboardArm<RawRange> = {
+		copy: () => {
+			const range = deps.caret.getSelection();
+			const write = range && range.start < range.end ? deps.copyRange(range) : null;
+			return write && range && { write, held: range };
+		},
+		remove: deps.removeRange
+	};
+	const arms: readonly ClipboardArm[] = [...editorSelectionArms, rangeArm];
 	const imageArm = createImagePasteArm({
 		onPasteImage: deps.onPasteImage,
 		events: deps.events,

@@ -14,7 +14,6 @@ import { registerBlockCommand } from '#lib/schema/block-commands.js';
 import type { BlockOpener } from '#lib/schema/block-openers.js';
 import { registerChromeLeaf } from '#lib/plugin.js';
 import { __resetSchemaRegistriesForTests } from '#lib/schema/registry-reset.js';
-import { testClosure } from '#lib/test/harness/closure.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { collector } from '#lib/test/harness/violation-collector.js';
 import { testView } from '#lib/test/harness/test-view.js';
@@ -28,7 +27,6 @@ const container: BlockKindRegistration = {
 	mergeRole: 'container',
 	editable: true,
 	supportsInline: false,
-	closure: testClosure,
 	container: containerGroup
 };
 
@@ -37,8 +35,7 @@ const leaf: BlockKindRegistration = {
 	gapEdges: 'none',
 	mergeRole: 'not-mergeable',
 	editable: true,
-	supportsInline: false,
-	closure: testClosure
+	supportsInline: false
 };
 
 const withChrome = (title: AnyBlockKind, opener?: BlockOpener): BlockKindRegistration => ({
@@ -238,27 +235,6 @@ describe('reservedChrome coherence at the flush', () => {
 		expect(byTag('reserved-chrome-coherence')[0].violation.detail).toMatchObject({
 			chromeKind: 'rc-declared-only',
 			missing: 'descriptor'
-		});
-	});
-});
-
-// The predicate is unit-tested in test/invariants/closure-coherence.test.ts; these cases check
-// that the flush actually runs it (G1.24).
-describe('closure coherence at the flush', () => {
-	it('flags a registered kind whose closure is incoherent with its descriptor', () => {
-		const kind = declarePluginKind('incoherent-closure');
-		// A not-mergeable kind has no default merge for `mergeBackspace` to inherit (G1.24).
-		registerBlockKind(kind, {
-			...leaf,
-			closure: { ...testClosure, mergeBackspace: { mode: 'inherit-default' } }
-		});
-
-		const { report, byTag } = collector();
-		flushPendingRegistrationChecks(report);
-		expect(byTag('closure-coherence')).toHaveLength(1);
-		expect(byTag('closure-coherence')[0].violation.detail).toMatchObject({
-			kind: 'incoherent-closure',
-			column: 'mergeBackspace'
 		});
 	});
 });

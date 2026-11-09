@@ -5,12 +5,13 @@
  */
 import { assertInvariant, devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 import { checkDefinedByThisCopy, type CoreCopy } from '../invariants/one-core-copy';
-import { ALL_BLOCK_KINDS, type BlockKind } from '../core/nodes';
 import { ARAGONITE_VERSION } from '../version';
 import type { EditorEventMap } from '../editor-events';
 import type { PresentationMode } from '../presentation-mode';
 import type { Command } from './plugin-command';
 import type { InsertRow } from './insert-catalogue';
+import type { CaretMenu } from './caret-menu';
+import type { SelectionAction } from './selection-action';
 import type { Draft } from './drafts';
 import { isValidPluginName } from './plugin-name';
 import { satisfiesRange } from './version-range';
@@ -52,6 +53,9 @@ export type PluginList = readonly Pick<Plugin, 'name' | 'version' | 'editor'>[];
 
 /** What a plugin adds to one editor. */
 export interface Contribution {
+	/** Its block types, made by `lineBlock`, `fencedBlock` or `container`; each is named after the
+	 *  plugin (`callouts/callout`) when an editor first runs it. */
+	blocks?: readonly BlockType<unknown>[];
 	/** Runs once the editor is mounted; what it adds through `editor` goes away with the plugin. */
 	setup?(editor: Editor): void;
 	/** Run by value, by `plugin/id`, or by a command's chord anywhere in the editor. */
@@ -61,6 +65,11 @@ export interface Contribution {
 	/** True when the plugin checks spelling itself: the browser's own checker is off on the
 	 *  editor's prose while the plugin runs, so no word gets two underlines. */
 	checksSpelling?: boolean;
+	/** Lists that open under the caret when their trigger is typed. */
+	menus?: readonly CaretMenu<unknown>[];
+	/** Rows over the selection, or a range captured around the caret, in the right-click menu, the
+	 *  selection toolbar and `openRows`. */
+	actions?: readonly SelectionAction[];
 }
 
 /** The editor as a plugin's `setup` and a host's handle both see it. */
@@ -84,24 +93,28 @@ export interface Editor {
 	can(command: Command | string, arg?: unknown): boolean;
 	/** Whether the editor acts on this key, so a host's own shortcut handler can stand back. */
 	claims(event: KeyboardEvent): boolean;
+	/** Types a caret menu's trigger and `query` at the caret and opens it there, even where a typed
+	 *  trigger wouldn't; false, writing nothing, away from prose or for a menu not listed here. */
+	openMenu<R>(menu: CaretMenu<R>, query?: string): boolean;
+	/** Opens the editor's menu with an action's rows over `range` (captured as the action says) at
+	 *  `anchor`, taking no focus; any edit, Escape or a press elsewhere closes it. */
+	openRows(
+		action: SelectionAction,
+		range: { readonly from: number; readonly to: number },
+		anchor: DOMRect | { readonly x: number; readonly y: number }
+	): { readonly isOpen: boolean; close(): void };
 	/** A write in the document's bytes, committed as one undo step now or after a wait; a plugin's
 	 *  is refused as `off` once the plugin is. */
 	edit(): Draft;
 }
 
-/** A block type as the editor holds it: `name` is its kind, qualified by its plugin's name. */
+/** A block type as the editor holds it: `name` is its kind, qualified by its plugin's name once an
+ *  editor runs the plugin, and `label` what a screen reader and the block menu call it. */
 export interface BlockType<D = never> {
 	readonly name: string;
+	readonly label: string;
 	readonly '~data'?: D;
 }
-
-/** The built-in block types, to place a plugin's block relative to one or tell a block's type. */
-export const builtin: { readonly blocks: Readonly<Record<BlockKind, BlockType>> } = {
-	// Marked pure so a build that never reads the table leaves it out.
-	blocks: /* @__PURE__ */ Object.fromEntries(
-		/* @__PURE__ */ ALL_BLOCK_KINDS.map((kind) => [kind, { name: kind }])
-	) as Record<BlockKind, BlockType>
-};
 
 /** An error a plugin caused, naming the plugin and what the editor was doing with it. */
 export interface PluginError {

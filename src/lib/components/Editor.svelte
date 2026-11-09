@@ -42,6 +42,7 @@
 	import { componentAt, type ChildList } from '../block-lists/child-list';
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { coverRange, rangeCoverage } from '../selection/range-coverage';
+	import { documentBytes, rangePaint } from '../selection/range-bytes';
 	import { findSurfacePathForElement } from '../selection/path-lookup';
 	import { createSelectionDescription } from '../selection/selection-description';
 	import { EDITOR_LABEL } from '../a11y-strings';
@@ -92,7 +93,9 @@
 	import { aroundRender } from '../around-render.svelte';
 	import { createFocusAttribution } from './editor-root/focus';
 	import { createRootGestures } from './editor-root/gestures';
-	import { createRootMenus, type BlockMenuModel } from './editor-root/menus';
+	import { createRootMenus, type BlockMenuModel, type OpenRows } from './editor-root/menus';
+	import { createSelectionActions } from './editor-root/selection-actions';
+	import type { SelectionAction } from '../schema/selection-action';
 	import { createFocusedSurface } from './editor-root/focused-surface';
 	import type { EditorTestSurface } from './editor-root/test-surface';
 	import {
@@ -143,6 +146,7 @@
 	import { createEditorActivation } from '../schema/plugin-activation';
 	import { createEditorContributions } from '../schema/editor-contributions';
 	import type { Command } from '../schema/plugin-command';
+	import type { CaretMenu } from '../schema/caret-menu';
 	import {
 		installPluginList,
 		type InstalledPlugin,
@@ -152,6 +156,7 @@
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
 	import { insertRows } from '../schema/insert-catalogue';
 	import { createEditorGrammar } from '../schema/editor-grammar';
+	import { installBlockTypes } from '../schema/block-type';
 	import type { Reading } from '../schema/reading';
 	import { hidesDelimitersAtCaret, type PresentationMode } from '../presentation-mode';
 	import BlockList from './BlockList.svelte';
@@ -254,9 +259,10 @@
 	});
 	const installList = (values: PluginList, previous?: readonly InstalledPlugin[]) =>
 		contributions.read(installPluginList(values, reportPluginError, previous));
-	let units = $state.raw<readonly InstalledPlugin[]>(
-		pluginEntries ? installList(pluginEntries.values) : []
-	);
+	const firstUnits = pluginEntries ? installList(pluginEntries.values) : [];
+	let units = $state.raw<readonly InstalledPlugin[]>(firstUnits);
+	let ownBlocks = installBlockTypes(firstUnits, reportPluginError);
+	onDestroy(() => ownBlocks.release());
 
 	// The editor runs exactly the plugins it lists; with no `plugins` prop, every installed one.
 	const listedNames = () => (pluginEntries ? runningNames(pluginEntries, units) : null);
@@ -289,7 +295,11 @@
 	// ── State ───────────────────────────────────────────────────────────
 
 	// svelte-ignore state_referenced_locally
-	const editorGrammar = createEditorGrammar({ plugins: activePlugins, syntax });
+	const editorGrammar = createEditorGrammar({
+		plugins: activePlugins,
+		syntax,
+		blocks: () => ownBlocks.blocks
+	});
 
 	// Plain state, not $derived: structural edits write `doc` and `blockIds` directly.
 	// svelte-ignore state_referenced_locally
@@ -307,6 +317,11 @@
 	// decoration engine's `editEpoch` follows it a tick later.
 	const contentVersion = createContentVersion();
 	const currentSource = createCurrentSource({ version: contentVersion.read, doc: () => doc });
+	const bytes = documentBytes({
+		version: contentVersion.read,
+		doc: () => doc,
+		source: currentSource.read
+	});
 	let currentResolver = $state<LinkReferenceResolver>(initial.resolver);
 	let currentSignature = $state<string>(initial.signature);
 	// Reference-bearing render memos key on this instead of the whole (~MB) signature.
@@ -392,6 +407,8 @@
 		if (!selectionState.isCustomRendered || !anchor || !focus) return null;
 		return rangeCoverage(doc, coverRange(doc, anchor, focus));
 	});
+	// Per content version too: the layout is read again only after the bytes change.
+	const paint = $derived(coverage && rangePaint(doc, coverage, bytes.layout()));
 
 	let selectionDescription = $derived(
 		selectionState.ownsRange && selectionState.anchor && selectionState.focus
@@ -471,6 +488,7 @@
 		doc: () => doc,
 		isReading: () => reading.mode() === 'reading',
 		isOn: (plugin) => activePlugins.isActive(plugin),
+		grammar: editorGrammar,
 		// Built below; a draft commits post-init.
 		writes: () => ({
 			commitSource: controller.commitSource,
@@ -747,11 +765,12 @@
 		commitRange: (path, start, end, bytes, caretAfter) =>
 			inlineRange.commitInlineRange(path, start, end, bytes, caretAfter, { landCaret: true }),
 		undoStep: (path, offset, run) => controller.undoStep({ path: docPathFrom(path), offset }, run),
-		// A source added outside any plugin's `onEditor` is the editor's own: the base context.
-		ownerOfNewSource: () => pluginContexts.attaching() ?? pluginContexts.get('')!,
-		drafts,
-		showsSource: shownSource.holds
+		showsSource: shownSource.holds,
+		editorFor: (plugin) => pluginContexts.scoped(plugin),
+		pickDraft: (plugin, watch) => drafts.edit(plugin, watch),
+		endBurst: () => controller.flushDebouncedCheckpoint()
 	});
+	inlineMenu.setMenus(contributions.menus);
 	const inlineMenus: InlineMenuRegistry = inlineMenu.registry;
 	$effect(() => () => inlineMenu.dispose());
 
@@ -774,6 +793,8 @@
 		runCommand: (command, arg) => run(command, arg),
 		canRunCommand: (command, arg) => can(command, arg),
 		claims: (event) => claimsChord(event),
+		openMenu: (menu, query) => inlineMenu.openMenu(menu, query),
+		openRows: (action, range, anchor) => openRows(action, range, anchor),
 		edit: (plugin) => drafts.edit(plugin),
 		reading,
 		units: () => units,
@@ -927,6 +948,7 @@
 		decorations: decorationEngine,
 		selection: selectionState,
 		rangeCoverage: () => coverage,
+		rangePaint: () => paint,
 		search: searchState,
 		caretMemory,
 		caretWriter,
@@ -1045,6 +1067,25 @@
 		);
 	});
 
+	const selectionActions = createSelectionActions({
+		actions: () => contributions.actions,
+		editorFor: (plugin) => pluginContexts.scoped(plugin),
+		getDoc,
+		source: currentSource.readUnchecked,
+		getSelection,
+		editable: () => reading.mode() !== 'reading',
+		rangeRects: (path, start, end) => rects.rangeRects(path, start, end),
+		edit: (plugin) => drafts.edit(plugin),
+		report: reportPluginError
+	});
+
+	// A menu told it closed, unless the next one is the same menu redrawn.
+	function swapMenu(next: BlockMenuModel | null): void {
+		const was = blockMenu;
+		blockMenu = next;
+		if (was && was.closed !== next?.closed) was.closed?.();
+	}
+
 	const rootMenus = createRootMenus({
 		get editorEl() {
 			return editorEl;
@@ -1062,6 +1103,7 @@
 		selection: selectionState,
 		insertMarkdown,
 		clipboard: menuClipboard,
+		openDraft: (spec, path) => drafts.open(spec, path),
 		inserts: () => inserts,
 		activation: activePlugins,
 		reading,
@@ -1069,7 +1111,9 @@
 		// The row does what Mod+K does at the caret the right-click just placed.
 		canEditLinkAtCaret: () => isCommandActive('link.openCard'),
 		editLinkAtCaret: () => void runCommand('link.openCard'),
-		setMenu: (menu) => (blockMenu = menu)
+		setMenu: swapMenu,
+		currentMenu: () => blockMenu,
+		actions: selectionActions
 	});
 
 	// Announced for plugins that paint their own colors and cannot see a theme change in CSS.
@@ -1155,6 +1199,7 @@
 		blockEdit,
 		controller,
 		reading,
+		bytes,
 		commands,
 		pasteCoordinator,
 		activePlugins,
@@ -1288,7 +1333,9 @@
 		doc: getDoc,
 		contentVersion: contentVersion.read,
 		reading,
+		bytes,
 		pluginEditor: pluginEditorLookup,
+		scopedEditor: (name: string) => pluginContexts.editor(name),
 		lifetime: lifetimeController.signal,
 		editorRoot: () => editorEl ?? null,
 		scrollHost: getScrollHost,
@@ -1504,6 +1551,21 @@
 		return claimsChord(event);
 	}
 
+	export function openMenu<R>(menu: CaretMenu<R>, query?: string): boolean {
+		return inlineMenu.openMenu(menu as CaretMenu<unknown>, query);
+	}
+
+	export function openRows(
+		action: SelectionAction,
+		range: { readonly from: number; readonly to: number },
+		anchor: DOMRect | { readonly x: number; readonly y: number }
+	): OpenRows {
+		const group = selectionActions.over(action, { from: range.from, to: range.to });
+		if (!group) return { isOpen: false, close() {} };
+		const point = 'bottom' in anchor ? { x: anchor.left, y: anchor.bottom } : anchor;
+		return rootMenus.openGroups([group], { x: point.x, y: point.y });
+	}
+
 	/** Turns plugins on and off in this editor, reading the document again; the history stays. */
 	export function use(next: PluginsProp): void {
 		// Read before installing: with no list, the names are whatever the page has installed.
@@ -1515,6 +1577,11 @@
 		const beforeUnits = units;
 		pluginEntries = entries;
 		units = installList(entries.values, beforeUnits);
+		// The new list is held first, so a block type in both lists keeps its facts throughout.
+		const beforeBlocks = ownBlocks;
+		ownBlocks = installBlockTypes(units, reportPluginError);
+		beforeBlocks.release();
+		inlineMenu.setMenus(contributions.menus);
 		const after = listedNames() ?? [];
 		// A plugin listed again with other options starts over on them, whichever shape it has.
 		const replaced = (name: string) =>
@@ -1583,7 +1650,9 @@
 		on,
 		run,
 		can,
-		claims
+		claims,
+		openMenu,
+		openRows
 	} satisfies EditorInstance);
 
 	// ── Test-only hooks ─────────────────────────────────────────────────
@@ -1682,7 +1751,7 @@
 			items={blockMenu.items}
 			label={blockMenu.label}
 			onPick={blockMenu.pick}
-			onClose={() => (blockMenu = null)}
+			onClose={() => swapMenu(null)}
 			{menuPresence}
 		/>
 	{/if}
@@ -1702,6 +1771,7 @@
 			formatting={() => selectionToolbar}
 			clipboard={menuClipboard}
 			{menuPresence}
+			actions={selectionActions}
 		/>
 	{/if}
 	<ImageOverlayHost

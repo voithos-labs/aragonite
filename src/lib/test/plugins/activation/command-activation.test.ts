@@ -2,7 +2,6 @@
 import { describe, expect, it } from 'vitest';
 import { runCommandById, registerBlockCommand } from '#lib/schema/block-commands.js';
 import type { CommandDispatchContext, KindCommandTarget } from '#lib/schema/block-commands.js';
-import { registerGlobalCommand } from '#lib/schema/global-commands.js';
 import { definePlugin, installPlugins, type EditorContext } from '#lib/schema/plugin-install.js';
 import { activationFor, type PluginActivation } from '#lib/schema/plugin-activation.js';
 import type { AnyCommandId } from '#lib/schema/command-id.js';
@@ -23,9 +22,8 @@ const paragraph: KindCommandTarget = {
 	})
 };
 
-function installCommands(ran: string[]): { block: AnyCommandId; global: AnyCommandId } {
+function installCommand(ran: string[]): AnyCommandId {
 	let block: AnyCommandId | undefined;
-	let global: AnyCommandId | undefined;
 	installPlugins([
 		definePlugin({
 			name: 'commander',
@@ -34,32 +32,26 @@ function installCommands(ran: string[]): { block: AnyCommandId; global: AnyComma
 					ran.push('block');
 					return true;
 				});
-				global = registerGlobalCommand('commander.global', () => {
-					ran.push('global');
-					return true;
-				});
 			}
 		})
 	]);
-	return { block: block!, global: global! };
+	return block!;
 }
 
 describe("runCommand reaches a plugin's command only where the plugin is listed", () => {
-	it('runs neither command in an editor that left the plugin out', () => {
+	it('runs the block command nowhere in an editor that left the plugin out', () => {
 		const ran: string[] = [];
-		const ids = installCommands(ran);
+		const block = installCommand(ran);
 		const unlisted = context(activationFor([]));
-		expect(runCommandById(ids.block, undefined, paragraph, unlisted)).toBe(false);
-		expect(runCommandById(ids.global, undefined, paragraph, unlisted)).toBe(false);
+		expect(runCommandById(block, undefined, paragraph, unlisted)).toBe(false);
 		expect(ran).toEqual([]);
 	});
 
-	it('runs both in an editor that lists it', () => {
+	it('runs it in an editor that lists it', () => {
 		const ran: string[] = [];
-		const ids = installCommands(ran);
+		const block = installCommand(ran);
 		const listed = context(activationFor(['commander']));
-		expect(runCommandById(ids.block, undefined, paragraph, listed)).toBe(true);
-		expect(runCommandById(ids.global, undefined, paragraph, listed)).toBe(true);
-		expect(ran).toEqual(['block', 'global']);
+		expect(runCommandById(block, undefined, paragraph, listed)).toBe(true);
+		expect(ran).toEqual(['block']);
 	});
 });

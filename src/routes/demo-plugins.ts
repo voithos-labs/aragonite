@@ -9,7 +9,7 @@ import { katexRenderer } from '@voithos-labs/aragonite-latex/renderer';
 import { mermaidPlugin } from '@voithos-labs/aragonite-mermaid';
 import { parrotPlugin } from '@voithos-labs/aragonite-parrot';
 import { mermaidRenderer } from '@voithos-labs/aragonite-mermaid/renderer';
-import { slashCommandsPlugin } from '@voithos-labs/aragonite-slash-commands';
+import { slashCommands } from '@voithos-labs/aragonite-slash-commands';
 import { tagMarksPlugin } from './demo-tags/tag-marks-plugin';
 
 // The one place the demo routes create their plugins: definitions are process-global and the
@@ -25,7 +25,7 @@ export const DEMO_LATEX = latexPlugin({ renderer: katexRenderer });
 export const DEMO_MERMAID = mermaidPlugin({ renderer: mermaidRenderer });
 export const DEMO_PARROT = parrotPlugin();
 // Opt-in for a consumer; the showcase opts in, so `/` lists the blocks there.
-export const DEMO_SLASH_COMMANDS = slashCommandsPlugin();
+export const DEMO_SLASH_COMMANDS = slashCommands;
 // Tags as mark decorations over plain text, so a tag keeps every text gesture. Kept out of
 // `DEMO_PLUGINS`, the tour of the bundled plugins; the showcase installs it on its own.
 export const DEMO_TAGS = tagMarksPlugin();

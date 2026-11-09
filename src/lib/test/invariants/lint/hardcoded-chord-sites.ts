@@ -210,6 +210,12 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		note: 'Whole-block copy/cut reads its chord off `eventToChord`, a keydown carrying no ClipboardEvent, and `claimsChord` asks the same predicate. The unchorded printable creates a paragraph below, so the same modifier reads gate that branch too. The arrow exit for a plugin editor or a hand-built view declines every modified key rather than claiming one.'
 	},
 	{
+		file: 'components/drawn-block/drawn-box.svelte.ts',
+		takes: [],
+		keys: ['Escape'],
+		note: 'Asks whether a key in a drawing’s own editing surface is modified: a plain key stays the surface’s, a chord goes on to the editor’s keymap. A plain Escape a field leaves unhandled focuses the box whole, which `claimsChord` claims for a plugin’s own editor. Takes no chord.'
+	},
+	{
 		file: 'packages/mermaid/src/MermaidBlock.svelte',
 		takes: ['Mod+Enter'],
 		keys: ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'Enter', 'Escape', 'Tab'],

@@ -14,6 +14,7 @@ import {
 	type MountedEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { pressKey } from '#lib/test/harness/settle.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import {
 	defineBlockView,
 	type BlockView,
@@ -235,23 +236,37 @@ describe('a hand-built DOM view', () => {
 				.sort()
 		);
 	});
+
+	it('fails the dev check when it sets `display: contents` on the element it was given', async () => {
+		const editor = mountBadge(
+			defineBlockView({
+				surface: 'none',
+				mount(target) {
+					target.style.display = 'contents';
+					return {};
+				}
+			})
+		);
+		await editor.settle();
+		expect(takeDevWarns().map((w) => w.tag)).toContain('invariant:dom-view-content');
+	});
 });
 
 describe('registering a DOM view', () => {
-	const leafSpec: BlockViewSpec = {
-		surface: 'leaf',
+	const noneSpec: BlockViewSpec = {
+		surface: 'none',
 		mount: () => ({})
 	};
 
-	it('refuses a leaf surface on a container kind', () => {
+	it('refuses a hand-built surface on a container kind', () => {
 		expect(() =>
 			testContainer(
 				'dom-wrong-container',
 				{ rebuildRaw: () => {} },
 				// The test helper's type leaves the view to the leaf default; the registration takes one.
-				{ view: defineBlockView(leafSpec) } as never
+				{ view: defineBlockView(noneSpec) } as never
 			)
-		).toThrow(/is a container, but its view's surface is 'leaf'.*defineBlockView/);
+		).toThrow(/is a container, but its view's surface is 'none'.*defineBlockView/);
 	});
 
 	it('refuses a container surface on a leaf kind', () => {
@@ -264,6 +279,7 @@ describe('registering a DOM view', () => {
 
 	it.each([
 		['an unknown surface', { surface: 'popover', mount: () => ({}) }],
+		['a surface no longer built', { surface: 'leaf', mount: () => ({}) }],
 		['no surface', { mount: () => ({}) }],
 		['a mount that is not a function', { surface: 'none', mount: 'draw' }]
 	])('refuses %s', (_name, spec) => {

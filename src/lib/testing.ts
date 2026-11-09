@@ -57,7 +57,7 @@ export type {
 } from './testing/container-conformance';
 
 // ── Generic per-kind conformance battery ─────────────────────────────────────
-// Registering a kind signs it up for the closure cells that run without a browser;
+// Registering a kind signs it up for every cell that runs without a browser;
 // the browser pass runs the browser-only ones.
 
 export { runKindConformance, checkCopyIsRawByteSlice } from './testing/kind-conformance';
@@ -80,12 +80,12 @@ export type {
 	InlineConformanceReport
 } from './testing/inline-conformance';
 
-// ── Inline-menu commit conformance cell ──────────────────────────────────────
-// What a source's `onCommit` is held to: a commit that waits writes nothing into a note the host
-// loaded meanwhile.
+// ── Caret-menu pick conformance cell ─────────────────────────────────────────
+// What a menu's `pick` is held to: a pick that waits writes nothing into a note the host loaded
+// meanwhile.
 
-export { checkInlineMenuCommitAcrossSwap } from './testing/inline-menu-conformance';
-export type { InlineMenuCommitCase } from './testing/inline-menu-conformance';
+export { checkMenuPickAcrossSwap } from './testing/inline-menu-conformance';
+export type { MenuPickCase } from './testing/inline-menu-conformance';
 
 // ── Whole-plugin conformance ─────────────────────────────────────────────────
 // Every kit over every kind a plugin's setup declares: what a plugin package's `./conformance`

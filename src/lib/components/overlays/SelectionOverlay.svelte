@@ -41,21 +41,21 @@
 	const selection = services?.selection;
 	const getEditorRoot = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.editorRoot;
 
-	const coverage = $derived(services?.rangeCoverage() ?? null);
+	const paint = $derived(services?.rangePaint() ?? null);
 
 	// A grid's cells have no host of their own, so a finger's word in one paints here.
 	const rangeCell = $derived(
-		coverage && blockRef?.cellRect ? gridCellOf(path, coverage.range.start.path) : null
+		paint && blockRef?.cellRect ? gridCellOf(path, paint.coverage.range.start.path) : null
 	);
 
 	const classification = $derived(
-		rangeCell ? 'single-block' : coverage ? classifyBlockForSelection(path, coverage) : 'outside'
+		rangeCell ? 'single-block' : paint ? classifyBlockForSelection(path, paint) : 'outside'
 	);
 
 	// Ignores who measures, on purpose: a block the range covers whole paints one box over
 	// everything it renders, markers included, and its children already paint nothing under it.
 	const paintsWholeBox = $derived(
-		coverage !== null && blockPaintsWholeBox(path, coverage, selection?.wholeUnitPath ?? null)
+		paint !== null && blockPaintsWholeBox(path, paint, selection?.wholeUnitPath ?? null)
 	);
 
 	// The effect and the markup read this one value, so a painted rectangle is one the effect
@@ -82,7 +82,7 @@
 			endpointRects = [];
 			return;
 		}
-		if (!blockRef?.measurePartialRects || !blockEl || !services || !coverage) {
+		if (!blockRef?.measurePartialRects || !blockEl || !services || !paint) {
 			endpointRects = [];
 			return;
 		}

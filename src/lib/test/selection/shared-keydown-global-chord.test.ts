@@ -9,8 +9,13 @@ import type { CrossBlockHandlers } from '#lib/selection/cross-block/dispatch.js'
 import type { FocusActions } from '#lib/action-contracts.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { makeCaretMemory } from '#lib/test/harness/editor-actions.js';
-import { registerGlobalCommand } from '#lib/schema/global-commands.js';
+import { command } from '#lib/schema/plugin-command.js';
+import { definePlugin } from '#lib/schema/plugin-install.js';
+import type { PluginActivation } from '#lib/schema/plugin-activation.js';
+import { valueActivation } from '#lib/test/harness/value-activation.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { freshBytes } from '#lib/test/harness/copied-text.js';
+import { parse } from '#lib/core/parser.js';
 import { commandContext } from '#lib/test/harness/command-context.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 
@@ -26,16 +31,17 @@ const noCross: CrossBlockHandlers = {
 	handleCompositionStart: () => false,
 	handleCompositionEnd: () => {},
 	performCrossBlockCut: async () => {},
-	reading: fixtureReading()
+	reading: fixtureReading(),
+	bytes: freshBytes(() => parse(''))
 };
 
-function makeCtx(): SharedKeydownContext {
+function makeCtx(activation?: PluginActivation): SharedKeydownContext {
 	const el = document.createElement('div');
 	return {
 		caretWriter: testCaretWriter,
 		caretLanding: { restore: async () => 'applied' as const, showSelectionEnd: async () => {} },
 		// No plugins stood up here, so every installed one is active.
-		commands: commandContext(),
+		commands: commandContext(activation && { activation }),
 		reading: fixtureReading(),
 		scroll: { visibleBand: () => null, showRect: () => {} },
 		getEl: () => el,
@@ -64,10 +70,16 @@ const keydown = (over: KeyboardEventInit): KeyboardEvent =>
 
 describe('handleSharedKeydown: plugin-global chord deferral', () => {
 	it('preventDefaults a plugin-global chord and returns false so the surface dispatch runs', async () => {
-		registerGlobalCommand('demo.chord', () => true, { chord: 'Mod+Shift+7' });
+		const chord = command({ id: 'chord', title: 'Chord', chord: 'Mod+Shift+7', run: () => {} });
+		const demo = definePlugin({
+			name: 'demo',
+			version: '1.0.0',
+			editor: '*',
+			contributes: () => ({ commands: [chord] })
+		});
 		const e = keydown({ key: '7', ctrlKey: true, shiftKey: true });
 
-		const handled = await handleSharedKeydown(e, makeCtx());
+		const handled = await handleSharedKeydown(e, makeCtx(valueActivation([demo])));
 
 		expect(handled).toBe(false);
 		expect(e.defaultPrevented).toBe(true);

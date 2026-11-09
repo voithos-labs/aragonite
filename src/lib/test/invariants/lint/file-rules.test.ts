@@ -310,7 +310,9 @@ const PLUGIN_VIEW_FALLBACK: FileRule = {
 	allowed: {
 		'src/lib/create-editor.ts': 'mounts the editor itself, which no plugin supplies',
 		'src/lib/svelte-view.svelte.ts':
-			'its views mount only through `plugin-view.ts :: mountPluginView`, which contains their throws'
+			'its views mount only through `plugin-view.ts :: mountPluginView`, which contains their throws',
+		'src/lib/components/drawn-block/svelte-block.svelte.ts':
+			"its component mounts only inside a block type's `draw`, which `DrawnBody.svelte` contains and reports"
 	},
 	reason:
 		'a plugin view that throws must fall back, report on the `error` event and name a foreign Svelte runtime in dev: catch it and call `warnIfForeignRuntime` with the reporter, as `plugin-view.ts` does',
@@ -383,6 +385,30 @@ const ONE_WRITE: FileRule = {
 		at('src/lib/x.ts', 'await draft.replace(range, text).commit();'),
 		at('src/lib/x.ts', 'commitSource: (text) => leaf.commitSource(text),'),
 		at('src/lib/x.ts', 'if (open && !open.stale) void commitSource(edited);')
+	]
+};
+
+// ── G4.329 bytes read into the tree get their closers ─────────────────────────
+
+const SPLICE_READS: FileRule = {
+	id: 'G4.329 bytes are read into the tree by the byte splice, which closes the openers they write',
+	population: under(SOURCE_DIR.library, SOURCE_DIR.plugins),
+	matches: /(?<!function )\bspliceReading\(/,
+	allowed: {
+		[SOURCE.byteSplice]: 'the byte splice, which gives an opener its changes write a closer first',
+		[SOURCE.historyActions]:
+			"an undo puts back its entry's exact bytes, which were legal when written"
+	},
+	reason:
+		'a route that reads bytes into the tree itself skips the closer every write gives an opener it puts above a block that would close it; hand the bytes to `commitSource` instead',
+	reaches: [SOURCE.byteSplice, SOURCE.historyActions],
+	hits: [
+		at('src/lib/x.ts', 'const reading = spliceReading(deps.doc, before, changes, grammar);'),
+		at('src/lib/x.ts', 'installReading(deps, spliceReading(doc, text, [change], grammar)!);')
+	],
+	misses: [
+		at('src/lib/x.ts', 'export function spliceReading(\n\tdoc: DocumentView,'),
+		at('src/lib/x.ts', 'import { spliceReading } from "./byte-splice";')
 	]
 };
 
@@ -899,6 +925,8 @@ const RULES: FileRule[] = [
 				'zero-prefix cell: a widget edge offset brands across the identity',
 			'src/lib/components/blocks/table/TableBlock.svelte':
 				'table sticky-X exit re-enters the editor column state',
+			'src/lib/components/drawn-block/drawn-box.svelte.ts':
+				'a sticky column arriving at a drawn box becomes the viewport x its drawing reads',
 			'src/lib/components/blocks/text/widget-interaction.ts':
 				'CST inline offsets (unbranded model values) enter cursor IO',
 			'src/lib/components/blocks/text/typed-input.ts':
@@ -1177,8 +1205,6 @@ const RULES: FileRule[] = [
 			'packages/latex/src/renderer.ts': 'the text of a KaTeX error message',
 			'packages/latex/src/BlockMath.svelte': SHOWS_INK,
 			'packages/mermaid/src/MermaidBlock.svelte': SHOWS_INK,
-			'packages/slash-commands/src/slash-source.ts':
-				'where a typed `/` opens the command menu: a word boundary in typing, not Markdown',
 			'packages/slash-commands/src/filter.ts': 'the words of a menu query the user typed',
 			'packages/spellcheck/src/english/hunspell.ts':
 				'the fields of a Hunspell affix file, which any whitespace separates: not Markdown'
@@ -1272,7 +1298,7 @@ const RULES: FileRule[] = [
 			'src/lib/schema/plugin-install.ts':
 				'the function itself, which runs its callback with no plugin installing',
 			'src/lib/components/editor-built-ins.ts':
-				'the editor’s own bootstraps (blocks, code languages, context-menu rows), which the reset keeps',
+				'the editor’s own bootstraps (blocks, code languages), which the reset keeps',
 			'src/lib/schema/plugin-registry.ts':
 				'`registerCore`, which also flags a key the registry can’t tell is built-in so the reset keeps it',
 			'src/lib/schema/built-in-descriptors.ts':
@@ -1304,24 +1330,17 @@ const RULES: FileRule[] = [
 	},
 	{
 		id: 'G4.78 the editor’s built-in bootstraps run only through registerEditorBuiltIns',
-		matches:
-			/\b(?:registerBuiltInBlocks|bootstrapCodeLanguages|registerDefaultContextActions)\s*\(/,
+		matches: /\b(?:registerBuiltInBlocks|bootstrapCodeLanguages)\s*\(/,
 		allowed: {
 			'src/lib/components/editor-built-ins.ts':
-				'`registerEditorBuiltIns`, which runs the three bootstraps as no plugin',
+				'`registerEditorBuiltIns`, which runs the two bootstraps as no plugin',
 			'src/lib/components/built-in-blocks.ts': 'the definition of `registerBuiltInBlocks`',
 			'src/lib/components/blocks/code/code-bootstrap.ts':
-				'the definition of `bootstrapCodeLanguages`',
-			'src/lib/components/menu/default-context-actions.ts':
-				'the definition of `registerDefaultContextActions`'
+				'the definition of `bootstrapCodeLanguages`'
 		},
 		reason:
 			'a bootstrap called anywhere else registers the editor’s built-ins as whichever plugin’s setup reached it first, so they resolve only where that plugin is listed and the test reset drops them: call `registerEditorBuiltIns()` instead',
-		hits: [
-			'bootstrapCodeLanguages();',
-			'registerBuiltInBlocks ();',
-			'registerDefaultContextActions();'
-		],
+		hits: ['bootstrapCodeLanguages();', 'registerBuiltInBlocks ();'],
 		misses: [
 			'registerEditorBuiltIns();',
 			'registerBuiltInDescriptors();',
@@ -2489,7 +2508,7 @@ const TYPED_WRITE_ASKS: ManifestRule[] = [
 
 // ── G4.251 no bundled block builds its rendered view in Svelte ─────────────
 
-const MOVES_TO_BLOCK_VIEW = 'moves to `defineBlockView` with the plugin interface redesign';
+const MOVES_TO_BLOCK_VIEW = 'moves onto a block type `draw` with the plugin interface redesign';
 const REVEAL_IN_SVELTE: FileRule = {
 	id: 'G4.251 no bundled plugin builds a render-primary leaf in Svelte',
 	population: under(SOURCE_DIR.plugins),
@@ -2499,12 +2518,34 @@ const REVEAL_IN_SVELTE: FileRule = {
 		'packages/toc/src/TocBlock.svelte': `the outline, whose list follows the headings; ${MOVES_TO_BLOCK_VIEW}`
 	},
 	reason:
-		'a bundled block that shows a rendered view until clicked builds it with `defineBlockView({ surface: "render-primary" })`, the way a plugin author would',
+		"a bundled block that shows a rendered view until clicked draws it with a block type's `draw` and `edit: 'source'`, the way a plugin author would",
 	hits: [at('packages/x/src/XBlock.svelte', "mode: 'render-primary',")],
 	misses: [
 		at('packages/x/src/x-kind.ts', "focus: { mode: 'implemented', via: 'render-primary reveal' },"),
-		at('packages/x/src/x-view.ts', "surface: 'render-primary',")
+		at('packages/x/src/x-block.ts', "edit: 'source',")
 	]
+};
+
+// ── G4.320 a marked line shape reads its marker in the container reader ─────
+
+const MARKER_READS: FileRule = {
+	id: 'G4.320 a marked line shape reads its marker in the container reader',
+	population: under(SOURCE_DIR.library, SOURCE_DIR.plugins),
+	matches: /\.reads\.exec\(/,
+	allowed: {
+		'src/lib/core/parsers/strip-container.ts':
+			'the container reader, which every marked container and the quote read their lines through',
+		'src/lib/schema/headed-lines.ts':
+			'the head writer, which reads the marker a head line was spelled with so a write keeps it',
+		'src/lib/schema/block-kind-descriptor.ts':
+			"the registration check that a shape's `reads` takes its own markers whole",
+		'src/lib/core/strip-lines.ts':
+			'the alert and footnote strippers, until both are `container` block types'
+	},
+	reason:
+		"a marked container's lines are read by `core/parsers/strip-container.ts :: stripOpener`, so the parser and the writer read one line syntax: open the container through it rather than matching the marker yourself",
+	hits: [at('src/lib/x.ts', 'const marker = shape.reads.exec(line)?.[0];')],
+	misses: [at('src/lib/x.ts', 'const reads = shape.reads;')]
 };
 
 // ── G4.108 one replace for every destructive gesture over a range ──────────
@@ -2799,7 +2840,7 @@ const SYNTAX_MODULES: FileRule[] = [
 // ── G4.114 one paint decision for a block under a range ─────────────────────
 
 const ROGUE_PAINTER = `${SOURCE_DIR.components}RoguePaint.svelte`;
-const COVERAGE_FIELD = String.raw`\b(?:wholeRoots|coveredWhole|startEdge|endEdge|startCells|endCells)\b`;
+const COVERAGE_FIELD = String.raw`\b(?:wholeRoots|startEdge|endEdge|startCells|endCells)\b`;
 const END_PATH = (end: string) => String.raw`[\w.?]*\b${end}\??\.path\s*`;
 const ENDS_COMPARED = String.raw`pathsEqual\(\s*(?:${END_PATH('start')},\s*${END_PATH('end')}|${END_PATH('end')},\s*${END_PATH('start')})\)`;
 
@@ -2809,25 +2850,25 @@ const RANGE_PAINT: FileRule = {
 	// A dotted read, or an object pattern naming a field, assigned or typed as the coverage; or a
 	// range's two ends compared, which is `rangeSpansBlocks` worked out again.
 	matches: new RegExp(
-		String.raw`\.(?:coveredRootHolding|rootHolding)\s*\(|\.${COVERAGE_FIELD}|\{[^{}]*${COVERAGE_FIELD}[^{}]*\}\s*(?:=(?!=)|:\s*RangeCoverage\b)|${ENDS_COMPARED}`
+		String.raw`\.(?:boxHolding|rootHolding)\s*\(|\.${COVERAGE_FIELD}|\{[^{}]*${COVERAGE_FIELD}[^{}]*\}\s*(?:=(?!=)|:\s*RangeCoverage\b)|${ENDS_COMPARED}`
 	),
 	reaches: [SOURCE.selectionOverlay],
 	reason:
 		'a painter that reads the coverage itself, or compares the range ends, keeps its own copy of which block a range covers whole or whether it spans blocks, and the painters disagree on the shape: ask `classifyBlockForSelection`, `blockPaintsWholeBox` or `rangeSpansBlocks`',
 	hits: [
 		at(ROGUE_PAINTER, 'const boxed = coverage.rootHolding(path) !== null;'),
-		at(ROGUE_PAINTER, 'if (coverage.coveredRootHolding(path)) return;'),
+		at(ROGUE_PAINTER, 'if (paint.boxHolding(path)) return;'),
 		at(ROGUE_PAINTER, 'const roots = live.wholeRoots;'),
 		at(ROGUE_PAINTER, 'const from = coverage.startEdge?.offset ?? 0;'),
 		at(ROGUE_PAINTER, 'const run = coverage.endCells;'),
 		at(ROGUE_PAINTER, 'const { wholeRoots, startEdge } = coverage;'),
-		at(ROGUE_PAINTER, 'const {\n\tstartCells,\n\tcoveredWhole\n} = live;'),
+		at(ROGUE_PAINTER, 'const {\n\tstartCells,\n\twholeRoots\n} = live;'),
 		at(ROGUE_PAINTER, 'function paint({ endEdge }: RangeCoverage): void {}'),
 		at(ROGUE_PAINTER, 'const across = !pathsEqual(start.path, end.path);'),
 		at(ROGUE_PAINTER, 'if (pathsEqual(selection.end?.path, selection.start?.path)) return;')
 	],
 	misses: [
-		at(ROGUE_PAINTER, 'const box = blockPaintsWholeBox(path, coverage, null);'),
+		at(ROGUE_PAINTER, 'const box = blockPaintsWholeBox(path, paint, null);'),
 		at(ROGUE_PAINTER, 'const grid = rangeCoverage()?.grid;'),
 		at(ROGUE_PAINTER, 'const { start, end } = coverage.range;'),
 		at(ROGUE_PAINTER, 'if (a == { startEdge }) return;'),
@@ -2977,6 +3018,10 @@ const DOM_PRESENCE: Record<string, { branches: number; reason: string }> = {
 	'src/lib/editor-actions/replacement-focus.ts :: focusMovedOutsideReplacement': {
 		branches: 1,
 		reason: 'with no document nothing holds focus, so the caret goes back where the write left it'
+	},
+	'src/lib/components/drawn-block/DrawnBody.svelte :: <module>': {
+		branches: 1,
+		reason: 'a server render draws nothing, so the text element a drawing places is never made'
 	},
 	'src/lib/selection/pointer-gesture.ts :: coarsePointer': {
 		branches: 1,
@@ -3266,7 +3311,8 @@ describeFileRules(
 		...SYNTAX_MODULES,
 		PLUGIN_VIEW_FALLBACK,
 		ONE_VIEW_WRAPPER,
-		ONE_WRITE
+		ONE_WRITE,
+		SPLICE_READS
 	],
 	SOURCES
 );
@@ -3276,7 +3322,7 @@ describeManifests(RANGE_INDENT, SOURCES);
 describeManifests(TYPED_WRITE_ASKS, SOURCES);
 describeManifests(SCROLL_WRITERS, SOURCES);
 describeManifests(BARE_FOCUSES, SOURCES);
-describeFileRules([HELD_BRANDS, REVEAL_IN_SVELTE], SOURCES);
+describeFileRules([HELD_BRANDS, REVEAL_IN_SVELTE, MARKER_READS], SOURCES);
 describeCorrections(SOURCES);
 describeOwnerWrites(SOURCES);
 describeKeyboardEndWrites(SOURCES);

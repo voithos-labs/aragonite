@@ -9,7 +9,6 @@ import { metadataOf } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { displayLength } from '../core/lines';
 import { matchHeading } from '../core/parsers/heading';
-import { containerClosure, type ClosureBlock } from './closure';
 import type { KeyBinding } from './keybindings';
 import { registerBuiltinBlockKind } from './block-kind-descriptor';
 import { BUILT_IN_OPENERS } from '../core/parsers/built-in-openers';
@@ -26,7 +25,7 @@ import { fencedCodeWrite } from './fenced-code-raw';
 import { setextHeadingContentRange, setextHeadingWrite } from './setext-raw';
 import { registerInlineConstructPolicy } from './inline-construct-policy';
 import { registerAsCore } from './plugin-install';
-import { registerBuiltInRangeIndent } from './range-indent-forms';
+import { setBuiltInRangeIndent } from './range-indent-forms';
 import { registerTableCompleter } from '../core/parsers/table-completion';
 import { asCodeSpan } from '../core/inline/scan/code-span';
 import {
@@ -86,6 +85,18 @@ const TEXT_EDITABLE_KEYMAP: KeyBinding[] = [
 	{ chord: 'Mod+6', command: 'heading.cycle', arg: 6 }
 ];
 
+/** The keys a plugin's text block binds: a paragraph's without the heading chords, and without the
+ *  format chords where its text is literal. */
+export function pluginTextKeymap(markdown: boolean, multiLine: boolean): KeyBinding[] {
+	// A text spanning lines takes Enter as a line break, as a code block's does.
+	const skipped = multiLine
+		? ['heading.cycle', 'block.split', 'block.hardBreak']
+		: ['heading.cycle'];
+	return TEXT_EDITABLE_KEYMAP.filter(
+		(b) => !skipped.includes(b.command) && (markdown || !isInlineFormatCommand(b.command))
+	);
+}
+
 // The cell holds the caret inside a table, so the table's keys bind here; a `table` override would
 // miss. Plain arrows depend on the caret's position, so `cell-keydown-plan.ts` handles them.
 const TABLE_CELL_KEYMAP: KeyBinding[] = [
@@ -113,46 +124,6 @@ const TABLE_CELL_KEYMAP: KeyBinding[] = [
 	{ chord: 'Mod+Alt+ArrowUp', command: 'block.moveUp' },
 	{ chord: 'Mod+Alt+ArrowDown', command: 'block.moveDown' }
 ];
-
-// ── Closure blocks ────────────────────────────────────────────────────────────
-
-// Shared by the not-mergeable, non-inline raw-text leaves: the rows are identical, so they live
-// here once. `fencedCode` differs too much to share, so it declares its own.
-const RAW_TEXT_LEAF_CLOSURE: ClosureBlock = {
-	roundTrip: { mode: 'inherit-default' },
-	focus: { mode: 'implemented', via: 'native caret in the raw-editable contenteditable' },
-	mergeBackspace: {
-		mode: 'implemented',
-		via: 'mergeRole=not-mergeable — Backspace moves focus, never concatenates'
-	},
-	selectionPaint: { mode: 'implemented', via: 'measurePartialRects (raw offsets)' },
-	searchPaint: { mode: 'implemented', via: 'raw scanned; matches painted as decoration marks' },
-	reorder: { mode: 'implemented', via: 'Alt+Arrow block.move keymap' },
-	undo: { mode: 'inherit-default' },
-	clipboard: { mode: 'inherit-default' },
-	simOracle: { mode: 'implemented', via: 'note-taking simulation under the loaded-ops oracles' }
-};
-
-// The three prose kinds share a closure differing only in three `via` strings. The fixed rows are
-// filled in here; the three that vary stay required, so each kind names its own mechanism.
-function proseLeafClosure(vias: {
-	mergeBackspaceVia: string;
-	selectionPaintVia: string;
-	searchPaintVia: string;
-	reorderVia?: string;
-}): ClosureBlock {
-	return {
-		roundTrip: { mode: 'inherit-default' },
-		focus: { mode: 'implemented', via: 'native caret in the prose contenteditable' },
-		mergeBackspace: { mode: 'implemented', via: vias.mergeBackspaceVia },
-		selectionPaint: { mode: 'implemented', via: vias.selectionPaintVia },
-		searchPaint: { mode: 'implemented', via: vias.searchPaintVia },
-		reorder: { mode: 'implemented', via: vias.reorderVia ?? 'Alt+Arrow block.move keymap' },
-		undo: { mode: 'inherit-default' },
-		clipboard: { mode: 'inherit-default' },
-		simOracle: { mode: 'implemented', via: 'note-taking simulation under the loaded-ops oracles' }
-	};
-}
 
 // ── Inline-construct policies ───────────────────────────────────────────────
 
@@ -261,13 +232,7 @@ function registerBuiltIns(): void {
 		editable: true,
 		supportsInline: true,
 		keymap: TEXT_EDITABLE_KEYMAP,
-		conformanceFixture: 'hello world\n',
-		closure: proseLeafClosure({
-			mergeBackspaceVia: 'mergeRole=prose — Backspace merges into the previous prose block',
-			selectionPaintVia: 'measurePartialRects (raw offsets, per visual line)',
-			searchPaintVia: 'prose raw scanned; matches painted as marks',
-			reorderVia: 'Alt+Arrow block.move keymap; resolveReorderUnit'
-		})
+		conformanceFixture: 'hello world\n'
 	});
 	registerBuiltinBlockKind('heading', {
 		opener: BUILT_IN_OPENERS.heading,
@@ -281,12 +246,7 @@ function registerBuiltIns(): void {
 		// structure they can see; the second merges, through the usual path.
 		contentStart: { range: headingContentRange, backspace: 'demote-first' },
 		keymap: TEXT_EDITABLE_KEYMAP,
-		conformanceFixture: '# Heading\n',
-		closure: proseLeafClosure({
-			mergeBackspaceVia: 'mergeRole=prose-absorber — absorbs the following prose block',
-			selectionPaintVia: 'measurePartialRects (content range, marker skipped)',
-			searchPaintVia: 'content-range raw scanned; marks (marker prefix skipped)'
-		})
+		conformanceFixture: '# Heading\n'
 	});
 	registerBuiltinBlockKind('setextHeading', {
 		pageRole: 'prose',
@@ -298,12 +258,7 @@ function registerBuiltIns(): void {
 		contentStart: { range: setextHeadingContentRange, backspace: 'demote-first' },
 		rawWrite: setextHeadingWrite,
 		keymap: TEXT_EDITABLE_KEYMAP,
-		conformanceFixture: 'Title\n===\n',
-		closure: proseLeafClosure({
-			mergeBackspaceVia: 'mergeRole=prose-absorber — absorbs the following prose block',
-			selectionPaintVia: 'measurePartialRects (content range, underline skipped)',
-			searchPaintVia: 'content-range raw scanned; marks (underline line skipped)'
-		})
+		conformanceFixture: 'Title\n===\n'
 	});
 	registerBuiltinBlockKind('fencedCode', {
 		opener: BUILT_IN_OPENERS.fencedCode,
@@ -327,24 +282,7 @@ function registerBuiltIns(): void {
 			{ chord: 'Alt+ArrowDown', command: 'block.moveDown' },
 			...INLINE_FORMAT_KEYMAP
 		],
-		conformanceFixture: '```\ncode\n```\n',
-		closure: {
-			roundTrip: { mode: 'inherit-default' },
-			focus: { mode: 'implemented', via: 'native caret in the code contenteditable' },
-			mergeBackspace: {
-				mode: 'implemented',
-				via: 'not-mergeable — code.backspace edits within; no cross-block concat'
-			},
-			selectionPaint: {
-				mode: 'implemented',
-				via: 'measurePartialRects (raw offsets, per visual line)'
-			},
-			searchPaint: { mode: 'implemented', via: 'code raw scanned; matches painted as marks' },
-			reorder: { mode: 'implemented', via: 'Alt+Arrow block.move keymap' },
-			undo: { mode: 'inherit-default' },
-			clipboard: { mode: 'inherit-default' },
-			simOracle: { mode: 'implemented', via: 'note-taking simulation under the loaded-ops oracles' }
-		}
+		conformanceFixture: '```\ncode\n```\n'
 	});
 	registerBuiltinBlockKind('thematicBreak', {
 		opener: BUILT_IN_OPENERS.thematicBreak,
@@ -357,30 +295,7 @@ function registerBuiltIns(): void {
 		blockFocus: 'whole-block',
 		// Leading edge only: its focused Enter already inserts a paragraph below.
 		gapEdges: 'before',
-		conformanceFixture: '---\n',
-		closure: {
-			roundTrip: { mode: 'inherit-default' },
-			focus: {
-				mode: 'implemented',
-				via: 'blockFocus=whole-block — focus-then-delete; ThematicBreakBlock supplies the focus surface'
-			},
-			mergeBackspace: {
-				mode: 'implemented',
-				via: 'blockFocus=whole-block — caret-adjacent Backspace focuses, a second press deletes'
-			},
-			selectionPaint: { mode: 'implemented', via: 'whole-block cover rect (no partial offsets)' },
-			searchPaint: {
-				mode: 'not-supported',
-				reason: 'no editable text content, nothing to search'
-			},
-			reorder: { mode: 'implemented', via: 'Alt+Arrow block.move keymap' },
-			undo: { mode: 'inherit-default' },
-			clipboard: {
-				mode: 'implemented',
-				via: 'focused-block Mod+C/Mod+X (handleWholeBlockKeys); cross-block slice inherits the default'
-			},
-			simOracle: { mode: 'implemented', via: 'note-taking simulation under the loaded-ops oracles' }
-		}
+		conformanceFixture: '---\n'
 	});
 	registerBuiltinBlockKind('indentedCode', {
 		opener: BUILT_IN_OPENERS.indentedCode,
@@ -391,8 +306,7 @@ function registerBuiltIns(): void {
 		editable: true,
 		supportsInline: false,
 		keymap: TEXT_EDITABLE_KEYMAP,
-		conformanceFixture: '    indented code\n',
-		closure: RAW_TEXT_LEAF_CLOSURE
+		conformanceFixture: '    indented code\n'
 	});
 	registerBuiltinBlockKind('htmlBlock', {
 		opener: BUILT_IN_OPENERS.htmlBlock,
@@ -403,8 +317,7 @@ function registerBuiltIns(): void {
 		editable: true,
 		supportsInline: false,
 		keymap: TEXT_EDITABLE_KEYMAP,
-		conformanceFixture: '<div>\nhtml\n</div>\n',
-		closure: RAW_TEXT_LEAF_CLOSURE
+		conformanceFixture: '<div>\nhtml\n</div>\n'
 	});
 	registerBuiltinBlockKind('linkReferenceDefinition', {
 		opener: BUILT_IN_OPENERS.linkReferenceDefinition,
@@ -415,8 +328,7 @@ function registerBuiltIns(): void {
 		editable: true,
 		supportsInline: false,
 		keymap: TEXT_EDITABLE_KEYMAP,
-		conformanceFixture: '[id]: /url "title"\n',
-		closure: RAW_TEXT_LEAF_CLOSURE
+		conformanceFixture: '[id]: /url "title"\n'
 	});
 	registerBuiltinBlockKind('table', {
 		pageRole: 'object',
@@ -431,30 +343,7 @@ function registerBuiltIns(): void {
 			rebuildRaw: rebuildTableRaw,
 			lastLineChild: tableLastLineChild
 		},
-		conformanceFixture: '| a | b |\n| - | - |\n| 1 | 2 |\n',
-		closure: {
-			roundTrip: { mode: 'implemented', via: 'container contract=grid — rebuildTableRaw' },
-			focus: { mode: 'implemented', via: 'focus walks into the first cell' },
-			mergeBackspace: {
-				mode: 'implemented',
-				via: 'not-mergeable — no block merge; edits stay within cells'
-			},
-			selectionPaint: {
-				mode: 'implemented',
-				via: 'rectangular cell selection; per-cell cover rects'
-			},
-			searchPaint: {
-				mode: 'implemented',
-				via: 'descends to cells; per-cell mark overlay (measurePartialRects cell index)'
-			},
-			reorder: { mode: 'implemented', via: 'whole-block reorder through the parent BlockList' },
-			undo: { mode: 'inherit-default' },
-			clipboard: {
-				mode: 'implemented',
-				via: 'rectangular multi-cell copy → synthesized GFM sub-table, not a byte slice (copyRectangleAsSubTable, cell index)'
-			},
-			simOracle: { mode: 'implemented', via: 'note-taking simulation drives table cell edits' }
-		}
+		conformanceFixture: '| a | b |\n| - | - |\n| 1 | 2 |\n'
 	});
 	registerBuiltinBlockKind('tableRow', {
 		pageRole: 'object',
@@ -464,27 +353,7 @@ function registerBuiltIns(): void {
 		editable: true,
 		supportsInline: false,
 		container: { contract: 'grid', rebuildRaw: rebuildTableRowRaw },
-		conformanceFixture: '| a | b |\n| - | - |\n| 1 | 2 |\n',
-		closure: {
-			roundTrip: { mode: 'implemented', via: 'container contract=grid — rebuildTableRowRaw' },
-			focus: { mode: 'implemented', via: 'focus walks into a cell' },
-			mergeBackspace: {
-				mode: 'implemented',
-				via: 'not-mergeable — no row-level merge; cell edits only'
-			},
-			selectionPaint: { mode: 'implemented', via: 'per-cell cover rects' },
-			searchPaint: { mode: 'implemented', via: 'descends to cells; per-cell mark overlay' },
-			reorder: {
-				mode: 'not-supported',
-				reason:
-					'grid child: not a block-level reorder unit; whole rows move via a row-drag gesture inside the table grid, not the BlockList'
-			},
-			undo: { mode: 'inherit-default' },
-			// Inherit-default, unlike `table` and `tableCell`: no copy path starts from a row node,
-			// so a row painting its cells does not make it a copy source.
-			clipboard: { mode: 'inherit-default' },
-			simOracle: { mode: 'implemented', via: 'note-taking simulation (table edits)' }
-		}
+		conformanceFixture: '| a | b |\n| - | - |\n| 1 | 2 |\n'
 	});
 	registerBuiltinBlockKind('tableCell', {
 		pageRole: 'prose',
@@ -496,36 +365,9 @@ function registerBuiltIns(): void {
 		contextDependentKind: true,
 		rawWrite: tableCellWrite,
 		renderImagesAsWidgets: false,
-		keymap: TABLE_CELL_KEYMAP,
+		keymap: TABLE_CELL_KEYMAP
 		// No `conformanceFixture`: the table opener creates the cells, so one is never the
 		// top-level result of a document scan.
-		closure: {
-			roundTrip: {
-				mode: 'implemented',
-				via: 'contextDependentKind — the parent grid rebuildTableRaw owns the cell bytes'
-			},
-			focus: { mode: 'implemented', via: 'per-cell native caret' },
-			mergeBackspace: {
-				mode: 'implemented',
-				via: 'not-mergeable — edits stay within the cell; no cross-cell concat'
-			},
-			selectionPaint: { mode: 'implemented', via: 'measurePartialRects (cell index)' },
-			searchPaint: {
-				mode: 'implemented',
-				via: 'cell raw scanned; per-cell mark overlay (measurePartialRects cell index)'
-			},
-			reorder: {
-				mode: 'not-supported',
-				reason:
-					'grid cell: not a block-level reorder unit; row/column drag gestures inside the table grid move whole rows or columns, not individual cells'
-			},
-			undo: { mode: 'inherit-default' },
-			clipboard: {
-				mode: 'implemented',
-				via: 'copy/cut, from a cell or the editor root, write the selected rectangle as a GFM sub-table and an HTML table (gridClipboard → copyRectangleAsSubTable, cell index)'
-			},
-			simOracle: { mode: 'implemented', via: 'note-taking simulation (table cell edits)' }
-		}
 	});
 	registerBuiltinBlockKind('unrecognized', {
 		pageRole: 'object',
@@ -534,18 +376,9 @@ function registerBuiltIns(): void {
 		mergeRole: 'self-merge',
 		editable: true,
 		supportsInline: false,
-		keymap: TEXT_EDITABLE_KEYMAP,
+		keymap: TEXT_EDITABLE_KEYMAP
 		// No `conformanceFixture`: it is the fallback for content no opener took, so a document
 		// scan never produces it on its own.
-		closure: {
-			...RAW_TEXT_LEAF_CLOSURE,
-			mergeBackspace: {
-				mode: 'implemented',
-				via: 'mergeRole=self-merge — concatenates with an adjacent unrecognized block'
-			},
-			searchPaint: { mode: 'implemented', via: 'raw scanned; matches painted as marks' },
-			simOracle: { mode: 'inherit-default' }
-		}
 	});
 	registerBuiltinBlockKind('blockquote', {
 		opener: BUILT_IN_OPENERS.blockquote,
@@ -566,21 +399,7 @@ function registerBuiltIns(): void {
 			contentStartSpace: 'complete-marker',
 			reorderChildren: {}
 		},
-		conformanceFixture: '> quoted\n',
-		closure: containerClosure({
-			roundTripVia: 'container lines — the quote shape, written by the container writer',
-			focus: { mode: 'implemented', via: 'focus walks into the first child' },
-			mergeBackspace: {
-				mode: 'implemented',
-				via: 'mergeRole=container + unwrapRole (lift-first-child-drop-opener; default-merge)'
-			},
-			undo: { mode: 'inherit-default' },
-			clipboard: {
-				mode: 'implemented',
-				via: 'containerPaste.matchesAncestor — clipboard top merges into a same-kind ancestor'
-			},
-			simOracle: { mode: 'implemented', via: 'note-taking simulation (nested blockquote edits)' }
-		})
+		conformanceFixture: '> quoted\n'
 	});
 	registerBuiltinBlockKind('list', {
 		opener: BUILT_IN_OPENERS.list,
@@ -607,21 +426,7 @@ function registerBuiltIns(): void {
 			},
 			reorderChildren: {}
 		},
-		conformanceFixture: '- item\n',
-		closure: containerClosure({
-			roundTripVia: 'container contract=strip — rebuildListRaw',
-			focus: { mode: 'implemented', via: 'focus walks into the first item' },
-			mergeBackspace: {
-				mode: 'implemented',
-				via: 'mergeRole=container + unwrapRole (list-item-cascade)'
-			},
-			undo: { mode: 'inherit-default' },
-			clipboard: {
-				mode: 'implemented',
-				via: 'containerPaste.siblingAbsorb — clipboard items splice as siblings, ordered-flag matched'
-			},
-			simOracle: { mode: 'implemented', via: 'note-taking simulation (list edits)' }
-		})
+		conformanceFixture: '- item\n'
 	});
 	registerBuiltinBlockKind('listItem', {
 		pageRole: 'object',
@@ -636,23 +441,9 @@ function registerBuiltIns(): void {
 			{ chord: 'Shift+Tab', command: 'list.unindent' },
 			{ chord: 'Mod+Enter', command: 'list.toggleTask' }
 		],
-		conformanceFixture: '- item\n',
-		closure: containerClosure({
-			roundTripVia: 'container lines — the list item shape, written by the container writer',
-			focus: { mode: 'implemented', via: 'focus walks into the first child' },
-			mergeBackspace: {
-				mode: 'implemented',
-				via: 'mergeRole=container — Backspace cascades via the parent list unwrapRole'
-			},
-			reorder: {
-				mode: 'implemented',
-				via: 'list.indent/unindent keymap; whole-item reorder through the parent list'
-			},
-			undo: { mode: 'inherit-default' },
-			simOracle: { mode: 'implemented', via: 'note-taking simulation (list item edits)' }
-		})
+		conformanceFixture: '- item\n'
 	});
 	// Over a range, the item holding each covered line nests or lifts, as at a caret.
-	registerBuiltInRangeIndent('listItem', 'list.indent', { item: 'nest' });
-	registerBuiltInRangeIndent('listItem', 'list.unindent', { item: 'lift' });
+	setBuiltInRangeIndent('listItem', 'list.indent', { item: 'nest' });
+	setBuiltInRangeIndent('listItem', 'list.unindent', { item: 'lift' });
 }

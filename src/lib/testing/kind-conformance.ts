@@ -1,8 +1,8 @@
 /**
  * The generic per-kind conformance battery: registering a block kind enrolls it, one cell per
- * `ClosureColumn` plus the raw-write cell, read from its descriptor and `conformanceFixture`. A
- * cell runs only where headless code can observe what it checks; the rest is reported `boundary`
- * or `exempt`, never stubbed green.
+ * editor system a block takes part in, each run wherever the kind's descriptor and
+ * `conformanceFixture` make it apply. A cell headless code can't observe is reported `boundary` or
+ * `exempt`, never stubbed green.
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../core/nodes';
@@ -17,7 +17,6 @@ import {
 } from '../core/lines';
 import { parse } from '../core/parser';
 import { serialize } from '../core/serializer';
-import { CLOSURE_COLUMNS, type ClosureCell, type ClosureColumn } from '../schema/closure';
 import {
 	getBlockKindDescriptor,
 	type BlockKindDescriptor,
@@ -59,14 +58,26 @@ import { writtenSpan } from '../core/written-span';
 
 // ── Report + profile ─────────────────────────────────────────────────────────
 
-/** A closure column, plus two cells that read the descriptor and the opener rather than the
- *  closure block: `rawWrite`, and `unfinishedReading`. */
-export type KindCell = ClosureColumn | 'rawWrite' | 'unfinishedReading';
+const SYSTEM_CELLS = [
+	'roundTrip',
+	'focus',
+	'mergeBackspace',
+	'selectionPaint',
+	'searchPaint',
+	'reorder',
+	'undo',
+	'clipboard',
+	'simOracle'
+] as const;
 
-export interface KindCellReport extends CellReport<KindCell> {
-	/** The closure mode the kind declared for the cell; absent on `rawWrite`. */
-	mode?: ClosureCell['mode'];
-}
+/** An editor system every block takes part in, one cell each. */
+type SystemCell = (typeof SYSTEM_CELLS)[number];
+
+/** A system cell, plus two read from the descriptor and the opener: `rawWrite` and
+ *  `unfinishedReading`. */
+export type KindCell = SystemCell | 'rawWrite' | 'unfinishedReading';
+
+export type KindCellReport = CellReport<KindCell>;
 
 export interface KindConformanceReport {
 	kind: AnyBlockKind;
@@ -91,7 +102,7 @@ export interface KindCellCheck {
  * generic executor, for a mechanism the runner cannot observe (table's rectangular copy).
  */
 export interface KindConformanceProfile {
-	cells?: Partial<Record<ClosureColumn, KindCellCheck>>;
+	cells?: Partial<Record<SystemCell, KindCellCheck>>;
 }
 
 // ── Runner ───────────────────────────────────────────────────────────────────
@@ -103,7 +114,7 @@ interface KindRun {
 }
 
 /**
- * Runs every headless closure cell for `kind`, or throws an `Error` naming each failed cell. A
+ * Runs every headless cell for `kind`, or throws an `Error` naming each failed cell. A
  * `conformanceFixture` that parses to no node of the kind fails the run outright.
  */
 export async function runKindConformance(
@@ -112,33 +123,23 @@ export async function runKindConformance(
 ): Promise<KindConformanceReport> {
 	const descriptor = getBlockKindDescriptor(kind);
 	const run: KindRun = { kind, descriptor, parsed: buildContext(kind, descriptor) };
-	const columns = Object.keys(CLOSURE_COLUMNS) as ClosureColumn[];
 	const cells: KitCell<KindCell, KindRun>[] = [
-		...columns.map((column) => {
-			const custom = profile.cells?.[column]?.check;
+		...SYSTEM_CELLS.map((cell) => {
+			const custom = profile.cells?.[cell]?.check;
 			return {
-				cell: column,
-				run: custom
-					? () => runCustomCheck(column, custom, run)
-					: () => executeCell(column, descriptor.closure[column], run)
+				cell,
+				run: custom ? () => runCustomCheck(cell, custom, run) : () => executeCell(cell, run)
 			};
 		}),
 		{ cell: 'rawWrite', run: execRawWrite },
 		{ cell: 'unfinishedReading', run: execUnfinishedReading }
 	];
-	const reports = await runCells(cells, run, {
+	const cellReports = await runCells(cells, run, {
 		subject: kind,
 		heading: `kind conformance failed for "${kind}"`,
 		contracts: KIND_CELL_CONTRACTS
 	});
-	return {
-		kind,
-		cells: reports.map((report) =>
-			report.cell === 'rawWrite' || report.cell === 'unfinishedReading'
-				? report
-				: { ...report, mode: descriptor.closure[report.cell].mode }
-		)
-	};
+	return { kind, cells: cellReports };
 }
 
 function buildContext(kind: AnyBlockKind, descriptor: BlockKindDescriptor): KindCellContext | null {
@@ -164,22 +165,13 @@ function buildContext(kind: AnyBlockKind, descriptor: BlockKindDescriptor): Kind
 }
 
 async function runCustomCheck(
-	column: ClosureColumn,
+	cell: SystemCell,
 	check: KindCellCheck['check'],
-	{ kind, descriptor, parsed }: KindRun
+	{ kind, parsed }: KindRun
 ): Promise<CellOutcome> {
-	const mode = descriptor.closure[column].mode;
-	// In any mode but `implemented` a custom check contradicts the declaration and would silence
-	// the check that mode would run, so changing a profiled cell's mode back fails.
-	if (mode !== 'implemented') {
-		fail(
-			`profile supplies a "${column}" check for "${kind}", but its declared mode is ` +
-				`"${mode}" — a custom check is only valid on an 'implemented' cell`
-		);
-	}
 	if (!parsed) {
 		fail(
-			`profile supplies a "${column}" check but "${kind}" has no conformanceFixture to run it over`
+			`profile supplies a "${cell}" check but "${kind}" has no conformanceFixture to run it over`
 		);
 	}
 	await check(parsed);
@@ -193,27 +185,29 @@ const BROWSER_ONLY = 'browser-only cell, for a browser test of your own';
 const NO_FIXTURE = 'no conformanceFixture, so unchecked: declare one for the kit to parse';
 
 async function executeCell(
-	column: ClosureColumn,
-	cell: ClosureCell,
+	cell: SystemCell,
 	{ kind, descriptor, parsed: ctx }: KindRun
 ): Promise<CellOutcome> {
-	switch (column) {
+	switch (cell) {
 		case 'roundTrip':
 			return execRoundTrip(kind, descriptor, ctx);
 		case 'mergeBackspace':
 			return execMergeBackspace(kind, descriptor.mergeRole);
 		case 'searchPaint':
-			return execSearchPaint(cell, ctx);
+			return execSearchPaint(descriptor, ctx);
 		case 'undo':
-			return execUndo(cell, ctx);
+			return execUndo(ctx);
 		case 'clipboard':
-			return execClipboard(cell, ctx);
+			return execClipboard(ctx);
 		case 'focus':
 			return { status: 'boundary', detail: `native caret / focus policy: ${BROWSER_ONLY}` };
 		case 'selectionPaint':
 			return { status: 'boundary', detail: `selection cover paint: ${BROWSER_ONLY}` };
 		case 'reorder':
-			return execReorder(cell);
+			return {
+				status: 'boundary',
+				detail: `block reorder is an Alt+Arrow / drag gesture: ${BROWSER_ONLY}`
+			};
 		case 'simOracle':
 			return {
 				status: 'boundary',
@@ -283,15 +277,19 @@ function execMergeBackspace(kind: AnyBlockKind, role: MergeRole): CellOutcome {
 	return `mergeRole=${role} eligibility`;
 }
 
-function execSearchPaint(cell: ClosureCell, ctx: KindCellContext | null): CellOutcome {
-	if (cell.mode !== 'not-supported') {
+function execSearchPaint(
+	descriptor: BlockKindDescriptor,
+	ctx: KindCellContext | null
+): CellOutcome {
+	if (descriptor.editable || descriptor.isContainer) {
 		return { status: 'boundary', detail: `search-match mark overlay: ${BROWSER_ONLY}` };
 	}
-	if (!ctx) return { status: 'exempt', detail: cell.reason };
+	const unsearched = 'not editable, so search skips it, and there is no fixture text to look for';
+	if (!ctx) return { status: 'exempt', detail: unsearched };
 	const needle = firstVisibleChar(ctx.node.raw);
-	if (needle === null) return { status: 'exempt', detail: cell.reason };
+	if (needle === null) return { status: 'exempt', detail: unsearched };
 	const compiled = compileMatcher(needle, { caseSensitive: true, wholeWord: false, regex: false });
-	if (!compiled.ok) return { status: 'exempt', detail: cell.reason };
+	if (!compiled.ok) return { status: 'exempt', detail: unsearched };
 	// The needle is present in the raw, so no match can only mean the search deliberately
 	// skips this non-searchable kind.
 	assert(
@@ -305,22 +303,7 @@ function execSearchPaint(cell: ClosureCell, ctx: KindCellContext | null): CellOu
 	return 'document scan finds no match (degradation)';
 }
 
-function execReorder(cell: ClosureCell): CellOutcome {
-	if (cell.mode === 'not-supported') return { status: 'exempt', detail: cell.reason };
-	return {
-		status: 'boundary',
-		detail: `block reorder is an Alt+Arrow / drag gesture: ${BROWSER_ONLY}`
-	};
-}
-
-async function execUndo(cell: ClosureCell, ctx: KindCellContext | null): Promise<CellOutcome> {
-	if (cell.mode === 'not-supported') return { status: 'exempt', detail: cell.reason };
-	if (cell.mode === 'implemented') {
-		return {
-			status: 'boundary',
-			detail: `kind-specific undo mechanism: supply a profile check or cover it in a browser test`
-		};
-	}
+async function execUndo(ctx: KindCellContext | null): Promise<CellOutcome> {
 	if (!ctx)
 		return {
 			status: 'boundary',
@@ -349,14 +332,7 @@ async function execUndo(cell: ClosureCell, ctx: KindCellContext | null): Promise
 	return 'one structural op → one undo entry';
 }
 
-function execClipboard(cell: ClosureCell, ctx: KindCellContext | null): CellOutcome {
-	if (cell.mode === 'not-supported') return { status: 'exempt', detail: cell.reason };
-	if (cell.mode === 'implemented') {
-		return {
-			status: 'boundary',
-			detail: `kind-specific clipboard mechanism: supply a profile check or cover it in a browser test`
-		};
-	}
+function execClipboard(ctx: KindCellContext | null): CellOutcome {
 	if (!ctx)
 		return {
 			status: 'boundary',
@@ -471,7 +447,7 @@ const TRAILING_SENTINEL = '\n\nclipboard sentinel\n';
 const LEADING_SENTINEL = 'clipboard lead\n\n';
 
 /** Asserts the default cross-block copy over `kind`'s fixture is a raw byte slice at both endpoint
- *  roles, which is what `clipboard: inherit-default` means; the fixture opens with `kind`. */
+ *  roles; the fixture opens with `kind`. */
 export function checkCopyIsRawByteSlice(kind: AnyBlockKind, fixture: string): void {
 	subjectNode(
 		parse(fixture),
@@ -498,7 +474,7 @@ function checkCopyFromKind(kind: AnyBlockKind, fixture: string): void {
 		{ path: [0], offset: startOffset },
 		{ path: [lastIndex], offset: endOffset }
 	);
-	const tail = isWholeBlockUnit(kindNode) ? kindNode.raw : kindNode.raw.slice(startOffset);
+	const tail = heldByItsEdges(kindNode) ? kindNode.raw : kindNode.raw.slice(startOffset);
 	assertIs(
 		copied,
 		tail +
@@ -523,7 +499,7 @@ function checkCopyIntoKind(kind: AnyBlockKind, fixture: string): void {
 		{ path: [0], offset: startOffset },
 		{ path: [kindIndex], offset: interiorOffset(kindNode) }
 	);
-	const head = isWholeBlockUnit(kindNode)
+	const head = heldByItsEdges(kindNode)
 		? trimTrailingLineEnding(kindNode.raw)
 		: kindNode.raw.slice(0, interiorOffset(kindNode));
 	assertIs(
@@ -535,6 +511,11 @@ function checkCopyIntoKind(kind: AnyBlockKind, fixture: string): void {
 		`"${kind}" copy is a raw byte slice — no kind-specific synthesis`
 	);
 }
+
+/** An end on a block with no text of its own (a whole-block unit, a container) reads as that
+ *  block's edge, so the range holds the block whole. */
+const heldByItsEdges = (node: CstNode) =>
+	isWholeBlockUnit(node) || (node.children?.length ?? 0) > 0;
 
 /** The blocks a sweep crosses whole: a blank run beside the sentinel materializes as these. */
 function bytesBetween(children: CstNode[], from: number, to: number): string {

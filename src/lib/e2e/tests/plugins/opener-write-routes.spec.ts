@@ -168,6 +168,15 @@ const ROUTES: Route[] = [
 		after: writtenAbove
 	},
 	{
+		name: 'written by a plugin through edit()',
+		doc: (o) => `Top\n\nwrite ${o.opener}\n\n${tail(o)}`,
+		act: async (editor, page) => {
+			await editor.focusBlockEnd(1);
+			await page.keyboard.press('ControlOrMeta+Shift+Y');
+		},
+		after: writtenAbove
+	},
+	{
 		name: 'moved above it with Alt+ArrowUp',
 		doc: (o) => `Top\n\n${tail(o)}\n${o.opener}\n`,
 		act: async (editor, page) => {

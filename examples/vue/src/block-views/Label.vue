@@ -1,17 +1,18 @@
 <!-- A click-to-edit label: the text shows only while the caret is in it, beside a preview that
-     follows it as it's typed. -->
+     follows it as it's typed. A click in the caption opens the text at that letter. -->
 <script setup lang="ts">
-import { computed } from 'vue';
-import { LeafContent, type BlockViewProps } from '@voithos-labs/aragonite-vue';
+import { computed, ref } from 'vue';
+import { useDrawn, type BlockProps } from '@voithos-labs/aragonite-vue';
+import type { TextDrawContext } from '@voithos-labs/aragonite/plugin';
 
-const props = defineProps<BlockViewProps<'render-primary'>>();
-const caption = computed(() => (props.draft ?? props.state.node.raw).slice('@@ '.length).trim());
+const props = defineProps<BlockProps<never, TextDrawContext>>();
+const caption = computed(() => (props.ctx.typed ?? props.block.text).slice('@@ '.length).trim());
+const shown = ref<HTMLElement | null>(null);
+useDrawn(() => ({ caret: shown.value ?? undefined }));
 </script>
 
 <template>
-	<template v-if="state.revealed">
-		<LeafContent class="label-source" />
-		<span class="label-preview">{{ caption }}</span>
-	</template>
-	<span v-else class="label-text">{{ caption }}</span>
+	<span v-if="!ctx.focused" ref="shown" class="label-text">{{ caption }}</span>
+	<span class="label-source"><Slot of="source" /></span>
+	<span v-if="ctx.focused" class="label-preview">{{ caption }}</span>
 </template>

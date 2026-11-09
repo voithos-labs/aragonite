@@ -1,65 +1,86 @@
 import { describe, it, expect } from 'vitest';
-import { checkInlineMenuCommitAcrossSwap } from '#lib/testing.js';
-import { createSlashSource } from '#packages/slash-commands/src/slash-source.js';
-import type { EditorContext } from '#lib/plugin.js';
+import { checkMenuPickAcrossSwap } from '#lib/testing.js';
+import { definePlugin, menu, type Editor, type MenuRow } from '#lib/plugin.js';
+import { slashCommands } from '#packages/slash-commands/src/index.js';
 
-// The kit cell must pass a source that writes through the context its commit is handed, and
-// fail one that writes through the context it closed over.
+// The kit cell must pass a menu whose waiting pick writes through the pick, and fail one that
+// writes through an editor it kept from `setup`.
 function held() {
 	let release = () => {};
 	const wait = new Promise<void>((r) => (release = r));
 	return { wait, release: () => release() };
 }
 
-describe('checkInlineMenuCommitAcrossSwap', () => {
-	it('passes the slash source with a host run that waits, then inserts', async () => {
-		const gate = held();
-		const run = async (editor: EditorContext) => {
-			await gate.wait;
-			await editor.insertMarkdown('> embed');
-		};
-		await checkInlineMenuCommitAcrossSwap({
-			source: (editor) =>
-				createSlashSource(
-					Object.create(editor, { options: { value: { entries: [{ id: 'e', label: 'E', run }] } } })
-				),
-			item: { id: 'e', label: 'E', insert: '' },
-			release: gate.release
-		});
+/** A `@` menu whose pick waits, then writes through `write`, which gets the pick and the editor
+ *  `setup` handed the plugin. */
+function waitingMenu(
+	gate: Promise<void>,
+	write: (pick: { write(s: string): unknown }, editor: Editor) => unknown
+) {
+	let kept: Editor;
+	return definePlugin({
+		name: 'waiting',
+		version: '1.0.0',
+		editor: '*',
+		contributes: () => ({
+			setup: (editor) => void (kept = editor),
+			menus: [
+				menu<MenuRow>({
+					label: 'Mention',
+					trigger: '@',
+					rows: () => [],
+					async pick(_row, pick) {
+						await gate;
+						await write(pick, kept);
+					}
+				})
+			]
+		})
 	});
+}
 
-	it('passes a source that writes through its onEditor context only if the note is unchanged', async () => {
+describe('checkMenuPickAcrossSwap', () => {
+	it('passes the slash menu with a host run that waits, then inserts through the pick', async () => {
 		const gate = held();
-		await checkInlineMenuCommitAcrossSwap({
-			source: (editor) => ({
-				name: 'guarded',
-				trigger: '@',
-				items: () => [],
-				onCommit: async () => {
-					const generation = editor.documentGeneration;
+		const entries = [
+			{
+				id: 'e',
+				label: 'E',
+				run: async (pick: { insertBlock(md: string): Promise<unknown> }) => {
 					await gate.wait;
-					if (editor.documentGeneration === generation) await editor.insertMarkdown('> card');
+					await pick.insertBlock('> embed');
 				}
-			}),
-			item: { id: 'a', label: 'A', insert: '' },
+			}
+		];
+		const row = {
+			entry: { id: 'e', action: { kind: 'run', run: entries[0].run } },
+			argument: null
+		};
+		await checkMenuPickAcrossSwap({
+			plugin: slashCommands({ entries }),
+			row,
+			query: 'e',
 			release: gate.release
 		});
 	});
 
-	it('fails a source whose waiting commit writes through its onEditor context unguarded', async () => {
+	it('passes a menu whose waiting pick writes through the pick', async () => {
+		const gate = held();
+		await checkMenuPickAcrossSwap({
+			plugin: waitingMenu(gate.wait, (pick) => pick.write('@Ada')),
+			row: { label: 'Ada' },
+			release: gate.release
+		});
+	});
+
+	it('fails a menu whose waiting pick writes through the editor it kept from setup', async () => {
 		const gate = held();
 		await expect(
-			checkInlineMenuCommitAcrossSwap({
-				source: (editor) => ({
-					name: 'closure',
-					trigger: '@',
-					items: () => [],
-					onCommit: async () => {
-						await gate.wait;
-						await editor.insertMarkdown('> card');
-					}
-				}),
-				item: { id: 'a', label: 'A', insert: '' },
+			checkMenuPickAcrossSwap({
+				plugin: waitingMenu(gate.wait, (_pick, editor) =>
+					editor.edit().replace({ from: 0, to: 0 }, '@').commit()
+				),
+				row: { label: 'Ada' },
 				release: gate.release
 			})
 		).rejects.toThrow(/after the host loaded another document/);

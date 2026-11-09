@@ -10,7 +10,6 @@ import {
 	type AnyBlockKind,
 	type AnyInlineKind
 } from '../core/nodes';
-import type { ClosureCell } from './closure';
 import {
 	assertInvariant,
 	devChecksOn,
@@ -21,12 +20,10 @@ import {
 	checkOpenerRegistry,
 	checkKeymapCoherence,
 	checkReservedChromeCoherence,
-	checkClosureCoherence,
 	checkLateOpenerRegistration,
 	checkMergeRoleVocabulary,
 	checkInlineConstructPolicy,
 	checkBuiltinPresentationFacts,
-	type ClosureCoherenceEntry,
 	type MergeRoleEntry,
 	type PresentationFactEntry
 } from '../invariants/registry';
@@ -36,8 +33,7 @@ import {
 	tryGetBlockKindDescriptor,
 	getAllRegisteredKinds,
 	openerRecords,
-	isKnownMergeRole,
-	type BlockKindDescriptor
+	isKnownMergeRole
 } from './block-kind-descriptor';
 import { reservedChromeKindOf } from './reserved-chrome';
 import { isBuiltinCommandId } from './commands';
@@ -64,35 +60,6 @@ const reservedChromeEntries = (kinds: readonly AnyBlockKind[]) =>
 		reservedChromeKind: tryGetBlockKindDescriptor(kind)?.reservedChrome?.kind,
 		rowKind: reservedChromeKindOf(kind)
 	}));
-
-const viaOf = (cell: ClosureCell): string | undefined =>
-	cell.mode === 'implemented' ? cell.via : undefined;
-
-/**
- * The entry the closure coherence check reads (G1.24), exported so the suites build it the same
- * way: a test-local copy missing a field would pass while the rule it tests went unchecked.
- */
-export const closureCoherenceEntry = (
-	kind: AnyBlockKind,
-	d: BlockKindDescriptor
-): ClosureCoherenceEntry => ({
-	kind,
-	notMergeable: d.mergeRole === 'not-mergeable',
-	hasContainerContract: d.containerContract !== undefined,
-	roundTripMode: d.closure.roundTrip.mode,
-	mergeBackspaceMode: d.closure.mergeBackspace.mode,
-	declaresWholeBlockFocus: d.blockFocus === 'whole-block',
-	focusVia: viaOf(d.closure.focus),
-	mergeBackspaceVia: viaOf(d.closure.mergeBackspace),
-	hasTitleRow: reservedChromeKindOf(kind) !== undefined,
-	clipboardMode: d.closure.clipboard.mode
-});
-
-const closureEntries = (kinds: readonly AnyBlockKind[]) =>
-	kinds
-		.map((kind) => ({ kind, d: tryGetBlockKindDescriptor(kind) }))
-		.filter((e): e is { kind: AnyBlockKind; d: NonNullable<typeof e.d> } => e.d !== undefined)
-		.map(({ kind, d }) => closureCoherenceEntry(kind, d));
 
 // Widened to `string` on the way out: the check exists for the callers the `MergeRole` union
 // cannot constrain, such as a plugin registering through a cast.
@@ -139,7 +106,6 @@ export function flushPendingRegistrationChecks(
 	report('reserved-chrome-coherence', () =>
 		checkReservedChromeCoherence(reservedChromeEntries(kinds), hasDescriptor)
 	);
-	report('closure-coherence', () => checkClosureCoherence(closureEntries(kinds)));
 	report('merge-role-vocabulary', () =>
 		checkMergeRoleVocabulary(mergeRoleEntries(kinds), isKnownMergeRole)
 	);

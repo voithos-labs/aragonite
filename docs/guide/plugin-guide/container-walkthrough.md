@@ -106,33 +106,7 @@ function registerConspiracy(view: BlockView): void {
 		keymap: [
 			{ chord: 'Mod+7', command: setVerdict, arg: 'conspiracy' }, // allege
 			{ chord: 'Mod+8', command: setVerdict, arg: 'debunked' } // debunk
-		],
-		// Required: how this kind behaves under every cross-cutting editor system. A missing
-		// cell or column is a compile error, and a dev build warns on four more rules when an
-		// editor mounts. See the guide's "The closure block" section for all of them.
-		closure: {
-			roundTrip: { mode: 'implemented', via: 'container lines, COLON_LINES' },
-			focus: { mode: 'implemented', via: 'focus walks to the opener line / first body child' },
-			mergeBackspace: { mode: 'implemented', via: 'mergeRole=container; nothing merges into the opener line' },
-			selectionPaint: { mode: 'implemented', via: 'body child blocks paint; container cover' },
-			searchPaint: {
-				mode: 'implemented',
-				via: 'children are real blocks; search descends and paints'
-			},
-			reorder: { mode: 'implemented', via: 'whole-block reorder through the parent BlockList' },
-			undo: {
-				mode: 'implemented',
-				via: 'replaceRaw; the verdict flip commits as one undo entry'
-			},
-			// A copy that starts on the opener line takes the conspiracy with it, which a plain
-			// byte slice wouldn't, so the clipboard cell names what such a copy does.
-			clipboard: {
-				mode: 'implemented',
-				via: 'byte-slice copy; a slice touching the opener line re-emits the conspiracy around the collected body'
-			},
-			// The honest answer unless your kind has simulation tests of its own.
-			simOracle: { mode: 'inherit-default' }
-		}
+		]
 	});
 }
 
@@ -158,8 +132,6 @@ export function conspiracyPlugin(): EditorPlugin {
 	},
 	leadingTrivia: '',
 	raw: ':::conspiracy Birds are government drones\nThe quickstart parrot has danced since section one and never once eaten.\n:::\n',
-	closerColonCount: 3,
-	closerNewline: true,
 	lineEnding: '\n'
 }
 
@@ -178,8 +150,6 @@ Child 0 is the whole opener line, `:::conspiracy` included, kind `directiveOpene
 const { start, end } = rowContentRange(node);
 node.children[0].raw.slice(start, end); // 'Birds are government drones'
 ```
-
-That nine-column `closure` literal gets its own section, [The closure block](#the-closure-block), right after this walkthrough.
 
 ## The component
 
@@ -253,7 +223,7 @@ Two rules for that view, each earned the hard way:
 - **`target` is the block.** The editor measures the element it hands you for the selection highlight and the drag handle, so put your classes on it and fill it, rather than wrapping a second box inside (and never `display: contents`, which measures as nothing).
 - **Chrome CSS reads the editor's theme tokens**, plain (`var(--color-ui-muted)`). Inside the editor every one of them has a value, the host's own or the built-in palette's for the current `theme`, so a read needs no fallback. The stable token set by role is the [consumer guide's theme-token manifest](../consumer-guide.md#theme-tokens).
 
-The children mount after anything you've already put in the box you hand `mountChildren` (`target` here, or an element inside it). In React or Vue, `<BlockChildren>` does the handing over ([React and Vue blocks](react-and-vue.md#a-block-that-holds-blocks)).
+The children mount after anything you've already put in the box you hand `mountChildren` (`target` here, or an element inside it). React or Vue? [React and Vue blocks](react-and-vue.md#a-block-that-holds-blocks) draws a container with your own component.
 
 ### Already in Svelte?
 
@@ -403,71 +373,3 @@ The wrapper and the two `light`s are there because the editor paints no backgrou
 Want a collapse toggle? That's how `<details>` folds: its descriptor declares its summary as a title row (`reservedChrome`) with an `isCollapsed` probe over the node, and every focus walk, merge, and windowing decision (a collapsed body stays unmounted) reads that one declaration. Add `expandPatch` beside it, returning the metadata patch that opens the node, and a reveal into the collapsed body (a table-of-contents entry, a search match) opens the container first and commits it as one undoable edit. Without it, such a reveal has nowhere to land and reports that it didn't. A `:::` box folds the same way, except its title row is the opener line the grammar builds, so the `reservedChrome` you add names that row: `{ kind: DIRECTIVE_OPENER_LINE, isCollapsed }`, with `DIRECTIVE_OPENER_LINE` from `/plugin`. A dev build warns if it names any other.
 
 ![A conspiracy, debunked on camera](./conspiracy.gif)
-
-## The closure block
-
-`closure` is a required field on every registration: the kind's written answer to each cross-cutting editor system, so a new kind can't ship silently broken under a subsystem nobody asked about. Each of the nine `ClosureColumn`s (`roundTrip`, `focus`, `mergeBackspace`, `selectionPaint`, `searchPaint`, `reorder`, `undo`, `clipboard`, `simOracle`) takes a `ClosureCell`:
-
-- `{ mode: 'implemented', via }`: a real mechanism you can name (a `rebuildRaw`, a keymap command, `measurePartialRects`).
-- `{ mode: 'inherit-default' }`: the generic editor behaviour, nothing kind-specific.
-- `{ mode: 'not-supported', reason }`: the subsystem is structurally absent, so name the degradation.
-
-The type does the nagging: a missing column or a missing block is a compile error. Four coherence rules are checked too, by a dev-build warning when an editor mounts. Nothing throws, and a production build or a headless test (no editor mounted) never checks them:
-
-1. A container can't declare `roundTrip: inherit-default`; its `lines` (or its `rebuildRaw`) is the mechanism.
-2. A `not-mergeable` kind can't declare `mergeBackspace: inherit-default`; it has no default merge to inherit.
-3. A cell claiming the focus-then-delete model (a `focus` or `mergeBackspace` `via` saying `focus-then-delete` or `a second press deletes`) must be backed by `blockFocus: 'whole-block'`.
-4. A kind with a title row (a declared `reservedChrome`, or the opener line every `:::` container has) can't leave `clipboard: inherit-default`; the row's bytes live in the container's own raw, so the default byte slice is wrong for it.
-
-**Name a mechanism your own kind carries.** `implemented` needs a `via` you can point at: your component, your `rebuildRaw`, your test. Never an internal editor mechanism you don't own. A cell you can't name honestly is `inherit-default` or `not-supported`, never an invented capability.
-
-**Simple leaves: `simpleLeafClosure`.** A not-mergeable, childless, source-editable leaf built on `createEditableLeaf` answers five columns the same way every such leaf does: its round-trip inherits the default serialize, its `not-mergeable` merge is a focus move, its selection paints through `measurePartialRects`, it reorders by whole-block drag, and its clipboard is a byte slice. `simpleLeafClosure` bakes those five and asks only for the four your component actually determines, which are `focus`, `searchPaint`, `undo`, `simOracle`:
-
-```ts
-closure: simpleLeafClosure({
-	focus: { mode: 'implemented', via: 'createEditableLeaf render-primary reveal' },
-	searchPaint: {
-		mode: 'implemented',
-		via: 'source raw scanned; the rendered view carries no measurable text, so a match is counted but not painted'
-	},
-	undo: { mode: 'implemented', via: 'render-primary: the reveal, edit, blur cycle commits one undo entry' },
-	simOracle: { mode: 'implemented', via: 'my-kind e2e' }
-});
-```
-
-Omitting one of the four is a compile error, and a baked column stays overridable (a render-primary leaf scoping its `selectionPaint` to the revealed state, say). What the preset fills in for you:
-
-```ts
-simpleLeafClosure({ focus, searchPaint, undo, simOracle });
-// returns those four plus the five baked cells:
-//   roundTrip: { mode: 'inherit-default' }
-//   mergeBackspace: implemented (not-mergeable: Backspace at the edge moves focus, never concatenates)
-//   selectionPaint: implemented (measurePartialRects, raw offsets)
-//   reorder: implemented (whole-block drag reorder through the parent BlockList)
-//   clipboard: { mode: 'inherit-default' }
-```
-
-**`simOracle` is the cell most authors hesitate over**, because it's about aragonite's own simulation suite (a repo script that drives the editor through random edits and checks the document never goes wrong), not a kit you run. The question is still about your **mechanism**. The example above is `implemented` because that kind has its own end-to-end tests driving it under those checks. A plugin with no simulation machinery of its own writes `inherit-default`, the honest answer for most plugins: it claims no coverage, just that your kind meets the simulation the way the generic behaviour does.
-
-**Containers with real children: `containerClosure`.** A container of real child blocks answers four columns the same structural way (its children are the paint and search surfaces, it reorders whole-block through the parent `BlockList`, and it holds no clipboard anchor of its own), and its `roundTrip` is always `implemented`, because its `lines` (or its `rebuildRaw`) is the mechanism. `containerClosure` bakes those, asking for the `roundTripVia` string plus the four the container determines: `focus`, `mergeBackspace`, `undo`, `simOracle`. Here's the walkthrough's closure rewritten on it:
-
-```ts
-closure: containerClosure({
-	roundTripVia: 'container lines, COLON_LINES',
-	focus: { mode: 'implemented', via: 'focus walks to the opener line / first body child' },
-	mergeBackspace: { mode: 'implemented', via: 'mergeRole=container; nothing merges into the opener line' },
-	undo: {
-		mode: 'implemented',
-		via: 'replaceRaw; the verdict flip commits as one undo entry'
-	},
-	// A copy starting on the opener line re-emits the conspiracy, so the baked clipboard cell
-	// is overridden; a container with no title row just leaves this out.
-	clipboard: {
-		mode: 'implemented',
-		via: 'byte-slice copy; a slice touching the opener line re-emits the conspiracy around the collected body'
-	},
-	simOracle: { mode: 'inherit-default' }
-});
-```
-
-A container that synthesizes content on copy overrides the baked `clipboard` cell the same way; one that adds an indent gesture overrides the baked `reorder` cell. Whole-block-focus opaque leaves and any novel tier still hand-write the full nine, since no preset knows what they do.

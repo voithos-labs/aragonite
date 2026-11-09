@@ -15,7 +15,6 @@ import {
 } from '#lib/schema/block-kind-descriptor.js';
 import { activateDirectives } from '#lib/plugin.js';
 import { DIRECTIVE_CONTAINER } from '#lib/core/directive/kinds.js';
-import { testClosure } from '#lib/test/harness/closure.js';
 import { testView } from '#lib/test/harness/test-view.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 
@@ -76,16 +75,16 @@ describe('a duplicate on a dev server', () => {
 	// Hot reload re-evaluates a plugin's module into a new unit with the same name; the install
 	// keeps the first and never re-runs a setup, so no plugin entry meets a duplicate.
 	it('never reaches a plugin entry: a re-evaluated plugin module keeps the first registration', async () => {
-		const first = await import('#packages/parrot/src/parrot-plugin.js');
-		installPlugins([first.parrotPlugin()]);
-		const registered = getBlockKindDescriptor(declaredPluginKind('parrot'));
+		const first = await import('#packages/toc/src/toc-plugin.js');
+		installPlugins([first.tocPlugin()]);
+		const registered = getBlockKindDescriptor(declaredPluginKind('toc'));
 		// A query makes a second instance of the module, sharing every registry with the first.
-		const reevaluatedPath = '#packages/parrot/src/parrot-plugin.ts?reeval';
+		const reevaluatedPath = '#packages/toc/src/toc-plugin.ts?reeval';
 		const reevaluated: typeof first = await import(/* @vite-ignore */ reevaluatedPath);
-		expect(reevaluated.parrotPlugin).not.toBe(first.parrotPlugin);
-		installPlugins([reevaluated.parrotPlugin()]);
+		expect(reevaluated.tocPlugin).not.toBe(first.tocPlugin);
+		installPlugins([reevaluated.tocPlugin()]);
 
-		expect(getBlockKindDescriptor(declaredPluginKind('parrot'))).toBe(registered);
+		expect(getBlockKindDescriptor(declaredPluginKind('toc'))).toBe(registered);
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['plugin-install']);
 	});
 });
@@ -101,7 +100,6 @@ describe('a plugin registering a built-in key on a dev server', () => {
 			mergeRole: 'not-mergeable',
 			editable: true,
 			supportsInline: false,
-			closure: testClosure,
 			view: testView()
 		});
 
