@@ -293,6 +293,10 @@ const ALLOWLIST: Record<string, Exemption> = {
 			"writes through need the editor's own menu state; only an editor's install pass reads a " +
 			"plugin value's options and contribution, and only a mounted editor lists the insert rows"
 	},
+	'src/lib/test/plugins/spellcheck/spelling-action.test.ts': {
+		specifiers: ['#lib/schema/plugin-unit.js'],
+		reason: "only an editor's install pass reads a plugin value's options and contribution"
+	},
 	'src/lib/test/plugins/slash-commands/open-command.test.ts': {
 		specifiers: ['#lib/schema/plugin-command.js'],
 		reason:

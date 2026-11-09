@@ -1,24 +1,28 @@
 /**
- * The words a spell check reads out of one prose block: text runs reached only through prose
+ * The words a spell check reads out of one text block: text pieces reached only through prose
  * constructs (emphasis, a link's label), so code, a destination, raw HTML, a marker or any kind it
- * doesn't know is never a word. Offsets are raw offsets into the block.
+ * doesn't know is never a word. Every span is in document bytes, for the menus and the paint alike.
  */
 
-/** An inline construct as the editor parses it: its kind, its bytes in the block, its children. */
-export interface InlineRun {
+/** One inline construct of a block, in document bytes, as `Block.pieces` holds it. */
+export interface Piece {
 	readonly kind: string;
-	readonly start: number;
-	readonly end: number;
-	readonly children?: readonly InlineRun[];
+	readonly from: number;
+	readonly to: number;
+	readonly text: string;
+	readonly children: readonly Piece[];
 }
 
-export interface WordSpan {
-	word: string;
-	start: number;
-	end: number;
+/** A text block as the editor's `blockAt` reads it: its text, its pieces, and the map between a
+ *  text offset and a document byte, which a container's markers between lines break apart. */
+export interface TextBlock {
+	readonly text: string;
+	readonly pieces: readonly Piece[];
+	byteAt(textOffset: number): number;
+	offsetAt(byte: number): number;
 }
 
-/** A misspelled word in the document: its bytes, and what it says. */
+/** A word in the document: its bytes, and what it says. */
 export interface Misspelling {
 	from: number;
 	to: number;
@@ -34,16 +38,16 @@ const INNER_CAPITAL = /\p{Ll}\p{Lu}/u;
 /** The constructs whose text a reader sees as prose; everything else keeps its bytes to itself. */
 const PROSE = new Set(['emphasis', 'strong', 'strikethrough', 'link', 'unresolvedReference']);
 
-/** The checkable words of a block, in order, from the inline parse of its raw. */
-export function wordSpans(raw: string, inline: readonly InlineRun[]): WordSpan[] {
-	const out: WordSpan[] = [];
-	for (const node of proseText(inline)) {
-		const text = raw.slice(node.start, node.end);
-		for (const match of text.matchAll(RUN)) {
+/** The checkable words of a block, in order. */
+export function wordSpans(block: TextBlock): Misspelling[] {
+	const out: Misspelling[] = [];
+	for (const piece of proseText(block.pieces)) {
+		const base = block.offsetAt(piece.from);
+		for (const match of piece.text.matchAll(RUN)) {
 			const word = match[0];
 			if (!isCheckable(word)) continue;
-			const start = node.start + match.index;
-			out.push({ word, start, end: start + word.length });
+			const start = base + match.index;
+			out.push({ word, from: block.byteAt(start), to: block.byteAt(start + word.length) });
 		}
 	}
 	return out;
@@ -57,23 +61,23 @@ export function isCheckable(word: string): boolean {
 	return !INNER_CAPITAL.test(word);
 }
 
-/** The span holding `offset`, bounds included, so a caret right after a word still names it. */
-export function spanAt(spans: readonly WordSpan[], offset: number): WordSpan | null {
+/** The word holding byte `at`, bounds included, so a caret right after a word still names it. */
+export function spanAt(spans: readonly Misspelling[], at: number): Misspelling | null {
 	for (const span of spans) {
-		if (span.start > offset) break;
-		if (offset <= span.end) return span;
+		if (span.from > at) break;
+		if (at <= span.to) return span;
 	}
 	return null;
 }
 
 // Iterative, since nesting depth comes from the document.
-function* proseText(nodes: readonly InlineRun[]): Generator<InlineRun> {
-	const stack = [...nodes].reverse();
+function* proseText(pieces: readonly Piece[]): Generator<Piece> {
+	const stack = [...pieces].reverse();
 	while (stack.length > 0) {
-		const node = stack.pop()!;
-		if (node.kind === 'text') yield node;
-		else if (PROSE.has(node.kind) && node.children) {
-			for (let i = node.children.length - 1; i >= 0; i--) stack.push(node.children[i]);
+		const piece = stack.pop()!;
+		if (piece.kind === 'text') yield piece;
+		else if (PROSE.has(piece.kind)) {
+			for (let i = piece.children.length - 1; i >= 0; i--) stack.push(piece.children[i]);
 		}
 	}
 }

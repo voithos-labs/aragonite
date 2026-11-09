@@ -1,0 +1,137 @@
+// The Spelling action as an editor lists it: what it captures around a caret or a selection, the
+// rows it offers there, and what a picked row writes through the draft the editor opens for it.
+import { describe, expect, it, vi } from 'vitest';
+import { installPluginList } from '#lib/schema/plugin-unit.js';
+import type { ActionRow, Captured, Draft, Editor, SelectionAction } from '#lib/plugin.js';
+import { spellcheckPlugin, type SpellcheckOptions } from '#packages/spellcheck/src/index.js';
+import type { Dictionary } from '#packages/spellcheck/src/dictionary.js';
+import { readingEditor, textBlock } from './text-block';
+
+const SUGGESTIONS: Record<string, string[]> = { teh: ['the', 'ten'], speling: [] };
+
+function dictionary(over: Partial<Dictionary> = {}): Dictionary {
+	return {
+		check: (word) => !(word in SUGGESTIONS),
+		suggest: (word) => SUGGESTIONS[word] ?? [],
+		...over
+	};
+}
+
+/** The plugin's one action, read the way an editor reads its list. */
+function spellingAction(options: Partial<SpellcheckOptions> = {}): SelectionAction {
+	const plugin = spellcheckPlugin({
+		dictionary: dictionary(),
+		...options
+	});
+	const [installed] = installPluginList([plugin], (error) => {
+		throw error.cause;
+	});
+	const [action] = installed.contribution.actions ?? [];
+	return action;
+}
+
+const RAW = 'say teh `teh` cat';
+const editor = readingEditor([textBlock(RAW, 20)]);
+
+function captured(range: { from: number; to: number }, text: string): Captured {
+	return { text, range, box: null, editable: true };
+}
+
+async function rowsOver(action: SelectionAction, word: Captured): Promise<readonly ActionRow[]> {
+	return await action.rows(word);
+}
+
+function recordingDraft(): Draft & { writes: unknown[] } {
+	const writes: unknown[] = [];
+	const draft = {
+		writes,
+		replace(range: unknown, text: string) {
+			writes.push({ range, text });
+			return draft;
+		},
+		commit: vi.fn(async (options?: unknown) => (writes.push({ commit: options }), { ok: true })),
+		end: vi.fn()
+	};
+	return draft as unknown as Draft & { writes: unknown[] };
+}
+
+describe('what the Spelling action captures', () => {
+	it('leads the right-click menu as one Spelling group', () => {
+		const action = spellingAction();
+		expect(action.label).toBe('Spelling');
+		expect(action.lead).toBe(true);
+	});
+
+	it('takes the misspelled word under a caret, its end included, and nothing at a right one', () => {
+		const action = spellingAction();
+		expect(action.capture!(editor, { from: 25, to: 25 })).toEqual({ from: 24, to: 27 });
+		expect(action.capture!(editor, { from: 27, to: 27 })).toEqual({ from: 24, to: 27 });
+		expect(action.capture!(editor, { from: 21, to: 21 })).toBeNull();
+	});
+
+	it('takes a selection only when it is exactly the misspelled word', () => {
+		const action = spellingAction();
+		expect(action.capture!(editor, { from: 24, to: 27 })).toEqual({ from: 24, to: 27 });
+		expect(action.capture!(editor, { from: 24, to: 26 })).toBeNull();
+		expect(action.capture!(editor, { from: 20, to: 27 })).toBeNull();
+	});
+
+	it('never takes a word inside a code span', () => {
+		expect(spellingAction().capture!(editor, { from: 30, to: 30 })).toBeNull();
+	});
+
+	it('takes nothing from an editor with no block reads', () => {
+		const bare = {} as Editor;
+		expect(spellingAction().capture!(bare, { from: 25, to: 25 })).toBeNull();
+	});
+});
+
+describe('the rows over a captured word', () => {
+	const teh = captured({ from: 24, to: 27 }, 'teh');
+
+	it('lists the suggestions, with Add to dictionary only where the dictionary keeps words', async () => {
+		const plain = await rowsOver(spellingAction(), teh);
+		expect(plain.map((row) => row.label)).toEqual(['the', 'ten']);
+
+		const keeping = spellingAction({ dictionary: dictionary({ add: () => {} }) });
+		expect((await rowsOver(keeping, teh)).map((row) => row.label)).toEqual([
+			'the',
+			'ten',
+			'Add to dictionary'
+		]);
+	});
+
+	it('offers a dimmed row for a word with no suggestions', async () => {
+		const rows = await rowsOver(spellingAction(), captured({ from: 0, to: 7 }, 'speling'));
+		expect(rows.map((row) => [row.label, row.disabled])).toEqual([['No suggestions', true]]);
+	});
+
+	it('answers with a promise while the suggestions are on their way', async () => {
+		let answer!: (list: string[]) => void;
+		const slow = dictionary({ suggest: () => new Promise((resolve) => (answer = resolve)) });
+		const rows = spellingAction({ dictionary: slow }).rows(teh);
+		expect(rows).toBeInstanceOf(Promise);
+		answer(['the']);
+		expect((await rows).map((row) => row.label)).toEqual(['the']);
+	});
+
+	it('writes a pick over the word through its draft, the caret after the new word', async () => {
+		const [first] = await rowsOver(spellingAction(), teh);
+		const draft = recordingDraft();
+		await first.run(draft);
+		expect(draft.writes).toEqual([
+			{ range: { from: 24, to: 27 }, text: 'the' },
+			{ commit: { caret: 27 } }
+		]);
+	});
+
+	it('adds the word through Add to dictionary, writing nothing', async () => {
+		const add = vi.fn();
+		const action = spellingAction({ dictionary: dictionary({ add }) });
+		const rows = await rowsOver(action, teh);
+		const draft = recordingDraft();
+		await rows.at(-1)!.run(draft);
+		expect(add).toHaveBeenCalledWith('teh');
+		expect(draft.writes).toEqual([]);
+	});
+});
