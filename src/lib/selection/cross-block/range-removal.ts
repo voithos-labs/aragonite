@@ -1,7 +1,7 @@
 /**
- * A range's removal through the range-edit core: the selection read as bytes and the core's answer
- * landed as one byte splice. Every gesture that removes a range the editor holds goes through here,
- * and so does a block removed whole.
+ * A range's removal through the range-edit core, and text over a range inside one table cell: the
+ * selection read as bytes and the core's answer landed as one byte splice. Every gesture that
+ * removes a range the editor holds goes through here, and so does a block removed whole.
  */
 
 import type { SourceSplice, SpliceCaret } from '../../action-contracts';
@@ -10,7 +10,12 @@ import type { AnyBlockKind } from '../../core/nodes';
 import { getContentRange, isProseKind } from '../../core/inline';
 import { serialize } from '../../core/serializer';
 import { hidesDelimitersAtCaret } from '../../presentation-mode';
-import { removalOf, wholeBlocksRemovalOf, type RemovalGesture } from '../../range-edit/edit-range';
+import {
+	removalOf,
+	textInCell,
+	wholeBlocksRemovalOf,
+	type RemovalGesture
+} from '../../range-edit/edit-range';
 import { rangeHost } from '../../range-edit/host';
 import { changesBetween } from '../../tree-operations/byte-changes';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
@@ -68,7 +73,7 @@ export async function removeThroughCore(
 	if (answer.source === source)
 		return { wrote: false, caret: pointAtByte(tree, landed.at), landed, took: null };
 	const { start } = coverage.range;
-	const wrote = await commitRemoval(ctx, answer.source, {
+	const wrote = await commitBytes(ctx, answer.source, {
 		caret: landed,
 		op: { kind: 'delete', detail: { crossBlock: true } },
 		snapshot: deleteSnapshot(start.path, start.offset)
@@ -87,11 +92,33 @@ export function removeWholeBlock(
 	const range = wholeBlockBytes(ctx.bytes.doc(), ctx.bytes.layout(), path);
 	if (!range) return Promise.resolve(false);
 	const after = wholeBlocksRemovalOf(ctx.bytes.source(), range, modeOf(ctx), hostOf(ctx));
-	return commitRemoval(ctx, after, commit);
+	return commitBytes(ctx, after, commit);
+}
+
+/** Writes `text` over what `coverage` holds inside one table cell as one write of the cell, in one
+ *  commit; null for a range anywhere else, or text holding a line break. */
+export async function writeInCell(
+	ctx: RemovalContext,
+	coverage: RangeCoverage,
+	text: string
+): Promise<boolean | null> {
+	const tree = ctx.bytes.doc();
+	const source = ctx.bytes.source();
+	const range = removalBytes(tree, coverage, ctx.bytes.layout());
+	const answer = range && textInCell(source, range, text, modeOf(ctx), hostOf(ctx));
+	if (!answer) return null;
+	const { start } = coverage.range;
+	const length =
+		(blockNodeAt(tree, start.path)?.raw.length ?? 0) + answer.source.length - source.length;
+	return commitBytes(ctx, answer.source, {
+		caret: answer.caret,
+		op: { kind: 'updateContent', detail: { length } },
+		snapshot: deleteSnapshot(start.path, start.offset)
+	});
 }
 
 /** The core's new bytes landed as one byte splice. */
-function commitRemoval(ctx: CommitContext, after: string, splice: RemovalCommit): Promise<boolean> {
+function commitBytes(ctx: CommitContext, after: string, splice: RemovalCommit): Promise<boolean> {
 	const changes = changesBetween(ctx.bytes.source(), after);
 	return ctx.controller.commitSource({ changes, ...splice });
 }

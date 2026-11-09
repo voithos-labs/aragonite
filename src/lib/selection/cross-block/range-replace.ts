@@ -1,9 +1,8 @@
 /**
  * The one replace every destructive gesture over a live range goes through: Backspace, Delete, cut,
  * typing, an IME composition, paste, and a command key such as Enter. It removes what the range
- * covers in one commit picked by the kind of gesture and that coverage, puts the insertion where
- * the removal left the caret, and lands one caret, all as one undo entry
- * (`docs/design/selection.md` § Cross-block selection).
+ * covers, puts the insertion where that left the caret (a line of text inside one cell is one write
+ * instead) and lands one caret, all as one undo entry (`docs/design/selection.md` § Cross-block selection).
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
@@ -23,6 +22,7 @@ import {
 	commandLandingKind,
 	emptiedPlace,
 	removeThroughCore,
+	writeInCell,
 	type Removed
 } from './range-removal';
 import { pasteDispatch } from '../../tree-operations/paste/dispatch';
@@ -30,6 +30,7 @@ import { applyPasteTransforms } from '../../tree-operations/paste/paste-transfor
 import { parseReplacement } from '../../tree-operations/paste/replacement-parse';
 import { slotReaderAt } from '../../tree-operations/list/task-paragraph';
 import { dispatchKeyCommand } from '../../schema/block-commands';
+import { blockFacts } from '../../schema/block-facts';
 import { emitClipboardError } from '../../editor-events';
 import { assertInvariant, devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { checkCommandLanding } from '../../invariants/command-key-landing';
@@ -123,6 +124,8 @@ async function replaceInStep(
 		await landing?.place();
 		return outcome;
 	}
+	const inCell = family === 'content' ? await replaceInCell(ctx, coverage, insertion) : null;
+	if (inCell !== null) return inCell;
 
 	const claimed =
 		insertion.kind === 'command' && devChecksOn ? commandLandingKind(ctx.getDoc(), coverage) : null;
@@ -338,6 +341,31 @@ async function replaceUnit(
 		{ source: 'cross-block-covered-block', trailingBlank: parsed.suffix !== '', snapshotOffset: 0 }
 	);
 	return landed === null ? 'nothing' : 'written';
+}
+
+/** Text over a range inside one table cell, as one write of the cell, the way a mouse's range there
+ *  takes it: removed first, the cell would drop the space the removal leaves. Null elsewhere. */
+async function replaceInCell(
+	ctx: CrossBlockMutationContext,
+	coverage: RangeCoverage,
+	insertion: RangeInsertion
+): Promise<RangeReplaceOutcome | null> {
+	if (insertion.kind !== 'text' && insertion.kind !== 'paste') return null;
+	const { start, end } = coverage.range;
+	const row = blockNodeAt(ctx.getDoc(), start.path.slice(0, -1));
+	if (!row || !pathsEqual(start.path, end.path) || blockFacts(row.kind).lines !== 'cells')
+		return null;
+	// This route skips `pasteDispatch`, so a paste runs the editor's transforms here.
+	const text =
+		insertion.kind === 'paste'
+			? applyPasteTransforms(insertion.text, ctx.activePlugins)
+			: insertion.text;
+	const [wrote, landing] = await ctx.controller.holdLandings(() =>
+		writeInCell(ctx, coverage, text)
+	);
+	if (wrote === null) return null;
+	await landing?.place();
+	return wrote ? 'written' : 'refused';
 }
 
 /** A character typed over a range is the range's removal, then the write the block makes for a

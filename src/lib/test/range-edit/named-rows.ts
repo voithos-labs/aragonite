@@ -1066,6 +1066,20 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: 'delete',
 		expect: { source: '> a\n\nc\n</div>\n' }
 	},
+	// ── Text over a range inside one cell is one write of the cell ──
+	// Miss-analysis: the law draw draws no range inside a cell, and no row pasted over one.
+	{
+		name: 'L5 a paste over a word in a cell keeps the space after it, where a cut drops it',
+		source: '| ⟦apple⟧ pie | b |\n| - | - |\n',
+		gesture: paste('a|b'),
+		expect: { source: '| a\\|b pie | b |\n| - | - |\n' }
+	},
+	{
+		name: 'L11 and pasted as plain text, escaped as the cell reads Markdown',
+		source: '| ⟦apple⟧ pie | b |\n| - | - |\n',
+		gesture: plain('*x*'),
+		expect: { source: '| \\*x\\* pie | b |\n| - | - |\n' }
+	},
 	// ── An ordered list the removal shortens numbers on from where it was ──
 	// Miss-analysis: the editor renumbered after the core, so no core row read the numbers shown.
 	{

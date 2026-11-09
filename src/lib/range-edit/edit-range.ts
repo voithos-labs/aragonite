@@ -9,9 +9,18 @@ import type { SpliceCaret } from '../action-contracts';
 import { isBlankText } from '../core/lines';
 import type { Mode, RangeHost } from './host';
 import { copyOf } from './copy';
-import { contentEnd, factsOf, findWithin, pointedBlock, readDoc, type Doc } from './document';
+import {
+	contentEnd,
+	factsOf,
+	findWithin,
+	leafAt,
+	parentOf,
+	pointedBlock,
+	readDoc,
+	type Doc
+} from './document';
 import type { LaidBlock } from './layout';
-import type { Edit } from './leaf-splice';
+import { writeLeaf, type Edit } from './leaf-splice';
 import { ownEntry, restored } from './own-entry';
 import { numberedOn } from './list-numbers';
 import { pasteAt } from './paste';
@@ -80,6 +89,8 @@ export function editRange(
 		const back = own === undefined ? null : restored(source, from, to, own);
 		if (back) return answer(back);
 		if (from === to) return answer(pasteAt(doc, from, gesture.paste, gesture.plain));
+		const cell = inCell(doc, from, to, gesture);
+		if (cell) return answer(cell);
 		// The paste lands where the removal's caret does, as a cut's then a paste's would, and over
 		// one block held whole takes its place, as typed text does.
 		const removed = removalEdit(doc, from, to, 'type');
@@ -116,6 +127,41 @@ export function removalOf(
  *  over the range opens a paragraph there when the caret holds no prose. */
 export interface RemovalAnswer extends RangeEditResult {
 	took?: readonly number[];
+}
+
+/** Text over a range inside one table cell, for a caller that never pastes elsewhere; null for any
+ *  other range, or text holding a line break. */
+export function textInCell(
+	source: string,
+	range: Range,
+	text: string,
+	mode: Mode,
+	host: RangeHost
+): RangeEditResult | null {
+	const cell = inCell(readDoc(source, host, mode), range.from, range.to, {
+		paste: text,
+		plain: false
+	});
+	return cell && { source: cell.source, caret: { at: cell.caret, holds: 'text' } };
+}
+
+/** One write of the cell holding `[from, to)`, since a cell stores no edge space: a removal and
+ *  then an insert would lose the space the removal leaves beside the text. */
+function inCell(
+	doc: Doc,
+	from: number,
+	to: number,
+	{ paste, plain }: { paste: string; plain: boolean }
+): Edit | null {
+	const head = leafAt(doc, from);
+	const tail = leafAt(doc, to);
+	if (!head || head.leaf !== tail?.leaf || /[\r\n]/.test(paste)) return null;
+	const row = parentOf(doc, head.leaf);
+	if (!row || factsOf(doc, row).lines !== 'cells') return null;
+	const { tree, host, mode } = doc;
+	const text = plain ? host.leaf.plain(tree, head.leaf.path, paste) : paste;
+	const write = host.leaf.replace(tree, head.leaf.path, head.offset, tail.offset, text, mode);
+	return writeLeaf(doc, head.leaf, write, head.offset, tail.offset);
 }
 
 /** The bytes a removal of the blocks `range` spans leaves, as blocks asked for (the block menu's

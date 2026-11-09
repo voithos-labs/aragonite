@@ -110,6 +110,15 @@ const SHAPES: Record<string, Shape> = {
 	'out of a format run': {
 		source: '**bold text**\n\nafter\n',
 		select: range(at([0], 4), at([1], 2))
+	},
+	// Miss-analysis: no shape left the caret in a block that opens its source where the caret lands.
+	'out of a one-line math block, its source opening on the caret': {
+		source: 'Before\n\n$$x^2$$\n\nAfter\n',
+		select: range(at([1], 2), at([2], 0))
+	},
+	'out of a math block': {
+		source: 'Before\n\n$$\nx^2\n$$\n\nAfter\n',
+		select: range(at([1], 4), at([2], 0))
 	}
 };
 
