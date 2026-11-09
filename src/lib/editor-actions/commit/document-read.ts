@@ -27,17 +27,23 @@ export function createDocumentRead(deps: {
 	typeOf(kind: AnyBlockKind): BlockType<unknown>;
 	reading: InlineReading;
 }): DocumentRead {
-	let held: { version: number; map: DocumentByteMap; length: number } | null = null;
+	let held: Layout | null = null;
 
-	function layout(): { map: DocumentByteMap; length: number } {
+	function layout(): Layout {
 		const version = deps.version();
-		if (held?.version !== version) {
+		if (held?.version !== version) held = { version, map: documentByteMap(deps.getDoc()) };
+		return held;
+	}
+
+	// Summed for `blockAt` alone, since it walks every top block and a paint's positions don't need it.
+	function lengthOf(laid: Layout): number {
+		if (laid.length === undefined) {
 			const doc = deps.getDoc();
 			let length = doc.prefix.length + doc.suffix.length;
 			for (const top of doc.children) length += top.leadingTrivia.length + top.raw.length;
-			held = { version, map: documentByteMap(doc), length };
+			laid.length = length;
 		}
-		return held;
+		return laid.length;
 	}
 
 	const reading: BlockReading = {
@@ -54,12 +60,18 @@ export function createDocumentRead(deps: {
 
 	return {
 		blockAt(at) {
-			const { map, length } = layout();
-			if (!Number.isInteger(at) || at < 0 || at > length) return null;
-			const leaf = map.leafAt(at);
+			const laid = layout();
+			if (!Number.isInteger(at) || at < 0 || at > lengthOf(laid)) return null;
+			const leaf = laid.map.leafAt(at);
 			const node = leaf && blockNodeAt(deps.getDoc(), leaf.path);
 			return node ? blockOf(node, reading, leaf.path) : null;
 		},
 		blockOf: (node, path) => blockOf(node, reading, path)
 	};
+}
+
+interface Layout {
+	version: number;
+	map: DocumentByteMap;
+	length?: number;
 }
