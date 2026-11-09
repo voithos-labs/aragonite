@@ -176,13 +176,6 @@ describe('a block removed whole leaves the caret on the side its gesture points'
 		['the end of the item before an empty item', '- a\n- \n- c\n', [0, 1], 'backspace', 3],
 		['an emptied document’s one place', 'a\n', [0], 'backspace', 0],
 		[
-			'a cut’s at the code block’s first byte, where a paste puts the cut back',
-			'a\n\n---\n\n```\ncode\n```\n',
-			[1],
-			'cut',
-			3
-		],
-		[
 			'past a setext underline, which source mode shows',
 			'Title\n===\n\n---\n\nb\n',
 			[1],
@@ -209,6 +202,12 @@ describe('a block removed whole leaves the caret on the side its gesture points'
 			expect(caretAfter(source, path, gesture)).toEqual([at, 'text']);
 		}
 	);
+
+	// Miss-analysis: the text table held the byte alone, and typing at a caret on a fence line
+	// writes into the fence.
+	it('a cut’s on the boundary before a code block, where a paste puts the cut back', () => {
+		expect(caretAfter('a\n\n---\n\n```\ncode\n```\n', [1], 'cut')).toEqual([3, 'boundary']);
+	});
 
 	it('on a rule above, held whole', () => {
 		expect(caretAfter('---\n\n```\nx\n```\n\nb\n', [1], 'backspace')).toEqual([0, 'block']);

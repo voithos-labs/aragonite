@@ -235,7 +235,7 @@ function caretOf(edit: Removal, result: Doc, beside: Beside = 'start after'): Sp
 			? endBefore(result, edit.caret)
 			: beside === 'text after'
 				? startAfter(result, edit.caret)
-				: null;
+				: beforeFence(result, edit.caret);
 	if (side) return side;
 	let at = edit.caret;
 	const lineStart = edit.source.lastIndexOf('\n', at - 1) + 1;
@@ -262,6 +262,12 @@ function endBefore(doc: Doc, at: number): SpliceCaret | null {
 		return { at: Math.min(end, lastCaretByte(doc, block)), holds: 'text' };
 	}
 	return null;
+}
+
+/** The boundary before the fenced block starting at byte `at`, whose fence line takes no caret. */
+function beforeFence(doc: Doc, at: number): SpliceCaret | null {
+	const block = pointedBlock(doc, at);
+	return block?.from === at && fenceBody(doc, block) ? { at, holds: 'boundary' } : null;
 }
 
 /** The first block from byte `at` on, past the parent the removal ended: a fenced block's body
