@@ -36,7 +36,7 @@ describe('a commit whose ancestry settle ate its own scope', () => {
 	it('lands the caret where the container’s bytes begin in the survivor', async () => {
 		const h = harness();
 
-		await h.bundle.blockEdit.deleteBlock(1, 'keyless');
+		await h.bundle.blockEdit.replaceBlock(1, [], undefined, { snapshotOffset: 0 });
 
 		expect(serialize(h.deps.doc)).toBe('> a\ntext\n');
 		expect(h.landings).toMatchObject([{ leafPath: [0, 0], offset: 0 }]);

@@ -58,7 +58,7 @@ describe('an insert whose settle materializes the folded tail line', () => {
 		const h = makeTopHarness(parse('alpha\n\n\nbeta\n\n'));
 		expect(h.deps.doc.suffix).toBe('\n');
 
-		await h.actions.deleteBlock(2, 'keyless');
+		await h.actions.replaceBlock(2, [], undefined, { snapshotOffset: 0 });
 
 		expect(serialize(h.deps.doc)).toBe('alpha\n\n\n\n');
 		expect(h.deps.doc.children).toHaveLength(3);

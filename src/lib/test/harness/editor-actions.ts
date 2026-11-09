@@ -22,7 +22,7 @@ import { fixUpEdit, type EditKind, type FixedUpEdit } from '#lib/tree-operations
 import type { ContainerBlockComponentDeps } from '#lib/editor-actions/container-block-component.js';
 import { refSlotsOver } from '#lib/block-lists/child-refs.js';
 import { componentAt, type ChildList } from '#lib/block-lists/child-list.js';
-import { caretTargetFor, survivorAfterRemoval } from '#lib/selection/caret-target.js';
+import { caretTargetFor } from '#lib/selection/caret-target.js';
 import {
 	delegateMoveFocus,
 	type MoveFocusScope
@@ -179,8 +179,7 @@ export function makeCommitScopeStub(
 		children: () => children,
 		target: () => ({ children, owner: opts.owner, lineEnding: lineEnding() }),
 		idAt: (i) => `block-${i}`,
-		survivor: (i, gesture) =>
-			survivorAfterRemoval({ kind: 'document', prefix: '', children, suffix: '' }, [i], gesture),
+		removeWhole: vi.fn(async () => false),
 		collapseEmptyReplaceToDelete: opts.collapse ?? true,
 		async commit(args) {
 			commits.push(args);
@@ -332,7 +331,7 @@ export function makeStubContainerEdit(): ContainerEditActions {
 		typingKeystroke: vi.fn((_path, _offset, _key, _history, work) => work()),
 		typeLeaf: vi.fn(() => ({ wrote: false as const })),
 		land: vi.fn(async () => 'placed' as const),
-		survivorAfterRemoval: vi.fn(() => null),
+		removeWhole: vi.fn(async () => false),
 		reportCommitError: vi.fn()
 	};
 }

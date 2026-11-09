@@ -2563,6 +2563,21 @@ const RANGE_REPLACE: ManifestRule[] = [
 		misses: [
 			at(ROGUE_RANGE_ROUTE, 'undoStep(seed: CommitSnapshotArg, run: () => Promise<unknown>);')
 		]
+	},
+	{
+		id: 'G4.108 a block removed whole goes through the range-edit core',
+		population: () => true,
+		matches: /(?<![\w.])(?:deleteNode|performDelete)\s*\(/,
+		declared: {
+			[SOURCE.nodeOps]: 'defines the tree removal, and a merge drops the block it joined',
+			[SOURCE.blockEditCore]:
+				'named debt: Backspace or Delete beside a block neither editable nor focused whole',
+			'src/lib/editor-actions/unwrap-strategies.ts': 'named debt: an empty list item dropped'
+		},
+		reason:
+			'a block removed outside the core skips its blank-line rule (a block taken whole goes with its line and one blank line beside it) and the renumber: call `blockEdit.deleteBlock`, which removes it through `removeWholeBlock`',
+		hits: [at(ROGUE_RANGE_ROUTE, 'return performDelete(view.body, i, view.sharing);')],
+		misses: [at(ROGUE_RANGE_ROUTE, "import { deleteNode as performDelete } from './node-ops';")]
 	}
 ];
 

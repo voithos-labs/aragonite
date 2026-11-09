@@ -42,7 +42,11 @@ const ALLOWED: Record<string, string> = {
 	'src/lib/selection/range-clipboard.ts': 'the core’s copy of a range, which a cut must write',
 	'src/lib/test/range-edit/expected.ts':
 		'law 3’s declared exceptions, which both law harnesses read from the same predicate',
-	'src/lib/schema/block-facts.ts': 'the block facts that exception reads (a read)'
+	'src/lib/schema/block-facts.ts': 'the block facts that exception reads (a read)',
+	'src/lib/range-edit/edit-range.ts': 'the core’s answer for a block removed whole (a read)',
+	'src/lib/range-edit/host.ts': 'the host that answer reads the document through',
+	'src/lib/selection/cross-block/range-removal.ts':
+		'the gesture names and the renumber every removal route applies after the core'
 };
 const PACKAGES = new Set(['vitest', 'fast-check', 'node:fs', 'node:path']);
 

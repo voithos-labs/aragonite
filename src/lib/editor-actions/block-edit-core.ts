@@ -445,19 +445,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			});
 		},
 
-		async deleteInterior(i, gesture) {
-			return scope.commit({
-				snapshot: { index: i, offset: 0 },
-				eventTarget: i,
-				op: { kind: 'delete' },
-				mutate: (view) => {
-					view.describeEdit({ removed: true });
-					return performDelete(view.body, i, view.sharing);
-				},
-				landing: () => scope.survivor(i, gesture),
-				discardIfNoop: true
-			});
-		},
+		deleteInterior: (i, gesture) => scope.removeWhole(i, gesture),
 
 		async updateBlockMetadata(i, metadata, options) {
 			const children = scope.children();

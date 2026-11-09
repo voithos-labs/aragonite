@@ -104,7 +104,24 @@ export function removalOf(
 	mode: Mode,
 	host: RangeHost
 ): RangeEditResult {
-	const removed = removalEdit(readDoc(source, host, mode), range.from, range.to, gesture);
+	return removalFrom(readDoc(source, host, mode), range, gesture);
+}
+
+/** The removal of the blocks `range` spans from first byte to text end, as blocks asked for (the
+ *  block menu's Delete), not text: `Doc.wholeBlocks` says what that changes. */
+export function wholeBlocksRemovalOf(
+	source: string,
+	range: Range,
+	gesture: RemovalGesture,
+	mode: Mode,
+	host: RangeHost
+): RangeEditResult {
+	return removalFrom({ ...readDoc(source, host, mode), wholeBlocks: true }, range, gesture);
+}
+
+function removalFrom(doc: Doc, range: Range, gesture: RemovalGesture): RangeEditResult {
+	const { host, mode } = doc;
+	const removed = removalEdit(doc, range.from, range.to, gesture);
 	const back = gesture === 'backspace' || gesture === 'command';
 	return {
 		source: removed.source,

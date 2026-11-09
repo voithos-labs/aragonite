@@ -44,7 +44,7 @@ export function admitsHistoryRequest(
 		const on = kind ? `on a '${kind}' block, ` : '';
 		devWarn(
 			READING_WRITE_TAG,
-			`declined '${op}' in reading mode, ${on}called from ${callerOf(new Error().stack)}`
+			`declined '${op}' in reading mode, ${on}called from ${callerOf(deepStack())}`
 		);
 	}
 	return false;
@@ -71,19 +71,33 @@ function isReadOnly(reading: Reading): boolean {
 
 const FRAME = /^\s*at (?:async )?(?:(.+?) \()?.*?\/src\/lib\/([^\s:?)]+\.(?:ts|svelte))/;
 
-// This module and the commit's two files sit between every caller and the check.
+// This module and the commit's files sit between every caller and the check.
 const OWN_FILES = new Set([
 	'editor-actions/commit/reading-write-gate.ts',
 	'editor-actions/commit/undo-controller.ts',
-	'editor-actions/commit/structural-commit.ts'
+	'editor-actions/commit/structural-commit.ts',
+	'editor-actions/commit/commit-frame.ts',
+	'editor-actions/commit/byte-splice.ts'
 ]);
 
-/** The nearest five editor frames outside the write machinery, innermost first. */
+/** A stack deep enough to reach past the write machinery, whose depth the default limit can cut. */
+function deepStack(): string | undefined {
+	const limit = Error.stackTraceLimit;
+	Error.stackTraceLimit = 40;
+	const { stack } = new Error();
+	Error.stackTraceLimit = limit;
+	return stack;
+}
+
+/** The nearest five editor files outside the write machinery, innermost first, each named by its
+ *  first frame. */
 function callerOf(stack: string | undefined): string {
 	const frames: string[] = [];
+	let file = '';
 	for (const { text } of splitLines(stack ?? '')) {
 		const match = FRAME.exec(text);
-		if (!match || OWN_FILES.has(match[2])) continue;
+		if (!match || OWN_FILES.has(match[2]) || match[2] === file) continue;
+		file = match[2];
 		frames.push(match[1] ? `${match[1]} (${match[2]})` : match[2]);
 		if (frames.length === 5) break;
 	}

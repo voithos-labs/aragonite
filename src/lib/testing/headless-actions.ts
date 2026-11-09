@@ -19,6 +19,8 @@ import { createEditorEvents, type EditorEvents } from '../editor-events';
 import { refSlotsOver, replaceRefs } from '../block-lists/child-refs';
 import type { ChildList } from '../block-lists/child-list';
 import { createSelectionState } from '../selection/selection-state.svelte';
+import { documentBytes } from '../selection/range-bytes';
+import { serialize } from '../core/serializer';
 import {
 	createCaretLanding,
 	type CaretLanding,
@@ -185,6 +187,11 @@ export function createHeadlessActions(
 			contentVersion++;
 			options.bumpContentVersion?.();
 		},
+		bytes: documentBytes({
+			version: () => contentVersion,
+			doc: () => doc,
+			source: () => serialize(doc)
+		}),
 		undoManager: createUndoManager({ doc: () => doc, version: () => contentVersion }),
 		sharing: createSharingState(),
 		caretMemory: spy(stubCaretMemory()),

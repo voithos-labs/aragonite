@@ -10,7 +10,11 @@ import { serialize } from '#lib/core/serializer.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
 import { cellPoint, type EditorSelection } from '#lib/selection/primitives.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
-import { documentBytes } from '#lib/selection/range-bytes.js';
+import { documentBytes, wholeBlockBytes } from '#lib/selection/range-bytes.js';
+import { wholeBlocksRemovalOf } from '#lib/range-edit/edit-range.js';
+import { rangeHost } from '#lib/range-edit/host.js';
+import { documentLayout } from '#lib/range-edit/layout.js';
+import { CORE_GESTURE, numberedOn } from '#lib/selection/cross-block/range-removal.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { rangeClipboard } from '#lib/selection/range-clipboard.js';
 import type { RemovalGesture } from '#lib/selection/caret-target.js';
@@ -164,6 +168,91 @@ describe('every removal route leaves the core’s bytes', () => {
 				expect(wrote, 'the browser would have handled the key').not.toBeNull();
 				expect(editor.source()).toBe(want.source);
 				if ('cut' in route) expect(wrote).toBe(want.copy);
+				await runHistory(editor, 'undo');
+				expect(editor.source(), 'one undo').toBe(source);
+			});
+		}
+	}
+});
+
+// ── A block removed whole ────────────────────────────────────────────────────
+
+/** The blocks each whole-block route removes: a rule a focused block's keys reach, top-level, in a
+ *  quote and as the last block, and blocks only the menu offers its Delete on. */
+const WHOLE: Record<string, { source: string; path: number[]; keys: boolean; menu: boolean }> = {
+	'a rule between paragraphs': { source: 'a\n\n---\n\nb\n', path: [1], keys: true, menu: true },
+	'a rule in a quote': { source: '> a\n>\n> ---\n>\n> b\n', path: [0, 1], keys: true, menu: false },
+	'a rule ending the document': { source: 'a\n\n---', path: [1], keys: true, menu: true },
+	'a code block': { source: 'a\n\n```\nx\n```\n\nb\n', path: [1], keys: false, menu: true },
+	'a rule in an ordered list item': {
+		source: '1. one\n\n   ---\n\n   two\n2. three\n',
+		path: [0, 0, 1],
+		keys: true,
+		menu: false
+	}
+};
+
+type WholeRoute = { key: 'Backspace' | 'Delete' } | { cut: true } | { menu: true };
+
+const WHOLE_ROUTES: Record<string, WholeRoute> = {
+	'Backspace on the block focused whole': { key: 'Backspace' },
+	'Delete on the block focused whole': { key: 'Delete' },
+	'Mod+X on the block focused whole': { cut: true },
+	'the block menu’s Remove': { menu: true }
+};
+
+/** The core's answer for the block at `path` removed whole as `gesture`. */
+function wholeAnswer(
+	editor: Editor,
+	mode: PresentationMode,
+	path: number[],
+	gesture: RemovalGesture
+) {
+	const grammar = editor.instance.__test.getGrammar();
+	const reading = fixtureReading({ grammar }, mode);
+	const source = editor.source();
+	const doc = readAsOpened(source, { grammar, scope: 'document' }) as Document;
+	const layout = documentLayout(doc);
+	const range = wholeBlockBytes(doc, layout, path)!;
+	const host = rangeHost(reading, { source, tree: doc, layout });
+	const core = mode === 'live' ? 'live' : 'source';
+	const answer = wholeBlocksRemovalOf(source, range, CORE_GESTURE[gesture], core, host);
+	return numberedOn(doc, layout, source, range, answer.source);
+}
+
+async function driveWhole(editor: Editor, path: number[], route: WholeRoute): Promise<boolean> {
+	editor.instance.__test.getBlockComponent(path)!.focus(0);
+	await editor.settle();
+	const el = document.activeElement as HTMLElement;
+	if ('menu' in route) {
+		el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+		await editor.settle();
+		const row = [
+			...document.querySelectorAll<HTMLButtonElement>('.md-menu [role="menuitem"]')
+		].find((r) => r.textContent?.trim().startsWith('Remove'));
+		row?.click();
+		await editor.settle();
+		return row !== undefined;
+	}
+	const init = 'cut' in route ? { key: 'x', ctrlKey: true } : { key: route.key };
+	const took = await pressHardwareKey(el, init);
+	await editor.settle();
+	await editor.settle();
+	return took !== 'browser';
+}
+
+describe('every whole-block route leaves the core’s bytes', () => {
+	for (const mode of ['source', 'live'] as const) {
+		for (const [shape, { source, path, keys, menu }] of Object.entries(WHOLE)) {
+			const routes = Object.entries(WHOLE_ROUTES).filter(([, r]) => ('menu' in r ? menu : keys));
+			it.each(routes)(`${mode}, ${shape}: %s`, async (_, route) => {
+				const editor = mountCase(source, mode);
+				await editor.settle();
+				const gesture: RemovalGesture =
+					'menu' in route ? 'keyless' : 'cut' in route ? 'cut' : route.key;
+				const want = wholeAnswer(editor, mode, path, gesture);
+				expect(await driveWhole(editor, path, route), 'the route took no action').toBe(true);
+				expect(editor.source()).toBe(want);
 				await runHistory(editor, 'undo');
 				expect(editor.source(), 'one undo').toBe(source);
 			});

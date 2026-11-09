@@ -3,7 +3,7 @@
  * end's line every byte after it, and the containers around them stay readable.
  */
 
-import { isBlankText, ownTrailingLineEnding } from '../core/lines';
+import { endsInBlankLine, isBlankText, ownTrailingLineEnding } from '../core/lines';
 import { getContentRange } from '../core/inline';
 import type { LaidBlock } from './layout';
 import {
@@ -44,6 +44,8 @@ export function removeRange(doc: Doc, start: number, end: number): Removal {
 	const head = leafAt(doc, from);
 	const tail = leafAt(doc, to);
 	const held = heldAt(doc, from, to);
+	const last = held && doc.wholeBlocks ? endingItsParent(doc, held, to) : null;
+	if (last) return last;
 	if (head && tail && head.leaf === tail.leaf && !held) {
 		const { leaf } = head;
 		const write = doc.host.leaf.replace(
@@ -57,6 +59,20 @@ export function removeRange(doc: Doc, start: number, end: number): Removal {
 		return writeLeaf(doc, leaf, write, head.offset, tail.offset);
 	}
 	return across(doc, from, to, held ?? head?.leaf, held !== undefined);
+}
+
+/** A block removed whole as the last of its parent goes with the line break and blank lines before
+ *  it, so the block above ends as it did, open or closed; a blank last line above keeps its break. */
+function endingItsParent(doc: Doc, block: LaidBlock, to: number): Removal | null {
+	const index = block.path.at(-1)!;
+	const sibling = (i: number) => doc.layout.block([...block.path.slice(0, -1), i]);
+	const prev = index > 0 ? sibling(index - 1) : undefined;
+	if (!prev || sibling(index + 1) || to < contentEnd(doc, block)) return null;
+	let leaf = nodeAt(doc, prev.path);
+	while (leaf.children?.length) leaf = leaf.children.at(-1)!;
+	const at = endsInBlankLine(leaf.raw) ? prev.to : contentEnd(doc, prev);
+	const end = contentEnd(doc, block);
+	return { source: doc.source.slice(0, at) + doc.source.slice(end), caret: at, gone: true };
 }
 
 /** A range across blocks: the end's tail joins the start where the start takes joined text, and

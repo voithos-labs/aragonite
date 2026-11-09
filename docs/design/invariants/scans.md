@@ -111,7 +111,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.101 | Only the surface write names a typed kind change or completes a typed line | L |
 | G4.106 | _Retired upward_: every test page load is a fresh document, and a load that isn't throws | A |
 | G4.107 | Only a write emits `edit`, and only the in-place keystroke write declares `input` | L |
-| G4.108 | Only the range replace removes a range; only it and the range indent open its undo step | L |
+| G4.108 | Only the range replace removes a range; only it and the range indent open its undo step; a block removed whole goes through the core | L |
 | G4.109 | A container built around another's children starts from that container's bytes | L |
 | G4.111 | A block's editable element writes its own text only through the surface write | L |
 | G4.112 | An indent key over a range reaches list items through one route, never removing the range | L |

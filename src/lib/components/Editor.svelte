@@ -631,6 +631,7 @@
 			doc = v;
 		},
 		bumpContentVersion: contentVersion.bump,
+		bytes,
 		setBlockIds: (v) => {
 			blockIds = v;
 		},

@@ -95,15 +95,6 @@ describe('block-edit core: shared structural decisions', () => {
 		expect(commits).toHaveLength(0);
 	});
 
-	it('deleteInterior removes the block and emits a delete op targeting it', async () => {
-		const { scope, commits, children } = makeCommitScopeStub([leaf('a\n'), leaf('b\n')]);
-		await createBlockEditCore(scope).deleteInterior(1, 'keyless');
-		expect(children).toHaveLength(1);
-		expect(children[0].raw).toContain('a');
-		expect(commits[0].op.kind).toBe('delete');
-		expect(commits[0].eventTarget).toBe(1);
-	});
-
 	it('replaceBlock with nodes emits replaceBlock with its count', async () => {
 		const rep = makeCommitScopeStub([leaf('x\n')]);
 		await createBlockEditCore(rep.scope).replaceBlock(0, [leaf('a\n'), leaf('b\n')], undefined, {
@@ -255,7 +246,7 @@ describe('block-edit core: wrap-owner threading', () => {
 		registerCalloutKind(testView());
 	});
 
-	it('deleteInterior hands the owner to the settle, so the wrap absorbs the freed line', async () => {
+	it('an empty replace hands the owner to the settle, so the wrap absorbs the freed line', async () => {
 		const doc = parse(':::callout\nA\n\nB\n:::\n');
 		const callout = doc.children[0];
 		const { scope, children } = makeCommitScopeStub(callout.children!, {
@@ -263,7 +254,7 @@ describe('block-edit core: wrap-owner threading', () => {
 			settle: true
 		});
 
-		await createBlockEditCore(scope).deleteInterior(1, 'keyless');
+		await createBlockEditCore(scope).replaceBlock(1, [], undefined, { snapshotOffset: 0 });
 
 		expect(children.map((c) => c.leadingTrivia + c.raw).join('')).not.toContain('A');
 		expect(callout.innerPrefix).toBe('\n');

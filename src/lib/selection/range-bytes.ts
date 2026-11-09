@@ -77,8 +77,17 @@ export function removalBytes(
 	layout: Layout
 ): Range | null {
 	if (coverage.grid?.kind !== 'table') return rangeBytes(doc, coverage, layout);
-	const table = layout.block(coverage.grid.path);
-	return table ? { from: table.from, to: textEnd(doc, table) } : null;
+	return wholeBlockBytes(doc, layout, coverage.grid.path);
+}
+
+/** The bytes of the block at `path` taken whole: its first byte to its last line's text. */
+export function wholeBlockBytes(
+	doc: DocumentView,
+	layout: Layout,
+	path: readonly number[]
+): Range | null {
+	const block = layout.block(path);
+	return block ? { from: block.from, to: textEnd(doc, block) } : null;
 }
 
 /** The selection point naming byte `at`: the text block holding it and the offset there. */

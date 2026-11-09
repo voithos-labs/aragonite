@@ -60,14 +60,21 @@ export function createByteSplice(
 		const reading = closers.length > 0 ? spliceReading(was, before, changes, grammar) : read;
 		const windows = reading?.windows ?? [];
 		// Measured in the caller's bytes, then past the closers, so a caret inside a write stays in front.
-		const named = splice.caret === 'keep' ? caretKept(deps, splice.changes, windows) : splice.caret;
+		const given = splice.caret;
+		const landed = typeof given === 'function' ? given : null;
+		const named =
+			given === 'keep'
+				? caretKept(deps, splice.changes, windows)
+				: typeof given === 'function'
+					? null
+					: given;
 		const caret = named && { ...named, at: offsetPastClosers(named.at, closers) };
 		let saved: { children: CstNode[]; ids: string[]; refs: (BlockComponent | undefined)[] } | null =
 			null;
 		return __commit({
 			entry: 'commitSource',
 			snapshot: splice.snapshot,
-			op: { ...splice.op, eventPath: docPathFrom([windows[0]?.at ?? 0]) },
+			op: { eventPath: docPathFrom([windows[0]?.at ?? 0]), ...splice.op },
 			history: splice.history ?? 'entry',
 			reach: () => reachOf(windows),
 			discardIfNoop: true,
@@ -102,7 +109,7 @@ export function createByteSplice(
 				deps.setBlockIds(saved.ids);
 				replaceRefs(deps.blockRefs, saved.refs);
 			},
-			landing: () => caret && landingAt(deps.doc, caret),
+			landing: () => (landed ? landed() : caret && landingAt(deps.doc, caret)),
 			reveal: splice.reveal
 		});
 	};

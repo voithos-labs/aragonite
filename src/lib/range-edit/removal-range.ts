@@ -52,10 +52,11 @@ export function removalRange(doc: Doc, start: number, end: number): { from: numb
 export const heldAt = (doc: Doc, from: number, to: number): LaidBlock | undefined =>
 	findWithin(doc, from, from, (b) => heldWhole(doc, b, from, to));
 
-/** A block other than a paragraph that the range covers from its first byte through its text, or
- *  through its last line, its markers included: it goes whole. */
+/** A block the range covers from its first byte through its text, or through its last line, its
+ *  markers included: it goes whole. A paragraph only empties, unless the range names whole blocks. */
 export function heldWhole(doc: Doc, block: LaidBlock, from: number, to: number): boolean {
-	if (block.from !== from || factsOf(doc, block).joins === 'text') return false;
+	if (block.from !== from || (factsOf(doc, block).joins === 'text' && !doc.wholeBlocks))
+		return false;
 	return to >= (block.text?.to ?? contentEnd(doc, block));
 }
 

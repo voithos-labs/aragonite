@@ -1,15 +1,15 @@
 /**
  * The root ContainerEditActions: what a container reaches the editor root for, which is the
  * document's line ending, the container commit, the two things a keystroke needs the root for
- * (its undo entry, and the write that keeps the leaf in place), and the caret
- * landing with the whole-document read a delete's caret needs.
+ * (its undo entry, and the write that keeps the leaf in place), the caret landing, and a block's
+ * removal whole through the range-edit core.
  */
 
 import type { ContainerEditActions } from '../action-contracts';
 import { documentLineEnding } from '../core/lines';
 import { emitCommitError } from '../editor-events';
 import type { EditorActionsDeps, UndoController } from './deps';
-import { survivorAfterRemoval } from '../selection/caret-target';
+import { removeWholeBlock } from '../selection/cross-block/range-removal';
 
 export function createContainerEditActions(
 	deps: EditorActionsDeps,
@@ -22,8 +22,12 @@ export function createContainerEditActions(
 			controller.typingKeystroke(leafPath, preEditOffset, batchKey, history, work),
 		typeLeaf: (leafPath, write, caret) => controller.typeLeaf(leafPath, write, caret),
 		land: (pos) => deps.caretLanding.land(pos),
-		survivorAfterRemoval: (removedPath, gesture) =>
-			survivorAfterRemoval(deps.doc, removedPath, gesture),
+		removeWhole: (path, gesture) =>
+			removeWholeBlock(
+				{ bytes: deps.bytes, reading: deps.reading, controller, getDoc: () => deps.doc },
+				path,
+				gesture
+			),
 		reportCommitError: (error, op, path) => emitCommitError(deps.events, { error, op, path })
 	};
 }

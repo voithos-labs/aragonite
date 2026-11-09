@@ -123,7 +123,7 @@ These checks run in three kinds of place:
 | G1.188 | _Retired upward_: the removal is the range-edit core's, so a cut writes what it takes (G1.199) | harness |
 | G1.189 | An undo or redo puts back no block read under a grammar the editor no longer reads | A·N |
 | G1.190 | While a draft is open, every write tells it everything the write changed | A·N |
-| G1.199 | Every route that removes a range leaves the range-edit core's bytes, in one undo step | harness |
+| G1.199 | Every route that removes a range, or a block whole, leaves the range-edit core's bytes, in one undo step | harness |
 
 ### The entries
 
@@ -339,4 +339,4 @@ These checks run in three kinds of place:
 
 **G1.190 · A draft hears every write** (`change-record`). While a draft is open, each write records the top-level blocks it changed, read over the blocks it names plus one either side (every block, for a keystroke that moves a fence), and a draft maps its ranges through the records. Checked after each write (nothing changed past what it named) and at a draft's commit (a range no record touched still holds the bytes it opened on). `checkChangeInReach`, `checkDraftBytesKept` (`change-record.ts`) · `commit-frame.ts`, `draft-registry.svelte.ts` · `change-record.test.ts`, `draft-registry.test.ts`.
 
-**G1.199 · Every removal route leaves the core's bytes.** Backspace, Delete, Ctrl+Backspace, Ctrl+Delete and a cut by each of its routes (the chord at the block, at the page body, the menu with and without its command) over one range leave the bytes the range-edit core answers for it, a cut writes the core's copy of that range, and one undo gives the source back. The ranges are the shapes a removal once parted on. `range-laws/removal-routes.test.ts`.
+**G1.199 · Every removal route leaves the core's bytes.** Backspace, Delete, Ctrl+Backspace, Ctrl+Delete and a cut by each of its routes (the chord at the block, at the page body, the menu with and without its command) over one range leave the bytes the range-edit core answers for it, a cut writes the core's copy of that range, and one undo gives the source back. The ranges are the shapes a removal once parted on. A block removed whole (Backspace, Delete or Mod+X on a block focused whole, the block menu's Remove) leaves the core's bytes for that block taken as a block. `range-laws/removal-routes.test.ts`.

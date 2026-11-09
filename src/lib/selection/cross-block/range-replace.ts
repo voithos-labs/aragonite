@@ -18,7 +18,13 @@ import type { RemovalGesture as CoreGesture } from '../../range-edit/edit-range'
 import { pathsEqual } from '../path-math';
 import { blockNodeAt, isBlockNode } from '../../tree-operations/node-primitives';
 import { commitGridClear, commitGridLineDelete } from './grid-removal';
-import { commandLandingKind, emptiedPlace, removeThroughCore, type Removed } from './range-removal';
+import {
+	CORE_GESTURE,
+	commandLandingKind,
+	emptiedPlace,
+	removeThroughCore,
+	type Removed
+} from './range-removal';
 import { pasteDispatch } from '../../tree-operations/paste/dispatch';
 import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
 import { parseReplacement } from '../../tree-operations/paste/replacement-parse';
@@ -275,9 +281,7 @@ const inCell = (caret: SelectionPoint | null): Removed => ({
 function coreGestureOf(insertion: RangeInsertion): CoreGesture {
 	switch (insertion.kind) {
 		case 'none':
-			return { Backspace: 'backspace', Delete: 'delete', cut: 'cut', keyless: 'command' }[
-				insertion.gesture
-			] as CoreGesture;
+			return CORE_GESTURE[insertion.gesture];
 		case 'text':
 		case 'paste':
 			return insertion.text ? 'type' : 'command';

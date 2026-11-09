@@ -16,6 +16,9 @@ export interface Doc {
 	layout: Layout;
 	host: RangeHost;
 	mode: Mode;
+	/** The range names blocks the editor was asked to remove whole, not text: a paragraph goes too,
+	 *  and a block ending its parent takes the separator above it. */
+	wholeBlocks?: boolean;
 }
 
 export function readDoc(source: string, host: RangeHost, mode: Mode): Doc {
