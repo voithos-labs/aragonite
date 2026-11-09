@@ -120,7 +120,7 @@ Two things hold for all three:
   import '@voithos-labs/aragonite/styles/editor-theme.css';
   ```
 
-- **Plugins go in `plugins` as usual.** Every bundled plugin runs here (import its `style.css` too, `@voithos-labs/aragonite-latex/style.css` say, if it has one: admonitions, details, footnotes, latex, mermaid, parrot and toc do), and so does any plugin that draws with plain DOM. One that ships Svelte components of its own needs a bundler that compiles Svelte; [the plugin guide](plugin-guide.md#what-draws-your-plugin-and-where-it-runs) says which plugins those are.
+- **Plugins go in `plugins` as usual.** Every bundled plugin runs here (import its `style.css` too, `@voithos-labs/aragonite-latex/style.css` say, if it has one: admonitions, details, footnotes, latex, mermaid, parrot, spellcheck and toc do), and so does any plugin that draws with plain DOM. One that ships Svelte components of its own needs a bundler that compiles Svelte; [the plugin guide](plugin-guide.md#what-draws-your-plugin-and-where-it-runs) says which plugins those are.
 
 ### React
 
@@ -807,7 +807,7 @@ The same rule covers [directive](directives.md) names. A plugin that claims an a
 
 ### Bundled plugins
 
-Ten first-party plugins ship as packages of their own, one per plugin, named `@voithos-labs/aragonite-<plugin>` (plugins other people wrote are in the [plugin gallery](plugin-gallery.md)). Install the ones you want next to the editor:
+Eleven first-party plugins ship as packages of their own, one per plugin, named `@voithos-labs/aragonite-<plugin>` (plugins other people wrote are in the [plugin gallery](plugin-gallery.md)). Install the ones you want next to the editor:
 
 ```powershell
 npm install @voithos-labs/aragonite @voithos-labs/aragonite-latex @voithos-labs/aragonite-toc
@@ -826,6 +826,7 @@ import { latexPlugin } from '@voithos-labs/aragonite-latex';
 import { mermaidPlugin } from '@voithos-labs/aragonite-mermaid';
 import { parrotPlugin } from '@voithos-labs/aragonite-parrot';
 import { slashCommands } from '@voithos-labs/aragonite-slash-commands';
+import { spellcheckPlugin } from '@voithos-labs/aragonite-spellcheck';
 ```
 
 | Plugin | What it teaches the editor |
@@ -840,6 +841,7 @@ import { slashCommands } from '@voithos-labs/aragonite-slash-commands';
 | `mermaidPlugin({ renderer? })` | A ` ```mermaid ` fence renders as a diagram through an injected engine; without one, the fence renders statically (the source, styled) |
 | `parrotPlugin()` | A `%%parrot` line renders as an animated ASCII party parrot, with whatever follows the marker as its caption |
 | `slashCommands` or `slashCommands({ entries?, exclude? })` | `/` at the start of a line or after a space opens a list of blocks to insert and headings to turn the line into |
+| `spellcheckPlugin` or `spellcheckPlugin({ words?, onAddWord?, dictionary? })` | Misspelled words in prose get a red wave (an English dictionary unless you pass your own), with their suggestions in the right-click menu, in the selection toolbar when the word is selected, and on a card the pointer opens by resting on the word. "Add to dictionary" shows when `onAddWord` keeps the word. The browser's own checker is off while it runs |
 
 A few of them take options or need a word more.
 
@@ -876,7 +878,9 @@ latexPlugin({ renderer: katexRenderer });
 mermaidPlugin({ renderer: mermaidRenderer });
 ```
 
-Both renderers are optional; without one, each formula or diagram shows its source. The latex adapter imports `katex/dist/katex.min.css` on your behalf (it's the one bundled-plugin module with a side effect); no other setup is needed.
+Both renderers are optional; without one, each formula or diagram shows its source. The latex adapter imports `katex/dist/katex.min.css` on your behalf; no other setup is needed.
+
+**Spellcheck.** The suggestions card opens from the keyboard too, once you bind `decorations.activateAtCaret` to a chord in `keybindings` (it has none until you do). Two editors share added words when you hand both the same `englishDictionary({ words, onAddWord })` as `dictionary`. The package's README has the rest: `localStorageWords(key)` for an app with nowhere to keep words, a dictionary of your own, the wave's two color tokens, and `misspellingAt` and `replaceWord` for a spelling menu you draw yourself.
 
 ## Theming
 

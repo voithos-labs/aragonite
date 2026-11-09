@@ -67,6 +67,8 @@ Four deliberate exceptions, and no, a fifth isn't on offer:
 
 Two helper folders sit beside the mirrored tests. `test/support/` holds only what Vitest loads by itself (the setup files in `vitest.config.ts` and the data they read). Anything a test file imports to mount, drive or fixture something goes in `test/harness/`. Neither holds a test file; a test of that machinery (the warn gate, the growth harness) sits at `test/` root, since there's no source folder for it to mirror.
 
+jsdom measures nothing onto the page, so a plugin's marks never show up as overlays in a unit test. To check what a plugin painted in a mounted editor, read it with `src/lib/test/harness/painted-marks.ts` :: `paintedMarks`, which gives the text under each mark of a class on one block.
+
 A source scan (a test under `lint/` that reads source files and fails on a pattern) takes every path it reads from `src/lib/test/invariants/lint/source-paths.ts`, so moving a file is one edit there. Hand-write a path in a scan instead and `source-paths.test.ts` fails, naming the path. A scan that matches imports uses the helpers in `src/lib/test/invariants/lint/scan-source.ts` rather than spelling `#lib` (the import alias for `src/lib`) itself.
 
 The one naming rule that changes how a file runs: a `*.deep.test.ts` file runs in its own Vitest project (`deep-stack` in `vitest.config.ts`) on a 150 KB stack. That's small enough that a recursive walk overflows at a depth jsdom still renders in a few seconds, so it's the place for a test proving some walk never recurses.
@@ -280,6 +282,8 @@ The plugin specs drive `/test/plugins` (`src/routes/test/plugins/+page.svelte`),
 - `inline-menu/`: a document picker on `[[` and a mention menu on `@` whose pick doesn't commit until the spec releases it, installed beside the demo tag menu and the bundled slash list so all four triggers share one editor. Seed `inline-menu`.
 - `hloccur-scan/`: the bundled highlight-occurrences plugin with an `onScan` counter on `window`, for counting rescans. Seed `hloccur-memo`.
 - `sim-mark/` and `sim-island/`: standing decoration sources for the simulation (its own section below). One marks every whole-word `paragraph`; the other turns three sentinel strings in the text into a replace widget, an inline widget, and a block badge. Both under `?seed=sim`, so the simulation runs with the decoration engine live on every keystroke.
+
+The editor route (`/test/editor`) lists a plugin only when a flag asks for it: `?slash=on` (the slash list), `?actions=on` (a selection action that counts), `?paint=on` (a plugin whose paint a spec sets) and `?spell=on` or `?spell=bare` (the spellcheck package, keeping added words in localStorage or keeping none, so "Add to dictionary" shows only with the first). The spellcheck specs run there rather than here because the simulation's spelling pick does, and one flag serves both.
 
 Three subroutes carry the multi-editor cases: `multi/` (two editors with per-editor `doc-stats` options and a button that unmounts the second), `staggered/` (editor one installs callout, editor two mounts later with details added, for the staggered-mount spec), and `activation/` (two editors in one process, only the first listing the parrot and the block badge, for the per-instance activation spec).
 
