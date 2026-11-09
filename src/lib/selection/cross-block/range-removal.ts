@@ -17,7 +17,7 @@ import {
 } from '../../range-edit/edit-range';
 import { rangeHost } from '../../range-edit/host';
 import type { LaidBlock, Layout } from '../../range-edit/layout';
-import { changesBetween } from '../../tree-operations/byte-splice';
+import { changesBetween } from '../../tree-operations/byte-changes';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { deleteSnapshot, type SelectionPoint } from '../primitives';
 import { liveSlot, type RemovalGesture as BlockGesture } from '../caret-target';

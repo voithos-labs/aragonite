@@ -15,17 +15,17 @@ import { docPathFrom } from '../../core/coordinate-spaces';
 import { spliceMany } from '../../tree-operations/splice-many';
 import {
 	spliceReading,
-	type ByteChange,
 	type SpliceReading,
 	type SpliceWindow
 } from '../../tree-operations/byte-splice';
+import type { ByteChange } from '../../tree-operations/byte-changes';
 import {
 	applyStructuralChangeToIdsRefs,
 	replacePreservingFirst,
-	stampStructuralChange,
+	stampOwned,
 	type StructuralChange
 } from '../../tree-operations/structural-change';
-import { byteOfLeaf, childRawStarts, leafAtByte } from '../../tree-operations/container-offsets';
+import { byteOfLeaf, documentByteMap, leafAtByte } from '../../tree-operations/container-offsets';
 import { readCurrentSelection } from '../../selection/native-bridge';
 import type { BlockReach } from './change-record';
 import {
@@ -126,7 +126,9 @@ export function installReading(deps: EditorActionsDeps, reading: SpliceReading):
 	for (const window of [...reading.windows].reverse()) {
 		spliceMany(children, window.at, window.count, window.blocks);
 		const change = changeOf(window);
-		stampStructuralChange(children, change, deps.sharing);
+		// The reading gave its blocks their ids, so a window holding a long container's kept
+		// children walks none of them.
+		stampOwned(children, change, deps.sharing);
 		applyStructuralChangeToIdsRefs(change, ids, refs);
 	}
 	deps.doc.children = children;
@@ -199,24 +201,32 @@ function landingAt(doc: DocumentView, caret: SpliceCaret): Landing | GapCaretSel
 /** The deepest boundary a gap caret may take where a block starts, or a container ends, at byte
  *  `at`; null where none may. */
 export function gapAtByte(doc: DocumentView, at: number): GapCaretPosition | null {
+	const map = documentByteMap(doc);
+	const tops = topLevelStarts(doc);
 	let found: GapCaretPosition | null = null;
 	let parentPath: number[] = [];
 	let children = doc.children;
-	let starts = topLevelStarts(doc);
-	let base = 0;
+	let startOf = (k: number) => tops[k];
+	// A child starting at or past `at`, or holding it; inside a container, the map's answer alone.
+	let near = tops.findIndex((start) => start >= at);
+	if (near < 0) near = children.length - 1;
 	let end = serialize(doc).length;
 	for (;;) {
-		const index = at === end ? children.length : starts.findIndex((s) => base + s === at);
+		const index = at === end ? children.length : startOf(near) === at ? near : -1;
 		if (index >= 0 && gapEligibleAt(doc, parentPath, index)) found = { parentPath, index };
-		let i = children.length - 1;
-		while (i > 0 && base + starts[i] > at) i--;
+		// The last child starting at or before `at`.
+		let i = near;
+		while (i + 1 < children.length && startOf(i + 1) <= at) i++;
+		if (i > 0 && startOf(i) > at) i--;
 		const child = children[i];
-		if (!child?.children?.length) return found;
-		base += starts[i];
+		const inner = child?.children?.length ? map.containerMap(child) : null;
+		if (!inner) return found;
+		const base = startOf(i);
 		end = base + child.raw.length;
 		parentPath = [...parentPath, i];
-		starts = childRawStarts(child);
-		children = child.children;
+		children = child.children!;
+		startOf = (k) => base + inner.rawOf(k, 0);
+		near = inner.childAt(at - base).index;
 	}
 }
 

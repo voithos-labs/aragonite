@@ -434,46 +434,154 @@ export async function measureListCopy(
 	};
 }
 
-/** A paste at the end of item `item` of a giant list, through today's paste and through the byte
- *  splice, each timed to the frame after it lands; either way the whole list is read again. */
-export async function measureListPaste(
+// ── Edits inside a giant container ──────────────────────────────────────────
+
+export type GiantContainer = 'giant-single-list' | 'giant-single-blockquote' | 'giant-single-table';
+
+/** Where child `child` of each giant container fixture sits: the text block a caret takes in it,
+ *  and the source line its text starts on. */
+const CONTAINER_CHILD: Record<
+	GiantContainer,
+	{ leaf: (child: number) => number[]; line: (child: number) => number }
+> = {
+	'giant-single-list': { leaf: (c) => [0, c, 0], line: (c) => c },
+	'giant-single-blockquote': { leaf: (c) => [0, c], line: (c) => 2 * c },
+	// The header is row 0 and the delimiter line follows it, so body row `c` sits on line `c + 1`.
+	'giant-single-table': { leaf: (c) => [0, c, 2], line: (c) => c + 1 }
+};
+
+/** How far below today's edit the splice makes the same edit, on bytes today's left alone. */
+const SPLICE_CHILDREN_BELOW = 8;
+
+/** A byte as a line and a column, counted from the line's end when it sits nearer that end, so
+ *  it lands alike on another line of the fixture whatever that line's length. */
+interface LinePlace {
+	line: number;
+	column: number;
+	fromEnd: boolean;
+}
+
+interface LineEdit {
+	from: LinePlace;
+	to: LinePlace;
+	insert: string;
+}
+
+/** The edit that turned `before` into `after`, its two ends placed by line. Runs in the page. */
+function lineEditOf(before: string, after: string): LineEdit {
+	const shorter = Math.min(before.length, after.length);
+	let from = 0;
+	while (from < shorter && before[from] === after[from]) from++;
+	let tail = 0;
+	while (
+		tail < shorter - from &&
+		before[before.length - 1 - tail] === after[after.length - 1 - tail]
+	)
+		tail++;
+	const place = (at: number): LinePlace => {
+		let line = 0;
+		let start = 0;
+		for (;;) {
+			const end = before.indexOf('\n', start);
+			if (end < 0 || end >= at) {
+				const length = (end < 0 ? before.length : end) - start;
+				const column = at - start;
+				return column * 2 > length
+					? { line, column: length - column, fromEnd: true }
+					: { line, column, fromEnd: false };
+			}
+			line++;
+			start = end + 1;
+		}
+	};
+	return {
+		from: place(from),
+		to: place(before.length - tail),
+		insert: after.slice(from, after.length - tail)
+	};
+}
+
+/** `edit` made again `lines` lines below where it was made, in `source`, the bytes it left: the
+ *  new bytes and the caret after the insert. Runs in the page. */
+function lineEditAt(
+	source: string,
+	edit: LineEdit,
+	lines: number
+): { next: string; caret: number } {
+	// The lines `edit` added or took, since `lines` counts the lines before it was made.
+	const moved = edit.insert.split('\n').length - 1 - (edit.to.line - edit.from.line);
+	const byteOf = ({ line, column, fromEnd }: LinePlace): number => {
+		let start = 0;
+		for (let i = 0; i < line + lines + moved; i++) start = source.indexOf('\n', start) + 1;
+		const end = source.indexOf('\n', start);
+		return fromEnd ? (end < 0 ? source.length : end) - column : start + column;
+	};
+	const from = byteOf(edit.from);
+	return {
+		next: source.slice(0, from) + edit.insert + source.slice(byteOf(edit.to)),
+		caret: from + edit.insert.length
+	};
+}
+
+/** An edit at a giant container's child made today's way (a paste at its end, or Backspace over three
+ *  lines), then the same bytes spliced a few children lower; each timed to the frame after it lands. */
+export async function measureContainerEdit(
 	page: Page,
 	editor: EditorPage,
-	bytes: number,
-	item: number,
-	pastes: number
+	row: {
+		shape: GiantContainer;
+		bytes: number;
+		child: number;
+		edit: 'paste' | 'removal';
+		samples: number;
+		mode: PresentationMode;
+	}
 ): Promise<{ loadMs: number; today: LatencyMeasurement; splice: LatencyMeasurement }> {
-	await editor.goto();
-	const loadMs = await loadFixture(page, editor, generateFixture('giant-single-list', bytes));
-	const leaf = [0, item, 0];
-	await assertMounted(page, leaf, 'list item');
+	await editor.goto(row.mode === 'source' ? '' : `?presentationMode=${row.mode}`);
+	const loadMs = await loadFixture(page, editor, generateFixture(row.shape, row.bytes));
+	const at = CONTAINER_CHILD[row.shape];
+	const leaf = at.leaf(row.child);
+	await assertMounted(page, leaf, `${row.shape} child`);
+	const lines = at.line(row.child + SPLICE_CHILDREN_BELOW) - at.line(row.child);
 	const today: number[] = [];
 	const splice: number[] = [];
-	for (let i = 0; i < pastes; i++) {
-		await editor.focusBlockAtPath(leaf, Number.MAX_SAFE_INTEGER);
-		today.push(
-			await page.evaluate(async () => {
-				const start = performance.now();
-				await (window as any).__test.insertMarkdown('one\ntwo');
-				await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
-				return performance.now() - start;
-			})
-		);
+	for (let i = 0; i < row.samples; i++) {
+		if (row.edit === 'paste') {
+			await editor.focusBlockAtPath(leaf, Number.MAX_SAFE_INTEGER);
+		} else {
+			await editor.focusBlockAtPath(leaf, 3);
+			for (let k = 0; k < 3; k++) await page.keyboard.press('Shift+ArrowDown');
+			await editor.waitForCrossBlock(true);
+		}
+		await page.evaluate(() => {
+			(window as any).__editBefore = (window as any).__test.getSource();
+		});
+		today.push(row.edit === 'paste' ? await timedPaste(page) : await timedBackspace(page));
 		splice.push(
-			await page.evaluate(async (item) => {
-				const source: string = (window as any).__test.getSource();
-				let at = 0;
-				for (let line = 0; line <= item; line++) at = source.indexOf('\n', at) + 1;
-				at -= 1;
-				const pasted = 'one\n  two';
-				const next = source.slice(0, at) + pasted + source.slice(at);
-				const start = performance.now();
-				// A splice that wrote nothing would time as fast as one that did.
-				if (!(await (window as any).__test.spliceSource(next, at + pasted.length)))
-					throw new Error('the byte splice wrote nothing');
-				await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
-				return performance.now() - start;
-			}, item)
+			await page.evaluate(
+				async ({ editOf, editAt, lines }) => {
+					const w = window as any;
+					const source: string = w.__test.getSource();
+					const edit = new Function(`return (${editOf})`)()(w.__editBefore, source);
+					const { next, caret } = new Function(`return (${editAt})`)()(source, edit, lines);
+					const start = performance.now();
+					// A splice that wrote nothing would time as fast as one that did.
+					if (!(await w.__test.spliceSource(next, caret)))
+						throw new Error('the byte splice wrote nothing');
+					await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+					return performance.now() - start;
+				},
+				{ editOf: lineEditOf.toString(), editAt: lineEditAt.toString(), lines }
+			)
+		);
+		// Both edits undone, so each sample starts on the bytes the first did: a table's cell clear
+		// leaves its rows, and a second clear of them would write nothing.
+		await editor.undo();
+		await editor.undo();
+		await page.waitForFunction(
+			(fnSrc) => new Function(`return (${fnSrc})();`)() === (window as any).__editBefore.length,
+			docLengthInPage.toString(),
+			{ timeout: KEYSTROKE_TIMEOUT_MS, polling: 16 }
 		);
 	}
 	const measured = (samples: number[]): LatencyMeasurement => ({
@@ -483,4 +591,42 @@ export async function measureListPaste(
 		p95Ms: percentileMs(samples, 95)
 	});
 	return { loadMs, today: measured(today), splice: measured(splice) };
+}
+
+async function timedPaste(page: Page): Promise<number> {
+	return page.evaluate(async () => {
+		const start = performance.now();
+		await (window as any).__test.insertMarkdown('one\ntwo');
+		await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+		return performance.now() - start;
+	});
+}
+
+/** Backspace over the live range, timed in the page from its keydown to the frame after block 0
+ *  shrinks; a removal that took nothing fails the row rather than reading fast. */
+async function timedBackspace(page: Page): Promise<number> {
+	await page.evaluate((timeout) => {
+		const w = window as any;
+		const length = () => {
+			const block = w.__test.getDocument().children[0];
+			return block.leadingTrivia.length + block.raw.length;
+		};
+		const before = length();
+		w.__removal = new Promise<number>((done, fail) => {
+			const listen = () => {
+				const start = performance.now();
+				const poll = () =>
+					requestAnimationFrame(() => {
+						if (length() < before) requestAnimationFrame(() => done(performance.now() - start));
+						else if (performance.now() - start > timeout)
+							fail(new Error('the removal wrote nothing'));
+						else poll();
+					});
+				poll();
+			};
+			window.addEventListener('keydown', listen, { capture: true, once: true });
+		});
+	}, KEYSTROKE_TIMEOUT_MS);
+	await page.keyboard.press('Backspace');
+	return page.evaluate(() => (window as any).__removal as Promise<number>);
 }

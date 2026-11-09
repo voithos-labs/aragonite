@@ -3,11 +3,12 @@ import { readFileSync } from 'node:fs';
 import { EditorPage } from '../../editor-page';
 import { type FixtureShape } from '../../../test/perf/fixtures/generate';
 import {
+	measureContainerEdit,
 	measureContainerInteriorTyping,
 	measureListCopy,
-	measureListPaste,
 	measureStructuralRebuild,
-	measureTypingLatency
+	measureTypingLatency,
+	type GiantContainer
 } from './latency-harness';
 
 declare const process: { env: Record<string, string | undefined> };
@@ -174,23 +175,44 @@ test.describe('perf gate: a copy over a range in a giant list', () => {
 	});
 });
 
-// A paste into a giant list re-reads the whole list either way, today's paste or the byte splice
-// the range gestures move onto. Reported beside each other until the controller blesses a ceiling.
-const LIST_PASTE_ROWS: Array<[size: string, pastes: number]> = [
-	['1MB', 8],
-	['10MB', 4]
+// An edit inside a giant container, made today's way and then through the byte splice the range
+// gestures move onto: reported beside each other, the today figure being the splice's parity target.
+const CONTAINER_EDIT_ROWS: Array<
+	[shape: GiantContainer, edit: 'paste' | 'removal', size: string, samples: number, mode?: 'live']
+> = [
+	['giant-single-list', 'paste', '1MB', 8],
+	['giant-single-list', 'paste', '10MB', 4],
+	['giant-single-blockquote', 'paste', '10MB', 4],
+	['giant-single-table', 'paste', '10MB', 4],
+	['giant-single-list', 'removal', '10MB', 4],
+	['giant-single-blockquote', 'removal', '10MB', 4],
+	['giant-single-table', 'removal', '10MB', 4],
+	['giant-single-list', 'paste', '10MB', 4, 'live'],
+	['giant-single-blockquote', 'paste', '10MB', 4, 'live'],
+	['giant-single-table', 'paste', '10MB', 4, 'live'],
+	['giant-single-list', 'removal', '10MB', 4, 'live'],
+	['giant-single-blockquote', 'removal', '10MB', 4, 'live'],
+	['giant-single-table', 'removal', '10MB', 4, 'live']
 ];
 
-test.describe('perf report: a paste inside a giant list', () => {
-	for (const [size, pastes] of LIST_PASTE_ROWS) {
-		test(`giant-single-list interior paste ${size}`, async ({ page }) => {
-			const m = await measureListPaste(page, new EditorPage(page), SIZE_BYTES[size], 3, pastes);
+test.describe('perf report: an edit inside a giant container', () => {
+	for (const [shape, edit, size, samples, mode] of CONTAINER_EDIT_ROWS) {
+		const name = `${shape} interior ${edit} ${size}${mode ? ` ${mode}` : ''}`;
+		test(name, async ({ page }) => {
+			const m = await measureContainerEdit(page, new EditorPage(page), {
+				shape,
+				bytes: SIZE_BYTES[size],
+				child: 3,
+				edit,
+				samples,
+				mode: mode ?? 'source'
+			});
 			console.log(
-				`PERF-REPORT giant-single-list-interior-paste-${size} today p50=${m.today.p50Ms.toFixed(1)}ms ` +
+				`PERF-REPORT ${name.replaceAll(' ', '-')} today p50=${m.today.p50Ms.toFixed(1)}ms ` +
 					`p95=${m.today.p95Ms.toFixed(1)}ms splice p50=${m.splice.p50Ms.toFixed(1)}ms ` +
 					`p95=${m.splice.p95Ms.toFixed(1)}ms load=${m.loadMs.toFixed(1)}ms`
 			);
-			expect(m.splice.samples).toHaveLength(pastes);
+			expect(m.splice.samples).toHaveLength(samples);
 		});
 	}
 });

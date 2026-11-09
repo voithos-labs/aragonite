@@ -299,7 +299,10 @@ describe('the route list', () => {
 
 	// A keystroke's block can show text its re-read moved, and a kept id deeper down hides that.
 	it('only the byte splice keeps nodes down a changed child', () => {
-		expect(callers('keepUnchangedDeep')).toEqual(['src/lib/tree-operations/byte-splice.ts']);
+		expect(callers('keepUnchangedDeep').sort()).toEqual([
+			'src/lib/tree-operations/byte-splice.ts',
+			'src/lib/tree-operations/container-window.ts'
+		]);
 	});
 
 	it('every file that keeps a re-read’s nodes is a route with rows above', () => {

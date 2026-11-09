@@ -1885,6 +1885,8 @@ const LEAF_RANGE_RULES: FileRule[] = [
 			'src/lib/core/inline/live-edit/live-join.ts':
 				'the join cleanup, which the range replace calls',
 			'src/lib/tree-operations/structural-suffix.ts': "a split's two halves, which remove nothing",
+			'src/lib/tree-operations/container-window.ts':
+				'a container’s bytes over a run of its whole children, never a leaf’s',
 			'src/lib/components/blocks/text/construct-edge-delete.ts':
 				'the edge delete, which reads its own candidate back where it is stored',
 			'src/lib/components/blocks/text/text-keydown.ts': 'a tab inserted, which deletes nothing',

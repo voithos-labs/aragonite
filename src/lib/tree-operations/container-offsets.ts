@@ -2,7 +2,8 @@
  * Maps between a byte offset in a block's `raw` (or a whole document's bytes) and a caret position
  * in one of its leaves, and finds where a container's marker takes its space. A container's raw
  * re-prefixes its children's lines (`> `, an item's indent) or holds them between lines of its own
- * (a fence, a title tag), so the map pairs the container's lines with its children's.
+ * (a fence, a title tag), so the map pairs the container's lines with its children's: one child's
+ * alone where its span says where it sits (a quote, a table), every line where none does.
  */
 
 import type { DocumentView, NodeView } from '../core/node-views';
@@ -16,6 +17,8 @@ import {
 import { blockFacts } from '../schema/block-facts';
 import { isGridKind, tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf, rowIsOpenerLine } from '../schema/reserved-chrome';
+import { spanHolding } from '../schema/child-spans';
+import { recordLinesPaired } from '../perf/instruments';
 
 export interface LeafPosition {
 	/** Child indices from the node down to the leaf; empty when the node is the leaf. */
@@ -122,13 +125,7 @@ export function containerLines(map: ContainerMap): ContainerLine[] | null {
 
 /** Where child `index` of `node` starts its blank lines, in `node`'s raw. */
 export function childTriviaStart(map: ContainerMap, node: NodeView, index: number): number {
-	return map.toRaw(map.childStart(index) - node.children![index].leadingTrivia.length);
-}
-
-/** Where each child of the container `node` starts in its raw, past the child's blank lines. */
-export function childRawStarts(node: NodeView): number[] {
-	const map = bodyMap(node);
-	return (node.children ?? []).map((_, i) => map.toRaw(map.childStart(i)));
+	return map.rawOf(index, -node.children![index].leadingTrivia.length);
 }
 
 // The two below keep a strip-only refusal (null past a fenced or grid container's opener line)
@@ -187,18 +184,9 @@ function leafIn(
 		return { path: [0], offset: Math.max(rawOffset, 0) };
 	}
 	if (stripOnly && tryGetBlockKindDescriptor(node.kind)?.containerContract !== 'strip') return null;
-	const map = mapOf(node);
-	const inner = map.toBody(rawOffset);
-	// The first child whose text runs to `inner`, or the last.
-	let lo = 0;
-	let hi = children.length - 1;
-	while (lo < hi) {
-		const mid = (lo + hi) >> 1;
-		if (inner <= map.childStart(mid) + displayLength(children[mid].raw)) hi = mid;
-		else lo = mid + 1;
-	}
-	const leaf = leafIn(children[lo], Math.max(inner - map.childStart(lo), 0), stripOnly, mapOf);
-	return leaf && { path: [lo, ...leaf.path], offset: leaf.offset };
+	const { index, offset } = mapOf(node).childAt(rawOffset);
+	const leaf = leafIn(children[index], offset, stripOnly, mapOf);
+	return leaf && { path: [index, ...leaf.path], offset: leaf.offset };
 }
 
 function byteIn(
@@ -215,38 +203,69 @@ function byteIn(
 	if (!descriptor?.isContainer || !child) return null;
 	if (stripOnly && descriptor.containerContract !== 'strip') return null;
 	const inChild = byteIn(child, path.slice(1), offset, stripOnly, mapOf);
-	if (inChild === null) return null;
-	const map = mapOf(node);
-	return map.toRaw(map.childStart(path[0]) + inChild);
+	return inChild === null ? null : mapOf(node).rawOf(path[0], inChild);
 }
 
 // ── Line mapping ─────────────────────────────────────────────────────────────
 
-/** A container's body (its children's bytes as they read on their own) against its raw. */
+/** A container's children against its raw. */
 export interface ContainerMap {
-	/** Where child `index`'s own bytes start in the body, past its blank lines. */
-	childStart(index: number): number;
+	/** The child whose text byte `rawOffset` of the raw goes to, and the offset into its raw. */
+	childAt(rawOffset: number): { index: number; offset: number };
+	/** Where offset `offset` of child `index`'s raw sits in the container's; a negative offset counts
+	 *  back into the child's blank lines. */
+	rawOf(index: number, offset: number): number;
 	/** The container's raw lines, and the body line and text column each carries; a table row,
 	 *  whose cells share one line, has neither. */
 	rawLines?: ParsedLine[];
 	paired?: ({ line: number; at: number } | null)[];
+}
+
+/** Offsets in the body, the children's bytes as they read on their own, joined. */
+interface BodyMap {
+	/** Where child `index`'s own bytes start in the body, past its blank lines. */
+	childStart(index: number): number;
 	toBody(rawOffset: number): number;
 	toRaw(bodyOffset: number): number;
 }
 
 function bodyMap(node: NodeView): ContainerMap {
 	const children = node.children ?? [];
-	const grid = isGridKind(node.kind);
-	return grid && children.every((child) => !child.children) ? cellMap(node) : lineMap(node);
+	if (isGridKind(node.kind) && children.every((child) => !child.children)) {
+		return throughBody(children, cellStarts(node));
+	}
+	const titled = reservedChromeKindOf(node.kind) !== undefined;
+	const verbatim = !titled && verbatimStarts(node);
+	if (verbatim) return identityMap(node, verbatim);
+	return !titled && spansHold(node) ? spannedMap(node) : lineMap(node, titled);
+}
+
+/** The questions a container map answers, asked through its body. */
+function throughBody(
+	children: readonly NodeView[],
+	body: BodyMap
+): Pick<ContainerMap, 'childAt' | 'rawOf'> {
+	return {
+		childAt(rawOffset) {
+			const inner = body.toBody(rawOffset);
+			// The first child whose text runs to `inner`, or the last.
+			let lo = 0;
+			let hi = children.length - 1;
+			while (lo < hi) {
+				const mid = (lo + hi) >> 1;
+				if (inner <= body.childStart(mid) + displayLength(children[mid].raw)) hi = mid;
+				else lo = mid + 1;
+			}
+			return { index: lo, offset: Math.max(inner - body.childStart(lo), 0) };
+		},
+		rawOf: (index, offset) => body.toRaw(body.childStart(index) + offset)
+	};
 }
 
 /** A container whose children sit on its lines behind markers, or verbatim between lines of its
- *  own. A title row goes first in the body, ahead of the inner prefix. */
-function lineMap(node: NodeView): ContainerMap {
+ *  own, every line paired. A title row goes first in the body, ahead of the inner prefix. */
+function lineMap(node: NodeView, titled: boolean): ContainerMap {
 	const children = node.children ?? [];
-	const titled = reservedChromeKindOf(node.kind) !== undefined;
-	const verbatim = !titled && verbatimStarts(node);
-	if (verbatim) return identityMap(node.raw, verbatim);
 	const childStarts: number[] = [];
 	let body = '';
 	// Read off each piece as it goes on, since testing the growing body rescans it once per child.
@@ -267,10 +286,86 @@ function lineMap(node: NodeView): ContainerMap {
 	append(node.innerPrefix ?? '');
 	for (let i = titled ? 1 : 0; i < children.length; i++) add(i);
 	append(node.innerSuffix ?? '');
+	const pairing = pairLines(node.raw, body, (index) => childStarts[index]);
+	return { ...throughBody(children, pairing), rawLines: pairing.rawLines, paired: pairing.paired };
+}
 
-	const raw = splitLines(node.raw);
+/** Whether a quote's or a table's spans can be asked: one per child. A span that doesn't hold its
+ *  child is found out when that child is asked about. */
+function spansHold(node: NodeView): boolean {
+	const lines = blockFacts(node.kind).lines;
+	if (lines !== 'every-line' && lines !== 'rows') return false;
+	return node.childSpans?.length === (node.children?.length ?? 0) * 2;
+}
+
+/** A quote or a table found through its child spans: a question about one child pairs that child's
+ *  lines alone, and every line is paired only for a byte no span holds, or a stale span. */
+function spannedMap(node: NodeView): ContainerMap {
+	const children = node.children!;
+	const spans = node.childSpans!;
+	let whole: ContainerMap | undefined;
+	const all = () => (whole ??= lineMap(node, false));
+	const regions = new Map<number, BodyMap | null>();
+	const region = (index: number) => {
+		if (!regions.has(index)) regions.set(index, regionMap(node, index));
+		return regions.get(index)!;
+	};
+	const rawOf = (index: number, offset: number): number => {
+		const child = children[index];
+		const map = region(index);
+		const at = child.leadingTrivia.length + offset;
+		const length = child.leadingTrivia.length + child.raw.length;
+		// The end of a child whose bytes end a line is where the next child's lines start.
+		const ends = at === length && (child.raw || child.leadingTrivia).endsWith('\n');
+		if (!map || at < 0 || at > length || (ends && index === children.length - 1)) {
+			return all().rawOf(index, offset);
+		}
+		if (ends) return rawOf(index + 1, -children[index + 1].leadingTrivia.length);
+		return spans[index * 2] + map.toRaw(at);
+	};
+	return {
+		childAt(rawOffset) {
+			const index = spanHolding(spans, rawOffset);
+			const map = index < 0 ? null : region(index);
+			if (!map) return all().childAt(rawOffset);
+			const inner = map.toBody(rawOffset - spans[index * 2]);
+			return { index, offset: Math.max(inner - map.childStart(0), 0) };
+		},
+		rawOf,
+		get rawLines() {
+			return all().rawLines;
+		},
+		get paired() {
+			return all().paired;
+		}
+	};
+}
+
+/** Child `index`'s lines paired against the region its span gives it; null where they don't pair
+ *  one for one, a span that doesn't say where the child sits. */
+function regionMap(node: NodeView, index: number): BodyMap | null {
+	const child = node.children![index];
+	const spans = node.childSpans!;
+	const region = node.raw.slice(spans[index * 2], spans[index * 2 + 1]);
+	const trivia = child.leadingTrivia.length;
+	const pairing = pairLines(region, child.leadingTrivia + child.raw, () => trivia);
+	return pairing.oneForOne ? pairing : null;
+}
+
+/** `rawText`'s lines paired in order with `body`'s: each raw line with the body line it carries and
+ *  the column that line's text starts at, or with none. */
+function pairLines(
+	rawText: string,
+	body: string,
+	childStart: (index: number) => number
+): BodyMap & {
+	rawLines: ParsedLine[];
+	paired: ({ line: number; at: number } | null)[];
+	/** Every raw line carries the body line of its own index, and every body line is carried. */
+	oneForOne: boolean;
+} {
+	const raw = splitLines(rawText);
 	const bodyLines = splitLines(body);
-	// Per raw line, the body line it carries and the column that line's text starts at.
 	const paired: ({ line: number; at: number } | null)[] = [];
 	const carrier: number[] = [];
 	let next = 0;
@@ -279,10 +374,12 @@ function lineMap(node: NodeView): ContainerMap {
 		paired.push(at === null ? null : { line: next, at });
 		if (at !== null) carrier[next++] = r;
 	}
+	recordLinesPaired(raw.length);
 	return {
-		childStart: (index) => childStarts[index],
+		childStart,
 		rawLines: raw,
 		paired,
+		oneForOne: next === raw.length && next === bodyLines.length,
 		toBody(rawOffset) {
 			const r = lineHolding(raw, rawOffset);
 			const pair = paired[r];
@@ -345,26 +442,26 @@ function summedStarts(children: readonly NodeView[], raw: string): number[] | nu
 	return at === raw.length ? starts : null;
 }
 
+const same = (offset: number) => offset;
+
 /** A container that adds no bytes to its children's (a list): every offset is the same in both,
  *  and its lines are split only when a caller asks for them. */
-function identityMap(raw: string, childStart: (index: number) => number): ContainerMap {
+function identityMap(node: NodeView, childStart: (index: number) => number): ContainerMap {
 	let lines: ParsedLine[] | undefined;
-	const rawLines = () => (lines ??= splitLines(raw));
+	const rawLines = () => (lines ??= splitLines(node.raw));
 	return {
-		childStart,
+		...throughBody(node.children ?? [], { childStart, toBody: same, toRaw: same }),
 		get rawLines() {
 			return rawLines();
 		},
 		get paired() {
 			return rawLines().map((_, line) => ({ line, at: 0 }));
-		},
-		toBody: (rawOffset) => rawOffset,
-		toRaw: (bodyOffset) => bodyOffset
+		}
 	};
 }
 
 /** A table row: its cells lie in order inside its one line, the bytes taken as they stand. */
-function cellMap(node: NodeView): ContainerMap {
+function cellStarts(node: NodeView): BodyMap {
 	let cursor = 0;
 	const childStarts = (node.children ?? []).map((cell) => {
 		const found = cell.raw === '' ? -1 : node.raw.indexOf(cell.raw, cursor);
@@ -374,11 +471,7 @@ function cellMap(node: NodeView): ContainerMap {
 		cursor = start + cell.raw.length;
 		return start;
 	});
-	return {
-		childStart: (index) => childStarts[index],
-		toBody: (rawOffset) => rawOffset,
-		toRaw: (bodyOffset) => bodyOffset
-	};
+	return { childStart: (index) => childStarts[index], toBody: same, toRaw: same };
 }
 
 /** A marker run alone on a line: quote markers, a list marker and its task box, a footnote label. */

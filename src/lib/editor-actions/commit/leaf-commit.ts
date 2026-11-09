@@ -72,8 +72,8 @@ export function createLeafCommit(
 				pairsStay(blockNodeAt(deps.doc, leafPath)?.raw ?? '', write.text, deps.reading.grammar)
 					? { from: leafPath[0], to: leafPath[0] + 1 }
 					: null,
-			// Inside a container the caret's byte costs a walk over its lines, so the record counts every
-			// place the typed text could have gone instead.
+			// Inside a container the caret's byte can cost a walk over its lines, so the record counts
+			// every place the typed text could have gone instead.
 			typedEnd: () => {
 				if (depth > 1 || settled.change.op !== 'noop') return null;
 				const top = deps.doc.children[index];
