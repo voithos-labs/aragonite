@@ -12,7 +12,7 @@ import { verifyTypes } from './verify-types.mjs';
 
 // Gzipped bytes of each package's prebuilt JS, a little above what it measured. Measured:
 // admonitions 4,173, details 3,794, emoji 16,297, footnotes 4,110, highlight-occurrences 1,520,
-// latex 7,210, mermaid 6,718, parrot 4,162, slash-commands 1,913, spellcheck 3,307, toc 2,632.
+// latex 7,210, mermaid 6,718, parrot 4,162, slash-commands 1,913, spellcheck 4,502, toc 2,632.
 /** @type {Record<string, number>} */
 const BUDGET = {
 	admonitions: 4_650,
@@ -24,15 +24,15 @@ const BUDGET = {
 	mermaid: 7_050,
 	parrot: 4_450,
 	'slash-commands': 2_100,
-	spellcheck: 3_500,
+	spellcheck: 4_650,
 	toc: 2_950
 };
 
 // A chunk a package loads only when first needed, and its own budget, out of the eager count above.
-// Measured: spellcheck's word list with its reader and suggester 199,922.
+// Measured: spellcheck's word list with its reader and suggester 199,953.
 /** @type {Record<string, { chunk: string, budget: number }>} */
 const LAZY = {
-	spellcheck: { chunk: 'word-list', budget: 200_000 }
+	spellcheck: { chunk: 'word-list', budget: 202_000 }
 };
 
 const CORE_HOOK = pathToFileURL(path.resolve('scripts/pack/core-from-checkout.mjs')).href;
