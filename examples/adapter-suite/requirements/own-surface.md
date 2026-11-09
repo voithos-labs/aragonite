@@ -5,7 +5,7 @@ component (`reactBlock` or `vueBlock`). It's a `fencedBlock` with `edit: 'box'`,
 no editable text of the editor's: it's focused as a whole, like the bundled diagram. A double click
 swaps in a textarea of the component's own, whose keys are its own. Leaving the textarea writes its
 text back into the fence through `edit().replace` at the note's `from` and `to`; Escape drops the
-edit and focuses the note's element, which hands focus back to the editor. The note
+edit and calls `ctx.focusWhole()`, which gives the note whole focus back. The note
 sits between the chip paragraph and `after the blocks`. Every scenario fails on any console error,
 page error or console warning.
 

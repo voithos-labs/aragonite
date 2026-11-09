@@ -28,6 +28,7 @@ function onKeydown(e: KeyboardEvent): void {
 	const field = e.currentTarget as HTMLTextAreaElement;
 	if (e.key === 'Escape') {
 		dropped = true;
+		props.ctx.focusWhole();
 		editing.value = false;
 	} else if (e.key === 'ArrowUp' && !field.value.slice(0, field.selectionStart).includes('\n')) {
 		e.preventDefault();

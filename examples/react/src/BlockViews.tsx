@@ -106,6 +106,7 @@ function Note({ block, ctx }: BlockProps<never, BoxDrawContext>) {
 		const field = e.currentTarget;
 		if (e.key === 'Escape') {
 			dropped.current = true;
+			ctx.focusWhole();
 			setEditing(false);
 		} else if (e.key === 'ArrowUp' && !field.value.slice(0, field.selectionStart).includes('\n')) {
 			e.preventDefault();

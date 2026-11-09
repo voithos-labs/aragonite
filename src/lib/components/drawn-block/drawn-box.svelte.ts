@@ -57,11 +57,15 @@ export function createDrawnBox(deps: DrawnBoxDeps) {
 		composition
 	});
 
+	function focusWhole(): void {
+		const el = focusEl();
+		if (el) inputProxy.focus(el);
+	}
+
 	function enter(at: Parameters<NonNullable<Drawn<unknown>['focus']>['enter']>[0]): void {
 		const own = deps.drawn()?.focus;
-		const el = focusEl();
 		if (own) own.enter(at);
-		else if (el) inputProxy.focus(el);
+		else focusWhole();
 	}
 
 	// The editor's start and end values name an edge; any other offset is one `offset()` gave.
@@ -145,5 +149,5 @@ export function createDrawnBox(deps: DrawnBoxDeps) {
 		}
 	}
 
-	return { blockApi, leave };
+	return { blockApi, leave, focusWhole };
 }

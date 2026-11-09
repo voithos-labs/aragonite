@@ -278,6 +278,34 @@ describe('a box (edit: box)', () => {
 		expect(document.activeElement).toBe(surfaceAt(editor, [0]));
 	});
 
+	it('takes whole focus back from a field of its own through ctx.focusWhole', async () => {
+		const plugin = notes({
+			edit: 'box',
+			draw: (_block, ctx: BoxDrawContext) => {
+				const dom = document.createElement('div');
+				const field = document.createElement('textarea');
+				field.addEventListener('keydown', (e) => {
+					if (e.key === 'Escape') ctx.focusWhole();
+				});
+				dom.append(field);
+				return { dom };
+			}
+		});
+		const editor = mountEditor({ source: SOURCE, plugins: [plugin] });
+		await editor.settle();
+		const field = blockHostAt(editor, NOTE).querySelector('textarea')!;
+		field.focus();
+		await pressKey(field, { key: 'Escape' });
+		await editor.settle();
+		const focused = document.activeElement as HTMLElement;
+		expect(focused).not.toBe(field);
+		expect(blockHostAt(editor, NOTE).contains(focused)).toBe(true);
+
+		await pressKey(focused, { key: 'Backspace' });
+		await editor.settle();
+		expect(editor.source()).not.toContain('%%note');
+	});
+
 	// Miss-analysis: every box with a field of its own declared `focus`, so none typed into one without.
 	it('leaves a key typed in a field of its own to the field, without `focus`', async () => {
 		const plugin = notes({

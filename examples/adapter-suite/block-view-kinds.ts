@@ -103,7 +103,7 @@ export function blockViewsPlugins(views: BlockViews) {
 					sample: '```note\nhello\n```',
 					insert,
 					edit: 'box',
-					draw: (block, ctx) => focusBack(views.note(block, ctx))
+					draw: views.note
 				}),
 				lineBlock<never>({
 					name: 'dice',
@@ -129,16 +129,6 @@ export function blockViewsPlugins(views: BlockViews) {
 		}
 	});
 	return [blocks, inline];
-}
-
-// Escape in the note's edit box hands focus to the note's element, which gives it to the editor:
-// the note is focused whole again.
-function focusBack(drawn: Drawn<never, BoxDrawContext>): Drawn<never, BoxDrawContext> {
-	drawn.dom.tabIndex = -1;
-	drawn.dom.addEventListener('keydown', (e) => {
-		if (e.key === 'Escape') drawn.dom.focus();
-	});
-	return drawn;
 }
 
 function registerChip(view: PluginView<InlineWidgetComponentProps>): void {

@@ -47,6 +47,8 @@ export interface BoxDrawContext extends DrawContext {
 	/** Hands the caret to the neighbour past `edge`; `x`, your caret's viewport x, carries on as the
 	 *  column an up or down arrow keeps. Without `x` it lands at the neighbour's near end. */
 	leave(edge: 'start' | 'end', x?: number): void;
+	/** Gives the box whole-block focus back from a field of your own (Escape out of an edit box). */
+	focusWhole(): void;
 }
 
 /** What a drawing hands back. */

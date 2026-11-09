@@ -128,7 +128,7 @@ function count(what: keyof DrawnLog, name: string): void {
 }
 
 // A monospace field, so a column and an x convert by one character width. Leaving it writes its
-// text back as the fence's body, at the block's bytes as they are then.
+// text back as the fence's body, at the block's bytes as they are then; Escape focuses it whole.
 function drawField(block: Block<never>, ctx: BoxDrawContext) {
 	const dom = document.createElement('div');
 	dom.className = 'drawn-field';
@@ -171,7 +171,8 @@ function drawField(block: Block<never>, ctx: BoxDrawContext) {
 			e.preventDefault();
 			ctx.leave(edge, x);
 		};
-		if (e.key === 'ArrowUp' && caretLine() === 0) leave('start', caretX());
+		if (e.key === 'Escape') ctx.focusWhole();
+		else if (e.key === 'ArrowUp' && caretLine() === 0) leave('start', caretX());
 		else if (e.key === 'ArrowDown' && caretLine() === last) leave('end', caretX());
 		else if (e.key === 'ArrowLeft' && at === 0) leave('start');
 		else if (e.key === 'ArrowRight' && at === field.value.length) leave('end');

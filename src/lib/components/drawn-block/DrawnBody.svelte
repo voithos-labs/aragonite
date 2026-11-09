@@ -183,7 +183,8 @@
 		leave(edge, x) {
 			if (!box || !target) return;
 			box.leave(edge, x === undefined ? null : editorXOf(target, x));
-		}
+		},
+		focusWhole: () => box?.focusWhole()
 	};
 
 	const read = () =>

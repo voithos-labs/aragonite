@@ -161,6 +161,35 @@ test.describe('a drawn box writing its own bytes', () => {
 	});
 });
 
+// Two boxes back to back: no gap caret opens between them, so whole focus is the way in.
+const FENCE = '```';
+const TWO_FIELDS = `above\n\n${FENCE}field\none\n${FENCE}\n\n${FENCE}field\ntwo\n${FENCE}\n\nbelow\n`;
+
+test.describe('two boxes with editing surfaces of their own, back to back', () => {
+	const source = (page: Page) => page.evaluate(() => (window as any).__test.getSource() as string);
+
+	test('Escape in the first field focuses its box whole, where Enter opens a paragraph below', async ({
+		page
+	}) => {
+		await new PluginsPage(page).gotoPlugins('drawn');
+		await page.evaluate((md) => (window as any).__test.setSource(md), TWO_FIELDS);
+		const fields = page.locator('.drawn-field textarea');
+		await expect(fields).toHaveCount(2);
+		await clickInPlace(fields.first());
+		await page.keyboard.press('Escape');
+		await expect(fields.first()).not.toBeFocused();
+		expect(await activeBlockPath(page)).toEqual([FIELD]);
+
+		await page.keyboard.press('Enter');
+		await page.keyboard.type('between');
+		await expect
+			.poll(() => source(page))
+			.toBe(
+				`above\n\n${FENCE}field\none\n${FENCE}\n\nbetween\n\n${FENCE}field\ntwo\n${FENCE}\n\nbelow\n`
+			);
+	});
+});
+
 test.describe('a fence drawn as a preview until the caret comes in', () => {
 	const source = (page: Page) => page.evaluate(() => (window as any).__test.getSource() as string);
 

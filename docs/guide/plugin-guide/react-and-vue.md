@@ -68,7 +68,7 @@ On a memo every keystroke commits, so `block.text` changes, and the memo renders
 | any | `ctx.editor` (your plugin's `EditorContext` in the editor drawing the block, the same object the [per-editor recipes](per-editor.md#one-process-many-editors) use), `ctx.mode`, `ctx.theme`, `ctx.focused` (the caret is in the block) |
 | a line or fence with text | `ctx.source`, the element `<Slot of="source" />` places, and `ctx.typed`, the text as typed and not yet written, while a click-to-edit block is open |
 | a container | `ctx.children`, the element `<Slot of="children" />` places |
-| a box (`edit: 'box'`) | `ctx.leave(edge, x?)`, to hand the caret to the block above or below |
+| a box (`edit: 'box'`) | `ctx.leave(edge, x?)`, to hand the caret to the block above or below, and `ctx.focusWhole()`, to focus the box whole again from a field of your own |
 
 ## A click-to-edit block
 
@@ -214,7 +214,7 @@ Arrow down onto the note and it's focused whole, double-click and you're typing 
 
 - **Write with `block.from` and `block.to`.** They're read when you ask, so they're right even after an edit above moved the note, which a value you saved at render time wouldn't be.
 - **DOM focus goes to a hidden editing host**, not to your `<pre>`. The editor puts it in the block's element, next to what you render, since that's where AltGr and IME input arrive. So style focus with `:focus-within`.
-- **Keys in your textarea are the textarea's.** The editor's chords still reach it (Ctrl+Z, say) unless your component's `keep` takes them. To leave by arrow key on the first or last line, call `ctx.leave('start')` or `ctx.leave('end')` and `preventDefault`.
+- **Keys in your textarea are the textarea's.** The editor's chords still reach it (Ctrl+Z, say) unless your component's `keep` takes them. To leave by arrow key on the first or last line, call `ctx.leave('start')` or `ctx.leave('end')` and `preventDefault`. To hand the note back to the editor focused whole (Escape out of the edit, say), call `ctx.focusWhole()`.
 
 ## A block you draw whole
 

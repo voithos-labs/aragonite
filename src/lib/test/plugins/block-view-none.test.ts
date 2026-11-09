@@ -14,6 +14,7 @@ import {
 	type MountedEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { pressKey } from '#lib/test/harness/settle.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import {
 	defineBlockView,
 	type BlockView,
@@ -234,6 +235,20 @@ describe('a hand-built DOM view', () => {
 				.map(([key]) => key)
 				.sort()
 		);
+	});
+
+	it('fails the dev check when it sets `display: contents` on the element it was given', async () => {
+		const editor = mountBadge(
+			defineBlockView({
+				surface: 'none',
+				mount(target) {
+					target.style.display = 'contents';
+					return {};
+				}
+			})
+		);
+		await editor.settle();
+		expect(takeDevWarns().map((w) => w.tag)).toContain('invariant:dom-view-content');
 	});
 });
 
