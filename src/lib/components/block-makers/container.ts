@@ -1,7 +1,8 @@
 /** `container`: a plugin block type whose content is other blocks. */
 import type { BlockType } from '../../schema/plugin-unit';
 import { madeBlockType } from '../../schema/block-type';
-import { drawnView, type Drawing } from '../../schema/drawing';
+import type { Drawing } from '../../schema/drawing';
+import { drawnView } from '../drawn-block/drawn-view';
 import { checkLocalName, completerOf, priorityBefore } from '../../schema/block-shapes';
 import {
 	ambientMarker,

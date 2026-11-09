@@ -34,6 +34,12 @@ export function blockViewForm(view: BlockView): BlockViewForm {
 	return (view as unknown as Record<typeof viewForm, BlockViewForm>)[viewForm];
 }
 
+/** The component that hosts a DOM or drawn view, which the view carries so the first load never
+ *  holds it. */
+export function viewHost(view: BlockView): unknown {
+	return (view as unknown as { host: unknown }).host;
+}
+
 // ── DOM block views ─────────────────────────────────────────────────────────
 
 /** What the editor builds around a DOM view: nothing, or child blocks. */
@@ -185,9 +191,4 @@ export type HandBuiltBlock = Pick<BlockComponent, HandBuiltMember>;
 /** The spec behind a DOM view. */
 export function domViewSpec(view: BlockView): BlockViewSpec {
 	return (view as unknown as { spec: BlockViewSpec }).spec;
-}
-
-/** The component that hosts a DOM view, which the view carries so the first load never holds it. */
-export function domViewHost(view: BlockView): unknown {
-	return (view as unknown as { host: unknown }).host;
 }

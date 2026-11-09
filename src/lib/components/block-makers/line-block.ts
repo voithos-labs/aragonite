@@ -1,7 +1,7 @@
 /** `lineBlock`: a plugin block type that's exactly one line. */
 import type { BlockType } from '../../schema/plugin-unit';
 import { madeBlockType } from '../../schema/block-type';
-import { drawnView } from '../../schema/drawing';
+import { drawnView } from '../drawn-block/drawn-view';
 import {
 	checkLocalName,
 	completerOf,

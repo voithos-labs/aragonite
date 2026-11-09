@@ -1,7 +1,7 @@
 /** `fencedBlock`: a plugin block type opened by one line and closed by a later one. */
 import type { BlockType } from '../../schema/plugin-unit';
 import { madeBlockType } from '../../schema/block-type';
-import { drawnView } from '../../schema/drawing';
+import { drawnView } from '../drawn-block/drawn-view';
 import { OPENER_PRIORITIES } from '../../schema/opener-priorities';
 import { fenceShape } from '../../schema/fence-shape';
 import {

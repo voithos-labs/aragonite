@@ -7,7 +7,7 @@ import type { LineEnding } from '../core/lines';
 import type { NodeView } from '../core/node-views';
 import type { PresentationMode } from '../presentation-mode';
 import type { Block } from './doc-view';
-import { asBlockView, type BlockView } from './block-view';
+import type { BlockView } from './block-view';
 import type { BlockType, Editor } from './plugin-unit';
 
 // ── Public API ───────────────────────────────────────────────────────────────
@@ -93,11 +93,6 @@ export interface Drawing {
 	): { text: string; caret: number } | null;
 	/** The read-only marker shown ahead of a container's first child (a footnote's `[^1]: `). */
 	ambientPrefix?(node: NodeView): string;
-}
-
-/** A view the editor's draw host renders. */
-export function drawnView(drawing: Drawing): BlockView {
-	return asBlockView({ drawing }, 'drawn');
 }
 
 export function drawingOf(view: BlockView): Drawing {
