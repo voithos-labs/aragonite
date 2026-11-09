@@ -23,6 +23,19 @@ export function writeMarkerSpace(container: CstNode, at: number): void {
 	dropChildSpans(container);
 }
 
+/** The child whose span holds byte `at` of its container's, or -1 for a byte between children (a
+ *  table's delimiter line, a quote's trailing blank lines). */
+export function spanHolding(spans: Uint32Array, at: number): number {
+	let lo = 0;
+	let hi = spans.length / 2 - 1;
+	while (lo < hi) {
+		const mid = (lo + hi + 1) >> 1;
+		if (spans[mid * 2] <= at) lo = mid;
+		else hi = mid - 1;
+	}
+	return spans[lo * 2] <= at && at < spans[lo * 2 + 1] ? lo : -1;
+}
+
 /** Drop the spans a change to the children invalidated; the next full rebuild recomputes them. */
 export function dropChildSpans(node: CstNode): void {
 	// Checked before writing: an unconditional write would add the field to every node passed in.

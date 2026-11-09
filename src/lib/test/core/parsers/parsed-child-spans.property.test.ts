@@ -10,33 +10,7 @@ import { quoteLines } from '#lib/core/parsers/blockquote.js';
 import { INNER_LINE } from '#lib/core/strip-lines.js';
 import { rebuildBlockquoteRaw, rebuildTableRaw } from '#lib/schema/container-rebuilders.js';
 import { freshOrFixedSeed } from '../../invariants/arbitraries/property-seed';
-
-const quoteLine = fc.constantFrom(
-	'> text',
-	'> two words',
-	'>',
-	'> ',
-	'> > nested',
-	'> - item',
-	'>     code',
-	'> ```',
-	'lazy line',
-	'> wörld ☃'
-);
-const tableRow = fc.constantFrom('| a | b |', '| one |', '| x | y | z |', '|  |  |', 'a | b');
-
-const arbQuote = fc
-	.tuple(fc.array(quoteLine, { minLength: 1, maxLength: 14 }), fc.constantFrom('\n', '\r\n'))
-	.chain(([lines, ending]) =>
-		fc.boolean().map((closed) => '> first' + ending + lines.join(ending) + (closed ? ending : ''))
-	);
-
-const arbTable = fc
-	.tuple(fc.array(tableRow, { maxLength: 12 }), fc.constantFrom('\n', '\r\n'), fc.boolean())
-	.map(
-		([rows, ending, closed]) =>
-			['| h | i |', '| --- | :-: |', ...rows].join(ending) + (closed ? ending : '')
-	);
+import { arbQuoteDoc, arbTableDoc } from '../../invariants/arbitraries/spanned';
 
 const isLazy = (line: { text: string }) => quoteLines.read(line.text, INNER_LINE)?.lazy === true;
 
@@ -94,7 +68,7 @@ describe('a parsed quote and table keep their child spans', () => {
 	});
 
 	it('over generated quotes and tables', () => {
-		fc.assert(fc.property(fc.oneof(arbQuote, arbTable), expectSpansHold), {
+		fc.assert(fc.property(fc.oneof(arbQuoteDoc, arbTableDoc), expectSpansHold), {
 			numRuns: 300,
 			seed: freshOrFixedSeed(20261108)
 		});

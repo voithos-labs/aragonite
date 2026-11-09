@@ -12,6 +12,7 @@ import { splitLines } from '../core/lines';
 import { countsAfterRewrite } from '../core/parsers/list';
 import { waitingReading, type UnfinishedReading } from '../schema/block-openers';
 import { blockFacts } from '../schema/block-facts';
+import { spanHolding } from '../schema/child-spans';
 import { assignChildIdsDeep, keepUnchangedDeep } from '../block-id';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { changedBytes, takenLines, writtenLines, type ByteChange } from './byte-changes';
@@ -45,8 +46,8 @@ export function containerWindow(
 	let first = kids.length;
 	let hi = -1;
 	for (const change of changes) {
-		const from = childAt(spans, change.from - base);
-		const to = childAt(spans, Math.max(change.to - 1, change.from) - base);
+		const from = spanHolding(spans, change.from - base);
+		const to = spanHolding(spans, Math.max(change.to - 1, change.from) - base);
 		if (from < 0 || to < 0) return null;
 		first = Math.min(first, from);
 		hi = Math.max(hi, to);
@@ -266,19 +267,6 @@ function widthsAcross(
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────
-
-/** The child whose bytes hold byte `at` of the container's, or -1 for a byte between children (a
- *  table's delimiter line, a quote's trailing blank lines). */
-function childAt(spans: Uint32Array, at: number): number {
-	let lo = 0;
-	let hi = spans.length / 2 - 1;
-	while (lo < hi) {
-		const mid = (lo + hi + 1) >> 1;
-		if (spans[mid * 2] <= at) lo = mid;
-		else hi = mid - 1;
-	}
-	return spans[lo * 2] <= at && at < spans[lo * 2 + 1] ? lo : -1;
-}
 
 /** Whether the run's old bytes read back as the children it held, so the spans said where they
  *  sit and the container's own reading agrees with the document's. */

@@ -23,6 +23,8 @@ export interface PerfSnapshot {
 	joinedChildReads: number;
 	/** Children the byte splice's closer lookup compared to find which ones its change reached. */
 	siblingsCompared: number;
+	/** Lines a byte map paired between a container's bytes and its children's, to find a leaf or a byte. */
+	linesPaired: number;
 	/** List items whose marker the marker-width counts read, the column's own cost. */
 	listMarkerReads: number;
 	parseCount: number;
@@ -98,6 +100,7 @@ function emptySnapshot(): PerfSnapshot {
 		stripLinesRead: 0,
 		joinedChildReads: 0,
 		siblingsCompared: 0,
+		linesPaired: 0,
 		listMarkerReads: 0,
 		parseCount: 0,
 		parseMsTotal: 0,
@@ -205,6 +208,11 @@ export function recordJoinedChildReads(children: number): void {
 export function recordSiblingsCompared(children: number): void {
 	if (!enabled) return;
 	counters.siblingsCompared += children;
+}
+
+export function recordLinesPaired(lines: number): void {
+	if (!enabled) return;
+	counters.linesPaired += lines;
 }
 
 export function recordListMarkerReads(items: number): void {
