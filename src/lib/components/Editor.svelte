@@ -1634,8 +1634,13 @@
 	): OpenRows {
 		const group = selectionActions.over(action, { from: range.from, to: range.to });
 		if (!group) return { isOpen: false, close() {} };
-		const point = 'bottom' in anchor ? { x: anchor.left, y: anchor.bottom } : anchor;
-		return rootMenus.openGroups([group], { x: point.x, y: point.y }, pointer);
+		// Just under a rect, clear of a mark drawn along its bottom edge.
+		const point =
+			'bottom' in anchor ? { x: anchor.left, y: anchor.bottom + 4 } : { x: anchor.x, y: anchor.y };
+		// Pinned to the block holding the range, so the rows follow it through a scroll.
+		const path = documentRead.pathAt(group.captured.range.from);
+		const block = (path && getBlockElByPath(path)) ?? editorEl ?? document.body;
+		return rootMenus.openGroup(group, point, block, pointer);
 	}
 
 	/** Turns plugins on and off in this editor, reading the document again; the history stays. */

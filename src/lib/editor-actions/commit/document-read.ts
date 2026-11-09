@@ -21,6 +21,8 @@ export interface DocumentRead {
 	blockOf(node: NodeView, path: readonly number[]): Block;
 	/** `selection` in document bytes, `from` first; null for none or a cell selection. */
 	rangeOf(selection: EditorSelection | null): { from: number; to: number } | null;
+	/** The path of the deepest block holding byte `at` of a range already in the document. */
+	pathAt(at: number): number[] | null;
 }
 
 export function createDocumentRead(deps: {
@@ -77,7 +79,8 @@ export function createDocumentRead(deps: {
 			const a = map.byteOf(selection.anchor.path, selection.anchor.offset);
 			const f = map.byteOf(selection.focus.path, selection.focus.offset);
 			return a === null || f === null ? null : { from: Math.min(a, f), to: Math.max(a, f) };
-		}
+		},
+		pathAt: (at) => layout().map.leafAt(at)?.path ?? null
 	};
 }
 

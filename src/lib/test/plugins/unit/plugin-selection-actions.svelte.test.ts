@@ -3,7 +3,7 @@
 // `openRows`, rows asked only when one opens, and a draft opened at the pick that the menu's
 // closing refuses. The toolbar's row is `decorations/selection-toolbar.spec.ts`, since jsdom
 // never places the bar.
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { definePlugin } from '#lib/schema/plugin-install.js';
 import type { ActionRow, Captured, SelectionAction } from '#lib/schema/selection-action.js';
@@ -184,6 +184,44 @@ describe('rows opened over a range', () => {
 		menu.dispatchEvent(new PointerEvent('pointerenter'));
 		menu.dispatchEvent(new PointerEvent('pointerleave'));
 		expect(seen).toEqual([true, false]);
+	});
+
+	it('open a little under a rect, named for their action', async () => {
+		const action: SelectionAction = { label: 'Word', rows: () => [{ label: 'W', run: () => {} }] };
+		const m = mountEditor({ source: 'abc def ghi\n', plugins: [withActions(action)] });
+		await m.settle();
+		m.instance.openRows(action, { from: 4, to: 7 }, new DOMRect(10, 20, 30, 16));
+		await m.settle();
+		const menu = document.querySelector<HTMLElement>('.block-menu')!;
+		expect([menu.style.left, menu.style.top, menu.getAttribute('aria-label')]).toEqual([
+			'10px',
+			'40px',
+			'Word'
+		]);
+	});
+
+	it('follow the block holding their range through a scroll', async () => {
+		const action: SelectionAction = { label: 'Word', rows: () => [{ label: 'W', run: () => {} }] };
+		const m = mountEditor({ source: 'abc\n\ndef ghi\n', plugins: [withActions(action)] });
+		await m.settle();
+		// Only the second paragraph moves when the page scrolls.
+		let scrolled = 0;
+		const rect = vi
+			.spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+			.mockImplementation(function (this: HTMLElement) {
+				const top = this.closest(`[data-block-path='[1]']`) ? 100 - scrolled : 0;
+				return new DOMRect(0, top, 200, 20);
+			});
+		try {
+			m.instance.openRows(action, { from: 5, to: 8 }, { x: 10, y: 120 });
+			await m.settle();
+			scrolled = 60;
+			window.dispatchEvent(new Event('scroll'));
+			flushSync();
+			expect(document.querySelector<HTMLElement>('.block-menu')!.style.top).toBe('60px');
+		} finally {
+			rect.mockRestore();
+		}
 	});
 });
 

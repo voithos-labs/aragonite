@@ -105,8 +105,8 @@ export interface Editor {
 	/** Types a caret menu's trigger and `query` at the caret and opens it there, even where a typed
 	 *  trigger wouldn't; false, writing nothing, away from prose or for a menu not listed here. */
 	openMenu<R>(menu: CaretMenu<R>, query?: string): boolean;
-	/** Opens the editor's menu with an action's rows over `range` (captured as the action says) at
-	 *  `anchor`, taking no focus; any edit, Escape or a press elsewhere closes it. */
+	/** Opens an action's rows over `range` just under `anchor`'s rect (or at its point), following the
+	 *  range through a scroll, taking no focus; any edit, Escape or a press elsewhere closes it. */
 	openRows(
 		action: SelectionAction,
 		range: { readonly from: number; readonly to: number },

@@ -95,11 +95,12 @@ export interface RootMenusDeps {
 
 export interface RootMenus {
 	onRootContextMenu(event: MouseEvent): void;
-	/** Opens the editor's menu with the groups' rows at `point`; the handle reads whether it's
-	 *  still open. */
-	openGroups(
-		groups: readonly ActionGroup[],
+	/** Opens the editor's menu with one action's rows at `point`, following `anchorEl` through a
+	 *  scroll; the handle reads whether it's still open. */
+	openGroup(
+		group: ActionGroup,
 		point: Point,
+		anchorEl: Element,
 		pointer?: (inside: boolean) => void
 	): OpenRows;
 }
@@ -164,6 +165,7 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		point: Point,
 		anchor: () => Point,
 		groups: readonly ActionGroup[],
+		label: string,
 		build: (rows: ActionRows) => MenuEntry[],
 		pick: (id: string) => void,
 		pointer?: (inside: boolean) => void
@@ -177,7 +179,7 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 			...point,
 			anchor,
 			items: build(rows),
-			label: BLOCK_ACTIONS_LABEL,
+			label,
 			pick: (id) => {
 				if (rows.pick(id)) return;
 				deps.setMenu(null);
@@ -195,15 +197,17 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		};
 	}
 
-	function openGroups(
-		groups: readonly ActionGroup[],
+	function openGroup(
+		group: ActionGroup,
 		point: Point,
+		anchorEl: Element,
 		pointer?: (inside: boolean) => void
 	): OpenRows {
 		return showMenu(
 			point,
-			() => point,
-			groups,
+			anchorOn(anchorEl, point),
+			[group],
+			group.action.label,
 			(rows) => rows.entries(),
 			() => {},
 			pointer
@@ -248,7 +252,8 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 			...divided(actions.entries(false), 'before'),
 			...insert
 		];
-		showMenu(point, anchorOn(anchorEl, point), deps.actions.atSelection(), build, (id) => {
+		const anchor = anchorOn(anchorEl, point);
+		showMenu(point, anchor, deps.actions.atSelection(), BLOCK_ACTIONS_LABEL, build, (id) => {
 			if (id === EDIT_LINK) return deps.editLinkAtCaret();
 			if (runClipboardRow(id)) return;
 			const row = rows.find((r) => r.id === id);
@@ -333,5 +338,5 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		openBlockActions(point, host, path, node);
 	}
 
-	return { onRootContextMenu, openGroups };
+	return { onRootContextMenu, openGroup };
 }
