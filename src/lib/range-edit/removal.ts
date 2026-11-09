@@ -38,8 +38,8 @@ import {
 	type Edit
 } from './leaf-splice';
 
-/** A removal's new bytes; `gone` when the blocks at its start went whole and no text stayed there,
- *  where Backspace's caret goes to the block before (spec § 5.3). */
+/** A removal's new bytes; `gone` when the blocks at its start went whole and no text stayed, so
+ *  Backspace's caret goes to the block before (`structural-edits.md` § Structural operations). */
 export interface Removal extends Edit {
 	gone?: boolean;
 	/** The block the range started in, by its path, when the removal took it whole. */
@@ -134,8 +134,8 @@ function across(
 	if (joins && head && end && head.leaf !== end.leaf) return joinedLeaves(doc, from, to, head, end);
 	const lines = held ? wholeLines(doc, from, to) : null;
 	let tail = lines?.tail ?? source.slice(to);
-	// Where no text joins it, each end the range leaves is cut through its own block's write (spec
-	// § 5.11); a range ending in the start block's own trailing syntax splices the bytes alone.
+	// Where no text joins it, each end the range leaves is cut through its own block's write; a
+	// range ending in the start block's own trailing syntax splices the bytes alone.
 	const leaves = head !== null && to >= contentEnd(doc, head.leaf);
 	const start = leaves ? cutLeaf(doc, head.leaf, head.offset, 'after') : null;
 	const lineStart = source.lastIndexOf('\n', to - 1) + 1;
@@ -241,13 +241,13 @@ function cutLeaf(doc: Doc, leaf: LaidBlock, at: number, side: 'after' | 'before'
 	return { ...written, end: contentEnd(doc, leaf) + shift, raw: write.bytes };
 }
 
-/** Blocks taken whole go with their line (behind markers, the next line's markers go instead), and
- *  with the blank line after them where one stands before them too (spec § 5.2). Null: it stays. */
+/** Blocks taken whole go with their line (behind markers, the next line's markers) and the blank
+ *  line after them where one stands before too (`structural-edits.md` § Structural operations). */
 function wholeLines(doc: Doc, from: number, to: number) {
 	const { source } = doc;
 	const marks = lineHead(source, from);
 	const holder = containersAt(doc, from, 'start').at(-1);
-	// A container holding only the block keeps its line, emptied (C10).
+	// A container holding only the block keeps its line, emptied.
 	const shared = holder !== undefined && (nodeAt(doc, holder.path).children?.length ?? 0) > 1;
 	if ((marks !== '' && !shared) || !endsHoldingWhole(doc, from, to)) return null;
 	const ending = /^\r?\n/.exec(source.slice(to))?.[0];
@@ -261,7 +261,7 @@ function wholeLines(doc: Doc, from: number, to: number) {
 }
 
 /** The blank line opening `below` where `above` ends in one too or is the document's start, which
- *  goes where a block went or a line emptied between them (spec § 5.2); 0 for none. */
+ *  goes where a block went or a line emptied between them; 0 for none. */
 function blankBelowGoes(above: string, below: string): number {
 	const blank = /^[ \t>]*\r?\n/.exec(below)?.[0];
 	return blank && (above === '' || /(^|\n)[ \t>]*\r?\n$/.test(above)) ? blank.length : 0;
@@ -282,7 +282,7 @@ function oneEmptyLine(out: string, line: number): string {
 type LeafPoint = NonNullable<ReturnType<typeof leafAt>>;
 
 /** The end block's text joined onto the start block's through the host's join, so the joined line
- *  takes the start block's write rule, keeps its syntax and drops the end block's (spec § 5.2). */
+ *  takes the start block's write rule, keeps its syntax and drops the end block's. */
 function joinedLeaves(doc: Doc, from: number, to: number, head: LeafPoint, end: LeafPoint) {
 	const { source } = doc;
 	const write = doc.host.leaf.join(
