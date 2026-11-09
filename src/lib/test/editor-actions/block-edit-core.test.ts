@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createBlockEditCore } from '#lib/editor-actions/block-edit-core.js';
 import type { CstNode } from '#lib/core/nodes.js';
-import { CURSOR_END, CURSOR_START, type BlockComponent } from '#lib/block-component.js';
+import { CURSOR_START, type BlockComponent } from '#lib/block-component.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { makeCommitScopeStub, parseLeaf as leaf } from '#lib/test/harness/editor-actions.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
@@ -102,17 +102,18 @@ describe('block-edit core: shared structural decisions', () => {
 		expect(rep.children).toHaveLength(2);
 	});
 
-	it('empty replaceBlock removes the block whole, under the op each scope reports', async () => {
+	it('empty replaceBlock removes the block whole as a keyless delete, under each scope’s op', async () => {
 		const removedAs = async (collapse: boolean) => {
 			const { scope, commits } = makeCommitScopeStub([leaf('x\n'), leaf('y\n')], { collapse });
 			await createBlockEditCore(scope).replaceBlock(0, [], undefined, { snapshotOffset: 0 });
 			expect(commits).toHaveLength(0);
-			const [index, args] = vi.mocked(scope.removeWhole).mock.calls[0];
-			return { index, op: args.op };
+			const [index, gesture, args] = vi.mocked(scope.removeWhole).mock.calls[0];
+			return { index, gesture, op: args.op };
 		};
-		expect(await removedAs(true)).toEqual({ index: 0, op: { kind: 'delete' } });
+		expect(await removedAs(true)).toEqual({ index: 0, gesture: 'keyless', op: { kind: 'delete' } });
 		expect(await removedAs(false)).toEqual({
 			index: 0,
+			gesture: 'keyless',
 			op: { kind: 'replaceBlock', detail: { count: 0 } }
 		});
 	});
@@ -190,23 +191,20 @@ describe('block-edit core: non-editable neighbour fallback', () => {
 		return { kind, leadingTrivia: '', raw: 'inert\n' };
 	}
 
-	// The neighbour goes whole, and the caret stays in the block the key was pressed in.
-	it('merge-prev removes the non-editable previous block, landing at its own start', async () => {
+	// The neighbour goes whole, and the caret stays in the block the key was pressed in: the side
+	// past the removed block, which the core lands on as Delete's or Backspace's.
+	it('merge-prev removes the non-editable previous block, landing on the side after it', async () => {
 		const { scope } = makeCommitScopeStub([inertNode(), leaf('text\n')]);
 		await createBlockEditCore(scope).mergeWithPreviousInterior(1);
-		const [index, args] = vi.mocked(scope.removeWhole).mock.calls[0];
-		expect(index).toBe(0);
-		expect(args.op).toEqual({ kind: 'delete' });
-		expect(args.landing?.()).toEqual({ path: [0], offset: CURSOR_START });
+		const [index, gesture, args] = vi.mocked(scope.removeWhole).mock.calls[0];
+		expect([index, gesture, args.op]).toEqual([0, 'Delete', { kind: 'delete' }]);
 	});
 
-	it('merge-next removes the non-editable next block, landing at its own end', async () => {
+	it('merge-next removes the non-editable next block, landing on the side before it', async () => {
 		const { scope } = makeCommitScopeStub([leaf('text\n'), inertNode()]);
 		await createBlockEditCore(scope).mergeWithNextInterior(0);
-		const [index, args] = vi.mocked(scope.removeWhole).mock.calls[0];
-		expect(index).toBe(1);
-		expect(args.op).toEqual({ kind: 'delete' });
-		expect(args.landing?.()).toEqual({ path: [0], offset: CURSOR_END });
+		const [index, gesture, args] = vi.mocked(scope.removeWhole).mock.calls[0];
+		expect([index, gesture, args.op]).toEqual([1, 'Backspace', { kind: 'delete' }]);
 	});
 });
 

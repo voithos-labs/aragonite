@@ -9,7 +9,6 @@ import type { ContainerEditActions } from '../action-contracts';
 import { documentLineEnding } from '../core/lines';
 import { emitCommitError } from '../editor-events';
 import type { EditorActionsDeps, UndoController } from './deps';
-import { survivorAfterRemoval } from '../selection/caret-target';
 import { removeWholeBlock } from '../selection/cross-block/range-removal';
 
 export function createContainerEditActions(
@@ -23,10 +22,13 @@ export function createContainerEditActions(
 			controller.typingKeystroke(leafPath, preEditOffset, batchKey, history, work),
 		typeLeaf: (leafPath, write, caret) => controller.typeLeaf(leafPath, write, caret),
 		land: (pos) => deps.caretLanding.land(pos),
-		survivorAfterRemoval: (removedPath, gesture) =>
-			survivorAfterRemoval(deps.doc, removedPath, gesture),
-		removeWhole: (path, commit) =>
-			removeWholeBlock({ bytes: deps.bytes, reading: deps.reading, controller }, path, commit),
+		removeWhole: (path, gesture, commit) =>
+			removeWholeBlock(
+				{ bytes: deps.bytes, reading: deps.reading, controller },
+				path,
+				gesture,
+				commit
+			),
 		reportCommitError: (error, op, path) => emitCommitError(deps.events, { error, op, path })
 	};
 }

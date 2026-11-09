@@ -124,6 +124,7 @@ These checks run in three kinds of place:
 | G1.189 | An undo or redo puts back no block read under a grammar the editor no longer reads | A·N |
 | G1.190 | While a draft is open, every write tells it everything the write changed | A·N |
 | G1.199 | Every route that removes a range, or a block whole, leaves the range-edit core's bytes, in one undo step | harness |
+| G1.200 | Every removal route leaves the caret where the range-edit core puts it | harness |
 | G1.201 | A byte splice inside a container reads only children whose old bytes read back as themselves | A·N |
 
 ### The entries
@@ -341,5 +342,7 @@ These checks run in three kinds of place:
 **G1.190 · A draft hears every write** (`change-record`). While a draft is open, each write records the top-level blocks it changed, read over the blocks it names plus one either side (every block, for a keystroke that moves a fence), and a draft maps its ranges through the records. Checked after each write (nothing changed past what it named) and at a draft's commit (a range no record touched still holds the bytes it opened on). `checkChangeInReach`, `checkDraftBytesKept` (`change-record.ts`) · `commit-frame.ts`, `draft-registry.svelte.ts` · `change-record.test.ts`, `draft-registry.test.ts`.
 
 **G1.199 · Every removal route leaves the core's bytes.** Backspace, Delete, Ctrl+Backspace, Ctrl+Delete and a cut by each of its routes over one range, and the keys and the block menu's Remove on a block focused whole, leave the bytes the range-edit core answers for it; a cut writes the core's copy, and one undo gives the source back. The ranges are the shapes a removal once parted on. `range-laws/removal-routes.test.ts`.
+
+**G1.200 · Every removal route leaves the core's caret.** The same routes over the same shapes leave the caret where a byte splice puts the core's down: text at its exact byte, a block held whole or drawn as a picture of its source through its own landing, a boundary as the gap caret. Where Backspace, Delete and a cut put it beside a block taken whole is the core's too (`range-edit/whole-block-removal.test.ts`). `range-laws/removal-routes.test.ts`.
 
 **G1.201 · A container's window reads back first** (`container-window-reads-back`). Before a byte splice reads a run of a list's, quote's or table's children again with the change made, it reads their old bytes the same way, and those must come out as the children the container held. When they don't, the child spans were stale or the container's own reading disagrees with the document's, so dev warns and the splice takes the top-level window. Inline in `tree-operations/container-window.ts :: containerWindow` · `container-window.property.test.ts`.

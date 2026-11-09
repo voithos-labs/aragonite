@@ -697,6 +697,20 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: 'delete',
 		expect: { source: 'a\n\nb\n', caret: text(3) }
 	},
+	// Miss-analysis: the rows beside a block held whole had prose neighbours only, whose every byte
+	// takes a caret; a code block's fence lines take none.
+	{
+		name: 'L4 Backspace beside a code block lands at its body’s end, not on its closing line',
+		source: '```\nx\n```\n\n⟦---⟧\n\nb\n',
+		gesture: 'backspace',
+		expect: { source: '```\nx\n```\n\nb\n', caret: text(5) }
+	},
+	{
+		name: 'L4 Delete beside a code block lands at its body’s start, not on its opening line',
+		source: 'a\n\n⟦---⟧\n\n```\nx\n```\n',
+		gesture: 'delete',
+		expect: { source: 'a\n\n```\nx\n```\n', caret: text(7) }
+	},
 	{
 		name: 'L4 a block held whole behind a quote marker goes with its marker line, never nesting',
 		source: '> a\n>\n> ⟦---⟧\n>\n> b\n',
@@ -916,7 +930,7 @@ export const NAMED_ROWS: NamedRow[] = [
 		name: 'L4 a range from the document start to a rule it cannot join adds no line before it',
 		source: '⟦| c |\n| - |\n\n⟧---\n',
 		gesture: 'delete',
-		expect: { source: '---\n', caret: text(0) }
+		expect: { source: '---\n', caret: { at: 0, holds: 'block' } }
 	},
 	{
 		name: 'L4 a range from the document start into a list item it enters adds no line before it',

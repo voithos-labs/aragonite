@@ -11,7 +11,7 @@ import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '../../block-compon
 import { displayLength } from '../../core/lines';
 import { docPathFrom } from '../../core/coordinate-spaces';
 import { isBlockNode, nodeAt } from '../../tree-operations/node-primitives';
-import { isCollapsedContainer, isReservedChromeChild } from '../../schema/reserved-chrome';
+import { isCollapsedContainer } from '../../schema/reserved-chrome';
 import { isStrictAncestorOf } from '../../selection/path-math';
 import {
 	firstCaretLeaf,
@@ -23,7 +23,7 @@ import {
 	nextCaretPath,
 	previousCaretPath
 } from '../../selection/path-lookup';
-import { caretTargetFor, survivorAfterRemoval } from '../../selection/caret-target';
+import { caretTargetFor } from '../../selection/caret-target';
 import { registerChromePluginsForTests } from './chrome-plugins';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
 
@@ -188,41 +188,6 @@ function allPaths(doc: Document): number[][] {
 	return out;
 }
 
-/** Removes the block at `path`, and each container the removal leaves childless, as the commit's
- *  fix-up does; the root stays even when emptied. */
-function removeWithEmptiedAncestors(doc: Document, path: number[]): Document {
-	for (let at = path; at.length > 0; at = at.slice(0, -1)) {
-		const parent = nodeAt(doc, at.slice(0, -1)) as Document | CstNode;
-		parent.children!.splice(at[at.length - 1], 1);
-		if (parent.children!.length > 0 || at.length === 1) break;
-	}
-	return doc;
-}
-
-/** Every block path but a title row, which a container always keeps (G1.14). */
-function removablePaths(doc: Document): number[][] {
-	return allPaths(doc).filter((p) => {
-		const parent = nodeAt(doc, p.slice(0, -1));
-		return !(parent && isBlockNode(parent) && isReservedChromeChild(parent, p[p.length - 1]));
-	});
-}
-
-function leafNode(doc: Document, path: number[] | null): CstNode | null {
-	return path ? (nodeAt(doc, path) as CstNode) : null;
-}
-
-/** The first caret leaf after `path`'s whole subtree, read before anything is removed. */
-function afterSubtree(doc: Document, path: number[]): number[] | null {
-	const last = lastCaretLeaf(doc, path);
-	return last ? nextCaretPath(doc, last) : null;
-}
-
-function pathOfNode(doc: Document, target: CstNode): number[] {
-	const found = allPaths(doc).find((p) => nodeAt(doc, p) === target);
-	if (!found) throw new Error('survivor node not in the tree');
-	return found;
-}
-
 function walk(start: number[] | null, step: (p: number[]) => number[] | null): number[][] {
 	const seen: number[][] = [];
 	for (let p = start; p; p = step(p)) seen.push(p);
@@ -312,37 +277,6 @@ describe('caret-reachable order', () => {
 					for (const offset of [0, CURSOR_START, CURSOR_EXACT_START, CURSOR_END, 3]) {
 						const t = caretTargetFor(doc, { path: docPathFrom(path), offset });
 						expect(caretLanding(doc, t && [...t.leafPath]), `${path}@${offset}`).toBe(true);
-					}
-				}
-			}),
-			PARAMS
-		);
-	});
-
-	// The expected survivor is read before the removal, by node, so the check does not depend on
-	// how the function reads the position the removal left.
-	it('picks the reachable neighbour on the side asked after any single block is removed', () => {
-		fc.assert(
-			fc.property(arbDoc, (d) => {
-				const source = sourceOf(d);
-				for (const path of removablePaths(parse(source))) {
-					const doc = parse(source);
-					const before = leafNode(doc, previousCaretPath(doc, path));
-					const after = leafNode(doc, afterSubtree(doc, path));
-					removeWithEmptiedAncestors(doc, path);
-					const atEnd = before && { path: pathOfNode(doc, before), offset: CURSOR_END };
-					const atStart = after && { path: pathOfNode(doc, after), offset: CURSOR_START };
-					const want = {
-						before: atEnd ?? atStart ?? null,
-						after: atStart ?? atEnd ?? null
-					};
-					const gestures = { before: 'Backspace', after: 'Delete' } as const;
-					for (const side of ['before', 'after'] as const) {
-						const s = survivorAfterRemoval(doc, path, gestures[side]);
-						expect(s && { path: [...s.path], offset: s.offset }, `${path} ${side}`).toEqual(
-							want[side]
-						);
-						if (s) expect(caretLanding(doc, [...s.path]), `${path} ${side}`).toBe(true);
 					}
 				}
 			}),

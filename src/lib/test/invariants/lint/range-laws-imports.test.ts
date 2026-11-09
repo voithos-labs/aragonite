@@ -44,7 +44,11 @@ const ALLOWED: Record<string, string> = {
 		'law 3’s declared exceptions, which both law harnesses read from the same predicate',
 	'src/lib/schema/block-facts.ts': 'the block facts that exception reads (a read)',
 	'src/lib/range-edit/edit-range.ts': 'the core’s answer for a block removed whole (a read)',
-	'src/lib/range-edit/host.ts': 'the host that answer reads the document through'
+	'src/lib/range-edit/host.ts': 'the host that answer reads the document through',
+	'src/lib/selection/cross-block/range-removal.ts': 'the core’s name for each block gesture',
+	'src/lib/editor-actions/commit/byte-splice.ts':
+		'where a byte splice puts the core’s caret down, which G1.200 holds each route to (a read)',
+	'src/lib/selection/caret-target.ts': 'the leaf a landing on a block focuses (a read)'
 };
 const PACKAGES = new Set(['vitest', 'fast-check', 'node:fs', 'node:path']);
 

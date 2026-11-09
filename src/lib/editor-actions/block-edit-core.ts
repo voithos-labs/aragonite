@@ -90,11 +90,10 @@ async function handleIneligibleNeighbor(
 		await scope.land(scope.at(neighbor, [], dir < 0 ? CURSOR_END : CURSOR_START));
 		return false;
 	}
-	return scope.removeWhole(neighbor, {
+	// The caret stays in the block the key was pressed in, on the removed block's far side.
+	return scope.removeWhole(neighbor, dir < 0 ? 'Delete' : 'Backspace', {
 		snapshot: { index: i, offset: dir < 0 ? 0 : CURSOR_END },
-		op: { kind: 'delete' },
-		// The block the key was pressed in, which a delete above has moved up to `neighbor`.
-		landing: () => scope.at(dir < 0 ? neighbor : i, [], dir < 0 ? CURSOR_START : CURSOR_END)
+		op: { kind: 'delete' }
 	});
 }
 
@@ -449,11 +448,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 		},
 
 		deleteInterior: (i, gesture) =>
-			scope.removeWhole(i, {
-				snapshot: { index: i, offset: 0 },
-				op: { kind: 'delete' },
-				landing: () => scope.survivor(i, gesture)
-			}),
+			scope.removeWhole(i, gesture, { snapshot: { index: i, offset: 0 }, op: { kind: 'delete' } }),
 
 		async updateBlockMetadata(i, metadata, options) {
 			const children = scope.children();
@@ -520,7 +515,8 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			const snapshot = { index: i, offset: options.snapshotOffset };
 			const op = replaceOp(scope, replacement.length, options?.source);
 			if (replacement.length === 0) {
-				return (await scope.removeWhole(i, { snapshot, op, landing: () => null })) ? 0 : null;
+				// None is `deleteBlock`, a delete no key asked for.
+				return (await scope.removeWhole(i, 'keyless', { snapshot, op })) ? 0 : null;
 			}
 			const wrote = await scope.commit({
 				snapshot,

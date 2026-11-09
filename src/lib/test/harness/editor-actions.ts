@@ -21,7 +21,7 @@ import type { CommitScope, ScopeCommitArgs } from '#lib/editor-actions/block-edi
 import type { ContainerBlockComponentDeps } from '#lib/editor-actions/container-block-component.js';
 import { refSlotsOver } from '#lib/block-lists/child-refs.js';
 import { componentAt, type ChildList } from '#lib/block-lists/child-list.js';
-import { caretTargetFor, survivorAfterRemoval } from '#lib/selection/caret-target.js';
+import { caretTargetFor } from '#lib/selection/caret-target.js';
 import {
 	delegateMoveFocus,
 	type MoveFocusScope
@@ -177,8 +177,6 @@ export function makeCommitScopeStub(
 		children: () => children,
 		target: () => ({ children, owner: opts.owner, lineEnding: lineEnding() }),
 		idAt: (i) => `block-${i}`,
-		survivor: (i, gesture) =>
-			survivorAfterRemoval({ kind: 'document', prefix: '', children, suffix: '' }, [i], gesture),
 		removeWhole: vi.fn(async () => false),
 		collapseEmptyReplaceToDelete: opts.collapse ?? true,
 		async commit(args) {
@@ -320,7 +318,6 @@ export function makeStubContainerEdit(): ContainerEditActions {
 		typingKeystroke: vi.fn((_path, _offset, _key, _history, work) => work()),
 		typeLeaf: vi.fn(() => ({ wrote: false as const })),
 		land: vi.fn(async () => 'placed' as const),
-		survivorAfterRemoval: vi.fn(() => null),
 		removeWhole: vi.fn(async () => false),
 		reportCommitError: vi.fn()
 	};
@@ -440,7 +437,30 @@ export function makeEditorActionsDeps(
 			contentVersion++;
 		}
 	});
+	recordRestores(headless);
 	return { ...headless, contentVersion: () => contentVersion };
+}
+
+/** Adds a caret put back at its byte (a byte splice's text caret) to the recorded landings, beside
+ *  the ones `land` records; a range or a gap caret lands in no one leaf. */
+function recordRestores({ deps, landings }: HeadlessActions): void {
+	const landing = deps.caretLanding;
+	const restore = landing.restore;
+	Object.assign(landing, {
+		async restore(...[selection, opts]: Parameters<typeof restore>) {
+			const outcome = await restore(selection, opts);
+			const caret =
+				'anchor' in selection &&
+				JSON.stringify(selection.anchor) === JSON.stringify(selection.focus)
+					? selection.focus
+					: null;
+			const pos = caret && !caret.cellCoordinate && { ...caret, path: docPathFrom(caret.path) };
+			const target = pos && caretTargetFor(deps.doc, pos);
+			// The headless restore has no block element to write into, so `outcome` reads `unplaced`.
+			if (target) (landings as RecordedLanding[]).push({ ...target, outcome });
+			return outcome;
+		}
+	});
 }
 
 // ── Top-level action-bundle harness ──────────────────────────────────────────

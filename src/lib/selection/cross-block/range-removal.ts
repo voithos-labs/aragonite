@@ -35,7 +35,7 @@ export type RemovalContext = Pick<
 /** What a removal reads and commits through, the caret read back aside. */
 type CommitContext = Omit<RemovalContext, 'getDoc'>;
 
-type RemovalCommit = Pick<SourceSplice, 'caret' | 'op' | 'snapshot'>;
+type RemovalCommit = Pick<SourceSplice, 'op' | 'snapshot'> & { caret: SpliceCaret };
 
 export interface Removed {
 	/** False also where the range held nothing to take, which leaves the caret at its start. */
@@ -82,17 +82,25 @@ export async function removeThroughCore(
 	return { wrote, caret, landed, took: answer.took ?? null };
 }
 
-/** Removes the block at `path` whole, as the block menu's Delete does, in one commit whose caret,
- *  edit event and undo snapshot the caller names. */
+/** Removes the block at `path` whole, as the block menu's Delete does, in one commit whose edit
+ *  event and undo snapshot the caller names; the caret lands on the side `gesture` points. */
 export function removeWholeBlock(
 	ctx: CommitContext,
 	path: readonly number[],
-	commit: RemovalCommit
+	gesture: BlockGesture,
+	commit: Omit<RemovalCommit, 'caret'>
 ): Promise<boolean> {
 	const range = wholeBlockBytes(ctx.bytes.doc(), ctx.bytes.layout(), path);
 	if (!range) return Promise.resolve(false);
-	const after = wholeBlocksRemovalOf(ctx.bytes.source(), range, modeOf(ctx), hostOf(ctx));
-	return commitBytes(ctx, after, commit);
+	const source = ctx.bytes.source();
+	const answer = wholeBlocksRemovalOf(
+		source,
+		range,
+		CORE_GESTURE[gesture],
+		modeOf(ctx),
+		hostOf(ctx)
+	);
+	return commitBytes(ctx, answer.source, { ...commit, caret: answer.caret });
 }
 
 /** Writes `text` over what `coverage` holds inside one table cell as one write of the cell, in one

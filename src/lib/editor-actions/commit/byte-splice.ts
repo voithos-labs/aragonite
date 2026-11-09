@@ -10,6 +10,8 @@ import type { DocumentView } from '../../core/node-views';
 import type { Landing } from '../../selection/primitives';
 import type { BlockComponent } from '../../block-component';
 import type { SourceSplice, SpliceCaret } from '../../action-contracts';
+import { blockFacts } from '../../schema/block-facts';
+import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { serialize } from '../../core/serializer';
 import { docPathFrom } from '../../core/coordinate-spaces';
 import { spliceMany } from '../../tree-operations/splice-many';
@@ -57,14 +59,7 @@ export function createByteSplice(
 		const reading = closers.length > 0 ? spliceReading(was, before, changes, grammar) : read;
 		const windows = reading?.windows ?? [];
 		// Measured in the caller's bytes, then past the closers, so a caret inside a write stays in front.
-		const given = splice.caret;
-		const landed = typeof given === 'function' ? given : null;
-		const named =
-			given === 'keep'
-				? caretKept(deps, splice.changes, windows)
-				: typeof given === 'function'
-					? null
-					: given;
+		const named = splice.caret === 'keep' ? caretKept(deps, splice.changes, windows) : splice.caret;
 		const caret = named && { ...named, at: offsetPastClosers(named.at, closers) };
 		let saved: { children: CstNode[]; ids: string[]; refs: (BlockComponent | undefined)[] } | null =
 			null;
@@ -106,7 +101,7 @@ export function createByteSplice(
 				deps.setBlockIds(saved.ids);
 				replaceRefs(deps.blockRefs, saved.refs);
 			},
-			landing: () => (landed ? landed() : caret && landingAt(deps.doc, caret)),
+			landing: () => caret && landingAt(deps.doc, caret),
 			reveal: splice.reveal
 		});
 	};
@@ -183,14 +178,21 @@ function placed(windows: readonly SpliceWindow[]): { at: number; count: number }
 	});
 }
 
-/** The caret at byte `caret.at` of the document's bytes, through the leaf holding it (a block held
- *  whole focuses itself), or the gap caret between blocks. */
-function landingAt(doc: DocumentView, caret: SpliceCaret): Landing | GapCaretSelection | null {
+/** The caret at byte `caret.at`: text at that byte exactly, else through the block's own landing
+ *  (a block held whole, or a picture of its source, which that shows), or the gap caret. */
+export function landingAt(
+	doc: DocumentView,
+	caret: SpliceCaret
+): Landing | GapCaretSelection | null {
 	if (caret.holds === 'boundary') {
 		const gap = gapAtByte(doc, caret.at);
 		if (gap) return { gapCaret: gap };
 	}
 	const leaf = leafAtByte(doc, caret.at);
 	if (!leaf) return null;
-	return { path: docPathFrom(leaf.path), offset: leaf.offset };
+	const point = { path: docPathFrom(leaf.path), offset: leaf.offset };
+	const kind = blockNodeAt(doc, leaf.path)?.kind;
+	const exact = caret.holds === 'text' && kind && blockFacts(kind).textPosition === 'always';
+	// Put down as a stored caret is, since a kind's own landing rule would move it off the byte.
+	return exact ? { anchor: point, focus: point } : point;
 }

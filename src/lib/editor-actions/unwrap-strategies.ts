@@ -3,7 +3,6 @@
  * container's blockEdit (`docs/design/structural-edits.md` § Container unwrap).
  */
 
-import { CURSOR_END, CURSOR_START } from '../block-component';
 import type { CstNode } from '../core/nodes';
 import type { UnwrapRole } from '../schema/block-kind-descriptor';
 import {
@@ -20,24 +19,23 @@ import { removeEmptiedContainer } from './nested/emptied-container';
 import { mergedElsePrevious } from './merge-fallback';
 import { docPathFrom, extendDocPath } from '../core/coordinate-spaces';
 import type { CaretPosition } from '../selection/primitives';
+import type { RemovalGesture } from '../selection/caret-target';
 
 export interface UnwrapStrategyDeps {
 	deps: NestedActionsDeps;
 	state: BlockListState;
 }
 
-/** Drop an empty item; the caret lands at `landAt`, an item of this list after the delete, at
- *  `offset`. */
+/** Drop an empty item; the caret lands beside it on the side `gesture` points. */
 async function deleteEmptyItem(
 	{ deps }: UnwrapStrategyDeps,
 	itemIndex: number,
-	landAt: { item: number; offset: number }
+	gesture: RemovalGesture
 ): Promise<boolean> {
 	const item = extendDocPath(deps.path, itemIndex);
-	return deps.parent.containerEdit.removeWhole(item, {
+	return deps.parent.containerEdit.removeWhole(item, gesture, {
 		snapshot: { path: item, offset: 0 },
-		op: { kind: 'delete', eventPath: item },
-		caret: () => ({ path: extendDocPath(deps.path, landAt.item), offset: landAt.offset })
+		op: { kind: 'delete', eventPath: item }
 	});
 }
 
@@ -90,7 +88,8 @@ async function listItemCascadeFirst(strategy: UnwrapStrategyDeps): Promise<boole
 	const firstChildEmpty = isItemUserEmpty(item);
 
 	if (firstChildEmpty && node.children.length > 1) {
-		return deleteEmptyItem(strategy, 0, { item: 0, offset: CURSOR_START });
+		// The caret goes on to the item that moves up, as Delete's does.
+		return deleteEmptyItem(strategy, 0, 'Delete');
 	}
 	if (firstChildEmpty) return removeEmptiedContainer(deps, 'Backspace');
 	const replacement = unwrapFirstItemFromList(node);
@@ -118,7 +117,7 @@ async function listItemCascadeMiddle(
 
 	const item = node.children[itemIndex];
 	if (isItemUserEmpty(item)) {
-		return deleteEmptyItem(strategy, itemIndex, { item: itemIndex - 1, offset: CURSOR_END });
+		return deleteEmptyItem(strategy, itemIndex, 'Backspace');
 	}
 
 	// A previous leaf with no editable text gives the merge no target, so only the caret moves.

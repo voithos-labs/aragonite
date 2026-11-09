@@ -82,8 +82,7 @@ interface Row {
 	source: string;
 	drive: (env: Env) => Promise<unknown> | void;
 	bytes: string;
-	/** Where the caret goes: `[0]` for the empty paragraph; none for a top-level replace, which
-	 *  lands nothing. */
+	/** Where the caret goes: `[0]` for the empty paragraph. */
 	placed: number[][];
 }
 
@@ -138,7 +137,7 @@ const ROWS: Record<string, Row> = {
 		source: 'a\n',
 		drive: (env) => env.h.actions.replaceBlock(0, [], undefined, { snapshotOffset: 0 }),
 		bytes: '\n',
-		placed: []
+		placed: [[0]]
 	},
 	// A text endpoint keeps its block, emptied or not; a rule held whole keeps none, so a container
 	// the range holds whole goes with it.

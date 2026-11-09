@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // G1.199: every route that removes a range leaves the range-edit core's bytes, a cut writes the
-// core's copy of the range it took, and one undo gives the source back.
+// core's copy, and one undo gives the source back; G1.200: its caret is the core's, as landed.
 // Miss-analysis: the copy and the delete each had suites of their own, and none ran every removal
 // route over one range against the answer they all share.
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -16,7 +16,11 @@ import { rangeHost } from '#lib/range-edit/host.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { rangeClipboard } from '#lib/selection/range-clipboard.js';
-import type { RemovalGesture } from '#lib/selection/caret-target.js';
+import { caretTargetFor, type RemovalGesture } from '#lib/selection/caret-target.js';
+import { CORE_GESTURE } from '#lib/selection/cross-block/range-removal.js';
+import type { SpliceCaret } from '#lib/action-contracts.js';
+import { landingAt } from '#lib/editor-actions/commit/byte-splice.js';
+import { caretOf } from './through-splice';
 import { registerDefaultContextActions } from '#lib/components/menu/default-context-actions.js';
 import {
 	destroyMountedEditors,
@@ -145,8 +149,42 @@ function coreAnswer(editor: Editor, mode: PresentationMode, gesture: RemovalGest
 	const coverage = rangeCoverage(doc, coverRange(doc, start!, end!));
 	const bytes = documentBytes({ version: () => 0, doc: () => doc, source: () => serialize(doc) });
 	const copy = rangeClipboard(bytes, coverage, reading)?.text ?? '';
-	deleteRange(doc, start!, end!, { reading, gesture });
-	return { source: serialize(doc), copy };
+	const { removed } = deleteRange(doc, start!, end!, { reading, gesture });
+	return { source: serialize(doc), copy, caret: removed.landed! };
+}
+
+const heldCaret = (e: Editor) =>
+	JSON.stringify([e.instance.getSelection(), e.instance.__test.getGapCaret()]);
+
+/** The caret a route left, read back right after it, over the bytes it left. */
+const leftBy = (editor: Editor) => ({
+	held: heldCaret(editor),
+	byte: caretOf(editor),
+	source: editor.source()
+});
+
+/** A route's caret against where a byte splice puts the core's: a boundary as the gap caret, else
+ *  in a fresh editor over the same bytes, so a block that opened its source opens it again. */
+async function expectCoreCaret(
+	left: ReturnType<typeof leftBy>,
+	caret: SpliceCaret,
+	mode: PresentationMode
+): Promise<void> {
+	if (caret.holds === 'boundary') {
+		expect(left.byte, 'the core’s caret').toEqual(caret);
+		return;
+	}
+	const fresh = mountCase(left.source, mode);
+	await fresh.settle();
+	const doc = fresh.instance.__test.getDocument();
+	const landing = landingAt(doc, caret)!;
+	if ('anchor' in landing) await fresh.instance.setSelection(landing);
+	else if (!('gapCaret' in landing)) {
+		const target = caretTargetFor(doc, landing)!;
+		fresh.instance.__test.getBlockComponent([...target.leafPath])!.focus(target.offset);
+	}
+	await fresh.settle();
+	expect(left.held, 'the core’s caret').toBe(heldCaret(fresh));
 }
 
 async function drive(editor: Editor, route: Route): Promise<string | null> {
@@ -176,8 +214,10 @@ describe('every removal route leaves the core’s bytes', () => {
 				expect(wrote, 'the browser would have handled the key').not.toBeNull();
 				expect(editor.source()).toBe(want.source);
 				if ('cut' in route) expect(wrote).toBe(want.copy);
+				const left = leftBy(editor);
 				await runHistory(editor, 'undo');
 				expect(editor.source(), 'one undo').toBe(source);
+				await expectCoreCaret(left, want.caret, mode);
 			});
 		}
 	}
@@ -209,8 +249,8 @@ const WHOLE_ROUTES: Record<string, WholeRoute> = {
 	'the block menu’s Remove': { menu: true }
 };
 
-/** The core's answer for the block at `path` removed whole. */
-function wholeAnswer(editor: Editor, mode: PresentationMode, path: number[]) {
+/** The core's answer for the block at `path` removed whole by `route`. */
+function wholeAnswer(editor: Editor, mode: PresentationMode, path: number[], route: WholeRoute) {
 	const grammar = editor.instance.__test.getGrammar();
 	const reading = fixtureReading({ grammar }, mode);
 	const source = editor.source();
@@ -219,7 +259,8 @@ function wholeAnswer(editor: Editor, mode: PresentationMode, path: number[]) {
 	const range = wholeBlockBytes(doc, layout, path)!;
 	const host = rangeHost(reading, { source, tree: doc, layout });
 	const core = mode === 'live' ? 'live' : 'source';
-	return wholeBlocksRemovalOf(source, range, core, host);
+	const gesture: RemovalGesture = 'menu' in route ? 'keyless' : 'cut' in route ? 'cut' : route.key;
+	return wholeBlocksRemovalOf(source, range, CORE_GESTURE[gesture], core, host);
 }
 
 async function driveWhole(editor: Editor, path: number[], route: WholeRoute): Promise<boolean> {
@@ -250,11 +291,13 @@ describe('every whole-block route leaves the core’s bytes', () => {
 			it.each(routes)(`${mode}, ${shape}: %s`, async (_, route) => {
 				const editor = mountCase(source, mode);
 				await editor.settle();
-				const want = wholeAnswer(editor, mode, path);
+				const want = wholeAnswer(editor, mode, path, route);
 				expect(await driveWhole(editor, path, route), 'the route took no action').toBe(true);
-				expect(editor.source()).toBe(want);
+				expect(editor.source()).toBe(want.source);
+				const left = leftBy(editor);
 				await runHistory(editor, 'undo');
 				expect(editor.source(), 'one undo').toBe(source);
+				await expectCoreCaret(left, want.caret, mode);
 			});
 		}
 	}
