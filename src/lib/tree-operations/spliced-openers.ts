@@ -140,8 +140,6 @@ function groupsOf(
 	return groups;
 }
 
-/** The closers a change inside container `was`, read again as `now`, needs in `now`'s bytes; null
- *  when it changed no child's bytes, as a change to the container's own lines does. */
 /** How many children at either end `now` holds as `was` did, counted for the cost row. */
 function keptEnds(was: readonly NodeView[], now: readonly NodeView[]) {
 	const ends = unchangedEnds(was, now);
@@ -149,6 +147,9 @@ function keptEnds(was: readonly NodeView[], now: readonly NodeView[]) {
 	return ends;
 }
 
+/** The closers a change inside container `was`, read again as `now`, needs in `now`'s bytes; null
+ *  when it changed no child's bytes, as a change to the container's own lines does. `read` names
+ *  the children the splice read again, when it read inside the container. */
 function closersInside(
 	was: NodeView,
 	now: NodeView,
