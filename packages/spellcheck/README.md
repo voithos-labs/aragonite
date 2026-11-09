@@ -62,7 +62,7 @@ const dictionary = englishDictionary({ words: savedWords, onAddWord: saveWord })
 const plugins = [spellcheckPlugin({ dictionary })];
 ```
 
-With `dictionary` passed, `words` and `onAddWord` go to that dictionary, not the plugin. Any object with this shape works, so another language or a server-side checker can stand in:
+Once you pass a `dictionary`, the plugin ignores its own `words` and `onAddWord`. Give them to the dictionary instead. Any object with this shape works, so another language or a server-side checker can stand in:
 
 ```ts
 interface Dictionary {

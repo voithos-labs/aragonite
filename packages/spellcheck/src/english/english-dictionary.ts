@@ -5,7 +5,6 @@
  */
 
 import type { Dictionary } from '../dictionary';
-import { knownForm } from './word-form';
 
 export interface EnglishDictionaryOptions {
 	/** Words accepted beyond the dictionary, as the host saved them. */
@@ -21,7 +20,7 @@ export function englishDictionary(options: EnglishDictionaryOptions = {}): Dicti
 	for (const word of options.words ?? []) added.add(key(word));
 	const watchers = new Set<() => void>();
 
-	const isKnown = ({ words }: WordListModule, word: string): boolean =>
+	const isKnown = ({ words, knownForm }: WordListModule, word: string): boolean =>
 		added.has(key(word)) || knownForm(words, normalize(word)) !== null;
 	const suggestions = ({ words, suggestFor }: WordListModule, word: string): string[] =>
 		suggestFor(words, normalize(word));
