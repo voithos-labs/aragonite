@@ -241,8 +241,8 @@ function cutLeaf(doc: Doc, leaf: LaidBlock, at: number, side: 'after' | 'before'
 	return { ...written, end: contentEnd(doc, leaf) + shift, raw: write.bytes };
 }
 
-/** Blocks taken whole go with their line (behind markers, the next line's markers) and the blank
- *  line after them where one stands before too (`structural-edits.md` § Structural operations). */
+/** Blocks taken whole go with their line (behind markers, the next line's markers go instead), and
+ *  with the blank line after them where one stands before them too. Null: it stays. */
 function wholeLines(doc: Doc, from: number, to: number) {
 	const { source } = doc;
 	const marks = lineHead(source, from);
