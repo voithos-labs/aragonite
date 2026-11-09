@@ -195,7 +195,6 @@ export function makeCommitScopeStub(
 				body,
 				sharing,
 				reading: fixtureReading(),
-				unshareChild: (i) => children[i],
 				describeEdit: (edit) => {
 					kind = { ...kind, ...edit };
 					return () => settled;

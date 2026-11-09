@@ -8,7 +8,7 @@ import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
 import { createSearchReplace } from '#lib/editor-actions/search-replace.js';
 import { makeNestedHarness, makeTopHarness } from '#lib/test/harness/editor-actions.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
-import { changesBetween } from '#lib/tree-operations/byte-changes.js';
+import { changesBetween, type ByteChange } from '#lib/tree-operations/byte-changes.js';
 import { createGrammarView } from '#lib/schema/block-openers.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
@@ -35,15 +35,16 @@ const SPLICE_OPS = [
 	{ kind: 'input' }
 ] as const;
 
-/** `source` spliced to `after` through the byte splice. */
+/** `source` spliced to `after` through the byte splice, by `changes` when they're given. */
 async function spliced(
 	source: string,
 	after: string,
-	op: (typeof SPLICE_OPS)[number] = SPLICE_OPS[0]
+	op: (typeof SPLICE_OPS)[number] = SPLICE_OPS[0],
+	changes: readonly ByteChange[] = changesBetween(source, after)
 ): Promise<ReturnType<typeof makeTopHarness>> {
 	const h = watched(makeTopHarness(source));
 	const wrote = await h.controller.commitSource({
-		changes: changesBetween(serialize(h.deps.doc), after),
+		changes,
 		caret: 'keep',
 		op,
 		snapshot: { path: docPathFrom([0]), offset: 0 }
@@ -52,6 +53,15 @@ async function spliced(
 	expect(serialize(h.deps.doc)).toBe(after);
 	return h;
 }
+
+// A definition whose destination sits in a quote inside its item, and the same item freed of it.
+const QUOTED = '- a\n- b\n- [x]:\n  > /u\n- d\n';
+const FREED = '- a\n- b\n- [x]:\n  /u\n- d\n';
+// Two changes, so neither writes nor takes the `[x]:` line, which would read the whole list again.
+const ADD_AND_FREE: ByteChange[] = [
+	{ from: QUOTED.indexOf('\n- [x]'), to: QUOTED.indexOf('\n- [x]'), insert: '\n- c' },
+	{ from: QUOTED.indexOf('> '), to: QUOTED.indexOf('> ') + 2, insert: '' }
+];
 
 describe.each(SPLICE_OPS)('a byte splice named $kind', (op) => {
 	it.each([
@@ -75,6 +85,25 @@ describe.each(SPLICE_OPS)('a byte splice named $kind', (op) => {
 		['freeing its destination from a list', '[x]:\n- /u\n', '[x]:\n/u\n']
 	])('%s reads the definitions', async (_, source, after) => {
 		expect(rescans(await spliced(source, after, op))).toBe(true);
+	});
+
+	// Inside a list the splice reads a few items again, so each side of that read is asked.
+	it.each([
+		['freeing a destination inside an item', QUOTED, FREED, undefined],
+		['quoting the destination an item read', FREED, QUOTED, undefined],
+		[
+			'adding an item above one it frees',
+			QUOTED,
+			'- a\n- b\n- c\n- [x]:\n  /u\n- d\n',
+			ADD_AND_FREE
+		]
+	])('%s reads the definitions from the items it read again', async (_, source, after, changes) => {
+		const h = await spliced(source, after, op, changes);
+		const replaced = h.replaced.at(-1)!;
+		expect(replaced !== 'unknown' && replaced.before.every((b) => b.kind === 'listItem')).toBe(
+			true
+		);
+		expect(rescans(h)).toBe(true);
 	});
 
 	it('inside a long list names the items it read again, not the list', async () => {
