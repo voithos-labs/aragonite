@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { makeSearchHarness, type ReplaceStub } from './harness';
+import { paintAt } from '../decorations/fixtures/decorations';
 
 function makeHarness(source: string, replace?: ReplaceStub) {
 	let scans = 0;
@@ -29,7 +30,7 @@ describe('search as decoration source', () => {
 		const { engine, state } = makeHarness('cat cat\n');
 		state.open();
 		state.setQuery('cat');
-		const classes = engine.marksForPath([0]).map((m) => m.dec.class);
+		const classes = paintAt(engine, [0]).marks.map((m) => m.dec.class);
 		expect(classes).toEqual(['match-overlay match-overlay-active', 'match-overlay']);
 	});
 
@@ -40,7 +41,7 @@ describe('search as decoration source', () => {
 		const scans = scanCount();
 		state.next();
 		expect(scanCount()).toBe(scans); // epoch + query + options unchanged
-		const classes = engine.marksForPath([0]).map((m) => m.dec.class);
+		const classes = paintAt(engine, [0]).marks.map((m) => m.dec.class);
 		expect(classes).toEqual(['match-overlay', 'match-overlay match-overlay-active']);
 	});
 
@@ -63,7 +64,7 @@ describe('search as decoration source', () => {
 		doc.children[0].raw = 'cat cat\n';
 		engine.notifyEdit();
 		expect(state.matches).toHaveLength(2);
-		expect(engine.marksForPath([0])).toHaveLength(2);
+		expect(paintAt(engine, [0]).marks).toHaveLength(2);
 	});
 
 	// Replace mutates the document before the deferred edit notification changes the memo key, so
@@ -104,9 +105,9 @@ describe('search as decoration source', () => {
 		const { engine, state } = makeHarness('cat\n');
 		state.open();
 		state.setQuery('cat');
-		expect(engine.marksForPath([0])).toHaveLength(1);
+		expect(paintAt(engine, [0]).marks).toHaveLength(1);
 		state.close();
-		expect(engine.marksForPath([0])).toHaveLength(0);
+		expect(paintAt(engine, [0]).marks).toHaveLength(0);
 	});
 
 	it('reopen after close re-registers without a duplicate-name throw', () => {

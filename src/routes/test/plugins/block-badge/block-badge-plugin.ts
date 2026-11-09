@@ -1,5 +1,5 @@
 // A fixture for BlockDecoration through the public API only: every heading block gets a class
-// and a badge widget, at any depth, which is what `blockDecorationsForPath` serves.
+// and a badge widget, at any depth, which each block's own paint carries.
 import { definePlugin, type Decoration, type DocumentView, type PluginView } from '#lib/plugin.js';
 import { forEachLeaf } from '../../../walk-views';
 

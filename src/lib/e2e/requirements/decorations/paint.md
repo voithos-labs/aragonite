@@ -10,3 +10,8 @@ around it.
 - Typing in a paragraph, a list item's paragraph or a quote's second paragraph changes only that
   block and its containers; every other block keeps its node and its bytes
 - A byte splice into each of the same three blocks changes only it and its containers
+
+## What a keystroke measures again
+
+- With a whole-document source marking every block, typing in one block measures no other
+  block's marks again

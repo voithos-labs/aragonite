@@ -63,6 +63,7 @@ function setup(opts: { path?: number[]; leaf?: BlockComponent; container?: boole
 	instance = mount(DecorationOverlay, {
 		target,
 		props: {
+			node: doc.children[0],
 			path,
 			blockRef: opts.leaf ?? paintingLeaf(),
 			blockEl,

@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { flushSync } from 'svelte';
 import { parse } from '../../core/parser';
 import { createDecorationEngine } from '../../decorations/decoration-state.svelte';
-import { mark, replace, widget } from './fixtures/decorations';
+import { mark, paintAt, replace, widget } from './fixtures/decorations';
 
 const doc = parse('one\n\ntwo\n');
 
@@ -15,8 +15,8 @@ describe('createDecorationEngine', () => {
 	it('runs provide on addSource and fills the buckets', () => {
 		const engine = makeEngine();
 		engine.addSource({ name: 'a', provide: () => [mark([0]), mark([1])] });
-		expect(engine.marksForPath([0])).toHaveLength(1);
-		expect(engine.marksForPath([1])).toHaveLength(1);
+		expect(paintAt(engine, [0]).marks).toHaveLength(1);
+		expect(paintAt(engine, [1]).marks).toHaveLength(1);
 		expect(engine.sourceCount).toBe(1);
 	});
 
@@ -47,7 +47,7 @@ describe('createDecorationEngine', () => {
 		});
 		engine.notifyEdit();
 		handle.invalidate();
-		expect(engine.marksForPath([0])).toHaveLength(2); // reflected before invalidate returned
+		expect(paintAt(engine, [0]).marks).toHaveLength(2); // reflected before invalidate returned
 		expect(own).toEqual([0, 1, 1]); // add@0, notifyEdit@1, invalidate reuses 1 (no bump)
 		expect(other).toEqual([0, 1]); // invalidate never touched the sibling
 	});
@@ -73,7 +73,7 @@ describe('createDecorationEngine', () => {
 		let runs = 0;
 		const cleanup = $effect.root(() => {
 			$effect(() => {
-				engine.marksForPath([0]); // subscribes transitively to results
+				void paintAt(engine, [0]).marks; // subscribes transitively to results
 				runs++;
 			});
 		});
@@ -91,9 +91,9 @@ describe('createDecorationEngine', () => {
 	it('dispose empties the source and frees its name for re-registration', () => {
 		const engine = makeEngine();
 		const handle = engine.addSource({ name: 'd', provide: () => [mark([0])] });
-		expect(engine.marksForPath([0])).toHaveLength(1);
+		expect(paintAt(engine, [0]).marks).toHaveLength(1);
 		handle.dispose();
-		expect(engine.marksForPath([0])).toHaveLength(0);
+		expect(paintAt(engine, [0]).marks).toHaveLength(0);
 		expect(engine.sourceCount).toBe(0);
 		expect(() => engine.addSource({ name: 'd', provide: () => [] })).not.toThrow();
 	});
@@ -108,7 +108,7 @@ describe('createDecorationEngine', () => {
 		engine.addSource(source);
 		stale.dispose();
 		expect(engine.sourceCount).toBe(1);
-		expect(engine.marksForPath([0])).toHaveLength(1);
+		expect(paintAt(engine, [0]).marks).toHaveLength(1);
 	});
 
 	it('contains a throwing source and preserves siblings', () => {
@@ -125,7 +125,7 @@ describe('createDecorationEngine', () => {
 			}
 		});
 		expect(errors).toEqual(['bad']);
-		expect(engine.marksForPath([0])).toHaveLength(1);
+		expect(paintAt(engine, [0]).marks).toHaveLength(1);
 		bad.invalidate();
 		expect(errors).toEqual(['bad', 'bad']);
 	});
@@ -141,32 +141,32 @@ describe('createDecorationEngine', () => {
 				return [mark([1])];
 			}
 		});
-		expect(engine.marksForPath([1])).toHaveLength(1);
+		expect(paintAt(engine, [1]).marks).toHaveLength(1);
 		boom = true;
 		handle.invalidate();
 		expect(errors).toEqual(['s']);
-		expect(engine.marksForPath([1])).toHaveLength(1); // prior result retained
+		expect(paintAt(engine, [1]).marks).toHaveLength(1); // prior result retained
 	});
 
-	it('islandsForPath returns widgets and replaces sorted by raw position, marks excluded', () => {
+	it("a block's paint holds widgets and replaces sorted by raw position, marks excluded", () => {
 		const engine = makeEngine();
 		engine.addSource({
 			name: 'isl',
 			provide: () => [widget([0], 3), replace([0], 1, 2), widget([0], 0), mark([0])]
 		});
-		const islands = engine.islandsForPath([0]);
+		const islands = paintAt(engine, [0]).islands;
 		const positions = islands.map((i) => (i.dec.type === 'widget' ? i.dec.offset : i.dec.start));
 		expect(positions).toEqual([0, 1, 3]);
 	});
 
-	it('marksForDescendants reads the ancestor bucket; blockDecorationsForPath returns block decorations', () => {
+	it("marksForDescendants reads the ancestor bucket; a block's paint holds its block decorations", () => {
 		const engine = makeEngine();
 		engine.addSource({
 			name: 'x',
 			provide: () => [mark([1, 0]), { type: 'block', path: [2], class: 'b' }]
 		});
 		expect(engine.marksForDescendants([1])).toHaveLength(1);
-		expect(engine.blockDecorationsForPath([2]).map((d) => d.class)).toEqual(['b']);
+		expect(paintAt(engine, [2]).blocks.map((d) => d.class)).toEqual(['b']);
 	});
 
 	// Replacing the whole document arrives as the same `notifyEdit` a keystroke sends, so
@@ -178,12 +178,12 @@ describe('createDecorationEngine', () => {
 		// Emits only while the document has a second block, so the swap below takes it from
 		// non-empty to empty: its bucket has to be cleared, not left standing.
 		engine.addSource({ name: 'pair', provide: (d) => (d.children.length > 1 ? [mark([1])] : []) });
-		expect(engine.marksForPath([1])).toHaveLength(2);
+		expect(paintAt(engine, [1]).marks).toHaveLength(2);
 
 		current = parse('only\n');
 		engine.notifyEdit();
-		expect(engine.marksForPath([0])).toHaveLength(1); // 'tail' re-aimed at the new last block
-		expect(engine.marksForPath([1])).toHaveLength(0); // no mark survives at a path the new doc lacks
+		expect(paintAt(engine, [0]).marks).toHaveLength(1); // 'tail' re-aimed at the new last block
+		expect(paintAt(engine, [1]).marks).toHaveLength(0); // no mark survives at a path the new doc lacks
 	});
 
 	it('sourceCount tracks add and dispose', () => {

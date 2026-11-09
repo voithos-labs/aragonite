@@ -129,12 +129,13 @@
 	const readOnly = $derived(reading.mode() === 'reading');
 
 	// A shared constant keeps an empty decoration list out of the render key.
-	const NO_ISLANDS: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] = [];
+	const NO_ISLANDS: readonly IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] = [];
 
 	let el: HTMLDivElement | undefined = $state();
 
 	// The cell renders no block host, so its own element carries the decorations addressed to it.
 	const blockDecorations = useBlockDecorations({
+		getNode: () => node,
 		getPath: () => myPath,
 		getEl: () => el ?? null,
 		engine: decorationEngine,
@@ -276,7 +277,7 @@
 		getEl: () => el ?? null,
 		storedAs,
 		hasIslands: () =>
-			decorationEngine ? decorationEngine.islandsForPath(myPath).length > 0 : false,
+			decorationEngine ? decorationEngine.paintOf(node, myPath).islands.length > 0 : false,
 		getRawSelection: () => cursor.getRawSelection(),
 		writeText,
 		// A cell's row has no marker, so a space at the cell's start finishes nothing.
@@ -463,7 +464,7 @@
 		navigateTo: (path) => rects.navigateTo(path),
 		activationClick,
 		get islands() {
-			return decorationEngine ? decorationEngine.islandsForPath(myPath) : NO_ISLANDS;
+			return decorationEngine ? decorationEngine.paintOf(node, myPath).islands : NO_ISLANDS;
 		},
 		reportRenderError: (error) =>
 			editorEvents?.emit('error', { origin: 'render', error, context: { path: myPath } }),

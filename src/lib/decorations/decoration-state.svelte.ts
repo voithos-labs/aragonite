@@ -1,5 +1,5 @@
-/** One editor's decoration sources, their merged results, and the per-path lookups the
- *  overlays and inline widgets read. A source never runs inside a commit. */
+/** One editor's decoration sources, their merged results, and each mounted block's paint, which
+ *  the overlays, inline widgets and block classes read. A source never runs inside a commit. */
 import { assertInvariant, devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { tick } from 'svelte';
 import type { DocumentView, NodeView } from '../core/node-views';
@@ -9,10 +9,9 @@ import {
 	pathKey,
 	type IndexedDecoration
 } from './buckets';
-import { islandPosition } from './island-dom';
+import { NO_PAINT, splitBucket, keepEqualParts, type BlockPaint } from './block-paint';
 import { createMarkHover, type MarkHoverTracker, type MarkIdentity } from './mark-hover';
 import type {
-	BlockDecoration,
 	Decoration,
 	DecorationSource,
 	DecorationSourceHandle,
@@ -26,8 +25,6 @@ import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { recordDecorationRun } from '../perf/instruments';
 
 const EMPTY_MARKS: IndexedDecoration<MarkDecoration>[] = [];
-const EMPTY_ISLANDS: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] = [];
-const EMPTY_BLOCKS: BlockDecoration[] = [];
 
 export interface DecorationEngineDeps {
 	getDoc: () => DocumentView;
@@ -42,10 +39,10 @@ export type DecorationEngine = {
 	/** Re-runs every source after bumping the edit counter. `handle.invalidate()` skips the bump,
 	 *  so a memoized source can tell a document change from a change in its own state. */
 	notifyEdit(): void;
-	marksForPath(path: number[]): IndexedDecoration<MarkDecoration>[];
+	/** What paints over the mounted block `node` at `path`, for its reactive reads: the same arrays
+	 *  come back until that block's paint changes. */
+	paintOf(node: NodeView, path: readonly number[]): BlockPaint;
 	marksForDescendants(path: number[]): IndexedDecoration<MarkDecoration>[];
-	islandsForPath(path: number[]): IndexedDecoration<WidgetDecoration | ReplaceDecoration>[];
-	blockDecorationsForPath(path: number[]): BlockDecoration[];
 	/** Every call into a mark's `interactive` handlers goes through here, so a throw is reported. */
 	runMarkHandler(dec: MarkDecoration, call: () => void): void;
 	markHover: MarkHoverTracker;
@@ -56,6 +53,8 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 	// so disposing one never leaves another pointing at the wrong entry.
 	const sources: DecorationSource[] = [];
 	const names = new Set<string>();
+	// Which source each decoration came from, read by the hover's identity.
+	const sourceOf = new WeakMap<Decoration, string>();
 	const warnedUnrenderableIslands = new Set<string>();
 	let results = $state<Decoration[][]>([]);
 	// Deliberately not reactive: an `invalidate()` that reads it must not schedule a recompute
@@ -63,8 +62,20 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 	let editEpoch = 0;
 
 	const merged = $derived(results.flat());
-	const byPath = $derived(groupDecorationsByPath(merged));
 	const byAncestor = $derived(groupDecorationsByAncestor(merged));
+	// A path's paint is the one it held while equal, so its block's readers stay quiet. Not state:
+	// only this derived reads or writes it.
+	let heldByPath = new Map<string, BlockPaint>();
+	const byPath = $derived.by(() => {
+		const next = new Map<string, BlockPaint>();
+		for (const [key, bucket] of groupDecorationsByPath(merged)) {
+			const parts = splitBucket(bucket.map(({ dec }) => dec));
+			const held = heldByPath.get(key);
+			next.set(key, held ? keepEqualParts(held, parts) : parts);
+		}
+		heldByPath = next;
+		return next;
+	});
 
 	function runSource(source: DecorationSource): void {
 		const i = sources.indexOf(source);
@@ -84,6 +95,8 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 		const copy = results.slice();
 		copy[i] = next;
 		results = copy;
+		// Read back through the state, whose objects are the ones the buckets hold.
+		for (const dec of results[i]) sourceOf.set(dec, source.name);
 	}
 
 	function runMarkHandler(dec: MarkDecoration, call: () => void): void {
@@ -96,14 +109,24 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 
 	const markHover = createMarkHover({ identify, runHandler: runMarkHandler });
 
+	// From the path's kept paint, not the latest results: a mark equal to the one it replaced is
+	// the object that was painted.
 	function identify(dec: MarkDecoration): MarkIdentity | null {
 		if (!dec.interactive?.onHover) return null;
-		const i = results.findIndex((decs) => decs.includes(dec));
-		if (i < 0) return null;
-		const ordinal = results[i]
-			.slice(0, results[i].indexOf(dec))
-			.filter((d) => sameHoverRange(d, dec)).length;
-		return { source: sources[i].name, path: dec.path, start: dec.start, end: dec.end, ordinal };
+		const marks = byPath.get(pathKey(dec.path))?.marks ?? EMPTY_MARKS;
+		const at = marks.findIndex((m) => m.dec === dec);
+		if (at < 0) return null;
+		const source = sourceNameOf(dec);
+		if (source === null) return null;
+		const ordinal = marks
+			.slice(0, at)
+			.filter((m) => sourceNameOf(m.dec) === source && sameHoverRange(m.dec, dec)).length;
+		return { source, path: dec.path, start: dec.start, end: dec.end, ordinal };
+	}
+
+	function sourceNameOf(dec: Decoration): string | null {
+		const name = sourceOf.get(dec);
+		return name !== undefined && names.has(name) ? name : null;
 	}
 
 	/** Why the render path will apply nothing for this inline widget, or null when it will.
@@ -217,29 +240,12 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 			editEpoch++;
 			runAll();
 		},
-		marksForPath(path) {
-			const bucket = byPath.get(pathKey(path));
-			return bucket ? filterMarks(bucket) : EMPTY_MARKS;
+		paintOf(_node, path) {
+			return byPath.get(pathKey(path)) ?? NO_PAINT;
 		},
 		marksForDescendants(path) {
 			const bucket = byAncestor.get(pathKey(path));
 			return bucket ? filterMarks(bucket) : EMPTY_MARKS;
-		},
-		islandsForPath(path) {
-			const bucket = byPath.get(pathKey(path));
-			if (!bucket) return EMPTY_ISLANDS;
-			const islands = bucket.filter(
-				(d): d is IndexedDecoration<WidgetDecoration | ReplaceDecoration> =>
-					d.dec.type === 'widget' || d.dec.type === 'replace'
-			);
-			return islands.sort((a, b) => islandPosition(a.dec) - islandPosition(b.dec));
-		},
-		blockDecorationsForPath(path) {
-			const bucket = byPath.get(pathKey(path));
-			if (!bucket) return EMPTY_BLOCKS;
-			return bucket
-				.filter((d): d is IndexedDecoration<BlockDecoration> => d.dec.type === 'block')
-				.map((d) => d.dec);
 		},
 		runMarkHandler,
 		markHover

@@ -41,7 +41,7 @@ export interface ApplyIslandsOpts {
 export interface IslandViews {
 	/** Hands each mounted view its decoration from `islands`, which share the rebuild's render key
 	 *  (the same places, in the same order), so only a widget's own decoration can differ. */
-	update(islands: Island[]): void;
+	update(islands: readonly Island[]): void;
 	/** Destroys every view, before the next rebuild or as the block unmounts. */
 	destroy(): void;
 }
@@ -58,7 +58,7 @@ export const NO_ISLAND_VIEWS: IslandViews = { update() {}, destroy() {} };
 export function applyIslandDecorations(
 	root: ParentNode,
 	raw: string,
-	islands: Island[],
+	islands: readonly Island[],
 	opts: ApplyIslandsOpts
 ): IslandViews {
 	if (islands.length === 0) return NO_ISLAND_VIEWS;
@@ -148,7 +148,7 @@ export function applyIslandDecorations(
 
 /** What these widgets add to a render key: `''` for none, so an undecorated block's key is
  *  unchanged. Widget identity is ignored (see `DecorationWidgetSpec`). */
-export function islandRenderKeyPart(islands: Island[]): string {
+export function islandRenderKeyPart(islands: readonly Island[]): string {
 	if (islands.length === 0) return '';
 	return `\0${islands.map((i) => islandSig(i.dec)).join(';')}`;
 }
@@ -168,7 +168,7 @@ export function islandPosition(dec: WidgetDecoration | ReplaceDecoration): numbe
 
 /** Indices in descending position order, so a `replace` extraction never spans a widget inserted
  *  earlier. On a tie `replace` goes first: a widget at the same start would be swallowed by it. */
-function orderForApplication(islands: Island[]): number[] {
+function orderForApplication(islands: readonly Island[]): number[] {
 	return islands
 		.map((_, i) => i)
 		.sort((i, j) => {

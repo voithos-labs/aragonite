@@ -13,6 +13,7 @@ import type { DecorationRegistry } from '#lib/decorations/types.js';
 import type { EditorRects } from '#lib/editor-rects.js';
 import type { InlineMenuRegistry } from '#lib/inline-menu/types.js';
 import { noopInlineMenus, noopRects, pluginContextDeps } from '../harness/plugin-context-deps';
+import { paintAt } from '../decorations/fixtures/decorations';
 
 const deps = (doc: { children: unknown[] }) => ({
 	...pluginContextDeps(doc),
@@ -225,7 +226,7 @@ describe('createEditorPluginContexts', () => {
 		ctxs.attachAll();
 
 		expect(received).toBe(registry);
-		expect(engine.marksForPath([0])).toHaveLength(1);
+		expect(paintAt(engine, [0]).marks).toHaveLength(1);
 		expect(errorEvents).toHaveLength(1);
 		expect(errorEvents[0].origin).toBe('decoration');
 		expect(errorEvents[0].context?.source).toBe('bad');

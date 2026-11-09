@@ -86,3 +86,44 @@ test.describe('what an edit changes in the tree', () => {
 		});
 	}
 });
+
+// Thirty blocks, each `Block <i> text`, every one marked over `Block`.
+const MARKED_BLOCKS = Array.from({ length: 30 }, (_, i) => `Block ${i} text`).join('\n\n') + '\n';
+
+async function measuredAfterTyping(page: Page, editor: EditorPage): Promise<string[]> {
+	await editor.focusBlockAtPath([3], 7);
+	await editor.waitForRenderFlush();
+	await page.evaluate(() => {
+		(window as any).__test.perf.enable();
+		(window as any).__test.perf.reset();
+	});
+	await editor.typeSlowly('x');
+	await editor.bridge.waitForSourceContains('Block 3x text');
+	await editor.waitForRenderFlush();
+	return page.evaluate(() => (window as any).__test.perf.snapshot().markMeasurePaths);
+}
+
+test.describe('what a keystroke measures again', () => {
+	let editor: EditorPage;
+
+	test.beforeEach(async ({ page }) => {
+		editor = new EditorPage(page);
+		await editor.goto();
+		await editor.loadContent(MARKED_BLOCKS);
+	});
+
+	test('a whole-document source marking every block measures no block but the edited one', async ({
+		page
+	}) => {
+		await page.evaluate(() =>
+			(window as any).__test.decorations.addSource({
+				name: 'every-block',
+				provide: (doc: { children: unknown[] }) =>
+					doc.children.map((_, i) => ({ type: 'mark', path: [i], start: 0, end: 5, class: 'm' }))
+			})
+		);
+		await expect.poll(() => page.locator('.decoration-overlay.m').count()).toBe(30);
+		const measured = await measuredAfterTyping(page, editor);
+		expect(measured.filter((path) => path !== '3')).toEqual([]);
+	});
+});

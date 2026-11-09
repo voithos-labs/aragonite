@@ -52,7 +52,7 @@ export interface CellRenderDeps {
 	activationClick: ActivationClick;
 	/** Decoration widgets, sorted by position. A getter read inside the render pass on
 	 *  purpose: that read is the dependency that re-renders the cell when one changes. */
-	get islands(): IndexedDecoration<WidgetDecoration | ReplaceDecoration>[];
+	get islands(): readonly IndexedDecoration<WidgetDecoration | ReplaceDecoration>[];
 	/** A widget that throws while mounting reports to the editor's `error` event, and still falls
 	 *  back to its raw source. */
 	reportRenderError: (error: unknown) => void;

@@ -7,6 +7,7 @@
 		type EditorDoc,
 		type EditorServices
 	} from '../../editor-keys';
+	import type { NodeView } from '../../core/node-views';
 	import type { MarkDecoration } from '../../decorations/types';
 	import { collapseCellMarks, type IndexedDecoration } from '../../decorations/buckets';
 	import {
@@ -17,14 +18,17 @@
 	} from '../../decorations/mark-interactions';
 	import type { HoverTarget } from '../../decorations/mark-hover';
 	import { wireOverlayRemeasure } from './remeasure';
+	import { recordMarkMeasure } from '../../perf/instruments';
 
 	let {
+		node,
 		path,
 		blockRef,
 		blockEl,
 		isContainer = false,
 		containerPaintsRects = false
 	}: {
+		node: NodeView;
 		path: number[];
 		blockRef: BlockComponent | undefined;
 		blockEl: HTMLElement | null | undefined;
@@ -54,6 +58,7 @@
 		clickMark?: MarkDecoration;
 	}
 	let rects = $state.raw<Painted[]>([]);
+	const NO_MARKS: readonly IndexedDecoration<MarkDecoration>[] = [];
 
 	// The hover tracker's key for what this overlay painted, dropped when it unmounts.
 	const owner = {};
@@ -69,21 +74,23 @@
 		untrack(() => engine?.markHover.paint(owner, el, targets));
 	}
 
+	// A derived, so the effect below reruns only when the block's marks are new arrays.
+	const blockMarks = $derived(
+		!engine
+			? NO_MARKS
+			: containerPaintsCells
+				? engine.marksForDescendants(path)
+				: engine.paintOf(node, path).marks
+	);
+
 	$effect(() => {
 		const eng = engine,
 			ref = blockRef,
-			el = blockEl;
-		// Read up front so the effect depends on the decoration set: `sourceCount` is a plain
-		// counter, and a source added after mount would never re-run it.
-		const marks = eng
-			? containerPaintsCells
-				? eng.marksForDescendants(path)
-				: eng.marksForPath(path)
-			: [];
+			el = blockEl,
+			marks = blockMarks;
 		// An unmarked block wires nothing, so a scroll or a moved marker measures marked blocks only.
 		if (
 			!eng ||
-			eng.sourceCount === 0 ||
 			!el ||
 			marks.length === 0 ||
 			(isContainer && !containerPaintsCells && !containerPaintsRects)
@@ -95,6 +102,7 @@
 
 		function measure(): void {
 			if (!el) return;
+			recordMarkMeasure(path);
 			const blockRect = el.getBoundingClientRect();
 			const hover: HoverTarget[] = [];
 			rects = containerPaintsCells
@@ -104,7 +112,7 @@
 		}
 
 		function measureLeaf(
-			leafMarks: IndexedDecoration<MarkDecoration>[],
+			leafMarks: readonly IndexedDecoration<MarkDecoration>[],
 			leaf: BlockComponent | undefined,
 			blockRect: DOMRect,
 			hover: HoverTarget[]
@@ -126,7 +134,7 @@
 		// Several marks in one cell collapse to a single rect whose class is their union; the
 		// precedence rule names which of them answers a click, and the hit-test which a hover.
 		function measureCells(
-			descMarks: IndexedDecoration<MarkDecoration>[],
+			descMarks: readonly IndexedDecoration<MarkDecoration>[],
 			blockRect: DOMRect,
 			hover: HoverTarget[]
 		): Painted[] {

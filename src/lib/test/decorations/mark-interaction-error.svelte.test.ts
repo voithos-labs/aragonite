@@ -56,7 +56,7 @@ async function mountOverlay(
 
 	instance = mount(DecorationOverlay, {
 		target,
-		props: { path: [0], blockRef: paintingLeaf(), blockEl },
+		props: { node: doc.children[0], path: [0], blockRef: paintingLeaf(), blockEl },
 		context: editorMountContext({ services: { decorations: engine } })
 	});
 	// The overlay measures after the flush that mounted it.

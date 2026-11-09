@@ -156,6 +156,7 @@
 	}
 
 	const blockDecorations = useBlockDecorations({
+		getNode: () => node,
 		getPath: () => myPath,
 		getEl: () => hostEl,
 		engine,
@@ -199,6 +200,7 @@
 	<!-- hostEl is null until mount; the overlay checks for a missing blockEl. -->
 	<SelectionOverlay path={myPath} blockRef={ref} blockEl={hostEl} {delegatesPainting} />
 	<DecorationOverlay
+		{node}
 		path={myPath}
 		blockRef={ref}
 		blockEl={hostEl}

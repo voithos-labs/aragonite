@@ -723,7 +723,10 @@
 			const focus = getSelection()?.focus;
 			return focus && !focus.cellCoordinate ? { path: focus.path, offset: focus.offset } : null;
 		},
-		marksForPath: (path) => decorationEngine.marksForPath(path),
+		marksForPath: (path) => {
+			const node = blockNodeAt(doc, path);
+			return node ? decorationEngine.paintOf(node, path).marks : [];
+		},
 		paintedRects: (dec) => paintedMarkRects(dec, getBlockComponent),
 		caretRect: () => rects.caretRect(),
 		runMarkHandler: decorationEngine.runMarkHandler

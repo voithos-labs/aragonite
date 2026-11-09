@@ -10,6 +10,7 @@ import {
 import type { DecorationSource, MarkDecoration } from '#lib/decorations/types.js';
 import type { DecorationEngine } from '#lib/decorations/decoration-state.svelte.js';
 import { settleEditor } from '#lib/test/harness/settle.js';
+import { paintAt } from './fixtures/decorations';
 
 interface SwapSeam {
 	getDecorationEngine(): DecorationEngine;
@@ -51,13 +52,13 @@ describe('a `source` prop swap signals the decorations subsystem', () => {
 		const { instance: editor, props } = mountSource('one\n\ntwo\n\nthree\n');
 		editor.getDecorations().addSource(tailSource([]));
 		const engine = editor.__test.getDecorationEngine();
-		expect(engine.marksForPath([2])).toHaveLength(1);
+		expect(paintAt(engine, [2]).marks).toHaveLength(1);
 
 		props.source = 'only\n';
 		await settleEditor();
 
-		expect(engine.marksForPath([0])).toHaveLength(1);
-		expect(engine.marksForPath([2])).toHaveLength(0);
+		expect(paintAt(engine, [0]).marks).toHaveLength(1);
+		expect(paintAt(engine, [2]).marks).toHaveLength(0);
 	});
 
 	// The perf contract: a document swap with nothing registered does no decoration work.
