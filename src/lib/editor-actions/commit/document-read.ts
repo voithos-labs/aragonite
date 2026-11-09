@@ -35,7 +35,7 @@ export function createDocumentRead(deps: {
 		return held;
 	}
 
-	// Summed for `blockAt` alone, since it walks every top block and a paint's positions don't need it.
+	// Summed for `blockAt` alone, since it walks every top-level block and a paint never needs it.
 	function lengthOf(laid: Layout): number {
 		if (laid.length === undefined) {
 			const doc = deps.getDoc();
