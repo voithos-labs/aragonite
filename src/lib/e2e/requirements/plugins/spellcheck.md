@@ -1,36 +1,35 @@
 # Feature: spell check
 
-Misspelled words in prose get a red wave (a mark decoration from the editor's own source,
-`editor:spellcheck`, painted by the shared decoration overlay as `.spell-overlay`), and the
-editor offers the fix: the suggestions lead the right-click menu over the word, and a selection
-of exactly the word gives the selection toolbar a "Spelling" row with the same list. On by
-default with the built-in English dictionary, which the `/test/editor` harness takes;
-`?spellcheck=native|off` sets the prop.
+The spellcheck package (`@voithos-labs/aragonite-spellcheck`) on `/test/editor?spell=on`, which
+keeps added words in localStorage, or `?spell=bare`, which keeps none. A misspelled word in prose
+gets a red wave, and its Spelling rows (the suggestions, then "Add to dictionary" where the host
+keeps words) show in the right-click menu, in the selection toolbar, and on a hover card. Every
+row waits for the editor to read blocks and paint, so both groups are parked until then.
 
-## Happy paths
+## The spelling rows
 
-- resting the pointer on a misspelled word for a moment opens a menu of its suggestions alone
-  under the word (a mark hover, so the word still takes clicks; a pointer passing over the word
-  opens nothing); moving onto the menu keeps it, picking a row rewrites the word, and leaving
-  both closes it
+- lead the right-click menu with a divider: right-clicking a misspelled word puts its suggestions
+  first, a divider after them, the clipboard rows below; picking one rewrites that word alone, and
+  one Ctrl+Z puts it back
+- offer Add to dictionary only where the host keeps words, and it settles the word: with a store
+  the row takes the wave off the word and the next right-click offers no suggestions for it,
+  writing nothing; with no store the suggestions show and the row doesn't
+- give a selection of exactly the word a Spelling row in the toolbar, whose flyout rewrites it:
+  three of the word's four letters selected show no row; all four show "Spelling", and a pick in
+  its flyout rewrites the word
+- answer the keyboard, and Escape closes them writing nothing: Escape closes the menu with the bytes
+  as they were; ArrowDown then Enter picks the second suggestion
+- rewrite the word behind live mode's hidden markers: `**tset**` in live mode becomes `**test**`
+- keep a CRLF document's line endings around the word: only the word's bytes change
+- rewrite a word in a table cell: the cell's word is captured and rewritten in place
 
-- a paragraph with two misspelled words shows two waves, over those words and nothing else; the
-  same word inside a code fence shows none
-- right-clicking a misspelled word puts its suggestions first, and picking one rewrites that word
-  alone, leaving the rest of the paragraph's bytes as they were
-- one Ctrl+Z after a pick puts the misspelled word back
-- "Add to dictionary" in the right-click menu takes the wave off that word
-- selecting exactly a misspelled word shows a "Spelling" row in the selection toolbar whose flyout
-  lists the suggestions, and picking one rewrites the word
+## The waves and the hover card
 
-## While typing
-
-- the word the caret is typing in stays plain; the space after it is what brings the wave, so a
-  half-typed word is never red
-
-## The modes (one page load each)
-
-- the default leaves the browser's checker off: every prose surface carries `spellcheck="false"`,
-  so a word never gets two underlines
-- `spellcheck=native` sets `spellcheck="true"` on the prose surface and draws no waves of its own
-- `spellcheck=off` draws none and keeps the browser's off
+- a misspelled word gets a wave, a right one and code none, and the browser checker is off: two
+  misspelled words in a paragraph show two waves and the same word in a code fence none; the
+  paragraph carries `spellcheck="false"` while the plugin runs
+- resting the pointer on the word opens its rows alone, and a pick rewrites it: the hover card shows
+  the suggestions without the clipboard rows, and its pick rewrites the word (its 800 ms rest and
+  300 ms grace are the hover unit's rows)
+- the word being typed stays plain until the caret leaves it: the space after the word brings its
+  wave

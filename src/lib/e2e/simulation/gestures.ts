@@ -123,6 +123,7 @@ import {
 } from './gestures/github-alert';
 import { composeAbort, composeCommit, type CompositionCase } from './gestures/ime';
 import { slashInsert } from './gestures/slash';
+import { pickSpelling } from './gestures/spelling';
 
 /**
  * The vocabulary of human gestures on top of EditorPage. Each gesture makes a real keyboard or
@@ -301,6 +302,11 @@ export class Gestures {
 
 	startQuote(text: string): Promise<void> {
 		return startQuote(this.ctx, text);
+	}
+
+	/** Needs the spellcheck plugin: `/test/editor?spell=on`. Returns the word the pick wrote. */
+	pickSpelling(word: string): Promise<string> {
+		return pickSpelling(this.ctx, word);
 	}
 
 	/** Needs the slash-commands plugin: `/test/editor?slash=on`. */

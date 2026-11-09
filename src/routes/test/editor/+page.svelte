@@ -24,6 +24,7 @@
 	import { HarnessSource } from './harness-source.svelte';
 	import { trackParityDocument } from '../../parity-documents.svelte';
 	import { slashCommands } from '@voithos-labs/aragonite-slash-commands';
+	import { localStorageWords, spellcheckPlugin } from '@voithos-labs/aragonite-spellcheck';
 	import { countActionPlugin } from './count-action-plugin';
 
 	// Harness flags all arrive as URL params; SSR has no location, so the guard lives here once.
@@ -62,7 +63,16 @@
 	const slashPlugins = param('slash') === 'on' ? [slashCommands] : [];
 	// `?actions=on` lists one selection action, for the toolbar's and the right-click menu's rows.
 	const actionPlugins = param('actions') === 'on' ? [countActionPlugin] : [];
-	const pagePlugins = [...slashPlugins, ...actionPlugins];
+	// `?spell=on` keeps added words in localStorage, `?spell=bare` keeps none: Add to dictionary
+	// shows only with the first.
+	const spell = param('spell');
+	const spellPlugins =
+		spell === 'on'
+			? [spellcheckPlugin(localStorageWords('aragonite-harness:spelling'))]
+			: spell === 'bare'
+				? [spellcheckPlugin]
+				: [];
+	const pagePlugins = [...slashPlugins, ...actionPlugins, ...spellPlugins];
 
 	// Stand-in host hooks, so the code block gutter's run and overflow buttons render. Off by
 	// default, since the block specs measure that gutter's width.

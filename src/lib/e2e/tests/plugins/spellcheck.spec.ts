@@ -1,127 +1,172 @@
+import { type Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
-import { pointAtRaw } from '../../text-runs';
+import { textRunRect } from '../../text-runs';
 
 /**
- * Spell check (requirements/plugins/spellcheck.md): the built-in checker's waves, the
- * suggestion rows in the hover menu, the right-click menu and the selection toolbar, and the
- * three modes.
+ * The spellcheck package (requirements/plugins/spellcheck.md) on `/test/editor?spell=on`, which
+ * keeps added words, or `?spell=bare`, which keeps none: the Spelling rows over a misspelled word
+ * in the right-click menu and the selection toolbar, and what a pick writes.
  */
 
+const PARKED = 'parked until the editor reads blocks (`Editor.blockAt`) and paints: the paint lane';
 const WAVE = '.spell-overlay';
 const TEXT = 'This is a tset of speling.\n';
 
-test.describe('spell check', () => {
-	test.skip(
-		true,
-		'parked until slice S5: it waits on per-block paint and the SelectionAction rows'
-	);
-	let editor: EditorPage;
+/** The middle of the first painted run of `word`, where a pointer lands. */
+async function wordPoint(page: Page, word: string): Promise<{ x: number; y: number }> {
+	const r = await textRunRect(page, word);
+	return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+}
 
-	test.beforeEach(async ({ page }) => {
-		editor = new EditorPage(page);
-		await editor.goto();
-	});
+async function rightClickWord(page: Page, word: string): Promise<void> {
+	const { x, y } = await wordPoint(page, word);
+	await page.mouse.click(x, y, { button: 'right' });
+}
 
-	test('misspelled words get a wave, correct ones and code none', async ({ page }) => {
-		await editor.loadContent(TEXT + '\n```\ntset\n```\n');
-		await expect(page.locator(WAVE)).toHaveCount(2);
-		const [first, second] = await page.locator(WAVE).all();
-		const wordRect = await page.evaluate(() => {
-			const rects = (window as any).__test.rects.rangeRects([0], 10, 14) as DOMRect[];
-			return { left: rects[0].left, right: rects[0].right };
-		});
-		const firstBox = (await first.boundingBox())!;
-		expect(Math.abs(firstBox.x - wordRect.left)).toBeLessThan(2);
-		expect(Math.abs(firstBox.x + firstBox.width - wordRect.right)).toBeLessThan(2);
-		expect((await second.boundingBox())!.y).toBeCloseTo(firstBox.y, 0);
-		await expect(editor.getBlock(0)).toHaveAttribute('spellcheck', 'false');
-	});
+/** The open menu's rows and dividers in order, a divider read as `|`. */
+function menuEntries(page: Page): Promise<string[]> {
+	return page
+		.getByRole('menu')
+		.locator('[role="menuitem"], [role="separator"]')
+		.evaluateAll((els) =>
+			els.map((el) => (el.getAttribute('role') === 'separator' ? '|' : el.textContent!.trim()))
+		);
+}
 
-	test('resting the pointer on the word opens its suggestions alone, and a pick rewrites it', async ({
+async function open(
+	page: Page,
+	query: '?spell=on' | '?spell=bare' | `?spell=on&${string}`,
+	md: string,
+	waves: number
+) {
+	const editor = new EditorPage(page);
+	await editor.goto(query);
+	await editor.loadContent(md);
+	// A wave says the word has its answer, which is when its rows can show.
+	await expect(page.locator(WAVE)).toHaveCount(waves);
+	return editor;
+}
+
+test.describe('the spelling rows', () => {
+	test.skip(true, PARKED);
+
+	test('lead the right-click menu with a divider, and a pick rewrites one word in one undo step', async ({
 		page
 	}) => {
-		await editor.loadContent(TEXT);
-		await expect(page.locator(WAVE)).toHaveCount(2);
-		const word = await pointAtRaw(page, [0], 12);
-		await page.mouse.move(word.x, word.y - 40);
-		await page.mouse.move(word.x, word.y);
-		// Not on arrival: the menu waits for the pointer to rest.
-		expect(await page.getByRole('menu').count()).toBe(0);
-		const rows = page.getByRole('menuitem');
-		await expect(rows.first()).toHaveText('test');
-		await expect(page.getByRole('menuitem', { name: 'Paste', exact: true })).toHaveCount(0);
-		// The word still takes the click: no caret moved, no menu left behind.
-		const menu = page.getByRole('menu', { name: 'Spelling suggestions' });
-		const box = (await menu.boundingBox())!;
-		await page.mouse.move(box.x + 10, box.y + 10);
-		await expect(menu).toBeVisible();
-		await rows.first().click();
+		const editor = await open(page, '?spell=on', TEXT, 2);
+		await rightClickWord(page, 'tset');
+		await expect(page.getByRole('menuitem').first()).toHaveText('test');
+		const entries = await menuEntries(page);
+		const divider = entries.indexOf('|');
+		expect(entries.slice(0, divider)).toContain('Add to dictionary');
+		expect(entries.indexOf('Paste')).toBeGreaterThan(divider);
+
+		await page.getByRole('menuitem', { name: 'test', exact: true }).click();
 		await editor.bridge.waitForSourceEquals('This is a test of speling.\n');
-		await expect(menu).toHaveCount(0);
-	});
-
-	test('leaving the word and the menu closes the hover menu', async ({ page }) => {
-		await editor.loadContent(TEXT + '\nfar away\n');
-		await expect(page.locator(WAVE)).toHaveCount(2);
-		const word = await pointAtRaw(page, [0], 12);
-		await page.mouse.move(word.x, word.y - 40);
-		await page.mouse.move(word.x, word.y);
-		const menu = page.getByRole('menu', { name: 'Spelling suggestions' });
-		await expect(menu).toBeVisible();
-		// Far to the right on the same line: off every word, and nowhere near the menu below it.
-		await page.mouse.move(word.x + 600, word.y);
-		await expect(menu).toHaveCount(0);
-		expect(await editor.bridge.getSource()).toBe(TEXT + '\nfar away\n');
-	});
-
-	test('the right-click menu leads with the suggestions, and a pick rewrites the word', async ({
-		page
-	}) => {
-		await editor.loadContent(TEXT);
-		await expect(page.locator(WAVE)).toHaveCount(2);
-		const point = await pointAtRaw(page, [0], 12);
-		await page.mouse.click(point.x, point.y, { button: 'right' });
-		const rows = page.getByRole('menuitem');
-		await expect(rows.first()).toHaveText('test');
-		await expect(page.getByRole('menuitem', { name: 'Paste', exact: true })).toBeVisible();
-		await rows.first().click();
-		await editor.bridge.waitForSourceEquals('This is a test of speling.\n');
-		await expect(page.locator(WAVE)).toHaveCount(1);
-
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals(TEXT);
 	});
 
-	test('Add to dictionary takes the wave off that word', async ({ page }) => {
-		await editor.loadContent(TEXT);
-		await expect(page.locator(WAVE)).toHaveCount(2);
-		const point = await pointAtRaw(page, [0], 12);
-		await page.mouse.click(point.x, point.y, { button: 'right' });
-		await page.getByRole('menuitem', { name: 'Add to dictionary' }).click();
-		await expect(page.locator(WAVE)).toHaveCount(1);
-		expect(await editor.bridge.getSource()).toBe(TEXT);
-	});
-
-	test('selecting exactly the word gives the toolbar a Spelling row that rewrites it', async ({
+	test('offer Add to dictionary only where the host keeps words, and it settles the word', async ({
 		page
 	}) => {
-		await editor.loadContent(TEXT);
-		await expect(page.locator(WAVE)).toHaveCount(2);
+		const kept = await open(page, '?spell=on', TEXT, 2);
+		await rightClickWord(page, 'tset');
+		await page.getByRole('menuitem', { name: 'Add to dictionary' }).click();
+		await expect(page.locator(WAVE)).toHaveCount(1);
+		await rightClickWord(page, 'tset');
+		await expect(page.getByRole('menuitem', { name: 'test', exact: true })).toHaveCount(0);
+		expect(await kept.bridge.getSource()).toBe(TEXT);
+
+		await open(page, '?spell=bare', TEXT, 2);
+		await rightClickWord(page, 'tset');
+		await expect(page.getByRole('menuitem', { name: 'test', exact: true })).toBeVisible();
+		await expect(page.getByRole('menuitem', { name: 'Add to dictionary' })).toHaveCount(0);
+	});
+
+	test('give a selection of exactly the word a Spelling row in the toolbar, whose flyout rewrites it', async ({
+		page
+	}) => {
+		const editor = await open(page, '?spell=on', TEXT, 2);
 		await editor.focusBlock(0, 10);
-		for (let i = 0; i < 4; i++) await page.keyboard.press('Shift+ArrowRight');
-		const row = page.getByTestId('toolbar-spelling');
-		await expect(row).toBeVisible();
-		await row.hover();
-		const suggestion = page.getByTestId('toolbar-spelling-suggestion').first();
-		await expect(suggestion).toHaveText('test');
-		await suggestion.click();
+		for (let i = 0; i < 3; i++) await page.keyboard.press('Shift+ArrowRight');
+		const row = page.getByTestId('toolbar-action-0');
+		await expect(page.getByTestId('selection-toolbar')).toBeVisible();
+		await expect(row).toHaveCount(0);
+
+		await page.keyboard.press('Shift+ArrowRight');
+		await expect(row).toHaveText('Spelling');
+		await row.click();
+		await page
+			.getByTestId('selection-toolbar')
+			.getByRole('menuitem', { name: 'test', exact: true })
+			.click();
+		await editor.bridge.waitForSourceEquals('This is a test of speling.\n');
+	});
+
+	test('answer the keyboard, and Escape closes them writing nothing', async ({ page }) => {
+		const editor = await open(page, '?spell=on', TEXT, 2);
+		await rightClickWord(page, 'tset');
+		await page.keyboard.press('Escape');
+		await expect(page.getByRole('menu')).toHaveCount(0);
+		expect(await editor.bridge.getSource()).toBe(TEXT);
+
+		await rightClickWord(page, 'tset');
+		const second = await page.getByRole('menuitem').nth(1).textContent();
+		await page.keyboard.press('ArrowDown');
+		await page.keyboard.press('Enter');
+		await editor.bridge.waitForSourceEquals(`This is a ${second!.trim()} of speling.\n`);
+	});
+
+	test('rewrite the word behind live mode’s hidden markers', async ({ page }) => {
+		const editor = await open(page, '?spell=on&presentationMode=live', 'A **tset** here.\n', 1);
+		await rightClickWord(page, 'tset');
+		await page.getByRole('menuitem', { name: 'test', exact: true }).click();
+		await editor.bridge.waitForSourceEquals('A **test** here.\n');
+	});
+
+	test('keep a CRLF document’s line endings around the word', async ({ page }) => {
+		const editor = await open(page, '?spell=on', 'One tset.\r\n\r\nTwo lines.\r\n', 1);
+		await rightClickWord(page, 'tset');
+		await page.getByRole('menuitem', { name: 'test', exact: true }).click();
+		await editor.bridge.waitForSourceEquals('One test.\r\n\r\nTwo lines.\r\n');
+	});
+
+	test('rewrite a word in a table cell', async ({ page }) => {
+		const md = '| a | b |\n| - | - |\n| tset | ok |\n';
+		const editor = await open(page, '?spell=on', md, 1);
+		await rightClickWord(page, 'tset');
+		await page.getByRole('menuitem', { name: 'test', exact: true }).click();
+		await editor.bridge.waitForSourceEquals('| a | b |\n| - | - |\n| test | ok |\n');
+	});
+});
+
+test.describe('the waves and the hover card', () => {
+	test.skip(true, PARKED);
+
+	test('a misspelled word gets a wave, a right one and code none, and the browser checker is off', async ({
+		page
+	}) => {
+		const editor = await open(page, '?spell=on', TEXT + '\n```\ntset\n```\n', 2);
+		await expect(editor.getBlock(0)).toHaveAttribute('spellcheck', 'false');
+	});
+
+	test('resting the pointer on the word opens its rows alone, and a pick rewrites it', async ({
+		page
+	}) => {
+		const editor = await open(page, '?spell=on', TEXT, 2);
+		const word = await wordPoint(page, 'tset');
+		await page.mouse.move(word.x, word.y - 40);
+		await page.mouse.move(word.x, word.y);
+		await expect(page.getByRole('menuitem').first()).toHaveText('test');
+		await expect(page.getByRole('menuitem', { name: 'Paste', exact: true })).toHaveCount(0);
+		await page.getByRole('menuitem').first().click();
 		await editor.bridge.waitForSourceEquals('This is a test of speling.\n');
 	});
 
 	test('the word being typed stays plain until the caret leaves it', async ({ page }) => {
-		await editor.loadContent('This is\n');
-		await expect(page.locator(WAVE)).toHaveCount(0);
+		const editor = await open(page, '?spell=on', 'This is\n', 0);
 		await editor.focusBlockEnd(0);
 		await editor.typeText(' tset');
 		await editor.bridge.waitForSourceEquals('This is tset\n');
@@ -129,35 +174,5 @@ test.describe('spell check', () => {
 		await expect(page.locator(WAVE)).toHaveCount(0);
 		await editor.typeText(' ');
 		await expect(page.locator(WAVE)).toHaveCount(1);
-	});
-});
-
-test.describe('spell check: the native mode', () => {
-	test.skip(
-		true,
-		'parked until slice S5: it waits on per-block paint and the SelectionAction rows'
-	);
-	test('hands the words to the browser checker and draws no waves of its own', async ({ page }) => {
-		const editor = new EditorPage(page);
-		await editor.goto('?spellcheck=native');
-		await editor.loadContent(TEXT);
-		await expect(editor.getBlock(0)).toHaveAttribute('spellcheck', 'true');
-		await editor.waitForRenderFlush();
-		await expect(page.locator(WAVE)).toHaveCount(0);
-	});
-});
-
-test.describe('spell check: off', () => {
-	test.skip(
-		true,
-		'parked until slice S5: it waits on per-block paint and the SelectionAction rows'
-	);
-	test('draws no waves and keeps the browser checker off', async ({ page }) => {
-		const editor = new EditorPage(page);
-		await editor.goto('?spellcheck=off');
-		await editor.loadContent(TEXT);
-		await expect(editor.getBlock(0)).toHaveAttribute('spellcheck', 'false');
-		await editor.waitForRenderFlush();
-		await expect(page.locator(WAVE)).toHaveCount(0);
 	});
 });
