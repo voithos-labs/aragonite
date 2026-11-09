@@ -182,13 +182,15 @@ function across(
 	const opens = /^\r?\n/.exec(tail)?.[0].length ?? 0;
 	const lowerLine = joined.lastIndexOf('\n', before.length + opens - 1) + 1;
 	const at = lowerLine > closerAt ? lowerLine + closed.length - joined.length : lowerLine;
-	// Where blocks go whole from the start, the block on the line above it, else the start's own.
-	const upper = held
-		? deepestAt(doc, from - lineHead(source, from).length - 1)
-		: (head?.leaf ?? deepestAt(doc, from - 1));
+	// Where blocks go whole from the start, the sibling before the first of them (none where it led a
+	// container, whose own neighbours touched before), else the start's own block.
+	const upper =
+		held && first ? siblingBefore(doc, first) : (head?.leaf ?? deepestAt(doc, from - 1));
+	// Text after the range that takes a held block's place stands where that block stood.
+	const place = held && joins && !lines ? first : undefined;
 	const lower = lines
 		? deepestAt(doc, source.length - lines.tail.length)
-		: (end?.leaf ?? deepestAt(doc, to));
+		: (place ?? end?.leaf ?? deepestAt(doc, to));
 	// Where the tail takes a held block's place, or the range enters a block that stays, the end block
 	// keeps only what follows the range, its emptied end line gone.
 	const after =
@@ -197,7 +199,7 @@ function across(
 	const rewritten = {
 		...(head && start && { upper: { block: head.leaf, raw: start.raw, kind: head.leaf.type } }),
 		...(end && cut && { lower: { block: end.leaf, raw: cut.raw, kind: end.leaf.type } }),
-		...(end && rest !== null && { lower: { block: end.leaf, raw: rest } })
+		...(end && rest !== null && { lower: { block: place ?? end.leaf, raw: rest } })
 	};
 	const parted = numberedApart(doc, closed, at, { from, to, upper, lower, rewritten }, !joins);
 	const gone = held && (!!lines || !joins || isBlankText(lineRest(tail, 0)));
@@ -208,6 +210,11 @@ function across(
 		...(gone && { gone }),
 		...(held && first && { took: first.path })
 	};
+}
+
+function siblingBefore(doc: Doc, block: LaidBlock): LaidBlock | undefined {
+	const index = block.path.at(-1)!;
+	return index > 0 ? doc.layout.block([...block.path.slice(0, -1), index - 1]) : undefined;
 }
 
 /** Whether `block` has a line past the range's end line and the start sits in a container that

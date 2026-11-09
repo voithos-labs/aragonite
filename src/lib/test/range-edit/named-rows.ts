@@ -1136,5 +1136,34 @@ export const NAMED_ROWS: NamedRow[] = [
 		source: '8. a⟦a\n9. b⟧b\n10. c\n\n    more\n',
 		gesture: 'delete',
 		expect: { source: '8. ab\n9. c\n\n   more\n' }
+	},
+	// ── The text after the range takes the place of a block taken whole, beside that block's siblings ──
+	// Miss-analysis: the main draw never started a range at an HTML block first in a container with a
+	// block flush above the container; the HTML draw's fresh seeds did.
+	{
+		name: 'L4 from an HTML block first in a quote: the quote keeps its line, flush under the list',
+		source: '- # head\n\n- # head\n> ⟦</div>\n- o⟧ne\n  two\n',
+		mode: 'live',
+		gesture: 'cut',
+		expect: { source: '- # head\n\n- # head\n> ne\n  two\n' }
+	},
+	{
+		name: 'L4 the same from a list item’s first block under a quote, CRLF',
+		source:
+			'> <script>\r\n> </script>\r\n- ⟦<?php echo 1; ?>\r\n> <textarea>\r\n> ⟧left open\r\n- one\r\n',
+		gesture: 'backspace',
+		expect: { source: '> <script>\r\n> </script>\r\n- left open\r\n- one\r\n' }
+	},
+	{
+		name: 'L4 the same from a second item, the list staying tight',
+		source: '- a\n- ⟦</div>\n> o⟧ne\n',
+		gesture: 'delete',
+		expect: { source: '- a\n- ne\n' }
+	},
+	{
+		name: 'L4 under a paragraph in the same quote, the pair it uncovers folds as one paragraph',
+		source: 'a\n\n> para\n> ⟦</div>\n- o⟧ne\n',
+		gesture: 'delete',
+		expect: { source: 'a\n\n> para\n> ne\n' }
 	}
 ];
