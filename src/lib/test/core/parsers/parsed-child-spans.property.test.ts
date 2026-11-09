@@ -33,17 +33,22 @@ function regionReads(node: CstNode, region: string): string {
 function expectSpansHold(source: string): void {
 	for (const node of spanned(parse(source).children)) {
 		const spans = node.childSpans;
-		// A child opening on a lazy line leaves its quote's spans to the full rebuild.
-		if (!spans && node.kind === 'blockquote' && splitLines(node.raw).some(isLazy)) continue;
+		const rebuilt = { ...node, childSpans: undefined } as CstNode;
+		if (node.kind === 'table') rebuildTableRaw(rebuilt);
+		else rebuildBlockquoteRaw(rebuilt);
+		// A child opening on a lazy line, or bytes a full rebuild leaves out, leave the quote's
+		// spans to the full rebuild.
+		const wholeOnly = splitLines(node.raw).some(isLazy) || rebuilt.raw !== node.raw;
+		if (!spans && node.kind === 'blockquote' && wholeOnly) continue;
 		expect(spans, `${node.kind} ${JSON.stringify(node.raw)}`).toBeInstanceOf(Uint32Array);
 		node.children!.forEach((child, i) => {
 			const region = node.raw.slice(spans![i * 2], spans![i * 2 + 1]);
 			expect(regionReads(node, region)).toBe(child.leadingTrivia + child.raw);
 		});
-		const rebuilt = { ...node, childSpans: undefined } as CstNode;
-		if (node.kind === 'table') rebuildTableRaw(rebuilt);
-		else rebuildBlockquoteRaw(rebuilt);
 		if (rebuilt.childSpans) expect(Array.from(spans!)).toEqual(Array.from(rebuilt.childSpans));
+		// A keystroke's region rewrite keeps every byte outside its child, so it only agrees with
+		// the full rebuild where that writes the container back as it stands.
+		expect(rebuilt.raw, JSON.stringify(node.raw)).toBe(node.raw);
 	}
 }
 
@@ -65,6 +70,17 @@ describe('a parsed quote and table keep their child spans', () => {
 		const quote = parse('> x\n>\n>     code\nlazy\n').children[0];
 		expect(quote.children!.at(-1)?.raw).toBe('lazy\n');
 		expect(quote.childSpans).toBeUndefined();
+	});
+
+	// Miss-analysis: the property held each span to its child and to the full rebuild's spans, but
+	// never asked that rebuild for the bytes, which drops a last bare `>` holding none of the body.
+	it.each([
+		['a last bare marker', '> first\n>\n>'],
+		['a last marker and space', '> first\n>\n> '],
+		['CRLF', '> first\r\n> \r\n> '],
+		['an open fence', '> first\n> ```\n> code\n>']
+	])('leaves a quote ending on %s with no line break no spans', (_name, source) => {
+		expect(parse(source).children[0].childSpans).toBeUndefined();
 	});
 
 	it('over generated quotes and tables', () => {

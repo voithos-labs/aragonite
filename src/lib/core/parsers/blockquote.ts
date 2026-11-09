@@ -117,7 +117,7 @@ export function parseBlockquote(
 			raw,
 			metadata: { quoteDepth },
 			innerPrefix: '',
-			childSpans: childLineSpans(lines, startIndex, inner.children),
+			childSpans: childLineSpans(lines, startIndex, i, inner.children, inner.suffix),
 			children: inner.children,
 			innerSuffix: inner.suffix
 		},
@@ -125,26 +125,32 @@ export function parseBlockquote(
 	};
 }
 
-/** Where each child's lines sit in the quote's bytes; none with no child yet, or with a child
- *  opening on a lazy line, whose bytes only a full rebuild writes back as they stand. */
+/** Where each child's lines sit in the quote's lines `[start, end)`; none with no child yet, with a
+ *  child opening on a lazy line, or with a line no child holds, which only a full rebuild writes. */
 function childLineSpans(
 	lines: ParsedLine[],
 	start: number,
-	children: CstNode[]
+	end: number,
+	children: CstNode[],
+	suffix: string
 ): Uint32Array | undefined {
 	if (children.length === 0) return undefined;
 	const base = lines[start].start;
 	const at = (line: number) => (line < lines.length ? lines[line].start : lines.at(-1)!.end) - base;
 	const spans = new Uint32Array(children.length * 2);
 	let line = start;
-	for (let i = 0; i < children.length; i++) {
-		const bytes = children[i].leadingTrivia + children[i].raw;
-		if (!matchBlockquote(lines[line].text)) return undefined;
-		spans[i * 2] = at(line);
-		for (let end = bytes.indexOf('\n'); end >= 0; end = bytes.indexOf('\n', end + 1)) line++;
+	const pass = (bytes: string) => {
+		for (let nl = bytes.indexOf('\n'); nl >= 0; nl = bytes.indexOf('\n', nl + 1)) line++;
 		// A last line with no ending is a line of its own too.
 		if (bytes !== '' && !bytes.endsWith('\n')) line++;
+	};
+	for (let i = 0; i < children.length; i++) {
+		if (!matchBlockquote(lines[line].text)) return undefined;
+		spans[i * 2] = at(line);
+		pass(children[i].leadingTrivia + children[i].raw);
 		spans[i * 2 + 1] = at(line);
 	}
-	return spans;
+	pass(suffix);
+	// A last bare `>` with no line ending holds no byte of the body.
+	return line === end ? spans : undefined;
 }
