@@ -92,6 +92,18 @@ installs eight base plugins, two of which derive over the whole document, so the
 between the two routes is an upper bound on an installed handler's cost rather than the
 handler's cost alone.
 
+## The spellcheck package (report-only)
+
+One row timing a keystroke at the end of the first paragraph of a 40,000-paragraph document
+(every tenth paragraph holds a misspelled word), 30 keystrokes, reported as p50/p95: once on
+`/test/editor?spell=bare` and once on the editor route with no plugins, so the artifact carries
+both numbers. The typed block is painted again at each keystroke, and reading its bytes lays the
+document out again, which walks every top-level block once per edit; the row is how big that
+cost is. The word list loads on a small document first, so neither number pays for it.
+
+- the spellcheck run that ends with no wave on the page fails the row rather than timing an editor
+  whose spell check never ran
+
 ## Vertical arrival (report-only)
 
 Two rows time an arrow instead of a keystroke: ArrowDown into a paragraph of 200 decoded

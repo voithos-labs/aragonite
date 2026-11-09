@@ -302,6 +302,47 @@ perf arrival below
 	});
 }
 
+// ── The spellcheck package (report only) ────────────────────────────────────
+
+// A keystroke repaints its block, and reading that block's bytes lays the document out again, which
+// walks every top-level block once per edit.
+const SPELL_PARAGRAPHS = 40_000;
+const SPELL_KEYSTROKES = 30;
+
+test('spellcheck on vs off, 40,000 paragraphs (report-only)', async ({ page }) => {
+	const document =
+		Array.from({ length: SPELL_PARAGRAPHS }, (_, i) =>
+			i % 10 === 1 ? 'A paragraph with a tset in it.' : 'A paragraph of plain words.'
+		).join('\n\n') + '\n';
+
+	const spelling = new EditorPage(page);
+	await spelling.goto('?spell=bare');
+	// The word list loads at the first check, which the measured load shouldn't pay for.
+	await spelling.loadContent('Warm the tset list.\n');
+	await expect(page.locator('.spell-overlay')).toHaveCount(1);
+	const on = await measureTypingIntoDocument(page, spelling, document, SPELL_KEYSTROKES);
+	expect(await page.locator('.spell-overlay').count()).toBeGreaterThan(0);
+
+	const control = new EditorPage(page);
+	await control.goto();
+	const off = await measureTypingIntoDocument(page, control, document, SPELL_KEYSTROKES);
+
+	writeResult('spellcheck', '40k-paragraphs', {
+		paragraphs: SPELL_PARAGRAPHS,
+		bytes: document.length,
+		keystrokes: SPELL_KEYSTROKES,
+		onLoadMs: round(on.loadMs),
+		onP50Ms: round(on.p50Ms),
+		onP95Ms: round(on.p95Ms),
+		offLoadMs: round(off.loadMs),
+		offP50Ms: round(off.p50Ms),
+		offP95Ms: round(off.p95Ms),
+		note: `${DEV_CAVEAT}; report-only`
+	});
+	expect(on.samples).toHaveLength(SPELL_KEYSTROKES);
+	expect(off.samples).toHaveLength(SPELL_KEYSTROKES);
+});
+
 // ── Bridge sanity ───────────────────────────────────────────────────────────
 
 test('perf bridge: a keystroke drives the inline-refresh sweep', async ({ page }) => {

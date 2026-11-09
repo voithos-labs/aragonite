@@ -5,14 +5,11 @@ import { makeRng } from '../../simulation/rng';
 import { assertCheckpoint } from '../../simulation/invariants';
 import { makeSimContext } from './helpers';
 
-// A spelling pick and its undo, with the reference checks after each. Parked with the package's
-// own rows: the pick needs the editor to read blocks and paint.
+// A spelling pick and its undo, with the reference checks after each.
 
 const DOC = 'Alpha has a tset in it.\n\nBeta stays as it is.\n';
 
 test.describe('spelling-ops simulation', () => {
-	test.skip(true, 'parked until the editor reads blocks (`Editor.blockAt`) and paints');
-
 	test('a picked suggestion rewrites one word, and one Ctrl+Z gives the bytes back', async ({
 		page
 	}) => {

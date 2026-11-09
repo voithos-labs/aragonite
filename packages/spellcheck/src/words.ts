@@ -46,7 +46,10 @@ export function isCheckable(word: string): boolean {
 }
 
 /** The word holding byte `at`, bounds included, so a caret right after a word still names it. */
-export function spanAt(spans: readonly Misspelling[], at: number): Misspelling | null {
+export function spanAt<S extends { from: number; to: number }>(
+	spans: readonly S[],
+	at: number
+): S | null {
 	for (const span of spans) {
 		if (span.from > at) break;
 		if (at <= span.to) return span;

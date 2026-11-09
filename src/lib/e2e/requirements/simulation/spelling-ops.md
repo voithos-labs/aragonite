@@ -3,8 +3,7 @@
 A session on `/test/editor?spell=on` over the spellcheck package. The pick runs through the
 right-click menu the way a user reaches it, and the reference checks (the console watcher, the
 live-tree round-trip, the block-list audit, and the reparse comparison) run after the load, the
-pick and the undo. Parked until the editor reads blocks and paints, which the package's capture and
-its waves need.
+pick and the undo.
 
 ## Happy paths
 

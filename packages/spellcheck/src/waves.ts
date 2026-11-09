@@ -24,6 +24,7 @@ export function paintWaves(
 	handlers: WaveHandlers
 ): Paint[] {
 	const spans = wordSpans(block);
+	typing.painted(block, spans);
 	if (spans.length === 0) return [];
 	// Asked before the marks are built, so a dictionary that answers at once paints in this pass.
 	verdicts.ask(spans.map((span) => span.word));
