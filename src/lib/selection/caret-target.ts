@@ -9,6 +9,7 @@ import { CURSOR_END, entryEdge } from '../block-component';
 import { docPathFrom } from '../core/coordinate-spaces';
 import { blockNodeAt, isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { displayLength } from '../core/lines';
+import { splitsLineEndingPair } from '../core/line-ending-pairs';
 import { leafAtRawOffset } from '../tree-operations/container-offsets';
 import { caretChildCount } from '../schema/reserved-chrome';
 import type { DocPath } from '../core/coordinate-spaces';
@@ -23,8 +24,8 @@ export interface CaretTarget {
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
-/** The leaf and offset a caret at `pos` takes, or null for a path that addresses nothing. A
- *  path into a collapsed body lands at its title row's end unless `openCollapsed` is set. */
+/** The leaf and offset a caret at `pos` takes, or null where it addresses nothing: a collapsed body
+ *  gives its title row's end (unless `openCollapsed`), a CRLF pair's middle the byte before it. */
 export function caretTargetFor(
 	doc: DocumentView,
 	pos: CaretPosition,
@@ -41,7 +42,9 @@ export function caretTargetFor(
 		}
 		const node = nodeAt(doc, path)!;
 		if (!node.children?.length) {
-			return path.length > 0 ? { leafPath: docPathFrom(path), offset } : null;
+			if (path.length === 0) return null;
+			const inPair = isBlockNode(node) && splitsLineEndingPair(node.raw, offset);
+			return { leafPath: docPathFrom(path), offset: inPair ? offset - 1 : offset };
 		}
 		const edge = entryEdge(offset);
 		const byteLeaf = edge.inside && isBlockNode(node) ? leafAtRawOffset(node, offset) : null;

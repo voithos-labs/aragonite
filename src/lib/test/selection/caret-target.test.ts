@@ -50,6 +50,13 @@ describe('caretTargetFor', () => {
 		expect(target(parse('> a\n> b\n'), [0], 5)).toEqual({ leafPath: [0, 0], offset: 2 });
 	});
 
+	// Miss-analysis: every landing row used LF bytes, so none named a caret inside a pair.
+	it('an offset between a CRLF pair’s bytes lands before the pair, in a container too', () => {
+		expect(target(parse('a **b**\r\nc\r\n'), [0], 8)).toEqual({ leafPath: [0], offset: 7 });
+		expect(target(parse('> a\r\n> b\r\n'), [0], 4)).toEqual({ leafPath: [0, 0], offset: 1 });
+		expect(target(parse('a\r\nb\r\n'), [0], 3)).toEqual({ leafPath: [0], offset: 3 });
+	});
+
 	it('a byte offset into a table, which cannot map bytes, lands at its last cell end', () => {
 		const doc = parse('| a | b |\n| - | - |\n| c | d |\n');
 		expect(target(doc, [0], 5)).toEqual({ leafPath: [0, 1, 1], offset: CURSOR_END });
