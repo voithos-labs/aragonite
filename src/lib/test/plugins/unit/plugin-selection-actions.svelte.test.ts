@@ -186,6 +186,7 @@ describe('rows opened over a range', () => {
 		expect(seen).toEqual([true, false]);
 	});
 
+	// Missed: every openRows row passed a point, so a rect's placement and the menu's name went unread.
 	it('open a little under a rect, named for their action', async () => {
 		const action: SelectionAction = { label: 'Word', rows: () => [{ label: 'W', run: () => {} }] };
 		const m = mountEditor({ source: 'abc def ghi\n', plugins: [withActions(action)] });
@@ -200,6 +201,7 @@ describe('rows opened over a range', () => {
 		]);
 	});
 
+	// Missed: no row scrolled with the rows open, so rows pinned to the viewport passed.
 	it('follow the block holding their range through a scroll', async () => {
 		const action: SelectionAction = { label: 'Word', rows: () => [{ label: 'W', run: () => {} }] };
 		const m = mountEditor({ source: 'abc\n\ndef ghi\n', plugins: [withActions(action)] });
