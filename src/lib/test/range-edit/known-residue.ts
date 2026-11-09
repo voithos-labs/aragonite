@@ -41,6 +41,10 @@ const besideSpaces = (read: Read, { from, to }: Range) =>
 	read.source.slice(from, to).includes('\n') &&
 	[from, to].some((at) => /^[ \t]+$/.test(lineHead(read.source, at)));
 
+/** Whether `a` and `b` sit in the same list of blocks. */
+const besides = (a: LaidBlock, b: LaidBlock) =>
+	a.path.length === b.path.length && a.path.slice(0, -1).join() === b.path.slice(0, -1).join();
+
 /** The blocks directly inside `container`, its title row aside. */
 function bodyOf(read: Read, container: LaidBlock, host: CheckHost): LaidBlock[] {
 	const title = host.facts(container.type).titleRow?.type;
@@ -125,15 +129,20 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 		}
 	},
 	{
-		gap: 'a container cut out past its end from past an opening line, or from its first text to a block that takes no joined text, nests a second one when pasted back',
+		gap: 'a container cut out past its end from past an opening line, or from its first text to or through a block that takes no joined text, nests a second one when pasted back',
 		lane: '2b',
 		law: 'L3',
 		matches: (read, range, host) => {
-			const end = leafAt(read, range.to);
-			const endTakesNone = !!end && host.facts(end.type).joins === 'never';
+			const takesNone = (b: LaidBlock | null | undefined) =>
+				!!b && host.facts(b.type).joins === 'never';
+			const endTakesNone = takesNone(leafAt(read, range.to));
 			return containersAt(read, range.from, 'start').some((c) => {
 				const first = read.blocks.find((b) => b.text && b.from >= c.from && b.to <= c.to);
-				const fromText = first?.text?.from === range.from && endTakesNone;
+				// The clipboard's last block: the last one beside the container the range takes whole.
+				const last = read.blocks
+					.filter((b) => besides(b, c) && b.from >= c.to && b.to <= range.to)
+					.at(-1);
+				const fromText = first?.text?.from === range.from && (endTakesNone || takesNone(last));
 				return c.to < range.to && (c.lines!.at(0)!.own || fromText);
 			});
 		},
