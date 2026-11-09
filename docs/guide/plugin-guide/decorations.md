@@ -45,7 +45,7 @@ Every position is a document byte. `block.byteAt(i)` turns an offset into `block
 
 A view is a `PluginView` that gets `{ paint }`, the paint it came from, so put what it shows in `data`. `svelteView`, `reactView` and `vueView` make one from a component, the same as for any widget, and that's the only place React or Vue shows up: `paint` itself is a plain function. Marks, widgets and replaces land only on a block without children, and widgets and replaces only in prose. Paint that can't land (outside the block's text, on a quote's marker, on a list) is left out, with one dev warning per problem.
 
-When something other than the block's bytes changes what you'd paint (an answer arrived, an option flipped), ask again with `editor.repaint(blocks)` from your `setup(editor)`, or `editor.repaint()` for every block on screen. A block that left the document is skipped. Say your dictionary answers late, with the byte the word it checked starts at:
+When something other than the block's bytes changes what you'd paint (an answer arrived, an option flipped), ask again with `editor.repaint(blocks)` from your `setup(editor)`, or `editor.repaint()` for every block on screen. A block that left the document is skipped. The first blocks are asked before `setup` runs, so keep what `paint` reads in the closure `contributes` returns, and call `repaint()` from `setup` if it fills that in. Say your dictionary answers late, with the byte the word it checked starts at:
 
 ```ts
 setup(editor) {
