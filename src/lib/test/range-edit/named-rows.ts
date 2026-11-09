@@ -1080,6 +1080,28 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: 'delete',
 		expect: { source: '> a\n\nc\n</div>\n' }
 	},
+	// ── A heading taken whole after a block that takes no joined text goes with its marker ──
+	// Miss-analysis: the main draw never ended a range at a heading's text end from a closing line's
+	// end; the HTML draw did, and a code block above does the same.
+	{
+		name: 'L4 from an HTML block’s last byte through a heading',
+		source: '<div>\nx\n</div>⟦\n\n# head⟧\n',
+		gesture: 'delete',
+		expect: { source: '<div>\nx\n</div>\n' }
+	},
+	{
+		name: 'L4 from a code block’s closing fence through a heading',
+		source: '```\nx\n```⟦\n\n# head⟧\n',
+		gesture: 'delete',
+		expect: { source: '```\nx\n```\n' }
+	},
+	{
+		name: 'L4 inside a quote, the quote’s markers kept',
+		source: '> <div>\n> x\n> </div>⟦\n>\n> # head⟧\n>\n> after\n',
+		gesture: 'delete',
+		mode: 'live',
+		expect: { source: '> <div>\n> x\n> </div>\n>\n> after\n' }
+	},
 	// ── Text over a range inside one cell is one write of the cell ──
 	// Miss-analysis: the law draw draws no range inside a cell, and no row pasted over one.
 	{

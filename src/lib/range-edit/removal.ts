@@ -160,10 +160,10 @@ function across(
 		if (cut) tail = kept + cut.source.slice(lineStart);
 		else {
 			// An end on no block's text keeps its line's bytes, only the markers of a whole end block's.
-			const textStart = end
-				? lineTextStart(doc, end.leaf, end.offset)
-				: goes
-					? Math.min(to, pastMarkers(source, lineStart))
+			const textStart = goes
+				? Math.min(to, pastMarkers(source, lineStart))
+				: end
+					? lineTextStart(doc, end.leaf, end.offset)
 					: to;
 			const markers =
 				lineStart > from && textStart >= lineStart ? source.slice(lineStart, textStart) : '';
