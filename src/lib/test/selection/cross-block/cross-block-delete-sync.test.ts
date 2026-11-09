@@ -89,9 +89,12 @@ describe('cross-block delete beside the folded trailing blank (GH #129)', () => 
 	it('cross-container: the quote the delete takes leaves no id behind', async () => {
 		const env = makeEnv('alpha\n\n> q\n\n');
 		env.doc.suffix = parse('alpha\n\n> q\n\n').suffix;
+		const quote = env.doc.children[1];
+		// Once the delete takes the quote, its state keeps the node it was built on, as an unmounted
+		// container's would.
 		registerBlockListState(
-			env.doc.children[1],
-			makeBlockListState(() => env.deps.doc.children[1])
+			quote,
+			makeBlockListState(() => env.deps.doc.children[1] ?? quote)
 		);
 		const idsBefore = [...env.getBlockIds()];
 		env.deps.selectionState.enterCrossBlock({ path: [0], offset: 0 }, { path: [1, 0], offset: 1 });
