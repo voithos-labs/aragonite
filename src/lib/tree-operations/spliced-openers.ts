@@ -148,8 +148,7 @@ function keptEnds(was: readonly NodeView[], now: readonly NodeView[]) {
 }
 
 /** The closers a change inside container `was`, read again as `now`, needs in `now`'s bytes; null
- *  when it changed no child's bytes, as a change to the container's own lines does. `read` names
- *  the children the splice read again, when it read inside the container. */
+ *  when it changed no child's bytes. `read` names the children the splice read again. */
 function closersInside(
 	was: NodeView,
 	now: NodeView,
