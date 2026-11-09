@@ -76,11 +76,14 @@ function divergence(source: string, changes: (before: string) => ByteChange[]) {
 		if (bytes !== serialize(outside)) return `bytes ${JSON.stringify(bytes)}`;
 		const shape = describeShapeDivergence(inside, outside);
 		if (shape) return `the tree: ${shape}`;
+		// The trees are the same shape, so a window's blocks sit at the same index in both, past
+		// however many blocks the windows above it added or took.
+		let shift = 0;
 		for (const window of reading?.windows ?? []) {
 			for (let i = 0; i < window.blocks.length; i++) {
-				const at = window.at + i;
-				const was = olds[at];
-				const wasOut = oldsOut[at];
+				const at = window.at + shift + i;
+				const was = olds[window.at + i];
+				const wasOut = oldsOut[window.at + i];
 				if (!was || !wasOut) continue;
 				const a = JSON.stringify(kept(was.kids, was.ids, inside.children[at]));
 				const b = JSON.stringify(kept(wasOut.kids, wasOut.ids, outside.children[at]));
@@ -91,6 +94,7 @@ function divergence(source: string, changes: (before: string) => ByteChange[]) {
 					return `child spans ${Array.from(spans)}, not ${Array.from(reload)}`;
 				}
 			}
+			shift += window.blocks.length - window.count;
 		}
 		if (bytes === '') return null;
 		// One the top-level window shares (a table read anew keeps rows another column count spelt)
@@ -111,6 +115,9 @@ const QUOTE_LINE = [
 	'> a',
 	'>',
 	'> two words',
+	'>     code',
+	'>   indented',
+	'>\n>',
 	'lazy',
 	'> > nested',
 	'> - item',
@@ -152,8 +159,8 @@ const arbContainerDoc = fc
 		return (above + body + below).replace(/\n/g, ending);
 	});
 
-/** What an edit writes: plain text, line breaks, and every opener and closer that reaches past
- *  its own line. */
+/** What an edit writes: plain text, line breaks, every opener and closer that reaches past its own
+ *  line, and a quoted item or code line that reads on past blank lines. */
 const INSERTS = [
 	'x',
 	'two words',
@@ -169,6 +176,8 @@ const INSERTS = [
 	'| ',
 	'\n> b',
 	'\n  c',
+	'\n> - e',
+	'\n>     d',
 	''
 ];
 
@@ -246,6 +255,33 @@ describe('the window inside a container, by its edges', () => {
 		const source = ITEMS(40) + '\npara\n\n';
 		const { failure } = divergence(source, to(edit(source, 'item 39', 'item 39!')));
 		expect(failure).toBeNull();
+	});
+
+	// Miss-analysis: every row ended its run above a child with text, and the generator drew no
+	// quote line indented into the child above, so no lookahead stopped at a blank child.
+	it.each([
+		[
+			'an item taking in the line below',
+			'> first\n> - item\n>\n> text\n>\n> \n>     code\n> text\n',
+			(s: string) => edit(s, 'item\n>\n', 'item ')
+		],
+		[
+			'indented code',
+			'> a\n>\n> text\n>\n>\n>     code\n> after\n',
+			(s: string) => edit(s, '> t', '>     t')
+		],
+		[
+			'a list item',
+			'> a\n>\n> text\n>\n>\n>   code\n> after\n',
+			(s: string) => edit(s, '> t', '> - t')
+		],
+		[
+			'an item, CRLF',
+			'> first\r\n> - item\r\n>\r\n> text\r\n>\r\n> \r\n>     code\r\n> text\r\n',
+			(s: string) => edit(s, 'item\r\n>\r\n', 'item ')
+		]
+	])('reads on past blank children for %s that continues across them', (_name, source, after) => {
+		expect(divergence(source, to(after(source))).failure).toBeNull();
 	});
 
 	// Rows that read a few children: far less than the container.

@@ -129,12 +129,17 @@ function readRun(run: Run, text: string): RunRead | 'moved' | 'mismatch' {
 	const { top, t, hi, headText } = run;
 	const node = top.doc.children[t];
 	const kids = node.children!;
-	const after = hi === kids.length - 1 ? tailAfter(top, t) : nextLine(node, hi + 1);
+	const spans = node.childSpans!;
+	const last = hi === kids.length - 1;
+	const k = last ? -1 : textAfter(kids, hi);
+	const after = last
+		? tailAfter(top, t)
+		: node.raw.slice(spans[(hi + 1) * 2], spans[k * 2]) + nextLine(node, k);
 	if (after === null) return 'mismatch';
 	const read = top.read(headText + text + after);
 	const container = read.children[0];
-	const spans = container?.childSpans;
-	if (!container?.children || !spans || container.kind !== node.kind) return 'mismatch';
+	const readSpans = container?.childSpans;
+	if (!container?.children || !readSpans || container.kind !== node.kind) return 'mismatch';
 	if (container.leadingTrivia !== '' || !sameMetadata(container.metadata, node.metadata)) {
 		return 'mismatch';
 	}
@@ -142,37 +147,38 @@ function readRun(run: Run, text: string): RunRead | 'moved' | 'mismatch' {
 	for (let i = 0; i < head; i++) if (container.children[i]?.raw !== kids[i].raw) return 'mismatch';
 	const end = headText.length + text.length;
 	let m = head;
-	while (m < container.children.length && spans[m * 2 + 1] < end) m++;
-	if (m >= container.children.length || spans[m * 2 + 1] !== end) return 'moved';
+	while (m < container.children.length && readSpans[m * 2 + 1] < end) m++;
+	if (m >= container.children.length || readSpans[m * 2 + 1] !== end) return 'moved';
 	const blocks = container.children.slice(head, m + 1);
 	blocks[0] = { ...blocks[0], leadingTrivia: kids[run.lo].leadingTrivia + blocks[0].leadingTrivia };
-	const runSpans = spans.slice(head * 2, (m + 1) * 2).map((at) => at - headText.length);
+	const runSpans = readSpans.slice(head * 2, (m + 1) * 2).map((at) => at - headText.length);
 	const found = { blocks, spans: runSpans, metadata: container.metadata };
-	if (hi < kids.length - 1) {
-		// The next child starts where it stood, its blank lines as they were.
-		const next = container.children[m + 1];
-		if (read.children.length !== 1 || container.children.length !== m + 2) return 'moved';
-		return next.leadingTrivia === kids[hi + 1].leadingTrivia ? found : 'moved';
-	}
+	const below = container.children.slice(m + 1);
+	if (!last) return read.children.length === 1 && standsBelow(kids, hi, k, below) ? found : 'moved';
 	const ownTail = container.innerSuffix ?? '';
-	if (container.children.length !== m + 1 || ownTail !== (node.innerSuffix ?? '')) return 'moved';
-	if (!standsBelow(top, t, read.children)) return 'moved';
+	if (below.length > 0 || ownTail !== (node.innerSuffix ?? '')) return 'moved';
+	const tops = top.doc.children;
+	const rest = read.children.slice(1);
+	const stands =
+		t === tops.length - 1 ? rest.length === 0 : standsBelow(tops, t, textAfter(tops, t), rest);
+	if (!stands) return 'moved';
 	// Only a read that ran to the document's end saw its trailing blank line.
-	return t === top.doc.children.length - 1 ? { ...found, suffix: read.suffix } : found;
+	return t === tops.length - 1 ? { ...found, suffix: read.suffix } : found;
 }
 
-/** Whether the blocks read after the container are the top-level blocks below it as they stood,
- *  up to the next with text (the top-level window's own check). */
-function standsBelow(top: TopLevel, t: number, read: readonly CstNode[]): boolean {
-	const children = top.doc.children;
-	if (t === children.length - 1) return read.length === 1;
-	const k = textAfter(children, t);
-	if (read.length !== k - t + 1) return false;
-	for (let j = t + 1; j <= k; j++) {
-		const was = children[j];
-		const now = read[j - t];
-		if (now.leadingTrivia !== was.leadingTrivia) return false;
-		if (j < k && (now.kind !== was.kind || now.raw !== was.raw)) return false;
+/** Whether `read` holds the blocks after `was[at]` as they stood, up to block `k`, the next with
+ *  text: the blank ones whole, block `k` starting where it stood (the top-level window's check). */
+function standsBelow(
+	was: readonly NodeView[],
+	at: number,
+	k: number,
+	read: readonly CstNode[]
+): boolean {
+	if (read.length !== k - at) return false;
+	for (let j = at + 1; j <= k; j++) {
+		const now = read[j - at - 1];
+		if (now.leadingTrivia !== was[j].leadingTrivia) return false;
+		if (j < k && (now.kind !== was[j].kind || now.raw !== was[j].raw)) return false;
 	}
 	return true;
 }
