@@ -29,7 +29,7 @@ test.describe('spelling-ops simulation', () => {
 		await assertCheckpoint(ctx, 'picked');
 
 		await g.undo();
-		await editor.bridge.waitForSourceEquals(DOC);
+		expect(await editor.bridge.getSource()).toBe(DOC);
 		await assertCheckpoint(ctx, 'undone');
 	});
 });
