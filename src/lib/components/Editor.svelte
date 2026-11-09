@@ -60,8 +60,8 @@
 	import { blockNodeAt } from '../tree-operations/node-primitives';
 	import { defaultLinkActivation } from '../core/url-policy';
 	import { bindActivationClick, createPressTracker } from '../activation-click';
-	import { advanceSignatureEpoch, lrdMapCouldChange } from './link-reference-map';
-	import { definitionsOf, type LinkReferenceResolver } from '../core/inline/scan/definitions';
+	import { advanceSignatureEpoch, definitionsAfter } from './link-reference-map';
+	import type { LinkReferenceResolver } from '../core/inline/scan/definitions';
 	import { createUndoManager } from '../undo/manager';
 	import { createSharingState } from '../tree-operations/sharing';
 	import { createEditorEvents, emitBlockedLinkError, emitCommandError } from '../editor-events';
@@ -379,17 +379,6 @@
 				path: e.path,
 				detail: ('detail' in e ? e.detail : undefined) ?? {}
 			});
-			// A fresh resolver only on a real signature change: one per edit would re-render
-			// every block that read it.
-			if (lrdMapCouldChange(doc, e)) {
-				const newMap = definitionsOf(doc.children);
-				const next = advanceSignatureEpoch(currentSignature, signatureEpoch, newMap.signature);
-				if (next.epoch !== signatureEpoch) {
-					currentResolver = newMap.resolve;
-					currentSignature = next.signature;
-					signatureEpoch = next.epoch;
-				}
-			}
 		});
 		return () => dispose();
 	});
@@ -631,6 +620,17 @@
 			doc = v;
 		},
 		bumpContentVersion: contentVersion.bump,
+		refreshDefinitions: (replaced) => {
+			const map = definitionsAfter(doc, replaced, currentSignature);
+			if (!map) return;
+			// A fresh resolver only on a real signature change: one per write would re-render every
+			// block that read it.
+			const next = advanceSignatureEpoch(currentSignature, signatureEpoch, map.signature);
+			if (next.epoch === signatureEpoch) return;
+			currentResolver = map.resolve;
+			currentSignature = next.signature;
+			signatureEpoch = next.epoch;
+		},
 		setBlockIds: (v) => {
 			blockIds = v;
 		},

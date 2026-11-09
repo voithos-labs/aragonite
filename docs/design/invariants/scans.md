@@ -237,6 +237,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.315 | Under `selection/`, a range is read as bytes in one file | L |
 | G4.317 | A plugin or a host writes bytes through a `Draft`; another caller of the byte splice is on a list | L |
 | G4.329 | Bytes are read into the tree by the byte splice, which closes the openers they write, or by an undo | L |
+| G4.338 | `edit` is emitted in one function, which first hands the link definitions what the write replaced | L |
 
 ### The entries
 
@@ -441,7 +442,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.101 · A typed write asks for itself.** The kind cue and the on-type completer answer typing, never a command, a paste or a repair. Only `surface-write.ts :: writeText` asks them, for a write with the `typed` intent. `lint/file-rules.test.ts` fails an `afterTypedWrite` or `completeLineOnType` call under `components/` or `selection/` anywhere else, and `blocks/editable/surface-write-intent.test.ts` checks which intents ask.
 
-**G4.107 · An `edit` fires at its write.** The commit frame (every commit and every keystroke written in place), undo and redo, and a replace-all each emit `edit` as their bytes land; a held one would fire against whatever document is there by then. `input` also promises the block kept its kind (`components/link-reference-map.ts` relies on it), so only the in-place write (`editor-actions/commit/leaf-commit.ts`) declares it. `lint/edit-emitters.test.ts` keys each emit on its function.
+**G4.107 · An `edit` fires at its write.** The commit frame (every commit and every keystroke written in place), undo and redo, and a replace-all each emit `edit` as their bytes land; a held one would fire against whatever document is there by then. `input` also promises a subscriber the block kept its kind, so only the in-place write (`editor-actions/commit/leaf-commit.ts`) declares it. `lint/edit-emitters.test.ts` keys each emit on its function.
 
 **G4.108 · One replace for every destructive gesture over a range.** Backspace, Delete, cut, typing, an IME composition, paste and a command key over a cross-block range all go through `range-replace.ts :: replaceRange`, which picks the removal from the coverage and keeps the gesture one undo entry with one landing. Under `selection/cross-block/`, `rangeDelete`, `removeHeldWhole`, `commitGridLineDelete` and opening an `undoStep` are allowed there only; the range indent opens its own step, since it removes nothing. G1.174 holds a typed key. `lint/file-rules.test.ts`.
 
@@ -688,3 +689,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.317 · One write for plugins and hosts.** `CommitController.commitSource` is handed its changes only by the draft (`editor-actions/commit/draft-registry.svelte.ts`), which maps a waiting write's ranges past the writes since it opened and refuses with a reason; any other caller is on the row's list with why (today the test bridge's splice). `lint/file-rules.test.ts`.
 
 **G4.329 · Bytes reach the tree through the byte splice.** `tree-operations/byte-splice.ts :: spliceReading` reads bytes as given, so a route that called it itself would skip the closer the byte splice (`editor-actions/commit/byte-splice.ts`) gives an opener its changes write. The one other caller is an undo under a changed grammar (`commit/history.ts`), which puts back an entry's exact bytes. `lint/file-rules.test.ts`.
+
+**G4.338 · One emit for `edit`.** `editor-actions/commit/emit-edit.ts :: emitEdit` takes the blocks the write replaced as a required argument and hands them to `refreshDefinitions` before it emits, so a route that emitted `edit` itself would leave the editor serving stale reference links. The writes G4.107 lists call it. `lint/edit-emitters.test.ts`.

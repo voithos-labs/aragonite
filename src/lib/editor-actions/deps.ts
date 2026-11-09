@@ -13,6 +13,7 @@ import type { RefSlots } from '../block-lists/child-refs';
 import type { CaretLanding } from '../selection/caret-landing';
 import type { DocumentStamps } from './commit/document-stamp';
 import type { DraftRegistry } from './commit/draft-registry.svelte';
+import type { ReplacedBlocks } from './commit/emit-edit';
 
 export interface EditorActionsDeps {
 	get doc(): Document;
@@ -27,6 +28,9 @@ export interface EditorActionsDeps {
 	/** Announce that the document's bytes changed. A commit calls it once; a writer outside a
 	 *  commit must call it itself (G4.52). */
 	bumpContentVersion(): void;
+	/** Brings the link definitions up to date after a write, from the blocks it replaced;
+	 *  `emitEdit` calls it before each `edit`. */
+	refreshDefinitions(replaced: ReplacedBlocks): void;
 	undoManager: UndoManager;
 	sharing: SharingState;
 	caretMemory: CaretMemory;
