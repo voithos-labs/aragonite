@@ -98,6 +98,12 @@ const ROWS: [name: string, marked: string, left: string, blocks: string][] = [
 		'blockquote(paragraph thematicBreak)'
 	],
 	[
+		'a table a range out of a quote parted from it',
+		'> a⟦b\n\n# h⟧\n| A |\n| - |\n',
+		'> a\n\n| A |\n| - |\n',
+		'blockquote(paragraph) table(tableRow(tableCell))'
+	],
+	[
 		'a tail taking a heading’s place under a table',
 		'| a |\n| - |\n⟦# h\n\nal⟧pha\n',
 		'| a |\n| - |\n\npha\n',

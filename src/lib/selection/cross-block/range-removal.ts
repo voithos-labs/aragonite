@@ -5,7 +5,6 @@
  */
 
 import type { SourceSplice } from '../../action-contracts';
-import { docPathFrom } from '../../core/coordinate-spaces';
 import type { DocumentView } from '../../core/node-views';
 import { metadataIfKind, type AnyBlockKind } from '../../core/nodes';
 import { getContentRange, isProseKind } from '../../core/inline';
@@ -14,7 +13,6 @@ import {
 	removalOf,
 	wholeBlocksRemovalOf,
 	type Range,
-	type RangeEditResult,
 	type RemovalGesture
 } from '../../range-edit/edit-range';
 import { rangeHost } from '../../range-edit/host';
@@ -22,11 +20,7 @@ import type { LaidBlock, Layout } from '../../range-edit/layout';
 import { changesBetween } from '../../tree-operations/byte-splice';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { deleteSnapshot, type SelectionPoint } from '../primitives';
-import {
-	liveSlot,
-	survivorAfterRemoval,
-	type RemovalGesture as BlockGesture
-} from '../caret-target';
+import { liveSlot, type RemovalGesture as BlockGesture } from '../caret-target';
 import { firstCaretLeafFrom, previousCaretPath } from '../path-lookup';
 import { pointAtByte, removalBytes, wholeBlockBytes } from '../range-bytes';
 import type { RangeCoverage } from '../range-coverage';
@@ -36,6 +30,11 @@ export type RemovalContext = Pick<
 	CrossBlockDispatchContext,
 	'bytes' | 'reading' | 'controller' | 'getDoc'
 >;
+
+/** What a removal reads and commits through, the caret read back aside. */
+type CommitContext = Omit<RemovalContext, 'getDoc'>;
+
+type RemovalCommit = Pick<SourceSplice, 'caret' | 'op' | 'snapshot'>;
 
 export interface Removed {
 	wrote: boolean;
@@ -65,7 +64,7 @@ export async function removeThroughCore(
 	if (!range) return { wrote: false, caret: null, inText: false };
 	const answer = removalOf(ctx.bytes.source(), range, gesture, modeOf(ctx), hostOf(ctx));
 	const { start } = coverage.range;
-	const wrote = await commitRemoval(ctx, range, answer, {
+	const wrote = await commitRemoval(ctx, range, answer.source, {
 		caret: answer.caret,
 		op: { kind: 'delete', detail: { crossBlock: true } },
 		snapshot: deleteSnapshot(start.path, start.offset)
@@ -74,48 +73,36 @@ export async function removeThroughCore(
 	return { wrote, caret, inText: answer.caret.holds === 'text' };
 }
 
-/** Removes the block at `path` whole, as the block menu's Delete and a focused block's keys do: it
- *  goes with its line, and where blank lines stand on both sides of it, with one of them. */
+/** Removes the block at `path` whole, as the block menu's Delete does, in one commit whose caret,
+ *  edit event and undo snapshot the caller names. */
 export function removeWholeBlock(
-	ctx: RemovalContext,
+	ctx: CommitContext,
 	path: readonly number[],
-	gesture: BlockGesture
+	commit: RemovalCommit
 ): Promise<boolean> {
 	const range = wholeBlockBytes(ctx.bytes.doc(), ctx.bytes.layout(), path);
 	if (!range) return Promise.resolve(false);
-	const source = ctx.bytes.source();
-	const answer = wholeBlocksRemovalOf(
-		source,
-		range,
-		CORE_GESTURE[gesture],
-		modeOf(ctx),
-		hostOf(ctx)
-	);
-	return commitRemoval(ctx, range, answer, {
-		// The block beside it, until the caret lands on the core's byte for every removal.
-		caret: () => survivorAfterRemoval(ctx.getDoc(), path, gesture),
-		op: { kind: 'delete', eventPath: docPathFrom(path) },
-		snapshot: deleteSnapshot([...path])
-	});
+	const after = wholeBlocksRemovalOf(ctx.bytes.source(), range, modeOf(ctx), hostOf(ctx));
+	return commitRemoval(ctx, range, after, commit);
 }
 
-/** The core's answer landed as one byte splice, each ordered list it shortened numbered on. */
+/** The core's new bytes landed as one byte splice, each ordered list they shortened numbered on. */
 function commitRemoval(
-	ctx: RemovalContext,
+	ctx: CommitContext,
 	range: Range,
-	answer: RangeEditResult,
-	splice: Pick<SourceSplice, 'caret' | 'op' | 'snapshot'>
+	removed: string,
+	splice: RemovalCommit
 ): Promise<boolean> {
 	const tree = ctx.bytes.doc();
 	const source = ctx.bytes.source();
-	const after = numberedOn(tree, ctx.bytes.layout(), source, range, answer.source);
+	const after = numberedOn(tree, ctx.bytes.layout(), source, range, removed);
 	return ctx.controller.commitSource({ changes: changesBetween(source, after), ...splice });
 }
 
-const modeOf = (ctx: RemovalContext) =>
+const modeOf = (ctx: CommitContext) =>
 	hidesDelimitersAtCaret(ctx.reading.mode()) ? 'live' : 'source';
 
-const hostOf = (ctx: RemovalContext) =>
+const hostOf = (ctx: CommitContext) =>
 	rangeHost(ctx.reading, {
 		source: ctx.bytes.source(),
 		tree: ctx.bytes.doc(),

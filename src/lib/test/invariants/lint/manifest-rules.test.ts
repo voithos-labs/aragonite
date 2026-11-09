@@ -106,9 +106,8 @@ const REACHES_SETTLE =
 
 const BARE_PRIMITIVE_CALLERS: Record<string, string> = {
 	'src/lib/editor-actions/block-edit-core.ts':
-		'every split, merge and delete sits in a scope.commit mutate, whose settle runs after it',
-	'src/lib/editor-actions/list-context.ts': 'the item split runs inside commitMultiScope',
-	'src/lib/editor-actions/unwrap-strategies.ts': 'the unwrap merges run inside commitContainer'
+		'every split and merge sits in a scope.commit mutate, whose settle runs after it',
+	'src/lib/editor-actions/list-context.ts': 'the item split runs inside commitMultiScope'
 };
 
 // ── G4.37 the content-empty attribute ────────────────────────────────────────

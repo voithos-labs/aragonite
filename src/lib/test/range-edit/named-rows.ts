@@ -620,7 +620,7 @@ export const NAMED_ROWS: NamedRow[] = [
 		then: { gesture: 'paste back', expect: backToStart('- a\n- b\n') }
 	},
 	{
-		name: 'L10 live, the same',
+		name: 'L10 live, the cut that joins two items',
 		source: '- a⟦\n- ⟧b\n',
 		mode: 'live',
 		gesture: 'cut',
@@ -758,6 +758,19 @@ export const NAMED_ROWS: NamedRow[] = [
 		source: 'alpha\n\n```js\nbody\n```⟦\n\nom⟧ega\n',
 		gesture: 'backspace',
 		expect: { source: 'alpha\n\n```js\nbody\n```\nega\n', caret: text(21) }
+	},
+	// Miss-analysis: the closer rows all started inside the container, none at its closing line.
+	{
+		name: 'L4 a range starting past a fenced container keeps its closing line once',
+		source: ':::note\nx\n:::⟦\n\nal⟧pha\n',
+		gesture: 'backspace',
+		expect: { source: ':::note\nx\n:::\npha\n' }
+	},
+	{
+		name: 'L4 the same past a details block',
+		source: '<details>\n<summary>S</summary>\n\nx\n</details>⟦\n\nal⟧pha\n',
+		gesture: 'delete',
+		expect: { source: '<details>\n<summary>S</summary>\n\nx\n</details>\npha\n' }
 	},
 	// ── The join writes through the start block's write rule (spec § 5.2, `host.leaf.join`) ──
 	{

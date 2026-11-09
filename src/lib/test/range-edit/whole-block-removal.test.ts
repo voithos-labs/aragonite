@@ -31,14 +31,10 @@ describe('a block removed whole against a range over its whole span', () => {
 			const raw = source.slice(block.from, block.to);
 			const range = { from: block.from, to: block.to - ownTrailingLineEnding(raw).length };
 			const prose = host.facts(block.type).joins === 'text';
-			for (const gesture of ['backspace', 'delete'] as const) {
-				const whole = wholeBlocksRemovalOf(source, range, gesture, 'source', host).source;
-				const text = removalOf(source, range, gesture, 'source', host).source;
-				if (prose ? whole === text || whole !== 'above\n\nbelow\n' : whole !== text)
-					out.push(
-						`${kind} ${gesture}: whole ${JSON.stringify(whole)}, range ${JSON.stringify(text)}`
-					);
-			}
+			const whole = wholeBlocksRemovalOf(source, range, 'source', host);
+			const text = removalOf(source, range, 'delete', 'source', host).source;
+			if (prose ? whole === text || whole !== 'above\n\nbelow\n' : whole !== text)
+				out.push(`${kind}: whole ${JSON.stringify(whole)}, range ${JSON.stringify(text)}`);
 		}
 		expect(out).toEqual([]);
 	});
@@ -54,7 +50,7 @@ describe('a block removed whole against a range over its whole span', () => {
 			const block = host.layout(host.read(source)).block([1])!;
 			const ending = ownTrailingLineEnding(source);
 			const range = { from: block.from, to: source.length - ending.length };
-			const whole = wholeBlocksRemovalOf(source, range, 'delete', 'source', host).source;
+			const whole = wholeBlocksRemovalOf(source, range, 'source', host);
 			const text = removalOf(source, range, 'delete', 'source', host).source;
 			if (whole !== `above${ending}` || whole === text)
 				out.push(`${kind}: whole ${JSON.stringify(whole)}, range ${JSON.stringify(text)}`);
@@ -62,22 +58,34 @@ describe('a block removed whole against a range over its whole span', () => {
 		expect(out).toEqual([]);
 	});
 
-	// Miss-analysis: the pair a removed block leaves (#479) had rows on the structural route only.
+	// Miss-analysis: the pair a removed block leaves had rows on the structural route only.
 	it.each([
 		['a rule stays apart from the paragraph above', 'a\n# h\n---\n', [1], 'a\n\n---\n'],
 		['inside a quote too', '> a\n> # h\n> ---\n', [0, 1], '> a\n>\n> ---\n'],
-		['prose folds into the paragraph above', 'a\n# h\nb\n', [1], 'a\nb\n']
+		['prose folds into the paragraph above', 'a\n# h\nb\n', [1], 'a\nb\n'],
+		[
+			'a table stays apart from the quote it ended',
+			'> a\n> # h\n| A |\n| - |\n',
+			[0, 1],
+			'> a\n\n| A |\n| - |\n'
+		],
+		[
+			'and from the list item it ended',
+			'- a\n- b\n\n  # h\n| A |\n| - |\n',
+			[0, 1, 1],
+			'- a\n- b\n\n| A |\n| - |\n'
+		],
+		['prose folds into the quote it ended', '> a\n> # h\ntext\n', [0, 1], '> a\ntext\n']
 	])('leaves the pair around it the join question’s blank line: %s', (_, source, path, left) => {
 		const host = checkHost();
 		const block = host.layout(host.read(source)).block(path)!;
 		const range = { from: block.from, to: block.to - 1 };
-		expect(wholeBlocksRemovalOf(source, range, 'delete', 'source', host).source).toBe(left);
+		expect(wholeBlocksRemovalOf(source, range, 'source', host)).toBe(left);
 	});
 
 	it('takes a paragraph with its line and one blank line beside it', () => {
 		const host = checkHost();
 		const source = 'a\n\nalpha\n\nb\n';
-		const got = wholeBlocksRemovalOf(source, { from: 3, to: 8 }, 'backspace', 'source', host);
-		expect(got).toEqual({ source: 'a\n\nb\n', caret: { at: 1, holds: 'text' } });
+		expect(wholeBlocksRemovalOf(source, { from: 3, to: 8 }, 'source', host)).toBe('a\n\nb\n');
 	});
 });

@@ -378,8 +378,13 @@ export interface ContainerEditActions {
 	/** Put the caret at a document position through the editor's caret landing, for an edit that
 	 *  moves the caret without a commit. */
 	land(pos: CaretPosition): Promise<LandingOutcome>;
-	/** Removes the block at `path` whole through the range-edit core, as `gesture` does. */
-	removeWhole(path: DocPath, gesture: RemovalGesture): Promise<boolean>;
+	/** Where the caret goes once the block at `removedPath` is gone, read on the document now. */
+	survivorAfterRemoval(removedPath: DocPath, gesture: RemovalGesture): CaretPosition | null;
+	/** Removes the block at `path` whole through the range-edit core, in one commit. */
+	removeWhole(
+		path: DocPath,
+		commit: Pick<SourceSplice, 'caret' | 'op' | 'snapshot'>
+	): Promise<boolean>;
 	/** Report a write refused before its commit to the editor's `error` event. */
 	reportCommitError(error: unknown, op: OperationKind, path: DocPath): void;
 }

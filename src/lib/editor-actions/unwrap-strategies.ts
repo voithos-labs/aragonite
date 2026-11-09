@@ -7,7 +7,6 @@ import { CURSOR_END, CURSOR_START } from '../block-component';
 import type { CstNode } from '../core/nodes';
 import type { UnwrapRole } from '../schema/block-kind-descriptor';
 import {
-	deleteNode as performDelete,
 	unwrapFirstItemFromList,
 	liftFirstChild,
 	plainQuote,
@@ -30,21 +29,15 @@ export interface UnwrapStrategyDeps {
 /** Drop an empty item; the caret lands at `landAt`, an item of this list after the delete, at
  *  `offset`. */
 async function deleteEmptyItem(
-	{ deps, state }: UnwrapStrategyDeps,
+	{ deps }: UnwrapStrategyDeps,
 	itemIndex: number,
 	landAt: { item: number; offset: number }
 ): Promise<boolean> {
-	return deps.parent.containerEdit.commitContainer({
-		containerNode: deps.node,
-		path: deps.path,
-		state,
-		snapshot: { path: extendDocPath(deps.path, itemIndex), offset: 0 },
-		mutate: (scope) => {
-			scope.describeEdit({ removed: true });
-			return performDelete(scope.body, itemIndex, scope.sharing);
-		},
-		op: { kind: 'delete', eventPath: extendDocPath(deps.path, itemIndex) },
-		landing: () => ({ path: extendDocPath(deps.path, landAt.item), offset: landAt.offset })
+	const item = extendDocPath(deps.path, itemIndex);
+	return deps.parent.containerEdit.removeWhole(item, {
+		snapshot: { path: item, offset: 0 },
+		op: { kind: 'delete', eventPath: item },
+		caret: () => ({ path: extendDocPath(deps.path, landAt.item), offset: landAt.offset })
 	});
 }
 

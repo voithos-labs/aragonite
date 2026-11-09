@@ -75,9 +75,22 @@ function endingItsParent(doc: Doc, block: LaidBlock, to: number): Removal | null
 	if (!prev || sibling(index + 1) || to < contentEnd(doc, block)) return null;
 	let leaf = nodeAt(doc, prev.path);
 	while (leaf.children?.length) leaf = leaf.children.at(-1)!;
-	const at = endsInBlankLine(leaf.raw) ? prev.to : contentEnd(doc, prev);
-	const end = contentEnd(doc, block);
-	return { source: doc.source.slice(0, at) + doc.source.slice(end), caret: at, gone: true };
+	// A blank last line above keeps its break, so the block's own line ending goes with the block.
+	const blankAbove = endsInBlankLine(leaf.raw);
+	const at = blankAbove ? prev.to : contentEnd(doc, prev);
+	const end = blankAbove ? block.to : contentEnd(doc, block);
+	// The parent now ends on the block above's line, against whatever follows the parent.
+	const ending = /^\r?\n/.exec(doc.source.slice(end, end + 2))?.[0].length ?? 0;
+	const below = ending > 0 ? deepestAt(doc, pastMarkers(doc.source, end + ending)) : undefined;
+	const seam = { from: at, to: end, upper: prev, lower: below, rewritten: {} };
+	const source = apartAt(
+		doc,
+		doc.source.slice(0, at) + doc.source.slice(end),
+		at + ending,
+		seam,
+		false
+	);
+	return { source, caret: at, gone: true };
 }
 
 /** A range across blocks: the end's tail joins the start where the start takes joined text, and
@@ -153,12 +166,12 @@ function across(
 		: (end?.leaf ?? deepestAt(doc, to));
 	// Where the tail takes a held block's place, the end block keeps only what follows the range.
 	const rest = joins && end && !lines ? nodeAt(doc, end.leaf.path).raw.slice(end.offset) : null;
-	const pair = siblingsAt(doc, from, to, upper, lower, {
+	const rewritten = {
 		...(head && start && { upper: { block: head.leaf, raw: start.raw, kind: head.leaf.type } }),
 		...(end && cut && { lower: { block: end.leaf, raw: cut.raw, kind: end.leaf.type } }),
 		...(end && rest !== null && { lower: { block: end.leaf, raw: rest } })
-	});
-	const parted = apartAt(doc, closed, at, pair, !joins);
+	};
+	const parted = apartAt(doc, closed, at, { from, to, upper, lower, rewritten }, !joins);
 	const gone = held && (!!lines || !joins || isBlankText(lineRest(tail, 0)));
 	return {
 		source: joins ? movedMarkers(doc, from, to, parted, to) : parted,
@@ -206,16 +219,20 @@ interface Pair {
 	lower: JoinSide;
 }
 
-/** The siblings a removal over `[from, to)` leaves touching, under the nearest parent holding both
- *  `upper` and `lower`; null where a side is a block the removal changed but didn't rewrite. */
-function siblingsAt(
-	doc: Doc,
-	from: number,
-	to: number,
-	upper: LaidBlock | undefined,
-	lower: LaidBlock | undefined,
-	rewritten: { upper?: Rewritten; lower?: Rewritten }
-): Pair | null {
+/** The join a removal over `[from, to)` leaves: the block the upper side ends in and the one the
+ *  lower side starts in, read before the removal, and the blocks it rewrote. */
+interface Seam {
+	from: number;
+	to: number;
+	upper: LaidBlock | undefined;
+	lower: LaidBlock | undefined;
+	rewritten: { upper?: Rewritten; lower?: Rewritten };
+}
+
+/** The siblings `seam` leaves touching, under the nearest parent holding both sides, `before` the
+ *  new bytes up to the lower one; null where a side changed inside a container, behind markers. */
+function siblingsAt(doc: Doc, seam: Seam, before: string): Pair | null {
+	const { from, to, upper, lower, rewritten } = seam;
 	if (!upper || !lower) return null;
 	let k = 0;
 	while (k < upper.path.length && k < lower.path.length && upper.path[k] === lower.path[k]) k++;
@@ -226,22 +243,25 @@ function siblingsAt(
 	};
 	const above = doc.layout.block(upper.path.slice(0, k + 1))!;
 	const below = doc.layout.block(lower.path.slice(0, k + 1))!;
-	const up = side(above, rewritten.upper, contentEnd(doc, above) <= from);
+	// A top-level block's bytes are its own, so one the removal changed reads off the new bytes.
+	const changed = k === 0 && { ...nodeAt(doc, above.path), raw: before.slice(above.from) };
+	const up = side(above, rewritten.upper, contentEnd(doc, above) <= from) ?? (changed || null);
 	const down = side(below, rewritten.lower, below.from >= to);
 	return up && down
 		? { parent: upper.path.slice(0, k), index: upper.path[k], upper: up, lower: down }
 		: null;
 }
 
-/** `out` with a blank line opening at `at`, where the lower block's line starts, when the pair the
- *  removal leaves touching there would read as something else flush (`RangeHost.parts`). */
-function apartAt(doc: Doc, out: string, at: number, pair: Pair | null, placed: boolean): string {
-	if (!pair || at === 0) return out;
+/** `out` with a blank line opening at `at`, where the lower block's line starts, when the pair
+ *  `seam` leaves touching there would read as something else flush (`RangeHost.parts`). */
+function apartAt(doc: Doc, out: string, at: number, seam: Seam, placed: boolean): string {
+	if (at === 0) return out;
 	const line = lineRest(out, at);
 	const lineAbove = out.slice(out.lastIndexOf('\n', at - 2) + 1, at - 1);
 	// A blank line parts them already.
 	if (/^[ \t>]*$/.test(line) || /^[ \t>]*\r?$/.test(lineAbove)) return out;
-	if (!doc.host.parts(doc.tree, pair.parent, pair.index, pair.upper, pair.lower, placed))
+	const pair = siblingsAt(doc, seam, out.slice(0, at));
+	if (!pair || !doc.host.parts(doc.tree, pair.parent, pair.index, pair.upper, pair.lower, placed))
 		return out;
 	const marks = /^[ \t>]*/.exec(line)![0].trimEnd();
 	return out.slice(0, at) + marks + endingOf(doc.source) + out.slice(at);
@@ -310,17 +330,19 @@ function joinedLeaves(doc: Doc, from: number, to: number, head: LeafPoint, end: 
 	const leafEnd = head.leaf.to + shift;
 	const joined = written.source.slice(0, leafEnd) + written.source.slice(end.leaf.to + shift);
 	const upper = trimTrailingLineEnding(write.bytes) + ownTrailingLineEnding(raw);
-	const pair = siblingsAt(
+	const parted = apartAt(
 		doc,
-		from,
-		to,
-		head.leaf,
-		deepestAt(doc, pastMarkers(source, end.leaf.to)),
+		joined,
+		leafEnd,
 		{
-			upper: { block: head.leaf, raw: upper, kind: head.leaf.type }
-		}
+			from,
+			to,
+			upper: head.leaf,
+			lower: deepestAt(doc, pastMarkers(source, end.leaf.to)),
+			rewritten: { upper: { block: head.leaf, raw: upper, kind: head.leaf.type } }
+		},
+		false
 	);
-	const parted = apartAt(doc, joined, leafEnd, pair, false);
 	const closerAt = leafEnd - ownTrailingLineEnding(write.bytes).length;
 	const closed = withClosers(doc, from, to, parted, closerAt);
 	return { source: movedMarkers(doc, from, to, closed, end.leaf.to), caret: written.caret };
@@ -411,7 +433,8 @@ function closers(doc: Doc, from: number, to: number): string {
 	for (const c of containersAt(doc, from, 'start').reverse()) {
 		if (factsOf(doc, c).lines !== 'fenced' || c.from >= from) continue;
 		const last = c.lines!.at(-1)!;
-		if (!last.own || last.from >= to) continue;
+		// A range starting on or past the closing line leaves it standing, as the fence's does.
+		if (!last.own || last.from >= to || from >= last.from) continue;
 		const lineStart = doc.source.lastIndexOf('\n', last.from - 1) + 1;
 		out += endingOf(doc.source) + doc.source.slice(lineStart, last.to).replace(/\r?\n$/, '');
 	}

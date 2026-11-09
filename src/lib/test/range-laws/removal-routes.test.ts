@@ -14,7 +14,7 @@ import { documentBytes, wholeBlockBytes } from '#lib/selection/range-bytes.js';
 import { wholeBlocksRemovalOf } from '#lib/range-edit/edit-range.js';
 import { rangeHost } from '#lib/range-edit/host.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
-import { CORE_GESTURE, numberedOn } from '#lib/selection/cross-block/range-removal.js';
+import { numberedOn } from '#lib/selection/cross-block/range-removal.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { rangeClipboard } from '#lib/selection/range-clipboard.js';
 import type { RemovalGesture } from '#lib/selection/caret-target.js';
@@ -201,13 +201,8 @@ const WHOLE_ROUTES: Record<string, WholeRoute> = {
 	'the block menu’s Remove': { menu: true }
 };
 
-/** The core's answer for the block at `path` removed whole as `gesture`. */
-function wholeAnswer(
-	editor: Editor,
-	mode: PresentationMode,
-	path: number[],
-	gesture: RemovalGesture
-) {
+/** The core's answer for the block at `path` removed whole. */
+function wholeAnswer(editor: Editor, mode: PresentationMode, path: number[]) {
 	const grammar = editor.instance.__test.getGrammar();
 	const reading = fixtureReading({ grammar }, mode);
 	const source = editor.source();
@@ -216,8 +211,7 @@ function wholeAnswer(
 	const range = wholeBlockBytes(doc, layout, path)!;
 	const host = rangeHost(reading, { source, tree: doc, layout });
 	const core = mode === 'live' ? 'live' : 'source';
-	const answer = wholeBlocksRemovalOf(source, range, CORE_GESTURE[gesture], core, host);
-	return numberedOn(doc, layout, source, range, answer.source);
+	return numberedOn(doc, layout, source, range, wholeBlocksRemovalOf(source, range, core, host));
 }
 
 async function driveWhole(editor: Editor, path: number[], route: WholeRoute): Promise<boolean> {
@@ -248,9 +242,7 @@ describe('every whole-block route leaves the core’s bytes', () => {
 			it.each(routes)(`${mode}, ${shape}: %s`, async (_, route) => {
 				const editor = mountCase(source, mode);
 				await editor.settle();
-				const gesture: RemovalGesture =
-					'menu' in route ? 'keyless' : 'cut' in route ? 'cut' : route.key;
-				const want = wholeAnswer(editor, mode, path, gesture);
+				const want = wholeAnswer(editor, mode, path);
 				expect(await driveWhole(editor, path, route), 'the route took no action').toBe(true);
 				expect(editor.source()).toBe(want);
 				await runHistory(editor, 'undo');

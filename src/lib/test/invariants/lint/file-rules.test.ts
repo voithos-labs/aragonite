@@ -2527,6 +2527,9 @@ const ROGUE_RANGE_ROUTE = `${SOURCE_DIR.crossBlock}rogue.ts`;
 const RANGE_REPLACE_HOME = SOURCE.rangeReplace;
 const REMOVAL_HOMES = new Set<string>([SOURCE.rangeRemoval, SOURCE.gridRemoval]);
 
+const WHOLE_REMOVAL_REASON =
+	'a block removed outside the core skips its blank-line rule (a block taken whole goes with its line and one blank line beside it), the join question and the renumber: remove it through the scope’s `removeWhole` or `blockEdit.deleteBlock`';
+
 const RANGE_REPLACE: ManifestRule[] = [
 	{
 		id: 'G4.108 only the range replace removes a live range',
@@ -2569,15 +2572,23 @@ const RANGE_REPLACE: ManifestRule[] = [
 		population: () => true,
 		matches: /(?<![\w.])(?:deleteNode|performDelete)\s*\(/,
 		declared: {
-			[SOURCE.nodeOps]: 'defines the tree removal, and a merge drops the block it joined',
-			[SOURCE.blockEditCore]:
-				'named debt: Backspace or Delete beside a block neither editable nor focused whole',
-			'src/lib/editor-actions/unwrap-strategies.ts': 'named debt: an empty list item dropped'
+			[SOURCE.nodeOps]: 'defines the tree removal, and a merge drops the block it joined'
 		},
-		reason:
-			'a block removed outside the core skips its blank-line rule (a block taken whole goes with its line and one blank line beside it) and the renumber: call `blockEdit.deleteBlock`, which removes it through `removeWholeBlock`',
+		reason: WHOLE_REMOVAL_REASON,
 		hits: [at(ROGUE_RANGE_ROUTE, 'return performDelete(view.body, i, view.sharing);')],
 		misses: [at(ROGUE_RANGE_ROUTE, "import { deleteNode as performDelete } from './node-ops';")]
+	},
+	{
+		id: 'G4.108 a commit takes no block out of its list by hand',
+		population: under(SOURCE_DIR.editorActions),
+		matches: /\.children!?\.splice\([^,()]+,\s*1\s*\)/,
+		declared: {},
+		reason: WHOLE_REMOVAL_REASON,
+		hits: [at(`${SOURCE_DIR.editorActions}rogue.ts`, 'view.body.children.splice(i, 1);')],
+		misses: [
+			at(`${SOURCE_DIR.editorActions}rogue.ts`, 'view.body.children.splice(i, 0, node);'),
+			at(`${SOURCE_DIR.editorActions}rogue.ts`, 'children.splice(i, 1, replacement);')
+		]
 	}
 ];
 

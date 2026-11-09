@@ -18,11 +18,10 @@ import type { BlockPendingMarks } from '#lib/caret/pending-marks.js';
 import type { InlineMarkKind } from '#lib/schema/inline-construct-policy.js';
 import type { EditorActionsDeps, UndoController } from '#lib/editor-actions/deps.js';
 import type { CommitScope, ScopeCommitArgs } from '#lib/editor-actions/block-edit-scope.js';
-import { fixUpEdit, type EditKind, type FixedUpEdit } from '#lib/tree-operations/fix-up/apply.js';
 import type { ContainerBlockComponentDeps } from '#lib/editor-actions/container-block-component.js';
 import { refSlotsOver } from '#lib/block-lists/child-refs.js';
 import { componentAt, type ChildList } from '#lib/block-lists/child-list.js';
-import { caretTargetFor } from '#lib/selection/caret-target.js';
+import { caretTargetFor, survivorAfterRemoval } from '#lib/selection/caret-target.js';
 import {
 	delegateMoveFocus,
 	type MoveFocusScope
@@ -156,14 +155,13 @@ export function makeTableStateAt(getDoc: () => Document, index: number): BlockLi
 // ── CommitScope stub ─────────────────────────────────────────────────────────
 
 /** Runs the real mutate against a live children array, recording commits and landing each one's
- *  caret on `refs`; `settle` adds the commit's fix-up after it. The in-place route writes nothing. */
+ *  caret on `refs`; no fix-up runs after it. The in-place route writes nothing. */
 export function makeCommitScopeStub(
 	children: CstNode[],
 	opts: {
 		refs?: (BlockComponent | undefined)[];
 		collapse?: boolean;
 		owner?: CstNode;
-		settle?: boolean;
 	} = {}
 ): { scope: CommitScope; commits: ScopeCommitArgs[]; children: CstNode[] } {
 	const refs = opts.refs ?? [];
@@ -179,6 +177,8 @@ export function makeCommitScopeStub(
 		children: () => children,
 		target: () => ({ children, owner: opts.owner, lineEnding: lineEnding() }),
 		idAt: (i) => `block-${i}`,
+		survivor: (i, gesture) =>
+			survivorAfterRemoval({ kind: 'document', prefix: '', children, suffix: '' }, [i], gesture),
 		removeWhole: vi.fn(async () => false),
 		collapseEmptyReplaceToDelete: opts.collapse ?? true,
 		async commit(args) {
@@ -186,27 +186,16 @@ export function makeCommitScopeStub(
 			const list = { kind: 'document' as const, prefix: '', suffix: '', children };
 			const body = { ...list, owner: opts.owner, lineEnding: lineEnding() };
 			const writer = createScopeWriter(body, sharing, fixtureReading().grammar, body.lineEnding);
-			const before = [...children];
-			let kind: EditKind = {};
-			let settled: FixedUpEdit | null = null;
-			const change = args.mutate({
+			args.mutate({
 				body,
 				sharing,
 				reading: fixtureReading(),
 				unshareChild: (i) => children[i],
-				describeEdit: (edit) => {
-					kind = { ...kind, ...edit };
-					return () => settled;
-				},
+				describeEdit: () => () => null,
 				own: writer.own,
 				writeLeaf: writer.writeLeaf
 			});
 			rebuildOwnedChains([writer], sharing, fixtureReading().grammar);
-			if (opts.settle) {
-				const edit = { change, before, ...kind };
-				const grammar = fixtureReading().grammar;
-				settled = fixUpEdit(body, edit, grammar, sharing, args.trackCaret);
-			}
 			const landing = args.landing?.();
 			if (landing && 'path' in landing) await scope.land(landing);
 			return true;
@@ -331,6 +320,7 @@ export function makeStubContainerEdit(): ContainerEditActions {
 		typingKeystroke: vi.fn((_path, _offset, _key, _history, work) => work()),
 		typeLeaf: vi.fn(() => ({ wrote: false as const })),
 		land: vi.fn(async () => 'placed' as const),
+		survivorAfterRemoval: vi.fn(() => null),
 		removeWhole: vi.fn(async () => false),
 		reportCommitError: vi.fn()
 	};

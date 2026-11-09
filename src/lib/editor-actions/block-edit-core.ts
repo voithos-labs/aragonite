@@ -23,7 +23,6 @@ import {
 	mergeWithNext as performMergeNext,
 	type MergeResult,
 	mergeIntoPrevDeepLeaf,
-	deleteNode as performDelete,
 	normalizeReplacementTrivia,
 	restoreSeparatorOnFill,
 	emptyParagraph,
@@ -91,17 +90,11 @@ async function handleIneligibleNeighbor(
 		await scope.land(scope.at(neighbor, [], dir < 0 ? CURSOR_END : CURSOR_START));
 		return false;
 	}
-	return scope.commit({
+	return scope.removeWhole(neighbor, {
 		snapshot: { index: i, offset: dir < 0 ? 0 : CURSOR_END },
-		eventTarget: neighbor,
 		op: { kind: 'delete' },
-		mutate: (view) => {
-			view.describeEdit({ removed: true });
-			return performDelete(view.body, neighbor, view.sharing);
-		},
 		// The block the key was pressed in, which a delete above has moved up to `neighbor`.
-		landing: () => scope.at(dir < 0 ? neighbor : i, [], dir < 0 ? CURSOR_START : CURSOR_END),
-		discardIfNoop: true
+		landing: () => scope.at(dir < 0 ? neighbor : i, [], dir < 0 ? CURSOR_START : CURSOR_END)
 	});
 }
 
@@ -445,7 +438,12 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 			});
 		},
 
-		deleteInterior: (i, gesture) => scope.removeWhole(i, gesture),
+		deleteInterior: (i, gesture) =>
+			scope.removeWhole(i, {
+				snapshot: { index: i, offset: 0 },
+				op: { kind: 'delete' },
+				landing: () => scope.survivor(i, gesture)
+			}),
 
 		async updateBlockMetadata(i, metadata, options) {
 			const children = scope.children();
@@ -510,16 +508,16 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				? trackedPasteCaret(replacement, i, focusIndex, caret.offset)
 				: undefined;
 			const snapshot = { index: i, offset: options.snapshotOffset };
+			const op = replaceOp(scope, replacement.length, options?.source);
+			if (replacement.length === 0) {
+				return (await scope.removeWhole(i, { snapshot, op, landing: () => null })) ? 0 : null;
+			}
 			const wrote = await scope.commit({
 				snapshot,
 				eventTarget: i,
-				op: replaceOp(scope, replacement.length, options?.source),
+				op,
 				trackCaret: tracked,
 				mutate: (view) => {
-					if (replacement.length === 0) {
-						view.body.children.splice(i, 1);
-						return { op: 'delete', at: i, count: 1 };
-					}
 					const old = view.body.children[i];
 					const trivia = normalizeReplacementTrivia(old, replacement);
 					for (const node of trivia) ensureEditableContainers(node, view.body.lineEnding);
@@ -552,7 +550,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					return change;
 				},
 				landing: () => {
-					if (!caret || !tracked || replacement.length === 0) return null;
+					if (!caret || !tracked) return null;
 					if (caret.path) return scope.at(i + focusIndex, caret.path, caret.offset);
 					const at = landedPastePosition(scope.children()[tracked.index], tracked, caret.offset);
 					return scope.at(tracked.index, at.path, at.offset);

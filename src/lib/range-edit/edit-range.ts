@@ -104,29 +104,24 @@ export function removalOf(
 	mode: Mode,
 	host: RangeHost
 ): RangeEditResult {
-	return removalFrom(readDoc(source, host, mode), range, gesture);
-}
-
-/** The removal of the blocks `range` spans from first byte to text end, as blocks asked for (the
- *  block menu's Delete), not text: `Doc.wholeBlocks` says what that changes. */
-export function wholeBlocksRemovalOf(
-	source: string,
-	range: Range,
-	gesture: RemovalGesture,
-	mode: Mode,
-	host: RangeHost
-): RangeEditResult {
-	return removalFrom({ ...readDoc(source, host, mode), wholeBlocks: true }, range, gesture);
-}
-
-function removalFrom(doc: Doc, range: Range, gesture: RemovalGesture): RangeEditResult {
-	const { host, mode } = doc;
-	const removed = removalEdit(doc, range.from, range.to, gesture);
+	const removed = removalEdit(readDoc(source, host, mode), range.from, range.to, gesture);
 	const back = gesture === 'backspace' || gesture === 'command';
 	return {
 		source: removed.source,
 		caret: caretOf(removed, readDoc(removed.source, host, mode), back)
 	};
+}
+
+/** The bytes a removal of the blocks `range` spans leaves, as blocks asked for (the block menu's
+ *  Delete), not text: `Doc.wholeBlocks` says what that changes. Its caller places the caret. */
+export function wholeBlocksRemovalOf(
+	source: string,
+	range: Range,
+	mode: Mode,
+	host: RangeHost
+): string {
+	const doc = { ...readDoc(source, host, mode), wholeBlocks: true };
+	return removeRange(doc, range.from, range.to).source;
 }
 
 /** What a removal gesture leaves: text typed over one block held whole takes its place, and the
