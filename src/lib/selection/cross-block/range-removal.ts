@@ -4,10 +4,11 @@
  * removes a range the editor holds goes through here, and so does a block removed whole.
  */
 
-import type { SourceSplice } from '../../action-contracts';
+import type { SourceSplice, SpliceCaret } from '../../action-contracts';
 import type { DocumentView } from '../../core/node-views';
 import { metadataIfKind, type AnyBlockKind } from '../../core/nodes';
 import { getContentRange, isProseKind } from '../../core/inline';
+import { serialize } from '../../core/serializer';
 import { hidesDelimitersAtCaret } from '../../presentation-mode';
 import {
 	removalOf,
@@ -21,8 +22,9 @@ import { changesBetween } from '../../tree-operations/byte-changes';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { deleteSnapshot, type SelectionPoint } from '../primitives';
 import { liveSlot, type RemovalGesture as BlockGesture } from '../caret-target';
+
 import { firstCaretLeafFrom, previousCaretPath } from '../path-lookup';
-import { pointAtByte, removalBytes, wholeBlockBytes } from '../range-bytes';
+import { gapAtByte, pointAtByte, removalBytes, wholeBlockBytes } from '../range-bytes';
 import type { RangeCoverage } from '../range-coverage';
 import type { CrossBlockDispatchContext } from './dispatch';
 
@@ -37,11 +39,14 @@ type CommitContext = Omit<RemovalContext, 'getDoc'>;
 type RemovalCommit = Pick<SourceSplice, 'caret' | 'op' | 'snapshot'>;
 
 export interface Removed {
+	/** False also where the range held nothing to take, which leaves the caret at its start. */
 	wrote: boolean;
 	/** Where the removal left the caret, read on the committed tree. */
 	caret: SelectionPoint | null;
-	/** Whether that caret sits in a block's text, rather than on a block held whole or between two. */
-	inText: boolean;
+	/** The core's caret: its byte, and whether text, a block held whole or a boundary sits there. */
+	landed: SpliceCaret | null;
+	/** The block the range started in, by its path before the removal, when the removal took it. */
+	took: readonly number[] | null;
 }
 
 /** How the core names the removal each block gesture makes: a delete no key asked for removes as
@@ -61,16 +66,21 @@ export async function removeThroughCore(
 ): Promise<Removed> {
 	const tree = ctx.bytes.doc();
 	const range = removalBytes(tree, coverage, ctx.bytes.layout());
-	if (!range) return { wrote: false, caret: null, inText: false };
-	const answer = removalOf(ctx.bytes.source(), range, gesture, modeOf(ctx), hostOf(ctx));
+	if (!range) return { wrote: false, caret: null, landed: null, took: null };
+	const source = ctx.bytes.source();
+	const answer = removalOf(source, range, gesture, modeOf(ctx), hostOf(ctx));
+	const landed = answer.caret;
+	// A range holding nothing to take (an end narrowed to the text before it) is a caret there.
+	if (answer.source === source)
+		return { wrote: false, caret: pointAtByte(tree, landed.at), landed, took: null };
 	const { start } = coverage.range;
 	const wrote = await commitRemoval(ctx, range, answer.source, {
-		caret: answer.caret,
+		caret: landed,
 		op: { kind: 'delete', detail: { crossBlock: true } },
 		snapshot: deleteSnapshot(start.path, start.offset)
 	});
-	const caret = wrote ? pointAtByte(ctx.getDoc(), answer.caret.at) : null;
-	return { wrote, caret, inText: answer.caret.holds === 'text' };
+	const caret = wrote ? pointAtByte(ctx.getDoc(), landed.at) : null;
+	return { wrote, caret, landed, took: answer.took ?? null };
 }
 
 /** Removes the block at `path` whole, as the block menu's Delete does, in one commit whose caret,
@@ -208,20 +218,20 @@ export function commandLandingKind(doc: DocumentView, coverage: RangeCoverage): 
 	return beside ? kindAt(doc, beside) : 'paragraph';
 }
 
-/** Where text over the range opens a paragraph: the range took the block it started in and left
- *  the caret off any prose text, on a block's syntax or between blocks. Null where it types in place. */
-export function emptiedPlace(
-	committed: DocumentView,
-	coverage: RangeCoverage,
-	removed: Removed
-): number[] | null {
-	if (coverage.startEdge || coverage.grid || !removed.caret) return null;
-	if (removed.inText && inProse(committed, removed.caret)) return null;
-	const { start } = coverage.range;
-	return liveSlot(
-		committed,
-		coverage.rootHolding(start.path) ?? coverage.wholeRoots[0] ?? start.path
-	);
+/** Where text over the range opens a paragraph, by the core's answer: the boundary its caret sits
+ *  on, or the block the range started in, taken, with the caret off prose. Null types in place. */
+export function emptiedPlace(committed: DocumentView, removed: Removed): number[] | null {
+	const { landed, caret, took } = removed;
+	if (!landed || !removed.wrote) return null;
+	if (landed.holds === 'boundary') {
+		const gap = gapAtByte(committed, landed.at);
+		if (gap) return [...gap.parentPath, gap.index];
+		// The root's trailing boundary takes no gap caret, but a paragraph opens there all the same.
+		const end = serialize(committed).length - committed.suffix.length;
+		return landed.at >= end ? [committed.children.length] : null;
+	}
+	if (!took || (caret && landed.holds === 'text' && inProse(committed, caret))) return null;
+	return liveSlot(committed, took);
 }
 
 /** Whether text written at `point` reads as its block's text: a prose block, inside its content. */

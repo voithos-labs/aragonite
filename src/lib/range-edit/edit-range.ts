@@ -103,13 +103,20 @@ export function removalOf(
 	gesture: RemovalGesture,
 	mode: Mode,
 	host: RangeHost
-): RangeEditResult {
+): RemovalAnswer {
 	const removed = removalEdit(readDoc(source, host, mode), range.from, range.to, gesture);
 	const back = gesture === 'backspace' || gesture === 'command';
 	return {
 		source: removed.source,
-		caret: caretOf(removed, readDoc(removed.source, host, mode), back)
+		caret: caretOf(removed, readDoc(removed.source, host, mode), back),
+		...(removed.took && { took: removed.took })
 	};
+}
+
+/** A removal's answer, and the block the range started in, by its path, when it went whole: text
+ *  over the range opens a paragraph there when the caret holds no prose. */
+export interface RemovalAnswer extends RangeEditResult {
+	took?: readonly number[];
 }
 
 /** The bytes a removal of the blocks `range` spans leaves, as blocks asked for (the block menu's

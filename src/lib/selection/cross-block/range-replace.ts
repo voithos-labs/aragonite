@@ -126,11 +126,12 @@ async function replaceInStep(
 
 	const claimed =
 		insertion.kind === 'command' && devChecksOn ? commandLandingKind(ctx.getDoc(), coverage) : null;
-	const [removed, removalCaret] = await ctx.controller.holdLandings(() =>
+	const [removed, held] = await ctx.controller.holdLandings(() =>
 		removeRange(ctx, coverage, removal, insertion)
 	);
-	if (!removed.wrote) return 'nothing';
-	const place = family !== 'structural' ? emptiedPlace(ctx.getDoc(), coverage, removed) : null;
+	if (!removed.wrote && !removed.caret) return 'nothing';
+	const removalCaret = held ?? (removed.wrote ? null : caretAt(ctx, removed.caret!));
+	const place = family !== 'structural' ? emptiedPlace(ctx.getDoc(), removed) : null;
 	if (place) return insertInEmptiedPlace(ctx, coverage, insertion, place, removalCaret);
 
 	const at = removed.caret;
@@ -146,7 +147,21 @@ async function replaceInStep(
 		await runCommandAt(ctx, path, insertion.chord);
 		return 'written';
 	}
+	if (insertion.kind === 'none') {
+		await removalCaret?.place();
+		return 'written';
+	}
 	return insertAtCaret(ctx, coverage, insertion, at, removalCaret);
+}
+
+/** The caret a removal that took nothing leaves at the range's start, ending the range when placed. */
+function caretAt(ctx: CrossBlockMutationContext, point: SelectionPoint): HeldLanding {
+	return {
+		async place() {
+			ctx.selection.collapse();
+			await ctx.caretLanding.restore({ anchor: point, focus: point });
+		}
+	};
 }
 
 /** The insertion at `at`, where the removal, or the paragraph opened after it, left the caret. */
@@ -273,7 +288,8 @@ function removeRange(
 const inCell = (caret: SelectionPoint | null): Removed => ({
 	wrote: caret !== null,
 	caret,
-	inText: true
+	landed: null,
+	took: null
 });
 
 /** How the core names the removal a gesture makes: typed or pasted text removes as a cut does, a

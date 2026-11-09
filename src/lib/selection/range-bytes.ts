@@ -12,7 +12,9 @@ import { docPathFrom, type DocPath } from '../core/coordinate-spaces';
 import { countsCells } from '../schema/block-kind-descriptor';
 import { isMergeEligible } from '../schema/merge-rules';
 import { blockNodeAt } from '../tree-operations/node-primitives';
-import { leafAtByte } from '../tree-operations/container-offsets';
+import { documentByteMap, leafAtByte } from '../tree-operations/container-offsets';
+import { serialize } from '../core/serializer';
+import { gapEligibleAt, type GapCaretPosition } from './gap-caret';
 import type { Range } from '../range-edit/edit-range';
 import { documentLayout, type LaidBlock, type Layout } from '../range-edit/layout';
 import { pathsEqual } from './path-math';
@@ -200,4 +202,46 @@ function edgeLeaf(doc: DocumentView, at: 0 | -1): number[] | null {
 		children = children.at(at)!.children ?? [];
 	}
 	return path.length > 0 ? path : null;
+}
+
+/** The deepest boundary a gap caret may take where a block starts, or a container ends, at byte
+ *  `at`; null where none may. */
+export function gapAtByte(doc: DocumentView, at: number): GapCaretPosition | null {
+	const map = documentByteMap(doc);
+	const tops = topLevelStarts(doc);
+	let found: GapCaretPosition | null = null;
+	let parentPath: number[] = [];
+	let children = doc.children;
+	let startOf = (k: number) => tops[k];
+	// A child starting at or past `at`, or holding it; inside a container, the map's answer alone.
+	let near = tops.findIndex((start) => start >= at);
+	if (near < 0) near = children.length - 1;
+	let end = serialize(doc).length;
+	for (;;) {
+		const index = at === end ? children.length : startOf(near) === at ? near : -1;
+		if (index >= 0 && gapEligibleAt(doc, parentPath, index)) found = { parentPath, index };
+		// The last child starting at or before `at`.
+		let i = near;
+		while (i + 1 < children.length && startOf(i + 1) <= at) i++;
+		if (i > 0 && startOf(i) > at) i--;
+		const child = children[i];
+		const inner = child?.children?.length ? map.containerMap(child) : null;
+		if (!inner) return found;
+		const base = startOf(i);
+		end = base + child.raw.length;
+		parentPath = [...parentPath, i];
+		children = child.children!;
+		startOf = (k) => base + inner.rawOf(k, 0);
+		near = inner.childAt(at - base).index;
+	}
+}
+
+function topLevelStarts(doc: DocumentView): number[] {
+	const starts: number[] = [];
+	let at = doc.prefix.length;
+	for (const child of doc.children) {
+		starts.push(at + child.leadingTrivia.length);
+		at += child.leadingTrivia.length + child.raw.length;
+	}
+	return starts;
 }

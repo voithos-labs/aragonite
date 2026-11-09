@@ -11,7 +11,11 @@ import type { SelectionPoint } from '#lib/selection/primitives.js';
 import type { RemovalGesture } from '#lib/selection/caret-target.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
 import { pointAtByte, removalBytes } from '#lib/selection/range-bytes.js';
-import { CORE_GESTURE, numberedOn } from '#lib/selection/cross-block/range-removal.js';
+import {
+	CORE_GESTURE,
+	numberedOn,
+	type Removed
+} from '#lib/selection/cross-block/range-removal.js';
 import { removalOf } from '#lib/range-edit/edit-range.js';
 import { rangeHost } from '#lib/range-edit/host.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
@@ -36,8 +40,8 @@ export interface RangeDeleteOptions {
 export interface RangeDeleteResult {
 	newDoc: Document;
 	caret: (committed: DocumentView) => SelectionPoint | null;
-	/** Whether the core's caret sits in a block's text. */
-	inText: boolean;
+	/** What `removeThroughCore` reports beside its caret: the core's caret and the block it took. */
+	removed: Pick<Removed, 'wrote' | 'landed' | 'took'>;
 }
 
 export function deleteRange(
@@ -62,6 +66,10 @@ export function deleteRange(
 	const opened = readAsOpened(bytes, { grammar: reading.grammar, scope: 'document' }) as Document;
 	Object.assign(doc, { prefix: opened.prefix, children: opened.children, suffix: opened.suffix });
 	const at = offsetPastClosers(answer.caret.at, closers);
-	const inText = answer.caret.holds === 'text';
-	return { newDoc: doc, caret: (committed) => pointAtByte(committed, at), inText };
+	const removed = {
+		wrote: true,
+		landed: { ...answer.caret, at },
+		took: answer.took ?? null
+	};
+	return { newDoc: doc, caret: (committed) => pointAtByte(committed, at), removed };
 }

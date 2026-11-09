@@ -10,7 +10,7 @@ import { installPlugins } from '#lib/schema/plugin-install.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { childTriviaStart, documentByteMap } from '#lib/tree-operations/container-offsets.js';
-import { gapAtByte } from '#lib/editor-actions/commit/byte-splice.js';
+import { gapAtByte } from '#lib/selection/range-bytes.js';
 import { SYNTAX_PLUGINS } from '../behavior/corpus';
 import { arbLawDocument } from '../range-laws/shapes';
 import { allBlockPaths, freshOrFixedSeed } from '../invariants/arbitraries/index';

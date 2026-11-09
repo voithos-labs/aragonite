@@ -8,14 +8,14 @@ import { makeEnv, makeHandlers, selectAcross, makeBeforeInputEvent } from './typ
 
 describe('cross-block typed character: a fold above the survivor', () => {
 	it('lands the caret in the block the fold left standing', async () => {
-		const env = makeEnv('a\n# h\n\n## kkk\n');
+		const env = makeEnv('a\n# h\n\nkkk\n');
 
-		// The first heading and the second's first `#`: the delete leaves `# kkk` behind with the
-		// paragraph still tight above it.
+		// The heading and the paragraph's first `k`: the delete leaves `kk` where the heading was,
+		// tight under the paragraph above, which reads it as its own next line.
 		selectAcross(env.selectionState, [1], [2], 1);
 		await makeHandlers(env, [1]).handleBeforeInput(makeBeforeInputEvent('x'));
 
-		expect(serialize(env.doc)).toBe('a\nx# kkk\n');
+		expect(serialize(env.doc)).toBe('a\nxkk\n');
 		expect(env.doc.children).toHaveLength(1);
 		// Offset 3 is the byte after the typed `x` in the merged block (`'a\n'` + 1).
 		const landed = env.landings.at(-1);

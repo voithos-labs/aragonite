@@ -41,6 +41,8 @@ import {
  *  where Backspace's caret goes to the block before (spec § 5.3). */
 export interface Removal extends Edit {
 	gone?: boolean;
+	/** The block the range started in, by its path, when the removal took it whole. */
+	took?: readonly number[];
 }
 
 export function removeRange(doc: Doc, start: number, end: number): Removal {
@@ -184,7 +186,8 @@ function across(
 	return {
 		source: joins ? movedMarkers(doc, from, to, parted, to) : parted,
 		caret: lines?.caret ?? start?.caret ?? from,
-		...(gone && { gone })
+		...(gone && { gone }),
+		...(held && first && { took: first.path })
 	};
 }
 

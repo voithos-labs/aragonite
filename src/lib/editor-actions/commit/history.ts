@@ -12,7 +12,8 @@ import { assertInvariant, devChecksOn } from '@voithos-labs/aragonite/dev-checks
 import { checkSnapshotIntegrity } from '../../invariants/snapshot-integrity';
 import { checkInstalledEntry } from '../../invariants/history-install';
 import { admitsHistoryRequest } from './reading-write-gate';
-import { gapAtByte, installReading } from './byte-splice';
+import { installReading } from './byte-splice';
+import { gapAtByte } from '../../selection/range-bytes';
 import type { EditorActionsDeps, UndoController } from '../deps';
 import { grammarStamp, sameGrammar } from './grammar-stamp';
 import { captureChange, changeAfter } from './change-record';
