@@ -721,7 +721,10 @@
 	const markActivation = createMarkActivation({
 		caret: () => {
 			const focus = getSelection()?.focus;
-			return focus && !focus.cellCoordinate ? { path: focus.path, offset: focus.offset } : null;
+			if (!focus?.cellCoordinate) return focus ? { path: focus.path, offset: focus.offset } : null;
+			// A caret in a cell is a point in cell space; the table knows the offset inside the cell.
+			const inCell = getBlockComponent(focus.path)?.getCursorPosition?.();
+			return inCell ? { path: [...focus.path, ...inCell.path], offset: inCell.offset } : null;
 		},
 		marksForPath: (path) => {
 			const node = blockNodeAt(doc, path);

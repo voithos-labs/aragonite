@@ -11,7 +11,8 @@ import { createMarkHover, type HoverPointer } from '#lib/decorations/mark-hover.
 import type { Decoration, MarkDecoration, MarkHover } from '#lib/decorations/types.js';
 import { editorMountContext } from '../harness/mount-context';
 
-const doc = parse('hello world, a longer line\n');
+const doc = parse('hello world, a longer line\n\n| a | b |\n| - | - |\n| xyz | w |\n');
+const TABLE = doc.children[1];
 
 /** jsdom measures every range at zero size, so the leaf answers with the rects a browser would:
  *  8px a character, 16px tall, a range crossing `wrapAt` continuing 22px lower. */
@@ -28,14 +29,22 @@ function paintingLeaf(wrapAt = Infinity): BlockComponent {
 	} as unknown as BlockComponent;
 }
 
-/** A grid's overlay paints its cells' marks as whole-cell rects, 40 by 20. */
+/** A grid whose cells each measure like a leaf: cell (row, col) sits at x = col * 100, y = row * 20,
+ *  8px a character, reached the way the overlay reaches them, through the rows' child lists. */
 function paintingGrid(): BlockComponent {
+	const cell = (row: number, col: number) => ({
+		measurePartialRects: (start: number, end: number) => [
+			new DOMRect(col * 100 + start * 8, row * 20, (end - start) * 8, 16)
+		]
+	});
+	const list = (at: (index: number) => unknown) => ({ refs: { get: at } });
 	return {
 		focus: () => {},
 		getCursorOffset: () => null,
 		editable: false,
 		focusable: true,
-		cellRect: (row: number, col: number) => new DOMRect(col * 40, row * 20, 40, 20)
+		cellRect: (row: number, col: number) => new DOMRect(col * 100, row * 20, 100, 20),
+		childList: () => list((row) => ({ childList: () => list((col) => cell(row, col)) }))
 	} as unknown as BlockComponent;
 }
 
@@ -50,6 +59,7 @@ afterEach(async () => {
 
 function setup(opts: { path?: number[]; leaf?: BlockComponent; container?: boolean } = {}) {
 	const path = opts.path ?? [0];
+	const node = opts.container ? TABLE : doc.children[0];
 	const errors: { path: number[]; error: unknown }[] = [];
 	const engine = createDecorationEngine({
 		getDoc: () => doc,
@@ -63,7 +73,7 @@ function setup(opts: { path?: number[]; leaf?: BlockComponent; container?: boole
 	instance = mount(DecorationOverlay, {
 		target,
 		props: {
-			node: doc.children[0],
+			node,
 			path,
 			blockRef: opts.leaf ?? paintingLeaf(),
 			blockEl,
@@ -327,8 +337,24 @@ describe('only marks with a click handler take pointer events', () => {
 	});
 });
 
-describe('a table cell names its decoration by the precedence rule', () => {
-	it('hovers the innermost of the hover marks collapsed into one cell rect', async () => {
+describe('a table cell measures its marks like a leaf', () => {
+	it('paints two marks in one cell as two rects over their own text', async () => {
+		const { engine } = setup({ path: [1], leaf: paintingGrid(), container: true });
+		engine.addSource({
+			name: 'two',
+			provide: () => [
+				{ type: 'mark', path: [1, 1, 0], start: 0, end: 1, class: 'first' },
+				{ type: 'mark', path: [1, 1, 0], start: 2, end: 3, class: 'second' }
+			]
+		});
+		await settle();
+		const lefts = [...document.querySelectorAll<HTMLElement>('.decoration-overlay')].map(
+			(el) => el.style.left
+		);
+		expect(lefts).toEqual(['0px', '16px']);
+	});
+
+	it('hovers the innermost of the hover marks over one spot of a cell', async () => {
 		const calls: HoverCall[] = [];
 		const { engine, pointer } = setup({ path: [1], leaf: paintingGrid(), container: true });
 		const cell = [1, 1, 0];
@@ -337,12 +363,12 @@ describe('a table cell names its decoration by the precedence rule', () => {
 			hoverMark(calls, { path: cell, start: 1, end: 2, class: 'inner' }),
 			hoverMark(calls, { path: cell, start: 1, end: 2, class: 'later-same-span' })
 		]);
-		pointer(20, 30);
+		pointer(12, 28);
 		expect(calls.map((c) => c.cls)).toEqual(['inner']);
 	});
 
 	// Miss-analysis: no test clicked a mark in a table cell; every click-mark row was prose.
-	it('keeps a cell clickable when a plain mark from a later source shares it', async () => {
+	it('keeps a cell mark clickable when a plain mark from a later source shares its text', async () => {
 		let clicks = 0;
 		const { engine } = setup({ path: [1], leaf: paintingGrid(), container: true });
 		engine.addSource({
@@ -364,7 +390,7 @@ describe('a table cell names its decoration by the precedence rule', () => {
 		});
 		await settle();
 		document
-			.querySelector('.decoration-overlay')!
+			.querySelector('.decoration-overlay-interactive')!
 			.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 		expect(clicks).toBe(1);
 	});

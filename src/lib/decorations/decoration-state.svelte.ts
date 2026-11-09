@@ -3,12 +3,7 @@
 import { assertInvariant, devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { tick } from 'svelte';
 import type { DocumentView, NodeView } from '../core/node-views';
-import {
-	groupDecorationsByAncestor,
-	groupDecorationsByPath,
-	pathKey,
-	type IndexedDecoration
-} from './buckets';
+import { groupDecorationsByPath, pathKey, type IndexedDecoration } from './buckets';
 import { NO_PAINT, splitBucket, keepEqualParts, type BlockPaint } from './block-paint';
 import { createMarkHover, type MarkHoverTracker, type MarkIdentity } from './mark-hover';
 import type {
@@ -42,7 +37,6 @@ export type DecorationEngine = {
 	/** What paints over the mounted block `node` at `path`, for its reactive reads: the same arrays
 	 *  come back until that block's paint changes. */
 	paintOf(node: NodeView, path: readonly number[]): BlockPaint;
-	marksForDescendants(path: number[]): IndexedDecoration<MarkDecoration>[];
 	/** Every call into a mark's `interactive` handlers goes through here, so a throw is reported. */
 	runMarkHandler(dec: MarkDecoration, call: () => void): void;
 	markHover: MarkHoverTracker;
@@ -62,7 +56,6 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 	let editEpoch = 0;
 
 	const merged = $derived(results.flat());
-	const byAncestor = $derived(groupDecorationsByAncestor(merged));
 	// A path's paint is the one it held while equal, so its block's readers stay quiet. Not state:
 	// only this derived reads or writes it.
 	let heldByPath = new Map<string, BlockPaint>();
@@ -226,10 +219,6 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 		};
 	}
 
-	function filterMarks(bucket: IndexedDecoration[]): IndexedDecoration<MarkDecoration>[] {
-		return bucket.filter((d): d is IndexedDecoration<MarkDecoration> => d.dec.type === 'mark');
-	}
-
 	return {
 		addSource,
 		get sourceCount() {
@@ -242,10 +231,6 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 		},
 		paintOf(_node, path) {
 			return byPath.get(pathKey(path)) ?? NO_PAINT;
-		},
-		marksForDescendants(path) {
-			const bucket = byAncestor.get(pathKey(path));
-			return bucket ? filterMarks(bucket) : EMPTY_MARKS;
 		},
 		runMarkHandler,
 		markHover

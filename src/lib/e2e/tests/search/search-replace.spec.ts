@@ -125,8 +125,7 @@ test.describe('search: tables', () => {
 		await openFind(editor);
 		await typeQuery(editor, 'dev');
 		await expect(count(page)).toHaveText(/1\s+of\s+2/);
-		// The table's BlockHost paints one whole-cell overlay per matching cell
-		// (positioned over the cell via cellRect, not nested inside [role=cell]).
+		// The table's BlockHost paints each match over its own text, measured by its cell.
 		await expect(overlays(page)).toHaveCount(2);
 		await expect(overlays(page).first()).toBeVisible();
 	});

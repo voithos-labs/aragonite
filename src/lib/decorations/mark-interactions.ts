@@ -44,24 +44,16 @@ export function paintOrder(
 	return [...plain, ...pointer.sort((a, b) => comparePrecedence(b, a))];
 }
 
-/** The two measurements a block offers for painting marks: a leaf's range rects, a grid's cells. */
+/** What a leaf offers for painting marks: its range rects. */
 export interface MarkMeasurer {
 	measurePartialRects?(start: number, end: number): DOMRect[];
-	cellRect?(rowIdx: number, colIdx: number): DOMRect | null;
 }
 
-/** The viewport rects a mark paints: one per visual line in a prose block, one whole cell in a
- *  grid, the way the overlay paints them. */
+/** The viewport rects a mark paints, one per visual line, in a block or a table cell alike. */
 export function paintedMarkRects(
 	dec: MarkDecoration,
 	componentAt: (path: number[]) => MarkMeasurer | null
 ): DOMRect[] {
-	// A grid's cell marks paint whole cells, though a cell has measurable text of its own.
-	const grid = dec.path.length > 2 ? componentAt(dec.path.slice(0, -2)) : null;
-	if (grid?.cellRect) {
-		const cell = grid.cellRect(dec.path[dec.path.length - 2], dec.path[dec.path.length - 1]);
-		return cell ? [cell] : [];
-	}
 	const leaf = componentAt(dec.path);
 	return leaf ? leafMarkRects(leaf, dec) : [];
 }

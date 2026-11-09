@@ -159,13 +159,9 @@ describe('createDecorationEngine', () => {
 		expect(positions).toEqual([0, 1, 3]);
 	});
 
-	it("marksForDescendants reads the ancestor bucket; a block's paint holds its block decorations", () => {
+	it("a block's paint holds its block decorations", () => {
 		const engine = makeEngine();
-		engine.addSource({
-			name: 'x',
-			provide: () => [mark([1, 0]), { type: 'block', path: [2], class: 'b' }]
-		});
-		expect(engine.marksForDescendants([1])).toHaveLength(1);
+		engine.addSource({ name: 'x', provide: () => [{ type: 'block', path: [2], class: 'b' }] });
 		expect(paintAt(engine, [2]).blocks.map((d) => d.class)).toEqual(['b']);
 	});
 

@@ -9,14 +9,10 @@
 	} from '../../editor-keys';
 	import type { NodeView } from '../../core/node-views';
 	import type { MarkDecoration } from '../../decorations/types';
-	import { collapseCellMarks, type IndexedDecoration } from '../../decorations/buckets';
-	import {
-		leafMarkRects,
-		paintOrder,
-		takesPointer,
-		winningMark
-	} from '../../decorations/mark-interactions';
+	import type { IndexedDecoration } from '../../decorations/buckets';
+	import { leafMarkRects, paintOrder, takesPointer } from '../../decorations/mark-interactions';
 	import type { HoverTarget } from '../../decorations/mark-hover';
+	import { componentAt } from '../../block-lists/child-list';
 	import { wireOverlayRemeasure } from './remeasure';
 	import { recordMarkMeasure } from '../../perf/instruments';
 
@@ -33,7 +29,7 @@
 		blockRef: BlockComponent | undefined;
 		blockEl: HTMLElement | null | undefined;
 		/** Containers paint nothing, since their children paint themselves, except grids:
-		 *  their cells have no BlockHost of their own, so whole-cell marks paint here. */
+		 *  their cells have no BlockHost of their own, so their marks paint here. */
 		isContainer?: boolean;
 		/** Decided at BlockHost, which hands the same value to SelectionOverlay. */
 		containerPaintsRects?: boolean;
@@ -44,9 +40,9 @@
 	// Optional for the same reason `services` is: a mount without the editor shell has none.
 	const getEditorRoot = getContext<EditorDoc | undefined>(EDITOR_DOC_KEY)?.editorRoot;
 
-	// A grid supplies cellRect, so marks on its cells, which have no BlockHost overlay
-	// of their own, paint as whole cells here.
-	const containerPaintsCells = $derived(isContainer && !!blockRef?.cellRect);
+	// A grid supplies cellRect; its cells have no BlockHost overlay of their own, so each mounted
+	// cell's marks paint here, measured by the cell like a leaf.
+	const paintsCells = $derived(isContainer && !!blockRef?.cellRect);
 
 	interface Painted {
 		left: number;
@@ -58,7 +54,15 @@
 		clickMark?: MarkDecoration;
 	}
 	let rects = $state.raw<Painted[]>([]);
-	const NO_MARKS: readonly IndexedDecoration<MarkDecoration>[] = [];
+
+	type Marks = readonly IndexedDecoration<MarkDecoration>[];
+	interface CellMarks {
+		row: number;
+		col: number;
+		marks: Marks;
+	}
+	const NO_MARKS: Marks = [];
+	const NO_CELLS: readonly CellMarks[] = [];
 
 	// The hover tracker's key for what this overlay painted, dropped when it unmounts.
 	const owner = {};
@@ -74,26 +78,39 @@
 		untrack(() => engine?.markHover.paint(owner, el, targets));
 	}
 
-	// A derived, so the effect below reruns only when the block's marks are new arrays.
-	const blockMarks = $derived(
-		!engine
-			? NO_MARKS
-			: containerPaintsCells
-				? engine.marksForDescendants(path)
-				: engine.paintOf(node, path).marks
-	);
+	// Deriveds, so the effect below reruns only when some block's or cell's marks are new arrays.
+	const leafMarks = $derived(engine && !paintsCells ? engine.paintOf(node, path).marks : NO_MARKS);
+	let heldCells = NO_CELLS;
+	const cellMarks = $derived.by(() => {
+		if (!engine || !paintsCells) return NO_CELLS;
+		const rows = node.children ?? [];
+		const { start, end } = blockRef?.mountedRowWindow?.() ?? { start: 0, end: rows.length };
+		const next: CellMarks[] = [];
+		for (let row = start; row < Math.min(end, rows.length); row++) {
+			rows[row].children?.forEach((cell, col) => {
+				const marks = engine.paintOf(cell, [...path, row, col]).marks;
+				if (marks.length > 0) next.push({ row, col, marks });
+			});
+		}
+		const same =
+			next.length === heldCells.length &&
+			next.every((c, i) => c.marks === heldCells[i].marks && c.row === heldCells[i].row);
+		if (!same) heldCells = next;
+		return heldCells;
+	});
 
 	$effect(() => {
 		const eng = engine,
 			ref = blockRef,
 			el = blockEl,
-			marks = blockMarks;
+			leaf = leafMarks,
+			cells = cellMarks;
 		// An unmarked block wires nothing, so a scroll or a moved marker measures marked blocks only.
 		if (
 			!eng ||
 			!el ||
-			marks.length === 0 ||
-			(isContainer && !containerPaintsCells && !containerPaintsRects)
+			(leaf.length === 0 && cells.length === 0) ||
+			(isContainer && !paintsCells && !containerPaintsRects)
 		) {
 			rects = [];
 			paintHover(null, []);
@@ -105,54 +122,35 @@
 			recordMarkMeasure(path);
 			const blockRect = el.getBoundingClientRect();
 			const hover: HoverTarget[] = [];
-			rects = containerPaintsCells
-				? measureCells(marks, blockRect, hover)
-				: measureLeaf(marks, ref, blockRect, hover);
+			const out: Painted[] = [];
+			if (paintsCells) {
+				const rows = ref?.childList?.();
+				for (const cell of cells) {
+					const at = rows ? componentAt(rows, [cell.row, cell.col]) : null;
+					measureLeaf(cell.marks, at ?? undefined, blockRect, out, hover);
+				}
+			} else measureLeaf(leaf, ref, blockRect, out, hover);
+			rects = out;
 			paintHover(el, hover);
 		}
 
 		function measureLeaf(
-			leafMarks: readonly IndexedDecoration<MarkDecoration>[],
-			leaf: BlockComponent | undefined,
+			marks: Marks,
+			measurer: BlockComponent | undefined,
 			blockRect: DOMRect,
+			out: Painted[],
 			hover: HoverTarget[]
-		): Painted[] {
-			if (!leaf?.measurePartialRects) return [];
-			const out: Painted[] = [];
-			for (const mark of paintOrder(leafMarks)) {
+		): void {
+			if (!measurer?.measurePartialRects) return;
+			for (const mark of paintOrder(marks)) {
 				const { dec } = mark;
-				const own = leafMarkRects(leaf, dec).map((r) => ({
+				const own = leafMarkRects(measurer, dec).map((r) => ({
 					...toLocal(r, blockRect, dec.class, dec.attrs),
 					clickMark: takesPointer(dec) ? dec : undefined
 				}));
 				for (const painted of own) out.push(painted);
 				if (dec.interactive?.onHover && own.length > 0) hover.push({ mark, rects: own });
 			}
-			return out;
-		}
-
-		// Several marks in one cell collapse to a single rect whose class is their union; the
-		// precedence rule names which of them answers a click, and the hit-test which a hover.
-		function measureCells(
-			descMarks: readonly IndexedDecoration<MarkDecoration>[],
-			blockRect: DOMRect,
-			hover: HoverTarget[]
-		): Painted[] {
-			if (!ref?.cellRect) return [];
-			const out: Painted[] = [];
-			for (const cell of collapseCellMarks(descMarks, path)) {
-				const r = ref.cellRect(cell.rowIdx, cell.colIdx);
-				if (!r) continue;
-				const painted = {
-					...toLocal(r, blockRect, cell.class, cell.dec.attrs),
-					clickMark: winningMark(cell.marks, takesPointer)?.dec
-				};
-				out.push(painted);
-				for (const mark of cell.marks) {
-					if (mark.dec.interactive?.onHover) hover.push({ mark, rects: [painted] });
-				}
-			}
-			return out;
 		}
 
 		function toLocal(
