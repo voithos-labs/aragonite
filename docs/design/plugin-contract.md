@@ -270,7 +270,7 @@ The facts come from what the spec's keys do, never from a list you declare, and 
 - a text spanning lines opens both, since Enter there types a newline;
 - one line opens neither, since Enter splits it at either end.
 
-So two boxes back to back have no gap caret between them, and a box with an editing surface of its own gets to the paragraph below through whole focus, which its drawing hands back with `ctx.focusWhole()` (on Escape, say). `leaf-facts-parity.svelte.test.ts` and `container-facts-parity.svelte.test.ts` hold the derived facts equal to a hand registration of the same shape.
+So two boxes back to back have no gap caret between them, and a box with an editing surface of its own gets to the paragraph below through whole focus, which an Escape its field doesn't `preventDefault` hands back (as does `ctx.focusWhole()`). `leaf-facts-parity.svelte.test.ts` and `container-facts-parity.svelte.test.ts` hold the derived facts equal to a hand registration of the same shape.
 
 A container block type's lines go through the same two homes as the built-in quote's: the reader `src/lib/core/parsers/strip-container.ts :: stripOpener` (G4.320) and the container writer (G4.305), which writes a head line (an alert's `> [!NOTE]`) through the writer `headedLines` carries. Both read one line syntax, which is why a marked shape's `reads` has to take its own markers whole (G1.191).
 

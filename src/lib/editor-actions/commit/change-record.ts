@@ -158,8 +158,6 @@ export function blockRange(doc: DocumentView, path: readonly number[]): PartRang
 	return { from: { part, offset: blank + start }, to };
 }
 
-/** `range` after `change`, or null when the change wrote inside it. Text written at either edge
- *  lands outside it; an empty range moves past text written where it stands. */
 /** Where `node` sits in the document now, found by identity; null once it has left it. */
 export function pathOfNode(doc: DocumentView, node: NodeView): number[] | null {
 	// Cast, so the type checker doesn't read it as still null past the walk that sets it.
@@ -200,6 +198,8 @@ export function blockByteOf(
 	};
 }
 
+/** `range` after `change`, or null when the change wrote inside it. Text written at either edge
+ *  lands outside it; an empty range moves past text written where it stands. */
 export function rangeThrough(range: PartRange, change: RecordedChange): PartRange | null {
 	const x = spanOffset(range.from, change.lo, change.before);
 	const y = spanOffset(range.to, change.lo, change.before);

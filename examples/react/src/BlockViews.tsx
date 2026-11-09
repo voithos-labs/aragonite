@@ -105,6 +105,7 @@ function Note({ block, ctx }: BlockProps<never, BoxDrawContext>) {
 	function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
 		const field = e.currentTarget;
 		if (e.key === 'Escape') {
+			e.preventDefault();
 			dropped.current = true;
 			ctx.focusWhole();
 			setEditing(false);

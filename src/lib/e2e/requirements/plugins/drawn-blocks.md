@@ -2,9 +2,8 @@
 
 A ` ```field ` box (`fencedBlock`, `edit: 'box'`, `routes/test/plugins/drawn`) edits its two-line
 body in a field of its own and takes the caret through `Drawn.focus`, handing it back with
-`ctx.leave`; leaving the field writes its text back through `Block.from` and `Block.to`, and Escape in
-it hands the box whole focus back through `ctx.focusWhole()`. The seed puts a paragraph above it and
-one below.
+`ctx.leave`; leaving the field writes its text back through `Block.from` and `Block.to`. It leaves
+Escape unhandled. The seed puts a paragraph above it and one below.
 
 ## Happy paths
 
@@ -22,7 +21,7 @@ one below.
 
 ## Two boxes back to back
 
-Two ` ```field ` boxes with nothing between them open no gap caret (each opens only the edge above it), so the way to a paragraph between them is the box focused whole. The field's drawing calls `ctx.focusWhole()` on Escape.
+Two ` ```field ` boxes with nothing between them open no gap caret (each opens only the edge above it), so the way to a paragraph between them is the box focused whole. The field's drawing doesn't handle Escape, so the editor does.
 
 - Escape in the first field focuses its box whole (the field loses focus, the block keeps it); Enter there opens a paragraph between the two boxes, and typing lands in it.
 

@@ -106,8 +106,16 @@ export function createDrawnBox(deps: DrawnBoxDeps) {
 		// In the drawing's own editing surface (`focus`, or a field of its own) a plain key is the
 		// surface's, while a chord still reaches the editor unless `keep` took it.
 		const inside = e.target !== drawn.dom && drawn.dom.contains(e.target as Node);
-		const own = inside && (!!drawn.focus || isEditableEventTarget(e.target));
-		if (own && !(e.ctrlKey || e.metaKey || e.altKey)) return;
+		const field = inside && isEditableEventTarget(e.target);
+		const own = field || (inside && !!drawn.focus);
+		if (own && !(e.ctrlKey || e.metaKey || e.altKey)) {
+			// Escape out of a field the drawing didn't handle leaves it, as in a built-in's field.
+			if (field && e.key === 'Escape' && !e.defaultPrevented) {
+				e.preventDefault();
+				focusWhole();
+			}
+			return;
+		}
 		const kind = deps.getNode().kind;
 		if (dispatchWholeBlockGlobalChord(e, kind, commands)) return;
 		if (wiring.dispatchChord(e, { kind, getPath: deps.getPath })) return;

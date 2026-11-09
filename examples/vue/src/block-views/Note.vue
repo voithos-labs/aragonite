@@ -27,6 +27,7 @@ function commit(): void {
 function onKeydown(e: KeyboardEvent): void {
 	const field = e.currentTarget as HTMLTextAreaElement;
 	if (e.key === 'Escape') {
+		e.preventDefault();
 		dropped = true;
 		props.ctx.focusWhole();
 		editing.value = false;

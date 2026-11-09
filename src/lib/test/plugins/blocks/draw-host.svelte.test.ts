@@ -278,32 +278,61 @@ describe('a box (edit: box)', () => {
 		expect(document.activeElement).toBe(surfaceAt(editor, [0]));
 	});
 
-	it('takes whole focus back from a field of its own through ctx.focusWhole', async () => {
-		const plugin = notes({
+	/** A box drawing a field and a button; `onEscape` is the field's own Escape handler. */
+	function fieldAndButton(onEscape?: (e: KeyboardEvent) => void) {
+		return notes({
 			edit: 'box',
 			draw: (_block, ctx: BoxDrawContext) => {
 				const dom = document.createElement('div');
 				const field = document.createElement('textarea');
-				field.addEventListener('keydown', (e) => {
-					if (e.key === 'Escape') ctx.focusWhole();
-				});
-				dom.append(field);
+				if (onEscape) field.addEventListener('keydown', (e) => e.key === 'Escape' && onEscape(e));
+				const button = document.createElement('button');
+				button.addEventListener('click', () => ctx.focusWhole());
+				dom.append(field, button);
 				return { dom };
 			}
 		});
+	}
+
+	async function focusedWholeThenDeleted(editor: ReturnType<typeof mountEditor>) {
+		const field = blockHostAt(editor, NOTE).querySelector('textarea')!;
+		const focused = document.activeElement as HTMLElement;
+		expect(focused).not.toBe(field);
+		expect(blockHostAt(editor, NOTE).contains(focused)).toBe(true);
+		await pressKey(focused, { key: 'Backspace' });
+		await editor.settle();
+		expect(editor.source()).not.toContain('%%note');
+	}
+
+	it('focuses the box whole on an Escape its field leaves unhandled', async () => {
+		const editor = mountEditor({ source: SOURCE, plugins: [fieldAndButton()] });
+		await editor.settle();
+		const field = blockHostAt(editor, NOTE).querySelector('textarea')!;
+		field.focus();
+		const escape = await pressKey(field, { key: 'Escape' });
+		await editor.settle();
+		expect(escape.defaultPrevented).toBe(true);
+		await focusedWholeThenDeleted(editor);
+	});
+
+	it('leaves an Escape its field prevents to the field', async () => {
+		const plugin = fieldAndButton((e) => e.preventDefault());
 		const editor = mountEditor({ source: SOURCE, plugins: [plugin] });
 		await editor.settle();
 		const field = blockHostAt(editor, NOTE).querySelector('textarea')!;
 		field.focus();
 		await pressKey(field, { key: 'Escape' });
 		await editor.settle();
-		const focused = document.activeElement as HTMLElement;
-		expect(focused).not.toBe(field);
-		expect(blockHostAt(editor, NOTE).contains(focused)).toBe(true);
+		expect(document.activeElement).toBe(field);
+	});
 
-		await pressKey(focused, { key: 'Backspace' });
+	it('takes whole focus back through ctx.focusWhole', async () => {
+		const editor = mountEditor({ source: SOURCE, plugins: [fieldAndButton()] });
 		await editor.settle();
-		expect(editor.source()).not.toContain('%%note');
+		blockHostAt(editor, NOTE).querySelector('textarea')!.focus();
+		blockHostAt(editor, NOTE).querySelector('button')!.click();
+		await editor.settle();
+		await focusedWholeThenDeleted(editor);
 	});
 
 	// Miss-analysis: every box with a field of its own declared `focus`, so none typed into one without.
