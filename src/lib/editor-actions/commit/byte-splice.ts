@@ -6,7 +6,7 @@
  */
 
 import type { CstNode } from '../../core/nodes';
-import type { DocumentView } from '../../core/node-views';
+import type { DocumentView, NodeView } from '../../core/node-views';
 import type { Landing } from '../../selection/primitives';
 import type { BlockComponent } from '../../block-component';
 import type { SourceSplice, SpliceCaret } from '../../action-contracts';
@@ -44,6 +44,7 @@ import {
 import { offsetPastClosers } from '../../tree-operations/written-openers';
 import type { EditorActionsDeps } from '../deps';
 import type { CommitArgs } from './structural-commit';
+import type { ReplacedBlocks } from './emit-edit';
 
 export function createByteSplice(
 	deps: EditorActionsDeps,
@@ -64,6 +65,7 @@ export function createByteSplice(
 		const caret = named && { ...named, at: offsetPastClosers(named.at, closers) };
 		let saved: { children: CstNode[]; ids: string[]; refs: (BlockComponent | undefined)[] } | null =
 			null;
+		let replaced: ReplacedBlocks = 'unknown';
 		return __commit({
 			entry: 'commitSource',
 			snapshot: splice.snapshot,
@@ -74,7 +76,7 @@ export function createByteSplice(
 			apply: () => {
 				if (!reading) return false;
 				saved = { children: deps.doc.children, ids: deps.blockIds, refs: [...deps.blockRefs] };
-				installReading(deps, reading);
+				replaced = installReading(deps, reading);
 				// A range the editor holds names the blocks just replaced; the landing puts the caret down.
 				if (deps.selectionState.ownsRange) {
 					deps.selectionState.clear();
@@ -89,6 +91,7 @@ export function createByteSplice(
 				);
 				return { nodes: tops, tops };
 			},
+			replaced: () => replaced,
 			check: () => {
 				assertSpliceReadsBack(deps.doc.children, placed(windows), grammar);
 				if (reading)
@@ -109,8 +112,9 @@ export function createByteSplice(
 }
 
 /** The live document's top-level blocks read again as `reading` says, ids and refs moved with
- *  them; blocks outside its windows keep their nodes. */
-export function installReading(deps: EditorActionsDeps, reading: SpliceReading): void {
+ *  them; blocks outside its windows keep their nodes. Returns the blocks it replaced. */
+export function installReading(deps: EditorActionsDeps, reading: SpliceReading): ReplacedBlocks {
+	const replaced = replacedBy(deps.doc.children, reading.windows);
 	// Off the tree's `$state` proxy, where every index a splice shifts is a tracked write.
 	const children = [...deps.doc.children];
 	const ids = [...deps.blockIds];
@@ -129,9 +133,26 @@ export function installReading(deps: EditorActionsDeps, reading: SpliceReading):
 	assertIdsInLockstep('byte splice', ids.length, children.length);
 	deps.setBlockIds(ids);
 	replaceRefs(deps.blockRefs, refs);
+	return replaced;
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────
+
+/** The blocks `windows` take out of `tops` and put in; a window inside a container names only the
+ *  run of its children read again, so a long list isn't walked whole. */
+function replacedBy(tops: readonly NodeView[], windows: readonly SpliceWindow[]): ReplacedBlocks {
+	const kids = (at: number) => tops[at].children ?? [];
+	return {
+		before: windows.flatMap(({ at, count, run }) =>
+			run ? kids(at).slice(run.at, run.at + run.count) : tops.slice(at, at + count)
+		),
+		after: windows.flatMap(({ at, blocks, run }) => {
+			if (!run) return blocks;
+			const now = blocks[0].children ?? [];
+			return now.slice(run.at, run.at + run.count + now.length - kids(at).length);
+		})
+	};
+}
 
 function changeOf({ at, count, blocks }: SpliceWindow): StructuralChange {
 	if (count > 0 && blocks.length > 0) return replacePreservingFirst(at, count, blocks.length);

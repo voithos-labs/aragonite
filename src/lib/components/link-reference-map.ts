@@ -1,14 +1,27 @@
 // When to rebuild the link reference definition map, and the counter that render caches key on.
 
-import type { DocumentView } from '../core/node-views';
-import type { EditEvent } from '../editor-events';
-import { nodeAt } from '../tree-operations/node-primitives';
+import type { Document } from '../core/nodes';
+import { definitionsOf, type LinkDefinitions } from '../core/inline/scan/definitions';
+import type { ReplacedBlocks } from '../editor-actions/commit/emit-edit';
+import { assertDefinitionsKept } from '../invariants/install';
 
-/** Keeps the whole-document map rebuild off the keystroke path: `input` and `metadataUpdate`
- *  never change a block's kind, so they matter only when the block is itself a definition. */
-export function lrdMapCouldChange(doc: DocumentView, event: EditEvent): boolean {
-	if (event.op !== 'input' && event.op !== 'metadataUpdate') return true;
-	return nodeAt(doc, event.path)?.kind === 'linkReferenceDefinition';
+/** Keeps the whole-document rebuild off every write that took out and put in no definition, a
+ *  keystroke in a paragraph above all. */
+export function lrdMapCouldChange(replaced: ReplacedBlocks): boolean {
+	if (replaced === 'unknown') return true;
+	return definitionsOf([...replaced.before, ...replaced.after]).signature !== '';
+}
+
+/** The definitions after a write that replaced `replaced`; null where they can't have changed
+ *  from those `signature` names, which dev checks. */
+export function definitionsAfter(
+	doc: Document,
+	replaced: ReplacedBlocks,
+	signature: string
+): LinkDefinitions | null {
+	if (lrdMapCouldChange(replaced)) return definitionsOf(doc.children);
+	assertDefinitionsKept(doc.children, signature);
+	return null;
 }
 
 /** Changes exactly when the signature does: render caches key on it rather than the (~MB)
