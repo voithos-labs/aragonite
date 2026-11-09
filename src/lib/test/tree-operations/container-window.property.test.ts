@@ -118,6 +118,8 @@ const QUOTE_LINE = [
 	'>     code',
 	'>   indented',
 	'>\n>',
+	// Blank lines, then a line an item or code block above them would take in.
+	'>\n>\n>     code',
 	'lazy',
 	'> > nested',
 	'> - item',
@@ -127,37 +129,40 @@ const QUOTE_LINE = [
 ];
 const TABLE_ROW = ['| a | b |', '| one |', '| x | y | z |', '| $$ | x |', 'a | b'];
 
-/** One container of `count` lines drawn from its kind's lines, with blocks above and below. */
-const arbContainerDoc = fc
-	.record({
-		kind: fc.constantFrom('list', 'ordered', 'quote', 'table'),
-		lines: fc.array(fc.nat({ max: 99 }), { minLength: 6, maxLength: 40 }),
-		above: fc.constantFrom('', 'para\n\n', ':::note\n\n', '$$\n\n', '```\n\n'),
-		below: fc.constantFrom(
-			'',
-			'\npara\n',
-			'\npara\n\n',
-			'\n\n',
-			'\n:::\n',
-			'\n$$\n',
-			'next\n',
-			'\n- other\n'
-		),
-		ending: fc.constantFrom('\n', '\r\n')
-	})
-	.map(({ kind, lines, above, below, ending }) => {
-		const pool = { list: LIST_ITEM, ordered: ORDERED_ITEM, quote: QUOTE_LINE, table: TABLE_ROW }[
-			kind
-		];
-		const first = {
-			list: '- first',
-			ordered: '1. first',
-			quote: '> first',
-			table: '| h | i |\n| - | - |'
-		}[kind];
-		const body = [first, ...lines.map((n) => pool[n % pool.length])].join('\n') + '\n';
-		return (above + body + below).replace(/\n/g, ending);
-	});
+const KINDS = ['list', 'ordered', 'quote', 'table'] as const;
+
+/** One container of one of `kinds`, its lines drawn from its kind's, with blocks above and below. */
+const arbContainerDoc = (kinds: readonly (typeof KINDS)[number][]) =>
+	fc
+		.record({
+			kind: fc.constantFrom(...kinds),
+			lines: fc.array(fc.nat({ max: 99 }), { minLength: 6, maxLength: 40 }),
+			above: fc.constantFrom('', 'para\n\n', ':::note\n\n', '$$\n\n', '```\n\n'),
+			below: fc.constantFrom(
+				'',
+				'\npara\n',
+				'\npara\n\n',
+				'\n\n',
+				'\n:::\n',
+				'\n$$\n',
+				'next\n',
+				'\n- other\n'
+			),
+			ending: fc.constantFrom('\n', '\r\n')
+		})
+		.map(({ kind, lines, above, below, ending }) => {
+			const pool = { list: LIST_ITEM, ordered: ORDERED_ITEM, quote: QUOTE_LINE, table: TABLE_ROW }[
+				kind
+			];
+			const first = {
+				list: '- first',
+				ordered: '1. first',
+				quote: '> first',
+				table: '| h | i |\n| - | - |'
+			}[kind];
+			const body = [first, ...lines.map((n) => pool[n % pool.length])].join('\n') + '\n';
+			return (above + body + below).replace(/\n/g, ending);
+		});
 
 /** What an edit writes: plain text, line breaks, every opener and closer that reaches past its own
  *  line, and a quoted item or code line that reads on past blank lines. */
@@ -181,35 +186,76 @@ const INSERTS = [
 	''
 ];
 
-/** One or two changes, drawn mostly inside the container's lines. */
-const arbEdit = fc.record({
-	source: arbContainerDoc,
-	spots: fc.array(
-		fc.record({
-			at: fc.double({ min: 0.05, max: 0.95, noNaN: true }),
-			span: fc.oneof(fc.constant(0), fc.double({ min: 0, max: 0.15, noNaN: true })),
-			insert: fc.constantFrom(...INSERTS),
-			// A change wider than its bytes: the insert carries the bytes on either side again.
-			widen: fc.constantFrom(0, 0, 3, 12)
-		}),
-		{ minLength: 1, maxLength: 2 }
-	)
-});
+/** What an edit writes at a blank line's edge: a line break, or a line that reads on past it. */
+const EDGE_INSERTS = ['', '\n', '\n> b', '\n> - e', '\n>     d'];
 
-function changesAt(
-	before: string,
-	spots: { at: number; span: number; insert: string; widen: number }[]
-) {
+/** Where a change lands: any byte, a line's start, the start of its text behind a quote's markers,
+ *  or the line break above a blank line (taking that blank line too, when it has a span). */
+const PLACES = ['byte', 'line', 'text', 'edge'] as const;
+type Place = (typeof PLACES)[number];
+
+/** One or two changes landing at `places`, drawn mostly inside the container's lines. */
+const arbEdit = (kinds: readonly (typeof KINDS)[number][], places: readonly Place[]) =>
+	fc.record({
+		source: arbContainerDoc(kinds),
+		spots: fc.array(
+			fc.record({
+				at: fc.double({ min: 0.05, max: 0.95, noNaN: true }),
+				place: fc.constantFrom(...places),
+				span: fc.oneof(fc.constant(0), fc.double({ min: 0, max: 0.15, noNaN: true })),
+				insert: fc.constantFrom(...INSERTS),
+				edgeInsert: fc.constantFrom(...EDGE_INSERTS),
+				// A change wider than its bytes: the insert carries the bytes on either side again.
+				widen: fc.constantFrom(0, 0, 3, 12)
+			}),
+			{ minLength: 1, maxLength: 2 }
+		)
+	});
+
+type Spot = {
+	at: number;
+	place: Place;
+	span: number;
+	insert: string;
+	edgeInsert: string;
+	widen: number;
+};
+
+/** Where `spot` starts and ends in `before`, before any widening. */
+function spotRange(before: string, spot: Spot): { from: number; end: number; insert: string } {
+	const at = Math.floor(spot.at * before.length);
+	const line = before.lastIndexOf('\n', at - 1) + 1;
+	const span = Math.floor(spot.span * before.length);
+	if (spot.place === 'edge') {
+		const edge = /\r?\n(?=[ \t>]*\r?\n)/g;
+		edge.lastIndex = line;
+		const found = edge.exec(before);
+		if (!found) return { from: at, end: at + span, insert: spot.insert };
+		const below = found.index + found[0].length;
+		const end = span > 0 ? before.indexOf('\n', below) + 1 || before.length : found.index;
+		return { from: found.index, end, insert: spot.edgeInsert };
+	}
+	const from =
+		spot.place === 'line'
+			? line
+			: spot.place === 'text'
+				? line + /^[ \t>]*/.exec(before.slice(line))![0].length
+				: at;
+	return { from, end: from + span, insert: spot.insert };
+}
+
+function changesAt(before: string, spots: Spot[]) {
 	const whole = (n: number) => (before[n - 1] === '\r' && before[n] === '\n' ? n - 1 : n);
 	const changes: ByteChange[] = [];
 	let floor = 0;
 	for (const spot of [...spots].sort((a, b) => a.at - b.at)) {
-		const from = whole(Math.max(floor, Math.floor(spot.at * before.length)));
-		const end = whole(Math.min(before.length, from + Math.floor(spot.span * before.length)));
+		const range = spotRange(before, spot);
+		const from = whole(Math.max(floor, range.from));
+		const end = whole(Math.min(before.length, Math.max(from, range.end)));
 		if (from < floor || end < from) continue;
 		const lo = whole(Math.max(floor, from - spot.widen));
 		const hi = whole(Math.min(before.length, end + spot.widen));
-		const insert = before.slice(lo, from) + spot.insert + before.slice(end, hi);
+		const insert = before.slice(lo, from) + range.insert + before.slice(end, hi);
 		changes.push({ from: lo, to: hi, insert });
 		floor = hi;
 	}
@@ -219,10 +265,21 @@ function changesAt(
 describe('a splice inside a container comes out as the top-level window does', () => {
 	it('over generated containers and edits', () => {
 		fc.assert(
-			fc.property(arbEdit, ({ source, spots }) => {
+			fc.property(arbEdit(KINDS, PLACES), ({ source, spots }) => {
 				expect(divergence(source, (before) => changesAt(before, spots)).failure).toBeNull();
 			}),
 			{ numRuns: 400, seed: freshOrFixedSeed(20261108) }
+		);
+	});
+
+	// A quote is one draw in four and the line above a blank run one spot in hundreds, so a quote's
+	// line edges, where a lookahead can stop at a blank child, get a draw of their own.
+	it("over quotes edited at their lines' edges", () => {
+		fc.assert(
+			fc.property(arbEdit(['quote'], ['text', 'edge']), ({ source, spots }) => {
+				expect(divergence(source, (before) => changesAt(before, spots)).failure).toBeNull();
+			}),
+			{ numRuns: 200, seed: freshOrFixedSeed(20261108) }
 		);
 	});
 });
@@ -282,6 +339,14 @@ describe('the window inside a container, by its edges', () => {
 		]
 	])('reads on past blank children for %s that continues across them', (_name, source, after) => {
 		expect(divergence(source, to(after(source))).failure).toBeNull();
+	});
+
+	// The blank children below the run must read as they stood; `byte-splice.test.ts` holds the
+	// top-level twin of this row, and one check serves both.
+	it('text in a blank child moves the blank lines below it', () => {
+		const source = '> p\n>\n> a\n>\n>\n>\n>\n> b\n';
+		const after = edit(source, '> a\n>\n>\n>\n>\n', '> a\n>\n> x\n>\n');
+		expect(divergence(source, to(after)).failure).toBeNull();
 	});
 
 	// Rows that read a few children: far less than the container.
