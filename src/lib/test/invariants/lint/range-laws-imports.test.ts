@@ -39,7 +39,10 @@ const ALLOWED: Record<string, string> = {
 	'src/lib/selection/primitives.ts': 'a named range’s cell end',
 	'src/lib/selection/selection-state.svelte.ts':
 		'a named range’s ends as the editor orders and snaps them, which the core’s answer reads',
-	'src/lib/selection/range-clipboard.ts': 'the core’s copy of a range, which a cut must write'
+	'src/lib/selection/range-clipboard.ts': 'the core’s copy of a range, which a cut must write',
+	'src/lib/test/range-edit/expected.ts':
+		'law 3’s declared exceptions, which both law harnesses read from the same predicate',
+	'src/lib/schema/block-facts.ts': 'the block facts that exception reads (a read)'
 };
 const PACKAGES = new Set(['vitest', 'fast-check', 'node:fs', 'node:path']);
 

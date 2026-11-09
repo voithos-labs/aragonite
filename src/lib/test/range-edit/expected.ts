@@ -225,13 +225,29 @@ function tableHeadAbove(read: Read, table: LaidBlock, shared: LaidBlock | null, 
 		.join('');
 }
 
-/** Law 3's third declared exception: a range from a table's rows below its delimiter copies the
- *  header too, so the copy pasted elsewhere reads as a table; pasted back, the header doubles. */
-export function startsBelowTableHead(read: Read, from: number, host: CheckHost): boolean {
+/** Law 3's third declared exception: a range starting in a table's rows or a container's title row
+ *  copies the lines that block opens with, which the removal keeps, so pasted back they repeat. */
+export function copiesLinesBeforeRange(
+	read: Read,
+	from: number,
+	host: Pick<CheckHost, 'facts'>
+): boolean {
 	return read.blocks.some((b) => {
-		if (host.facts(b.type).lines !== 'rows' || !(b.from < from && from < b.to)) return false;
-		const delimiter = b.lines!.find((line) => line.own);
-		return delimiter !== undefined && from >= delimiter.to;
+		if (!b.lines || !(b.from < from && from < b.to)) return false;
+		const facts = host.facts(b.type);
+		if (facts.lines === 'rows') {
+			const delimiter = b.lines.find((line) => line.own);
+			return delimiter !== undefined && from >= delimiter.to;
+		}
+		const row = read.blocks.find(
+			(r) =>
+				r.type === facts.titleRow?.type &&
+				r.path.length === b.path.length + 1 &&
+				r.from >= b.from &&
+				r.to <= b.to
+		);
+		const lineEnd = row && read.source.indexOf('\n', row.from);
+		return row !== undefined && row.from <= from && (lineEnd! < 0 || from <= lineEnd!);
 	});
 }
 

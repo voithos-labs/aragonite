@@ -118,3 +118,32 @@ describe('each known violation still reproduces', () => {
 		}, 30_000);
 	}
 });
+
+// Miss-analysis: the exception stood as a known violation, so no row held it to the shapes it names.
+describe('law 3’s exception for the lines a copy carries from before its range', () => {
+	const seed = { a: { site: 0, at: 'inside', inside: 1 }, b: { site: 2, at: 'inside', inside: 2 } };
+	const DECLARED = 'L3 lines before the range copied and kept';
+	const DETAILS = '<details open>\n<summary>OOOO</summary>\n\nPPPP\n\n</details>\n\nAAAA\n';
+	const law3 = (source: string, mode: string) =>
+		LAW_SPECS.find((s) => s.law === 'L3')!.run([{ source, mode, seed }, 'key', 'key']);
+
+	it.each([
+		['a details summary, source', DETAILS, 'source'],
+		['the same, live', DETAILS, 'live'],
+		['a callout title row', ':::note Title\nbody\n:::\n\nAAAA\n', 'source']
+	])(
+		'%s: declared',
+		async (_, source, mode) => {
+			const run = await law3(source, mode);
+			expect(run.lines).toEqual([]);
+			expect(run.declared).toContain(DECLARED);
+		},
+		30_000
+	);
+
+	it('a paragraph start never hides its violation behind it', async () => {
+		const run = await law3('MMMM\n\nPPPP\n\nAAAA\n', 'source');
+		expect(run.declared).not.toContain(DECLARED);
+		expect(run.lines).not.toEqual([]);
+	}, 30_000);
+});

@@ -7,7 +7,8 @@ import { serialize } from '#lib/core/serializer.js';
 import type { SelectionPoint } from '#lib/selection/primitives.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
 import { rangeBytes, rangePaint } from '#lib/selection/range-bytes.js';
-import { classifyBlockForSelection } from '#lib/selection/primitives.js';
+import { classifyBlockForSelection, endpointMeasureSpan } from '#lib/selection/primitives.js';
+import { SELECTION_END } from '#lib/block-component.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
 import { deleteRange } from '../harness/range-delete';
 import { registerChromePluginsForTests } from './chrome-plugins';
@@ -25,6 +26,10 @@ function read(source: string, start: SelectionPoint, end: SelectionPoint) {
 	return {
 		bytes: source.slice(range.from, range.to),
 		paint: [start.path, end.path].map((path) => classifyBlockForSelection(path, paint)),
+		spans: [start.path, end.path].map((path) => {
+			const { from, to } = endpointMeasureSpan(classifyBlockForSelection(path, paint), coverage);
+			return [from, to];
+		}),
 		removed: serialize(removed)
 	};
 }
@@ -35,11 +40,15 @@ describe('a range ending on the edge of a block its start cannot join', () => {
 		['a rule inside a quote', 'alpha\n\n> ---\n', 'al\n\n> ---\n'],
 		['a code block', 'alpha\n\n```\ncode\n```\n', 'al\n\n```\ncode\n```\n'],
 		['a heading', 'alpha\n\n# Head\n', 'al\n\n# Head\n']
-	])('%s: stops at the text before it', (_, source, removed) => {
+	])('%s: stops at the text before it, painted as taken', (_, source, removed) => {
 		const end = source.includes('> ') ? [1, 0] : [1];
 		expect(read(source, { path: [0], offset: 2 }, { path: end, offset: 0 })).toEqual({
 			bytes: 'pha',
 			paint: ['start', 'end'],
+			spans: [
+				[2, SELECTION_END],
+				[0, 0]
+			],
 			removed
 		});
 	});
@@ -71,6 +80,10 @@ describe('a range ending on the edge of a block its start cannot join', () => {
 		expect(read('alpha\n\nbeta\n', { path: [0], offset: 2 }, { path: [1], offset: 0 })).toEqual({
 			bytes: 'pha\n\n',
 			paint: ['start', 'end'],
+			spans: [
+				[2, SELECTION_END],
+				[0, 0]
+			],
 			removed: 'albeta\n'
 		});
 	});

@@ -282,6 +282,21 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: 'copy',
 		expect: { source: 'a\n- b\n', clipboard: 'a\n- b' }
 	},
+	// Miss-analysis: the no-line-ending rows ran in source mode, and live added the container's ending.
+	{
+		name: 'L10 live, a copy ending at a list item text end brings no line ending either',
+		source: '⟦a\n- b⟧\n',
+		mode: 'live',
+		gesture: 'copy',
+		expect: { clipboard: 'a\n- b' }
+	},
+	{
+		name: 'L10 live, a copy into a table at its first row takes it whole, no last line ending',
+		source: 'al⟦pha\n\n| a | b |\n| - | - |\n| 1 | 2 |⟧\n\nafter\n',
+		mode: 'live',
+		gesture: 'copy',
+		expect: { clipboard: 'pha\n\n| a | b |\n| - | - |\n| 1 | 2 |' }
+	},
 	{
 		name: 'L10 a copy inside one quote carries none of its markers',
 		source: '> al⟦pha\n> be⟧ta\n',
@@ -497,6 +512,41 @@ export const NAMED_ROWS: NamedRow[] = [
 		then: {
 			gesture: 'paste back with own',
 			expect: backToStart('| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n\nafter\n\nend\n')
+		}
+	},
+	// Miss-analysis: law 3's title-row exception rested on the entry, and no row pasted it back.
+	{
+		name: 'L12 a cut from a details summary out pastes back exact with its entry',
+		source: '<details open>\n<summary>O⟦OOO</summary>\n\nPPPP\n\n</details>\n\nAA⟧AA\n',
+		gesture: 'cut',
+		expect: {
+			source: '<details open>\n<summary>O</summary>\n</details>\nAA\n',
+			clipboard: '<details open>\n<summary>OOOO</summary>\n\nPPPP\n\n</details>\n\nAA'
+		},
+		then: {
+			gesture: 'paste back with own',
+			expect: backToStart('<details open>\n<summary>OOOO</summary>\n\nPPPP\n\n</details>\n\nAAAA\n')
+		}
+	},
+	{
+		name: 'L12 live, the same',
+		source: '<details open>\n<summary>O⟦OOO</summary>\n\nPPPP\n\n</details>\n\nAA⟧AA\n',
+		mode: 'live',
+		gesture: 'cut',
+		expect: { source: '<details open>\n<summary>O</summary>\n</details>\nAA\n' },
+		then: {
+			gesture: 'paste back with own',
+			expect: backToStart('<details open>\n<summary>OOOO</summary>\n\nPPPP\n\n</details>\n\nAAAA\n')
+		}
+	},
+	{
+		name: 'L12 a cut from a callout title row out pastes back exact with its entry',
+		source: ':::note Ti⟦tle\nbody\n:::\n\nAA⟧AA\n',
+		gesture: 'cut',
+		expect: { source: ':::note Ti\n:::\nAA\n', clipboard: ':::note Title\nbody\n:::\n\nAA' },
+		then: {
+			gesture: 'paste back with own',
+			expect: backToStart(':::note Title\nbody\n:::\n\nAAAA\n')
 		}
 	},
 	// Miss-analysis: every fence row ended in the body; the kit's copy ends inside the opening line.

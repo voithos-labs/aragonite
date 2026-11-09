@@ -11,7 +11,7 @@ export interface KnownViolation {
 	/** The issue the class is filed as, or `new: <slug>` until it is. */
 	issue: string;
 	/** The lane whose fix deletes the row. */
-	lane: 'issues-four' | 'range-removal' | 'rebuild' | 'range-stage-3';
+	lane: 'issues-four' | 'range-removal' | 'rebuild';
 	/** What's broken, in one line. */
 	defect: string;
 	/** Matches the class's violation lines, which open `L<law>[.<label>] [<shape>] <gesture> <mode>/<eol>: `. */
@@ -59,30 +59,9 @@ const count = (text: string, pattern: RegExp) => (text.match(pattern) ?? []).len
 const ITEM_MARKER = /^[ \t>]*(?:[-*+]|\d{1,9}[.)])(?=[ \t]|\r?$)/gm;
 const ALERT_MARKER = /^[ \t>]*\[![A-Za-z]+\]/gm;
 const FENCE_LINE = /^[ \t>]*(?:`{3,}|~{3,})/gm;
-const OPENER = /<details|^[ \t>]*:{3,}\w/gm;
 
 /** Most specific first: a line counts toward the first row it matches. */
 export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
-	{
-		issue: 'new: cut-copies-titled-container',
-		lane: 'range-stage-3',
-		defect:
-			'a cut from a title row out writes the whole container, while the removal keeps the title’s head',
-		lines: /^L3 \[[^\]]*(?:details-summary|directiveOpenerLine) → /,
-		keeps: (got, wanted) => count(got, OPENER) > count(wanted, OPENER),
-		repro: {
-			law: 'L3',
-			args: [
-				{
-					source: '<details open>\n<summary>OOOO</summary>\n\nPPPP\n\n</details>\n\nAAAA\n',
-					mode: 'source',
-					seed: { a: end(0, 'inside', 1), b: end(2, 'inside', 2) }
-				},
-				'key',
-				'key'
-			]
-		}
-	},
 	{
 		issue: '#818',
 		lane: 'rebuild',
@@ -247,14 +226,18 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		issue: '#819',
 		lane: 'rebuild',
 		defect:
-			'a copy whose end sits at the edge of a block it holds whole takes that block’s markers or line ending',
+			'a copy whose end sits at the edge of a block it holds whole takes that block’s markers',
 		lines: /^L10\.edge /,
 		keeps: sameWords,
 		repro: {
 			law: 'L10',
 			args: [
-				{ source: 'a\n- b\n', mode: 'live', seed: { a: end(60, 'end', 5), b: end(59, 'end', 2) } },
-				'key at body'
+				{
+					source: '- - a\n    a\n\n  a\n',
+					mode: 'source',
+					seed: { a: end(3, 'start'), b: end(0, 'start') }
+				},
+				'key'
 			]
 		}
 	},
