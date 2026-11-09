@@ -71,7 +71,7 @@ The commit's steps, in order. `src/lib/editor-actions/commit/undo-controller.ts`
 2. forget the caret memory and end the typing batch's current burst,
 3. capture the snapshot (skipped when an open undo step or the typing batch already holds this gesture's entry, as above),
 4. hand the mutation owned copies: the path down to each container scope, and a top-level children array of its own (the old one is what a throw puts back). With the document among the scopes that's a plain array off the `$state` proxy, published at step 8, since splicing the live one would pay a tracked write for every block it shifts,
-5. run the mutation, then rebuild every path it wrote below a scope, deepest scope first and each container once. A mutation that reaches deeper than its scope's own list (a range delete, a format toggle across items, a paste into a list item) asks its scope for it: `own` copies a path, `writeLeaf` writes a leaf there with its fix-up, `splice` splices a list there with its fix-up (`src/lib/editor-actions/commit/scope-writes.ts`). That's why nothing outside the commit runs the fix-up, the chain rebuild or the open-tail step itself (G4.258),
+5. run the mutation, then rebuild every path it wrote below a scope, deepest scope first and each container once. A mutation that reaches deeper than its scope's own list (a format toggle across items, a paste into a list item) asks its scope for it: `own` copies a path, `writeLeaf` writes a leaf there with its fix-up, `splice` splices a list there with its fix-up (`src/lib/editor-actions/commit/scope-writes.ts`). That's why nothing outside the commit runs the fix-up, the chain rebuild or the open-tail step itself (G4.258),
 6. run the one fix-up over each list the mutation wrote (`src/lib/tree-operations/fix-up/apply.ts` :: `fixUpEdit`, `structural-edits.md` § Structural operations). The mutation reports what its own kind did (a content write, a removed block, a move) through its scope's `describeEdit`, and the fix-up ends the line of every block it placed and of the block right above them, lays out the blank lines and merges the joins around the edit, then splices the result into the list,
 7. give an emptied document its one empty paragraph (`src/lib/tree-operations/fix-up/apply.ts` :: `keepOneBlock`),
 8. publish each scope's new children and ids, then rebuild every enclosing container's `raw`, deepest first and each container once, asking each container's own slot on the way out (`structural-edits.md` § The container `raw` contract),
@@ -119,7 +119,7 @@ Some edits know their answer as bytes before they touch the tree (a range edit w
 ```ts
 await controller.commitSource({
 	changes: [{ from: 6, to: 10, insert: 'four' }], // `changesBetween(before, after)` makes one from a whole new source
-	caret: { at: 10, holds: 'text' }, // or 'block' (focused whole), 'boundary' (the gap caret), or 'keep'
+	caret: { at: 10, holds: 'text' }, // or 'block' (focused whole), 'boundary' (the gap caret), 'keep', or a landing read after it
 	op: { kind: 'paste', detail: { count: 1 } },
 	snapshot: { path, offset } // where undo puts the caret when nothing's focused
 });
@@ -133,7 +133,7 @@ It goes through the same commit frame as everything else (reading-mode gate, und
 
 ## Drafts
 
-A draft is an edit held outside the document until it commits: a plugin's or a host's write, a shown math source, a diagram's edit box. It's a `Draft` (`src/lib/schema/drafts.ts`) from `edit()` on the editor, and its positions are byte offsets into the text as it stood when the draft opened. Its commit is one byte splice, so one undo step, landing after whatever the author typed in the meantime, or it's refused with a reason (`moved`, `unloaded`, `reading`, `overlap`, `illegal`, `empty`) instead of throwing. A block's own draft (`openDraft` on its context) also watches the block's bytes, and the editor closes it at a swap, a mode change or an undo, through the `close` it was opened with.
+A draft is an edit held outside the document until it commits: a plugin's or a host's write, a shown math source, a diagram's edit box. It's a `Draft` (`src/lib/schema/drafts.ts`) from `edit()` on the editor, and its positions are byte offsets into the text as it stood when the draft opened. Its commit is one byte splice, so one undo step, landing after whatever the author typed in the meantime, or it's refused with a reason (`moved`, `unloaded`, `reading`, `overlap`, `illegal`, `empty`) instead of throwing. The splice can add to what a draft writes (a closing line its opener needs folds into the change, and G1.190 records it) but never takes out bytes the draft didn't name. A block's own draft (`openDraft` on its context) also watches the block's bytes, and the editor closes it at a swap, a mode change or an undo, through the `close` it was opened with.
 
 The interesting part is how a draft knows the document moved under it. While any draft is open, every write records what it changed (`src/lib/editor-actions/commit/change-record.ts`):
 
