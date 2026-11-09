@@ -2,6 +2,7 @@ import { test, expect } from '../../fixtures';
 import type { Page } from '@playwright/test';
 import { EditorPage } from '../../editor-page';
 import { textRunRect } from '../../text-runs';
+import { clickInPlace } from '../../click-in-place';
 
 /**
  * Paint from a plugin value (requirements/decorations/paint.md). A plugin's paint is kept per block
@@ -331,7 +332,7 @@ test.describe("a painted mark's handlers", () => {
 		await editor.loadContent('one two three\n\nfour\n');
 		await paintNeedle(page, 'two', { click: 'keep' });
 		await editor.focusBlockAtPath([1], 2);
-		await page.locator('.decoration-overlay.word').click();
+		await clickInPlace(page.locator('.decoration-overlay.word'));
 		const clicks = async () => (await recorded(page)).filter((r) => r.handler === 'click');
 		await expect.poll(clicks).toMatchObject([{ range: [4, 7], rects: 1 }]);
 		expect((await clicks())[0].caret).toEqual({ path: [1], offset: 2 });

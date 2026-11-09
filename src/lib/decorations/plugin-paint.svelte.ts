@@ -117,20 +117,18 @@ export function createPaintSource<B extends PaintedBlock>(deps: PaintSourceDeps<
 			const dec = { type, path: at, class: paint.class, attrs: copy(paint.attrs), badge };
 			return withPaint(dec, paint);
 		}
-		if (paintsOnlyClasses(node)) {
-			return miss(`${type}\0container`, `a ${type} on a ${node.kind}, whose children paint`);
-		}
+		if (paintsOnlyClasses(node)) return leftOut(paint, 'container', node);
 		if (type === 'widget') {
 			const offset = block.offsetAt(paint.at);
-			if (offset === null) return outside(type, `byte ${paint.at}`);
-			if (devChecksOn) warnIfUnrendered(type, node, offset);
+			if (offset === null) return leftOut(paint, 'outside', node);
+			if (devChecksOn) warnIfUnrendered(paint, node, offset);
 			return withPaint(
 				{ type, path: at, offset, side: paint.side, widget: viewSpec(paint.view) },
 				paint
 			);
 		}
 		const range = rangeIn(block, paint.from, paint.to);
-		if (!range) return outside(type, `bytes ${paint.from}..${paint.to}`);
+		if (!range) return leftOut(paint, 'outside', node);
 		if (type === 'mark') {
 			const { class: cls, attrs } = paint;
 			return {
@@ -142,37 +140,31 @@ export function createPaintSource<B extends PaintedBlock>(deps: PaintSourceDeps<
 				interactive: handlers.of(paint)
 			};
 		}
-		if (devChecksOn) warnIfUnrendered(type, node, range.start, range.end);
+		if (devChecksOn) warnIfUnrendered(paint, node, range.start, range.end);
 		const widget = paint.view && viewSpec(paint.view);
 		return withPaint({ type, path: at, ...range, class: paint.class, widget }, paint);
 	}
 
-	function outside(type: Paint['type'], where: string): null {
-		return miss(`${type}\0outside`, `a ${type} at ${where}, which isn't its block's text`);
+	function leftOut(paint: Paint, problem: PaintMiss, node: NodeView): null {
+		if (devChecksOn) warnOnce(paint, problem, node);
+		return null;
 	}
 
-	function warnIfUnrendered(
-		type: Paint['type'],
-		node: NodeView,
-		start: number,
-		end?: number
-	): void {
+	function warnIfUnrendered(paint: Paint, node: NodeView, start: number, end?: number): void {
 		const unrendered = inlineWidgetMiss(node, start, end);
-		if (!unrendered) return;
-		const where =
-			unrendered.reason === 'non-prose'
-				? `on a ${node.kind}, which draws no inline widgets`
-				: "past its block's content";
-		miss(`${type}\0${unrendered.reason}`, `a ${type} ${where}`);
+		if (unrendered) warnOnce(paint, unrendered.reason, node);
 	}
 
 	// Once per plugin and problem, not per block: a paint that misses once misses everywhere.
-	function miss(key: string, what: string): null {
-		if (devChecksOn && !warned.has(key)) {
-			warned.add(key);
-			devWarn('decorations', `plugin '${plugin}' paints ${what}; it's left out`);
-		}
-		return null;
+	// Reached only with dev checks on, so its sentences stay out of a production build.
+	function warnOnce(paint: Paint, problem: PaintMiss, node: NodeView): void {
+		const key = `${paint.type}\0${problem}`;
+		if (warned.has(key)) return;
+		warned.add(key);
+		devWarn(
+			'decorations',
+			`plugin '${plugin}' paints ${missed(paint, problem, node)}; it's left out`
+		);
 	}
 
 	return {
@@ -198,6 +190,22 @@ export function paintBehind(dec: Decoration): Paint | undefined {
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────
+
+type PaintMiss = 'container' | 'outside' | 'non-prose' | 'past-content';
+
+function missed(paint: Paint, problem: PaintMiss, node: NodeView): string {
+	const what = `a ${paint.type}`;
+	if (problem === 'container') return `${what} on a ${node.kind}, whose children paint`;
+	if (problem === 'non-prose') return `${what} on a ${node.kind}, which draws no inline widgets`;
+	if (problem === 'past-content') return `${what} past its block's content`;
+	const at =
+		paint.type === 'widget'
+			? `byte ${paint.at}`
+			: paint.type === 'block'
+				? ''
+				: `bytes ${paint.from}..${paint.to}`;
+	return `${what} at ${at}, which isn't its block's text`;
+}
 
 const NONE: readonly never[] = Object.freeze([]);
 const PAINT = Symbol('paint');
