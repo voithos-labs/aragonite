@@ -7,7 +7,7 @@
 import type { DocumentView } from '../core/node-views';
 import { documentLineEnding } from '../core/lines';
 import { hidesDelimitersAtCaret } from '../presentation-mode';
-import { blockFacts, readsOnBareLine, type BlockFacts } from '../schema/block-facts';
+import { blockFacts, type BlockFacts } from '../schema/block-facts';
 import { unfinishedReadings } from '../schema/block-openers';
 import { readAsOpened } from '../schema/opened-reading';
 import type { Reading } from '../schema/reading';
@@ -23,9 +23,18 @@ import { blockNodeAt } from '../tree-operations/node-primitives';
 import { escapeMarkdownLiteral } from '../tree-operations/paste/markdown-literal';
 import { storedAsAt, writeTargetAt } from '../tree-operations/stored-as';
 import { cellText } from '../core/parsers/table-line';
+import { editorHost } from '../tree-operations/fix-up/editor-host';
+import { blankLineBelongs } from '../tree-operations/fix-up/joins';
 import { documentLayout, type Layout } from './layout';
 
 export type Mode = 'source' | 'live';
+
+/** A block beside a join a removal leaves: its bytes, and its kind where the removal knows it. */
+export interface JoinSide {
+	readonly raw: string;
+	readonly kind?: string;
+	readonly children?: readonly unknown[];
+}
 
 /** One in-block write, offsets into the block's new bytes. */
 export interface LeafWrite {
@@ -39,8 +48,16 @@ export interface RangeHost {
 	read(source: string): DocumentView;
 	layout(doc: DocumentView): Layout;
 	facts(kind: string): BlockFacts;
-	/** Whether a bare line right after a block of `kind` with bytes `raw` reads as part of it. */
-	readsOnBareLine(kind: string, raw: string): boolean;
+	/** Whether children `index` and `index + 1` of the block at `parent`, left touching, need a blank
+	 *  line to keep their readings (the fix-up's join question); `placed` where `lower` was set apart. */
+	parts(
+		doc: DocumentView,
+		parent: readonly number[],
+		index: number,
+		upper: JoinSide,
+		lower: JoinSide,
+		placed: boolean
+	): boolean;
 	leaf: {
 		replace(
 			doc: DocumentView,
@@ -141,7 +158,20 @@ export function rangeHost(
 				? (currentLayout ??= current.layout ?? documentLayout(doc))
 				: documentLayout(doc),
 		facts: blockFacts,
-		readsOnBareLine,
+		parts(doc, parent, index, upper, lower, placed) {
+			const fixUp = editorHost(reading.grammar);
+			const owner = (parent.length > 0 && blockNodeAt(doc, parent)) || undefined;
+			const block = (side: JoinSide, at: number) => {
+				if (side.kind !== undefined) return { ...side, kind: side.kind, leadingTrivia: '' };
+				const read = owner ? fixUp.readInSlot(owner, at, side.raw) : fixUp.readOpened(side.raw);
+				return read.children[0] && { ...read.children[0], leadingTrivia: '' };
+			};
+			const up = block(upper, index);
+			const down = block(lower, index + 1);
+			const slot = { owner, index, lineEnding: documentLineEnding(doc) };
+			const role = placed ? 'placed' : 'rewritten';
+			return !!up && !!down && blankLineBelongs(fixUp, slot, up, down, role, false);
+		},
 		leaf: {
 			replace(doc, path, from, to, text, mode) {
 				const store = storedAsAt(doc, path, readingIn(mode));

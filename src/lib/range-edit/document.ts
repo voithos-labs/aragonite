@@ -28,10 +28,6 @@ export function readDoc(source: string, host: RangeHost, mode: Mode): Doc {
 
 export const factsOf = (doc: Doc, block: LaidBlock): BlockFacts => doc.host.facts(block.type);
 
-/** Whether a bare line right after the block reads as part of it (an HTML block a blank line ends). */
-export const readsOnBareLine = (doc: Doc, block: LaidBlock): boolean =>
-	doc.host.readsOnBareLine(block.type, nodeAt(doc, block.path).raw);
-
 /** The first block reaching `[from, to]` that `matches`, parents before children. */
 export function findWithin(
 	doc: Doc,

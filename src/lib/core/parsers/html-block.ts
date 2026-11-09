@@ -3,7 +3,7 @@
  * condition. Types 1-5 close on a per-type pattern; types 6-7 close on a blank line.
  */
 
-import { WHITESPACE_CLASS, splitLines, type ParsedLine } from '../lines';
+import { WHITESPACE_CLASS, type ParsedLine } from '../lines';
 import { joinRaw, isBlankLine } from '../parser';
 import type { BlockOpenerResult } from '../../schema/block-openers';
 import { CLOSE_TAG_PATTERN, OPEN_TAG_PATTERN } from '../inline/scan/raw-html';
@@ -85,15 +85,6 @@ function closesOnLine(type: HtmlBlockType, text: string): boolean {
 		case 7:
 			return isBlankLine(text);
 	}
-}
-
-/** Whether a line right after the block's bytes still reads as part of it: types 6 and 7 end only
- *  at a blank line, and types 1-5 run on until a line meets their close condition. */
-export function htmlBlockReadsOn(raw: string): boolean {
-	const lines = splitLines(raw);
-	const type = lines.length > 0 ? matchHtmlBlock(lines[0].text) : null;
-	if (type === null) return false;
-	return type >= 6 || !closesOnLine(type, lines[lines.length - 1].text);
 }
 
 // ── Parser ──────────────────────────────────────────────────────────────────

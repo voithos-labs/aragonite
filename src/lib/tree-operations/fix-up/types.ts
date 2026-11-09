@@ -1,6 +1,7 @@
 // What the list fix-up takes and returns, and what it asks the block parser. The fix-up never
 // writes into what it is handed; it returns a patch over one list of sibling blocks.
 import type { CstNode, Document } from '../../core/nodes';
+import type { NodeView } from '../../core/node-views';
 import type { LineEnding } from '../../core/lines';
 import type { ContainerBodyWrap } from '../../core/parser';
 import type { UnfinishedReading } from '../../schema/block-openers';
@@ -82,7 +83,7 @@ export interface KindTraits {
 export interface Host {
 	readOpened(text: string): Document;
 	/** `text` read as block `index` of `owner`'s body reads it (behind a task marker, say). */
-	readInSlot(owner: CstNode | undefined, index: number, text: string): Document;
+	readInSlot(owner: NodeView | undefined, index: number, text: string): Document;
 	/** Whether a table right above a block with these bytes takes its first line as a row. */
 	continuesTableAbove(raw: string): boolean;
 	readingsThatMayChange(): readonly UnfinishedReading[];

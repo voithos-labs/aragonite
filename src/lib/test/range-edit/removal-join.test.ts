@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// A removal's tail after a block a bare line reads on into (an HTML block a blank line ends, a
-// table, a definition open to a title) keeps a blank line, and an end block taken whole goes with
-// its line. Miss-analysis: the laws hold bytes, not the blocks they read as, and draw no HTML block.
+// Two blocks a removal leaves touching keep the readings the fix-up's join question gives them, and
+// an end block taken whole goes with its line. Miss-analysis: the laws hold bytes, not the blocks
+// they read as, and the pair a removal uncovers had rows on the structural route only.
 import { describe, expect, it } from 'vitest';
 import type { NodeView } from '#lib/core/node-views.js';
 import { editRange } from '#lib/range-edit/edit-range.js';
@@ -66,10 +66,52 @@ const ROWS: [name: string, marked: string, left: string, blocks: string][] = [
 		'<div>\nx\n</div>⟦\n\n---⟧\n\nb\n',
 		'<div>\nx\n</div>\n\nb\n',
 		'htmlBlock paragraph'
+	],
+	[
+		'a code block keeps its closer and no blank line',
+		'```\nx⟦\n```\n\nal⟧pha\n',
+		'```\nx\n```\npha\n',
+		'fencedCode paragraph'
+	],
+	[
+		'a rule a heading parted from the paragraph above',
+		'a\n⟦# h⟧\n---\n',
+		'a\n\n---\n',
+		'paragraph thematicBreak'
+	],
+	[
+		'the same, from the paragraph’s end',
+		'a⟦\n# h⟧\n---\n',
+		'a\n\n---\n',
+		'paragraph thematicBreak'
+	],
+	[
+		'a table a heading parted from the paragraph above',
+		'a⟦\n# h⟧\n| A | B |\n| - | - |\n',
+		'a\n\n| A | B |\n| - | - |\n',
+		'paragraph table(tableRow(tableCell tableCell))'
+	],
+	[
+		'a rule a heading parted inside a quote',
+		'> a\n> ⟦# h⟧\n> ---\n',
+		'> a\n>\n> ---\n',
+		'blockquote(paragraph thematicBreak)'
+	],
+	[
+		'a tail taking a heading’s place under a table',
+		'| a |\n| - |\n⟦# h\n\nal⟧pha\n',
+		'| a |\n| - |\n\npha\n',
+		'table(tableRow(tableCell)) paragraph'
+	],
+	[
+		'a tail taking a heading’s place under prose folds in',
+		'a\n⟦# h\n\nal⟧pha\n',
+		'a\npha\n',
+		'paragraph'
 	]
 ];
 
-describe('a removal after a block a bare line reads on into', () => {
+describe('the join a removal leaves', () => {
 	for (const mode of ['source', 'live'] as const) {
 		for (const gesture of ['backspace', 'delete', 'cut'] as const) {
 			it.each(ROWS)(`${mode}, ${gesture}: %s`, (_, marked, left, blocks) => {

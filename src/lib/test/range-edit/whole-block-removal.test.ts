@@ -62,6 +62,18 @@ describe('a block removed whole against a range over its whole span', () => {
 		expect(out).toEqual([]);
 	});
 
+	// Miss-analysis: the pair a removed block leaves (#479) had rows on the structural route only.
+	it.each([
+		['a rule stays apart from the paragraph above', 'a\n# h\n---\n', [1], 'a\n\n---\n'],
+		['inside a quote too', '> a\n> # h\n> ---\n', [0, 1], '> a\n>\n> ---\n'],
+		['prose folds into the paragraph above', 'a\n# h\nb\n', [1], 'a\nb\n']
+	])('leaves the pair around it the join question’s blank line: %s', (_, source, path, left) => {
+		const host = checkHost();
+		const block = host.layout(host.read(source)).block(path)!;
+		const range = { from: block.from, to: block.to - 1 };
+		expect(wholeBlocksRemovalOf(source, range, 'delete', 'source', host).source).toBe(left);
+	});
+
 	it('takes a paragraph with its line and one blank line beside it', () => {
 		const host = checkHost();
 		const source = 'a\n\nalpha\n\nb\n';
