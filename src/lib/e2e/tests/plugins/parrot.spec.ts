@@ -322,12 +322,13 @@ test.describe('the bundled party parrot', () => {
 		await page.keyboard.type('%%parrot');
 		// Changing kind mounts the bird with its source open and the caret still at the end.
 		await expect(editor.block).toHaveCount(2);
-		await expect(editor.source).toBeVisible();
+		const typed = editor.block.nth(1).locator('.parrot-source');
+		await expect(typed).toBeVisible();
 
 		await page.keyboard.press('Enter');
 
 		await editor.bridge.waitForSourceEquals('%%parrot party responsibly\n\n%%parrot\n\n\n');
-		await expect(editor.source).toBeHidden();
+		await expect(typed).toBeHidden();
 		expect(await activeBlockPath(page)).toEqual([2]);
 		expect(await roundTripStable(page)).toBe(true);
 		expect(await capturedErrors(page)).toEqual([]);
