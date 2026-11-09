@@ -35,6 +35,7 @@ An editable leaf is a block whose text the editor edits the way it edits a parag
 ```ts
 const note = lineBlock({
 	name: 'note',
+	label: 'Note',
 	match: /^!note (?<text>.*)$/,
 	sample: '!note remember the milk',
 	insert: { none: 'typed, never inserted' },
@@ -64,6 +65,7 @@ The leaf comes in two modes, and `edit` picks which:
 ```ts
 const label = lineBlock({
 	name: 'label',
+	label: 'Label',
 	match: /^@@ (?<text>.*)$/,
 	sample: '@@ hello',
 	insert: { none: 'typed, never inserted' },
