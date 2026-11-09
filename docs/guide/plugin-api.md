@@ -1121,7 +1121,7 @@ const shout: SelectionAction = {
 
 Without `capture`, an action acts on the selection and offers nothing at a bare caret. A promise from `rows` shows one pending row until it settles, and a rejection drops your rows and reaches `onError`. `run` gets a draft opened when the row is picked. If it returns a promise the row stays pending and the menu stays open until it settles; close the menu first and the draft's commit comes back refused as `closed`.
 
-`editor.openRows(action, range, anchor, pointer?)` opens the same rows over `range` (captured the way your action says) just under `anchor` if it's a rect, or at it if it's a point, taking no focus: what a hover card over a mark calls. The rows stay with their word when the page scrolls. It hands back `{ isOpen, close() }`, and any edit, Escape or a press elsewhere closes it. `pointer` hears `true` as the pointer comes onto the menu and `false` as it leaves, so a hover card can close once the pointer has left both the card and its word.
+`editor.openRows(action, range, anchor, pointer?)` opens the same rows over `range` (captured the way your action says) just under `anchor` if it's a rect, or at it if it's a point, taking no focus: what a hover card over a mark calls. The rows stay with their range when the page scrolls. It hands back `{ isOpen, close() }`, and any edit, Escape or a press elsewhere closes it. `pointer` hears `true` as the pointer comes onto the menu and `false` as it leaves, so a hover card can close once the pointer has left both the card and its word.
 
 ### Insert catalogue
 
