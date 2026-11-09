@@ -16,6 +16,7 @@ import {
 	lineOf,
 	nodeAt,
 	parentOf,
+	readsOnBareLine,
 	titleOwner,
 	titleRowOf,
 	type Doc
@@ -75,9 +76,9 @@ function across(
 	const opening = enteredOpening(doc, from, to);
 	const takes = (b: LaidBlock) => !titleOwner(doc, b) && factsOf(doc, b).joins !== 'never';
 	const ends = !last || last === first || takes(last) || to > last.from;
-	// What follows never takes the place of a table's row.
+	// What follows never takes the place of a block whose parent would read it as its own (a row).
 	const parent = held && first ? parentOf(doc, first) : undefined;
-	const takesPlace = held && (!parent || factsOf(doc, parent).lines !== 'rows');
+	const takesPlace = held && !(parent && readsOnBareLine(doc, parent));
 	const joins = opening === null && (takesPlace || (first !== undefined && takes(first))) && ends;
 	const head = held ? null : leafAt(doc, from);
 	if (joins && head && end && head.leaf !== end.leaf) return joinedLeaves(doc, from, to, head, end);
@@ -99,11 +100,20 @@ function across(
 				lineStart > from && textStart >= lineStart ? source.slice(lineStart, textStart) : '';
 			tail = (opening ? kept + source.slice(opening.endLine, textStart) : markers) + tail;
 		}
-		// Nothing left after the range needs no line of its own.
-		if (tail !== '') tail = endingOf(source) + tail;
+		// An end block the range takes whole (a rule) goes with its line, markers included; an emptied
+		// paragraph keeps its line, and nothing left after the range needs one.
+		const goes =
+			!lines &&
+			kept === '' &&
+			!!end &&
+			end.leaf.from > from &&
+			heldWhole(doc, end.leaf, end.leaf.from, to);
+		if (goes) tail = tail.replace(/^[ \t>]*(?=\r?\n|$)/, '');
+		else if (tail !== '') tail = endingOf(source) + tail;
 	}
 	const before =
 		lines?.before ?? (start ? start.source.slice(0, start.end) : source.slice(0, from));
+	if (!joins) tail = apartFromBlockBefore(doc, from, before, tail);
 	const joined = before + tail;
 	const closed = withClosers(doc, from, to, joined, lineEndBefore(joined, before.length));
 	const gone = held && (!!lines || !joins || isBlankText(lineRest(tail, 0)));
@@ -112,6 +122,22 @@ function across(
 		caret: lines?.caret ?? start?.caret ?? from,
 		...(gone && { gone })
 	};
+}
+
+/** `tail` after a blank line where a block before `from` would read a bare line as its own; the
+ *  blank line takes the tail line's container markers. */
+function apartFromBlockBefore(doc: Doc, from: number, before: string, tail: string): string {
+	const at = from - 1;
+	const reads = findWithin(
+		doc,
+		at,
+		at,
+		(b) => b.from <= at && at < b.to && readsOnBareLine(doc, b)
+	);
+	const blank = /^\r?\n[ \t>]*\r?\n/.test(tail) || (before.endsWith('\n') && /^\r?\n/.test(tail));
+	if (!reads || blank) return tail;
+	const marks = /^\r?\n([ \t>]*)/.exec(tail)?.[1].trimEnd() ?? '';
+	return endingOf(doc.source) + marks + tail;
 }
 
 /** A text block cut through its own write, the text `after` the offset or `before` it on its line,

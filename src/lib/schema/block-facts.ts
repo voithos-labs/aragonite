@@ -7,6 +7,8 @@
 
 import type { AnyBlockKind } from '../core/nodes';
 import { isDirectiveContainerKind } from '../core/directive/registry';
+import { htmlBlockReadsOn } from '../core/parsers/html-block';
+import { definitionReadingNotFinal } from '../core/parsers/link-reference';
 import {
 	mustHoldChild,
 	tryGetBlockKindDescriptor,
@@ -64,7 +66,21 @@ export function blockFacts(kind: string): BlockFacts {
 	};
 }
 
+/** Whether a bare line right after a block of `kind` with bytes `raw` reads as part of it, so text
+ *  placed after the block needs a blank line between to stay a block of its own. */
+export function readsOnBareLine(kind: string, raw: string): boolean {
+	return BARE_LINE_READERS[kind]?.(raw) ?? false;
+}
+
 // ── Internals ────────────────────────────────────────────────────────────────
+
+// Built-ins whose reading takes in a bare line below: an HTML block a blank line ends, a table
+// whose next line is a row, a definition a title-shaped line still completes.
+const BARE_LINE_READERS: Partial<Record<string, (raw: string) => boolean>> = {
+	htmlBlock: htmlBlockReadsOn,
+	table: () => true,
+	linkReferenceDefinition: definitionReadingNotFinal
+};
 
 // Shapes only these built-ins write, so no registration declares them.
 const BUILT_IN_LINES: Partial<Record<string, BlockFacts['lines']>> = {

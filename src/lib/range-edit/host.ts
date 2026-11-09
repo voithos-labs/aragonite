@@ -7,7 +7,7 @@
 import type { DocumentView } from '../core/node-views';
 import { documentLineEnding } from '../core/lines';
 import { hidesDelimitersAtCaret } from '../presentation-mode';
-import { blockFacts, type BlockFacts } from '../schema/block-facts';
+import { blockFacts, readsOnBareLine, type BlockFacts } from '../schema/block-facts';
 import { unfinishedReadings } from '../schema/block-openers';
 import { readAsOpened } from '../schema/opened-reading';
 import type { Reading } from '../schema/reading';
@@ -39,6 +39,8 @@ export interface RangeHost {
 	read(source: string): DocumentView;
 	layout(doc: DocumentView): Layout;
 	facts(kind: string): BlockFacts;
+	/** Whether a bare line right after a block of `kind` with bytes `raw` reads as part of it. */
+	readsOnBareLine(kind: string, raw: string): boolean;
 	leaf: {
 		replace(
 			doc: DocumentView,
@@ -139,6 +141,7 @@ export function rangeHost(
 				? (currentLayout ??= current.layout ?? documentLayout(doc))
 				: documentLayout(doc),
 		facts: blockFacts,
+		readsOnBareLine,
 		leaf: {
 			replace(doc, path, from, to, text, mode) {
 				const store = storedAsAt(doc, path, readingIn(mode));
