@@ -18,7 +18,7 @@ import { splitLines } from '../core/lines';
 import { readAsOpened } from '../schema/opened-reading';
 import { assignChildIdsDeep, keepUnchangedDeep } from '../block-id';
 import { changedBytes, narrowed, writtenLines, type ByteChange } from './byte-changes';
-import { containerWindow } from './container-window';
+import { containerWindow, standsBelow, textAfter } from './container-window';
 import { spliceMany } from './splice-many';
 
 /** Top-level blocks `[at, at + count)` give way to `blocks`; the first new block keeps the first
@@ -152,7 +152,7 @@ function readAgain(
 		const carried = span.top ? '' : children[span.lo].leadingTrivia;
 		for (let grow = 1; ; grow *= 2) {
 			const next = pending[0];
-			const k = span.hi === last ? last : textAfter(span.hi);
+			const k = span.hi === last ? last : textAfter(children, span.hi);
 			if (next && (span.hi >= next.lo || k > next.lo)) {
 				span.hi = Math.max(span.hi, next.hi);
 				for (const change of pending.shift()!.changes) span.changes.push(change);
@@ -178,13 +178,6 @@ function readAgain(
 		const inBlock = (change: ByteChange) =>
 			change.from >= rawStartOf(block) && change.to <= ends[block];
 		return block >= 0 && bytes.every(inBlock) ? { block, changes: bytes } : null;
-	}
-
-	/** The first block after `hi` with text of its own, or the last block. */
-	function textAfter(hi: number): number {
-		let k = hi + 1;
-		while (k < last && isBlankParagraph(children[k])) k++;
-		return k;
 	}
 
 	/** The window from `start` to the document's end, its trailing blank line included. */
@@ -213,13 +206,7 @@ function readAgain(
 		let m = 0;
 		while (m < blocks.length && at < head.length)
 			at += blocks[m].leadingTrivia.length + blocks[m++].raw.length;
-		if (at !== head.length) return null;
-		for (let j = hi + 1; j <= k; j++) {
-			const was = children[j];
-			const now = blocks[m + j - hi - 1];
-			if (!now || now.leadingTrivia !== was.leadingTrivia) return null;
-			if (j < k && (now.kind !== was.kind || now.raw !== was.raw)) return null;
-		}
+		if (at !== head.length || !standsBelow(children, hi, k, blocks.slice(m))) return null;
 		// A block the window leaves waiting on a closer reads on to the first line below that may be it.
 		const closerAt = closerBelow(blocks.slice(0, m), hi);
 		return closerAt < 0 ? { blocks: blocks.slice(0, m) } : { closerAt };

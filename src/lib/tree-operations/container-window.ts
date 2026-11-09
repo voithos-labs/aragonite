@@ -99,6 +99,32 @@ export function containerWindow(
 	}
 }
 
+// ── Where a window stops ─────────────────────────────────────────────────────
+
+/** The first of `blocks` after index `at` with text of its own, or the last. */
+export function textAfter(blocks: readonly NodeView[], at: number): number {
+	let k = at + 1;
+	while (k < blocks.length - 1 && isBlankParagraph(blocks[k])) k++;
+	return k;
+}
+
+/** Whether `read` holds the blocks after `was[at]` up to `k`, the next with text, as they stood: the
+ *  blank ones whole and `k` starting where it did, so every block past it reads as it did too. */
+export function standsBelow(
+	was: readonly NodeView[],
+	at: number,
+	k: number,
+	read: readonly CstNode[]
+): boolean {
+	if (read.length !== k - at) return false;
+	for (let j = at + 1; j <= k; j++) {
+		const now = read[j - at - 1];
+		if (now.leadingTrivia !== was[j].leadingTrivia) return false;
+		if (j < k && (now.kind !== was[j].kind || now.raw !== was[j].raw)) return false;
+	}
+	return true;
+}
+
 // ── The read ─────────────────────────────────────────────────────────────────
 
 /** Children `[lo, hi]` of top-level block `t`, read from byte `start` of its raw. */
@@ -162,23 +188,6 @@ function readRun(run: Run, text: string): RunRead | 'moved' | 'mismatch' {
 	if (!stands) return 'moved';
 	// Only a read that ran to the document's end saw its trailing blank line.
 	return t === tops.length - 1 ? { ...found, suffix: read.suffix } : found;
-}
-
-/** Whether `read` holds the blocks after `was[at]` as they stood, up to block `k`, the next with
- *  text: the blank ones whole, block `k` starting where it stood (the top-level window's check). */
-function standsBelow(
-	was: readonly NodeView[],
-	at: number,
-	k: number,
-	read: readonly CstNode[]
-): boolean {
-	if (read.length !== k - at) return false;
-	for (let j = at + 1; j <= k; j++) {
-		const now = read[j - at - 1];
-		if (now.leadingTrivia !== was[j].leadingTrivia) return false;
-		if (j < k && (now.kind !== was[j].kind || now.raw !== was[j].raw)) return false;
-	}
-	return true;
 }
 
 /** What follows a run ending at the container's last child: the container's own trailing lines,
@@ -307,9 +316,3 @@ function reachesPast(
 }
 
 const sameMetadata = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
-
-function textAfter(children: readonly NodeView[], t: number): number {
-	let k = t + 1;
-	while (k < children.length - 1 && isBlankParagraph(children[k])) k++;
-	return k;
-}
