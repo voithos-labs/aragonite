@@ -38,6 +38,7 @@ const LEAF = [1];
 type Seam = {
 	getBlockComponent(path: number[]): BlockComponent | null;
 	ownsRange(): boolean;
+	getUndoStack(): { undo: unknown[] };
 };
 
 beforeEach(() => {
@@ -271,6 +272,28 @@ describe('a drawn picture that opens its text (edit: source)', () => {
 
 	const typedSeen = (seen: Seen[]) =>
 		seen.map((one) => one.typed).filter((text, i, all) => text !== null && text !== all[i - 1]);
+
+	it('writes nothing while open, and its text once as the caret leaves, as one undo step', async () => {
+		const editor = mount(picture());
+		await editor.settle();
+		const depth = () => editor.instance.__test.getUndoStack().undo.length;
+		await click(editor);
+		const before = depth();
+		const el = shownSource(editor)!;
+		for (const text of ['@@ abcdX', '@@ abcdXY']) {
+			el.textContent = text;
+			el.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }));
+			await editor.settle();
+		}
+		expect(editor.source()).toBe(SOURCE);
+
+		el.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+		await editor.settle();
+		expect(editor.source()).toBe(SOURCE.replace('abcd', 'abcdXY'));
+		expect(depth() - before).toBe(1);
+		await pressKey(surfaceAt(editor, [0]), { key: 'z', ctrlKey: true });
+		expect(editor.source()).toBe(SOURCE);
+	});
 
 	it('opens where its caret function puts the point, and at the line’s start without a caret', async () => {
 		const caret = vi.fn(() => 2);
