@@ -1,16 +1,17 @@
 /**
- * When DecorationOverlay and SelectionOverlay measure again: on mount, on scroll, when the block's
- * box resizes, when text inside it moves without a resize (`text-moves.ts`), and when a windowed
- * table's mounted rows change, since a raw scroll fires before those rows mount.
+ * When DecorationOverlay and SelectionOverlay measure: after the flush that wired them, with every
+ * other block's reads, on scroll, when the block's box resizes, when text inside it moves without
+ * a resize (`text-moves.ts`), and when a windowed table's mounted rows change, since a raw scroll
+ * fires before those rows mount.
  */
 
-import { untrack } from 'svelte';
 import type { BlockComponent } from '../../block-component';
 import {
 	firstScrollableDescendant,
 	nearestScrollContainer
 } from '../../windowing/scroll-ancestors';
 import { observeResize } from '../../windowing/observe-resize';
+import { measureAfterTick } from '../../windowing/scroll-owner';
 import type { TextMoves } from './text-moves';
 
 export function wireOverlayRemeasure(opts: {
@@ -18,25 +19,24 @@ export function wireOverlayRemeasure(opts: {
 	editorRoot: HTMLElement | null;
 	blockRef: BlockComponent | undefined;
 	measure: () => void;
-	/** Run the setup measure untracked, so a `measure` that reads the document doesn't re-wire these
-	 *  listeners on every keystroke. Only that call: the row-window read below must stay tracked. */
-	untrackSetupMeasure?: boolean;
-	/** Absent only for an overlay mounted without the editor, which has no services to read. */
+	/** The editor's `ScrollOwner.measureSoon`. This one and `textMoves` are absent only for an
+	 *  overlay mounted without the editor, which has no services to read. */
+	measureSoon?: (run: () => void) => void;
 	textMoves?: TextMoves;
 }): () => void {
 	const { el, editorRoot, blockRef, measure, textMoves } = opts;
 
-	// Plain synchronous read so the enclosing $effect depends on the table's row-window
-	// $derived; it must not be inside untrack().
+	// A plain synchronous read, so the enclosing $effect depends on the table's row-window $derived.
 	blockRef?.mountedRowWindow?.();
 
-	if (opts.untrackSetupMeasure) untrack(measure);
-	else measure();
+	// Queued, not now: a read between two mounting blocks' writes forces a layout per block.
+	let live = true;
+	(opts.measureSoon ?? measureAfterTick)(() => live && measure());
 
 	const scrollEl =
 		firstScrollableDescendant(el) ?? (editorRoot ? nearestScrollContainer(el, editorRoot) : null);
 
-	const disposers: Array<() => void> = [];
+	const disposers: Array<() => void> = [() => (live = false)];
 
 	if (scrollEl) {
 		scrollEl.addEventListener('scroll', measure, { passive: true });

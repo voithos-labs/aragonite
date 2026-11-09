@@ -77,7 +77,8 @@ export interface ScrollOwner {
 	beginRound(): void;
 	/** True from a round's first height write until it closes. */
 	roundOpen(): boolean;
-	/** Runs `run` after the current flush, with every other list's. */
+	/** Runs `run` after the current flush, with every other list's and block overlay's reads, so
+	 *  blocks mounting together cost one layout. */
 	measureSoon(run: () => void): void;
 	/** Watches a child's size with the editor's one observer. The callback runs inside the browser's
 	 *  size report, or earlier inside an owner write, so a height it records moves the scroll there. */
@@ -97,6 +98,9 @@ export interface ScrollOwner {
 	/** Called by the root list alone. */
 	resolveTargetsWith(resolver: TargetResolver): RootListScroll;
 }
+
+/** `measureSoon` for a mount without the editor: nothing else to read alongside. */
+export const measureAfterTick = (run: () => void): void => void tick().then(run);
 
 export interface ScrollOwnerDeps {
 	/** The element the editor scrolls, or null before the root mounts. */

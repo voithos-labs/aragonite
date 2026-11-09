@@ -1,4 +1,4 @@
-import { getContext, onDestroy, setContext, tick } from 'svelte';
+import { getContext, onDestroy, setContext } from 'svelte';
 import {
 	CHILD_MEASURE_KEY,
 	EDITOR_DOC_KEY,
@@ -8,7 +8,7 @@ import {
 	type EditorServices
 } from '../editor-keys';
 import type { NodeView } from '../core/node-views';
-import type { RootListScroll } from './scroll-owner';
+import { measureAfterTick, type RootListScroll } from './scroll-owner';
 import { laidOutBox, observeResize } from './observe-resize';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { foreignMeasureViolation } from '../invariants/measures-in-own-list';
@@ -78,7 +78,7 @@ function windowingUnit(opts: ContainerWindowingOpts): ListWindowing {
 		: {
 				beginRound: () => {},
 				roundOpen: () => false,
-				measureSoon: (run) => void tick().then(run),
+				measureSoon: measureAfterTick,
 				scrollToMount: () => {}
 			};
 

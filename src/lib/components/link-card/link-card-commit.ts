@@ -4,7 +4,7 @@
  * out of the component so the card stays a rendering shell.
  */
 
-import { tick } from 'svelte';
+import { tick, untrack } from 'svelte';
 import type { Document } from '../../core/nodes';
 import type { InlineNode } from '../../core/nodes';
 import type { DocumentView, NodeView } from '../../core/node-views';
@@ -186,14 +186,14 @@ export function createLinkCardCommitter(deps: LinkCardCommitterDeps): LinkCardCo
 			cardEl.style.left = `${rect.left - editorRect.left - borderLeft + editorEl.scrollLeft}px`;
 		};
 
-		// Untracked setup measure, or the caller's $effect would re-wire these listeners on every
-		// keystroke; the `edit` subscription below is the document trigger.
+		// Placed now, before the URL field takes focus and scrolls to it; untracked, since the `edit`
+		// subscription below is the document trigger and the caller's $effect must not re-wire.
+		untrack(measure);
 		const unwireScroll = wireOverlayRemeasure({
 			el: cardEl,
 			editorRoot: editorEl,
 			blockRef: undefined,
 			measure,
-			untrackSetupMeasure: true,
 			textMoves: deps.textMoves
 		});
 		// An edit anywhere above the link shifts its y without touching the link itself; an undo

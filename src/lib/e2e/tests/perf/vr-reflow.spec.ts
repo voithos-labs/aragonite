@@ -48,6 +48,7 @@ async function flingAndCountMounts(page: Page, frames: number, selector: string)
 // The 0.3 limit sits ten times below one layout per mount and well above the batched values of
 // about 0.03 for blocks and 0.05 for rows.
 const PER_MOUNT_BOUND = 0.3;
+const FLING_FRAMES = 10;
 
 interface ReflowRow {
 	/** What mounts here, named as the test title names it. */
@@ -83,6 +84,25 @@ const ROWS: ReflowRow[] = [
 		},
 		selector: '[data-table-row-idx]',
 		log: 'VR-4 table reflow guard'
+	},
+	{
+		// Each mounted block's mark overlay measures its rects; those reads join the lists' batched
+		// pass, or each one lands between the previous block's writes and forces its own layout.
+		unit: 'block with a mark',
+		tag: 'VR-4 marks',
+		arrange: async (page, editor) => {
+			await editor.loadLargeFixture('many-small-blocks', FIXTURE_BYTES);
+			await page.evaluate(() => {
+				(window as any).__test.decorations.addSource({
+					name: 'every-block',
+					provide: (doc: { children: unknown[] }) =>
+						doc.children.map((_, i) => ({ type: 'mark', path: [i], start: 0, end: 3, class: 'm' }))
+				});
+			});
+			await expect.poll(() => page.locator('.decoration-overlay.m').count()).toBeGreaterThan(10);
+		},
+		selector: '.block-host',
+		log: 'VR-4 marks reflow guard'
 	}
 ];
 
@@ -108,11 +128,12 @@ for (const row of ROWS) {
 		// Let the layout after the load settle, so the first reading has no layout pending.
 		await editor.waitForRenderFlush();
 		const layoutsBefore = await layoutCount();
-		const mounts = await flingAndCountMounts(page, 10, row.selector);
+		const mounts = await flingAndCountMounts(page, FLING_FRAMES, row.selector);
 		const layouts = (await layoutCount()) - layoutsBefore;
 
 		const perMount = mounts > 0 ? layouts / mounts : Infinity;
-		console.log(`${row.log} ${JSON.stringify({ mounts, layouts, perMount })}`);
+		const perFrame = layouts / FLING_FRAMES;
+		console.log(`${row.log} ${JSON.stringify({ mounts, layouts, perMount, perFrame })}`);
 
 		// A lower bound on what it divides by: a scroll that mounts nothing would make the
 		// layouts per mount meaninglessly small.
