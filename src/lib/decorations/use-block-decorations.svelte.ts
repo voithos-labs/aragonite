@@ -4,6 +4,7 @@
  * spreads into its own `class` so Svelte keeps owning that attribute.
  */
 import type { EditorError } from '../editor-events';
+import type { NodeView } from '../core/node-views';
 import type { DecorationEngine } from './decoration-state.svelte';
 import type { BlockDecoration, DecorationWidgetSpec } from './types';
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
@@ -11,6 +12,7 @@ import { acceptedBlockAttrs } from './reserved-attrs';
 import { mountDecorationWidget, type MountedDecorationWidget } from './widget-dom';
 
 export interface BlockDecorationDeps {
+	getNode: () => NodeView;
 	getPath: () => number[];
 	getEl: () => HTMLElement | null;
 	/** Absent when a block mounts without the editor shell, as unit tests do. */
@@ -20,7 +22,7 @@ export interface BlockDecorationDeps {
 	badgeRefusal?: string;
 }
 
-const NO_BLOCK_DECORATIONS: BlockDecoration[] = [];
+const NO_BLOCK_DECORATIONS: readonly BlockDecoration[] = [];
 
 type BlockWithBadge = BlockDecoration & { badge: DecorationWidgetSpec };
 
@@ -33,7 +35,7 @@ interface MountedBadge {
 
 export function useBlockDecorations(deps: BlockDecorationDeps): { readonly classes: string[] } {
 	const decorations = $derived(
-		deps.engine ? deps.engine.blockDecorationsForPath(deps.getPath()) : NO_BLOCK_DECORATIONS
+		deps.engine ? deps.engine.paintOf(deps.getNode(), deps.getPath()).blocks : NO_BLOCK_DECORATIONS
 	);
 	const classes = $derived(decorations.flatMap((d) => d.class ?? []));
 
@@ -68,7 +70,7 @@ export function useBlockDecorations(deps: BlockDecorationDeps): { readonly class
 		badges = [];
 	}
 
-	function badgeDecorations(decs: BlockDecoration[]): BlockWithBadge[] {
+	function badgeDecorations(decs: readonly BlockDecoration[]): BlockWithBadge[] {
 		const withBadge = decs.filter((dec): dec is BlockWithBadge => dec.badge !== undefined);
 		if (withBadge.length === 0 || deps.badgeRefusal === undefined) return withBadge;
 		const path = deps.getPath();

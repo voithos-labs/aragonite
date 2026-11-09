@@ -274,7 +274,7 @@ So two boxes back to back have no gap caret between them, and a box with an edit
 
 A container block type's lines go through the same two homes as the built-in quote's: the reader `src/lib/core/parsers/strip-container.ts :: stripOpener` (G4.320) and the container writer (G4.305), which writes a head line (an alert's `> [!NOTE]`) through the writer `headedLines` carries. Both read one line syntax, which is why a marked shape's `reads` has to take its own markers whole (G1.191).
 
-A drawing reads its block as a `Block` (`src/lib/schema/doc-view.ts`). Its `from` and `to` are worked out when read, from the node's identity in the live document (`src/lib/editor-actions/commit/change-record.ts :: blockRangeOf`), because a keystroke in a block above moves them without telling the drawing; both are -1 once the block is gone, and a draft refuses that range. `block-range.svelte.test.ts` holds it.
+A drawing reads its block as a `Block` (`src/lib/schema/doc-view.ts`). Its `from` and `to` are worked out when read, from the node's identity in the live document (`src/lib/editor-actions/commit/document-read.ts :: createDocumentRead`), because a keystroke in a block above moves them without telling the drawing; both are -1 once the block is gone, and a draft refuses that range. `block-range.svelte.test.ts` holds it.
 
 ### Block views
 
@@ -508,6 +508,8 @@ The union grows by addition: a new decoration type is a new member, a new capabi
 Widget and replace decorations are atomic inline widgets (spans the caret can't enter), with defined caret, arrow, and destructive-key behavior (see the closure matrix). **Widget identity is untracked by render keys**: two specs at the same position with the same class are treated as equal, so a source varies `class` to force a re-render. They render on prose leaves and inside table cells; code blocks and thematic breaks apply none.
 
 Cost contract: an idle source's per-edit re-run is O(sources), never per-block, and a block with no widget or replace decorations keeps its render key unchanged. The perf suite pins both.
+
+A plugin value paints a block at a time instead, through `Contribution.paint(block)` for a block of text and `paintContainer(block)`, which hands back block classes only, for a block holding blocks. The editor asks it only for a block it renders and keeps the answer while that block's bytes hold, so an edit asks the edited block again, the blocks around it only through `paintContainer`, and nothing else (G2.19). Its positions are document bytes, stored in the block's own offsets, so an edit above a block moves its paint without asking. When something other than the bytes changes the answer, the plugin calls `editor.repaint(blocks?)`. Every overlay, widget slot and block class reads either kind through one per-block read, `src/lib/decorations/decoration-state.svelte.ts` :: `paintOf`, whole-document sources first.
 
 A mark's hover has one lifecycle the editor owns, `src/lib/decorations/mark-hover.ts` :: `createMarkHover`, and what it promises a plugin is the guide's to say ([Interactive marks](../guide/plugin-guide/decorations.md#interactive-marks-click-hover-and-the-keyboard)). Where marks overlap, one precedence rule, `src/lib/decorations/mark-interactions.ts` :: `comparePrecedence`, picks the mark for the pointer and the keyboard alike.
 

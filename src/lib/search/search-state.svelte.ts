@@ -3,14 +3,11 @@ import { buildRegexSpec, compileMatcher } from './matcher';
 import { collectScanTargets, matchesFromRanges, scanDocument, type Match } from './document-scan';
 import { createRegexExecutor, type RegexExecutor } from './regex-executor';
 import { groupByPathKey, pathKey } from '../decorations/buckets';
-import type {
-	DecorationRegistry,
-	DecorationSourceHandle,
-	MarkDecoration,
-	ProvideContext
-} from '../decorations/types';
+import type { BlockSource } from '../decorations/block-paint';
+import type { MarkDecoration } from '../decorations/types';
 
 const EMPTY_MATCHES: IndexedMatch[] = [];
+const NO_MARKS: readonly MarkDecoration[] = [];
 
 // Both reuse the invalid-regex readout: a scan with no usable answer is one state to the
 // user, whatever ended it.
@@ -35,9 +32,6 @@ interface SearchDeps {
 	/** Bumped when the whole document is replaced, never on an in-place edit or undo,
 	 *  since those leave the tree under a position the user still owns. */
 	getDocumentGeneration: () => number;
-	/** Highlights ship as marks under source 'editor:search', registered on open and
-	 *  disposed on close, so a closed bar costs nothing. */
-	decorations: DecorationRegistry;
 	// Both resolve to the count actually replaced: the replace path may skip matches, so
 	// the caller must not infer it.
 	replace: {
@@ -77,30 +71,38 @@ export function createSearchState(deps: SearchDeps): EditorSearchState {
 
 	let lastGeneration = deps.getDocumentGeneration();
 
-	let handle: DecorationSourceHandle | null = null;
-
+	// Counted by `documentChanged`, not read off `doc.children` identity: typing mutates the tree
+	// in place, so identity changes only on a structural commit and would serve stale matches.
+	let edits = 0;
 	// The scan runs for its side effects, so only the current key may skip it; cleared on
 	// close() so a reopen at the same key rescans rather than serving the empty set.
 	let lastScanKey: string | null = null;
 
-	// Keyed on editEpoch, never doc.children identity: typing mutates children in place, so
-	// identity only changes on structural commits and would serve stale matches.
-	function provide(doc: DocumentView, ctx: ProvideContext): MarkDecoration[] {
+	// Synchronous, so setQuery's callers see fresh matches on return, even before open.
+	function refresh(): void {
 		const { caseSensitive, wholeWord, regex } = options;
-		const key = `${ctx.editEpoch}\0${+caseSensitive}${+wholeWord}${+regex}\0${query}`;
-		if (key !== lastScanKey) {
-			// Scan the document the registry is providing for, not whatever the deps getter resolves to.
-			rescan(doc);
-			lastScanKey = key;
-		}
-		return matches.map((m, i): MarkDecoration => ({
-			type: 'mark',
-			path: m.path,
-			start: m.start,
-			end: m.end,
-			class: i === activeIndex ? 'match-overlay match-overlay-active' : 'match-overlay'
-		}));
+		const key = `${edits}\0${+caseSensitive}${+wholeWord}${+regex}\0${query}`;
+		if (key === lastScanKey) return;
+		lastScanKey = key;
+		rescan();
 	}
+
+	// Each block's highlights, read from its own matches while it renders.
+	const highlights: BlockSource = {
+		name: 'editor:search',
+		decorationsOf(_node, path) {
+			const own = matchesByPath.get(pathKey(path));
+			if (!own) return NO_MARKS;
+			const active = activeIndex;
+			return own.map(({ match, index }): MarkDecoration => ({
+				type: 'mark',
+				path: match.path,
+				start: match.start,
+				end: match.end,
+				class: index === active ? 'match-overlay match-overlay-active' : 'match-overlay'
+			}));
+		}
+	};
 
 	function rescan(doc: DocumentView = deps.getDoc()): void {
 		// A whole-document replacement restarts navigation at the first match. Edits, undo and option
@@ -155,25 +157,15 @@ export function createSearchState(deps: SearchDeps): EditorSearchState {
 				pendingScan = null;
 				if (outcome.ok) applyMatches(matchesFromRanges(targets, outcome.ranges));
 				else failScan(outcome.reason === 'timeout' ? REGEX_TOO_SLOW : REGEX_SCAN_FAILED);
-				// invalidate, not refresh(): refresh's no-handle fallback re-runs rescan, which
-				// would start a second scan from inside this one's completion.
-				handle?.invalidate();
 			});
-	}
-
-	// Every change goes through the decoration registry so the marks follow; invalidate is
-	// synchronous, so setQuery's callers see fresh matches on return, even before open.
-	function refresh(): void {
-		if (handle) handle.invalidate();
-		else rescan();
 	}
 
 	/** Walk the match list, wrapping at either end. */
 	function step(delta: 1 | -1): void {
 		replacedCount = null;
+		refresh();
 		if (!matches.length) return;
 		activeIndex = (activeIndex + delta + matches.length) % matches.length;
-		refresh();
 		void revealActive();
 	}
 
@@ -181,10 +173,8 @@ export function createSearchState(deps: SearchDeps): EditorSearchState {
 		replacing = true;
 		try {
 			const n = await write();
-			// The edit-epoch bump is deferred, so an invalidate-only refresh would hit the
-			// memo and republish the pre-replace matches.
+			// `documentChanged` waits for the flush, so the replaced bytes are scanned now.
 			rescan();
-			refresh();
 			replacedCount = n;
 		} finally {
 			replacing = false;
@@ -213,7 +203,7 @@ export function createSearchState(deps: SearchDeps): EditorSearchState {
 		get matches() {
 			return matches;
 		},
-		matchesForPath(path: number[]): IndexedMatch[] {
+		matchesForPath(path: readonly number[]): IndexedMatch[] {
 			return matchesByPath.get(pathKey(path)) ?? EMPTY_MATCHES;
 		},
 		get activeIndex() {
@@ -229,14 +219,12 @@ export function createSearchState(deps: SearchDeps): EditorSearchState {
 			return replacedCount;
 		},
 		open() {
-			if (isOpen) return; // Ctrl+H over an open find bar reuses the live source
+			if (isOpen) return; // Ctrl+H over an open find bar keeps its matches
 			isOpen = true;
-			handle = deps.decorations.addSource({ name: 'editor:search', provide });
+			refresh();
 		},
 		close() {
 			isOpen = false;
-			handle?.dispose();
-			handle = null;
 			matches = [];
 			replacedCount = null;
 			// Bump before releasing: a scan settling after close must find its epoch spent.
@@ -277,6 +265,13 @@ export function createSearchState(deps: SearchDeps): EditorSearchState {
 			if (!matches.length) return;
 			await commitReplace(() => deps.replace.replaceAll(matches, replacement));
 		},
+		get highlights() {
+			return isOpen ? highlights : null;
+		},
+		documentChanged() {
+			edits++;
+			if (isOpen) refresh();
+		},
 		viewKey() {
 			if (scanning || replacing) return null;
 			const { caseSensitive, wholeWord, regex } = options;
@@ -295,7 +290,7 @@ export interface SearchState {
 	readonly options: SearchOptions;
 	readonly matches: Match[];
 	/** Matches owned by `path`'s leaf, grouped once per rescan so readers skip the scan. */
-	matchesForPath(path: number[]): IndexedMatch[];
+	matchesForPath(path: readonly number[]): IndexedMatch[];
 	readonly activeIndex: number;
 	readonly error: string | null;
 	/** True while a regex scan is off the main thread; literal search never sets it. */
@@ -314,6 +309,10 @@ export interface SearchState {
 
 /** The search state the editor holds: the public controller, plus the key `searchChange` compares. */
 export interface EditorSearchState extends SearchState {
+	/** Each block's match highlights while the bar is open, a reactive read; null while closed. */
+	readonly highlights: BlockSource | null;
+	/** Rescans an open bar after an edit, once the edit's flush is done. */
+	documentChanged(): void;
 	/** What a find bar shows, as one value; null while a regex scan or a replace is in flight, since
 	 *  the matches it will show are not in yet. */
 	viewKey(): string | null;

@@ -62,6 +62,7 @@ import { childIdDrifts } from '#lib/invariants/child-id-parity.js';
 import { isProseLeaf } from '#lib/schema/page-role.js';
 import { definitionsOf } from '#lib/core/inline/scan/definitions.js';
 import ThrowOnRenderBlock from './ThrowOnRenderBlock.svelte';
+import { probeEditor, setProbePaint } from './paint-probe-plugin';
 
 type EditorInstance = ReturnType<typeof Editor>;
 
@@ -657,6 +658,14 @@ export function installTestProbes({
 				imagePasteCalls.length = 0;
 				releaseHeldImport = null;
 			}
+		},
+		// ── Paint probe (with `?paint=on`: the probe plugin's paint and its repaint) ────
+		// A spec builds the paint inside the page; `repaint` takes document bytes, one per block.
+		paint: {
+			set: (paint: Parameters<typeof setProbePaint>[0]) => setProbePaint(paint),
+			repaint: (at?: number[]) =>
+				probeEditor().repaint(at?.flatMap((byte) => probeEditor().blockAt(byte) ?? [])),
+			blockAt: (at: number) => probeEditor().blockAt(at)
 		},
 		// ── Decoration source probe (register sources without a plugin) ────
 		decorations: {

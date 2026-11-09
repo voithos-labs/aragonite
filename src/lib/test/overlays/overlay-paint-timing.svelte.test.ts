@@ -56,7 +56,7 @@ describe('with animation frames held, a block overlay still paints a change', ()
 		const { target, blockEl } = blockElement();
 		instance = mount(DecorationOverlay, {
 			target,
-			props: { path: [0], blockRef: leaf, blockEl, isContainer: false },
+			props: { node: doc.children[0], path: [0], blockRef: leaf, blockEl, isContainer: false },
 			context: editorMountContext({ services: { decorations: engine } })
 		});
 		let answer: Decoration[] = [{ type: 'mark', path: [0], start: 0, end: 5, class: 'm' }];

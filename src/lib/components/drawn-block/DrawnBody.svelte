@@ -9,8 +9,7 @@
 	import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 	import type { BlockComponent } from '../../block-component';
 	import type { NodeView } from '../../core/node-views';
-	import { blockOf } from '../../schema/doc-view';
-	import { blockRangeOf } from '../../editor-actions/commit/change-record';
+	import { blockOf, DETACHED_READING } from '../../schema/doc-view';
 	import { pluginOfKind } from '../../schema/plugin-name';
 	import {
 		CARET_AT,
@@ -188,11 +187,7 @@
 	};
 
 	const read = () =>
-		blockOf(
-			node,
-			(kind) => (kind === node.kind ? view.type() : { name: kind, label: kind }),
-			(at) => blockRangeOf(editorDoc.doc(), at)
-		);
+		services ? services.read.blockOf(node, myPath) : blockOf(node, DETACHED_READING);
 
 	// ── Mount, update, destroy ────────────────────────────────────────────────
 

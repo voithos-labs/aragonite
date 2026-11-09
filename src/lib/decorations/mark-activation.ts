@@ -11,7 +11,7 @@ import type { MarkDecoration } from './types';
 export interface MarkActivationDeps {
 	/** The caret, or a range's focus, as a character offset in a block; null when there is none. */
 	caret(): { path: number[]; offset: number } | null;
-	marksForPath(path: number[]): IndexedDecoration<MarkDecoration>[];
+	marksForPath(path: number[]): readonly IndexedDecoration<MarkDecoration>[];
 	/** The viewport rects the mark paints, empty while its block is not rendered. */
 	paintedRects(dec: MarkDecoration): DOMRect[];
 	caretRect(): DOMRect | null;

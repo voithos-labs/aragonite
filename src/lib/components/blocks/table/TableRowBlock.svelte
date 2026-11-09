@@ -57,6 +57,7 @@
 
 	// The row renders no block host, so its own element carries the decorations addressed to it.
 	const blockDecorations = useBlockDecorations({
+		getNode: () => node,
 		getPath: () => myPath,
 		getEl: () => rowEl ?? null,
 		engine: decorations,

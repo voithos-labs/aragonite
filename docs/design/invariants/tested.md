@@ -26,6 +26,7 @@ No runtime check sees these; the test suite is the whole enforcement. Test files
 | G2.16 | A leaf written its own bytes changes nothing, and a keystroke moves one line | P·N   |
 | G2.17 | A commit that throws leaves the document and the undo stacks as they were    | N     |
 | G2.18 | Copy, cut, paste, typing and deleting over a range keep the range-edit laws  | P·N   |
+| G2.19 | A keystroke asks the edited block's paint and measures only its marks        | N     |
 
 ### The entries
 
@@ -119,3 +120,10 @@ a copy and a cut write the same clipboard, a cut pasted back gives the bytes bac
 what a cut leaves, and so on, ten laws as properties through the editor's event routes, a drop in
 the browser rows. A class that breaks one today is a row of `range-laws/known-failures.ts`
 (its repro must still fail). `range-edit-laws.property.test.ts`, `range-law-cases.test.ts`.
+
+**G2.19 · A keystroke paints one block.** Typing or a byte splice changes only the edited block's
+node and its containers' bytes (rows for a paragraph, a list item and a quote). Each mounted block
+reads its paint through `DecorationEngine.paintOf`, kept while its bytes hold and equal answers as
+the same arrays, so a keystroke asks only the edited block's `paint` (a container goes to
+`paintContainer`) and measures only its marks; a block is first asked once it mounts.
+`e2e/tests/decorations/paint.spec.ts`, `paint-reactivity.svelte.test.ts`, `plugin-paint.svelte.test.ts`.

@@ -45,7 +45,7 @@
 	import { documentBytes, rangePaint } from '../selection/range-bytes';
 	import { findSurfacePathForElement } from '../selection/path-lookup';
 	import { createSelectionDescription } from '../selection/selection-description';
-	import { EDITOR_LABEL } from '../a11y-strings';
+	import { EDITOR_LABEL, blockKindLabel } from '../a11y-strings';
 	import TailInsert from './TailInsert.svelte';
 	import BlockMenu from './menu/BlockMenu.svelte';
 	import { createMenuPresence } from './menu/menu-presence.svelte';
@@ -71,7 +71,7 @@
 	import { createSearchState, type SearchState } from '../search/search-state.svelte';
 	import { createDecorationEngine } from '../decorations/decoration-state.svelte';
 	import { createMarkActivation } from '../decorations/mark-activation';
-	import { paintedMarkRects } from '../decorations/mark-interactions';
+	import { paintedMarkRects, passPointerThrough } from '../decorations/mark-interactions';
 	import type { DecorationRegistry } from '../decorations/types';
 	import { createEditorRects, type EditorRects } from '../editor-rects';
 	import { createCaretLanding } from '../selection/caret-landing';
@@ -149,10 +149,14 @@
 	import type { CaretMenu } from '../schema/caret-menu';
 	import {
 		installPluginList,
+		type BlockType,
 		type InstalledPlugin,
 		type PluginError,
 		type PluginList
 	} from '../schema/plugin-unit';
+	import { nodeOfBlock, type Block } from '../schema/doc-view';
+	import { createPaintSources } from '../decorations/plugin-paint.svelte';
+	import { createDocumentRead } from '../editor-actions/commit/document-read';
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
 	import { insertRows } from '../schema/insert-catalogue';
 	import { createEditorGrammar } from '../schema/editor-grammar';
@@ -461,7 +465,10 @@
 		const version = contentVersion.read();
 		if (version === notifiedVersion) return; // the mount run announces nothing
 		notifiedVersion = version;
-		if (decorationEngine.sourceCount > 0) void tick().then(() => decorationEngine.notifyEdit());
+		void tick().then(() => {
+			if (decorationEngine.sourceCount > 0) decorationEngine.notifyEdit();
+			searchState.documentChanged();
+		});
 	});
 
 	// ── Open menus ──────────────────────────────────────────────────────
@@ -723,15 +730,64 @@
 		onSourceError: (source, error) =>
 			events.emit('error', { origin: 'decoration', error, context: { source } }),
 		onMarkError: (path, error) =>
-			events.emit('error', { origin: 'decoration', error, context: { path } })
+			events.emit('error', { origin: 'decoration', error, context: { path } }),
+		blockSources: () => blockSources,
+		landClick: (event) =>
+			passPointerThrough(event, () => placeCaretAtPoint(event.clientX, event.clientY))
 	});
 	const decorations: DecorationRegistry = { addSource: decorationEngine.addSource };
+	const documentRead = createDocumentRead({
+		getDoc,
+		version: () => untrack(contentVersion.read),
+		typeOf: blockTypeOf,
+		reading
+	});
+
+	const paints = createPaintSources({
+		// Read again whenever `use` changes the list.
+		paints: () => (void pluginNames, contributions.paints),
+		blockOf: documentRead.blockOf,
+		blockAt: (path) => {
+			const node = blockNodeAt(doc, path);
+			return node ? documentRead.blockOf(node, path) : null;
+		},
+		rectsOf: (dec) => paintedMarkRects(dec, getBlockComponent),
+		report: reportPluginError
+	});
+	const paintSources = $derived(paints.list);
+	// The find bar's highlights come first while it's open.
+	const blockSources = $derived.by(() => {
+		const highlights = searchState.highlights;
+		return highlights ? [highlights, ...paintSources] : paintSources;
+	});
+
+	function repaintPlugin(plugin: string | null, blocks?: readonly Block[]): void {
+		paints.repaint(
+			plugin,
+			blocks?.flatMap((block) => nodeOfBlock(block) ?? [])
+		);
+	}
+
+	// A plugin's own block type, else one named by its kind, which `is` matches to `builtin.blocks`.
+	function blockTypeOf(kind: AnyBlockKind): BlockType<unknown> {
+		for (const unit of units) {
+			const own = unit.contribution.blocks?.find((type) => type.name === kind);
+			if (own) return own;
+		}
+		return { name: kind, label: blockKindLabel(kind) };
+	}
 	const markActivation = createMarkActivation({
 		caret: () => {
 			const focus = getSelection()?.focus;
-			return focus && !focus.cellCoordinate ? { path: focus.path, offset: focus.offset } : null;
+			if (!focus?.cellCoordinate) return focus ? { path: focus.path, offset: focus.offset } : null;
+			// A caret in a cell is a point in cell space; the table knows the offset inside the cell.
+			const inCell = getBlockComponent(focus.path)?.getCursorPosition?.();
+			return inCell ? { path: [...focus.path, ...inCell.path], offset: inCell.offset } : null;
 		},
-		marksForPath: (path) => decorationEngine.marksForPath(path),
+		marksForPath: (path) => {
+			const node = blockNodeAt(doc, path);
+			return node ? decorationEngine.paintOf(node, path).marks : [];
+		},
 		paintedRects: (dec) => paintedMarkRects(dec, getBlockComponent),
 		caretRect: () => rects.caretRect(),
 		runMarkHandler: decorationEngine.runMarkHandler
@@ -795,6 +851,8 @@
 		claims: (event) => claimsChord(event),
 		openMenu: (menu, query) => inlineMenu.openMenu(menu, query),
 		openRows: (action, range, anchor) => openRows(action, range, anchor),
+		blockAt: (at) => blockAt(at),
+		repaint: (plugin, blocks) => repaintPlugin(plugin, blocks),
 		edit: (plugin) => drafts.edit(plugin),
 		reading,
 		units: () => units,
@@ -861,7 +919,6 @@
 	const searchState = createSearchState({
 		getDoc,
 		getDocumentGeneration: documentSwap.generation,
-		decorations,
 		replace: searchReplace,
 		// The public scroll call holds the match in place, so a late image decode cannot move it.
 		reveal: (p) => rects.scrollTo(p),
@@ -946,6 +1003,7 @@
 	setContext(EDITOR_SERVICES_KEY, {
 		events,
 		decorations: decorationEngine,
+		read: documentRead,
 		selection: selectionState,
 		rangeCoverage: () => coverage,
 		rangePaint: () => paint,
@@ -1555,6 +1613,14 @@
 		return inlineMenu.openMenu(menu as CaretMenu<unknown>, query);
 	}
 
+	export function blockAt(at: number): Block | null {
+		return documentRead.blockAt(at);
+	}
+
+	export function repaint(blocks?: readonly Block[]): void {
+		repaintPlugin(null, blocks);
+	}
+
 	export function openRows(
 		action: SelectionAction,
 		range: { readonly from: number; readonly to: number },
@@ -1652,7 +1718,9 @@
 		can,
 		claims,
 		openMenu,
-		openRows
+		openRows,
+		blockAt,
+		repaint
 	} satisfies EditorInstance);
 
 	// ── Test-only hooks ─────────────────────────────────────────────────

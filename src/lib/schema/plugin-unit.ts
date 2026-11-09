@@ -13,6 +13,8 @@ import type { InsertRow } from './insert-catalogue';
 import type { CaretMenu } from './caret-menu';
 import type { SelectionAction } from './selection-action';
 import type { Draft } from './drafts';
+import type { Block } from './doc-view';
+import type { BlockPaint, Paint } from '../decorations/paint';
 import { isValidPluginName } from './plugin-name';
 import { satisfiesRange } from './version-range';
 
@@ -56,8 +58,9 @@ export interface Contribution {
 	/** Its block types, made by `lineBlock`, `fencedBlock` or `container`; each is named after the
 	 *  plugin (`callouts/callout`) when an editor first runs it. */
 	blocks?: readonly BlockType<unknown>[];
-	/** Runs once the editor is mounted; what it adds through `editor` goes away with the plugin. */
-	setup?(editor: Editor): void;
+	/** Runs once the editor is mounted; what it adds through `editor` goes away with the plugin.
+	 *  A function it returns runs once, when the plugin is turned off or the editor unmounts. */
+	setup?(editor: Editor): void | (() => void);
 	/** Run by value, by `plugin/id`, or by a command's chord anywhere in the editor. */
 	commands?: readonly Command<unknown>[];
 	/** Rows for the insert menus, listed after the built-ins as `plugin/id`. */
@@ -70,6 +73,12 @@ export interface Contribution {
 	/** Rows over the selection, or a range captured around the caret, in the right-click menu, the
 	 *  selection toolbar and `openRows`. */
 	actions?: readonly SelectionAction[];
+	/** What to lay over `block`, a block of text (one holding no other blocks), asked while it's on
+	 *  screen and kept while its bytes hold. */
+	paint?(block: Block): readonly Paint[];
+	/** Classes and a badge for a block holding other blocks (a list, a quote, a table row), asked
+	 *  the same way. Its text is all of its children's, so read its type rather than scan it. */
+	paintContainer?(block: Block): readonly BlockPaint[];
 }
 
 /** The editor as a plugin's `setup` and a host's handle both see it. */
@@ -106,6 +115,12 @@ export interface Editor {
 	/** A write in the document's bytes, committed as one undo step now or after a wait; a plugin's
 	 *  is refused as `off` once the plugin is. */
 	edit(): Draft;
+	/** The deepest block holding document byte `at` (a list item's paragraph, a table cell): a
+	 *  marker's byte goes to the text on its line. Null outside the document. */
+	blockAt(at: number): Block | null;
+	/** Asks the plugin's `paint` again for `blocks` (one that left the document is skipped), or
+	 *  for every block on screen; a host's handle asks every plugin's. */
+	repaint(blocks?: readonly Block[]): void;
 }
 
 /** A block type as the editor holds it: `name` is its kind, qualified by its plugin's name once an

@@ -2,6 +2,9 @@
  *  widget, and the code here routes them by type and path alone. */
 
 import type { Decoration, DecorationWidgetSpec } from '#lib/decorations/types.js';
+import type { DecorationEngine } from '#lib/decorations/decoration-state.svelte.js';
+import type { PaintParts } from '#lib/decorations/block-paint.js';
+import { parse } from '#lib/core/parser.js';
 
 export const stubWidget: DecorationWidgetSpec = { view: () => ({}) };
 
@@ -26,3 +29,10 @@ export const replace = (path: number[], start: number, end: number): Decoration 
 	start,
 	end
 });
+
+/** A path's paint from an engine whose sources all answer by path, so any node stands in. */
+export function paintAt(engine: DecorationEngine, path: number[]): PaintParts {
+	return engine.paintOf(STAND_IN, path);
+}
+
+const STAND_IN = parse('stand-in\n').children[0];

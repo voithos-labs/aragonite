@@ -3,7 +3,7 @@
 A `mark` decoration paints a positioned overlay div over its inline range, carrying the
 class the source supplies (and optional attributes) so a consumer can style it. The overlay
 reads the decoration state once per block host, the same path search's own highlights take:
-leaves measure their own range, grid cells paint whole-cell rects, and nothing paints when
+leaves and table cells measure their own range, and nothing paints when
 no source is registered.
 Sources register through the public registry, here through the e2e bridge rather than a plugin.
 
@@ -13,7 +13,7 @@ Sources register through the public registry, here through the e2e bridge rather
   whose left and right edges sit on the painted word `hello`, measured off its text node
 - A mark spanning a soft-wrapped range paints one rect per visual line (2+ rects), each with
   positive width: the per-line measurement the leaf's `measurePartialRects` returns
-- A mark on a table cell (`[0,row,col]`) paints one whole-cell overlay over that cell
+- Two marks in one table cell (`[0,row,col]`) paint two overlays, each over its own word
 
 ## User interactions
 

@@ -73,6 +73,9 @@ export function createEditorPluginContexts(deps: {
 	claims: (event: KeyboardEvent) => boolean;
 	openMenu: (menu: CaretMenu<unknown>, query?: string) => boolean;
 	openRows: Editor['openRows'];
+	blockAt: Editor['blockAt'];
+	/** Asks `plugin`'s paint again. */
+	repaint: (plugin: string, blocks?: Parameters<Editor['repaint']>[0]) => void;
 	/** A draft; `plugin` names the plugin it's refused for once that plugin is off. */
 	edit: (plugin?: string) => Draft;
 	/** How the editor reads its bytes, which every plugin inline read follows. */
@@ -174,7 +177,9 @@ export function createEditorPluginContexts(deps: {
 			claims: (event) => deps.claims(event),
 			openMenu: (menu, query) => deps.openMenu(menu as CaretMenu<unknown>, query),
 			openRows: (action, range, anchor) => deps.openRows(action, range, anchor),
-			edit: () => deps.edit(plugin)
+			edit: () => deps.edit(plugin),
+			blockAt: (at) => deps.blockAt(at),
+			repaint: (blocks) => deps.repaint(plugin, blocks)
 		};
 	}
 
@@ -209,7 +214,8 @@ export function createEditorPluginContexts(deps: {
 		for (const { name, contribution } of deps.units()) {
 			if (names && !names.has(name)) continue;
 			try {
-				contribution.setup?.(editorFor(name));
+				const cleanup = contribution.setup?.(editorFor(name));
+				if (typeof cleanup === 'function') disposers.push({ plugin: name, dispose: cleanup });
 			} catch (cause) {
 				report({ plugin: name, doing: 'setup', cause });
 			}

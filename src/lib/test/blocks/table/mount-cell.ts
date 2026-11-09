@@ -2,6 +2,7 @@
 // asked its table for (`mount-table.ts` mounts the real table instead). Read-only questions and
 // single gestures only: a commit replaces the node and nothing above re-renders with it.
 
+import { NO_PAINT } from '#lib/decorations/block-paint.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { vi } from 'vitest';
 import TableCellBlock from '#lib/components/blocks/table/TableCellBlock.svelte';
@@ -20,10 +21,7 @@ import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
 import { mountBlock } from '../../harness/mount-block';
 
 /** A cell renders no decorations unless a test installs some. */
-export const noIslands = {
-	islandsForPath: () => [],
-	blockDecorationsForPath: () => []
-} as unknown as EditorServices['decorations'];
+export const noIslands = { paintOf: () => NO_PAINT } as unknown as EditorServices['decorations'];
 
 /** Every member spied, so a test names the one it means and `npm run check` fails
  *  when `TableContext` grows a member this stub would silently answer `undefined` for. */

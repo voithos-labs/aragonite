@@ -1,39 +1,37 @@
-/** One editor's decoration sources, their merged results, and the per-path lookups the
- *  overlays and inline widgets read. A source never runs inside a commit. */
+/** One editor's decoration sources, their merged results, and each mounted block's paint, which
+ *  the overlays, inline widgets and block classes read: the whole-document input first, then each
+ *  source asked one block at a time. A whole-document source never runs inside a commit. */
 import { assertInvariant, devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { tick } from 'svelte';
 import type { DocumentView, NodeView } from '../core/node-views';
+import { groupDecorationsByPath, pathKey, type IndexedDecoration } from './buckets';
 import {
-	groupDecorationsByAncestor,
-	groupDecorationsByPath,
-	pathKey,
-	type IndexedDecoration
-} from './buckets';
-import { islandPosition } from './island-dom';
+	NO_PAINT,
+	splitBucket,
+	keepEqualParts,
+	withDecorations,
+	type PaintParts,
+	type BlockSource
+} from './block-paint';
 import { createMarkHover, type MarkHoverTracker, type MarkIdentity } from './mark-hover';
-import type {
-	BlockDecoration,
-	Decoration,
-	DecorationSource,
-	DecorationSourceHandle,
-	MarkDecoration,
-	ReplaceDecoration,
-	WidgetDecoration
-} from './types';
+import type { Decoration, DecorationSource, DecorationSourceHandle, MarkDecoration } from './types';
 import { isCommitInProgress } from '../commit-scope';
-import { contentLengthOf, isProseKind } from '../core/inline';
-import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
+import { inlineWidgetMiss } from './paint-lands';
+import { blockNodeAt, isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { recordDecorationRun } from '../perf/instruments';
 
 const EMPTY_MARKS: IndexedDecoration<MarkDecoration>[] = [];
-const EMPTY_ISLANDS: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] = [];
-const EMPTY_BLOCKS: BlockDecoration[] = [];
+const NO_SOURCES: readonly BlockSource[] = [];
 
 export interface DecorationEngineDeps {
 	getDoc: () => DocumentView;
 	onSourceError?: (sourceName: string, error: unknown) => void;
 	/** A mark's own handler threw; `path` is the mark's. */
 	onMarkError?: (path: number[], error: unknown) => void;
+	/** The sources asked one block at a time, in precedence order; a reactive read. */
+	blockSources?: () => readonly BlockSource[];
+	/** Lands the caret where a click on a mark pressed, once its handler let it. */
+	landClick?: (event: MouseEvent) => void;
 }
 
 export type DecorationEngine = {
@@ -42,12 +40,14 @@ export type DecorationEngine = {
 	/** Re-runs every source after bumping the edit counter. `handle.invalidate()` skips the bump,
 	 *  so a memoized source can tell a document change from a change in its own state. */
 	notifyEdit(): void;
-	marksForPath(path: number[]): IndexedDecoration<MarkDecoration>[];
-	marksForDescendants(path: number[]): IndexedDecoration<MarkDecoration>[];
-	islandsForPath(path: number[]): IndexedDecoration<WidgetDecoration | ReplaceDecoration>[];
-	blockDecorationsForPath(path: number[]): BlockDecoration[];
+	/** What paints over the mounted block `node` at `path`, for its reactive reads: the same arrays
+	 *  come back until that block's paint changes. */
+	paintOf(node: NodeView, path: readonly number[]): PaintParts;
 	/** Every call into a mark's `interactive` handlers goes through here, so a throw is reported. */
 	runMarkHandler(dec: MarkDecoration, call: () => void): void;
+	/** A click on a mark that takes the pointer: its handler runs, then, unless it called
+	 *  `preventDefault`, the caret lands where the press was. */
+	clickMark(dec: MarkDecoration, event: MouseEvent): void;
 	markHover: MarkHoverTracker;
 };
 
@@ -56,6 +56,8 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 	// so disposing one never leaves another pointing at the wrong entry.
 	const sources: DecorationSource[] = [];
 	const names = new Set<string>();
+	// Which source each decoration came from, read by the hover's identity.
+	const sourceOf = new WeakMap<Decoration, string>();
 	const warnedUnrenderableIslands = new Set<string>();
 	let results = $state<Decoration[][]>([]);
 	// Deliberately not reactive: an `invalidate()` that reads it must not schedule a recompute
@@ -63,8 +65,42 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 	let editEpoch = 0;
 
 	const merged = $derived(results.flat());
-	const byPath = $derived(groupDecorationsByPath(merged));
-	const byAncestor = $derived(groupDecorationsByAncestor(merged));
+	// A path's paint is the one it held while equal, so its block's readers stay quiet. Not state:
+	// only this derived reads or writes it.
+	let heldByPath = new Map<string, PaintParts>();
+	const byPath = $derived.by(() => {
+		const next = new Map<string, PaintParts>();
+		for (const [key, bucket] of groupDecorationsByPath(merged)) {
+			const parts = splitBucket(bucket.map(({ dec }) => dec));
+			const held = heldByPath.get(key);
+			next.set(key, held ? keepEqualParts(held, parts) : parts);
+		}
+		heldByPath = next;
+		return next;
+	});
+
+	// Held per node, not per path: an insert above hands a path to another block.
+	const combined = new WeakMap<
+		NodeView,
+		{ whole: PaintParts; parts: readonly (readonly Decoration[])[]; paint: PaintParts }
+	>();
+
+	function paintOf(node: NodeView, path: readonly number[]): PaintParts {
+		const whole = byPath.get(pathKey(path)) ?? NO_PAINT;
+		const blockSources = deps.blockSources?.() ?? NO_SOURCES;
+		if (blockSources.length === 0) return whole;
+		const parts = blockSources.map((source) => source.decorationsOf(node, path));
+		const held = combined.get(node);
+		if (held?.whole === whole && sameItems(held.parts, parts)) return held.paint;
+		parts.forEach((part, i) => {
+			if (part !== held?.parts[i]) for (const dec of part) sourceOf.set(dec, blockSources[i].name);
+		});
+		const paint = parts.every((part) => part.length === 0)
+			? whole
+			: keepEqualParts(held?.paint ?? NO_PAINT, withDecorations(whole, parts.flat()));
+		combined.set(node, { whole, parts, paint });
+		return paint;
+	}
 
 	function runSource(source: DecorationSource): void {
 		const i = sources.indexOf(source);
@@ -84,6 +120,8 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 		const copy = results.slice();
 		copy[i] = next;
 		results = copy;
+		// Read back through the state, whose objects are the ones the buckets hold.
+		for (const dec of results[i]) sourceOf.set(dec, source.name);
 	}
 
 	function runMarkHandler(dec: MarkDecoration, call: () => void): void {
@@ -96,39 +134,27 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 
 	const markHover = createMarkHover({ identify, runHandler: runMarkHandler });
 
+	// From the block's kept paint, not the latest results: a mark equal to the one it replaced is
+	// the object that was painted.
 	function identify(dec: MarkDecoration): MarkIdentity | null {
 		if (!dec.interactive?.onHover) return null;
-		const i = results.findIndex((decs) => decs.includes(dec));
-		if (i < 0) return null;
-		const ordinal = results[i]
-			.slice(0, results[i].indexOf(dec))
-			.filter((d) => sameHoverRange(d, dec)).length;
-		return { source: sources[i].name, path: dec.path, start: dec.start, end: dec.end, ordinal };
+		const node = blockNodeAt(deps.getDoc(), dec.path);
+		const marks = node ? paintOf(node, dec.path).marks : EMPTY_MARKS;
+		const at = marks.findIndex((m) => m.dec === dec);
+		if (at < 0) return null;
+		const source = sourceNameOf(dec);
+		if (source === null) return null;
+		const ordinal = marks
+			.slice(0, at)
+			.filter((m) => sourceNameOf(m.dec) === source && sameHoverRange(m.dec, dec)).length;
+		return { source, path: dec.path, start: dec.start, end: dec.end, ordinal };
 	}
 
-	/** Why the render path will apply nothing for this inline widget, or null when it will.
-	 *  Asked here because only this pass sees the decoration beside the document it came from. */
-	function islandDefect(
-		dec: WidgetDecoration | ReplaceDecoration,
-		node: NodeView
-	): { key: string; message: string } | null {
-		// Non-prose kinds run no inline pass, so they apply no inline widgets.
-		if (!isProseKind(node.kind)) {
-			return {
-				key: `non-prose\0${node.kind}`,
-				message: `on a non-prose ${node.kind} block; decorations render only in prose blocks`
-			};
-		}
-		// An end offset, not a count: a heading's content starts past its marker, so reporting a
-		// byte total would name a number the author cannot place anything at.
-		const contentEnd = contentLengthOf(node);
-		const held = `the block's content ends at ${contentEnd}`;
-		if (dec.type === 'widget') {
-			if (dec.offset >= 0 && dec.offset <= contentEnd) return null;
-			return { key: 'range', message: `at offset ${dec.offset}, but ${held}` };
-		}
-		if (dec.start >= 0 && dec.start < dec.end && dec.end <= contentEnd) return null;
-		return { key: 'range', message: `at ${dec.start}..${dec.end}, but ${held}` };
+	function sourceNameOf(dec: Decoration): string | null {
+		const name = sourceOf.get(dec);
+		if (name === undefined) return null;
+		const live = names.has(name) || deps.blockSources?.().some((source) => source.name === name);
+		return live ? name : null;
 	}
 
 	function warnUnrenderableIslands(sourceName: string, decs: Decoration[]): void {
@@ -138,16 +164,22 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 			if (dec.type !== 'widget' && dec.type !== 'replace') continue;
 			const node = nodeAt(doc, dec.path);
 			if (!node || !isBlockNode(node)) continue;
-			const defect = islandDefect(dec, node);
-			if (!defect) continue;
-			const key = `${sourceName}\0${defect.key}`;
+			const miss =
+				dec.type === 'widget'
+					? inlineWidgetMiss(node, dec.offset)
+					: inlineWidgetMiss(node, dec.start, dec.end);
+			if (!miss) continue;
+			const key = `${sourceName}\0${miss.reason === 'non-prose' ? node.kind : 'range'}`;
 			if (warnedUnrenderableIslands.has(key)) continue;
 			warnedUnrenderableIslands.add(key);
-			devWarn(
-				'decorations',
-				`source '${sourceName}' places a ${dec.type} decoration ${defect.message}`,
-				{ path: dec.path }
-			);
+			const at = dec.type === 'widget' ? `offset ${dec.offset}` : `${dec.start}..${dec.end}`;
+			const where =
+				miss.reason === 'non-prose'
+					? `on a non-prose ${node.kind} block; decorations render only in prose blocks`
+					: `at ${at}, but the block's content ends at ${miss.contentEnd}`;
+			devWarn('decorations', `source '${sourceName}' places a ${dec.type} decoration ${where}`, {
+				path: dec.path
+			});
 		}
 	}
 
@@ -203,10 +235,6 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 		};
 	}
 
-	function filterMarks(bucket: IndexedDecoration[]): IndexedDecoration<MarkDecoration>[] {
-		return bucket.filter((d): d is IndexedDecoration<MarkDecoration> => d.dec.type === 'mark');
-	}
-
 	return {
 		addSource,
 		get sourceCount() {
@@ -217,31 +245,12 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 			editEpoch++;
 			runAll();
 		},
-		marksForPath(path) {
-			const bucket = byPath.get(pathKey(path));
-			return bucket ? filterMarks(bucket) : EMPTY_MARKS;
-		},
-		marksForDescendants(path) {
-			const bucket = byAncestor.get(pathKey(path));
-			return bucket ? filterMarks(bucket) : EMPTY_MARKS;
-		},
-		islandsForPath(path) {
-			const bucket = byPath.get(pathKey(path));
-			if (!bucket) return EMPTY_ISLANDS;
-			const islands = bucket.filter(
-				(d): d is IndexedDecoration<WidgetDecoration | ReplaceDecoration> =>
-					d.dec.type === 'widget' || d.dec.type === 'replace'
-			);
-			return islands.sort((a, b) => islandPosition(a.dec) - islandPosition(b.dec));
-		},
-		blockDecorationsForPath(path) {
-			const bucket = byPath.get(pathKey(path));
-			if (!bucket) return EMPTY_BLOCKS;
-			return bucket
-				.filter((d): d is IndexedDecoration<BlockDecoration> => d.dec.type === 'block')
-				.map((d) => d.dec);
-		},
+		paintOf,
 		runMarkHandler,
+		clickMark(dec, event) {
+			runMarkHandler(dec, () => dec.interactive?.onClick?.(dec, event));
+			if (!event.defaultPrevented) deps.landClick?.(event);
+		},
 		markHover
 	};
 }
@@ -258,6 +267,10 @@ function sameHoverRange(
 		d.end === range.end &&
 		pathKey(d.path) === pathKey(range.path)
 	);
+}
+
+function sameItems<T>(a: readonly T[], b: readonly T[]): boolean {
+	return a.length === b.length && a.every((item, i) => item === b[i]);
 }
 
 // A re-run inside a commit would let a source read a half-applied tree.

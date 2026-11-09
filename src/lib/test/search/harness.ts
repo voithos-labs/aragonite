@@ -30,15 +30,18 @@ export interface SearchHarnessOptions {
 export function makeSearchHarness(source: string, opts: SearchHarnessOptions = {}) {
 	const doc = parse(source);
 	const getDoc = opts.getDoc ?? (() => doc);
-	const engine = createDecorationEngine({ getDoc });
 	const state = createSearchState({
 		getDoc,
 		getDocumentGeneration: opts.getDocumentGeneration ?? (() => 0),
-		decorations: engine,
 		replace: opts.replace ?? stubReplace,
 		reveal: async () => null,
 		...(opts.regexExecutor ? { regexExecutor: opts.regexExecutor } : {}),
 		onClose: opts.onClose ?? (() => {})
+	});
+	// The editor reads the highlights the same way, while the bar is open.
+	const engine = createDecorationEngine({
+		getDoc,
+		blockSources: () => (state.highlights ? [state.highlights] : [])
 	});
 	return { doc, engine, state };
 }

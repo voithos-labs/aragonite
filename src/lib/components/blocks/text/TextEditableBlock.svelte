@@ -152,7 +152,7 @@
 	const combobox = $derived(inlineMenuCombobox(myPath));
 
 	// A shared constant keeps an empty decoration list out of the render key.
-	const NO_ISLANDS: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] = [];
+	const NO_ISLANDS: readonly IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] = [];
 	let el: HTMLDivElement | undefined = $state();
 	/** Cursor offset to restore after the next $effect render. Null = don't touch cursor. */
 	let pendingCursorOffset = $state<number | null>(null);
@@ -386,7 +386,7 @@
 		getEl: () => el ?? null,
 		storedAs,
 		hasIslands: () =>
-			decorationEngine ? decorationEngine.islandsForPath(myPath).length > 0 : false,
+			decorationEngine ? decorationEngine.paintOf(node, myPath).islands.length > 0 : false,
 		getRawSelection: () => cursor.getRawSelection(),
 		writeText,
 		completeMarker: () => void blockEdit.completeMarker(index),
@@ -426,7 +426,7 @@
 		navigateTo: (path) => rects?.navigateTo(path) ?? Promise.resolve(false),
 		activationClick,
 		get islands() {
-			return decorationEngine ? decorationEngine.islandsForPath(myPath) : NO_ISLANDS;
+			return decorationEngine ? decorationEngine.paintOf(node, myPath).islands : NO_ISLANDS;
 		},
 		brokenUrlCache,
 		reportRenderError: (error) =>

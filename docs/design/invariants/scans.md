@@ -239,6 +239,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.317 | A plugin or a host writes bytes through a `Draft`; another caller of the byte splice is on a list | L |
 | G4.320 | A marked line shape's marker is read in the container reader | L |
 | G4.329 | Bytes are read into the tree by the byte splice, which closes the openers they write, or by an undo | L |
+| G4.335 | A plugin's paint and a decoration source are asked only by the engine that keeps their answers | L |
 
 ### The entries
 
@@ -509,7 +510,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.159 · An emptied container keeps its opening line.** Each container kind (bullet, ordered and task item, quote, nested pairs of them, footnote definition, alert, admonition) has its last text deleted at the very end of the document, through the text write and through the ancestry rebuild, and the bytes must reload as the empty container the editor still shows: `- `, `>`, `[^1]: `. `test/schema/emptied-body-bytes.test.ts`.
 
-**G4.163 · One caller per mark gesture.** A call into a mark's `interactive.onClick`, `onHover` or `onActivate` sits only in `decorations/mark-hover.ts` (the hover lifecycle, keyed by the decoration), `decorations/mark-activation.ts` (the activate command) and `components/overlays/DecorationOverlay.svelte` (the click), each inside the engine's `runMarkHandler`. A new route that called a handler itself would skip the one-end rule or the `error` event. `test/invariants/lint/file-rules.test.ts`.
+**G4.163 · One caller per mark gesture.** A call into a mark's `interactive.onClick`, `onHover` or `onActivate` sits only in `decorations/mark-hover.ts` (the hover lifecycle, keyed by the decoration), `decorations/mark-activation.ts` (the activate command) and `decorations/decoration-state.svelte.ts :: clickMark` (the click, before the caret lands), each inside the engine's `runMarkHandler`. A new route that called a handler itself would skip the one-end rule or the `error` event. `test/invariants/lint/file-rules.test.ts`.
 
 **G4.165 · Text that moves inside an unresized block is reported.** An overlay is measured against the text under it, and a resize observer misses text sliding in a box that keeps its size, as when markers show or hide. Every marker-hook write (`data-focused`, the reveal class, the root's mode and theme) reports to `createTextMoves`, as do a widget swapping to its source, focus crossing a markers-only block, and image and font loads. `lint/file-rules.test.ts` lists the hook writers; `mark-overlay-follows-text.spec.ts` holds the swap and the focus.
 
@@ -694,3 +695,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.320 · One reader for a marked container.** `core/parsers/strip-container.ts :: stripOpener` reads a marked or indented container's lines, through the same line syntax its writer writes, for a `container` block type and the built-in quote alike. So `.reads.exec(` appears only there, in the head writer (which keeps the marker a head line was spelled with), in the registration check (G1.191), and in the alert and footnote strippers until both are `container` block types. `lint/file-rules.test.ts`.
 
 **G4.329 · Bytes reach the tree through the byte splice.** `tree-operations/byte-splice.ts :: spliceReading` reads bytes as given, so a route that called it itself would skip the closer the byte splice (`editor-actions/commit/byte-splice.ts`) gives an opener its changes write. The one other caller is an undo under a changed grammar (`commit/history.ts`), which puts back an entry's exact bytes. `lint/file-rules.test.ts`.
+
+**G4.335 · The engine asks every paint.** A plugin's `paint` and `paintContainer` are called only in `decorations/plugin-paint.svelte.ts`, which keeps a block's answer while its bytes hold and calls it outside the reactive read, and a block source's `decorationsOf` and a whole-document source's `provide` only in `decorations/decoration-state.svelte.ts`. A route that asked one itself would paint every read and run plugin code inside a derived; it reads `paintOf`. `lint/file-rules.test.ts`.

@@ -2,6 +2,7 @@
 // A paragraph written with CRLF must keep its trailing `\r\n` through the keystroke commit:
 // appending a hard `\n` there would make the first keystroke rewrite the block's line ending.
 // Driven through the mounted component's real input listener, since the commit lives there.
+import { NO_PAINT } from '#lib/decorations/block-paint.js';
 import { describe, it, expect, afterEach, beforeAll, vi } from 'vitest';
 import { unmount } from 'svelte';
 import TextEditableBlock from '#lib/components/blocks/text/TextEditableBlock.svelte';
@@ -15,9 +16,7 @@ import {
 } from '../../harness/mount-editor.svelte';
 
 // The render effect reads decorations off `decorationEngine`; the stub returns none.
-const noIslands = {
-	islandsForPath: () => []
-} as unknown as EditorServices['decorations'];
+const noIslands = { paintOf: () => NO_PAINT } as unknown as EditorServices['decorations'];
 
 function mountText(source: string) {
 	const { instance, target, blockEdit } = mountBlock(TextEditableBlock, {

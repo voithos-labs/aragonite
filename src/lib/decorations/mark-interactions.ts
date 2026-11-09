@@ -5,6 +5,7 @@
  */
 
 import type { LocalRect } from '../core/coordinate-spaces';
+import { elementsAtPoint } from '../browser/point';
 import type { IndexedDecoration } from './buckets';
 import type { MarkDecoration } from './types';
 
@@ -44,24 +45,16 @@ export function paintOrder(
 	return [...plain, ...pointer.sort((a, b) => comparePrecedence(b, a))];
 }
 
-/** The two measurements a block offers for painting marks: a leaf's range rects, a grid's cells. */
+/** What a leaf offers for painting marks: its range rects. */
 export interface MarkMeasurer {
 	measurePartialRects?(start: number, end: number): DOMRect[];
-	cellRect?(rowIdx: number, colIdx: number): DOMRect | null;
 }
 
-/** The viewport rects a mark paints: one per visual line in a prose block, one whole cell in a
- *  grid, the way the overlay paints them. */
+/** The viewport rects a mark paints, one per visual line, in a block or a table cell alike. */
 export function paintedMarkRects(
 	dec: MarkDecoration,
 	componentAt: (path: number[]) => MarkMeasurer | null
 ): DOMRect[] {
-	// A grid's cell marks paint whole cells, though a cell has measurable text of its own.
-	const grid = dec.path.length > 2 ? componentAt(dec.path.slice(0, -2)) : null;
-	if (grid?.cellRect) {
-		const cell = grid.cellRect(dec.path[dec.path.length - 2], dec.path[dec.path.length - 1]);
-		return cell ? [cell] : [];
-	}
 	const leaf = componentAt(dec.path);
 	return leaf ? leafMarkRects(leaf, dec) : [];
 }
@@ -69,6 +62,20 @@ export function paintedMarkRects(
 /** A collapsed range still yields a zero-width rect at a line boundary, an invisible sliver. */
 export function leafMarkRects(leaf: MarkMeasurer, dec: MarkDecoration): DOMRect[] {
 	return (leaf.measurePartialRects?.(dec.start, dec.end) ?? []).filter((r) => r.width > 0);
+}
+
+/** Runs `land` while the click marks under the event's point let the pointer through, so a caret
+ *  placed at that point lands in the text beneath them. */
+export function passPointerThrough(event: MouseEvent, land: () => void): void {
+	const under = elementsAtPoint(document, event.clientX, event.clientY).filter(
+		(el): el is HTMLElement => el.classList.contains('decoration-overlay-interactive')
+	);
+	for (const el of under) el.style.pointerEvents = 'none';
+	try {
+		land();
+	} finally {
+		for (const el of under) el.style.pointerEvents = '';
+	}
 }
 
 /** The rect the point falls on, or null; a point between two consecutive lines of the mark

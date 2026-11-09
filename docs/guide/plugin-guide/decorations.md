@@ -1,10 +1,75 @@
 # Decorations
 
-Part of the [plugin guide](../plugin-guide.md). A source registers per editor, from the `onEditor` callback [One process, many editors](per-editor.md) introduces.
+Part of the [plugin guide](../plugin-guide.md).
 
 Everything so far teaches the editor content you **own**: a kind, its grammar, its component. A decoration is the other half of the story, for annotating content you **don't own**. Highlight every occurrence of a word, ghost-complete a sentence, fold a range, badge a heading. Decorations are view-only: they never enter the document tree, never change `getSource()`, and never touch undo.
 
-You register a **source** on each editor instance, from `onEditor`:
+A plugin value paints with `paint(block)`, up next. A `setup` plugin registers a whole-document source from `onEditor` instead, which the rest of the page covers from [A whole-document source](#a-whole-document-source) on.
+
+## Paint from a plugin value
+
+`paint(block)` sits in your contribution beside `commands` and the rest. The editor calls it for each block of text it has on screen (a paragraph, a heading, a table cell, the paragraph inside a list item) and keeps the answer while that block's bytes stay the same, so typing in a paragraph asks that paragraph again and nothing else. A block off screen isn't asked until it scrolls in.
+
+```ts
+import { definePlugin, type MarkAt, type Paint } from '@voithos-labs/aragonite/plugin';
+
+// One function for every mark, so a mark painted again comes out the same.
+const hover = (at: MarkAt | null) => (at ? popup.show(at.range, at.anchor) : popup.pointerLeft());
+
+export const shouty = definePlugin({
+	name: 'shouty',
+	version: '1.0.0',
+	editor: '^0.11.6',
+	contributes: () => ({
+		paint(block) {
+			const marks: Paint[] = [];
+			for (const m of block.text.matchAll(/\b[A-Z]{4,}\b/g)) {
+				const from = block.byteAt(m.index);
+				marks.push({ type: 'mark', from, to: from + m[0].length, class: 'shouting', hover });
+			}
+			return marks;
+		}
+	})
+});
+```
+
+Every position is a document byte. `block.byteAt(i)` turns an offset into `block.text` into one and `block.offsetAt(byte)` goes back. Do the mapping per character rather than adding `block.from`: in a quote, the `> ` markers between the block's lines aren't its text, so `block.from + i` drifts from the second line on.
+
+| `type` | Fields | What it draws |
+| --- | --- | --- |
+| `mark` | `from`, `to`, `class`, `attrs?`, `hover?`, `activate?`, `click?` | Your class behind the text from `from` to `to`, one rect per line |
+| `widget` | `at`, `view`, `side?`, `data?` | A view between two characters, taking no bytes, drawn after `at` unless `side` is `'before'` |
+| `replace` | `from`, `to`, `view?`, `class?`, `data?` | A view, or an empty span with your `class`, standing in for the bytes, which stay in the document |
+| `block` | `class?`, `attrs?`, `badge?`, `data?` | Classes and attributes on the block's own element, and a badge view ahead of it |
+
+A view is a `PluginView` that gets `{ paint }`, the paint it came from, so put what it shows in `data`. `svelteView`, `reactView` and `vueView` make one from a component, the same as for any widget, and that's the only place React or Vue shows up: `paint` itself is a plain function. Widgets and replaces land only in prose. Paint that can't land (outside the block's text, on a quote's marker) is left out, with one dev warning per problem.
+
+A block holding other blocks (a list, a quote, a table row, a list item with text in it) never reaches `paint`, since its children get asked about their own text. To class one or give it a badge, add `paintContainer(block)` beside `paint`. It's asked the same way and hands back `block` paint only. Its `text` holds every child's text and its `children` every child, so tell it apart by its type rather than reading either (a 25,000-item list has a lot of both):
+
+```ts
+paintContainer(block) {
+	return block.is(builtin.blocks.blockquote) ? [{ type: 'block', class: 'quoted' }] : [];
+}
+```
+
+When something other than the block's bytes changes what you'd paint (an answer arrived, an option flipped), ask again with `editor.repaint(blocks)` from your `setup(editor)`, or `editor.repaint()` for every block on screen. A block that left the document is skipped. The first blocks are asked before `setup` runs, so keep what `paint` reads in the closure `contributes` returns, and call `repaint()` from `setup` if it fills that in. Say your dictionary answers late, with the byte the word it checked starts at:
+
+```ts
+setup(editor) {
+	return dictionary.onAnswer((at) => {
+		const block = editor.blockAt(at);
+		if (block) editor.repaint([block]);
+	});
+}
+```
+
+A mark's handlers each get a `MarkAt`: `range`, the mark's bytes in the document as the handler runs, `anchor`, the rect the pointer or the caret is on, and `rects`, every rect the mark paints. `hover` and `activate` work as in [Interactive marks](#interactive-marks-click-hover-and-the-keyboard) below, `hover(null)` included. `click` runs before the caret lands where the press was, and `event.preventDefault()` keeps the caret where it was. Hand the same function over each time you paint: a fresh closure makes every mark look new, and the editor measures it again.
+
+A paint that throws keeps the block's last paint and reports a `PluginError` once, with `doing: 'paint'`, until the block changes or you repaint.
+
+## A whole-document source
+
+A `setup` plugin registers a **source** on each editor instance, from the `onEditor` callback [One process, many editors](per-editor.md) introduces:
 
 ```ts
 setup(ctx) {
@@ -104,11 +169,11 @@ A mark answers the user through its `interactive` field. It takes up to three ha
 
 | Handler | Runs when | Gets |
 | --- | --- | --- |
-| `onClick(dec, ev)` | the mark is clicked | the click event |
+| `onClick(dec, ev)` | the mark is clicked, before the caret lands | the click event |
 | `onHover(dec, hover)` | the pointer enters the mark, then once more with `null` when the hover's over | `{ anchor, rects }`, in viewport coordinates |
 | `onActivate(dec, { anchor })` | the `decorations.activateAtCaret` command runs with the caret in the mark | the mark's rect on the caret's line |
 
-The two pointer handlers differ in one way. A mark with `onClick` takes the click, so clicking it runs your handler and doesn't move the caret. A hover-only mark lets every click, drag and double-click through to the text under it, so a defined word still edits like any other word (and keeps the text cursor). The editor works out the hover from where the pointer is, and it skips that work when no hover mark is on screen.
+The two pointer handlers differ in one way. A mark with `onClick` takes the click: your handler runs first, then the caret lands where you clicked, unless the handler calls `ev.preventDefault()`, which keeps it where it was. A hover-only mark lets every click, drag and double-click through to the text under it, so a defined word still edits like any other word (and keeps the text cursor). The editor works out the hover from where the pointer is, and it skips that work when no hover mark is on screen.
 
 Here's a glossary: hover a term for its definition, or reach the same popup from the keyboard. `popup` is yours; the editor never sees it.
 
@@ -144,7 +209,7 @@ What you can count on:
 - **Restyling keeps the hover.** A hover belongs to your source, the mark's block and its range, not its class, so an `invalidate()` that adds a `glossary-term-hovered` class doesn't end and restart it. Move the range and it's a new mark (which it is, really). Two hover marks from one source over the same range are told apart by their order in your answer, so swap them mid-hover and the `null` goes to the other one.
 - **Throws stay contained.** A handler that throws shows up on the `error` event as origin `decoration`, with the mark's `path`, and the editor carries on.
 
-When marks overlap, the shortest range wins, then the earlier-registered source, then the earlier mark in its answer. The pointer follows the same rule, for hovers and clicks alike. A table cell is the one place marks merge: every mark in the cell paints as one whole-cell rect, and the same rule picks which mark the click and the hover go to.
+When marks overlap, the shortest range wins, then the earlier-registered source (a whole-document source before any plugin's paint), then the earlier mark in its answer. The pointer follows the same rule, for hovers and clicks alike.
 
 The keyboard's way in is one command instead of a tab stop per mark. `decorations.activateAtCaret` runs the `onActivate` of the mark under the caret (a caret on either edge counts, and over a selection it's the end you're extending). It ships with no chord. A host binds one through its `keybindings` prop (`{ chord: 'Alt+Enter', command: 'decorations.activateAtCaret' }`), and a plugin that wants its own key wraps it in a command:
 

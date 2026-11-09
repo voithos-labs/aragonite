@@ -2,6 +2,7 @@
 // `link.openCard` shows as pressed from the construct the card would edit, not the mark table
 // other toolbar ids read, and a range must lie inside that construct.
 // Miss-analysis: no test asked what a command with no mark-table entry shows as pressed.
+import { NO_PAINT } from '#lib/decorations/block-paint.js';
 import { describe, it, expect, afterEach } from 'vitest';
 import { unmount } from 'svelte';
 import TextEditableBlock from '#lib/components/blocks/text/TextEditableBlock.svelte';
@@ -9,7 +10,7 @@ import type { PresentationMode } from '#lib/presentation-mode.js';
 import type { EditorServices } from '#lib/editor-keys.js';
 import { mountBlock } from '../../harness/mount-block';
 
-const noIslands = { islandsForPath: () => [] } as unknown as EditorServices['decorations'];
+const noIslands = { paintOf: () => NO_PAINT } as unknown as EditorServices['decorations'];
 
 /** `Visit [example](https://x.com) now`: the link spans [6, 30), ` now` runs to 34. */
 const LINKED = 'Visit [example](https://x.com) now\n';

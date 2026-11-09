@@ -125,6 +125,8 @@ These checks run in three kinds of place:
 | G1.190 | While a draft is open, every write tells it everything the write changed | A·N |
 | G1.191 | A marked line shape's `reads` takes the markers it writes whole | A·N |
 | G1.192 | One block type name reads the same facts in every editor running it | A·N |
+| G1.203 | Paint a block can't hold is left out with a dev warning, never drawn somewhere else | A·N |
+| G1.205 | A painted mark covers the document bytes it was painted at, and its handlers read those bytes back | N |
 
 ### The entries
 
@@ -343,3 +345,7 @@ These checks run in three kinds of place:
 **G1.191 · A marked shape reads what it writes** (a dev throw at registration). A `marked` line shape's `reads` has to take `first` and `rest` whole and stop there, and each one's trimmed blank-line form too, or a line the writer wrote reads back with marker left in its text. `normalizeRegistration` checks it for a `registerBlockKind` kind and a `container` block type alike, before any line is read. `checkMarkedReads` (`schema/block-kind-descriptor.ts`) · `container-block.svelte.test.ts`.
 
 **G1.192 · A block type's facts are page-wide** (`block-type-facts`). Every descriptor read is by kind, so a block type lends its derived facts to the page by its `plugin/name` while an editor runs it, and a second editor holding the same name doesn't replace them. When it derives other facts (they came from its options), dev warns and the first editor's stand: a fact can't depend on options, only a `draw` can. `holdBlockKind` (`schema/block-kind-descriptor.ts`) · `line-block.svelte.test.ts`.
+
+**G1.203 · Paint lands where it's addressed, or not at all** (a dev warning). A plugin's paint is stored in its block's own offsets, so a position outside the block's text (another block, a quote's marker), a mark, widget or replace on a block with children, and an inline widget outside prose or past the content are left out, one warning per plugin and problem. The whole-document input warns through the same predicate. `inlineWidgetMiss`, `paintsOnlyClasses` (`decorations/paint-lands.ts`) · `plugin-paint.svelte.ts :: placed` · `plugin-paint.svelte.test.ts`, `island-verdicts.svelte.test.ts`.
+
+**G1.205 · A painted mark measures where its bytes are.** A paint's `from`..`to` is stored as offsets into its block's text, the last byte through `offsetAt(to - 1)` (in a quote the byte past a line's end is the next line's marker), and a handler's `MarkAt.range` maps back the same way. In a paragraph, a quote's second line and a cell the overlay covers the painted word and the handlers get its bytes; adding `block.from` reds the quote rows. `rangeIn`, `rangeOf` (`plugin-paint.svelte.ts`) · `paint.spec.ts`, `plugin-paint.svelte.test.ts`.

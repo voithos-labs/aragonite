@@ -55,18 +55,30 @@ test.describe('decoration mark overlay', () => {
 		expect(widths.every((w) => w > 0)).toBe(true);
 	});
 
-	test('a mark on a table cell paints one whole-cell overlay', async ({ page }) => {
-		await editor.loadContent('| Name | Role |\n| :--- | :--- |\n| Ada | dev |\n');
-		// Body cell "Ada" is table → row 1 (header is row 0) → col 0.
+	test('two marks in one table cell paint two overlays, each over its own word', async ({
+		page
+	}) => {
+		await editor.loadContent('| Name | Role |\n| :--- | :--- |\n| Ada Lovelace | dev |\n');
+		// Body cell "Ada Lovelace" is table → row 1 (header is row 0) → col 0.
 		await page.evaluate(() => {
 			(window as any).__test.decorations.addSource({
 				name: 'e2e-cell',
-				provide: () => [{ type: 'mark', path: [0, 1, 0], start: 0, end: 3, class: 'e2e-cell' }]
+				provide: () => [
+					{ type: 'mark', path: [0, 1, 0], start: 0, end: 3, class: 'e2e-cell' },
+					{ type: 'mark', path: [0, 1, 0], start: 4, end: 12, class: 'e2e-cell' }
+				]
 			});
 		});
 
-		await expect(page.locator('.decoration-overlay.e2e-cell')).toHaveCount(1);
-		await expect(page.locator('.decoration-overlay.e2e-cell')).toBeVisible();
+		const overlays = page.locator('.decoration-overlay.e2e-cell');
+		await expect(overlays).toHaveCount(2);
+		const boxes = await overlays.evaluateAll((els) =>
+			els.map((el) => el.getBoundingClientRect()).map((r) => [r.left, r.right])
+		);
+		for (const [i, word] of ['Ada', 'Lovelace'].entries()) {
+			const run = await textRunRect(page, word, { path: [0, 1, 0] });
+			expect(boxes[i]).toEqual([expect.closeTo(run.left, 0), expect.closeTo(run.right, 0)]);
+		}
 	});
 
 	test('an interactive mark receives a real click', async ({ page }) => {

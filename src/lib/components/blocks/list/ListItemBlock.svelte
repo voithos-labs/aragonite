@@ -105,6 +105,7 @@
 
 	// The item renders no block host, so its own box carries the decorations addressed to it.
 	const blockDecorations = useBlockDecorations({
+		getNode: () => node,
 		getPath: () => myPath,
 		getEl: () => boxEl ?? null,
 		engine: decorations,

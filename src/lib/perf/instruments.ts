@@ -67,6 +67,10 @@ export interface PerfSnapshot {
 	blockRenderPaths: string[];
 	mountedBlockCount: number;
 	decorationRuns: number;
+	/** One path per call of a paint source for a block: a keystroke should add the edited block's. */
+	paintCallPaths: string[];
+	/** One path per mark overlay measure that held a mark: what a keystroke re-measures. */
+	markMeasurePaths: string[];
 	islandRebuilds: number;
 	islandKeyScans: number;
 	/** Code units a collapsed delete segmented around the caret, summed over deletes. */
@@ -125,6 +129,8 @@ function emptySnapshot(): PerfSnapshot {
 		blockRenderPaths: [],
 		mountedBlockCount: 0,
 		decorationRuns: 0,
+		paintCallPaths: [],
+		markMeasurePaths: [],
 		islandRebuilds: 0,
 		islandKeyScans: 0,
 		deleteWindowUnits: 0,
@@ -161,6 +167,8 @@ export function perfSnapshot(): PerfSnapshot {
 		keystrokeInPageMs: [...counters.keystrokeInPageMs],
 		caretPaintMs: [...counters.caretPaintMs],
 		blockRenderPaths: [...counters.blockRenderPaths],
+		paintCallPaths: [...counters.paintCallPaths],
+		markMeasurePaths: [...counters.markMeasurePaths],
 		heightTableBuilds: [...counters.heightTableBuilds]
 	};
 }
@@ -265,6 +273,16 @@ export function recordBlockRender(ms: number, path?: number[]): void {
 export function recordDecorationRun(): void {
 	if (!enabled) return;
 	counters.decorationRuns++;
+}
+
+export function recordPaintCall(path: readonly number[]): void {
+	if (!enabled) return;
+	counters.paintCallPaths.push(path.join(','));
+}
+
+export function recordMarkMeasure(path: readonly number[]): void {
+	if (!enabled) return;
+	counters.markMeasurePaths.push(path.join(','));
 }
 
 export function recordIslandRebuild(): void {

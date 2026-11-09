@@ -215,6 +215,25 @@ describe('a listener a plugin added that throws', () => {
 });
 
 describe('use', () => {
+	it("runs what a plugin's setup returned once, when it's turned off or the editor unmounts", async () => {
+		const cleaned: string[] = [];
+		const cleans = (name: string) =>
+			definePlugin({
+				name,
+				version: '1.0.0',
+				editor: '*',
+				contributes: () => ({ setup: () => () => void cleaned.push(name) })
+			});
+		const [off, stays] = [cleans('unit-cleans-off'), cleans('unit-cleans-stays')];
+		const m = mountEditor({ source: 'text\n', plugins: [off, stays] });
+		await m.settle();
+		m.instance.use([stays]);
+		await m.settle();
+		expect(cleaned).toEqual(['unit-cleans-off']);
+		await destroyMountedEditors();
+		expect(cleaned).toEqual(['unit-cleans-off', 'unit-cleans-stays']);
+	});
+
 	it('reads the document again without a plugin, keeping its bytes, and back with it', async () => {
 		const m = mountEditor({ source: 'text\n\n@b hi\n', plugins: [marks] });
 		await m.settle();

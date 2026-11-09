@@ -2227,15 +2227,15 @@ const MEASURE_CHANNEL: ManifestRule = {
 /** A mark's handlers are plugin code: called from one place per gesture, each through the
  *  engine's guarded runner, so a new route cannot skip the hover lifecycle or the error event. */
 const MARK_HANDLER_CALLERS: ManifestRule = {
-	id: 'G4.163 a mark’s interactive handlers are called only by the hover lifecycle, the activate command and the overlay’s click',
+	id: 'G4.163 a mark’s interactive handlers are called only by the hover lifecycle, the activate command and the engine’s click',
 	matches: /\binteractive\s*\??\.\s*on(?:Click|Hover|Activate)\s*(?:\?\.)?\s*\(/,
 	declared: {
 		'src/lib/decorations/mark-hover.ts':
 			'`onHover`, started and ended by the one lifecycle keyed on the decoration',
 		'src/lib/decorations/mark-activation.ts':
 			'`onActivate`, run by `decorations.activateAtCaret` on the mark the precedence rule picks',
-		'src/lib/components/overlays/DecorationOverlay.svelte':
-			'`onClick`, on the rect the click landed on'
+		'src/lib/decorations/decoration-state.svelte.ts':
+			'`onClick`, for the rect the click landed on, before the caret lands there'
 	},
 	reason:
 		'a mark handler called from anywhere else skips the hover lifecycle’s one-end rule or the `error` event: route the gesture through `DecorationEngine.markHover` or `runMarkHandler`',
@@ -3296,6 +3296,38 @@ const TEXT_MOVES: FileRule = {
 	]
 };
 
+// ── G4.335 the engine asks every paint ───────────────────────────────────────
+
+const PAINT_ENGINE = `${SOURCE_DIR.decorations}decoration-state.svelte.ts`;
+const PLUGIN_PAINT = `${SOURCE_DIR.decorations}plugin-paint.svelte.ts`;
+
+const PAINT_CALLERS: FileRule = {
+	id: 'G4.335 a paint or a decoration source is asked only by the engine that keeps its answer',
+	population: under(SOURCE_DIR.library, SOURCE_DIR.plugins),
+	// The hover tracker's own `paint` records what an overlay drew; it asks no source.
+	matches: /(?<!markHover)\.(?:paint|paintContainer|provide|decorationsOf)\s*(?:\?\.\s*)?\(/,
+	allowed: {
+		[PAINT_ENGINE]:
+			'runs a whole-document source after an edit, and asks each block source as a block reads its paint',
+		[PLUGIN_PAINT]:
+			"asks a plugin's `paint` or `paintContainer` for a block whose kept answer no longer holds"
+	},
+	reaches: [PAINT_ENGINE, PLUGIN_PAINT],
+	reason:
+		"a paint asked anywhere else skips the cache that keeps a block's answer while its bytes hold, and runs plugin code inside a reactive read: read `DecorationEngine.paintOf` instead",
+	hits: [
+		at(`${SOURCE_DIR.overlays}x.ts`, 'const marks = contribution.paint?.(block) ?? [];'),
+		at(`${SOURCE_DIR.blocks}x.ts`, 'const classes = contribution.paintContainer(block);'),
+		at(`${SOURCE_DIR.search}x.ts`, 'const decs = source.provide(doc, { editEpoch });'),
+		at(`${SOURCE_DIR.blocks}x.ts`, 'const own = highlights.decorationsOf(node, path);')
+	],
+	misses: [
+		at(`${SOURCE_DIR.overlays}x.ts`, 'untrack(() => engine?.markHover.paint(owner, el, targets));'),
+		at(`${SOURCE_DIR.blocks}x.ts`, 'const { marks } = engine.paintOf(node, path);'),
+		at(`${SOURCE_DIR.blocks}x.ts`, 'if (!contribution.paint) return;')
+	]
+};
+
 const SOURCES = collectEditorSources();
 describeFileRules(
 	[
@@ -3312,7 +3344,8 @@ describeFileRules(
 		PLUGIN_VIEW_FALLBACK,
 		ONE_VIEW_WRAPPER,
 		ONE_WRITE,
-		SPLICE_READS
+		SPLICE_READS,
+		PAINT_CALLERS
 	],
 	SOURCES
 );

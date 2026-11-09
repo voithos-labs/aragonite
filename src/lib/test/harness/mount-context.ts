@@ -26,6 +26,7 @@ import type { PresentationMode } from '#lib/presentation-mode.js';
 import type { CommandDispatchContext } from '#lib/schema/block-commands.js';
 import type { DocumentView } from '#lib/core/node-views.js';
 import { createDecorationEngine } from '#lib/decorations/decoration-state.svelte.js';
+import { createDocumentRead } from '#lib/editor-actions/commit/document-read.js';
 import {
 	createLinkCardState,
 	linkCardGates
@@ -103,6 +104,12 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		// Real, not a cast: BlockHost and its overlays call four members of the decorations
 		// service during mount, and one with no sources answers all of them honestly.
 		decorations: createDecorationEngine({ getDoc }),
+		read: createDocumentRead({
+			getDoc,
+			version: () => 0,
+			typeOf: (kind) => ({ name: kind, label: kind }),
+			reading: { grammar: defaultGrammarView, resolver: undefined, resolverSignature: '' }
+		}),
 		selection,
 		rangeCoverage: () => null,
 		rangePaint: () => null,

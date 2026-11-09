@@ -54,6 +54,8 @@ interface ReflowRow {
 	/** What mounts here, named as the test title names it. */
 	unit: string;
 	tag: string;
+	/** The harness's URL query, when the row needs one of its plugins. */
+	query?: `?${string}`;
 	/** Loads the fixture and checks what has to hold for the scroll to prove anything. */
 	arrange: (page: Page, editor: EditorPage) => Promise<void>;
 	selector: string;
@@ -103,6 +105,23 @@ const ROWS: ReflowRow[] = [
 		},
 		selector: '.block-host',
 		log: 'VR-4 marks reflow guard'
+	},
+	{
+		// The same marks from a plugin's paint, which each block asks for as it mounts.
+		unit: 'block with a painted mark',
+		tag: 'VR-4 paint',
+		query: '?paint=on',
+		arrange: async (page, editor) => {
+			await editor.loadLargeFixture('many-small-blocks', FIXTURE_BYTES);
+			await page.evaluate(() =>
+				(window as any).__test.paint.set((block: { from: number }) => [
+					{ type: 'mark', from: block.from, to: block.from + 3, class: 'm' }
+				])
+			);
+			await expect.poll(() => page.locator('.decoration-overlay.m').count()).toBeGreaterThan(10);
+		},
+		selector: '.block-host',
+		log: 'VR-4 paint reflow guard'
 	}
 ];
 
@@ -121,7 +140,7 @@ for (const row of ROWS) {
 	}) => {
 		skipUnlessSupported(page, 'cdp');
 		const editor = new EditorPage(page);
-		await editor.goto();
+		await editor.goto(row.query);
 		await row.arrange(page, editor);
 
 		const layoutCount = await cdpLayoutCount(page);

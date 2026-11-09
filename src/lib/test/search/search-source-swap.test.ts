@@ -7,20 +7,20 @@ import { makeSearchHarness } from './harness';
 function makeSwapHarness(source: string) {
 	let doc = parse(source);
 	let generation = 0;
-	const { engine, state } = makeSearchHarness(source, {
+	const { state } = makeSearchHarness(source, {
 		getDoc: () => doc,
 		getDocumentGeneration: () => generation
 	});
 	return {
 		state,
 		currentDoc: () => doc,
-		notifyEdit: () => engine.notifyEdit(),
+		documentChanged: () => state.documentChanged(),
 		// What the editor's document swap does: a fresh tree, a generation bump, then the edit
 		// notification any commit also sends.
 		swapTo(next: string) {
 			doc = parse(next);
 			generation++;
-			engine.notifyEdit();
+			state.documentChanged();
 		}
 	};
 }
@@ -61,7 +61,7 @@ describe('SearchState across a document swap', () => {
 		h.state.next();
 		h.state.next();
 		h.currentDoc().children[2].raw = 'cat cat\n';
-		h.notifyEdit();
+		h.documentChanged();
 		expect(h.state.matches).toHaveLength(4);
 		expect(h.state.activeIndex).toBe(2);
 	});

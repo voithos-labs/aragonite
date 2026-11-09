@@ -431,23 +431,29 @@ test.describe('mark hover', () => {
 	test('a menu a table opens over its own cells does not hover the cell under it', async ({
 		page
 	}) => {
-		await editor.loadContent('| A | B |\n| --- | --- |\n| c | d |\n| e | f |\n| g | h |\n');
+		await editor.loadContent(
+			'| Alpha | Beta |\n| --- | --- |\n| charlie | delta |\n| echo | fox |\n'
+		);
 		const cells: MarkSpec[] = [];
-		for (let row = 0; row < 4; row++) {
-			for (let col = 0; col < 2; col++) {
-				cells.push({ path: [0, row, col], start: 0, end: 1, cls: `hv-r${row}c${col}` });
-			}
-		}
+		const texts = [
+			['Alpha', 'Beta'],
+			['charlie', 'delta'],
+			['echo', 'fox']
+		];
+		texts.forEach((row, r) =>
+			row.forEach((text, c) =>
+				cells.push({ path: [0, r, c], start: 0, end: text.length, cls: `hv-r${r}c${c}` })
+			)
+		);
 		await addHoverSource(page, 'cells', cells);
-		const first = (await page.locator('.table-cell').first().boundingBox())!;
-		const opened = { x: first.x + first.width / 2, y: first.y + first.height / 2 };
-		await moveTo(page, opened);
-		await expect.poll(() => hovers(page)).toHaveLength(1);
+		const opened = await hoverWord(page, 'Alpha', [0, 0, 0]);
 
 		await page.mouse.click(opened.x, opened.y, { button: 'right' });
 		const menu = (await page.locator('.table-action-menu').boundingBox())!;
-		// Inside the menu and over the first column's next row, which carries a hover mark.
-		const over = { x: menu.x + 12, y: first.y + first.height + 12 };
+		// Inside the menu and over the next row's text, which carries a hover mark.
+		const below = await textRunRect(page, 'charlie', { path: [0, 1, 0] });
+		const over = { x: Math.max(menu.x + 4, below.left + 4), y: center(below).y };
+		expect(over.x, 'the menu covers the next row').toBeLessThan(below.right);
 		expect(over.y, 'the menu covers the next row').toBeLessThan(menu.y + menu.height);
 		await moveTo(page, over, 8);
 

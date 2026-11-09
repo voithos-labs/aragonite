@@ -73,6 +73,8 @@ const EMPTY: PerfSnapshot = {
 	blockRenderPaths: [],
 	mountedBlockCount: 0,
 	decorationRuns: 0,
+	paintCallPaths: [],
+	markMeasurePaths: [],
 	islandRebuilds: 0,
 	islandKeyScans: 0,
 	deleteWindowUnits: 0,

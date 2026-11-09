@@ -31,6 +31,7 @@ import type { RangeCoverage } from './selection/range-coverage';
 import type { DocumentBytes, RangePaint } from './selection/range-bytes';
 import type { SearchState } from './search/search-state.svelte';
 import type { DecorationEngine } from './decorations/decoration-state.svelte';
+import type { DocumentRead } from './editor-actions/commit/document-read';
 import type { CaretMemory } from './caret/caret-memory';
 import type { CaretWriter } from './browser/caret-writer';
 import type { CompositionTracker } from './browser/composition';
@@ -102,6 +103,8 @@ export const EDITOR_SERVICES_KEY = Symbol('editor-services');
 export interface EditorServices {
 	events: EditorEvents;
 	decorations: DecorationEngine;
+	/** How a plugin reads a block: its bytes, its pieces and positions in document bytes. */
+	read: DocumentRead;
 	/** The selection the editor owns (a range, a gap caret or a widget selected whole), which
 	 *  every reader of a selected widget asks. */
 	selection: SelectionState;

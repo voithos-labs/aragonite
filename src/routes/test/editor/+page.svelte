@@ -26,6 +26,7 @@
 	import { slashCommands } from '@voithos-labs/aragonite-slash-commands';
 	import { localStorageWords, spellcheckPlugin } from '@voithos-labs/aragonite-spellcheck';
 	import { countActionPlugin } from './count-action-plugin';
+	import { paintProbePlugin } from './paint-probe-plugin';
 
 	// Harness flags all arrive as URL params; SSR has no location, so the guard lives here once.
 	const param = (name: string): string | null =>
@@ -72,7 +73,9 @@
 			: spell === 'bare'
 				? [spellcheckPlugin]
 				: [];
-	const pagePlugins = [...slashPlugins, ...actionPlugins, ...spellPlugins];
+	// `?paint=on` lists a plugin whose `paint` a spec sets through `__test.paint`.
+	const paintPlugins = param('paint') === 'on' ? [paintProbePlugin] : [];
+	const pagePlugins = [...slashPlugins, ...actionPlugins, ...spellPlugins, ...paintPlugins];
 
 	// Stand-in host hooks, so the code block gutter's run and overflow buttons render. Off by
 	// default, since the block specs measure that gutter's width.
