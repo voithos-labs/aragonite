@@ -2522,6 +2522,28 @@ const REVEAL_IN_SVELTE: FileRule = {
 	]
 };
 
+// ── G4.320 a marked line shape reads its marker in the container reader ─────
+
+const MARKER_READS: FileRule = {
+	id: 'G4.320 a marked line shape reads its marker in the container reader',
+	population: under(SOURCE_DIR.library, SOURCE_DIR.plugins),
+	matches: /\.reads\.exec\(/,
+	allowed: {
+		'src/lib/core/parsers/strip-container.ts':
+			'the container reader, which every marked container and the quote read their lines through',
+		'src/lib/schema/headed-lines.ts':
+			'the head writer, which reads the marker a head line was spelled with so a write keeps it',
+		'src/lib/schema/block-kind-descriptor.ts':
+			"the registration check that a shape's `reads` takes its own markers whole",
+		'src/lib/core/strip-lines.ts':
+			'the alert and footnote strippers, until both are `container` block types'
+	},
+	reason:
+		"a marked container's lines are read by `core/parsers/strip-container.ts :: stripOpener`, so the parser and the writer read one line syntax: open the container through it rather than matching the marker yourself",
+	hits: [at('src/lib/x.ts', 'const marker = shape.reads.exec(line)?.[0];')],
+	misses: [at('src/lib/x.ts', 'const reads = shape.reads;')]
+};
+
 // ── G4.108 one replace for every destructive gesture over a range ──────────
 
 const ROGUE_RANGE_ROUTE = `${SOURCE_DIR.crossBlock}rogue.ts`;
@@ -3296,7 +3318,7 @@ describeManifests(RANGE_INDENT, SOURCES);
 describeManifests(TYPED_WRITE_ASKS, SOURCES);
 describeManifests(SCROLL_WRITERS, SOURCES);
 describeManifests(BARE_FOCUSES, SOURCES);
-describeFileRules([HELD_BRANDS, REVEAL_IN_SVELTE], SOURCES);
+describeFileRules([HELD_BRANDS, REVEAL_IN_SVELTE, MARKER_READS], SOURCES);
 describeCorrections(SOURCES);
 describeOwnerWrites(SOURCES);
 describeKeyboardEndWrites(SOURCES);

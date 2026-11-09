@@ -260,6 +260,22 @@ Register-once per kind, consulted in kind-name order, so which completer claims 
 
 What freezes is `CompletionResult`'s shape. Its `lines` carry **no line endings**: the completion machinery attaches the block's own, which is what keeps a completion from downgrading a CRLF document. Its caret is `{ path, line, column }`, not a byte offset; `path` is child indices inside the new block (empty for the block itself). It's line-relative because the line ending is picked after the claim, so an offset-shaped caret would drift a byte per line in a CRLF document. Growth is fields on the result, never a second registry.
 
+### Block types
+
+A plugin value lists its block types in `contributes(options).blocks`, and a maker builds each one: `lineBlock`, `fencedBlock` and `container`, in `src/lib/components/block-makers/`. A maker works out everything about the type when it's called (the descriptor, through one derivation in `src/lib/schema/block-shapes.ts`, plus the opener, the completer and the view) and hangs it on the type, so importing one registers nothing. The editor names a type `plugin/name` when it first installs it. Every descriptor read in the editor is by kind, so while any editor runs the plugin the type's facts sit in a page table under that name (G1.192), and each editor's grammar reads its own types' openers first, so a type parses only where its plugin runs.
+
+The facts come from what the spec's keys do, never from a list you declare, and gap edges are the one that surprises people. They follow what Enter does in the block, by the rule in `docs/contributing/adding-a-block.md` (an edge a gesture of yours already covers stays closed):
+
+- a box (`edit: 'box'`) opens only the edge above it, since Enter on it, focused whole, opens a paragraph below;
+- a text spanning lines opens both, since Enter there types a newline;
+- one line opens neither, since Enter splits it at either end.
+
+So two boxes back to back have no gap caret between them, and a box with an editing surface of its own gets to the paragraph below through whole focus, which its drawing hands back with `ctx.focusWhole()` (on Escape, say). `leaf-facts-parity.svelte.test.ts` and `container-facts-parity.svelte.test.ts` hold the derived facts equal to a hand registration of the same shape.
+
+A container block type's lines go through the same two homes as the built-in quote's: the reader `src/lib/core/parsers/strip-container.ts :: stripOpener` (G4.320) and the container writer (G4.305), which writes a head line (an alert's `> [!NOTE]`) through the writer `headedLines` carries. Both read one line syntax, which is why a marked shape's `reads` has to take its own markers whole (G1.191).
+
+A drawing reads its block as a `Block` (`src/lib/schema/doc-view.ts`). Its `from` and `to` are worked out when read, from the node's identity in the live document (`src/lib/editor-actions/commit/change-record.ts :: blockRangeOf`), because a keystroke in a block above moves them without telling the drawing; both are -1 once the block is gone, and a draft refuses that range. `block-range.svelte.test.ts` holds it.
+
 ### Block views
 
 A kind's `view` is what draws it, and the editor never talks to whatever drew it. `BlockHost` turns every view into one `BlockComponent` ref (the object focus dispatch, the overlays, the clipboard and the command router all call), so a view is just one way to fill that ref. There are four ways in. A block type's `draw`, from a maker, runs in the editor's draw host (`src/lib/components/drawn-block/`). `defineBlockView` takes a plain DOM spec, `svelteBlockView` takes a Svelte component that `BlockHost` renders inline the way it renders a built-in block, and `textBlockView` is the editor's own text block.

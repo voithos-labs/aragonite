@@ -214,7 +214,7 @@ Arrow down onto the note and it's focused whole, double-click and you're typing 
 
 - **Write with `block.from` and `block.to`.** They're read when you ask, so they're right even after an edit above moved the note, which a value you saved at render time wouldn't be.
 - **DOM focus goes to a hidden editing host**, not to your `<pre>`. The editor puts it in the block's element, next to what you render, since that's where AltGr and IME input arrive. So style focus with `:focus-within`.
-- **Keys in your textarea are the textarea's.** The editor's chords still reach it (Ctrl+Z, say) unless your component's `keep` takes them. To leave by arrow key on the first or last line, call `ctx.leave('start')` or `ctx.leave('end')` and `preventDefault`. To hand the note back to the editor focused whole (Escape out of the edit, say), call `ctx.focusWhole()`.
+- **Keys in your textarea are the textarea's.** The editor's chords still reach it (Ctrl+Z, say) unless your component's `keep` takes them. To leave by arrow key on the first or last line, call `ctx.leave('start')` or `ctx.leave('end')` and `preventDefault`. To hand the note back to the editor focused whole (Escape out of the edit, say), call `ctx.focusWhole()`. From there Enter opens a paragraph below it, which is the only way to get one between two boxes back to back.
 
 ## A block you draw whole
 

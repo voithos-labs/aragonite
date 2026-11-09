@@ -180,7 +180,7 @@ describe('an indented container', () => {
 });
 
 describe("a marked line shape's `reads`", () => {
-	it('that stops short of a marker it writes throws where the type registers', () => {
+	it('that stops short of a marker it writes throws where the type registers (G1.191)', () => {
 		const kind = declarePluginKind('shortreads');
 		expect(() =>
 			registerBlockKind(kind, {

@@ -78,7 +78,7 @@ describe('a line block', () => {
 		expect(tryGetBlockKindDescriptor(kind)).toBeUndefined();
 	});
 
-	it('warns where two editors derive different facts for one name', async () => {
+	it('warns where two editors derive different facts for one name (G1.192)', async () => {
 		const a = definePlugin({
 			name: 'twin',
 			version: '1.0.0',

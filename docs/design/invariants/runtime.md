@@ -123,6 +123,8 @@ These checks run in three kinds of place:
 | G1.188 | A cut writes the words its removal takes, save five named classes, until range stage 3 | harness·N |
 | G1.189 | An undo or redo puts back no block read under a grammar the editor no longer reads | A·N |
 | G1.190 | While a draft is open, every write tells it everything the write changed | A·N |
+| G1.191 | A marked line shape's `reads` takes the markers it writes whole | A·N |
+| G1.192 | One block type name reads the same facts in every editor running it | A·N |
 
 ### The entries
 
@@ -337,3 +339,7 @@ These checks run in three kinds of place:
 **G1.189 · An undo reads under the editor's grammar** (`restore-grammar`). An undo entry keeps the grammar its tree was read under, and one restored under another has its bytes read again from the live document instead of installed, which leans on every block the undo leaves alone already reading under the editor's grammar. Either way, each block the undo put back that read alone as itself under the entry's grammar still does under the editor's (a block misread under both is G1.55's). `checkRestoredUnderGrammar` (`reads-back.ts`) · `history.ts :: install` · `grammar-restore.test.ts`.
 
 **G1.190 · A draft hears every write** (`change-record`). While a draft is open, each write records the top-level blocks it changed, read over the blocks it names plus one either side (every block, for a keystroke that moves a fence), and a draft maps its ranges through the records. Checked after each write (nothing changed past what it named) and at a draft's commit (a range no record touched still holds the bytes it opened on). `checkChangeInReach`, `checkDraftBytesKept` (`change-record.ts`) · `commit-frame.ts`, `draft-registry.svelte.ts` · `change-record.test.ts`, `draft-registry.test.ts`.
+
+**G1.191 · A marked shape reads what it writes** (a dev throw at registration). A `marked` line shape's `reads` has to take `first` and `rest` whole and stop there, and each one's trimmed blank-line form too, or a line the writer wrote reads back with marker left in its text. `normalizeRegistration` checks it for a `registerBlockKind` kind and a `container` block type alike, before any line is read. `checkMarkedReads` (`schema/block-kind-descriptor.ts`) · `container-block.svelte.test.ts`.
+
+**G1.192 · A block type's facts are page-wide** (`block-type-facts`). Every descriptor read is by kind, so a block type lends its derived facts to the page by its `plugin/name` while an editor runs it, and a second editor holding the same name doesn't replace them. When it derives other facts (they came from its options), dev warns and the first editor's stand: a fact can't depend on options, only a `draw` can. `holdBlockKind` (`schema/block-kind-descriptor.ts`) · `line-block.svelte.test.ts`.

@@ -237,6 +237,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.314 | A copy or cut event's clipboard is written in one function, the editor's own entry included | L |
 | G4.315 | Under `selection/`, a range is read as bytes in one file | L |
 | G4.317 | A plugin or a host writes bytes through a `Draft`; another caller of the byte splice is on a list | L |
+| G4.320 | A marked line shape's marker is read in the container reader | L |
 | G4.329 | Bytes are read into the tree by the byte splice, which closes the openers they write, or by an undo | L |
 
 ### The entries
@@ -676,7 +677,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.303 · Block facts agree with the registrations.** `schema/block-facts.ts :: blockFacts` gives a kind's cut, copy and paste facts as data. With every bundled plugin installed, each one must equal what the registration already says (`bodyWrap`, `mergeRole`, `mustHoldChild`, the title row, a DOM view's surface), and the test writes out only what nothing else states. Every container has a line shape, and a merge key names a field the kind's own parse sets, or every pair would merge. When it fires, fix the kind's declaration. `test/schema/block-facts.test.ts`.
 
-**G4.305 · One way to write a container.** `schema/container-writer.ts :: writeContainerRaw` writes every container's bytes, from the kind's line shape (`container.lines`) or through a list's, a table's or an old-style registration's own `rebuildRaw`. So no other file reads `.rebuildRaw`, and only the writer calls the writer a fenced or colon shape carries (`WRITES_LINES`). The conformance kits under `src/lib/testing/` are allowed to read `rebuildRaw` until they check plugin shapes instead. `lint/container-writer-home.test.ts`.
+**G4.305 · One way to write a container.** `schema/container-writer.ts :: writeContainerRaw` writes every container's bytes, from the kind's line shape (`container.lines`) or through a list's, a table's or an old-style registration's own `rebuildRaw`. No other file reads `.rebuildRaw`, and only the writer calls a shape's own writer under `WRITES_LINES` (a fenced or colon shape's, or the head line's from `schema/headed-lines.ts :: headedLines`). The conformance kits under `src/lib/testing/` may read `rebuildRaw` until they check plugin shapes. `lint/container-writer-home.test.ts`.
 
 **G4.311 · The range-edit laws hold.** `range-edit/edit-range.ts :: editRange` answers copy, cut, removal, paste and drop over a range in bytes. The laws run over seeded documents (120, or 600 with `RANGE_EDIT_FULL=1`), and each named row pins one shape by bytes. A law 3 or law 9 miss passes only when `known-residue.ts` names its class with a repro that still fails; the editor's own clipboard entry gives each one back. `test/range-edit/laws.test.ts`, `named-rows.test.ts`, `known-residue.test.ts`.
 
@@ -689,5 +690,7 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.315 · One reading of a range as bytes.** `selection/range-bytes.ts :: rangeBytes` turns a covered range into the bytes the range-edit core takes: each end through the layout, widened to the blocks coverage holds whole, select-all to the first byte. Copy and cut read a range through it, so a second reading under `selection/` could hand them other bytes. `lint/selection-byte-math.test.ts` fails a `byteOf`, `leafAtByte` or `documentByteMap` call anywhere else there.
 
 **G4.317 · One write for plugins and hosts.** `CommitController.commitSource` is handed its changes only by the draft (`editor-actions/commit/draft-registry.svelte.ts`), which maps a waiting write's ranges past the writes since it opened and refuses with a reason; any other caller is on the row's list with why (today the test bridge's splice). `lint/file-rules.test.ts`.
+
+**G4.320 · One reader for a marked container.** `core/parsers/strip-container.ts :: stripOpener` reads a marked or indented container's lines, through the same line syntax its writer writes, for a `container` block type and the built-in quote alike. So `.reads.exec(` appears only there, in the head writer (which keeps the marker a head line was spelled with), in the registration check (G1.191), and in the alert and footnote strippers until both are `container` block types. `lint/file-rules.test.ts`.
 
 **G4.329 · Bytes reach the tree through the byte splice.** `tree-operations/byte-splice.ts :: spliceReading` reads bytes as given, so a route that called it itself would skip the closer the byte splice (`editor-actions/commit/byte-splice.ts`) gives an opener its changes write. The one other caller is an undo under a changed grammar (`commit/history.ts`), which puts back an entry's exact bytes. `lint/file-rules.test.ts`.

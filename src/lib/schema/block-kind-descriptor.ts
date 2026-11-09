@@ -687,7 +687,7 @@ function normalizeRegistration(
 }
 
 /** A marked shape's `reads` takes each marker it writes whole and stops there, a blank line's
- *  trimmed marker too, or a line it wrote would read back holding other text. */
+ *  trimmed marker too, or a line it wrote would read back holding other text (G1.191). */
 function checkMarkedReads(kind: AnyBlockKind, lines: MarkedLines): void {
 	const written = [lines.first, lines.rest].flatMap((m) => [
 		[m, 'x'],
@@ -888,6 +888,7 @@ export function holdBlockKind(
 	const existing = held.get(kind);
 	if (existing) {
 		existing.editors++;
+		// G1.192: facts are page-wide by name, so a second editor can't make them read otherwise.
 		if (devChecksOn && factsOf(existing.descriptor) !== factsOf(descriptor)) {
 			devWarn(
 				'block-type-facts',
