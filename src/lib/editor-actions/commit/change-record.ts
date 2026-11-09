@@ -166,18 +166,6 @@ export function pathOfNode(doc: DocumentView, node: NodeView): number[] | null {
 	return path;
 }
 
-/** `node`'s bytes in the document's text now, from its first byte to past its last. */
-export function blockRangeOf(
-	doc: DocumentView,
-	node: NodeView
-): { from: number; to: number } | null {
-	const path = pathOfNode(doc, node);
-	const byteOf = path && blockByteOf(doc, path);
-	const from = byteOf?.(0) ?? null;
-	const to = byteOf?.(node.raw.length) ?? null;
-	return from === null || to === null ? null : { from, to };
-}
-
 /** Where a byte of the block at `path` sits in the document's text, its ancestors' markers
  *  counted; null for a path that holds no block. */
 export function blockByteOf(

@@ -58,7 +58,7 @@ export type {
 	LeafDraw,
 	LineBlockSpec
 } from './schema/block-shapes';
-export type { Block } from './schema/doc-view';
+export type { Block, InlineType, Piece } from './schema/doc-view';
 // What a block type's `draw` gets and hands back; the editor makes every editable element.
 export type {
 	BoxDrawContext,

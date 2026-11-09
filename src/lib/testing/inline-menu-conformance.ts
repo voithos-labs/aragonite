@@ -98,6 +98,7 @@ function recordingEditor(writes: string[], edit: Editor['edit'], plugin: string)
 		claims: () => false,
 		openMenu: () => false,
 		openRows: () => ({ isOpen: false, close() {} }),
-		edit
+		edit,
+		blockAt: () => null
 	};
 }

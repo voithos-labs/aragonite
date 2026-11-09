@@ -274,7 +274,7 @@ So two boxes back to back have no gap caret between them, and a box with an edit
 
 A container block type's lines go through the same two homes as the built-in quote's: the reader `src/lib/core/parsers/strip-container.ts :: stripOpener` (G4.320) and the container writer (G4.305), which writes a head line (an alert's `> [!NOTE]`) through the writer `headedLines` carries. Both read one line syntax, which is why a marked shape's `reads` has to take its own markers whole (G1.191).
 
-A drawing reads its block as a `Block` (`src/lib/schema/doc-view.ts`). Its `from` and `to` are worked out when read, from the node's identity in the live document (`src/lib/editor-actions/commit/change-record.ts :: blockRangeOf`), because a keystroke in a block above moves them without telling the drawing; both are -1 once the block is gone, and a draft refuses that range. `block-range.svelte.test.ts` holds it.
+A drawing reads its block as a `Block` (`src/lib/schema/doc-view.ts`). Its `from` and `to` are worked out when read, from the node's identity in the live document (`src/lib/editor-actions/commit/document-read.ts :: createDocumentRead`), because a keystroke in a block above moves them without telling the drawing; both are -1 once the block is gone, and a draft refuses that range. `block-range.svelte.test.ts` holds it.
 
 ### Block views
 

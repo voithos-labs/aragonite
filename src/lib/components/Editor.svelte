@@ -45,7 +45,7 @@
 	import { documentBytes, rangePaint } from '../selection/range-bytes';
 	import { findSurfacePathForElement } from '../selection/path-lookup';
 	import { createSelectionDescription } from '../selection/selection-description';
-	import { EDITOR_LABEL } from '../a11y-strings';
+	import { EDITOR_LABEL, blockKindLabel } from '../a11y-strings';
 	import TailInsert from './TailInsert.svelte';
 	import BlockMenu from './menu/BlockMenu.svelte';
 	import { createMenuPresence } from './menu/menu-presence.svelte';
@@ -149,10 +149,13 @@
 	import type { CaretMenu } from '../schema/caret-menu';
 	import {
 		installPluginList,
+		type BlockType,
 		type InstalledPlugin,
 		type PluginError,
 		type PluginList
 	} from '../schema/plugin-unit';
+	import type { Block } from '../schema/doc-view';
+	import { createDocumentRead } from '../editor-actions/commit/document-read';
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
 	import { insertRows } from '../schema/insert-catalogue';
 	import { createEditorGrammar } from '../schema/editor-grammar';
@@ -718,6 +721,21 @@
 			events.emit('error', { origin: 'decoration', error, context: { path } })
 	});
 	const decorations: DecorationRegistry = { addSource: decorationEngine.addSource };
+	const documentRead = createDocumentRead({
+		getDoc,
+		version: () => untrack(contentVersion.read),
+		typeOf: blockTypeOf,
+		reading
+	});
+
+	// A plugin's own block type, else one named by its kind, which `is` matches to `builtin.blocks`.
+	function blockTypeOf(kind: AnyBlockKind): BlockType<unknown> {
+		for (const unit of units) {
+			const own = unit.contribution.blocks?.find((type) => type.name === kind);
+			if (own) return own;
+		}
+		return { name: kind, label: blockKindLabel(kind) };
+	}
 	const markActivation = createMarkActivation({
 		caret: () => {
 			const focus = getSelection()?.focus;
@@ -793,6 +811,7 @@
 		claims: (event) => claimsChord(event),
 		openMenu: (menu, query) => inlineMenu.openMenu(menu, query),
 		openRows: (action, range, anchor) => openRows(action, range, anchor),
+		blockAt: (at) => blockAt(at),
 		edit: (plugin) => drafts.edit(plugin),
 		reading,
 		units: () => units,
@@ -944,6 +963,7 @@
 	setContext(EDITOR_SERVICES_KEY, {
 		events,
 		decorations: decorationEngine,
+		read: documentRead,
 		selection: selectionState,
 		rangeCoverage: () => coverage,
 		rangePaint: () => paint,
@@ -1552,6 +1572,10 @@
 		return inlineMenu.openMenu(menu as CaretMenu<unknown>, query);
 	}
 
+	export function blockAt(at: number): Block | null {
+		return documentRead.blockAt(at);
+	}
+
 	export function openRows(
 		action: SelectionAction,
 		range: { readonly from: number; readonly to: number },
@@ -1649,7 +1673,8 @@
 		can,
 		claims,
 		openMenu,
-		openRows
+		openRows,
+		blockAt
 	} satisfies EditorInstance);
 
 	// ── Test-only hooks ─────────────────────────────────────────────────

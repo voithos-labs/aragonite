@@ -16,7 +16,7 @@ import { OPENER_PRIORITIES } from './opener-priorities';
 import { isValidPluginName } from './plugin-name';
 import { makingOf } from './block-type';
 import type { BlockType } from './plugin-unit';
-import { blockOf, type Block } from './doc-view';
+import { blockOf, DETACHED_READING, type Block } from './doc-view';
 import {
 	drawnCaretAt,
 	type BoxDrawContext,
@@ -320,5 +320,5 @@ export function fixtureOf(sample: string | readonly string[] | undefined) {
 
 export function heightEstimate(height: (block: Block<never>) => number) {
 	// A type named by the kind is enough here: `is` compares names.
-	return (node: NodeView) => height(blockOf<never>(node, (kind) => ({ name: kind, label: kind })));
+	return (node: NodeView) => height(blockOf<never>(node, DETACHED_READING));
 }

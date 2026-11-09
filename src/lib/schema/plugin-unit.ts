@@ -13,6 +13,7 @@ import type { InsertRow } from './insert-catalogue';
 import type { CaretMenu } from './caret-menu';
 import type { SelectionAction } from './selection-action';
 import type { Draft } from './drafts';
+import type { Block } from './doc-view';
 import { isValidPluginName } from './plugin-name';
 import { satisfiesRange } from './version-range';
 
@@ -56,8 +57,9 @@ export interface Contribution {
 	/** Its block types, made by `lineBlock`, `fencedBlock` or `container`; each is named after the
 	 *  plugin (`callouts/callout`) when an editor first runs it. */
 	blocks?: readonly BlockType<unknown>[];
-	/** Runs once the editor is mounted; what it adds through `editor` goes away with the plugin. */
-	setup?(editor: Editor): void;
+	/** Runs once the editor is mounted; what it adds through `editor` goes away with the plugin.
+	 *  A function it returns runs once, when the plugin is turned off or the editor unmounts. */
+	setup?(editor: Editor): void | (() => void);
 	/** Run by value, by `plugin/id`, or by a command's chord anywhere in the editor. */
 	commands?: readonly Command<unknown>[];
 	/** Rows for the insert menus, listed after the built-ins as `plugin/id`. */
@@ -103,6 +105,9 @@ export interface Editor {
 	/** A write in the document's bytes, committed as one undo step now or after a wait; a plugin's
 	 *  is refused as `off` once the plugin is. */
 	edit(): Draft;
+	/** The deepest block holding document byte `at` (a list item's paragraph, a table cell): a
+	 *  marker's byte goes to the text on its line. Null outside the document. */
+	blockAt(at: number): Block | null;
 }
 
 /** A block type as the editor holds it: `name` is its kind, qualified by its plugin's name once an

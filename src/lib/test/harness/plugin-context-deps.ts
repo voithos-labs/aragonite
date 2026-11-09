@@ -51,6 +51,7 @@ export const pluginContextDeps = (
 	claims: (() => false) as (event: KeyboardEvent) => boolean,
 	openMenu: () => false,
 	openRows: () => ({ isOpen: false, close() {} }),
+	blockAt: () => null,
 	units: (): readonly InstalledPlugin[] => [],
 	pluginNames: (): readonly string[] => [],
 	report: (() => {}) as (error: PluginError) => void,
