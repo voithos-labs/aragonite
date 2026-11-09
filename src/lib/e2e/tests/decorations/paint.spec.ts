@@ -140,7 +140,7 @@ interface Recorded {
 	caret: { path: number[]; offset: number } | null;
 }
 
-// A `word` mark over each `needle` in every leaf, its handlers recorded on `window.__marks`;
+// A `word` mark over each `needle` in every block, its handlers recorded on `window.__marks`;
 // `click: 'keep'` adds a click handler that calls `preventDefault`.
 async function paintNeedle(
 	page: Page,
@@ -170,7 +170,6 @@ async function paintNeedle(
 				...(click ? { click: record('click') } : {})
 			};
 			w.__test.paint.set((block: any) => {
-				if (block.children.length > 0) return [];
 				const marks = [];
 				for (let i = block.text.indexOf(needle); i >= 0; i = block.text.indexOf(needle, i + 1)) {
 					const from = block.byteAt(i);
@@ -221,7 +220,7 @@ test.describe('what a plugin paint is asked for', () => {
 		expect(counts.markMeasurePaths.filter((path: string) => path !== '3')).toEqual([]);
 	});
 
-	test('a 25,000-item list paints item 3,500 once it mounts, and never before', async ({
+	test('a 25,000-item list paints item 3,500 once it mounts, never before, and never the list', async ({
 		page
 	}) => {
 		const list = Array.from({ length: 25_000 }, (_, i) => `- item ${i}`).join('\n') + '\n';
@@ -232,6 +231,8 @@ test.describe('what a plugin paint is asked for', () => {
 		const first = await paintedPaths(page);
 		expect(first).not.toContain('0,3500,0');
 		expect(first.length).toBeLessThan(1000);
+		// The list and its items hold blocks, so `paint` isn't asked for either.
+		expect(first.filter((path) => path.split(',').length < 3)).toEqual([]);
 
 		const scrollTo = (path: number[]) =>
 			page.evaluate((p) => (window as any).__test.rects.scrollTo(p), path);

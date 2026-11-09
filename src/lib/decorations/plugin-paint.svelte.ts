@@ -1,7 +1,8 @@
 /**
- * Each plugin's `paint`, read a block at a time: asked for a block the editor renders, kept while
- * the block's bytes and the paint's version hold, and stored in the block's own offsets. A mark's
- * handlers read its range in document bytes as they run.
+ * Each plugin's `paint`, read a block at a time: asked for a block the editor renders (`paint` for
+ * a block of text, `paintContainer` for one holding blocks), kept while the block's bytes and the
+ * paint's version hold, and stored in the block's own offsets. A mark's handlers read its range in
+ * document bytes as they run.
  */
 import { devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { tick, untrack } from 'svelte';
@@ -27,8 +28,11 @@ export interface PaintedBlock {
 
 export interface PaintSourceDeps<B extends PaintedBlock> {
 	plugin: string;
-	/** The plugin's contribution, whose `paint` only this source calls. */
-	contribution: { paint?(block: B): readonly Paint[] };
+	/** The plugin's contribution, whose `paint` and `paintContainer` only this source calls. */
+	contribution: {
+		paint?(block: B): readonly Paint[];
+		paintContainer?(block: B): readonly Paint[];
+	};
 	blockOf(node: NodeView, path: readonly number[]): B;
 	/** The block at `path` in the document now, which a handler reads its range through. */
 	blockAt(path: readonly number[]): B | null;
@@ -64,6 +68,10 @@ export function createPaintSource<B extends PaintedBlock>(deps: PaintSourceDeps<
 	}
 
 	function decorationsOf(node: NodeView, path: readonly number[]): readonly Decoration[] {
+		// A block with children is asked only by a plugin that paints containers, so a keystroke deep
+		// in a long list doesn't hand every plugin the whole list's text.
+		const container = paintsOnlyClasses(node);
+		if (!(container ? deps.contribution.paintContainer : deps.contribution.paint)) return NONE;
 		const raw = node.raw;
 		const asked = version;
 		let stamp = stamps.get(node);
@@ -74,17 +82,24 @@ export function createPaintSource<B extends PaintedBlock>(deps: PaintSourceDeps<
 		if (was && was.raw === raw && was.version === asked && was.stamp === repainted) {
 			return atPath(was, path, key);
 		}
-		const decs = untrack(() => painted(node, path, was));
+		const decs = untrack(() => painted(container, node, path, was));
 		held.set(node, { raw, version: asked, stamp: repainted, key, decs });
 		return decs;
 	}
 
-	function painted(node: NodeView, path: readonly number[], was: Held | undefined) {
+	function painted(
+		container: boolean,
+		node: NodeView,
+		path: readonly number[],
+		was: Held | undefined
+	) {
 		recordPaintCall(path);
 		const block = deps.blockOf(node, path);
 		let paints: readonly Paint[];
 		try {
-			paints = deps.contribution.paint?.(block) ?? NONE;
+			const { contribution } = deps;
+			paints =
+				(container ? contribution.paintContainer?.(block) : contribution.paint?.(block)) ?? NONE;
 		} catch (cause) {
 			// The block keeps what it painted last; the same bytes aren't asked again.
 			reportLater({ plugin, doing: 'paint', cause });

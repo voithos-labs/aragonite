@@ -8,7 +8,7 @@ A plugin value paints with `paint(block)`, up next. A `setup` plugin registers a
 
 ## Paint from a plugin value
 
-`paint(block)` sits in your contribution beside `commands` and the rest. The editor calls it for each block it has on screen and keeps the answer while that block's bytes stay the same, so typing in a paragraph asks that paragraph again (and the list or quote around it, whose bytes changed too) and nothing else. A block off screen isn't asked until it scrolls in.
+`paint(block)` sits in your contribution beside `commands` and the rest. The editor calls it for each block of text it has on screen (a paragraph, a heading, a table cell, the paragraph inside a list item) and keeps the answer while that block's bytes stay the same, so typing in a paragraph asks that paragraph again and nothing else. A block off screen isn't asked until it scrolls in.
 
 ```ts
 import { definePlugin, type MarkAt, type Paint } from '@voithos-labs/aragonite/plugin';
@@ -22,7 +22,6 @@ export const shouty = definePlugin({
 	editor: '^0.11.6',
 	contributes: () => ({
 		paint(block) {
-			if (block.children.length > 0) return []; // a list or a quote: its children paint
 			const marks: Paint[] = [];
 			for (const m of block.text.matchAll(/\b[A-Z]{4,}\b/g)) {
 				const from = block.byteAt(m.index);
@@ -43,7 +42,15 @@ Every position is a document byte. `block.byteAt(i)` turns an offset into `block
 | `replace` | `from`, `to`, `view?`, `class?`, `data?` | A view, or an empty span with your `class`, standing in for the bytes, which stay in the document |
 | `block` | `class?`, `attrs?`, `badge?`, `data?` | Classes and attributes on the block's own element, and a badge view ahead of it |
 
-A view is a `PluginView` that gets `{ paint }`, the paint it came from, so put what it shows in `data`. `svelteView`, `reactView` and `vueView` make one from a component, the same as for any widget, and that's the only place React or Vue shows up: `paint` itself is a plain function. Marks, widgets and replaces land only on a block without children, and widgets and replaces only in prose. Paint that can't land (outside the block's text, on a quote's marker, on a list) is left out, with one dev warning per problem.
+A view is a `PluginView` that gets `{ paint }`, the paint it came from, so put what it shows in `data`. `svelteView`, `reactView` and `vueView` make one from a component, the same as for any widget, and that's the only place React or Vue shows up: `paint` itself is a plain function. Widgets and replaces land only in prose. Paint that can't land (outside the block's text, on a quote's marker) is left out, with one dev warning per problem.
+
+A block holding other blocks (a list, a quote, a table row, a list item with text in it) never reaches `paint`, since its children get asked about their own text. To class one or give it a badge, add `paintContainer(block)` beside `paint`. It's asked the same way and hands back `block` paint only. Its `text` holds every child's text and its `children` every child, so tell it apart by its type rather than reading either (a 25,000-item list has a lot of both):
+
+```ts
+paintContainer(block) {
+	return block.is(builtin.blocks.blockquote) ? [{ type: 'block', class: 'quoted' }] : [];
+}
+```
 
 When something other than the block's bytes changes what you'd paint (an answer arrived, an option flipped), ask again with `editor.repaint(blocks)` from your `setup(editor)`, or `editor.repaint()` for every block on screen. A block that left the document is skipped. The first blocks are asked before `setup` runs, so keep what `paint` reads in the closure `contributes` returns, and call `repaint()` from `setup` if it fills that in. Say your dictionary answers late, with the byte the word it checked starts at:
 

@@ -14,7 +14,7 @@ import type {
 	WidgetDecoration
 } from './types';
 
-export interface BlockPaint {
+export interface PaintParts {
 	/** In precedence order; `index` is the mark's place in it. */
 	readonly marks: readonly IndexedDecoration<MarkDecoration>[];
 	/** Sorted by position, the order the widget pass applies them in. */
@@ -22,7 +22,7 @@ export interface BlockPaint {
 	readonly blocks: readonly BlockDecoration[];
 }
 
-export const NO_PAINT: BlockPaint = Object.freeze({ marks: [], islands: [], blocks: [] });
+export const NO_PAINT: PaintParts = Object.freeze({ marks: [], islands: [], blocks: [] });
 
 /** Paint asked for one block at a time, which the engine lays after the whole-document input. */
 export interface BlockSource {
@@ -33,7 +33,7 @@ export interface BlockSource {
 }
 
 /** One block's decorations, in precedence order, split into the three parts. */
-export function splitBucket(decs: readonly Decoration[]): BlockPaint {
+export function splitBucket(decs: readonly Decoration[]): PaintParts {
 	const marks: IndexedDecoration<MarkDecoration>[] = [];
 	const islands: IndexedDecoration<WidgetDecoration | ReplaceDecoration>[] = [];
 	const blocks: BlockDecoration[] = [];
@@ -47,14 +47,14 @@ export function splitBucket(decs: readonly Decoration[]): BlockPaint {
 }
 
 /** `base` with `decs` laid after it, split as one list would be. */
-export function withDecorations(base: BlockPaint, decs: readonly Decoration[]): BlockPaint {
+export function withDecorations(base: PaintParts, decs: readonly Decoration[]): PaintParts {
 	const islands = [...base.islands].sort((a, b) => a.index - b.index).map((i) => i.dec);
 	return splitBucket([...base.marks.map((m) => m.dec), ...islands, ...base.blocks, ...decs]);
 }
 
 /** `next`, with each part equal to `held`'s replaced by `held`'s own array, and `held` itself when
  *  every part is. A widget or a badge is never equal: its view is told each new decoration. */
-export function keepEqualParts(held: BlockPaint, next: BlockPaint): BlockPaint {
+export function keepEqualParts(held: PaintParts, next: PaintParts): PaintParts {
 	const marks = sameList(held.marks, next.marks, (a, b) => sameDecoration(a.dec, b.dec))
 		? held.marks
 		: next.marks;

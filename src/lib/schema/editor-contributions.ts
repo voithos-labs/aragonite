@@ -103,7 +103,7 @@ export function createEditorContributions(deps: {
 			(unit.contribution.actions ?? []).map((action) => ({ plugin: unit.name, action }))
 		);
 		paints = kept.flatMap(({ name, contribution }) =>
-			contribution.paint ? [{ plugin: name, contribution }] : []
+			contribution.paint || contribution.paintContainer ? [{ plugin: name, contribution }] : []
 		);
 		return kept;
 	}

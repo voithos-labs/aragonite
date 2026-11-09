@@ -10,7 +10,7 @@ import {
 	splitBucket,
 	keepEqualParts,
 	withDecorations,
-	type BlockPaint,
+	type PaintParts,
 	type BlockSource
 } from './block-paint';
 import { createMarkHover, type MarkHoverTracker, type MarkIdentity } from './mark-hover';
@@ -42,7 +42,7 @@ export type DecorationEngine = {
 	notifyEdit(): void;
 	/** What paints over the mounted block `node` at `path`, for its reactive reads: the same arrays
 	 *  come back until that block's paint changes. */
-	paintOf(node: NodeView, path: readonly number[]): BlockPaint;
+	paintOf(node: NodeView, path: readonly number[]): PaintParts;
 	/** Every call into a mark's `interactive` handlers goes through here, so a throw is reported. */
 	runMarkHandler(dec: MarkDecoration, call: () => void): void;
 	/** A click on a mark that takes the pointer: its handler runs, then, unless it called
@@ -67,9 +67,9 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 	const merged = $derived(results.flat());
 	// A path's paint is the one it held while equal, so its block's readers stay quiet. Not state:
 	// only this derived reads or writes it.
-	let heldByPath = new Map<string, BlockPaint>();
+	let heldByPath = new Map<string, PaintParts>();
 	const byPath = $derived.by(() => {
-		const next = new Map<string, BlockPaint>();
+		const next = new Map<string, PaintParts>();
 		for (const [key, bucket] of groupDecorationsByPath(merged)) {
 			const parts = splitBucket(bucket.map(({ dec }) => dec));
 			const held = heldByPath.get(key);
@@ -82,10 +82,10 @@ export function createDecorationEngine(deps: DecorationEngineDeps): DecorationEn
 	// Held per node, not per path: an insert above hands a path to another block.
 	const combined = new WeakMap<
 		NodeView,
-		{ whole: BlockPaint; parts: readonly (readonly Decoration[])[]; paint: BlockPaint }
+		{ whole: PaintParts; parts: readonly (readonly Decoration[])[]; paint: PaintParts }
 	>();
 
-	function paintOf(node: NodeView, path: readonly number[]): BlockPaint {
+	function paintOf(node: NodeView, path: readonly number[]): PaintParts {
 		const whole = byPath.get(pathKey(path)) ?? NO_PAINT;
 		const blockSources = deps.blockSources?.() ?? NO_SOURCES;
 		if (blockSources.length === 0) return whole;

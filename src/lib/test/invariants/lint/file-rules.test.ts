@@ -3301,17 +3301,19 @@ const PAINT_CALLERS: FileRule = {
 	id: 'G4.335 a paint or a decoration source is asked only by the engine that keeps its answer',
 	population: under(SOURCE_DIR.library, SOURCE_DIR.plugins),
 	// The hover tracker's own `paint` records what an overlay drew; it asks no source.
-	matches: /(?<!markHover)\.(?:paint|provide|decorationsOf)\s*(?:\?\.\s*)?\(/,
+	matches: /(?<!markHover)\.(?:paint|paintContainer|provide|decorationsOf)\s*(?:\?\.\s*)?\(/,
 	allowed: {
 		[PAINT_ENGINE]:
 			'runs a whole-document source after an edit, and asks each block source as a block reads its paint',
-		[PLUGIN_PAINT]: "asks a plugin's `paint` for a block whose kept answer no longer holds"
+		[PLUGIN_PAINT]:
+			"asks a plugin's `paint` or `paintContainer` for a block whose kept answer no longer holds"
 	},
 	reaches: [PAINT_ENGINE, PLUGIN_PAINT],
 	reason:
 		"a paint asked anywhere else skips the cache that keeps a block's answer while its bytes hold, and runs plugin code inside a reactive read: read `DecorationEngine.paintOf` instead",
 	hits: [
 		at(`${SOURCE_DIR.overlays}x.ts`, 'const marks = contribution.paint?.(block) ?? [];'),
+		at(`${SOURCE_DIR.blocks}x.ts`, 'const classes = contribution.paintContainer(block);'),
 		at(`${SOURCE_DIR.search}x.ts`, 'const decs = source.provide(doc, { editEpoch });'),
 		at(`${SOURCE_DIR.blocks}x.ts`, 'const own = highlights.decorationsOf(node, path);')
 	],

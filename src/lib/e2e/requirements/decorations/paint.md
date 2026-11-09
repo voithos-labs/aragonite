@@ -1,9 +1,8 @@
 # Feature: Paint from a plugin value
 
 A plugin's `paint(block)` returns marks, widgets, replaced ranges and block classes for one block.
-The editor asks only for the blocks it has on screen and keeps a block's answer while the block's
-bytes stay the same, so an edit asks again only for the block it changed and the containers
-around it.
+The editor asks only for the blocks of text it has on screen and keeps a block's answer while the
+block's bytes stay the same, so an edit asks again only for the block it changed.
 
 ## What an edit changes in the tree
 
@@ -21,7 +20,8 @@ around it.
 - With a painted mark on each of 30 blocks, a keystroke asks only the edited block's paint again
   and measures only its marks
 - In a 25,000-item list, item 3,500's paint is asked once it's scrolled into view, never before,
-  and not again after scrolling away and back
+  and not again after scrolling away and back; the list and its items, which hold blocks, aren't
+  asked at all
 - `repaint` of one block asks only that block; `repaint()` asks every mounted block and no other
 
 ## A painted mark's handlers

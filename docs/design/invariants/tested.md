@@ -123,7 +123,7 @@ the browser rows. A class that breaks one today is a row of `range-laws/known-fa
 
 **G2.19 · A keystroke paints one block.** Typing or a byte splice changes only the edited block's
 node and its containers' bytes (rows for a paragraph, a list item and a quote). Each mounted block
-reads its paint through `DecorationEngine.paintOf`, which keeps a block's answer while its bytes
-hold and keeps equal answers as the same arrays, so with marks on every block a keystroke asks the
-edited block's paint again and measures only its marks; a block is first asked once it mounts.
+reads its paint through `DecorationEngine.paintOf`, kept while its bytes hold and equal answers as
+the same arrays, so a keystroke asks only the edited block's `paint` (a container goes to
+`paintContainer`) and measures only its marks; a block is first asked once it mounts.
 `e2e/tests/decorations/paint.spec.ts`, `paint-reactivity.svelte.test.ts`, `plugin-paint.svelte.test.ts`.

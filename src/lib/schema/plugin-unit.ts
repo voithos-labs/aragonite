@@ -14,7 +14,7 @@ import type { CaretMenu } from './caret-menu';
 import type { SelectionAction } from './selection-action';
 import type { Draft } from './drafts';
 import type { Block } from './doc-view';
-import type { Paint } from '../decorations/paint';
+import type { BlockPaint, Paint } from '../decorations/paint';
 import { isValidPluginName } from './plugin-name';
 import { satisfiesRange } from './version-range';
 
@@ -70,8 +70,12 @@ export interface Contribution {
 	/** Rows over the selection, or a range captured around the caret, in the right-click menu, the
 	 *  selection toolbar and `openRows`. */
 	actions?: readonly SelectionAction[];
-	/** What to lay over `block`, asked while it's on screen and kept while its bytes hold. */
+	/** What to lay over `block`, a block of text (one holding no other blocks), asked while it's on
+	 *  screen and kept while its bytes hold. */
 	paint?(block: Block): readonly Paint[];
+	/** Classes and a badge for a block holding other blocks (a list, a quote, a table row), asked
+	 *  the same way. Its text is all of its children's, so read its type rather than scan it. */
+	paintContainer?(block: Block): readonly BlockPaint[];
 }
 
 /** The editor as a plugin's `setup` and a host's handle both see it. */
