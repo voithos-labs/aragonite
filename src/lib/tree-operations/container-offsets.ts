@@ -483,8 +483,8 @@ const MARKER_ONLY =
 function textColumn(raw: ParsedLine, body: ParsedLine): number | null {
 	const { text } = body;
 	if (isBlankText(text)) {
-		if (!MARKER_ONLY.test(raw.text)) return null;
-		// A blank body line's spaces sit at the end of its marker.
+		// A blank body line's spaces sit at the end of its marker; a title with no text, in its tags.
+		if (!MARKER_ONLY.test(raw.text)) return inTags(raw.text, text);
 		return raw.text.endsWith(text) ? raw.text.length - text.length : raw.text.length;
 	}
 	const behind = raw.text.length - text.length;
@@ -495,8 +495,12 @@ function textColumn(raw: ParsedLine, body: ParsedLine): number | null {
 		// Negative where the cut tab stands for more spaces than the marker left behind.
 		return marker.length - (text.length - content.length);
 	}
-	const inTags = raw.text.indexOf('>' + text + '<');
-	return inTags < 0 ? null : inTags + 1;
+	return inTags(raw.text, text);
+}
+
+function inTags(line: string, text: string): number | null {
+	const at = line.indexOf('>' + text + '<');
+	return at < 0 ? null : at + 1;
 }
 
 /** The index of the line `offset` falls on; an offset on a line's ending counts as that line. */

@@ -24,6 +24,13 @@ import {
 	previousCaretPath
 } from '../../selection/path-lookup';
 import { caretTargetFor } from '../../selection/caret-target';
+import { wholeBlockBytes } from '../../selection/range-bytes';
+import { leafAtByte } from '../../tree-operations/container-offsets';
+import { wholeBlocksRemovalOf } from '../../range-edit/edit-range';
+import { rangeHost } from '../../range-edit/host';
+import { documentLayout } from '../../range-edit/layout';
+import { kitReading } from '../../testing/kit-reading';
+import { blockFacts } from '../../schema/block-facts';
 import { registerChromePluginsForTests } from './chrome-plugins';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
 
@@ -177,6 +184,13 @@ function caretLanding(doc: Document, path: number[] | null): boolean {
 	return path !== null && isLeaf(doc, path) && mountedReachable(doc, path);
 }
 
+/** A table's row or cell, which nothing removes whole. */
+function inGrid(doc: Document, path: number[]): boolean {
+	const parent = nodeAt(doc, path.slice(0, -1));
+	const lines = parent && isBlockNode(parent) ? blockFacts(parent.kind).lines : 'none';
+	return lines === 'rows' || lines === 'cells';
+}
+
 function allPaths(doc: Document): number[][] {
 	const out: number[][] = [];
 	const visit = (children: CstNode[] | undefined, prefix: number[]) =>
@@ -277,6 +291,53 @@ describe('caret-reachable order', () => {
 					for (const offset of [0, CURSOR_START, CURSOR_EXACT_START, CURSOR_END, 3]) {
 						const t = caretTargetFor(doc, { path: docPathFrom(path), offset });
 						expect(caretLanding(doc, t && [...t.leafPath]), `${path}@${offset}`).toBe(true);
+					}
+				}
+			}),
+			PARAMS
+		);
+	});
+
+	// The neighbour is read before the removal and found by its first byte, moved by what went; a
+	// removal keeping the block's line (a container's only text) keeps the caret, left to the table.
+	it('takes the reachable neighbour on the side asked when the core removes a block whole', () => {
+		fc.assert(
+			fc.property(arbDoc, (d) => {
+				const source = sourceOf(d);
+				const doc = parse(source);
+				const layout = documentLayout(doc);
+				const host = rangeHost(kitReading(), { source, tree: doc, layout });
+				const leaves = caretWalks(doc).forward;
+				for (const path of allPaths(doc).filter(
+					(p) => !inGrid(doc, p) && mountedReachable(doc, p)
+				)) {
+					const range = wholeBlockBytes(doc, layout, path);
+					const last = lastCaretLeaf(doc, path);
+					if (!range || !last) continue;
+					const taken = leaves.filter(
+						(p) => !isStrictAncestorOf(path, p) && p.join() !== path.join()
+					);
+					const sides = {
+						backspace: previousCaretPath(doc, path) ?? nextCaretPath(doc, last),
+						delete: nextCaretPath(doc, last) ?? previousCaretPath(doc, path)
+					};
+					for (const gesture of ['backspace', 'delete'] as const) {
+						const neighbour = sides[gesture];
+						const removed = wholeBlocksRemovalOf(source, range, gesture, 'source', host);
+						const result = parse(removed.source);
+						if (caretWalks(result).forward.length !== taken.length) continue;
+						const shift = source.length - removed.source.length;
+						const at = (byte: number) => {
+							const leaf = leafAtByte(result, byte);
+							const t = leaf && caretTargetFor(result, { path: docPathFrom(leaf.path), offset: 0 });
+							return t && [...t.leafPath];
+						};
+						const start = neighbour && layout.byteOf(neighbour, 0);
+						const got = at(removed.caret.at);
+						const where = `${JSON.stringify(source)} ${path} ${gesture}`;
+						if (typeof start === 'number')
+							expect(got, where).toEqual(at(start < range.from ? start : start - shift));
+						expect(caretLanding(result, got), where).toBe(true);
 					}
 				}
 			}),
