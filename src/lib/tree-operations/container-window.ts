@@ -10,7 +10,7 @@ import type { DocumentView, NodeView } from '../core/node-views';
 import { isBlankParagraph } from '../core/parser';
 import { splitLines } from '../core/lines';
 import { countsAfterRewrite } from '../core/parsers/list';
-import { waitingReading, type UnfinishedReading } from '../schema/block-openers';
+import type { UnfinishedReading } from '../schema/block-openers';
 import { blockFacts } from '../schema/block-facts';
 import { spanHolding } from '../schema/child-spans';
 import { assignChildIdsDeep, keepUnchangedDeep } from '../block-id';
@@ -89,8 +89,6 @@ export function containerWindow(
 			run.hi = Math.min(kids.length - 1, run.hi + grow);
 			continue;
 		}
-		// A block left waiting on its closer may take in lines past the run.
-		if (now.blocks.some((block) => waitingReading(block.raw, top.readings))) return null;
 		const window = {
 			at: t,
 			count: 1,
@@ -154,7 +152,7 @@ function readRun(run: Run, text: string): RunRead | 'moved' | 'mismatch' {
 	const runSpans = readSpans.slice(head * 2, (m + 1) * 2).map((at) => at - headText.length);
 	const found = { blocks, spans: runSpans, metadata: container.metadata };
 	const below = container.children.slice(m + 1);
-	if (!last) return read.children.length === 1 && standsBelow(kids, hi, k, below) ? found : 'moved';
+	if (!last) return standsBelow(kids, hi, k, below) ? found : 'moved';
 	const ownTail = container.innerSuffix ?? '';
 	if (below.length > 0 || ownTail !== (node.innerSuffix ?? '')) return 'moved';
 	const tops = top.doc.children;
