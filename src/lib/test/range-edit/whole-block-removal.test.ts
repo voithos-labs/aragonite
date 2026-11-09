@@ -75,7 +75,13 @@ describe('a block removed whole against a range over its whole span', () => {
 			[0, 1, 1],
 			'- a\n- b\n\n| A |\n| - |\n'
 		],
-		['prose folds into the quote it ended', '> a\n> # h\ntext\n', [0, 1], '> a\ntext\n']
+		['prose folds into the quote it ended', '> a\n> # h\ntext\n', [0, 1], '> a\ntext\n'],
+		[
+			'a table stays apart from the inner quote it ended',
+			'> > a\n> > # h\n> | A |\n> | - |\n',
+			[0, 0, 1],
+			'> > a\n>\n> | A |\n> | - |\n'
+		]
 	])('leaves the pair around it the join question’s blank line: %s', (_, source, path, left) => {
 		const host = checkHost();
 		const block = host.layout(host.read(source)).block(path)!;

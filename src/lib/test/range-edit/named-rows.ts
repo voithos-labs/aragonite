@@ -931,10 +931,10 @@ export const NAMED_ROWS: NamedRow[] = [
 		expect: { source: '| a | b |\n| --- | --- |\n| 3 | 4 |\n' }
 	},
 	{
-		name: 'L4 a first paragraph the range empties keeps its line before a table body it enters',
+		name: 'L4 a first paragraph the range empties keeps one empty line before a table body it enters',
 		source: '⟦para\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n⟧| 3 | 4 |\n',
 		gesture: 'delete',
-		expect: { source: '\n\n| a | b |\n| --- | --- |\n| 3 | 4 |\n', caret: text(0) }
+		expect: { source: '\n| a | b |\n| --- | --- |\n| 3 | 4 |\n', caret: text(0) }
 	},
 	{
 		name: 'L4 a title row a range starts in keeps its closing tag, its text emptied',
@@ -960,5 +960,96 @@ export const NAMED_ROWS: NamedRow[] = [
 			'⟦| a | b |\n| --- | --- |\n| 1 | 2 |\n\n:::note Title\n| c | d |\n| --- | --- |\n| 3 | 4 |⟧\n:::\n\nBelow\n',
 		gesture: 'delete',
 		expect: { source: ':::note Title\n:::\n\nBelow\n' }
+	},
+
+	// ── An emptied paragraph between blank lines keeps one empty line (owner question 1) ──
+	{
+		name: 'L4 the text of two paragraphs between blank lines leaves one empty line',
+		source: 'Top\n\n⟦aa\n\nbb⟧\n\nNext\n',
+		gesture: 'delete',
+		expect: { source: 'Top\n\n\nNext\n', caret: text(5) }
+	},
+	{
+		name: 'L3 that cut pastes back as the two paragraphs, apart from the one below',
+		source: 'Top\n\n⟦aa\n\nbb⟧\n\nNext\n',
+		gesture: 'cut',
+		expect: { source: 'Top\n\n\nNext\n', clipboard: 'aa\n\nbb', caret: text(5) },
+		then: { gesture: 'paste back', expect: backToStart('Top\n\naa\n\nbb\n\nNext\n') }
+	},
+	{
+		name: 'L4 the same inside a quote keeps one quoted empty line',
+		source: '> Top\n>\n> ⟦aa\n>\n> bb⟧\n>\n> Next\n',
+		gesture: 'backspace',
+		expect: { source: '> Top\n>\n> \n> Next\n', caret: text(10) }
+	},
+	{
+		name: 'L4 the same at the document start, which counts as a blank line',
+		source: '⟦aa\n\nbb⟧\n\nNext\n',
+		gesture: 'delete',
+		expect: { source: '\nNext\n', caret: text(0) }
+	},
+	{
+		name: 'L4 a paragraph emptied up to a block taken whole leaves one empty line',
+		source: 'Top\n\n⟦aa\n\n---⟧\n\nNext\n',
+		gesture: 'delete',
+		expect: { source: 'Top\n\n\nNext\n', caret: text(5) }
+	},
+	{
+		name: 'L4 the same in a CRLF document',
+		source: 'Top\r\n\r\n⟦aa\r\n\r\nbb⟧\r\n\r\nNext\r\n',
+		gesture: 'delete',
+		expect: { source: 'Top\r\n\r\n\r\nNext\r\n', caret: text(7) }
+	},
+	{
+		name: 'L4 an emptied quoted paragraph above a line the quote ends on keeps that line',
+		source: '> Top\n>\n> ⟦aa\n>\n> bb⟧\n\nNext\n',
+		gesture: 'delete',
+		expect: { source: '> Top\n>\n> \n\nNext\n' }
+	},
+	{
+		name: 'L5 a word typed over that range stays apart from the paragraph below',
+		source: 'Top\n\n⟦aa\n\nbb⟧\n\nNext\n',
+		gesture: paste('x'),
+		expect: { source: 'Top\n\nx\n\nNext\n', caret: text(6) }
+	},
+	{
+		name: 'L5 two paragraphs pasted over it stay apart from the paragraph below',
+		source: 'Top\n\n⟦aa\n\nbb⟧\n\nNext\n',
+		gesture: paste('x\n\ny'),
+		expect: { source: 'Top\n\nx\n\ny\n\nNext\n' }
+	},
+	{
+		name: 'L5 plain text pasted over it stays apart too',
+		source: 'Top\n\n⟦aa\n\nbb⟧\n\nNext\n',
+		gesture: plain('*x*'),
+		expect: { source: 'Top\n\n\\*x\\*\n\nNext\n' }
+	},
+
+	// ── An end block that takes no joined text, entered by the range, stays a block ──
+	{
+		name: 'L3 a cut from a quote into an HTML block leaves its closing tag outside the quote',
+		source: '> a⟦\n\n<div>\nb⟧\n</div>\n',
+		gesture: 'cut',
+		expect: { source: '> a\n</div>\n', caret: text(3) },
+		then: { gesture: 'paste back', expect: backToStart('> a⟦\n\n<div>\nb⟧\n</div>\n') }
+	},
+	{
+		name: 'L3 the same from a list item',
+		source: '- a⟦\n\n<div>\nb⟧\n</div>\n',
+		gesture: 'cut',
+		expect: { source: '- a\n</div>\n', caret: text(3) },
+		then: { gesture: 'paste back', expect: backToStart('- a⟦\n\n<div>\nb⟧\n</div>\n') }
+	},
+	{
+		name: 'L4 the same into a script block, whose closing tag alone reads as its own block',
+		source: '> a⟦\n\n<script>\nb⟧\n</script>\n',
+		gesture: 'backspace',
+		expect: { source: '> a\n</script>\n' }
+	},
+	{
+		name: 'L4 text the range leaves on the HTML block’s line stays apart from the quote',
+		source: '> a⟦\n\n<div>\nb⟧c\n</div>\n',
+		gesture: 'delete',
+		expect: { source: '> a\n\nc\n</div>\n' }
 	}
 ];

@@ -431,6 +431,53 @@ export function expectedPaste(
 	text: string,
 	host: CheckHost
 ): { shape: PasteShape; bytes: string[] } {
+	const want = landedPaste(read, at, text, host);
+	const last = host
+		.read(lf(text))
+		.children.filter((b) => b.raw.trim() !== '')
+		.at(-1);
+	const container = !!last?.children?.length;
+	const apart = (bytes: string) => apartBelow(read, at, bytes, host, container);
+	return { ...want, bytes: want.bytes.flatMap(apart) };
+}
+
+/** `bytes`, or `bytes` with a blank line over the block flush under an empty paragraph the paste
+ *  landed in: required where only that keeps the block starting its line. */
+export function apartBelow(
+	read: Read,
+	at: number,
+	bytes: string,
+	host: CheckHost,
+	pastedContainer = false
+): string[] {
+	const target = leafAt(read, at);
+	const empty = !!target && /^\r?\n?$/.test(treeNodeAt(read.tree, target.path)?.raw ?? '-');
+	if (target?.type !== 'paragraph' || !empty || inTitleRow(read, at, host)) return [bytes];
+	// A pasted container the caret's container takes in is that block's own, set apart from nothing.
+	if (pastedContainer) return [bytes];
+	const lineEnd = read.source.indexOf('\n', target.to);
+	const lineBelow = read.source.slice(target.to, lineEnd < 0 ? undefined : lineEnd);
+	if (/^[ \t>]*\r?$/.test(lineBelow)) return [bytes];
+	const textStart = target.to + /^[ \t>]*/.exec(lineBelow)![0].length;
+	const sibling = [...target.path.slice(0, -1), target.path.at(-1)! + 1].join();
+	const next = read.blocks.find((b) => b.path.join() === sibling && b.from <= textStart);
+	if (!next) return [bytes];
+	const shift = bytes.length - read.source.length;
+	const line = target.to + shift;
+	const marks = read.source.slice(target.to, next.from).trimEnd() + endingOf(read.source);
+	const apart = bytes.slice(0, line) + marks + bytes.slice(line);
+	const starts = (source: string, from: number) =>
+		readOf(host, source).blocks.some((b) => b.type === next.type && b.from === from);
+	if (starts(bytes, next.from + shift)) return [bytes, apart];
+	return starts(apart, next.from + shift + marks.length) ? [apart] : [bytes];
+}
+
+function landedPaste(
+	read: Read,
+	at: number,
+	text: string,
+	host: CheckHost
+): { shape: PasteShape; bytes: string[] } {
 	const clip = readOf(host, lf(text));
 	const tops = clip.blocks.filter(
 		(b) =>
@@ -561,8 +608,27 @@ function nothingVisibleAfter(source: string, byte: number): boolean {
 // ── Paste as plain text at a caret ───────────────────────────────────────────
 
 /** Whether a plain paste at `at` changed bytes only there and put `text` in as the block shows it
- *  (as written, where the block's text is literal). */
+ *  (as written, where the block's text is literal), a blank line over the block below aside. */
 export function plainPasteHolds(
+	read: Read,
+	at: number,
+	text: string,
+	got: string,
+	host: CheckHost,
+	mode: Mode
+): boolean {
+	if (insertedOnly(read, at, text, got, host, mode)) return true;
+	const below = got.length - (read.source.length - (leafAt(read, at)?.to ?? at));
+	const blank = /(?:^|\n)([ \t>]*\r?\n)$/.exec(got.slice(0, below))?.[1];
+	const bare = blank ? got.slice(0, below - blank.length) + got.slice(below) : got;
+	return (
+		bare !== got &&
+		insertedOnly(read, at, text, bare, host, mode) &&
+		apartBelow(read, at, bare, host).includes(got)
+	);
+}
+
+function insertedOnly(
 	read: Read,
 	at: number,
 	text: string,
