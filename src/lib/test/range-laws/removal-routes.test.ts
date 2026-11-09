@@ -20,6 +20,11 @@ import { caretTargetFor, type RemovalGesture } from '#lib/selection/caret-target
 import { CORE_GESTURE } from '#lib/selection/cross-block/range-removal.js';
 import type { SpliceCaret } from '#lib/action-contracts.js';
 import { landingAt } from '#lib/editor-actions/commit/byte-splice.js';
+import { CURSOR_END, CURSOR_START } from '#lib/block-component.js';
+import {
+	getAllRegisteredKinds,
+	getBlockKindDescriptor
+} from '#lib/schema/block-kind-descriptor.js';
 import { caretOf } from './through-splice';
 import { registerDefaultContextActions } from '#lib/components/menu/default-context-actions.js';
 import {
@@ -302,3 +307,67 @@ describe('every whole-block route leaves the core’s bytes', () => {
 		}
 	}
 });
+
+// Miss-analysis: the core's caret table holds every kit kind's byte, and R1 each route's landing of
+// it, but nothing held that byte, landed, to where the kind itself puts a caret it is entered at.
+describe('a rule removed whole lands where the kind beside it takes a caret', () => {
+	const sides = {
+		'above the rule, by Backspace': { route: { key: 'Backspace' }, above: true },
+		'above the rule, by the block menu’s Remove': { route: { menu: true }, above: true },
+		'below the rule, by Delete': { route: { key: 'Delete' }, above: false },
+		'below the rule, by Mod+X': { route: { cut: true }, above: false }
+	} satisfies Record<string, { route: WholeRoute; above: boolean }>;
+	for (const mode of ['source', 'live'] as const) {
+		it.each(Object.entries(sides))(`${mode}, every kit kind %s`, async (_, { route, above }) => {
+			const out: string[] = [];
+			const kits = await kitFixtures();
+			expect(kits.map(([kind]) => kind)).toContain('table');
+			for (const [kind, fixture] of kits) {
+				await destroyMountedEditors();
+				const block = fixture.replace(/\r?\n$/, '');
+				const source = above ? `${block}\n\n---\n\nbelow\n` : `above\n\n---\n\n${block}\n`;
+				const editor = mountCase(source, mode);
+				await editor.settle();
+				if (editor.instance.__test.getDocument().children.length !== 3) continue;
+				if (mode === 'live' && !above && TITLE_ROW_KINDS.has(kind)) continue;
+				if (!(await driveWhole(editor, [1], route))) out.push(`${kind}: the route took no action`);
+				const removed = editor.source();
+				const left = { caret: heldCaret(editor), typed: await typedAt(editor) };
+				const fresh = mountCase(removed, mode);
+				await fresh.settle();
+				fresh.instance.__test.getBlockComponent(above ? [0] : [1])!.focus(edge(above));
+				await fresh.settle();
+				const own = { caret: heldCaret(fresh), typed: await typedAt(fresh) };
+				// Two raw offsets of one screen position, as live mode's hidden markers make, are one place.
+				if (left.caret !== own.caret && left.typed !== own.typed)
+					out.push(`${kind}: ${left.caret}, not ${own.caret}`);
+			}
+			expect(out).toEqual([]);
+		});
+	}
+});
+
+const edge = (above: boolean) => (above ? CURSOR_END : CURSOR_START);
+
+// A live title row's own start caret reads raw 0, before its hidden `:::` marker, so a letter goes
+// in front of the marker; the removal's caret types into the title, where Delete means it.
+const TITLE_ROW_KINDS = new Set(['directiveContainer', 'directiveLeaf', 'admonition']);
+
+/** The source once a letter is typed at the editor's caret, read before the editor loses focus. */
+async function typedAt(editor: Editor): Promise<string> {
+	const before = editor.source();
+	await pressHardwareKey(document.activeElement as HTMLElement, { key: 'x' });
+	await editor.settle();
+	const typed = editor.source();
+	return typed === before ? 'nothing typed' : typed;
+}
+
+/** Every registered kind with a conformance fixture, read once an editor has installed its plugins. */
+async function kitFixtures(): Promise<[string, string][]> {
+	mountCase('', 'source');
+	await destroyMountedEditors();
+	return getAllRegisteredKinds().flatMap((kind) => {
+		const fixture = getBlockKindDescriptor(kind).conformanceFixture;
+		return fixture ? [[kind, fixture] as [string, string]] : [];
+	});
+}

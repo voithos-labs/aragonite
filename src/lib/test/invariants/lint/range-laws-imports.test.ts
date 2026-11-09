@@ -48,7 +48,10 @@ const ALLOWED: Record<string, string> = {
 	'src/lib/selection/cross-block/range-removal.ts': 'the core’s name for each block gesture',
 	'src/lib/editor-actions/commit/byte-splice.ts':
 		'where a byte splice puts the core’s caret down, which G1.200 holds each route to (a read)',
-	'src/lib/selection/caret-target.ts': 'the leaf a landing on a block focuses (a read)'
+	'src/lib/selection/caret-target.ts': 'the leaf a landing on a block focuses (a read)',
+	'src/lib/block-component.ts': 'the edges a block’s own `focus` enters at, a landing row’s oracle',
+	'src/lib/schema/block-kind-descriptor.ts':
+		'every registered kind and its conformance fixture, which a landing row draws (a read)'
 };
 const PACKAGES = new Set(['vitest', 'fast-check', 'node:fs', 'node:path']);
 
