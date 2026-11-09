@@ -14,6 +14,7 @@ import { beginCommit, endCommit } from '../../commit-scope';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { endsOpen } from '../../tree-operations/fix-up/apply';
 import { emitCommitError, toEditEvent } from '../../editor-events';
+import { emitEdit, type ReplacedBlocks } from './emit-edit';
 import {
 	assertChangeInReach,
 	assertCommitPaths,
@@ -64,6 +65,8 @@ export interface FrameWrite {
 	/** Unwind a write that changed nothing, as a throw would, minus the error. */
 	discardIfNoop?: boolean;
 	written(): WrittenNodes;
+	/** The blocks the write replaced, read once it has written. */
+	replaced(): ReplacedBlocks;
 	/** The dev checks only this write can scope, run after the frame's own. */
 	check?(written: WrittenNodes): void;
 	/** Restores what `apply` wrote. */
@@ -154,7 +157,9 @@ export function createCommitFrame(
 		// A write moves what the gap caret's boundary index names; after the push, so the stored
 		// entry keeps the gap.
 		deps.selectionState.clearGapCaret();
-		if (write.op) deps.events.emit('edit', toEditEvent(write.op, write.op.eventPath, Date.now()));
+		if (write.op) {
+			emitEdit(deps, toEditEvent(write.op, write.op.eventPath, Date.now()), write.replaced());
+		}
 		return 'written';
 	}
 

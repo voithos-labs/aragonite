@@ -35,6 +35,7 @@ import {
 } from '#lib/tree-operations/paste/dispatch.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import type { ReplacedBlocks } from '#lib/editor-actions/commit/emit-edit.js';
 import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
 import { createContainerEditActions } from '#lib/editor-actions/container-edit.js';
 import { createListContext } from '#lib/editor-actions/list-context.js';
@@ -188,7 +189,6 @@ export function makeCommitScopeStub(
 				body,
 				sharing,
 				reading: fixtureReading(),
-				unshareChild: (i) => children[i],
 				describeEdit: () => () => null,
 				own: writer.own,
 				writeLeaf: writer.writeLeaf
@@ -413,6 +413,8 @@ export interface EditorActionsHarness extends HeadlessActions {
 	/** A plain counter standing in for the editor's content version, so a test can ask whether the
 	 *  function it drove announced its write. */
 	contentVersion: () => number;
+	/** What each write that emitted `edit` said it replaced, in order. */
+	replaced: readonly ReplacedBlocks[];
 }
 
 /** A paste context for an editor with no `plugins` or `syntax` prop: every installed plugin and
@@ -427,18 +429,20 @@ export function pasteContext(
 /** The published headless deps with spied collaborators and a content-version counter. */
 export function makeEditorActionsDeps(
 	source: string | CstNode[] | Document,
-	options: Omit<HeadlessActionsOptions, 'spy' | 'bumpContentVersion'> = {}
+	options: Omit<HeadlessActionsOptions, 'spy' | 'bumpContentVersion' | 'onReplaced'> = {}
 ): EditorActionsHarness {
 	let contentVersion = 0;
+	const replaced: ReplacedBlocks[] = [];
 	const headless = createHeadlessActions(source, {
 		...options,
 		spy: spyEvery,
 		bumpContentVersion: () => {
 			contentVersion++;
-		}
+		},
+		onReplaced: (r) => replaced.push(r)
 	});
 	recordRestores(headless);
-	return { ...headless, contentVersion: () => contentVersion };
+	return { ...headless, contentVersion: () => contentVersion, replaced };
 }
 
 /** Adds a caret put back at its byte (a byte splice's text caret) to the recorded landings, beside
@@ -576,6 +580,7 @@ export interface NestedHarness {
 	contentVersion: () => number;
 	/** Every leaf the editor's caret landing resolved to, in order. */
 	landings: readonly RecordedLanding[];
+	replaced: EditorActionsHarness['replaced'];
 }
 
 export interface NestedHarnessOptions {
@@ -604,7 +609,7 @@ export function makeNestedHarness(
 		opts.grammar || opts.presentationMode
 			? fixtureReading(opts.grammar ? { grammar: opts.grammar } : {}, opts.presentationMode)
 			: undefined;
-	const { deps, events, contentVersion, landings } = makeEditorActionsDeps(
+	const { deps, events, contentVersion, landings, replaced } = makeEditorActionsDeps(
 		source,
 		reading ? { reading } : {}
 	);
@@ -654,7 +659,8 @@ export function makeNestedHarness(
 		bundle,
 		getNode,
 		contentVersion,
-		landings
+		landings,
+		replaced
 	};
 }
 

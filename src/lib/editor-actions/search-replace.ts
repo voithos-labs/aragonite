@@ -22,6 +22,7 @@ import { applyRangesToText } from '../search/replace';
 import type { Match } from '../search/document-scan';
 import type { EditorActionsDeps, UndoController } from './deps';
 import { toEditEvent } from '../editor-events';
+import { emitEdit } from './commit/emit-edit';
 import { docPathFrom } from '../core/coordinate-spaces';
 import { documentLineEnding } from '../core/lines';
 import { keepUnchanged } from '../block-id';
@@ -154,10 +155,9 @@ export function createSearchReplace(deps: EditorActionsDeps, controller: UndoCon
 		if (applied === 0) return 0;
 		// A single-subtree replace names its block's path in the event; a multi-subtree batch has none.
 		const eventPath = indices.length === 1 ? docPathFrom([indices[0]]) : [];
-		deps.events.emit(
-			'edit',
-			toEditEvent({ kind: 'replaceBlock', detail: { count: newBlockCount } }, eventPath, Date.now())
-		);
+		const op = { kind: 'replaceBlock', detail: { count: newBlockCount } } as const;
+		// The batch's commits carry no op, so none named the blocks it replaced.
+		emitEdit(deps, toEditEvent(op, eventPath, Date.now()), 'unknown');
 		return applied;
 	}
 

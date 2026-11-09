@@ -53,6 +53,7 @@ import { checkSettledOnce, startCommitSettles } from '../../invariants/settle-on
 import { saveBytes } from './saved-bytes';
 import { perfEnabled } from '../../perf/instruments';
 import type { FrameWrite } from './commit-frame';
+import { NOTHING_REPLACED } from './emit-edit';
 import { createScopeWriter, rebuildOwnedChains, type ScopeWriter } from './scope-writes';
 
 // ── Dev invariant scoping (dev-only paths) ────────────────────────────────────
@@ -355,6 +356,18 @@ export function createStructuralCommit(
 		let foldLanding: FoldLanding | null = null;
 		let unwindFolds: (() => void) | null = null;
 		let topLevelBefore: CstNode[] | null = null;
+		// A write that changed no list and kept every child of each container it owned rewrote only
+		// those containers' own lines, which are no block (a to-do's checkbox, say).
+		const ownLinesOnly = () =>
+			folds.length === 0 &&
+			reclassified.length === 0 &&
+			prepared.every(
+				(p, i) =>
+					settled[i].op === 'noop' &&
+					Object.keys(p.edit).length === 0 &&
+					p.writer.settledLists.size === 0 &&
+					p.writer.owned.every(({ path }) => keepsChildren(p, path))
+			);
 		return __commit({
 			entry: args.entry,
 			snapshot,
@@ -471,6 +484,7 @@ export function createStructuralCommit(
 			announce: args.announce,
 			discardIfNoop,
 			history: args.history ?? 'entry',
+			replaced: () => (ownLinesOnly() ? NOTHING_REPLACED : 'unknown'),
 			written: () => {
 				const nodes: CstNode[] = [];
 				// A set: a doc scope's caller can name a block the scope's change already placed.
@@ -537,6 +551,16 @@ export function createStructuralCommit(
 				}
 			}
 		});
+	}
+
+	/** Whether the node at `path` below scope `p` is a container this write copied that holds the
+	 *  very children it held before. */
+	function keepsChildren(p: PreparedScope, path: readonly number[]): boolean {
+		const was = nodesOn({ children: p.savedChildren }, path)[path.length - 1];
+		const now = nodesOn(p.isDoc ? deps.doc : p.owned, path)[path.length - 1];
+		const [before, after] = [was?.children, now?.children];
+		if (was === now || !before || !after || before.length !== after.length) return false;
+		return before.every((child, i) => child === after[i]);
 	}
 
 	// ── Doc scope adapter ────────────────────────────────────────────────────

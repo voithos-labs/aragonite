@@ -41,6 +41,7 @@ import { checkLineEndingPairsKept, type LineEndingCounts } from './line-ending-p
 import { lineEndingCounts } from '../core/line-ending-pairs';
 import { concatChildren } from '../core/serializer';
 import { checkWrittenUnshared } from './written-unshared';
+import { checkDefinitionsKept } from './definitions-kept';
 import type { SharingState } from '../tree-operations/sharing';
 
 /** Checks only the nodes a commit touched. Call it after the commit's `rebuildRaw`, so a strip
@@ -197,6 +198,13 @@ export function assertTopLevelUntouched(
 	before: readonly CstNode[]
 ): void {
 	assertInvariant('top-level-untouched', () => checkTopLevelUntouched(live, tree, before));
+}
+
+/** G1.206, after a write the editor kept its link definitions for; off under the perf instruments,
+ *  since it walks the document. */
+export function assertDefinitionsKept(children: readonly CstNode[], signature: string): void {
+	if (perfEnabled()) return;
+	assertInvariant('definitions-kept', () => checkDefinitionsKept(children, signature));
 }
 
 /** G1.36, the reading half, run wherever ids are written to state: an id array that is too short

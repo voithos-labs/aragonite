@@ -14,6 +14,7 @@ import type { RefSlots } from '../block-lists/child-refs';
 import type { CaretLanding } from '../selection/caret-landing';
 import type { DocumentStamps } from './commit/document-stamp';
 import type { DraftRegistry } from './commit/draft-registry.svelte';
+import type { ReplacedBlocks } from './commit/emit-edit';
 
 export interface EditorActionsDeps {
 	get doc(): Document;
@@ -31,6 +32,9 @@ export interface EditorActionsDeps {
 	/** The document's bytes and their layout, made once per content version, which a block removed
 	 *  whole reads. */
 	bytes: DocumentBytes;
+	/** Brings the link definitions up to date after a write, from the blocks it replaced;
+	 *  `emitEdit` calls it before each `edit`. */
+	refreshDefinitions(replaced: ReplacedBlocks): void;
 	undoManager: UndoManager;
 	sharing: SharingState;
 	caretMemory: CaretMemory;

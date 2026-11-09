@@ -1,50 +1,46 @@
+// The rebuild gate reads the blocks a write replaced, at any depth, on either side of it; a kept set
+// of definitions is checked in dev (G1.206).
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
-import { advanceSignatureEpoch, lrdMapCouldChange } from '#lib/components/link-reference-map.js';
+import {
+	advanceSignatureEpoch,
+	definitionsAfter,
+	lrdMapCouldChange
+} from '#lib/components/link-reference-map.js';
 import { definitionsOf } from '#lib/core/inline/scan/definitions.js';
-import type { EditEvent } from '#lib/editor-events.js';
+import { NOTHING_REPLACED } from '#lib/editor-actions/commit/emit-edit.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 
-function event(op: EditEvent['op'], path: number[], detail?: unknown): EditEvent {
-	return { op, path, detail, timestamp: 0 } as EditEvent;
-}
+const blocks = (source: string) => parse(source).children;
 
 describe('lrdMapCouldChange', () => {
-	it('skips the rebuild for an ordinary paragraph keystroke', () => {
-		const doc = parse('hello world\n');
-		expect(lrdMapCouldChange(doc, event('input', [0]))).toBe(false);
+	it.each([
+		['a write that names nothing', 'unknown' as const, true],
+		['a write that replaced no block', NOTHING_REPLACED, false],
+		['prose replaced by prose', { before: blocks('a\n'), after: blocks('b\n') }, false],
+		['a definition taken out', { before: blocks('[d]: /u\n'), after: blocks('b\n') }, true],
+		['a definition put in, inside a quote', { before: [], after: blocks('> [d]: /u\n') }, true]
+	])('%s: %s', (_, replaced, expected) => {
+		expect(lrdMapCouldChange(replaced)).toBe(expected);
+	});
+});
+
+describe('definitionsAfter', () => {
+	const doc = parse('see [d][d]\n\n[d]: /u\n');
+	const signature = definitionsOf(doc.children).signature;
+
+	it('rebuilds for a write that may have changed them', () => {
+		expect(definitionsAfter(doc, 'unknown', signature)?.resolve('d')).toEqual({ url: '/u' });
 	});
 
-	it('skips the rebuild for a paragraph keystroke even when the doc holds LRDs', () => {
-		// The common case with many definitions: typing in a paragraph that uses a reference can
-		// never change the set of definitions, so it must not traverse the document.
-		const doc = parse('use [d][d]\n\n[d]: https://example.com\n');
-		expect(doc.children[0].kind).not.toBe('linkReferenceDefinition');
-		expect(lrdMapCouldChange(doc, event('input', [0]))).toBe(false);
+	it('keeps them for one that replaced none, quietly when they did not change', () => {
+		expect(definitionsAfter(doc, NOTHING_REPLACED, signature)).toBeNull();
+		expect(takeDevWarns()).toEqual([]);
 	});
 
-	it('rebuilds when a kind-stable edit targets a definition node', () => {
-		const doc = parse('see [d][d]\n\n[d]: https://example.com\n');
-		expect(doc.children[1].kind).toBe('linkReferenceDefinition');
-		expect(lrdMapCouldChange(doc, event('input', [1]))).toBe(true);
-	});
-
-	it('rebuilds on a kind change that creates a definition (commits as updateContent)', () => {
-		const doc = parse('[d]: https://example.com\n');
-		expect(doc.children[0].kind).toBe('linkReferenceDefinition');
-		expect(lrdMapCouldChange(doc, event('updateContent', [0], { length: 24 }))).toBe(true);
-	});
-
-	it('rebuilds on a kind change that deletes a definition (post-edit node is now prose)', () => {
-		// The edited node is prose, yet the map must rebuild, or the resolver keeps serving the
-		// deleted definition.
-		const doc = parse('plain prose now\n');
-		expect(doc.children[0].kind).not.toBe('linkReferenceDefinition');
-		expect(lrdMapCouldChange(doc, event('updateContent', [0], { length: 15 }))).toBe(true);
-	});
-
-	it('rebuilds on a structural op', () => {
-		const doc = parse('hello world\n');
-		expect(lrdMapCouldChange(doc, event('split', [0], { at: 3 }))).toBe(true);
+	it('warns in dev when a write that replaced none changed them (G1.206)', () => {
+		expect(definitionsAfter(doc, NOTHING_REPLACED, '')).toBeNull();
+		expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:definitions-kept']);
 	});
 });
 

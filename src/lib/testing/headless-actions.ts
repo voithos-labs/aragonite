@@ -31,6 +31,7 @@ import type { SelectionRestoreOutcome } from '../selection/selection-restore';
 import { createSharingState } from '../tree-operations/sharing';
 import { createUndoManager } from '../undo/manager';
 import { createDocumentStamps } from '../editor-actions/commit/document-stamp';
+import type { ReplacedBlocks } from '../editor-actions/commit/emit-edit';
 
 // ── Stubs ────────────────────────────────────────────────────────────────────
 
@@ -124,6 +125,8 @@ export interface HeadlessActionsOptions {
 	 *  Absent, every installed plugin in styled source. */
 	reading?: Reading;
 	bumpContentVersion?: () => void;
+	/** Hears what each write that emits `edit` said it replaced. */
+	onReplaced?: (replaced: ReplacedBlocks) => void;
 }
 
 /** A leaf a caret landing resolved to, and whether a mounted block took the caret, or the outcome
@@ -194,6 +197,8 @@ export function createHeadlessActions(
 			doc: () => doc,
 			source: () => serialize(doc)
 		}),
+		// Nothing here draws a reference link, so the blocks a write replaced reach only a listener.
+		refreshDefinitions: (replaced) => options.onReplaced?.(replaced),
 		undoManager: createUndoManager({ doc: () => doc, version: () => contentVersion }),
 		sharing: createSharingState(),
 		caretMemory: spy(stubCaretMemory()),

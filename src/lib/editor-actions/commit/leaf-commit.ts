@@ -6,6 +6,7 @@
 
 import type { InPlaceResult, Relanding } from '../../action-contracts';
 import type { CstNode } from '../../core/nodes';
+import type { NodeView } from '../../core/node-views';
 import { documentLineEnding } from '../../core/lines';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { assertLeafLineEndingPairsKept, assertWrittenUnshared } from '../../invariants/install';
@@ -59,6 +60,9 @@ export function createLeafCommit(
 		let restoreChain: (() => void) | null = null;
 		let restoreIds = () => {};
 		let unwindFolds: (() => void) | null = null;
+		let leafBefore: NodeView | null = null;
+		// Whether the write reached past the leaf: blocks fixed up beside it, or an ancestor read again.
+		const moved = () => settled.change.op !== 'noop' || folds.length > 0 || reclassified.length > 0;
 
 		const outcome = runFrame({
 			entry: 'updateContent',
@@ -80,6 +84,7 @@ export function createLeafCommit(
 				return top ? { block: index, offset: top.leadingTrivia.length + caret } : null;
 			},
 			prepare() {
+				leafBefore = blockNodeAt(deps.doc, leafPath);
 				chain = ensureUnsharedPath(deps.doc, leafPath, deps.sharing);
 				// A chain of another depth leaves the leaf's container shared with an undo entry, and
 				// writing it would rewrite that entry.
@@ -125,7 +130,13 @@ export function createLeafCommit(
 				keepOpenTail(deps.doc, wasOpen, deps.sharing, deps.reading.grammar);
 				// An ancestor's new bytes reach the view once Svelte re-reads doc.children.
 				if (depth > 1) deps.doc.children = [...deps.doc.children];
-				return settled.change.op !== 'noop' || folds.length > 0 || reclassified.length > 0;
+				return moved();
+			},
+			replaced() {
+				const leaf = blockNodeAt(deps.doc, leafPath);
+				return moved() || !leafBefore || !leaf
+					? 'unknown'
+					: { before: [leafBefore], after: [leaf] };
 			},
 			// The ancestors still in the tree, any a kind change swapped in, and the leaf where it
 			// settled; the top block reads back only above a container, as a top-level leaf keeps its kind.
@@ -152,10 +163,9 @@ export function createLeafCommit(
 			}
 		});
 		if (outcome !== 'written') return { wrote: false };
-		const moved = settled.change.op !== 'noop' || folds.length > 0 || reclassified.length > 0;
 		return {
 			wrote: true,
-			relanding: moved
+			relanding: moved()
 				? relandingAfter(deps, { leafPath, chain, body, caret, settled, folds, reclassified })
 				: null
 		};

@@ -21,8 +21,7 @@ import {
 	canDeleteRow,
 	canDeleteColumn
 } from '../../tree-operations/table-mutations';
-import { ensureUnsharedChildren, ensureUnsharedSubtree } from '../../tree-operations/unshare';
-import { rebuildTableRowRaw } from '../../schema/container-rebuilders';
+import { ensureUnsharedChildren } from '../../tree-operations/unshare';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { cellRowCol, docPathFrom } from '../../core/coordinate-spaces';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
@@ -79,12 +78,9 @@ export async function commitGridClear(
 		state: tableState(table),
 		snapshot: deleteSnapshot(grid.path),
 		mutate: (scope) => {
-			ensureUnsharedSubtree(scope.node, scope.sharing);
 			const { top, left, rows, cols } = grid.rect;
 			for (let r = top; r < top + rows; r++) {
-				const cells = scope.node.children![r];
-				for (let c = left; c < left + cols; c++) cells.children![c].raw = '';
-				rebuildTableRowRaw(cells);
+				for (let c = left; c < left + cols; c++) scope.own([r, c])[1].raw = '';
 			}
 			ctx.selection.collapse();
 			return { op: 'noop' };

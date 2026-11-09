@@ -14,6 +14,7 @@ import { checkInstalledEntry } from '../../invariants/history-install';
 import { admitsHistoryRequest } from './reading-write-gate';
 import { installReading } from './byte-splice';
 import { gapAtByte } from '../../selection/range-bytes';
+import { emitEdit, NOTHING_REPLACED, type ReplacedBlocks } from './emit-edit';
 import type { EditorActionsDeps, UndoController } from '../deps';
 import { grammarStamp, sameGrammar } from './grammar-stamp';
 import { captureChange, changeAfter } from './change-record';
@@ -53,14 +54,14 @@ export function createHistoryActions(
 		// could name another block in the incoming one.
 		deps.selectionState.dropForDocumentSwap();
 		const capture = deps.drafts.watching() ? captureChange(deps.doc, null) : null;
-		const selection = sameGrammar(entry.grammar, grammarStamp(deps.reading.grammar))
+		const { selection, replaced } = sameGrammar(entry.grammar, grammarStamp(deps.reading.grammar))
 			? putBack(entry)
 			: readAgain(entry);
 		if (capture) deps.drafts.record(changeAfter(deps.doc, capture, null));
 		deps.bumpContentVersion();
 		// Before the awaits below, so a host that loads another document meanwhile never hears
 		// this undo after its own swap.
-		deps.events.emit('edit', { op, path: [], timestamp: Date.now() });
+		emitEdit(deps, { op, path: [], timestamp: Date.now() }, replaced);
 		// The tick belongs to the document swap above, not to the restore: the new tree must
 		// render before the selection restore can scroll to or address anything in it.
 		await tick();
@@ -80,7 +81,7 @@ export function createHistoryActions(
 	}
 
 	/** The entry's snapshot, installed as it stands: the editor still reads the grammar it was read under. */
-	function putBack(entry: UndoEntry): UndoEntry['selection'] {
+	function putBack(entry: UndoEntry): Installed {
 		const before = devChecksOn ? new Set(deps.doc.children) : null;
 		deps.setDoc({ ...entry.snapshot, children: [...entry.snapshot.children] });
 		// A copy: live state splices this array in place, and the entry stays on the stack.
@@ -89,19 +90,20 @@ export function createHistoryActions(
 			const swapped = deps.doc.children.filter((top) => !before.has(top));
 			assertRestoredUnderGrammar(swapped, deps.reading.grammar, entry.grammar);
 		}
-		return entry.selection;
+		// The whole tree swaps, and naming what changed would walk it.
+		return { selection: entry.selection, replaced: 'unknown' };
 	}
 
 	/** The live document read again to the entry's bytes, since its snapshot was read under another
 	 *  grammar; the blocks the undo leaves alone keep their nodes, and the caret keeps its byte. */
-	function readAgain(entry: UndoEntry): UndoEntry['selection'] | null {
+	function readAgain(entry: UndoEntry): Installed {
 		const caret = selectionBytes(entry.snapshot, entry.selection);
 		const live = serialize(deps.doc);
 		const changes = changesBetween(live, serialize(entry.snapshot));
 		const reading = spliceReading(deps.doc, live, changes, deps.reading.grammar);
-		if (reading) installReading(deps, reading);
+		const replaced = reading ? installReading(deps, reading) : NOTHING_REPLACED;
 		assertRestoredUnderGrammar(deps.doc.children, deps.reading.grammar, entry.grammar);
-		return caret && selectionAtBytes(deps.doc, caret);
+		return { selection: caret && selectionAtBytes(deps.doc, caret), replaced };
 	}
 
 	// An open draft commits as a step the undo then takes back. The typing batch ends, so the next
@@ -136,6 +138,12 @@ export function createHistoryActions(
 			await restore(entry, 'redo');
 		}
 	};
+}
+
+/** An undo entry installed: where its caret goes, and the blocks the install replaced. */
+interface Installed {
+	selection: UndoEntry['selection'] | null;
+	replaced: ReplacedBlocks;
 }
 
 // ── The caret as bytes ───────────────────────────────────────────────────────

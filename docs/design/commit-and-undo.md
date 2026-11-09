@@ -77,7 +77,7 @@ The commit's steps, in order. `src/lib/editor-actions/commit/undo-controller.ts`
 8. publish each scope's new children and ids, then rebuild every enclosing container's `raw`, deepest first and each container once, asking each container's own slot on the way out (`structural-edits.md` § The container `raw` contract),
 9. if the file had no final line break before the commit, take the break off its new last line again, unless that line is blank (`src/lib/tree-operations/fix-up/apply.ts` :: `keepOpenTail`; `docs/design/syntax-tree.md` § Blank lines says why a blank one keeps it),
 10. in a dev build, check every block the commit could have written,
-11. bump the content version, clear a gap caret, and emit an `edit` event when the commit names an `op`,
+11. bump the content version, clear a gap caret, and, when the commit names an `op`, emit an `edit` event (`emitEdit`, which first reads the link definitions again if a block the write took out or put in holds one),
 12. `await tick()`, then read the caller's `landing` and put the caret there, awaited,
 13. speak the caller's `announce` line in the edit live region, when the commit wrote.
 
