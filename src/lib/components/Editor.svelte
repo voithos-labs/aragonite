@@ -155,8 +155,7 @@
 		type PluginList
 	} from '../schema/plugin-unit';
 	import { nodeOfBlock, type Block } from '../schema/doc-view';
-	import type { Contribution } from '../schema/plugin-unit';
-	import { createPaintSource, type PaintSource } from '../decorations/plugin-paint.svelte';
+	import { createPaintSources } from '../decorations/plugin-paint.svelte';
 	import { createDocumentRead } from '../editor-actions/commit/document-read';
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
 	import { insertRows } from '../schema/insert-catalogue';
@@ -736,43 +735,29 @@
 		reading
 	});
 
-	// One per contribution, so a plugin that `use` keeps holds on to what it painted.
-	const paintSourceOf = new WeakMap<Contribution, PaintSource>();
-	function paintSourceFor(plugin: string, contribution: Contribution): PaintSource {
-		let source = paintSourceOf.get(contribution);
-		if (!source) {
-			source = createPaintSource({
-				plugin,
-				contribution,
-				blockOf: documentRead.blockOf,
-				blockAt: (path) => {
-					const node = blockNodeAt(doc, path);
-					return node ? documentRead.blockOf(node, path) : null;
-				},
-				rectsOf: (dec) => paintedMarkRects(dec, getBlockComponent),
-				report: reportPluginError
-			});
-			paintSourceOf.set(contribution, source);
-		}
-		return source;
-	}
-	// Read again whenever `use` changes the list; the find bar's highlights come first while it's open.
+	const paints = createPaintSources({
+		// Read again whenever `use` changes the list.
+		paints: () => (void pluginNames, contributions.paints),
+		blockOf: documentRead.blockOf,
+		blockAt: (path) => {
+			const node = blockNodeAt(doc, path);
+			return node ? documentRead.blockOf(node, path) : null;
+		},
+		rectsOf: (dec) => paintedMarkRects(dec, getBlockComponent),
+		report: reportPluginError
+	});
+	const paintSources = $derived(paints.list);
+	// The find bar's highlights come first while it's open.
 	const blockSources = $derived.by(() => {
 		const highlights = searchState.highlights;
 		return highlights ? [highlights, ...paintSources] : paintSources;
 	});
-	const paintSources = $derived.by(
-		() => (
-			void pluginNames,
-			contributions.paints.map((p) => paintSourceFor(p.plugin, p.contribution))
-		)
-	);
 
 	function repaintPlugin(plugin: string | null, blocks?: readonly Block[]): void {
-		const nodes = blocks?.flatMap((block) => nodeOfBlock(block) ?? []);
-		for (const { plugin: name, contribution } of contributions.paints) {
-			if (plugin === null || name === plugin) paintSourceFor(name, contribution).repaint(nodes);
-		}
+		paints.repaint(
+			plugin,
+			blocks?.flatMap((block) => nodeOfBlock(block) ?? [])
+		);
 	}
 
 	// A plugin's own block type, else one named by its kind, which `is` matches to `builtin.blocks`.

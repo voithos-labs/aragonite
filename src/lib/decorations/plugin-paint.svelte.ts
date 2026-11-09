@@ -1,6 +1,6 @@
 /**
- * One plugin's `paint`, read a block at a time: asked for a block the editor renders, kept while the
- * block's bytes and the paint's version hold, and stored in the block's own offsets. A mark's
+ * Each plugin's `paint`, read a block at a time: asked for a block the editor renders, kept while
+ * the block's bytes and the paint's version hold, and stored in the block's own offsets. A mark's
  * handlers read its range in document bytes as they run.
  */
 import { devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';
@@ -12,13 +12,7 @@ import { inlineWidgetMiss, paintsOnlyClasses } from './paint-lands';
 import { recordPaintCall } from '../perf/instruments';
 import type { BlockSource } from './block-paint';
 import { pathKey } from './buckets';
-import type {
-	Decoration,
-	DecorationWidgetSpec,
-	MarkDecoration,
-	MarkHover,
-	MarkInteractions
-} from './types';
+import type { Decoration, DecorationWidgetSpec, MarkDecoration, MarkInteractions } from './types';
 
 export interface PaintSource extends BlockSource {
 	/** Asks again for `nodes`, or for every block once each is next read. */
@@ -183,6 +177,31 @@ export function createPaintSource<B extends PaintedBlock>(deps: PaintSourceDeps<
 	};
 }
 
+/** One editor's paint sources, one per contribution that paints, so a plugin `use` keeps holds on
+ *  to what it painted. */
+export function createPaintSources<B extends PaintedBlock>(
+	deps: Omit<PaintSourceDeps<B>, 'plugin' | 'contribution'> & {
+		/** The plugins that paint, in list order; a reactive read. */
+		paints(): readonly { plugin: string; contribution: PaintSourceDeps<B>['contribution'] }[];
+	}
+) {
+	const sources = new WeakMap<object, PaintSource>();
+	const sourceOf = ({ plugin, contribution }: ReturnType<typeof deps.paints>[number]) =>
+		cached(sources, contribution, () => createPaintSource({ ...deps, plugin, contribution }));
+	return {
+		/** Every painting plugin's source, in list order. */
+		get list(): readonly PaintSource[] {
+			return deps.paints().map(sourceOf);
+		},
+		/** Asks `plugin`'s paint again, or every plugin's for `null`. */
+		repaint(plugin: string | null, nodes?: readonly NodeView[]): void {
+			for (const paint of deps.paints()) {
+				if (plugin === null || paint.plugin === plugin) sourceOf(paint).repaint(nodes);
+			}
+		}
+	};
+}
+
 /** The paint a widget, replace or block decoration was placed from: its view is told this paint,
  *  not the decoration. */
 export function paintBehind(dec: Decoration): Paint | undefined {
@@ -265,11 +284,16 @@ function rangeOf(block: PaintedBlock | null, dec: MarkDecoration): MarkAt['range
 
 /** One adapter per plugin function, so a mark painted again with the same handlers stays equal. */
 function createHandlers(deps: PaintSourceDeps<PaintedBlock>) {
-	const hovers = new WeakMap<NonNullable<MarkPaint['hover']>, MarkHandler<'onHover'>>();
-	const activates = new WeakMap<NonNullable<MarkPaint['activate']>, MarkHandler<'onActivate'>>();
-	const clicks = new WeakMap<NonNullable<MarkPaint['click']>, MarkHandler<'onClick'>>();
+	const hovers = new WeakMap<object, MarkHandler<'onHover'>>();
+	const activates = new WeakMap<object, MarkHandler<'onActivate'>>();
+	const clicks = new WeakMap<object, MarkHandler<'onClick'>>();
 
-	const range = (dec: MarkDecoration) => rangeOf(deps.blockAt(dec.path), dec);
+	const at = (dec: MarkDecoration, anchor: DOMRect, rects: readonly DOMRect[]): MarkAt => ({
+		range: rangeOf(deps.blockAt(dec.path), dec),
+		anchor,
+		rects
+	});
+	// A throw is the plugin's, reported naming it.
 	function guarded(doing: string, run: () => void): void {
 		try {
 			run();
@@ -278,49 +302,47 @@ function createHandlers(deps: PaintSourceDeps<PaintedBlock>) {
 		}
 	}
 
-	function hover(fn: NonNullable<MarkPaint['hover']>): MarkHandler<'onHover'> {
-		let adapter = hovers.get(fn);
-		if (!adapter) {
-			adapter = (dec: MarkDecoration, at: MarkHover | null) =>
-				guarded('hover', () => fn(at && { range: range(dec), anchor: at.anchor, rects: at.rects }));
-			hovers.set(fn, adapter);
-		}
-		return adapter;
-	}
-
-	function activate(fn: NonNullable<MarkPaint['activate']>): MarkHandler<'onActivate'> {
-		let adapter = activates.get(fn);
-		if (!adapter) {
-			adapter = (dec: MarkDecoration, { anchor }: { anchor: DOMRect }) =>
-				guarded('activate', () => fn({ range: range(dec), anchor, rects: deps.rectsOf(dec) }));
-			activates.set(fn, adapter);
-		}
-		return adapter;
-	}
-
-	function click(fn: NonNullable<MarkPaint['click']>): MarkHandler<'onClick'> {
-		let adapter = clicks.get(fn);
-		if (!adapter) {
-			adapter = (dec: MarkDecoration, event: MouseEvent) =>
-				guarded('click', () => {
-					const rects = deps.rectsOf(dec);
-					fn({ range: range(dec), anchor: rectUnder(rects, event), rects }, event);
-				});
-			clicks.set(fn, adapter);
-		}
-		return adapter;
-	}
-
 	return {
-		of(paint: MarkPaint): MarkInteractions | undefined {
-			if (!paint.hover && !paint.activate && !paint.click) return undefined;
+		of({ hover, activate, click }: MarkPaint): MarkInteractions | undefined {
+			if (!hover && !activate && !click) return undefined;
 			return {
-				onHover: paint.hover && hover(paint.hover),
-				onActivate: paint.activate && activate(paint.activate),
-				onClick: paint.click && click(paint.click)
+				onHover:
+					hover &&
+					cached(
+						hovers,
+						hover,
+						() => (dec, seen) =>
+							guarded('hover', () => hover(seen && at(dec, seen.anchor, seen.rects)))
+					),
+				onActivate:
+					activate &&
+					cached(
+						activates,
+						activate,
+						() =>
+							(dec, { anchor }) =>
+								guarded('activate', () => activate(at(dec, anchor, deps.rectsOf(dec))))
+					),
+				onClick:
+					click &&
+					cached(
+						clicks,
+						click,
+						() => (dec, event) =>
+							guarded('click', () => {
+								const rects = deps.rectsOf(dec);
+								click(at(dec, rectUnder(rects, event), rects), event);
+							})
+					)
 			} as MarkInteractions;
 		}
 	};
+}
+
+function cached<A>(cache: WeakMap<object, A>, fn: object, make: () => A): A {
+	let made = cache.get(fn);
+	if (!made) cache.set(fn, (made = make()));
+	return made;
 }
 
 type MarkHandler<K extends 'onHover' | 'onActivate' | 'onClick'> = NonNullable<
