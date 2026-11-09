@@ -119,6 +119,7 @@
 			editorRoot,
 			blockRef: ref,
 			measure,
+			measureSoon: services.scrollOwner.measureSoon,
 			textMoves: services.textMoves
 		});
 	});

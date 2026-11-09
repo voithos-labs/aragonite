@@ -22,6 +22,7 @@ class FakeResizeObserver {
 beforeEach(() => {
 	resizeCallback = null;
 	vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+	// The resize watch starts on the next frame; run it at once so the box can report.
 	vi.stubGlobal('requestAnimationFrame', (run: () => void) => (run(), 1));
 	vi.stubGlobal('cancelAnimationFrame', () => {});
 });
@@ -39,59 +40,72 @@ function mountParts() {
 	return { editorRoot, el };
 }
 
+/** The editor's `measureSoon`, held until the test drains it. */
+function queue() {
+	const runs: Array<() => void> = [];
+	return {
+		measureSoon: (run: () => void) => void runs.push(run),
+		drain: () => runs.splice(0).forEach((run) => run())
+	};
+}
+
 function wire(parts: ReturnType<typeof mountParts>, blockRef?: BlockComponent) {
 	const measure = vi.fn();
-	const dispose = wireOverlayRemeasure({ ...parts, blockRef, measure });
-	return { measure, dispose };
+	const textMoves = createTextMoves();
+	const { measureSoon, drain } = queue();
+	const dispose = wireOverlayRemeasure({ ...parts, blockRef, measure, measureSoon, textMoves });
+	return { measure, dispose, drain, textMoves };
 }
 
 describe('wireOverlayRemeasure', () => {
-	it('reads the table row window at once, and measures on the next frame', () => {
+	it('reads the table row window at once, and queues the first measure', () => {
 		const mountedRowWindow = vi.fn();
-		const frames: FrameRequestCallback[] = [];
-		vi.stubGlobal('requestAnimationFrame', (run: FrameRequestCallback) => frames.push(run));
 
-		const { measure } = wire(mountParts(), { mountedRowWindow } as unknown as BlockComponent);
+		const { measure, drain } = wire(mountParts(), {
+			mountedRowWindow
+		} as unknown as BlockComponent);
 
 		expect(mountedRowWindow).toHaveBeenCalledTimes(1);
 		expect(measure).not.toHaveBeenCalled();
-		frames.forEach((run) => run(0));
+		drain();
 		expect(measure).toHaveBeenCalledTimes(1);
 	});
 
-	it('measures before returning when asked to, for an element focus is about to enter', () => {
+	it('measures after the next tick without the editor to queue on', async () => {
 		const measure = vi.fn();
-		wireOverlayRemeasure({ ...mountParts(), blockRef: undefined, measure, measureNow: true });
+		wireOverlayRemeasure({ ...mountParts(), blockRef: undefined, measure });
 
+		expect(measure).not.toHaveBeenCalled();
+		await tick();
 		expect(measure).toHaveBeenCalledTimes(1);
 	});
 
-	it('measures again when the editor root scrolls', async () => {
+	it('measures again when the editor root scrolls', () => {
 		const parts = mountParts();
-		const { measure } = wire(parts);
-		await tick();
+		const { measure, drain } = wire(parts);
+		drain();
 
 		parts.editorRoot.dispatchEvent(new Event('scroll'));
 
 		expect(measure).toHaveBeenCalledTimes(2);
 	});
 
-	it('measures again when the block’s own scroll container scrolls', async () => {
+	it('measures again when the block’s own scroll container scrolls', () => {
 		const parts = mountParts();
 		const inner = document.createElement('div');
 		inner.style.overflowY = 'auto';
 		parts.el.appendChild(inner);
-		const { measure } = wire(parts);
-		await tick();
+		const { measure, drain } = wire(parts);
+		drain();
 
 		inner.dispatchEvent(new Event('scroll'));
 
 		expect(measure).toHaveBeenCalledTimes(2);
 	});
 
-	it('measures again when the block’s box resizes', async () => {
-		const { measure } = wire(mountParts());
-		await tick();
+	it('measures again when the block’s box resizes', () => {
+		const { measure, drain } = wire(mountParts());
+		drain();
 
 		resizeCallback!([], {} as ResizeObserver);
 
@@ -100,9 +114,8 @@ describe('wireOverlayRemeasure', () => {
 
 	it('measures again when text inside the block moves without a resize', async () => {
 		const parts = mountParts();
-		const textMoves = createTextMoves();
-		const measure = vi.fn();
-		wireOverlayRemeasure({ ...parts, blockRef: undefined, measure, textMoves });
+		const { measure, drain, textMoves } = wire(parts);
+		drain();
 
 		textMoves.movedWithin(parts.el);
 		await tick();
@@ -110,19 +123,17 @@ describe('wireOverlayRemeasure', () => {
 		expect(measure).toHaveBeenCalledTimes(2);
 	});
 
-	it('stops measuring once disposed', async () => {
+	it('measures nothing once disposed, the queued first measure included', async () => {
 		const parts = mountParts();
-		const textMoves = createTextMoves();
-		const measure = vi.fn();
-		const dispose = wireOverlayRemeasure({ ...parts, blockRef: undefined, measure, textMoves });
+		const { measure, dispose, drain, textMoves } = wire(parts);
 
 		dispose();
+		drain();
 		parts.editorRoot.dispatchEvent(new Event('scroll'));
 		textMoves.movedEverywhere();
 		await tick();
 
-		// The stubbed frame ran the setup measure at once; nothing after the dispose measured.
-		expect(measure).toHaveBeenCalledTimes(1);
+		expect(measure).not.toHaveBeenCalled();
 		expect(resizeCallback).toBeNull();
 	});
 });

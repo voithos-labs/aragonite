@@ -3,7 +3,7 @@
 // reported through the decoration engine's mark error sink, which the editor turns into an
 // `error` event, like every other decoration entry point.
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { mount, unmount, flushSync } from 'svelte';
+import { mount, unmount, flushSync, tick } from 'svelte';
 import DecorationOverlay from '#lib/components/overlays/DecorationOverlay.svelte';
 import type { BlockComponent } from '#lib/block-component.js';
 import { parse } from '#lib/core/parser.js';
@@ -59,8 +59,8 @@ async function mountOverlay(
 		props: { path: [0], blockRef: paintingLeaf(), blockEl },
 		context: editorMountContext({ services: { decorations: engine } })
 	});
-	// The overlay measures on the frame after it mounts.
-	await new Promise(requestAnimationFrame);
+	// The overlay measures after the flush that mounted it.
+	await tick();
 	flushSync();
 	return errors;
 }

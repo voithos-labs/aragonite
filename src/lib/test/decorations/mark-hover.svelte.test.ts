@@ -2,7 +2,7 @@
 // A mark's hover comes from hit-testing the pointer against the painted rects, starts once and
 // ends once per hover, keyed by the decoration rather than the rect the overlay repaints.
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { mount, unmount, flushSync } from 'svelte';
+import { mount, unmount, flushSync, tick } from 'svelte';
 import DecorationOverlay from '#lib/components/overlays/DecorationOverlay.svelte';
 import type { BlockComponent } from '#lib/block-component.js';
 import { parse } from '#lib/core/parser.js';
@@ -83,8 +83,8 @@ function setup(opts: { path?: number[]; leaf?: BlockComponent; container?: boole
 	return { engine, errors, pointer, blockEl };
 }
 
-/** A source whose answer the test swaps, then re-runs with `invalidate`. Each run settles the
- *  overlay's measure, which lands once the mounting flush is over. */
+/** A source whose answer the test swaps, then re-runs with `invalidate`. Each run waits for the
+ *  overlay's measure, queued behind the flush that changed the marks. */
 async function swappableSource(engine: ReturnType<typeof setup>['engine'], first: Decoration[]) {
 	let answer = first;
 	const handle = engine.addSource({ name: 'probe', provide: () => answer });
@@ -98,7 +98,7 @@ async function swappableSource(engine: ReturnType<typeof setup>['engine'], first
 
 async function settle(): Promise<void> {
 	flushSync();
-	await new Promise(requestAnimationFrame);
+	await tick();
 	flushSync();
 }
 
@@ -361,9 +361,7 @@ describe('a table cell names its decoration by the precedence rule', () => {
 			name: 'highlight',
 			provide: () => [{ type: 'mark', path: [1, 1, 0], start: 0, end: 1, class: 'hl' }]
 		});
-		flushSync();
-		await new Promise(requestAnimationFrame);
-		flushSync();
+		await settle();
 		document
 			.querySelector('.decoration-overlay')!
 			.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -389,9 +387,7 @@ describe('a table cell names its decoration by the precedence rule', () => {
 				}
 			]
 		});
-		flushSync();
-		await new Promise(requestAnimationFrame);
-		flushSync();
+		await settle();
 		document
 			.querySelector('.decoration-overlay')!
 			.dispatchEvent(new MouseEvent('click', { bubbles: true }));
