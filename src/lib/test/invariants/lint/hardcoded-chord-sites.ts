@@ -212,8 +212,8 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 	{
 		file: 'components/drawn-block/drawn-box.svelte.ts',
 		takes: [],
-		keys: [],
-		note: 'Asks only whether a key in a drawing’s own editing surface is modified: a plain key stays the surface’s, a chord goes on to the editor’s keymap. Compares no key and takes no chord.'
+		keys: ['Escape'],
+		note: 'Asks whether a key in a drawing’s own editing surface is modified: a plain key stays the surface’s, a chord goes on to the editor’s keymap. A plain Escape a field leaves unhandled focuses the box whole, which `claimsChord` claims for a plugin’s own editor. Takes no chord.'
 	},
 	{
 		file: 'packages/mermaid/src/MermaidBlock.svelte',
