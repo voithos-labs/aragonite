@@ -221,6 +221,32 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 					/^(?: {4}|\t)/.test(read.source.slice(b.from))
 			),
 		repro: { source: '    word\n', mode: 'source', range: { from: 0, to: 6 } }
+	},
+	{
+		gap: 'an HTML block cut from its first byte carries no line ending, so pasted back it runs into the block after it',
+		lane: '2b',
+		law: 'L3',
+		matches: (read, range) =>
+			read.blocks.some((b) => b.type === 'htmlBlock' && b.from === range.from),
+		repro: { source: '<!DOCTYPE html>\n> one\n', mode: 'source', range: { from: 0, to: 15 } }
+	},
+	{
+		gap: 'a range ending inside an HTML block it enters joins the rest of that line to where it began',
+		lane: '2b',
+		law: 'L3',
+		matches: (read, range) =>
+			read.blocks.some(
+				(b) =>
+					b.type === 'htmlBlock' &&
+					range.from < b.from &&
+					b.from < range.to &&
+					range.to < (b.text?.to ?? b.to)
+			),
+		repro: {
+			source: '> two\n\n<table><tr><td>cell</td></tr></table>\n',
+			mode: 'source',
+			range: { from: 5, to: 38 }
+		}
 	}
 ];
 

@@ -283,6 +283,8 @@ const RULES: FileRule[] = [
 				'walks the classes fileClasses returns, so every character it tests is code',
 			'src/lib/test/core/inline/adversarial-scan-bounds.test.ts':
 				'floods the inline parse with unclosed `<!--` openers; it reads no source',
+			'src/lib/test/range-laws/shapes.ts':
+				'draws HTML comment blocks (`<!--`) as document text; it reads no source',
 			'src/lib/test/invariants/lint/consumer-guide-reserved-set.test.ts':
 				'reads a printed `// Set {…}` line out of the guide’s example output, not a comment'
 		},
