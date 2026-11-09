@@ -303,6 +303,13 @@ describe('the window inside a container, by its edges', () => {
 			(s: string) => edit(s, 'ne 20\n>\n> line 21\n>\n> li', '')
 		],
 		['a paste into a table cell', ROWS(40), (s: string) => edit(s, '| r 20 |', '| r 20 one |')],
+		// The head says how many columns there are, so a body row with more or fewer reads as it would.
+		[
+			'a table row gaining a cell',
+			ROWS(40),
+			(s: string) => edit(s, '| r 20 | x |', '| r 20 | x | y |')
+		],
+		['a table row losing a cell', ROWS(40), (s: string) => edit(s, '| r 20 | x |', '| r 20 |')],
 		[
 			'the last item, a block below',
 			ITEMS(40) + '\npara\n',
