@@ -94,7 +94,10 @@
 		}
 		const same =
 			next.length === heldCells.length &&
-			next.every((c, i) => c.marks === heldCells[i].marks && c.row === heldCells[i].row);
+			next.every(
+				(c, i) =>
+					c.marks === heldCells[i].marks && c.row === heldCells[i].row && c.col === heldCells[i].col
+			);
 		if (!same) heldCells = next;
 		return heldCells;
 	});
