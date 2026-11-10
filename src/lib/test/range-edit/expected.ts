@@ -420,9 +420,10 @@ export function liveSplitsRun(read: Read, from: number, to: number, host: CheckH
 // ── Paste at a caret ─────────────────────────────────────────────────────────
 
 /** Which rule a clipboard lands by at a caret: one paragraph of text; blocks joined to the text
- *  either side; a leading container taken in by one the caret sits in; a leading block of its own
- *  kind splitting a paragraph; or a shape the rows hold. */
-export type PasteShape = 'text' | 'blocks' | 'absorbed' | 'split' | 'other';
+ *  either side; a leading container taken in by one the caret sits in; a leading list splitting the
+ *  list of another kind it leaves; a leading block of its own kind splitting a paragraph; or a
+ *  shape the rows hold. */
+export type PasteShape = 'text' | 'blocks' | 'absorbed' | 'broken out' | 'split' | 'other';
 
 /** The source a paste of `text` at `at` may give, with the rule that gives it. */
 export function expectedPaste(
@@ -518,6 +519,13 @@ function landedPaste(
 	if (first.type === 'paragraph' && lastJoins) {
 		return { shape: 'blocks', bytes: variants(splice(continuationAt(read, at, host), '')) };
 	}
+	const left = listLeft(read, at, clip, first, target, host);
+	if (left) {
+		const outside = continuationAt(read, at, host, (c) => c !== left);
+		const pasted = join(clip.source.replace(/\n$/, '').split('\n'), outside, eol, after);
+		const out = brokenOut(read, at, left, target, pasted, eol, outside, host);
+		return out === null ? { shape: 'other', bytes: [] } : { shape: 'broken out', bytes: [out] };
+	}
 	const taker = takerOf(read, at, clip, first, host);
 	if (taker && host.facts(first.type).lines !== 'fenced' && lastJoins) {
 		const outside = continuationAt(read, at, host, (c) => c !== taker);
@@ -584,15 +592,85 @@ function takerOf(
 	host: CheckHost
 ): LaidBlock | null {
 	const { into, key } = host.facts(first.type).merges;
-	const keyValue = (r: Read, b: LaidBlock) =>
-		key
-			? (treeNodeAt(r.tree, b.path)?.metadata as Record<string, unknown> | undefined)?.[key]
-			: undefined;
 	let taker: LaidBlock | null = null;
 	for (const c of containersHolding(read, at)) {
-		if (into.includes(c.type) && keyValue(read, c) === keyValue(pasted, first)) taker = c;
+		if (into.includes(c.type) && sharedBy(read, c, key) === sharedBy(pasted, first, key)) taker = c;
 	}
 	return taker;
+}
+
+/** What two containers of a type must share to merge, as `block` holds it. */
+const sharedBy = (read: Read, block: LaidBlock, key: string | undefined) =>
+	key
+		? (treeNodeAt(read.tree, block.path)?.metadata as Record<string, unknown> | undefined)?.[key]
+		: undefined;
+
+/** The list a pasted leading list of the other kind breaks out of (C8): the nearest of its type at
+ *  `at`, with the caret's block `target` an item's own and not nested deeper. */
+function listLeft(
+	read: Read,
+	at: number,
+	pasted: Read,
+	first: LaidBlock,
+	target: LaidBlock,
+	host: CheckHost
+): LaidBlock | null {
+	const { into, key, onMismatch } = host.facts(first.type).merges;
+	const nearest = containersHolding(read, at)
+		.filter((c) => into.includes(c.type))
+		.at(-1);
+	if (!nearest || onMismatch !== 'break-out' || target.path.length !== nearest.path.length + 2)
+		return null;
+	return sharedBy(read, nearest, key) === sharedBy(pasted, first, key) ? null : nearest;
+}
+
+/** The bytes `pasted` lands as between the halves of `list`, split at `at`, the second half
+ *  numbered on; null where a number would change width, which the rows hold. */
+function brokenOut(
+	read: Read,
+	at: number,
+	list: LaidBlock,
+	target: LaidBlock,
+	pasted: string,
+	eol: string,
+	outside: string,
+	host: CheckHost
+): string | null {
+	const { source } = read;
+	const itemOf = (path: readonly number[]) =>
+		read.blocks.find((b) => b.path.join() === path.join());
+	const item = itemOf(target.path.slice(0, -1))!;
+	const first = item.lines![0];
+	const whole = at === target.text!.from && target.path.at(-1) === 0;
+	const head = whole
+		? source.slice(0, first.from) + pasted
+		: source.slice(0, at) + eol + outside + pasted;
+	const tail = !whole && source.slice(at, item.to).trim() !== '';
+	const digits = /^([ \t]*)(\d+)/.exec(source.slice(first.from, first.markerTo));
+	let rest = source.slice(at);
+	const index = item.path.at(-1)!;
+	const count = treeNodeAt(read.tree, list.path)!.children!.length;
+	for (let i = count - 1; digits && !whole && i > index; i--) {
+		const line = itemOf([...list.path, i])!.lines![0];
+		const own = /^([ \t]*)(\d+)/.exec(source.slice(line.from, line.markerTo));
+		const want = String(Number(digits[2]) + i - index + (tail ? 1 : 0));
+		if (!own) continue;
+		if (own[2].length !== want.length) return null;
+		const from = line.from + own[1].length - at;
+		rest = rest.slice(0, from) + want + rest.slice(from + own[2].length);
+	}
+	let marker = whole ? source.slice(first.from, at) : source.slice(first.from, first.markerTo);
+	if (digits && tail) {
+		const want = String(Number(digits[2]) + 1);
+		if (want.length !== digits[2].length) return null;
+		marker = digits[1] + want + marker.slice(digits[0].length);
+	}
+	const second = whole || tail ? eol + outside + marker : '';
+	const flush = head + second + rest;
+	const under = head.length + eol.length;
+	if (source.slice(at).trim() === '' && !whole) return flush;
+	const starts = readOf(host, flush).blocks.some((b) => b.from === under + outside.length);
+	return starts ? flush : flush.slice(0, under) + outside.trimEnd() + eol + flush.slice(under);
 }
 
 function treeNodeAt(tree: DocumentView, path: readonly number[]) {

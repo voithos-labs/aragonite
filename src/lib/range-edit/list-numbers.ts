@@ -28,8 +28,44 @@ export function numberedOn(doc: Doc, from: number, to: number, out: string): str
 			next++;
 		}
 	}
-	if (edits.length === 0) return out;
+	return written(out, edits, out.length - source.length);
+}
+
+/** `out`, where a paste split ordered `list` after byte `to` of item `index`, the items after it
+ *  numbered on: first the copy of that item's marker at `copyAt` in `out`, when the split made one. */
+export function numberedAfterSplit(
+	doc: Doc,
+	list: LaidBlock,
+	index: number,
+	to: number,
+	out: string,
+	copyAt: number | null
+): string {
+	const { source, layout } = doc;
+	const node = nodeAt(doc, list.path);
+	if (!metadataIfKind(node, 'list')?.ordered) return out;
+	const items = node.children!.map((_, i) => layout.block([...list.path, i])!);
 	const shift = out.length - source.length;
+	const edits: Edit[] = [];
+	const own = markerOf(source, items[index]);
+	let next = (own?.number ?? 1) + 1;
+	if (copyAt !== null && own) {
+		const insert = String(next++);
+		const at = copyAt + own.from - items[index].lines![0].from - shift;
+		edits.push({ at, remove: own.to - own.from, insert });
+		indented(edits, source, items[index], insert.length - (own.to - own.from), to);
+	}
+	for (const item of items.slice(index + 1)) {
+		const marker = markerOf(source, item);
+		if (marker && marker.number !== next) renumber(edits, source, item, marker, next);
+		next++;
+	}
+	return written(out, edits, shift);
+}
+
+/** `out` with `edits` made, each at its byte of the source plus `shift`. */
+function written(out: string, edits: Edit[], shift: number): string {
+	if (edits.length === 0) return out;
 	// One pass over the bytes: a long list renumbers every item after the range.
 	const parts: string[] = [];
 	let read = 0;
@@ -64,16 +100,20 @@ function markerOf(source: string, item: LaidBlock): Marker | null {
 	return { number: Number(digits[1]), from, to: from + digits[1].length };
 }
 
-/** Adds the edits that rewrite the item's digits as `number`, each later line indented to the
- *  item's text column where a wider or narrower number moves it. */
+/** Adds the edits that rewrite the item's digits as `number`, its later lines moved with them. */
 function renumber(edits: Edit[], source: string, item: LaidBlock, marker: Marker, number: number) {
 	const insert = String(number);
 	edits.push({ at: marker.from, remove: marker.to - marker.from, insert });
-	const widened = insert.length - (marker.to - marker.from);
+	indented(edits, source, item, insert.length - (marker.to - marker.from), 0);
+}
+
+/** Adds the edits that move the item's later lines starting past byte `from` to its text column,
+ *  where its number grew `widened` digits wider. */
+function indented(edits: Edit[], source: string, item: LaidBlock, widened: number, from: number) {
 	const lines = item.lines!;
 	const column = lines[0].markerTo - lines[0].from;
 	for (const line of widened === 0 ? [] : lines.slice(1)) {
-		if (line.markerTo - line.from !== column) continue;
+		if (line.from < from || line.markerTo - line.from !== column) continue;
 		if (widened > 0) edits.push({ at: line.markerTo, remove: 0, insert: ' '.repeat(widened) });
 		else if (/^ +$/.test(source.slice(line.markerTo + widened, line.markerTo)))
 			edits.push({ at: line.markerTo + widened, remove: -widened, insert: '' });

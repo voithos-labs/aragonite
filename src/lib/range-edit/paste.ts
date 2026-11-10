@@ -16,8 +16,8 @@ import {
 	type Doc
 } from './document';
 import { apartAt, pastMarkers } from './apart';
-import { closedBy, emptiedRest, takerOf, withoutOpening } from './container-merge';
-import { splitAt } from './paste-split';
+import { closedBy, emptiedRest, leftBy, takerOf, withoutOpening } from './container-merge';
+import { splitAt, splitOut } from './paste-split';
 import {
 	byteAt,
 	lineHead,
@@ -100,6 +100,8 @@ function landed(doc: Doc, at: number, lf: string, plain: boolean): Edit {
 	// underline would go).
 	if (!first) return insertBytes(doc, at, clip);
 	const joins = isText(first) || afterText(doc, leaf, offset, clip);
+	const left = joins ? null : leftBy(doc, at, pasted, first, leaf);
+	if (left) return splitOut(doc, left, leaf, at, clip, nodeAt(pasted, last!.path).raw);
 	// A pasted container the caret's container takes in joins it from its first text, a line
 	// break before it included, where its last block can take the text after the caret or none follows.
 	const taker = joins ? null : takerOf(doc, at, pasted, first);

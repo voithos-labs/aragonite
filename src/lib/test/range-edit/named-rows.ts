@@ -296,6 +296,45 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: plain('x\n*y*'),
 		expect: { source: ':::note Tix *y*tle\nbody\n:::\n' }
 	},
+	// ── A list pasted into a list of the other kind breaks out of it (C8) ──
+	// Miss-analysis: the merge fact's mismatch rule was read by neither the core nor the law's
+	// expectation, and every list row pasted a list of the caret's own kind.
+	{
+		name: 'C8 a bullet list pasted in an ordered item lands between the list’s halves',
+		source: '1. a⟦⟧b\n2. c\n',
+		gesture: paste('- q\n- r'),
+		expect: { source: '1. a\n- q\n- r\n2. b\n3. c\n', caret: text(12) }
+	},
+	{
+		name: 'C8 an ordered list pasted in a bullet item does the same, CRLF',
+		source: '> - a⟦⟧b\r\n> - c\r\n',
+		gesture: paste('1. q\n2. r\n'),
+		expect: { source: '> - a\r\n> 1. q\r\n> 2. r\r\n> - b\r\n> - c\r\n' }
+	},
+	{
+		name: 'C8 at an item’s first text byte the item opens the second half as it stands',
+		source: '1. x\n2. ⟦⟧ab\n',
+		gesture: paste('- q'),
+		expect: { source: '1. x\n- q\n2. ab\n', caret: text(8) }
+	},
+	{
+		name: 'C8 at an item’s end the items after it number on, and a wider number moves its lines',
+		source: '8. x\n9. a⟦⟧b\n   more\n10. c\n',
+		gesture: paste('- q\n- r'),
+		expect: { source: '8. x\n9. a\n- q\n- r\n10. b\n    more\n11. c\n' }
+	},
+	{
+		name: 'C8 the nearest list decides, whatever list holds it',
+		source: '- x\n  1. a⟦⟧b\n',
+		gesture: paste('- q\n- r'),
+		expect: { source: '- x\n  1. a\n  - q\n  - r\n  2. b\n' }
+	},
+	{
+		name: 'C8 a last pasted paragraph stays apart from the item under it',
+		source: '1. a⟦⟧b\n2. c\n',
+		gesture: paste('- q\n\npara'),
+		expect: { source: '1. a\n- q\n\npara\n\n2. b\n3. c\n' }
+	},
 	// ── Copy (law 10) ──
 	{
 		name: 'L10 a copy ending at a list item text start carries its marker',

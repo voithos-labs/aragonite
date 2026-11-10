@@ -302,8 +302,8 @@ export function caretLaw(host: CheckHost, result: Result, what: string): string[
 	return [];
 }
 
-/** L9: a paste at a caret puts its bytes there, each later line behind the caret line's own
- *  markers, joining its first paragraph to the text before and its last block to the text after. */
+/** L9: a paste at a caret puts its bytes there, each later line behind the caret line's markers,
+ *  its first paragraph and last block joining the text either side; a list that breaks out joins none. */
 export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): string[] {
 	const read = readOf(host, input.source);
 	// Live mode lands text that brings format runs of its own so the runs close around it.
