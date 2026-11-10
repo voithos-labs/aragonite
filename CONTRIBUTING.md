@@ -13,11 +13,9 @@ Anyways, for more in depth stuff, find them here:
 - [`docs/design/editor.md`](docs/design/editor.md): how the whole thing works
 - [`docs/README.md`](docs/README.md): the map of every other doc
 
-The rest of this page takes a first-time contributor from a clone to a merged pull request.
-
 ## Setup
 
-Use node 24, the one CI runs.
+Be on node 24.
 
 ```
 npm install
@@ -25,19 +23,19 @@ npx playwright install chromium
 npm run dev
 ```
 
-Don't skip the second line: the e2e suite and the perf gate both drive Chromium. The third serves the showcase at `/` and the dev harness at `/test/editor`. On WSL with the checkout on a Windows drive (`/mnt/c/...`), the file watcher gets no events, so your edits appear to do nothing and you start doubting yourself. Run `ARAGONITE_POLL=1 npm run dev` there.
+The e2e suite and the perf gate both drive chromium - dont skip the chromium install.
 
 ## What to read first
 
 1. Read the root [`README.md`](README.md#lossless), its Lossless section only, for the core idea.
-2. Read [`docs/contributing/rules.md`](docs/contributing/rules.md), all of it, before your first edit. Yes, before.
+2. Read [`docs/contributing/rules.md`](docs/contributing/rules.md), all of it, before your first edit.
 3. Read [`docs/design/editor.md`](docs/design/editor.md), and stop at "The editing surface".
 4. Open `/test/editor`, open the debug panel (Ctrl+Shift+D), type, and watch the tree.
 5. Run one unit area suite (`npm run test:editor:core`, say) and read two of its files, to copy their conventions.
 
 ## The shape of the thing
 
-There is one syntax tree. Markdown parses into it, the screen renders from it, and saving serializes it back. An edit changes the tree, and the DOM follows. That's the whole idea; everything else is bookkeeping (there is a lot of bookkeeping). These components draw the tree:
+There is one syntax tree. Markdown parses into it, the screen renders from it, and saving serializes it back. An edit changes the tree, and the DOM follows. That's the whole idea; everything else is (a lot of) bookkeeping. These components draw the tree:
 
 ```
 Editor (owns the tree and the undo stack)
@@ -68,7 +66,7 @@ They have a few ways of lying to you:
 
 ## Commit messages
 
-`npm install` sets up a `commit-msg` hook that rejects anything but this, and CI runs the same linter over the pull request's commits, so the hook is the friendlier of the two.
+`npm install` sets up a `commit-msg` hook that rejects anything but this, and CI runs the same linter over the pull request's commits:
 
 - The subject is a symbol, an optional `(scope)`, then lowercase text: `! (parser) off-by-one in heading detection`. No final period, 72 characters at most.
 - The symbols are `+` feature · `-` removal · `~` small tweak · `>` normal to large change · `!` bug fix · `@` docs or config.
@@ -77,28 +75,22 @@ They have a few ways of lying to you:
 - Several changes in one commit get a summary line, a blank line, then one symbol-prefixed line per change. Still, one logical change per commit; aim for medium, not micro.
 - No attribution trailers (`Co-Authored-By`, "Generated with").
 
-Merges, reverts, dependabot bumps, `fixup!` and `squash!` are exempt, and so is one co-founder (don't ask). To check yourself, run `node scripts/lint-commit-message.mjs --range origin/dev..HEAD`.
+Merges, reverts, dependabot bumps, `fixup!` and `squash!` and finnrws are exempt. To check yourself, run `node scripts/lint-commit-message.mjs --range origin/dev..HEAD`.
 
 ## Opening a pull request
 
-Fork the repo, branch from `dev` in your fork, and open the pull request against `dev`. Collaborators can branch in place. Never target `main`: it's the release branch, and `dev` into `main` is a merge a maintainer runs. `next` is the maintainers' working branch, so not that one either.
+Fork the repo, branch from `dev` in your fork, and open the pull request against `dev`. Collaborators can branch in place. 
 
-CI runs the lint, the type check and the unit suite, the e2e suite in Chromium, WebKit and Firefox, the perf gate, and smoke tests of the packed library. A docs-only change skips the e2e and perf work. Six checks account for most red pull requests. The commit gate includes them all, each runs alone in seconds, and `npm run test:editor:invariants` runs four of them together:
-
-1. Every e2e spec has a requirement file, and every requirement file a spec. `src/lib/e2e/lint/requirement-spec-lockstep.test.ts`
-2. A comment stays inside its line budget and uses no banned word. `src/lib/test/invariants/lint/comment-budget.test.ts`, `src/lib/test/invariants/lint/comment-house-words.test.ts`
-3. A token the editor's CSS reads is declared in `src/lib/styles/editor-theme.css`, a host radius token it reads has a fallback, and `src/app.css` holds no editor rules. `src/lib/test/invariants/lint/css-ownership.test.ts`
-4. A menu row's icon name is a key of the glyph table in `src/lib/menu-icons.ts`. `npm run check`, except for a block context action's icon, which is a plain string
-5. No timer sequences anything, unit tests included (they wait with the helper in `src/lib/test/harness/settle.ts`). `src/lib/test/invariants/lint/file-rules.test.ts`, `src/lib/test/invariants/lint/suite-file-rules.test.ts`
-6. A file that gains a `pointerdown` or `mousedown` handler appears in the caret-gesture scan's lists, as "places a caret" or "places none", with the reason. `src/lib/test/invariants/lint/caret-gesture-range-reset.test.ts`
-
-Merging needs one code-owner approval. The review looks for the root cause and asks for a test alongside the fix. That's a lot to ask for a drive-by patch, and it gets asked anyway. For a gentler start, issues labelled `good first issue` are picked to be exactly that.
+Merging needs one code-owner approval. For a gentler start, prob start with some of the easier github issues, such as the ones labelled `good first issue`.
 
 ## Filing an issue
 
-Bugs and feature requests go to [GitHub Issues](https://github.com/voithos-labs/aragonite/issues), which has a form for each. Questions go to [Discussions](https://github.com/voithos-labs/aragonite/discussions). Say what you saw, how to make it happen, and which version, browser and mode. A maintainer adds the labels.
+Bugs and feature requests go to [GitHub Issues](https://github.com/voithos-labs/aragonite/issues), through one of two forms (Bug, Feature request). Questions go to discussions. The form sets the issue's type, and a maintainer adds one `area:` label at triage, plus one `severity:` if it's a bug.
 
-And yes, the open count is known. Issues labelled `severity: watch` (a signal with no confirmed defect) or `severity: minor` stay open on purpose, because knowing they exist beats a tidy tracker.
+Note,
+
+1. Fill the form in honestly: what you saw, how to make it happen, and which version, browser and mode.
+2. Yes, I see the open count. The issues, in this repo, partly acts as a to-watch ledger; `severity: watch` tracks observed signals with no confirmed defect, those and `severity: minor` stay open - i believe knowing of their existence is relatively more improtant than recklessly tidying them away.
 
 ## Two ton slab of stone
 
