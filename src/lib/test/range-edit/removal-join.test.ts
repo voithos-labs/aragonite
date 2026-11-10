@@ -120,6 +120,32 @@ const ROWS: [name: string, marked: string, left: string, blocks: string][] = [
 		'p⟦p\n\n8. aa\n9. b⟧b\n10. cc\n',
 		'pb\n\n8. cc\n',
 		'paragraph list(listItem(paragraph))'
+	],
+	// Miss-analysis: each lower block above held the range's end, so none stood untouched under a
+	// block the range took whole, nor flush under one it entered.
+	[
+		'a paragraph flush under a heading the range took runs on into the paragraph above',
+		'a⟦\n# h⟧\nb\n',
+		'a\nb\n',
+		'paragraph'
+	],
+	[
+		'the same under a quote runs on into the quote',
+		'> q⟦\n# h⟧\np\n',
+		'> q\np\n',
+		'blockquote(paragraph)'
+	],
+	[
+		'a quote flush under the text joined out of it stands, with no blank line added',
+		'alpha ⟦bravo\n\n> Ithaka\n> By ⟧C\n> > inner\n',
+		'alpha C\n> > inner\n',
+		'paragraph blockquote(blockquote(paragraph))'
+	],
+	[
+		'a code block entered flush under a list item keeps its opening line, outside the list',
+		'- a⟦\n```\nx⟧\n```\n',
+		'- a\n```\n\n```\n',
+		'list(listItem(paragraph)) fencedCode'
 	]
 ];
 
