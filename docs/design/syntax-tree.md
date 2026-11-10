@@ -204,12 +204,6 @@ Markdown has no malformed-input case that needs a tree-sitter-style error node. 
 
 A single-pass, line-oriented scanner. It splits the source into lines and offers each one to the registered block **openers** in priority order (an opener is the part of the parser that recognizes the syntax a block starts with). A kind registers its opener as `{priority, tryOpen, interruptsParagraph}` (`schema/block-openers.ts`), and both the order openers are tried in and the check for "does this line cut an open paragraph short" are built from those registrations. So a plugin's opener sits in the same priority order as the built-ins, not bolted on at the end.
 
-```ts
-OPENER_PRIORITIES; // schema/opener-priorities.ts; lower dispatches first, ties break by kind name
-// { fencedCode: 10, heading: 20, thematicBreak: 30, blockquote: 40,
-//   list: 50, indentedCode: 60, htmlBlock: 70, linkReferenceDefinition: 80 }
-```
-
 The built-in priorities, in order, with the notes that matter:
 
 1. Fenced code: consume until a matching close fence, or EOF
