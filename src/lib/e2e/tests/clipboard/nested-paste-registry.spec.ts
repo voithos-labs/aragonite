@@ -28,10 +28,10 @@ test.describe('nested structural paste: ref alignment via registry', () => {
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceContains('gammaX');
 
-		// The paragraph line the range emptied stays below the paste with its `> `, as the clipboard's
-		// last line ending is its own.
+		// The two emptied paragraphs leave one empty line, so one blank quote line parts the paste
+		// from the tail, as a cut and then this paste would leave it.
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
-			['> alpha', '>', '> beta', '>', '> gammaX', '> ', '>', '> tail para'].join('\n')
+			['> alpha', '>', '> beta', '>', '> gammaX', '> ', '> tail para'].join('\n')
 		);
 	});
 });
