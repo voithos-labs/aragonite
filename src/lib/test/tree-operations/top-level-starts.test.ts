@@ -234,6 +234,18 @@ describe('G1.209 a record told wrong, or read too early, is caught', () => {
 		expect(tags()).toEqual(['invariant:kept-starts-current']);
 	});
 
+	it.each([
+		['fewer blocks than it took out', 2, { at: 2, removed: 1, inserted: 0 }],
+		['more blocks than it put in', 0, { at: 5, removed: 1, inserted: 4 }]
+	])('a write that names %s, which is measured again', (_name, taken, run) => {
+		const doc = parse(paragraphs(6));
+		const k = kept(doc);
+		k.write(() => doc.children.splice(2, taken), [run]);
+		expect(tags()).toEqual(['invariant:kept-starts-current']);
+		expect(answers(doc, k.record.read().starts)).toEqual(answers(doc));
+		tags();
+	});
+
 	it('a read between a write and its announcement, which is answered from the tree', () => {
 		const doc = parse(paragraphs(6));
 		const k = kept(doc);

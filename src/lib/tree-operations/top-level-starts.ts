@@ -133,7 +133,8 @@ function lengthsOf(doc: DocumentView, from: number, to: number): number[] {
 	// Indexed: the list may be a `$state` proxy, where an iterator pays a trap per step.
 	for (let i = from; i < to; i++) {
 		const top = tops[i];
-		lengths.push(top.leadingTrivia.length + top.raw.length);
+		// A run that names a block the document doesn't hold is the caller's to catch, not a throw.
+		lengths.push(top ? top.leadingTrivia.length + top.raw.length : 0);
 	}
 	return lengths;
 }
