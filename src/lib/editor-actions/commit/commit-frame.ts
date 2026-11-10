@@ -68,7 +68,7 @@ export interface FrameWrite {
 	written(): WrittenNodes;
 	/** The blocks the write replaced, read once it has written. */
 	replaced(): ReplacedBlocks;
-	/** The runs of top-level blocks holding every byte the write changed, read once it has
+	/** The runs of top-level blocks holding every byte the write changed, asked once it has
 	 *  written and only while the editor keeps their starts; null when the write can't say. */
 	touched(): readonly TopLevelChange[] | null;
 	/** The dev checks only this write can scope, run after the frame's own. */
@@ -159,7 +159,7 @@ export function createCommitFrame(
 			if (devChecksOn && whole) assertChangeInReach(changeAfter(deps.doc, whole, null), change);
 			deps.drafts.record(change);
 		}
-		deps.bumpContentVersion(deps.starts.isMeasured() ? write.touched() : null);
+		deps.bumpContentVersion(() => write.touched());
 		// A write moves what the gap caret's boundary index names; after the push, so the stored
 		// entry keeps the gap.
 		deps.selectionState.clearGapCaret();

@@ -4,8 +4,7 @@ import type { CaretMemory } from '../caret/caret-memory';
 import type { CaretWriter } from '../browser/caret-writer';
 import type { BlockElLookup } from '../caret/block-el-lookup';
 import type { SelectionState } from '../selection/selection-state.svelte';
-import type { KeptStarts } from './commit/kept-starts';
-import type { TopLevelChange } from '../tree-operations/top-level-starts';
+import type { ChangedRuns, KeptStarts } from './commit/kept-starts';
 import type { DocumentBytes } from '../selection/range-bytes';
 import type { UndoEntry, UndoManager } from '../undo/types';
 import type { SharingState } from '../tree-operations/sharing';
@@ -30,7 +29,7 @@ export interface EditorActionsDeps {
 	setBlockRefs(refs: (BlockComponent | undefined)[]): void;
 	/** Announce that the document's bytes changed, with the runs of top-level blocks the write
 	 *  changed, or null for unknown. Every byte writer calls it, after `starts.opened()` (G4.52). */
-	bumpContentVersion(changes: readonly TopLevelChange[] | null): void;
+	bumpContentVersion(runs: ChangedRuns): void;
 	/** Where the top-level blocks start, kept across writes. A writer opens it before its first
 	 *  change to the tree; the announcement above closes it. */
 	starts: KeptStarts;

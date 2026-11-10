@@ -43,8 +43,7 @@
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { coverRange, rangeCoverage } from '../selection/range-coverage';
 	import { documentBytes, rangePaint } from '../selection/range-bytes';
-	import { createKeptStarts } from '../editor-actions/commit/kept-starts';
-	import type { TopLevelChange } from '../tree-operations/top-level-starts';
+	import { createKeptStarts, type ChangedRuns } from '../editor-actions/commit/kept-starts';
 	import { findSurfacePathForElement } from '../selection/path-lookup';
 	import { createSelectionDescription } from '../selection/selection-description';
 	import { EDITOR_LABEL } from '../a11y-strings';
@@ -260,8 +259,8 @@
 	const contentVersion = createContentVersion();
 	const currentSource = createCurrentSource({ version: contentVersion.read, doc: () => doc });
 	const starts = createKeptStarts(() => doc);
-	const announceBytes = (changes: readonly TopLevelChange[] | null) => {
-		starts.changed(changes);
+	const announceBytes = (runs: ChangedRuns) => {
+		starts.changed(runs);
 		contentVersion.bump();
 	};
 	const bytes = documentBytes({

@@ -49,21 +49,21 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		source: paragraphs,
 		write: (m) => typeLetter(m, [AT]),
 		asks: () => ({ path: [AT], offset: 0 }),
-		announces: 'whole'
+		announces: 'exact'
 	},
 	{
 		name: 'a letter in a list item',
 		source: withList,
 		write: (m) => typeLetter(m, [AT, 0, 0]),
 		asks: () => ({ path: [AT, 0, 0], offset: 0 }),
-		announces: 'whole'
+		announces: 'exact'
 	},
 	{
 		name: 'a letter in the last block of a document with no final line break',
 		source: (n) => paragraphs(n).slice(0, -1),
 		write: (m, n) => typeLetter(m, [n - 1]),
 		asks: (n) => ({ path: [n - 1], offset: 0 }),
-		announces: 'whole'
+		announces: 'exact'
 	},
 	{
 		name: 'Enter in a paragraph',

@@ -6,7 +6,6 @@
  * alone where its span says where it sits (a quote, a table), every line where none does.
  */
 
-import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import type { NodeView } from '../core/node-views';
 import {
 	displayLength,
@@ -74,14 +73,6 @@ export function documentByteMap({ doc, starts }: Measured): DocumentByteMap {
 		return map;
 	};
 	const tops = doc.children;
-	assertInvariant('kept-starts-current', () =>
-		starts.count === tops.length
-			? null
-			: {
-					code: 'kept-starts-stale',
-					message: `starts of ${starts.count} blocks were asked about a document of ${tops.length}`
-				}
-	);
 	const rawStartOf = (i: number) => starts.start(i) + tops[i].leadingTrivia.length;
 	return {
 		leafAt(at) {

@@ -6,24 +6,29 @@
 
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
 import type { DocumentView } from '../core/node-views';
+import type { TopLevelChange } from '../tree-operations/top-level-starts';
 
 /** A document up to this many blocks is compared whole. A longer one is compared by its count and
  *  by the blocks either side of each run, since a whole compare reads every block on every write. */
 const WHOLE_UP_TO = 2000;
 
-/** `runs` are the `[from, to)` blocks the write said it put in, as the document now stands. */
+/** `runs` are what the write said it changed, each `at` counted before any of them was made. */
 export function checkKeptStarts(
 	kept: readonly number[],
 	doc: DocumentView,
-	runs: readonly { from: number; to: number }[]
+	runs: readonly TopLevelChange[]
 ): InvariantViolation | null {
 	const tops = doc.children;
 	if (kept.length !== tops.length) {
 		return stale(`${kept.length} block lengths are kept for a document of ${tops.length}`);
 	}
-	const whole = tops.length <= WHOLE_UP_TO;
-	const beside = whole ? tops.map((_, i) => i) : runs.flatMap(({ from, to }) => [from - 1, to]);
-	for (const i of beside) {
+	let grown = 0;
+	const beside = runs.flatMap((run) => {
+		const from = run.at + grown;
+		grown += run.inserted - run.removed;
+		return [from - 1, from + run.inserted];
+	});
+	for (const i of tops.length <= WHOLE_UP_TO ? tops.keys() : beside) {
 		const top = tops[i];
 		if (top && kept[i] !== top.leadingTrivia.length + top.raw.length) {
 			return stale(`block ${i} changed its bytes and the write that changed it never named it`);

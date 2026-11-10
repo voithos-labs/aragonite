@@ -190,8 +190,8 @@ export function createHeadlessActions(
 		setBlockRefs: (next: (BlockComponent | undefined)[]) => {
 			replaceRefs(blockRefs, next);
 		},
-		bumpContentVersion: (changes) => {
-			starts.changed(changes);
+		bumpContentVersion: (runs) => {
+			starts.changed(runs);
 			contentVersion++;
 			options.bumpContentVersion?.();
 		},

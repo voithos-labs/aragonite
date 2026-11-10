@@ -1,10 +1,10 @@
 /**
  * Where each top-level block sits in a document's bytes: block `i` starts, blank lines first, where
- * block `i - 1` ends, and block 0 starts past the document's prefix. The lengths are plain numbers
- * and the running ends are summed only as far as a question reaches, so an answer after a change
- * costs the blocks between the change and the question. A document nobody keeps is measured once
- * (`measured`); the editor's own record is told what each write changed
- * (`editor-actions/commit/kept-starts.ts`).
+ * block `i - 1` ends, and block 0 starts past the document's prefix. No block is read until the
+ * first question; the lengths are then plain numbers, summed only as far as a question reaches, so
+ * an answer after a change costs the blocks between the change and the question. A document nobody
+ * keeps is measured on its own (`measured`); the editor's own record is told what each write
+ * changed (`editor-actions/commit/kept-starts.ts`).
  */
 
 import type { DocumentView } from '../core/node-views';
@@ -12,7 +12,6 @@ import { recordTopBlocksMeasured } from '../perf/instruments';
 import { spliceMany } from './splice-many';
 
 export interface TopLevelStarts {
-	readonly count: number;
 	/** The document's length, its suffix counted. */
 	readonly length: number;
 	/** Where block `index`'s blank lines start. */
@@ -37,45 +36,42 @@ export interface TopLevelChange {
 	inserted: number;
 }
 
-/** Each block's length, blank lines and bytes, and how many running ends are summed so far. */
+/** Each block's length, blank lines and bytes, and their running sums as far as `summed`. */
 export interface BlockLengths {
 	lengths: number[];
-	ends: number[];
+	sums: number[];
 	summed: number;
 }
 
-/** `doc` measured once, every block read: for a document nobody keeps (a snapshot, a parse). */
+/** `doc` with starts of its own: for a document nobody keeps (a snapshot, a parse). */
 export function measured(doc: DocumentView): Measured {
-	return { doc, starts: startsOver(doc, blockLengths(doc)) };
+	let own: BlockLengths | undefined;
+	return { doc, starts: startsOver(doc, () => (own ??= blockLengths(doc))) };
 }
 
 export function blockLengths(doc: DocumentView): BlockLengths {
-	return { lengths: lengthsOf(doc, 0, doc.children.length), ends: [], summed: 0 };
+	return { lengths: lengthsOf(doc, 0, doc.children.length), sums: [], summed: 0 };
 }
 
-/** The answers `kept` gives about `doc`, whose blocks it measures. */
-export function startsOver(doc: DocumentView, kept: BlockLengths): TopLevelStarts {
+/** The answers about `doc` that `kept`, asked at each question, gives from its blocks' lengths. */
+export function startsOver(doc: DocumentView, kept: () => BlockLengths): TopLevelStarts {
 	const end = (index: number): number => {
-		if (index >= kept.summed) {
-			let at = kept.summed === 0 ? doc.prefix.length : kept.ends[kept.summed - 1];
-			for (let i = kept.summed; i <= index; i++) kept.ends[i] = at += kept.lengths[i];
-			kept.summed = index + 1;
-		}
-		return kept.ends[index];
+		const own = kept();
+		const { lengths, sums } = own;
+		for (let i = own.summed; i <= index; i++) sums[i] = (i > 0 ? sums[i - 1] : 0) + lengths[i];
+		own.summed = Math.max(own.summed, index + 1);
+		return doc.prefix.length + sums[index];
 	};
 	const start = (index: number) => (index === 0 ? doc.prefix.length : end(index - 1));
 	return {
-		get count() {
-			return kept.lengths.length;
-		},
 		get length() {
-			return start(kept.lengths.length) + doc.suffix.length;
+			return start(kept().lengths.length) + doc.suffix.length;
 		},
 		start,
 		end,
 		holding(byte) {
 			let lo = 0;
-			let hi = kept.lengths.length - 1;
+			let hi = kept().lengths.length - 1;
 			while (lo < hi) {
 				const mid = (lo + hi) >> 1;
 				if (byte < end(mid)) hi = mid;
@@ -104,6 +100,27 @@ export function applyChanges(
 		spliceMany(kept.lengths, changes[i].at, changes[i].removed, placed[i]);
 	}
 	if (changes.length > 0) kept.summed = Math.min(kept.summed, changes[0].at);
+}
+
+/** The smallest run outside which each block is one object in `before`, in `after` and, counted
+ *  from the same end, in `shared`: the undo snapshot, which holds no block a write changes in place. */
+export function changedRun<T>(
+	before: readonly T[],
+	after: readonly T[],
+	shared: readonly T[]
+): TopLevelChange {
+	const most = Math.min(before.length, after.length);
+	const same = (b: number, a: number, s: number) =>
+		before[b] === after[a] && shared[s] === after[a];
+	let head = 0;
+	while (head < most && same(head, head, head)) head++;
+	let tail = 0;
+	while (
+		tail < most - head &&
+		same(before.length - 1 - tail, after.length - 1 - tail, shared.length - 1 - tail)
+	)
+		tail++;
+	return { at: head, removed: before.length - head - tail, inserted: after.length - head - tail };
 }
 
 function lengthsOf(doc: DocumentView, from: number, to: number): number[] {
