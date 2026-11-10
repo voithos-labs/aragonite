@@ -11,7 +11,7 @@ New here? Run it with the root [`README.md`](../README.md) (which also argues wh
 | **Understand how the editor works** | [`design/editor.md`](design/editor.md) |
 | **Embed the editor in an app** | [`guide/consumer-guide.md`](guide/consumer-guide.md) |
 | **Write a plugin** | [`guide/plugin-guide.md`](guide/plugin-guide.md), then its [testing](guide/plugin-testing.md) and [API](guide/plugin-api.md) pages |
-| **Contribute to the editor itself** | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) to set up, then [`contributing/first-hour.md`](contributing/first-hour.md) for what to read |
+| **Contribute to the editor itself** | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) to set up, then [`contributing/rules.md`](contributing/rules.md) before your first edit |
 
 Everything else hangs off those four. The folders are split by **audience**, not by topic, so don't be surprised when the same subsystem shows up in two of them wearing different hats.
 
@@ -67,18 +67,13 @@ The pack is the whole `guide/` folder as is, subfolders included (a doc's gifs l
 
 | Doc | Scope |
 | --- | --- |
-| [`contributing/first-hour.md`](contributing/first-hour.md) | What to read in your first hour, in order, and the file behind each of the five things a first change touches |
-| [`contributing/glossary.md`](contributing/glossary.md) | Every word the repo coined, one line each, and what to write instead: keep it open beside any other doc here |
-| [`contributing/rules.md`](contributing/rules.md) | Five rules, each one paid for by a real bug: **read before your first edit** |
-| [`contributing/casebook.md`](contributing/casebook.md) | The eight incidents behind the rules: read before your first structural change |
-| [`contributing/anatomy-of-a-change.md`](contributing/anatomy-of-a-change.md) | One real feature traced from first design decision to ship, for the shape of a change here |
+| [`contributing/rules.md`](contributing/rules.md) | Five rules, each one paid for by a real bug, and what holds each one now: **read before your first edit** |
 | [`contributing/codebase-map.md`](contributing/codebase-map.md) | From the behavior you watched break to the one file to open |
-| [`contributing/testing.md`](contributing/testing.md) | Where a test goes, how the unit and browser layers run, and the heavier machinery (fuzzers, a typing simulation) |
-| [`contributing/debugging.md`](contributing/debugging.md) | Dumping the editor's state (tree, selection, undo) instead of hand-tracing it: the panel, the console helpers, the same dumps inside a test |
-| [`contributing/warnings.md`](contributing/warnings.md) | The three kinds of console output a dev build emits, and which test run goes red when each fires |
+| [`contributing/testing.md`](contributing/testing.md) | Where a test goes, how to write one, and why a console warning turned yours red |
+| [`contributing/debugging.md`](contributing/debugging.md) | Dumping the editor's state (tree, selection, undo) instead of hand-tracing it |
 | [`contributing/adding-a-block.md`](contributing/adding-a-block.md) | Adding a block type to the editor itself; plugin authors want the plugin guide instead |
-| [`contributing/code-style.md`](contributing/code-style.md) | How we name, shape, comment, and format code; nothing exotic |
-| [`contributing/commit-conventions.md`](contributing/commit-conventions.md) | Commit message format: the symbols, the 72-character line, what a body may carry |
+| [`contributing/code-style.md`](contributing/code-style.md) | Comments, file layout, and the few style rules a gate holds you to |
+| [`contributing/glossary.md`](contributing/glossary.md) | The terms the editor is built on and the made-up words symbol names still carry, one line each: keep it open beside any other doc here |
 
 ## Records and reference
 

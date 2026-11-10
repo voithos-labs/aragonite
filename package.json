@@ -107,7 +107,7 @@
 		"preview": "vite preview",
 		"build:e2e": "node scripts/run-with-env.mjs NODE_ENV=development ARAGONITE_E2E_BUILD=1 -- vite build",
 		"preview:e2e": "node scripts/run-with-env.mjs ARAGONITE_E2E_BUILD=1 -- vite preview",
-		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"test": "npm run test:editor && npm run test:e2e",
 		"test:editor": "vitest run",
