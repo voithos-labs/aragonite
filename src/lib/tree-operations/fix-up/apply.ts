@@ -192,22 +192,21 @@ export function mergeJoinsAt(
 }
 
 /** When the document ended open before the commit, the block now last gives its ending up, unless
- *  its last line is blank: returns that block's index, or -1. Run after the containers rebuild. */
+ *  its last line is blank. Run after the containers rebuild, since it writes each level's raw. */
 export function keepOpenTail(
 	doc: Document,
 	wasOpen: boolean,
 	sharing: SharingState,
 	grammar: GrammarView
-): number {
+): void {
 	const result = keepLastLineOpen(doc, wasOpen, editorHost(grammar));
-	if (result.blocks.length === 0) return -1;
-	spliceList(
-		doc,
-		result.at,
-		result.removed,
-		result.blocks.map((block) => adopt(block, sharing, documentLineEnding(doc)))
-	);
-	return result.at;
+	if (result.blocks.length > 0)
+		spliceList(
+			doc,
+			result.at,
+			result.removed,
+			result.blocks.map((block) => adopt(block, sharing, documentLineEnding(doc)))
+		);
 }
 
 /** The document always holds a block: a commit that leaves it none gives it one empty paragraph,

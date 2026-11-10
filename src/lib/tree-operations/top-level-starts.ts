@@ -83,7 +83,7 @@ export function startsOver(doc: DocumentView, kept: () => BlockLengths): TopLeve
 }
 
 /** `kept` brought up to `doc` as `changes` left it: runs in document order, none overlapping, each
- *  `at` counted before any of them was made. Only the blocks the runs put in are read. */
+ *  `at` counted before any of them was made. Only the blocks the runs put in and the last are read. */
 export function applyChanges(
 	doc: DocumentView,
 	kept: BlockLengths,
@@ -99,7 +99,10 @@ export function applyChanges(
 	for (let i = changes.length - 1; i >= 0; i--) {
 		spliceMany(kept.lengths, changes[i].at, changes[i].removed, placed[i]);
 	}
-	if (changes.length > 0) kept.summed = Math.min(kept.summed, changes[0].at);
+	// The last block too: a write that leaves the document's last line open rewrites it.
+	const last = kept.lengths.length - 1;
+	if (last >= 0) kept.lengths[last] = lengthsOf(doc, last, last + 1)[0];
+	kept.summed = Math.min(kept.summed, changes[0]?.at ?? last, Math.max(last, 0));
 }
 
 /** The smallest run outside which each block is one object in `before`, in `after` and, counted

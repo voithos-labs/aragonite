@@ -65,7 +65,6 @@ export function createLeafCommit(
 		const moved = () => settled.change.op !== 'noop' || folds.length > 0 || reclassified.length > 0;
 		// Whether the fix-up spliced the leaf's list: it can rewrite a neighbour and report no change.
 		let spliced = () => false;
-		let tail = -1;
 
 		const outcome = runFrame({
 			entry: 'updateContent',
@@ -131,7 +130,7 @@ export function createLeafCommit(
 					);
 					unwindFolds = publishAncestryFolds(deps, folds);
 				}
-				tail = keepOpenTail(deps.doc, wasOpen, deps.sharing, deps.reading.grammar);
+				keepOpenTail(deps.doc, wasOpen, deps.sharing, deps.reading.grammar);
 				// An ancestor's new bytes reach the view once Svelte re-reads doc.children.
 				if (depth > 1) deps.doc.children = [...deps.doc.children];
 				return moved();
@@ -145,10 +144,7 @@ export function createLeafCommit(
 			// A container keeps its fix-up inside its own top-level block. The document's list names
 			// the leaf alone only where the fix-up spliced nothing beside it.
 			touched: () =>
-				folds.length > 0 ||
-				reclassified.length > 0 ||
-				(depth === 1 && (moved() || spliced())) ||
-				(tail >= 0 && tail !== leafPath[0])
+				folds.length > 0 || reclassified.length > 0 || (depth === 1 && (moved() || spliced()))
 					? null
 					: [{ at: leafPath[0], removed: 1, inserted: 1 }],
 			// The ancestors still in the tree, any a kind change swapped in, and the leaf where it

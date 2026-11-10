@@ -50,7 +50,8 @@ export function createKeptStarts(doc: () => DocumentView): KeptStarts {
 	const misused = (message: string) =>
 		assertInvariant('kept-starts-current', () => ({ code: 'kept-starts-misused', message }));
 	const inWrite = () => {
-		if (open > 0) misused('a position was read between a write and its announcement');
+		if (devChecksOn && open > 0)
+			misused('a position was read between a write and its announcement');
 		return open > 0;
 	};
 	// Untracked, so a reactive reader subscribes to the content version and not to every block.
@@ -62,7 +63,7 @@ export function createKeptStarts(doc: () => DocumentView): KeptStarts {
 			untrack(() => {
 				if (inWrite()) return measured(doc());
 				if (kept && kept.lengths.length !== doc().children.length) {
-					misused('the document changed its blocks with no write announced');
+					if (devChecksOn) misused('the document changed its blocks with no write announced');
 					kept = null;
 				}
 				return (view ??= { doc: doc(), starts: startsOver(doc(), lengths) });
@@ -75,7 +76,7 @@ export function createKeptStarts(doc: () => DocumentView): KeptStarts {
 			open = Math.max(open - 1, 0);
 		},
 		changed(runsOf) {
-			if (open === 0) misused('a write announced its changes without opening first');
+			if (devChecksOn && open === 0) misused('a write announced its changes without opening first');
 			// A write made inside another's leaves neither able to place its runs.
 			const runs = kept && open === 1 ? runsOf?.() : null;
 			open = Math.max(open - 1, 0);

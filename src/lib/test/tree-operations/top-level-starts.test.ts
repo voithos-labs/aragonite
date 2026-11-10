@@ -127,14 +127,25 @@ describe('G1.209 the kept record answers as a fresh measure does', () => {
 		expect(takeDevWarns()).toEqual([]);
 	});
 
-	it.each([50, 200])('reads only the block a write named, in a document of %i', (n) => {
+	it.each([50, 200])('reads the block a write named and the last, in a document of %i', (n) => {
 		const doc = parse(paragraphs(n));
 		const k = kept(doc);
 		resetPerfInstruments();
 		enablePerfInstruments();
 		k.write(() => (doc.children[3].raw = 'longer line\n'), [{ at: 3, removed: 1, inserted: 1 }]);
 		expect(k.record.read().starts.end(n - 1)).toBe(serialize(doc).length);
-		expect(perfSnapshot().topBlocksMeasured).toBe(1);
+		expect(perfSnapshot().topBlocksMeasured).toBe(2);
+	});
+
+	it('follows the last block, which a write leaving the last line open rewrites unnamed', () => {
+		const doc = parse(paragraphs(6));
+		const k = kept(doc);
+		k.write(() => {
+			doc.children.splice(2, 1);
+			doc.children[4].raw = 'line 5';
+		}, [{ at: 2, removed: 1, inserted: 0 }]);
+		expect(answers(doc, k.record.read().starts)).toEqual(answers(doc));
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	it('forgets on a write that names nothing, and measures again only when read', () => {

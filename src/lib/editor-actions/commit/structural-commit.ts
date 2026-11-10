@@ -361,7 +361,6 @@ export function createStructuralCommit(
 		// the run of it the write changed.
 		let docBefore: CstNode[] | null = null;
 		let docRun: TopLevelChange | null = null;
-		let tail = -1;
 		// A write that changed no list and kept every child of each container it owned rewrote only
 		// those containers' own lines, which are no block (a to-do's checkbox, say).
 		const ownLinesOnly = () =>
@@ -480,7 +479,7 @@ export function createStructuralCommit(
 					foldLanding = foldLandingFor(folds.slice(before), p.target.path) ?? foldLanding;
 				});
 				unwindFolds = publishAncestryFolds(deps, folds);
-				tail = keepOpenTail(deps.doc, wasOpen, deps.sharing, deps.reading.grammar);
+				keepOpenTail(deps.doc, wasOpen, deps.sharing, deps.reading.grammar);
 				return changeList.some((c) => c.op !== 'noop') || folds.length > 0;
 			},
 			op,
@@ -499,19 +498,11 @@ export function createStructuralCommit(
 			// document's writes below blocks the document's run was read without.
 			touched: () => {
 				if (folds.length > 0) return null;
-				const tops = scopes.map((s) => s.path[0]);
 				if (!scopes.some(isDocScope)) {
-					const runs = [...new Set(tops)].sort((a, b) => a - b);
-					return tail >= 0 && !tops.includes(tail)
-						? null
-						: runs.map((at) => ({ at, removed: 1, inserted: 1 }));
+					const tops = [...new Set(scopes.map((s) => s.path[0]))].sort((a, b) => a - b);
+					return tops.map((at) => ({ at, removed: 1, inserted: 1 }));
 				}
-				if (scopes.length > 1 || !docRun) return null;
-				const { at, removed, inserted } = docRun;
-				// The block now last gave its ending up after the run was read: inside it, or above it.
-				if (tail < 0 || (tail >= at && tail < at + inserted)) return [docRun];
-				const more = at - tail;
-				return more > 0 ? [{ at: tail, removed: removed + more, inserted: inserted + more }] : null;
+				return scopes.length === 1 && docRun ? [docRun] : null;
 			},
 			written: () => {
 				const nodes: CstNode[] = [];
