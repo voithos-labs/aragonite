@@ -218,7 +218,7 @@ export function gapAtByte(measured: Measured, at: number): GapCaretPosition | nu
 	let found: GapCaretPosition | null = null;
 	let parentPath: number[] = [];
 	let children = doc.children;
-	let startOf = (k: number) => starts.start(k) + doc.children[k].leadingTrivia.length;
+	let startOf = starts.rawStart;
 	// A child starting at or past `at`, or holding it; inside a container, the map's answer alone.
 	let near = 0;
 	for (let past = children.length; near < past;) {

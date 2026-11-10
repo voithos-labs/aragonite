@@ -115,7 +115,7 @@ describe('G1.209 the kept record answers as a fresh measure does', () => {
 	});
 
 	// The byte splice takes its view before it writes and checks what it wrote against that view.
-	it('a view read before a write answers for the document it was read from', () => {
+	it('a view read before a write that puts in a new list answers for the list it read', () => {
 		const doc = parse(paragraphs(6));
 		const k = kept(doc);
 		const view = k.record.read();

@@ -27,7 +27,8 @@ import {
 export type ChangedRuns = (() => readonly TopLevelChange[] | null) | null;
 
 export interface KeptStarts {
-	/** The document as it stands, with its starts; a write's new tree leaves the pair as it was. */
+	/** The document as it stands, with its starts. Read it again after a write: a pair held across
+	 *  one stays true only where the write put in a new list, as the byte splice's own does. */
 	read(): Measured;
 	/** Whether a position has been asked for since the record last forgot. */
 	isMeasured(): boolean;
@@ -51,10 +52,11 @@ export function createKeptStarts(doc: () => DocumentView): KeptStarts {
 
 	const misused = (message: string) =>
 		assertInvariant('kept-starts-current', () => ({ code: 'kept-starts-misused', message }));
+	const writing = () => open > 0;
 	const inWrite = () => {
-		if (devChecksOn && open > 0)
+		if (devChecksOn && writing())
 			misused('a position was read between a write and its announcement');
-		return open > 0;
+		return writing();
 	};
 	const pinned = (): Measured => {
 		const at = { ...doc() };
@@ -84,7 +86,7 @@ export function createKeptStarts(doc: () => DocumentView): KeptStarts {
 				return (view ??= pinned());
 			}),
 		isMeasured: () => kept !== null,
-		writing: () => open > 0,
+		writing,
 		opened() {
 			open++;
 		},
