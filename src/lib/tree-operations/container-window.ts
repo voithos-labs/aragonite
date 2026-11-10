@@ -9,9 +9,11 @@ import type { CstNode } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { isBlankParagraph } from '../core/parser';
 import { splitLines } from '../core/lines';
+import { codecFromShape, INNER_LINE } from '../core/strip-lines';
 import { countsAfterRewrite } from '../core/parsers/list';
 import type { GrammarReading } from '../schema/block-openers';
 import { blockFacts } from '../schema/block-facts';
+import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { spanHolding } from '../schema/child-spans';
 import { assignChildIdsDeep, keepUnchangedDeep } from '../block-id';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
@@ -55,7 +57,7 @@ export function containerWindow(
 		hi = Math.max(hi, to);
 	}
 	// Child 0 holds the container's own first line, and a table's header sits above its delimiter.
-	if (first < 1 || reachesPast(top.before, changes, top.readings)) return null;
+	if (first < 1 || reachesPast(top.before, changes, top.readings, bodyLineOf(node))) return null;
 	// Every item and every quote line opens its container again; a table's rows need its head.
 	const head = lines === 'rows' ? 1 : 0;
 	let lo = first - 1;
@@ -300,18 +302,27 @@ function readsAsHeld(
 	});
 }
 
+/** A line of `node`'s read as the body line it holds, through the line shape its kind states. */
+function bodyLineOf(node: NodeView): (line: string) => string {
+	const shape = tryGetBlockKindDescriptor(node.kind)?.lines;
+	if (shape?.shape !== 'marked') return (line) => line;
+	const lines = codecFromShape(shape);
+	return (line) => lines.read(line, INNER_LINE)?.text ?? line;
+}
+
 /** Whether a line the changes write or take could open or close a block reading past its
  *  container (a fence, `$$`, `:::name`, `<details>`); asked with and without its markers. */
 function reachesPast(
 	before: string,
 	changes: readonly ByteChange[],
-	readings: readonly GrammarReading[]
+	readings: readonly GrammarReading[],
+	bodyLine: (line: string) => string
 ): boolean {
 	const opens = (text: string) =>
 		readings.some((reading) => reading.mayClose(text) || reading.notFinal(text + '\n'));
 	return changes.some((change) =>
 		[...writtenLines(before, change), ...takenLines(before, change)].some((line) => {
-			const quoted = line.replace(/^[ \t>]*/, '');
+			const quoted = bodyLine(line).replace(/^[ \t>]*/, '');
 			return [line, quoted, quoted.replace(/^(?:[-+*]|\d{1,9}[.)])[ \t]+/, '')].some(opens);
 		})
 	);

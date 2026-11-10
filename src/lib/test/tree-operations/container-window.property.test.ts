@@ -8,7 +8,9 @@ import type { NodeView } from '#lib/core/node-views.js';
 import { serialize } from '#lib/core/serializer.js';
 import { describeShapeDivergence } from '#lib/core/shape-divergence.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
-import { installPlugins } from '#lib/schema/plugin-install.js';
+import { definePlugin, installPlugins } from '#lib/schema/plugin-install.js';
+import { OPENER_PRIORITIES } from '#lib/schema/opener-priorities.js';
+import { stripOpener } from '#lib/core/parsers/strip-container.js';
 import { initDocument } from '#lib/components/editor-root/document-swap.js';
 import { assignChildIdsDeep } from '#lib/block-id.js';
 import {
@@ -24,14 +26,38 @@ import {
 	resetPerfInstruments
 } from '#lib/perf/instruments.js';
 import { reloadDivergence } from '#lib/test/exhaustive/edit-driver.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
 import { SYNTAX_PLUGINS } from '../behavior/corpus';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
 
 afterEach(() => disablePerfInstruments());
 
+/** A quote's lines under `%>`, a marker only a plugin's line shape states. */
+const BOX_LINES = {
+	shape: 'marked',
+	first: '%> ',
+	rest: '%> ',
+	reads: /^ {0,3}%>[ \t]?/,
+	lazy: true
+} as const;
+
+const boxes = definePlugin({
+	name: 'boxes',
+	setup: () =>
+		void testLeaf('box', (kind) => ({
+			mergeRole: 'container',
+			container: { lines: BOX_LINES },
+			opener: stripOpener(kind, BOX_LINES, OPENER_PRIORITIES.blockquote - 3, true)
+		}))
+});
+
+/** `text` with each line's opening run of quote markers written as the box's. */
+const boxed = (text: string) =>
+	text.replace(/^(?: {0,3}>[ \t]?)+/gm, (run) => run.replace(/>/g, '%>'));
+
 /** `source` opened as the editor opens it, every container carrying its children's ids. */
 function open(source: string): Document {
-	installPlugins(SYNTAX_PLUGINS);
+	installPlugins([...SYNTAX_PLUGINS, boxes]);
 	const doc = initDocument(source, defaultGrammarView).doc;
 	for (const block of doc.children) assignChildIdsDeep(block);
 	return doc;
@@ -130,9 +156,10 @@ const QUOTE_LINE = [
 const TABLE_ROW = ['| a | b |', '| one |', '| x | y | z |', '| $$ | x |', 'a | b'];
 
 const KINDS = ['list', 'ordered', 'quote', 'table'] as const;
+type Kind = (typeof KINDS)[number] | 'box';
 
 /** One container of one of `kinds`, its lines drawn from its kind's, with blocks above and below. */
-const arbContainerDoc = (kinds: readonly (typeof KINDS)[number][]) =>
+const arbContainerDoc = (kinds: readonly Kind[]) =>
 	fc
 		.record({
 			kind: fc.constantFrom(...kinds),
@@ -151,13 +178,18 @@ const arbContainerDoc = (kinds: readonly (typeof KINDS)[number][]) =>
 			ending: fc.constantFrom('\n', '\r\n')
 		})
 		.map(({ kind, lines, above, below, ending }) => {
-			const pool = { list: LIST_ITEM, ordered: ORDERED_ITEM, quote: QUOTE_LINE, table: TABLE_ROW }[
-				kind
-			];
+			const pool = {
+				list: LIST_ITEM,
+				ordered: ORDERED_ITEM,
+				quote: QUOTE_LINE,
+				table: TABLE_ROW,
+				box: QUOTE_LINE.map(boxed)
+			}[kind];
 			const first = {
 				list: '- first',
 				ordered: '1. first',
 				quote: '> first',
+				box: '%> first',
 				table: '| h | i |\n| - | - |'
 			}[kind];
 			const body = [first, ...lines.map((n) => pool[n % pool.length])].join('\n') + '\n';
@@ -195,7 +227,7 @@ const PLACES = ['byte', 'line', 'text', 'edge'] as const;
 type Place = (typeof PLACES)[number];
 
 /** One or two changes landing at `places`, drawn mostly inside the container's lines. */
-const arbEdit = (kinds: readonly (typeof KINDS)[number][], places: readonly Place[]) =>
+const arbEdit = (kinds: readonly Kind[], places: readonly Place[]) =>
 	fc.record({
 		source: arbContainerDoc(kinds),
 		spots: fc.array(
@@ -227,7 +259,7 @@ function spotRange(before: string, spot: Spot): { from: number; end: number; ins
 	const line = before.lastIndexOf('\n', at - 1) + 1;
 	const span = Math.floor(spot.span * before.length);
 	if (spot.place === 'edge') {
-		const edge = /\r?\n(?=[ \t>]*\r?\n)/g;
+		const edge = /\r?\n(?=[ \t>%]*\r?\n)/g;
 		edge.lastIndex = line;
 		const found = edge.exec(before);
 		if (!found) return { from: at, end: at + span, insert: spot.insert };
@@ -239,7 +271,7 @@ function spotRange(before: string, spot: Spot): { from: number; end: number; ins
 		spot.place === 'line'
 			? line
 			: spot.place === 'text'
-				? line + /^[ \t>]*/.exec(before.slice(line))![0].length
+				? line + /^[ \t>%]*/.exec(before.slice(line))![0].length
 				: at;
 	return { from, end: from + span, insert: spot.insert };
 }
@@ -272,6 +304,17 @@ describe('a splice inside a container comes out as the top-level window does', (
 		);
 	});
 
+	// Miss-analysis: every draw and row held a built-in's marker, which the window strips by a
+	// pattern of its own before asking whether a line opens or closes a block past its run.
+	it('over a plugin’s container under its own marker', () => {
+		fc.assert(
+			fc.property(arbEdit(['box'], PLACES), ({ source, spots }) => {
+				expect(divergence(source, (before) => changesAt(before, spots)).failure).toBeNull();
+			}),
+			{ numRuns: 300, seed: freshOrFixedSeed(20261109) }
+		);
+	});
+
 	// A quote is one draw in four and the line above a blank run one spot in hundreds, so a quote's
 	// line edges, where a lookahead can stop at a blank child, get a draw of their own.
 	it("over quotes edited at their lines' edges", () => {
@@ -293,6 +336,18 @@ const ROWS = (n: number) =>
 
 /** `before` with `find` replaced by `put`, at its first match. */
 const edit = (before: string, find: string, put: string) => before.replace(find, put);
+
+type Row = [name: string, source: string, after: (source: string) => string];
+
+/** Each row over a quote again with `%>` for the quote's `>`. */
+const underBox = (rows: Row[]): Row[] =>
+	rows
+		.filter(([, source]) => /^>/m.test(source))
+		.map(([name, source, after]) => [
+			`${name}, under a plugin’s marker`,
+			boxed(source),
+			() => boxed(after(source))
+		]);
 
 describe('the window inside a container, by its edges', () => {
 	// Miss-analysis: every row and draw made a change exactly as wide as its bytes, and every
@@ -350,7 +405,7 @@ describe('the window inside a container, by its edges', () => {
 	});
 
 	// Rows that read a few children: far less than the container.
-	it.each([
+	const FEW: Row[] = [
 		[
 			'a paste inside a list',
 			ITEMS(40),
@@ -398,14 +453,15 @@ describe('the window inside a container, by its edges', () => {
 			edit(QUOTED(40), '> line 20\n', '> line 20\nlazy\n'),
 			(s: string) => edit(s, 'line 21', 'line 21!')
 		]
-	])('%s reads a few children', (_name, source, after) => {
+	];
+	it.each([...FEW, ...underBox(FEW)])('%s reads a few children', (_name, source, after) => {
 		const { failure, parsed, size } = divergence(source, to(after(source)));
 		expect(failure).toBeNull();
 		expect(parsed).toBeLessThan(size / 4);
 	});
 
 	// Rows that fall back to the top-level window: the change may reach past its run.
-	it.each([
+	const WHOLE: Row[] = [
 		[
 			'a `$$` opened in an item, closed in the next',
 			ITEMS(40),
@@ -467,8 +523,12 @@ describe('the window inside a container, by its edges', () => {
 			':::note\r\n' + QUOTED(10).replace(/\n/g, '\r\n') + '::\r\n',
 			(s: string) => edit(s, '::\r\n', ':::\r\n')
 		]
-	])('%s takes the top-level window', (_name, source, after) => {
-		const { failure } = divergence(source, to(after(source)));
-		expect(failure).toBeNull();
-	});
+	];
+	it.each([...WHOLE, ...underBox(WHOLE)])(
+		'%s takes the top-level window',
+		(_name, source, after) => {
+			const { failure } = divergence(source, to(after(source)));
+			expect(failure).toBeNull();
+		}
+	);
 });
