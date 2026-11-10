@@ -6,16 +6,28 @@
  */
 
 import type { SpliceCaret } from '../action-contracts';
+import { getContentRange, structuralSuffix } from '../core/inline';
 import { isBlankText } from '../core/lines';
 import type { Mode, RangeHost } from './host';
 import { copyOf } from './copy';
-import { contentEnd, factsOf, findWithin, readDoc, type Doc } from './document';
+import {
+	contentEnd,
+	factsOf,
+	findWithin,
+	leafAt,
+	nodeAt,
+	parentOf,
+	pointedBlock,
+	readDoc,
+	type Doc
+} from './document';
 import type { LaidBlock } from './layout';
-import type { Edit } from './leaf-splice';
+import { byteAt, writeLeaf, type Edit } from './leaf-splice';
 import { ownEntry, restored } from './own-entry';
+import { numberedOn } from './list-numbers';
 import { pasteAt } from './paste';
-import { removeRange } from './removal';
-import { holdsText } from './removal-range';
+import { removeRange, type Removal } from './removal';
+import { fenceBody, holdsText } from './removal-range';
 
 /** Two byte offsets, `from <= to`, after the editor widened the range to every block it takes
  *  whole; a caret is a range with `from === to`. */
@@ -24,15 +36,19 @@ export interface Range {
 	to: number;
 }
 
-export type Gesture =
-	| 'copy'
+/** A gesture that removes the range and pastes nothing. */
+export type RemovalGesture =
 	| 'cut'
 	| 'backspace'
 	| 'delete'
 	/** The removal a typed character, a composition or a command key makes first. */
 	| 'type'
 	| 'compose'
-	| 'command'
+	| 'command';
+
+export type Gesture =
+	| 'copy'
+	| RemovalGesture
 	/** Clipboard text with LF line endings, and the editor's own entry an earlier copy or cut
 	 *  wrote, while the clipboard still holds it. */
 	| { paste: string; plain: boolean; own?: string }
@@ -58,27 +74,26 @@ export function editRange(
 	const doc = readDoc(source, host, mode);
 	const { from, to } = range;
 	const read = (edit: Edit) => readDoc(edit.source, host, mode);
-	const answer = (edit: Edit): RangeEditResult => ({
+	const answer = (edit: Removal): RangeEditResult => ({
 		source: edit.source,
-		caret: caretOf(edit, read(edit))
+		caret: caretOf(edit, read(edit), besideOf(gesture))
 	});
-	// Text typed or pasted over one block held whole takes its place, and the line stays.
-	const inPlace = { source: source.slice(0, from) + source.slice(to), caret: from };
-	const replaced = heldAlone(doc, from, to);
 	if (gesture === 'copy' || gesture === 'cut') {
 		const { removed, clipboard, own } = taken(doc, from, to);
 		if (gesture === 'cut') return { ...answer(removed), clipboard, own };
 		return { source, caret: { at: to, holds: 'text' }, clipboard, own };
 	}
-	if (typeof gesture === 'string')
-		return answer(gesture === 'type' && replaced ? inPlace : removeRange(doc, from, to));
+	if (typeof gesture === 'string') return answer(removalEdit(doc, from, to, gesture));
 	if ('paste' in gesture) {
 		const own = gesture.plain ? undefined : gesture.own;
 		const back = own === undefined ? null : restored(source, from, to, own);
 		if (back) return answer(back);
 		if (from === to) return answer(pasteAt(doc, from, gesture.paste, gesture.plain));
-		// The paste lands where the removal's caret does, as a cut's then a paste's would.
-		const removed = replaced ? inPlace : removeRange(doc, from, to);
+		const cell = inCell(doc, from, to, gesture);
+		if (cell) return answer(cell);
+		// The paste lands where the removal's caret does, as a cut's then a paste's would, and over
+		// one block held whole takes its place, as typed text does.
+		const removed = removalEdit(doc, from, to, 'type');
 		const after = read(removed);
 		return answer(pasteAt(after, caretOf(removed, after).at, gesture.paste, gesture.plain));
 	}
@@ -89,6 +104,97 @@ export function editRange(
 	const at =
 		gesture.drop <= from ? gesture.drop : gesture.drop - (source.length - removed.source.length);
 	return answer(restored(removed.source, at, at, own) ?? pasteAt(after, at, clipboard, false));
+}
+
+/** A removal's answer alone, for a caller that never pastes, so the paste stays unloaded. */
+export function removalOf(
+	source: string,
+	range: Range,
+	gesture: RemovalGesture,
+	mode: Mode,
+	host: RangeHost
+): RemovalAnswer {
+	const removed = removalEdit(readDoc(source, host, mode), range.from, range.to, gesture);
+	return {
+		...answerOf(removed, gesture, host, mode),
+		...(removed.took && { took: removed.took })
+	};
+}
+
+/** A removal's answer, and the block the range started in, by its path, when it went whole: text
+ *  over the range opens a paragraph there when the caret holds no prose. */
+export interface RemovalAnswer extends RangeEditResult {
+	took?: readonly number[];
+}
+
+/** Text over a range inside one table cell, for a caller that never pastes elsewhere; null for any
+ *  other range, or text holding a line break. */
+export function textInCell(
+	source: string,
+	range: Range,
+	text: string,
+	mode: Mode,
+	host: RangeHost
+): RangeEditResult | null {
+	const cell = inCell(readDoc(source, host, mode), range.from, range.to, {
+		paste: text,
+		plain: false
+	});
+	return cell && { source: cell.source, caret: { at: cell.caret, holds: 'text' } };
+}
+
+/** One write of the cell holding `[from, to)`, since a cell stores no edge space: a removal and
+ *  then an insert would lose the space the removal leaves beside the text. */
+function inCell(
+	doc: Doc,
+	from: number,
+	to: number,
+	{ paste, plain }: { paste: string; plain: boolean }
+): Edit | null {
+	const head = leafAt(doc, from);
+	const tail = leafAt(doc, to);
+	if (!head || head.leaf !== tail?.leaf || /[\r\n]/.test(paste)) return null;
+	const row = parentOf(doc, head.leaf);
+	if (!row || factsOf(doc, row).lines !== 'cells') return null;
+	const { tree, host, mode } = doc;
+	const text = plain ? host.leaf.plain(tree, head.leaf.path, paste) : paste;
+	const write = host.leaf.replace(tree, head.leaf.path, head.offset, tail.offset, text, mode);
+	return writeLeaf(doc, head.leaf, write, head.offset, tail.offset);
+}
+
+/** A removal of the blocks `range` spans as blocks asked for (the block menu's Delete), not text:
+ *  `Doc.wholeBlocks` says what that changes. */
+export function wholeBlocksRemovalOf(
+	source: string,
+	range: Range,
+	gesture: RemovalGesture,
+	mode: Mode,
+	host: RangeHost
+): RangeEditResult {
+	const doc = { ...readDoc(source, host, mode), wholeBlocks: true };
+	return answerOf(removeRange(doc, range.from, range.to), gesture, host, mode);
+}
+
+function answerOf(removed: Removal, gesture: RemovalGesture, host: RangeHost, mode: Mode) {
+	const caret = caretOf(removed, readDoc(removed.source, host, mode), besideOf(gesture));
+	return { source: removed.source, caret };
+}
+
+/** Where a caret goes beside blocks the range took whole, no text left at its start: the block
+ *  before's end, the block after's text, or its first byte, where a paste puts a cut back. */
+type Beside = 'end before' | 'text after' | 'start after';
+
+function besideOf(gesture: Gesture): Beside {
+	if (gesture === 'backspace' || gesture === 'command') return 'end before';
+	return gesture === 'delete' || gesture === 'compose' ? 'text after' : 'start after';
+}
+
+/** What a removal gesture leaves: text typed over one block held whole takes its place, and the
+ *  line stays. */
+function removalEdit(doc: Doc, from: number, to: number, gesture: RemovalGesture): Removal {
+	if (gesture !== 'type' || !heldAlone(doc, from, to)) return removeRange(doc, from, to);
+	const out = doc.source.slice(0, from) + doc.source.slice(to);
+	return { source: numberedOn(doc, from, to, out), caret: from };
 }
 
 /** What a copy of `range` writes, the copy gesture alone: it reads nothing but `source`, so an
@@ -120,13 +226,67 @@ function heldAlone(doc: Doc, from: number, to: number): boolean {
 	return from < to && findWithin(doc, from, from, alone) !== undefined;
 }
 
-/** The caret named by what the new bytes hold there: text, or failing that the text just before it
- *  on its line, or the start of a block, or the boundary between two. */
-function caretOf(edit: Edit, result: Doc): SpliceCaret {
+/** The caret named by what the new bytes hold there: text, the text before it on its line, a block
+ *  start or a boundary, or where no text stayed, the side `beside` names. */
+function caretOf(edit: Removal, result: Doc, beside: Beside = 'start after'): SpliceCaret {
+	const side = !edit.gone
+		? null
+		: beside === 'end before'
+			? endBefore(result, edit.caret)
+			: beside === 'text after'
+				? startAfter(result, edit.caret)
+				: beforeFence(result, edit.caret);
+	if (side) return side;
 	let at = edit.caret;
 	const lineStart = edit.source.lastIndexOf('\n', at - 1) + 1;
 	while (at > lineStart && !result.layout.pointAt(at)) at--;
 	if (edit.source === '' || result.layout.pointAt(at)) return { at, holds: 'text' };
 	const block = findWithin(result, edit.caret, edit.caret, (b) => b.from === edit.caret);
 	return { at: edit.caret, holds: block ? 'block' : 'boundary' };
+}
+
+/** The end of the block before byte `at`: the last place a caret takes in its text, or the block
+ *  itself where it has no text position (a rule). Null where no block comes before. */
+function endBefore(doc: Doc, at: number): SpliceCaret | null {
+	for (let byte = at - 1; byte >= 0; byte--) {
+		const block = pointedBlock(doc, byte);
+		if (!block) continue;
+		if (factsOf(doc, block).textPosition === 'never') return { at: block.from, holds: 'block' };
+		// A caret ends after a character, and before a line ending, both bytes of a pair.
+		const { source } = doc;
+		const end = !/[\r\n]/.test(source[byte])
+			? byte + 1
+			: source[byte - 1] === '\r'
+				? byte - 1
+				: byte;
+		return { at: Math.min(end, lastCaretByte(doc, block)), holds: 'text' };
+	}
+	return null;
+}
+
+/** The boundary before the fenced block starting at byte `at`, whose fence line takes no caret. */
+function beforeFence(doc: Doc, at: number): SpliceCaret | null {
+	const block = pointedBlock(doc, at);
+	return block?.from === at && fenceBody(doc, block) ? { at, holds: 'boundary' } : null;
+}
+
+/** The first block from byte `at` on, past the parent the removal ended: a fenced block's body
+ *  start (its fence lines take no caret), or the block itself where it has no text position. */
+function startAfter(doc: Doc, at: number): SpliceCaret | null {
+	for (let byte = at; byte < doc.source.length; byte++) {
+		const block = pointedBlock(doc, byte);
+		if (!block || block.from < at) continue;
+		if (factsOf(doc, block).textPosition === 'never') return { at: block.from, holds: 'block' };
+		return { at: fenceBody(doc, block)?.from ?? block.from, holds: 'text' };
+	}
+	return null;
+}
+
+/** A leaf's last caret place: a fenced block's body end, else its text's end past a structural
+ *  suffix the block draws after it (a setext underline). */
+function lastCaretByte(doc: Doc, leaf: LaidBlock): number {
+	const body = fenceBody(doc, leaf);
+	if (body) return body.to;
+	const node = nodeAt(doc, leaf.path);
+	return byteAt(doc, leaf, getContentRange(node).end + structuralSuffix(node).length);
 }

@@ -15,6 +15,7 @@ import {
 	titleOwner,
 	type Doc
 } from './document';
+import { apartAt, pastMarkers } from './apart';
 import { closedBy, emptiedRest, takerOf, withoutOpening } from './container-merge';
 import { splitAt } from './paste-split';
 import {
@@ -28,8 +29,34 @@ import {
 } from './leaf-splice';
 
 export function pasteAt(doc: Doc, at: number, clipboard: string, plain: boolean): Edit {
-	const visibleAfter = lineRest(doc.source, at) !== '';
 	const lf = clipboard.replace(/\r\n?/g, '\n');
+	const edit = landed(doc, at, lf, plain);
+	// What lands in an empty paragraph, its line ending alone, stays apart from the block under it.
+	const leaf = leafAt(doc, at)?.leaf;
+	if (!leaf || !/^\r?\n?$/.test(nodeAt(doc, leaf.path).raw)) return edit;
+	if (titleOwner(doc, leaf) || factsOf(doc, leaf).joins !== 'text') return edit;
+	const lower = doc.layout.block([...leaf.path.slice(0, -1), leaf.path.at(-1)! + 1]);
+	const flush = lower && lower.from <= pastMarkers(doc.source, leaf.to);
+	const raw = flush ? lastPasted(doc, leaf, lf, plain) : null;
+	if (!lower || raw === null) return edit;
+	const below = leaf.to + edit.source.length - doc.source.length;
+	const join = { from: at, to: at, upper: leaf, lower, rewritten: { upper: { block: leaf, raw } } };
+	return { source: apartAt(doc, edit.source, below, join, true), caret: edit.caret };
+}
+
+/** The last block a paste into the empty paragraph `leaf` writes, as its own bytes. */
+function lastPasted(doc: Doc, leaf: LaidBlock, clip: string, plain: boolean): string | null {
+	const ended = (raw: string) => withLineEnding(raw.replace(/\n?$/, '\n'), endingOf(doc.source));
+	if (plain) return ended(doc.host.leaf.plain(doc.tree, leaf.path, clip));
+	const blocks = readDoc(clip, doc.host, doc.mode).tree.children;
+	const last = blocks.filter((b) => !isBlankText(b.raw)).at(-1);
+	// A container the caret's container takes in leaves no block of its own there.
+	return last && !last.children?.length ? ended(last.raw) : null;
+}
+
+/** The paste of `lf`, clipboard text with LF line endings, at `at`. */
+function landed(doc: Doc, at: number, lf: string, plain: boolean): Edit {
+	const visibleAfter = lineRest(doc.source, at) !== '';
 	// Plain text goes in as lines of the block at the caret: with nothing after the caret, its last
 	// line ending would only add an empty line to that block.
 	const clip = plain && !visibleAfter ? lf.replace(/\n$/, '') : lf;
@@ -95,7 +122,7 @@ export function pasteAt(doc: Doc, at: number, clipboard: string, plain: boolean)
 /** One line pasted after text on the caret's line reads as that line reads. */
 function afterText(doc: Doc, leaf: LaidBlock, offset: number, clip: string): boolean {
 	if (clip.includes('\n')) return false;
-	const lineStart = Math.max(lineTextStart(doc, leaf, offset), leaf.text!.from);
+	const lineStart = lineTextStart(doc, leaf, offset);
 	return !isBlankText(doc.source.slice(lineStart, byteAt(doc, leaf, offset)));
 }
 

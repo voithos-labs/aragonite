@@ -11,6 +11,14 @@ with the rule focused by ArrowDown from the end of `a`.
 - Delete on the rule deletes it, and typed text lands at the start of `b`
 - Ctrl+X on the rule cuts it, and typed text lands at the start of `b`
 
+## A container below
+
+- `a`, a rule, then a quote (`> b`), a list (`- b`) or a table (`| B |`): Delete on the rule
+  lands at the start of the container's text, so a typed `x` gives `> xb`, `- xb`, `| xB |`, in
+  source and live mode
+  - Miss-analysis: every Delete row had a paragraph below the rule, so a landing that enters a
+    container had never been typed into.
+
 ## The only block
 
 - A rule that's the whole document, focused by a click, goes on Backspace, Delete or Ctrl+X, and

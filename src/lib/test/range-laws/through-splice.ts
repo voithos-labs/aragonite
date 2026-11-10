@@ -85,7 +85,7 @@ function sameSpot(
 
 /** The caret the editor holds, as a byte of its bytes and what sits there; null for a range or a
  *  cell, which no byte names. */
-function caretOf(editor: Editor): SpliceCaret | null {
+export function caretOf(editor: Editor): SpliceCaret | null {
 	const doc = editor.instance.__test.getDocument();
 	const gap = editor.instance.__test.getGapCaret();
 	if (gap) {

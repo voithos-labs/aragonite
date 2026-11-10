@@ -81,9 +81,10 @@ describe('a plugin command that runs after the removal, over a range', () => {
 
 			await pressKey(surfaceAt(mounted, [1]), key);
 
-			expect(mounted.source()).toBe('@@ ota\n');
+			// The kind takes no joined text, so what follows the range keeps its own line.
+			expect(mounted.source()).toBe('@@ o\nta\n');
 			expect(ran).toHaveBeenCalledTimes(1);
-			expect(ran).toHaveBeenCalledWith('@@ ota\n');
+			expect(ran).toHaveBeenCalledWith('@@ o\n');
 		});
 	}
 });

@@ -245,7 +245,8 @@ describe('a range delete from a one-line formula into the prose below', () => {
 		await pressKey(document.activeElement ?? editor.target, { key: 'Backspace' });
 		await editor.settle();
 
-		expect(editor.source()).toBe('$$xoo$$\n\nprice 10$$\n');
+		// A formula's literal text takes no joined text, so the line after it stays its own.
+		expect(editor.source()).toBe('$$x$$\noo\nprice 10$$\n');
 		const live = editor.instance.__test.getDocument().children.map((c) => c.kind);
 		expect(live).toEqual(parse(editor.source()).children.map((c) => c.kind));
 	});

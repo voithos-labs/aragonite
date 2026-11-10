@@ -104,7 +104,7 @@ function writtenTopLevel(
 
 /** The frame's write plus where the caret lands after it; `commitScopes` builds it for every
  *  entry point. */
-export interface CommitArgs extends Omit<FrameWrite, 'prepare'> {
+export interface CommitArgs extends FrameWrite {
 	entry: 'commitStructural' | 'commitMultiScope' | 'commitSource';
 	history: UndoGrouping;
 	landing?: CommitLanding;

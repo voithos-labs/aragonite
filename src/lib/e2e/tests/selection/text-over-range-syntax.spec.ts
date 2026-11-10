@@ -92,8 +92,9 @@ const ROWS: Row[] = [
 		path: [0],
 		kind: 'setextHeading'
 	}),
-	joins('quote', '> q', (text) => `> ${text}q`, { path: [0, 0], kind: 'paragraph' }),
-	joins('list', '- li', (text) => `- ${text}li`, { path: [0, 0, 0], kind: 'paragraph' })
+	// The range takes the quote's marker and the item's, so the text joins at the table's level.
+	joins('quote', '> q', (text) => `${text}q`, { path: [0], kind: 'paragraph' }),
+	joins('list', '- li', (text) => `${text}li`, { path: [0], kind: 'paragraph' })
 ];
 
 const GESTURES: Gesture[] = ['type', 'paste', 'composition'];

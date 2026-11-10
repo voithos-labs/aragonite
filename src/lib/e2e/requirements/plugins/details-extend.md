@@ -28,7 +28,8 @@ the editor's selection and the serialized bytes.
 - a delete of the grown range removes the whole details block, its hidden body included, and
   joins the blocks on either side as for any other covered block
 - a range whose moving end stops on the title row covers the hidden body too: Backspace there
-  removes the whole block, and a typed character lands where the range's other end was
+  removes the whole block, and since the range stops at the text before the paragraph below it,
+  a typed character lands at the end of the block above, Backspace's side
 - Ctrl+X over a range from mid-paragraph onto a closed title row (Shift+Mod+End, which stops past
   the row's first character) cuts the whole details, and pasting it below brings the block back
   with its hidden body. The copy takes exactly what the delete takes (#636)
@@ -37,7 +38,8 @@ the editor's selection and the serialized bytes.
 - Shift+Mod+End from the top of a document ending in a closed details stops on its title row,
   and Backspace then empties the document, hidden body included
 - an open details keeps its wall: a range from its title row into the block below empties it to
-  its title row, and the tree left behind is the one a reload of the bytes reads back (#605)
+  its title row, which keeps its closing tag, and the body paragraph it empties keeps its line;
+  the tree left behind is the one a reload of the bytes reads back (#605)
 
 ## Error cases
 

@@ -464,7 +464,7 @@ Sometimes a guard's own check can't cope with a shape a shared generator draws. 
 
 ## The live-mode gesture fuzzer
 
-Scripted flows only ever cover the gestures somebody thought of. `src/lib/test/simulation/live-gesture-fuzz.property.test.ts` searches the space between them: a seeded stream of typing and destructive gestures at positions biased toward hidden construct edges, driven through the real caret-edge, split, join and range-delete code and judged after every gesture against what live mode is allowed to write (`docs/design/live-mode.md` § 2). Each gesture also runs on a byte-literal twin from the same starting bytes, so a divergence the source-mode edit already has is reported rather than gated.
+Scripted flows only ever cover the gestures somebody thought of. `src/lib/test/simulation/live-gesture-fuzz.property.test.ts` searches the space between them: a seeded stream of typing and destructive gestures at positions biased toward hidden construct edges, driven through the real caret-edge, split, join and range-removal code and judged after every gesture against what live mode is allowed to write (`docs/design/live-mode.md` § 2). Each gesture also runs on a byte-literal twin from the same starting bytes, so a divergence the source-mode edit already has is reported rather than gated.
 
 Findings sort into two buckets. `seam` is a divergence live has and the twin does not, and fails the sweep. `ambiguous` is both twins failing the same claim: markdown's own rebinding, or the byte-literal fallback live-mode.md § 4.4 declares. It's held to a ceiling rather than gated, so a new class can't grow there unwatched.
 

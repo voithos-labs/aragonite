@@ -56,8 +56,8 @@ export interface FrameWrite {
 	 *  blank lines and bytes. */
 	typedEnd?(): { block: number; offset: number } | null;
 	history: FrameHistory;
-	/** Copies what the write will write, before its undo entry; false when it can't, which writes
-	 *  nothing. */
+	/** Works out what the write will write, before its undo entry; false when it can't, which
+	 *  writes nothing. A throw fails the write as one in `apply` does. */
 	prepare?(): boolean;
 	/** False when the write changed nothing; `wasOpen` is whether the document ended with no final
 	 *  line break before it. */
@@ -145,10 +145,7 @@ export function createCommitFrame(
 			}
 		} catch (err) {
 			restore();
-			reportWriteError(deps, write, err);
-			// Loud in dev; production swallows it so one failed edit does not kill the editor.
-			if (devChecksOn) throw err;
-			return 'failed';
+			return failed(write, err);
 		}
 		if (discarded) return 'discarded';
 		if (capture) {
@@ -166,14 +163,29 @@ export function createCommitFrame(
 		return 'written';
 	}
 
+	/** The write's `prepare`, run before anything is written: null when the write goes ahead. */
+	function prepared(write: FrameWrite): FrameOutcome | null {
+		try {
+			return !write.prepare || write.prepare() ? null : 'refused';
+		} catch (err) {
+			return failed(write, err);
+		}
+	}
+
+	function failed(write: FrameWrite, err: unknown): 'failed' {
+		reportWriteError(deps, write, err);
+		// Loud in dev; production swallows it so one failed edit does not kill the editor.
+		if (devChecksOn) throw err;
+		return 'failed';
+	}
+
 	function runFrame(write: FrameWrite): FrameOutcome {
 		const target = write.op?.eventPath ?? write.snapshot.path;
 		const op = write.op?.kind ?? write.entry;
 		if (!admitsWrite(deps, op, () => blockNodeAt(deps.doc, target)?.kind)) return 'refused';
 		beginCommit();
 		try {
-			if (write.prepare && !write.prepare()) return 'refused';
-			return run(write);
+			return prepared(write) ?? run(write);
 		} finally {
 			endCommit();
 		}

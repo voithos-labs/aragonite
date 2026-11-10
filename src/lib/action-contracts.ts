@@ -58,13 +58,13 @@ export interface SpliceCaret {
 	holds: 'text' | 'block' | 'boundary';
 }
 
-/** A byte splice: sorted, non-overlapping changes to the current bytes and the caret after them, or
- *  `keep` for the author's caret, moved past the changes. The edit event names `op` at the first
- *  block the splice replaced. */
+/** A byte splice: sorted, non-overlapping changes to the current bytes and the caret after them,
+ *  or `keep` for the author's caret moved past the changes. The edit event names `op` at its own
+ *  `eventPath`, else at the first block the splice replaced. */
 export interface SourceSplice {
 	changes: readonly ByteChange[];
 	caret: SpliceCaret | 'keep';
-	op: OpDescriptor;
+	op: OpDescriptor | ScopedOpDescriptor;
 	snapshot: CommitSnapshotArg;
 	history?: UndoGrouping;
 	reveal?: RevealPolicy;
@@ -128,8 +128,8 @@ export interface BlockEditActions {
 	insertParagraph(boundaryIndex: number, text: string): Promise<boolean>;
 	mergeWithPrevious(blockIndex: number): Promise<boolean>;
 	mergeWithNext(blockIndex: number): Promise<boolean>;
-	/** Remove the block; the caret lands once, on the side `gesture` points
-	 *  (`selection/caret-target.ts :: survivorAfterRemoval`), and the caller places none. */
+	/** Remove the block whole through the range-edit core; the caret lands once, where the core puts
+	 *  it on the side `gesture` points, and the caller places none. */
 	deleteBlock(blockIndex: number, gesture: RemovalGesture): Promise<boolean>;
 	/** Write `text` as the block's bytes through its kind's and this list's write rules, in the undo
 	 *  entry `history` names, which undo rewinds to `preEditOffset`; `caret` maps the focus after. */
@@ -378,8 +378,13 @@ export interface ContainerEditActions {
 	/** Put the caret at a document position through the editor's caret landing, for an edit that
 	 *  moves the caret without a commit. */
 	land(pos: CaretPosition): Promise<LandingOutcome>;
-	/** Where the caret goes once the block at `removedPath` is gone, read on the document now. */
-	survivorAfterRemoval(removedPath: DocPath, gesture: RemovalGesture): CaretPosition | null;
+	/** Removes the block at `path` whole through the range-edit core, in one commit; the caret lands
+	 *  where the core puts it on the side `gesture` points. */
+	removeWhole(
+		path: DocPath,
+		gesture: RemovalGesture,
+		commit: Pick<SourceSplice, 'op' | 'snapshot'>
+	): Promise<boolean>;
 	/** Report a write refused before its commit to the editor's `error` event. */
 	reportCommitError(error: unknown, op: OperationKind, path: DocPath): void;
 }

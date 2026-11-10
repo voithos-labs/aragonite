@@ -369,6 +369,8 @@ const ONE_WRITE: FileRule = {
 	matches: /\.commitSource\(\s*\{/,
 	allowed: {
 		[SOURCE.draftRegistry]: 'the draft, the one write a plugin or a host makes',
+		[SOURCE.rangeRemoval]:
+			"a range's removal, which reads the selection as bytes and lands the range-edit core's answer",
 		'src/lib/components/Editor.svelte':
 			"the test bridge's splice, which tests the splice commit itself"
 	},
@@ -1450,7 +1452,7 @@ const RULES: FileRule[] = [
 				"checks a stored cell endpoint lies inside its table's cells",
 			'src/lib/selection/table-rect-extend.ts':
 				"moves a rectangle's focus cell one step on Shift+arrow, an edit of the selection",
-			'src/lib/selection/cross-block/range-delete/range-delete-table.ts':
+			[SOURCE.gridRemoval]:
 				'puts the caret in the start cell once the coverage has said which cells clear'
 		},
 		reason:
@@ -1473,21 +1475,6 @@ const RULES: FileRule[] = [
 			'const { from, to } = endpointMeasureSpan(classification, live);',
 			'const run = coverage.endCells;'
 		]
-	},
-	{
-		id: 'a removed block lands the caret by its gesture; only a range running on past it skips that',
-		matches: /(?<![\w.])(?:survivorWhereRangeResumes|caretWhereRangeResumes)\s*\(/,
-		allowed: {
-			'src/lib/selection/caret-target.ts': 'defines the survivor read',
-			'src/lib/selection/cross-block/range-delete/range-delete-chrome.ts':
-				'defines the caret read, and a range that took its start container whole and runs on',
-			'src/lib/selection/cross-block/range-delete/range-delete-table.ts':
-				'the same range, ending in a table'
-		},
-		reason:
-			'`survivorAfterRemoval` is the one place a gesture picks the side; a removal that asks for the next block itself lands Backspace below',
-		hits: ['caret: (committed) => caretWhereRangeResumes(committed, path),'],
-		misses: ["import { caretWhereRangeResumes } from './range-delete-chrome';"]
 	},
 	{
 		id: 'G4.84 a StoredAs is made only from the tree, in one place',
@@ -1879,7 +1866,9 @@ const LEAF_RANGE_RULES: FileRule[] = [
 		matches: /(?<![\w.])joinLeaves\s*\(/,
 		allowed: {
 			'src/lib/tree-operations/leaf-range.ts': 'defines it',
-			'src/lib/tree-operations/node-ops.ts': "`joinIntoLeaf`, the merge's one join into a leaf"
+			'src/lib/tree-operations/node-ops.ts': "`joinIntoLeaf`, the merge's one join into a leaf",
+			'src/lib/range-edit/host.ts':
+				"the range removal's join of the end block's text onto the start's"
 		},
 		reason:
 			'a join of two leaves runs the tail kind’s write rule and the live cleanup once, here; declare a new caller with what it joins',
@@ -1929,8 +1918,6 @@ const LEAF_RANGE_RULES: FileRule[] = [
 			'src/lib/core/inline/link-source-bytes.ts':
 				'the link writer rewrites one whole link and checks its candidate against the screen',
 			'src/lib/inline-menu/inline-menu-session.ts': 'compares two texts and writes nothing',
-			'src/lib/selection/cross-block/range-delete/range-delete.ts':
-				'the range delete’s own join, a known gap until it calls `joinLeaves` (T18 slice 5)',
 			'src/lib/selection/cross-block/range-replace.ts':
 				'a key typed over a range into a block with no typing write lands after its removal, a known gap until the text rides into the join (T18 slice 5)'
 		},
@@ -2540,14 +2527,16 @@ const REVEAL_IN_SVELTE: FileRule = {
 
 const ROGUE_RANGE_ROUTE = `${SOURCE_DIR.crossBlock}rogue.ts`;
 const RANGE_REPLACE_HOME = SOURCE.rangeReplace;
-/** `range-delete.ts` and its `range-delete-*.ts` siblings, which define the removals. */
-const RANGE_DELETE_FAMILY = SOURCE.rangeDelete.slice(0, -'.ts'.length);
+const REMOVAL_HOMES = new Set<string>([SOURCE.rangeRemoval, SOURCE.gridRemoval]);
+
+const WHOLE_REMOVAL_REASON =
+	'a block removed outside the core skips its blank-line rule (a block taken whole goes with its line and one blank line beside it), the join question and the renumber: remove it through the scope’s `removeWhole` or `blockEdit.deleteBlock`';
 
 const RANGE_REPLACE: ManifestRule[] = [
 	{
 		id: 'G4.108 only the range replace removes a live range',
-		population: notUnder(RANGE_DELETE_FAMILY),
-		matches: /(?<![\w.])(?:rangeDelete|removeHeldWhole|commitGridLineDelete)\s*\(/,
+		population: (file) => !REMOVAL_HOMES.has(file.relPath),
+		matches: /(?<![\w.])(?:removeThroughCore|commitGridLineDelete|commitGridClear)\s*\(/,
 		declared: {
 			[RANGE_REPLACE_HOME]:
 				'picks the removal from what the range covers, for every destructive gesture over it'
@@ -2555,13 +2544,13 @@ const RANGE_REPLACE: ManifestRule[] = [
 		reason:
 			'a gesture that removes a range itself skips what every other one gets: the removal picked by what the range covers, one undo entry and one caret landing; call `replaceRange` with the gesture’s insertion',
 		hits: [
-			at(ROGUE_RANGE_ROUTE, 'const removed = rangeDelete(doc, coverage, sharing, reading, "cut");'),
-			at(ROGUE_RANGE_ROUTE, 'remove: (sharing) => removeHeldWhole(doc, coverage, sharing, r, g),'),
-			at(ROGUE_RANGE_ROUTE, 'const caret = await commitGridLineDelete(ctx, grid);')
+			at(ROGUE_RANGE_ROUTE, "const removed = await removeThroughCore(ctx, coverage, 'cut');"),
+			at(ROGUE_RANGE_ROUTE, 'const caret = await commitGridLineDelete(ctx, grid);'),
+			at(ROGUE_RANGE_ROUTE, 'await commitGridClear(ctx, coverage, grid);')
 		],
 		misses: [
-			at(ROGUE_RANGE_ROUTE, "import { rangeDelete, removeHeldWhole } from '../range-delete';"),
-			at(ROGUE_RANGE_ROUTE, 'return tableAwareRangeDelete(doc, coverage, sharing, reading);')
+			at(ROGUE_RANGE_ROUTE, "import { removeThroughCore } from './range-removal';"),
+			at(ROGUE_RANGE_ROUTE, 'return removal.removeThroughCore;')
 		]
 	},
 	{
@@ -2578,6 +2567,29 @@ const RANGE_REPLACE: ManifestRule[] = [
 		hits: [at(ROGUE_RANGE_ROUTE, 'await ctx.controller.undoStep(seed, async () => {});')],
 		misses: [
 			at(ROGUE_RANGE_ROUTE, 'undoStep(seed: CommitSnapshotArg, run: () => Promise<unknown>);')
+		]
+	},
+	{
+		id: 'G4.108 a block removed whole goes through the range-edit core',
+		population: () => true,
+		matches: /(?<![\w.])(?:deleteNode|performDelete)\s*\(/,
+		declared: {
+			[SOURCE.nodeOps]: 'defines the tree removal, and a merge drops the block it joined'
+		},
+		reason: WHOLE_REMOVAL_REASON,
+		hits: [at(ROGUE_RANGE_ROUTE, 'return performDelete(view.body, i, view.sharing);')],
+		misses: [at(ROGUE_RANGE_ROUTE, "import { deleteNode as performDelete } from './node-ops';")]
+	},
+	{
+		id: 'G4.108 a commit takes no block out of its list by hand',
+		population: under(SOURCE_DIR.editorActions),
+		matches: /\.children!?\.splice\([^,()]+,\s*1\s*\)/,
+		declared: {},
+		reason: WHOLE_REMOVAL_REASON,
+		hits: [at(`${SOURCE_DIR.editorActions}rogue.ts`, 'view.body.children.splice(i, 1);')],
+		misses: [
+			at(`${SOURCE_DIR.editorActions}rogue.ts`, 'view.body.children.splice(i, 0, node);'),
+			at(`${SOURCE_DIR.editorActions}rogue.ts`, 'children.splice(i, 1, replacement);')
 		]
 	}
 ];

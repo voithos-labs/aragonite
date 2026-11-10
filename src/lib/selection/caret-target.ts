@@ -5,15 +5,16 @@
  */
 
 import type { DocumentView } from '../core/node-views';
-import { CURSOR_END, CURSOR_START, entryEdge } from '../block-component';
+import { CURSOR_END, entryEdge } from '../block-component';
 import { docPathFrom } from '../core/coordinate-spaces';
 import { blockNodeAt, isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { displayLength } from '../core/lines';
+import { splitsLineEndingPair } from '../core/line-ending-pairs';
 import { leafAtRawOffset } from '../tree-operations/container-offsets';
 import { caretChildCount } from '../schema/reserved-chrome';
 import type { DocPath } from '../core/coordinate-spaces';
 import type { CaretPosition, SelectionPoint } from './primitives';
-import { collapsedContainerHiding, firstCaretLeafFrom, previousCaretPath } from './path-lookup';
+import { collapsedContainerHiding } from './path-lookup';
 
 /** A leaf a caret can sit in, and the offset it takes there. */
 export interface CaretTarget {
@@ -23,8 +24,8 @@ export interface CaretTarget {
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
-/** The leaf and offset a caret at `pos` takes, or null for a path that addresses nothing. A
- *  path into a collapsed body lands at its title row's end unless `openCollapsed` is set. */
+/** The leaf and offset a caret at `pos` takes, or null where it addresses nothing: a collapsed body
+ *  gives its title row's end (unless `openCollapsed`), a CRLF pair's middle the byte before it. */
 export function caretTargetFor(
 	doc: DocumentView,
 	pos: CaretPosition,
@@ -41,7 +42,9 @@ export function caretTargetFor(
 		}
 		const node = nodeAt(doc, path)!;
 		if (!node.children?.length) {
-			return path.length > 0 ? { leafPath: docPathFrom(path), offset } : null;
+			if (path.length === 0) return null;
+			const inPair = isBlockNode(node) && splitsLineEndingPair(node.raw, offset);
+			return { leafPath: docPathFrom(path), offset: inPair ? offset - 1 : offset };
 		}
 		const edge = entryEdge(offset);
 		const byteLeaf = edge.inside && isBlockNode(node) ? leafAtRawOffset(node, offset) : null;
@@ -72,37 +75,6 @@ export function caretPointFor(doc: DocumentView, pos: CaretPosition): SelectionP
  *  asked for (the block menu, or typing and pasting over a range). */
 export type RemovalGesture = 'Backspace' | 'Delete' | 'cut' | 'keyless';
 
-/** Where the caret goes once the block at `removedPath` is gone, read after the removal: Backspace
- *  and a keyless delete prefer the previous block's end, Delete and cut the next block's start. */
-export function survivorAfterRemoval(
-	doc: DocumentView,
-	removedPath: readonly number[],
-	gesture: RemovalGesture
-): CaretPosition | null {
-	return survivorBeside(doc, removedPath, pointsForward(gesture));
-}
-
-/** Delete and cut land a removed block's caret on the next block; Backspace and a keyless delete
- *  on the previous one. */
-export function pointsForward(gesture: RemovalGesture): boolean {
-	return gesture === 'Delete' || gesture === 'cut';
-}
-
-/** The neighbour a caret takes beside a removed block: the one on the `forward` side, else
- *  whichever exists. Read after the removal and, by a command key's claim, before it. */
-export function neighbourBeside<T>(forward: boolean, before: T | null, after: T | null): T | null {
-	return forward ? (after ?? before) : (before ?? after);
-}
-
-/** Where a range picks up once it took the block at `removedPath` whole and ran on past it: the
- *  start of what's left of its end, whatever removed it. */
-export function survivorWhereRangeResumes(
-	doc: DocumentView,
-	removedPath: readonly number[]
-): CaretPosition | null {
-	return survivorBeside(doc, removedPath, true);
-}
-
 /** `removedPath`, or its nearest ancestor's position when the removal emptied the parent and took
  *  it too (the path then resolves to nothing, or to a childless neighbour or the new empty block). */
 export function liveSlot(doc: DocumentView, removedPath: readonly number[]): number[] | null {
@@ -111,20 +83,4 @@ export function liveSlot(doc: DocumentView, removedPath: readonly number[]): num
 		slot = slot.slice(0, -1);
 	}
 	return slot.length > 0 ? slot : null;
-}
-
-// ── Internal ────────────────────────────────────────────────────────────────
-
-function survivorBeside(
-	doc: DocumentView,
-	removedPath: readonly number[],
-	forward: boolean
-): CaretPosition | null {
-	const slot = liveSlot(doc, removedPath);
-	if (!slot) return null;
-	const previous = previousCaretPath(doc, slot);
-	const next = firstCaretLeafFrom(doc, slot);
-	const atEnd = previous && { path: docPathFrom(previous), offset: CURSOR_END };
-	const atStart = next && { path: docPathFrom(next), offset: CURSOR_START };
-	return neighbourBeside<CaretPosition>(forward, atEnd, atStart);
 }

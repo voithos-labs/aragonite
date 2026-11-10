@@ -10,6 +10,7 @@ import {
 	endingOf,
 	expectedCopy,
 	expectedPaste,
+	holdsShownText,
 	inTitleRow,
 	leavesLiteralBlock,
 	lf,
@@ -20,7 +21,7 @@ import {
 	readOf,
 	sameBlocks,
 	sameDocument,
-	startsBelowTableHead,
+	copiesLinesBeforeRange,
 	type Read
 } from './expected';
 
@@ -142,7 +143,7 @@ export function cutPasteBack(call: Call, host: CheckHost, input: RangeInput): st
 		return [];
 	if (opensWithoutClosing(read, input.range.from, input.range.to, host)) return [];
 	if (leavesLiteralBlock(read, input.range.from, input.range.to, host, input.mode)) return [];
-	if (startsBelowTableHead(read, input.range.from, host)) return [];
+	if (copiesLinesBeforeRange(read, input.range.from, host)) return [];
 	const cut = call(input.source, input.range, 'cut', input.mode);
 	if (!cut || cut.clipboard === undefined) return [];
 	// The editor hands a paste its text with LF line endings.
@@ -159,6 +160,9 @@ export function cutPasteBack(call: Call, host: CheckHost, input: RangeInput): st
 	const { from, to } = input.range;
 	// Plain text can't carry how each covered line spelled its markers: the same blocks will do.
 	if (sameDocument(host, source, got, from, to)) return [];
+	// A block taken whole takes a blank line beside it, which plain text can't give back (spec § 4).
+	const taken = input.source.length - cut.source.length - (to - from);
+	if (taken > endingOf(input.source).length && sameBlocks(host, source, got)) return [];
 	return [`L3 cut ${q(cut.source)}, pasted back ${q(back.source)}`];
 }
 
@@ -255,8 +259,8 @@ function onSyntax(host: CheckHost, removal: Result): boolean {
 	return !leaf?.text || removal.caret.at < leaf.text.from || removal.caret.at > leaf.text.to;
 }
 
-/** L6: a drop moves what a cut takes to where a paste at the drop point puts it; a copying drop is
- *  a paste of the copy there. */
+/** L6: a drop moves what a cut takes to where a paste of its text and own entry at the drop point
+ *  puts it (spec § 5.13); a copying drop is a paste of the copy there. */
 export function dropLaws(call: Call, input: RangeInput, at: number): string[] {
 	const out: string[] = [];
 	const copy = call(input.source, input.range, 'copy', input.mode);
@@ -270,7 +274,8 @@ export function dropLaws(call: Call, input: RangeInput, at: number): string[] {
 	if (!cut || !moved) return out;
 	const mapped = mapThrough(input.source, cut.source, at);
 	if (mapped === null) return out;
-	const then = call(cut.source, caretRange(mapped), paste(cut.clipboard ?? ''), input.mode);
+	const carried: Gesture = { paste: cut.clipboard ?? '', plain: false, own: cut.own };
+	const then = call(cut.source, caretRange(mapped), carried, input.mode);
 	if (then && then.source !== moved.source)
 		out.push(`L6 drop gave ${q(moved.source)}, a cut then a paste at the drop ${q(then.source)}`);
 	return out;
@@ -324,10 +329,9 @@ export function pasteAtCutCaret(
 	return texts.flatMap((t) => pasteAtCaret(call, host, { ...at, text: t }));
 }
 
-/** L10, in source mode: a copy carries the markers of the containers it enters or leaves, none of
- *  the one both ends share; a range the cut takes nothing from holds no text and copies none. */
+/** L10: a range the cut takes nothing from holds no text the mode shows and copies none; in source
+ *  mode, a copy carries the markers of the containers it enters or leaves, none of the shared one. */
 export function copyMarkers(call: Call, host: CheckHost, input: RangeInput): string[] {
-	if (input.mode !== 'source') return [];
 	const copy = call(input.source, input.range, 'copy', input.mode);
 	if (!copy || copy.clipboard === undefined) return [];
 	const read = readOf(host, input.source);
@@ -336,12 +340,13 @@ export function copyMarkers(call: Call, host: CheckHost, input: RangeInput): str
 	const { from, to } = input.range;
 	const cut = call(input.source, input.range, 'cut', input.mode);
 	if (cut?.source === input.source) {
-		if (read.blocks.some((b) => b.text && b.text.from < to && from < b.text.to))
+		if (holdsShownText(read, from, to, host, input.mode))
 			return [`L10 the cut took nothing from a range holding text`];
 		return copy.clipboard.trim() === ''
 			? []
 			: [`L10 copy wrote ${q(copy.clipboard)}, the cut nothing`];
 	}
+	if (input.mode !== 'source') return [];
 	const want = expectedCopy(read, from, to, host);
 	return copy.clipboard === want ? [] : [`L10 copy wrote ${q(copy.clipboard)}, not ${q(want)}`];
 }

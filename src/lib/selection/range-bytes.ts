@@ -1,7 +1,7 @@
 /**
  * A selection read as the bytes the range-edit core takes (`range-edit/edit-range.ts :: Range`):
- * each end's byte in the document, widened to every block the coverage holds whole. Copy, cut and
- * the overlay read a range through here.
+ * each end's byte in the document, widened to every block the coverage holds whole and kept off a
+ * block its start can't join. Copy, cut and the overlay read a range through here.
  */
 
 import { untrack } from 'svelte';
@@ -10,10 +10,15 @@ import { displayLength, ownTrailingLineEnding } from '../core/lines';
 import { metadataOf } from '../core/nodes';
 import { docPathFrom, type DocPath } from '../core/coordinate-spaces';
 import { countsCells } from '../schema/block-kind-descriptor';
+import { isMergeEligible } from '../schema/merge-rules';
 import { blockNodeAt } from '../tree-operations/node-primitives';
+import { documentByteMap, leafAtByte } from '../tree-operations/container-offsets';
+import { serialize } from '../core/serializer';
+import { gapEligibleAt, type GapCaretPosition } from './gap-caret';
 import type { Range } from '../range-edit/edit-range';
 import { documentLayout, type LaidBlock, type Layout } from '../range-edit/layout';
 import { pathsEqual } from './path-math';
+import { previousCaretPath } from './path-lookup';
 import type { SelectionPoint } from './primitives';
 import type { RangeCoverage } from './range-coverage';
 
@@ -59,11 +64,38 @@ export function rangeBytes(
 		from = Math.min(from, block.from);
 		to = Math.max(to, textEnd(doc, block));
 	}
+	to = Math.max(from, endBesideText(doc, layout, coverage, to));
 	// A range across blocks from the first caret position to the last is select-all's, which takes
 	// every container's markers with it.
 	const edges = !pathsEqual(start.path, end.path) && caretEdges(doc, layout);
 	if (edges && from <= edges.first && to >= edges.last) from = 0;
 	return { from, to };
+}
+
+/** The bytes a removal takes: the range's, or a table whose every cell the range holds. */
+export function removalBytes(
+	doc: DocumentView,
+	coverage: RangeCoverage,
+	layout: Layout
+): Range | null {
+	if (coverage.grid?.kind !== 'table') return rangeBytes(doc, coverage, layout);
+	return wholeBlockBytes(doc, layout, coverage.grid.path);
+}
+
+/** The bytes of the block at `path` taken whole: its first byte to its last line's text. */
+export function wholeBlockBytes(
+	doc: DocumentView,
+	layout: Layout,
+	path: readonly number[]
+): Range | null {
+	const block = layout.block(path);
+	return block ? { from: block.from, to: textEnd(doc, block) } : null;
+}
+
+/** The selection point naming byte `at`: the text block holding it and the offset there. */
+export function pointAtByte(doc: DocumentView, at: number): SelectionPoint | null {
+	const leaf = leafAtByte(doc, at);
+	return leaf && { path: leaf.path.slice(), offset: leaf.offset };
 }
 
 /** How a range across blocks paints: one box over each block whose bytes lie inside the range's
@@ -104,8 +136,8 @@ export function rangePaint(doc: DocumentView, coverage: RangeCoverage, layout: L
 const textEnd = (doc: DocumentView, block: LaidBlock) =>
 	block.to - ownTrailingLineEnding(blockNodeAt(doc, block.path)!.raw).length;
 
-/** A text end's byte; a cell end's row, from its first byte or to its last; any other block's own
- *  edge on that side, since its offsets address no text. */
+/** A text end's byte; a cell end's row, or its whole table where the range enters by the first row
+ *  or leaves by the last; any other block's own edge, since its offsets address no text. */
 function endByte(
 	doc: DocumentView,
 	layout: Layout,
@@ -123,9 +155,32 @@ function endByte(
 	const row = point.cellCoordinate
 		? Math.floor(point.offset / metadataOf(node, 'table').columnCount)
 		: null;
-	const block = layout.block(row === null ? point.path : [...point.path, row]);
+	const whole = row !== null && row === (side === 'end' ? 0 : (node.children?.length ?? 0) - 1);
+	const block = layout.block(row === null || whole ? point.path : [...point.path, row]);
 	if (!block) return null;
-	return side === 'start' ? block.from : row === null ? textEnd(doc, block) : block.to;
+	return side === 'start' ? block.from : row === null || whole ? textEnd(doc, block) : block.to;
+}
+
+/** An end on the first byte of a block the start's block can't join moves back to the text before
+ *  that block, so the range takes neither the block nor the blank lines that keep it apart. */
+function endBesideText(
+	doc: DocumentView,
+	layout: Layout,
+	coverage: RangeCoverage,
+	to: number
+): number {
+	const { start, end } = coverage.range;
+	if (start.cellCoordinate || end.cellCoordinate || layout.block(end.path)?.from !== to) return to;
+	const startKind = blockNodeAt(doc, start.path)?.kind;
+	const endKind = blockNodeAt(doc, end.path)?.kind;
+	if (!startKind || !endKind || isMergeEligible(startKind, endKind)) return to;
+	const before = previousCaretPath(doc, end.path);
+	if (!before) return to;
+	// A cell's text ends where its table does.
+	const table = before.findIndex((_, i) => countsCells(blockNodeAt(doc, before.slice(0, i + 1))!));
+	if (table < 0) return layout.byteOf(before, displayLength(blockNodeAt(doc, before)!.raw)) ?? to;
+	const block = layout.block(before.slice(0, table + 1));
+	return block ? textEnd(doc, block) : to;
 }
 
 /** The document's first and last caret positions, as bytes. */
@@ -147,4 +202,46 @@ function edgeLeaf(doc: DocumentView, at: 0 | -1): number[] | null {
 		children = children.at(at)!.children ?? [];
 	}
 	return path.length > 0 ? path : null;
+}
+
+/** The deepest boundary a gap caret may take where a block starts, or a container ends, at byte
+ *  `at`; null where none may. */
+export function gapAtByte(doc: DocumentView, at: number): GapCaretPosition | null {
+	const map = documentByteMap(doc);
+	const tops = topLevelStarts(doc);
+	let found: GapCaretPosition | null = null;
+	let parentPath: number[] = [];
+	let children = doc.children;
+	let startOf = (k: number) => tops[k];
+	// A child starting at or past `at`, or holding it; inside a container, the map's answer alone.
+	let near = tops.findIndex((start) => start >= at);
+	if (near < 0) near = children.length - 1;
+	let end = serialize(doc).length;
+	for (;;) {
+		const index = at === end ? children.length : startOf(near) === at ? near : -1;
+		if (index >= 0 && gapEligibleAt(doc, parentPath, index)) found = { parentPath, index };
+		// The last child starting at or before `at`.
+		let i = near;
+		while (i + 1 < children.length && startOf(i + 1) <= at) i++;
+		if (i > 0 && startOf(i) > at) i--;
+		const child = children[i];
+		const inner = child?.children?.length ? map.containerMap(child) : null;
+		if (!inner) return found;
+		const base = startOf(i);
+		end = base + child.raw.length;
+		parentPath = [...parentPath, i];
+		children = child.children!;
+		startOf = (k) => base + inner.rawOf(k, 0);
+		near = inner.childAt(at - base).index;
+	}
+}
+
+function topLevelStarts(doc: DocumentView): number[] {
+	const starts: number[] = [];
+	let at = doc.prefix.length;
+	for (const child of doc.children) {
+		starts.push(at + child.leadingTrivia.length);
+		at += child.leadingTrivia.length + child.raw.length;
+	}
+	return starts;
 }

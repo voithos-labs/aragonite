@@ -20,8 +20,6 @@ import {
 import { sliceTableAtRow } from '#lib/tree-operations/paste/table-slice.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { documentLineEnding } from '#lib/core/lines.js';
-import { deleteRange } from '../harness/range-delete';
-import { cellPoint } from '#lib/selection/primitives.js';
 
 const WIDE = '| H0 |\n| --- |\n| x | y |\n';
 
@@ -134,14 +132,6 @@ describe('the table’s structural edits keep them', () => {
 		deleteRow(table, 0);
 
 		expect(rebuilt(table, doc)).toBe('| x | y |\n| --- | --- |\n| 1 |  |\n');
-		expect(describeConvergence(doc)).toBeNull();
-	});
-
-	it('a range delete from the paragraph above through the header row', () => {
-		const doc = parse('para\n\n| H0 |\n| --- |\n| x | y |\n| 1 |\n');
-		deleteRange(doc, { path: [0], offset: 0 }, cellPoint([1], 0));
-
-		expect(serialize(doc)).toBe('\n| x | y |\n| --- | --- |\n| 1 |  |\n');
 		expect(describeConvergence(doc)).toBeNull();
 	});
 

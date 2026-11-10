@@ -111,7 +111,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.101 | Only the surface write names a typed kind change or completes a typed line | L |
 | G4.106 | _Retired upward_: every test page load is a fresh document, and a load that isn't throws | A |
 | G4.107 | Only a write emits `edit`, and only the in-place keystroke write declares `input` | L |
-| G4.108 | Only the range replace removes a range; only it and the range indent open its undo step | L |
+| G4.108 | Only the range replace removes a range; only it and the range indent open its undo step; a block removed whole goes through the core | L |
 | G4.109 | A container built around another's children starts from that container's bytes | L |
 | G4.111 | A block's editable element writes its own text only through the surface write | L |
 | G4.112 | An indent key over a range reaches list items through one route, never removing the range | L |
@@ -237,6 +237,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.315 | Under `selection/`, a range is read as bytes in one file | L |
 | G4.317 | A plugin or a host writes bytes through a `Draft`; another caller of the byte splice is on a list | L |
 | G4.329 | Bytes are read into the tree by the byte splice, which closes the openers they write, or by an undo | L |
+| G4.330 | A key, clipboard or input handler that removes prevents the browser's default before it waits | L |
 | G4.338 | `edit` is emitted in one function, which first hands the link definitions what the write replaced | L |
 
 ### The entries
@@ -444,7 +445,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.107 · An `edit` fires at its write.** The commit frame (every commit and every keystroke written in place), undo and redo, and a replace-all each emit `edit` as their bytes land; a held one would fire against whatever document is there by then. `input` also promises a subscriber the block kept its kind, so only the in-place write (`editor-actions/commit/leaf-commit.ts`) declares it. `lint/edit-emitters.test.ts` keys each emit on its function.
 
-**G4.108 · One replace for every destructive gesture over a range.** Backspace, Delete, cut, typing, an IME composition, paste and a command key over a cross-block range all go through `range-replace.ts :: replaceRange`, which picks the removal from the coverage and keeps the gesture one undo entry with one landing. Under `selection/cross-block/`, `rangeDelete`, `removeHeldWhole`, `commitGridLineDelete` and opening an `undoStep` are allowed there only; the range indent opens its own step, since it removes nothing. G1.174 holds a typed key. `lint/file-rules.test.ts`.
+**G4.108 · One replace for every destructive gesture over a range.** Every destructive gesture over a cross-block range goes through `range-replace.ts :: replaceRange`, which picks the removal from the coverage and keeps it one undo entry with one landing; the core removal, the grid removals and an `undoStep` under `selection/cross-block/` live there only (the range indent opens its own step). A block removed whole goes through the core too: `deleteNode` stays in `node-ops.ts`, and no editor action splices a child out. G1.174 holds a typed key. `lint/file-rules.test.ts`.
 
 **G4.109 · A rebuilt container starts from its source's bytes.** A strip rebuild keeps a line by pairing it with the container's previous bytes, so a container built around another's children (the quote an alert leaves after a lift) starts with that container's `raw`; with an empty `raw` its first rebuild respells every line. `lint/fresh-container-bytes.test.ts` fails an object literal with both `raw: ''` and `children` under `tree-operations/`, `editor-actions/` or `selection/`, outside a short list of builders of genuinely new containers.
 
@@ -676,7 +677,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.303 · Block facts agree with the registrations.** `schema/block-facts.ts :: blockFacts` gives a kind's cut, copy and paste facts as data. With every bundled plugin installed, each one must equal what the registration already says (`bodyWrap`, `mergeRole`, `mustHoldChild`, the title row, a DOM view's surface), and the test writes out only what nothing else states. Every container has a line shape, and a merge key names a field the kind's own parse sets, or every pair would merge. When it fires, fix the kind's declaration. `test/schema/block-facts.test.ts`.
 
-**G4.311 · The range-edit laws hold.** `range-edit/edit-range.ts :: editRange` answers copy, cut, removal, paste and drop over a range in bytes. The laws run over seeded documents (120, or 600 with `RANGE_EDIT_FULL=1`), and each named row pins one shape by bytes. A law 3 or law 9 miss passes only when `known-residue.ts` names its class with a repro that still fails; the editor's own clipboard entry gives each one back. `test/range-edit/laws.test.ts`, `named-rows.test.ts`, `known-residue.test.ts`.
+**G4.311 · The range-edit laws hold.** `range-edit/edit-range.ts :: editRange` answers copy, cut, removal, paste and drop over a range in bytes. The laws run over seeded documents (120, or 600 with `RANGE_EDIT_FULL=1`) and, in a draw of their own, HTML blocks of all seven types (40, or 200); each named row pins one shape by bytes. A law 3 or law 9 miss passes only when `known-residue.ts` names its class with a repro that still fails; the editor's own clipboard entry gives each one back. `test/range-edit/laws.test.ts`, `html-laws.test.ts`, `named-rows.test.ts`, `known-residue.test.ts`.
 
 **G4.312 · A range edit costs the range, not the document.** Over documents of 500 and 2,000 blocks, a copy parses nothing (the host answers a read of the editor's own bytes with its own tree) and any other gesture three times at most, the layout lays out the blocks near the range only, and the bytes the in-block writes are handed grow by half plus 4 KB at most. `test/range-edit/cost.test.ts`.
 
@@ -689,5 +690,7 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.317 · One write for plugins and hosts.** `CommitController.commitSource` is handed its changes only by the draft (`editor-actions/commit/draft-registry.svelte.ts`), which maps a waiting write's ranges past the writes since it opened and refuses with a reason; any other caller is on the row's list with why (today the test bridge's splice). `lint/file-rules.test.ts`.
 
 **G4.329 · Bytes reach the tree through the byte splice.** `tree-operations/byte-splice.ts :: spliceReading` reads bytes as given, so a route that called it itself would skip the closer the byte splice (`editor-actions/commit/byte-splice.ts`) gives an opener its changes write. The one other caller is an undo under a changed grammar (`commit/history.ts`), which puts back an entry's exact bytes. `lint/file-rules.test.ts`.
+
+**G4.330 · A key or a cut removes before the browser edits the page.** The byte splice keeps the nodes of blocks its bytes leave alone, down to the leaf, and a kept block doesn't redraw, so it mustn't show text the browser typed. So every function taking a `KeyboardEvent`, `ClipboardEvent` or `InputEvent` that removes (the range replace, a block's delete, a cut's arm) calls `preventDefault()` before it waits, and one handing the event on doesn't wait first. A composition can't be prevented, so it isn't covered. `lint/removal-prevents-default.test.ts`.
 
 **G4.338 · One emit for `edit`.** `editor-actions/commit/emit-edit.ts :: emitEdit` takes the blocks the write replaced as a required argument and hands them to `refreshDefinitions` before it emits, so a route that emitted `edit` itself would leave the editor serving stale reference links. The writes G4.107 lists call it. `lint/edit-emitters.test.ts`.

@@ -620,6 +620,7 @@
 			doc = v;
 		},
 		bumpContentVersion: contentVersion.bump,
+		bytes,
 		refreshDefinitions: (replaced) => {
 			const map = definitionsAfter(doc, replaced, currentSignature);
 			if (!map) return;

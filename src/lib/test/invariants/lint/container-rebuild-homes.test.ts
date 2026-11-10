@@ -49,14 +49,6 @@ const PINNED: Record<string, Pin> = {
 		calls: { rebuildContainerRaw: 1 },
 		why: 'rebuilds a scratch clone to read the replacement back before any commit'
 	},
-	'src/lib/selection/cross-block/range-delete/range-delete-ceremony.ts': {
-		calls: { rebuildOwnedContainer: 2 },
-		why: 'a list item that loses its marker line is read back from its list’s bytes inside the removal, before the commit rebuilds them, and the list that read makes is on no chain the commit holds'
-	},
-	'src/lib/selection/cross-block/range-delete/range-delete-table.ts': {
-		calls: { rebuildTableRowRaw: 1 },
-		why: 'the rows a pair inside one table clears, below the table the delete owns and the commit rebuilds'
-	},
 	'src/lib/tree-operations/spliced-openers.ts': {
 		calls: { rebuildAncestryRaw: 1 },
 		why: 'rebuilds a clone of the container a byte splice writes into, to find the bytes its closing line takes'

@@ -15,8 +15,8 @@ Fixture: `Before` / a ```math fence / `After` (`?seed=mathfence`), in `live`.
 ## Edge cases
 
 - a delete one step in from the leading edge lands in the body, never on the opener
-- a range that runs out of the body and into the paragraph below keeps the closing fence line: the
-  text it reached is absorbed into the body and the block is still a math fence, never an open
+- a range that runs out of the body to the paragraph below keeps the closing fence line: it stops
+  at the body's end, the paragraph stays, and the block is still a math fence, never an open
   fence swallowing the rest of the document
 
 ## Miss-analysis

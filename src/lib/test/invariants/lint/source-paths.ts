@@ -77,7 +77,8 @@ export const SOURCE = {
 	// ── Selection and keys ──────────────────────────────────────────────────
 	sharedKeydown: 'src/lib/selection/shared-keydown.ts',
 	nativeBridge: 'src/lib/selection/native-bridge.ts',
-	rangeDelete: 'src/lib/selection/cross-block/range-delete/range-delete.ts',
+	rangeRemoval: 'src/lib/selection/cross-block/range-removal.ts',
+	gridRemoval: 'src/lib/selection/cross-block/grid-removal.ts',
 	crossBlockKeydown: 'src/lib/selection/cross-block/keydown.ts',
 	keyboardExtend: 'src/lib/selection/keyboard-extend.ts',
 	rangeBytes: 'src/lib/selection/range-bytes.ts',
@@ -247,7 +248,8 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	// ── Selection and keys ──────────────────────────────────────────────────
 	sharedKeydown: 'export interface SharedKeydownContext',
 	nativeBridge: 'export function readNativeCaretInBlock',
-	rangeDelete: 'export interface TableRowSplice',
+	rangeRemoval: 'export async function removeThroughCore',
+	gridRemoval: 'export async function commitGridLineDelete',
 	crossBlockKeydown: 'export interface CrossBlockKeydown',
 	keyboardExtend: 'export interface KeyboardExtendContext',
 	rangeBytes: 'export function rangeBytes',

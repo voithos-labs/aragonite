@@ -5,6 +5,7 @@
  */
 
 import type { DocumentView } from '../core/node-views';
+import { documentLineEnding } from '../core/lines';
 import { hidesDelimitersAtCaret } from '../presentation-mode';
 import { blockFacts, type BlockFacts } from '../schema/block-facts';
 import { unfinishedReadings } from '../schema/block-openers';
@@ -13,6 +14,7 @@ import type { Reading } from '../schema/reading';
 import { legalizeWrite } from '../tree-operations/content-write';
 import {
 	bytesLeavingLeaf,
+	joinLeaves,
 	replaceDrawnRange,
 	replaceRangeInLeaf,
 	type LeafRangeEdit
@@ -20,9 +22,19 @@ import {
 import { blockNodeAt } from '../tree-operations/node-primitives';
 import { escapeMarkdownLiteral } from '../tree-operations/paste/markdown-literal';
 import { storedAsAt, writeTargetAt } from '../tree-operations/stored-as';
+import { cellText } from '../core/parsers/table-line';
+import { editorHost } from '../tree-operations/fix-up/editor-host';
+import { blankLineBelongs } from '../tree-operations/fix-up/joins';
 import { documentLayout, type Layout } from './layout';
 
 export type Mode = 'source' | 'live';
+
+/** A block beside a join a removal leaves: its bytes, and its kind where the removal knows it. */
+export interface JoinSide {
+	readonly raw: string;
+	readonly kind?: string;
+	readonly children?: readonly unknown[];
+}
 
 /** One in-block write, offsets into the block's new bytes. */
 export interface LeafWrite {
@@ -36,6 +48,16 @@ export interface RangeHost {
 	read(source: string): DocumentView;
 	layout(doc: DocumentView): Layout;
 	facts(kind: string): BlockFacts;
+	/** Whether children `index` and `index + 1` of the block at `parent`, left touching, need a blank
+	 *  line to keep their readings (the fix-up's join question); `placed` where `lower` was set apart. */
+	parts(
+		doc: DocumentView,
+		parent: readonly number[],
+		index: number,
+		upper: JoinSide,
+		lower: JoinSide,
+		placed: boolean
+	): boolean;
 	leaf: {
 		replace(
 			doc: DocumentView,
@@ -50,6 +72,14 @@ export interface RangeHost {
 			path: readonly number[],
 			at: number,
 			text: string,
+			mode: Mode
+		): LeafWrite;
+		/** The block at `head.path` cut at its offset, with the text of the block at `tail.path` from
+		 *  its offset joined on: the tail's own syntax (a setext underline) goes, the head's stays. */
+		join(
+			doc: DocumentView,
+			head: { path: readonly number[]; offset: number },
+			tail: { path: readonly number[]; offset: number },
 			mode: Mode
 		): LeafWrite;
 		/** The bytes `[from, to)` of the block carry out of it, a format run they cut closed. */
@@ -99,13 +129,22 @@ export function rangeHost(
 	};
 	// An in-block write as the block stores it: its kind's write rule, then its container's (a fence
 	// grows past a fence line written into its body), with the offsets carried through that rule.
-	const stored = (doc: DocumentView, path: readonly number[], edit: LeafRangeEdit): LeafWrite => {
+	const stored = (
+		doc: DocumentView,
+		path: readonly number[],
+		edit: Pick<LeafRangeEdit, 'raw' | 'caret' | 'afterRange'>
+	): LeafWrite => {
 		const { holder, index } = writeTargetAt(doc, path);
 		const legal = legalizeWrite(holder, index, edit.raw, 'literal', reading.grammar);
+		const row = blockNodeAt(doc, path.slice(0, -1));
+		// A row writes a cell's edge spaces as padding, so the cell keeps its text without them.
+		const bytes = row && blockFacts(row.kind).lines === 'cells' ? cellText(legal.text) : legal.text;
+		const lead = legal.text.indexOf(bytes);
+		const at = (offset: number) => Math.min(Math.max(offset - lead, 0), bytes.length);
 		return {
-			bytes: legal.text,
-			caret: legal.storedOffset(edit.caret),
-			after: legal.storedOffset(edit.afterRange)
+			bytes,
+			caret: at(legal.storedOffset(edit.caret)),
+			after: at(legal.storedOffset(edit.afterRange))
 		};
 	};
 	let currentLayout: Layout | undefined;
@@ -119,6 +158,20 @@ export function rangeHost(
 				? (currentLayout ??= current.layout ?? documentLayout(doc))
 				: documentLayout(doc),
 		facts: blockFacts,
+		parts(doc, parent, index, upper, lower, placed) {
+			const fixUp = editorHost(reading.grammar);
+			const owner = (parent.length > 0 && blockNodeAt(doc, parent)) || undefined;
+			const block = (side: JoinSide, at: number) => {
+				if (side.kind !== undefined) return { ...side, kind: side.kind, leadingTrivia: '' };
+				const read = owner ? fixUp.readInSlot(owner, at, side.raw) : fixUp.readOpened(side.raw);
+				return read.children[0] && { ...read.children[0], leadingTrivia: '' };
+			};
+			const up = block(upper, index);
+			const down = block(lower, index + 1);
+			const slot = { owner, index, lineEnding: documentLineEnding(doc) };
+			const role = placed ? 'placed' : 'rewritten';
+			return !!up && !!down && blankLineBelongs(fixUp, slot, up, down, role, false);
+		},
 		leaf: {
 			replace(doc, path, from, to, text, mode) {
 				const store = storedAsAt(doc, path, readingIn(mode));
@@ -129,6 +182,17 @@ export function rangeHost(
 				const store = storedAsAt(doc, path, readingIn(mode));
 				const edit = replaceRangeInLeaf(leafAt(doc, path), { start: at, end: at }, text, store);
 				return stored(doc, path, edit);
+			},
+			join(doc, head, tail, mode) {
+				const store = storedAsAt(doc, head.path, readingIn(mode));
+				const { raw, seam } = joinLeaves(
+					{ node: leafAt(doc, head.path), offset: head.offset },
+					{ node: leafAt(doc, tail.path), offset: tail.offset },
+					'',
+					store,
+					documentLineEnding(doc)
+				);
+				return stored(doc, head.path, { raw, caret: seam, afterRange: seam });
 			},
 			carried(doc, path, from, to, mode) {
 				const store = storedAsAt(doc, path, readingIn(mode));

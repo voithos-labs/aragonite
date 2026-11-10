@@ -56,14 +56,7 @@ export function copyOf(doc: Doc, from: number, to: number): string {
 		if (last.own && last.from >= to)
 			closing += eol + doc.source.slice(last.from, last.to).replace(/\r?\n$/, '');
 	}
-	const body =
-		opening + carriedEnds(doc, from, to, withoutMarkers(doc, shared, from, to)) + closing;
-	if (!live) return body;
-	// Live, a range to the end of a container it entered brings that container's last line ending.
-	const ended = containersAt(doc, to, 'end').find(
-		(c) => c.path.length > depth && to === contentEnd(doc, c)
-	);
-	return body + (ended ? (/^\r?\n/.exec(doc.source.slice(to))?.[0] ?? '') : '');
+	return opening + carriedEnds(doc, from, to, withoutMarkers(doc, shared, from, to)) + closing;
 }
 
 // ── Structure lines outside the range ────────────────────────────────────────

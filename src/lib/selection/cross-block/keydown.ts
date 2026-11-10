@@ -2,7 +2,8 @@
 
 import type { CrossBlockDispatchContext } from './dispatch';
 import type { AnyBlockKind, Document } from '../../core/nodes';
-import { commandLandingKind, kindOfPath, replaceRange } from './range-replace';
+import { kindOfPath, replaceRange } from './range-replace';
+import { commandLandingKind } from './range-removal';
 import { bindsIndentAt, coversIndentBinding, indentFormsFor, indentRange } from './range-indent';
 import { coverRange, rangeCoverage } from '../range-coverage';
 import type { SelectionState } from '../selection-state.svelte';

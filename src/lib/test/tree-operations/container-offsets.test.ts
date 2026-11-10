@@ -70,6 +70,19 @@ describe('the leaf position back to a raw offset', () => {
 	});
 });
 
+// Miss-analysis: every titled fixture had title text, and an empty one paired with the blank line
+// below its tags, so the body under it read one line low (found by the caret-walk property).
+describe('a title row with no text', () => {
+	it('sits inside its tags, and the body below keeps its own lines', () => {
+		testReading();
+		const source = '<details open>\n<summary></summary>\n\nx\n\n</details>\n\nafter\n';
+		const map = documentByteMap(parse(source));
+		expect(map.byteOf([0, 0], 0)).toBe(source.indexOf('</summary>'));
+		expect(map.byteOf([0, 1], 0)).toBe(source.indexOf('x'));
+		expect(map.leafAt(source.indexOf('x'))).toEqual({ path: [0, 1], offset: 0 });
+	});
+});
+
 // The byte map reads a list's offsets as its items' own, without splitting its lines, which holds
 // only while a list's bytes are its items' and nothing else: tabs, lazy lines and loose items too.
 describe('a list holds its items’ bytes and nothing else', () => {

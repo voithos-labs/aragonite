@@ -1,13 +1,10 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createBlockEditCore } from '#lib/editor-actions/block-edit-core.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { CURSOR_START, type BlockComponent } from '#lib/block-component.js';
-import { parse } from '#lib/core/parser.js';
-import { registerCalloutKind } from '../../../routes/test/plugins/callout/callout-kind';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { makeCommitScopeStub, parseLeaf as leaf } from '#lib/test/harness/editor-actions.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
-import { testView } from '#lib/test/harness/test-view.js';
 
 function focusSpy() {
 	const calls: number[] = [];
@@ -95,15 +92,6 @@ describe('block-edit core: shared structural decisions', () => {
 		expect(commits).toHaveLength(0);
 	});
 
-	it('deleteInterior removes the block and emits a delete op targeting it', async () => {
-		const { scope, commits, children } = makeCommitScopeStub([leaf('a\n'), leaf('b\n')]);
-		await createBlockEditCore(scope).deleteInterior(1, 'keyless');
-		expect(children).toHaveLength(1);
-		expect(children[0].raw).toContain('a');
-		expect(commits[0].op.kind).toBe('delete');
-		expect(commits[0].eventTarget).toBe(1);
-	});
-
 	it('replaceBlock with nodes emits replaceBlock with its count', async () => {
 		const rep = makeCommitScopeStub([leaf('x\n')]);
 		await createBlockEditCore(rep.scope).replaceBlock(0, [leaf('a\n'), leaf('b\n')], undefined, {
@@ -114,19 +102,20 @@ describe('block-edit core: shared structural decisions', () => {
 		expect(rep.children).toHaveLength(2);
 	});
 
-	it('empty replaceBlock removes the block but emits a per-scope op-kind', async () => {
-		const collapsed = makeCommitScopeStub([leaf('x\n'), leaf('y\n')]);
-		await createBlockEditCore(collapsed.scope).replaceBlock(0, [], undefined, {
-			snapshotOffset: 0
+	it('empty replaceBlock removes the block whole as a keyless delete, under each scope’s op', async () => {
+		const removedAs = async (collapse: boolean) => {
+			const { scope, commits } = makeCommitScopeStub([leaf('x\n'), leaf('y\n')], { collapse });
+			await createBlockEditCore(scope).replaceBlock(0, [], undefined, { snapshotOffset: 0 });
+			expect(commits).toHaveLength(0);
+			const [index, gesture, args] = vi.mocked(scope.removeWhole).mock.calls[0];
+			return { index, gesture, op: args.op };
+		};
+		expect(await removedAs(true)).toEqual({ index: 0, gesture: 'keyless', op: { kind: 'delete' } });
+		expect(await removedAs(false)).toEqual({
+			index: 0,
+			gesture: 'keyless',
+			op: { kind: 'replaceBlock', detail: { count: 0 } }
 		});
-		expect(collapsed.children).toHaveLength(1);
-		expect(collapsed.commits[0].op.kind).toBe('delete');
-
-		const labelled = makeCommitScopeStub([leaf('x\n'), leaf('y\n')], { collapse: false });
-		await createBlockEditCore(labelled.scope).replaceBlock(0, [], undefined, { snapshotOffset: 0 });
-		expect(labelled.children).toHaveLength(1);
-		expect(labelled.commits[0].op.kind).toBe('replaceBlock');
-		expect(labelled.commits[0].op.detail).toEqual({ count: 0 });
 	});
 
 	it('updateBlockMetadata merges fields and emits metadataUpdate', async () => {
@@ -202,22 +191,20 @@ describe('block-edit core: non-editable neighbour fallback', () => {
 		return { kind, leadingTrivia: '', raw: 'inert\n' };
 	}
 
-	it('merge-prev deletes the non-editable previous block, targeting the neighbor', async () => {
-		const { scope, commits, children } = makeCommitScopeStub([inertNode(), leaf('text\n')]);
+	// The neighbour goes whole, and the caret stays in the block the key was pressed in: the side
+	// past the removed block, which the core lands on as Delete's or Backspace's.
+	it('merge-prev removes the non-editable previous block, landing on the side after it', async () => {
+		const { scope } = makeCommitScopeStub([inertNode(), leaf('text\n')]);
 		await createBlockEditCore(scope).mergeWithPreviousInterior(1);
-		expect(children).toHaveLength(1);
-		expect(commits[0].op.kind).toBe('delete');
-		// The deleted neighbour (i-1), not i: both scope factories build the emitted event
-		// path from this target (the top-level side is in top-level-event-paths.test.ts).
-		expect(commits[0].eventTarget).toBe(0);
+		const [index, gesture, args] = vi.mocked(scope.removeWhole).mock.calls[0];
+		expect([index, gesture, args.op]).toEqual([0, 'Delete', { kind: 'delete' }]);
 	});
 
-	it('merge-next deletes the non-editable next block, targeting the neighbor', async () => {
-		const { scope, commits, children } = makeCommitScopeStub([leaf('text\n'), inertNode()]);
+	it('merge-next removes the non-editable next block, landing on the side before it', async () => {
+		const { scope } = makeCommitScopeStub([leaf('text\n'), inertNode()]);
 		await createBlockEditCore(scope).mergeWithNextInterior(0);
-		expect(children).toHaveLength(1);
-		expect(commits[0].op.kind).toBe('delete');
-		expect(commits[0].eventTarget).toBe(1);
+		const [index, gesture, args] = vi.mocked(scope.removeWhole).mock.calls[0];
+		expect([index, gesture, args.op]).toEqual([1, 'Backspace', { kind: 'delete' }]);
 	});
 });
 
@@ -250,26 +237,6 @@ describe('block-edit core: thematicBreak focus-then-delete', () => {
 });
 
 // Miss-analysis: the wrap fix-up tests passed the container node, never the commit view's shape.
-describe('block-edit core: wrap-owner threading', () => {
-	beforeEach(() => {
-		registerCalloutKind(testView());
-	});
-
-	it('deleteInterior hands the owner to the settle, so the wrap absorbs the freed line', async () => {
-		const doc = parse(':::callout\nA\n\nB\n:::\n');
-		const callout = doc.children[0];
-		const { scope, children } = makeCommitScopeStub(callout.children!, {
-			owner: callout,
-			settle: true
-		});
-
-		await createBlockEditCore(scope).deleteInterior(1, 'keyless');
-
-		expect(children.map((c) => c.leadingTrivia + c.raw).join('')).not.toContain('A');
-		expect(callout.innerPrefix).toBe('\n');
-	});
-});
-
 describe('block-edit core: chrome.descendToBody', () => {
 	it('focuses the existing body sibling without creating or committing', async () => {
 		const body = focusSpy();

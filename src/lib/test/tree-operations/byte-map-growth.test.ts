@@ -14,7 +14,7 @@ import {
 	rawOffsetOfLeaf
 } from '#lib/tree-operations/container-offsets.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
-import { gapAtByte } from '#lib/editor-actions/commit/byte-splice.js';
+import { gapAtByte } from '#lib/selection/range-bytes.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,

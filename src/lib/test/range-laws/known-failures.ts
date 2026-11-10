@@ -11,7 +11,7 @@ export interface KnownViolation {
 	/** The issue the class is filed as, or `new: <slug>` until it is. */
 	issue: string;
 	/** The lane whose fix deletes the row. */
-	lane: 'issues-four' | 'range-removal' | 'rebuild' | 'range-stage-3';
+	lane: 'issues-four' | 'range-removal' | 'rebuild';
 	/** What's broken, in one line. */
 	defect: string;
 	/** Matches the class's violation lines, which open `L<law>[.<label>] [<shape>] <gesture> <mode>/<eol>: `. */
@@ -59,72 +59,9 @@ const count = (text: string, pattern: RegExp) => (text.match(pattern) ?? []).len
 const ITEM_MARKER = /^[ \t>]*(?:[-*+]|\d{1,9}[.)])(?=[ \t]|\r?$)/gm;
 const ALERT_MARKER = /^[ \t>]*\[![A-Za-z]+\]/gm;
 const FENCE_LINE = /^[ \t>]*(?:`{3,}|~{3,})/gm;
-const TABLE_LINE = /^[ \t>]*\|/gm;
-const OPENER = /<details|^[ \t>]*:{3,}\w/gm;
 
 /** Most specific first: a line counts toward the first row it matches. */
 export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
-	// A cut writes the range-edit core's copy while today's removal deletes (G1.188), until stage 3.
-	{
-		issue: 'new: cut-copies-table-head',
-		lane: 'range-stage-3',
-		defect:
-			'a cut leaving a table below its header writes the header it keeps, which pastes back twice',
-		lines: /^L3 \[[^\]]*table → /,
-		keeps: (got, wanted) => count(got, TABLE_LINE) > count(wanted, TABLE_LINE),
-		repro: {
-			law: 'L3',
-			args: [
-				{
-					source: '| A | B |\n| --- | --- |\n| 1 | 2 |\n\nafter\n',
-					mode: 'source',
-					seed: { a: end(0, 'inside', 2), b: end(1, 'inside', 3) }
-				},
-				'key',
-				'key'
-			]
-		}
-	},
-	{
-		issue: 'new: cut-copies-titled-container',
-		lane: 'range-stage-3',
-		defect:
-			'a cut from a title row out writes the whole container, while the removal keeps the title’s head',
-		lines: /^L3 \[[^\]]*(?:details-summary|directiveOpenerLine) → /,
-		keeps: (got, wanted) => count(got, OPENER) > count(wanted, OPENER),
-		repro: {
-			law: 'L3',
-			args: [
-				{
-					source: '<details open>\n<summary>OOOO</summary>\n\nPPPP\n\n</details>\n\nAAAA\n',
-					mode: 'source',
-					seed: { a: end(0, 'inside', 1), b: end(2, 'inside', 2) }
-				},
-				'key',
-				'key'
-			]
-		}
-	},
-	{
-		issue: 'new: cut-copies-empty-opening',
-		lane: 'range-stage-3',
-		defect:
-			'a cut ending at a title’s first text writes the empty container it opens, which pastes back as one',
-		lines: /^L3 \[[^\]]*→ [^\]]*(?:details-summary|directiveOpenerLine)\]/,
-		keeps: (got, wanted) => count(got, OPENER) > count(wanted, OPENER),
-		repro: {
-			law: 'L3',
-			args: [
-				{
-					source: 'MMMM\n\n<details>\n<summary>SSSS</summary>\n\nHHHH\n\n</details>\n',
-					mode: 'source',
-					seed: { a: end(0, 'inside', 1), b: end(1, 'start') }
-				},
-				'key',
-				'key'
-			]
-		}
-	},
 	{
 		issue: '#818',
 		lane: 'rebuild',
@@ -261,26 +198,6 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		issue: '#819',
 		lane: 'rebuild',
 		defect:
-			'a range gesture fires a dev check: Enter over a range (`command-key-landing`), a paste or a delete in a quote (`stale-raw`)',
-		lines:
-			/^L8 \[[^\]]*→[^\]]*\] (?:type:Enter \S+: fired invariant:command-key-landing|(?:paste:\S+|Backspace|Delete) \S+: fired invariant:stale-raw)$/,
-		repro: {
-			law: 'L8',
-			args: [
-				{
-					source:
-						'>a\r\n\n>> `c`\r\n>>\t\n>>a\r\n > `c`\n> 汉字\r\n>> \n> > - x\r\n`c`\n>`c`\r\n\n>a\r\n',
-					mode: 'live',
-					seed: { a: end(3, 'start'), b: end(4, 'start') }
-				},
-				{ plain: '# not a heading' }
-			]
-		}
-	},
-	{
-		issue: '#819',
-		lane: 'rebuild',
-		defect:
 			'a paste at a caret rewrites the container prefix of the line it lands on (`  [^n]: ` to `[^n]: `, `>a` to `> a`, a tab to spaces)',
 		lines: /^L9\.prefix /,
 		keeps: sameWords,
@@ -309,14 +226,18 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		issue: '#819',
 		lane: 'rebuild',
 		defect:
-			'a copy whose end sits at the edge of a block it holds whole takes that block’s markers or line ending',
+			'a copy whose end sits at the edge of a block it holds whole takes that block’s markers',
 		lines: /^L10\.edge /,
 		keeps: sameWords,
 		repro: {
 			law: 'L10',
 			args: [
-				{ source: 'a\n- b\n', mode: 'live', seed: { a: end(60, 'end', 5), b: end(59, 'end', 2) } },
-				'key at body'
+				{
+					source: '- - a\n    a\n\n  a\n',
+					mode: 'source',
+					seed: { a: end(3, 'start'), b: end(0, 'start') }
+				},
+				'key'
 			]
 		}
 	},
@@ -331,23 +252,6 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 			args: [
 				{ source: 'a **b**\n', mode: 'live', caret: end(0, 'end') },
 				{ replacement: { pasted: 'x', route: 'key' } }
-			]
-		}
-	},
-	{
-		issue: '#819',
-		lane: 'rebuild',
-		defect: 'Backspace or Delete over some ranges across blocks leaves the bytes as they were',
-		lines: /^L4\.unchanged /,
-		repro: {
-			law: 'L4',
-			args: [
-				{
-					source: '# head\n\ntwo words\ntwo words\n# head\n',
-					mode: 'source',
-					seed: { a: end(1, 'end'), b: end(63, 'start', 28) }
-				},
-				'Backspace'
 			]
 		}
 	},

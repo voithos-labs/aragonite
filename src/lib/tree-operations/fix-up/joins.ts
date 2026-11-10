@@ -1,6 +1,7 @@
 // How two touching blocks read flush against each other, and the blank line a join gets for it.
-import { ownTrailingLineEnding } from '../../core/lines';
+import { ownTrailingLineEnding, type LineEnding } from '../../core/lines';
 import type { CstNode } from '../../core/nodes';
+import type { NodeView } from '../../core/node-views';
 import type { Host, ListEdit } from './types';
 import { isBlankBlock, ownsBlankLine, readAt } from './reading';
 import type { Work } from './work';
@@ -10,63 +11,78 @@ import type { Work } from './work';
  *  write reads the way its bytes do. */
 export type Role = 'placed' | 'rewritten' | 'written';
 
+/** What the join question reads of each block. */
+export interface JoinBlock {
+	readonly kind: string;
+	readonly raw: string;
+	readonly leadingTrivia: string;
+	readonly children?: readonly unknown[];
+}
+
+/** Where a join sits: the body `owner` holds (the document's own list without one), the upper
+ *  block's index in it, and the line ending a blank line there takes. */
+export interface JoinSlot {
+	readonly owner: NodeView | undefined;
+	readonly index: number;
+	readonly lineEnding: LineEnding;
+}
+
 type Reading = 'stands' | 'folds' | 'separate' | 'merge';
 
 /** Gives join `j` (between blocks `j - 1` and `j`) the blank line its reading asks for. */
 export function partJoin(work: Work, j: number, role: Role, host: Host, typed: boolean): void {
 	const upper = work.blocks.at(j - 1);
 	const lower = work.blocks.at(j);
-	if (
-		!upper ||
-		!lower ||
-		lower.leadingTrivia !== '' ||
-		ownsBlankLine(host, work.list.owner, j - 1, upper)
-	)
-		return;
-	if (isBlankBlock(upper) || isBlankBlock(lower)) return;
-	if ([upper, lower].some((node) => host.kindTraits(node.kind).contextDependent)) return;
+	const slot = { owner: work.list.owner, index: j - 1, lineEnding: work.list.lineEnding };
+	if (!upper || !lower || !blankLineBelongs(host, slot, upper, lower, role, typed)) return;
+	work.blocks.set(j, {
+		...lower,
+		leadingTrivia: ownTrailingLineEnding(upper.raw) || work.list.lineEnding
+	});
+}
+
+/** Whether `lower` needs a blank line under `upper` at `slot` to keep the reading `role` asks of
+ *  their join. */
+export function blankLineBelongs(
+	host: Host,
+	slot: JoinSlot,
+	upper: JoinBlock,
+	lower: JoinBlock,
+	role: Role,
+	typed: boolean
+): boolean {
+	if (lower.leadingTrivia !== '' || ownsBlankLine(host, slot.owner, slot.index, upper))
+		return false;
+	if (isBlankBlock(upper) || isBlankBlock(lower)) return false;
+	if ([upper, lower].some((node) => host.kindTraits(node.kind).contextDependent)) return false;
 	const grid = host.kindTraits(upper.kind).grid;
 	const tableRow = grid && host.continuesTableAbove(lower.raw);
 	// A table takes nothing below it but rows, so a block whose first line it leaves stands.
-	if (grid && !tableRow) return;
+	if (grid && !tableRow) return false;
 	// A list that can't interrupt the paragraph above (its first item is empty) keeps a line under
 	// it; a typed write wrote that line itself.
 	const emptyItem =
 		!typed &&
 		upper.kind === 'paragraph' &&
 		lower.kind === 'list' &&
-		!interrupts(work, j, upper, lower, host);
+		!interrupts(host, slot, upper, lower);
 	// A typed write parts nothing else, so it reads nothing more.
-	if (role === 'written' && !tableRow && !emptyItem) return;
-	const reading = tableRow || emptyItem ? null : readJoin(work, j, upper, lower, host);
-	if (
-		tableRow ||
-		emptyItem ||
-		(reading === 'separate' && role !== 'written') ||
-		(reading === 'folds' && role === 'placed')
-	) {
-		work.blocks.set(j, {
-			...lower,
-			leadingTrivia: ownTrailingLineEnding(upper.raw) || work.list.lineEnding
-		});
-	}
+	if (role === 'written' && !tableRow && !emptyItem) return false;
+	if (tableRow || emptyItem) return true;
+	const reading = readJoin(host, slot, upper, lower);
+	return (
+		(reading === 'separate' && role !== 'written') || (reading === 'folds' && role === 'placed')
+	);
 }
 
 /** Whether the first line of `lower` opens a block of its own flush under `upper`. */
-function interrupts(work: Work, j: number, upper: CstNode, lower: CstNode, host: Host): boolean {
+function interrupts(host: Host, slot: JoinSlot, upper: JoinBlock, lower: JoinBlock): boolean {
 	const line = lower.raw.slice(0, lower.raw.indexOf('\n') + 1) || lower.raw;
-	return readAt(host, work.list.owner, j - 1, upper.raw + line).children.length > 1;
+	return readAt(host, slot.owner, slot.index, upper.raw + line).children.length > 1;
 }
 
-function readJoin(
-	work: Work,
-	j: number,
-	upper: CstNode,
-	lower: CstNode,
-	host: Host
-): Reading | null {
-	const owner = work.list.owner;
-	const read = (text: string) => readAt(host, owner, j - 1, text).children;
+function readJoin(host: Host, slot: JoinSlot, upper: JoinBlock, lower: JoinBlock): Reading | null {
+	const read = (text: string) => readAt(host, slot.owner, slot.index, text).children;
 	// A container's child never reads as itself alone, so its joins are its container's to read.
 	if (read(upper.raw)[0]?.kind !== upper.kind) return null;
 	const flush = read(upper.raw + lower.raw);
@@ -78,7 +94,7 @@ function readJoin(
 		second.kind === lower.kind
 	)
 		return 'stands';
-	const parted = upper.raw + (ownTrailingLineEnding(upper.raw) || work.list.lineEnding);
+	const parted = upper.raw + (ownTrailingLineEnding(upper.raw) || slot.lineEnding);
 	const apart = read(parted + lower.raw);
 	// No blank line parts them: they read as one, or the upper still takes content in.
 	if (apart.filter((node) => !isBlankBlock(node)).length < 2 || apart[0].raw.length > parted.length)
@@ -89,7 +105,7 @@ function readJoin(
 }
 
 /** The lower block reads on inside `merged`: as prose, or as one more of its kind. */
-const foldsAsItself = (merged: CstNode, lower: CstNode): boolean =>
+const foldsAsItself = (merged: CstNode, lower: JoinBlock): boolean =>
 	lower.kind === 'paragraph' || lower.kind === merged.kind;
 
 /** A list made from one block loses the blank lines to a same-type list beside it, so the two read

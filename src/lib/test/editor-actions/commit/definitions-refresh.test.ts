@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // Miss-analysis: every rescan test asked by op name, and no row drove a byte splice, which names any op.
 // Link definitions are read again after a write only when a block it took out or put in holds one:
 // each route that emits `edit` says which blocks it replaced, or that it can't tell.
@@ -15,6 +16,12 @@ import { serialize } from '#lib/core/serializer.js';
 import { assignIds } from '#lib/block-id.js';
 import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import type { EditEvent } from '#lib/editor-events.js';
+import { NOTHING_REPLACED } from '#lib/editor-actions/commit/emit-edit.js';
+import { replaceRange } from '#lib/selection/cross-block/range-replace.js';
+import { fingerPress } from '#lib/selection/pointer-gesture.js';
+import type { SelectionPoint } from '#lib/selection/primitives.js';
+import { makeTableStateAt } from '#lib/test/harness/editor-actions.js';
+import { makeRangeEnv } from '../../selection/cross-block/range-context';
 
 type Harness = Pick<ReturnType<typeof makeTopHarness>, 'events' | 'replaced'>;
 
@@ -196,6 +203,62 @@ describe('a structural commit', () => {
 		expect(await search.replaceAll([{ path: [0], start: 0, end: 3 }] as never, 'two')).toBe(1);
 		expect(last.get(h)?.op).toBe('replaceBlock');
 		expect(rescans(h)).toBe(true);
+	});
+});
+
+const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
+
+describe('a removal', () => {
+	const named = (h: Harness) => h.replaced.at(-1) !== 'unknown';
+
+	it.each([
+		['one taking a definition reads them', 'one\n\n[x]: /u\n\ntwo\n', at([2], 1), true],
+		['one beside a definition reads none', 'one\n\ntwo\n\n[x]: /u\n', at([1], 1), false]
+	])('of a range: %s, naming the blocks it read again', async (_, source, focus, expected) => {
+		const env = watched(makeRangeEnv(source, { liveSelection: true }));
+		env.deps.selectionState.enterCrossBlock(at([0], 1), focus);
+		expect(await replaceRange(env.mutCtx, { kind: 'none', gesture: 'Backspace' })).toBe('written');
+		expect([named(env), rescans(env)]).toEqual([true, expected]);
+	});
+
+	it('of a block whole, holding a definition, reads them', async () => {
+		const h = watched(makeTopHarness('one\n\n[x]: /u\n\ntwo\n'));
+		await h.actions.deleteBlock(1, 'keyless');
+		expect(serialize(h.deps.doc)).toBe('one\n\ntwo\n');
+		expect([named(h), rescans(h)]).toEqual([true, true]);
+	});
+
+	it('of a block whole inside a quote, holding a definition, reads them', async () => {
+		const h = watched(makeNestedHarness('> one\n>\n> [x]: /u\n', { index: 0 }));
+		await h.bundle.blockEdit.deleteBlock(1, 'keyless');
+		expect(serialize(h.deps.doc)).toBe('> one\n');
+		expect([named(h), rescans(h)]).toEqual([true, true]);
+	});
+});
+
+describe('text over cells beside a definition', () => {
+	const TABLE = '| a | b |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n\n[x]: /u\n';
+
+	it('inside one cell names the row it wrote and reads none', async () => {
+		const env = watched(makeRangeEnv(TABLE, { liveSelection: true }));
+		makeTableStateAt(() => env.deps.doc, 0);
+		const finger = fingerPress({ pointerType: 'touch', pointerId: 1 })!;
+		env.deps.selectionState.ownBlockRange(at([0, 1, 0], 0), at([0, 1, 0], 1), finger);
+		expect(await replaceRange(env.mutCtx, { kind: 'text', text: 'z' })).toBe('written');
+		const replaced = env.replaced.at(-1)!;
+		expect(replaced !== 'unknown' && replaced.after.map((row) => row.raw)).toEqual(['| z | 2 |\n']);
+		expect(rescans(env)).toBe(false);
+	});
+
+	// Miss-analysis: a commit that copied a table's rows outside its scope's writes said it replaced
+	// nothing, and no row asked a grid clear what it replaced.
+	it('across cells, cleared, never claims it replaced nothing', async () => {
+		const env = watched(makeRangeEnv(TABLE, { liveSelection: true }));
+		makeTableStateAt(() => env.deps.doc, 0);
+		env.deps.selectionState.enterCrossBlock(at([0, 1, 0], 0), at([0, 2, 1], 1));
+		expect(await replaceRange(env.mutCtx, { kind: 'none', gesture: 'Backspace' })).toBe('written');
+		expect(serialize(env.deps.doc)).toBe(TABLE.replace('| 1 | 2 |\n| 3 | 4 |', '|  |  |\n|  |  |'));
+		expect(env.replaced.at(-1)).not.toEqual(NOTHING_REPLACED);
 	});
 });
 

@@ -19,12 +19,15 @@ import { createEditorEvents, type EditorEvents } from '../editor-events';
 import { refSlotsOver, replaceRefs } from '../block-lists/child-refs';
 import type { ChildList } from '../block-lists/child-list';
 import { createSelectionState } from '../selection/selection-state.svelte';
+import { documentBytes } from '../selection/range-bytes';
+import { serialize } from '../core/serializer';
 import {
 	createCaretLanding,
 	type CaretLanding,
 	type LandingOutcome
 } from '../selection/caret-landing';
 import { caretTargetFor, type CaretTarget } from '../selection/caret-target';
+import type { SelectionRestoreOutcome } from '../selection/selection-restore';
 import { createSharingState } from '../tree-operations/sharing';
 import { createUndoManager } from '../undo/manager';
 import { createDocumentStamps } from '../editor-actions/commit/document-stamp';
@@ -126,9 +129,10 @@ export interface HeadlessActionsOptions {
 	onReplaced?: (replaced: ReplacedBlocks) => void;
 }
 
-/** A leaf a caret landing resolved to, and whether a mounted block took the caret. */
+/** A leaf a caret landing resolved to, and whether a mounted block took the caret, or the outcome
+ *  of a stored caret put back at its byte. */
 export interface RecordedLanding extends CaretTarget {
-	readonly outcome: LandingOutcome;
+	readonly outcome: LandingOutcome | SelectionRestoreOutcome;
 }
 
 export interface HeadlessActions {
@@ -188,6 +192,11 @@ export function createHeadlessActions(
 			contentVersion++;
 			options.bumpContentVersion?.();
 		},
+		bytes: documentBytes({
+			version: () => contentVersion,
+			doc: () => doc,
+			source: () => serialize(doc)
+		}),
 		// Nothing here draws a reference link, so the blocks a write replaced reach only a listener.
 		refreshDefinitions: (replaced) => options.onReplaced?.(replaced),
 		undoManager: createUndoManager({ doc: () => doc, version: () => contentVersion }),

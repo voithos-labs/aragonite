@@ -13,7 +13,6 @@ import {
 	makeStubFocus,
 	mountEveryBlock
 } from '#lib/test/harness/editor-actions.js';
-import { CURSOR_END } from '#lib/block-component.js';
 import type { BlockListState } from '#lib/block-lists/block-list-state.svelte.js';
 
 // The delete's caret must be read against the live post-commit children: a node read before the
@@ -62,6 +61,7 @@ describe('list-overrides deleteBlock: the caret after deleting the last item', (
 		await bundle.blockEdit.deleteBlock(2, 'keyless');
 
 		expect(liveList().children).toHaveLength(2);
-		expect(landings).toEqual([{ leafPath: [0, 1, 0], offset: CURSOR_END, outcome: 'placed' }]);
+		// `b`'s end, its one byte; the headless restore has no element to write into.
+		expect(landings).toEqual([{ leafPath: [0, 1, 0], offset: 1, outcome: 'unplaced' }]);
 	});
 });

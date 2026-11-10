@@ -18,8 +18,8 @@ interface Wrapper {
 	wrap: (table: string) => string;
 	/** The table's path inside the wrapper. */
 	path: number[];
-	/** What the whole table's removal leaves before the paragraph below, and where Backspace
-	 *  lands: the end of the block before it, or the paragraph below when there is none. */
+	/** What the whole table's removal leaves before the paragraph below (a container it only
+	 *  empties stays, C10), and where Backspace lands. */
 	emptied: string;
 	landsIn: number[];
 }
@@ -32,8 +32,8 @@ const WRAPPERS: Record<string, Wrapper> = {
 				.map((l) => `> ${l}\n`)
 				.join(''),
 		path: [0, 0],
-		emptied: '',
-		landsIn: [0]
+		emptied: '> \n',
+		landsIn: [0, 0]
 	},
 	'in a list item': {
 		wrap: (t) =>
@@ -41,8 +41,8 @@ const WRAPPERS: Record<string, Wrapper> = {
 				.map((l, i) => `${i === 0 ? '-' : ' '} ${l}\n`)
 				.join(''),
 		path: [0, 0, 0],
-		emptied: '',
-		landsIn: [0]
+		emptied: '- \n',
+		landsIn: [0, 0, 0]
 	},
 	'in a quote in a quote': {
 		wrap: (t) =>
@@ -50,14 +50,14 @@ const WRAPPERS: Record<string, Wrapper> = {
 				.map((l) => `> > ${l}\n`)
 				.join(''),
 		path: [0, 0, 0],
-		emptied: '',
-		landsIn: [0]
+		emptied: '> > \n',
+		landsIn: [0, 0, 0]
 	},
 	'in an open details': {
 		wrap: (t) => `<details open>\n<summary>S</summary>\n\n${t}\n</details>\n`,
 		path: [0, 1],
-		emptied: '<details open>\n<summary>S</summary>\n</details>\n',
-		landsIn: [0, 0]
+		emptied: '<details open>\n<summary>S</summary>\n\n</details>\n',
+		landsIn: [0, 1]
 	}
 };
 

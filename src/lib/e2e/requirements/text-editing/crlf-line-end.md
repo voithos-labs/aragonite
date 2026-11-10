@@ -18,9 +18,14 @@ and the source is compared with its line endings spelled out.
 - `abc\r\nAfter\r\n`, caret at the start, Shift+End, type `Z`: `Z\r\nAfter\r\n`, the pair kept
 - deleting at a CRLF line end is the editor's own delete; its rows are in
   `collapsed-delete-class.md`
+- `abc\r\nAfter\r\n`, a commit writes `abX` and names its caret between the `\r` and the `\n`: the
+  caret lands before the pair (no `caret-in-line-ending-pair` warning), and `Z` gives
+  `abXZ\r\nAfter\r\n`
 
 ## Miss-analysis
 
 - GH #744: every typing and deletion spec ran in Chromium, which never stops a caret inside a CRLF
   pair or deletes half of one, and no other engine gated, so the engine census was the first run
   to type at a CRLF line end in WebKit or Firefox.
+- A commit's caret named between a pair: every landing row used LF bytes, so none named a caret
+  inside a pair.

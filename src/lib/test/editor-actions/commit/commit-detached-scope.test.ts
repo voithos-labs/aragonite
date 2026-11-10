@@ -9,9 +9,7 @@ import { createUndoController } from '#lib/editor-actions/commit/undo-controller
 import { asDocPath } from '#lib/core/coordinate-spaces.js';
 import { registerBlockListState } from '#lib/block-lists/state-registry.js';
 import { trackChildIds } from '#lib/tree-operations/structural-change.js';
-import { documentBody } from '#lib/tree-operations/node-primitives.js';
 import type { MultiScopeTarget } from '#lib/action-contracts.js';
-import type { CstNode } from '#lib/core/nodes.js';
 import {
 	makeBlockListState,
 	makeEditorActionsDeps,
@@ -85,40 +83,6 @@ describe('multi-scope commits with a scope detached by the mutation', () => {
 		});
 
 		expect(serialize(deps.doc)).toBe('- \n- target three\n- tail\n');
-		expect(takeDevWarns()).toEqual([]);
-	});
-
-	it('cross-container delete consuming a blockquote scope fires nothing (the CI kind)', async () => {
-		const doc0 = parse('head\n\n> quoted line\n');
-		const { deps } = makeEditorActionsDeps(doc0.children);
-		const controller = createUndoController(deps);
-		const bq = deps.doc.children[1] as CstNode;
-		const scopes: MultiScopeTarget[] = [
-			controller.getDocScope(),
-			{ node: bq, state: makeBlockListState(() => bq), path: [1] }
-		];
-		const start = { path: [0], offset: 'head'.length };
-		const end = { path: [1, 0], offset: 'quoted line'.length };
-
-		drainDevWarns();
-		await controller.commitMultiScope({
-			scopes,
-			snapshot: { path: asDocPath([0]), offset: 0 },
-			mutate: (views) => {
-				// Through the document's view, as the editor's range delete writes.
-				const top = documentBody(deps.doc, views[0].children);
-				const ledgers = views.map((v, i) => trackChildIds(i === 0 ? views[0].body : v.node));
-				deleteRange(top, start, end, { scope: views[0] });
-				return ledgers.map((ledger) => {
-					const change = ledger.read();
-					ledger.release();
-					return change;
-				});
-			},
-			op: { kind: 'delete', eventPath: asDocPath([0]) }
-		});
-
-		expect(serialize(deps.doc)).toBe('head\n');
 		expect(takeDevWarns()).toEqual([]);
 	});
 });

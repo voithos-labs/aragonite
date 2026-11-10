@@ -27,7 +27,8 @@ import { containerScopeState } from '../tree-operations/paste/parent-scope';
 import { asDocPath, type DocPath, docPathFrom, extendDocPath } from '../core/coordinate-spaces';
 import type { CaretPosition } from '../selection/primitives';
 import type { LandingOutcome, RevealPolicy } from '../selection/caret-landing';
-import { survivorAfterRemoval, type RemovalGesture } from '../selection/caret-target';
+import type { RemovalGesture } from '../selection/caret-target';
+import { removeWholeBlock } from '../selection/cross-block/range-removal';
 import { getStateForNode } from '../block-lists/state-registry';
 import type { EditorActionsDeps, EditorRoot, UndoController } from './deps';
 import type { NestedActionsDeps } from './nested/nested-actions';
@@ -83,8 +84,13 @@ export interface CommitScope {
 	target(): WriteTarget;
 	/** The id the typing batch keys on for child `i`. */
 	idAt(i: number): string;
-	/** Where the caret goes once child `i` is gone, read after the commit that removed it. */
-	survivor(i: number, gesture: RemovalGesture): CaretPosition | null;
+	/** Removes child `i` whole through the range-edit core, in one commit that names its snapshot
+	 *  and edit event as `commit` does; the caret lands on the side `gesture` points. */
+	removeWhole(
+		i: number,
+		gesture: RemovalGesture,
+		args: Pick<ScopeCommitArgs, 'snapshot' | 'op'>
+	): Promise<boolean>;
 	/** An empty replaceBlock emits `delete` (container) or `replaceBlock{count:0}` (top-level). */
 	collapseEmptyReplaceToDelete: boolean;
 	/** Resolves to whether bytes landed. */
@@ -123,7 +129,11 @@ export function createTopLevelScope(
 		children: () => deps.doc.children,
 		target: () => deps.doc,
 		idAt: (i) => deps.blockIds[i],
-		survivor: (i, gesture) => survivorAfterRemoval(deps.doc, [i], gesture),
+		removeWhole: (i, gesture, { snapshot, op }) =>
+			removeWholeBlock({ bytes: deps.bytes, reading: deps.reading, controller }, [i], gesture, {
+				snapshot: { path: asDocPath([snapshot.index]), offset: snapshot.offset },
+				op: { ...op, eventPath: asDocPath([i]) }
+			}),
 		collapseEmptyReplaceToDelete: false,
 		commit({
 			snapshot,
@@ -227,8 +237,11 @@ function containerScope(parts: ContainerParts): CommitScope {
 			lineEnding: parts.containerEdit.lineEnding()
 		}),
 		idAt: (i) => parts.state.innerBlockIds[i],
-		survivor: (i, gesture) =>
-			parts.containerEdit.survivorAfterRemoval(extendDocPath(parts.path(), i), gesture),
+		removeWhole: (i, gesture, { snapshot, op }) =>
+			parts.containerEdit.removeWhole(extendDocPath(parts.path(), i), gesture, {
+				snapshot: { path: extendDocPath(parts.path(), snapshot.index), offset: snapshot.offset },
+				op: { ...op, eventPath: extendDocPath(parts.path(), i) }
+			}),
 		collapseEmptyReplaceToDelete: true,
 		commit({
 			snapshot,

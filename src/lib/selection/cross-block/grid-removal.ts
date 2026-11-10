@@ -1,26 +1,32 @@
 /**
- * Deletes the whole row or column a pair inside one table holds, at the table's own path, as
- * Ctrl+Shift+Backspace and Alt+Shift+Backspace do. The coverage itself is read by `rangeCoverage`.
+ * A range of cells inside one table, which never reaches the range-edit core: Backspace or Delete
+ * over a whole row or column takes it out at the table's own path, as Ctrl+Shift+Backspace and
+ * Alt+Shift+Backspace do, and any other removal over cells clears them.
  */
 
-import { deleteSnapshot, type CaretPosition, type SelectionPoint } from '../../primitives';
-import { metadataOf, type CstNode } from '../../../core/nodes';
-import type { MultiScopeTarget } from '../../../action-contracts';
-import type { StructuralChange } from '../../../tree-operations/structural-change';
-import { getStateForNode, scopeStateFor } from '../../../block-lists/state-registry';
-import { containerScopeState } from '../../../tree-operations/paste/parent-scope';
+import {
+	cellIndexOf,
+	deleteSnapshot,
+	type CaretPosition,
+	type SelectionPoint
+} from '../primitives';
+import { metadataOf, type CstNode } from '../../core/nodes';
+import type { MultiScopeTarget } from '../../action-contracts';
+import type { StructuralChange } from '../../tree-operations/structural-change';
+import { getStateForNode, scopeStateFor } from '../../block-lists/state-registry';
+import { containerScopeState } from '../../tree-operations/paste/parent-scope';
 import {
 	deleteRow as mutDeleteRow,
 	deleteColumn as mutDeleteColumn,
 	canDeleteRow,
 	canDeleteColumn
-} from '../../../tree-operations/table-mutations';
-import { ensureUnsharedChildren } from '../../../tree-operations/unshare';
-import { blockNodeAt } from '../../../tree-operations/node-primitives';
-import { docPathFrom } from '../../../core/coordinate-spaces';
+} from '../../tree-operations/table-mutations';
+import { ensureUnsharedChildren } from '../../tree-operations/unshare';
+import { blockNodeAt } from '../../tree-operations/node-primitives';
+import { cellRowCol, docPathFrom } from '../../core/coordinate-spaces';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
-import type { GridCoverage } from '../../range-coverage';
-import type { CrossBlockMutationContext } from '../range-replace';
+import type { GridCoverage, RangeCoverage } from '../range-coverage';
+import type { CrossBlockMutationContext } from './range-replace';
 
 /** A pair inside one table that holds a whole row or a whole column of it. */
 export type GridLineCoverage = Extract<GridCoverage, { kind: 'row' | 'column' }>;
@@ -52,6 +58,37 @@ export async function commitGridLineDelete(
 		return null;
 	}
 	return commitColumnDelete(ctx, table, grid.path, grid.rect.left);
+}
+
+/** Clears the cells a pair inside one table holds, keeping its rows and columns; the caret goes in
+ *  the start cell, so text typed or pasted after it lands inside the table. Null when nothing wrote. */
+export async function commitGridClear(
+	ctx: GridLineContext,
+	coverage: RangeCoverage,
+	grid: GridCoverage
+): Promise<SelectionPoint | null> {
+	const table = blockNodeAt(ctx.getDoc(), grid.path);
+	if (!table?.children) return null;
+	const start = cellIndexOf(coverage.range.start, 'commitGridClear:start');
+	const { row, col } = cellRowCol(start, metadataOf(table, 'table').columnCount);
+	const caret: SelectionPoint = { path: [...grid.path, row, col], offset: 0 };
+	const wrote = await ctx.controller.commitContainerStructural({
+		containerNode: table,
+		path: grid.path,
+		state: tableState(table),
+		snapshot: deleteSnapshot(grid.path),
+		mutate: (scope) => {
+			const { top, left, rows, cols } = grid.rect;
+			for (let r = top; r < top + rows; r++) {
+				for (let c = left; c < left + cols; c++) scope.own([r, c])[1].raw = '';
+			}
+			ctx.selection.collapse();
+			return { op: 'noop' };
+		},
+		op: { kind: 'delete', detail: { crossBlock: true }, eventPath: docPathFrom(grid.path) },
+		landing: () => cellLanding(caret)
+	});
+	return wrote ? caret : null;
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────

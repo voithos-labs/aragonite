@@ -8,8 +8,9 @@ nothing.
 
 A selection is the one gesture that reaches past those offsets, because it can end in another
 block. The rule there: bytes written past the block's own editable element put back a closer the
-write dropped, so the block keeps its kind and absorbs what the range reached, exactly as a fenced
-code block does. Deleting the fence bytes by hand inside the open source still converts the block
+write dropped, so the block keeps its kind. A range from the body to the first byte of the
+paragraph below stops at the body's end, since a math block takes no joined text: Backspace
+empties the body and the paragraph stays. Deleting the fence bytes by hand inside the open source still converts the block
 to a paragraph (`latex-block-commit-split.md`), because those are bytes the user addressed.
 
 Fixture: `Before` / a four-line `aligned` block / `After` (`?seed=mathblock-multiline`), in

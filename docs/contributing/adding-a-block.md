@@ -358,10 +358,10 @@ Undo snapshots share the live tree's nodes. So a container commit hands its `mut
 
 ```ts
 // wrong: `node` (the component prop) may still be shared with an undo entry
-mutate: (scope) => deleteNode({ children: node.children!, owner: node, lineEnding }, index);
+mutate: (scope) => insertEmptyRow(node, rowIdx, side);
 
 // right: the scope view is yours to mutate
-mutate: (scope) => deleteNode(scope.body, index);
+mutate: (scope) => insertEmptyRow(scope.node, rowIdx, side);
 ```
 
 A whole commit, from the table inserting a row:
@@ -386,7 +386,7 @@ await parentContainerEdit.commitContainer({
 
 `snapshot` is where the caret was, for the undo entry. `mutate` returns the structural change it made so the commit can publish it, and `op` names the operation for the edit event and the operations log. `landing` is a function returning where the caret goes, a document path (a container's is fine) and an offset. The commit reads it once the DOM has caught up and puts the caret down for you, mounting a windowed-out row and scrolling included, so never focus anything yourself after a commit. The same rules cover `commitMultiScope`'s per-scope views.
 
-Typing inside your container's children needs no wiring; the shared `updateBlockContent` already handles it. For any other change to a container's children, reach for `commitContainer`, or `commitMultiScope` when the change spans containers. (If you're curious what a commit actually does, the steps every commit runs, from the undo snapshot to the rollback on failure, are in `editor-actions/commit/undo-controller.ts`.)
+Typing inside your container's children needs no wiring; the shared `updateBlockContent` already handles it. For any other change to a container's children, reach for `commitContainer`, or `commitMultiScope` when the change spans containers. Taking a child out whole is the one exception: `blockEdit.deleteBlock` removes it through the range-edit core, blank lines and all. (If you're curious what a commit actually does, the steps every commit runs, from the undo snapshot to the rollback on failure, are in `editor-actions/commit/undo-controller.ts`.)
 
 ### Virtual rendering
 

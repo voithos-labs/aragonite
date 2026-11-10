@@ -12,9 +12,9 @@ no test asked what the join should write; Backspace from the block below and a r
 the title were never driven against a setext heading, and ArrowRight at the title end was only
 driven in live mode, the one mode whose caret bound read the screen. The range delete was then only
 driven into blocks with nothing past their text, so the underline of a heading it ended in was
-never asked about. The edge case below drives one such range in the browser, and
-`src/lib/test/selection/cross-block/range-delete/range-delete-setext.test.ts` drives it in source and live mode from
-another title, from a paragraph and inside a quote.
+never asked about. The edge case below drives one such range in the browser, and the range-edit
+core's setext rows (`src/lib/test/range-edit/named-rows.ts`) hold it from another title, from a
+paragraph and from a block that takes no text.
 
 Miss-analysis (Delete at the title's end in live mode, from `presentation-live-demote.md`): the pin
 on this keypress encoded its refusal as the contract, so the join it declined was never specified.

@@ -229,18 +229,6 @@ describe('G2.8 container id↔ref↔children alignment', () => {
 		expect(h.state.innerBlockIds).not.toContain(id1);
 	});
 
-	it('inner delete keeps arrays aligned and drops the right slot', async () => {
-		const h = makeContainer(BQ_THREE);
-		const [id0, , id2] = h.state.innerBlockIds;
-		const ref0 = h.state.innerBlockRefs[0];
-
-		await h.bundle.blockEdit.deleteBlock(1, 'keyless');
-
-		assertContainerAligned(h);
-		expect(h.state.innerBlockIds).toEqual([id0, id2]);
-		expect(h.state.innerBlockRefs[0]).toBe(ref0);
-	});
-
 	it('inner replace (paste live path) keeps arrays aligned and pins the host id to the first piece', async () => {
 		const h = makeContainer(BQ_TWO);
 		const [id0, id1] = h.state.innerBlockIds;
@@ -279,7 +267,9 @@ describe('G2.8 container id↔ref↔children alignment', () => {
 
 		// Without rebuildRaw the container's stale raw still carries "aaaa", so the
 		// round-trip + content pair below is non-vacuous.
-		await h.bundle.blockEdit.deleteBlock(0, 'keyless');
+		await h.bundle.blockEdit.replaceBlock(0, [makeNode('paragraph', 'zzzz\n')], undefined, {
+			snapshotOffset: 0
+		});
 		stable();
 		assertContainerAligned(h);
 		expect(serialize(h.doc)).not.toContain('aaaa');

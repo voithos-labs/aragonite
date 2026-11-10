@@ -51,7 +51,8 @@ export default defineConfig({
 	test: {
 		setupFiles: [
 			'./src/lib/test/support/plugin-platform.ts',
-			'./src/lib/test/support/warn-gate.ts'
+			'./src/lib/test/support/warn-gate.ts',
+			'./src/lib/test/support/focus-keeps-selection.ts'
 		],
 		// A test file's afterEach hooks claim the dev warnings it expected, so they must run before
 		// the warn gate's verdict hook in the setup file; 'stack' runs "after" hooks in that order.

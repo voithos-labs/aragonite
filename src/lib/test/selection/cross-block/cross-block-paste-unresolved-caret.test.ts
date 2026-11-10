@@ -13,8 +13,11 @@ describe('a cross-block paste whose removal resolves no caret', () => {
 		const env = makeEnv(SOURCE);
 		const errors: EditorError[] = [];
 		env.events.on('error', (e) => errors.push(e));
-		// A removal that writes without leaving a caret behind.
-		vi.spyOn(env.controller, 'commitMultiScope').mockResolvedValue(true);
+		// A removal that writes and leaves no block for its caret to land in.
+		vi.spyOn(env.controller, 'commitSource').mockImplementation(async () => {
+			env.doc.children = [];
+			return true;
+		});
 		env.selectionState.enterCrossBlock({ path: [0], offset: 2 }, { path: [2], offset: 3 });
 
 		expect(await makeHandlers(env, [0]).handlePaste(makePasteEvent('DROPPED'))).toBe(true);

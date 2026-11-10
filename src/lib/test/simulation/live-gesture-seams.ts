@@ -10,7 +10,7 @@ import type { CstNode, Document } from '#lib/core/nodes.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import type { EdgeAffinity } from '#lib/caret/edge-affinity.js';
 import type { BlockEditActions } from '#lib/action-contracts.js';
-import { parse } from '#lib/core/parser.js';
+import { readAsOpened } from '#lib/schema/opened-reading.js';
 import { serialize } from '#lib/core/serializer.js';
 import { getContentRange, isProseKind, parseInline } from '#lib/core/inline/index.js';
 import {
@@ -151,9 +151,14 @@ interface Harness {
 	blockEditAt(path: readonly number[]): BlockEditActions;
 }
 
+/** `source` opened as the editor opens it, so an emptied container holds the blank block a reload
+ *  gives it. */
+const openedDoc = (source: string) =>
+	readAsOpened(source, { grammar: defaultGrammarView, scope: 'document' }) as Document;
+
 function harnessFor(source: string, mode: PresentationMode | undefined): Harness {
 	const { deps } = makeEditorActionsDeps(
-		parse(source),
+		openedDoc(source),
 		mode ? { reading: fixtureReading({}, mode) } : {}
 	);
 	const controller = createUndoController(deps);
@@ -275,7 +280,7 @@ async function writeInsideContainer(
 	gesture: Gesture,
 	mode: PresentationMode | undefined
 ): Promise<Applied | null> {
-	const doc = parse(source);
+	const doc = openedDoc(source);
 	const targets = containerLeaves(doc);
 	if (targets.length === 0) return null;
 	const seed = targets[gesture.leaf % targets.length];

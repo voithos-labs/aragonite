@@ -17,13 +17,16 @@ import {
 } from './document';
 import { byteAt } from './leaf-splice';
 
-/** The range narrowed to what a removal takes: a live code block's hidden fences and the last line
- *  ending stay, a title row loses only its text, and a container's markers stay as it empties. */
+/** The range narrowed to what a removal takes: a live code block's hidden opening fence and the
+ *  last line ending stay, a title row loses only its text, an emptied container keeps its markers. */
 export function removalRange(doc: Doc, start: number, end: number): { from: number; to: number } {
-	const code = doc.mode === 'live' ? leafAt(doc, start) : null;
+	// A range from the block's first byte holds it whole, so its fences go with it.
+	const code = doc.mode === 'live' && !heldAt(doc, start, end) ? leafAt(doc, start) : null;
 	const body = code && fenceBody(doc, code.leaf);
 	const from = body ? Math.max(start, body.from) : start;
-	let to = body ? Math.max(from, Math.min(end, body.to)) : end;
+	// A range that leaves the block runs on; the removal keeps the hidden closing line.
+	const stays = body && end <= contentEnd(doc, code.leaf);
+	let to = stays ? Math.max(from, Math.min(end, body.to)) : end;
 	const final = ownTrailingLineEnding(doc.source);
 	if (to === doc.source.length && to - final.length > from) to -= final.length;
 	const row = titleAt(doc, from);
@@ -49,12 +52,11 @@ export function removalRange(doc: Doc, start: number, end: number): { from: numb
 export const heldAt = (doc: Doc, from: number, to: number): LaidBlock | undefined =>
 	findWithin(doc, from, from, (b) => heldWhole(doc, b, from, to));
 
-/** A block other than a paragraph that the range covers from its first byte through its text, or
- *  through its last row or closing line: it goes whole. */
+/** A block the range covers from its first byte through its text or its last line goes whole. A
+ *  paragraph only empties, unless the range names whole blocks; a title row only ever empties. */
 export function heldWhole(doc: Doc, block: LaidBlock, from: number, to: number): boolean {
-	const facts = factsOf(doc, block);
-	const whole = !block.container || facts.lines === 'rows' || facts.lines === 'fenced';
-	if (block.from !== from || facts.joins === 'text' || !whole) return false;
+	if (block.from !== from || titleOwner(doc, block)) return false;
+	if (factsOf(doc, block).joins === 'text' && !doc.wholeBlocks) return false;
 	return to >= (block.text?.to ?? contentEnd(doc, block));
 }
 
@@ -72,7 +74,7 @@ export function holdsText(doc: Doc, from: number, to: number): boolean {
 
 /** The body of a fenced block a caret can enter, between its fence lines; null for any other block.
  *  A block drawn as a picture of its source is held whole, never entered. */
-function fenceBody(doc: Doc, leaf: LaidBlock): { from: number; to: number } | null {
+export function fenceBody(doc: Doc, leaf: LaidBlock): { from: number; to: number } | null {
 	const facts = factsOf(doc, leaf);
 	// A `:::` title row's line reads as an opening fence too, but it has no body to stay inside.
 	if (facts.body !== 'literal' || facts.textPosition !== 'always' || titleOwner(doc, leaf))

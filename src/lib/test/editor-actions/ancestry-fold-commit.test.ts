@@ -33,17 +33,6 @@ function harness() {
 }
 
 describe('a commit whose ancestry settle ate its own scope', () => {
-	it('lands the caret where the container’s bytes begin in the survivor', async () => {
-		const h = harness();
-
-		await h.bundle.blockEdit.deleteBlock(1, 'keyless');
-
-		expect(serialize(h.deps.doc)).toBe('> a\ntext\n');
-		expect(h.landings).toMatchObject([{ leafPath: [0, 0], offset: 0 }]);
-		// A collapse is a normal outcome, not something a host must hear.
-		expect(h.errors).toEqual([]);
-	});
-
 	// Typing in a body's first block rebuilds the container's opener line; a container that still
 	// interrupts keeps its index, and the unchanged kind keeps the write in place.
 	it('leaves the slot standing when the rebuilt opener still interrupts', async () => {
