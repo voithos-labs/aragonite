@@ -15,7 +15,8 @@ A delete or a break with no key is the browser's own command (`e2e/insert-text.t
 
 - a picture selected whole, `*` with no key: the `*` replaces the picture and no pair is written (`lead * tail`)
 - the same with a backtick: the backtick replaces the picture, unpaired
-  - WebKit's two rows are skipped: Playwright's WebKit sends no input while the page holds no selection, and a selected picture holds none
+- a picture selected whole, a backward or a forward delete with no key: the picture goes, as Backspace and Delete take it
+- the same, a line break or a paragraph break: nothing is written and the picture stays selected, as Enter and Shift+Enter leave it
 
 ## Pinned below the browser
 

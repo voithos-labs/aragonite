@@ -152,7 +152,8 @@
 
 	const cursor = createSurfaceBackend({
 		getEl: () => el ?? null,
-		caretWriter
+		caretWriter,
+		holdsWidget: () => selection.widgetIn(myPath) !== null
 	});
 
 	const edgeStep = createEdgeStep({

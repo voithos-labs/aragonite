@@ -42,11 +42,16 @@ function secondImageSelected(kind: string) {
 		events: createEditorEvents(),
 		reading: fixtureReading()
 	});
-	selectWidgetWhole(selection, testCaretWriter, {
-		paragraphPath: [0],
-		sourceStart: 12,
-		preSelectOffset: 0
-	});
+	selectWidgetWhole(
+		selection,
+		testCaretWriter,
+		{
+			paragraphPath: [0],
+			sourceStart: 12,
+			preSelectOffset: 0
+		},
+		() => null
+	);
 	const first = getInlineContent(
 		doc.children[0] as CstNode,
 		undefined,

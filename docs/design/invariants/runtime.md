@@ -127,6 +127,7 @@ These checks run in three kinds of place:
 | G1.200 | Every removal route leaves the caret where the range-edit core puts it | harness |
 | G1.201 | A byte splice inside a container reads only children whose old bytes read back as themselves | A·N |
 | G1.206 | A write that replaced no link definition leaves the definitions as they were | A·N |
+| G1.208 | A widget selected whole in the focused block leaves the browser a collapsed caret there | A·N |
 
 ### The entries
 
@@ -272,7 +273,7 @@ These checks run in three kinds of place:
 
 **G1.122 · A metadata read names the node's kind** (`metadata-of-kind`). `metadataOf(node, kind)` is for a caller that already knows the node is a `kind` (it checked, or found the node where only that kind lives), and dev fails when it isn't. A node that might be something else, plugin containers included, is read with `metadataIfKind`, which gives undefined there. That's what keeps a container whose metadata has an `ordered` field from renumbering like a list. `core/nodes.ts` · `plugin-metadata.test.ts`.
 
-**G1.128 · A caret key on a selected widget leaves it** (`selected-widget-motion`). Selecting a widget clears the browser's range, so a key that moves or extends the caret, passed on to the shared keydown or the browser, needs a real selection first: a caret at the edge the key moves toward, or for an extend the widget as a range anchored at its far edge. Dev fails a caret key the widget's handler passed on with the widget still selected. `checkMotionLeftWidget` · `selected-widget-motion.test.ts`.
+**G1.128 · A caret key on a selected widget leaves it** (`selected-widget-motion`). A selected widget keeps only a hidden caret no read answers, so a key that moves or extends the caret, passed on to the shared keydown or the browser, needs a real selection first: a caret at the edge the key moves toward, or for an extend the widget as a range anchored at its far edge. Dev fails a caret key the widget's handler passed on with the widget still selected. `checkMotionLeftWidget` · `selected-widget-motion.test.ts`.
 
 **G1.131 · A reading-mode landing leaves no caret** (`reading-landing-leaves-no-caret`). Reading mode has no caret, so a landing there (a footnote jump, an outline entry, `navigateTo`) moves focus to its target and clears the selection: Firefox starts Tab from a selection, the others from focus. Dev fails a selection still in the landed block once the landing has scrolled (only that block, so a click elsewhere mid-scroll passes). `checkReadingLandingLeavesNoCaret` · `caret-landing.test.ts`, `reading-jump-focus.spec.ts`.
 
@@ -347,5 +348,7 @@ These checks run in three kinds of place:
 **G1.200 · Every removal route leaves the core's caret.** The same routes over the same shapes leave the caret where a byte splice puts the core's down: text at its exact byte, a block held whole or drawn as a picture of its source through its own landing, a boundary as the gap caret. Where Backspace, Delete and a cut put it beside a block taken whole is the core's too (`range-edit/whole-block-removal.test.ts`). `range-laws/removal-routes.test.ts`.
 
 **G1.206 · Kept definitions are still the definitions** (`definitions-kept`). Each write says which blocks it took out and put in, or that it can't tell, and the editor reads the link definitions again only when one of those blocks holds one. When it skips, dev reads them anyway and warns if they changed: some route named less than it wrote. Skipped past 64 KB and under the perf instruments. `checkDefinitionsKept` (`definitions-kept.ts`) · `components/link-reference-map.ts :: definitionsAfter` · `link-reference-map.test.ts`, `definitions-refresh.test.ts`.
+
+**G1.208 · A selected widget keeps a caret** (`widget-keeps-caret`). Text that arrives with no key (a soft keyboard, an emoji picker, an IME) goes only to a selection, so a widget selected whole in the focused block keeps a collapsed caret in that block, hidden, and the selection bridge puts it back when the browser moves or drops it. Dev fails the bridge's check with none there. Reading mode holds no caret and is exempt. `checkWidgetKeepsCaret` · `widget-keeps-caret.test.ts`, `typed-insert-class.spec.ts`.
 
 **G1.201 · A container's window reads back first** (`container-window-reads-back`). Before a byte splice reads a run of a list's, quote's or table's children again with the change made, it reads their old bytes the same way, and those must come out as the children the container held. When they don't, the child spans were stale or the container's own reading disagrees with the document's, so dev warns and the splice takes the top-level window. Inline in `tree-operations/container-window.ts :: containerWindow` · `container-window.property.test.ts`.

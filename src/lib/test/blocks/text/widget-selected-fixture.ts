@@ -31,11 +31,16 @@ export function harness(
 	const commits: Commit[] = [];
 	const carets: (number | null)[] = [];
 	const selection = createSelectionState();
-	selectWidgetWhole(selection, testCaretWriter, {
-		paragraphPath: [0],
-		sourceStart,
-		preSelectOffset: sourceStart
-	});
+	selectWidgetWhole(
+		selection,
+		testCaretWriter,
+		{
+			paragraphPath: [0],
+			sourceStart,
+			preSelectOffset: sourceStart
+		},
+		() => null
+	);
 
 	const trap = () => {
 		throw new Error('unexpected dep access on the selected-widget resize path');

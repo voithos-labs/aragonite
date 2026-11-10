@@ -14,7 +14,7 @@ const IMAGE = { paragraphPath: [0], sourceStart: 0, preSelectOffset: 0 };
 /** A selection state whose clears forget the widget, the break the check exists to catch. */
 function clearsSkipTheWidget(): SelectionState {
 	const real = createSelectionState();
-	selectWidgetWhole(real, testCaretWriter, IMAGE);
+	selectWidgetWhole(real, testCaretWriter, IMAGE, () => null);
 	return new Proxy(real, {
 		get(target, prop) {
 			if (prop === 'clear' || prop === 'collapse') return () => {};
@@ -51,7 +51,7 @@ describe('G1.46 a placed caret or range leaves no widget selected', () => {
 
 	it('stays silent when the store ends the widget as it should', () => {
 		const selection = createSelectionState();
-		selectWidgetWhole(selection, testCaretWriter, IMAGE);
+		selectWidgetWhole(selection, testCaretWriter, IMAGE, () => null);
 
 		placeCaret(selection, testCaretWriter, () => {})(1);
 

@@ -171,7 +171,8 @@
 	const cursor = createSurfaceBackend({
 		getEl: () => el ?? null,
 		caretWriter,
-		getSnapTarget: () => drawnCaret.widgetEdgeFor(widgetEdgeOwner)
+		getSnapTarget: () => drawnCaret.widgetEdgeFor(widgetEdgeOwner),
+		holdsWidget: () => selection.widgetIn(myPath) !== null
 	});
 
 	const edgeStep = createEdgeStep({
@@ -362,6 +363,7 @@
 			return reading;
 		},
 		getEl: () => el ?? null,
+		caretFocus: () => cursor.getFocusOffset(),
 		ownsRange: () => selection.ownsRange,
 		textMoves,
 		caretWriter
@@ -765,7 +767,7 @@
 		// source in the DOM or reaches the commands below, which hide it before writing.
 		if ((await widgetInteraction.handleRevealingKeydown(e)) || editableSurface.isDetached()) return;
 
-		// Before `handleSharedKeydown`: selecting cleared the browser range, so the shared
+		// Before `handleSharedKeydown`: the caret a selected widget keeps is no read, so the shared
 		// ArrowLeft branch would read offset 0.
 		if ((await widgetInteraction.handleSelectedWidgetKeydown(e)) || editableSurface.isDetached())
 			return;

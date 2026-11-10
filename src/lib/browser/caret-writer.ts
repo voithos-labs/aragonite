@@ -73,8 +73,10 @@ export interface CaretWriter {
 	/** Whether the selection's focus ends its visual line as the browser shows it, which a soft
 	 *  wrap's one DOM position can't say. A read: nothing is written. Null with no caret. */
 	focusEndsLine(): boolean | null;
-	/** Drops the native selection: a gap caret, a widget or a whole-block range holds none. */
+	/** Drops the native selection: a gap caret or a whole-block range holds none. */
 	clear(): void;
+	/** Whether the live selection is the collapsed caret this writer last wrote, unmoved. */
+	holdsWrittenCaret(): boolean;
 	/** A caret key the editor decided wrote its selection; a different one at the next
 	 *  `selectionchange` or keydown means the browser's move ran too (G1.163). */
 	noteDecidedMotion(): void;
@@ -254,6 +256,11 @@ export function createCaretWriter(
 		},
 		focusEndsLine,
 		clear,
+		holdsWrittenCaret() {
+			const sel = window.getSelection();
+			if (!sel?.isCollapsed || !written) return false;
+			return written.node === sel.focusNode && written.offset === sel.focusOffset;
+		},
 		noteDecidedMotion() {
 			const sel = window.getSelection();
 			decided =

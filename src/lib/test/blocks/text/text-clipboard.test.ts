@@ -56,11 +56,16 @@ function harness(source: string, sourceStart: number, options: HarnessOptions = 
 	const commits: Commit[] = [];
 	const selection = createSelectionState();
 	if (options.selectWidget !== false) {
-		selectWidgetWhole(selection, testCaretWriter, {
-			paragraphPath: [0],
-			sourceStart,
-			preSelectOffset: options.preSelectOffset ?? sourceStart
-		});
+		selectWidgetWhole(
+			selection,
+			testCaretWriter,
+			{
+				paragraphPath: [0],
+				sourceStart,
+				preSelectOffset: options.preSelectOffset ?? sourceStart
+			},
+			() => null
+		);
 	}
 
 	const trap = new Proxy(
@@ -250,11 +255,16 @@ function foldSettleHarness() {
 	const node: CstNode = doc.children[0];
 	const order: string[] = [];
 	const selection = createSelectionState();
-	selectWidgetWhole(selection, testCaretWriter, {
-		paragraphPath: [0],
-		sourceStart: 4,
-		preSelectOffset: 4
-	});
+	selectWidgetWhole(
+		selection,
+		testCaretWriter,
+		{
+			paragraphPath: [0],
+			sourceStart: 4,
+			preSelectOffset: 4
+		},
+		() => null
+	);
 
 	let releaseWrite!: () => void;
 	const writeGate = new Promise<void>((resolve) => {

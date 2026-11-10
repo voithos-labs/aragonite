@@ -327,11 +327,16 @@ async function backspaceOnSelectedImage(place: Place): Promise<string[]> {
 	const doc = parse(place.source);
 	const written: string[] = [];
 	const selection = createSelectionState();
-	selectWidgetWhole(selection, testCaretWriter, {
-		paragraphPath: place.leaf,
-		sourceStart: 2,
-		preSelectOffset: 2
-	});
+	selectWidgetWhole(
+		selection,
+		testCaretWriter,
+		{
+			paragraphPath: place.leaf,
+			sourceStart: 2,
+			preSelectOffset: 2
+		},
+		() => null
+	);
 	await replaceSelectedWidget(
 		{
 			node: nodeAt(doc, place.leaf) as CstNode,

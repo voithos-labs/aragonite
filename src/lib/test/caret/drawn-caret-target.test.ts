@@ -54,7 +54,6 @@ const HIDDEN: Array<[string, Partial<DrawnCaretReads>]> = [
 		'a range the editor holds over a widget edge',
 		{ ...store({ ownsRange: true }), widgetEdge: EDGE }
 	],
-	['a widget selected whole', store({ widget: true })],
 	['reading mode', { reading: true }]
 ];
 
@@ -80,6 +79,30 @@ const NATIVE: Array<[string, Partial<DrawnCaretReads>]> = [
 describe('the drawn caret hides', () => {
 	it.each(HIDDEN)('when %s', (_, change) => {
 		expect(drawnCaretTarget(read(change)).state).toBe('hidden');
+	});
+});
+
+// Miss-analysis: a selected widget held no caret, so no row asked what hides one beside it.
+describe('the drawn caret and the browser’s caret both hide, for a widget selected whole', () => {
+	const HELD = store({ widget: true });
+
+	it.each<[string, Partial<DrawnCaretReads>]>([
+		['on a pointer that draws its caret', {}],
+		['where the caret prop leaves the caret to the browser', { draws: false }],
+		['beside the widget edge its click armed', { ...BESIDE, widgetEdge: EDGE }],
+		['in reading mode, which holds no caret', { reading: true }]
+	])('%s', (_, change) => {
+		const target = drawnCaretTarget(read({ ...HELD, ...change }));
+		expect(target.state).toBe('suppressed');
+		expect(hidesBrowserCaret(target)).toBe(true);
+	});
+
+	it('forced colors show the browser’s caret there, which `caret-color` can’t hide', () => {
+		expect(drawnCaretTarget(read({ ...HELD, forcedColors: true })).state).toBe('native');
+	});
+
+	it('with focus in no registered editable there is no caret to hide', () => {
+		expect(drawnCaretTarget(read({ ...HELD, source: null })).state).toBe('hidden');
 	});
 });
 

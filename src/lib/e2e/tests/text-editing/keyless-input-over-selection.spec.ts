@@ -2,7 +2,6 @@ import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { insertText, keylessEdit, type KeylessEdit } from '../../insert-text';
-import { skipUnlessSupported } from '../../browser-engine';
 import { waitForAllImagesLoaded } from '../blocks/image/helpers';
 
 /**
@@ -37,6 +36,8 @@ async function selectAcrossBlocks(editor: EditorPage, page: Page): Promise<void>
 	await editor.waitForCrossBlock(true);
 }
 
+const overlay = (page: Page) => page.locator('[data-image-overlay]');
+
 async function holdPicture(editor: EditorPage, page: Page): Promise<void> {
 	await waitForAllImagesLoaded(page);
 	const box = await page.locator('[data-image-widget]').boundingBox();
@@ -67,11 +68,31 @@ for (const mode of MODES) {
 	});
 
 	test.describe(`over a picture selected whole, ${mode} mode`, () => {
+		for (const { edit, key } of EDITS) {
+			test(`${edit} with no key does what ${key} does`, async ({ page }) => {
+				const editor = new EditorPage(page);
+				await open(editor, mode, HELD_PICTURE);
+				await holdPicture(editor, page);
+				await page.keyboard.press(key);
+				await editor.waitForRenderFlush();
+				const byKey = [await editor.bridge.getSource(), await overlay(page).count()];
+
+				await open(editor, mode, HELD_PICTURE);
+				await holdPicture(editor, page);
+				await keylessEdit(page, edit);
+				await editor.waitForRenderFlush();
+				await expect
+					.poll(async () => [await editor.bridge.getSource(), await overlay(page).count()])
+					.toEqual(byKey);
+				// A delete takes the picture; a break is refused and the picture stays selected.
+				expect(byKey).toEqual(edit.startsWith('insert') ? [HELD_PICTURE, 1] : ['lead  tail\n', 0]);
+			});
+		}
+
 		for (const text of ['*', '`']) {
 			test(`${JSON.stringify(text)} with no key replaces the picture, unpaired`, async ({
 				page
 			}) => {
-				skipUnlessSupported(page, 'insertWithoutSelection');
 				const editor = new EditorPage(page);
 				await open(editor, mode, HELD_PICTURE);
 				await holdPicture(editor, page);

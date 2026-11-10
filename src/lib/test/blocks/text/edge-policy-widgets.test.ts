@@ -117,11 +117,16 @@ describe('decoration widgets', () => {
 			const h = makeEdgeDispatch(node, el, {
 				hasIslands: () => true,
 				enterWidget: (widget, fromTrailingEdge) =>
-					selectWidgetWhole(selection, testCaretWriter, {
-						paragraphPath: [0],
-						sourceStart: widget.start,
-						preSelectOffset: fromTrailingEdge ? widget.end : widget.start
-					})
+					selectWidgetWhole(
+						selection,
+						testCaretWriter,
+						{
+							paragraphPath: [0],
+							sourceStart: widget.start,
+							preSelectOffset: fromTrailingEdge ? widget.end : widget.start
+						},
+						() => null
+					)
 			});
 
 			expect(h.handleKeydown(key('Backspace'), asRawOffset(image.end))).toBe(true);

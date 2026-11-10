@@ -644,7 +644,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			return false;
 		}
 		// A modified chord goes on to the keymap dispatch, which owns undo and redo. Arrows stop here:
-		// selecting cleared the browser range, so a later handler would read offset 0.
+		// the caret a selected widget keeps is no read, so a later handler would read offset 0.
 		if (hasModifier(e)) {
 			if (!e.key.startsWith('Arrow')) return false;
 			e.preventDefault();
@@ -703,11 +703,12 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		if (widgetEditing(widget.kind)?.revealSource) {
 			void startReveal(widget, fromTrailingEdge ? widget.end - widget.start : 0);
 		} else {
-			selectWidgetWhole(deps.selection, deps.caretWriter, {
+			const target = {
 				paragraphPath: deps.myPath,
 				sourceStart: widget.start,
 				preSelectOffset: enteredOffset
-			});
+			};
+			selectWidgetWhole(deps.selection, deps.caretWriter, target, deps.getEl);
 		}
 	}
 

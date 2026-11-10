@@ -45,6 +45,34 @@ export async function documentCaret(page: Page): Promise<[number, unknown]> {
 	]);
 }
 
+/** What the browser's selection is beside a selected image, as `selectedImageCaret` names it. */
+export const HIDDEN_AT_IMAGE_END = 'a hidden caret at the image’s end';
+
+/** The browser's selection by name, and the editor's own read of the selection. A caret is
+ *  hidden when its editable's `caret-color` is transparent and no bar draws. */
+export async function selectedImageCaret(page: Page): Promise<[string, unknown]> {
+	return page.evaluate(() => {
+		const sel = window.getSelection();
+		const read = (window as any).__test.getSelection();
+		const node = sel && sel.rangeCount > 0 ? sel.focusNode : null;
+		if (!sel || !node) return ['none', read];
+		if (!sel.isCollapsed) return ['a range', read];
+		const image = document.querySelector('[data-image-widget]');
+		const past = document.createRange();
+		if (image) past.setStartAfter(image);
+		const atEnd = !!image && past.comparePoint(node, sel.focusOffset) >= 0;
+		if (atEnd) past.setEnd(node, sel.focusOffset);
+		const host = (node instanceof Element ? node : node.parentElement)?.closest(
+			'[contenteditable]'
+		);
+		const bar = document.querySelector<HTMLElement>('.md-drawn-caret');
+		const hidden =
+			!!host && getComputedStyle(host).caretColor === 'rgba(0, 0, 0, 0)' && (bar?.hidden ?? true);
+		const where = atEnd && past.toString() === '' ? 'at the image’s end' : 'elsewhere';
+		return [`a ${hidden ? 'hidden' : 'showing'} caret ${where}`, read];
+	});
+}
+
 // Undo-stack depth, 0 before the hook installs: the read that says a gesture added no entry.
 export async function undoDepth(page: Page): Promise<number> {
 	return page.evaluate(() => (window as any).__test?.dumpUndoStack?.()?.length ?? 0);

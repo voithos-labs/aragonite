@@ -1074,6 +1074,7 @@
 			isHostChrome,
 			announceIfMoved: selectionAnnouncer.announceIfMoved,
 			selection: selectionState,
+			isReading: () => reading.mode() === 'reading',
 			caretWriter,
 			composition
 		});

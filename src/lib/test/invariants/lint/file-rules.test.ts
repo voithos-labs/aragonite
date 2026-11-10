@@ -1144,7 +1144,11 @@ const RULES: FileRule[] = [
 			'src/lib/caret/reveal-source.ts':
 				'the reveal target is a text surface; the host paints no source',
 			'src/lib/selection/native-bridge.ts':
-				'blockEl is an editable leaf surface; neither entry is reachable from whole-block focus'
+				'blockEl is an editable leaf surface; neither entry is reachable from whole-block focus',
+			'src/lib/selection/widget-caret.ts':
+				'the block a selected widget sits in is an editable leaf; a block held whole selects none',
+			'src/lib/invariants/widget-keeps-caret.ts':
+				'the same block, asked whether it holds focus; a block held whole selects no widget'
 		},
 		reason:
 			'route through isEditableEventTarget/isWholeBlockInputProxy, or declare what this reader answers for the whole-block host',
@@ -2443,7 +2447,7 @@ const SELECTION_WRITERS: ManifestRule[] = [
 			'state.setGapCaret (pos)'
 		],
 		misses: [
-			'placeGapCaret(selection, pos);\nselectWidgetWhole(selection, target);',
+			'placeGapCaret(selection, pos);\nselectWidgetWhole(selection, target, () => null);',
 			'setGapCaret(pos: GapCaretPosition): void {\nselectWidget(target: WidgetTarget): void {',
 			'// `selection.setGapCaret(pos)` skips the door.\nconst a = 1;',
 			'view.select(target);\nselection.clearGapCaret();'

@@ -133,14 +133,17 @@ describe('editor-root listeners: selectionchange bridge', () => {
 		const headerField = document.createElement('span');
 		headerField.textContent = 'title';
 		header.append(headerField);
+		const block = document.createElement('div');
+		block.setAttribute('data-block-path', '[0]');
 		const content = document.createElement('p');
-		content.setAttribute('data-block-path', '[0]');
+		content.tabIndex = 0;
 		content.textContent = 'body text';
+		block.append(content);
 		// The image popover mounts inside the root but outside every block.
 		const popover = document.createElement('div');
 		const popoverField = document.createElement('input');
 		popover.append(popoverField);
-		root.append(header, content, popover);
+		root.append(header, block, popover);
 		const outside = document.createElement('p');
 		outside.textContent = 'elsewhere';
 		document.body.append(root, outside);
@@ -153,8 +156,10 @@ describe('editor-root listeners: selectionchange bridge', () => {
 			isHostChrome: (node) => !!node && header.contains(node),
 			announceIfMoved: () => emits++,
 			selection: {
-				widget: widgetSelected ? { paragraphPath: [0], sourceStart: 0, preSelectOffset: 0 } : null
-			}
+				widget: widgetSelected ? { paragraphPath: [0], sourceStart: 0, preSelectOffset: 4 } : null,
+				widgetCaret: () => (widgetSelected ? { path: [0], offset: 4 } : null)
+			},
+			isReading: () => false
 		});
 		teardowns.push(teardown);
 		return { headerField, content, popover, outside, teardown, emits: () => emits };
@@ -218,12 +223,36 @@ describe('editor-root listeners: selectionchange bridge', () => {
 		window.getSelection()?.collapse(el.firstChild, 0);
 	}
 
-	// Miss-analysis: the image-selection specs read the selected text, which a caret leaves empty.
-	it('drops, and never announces, a caret the browser puts beside a selected widget', () => {
+	const caretAt = () => {
+		const sel = window.getSelection();
+		return sel?.rangeCount ? [sel.isCollapsed, sel.focusNode, sel.focusOffset] : null;
+	};
+
+	// Miss-analysis: every held-widget row pinned an empty selection, the state in which text sent
+	// with no key has nowhere to arrive, so no row could see the letter lost.
+	it('moves a caret the browser put in a selected widget’s block to the widget’s edge, unannounced', () => {
+		const b = bridge(true);
+		b.content.focus();
+		caretInside(b.content);
+		fire();
+		expect(caretAt()).toEqual([true, b.content.firstChild, 4]);
+		expect(b.emits()).toBe(0);
+	});
+
+	it('puts the caret back when the browser dropped the selection under a selected widget', () => {
+		const b = bridge(true);
+		b.content.focus();
+		window.getSelection()?.removeAllRanges();
+		fire();
+		expect(caretAt()).toEqual([true, b.content.firstChild, 4]);
+		expect(b.emits()).toBe(0);
+	});
+
+	it('holds no caret in a selected widget’s block that lost focus', () => {
 		const b = bridge(true);
 		caretInside(b.content);
 		fire();
-		expect(window.getSelection()?.rangeCount).toBe(0);
+		expect(caretAt()).toBeNull();
 		expect(b.emits()).toBe(0);
 	});
 
@@ -275,7 +304,8 @@ describe('editor-root listeners: selectionchange bridge', () => {
 					root,
 					isHostChrome: () => false,
 					announceIfMoved: () => emits++,
-					selection: { widget: null }
+					selection: { widget: null, widgetCaret: () => null },
+					isReading: () => false
 				})
 			);
 			window.getSelection()!.collapse(surface.querySelector('sup')!.firstChild, 1);
@@ -340,7 +370,8 @@ describe('editor-root listeners: selectionchange bridge', () => {
 				root,
 				isHostChrome: () => false,
 				announceIfMoved: () => {},
-				selection: { widget: null }
+				selection: { widget: null, widgetCaret: () => null },
+				isReading: () => false
 			})
 		);
 		const two = root.lastElementChild!.firstChild!;
