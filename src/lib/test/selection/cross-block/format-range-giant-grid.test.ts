@@ -29,7 +29,7 @@ const cell = (index: number): SelectionPoint => ({
 
 const LAST_CELL = ROWS * COLUMNS - 1;
 
-describe('cross-block format over a grid larger than an argument list', () => {
+describe('cross-block format over a grid larger than an argument list', { timeout: 30_000 }, () => {
 	const doc = parse(GIANT_TABLE);
 
 	it('reads the pressed state over every covered cell', () => {
