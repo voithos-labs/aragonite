@@ -447,6 +447,13 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: paste('x\n\ny'),
 		expect: { source: '[^1]: a\nlazyx\n\n    y\n' }
 	},
+	// The removal writes its joined lines through the same rule, so its bytes move with the paste's.
+	{
+		name: 'L4 a cut from an item’s lazy line into a paragraph keeps the joined line in the item',
+		source: '- a\nlazy⟦ x\n\none⟧\ntwo\n',
+		gesture: 'cut',
+		expect: { source: '- a\nlazy\n  two\n', caret: text(8) }
+	},
 	// ── Blocks pasted mid-heading leave its tail a paragraph (§ 5.4 rule 4) ──
 	// Miss-analysis: law 9's split shape reads a paragraph only, and the one heading row pasted at
 	// the heading's end, where no tail is left to take the marker again.
