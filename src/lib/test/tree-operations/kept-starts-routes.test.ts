@@ -136,6 +136,30 @@ describe('G1.209 over writes that leave the document as it stood, or break a rul
 		expect(takeDevWarns()).toEqual([]);
 	});
 
+	// Miss-analysis: every route row replaces the blocks it writes. A block its undo entry already
+	// copied is written where it stands, which only its absence from the undo snapshot gives away.
+	it('a block the same undo entry already copied, written again in place', async () => {
+		const h = measuredHarness();
+		const write = (raw: string) =>
+			h.controller.commitStructural({
+				snapshot,
+				mutate(_, scope) {
+					scope.own([2])[0].raw = raw;
+					return { op: 'noop' };
+				},
+				op: { kind: 'input', eventPath: snapshot.path }
+			});
+		await h.controller.undoStep(snapshot, async () => {
+			await write('copied, then written\n');
+			const copied = h.deps.doc.children[2];
+			await write('written again, in place, and longer\n');
+			expect(h.deps.doc.children[2], 'the second write copied the block').toBe(copied);
+		});
+		expect(h.deps.starts.isMeasured()).toBe(true);
+		expect(h.ends()).toEqual(h.fresh());
+		expect(takeDevWarns()).toEqual([]);
+	});
+
 	// The document scope finds a block written in place by its absence from the undo snapshot
 	// (G1.9): a write that skips the copy leaves the record behind, and G1.209 says so.
 	it('a block written in place without the copy an undo snapshot needs', async () => {

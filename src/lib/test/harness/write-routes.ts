@@ -4,7 +4,7 @@
 
 import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
 import { pressKey } from '#lib/test/harness/settle.js';
-import { pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
+import { dispatchPaste, pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
 import {
 	pressKeyAt,
 	surfaceAt,
@@ -47,11 +47,11 @@ async function typeLetter(m: Mounted, path: number[]): Promise<void> {
 	await m.settle();
 }
 
-/** A range the editor holds, from inside block `from` to inside block `to`. */
-async function holdRange(m: Mounted, from: number, to: number): Promise<void> {
+/** A range the editor holds, from inside the text at `from` to inside the text at `to`. */
+async function holdRange(m: Mounted, from: number[], to: number[]): Promise<void> {
 	await m.instance.setSelection({
-		anchor: { path: [from], offset: 2 },
-		focus: { path: [to], offset: 2 }
+		anchor: { path: from, offset: 2 },
+		focus: { path: to, offset: 2 }
 	});
 	await m.settle();
 }
@@ -100,6 +100,27 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		asks: (n) => ({ path: [n - 1], offset: 0 }),
 		announces: 'exact'
 	},
+	// The fix-up splices the document's list to give the filled paragraph its blank line back.
+	{
+		name: 'a letter into the empty paragraph an Enter left',
+		source: paragraphs,
+		setUp: async (m) => void (await pressKeyAt(m, [AT], 6, { key: 'Enter' })),
+		write: (m) => typeLetter(m, [AT + 1]),
+		asks: () => ({ path: [AT + 1], offset: 0 }),
+		announces: 'whole'
+	},
+	// The list reads its bytes again and the item's second paragraph becomes a top-level block.
+	{
+		name: 'a space typed in a list item whose second paragraph then leaves the list',
+		source: withBlock('- ab\n\n  b\n'),
+		async write(m) {
+			const el = surfaceAt(m, [AT, 0, 0]);
+			typeInto(el, ' ' + el.textContent);
+			await m.settle();
+		},
+		asks: () => ({ path: [AT - 1], offset: 0 }),
+		announces: 'whole'
+	},
 	{
 		name: 'Enter in a paragraph',
 		source: paragraphs,
@@ -113,6 +134,13 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		setUp: (m) => typeLetter(m, [AT]),
 		write: async (m) => void (await pressKey(surfaceAt(m, [AT]), { key: 'Enter' })),
 		asks: () => ({ path: [AT + 1], offset: 0 }),
+		announces: 'exact'
+	},
+	{
+		name: 'Enter in a list item, a commit over the list alone',
+		source: withBlock('- item\n- two\n'),
+		write: async (m) => void (await pressKeyAt(m, [AT, 0, 0], 2, { key: 'Enter' })),
+		asks: () => ({ path: [AT, 0, 0], offset: 0 }),
 		announces: 'exact'
 	},
 	{
@@ -133,7 +161,7 @@ export const WRITE_ROUTES: WriteRoute[] = [
 	{
 		name: 'a format toggle over a range across blocks',
 		source: paragraphs,
-		setUp: (m) => holdRange(m, AT, AT + 2),
+		setUp: (m) => holdRange(m, [AT], [AT + 2]),
 		async write(m) {
 			m.instance.runCommand('format.toggleStrong');
 			await m.settle();
@@ -141,6 +169,31 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		asks: () => ({ path: [AT], offset: 0 }),
 		announces: 'exact',
 		readsItself: true
+	},
+	// The toggle writes the document's list and the list's own, two scopes in one commit.
+	{
+		name: 'a format toggle over a range from a paragraph into a list item',
+		source: withList,
+		setUp: (m) => holdRange(m, [AT - 1], [AT, 0, 0]),
+		async write(m) {
+			m.instance.runCommand('format.toggleStrong');
+			await m.settle();
+		},
+		asks: () => ({ path: [AT + 1], offset: 0 }),
+		announces: 'whole',
+		readsItself: true
+	},
+	// The quote's heading becomes a paragraph, so the quote runs on into the line under it and the
+	// two top-level blocks become one.
+	{
+		name: 'a heading in a quote typed into a paragraph, the quote taking in the block below',
+		source: (n) => withBlock('> a\n> # h\n')(n).replace('# h\n\n', '# h\n'),
+		async write(m) {
+			typeInto(surfaceAt(m, [AT, 1]), 'h');
+			await m.settle();
+		},
+		asks: () => ({ path: [AT + 1], offset: 0 }),
+		announces: 'whole'
 	},
 	{
 		name: 'a paragraph typed into a heading',
@@ -204,7 +257,7 @@ export const WRITE_ROUTES: WriteRoute[] = [
 	{
 		name: 'Backspace over a range the editor holds across blocks',
 		source: paragraphs,
-		setUp: (m) => holdRange(m, AT, AT + 2),
+		setUp: (m) => holdRange(m, [AT], [AT + 2]),
 		write: async (m) => void (await pressKey(surfaceAt(m, [AT]), { key: 'Backspace' })),
 		asks: () => ({ path: [AT], offset: 0 }),
 		announces: 'exact',
@@ -214,9 +267,24 @@ export const WRITE_ROUTES: WriteRoute[] = [
 	{
 		name: 'a letter typed over a range the editor holds across blocks',
 		source: paragraphs,
-		setUp: (m) => holdRange(m, AT, AT + 2),
+		setUp: (m) => holdRange(m, [AT], [AT + 2]),
 		async write(m) {
 			await pressHardwareKey(surfaceAt(m, [AT]), { key: 'x' });
+			await m.settle();
+		},
+		asks: () => ({ path: [AT], offset: 0 }),
+		announces: 'exact',
+		readsItself: true,
+		laysOutItsAnswer: true
+	},
+	// Two writes in one undo entry: the removal's splice, then the paste's commit, whose undo
+	// snapshot is the document from before both.
+	{
+		name: 'a paste over a range the editor holds across blocks',
+		source: paragraphs,
+		setUp: (m) => holdRange(m, [AT], [AT + 2]),
+		async write(m) {
+			dispatchPaste(surfaceAt(m, [AT]), 'pasted');
 			await m.settle();
 		},
 		asks: () => ({ path: [AT], offset: 0 }),
@@ -230,6 +298,14 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		setUp: (m) => typeLetter(m, [AT]),
 		write: (m) => history(m, 'history.undo'),
 		asks: () => ({ path: [AT], offset: 0 }),
+		announces: 'exact'
+	},
+	{
+		name: 'undo of an Enter, which takes a block out',
+		source: paragraphs,
+		setUp: async (m) => void (await pressKeyAt(m, [AT], 2, { key: 'Enter' })),
+		write: (m) => history(m, 'history.undo'),
+		asks: () => ({ path: [AT + 1], offset: 0 }),
 		announces: 'exact'
 	},
 	{
