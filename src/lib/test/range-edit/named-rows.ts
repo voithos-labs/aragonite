@@ -426,6 +426,36 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: paste('1. q\n\n- r'),
 		expect: { source: '- x\n1. q\n\n- r\n\n- word\n' }
 	},
+	// ── A new line on a list item's or footnote's lazy line stays in it (§ 5.5) ──
+	// Miss-analysis: the lazy-line rows and law 9's expectation both read a quote, whose every line
+	// has a marker to copy; an item's later lines carry an indent, which neither turned its marker into.
+	{
+		name: 'L9 blocks pasted on a list item’s lazy line stay in the item',
+		source: '- a\nlazy⟦⟧\n',
+		gesture: paste('x\n\ny'),
+		expect: { source: '- a\nlazyx\n\n  y\n' }
+	},
+	{
+		name: 'L9 on a later lazy line they take the indent of the item’s nearest marked line',
+		source: '1. a\n   b\nlazy⟦⟧\n',
+		gesture: paste('x\n\ny'),
+		expect: { source: '1. a\n   b\nlazyx\n\n   y\n' }
+	},
+	{
+		name: 'L9 on a footnote’s lazy line they stay in the footnote',
+		source: '[^1]: a\nlazy⟦⟧\n',
+		gesture: paste('x\n\ny'),
+		expect: { source: '[^1]: a\nlazyx\n\n    y\n' }
+	},
+	// ── Blocks pasted mid-heading leave its tail a paragraph (§ 5.4 rule 4) ──
+	// Miss-analysis: law 9's split shape reads a paragraph only, and the one heading row pasted at
+	// the heading's end, where no tail is left to take the marker again.
+	{
+		name: 'L9 a code block pasted mid-heading leaves the text after it a paragraph',
+		source: '# he⟦⟧ad\n',
+		gesture: paste('```\ncode\n```'),
+		expect: { source: '# he\n\n```\ncode\n```\nad\n' }
+	},
 	// ── A paste where the caret holds no text lands as blocks of its own (§ 5.4 rule 7) ──
 	// Miss-analysis: a paste gesture couldn't say its caret stood between blocks, so every row and
 	// law pasted at a byte in text, and a cut's `'boundary'` caret was pasted at as if it held text.

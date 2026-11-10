@@ -118,8 +118,9 @@ export function continuationAt(
 		if (!MARKED.includes(facts.lines)) continue;
 		const line = lineOf(container, byte);
 		if (line.own) continue;
-		const marker = markerOn(read, line) || lazyMarker(read, container, line, facts.lines);
-		if (facts.lines === 'first-line' && line === firstBodyLine(container)) {
+		const source = markerOn(read, line) === '' ? markedFor(read, container, line, facts) : line;
+		const marker = source ? markerOn(read, source) : '';
+		if (facts.lines === 'first-line' && source === firstBodyLine(container)) {
 			prefix += /^[ \t]*\[\^/.test(marker)
 				? '    '
 				: marker.replace(
@@ -132,13 +133,17 @@ export function continuationAt(
 }
 
 /** A lazy line has no marker, but a new line after it stays in its container: it takes the marker
- *  as the container's nearest marked line spells it. */
-function lazyMarker(read: Read, container: LaidBlock, line: LaidLine, shape: string): string {
-	if (shape !== 'every-line') return '';
+ *  of the container's nearest marked line. An indented line under a first-line marker isn't lazy. */
+function markedFor(
+	read: Read,
+	container: LaidBlock,
+	line: LaidLine,
+	facts: { lines: string }
+): LaidLine | undefined {
+	if (facts.lines === 'first-line' && /^[ \t]/.test(read.source.slice(line.from, line.to)))
+		return undefined;
 	const lines = container.lines!.filter((l) => !l.own && l.markerTo > l.from);
-	const before = lines.filter((l) => l.from < line.from).at(-1);
-	const marked = before ?? lines[0];
-	return marked ? markerOn(read, marked) : '';
+	return lines.filter((l) => l.from < line.from).at(-1) ?? lines[0];
 }
 
 /** The lines a container opens with before its body: an alert's title line, a `:::` line, a

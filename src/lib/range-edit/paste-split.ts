@@ -202,11 +202,11 @@ export function splitAt(
 	const marked = !joinsBefore && !tail;
 	if (before !== '' || marked) {
 		// The head keeps its line, a blank line under it (a head of blanks is one already), then the
-		// clipboard as written; the tail joins the last block where that takes joined text.
+		// clipboard as written; the tail joins the last block that takes joined text, else is a paragraph.
 		const parted = !isBlankText(before) || marked;
 		const opening = (parted ? eol + blank + eol : eol) + prefix + lines(clip);
 		const caret = at + opening.length;
-		const closing = tail && !lastJoins ? eol + prefix + (joinsBefore ? '' : own) : '';
+		const closing = tail && !lastJoins ? eol + prefix : '';
 		return { source: source.slice(0, at) + opening + closing + source.slice(to), caret };
 	}
 	const body = clip.replace(/\n$/, '');
