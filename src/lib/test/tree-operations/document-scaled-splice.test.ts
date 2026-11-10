@@ -24,7 +24,8 @@ const clipboard = (): CstNode[] => pasted.children.slice();
 
 const para = (raw: string): CstNode => ({ kind: 'paragraph', leadingTrivia: '', raw });
 
-describe('a document-scaled splice', () => {
+// A 200k-block splice takes seconds on a CI runner; the rows ask whether it lands, not how fast.
+describe('a document-scaled splice', { timeout: 30_000 }, () => {
 	it('lands through the childIds entry point', () => {
 		const container: CstNode = {
 			kind: 'blockquote',
