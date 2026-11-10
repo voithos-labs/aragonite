@@ -201,7 +201,16 @@ describe('every container the strip reader opens keeps its child spans', () => {
 	it.each([
 		['under a head line', HEADED, '> [!NOTE]\n> a\n>\n> b\n', [10, 14, 14, 20]],
 		['under a head line and a blank one', HEADED, '> [!NOTE]\n>\n> a\n>\n> b\n', [12, 16, 16, 22]],
-		['indented', INDENTED, '[^n]: a\n\n    b\n', [0, 8, 8, 15]]
+		['indented', INDENTED, '[^n]: a\n\n    b\n', [0, 8, 8, 15]],
+		// The generators draw no tab, so a tab in the marker column and CRLF under a head sit here.
+		[
+			'under a head line, a tab for the space',
+			HEADED,
+			'> [!NOTE]\n>\ta\n>\n>\tb\n',
+			[10, 14, 14, 20]
+		],
+		['under a head line, CRLF', HEADED, '> [!NOTE]\r\n>\r\n> a\r\n> \r\n> b\r\n', [14, 19, 19, 28]],
+		['indented by a tab', INDENTED, '[^n]: a\n\n\tb\n', [0, 8, 8, 12]]
 	] as const)('%s', (_name, lines, source, spans) => {
 		expect(Array.from(opened(lines as ContainerLines<unknown>, source).childSpans!)).toEqual(spans);
 		expectStripSpansHold(lines as ContainerLines<unknown>, source);
