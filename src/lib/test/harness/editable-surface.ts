@@ -1,5 +1,6 @@
 // Shared harness for the composition and input contract tests on an editable block.
 
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import {
 	createEditableSurface,
 	type EditableSurfaceDeps
@@ -89,7 +90,7 @@ export function makeSurface(
 		getIndex: () => 0,
 		composition,
 		requestCaret: () => {},
-		selection: { ownsRange: false },
+		selection: createSelectionState(),
 		caretWriter: testCaretWriter,
 		caretMemory: options.caretMemory ?? stubCaretMemory(),
 		kindCue: { afterTypedWrite: async () => {}, labelAt: () => undefined, dismiss: () => {} },

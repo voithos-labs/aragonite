@@ -2,7 +2,7 @@
 
 import type { CrossBlockDispatchContext } from './dispatch';
 import type { AnyBlockKind, Document } from '../../core/nodes';
-import { kindOfPath, replaceRange } from './range-replace';
+import { kindOfPath, replaceRange, replaceWidget } from './range-replace';
 import { commandLandingKind } from './range-removal';
 import { bindsIndentAt, coversIndentBinding, indentFormsFor, indentRange } from './range-indent';
 import { coverRange, rangeCoverage } from '../range-coverage';
@@ -442,9 +442,16 @@ async function handlePageMove(
 
 // ── CompositionStart ───────────────────────────────────────────────────────
 
-/** Unawaited: the replace only awaits ticks, so the range is gone and the caret is in the block
- *  the removal kept before the IME writes, and the composed text joins its undo entry. */
+/** Unawaited: the replace only awaits ticks, so the selection is gone and the caret is in the
+ *  block the removal kept before the IME writes, and the composed text joins its undo entry. */
 function handleCompositionStart(ctx: CrossBlockDispatchContext): boolean {
+	if (ctx.selection.widgetIn(ctx.getMyPath())) {
+		void replaceWidget(ctx, { kind: 'composition' });
+		// Ended even where nothing was removed: the caret a selected widget keeps is put back on
+		// every move, which would end the IME's run.
+		ctx.selection.clearWidget();
+		return true;
+	}
 	if (!ctx.selection.ownsRange) return false;
 	void replaceRange(ctx, { kind: 'composition' });
 	return true;
