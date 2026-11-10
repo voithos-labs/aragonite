@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // What the selection toolbar asks the actions on every selection change: nothing at a bare caret,
-// and no layout read for a capture until its box is read.
+// the selection's bytes only for a range an action could take, and no layout read for a capture
+// until its box is read.
 // Miss-analysis: every action row asked once per menu open, never what a caret move costs.
 import { describe, expect, it } from 'vitest';
 import { parse } from '#lib/core/parser.js';
@@ -14,18 +15,19 @@ const doc = parse('abc def ghi\n');
 
 type Range = { from: number; to: number };
 
-function actionsOver(selection: Range, action: SelectionAction) {
-	const asked = { captures: 0, rects: 0 };
-	const counted: SelectionAction = {
+function actionsOver(selection: Range, action: SelectionAction | null) {
+	const asked = { captures: 0, rects: 0, selections: 0 };
+	const counted: SelectionAction | null = action && {
 		...action,
 		capture: (editor, over) => (asked.captures++, action.capture?.(editor, over) ?? over)
 	};
 	const actions = createSelectionActions({
-		actions: () => [{ plugin: 'acts', action: counted }],
+		actions: () => (counted ? [{ plugin: 'acts', action: counted }] : []),
 		editorFor: () => ({}) as Editor,
 		getDoc: () => doc,
 		source: () => serialize(doc),
-		selection: () => selection,
+		selection: () => (asked.selections++, selection),
+		hasRange: () => selection.from < selection.to,
 		editable: () => true,
 		rangeRects: () => (asked.rects++, [new DOMRect(10, 20, 30, 16)]),
 		edit: () => ({}) as InternalDraft,
@@ -42,7 +44,14 @@ describe("the toolbar's captures", () => {
 	it('asks no action anything at a bare caret', () => {
 		const { actions, asked } = actionsOver(at(5), shout);
 		expect(actions.wholeSelection()).toEqual([]);
-		expect(asked.captures).toBe(0);
+		expect(asked).toMatchObject({ captures: 0, selections: 0 });
+	});
+
+	it('measures no selection with no action listed, for the toolbar or the right-click menu', () => {
+		const { actions, asked } = actionsOver(at(4, 7), null);
+		expect(actions.wholeSelection()).toEqual([]);
+		expect(actions.atSelection()).toEqual([]);
+		expect(asked.selections).toBe(0);
 	});
 
 	it('keeps only a capture that takes the selection whole', () => {

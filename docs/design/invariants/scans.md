@@ -240,6 +240,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.320 | A marked line shape's marker is read in the container reader | L |
 | G4.329 | Bytes are read into the tree by the byte splice, which closes the openers they write, or by an undo | L |
 | G4.335 | A plugin's paint and a decoration source are asked only by the engine that keeps their answers | L |
+| G4.339 | A typed letter and the caret move after it read no whole list of blocks through the byte map | harness |
 
 ### The entries
 
@@ -697,3 +698,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.329 · Bytes reach the tree through the byte splice.** `tree-operations/byte-splice.ts :: spliceReading` reads bytes as given, so a route that called it itself would skip the closer the byte splice (`editor-actions/commit/byte-splice.ts`) gives an opener its changes write. The one other caller is an undo under a changed grammar (`commit/history.ts`), which puts back an entry's exact bytes. `lint/file-rules.test.ts`.
 
 **G4.335 · The engine asks every paint.** A plugin's `paint` and `paintContainer` are called only in `decorations/plugin-paint.svelte.ts`, which keeps a block's answer while its bytes hold and calls it outside the reactive read, and a block source's `decorationsOf` and a whole-document source's `provide` only in `decorations/decoration-state.svelte.ts`. A route that asked one itself would paint every read and run plugin code inside a derived; it reads `paintOf`. `lint/file-rules.test.ts`.
+
+**G4.339 · A caret move reads no whole list.** To place one byte the document byte map sums the top-level blocks and may map every line of the container around it, so nothing the editor runs on a typed letter, or on the `selectionchange` after it, asks it. The selection toolbar measures the selection only for a range with an action listed (`components/editor-root/selection-actions.ts`); a plugin reading `selectedRange()` on every edit still pays. `test/perf/caret-move-byte-reads.test.ts` on `byteMapListReads`; `test/editor-root/selection-actions.test.ts` counts the read itself.

@@ -110,6 +110,11 @@ export function selectionsEqual(a: EditorSelection | null, b: EditorSelection | 
 	return pointsEqual(a.anchor, b.anchor) && pointsEqual(a.focus, b.focus);
 }
 
+/** Whether both ends sit at one position: a caret, or one table cell selected. */
+export function isCollapsed(selection: EditorSelection): boolean {
+	return pointsEqual(selection.anchor, selection.focus);
+}
+
 function pointsEqual(a: SelectionPoint, b: SelectionPoint): boolean {
 	return (
 		a.offset === b.offset && !a.cellCoordinate === !b.cellCoordinate && pathsEqual(a.path, b.path)

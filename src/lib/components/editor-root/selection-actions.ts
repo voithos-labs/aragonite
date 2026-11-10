@@ -55,6 +55,8 @@ export function createSelectionActions(deps: {
 	source(): string;
 	/** The selection in document bytes, null for none or a cell selection. */
 	selection(): { from: number; to: number } | null;
+	/** Whether the selection's ends differ, read off the selection without measuring the document. */
+	hasRange(): boolean;
 	editable(): boolean;
 	/** The rects over offsets `start` to `end` of the leaf at `path`. */
 	rangeRects(path: number[], start: number, end: number): DOMRect[];
@@ -192,16 +194,18 @@ export function createSelectionActions(deps: {
 	}
 
 	function captures(over: { from: number; to: number } | null): ActionGroup[] {
-		const entries = deps.actions();
-		if (!over || entries.length === 0) return [];
+		if (!over) return [];
 		const source = deps.source();
-		return entries.flatMap((entry) => capture(entry, over, source) ?? []);
+		return deps.actions().flatMap((entry) => capture(entry, over, source) ?? []);
 	}
 
+	// The toolbar asks on every caret move, so the selection is measured only for an action to take.
+	const listed = () => deps.actions().length > 0;
+
 	return {
-		atSelection: () => captures(deps.selection()),
+		atSelection: () => captures(listed() ? deps.selection() : null),
 		wholeSelection() {
-			const over = deps.selection();
+			const over = listed() && deps.hasRange() ? deps.selection() : null;
 			return over && over.from < over.to
 				? captures(over).filter(
 						({ captured: { range } }) => range.from === over.from && range.to === over.to

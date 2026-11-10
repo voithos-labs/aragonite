@@ -53,7 +53,7 @@
 	import { createDraftRegistry } from '../editor-actions/commit/draft-registry.svelte';
 	import { createShownSourceState } from './blocks/text/shown-source.svelte';
 	import { createDocumentStamps } from '../editor-actions/commit/document-stamp';
-	import { selectionsEqual, type EditorSelection } from '../selection/primitives';
+	import { isCollapsed, type EditorSelection } from '../selection/primitives';
 	import { widgetSpanAt } from './blocks/text/widget-adjacency';
 	import { assignIds } from '../block-id';
 	import { createDocumentSwap, initDocument } from './editor-root/document-swap';
@@ -1132,6 +1132,10 @@
 		getDoc,
 		source: currentSource.readUnchecked,
 		selection: () => selectedRange(),
+		hasRange: () => {
+			const selection = getSelection();
+			return !!selection && !isCollapsed(selection);
+		},
 		editable: () => reading.mode() !== 'reading',
 		rangeRects: (path, start, end) => rects.rangeRects(path, start, end),
 		edit: (plugin) => drafts.edit(plugin),
@@ -1444,9 +1448,7 @@
 	export function getSelection(): EditorSelection | null {
 		const selection = readCurrentSelection(selectionState, blockRefs);
 		if (!selection || reading.mode() !== 'reading') return selection;
-		const { focus } = selection;
-		const isCaret = !focus.cellCoordinate && selectionsEqual(selection, { anchor: focus, focus });
-		return isCaret ? null : selection;
+		return !selection.focus.cellCoordinate && isCollapsed(selection) ? null : selection;
 	}
 
 	function caretAt(path: number[], offset = 0): EditorSelection {

@@ -13,6 +13,7 @@ import {
 	splitLines,
 	type ParsedLine
 } from '../core/lines';
+import { recordByteMapListRead } from '../perf/instruments';
 import { blockFacts } from '../schema/block-facts';
 import { isGridKind, tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf, rowIsOpenerLine } from '../schema/reserved-chrome';
@@ -65,7 +66,10 @@ export function documentByteMap(doc: DocumentView): DocumentByteMap {
 	const maps = new Map<NodeView, ContainerMap>();
 	const mapOf = (node: NodeView): ContainerMap => {
 		let map = maps.get(node);
-		if (!map) maps.set(node, (map = bodyMap(node)));
+		if (!map) {
+			recordByteMapListRead();
+			maps.set(node, (map = bodyMap(node)));
+		}
 		return map;
 	};
 	const tops = doc.children;
@@ -73,6 +77,7 @@ export function documentByteMap(doc: DocumentView): DocumentByteMap {
 	let rawStarts: number[] | undefined;
 	const rawStartOf = (i: number): number => {
 		if (!rawStarts) {
+			recordByteMapListRead();
 			rawStarts = [];
 			let start = doc.prefix.length;
 			for (let j = 0; j < tops.length; j++) {
