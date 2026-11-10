@@ -1,91 +1,48 @@
 # Glossary
 
-Every word this repo coined or bent, one line each, alphabetical, so a newcomer doesn't spend their first week learning the language before the code.
+Open this when a word in the code or the docs doesn't parse. First the terms the editor is built on, then the made-up words a few symbol names still carry. Everything else is meant to be plain English (meant to be).
 
-Two ways to read it. A word in a comment or a doc doesn't parse: find it here, done. You're about to write one: the third column says what to write instead (the rule is in [`code-style.md`](code-style.md) § Comments). A word that only survives because a symbol carries it (`HeightOracle` is a type's name) gets glossed in three words or fewer at its first use in a file. The plain phrase is never wrong.
+## Terms you need
 
-| Word | What it means | In new writing |
+| Word | What it means |
+| --- | --- |
+| chrome | The parts of a block that aren't its content: fences, markers, a title row, borders, buttons. `reservedChrome` declares a child leaf that holds one, like a title. |
+| commit | Two meanings. In the editor, one change to the tree with its undo snapshot and reparse. Otherwise a git commit, and the commit gate is the test run before one. |
+| container, leaf | A container holds child blocks (blockquote, list, list item, table, table row, plugin containers). A leaf doesn't. |
+| CST | Concrete syntax tree: the parsed Markdown, where every node keeps its own slice of the source, markers included. The single source of truth. |
+| descriptor | The record each block kind registers, saying how it merges, edits and renders (`BlockKindDescriptor`). |
+| guard | A dev-mode check of an invariant, off in production. A `G1.28` number is catalogued in `docs/design/invariants.md`, a `VR-5` tag (a windowing hazard) in `docs/design/virtual-rendering.md`. |
+| kind | The string on a node that says what block it is (`paragraph`, `table`, a plugin's name). Every registry looks things up by it. |
+| live mode | The presentation mode that hides every marker standing over content and stays editable. |
+| opener | The parser function that recognizes one kind's syntax (`BlockOpener`). |
+| path | Child indices from the document root down to a block. `[2, 0]` is the first child of the third block. |
+| raw | A node's own source bytes, markers included. Serializing reads it. |
+| reveal | Two meanings. Showing a construct's hidden source while the caret is in it (a formula's TeX), or windowing scrolling a block into its mounted range. |
+| scope | One block list: the document root's, or one container's children. Each windows on its own and commits through its own `CommitScope`. |
+| surface | A contenteditable element plus the component code that owns it, like a text block's editable area or a table cell (`createEditableSurface`). |
+| trivia | Bytes that carry no content: blank and whitespace-only lines. `leadingTrivia` is the blank lines before a node. |
+| unshare | Copy a node before writing it, along with its spine (the chain of parents up to the root), so the undo snapshot keeps the old one. |
+| walk | Reading a block's DOM text in order, to turn a place in it into a raw offset and back. A walk offset counts characters that way, marker prefix included (`browser/offsets.ts`). |
+| windowing | Rendering only the blocks near the viewport. The unmounted ones stand behind spacers, empty divs with their height. |
+
+## Words in symbol names
+
+| Word | What it means | Where you'll see it |
 | --- | --- | --- |
-| ambient | The marker prefix a container draws in front of its first child's text (a footnote definition's `[^label]: `): in the DOM, but not in the editable text. | "the container's marker prefix"; `buildAmbientSpan` keeps the name |
-| anchor (reveal anchor) | The block whose on-screen position windowing holds still while heights around it change. | "the block held in place on screen"; `installRevealAnchorRelease` keeps it |
-| arm | One branch of a dispatcher: the handler that takes one class of input (the image paste arm). "Armed", a one-shot trigger set to fire, is plain English. | "the handler for X", "the X branch" |
-| carry | Keep a value across a rebuild instead of recomputing it (heights carried across a windowing rebuild). | "keep X across the rebuild" |
-| ceremony | The fixed sequence of steps around one commit: snapshot, copy before write, mutate, reparse, fix up the neighbours, publish. | "the commit steps"; `commit-frame.ts` keeps them |
-| choke point | The one place every code path already passes, where a rule gets enforced once. | fine as is |
-| chrome | The parts of a block that aren't its content: fences, markers, a title row, borders, buttons. "Reserved chrome" is a child leaf holding such a part (a title). | "the block's markers", "the frame", "the title row"; `reservedChrome` keeps it |
-| chord | A key combination (`Mod+B`). | fine as is |
-| claim | A handler, kind or plugin taking ownership of an input (a line, a chord, a trigger character) so nothing else handles it. | "handles", "takes", "owns"; `syntaxClaim` keeps it |
-| commit | Two meanings. In the editor, one mutation of the tree with its undo snapshot and reparse; the commit gate is the test run before a git commit, which is the other meaning. | fine as is, say which one |
-| container, leaf | A container holds child blocks (blockquote, list, list item, table, table row, plugin containers); a leaf doesn't. | fine as is |
-| corrector | A scroll write that compensates for a height change so the content doesn't jump. | "a scroll correction" |
-| CST | Concrete syntax tree: the parsed form of the Markdown, where every node keeps its own slice of the original bytes, markers included. The single source of truth. | fine as is, glossed once |
-| dead key | A key that does nothing at this caret position. | "a key that does nothing here" |
-| descriptor | The per-kind metadata record: how a kind merges, edits, renders. | fine as is, it's the type's name |
-| dialect | Which path convention a path is written in: document-absolute, or relative to a container. | "a document-absolute path", "a path relative to this container" |
-| door | The single allowed entry point for one class of operation (the caret door places the caret, the write door writes bytes); a second way in is the bug. | "the one entry point", "the only place that writes X" |
-| engine | The browser's contenteditable implementation. | "the browser" |
-| epoch | A counter bumped once per generation and compared instead of the data, to tell stale from fresh. | "the generation counter"; `editEpoch` and friends keep it |
-| flip, mode flip | Switching presentation mode (source, preview, live). | "a mode switch"; `createModeFlip` keeps it |
-| fold | Two meanings. Collapsing a live source reveal back to the rendered form before a mutation; or a container that collapses or merges after a structural change (an "ancestry fold"). A details block's fold is plain English. | "collapse the revealed source", "the container that collapsed"; `RevealFold` keeps it |
-| funnel | The one call every sibling path routes through, so a rule enforced there holds on all of them. | "the one call every path goes through" |
-| G-number, VR-number | A guard's catalogue number (`G4.26`, `VR-5`). `docs/design/invariants.md` lists every G; `docs/design/virtual-rendering.md` every VR. | say what holds, then the number |
-| gate | A check that decides whether an action proceeds; also a test run that has to pass (the commit gate), which is plain English. | "the check"; "the checks at a block's edge" for block-edge gates |
-| grip | The drag handle. | "the drag handle" |
-| guard | A dev-mode assertion of an invariant, numbered (see G-number). Off in production. | fine as is, glossed once as "the dev-mode check" |
-| hold (scroll hold) | Keeping the scroll position fixed across a render swap. | "keep the scroll position"; the scroll owner's `keep` does it |
-| home, one home | The single module a rule or computation lives in. | "the one place X is computed" |
-| husk | A leftover node holding nothing but a line ending after an edit. | "an empty leftover block" |
-| island | An inline widget rendered as a non-editable span (an image, a formula, an emoji). "Atomic island": the caret can't enter it. | "an inline widget", "a non-editable widget"; `IslandSpan` keeps it |
-| kernel | The shared contenteditable core every editable block builds on. | "the shared editable core" |
-| kind | The string on a node that says what block it is (`paragraph`, `table`, your plugin's name). Every registry lookup keys on it. | fine as is, it's the field's name |
-| kit | The published conformance test suite a plugin kind runs against itself. | fine as is, product term |
-| ladder | An ordered priority list where the first entry that applies wins (the inline priority ladder, the click ladder, the enforcement ladder). | "the priority order", "first match wins" |
-| land, landing | Where something ends up (the caret lands at, the paste lands in). "Landing" as a noun (a focus landing) is the house form. | the verb is fine; "where focus ends up" for the noun |
-| landable | An offset the caret can actually sit at (a hidden marker's bytes aren't). | "an offset the caret can sit at" |
-| lens | A read-only view over the tree (the search lens). | "a read-only view" |
-| live mode | The presentation mode that hides every marker standing over content and stays editable. | fine as is, product term |
-| load-bearing | Necessary for correctness; removing it breaks something. | "required", or say what breaks |
-| manifest | A declared list a source scan checks the code against (the chord manifest). | "the declared list" |
-| mint | To create a node, id, command or undo entry at the one place allowed to; a duplicate mint throws. | "create" |
-| model (height model) | The table of block heights windowing sums over (a Fenwick tree, if you want the data structure). | "the height table"; `HeightModel` keeps it |
-| opener | The parser function that recognises a block's syntax. | fine as is, it's the registry's name |
-| oracle (height oracle) | The estimator that guesses a block's height before it's measured, and caches the measurement. | "the height estimator"; `HeightOracle` keeps it |
-| owe, owes | Must provide (the edit path owes the completion). | "must", "has to" |
-| park | Put the caret at a resting position between blocks or after a marker. | "put the caret at" |
-| path | Child indices from the document root down to a block (`[2, 0]` is the first child of the third block). How everything off the render path addresses one. | fine as is |
-| peel | Strip one layer of container syntax (`> `, a list marker) off a line or a block. | "strip the marker", "unwrap one level"; `peeledToContent` keeps it |
-| pin | Two meanings. The focused block windowing keeps mounted when you scroll it away; or a test that locks a behaviour in ("pinned by"). | "the block kept mounted" for the first; the second is fine |
-| port, scrollport | The scroll container windowing measures; only the scroll owner writes it. | "the scroll container"; `Scrollport` and `ScrollportReader` keep it |
-| press | A pointer-down (a click or a tap), or a keypress ("destructive presses"). | "a click", "a keypress" |
-| probe | A trial parse or pure check used to decide something. | "a trial parse", "a check"; `ProbeCase` keeps it |
-| publish | Write a value into reactive state so effects see it. | "write to state"; `publishRefSlot` keeps it |
-| rail | The code block's side gutter holding the language chip and the copy button. | "the code block's side gutter"; `CodeBlockRail` keeps it |
-| raw | A node's verbatim source bytes, markers included. What serialization reads. | fine as is, it's the field's name |
-| reader, the reader | The person using the editor. | "the user" |
-| reveal | Two meanings. Live mode showing a construct's hidden markers, or a block's source, while the caret is inside it; or windowing scrolling a block into the mounted range. | "shows the markers" for the first; "scroll into view", "mount" for the second |
-| road | A shared code path several callers use (the reveal road). | "the shared path", "the same code path as X" |
-| rung | One entry in a ladder; specifically an inline syntax handler at one priority. | "an inline syntax handler", "one priority level" |
-| sanctioned | Allowed by the rule; the approved way. | "the only allowed way", "the supported path" |
-| scope | One block list's state unit: the editor root, or one container's child list, each with its own windowing. A parse scope (`scope: 'document'`) is a parameter name, unrelated. | "this container's child list", "the root list"; `NodeScope` keeps it |
-| seam | Two meanings. A boundary where responsibility passes from one piece of code to another, often "the one place X happens"; or the join point between two adjacent blocks. | "the boundary between X and Y", or name the function; "the join between two blocks" |
-| seat | Where the caret sits, or the act of putting it there (the typing seat: where typed bytes go). | "the caret position", "put the caret at"; `EdgeSeat` keeps it |
-| seed, reseed | Start heights from estimates instead of measurements. A property suite's random seed is plain English. | "start from estimates" |
-| sentinel | A special value marking an edge (`CURSOR_END`, an index below any real epoch). | fine as is, but name the value |
-| settle | After a structural edit, re-derive the bookkeeping the edit left stale: blank-line separators, the joins between neighbours, a container's kind. "After layout settles" is plain English. | "recompute the blank lines and separators", "fix up the neighbours after the edit"; `settle-once.ts` keeps it |
-| sink | A callback a child reports up through (the command-error sink). | "the callback the parent hands its children", "where errors are reported"; `CommandErrorSink` keeps it |
-| slot | An index position in a container's child list, or a component-ref slot. | "the child at index i", "the list position" |
-| spacer | An empty div with a height, standing in for the blocks windowing hasn't mounted. | fine as is, glossed once |
-| spine | The chain of ancestors from the document root down to a node. | "the node's ancestors", "the path from the root" |
-| stamp | A data attribute written on a DOM node to mark a state (`data-content-empty`). | "the data attribute", "mark the element with" |
-| stand down | A handler declining to act because another one owns the input. | "does nothing here", "yields to X", "is skipped" |
-| surface | Two meanings. A contenteditable element together with the component code that owns it (a text block's editable area, a table cell); or the public API ("the public surface"). | "the editable element", "the text block's editable area"; "the API"; `createEditableSurface` keeps it |
-| tier | A dispatch level (the cross-block tier, the leaf tier). | "the cross-block level", "the block level" |
-| trivia | Bytes that carry no content: blank lines, whitespace-only lines. `leadingTrivia` on a node is the blank lines before it. | "blank lines", "whitespace" |
-| twin | The counterpart of a thing in its paired form (the MathML twin of a KaTeX render). | "the counterpart", or name it |
-| unshare | Copy a node before writing it, so the undo snapshot keeps its own copy. | fine as is, glossed once as "copy before write" |
-| verdict | The result of a decision (the keydown verdict: handled or not). | "the decision", "whether X handled it"; `withKeydownVerdict` keeps it |
-| wake | A windowing scope recomputing in response to a change. | "a recompute", "re-run" |
-| walk | The DOM traversal that maps between DOM positions and raw offsets. "Walk offset": an offset as that traversal counts it. | "the DOM-to-offset traversal"; `src/lib/browser/offsets.ts` keeps it |
-| window, windowing | Rendering only the blocks near the viewport (virtual rendering). "Windowed-in" means mounted. | fine as is; "mounted" for windowed-in |
+| ambient | The marker prefix a container draws in front of its first child's text (a footnote's `[^label]: `). On screen, not editable. | `AmbientPrefix`, `buildAmbientSpan` |
+| ceremony | The fixed steps a change runs through, like the deletion steps every range delete shares. | `range-delete-ceremony.ts` |
+| door, funnel | The one entry point every path for an operation goes through. | `composeExpandDoor`, `copyThroughFunnel` |
+| fold | Closing a construct's shown source before an edit. Also a container collapsing or merging after a structural change. | `RevealFold`, `publishAncestryFolds` |
+| island | An inline widget the caret can't enter (an image, a formula, an emoji). | `data-decoration-island`, `island-dom.ts` |
+| ladder, rung | An ordered list where the first entry that applies wins, and one entry in it, usually an inline syntax handler at one priority. | `ladderToken`, `registerWikiRung` |
+| mint | Create an id, a node or a command at the one place allowed to. A second create throws. | `mintCommandId` |
+| oracle | The estimator that guesses a block's height before it's measured. | `HeightOracle`, `createHeightOracle` |
+| peel | Strip one layer of markers (a `> `, a list marker, an emphasis run) off a line or a range. | `peeledToContent` |
+| rail | The code block's side gutter, holding the language chip and the copy button. | `CodeBlockRail` |
+| seam | The join between two blocks, or the boundary between two pieces of code. | `JoinSeam` |
+| seat | Where the caret sits or a typed byte goes, or putting the caret there. | `edge-seat.ts`, `compositionSeat` |
+| settle | Recompute what a structural edit left stale: blank lines, the joins between neighbours, a container's kind. | `checkSettledOnce` |
 
-Adding a word: one row, alphabetical, all three columns filled. If the third column says the word goes, add its inflections to `HOUSE_WORDS` in `src/lib/test/invariants/lint/comment-house-words.test.ts` too, so no comment can use it from then on (only words with no plain-English reading go on that list; "fold" and "surface" would flag real sentences).
+## Adding a word
+
+A word with no plain-English reading goes in the table at the top of `src/lib/test/invariants/lint/comment-house-words.test.ts`, with its inflections and the phrase to write instead. From then on the test quotes that phrase wherever the word turns up. A word plain English already has (fold, surface) stays off that table, since it would flag real sentences. Where a symbol's name forces a banned word, gloss it in three words or fewer at first use, and give it a row above.

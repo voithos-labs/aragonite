@@ -175,8 +175,8 @@ of from the review.
    `npx vitest run src/lib/e2e/lint/requirement-spec-lockstep.test.ts`
 2. **Every comment fits the budget**: no comment block over two text lines (five for a header),
    and none of the repo's banned private words in a comment or a requirement file's body text
-   ([`code-style.md`](code-style.md) § Comments has the rule, [`glossary.md`](glossary.md) what to
-   write instead).
+   ([`code-style.md`](code-style.md) § Comments has the rule, and a failure says what to write
+   instead).
    `npx vitest run src/lib/test/invariants/lint/comment-budget.test.ts src/lib/test/invariants/lint/comment-house-words.test.ts`
 3. **Every token the editor's CSS reads is declared in `src/lib/styles/editor-theme.css`**, every
    host token it reads has a fallback, and `src/app.css` holds no editor rule.
