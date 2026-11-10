@@ -1,8 +1,8 @@
 /**
  * One editor's grammar: the block openers it tries, the lines that end its paragraphs, the marked
  * line shapes of its containers and the block views it draws, built from the built-ins, the plugins
- * its own list names and the block types those plugins contribute. A `parse()` with no editor reads `defaultGrammarView`, the same
- * table over every installed plugin.
+ * its own list names and the block types those plugins contribute. A `parse()` with no editor
+ * reads `defaultGrammarView`, the same table over every installed plugin.
  */
 import type { AnyBlockKind } from '../core/nodes';
 import type { BlockView } from './block-view';
@@ -62,8 +62,7 @@ export function createEditorGrammar(
 	let interrupts: ((lineText: string) => boolean)[] = [];
 	let ownViews = new Map<AnyBlockKind, BlockView>();
 	let ownCompleters: readonly BlockCompleter[] = [];
-	let kinds: readonly AnyBlockKind[] = [];
-	let marked: readonly MarkedLines[] | null = null;
+	let marked: readonly MarkedLines[] = [];
 	const refresh = (): void => {
 		const records = grammarRecords();
 		const generation = pluginInstallGeneration();
@@ -89,8 +88,7 @@ export function createEditorGrammar(
 		const ordered = own.length ? [...kept, ...own].sort(byOpenerOrder) : kept;
 		openers = ordered.map((r) => r.value);
 		interrupts = openers.flatMap((opener) => opener.interruptsParagraph || []);
-		kinds = ordered.map((r) => r.key);
-		marked = null;
+		marked = markedShapes(ordered);
 	};
 	return {
 		setextHeading: options.syntax?.setextHeading ?? true,
@@ -109,7 +107,7 @@ export function createEditorGrammar(
 		},
 		markedLines() {
 			refresh();
-			return (marked ??= markedShapes(kinds));
+			return marked;
 		},
 		blockView(kind) {
 			refresh();
@@ -120,11 +118,11 @@ export function createEditorGrammar(
 	};
 }
 
-/** The line shapes of `kinds` that mark every line, each once. */
-function markedShapes(kinds: readonly AnyBlockKind[]): readonly MarkedLines[] {
+/** The line shapes of the records' kinds that mark every line, each once. */
+function markedShapes(records: readonly { key: AnyBlockKind }[]): readonly MarkedLines[] {
 	const shapes = new Set<MarkedLines>();
-	for (const kind of kinds) {
-		const lines = tryGetBlockKindDescriptor(kind)?.lines;
+	for (const { key } of records) {
+		const lines = tryGetBlockKindDescriptor(key)?.lines;
 		if (lines?.shape === 'marked') shapes.add(lines);
 	}
 	return [...shapes];

@@ -82,11 +82,8 @@ export function openingOf(doc: Doc, container: LaidBlock, from: number): string 
 }
 
 /** Whether the line starting at `at` of `text` holds container markers alone, its ending aside. */
-export function markersOnly(doc: Doc, text: string, at: number): boolean {
-	const end = text.indexOf('\n', at);
-	const line = text.slice(at, end < 0 ? text.length : end).replace(/\r$/, '');
-	return doc.host.pastMarkers(text, at) === at + line.length;
-}
+export const markersOnly = (doc: Doc, text: string, at: number): boolean =>
+	/^\r?(\n|$)/.test(text.slice(doc.host.pastMarkers(text, at)));
 
 /** Whether `text` holds anything but container markers and whitespace, line endings included. */
 export function holdsTextPastMarkers(doc: Doc, text: string): boolean {
