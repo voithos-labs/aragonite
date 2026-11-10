@@ -22,11 +22,16 @@ const BESIDE_IMAGE: EditorSelection = {
 function harness(imageSelected: boolean) {
 	const h = makeEditorActionsDeps(parse(PARAGRAPHS));
 	if (imageSelected) {
-		selectWidgetWhole(h.deps.selectionState, testCaretWriter, {
-			paragraphPath: [0],
-			sourceStart: 4,
-			preSelectOffset: BESIDE_IMAGE.focus.offset
-		});
+		selectWidgetWhole(
+			h.deps.selectionState,
+			testCaretWriter,
+			{
+				paragraphPath: [0],
+				sourceStart: 4,
+				preSelectOffset: BESIDE_IMAGE.focus.offset
+			},
+			() => null
+		);
 	}
 	return { ...h, controller: createUndoController(h.deps) };
 }

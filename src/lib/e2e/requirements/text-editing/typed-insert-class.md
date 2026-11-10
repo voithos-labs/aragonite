@@ -30,9 +30,11 @@ so it says what the editor does with the event, not what the engine would.
 
 ## User interactions
 
-- a picture selected whole by a click on it, a letter: the letter replaces the picture (`lead Z`).
-  WebKit's soft-keyboard row is skipped: Playwright's WebKit sends no input while the page holds no
-  selection, and a selected picture holds none
+- a widget selected whole, a letter: the letter replaces the widget, however it got selected. A
+  row each for a click on a picture (with text before it, and alone in its block), ArrowRight and
+  ArrowLeft onto a picture, ArrowRight onto a `<br>`, a click on a picture inside `**…**` (the
+  letter stays bold), a click then a resize key, and Mod+K beside a plugin's chip in a paragraph
+  and in a table cell
 
 ## What a reverted fix reds
 
@@ -40,14 +42,17 @@ The browser's own insert lands right at most of these spots, so turning the edit
 leaves those rows green; a write that lands somewhere else (the typed write aimed at offset 0, or
 one past the caret for the picture that opens the block) reds the rows the editor writes itself. On
 Chromium the replace decoration's rows never reach that write, since the caret there sits in text.
-The rows that red with the decision off are the selected picture by soft keyboard (Chromium
-writes at the block's start, Firefox writes nothing) and the line break that ends a paragraph or a
+The rows that red with the decision off are the line break that ends a paragraph or a
 cell on Firefox. The link typed to completion stays green with it off too: Chromium and WebKit aim
 the letter inside the link text, and the read-back still lands it after the `)`. The unit rows in
 `test/blocks/editable/typed-insert.test.ts` for a target aimed away from the caret are the ones that
 red there.
 
 ## Miss-analysis
+
+- Every row over a selected widget ran where the driver puts a caret down before it inserts (Chromium)
+  or was skipped (WebKit), so none saw that the page held no selection for a soft keyboard's text
+  to arrive at. The widget now keeps a hidden caret, and the rows run on every engine.
 
 - Each route that typed beside a widget was tested for the engine shape it was written for, and no
   row typed with a soft keyboard over a selected picture, so text a phone's keyboard sent there

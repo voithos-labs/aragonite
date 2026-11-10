@@ -36,6 +36,9 @@ export interface LinkPointQuery {
 	block: NodeView;
 	path: number[];
 	reading: Reading;
+	/** Whether a widget in the block is selected whole: the caret it keeps is no place to follow
+	 *  from, so nothing is at the caret then. */
+	holdsWidget: boolean;
 }
 
 /** What you'd go to at a raw offset, by how it's edited: a link in its card, a widget by its
@@ -93,7 +96,7 @@ function claimingWidgetAt(block: NodeView, offset: number, reading: Reading): In
 
 /** What you'd go to at the caret, read after a click or a key has placed it. */
 export function followTargetAtCaret(query: LinkPointQuery): FollowTarget | null {
-	const offset = rawSelectionFocus(query.contentEl);
+	const offset = query.holdsWidget ? null : rawSelectionFocus(query.contentEl);
 	return offset === null ? null : followTargetAt(query.block, offset, query.reading);
 }
 

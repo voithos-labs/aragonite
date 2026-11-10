@@ -51,11 +51,16 @@ const PRIOR: Record<Exclude<Kind, 'none'>, (s: SelectionState) => void> = {
 	range: (s) => s.enterCrossBlock(at(0, 1), at(2, 2)),
 	gap: (s) => placeGapCaret(s, testCaretWriter, { parentPath: [], index: 1 }),
 	widget: (s) =>
-		selectWidgetWhole(s, testCaretWriter, {
-			paragraphPath: [0],
-			sourceStart: 0,
-			preSelectOffset: 0
-		})
+		selectWidgetWhole(
+			s,
+			testCaretWriter,
+			{
+				paragraphPath: [0],
+				sourceStart: 0,
+				preSelectOffset: 0
+			},
+			() => null
+		)
 };
 
 interface Writer {
@@ -89,11 +94,16 @@ const WRITERS: Writer[] = [
 	{
 		name: 'selectWidgetWhole',
 		write: (s) =>
-			selectWidgetWhole(s, testCaretWriter, {
-				paragraphPath: [1],
-				sourceStart: 2,
-				preSelectOffset: 2
-			}),
+			selectWidgetWhole(
+				s,
+				testCaretWriter,
+				{
+					paragraphPath: [1],
+					sourceStart: 2,
+					preSelectOffset: 2
+				},
+				() => null
+			),
 		leaves: 'widget',
 		reads: caret(1, 2)
 	},

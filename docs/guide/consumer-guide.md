@@ -1240,7 +1240,7 @@ await rects.navigateTo([840], 12); // the same, with the caret after the block's
 | --- | --- |
 | `blockRect(path)` | The block's bounding box, or `null` when it isn't mounted |
 | `rangeRects(path, start, end)` | The rects covering an inline range: one per visual line on wrapped text, one per cell on a table |
-| `caretRect()` | The live native caret, or `null` (including whenever a cross-block selection is active) |
+| `caretRect()` | The live native caret, or `null` (also while a cross-block selection is active or a widget such as an image is selected) |
 | `reveal(path)` | Mounts a block virtual rendering has unmounted, resolving `true` once its element exists |
 | `scrollTo(path, opts?)` | Mounts the block, then scrolls the viewport to it (`opts.block`: `'nearest'` default, or `'center'`; `opts.hold`: keep holding it, default true) |
 | `navigateTo(path, offset?)` | The same, plus lands the caret in the block (at its start, or at the offset you pass), which is what a navigation button should do for the user. Reading mode has no caret, so it moves focus there instead |

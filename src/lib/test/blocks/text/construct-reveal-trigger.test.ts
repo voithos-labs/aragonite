@@ -21,6 +21,7 @@ import {
 } from '#lib/debug/interaction-trace.js';
 import { placeCaretAt } from './math-widget-fixture';
 import { makeRenderHarness, type RenderHarness } from '#lib/test/harness/text-render.js';
+import { rawSelectionFocus } from '#lib/browser/selection-read.js';
 
 // 'alpha **bold** tail': strong spans [6,14), and its two `**` spans carry the attribute.
 const RAW = 'alpha **bold** tail\n';
@@ -52,6 +53,7 @@ describe('createConstructReveal: trigger', () => {
 				return harness.deps.reading;
 			},
 			getEl: () => el,
+			caretFocus: () => rawSelectionFocus(el),
 			ownsRange: () => crossBlock,
 			textMoves: { movedWithin: (block) => moved.push(block) },
 			caretWriter: { rewriteCaret: (block) => rewritten.push(block) > 0 }

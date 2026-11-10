@@ -20,9 +20,8 @@
 		reachableDomTextBounds,
 		type RawRange
 	} from '../../../browser/offsets';
-	import { rawSelectionFocus } from '../../../browser/selection-read';
 	import { readInput } from '../../../browser/input';
-	import { asRawOffset, rowMajorCellIndex, type RawOffset } from '../../../core/coordinate-spaces';
+	import { asRawOffset, rowMajorCellIndex } from '../../../core/coordinate-spaces';
 	import { createSurfaceBackend } from '../editable/surface-backend';
 	import { getCurrentCursorEditorRelativeX } from '../../../caret/sticky-measure';
 	import { handleEdgeStep, handleSharedKeydown } from '../../../selection/shared-keydown';
@@ -152,7 +151,8 @@
 
 	const cursor = createSurfaceBackend({
 		getEl: () => el ?? null,
-		caretWriter
+		caretWriter,
+		holdsWidget: () => selection.widgetIn(myPath) !== null
 	});
 
 	const edgeStep = createEdgeStep({
@@ -191,7 +191,7 @@
 		getIndex: () => index,
 		requestCaret: (at) => parkCursor(at),
 		ownPairs,
-		getFocusOffset: () => getRawFocusOffset(),
+		getFocusOffset: cursor.getFocusOffset,
 		getTextLen: () => (el ? containerDomTextLength(el) : 0),
 		stepEdge: edgeStep.step,
 		inlineUnits: () => edgeDispatch.inlineUnits,
@@ -205,8 +205,8 @@
 		deleteAtCaret: (caret, intent) => edgeDispatch.deleteAtCaret(caret, intent),
 		unitContext: (caret) => edgeDispatch.unitContext(caret),
 		deleteBeside: (caret, direction) => edgeDispatch.deleteBeside(caret, direction),
+		inputOverWidget: (e) => widgetInteraction.inputOverSelected(e),
 		typedInsert: {
-			typeOverSelected: (text) => widgetInteraction.typeOverSelected(text),
 			widgetBeside: (caret) => edgeDispatch.typing.widgetBeside(caret),
 			widgetClosesAt: (caret) => edgeDispatch.typing.widgetClosesAt(caret),
 			typeAt: (caret, text) => edgeDispatch.typing.typeAt(caret, text)
@@ -505,10 +505,6 @@
 	// Not textContent: a rendered widget carries zero textContent but several raw bytes.
 	function readCellText(): string {
 		return el ? rawTextOfNode(el, node.raw) : '';
-	}
-
-	function getRawFocusOffset(): RawOffset | null {
-		return el ? rawSelectionFocus(el) : null;
 	}
 
 	// ── Event handlers ─────────────────────────────────────────────────────

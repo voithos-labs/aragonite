@@ -120,7 +120,7 @@ export interface EdgePolicyDispatch {
 	readonly inlineUnits: CaretUnitSource;
 	/** The block's half of the typed-insert decision (`editable/typed-insert.ts`): which widgets
 	 *  face the caret, and the write. A widget selected whole is the widget interaction's. */
-	readonly typing: Omit<TypedInsertWrites, 'typeOverSelected'>;
+	readonly typing: TypedInsertWrites;
 	/** A collapsed delete that reached `beforeinput`, by the rules the keys above follow, then the
 	 *  delete rule; declined while a shown source holds bytes the tree hasn't seen. */
 	deleteAtCaret(caret: number, intent: DeleteIntent): DeleteAnswer;

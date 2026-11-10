@@ -26,7 +26,8 @@ const RULES: FileRule[] = [
 			[SOURCE.delimiterAutopair]:
 				'a delimiter typed at a caret writes its pair, before the decision',
 			[SOURCE.liveSelectionEdit]: 'text typed over a range in live mode rewrites the range',
-			[SOURCE.crossBlockDispatch]: 'text typed over a range across blocks replaces the range',
+			[SOURCE.heldInput]:
+				'text that reaches a block under a range or a selected widget replaces that selection',
 			[SOURCE.caretHostInput]:
 				'the gap caret and the whole-block proxy take every input themselves',
 			[SOURCE.compositionTracker]: 'a typed insert ends a composition the browser dropped',

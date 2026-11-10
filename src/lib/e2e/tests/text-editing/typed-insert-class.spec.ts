@@ -3,7 +3,6 @@ import { test } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { gotoReady } from '../../goto-ready';
 import { insertText } from '../../insert-text';
-import { skipUnlessSupported } from '../../browser-engine';
 import { edgeKey } from '../../platform-keys';
 import { addReplaceIsland, addWidgetIsland } from '../../decoration-sources';
 import { waitForAllImagesLoaded } from '../blocks/image/helpers';
@@ -28,10 +27,92 @@ type Reach =
 	| { by: 'click-right'; widget: string };
 
 interface Setup {
-	/** The harness page with the math plugin, for a formula. */
-	math?: true;
+	/** The plugins harness page with this seed's plugin: a formula, a chip. */
+	plugin?: 'math' | 'chips';
 	decorate?: (page: Page) => Promise<void>;
 }
+
+/** How a row selects a widget whole before the text arrives. */
+interface SelectedRow extends Setup {
+	name: string;
+	source: string;
+	select: (editor: EditorPage, page: Page) => Promise<void>;
+	after: string;
+}
+
+async function clickPicture(_editor: EditorPage, page: Page): Promise<void> {
+	const box = await page.locator('[data-image-widget]').boundingBox();
+	if (!box) throw new Error('the picture has no box');
+	await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+}
+
+const arrowOnto =
+	(path: number[], before: number, key = 'ArrowRight') =>
+	async (editor: EditorPage, page: Page): Promise<void> => {
+		await editor.focusBlockAtPath(path, before);
+		await page.keyboard.press(key);
+	};
+
+const CHIPS = 'Prose {{alpha}} here\n\n| Note | B |\n| --- | --- |\n| x {{beta}} y | z |\n';
+
+const SELECTED: SelectedRow[] = [
+	{ name: 'a click on a picture', source: LEAD_IMAGE, select: clickPicture, after: 'lead Z\n' },
+	{
+		name: 'a click on a picture alone in its block',
+		source: `${IMAGE}\n`,
+		select: clickPicture,
+		after: 'Z\n'
+	},
+	{
+		name: 'ArrowRight onto a picture',
+		source: `lead ${IMAGE} tail\n`,
+		select: arrowOnto([0], 5),
+		after: 'lead Z tail\n'
+	},
+	{
+		name: 'ArrowLeft onto a picture',
+		source: `lead ${IMAGE} tail\n`,
+		select: arrowOnto([0], 5 + IMAGE.length, 'ArrowLeft'),
+		after: 'lead Z tail\n'
+	},
+	{
+		name: 'ArrowRight onto a line break',
+		source: 'ab<br>cd\n',
+		select: arrowOnto([0], 2),
+		after: 'abZcd\n'
+	},
+	{
+		name: 'a click on a picture inside strong',
+		source: `lead **${IMAGE}** tail\n`,
+		select: clickPicture,
+		after: 'lead **Z** tail\n'
+	},
+	{
+		name: 'a click on a picture, then a resize key',
+		source: `lead ${IMAGE} tail\n`,
+		select: async (editor, page) => {
+			await clickPicture(editor, page);
+			await editor.waitForRenderFlush();
+			await page.keyboard.press('Shift+ArrowRight');
+			await editor.bridge.waitForSourceContains('![x|');
+		},
+		after: 'lead Z tail\n'
+	},
+	{
+		name: 'Mod+K beside a chip in a paragraph',
+		source: CHIPS,
+		select: arrowOnto([0], 15, 'ControlOrMeta+k'),
+		after: CHIPS.replace('{{alpha}}', 'Z'),
+		plugin: 'chips'
+	},
+	{
+		name: 'Mod+K beside a chip in a table cell',
+		source: CHIPS,
+		select: arrowOnto([1, 1, 0], 10, 'ControlOrMeta+k'),
+		after: CHIPS.replace('{{beta}}', 'Z'),
+		plugin: 'chips'
+	}
+];
 
 interface Row extends Setup {
 	name: string;
@@ -88,7 +169,7 @@ const ROWS: Row[] = [
 		source: 'lead $x^2$\n',
 		reach: { by: 'click-right', widget: '[data-inline-widget]' },
 		after: 'lead $x^2$Z\n',
-		math: true
+		plugin: 'math'
 	},
 	{
 		name: 'Ctrl+End past a trailing replace decoration',
@@ -125,8 +206,8 @@ async function open(
 	source: string,
 	setup: Setup = {}
 ): Promise<void> {
-	if (setup.math) {
-		await gotoReady(page, '/test/plugins?seed=math');
+	if (setup.plugin) {
+		await gotoReady(page, `/test/plugins?seed=${setup.plugin}`);
 		if (mode === 'live') await editor.setPresentationMode('live');
 	} else {
 		await editor.goto(mode === 'live' ? '?presentationMode=live' : '');
@@ -165,17 +246,18 @@ for (const mode of MODES) {
 				});
 			}
 
-			test('over a picture selected whole, the text replaces it', async ({ page }) => {
-				if (route === 'soft keyboard') skipUnlessSupported(page, 'insertWithoutSelection');
-				const editor = new EditorPage(page);
-				await open(editor, page, mode, LEAD_IMAGE);
-				const box = await page.locator('[data-image-widget]').boundingBox();
-				if (!box) throw new Error('the picture has no box');
-				await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-				await editor.waitForRenderFlush();
-				await type(page, route, 'Z');
-				await editor.bridge.waitForSourceEquals('lead Z\n');
-			});
+			for (const row of SELECTED) {
+				test(`over a widget selected whole by ${row.name}, the text replaces it`, async ({
+					page
+				}) => {
+					const editor = new EditorPage(page);
+					await open(editor, page, mode, row.source, row);
+					await row.select(editor, page);
+					await editor.waitForRenderFlush();
+					await type(page, route, 'Z');
+					await editor.bridge.waitForSourceEquals(row.after);
+				});
+			}
 
 			// Chromium and WebKit aim this letter back inside the link text; the caret is past `)`.
 			test('a letter just after a link typed to completion', async ({ page }) => {

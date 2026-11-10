@@ -2,14 +2,17 @@
  * Where a caret, a gap caret or a widget selected whole is put down, each ending whatever the
  * editor had selected before: a caret left inside a live range makes the next keystroke replace
  * the whole range. A block's `parkCaret` alone ends nothing, which the cross-block dispatcher
- * needs while a shift-extend is still growing a range.
+ * needs while a shift-extend is still growing a range. A widget selected whole keeps a caret at
+ * its edge that nothing shows (`docs/design/selection.md`).
  */
 
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkPlacementEndsWidget } from '../invariants/placement-ends-widget';
 import type { GapCaretPosition } from './gap-caret';
 import type { CaretWriter } from '../browser/caret-writer';
+import type { BlockElLookup } from '../caret/block-el-lookup';
 import type { WidgetTarget } from './primitives';
+import { writeWidgetCaret } from './widget-caret';
 import type { SelectionState } from './selection-state.svelte';
 
 /** Builds a component's public `focus` from its `parkCaret`, batched so no listener hears of
@@ -57,16 +60,17 @@ export function placeGapCaret(
 	});
 }
 
-/** The only place a widget is selected whole. The native selection is cleared in the batch,
- *  because no browser caret may outlive the widget selection taking its place. */
+/** The only place a widget is selected whole. Its caret goes down in the batch, so no listener
+ *  hears of the widget before text has a place to arrive. */
 export function selectWidgetWhole(
 	selection: SelectionState,
 	writer: CaretWriter,
-	target: WidgetTarget
+	target: WidgetTarget,
+	blockElAt: BlockElLookup
 ): void {
 	selection.batch(() => {
 		selection.selectWidget(target);
-		writer.clear();
+		writeWidgetCaret(selection, writer, blockElAt);
 	});
 }
 

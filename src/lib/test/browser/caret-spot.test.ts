@@ -225,6 +225,45 @@ describe('the caret writer writes only a caret something shows', () => {
 		expect(takeDevWarns().map((w) => w.tag)).toEqual(['invariant:caret-paints']);
 	});
 
+	// Miss-analysis: every selected widget in a test had text or its own box beside its edge, so
+	// none kept its hidden caret among hidden markers, where the rule refused it and fired.
+	describe('but a caret nothing shows, which a selected widget keeps, goes where asked', () => {
+		const hiddenRuns = () => {
+			const el = mountBlock({ mode: 'live' }, span('md-marker', '@@marker'));
+			el.focus();
+			window.getSelection()!.removeAllRanges();
+			return el;
+		};
+
+		it('in a block of hidden marker runs, with no fire', () => {
+			const el = hiddenRuns();
+
+			expect(writer().placeUnshownCaret(el, 0)).toBe(true);
+			expect(window.getSelection()!.isCollapsed).toBe(true);
+			expect(el.contains(window.getSelection()!.focusNode)).toBe(true);
+			expect(takeDevWarns()).toEqual([]);
+		});
+
+		it('and a marker hiding beside it judges nothing, where a shown caret is written again', () => {
+			const el = hiddenRuns();
+			const w = writer();
+
+			w.placeUnshownCaret(el, 0);
+			expect(w.rewriteCaret(el)).toBe(false);
+			expect(w.holdsWrittenCaret()).toBe(true);
+			expect(takeDevWarns()).toEqual([]);
+		});
+
+		it('until the writer puts down a caret of its own, which is judged again', () => {
+			const el = hiddenRuns();
+			const w = writer();
+
+			w.placeUnshownCaret(el, 0);
+			expect(w.placeCaretAtRaw(el, 0, { clamp: 'exact' })).toBe(false);
+			expect(takeDevWarns().map((warn) => warn.tag)).toEqual(['invariant:caret-paints']);
+		});
+	});
+
 	// An empty block's chrome paints only once the block has focus, which the write comes before.
 	it('writes a caret into a block that has no focus yet as asked', () => {
 		const el = mountBlock(

@@ -319,9 +319,12 @@ export interface EditableSurfaceDeps {
 	/** Takes or enters the widget or decoration a delete of any unit facing `direction` meets at raw
 	 *  `caret`; true when it did. Omitted, like `deleteAtCaret`, where the block draws no widgets. */
 	deleteBeside?: (caret: number, direction: DeleteDirection) => boolean;
-	/** Writes a typed insert the browser's own could put away from the caret, beside a widget or
-	 *  over a selected one (`typed-insert.ts`). Omitted where the block draws no widgets. */
+	/** Writes a typed insert the browser's own could put away from the caret, beside a widget
+	 *  (`typed-insert.ts`). Omitted where the block draws no widgets. */
 	typedInsert?: TypedInsertWrites;
+	/** Takes input for a widget selected whole in the block; false when none is. Omitted where
+	 *  the block draws no widgets. */
+	inputOverWidget?: (e: InputEvent) => boolean;
 	/** What the block's keys run at, for a delete at its edge, which runs the plain key's binding. */
 	commandTarget?: () => KindCommandTarget;
 	/** The block's own handling of a delete the editor left to the browser (a range, a soft
@@ -791,8 +794,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		if (deleteVerdict && !deleteVerdict.decided) deps.handleDeclinedDelete?.(e);
 	}
 
-	/** The browser's own Undo and Redo are the editor's, and a character typed over a range across
-	 *  blocks replaces the range. True when the step took the event. */
+	/** The browser's own Undo and Redo are the editor's, and input that reaches the block under a
+	 *  selection the editor holds (a widget, a range) goes to that selection. True when taken. */
 	function runSharedBeforeInput(e: InputEvent): boolean {
 		const read = readInput(e);
 		if (read.kind === 'history') {
@@ -800,6 +803,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 			void (read.redo ? deps.history.requestRedo() : deps.history.requestUndo());
 			return true;
 		}
+		if (!composing() && deps.inputOverWidget?.(e)) return true;
 		if (!crossBlock.claimsBeforeInput(e)) return false;
 		void crossBlock.handleBeforeInput(e);
 		return true;

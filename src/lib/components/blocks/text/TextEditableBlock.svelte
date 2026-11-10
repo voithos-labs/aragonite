@@ -49,11 +49,7 @@
 	import { createCompositionSeat } from './composition-seat';
 	import { createConstructReveal } from './construct-reveal';
 	import { handleSharedKeydown } from '../../../selection/shared-keydown';
-	import {
-		rawSelectionIn,
-		rawSelectionFocus,
-		caretOnPendingBreakLine
-	} from '../../../browser/selection-read';
+	import { rawSelectionIn, caretOnPendingBreakLine } from '../../../browser/selection-read';
 	import { createEditableSurface, consumePendingRestore } from '../editable/editable-surface';
 	import { selectionRemoval } from '../editable/surface-write';
 	import type { ContentWrite } from '../../../action-contracts';
@@ -171,7 +167,8 @@
 	const cursor = createSurfaceBackend({
 		getEl: () => el ?? null,
 		caretWriter,
-		getSnapTarget: () => drawnCaret.widgetEdgeFor(widgetEdgeOwner)
+		getSnapTarget: () => drawnCaret.widgetEdgeFor(widgetEdgeOwner),
+		holdsWidget: () => selection.widgetIn(myPath) !== null
 	});
 
 	const edgeStep = createEdgeStep({
@@ -213,7 +210,7 @@
 		getIndex: () => index,
 		requestCaret: (at, { source }) => setPendingCursorOffset(at, source),
 		ownPairs,
-		getFocusOffset: () => (el ? rawSelectionFocus(el) : null),
+		getFocusOffset: cursor.getFocusOffset,
 		getTextLen: () => caretReach(),
 		stepEdge: edgeStep.step,
 		inlineUnits: () => edgeDispatch.inlineUnits,
@@ -233,8 +230,8 @@
 			takeBackOpenLine(pendingBreakKeyDeps) ? 'taken' : edgeDispatch.deleteAtCaret(caret, intent),
 		deleteBeside: (caret, direction) => edgeDispatch.deleteBeside(caret, direction),
 		unitContext: (caret) => edgeDispatch.unitContext(caret),
+		inputOverWidget: (e) => widgetInteraction.inputOverSelected(e),
 		typedInsert: {
-			typeOverSelected: (text) => widgetInteraction.typeOverSelected(text),
 			widgetBeside: (caret) => edgeDispatch.typing.widgetBeside(caret),
 			widgetClosesAt: (caret) => edgeDispatch.typing.widgetClosesAt(caret),
 			typeAt: (caret, text) => edgeDispatch.typing.typeAt(caret, text)
@@ -362,6 +359,7 @@
 			return reading;
 		},
 		getEl: () => el ?? null,
+		caretFocus: () => cursor.getFocusOffset(),
 		ownsRange: () => selection.ownsRange,
 		textMoves,
 		caretWriter
@@ -765,8 +763,8 @@
 		// source in the DOM or reaches the commands below, which hide it before writing.
 		if ((await widgetInteraction.handleRevealingKeydown(e)) || editableSurface.isDetached()) return;
 
-		// Before `handleSharedKeydown`: selecting cleared the browser range, so the shared
-		// ArrowLeft branch would read offset 0.
+		// Before `handleSharedKeydown`: no read answers the caret a selected widget keeps, so the
+		// shared ArrowLeft branch would read offset 0.
 		if ((await widgetInteraction.handleSelectedWidgetKeydown(e)) || editableSurface.isDetached())
 			return;
 

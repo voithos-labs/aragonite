@@ -11,6 +11,7 @@ import type { AnyInlineKind, InlineNode } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
 import type { SurfaceBackend } from '../editable/surface-backend';
 import { selectWidgetWhole } from '../../../selection/place-caret';
+import { heldInputOf } from '../../../selection/held-input';
 import {
 	rawSelectionIn,
 	rawSelectionFocus,
@@ -125,9 +126,9 @@ export interface WidgetInteraction {
 	/** Keydown while a widget is selected. Every key is consumed in that state, so a
 	 *  true return must not fall through to the shared pipeline. */
 	handleSelectedWidgetKeydown(e: KeyboardEvent): Promise<boolean>;
-	/** Text typed with no key at a widget selected whole replaces it, as a typed key does; false
-	 *  when no widget in the block is selected. */
-	typeOverSelected(text: string): boolean;
+	/** Input over a widget selected whole, as its keys: text replaces it, a delete removes it, the
+	 *  rest is refused. False with none selected, or for input `heldInputOf` leaves alone. */
+	inputOverSelected(e: InputEvent): boolean;
 	/** Enter a widget at a caret edge: show its source or select it, as the kind's policy
 	 *  says. The caret-edge dispatch decides which edge and calls this. */
 	enterWidget(
@@ -591,11 +592,14 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		);
 	}
 
-	function typeOverSelected(text: string): boolean {
+	function inputOverSelected(e: InputEvent): boolean {
 		const selected = deps.selection.widgetIn(deps.myPath);
 		const widget = selected && widgetNodeIn(deps.node, selected.sourceStart, deps.reading);
-		if (!selected || !widget) return false;
-		spliceSelected(widget, selected, text);
+		const input = selected && widget && e.cancelable ? heldInputOf(e) : null;
+		if (!selected || !widget || !input) return false;
+		e.preventDefault();
+		if (input.kind === 'text' && input.text) spliceSelected(widget, selected, input.text);
+		else if (input.kind === 'delete') spliceSelected(widget, selected, '');
 		return true;
 	}
 
@@ -640,7 +644,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			return false;
 		}
 		// A modified chord goes on to the keymap dispatch, which owns undo and redo. Arrows stop here:
-		// selecting cleared the browser range, so a later handler would read offset 0.
+		// no read answers the caret a selected widget keeps, so a later handler would read offset 0.
 		if (hasModifier(e)) {
 			if (!e.key.startsWith('Arrow')) return false;
 			e.preventDefault();
@@ -699,11 +703,12 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 		if (widgetEditing(widget.kind)?.revealSource) {
 			void startReveal(widget, fromTrailingEdge ? widget.end - widget.start : 0);
 		} else {
-			selectWidgetWhole(deps.selection, deps.caretWriter, {
+			const target = {
 				paragraphPath: deps.myPath,
 				sourceStart: widget.start,
 				preSelectOffset: enteredOffset
-			});
+			};
+			selectWidgetWhole(deps.selection, deps.caretWriter, target, deps.getEl);
 		}
 	}
 
@@ -864,7 +869,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 	return {
 		isVerticallyTransparent,
 		handleSelectedWidgetKeydown,
-		typeOverSelected,
+		inputOverSelected,
 		enterWidget,
 		restoreCaret,
 		enterEdgeWidget,

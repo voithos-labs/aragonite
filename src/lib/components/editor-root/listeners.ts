@@ -7,6 +7,10 @@ import { tick } from 'svelte';
 import { isModifiedClick, type PressTracker } from '../../activation-click';
 import { findSurfacePathForElement } from '../../selection/path-lookup';
 import { readNativeSelection } from '../../browser/selection-read';
+import { writeWidgetCaret } from '../../selection/widget-caret';
+import { blockContentElAt } from '../../caret/block-el-lookup';
+import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
+import { checkWidgetKeepsCaret } from '../../invariants/widget-keeps-caret';
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import type { CaretWriter } from '../../browser/caret-writer';
 import type { CompositionTracker } from '../../browser/composition';
@@ -111,18 +115,34 @@ export interface SelectionChangeBridgeDeps {
 	 *  subscribers were already told about. */
 	announceIfMoved(): void;
 	/** Read for an inline widget selected whole, which owns the keys while it is. */
-	selection: Pick<SelectionState, 'widget'>;
+	selection: Pick<SelectionState, 'widget' | 'widgetCaret'>;
+	/** Reading mode holds no caret, a selected widget's included. */
+	isReading(): boolean;
 	caretWriter: CaretWriter;
 	/** A caret moved mid-composition ends the IME's run. */
 	composition: Pick<CompositionTracker, 'live'>;
 }
 
 /** Announces caret motion the editor did not make, after moving a caret the browser left off its
- *  spot onto it, and drops a caret that appears while an inline widget is selected whole. */
+ *  spot onto it, and puts back the caret a widget selected whole keeps at its edge. */
 export function installSelectionChangeBridge(deps: SelectionChangeBridgeDeps): () => void {
+	const blockElAt = (path: number[]) => blockContentElAt(deps.root, path);
+	const keepWidgetCaret = () => {
+		if (!deps.caretWriter.holdsWrittenCaret()) {
+			writeWidgetCaret(deps.selection, deps.caretWriter, blockElAt);
+		}
+		assertInvariant('widget-keeps-caret', () => {
+			const at = deps.selection.widgetCaret();
+			const el = at && blockElAt(at.path);
+			return checkWidgetKeepsCaret(el ?? null, deps.isReading());
+		});
+	};
 	const handler = () => {
 		deps.caretWriter.checkDecidedMotion();
 		const live = readNativeSelection();
+		const held = deps.selection.widget !== null;
+		// A long press, or a rebuild of the widget's element, drops the selection outright.
+		if (!live && held) keepWidgetCaret();
 		if (!live) return;
 		const anchorNode = live.anchor.node;
 		if (!deps.root.contains(anchorNode)) return;
@@ -131,8 +151,8 @@ export function installSelectionChangeBridge(deps: SelectionChangeBridgeDeps): (
 		if (deps.isHostChrome(anchorNode)) return;
 		// The paragraph keeps focus while its widget is selected, and the browser puts a caret at
 		// its start on any mouse input. A drag's range and a caret in a popover field stay.
-		if (live.collapsed && deps.selection.widget !== null && inBlockSurface(anchorNode)) {
-			deps.caretWriter.clear();
+		if (live.collapsed && held && inBlockSurface(anchorNode)) {
+			keepWidgetCaret();
 			return;
 		}
 		// Focus can sit on the editor root or a whole-block proxy, which hold no text to move along.

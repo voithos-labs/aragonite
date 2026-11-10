@@ -58,11 +58,16 @@ function fixture() {
 	const log: string[] = [];
 	let finishWrite = () => {};
 	const selection = createSelectionState();
-	selectWidgetWhole(selection, testCaretWriter, {
-		paragraphPath: [0],
-		sourceStart: WIDGET.start,
-		preSelectOffset: 2
-	});
+	selectWidgetWhole(
+		selection,
+		testCaretWriter,
+		{
+			paragraphPath: [0],
+			sourceStart: WIDGET.start,
+			preSelectOffset: 2
+		},
+		() => null
+	);
 	const deps = {
 		get node() {
 			return node;
@@ -124,11 +129,16 @@ describe('replacing a selected widget', () => {
 		const cell = () => row.deps.doc.children[0].children![1].children![0];
 		const parked: (number | null)[] = [];
 		const selection = createSelectionState();
-		selectWidgetWhole(selection, testCaretWriter, {
-			paragraphPath: [0, 1, 0],
-			sourceStart: 1,
-			preSelectOffset: 1
-		});
+		selectWidgetWhole(
+			selection,
+			testCaretWriter,
+			{
+				paragraphPath: [0, 1, 0],
+				sourceStart: 1,
+				preSelectOffset: 1
+			},
+			() => null
+		);
 		const deps = {
 			get node() {
 				return cell();

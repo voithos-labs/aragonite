@@ -72,6 +72,8 @@ export interface DrawnCaretRect {
 export type DrawnCaretTarget =
 	| { state: 'hidden' }
 	| { state: 'native' }
+	/** No bar, and the browser's caret hidden too: a widget selected whole keeps one for input. */
+	| { state: 'suppressed' }
 	| { state: 'text'; rect: DrawnCaretRect }
 	| { state: 'chip'; rect: DrawnCaretRect }
 	| { state: 'widget'; rect: DrawnCaretRect & { width: number } }
@@ -82,6 +84,8 @@ export type DrawnCaretTarget =
 export function drawnCaretTarget(reads: DrawnCaretReads): DrawnCaretTarget {
 	// Forced colors show the browser's caret whatever `caret-color` says, so a bar would be a second.
 	if (reads.forcedColors) return { state: 'native' };
+	// Ahead of the `caret` prop: the widget is what shows as selected, whoever draws carets.
+	if (reads.store.widget && reads.source) return { state: 'suppressed' };
 	if (!drawsHere(reads)) return { state: 'native' };
 	if (hides(reads)) return { state: 'hidden' };
 	const { source, caret, host, widgetEdge, devicePixelRatio: dpr } = reads;

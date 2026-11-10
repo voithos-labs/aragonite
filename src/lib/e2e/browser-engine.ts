@@ -27,7 +27,6 @@ export type EngineCapability =
 	| 'insertWithoutScroll'
 	| 'inertBackspace'
 	| 'syntheticTargetRanges'
-	| 'insertWithoutSelection'
 	| 'nativeWordSelect'
 	| 'modifierDrop';
 
@@ -36,11 +35,7 @@ export type EngineCapability =
 export function engineSupports(page: Page, capability: EngineCapability): boolean {
 	if (capability === 'cdp') return isChromium(page);
 	if (capability === 'modifierDrop') return !(isWebKit(page) && isWindows);
-	if (
-		capability === 'inertBackspace' ||
-		capability === 'syntheticTargetRanges' ||
-		capability === 'insertWithoutSelection'
-	) {
+	if (capability === 'inertBackspace' || capability === 'syntheticTargetRanges') {
 		return !isWebKit(page);
 	}
 	return !isFirefox(page);
@@ -58,8 +53,6 @@ const SKIP_REASONS: Record<EngineCapability, string> = {
 		"Playwright's WebKit goes back in history on a Backspace outside an editable, which Safari no longer does",
 	syntheticTargetRanges:
 		'WebKit reports no target ranges for an InputEvent a script builds, whatever it was given',
-	insertWithoutSelection:
-		"Playwright's WebKit sends no input for inserted text while the page holds no selection",
 	nativeWordSelect:
 		"Firefox over BiDi fires no native double click, so the browser selects no word in text the editor doesn't select itself",
 	modifierDrop:

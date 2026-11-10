@@ -29,11 +29,16 @@ function selectedAt(raw: string, sourceStart: number) {
 		events: createEditorEvents(),
 		reading: fixtureReading()
 	});
-	selectWidgetWhole(selection, testCaretWriter, {
-		paragraphPath: [0],
-		sourceStart,
-		preSelectOffset: 0
-	});
+	selectWidgetWhole(
+		selection,
+		testCaretWriter,
+		{
+			paragraphPath: [0],
+			sourceStart,
+			preSelectOffset: 0
+		},
+		() => null
+	);
 	const editTo = (next: string) => {
 		doc = parse(next);
 		committer.clearStaleSelection();

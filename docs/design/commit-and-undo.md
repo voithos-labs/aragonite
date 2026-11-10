@@ -38,7 +38,7 @@ Every write to a block's text says which of those it is, as its `history`. Typin
 - When no ref reports a cursor (headless harness, handle drags, menu-driven ops), the path falls back to the commit's declared doc-absolute restore coordinate, so it resolves to the operated child rather than a scope-local index.
 - While a widget is selected whole, the entry records the widget edge the selection came from (`docs/design/selection.md`).
 
-**One gesture, one entry.** Plenty of gestures take more than one commit. A cross-block paste is a delete and then an insert, an IME composition over a range is a delete the composed text then joins (`continueTypingBurst`, below), a drop is a cut and then an insert, an inline-menu pick clears its query and then maybe inserts a block below, and replace-all is one commit per block it rewrites. Each runs its commits inside an undo step (`src/lib/action-contracts.ts` :: `CommitController`'s `undoStep(seed, run)`), and they undo in one press:
+**One gesture, one entry.** Plenty of gestures take more than one commit. A cross-block paste is a delete and then an insert, an IME composition over a range or a selected widget is a delete the composed text then joins (`continueTypingBurst`, below), a drop is a cut and then an insert, an inline-menu pick clears its query and then maybe inserts a block below, and replace-all is one commit per block it rewrites. Each runs its commits inside an undo step (`src/lib/action-contracts.ts` :: `CommitController`'s `undoStep(seed, run)`), and they undo in one press:
 
 - The entry is pushed at the first write that actually lands. It holds the document from just before that write, and the selection as it stood when the step opened (a gesture often collapses its range before it writes anything; `seed` is the fallback when nothing's focused).
 - Every later write in the step joins that entry, and a step that writes nothing leaves nothing.
@@ -46,7 +46,7 @@ Every write to a block's text says which of those it is, as its `history`. Typin
 
 A gesture can't push an entry ahead of its write; all it gets is the step. The code keeps that rule rather than the types forcing it, though. A commit outside a step still pushes its own entry, and the typing batch pushes at a burst's first keystroke, before the keystroke writes. A keystroke that changes its block (a new kind, or several blocks) commits with `history: 'join-typing'`, so that commit lands in the entry the keystroke already pushed, ending the burst. The join holds only because nothing awaits between the batch push and the commit call.
 
-The other way round works too: after a commit, `CommitController`'s `continueTypingBurst()` makes the next typing write join the entry that commit wrote. A composition over a range is the one user, so the composed text lands in the entry its removal opened (compositionend ends the continuation with `endContinuedBurst`).
+The other way round works too: after a commit, `CommitController`'s `continueTypingBurst()` makes the next typing write join the entry that commit wrote. A composition over a range or a selected widget is the one user, so the composed text lands in the entry its removal opened (compositionend ends the continuation with `endContinuedBurst`).
 
 ## The commit primitive
 

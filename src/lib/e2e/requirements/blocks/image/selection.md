@@ -17,10 +17,14 @@
   PageUp and PageDown move it from the widget's edge
   - Miss-analysis: only the arrow keys were asserted on a selected image; the remaining keys were
     swallowed, and no spec pressed one
+- A selected image shows no caret: five screenshots across a blink are identical, the editable's
+  `caret-color` is transparent and no bar draws. The browser holds one all the same, at the
+  image's end, for text that arrives with no key. Chromium under forced colors shows it, since
+  `caret-color` can't hide it there, and that is accepted: a lost letter is worse
 - Moving the mouse off a selected image, or pressing its resize handle or its crop frame, leaves
-  no native caret, and `getSelection()` reports the image's end: the paragraph keeps focus while
-  its image is selected, and the browser puts a caret at its start on any mouse input, which the
-  editor drops while the image stays selected
+  that caret hidden at the image's end, and `getSelection()` reports the image's end: the
+  paragraph keeps focus while its image is selected, and the browser puts a caret at its start on
+  any mouse input, which the editor moves back while the image stays selected
   - Miss-analysis: no spec read the native selection after a press on the image's controls, and
     the one that pressed the image three times read only the selected text
 

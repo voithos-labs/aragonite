@@ -110,11 +110,16 @@ describe('the swap commit sequence', () => {
 
 	it('drops a selected widget in the same announcement', () => {
 		const h = harness();
-		selectWidgetWhole(h.selection, testCaretWriter, {
-			paragraphPath: [0],
-			sourceStart: 0,
-			preSelectOffset: 0
-		});
+		selectWidgetWhole(
+			h.selection,
+			testCaretWriter,
+			{
+				paragraphPath: [0],
+				sourceStart: 0,
+				preSelectOffset: 0
+			},
+			() => null
+		);
 		h.order.length = 0;
 		h.swap.swapTo('# B\n');
 		expect(h.selection.widget).toBeNull();

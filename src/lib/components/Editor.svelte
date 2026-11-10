@@ -682,6 +682,7 @@
 		getEditorRoot: () => editorEl ?? null,
 		scroll: scrollOwner,
 		ownsRange: () => selectionState.ownsRange,
+		holdsWidget: () => selectionState.widget !== null,
 		isHostChrome,
 		landCaretAt: navigateCaret,
 		caretRectAt,
@@ -1074,6 +1075,7 @@
 			isHostChrome,
 			announceIfMoved: selectionAnnouncer.announceIfMoved,
 			selection: selectionState,
+			isReading: () => reading.mode() === 'reading',
 			caretWriter,
 			composition
 		});

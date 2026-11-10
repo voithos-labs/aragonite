@@ -2,8 +2,9 @@
  * The one replace every destructive gesture over a live range goes through: Backspace, Delete, cut,
  * typing, an IME composition, paste, and a command key such as Enter. It removes what the range
  * covers, puts the insertion where the removal left the caret (a line of text inside one cell is
- * one write instead) and lands one caret, all as one undo entry. The rules by gesture and coverage
- * are `docs/design/selection.md` § Cross-block selection.
+ * one write instead) and lands one caret, all as one undo entry. A composition over a widget
+ * selected whole removes the widget through it too. The rules by gesture and coverage are
+ * `docs/design/selection.md` § Cross-block selection.
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
@@ -76,24 +77,20 @@ export async function replaceRange(
 ): Promise<RangeReplaceOutcome> {
 	const { anchor, focus, start } = ctx.selection;
 	if (!ctx.selection.ownsRange || !anchor || !focus || !start) return 'nothing';
-	if (!ctx.controller.admitsGesture(refusalName(insertion))) return 'refused';
-	ctx.caretMemory.forget();
-	ctx.selection.resetSelectAllCount();
-	if (insertion.kind === 'paste' && !insertion.text) return 'nothing';
+	return replaceHeld(ctx, { anchor, focus, start }, insertion);
+}
 
-	const doc = ctx.getDoc();
-	const coverage = rangeCoverage(doc, coverRange(doc, anchor, focus));
-	// Widened, since the step assigns it inside a callback the compiler can't follow.
-	let outcome = 'nothing' as RangeReplaceOutcome;
-	// Seeded with the range, so one Ctrl+Z puts it back as it stood.
-	await ctx.controller.undoStep(deleteSnapshot(start.path, start.offset), async () => {
-		outcome = await replaceInStep(ctx, coverage, insertion);
-	});
-	// After the step, whose end starts a new typing batch: the composed text joins the removal.
-	if (insertion.kind === 'composition' && outcome === 'written') {
-		ctx.controller.continueTypingBurst();
-	}
-	return outcome;
+/** What a composition started over a widget selected whole does first: the widget's bytes go as
+ *  a range over them would. Typed text there is the block's own splice (`widget-interaction.ts`). */
+export async function replaceWidget(
+	ctx: CrossBlockMutationContext,
+	insertion: Extract<RangeInsertion, { kind: 'composition' }>
+): Promise<RangeReplaceOutcome> {
+	const widget = ctx.selection.widgetRange();
+	if (!widget) return 'nothing';
+	const start = { path: widget.path, offset: widget.start };
+	const focus = { path: widget.path, offset: widget.end };
+	return replaceHeld(ctx, { anchor: start, focus, start }, insertion);
 }
 
 /** The kind of the deepest block `path` resolves to; the document root reads as its own kind. */
@@ -108,6 +105,40 @@ export function kindOfPath(path: number[], doc: Document): AnyBlockKind {
 }
 
 // ── The step ───────────────────────────────────────────────────────────────
+
+/** The bytes a selection the editor holds covers, and its start. */
+interface HeldSpan {
+	anchor: SelectionPoint;
+	focus: SelectionPoint;
+	start: SelectionPoint;
+}
+
+async function replaceHeld(
+	ctx: CrossBlockMutationContext,
+	held: HeldSpan,
+	insertion: RangeInsertion
+): Promise<RangeReplaceOutcome> {
+	if (!ctx.controller.admitsGesture(refusalName(insertion))) return 'refused';
+	ctx.caretMemory.forget();
+	ctx.selection.resetSelectAllCount();
+	if (insertion.kind === 'paste' && !insertion.text) return 'nothing';
+
+	const doc = ctx.getDoc();
+	const coverage = rangeCoverage(doc, coverRange(doc, held.anchor, held.focus));
+	// Widened, since the step assigns it inside a callback the compiler can't follow.
+	let outcome = 'nothing' as RangeReplaceOutcome;
+	// Seeded with the selection, so one Ctrl+Z puts it back as it stood.
+	await ctx.controller.undoStep(deleteSnapshot(held.start.path, held.start.offset), async () => {
+		// The step has read the selection for its entry by now, so a selected widget ends here.
+		ctx.selection.clearWidget();
+		outcome = await replaceInStep(ctx, coverage, insertion);
+	});
+	// After the step, whose end starts a new typing batch: the composed text joins the removal.
+	if (insertion.kind === 'composition' && outcome === 'written') {
+		ctx.controller.continueTypingBurst();
+	}
+	return outcome;
+}
 
 /** Every commit's caret is held, so the replace puts down one: the last commit's that wrote, else
  *  the removal's. A command key is Backspace and then the key, so its block lands its own too. */
