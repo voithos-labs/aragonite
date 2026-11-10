@@ -88,6 +88,13 @@ const ROWS: WidgetRow[] = [
 		plugin: 'chips',
 		select: keyFrom([1, 1, 0], 10, 'ControlOrMeta+k'),
 		after: (text) => CHIPS.replace('{{beta}}', text)
+	},
+	{
+		name: 'a plugin’s chip alone in a table cell',
+		source: CHIPS.replace('x {{beta}} y', '{{beta}}'),
+		plugin: 'chips',
+		select: keyFrom([1, 1, 0], '{{beta}}'.length, 'ControlOrMeta+k'),
+		after: (text) => CHIPS.replace('x {{beta}} y', text)
 	}
 ];
 

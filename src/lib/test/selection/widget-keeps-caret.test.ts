@@ -9,6 +9,8 @@ import { checkWidgetKeepsCaret } from '#lib/invariants/widget-keeps-caret.js';
 import { createSurfaceBackend } from '#lib/components/blocks/editable/surface-backend.js';
 import { createCaretWriter } from '#lib/browser/caret-writer.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
+import { mountBlock, span } from '../browser/chrome-fixtures';
+import { takeDevWarns } from '../support/warn-gate';
 
 const mounted: HTMLElement[] = [];
 afterEach(() => {
@@ -57,6 +59,19 @@ describe('a widget selected whole keeps a caret at its edge', () => {
 		expect(caret()!.node!.textContent).toBe(beside);
 		expect(checkWidgetKeepsCaret(el, false)).toBeNull();
 		expect(selection.widget).not.toBeNull();
+	});
+
+	// Miss-analysis: every selected widget in a test had text beside its edge, so none kept its
+	// caret among hidden markers, where the rule for a caret that shows refused it.
+	it('among hidden marker runs, where a caret that shows is refused', () => {
+		const el = mountBlock({ mode: 'live' }, span('md-marker', '@@marker'));
+		mounted.push(el.parentElement!);
+		el.focus();
+		const target = { paragraphPath: [0], sourceStart: 0, preSelectOffset: 0 };
+		selectWidgetWhole(createSelectionState(), testCaretWriter, target, () => el);
+		expect(caret()).toEqual({ collapsed: true, node: expect.anything() });
+		expect(checkWidgetKeepsCaret(el, false)).toBeNull();
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	it('holds none in a block that has no focus, where no text arrives', () => {

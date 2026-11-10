@@ -13,6 +13,7 @@ Only Chromium's rows carry the browser's real event order (a CDP composition). W
   - a line break reached by ArrowRight
   - a plugin's chip in a paragraph, selected with Mod+K
   - a plugin's chip in a table cell: the text lands in that cell
+  - a plugin's chip alone in a table cell: the cell stays and takes the text
 
 ## Edge cases
 
