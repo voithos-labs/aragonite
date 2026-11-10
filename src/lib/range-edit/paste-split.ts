@@ -1,15 +1,28 @@
 /**
  * Pasted blocks that land as blocks of their own: the block at the caret splits there and the
  * pasted blocks go between its halves, or the caret's list does, where a pasted list leaves it.
- * A range `[at, to)` inside the block's text goes with the split.
+ * A range `[at, to)` inside the block's text goes with the split. At a caret in no block's text
+ * they go between the blocks there, a blank line either side only where two would read as one.
  */
 
 import { isBlankText } from '../core/lines';
 import type { LaidBlock } from './layout';
-import { contentEnd, factsOf, parentOf, type Doc } from './document';
+import { pastMarkers } from './apart';
+import {
+	containersHolding,
+	contentEnd,
+	factsOf,
+	findWithin,
+	lineOf,
+	nodeAt,
+	parentOf,
+	readDoc,
+	titleOwner,
+	type Doc
+} from './document';
 import { numberedAfterSplit } from './list-numbers';
 import { continuation } from './markers';
-import { lineEnd, lineRest, spliced, type Edit } from './leaf-splice';
+import { lineEnd, lineHead, lineRest, spliced, type Edit } from './leaf-splice';
 
 /** A pasted list of another kind than `list`, the caret's: the pasted blocks land between the
  *  list's halves, and what the caret's item holds after the caret is the second half's first item. */
@@ -46,17 +59,99 @@ export function splitOut(
 	const copyAt = tail ? head.length + eol.length + outer.length : null;
 	const out = head + marker + source.slice(to);
 	const numbered = whole ? out : numberedAfterSplit(doc, list, item.path.at(-1)!, to, out, copyAt);
-	// The last pasted block stays apart from the line under it where the two would read as one.
 	const under = lineEnd(numbered, head.length) + 1;
-	const lower = numbered.slice(under + outer.length, lineEnd(numbered, under)) + '\n';
-	const upper = { raw: last.replace(/\n?$/, '\n') };
-	const [parent, index] = [list.path.slice(0, -1), list.path.at(-1)!];
+	const lower = numbered.slice(under + outer.length, lineEnd(numbered, under));
+	const pair = { path: list.path.slice(0, -1), index: list.path.at(-1)!, upper: last, lower };
+	return { source: parted(doc, numbered, under, outer, pair), caret: head.length };
+}
+
+/** Two blocks a paste leaves touching, children `index` and `index + 1` of the block at `path`
+ *  once it lands, each by its own bytes. */
+interface Touching {
+	path: readonly number[];
+	index: number;
+	upper: string;
+	lower: string;
+}
+
+/** `out` with a blank line behind `marks` opened at `line`, where the lower block's line starts,
+ *  when the two would read as one block without it. */
+function parted(doc: Doc, out: string, line: number, marks: string, pair: Touching): string {
+	const above = out.lastIndexOf('\n', line - 2) + 1;
+	const ended = (raw: string) => ({ raw: raw.replace(/\n?$/, '\n') });
 	const apart =
-		!isBlankText(lower) && doc.host.parts(doc.tree, parent, index, upper, { raw: lower }, true);
-	const parted = apart
-		? numbered.slice(0, under) + outer.trimEnd() + eol + numbered.slice(under)
-		: numbered;
-	return { source: parted, caret: head.length };
+		line > 0 &&
+		!isBlankText(pair.lower) &&
+		!isBlankText(out.slice(pastMarkers(out, above), line)) &&
+		doc.host.parts(doc.tree, pair.path, pair.index, ended(pair.upper), ended(pair.lower), true);
+	return apart ? out.slice(0, line) + marks.trimEnd() + doc.ending + out.slice(line) : out;
+}
+
+/** Whether a container is around the place `at`: it starts before it, and its marker on the
+ *  place's line has ended by it. */
+const around = (at: number) => (c: LaidBlock) => c.from < at && lineOf(c, at).markerTo <= at;
+
+/** The clipboard landing at `at`, a place in no block's text (between two blocks, where one
+ *  starts), as blocks of its own: what stood after `at` on its line starts the line under them. */
+export function pasteApart(doc: Doc, at: number, clip: string): Edit {
+	const { source } = doc;
+	const outside = around(at);
+	// The line break that sets what follows on its own line stands for the clipboard's last one.
+	const follows = !isBlankText(clip) && !isBlankText(lineRest(source, at));
+	const pasted = spliced(doc, at, at, outside)(follows ? clip.replace(/\n$/, '') : clip);
+	const moved = follows ? doc.ending + continuation(doc, at, outside) : '';
+	const edit = {
+		source: source.slice(0, at) + pasted + moved + source.slice(at),
+		caret: at + pasted.length
+	};
+	return setApart(doc, edit, at, clip, true);
+}
+
+/** `edit`, which put `clip` on the empty line at `at` that no block holds: its last block stays
+ *  apart from the block under it. */
+export const apartBelow = (doc: Doc, edit: Edit, at: number, clip: string) =>
+	setApart(doc, edit, at, clip, false);
+
+/** `edit` with a blank line between the last block of `clip`, which it put at `at`, and the block
+ *  under it where the two would read as one; with `above`, over its first block the same way. */
+function setApart(doc: Doc, edit: Edit, at: number, clip: string, above: boolean): Edit {
+	const blocks = readDoc(clip, doc.host, doc.mode).tree.children.filter((b) => !isBlankText(b.raw));
+	if (blocks.length === 0) return edit;
+	const { source } = doc;
+	const outside = around(at);
+	// The blocks either side are children of the nearest container around the place.
+	const holder = containersHolding(doc, at).findLast(outside);
+	const path = holder?.path ?? [];
+	const child = (b: LaidBlock) =>
+		b.path.length === path.length + 1 && path.every((p, i) => p === b.path[i]);
+	const head = lineHead(source, at);
+	const next = pastMarkers(source, Math.min(lineEnd(source, at) + 1, source.length));
+	const lower = findWithin(doc, at, next, (b) => child(b) && b.from >= at);
+	let out = edit.source;
+	if (lower) {
+		const line = out.lastIndexOf('\n', lower.from + out.length - source.length - 1) + 1;
+		const pair = {
+			path,
+			index: lower.path.at(-1)!,
+			upper: blocks.at(-1)!.raw,
+			lower: nodeAt(doc, lower.path).raw
+		};
+		out = parted(doc, out, line, continuation(doc, at, outside), pair);
+	}
+	// Past where its line's text starts, the place is on a line of the block above, never under it.
+	const under = at === (holder ? lineOf(holder, at).markerTo : at - head.length);
+	const reach = above && under ? [...doc.layout.within(at - head.length, at)] : [];
+	// A title row is its container's own line, never a block to stay apart from.
+	const upper = reach.findLast((b) => child(b) && b.to <= at && !titleOwner(doc, b));
+	if (!upper) return { source: out, caret: edit.caret };
+	const pair = {
+		path,
+		index: upper.path.at(-1)!,
+		upper: nodeAt(doc, upper.path).raw,
+		lower: blocks[0].raw
+	};
+	const grown = parted(doc, out, at - head.length, head, pair);
+	return { source: grown, caret: edit.caret + grown.length - out.length };
 }
 
 /** The block at the caret split there, the pasted blocks between its halves; `lastJoins`: the

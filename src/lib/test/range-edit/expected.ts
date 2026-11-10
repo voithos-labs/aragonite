@@ -2,6 +2,7 @@
 // package under test: the bytes a copy writes, the bytes a paste at a caret gives, and the bytes a
 // new line in a container starts with.
 
+import type { SpliceCaret } from '#lib/action-contracts.js';
 import type { DocumentView, NodeView } from '#lib/core/node-views.js';
 import type { Mode } from '#lib/range-edit/host.js';
 import type { LaidBlock, LaidLine, Layout } from '#lib/range-edit/layout.js';
@@ -423,15 +424,36 @@ export function liveSplitsRun(read: Read, from: number, to: number, host: CheckH
  *  either side; a leading container taken in by one the caret sits in; a leading list splitting the
  *  list of another kind it leaves; a leading block of its own kind splitting a paragraph; or a
  *  shape the rows hold. */
-export type PasteShape = 'text' | 'blocks' | 'absorbed' | 'broken out' | 'split' | 'other';
+export type PasteShape =
+	| 'text'
+	| 'blocks'
+	| 'absorbed'
+	| 'broken out'
+	| 'split'
+	/** At a place in no block's text: blocks of their own between the blocks there. */
+	| 'apart'
+	| 'other';
 
-/** The source a paste of `text` at `at` may give, with the rule that gives it. */
+/** What a caret holds, as the answer that left it there named it. */
+export type Holds = SpliceCaret['holds'];
+
+/** The source a paste of `text` at `at`, a caret holding `holds`, may give, with the rule that
+ *  gives it. */
 export function expectedPaste(
 	read: Read,
 	at: number,
 	text: string,
-	host: CheckHost
+	host: CheckHost,
+	holds: Holds
 ): { shape: PasteShape; bytes: string[] } {
+	// Where a block starts and the caret is in no text, the clipboard lands above it all the same.
+	const rest = read.source.slice(at, (read.source + '\n').indexOf('\n', at));
+	const onSyntax =
+		!leafAt(read, at) && rest.trim() !== '' && read.blocks.some((b) => b.from === at);
+	if (holds !== 'text' || onSyntax) {
+		const bytes = landedApart(read, at, lf(text), host);
+		return bytes === null ? { shape: 'other', bytes: [] } : { shape: 'apart', bytes };
+	}
 	const want = landedPaste(read, at, text, host);
 	const last = host
 		.read(lf(text))
@@ -471,6 +493,65 @@ export function apartBelow(
 		readOf(host, source).blocks.some((b) => b.type === next.type && b.from === from);
 	if (starts(bytes, next.from + shift)) return [bytes, apart];
 	return starts(apart, next.from + shift + marks.length) ? [apart] : [bytes];
+}
+
+/** `clip` at `at`, a place in no block's text, on lines of its own above what follows `at` on its
+ *  line: a blank line either side only where a block there reads as its own with it and not without. */
+function landedApart(read: Read, at: number, clip: string, host: CheckHost): string[] | null {
+	const { source } = read;
+	const eol = endingOf(source);
+	const tops = readOf(host, clip).blocks.filter(
+		(b) => b.path.length === 1 && clip.slice(b.from, b.to).trim() !== ''
+	);
+	if (tops.length === 0) return null;
+	// A container holds the place once its marker on the place's line has ended.
+	const holds = (c: LaidBlock) => c.from < at && lineOf(c, at).markerTo <= at;
+	const around = containersHolding(read, at).filter(holds);
+	const depth = (around.at(-1)?.path.length ?? 0) + 1;
+	const prefix = continuationAt(read, at, host, holds);
+	const follows = !nothingVisibleAfter(source, at);
+	// The line break that sets what follows on its own line stands for the clipboard's last one.
+	const lines = (follows ? clip.replace(/\n$/, '') : clip).split('\n');
+	const pasted = join(lines, prefix, eol, follows);
+	const out = source.slice(0, at) + pasted + (follows ? eol + prefix : '') + source.slice(at);
+	const lineStart = (bytes: string, byte: number) => bytes.lastIndexOf('\n', byte - 1) + 1;
+	// A block starts on the line of `byte`: spaces before it there may be its own or the line's.
+	const starts = (bytes: string, type: string, byte: number) =>
+		readOf(host, bytes).blocks.some(
+			(b) =>
+				b.type === type &&
+				b.path.length === depth &&
+				lineStart(bytes, b.from) === lineStart(bytes, byte)
+		);
+	// `bytes`, or `bytes` with a blank line behind `marks` over the line of `byte`: the one where a
+	// block of `type` starts there, or either where both do, as the core asks of the two blocks alone.
+	const parted = (bytes: string, byte: number, type: string, marks: string) => {
+		const line = lineStart(bytes, byte);
+		const above = bytes.slice(lineStart(bytes, line - 1), line);
+		if (line === 0 || /^[ \t>]*\r?\n$/.test(above)) return [bytes];
+		const blank = marks.trimEnd() + eol;
+		const apart = bytes.slice(0, line) + blank + bytes.slice(line);
+		const [flush, set] = [starts(bytes, type, byte), starts(apart, type, byte + blank.length)];
+		return flush && set ? [bytes, apart] : set ? [apart] : [bytes];
+	};
+	// The blocks either side: children of the container around the place, a title row left out.
+	const holder = around.at(-1);
+	const beside = read.blocks.filter(
+		(b) =>
+			b.path.length === depth &&
+			source.slice(b.from, b.to).trim() !== '' &&
+			(!holder || (b.from >= holder.from && b.to <= holder.to))
+	);
+	const under = beside.find((b) => b.from >= at);
+	const below = under
+		? parted(out, under.from + out.length - source.length, under.type, prefix)
+		: [out];
+	// Past where its line's text starts, the place is on a line of the block above, never under it.
+	const head = lineStart(source, at);
+	const textStart = holder ? lineOf(holder, at).markerTo : head;
+	const over = beside.find((b) => b.to >= head && b.to <= at && !inTitleRow(read, b.from, host));
+	if (!over || at !== textStart) return below;
+	return below.flatMap((bytes) => parted(bytes, at, tops[0].type, source.slice(head, at)));
 }
 
 function landedPaste(

@@ -82,7 +82,13 @@ export function describeLaws(
 			for (const input of inputs) {
 				for (const c of input.carets) {
 					for (const text of c.texts) {
-						const at = { source: input.source, mode: input.mode, at: c.at, text };
+						const at = {
+							source: input.source,
+							mode: input.mode,
+							at: c.at,
+							holds: 'text' as const,
+							text
+						};
 						const where = `in ${JSON.stringify(input.source)} ${input.mode} at ${c.at}`;
 						fails.push(...law(call, at).map((line) => `${line}\n    ${where}`));
 					}

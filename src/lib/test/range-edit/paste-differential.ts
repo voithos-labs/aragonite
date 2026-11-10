@@ -37,7 +37,7 @@ import {
 import { pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
 import { visibleText } from '#lib/core/inline/link-source-bytes.js';
 import { hidesDelimitersAtCaret } from '#lib/presentation-mode.js';
-import { expectedPaste, plainPasteHolds, readOf } from './expected';
+import { expectedPaste, plainPasteHolds, readOf, type Holds } from './expected';
 import type { CheckHost } from './test-host';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import {
@@ -102,6 +102,8 @@ export interface PasteRow extends PasteCase {
 }
 
 const LF = (text: string) => text.replace(/\r\n?/g, '\n');
+/** What the core is told the caret holds: a block focused whole and a gap are the boundary under them. */
+const holdsAt = (via: Place): Holds => ('whole' in via || 'gap' in via ? 'boundary' : 'text');
 const CUTS: readonly DiffRoute[] = ['cut then key', 'cut then plain'];
 
 /** The editor's range as the core receives it, read as a removal reads it; a block focused whole
@@ -336,6 +338,7 @@ function coreSide(
 	grammar: GrammarView,
 	row: PasteRow
 ): Answer | { threw: string } {
+	const holds = holdsAt(input.via);
 	try {
 		let answer: ReturnType<typeof coreAnswer>;
 		if (CUTS.includes(input.route)) {
@@ -346,19 +349,26 @@ function coreSide(
 			const at = { from: cut.raw.caret.at, to: cut.raw.caret.at };
 			const text = LF(cut.raw.clipboard ?? '');
 			const plain = input.route === 'cut then plain';
-			answer = coreAnswer(cut.raw.source, at, { paste: text, plain }, input.mode, grammar);
-			const own = { paste: text, plain, own: cut.raw.own };
+			const { holds } = cut.raw.caret;
+			answer = coreAnswer(cut.raw.source, at, { paste: text, plain, holds }, input.mode, grammar);
+			const own = { paste: text, plain, holds, own: cut.raw.own };
 			row.coreOwn = coreAnswer(cut.raw.source, at, own, input.mode, grammar).landed;
 		} else {
 			const plain = input.route === 'plain menu' || input.route === 'shift key';
-			answer = coreAnswer(source, range, { paste: LF(input.clip), plain }, input.mode, grammar);
+			answer = coreAnswer(
+				source,
+				range,
+				{ paste: LF(input.clip), plain, holds },
+				input.mode,
+				grammar
+			);
 		}
 		if (answer.raw.source !== answer.landed.source) row.coreRaw = answer.raw;
 		if (answer.window) row.window = answer.window;
 		const clip = LF(row.clip);
 		if (!CUTS.includes(input.route) && clip.endsWith('\n')) {
 			const plain = input.route === 'plain menu' || input.route === 'shift key';
-			const gesture = { paste: clip.slice(0, -1), plain };
+			const gesture = { paste: clip.slice(0, -1), plain, holds };
 			row.coreNoTrail = coreAnswer(source, range, gesture, input.mode, grammar).landed;
 		}
 		return answer.landed;
@@ -457,7 +467,7 @@ export function lawsOf(row: PasteRow, grammar: GrammarView): LawVerdicts | undef
 			got === undefined ? undefined : plainPasteHolds(read, range.from, text, got, host, row.mode);
 		return { law: 'L11', today: holds(today), core: holds(core) };
 	}
-	const want = expectedPaste(read, range.from, text, host);
+	const want = expectedPaste(read, range.from, text, host, holdsAt(row.via));
 	if (want.shape === 'other') return { law: 'L9', shape: 'other' };
 	const holds = (got?: string) => (got === undefined ? undefined : want.bytes.includes(got));
 	return { law: 'L9', shape: want.shape, today: holds(today), core: holds(core) };

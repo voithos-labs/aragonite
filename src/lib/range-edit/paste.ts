@@ -5,10 +5,12 @@
  * everything pasted, its last line ending too.
  */
 
+import type { SpliceCaret } from '../action-contracts';
 import { displayLines, isBlankText, withLineEnding } from '../core/lines';
 import type { LaidBlock } from './layout';
 import {
 	factsOf,
+	findWithin,
 	isCell,
 	leafHolding,
 	nodeAt,
@@ -19,7 +21,7 @@ import {
 } from './document';
 import { apartAt, pastMarkers } from './apart';
 import { closedBy, emptiedRest, leftBy, takerOf, withoutOpening } from './container-merge';
-import { splitAt, splitOut } from './paste-split';
+import { apartBelow, pasteApart, splitAt, splitOut } from './paste-split';
 import {
 	byteAt,
 	lineHead,
@@ -30,15 +32,18 @@ import {
 	type Edit
 } from './leaf-splice';
 
-/** The paste of `clipboard` over `[from, to)`: a caret, or a range inside one text block's text. */
+/** The paste of `clipboard` over `[from, to)`: a caret holding `holds`, or a range inside one text
+ *  block's text. */
 export function pasteAt(
 	doc: Doc,
 	from: number,
 	to: number,
 	clipboard: string,
-	plain: boolean
+	plain: boolean,
+	holds: SpliceCaret['holds']
 ): Edit {
 	const lf = clipboard.replace(/\r\n?/g, '\n');
+	if (holds !== 'text') return pasteApart(doc, from, offText(doc, from, lf, plain));
 	const edit = landed(doc, from, to, lf, plain);
 	// What lands in an empty paragraph, its line ending alone, stays apart from the block under it.
 	const leaf = leafHolding(doc, from, to)?.leaf;
@@ -63,6 +68,15 @@ function lastPasted(doc: Doc, leaf: LaidBlock, clip: string, plain: boolean): st
 	return last && !last.children?.length ? ended(last.raw) : null;
 }
 
+/** The clipboard as it goes in at `at`, a place in no block's text: plain text escaped where the
+ *  block beside it reads Markdown. */
+function offText(doc: Doc, at: number, clip: string, plain: boolean): string {
+	const near = pointedBlock(doc, at);
+	return plain && near?.text && factsOf(doc, near).body === 'markdown'
+		? doc.host.leaf.plain(doc.tree, near.path, clip)
+		: clip;
+}
+
 /** The paste of `lf`, clipboard text with LF line endings, over `[from, to)`. */
 function landed(doc: Doc, from: number, to: number, lf: string, plain: boolean): Edit {
 	const visibleAfter = lineRest(doc.source, to) !== '';
@@ -72,12 +86,17 @@ function landed(doc: Doc, from: number, to: number, lf: string, plain: boolean):
 	const target = leafHolding(doc, from, to);
 	const bytes = (text: string, indent?: string) => insertBytes(doc, from, to, text, indent);
 	if (!target) {
-		const near = pointedBlock(doc, from);
-		if (plain && near?.text && factsOf(doc, near).body === 'markdown')
-			return bytes(doc.host.leaf.plain(doc.tree, near.path, clip));
 		const marked = !plain && !isBlankText(lineHead(doc.source, from));
 		const rest = marked ? emptiedRest(doc, from, readDoc(clip, doc.host, doc.mode)) : null;
-		return bytes(rest ?? clip);
+		if (rest !== null) return bytes(rest);
+		const text = offText(doc, from, clip, plain);
+		// Where a block starts, the clipboard lands as blocks above it, never in its syntax.
+		if (visibleAfter && findWithin(doc, from, from, (b) => b.from === from))
+			return pasteApart(doc, from, text);
+		// On an empty line no block holds, what lands stays apart from the block under it too.
+		const lineStart = from - lineHead(doc.source, from).length;
+		const emptyLine = !visibleAfter && pastMarkers(doc.source, lineStart) === from;
+		return emptyLine ? apartBelow(doc, bytes(text), from, text) : bytes(text);
 	}
 	const { leaf } = target;
 	const write = (text: string, keep?: (c: LaidBlock) => boolean) =>

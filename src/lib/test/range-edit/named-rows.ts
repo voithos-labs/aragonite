@@ -21,8 +21,10 @@ export interface NamedRow {
 }
 
 const text = (at: number): RangeEditResult['caret'] => ({ at, holds: 'text' });
-const paste = (t: string): Gesture => ({ paste: t, plain: false });
-const plain = (t: string): Gesture => ({ paste: t, plain: true });
+const paste = (t: string): Gesture => ({ paste: t, plain: false, holds: 'text' });
+const plain = (t: string): Gesture => ({ paste: t, plain: true, holds: 'text' });
+// A paste at a caret between two blocks, as the editor's gap caret holds it.
+const between = (t: string): Gesture => ({ paste: t, plain: false, holds: 'boundary' });
 const backToStart = (marked: string) => ({ source: unmark(marked) });
 // Filler that puts more bytes either side than an own entry hashes, so only its hashes place it.
 const LONG = 'a paragraph long enough that the entry hashes only part of it';
@@ -423,6 +425,87 @@ export const NAMED_ROWS: NamedRow[] = [
 		source: '- x⟦⟧word\n',
 		gesture: paste('1. q\n\n- r'),
 		expect: { source: '- x\n1. q\n\n- r\n\n- word\n' }
+	},
+	// ── A paste where the caret holds no text lands as blocks of its own (§ 5.4 rule 7) ──
+	// Miss-analysis: a paste gesture couldn't say its caret stood between blocks, so every row and
+	// law pasted at a byte in text, and a cut's `'boundary'` caret was pasted at as if it held text.
+	{
+		name: 'L9 text pasted in the gap above a table stays a paragraph above it',
+		source: '⟦⟧| a |\n| - |\n',
+		gesture: between('x'),
+		expect: { source: 'x\n\n| a |\n| - |\n', caret: text(1) }
+	},
+	{
+		name: 'L9 in the gap above a paragraph it stays a paragraph of its own',
+		source: 'a\n\n⟦⟧b\n',
+		gesture: between('x'),
+		expect: { source: 'a\n\nx\n\nb\n', caret: text(4) }
+	},
+	{
+		name: 'L9 a list pasted in the gap under a list of its kind stays a list of its own',
+		source: '- a\n⟦⟧# h\n',
+		gesture: between('- q'),
+		expect: { source: '- a\n\n- q\n# h\n', caret: text(8) }
+	},
+	{
+		name: 'L9 in the gap after a quote, a pasted paragraph stays out of it',
+		source: '> a\n⟦⟧',
+		gesture: between('x'),
+		expect: { source: '> a\n\nx' }
+	},
+	{
+		name: 'L9 with nothing after the gap, the clipboard’s last line ending stays',
+		source: '# h\n⟦⟧',
+		gesture: between('x\n'),
+		expect: { source: '# h\nx\n', caret: { at: 6, holds: 'boundary' } }
+	},
+	{
+		name: 'L9 in a quote, the pasted lines and the block after them keep its marker',
+		source: '> a\n>\n> ⟦⟧```\n> x\n> ```\n',
+		gesture: between('one\ntwo'),
+		expect: { source: '> a\n>\n> one\n> two\n> ```\n> x\n> ```\n' }
+	},
+	{
+		name: 'L12 a rule cut from above a code block pastes back exact with its own entry',
+		source: 'para\n\n⟦---⟧\n\n```\nx\n```\n',
+		gesture: 'cut',
+		expect: { source: 'para\n\n```\nx\n```\n', caret: { at: 6, holds: 'boundary' } },
+		then: {
+			gesture: 'paste back with own',
+			expect: backToStart('para\n\n---\n\n```\nx\n```\n')
+		}
+	},
+	{
+		name: 'L3 its text alone lands the rule as a block above the code',
+		source: 'para\n\n⟦---⟧\n\n```\nx\n```\n',
+		gesture: 'cut',
+		expect: { clipboard: '---' },
+		then: { gesture: 'paste back', expect: { source: 'para\n\n---\n```\nx\n```\n' } }
+	},
+	{
+		name: 'L3 a quote cut from above a list pastes back above it, the list still a list',
+		source: 'x\n\n⟦> a\n> b⟧\n\n- c\n',
+		gesture: 'cut',
+		expect: { source: 'x\n\n- c\n', caret: { at: 3, holds: 'block' } },
+		then: { gesture: 'paste back', expect: { source: 'x\n\n> a\n> b\n- c\n' } }
+	},
+	{
+		name: 'L9 a paste over a range that leaves the caret before an item keeps it an item',
+		source: '[^1]: ⟦**b**\n\t- x\n    ⟧- y\n',
+		gesture: paste('a\nb'),
+		expect: { source: '[^1]: a\n    b\n    - y\n' }
+	},
+	{
+		name: 'L9 at a heading’s first byte the pasted lines land above the heading',
+		source: '⟦⟧# h\n',
+		gesture: paste('x\ny'),
+		expect: { source: 'x\ny\n# h\n', caret: text(3) }
+	},
+	{
+		name: 'L5 text over a rule held whole stays apart from the indented code under it',
+		source: 'para\n⟦***⟧\n    code\n',
+		gesture: paste('p'),
+		expect: { source: 'para\np\n\n    code\n', caret: text(6) }
 	},
 	// ── Copy (law 10) ──
 	{

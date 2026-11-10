@@ -25,6 +25,7 @@ import {
 	sameBlocks,
 	sameDocument,
 	copiesLinesBeforeRange,
+	type Holds,
 	type Read
 } from './expected';
 
@@ -38,6 +39,8 @@ export interface CaretInput {
 	source: string;
 	mode: Mode;
 	at: number;
+	/** What the caret holds: `'text'` for a drawn one, else what the cut that left it said. */
+	holds: Holds;
 	text: string;
 }
 
@@ -51,7 +54,11 @@ export type Call = (
 
 const q = (text: string) => JSON.stringify(text);
 const caretRange = (at: number): Range => ({ from: at, to: at });
-const paste = (text: string): Gesture => ({ paste: text, plain: false });
+const paste = (text: string, holds: Holds = 'text'): Extract<Gesture, { paste: string }> => ({
+	paste: text,
+	plain: false,
+	holds
+});
 
 // ── Shapes the laws treat apart ──────────────────────────────────────────────
 
@@ -109,14 +116,13 @@ export function copyLaws(call: Call, input: RangeInput): string[] {
 export function ownEntry(call: Call, host: CheckHost, input: RangeInput, at: number): string[] {
 	const { source, range, mode } = input;
 	const out: string[] = [];
-	const withOwn = (r: Result): Gesture => ({
-		paste: lf(r.clipboard ?? ''),
-		plain: false,
+	const withOwn = (r: Result, holds: Holds = 'text'): Gesture => ({
+		...paste(lf(r.clipboard ?? ''), holds),
 		own: r.own
 	});
 	const cut = call(source, range, 'cut', mode);
 	if (cut?.clipboard !== undefined) {
-		const back = call(cut.source, caretRange(cut.caret.at), withOwn(cut), mode);
+		const back = call(cut.source, caretRange(cut.caret.at), withOwn(cut, cut.caret.holds), mode);
 		if (back && back.source !== source)
 			out.push(`L12 cut ${q(cut.source)}, pasted back with its entry ${q(back.source)}`);
 	}
@@ -152,15 +158,20 @@ export function cutPasteBack(call: Call, host: CheckHost, input: RangeInput): st
 	// The editor hands a paste its text with LF line endings.
 	const text = lf(cut.clipboard);
 	// Where law 9 pins the paste back to other bytes, law 9 wins; the own entry gives them back.
-	const want = expectedPaste(readOf(host, cut.source), cut.caret.at, text, host);
-	if (want.shape !== 'other' && !want.bytes.includes(input.source)) return [];
-	const back = call(cut.source, caretRange(cut.caret.at), paste(text), input.mode);
+	// Blocks cut whole and pasted back between the blocks they left are held to the source all the same.
+	const want = expectedPaste(readOf(host, cut.source), cut.caret.at, text, host, cut.caret.holds);
+	const { from, to } = input.range;
+	const whole =
+		read.blocks.some((b) => b.from === from) &&
+		read.blocks.some((b) => b.to - endingLength(input.source, b.to) === to);
+	const pinned = want.shape !== 'other' && !(want.shape === 'apart' && whole);
+	if (pinned && !want.bytes.includes(input.source)) return [];
+	const back = call(cut.source, caretRange(cut.caret.at), paste(text, cut.caret.holds), input.mode);
 	if (!back) return [];
 	const [source, got] = mixedEndings(input.source)
 		? [lf(input.source), lf(back.source)]
 		: [input.source, back.source];
 	if (got === source) return [];
-	const { from, to } = input.range;
 	// Plain text can't carry how each covered line spelled its markers: the same blocks will do.
 	if (sameDocument(host, source, got, from, to)) return [];
 	// A block taken whole takes a blank line beside it, which plain text can't give back (spec § 4).
@@ -288,7 +299,12 @@ export function replaceLaws(
 		if (!over.source.startsWith(before) || !over.source.endsWith(after))
 			out.push(`L5 paste over a block held whole changed bytes outside it: ${q(over.source)}`);
 	} else if (over && cut) {
-		const then = call(cut.source, caretRange(cut.caret.at), paste(text), input.mode);
+		const then = call(
+			cut.source,
+			caretRange(cut.caret.at),
+			paste(text, cut.caret.holds),
+			input.mode
+		);
 		const block = oneTextBlock(read, input.range, host);
 		if (block) out.push(...oneWrite(host, input, block, text, { over, cut, then }));
 		else if (then && !sameAfterCut(then.source, over.source, input.source, cut.source))
@@ -339,7 +355,7 @@ export function dropLaws(call: Call, input: RangeInput, at: number): string[] {
 	if (!cut || !moved) return out;
 	const mapped = mapThrough(input.source, cut.source, at);
 	if (mapped === null) return out;
-	const carried: Gesture = { paste: cut.clipboard ?? '', plain: false, own: cut.own };
+	const carried: Gesture = { ...paste(cut.clipboard ?? ''), own: cut.own };
 	const then = call(cut.source, caretRange(mapped), carried, input.mode);
 	if (then && !sameAfterCut(then.source, moved.source, input.source, cut.source))
 		out.push(`L6 drop gave ${q(moved.source)}, a cut then a paste at the drop ${q(then.source)}`);
@@ -373,9 +389,9 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 	const read = readOf(host, input.source);
 	// Live mode lands text that brings format runs of its own so the runs close around it.
 	if (input.mode === 'live' && /[*_`~[\]<]/.test(input.text)) return [];
-	const want = expectedPaste(read, input.at, input.text, host);
+	const want = expectedPaste(read, input.at, input.text, host, input.holds);
 	if (want.shape === 'other') return [];
-	const got = call(input.source, caretRange(input.at), paste(input.text), input.mode);
+	const got = call(input.source, caretRange(input.at), paste(input.text, input.holds), input.mode);
 	if (!got || want.bytes.includes(got.source)) return [];
 	return [`L9 (${want.shape}) gave ${q(got.source)}, not ${q(want.bytes[0])}`];
 }
@@ -389,7 +405,7 @@ export function pasteAtCutCaret(
 ): string[] {
 	const cut = call(input.source, input.range, 'cut', input.mode);
 	if (!cut) return [];
-	const at = { source: cut.source, mode: input.mode, at: cut.caret.at };
+	const at = { source: cut.source, mode: input.mode, at: cut.caret.at, holds: cut.caret.holds };
 	const texts = text === undefined ? [cut.clipboard ?? ''] : [cut.clipboard ?? '', text];
 	return texts.flatMap((t) => pasteAtCaret(call, host, { ...at, text: t }));
 }
@@ -421,7 +437,7 @@ export function plainPaste(call: Call, host: CheckHost, input: CaretInput): stri
 	const got = call(
 		input.source,
 		caretRange(input.at),
-		{ paste: input.text, plain: true },
+		{ paste: input.text, plain: true, holds: input.holds },
 		input.mode
 	);
 	if (!got) return [];

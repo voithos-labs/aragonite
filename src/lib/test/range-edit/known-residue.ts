@@ -27,19 +27,11 @@ function coveredLines(read: Read, { from, to }: Range): string[] {
 	return read.source.slice(start, end < 0 ? undefined : end).split('\n');
 }
 
-const lineHead = (source: string, at: number) =>
-	source.slice(source.lastIndexOf('\n', at - 1) + 1, at);
-
 /** The text after `at` on its line, which a cut joins to the start's line. */
 function restOfLine(read: Read, at: number): string {
 	const end = read.source.indexOf('\n', at);
 	return read.source.slice(at, end < 0 ? undefined : end);
 }
-
-/** An end of the range right after a line's leading spaces, with the range crossing a line. */
-const besideSpaces = (read: Read, { from, to }: Range) =>
-	read.source.slice(from, to).includes('\n') &&
-	[from, to].some((at) => /^[ \t]+$/.test(lineHead(read.source, at)));
 
 /** Whether `a` and `b` sit in the same list of blocks. */
 const besides = (a: LaidBlock, b: LaidBlock) =>
@@ -194,13 +186,6 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 		repro: { source: '[^1]:1. n\r\n汉字\r\nword', mode: 'source', range: { from: 9, to: 17 } }
 	},
 	{
-		gap: 'the spaces a cut leaves at a line’s start join the other side’s text and read as another block',
-		lane: '2b',
-		law: 'L3',
-		matches: besideSpaces,
-		repro: { source: 'p\n\n \n# h - x\n', mode: 'source', range: { from: 4, to: 8 } }
-	},
-	{
 		gap: 'a range ending at the text of a block that takes no joined text keeps its marker, which the copy carries too',
 		lane: '2b',
 		law: 'L3',
@@ -232,12 +217,16 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 		repro: { source: '    word\n', mode: 'source', range: { from: 0, to: 6 } }
 	},
 	{
-		gap: 'an HTML block cut from its first byte carries no line ending, so pasted back it runs into the block after it',
+		gap: 'an HTML block cut from its first byte in a list item, or in part, pastes back as blocks apart from what the cut left',
 		lane: '2b',
 		law: 'L3',
 		matches: (read, range) =>
 			read.blocks.some((b) => b.type === 'htmlBlock' && b.from === range.from),
-		repro: { source: '<!DOCTYPE html>\n> one\n', mode: 'source', range: { from: 0, to: 15 } }
+		repro: {
+			source: '- <!-- a note -->\n- <!-- a note -->\n',
+			mode: 'source',
+			range: { from: 2, to: 17 }
+		}
 	},
 	{
 		gap: 'a range ending inside an HTML block it enters joins the rest of that line to where it began',

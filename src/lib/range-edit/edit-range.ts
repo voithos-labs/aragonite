@@ -50,9 +50,9 @@ export type RemovalGesture =
 export type Gesture =
 	| 'copy'
 	| RemovalGesture
-	/** Clipboard text with LF line endings, and the editor's own entry an earlier copy or cut
-	 *  wrote, while the clipboard still holds it. */
-	| { paste: string; plain: boolean; own?: string }
+	/** Clipboard text with LF line endings, the editor's own entry while the clipboard still holds
+	 *  it, and what the caret holds: anywhere but in text the clipboard lands as blocks of its own. */
+	| { paste: string; plain: boolean; own?: string; holds: SpliceCaret['holds'] }
 	/** The range dragged and dropped at byte `drop`: moved, or copied. */
 	| { drop: number; copy: boolean };
 
@@ -90,22 +90,26 @@ export function editRange(
 		const own = gesture.plain ? undefined : gesture.own;
 		const back = own === undefined ? null : restored(source, from, to, own);
 		if (back) return answer(back);
-		if (from === to || inOneText(doc, from, to))
-			return answer(pasteAt(doc, from, to, gesture.paste, gesture.plain));
+		const { paste, plain } = gesture;
+		if (from === to) return answer(pasteAt(doc, from, to, paste, plain, gesture.holds));
+		if (inOneText(doc, from, to)) return answer(pasteAt(doc, from, to, paste, plain, 'text'));
 		// Across blocks the paste lands where the removal's caret does, as a cut's then a paste's
 		// would, and over one block held whole takes its place, as typed text does.
 		const removed = removalEdit(doc, from, to, 'type');
 		const after = read(removed);
-		const at = caretOf(removed, after).at;
-		return answer(pasteAt(after, at, at, gesture.paste, gesture.plain));
+		const { at, holds } = caretOf(removed, after);
+		const place = heldAlone(doc, from, to) ? 'text' : holds;
+		return answer(pasteAt(after, at, at, paste, plain, place));
 	}
 	const { removed, clipboard, own } = taken(doc, from, to);
 	const { drop } = gesture;
-	if (gesture.copy) return answer(pasteAt(doc, drop, drop, clipboard, false));
+	if (gesture.copy) return answer(pasteAt(doc, drop, drop, clipboard, false, 'text'));
 	// A moving drop is a cut, then a paste of its text and own entry at the drop point.
 	const after = read(removed);
 	const at = drop <= from ? drop : drop - (source.length - removed.source.length);
-	return answer(restored(removed.source, at, at, own) ?? pasteAt(after, at, at, clipboard, false));
+	return answer(
+		restored(removed.source, at, at, own) ?? pasteAt(after, at, at, clipboard, false, 'text')
+	);
 }
 
 /** Whether the range sits in one block's text, between its fence lines where it has them: a paste

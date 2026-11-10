@@ -38,7 +38,15 @@ function lawsOf(host: CheckHost, row: (typeof NAMED_ROWS)[number]): string[] {
 		!gesture.plain &&
 		range.from === range.to
 	)
-		out.push(...pasteAtCaret(call, host, { source, mode, at: range.from, text: gesture.paste }));
+		out.push(
+			...pasteAtCaret(call, host, {
+				source,
+				mode,
+				at: range.from,
+				holds: gesture.holds,
+				text: gesture.paste
+			})
+		);
 	for (const want of [row.expect, row.then?.expect]) {
 		if (want?.source !== undefined && want.caret)
 			out.push(...caretLaw(host, want as RangeEditResult, row.name));
@@ -55,7 +63,11 @@ describe('the named rows', () => {
 			const first = editRange(unmark(row.source), rangeOf(row.source), row.gesture, mode, host);
 			expect(differences(first, row.expect)).toEqual([]);
 			if (!row.then) return;
-			const back = { paste: (first.clipboard ?? '').replace(/\r\n/g, '\n'), plain: false };
+			const back = {
+				paste: (first.clipboard ?? '').replace(/\r\n/g, '\n'),
+				plain: false,
+				holds: first.caret.holds
+			};
 			const gesture: Gesture =
 				row.then.gesture === 'paste back'
 					? back

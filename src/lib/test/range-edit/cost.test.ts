@@ -20,7 +20,12 @@ const SHAPES: Record<string, (n: number) => string> = {
 		Array.from({ length: n }, (_, i) => `- item ${i}\n  - inner ${i} with words\n`).join('')
 };
 
-const GESTURES: Gesture[] = ['copy', 'cut', 'backspace', { paste: 'one\n\ntwo', plain: false }];
+const GESTURES: Gesture[] = [
+	'copy',
+	'cut',
+	'backspace',
+	{ paste: 'one\n\ntwo', plain: false, holds: 'text' }
+];
 
 /** The host, counting whole-document parses, the blocks laid out and the block bytes its in-block
  *  writes are handed. */
