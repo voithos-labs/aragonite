@@ -5,11 +5,13 @@
  */
 
 import {
+	createApp,
 	defineComponent,
 	h,
 	inject,
 	provide,
 	type App,
+	type AppContext,
 	type Component,
 	type InjectionKey,
 	type PropType
@@ -37,10 +39,11 @@ export function vueBlock<D = never, C extends DrawContext = DrawContext>(
 	component: Component,
 	{ className, app }: VueBlockOptions = {}
 ): (block: Block<D>, ctx: C) => Drawn<D, C> {
+	const context = withSlot(app);
 	return (block, ctx) => {
 		const dom = document.createElement('div');
 		if (className) dom.className = className;
-		const root = createViewRoot(dom, app);
+		const root = createViewRoot(dom, context);
 		const declared: Declared = { parts: () => ({}) };
 		// A context of its own per render: its fields are getters Vue can't watch, so a computed
 		// reading `ctx.typed` would never run again on the same object.
@@ -115,3 +118,10 @@ const Slot = defineComponent({
 		};
 	}
 });
+
+// A template that doesn't bind `<Slot>` to the prop looks it up by name: an options-API component's
+// does, and so does a typed `defineProps` built by a compiler older than Vue 3.5.22.
+function withSlot(app: App | undefined): AppContext {
+	const base = (app ?? createApp({}))._context;
+	return { ...base, components: Object.assign(Object.create(base.components), { Slot }) };
+}

@@ -17,7 +17,12 @@ warning, not only the editor's own.
 - The page loads with the blocks in its first document: each draws its framework's badge, the
   memo shows its text, the label its caption, and the box its child. The memo's badge text comes
   from the app's context (React's `wrap` provider, Vue's app-level `provide` through the `app`
-  option), so a block component sees what the app provides.
+  option), so a block component sees what the app provides. Each `<Slot>` places the editor's
+  element however the template compiler read the tag: the Vue memo (drawn in the app's context)
+  and box (in none) are options-API components, whose templates look `Slot` up by name, and the
+  label types its props with `defineProps`, which a compiler before Vue 3.5.22 also looks up by
+  name in a production build. Miss: only the Vue 3.3 project built with such a compiler, and it
+  runs at a release, not on every pull request; no example component used the options API.
 - Typing at the end of the memo reaches the mirror; Ctrl+Z takes it back.
 - A click on the label opens its source with the caret in it; End and typing edit it, and clicking
   into the paragraph below commits the edit once. One Ctrl+Z restores the old label whole.

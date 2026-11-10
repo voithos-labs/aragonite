@@ -16,7 +16,7 @@ export function vueView<P extends object>(
 ): PluginView<P> {
 	const keep = declaredProps(component);
 	return (target, props) => {
-		const root = createViewRoot(target, options.app);
+		const root = createViewRoot(target, options.app?._context ?? null);
 		const draw = (next: P) => root.render(h(component, keep(next)));
 		draw(props);
 		return { update: draw, destroy: root.unmount };
