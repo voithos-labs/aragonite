@@ -1231,5 +1231,29 @@ export const NAMED_ROWS: NamedRow[] = [
 		source: 'a\n\n> para\n> ⟦</div>\n- o⟧ne\n',
 		gesture: 'delete',
 		expect: { source: 'a\n\n> para\n> ne\n' }
+	},
+	// ── The blank line that keeps two blocks apart takes their parent's markers (spec § 5.2) ──
+	// Miss-analysis: every parting row kept two blocks apart inside one container or at the top,
+	// never two containers whose lower one opens its line with a marker of its own.
+	{
+		name: 'L4 what is left of a third quote stays a quote of its own under the first',
+		source:
+			'> # h⟦ead\n\n> alpha bravo\n\n> <my⟧-element>\n> text\n> </my-element>\n<script>\nlet a = 1;\n</script>\n',
+		gesture: 'cut',
+		expect: {
+			source: '> # h\n\n> -element>\n> text\n> </my-element>\n<script>\nlet a = 1;\n</script>\n'
+		}
+	},
+	{
+		name: 'L4 the quote left of a cut list item stays a quote of its own under the one above',
+		source: '> x⟦\n\n- > a⟧b\n  > - d\n',
+		gesture: 'backspace',
+		expect: { source: '> xb\n\n  > - d\n' }
+	},
+	{
+		name: 'L4 a line the text above still opens keeps its quote’s marker on the blank line before it',
+		source: '> - x\n> y⟦\n\n- > 1.⟧ n\n  > m\n',
+		gesture: 'backspace',
+		expect: { source: '> - x\n>\n> y n\n  > m\n' }
 	}
 ];
