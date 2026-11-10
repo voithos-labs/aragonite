@@ -20,6 +20,7 @@ import { assignChildIdsDeep, keepUnchangedDeep } from '../block-id';
 import { changedBytes, narrowed, writtenLines, type ByteChange } from './byte-changes';
 import { containerWindow, standsBelow, textAfter } from './container-window';
 import { spliceMany } from './splice-many';
+import { recordTopBlocksMeasured } from '../perf/instruments';
 
 /** Top-level blocks `[at, at + count)` give way to `blocks`; the first new block keeps the first
  *  replaced one's id, and every container in them has its child ids. */
@@ -52,6 +53,7 @@ export function segmentEnds(list: {
 	readonly children: readonly NodeView[];
 }): number[] {
 	const ends: number[] = [];
+	recordTopBlocksMeasured(list.children.length);
 	let at = list.prefix.length;
 	for (const child of list.children)
 		ends.push((at += child.leadingTrivia.length + child.raw.length));

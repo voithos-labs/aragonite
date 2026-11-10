@@ -18,7 +18,7 @@ import { blockFacts } from '../schema/block-facts';
 import { isGridKind, tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf, rowIsOpenerLine } from '../schema/reserved-chrome';
 import { spanHolding } from '../schema/child-spans';
-import { recordLinesPaired } from '../perf/instruments';
+import { recordLinesPaired, recordTopBlocksMeasured } from '../perf/instruments';
 
 export interface LeafPosition {
 	/** Child indices from the node down to the leaf; empty when the node is the leaf. */
@@ -77,6 +77,7 @@ export function documentByteMap(doc: DocumentView): DocumentByteMap {
 	const rawStartOf = (i: number): number => {
 		if (!rawStarts) {
 			rawStarts = [];
+			recordTopBlocksMeasured(tops.length);
 			let start = doc.prefix.length;
 			for (let j = 0; j < tops.length; j++) {
 				const top = tops[j];

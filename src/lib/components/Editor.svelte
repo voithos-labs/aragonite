@@ -1494,7 +1494,8 @@
 				caret,
 				op,
 				snapshot: { path: docPathFrom([0]), offset: 0 }
-			})
+			}),
+		byteOf: (path, offset) => bytes.layout().byteOf(path, offset)
 	};
 </script>
 
