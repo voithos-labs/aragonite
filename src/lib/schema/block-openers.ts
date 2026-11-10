@@ -13,6 +13,7 @@ import type { PluginActivation } from './plugin-activation';
 import { onBlockKindChange, openerRecords } from './block-kind-descriptor';
 import { registerBuiltInDescriptors } from './built-in-descriptors';
 import type { BlockCompleter } from './block-completions';
+import type { MarkedLines } from '../core/strip-lines';
 
 /** Created fresh for each block and read synchronously; never keep it past the call. */
 export interface OpenContext {
@@ -175,6 +176,9 @@ export interface GrammarView {
 	readonly activation: PluginActivation;
 	/** The completers of the block types this editor's plugins contribute. */
 	completers?(): readonly BlockCompleter[];
+	/** The line shapes of the containers this grammar opens that mark every line (a quote's `>`),
+	 *  each once: what the range core reads a line's markers through. */
+	markedLines(): readonly MarkedLines[];
 }
 
 // ── Outer block starts ──────────────────────────────────────────────────

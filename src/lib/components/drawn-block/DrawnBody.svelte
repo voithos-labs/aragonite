@@ -72,16 +72,17 @@
 	let generation = $state(0);
 	let drawn: Drawn<unknown> | null = null;
 
-	const focused = $derived(view.edit === 'source' ? revealed : focusedWithin);
-	const leafEl = $derived(
-		!target || view.edit === 'box' ? null : view.edit === 'text' || revealed ? source : null
-	);
+	// Functions over state, not deriveds: a key handler resuming after the block unmounted still
+	// reads them, and a derived read past its effect warns.
+	const focused = () => (view.edit === 'source' ? revealed : focusedWithin);
+	const leafEl = () =>
+		!target || view.edit === 'box' ? null : view.edit === 'text' || revealed ? source : null;
 
 	const leafDeps = {
 		getNode: () => node,
 		getIndex: () => index,
 		getPath: () => myPath,
-		getEl: () => leafEl,
+		getEl: leafEl,
 		singleLine: view.singleLine,
 		renderSource: view.renderSource,
 		onSourceEdit: (text: string) => (typed = text)
@@ -106,7 +107,7 @@
 				: null;
 	if (leaf) {
 		bindLeafSurface({
-			getEl: () => leafEl,
+			getEl: leafEl,
 			props: () => leaf.surfaceProps as unknown as Record<string | symbol, unknown>
 		});
 	}
@@ -169,7 +170,7 @@
 			return policies.theme();
 		},
 		get focused() {
-			return focused;
+			return focused();
 		},
 		source,
 		get typed() {
@@ -257,7 +258,7 @@
 	}
 
 	function watched(): unknown[] {
-		return [node.raw, myPath.join(), editorDoc.reading.mode(), policies.theme(), focused, typed];
+		return [node.raw, myPath.join(), editorDoc.reading.mode(), policies.theme(), focused(), typed];
 	}
 
 	let seen: unknown[] = [];

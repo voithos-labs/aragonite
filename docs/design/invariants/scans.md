@@ -243,6 +243,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.335 | A plugin's paint and a decoration source are asked only by the engine that keeps their answers | L |
 | G4.338 | `edit` is emitted in one function, which first hands the link definitions what the write replaced | L |
 | G4.339 | A typed letter and the caret move after it read no whole list of blocks through the byte map | harness |
+| G4.341 | No library regex reads a quote's markers by hand | L |
 
 ### The entries
 
@@ -706,3 +707,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.338 · One emit for `edit`.** `editor-actions/commit/emit-edit.ts :: emitEdit` takes the blocks the write replaced as a required argument and hands them to `refreshDefinitions` before it emits, so a route that emitted `edit` itself would leave the editor serving stale reference links. The writes G4.107 lists call it. `lint/edit-emitters.test.ts`.
 
 **G4.339 · A caret move reads no whole list.** To place one byte the byte map sums the top-level blocks, so nothing the editor runs on a typed letter or the `selectionchange` after it asks it: the selection toolbar measures only a range with an action listed (`components/editor-root/selection-actions.ts`). A plugin reading `selectedRange()` on each caret move and edit pays that sum, but in a quote, list or table pairs one child's lines, at 40 siblings as at 400. `test/perf/caret-move-byte-reads.test.ts` on `byteMapReads` and `linesPaired`; `test/editor-root/selection-actions.test.ts`.
+
+**G4.341 · No quote markers by hand.** A regex character class holding `>` beside a space, a tab or `\s` reads a quote's markers by hand, and a plugin container's own marker never matches it. Library code asks the range-edit host's `pastMarkers` or the line helpers in `range-edit/markers.ts` instead (G1.210). Three files keep one, each with its reason: a list glyph's lead in those helpers, the byte map's fallback for a kind with no line shape, and the splice window's fence check, which only widens. `lint/file-rules.test.ts`.

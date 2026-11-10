@@ -132,6 +132,7 @@ These checks run in three kinds of place:
 | G1.205 | A painted mark covers the document bytes it was painted at, and its handlers read those bytes back | N |
 | G1.206 | A write that replaced no link definition leaves the definitions as they were | A·N |
 | G1.207 | A container's text has its bytes under whatever marker its line shape states | harness |
+| G1.210 | A range edit reads a container line's markers through the line shapes the parser reads | harness |
 
 ### The entries
 
@@ -364,3 +365,5 @@ These checks run in three kinds of place:
 **G1.206 · Kept definitions are still the definitions** (`definitions-kept`). Each write says which blocks it took out and put in, or that it can't tell, and the editor reads the link definitions again only when one of those blocks holds one. When it skips, dev reads them anyway and warns if they changed: some route named less than it wrote. Skipped past 64 KB and under the perf instruments. `checkDefinitionsKept` (`definitions-kept.ts`) · `components/link-reference-map.ts :: definitionsAfter` · `link-reference-map.test.ts`, `definitions-refresh.test.ts`.
 
 **G1.207 · A container's marker is read from its line shape.** The byte map finds where a line's text starts with the kind's own `reads` or `open`, so a `container` block type under a marker no built-in writes has a byte for every text position, and a range in it is cut and removed as the same range in a quote is. A kind that states no line shape is read by the built-in markers. `markerOf` (`tree-operations/container-offsets.ts`) · `plugins/blocks/container-bytes.svelte.test.ts`.
+
+**G1.210 · A range edit reads markers through the line shapes.** A removal or a paste asks the host where a line's text starts and whether a line parts two blocks, and the host reads the grammar's `markedLines()` through each shape's own line syntax. So a `container` block type under its own marker keeps its lines as a quote does. Markers alone part two blocks only where they interrupt a paragraph. Over the built-ins every read ends where a run of spaces, tabs and `>` does. `range-edit/host.ts` · `range-edit/line-markers.test.ts`, `plugins/blocks/container-bytes.svelte.test.ts`.

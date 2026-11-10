@@ -7,13 +7,14 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { displayLength } from '#lib/core/lines.js';
+import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { definePlugin } from '#lib/schema/plugin-install.js';
 import { container } from '#lib/components/block-makers/container.js';
 import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { documentByteMap } from '#lib/tree-operations/container-offsets.js';
-import { editRange } from '#lib/range-edit/edit-range.js';
+import { editRange, type Gesture } from '#lib/range-edit/edit-range.js';
 import { rangeHost } from '#lib/range-edit/host.js';
 import {
 	destroyMountedEditors,
@@ -48,7 +49,8 @@ const BOX = {
 	lazy: true
 } as const;
 
-/** One container type under each line shape, none of whose markers a built-in writes. */
+/** One container type under each line shape, none of whose markers a built-in writes; `quiet`
+ *  interrupts no paragraph. */
 const boxes = definePlugin({
 	name: 'boxes',
 	version: '1.0.0',
@@ -79,6 +81,13 @@ const boxes = definePlugin({
 					}
 				},
 				sample: '%! [!NOTE]\n%! x',
+				insert: { none: 'a test block type' }
+			}),
+			container({
+				name: 'quiet',
+				label: 'Quiet',
+				lines: { ...BOX, first: '&> ', rest: '&> ', reads: /^ {0,3}&>[ \t]?/ },
+				sample: '&> x',
 				insert: { none: 'a test block type' }
 			}),
 			container({
@@ -157,9 +166,16 @@ describe('the byte map finds the text of a container under its own marker', () =
 
 const at = (path: number[], offset: number) => ({ path, offset });
 
-/** `text` with each line's opening run of quote markers written as the box's. */
-const boxed = (text: string) =>
-	text.replace(/^(?: {0,3}>[ \t]?)+/gm, (run) => run.replace(/>/g, '%>'));
+/** `text` with each line's opening run of quote markers written as the box's, or only the markers
+ *  at `depths` of each run, outermost 0. */
+const boxing =
+	(depths?: readonly number[]) =>
+	(text: string): string =>
+		text.replace(/^(?: {0,3}>[ \t]?)+/gm, (run) => {
+			let depth = 0;
+			return run.replace(/>/g, () => (!depths || depths.includes(depth++) ? '%>' : '>'));
+		});
+const boxed = boxing();
 const headed = (text: string) => text.replace(/^>/gm, '%!');
 const noted = (text: string) => text.replace(/\[\^a\]:/g, '@a:');
 
@@ -224,17 +240,83 @@ describe('a range in a container under its own marker goes as under a built-in�
 	}
 });
 
-/** Where byte `at` of `source` sits once its quote markers are the box's. */
-const boxedAt = (source: string, at: number) =>
-	boxed(source.slice(0, at) + '\u0001' + source.slice(at)).indexOf('\u0001');
+/** Where byte `at` of `source` sits once `twin` boxed its quote markers. */
+const twinAt = (twin: (text: string) => string, source: string, at: number) =>
+	twin(source.slice(0, at) + '\u0001' + source.slice(at)).indexOf('\u0001');
 
-/** Rows whose answer still reads a quote's `>` by a pattern of `range-edit/removal.ts`, so the box
- *  keeps an emptied line the quote lets go. A row that comes to match leaves this list. */
-const READS_A_QUOTE_BY_HAND = new Set([
-	'L4 a block held whole behind a quote marker goes with its marker line, never nesting',
-	'L4 Delete over a block taken whole behind a quote marker lands in the next quoted line',
-	'L4 the same inside a quote keeps one quoted empty line'
-]);
+/** What the range-edit core answers over the marked range of `marked` with its quote markers boxed
+ *  by `twin`, and that answer as the quote's, boxed the same way. */
+async function twinAnswers(
+	marked: string,
+	gesture: Gesture,
+	mode: 'source' | 'live',
+	twin = boxed
+) {
+	const grammar = (await mounted('x\n')).instance.__test.getGrammar();
+	const host = rangeHost(fixtureReading({ grammar }, mode));
+	const source = unmark(marked);
+	const range = rangeOf(marked);
+	const quote = editRange(source, range, gesture, mode, host);
+	const moved = (text: string, at: number) => twinAt(twin, text, at);
+	const twinned =
+		typeof gesture !== 'string' && 'paste' in gesture
+			? { ...gesture, paste: twin(gesture.paste) }
+			: gesture;
+	const box = editRange(
+		twin(source),
+		{ from: moved(source, range.from), to: moved(source, range.to) },
+		twinned,
+		mode,
+		host
+	);
+	return {
+		got: { source: box.source, clipboard: box.clipboard, caret: box.caret },
+		want: {
+			source: twin(quote.source),
+			clipboard: quote.clipboard === undefined ? undefined : twin(quote.clipboard),
+			caret: { ...quote.caret, at: moved(quote.source, quote.caret.at) }
+		}
+	};
+}
+
+/** The row whose quote leaves its caret where the removal began, inside the marker of the line a
+ *  parting line pushed down; the box's sits inside its own wider marker, so only the line maps. */
+const CARET_INSIDE_A_MARKER =
+	'L4 a line the text above still opens keeps its quote’s marker on the blank line before it';
+
+const caretLine = (answer: { source: string; caret: { at: number; holds: string } }) => ({
+	...answer,
+	caret: {
+		line: answer.source.slice(0, answer.caret.at).split('\n').length,
+		...answer.caret,
+		at: 0
+	}
+});
+
+/** Shapes whose answer reads a line's markers: the blank line keeping two blocks apart, a paste into
+ *  an empty block beside a blank line, and a box and a quote held one in the other. */
+const TWIN_ROWS: [name: string, marked: string, gesture: Gesture, depths?: number[]][] = [
+	['a rule taken from between a paragraph and code', '> a\n> ⟦***⟧\n>     code\n', 'backspace'],
+	['a rule taken from above a table', '> a\n> ⟦***⟧\n> | h |\n> | - |\n', 'backspace'],
+	['a rule taken from under a blank line above code', '> a\n>\n> ⟦***⟧\n>     code\n', 'backspace'],
+	[
+		'a paste into an emptied heading under a blank line',
+		'> a\n>\n> #⟦⟧\n>\n> b\n',
+		{ paste: '# h\n', plain: false }
+	],
+	[
+		'a paste into an empty list item above an empty first line',
+		'- ⟦⟧\n>\n> x\n',
+		{ paste: '# h\n', plain: false }
+	],
+	[
+		'a paste into an empty paragraph above code',
+		'> para\n>\n> ⟦⟧\n>     code\n',
+		{ paste: 'p', plain: false }
+	],
+	['a box in a quote', '> > ⟦a⟧\n> >\n> > b\n>\n> c\n', 'backspace', [1]],
+	['a quote in a box', '> > ⟦a⟧\n> >\n> > b\n>\n> c\n', 'backspace', [0]]
+];
 
 describe('the range-edit core answers a named quote row alike under the box’s marker', () => {
 	const rows = NAMED_ROWS.filter(
@@ -246,38 +328,73 @@ describe('the range-edit core answers a named quote row alike under the box’s 
 	);
 	for (const mode of ['source', 'live'] as const) {
 		it.each(rows)(`${mode}: $name`, async (row) => {
-			const grammar = (await mounted('x\n')).instance.__test.getGrammar();
-			const host = rangeHost(fixtureReading({ grammar }, row.mode ?? mode));
-			const source = unmark(row.source);
-			const range = rangeOf(row.source);
-			const quote = editRange(source, range, row.gesture, row.mode ?? mode, host);
-			const twin = { from: boxedAt(source, range.from), to: boxedAt(source, range.to) };
-			const box = editRange(boxed(source), twin, row.gesture, row.mode ?? mode, host);
-			const want = {
-				source: boxed(quote.source),
-				clipboard: quote.clipboard === undefined ? undefined : boxed(quote.clipboard),
-				caret: { ...quote.caret, at: boxedAt(quote.source, quote.caret.at) }
-			};
-			const got = { source: box.source, clipboard: box.clipboard, caret: box.caret };
-			if (READS_A_QUOTE_BY_HAND.has(row.name)) expect(got).not.toEqual(want);
+			const { got, want } = await twinAnswers(row.source, row.gesture, row.mode ?? mode);
+			if (row.name === CARET_INSIDE_A_MARKER) expect(caretLine(got)).toEqual(caretLine(want));
 			else expect(got).toEqual(want);
 		});
 	}
 
-	// The blank line that keeps two blocks apart is written with the quote's `>` (`apart.ts`), so
-	// under `%>` it comes out bare and ends the box. These rows go once that line reads its marker.
-	it.each([
-		['a rule taken from between a paragraph and code', '> a\n> ⟦***⟧\n>     code\n'],
-		['a rule taken from above a table', '> a\n> ⟦***⟧\n> | h |\n> | - |\n']
-	])('still splits the box in two: %s', async (_name, marked) => {
+	it.each(TWIN_ROWS)('%s', async (_name, marked, gesture, depths) => {
+		const { got, want } = await twinAnswers(marked, gesture, 'source', boxing(depths));
+		expect(got).toEqual(want);
+	});
+
+	// Miss-analysis: every twin row mounted its editor with the box on, so none read a marker the
+	// editor's list turned on after a range edit had read the markers once.
+	it('after `use` turns the box on in an editor that has made a range edit', async () => {
+		const editor = mountEditor<EditorTestSurface>({
+			source: 'x\n',
+			plugins: PLUGINS.filter((plugin) => plugin !== boxes)
+		});
+		await editor.settle();
+		const host = rangeHost(fixtureReading({ grammar: editor.instance.__test.getGrammar() }));
+		const marked = '%> a\n%> ⟦***⟧\n%>     code\n';
+		const answer = () => editRange(unmark(marked), rangeOf(marked), 'backspace', 'source', host);
+		answer();
+		editor.instance.use(PLUGINS);
+		await editor.settle();
+		expect(answer().source).toBe('%> a\n%>\n%>     code\n');
+	});
+});
+
+const outline = (nodes: readonly CstNode[]): string =>
+	nodes.map((n) => (n.children?.length ? `${n.kind}(${outline(n.children)})` : n.kind)).join(' ');
+
+/** `lines` as a document, at top level or inside a container, an empty line its own way. */
+const DEPTHS: Record<string, (lines: string[]) => string> = {
+	'top level': (lines) => lines.join('\n'),
+	quote: (lines) => lines.map((l) => (l ? `> ${l}` : '>')).join('\n'),
+	'list item': (lines) => lines.map((l, i) => (i === 0 ? `- ${l}` : l && `  ${l}`)).join('\n'),
+	box: (lines) => lines.map((l) => (l ? `%> ${l}` : '%>')).join('\n')
+};
+
+/** A box that interrupts no paragraph under a block an edit leaves above it, with and without an
+ *  empty first line: a rule taken from between them, or a paste into an empty paragraph. */
+const QUIET_BELOW = Object.entries(DEPTHS).flatMap(([depth, write]) =>
+	[['&> x'], ['&>', '&> x']].flatMap((box) => {
+		const taken = write(['para', '⟦***⟧', ...box]) + '\n';
+		const empty = write(['para', '', '⟦⟧', ...box]) + '\n';
+		const rows: [Gesture, string][] = [
+			['backspace', taken],
+			['cut', taken],
+			[{ paste: 'p\n', plain: false }, taken],
+			[{ paste: 'p', plain: false }, empty]
+		];
+		return rows.map(([gesture, marked]) => ({
+			name: `${depth}, ${JSON.stringify(gesture)}: ${JSON.stringify(marked)}`,
+			gesture,
+			marked
+		}));
+	})
+);
+
+describe('a box that interrupts no paragraph stays a box under the block an edit leaves above it', () => {
+	it.each(QUIET_BELOW)('$name', async ({ gesture, marked }) => {
 		const grammar = (await mounted('x\n')).instance.__test.getGrammar();
 		const host = rangeHost(fixtureReading({ grammar }));
 		const source = unmark(marked);
-		const range = rangeOf(marked);
-		const quote = editRange(source, range, 'backspace', 'source', host);
-		const twin = { from: boxedAt(source, range.from), to: boxedAt(source, range.to) };
-		const box = editRange(boxed(source), twin, 'backspace', 'source', host);
-		expect(quote.source).toMatch(/^> a\n>\n> /);
-		expect(box.source).toMatch(/^%> a\n\n%> /);
+		const out = editRange(source, rangeOf(marked), gesture, 'source', host).source;
+		const kinds = (text: string) => outline(parse(text, { grammar }).children as CstNode[]);
+		expect(kinds(out), out).toBe(kinds(source).replace(' thematicBreak', ''));
 	});
 });

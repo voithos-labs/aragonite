@@ -2539,6 +2539,52 @@ const MARKER_READS: FileRule = {
 	misses: [at('src/lib/x.ts', 'const reads = shape.reads;')]
 };
 
+// ── G4.341 a container line's markers are read through the line shapes ──────
+
+const REGEX = LEXICAL_CLASSES.indexOf('regex');
+const CHARACTER_CLASS = /\[\^?(?:\\.|[^\]\\\n])*\]/g;
+
+/** Whether a regex literal in `file` holds a character class with `>` beside a space, a tab or
+ *  `\s`: a quote's markers read by hand. */
+function readsQuoteMarkers(file: SourceFile): boolean {
+	const classes = fileClasses(file);
+	for (const { index, 0: span } of file.code.matchAll(CHARACTER_CLASS)) {
+		if (classes[index] !== REGEX) continue;
+		const plain = span.replace(/\\(.)/g, (_, c: string) => (c === 's' || c === 't' ? ' ' : c));
+		if (plain.includes('>') && plain.includes(' ')) return true;
+	}
+	return false;
+}
+
+const MARKER_RUNS: FileRule = {
+	id: 'G4.341 a container line’s markers are read through the line shapes',
+	population: under(SOURCE_DIR.library),
+	matches: readsQuoteMarkers,
+	allowed: {
+		'src/lib/range-edit/markers.ts':
+			'a list glyph inside a marker the layout already read, after the space or quote marker before it',
+		'src/lib/tree-operations/container-offsets.ts':
+			'the byte map’s fallback for a kind that states no line shape, which only built-in markers spell',
+		'src/lib/tree-operations/container-window.ts':
+			'a written line asked whether it opens a fence with quote markers off too, which only widens the window'
+	},
+	reason:
+		'a container line’s markers are read through the line shapes the parser and the writer read, so a plugin container’s own marker counts as a quote’s does: ask `RangeHost.pastMarkers` or the line helpers in `src/lib/range-edit/markers.ts` rather than a class of quote markers',
+	hits: [
+		at('src/lib/x.ts', 'const run = /^[ \\t>]*/.exec(line)![0];'),
+		at('src/lib/x.ts', 'const apart = /[^\\s>]/.test(above);'),
+		at('src/lib/x.ts', "const rest = next.replace(/^[\\s>]*/, '');"),
+		at('src/lib/x.ts', 'const gone = /^[> ]*\\r?\\n/;')
+	],
+	misses: [
+		at('src/lib/x.ts', 'const pair = [a, (b) => b > c];'),
+		at('src/lib/x.ts', 'const quote = /^ {0,3}>/;'),
+		at('src/lib/x.ts', 'const space = /[ \\t]+/;'),
+		at('src/lib/x.ts', "const tag = /[<>]/; const text = '[ >]';"),
+		at('src/lib/x.ts', '// const run = /^[ \\t>]*/;')
+	]
+};
+
 // ── G4.108 one replace for every destructive gesture over a range ──────────
 
 const ROGUE_RANGE_ROUTE = `${SOURCE_DIR.crossBlock}rogue.ts`;
@@ -3371,7 +3417,7 @@ describeManifests(RANGE_INDENT, SOURCES);
 describeManifests(TYPED_WRITE_ASKS, SOURCES);
 describeManifests(SCROLL_WRITERS, SOURCES);
 describeManifests(BARE_FOCUSES, SOURCES);
-describeFileRules([HELD_BRANDS, REVEAL_IN_SVELTE, MARKER_READS], SOURCES);
+describeFileRules([HELD_BRANDS, REVEAL_IN_SVELTE, MARKER_READS, MARKER_RUNS], SOURCES);
 describeCorrections(SOURCES);
 describeOwnerWrites(SOURCES);
 describeKeyboardEndWrites(SOURCES);

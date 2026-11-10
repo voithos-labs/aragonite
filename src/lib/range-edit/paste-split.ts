@@ -6,7 +6,7 @@
 import { isBlankText } from '../core/lines';
 import type { LaidBlock } from './layout';
 import { endingOf, factsOf, type Doc } from './document';
-import { continuation } from './markers';
+import { continuation, holdsTextPastMarkers } from './markers';
 import { lineEnd, lineRest, spliced, type Edit } from './leaf-splice';
 
 /** `endsInText`: the clipboard opens or closes with a paragraph, where the caret can follow it;
@@ -43,7 +43,7 @@ export function splitAt(
 	if (!tail && !joinsBefore) {
 		// An emptied heading stays as an empty line, the pasted blocks under it.
 		const above = source.slice(source.lastIndexOf('\n', lineStart - 2) + 1, lineStart);
-		const apart = lineStart > 0 && /[^\s>]/.test(above) ? blank + eol : '';
+		const apart = lineStart > 0 && holdsTextPastMarkers(doc, above) ? blank + eol : '';
 		const opening = apart + blank + eol + prefix + lines(body);
 		const out = source.slice(0, lineStart) + opening + source.slice(at);
 		const caret = lineStart + (endsInText ? opening.length : apart.length + blank.length);
@@ -56,7 +56,7 @@ export function splitAt(
 	const caret = from + opening.length;
 	// An empty line that text follows right after stays, keeping the pasted blocks apart from it.
 	const next = source.slice(lineEnd(source, at) + 1, lineEnd(source, lineEnd(source, at) + 1));
-	const kept = !tail && next.replace(/^[\s>]*/, '') !== '' ? eol + blank : '';
+	const kept = !tail && holdsTextPastMarkers(doc, next) ? eol + blank : '';
 	const apart = eol + (body !== clip ? blank + eol : '') + prefix + (joinsBefore ? '' : own);
 	const taken = joinsBefore && lastJoins && body === clip;
 	const closing = tail ? (taken ? '' : apart) : kept;

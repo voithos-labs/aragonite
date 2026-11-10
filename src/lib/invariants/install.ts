@@ -164,7 +164,8 @@ export function assertRestoredUnderGrammar(
 		interruptsParagraph: (line) =>
 			openers.some((o) => o.interruptsParagraph && o.interruptsParagraph(line)),
 		setextHeading: entry.setextHeading,
-		activation: grammar.activation
+		activation: grammar.activation,
+		markedLines: () => grammar.markedLines()
 	};
 	assertInvariant('restore-grammar', () => checkRestoredUnderGrammar(tops, grammar, was));
 }
