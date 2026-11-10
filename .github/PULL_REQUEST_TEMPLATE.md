@@ -15,5 +15,5 @@ Skip `npm run perf:check`. Its baselines come from one desktop, so anywhere else
 ## Before you hit submit
 
 - Target `dev`. `main` only takes release merges.
-- Commit messages follow [the commit conventions](https://github.com/voithos-labs/aragonite/blob/main/docs/contributing/commit-conventions.md): a symbol prefix, lowercase, 72 characters at most. CI reads every commit in the pull request, and the hook `npm install` sets up catches a bad one before it exists.
+- Commit messages follow [the commit conventions](https://github.com/voithos-labs/aragonite/blob/main/CONTRIBUTING.md#commit-messages): a symbol prefix, lowercase, 72 characters at most. CI reads every commit in the pull request, and the hook `npm install` sets up catches a bad one before it exists.
 - Leave `docs/changelog/` alone. We write the entry when it merges, from what you said up top.

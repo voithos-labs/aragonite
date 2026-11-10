@@ -4,18 +4,20 @@ So you want to work on this thing. Condolences.
 
 Anyways, for more in depth stuff, find them here:
 
-- [`docs/contributing/first-hour.md`](docs/contributing/first-hour.md): what to read first, in order
-- [`docs/contributing/rules.md`](docs/contributing/rules.md): rules to abide by
-- [`docs/contributing/glossary.md`](docs/contributing/glossary.md): the words the repo made up, one line each
-- [`docs/contributing/codebase-map.md`](docs/contributing/codebase-map.md): behavior to file mapping
-- [`docs/contributing/testing.md`](docs/contributing/testing.md): the two test layers, and how to write into them
-- [`docs/contributing/code-style.md`](docs/contributing/code-style.md): naming, comments, etc.
-- [`docs/design/editor.md`](docs/design/editor.md): system specccccc
-- [`docs/README.md`](docs/README.md): roadmap to every other doc
+- [`docs/contributing/rules.md`](docs/contributing/rules.md): the rules the code can't tell you
+- [`docs/contributing/glossary.md`](docs/contributing/glossary.md): what the odd words mean
+- [`docs/contributing/codebase-map.md`](docs/contributing/codebase-map.md): which file to open for a behavior
+- [`docs/contributing/testing.md`](docs/contributing/testing.md): where a test goes, and why it went red
+- [`docs/contributing/code-style.md`](docs/contributing/code-style.md): comments, file layout, formatting
+- [`docs/contributing/debugging.md`](docs/contributing/debugging.md): dumping the editor's state instead of guessing at it
+- [`docs/design/editor.md`](docs/design/editor.md): how the whole thing works
+- [`docs/README.md`](docs/README.md): the map of every other doc
+
+The rest of this page takes a first-time contributor from a clone to a merged pull request.
 
 ## Setup
 
-Be on node 24.
+Use node 24, the one CI runs.
 
 ```
 npm install
@@ -23,161 +25,80 @@ npx playwright install chromium
 npm run dev
 ```
 
-Currently, the e2e suite and the perf gate both drive chromium, so don't skip the second line please.
+Don't skip the second line: the e2e suite and the perf gate both drive Chromium. The third serves the showcase at `/` and the dev harness at `/test/editor`. On WSL with the checkout on a Windows drive (`/mnt/c/...`), the file watcher gets no events, so your edits appear to do nothing and you start doubting yourself. Run `ARAGONITE_POLL=1 npm run dev` there.
 
-If your checkout sits on a Windows drive mounted into WSL (`/mnt/c/...`), the watcher gets no events there and your edits look like they did nothing: run `ARAGONITE_POLL=1 npm run dev` instead, which polls for them.
+## What to read first
+
+1. Read the root [`README.md`](README.md#lossless), its Lossless section only, for the core idea.
+2. Read [`docs/contributing/rules.md`](docs/contributing/rules.md), all of it, before your first edit. Yes, before.
+3. Read [`docs/design/editor.md`](docs/design/editor.md), and stop at "The editing surface".
+4. Open `/test/editor`, open the debug panel (Ctrl+Shift+D), type, and watch the tree.
+5. Run one unit area suite (`npm run test:editor:core`, say) and read two of its files, to copy their conventions.
 
 ## The shape of the thing
 
-The editor keeps one tree, the CST (the parsed form of your markdown, where every node holds its own slice of the original text, markers included). Markdown parses into it, the blocks on screen render from it, and saving concatenates it back out.
-
-The components follow the tree, one component per block, nesting where the tree nests:
+There is one syntax tree. Markdown parses into it, the screen renders from it, and saving serializes it back. An edit changes the tree, and the DOM follows. That's the whole idea; everything else is bookkeeping (there is a lot of bookkeeping). These components draw the tree:
 
 ```
-Editor (owns the CST, the undo stack, the editor-actions contexts)
-  └─ BlockList (keyed loop over CST children, windowed)
-       └─ BlockHost (dispatches by block kind)
-            ├─ TextEditableBlock / CodeBlock / ThematicBreakBlock
-            ├─ BlockquoteBlock (recursive) / ListBlock → ListItemBlock (recursive)
-            └─ TableBlock (per-cell editable grid)
+Editor (owns the tree and the undo stack)
+└─ BlockList (one list of blocks, windowed)
+   └─ BlockHost (picks the component for a block's kind)
+      ├─ TextEditableBlock, CodeBlock, ThematicBreakBlock, TableBlock
+      └─ BlockquoteBlock, ListBlock → ListItemBlock (each nests a BlockList)
 ```
 
-fyi,
-
-1. a block's **kind** is the string on its node saying what block it is (`paragraph`, `list`, your plugin's name), and
-2. **windowed** means only the blocks near the viewport are mounted at all.
-
-### Where the code lives
-
-The library is `src/lib/`; `src/routes/test/editor` is the dev harness. The first-party plugins aren't in it: each is a package of its own under `packages/<name>/src`, next to the React and Vue wrappers, and imports the editor the way anyone else's plugin would. Inside `src/lib/`:
-
-| Directory                                                                  | What's in it                                                                                                                                                                                                                                                                         |
-| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `components/`                                                              | the Svelte components (Editor, BlockList, BlockHost, and one per block kind), plus the `editor-root/` modules Editor's wiring is split into (keys, clipboard, focus, scrolling) and a few plain helpers                                                                              |
-| `components/menu/`                                                         | the menu surface every block shares: the block menu, the icons, the flyout placement, and the default context actions                                                                                                                                                                |
-| `editor-actions/`                                                          | what a block asks the editor to do for it (split, merge, paste), and the versions of those a container substitutes for its children, plus the document version every write bumps                                                                                                     |
-| `tree-operations/`                                                         | functions that change the tree (paste, list, blockquote, the primitives), plus the copy-on-write sharing (`sharing.ts`) that lets undo snapshots share nodes with the live tree. Most are pure; the paste routes and the list item moves (`list/item-moves.ts`) run their own commit |
-| `schema/`                                                                  | everything about a block kind that more than one subsystem reads: its metadata record (the descriptor), the registries, the parser piece that recognizes the syntax it starts with (the opener), merge rules, commands and their keybindings                                         |
-| `core/`                                                                    | the parser, the serializer, the inline pipeline (how the text inside a block becomes styled spans), and the node types                                                                                                                                                               |
-| `browser/`                                                                 | the one place the editor reads or writes what the browser holds for editing: DOM position to raw offset and back, the dimmed marker included (`offsets.ts`), the caret writer, the selection readers, visual lines, and the caret under a point                                      |
-| `caret/`                                                                   | where the caret is and what it means: the caret memory, the sticky column, edge affinity (which side of a boundary the caret sits on), the drawn caret, and the two DOM lookups the selection measures against                                                                       |
-| `windowing/`                                                               | virtual rendering: the block height model and estimator, the per-list hooks, the slice math, and the one writer of the scroll position                                                                                                                                               |
-| `block-lists/`                                                             | a container's block-list state, the registry that finds it by node, and the refs to its child components                                                                                                                                                                             |
-| `selection/`                                                               | cross-block selection: the model and the dispatch                                                                                                                                                                                                                                    |
-| `decorations/`                                                             | view-only annotations (squiggles, ghost text, that kind of thing): the model and its reactive state                                                                                                                                                                                  |
-| `undo/`                                                                    | the undo/redo stack and the snapshot entry it stores (the fixed steps a commit runs are in `editor-actions/commit/`)                                                                                                                                                                 |
-| `invariants/`                                                              | the pure predicates behind the dev-mode guards (checks that fail a test when a contract breaks)                                                                                                                                                                                      |
-| `perf/`                                                                    | dev-mode performance instruments                                                                                                                                                                                                                                                     |
-| `debug/`                                                                   | the dev debug engine: dumps of the tree, the selection, the undo stack, the operations log                                                                                                                                                                                           |
-| `search/`                                                                  | find/replace: a read-only scan over the tree, plus its reactive state                                                                                                                                                                                                                |
-| `inline-menu/`                                                             | the menus that open under the caret as you type a trigger (`#` for a tag, `[[` for a link): which trigger opens which menu and where, the one session that can be open, and the source interface a host or plugin fills in                                                           |
-| `testing/`                                                                 | the published testing helpers (`@voithos-labs/aragonite/testing`): a platform reset plus the conformance kits a plugin's own test suite runs                                                                                                                                         |
-| `test/`, `e2e/`                                                            | the Vitest unit suites and the Playwright specs (with their requirement files)                                                                                                                                                                                                       |
-| `styles/`                                                                  | `editor.css` (structure) and `editor-theme.css` (the color and spacing tokens)                                                                                                                                                                                                       |
-| `index.ts`, `plugin.ts`, `testing.ts`                                      | the three public entry points, one per audience: the editor, the plugin API, the plugin test helpers. what's exported here is supported, what isn't is internal                                                                                                                      |
-| `editor-props.ts`, `editor-events.ts`, `editor-keys.ts`, `editor-rects.ts` | the host-facing surface: the props the editor takes, the events it emits, the url and image hooks, and the on-screen geometry a host can measure                                                                                                                                     |
-| `action-contracts.ts`, `block-component.ts`                                | the two interfaces the layers meet at: everything a block can ask the editor to do, and everything a rendered block has to answer                                                                                                                                                    |
-| `presentation-mode.ts`, `block-id.ts`, `active-editor.ts`                  | the five presentation modes, the stable block ids that keep keyed rendering pointed at the right block, and which editor a document-level chord goes to when two are on the page                                                                                                     |
-| `dev-checks.ts`, `dev-checks-stripped.ts`, `warn-tags.ts`                  | the dev channel: the switch every dev check reads and the warning relay every guard fires through, the empty copy a production build gets instead, and the reader that pulls a warning's tag back out of a console line                                                              |
-| `a11y-strings.ts`, `bounded-memo.ts`, `scan-index.ts`                      | the small shared pieces: screen reader names and announcements in one table, an LRU memo for expensive render work, and the scan index that keeps a trigger-dense paragraph to one pass                                                                                              |
-
-## Commands
-
-| Command                      | Purpose                                                                                          |
-| ---------------------------- | ------------------------------------------------------------------------------------------------ |
-| `npm run dev`                | Showcase at `/`, dev harness at `/test/editor`                                                   |
-| `npm run test:editor`        | Unit tests (all)                                                                                 |
-| `npm run test:editor:<area>` | Unit tests by area (`package.json` is the list)                                                  |
-| `npm run test:e2e`           | E2E tests (all)                                                                                  |
-| `npm run test:e2e:<area>`    | E2E tests by area                                                                                |
-| `npm test`                   | Full suite: unit, then every e2e project                                                         |
-| `npm run check`              | svelte-check, 0 errors baseline                                                                  |
-| `npm run lint`               | Prettier, the docs link check, the codebase-map check, ESLint                                    |
-| `npm run format`             | Prettier, writing the fixes                                                                      |
-| `npm run perf:check`         | Builds and previews the app, then times keystrokes against that build (the ship gate, see below) |
+A block's **kind** is the string on its node that says what block it is (`paragraph`, `list`, a plugin's name). **Windowed** means only the blocks near the viewport are mounted.
 
 ## Making a change
 
-Read [`docs/contributing/rules.md`](docs/contributing/rules.md) before your first edit, not after your first review; it's short.
-
-If the change is a bug fix, three habits:
-
-1. Root-cause it, and fix the class, not the one edge case you happened to find.
-2. Write the regression test **red first**: it fails on the pre-fix code, for the right reason, and then you fix it. Without that red run nobody knows the test can fail.
-3. Record a one-line **miss-analysis**: what test should have caught this, and why none did. It goes in the regression test's requirement file (e2e) or as the test's own header line (unit).
-
-One more thing that bites people: a dev warning in the console (the `[aragonite:...]` lines) is a gate failure, not noise. [`docs/contributing/warnings.md`](docs/contributing/warnings.md) says which kind means what and how a test claims one it triggered on purpose.
-
-If you'd like to see what all of this looks like on a real feature, [`docs/contributing/anatomy-of-a-change.md`](docs/contributing/anatomy-of-a-change.md) walks one from the first design decision to ship, including two tests that passed for the wrong reason.
+A bug fix has three habits: fix the class of bug and not the one instance, watch the regression test go red before you fix anything, and record a one-line miss-analysis ([`rules.md`](docs/contributing/rules.md) says where). In a dev build, a console line that starts `[aragonite:` fails a gate, and [`testing.md`](docs/contributing/testing.md) says which kind means what.
 
 ## The gates
 
-How much you run scales with what you did, in three tiers:
+- **Inner loop**, while you work: the area scripts (`package.json` lists them). Pick by the files you touched, not by the task's theme.
+- **Commit gate**, green before every commit: `npm test`, `npm run check` (0 errors, 0 warnings) and `npm run lint`.
+- **Ship gate**, before a merge or a release: the commit gate plus `npm run perf:check`, plus `npm run test:e2e:webkit` or `npm run test:e2e:firefox` when the change touches selection, typing or the clipboard.
 
-| Tier        | What you run                                                                                                                                                                                                                                                                    | When                                                                             |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| inner loop  | the area scripts for the directories you touched                                                                                                                                                                                                                                | while iterating; seconds to a minute, and nowhere near enough to commit on       |
-| commit gate | `npm test`, plus `npm run check` and `npm run lint`                                                                                                                                                                                                                             | green before every commit; tens of minutes, so start it and go do something else |
-| ship gate   | the commit gate, plus `npm run perf:check`; add `npm run test:e2e:webkit` or `test:e2e:firefox` when you touched selection, typing or the clipboard (CI runs every engine on every PR regardless: [testing.md § Browser engines](docs/contributing/testing.md#browser-engines)) | before a merge or a release; several minutes on top                              |
+They have a few ways of lying to you:
 
-`perf:check` builds and previews the app first, so it measures the editor rather than the dev server. Not `test:editor:perf`: that one already runs inside `npm test` and tells you nothing new.
-
-**`perf:check` will read red on your machine, and that's fine.** The ceilings are calibrated against one pinned host, so an unscaled run anywhere else is a diagnostic, not a verdict ([`docs/design/performance.md`](docs/design/performance.md) has the why). CI runs a scaled perf job, and that job is the arbiter.
-
-Two rules from the rule set, both bought with incidents. Never pipe a gate command: `npm test | tail` reports the pipe's exit code, not the gate's, so capture to a file and read the exit yourself ([rules.md § Working the gates](docs/contributing/rules.md#working-the-gates) shows the trap in both shells). And the long suites (the full e2e run, the simulation) run alone, never next to other work on the same tree.
-
-Two warnings though, about the e2e suite on real hardware:
-
-- A few specs still carry absolute wall-clock budgets, so a slower laptop or a busy host can tip one red without your change being wrong. Most of that class is gone (a guard, G4.48, prices timing as a growth ratio instead, which cancels machine speed); what's left is the allowlist in `src/lib/test/invariants/lint/suite-file-rules.test.ts`, each entry with its reason. CI is the arbiter, same as perf.
-- A run you interrupt can leave its server alive, and the next run then fails at once because the port is taken. Kill leftover node processes and rerun ([testing.md § The app under test is a build](docs/contributing/testing.md#the-app-under-test-is-a-build) has the ports).
+- `perf:check` times a production build against baselines from one calibration machine, so anywhere else it reads red by design. Off that machine its red is a hint, not a verdict: CI's scaled perf job decides. `test:editor:perf` is not the ship gate, since it already runs inside `npm test`.
+- Don't pipe a gate command. bash reports the pipe's last exit code, and so does PowerShell when the last stage is another program, so a failure looks like a success. Redirect to a file and check the exit code.
+- Run the full e2e suite and the simulation with nothing else running on the same tree, because contention produces false failures. Some e2e specs also keep absolute time budgets that a slow or busy machine can miss. CI is the verdict there too.
+- An interrupted e2e run can leave its server holding the port, and the next run dies on the spot. Kill the server and rerun.
 
 ## Commit messages
 
-A symbol prefix saying what kind of change it is, then lowercase text, no trailing period, at most 72 characters, one logical change per commit:
+`npm install` sets up a `commit-msg` hook that rejects anything but this, and CI runs the same linter over the pull request's commits, so the hook is the friendlier of the two.
 
-```
-+ (parrot) an eleventh frame, for the truly committed
-```
+- The subject is a symbol, an optional `(scope)`, then lowercase text: `! (parser) off-by-one in heading detection`. No final period, 72 characters at most.
+- The symbols are `+` feature · `-` removal · `~` small tweak · `>` normal to large change · `!` bug fix · `@` docs or config.
+- Several scopes are comma-separated with no space. The text may start with an identifier (`CST`, say), but not with an ordinary capitalized word.
+- A body is the exception: three short lines at most, 100 characters each, and only when the subject can't hold it.
+- Several changes in one commit get a summary line, a blank line, then one symbol-prefixed line per change. Still, one logical change per commit; aim for medium, not micro.
+- No attribution trailers (`Co-Authored-By`, "Generated with").
 
-`npm install` points git at `.githooks/` (a `prepare` script sets `core.hooksPath`), where a `commit-msg` hook runs the same linter CI runs over your pull request's commits. So if you never ran `npm install`, CI catches it; if you did, the hook does, before the commit exists:
-
-```
-$ git commit -m "Add the contributing guide" -m "Co-Authored-By: Claude <noreply@anthropic.com>"
-commit message rejected:
-  line 1  subject-shape: expected `<symbol> [(scope)] lowercase text`, symbol one of + - ~ > ! @
-    Add the contributing guide
-  line 3  attribution-trailer: the git history is not a credits reel
-    Co-Authored-By: Claude <noreply@anthropic.com>
-  convention: docs/contributing/commit-conventions.md
-```
-
-The symbols, the scope rule, the multi-change shape, and how to run the linter over a message before you commit it are all in [`docs/contributing/commit-conventions.md`](docs/contributing/commit-conventions.md).
+Merges, reverts, dependabot bumps, `fixup!` and `squash!` are exempt, and so is one co-founder (don't ask). To check yourself, run `node scripts/lint-commit-message.mjs --range origin/dev..HEAD`.
 
 ## Opening a pull request
 
-If you don't have push access (which you prob don't), fork the repo and branch from dev in your fork, and make a cross repo pr to dev. Ofc, collaborators can branch in place. Don't pr to main, thats the release branch, and dev into main is a merge a maintainer runs.
+Fork the repo, branch from `dev` in your fork, and open the pull request against `dev`. Collaborators can branch in place. Never target `main`: it's the release branch, and `dev` into `main` is a merge a maintainer runs. `next` is the maintainers' working branch, so not that one either.
 
-CI runs on every pull request:
+CI runs the lint, the type check and the unit suite, the e2e suite in Chromium, WebKit and Firefox, the perf gate, and smoke tests of the packed library. A docs-only change skips the e2e and perf work. Six checks account for most red pull requests. The commit gate includes them all, each runs alone in seconds, and `npm run test:editor:invariants` runs four of them together:
 
-- lint, svelte-check and the unit suite, in one job (it also re-reads your commit messages, see above)
-- the e2e suite, split four ways
-- the perf job, scaled for the runner, against a production build
-- a consumer smoke test, which packs the library, installs the tarball into a real app and checks it survives server rendering and hydration
-- the adapter suite, the same idea for the React and Vue wrappers: their example apps, built from the packed tarballs, run one shared set of browser tests
-- a check that the committed emoji table still matches the upstream it was generated from
+1. Every e2e spec has a requirement file, and every requirement file a spec. `src/lib/e2e/lint/requirement-spec-lockstep.test.ts`
+2. A comment stays inside its line budget and uses no banned word. `src/lib/test/invariants/lint/comment-budget.test.ts`, `src/lib/test/invariants/lint/comment-house-words.test.ts`
+3. A token the editor's CSS reads is declared in `src/lib/styles/editor-theme.css`, a host radius token it reads has a fallback, and `src/app.css` holds no editor rules. `src/lib/test/invariants/lint/css-ownership.test.ts`
+4. A menu row's icon name is a key of the glyph table in `src/lib/menu-icons.ts`. `npm run check`, except for a block context action's icon, which is a plain string
+5. No timer sequences anything, unit tests included (they wait with the helper in `src/lib/test/harness/settle.ts`). `src/lib/test/invariants/lint/file-rules.test.ts`, `src/lib/test/invariants/lint/suite-file-rules.test.ts`
+6. A file that gains a `pointerdown` or `mousedown` handler appears in the caret-gesture scan's lists, as "places a caret" or "places none", with the reason. `src/lib/test/invariants/lint/caret-gesture-range-reset.test.ts`
 
-Before you open it, run the six lines in [rules.md § Before you open the PR](docs/contributing/rules.md#before-you-open-the-pr). They're the checks a PR here trips most, each takes seconds, and the review will ask about them otherwise.
-
-Merging needs one code-owner approval. Review is root-cause first, and it'll ask for the test alongside the fix; I know that's a lot to ask of a drive-by contributor, but I have to ask anyway, for the sake of aragonite's health. If you want to start somewhere that's beginner friendly, issues labelled `good first issue` are picked to be exactly that.
+Merging needs one code-owner approval. The review looks for the root cause and asks for a test alongside the fix. That's a lot to ask for a drive-by patch, and it gets asked anyway. For a gentler start, issues labelled `good first issue` are picked to be exactly that.
 
 ## Filing an issue
 
-Bugs and feature requests go to [GitHub Issues](https://github.com/voithos-labs/aragonite/issues), through one of two forms (Bug, Feature request). Questions go to discussions. The form sets the issue's type, and a maintainer adds one `area:` label at triage, plus one `severity:` if it's a bug.
+Bugs and feature requests go to [GitHub Issues](https://github.com/voithos-labs/aragonite/issues), which has a form for each. Questions go to [Discussions](https://github.com/voithos-labs/aragonite/discussions). Say what you saw, how to make it happen, and which version, browser and mode. A maintainer adds the labels.
 
-Note,
-
-1. Fill the form in honestly: what you saw, how to make it happen, and which version, browser and mode.
-2. Yes, I see the open count. The issues, in this repo, partly acts as a to-watch ledger; `severity: watch` tracks observed signals with no confirmed defect, those and `severity: minor` stay open - i believe knowing of their existence is relatively more improtant than recklessly tidying them away.
+And yes, the open count is known. Issues labelled `severity: watch` (a signal with no confirmed defect) or `severity: minor` stay open on purpose, because knowing they exist beats a tidy tracker.
 
 ## Two ton slab of stone
 

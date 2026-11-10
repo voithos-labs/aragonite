@@ -6,7 +6,7 @@ import { warnTagOfLine } from '../warn-tags';
  * Svelte runtime warning that fired during server rendering, which no page-side watcher can see
  * because it happened before the browser existed. With `reuseExistingServer` a server Playwright
  * did not launch has no output to read, so this binds only runs that start their own server (CI
- * always does). Which lines count is `docs/contributing/warnings.md`.
+ * always does). Which lines count is `docs/contributing/testing.md` § A dev warning fails its test.
  */
 
 // Browser-side warnings vite copies into the server output; the page watcher already covers them.

@@ -35,7 +35,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.23 | Every e2e spec pairs with a requirement file, and vice versa | L |
 | G4.24 | A block's write rule runs in the content write, which maps the caret | T |
 | G4.25 | No `import.meta` env read anywhere under `src/lib` | L |
-| G4.26 | Comment budget: two lines a block, five a header, no house words | L |
+| G4.26 | Comment budget: two lines a block, five a contract docblock, twenty a file header, no house words | L |
 | G4.27 | Every `parse` call outside the parser declares its scope | L |
 | G4.28 | A leaf raw write outside the content write names the kind's rule | L |
 | G4.29 | Every file claiming a hardcoded chord is manifested with its chords and keys | L |
@@ -287,7 +287,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 
 **G4.25 · No `import.meta` env reads.** Nowhere under `src/lib`, test tree included: it's Vite-only, so the library wouldn't load under another bundler (and `svelte-package` warns on it wherever it sits). Toolchain flags come from `esm-env`, imported only by `src/lib/dev-checks.ts` (G4.248), and every dev-only check reads `devChecksOn` from there, so `configureEditorEnv({ isDev: true })` turns the checks and the dev warnings on together. The reference plugins and the consumer example are Vite apps and exempt. `lint/suite-file-rules.test.ts`.
 
-**G4.26 · Comment budget.** A comment block gets two text lines, a header five (dividers and directives aside). A header is a file's first comment, a docblock above an `export interface` or `export type`, or on an export (or member) of `index.ts`, `plugin.ts`, `testing.ts`, `editor-props.ts` or `block-component.ts`. No banned word in a comment or requirement file, backticks aside, and a failure quotes the plain phrase to write instead; each design and contributing doc keeps a baseline that only goes down. `lint/comment-budget.test.ts`, `lint/comment-house-words.test.ts`.
+**G4.26 · Comment budget.** A comment gets two text lines (dividers and directives aside), a file's header (its first comment, only imports above) twenty, and a docblock on an exported interface or type, or on an export (or member) of `index.ts`, `plugin.ts`, `svelte.ts`, `testing.ts`, `editor-props.ts` or `block-component.ts`, five. No banned word in a comment or requirement file, backticks aside, and a failure quotes the plain phrase to write instead; each design and contributing doc keeps a baseline that only goes down. `lint/comment-budget.test.ts`, `lint/comment-house-words.test.ts`.
 
 **G4.27 · Parse-scope declaration.** Every call of the core `parse` entry outside `core/parser.ts` passes an explicit `scope`. The default is `'document'`, so a fragment caller that forgets hands one block's bytes to the openers as a whole document, and only the caller knows which it is. The consumer example and the published kits are excluded (they parse whole documents). `lint/call-site-rules.test.ts`.
 

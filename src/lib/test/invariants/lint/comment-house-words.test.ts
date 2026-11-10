@@ -216,10 +216,7 @@ describe('G4.26 requirement files keep house words out of their body text', () =
  *  Lower a number when a rewrite lands; never raise one. */
 const DOC_BASELINE: Record<string, number> = {
 	'docs/design/caret-placement.md': 1,
-	'docs/design/invariants.md': 2,
-	'docs/contributing/code-style.md': 4,
-	'docs/contributing/first-hour.md': 1,
-	'docs/contributing/rules.md': 2
+	'docs/design/invariants.md': 2
 };
 
 /** The glossary glosses the banned words symbol names still carry, so it names them. */
