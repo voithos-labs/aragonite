@@ -285,6 +285,17 @@ describe('G1.209 a record told wrong, or read too early, is caught', () => {
 		expect(tags()).toEqual([]);
 	});
 
+	it('a write that threw is forgotten, whatever its rollback left', () => {
+		const doc = parse(paragraphs(6));
+		const k = kept(doc);
+		k.record.opened();
+		doc.children[1].raw = 'left behind by the rollback\n';
+		k.record.failed();
+		expect([k.record.isMeasured(), k.record.writing()]).toEqual([false, false]);
+		expect(answers(doc, k.record.read().starts)).toEqual(answers(doc));
+		expect(tags()).toEqual([]);
+	});
+
 	it('a view asked its first question between a write and its announcement', () => {
 		const doc = parse(paragraphs(6));
 		const record = createKeptStarts(() => doc);

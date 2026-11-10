@@ -123,7 +123,6 @@ export function createCommitFrame(
 			if (savedStacks) undo.restoreStacks(savedStacks);
 			deps.doc.suffix = savedSuffix;
 			write.rollback();
-			deps.starts.abandoned();
 		};
 		// Only while a draft is open: otherwise the write reads nothing more.
 		const capture = deps.drafts.watching()
@@ -139,6 +138,7 @@ export function createCommitFrame(
 				const changed = write.apply(wasOpen);
 				if (write.discardIfNoop && !changed) {
 					restore();
+					deps.starts.abandoned();
 					return 'discarded';
 				}
 				if (devChecksOn) {
@@ -152,6 +152,7 @@ export function createCommitFrame(
 				}
 			} catch (err) {
 				restore();
+				deps.starts.failed();
 				return failed(write, err);
 			}
 			if (capture) {

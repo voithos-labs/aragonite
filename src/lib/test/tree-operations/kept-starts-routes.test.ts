@@ -116,6 +116,19 @@ describe('G1.209 over writes that leave the document as it stood, or break a rul
 	}
 	const snapshot = { path: docPathFrom([2]), offset: 0 };
 
+	/** Writes `raw` into block 2 through the commit's own copy of it, then runs `then`: a write
+	 *  that joins an undo entry whose first write copied the block writes it where it stands. */
+	const writeBlock = (h: ReturnType<typeof measuredHarness>, raw: string, then = () => {}) =>
+		h.controller.commitStructural({
+			snapshot,
+			mutate(_, scope) {
+				scope.own([2])[0].raw = raw;
+				then();
+				return { op: 'noop' };
+			},
+			op: { kind: 'input', eventPath: snapshot.path }
+		});
+
 	it('a write that throws part way', async () => {
 		const h = measuredHarness();
 		const thrown = h.controller.commitStructural({
@@ -127,7 +140,6 @@ describe('G1.209 over writes that leave the document as it stood, or break a rul
 			op: { kind: 'delete', eventPath: snapshot.path }
 		});
 		await expect(thrown).rejects.toThrow('part way');
-		expect(h.deps.starts.isMeasured()).toBe(true);
 		expect(h.ends()).toEqual(h.fresh());
 		expect(takeDevWarns()).toEqual([]);
 	});
@@ -150,22 +162,28 @@ describe('G1.209 over writes that leave the document as it stood, or break a rul
 	// copied is written where it stands, which only its absence from the undo snapshot gives away.
 	it('a block the same undo entry already copied, written again in place', async () => {
 		const h = measuredHarness();
-		const write = (raw: string) =>
-			h.controller.commitStructural({
-				snapshot,
-				mutate(_, scope) {
-					scope.own([2])[0].raw = raw;
-					return { op: 'noop' };
-				},
-				op: { kind: 'input', eventPath: snapshot.path }
-			});
 		await h.controller.undoStep(snapshot, async () => {
-			await write('copied, then written\n');
+			await writeBlock(h, 'copied, then written\n');
 			const copied = h.deps.doc.children[2];
-			await write('written again, in place, and longer\n');
+			await writeBlock(h, 'written again, in place, and longer\n');
 			expect(h.deps.doc.children[2], 'the second write copied the block').toBe(copied);
 		});
 		expect(h.deps.starts.isMeasured()).toBe(true);
+		expect(h.ends()).toEqual(h.fresh());
+		expect(takeDevWarns()).toEqual([]);
+	});
+
+	// Miss-analysis: the throwing row above takes a block out of the commit's working list, which
+	// the rollback drops whole. A block written where it stands keeps its new bytes past a throw.
+	it('a block the undo entry already copied, written in place by a write that then throws', async () => {
+		const h = measuredHarness();
+		await h.controller.undoStep(snapshot, async () => {
+			await writeBlock(h, 'copied\n');
+			const thrown = writeBlock(h, 'written in place, then thrown\n', () => {
+				throw new Error('part way');
+			});
+			await expect(thrown).rejects.toThrow('part way');
+		});
 		expect(h.ends()).toEqual(h.fresh());
 		expect(takeDevWarns()).toEqual([]);
 	});

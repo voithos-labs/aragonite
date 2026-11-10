@@ -32,12 +32,14 @@ export interface KeptStarts {
 	read(): Measured;
 	/** Whether a position has been asked for since the record last forgot. */
 	isMeasured(): boolean;
-	/** Whether a write has opened and not yet announced or been abandoned. */
+	/** Whether a write has opened and not yet announced, been abandoned or failed. */
 	writing(): boolean;
 	/** A write is about to change the tree. */
 	opened(): void;
-	/** The open write put the tree back as it stood. */
+	/** The open write changed nothing, so the tree stands as it did. */
 	abandoned(): void;
+	/** The open write threw. Nothing vouches for its rollback, so the record is forgotten. */
+	failed(): void;
 	/** The open write is done. */
 	changed(runs: ChangedRuns): void;
 }
@@ -92,6 +94,10 @@ export function createKeptStarts(doc: () => DocumentView): KeptStarts {
 		},
 		abandoned() {
 			open = Math.max(open - 1, 0);
+		},
+		failed() {
+			open = Math.max(open - 1, 0);
+			kept = view = null;
 		},
 		changed(runsOf) {
 			if (devChecksOn && open === 0) misused('a write announced its changes without opening first');
