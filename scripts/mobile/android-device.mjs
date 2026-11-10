@@ -21,7 +21,7 @@ export function createDevice(out) {
 
 	// uiautomator can fail to dump a screen that never goes idle, leaving a stale file behind, so
 	// each try removes the file first. `--windows` dumps every window, the keyboard's included.
-	function dumpNodes(name, ...flags) {
+	function dumpXml(name, ...flags) {
 		let xml = null;
 		for (let i = 0; i < 4 && xml === null; i++) {
 			adb('shell', 'rm', '-f', '/sdcard/ui.xml');
@@ -34,7 +34,11 @@ export function createDevice(out) {
 		}
 		if (xml === null) throw new Error(`uiautomator dump ${flags.join(' ')} failed four times`);
 		if (name) writeFileSync(path.join(out, `${name}.xml`), xml);
-		return [...xml.matchAll(/<node [^>]*>/g)].map(([tag]) => {
+		return xml;
+	}
+
+	function dumpNodes(name, ...flags) {
+		return [...dumpXml(name, ...flags).matchAll(/<node [^>]*>/g)].map(([tag]) => {
 			const attr = (key) => tag.match(new RegExp(` ${key}="([^"]*)"`))?.[1] ?? '';
 			const [x1, y1, x2, y2] = attr('bounds').match(/\d+/g).map(Number);
 			return {
@@ -64,8 +68,9 @@ export function createDevice(out) {
 	// that tree only once something asks, so the lookup polls. It waits out what moves or covers
 	// the page: a prompt, and for a few seconds the network bar above the toolbar.
 	async function paragraphBox(text, name) {
+		let nodes = [];
 		for (let i = 0; i < 30; i++) {
-			const nodes = dumpNodes(name);
+			nodes = dumpNodes(name);
 			const dismiss = nodes.find((n) => DISMISS.includes(n.text));
 			if (dismiss) tap(centre(dismiss.box).x, centre(dismiss.box).y);
 			const banner = nodes.some((n) => n.id === 'com.android.chrome:id/status_text');
@@ -77,13 +82,31 @@ export function createDevice(out) {
 			);
 			// "Back online" leaves within seconds; "No internet connection" stays, and a tap that lands
 			// in the wrong block is retried anyway.
-			if (node && !dismiss && (!banner || i >= 8)) return node.box;
+			if (node && !dismiss && (!banner || i >= 8)) {
+				if (!underKeyboard(node.box)) return node.box;
+				// A touch there would press a key (the mic, at a line's right end), so the keyboard goes.
+				await hideKeyboard();
+			}
 			await sleep(500);
 		}
-		throw new Error(`no settled EditText node reading "${text}" in the screen dump`);
+		const page = nodes.some((n) => n.cls === 'android.webkit.WebView');
+		throw new Error(
+			page
+				? `no settled EditText node reading "${text}" in the screen dump`
+				: `the screen dump holds no page content, so no node reads "${text}"`
+		);
 	}
 
 	const imeShown = () => /mInputShown=true/.test(adb('shell', 'dumpsys', 'input_method'));
+
+	// Whether the on-screen keyboard covers any of `box`: its window lies over the page, and a
+	// paragraph beneath it still reports a box.
+	function underKeyboard(box) {
+		if (!imeShown()) return false;
+		const keyboard = dumpXml(null, '--windows').match(/<window [^>]*TYPE_INPUT_METHOD[^>]*>/)?.[0];
+		const top = keyboard?.match(/ bounds="\[\d+,(\d+)\]/)?.[1];
+		return top !== undefined && box.y2 > Number(top);
+	}
 
 	// Back closes the keyboard and keeps focus; pressed only while it shows, since otherwise Back
 	// would leave the page.
