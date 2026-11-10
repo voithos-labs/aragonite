@@ -269,6 +269,33 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: paste('# T\nbody'),
 		expect: { source: 'ab\n\n# T\nbodycd\n' }
 	},
+	// ── A title row takes a paste on its one line, never in its name ──
+	// Miss-analysis: no row pasted at a name's end, and law 11 never drew a title row with a
+	// clipboard of two lines.
+	{
+		name: 'L9 a paste at the end of a row’s name starts its title, a space first',
+		source: ':::note⟦⟧\na\n:::\n',
+		gesture: paste('😀'),
+		expect: { source: ':::note 😀\na\n:::\n', caret: text(10) }
+	},
+	{
+		name: 'L11 the same as plain text, as written where a title shows its bytes',
+		source: '> :::note⟦⟧\n> a\n> :::\n',
+		gesture: plain('*x*'),
+		expect: { source: '> :::note *x*\n> a\n> :::\n' }
+	},
+	{
+		name: 'L9 a run of line breaks pasted into a title is one space',
+		source: ':::note Ti⟦⟧tle\nbody\n:::\n',
+		gesture: paste('a\n\nb\n'),
+		expect: { source: ':::note Tia btle\nbody\n:::\n', caret: text(13) }
+	},
+	{
+		name: 'L11 plain text pasted into a title stays on its line',
+		source: ':::note Ti⟦⟧tle\nbody\n:::\n',
+		gesture: plain('x\n*y*'),
+		expect: { source: ':::note Tix *y*tle\nbody\n:::\n' }
+	},
 	// ── Copy (law 10) ──
 	{
 		name: 'L10 a copy ending at a list item text start carries its marker',

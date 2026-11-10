@@ -498,18 +498,9 @@ function landedPaste(
 	if (!target || host.facts(target.type).textPosition === 'never')
 		return { shape: 'other', bytes: [] };
 	const targetFacts = host.facts(target.type);
-	const isTitle = read.blocks.some(
-		(b) =>
-			b.lines &&
-			host.facts(b.type).titleRow?.type === target.type &&
-			b.from <= target.from &&
-			target.to <= b.to
-	);
-	// A title row holds one line: the paste goes in flattened to it.
-	if (isTitle) {
-		const flat = lf(text).replace(/\n+$/, '').replace(/\n/g, ' ');
-		return { shape: 'text', bytes: [read.source.slice(0, at) + flat + read.source.slice(at)] };
-	}
+	const title = titleLine(read, at, target, lf(text), host);
+	if (title !== null)
+		return { shape: 'text', bytes: [read.source.slice(0, at) + title + read.source.slice(at)] };
 	// Literal text (code) takes the paste as written, whatever it would read as elsewhere.
 	// Fence lines pasted into literal text make its fences grow, which the rows hold.
 	if (targetFacts.body === 'literal' && /^(```|~~~)/m.test(text))
@@ -555,6 +546,33 @@ function landedPaste(
 		return { shape: 'split', bytes: own ? [blank, line] : [blank] };
 	}
 	return { shape: 'other', bytes: [] };
+}
+
+const oneLine = (text: string) => text.replace(/\n+$/, '').replace(/\n+/g, ' ');
+
+/** A paste of `text` into title row `row` at `at`, as the one line it holds: a run of line breaks
+ *  is one space, and at the end of the row's name a space sets the title off. Null off a title row. */
+function titleLine(
+	read: Read,
+	at: number,
+	row: LaidBlock,
+	text: string,
+	host: CheckHost
+): string | null {
+	const owner = read.blocks.find(
+		(b) =>
+			b.lines &&
+			host.facts(b.type).titleRow?.type === row.type &&
+			b.from <= row.from &&
+			row.to <= b.to
+	);
+	if (!owner) return null;
+	const flat = oneLine(text);
+	const atName =
+		host.facts(owner.type).titleRow!.nameNeverEntered &&
+		at === row.text!.from &&
+		/\S/.test(read.source[at - 1] ?? ' ');
+	return atName && flat !== '' ? ' ' + flat : flat;
 }
 
 /** The deepest container at `at` a pasted leading block of `type` merges into. */
@@ -647,6 +665,15 @@ function insertedOnly(
 	const point = read.layout.pointAt(at);
 	const leaf = point && read.blocks.find((b) => b.path.join() === point.path.join());
 	const literal = leaf ? host.facts(leaf.type).body === 'literal' : false;
+	const title = leaf?.text ? titleLine(read, at, leaf, lf(text), host) : null;
+	if (title !== null) {
+		const lead = title.length - oneLine(lf(text)).length;
+		return (
+			inserted.startsWith(' '.repeat(lead)) &&
+			(literal ? inserted.slice(lead) : host.shows(inserted.slice(lead), mode)) ===
+				title.slice(lead)
+		);
+	}
 	const unprefixed = lf(inserted).replace(/\n[ \t>]*/g, '\n');
 	const bare = (t: string) => t.replace(/\n$/, '');
 	return bare(literal ? lf(inserted) : host.shows(unprefixed, mode)) === bare(lf(text));

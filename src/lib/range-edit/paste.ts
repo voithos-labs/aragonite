@@ -71,10 +71,11 @@ function landed(doc: Doc, at: number, lf: string, plain: boolean): Edit {
 	}
 	const { leaf, offset } = target;
 	const literal = factsOf(doc, leaf).body === 'literal';
+	const titled = titleOwner(doc, leaf);
+	if (titled) return intoTitle(doc, titled, leaf, at, clip, plain);
 	// Plain text never converts: as written where the text is literal, escaped where it reads.
 	if (plain && literal) return insertBytes(doc, at, clip, false);
 	if (plain) return insertText(doc, leaf, offset, doc.host.leaf.plain(doc.tree, leaf.path, clip));
-	if (titleOwner(doc, leaf)) return intoTitle(doc, at, clip);
 	// Literal text takes the paste as written; a line that could close its fence goes through the
 	// block's write rule, which grows the fence past it.
 	if (literal) {
@@ -147,8 +148,22 @@ function insertBytes(doc: Doc, at: number, text: string, prefixed = true): Edit 
 	};
 }
 
-/** A title row holds one line: the paste goes in with each line break turned to a space. */
-function intoTitle(doc: Doc, at: number, text: string): Edit {
-	const flat = text.replace(/\n+$/, '').replace(/\n/g, ' ');
-	return { source: doc.source.slice(0, at) + flat + doc.source.slice(at), caret: at + flat.length };
+/** A title row holds one line: the paste goes in with each run of line breaks turned to a space,
+ *  after a space of its own where the caret stands at the end of the row's name. */
+function intoTitle(
+	doc: Doc,
+	owner: LaidBlock,
+	row: LaidBlock,
+	at: number,
+	text: string,
+	plain: boolean
+): Edit {
+	const flat = text.replace(/\n+$/, '').replace(/\n+/g, ' ');
+	const title = plain ? doc.host.leaf.plain(doc.tree, row.path, flat) : flat;
+	const atName =
+		factsOf(doc, owner).titleRow!.nameNeverEntered &&
+		at === row.text!.from &&
+		/\S/.test(doc.source[at - 1] ?? ' ');
+	const line = (atName && title !== '' ? ' ' : '') + title;
+	return { source: doc.source.slice(0, at) + line + doc.source.slice(at), caret: at + line.length };
 }
