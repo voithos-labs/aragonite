@@ -10,9 +10,8 @@ test.describe('image popover anchoring', () => {
 		await editor.goto();
 	});
 
-	// The popover hangs off the image's right edge, level with its top. With `position: absolute`
-	// and no offsets it sits at the bottom of `.editor` instead, off screen in a long document
-	// while a locator still finds it.
+	// The popover hangs off the image's right edge, level with its top. Left unpositioned it sits
+	// at the bottom of `.editor`, off screen in a long document while a locator still finds it.
 	test('popover sits beside the widget, top-aligned, not at end of editor flow', async ({
 		page
 	}) => {

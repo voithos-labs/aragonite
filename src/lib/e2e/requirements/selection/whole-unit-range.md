@@ -42,8 +42,8 @@ not only Backspace.
   paragraph, and a typed `x` gives `x\n`.
   - Miss-analysis: every whole-unit row had a block on each side of the rule, so nothing asked
     what the document holds once its last block goes.
-- A quote holding nothing but a rule, the rule dragged and deleted the same way, goes with it:
-  a typed `x` gives `x\n`, not a quote.
+- A quote holding nothing but a rule, the rule dragged and deleted the same way, stays with its
+  line emptied, since the range holds the rule and not the quote: a typed `x` gives `> x\n`.
 - One undo brings the lone rule back.
 
 ## Edge cases

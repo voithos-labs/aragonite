@@ -37,17 +37,16 @@ test.describe('reserved child-0 chrome: rangeDelete wall', () => {
 		await editor.dragFromTo([0], 2, [1, 0], 16);
 		await page.keyboard.press('Delete');
 		await editor.waitForCrossBlock(false);
-		await editor.bridge.waitForSourceContains(':::callout\n');
-
-		// "Above" keeps its start as a paragraph, the covered title is emptied rather than removed, and
-		// the body never moves up into the opener line.
+		await editor.bridge.waitForSourceContains(':::callout \n');
+		// "Above" keeps its start as a paragraph, the covered title is emptied rather than removed, its
+		// opener keeping the space before it, and the body never moves up into the opener line.
 		const callout = await readCallout(page, 1);
 		expect(callout.rootCount).toBe(2);
 		expect(callout.childCount).toBe(2);
 		expect(callout.childKinds).toEqual(['directiveOpenerLine', 'paragraph']);
-		expect(callout.childTexts).toEqual([':::callout', 'Body']);
-		expect(callout.raw).toBe(':::callout\nBody\n:::\n');
-		expect(await editor.bridge.getSource()).toBe('Ab\n\n:::callout\nBody\n:::\n');
+		expect(callout.childTexts).toEqual([':::callout ', 'Body']);
+		expect(callout.raw).toBe(':::callout \nBody\n:::\n');
+		expect(await editor.bridge.getSource()).toBe('Ab\n\n:::callout \nBody\n:::\n');
 		expect(await capturedErrors(page)).toEqual([]);
 
 		await editor.undo();
@@ -78,19 +77,21 @@ test.describe('reserved child-0 chrome: rangeDelete wall', () => {
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	test('Gate 4c: chrome-between; start truncates, chrome clears, end body child keeps its tail in place', async ({
+	test('Gate 4c: chrome-between; start truncates, the opening stays, end body child keeps its tail in place', async ({
 		page
 	}) => {
 		await editor.loadContent(WALL_FIXTURE);
 		await editor.dragFromTo([0], 2, [1, 1], 2);
 		await page.keyboard.press('Delete');
 		await editor.waitForCrossBlock(false);
-		await editor.bridge.waitForSourceEquals('Ab\n\n:::callout\ndy1\n\nBody2\n:::\n\nBelow\n');
-
+		// A range entering the container from outside keeps its opening line whole.
+		await editor.bridge.waitForSourceEquals('Ab\n\n:::callout Title\ndy1\n\nBody2\n:::\n\nBelow\n');
 		const callout = await readCallout(page, 1);
 		expect(callout.childKinds).toEqual(['directiveOpenerLine', 'paragraph', 'paragraph']);
-		expect(callout.childTexts).toEqual([':::callout', 'dy1', 'Body2']);
-		expect(await editor.bridge.getSource()).toBe('Ab\n\n:::callout\ndy1\n\nBody2\n:::\n\nBelow\n');
+		expect(callout.childTexts).toEqual([':::callout Title', 'dy1', 'Body2']);
+		expect(await editor.bridge.getSource()).toBe(
+			'Ab\n\n:::callout Title\ndy1\n\nBody2\n:::\n\nBelow\n'
+		);
 		expect(await stateConsistencyViolations(page)).toEqual([]);
 		expect(await capturedErrors(page)).toEqual([]);
 
@@ -110,13 +111,13 @@ test.describe('reserved child-0 chrome: rangeDelete wall', () => {
 		await editor.dragFromTo([1, 0], 14, [2], 3);
 		await page.keyboard.press('Delete');
 		await editor.waitForCrossBlock(false);
-		await editor.bridge.waitForSourceEquals('Above\n\n:::callout Tit\n:::\n\now\n');
-
+		// The closing line stays; the blank line after it was inside the range.
+		await editor.bridge.waitForSourceEquals('Above\n\n:::callout Tit\n:::\now\n');
 		const callout = await readCallout(page, 1);
 		expect(callout.childCount).toBe(1);
 		expect(callout.childKinds).toEqual(['directiveOpenerLine']);
 		expect(callout.childTexts).toEqual([':::callout Tit']);
-		expect(await editor.bridge.getSource()).toBe('Above\n\n:::callout Tit\n:::\n\now\n');
+		expect(await editor.bridge.getSource()).toBe('Above\n\n:::callout Tit\n:::\now\n');
 		expect(await activeBlockPath(page)).toEqual([1, 0]);
 		// Going from three children to one is the harder case for BlockListState: the ids and
 		// references must still match the surviving children after the splice.

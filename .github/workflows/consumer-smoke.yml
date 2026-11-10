@@ -3,7 +3,7 @@ name: Consumer smoke
 # break here used to surface weeks later wearing someone else's PR.
 on:
   push:
-    branches: [dev]
+    branches: [dev, next]
     # A subset on purpose: `npm run package` packs all of `src/lib`, and paying a full matrix
     # per `dev` push costs more than the recall this filter trades away.
     paths:

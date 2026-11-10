@@ -2,7 +2,8 @@
  * What a document's tree becomes when runs of its bytes change: the top-level blocks each change
  * reaches, read again from the new bytes, so the tree is what opening them gives. A read starts at
  * the last block before the change with text of its own and runs on past it until the next such
- * block still starts where it stood (`docs/design/commit-and-undo.md` § The byte splice).
+ * block still starts where it stood; inside a list, quote or table it reads only the children the
+ * change reaches (`docs/design/commit-and-undo.md` § The byte splice).
  */
 
 import type { CstNode } from '../core/nodes';
@@ -15,22 +16,19 @@ import {
 import { isBlankParagraph } from '../core/parser';
 import { splitLines } from '../core/lines';
 import { readAsOpened } from '../schema/opened-reading';
-import { sharedPrefixLength, sharedSuffixLength } from '../core/written-span';
-import { keepUnchangedDeep } from '../block-id';
-
-/** One run of the current bytes replaced: `[from, to)` gives way to `insert`. */
-export interface ByteChange {
-	from: number;
-	to: number;
-	insert: string;
-}
+import { assignChildIdsDeep, keepUnchangedDeep } from '../block-id';
+import { changedBytes, narrowed, writtenLines, type ByteChange } from './byte-changes';
+import { containerWindow, standsBelow, textAfter } from './container-window';
+import { spliceMany } from './splice-many';
 
 /** Top-level blocks `[at, at + count)` give way to `blocks`; the first new block keeps the first
- *  replaced one's id. */
+ *  replaced one's id, and every container in them has its child ids. */
 export interface SpliceWindow {
 	at: number;
 	count: number;
 	blocks: CstNode[];
+	/** Inside one container: its children `[at, at + count)` were read again, the rest kept. */
+	run?: { at: number; count: number };
 }
 
 /** The windows a splice replaces, in document order, and the document's trailing blank line. */
@@ -39,30 +37,12 @@ export interface SpliceReading {
 	suffix: string;
 }
 
-/** `after` as changes to `before`: none when they're equal, else the one run between their
- *  shared start and end. */
-export function changesBetween(before: string, after: string): ByteChange[] {
-	if (before === after) return [];
-	const shorter = Math.min(before.length, after.length);
-	const from = sharedPrefixLength(before, after, shorter);
-	const tail = sharedSuffixLength(before, after, shorter - from);
-	return [{ from, to: before.length - tail, insert: after.slice(from, after.length - tail) }];
-}
-
-/** `before[from, to)` with `made`, the changes inside it, made. */
-export function changedBytes(
-	before: string,
-	from: number,
-	to: number,
-	made: readonly ByteChange[]
-): string {
-	let text = '';
-	let at = from;
-	for (const change of made) {
-		text += before.slice(at, change.from) + change.insert;
-		at = change.to;
-	}
-	return text + before.slice(at, to);
+/** The document `reading` leaves, its blocks outside the windows the nodes they were. */
+export function applied(doc: DocumentView, reading: SpliceReading): DocumentView {
+	const children = [...doc.children] as CstNode[];
+	for (const window of [...reading.windows].reverse())
+		spliceMany(children, window.at, window.count, window.blocks);
+	return { kind: 'document', prefix: doc.prefix, children, suffix: reading.suffix };
 }
 
 /** Where each block of a list's bytes ends, its blank lines and its own bytes counted, from
@@ -86,6 +66,27 @@ export function spliceReading(
 	changes: readonly ByteChange[],
 	grammar: GrammarView
 ): SpliceReading | null {
+	return readAgain(doc, before, changes, grammar, true);
+}
+
+/** {@link spliceReading} with every window at the top level, never inside a container: what the
+ *  windows inside one must come out equal to. */
+export function topLevelReading(
+	doc: DocumentView,
+	before: string,
+	changes: readonly ByteChange[],
+	grammar: GrammarView
+): SpliceReading | null {
+	return readAgain(doc, before, changes, grammar, false);
+}
+
+function readAgain(
+	doc: DocumentView,
+	before: string,
+	changes: readonly ByteChange[],
+	grammar: GrammarView,
+	inside: boolean
+): SpliceReading | null {
 	const made = changes.filter((change) => before.slice(change.from, change.to) !== change.insert);
 	if (made.length === 0) return null;
 	const children = doc.children;
@@ -95,8 +96,14 @@ export function spliceReading(
 	const rawStartOf = (i: number) =>
 		(i === 0 ? doc.prefix.length : ends[i - 1]) + children[i].leadingTrivia.length;
 	const holding = (byte: number) => {
-		const i = ends.findIndex((end) => byte < end);
-		return i < 0 ? last : i;
+		let lo = 0;
+		let hi = last;
+		while (lo < hi) {
+			const mid = (lo + hi) >> 1;
+			if (byte < ends[mid]) hi = mid;
+			else lo = mid + 1;
+		}
+		return lo;
 	};
 	const pending: Span[] = [];
 	for (const change of made) {
@@ -105,7 +112,8 @@ export function spliceReading(
 		while (lo > 0 && isBlankParagraph(children[lo])) lo--;
 		lo = Math.max(lo, 0);
 		// A closer the change writes finishes a block above it that waits on one.
-		const waiting = waitingAboveClosedBy(written(change), (i) => children[i].raw, lo, readings);
+		const lines = writtenLines(before, change);
+		const waiting = waitingAboveClosedBy(lines, (i) => children[i].raw, lo, readings);
 		const hi = Math.max(first, holding(Math.max(change.to - 1, change.from)));
 		let span: Span = { lo: waiting >= 0 ? waiting : lo, hi, top: first === 0, changes: [change] };
 		while (pending.length > 0 && span.lo <= pending[pending.length - 1].hi) {
@@ -121,15 +129,30 @@ export function spliceReading(
 	}
 	const windows: SpliceWindow[] = [];
 	let suffix = doc.suffix;
+	const top = {
+		doc,
+		before,
+		rawStartOf,
+		ends,
+		readings,
+		read: (t: string) => readOpened(t, grammar)
+	};
 	while (pending.length > 0) {
 		const span = pending.shift()!;
+		const within = inside ? insideOneBlock(span.changes) : null;
+		const read = within && containerWindow(top, within.block, within.changes);
+		if (read) {
+			windows.push(read.window);
+			if (read.suffix !== undefined) suffix = read.suffix;
+			continue;
+		}
 		// From the document's top a read takes every blank line as a block; elsewhere the window
 		// starts behind the blank lines of a block no change reaches.
 		const start = span.top ? doc.prefix.length : rawStartOf(span.lo);
 		const carried = span.top ? '' : children[span.lo].leadingTrivia;
 		for (let grow = 1; ; grow *= 2) {
 			const next = pending[0];
-			const k = span.hi === last ? last : textAfter(span.hi);
+			const k = span.hi === last ? last : textAfter(children, span.hi);
 			if (next && (span.hi >= next.lo || k > next.lo)) {
 				span.hi = Math.max(span.hi, next.hi);
 				for (const change of pending.shift()!.changes) span.changes.push(change);
@@ -147,20 +170,14 @@ export function spliceReading(
 	}
 	return { windows, suffix };
 
-	/** The whole lines `change` leaves where it was made. */
-	function written(change: ByteChange): string[] {
-		const from = before.lastIndexOf('\n', change.from - 1) + 1;
-		// Through the line break, so a CRLF line's `\r` leaves with its ending.
-		const end = before.indexOf('\n', change.to);
-		const rest = before.slice(change.to, end < 0 ? before.length : end + 1);
-		return splitLines(before.slice(from, change.from) + change.insert + rest).map((l) => l.text);
-	}
-
-	/** The first block after `hi` with text of its own, or the last block. */
-	function textAfter(hi: number): number {
-		let k = hi + 1;
-		while (k < last && isBlankParagraph(children[k])) k++;
-		return k;
+	/** The top-level block every byte `changes` change lies in, past its blank lines, and those
+	 *  bytes; null when they reach more than one block. */
+	function insideOneBlock(changes: readonly ByteChange[]) {
+		const bytes = changes.flatMap((change) => narrowed(before, change));
+		const block = bytes.length > 0 ? holding(bytes[0].from) : -1;
+		const inBlock = (change: ByteChange) =>
+			change.from >= rawStartOf(block) && change.to <= ends[block];
+		return block >= 0 && bytes.every(inBlock) ? { block, changes: bytes } : null;
 	}
 
 	/** The window from `start` to the document's end, its trailing blank line included. */
@@ -189,13 +206,7 @@ export function spliceReading(
 		let m = 0;
 		while (m < blocks.length && at < head.length)
 			at += blocks[m].leadingTrivia.length + blocks[m++].raw.length;
-		if (at !== head.length) return null;
-		for (let j = hi + 1; j <= k; j++) {
-			const was = children[j];
-			const now = blocks[m + j - hi - 1];
-			if (!now || now.leadingTrivia !== was.leadingTrivia) return null;
-			if (j < k && (now.kind !== was.kind || now.raw !== was.raw)) return null;
-		}
+		if (at !== head.length || !standsBelow(children, hi, k, blocks.slice(m))) return null;
 		// A block the window leaves waiting on a closer reads on to the first line below that may be it.
 		const closerAt = closerBelow(blocks.slice(0, m), hi);
 		return closerAt < 0 ? { blocks: blocks.slice(0, m) } : { closerAt };
@@ -256,5 +267,6 @@ function trimmed(
 	const count = hi - lo + 1 - head - tail;
 	// Read, never written: its unchanged children move into the new block as they are.
 	if (blocks.length > 0 && count > 0) keepUnchangedDeep(old[at] as CstNode, blocks[0]);
+	for (const block of blocks) assignChildIdsDeep(block);
 	return { at, count, blocks };
 }

@@ -15,7 +15,6 @@ import type {
 	UndoGrouping
 } from '../action-contracts';
 import { blockNodeAt, type BodyParent } from '../tree-operations/node-primitives';
-import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import type { StructuralChange } from '../tree-operations/structural-change';
 import type { SharingState } from '../tree-operations/sharing';
@@ -24,12 +23,12 @@ import type { LegalWrite, WriteTarget } from '../tree-operations/content-write';
 import type { Reading } from '../schema/reading';
 import type { DocumentStamps } from './commit/document-stamp';
 import type { CaretMemory } from '../caret/caret-memory';
-import { ensureUnsharedPath, ensureUnsharedChild } from '../tree-operations';
 import { containerScopeState } from '../tree-operations/paste/parent-scope';
 import { asDocPath, type DocPath, docPathFrom, extendDocPath } from '../core/coordinate-spaces';
 import type { CaretPosition } from '../selection/primitives';
 import type { LandingOutcome, RevealPolicy } from '../selection/caret-landing';
-import { survivorAfterRemoval, type RemovalGesture } from '../selection/caret-target';
+import type { RemovalGesture } from '../selection/caret-target';
+import { removeWholeBlock } from '../selection/cross-block/range-removal';
 import { getStateForNode } from '../block-lists/state-registry';
 import type { EditorActionsDeps, EditorRoot, UndoController } from './deps';
 import type { NestedActionsDeps } from './nested/nested-actions';
@@ -43,8 +42,6 @@ export interface MutationView {
 	readonly sharing: SharingState;
 	/** The editor's reading, for mutations that re-parse and joins that clean up after themselves. */
 	readonly reading: Reading;
-	/** Copy the child at `i` out of the undo snapshot before an in-place write; returns the copy. */
-	unshareChild(i: number): CstNode;
 	/** Tells the commit's fix-up what the mutation did beyond its splice; see `ContainerScope`. */
 	describeEdit: ContainerScope['describeEdit'];
 	own: ContainerScope['own'];
@@ -87,8 +84,13 @@ export interface CommitScope {
 	target(): WriteTarget;
 	/** The id the typing batch keys on for child `i`. */
 	idAt(i: number): string;
-	/** Where the caret goes once child `i` is gone, read after the commit that removed it. */
-	survivor(i: number, gesture: RemovalGesture): CaretPosition | null;
+	/** Removes child `i` whole through the range-edit core, in one commit that names its snapshot
+	 *  and edit event as `commit` does; the caret lands on the side `gesture` points. */
+	removeWhole(
+		i: number,
+		gesture: RemovalGesture,
+		args: Pick<ScopeCommitArgs, 'snapshot' | 'op'>
+	): Promise<boolean>;
 	/** An empty replaceBlock emits `delete` (container) or `replaceBlock{count:0}` (top-level). */
 	collapseEmptyReplaceToDelete: boolean;
 	/** Resolves to whether bytes landed. */
@@ -127,7 +129,11 @@ export function createTopLevelScope(
 		children: () => deps.doc.children,
 		target: () => deps.doc,
 		idAt: (i) => deps.blockIds[i],
-		survivor: (i, gesture) => survivorAfterRemoval(deps.doc, [i], gesture),
+		removeWhole: (i, gesture, { snapshot, op }) =>
+			removeWholeBlock({ bytes: deps.bytes, reading: deps.reading, controller }, [i], gesture, {
+				snapshot: { path: asDocPath([snapshot.index]), offset: snapshot.offset },
+				op: { ...op, eventPath: asDocPath([i]) }
+			}),
 		collapseEmptyReplaceToDelete: false,
 		commit({
 			snapshot,
@@ -142,12 +148,11 @@ export function createTopLevelScope(
 		}): Promise<boolean> {
 			return controller.commitStructural({
 				snapshot: { path: asDocPath([snapshot.index]), offset: snapshot.offset },
-				mutate: (children, docScope) =>
+				mutate: (_, docScope) =>
 					mutate({
 						body: docScope.body,
 						sharing: deps.sharing,
 						reading: deps.reading,
-						unshareChild: (i) => ensureUnsharedPath({ children }, [i], deps.sharing)[0],
 						describeEdit: docScope.describeEdit,
 						own: docScope.own,
 						writeLeaf: docScope.writeLeaf
@@ -232,8 +237,11 @@ function containerScope(parts: ContainerParts): CommitScope {
 			lineEnding: parts.containerEdit.lineEnding()
 		}),
 		idAt: (i) => parts.state.innerBlockIds[i],
-		survivor: (i, gesture) =>
-			parts.containerEdit.survivorAfterRemoval(extendDocPath(parts.path(), i), gesture),
+		removeWhole: (i, gesture, { snapshot, op }) =>
+			parts.containerEdit.removeWhole(extendDocPath(parts.path(), i), gesture, {
+				snapshot: { path: extendDocPath(parts.path(), snapshot.index), offset: snapshot.offset },
+				op: { ...op, eventPath: extendDocPath(parts.path(), i) }
+			}),
 		collapseEmptyReplaceToDelete: true,
 		commit({
 			snapshot,
@@ -256,7 +264,6 @@ function containerScope(parts: ContainerParts): CommitScope {
 						body: view.body,
 						sharing: view.sharing,
 						reading: parts.reading(),
-						unshareChild: (i) => ensureUnsharedChild(view.node, i, view.sharing),
 						describeEdit: view.describeEdit,
 						own: view.own,
 						writeLeaf: view.writeLeaf

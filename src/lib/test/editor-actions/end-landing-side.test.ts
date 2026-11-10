@@ -43,8 +43,9 @@ describe('an end landing inside a container', () => {
 		await h.bundle.blockEdit.mergeWithPrevious(1);
 
 		expect(caretMemory.side()).toBeNull();
+		// The headless restore has no element to write into.
 		expect(h.landings).toEqual([
-			{ leafPath: [0, 0, 0, 0], offset: expect.any(Number), outcome: 'placed' }
+			{ leafPath: [0, 0, 0, 0], offset: expect.any(Number), outcome: 'unplaced' }
 		]);
 	});
 });

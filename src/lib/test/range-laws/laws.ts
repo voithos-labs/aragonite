@@ -8,7 +8,9 @@ import type { EditorSelection, SelectionPoint } from '#lib/selection/primitives.
 import type { CstNode, Document } from '#lib/core/nodes.js';
 import { parse, serialize, getContentRange } from '#lib/index.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
-import { rangePaint } from '#lib/selection/range-bytes.js';
+import { rangeBytes, rangePaint } from '#lib/selection/range-bytes.js';
+import { blockFacts } from '#lib/schema/block-facts.js';
+import { copiesLinesBeforeRange } from '#lib/test/range-edit/expected.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
 import { visibleText } from '#lib/core/inline/link-source-bytes.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
@@ -264,6 +266,7 @@ export async function law3(
 	if (!at) return run;
 	try {
 		const original = at.editor.source();
+		const declared = repeatsLinesBefore(at, original);
 		const payload = await clipboardGesture(at.editor, 'cut', cut);
 		law8(at, `cut:${cut}`, run);
 		// A cut that left its range selected would have the paste replace it, giving the bytes back
@@ -283,6 +286,7 @@ export async function law3(
 			// Pasted lines take the document's first line ending (the paste pipeline's byte rule 3).
 			if (endingOf(original) === 'mixed' && lf(restored) === lf(original))
 				run.declared.push('L3 mixed line endings');
+			else if (declared) run.declared.push('L3 lines before the range copied and kept');
 			else
 				run.lines.push(at.line('L3', gesture, `gave ${quote(restored)}, not ${quote(original)}`));
 		}
@@ -293,6 +297,22 @@ export async function law3(
 		await destroy(at);
 	}
 	return run;
+}
+
+/** Whether the held range starts inside a block whose structure sits on lines before it, which a
+ *  copy carries and the removal keeps (law 3's declared exception). */
+function repeatsLinesBefore(at: Opened, source: string): boolean {
+	const doc = at.editor.instance.__test.getDocument();
+	const held = at.editor.instance.getSelection();
+	if (!held) return false;
+	const layout = documentLayout(doc);
+	const range = rangeBytes(
+		doc,
+		rangeCoverage(doc, coverRange(doc, held.anchor, held.focus)),
+		layout
+	);
+	const read = { source, tree: doc, layout, blocks: [...layout.within(0, Infinity)] };
+	return range !== null && copiesLinesBeforeRange(read, range.from, { facts: blockFacts });
 }
 
 const lf = (text: string) => text.replace(/\r\n/g, '\n');

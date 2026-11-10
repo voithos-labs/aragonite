@@ -14,8 +14,8 @@ export interface KnownResidue {
 	gap: string;
 	/** The lane whose fix deletes the row. */
 	lane: 'tab columns' | '2b';
-	/** The law it breaks: law 3, or law 9 at the caret the cut left. */
-	law: 'L3' | 'L9';
+	/** The law it breaks: law 3, law 4's bytes past the range, or law 9 at the caret the cut left. */
+	law: 'L3' | 'L4' | 'L9';
 	matches(read: Read, range: Range, host: CheckHost): boolean;
 	repro: { source: string; mode: Mode; range: Range };
 }
@@ -41,6 +41,10 @@ const besideSpaces = (read: Read, { from, to }: Range) =>
 	read.source.slice(from, to).includes('\n') &&
 	[from, to].some((at) => /^[ \t]+$/.test(lineHead(read.source, at)));
 
+/** Whether `a` and `b` sit in the same list of blocks. */
+const besides = (a: LaidBlock, b: LaidBlock) =>
+	a.path.length === b.path.length && a.path.slice(0, -1).join() === b.path.slice(0, -1).join();
+
 /** The blocks directly inside `container`, its title row aside. */
 function bodyOf(read: Read, container: LaidBlock, host: CheckHost): LaidBlock[] {
 	const title = host.facts(container.type).titleRow?.type;
@@ -59,6 +63,14 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 		repro: { source: '2) 汉字\n    \n\t1. n', mode: 'live', range: { from: 4, to: 15 } }
 	},
 	{
+		gap: 'a tab split between a container marker and the line’s indent joins as the spaces of its columns',
+		lane: 'tab columns',
+		law: 'L4',
+		matches: (read, range) =>
+			coveredLines(read, range).some((line) => /^[ >*+\-\d.)]*\t/.test(line)),
+		repro: { source: ' - `c`\n\t> q\n\t\n\t**b**\n', mode: 'source', range: { from: 11, to: 14 } }
+	},
+	{
 		gap: 'a line that reads as a setext underline or a break (`---`, `- `) re-reads the paragraph above it',
 		lane: '2b',
 		law: 'L3',
@@ -71,7 +83,7 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 				(line) => /^[ >]*(?:-+|=+)[ \t]*\r?$/.test(line)
 			);
 		},
-		repro: { source: 'a\n# h\n---\n', mode: 'source', range: { from: 1, to: 6 } }
+		repro: { source: 'Title\n===\n', mode: 'source', range: { from: 1, to: 9 } }
 	},
 	{
 		gap: 'a line its container reads without a marker comes back with one, nested where it lands',
@@ -117,15 +129,20 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 		}
 	},
 	{
-		gap: 'a container cut out past its end from past an opening line, or from its first text to a block that takes no joined text, nests a second one when pasted back',
+		gap: 'a container cut out past its end from past an opening line, or from its first text to or through a block that takes no joined text, nests a second one when pasted back',
 		lane: '2b',
 		law: 'L3',
 		matches: (read, range, host) => {
-			const end = leafAt(read, range.to);
-			const endTakesNone = !!end && host.facts(end.type).joins === 'never';
+			const takesNone = (b: LaidBlock | null | undefined) =>
+				!!b && host.facts(b.type).joins === 'never';
+			const endTakesNone = takesNone(leafAt(read, range.to));
 			return containersAt(read, range.from, 'start').some((c) => {
 				const first = read.blocks.find((b) => b.text && b.from >= c.from && b.to <= c.to);
-				const fromText = first?.text?.from === range.from && endTakesNone;
+				// The clipboard's last block: the last one beside the container the range takes whole.
+				const last = read.blocks
+					.filter((b) => besides(b, c) && b.from >= c.to && b.to <= range.to)
+					.at(-1);
+				const fromText = first?.text?.from === range.from && (endTakesNone || takesNone(last));
 				return c.to < range.to && (c.lines!.at(0)!.own || fromText);
 			});
 		},
@@ -213,6 +230,32 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 					/^(?: {4}|\t)/.test(read.source.slice(b.from))
 			),
 		repro: { source: '    word\n', mode: 'source', range: { from: 0, to: 6 } }
+	},
+	{
+		gap: 'an HTML block cut from its first byte carries no line ending, so pasted back it runs into the block after it',
+		lane: '2b',
+		law: 'L3',
+		matches: (read, range) =>
+			read.blocks.some((b) => b.type === 'htmlBlock' && b.from === range.from),
+		repro: { source: '<!DOCTYPE html>\n> one\n', mode: 'source', range: { from: 0, to: 15 } }
+	},
+	{
+		gap: 'a range ending inside an HTML block it enters joins the rest of that line to where it began',
+		lane: '2b',
+		law: 'L3',
+		matches: (read, range) =>
+			read.blocks.some(
+				(b) =>
+					b.type === 'htmlBlock' &&
+					range.from < b.from &&
+					b.from < range.to &&
+					range.to < (b.text?.to ?? b.to)
+			),
+		repro: {
+			source: '> two\n\n<table><tr><td>cell</td></tr></table>\n',
+			mode: 'source',
+			range: { from: 5, to: 38 }
+		}
 	}
 ];
 

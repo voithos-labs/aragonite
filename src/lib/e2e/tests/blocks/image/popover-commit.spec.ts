@@ -21,9 +21,8 @@ test.describe('image popover commit', () => {
 	});
 
 	test('alt edit commits into source on blur', async ({ page }) => {
-		// Lead with a non-image paragraph so the click-outside target is genuinely outside the
-		// widget: clicking the image's own paragraph lands on the widget and (correctly) keeps the
-		// popover open.
+		// The leading paragraph gives the click a target outside the widget: a click on the image's
+		// own paragraph lands on the widget and keeps the popover open.
 		await editor.loadContent('outside paragraph.\n\n![cat](/test-fixtures/sample.png)\n');
 		const widget = page.locator('[data-image-widget]').first();
 		await widget.click();

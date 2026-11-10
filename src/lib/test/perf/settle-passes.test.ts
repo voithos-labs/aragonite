@@ -50,10 +50,11 @@ describe('fix-up passes per gesture', () => {
 		expect(passes).toBe(1);
 	});
 
-	it('deleting a block runs one, at its commit', async () => {
+	// The core's bytes need no fix-up: a block removed whole is a byte splice.
+	it('deleting a block runs none', async () => {
 		const passes = await passesOf('one\n\ntwo\n\nthree\n', (h) =>
 			h.actions.deleteBlock(1, 'keyless')
 		);
-		expect(passes).toBe(1);
+		expect(passes).toBe(0);
 	});
 });

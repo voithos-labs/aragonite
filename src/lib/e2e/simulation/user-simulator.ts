@@ -239,6 +239,9 @@ async function buildAndDestroyRange(
 
 	await g.clickToReposition([0]);
 	await ctx.page.keyboard.press(edgeKey('lineEnd'));
+	// One character in, so the range holds text: from a block's end to the first byte of one it
+	// can't join (two headings) it holds nothing, and a destroy changes no bytes.
+	await ctx.page.keyboard.press('ArrowLeft');
 
 	if (build === 'shift-down') await g.extendSelectionAcross('down');
 	else if (build === 'shift-click') await g.shiftClickAcross([1], 1);

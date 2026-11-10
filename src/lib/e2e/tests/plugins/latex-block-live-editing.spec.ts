@@ -134,8 +134,8 @@ test.describe('block math editing edges (live)', () => {
 	});
 });
 
-// A one-line `$$x^2$$` keeps its closer on the body's line, so a range through the body reaches
-// it; the closer comes back and the block absorbs the range, as a fenced code block does.
+// A one-line `$$x^2$$` keeps its closer on the body's line; a range from the body to the first byte
+// of the paragraph below stops at the body's end, since a math block takes no joined text.
 test.describe('a range out of the body keeps the block (live)', () => {
 	let editor: BlockMathPage;
 
@@ -150,19 +150,19 @@ test.describe('a range out of the body keeps the block (live)', () => {
 		for (let i = 0; i < 6; i++) await page.keyboard.press('Shift+ArrowRight');
 	});
 
-	test('Backspace absorbs the text the range reached and the block stays math', async ({
+	test('Backspace empties the body, the block stays math and the paragraph stays', async ({
 		page
 	}) => {
 		await page.keyboard.press('Backspace');
 
-		await editor.bridge.waitForSourceEquals('Before\n\n$$After$$\n');
+		await editor.bridge.waitForSourceEquals('Before\n\n$$\n$$\n\nAfter\n');
 		expect(await editor.bridge.getBlockKind(1)).toBe('mathBlock');
 		expect(await roundTripStable(page)).toBe(true);
 	});
 
 	test('undo puts the paragraph back in one step', async ({ page }) => {
 		await page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceEquals('Before\n\n$$After$$\n');
+		await editor.bridge.waitForSourceEquals('Before\n\n$$\n$$\n\nAfter\n');
 
 		await editor.undo();
 		await editor.bridge.waitForSourceEquals('Before\n\n$$x^2$$\n\nAfter\n');

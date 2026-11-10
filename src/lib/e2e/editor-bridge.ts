@@ -76,16 +76,26 @@ export class EditorBridge {
 		arg: T,
 		timeout = 5000
 	): Promise<void> {
-		await this.page.waitForFunction(
-			({ predSrc, value }) => {
-				const source = (window as any).__test?.getSource() as string | undefined;
-				if (source === undefined) return false;
-				const fn = new Function('source', 'arg', `return (${predSrc})(source, arg);`);
-				return fn(source, value);
-			},
-			{ predSrc: predicate.toString(), value: arg as any },
-			{ timeout, polling: 16 }
-		);
+		try {
+			await this.page.waitForFunction(
+				({ predSrc, value }) => {
+					const source = (window as any).__test?.getSource() as string | undefined;
+					if (source === undefined) return false;
+					const fn = new Function('source', 'arg', `return (${predSrc})(source, arg);`);
+					return fn(source, value);
+				},
+				{ predSrc: predicate.toString(), value: arg as any },
+				{ timeout, polling: 16 }
+			);
+		} catch (err) {
+			const last = await this.page
+				.evaluate(() => (window as any).__test?.getSource() as string | undefined)
+				.catch(() => undefined);
+			throw new Error(
+				`waitForSource: wanted ${JSON.stringify(arg)}, the source was ${JSON.stringify(last)}`,
+				{ cause: err }
+			);
+		}
 	}
 
 	// Reads SelectionState, not the DOM: `[data-painted-range]` follows that state a render later,

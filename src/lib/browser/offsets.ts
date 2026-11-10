@@ -1,7 +1,18 @@
 /**
- * The one translation between a DOM position and a raw offset, and the offsets a caret can
- * reach. The walk offset (`DomTextOffset`) sums text-node lengths, the marker prefix included,
- * plus each atomic widget's source length; a raw offset is that minus the prefix length.
+ * Turning a place in a block's DOM into an offset in its Markdown, and back.
+ *
+ * A text block is drawn as spans inside one contenteditable element, and a place in it has three
+ * names:
+ *
+ * 1. A raw offset, an index into the block's own Markdown. The tree and every edit speak this.
+ * 2. A DOM position, a `(node, offset)` pair. The browser's selection speaks this.
+ * 3. A walk offset (`DomTextOffset`), the count of characters before the place when the element's
+ *    text is read in order. It includes the read-only marker prefix (the `- ` of a list item),
+ *    and a widget drawn in place of its source (an image, say) counts as that source's length.
+ *
+ * Raw is the walk offset minus the prefix's length, so the real work is between a walk offset and
+ * a DOM position. That work has to mind the places a caret can't sit: inside the marker prefix,
+ * inside a widget, inside marker text the mode hides, and between a `\r` and its `\n`.
  */
 
 import {
@@ -35,33 +46,13 @@ import { isLineEndingPair } from '../core/line-ending-pairs';
 import type { PresentationMode } from '../presentation-mode';
 import { recordCanonicalCaretCheck } from '../perf/instruments';
 
-/** A span of a block's raw offsets. */
-export interface RawRange {
-	start: number;
-	end: number;
-}
+/* -------------------------------------------------------------------------- */
+/*                        Raw offsets and walk offsets                        */
+/* -------------------------------------------------------------------------- */
 
 /** The marker prefix's walk length: what a raw offset adds to become a walk offset. */
 export function markerPrefixLength(container: ParentNode): number {
 	return markerPrefixOf(container)?.textContent?.length ?? 0;
-}
-
-/** Whether a live `(node, offset)` position in `container` lies inside its marker prefix, where a
- *  caret never stays. */
-export function isInMarkerPrefix(container: HTMLElement, node: Node, offset: number): boolean {
-	return domTextOffsetAtNode(container, node, offset) < markerPrefixLength(container);
-}
-
-/** Whether the click ending a press that put the caret at `at` moves it: off a widget's side to
- *  its edge, or out of the marker prefix to the text's start. */
-export function clickMovesCaret(el: HTMLElement, at: DomPosition): boolean {
-	return !isInVisibleText(el, at.node) || isInMarkerPrefix(el, at.node, at.offset);
-}
-
-/** The raw offset of a live `(node, offset)` DOM position in `el`; a position inside the marker
- *  prefix reads as raw 0. */
-export function rawOffsetAt(el: HTMLElement, node: Node, offset: number): RawOffset {
-	return rawOfWalkOffset(el, domTextOffsetAtNode(el, node, offset));
 }
 
 /** A raw offset in `container` as a walk offset. */
@@ -74,68 +65,39 @@ export function rawOfWalkOffset(container: ParentNode, walk: DomTextOffset): Raw
 	return toClampedRawOffset(walk, markerPrefixLength(container));
 }
 
-/** A DOM Range over raw `[start, end)` for measuring or decorating; a caret goes through the
- *  {@link CaretWriter}. From raw 0 it starts after the marker prefix span, holding whole elements. */
-export function rawRangeToDomRange(
-	container: ParentNode,
-	start: number,
-	end: number
-): Range | null {
-	const range = createRangeAtDomTextOffsets(
-		container,
-		walkOffsetOfRaw(container, start),
-		walkOffsetOfRaw(container, end)
-	);
-	const prefix = markerPrefixOf(container);
-	if (!range || !prefix || start > 0) return range;
-	range.setStartAfter(prefix);
-	if (end <= 0) range.collapse(true);
-	return range;
+/** Total walk length of `container`: its one-past-end walk position. */
+export function containerDomTextLength(container: ParentNode): DomTextOffset {
+	let count = 0;
+	for (const seg of walkSegments(container, null)) count += seg.len;
+	return asDomTextOffset(count);
 }
 
-/** Where a caret at raw `raw` goes in the DOM: {@link endOfContents} when the walk finds no
- *  position at all. */
-export function caretPointAtRaw(el: HTMLElement, raw: number): DomPosition {
-	const pos = findDomTextOffsetTarget(el, walkOffsetOfRaw(el, Math.max(0, raw)));
-	return pos ?? endOfContents(el);
+/* -------------------------------------------------------------------------- */
+/*                      From a DOM position to an offset                      */
+/* -------------------------------------------------------------------------- */
+
+/** A place in the DOM, as the browser's selection names one. */
+export interface DomPosition {
+	node: Node;
+	offset: number;
 }
 
-/** The end of a container's contents, before an empty block's placeholder `<br>`. */
-export function endOfContents(container: ParentNode): DomPosition {
-	const br = placeholderBreakOf(container);
-	const offset = br
-		? Array.prototype.indexOf.call(container.childNodes, br)
-		: container.childNodes.length;
-	return { node: container, offset };
+/** The raw offset of a live `(node, offset)` DOM position in `el`; a position inside the marker
+ *  prefix reads as raw 0. */
+export function rawOffsetAt(el: HTMLElement, node: Node, offset: number): RawOffset {
+	return rawOfWalkOffset(el, domTextOffsetAtNode(el, node, offset));
 }
 
-/**
- * Raw 0 behind a marker prefix: the first text after the span, which has real rects where the
- * spot after the span may not, unless that text is a hidden marker run, which paints nothing.
- */
-function positionAfterPrefix(container: ParentNode, prefix: HTMLElement): DomPosition {
-	const textAfter = firstTextNodeAfter(prefix);
-	const hidden =
-		textAfter !== null &&
-		container instanceof HTMLElement &&
-		isHiddenMarkerText(textAfter, container);
-	if (textAfter && !hidden) return { node: textAfter, offset: 0 };
-	const parent = prefix.parentNode!;
-	return { node: parent, offset: Array.prototype.indexOf.call(parent.childNodes, prefix) + 1 };
+/** Whether a live `(node, offset)` position in `container` lies inside its marker prefix, where a
+ *  caret never stays. */
+export function isInMarkerPrefix(container: HTMLElement, node: Node, offset: number): boolean {
+	return domTextOffsetAtNode(container, node, offset) < markerPrefixLength(container);
 }
 
-/** The first non-empty text node after `node` in document order, stopping at an atomic widget,
- *  whose bytes lie between the two. */
-function firstTextNodeAfter(node: Node): Text | null {
-	for (let sibling = node.nextSibling; sibling; sibling = sibling.nextSibling) {
-		if (isAtomicInlineWidget(sibling)) return null;
-		for (const current of domDescendants(sibling)) {
-			if (current.nodeType === Node.TEXT_NODE && (current.textContent?.length ?? 0) > 0) {
-				return current as Text;
-			}
-		}
-	}
-	return null;
+/** Whether the click ending a press that put the caret at `at` moves it: off a widget's side to
+ *  its edge, or out of the marker prefix to the text's start. */
+export function clickMovesCaret(el: HTMLElement, at: DomPosition): boolean {
+	return !isInVisibleText(el, at.node) || isInMarkerPrefix(el, at.node, at.offset);
 }
 
 /** The DOM-walk offset of a live `(node, offset)` position: one inside a widget or a CRLF pair reads
@@ -185,6 +147,43 @@ export function domTextOffsetAtNode(
 	return asDomTextOffset(total);
 }
 
+/** A DOM position as a document-order landmark, so a walk finds it without a parallel descent;
+ *  text positions need none, being segments of their own or inside a widget. */
+type PositionBoundary = { node: Node; side: 'before' | 'afterContents' };
+
+function positionBoundary(node: Node, offset: number): PositionBoundary | null {
+	if (node.nodeType === Node.TEXT_NODE) return null;
+	const child = node.childNodes[offset];
+	return child ? { node: child, side: 'before' } : { node, side: 'afterContents' };
+}
+
+/** Whether a segment's node starts at or after the landmark, in document order. */
+function startsAtOrAfter(segNode: Node, boundary: PositionBoundary): boolean {
+	if (segNode === boundary.node) return boundary.side === 'before';
+	const mask = boundary.node.compareDocumentPosition(segNode);
+	if ((mask & Node.DOCUMENT_POSITION_FOLLOWING) === 0) return false;
+	// A descendant follows the landmark's start but precedes the end of its contents, so
+	// only the 'before' side counts it.
+	return boundary.side === 'before' || (mask & Node.DOCUMENT_POSITION_CONTAINED_BY) === 0;
+}
+
+/** A walk offset strictly inside a run of hidden marker text, moved to the run's edge on `side`. */
+function snapOutOfRun(
+	container: ParentNode,
+	offset: number,
+	side: 'before' | 'after',
+	mode: PresentationMode | null
+): DomTextOffset {
+	if (mode === null) return asDomTextOffset(offset);
+	for (const seg of landingSegments(container, mode)) {
+		if (seg.start > offset) break;
+		if (seg.kind === 'opaque' && seg.hidden && seg.start < offset && offset < seg.start + seg.len) {
+			return asDomTextOffset(side === 'before' ? seg.start : seg.start + seg.len);
+		}
+	}
+	return asDomTextOffset(offset);
+}
+
 /** WebKit and Firefox let a caret stop between a `\r` and its `\n`, where Chromium never does: such
  *  a position reads as the line's end, before the pair, so no edit splits it. */
 function outsideLineEndingPair(at: number, before: string, after: string): DomTextOffset {
@@ -201,9 +200,24 @@ function firstTextByte(rest: Iterator<WalkSegment>): string {
 	return '';
 }
 
-export interface DomPosition {
-	node: Node;
-	offset: number;
+/* -------------------------------------------------------------------------- */
+/*                      From an offset to a DOM position                      */
+/* -------------------------------------------------------------------------- */
+
+/** Where a caret at raw `raw` goes in the DOM: {@link endOfContents} when the walk finds no
+ *  position at all. */
+export function caretPointAtRaw(el: HTMLElement, raw: number): DomPosition {
+	const pos = findDomTextOffsetTarget(el, walkOffsetOfRaw(el, Math.max(0, raw)));
+	return pos ?? endOfContents(el);
+}
+
+/** The end of a container's contents, before an empty block's placeholder `<br>`. */
+export function endOfContents(container: ParentNode): DomPosition {
+	const br = placeholderBreakOf(container);
+	const offset = br
+		? Array.prototype.indexOf.call(container.childNodes, br)
+		: container.childNodes.length;
+	return { node: container, offset };
 }
 
 /** A DOM-walk offset back to a live `(node, offset)` position, the DOM side of `findNodeAtOffset`
@@ -229,46 +243,7 @@ export function findDomTextLanding(
 	return onLine === landing.position ? landing : { position: onLine, inTextAtTarget: false };
 }
 
-/** A position a pending hard break's line follows sits on that line, before its last anchor: while
- *  the break is open, Backspace and ArrowLeft end it before a caret could sit at the text's end. */
-function ontoPendingBreakLine(position: DomPosition, root: ParentNode): DomPosition {
-	let next = nodeAfter(position, root);
-	if (!isBreakAnchor(next)) return position;
-	let last: Node | null = null;
-	for (; isBreakAnchor(next); next = next!.nextSibling) last = next;
-	if (!last?.parentNode) return position;
-	return {
-		node: last.parentNode,
-		offset: Array.prototype.indexOf.call(last.parentNode.childNodes, last)
-	};
-}
-
-/** The node right after `position`, at whatever depth, past empty text; null when nothing follows
- *  before the end of `root` or the position sits inside a text node's text. */
-function nodeAfter({ node, offset }: DomPosition, root: ParentNode): Node | null {
-	let from: Node;
-	if (node.nodeType === Node.TEXT_NODE) {
-		if (offset < (node.textContent?.length ?? 0)) return null;
-		from = node;
-	} else {
-		const child = node.childNodes[offset];
-		if (child) return skipEmptyText(child);
-		from = node;
-	}
-	for (let at: Node | null = from; at && at !== root; at = at.parentNode) {
-		const next = skipEmptyText(at.nextSibling);
-		if (next) return next;
-	}
-	return null;
-}
-
-function skipEmptyText(node: Node | null): Node | null {
-	let at = node;
-	while (at?.nodeType === Node.TEXT_NODE && (at.textContent?.length ?? 0) === 0)
-		at = at.nextSibling;
-	return at;
-}
-
+/** The landing for a walk offset, before a pending hard break's line is taken into account. */
 function landingIgnoringPendingBreak(
 	container: ParentNode,
 	target: DomTextOffset
@@ -325,103 +300,117 @@ function landingIgnoringPendingBreak(
 	return last && { position: last, inTextAtTarget: false };
 }
 
-/** The atomic inline widgets intersecting the DOM-walk range [start, end): a widget adds no text,
- *  so a caller covering it takes its bounding box. Positions are walk offsets, never `data-source-*`. */
-export function widgetsIntersectingRange(
-	container: HTMLElement,
-	start: DomTextOffset,
-	end: DomTextOffset
-): HTMLElement[] {
-	const out: HTMLElement[] = [];
-	for (const seg of walkSegments(container, null)) {
-		// Half-open overlap; a zero-length widget can't be covered.
-		if (seg.kind === 'widget' && seg.len > 0 && seg.start < end && start < seg.start + seg.len) {
-			out.push(seg.el as HTMLElement);
-		}
-	}
-	return out;
+/**
+ * Raw 0 behind a marker prefix: the first text after the span, which has real rects where the
+ * spot after the span may not, unless that text is a hidden marker run, which paints nothing.
+ */
+function positionAfterPrefix(container: ParentNode, prefix: HTMLElement): DomPosition {
+	const textAfter = firstTextNodeAfter(prefix);
+	const hidden =
+		textAfter !== null &&
+		container instanceof HTMLElement &&
+		isHiddenMarkerText(textAfter, container);
+	if (textAfter && !hidden) return { node: textAfter, offset: 0 };
+	const parent = prefix.parentNode!;
+	return { node: parent, offset: Array.prototype.indexOf.call(parent.childNodes, prefix) + 1 };
 }
 
-/** A block's text as the screen shows it, each character with the raw span it stands for. */
-export interface VisibleText {
-	text: string;
-	rawStart: number[];
-	rawEnd: number[];
-}
-
-/** The text a rule that reads words across hidden markers sees: the marker text the mode hides and
- *  the container's marker prefix left out, an atomic widget as one U+FFFC. */
-export function visibleWalkText(container: ParentNode): VisibleText {
-	const visible: VisibleText = { text: '', rawStart: [], rawEnd: [] };
-	const prefix = markerPrefixOf(container);
-	const prefixLength = markerPrefixLength(container);
-	const raw = (walk: number) => toClampedRawOffset(asDomTextOffset(walk), prefixLength);
-	for (const seg of walkSegments(container, markerHidingMode(container))) {
-		if (seg.kind === 'widget') {
-			visible.text += '￼';
-			visible.rawStart.push(raw(seg.start));
-			visible.rawEnd.push(raw(seg.start + seg.len));
-			continue;
-		}
-		if (seg.hiddenRoot !== null || prefix?.contains(seg.node)) continue;
-		const data = seg.node.textContent ?? '';
-		visible.text += data;
-		for (let i = 0; i < data.length; i++) {
-			visible.rawStart.push(raw(seg.start + i));
-			visible.rawEnd.push(raw(seg.start + i + 1));
-		}
-	}
-	return visible;
-}
-
-/** The first visible character at or after raw `raw`. */
-export function visibleIndexAt(visible: VisibleText, raw: number): number {
-	const i = visible.rawStart.findIndex((start) => start >= raw);
-	return i === -1 ? visible.text.length : i;
-}
-
-/** How many visible characters end at or before raw `raw`. */
-export function charsEndingBy(visible: VisibleText, raw: number): number {
-	const i = visible.rawEnd.findIndex((end) => end > raw);
-	return i === -1 ? visible.text.length : i;
-}
-
-/** Whether any visible text in `container` ends past `from`: a caret there has a box of its own,
- *  which a block of widgets alone never offers. */
-export function holdsTextPast(container: ParentNode, from: DomTextOffset): boolean {
-	for (const seg of landingSegments(container, markerHidingMode(container))) {
-		if (seg.kind === 'text' && seg.len > 0 && seg.start + seg.len > from) return true;
-	}
-	return false;
-}
-
-/** Total walk length of `container`: its one-past-end walk position. */
-export function containerDomTextLength(container: ParentNode): DomTextOffset {
-	let count = 0;
-	for (const seg of walkSegments(container, null)) count += seg.len;
-	return asDomTextOffset(count);
-}
-
-/** The DOM-walk span of the atomic widget strictly containing `offset`, or null in text or on a
- *  boundary. A replace decoration snaps outward with it, since a range cannot split a widget. */
-export function widgetSpanContainingOffset(
-	container: ParentNode,
-	offset: DomTextOffset
-): { start: DomTextOffset; end: DomTextOffset } | null {
-	for (const seg of walkSegments(container, null)) {
-		if (seg.start > offset) break;
-		if (
-			seg.kind === 'widget' &&
-			seg.len > 0 &&
-			seg.start < offset &&
-			offset < seg.start + seg.len
-		) {
-			return { start: asDomTextOffset(seg.start), end: asDomTextOffset(seg.start + seg.len) };
+/** The first non-empty text node after `node` in document order, stopping at an atomic widget,
+ *  whose bytes lie between the two. */
+function firstTextNodeAfter(node: Node): Text | null {
+	for (let sibling = node.nextSibling; sibling; sibling = sibling.nextSibling) {
+		if (isAtomicInlineWidget(sibling)) return null;
+		for (const current of domDescendants(sibling)) {
+			if (current.nodeType === Node.TEXT_NODE && (current.textContent?.length ?? 0) > 0) {
+				return current as Text;
+			}
 		}
 	}
 	return null;
 }
 
+/** The DOM position beside a span the caret may not enter. Prefers an adjacent text node, since
+ *  Chromium drops beforeinput at element-level offsets between two widgets. */
+function positionBeside(el: Element, side: 'before' | 'after'): DomPosition | null {
+	const parent = el.parentNode;
+	if (!parent) return null;
+	const sibling = side === 'before' ? el.previousSibling : el.nextSibling;
+	if (sibling && sibling.nodeType === Node.TEXT_NODE) {
+		return { node: sibling, offset: side === 'before' ? (sibling.textContent?.length ?? 0) : 0 };
+	}
+	const idx = Array.prototype.indexOf.call(parent.childNodes, el);
+	// A span right after a pending hard break's anchors (a setext underline) starts past the line
+	// they open, so the position before it is on that line.
+	if (side === 'before' && isBreakAnchor(sibling) && isBreakAnchor(sibling!.previousSibling)) {
+		return { node: parent, offset: idx - 1 };
+	}
+	return { node: parent, offset: side === 'before' ? idx : idx + 1 };
+}
+
+/** A position a pending hard break's line follows sits on that line, before its last anchor: while
+ *  the break is open, Backspace and ArrowLeft end it before a caret could sit at the text's end. */
+function ontoPendingBreakLine(position: DomPosition, root: ParentNode): DomPosition {
+	let next = nodeAfter(position, root);
+	if (!isBreakAnchor(next)) return position;
+	let last: Node | null = null;
+	for (; isBreakAnchor(next); next = next!.nextSibling) last = next;
+	if (!last?.parentNode) return position;
+	return {
+		node: last.parentNode,
+		offset: Array.prototype.indexOf.call(last.parentNode.childNodes, last)
+	};
+}
+
+/** The node right after `position`, at whatever depth, past empty text; null when nothing follows
+ *  before the end of `root` or the position sits inside a text node's text. */
+function nodeAfter({ node, offset }: DomPosition, root: ParentNode): Node | null {
+	let from: Node;
+	if (node.nodeType === Node.TEXT_NODE) {
+		if (offset < (node.textContent?.length ?? 0)) return null;
+		from = node;
+	} else {
+		const child = node.childNodes[offset];
+		if (child) return skipEmptyText(child);
+		from = node;
+	}
+	for (let at: Node | null = from; at && at !== root; at = at.parentNode) {
+		const next = skipEmptyText(at.nextSibling);
+		if (next) return next;
+	}
+	return null;
+}
+
+function skipEmptyText(node: Node | null): Node | null {
+	let at = node;
+	while (at?.nodeType === Node.TEXT_NODE && (at.textContent?.length ?? 0) === 0)
+		at = at.nextSibling;
+	return at;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                   Ranges                                   */
+/* -------------------------------------------------------------------------- */
+
+/** A DOM Range over raw `[start, end)` for measuring or decorating; a caret goes through the
+ *  {@link CaretWriter}. From raw 0 it starts after the marker prefix span, holding whole elements. */
+export function rawRangeToDomRange(
+	container: ParentNode,
+	start: number,
+	end: number
+): Range | null {
+	const range = createRangeAtDomTextOffsets(
+		container,
+		walkOffsetOfRaw(container, start),
+		walkOffsetOfRaw(container, end)
+	);
+	const prefix = markerPrefixOf(container);
+	if (!range || !prefix || start > 0) return range;
+	range.setStartAfter(prefix);
+	if (end <= 0) range.collapse(true);
+	return range;
+}
+
+/** A DOM Range between two walk offsets; null when the browser refuses the start position. */
 export function createRangeAtDomTextOffsets(
 	container: ParentNode,
 	start: DomTextOffset,
@@ -462,6 +451,35 @@ export function createRangeAtDomTextOffsets(
 	return range;
 }
 
+/* -------------------------------------------------------------------------- */
+/*                           Where a caret can sit                            */
+/* -------------------------------------------------------------------------- */
+
+/** A span of a block's raw offsets. */
+export interface RawRange {
+	start: number;
+	end: number;
+}
+
+/** {@link reachableDomTextBounds} in raw offsets, or null where the markers paint and all of raw is
+ *  reachable. Every caret check and placement reads this one answer. */
+export function reachableRawBounds(el: HTMLElement): RawRange | null {
+	if (!revealsNoMarkers(el)) return null;
+	const bounds = reachableDomTextBounds(el);
+	const prefixLength = markerPrefixLength(el);
+	return {
+		start: toClampedRawOffset(bounds.start, prefixLength),
+		end: toClampedRawOffset(bounds.end, prefixLength)
+	};
+}
+
+/** Clamp a caret offset into the range the caret can sit in; a no-op wherever the markers paint. */
+export function clampToReachableRaw(el: HTMLElement, offset: number): number {
+	const bounds = reachableRawBounds(el);
+	if (!bounds) return offset;
+	return Math.min(Math.max(offset, bounds.start), bounds.end);
+}
+
 /** The first and last walk offsets a caret can sit at, past hidden marker runs and the marker
  *  prefix; the checks at a block's edge read these. All-hidden text answers `{len, len}`. */
 export function reachableDomTextBounds(container: ParentNode): {
@@ -499,39 +517,13 @@ export function reachableDomTextBounds(container: ParentNode): {
 	return { start: asDomTextOffset(start), end: asDomTextOffset(Math.max(start, end)) };
 }
 
-/** {@link reachableDomTextBounds} in raw offsets, or null where the markers paint and all of raw is
- *  reachable. Every caret check and placement reads this one answer. */
-export function reachableRawBounds(el: HTMLElement): RawRange | null {
-	if (!revealsNoMarkers(el)) return null;
-	const bounds = reachableDomTextBounds(el);
-	const prefixLength = markerPrefixLength(el);
-	return {
-		start: toClampedRawOffset(bounds.start, prefixLength),
-		end: toClampedRawOffset(bounds.end, prefixLength)
-	};
-}
-
-/** Clamp a caret offset into the range the caret can sit in; a no-op wherever the markers paint. */
-export function clampToReachableRaw(el: HTMLElement, offset: number): number {
-	const bounds = reachableRawBounds(el);
-	if (!bounds) return offset;
-	return Math.min(Math.max(offset, bounds.start), bounds.end);
-}
-
-function snapOutOfRun(
-	container: ParentNode,
-	offset: number,
-	side: 'before' | 'after',
-	mode: PresentationMode | null
-): DomTextOffset {
-	if (mode === null) return asDomTextOffset(offset);
-	for (const seg of landingSegments(container, mode)) {
-		if (seg.start > offset) break;
-		if (seg.kind === 'opaque' && seg.hidden && seg.start < offset && offset < seg.start + seg.len) {
-			return asDomTextOffset(side === 'before' ? seg.start : seg.start + seg.len);
-		}
+/** Whether any visible text in `container` ends past `from`: a caret there has a box of its own,
+ *  which a block of widgets alone never offers. */
+export function holdsTextPast(container: ParentNode, from: DomTextOffset): boolean {
+	for (const seg of landingSegments(container, markerHidingMode(container))) {
+		if (seg.kind === 'text' && seg.len > 0 && seg.start + seg.len > from) return true;
 	}
-	return asDomTextOffset(offset);
+	return false;
 }
 
 /** The start of the hidden run ending at walk offset `at`, when content before it on its line gives
@@ -577,39 +569,91 @@ function runEndsOnAnotherLine(
 	return false;
 }
 
-/** The DOM position beside a span the caret may not enter. Prefers an adjacent text node, since
- *  Chromium drops beforeinput at element-level offsets between two widgets. */
-function positionBeside(el: Element, side: 'before' | 'after'): DomPosition | null {
-	const parent = el.parentNode;
-	if (!parent) return null;
-	const sibling = side === 'before' ? el.previousSibling : el.nextSibling;
-	if (sibling && sibling.nodeType === Node.TEXT_NODE) {
-		return { node: sibling, offset: side === 'before' ? (sibling.textContent?.length ?? 0) : 0 };
+/* -------------------------------------------------------------------------- */
+/*                                  Widgets                                   */
+/* -------------------------------------------------------------------------- */
+
+/** The atomic inline widgets intersecting the DOM-walk range [start, end): a widget adds no text,
+ *  so a caller covering it takes its bounding box. Positions are walk offsets, never `data-source-*`. */
+export function widgetsIntersectingRange(
+	container: HTMLElement,
+	start: DomTextOffset,
+	end: DomTextOffset
+): HTMLElement[] {
+	const out: HTMLElement[] = [];
+	for (const seg of walkSegments(container, null)) {
+		// Half-open overlap; a zero-length widget can't be covered.
+		if (seg.kind === 'widget' && seg.len > 0 && seg.start < end && start < seg.start + seg.len) {
+			out.push(seg.el as HTMLElement);
+		}
 	}
-	const idx = Array.prototype.indexOf.call(parent.childNodes, el);
-	// A span right after a pending hard break's anchors (a setext underline) starts past the line
-	// they open, so the position before it is on that line.
-	if (side === 'before' && isBreakAnchor(sibling) && isBreakAnchor(sibling!.previousSibling)) {
-		return { node: parent, offset: idx - 1 };
-	}
-	return { node: parent, offset: side === 'before' ? idx : idx + 1 };
+	return out;
 }
 
-/** A DOM position as a document-order landmark, so a walk finds it without a parallel descent;
- *  text positions need none, being segments of their own or inside a widget. */
-type PositionBoundary = { node: Node; side: 'before' | 'afterContents' };
-
-function positionBoundary(node: Node, offset: number): PositionBoundary | null {
-	if (node.nodeType === Node.TEXT_NODE) return null;
-	const child = node.childNodes[offset];
-	return child ? { node: child, side: 'before' } : { node, side: 'afterContents' };
+/** The DOM-walk span of the atomic widget strictly containing `offset`, or null in text or on a
+ *  boundary. A replace decoration snaps outward with it, since a range cannot split a widget. */
+export function widgetSpanContainingOffset(
+	container: ParentNode,
+	offset: DomTextOffset
+): { start: DomTextOffset; end: DomTextOffset } | null {
+	for (const seg of walkSegments(container, null)) {
+		if (seg.start > offset) break;
+		if (
+			seg.kind === 'widget' &&
+			seg.len > 0 &&
+			seg.start < offset &&
+			offset < seg.start + seg.len
+		) {
+			return { start: asDomTextOffset(seg.start), end: asDomTextOffset(seg.start + seg.len) };
+		}
+	}
+	return null;
 }
 
-function startsAtOrAfter(segNode: Node, boundary: PositionBoundary): boolean {
-	if (segNode === boundary.node) return boundary.side === 'before';
-	const mask = boundary.node.compareDocumentPosition(segNode);
-	if ((mask & Node.DOCUMENT_POSITION_FOLLOWING) === 0) return false;
-	// A descendant follows the landmark's start but precedes the end of its contents, so
-	// only the 'before' side counts it.
-	return boundary.side === 'before' || (mask & Node.DOCUMENT_POSITION_CONTAINED_BY) === 0;
+/* -------------------------------------------------------------------------- */
+/*                           The text a reader sees                           */
+/* -------------------------------------------------------------------------- */
+
+/** A block's text as the screen shows it, each character with the raw span it stands for. */
+export interface VisibleText {
+	text: string;
+	rawStart: number[];
+	rawEnd: number[];
+}
+
+/** The text a rule that reads words across hidden markers sees: the marker text the mode hides and
+ *  the container's marker prefix left out, an atomic widget as one U+FFFC. */
+export function visibleWalkText(container: ParentNode): VisibleText {
+	const visible: VisibleText = { text: '', rawStart: [], rawEnd: [] };
+	const prefix = markerPrefixOf(container);
+	const prefixLength = markerPrefixLength(container);
+	const raw = (walk: number) => toClampedRawOffset(asDomTextOffset(walk), prefixLength);
+	for (const seg of walkSegments(container, markerHidingMode(container))) {
+		if (seg.kind === 'widget') {
+			visible.text += '￼';
+			visible.rawStart.push(raw(seg.start));
+			visible.rawEnd.push(raw(seg.start + seg.len));
+			continue;
+		}
+		if (seg.hiddenRoot !== null || prefix?.contains(seg.node)) continue;
+		const data = seg.node.textContent ?? '';
+		visible.text += data;
+		for (let i = 0; i < data.length; i++) {
+			visible.rawStart.push(raw(seg.start + i));
+			visible.rawEnd.push(raw(seg.start + i + 1));
+		}
+	}
+	return visible;
+}
+
+/** The first visible character at or after raw `raw`. */
+export function visibleIndexAt(visible: VisibleText, raw: number): number {
+	const i = visible.rawStart.findIndex((start) => start >= raw);
+	return i === -1 ? visible.text.length : i;
+}
+
+/** How many visible characters end at or before raw `raw`. */
+export function charsEndingBy(visible: VisibleText, raw: number): number {
+	const i = visible.rawEnd.findIndex((end) => end > raw);
+	return i === -1 ? visible.text.length : i;
 }

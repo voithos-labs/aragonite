@@ -76,6 +76,18 @@ describe('a paragraph created at a boundary round-trips', () => {
 		expect(serialize(h.doc)).not.toContain('\n\n');
 	});
 
+	// Miss-analysis: every end-of-document row opened after a block ending the bytes, never after a
+	// trailing blank line, which a range removal to the document's end leaves.
+	it("past the last block, takes the document's trailing blank line as its separator", async () => {
+		const h = makeTopHarness(`${FENCE}\n`);
+
+		await h.actions.insertParagraph(1, '');
+		await h.actions.updateBlockContent(1, 'x\n', 'authored', 'join-typing', 0);
+
+		expect(serialize(h.doc)).toBe(`${FENCE}\nx\n`);
+		expectParseConverged(h.doc);
+	});
+
 	it('emits insertBlock at the created block, not at the boundary neighbour', async () => {
 		const h = makeTopHarness(TABLE_THEN_FENCE);
 

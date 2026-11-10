@@ -2,7 +2,7 @@
  * The reader of a container whose markers sit on its own lines (a quote, an alert, a footnote):
  * every line read through the shape's line syntax, which the container writer writes with too.
  */
-import { makeBlockNode, setPluginMetadata, type AnyBlockKind } from '../nodes';
+import { makeBlockNode, setPluginMetadata, type AnyBlockKind, type Document } from '../nodes';
 import { joinRaw, parseContainerBody } from '../parser';
 import {
 	codecFromShape,
@@ -58,6 +58,8 @@ export function stripOpener<D>(
 				children: doc.children,
 				innerSuffix: doc.suffix
 			});
+			const spans = childLineSpans(ctx, from, end, open.codec, doc);
+			if (spans) node.childSpans = spans;
 			if (open.data !== undefined) setPluginMetadata(node, open.data);
 			return { node, consumed: end - ctx.index };
 		}
@@ -95,6 +97,41 @@ function openingLine<D>(
 	if (!('head' in lines)) return { codec: codecFromShape(lines), data: undefined };
 	const read = lines.head.match.exec(text.slice(marker[0].length));
 	return read ? { codec: codecFromShape(lines), data: lines.head.data(read) } : null;
+}
+
+/** Where each child's lines sit in the container's bytes, its body being lines `[from, end)`; none
+ *  where a child opens on a lazy line or a line holds no child, which only a full rebuild writes. */
+function childLineSpans(
+	ctx: OpenContext,
+	from: number,
+	end: number,
+	codec: LineCodec,
+	body: Document
+): Uint32Array | undefined {
+	const { lines } = ctx;
+	const { children } = body;
+	if (children.length === 0) return undefined;
+	const base = lines[ctx.index].start;
+	const at = (line: number) => (line < lines.length ? lines[line].start : lines.at(-1)!.end) - base;
+	const spans = new Uint32Array(children.length * 2);
+	let line = from;
+	const pass = (bytes: string) => {
+		for (let nl = bytes.indexOf('\n'); nl >= 0; nl = bytes.indexOf('\n', nl + 1)) line++;
+		// A last line with no ending is a line of its own too.
+		if (bytes !== '' && !bytes.endsWith('\n')) line++;
+	};
+	pass(body.prefix);
+	for (let i = 0; i < children.length; i++) {
+		if (line >= end) return undefined;
+		const place = line === ctx.index ? FIRST_LINE : INNER_LINE;
+		if (codec.read(lines[line].text, place)?.lazy !== false) return undefined;
+		spans[i * 2] = at(line);
+		pass(children[i].leadingTrivia + children[i].raw);
+		spans[i * 2 + 1] = at(line);
+	}
+	pass(body.suffix);
+	// A last bare marker with no line ending holds no byte of the body.
+	return line === end ? spans : undefined;
 }
 
 /** The index past a container's last line. */

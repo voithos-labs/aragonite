@@ -2,15 +2,17 @@
 import { isBlankText } from '../../core/lines';
 import type { Work } from './work';
 import type { CstNode, Document } from '../../core/nodes';
+import type { NodeView } from '../../core/node-views';
 import type { Host } from './types';
 
-export const isBlankBlock = (node: CstNode | undefined): boolean =>
-	node?.kind === 'paragraph' && isBlankText(node.raw);
+export const isBlankBlock = (
+	node: { readonly kind: string; readonly raw: string } | undefined
+): boolean => node?.kind === 'paragraph' && isBlankText(node.raw);
 
 /** `text` read as the blocks from `index` of the list `owner` is the body of. */
 export function readAt(
 	host: Host,
-	owner: CstNode | undefined,
+	owner: NodeView | undefined,
 	index: number,
 	text: string
 ): Document {
@@ -31,9 +33,9 @@ export const readsOn = (host: Host, node: CstNode): boolean =>
 /** A leaf whose bytes end in a blank line its own reading leaves out, which it holds as its own. */
 export const ownsBlankLine = (
 	host: Host,
-	owner: CstNode | undefined,
+	owner: NodeView | undefined,
 	index: number,
-	node: CstNode
+	node: Pick<CstNode, 'raw'> & { readonly children?: readonly unknown[] }
 ): boolean =>
 	!node.children &&
 	/\n[ \t]*\r?\n$/.test(node.raw) &&

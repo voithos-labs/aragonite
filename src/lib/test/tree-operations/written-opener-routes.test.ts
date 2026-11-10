@@ -289,14 +289,10 @@ describe('a removal that takes a closing line', () => {
 	const removed = { from: source.indexOf('\n:::'), to: source.indexOf('\n:::') + 4 };
 	const left = ':::note\nx\n\npara\n\n:::tip\ny\n:::\n';
 
-	it('adds no closer through the byte splice, as the range delete adds none', async () => {
+	it('adds no closer through the byte splice', async () => {
 		const h = makeTopHarness(source);
 		await spliced(h, removed.from, removed.to, '');
 		expect(settled(h.deps.doc)).toBe(left);
-
-		const deleted = parse(source);
-		deleteRange(deleted, { path: [0], offset: removed.from }, { path: [0], offset: removed.to });
-		expect(settled(deleted)).toBe(left);
 	});
 });
 

@@ -7,6 +7,9 @@ import {
 import { checkCopyIsRawByteSlice, runKindConformance } from '#lib/testing.js';
 import { KIND_CELL_CONTRACTS } from '#lib/testing/cell-contracts.js';
 import { BUILTIN_KIND_PROFILES } from './builtin-kind-profiles';
+import type { PluginBlockKind } from '#lib/core/nodes.js';
+import { OPENER_PRIORITIES } from '#lib/schema/opener-priorities.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
 
 // Swept over the descriptor registry, so registering a built-in kind enrolls it here:
 // a new kind is auto-covered the moment it registers.
@@ -68,14 +71,47 @@ describe('kind conformance: a fixtured kind produces green generic cells', () =>
 	});
 });
 
-// ── Regression: the table false-cell shape ───────────────────────────────────
+// ── The false-cell guard ─────────────────────────────────────────────────────
 // Miss-analysis: no executable cell tested clipboard semantics, so a false byte-slice claim passed.
 // The prose case proves the executor discriminates rather than always throwing.
 
+/** A literal leaf between `%` lines, whose copy ending right after its one-character opening line
+ *  adds its closing line: no byte slice, whatever its clipboard cell declares. */
+function percentFence(): PluginBlockKind {
+	const awaitsCloser = (raw: string) => {
+		const [opener, ...rest] = raw.split('\n');
+		return opener === '%' && !rest.includes('%');
+	};
+	return testLeaf('percent-fence', (kind) => ({
+		opener: {
+			priority: OPENER_PRIORITIES.fencedCode + 7,
+			interruptsParagraph: (line) => line === '%',
+			readingNotFinal: {
+				notFinal: awaitsCloser,
+				mayClose: (line) => line === '%',
+				closer: () => '%'
+			},
+			tryOpen(ctx) {
+				if (ctx.line.text !== '%') return null;
+				let close = ctx.index + 1;
+				while (close < ctx.end && ctx.lines[close].text !== '%') close++;
+				if (close >= ctx.end) return null;
+				const raw = ctx.lines
+					.slice(ctx.index, close + 1)
+					.map((line) => line.raw)
+					.join('');
+				return {
+					node: { kind, leadingTrivia: ctx.leadingTrivia, raw },
+					consumed: close + 1 - ctx.index
+				};
+			}
+		}
+	}));
+}
+
 describe('kind conformance: byte-slice clipboard executor is the false-cell guard', () => {
-	it('throws for a table, whose copy synthesizes a sub-table', () => {
-		const fixture = getBlockKindDescriptor('table').conformanceFixture!;
-		expect(() => checkCopyIsRawByteSlice('table', fixture)).toThrow(/raw byte slice/);
+	it('throws for a kind whose copy adds its closing line, declared inherit-default', () => {
+		expect(() => checkCopyIsRawByteSlice(percentFence(), '%\nx\n%\n')).toThrow(/raw byte slice/);
 	});
 
 	it('passes for a prose leaf whose copy is a true byte slice', () => {

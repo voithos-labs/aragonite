@@ -4,6 +4,7 @@ import type { CaretMemory } from '../caret/caret-memory';
 import type { CaretWriter } from '../browser/caret-writer';
 import type { BlockElLookup } from '../caret/block-el-lookup';
 import type { SelectionState } from '../selection/selection-state.svelte';
+import type { DocumentBytes } from '../selection/range-bytes';
 import type { UndoEntry, UndoManager } from '../undo/types';
 import type { SharingState } from '../tree-operations/sharing';
 import type { EditorEvents } from '../editor-events';
@@ -13,6 +14,7 @@ import type { RefSlots } from '../block-lists/child-refs';
 import type { CaretLanding } from '../selection/caret-landing';
 import type { DocumentStamps } from './commit/document-stamp';
 import type { DraftRegistry } from './commit/draft-registry.svelte';
+import type { ReplacedBlocks } from './commit/emit-edit';
 
 export interface EditorActionsDeps {
 	get doc(): Document;
@@ -27,6 +29,12 @@ export interface EditorActionsDeps {
 	/** Announce that the document's bytes changed. A commit calls it once; a writer outside a
 	 *  commit must call it itself (G4.52). */
 	bumpContentVersion(): void;
+	/** The document's bytes and their layout, made once per content version, which a block removed
+	 *  whole reads. */
+	bytes: DocumentBytes;
+	/** Brings the link definitions up to date after a write, from the blocks it replaced;
+	 *  `emitEdit` calls it before each `edit`. */
+	refreshDefinitions(replaced: ReplacedBlocks): void;
 	undoManager: UndoManager;
 	sharing: SharingState;
 	caretMemory: CaretMemory;

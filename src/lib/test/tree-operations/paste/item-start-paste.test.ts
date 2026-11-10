@@ -58,8 +58,9 @@ describe('a block pasted at a to-do’s text start', () => {
 		{
 			route: 'a range paste',
 			paste: pasteOverRangeFromItemStart,
-			source: '- [ ] bc\n- [ ] de\n',
-			bytes: '- [ ] ---\n'
+			// A block after the list, so the range holds the items and not the whole document.
+			source: '- [ ] bc\n- [ ] de\n\nafter\n',
+			bytes: '- [ ] ---\n\nafter\n'
 		}
 	])(
 		'a line the bare bullet reads as a divider stays the to-do’s text: $route',

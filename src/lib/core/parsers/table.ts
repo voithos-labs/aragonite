@@ -57,8 +57,14 @@ export function parseTable(
 	while (i < endIndex && tableTakesLine(lines, i, endIndex, grammar)) i++;
 
 	const rows: CstNode[] = [];
+	// Where each row's line sits in the table's bytes, the delimiter line between the first two.
+	const base = lines[startIndex].start;
+	const spans = new Uint32Array((i - startIndex - 1) * 2);
 	rows.push(buildRow(lines[startIndex], delimiter.columnCount, true));
+	spans[1] = lines[startIndex].end - base;
 	for (let r = startIndex + 2; r < i; r++) {
+		spans[rows.length * 2] = lines[r].start - base;
+		spans[rows.length * 2 + 1] = lines[r].end - base;
 		rows.push(buildRow(lines[r], delimiter.columnCount, false));
 	}
 
@@ -69,6 +75,7 @@ export function parseTable(
 			leadingTrivia,
 			raw,
 			metadata: { columnCount: delimiter.columnCount, alignments: delimiter.alignments },
+			childSpans: spans,
 			children: rows
 		},
 		consumed: i - startIndex

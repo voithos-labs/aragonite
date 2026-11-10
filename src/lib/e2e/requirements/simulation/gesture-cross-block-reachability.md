@@ -9,7 +9,12 @@ is driven directly against a controlled fixture.
 
 ## Happy paths: build
 
-- Shift+ArrowDown across the block boundary engages a real cross-block selection
+- Shift+ArrowDown across the block boundary engages a real cross-block selection; the build
+  starts one character before the first block's end, so the range holds that character even
+  where it ends on the first byte of a block the first can't join (two headings), which a range
+  stops short of
+  - Miss-analysis: every build started at the first block's end, which held bytes only while a
+    range took the blank line between two headings.
 - Shift+Click into another block engages a cross-block selection
 - double Ctrl+A escalates from the caret's block to a whole-document selection whose
   endpoints span the first and last block

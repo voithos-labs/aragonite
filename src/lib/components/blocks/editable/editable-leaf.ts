@@ -314,6 +314,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	// A source handed over after the render that showed it (a view drawn outside Svelte) gets the
 	// caret when it attaches.
 	let pendingReveal: number | null = null;
+	// The source as the kind reshaped it on opening, before any edit; null where it opened as stored.
+	let openedAs: string | null = null;
 
 	// Every open goes through here, so the kind reshapes its source however it was opened.
 	async function revealSource(atSourceOffset = 0): Promise<void> {
@@ -327,6 +329,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		const reshaped = reshapeSource(el.textContent ?? '', atSourceOffset);
 		if (!reshaped) return;
 		paintSource(el, reshaped.text);
+		openedAs = reshaped.text;
 		reportSourceEdit(reshaped.text);
 		setCaret(reshaped.caret);
 	}
@@ -346,9 +349,11 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	}
 
 	// The source stays shown through an undo: its edit lands as a step the undo then takes back.
+	// The shape the kind gave it on opening is no edit, so the undo takes the step before it.
 	function saveBeforeUndo(): void {
 		const edited = deps.getEl()?.textContent ?? sourceText();
-		if (draft && !draft.stale && edited !== sourceText()) void commitSource(edited);
+		const changed = edited !== sourceText() && edited !== openedAs;
+		if (draft && !draft.stale && changed) void commitSource(edited);
 		draft = openDraft();
 	}
 
@@ -471,6 +476,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	function setRevealed(value: boolean): void {
 		if (!value) {
 			pendingReveal = null;
+			openedAs = null;
 			reported = null;
 			editableSurface.noteShownSource(null);
 		}
@@ -504,6 +510,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		if ((el.textContent ?? '') !== text) {
 			const heard = reported;
 			paintSource(el, text);
+			openedAs = null;
 			// The shown source now holds the document's bytes, so an edit from here on is an edit of them.
 			if (draft) {
 				draft.end();

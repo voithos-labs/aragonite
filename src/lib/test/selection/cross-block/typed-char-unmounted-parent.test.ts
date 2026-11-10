@@ -12,7 +12,8 @@ import { makeEnv, makeHandlers, makeBeforeInputEvent } from './typed-char-env';
 
 describe('a typed character inside a container that never mounted', () => {
 	it('re-derives the kind, as a keystroke there would', async () => {
-		const env = makeEnv('- > aaa\n  >\n  > bbb\n');
+		// A block after it, so the range holds the quote's text and not the whole document.
+		const env = makeEnv('- > aaa\n  >\n  > bbb\n\nafter\n');
 		// The item's list is mounted; the quote inside it, the leaf's own container, is not.
 		makeBlockListState(() => blockNodeAt(env.doc, [0, 0]) as CstNode);
 		env.selectionState.enterCrossBlock(
@@ -22,7 +23,7 @@ describe('a typed character inside a container that never mounted', () => {
 
 		await makeHandlers(env, [0, 0, 0, 0]).handleBeforeInput(makeBeforeInputEvent('#'));
 
-		expect(serialize(env.doc)).toBe('- > #\n');
+		expect(serialize(env.doc)).toBe('- > #\n\nafter\n');
 		expect(blockNodeAt(env.doc, [0, 0, 0, 0])?.kind).toBe('heading');
 		expect(describeConvergence(env.doc)).toBeNull();
 	});

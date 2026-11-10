@@ -69,10 +69,10 @@ describe('a composition’s removal, before any await: commit-primitive converge
 	});
 });
 
-// A delete that blanks the tail block exposes the document's trailing blank line, so both commit
-// paths must let the fix-up write it and report the grown tail to the id sync.
+// A delete that blanks every block before the document's trailing blank line leaves one empty line,
+// that blank line going with the emptied text, and the id sync follows the tail it shrank.
 describe('cross-block delete beside the folded trailing blank (GH #129)', () => {
-	it('pure top-level: the whole-content delete materializes the fold in step', async () => {
+	it('pure top-level: the whole-content delete leaves one empty line, ids in step', async () => {
 		const env = makeEnv('alpha\n\nbeta\n\n');
 		env.doc.suffix = parse('alpha\n\nbeta\n\n').suffix;
 		env.deps.selectionState.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 4 });
@@ -80,18 +80,21 @@ describe('cross-block delete beside the folded trailing blank (GH #129)', () => 
 		void replaceRange(env.mutCtx, { kind: 'composition' });
 		await tick();
 
-		expect(env.doc.children).toHaveLength(2);
+		expect(serialize(env.deps.doc)).toBe('\n');
 		expect(env.doc.suffix).toBe('');
-		expect(env.getBlockIds()).toHaveLength(2);
+		expect(env.getBlockIds()).toHaveLength(1);
 		expectParseConverged(env.deps.doc);
 	});
 
-	it('cross-container: the net-zero splice still remints the tail slot id', async () => {
+	it('cross-container: the quote the delete takes leaves no id behind', async () => {
 		const env = makeEnv('alpha\n\n> q\n\n');
 		env.doc.suffix = parse('alpha\n\n> q\n\n').suffix;
+		const quote = env.doc.children[1];
+		// Once the delete takes the quote, its state keeps the node it was built on, as an unmounted
+		// container's would.
 		registerBlockListState(
-			env.doc.children[1],
-			makeBlockListState(() => env.deps.doc.children[1])
+			quote,
+			makeBlockListState(() => env.deps.doc.children[1] ?? quote)
 		);
 		const idsBefore = [...env.getBlockIds()];
 		env.deps.selectionState.enterCrossBlock({ path: [0], offset: 0 }, { path: [1, 0], offset: 1 });
@@ -99,11 +102,10 @@ describe('cross-block delete beside the folded trailing blank (GH #129)', () => 
 		void replaceRange(env.mutCtx, { kind: 'composition' });
 		await tick();
 
-		expect(env.doc.children).toHaveLength(2);
+		expect(serialize(env.deps.doc)).toBe('\n');
 		expect(env.doc.suffix).toBe('');
-		expect(env.getBlockIds()).toHaveLength(2);
-		// The quote is gone; its position now holds the new blank, which must not keep its id.
-		expect(env.getBlockIds()[1]).not.toBe(idsBefore[1]);
+		expect(env.getBlockIds()).toHaveLength(1);
+		expect(env.getBlockIds()).not.toContain(idsBefore[1]);
 		expectParseConverged(env.deps.doc);
 	});
 });

@@ -225,18 +225,34 @@ function tableHeadAbove(read: Read, table: LaidBlock, shared: LaidBlock | null, 
 		.join('');
 }
 
-/** Law 3's third declared exception: a range from a table's rows below its delimiter copies the
- *  header too, so the copy pasted elsewhere reads as a table; pasted back, the header doubles. */
-export function startsBelowTableHead(read: Read, from: number, host: CheckHost): boolean {
+/** Law 3's third declared exception: a range starting in a table's rows or a container's title row
+ *  copies the lines that block opens with, which the removal keeps, so pasted back they repeat. */
+export function copiesLinesBeforeRange(
+	read: Read,
+	from: number,
+	host: Pick<CheckHost, 'facts'>
+): boolean {
 	return read.blocks.some((b) => {
-		if (host.facts(b.type).lines !== 'rows' || !(b.from < from && from < b.to)) return false;
-		const delimiter = b.lines!.find((line) => line.own);
-		return delimiter !== undefined && from >= delimiter.to;
+		if (!b.lines || !(b.from < from && from < b.to)) return false;
+		const facts = host.facts(b.type);
+		if (facts.lines === 'rows') {
+			const delimiter = b.lines.find((line) => line.own);
+			return delimiter !== undefined && from >= delimiter.to;
+		}
+		const row = read.blocks.find(
+			(r) =>
+				r.type === facts.titleRow?.type &&
+				r.path.length === b.path.length + 1 &&
+				r.from >= b.from &&
+				r.to <= b.to
+		);
+		const lineEnd = row && read.source.indexOf('\n', row.from);
+		return row !== undefined && row.from <= from && (lineEnd! < 0 || from <= lineEnd!);
 	});
 }
 
-/** Law 3's first declared exception: a range that takes the line a fenced block opens with and
- *  ends inside it, whose opening a plain-text paste can't rebuild. */
+/** Law 3's first declared exception: a range that takes the line a fenced block opens with (a
+ *  table's header) and ends inside it, whose opening a plain-text paste can't rebuild. */
 export function opensWithoutClosing(
 	read: Read,
 	from: number,
@@ -245,7 +261,8 @@ export function opensWithoutClosing(
 ): boolean {
 	return read.blocks.some((b) => {
 		if (!(b.from >= from && b.from < to && to < b.to)) return false;
-		return b.type === 'fencedCode' || host.facts(b.type).lines === 'fenced';
+		const lines = host.facts(b.type).lines;
+		return b.type === 'fencedCode' || lines === 'fenced' || lines === 'rows';
 	});
 }
 
@@ -265,6 +282,32 @@ export function leavesLiteralBlock(
 	if (fenceRun(raw) && from === leaf.from && shown) return false;
 	const closer = read.source.lastIndexOf('\n', leaf.to - 2) + 1;
 	return to > leaf.to || (closesItsFence(raw) && to > closer);
+}
+
+/** Whether some block's text, as the mode shows it, lies partly inside `[from, to)`: in live mode a
+ *  fenced code block shows its body alone, and a format run's delimiters show nothing. */
+export function holdsShownText(
+	read: Read,
+	from: number,
+	to: number,
+	host: CheckHost,
+	mode: Mode
+): boolean {
+	return read.blocks.some((b) => {
+		if (!b.text) return false;
+		let { from: start, to: end } = b.text;
+		const raw = treeNodeAt(read.tree, b.path)!.raw;
+		const facts = host.facts(b.type);
+		if (mode === 'live' && facts.body === 'literal' && facts.textPosition === 'always') {
+			if (fenceRun(raw)) start = read.source.indexOf('\n', b.from) + 1;
+			if (closesItsFence(raw)) {
+				const closer = read.source.lastIndexOf('\n', b.to - 2);
+				end = read.source[closer - 1] === '\r' ? closer - 1 : closer;
+			}
+		}
+		const held = read.source.slice(Math.max(start, from), Math.min(end, to));
+		return (mode === 'live' ? held.replace(/[*_~`]/g, '') : held) !== '';
+	});
 }
 
 /** The run a block's first line opens a fence with (a code, math or diagram fence), read here by
@@ -383,6 +426,53 @@ export type PasteShape = 'text' | 'blocks' | 'absorbed' | 'split' | 'other';
 
 /** The source a paste of `text` at `at` may give, with the rule that gives it. */
 export function expectedPaste(
+	read: Read,
+	at: number,
+	text: string,
+	host: CheckHost
+): { shape: PasteShape; bytes: string[] } {
+	const want = landedPaste(read, at, text, host);
+	const last = host
+		.read(lf(text))
+		.children.filter((b) => b.raw.trim() !== '')
+		.at(-1);
+	const container = !!last?.children?.length;
+	const apart = (bytes: string) => apartBelow(read, at, bytes, host, container);
+	return { ...want, bytes: want.bytes.flatMap(apart) };
+}
+
+/** `bytes`, or `bytes` with a blank line over the block flush under an empty paragraph the paste
+ *  landed in: required where only that keeps the block starting its line. */
+export function apartBelow(
+	read: Read,
+	at: number,
+	bytes: string,
+	host: CheckHost,
+	pastedContainer = false
+): string[] {
+	const target = leafAt(read, at);
+	const empty = !!target && /^\r?\n?$/.test(treeNodeAt(read.tree, target.path)?.raw ?? '-');
+	if (target?.type !== 'paragraph' || !empty || inTitleRow(read, at, host)) return [bytes];
+	// A pasted container the caret's container takes in is that block's own, set apart from nothing.
+	if (pastedContainer) return [bytes];
+	const lineEnd = read.source.indexOf('\n', target.to);
+	const lineBelow = read.source.slice(target.to, lineEnd < 0 ? undefined : lineEnd);
+	if (/^[ \t>]*\r?$/.test(lineBelow)) return [bytes];
+	const textStart = target.to + /^[ \t>]*/.exec(lineBelow)![0].length;
+	const sibling = [...target.path.slice(0, -1), target.path.at(-1)! + 1].join();
+	const next = read.blocks.find((b) => b.path.join() === sibling && b.from <= textStart);
+	if (!next) return [bytes];
+	const shift = bytes.length - read.source.length;
+	const line = target.to + shift;
+	const marks = read.source.slice(target.to, next.from).trimEnd() + endingOf(read.source);
+	const apart = bytes.slice(0, line) + marks + bytes.slice(line);
+	const starts = (source: string, from: number) =>
+		readOf(host, source).blocks.some((b) => b.type === next.type && b.from === from);
+	if (starts(bytes, next.from + shift)) return [bytes, apart];
+	return starts(apart, next.from + shift + marks.length) ? [apart] : [bytes];
+}
+
+function landedPaste(
 	read: Read,
 	at: number,
 	text: string,
@@ -518,8 +608,27 @@ function nothingVisibleAfter(source: string, byte: number): boolean {
 // ── Paste as plain text at a caret ───────────────────────────────────────────
 
 /** Whether a plain paste at `at` changed bytes only there and put `text` in as the block shows it
- *  (as written, where the block's text is literal). */
+ *  (as written, where the block's text is literal), a blank line over the block below aside. */
 export function plainPasteHolds(
+	read: Read,
+	at: number,
+	text: string,
+	got: string,
+	host: CheckHost,
+	mode: Mode
+): boolean {
+	if (insertedOnly(read, at, text, got, host, mode)) return true;
+	const below = got.length - (read.source.length - (leafAt(read, at)?.to ?? at));
+	const blank = /(?:^|\n)([ \t>]*\r?\n)$/.exec(got.slice(0, below))?.[1];
+	const bare = blank ? got.slice(0, below - blank.length) + got.slice(below) : got;
+	return (
+		bare !== got &&
+		insertedOnly(read, at, text, bare, host, mode) &&
+		apartBelow(read, at, bare, host).includes(got)
+	);
+}
+
+function insertedOnly(
 	read: Read,
 	at: number,
 	text: string,

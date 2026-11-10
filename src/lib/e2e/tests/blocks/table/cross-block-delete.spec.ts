@@ -44,11 +44,11 @@ test.describe('table block: cross-block delete', () => {
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(source.replace(/\s+$/, ''));
 	});
 
-	test('Case 1: paragraph above → mid-table Backspace clears whole rows and promotes the survivor', async ({
+	test('Case 1: paragraph above → mid-table Backspace takes whole rows and keeps the header', async ({
 		page
 	}) => {
-		// Whole-row snap: dragging into a body cell selects every touched row in full, so the
-		// header row and row 1 go and row 2 is promoted to header, rather than cells being cleared.
+		// Whole-row snap: dragging into a body cell selects every touched row in full, so row 1 goes
+		// and the header with its delimiter stays, rather than cells being cleared.
 		await editor.loadContent(`Before.\n\n${TABLE_2x3}`);
 		const [paraBox, cellBox] = await boxesOf(
 			page.getByText('Before.'),
@@ -57,11 +57,10 @@ test.describe('table block: cross-block delete', () => {
 		await dragBetweenBoxes(page, paraBox, cellBox);
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Backspace');
-		await editor.bridge.waitForSourceNotContains('| A | B |');
 		await editor.bridge.waitForSourceNotContains('| 1 | 2 |');
-		await editor.bridge.waitForSourceContains('| 3 | 4 |');
-		// Survivor is the only row left → 2 cells.
-		await expect(page.locator('.table-cell')).toHaveCount(2);
+		await editor.bridge.waitForSourceContains('| A | B |\n| --- | --- |\n| 3 | 4 |');
+		// The header and the one row left → 4 cells.
+		await expect(page.locator('.table-cell')).toHaveCount(4);
 	});
 
 	test('Case 2: mid-table → paragraph below Backspace clears whole rows', async ({ page }) => {
@@ -248,21 +247,19 @@ test.describe('table block: cross-block delete', () => {
 		await editor.waitForCrossBlock(true);
 		await editor.pressDeclined('Backspace');
 		const source = await editor.bridge.getSource();
-		// Paragraph text must never fuse into a cell as `| 3 | 4after |`: the snap removes the
-		// anchor's whole bottom row and "after" stays a paragraph.
-		expect(source).toContain('| --- | --- |');
+		// Paragraph text must never fuse into a cell as `| 3 | 4after |`: a range leaving the table by
+		// its last row takes the whole table, and "after" stays a paragraph.
 		expect(source).not.toContain('4after');
-		expect(source).not.toContain('| 3 |');
-		expect(source).toContain('| 1 | 2 |');
-		expect(await editor.bridge.getBlockCount()).toBe(2);
-		expect(await editor.bridge.getBlockKind(1)).toBe('paragraph');
+		expect(source).not.toContain('|');
+		expect(await editor.bridge.getBlockCount()).toBe(1);
+		expect(await editor.bridge.getBlockKind(0)).toBe('paragraph');
 	});
 
-	test('typing over a selection spanning two separate tables lands in a surviving cell, no grid corruption', async ({
+	test('typing over a selection spanning two separate tables opens a paragraph, no grid corruption', async ({
 		page
 	}) => {
-		// Two adjacent tables, both endpoints cell coordinates: the snap removes the touched rows
-		// in both, and typing over the range lands in a surviving cell.
+		// Two adjacent tables, both endpoints cell coordinates: the first keeps its header, the second
+		// goes whole since the range enters it by its first row, and the typed text opens a paragraph.
 		await editor.loadContent(`${TABLE_2x3}\n${TABLE_2x3}`);
 		const cells = page.locator('.table-cell');
 		// Anchor in the first table's body cell "2" (idx 3), focus in the second's header cell "B"
@@ -273,15 +270,7 @@ test.describe('table block: cross-block delete', () => {
 
 		await page.keyboard.press('Z');
 		await editor.bridge.waitForSourceContains('Z');
-		const src = await editor.bridge.getSource();
-		// Z sits inside a single table cell (between two pipes on one row), never
-		// fused into the grid delimiters.
-		expect(src).toMatch(/\|[^\n|]*Z[^\n|]*\|/);
-		// The second table's surviving rows are whole rows: no half-cleared row with an
-		// empty leading cell, which only a focus at the wrong offset produces.
-		expect(src).toContain('| 1 | 2 |');
-		expect(src).not.toMatch(/\|\s+\|\s*2\s*\|/);
-		expect(src).toContain('| --- | --- |');
+		expect(await editor.bridge.getSource()).toBe('| A | B |\n| --- | --- |\n\nZ\n');
 	});
 
 	test('Case 2 into a nested prose end (blockquote paragraph) truncates the tail without erroring', async ({
@@ -347,8 +336,11 @@ test.describe('table block: coverage delete inside a container', () => {
 				.join('')
 	};
 
+	// The range holds the table, not its container, so the container keeps its emptied line.
+	const EMPTIED: Record<string, string> = { quote: '> ', 'list item': '- ' };
+
 	for (const [where, wrap] of Object.entries(WRAPPERS)) {
-		test(`a whole table in a ${where}: Backspace removes it and the emptied ${where}`, async ({
+		test(`a whole table in a ${where}: Backspace removes it and keeps the emptied ${where}`, async ({
 			page
 		}) => {
 			const source = wrap(TABLE_3x3) + '\nafter\n';
@@ -356,7 +348,7 @@ test.describe('table block: coverage delete inside a container', () => {
 			await dragBetweenCells(page, 0, 8);
 			await editor.waitForCrossBlock(true);
 			await page.keyboard.press('Backspace');
-			await editor.bridge.waitForSourceEquals('after\n');
+			await editor.bridge.waitForSourceEquals(`${EMPTIED[where]}\n\nafter\n`);
 
 			await editor.undo();
 			await editor.bridge.waitForSourceEquals(source);

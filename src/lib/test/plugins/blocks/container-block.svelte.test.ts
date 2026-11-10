@@ -54,6 +54,33 @@ const NOTE_LINES = {
 	lazy: true
 } as const;
 
+/** A plugin whose container sits under a `%> [!TYPE]` head line that holds no child. */
+function headed() {
+	return definePlugin({
+		name: 'boxes',
+		version: '1.0.0',
+		editor: '*',
+		contributes: () => ({
+			blocks: [
+				container({
+					name: 'alert',
+					label: 'Alert',
+					sample: '%> [!NOTE]\n%> x',
+					insert: { none: 'a test block type' },
+					lines: {
+						...MARKED,
+						head: {
+							match: /^\[!(\w+)\]$/,
+							data: (match: RegExpExecArray) => ({ type: match[1] }),
+							write: (data: { type: string }) => `[!${data.type}]`
+						}
+					}
+				})
+			]
+		})
+	});
+}
+
 type Mounted = ReturnType<typeof mountEditor>;
 
 const kinds = (m: Mounted, paths: number[][]) =>
@@ -111,36 +138,25 @@ describe('a marked container', () => {
 	});
 
 	it('under a head line reads its data there and keeps the head as spelled', async () => {
-		const lines = {
-			...MARKED,
-			head: {
-				match: /^\[!(\w+)\]$/,
-				data: (match: RegExpExecArray) => ({ type: match[1] }),
-				write: (data: { type: string }) => `[!${data.type}]`
-			}
-		};
-		const plugin = definePlugin({
-			name: 'boxes',
-			version: '1.0.0',
-			editor: '*',
-			contributes: () => ({
-				blocks: [
-					container({
-						name: 'alert',
-						label: 'Alert',
-						sample: '%> [!NOTE]\n%> x',
-						insert: { none: 'a test block type' },
-						lines
-					})
-				]
-			})
-		});
-		const m = mountEditor({ source: '%> [!NOTE]\n%> one\n', plugins: [plugin] });
+		const m = mountEditor({ source: '%> [!NOTE]\n%> one\n', plugins: [headed()] });
 		await m.settle();
 		expect(kinds(m, [[0], [0, 0]])).toEqual(['boxes/alert', 'paragraph']);
 		typeInto(surfaceAt(m, [0, 0]), 'one two');
 		await m.settle();
 		expect(m.instance.getSource()).toBe('%> [!NOTE]\n%> one two\n');
+	});
+
+	// Miss-analysis: a headed container had no child spans until its first rebuild, so no splice
+	// inside a freshly read one asked for the window inside it.
+	it('under a head line takes a write inside it without its first child read as a table head', async () => {
+		const source = '%> [!NOTE]\n%> same\n%>\n%> same\n%>\n%> same\n%>\n%> same\n\nafter\n';
+		const m = mountEditor({ source, plugins: [headed()] });
+		await m.settle();
+		const at = source.lastIndexOf('same');
+		const draft = m.instance.edit().replace({ from: at, to: at + 4 }, 'other');
+		expect(await draft.commit()).toEqual({ ok: true });
+		await m.settle();
+		expect(m.instance.getSource()).toBe(source.slice(0, at) + 'other\n\nafter\n');
 	});
 
 	it('is tried before the type it names in `before`', async () => {

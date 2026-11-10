@@ -1,11 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { nodeAt } from '#lib/tree-operations/node-primitives.js';
-import { lrdMapCouldChange } from '#lib/components/link-reference-map.js';
 import { makeNestedHarness, makeTopHarness } from '#lib/test/harness/editor-actions.js';
 import type { EditEvent } from '#lib/editor-events.js';
 
-// Why the leaf path matters: `lrdMapCouldChange` reads the event path, so a container-level
-// path hides a nested link-definition edit from the map rebuild.
+// Why the leaf path matters: `input` tells a subscriber to read the block it names for its text,
+// so a container's path would hand it the container's.
 
 function makeNestedTyping(source: string) {
 	const { deps, events, bundle } = makeNestedHarness(source, { index: 0 });
@@ -15,28 +14,14 @@ function makeNestedTyping(source: string) {
 }
 
 describe('the input event carries the leaf path', () => {
-	it('typing in a container-nested LRD emits the leaf path and reopens the LRD gate', async () => {
+	it('typing in a container-nested leaf names the leaf', async () => {
 		const h = makeNestedTyping('> [a]: /url\n');
-		expect(h.deps.doc.children[0].children![0].kind).toBe('linkReferenceDefinition');
 
 		await h.bundle.blockEdit.updateBlockContent(0, '[a]: /url2\n', 'authored', 'join-typing', 9);
 
 		const input = h.edits.find((e) => e.op === 'input');
-		expect(input).toBeDefined();
 		expect(input!.path).toEqual([0, 0]);
 		expect(nodeAt(h.deps.doc, input!.path)?.kind).toBe('linkReferenceDefinition');
-		expect(lrdMapCouldChange(h.deps.doc, input!)).toBe(true);
-	});
-
-	it('typing in a container-nested paragraph still skips the LRD rebuild', async () => {
-		const h = makeNestedTyping('> see [d][d]\n');
-
-		await h.bundle.blockEdit.updateBlockContent(0, 'see [d][d]!\n', 'authored', 'join-typing', 10);
-
-		const input = h.edits.find((e) => e.op === 'input');
-		expect(input).toBeDefined();
-		expect(input!.path).toEqual([0, 0]);
-		expect(lrdMapCouldChange(h.deps.doc, input!)).toBe(false);
 	});
 });
 

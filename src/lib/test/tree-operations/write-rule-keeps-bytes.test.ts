@@ -15,7 +15,6 @@ import { registerMathBlock } from '#packages/latex/src/latex-kind.js';
 import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
 import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
-import { deleteRange } from '#lib/test/harness/range-delete.js';
 import { makeSearchReplace, scanCompiled } from '#lib/test/harness/search-replace.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
@@ -66,15 +65,6 @@ const ROUTES: Array<[string, Route, (raw: string, cut: number) => string]> = [
 			return deps.doc;
 		},
 		(raw, cut) => sourceOf(raw.slice(cut))
-	],
-	[
-		'a range delete from the block above',
-		(source, { cut }) => {
-			const doc = parse(source);
-			deleteRange(doc, { path: [0], offset: 2 }, { path: [1], offset: cut });
-			return doc;
-		},
-		(raw, cut) => `pa${raw.slice(cut)}\nafter\n`
 	]
 ];
 

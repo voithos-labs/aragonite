@@ -48,7 +48,8 @@ test.describe('range edit reaching an unmounted table', () => {
 		await page.keyboard.press('Delete');
 		await editor.waitForCrossBlock(false);
 		await page.keyboard.type('x');
-		// What the same gesture writes over a three-block document, where the table stays mounted.
-		await editor.bridge.waitForSourceEquals('x\n\n| 3 | 4 |\n| --- | --- |');
+		// What the same gesture writes over a three-block document, where the table stays mounted:
+		// the emptied first paragraph keeps its line, and the table its header.
+		await editor.bridge.waitForSourceEquals('x\n\n| a | b |\n| --- | --- |\n| 3 | 4 |');
 	});
 });

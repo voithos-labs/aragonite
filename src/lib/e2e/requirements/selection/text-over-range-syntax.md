@@ -29,10 +29,11 @@ Where the caret is on text, the text joins the block there. Every row runs in so
 
 ## Edge cases
 
-- The same range down into a paragraph, a setext heading, a quote or a list: the caret is on the
-  block's text, so the text joins it there (`xplain`, `xHead` over `===`, `> xq`, `- xli`).
-- A composition over the range into the list item's paragraph lands its text there too
-  (`- 漢li`).
+- The same range down into a paragraph or a setext heading: the caret is on the block's text, so
+  the text joins it there (`xplain`, `xHead` over `===`).
+- Into a quote or a list, the range ends past the quote's `> ` or the item's `- `, so it takes
+  that marker, and the text joins what follows at the table's level, as a range from a paragraph
+  takes the containers its end enters (`xq`, `xli`; a composition lands `漢li`).
   Miss-analysis: the row was skipped while the list marker was editable text inside the
   paragraph, where the composed text landed and the read-back dropped it; the marker's own cell
   fixed it, and the skipped row hid that it passed.

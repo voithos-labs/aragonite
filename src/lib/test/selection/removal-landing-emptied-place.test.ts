@@ -5,27 +5,23 @@
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import type { SelectionPoint } from '#lib/selection/primitives.js';
-import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
-import { rangeDelete } from '#lib/selection/cross-block/range-delete/range-delete.js';
-import { emptiedPlace } from '#lib/selection/removal-landing.js';
-import { fixtureReading } from '../harness/fixture-grammar';
-import { writtenBelow } from '#lib/test/harness/settle-funnel.js';
+import { emptiedPlace } from '#lib/selection/cross-block/range-removal.js';
+import { deleteRange } from '../harness/range-delete';
 
-const cell = (path: number[]): SelectionPoint => ({ path, offset: 0, cellCoordinate: true });
+const cell = (path: number[], offset = 0): SelectionPoint => ({
+	path,
+	offset,
+	cellCoordinate: true
+});
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 
 /** The place `emptiedPlace` names once the range from `start` to `end` is deleted. */
 function placeAfterRemoval(source: string, start: SelectionPoint, end: SelectionPoint) {
-	const doc = parse(source);
-	const coverage = rangeCoverage(doc, coverRange(doc, start, end));
-	const removed = writtenBelow(
-		doc,
-		(scope) => rangeDelete(doc, coverage, scope, fixtureReading(), 'keyless'),
-		fixtureReading().grammar
-	);
-	const caret = removed.caret(removed.newDoc);
+	// Delete's side, which a typed character's removal takes.
+	const result = deleteRange(parse(source), start, end, { gesture: 'Delete' });
+	const caret = result.caret(result.newDoc);
 	if (!caret) throw new Error('the removal left no caret');
-	return emptiedPlace(removed.newDoc, coverage, 'delete', caret);
+	return emptiedPlace(result.newDoc, { ...result.removed, caret });
 }
 
 const TABLE = '| c |\n| - |\n\n';
@@ -69,8 +65,29 @@ describe('a range holding every block after the one above it', () => {
 		expect(placeAfterRemoval(`---\n\n${TWO_TABLES}`, cell([1]), cell([2]))).toEqual([1]);
 	});
 
-	it("joins a heading at its text's end", () => {
-		expect(placeAfterRemoval(`# Head\n\n${TWO_TABLES}`, cell([1]), cell([2]))).toBeNull();
+	// The caret sits where the tables were, past every block, so text never joins the heading.
+	it('opens a paragraph after a heading too', () => {
+		expect(placeAfterRemoval(`# Head\n\n${TWO_TABLES}`, cell([1]), cell([2]))).toEqual([1]);
+	});
+});
+
+describe("a range from a table's last row, which takes the table whole", () => {
+	const LAST_ROW = '| a |\n| - |\n| 1 |\n\n';
+	for (const [name, block] of [
+		['a fenced code block', '```js\nbody\n```'],
+		['a rule', '---']
+	]) {
+		it(`opens a paragraph before ${name}`, () => {
+			expect(placeAfterRemoval(`${LAST_ROW}${block}\n`, cell([0], 1), at([1], 0))).toEqual([0]);
+		});
+	}
+});
+
+describe('a removal whose caret sits between blocks', () => {
+	it("opens a paragraph at that boundary, though the range kept its start table's header", () => {
+		const head = '| A | B |\n| --- | --- |\n';
+		const source = `${head}| 1 | 2 |\n| 3 | 4 |\n\n${head}| 1 | 2 |\n`;
+		expect(placeAfterRemoval(source, cell([0], 2), cell([1], 0))).toEqual([1]);
 	});
 });
 

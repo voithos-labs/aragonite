@@ -3,12 +3,11 @@ import { parse, serialize } from '#lib';
 import { checkOpaqueStaleRaw } from '#lib/invariants/node-shape.js';
 import { registerDetailsKind } from '#packages/details/src/details-kind.js';
 import { mergeWithNext, splitNode } from '#lib/tree-operations/node-ops.js';
-import { rangeDelete } from '#lib/selection/cross-block/range-delete/range-delete.js';
-import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
+import { deleteRange } from '#lib/test/harness/range-delete.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { fixtureReading, fixtureGrammar } from '../../harness/fixture-grammar';
 import { testView } from '#lib/test/harness/test-view.js';
-import { mergePrevSettled, writtenBelow } from '#lib/test/harness/settle-funnel.js';
+import { mergePrevSettled } from '#lib/test/harness/settle-funnel.js';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 
@@ -77,21 +76,7 @@ describe('details terminator escape at the cross-block entry points', () => {
 		const doc = parse(MID_LINE_TAG);
 		expect(doc.children[0].children?.length).toBe(3);
 
-		writtenBelow(
-			doc,
-			(scope) =>
-				rangeDelete(
-					doc,
-					rangeCoverage(
-						doc,
-						coverRange(doc, { path: [0, 1], offset: 6 }, { path: [0, 2], offset: 2 })
-					),
-					scope,
-					fixtureReading(),
-					'keyless'
-				),
-			fixtureReading().grammar
-		);
+		deleteRange(doc, { path: [0, 1], offset: 6 }, { path: [0, 2], offset: 2 });
 
 		expect(parse(serialize(doc)).children.map((c) => c.kind)).toEqual(['details']);
 		expect(checkOpaqueStaleRaw(doc.children[0], fixtureGrammar)).toBeNull();
@@ -100,21 +85,7 @@ describe('details terminator escape at the cross-block entry points', () => {
 	it('escapes a terminator a same-block delete strands at column 0', () => {
 		const doc = parse('<details>\n<summary>T</summary>\n\nzz</details>\n\n</details>\n');
 
-		writtenBelow(
-			doc,
-			(scope) =>
-				rangeDelete(
-					doc,
-					rangeCoverage(
-						doc,
-						coverRange(doc, { path: [0, 1], offset: 0 }, { path: [0, 1], offset: 2 })
-					),
-					scope,
-					fixtureReading(),
-					'keyless'
-				),
-			fixtureReading().grammar
-		);
+		deleteRange(doc, { path: [0, 1], offset: 0 }, { path: [0, 1], offset: 2 });
 
 		expect(parse(serialize(doc)).children.map((c) => c.kind)).toEqual(['details']);
 		expect(checkOpaqueStaleRaw(doc.children[0], fixtureGrammar)).toBeNull();

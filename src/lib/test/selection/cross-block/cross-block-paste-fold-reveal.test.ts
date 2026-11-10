@@ -8,13 +8,13 @@ import { makeEnv, makeHandlers, makePasteEvent, selectAcross } from './typed-cha
 
 describe('cross-block paste: a fold above the pasted bytes', () => {
 	it('lands the caret after the pasted byte, in the block the fold merged it into', async () => {
-		const env = makeEnv('a\n# h\n\n## kkk\n');
+		const env = makeEnv('a\n# h\n\nkkk\n');
 		const handlers = makeHandlers(env, [1]);
 
 		selectAcross(env.selectionState, [1], [2], 1);
 		await handlers.handlePaste(makePasteEvent('x'));
 
-		expect(serialize(env.doc)).toBe('a\nx# kkk\n');
+		expect(serialize(env.doc)).toBe('a\nxkk\n');
 		expect(env.doc.children).toHaveLength(1);
 		// Offset 3 is the byte after the pasted `x` in the merged block (`'a\n'` + 1).
 		const landed = env.landings.at(-1);

@@ -16,6 +16,7 @@ import { testView } from '#lib/test/harness/test-view.js';
 import { settleEditor } from '#lib/test/harness/settle.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import {
+	blockHostAt,
 	destroyMountedEditors,
 	installLayoutStubs,
 	mountEditor,
@@ -25,13 +26,13 @@ import {
 beforeAll(() => installLayoutStubs());
 afterEach(destroyMountedEditors);
 
-const markerOpener = (kind: PluginBlockKind): BlockOpener => ({
+const markerOpener = (kind: PluginBlockKind, marker = '@b'): BlockOpener => ({
 	priority: 5,
 	tryOpen: (ctx) =>
-		ctx.line.text.startsWith('@b')
+		ctx.line.text.startsWith(marker)
 			? { node: { kind, leadingTrivia: ctx.leadingTrivia, raw: ctx.line.raw }, consumed: 1 }
 			: null,
-	interruptsParagraph: (t) => t.startsWith('@b')
+	interruptsParagraph: (t) => t.startsWith(marker)
 });
 
 // A `setup` plugin with block syntax, installed once for the file by the first editor listing it.
@@ -39,6 +40,16 @@ const marks = definePlugin({
 	name: 'unit-marks',
 	setup: () =>
 		void testLeaf('unit-marks-block', (kind) => ({ opener: markerOpener(kind), view: testView() }))
+});
+
+// A plugin whose block is a line that reads as a link definition without it.
+const claims = definePlugin({
+	name: 'unit-claims',
+	setup: () =>
+		void testLeaf('unit-claims-block', (kind) => ({
+			opener: markerOpener(kind, '[x]:'),
+			view: testView()
+		}))
 });
 
 // A plugin whose only syntax is a `::` name: turning it off leaves the block openers as they were.
@@ -246,6 +257,18 @@ describe('use', () => {
 		m.instance.use([marks]);
 		await m.settle();
 		expect(kinds(m)).toEqual(['paragraph', 'unit-marks-block']);
+	});
+
+	// Miss-analysis: every definition row wrote through a commit; `use` reads the document again
+	// through none, and no row asked what a reference reads after it.
+	it('reads the link definitions again, a line its plugin held being one without it', async () => {
+		const m = mountEditor({ source: '[x]\n\n[x]: /u\n', plugins: [claims] });
+		await m.settle();
+		const link = () => blockHostAt(m, [0]).querySelector('a[href="/u"]');
+		expect(link()).toBeNull();
+		m.instance.use([]);
+		await m.settle();
+		expect(link()).not.toBeNull();
 	});
 
 	it('takes away what a plugin turned off added, and keeps a plugin still listed as it was', async () => {

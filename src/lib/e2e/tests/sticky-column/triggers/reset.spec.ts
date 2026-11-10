@@ -13,8 +13,7 @@ test.describe('sticky column: reset triggers', () => {
 	});
 
 	// The column a reset landing must snap back to. The trailing paragraph makes a downward move
-	// land in a real block rather than the append past the end, whose caret has no rect and
-	// collapses to x≈0.
+	// land in a real block, since the append past the end has a caret with no rect (x near 0).
 	async function setupHighColumn(): Promise<number> {
 		await editor.loadContent(
 			'A long first paragraph with enough text to have a high-column position.\n\n' +

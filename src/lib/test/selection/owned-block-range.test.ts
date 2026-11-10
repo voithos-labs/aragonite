@@ -23,7 +23,7 @@ import { writtenBelow } from '#lib/test/harness/settle-funnel.js';
 import { takeDevWarns } from '../support/warn-gate';
 import { freshBytes } from '#lib/test/harness/copied-text.js';
 import { rangeHandlers, rangeKey, rangeKeyEnv } from './cross-block/range-key-env';
-import { makeBeforeInputEvent } from './cross-block/typed-char-env';
+import { makeBeforeInputEvent, makePasteEvent } from './cross-block/typed-char-env';
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 const finger = (): FingerPress => fingerPress({ pointerType: 'touch', pointerId: 1 })!;
@@ -90,6 +90,25 @@ describe('what acts on a finger range inside one block', () => {
 		} as unknown as CrossBlockHandlers;
 		const arm = crossBlockClipboardArm({ selection, getDoc: () => doc, crossBlock });
 		expect(arm.copy()?.write.text).toBe('world');
+	});
+
+	// Miss-analysis: every finger range typed over sat in a paragraph, which keeps a removal's
+	// edge space; a cell stores none, so a removal and then an insert lost it.
+	it.each([
+		['a typed letter', 'x', '| x pie | berry |'],
+		['a typed pipe', '|', '| \\| pie | berry |'],
+		['a pasted pipe', { paste: 'a|b' }, '| a\\|b pie | berry |']
+	] as const)('%s over a word in a cell keeps the space after it', async (_, text, row) => {
+		const env = rangeKeyEnv('| apple pie | berry |\n| --- | --- |\n');
+		const word = { anchor: at([0, 0, 0], 0), focus: at([0, 0, 0], 5) };
+		env.h.deps.selectionState.ownBlockRange(word.anchor, word.focus, finger());
+		const handlers = rangeHandlers(env);
+		const took =
+			typeof text === 'string'
+				? await handlers.handleBeforeInput(makeBeforeInputEvent(text))
+				: await handlers.handlePaste(makePasteEvent(text.paste));
+		expect(took).toBe(true);
+		expect(serialize(env.h.deps.doc)).toBe(`${row}\n| --- | --- |\n`);
 	});
 
 	it('a format toggle wraps it alone', () => {

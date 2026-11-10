@@ -1,7 +1,8 @@
-// One-shot: apply branch protection, `node scripts/release/apply-branch-protection.mjs [main|dev]` (default
-// main). Needs gh authenticated as a repo admin. `main` requires the checks in
-// `branch-protection-contexts.mjs` and a code owner's review; `dev` only moves forward, since
-// contributors branch from it, so it blocks force pushes and deletion and nothing else.
+// One-shot: apply branch protection, `node scripts/release/apply-branch-protection.mjs [main|dev|next]`
+// (default main). Needs gh authenticated as a repo admin. `main` requires the checks in
+// `branch-protection-contexts.mjs` and a code owner's review; `dev` (contributors branch from it)
+// and `next` (the maintainers' working line, merged into dev each day) only move forward, so they
+// block force pushes and deletion and nothing else.
 import { execFileSync } from 'node:child_process';
 import { CI_CONTEXTS, EXTERNAL_CONTEXTS } from './branch-protection-contexts.mjs';
 
@@ -44,6 +45,7 @@ const RULES = {
 		allow_deletions: false
 	}
 };
+RULES.next = RULES.dev;
 
 const BRANCH = process.argv[2] ?? 'main';
 const protection = RULES[BRANCH];

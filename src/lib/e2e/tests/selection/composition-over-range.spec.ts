@@ -111,7 +111,8 @@ const ROUTES: RangeRoute[] = [
 			await editor.focusBlock(0, '```\nco'.length);
 			await editor.page.keyboard.press(extendKey('docEnd'));
 		},
-		after: (text) => `\`\`\`\nco${text}\n\`\`\`\n`
+		// The paragraph the range empties keeps its line after the closing fence.
+		after: (text) => `\`\`\`\nco${text}\n\`\`\`\n\n`
 	}
 ];
 

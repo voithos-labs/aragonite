@@ -132,15 +132,19 @@ test.describe('a whole-unit range: the only block', () => {
 		await editor.goto();
 	});
 
-	for (const doc of ['---\n', '> ---\n']) {
+	// A quote the range only empties stays, its line kept.
+	for (const [doc, removed, typed] of [
+		['---\n', '\n', 'x\n'],
+		['> ---\n', '> \n', '> x\n']
+	]) {
 		test(`Backspace over ${JSON.stringify(doc)} leaves one empty paragraph to type into`, async () => {
 			await editor.loadContent(doc);
 			await dragInside(editor, '.thematic-break-block');
 			await editor.page.keyboard.press('Backspace');
-			await editor.bridge.waitForSourceEquals('\n');
+			await editor.bridge.waitForSourceEquals(removed);
 
 			await editor.typeSlowly('x');
-			await editor.bridge.waitForSourceEquals('x\n');
+			await editor.bridge.waitForSourceEquals(typed);
 		});
 	}
 

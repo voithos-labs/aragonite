@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // A range delete that crosses a `:::` container's opener line clears the title it covers and keeps
 // the `:::name` marker, so the container survives and no body text joins the line.
 // Miss-analysis (#801): the clear and both edge cuts wrote the title row whole, which was right
@@ -46,7 +47,7 @@ it.each<[string, Point, Point, string]>([
 		[[1, 0], 14],
 		'pa\n\n:::callout le\nbody\n:::\n\nafter\n'
 	],
-	['from above into the body', [[0], 2], [[1, 1], 2], 'pa\n\n:::callout\ndy\n:::\n\nafter\n'],
+	['from above into the body', [[0], 2], [[1, 1], 2], 'pa\n\n:::callout Title\ndy\n:::\n\nafter\n'],
 	[
 		'from mid-name into the body',
 		[[1, 0], 5],
@@ -79,14 +80,14 @@ it.each<[string, string, Point, Point, string]>([
 		SOURCE,
 		[[1, 1], 2],
 		[[2], 2],
-		'para\n\n:::callout Title\nbo\n:::\n\nter\n'
+		'para\n\n:::callout Title\nboter\n:::\n'
 	],
 	[
 		'from the body past the container',
 		SOURCE + '\nlast\n',
 		[[1, 1], 2],
 		[[3], 2],
-		'para\n\n:::callout Title\nbo\n:::\n\nst\n'
+		'para\n\n:::callout Title\nbost\n:::\n'
 	],
 	['over the whole document', SOURCE, [[0], 0], [[2], 5], '\n'],
 	[
@@ -94,7 +95,7 @@ it.each<[string, string, Point, Point, string]>([
 		'para\n\n:::callout Title\nbody\n\nmore\n:::\n',
 		[[0], 2],
 		[[1, 2], 2],
-		'pa\n\n:::callout\n\nre\n:::\n'
+		'pa\n\n:::callout Title\nre\n:::\n'
 	]
 ])('%s', async (_name, source, start, end, expected) => {
 	expect(serialize(await run(source, start, end))).toBe(expected);

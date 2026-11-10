@@ -4,8 +4,8 @@ import fc from 'fast-check';
 import type { Document } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
-import { displayLength } from '#lib/core/lines.js';
-import { getContentRange, parseInline } from '#lib/core/inline/index.js';
+import { displayLength, snapToScalarBoundary } from '#lib/core/lines.js';
+import { getContentRange, isProseKind, parseInline } from '#lib/core/inline/index.js';
 import { CONTENT_VISIBILITY, renderedText } from '#lib/core/inline/visibility.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { markedChars, marksWithin, type MarkedChar } from '#lib/test/harness/live-oracles.js';
@@ -47,9 +47,13 @@ function endpointsIn(doc: Document, cut: Cut): { start: number[]; end: number[] 
 	if (count === 0) return null;
 	const lo = Math.min(cut.startBlock % count, cut.endBlock % count);
 	const hi = Math.max(cut.startBlock % count, cut.endBlock % count);
+	// The joins under test are prose's: a drawn fence line hides its syntax, which no live caret reaches.
+	if (doc.children.slice(lo, hi + 1).some((node) => !isProseKind(node.kind))) return null;
+	// A selection never parts a surrogate pair.
 	const clamp = (block: number, offset: number): number => {
 		const range = getContentRange(doc.children[block]);
-		return range.start + (offset % Math.max(1, range.end - range.start + 1));
+		const at = range.start + (offset % Math.max(1, range.end - range.start + 1));
+		return snapToScalarBoundary(doc.children[block].raw, at);
 	};
 	const a = clamp(lo, cut.startOffset);
 	const b = clamp(hi, cut.endOffset);

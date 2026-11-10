@@ -1,13 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { parse, serialize } from '#lib';
+import { parse } from '#lib';
+
 import { normalizeOwnRaw } from '#lib/tree-operations/node-primitives.js';
 import { documentLineEnding } from '#lib/plugin.js';
-import { rangeDelete } from '#lib/selection/cross-block/range-delete/range-delete.js';
-import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
 import { registerMermaidKind } from '#packages/mermaid/src/mermaid-kind.js';
-import { fixtureReading } from '../../harness/fixture-grammar';
 import { testView } from '#lib/test/harness/test-view.js';
-import { writtenBelow } from '#lib/test/harness/settle-funnel.js';
 
 // The mermaid kind declares a raw-write rule that puts back a closing fence a truncating write
 // dropped, so bytes written past the diagram's own editor cannot swallow the blocks below it.
@@ -24,31 +21,6 @@ beforeEach(() => {
 });
 
 describe('a truncating write of a mermaid block gets its closing fence back', () => {
-	it('a range delete from the body into the next block leaves the block after it standing', () => {
-		const doc = parse('Before\n\n```mermaid\ngraph TD\n```\n\nAfter\n\nTail\n');
-
-		// From just after the opener line into "After", which leaves "er".
-		writtenBelow(
-			doc,
-			(scope) =>
-				rangeDelete(
-					doc,
-					rangeCoverage(doc, coverRange(doc, { path: [1], offset: 11 }, { path: [2], offset: 3 })),
-					scope,
-					fixtureReading(),
-					'keyless'
-				),
-			fixtureReading().grammar
-		);
-
-		expect(serialize(doc)).toBe('Before\n\n```mermaid\ner\n```\n\nTail\n');
-		expect(parse(serialize(doc)).children.map((c) => c.kind)).toEqual([
-			'paragraph',
-			'mermaid',
-			'paragraph'
-		]);
-	});
-
 	it.each([
 		[
 			'a paste over the closer',

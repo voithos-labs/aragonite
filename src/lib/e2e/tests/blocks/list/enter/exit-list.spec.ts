@@ -9,9 +9,8 @@ test.describe('list Enter: exit list on empty item', () => {
 		await editor.goto();
 	});
 
-	// `assembleListHalf` must give the surviving list its `childIds`: undefined keys make the keyed
-	// `{#each}` leave the stale empty list item in the DOM, two items in the tree and three on
-	// screen.
+	// The surviving list needs its `childIds`: with undefined keys the keyed `{#each}` leaves the
+	// stale empty item in the DOM, two items in the tree and three on screen.
 	test('Enter on empty middle item removes the empty item from the DOM', async () => {
 		await editor.loadContent('- alpha\n- beta\n');
 		const beta = editor.page.locator('[contenteditable="true"]', { hasText: 'beta' });

@@ -44,27 +44,24 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 	}
 
-	test('Gate 6a: prose above → into a body table cell; the title clears, never node-deletes', async ({
+	test('Gate 6a: prose above → into the header cell; the table goes whole, the opening stays', async ({
 		page
 	}) => {
 		await editor.loadContent(TBL_FIXTURE);
-		// Dropping in header cell "a" snaps to row 0, promoting "1|2", while the title between is
-		// emptied in place; removing it would pull the table into the opener line.
+		// Dropping in header cell "a" enters the table by its first row, which takes it whole, while the
+		// opening the range enters stays whole; removing it would leave the closer alone.
 		await editor.dragFromTo([0], 2, [1, 1], 0);
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');
 		await editor.waitForCrossBlock(false);
-		await editor.bridge.waitForSourceContains(':::callout\n');
+		await editor.bridge.waitForSourceContains(':::callout Title\n:::');
 
 		const callout = await readCallout(page, 1);
-		expect(callout.childKinds).toEqual(['directiveOpenerLine', 'table']);
-		expect(callout.childTexts[0]).toBe(':::callout');
-		expect(callout.raw).toBe(':::callout\n| 1 | 2 |\n| --- | --- |\n:::\n');
+		expect(callout.childKinds).toEqual(['directiveOpenerLine']);
+		expect(callout.childTexts[0]).toBe(':::callout Title');
 		// The truncated start of the prose keeps its line ending, so the blank line the source had
-		// between it and the container survives, matching the case below that starts in the title.
-		expect(await editor.bridge.getSource()).toBe(
-			'Ab\n\n:::callout\n| 1 | 2 |\n| --- | --- |\n:::\n\nBelow\n'
-		);
+		// between it and the container survives.
+		expect(await editor.bridge.getSource()).toBe('Ab\n\n:::callout Title\n:::\n\nBelow\n');
 		expect(await stateConsistencyViolations(page)).toEqual([]);
 		expect(await capturedErrors(page)).toEqual([]);
 
@@ -81,7 +78,7 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		expect(await editor.bridge.getSource()).toBe(TBL_FIXTURE);
 	});
 
-	test('Gate 6b: mid-title → body table cell; the title truncates in place, kind kept', async ({
+	test('Gate 6b: mid-title → the header cell; the title truncates in place, the table goes whole', async ({
 		page
 	}) => {
 		await editor.loadContent(TBL_FIXTURE);
@@ -94,11 +91,9 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		await editor.bridge.waitForSourceContains(':::callout Tit\n');
 
 		const callout = await readCallout(page, 1);
-		expect(callout.childKinds).toEqual(['directiveOpenerLine', 'table']);
+		expect(callout.childKinds).toEqual(['directiveOpenerLine']);
 		expect(callout.childTexts[0]).toBe(':::callout Tit');
-		expect(await editor.bridge.getSource()).toBe(
-			'Above\n\n:::callout Tit\n| 1 | 2 |\n| --- | --- |\n:::\n\nBelow\n'
-		);
+		expect(await editor.bridge.getSource()).toBe('Above\n\n:::callout Tit\n:::\n\nBelow\n');
 		expect(await activeBlockPath(page)).toEqual([1, 0]);
 		expect(await capturedErrors(page)).toEqual([]);
 
@@ -114,8 +109,8 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		page
 	}) => {
 		await editor.loadContent(TBL_ABOVE_FIXTURE);
-		// Anchor in body cell "1", row 1: snapping to whole rows removes that row and the header
-		// survives, and the end in the title must keep "le" in the title row.
+		// Anchor in body cell "1", the table's last row: the range takes the whole table, and the end in
+		// the title must keep "le" in the title row.
 		await dragBetweenPoints(
 			page,
 			await cellCenter(page, 2),
@@ -126,33 +121,28 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		await editor.waitForCrossBlock(false);
 		await editor.bridge.waitForSourceContains(':::callout le');
 
-		const callout = await readCallout(page, 1);
+		const callout = await readCallout(page, 0);
 		expect(callout.childKinds).toEqual(['directiveOpenerLine', 'paragraph']);
 		expect(callout.childTexts).toEqual([':::callout le', 'Body']);
-		expect(await editor.bridge.getSource()).toBe(
-			'| a | b |\n| --- | --- |\n\n:::callout le\nBody\n:::\n\nBelow\n'
-		);
+		expect(await editor.bridge.getSource()).toBe(':::callout le\nBody\n:::\n\nBelow\n');
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
-	test('Gate 6d: table → table across the wall; the between chrome clears, never deletes', async ({
+	test('Gate 6d: table → table across the wall; both tables go whole, the opening stays', async ({
 		page
 	}) => {
 		await editor.loadContent(TBL_BOTH_FIXTURE);
-		// Outer body cell "1" to inner header cell "c": both endpoints are in tables and the title
-		// sits between them, which covers the shared helper.
+		// Outer body cell "1" (its last row) to inner header cell "c" (its first): each table goes whole,
+		// and the opening between them stays.
 		await dragBetweenPoints(page, await cellCenter(page, 2), await cellCenter(page, 4));
 		await editor.waitForCrossBlock(true);
 		await page.keyboard.press('Delete');
 		await editor.waitForCrossBlock(false);
-		await editor.bridge.waitForSourceContains(':::callout\n');
+		await editor.bridge.waitForSourceEquals(':::callout Title\n:::\n\nBelow\n');
 
-		const callout = await readCallout(page, 1);
-		expect(callout.childKinds).toEqual(['directiveOpenerLine', 'table']);
-		expect(callout.childTexts[0]).toBe(':::callout');
-		expect(await editor.bridge.getSource()).toBe(
-			'| a | b |\n| --- | --- |\n\n:::callout\n| 3 | 4 |\n| --- | --- |\n:::\n\nBelow\n'
-		);
+		const callout = await readCallout(page, 0);
+		expect(callout.childKinds).toEqual(['directiveOpenerLine']);
+		expect(callout.childTexts[0]).toBe(':::callout Title');
 		expect(await stateConsistencyViolations(page)).toEqual([]);
 		expect(await capturedErrors(page)).toEqual([]);
 
@@ -179,7 +169,8 @@ test.describe('reserved child-0 chrome: wall × table branch', () => {
 		await editor.waitForCrossBlock(false);
 		await editor.bridge.waitForSourceNotContains(':::callout');
 
-		expect(await editor.bridge.getSource()).toBe('| a | b |\n| --- | --- |\n\nBelow\n');
+		// The range starts in the table's last row, which takes the table whole too.
+		expect(await editor.bridge.getSource()).toBe('Below\n');
 		expect(await stateConsistencyViolations(page)).toEqual([]);
 		expect(await capturedErrors(page)).toEqual([]);
 

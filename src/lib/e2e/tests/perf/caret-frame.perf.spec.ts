@@ -15,8 +15,7 @@ import {
 declare const process: { env: Record<string, string | undefined> };
 
 // The drawn caret lands in the frame the letter does, where the browser's caret would be
-// (requirements/perf/caret-frame.md). Count rows: rows A and B need no baseline, row C gates on a
-// blessed per-move count. They run under both perf scripts, the `perf:check` gate included.
+// (requirements/perf/caret-frame.md). Row C gates on a blessed per-move count; A and B need none.
 test.skip(!process.env.PERF, 'run via `npm run perf:e2e` or `npm run perf:check`');
 
 const ONE_MB = 1_000_000;

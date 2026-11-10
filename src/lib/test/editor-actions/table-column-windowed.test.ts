@@ -5,9 +5,8 @@ import { makeTableMutations } from './table-mutations-harness';
 
 afterEach(() => vi.restoreAllMocks());
 
-// An unmounted row has no BlockListState, so scoping every row unconditionally throws on the
-// first unmounted one. Only mounted rows are scoped; the rest go through the table scope's
-// copy and raw rebuild and must still change bytes.
+// An unmounted row has no BlockListState, so only mounted rows are scoped; the rest go through
+// the table scope's copy and raw rebuild and must still change bytes.
 
 const TALL = '| a | b |\n| --- | --- |\n| c | d |\n| e | f |\n';
 

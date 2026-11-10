@@ -12,9 +12,8 @@ function parseBlock(src: string): CstNode {
 	return doc.children[0];
 }
 
-// Eligibility is a role-pair rule, never a kind rule (schema/merge-rules.ts), so one kind per
-// role covers the whole matrix; which role each kind carries is pinned exhaustively in
-// block-kind-descriptor.test.ts. `satisfies` fails a new role that gets no representative here.
+// Eligibility is a role-pair rule, never a kind rule, so one kind per role covers the matrix
+// (which role a kind carries: block-kind-descriptor.test.ts). `satisfies` fails an unsampled role.
 const ROLE_SAMPLE = {
 	prose: 'paragraph',
 	'prose-absorber': 'heading',

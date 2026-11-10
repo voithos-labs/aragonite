@@ -41,6 +41,32 @@ test.describe('whole-block delete: where the caret goes after the block', () => 
 	});
 });
 
+test.describe('whole-block delete: a container below', () => {
+	const CONTAINERS = [
+		['a quote', '> b\n', '> xb\n'],
+		['a list', '- b\n', '- xb\n'],
+		['a table', '| B |\n| - |\n| c |\n', '| xB |\n| - |\n| c |\n']
+	];
+	for (const mode of ['source', 'live'] as const) {
+		for (const [name, below, typed] of CONTAINERS) {
+			test(`(${mode}) Delete lands at the start of ${name}’s text`, async ({ page }) => {
+				const editor = new EditorPage(page);
+				await editor.goto();
+				await editor.setPresentationMode(mode);
+				await editor.loadContent(`a\n\n---\n\n${below}`);
+				await editor.focusBlockEnd(0);
+				await page.keyboard.press('ArrowDown');
+				await expect(wholeBlockInput(page.locator('.thematic-break-block'))).toBeFocused();
+
+				await page.keyboard.press('Delete');
+				await editor.bridge.waitForSourceNotContains('---');
+				await page.keyboard.type('x');
+				await editor.bridge.waitForSourceEquals(`a\n\n${typed}`);
+			});
+		}
+	}
+});
+
 test.describe('whole-block delete: the only block', () => {
 	for (const key of ['Backspace', 'Delete', 'ControlOrMeta+x']) {
 		test(`${key} on a lone rule leaves an empty paragraph holding the caret`, async ({ page }) => {

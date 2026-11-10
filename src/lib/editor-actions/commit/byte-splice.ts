@@ -6,33 +6,33 @@
  */
 
 import type { CstNode } from '../../core/nodes';
-import type { DocumentView } from '../../core/node-views';
+import type { DocumentView, NodeView } from '../../core/node-views';
 import type { Landing } from '../../selection/primitives';
 import type { BlockComponent } from '../../block-component';
 import type { SourceSplice, SpliceCaret } from '../../action-contracts';
+import type { ScopedOpDescriptor } from '../../schema/operations';
+import { blockFacts } from '../../schema/block-facts';
+import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { serialize } from '../../core/serializer';
 import { docPathFrom } from '../../core/coordinate-spaces';
 import { spliceMany } from '../../tree-operations/splice-many';
 import {
 	spliceReading,
-	type ByteChange,
 	type SpliceReading,
 	type SpliceWindow
 } from '../../tree-operations/byte-splice';
+import type { ByteChange } from '../../tree-operations/byte-changes';
 import {
 	applyStructuralChangeToIdsRefs,
 	replacePreservingFirst,
-	stampStructuralChange,
+	stampOwned,
 	type StructuralChange
 } from '../../tree-operations/structural-change';
-import { byteOfLeaf, childRawStarts, leafAtByte } from '../../tree-operations/container-offsets';
+import { byteOfLeaf, leafAtByte } from '../../tree-operations/container-offsets';
 import { readCurrentSelection } from '../../selection/native-bridge';
 import type { BlockReach } from './change-record';
-import {
-	gapEligibleAt,
-	type GapCaretPosition,
-	type GapCaretSelection
-} from '../../selection/gap-caret';
+import type { GapCaretSelection } from '../../selection/gap-caret';
+import { gapAtByte } from '../../selection/range-bytes';
 import { replaceRefs } from '../../block-lists/child-refs';
 import { assertIdsInLockstep, assertSpliceReadsBack } from '../../invariants/install';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
@@ -44,6 +44,7 @@ import {
 import { offsetPastClosers } from '../../tree-operations/written-openers';
 import type { EditorActionsDeps } from '../deps';
 import type { CommitArgs } from './structural-commit';
+import type { ReplacedBlocks } from './emit-edit';
 
 export function createByteSplice(
 	deps: EditorActionsDeps,
@@ -53,28 +54,46 @@ export function createByteSplice(
 		const { grammar } = deps.reading;
 		const was = { ...deps.doc };
 		const before = serialize(was);
-		const read = spliceReading(was, before, splice.changes, grammar);
-		const closers = read ? splicedOpenerClosers(was, before, splice.changes, read, grammar) : [];
-		const changes =
-			closers.length > 0 ? withSplicedClosers(before, splice.changes, closers) : splice.changes;
-		const reading = closers.length > 0 ? spliceReading(was, before, changes, grammar) : read;
-		const windows = reading?.windows ?? [];
-		// Measured in the caller's bytes, then past the closers, so a caret inside a write stays in front.
-		const named = splice.caret === 'keep' ? caretKept(deps, splice.changes, windows) : splice.caret;
-		const caret = named && { ...named, at: offsetPastClosers(named.at, closers) };
+		let changes = splice.changes;
+		let reading: SpliceReading | null = null;
+		let windows: SpliceWindow[] = [];
+		let caret: SpliceCaret | null = null;
+		// Until the read finds the first window, the event names the block the snapshot sits in.
+		const op: ScopedOpDescriptor = {
+			eventPath: docPathFrom([splice.snapshot.path[0] ?? 0]),
+			...splice.op
+		};
 		let saved: { children: CstNode[]; ids: string[]; refs: (BlockComponent | undefined)[] } | null =
 			null;
+		let replaced: ReplacedBlocks = 'unknown';
 		return __commit({
 			entry: 'commitSource',
 			snapshot: splice.snapshot,
-			op: { ...splice.op, eventPath: docPathFrom([windows[0]?.at ?? 0]) },
+			op,
 			history: splice.history ?? 'entry',
 			reach: () => reachOf(windows),
 			discardIfNoop: true,
+			// Inside the frame, so a block opener that throws on the new bytes fails the write.
+			prepare: () => {
+				const read = spliceReading(was, before, splice.changes, grammar);
+				const closers = read
+					? splicedOpenerClosers(was, before, splice.changes, read, grammar)
+					: [];
+				if (closers.length > 0) changes = withSplicedClosers(before, splice.changes, closers);
+				reading = closers.length > 0 ? spliceReading(was, before, changes, grammar) : read;
+				windows = reading?.windows ?? [];
+				if (!('eventPath' in splice.op)) op.eventPath = docPathFrom([windows[0]?.at ?? 0]);
+				// Measured in the caller's bytes, then past the closers, so a caret inside a write stays
+				// in front.
+				const named =
+					splice.caret === 'keep' ? caretKept(deps, splice.changes, windows) : splice.caret;
+				caret = named && { ...named, at: offsetPastClosers(named.at, closers) };
+				return true;
+			},
 			apply: () => {
 				if (!reading) return false;
 				saved = { children: deps.doc.children, ids: deps.blockIds, refs: [...deps.blockRefs] };
-				installReading(deps, reading);
+				replaced = installReading(deps, reading);
 				// A range the editor holds names the blocks just replaced; the landing puts the caret down.
 				if (deps.selectionState.ownsRange) {
 					deps.selectionState.clear();
@@ -89,11 +108,12 @@ export function createByteSplice(
 				);
 				return { nodes: tops, tops };
 			},
+			replaced: () => replaced,
 			check: () => {
 				assertSpliceReadsBack(deps.doc.children, placed(windows), grammar);
 				if (reading)
 					assertInvariant('spliced-opener-closed', () =>
-						checkSplicedChangesClosed(was, before, changes, reading, grammar)
+						checkSplicedChangesClosed(was, before, changes, reading!, grammar)
 					);
 			},
 			rollback: () => {
@@ -109,8 +129,9 @@ export function createByteSplice(
 }
 
 /** The live document's top-level blocks read again as `reading` says, ids and refs moved with
- *  them; blocks outside its windows keep their nodes. */
-export function installReading(deps: EditorActionsDeps, reading: SpliceReading): void {
+ *  them; blocks outside its windows keep their nodes. Returns the blocks it replaced. */
+export function installReading(deps: EditorActionsDeps, reading: SpliceReading): ReplacedBlocks {
+	const replaced = replacedBy(deps.doc.children, reading.windows);
 	// Off the tree's `$state` proxy, where every index a splice shifts is a tracked write.
 	const children = [...deps.doc.children];
 	const ids = [...deps.blockIds];
@@ -119,7 +140,9 @@ export function installReading(deps: EditorActionsDeps, reading: SpliceReading):
 	for (const window of [...reading.windows].reverse()) {
 		spliceMany(children, window.at, window.count, window.blocks);
 		const change = changeOf(window);
-		stampStructuralChange(children, change, deps.sharing);
+		// The reading gave its blocks their ids, so a window holding a long container's kept
+		// children walks none of them.
+		stampOwned(children, change, deps.sharing);
 		applyStructuralChangeToIdsRefs(change, ids, refs);
 	}
 	deps.doc.children = children;
@@ -127,9 +150,26 @@ export function installReading(deps: EditorActionsDeps, reading: SpliceReading):
 	assertIdsInLockstep('byte splice', ids.length, children.length);
 	deps.setBlockIds(ids);
 	replaceRefs(deps.blockRefs, refs);
+	return replaced;
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────
+
+/** The blocks `windows` take out of `tops` and put in; a window inside a container names only the
+ *  run of its children read again, so a long list isn't walked whole. */
+function replacedBy(tops: readonly NodeView[], windows: readonly SpliceWindow[]): ReplacedBlocks {
+	const kids = (at: number) => tops[at].children ?? [];
+	return {
+		before: windows.flatMap(({ at, count, run }) =>
+			run ? kids(at).slice(run.at, run.at + run.count) : tops.slice(at, at + count)
+		),
+		after: windows.flatMap(({ at, blocks, run }) => {
+			if (!run) return blocks;
+			const now = blocks[0].children ?? [];
+			return now.slice(run.at, run.at + run.count + now.length - kids(at).length);
+		})
+	};
+}
 
 function changeOf({ at, count, blocks }: SpliceWindow): StructuralChange {
 	if (count > 0 && blocks.length > 0) return replacePreservingFirst(at, count, blocks.length);
@@ -177,48 +217,21 @@ function placed(windows: readonly SpliceWindow[]): { at: number; count: number }
 	});
 }
 
-/** The caret at byte `caret.at` of the document's bytes, through the leaf holding it (a block held
- *  whole focuses itself), or the gap caret between blocks. */
-function landingAt(doc: DocumentView, caret: SpliceCaret): Landing | GapCaretSelection | null {
+/** The caret at byte `caret.at`: text at that byte exactly, else through the block's own landing
+ *  (a block held whole, or a picture of its source, which that shows), or the gap caret. */
+export function landingAt(
+	doc: DocumentView,
+	caret: SpliceCaret
+): Landing | GapCaretSelection | null {
 	if (caret.holds === 'boundary') {
 		const gap = gapAtByte(doc, caret.at);
 		if (gap) return { gapCaret: gap };
 	}
 	const leaf = leafAtByte(doc, caret.at);
 	if (!leaf) return null;
-	return { path: docPathFrom(leaf.path), offset: leaf.offset };
-}
-
-/** The deepest boundary a gap caret may take where a block starts, or a container ends, at byte
- *  `at`; null where none may. */
-export function gapAtByte(doc: DocumentView, at: number): GapCaretPosition | null {
-	let found: GapCaretPosition | null = null;
-	let parentPath: number[] = [];
-	let children = doc.children;
-	let starts = topLevelStarts(doc);
-	let base = 0;
-	let end = serialize(doc).length;
-	for (;;) {
-		const index = at === end ? children.length : starts.findIndex((s) => base + s === at);
-		if (index >= 0 && gapEligibleAt(doc, parentPath, index)) found = { parentPath, index };
-		let i = children.length - 1;
-		while (i > 0 && base + starts[i] > at) i--;
-		const child = children[i];
-		if (!child?.children?.length) return found;
-		base += starts[i];
-		end = base + child.raw.length;
-		parentPath = [...parentPath, i];
-		starts = childRawStarts(child);
-		children = child.children;
-	}
-}
-
-function topLevelStarts(doc: DocumentView): number[] {
-	const starts: number[] = [];
-	let at = doc.prefix.length;
-	for (const child of doc.children) {
-		starts.push(at + child.leadingTrivia.length);
-		at += child.leadingTrivia.length + child.raw.length;
-	}
-	return starts;
+	const point = { path: docPathFrom(leaf.path), offset: leaf.offset };
+	const kind = blockNodeAt(doc, leaf.path)?.kind;
+	const exact = caret.holds === 'text' && kind && blockFacts(kind).textPosition === 'always';
+	// Put down as a stored caret is, since a kind's own landing rule would move it off the byte.
+	return exact ? { anchor: point, focus: point } : point;
 }

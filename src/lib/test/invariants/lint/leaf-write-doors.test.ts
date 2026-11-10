@@ -20,9 +20,7 @@ const BARREL_REASON = 'the tree-operations barrel re-exports it';
 const MARKER_WRAPPED: Record<string, string> = {
 	[CONTENT_WRITE]: 'the content write',
 	'src/lib/tree-operations/node-ops.ts': '`joinIntoLeaf`, the one join into a leaf',
-	[BLOCK_EDIT_CORE]: '`replaceBlock`, the one replace write',
-	'src/lib/selection/cross-block/range-delete/range-delete-ceremony.ts':
-		'`installSurvivor`, the one install of what a range delete leaves at a block'
+	[BLOCK_EDIT_CORE]: '`replaceBlock`, the one replace write'
 };
 
 /** In-place writers whose bytes no list item's first slot can hold, each with why. */

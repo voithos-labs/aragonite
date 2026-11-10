@@ -13,7 +13,7 @@ export interface Reading {
 	/** The block and inline syntax this editor switched on, plugins included. */
 	readonly grammar: GrammarView;
 	/** Resolves reference links against the document's link-reference definitions; rebuilt after
-	 *  each commit, absent with no definitions. */
+	 *  a write that took one out or put one in, absent with no definitions. */
 	readonly resolver: LinkReferenceResolver | undefined;
 	/** The definitions' fingerprint, which the inline cache compares. */
 	readonly resolverSignature: string;

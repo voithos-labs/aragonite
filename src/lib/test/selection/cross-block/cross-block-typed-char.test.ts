@@ -11,14 +11,16 @@ import type { EditEvent } from '#lib/editor-events.js';
 import type { LinkReferenceResolver } from '#lib/core/inline/scan/definitions.js';
 
 /**
- * Mirrors the shell's `edit` subscriber (`Editor.svelte`): rebuilds the link-reference map whenever
- * the gate says a commit could have changed the definitions, from the live post-commit document.
+ * Mirrors the editor's `refreshDefinitions` (`Editor.svelte`): rebuilds the link-reference map
+ * whenever the blocks a write replaced could have changed the definitions.
  */
 function trackLrdResolver(env: ReturnType<typeof makeEnv>): () => LinkReferenceResolver {
 	let resolve = definitionsOf(env.doc.children).resolve;
-	env.events.on('edit', (e) => {
-		if (lrdMapCouldChange(env.doc, e)) resolve = definitionsOf(env.doc.children).resolve;
-	});
+	const refresh = env.deps.refreshDefinitions;
+	env.deps.refreshDefinitions = (replaced) => {
+		refresh(replaced);
+		if (lrdMapCouldChange(replaced)) resolve = definitionsOf(env.doc.children).resolve;
+	};
 	return () => resolve;
 }
 
@@ -125,8 +127,8 @@ describe('cross-block typed character: kind re-derivation at offset 0', () => {
 	});
 });
 
-// A commit that re-derives the kind must declare an op the link-reference gate treats as
-// kind-unstable, or the gate reads the post-commit kind and keeps serving a destroyed definition.
+// A commit that re-derives the kind must say it replaced blocks, or the resolver keeps serving a
+// destroyed definition.
 describe('cross-block typed character: link-reference resolver freshness', () => {
 	it('a type-replace that destroys a definition stops the resolver serving it', async () => {
 		const env = makeEnv('[label]: /a\n\n[ref]: /b\n\nSee [ref] and [label].\n');

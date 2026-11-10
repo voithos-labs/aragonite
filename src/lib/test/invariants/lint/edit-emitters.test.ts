@@ -1,8 +1,8 @@
 /**
- * G4.107: an `edit` event fires at the write that changed the bytes, so only the writes emit it,
- * never a timer or a batch that outlives them. `input` also means "this write held the block's
- * kind", a premise the link-reference map check (`components/link-reference-map.ts`) reads but cannot verify,
- * so only the in-place leaf write, whose trial reparse found no kind change, may declare it.
+ * G4.107: only the writes announce an `edit`, as their bytes land, through `emitEdit` (G4.338), which
+ * hands the link definitions what the write replaced first. `input` also promises the block kept its
+ * kind, which subscribers read but cannot verify, so only the in-place leaf write, whose trial
+ * reparse found no kind change, may declare it.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -15,16 +15,19 @@ import {
 } from './scan-source';
 
 /** The writes, one site each: a commit, a keystroke written in place, undo and redo, and a whole
- *  replace-all. Keyed by function, so a second emit in one of these files still fails. */
+ *  replace-all. Keyed by function, so a second call in one of these files still fails. */
 const EDIT_EMITTERS = [
 	'src/lib/editor-actions/commit/commit-frame.ts :: run',
 	'src/lib/editor-actions/commit/history.ts :: install',
 	'src/lib/editor-actions/search-replace.ts :: replaceSubtrees'
 ];
 
+const THE_EMIT = 'src/lib/editor-actions/commit/emit-edit.ts :: emitEdit';
+
 const INPUT_EMITTER = 'src/lib/editor-actions/commit/leaf-commit.ts :: typeLeaf';
 
 const EMITS_EDIT = /\bemit\(\s*['"]edit['"]/g;
+const CALLS_EMIT_EDIT = /(?<!function )\bemitEdit\(/g;
 
 /** Either declaration shape: an OpDescriptor's `kind`, or an EditEvent's `op`. */
 const DECLARES_INPUT_OP = /\b(?:kind|op)\s*:\s*'input'/g;
@@ -39,7 +42,8 @@ function sitesOf(sources: SourceFile[], pattern: RegExp): string[] {
 	});
 }
 
-const editEmitters = (sources: SourceFile[]) => sitesOf(sources, EMITS_EDIT);
+const editEmits = (sources: SourceFile[]) => sitesOf(sources, EMITS_EDIT);
+const editEmitters = (sources: SourceFile[]) => sitesOf(sources, CALLS_EMIT_EDIT);
 const inputOpEmitters = (sources: SourceFile[]) => sitesOf(sources, DECLARES_INPUT_OP);
 
 describe('G4.107 only a write emits an edit event', () => {
@@ -49,7 +53,11 @@ describe('G4.107 only a write emits an edit event', () => {
 		expect(sources.length).toBeGreaterThan(0);
 	});
 
-	it('only the writes emit `edit`, one site each', () => {
+	it('G4.338 `edit` is emitted in one place, after the definitions hear what was replaced', () => {
+		expect(editEmits(sources)).toEqual([THE_EMIT]);
+	});
+
+	it('only the writes announce `edit`, one site each', () => {
 		expect(editEmitters(sources).sort()).toEqual(EDIT_EMITTERS);
 	});
 
@@ -60,8 +68,14 @@ describe('G4.107 only a write emits an edit event', () => {
 
 describe('edit emitter scans: matcher self-tests', () => {
 	const scanInput = (src: string) => inputOpEmitters([sourceFile('x.ts', src)]);
-	const scanEdit = (src: string) => editEmitters([sourceFile('x.ts', src)]);
+	const scanEdit = (src: string) => editEmits([sourceFile('x.ts', src)]);
+	const scanAnnounce = (src: string) => editEmitters([sourceFile('x.ts', src)]);
 	const top = 'x.ts :: <module>';
+
+	it('catches a call to emitEdit, and leaves its declaration alone', () => {
+		expect(scanAnnounce('emitEdit(deps, event, replaced);')).toEqual([top]);
+		expect(scanAnnounce('export function emitEdit(deps: Deps, event: EditEvent) {}')).toEqual([]);
+	});
 
 	it('catches an edit emit, and leaves another event and a subscription alone', () => {
 		expect(scanEdit("deps.events.emit('edit', event)")).toEqual([top]);
@@ -90,6 +104,6 @@ describe('edit emitter scans: matcher self-tests', () => {
 	it('ignores a declaration or an emit quoted inside a comment', () => {
 		const src = "// op: 'input' means the kind held, emit('edit', e)\nconst held = true;";
 		expect(inputOpEmitters([sourceFile('x.ts', src)])).toEqual([]);
-		expect(editEmitters([sourceFile('x.ts', src)])).toEqual([]);
+		expect(editEmits([sourceFile('x.ts', src)])).toEqual([]);
 	});
 });

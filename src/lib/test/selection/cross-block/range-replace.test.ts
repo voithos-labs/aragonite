@@ -79,7 +79,8 @@ const OUTCOMES: Record<string, Record<Removal, Outcome>> = {
 		cut: [GONE, [[1], 0]],
 		type: ['lead\n\nx\n\ntail\n', [[1], 1]],
 		paste: ['lead\n\nP\n\ntail\n', [[1], 1]],
-		compose: [GONE, [[0], 4]],
+		// A composition removes as Delete does, so the caret lands after what went.
+		compose: [GONE, [[1], 0]],
 		Enter: [GONE, [[0], 4]]
 	},
 	'a whole table': {

@@ -14,6 +14,7 @@ import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { makeEditorActionsDeps } from '../../harness/editor-actions';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { commandContext } from '../../harness/command-context';
+import { freshBytes } from '../../harness/copied-text';
 
 export function rangeContext(
 	deps: EditorActionsDeps,
@@ -31,7 +32,8 @@ export function rangeContext(
 		blockEdit: createBlockEditActions(deps, controller),
 		pasteCoordinator: createPasteCoordinator(deps, controller),
 		activePlugins: everyInstalledPlugin,
-		commands: commandContext({ ownsRange: () => deps.selectionState.ownsRange })
+		commands: commandContext({ ownsRange: () => deps.selectionState.ownsRange }),
+		bytes: freshBytes(() => deps.doc)
 	};
 }
 

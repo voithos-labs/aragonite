@@ -25,10 +25,15 @@ export interface LawInput {
 	carets: { at: number; texts: string[] }[];
 }
 
-/** `count` documents from `seed`, each in both modes, with their ranges and carets. */
-export function lawInputs(count: number, seed: number, grammar: GrammarView): LawInput[] {
+/** `count` documents drawn from `seed`, each in both modes, with their ranges and carets. */
+export function lawInputs(
+	count: number,
+	seed: number,
+	grammar: GrammarView,
+	documents: fc.Arbitrary<string> = arbLawDocument
+): LawInput[] {
 	const clips = fc.sample(arbClipboardText, { numRuns: 400, seed: seed + 1 });
-	const sources = fc.sample(arbLawDocument, { numRuns: count, seed });
+	const sources = fc.sample(documents, { numRuns: count, seed });
 	return sources.flatMap((source, d) => {
 		const doc = readAsOpened(source, { grammar, scope: 'document' });
 		return (['source', 'live'] as const).map((mode, m) => {

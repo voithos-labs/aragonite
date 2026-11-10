@@ -17,9 +17,8 @@ test.describe('selection: keyboard: edge cases', () => {
 		await editor.waitForCrossBlock(false);
 	});
 
-	// The table sibling of the case above. Asserted through the state, never through
-	// `[data-painted-range]`: that attribute is what a stale pair hides the caret with, so waiting
-	// on it reads a selection nothing paints as no selection at all.
+	// The table sibling of the case above, asserted through the state: `[data-painted-range]` is
+	// what a stale pair hides the caret with, so waiting on it would read no selection at all.
 	test('Shift+ArrowDown out of a last-block table leaves the cell editable', async () => {
 		await editor.loadContent('intro\n\n| aa | bb |\n| -- | -- |\n| cc | wxyz |\n');
 		await editor.page.locator('.table-cell').last().click();

@@ -47,6 +47,53 @@ export const arbLawDocument: fc.Arbitrary<string> = fc.oneof(
 	{ arbitrary: arbLiveDoc, weight: 1 }
 );
 
+/** An HTML block of each of the seven types, as lines: closed, spanning a blank line, left open. */
+const HTML_BLOCKS: string[][] = [
+	['<script>', 'let a = 1;', '</script>'],
+	['<pre>', 'code', '', 'more', '</pre>'],
+	['<style>p { color: red; }</style>'],
+	['<textarea>', 'left open'],
+	['<!-- a note -->'],
+	['<!--', 'a', '', 'b', '-->'],
+	['<?php echo 1; ?>'],
+	['<!DOCTYPE html>'],
+	['<![CDATA[', 'x < y', ']]>'],
+	['<div>', '*not emphasis*', '</div>'],
+	['<div>'],
+	['</div>'],
+	['<table><tr><td>cell</td></tr></table>'],
+	['<span class="x">'],
+	['</a>'],
+	['<my-element>', 'text', '</my-element>']
+];
+
+const PROSE: string[][] = [['alpha bravo'], ['one', 'two'], ['**bold** and `code`'], ['# head']];
+
+/** A block, or one inside a quote or a list item, its later lines indented under the marker. */
+const arbHtmlPart: fc.Arbitrary<string[]> = fc
+	.tuple(
+		fc.oneof({ arbitrary: fc.constantFrom(...HTML_BLOCKS), weight: 2 }, fc.constantFrom(...PROSE)),
+		fc.constantFrom('', '> ', '- ')
+	)
+	.map(([[first, ...rest], marker]) => {
+		const under = (l: string) =>
+			marker === '> ' ? (l === '' ? '>' : `> ${l}`) : l === '' || marker === '' ? l : `  ${l}`;
+		return [`${marker}${first}`, ...rest.map(under)];
+	});
+
+/** Documents built around HTML blocks, two to four parts apart by a blank line or touching. */
+export const arbHtmlLawDocument: fc.Arbitrary<string> = fc
+	.record({
+		parts: fc.array(fc.tuple(arbHtmlPart, fc.boolean()), { minLength: 2, maxLength: 4 }),
+		eol: fc.constantFrom('\n', '\n', '\r\n')
+	})
+	.map(({ parts, eol }) =>
+		parts
+			.flatMap(([lines, touching], i) => (i === 0 || touching ? lines : ['', ...lines]))
+			.map((line) => line + eol)
+			.join('')
+	);
+
 export const arbMode = fc.constantFrom<PresentationMode>('source', 'live');
 
 /** The document's line endings, a column of every report. */

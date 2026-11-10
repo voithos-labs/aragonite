@@ -34,7 +34,24 @@ const ALLOWED: Record<string, string> = {
 		'the byte a caret sits at, which the byte-splice replay hands the splice (a read)',
 	'src/lib/tree-operations/node-primitives.ts': 'the block at a caret’s path (a read)',
 	'src/lib/schema/whole-block-unit.ts': 'whether a caret’s block is held whole (a read)',
-	'src/lib/core/parser.ts': 'whether a block is a blank line (a read)'
+	'src/lib/core/parser.ts': 'whether a block is a blank line (a read)',
+	'src/lib/core/serializer.ts': 'the bytes the range-edit core answers, as a document (a read)',
+	'src/lib/selection/primitives.ts': 'a named range’s cell end',
+	'src/lib/selection/selection-state.svelte.ts':
+		'a named range’s ends as the editor orders and snaps them, which the core’s answer reads',
+	'src/lib/selection/range-clipboard.ts': 'the core’s copy of a range, which a cut must write',
+	'src/lib/test/range-edit/expected.ts':
+		'law 3’s declared exceptions, which both law harnesses read from the same predicate',
+	'src/lib/schema/block-facts.ts': 'the block facts that exception reads (a read)',
+	'src/lib/range-edit/edit-range.ts': 'the core’s answer for a block removed whole (a read)',
+	'src/lib/range-edit/host.ts': 'the host that answer reads the document through',
+	'src/lib/selection/cross-block/range-removal.ts': 'the core’s name for each block gesture',
+	'src/lib/editor-actions/commit/byte-splice.ts':
+		'where a byte splice puts the core’s caret down, which G1.200 holds each route to (a read)',
+	'src/lib/selection/caret-target.ts': 'the leaf a landing on a block focuses (a read)',
+	'src/lib/block-component.ts': 'the edges a block’s own `focus` enters at, a landing row’s oracle',
+	'src/lib/schema/block-kind-descriptor.ts':
+		'every registered kind and its conformance fixture, which a landing row draws (a read)'
 };
 const PACKAGES = new Set(['vitest', 'fast-check', 'node:fs', 'node:path']);
 

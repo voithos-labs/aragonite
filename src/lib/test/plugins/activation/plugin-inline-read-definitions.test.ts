@@ -2,6 +2,7 @@
 // A plugin's inline read in a mounted editor resolves the document's link reference definitions.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { definePlugin, type EditorContext } from '#lib/plugin.js';
+import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
 import { installEditorDomStubsForTests } from '#lib/testing.js';
 import { tocPlugin } from '#packages/toc/src/index.js';
 import { collectHeadings } from '#packages/toc/src/heading-outline.js';
@@ -23,8 +24,8 @@ const probe = definePlugin({
 });
 
 // Short fixtures, so every block stays under the windowing watermark and mounts.
-function mountWith(source: string): MountedEditor {
-	return mountEditor({
+function mountWith(source: string): MountedEditor<EditorTestSurface> {
+	return mountEditor<EditorTestSurface>({
 		source,
 		plugins: [tocPlugin(), footnotesPlugin(), probe],
 		scrollMode: 'host'
@@ -81,6 +82,20 @@ describe('a reader held across a commit reads the definitions current at the cal
 		expect(label()).toBe('See [docs][r]');
 
 		await replaceText(mounted, 'tail', '[r]: /x');
+
+		expect(label()).toBe('See docs');
+	});
+
+	it('resolves a reference once a byte splice adds its definition', async () => {
+		const mounted = mountWith('# See [docs][r]\n\ntail\n');
+		await mounted.settle();
+		const read = editorContext!.computeInlineContent;
+		const label = () => collectHeadings(editorContext!.document, 6, read)[0].label;
+		const op = { kind: 'replaceBlock', detail: { source: 'draft' } } as const;
+		const after = '# See [docs][r]\n\n[r]: /x\n';
+
+		await mounted.instance.__test.spliceSource(after, { at: after.length, holds: 'text' }, op);
+		await mounted.settle();
 
 		expect(label()).toBe('See docs');
 	});

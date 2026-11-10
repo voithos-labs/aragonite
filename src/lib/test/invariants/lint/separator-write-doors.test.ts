@@ -63,9 +63,7 @@ const KIND_REPORTING_CALLERS: Record<string, string> = {
 		'defines `deleteNode`, and the join whose delete its caller reports',
 	'src/lib/tree-operations/reorder.ts': 'defines the move',
 	'src/lib/tree-operations/index.ts': 're-exports the delete and the join',
-	'src/lib/editor-actions/block-edit-core.ts':
-		'the delete, the join and the neighbour delete report `removed`',
-	'src/lib/editor-actions/unwrap-strategies.ts': 'the emptied item’s delete reports `removed`',
+	'src/lib/editor-actions/block-edit-core.ts': 'the join reports `removed`',
 	'src/lib/editor-actions/reorder-action.ts': 'both moves report `moved`'
 };
 

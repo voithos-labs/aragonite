@@ -15,9 +15,8 @@ const sourceOf = (page: Page, pane: Pane) =>
 		pane
 	);
 
-// The `?reads` variant of the two-editor page, in live mode: the first editor lists emoji and
-// latex, the second lists neither, and both list the toc and footnotes
-// (requirements/plugins/plugins-prop-scoped-reads.md).
+// The `?reads` two-editor page, live mode: the first editor lists emoji and latex, the second
+// neither, both list the toc and footnotes (requirements/plugins/plugins-prop-scoped-reads.md).
 test.beforeEach(async ({ page }) => {
 	await gotoReady(page, '/test/plugins/activation?reads');
 });

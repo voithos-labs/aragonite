@@ -120,13 +120,17 @@ These checks run in three kinds of place:
 | G1.175 | The right-click menu opens over the selection only while one is held | A·N |
 | G1.178 | A text end inside a table cell pairs only with an end in that same cell | A·N |
 | G1.187 | A range across blocks paints a box over exactly the blocks whose bytes a copy of it takes | harness·P |
-| G1.188 | A cut writes the words its removal takes, save five named classes, until range stage 3 | harness·N |
+| G1.188 | _Retired upward_: the removal is the range-edit core's, so a cut writes what it takes (G1.199) | harness |
 | G1.189 | An undo or redo puts back no block read under a grammar the editor no longer reads | A·N |
 | G1.190 | While a draft is open, every write tells it everything the write changed | A·N |
 | G1.191 | A marked line shape's `reads` takes the markers it writes whole | A·N |
 | G1.192 | One block type name reads the same facts in every editor running it | A·N |
+| G1.199 | Every route that removes a range, or a block whole, leaves the range-edit core's bytes, in one undo step | harness |
+| G1.200 | Every removal route leaves the caret where the range-edit core puts it | harness |
+| G1.201 | A byte splice inside a container reads only children whose old bytes read back as themselves | A·N |
 | G1.203 | Paint a block can't hold is left out with a dev warning, never drawn somewhere else | A·N |
 | G1.205 | A painted mark covers the document bytes it was painted at, and its handlers read those bytes back | N |
+| G1.206 | A write that replaced no link definition leaves the definitions as they were | A·N |
 
 ### The entries
 
@@ -208,7 +212,7 @@ These checks run in three kinds of place:
 
 **G1.43 · A landing is a value** (`landing-is-a-value`). A commit's `landing` says where the caret goes and places nothing; the commit puts the caret down after its tick through the one caret landing (`selection/caret-landing.ts`). A landing read that moved focus or the selection fails here. Predicate `invariants/landing-value.ts :: checkLandingIsAValue` · run by `editor-actions/commit/undo-controller.ts` · `test/invariants/landing-value.test.ts`.
 
-**G1.44 · The document keeps a block** (`keeps-a-block`). A structural commit never leaves the document, or a container it touched, with no children, unless the kind holds none on purpose (a diagram; `mustHoldChild`). The commit gives an emptied document one empty paragraph (`keepOneBlock`), and an edit emptying a container removes it (`cascadeCleanupEmptyAncestors`, `removeEmptiedContainer`), so this fires for a new route that skips both. `checkKeepsABlock` · both commit branches in `undo-controller.ts` · `keeps-a-block.test.ts`, `document-keeps-a-block.test.ts`.
+**G1.44 · The document keeps a block** (`keeps-a-block`). A structural commit never leaves the document, or a container it touched, with no children, unless the kind holds none on purpose (a diagram; `mustHoldChild`). The commit gives an emptied document one empty paragraph (`keepOneBlock`), and a block delete emptying a container removes it (`removeEmptiedContainer`), so this fires for a new route that skips both. `checkKeepsABlock` · both commit branches in `undo-controller.ts` · `keeps-a-block.test.ts`, `document-keeps-a-block.test.ts`.
 
 **G1.45 · A landing's focus scrolls nothing** (`landing-focus-scrolls-nothing`). The caret landing's reveal is the one scroll a landing makes, through the scroll owner, so a focus call without `preventScroll` that moved the scroll position fails here. Predicate `invariants/landing-focus-scroll.ts :: checkLandingFocusScrollsNothing` · run by `selection/caret-landing.ts` · `test/selection/caret-landing.test.ts`; G4.91 is the source half.
 
@@ -226,7 +230,7 @@ These checks run in three kinds of place:
 
 **G1.61 · A list move keeps the order** (`list-move-keeps-order`). Every nest, lift, unwrap and merge that moves blocks between list levels (Tab, Shift+Tab, Backspace at a sublist's start or on a first item, Enter in an empty item) keeps the list's leaf text in order, read as G1.58 reads it. A merge reads only the two lines it joins, since a live join can drop markers. `checkListMoveKeepsOrder`, run by `keeping-order.ts` · `item-moves.ts`, `item-partition.ts` (G4.123), `unwrap-merge.ts` · `list-move-keeps-order.test.ts`, `indent-keeps-order.property.test.ts`.
 
-**G1.71 · A command key over a range runs where it was claimed** (`command-key-landing`). Over a range, a key is a command key when the keymap of the block the removal leaves the caret in binds it (`selection/removal-landing.ts :: removalLanding` picks that block before anything moves), and after the removal the command must run in a block of that kind (kinds only, since a join can move the offset). Predicate `invariants/command-key-landing.ts :: checkCommandLanding` · `selection/cross-block/range-replace.ts` · `test/invariants/command-key-landing.test.ts`.
+**G1.71 · A command key over a range runs where it was claimed** (`command-key-landing`). Over a range, a key is a command key when the keymap of the block the removal leaves the caret in binds it (`selection/cross-block/range-removal.ts :: commandLandingKind` picks that block before anything moves), and after the removal the command must run in a block of that kind (kinds only, since a join can move the offset). Predicate `invariants/command-key-landing.ts :: checkCommandLanding` · `selection/cross-block/range-replace.ts` · `test/invariants/command-key-landing.test.ts`.
 
 **G1.75 · The caret goes before a block's closing `<br>`** (`caret-before-break`). An empty editable holds one `<br>`, and so does a block whose content ends on a picture (the anchor its line's text height comes from). A caret looks the same on either side, but after an empty block's, Chromium drops a composition after its first update, losing or doubling the text. Every caret and range the editor writes passes `browser/caret-writer.ts :: writeSelection`, which checks both ends in dev (G4.270 keeps every selection write there). `checkCaretBeforeBreak` · `caret-before-break.test.ts`.
 
@@ -266,7 +270,7 @@ These checks run in three kinds of place:
 
 **G1.118 · A list's marker counts match its items** (`list-marker-widths`). The list node counts the items opening with a marker of each width, for the marker column (G4.215), and only the parse and the list's rebuild write them. At G1.55's moments and size limit, dev recounts every list in the blocks an edit wrote and fails absent or wrong counts, the trace of a route that changes items without rebuilding the list. A failed commit restores them with its bytes (`commit-rollback-bytes.test.ts`). `checkListMarkerWidths` · `list-marker-widths.test.ts`.
 
-**G1.119 · No caret inside a CRLF pair** (`caret-in-line-ending-pair`). A caret written between `\r` and `\n` would edit inside the pair in WebKit and Firefox, so every selection write checks both endpoints. Arrows cross a pair in one press (`caret/caret-motion.ts` :: `motionTarget`), and a Shift+Arrow moves an anchor the browser parked inside one to before it (`extendSelectionToRaw`). `checkCaretOutsideLineEndingPair` · `line-ending-pairs.test.ts`.
+**G1.119 · No caret inside a CRLF pair** (`caret-in-line-ending-pair`). A caret written between `\r` and `\n` would edit inside the pair in WebKit and Firefox, so every selection write checks both endpoints. Arrows cross a pair in one press (`caret/caret-motion.ts` :: `motionTarget`), and a Shift+Arrow moves an anchor the browser parked inside one to before it (`extendSelectionToRaw`), and so does a landing whose caret an edit named inside one (`selection/caret-target.ts` :: `caretTargetFor`). `checkCaretOutsideLineEndingPair` · `line-ending-pairs.test.ts`.
 
 **G1.121 · A menu asked to close is gone** (`menu-closes`). Each menu closes through its own callback, so one that ignores a cause (an Escape, a press outside) would stay on screen after the editor closed it. A tick after the menu presence asks, dev checks the menu unmounted. `checkMenuClosed` · `menu-presence.test.ts`.
 
@@ -336,7 +340,7 @@ These checks run in three kinds of place:
 
 **G1.187 · The overlay paints what a copy takes.** A range across blocks paints one box over each block whose own bytes, up to its last line's text, lie inside the range's bytes (`rangeBytes`, what a copy takes) while its parent's don't, and over no other block. A table's rows paint through its cells, never as boxes. Checked both ways, each its own row, over the selection-partition draw, with an empty item and a fenced body at the range's end as named rows. `selection/range-bytes.ts :: rangePaint` · `selection-paint.property.test.ts`, `classify-block-selection.test.ts`.
 
-**G1.188 · A cut writes what its removal takes.** Until range stage 3, a cut writes the range-edit core's clipboard and today's removal deletes. Over shaped ranges in both modes they agree in words, save five classes: a table's header and a title row's container (law 3's exceptions), a title row the range ends on (law 10's open edge), and two ways today's removal parts from the core's. The copy must hold the range's words, a class may only add its own lines to the core's, and its repro must keep parting that way. `selection/cut-clipboard-differential.test.ts`, `range-laws/known-failures.ts`.
+**G1.188 · Retired upward.** Backspace, Delete and a cut remove a range through the range-edit core that writes the cut's clipboard, so the two can't part; G1.199 holds every removal route to the core's bytes.
 
 **G1.189 · An undo reads under the editor's grammar** (`restore-grammar`). An undo entry keeps the grammar its tree was read under, and one restored under another has its bytes read again from the live document instead of installed, which leans on every block the undo leaves alone already reading under the editor's grammar. Either way, each block the undo put back that read alone as itself under the entry's grammar still does under the editor's (a block misread under both is G1.55's). `checkRestoredUnderGrammar` (`reads-back.ts`) · `history.ts :: install` · `grammar-restore.test.ts`.
 
@@ -346,6 +350,14 @@ These checks run in three kinds of place:
 
 **G1.192 · A block type's facts are page-wide** (`block-type-facts`). Every descriptor read is by kind, so a block type lends its derived facts to the page by its `plugin/name` while an editor runs it, and a second editor holding the same name doesn't replace them. When it derives other facts (they came from its options), dev warns and the first editor's stand: a fact can't depend on options, only a `draw` can. `holdBlockKind` (`schema/block-kind-descriptor.ts`) · `line-block.svelte.test.ts`.
 
+**G1.199 · Every removal route leaves the core's bytes.** Backspace, Delete, Ctrl+Backspace, Ctrl+Delete and a cut by each of its routes over one range, and the keys and the block menu's Remove on a block focused whole, leave the bytes the range-edit core answers for it; a cut writes the core's copy, and one undo gives the source back. The ranges are the shapes a removal once parted on. `range-laws/removal-routes.test.ts`.
+
+**G1.200 · Every removal route leaves the core's caret.** The same routes over the same shapes leave the caret where a byte splice puts the core's down: text at its exact byte, a block held whole or drawn as a picture of its source through its own landing, a boundary as the gap caret. Where Backspace, Delete and a cut put it beside a block taken whole is the core's too (`range-edit/whole-block-removal.test.ts`). `range-laws/removal-routes.test.ts`.
+
+**G1.201 · A container's window reads back first** (`container-window-reads-back`). Before a byte splice reads a run of a list's, quote's or table's children again with the change made, it reads their old bytes the same way, and those must come out as the children the container held. When they don't, the child spans were stale or the container's own reading disagrees with the document's, so dev warns and the splice takes the top-level window. Inline in `tree-operations/container-window.ts :: containerWindow` · `container-window.property.test.ts`.
+
 **G1.203 · Paint lands where it's addressed, or not at all** (a dev warning). A plugin's paint is stored in its block's own offsets, so a position outside the block's text (another block, a quote's marker), a mark, widget or replace on a block with children, and an inline widget outside prose or past the content are left out, one warning per plugin and problem. The whole-document input warns through the same predicate. `inlineWidgetMiss`, `paintsOnlyClasses` (`decorations/paint-lands.ts`) · `plugin-paint.svelte.ts :: placed` · `plugin-paint.svelte.test.ts`, `island-verdicts.svelte.test.ts`.
 
 **G1.205 · A painted mark measures where its bytes are.** A paint's `from`..`to` is stored as offsets into its block's text, the last byte through `offsetAt(to - 1)` (in a quote the byte past a line's end is the next line's marker), and a handler's `MarkAt.range` maps back the same way. In a paragraph, a quote's second line and a cell the overlay covers the painted word and the handlers get its bytes; adding `block.from` reds the quote rows. `rangeIn`, `rangeOf` (`plugin-paint.svelte.ts`) · `paint.spec.ts`, `plugin-paint.svelte.test.ts`.
+
+**G1.206 · Kept definitions are still the definitions** (`definitions-kept`). Each write says which blocks it took out and put in, or that it can't tell, and the editor reads the link definitions again only when one of those blocks holds one. When it skips, dev reads them anyway and warns if they changed: some route named less than it wrote. Skipped past 64 KB and under the perf instruments. `checkDefinitionsKept` (`definitions-kept.ts`) · `components/link-reference-map.ts :: definitionsAfter` · `link-reference-map.test.ts`, `definitions-refresh.test.ts`.

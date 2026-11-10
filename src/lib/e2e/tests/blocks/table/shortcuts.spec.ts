@@ -6,9 +6,8 @@ import { runColumnCommand } from '../../../table-columns';
 const TABLE_2x2 = '| A | B |\n| --- | --- |\n| 1 | 2 |\n';
 const TABLE_3ROW = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |\n';
 
-// Every column carries a distinct alignment, so a delete-column that drops the wrong delimiter cell
-// shows in the source. The delete-column steps wait on whole documents: '| A | B | C | D |'
-// contains '| B | C | D |', so a substring wait would pass before the delete.
+// Every column has its own alignment, so deleting the wrong delimiter cell shows in the source.
+// The delete steps wait on whole documents: '| A | B | C | D |' contains '| B | C | D |'.
 const TABLE_ALIGNED = '| A | B | C | D |\n| :--- | :---: | ---: | --- |\n| 1 | 2 | 3 | 4 |\n';
 const TABLE_ALIGNED_LESS_A = '| B | C | D |\n| :---: | ---: | --- |\n| 2 | 3 | 4 |\n';
 

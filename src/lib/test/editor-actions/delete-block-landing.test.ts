@@ -2,7 +2,6 @@
 // Miss-analysis: each delete route was tested for its bytes, never for how many carets it placed
 // or where, so a second placement after the delete and a key-blind survivor both went unseen.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CURSOR_END, CURSOR_START } from '#lib/block-component.js';
 import type { BlockEditActions } from '#lib/action-contracts.js';
 import { createContainerEditActions } from '#lib/editor-actions/container-edit.js';
 import { handleWholeBlockKeys } from '#lib/editor-actions/container-block-component.js';
@@ -21,17 +20,16 @@ import {
 	mountEveryBlock
 } from '../harness/editor-actions';
 
-/** Every caret placed, named by the block's path before the delete; a parent's `moveFocus`
- *  counts as one too. */
+/** Every caret landing, by the leaf it resolved to and the offset it took there; a parent's
+ *  `moveFocus` counts as one too. */
 type Placement = [number[], number] | ['moveFocus', ...unknown[]];
 
 function harness(source: string) {
 	const h = makeTopHarness(source);
-	const placements: Placement[] = [];
-	mountEveryBlock(h.deps, (path, offset) => placements.push([path, offset]));
+	mountEveryBlock(h.deps);
 	const focus = recordingFocus();
 	const read = (): Placement[] => [
-		...placements,
+		...h.landings.map(({ leafPath, offset }): Placement => [[...leafPath], offset]),
 		...focus.moveFocusCalls.map((args) => ['moveFocus', ...args] as Placement)
 	];
 	return { h, focus, read };
@@ -79,8 +77,9 @@ function wholeBlockKey(t: ReturnType<typeof harness>, key: string, mods = {}): v
 }
 
 const RULE = 'a\n\n---\n\nb\n';
-const ABOVE: Placement = [[0], CURSOR_END];
-const BELOW: Placement = [[2], CURSOR_START];
+// The end of `a`, and the start of `b` once the rule is gone.
+const ABOVE: Placement = [[0], 1];
+const BELOW: Placement = [[1], 0];
 
 describe('a whole-block delete places one caret, on the side its key points', () => {
 	beforeEach(() => {

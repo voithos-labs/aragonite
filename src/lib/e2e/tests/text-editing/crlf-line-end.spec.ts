@@ -65,6 +65,20 @@ test.describe('text editing, a CRLF line end', () => {
 				await expectSource(editor, 'Z\r\nAfter\r\n');
 			});
 
+			test('a caret a commit names between the pair lands before it', async ({ page }) => {
+				await editor.loadContent(PARAGRAPH);
+				await page.evaluate(() => (window as any).__test.spliceSource('abX\r\nAfter\r\n', 4));
+				await editor.waitForRenderFlush();
+				const inPair = await page.evaluate(() => {
+					const { focusNode, focusOffset } = window.getSelection()!;
+					const text = focusNode instanceof Text ? focusNode.data : '';
+					return text[focusOffset - 1] === '\r' && text[focusOffset] === '\n';
+				});
+				expect(inPair).toBe(false);
+				await page.keyboard.press('Z');
+				await expectSource(editor, 'abXZ\r\nAfter\r\n');
+			});
+
 			test('a letter typed after End in a code body goes before the pair', async ({ page }) => {
 				await editor.loadContent(CODE);
 				await editor.focusBlockAtPath([0], 5);

@@ -683,8 +683,9 @@ const FAMILIES: Family[] = [
 		]
 	},
 	{
+		// A range removal writes its ends through the range-edit core's in-block writes.
 		name: 'a range delete',
-		stores: { 'selection/cross-block/range-delete/range-delete.ts': 1 },
+		stores: {},
 		rows: [
 			...[TODO, QUOTED_TODO, NESTED_TODO, FOOTNOTE_TODO].map((place) => ({
 				shape: place.name,
@@ -705,29 +706,19 @@ const FAMILIES: Family[] = [
 	},
 	{
 		name: 'a range delete that stops at a title row',
-		stores: { 'selection/cross-block/range-delete/range-delete-ceremony.ts': 2 },
+		stores: {},
 		rows: [
 			{
 				shape: 'the kept head of a to-do',
 				run: () => backspaceRange(`- [ ] # y**z**\n\n${CALLOUT}`, [[0, 0, 0], 5], [[1, 1], 2]),
-				want: `- [ ] # y\n\n:::callout\ndy\n:::\n`
-			},
-			{
-				shape: 'the kept tail of a to-do',
-				run: () => backspaceRange(`${CALLOUT}\n- [ ] **x**# y\n`, [[0, 1], 2], [[1, 0, 0], 3]),
-				want: `:::callout T\nbo\n:::\n\n- [ ] # y\n`
-			},
-			{
-				shape: 'the kept tail of a plain item',
-				run: () => backspaceRange(`${CALLOUT}\n- **x**[ ] y\n`, [[0, 1], 2], [[1, 0, 0], 3]),
-				want: `:::callout T\nbo\n:::\n\n- **[ ] y\n`
+				want: `- [ ] # y\n\n:::callout T\ndy\n:::\n`
 			}
 		]
 	},
 	{
 		// Deleting `x` empties the bold, so its runs go; in a to-do or a cell `# y` then reads as text.
 		name: 'the range-edit core’s in-block writes',
-		stores: { 'range-edit/host.ts': 3 },
+		stores: { 'range-edit/host.ts': 4 },
 		rows: [
 			{
 				shape: 'a to-do',

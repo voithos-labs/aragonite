@@ -1,5 +1,6 @@
 // The link reference definitions a document holds, read out of its block tree, nested ones too.
-import { metadataOf, type CstNode } from '../../nodes';
+import { metadataOf } from '../../nodes';
+import type { NodeView } from '../../node-views';
 import { labelKey } from './link-grammar';
 
 export type ResolvedReference = Readonly<{ url: string; title?: string }>;
@@ -13,7 +14,7 @@ export interface LinkDefinitions {
 }
 
 /** A label's first definition wins (CommonMark §4.7). */
-export function definitionsOf(blocks: readonly CstNode[]): LinkDefinitions {
+export function definitionsOf(blocks: readonly NodeView[]): LinkDefinitions {
 	const found = new Map<string, ResolvedReference>();
 	// Children are pushed in reverse so blocks pop in document order without recursion.
 	const pending = [...blocks].reverse();

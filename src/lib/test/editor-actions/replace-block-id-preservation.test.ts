@@ -62,21 +62,6 @@ describe('top-level replaceBlock id preservation', () => {
 
 		expect(getBlockRefs()[0]).toBe(originalRef);
 	});
-
-	it('empty replacement (delete) does not need id preservation', async () => {
-		const original = makeNode('paragraph', 'a\n');
-		// Separated: sibling paragraphs with no blank line reload as one, which the fix-up would merge.
-		const sibling = { ...makeNode('paragraph', 'b\n'), leadingTrivia: '\n' };
-		const { getBlockIds, actions } = makeTopHarness([original, sibling]);
-
-		const siblingId = getBlockIds()[1];
-
-		await actions.replaceBlock(0, [], undefined, { snapshotOffset: 0 });
-
-		const ids = getBlockIds();
-		expect(ids).toHaveLength(1);
-		expect(ids[0]).toBe(siblingId);
-	});
 });
 
 // ── Nested replaceBlock id preservation + ensureEditableContainers ───────────

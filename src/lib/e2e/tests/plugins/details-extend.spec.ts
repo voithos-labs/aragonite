@@ -144,8 +144,10 @@ test.describe('plugin container: extending a selection past a closed <details>',
 
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceEquals('Above\n\nBelow\n');
+		// The range stops at the text before `Below`, which the title row can't join, so it took
+		// whole blocks only and Backspace leaves the caret at the end of the block above.
 		await editor.typeText('x');
-		await editor.bridge.waitForSourceEquals('Above\n\nxBelow\n');
+		await editor.bridge.waitForSourceEquals('Abovex\n\nBelow\n');
 		expect(await capturedErrors(page)).toEqual([]);
 	});
 
@@ -194,8 +196,9 @@ test.describe('plugin container: extending a selection past a closed <details>',
 		await expect.poll(() => focusPath(editor)).toEqual({ path: [1, 0], offset: 0 });
 
 		await page.keyboard.press('Backspace');
+		// The paragraph the range empties keeps its line, with the blank line after it.
 		await editor.bridge.waitForSourceEquals(
-			'Above\n\n<details open>\n<summary></summary>\n</details>\n\nMid\n'
+			'Above\n\n<details open>\n<summary></summary>\n\n\n</details>\n\nMid\n'
 		);
 		expect(await editor.parseConverged()).toBe(true);
 		expect(await capturedErrors(page)).toEqual([]);
