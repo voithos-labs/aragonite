@@ -19,12 +19,26 @@ afterEach(disablePerfInstruments);
 function harness(source: string) {
 	const doc = parse(source);
 	let version = 0;
-	const text = createCurrentSource({ version: () => version, doc: () => doc });
+	let writing = false;
+	const text = createCurrentSource({
+		version: () => version,
+		doc: () => doc,
+		unannounced: () => writing
+	});
 	vi.mocked(serialize).mockClear();
 	return {
 		doc,
 		text,
 		bump: () => version++,
+		/** A write that changes the tree, with `inside` run before it puts the tree back unannounced. */
+		rolledBack(raw: string, inside: () => void) {
+			const was = doc.children[0].raw;
+			writing = true;
+			doc.children[0].raw = raw;
+			inside();
+			doc.children[0].raw = was;
+			writing = false;
+		},
 		serializations: () => vi.mocked(serialize).mock.calls.length
 	};
 }
@@ -45,6 +59,26 @@ describe('the current text', () => {
 		h.text.readUnchecked();
 		h.text.readUnchecked();
 		expect(h.serializations()).toBe(1);
+	});
+});
+
+// Miss-analysis: every row read the text between two announced writes, so none asked what a
+// reader inside one is handed (`write-inside-write.test.ts` holds it on a mounted editor).
+describe('the text read inside a write that has not announced', () => {
+	it('is the tree as it stands, not the text kept for the version', () => {
+		const h = harness('one\n');
+		h.text.read();
+		let inside = '';
+		h.rolledBack('two\n', () => (inside = h.text.read()));
+		expect(inside).toBe('two\n');
+		expect(takeDevWarns()).toEqual([]);
+	});
+
+	it('is not kept, so a write put back leaves the text as it was', () => {
+		const h = harness('one\n');
+		h.rolledBack('two\n', () => void h.text.read());
+		expect(h.text.read()).toBe('one\n');
+		expect(takeDevWarns()).toEqual([]);
 	});
 });
 

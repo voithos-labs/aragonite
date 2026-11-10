@@ -33,6 +33,7 @@ import { kitReading } from '../../testing/kit-reading';
 import { blockFacts } from '../../schema/block-facts';
 import { registerChromePluginsForTests } from './chrome-plugins';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 /** Block immediately after `path` in doc order (children before siblings), else null. */
 function nextPath(doc: Document, path: number[]): number[] | null {
@@ -305,7 +306,7 @@ describe('caret-reachable order', () => {
 			fc.property(arbDoc, (d) => {
 				const source = sourceOf(d);
 				const doc = parse(source);
-				const layout = documentLayout(doc);
+				const layout = documentLayout(measured(doc));
 				const host = rangeHost(kitReading(), { source, tree: doc, layout });
 				const leaves = caretWalks(doc).forward;
 				for (const path of allPaths(doc).filter(
@@ -328,7 +329,7 @@ describe('caret-reachable order', () => {
 						if (caretWalks(result).forward.length !== taken.length) continue;
 						const shift = source.length - removed.source.length;
 						const at = (byte: number) => {
-							const leaf = leafAtByte(result, byte);
+							const leaf = leafAtByte(measured(result), byte);
 							const t = leaf && caretTargetFor(result, { path: docPathFrom(leaf.path), offset: 0 });
 							return t && [...t.leafPath];
 						};

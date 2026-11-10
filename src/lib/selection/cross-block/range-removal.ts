@@ -8,7 +8,6 @@ import type { SourceSplice, SpliceCaret } from '../../action-contracts';
 import type { DocumentView } from '../../core/node-views';
 import type { AnyBlockKind } from '../../core/nodes';
 import { getContentRange, isProseKind } from '../../core/inline';
-import { serialize } from '../../core/serializer';
 import { hidesDelimitersAtCaret } from '../../presentation-mode';
 import {
 	removalOf,
@@ -19,6 +18,7 @@ import {
 import { rangeHost } from '../../range-edit/host';
 import { changesBetween } from '../../tree-operations/byte-changes';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
+import type { Measured } from '../../tree-operations/top-level-starts';
 import { deleteSnapshot, type SelectionPoint } from '../primitives';
 import { liveSlot, type RemovalGesture as BlockGesture } from '../caret-target';
 
@@ -71,14 +71,19 @@ export async function removeThroughCore(
 	const landed = answer.caret;
 	// A range holding nothing to take (an end narrowed to the text before it) is a caret there.
 	if (answer.source === source)
-		return { wrote: false, caret: pointAtByte(tree, landed.at), landed, took: null };
+		return {
+			wrote: false,
+			caret: pointAtByte(ctx.bytes.measured(), landed.at),
+			landed,
+			took: null
+		};
 	const { start } = coverage.range;
 	const wrote = await commitBytes(ctx, answer.source, {
 		caret: landed,
 		op: { kind: 'delete', detail: { crossBlock: true } },
 		snapshot: deleteSnapshot(start.path, start.offset)
 	});
-	const caret = wrote ? pointAtByte(ctx.getDoc(), landed.at) : null;
+	const caret = wrote ? pointAtByte(ctx.bytes.measured(), landed.at) : null;
 	return { wrote, caret, landed, took: answer.took ?? null };
 }
 
@@ -163,14 +168,15 @@ export function commandLandingKind(doc: DocumentView, coverage: RangeCoverage): 
 
 /** Where text over the range opens a paragraph, by the core's answer: the boundary its caret sits
  *  on, or the block the range started in, taken, with the caret off prose. Null types in place. */
-export function emptiedPlace(committed: DocumentView, removed: Removed): number[] | null {
+export function emptiedPlace(measured: Measured, removed: Removed): number[] | null {
+	const { doc: committed, starts } = measured;
 	const { landed, caret, took } = removed;
 	if (!landed || !removed.wrote) return null;
 	if (landed.holds === 'boundary') {
-		const gap = gapAtByte(committed, landed.at);
+		const gap = gapAtByte(measured, landed.at);
 		if (gap) return [...gap.parentPath, gap.index];
 		// The root's trailing boundary takes no gap caret, but a paragraph opens there all the same.
-		const end = serialize(committed).length - committed.suffix.length;
+		const end = starts.length - committed.suffix.length;
 		return landed.at >= end ? [committed.children.length] : null;
 	}
 	if (!took || (caret && landed.holds === 'text' && inProse(committed, caret))) return null;

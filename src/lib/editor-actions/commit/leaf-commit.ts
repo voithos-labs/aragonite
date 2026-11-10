@@ -63,6 +63,8 @@ export function createLeafCommit(
 		let leafBefore: NodeView | null = null;
 		// Whether the write reached past the leaf: blocks fixed up beside it, or an ancestor read again.
 		const moved = () => settled.change.op !== 'noop' || folds.length > 0 || reclassified.length > 0;
+		// Whether the fix-up spliced the leaf's list: it can rewrite a neighbour and report no change.
+		let spliced = () => false;
 
 		const outcome = runFrame({
 			entry: 'updateContent',
@@ -107,6 +109,7 @@ export function createLeafCommit(
 					: documentBody(deps.doc, siblings.list);
 				// The fix-up writes the leaf's list only through `spliceList`, which calls this first.
 				body.beforeWrite = siblings.save;
+				spliced = siblings.saved;
 				restoreChain = saveChain(deps, leafPath, chain, siblings.restore);
 				// Read before the write: the ancestors' rebuild locates the leaf's region by these bytes.
 				leafPreviousRaw = chain[depth - 1].raw;
@@ -138,6 +141,12 @@ export function createLeafCommit(
 					? 'unknown'
 					: { before: [leafBefore], after: [leaf] };
 			},
+			// A container keeps its fix-up inside its own top-level block. The document's list names
+			// the leaf alone only where the fix-up spliced nothing beside it.
+			touched: () =>
+				folds.length > 0 || reclassified.length > 0 || (depth === 1 && (moved() || spliced()))
+					? null
+					: [{ at: leafPath[0], removed: 1, inserted: 1 }],
 			// The ancestors still in the tree, any a kind change swapped in, and the leaf where it
 			// settled; the top block reads back only above a container, as a top-level leaf keeps its kind.
 			written() {
@@ -200,13 +209,19 @@ function saveChain(
 }
 
 /** The leaf's list, copied at the fix-up's first write to it and put back by `restore`. */
-function savedOnWrite(list: CstNode[]): { list: CstNode[]; save(): void; restore(): void } {
+function savedOnWrite(list: CstNode[]): {
+	list: CstNode[];
+	save(): void;
+	saved(): boolean;
+	restore(): void;
+} {
 	let before: CstNode[] | null = null;
 	return {
 		list,
 		save: () => {
 			before ??= list.slice();
 		},
+		saved: () => before !== null,
 		restore: () => {
 			if (before) spliceMany(list, 0, list.length, before);
 		}

@@ -12,6 +12,7 @@ import {
 	rawOffsetOfLeaf
 } from '#lib/tree-operations/container-offsets.js';
 import { docAround, gridOf, registerPluginGrid } from '../selection/cross-block/plugin-grid-kind';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 // A fix-up that merges blocks tracks the caret as an offset into the merged block's raw, and a
 // container's raw re-prefixes its children's lines, so the offset has to be mapped to a leaf.
@@ -76,7 +77,7 @@ describe('a title row with no text', () => {
 	it('sits inside its tags, and the body below keeps its own lines', () => {
 		testReading();
 		const source = '<details open>\n<summary></summary>\n\nx\n\n</details>\n\nafter\n';
-		const map = documentByteMap(parse(source));
+		const map = documentByteMap(measured(parse(source)));
 		expect(map.byteOf([0, 0], 0)).toBe(source.indexOf('</summary>'));
 		expect(map.byteOf([0, 1], 0)).toBe(source.indexOf('x'));
 		expect(map.leafAt(source.indexOf('x'))).toEqual({ path: [0, 1], offset: 0 });
@@ -112,7 +113,7 @@ describe('a grid whose rows leave their line breaks to the grid', () => {
 				['ef', 'gh']
 			])
 		);
-		const map = documentByteMap(doc);
+		const map = documentByteMap(measured(doc));
 		const starts = [
 			[1, 0, 0],
 			[1, 0, 1],
@@ -144,7 +145,7 @@ describe('a list’s map reads only the items a lookup asks about', () => {
 	it('maps a byte near either end, and a byte back to its item, reading a handful of items', () => {
 		for (const item of [3, ITEMS - 3]) {
 			const { doc, reads } = counted();
-			const map = documentByteMap(doc);
+			const map = documentByteMap(measured(doc));
 			const byte = map.byteOf([0, item, 0], 2)!;
 			expect(map.leafAt(byte)).toEqual({ path: [0, item, 0], offset: 2 });
 			expect(reads.count, `item ${item}`).toBeLessThan(4 * Math.log2(ITEMS));
@@ -156,6 +157,6 @@ describe('a list’s map reads only the items a lookup asks about', () => {
 		const list = doc.children[0] as CstNode;
 		list.childSpans = list.childSpans!.map((at) => (at === 0 ? 0 : at + 1));
 		list.childSpans[list.childSpans.length - 1] = list.raw.length;
-		expect(documentByteMap(doc).byteOf([0, 5, 0], 0)).toBe(5 * 9 + 2);
+		expect(documentByteMap(measured(doc)).byteOf([0, 5, 0], 0)).toBe(5 * 9 + 2);
 	});
 });

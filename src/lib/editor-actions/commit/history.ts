@@ -12,7 +12,7 @@ import { assertInvariant, devChecksOn } from '@voithos-labs/aragonite/dev-checks
 import { checkSnapshotIntegrity } from '../../invariants/snapshot-integrity';
 import { checkInstalledEntry } from '../../invariants/history-install';
 import { admitsHistoryRequest } from './reading-write-gate';
-import { installReading } from './byte-splice';
+import { installReading, runsOf } from './byte-splice';
 import { gapAtByte } from '../../selection/range-bytes';
 import { emitEdit, NOTHING_REPLACED, type ReplacedBlocks } from './emit-edit';
 import type { EditorActionsDeps, UndoController } from '../deps';
@@ -20,8 +20,14 @@ import { grammarStamp, sameGrammar } from './grammar-stamp';
 import { captureChange, changeAfter } from './change-record';
 import { serialize } from '../../core/serializer';
 import { changesBetween } from '../../tree-operations/byte-changes';
-import { spliceReading } from '../../tree-operations/byte-splice';
+import { spliceReading, type SpliceReading } from '../../tree-operations/byte-splice';
 import { documentByteMap } from '../../tree-operations/container-offsets';
+import {
+	changedRun,
+	measured,
+	type Measured,
+	type TopLevelChange
+} from '../../tree-operations/top-level-starts';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { assertRestoredUnderGrammar } from '../../invariants/install';
 import { isGapSelection, type GapCaretPosition } from '../../selection/gap-caret';
@@ -32,7 +38,8 @@ export function createHistoryActions(
 	deps: EditorActionsDeps,
 	controller: UndoController
 ): HistoryActions {
-	async function restore(entry: UndoEntry, op: 'undo' | 'redo'): Promise<void> {
+	/** `from` is the state the restore replaces, captured for the opposite stack. */
+	async function restore(entry: UndoEntry, op: 'undo' | 'redo', from: UndoEntry): Promise<void> {
 		assertInvariant('snapshot-integrity', () => {
 			const violation = checkSnapshotIntegrity(entry);
 			return violation && { ...violation, message: `${op}: ${violation.message}` };
@@ -42,23 +49,26 @@ export function createHistoryActions(
 		deps.caretLanding.noteTreeSwap();
 		const generation = deps.caretLanding.generation();
 		// The caret move below blurs blocks, and a block that repairs itself on blur would write.
-		await deps.stamps.duringHistorySwap(() => install(entry, op));
+		await deps.stamps.duringHistorySwap(() => install(entry, op, from));
 		// Unless a later undo, redo or `source` swap has replaced the document since.
 		if (deps.caretLanding.generation() !== generation) return;
 		assertInvariant('history-install', () => checkInstalledEntry(op, entry.snapshot, deps.doc));
 	}
 
-	async function install(entry: UndoEntry, op: 'undo' | 'redo'): Promise<void> {
+	async function install(entry: UndoEntry, op: 'undo' | 'redo', from: UndoEntry): Promise<void> {
 		deps.sharing.markSnapshotTaken();
 		// The standing range addresses the outgoing tree; read during the render below, its path
 		// could name another block in the incoming one.
 		deps.selectionState.dropForDocumentSwap();
 		const capture = deps.drafts.watching() ? captureChange(deps.doc, null) : null;
-		const { selection, replaced } = sameGrammar(entry.grammar, grammarStamp(deps.reading.grammar))
-			? putBack(entry)
-			: readAgain(entry);
+		const kept = sameGrammar(entry.grammar, grammarStamp(deps.reading.grammar));
+		// Read before the record opens for the write, which a read inside would measure again.
+		const reading = kept ? null : readingFor(entry);
+		deps.starts.opened();
+		const { caret, replaced, touched } = kept ? putBack(entry, from) : readAgain(entry, reading);
 		if (capture) deps.drafts.record(changeAfter(deps.doc, capture, null));
-		deps.bumpContentVersion();
+		deps.bumpContentVersion(touched);
+		const selection = caret();
 		// Before the awaits below, so a host that loads another document meanwhile never hears
 		// this undo after its own swap.
 		emitEdit(deps, { op, path: [], timestamp: Date.now() }, replaced);
@@ -81,7 +91,7 @@ export function createHistoryActions(
 	}
 
 	/** The entry's snapshot, installed as it stands: the editor still reads the grammar it was read under. */
-	function putBack(entry: UndoEntry): Installed {
+	function putBack(entry: UndoEntry, from: UndoEntry): Installed {
 		const before = devChecksOn ? new Set(deps.doc.children) : null;
 		deps.setDoc({ ...entry.snapshot, children: [...entry.snapshot.children] });
 		// A copy: live state splices this array in place, and the entry stays on the stack.
@@ -90,20 +100,35 @@ export function createHistoryActions(
 			const swapped = deps.doc.children.filter((top) => !before.has(top));
 			assertRestoredUnderGrammar(swapped, deps.reading.grammar, entry.grammar);
 		}
-		// The whole tree swaps, and naming what changed would walk it.
-		return { selection: entry.selection, replaced: 'unknown' };
+		// The whole tree swaps, and naming the nodes that changed would walk it. No write runs
+		// between two snapshots, so the blocks they share by identity kept their bytes.
+		const to = entry.snapshot.children;
+		return {
+			caret: () => entry.selection,
+			replaced: 'unknown',
+			touched: () => [changedRun(from.snapshot.children, to, to)]
+		};
 	}
 
 	/** The live document read again to the entry's bytes, since its snapshot was read under another
-	 *  grammar; the blocks the undo leaves alone keep their nodes, and the caret keeps its byte. */
-	function readAgain(entry: UndoEntry): Installed {
+	 *  grammar; null when they are the same bytes. */
+	function readingFor(entry: UndoEntry): SpliceReading | null {
+		const before = deps.bytes.source();
+		const changes = changesBetween(before, serialize(entry.snapshot));
+		return spliceReading(deps.bytes.measured(), before, changes, deps.reading.grammar);
+	}
+
+	/** `reading` installed: the blocks the undo leaves alone keep their nodes, and the caret keeps
+	 *  its byte. */
+	function readAgain(entry: UndoEntry, reading: SpliceReading | null): Installed {
 		const caret = selectionBytes(entry.snapshot, entry.selection);
-		const live = serialize(deps.doc);
-		const changes = changesBetween(live, serialize(entry.snapshot));
-		const reading = spliceReading(deps.doc, live, changes, deps.reading.grammar);
 		const replaced = reading ? installReading(deps, reading) : NOTHING_REPLACED;
 		assertRestoredUnderGrammar(deps.doc.children, deps.reading.grammar, entry.grammar);
-		return { selection: caret && selectionAtBytes(deps.doc, caret), replaced };
+		return {
+			caret: () => caret && selectionAtBytes(deps.bytes.measured(), caret),
+			replaced,
+			touched: () => (reading ? runsOf(reading.windows) : [])
+		};
 	}
 
 	// An open draft commits as a step the undo then takes back. The typing batch ends, so the next
@@ -124,26 +149,30 @@ export function createHistoryActions(
 			// Check the stack before capturing: captureCurrentState marks the whole tree as
 			// shared with a snapshot, forcing the next edit to copy its path first.
 			if (!deps.undoManager.canUndo) return;
-			const entry = deps.undoManager.undo(controller.captureCurrentState());
+			const from = controller.captureCurrentState();
+			const entry = deps.undoManager.undo(from);
 			if (!entry) return;
-			await restore(entry, 'undo');
+			await restore(entry, 'undo', from);
 		},
 
 		async requestRedo(): Promise<void> {
 			if (!admitsHistoryRequest(deps, 'redo')) return;
 			await beginHistorySwap();
 			if (!deps.undoManager.canRedo) return;
-			const entry = deps.undoManager.redo(controller.captureCurrentState());
+			const from = controller.captureCurrentState();
+			const entry = deps.undoManager.redo(from);
 			if (!entry) return;
-			await restore(entry, 'redo');
+			await restore(entry, 'redo', from);
 		}
 	};
 }
 
-/** An undo entry installed: where its caret goes, and the blocks the install replaced. */
+/** An undo entry installed: where its caret goes, asked once the install is announced, the blocks
+ *  the install replaced, and the runs of top-level blocks it changed. */
 interface Installed {
-	selection: UndoEntry['selection'] | null;
+	caret(): UndoEntry['selection'] | null;
 	replaced: ReplacedBlocks;
+	touched(): TopLevelChange[];
 }
 
 // ── The caret as bytes ───────────────────────────────────────────────────────
@@ -155,9 +184,11 @@ function selectionBytes(
 	doc: DocumentView,
 	selection: UndoEntry['selection']
 ): SelectionBytes | null {
-	const map = documentByteMap(doc);
+	// A snapshot, which nobody keeps starts for.
+	const laid = measured(doc);
+	const map = documentByteMap(laid);
 	if (isGapSelection(selection)) {
-		const gap = gapByte(doc, selection.gapCaret);
+		const gap = gapByte(laid, selection.gapCaret);
 		return gap === null ? null : { gap };
 	}
 	// A table cell's index is no byte, so a cell end stands at its table's start.
@@ -169,19 +200,20 @@ function selectionBytes(
 }
 
 /** Where a block starts, or where its container ends past its last child. */
-function gapByte(doc: DocumentView, { parentPath, index }: GapCaretPosition): number | null {
-	const map = documentByteMap(doc);
+function gapByte(laid: Measured, { parentPath, index }: GapCaretPosition): number | null {
+	const { doc, starts } = laid;
+	const map = documentByteMap(laid);
 	const parent = parentPath.length === 0 ? doc : blockNodeAt(doc, parentPath);
 	if (!parent?.children) return null;
 	if (index < parent.children.length) return map.byteOf([...parentPath, index], 0);
-	if (parentPath.length === 0) return serialize(doc).length;
+	if (parentPath.length === 0) return starts.length;
 	return map.byteOf(parentPath, (parent as { raw: string }).raw.length);
 }
 
-function selectionAtBytes(doc: DocumentView, at: SelectionBytes): UndoEntry['selection'] | null {
-	const map = documentByteMap(doc);
+function selectionAtBytes(laid: Measured, at: SelectionBytes): UndoEntry['selection'] | null {
+	const map = documentByteMap(laid);
 	if ('gap' in at) {
-		const gap = gapAtByte(doc, at.gap);
+		const gap = gapAtByte(laid, at.gap);
 		if (gap) return { gapCaret: gap };
 		const leaf = map.leafAt(at.gap);
 		return leaf && { anchor: leaf, focus: leaf };

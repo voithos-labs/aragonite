@@ -16,6 +16,7 @@ import type { EditorEvents } from '../../editor-events';
 import type { MenuPresence } from '../menu/menu-presence.svelte';
 import type { DraftRegistry } from '../../editor-actions/commit/draft-registry.svelte';
 import type { DocumentStamps } from '../../editor-actions/commit/document-stamp';
+import type { KeptStarts } from '../../editor-actions/commit/kept-starts';
 import type { MarkHoverTracker } from '../../decorations/mark-hover';
 
 export interface ParsedDocument {
@@ -53,7 +54,9 @@ export interface DocumentSwapDeps {
 	noteTreeSwap(): void;
 	/** Writes the tree into the `$state` root and re-keys its blocks. */
 	adoptDocument(doc: Document): void;
-	bumpContentVersion(): void;
+	bumpContentVersion(changes: null): void;
+	/** Opened before the tree changes, as every byte writer opens it. */
+	starts: Pick<KeptStarts, 'opened'>;
 	clearBlockRefs(): void;
 	layout: Pick<LayoutState, 'forgetMeasuredHeights'>;
 	undoManager: Pick<UndoManager, 'clear'>;
@@ -97,8 +100,9 @@ export function createDocumentSwap(deps: DocumentSwapDeps): DocumentSwap {
 		deps.flushDebouncedCheckpoint();
 		deps.noteTreeSwap();
 		const reset = initDocument(source, deps.grammar);
+		deps.starts.opened();
 		deps.adoptDocument(reset.doc);
-		deps.bumpContentVersion();
+		deps.bumpContentVersion(null);
 		deps.clearBlockRefs();
 		// Block ids never recur, so every measured height belongs to a block that can't come back.
 		deps.layout.forgetMeasuredHeights();

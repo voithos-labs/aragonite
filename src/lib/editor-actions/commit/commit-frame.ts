@@ -28,6 +28,7 @@ import type { UndoManager } from '../../undo/types';
 import { captureChange, changeAfter, type BlockReach } from './change-record';
 import { admitsWrite } from './reading-write-gate';
 import type { EditorActionsDeps } from '../deps';
+import type { TopLevelChange } from '../../tree-operations/top-level-starts';
 
 /** What a write hands its dev checks: `tops` are the top-level blocks holding what it wrote, so the
  *  read-back check never searches the document for them. */
@@ -67,6 +68,9 @@ export interface FrameWrite {
 	written(): WrittenNodes;
 	/** The blocks the write replaced, read once it has written. */
 	replaced(): ReplacedBlocks;
+	/** The runs of top-level blocks holding every byte the write changed, asked once it has
+	 *  written and only while the editor keeps their starts; null when the write can't say. */
+	touched(): readonly TopLevelChange[] | null;
 	/** The dev checks only this write can scope, run after the frame's own. */
 	check?(written: WrittenNodes): void;
 	/** Restores what `apply` wrote. */
@@ -120,40 +124,52 @@ export function createCommitFrame(
 			deps.doc.suffix = savedSuffix;
 			write.rollback();
 		};
-		let discarded = false;
 		// Only while a draft is open: otherwise the write reads nothing more.
 		const capture = deps.drafts.watching()
 			? captureChange(deps.doc, write.reach?.() ?? null)
 			: null;
 		const whole = capture && devChecksOn ? captureChange(deps.doc, null) : null;
-		try {
-			// Inside the try: the push reads the live selection through plugin block refs.
-			undo.push(write.snapshot, write.history);
-			const wasOpen = endsOpen(deps.doc);
-			const changed = write.apply(wasOpen);
-			if (write.discardIfNoop && !changed) {
+		const announced = (): FrameOutcome => {
+			try {
+				// Inside the try: the push reads the live selection through plugin block refs.
+				undo.push(write.snapshot, write.history);
+				const wasOpen = endsOpen(deps.doc);
+				deps.starts.opened();
+				const changed = write.apply(wasOpen);
+				if (write.discardIfNoop && !changed) {
+					restore();
+					deps.starts.abandoned();
+					return 'discarded';
+				}
+				if (devChecksOn) {
+					const written = write.written();
+					assertCommittedNodes(written.nodes, deps.reading.grammar);
+					assertLastLineKept(deps.doc, wasOpen);
+					assertKeepsABlock(deps.doc, written.nodes);
+					assertReadsBack(written.tops, deps.reading.grammar);
+					assertListMarkerWidths(written.tops);
+					write.check?.(written);
+				}
+			} catch (err) {
 				restore();
-				discarded = true;
-			} else if (devChecksOn) {
-				const written = write.written();
-				assertCommittedNodes(written.nodes, deps.reading.grammar);
-				assertLastLineKept(deps.doc, wasOpen);
-				assertKeepsABlock(deps.doc, written.nodes);
-				assertReadsBack(written.tops, deps.reading.grammar);
-				assertListMarkerWidths(written.tops);
-				write.check?.(written);
+				deps.starts.failed();
+				return failed(write, err);
 			}
-		} catch (err) {
-			restore();
-			return failed(write, err);
-		}
-		if (discarded) return 'discarded';
-		if (capture) {
-			const change = changeAfter(deps.doc, capture, write.typedEnd?.() ?? null);
-			if (devChecksOn && whole) assertChangeInReach(changeAfter(deps.doc, whole, null), change);
-			deps.drafts.record(change);
-		}
-		deps.bumpContentVersion();
+			if (capture) {
+				const change = changeAfter(deps.doc, capture, write.typedEnd?.() ?? null);
+				if (devChecksOn && whole) assertChangeInReach(changeAfter(deps.doc, whole, null), change);
+				deps.drafts.record(change);
+			}
+			deps.bumpContentVersion(() => write.touched());
+			return 'written';
+		};
+		let outcome = 'written' as FrameOutcome;
+		// A selection the write changes is announced once the write is, so no listener is called on
+		// a half-written tree.
+		deps.selectionState.batch(() => {
+			outcome = announced();
+		});
+		if (outcome !== 'written') return outcome;
 		// A write moves what the gap caret's boundary index names; after the push, so the stored
 		// entry keeps the gap.
 		deps.selectionState.clearGapCaret();

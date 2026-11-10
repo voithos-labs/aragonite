@@ -76,8 +76,9 @@ describe('lazy inline: undo restore does no inline work', () => {
 
 		deps.undoManager.push(controller.captureCurrentState());
 		// A new node, as a commit would write, so the entry is a step that changes the bytes.
+		deps.starts.opened();
 		deps.doc.children[0] = para('edited\n');
-		deps.bumpContentVersion();
+		deps.bumpContentVersion(null);
 
 		resetPerfInstruments();
 		await history.requestUndo();

@@ -12,13 +12,14 @@ import { SELECTION_END } from '#lib/block-component.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
 import { deleteRange } from '../harness/range-delete';
 import { registerChromePluginsForTests } from './chrome-plugins';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 beforeEach(registerChromePluginsForTests);
 
 function read(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const doc = parse(source);
 	const coverage = rangeCoverage(doc, coverRange(doc, start, end));
-	const layout = documentLayout(doc);
+	const layout = documentLayout(measured(doc));
 	const range = rangeBytes(doc, coverage, layout)!;
 	const paint = rangePaint(doc, coverage, layout);
 	const removed = parse(source);

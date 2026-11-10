@@ -69,7 +69,8 @@ describe('the memo invalidates', () => {
 		env.doc.children[1].raw = 'beta\n';
 		expect(isStrong(env)).toBe(true);
 
-		env.deps.bumpContentVersion();
+		env.deps.starts.opened();
+		env.deps.bumpContentVersion(null);
 		expect(isStrong(env)).toBe(false);
 	});
 

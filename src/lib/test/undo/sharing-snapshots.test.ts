@@ -21,8 +21,9 @@ type Harness = ReturnType<typeof makeHarness>;
  *  bytes rather than one the undo stack passes over. */
 function pushThenAppend(deps: Harness['deps'], controller: Harness['controller']): void {
 	deps.undoManager.push(controller.captureCurrentState());
+	deps.starts.opened();
 	deps.doc.children.push(parse('appended\n').children[0]);
-	deps.bumpContentVersion();
+	deps.bumpContentVersion(null);
 }
 
 describe('structural-sharing snapshots', () => {

@@ -35,6 +35,7 @@ import {
 import { bodyOf, bytePositions, opened, pointKey } from './positions';
 import { resolveCaret, resolveRange, shapeOf, type EndSeed, type RangeSeed } from './ranges';
 import { endingOf } from './shapes';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 export interface LawInput {
 	source: string;
@@ -305,7 +306,7 @@ function repeatsLinesBefore(at: Opened, source: string): boolean {
 	const doc = at.editor.instance.__test.getDocument();
 	const held = at.editor.instance.getSelection();
 	if (!held) return false;
-	const layout = documentLayout(doc);
+	const layout = documentLayout(measured(doc));
 	const range = rangeBytes(
 		doc,
 		rangeCoverage(doc, coverRange(doc, held.anchor, held.focus)),
@@ -632,7 +633,7 @@ export async function law10(input: LawInput, copy: ClipboardRoute): Promise<LawR
 		const expected = body.slice(from, to);
 		// A block or container the range holds whole is copied whole (`docs/design/selection.md` § Clipboard), so
 		// an end at its edge reads by the coverage rule, which the laws leave open there.
-		const paint = rangePaint(tree, rangeCoverage(tree, covered), documentLayout(tree));
+		const paint = rangePaint(tree, rangeCoverage(tree, covered), documentLayout(measured(tree)));
 		const atEdge = [start.path, end.path].some((p) => paint.boxHolding(p) !== null);
 		const copied = (await clipboardGesture(at.editor, 'copy', copy))['text/plain'] ?? '';
 		takeDevWarns();

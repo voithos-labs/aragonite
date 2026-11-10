@@ -43,6 +43,7 @@
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { coverRange, rangeCoverage } from '../selection/range-coverage';
 	import { documentBytes, rangePaint } from '../selection/range-bytes';
+	import { createKeptStarts, type ChangedRuns } from '../editor-actions/commit/kept-starts';
 	import { findSurfacePathForElement } from '../selection/path-lookup';
 	import { createSelectionDescription } from '../selection/selection-description';
 	import { EDITOR_LABEL } from '../a11y-strings';
@@ -256,11 +257,21 @@
 	// Bumped by every path that writes bytes. Inline widgets derive on it directly, and the
 	// decoration engine's `editEpoch` follows it a tick later.
 	const contentVersion = createContentVersion();
-	const currentSource = createCurrentSource({ version: contentVersion.read, doc: () => doc });
+	const starts = createKeptStarts(() => doc);
+	const currentSource = createCurrentSource({
+		version: contentVersion.read,
+		doc: () => doc,
+		unannounced: starts.unannounced
+	});
+	const announceBytes = (runs: ChangedRuns) => {
+		starts.changed(runs);
+		contentVersion.bump();
+	};
 	const bytes = documentBytes({
 		version: contentVersion.read,
 		doc: () => doc,
-		source: currentSource.read
+		source: currentSource.read,
+		measured: starts.read
 	});
 	let currentResolver = $state<LinkReferenceResolver>(initial.resolver);
 	let currentSignature = $state<string>(initial.signature);
@@ -415,6 +426,8 @@
 	const drafts = createDraftRegistry({
 		stamps,
 		doc: () => doc,
+		measured: starts.read,
+		source: currentSource.read,
 		isReading: () => reading.mode() === 'reading',
 		// Built below; a draft commits post-init.
 		writes: () => ({
@@ -444,7 +457,8 @@
 			doc = next;
 			blockIds = assignIds(doc.children);
 		},
-		bumpContentVersion: contentVersion.bump,
+		bumpContentVersion: announceBytes,
+		starts,
 		clearBlockRefs: () => {
 			blockRefs.length = 0;
 		},
@@ -619,7 +633,8 @@
 		setDoc: (v) => {
 			doc = v;
 		},
-		bumpContentVersion: contentVersion.bump,
+		bumpContentVersion: announceBytes,
+		starts,
 		bytes,
 		refreshDefinitions: (replaced) => {
 			const map = definitionsAfter(doc, replaced, currentSignature);
@@ -1494,7 +1509,8 @@
 				caret,
 				op,
 				snapshot: { path: docPathFrom([0]), offset: 0 }
-			})
+			}),
+		byteOf: (path, offset) => bytes.layout().byteOf(path, offset)
 	};
 </script>
 

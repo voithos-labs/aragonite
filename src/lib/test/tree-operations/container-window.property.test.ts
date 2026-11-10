@@ -16,6 +16,7 @@ import {
 	topLevelReading,
 	type SpliceReading
 } from '#lib/tree-operations/byte-splice.js';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 import { changesBetween, type ByteChange } from '#lib/tree-operations/byte-changes.js';
 import {
 	disablePerfInstruments,
@@ -65,12 +66,12 @@ function divergence(source: string, changes: (before: string) => ByteChange[]) {
 	}));
 	enablePerfInstruments();
 	resetPerfInstruments();
-	const reading = spliceReading(inside, before, made, defaultGrammarView);
+	const reading = spliceReading(measured(inside), before, made, defaultGrammarView);
 	const parsed = perfSnapshot().parseBytes;
 	disablePerfInstruments();
 	const oldsOut = outside.children.map((b) => ({ kids: b.children ?? [], ids: b.childIds }));
 	install(inside, reading);
-	install(outside, topLevelReading(outside, before, made, defaultGrammarView));
+	install(outside, topLevelReading(measured(outside), before, made, defaultGrammarView));
 	const bytes = serialize(inside);
 	const failure = (() => {
 		if (bytes !== serialize(outside)) return `bytes ${JSON.stringify(bytes)}`;

@@ -15,17 +15,18 @@ import { SYNTAX_PLUGINS } from '../behavior/corpus';
 import { arbLawDocument } from '../range-laws/shapes';
 import { allBlockPaths, freshOrFixedSeed } from '../invariants/arbitraries/index';
 import { arbQuoteDoc, arbTableDoc } from '../invariants/arbitraries/spanned';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 const withoutSpans = (node: CstNode): CstNode =>
 	({ ...node, childSpans: undefined, children: node.children?.map(withoutSpans) }) as CstNode;
 
 /** Every answer the byte map gives about `doc`, one line each. */
 function answers(doc: Document): string[] {
-	const map = documentByteMap(doc);
+	const map = documentByteMap(measured(doc));
 	const out: string[] = [];
 	for (let at = 0; at <= serialize(doc).length; at++) {
 		out.push(
-			`byte ${at}: ${JSON.stringify(map.leafAt(at))}, gap ${JSON.stringify(gapAtByte(doc, at))}`
+			`byte ${at}: ${JSON.stringify(map.leafAt(at))}, gap ${JSON.stringify(gapAtByte(measured(doc), at))}`
 		);
 	}
 	for (const path of allBlockPaths(doc)) {

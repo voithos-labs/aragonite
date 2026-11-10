@@ -20,6 +20,7 @@ import { refSlotsOver, replaceRefs } from '../block-lists/child-refs';
 import type { ChildList } from '../block-lists/child-list';
 import { createSelectionState } from '../selection/selection-state.svelte';
 import { documentBytes } from '../selection/range-bytes';
+import { createKeptStarts } from '../editor-actions/commit/kept-starts';
 import { serialize } from '../core/serializer';
 import {
 	createCaretLanding,
@@ -166,6 +167,7 @@ export function createHeadlessActions(
 	const events = createEditorEvents();
 	const landings: RecordedLanding[] = [];
 	let contentVersion = 0;
+	const starts = createKeptStarts(() => doc);
 	const stamps = createDocumentStamps();
 	const deps: EditorActionsDeps = {
 		get doc() {
@@ -188,14 +190,17 @@ export function createHeadlessActions(
 		setBlockRefs: (next: (BlockComponent | undefined)[]) => {
 			replaceRefs(blockRefs, next);
 		},
-		bumpContentVersion: () => {
+		bumpContentVersion: (runs) => {
+			starts.changed(runs);
 			contentVersion++;
 			options.bumpContentVersion?.();
 		},
+		starts,
 		bytes: documentBytes({
 			version: () => contentVersion,
 			doc: () => doc,
-			source: () => serialize(doc)
+			source: () => serialize(doc),
+			measured: starts.read
 		}),
 		// Nothing here draws a reference link, so the blocks a write replaced reach only a listener.
 		refreshDefinitions: (replaced) => options.onReplaced?.(replaced),

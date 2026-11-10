@@ -178,8 +178,9 @@ describe('history swap: the typing batch ends', () => {
 				async () => undefined
 			);
 			// Stands in for the keystroke's own write, so the entry is a step to undo.
+			deps.starts.opened();
 			deps.doc.children[0] = makeNode('paragraph', 'aaab\n');
-			deps.bumpContentVersion();
+			deps.bumpContentVersion(null);
 			await history.requestUndo();
 			vi.advanceTimersByTime(1000);
 			expect(ops).toEqual(['undo']);

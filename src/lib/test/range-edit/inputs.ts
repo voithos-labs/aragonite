@@ -16,6 +16,7 @@ import type { Mode } from '#lib/range-edit/host.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
 import { arbClipboardText, arbLawDocument } from '../range-laws/shapes';
 import { arbEnd, arbRangeSeed, resolveCaret, resolveRange } from '../range-laws/ranges';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 export interface LawInput {
 	source: string;
@@ -47,7 +48,7 @@ export function lawInputs(
 				});
 			const caretSeed = fc.sample(arbEnd, { numRuns: 1, seed: seed + 7 * n + 3 })[0];
 			const via = resolveCaret(doc, caretSeed);
-			const at = via && documentLayout(doc).byteOf(via.anchor.path, via.anchor.offset);
+			const at = via && documentLayout(measured(doc)).byteOf(via.anchor.path, via.anchor.offset);
 			const texts = [clips[(n * 5) % clips.length], clips[(n * 5 + 2) % clips.length]];
 			return {
 				source,
@@ -68,5 +69,5 @@ function bytesOfRange(doc: DocumentView, selection: EditorSelection): Range | nu
 			? point
 			: normalizeCharEndpoint(doc, point, other.path);
 	const covered = coverRange(doc, snapped(anchor, focus), snapped(focus, anchor));
-	return rangeBytes(doc, rangeCoverage(doc, covered), documentLayout(doc));
+	return rangeBytes(doc, rangeCoverage(doc, covered), documentLayout(measured(doc)));
 }

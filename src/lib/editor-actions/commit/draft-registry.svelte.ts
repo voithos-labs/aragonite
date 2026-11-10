@@ -15,6 +15,7 @@ import { devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 import { assertDraftBytesKept } from '../../invariants/install';
 import { docPathFrom } from '../../core/coordinate-spaces';
 import { leafAtByte } from '../../tree-operations/container-offsets';
+import type { Measured } from '../../tree-operations/top-level-starts';
 import {
 	blockRange,
 	byteAt,
@@ -55,6 +56,10 @@ export interface DraftWrites {
 export interface DraftRegistryDeps {
 	stamps: Pick<DocumentStamps, 'current' | 'historySwapping'>;
 	doc(): DocumentView;
+	/** That document with the starts the editor keeps for it. */
+	measured(): Measured;
+	/** Its bytes, serialized once per content version. */
+	source(): string;
 	isReading(): boolean;
 	writes(): DraftWrites;
 }
@@ -132,7 +137,7 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 				if (changes[i].from < changes[i - 1].to || changes[i].from === changes[i - 1].from)
 					return refused('overlap', `two of its ranges meet at byte ${changes[i].from}`);
 			}
-			const text = serialize(doc);
+			const text = deps.source();
 			if (devChecksOn && lengths) {
 				const was = writes.map(({ range }) => ({
 					from: byteAt(lengths!, range.from),
@@ -158,7 +163,7 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 			// A draft needs no record of its own write.
 			drop(opened);
 			const writer = deps.writes();
-			const seed = changes.length > 0 ? snapshotAt(doc, changes[0].from) : null;
+			const seed = changes.length > 0 ? snapshotAt(deps.measured(), changes[0].from) : null;
 			let landed = true;
 			const run = async () => {
 				if (seed) {
@@ -266,8 +271,8 @@ function refused(
 const splitsLineEnding = (text: string, at: number) => text[at - 1] === '\r' && text[at] === '\n';
 
 /** Where undo puts the caret back when nothing is focused: the text at byte `at`. */
-function snapshotAt(doc: DocumentView, at: number): CommitSnapshotArg {
-	const leaf = leafAtByte(doc, at);
+function snapshotAt(measured: Measured, at: number): CommitSnapshotArg {
+	const leaf = leafAtByte(measured, at);
 	return leaf
 		? { path: docPathFrom(leaf.path), offset: leaf.offset }
 		: { path: docPathFrom([0]), offset: 0 };

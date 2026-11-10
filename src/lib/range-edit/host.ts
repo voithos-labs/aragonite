@@ -25,6 +25,7 @@ import { storedAsAt, writeTargetAt } from '../tree-operations/stored-as';
 import { cellText } from '../core/parsers/table-line';
 import { editorHost } from '../tree-operations/fix-up/editor-host';
 import { blankLineBelongs } from '../tree-operations/fix-up/joins';
+import { measured } from '../tree-operations/top-level-starts';
 import { documentLayout, type Layout } from './layout';
 
 export type Mode = 'source' | 'live';
@@ -155,8 +156,8 @@ export function rangeHost(
 				: readAsOpened(source, { grammar: reading.grammar, scope: 'document' }),
 		layout: (doc) =>
 			doc === current?.tree
-				? (currentLayout ??= current.layout ?? documentLayout(doc))
-				: documentLayout(doc),
+				? (currentLayout ??= current.layout ?? documentLayout(measured(doc)))
+				: documentLayout(measured(doc)),
 		facts: blockFacts,
 		parts(doc, parent, index, upper, lower, placed) {
 			const fixUp = editorHost(reading.grammar);
