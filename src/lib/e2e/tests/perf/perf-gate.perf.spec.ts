@@ -27,6 +27,17 @@ const RUNNER_SCALE = Number(process.env.PERF_RUNNER_SCALE ?? '1');
 const SIZE_BYTES: Record<string, number> = { '1MB': 1_000_000, '10MB': 10_000_000 };
 const SIZE_KEYSTROKES: Record<string, number> = { '1MB': 30, '10MB': 15 };
 
+// A 1MB row's p95 is the second slowest of its 30 keystrokes, past the one that opens the undo
+// entry. A 10MB row's 15 keystrokes make its p95 the slowest one, so that stays reported.
+const TAIL_CEILING_MS = 100 * RUNNER_SCALE;
+
+/** Soft, so a red row reports its p50 too. Work that runs after a keystroke's sample ends is seen
+ *  only when a later sample waits behind it. */
+function expectTailWithinCeiling(key: string, size: string, p95Ms: number): void {
+	if (size !== '1MB') return;
+	expect.soft(p95Ms, `${key} p95 past the tail ceiling`).toBeLessThanOrEqual(TAIL_CEILING_MS);
+}
+
 // A `live` row measures the same keystroke as the source row above it; hiding markers is CSS over
 // one render path, so a live row out of its source row's range means hidden text added work.
 const GATED_ROWS: Array<[shape: FixtureShape, size: string, mode?: 'live']> = [
@@ -90,6 +101,7 @@ test.describe('perf gate: keystroke p50 within budget', () => {
 					`ceiling=${ceilingMs.toFixed(1)}ms (baseline ${baselineMs}ms) ` +
 					`p95=${m.p95Ms.toFixed(1)}ms load=${m.loadMs.toFixed(1)}ms`
 			);
+			expectTailWithinCeiling(key, size, m.p95Ms);
 			expect(m.p50Ms, `${key} p50 regressed past baseline+budget`).toBeLessThanOrEqual(ceilingMs);
 		});
 	}
@@ -124,6 +136,7 @@ test.describe('perf gate: keystroke p50 typing inside a container', () => {
 				`PERF-GATE ${key} p50=${m.p50Ms.toFixed(1)}ms ` +
 					`ceiling=${ceilingMs.toFixed(1)}ms (baseline ${baselineMs}ms) p95=${m.p95Ms.toFixed(1)}ms`
 			);
+			expectTailWithinCeiling(key, size, m.p95Ms);
 			expect(m.p50Ms, `${key} p50 regressed past baseline+budget`).toBeLessThanOrEqual(ceilingMs);
 		});
 	}

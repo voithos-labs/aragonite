@@ -13,8 +13,10 @@ timing gate belongs at a merge/ship boundary, not on every commit.
 
 Per-keystroke (or, for the structural row, per-edit) **p50** for each gated row, against `src/lib/test/perf/baseline.json`.
 
-- p50, not p95: the median is the stable statistic; p95 catches a single GC pause
-  and is reported, never gated.
+- The median is the stable statistic, so it carries the per-row ceilings. A 10MB row's
+  p95 is its slowest keystroke of 15, which a single GC pause moves, so it's reported only.
+- Each 1MB row's **p95** also stays under one fixed ceiling, `100ms × PERF_RUNNER_SCALE`.
+  Of 30 keystrokes it is the second slowest, past the one that opens the undo entry.
 - Gated rows are the ones whose cost should be **O(viewport)**: every ≤1MB shape,
   plus each renderable shape's 10MB keystroke. Gating at 10MB is the point: it
   guards the O(viewport) claim against an O(document) regression that would hide
@@ -52,10 +54,14 @@ regression. A row that regressed is a bug until proven to be a moved floor.
 
 ## What this gate cannot see
 
-Steady-state p50 only. A regression in one slow keystroke, a full re-render on the
-first edit for instance, barely moves a 30-sample median. That class is guarded
-separately, by the block-render-scoping count assertion inside the fast
+A regression in one slow keystroke, a full re-render on the first edit for instance,
+barely moves a 30-sample median and is the one sample the p95 forgives. That class is
+guarded separately, by the block-render-scoping count assertion inside the fast
 `npm test` gate.
+
+Work that runs after a keystroke's sample ends (on the browser's `selectionchange`, say)
+reaches a sample only when a later one waits behind it. The p95 ceiling catches it when
+it reaches two of a row's 30 samples; a count test is what holds such work at zero.
 
 Rows run against a built-and-previewed app, so the numbers are the editor's rather
 than the dev server's. A dev run of the same rows reads several times higher on a
