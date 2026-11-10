@@ -63,11 +63,17 @@ export function writeLeaf(
 }
 
 /** Text going in at `start` (up to `end`) in the document's line ending, each later line behind
- *  the markers there; a blank one takes them without trailing spaces unless the caret's text follows. */
-export function spliced(doc: Doc, start: number, end: number, keep?: (c: LaidBlock) => boolean) {
+ *  the markers there and `indent`; a blank one takes them without trailing spaces unless the caret's text follows. */
+export function spliced(
+	doc: Doc,
+	start: number,
+	end: number,
+	keep?: (c: LaidBlock) => boolean,
+	indent = ''
+) {
 	const eol = endingOf(doc.source);
 	const rest = lineRest(doc.source, end);
-	const prefix = continuation(doc, start, keep);
+	const prefix = continuation(doc, start, keep) + indent;
 	return (text: string) =>
 		displayLines(text)
 			.map(({ text: line }, i, lines) => {

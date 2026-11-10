@@ -73,17 +73,20 @@ function landed(doc: Doc, at: number, lf: string, plain: boolean): Edit {
 	const literal = factsOf(doc, leaf).body === 'literal';
 	const titled = titleOwner(doc, leaf);
 	if (titled) return intoTitle(doc, titled, leaf, at, clip, plain);
-	// Plain text never converts: as written where the text is literal, escaped where it reads.
-	if (plain && literal) return insertBytes(doc, at, clip, false);
-	if (plain) return insertText(doc, leaf, offset, doc.host.leaf.plain(doc.tree, leaf.path, clip));
-	// Literal text takes the paste as written; a line that could close its fence goes through the
-	// block's write rule, which grows the fence past it.
+	// Literal text takes the paste as written, plain or not; a line that could close its fence goes
+	// through the block's write rule, which grows the fence past it.
 	if (literal) {
-		const fence = doc.host.fence(nodeAt(doc, leaf.path).raw);
-		return fence && displayLines(clip).some((line) => fence.mayClose(line.text))
-			? insertText(doc, leaf, offset, clip)
-			: insertBytes(doc, at, clip);
+		const raw = nodeAt(doc, leaf.path).raw;
+		const fence = doc.host.fence(raw);
+		if (fence && displayLines(clip).some((line) => fence.mayClose(line.text)))
+			return insertText(doc, leaf, offset, clip);
+		// With no fence, a line stays in the block by its indent, which a new line repeats.
+		const lineStart = raw.lastIndexOf('\n', offset - 1) + 1;
+		const indent = fence ? '' : /^[ \t]*/.exec(raw.slice(lineStart, offset))![0];
+		return insertBytes(doc, at, clip, indent);
 	}
+	// Plain text never converts: it goes in escaped where the block reads Markdown.
+	if (plain) return insertText(doc, leaf, offset, doc.host.leaf.plain(doc.tree, leaf.path, clip));
 	const pasted = readDoc(clip, doc.host, doc.mode);
 	const isText = (b: LaidBlock) => factsOf(pasted, b).joins === 'text';
 	const tops = [...pasted.layout.within(0, clip.length)].filter(
@@ -140,10 +143,9 @@ function insertText(
 	return writeLeaf(doc, leaf, write, offset, offset, keep);
 }
 
-/** Bytes going in at `at` as written, each later line behind the markers there unless `prefixed`
- *  is off. */
-function insertBytes(doc: Doc, at: number, text: string, prefixed = true): Edit {
-	const lines = prefixed ? spliced(doc, at, at)(text) : withLineEnding(text, endingOf(doc.source));
+/** Bytes going in at `at` as written, each later line behind the markers there and `indent`. */
+function insertBytes(doc: Doc, at: number, text: string, indent = ''): Edit {
+	const lines = spliced(doc, at, at, undefined, indent)(text);
 	return {
 		source: doc.source.slice(0, at) + lines + doc.source.slice(at),
 		caret: at + lines.length

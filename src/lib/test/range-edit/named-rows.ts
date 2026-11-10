@@ -296,6 +296,39 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: plain('x\n*y*'),
 		expect: { source: ':::note Tix *y*tle\nbody\n:::\n' }
 	},
+	// ── Lines pasted into literal text stay in its block ──
+	// Miss-analysis: law 11 read a literal paste with no marker on its later lines, so the core
+	// dropped them, and no row pasted two lines into indented code or into code in a container.
+	{
+		name: 'L9 lines pasted into indented code take the caret line’s indent',
+		source: '    co⟦⟧de\n',
+		gesture: paste('a\n\nb'),
+		expect: { source: '    coa\n\n    bde\n', caret: text(14) }
+	},
+	{
+		name: 'L9 a fence pasted on indented code’s last line stays code, and opens nothing',
+		source: '    code\n\t⟦⟧\n\nnext\n',
+		gesture: paste('```\ncode\n```\n'),
+		expect: { source: '    code\n\t```\n\tcode\n\t```\n\n\nnext\n' }
+	},
+	{
+		name: 'L11 plain lines pasted into code in a quote keep the quote’s marker',
+		source: '> ```\n> x⟦⟧\n> ```\n',
+		gesture: plain('a\n*b*'),
+		expect: { source: '> ```\n> xa\n> *b*\n> ```\n' }
+	},
+	{
+		name: 'L11 a plain fence line pasted into a code block grows its fence',
+		source: '```\nx⟦⟧\n```\n',
+		gesture: plain('a\n```'),
+		expect: { source: '````\nxa\n```\n````\n' }
+	},
+	{
+		name: 'L11 plain lines into indented code in a list item keep the item and the indent',
+		source: '- a\n\n      c⟦⟧ode\n',
+		gesture: plain('x\ny'),
+		expect: { source: '- a\n\n      cx\n      yode\n' }
+	},
 	// ── A list pasted into a list of the other kind breaks out of it (C8) ──
 	// Miss-analysis: the merge fact's mismatch rule was read by neither the core nor the law's
 	// expectation, and every list row pasted a list of the caret's own kind.

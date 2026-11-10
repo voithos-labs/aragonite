@@ -503,11 +503,10 @@ function landedPaste(
 	if (title !== null)
 		return { shape: 'text', bytes: [read.source.slice(0, at) + title + read.source.slice(at)] };
 	// Literal text (code) takes the paste as written, whatever it would read as elsewhere.
-	// Fence lines pasted into literal text make its fences grow, which the rows hold.
-	if (targetFacts.body === 'literal' && /^(```|~~~)/m.test(text))
-		return { shape: 'other', bytes: [] };
 	if (targetFacts.body === 'literal') {
-		return { shape: 'text', bytes: variants(splice(continuationAt(read, at, host), '')) };
+		const prefix = literalPrefix(read, at, target, lf(text), host);
+		if (prefix === null) return { shape: 'other', bytes: [] };
+		return { shape: 'text', bytes: variants(splice(prefix, '')) };
 	}
 	// One line after text on the caret's line goes in as text, whatever it reads as alone.
 	const rowFrom = Math.max(read.source.lastIndexOf('\n', at - 1) + 1, target.text!.from);
@@ -554,6 +553,23 @@ function landedPaste(
 		return { shape: 'split', bytes: own ? [blank, line] : [blank] };
 	}
 	return { shape: 'other', bytes: [] };
+}
+
+/** What a later line pasted into literal text at `at` starts with: its containers' markers and,
+ *  with no fence around it, the caret line's indent. Null where a line could close the fence. */
+function literalPrefix(
+	read: Read,
+	at: number,
+	leaf: LaidBlock,
+	text: string,
+	host: CheckHost
+): string | null {
+	const raw = treeNodeAt(read.tree, leaf.path)!.raw;
+	const fence = host.fence(raw);
+	if (fence && text.split('\n').some((line) => fence.mayClose(line))) return null;
+	const offset = read.layout.pointAt(at)!.offset;
+	const line = raw.slice(raw.lastIndexOf('\n', offset - 1) + 1, offset);
+	return continuationAt(read, at, host) + (fence ? '' : /^[ \t]*/.exec(line)![0]);
 }
 
 const oneLine = (text: string) => text.replace(/\n+$/, '').replace(/\n+/g, ' ');
@@ -713,6 +729,11 @@ export function plainPasteHolds(
 	host: CheckHost,
 	mode: Mode
 ): boolean {
+	// A line that could close the fence around literal text grows the fence, which the rows hold.
+	const target = leafAt(read, at);
+	if (target && host.facts(target.type).body === 'literal') {
+		if (literalPrefix(read, at, target, lf(text), host) === null) return true;
+	}
 	if (insertedOnly(read, at, text, got, host, mode)) return true;
 	const below = got.length - (read.source.length - (leafAt(read, at)?.to ?? at));
 	const blank = /(?:^|\n)([ \t>]*\r?\n)$/.exec(got.slice(0, below))?.[1];
@@ -752,7 +773,13 @@ function insertedOnly(
 				title.slice(lead)
 		);
 	}
-	const unprefixed = lf(inserted).replace(/\n[ \t>]*/g, '\n');
 	const bare = (t: string) => t.replace(/\n$/, '');
-	return bare(literal ? lf(inserted) : host.shows(unprefixed, mode)) === bare(lf(text));
+	if (literal && leaf) {
+		const prefix = literalPrefix(read, at, leaf, lf(text), host);
+		const after = !nothingVisibleAfter(read.source, at);
+		const lines = (t: string) => join(t.split('\n'), prefix ?? '', '\n', after);
+		return [lf(text), bare(lf(text))].some((t) => lines(t) === lf(inserted));
+	}
+	const unprefixed = lf(inserted).replace(/\n[ \t>]*/g, '\n');
+	return bare(host.shows(unprefixed, mode)) === bare(lf(text));
 }
