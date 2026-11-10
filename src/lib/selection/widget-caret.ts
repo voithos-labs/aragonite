@@ -9,9 +9,9 @@ import type { CaretWriter } from '../browser/caret-writer';
 import type { BlockElLookup } from '../caret/block-el-lookup';
 import type { SelectionState } from './selection-state.svelte';
 
-/** Writes that caret, or drops the browser's selection where it can't stand: an unfocused or
- *  unmounted block, reading mode. */
-export function seatWidgetCaret(
+/** Writes the selected widget's caret, or drops the browser's selection where none can stand:
+ *  an unfocused or unmounted block, reading mode. */
+export function writeWidgetCaret(
 	selection: Pick<SelectionState, 'widgetCaret'>,
 	writer: CaretWriter,
 	blockElAt: BlockElLookup
@@ -19,7 +19,7 @@ export function seatWidgetCaret(
 	const at = selection.widgetCaret();
 	const el = at && blockElAt(at.path);
 	const focused = !!el && document.activeElement === el;
-	if (!at || !focused || !writer.placeCaretAtRaw(el, at.offset, { clamp: 'reachable' })) {
+	if (!at || !focused || !writer.placeUnshownCaret(el, at.offset)) {
 		writer.clear();
 	}
 }

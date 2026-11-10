@@ -20,9 +20,8 @@
 		reachableDomTextBounds,
 		type RawRange
 	} from '../../../browser/offsets';
-	import { rawSelectionFocus } from '../../../browser/selection-read';
 	import { readInput } from '../../../browser/input';
-	import { asRawOffset, rowMajorCellIndex, type RawOffset } from '../../../core/coordinate-spaces';
+	import { asRawOffset, rowMajorCellIndex } from '../../../core/coordinate-spaces';
 	import { createSurfaceBackend } from '../editable/surface-backend';
 	import { getCurrentCursorEditorRelativeX } from '../../../caret/sticky-measure';
 	import { handleEdgeStep, handleSharedKeydown } from '../../../selection/shared-keydown';
@@ -192,7 +191,7 @@
 		getIndex: () => index,
 		requestCaret: (at) => parkCursor(at),
 		ownPairs,
-		getFocusOffset: () => getRawFocusOffset(),
+		getFocusOffset: cursor.getFocusOffset,
 		getTextLen: () => (el ? containerDomTextLength(el) : 0),
 		stepEdge: edgeStep.step,
 		inlineUnits: () => edgeDispatch.inlineUnits,
@@ -506,10 +505,6 @@
 	// Not textContent: a rendered widget carries zero textContent but several raw bytes.
 	function readCellText(): string {
 		return el ? rawTextOfNode(el, node.raw) : '';
-	}
-
-	function getRawFocusOffset(): RawOffset | null {
-		return el ? rawSelectionFocus(el) : null;
 	}
 
 	// ── Event handlers ─────────────────────────────────────────────────────

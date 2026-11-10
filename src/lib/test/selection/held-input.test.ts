@@ -62,7 +62,25 @@ describe('input with no key over a range across blocks', () => {
 		}
 	);
 
-	it.each(['insertReplacementText', 'formatBold', 'insertFromPaste', 'historyUndo'])(
+	// Miss-analysis: a replacement under a range was left to the block, which wrote it while the
+	// range stood (G1.174 fired), and the one row about it pinned that it was left alone.
+	it.each(['insertReplacementText', 'formatBold'])(
+		'%s is refused: nothing is written and the range stands',
+		async (inputType) => {
+			const source = 'hello\n\nworld\n';
+			const env = makeEnv(source);
+			selectAcross(env.selectionState, [0], [1]);
+			const handlers = makeHandlers(env, [0]);
+			const e = input(inputType, { data: 'word' });
+			expect(handlers.claimsBeforeInput(e)).toBe(true);
+			expect(await handlers.handleBeforeInput(e)).toBe(true);
+			expect(e.defaultPrevented).toBe(true);
+			expect(serialize(env.deps.doc)).toBe(source);
+			expect(env.selectionState.ownsRange).toBe(true);
+		}
+	);
+
+	it.each(['insertFromPaste', 'historyUndo', 'insertCompositionText'])(
 		'%s is left to its own route',
 		(inputType) => {
 			const env = makeEnv('hello\n\nworld\n');

@@ -48,6 +48,9 @@ export interface CaretWriter {
 	/** A collapsed caret at raw `raw` in `el`, past a marker prefix (Chromium bounces one before
 	 *  it); reading mode (`declinesCaret`) drops the selection instead. */
 	placeCaretAtRaw(el: HTMLElement, raw: number, placement: CaretPlacement): boolean;
+	/** A caret at the reachable offset nearest raw `raw` that nothing shows, which a selected
+	 *  widget keeps for input to arrive at: it stands among hidden markers too. */
+	placeUnshownCaret(el: HTMLElement, raw: number): boolean;
 	/** Raw `[anchor, focus]` in `el`, backward when the focus comes first; an endpoint at raw 0
 	 *  behind a marker prefix lands after the span, as a caret does. */
 	selectRawRange(el: HTMLElement, anchor: number, focus: number): boolean;
@@ -101,6 +104,8 @@ export function createCaretWriter(
 ): CaretWriter {
 	// The editor's own caret stands wherever it put it; only a caret the browser moved is moved.
 	let written: DomPosition | null = null;
+	// Whether `written` is a caret nothing shows, which no marker showing or hiding writes again.
+	let unshown = false;
 	// The selection a decided caret key wrote, as the browser holds it, until it is checked.
 	let decided: { anchor: DomPosition; focus: DomPosition } | null = null;
 
@@ -140,6 +145,7 @@ export function createCaretWriter(
 		}
 		written =
 			sel.isCollapsed && sel.focusNode ? { node: sel.focusNode, offset: sel.focusOffset } : null;
+		unshown = false;
 		// A later write of the editor's own supersedes a decided key's record.
 		decided = null;
 		onWrite();
@@ -161,6 +167,7 @@ export function createCaretWriter(
 		const spot = el && canonicalCaretPoint(el, focus.node, focus.offset);
 		if (spot) return writeSelection(sel.isCollapsed ? spot : anchor, spot, el);
 		written = sel.isCollapsed ? focus : null;
+		unshown = false;
 		decided = null;
 		onWrite();
 		return true;
@@ -193,6 +200,7 @@ export function createCaretWriter(
 		if (!sel) return;
 		sel.removeAllRanges();
 		written = null;
+		unshown = false;
 		decided = null;
 		onWrite();
 	}
@@ -207,6 +215,16 @@ export function createCaretWriter(
 			const text = caretPointAtRaw(el, at);
 			const point = (line === 'later' && beforeWidgetOf(el, text)) || text;
 			return writeSelection(point, point, el);
+		},
+		placeUnshownCaret(el, raw) {
+			if (declinesCaret(el, raw)) {
+				clear();
+				return false;
+			}
+			const point = caretPointAtRaw(el, clampToReachableRaw(el, Math.max(0, raw)));
+			// No editable is named, so the write skips the rule that something shows the caret.
+			unshown = writeSelection(point, point, null);
+			return unshown;
 		},
 		selectRawRange,
 		extendSelectionToRaw(el, raw) {
@@ -246,7 +264,7 @@ export function createCaretWriter(
 			const caret = liveCaretIn(el);
 			// Only the editor's own caret: one the browser left is `canonicalizeCaret`'s to judge.
 			if (!caret || written?.node !== caret.node || written.offset !== caret.offset) return false;
-			return writeSelection(caret, caret, el);
+			return !unshown && writeSelection(caret, caret, el);
 		},
 		moveCaretToLineEdge(side) {
 			return modifyToLineEdge('move', side);

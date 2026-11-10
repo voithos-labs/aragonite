@@ -2,6 +2,8 @@ import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
 import { FIXTURE_BYTES, cstBlockCount } from '../perf/vr-helpers';
 import { pointAtRaw } from '../../text-runs';
+import { waitForFirstImageLoaded } from '../blocks/image/helpers';
+import { clickInPlace } from '../../click-in-place';
 
 /**
  * Public rect API (requirements/decorations/rect-api.md). E2E, not a unit suite, because
@@ -158,6 +160,18 @@ test.describe('public rect api', () => {
 		// `captured` guards against a false green where the handler never fired.
 		expect(probe.captured).toBe(true);
 		expect(probe.rect).toBeNull();
+	});
+
+	test('caretRect is null while a picture is selected whole', async ({ page }) => {
+		await editor.loadContent('lead ![x](/test-fixtures/sample.png) tail\n');
+		await waitForFirstImageLoaded(page);
+		await clickInPlace(page.locator('[data-image-widget]'));
+		await expect(page.locator('[data-image-overlay]')).toHaveCount(1);
+		expect(await caretRect(page)).toBeNull();
+		// Typing ends the selected picture, and the caret it leaves is the user's again.
+		await page.keyboard.type('Z');
+		await editor.bridge.waitForSourceEquals('lead Z tail\n');
+		expect(await caretRect(page)).not.toBeNull();
 	});
 
 	test('reveal mounts a windowed-out block and resolves true', async ({ page }) => {

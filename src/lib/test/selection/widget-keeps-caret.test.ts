@@ -3,7 +3,7 @@
 // none asked where text sent with no key would arrive, and a soft keyboard's letter was lost.
 import { afterEach, describe, expect, it } from 'vitest';
 import { selectWidgetWhole } from '#lib/selection/place-caret.js';
-import { seatWidgetCaret } from '#lib/selection/widget-caret.js';
+import { writeWidgetCaret } from '#lib/selection/widget-caret.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { checkWidgetKeepsCaret } from '#lib/invariants/widget-keeps-caret.js';
 import { createSurfaceBackend } from '#lib/components/blocks/editable/surface-backend.js';
@@ -74,7 +74,7 @@ describe('a widget selected whole keeps a caret at its edge', () => {
 			() => {},
 			() => true
 		);
-		seatWidgetCaret(selection, declines, () => el);
+		writeWidgetCaret(selection, declines, () => el);
 		expect(caret()).toBeNull();
 		expect(checkWidgetKeepsCaret(el, true)).toBeNull();
 	});

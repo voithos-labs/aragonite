@@ -12,7 +12,7 @@ import type { GapCaretPosition } from './gap-caret';
 import type { CaretWriter } from '../browser/caret-writer';
 import type { BlockElLookup } from '../caret/block-el-lookup';
 import type { WidgetTarget } from './primitives';
-import { seatWidgetCaret } from './widget-caret';
+import { writeWidgetCaret } from './widget-caret';
 import type { SelectionState } from './selection-state.svelte';
 
 /** Builds a component's public `focus` from its `parkCaret`, batched so no listener hears of
@@ -70,7 +70,7 @@ export function selectWidgetWhole(
 ): void {
 	selection.batch(() => {
 		selection.selectWidget(target);
-		seatWidgetCaret(selection, writer, blockElAt);
+		writeWidgetCaret(selection, writer, blockElAt);
 	});
 }
 

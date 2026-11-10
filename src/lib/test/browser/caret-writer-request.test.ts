@@ -28,6 +28,7 @@ const CALLS: Record<
 	(writer: CaretWriter, el: HTMLElement, fresh: () => void) => void
 > = {
 	placeCaretAtRaw: (writer, el) => writer.placeCaretAtRaw(el, 2, { clamp: 'exact' }),
+	placeUnshownCaret: (writer, el) => writer.placeUnshownCaret(el, 2),
 	selectRawRange: (writer, el) => writer.selectRawRange(el, 1, 3),
 	extendSelectionToRaw: (writer, el) => writer.extendSelectionToRaw(el, 4),
 	selectSurfaceContent: (writer, el) => writer.selectSurfaceContent(el),

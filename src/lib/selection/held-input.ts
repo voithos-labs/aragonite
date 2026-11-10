@@ -11,7 +11,8 @@ export type HeldInput =
 	| { readonly kind: 'text'; readonly text: string }
 	| { readonly kind: 'delete'; readonly direction: DeleteDirection }
 	| { readonly kind: 'break'; readonly paragraph: boolean }
-	/** A spellcheck replacement, a format command, any input an engine invents. */
+	/** A spellcheck replacement, a format command, any input an engine invents: no key matches
+	 *  one, so the selection's owner refuses it. */
 	| { readonly kind: 'other' };
 
 /** Null for input that is not the selection's: an IME's, undo and redo, a paste or a drop, and

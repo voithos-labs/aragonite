@@ -18,6 +18,6 @@ export function checkWidgetKeepsCaret(
 	return {
 		code: 'widget-without-caret',
 		message:
-			'a widget is selected whole in the focused block and the browser holds no collapsed caret there, so text typed with no key has nowhere to arrive: seat it through `seatWidgetCaret`'
+			'a widget is selected whole in the focused block and the browser holds no collapsed caret there, so text typed with no key has nowhere to arrive: write it through `writeWidgetCaret`'
 	};
 }

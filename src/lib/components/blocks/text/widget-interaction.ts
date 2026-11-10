@@ -644,7 +644,7 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			return false;
 		}
 		// A modified chord goes on to the keymap dispatch, which owns undo and redo. Arrows stop here:
-		// the caret a selected widget keeps is no read, so a later handler would read offset 0.
+		// no read answers the caret a selected widget keeps, so a later handler would read offset 0.
 		if (hasModifier(e)) {
 			if (!e.key.startsWith('Arrow')) return false;
 			e.preventDefault();

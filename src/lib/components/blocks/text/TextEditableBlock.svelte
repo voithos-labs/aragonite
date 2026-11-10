@@ -49,11 +49,7 @@
 	import { createCompositionSeat } from './composition-seat';
 	import { createConstructReveal } from './construct-reveal';
 	import { handleSharedKeydown } from '../../../selection/shared-keydown';
-	import {
-		rawSelectionIn,
-		rawSelectionFocus,
-		caretOnPendingBreakLine
-	} from '../../../browser/selection-read';
+	import { rawSelectionIn, caretOnPendingBreakLine } from '../../../browser/selection-read';
 	import { createEditableSurface, consumePendingRestore } from '../editable/editable-surface';
 	import { selectionRemoval } from '../editable/surface-write';
 	import type { ContentWrite } from '../../../action-contracts';
@@ -214,7 +210,7 @@
 		getIndex: () => index,
 		requestCaret: (at, { source }) => setPendingCursorOffset(at, source),
 		ownPairs,
-		getFocusOffset: () => (el ? rawSelectionFocus(el) : null),
+		getFocusOffset: cursor.getFocusOffset,
 		getTextLen: () => caretReach(),
 		stepEdge: edgeStep.step,
 		inlineUnits: () => edgeDispatch.inlineUnits,
@@ -767,8 +763,8 @@
 		// source in the DOM or reaches the commands below, which hide it before writing.
 		if ((await widgetInteraction.handleRevealingKeydown(e)) || editableSurface.isDetached()) return;
 
-		// Before `handleSharedKeydown`: the caret a selected widget keeps is no read, so the shared
-		// ArrowLeft branch would read offset 0.
+		// Before `handleSharedKeydown`: no read answers the caret a selected widget keeps, so the
+		// shared ArrowLeft branch would read offset 0.
 		if ((await widgetInteraction.handleSelectedWidgetKeydown(e)) || editableSurface.isDetached())
 			return;
 

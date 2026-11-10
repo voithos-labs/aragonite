@@ -7,7 +7,7 @@ import { tick } from 'svelte';
 import { isModifiedClick, type PressTracker } from '../../activation-click';
 import { findSurfacePathForElement } from '../../selection/path-lookup';
 import { readNativeSelection } from '../../browser/selection-read';
-import { seatWidgetCaret } from '../../selection/widget-caret';
+import { writeWidgetCaret } from '../../selection/widget-caret';
 import { blockContentElAt } from '../../caret/block-el-lookup';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkWidgetKeepsCaret } from '../../invariants/widget-keeps-caret';
@@ -129,7 +129,7 @@ export function installSelectionChangeBridge(deps: SelectionChangeBridgeDeps): (
 	const blockElAt = (path: number[]) => blockContentElAt(deps.root, path);
 	const keepWidgetCaret = () => {
 		if (!deps.caretWriter.holdsWrittenCaret()) {
-			seatWidgetCaret(deps.selection, deps.caretWriter, blockElAt);
+			writeWidgetCaret(deps.selection, deps.caretWriter, blockElAt);
 		}
 		assertInvariant('widget-keeps-caret', () => {
 			const at = deps.selection.widgetCaret();

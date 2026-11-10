@@ -15,12 +15,12 @@ A delete or a break with no key is the browser's own command (`e2e/insert-text.t
 
 - a picture selected whole, `*` with no key: the `*` replaces the picture and no pair is written (`lead * tail`)
 - the same with a backtick: the backtick replaces the picture, unpaired
-- a picture selected whole, a backward or a forward delete with no key: the picture goes, as Backspace and Delete take it
+- a picture selected whole, a backward or a forward delete with no key: the picture goes, as Backspace and Delete take it. Every picture row runs from both edges (a click leaves the hidden caret at the picture's end, ArrowRight onto it at its start), since a delete the picture didn't claim takes a different neighbour from each
 - the same, a line break or a paragraph break: nothing is written and the picture stays selected, as Enter and Shift+Enter leave it
 
 ## Pinned below the browser
 
-- `test/selection/held-input.test.ts`: which inputs are the selection's (text, a delete from the keyboard, a break, a replacement, a format command) and which aren't (an IME's, undo, a paste or a drop, the delete half of a cut or a drag); a range claims text, deletes and breaks, and leaves a replacement or a format command alone.
+- `test/selection/held-input.test.ts`: which inputs are the selection's (text, a delete from the keyboard, a break, a replacement, a format command) and which aren't (an IME's, undo, a paste or a drop, the delete half of a cut or a drag); a range claims text, deletes and breaks, and refuses a replacement or a format command, as a selected widget does.
 - `test/blocks/text/widget-selected-input.test.ts`: over a widget selected whole, text replaces it, a delete in either direction removes it, and a break, a replacement or a format command is refused with the widget still selected.
 
 ## Miss-analysis
