@@ -22,8 +22,8 @@ import type { PluginActivation } from '../../schema/plugin-activation';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 import { normalizeLineEndings } from '../../core/lines';
 import { isReadingMode } from '../../presentation-mode';
-import { replaceRange } from './range-replace';
-import { readInput } from '../../browser/input';
+import { replaceRange, type RangeInsertion } from './range-replace';
+import { heldInputOf } from '../held-input';
 import { createCrossBlockKeydown } from './keydown';
 import { createCrossBlockPointer, type PaddingPress } from './pointer';
 
@@ -90,7 +90,8 @@ export interface CrossBlockHandlers {
 	/** `replacement` stands in for the clipboard text, for a caller that already converted the
 	 *  payload and can't re-read the event after its awaits. A null event is a scripted insert. */
 	handlePaste(e: ClipboardEvent | null, replacement?: string): Promise<boolean>;
-	/** Whether `handleBeforeInput` takes `e`, known before it runs: a character typed over a range. */
+	/** Whether `handleBeforeInput` takes `e`, known before it runs: text, a delete or a break that
+	 *  reaches a block under a range. */
 	claimsBeforeInput(e: InputEvent): boolean;
 	handleBeforeInput(e: InputEvent): Promise<boolean>;
 	handleCompositionStart(): boolean;
@@ -107,8 +108,8 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 	const keydown = createCrossBlockKeydown(ctx);
 	const pointer = createCrossBlockPointer(ctx);
 
-	const claimsBeforeInput = (e: InputEvent): boolean =>
-		ctx.selection.ownsRange && readInput(e).kind === 'insert';
+	const rangeInput = (e: InputEvent): RangeInsertion | null =>
+		ctx.selection.ownsRange ? insertionOf(e) : null;
 
 	return {
 		get reading() {
@@ -133,17 +134,34 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 			await replaceRange(ctx, { kind: 'paste', text });
 			return true;
 		},
-		claimsBeforeInput,
+		claimsBeforeInput: (e) => rangeInput(e) !== null,
 		handleBeforeInput: async (e) => {
-			if (!claimsBeforeInput(e)) return false;
+			const insertion = rangeInput(e);
+			if (!insertion) return false;
 			e.preventDefault();
 			// Refused here, quietly: the range replace's own refusal warns, for a key let through.
 			if (isReadingMode(ctx.reading.mode)) return true;
-			await replaceRange(ctx, { kind: 'text', text: e.data ?? '' });
+			await replaceRange(ctx, insertion);
 			return true;
 		},
 		performCrossBlockCut: async () => {
 			await replaceRange(ctx, { kind: 'none', gesture: 'cut' });
 		}
 	};
+}
+
+/** What input with no key writes over a range: the text, or what Backspace, Delete, Enter or
+ *  Shift+Enter writes there. Null for input the range leaves alone. */
+function insertionOf(e: InputEvent): RangeInsertion | null {
+	const input = heldInputOf(e);
+	switch (input?.kind) {
+		case 'text':
+			return { kind: 'text', text: input.text };
+		case 'delete':
+			return { kind: 'none', gesture: input.direction === 'forward' ? 'Delete' : 'Backspace' };
+		case 'break':
+			return { kind: 'command', chord: input.paragraph ? 'Enter' : 'Shift+Enter' };
+		default:
+			return null;
+	}
 }

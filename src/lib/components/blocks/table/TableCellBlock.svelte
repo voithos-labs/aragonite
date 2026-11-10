@@ -205,8 +205,8 @@
 		deleteAtCaret: (caret, intent) => edgeDispatch.deleteAtCaret(caret, intent),
 		unitContext: (caret) => edgeDispatch.unitContext(caret),
 		deleteBeside: (caret, direction) => edgeDispatch.deleteBeside(caret, direction),
+		inputOverWidget: (e) => widgetInteraction.inputOverSelected(e),
 		typedInsert: {
-			typeOverSelected: (text) => widgetInteraction.typeOverSelected(text),
 			widgetBeside: (caret) => edgeDispatch.typing.widgetBeside(caret),
 			widgetClosesAt: (caret) => edgeDispatch.typing.widgetClosesAt(caret),
 			typeAt: (caret, text) => edgeDispatch.typing.typeAt(caret, text)

@@ -233,8 +233,8 @@
 			takeBackOpenLine(pendingBreakKeyDeps) ? 'taken' : edgeDispatch.deleteAtCaret(caret, intent),
 		deleteBeside: (caret, direction) => edgeDispatch.deleteBeside(caret, direction),
 		unitContext: (caret) => edgeDispatch.unitContext(caret),
+		inputOverWidget: (e) => widgetInteraction.inputOverSelected(e),
 		typedInsert: {
-			typeOverSelected: (text) => widgetInteraction.typeOverSelected(text),
 			widgetBeside: (caret) => edgeDispatch.typing.widgetBeside(caret),
 			widgetClosesAt: (caret) => edgeDispatch.typing.widgetClosesAt(caret),
 			typeAt: (caret, text) => edgeDispatch.typing.typeAt(caret, text)

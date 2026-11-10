@@ -223,7 +223,6 @@ describe('decideTypedInsert: the order and the declines', () => {
 				rawStartOf: () => 1,
 				onOpenLine: () => false,
 				writes: {
-					typeOverSelected: () => false,
 					widgetBeside: () => true,
 					widgetClosesAt: () => true,
 					typeAt: (caret, text) => void writes.push(`${caret}:${text}`)
@@ -240,19 +239,6 @@ describe('decideTypedInsert: the order and the declines', () => {
 			cancelable: true,
 			...init
 		});
-
-	it('gives a widget selected whole the text before anything reads the caret', () => {
-		const selected: string[] = [];
-		const { reads: r } = reads({ caretPosition: () => null });
-		r.writes!.typeOverSelected = (text) => {
-			selected.push(text);
-			return true;
-		};
-		const e = insert();
-		expect(decideTypedInsert(e, r)).toEqual({ decided: true });
-		expect(e.defaultPrevented).toBe(true);
-		expect(selected).toEqual(['Z']);
-	});
 
 	it.each([
 		['a composition', { composing: () => true }, 'composing'],

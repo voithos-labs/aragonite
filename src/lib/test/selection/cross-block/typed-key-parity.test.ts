@@ -69,7 +69,6 @@ function besideWidget(): TypedInsertReads {
 		rawStartOf: () => 0,
 		onOpenLine: () => false,
 		writes: {
-			typeOverSelected: () => false,
 			widgetBeside: () => true,
 			widgetClosesAt: () => false,
 			typeAt: () => {}

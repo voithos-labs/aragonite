@@ -1,8 +1,8 @@
 /**
  * Where a collapsed typed insert is decided for every editable leaf: where the browser's own insert
- * can miss the editor's caret (beside a widget, a target the engine aimed away from the caret, a
- * widget selected whole), its default is prevented and the block writes the text at the caret. A
- * caret in a text node keeps the browser's insert, read back on `input` (`docs/design/editor.md`).
+ * can miss the editor's caret (beside a widget, a target the engine aimed away from the caret), its
+ * default is prevented and the block writes the text at the caret. A caret in a text node keeps
+ * the browser's insert, read back on `input` (`docs/design/editor.md`).
  */
 
 import { imeOwnsInput } from '../../../browser/composition';
@@ -13,8 +13,6 @@ import { typesCharacter } from '../../../schema/keybindings';
 
 /** What a block that draws inline widgets writes for a typed insert it takes. */
 export interface TypedInsertWrites {
-	/** Writes `text` over the widget selected whole in the block; false when none is. */
-	typeOverSelected(text: string): boolean;
 	/** Whether a widget or a decoration starts or ends at raw `caret`. */
 	widgetBeside(caret: number): boolean;
 	/** Whether a widget starting at raw `caret` ends the block's content. */
@@ -51,7 +49,7 @@ export function decideTypedInsert(e: InputEvent, reads: TypedInsertReads): Typed
 	if (!e.cancelable) return declined('not-cancelable');
 	const text = e.data;
 	if (!text) return declined('no-text');
-	const decline = reads.writes?.typeOverSelected(text) ? null : typeAtInput(text, reads, e);
+	const decline = typeAtInput(text, reads, e);
 	if (decline) return declined(decline);
 	e.preventDefault();
 	return { decided: true };
