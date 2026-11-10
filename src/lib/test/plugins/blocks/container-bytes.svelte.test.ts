@@ -66,6 +66,7 @@ const boxes = definePlugin({
 			container({
 				name: 'headed',
 				label: 'Headed',
+				interrupts: true,
 				lines: {
 					...BOX,
 					first: '%! ',
@@ -83,6 +84,7 @@ const boxes = definePlugin({
 			container({
 				name: 'note',
 				label: 'Note',
+				joins: false,
 				lines: {
 					shape: 'indented',
 					open: /^@(\w+): ?/,
@@ -155,8 +157,23 @@ describe('the byte map finds the text of a container under its own marker', () =
 
 const at = (path: number[], offset: number) => ({ path, offset });
 
-/** Ranges over a quote's lines; each runs again with `%>` for the quote's `>`. */
-const RANGES: Record<string, [source: string, from: [number[], number], to: [number[], number]]> = {
+/** `text` with each line's opening run of quote markers written as the box's. */
+const boxed = (text: string) =>
+	text.replace(/^(?: {0,3}>[ \t]?)+/gm, (run) => run.replace(/>/g, '%>'));
+const headed = (text: string) => text.replace(/^>/gm, '%!');
+const noted = (text: string) => text.replace(/\[\^a\]:/g, '@a:');
+
+const ALERT = 'para\n\n> [!NOTE]\n> one\n>\n> two\n\ntail\n';
+const FOOTNOTE = 'para\n\n[^a]: one\n    more\n\n    two\n\ntail\n';
+
+type Point = [path: number[], offset: number];
+
+/** Ranges over a quote's lines, each run again with `%>` for the quote's `>`; over an alert's and a
+ *  footnote's, with the marker `twin` writes for theirs. */
+const RANGES: Record<
+	string,
+	[source: string, from: Point, to: Point, twin?: (text: string) => string]
+> = {
 	'all its text, mid-document': ['para\n\n> one\n>\n> two\n\ntail\n', [[1, 0], 0], [[1, 1], 3]],
 	'all its text, ending the document': ['para\n\n> one\n>\n> two', [[1, 0], 0], [[1, 1], 3]],
 	'all its text, alone': ['> one\n>\n> two\n', [[0, 0], 0], [[0, 1], 3]],
@@ -169,18 +186,18 @@ const RANGES: Record<string, [source: string, from: [number[], number], to: [num
 		[[0, 0], 1],
 		[[0, 1, 1, 0], 2]
 	],
-	CRLF: ['para\r\n\r\n> one\r\n>\r\n> two\r\n\r\ntail\r\n', [[1, 0], 1], [[1, 1], 2]]
+	CRLF: ['para\r\n\r\n> one\r\n>\r\n> two\r\n\r\ntail\r\n', [[1, 0], 1], [[1, 1], 2]],
+	'under a head line, all its text': [ALERT, [[1, 0], 0], [[1, 1], 3], headed],
+	'under a head line, into the paragraph below': [ALERT, [[1, 1], 1], [[2], 2], headed],
+	'indented, part of two children': [FOOTNOTE, [[1, 0], 5], [[1, 1], 2], noted],
+	'indented, from the paragraph above': [FOOTNOTE, [[0], 2], [[1, 0], 1], noted]
 };
-
-/** `text` with each line's opening run of quote markers written as the box's. */
-const boxed = (text: string) =>
-	text.replace(/^(?: {0,3}>[ \t]?)+/gm, (run) => run.replace(/>/g, '%>'));
 
 /** What `route` leaves of `source` and writes to the clipboard, over the range `from`..`to`. */
 async function removed(
 	source: string,
-	from: [number[], number],
-	to: [number[], number],
+	from: Point,
+	to: Point,
 	route: 'Backspace' | 'Delete' | 'cut'
 ): Promise<{ source: string; copy: string }> {
 	await destroyMountedEditors();
@@ -195,13 +212,14 @@ async function removed(
 	return { source: editor.source(), copy: '' };
 }
 
-describe('a range in a container under its own marker goes as it does in a quote', () => {
+describe('a range in a container under its own marker goes as under a built-in’s', () => {
 	for (const route of ['Backspace', 'Delete', 'cut'] as const) {
-		it.each(Object.entries(RANGES))(`${route}: %s`, async (_name, [source, from, to]) => {
-			const quote = await removed(source, from, to, route);
-			expect(quote.source, 'the quote’s range went').not.toBe(source);
-			const box = await removed(boxed(source), from, to, route);
-			expect(box).toEqual({ source: boxed(quote.source), copy: boxed(quote.copy) });
+		it.each(Object.entries(RANGES))(`${route}: %s`, async (_name, row) => {
+			const [source, from, to, twin = boxed] = row;
+			const known = await removed(source, from, to, route);
+			expect(known.source, 'the range went').not.toBe(source);
+			const own = await removed(twin(source), from, to, route);
+			expect(own).toEqual({ source: twin(known.source), copy: twin(known.copy) });
 		});
 	}
 });
@@ -245,4 +263,21 @@ describe('the range-edit core answers a named quote row alike under the box’s 
 			else expect(got).toEqual(want);
 		});
 	}
+
+	// The blank line that keeps two blocks apart is written with the quote's `>` (`apart.ts`), so
+	// under `%>` it comes out bare and ends the box. These rows go once that line reads its marker.
+	it.each([
+		['a rule taken from between a paragraph and code', '> a\n> ⟦***⟧\n>     code\n'],
+		['a rule taken from above a table', '> a\n> ⟦***⟧\n> | h |\n> | - |\n']
+	])('still splits the box in two: %s', async (_name, marked) => {
+		const grammar = (await mounted('x\n')).instance.__test.getGrammar();
+		const host = rangeHost(fixtureReading({ grammar }));
+		const source = unmark(marked);
+		const range = rangeOf(marked);
+		const quote = editRange(source, range, 'backspace', 'source', host);
+		const twin = { from: boxedAt(source, range.from), to: boxedAt(source, range.to) };
+		const box = editRange(boxed(source), twin, 'backspace', 'source', host);
+		expect(quote.source).toMatch(/^> a\n>\n> /);
+		expect(box.source).toMatch(/^%> a\n\n%> /);
+	});
 });
