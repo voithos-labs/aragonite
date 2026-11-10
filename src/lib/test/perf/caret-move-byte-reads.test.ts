@@ -63,12 +63,12 @@ async function reportSelection(m: MountedEditor): Promise<void> {
 /** Whole-list reads the byte map made while a letter was typed into `el` and its caret reported. */
 async function listReadsTyping(m: MountedEditor, el: HTMLElement): Promise<number> {
 	const before = m.source();
-	const reads = perfSnapshot().byteMapListReads;
+	const reads = perfSnapshot().byteMapReads;
 	typeInto(el, el.textContent + 'x');
 	await m.settle();
 	await reportSelection(m);
 	expect(m.source()).not.toBe(before);
-	return perfSnapshot().byteMapListReads - reads;
+	return perfSnapshot().byteMapReads - reads;
 }
 
 describe('G4.339 a typed letter and its caret move read no whole list through the byte map', () => {
@@ -100,11 +100,11 @@ describe('the selection toolbar asks the actions about each range the browser re
 		const m = mountEditor({ source: QUOTE, plugins: [actionPlugin(action)] });
 		await m.settle();
 		selectRange(surfaceAt(m, [0, 5]), 1, 3);
-		const reads = perfSnapshot().byteMapListReads;
+		const reads = perfSnapshot().byteMapReads;
 		await reportSelection(m);
 
 		const start = QUOTE.indexOf('line 5');
 		expect(captured).toEqual([{ from: start + 1, to: start + 3 }]);
-		expect(perfSnapshot().byteMapListReads).toBeGreaterThan(reads);
+		expect(perfSnapshot().byteMapReads).toBeGreaterThan(reads);
 	});
 });

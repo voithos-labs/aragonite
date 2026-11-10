@@ -43,7 +43,7 @@ export interface PerfSnapshot {
 	containerChordWalks: number;
 	/** Whole lists the document byte map read to place one byte: the top-level blocks summed, or a
 	 *  container's lines mapped. A caret move makes none. */
-	byteMapListReads: number;
+	byteMapReads: number;
 	undoLiveBytes: number;
 	undoEntryCount: number;
 	blockRenderCount: number;
@@ -114,7 +114,7 @@ function emptySnapshot(): PerfSnapshot {
 		markerRunReads: 0,
 		referenceWalks: 0,
 		containerChordWalks: 0,
-		byteMapListReads: 0,
+		byteMapReads: 0,
 		undoLiveBytes: 0,
 		undoEntryCount: 0,
 		blockRenderCount: 0,
@@ -259,9 +259,9 @@ export function recordContainerChordWalk(): void {
 	counters.containerChordWalks++;
 }
 
-export function recordByteMapListRead(): void {
+export function recordByteMapRead(): void {
 	if (!enabled) return;
-	counters.byteMapListReads++;
+	counters.byteMapReads++;
 }
 
 export function setUndoGauge(liveBytes: number, entryCount: number): void {
