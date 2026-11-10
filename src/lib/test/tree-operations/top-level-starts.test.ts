@@ -126,8 +126,9 @@ describe('G1.209 the kept record answers as a fresh measure does', () => {
 		expect(answers(view.doc, view.starts)).toEqual(was);
 		k.record.changed(() => [{ at: 2, removed: 1, inserted: 3 }]);
 		expect(answers(doc, k.record.read().starts)).toEqual(answers(doc));
-		// Kept past the announcement, it still answers for its own document.
+		// Kept past the announcement, it still answers for its own document, and leaves the record be.
 		expect(answers(view.doc, view.starts)).toEqual(was);
+		expect(answers(doc, k.record.read().starts)).toEqual(answers(doc));
 		expect(takeDevWarns()).toEqual([]);
 	});
 
