@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 // G1.209 over every write route: after the write, with a listener reading a position on every
 // event the editor emits, the editor places every text position where a fresh read of its bytes
-// does, and no listener is called between a write and its announcement.
+// does, and no listener is called between a write and its announcement. The tree the write left
+// also finds the same text at every byte as that fresh read: its nodes kept their identity.
 // Miss-analysis: the byte map was built afresh per content version, so no test had to ask whether
 // a record kept across writes still described the document a route left.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
@@ -10,7 +11,8 @@ import type { EditorEventMap } from '#lib/editor-events.js';
 import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
 import { parse } from '#lib/core/parser.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
-import { measured } from '#lib/tree-operations/top-level-starts.js';
+import { documentByteMap } from '#lib/tree-operations/container-offsets.js';
+import { measured, type Measured } from '#lib/tree-operations/top-level-starts.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -46,10 +48,13 @@ function textPaths(node: { children?: readonly NodeView[] }, path: number[] = []
 	return children.flatMap((child, i) => textPaths(child, [...path, i]));
 }
 
-/** Where the editor and a fresh read of its bytes each put every offset of every text block. */
-function placed(m: Mounted): { kept: (number | null)[]; fresh: (number | null)[] } {
+/** Where the editor and a fresh read of its bytes each put every offset of every text block, and
+ *  the text each finds at every byte. */
+function placed(m: Mounted) {
 	const doc = m.instance.__test.getDocument();
-	const fresh = documentLayout(measured(parse(m.source())));
+	const source = m.source();
+	const parsed = measured(parse(source));
+	const fresh = documentLayout(parsed);
 	const kept: (number | null)[] = [];
 	const again: (number | null)[] = [];
 	for (const path of textPaths(doc)) {
@@ -60,7 +65,11 @@ function placed(m: Mounted): { kept: (number | null)[]; fresh: (number | null)[]
 			again.push(fresh.byteOf(path, offset));
 		}
 	}
-	return { kept, fresh: again };
+	const leaves = (of: Measured) => {
+		const map = documentByteMap(of);
+		return Array.from({ length: source.length + 1 }, (_, at) => JSON.stringify(map.leafAt(at)));
+	};
+	return { kept, fresh: again, leaves: leaves(measured(doc)), freshLeaves: leaves(parsed) };
 }
 
 describe('G1.209 the kept starts are the document’s after every write route', () => {
@@ -79,8 +88,9 @@ describe('G1.209 the kept starts are the document’s after every write route', 
 		await route.write(m, N);
 
 		expect(m.source(), 'the route wrote nothing').not.toBe(before);
-		const { kept, fresh } = placed(m);
+		const { kept, fresh, leaves, freshLeaves } = placed(m);
 		expect(kept).toEqual(fresh);
+		expect(leaves).toEqual(freshLeaves);
 		expect(takeDevWarns()).toEqual([]);
 		offs.forEach((off) => off());
 	});
