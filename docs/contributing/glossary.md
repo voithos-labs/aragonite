@@ -31,6 +31,7 @@ Open this when a word in the code or the docs doesn't parse. First the terms the
 | --- | --- | --- |
 | ambient | The marker prefix a container draws in front of its first child's text (a footnote's `[^label]: `). On screen, not editable. | `AmbientPrefix`, `buildAmbientSpan` |
 | ceremony | The fixed steps a change runs through, like the deletion steps every range delete shares. | `range-delete-ceremony.ts` |
+| dialect | Which convention a path is written in: document-absolute, or relative to a container. | `commit-path-dialect` |
 | door, funnel | The one entry point every path for an operation goes through. | `composeExpandDoor`, `copyThroughFunnel` |
 | fold | Closing a construct's shown source before an edit. Also a container collapsing or merging after a structural change. | `RevealFold`, `publishAncestryFolds` |
 | island | An inline widget the caret can't enter (an image, a formula, an emoji). | `data-decoration-island`, `island-dom.ts` |
