@@ -209,8 +209,8 @@ export function deleteLaws(call: Call, input: RangeInput): string[] {
 	return out;
 }
 
-/** `a` is `b`, line endings aside where the cut left another first ending than its source had: one
- *  gesture writes the source's, a paste after the cut the one it finds. */
+/** `a` is `b`, line endings aside where the cut left another first ending than its source had, or
+ *  none: one gesture writes the source's, a paste after the cut the one it finds, LF where none is. */
 const sameAfterCut = (a: string, b: string, source: string, cut: string) =>
 	endingOf(source) === endingOf(cut) ? a === b : lf(a) === lf(b);
 
@@ -238,25 +238,35 @@ function oneWrite(
 ): string[] {
 	const { over, cut, then } = results;
 	const { from, to } = input.range;
-	if (then?.source === over.source) return [];
 	const { source } = input;
+	if (then && sameAfterCut(then.source, over.source, source, cut.source)) return [];
+	const read = readOf(host, source);
 	const lineStart = Math.max(source.lastIndexOf('\n', from - 1) + 1, block.text!.from);
 	const lineEnd = Math.min((source + '\n').indexOf('\n', to), block.text!.to);
 	const emptiesLine = (source.slice(lineStart, from) + source.slice(to, lineEnd)).trim() === '';
 	const left = readOf(host, cut.source).blocks.find((b) => b.from === block.from);
-	if (!emptiesLine && left?.type === block.type && left.to === block.to - (to - from))
+	// One write closes a format run a live range cuts another way than a cut then a paste: there
+	// the bytes outside the range stay and the block keeps its kind.
+	const cutsRun = input.mode === 'live' && liveSplitsRun(read, from, to, host);
+	const whole = !emptiesLine && left?.type === block.type && left.to === block.to - (to - from);
+	if (whole && !cutsRun)
 		return [`L5 paste over gave ${q(over.source)}, cut then paste ${q(then?.source ?? '')}`];
 	// A line that could close the fence around literal text grows the fence, which the rows hold.
-	const fence = fenceOf(readOf(host, input.source), block, host);
+	const fence = fenceOf(read, block, host);
 	if (fence && text.split('\n').some((line) => fence.mayClose(line))) return [];
 	const runless = (bytes: string) => (input.mode === 'live' ? bytes.replace(/[*_~`]/g, '') : bytes);
 	const got = runless(over.source);
 	const kept =
-		got.startsWith(runless(input.source.slice(0, from))) &&
-		got.endsWith(runless(input.source.slice(to)));
-	return kept
+		got.startsWith(runless(source.slice(0, from))) && got.endsWith(runless(source.slice(to)));
+	if (!kept) return [`L5 paste over text in one block changed bytes outside it: ${q(over.source)}`];
+	const kindAt = (bytes: string | undefined) =>
+		bytes === undefined
+			? undefined
+			: readOf(host, bytes).blocks.find((b) => b.from === block.from && !b.lines)?.type;
+	const kinds = [block.type, kindAt(then?.source)];
+	return !(whole && cutsRun) || kinds.includes(kindAt(over.source))
 		? []
-		: [`L5 paste over text in one block changed bytes outside it: ${q(over.source)}`];
+		: [`L5 paste over a cut run changed its block’s kind: ${q(over.source)}`];
 }
 
 /** L5: a paste over a range is the cut then the paste, or one write of the block whose text holds
