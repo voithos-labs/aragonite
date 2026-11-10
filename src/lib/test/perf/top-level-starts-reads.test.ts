@@ -53,16 +53,44 @@ async function blocksMeasured(route: WriteRoute, n: number): Promise<number> {
 	return measured;
 }
 
+/** Top-level blocks measured over `route`'s set-up and write when nothing asks for a position. */
+async function measuredUnasked(route: WriteRoute): Promise<number> {
+	const m = mountEditor<EditorTestSurface>({ source: route.source(N) });
+	await m.settle();
+	const before = perfSnapshot().topBlocksMeasured;
+	await route.setUp?.(m, N);
+	await route.write(m, N);
+	const measured = perfSnapshot().topBlocksMeasured - before;
+	await m.destroy();
+	return measured;
+}
+
+describe('G4.340 a document nobody asks a position of keeps no record', () => {
+	it.each(WRITE_ROUTES.filter((route) => !route.readsItself))(
+		'$name measures no block',
+		async (route) => {
+			expect(await measuredUnasked(route)).toBe(0);
+		}
+	);
+
+	it.each(WRITE_ROUTES.filter((route) => route.readsItself))(
+		'$name reads positions to make its write',
+		async (route) => {
+			expect(await measuredUnasked(route)).toBeGreaterThan(0);
+		}
+	);
+});
+
 describe('G4.340 a position read after a write measures the blocks the write changed', () => {
-	it.each(WRITE_ROUTES.filter((route) => route.announces === 'exact'))(
+	it.each(WRITE_ROUTES.filter((route) => route.announces === 'exact' && !route.sumsItself))(
 		'$name: as many at 80 blocks as at 20',
 		async (route) => {
 			expect(await blocksMeasured(route, 4 * N)).toBe(await blocksMeasured(route, N));
 		}
 	);
 
-	it.each(WRITE_ROUTES.filter((route) => route.announces === 'whole'))(
-		'$name names no blocks: every block is measured once',
+	it.each(WRITE_ROUTES.filter((route) => route.announces === 'whole' || route.sumsItself))(
+		'$name names no blocks, or sums them itself: every block is measured',
 		async (route) => {
 			// One fewer than the document started with, where the write joined two blocks.
 			expect(await blocksMeasured(route, N)).toBeGreaterThanOrEqual(N - 1);

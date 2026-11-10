@@ -53,8 +53,10 @@ async function pushEntry({ controller, deps }: Setup, insert = '!'): Promise<voi
 function switchGrammar({ deps }: Pick<Setup, 'deps'>): void {
 	deps.reading = fixtureReading({ grammar: withoutIndentedCode });
 	const reread = parse(serialize(deps.doc), { grammar: withoutIndentedCode });
+	deps.starts.opened();
 	deps.setDoc(reread);
 	deps.setBlockIds(assignIds(reread.children));
+	deps.bumpContentVersion(null);
 }
 
 const kinds = ({ deps }: Setup) => deps.doc.children.map((b) => b.kind);
@@ -89,6 +91,24 @@ describe('an undo across a grammar change', () => {
 		expect(byteOfLeaf(measured(s.deps.doc), selection.focus.path, selection.focus.offset)).toBe(
 			CARET
 		);
+	});
+
+	// G1.209: the re-read names the windows it read again, so the starts kept across it stay the
+	// document's.
+	it('keeps the starts of the top-level blocks the document’s own', async () => {
+		const s = setup();
+		await pushEntry(s);
+		switchGrammar(s);
+		const ends = () => {
+			const { starts } = s.deps.bytes.measured();
+			return s.deps.doc.children.map((_, i) => starts.end(i));
+		};
+		ends();
+		await s.history.requestUndo();
+		const { starts } = measured(s.deps.doc);
+		expect(ends()).toEqual(s.deps.doc.children.map((_, i) => starts.end(i)));
+		expect(s.deps.starts.isMeasured()).toBe(true);
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	it('keeps the blocks the undo left alone, ids included', async () => {

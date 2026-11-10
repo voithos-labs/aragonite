@@ -241,11 +241,12 @@ export function copyThroughFunnel(
 	selection.enterCrossBlock(anchor, focus);
 	const { start, end } = selection;
 	if (!start || !end) fail('the selection funnel refused the cross-block endpoint pair');
+	const laid = measured(doc);
 	const bytes = documentBytes({
 		version: () => 0,
 		doc: () => doc,
 		source: () => serialize(doc),
-		measured: () => measured(doc)
+		measured: () => laid
 	});
 	const coverage = rangeCoverage(doc, coverRange(doc, start, end));
 	return rangeClipboard(bytes, coverage, kitReading())?.text ?? '';

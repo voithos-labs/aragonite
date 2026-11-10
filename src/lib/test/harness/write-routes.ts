@@ -4,6 +4,7 @@
 
 import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
 import { pressKey } from '#lib/test/harness/settle.js';
+import { pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
 import {
 	pressKeyAt,
 	surfaceAt,
@@ -24,6 +25,10 @@ export interface WriteRoute {
 	asks(n: number): { path: number[]; offset: number };
 	/** `whole`: the write names no blocks, so the next position read measures every one. */
 	announces: 'exact' | 'whole';
+	/** The write names its blocks, yet sums every block itself to find where its bytes fall. */
+	sumsItself?: true;
+	/** The write, or the range it starts from, asks positions itself: a reader with no listener. */
+	readsItself?: true;
 }
 
 /** The block every route writes at, far enough down that blocks stand on both sides. */
@@ -35,6 +40,15 @@ const withList = (n: number) => paragraphs(n).replace(`line ${AT}\n`, '- item\n'
 async function typeLetter(m: Mounted, path: number[]): Promise<void> {
 	const el = surfaceAt(m, path);
 	typeInto(el, el.textContent + 'x');
+	await m.settle();
+}
+
+/** A range the editor holds, from inside block `from` to inside block `to`. */
+async function holdRange(m: Mounted, from: number, to: number): Promise<void> {
+	await m.instance.setSelection({
+		anchor: { path: [from], offset: 2 },
+		focus: { path: [to], offset: 2 }
+	});
 	await m.settle();
 }
 
@@ -70,7 +84,7 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		source: paragraphs,
 		write: async (m) => void (await pressKeyAt(m, [AT], 2, { key: 'Enter' })),
 		asks: () => ({ path: [AT + 1], offset: 0 }),
-		announces: 'whole'
+		announces: 'exact'
 	},
 	{
 		name: 'Enter right after a typed letter',
@@ -78,14 +92,34 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		setUp: (m) => typeLetter(m, [AT]),
 		write: async (m) => void (await pressKey(surfaceAt(m, [AT]), { key: 'Enter' })),
 		asks: () => ({ path: [AT + 1], offset: 0 }),
-		announces: 'whole'
+		announces: 'exact'
 	},
 	{
 		name: 'Backspace joining two paragraphs',
 		source: paragraphs,
 		write: async (m) => void (await pressKeyAt(m, [AT + 1], 0, { key: 'Backspace' })),
 		asks: () => ({ path: [AT], offset: 0 }),
-		announces: 'whole'
+		announces: 'exact'
+	},
+	{
+		name: 'Backspace taking back an Enter of the same undo entry',
+		source: paragraphs,
+		setUp: async (m) => void (await pressKeyAt(m, [AT], 6, { key: 'Enter' })),
+		write: async (m) => void (await pressKey(surfaceAt(m, [AT + 1]), { key: 'Backspace' })),
+		asks: () => ({ path: [AT], offset: 0 }),
+		announces: 'exact'
+	},
+	{
+		name: 'a format toggle over a range across blocks',
+		source: paragraphs,
+		setUp: (m) => holdRange(m, AT, AT + 2),
+		async write(m) {
+			m.instance.runCommand('format.toggleStrong');
+			await m.settle();
+		},
+		asks: () => ({ path: [AT], offset: 0 }),
+		announces: 'exact',
+		readsItself: true
 	},
 	{
 		name: 'a paragraph typed into a heading',
@@ -96,7 +130,19 @@ export const WRITE_ROUTES: WriteRoute[] = [
 			await m.settle();
 		},
 		asks: () => ({ path: [AT], offset: 2 }),
-		announces: 'whole'
+		announces: 'exact'
+	},
+	{
+		name: 'a heading typed right after a letter, in the letter’s undo entry',
+		source: paragraphs,
+		setUp: (m) => typeLetter(m, [AT]),
+		async write(m) {
+			const el = surfaceAt(m, [AT]);
+			typeInto(el, '# ' + el.textContent);
+			await m.settle();
+		},
+		asks: () => ({ path: [AT], offset: 2 }),
+		announces: 'exact'
 	},
 	{
 		name: 'a byte splice inside one block',
@@ -112,7 +158,9 @@ export const WRITE_ROUTES: WriteRoute[] = [
 			await m.settle();
 		},
 		asks: () => ({ path: [AT], offset: 0 }),
-		announces: 'whole'
+		announces: 'exact',
+		readsItself: true,
+		sumsItself: true
 	},
 	{
 		name: 'a byte splice in two blocks far apart',
@@ -130,7 +178,32 @@ export const WRITE_ROUTES: WriteRoute[] = [
 			await m.settle();
 		},
 		asks: () => ({ path: [AT], offset: 0 }),
-		announces: 'whole'
+		announces: 'exact',
+		readsItself: true,
+		sumsItself: true
+	},
+	{
+		name: 'Backspace over a range the editor holds across blocks',
+		source: paragraphs,
+		setUp: (m) => holdRange(m, AT, AT + 2),
+		write: async (m) => void (await pressKey(surfaceAt(m, [AT]), { key: 'Backspace' })),
+		asks: () => ({ path: [AT], offset: 0 }),
+		announces: 'exact',
+		readsItself: true,
+		sumsItself: true
+	},
+	{
+		name: 'a letter typed over a range the editor holds across blocks',
+		source: paragraphs,
+		setUp: (m) => holdRange(m, AT, AT + 2),
+		async write(m) {
+			await pressHardwareKey(surfaceAt(m, [AT]), { key: 'x' });
+			await m.settle();
+		},
+		asks: () => ({ path: [AT], offset: 0 }),
+		announces: 'exact',
+		readsItself: true,
+		sumsItself: true
 	},
 	{
 		name: 'undo',
@@ -138,7 +211,7 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		setUp: (m) => typeLetter(m, [AT]),
 		write: (m) => history(m, 'history.undo'),
 		asks: () => ({ path: [AT], offset: 0 }),
-		announces: 'whole'
+		announces: 'exact'
 	},
 	{
 		name: 'redo',
@@ -149,7 +222,7 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		},
 		write: (m) => history(m, 'history.redo'),
 		asks: () => ({ path: [AT], offset: 0 }),
-		announces: 'whole'
+		announces: 'exact'
 	},
 	{
 		name: 'the source prop swapped for another document',

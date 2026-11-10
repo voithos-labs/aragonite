@@ -29,7 +29,7 @@ import {
 	type StructuralChange
 } from '../../tree-operations/structural-change';
 import { byteOfLeaf, leafAtByte } from '../../tree-operations/container-offsets';
-import type { Measured } from '../../tree-operations/top-level-starts';
+import type { Measured, TopLevelChange } from '../../tree-operations/top-level-starts';
 import { readCurrentSelection } from '../../selection/native-bridge';
 import type { BlockReach } from './change-record';
 import type { GapCaretSelection } from '../../selection/gap-caret';
@@ -110,7 +110,7 @@ export function createByteSplice(
 				return { nodes: tops, tops };
 			},
 			replaced: () => replaced,
-			touched: () => null,
+			touched: () => runsOf(windows),
 			check: () => {
 				assertSpliceReadsBack(deps.doc.children, placed(windows), grammar);
 				if (reading)
@@ -156,6 +156,10 @@ export function installReading(deps: EditorActionsDeps, reading: SpliceReading):
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────
+
+/** The windows as the runs of top-level blocks a reading's install changes. */
+export const runsOf = (windows: readonly SpliceWindow[]): TopLevelChange[] =>
+	windows.map(({ at, count, blocks }) => ({ at, removed: count, inserted: blocks.length }));
 
 /** The blocks `windows` take out of `tops` and put in; a window inside a container names only the
  *  run of its children read again, so a long list isn't walked whole. */

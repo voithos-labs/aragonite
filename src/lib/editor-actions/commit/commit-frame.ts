@@ -125,41 +125,50 @@ export function createCommitFrame(
 			write.rollback();
 			deps.starts.abandoned();
 		};
-		let discarded = false;
 		// Only while a draft is open: otherwise the write reads nothing more.
 		const capture = deps.drafts.watching()
 			? captureChange(deps.doc, write.reach?.() ?? null)
 			: null;
 		const whole = capture && devChecksOn ? captureChange(deps.doc, null) : null;
-		try {
-			// Inside the try: the push reads the live selection through plugin block refs.
-			undo.push(write.snapshot, write.history);
-			const wasOpen = endsOpen(deps.doc);
-			deps.starts.opened();
-			const changed = write.apply(wasOpen);
-			if (write.discardIfNoop && !changed) {
+		const announced = (): FrameOutcome => {
+			try {
+				// Inside the try: the push reads the live selection through plugin block refs.
+				undo.push(write.snapshot, write.history);
+				const wasOpen = endsOpen(deps.doc);
+				deps.starts.opened();
+				const changed = write.apply(wasOpen);
+				if (write.discardIfNoop && !changed) {
+					restore();
+					return 'discarded';
+				}
+				if (devChecksOn) {
+					const written = write.written();
+					assertCommittedNodes(written.nodes, deps.reading.grammar);
+					assertLastLineKept(deps.doc, wasOpen);
+					assertKeepsABlock(deps.doc, written.nodes);
+					assertReadsBack(written.tops, deps.reading.grammar);
+					assertListMarkerWidths(written.tops);
+					write.check?.(written);
+				}
+			} catch (err) {
 				restore();
-				discarded = true;
-			} else if (devChecksOn) {
-				const written = write.written();
-				assertCommittedNodes(written.nodes, deps.reading.grammar);
-				assertLastLineKept(deps.doc, wasOpen);
-				assertKeepsABlock(deps.doc, written.nodes);
-				assertReadsBack(written.tops, deps.reading.grammar);
-				assertListMarkerWidths(written.tops);
-				write.check?.(written);
+				return failed(write, err);
 			}
-		} catch (err) {
-			restore();
-			return failed(write, err);
-		}
-		if (discarded) return 'discarded';
-		if (capture) {
-			const change = changeAfter(deps.doc, capture, write.typedEnd?.() ?? null);
-			if (devChecksOn && whole) assertChangeInReach(changeAfter(deps.doc, whole, null), change);
-			deps.drafts.record(change);
-		}
-		deps.bumpContentVersion(() => write.touched());
+			if (capture) {
+				const change = changeAfter(deps.doc, capture, write.typedEnd?.() ?? null);
+				if (devChecksOn && whole) assertChangeInReach(changeAfter(deps.doc, whole, null), change);
+				deps.drafts.record(change);
+			}
+			deps.bumpContentVersion(() => write.touched());
+			return 'written';
+		};
+		let outcome = 'written' as FrameOutcome;
+		// A selection the write changes is announced once the write is, so no listener is called on
+		// a half-written tree.
+		deps.selectionState.batch(() => {
+			outcome = announced();
+		});
+		if (outcome !== 'written') return outcome;
 		// A write moves what the gap caret's boundary index names; after the push, so the stored
 		// entry keeps the gap.
 		deps.selectionState.clearGapCaret();

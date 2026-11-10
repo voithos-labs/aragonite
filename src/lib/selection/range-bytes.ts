@@ -31,21 +31,23 @@ export interface DocumentBytes {
 	measured(): Measured;
 }
 
-/** The layout is made once per `version`, which every byte writer bumps (G1.52). */
+/** The layout is made once per measured document, which every byte writer's announcement
+ *  replaces (G1.52); `version` is read so a reactive caller follows the announcements. */
 export function documentBytes(deps: {
 	version(): number;
 	doc(): DocumentView;
 	source(): string;
 	measured(): Measured;
 }): DocumentBytes {
-	let laid: { version: number; layout: Layout } | undefined;
+	let laid: { of: Measured; layout: Layout } | undefined;
 	return {
 		doc: deps.doc,
 		source: deps.source,
 		measured: deps.measured,
 		layout() {
-			const version = deps.version();
-			if (laid?.version !== version) laid = { version, layout: documentLayout(deps.measured()) };
+			deps.version();
+			const of = deps.measured();
+			if (laid?.of !== of) laid = { of, layout: documentLayout(of) };
 			return laid.layout;
 		}
 	};
