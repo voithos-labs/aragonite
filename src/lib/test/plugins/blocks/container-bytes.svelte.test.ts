@@ -228,12 +228,13 @@ describe('a range in a container under its own marker goes as under a built-in�
 const boxedAt = (source: string, at: number) =>
 	boxed(source.slice(0, at) + '\u0001' + source.slice(at)).indexOf('\u0001');
 
-/** Rows whose answer still reads a quote's `>` by a pattern of `range-edit/removal.ts`, so the box
- *  keeps an emptied line the quote lets go. A row that comes to match leaves this list. */
+/** Rows whose answer still reads a quote's `>` by a pattern in the range core, so the box keeps a
+ *  line the quote lets go or splits where it holds. A row that comes to match leaves this list. */
 const READS_A_QUOTE_BY_HAND = new Set([
 	'L4 a block held whole behind a quote marker goes with its marker line, never nesting',
 	'L4 Delete over a block taken whole behind a quote marker lands in the next quoted line',
-	'L4 the same inside a quote keeps one quoted empty line'
+	'L4 the same inside a quote keeps one quoted empty line',
+	'L4 a line the text above still opens keeps its quote’s marker on the blank line before it'
 ]);
 
 describe('the range-edit core answers a named quote row alike under the box’s marker', () => {
