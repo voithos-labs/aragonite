@@ -14,15 +14,16 @@ import {
 	contentEnd,
 	factsOf,
 	findWithin,
-	leafAt,
+	isCell,
+	leafHolding,
 	nodeAt,
-	parentOf,
 	pointedBlock,
 	readDoc,
+	titleOwner,
 	type Doc
 } from './document';
 import type { LaidBlock } from './layout';
-import { byteAt, writeLeaf, type Edit } from './leaf-splice';
+import { byteAt, writeText, type Edit } from './leaf-splice';
 import { ownEntry, restored } from './own-entry';
 import { numberedOn } from './list-numbers';
 import { pasteAt } from './paste';
@@ -88,22 +89,32 @@ export function editRange(
 		const own = gesture.plain ? undefined : gesture.own;
 		const back = own === undefined ? null : restored(source, from, to, own);
 		if (back) return answer(back);
-		if (from === to) return answer(pasteAt(doc, from, gesture.paste, gesture.plain));
-		const cell = inCell(doc, from, to, gesture);
-		if (cell) return answer(cell);
-		// The paste lands where the removal's caret does, as a cut's then a paste's would, and over
-		// one block held whole takes its place, as typed text does.
+		if (from === to || inOneText(doc, from, to))
+			return answer(pasteAt(doc, from, to, gesture.paste, gesture.plain));
+		// Across blocks the paste lands where the removal's caret does, as a cut's then a paste's
+		// would, and over one block held whole takes its place, as typed text does.
 		const removed = removalEdit(doc, from, to, 'type');
 		const after = read(removed);
-		return answer(pasteAt(after, caretOf(removed, after).at, gesture.paste, gesture.plain));
+		const at = caretOf(removed, after).at;
+		return answer(pasteAt(after, at, at, gesture.paste, gesture.plain));
 	}
 	const { removed, clipboard, own } = taken(doc, from, to);
-	if (gesture.copy) return answer(pasteAt(doc, gesture.drop, clipboard, false));
+	const { drop } = gesture;
+	if (gesture.copy) return answer(pasteAt(doc, drop, drop, clipboard, false));
 	// A moving drop is a cut, then a paste of its text and own entry at the drop point.
 	const after = read(removed);
-	const at =
-		gesture.drop <= from ? gesture.drop : gesture.drop - (source.length - removed.source.length);
-	return answer(restored(removed.source, at, at, own) ?? pasteAt(after, at, clipboard, false));
+	const at = drop <= from ? drop : drop - (source.length - removed.source.length);
+	return answer(restored(removed.source, at, at, own) ?? pasteAt(after, at, at, clipboard, false));
+}
+
+/** Whether the range sits in one block's text, between its fence lines where it has them: a paste
+ *  over it is that block's one write. A block held whole gives way to the text instead. */
+function inOneText(doc: Doc, from: number, to: number): boolean {
+	const held = leafHolding(doc, from, to);
+	if (!held || heldAlone(doc, from, to)) return false;
+	const { leaf } = held;
+	const fence = titleOwner(doc, leaf) ? null : doc.host.fence(nodeAt(doc, leaf.path).raw);
+	return !fence || (held.from >= fence.body && (fence.closer === null || held.to < fence.closer));
 }
 
 /** A removal's answer alone, for a caller that never pastes, so the paste stays unloaded. */
@@ -136,30 +147,12 @@ export function textInCell(
 	mode: Mode,
 	host: RangeHost
 ): RangeEditResult | null {
-	const cell = inCell(readDoc(source, host, mode), range.from, range.to, {
-		paste: text,
-		plain: false
-	});
-	return cell && { source: cell.source, caret: { at: cell.caret, holds: 'text' } };
-}
-
-/** One write of the cell holding `[from, to)`, since a cell stores no edge space: a removal and
- *  then an insert would lose the space the removal leaves beside the text. */
-function inCell(
-	doc: Doc,
-	from: number,
-	to: number,
-	{ paste, plain }: { paste: string; plain: boolean }
-): Edit | null {
-	const head = leafAt(doc, from);
-	const tail = leafAt(doc, to);
-	if (!head || head.leaf !== tail?.leaf || /[\r\n]/.test(paste)) return null;
-	const row = parentOf(doc, head.leaf);
-	if (!row || factsOf(doc, row).lines !== 'cells') return null;
-	const { tree, host, mode } = doc;
-	const text = plain ? host.leaf.plain(tree, head.leaf.path, paste) : paste;
-	const write = host.leaf.replace(tree, head.leaf.path, head.offset, tail.offset, text, mode);
-	return writeLeaf(doc, head.leaf, write, head.offset, tail.offset);
+	const doc = readDoc(source, host, mode);
+	const held = leafHolding(doc, range.from, range.to);
+	if (!held || !isCell(doc, held.leaf) || /[\r\n]/.test(text)) return null;
+	// One write, since a cell stores no edge space: a removal would lose the space it leaves.
+	const cell = writeText(doc, held.leaf, held.from, held.to, text);
+	return { source: cell.source, caret: { at: cell.caret, holds: 'text' } };
 }
 
 /** A removal of the blocks `range` spans as blocks asked for (the block menu's Delete), not text:

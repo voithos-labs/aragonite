@@ -63,6 +63,21 @@ export function leafAt(doc: Doc, byte: number): { leaf: LaidBlock; offset: numbe
 	return empty || (before !== null && before < byte) ? { leaf, offset: point!.offset } : null;
 }
 
+/** The text block whose text holds both `from` and `to`, with their offsets into its bytes. */
+export function leafHolding(doc: Doc, from: number, to: number) {
+	const head = leafAt(doc, from);
+	const tail = from === to ? head : leafAt(doc, to);
+	return head && head.leaf === tail?.leaf
+		? { leaf: head.leaf, from: head.offset, to: tail.offset }
+		: null;
+}
+
+/** Whether `leaf` is a table cell, which holds one line. */
+export function isCell(doc: Doc, leaf: LaidBlock): boolean {
+	const row = parentOf(doc, leaf);
+	return !!row && factsOf(doc, row).lines === 'cells';
+}
+
 /** The block a byte's text position names, in its text or past it. */
 export function pointedBlock(doc: Doc, byte: number): LaidBlock | undefined {
 	const point = doc.layout.pointAt(byte);

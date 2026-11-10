@@ -32,6 +32,23 @@ export function lineTextStart(doc: Doc, leaf: LaidBlock, at: number): number {
 	return Math.max(byteAt(doc, leaf, raw.lastIndexOf('\n', at - 1) + 1), leaf.text!.from);
 }
 
+/** `text` over `[from, to)` of a text block's bytes, as the block's own write puts it there. */
+export function writeText(
+	doc: Doc,
+	leaf: LaidBlock,
+	from: number,
+	to: number,
+	text: string,
+	keep?: (c: LaidBlock) => boolean
+): Edit {
+	const { host, tree, mode } = doc;
+	const write =
+		from === to
+			? host.leaf.insert(tree, leaf.path, from, text, mode)
+			: host.leaf.replace(tree, leaf.path, from, to, text, mode);
+	return writeLeaf(doc, leaf, write, from, to, keep);
+}
+
 /** `write` replaced `[from, to)` of the block's bytes: what changed goes into the source, each new
  *  line behind the markers of the line it lands on. */
 export function writeLeaf(

@@ -1215,6 +1215,79 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: plain('*x*'),
 		expect: { source: '| \\*x\\* pie | b |\n| - | - |\n' }
 	},
+	// ── A paste over a range inside one block's text is one write of that block (law 5) ──
+	// Miss-analysis: law 5 held every paste over a range to the cut then the paste, and a cut that
+	// empties a line reads the block again as two, so no row asked the block to stay one.
+	{
+		name: 'L5 a paste over a quoted line’s text keeps the paragraph’s other lines its own',
+		source: '> ⟦a⟧\n> b\n',
+		gesture: paste('two words'),
+		expect: { source: '> two words\n> b\n', caret: text(11) }
+	},
+	{
+		name: 'L5 two paragraphs pasted over it stay in the quote, the second taking the lines after',
+		source: '>\t⟦a⟧\n>\tb\n',
+		gesture: paste('one\n\ntwo'),
+		expect: { source: '>\tone\n>\n>\ttwo\n>\tb\n' }
+	},
+	{
+		name: 'L5 a paragraph’s first line pasted over stays one paragraph with the rest',
+		source: '⟦one⟧\ntwo\n',
+		gesture: paste('two words'),
+		expect: { source: 'two words\ntwo\n' }
+	},
+	{
+		name: 'L5 live, a paste over a heading’s whole text keeps the heading',
+		source: '# ⟦Title⟧\n',
+		mode: 'live',
+		gesture: paste('😀'),
+		expect: { source: '# 😀\n' }
+	},
+	{
+		name: 'L5 live, blocks pasted over it join the heading, as in source mode',
+		source: '# ⟦Title⟧\n',
+		mode: 'live',
+		gesture: paste('one\n\ntwo'),
+		expect: { source: '# one\n\ntwo\n' }
+	},
+	{
+		name: 'L5 a heading pasted over a to-do’s text keeps its box and the list tight',
+		source: '- [ ] ⟦a⟧\n- [x] b\n',
+		gesture: paste('# h'),
+		expect: { source: '- [ ] # h\n- [x] b\n' }
+	},
+	{
+		name: 'L5 a heading pasted over a quoted paragraph’s text adds no line',
+		source: '> ⟦q⟧\n# h\n',
+		gesture: paste('# t'),
+		expect: { source: '> # t\n# h\n' }
+	},
+	{
+		name: 'L5 lines pasted over an item’s text on a last line with no ending stay in the item',
+		source: '- ⟦xy⟧',
+		gesture: paste('one\n\ntwo'),
+		expect: { source: '- one\n\n  two' }
+	},
+	// Miss-analysis: law 9 leaves a caret in a heading to the rows, and none pasted a block there.
+	{
+		name: 'L9 blocks pasted in an emptied heading land under it, which keeps its marker',
+		source: '> q\n# ⟦⟧\n',
+		gesture: paste('- item'),
+		expect: { source: '> q\n# \n\n- item\n', caret: text(14) }
+	},
+	{
+		name: 'L5 live, blocks that join no text pasted over a heading’s whole text do the same',
+		source: '# ⟦Title⟧\n',
+		mode: 'live',
+		gesture: paste('> q\n\nafter'),
+		expect: { source: '# \n\n> q\n\nafter\n' }
+	},
+	{
+		name: 'L9 blocks pasted at a cell’s text start go in on its one line, as its text',
+		source: '| x | ⟦⟧y |\n| - | - |\n',
+		gesture: paste('- q\n\n- r\n'),
+		expect: { source: '| x | - q - ry |\n| - | - |\n' }
+	},
 	// ── An ordered list the removal shortens numbers on from where it was ──
 	// Miss-analysis: the editor renumbered after the core, so no core row read the numbers shown.
 	{

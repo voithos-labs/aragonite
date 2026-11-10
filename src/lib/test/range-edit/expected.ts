@@ -555,6 +555,10 @@ function landedPaste(
 	return { shape: 'other', bytes: [] };
 }
 
+/** The fence around `leaf`'s text, by the host's grammar; null for a block with none. */
+export const fenceOf = (read: Read, leaf: LaidBlock, host: CheckHost) =>
+	host.fence(treeNodeAt(read.tree, leaf.path)!.raw);
+
 /** What a later line pasted into literal text at `at` starts with: its containers' markers and,
  *  with no fence around it, the caret line's indent. Null where a line could close the fence. */
 function literalPrefix(
@@ -565,7 +569,7 @@ function literalPrefix(
 	host: CheckHost
 ): string | null {
 	const raw = treeNodeAt(read.tree, leaf.path)!.raw;
-	const fence = host.fence(raw);
+	const fence = fenceOf(read, leaf, host);
 	if (fence && text.split('\n').some((line) => fence.mayClose(line))) return null;
 	const offset = read.layout.pointAt(at)!.offset;
 	const line = raw.slice(raw.lastIndexOf('\n', offset - 1) + 1, offset);

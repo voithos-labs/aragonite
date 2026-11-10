@@ -5,13 +5,16 @@
 import { sharedPrefixLength, sharedSuffixLength } from '#lib/core/written-span.js';
 import type { Gesture, Range, RangeEditResult as Result } from '#lib/range-edit/edit-range.js';
 import type { Mode } from '#lib/range-edit/host.js';
+import type { LaidBlock } from '#lib/range-edit/layout.js';
 import type { CheckHost } from './test-host';
 import {
 	endingOf,
 	expectedCopy,
 	expectedPaste,
+	fenceOf,
 	holdsShownText,
 	inTitleRow,
+	leafAt,
 	leavesLiteralBlock,
 	lf,
 	liveSplitsRun,
@@ -206,8 +209,53 @@ export function deleteLaws(call: Call, input: RangeInput): string[] {
 	return out;
 }
 
-/** L5: a paste over a range is the cut, then the paste; a typed character's, a composition's and a
- *  command's removal is the cut's, the Delete's and the Backspace's (the spec's section 4). */
+/** The text block whose text holds the whole range, between its fence lines where it has them: a
+ *  paste over the range is one write of that block, which keeps its kind and its other lines. */
+export function oneTextBlock(read: Read, range: Range, host: CheckHost): LaidBlock | null {
+	const { from, to } = range;
+	const leaf = leafAt(read, from);
+	if (!leaf || from === to || leaf !== leafAt(read, to) || blockHeldWhole(read, range)) return null;
+	const fence = inTitleRow(read, from, host) ? null : fenceOf(read, leaf, host);
+	const at = (byte: number) => read.layout.pointAt(byte)!.offset;
+	const inBody =
+		!fence || (at(from) >= fence.body && (fence.closer === null || at(to) < fence.closer));
+	return inBody ? leaf : null;
+}
+
+/** Law 5 inside one block's text: where the cut leaves the block whole, of its kind, the paste over
+ *  is the cut then the paste; where the cut would read it otherwise, the bytes outside the range stay. */
+function oneWrite(
+	host: CheckHost,
+	input: RangeInput,
+	block: LaidBlock,
+	text: string,
+	results: { over: Result; cut: Result; then: Result | undefined }
+): string[] {
+	const { over, cut, then } = results;
+	const { from, to } = input.range;
+	if (then?.source === over.source) return [];
+	const { source } = input;
+	const lineStart = Math.max(source.lastIndexOf('\n', from - 1) + 1, block.text!.from);
+	const lineEnd = Math.min((source + '\n').indexOf('\n', to), block.text!.to);
+	const emptiesLine = (source.slice(lineStart, from) + source.slice(to, lineEnd)).trim() === '';
+	const left = readOf(host, cut.source).blocks.find((b) => b.from === block.from);
+	if (!emptiesLine && left?.type === block.type && left.to === block.to - (to - from))
+		return [`L5 paste over gave ${q(over.source)}, cut then paste ${q(then?.source ?? '')}`];
+	// A line that could close the fence around literal text grows the fence, which the rows hold.
+	const fence = fenceOf(readOf(host, input.source), block, host);
+	if (fence && text.split('\n').some((line) => fence.mayClose(line))) return [];
+	const runless = (bytes: string) => (input.mode === 'live' ? bytes.replace(/[*_~`]/g, '') : bytes);
+	const got = runless(over.source);
+	const kept =
+		got.startsWith(runless(input.source.slice(0, from))) &&
+		got.endsWith(runless(input.source.slice(to)));
+	return kept
+		? []
+		: [`L5 paste over text in one block changed bytes outside it: ${q(over.source)}`];
+}
+
+/** L5: a paste over a range is the cut then the paste, or one write of the block whose text holds
+ *  it; a typed character, a composition and a command remove as the cut, Delete and Backspace do. */
 export function replaceLaws(
 	call: Call,
 	host: CheckHost,
@@ -226,7 +274,9 @@ export function replaceLaws(
 			out.push(`L5 paste over a block held whole changed bytes outside it: ${q(over.source)}`);
 	} else if (over && cut) {
 		const then = call(cut.source, caretRange(cut.caret.at), paste(text), input.mode);
-		if (then && then.source !== over.source)
+		const block = oneTextBlock(read, input.range, host);
+		if (block) out.push(...oneWrite(host, input, block, text, { over, cut, then }));
+		else if (then && then.source !== over.source)
 			out.push(`L5 paste over gave ${q(over.source)}, cut then paste ${q(then.source)}`);
 	}
 	const pairs: [Gesture, Gesture][] = [
