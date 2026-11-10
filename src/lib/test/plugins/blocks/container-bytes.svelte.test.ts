@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // A plugin's container under a marker of its own, found in the document's bytes: every text
-// position has its byte, and a range in it is cut and removed as the same range in a quote is.
+// position has its byte, and a range in it is cut and removed as the same range in a quote is,
+// through the editor's routes and over the range-edit core's named rows.
 // Miss-analysis: every byte map and removal row drew a built-in's or a bundled plugin's marker,
 // which the map read by a pattern of its own, so no row held a marker only a line shape states.
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -12,6 +13,8 @@ import { container } from '#lib/components/block-makers/container.js';
 import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { documentByteMap } from '#lib/tree-operations/container-offsets.js';
+import { editRange } from '#lib/range-edit/edit-range.js';
+import { rangeHost } from '#lib/range-edit/host.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -22,6 +25,10 @@ import {
 	installSystemClipboard
 } from '#lib/test/harness/clipboard-events.js';
 import { pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { mermaidPlugin } from '#packages/mermaid/src/index.js';
+import { SYNTAX_PLUGINS } from '../../behavior/corpus';
+import { NAMED_ROWS, rangeOf, unmark } from '../../range-edit/named-rows';
 import { allBlockPaths } from '../../invariants/arbitraries/index';
 import { clipboardGesture, placeRange, type Editor } from '../../range-laws/gestures';
 
@@ -32,7 +39,14 @@ beforeEach(() => {
 });
 afterEach(destroyMountedEditors);
 
-const BOX = { shape: 'marked', first: '%> ', rest: '%> ', reads: /^%> ?/, lazy: true } as const;
+/** A quote's lines under `%>`: the same indent before the marker, the same space or tab after. */
+const BOX = {
+	shape: 'marked',
+	first: '%> ',
+	rest: '%> ',
+	reads: /^ {0,3}%>[ \t]?/,
+	lazy: true
+} as const;
 
 /** One container type under each line shape, none of whose markers a built-in writes. */
 const boxes = definePlugin({
@@ -84,8 +98,10 @@ const boxes = definePlugin({
 	})
 });
 
+const PLUGINS = [...SYNTAX_PLUGINS, mermaidPlugin(), boxes];
+
 async function mounted(source: string): Promise<Editor> {
-	const editor = mountEditor<EditorTestSurface>({ source, plugins: [boxes] });
+	const editor = mountEditor<EditorTestSurface>({ source, plugins: PLUGINS });
 	await editor.settle();
 	return editor;
 }
@@ -156,7 +172,9 @@ const RANGES: Record<string, [source: string, from: [number[], number], to: [num
 	CRLF: ['para\r\n\r\n> one\r\n>\r\n> two\r\n\r\ntail\r\n', [[1, 0], 1], [[1, 1], 2]]
 };
 
-const boxed = (text: string) => text.replace(/^>/gm, '%>');
+/** `text` with each line's opening run of quote markers written as the box's. */
+const boxed = (text: string) =>
+	text.replace(/^(?: {0,3}>[ \t]?)+/gm, (run) => run.replace(/>/g, '%>'));
 
 /** What `route` leaves of `source` and writes to the clipboard, over the range `from`..`to`. */
 async function removed(
@@ -184,6 +202,47 @@ describe('a range in a container under its own marker goes as it does in a quote
 			expect(quote.source, 'the quote’s range went').not.toBe(source);
 			const box = await removed(boxed(source), from, to, route);
 			expect(box).toEqual({ source: boxed(quote.source), copy: boxed(quote.copy) });
+		});
+	}
+});
+
+/** Where byte `at` of `source` sits once its quote markers are the box's. */
+const boxedAt = (source: string, at: number) =>
+	boxed(source.slice(0, at) + '\u0001' + source.slice(at)).indexOf('\u0001');
+
+/** Rows whose answer still reads a quote's `>` by a pattern of `range-edit/removal.ts`, so the box
+ *  keeps an emptied line the quote lets go. A row that comes to match leaves this list. */
+const READS_A_QUOTE_BY_HAND = new Set([
+	'L4 a block held whole behind a quote marker goes with its marker line, never nesting',
+	'L4 Delete over a block taken whole behind a quote marker lands in the next quoted line',
+	'L4 the same inside a quote keeps one quoted empty line'
+]);
+
+describe('the range-edit core answers a named quote row alike under the box’s marker', () => {
+	const rows = NAMED_ROWS.filter(
+		(row) =>
+			typeof row.gesture === 'string' &&
+			/^ {0,3}>/m.test(unmark(row.source)) &&
+			// An alert's head line is the quote's own; under `%>` it is text.
+			!row.source.includes('[!')
+	);
+	for (const mode of ['source', 'live'] as const) {
+		it.each(rows)(`${mode}: $name`, async (row) => {
+			const grammar = (await mounted('x\n')).instance.__test.getGrammar();
+			const host = rangeHost(fixtureReading({ grammar }, row.mode ?? mode));
+			const source = unmark(row.source);
+			const range = rangeOf(row.source);
+			const quote = editRange(source, range, row.gesture, row.mode ?? mode, host);
+			const twin = { from: boxedAt(source, range.from), to: boxedAt(source, range.to) };
+			const box = editRange(boxed(source), twin, row.gesture, row.mode ?? mode, host);
+			const want = {
+				source: boxed(quote.source),
+				clipboard: quote.clipboard === undefined ? undefined : boxed(quote.clipboard),
+				caret: { ...quote.caret, at: boxedAt(quote.source, quote.caret.at) }
+			};
+			const got = { source: box.source, clipboard: box.clipboard, caret: box.caret };
+			if (READS_A_QUOTE_BY_HAND.has(row.name)) expect(got).not.toEqual(want);
+			else expect(got).toEqual(want);
 		});
 	}
 });
