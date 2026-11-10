@@ -1,7 +1,7 @@
 // A parsed quote and a parsed table keep where each child's bytes sit in theirs, as a parsed list
 // does, so a keystroke's rebuild and the byte splice find a child without pairing every line.
 // Each span is checked against the child's own bytes and against the spans a full rebuild writes.
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import type { CstNode } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
@@ -21,6 +21,8 @@ import { rebuildTableRaw } from '#lib/schema/container-rebuilders.js';
 import { writeContainerRaw } from '#lib/schema/container-writer.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { freshOrFixedSeed } from '../../invariants/arbitraries/property-seed';
+import { installPlugins } from '#lib/schema/plugin-install.js';
+import { SYNTAX_PLUGINS } from '../../behavior/corpus';
 import {
 	arbHeadedDoc,
 	arbIndentedDoc,
@@ -48,7 +50,9 @@ function regionReads(node: CstNode, region: string): string {
 }
 
 function expectSpansHold(source: string): void {
-	for (const node of spanned(parse(source).children)) {
+	const found = spanned(parse(source).children);
+	expect(found.length, JSON.stringify(source)).toBeGreaterThan(0);
+	for (const node of found) {
 		const spans = node.childSpans;
 		const rebuilt = { ...node, childSpans: undefined } as CstNode;
 		if (node.kind === 'table') rebuildTableRaw(rebuilt);
@@ -74,6 +78,8 @@ describe('a parsed quote and table keep their child spans', () => {
 		['a quote of paragraphs', '> a\n>\n> b\n'],
 		['a lazy line', '> a\nlazy\n> b\n'],
 		['a nested quote', '> a\n> > b\n> > c\n'],
+		['a quote in a list item', '- > a\n  >\n  > b\n'],
+		['a quote in an item of a quoted list', '> - > a\n>   >\n>   > b\n'],
 		['no final line break', '> a\n>\n> b'],
 		['CRLF', '> a\r\n>\r\n> b\r\n'],
 		['a table', '| h |\n| - |\n| a |\n| b |\n'],
@@ -105,6 +111,14 @@ describe('a parsed quote and table keep their child spans', () => {
 			numRuns: 300,
 			seed: freshOrFixedSeed(20261108)
 		});
+	});
+});
+
+describe('a quote inside a plugin block keeps its child spans', () => {
+	beforeEach(() => installPlugins(SYNTAX_PLUGINS));
+
+	it('in a details body', () => {
+		expectSpansHold('<details>\n<summary>t</summary>\n\n> a\n>\n> b\n\n</details>\n');
 	});
 });
 

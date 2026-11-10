@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 // A typed letter and the caret move the browser reports after it place no document byte, so neither
 // reads a whole list of blocks, whatever container the caret sits in and whatever actions are listed.
+// A plugin that asks where the selection is does place one, and in a quote, a list or a table that
+// pairs one child's lines with the container's, however many siblings the child has.
 // Miss-analysis: the keystroke cost rows drove the commit alone, never the `selectionchange` that
 // follows it, where the selection toolbar read the caret's byte through the container around it.
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -16,6 +18,7 @@ import {
 	destroyMountedEditors,
 	installLayoutStubs,
 	mountEditor,
+	placeCaret,
 	selectRange,
 	surfaceAt,
 	typeInto,
@@ -107,4 +110,76 @@ describe('the selection toolbar asks the actions about each range the browser re
 		expect(captured).toEqual([{ from: start + 1, to: start + 3 }]);
 		expect(perfSnapshot().byteMapReads).toBeGreaterThan(reads);
 	});
+});
+
+// ── A plugin that reads the selection as the author types ────────────────────
+
+/** A container `n` children long, and the text surface of child `c`. */
+const SIBLINGS: {
+	name: string;
+	source(n: number): string;
+	surface(m: MountedEditor, c: number): HTMLElement;
+}[] = [
+	{
+		name: 'a quoted paragraph',
+		source: (n) => '> line\n>\n'.repeat(n),
+		surface: (m, c) => surfaceAt(m, [0, c])
+	},
+	{
+		name: 'a list item',
+		source: (n) => '- line\n'.repeat(n),
+		surface: (m, c) => surfaceAt(m, [0, c, 0])
+	},
+	{
+		name: 'a table cell',
+		source: (n) => '| a | b |\n| - | - |\n' + '| line | x |\n'.repeat(n),
+		surface: (m, c) => cellAt(m, c, 0)
+	}
+];
+
+/** Container lines the byte map paired over a click into child 3 of `n` and the first letter typed
+ *  there, with a plugin asking where the selection is on every caret move and every edit. */
+async function linesPairedFollowing(place: (typeof SIBLINGS)[number], n: number): Promise<number> {
+	const seen: ({ from: number; to: number } | null)[] = [];
+	const ask = (editor: { selectedRange(): (typeof seen)[number] }) => () =>
+		seen.push(editor.selectedRange());
+	const follower = definePlugin({
+		name: 'follows-typing',
+		version: '1.0.0',
+		editor: '*',
+		contributes: () => ({
+			setup(editor) {
+				const offs = [editor.on('selectionChange', ask(editor)), editor.on('edit', ask(editor))];
+				return () => offs.forEach((off) => off());
+			}
+		})
+	});
+	const m = mountEditor({ source: place.source(n), plugins: [follower] });
+	await m.settle();
+	const before = perfSnapshot();
+	const el = place.surface(m, 3);
+	// The click comes first: a container nobody has typed in yet answers from what its parse left.
+	placeCaret(el, 2);
+	await reportSelection(m);
+	typeInto(el, el.textContent + 'x');
+	await m.settle();
+	await reportSelection(m);
+	// Every read placed a byte, so the count below is of a map that was asked each time.
+	expect(seen.length).toBeGreaterThanOrEqual(2);
+	expect(seen).not.toContain(null);
+	expect(perfSnapshot().byteMapReads).toBeGreaterThan(before.byteMapReads);
+	const paired = perfSnapshot().linesPaired - before.linesPaired;
+	await m.destroy();
+	return paired;
+}
+
+// Miss-analysis: the rows above hold the editor's own listeners at no read at all, so nothing
+// priced a read a plugin makes, least of all in a quote no keystroke had rebuilt yet.
+describe('G4.339 a plugin reading selectedRange() on every caret move and edit maps no whole container', () => {
+	it.each(SIBLINGS)(
+		"in $name it pairs one child's lines, at 40 siblings as at 400 (the sum of top-level block starts isn't covered)",
+		async (place) => {
+			expect(await linesPairedFollowing(place, 400)).toBe(await linesPairedFollowing(place, 40));
+		}
+	);
 });
