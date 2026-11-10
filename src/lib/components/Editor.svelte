@@ -257,8 +257,12 @@
 	// Bumped by every path that writes bytes. Inline widgets derive on it directly, and the
 	// decoration engine's `editEpoch` follows it a tick later.
 	const contentVersion = createContentVersion();
-	const currentSource = createCurrentSource({ version: contentVersion.read, doc: () => doc });
 	const starts = createKeptStarts(() => doc);
+	const currentSource = createCurrentSource({
+		version: contentVersion.read,
+		doc: () => doc,
+		writing: starts.writing
+	});
 	const announceBytes = (runs: ChangedRuns) => {
 		starts.changed(runs);
 		contentVersion.bump();

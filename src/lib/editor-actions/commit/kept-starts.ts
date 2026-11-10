@@ -31,6 +31,8 @@ export interface KeptStarts {
 	read(): Measured;
 	/** Whether a position has been asked for since the record last forgot. */
 	isMeasured(): boolean;
+	/** Whether a write has opened and not yet announced or been abandoned. */
+	writing(): boolean;
 	/** A write is about to change the tree. */
 	opened(): void;
 	/** The open write put the tree back as it stood. */
@@ -82,6 +84,7 @@ export function createKeptStarts(doc: () => DocumentView): KeptStarts {
 				return (view ??= pinned());
 			}),
 		isMeasured: () => kept !== null,
+		writing: () => open > 0,
 		opened() {
 			open++;
 		},
