@@ -2,7 +2,8 @@
  * The document's Markdown, serialized once per content version. `getSource()` and the `source`
  * prop's swap check share it, so a host passing `getSource()` back hands over the same string.
  * It is only as fresh as the version: every byte writer must bump it (checked in dev, G1.52).
- * A write that hasn't announced yet has the version behind the tree, so a read there serializes.
+ * While the tree may hold bytes the version hasn't heard of (a write is open, or one threw), a
+ * read serializes and keeps nothing.
  */
 
 import { untrack } from 'svelte';
@@ -15,8 +16,8 @@ import { perfEnabled } from '../../perf/instruments';
 export interface CurrentSourceDeps {
 	version(): number;
 	doc(): Document;
-	/** Whether a write has changed the tree and not yet announced it. */
-	writing(): boolean;
+	/** Whether the tree may hold bytes no version announced (`KeptStarts.unannounced`). */
+	unannounced(): boolean;
 }
 
 export interface CurrentSource {
@@ -35,7 +36,7 @@ export function createCurrentSource(deps: CurrentSourceDeps): CurrentSource {
 	function serve(version: number, check: boolean): string {
 		return untrack(() => {
 			// Not kept: the write may yet put the tree back, under the same version.
-			if (deps.writing()) return serialize(deps.doc());
+			if (deps.unannounced()) return serialize(deps.doc());
 			if (version !== servedVersion) {
 				served = serialize(deps.doc());
 				servedVersion = version;

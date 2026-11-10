@@ -261,7 +261,7 @@
 	const currentSource = createCurrentSource({
 		version: contentVersion.read,
 		doc: () => doc,
-		writing: starts.writing
+		unannounced: starts.unannounced
 	});
 	const announceBytes = (runs: ChangedRuns) => {
 		starts.changed(runs);

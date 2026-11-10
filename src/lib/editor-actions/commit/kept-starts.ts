@@ -32,13 +32,15 @@ export interface KeptStarts {
 	read(): Measured;
 	/** Whether a position has been asked for since the record last forgot. */
 	isMeasured(): boolean;
-	/** Whether a write has opened and not yet announced, been abandoned or failed. */
-	writing(): boolean;
+	/** Whether the tree may hold bytes no announcement covers: a write is open, or one threw and
+	 *  none has announced since. Whatever is kept of the document steps aside while it holds. */
+	unannounced(): boolean;
 	/** A write is about to change the tree. */
 	opened(): void;
 	/** The open write changed nothing, so the tree stands as it did. */
 	abandoned(): void;
-	/** The open write threw. Nothing vouches for its rollback, so the record is forgotten. */
+	/** The open write threw. Nothing vouches for its rollback, so the record is forgotten and
+	 *  the tree counts as unannounced until the next write announces. */
 	failed(): void;
 	/** The open write is done. */
 	changed(runs: ChangedRuns): void;
@@ -51,14 +53,15 @@ export function createKeptStarts(doc: () => DocumentView): KeptStarts {
 	let kept: BlockLengths | null = null;
 	let view: Measured | null = null;
 	let open = 0;
+	let threw = false;
 
 	const misused = (message: string) =>
 		assertInvariant('kept-starts-current', () => ({ code: 'kept-starts-misused', message }));
-	const writing = () => open > 0;
+	const unannounced = () => open > 0 || threw;
 	const inWrite = () => {
-		if (devChecksOn && writing())
+		if (devChecksOn && open > 0)
 			misused('a position was read between a write and its announcement');
-		return writing();
+		return unannounced();
 	};
 	const pinned = (): Measured => {
 		const at = { ...doc() };
@@ -88,7 +91,7 @@ export function createKeptStarts(doc: () => DocumentView): KeptStarts {
 				return (view ??= pinned());
 			}),
 		isMeasured: () => kept !== null,
-		writing,
+		unannounced,
 		opened() {
 			open++;
 		},
@@ -98,12 +101,14 @@ export function createKeptStarts(doc: () => DocumentView): KeptStarts {
 		failed() {
 			open = Math.max(open - 1, 0);
 			kept = view = null;
+			threw = true;
 		},
 		changed(runsOf) {
 			if (devChecksOn && open === 0) misused('a write announced its changes without opening first');
 			// A write made inside another's leaves neither able to place its runs.
 			const runs = kept && open === 1 ? runsOf?.() : null;
 			open = Math.max(open - 1, 0);
+			threw = false;
 			view = null;
 			if (!kept) return;
 			if (!runs || runs.some((run) => run.inserted > WIDEST_RUN)) {

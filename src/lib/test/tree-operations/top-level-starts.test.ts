@@ -285,14 +285,18 @@ describe('G1.209 a record told wrong, or read too early, is caught', () => {
 		expect(tags()).toEqual([]);
 	});
 
-	it('a write that threw is forgotten, whatever its rollback left', () => {
+	it('a write that threw leaves nothing kept until the next write announces', () => {
 		const doc = parse(paragraphs(6));
 		const k = kept(doc);
 		k.record.opened();
 		doc.children[1].raw = 'left behind by the rollback\n';
 		k.record.failed();
-		expect([k.record.isMeasured(), k.record.writing()]).toEqual([false, false]);
 		expect(answers(doc, k.record.read().starts)).toEqual(answers(doc));
+		expect([k.record.isMeasured(), k.record.unannounced()]).toEqual([false, true]);
+		k.write(() => (doc.children[2].raw = 'the next write\n'), [{ at: 2, removed: 1, inserted: 1 }]);
+		expect(k.record.unannounced()).toBe(false);
+		expect(answers(doc, k.record.read().starts)).toEqual(answers(doc));
+		expect(k.record.isMeasured()).toBe(true);
 		expect(tags()).toEqual([]);
 	});
 
