@@ -423,6 +423,7 @@
 		stamps,
 		doc: () => doc,
 		measured: starts.read,
+		source: currentSource.read,
 		isReading: () => reading.mode() === 'reading',
 		// Built below; a draft commits post-init.
 		writes: () => ({

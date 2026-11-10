@@ -27,7 +27,7 @@ import {
 export type ChangedRuns = (() => readonly TopLevelChange[] | null) | null;
 
 export interface KeptStarts {
-	/** The live document with its starts. */
+	/** The document as it stands, with its starts; a write's new tree leaves the pair as it was. */
 	read(): Measured;
 	/** Whether a position has been asked for since the record last forgot. */
 	isMeasured(): boolean;
@@ -54,9 +54,21 @@ export function createKeptStarts(doc: () => DocumentView): KeptStarts {
 			misused('a position was read between a write and its announcement');
 		return open > 0;
 	};
-	// Untracked, so a reactive reader subscribes to the content version and not to every block.
-	const lengths = () =>
-		kept ?? untrack(() => (inWrite() ? blockLengths(doc()) : (kept = blockLengths(doc()))));
+	const pinned = (): Measured => {
+		const at = { ...doc() };
+		let own: BlockLengths | undefined;
+		const lengths = (): BlockLengths => {
+			if (view === made && kept) return kept;
+			// Untracked, so a reactive reader subscribes to the content version and not to every block.
+			return untrack(() => {
+				// A view kept past the next announcement measures its own document, once.
+				if (view !== made) return (own ??= blockLengths(at));
+				return inWrite() ? blockLengths(at) : (kept = blockLengths(at));
+			});
+		};
+		const made: Measured = { doc: at, starts: startsOver(at, lengths) };
+		return made;
+	};
 
 	return {
 		read: () =>
@@ -65,8 +77,9 @@ export function createKeptStarts(doc: () => DocumentView): KeptStarts {
 				if (kept && kept.lengths.length !== doc().children.length) {
 					if (devChecksOn) misused('the document changed its blocks with no write announced');
 					kept = null;
+					view = null;
 				}
-				return (view ??= { doc: doc(), starts: startsOver(doc(), lengths) });
+				return (view ??= pinned());
 			}),
 		isMeasured: () => kept !== null,
 		opened() {

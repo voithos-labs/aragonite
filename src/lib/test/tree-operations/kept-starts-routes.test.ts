@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
 // G1.209 over every write route: after the write, with a listener reading a position on every
-// event the editor emits, the editor places every text position where a fresh measure of the
-// document does, and no listener is called between a write and its announcement.
+// event the editor emits, the editor places every text position where a fresh read of its bytes
+// does, and no listener is called between a write and its announcement.
 // Miss-analysis: the byte map was built afresh per content version, so no test had to ask whether
 // a record kept across writes still described the document a route left.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { NodeView } from '#lib/core/node-views.js';
 import type { EditorEventMap } from '#lib/editor-events.js';
 import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
+import { parse } from '#lib/core/parser.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
 import {
@@ -45,10 +46,10 @@ function textPaths(node: { children?: readonly NodeView[] }, path: number[] = []
 	return children.flatMap((child, i) => textPaths(child, [...path, i]));
 }
 
-/** Where the editor and a fresh measure each put every offset of every text block. */
+/** Where the editor and a fresh read of its bytes each put every offset of every text block. */
 function placed(m: Mounted): { kept: (number | null)[]; fresh: (number | null)[] } {
 	const doc = m.instance.__test.getDocument();
-	const fresh = documentLayout(measured(doc));
+	const fresh = documentLayout(measured(parse(m.source())));
 	const kept: (number | null)[] = [];
 	const again: (number | null)[] = [];
 	for (const path of textPaths(doc)) {

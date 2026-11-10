@@ -58,6 +58,8 @@ export interface DraftRegistryDeps {
 	doc(): DocumentView;
 	/** That document with the starts the editor keeps for it. */
 	measured(): Measured;
+	/** Its bytes, serialized once per content version. */
+	source(): string;
 	isReading(): boolean;
 	writes(): DraftWrites;
 }
@@ -135,7 +137,7 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 				if (changes[i].from < changes[i - 1].to || changes[i].from === changes[i - 1].from)
 					return refused('overlap', `two of its ranges meet at byte ${changes[i].from}`);
 			}
-			const text = serialize(doc);
+			const text = deps.source();
 			if (devChecksOn && lengths) {
 				const was = writes.map(({ range }) => ({
 					from: byteAt(lengths!, range.from),

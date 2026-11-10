@@ -18,6 +18,8 @@ export interface TopLevelStarts {
 	start(index: number): number;
 	/** Past block `index`'s last byte. */
 	end(index: number): number;
+	/** Where block `index`'s own bytes start, past its blank lines. */
+	rawStart(index: number): number;
 	/** The first block whose bytes end past `byte`, or the last; -1 in a document with none. */
 	holding(byte: number): number;
 }
@@ -69,6 +71,7 @@ export function startsOver(doc: DocumentView, kept: () => BlockLengths): TopLeve
 		},
 		start,
 		end,
+		rawStart: (index) => start(index) + doc.children[index].leadingTrivia.length,
 		holding(byte) {
 			let lo = 0;
 			let hi = kept().lengths.length - 1;

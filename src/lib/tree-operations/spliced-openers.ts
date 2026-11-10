@@ -5,39 +5,39 @@
  */
 
 import type { CstNode } from '../core/nodes';
-import type { DocumentView, NodeView } from '../core/node-views';
+import type { NodeView } from '../core/node-views';
 import { unfinishedReadings, type GrammarView } from '../schema/block-openers';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { rebuildAncestryRaw } from '../schema/container-raw';
 import { unchangedEnds } from '../block-id';
 import { recordSiblingsCompared } from '../perf/instruments';
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
-import { applied, segmentEnds, type SpliceReading } from './byte-splice';
+import { applied, type SpliceReading } from './byte-splice';
 import { changedBytes, changesBetween, narrowed, type ByteChange } from './byte-changes';
 import { fragmentReaderAt } from './list/task-paragraph';
 import { withClosers, writtenOpenerClosers, type WrittenCloser } from './written-openers';
+import { measured, type Measured, type TopLevelStarts } from './top-level-starts';
 
 /** The closing lines `changes` to `before`, the bytes of `doc`, need, each at a byte of the changed
  *  text; `reading` is the splice's read of the changes, where a container they reach is read again. */
 export function splicedOpenerClosers(
-	doc: DocumentView,
+	{ doc, starts }: Measured,
 	before: string,
 	changes: readonly ByteChange[],
 	reading: SpliceReading,
 	grammar: GrammarView
 ): WrittenCloser[] {
 	const children = doc.children;
-	const ends = segmentEnds(doc);
 	const out: WrittenCloser[] = [];
 	let after: readonly NodeView[] | null = null;
 	let shift = 0;
 	const narrow = changes.flatMap((change) => narrowed(before, change));
-	for (const group of groupsOf(children, ends, narrow)) {
+	for (const group of groupsOf(starts, narrow)) {
 		const { first, hi } = group;
 		const node = children[first];
 		const grown = group.changes.reduce((n, c) => n + c.insert.length - (c.to - c.from), 0);
 		// The bytes on either side of the change are as they were: the container starts or ends there.
-		const start = (first === 0 ? doc.prefix.length : ends[first - 1]) + shift;
+		const start = starts.start(first) + shift;
 		const now =
 			first === hi && isContainer(node)
 				? counterpart(
@@ -45,7 +45,7 @@ export function splicedOpenerClosers(
 						doc.prefix.length,
 						node.kind,
 						start,
-						ends[hi] + shift + grown
+						starts.end(hi) + shift + grown
 					)
 				: null;
 		const read = reading.windows.find((window) => window.at === first)?.run;
@@ -54,8 +54,8 @@ export function splicedOpenerClosers(
 			const base = now.at + now.node.leadingTrivia.length;
 			for (const closer of nested) out.push({ at: base + closer.at, text: closer.text });
 		} else {
-			const from = Math.min(ends[first] - node.raw.length, group.changes[0].from);
-			const to = Math.max(ends[hi], group.changes[group.changes.length - 1].to);
+			const from = Math.min(starts.end(first) - node.raw.length, group.changes[0].from);
+			const to = Math.max(starts.end(hi), group.changes[group.changes.length - 1].to);
 			const text = changedBytes(before, from, to, group.changes);
 			const was = before.slice(from, to);
 			const closers = closersIn(children, undefined, first, hi, was, text, grammar);
@@ -100,13 +100,13 @@ export function withSplicedClosers(
 /** G1.158 at the byte splice: its changes write no opener a block below would close. Shares its
  *  code with the rule, so it catches a splice that skipped the rule, not a wrong closer. */
 export function checkSplicedChangesClosed(
-	doc: DocumentView,
+	was: Measured,
 	before: string,
 	changes: readonly ByteChange[],
 	reading: SpliceReading,
 	grammar: GrammarView
 ): InvariantViolation | null {
-	const closers = splicedOpenerClosers(doc, before, changes, reading, grammar);
+	const closers = splicedOpenerClosers(was, before, changes, reading, grammar);
 	if (closers.length === 0) return null;
 	return {
 		code: 'spliced-opener-closed',
@@ -119,18 +119,13 @@ export function checkSplicedChangesClosed(
 
 /** The changes grouped by the top-level blocks they reach, two that reach one block in one group. */
 function groupsOf(
-	children: readonly NodeView[],
-	ends: readonly number[],
+	starts: TopLevelStarts,
 	changes: readonly ByteChange[]
 ): { first: number; hi: number; changes: ByteChange[] }[] {
-	const holding = (byte: number) => {
-		const i = ends.findIndex((end) => byte < end);
-		return i < 0 ? children.length - 1 : i;
-	};
 	const groups: { first: number; hi: number; changes: ByteChange[] }[] = [];
 	for (const change of changes) {
-		const first = holding(change.from);
-		const hi = Math.max(first, holding(Math.max(change.to - 1, change.from)));
+		const first = starts.holding(change.from);
+		const hi = Math.max(first, starts.holding(Math.max(change.to - 1, change.from)));
 		const last = groups[groups.length - 1];
 		if (last && first <= last.hi) {
 			last.hi = Math.max(last.hi, hi);
@@ -169,18 +164,16 @@ function closersInside(
 		const news = is.children!.slice(head, is.children!.length - tail);
 		const [change] = changesBetween(bytesOf(olds), bytesOf(news));
 		if (!change) return path.length === 0 ? null : [];
-		const ends = segmentEnds({ prefix: '', children: olds });
-		let first = ends.findIndex((end) => change.from < end);
-		const hi = Math.max(
-			first,
-			ends.findIndex((end) => Math.max(change.to - 1, change.from) < end)
-		);
+		const run = measured({ kind: 'document', prefix: '', children: olds, suffix: '' }).starts;
+		const holding = (byte: number) => (byte < run.length ? run.holding(byte) : -1);
+		let first = holding(change.from);
+		const hi = Math.max(first, holding(Math.max(change.to - 1, change.from)));
 		if (first < 0) return [];
 		// A container's own first line (`:::tip`) holds no opener, so the write starts below it.
 		while (first < hi && contextual(olds[first]) && news[first]?.kind === olds[first].kind) first++;
-		const start = first === 0 ? 0 : ends[first - 1];
+		const start = run.start(first);
 		const from = bytesOf(news.slice(0, first)).length;
-		const to = ends[hi] + change.insert.length - (change.to - change.from);
+		const to = run.end(hi) + change.insert.length - (change.to - change.from);
 		const next =
 			first === hi && isContainer(olds[first])
 				? counterpart(news, 0, olds[first].kind, from, to)
@@ -192,7 +185,7 @@ function closersInside(
 			continue;
 		}
 		const text = bytesOf(news).slice(from, to);
-		const replaced = bytesOf(olds).slice(start, ends[hi]);
+		const replaced = bytesOf(olds).slice(start, run.end(hi));
 		const at = head + first;
 		const closers = closersIn(kids, old, at, head + hi, replaced, text, grammar);
 		if (closers.length === 0) return [];

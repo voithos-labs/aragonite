@@ -25,10 +25,11 @@ export interface WriteRoute {
 	asks(n: number): { path: number[]; offset: number };
 	/** `whole`: the write names no blocks, so the next position read measures every one. */
 	announces: 'exact' | 'whole';
-	/** The write names its blocks, yet sums every block itself to find where its bytes fall. */
-	sumsItself?: true;
 	/** The write, or the range it starts from, asks positions itself: a reader with no listener. */
 	readsItself?: true;
+	/** The range edit lays out its answer, a parse of the whole document, to find its caret
+	 *  (`range-edit/edit-range.ts :: answerOf`), so it measures every block of that parse. */
+	laysOutItsAnswer?: true;
 }
 
 /** The block every route writes at, far enough down that blocks stand on both sides. */
@@ -36,6 +37,9 @@ const AT = 3;
 
 const paragraphs = (n: number) => Array.from({ length: n }, (_, i) => `line ${i}\n`).join('\n');
 const withList = (n: number) => paragraphs(n).replace(`line ${AT}\n`, '- item\n');
+const withBlock = (block: string) => (n: number) => paragraphs(n).replace(`line ${AT}\n`, block);
+const QUOTED = [AT, 0];
+const NESTED = [AT, 0, 1, 0, 0];
 
 async function typeLetter(m: Mounted, path: number[]): Promise<void> {
 	const el = surfaceAt(m, path);
@@ -70,6 +74,23 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		source: withList,
 		write: (m) => typeLetter(m, [AT, 0, 0]),
 		asks: () => ({ path: [AT, 0, 0], offset: 0 }),
+		announces: 'exact'
+	},
+	// The second letter of a burst writes in place, its containers the same nodes with new bytes.
+	{
+		name: 'a second letter in a quoted paragraph, every line ending CRLF',
+		source: (n) => withBlock('> alpha\n> beta\n')(n).replace(/\n/g, '\r\n'),
+		setUp: (m) => typeLetter(m, QUOTED),
+		write: (m) => typeLetter(m, QUOTED),
+		asks: () => ({ path: QUOTED, offset: 0 }),
+		announces: 'exact'
+	},
+	{
+		name: 'a second letter in an item nested under a tab',
+		source: withBlock('- a\n\t- bc\n\n    d\n'),
+		setUp: (m) => typeLetter(m, NESTED),
+		write: (m) => typeLetter(m, NESTED),
+		asks: () => ({ path: NESTED, offset: 0 }),
 		announces: 'exact'
 	},
 	{
@@ -133,7 +154,7 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		announces: 'exact'
 	},
 	{
-		name: 'a heading typed right after a letter, in the letter’s undo entry',
+		name: 'a heading typed right after a letter, in the letterâ€™s undo entry',
 		source: paragraphs,
 		setUp: (m) => typeLetter(m, [AT]),
 		async write(m) {
@@ -159,28 +180,26 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		},
 		asks: () => ({ path: [AT], offset: 0 }),
 		announces: 'exact',
-		readsItself: true,
-		sumsItself: true
+		readsItself: true
 	},
+	// The draft maps its ranges through `change-record.ts :: partLengths`, a sum of every block that
+	// no counter sees yet.
 	{
-		name: 'a byte splice in two blocks far apart',
+		name: 'a draft writing in two blocks far apart',
 		source: paragraphs,
 		async write(m, n) {
 			const before = m.source();
-			const after = before
-				.replace(`line ${AT}\n`, `Xline ${AT}\n`)
-				.replace(`line ${n - 2}\n`, `Xline ${n - 2}\n`);
-			await m.instance.__test.spliceSource(
-				after,
-				{ at: after.indexOf(`Xline ${AT}`) + 1, holds: 'text' },
-				{ kind: 'paste', detail: { count: 1 } }
-			);
+			const draft = m.instance.edit();
+			for (const i of [AT, n - 2]) {
+				const at = before.indexOf(`line ${i}\n`);
+				draft.replace({ from: at, to: at }, 'X');
+			}
+			await draft.commit();
 			await m.settle();
 		},
 		asks: () => ({ path: [AT], offset: 0 }),
 		announces: 'exact',
-		readsItself: true,
-		sumsItself: true
+		readsItself: true
 	},
 	{
 		name: 'Backspace over a range the editor holds across blocks',
@@ -190,7 +209,7 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		asks: () => ({ path: [AT], offset: 0 }),
 		announces: 'exact',
 		readsItself: true,
-		sumsItself: true
+		laysOutItsAnswer: true
 	},
 	{
 		name: 'a letter typed over a range the editor holds across blocks',
@@ -203,7 +222,7 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		asks: () => ({ path: [AT], offset: 0 }),
 		announces: 'exact',
 		readsItself: true,
-		sumsItself: true
+		laysOutItsAnswer: true
 	},
 	{
 		name: 'undo',

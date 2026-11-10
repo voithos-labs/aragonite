@@ -82,15 +82,15 @@ describe('G4.340 a document nobody asks a position of keeps no record', () => {
 });
 
 describe('G4.340 a position read after a write measures the blocks the write changed', () => {
-	it.each(WRITE_ROUTES.filter((route) => route.announces === 'exact' && !route.sumsItself))(
+	it.each(WRITE_ROUTES.filter((route) => route.announces === 'exact' && !route.laysOutItsAnswer))(
 		'$name: as many at 80 blocks as at 20',
 		async (route) => {
 			expect(await blocksMeasured(route, 4 * N)).toBe(await blocksMeasured(route, N));
 		}
 	);
 
-	it.each(WRITE_ROUTES.filter((route) => route.announces === 'whole' || route.sumsItself))(
-		'$name names no blocks, or sums them itself: every block is measured',
+	it.each(WRITE_ROUTES.filter((route) => route.announces === 'whole' || route.laysOutItsAnswer))(
+		'$name names no blocks, or lays out a parse of its answer: every block is measured',
 		async (route) => {
 			// One fewer than the document started with, where the write joined two blocks.
 			expect(await blocksMeasured(route, N)).toBeGreaterThanOrEqual(N - 1);

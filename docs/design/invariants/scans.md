@@ -239,6 +239,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.329 | Bytes are read into the tree by the byte splice, which closes the openers they write, or by an undo | L |
 | G4.330 | A key, clipboard or input handler that removes prevents the browser's default before it waits | L |
 | G4.338 | `edit` is emitted in one function, which first hands the link definitions what the write replaced | L |
+| G4.340 | A position read after a write, or a byte splice, measures the blocks the write changed, not the document | harness |
 
 ### The entries
 
@@ -340,7 +341,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 
 **G4.50 · Cross-block-range classification.** Every block command id is range-declined, has a cross-block branch, or is recorded range-safe with its reason; the decline is what stops a command spending one block's offsets against a multi-block range. `lint/range-command-census.test.ts`.
 
-**G4.52 · Content-version announcements.** Each place that writes document bytes announces the content version (never derived from a walk), so the writers are a declared set: the commit frame covers every commit and every keystroke written in place; the history swap and the `source` swap answer for themselves. A silent writer serves every whole-document memo a stale answer. Every writer but the `source` swap also asks the reading-mode check (`reading-write-gate.ts`) in each function that writes. `lint/content-version-doors.test.ts`.
+**G4.52 · Content-version announcements.** Each place that writes document bytes announces the content version (never derived from a walk), with the runs of top-level blocks it changed or null, so the writers are a declared set: the commit frame covers every commit and every keystroke written in place; the history swap and the `source` swap answer for themselves. A silent writer serves every whole-document memo a stale answer. Every writer but the `source` swap also asks the reading-mode check (`reading-write-gate.ts`) in each function that writes. `lint/content-version-doors.test.ts`.
 
 **G4.53 · Descriptor-field roster.** `BlockKindDescriptor` and the field reference table in `docs/design/plugin-contract.md` are one set, both ways, keyed on the field-name column. The scan reads `schema/block-kind-descriptor.ts :: DESCRIPTOR_FIELDS`, which is complete by compile error. `lint/descriptor-field-census.test.ts`.
 
@@ -694,3 +695,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.330 · A key or a cut removes before the browser edits the page.** The byte splice keeps the nodes of blocks its bytes leave alone, down to the leaf, and a kept block doesn't redraw, so it mustn't show text the browser typed. So every function taking a `KeyboardEvent`, `ClipboardEvent` or `InputEvent` that removes (the range replace, a block's delete, a cut's arm) calls `preventDefault()` before it waits, and one handing the event on doesn't wait first. A composition can't be prevented, so it isn't covered. `lint/removal-prevents-default.test.ts`.
 
 **G4.338 · One emit for `edit`.** `editor-actions/commit/emit-edit.ts :: emitEdit` takes the blocks the write replaced as a required argument and hands them to `refreshDefinitions` before it emits, so a route that emitted `edit` itself would leave the editor serving stale reference links. The writes G4.107 lists call it. `lint/edit-emitters.test.ts`.
+
+**G4.340 · A position costs its path.** Every write route (`test/harness/write-routes.ts`), with a listener asking a position on every edit, measures as many top-level blocks at 80 as at 20, unless it names no blocks or lays out a parse of its answer; with no listener, none. A byte splice measures as many at 400 as at 40. `measured(doc)` measures every block it's handed, so its callers are a declared list. `test/perf/top-level-starts-reads.test.ts`, `splice-top-level-cost.test.ts`, `lint/measured-callers.test.ts`.

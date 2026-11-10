@@ -6,6 +6,7 @@ import fc from 'fast-check';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import type { Document } from '#lib/core/nodes.js';
+import type { DocumentView } from '#lib/core/node-views.js';
 import { createKeptStarts } from '#lib/editor-actions/commit/kept-starts.js';
 import {
 	disablePerfInstruments,
@@ -27,7 +28,7 @@ const paragraphs = (n: number, word = 'line') =>
 const blocks = (n: number, word: string) => parse(paragraphs(n, word)).children;
 
 /** Every answer the starts give about `doc`. */
-function answers(doc: Document, starts = measured(doc).starts) {
+function answers(doc: DocumentView, starts = measured(doc).starts) {
 	return {
 		length: starts.length,
 		ends: doc.children.map((_, i) => [starts.start(i), starts.end(i)])
@@ -113,6 +114,23 @@ describe('G1.209 the kept record answers as a fresh measure does', () => {
 		expect(takeDevWarns()).toEqual([]);
 	});
 
+	// The byte splice takes its view before it writes and checks what it wrote against that view.
+	it('a view read before a write answers for the document it was read from', () => {
+		const doc = parse(paragraphs(6));
+		const k = kept(doc);
+		const view = k.record.read();
+		const was = answers(view.doc);
+		k.record.opened();
+		doc.children = [...doc.children.slice(0, 2), ...blocks(3, 'new'), ...doc.children.slice(3)];
+		doc.suffix = '\n';
+		expect(answers(view.doc, view.starts)).toEqual(was);
+		k.record.changed(() => [{ at: 2, removed: 1, inserted: 3 }]);
+		expect(answers(doc, k.record.read().starts)).toEqual(answers(doc));
+		// Kept past the announcement, it still answers for its own document.
+		expect(answers(view.doc, view.starts)).toEqual(was);
+		expect(takeDevWarns()).toEqual([]);
+	});
+
 	it('after two runs named in one write, each counted before either was made', () => {
 		const doc = parse(paragraphs(10));
 		const k = kept(doc);
@@ -164,12 +182,12 @@ describe('G1.209 the kept record answers as a fresh measure does', () => {
 		const record = createKeptStarts(() => doc);
 		resetPerfInstruments();
 		enablePerfInstruments();
-		const { starts } = record.read();
+		void record.read();
 		record.opened();
 		doc.children[1].raw = 'x\n';
 		record.changed(() => expect.unreachable('a record nobody asked has no use for the runs'));
 		expect([record.isMeasured(), perfSnapshot().topBlocksMeasured]).toEqual([false, 0]);
-		expect(record.read().starts.end(0)).toBe(starts.end(0));
+		expect(record.read().starts.end(1)).toBe(serialize(doc).indexOf('x\n') + 2);
 		expect([record.isMeasured(), perfSnapshot().topBlocksMeasured]).toEqual([true, 6]);
 	});
 

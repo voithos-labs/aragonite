@@ -56,13 +56,14 @@ export function documentLayout(measured: Measured): Layout {
 	const { doc, starts } = measured;
 	const map = documentByteMap(measured);
 	const laid = new Map<string, LaidBlock>();
-	const rawStart = (i: number) => starts.start(i) + doc.children[i].leadingTrivia.length;
 	// A block's last line runs to the end of its line in the source, past a title's closing tag too.
 	const pastLine = (path: readonly number[], raw: string, end: number): number => {
 		if (!raw.endsWith('\n', end)) return map.byteOf(path, end)!;
 		const top = path[0];
 		const byte = map.byteOf(path, end - (raw.endsWith('\r\n', end) ? 2 : 1))!;
-		return rawStart(top) + doc.children[top].raw.indexOf('\n', byte - rawStart(top)) + 1;
+		return (
+			starts.rawStart(top) + doc.children[top].raw.indexOf('\n', byte - starts.rawStart(top)) + 1
+		);
 	};
 	const leaf = (path: readonly number[]): NodeView | null => {
 		const node = blockNodeAt(doc, path);

@@ -13,7 +13,6 @@ import type { SourceSplice, SpliceCaret } from '../../action-contracts';
 import type { ScopedOpDescriptor } from '../../schema/operations';
 import { blockFacts } from '../../schema/block-facts';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
-import { serialize } from '../../core/serializer';
 import { docPathFrom } from '../../core/coordinate-spaces';
 import { spliceMany } from '../../tree-operations/splice-many';
 import {
@@ -53,8 +52,9 @@ export function createByteSplice(
 ): (splice: SourceSplice) => Promise<boolean> {
 	return (splice) => {
 		const { grammar } = deps.reading;
-		const was = { ...deps.doc };
-		const before = serialize(was);
+		// Read before the write, so the check after it still reads the document as it stood.
+		const was = deps.bytes.measured();
+		const before = deps.bytes.source();
 		let changes = splice.changes;
 		let reading: SpliceReading | null = null;
 		let windows: SpliceWindow[] = [];

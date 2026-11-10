@@ -73,19 +73,18 @@ export function documentByteMap({ doc, starts }: Measured): DocumentByteMap {
 		return map;
 	};
 	const tops = doc.children;
-	const rawStartOf = (i: number) => starts.start(i) + tops[i].leadingTrivia.length;
 	return {
 		leafAt(at) {
 			if (tops.length === 0) return null;
 			const top = starts.holding(at);
-			const leaf = leafIn(tops[top], at - rawStartOf(top), false, mapOf);
+			const leaf = leafIn(tops[top], at - starts.rawStart(top), false, mapOf);
 			return leaf && { path: [top, ...leaf.path], offset: leaf.offset };
 		},
 		byteOf(path, offset) {
 			const top = tops[path[0]];
 			if (!top) return null;
 			const inBlock = byteIn(top, path.slice(1), offset, false, mapOf);
-			return inBlock === null ? null : rawStartOf(path[0]) + inBlock;
+			return inBlock === null ? null : starts.rawStart(path[0]) + inBlock;
 		},
 		containerMap: (node) => (isMapped(node) ? mapOf(node) : null)
 	};

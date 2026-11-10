@@ -20,7 +20,7 @@ import { grammarStamp, sameGrammar } from './grammar-stamp';
 import { captureChange, changeAfter } from './change-record';
 import { serialize } from '../../core/serializer';
 import { changesBetween } from '../../tree-operations/byte-changes';
-import { spliceReading } from '../../tree-operations/byte-splice';
+import { spliceReading, type SpliceReading } from '../../tree-operations/byte-splice';
 import { documentByteMap } from '../../tree-operations/container-offsets';
 import {
 	changedRun,
@@ -61,13 +61,11 @@ export function createHistoryActions(
 		// could name another block in the incoming one.
 		deps.selectionState.dropForDocumentSwap();
 		const capture = deps.drafts.watching() ? captureChange(deps.doc, null) : null;
+		const kept = sameGrammar(entry.grammar, grammarStamp(deps.reading.grammar));
+		// Read before the record opens for the write, which a read inside would measure again.
+		const reading = kept ? null : readingFor(entry);
 		deps.starts.opened();
-		const { caret, replaced, touched } = sameGrammar(
-			entry.grammar,
-			grammarStamp(deps.reading.grammar)
-		)
-			? putBack(entry, from)
-			: readAgain(entry);
+		const { caret, replaced, touched } = kept ? putBack(entry, from) : readAgain(entry, reading);
 		if (capture) deps.drafts.record(changeAfter(deps.doc, capture, null));
 		deps.bumpContentVersion(touched);
 		const selection = caret();
@@ -113,12 +111,17 @@ export function createHistoryActions(
 	}
 
 	/** The live document read again to the entry's bytes, since its snapshot was read under another
-	 *  grammar; the blocks the undo leaves alone keep their nodes, and the caret keeps its byte. */
-	function readAgain(entry: UndoEntry): Installed {
+	 *  grammar; null when they are the same bytes. */
+	function readingFor(entry: UndoEntry): SpliceReading | null {
+		const before = deps.bytes.source();
+		const changes = changesBetween(before, serialize(entry.snapshot));
+		return spliceReading(deps.bytes.measured(), before, changes, deps.reading.grammar);
+	}
+
+	/** `reading` installed: the blocks the undo leaves alone keep their nodes, and the caret keeps
+	 *  its byte. */
+	function readAgain(entry: UndoEntry, reading: SpliceReading | null): Installed {
 		const caret = selectionBytes(entry.snapshot, entry.selection);
-		const live = serialize(deps.doc);
-		const changes = changesBetween(live, serialize(entry.snapshot));
-		const reading = spliceReading(deps.doc, live, changes, deps.reading.grammar);
 		const replaced = reading ? installReading(deps, reading) : NOTHING_REPLACED;
 		assertRestoredUnderGrammar(deps.doc.children, deps.reading.grammar, entry.grammar);
 		return {
