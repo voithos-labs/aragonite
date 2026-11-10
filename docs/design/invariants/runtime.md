@@ -128,6 +128,7 @@ These checks run in three kinds of place:
 | G1.201 | A byte splice inside a container reads only children whose old bytes read back as themselves | A·N |
 | G1.206 | A write that replaced no link definition leaves the definitions as they were | A·N |
 | G1.208 | A widget selected whole in the focused block leaves the browser a collapsed caret there | A·N |
+| G1.209 | The starts the editor keeps for its top-level blocks are the document's | A·N |
 
 ### The entries
 
@@ -350,5 +351,7 @@ These checks run in three kinds of place:
 **G1.206 · Kept definitions are still the definitions** (`definitions-kept`). Each write says which blocks it took out and put in, or that it can't tell, and the editor reads the link definitions again only when one of those blocks holds one. When it skips, dev reads them anyway and warns if they changed: some route named less than it wrote. Skipped past 64 KB and under the perf instruments. `checkDefinitionsKept` (`definitions-kept.ts`) · `components/link-reference-map.ts :: definitionsAfter` · `link-reference-map.test.ts`, `definitions-refresh.test.ts`.
 
 **G1.208 · A selected widget keeps a caret** (`widget-keeps-caret`). Text that arrives with no key (a soft keyboard, an emoji picker, an IME) goes only to a selection, so a widget selected whole in the focused block keeps a collapsed caret in that block, hidden, and the selection bridge puts it back when the browser moves or drops it. Nothing shows it, so G1.159 doesn't judge it (`placeUnshownCaret`). Dev fails the bridge's check with none there. Reading mode holds no caret and is exempt. `checkWidgetKeepsCaret` · `widget-keeps-caret.test.ts`, `typed-insert-class.spec.ts`.
+
+**G1.209 · The kept starts are the document's** (`kept-starts-current`). The editor keeps where its top-level blocks start across writes. A byte writer opens the record before its first change to the tree, then announces the runs of blocks it changed, or null, which forgets the record. Dev fails a run that leaves a kept length unlike the tree's, an announcement no write opened, and a read between a write and its announcement (answered from a fresh measure in every build). `invariants/kept-starts.ts` · `commit/kept-starts.ts` · `top-level-starts.test.ts`, `kept-starts-routes.test.ts`.
 
 **G1.201 · A container's window reads back first** (`container-window-reads-back`). Before a byte splice reads a run of a list's, quote's or table's children again with the change made, it reads their old bytes the same way, and those must come out as the children the container held. When they don't, the child spans were stale or the container's own reading disagrees with the document's, so dev warns and the splice takes the top-level window. Inline in `tree-operations/container-window.ts :: containerWindow` · `container-window.property.test.ts`.

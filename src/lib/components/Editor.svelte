@@ -43,6 +43,8 @@
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { coverRange, rangeCoverage } from '../selection/range-coverage';
 	import { documentBytes, rangePaint } from '../selection/range-bytes';
+	import { createKeptStarts } from '../editor-actions/commit/kept-starts';
+	import type { TopLevelChange } from '../tree-operations/top-level-starts';
 	import { findSurfacePathForElement } from '../selection/path-lookup';
 	import { createSelectionDescription } from '../selection/selection-description';
 	import { EDITOR_LABEL } from '../a11y-strings';
@@ -257,10 +259,16 @@
 	// decoration engine's `editEpoch` follows it a tick later.
 	const contentVersion = createContentVersion();
 	const currentSource = createCurrentSource({ version: contentVersion.read, doc: () => doc });
+	const starts = createKeptStarts(() => doc);
+	const announceBytes = (changes: readonly TopLevelChange[] | null) => {
+		starts.changed(changes);
+		contentVersion.bump();
+	};
 	const bytes = documentBytes({
 		version: contentVersion.read,
 		doc: () => doc,
-		source: currentSource.read
+		source: currentSource.read,
+		measured: starts.read
 	});
 	let currentResolver = $state<LinkReferenceResolver>(initial.resolver);
 	let currentSignature = $state<string>(initial.signature);
@@ -415,6 +423,7 @@
 	const drafts = createDraftRegistry({
 		stamps,
 		doc: () => doc,
+		measured: starts.read,
 		isReading: () => reading.mode() === 'reading',
 		// Built below; a draft commits post-init.
 		writes: () => ({
@@ -444,7 +453,8 @@
 			doc = next;
 			blockIds = assignIds(doc.children);
 		},
-		bumpContentVersion: contentVersion.bump,
+		bumpContentVersion: announceBytes,
+		starts,
 		clearBlockRefs: () => {
 			blockRefs.length = 0;
 		},
@@ -619,7 +629,8 @@
 		setDoc: (v) => {
 			doc = v;
 		},
-		bumpContentVersion: contentVersion.bump,
+		bumpContentVersion: announceBytes,
+		starts,
 		bytes,
 		refreshDefinitions: (replaced) => {
 			const map = definitionsAfter(doc, replaced, currentSignature);

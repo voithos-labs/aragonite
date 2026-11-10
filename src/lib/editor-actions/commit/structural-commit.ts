@@ -485,6 +485,7 @@ export function createStructuralCommit(
 			discardIfNoop,
 			history: args.history ?? 'entry',
 			replaced: () => (ownLinesOnly() ? NOTHING_REPLACED : 'unknown'),
+			touched: () => null,
 			written: () => {
 				const nodes: CstNode[] = [];
 				// A set: a doc scope's caller can name a block the scope's change already placed.

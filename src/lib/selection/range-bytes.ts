@@ -13,7 +13,7 @@ import { countsCells } from '../schema/block-kind-descriptor';
 import { isMergeEligible } from '../schema/merge-rules';
 import { blockNodeAt } from '../tree-operations/node-primitives';
 import { documentByteMap, leafAtByte } from '../tree-operations/container-offsets';
-import { serialize } from '../core/serializer';
+import type { Measured } from '../tree-operations/top-level-starts';
 import { gapEligibleAt, type GapCaretPosition } from './gap-caret';
 import type { Range } from '../range-edit/edit-range';
 import { documentLayout, type LaidBlock, type Layout } from '../range-edit/layout';
@@ -27,6 +27,8 @@ export interface DocumentBytes {
 	doc(): DocumentView;
 	source(): string;
 	layout(): Layout;
+	/** The document with the starts of its top-level blocks, kept across writes. */
+	measured(): Measured;
 }
 
 /** The layout is made once per `version`, which every byte writer bumps (G1.52). */
@@ -34,14 +36,16 @@ export function documentBytes(deps: {
 	version(): number;
 	doc(): DocumentView;
 	source(): string;
+	measured(): Measured;
 }): DocumentBytes {
 	let laid: { version: number; layout: Layout } | undefined;
 	return {
 		doc: deps.doc,
 		source: deps.source,
+		measured: deps.measured,
 		layout() {
 			const version = deps.version();
-			if (laid?.version !== version) laid = { version, layout: documentLayout(deps.doc()) };
+			if (laid?.version !== version) laid = { version, layout: documentLayout(deps.measured()) };
 			return laid.layout;
 		}
 	};
@@ -93,8 +97,8 @@ export function wholeBlockBytes(
 }
 
 /** The selection point naming byte `at`: the text block holding it and the offset there. */
-export function pointAtByte(doc: DocumentView, at: number): SelectionPoint | null {
-	const leaf = leafAtByte(doc, at);
+export function pointAtByte(measured: Measured, at: number): SelectionPoint | null {
+	const leaf = leafAtByte(measured, at);
 	return leaf && { path: leaf.path.slice(), offset: leaf.offset };
 }
 
@@ -206,17 +210,22 @@ function edgeLeaf(doc: DocumentView, at: 0 | -1): number[] | null {
 
 /** The deepest boundary a gap caret may take where a block starts, or a container ends, at byte
  *  `at`; null where none may. */
-export function gapAtByte(doc: DocumentView, at: number): GapCaretPosition | null {
-	const map = documentByteMap(doc);
-	const tops = topLevelStarts(doc);
+export function gapAtByte(measured: Measured, at: number): GapCaretPosition | null {
+	const { doc, starts } = measured;
+	const map = documentByteMap(measured);
 	let found: GapCaretPosition | null = null;
 	let parentPath: number[] = [];
 	let children = doc.children;
-	let startOf = (k: number) => tops[k];
+	let startOf = (k: number) => starts.start(k) + doc.children[k].leadingTrivia.length;
 	// A child starting at or past `at`, or holding it; inside a container, the map's answer alone.
-	let near = tops.findIndex((start) => start >= at);
-	if (near < 0) near = children.length - 1;
-	let end = serialize(doc).length;
+	let near = 0;
+	for (let past = children.length; near < past;) {
+		const mid = (near + past) >> 1;
+		if (startOf(mid) >= at) past = mid;
+		else near = mid + 1;
+	}
+	if (near === children.length) near = children.length - 1;
+	let end = starts.length;
 	for (;;) {
 		const index = at === end ? children.length : startOf(near) === at ? near : -1;
 		if (index >= 0 && gapEligibleAt(doc, parentPath, index)) found = { parentPath, index };
@@ -234,14 +243,4 @@ export function gapAtByte(doc: DocumentView, at: number): GapCaretPosition | nul
 		startOf = (k) => base + inner.rawOf(k, 0);
 		near = inner.childAt(at - base).index;
 	}
-}
-
-function topLevelStarts(doc: DocumentView): number[] {
-	const starts: number[] = [];
-	let at = doc.prefix.length;
-	for (const child of doc.children) {
-		starts.push(at + child.leadingTrivia.length);
-		at += child.leadingTrivia.length + child.raw.length;
-	}
-	return starts;
 }

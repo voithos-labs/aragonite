@@ -24,6 +24,7 @@ import { takeDevWarns } from '../support/warn-gate';
 import { freshBytes } from '#lib/test/harness/copied-text.js';
 import { rangeHandlers, rangeKey, rangeKeyEnv } from './cross-block/range-key-env';
 import { makeBeforeInputEvent, makePasteEvent } from './cross-block/typed-char-env';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
 const finger = (): FingerPress => fingerPress({ pointerType: 'touch', pointerId: 1 })!;
@@ -55,7 +56,7 @@ describe('the state a finger range inside one block leaves', () => {
 	it('its block paints the range as its own, one block', () => {
 		const doc = parse('hello world\n\nnext\n');
 		const coverage = rangeCoverage(doc, coverRange(doc, WORD.anchor, WORD.focus));
-		const paint = rangePaint(doc, coverage, documentLayout(doc));
+		const paint = rangePaint(doc, coverage, documentLayout(measured(doc)));
 		expect(classifyBlockForSelection([0], paint)).toBe('single-block');
 		expect(classifyBlockForSelection([1], paint)).toBe('outside');
 	});

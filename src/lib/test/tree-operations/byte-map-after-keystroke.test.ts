@@ -20,21 +20,22 @@ import {
 	rawOffsetOfLeaf
 } from '#lib/tree-operations/container-offsets.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 /** Every answer the byte map gives about `doc`, byte by byte and leaf offset by leaf offset. */
 function answers(doc: Document, leaf: number[]) {
-	const map = documentByteMap(doc);
+	const map = documentByteMap(measured(doc));
 	const bytes = serialize(doc).length;
 	const leafRaw = blockNodeAt(doc, leaf)!.raw;
 	const top = doc.children[leaf[0]];
 	return Array.from({ length: bytes + 1 }, (_, at) => [
 		JSON.stringify(map.leafAt(at)),
-		JSON.stringify(leafAtByte(doc, at)),
+		JSON.stringify(leafAtByte(measured(doc), at)),
 		JSON.stringify(leafAtRawOffset(top, at))
 	]).concat(
 		Array.from({ length: leafRaw.length + 1 }, (_, offset) => [
 			String(map.byteOf(leaf, offset)),
-			String(byteOfLeaf(doc, leaf, offset)),
+			String(byteOfLeaf(measured(doc), leaf, offset)),
 			String(rawOffsetOfLeaf(top, leaf.slice(1), offset))
 		])
 	);

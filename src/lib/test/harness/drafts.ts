@@ -8,6 +8,7 @@ import {
 import { parse } from '#lib/core/parser.js';
 import type { DocumentView } from '#lib/core/node-views.js';
 import type { TopHarness } from './editor-actions';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 export function idleDraftRegistry(
 	stamps: DocumentStamps = createDocumentStamps(),
@@ -16,6 +17,7 @@ export function idleDraftRegistry(
 	return createDraftRegistry({
 		stamps,
 		doc,
+		measured: () => measured(doc()),
 		isReading: () => false,
 		writes: () => ({
 			commitSource: async () => false,
@@ -29,6 +31,7 @@ export function draftRegistryOver(h: TopHarness) {
 	return createDraftRegistry({
 		stamps: createDocumentStamps(),
 		doc: () => h.deps.doc,
+		measured: () => h.deps.bytes.measured(),
 		isReading: () => false,
 		writes: () => ({
 			commitSource: h.controller.commitSource,

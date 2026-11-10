@@ -53,6 +53,7 @@ describe('the swap commit sequence', () => {
 				order.push('adopt');
 			},
 			bumpContentVersion: step('bump'),
+			starts: { opened: () => {} },
 			clearBlockRefs: step('refs'),
 			layout: { forgetMeasuredHeights: step('heights') },
 			undoManager: { clear: step('undo') },

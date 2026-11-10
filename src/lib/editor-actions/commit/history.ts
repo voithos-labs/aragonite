@@ -22,6 +22,7 @@ import { serialize } from '../../core/serializer';
 import { changesBetween } from '../../tree-operations/byte-changes';
 import { spliceReading } from '../../tree-operations/byte-splice';
 import { documentByteMap } from '../../tree-operations/container-offsets';
+import { measured, type Measured } from '../../tree-operations/top-level-starts';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { assertRestoredUnderGrammar } from '../../invariants/install';
 import { isGapSelection, type GapCaretPosition } from '../../selection/gap-caret';
@@ -54,11 +55,13 @@ export function createHistoryActions(
 		// could name another block in the incoming one.
 		deps.selectionState.dropForDocumentSwap();
 		const capture = deps.drafts.watching() ? captureChange(deps.doc, null) : null;
-		const { selection, replaced } = sameGrammar(entry.grammar, grammarStamp(deps.reading.grammar))
+		deps.starts.opened();
+		const { caret, replaced } = sameGrammar(entry.grammar, grammarStamp(deps.reading.grammar))
 			? putBack(entry)
 			: readAgain(entry);
 		if (capture) deps.drafts.record(changeAfter(deps.doc, capture, null));
-		deps.bumpContentVersion();
+		deps.bumpContentVersion(null);
+		const selection = caret();
 		// Before the awaits below, so a host that loads another document meanwhile never hears
 		// this undo after its own swap.
 		emitEdit(deps, { op, path: [], timestamp: Date.now() }, replaced);
@@ -91,7 +94,7 @@ export function createHistoryActions(
 			assertRestoredUnderGrammar(swapped, deps.reading.grammar, entry.grammar);
 		}
 		// The whole tree swaps, and naming what changed would walk it.
-		return { selection: entry.selection, replaced: 'unknown' };
+		return { caret: () => entry.selection, replaced: 'unknown' };
 	}
 
 	/** The live document read again to the entry's bytes, since its snapshot was read under another
@@ -103,7 +106,7 @@ export function createHistoryActions(
 		const reading = spliceReading(deps.doc, live, changes, deps.reading.grammar);
 		const replaced = reading ? installReading(deps, reading) : NOTHING_REPLACED;
 		assertRestoredUnderGrammar(deps.doc.children, deps.reading.grammar, entry.grammar);
-		return { selection: caret && selectionAtBytes(deps.doc, caret), replaced };
+		return { caret: () => caret && selectionAtBytes(deps.bytes.measured(), caret), replaced };
 	}
 
 	// An open draft commits as a step the undo then takes back. The typing batch ends, so the next
@@ -140,9 +143,10 @@ export function createHistoryActions(
 	};
 }
 
-/** An undo entry installed: where its caret goes, and the blocks the install replaced. */
+/** An undo entry installed: where its caret goes, asked once the install is announced, and the
+ *  blocks the install replaced. */
 interface Installed {
-	selection: UndoEntry['selection'] | null;
+	caret(): UndoEntry['selection'] | null;
 	replaced: ReplacedBlocks;
 }
 
@@ -155,9 +159,11 @@ function selectionBytes(
 	doc: DocumentView,
 	selection: UndoEntry['selection']
 ): SelectionBytes | null {
-	const map = documentByteMap(doc);
+	// A snapshot, which nobody keeps starts for.
+	const laid = measured(doc);
+	const map = documentByteMap(laid);
 	if (isGapSelection(selection)) {
-		const gap = gapByte(doc, selection.gapCaret);
+		const gap = gapByte(laid, selection.gapCaret);
 		return gap === null ? null : { gap };
 	}
 	// A table cell's index is no byte, so a cell end stands at its table's start.
@@ -169,19 +175,20 @@ function selectionBytes(
 }
 
 /** Where a block starts, or where its container ends past its last child. */
-function gapByte(doc: DocumentView, { parentPath, index }: GapCaretPosition): number | null {
-	const map = documentByteMap(doc);
+function gapByte(laid: Measured, { parentPath, index }: GapCaretPosition): number | null {
+	const { doc, starts } = laid;
+	const map = documentByteMap(laid);
 	const parent = parentPath.length === 0 ? doc : blockNodeAt(doc, parentPath);
 	if (!parent?.children) return null;
 	if (index < parent.children.length) return map.byteOf([...parentPath, index], 0);
-	if (parentPath.length === 0) return serialize(doc).length;
+	if (parentPath.length === 0) return starts.length;
 	return map.byteOf(parentPath, (parent as { raw: string }).raw.length);
 }
 
-function selectionAtBytes(doc: DocumentView, at: SelectionBytes): UndoEntry['selection'] | null {
-	const map = documentByteMap(doc);
+function selectionAtBytes(laid: Measured, at: SelectionBytes): UndoEntry['selection'] | null {
+	const map = documentByteMap(laid);
 	if ('gap' in at) {
-		const gap = gapAtByte(doc, at.gap);
+		const gap = gapAtByte(laid, at.gap);
 		if (gap) return { gapCaret: gap };
 		const leaf = map.leafAt(at.gap);
 		return leaf && { anchor: leaf, focus: leaf };

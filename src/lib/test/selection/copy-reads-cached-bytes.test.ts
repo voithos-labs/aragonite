@@ -34,13 +34,19 @@ import type { CrossBlockHandlers } from '#lib/selection/cross-block/dispatch.js'
 import { documentBytes } from '#lib/selection/range-bytes.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 describe('a copy reads the editor’s bytes, made once per content version', () => {
 	it('serializes nothing and lays the document out once for two copies of one version', () => {
 		const doc = parse('- one\n- two\n- three\n\nafter\n');
 		const source = serialize(doc);
 		let version = 1;
-		const bytes = documentBytes({ version: () => version, doc: () => doc, source: () => source });
+		const bytes = documentBytes({
+			version: () => version,
+			doc: () => doc,
+			source: () => source,
+			measured: () => measured(doc)
+		});
 		const selection = createSelectionState({ getDoc: () => doc });
 		selection.enterCrossBlock({ path: [0, 1, 0], offset: 1 }, { path: [1], offset: 2 });
 		const crossBlock = { reading: fixtureReading(), bytes } as unknown as CrossBlockHandlers;

@@ -19,6 +19,7 @@ import { isGapSelection, type GapCaretSelection } from '#lib/selection/gap-caret
 import type { EditorSelection } from '#lib/selection/primitives.js';
 import { checkRestoredUnderGrammar } from '#lib/invariants/reads-back.js';
 import type { Document } from '#lib/core/nodes.js';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 const withoutIndentedCode = createGrammarView((key) => key !== 'indentedCode');
 
@@ -84,8 +85,10 @@ describe('an undo across a grammar change', () => {
 		await s.history.requestUndo();
 		const selection = restoredSelection(s);
 		const now = parse(SOURCE, { grammar: withoutIndentedCode });
-		expect(selection.focus).toEqual(leafAtByte(now, CARET));
-		expect(byteOfLeaf(s.deps.doc, selection.focus.path, selection.focus.offset)).toBe(CARET);
+		expect(selection.focus).toEqual(leafAtByte(measured(now), CARET));
+		expect(byteOfLeaf(measured(s.deps.doc), selection.focus.path, selection.focus.offset)).toBe(
+			CARET
+		);
 	});
 
 	it('keeps the blocks the undo left alone, ids included', async () => {

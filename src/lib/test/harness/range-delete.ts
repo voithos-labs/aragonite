@@ -24,6 +24,7 @@ import { readAsOpened } from '#lib/schema/opened-reading.js';
 import { hidesDelimitersAtCaret } from '#lib/presentation-mode.js';
 import type { SharingState } from '#lib/tree-operations/sharing.js';
 import { fixtureReading } from './fixture-grammar';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 export interface RangeDeleteOptions {
 	sharing?: SharingState;
@@ -48,7 +49,7 @@ export function deleteRange(
 ): RangeDeleteResult {
 	const coverage = rangeCoverage(doc, coverRange(doc, start, end));
 	const source = serialize(doc);
-	const layout = documentLayout(doc);
+	const layout = documentLayout(measured(doc));
 	const range = removalBytes(doc, coverage, layout);
 	if (!range) throw new Error('deleteRange: a range of cells never reaches the core');
 	const mode = hidesDelimitersAtCaret(reading.mode()) ? 'live' : 'source';
@@ -67,5 +68,5 @@ export function deleteRange(
 		landed: { ...answer.caret, at },
 		took: answer.took ?? null
 	};
-	return { newDoc: doc, caret: (committed) => pointAtByte(committed, at), removed };
+	return { newDoc: doc, caret: (committed) => pointAtByte(measured(committed), at), removed };
 }

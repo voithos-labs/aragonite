@@ -138,6 +138,7 @@ export function createLeafCommit(
 					? 'unknown'
 					: { before: [leafBefore], after: [leaf] };
 			},
+			touched: () => null,
 			// The ancestors still in the tree, any a kind change swapped in, and the leaf where it
 			// settled; the top block reads back only above a container, as a top-level leaf keeps its kind.
 			written() {

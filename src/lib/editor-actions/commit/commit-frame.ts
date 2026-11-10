@@ -28,6 +28,7 @@ import type { UndoManager } from '../../undo/types';
 import { captureChange, changeAfter, type BlockReach } from './change-record';
 import { admitsWrite } from './reading-write-gate';
 import type { EditorActionsDeps } from '../deps';
+import type { TopLevelChange } from '../../tree-operations/top-level-starts';
 
 /** What a write hands its dev checks: `tops` are the top-level blocks holding what it wrote, so the
  *  read-back check never searches the document for them. */
@@ -67,6 +68,9 @@ export interface FrameWrite {
 	written(): WrittenNodes;
 	/** The blocks the write replaced, read once it has written. */
 	replaced(): ReplacedBlocks;
+	/** The runs of top-level blocks holding every byte the write changed, read once it has
+	 *  written and only while the editor keeps their starts; null when the write can't say. */
+	touched(): readonly TopLevelChange[] | null;
 	/** The dev checks only this write can scope, run after the frame's own. */
 	check?(written: WrittenNodes): void;
 	/** Restores what `apply` wrote. */
@@ -119,6 +123,7 @@ export function createCommitFrame(
 			if (savedStacks) undo.restoreStacks(savedStacks);
 			deps.doc.suffix = savedSuffix;
 			write.rollback();
+			deps.starts.abandoned();
 		};
 		let discarded = false;
 		// Only while a draft is open: otherwise the write reads nothing more.
@@ -130,6 +135,7 @@ export function createCommitFrame(
 			// Inside the try: the push reads the live selection through plugin block refs.
 			undo.push(write.snapshot, write.history);
 			const wasOpen = endsOpen(deps.doc);
+			deps.starts.opened();
 			const changed = write.apply(wasOpen);
 			if (write.discardIfNoop && !changed) {
 				restore();
@@ -153,7 +159,7 @@ export function createCommitFrame(
 			if (devChecksOn && whole) assertChangeInReach(changeAfter(deps.doc, whole, null), change);
 			deps.drafts.record(change);
 		}
-		deps.bumpContentVersion();
+		deps.bumpContentVersion(deps.starts.isMeasured() ? write.touched() : null);
 		// A write moves what the gap caret's boundary index names; after the push, so the stored
 		// entry keeps the gap.
 		deps.selectionState.clearGapCaret();

@@ -6,6 +6,7 @@
 
 import { parse } from '../core/parser';
 import type { DocumentView } from '../core/node-views';
+import { measured } from '../tree-operations/top-level-starts';
 import { createDraftRegistry } from '../editor-actions/commit/draft-registry.svelte';
 import { createDocumentStamps } from '../editor-actions/commit/document-stamp';
 import { openPick } from '../inline-menu/pick-context';
@@ -32,6 +33,7 @@ export async function checkInlineMenuCommitAcrossSwap(c: InlineMenuCommitCase): 
 	const drafts = createDraftRegistry({
 		stamps,
 		doc: () => host.document,
+		measured: () => measured(host.document),
 		isReading: () => false,
 		writes: () => ({
 			commitSource: async () => (writes.push('commitSource'), true),
