@@ -79,7 +79,7 @@ Merges, reverts, dependabot bumps, `fixup!` and `squash!` and finnrws are exempt
 
 ## Opening a pull request
 
-Fork the repo, branch from `dev` in your fork, and open the pull request against `dev`. Collaborators can branch in place. 
+Fork the repo, branch from `dev` in your fork, and open the pull request against `dev`. Collaborators can branch in place.
 
 Merging needs one code-owner approval. For a gentler start, prob start with some of the easier github issues, such as the ones labelled `good first issue`.
 
