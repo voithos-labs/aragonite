@@ -290,7 +290,7 @@ function lineMap(node: NodeView, titled: boolean): ContainerMap {
 	append(node.innerPrefix ?? '');
 	for (let i = titled ? 1 : 0; i < children.length; i++) add(i);
 	append(node.innerSuffix ?? '');
-	const pairing = pairLines(node.raw, body, (index) => childStarts[index]);
+	const pairing = pairLines(node.raw, body, (index) => childStarts[index], markerOf(node));
 	return { ...throughBody(children, pairing), rawLines: pairing.rawLines, paired: pairing.paired };
 }
 
@@ -352,7 +352,7 @@ function regionMap(node: NodeView, index: number): BodyMap | null {
 	const spans = node.childSpans!;
 	const region = node.raw.slice(spans[index * 2], spans[index * 2 + 1]);
 	const trivia = child.leadingTrivia.length;
-	const pairing = pairLines(region, child.leadingTrivia + child.raw, () => trivia);
+	const pairing = pairLines(region, child.leadingTrivia + child.raw, () => trivia, markerOf(node));
 	return pairing.oneForOne ? pairing : null;
 }
 
@@ -361,7 +361,8 @@ function regionMap(node: NodeView, index: number): BodyMap | null {
 function pairLines(
 	rawText: string,
 	body: string,
-	childStart: (index: number) => number
+	childStart: (index: number) => number,
+	isMarker: ReadsMarker
 ): BodyMap & {
 	rawLines: ParsedLine[];
 	paired: ({ line: number; at: number } | null)[];
@@ -374,7 +375,7 @@ function pairLines(
 	const carrier: number[] = [];
 	let next = 0;
 	for (let r = 0; r < raw.length; r++) {
-		const at = next < bodyLines.length ? textColumn(raw[r], bodyLines[next]) : null;
+		const at = next < bodyLines.length ? textColumn(raw[r], bodyLines[next], isMarker) : null;
 		paired.push(at === null ? null : { line: next, at });
 		if (at !== null) carrier[next++] = r;
 	}
@@ -478,26 +479,43 @@ function cellStarts(node: NodeView): BodyMap {
 	return { childStart: (index) => childStarts[index], toBody: same, toRaw: same };
 }
 
-/** A marker run alone on a line: quote markers, a list marker and its task box, a footnote label. */
-const MARKER_ONLY =
-	/^[ \t>]*(?:(?:[-*+]|\d{1,9}[.)])(?:[ \t]+\[[ xX]\])?[ \t]*|\[\^[^\]\s]+\]:[ \t]*)?$/;
+/** Whether the first `width` characters of `line` are a marker of the container's and no more. */
+type ReadsMarker = (line: string, width: number) => boolean;
+
+/** A marker run alone on a line, for a kind that states no line shape: quote markers, a list
+ *  marker and its task box. */
+const MARKER_ONLY = /^[ \t>]*(?:(?:[-*+]|\d{1,9}[.)])(?:[ \t]+\[[ xX]\])?[ \t]*)?$/;
+
+/** How `node`'s lines carry their marker, as its kind's line shape reads one. */
+function markerOf(node: NodeView): ReadsMarker {
+	const shape = tryGetBlockKindDescriptor(node.kind)?.lines;
+	const own =
+		shape?.shape === 'marked' ? shape.reads : shape?.shape === 'indented' ? shape.open : null;
+	if (!own) return (line, width) => MARKER_ONLY.test(line.slice(0, width));
+	return (line, width) => {
+		// A lazy line carries no marker, and an indented line only its indent.
+		if (isBlankText(line.slice(0, width))) return true;
+		const read = own.exec(line);
+		return read?.index === 0 && read[0].length === width;
+	};
+}
 
 /** Where `body`'s text starts in raw line `raw`, or null when the line carries none of it: its
  *  tail behind a marker, its text behind a marker a tab was cut in, or a title inside tags. */
-function textColumn(raw: ParsedLine, body: ParsedLine): number | null {
+function textColumn(raw: ParsedLine, body: ParsedLine, isMarker: ReadsMarker): number | null {
 	const { text } = body;
+	const behind = raw.text.length - text.length;
 	if (isBlankText(text)) {
 		// A blank body line's spaces sit at the end of its marker; a title with no text, in its tags.
-		if (!MARKER_ONLY.test(raw.text)) return inTags(raw.text, text);
-		return raw.text.endsWith(text) ? raw.text.length - text.length : raw.text.length;
+		const width = raw.text.endsWith(text) ? behind : raw.text.length;
+		return isMarker(raw.text, width) ? width : inTags(raw.text, text);
 	}
-	const behind = raw.text.length - text.length;
-	if (raw.text.endsWith(text) && MARKER_ONLY.test(raw.text.slice(0, behind))) return behind;
+	if (raw.text.endsWith(text) && isMarker(raw.text, behind)) return behind;
 	const content = text.trimStart();
-	const marker = raw.text.slice(0, raw.text.length - content.length);
-	if (raw.text.endsWith(content) && MARKER_ONLY.test(marker)) {
+	const width = raw.text.length - content.length;
+	if (raw.text.endsWith(content) && isMarker(raw.text, width)) {
 		// Negative where the cut tab stands for more spaces than the marker left behind.
-		return marker.length - (text.length - content.length);
+		return width - (text.length - content.length);
 	}
 	return inTags(raw.text, text);
 }

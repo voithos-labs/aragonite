@@ -131,6 +131,7 @@ These checks run in three kinds of place:
 | G1.203 | Paint a block can't hold is left out with a dev warning, never drawn somewhere else | A·N |
 | G1.205 | A painted mark covers the document bytes it was painted at, and its handlers read those bytes back | N |
 | G1.206 | A write that replaced no link definition leaves the definitions as they were | A·N |
+| G1.207 | A container's text has its bytes under whatever marker its line shape states | harness |
 
 ### The entries
 
@@ -361,3 +362,5 @@ These checks run in three kinds of place:
 **G1.205 · A painted mark measures where its bytes are.** A paint's `from`..`to` is stored as offsets into its block's text, the last byte through `offsetAt(to - 1)` (in a quote the byte past a line's end is the next line's marker), and a handler's `MarkAt.range` maps back the same way. In a paragraph, a quote's second line and a cell the overlay covers the painted word and the handlers get its bytes; adding `block.from` reds the quote rows. `rangeIn`, `rangeOf` (`plugin-paint.svelte.ts`) · `paint.spec.ts`, `plugin-paint.svelte.test.ts`.
 
 **G1.206 · Kept definitions are still the definitions** (`definitions-kept`). Each write says which blocks it took out and put in, or that it can't tell, and the editor reads the link definitions again only when one of those blocks holds one. When it skips, dev reads them anyway and warns if they changed: some route named less than it wrote. Skipped past 64 KB and under the perf instruments. `checkDefinitionsKept` (`definitions-kept.ts`) · `components/link-reference-map.ts :: definitionsAfter` · `link-reference-map.test.ts`, `definitions-refresh.test.ts`.
+
+**G1.207 · A container's marker is read from its line shape.** The byte map finds where a line's text starts with the kind's own `reads` or `open`, so a `container` block type under a marker no built-in writes has a byte for every text position, and a range in it is cut and removed as the same range in a quote is. A kind that states no line shape is read by the built-in markers. `markerOf` (`tree-operations/container-offsets.ts`) · `plugins/blocks/container-bytes.svelte.test.ts`.
