@@ -269,23 +269,29 @@ async function twinAnswers(
 		mode,
 		host
 	);
-	// A caret on no text sits where the core left it, which can be inside a marker the box spells
-	// wider, so it maps by its line.
-	const caret = (at: number, holds: string, text: string) =>
-		holds === 'text' ? { at, holds } : { line: text.slice(0, at).split('\n').length, holds };
 	return {
-		got: {
-			source: box.source,
-			clipboard: box.clipboard,
-			caret: caret(box.caret.at, box.caret.holds, box.source)
-		},
+		got: { source: box.source, clipboard: box.clipboard, caret: box.caret },
 		want: {
 			source: twin(quote.source),
 			clipboard: quote.clipboard === undefined ? undefined : twin(quote.clipboard),
-			caret: caret(moved(quote.source, quote.caret.at), quote.caret.holds, twin(quote.source))
+			caret: { ...quote.caret, at: moved(quote.source, quote.caret.at) }
 		}
 	};
 }
+
+/** The row whose quote leaves its caret where the removal began, inside the marker of the line a
+ *  parting line pushed down; the box's sits inside its own wider marker, so only the line maps. */
+const CARET_INSIDE_A_MARKER =
+	'L4 a line the text above still opens keeps its quote’s marker on the blank line before it';
+
+const caretLine = (answer: { source: string; caret: { at: number; holds: string } }) => ({
+	...answer,
+	caret: {
+		line: answer.source.slice(0, answer.caret.at).split('\n').length,
+		...answer.caret,
+		at: 0
+	}
+});
 
 /** Shapes whose answer reads a line's markers: the blank line keeping two blocks apart, a paste into
  *  an empty block beside a blank line, and a box and a quote held one in the other. */
@@ -322,7 +328,8 @@ describe('the range-edit core answers a named quote row alike under the box’s 
 	for (const mode of ['source', 'live'] as const) {
 		it.each(rows)(`${mode}: $name`, async (row) => {
 			const { got, want } = await twinAnswers(row.source, row.gesture, row.mode ?? mode);
-			expect(got).toEqual(want);
+			if (row.name === CARET_INSIDE_A_MARKER) expect(caretLine(got)).toEqual(caretLine(want));
+			else expect(got).toEqual(want);
 		});
 	}
 
