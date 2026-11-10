@@ -25,7 +25,8 @@ import {
 	titleRowOf,
 	type Doc
 } from './document';
-import { apartAt, deepestAt, pastMarkers, type Join } from './apart';
+import { apartAt, deepestAt, type Join } from './apart';
+import { markersOnly } from './markers';
 import { numberedOn } from './list-numbers';
 import { heldAt, heldWhole, removalRange } from './removal-range';
 import {
@@ -69,7 +70,7 @@ export function removeRange(doc: Doc, start: number, end: number): Removal {
 		removed = writeLeaf(doc, leaf, write, head.offset, tail.offset);
 	} else removed = across(doc, from, to, head?.leaf, false);
 	const line = from - lineHead(doc.source, from).length;
-	return { ...removed, source: oneEmptyLine(removed.source, line) };
+	return { ...removed, source: oneEmptyLine(doc, removed.source, line) };
 }
 
 /** `out` with each ordered list the removal shortened numbered on, then a blank line at `at` where
@@ -93,7 +94,8 @@ function endingItsParent(doc: Doc, block: LaidBlock, to: number): Removal | null
 	const end = blankAbove ? block.to : contentEnd(doc, block);
 	// The parent now ends on the block above's line, against whatever follows the parent.
 	const ending = /^\r?\n/.exec(doc.source.slice(end, end + 2))?.[0].length ?? 0;
-	const below = ending > 0 ? deepestAt(doc, pastMarkers(doc.source, end + ending)) : undefined;
+	const below =
+		ending > 0 ? deepestAt(doc, doc.host.pastMarkers(doc.source, end + ending)) : undefined;
 	const join = { from: at, to: end, upper: prev, lower: below, rewritten: {} };
 	const source = numberedApart(
 		doc,
@@ -161,7 +163,7 @@ function across(
 		else {
 			// An end on no block's text keeps its line's bytes, only the markers of a whole end block's.
 			const textStart = goes
-				? Math.min(to, pastMarkers(source, lineStart))
+				? Math.min(to, doc.host.pastMarkers(source, lineStart))
 				: end
 					? lineTextStart(doc, end.leaf, end.offset)
 					: to;
@@ -169,8 +171,7 @@ function across(
 				lineStart > from && textStart >= lineStart ? source.slice(lineStart, textStart) : '';
 			const rest = (opening ? source.slice(opening.endLine, textStart) : markers) + tail;
 			// A kept opening ends the line itself, so the line a whole end block leaves goes too.
-			const gone = kept ? /^[ \t>]*\r?\n/ : /^[ \t>]*(?=\r?\n|$)/;
-			tail = kept + (lineGoes ? rest.replace(gone, '') : rest);
+			tail = kept + (lineGoes ? markerLineGone(doc, rest, kept !== '') : rest);
 		}
 		if (tail !== '' && !first && !(lineGoes && kept === '')) tail = endingOf(source) + tail;
 	}
@@ -262,26 +263,38 @@ function wholeLines(doc: Doc, from: number, to: number) {
 	let tail = ending === undefined ? '' : source.slice(to + ending.length);
 	// A document emptied whole keeps its last line ending, as the line its one empty block holds.
 	if (ending === undefined || (above === '' && tail === '')) return null;
-	tail = tail.slice(blankBelowGoes(above, tail));
+	tail = tail.slice(blankBelowGoes(doc, above, tail));
 	if (marks !== '' && !tail.startsWith(marks)) return null;
 	return { before: source.slice(0, from), tail: tail.slice(marks.length), caret: from };
 }
 
 /** The blank line opening `below` where `above` ends in one too or is the document's start, which
  *  goes where a block went or a line emptied between them; 0 for none. */
-function blankBelowGoes(above: string, below: string): number {
-	const blank = /^[ \t>]*\r?\n/.exec(below)?.[0];
-	return blank && (above === '' || /(^|\n)[ \t>]*\r?\n$/.test(above)) ? blank.length : 0;
+function blankBelowGoes(doc: Doc, above: string, below: string): number {
+	const markers = doc.host.pastMarkers(below, 0);
+	const ending = /^\r?\n/.exec(below.slice(markers))?.[0];
+	const last = above.lastIndexOf('\n', above.length - 2) + 1;
+	const blankAbove = above === '' || (above.endsWith('\n') && markersOnly(doc, above, last));
+	return ending && blankAbove ? markers + ending.length : 0;
+}
+
+/** `rest` with its first line's markers gone where no text follows them on it, with the line's
+ *  ending where `ending`; as it was where text follows. */
+function markerLineGone(doc: Doc, rest: string, ending: boolean): string {
+	const bare = rest.slice(doc.host.pastMarkers(rest, 0));
+	const eol = /^\r?\n/.exec(bare)?.[0];
+	if (eol === undefined) return bare === '' && !ending ? bare : rest;
+	return ending ? bare.slice(eol.length) : bare;
 }
 
 /** `out` keeping one empty line where the removal emptied the start's line, at `line`, between
  *  blank lines: the blank line under it goes, unless it is an outer container's. */
-function oneEmptyLine(out: string, line: number): string {
+function oneEmptyLine(doc: Doc, out: string, line: number): string {
 	const eol = out.indexOf('\n', line);
 	const emptied = eol < 0 ? '' : out.slice(line, eol);
-	if (eol < 0 || !/^[ \t>]*\r?$/.test(emptied)) return out;
+	if (eol < 0 || !markersOnly(doc, out, line)) return out;
 	const below = out.slice(eol + 1);
-	const gone = blankBelowGoes(out.slice(0, line), below);
+	const gone = blankBelowGoes(doc, out.slice(0, line), below);
 	if (gone === 0 || below.slice(0, gone).trimEnd() !== emptied.trimEnd()) return out;
 	return out.slice(0, eol + 1) + below.slice(gone);
 }
@@ -319,7 +332,7 @@ function joinedLeaves(doc: Doc, from: number, to: number, head: LeafPoint, end: 
 			from,
 			to,
 			upper: head.leaf,
-			lower: deepestAt(doc, pastMarkers(source, end.leaf.to)),
+			lower: deepestAt(doc, doc.host.pastMarkers(source, end.leaf.to)),
 			rewritten: { upper: { block: head.leaf, raw: upper, kind: head.leaf.type } }
 		},
 		false

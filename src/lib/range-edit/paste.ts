@@ -15,7 +15,7 @@ import {
 	titleOwner,
 	type Doc
 } from './document';
-import { apartAt, pastMarkers } from './apart';
+import { apartAt } from './apart';
 import { closedBy, emptiedRest, takerOf, withoutOpening } from './container-merge';
 import { splitAt } from './paste-split';
 import {
@@ -36,7 +36,7 @@ export function pasteAt(doc: Doc, at: number, clipboard: string, plain: boolean)
 	if (!leaf || !/^\r?\n?$/.test(nodeAt(doc, leaf.path).raw)) return edit;
 	if (titleOwner(doc, leaf) || factsOf(doc, leaf).joins !== 'text') return edit;
 	const lower = doc.layout.block([...leaf.path.slice(0, -1), leaf.path.at(-1)! + 1]);
-	const flush = lower && lower.from <= pastMarkers(doc.source, leaf.to);
+	const flush = lower && lower.from <= doc.host.pastMarkers(doc.source, leaf.to);
 	const raw = flush ? lastPasted(doc, leaf, lf, plain) : null;
 	if (!lower || raw === null) return edit;
 	const below = leaf.to + edit.source.length - doc.source.length;

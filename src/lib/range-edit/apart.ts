@@ -41,13 +41,14 @@ interface Pair {
 export function apartAt(doc: Doc, out: string, at: number, join: Join, placed: boolean): string {
 	if (at === 0) return out;
 	const line = lineRest(out, at);
-	const lineAbove = out.slice(out.lastIndexOf('\n', at - 2) + 1, at - 1);
+	const lineAbove = out.slice(out.lastIndexOf('\n', at - 2) + 1, at - 1).replace(/\r$/, '');
 	// A blank line parts them already.
-	if (/^[ \t>]*$/.test(line) || /^[ \t>]*\r?$/.test(lineAbove)) return out;
+	const containers = holdingBoth(doc, join);
+	if (doc.host.blankIn(containers, line) || doc.host.blankIn(containers, lineAbove)) return out;
 	const pair = siblingsAt(doc, join, out, at);
 	if (!pair || !doc.host.parts(doc.tree, pair.parent, pair.index, pair.upper, pair.lower, placed))
 		return out;
-	const run = /^[ \t>]*/.exec(line)![0];
+	const run = line.slice(0, doc.host.pastMarkers(line, 0));
 	// The markers of the containers holding both, never the lower block's own, which would take the
 	// blank line into it; a line whose text the upper side still opens keeps its own.
 	const holding = (c: LaidBlock) => c.path.length <= pair.parent.length;
@@ -55,12 +56,20 @@ export function apartAt(doc: Doc, out: string, at: number, join: Join, placed: b
 	return out.slice(0, at) + marks.trimEnd() + endingOf(doc.source) + out.slice(at);
 }
 
-/** Where the text of the line starting at `at` starts, past its container markers. */
-export function pastMarkers(source: string, at: number): number {
-	const markers = /[ \t>]*/y;
-	markers.lastIndex = at;
-	markers.exec(source);
-	return markers.lastIndex;
+/** The kinds of the containers holding both sides of `join`, outermost first. */
+function holdingBoth(doc: Doc, join: Join): string[] {
+	const { upper, lower } = join;
+	const depth = upper && lower ? sharedDepth(upper.path, lower.path) : 0;
+	return Array.from(
+		{ length: depth },
+		(_, i) => doc.layout.block(upper!.path.slice(0, i + 1))!.type
+	);
+}
+
+function sharedDepth(a: readonly number[], b: readonly number[]): number {
+	let k = 0;
+	while (k < a.length && k < b.length && a[k] === b[k]) k++;
+	return k;
 }
 
 /** The innermost block whose own bytes hold `byte`. */
@@ -76,8 +85,7 @@ export function deepestAt(doc: Doc, byte: number): LaidBlock | undefined {
 function siblingsAt(doc: Doc, join: Join, out: string, at: number): Pair | null {
 	const { from, to, upper, lower, rewritten } = join;
 	if (!upper || !lower) return null;
-	let k = 0;
-	while (k < upper.path.length && k < lower.path.length && upper.path[k] === lower.path[k]) k++;
+	const k = sharedDepth(upper.path, lower.path);
 	if (k >= upper.path.length || k >= lower.path.length) return null;
 	const side = (block: LaidBlock, written: Rewritten | undefined, untouched: boolean) => {
 		if (written && written.block.path.join() === block.path.join()) return written;

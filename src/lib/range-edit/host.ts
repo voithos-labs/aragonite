@@ -4,10 +4,13 @@
  * typing over the same text does. Built from the editor's `Reading`; the mode comes with each call.
  */
 
+import type { AnyBlockKind } from '../core/nodes';
 import type { DocumentView } from '../core/node-views';
 import { documentLineEnding } from '../core/lines';
+import { codecFromShape, INNER_LINE, type MarkedLines } from '../core/strip-lines';
 import { hidesDelimitersAtCaret } from '../presentation-mode';
 import { blockFacts, type BlockFacts } from '../schema/block-facts';
+import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { unfinishedReadings } from '../schema/block-openers';
 import { readAsOpened } from '../schema/opened-reading';
 import type { Reading } from '../schema/reading';
@@ -96,6 +99,12 @@ export interface RangeHost {
 	};
 	/** The fence a block's bytes open, by the openers of the editor's grammar; null for none. */
 	fence(raw: string): Fence | null;
+	/** Where the text of the line holding `at` starts from `at`, past the markers of the grammar's
+	 *  marked containers, in any order, spaces and tabs free between them. */
+	pastMarkers(text: string, at: number): number;
+	/** Whether `line` already keeps two blocks inside containers of `kinds` (outermost first) apart:
+	 *  blank past one marker of each, or holding only markers no paragraph runs into (a quote's). */
+	blankIn(kinds: readonly string[], line: string): boolean;
 }
 
 export interface Fence {
@@ -214,6 +223,45 @@ export function rangeHost(
 			const last = raw.lastIndexOf('\n', raw.length - 2) + 1;
 			const closed = last >= body && !fence.notFinal(raw);
 			return { body, closer: closed ? last : null, mayClose: fence.mayClose };
+		},
+		pastMarkers(text, at) {
+			const shapes = reading.grammar.markedLines();
+			const end = text.indexOf('\n', at);
+			const line = text.slice(at, end < 0 ? text.length : end).replace(/\r$/, '');
+			return at + pastMarkerRun(line, () => shapes);
+		},
+		blankIn(kinds, line) {
+			const own = kinds.flatMap((kind) => {
+				const lines = tryGetBlockKindDescriptor(kind as AnyBlockKind)?.lines;
+				return lines?.shape === 'marked' ? [lines] : [];
+			});
+			const rest = line.slice(pastMarkerRun(line, (n) => own.slice(n, n + 1)));
+			if (rest === '') return true;
+			const shapes = reading.grammar.markedLines();
+			return (
+				pastMarkerRun(rest, () => shapes) === rest.length &&
+				reading.grammar.interruptsParagraph(rest)
+			);
 		}
 	};
+}
+
+/** Where `line`'s text starts, past one marker after another, the `n`th read by one of `shapes(n)`;
+ *  spaces and tabs are free between markers, and a lazy or empty read ends the run. */
+function pastMarkerRun(line: string, shapes: (n: number) => readonly MarkedLines[]): number {
+	let at = 0;
+	for (let n = 0; ; n++) {
+		while (line[at] === ' ' || line[at] === '\t') at++;
+		const rest = line.slice(at);
+		let width = 0;
+		for (const shape of shapes(n)) {
+			const read = codecFromShape(shape).read(rest, INNER_LINE);
+			if (read?.prefix && !read.lazy) {
+				width = read.prefix.length;
+				break;
+			}
+		}
+		if (width === 0) return at;
+		at += width;
+	}
 }

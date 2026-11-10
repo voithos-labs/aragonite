@@ -1,6 +1,6 @@
 /**
  * The markers a container writes: what a new line inside it starts with, and what a copy that
- * enters it opens with.
+ * enters it opens with; and whether a line holds markers alone, read through the line shapes.
  */
 
 import type { LaidBlock, LaidLine } from './layout';
@@ -79,4 +79,25 @@ export function openingOf(doc: Doc, container: LaidBlock, from: number): string 
 		return first ? markerOn(doc, first) : '';
 	}
 	return '';
+}
+
+/** Whether the line starting at `at` of `text` holds container markers alone, its ending aside. */
+export function markersOnly(doc: Doc, text: string, at: number): boolean {
+	const end = text.indexOf('\n', at);
+	const line = text.slice(at, end < 0 ? text.length : end).replace(/\r$/, '');
+	return doc.host.pastMarkers(text, at) === at + line.length;
+}
+
+/** Whether `text` holds anything but container markers and whitespace, line endings included. */
+export function holdsTextPastMarkers(doc: Doc, text: string): boolean {
+	const space = /\s*/y;
+	let at = 0;
+	let was: number;
+	do {
+		was = at;
+		space.lastIndex = at;
+		space.exec(text);
+		at = doc.host.pastMarkers(text, space.lastIndex);
+	} while (at !== was);
+	return at < text.length;
 }

@@ -1,7 +1,8 @@
 // A grammar whose opener list leaves out built-in kinds, for a test of a route that must read the
 // editor's grammar rather than every opener: the same effect a plugin left off the list has.
-import { openerRecords } from '#lib/schema/block-kind-descriptor.js';
+import { openerRecords, tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { createEditorGrammar, type EditorGrammar } from '#lib/schema/editor-grammar.js';
+import type { AnyBlockKind } from '#lib/core/nodes.js';
 
 export function grammarWithout(...kinds: string[]): EditorGrammar {
 	const base = createEditorGrammar();
@@ -12,5 +13,9 @@ export function grammarWithout(...kinds: string[]): EditorGrammar {
 			.map((record) => record.value)
 	);
 	const kept = all.filter((opener) => !dropped.has(opener));
-	return { ...base, orderedOpeners: () => kept };
+	const shapes = new Set(
+		kinds.map((kind) => tryGetBlockKindDescriptor(kind as AnyBlockKind)?.lines)
+	);
+	const marked = base.markedLines().filter((shape) => !shapes.has(shape));
+	return { ...base, orderedOpeners: () => kept, markedLines: () => marked };
 }

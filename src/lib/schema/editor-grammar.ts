@@ -1,7 +1,7 @@
 /**
- * One editor's grammar: the block openers it tries, the lines that end its paragraphs and the
- * block views it draws, built from the built-ins, the plugins its own list names and the block
- * types those plugins contribute. A `parse()` with no editor reads `defaultGrammarView`, the same
+ * One editor's grammar: the block openers it tries, the lines that end its paragraphs, the marked
+ * line shapes of its containers and the block views it draws, built from the built-ins, the plugins
+ * its own list names and the block types those plugins contribute. A `parse()` with no editor reads `defaultGrammarView`, the same
  * table over every installed plugin.
  */
 import type { AnyBlockKind } from '../core/nodes';
@@ -23,6 +23,7 @@ import { everyInstalledPlugin, resolvesIn, type PluginActivation } from './plugi
 import { pluginInstallGeneration } from './plugin-install';
 import type { InstalledBlock } from './block-type';
 import type { BlockCompleter } from './block-completions';
+import type { MarkedLines } from '../core/strip-lines';
 
 /** GFM syntaxes a host can switch off for one editor (the `syntax` prop); each is on by default. */
 export interface SyntaxOptions {
@@ -61,6 +62,8 @@ export function createEditorGrammar(
 	let interrupts: ((lineText: string) => boolean)[] = [];
 	let ownViews = new Map<AnyBlockKind, BlockView>();
 	let ownCompleters: readonly BlockCompleter[] = [];
+	let kinds: readonly AnyBlockKind[] = [];
+	let marked: readonly MarkedLines[] | null = null;
 	const refresh = (): void => {
 		const records = grammarRecords();
 		const generation = pluginInstallGeneration();
@@ -83,8 +86,11 @@ export function createEditorGrammar(
 		const kept = records.filter(
 			(r) => resolvesIn(activation, r.owner) && (indentedCode || r.key !== 'indentedCode')
 		);
-		openers = (own.length ? [...kept, ...own].sort(byOpenerOrder) : kept).map((r) => r.value);
+		const ordered = own.length ? [...kept, ...own].sort(byOpenerOrder) : kept;
+		openers = ordered.map((r) => r.value);
 		interrupts = openers.flatMap((opener) => opener.interruptsParagraph || []);
+		kinds = ordered.map((r) => r.key);
+		marked = null;
 	};
 	return {
 		setextHeading: options.syntax?.setextHeading ?? true,
@@ -101,6 +107,10 @@ export function createEditorGrammar(
 			refresh();
 			return ownCompleters;
 		},
+		markedLines() {
+			refresh();
+			return (marked ??= markedShapes(kinds));
+		},
 		blockView(kind) {
 			refresh();
 			return ownViews.get(kind) ?? blockViewFor(kind, activation);
@@ -108,6 +118,16 @@ export function createEditorGrammar(
 		descriptor: (kind) => getBlockKindDescriptor(kind),
 		tryDescriptor: (kind) => tryGetBlockKindDescriptor(kind)
 	};
+}
+
+/** The line shapes of `kinds` that mark every line, each once. */
+function markedShapes(kinds: readonly AnyBlockKind[]): readonly MarkedLines[] {
+	const shapes = new Set<MarkedLines>();
+	for (const kind of kinds) {
+		const lines = tryGetBlockKindDescriptor(kind)?.lines;
+		if (lines?.shape === 'marked') shapes.add(lines);
+	}
+	return [...shapes];
 }
 
 /** The grammar of a parse with no editor: every installed plugin's syntax. */
