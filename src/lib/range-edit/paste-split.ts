@@ -28,7 +28,13 @@ export function splitOut(
 	const outer = continuation(doc, at, outside);
 	const item = parentOf(doc, leaf)!;
 	const first = item.lines![0];
-	const pasted = spliced(doc, at, to, outside)(clip.replace(/\n$/, ''));
+	// The pasted list stands in the caret list's column, or one would nest in the other: its lines
+	// lose the indent the clipboard's first line brings and take the one before the item's marker.
+	const brought = /^\n*( *)/.exec(clip)![1].length;
+	const body = clip.replace(/\n$/, '').replace(new RegExp(`^ {0,${brought}}`, 'gm'), '');
+	const indent = /^[ \t]*/.exec(source.slice(first.from, first.markerTo))![0];
+	const pasted =
+		(body.startsWith('\n') ? '' : indent) + spliced(doc, at, to, outside, indent)(body);
 	// At the item's first text byte the whole item is the second half.
 	const whole = at === leaf.text!.from && leaf.path.at(-1) === 0;
 	const head = whole
@@ -41,7 +47,7 @@ export function splitOut(
 	const out = head + marker + source.slice(to);
 	const numbered = whole ? out : numberedAfterSplit(doc, list, item.path.at(-1)!, to, out, copyAt);
 	// The last pasted block stays apart from the line under it where the two would read as one.
-	const under = head.length + eol.length;
+	const under = lineEnd(numbered, head.length) + 1;
 	const lower = numbered.slice(under + outer.length, lineEnd(numbered, under)) + '\n';
 	const upper = { raw: last.replace(/\n?$/, '\n') };
 	const [parent, index] = [list.path.slice(0, -1), list.path.at(-1)!];

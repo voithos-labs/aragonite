@@ -368,6 +368,62 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: paste('- q\n\npara'),
 		expect: { source: '1. a\n- q\n\npara\n\n2. b\n3. c\n' }
 	},
+	// Miss-analysis: every break-out row's list stood at its line's start, where a pasted list at
+	// the line's start can't take the item under it in; the 120-document draw held no indented one.
+	{
+		name: 'C8 a list breaking out of an indented list stands in that list’s column',
+		source: '   - a⟦⟧b\n   - c\n',
+		gesture: paste('1. q\n2. r'),
+		expect: { source: '   - a\n   1. q\n   2. r\n   - b\n   - c\n', caret: text(22) }
+	},
+	{
+		name: 'C8 at an indented item’s first text byte too, the to-do under it a sibling',
+		source: '   - [ ] ⟦⟧word\r\n',
+		gesture: paste('1. one'),
+		expect: { source: '   1. one\r\n   - [ ] word\r\n', caret: text(9) }
+	},
+	{
+		name: 'C8 with nothing after the caret, the items after it stay the list’s',
+		source: '   1. a⟦⟧\n   2. c\n',
+		gesture: paste('- q\n- r'),
+		expect: { source: '   1. a\n   - q\n   - r\n   2. c\n' }
+	},
+	{
+		name: 'C8 an indent the outer item’s tab spells goes with the pasted list',
+		source: '- x\n\t- a⟦⟧b\n',
+		gesture: paste('1. q\n2. r'),
+		expect: { source: '- x\n\t- a\n\t1. q\n\t2. r\n\t- b\n' }
+	},
+	{
+		name: 'C8 in a footnote, the pasted list keeps the indent on the label’s line',
+		source: '[^1]:    - ⟦⟧d\n',
+		gesture: paste('1. one'),
+		expect: { source: '[^1]:    1. one\n       - d\n' }
+	},
+	{
+		name: 'C8 the indent a clipboard brings gives way to the list’s',
+		source: '   - a⟦⟧b\n',
+		gesture: paste(' 1. q\n 2. r'),
+		expect: { source: '   - a\n   1. q\n   2. r\n   - b\n' }
+	},
+	{
+		name: 'C8 an indented clipboard pasted in a list at the line’s start leaves the item too',
+		source: '1. n⟦⟧b\n',
+		gesture: paste('   - q\n     more\n   - r'),
+		expect: { source: '1. n\n- q\n  more\n- r\n2. b\n' }
+	},
+	{
+		name: 'C8 a blank line already under the pasted list is the only one',
+		source: '- a\n\n  ⟦⟧\n\n1. z\n',
+		gesture: paste('1. one'),
+		expect: { source: '- a\n\n  \n1. one\n\n1. z\n' }
+	},
+	{
+		name: 'C8 a last pasted list of the caret’s kind stays apart from the item under it',
+		source: '- x⟦⟧word\n',
+		gesture: paste('1. q\n\n- r'),
+		expect: { source: '- x\n1. q\n\n- r\n\n- word\n' }
+	},
 	// ── Copy (law 10) ──
 	{
 		name: 'L10 a copy ending at a list item text start carries its marker',

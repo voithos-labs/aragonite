@@ -521,8 +521,7 @@ function landedPaste(
 	const left = listLeft(read, at, clip, first, target, host);
 	if (left) {
 		const outside = continuationAt(read, at, host, (c) => c !== left);
-		const pasted = join(clip.source.replace(/\n$/, '').split('\n'), outside, eol, after);
-		const out = brokenOut(read, at, left, target, pasted, eol, outside, host);
+		const out = brokenOut(read, at, left, target, clip.source, eol, outside, host);
 		return out === null ? { shape: 'other', bytes: [] } : { shape: 'broken out', bytes: [out] };
 	}
 	const taker = takerOf(read, at, clip, first, host);
@@ -644,14 +643,14 @@ function listLeft(
 	return sharedBy(read, nearest, key) === sharedBy(pasted, first, key) ? null : nearest;
 }
 
-/** The bytes `pasted` lands as between the halves of `list`, split at `at`, the second half
- *  numbered on; null where a number would change width, which the rows hold. */
+/** The bytes `clip` lands as in the column of `list`, between its halves split at `at`, the second
+ *  numbered on, a list of its own; null where a number would change width, which the rows hold. */
 function brokenOut(
 	read: Read,
 	at: number,
 	list: LaidBlock,
 	target: LaidBlock,
-	pasted: string,
+	clip: string,
 	eol: string,
 	outside: string,
 	host: CheckHost
@@ -662,6 +661,14 @@ function brokenOut(
 	const item = itemOf(target.path.slice(0, -1))!;
 	const first = item.lines![0];
 	const whole = at === target.text!.from && target.path.at(-1) === 0;
+	const spaces = (line: string) => line.search(/[^ ]|$/);
+	const written = clip.replace(/\n$/, '').split('\n');
+	const brought = spaces(written.find((line) => line !== '')!);
+	const lines = written.map((line) => line.slice(Math.min(brought, spaces(line))));
+	const indent = /^[ \t]*/.exec(source.slice(first.from, at))![0];
+	const pasted =
+		(lines[0] === '' ? '' : indent) +
+		join(lines, outside + indent, eol, !nothingVisibleAfter(source, at));
 	const head = whole
 		? source.slice(0, first.from) + pasted
 		: source.slice(0, at) + eol + outside + pasted;
@@ -687,9 +694,17 @@ function brokenOut(
 	}
 	const second = whole || tail ? eol + outside + marker : '';
 	const flush = head + second + rest;
-	const under = head.length + eol.length;
-	if (source.slice(at).trim() === '' && !whole) return flush;
-	const starts = readOf(host, flush).blocks.some((b) => b.from === under + outside.length);
+	const under = flush.indexOf('\n', head.length) + 1;
+	if (under === 0 || (source.slice(at).trim() === '' && !whole)) return flush;
+	// A blank line under the pasted blocks parts them already.
+	const lineEnd = flush.indexOf('\n', under);
+	if (/^[ \t>]*\r?$/.test(flush.slice(under, lineEnd < 0 ? undefined : lineEnd))) return flush;
+	const starts = readOf(host, flush).blocks.some(
+		(b) =>
+			b.type === list.type &&
+			b.path.length === list.path.length &&
+			b.from === under + outside.length
+	);
 	return starts ? flush : flush.slice(0, under) + outside.trimEnd() + eol + flush.slice(under);
 }
 
