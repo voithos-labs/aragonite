@@ -48,3 +48,8 @@ warning, not only the editor's own.
 - Unmounting the editor destroys every view inside the framework's own unmount, and mounting it
   again draws working blocks. Miss: React refuses a root unmounted during its own commit, which
   only an unmount driven by the app shows.
+- Each `<Slot>` places the editor's element however the template compiler read the tag. The Vue
+  box is an options-API component, whose template looks `Slot` up by name; the memo and label
+  type their props with `defineProps`, which a compiler before Vue 3.5.22 also looks up by name in
+  a production build. Miss: only the Vue 3.3 project built with such a compiler, and it runs at a
+  release, not on every pull request; no example component was written in the options API.

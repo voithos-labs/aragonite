@@ -3,7 +3,7 @@
  * `render`, so what the component draws is in place by the time the editor's call returns.
  */
 
-import { defineComponent, h, onErrorCaptured, render, type App, type VNode } from 'vue';
+import { defineComponent, h, onErrorCaptured, render, type AppContext, type VNode } from 'vue';
 
 export interface ViewRoot {
 	/** Throws what the component threw while rendering, its setup, refs and hooks included. */
@@ -12,8 +12,8 @@ export interface ViewRoot {
 	unmount(): void;
 }
 
-/** Inside `app`'s context when given: its `provide`s, global components and plugins. */
-export function createViewRoot(target: HTMLElement, app: App | undefined): ViewRoot {
+/** Inside `context` when given, an app's: its `provide`s, global components and plugins. */
+export function createViewRoot(target: HTMLElement, context: AppContext | null): ViewRoot {
 	// A production build logs a throw instead of rethrowing it, so the editor's error event would
 	// never see it; one that lands later goes on to the app's own error handling.
 	let caught: unknown[] | null = null;
@@ -41,7 +41,7 @@ export function createViewRoot(target: HTMLElement, app: App | undefined): ViewR
 	return {
 		render(view) {
 			const root = h(Catch, { view });
-			root.appContext = app?._context ?? null;
+			root.appContext = context;
 			rethrowing(() => render(root, target));
 		},
 		unmount: () => rethrowing(() => render(null, target))
