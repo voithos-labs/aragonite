@@ -9,7 +9,7 @@ import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { editRange, type Gesture } from '#lib/range-edit/edit-range.js';
 import { rangeHost, type RangeHost } from '#lib/range-edit/host.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
-import { testReading } from './test-host';
+import { noTransforms, testReading } from './test-host';
 
 const SHAPES: Record<string, (n: number) => string> = {
 	paragraphs: (n) =>
@@ -70,7 +70,7 @@ function cost(source: string, gesture: Gesture) {
 	const reading = testReading();
 	const tree = readAsOpened(source, { grammar: reading.grammar, scope: 'document' });
 	const { work, host } = counted(rangeHost(reading, { source, tree }), tree);
-	editRange(source, { from, to }, gesture, 'source', host);
+	editRange(source, { from, to }, gesture, 'source', noTransforms(host));
 	return work;
 }
 

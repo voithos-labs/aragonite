@@ -38,7 +38,7 @@ import { pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
 import { visibleText } from '#lib/core/inline/link-source-bytes.js';
 import { hidesDelimitersAtCaret } from '#lib/presentation-mode.js';
 import { expectedPaste, plainPasteHolds, readOf, type Holds } from './expected';
-import type { CheckHost } from './test-host';
+import { noTransforms, type CheckHost } from './test-host';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import {
 	clipboardGesture,
@@ -151,7 +151,7 @@ export function coreAnswer(
 	const reading = fixtureReading({ grammar }, mode);
 	const doc = readAsOpened(source, { grammar, scope: 'document' }) as Document;
 	const layout = documentLayout(doc);
-	const host = rangeHost(reading, { source, tree: doc, layout });
+	const host = noTransforms(rangeHost(reading, { source, tree: doc, layout }));
 	const raw = editRange(source, range, gesture, mode, host);
 	const changes = changesBetween(source, raw.source);
 	const read = spliceReading(doc, source, changes, grammar);
@@ -456,7 +456,7 @@ export function lawsOf(row: PasteRow, grammar: GrammarView): LawVerdicts | undef
 			mode: () => mode,
 			hidesDelimitersAtCaret: () => hidesDelimitersAtCaret(mode)
 		});
-	const host: CheckHost = { ...rangeHost(reading), shows };
+	const host: CheckHost = { ...noTransforms(rangeHost(reading)), shows };
 	const read = readOf(host, row.source);
 	const text = LF(row.clip);
 	const bytes = (side: PasteRow['today'] | PasteRow['core']) =>

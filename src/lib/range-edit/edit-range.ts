@@ -8,7 +8,7 @@
 import type { SpliceCaret } from '../action-contracts';
 import { getContentRange, structuralSuffix } from '../core/inline';
 import { isBlankText } from '../core/lines';
-import type { Mode, RangeHost } from './host';
+import type { Mode, PasteHost, RangeHost } from './host';
 import { copyOf } from './copy';
 import {
 	contentEnd,
@@ -26,7 +26,7 @@ import type { LaidBlock } from './layout';
 import { byteAt, writeText, type Edit } from './leaf-splice';
 import { ownEntry, restored } from './own-entry';
 import { numberedOn } from './list-numbers';
-import { pasteAt } from './paste';
+import { pasteAt, type Pasted } from './paste';
 import { removeRange, type Removal } from './removal';
 import { fenceBody, holdsText } from './removal-range';
 
@@ -70,7 +70,7 @@ export function editRange(
 	range: Range,
 	gesture: Gesture,
 	mode: Mode,
-	host: RangeHost
+	host: PasteHost
 ): RangeEditResult {
 	const doc = readDoc(source, host, mode);
 	const { from, to } = range;
@@ -90,26 +90,33 @@ export function editRange(
 		const own = gesture.plain ? undefined : gesture.own;
 		const back = own === undefined ? null : restored(source, from, to, own);
 		if (back) return answer(back);
-		const { paste, plain } = gesture;
-		if (from === to) return answer(pasteAt(doc, from, to, paste, plain, gesture.holds));
-		if (inOneText(doc, from, to)) return answer(pasteAt(doc, from, to, paste, plain, 'text'));
+		// A clipboard that carries the editor's own entry is the editor's own bytes: no transform runs.
+		const transform: Pasted['transform'] =
+			gesture.own === undefined ? (text, blocks) => host.transformPaste(text, blocks) : null;
+		const pasted = (holds: Pasted['holds']): Pasted => ({
+			text: gesture.paste,
+			plain: gesture.plain,
+			holds,
+			transform
+		});
+		if (from === to) return answer(pasteAt(doc, from, to, pasted(gesture.holds)));
+		if (inOneText(doc, from, to)) return answer(pasteAt(doc, from, to, pasted('text')));
 		// Across blocks the paste lands where the removal's caret does, as a cut's then a paste's
 		// would, and over one block held whole takes its place, as typed text does.
 		const removed = removalEdit(doc, from, to, 'type');
 		const after = read(removed);
 		const { at, holds } = caretOf(removed, after);
 		const place = heldAlone(doc, from, to) ? 'text' : holds;
-		return answer(pasteAt(after, at, at, paste, plain, place));
+		return answer(pasteAt(after, at, at, pasted(place)));
 	}
 	const { removed, clipboard, own } = taken(doc, from, to);
 	const { drop } = gesture;
-	if (gesture.copy) return answer(pasteAt(doc, drop, drop, clipboard, false, 'text'));
+	const dropped: Pasted = { text: clipboard, plain: false, holds: 'text', transform: null };
+	if (gesture.copy) return answer(pasteAt(doc, drop, drop, dropped));
 	// A moving drop is a cut, then a paste of its text and own entry at the drop point.
 	const after = read(removed);
 	const at = drop <= from ? drop : drop - (source.length - removed.source.length);
-	return answer(
-		restored(removed.source, at, at, own) ?? pasteAt(after, at, at, clipboard, false, 'text')
-	);
+	return answer(restored(removed.source, at, at, own) ?? pasteAt(after, at, at, dropped));
 }
 
 /** Whether the range sits in one block's text, between its fence lines where it has them: a paste

@@ -98,6 +98,13 @@ export interface RangeHost {
 	fence(raw: string): Fence | null;
 }
 
+/** The host a paste reads through: the range host, and the editor's paste transforms. */
+export interface PasteHost extends RangeHost {
+	/** `text`, a clipboard about to land as `blocks`, as the paste transforms rewrite it, or `text`
+	 *  itself. The core calls it once per paste, and only where the clipboard lands as blocks. */
+	transformPaste(text: string, blocks: DocumentView): string;
+}
+
 export interface Fence {
 	/** Where the body starts in the block's bytes. */
 	body: number;

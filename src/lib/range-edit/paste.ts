@@ -7,6 +7,7 @@
 
 import type { SpliceCaret } from '../action-contracts';
 import { displayLines, isBlankText, withLineEnding } from '../core/lines';
+import type { PasteHost } from './host';
 import type { LaidBlock } from './layout';
 import {
 	factsOf,
@@ -32,27 +33,34 @@ import {
 	type Edit
 } from './leaf-splice';
 
-/** The paste of `clipboard` over `[from, to)`: a caret holding `holds`, or a range inside one text
- *  block's text. */
-export function pasteAt(
-	doc: Doc,
-	from: number,
-	to: number,
-	clipboard: string,
-	plain: boolean,
-	holds: SpliceCaret['holds']
-): Edit {
-	const lf = clipboard.replace(/\r\n?/g, '\n');
-	const apart = holds === 'text' ? null : pasteApart(doc, from, offText(doc, from, lf, plain));
+/** What a paste brings: the clipboard's text, whether it goes in as plain text, what the caret
+ *  holds, and the host's paste transforms, null for a gesture that runs none. */
+export interface Pasted {
+	text: string;
+	plain: boolean;
+	holds: SpliceCaret['holds'];
+	transform: PasteHost['transformPaste'] | null;
+}
+
+/** The paste of `pasted` over `[from, to)`: a caret, or a range inside one text block's text. */
+export function pasteAt(doc: Doc, from: number, to: number, pasted: Pasted): Edit {
+	const { plain, holds } = pasted;
+	const lf = pasted.text.replace(/\r\n?/g, '\n');
+	// Where the clipboard lands as blocks it is read once, after the transforms: a landing as text
+	// (a title, a cell, literal text, plain text, one line after text) never asks.
+	let read: Doc | undefined;
+	const blocks = () => (read ??= transformed(doc, lf, pasted.transform));
+	const off = () => (plain ? offText(doc, from, lf) : blocks().source);
+	const apart = holds === 'text' ? null : pasteApart(doc, from, off());
 	if (apart) return apart;
-	const edit = landed(doc, from, to, lf, plain);
+	const edit = landed(doc, from, to, lf, plain, blocks);
 	// What lands in an empty paragraph, its line ending alone, stays apart from the block under it.
 	const leaf = leafHolding(doc, from, to)?.leaf;
 	if (!leaf || !/^\r?\n?$/.test(nodeAt(doc, leaf.path).raw)) return edit;
 	if (titleOwner(doc, leaf) || factsOf(doc, leaf).joins !== 'text') return edit;
 	const lower = doc.layout.block([...leaf.path.slice(0, -1), leaf.path.at(-1)! + 1]);
 	const flush = lower && lower.from <= pastMarkers(doc.source, leaf.to);
-	const raw = flush ? lastPasted(doc, leaf, lf, plain) : null;
+	const raw = flush ? lastPasted(doc, leaf, read?.source ?? lf, plain) : null;
 	if (!lower || raw === null) return edit;
 	const below = leaf.to + edit.source.length - doc.source.length;
 	const join = { from, to, upper: leaf, lower, rewritten: { upper: { block: leaf, raw } } };
@@ -69,36 +77,52 @@ function lastPasted(doc: Doc, leaf: LaidBlock, clip: string, plain: boolean): st
 	return last && !last.children?.length ? ended(last.raw) : null;
 }
 
-/** The clipboard as it goes in at `at`, a place in no block's text: plain text escaped where the
- *  block beside it reads Markdown. */
-function offText(doc: Doc, at: number, clip: string, plain: boolean): string {
+/** Plain text as it goes in at `at`, a place in no block's text: escaped where the block beside
+ *  it reads Markdown. */
+function offText(doc: Doc, at: number, clip: string): string {
 	const near = pointedBlock(doc, at);
-	return plain && near?.text && factsOf(doc, near).body === 'markdown'
+	return near?.text && factsOf(doc, near).body === 'markdown'
 		? doc.host.leaf.plain(doc.tree, near.path, clip)
 		: clip;
 }
 
-/** The paste of `lf`, clipboard text with LF line endings, over `[from, to)`. */
-function landed(doc: Doc, from: number, to: number, lf: string, plain: boolean): Edit {
+/** `clip` read as blocks, after the host's paste transforms where the gesture runs them. */
+function transformed(doc: Doc, clip: string, transform: Pasted['transform']): Doc {
+	const raw = readDoc(clip, doc.host, doc.mode);
+	const text = transform ? transform(clip, raw.tree) : clip;
+	return text === clip ? raw : readDoc(text, doc.host, doc.mode);
+}
+
+/** The paste of `lf`, clipboard text with LF line endings, over `[from, to)`; `blocks` reads it as
+ *  the blocks it lands as. */
+function landed(
+	doc: Doc,
+	from: number,
+	to: number,
+	lf: string,
+	plain: boolean,
+	blocks: () => Doc
+): Edit {
 	const visibleAfter = lineRest(doc.source, to) !== '';
 	// Plain text goes in as lines of the block at the caret: with nothing after the caret, its last
 	// line ending would only add an empty line to that block.
-	const clip = plain && !visibleAfter ? lf.replace(/\n$/, '') : lf;
+	let clip = plain && !visibleAfter ? lf.replace(/\n$/, '') : lf;
 	const target = leafHolding(doc, from, to);
 	const bytes = (text: string, indent?: string) => insertBytes(doc, from, to, text, indent);
 	if (!target) {
 		const marked = !plain && !isBlankText(lineHead(doc.source, from));
 		const rest = marked ? emptiedRest(doc, from, readDoc(clip, doc.host, doc.mode)) : null;
 		if (rest !== null) return bytes(rest);
-		const text = offText(doc, from, clip, plain);
+		const text = () => (plain ? offText(doc, from, clip) : blocks().source);
 		// Where a block starts, the clipboard lands as blocks above it, never in its syntax.
 		const starts = visibleAfter && findWithin(doc, from, from, (b) => b.from === from);
-		const above = starts ? pasteApart(doc, from, text) : null;
+		const above = starts ? pasteApart(doc, from, text()) : null;
 		if (above) return above;
 		// On an empty line no block holds, what lands stays apart from the block under it too.
 		const lineStart = from - lineHead(doc.source, from).length;
 		const emptyLine = !visibleAfter && pastMarkers(doc.source, lineStart) === from;
-		return emptyLine ? apartBelow(doc, bytes(text), from, text) : bytes(text);
+		if (emptyLine) return apartBelow(doc, bytes(text()), from, text());
+		return bytes(plain ? offText(doc, from, clip) : clip);
 	}
 	const { leaf } = target;
 	const write = (text: string, keep?: (c: LaidBlock) => boolean) =>
@@ -120,7 +144,11 @@ function landed(doc: Doc, from: number, to: number, lf: string, plain: boolean):
 	}
 	// Plain text never converts: it goes in escaped where the block reads Markdown.
 	if (plain) return write(escaped());
-	const pasted = readDoc(clip, doc.host, doc.mode);
+	// One line after text on the caret's line reads as text, so no transform sees it; any other
+	// clipboard lands as the blocks the transforms leave.
+	const lineAfter = afterText(doc, leaf, target.from, clip);
+	const pasted = lineAfter ? readDoc(clip, doc.host, doc.mode) : blocks();
+	clip = pasted.source;
 	const isText = (b: LaidBlock) => factsOf(pasted, b).joins === 'text';
 	const tops = [...pasted.layout.within(0, clip.length)].filter(
 		(b) => b.path.length === 1 && !(isText(b) && isBlankText(clip.slice(b.from, b.to)))
@@ -135,7 +163,7 @@ function landed(doc: Doc, from: number, to: number, lf: string, plain: boolean):
 	// Line breaks alone go in as bytes: the block's own write could re-read them (a setext heading's
 	// underline would go).
 	if (!first) return bytes(clip);
-	const joins = isText(first) || afterText(doc, leaf, target.from, clip);
+	const joins = isText(first) || lineAfter;
 	const left = joins ? null : leftBy(doc, from, pasted, first, leaf);
 	if (left) return splitOut(doc, left, leaf, from, to, clip, nodeAt(pasted, last!.path).raw);
 	// A pasted container the caret's container takes in joins it from its first text, a line
