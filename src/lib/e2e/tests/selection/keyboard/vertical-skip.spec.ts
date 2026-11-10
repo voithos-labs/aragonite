@@ -7,9 +7,8 @@ const TRANSPARENT_MIDDLE = 'first\n\n![pic](/test-fixtures/sample.png)\n\nthird\
 const LIST_ONLY_TRANSPARENT =
 	'above\n\n- ![pic](/test-fixtures/sample.png)\n- ![pic](/test-fixtures/sample.png)\n\nbelow\n';
 
-// Tall enough to be windowed, so at the top scroll position the tail is unmounted and the
-// decision about whether the final block is transparent cannot come from a component: it has
-// to read the CST.
+// Tall enough to be windowed: at the top scroll position the tail is unmounted, so whether the
+// final block is transparent has to be read from the CST, not from a component.
 const WINDOWED_TAIL_BLOCKS = 800;
 function windowedDocWithTransparentTail(): string {
 	const text = Array.from({ length: WINDOWED_TAIL_BLOCKS }, (_, i) => `para ${i}`).join('\n\n');

@@ -3,9 +3,8 @@ import { EditorPage } from '../../../editor-page';
 import { pollAutoscrollPast } from '../../../autoscroll';
 
 const COLS = 12;
-// Long header content forces each column past the 80px floor (~150px each), so the table exceeds
-// the default 1280px Playwright viewport and `.table-block` actually engages its `overflow-x: auto`
-// scrollbar.
+// Long header content pushes each column past the 80px floor, so the table outgrows the default
+// 1280px viewport and `.table-block` engages its `overflow-x: auto` scrollbar.
 const HEAD =
 	'| ' + Array.from({ length: COLS }, (_, i) => `Header-Col-${i + 1}`).join(' | ') + ' |\n';
 const SEP = '| ' + Array.from({ length: COLS }, () => '---').join(' | ') + ' |\n';

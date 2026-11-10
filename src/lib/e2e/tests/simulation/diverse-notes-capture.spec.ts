@@ -12,9 +12,8 @@ declare const process: { env: Record<string, string | undefined> };
 
 test.skip(!process.env.SIM_CAPTURE, 'set SIM_CAPTURE=1 to run the capture session');
 
-// Longer and more varied notes than the main biology one, each placing its own construct in
-// the document the end state is compared against, so that comparison covers it. Separate seeds
-// keep the injected typos, and the capture directories named after them, independent.
+// Longer, more varied notes than the biology one, each placing its own construct in the document
+// the end state is compared against. Separate seeds keep the typos and capture directories apart.
 test.describe('note-taking simulation: diverse-notes capture', () => {
 	let editor: EditorPage;
 

@@ -13,9 +13,8 @@ test.describe('typing and paste after click-snap', () => {
 		await editor.goto();
 	});
 
-	// Chromium puts the caret at the image's end offset when clicking at the wrap boundary, so the
-	// fallback keydown intercept must fire only where Chromium dropped the caret: routing typing
-	// through the CST here moves it somewhere else.
+	// Chromium puts the caret at the image's end offset on a click at the wrap boundary, so typing
+	// there stays native: routing it through the CST would move the caret somewhere else.
 	test('typing at the wrap boundary after an inline image inserts natively (no teleport)', async ({
 		page
 	}) => {

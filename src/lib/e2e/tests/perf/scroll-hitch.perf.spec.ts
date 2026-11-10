@@ -15,9 +15,8 @@ import { clickInPlace } from '../../click-in-place';
 
 declare const process: { env: Record<string, string | undefined> };
 
-// Reporting only, like the typing rows: what one wheel notch costs in live mode over a document
-// of heavy blocks. The numbers are per notch, so a stutter shows up as a long task or a gap
-// between frames, and thrashing as far more mounts and unmounts than blocks scrolled past.
+// Reporting only: what one wheel notch costs in live mode over a document of heavy blocks. A
+// stutter shows as a long task or a gap between frames, thrashing as far more mounts than blocks.
 test.skip(
 	!process.env.PERF || !!process.env.PERF_GATE,
 	'report-only — run via `npm run perf:e2e`; the perf:check gate skips these'

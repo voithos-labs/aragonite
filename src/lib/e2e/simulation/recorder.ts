@@ -15,9 +15,8 @@ export interface ManifestEntry {
 }
 
 /**
- * Pairs a screenshot with the editor state at each checkpoint, for a reviewer to judge against
- * the recorded source. The run directory is named after the seed, with no timestamp, and sits
- * outside `test-results/`, which Playwright wipes at the start of every run.
+ * Pairs a screenshot with the editor state at each checkpoint. The run directory is named after
+ * the seed and sits outside `test-results/`, which Playwright wipes at the start of every run.
  */
 export class Recorder {
 	private readonly entries: ManifestEntry[] = [];

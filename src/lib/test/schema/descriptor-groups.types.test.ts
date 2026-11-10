@@ -25,9 +25,8 @@ const group = { contract: 'opaque', rebuildRaw: () => {} } as const;
 const range = () => ({ start: 0, end: 0 });
 
 // ── Compile-time pins (G3.10) ───────────────────────────────────────────────
-// Never called: `npm run check` is the gate. An "unused '@ts-expect-error'" error means a
-// registration pairing two fields that can't mean anything together compiles again. A bracketed
-// id names the pair's runtime row in `schema/registration-pairs.ts`.
+// Never called: `npm run check` is the gate, and an unused `@ts-expect-error` means a meaningless
+// field pairing compiles again. A bracketed id names its row in `schema/registration-pairs.ts`.
 const typePins = (): void => {
 	const kind = declarePluginKind('groups-pin');
 	const title = declarePluginKind('groups-pin-title');

@@ -9,9 +9,8 @@ test.describe('nested structural paste: ref alignment via registry', () => {
 		await editor.goto();
 	});
 
-	// Asserting the exact source catches a structural paste going to the wrong place inside a
-	// nested container: the substrings survive while the blockquote's children are spliced
-	// into the wrong child list.
+	// The exact source catches a structural paste spliced into the wrong child list of a nested
+	// container, where the substrings would still all be present.
 	test('paste multi-block markdown inside a blockquote focuses the last inserted block', async () => {
 		await editor.loadContent('> first para\n>\n> second para\n>\n> tail para\n');
 

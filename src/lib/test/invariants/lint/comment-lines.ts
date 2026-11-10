@@ -1,6 +1,6 @@
 /**
  * The comment blocks the two G4.26 scans share, read through the shared lexer: adjacent `//`
- * lines make one block, and a header gets the longer budget.
+ * lines make one block, and each block's role sets how many lines it may run.
  */
 
 import { commentSpans, commentText, languageOf, type CommentSpan } from './scan-source';
@@ -11,12 +11,14 @@ export interface CommentBlock {
 	line: number;
 	/** The block's lines that still hold text once comment syntax is stripped. */
 	text: string[];
-	/** A header gets the longer budget; `classifyHeaders` lists the three cases. */
-	isHeader: boolean;
+	role: CommentRole;
 }
 
-const BODY_BUDGET = 2;
-const HEADER_BUDGET = 5;
+/** A file's introduction, a docblock on a contract, or any other comment; `classifyRoles` says
+ *  how each is told apart. */
+export type CommentRole = 'file-header' | 'contract' | 'body';
+
+const BUDGET: Record<CommentRole, number> = { 'file-header': 20, contract: 5, body: 2 };
 
 /** Docblocks on these files' exports ship in the `.d.ts` a consumer hovers. */
 const PUBLISHED_ENTRY_POINTS: string[] = [
@@ -28,8 +30,8 @@ const PUBLISHED_ENTRY_POINTS: string[] = [
 	SOURCE.blockComponentApi
 ];
 
-/** A first block this far into the file is the header (imports may precede it). */
-const HEADER_WINDOW = 30;
+/** What may stand above a file's header: the script tag and the imports. */
+const BEFORE_HEADER = /<script\b[^>]*>|\bimport\b[^;]*;/g;
 
 const SECTION_DIVIDER = /^─{2}.*─{2}$/;
 
@@ -42,11 +44,13 @@ export function budgetLines(block: CommentBlock): number {
 }
 
 export function isOverBudget(block: CommentBlock): boolean {
-	return budgetLines(block) > (block.isHeader ? HEADER_BUDGET : BODY_BUDGET);
+	return budgetLines(block) > BUDGET[block.role];
 }
 
 interface Placed {
 	block: CommentBlock;
+	/** Offset of the block's first comment. */
+	start: number;
 	/** The block's last comment. */
 	last: CommentSpan;
 	/** 0-based line the block ends on. */
@@ -78,11 +82,12 @@ export function findCommentBlocks(code: string, relPath: string): CommentBlock[]
 			previous.last = span;
 			previous.endLine = startLine;
 		} else {
-			const block = { line: startLine + 1, text, isHeader: false };
-			placed.push({ block, last: span, endLine: lineOf(span.end - 1), ownLine });
+			const block: CommentBlock = { line: startLine + 1, text, role: 'body' };
+			const endLine = lineOf(span.end - 1);
+			placed.push({ block, start: span.start, last: span, endLine, ownLine });
 		}
 	}
-	classifyHeaders(code, placed, spans, PUBLISHED_ENTRY_POINTS.includes(relPath));
+	classifyRoles(code, placed, spans, PUBLISHED_ENTRY_POINTS.includes(relPath));
 	return placed.map((p) => p.block);
 }
 
@@ -99,31 +104,43 @@ function lineCounter(code: string): (offset: number) => number {
 /** The first non-blank text after an offset, to the end of its line. */
 const NEXT_LINE = /\s*([^\n]*)/y;
 
-/**
- * A header is a file's first block on a line of its own, a docblock directly above an exported
- * interface or type, or, in a published entry point, a docblock on an export or a member of one.
- */
-function classifyHeaders(
+/** A file's header is its first block, with only imports above it. A contract is a docblock on
+ *  an exported interface or type or, in a published entry point, on any export or its members. */
+function classifyRoles(
 	code: string,
 	placed: Placed[],
 	spans: CommentSpan[],
 	isEntryPoint: boolean
 ): void {
-	const first = placed.find((p) => p.ownLine);
-	if (first !== undefined && first.block.line <= HEADER_WINDOW) first.block.isHeader = true;
 	const lines = code.split('\n');
 	for (const { block, last } of placed) {
 		if (!code.startsWith('/**', last.start)) continue;
 		NEXT_LINE.lastIndex = last.end;
 		const next = NEXT_LINE.exec(code)?.[1] ?? '';
-		if (/^export\s+(interface|type)\b/.test(next)) block.isHeader = true;
+		if (/^export\s+(interface|type)\b/.test(next)) block.role = 'contract';
 		if (!isEntryPoint) continue;
-		if (next.startsWith('export ')) block.isHeader = true;
+		if (next.startsWith('export ')) block.role = 'contract';
 		const indented = /^\s/.test(lines[block.line - 1]);
 		if (indented && enclosingDeclaration(lines, spans, block.line - 1).startsWith('export ')) {
-			block.isHeader = true;
+			block.role = 'contract';
 		}
 	}
+	const first = placed.find((p) => p.ownLine);
+	if (first && codeBefore(code, spans, first.start).replace(BEFORE_HEADER, '').trim() === '') {
+		first.block.role = 'file-header';
+	}
+}
+
+/** The text before `offset` with every comment cut out. */
+function codeBefore(code: string, spans: CommentSpan[], offset: number): string {
+	let text = '';
+	let at = 0;
+	for (const span of spans) {
+		if (span.start >= offset) break;
+		text += code.slice(at, span.start);
+		at = span.end;
+	}
+	return text + code.slice(at, offset);
 }
 
 /** The nearest line above `index` that starts at column 0 outside every comment. */

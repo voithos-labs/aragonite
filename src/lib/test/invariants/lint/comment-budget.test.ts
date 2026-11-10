@@ -1,7 +1,7 @@
 /**
- * G4.26, the length half: a comment block holds at most 2 text lines, a header at most 5
- * (`comment-lines.ts` says which blocks are headers). A why that needs more lines belongs in a
- * design doc or the commit message.
+ * G4.26, the length half: a comment block holds at most 2 text lines, a docblock on a contract 5,
+ * and the header that introduces a file 20 (`comment-lines.ts` tells them apart). A why that
+ * needs more lines belongs in a design doc.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -44,7 +44,7 @@ describe('G4.26 comment blocks stay inside the budget', () => {
 		expect(overBudgetLines('s.ts', `${preamble}${run(2)}\nconst b = 2;`)).toEqual([]);
 	});
 
-	it('a docblock above an exported interface or type is a header', () => {
+	it('a docblock above an exported interface or type is a contract', () => {
 		expect(overBudgetLines('s.ts', `${preamble}${docblock(5)}export interface X {}`)).toEqual([]);
 		expect(overBudgetLines('s.ts', `${preamble}${docblock(5)}export type X = 1;`)).toEqual([]);
 		expect(overBudgetLines('s.ts', `${preamble}${docblock(6)}export interface X {}`)).toHaveLength(
@@ -55,7 +55,7 @@ describe('G4.26 comment blocks stay inside the budget', () => {
 		);
 	});
 
-	it('a docblock on an export of a published entry point is a header, members included', () => {
+	it('a docblock on an export of a published entry point is a contract, members included', () => {
 		const onExport = `${preamble}${docblock(5)}export function f() {}`;
 		const onMember = `${preamble}export interface I {\n\ta(): void;\n${docblock(5).replace(/^/gm, '\t')}\tb(): void;\n}`;
 		expect(overBudgetLines(SOURCE.editorProps, onExport)).toEqual([]);
@@ -128,12 +128,24 @@ const b = 2;`;
 		]);
 	});
 
-	it('a first block after imports is the header; a mid-file block is not', () => {
-		const spec = `import { x } from 'y';\n${docblock(5)}x();`;
-		expect(overBudgetLines('s.spec.ts', spec)).toEqual([]);
-		const late = `${'const a = 1;\n'.repeat(31)}${docblock(3)}const b = 2;`;
-		expect(overBudgetLines('s.ts', late)).toHaveLength(1);
-		const trailed = `import { x } from 'y'; // a\n${docblock(5)}x();`;
+	it('the first block is the file header, with or without imports above it', () => {
+		expect(overBudgetLines('s.ts', `${docblock(20)}\nx();`)).toEqual([]);
+		expect(overBudgetLines('s.ts', `${docblock(21)}\nx();`)).toEqual(['s.ts:1']);
+		const imports = `import { x } from 'y';\nimport {\n\ta,\n\tb\n} from 'z';\n`;
+		expect(overBudgetLines('s.spec.ts', `${imports}${docblock(20)}x();`)).toEqual([]);
+		const trailed = `import { x } from 'y'; // a\n${docblock(20)}x();`;
 		expect(overBudgetLines('s.spec.ts', trailed)).toEqual([]);
+		const component = `<script lang="ts">\n${docblock(20).replace(/^/gm, '\t')}\tlet a = 1;\n</script>`;
+		expect(overBudgetLines('s.svelte', component)).toEqual([]);
+	});
+
+	it('a first block below any other code is a body comment', () => {
+		const late = `import { x } from 'y';\nconst a = 1;\n${docblock(3)}const b = 2;`;
+		expect(overBudgetLines('s.ts', late)).toEqual(['s.ts:3']);
+	});
+
+	it('only the first block is the file header', () => {
+		const two = `${docblock(20)}\n${docblock(3)}const b = 2;`;
+		expect(overBudgetLines('s.ts', two)).toEqual(['s.ts:24']);
 	});
 });

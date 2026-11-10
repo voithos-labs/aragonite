@@ -26,12 +26,12 @@ A split is forced when new logic arrives that neither touches lifecycle nor need
 
 A complex file reads top to bottom in newspaper order: the point first, the details after. In practice:
 
-- The first screen states the file's one responsibility, with a header comment only when the filename doesn't already say it.
+- The first screen states the file's one responsibility, in a header comment that also gives the idea a newcomer needs before reading on.
 - Public API near the top, internals below, and the main operation before its sub-steps, so a reader meets `parse()` before `parseNextBlock()`.
 - Section dividers mark the logical groupings:
 
   ```
-  // ── Section name ────────────────────────
+  /* ------------------------------ Section name ------------------------------ */
   ```
 
   and each section holds only what its name says, ordered by what a reader wants first, not by when things got written.
@@ -47,7 +47,8 @@ Default to none. The reader of a comment is someone competent who opened this re
 
 Two kinds of comment earn their lines:
 
-- A **header** (the block at the top of a file, or above a module's contract) says what the thing is for, in one sentence a newcomer can read, and then at most the one thing a caller has to get right. Five lines, tops.
+- A **file header** (the first thing in the file) introduces it to someone opening it cold: what it is, and the idea they need before the code makes sense. Any shape that does that job is fine, up to twenty lines. Details stay with the code they describe.
+- A **contract docblock** (above an exported type, or on an export of a published entry point) says what the thing is for and at most the one thing a caller has to get right. Five lines, tops.
 - A **comment in a body** says why this line is the way it is, in one plain sentence: the non-obvious choice, the workaround, the thing left out on purpose. One or two lines.
 
 Neither says what the code does or how (names and types already do), and neither argues for the choice over its alternatives. If the why needs more than a sentence, it's a design doc. Leave a pointer (`docs/design/virtual-rendering.md` § Keeping the page still while heights change) and nothing else.
@@ -124,7 +125,7 @@ Delete on sight:
 
 Two scans in the unit suite hold the budget, and each names the `path:line` or file it fails on:
 
-- `src/lib/test/invariants/lint/comment-budget.test.ts` counts lines per comment block. A comment trailing code is its own block, and section dividers and tool directives (`// eslint-disable-next-line`, `<!-- svelte-ignore -->`) don't count as lines. A header, for the five-line budget, is a file's first comment that isn't trailing code, a docblock right above an `export interface` or `export type`, or a docblock on anything a published entry point (`index.ts`, `plugin.ts`, `testing.ts`, `editor-props.ts`, `block-component.ts`) exports, members included, since that's what a consumer hovers in the `.d.ts`.
+- `src/lib/test/invariants/lint/comment-budget.test.ts` counts lines per comment block. A comment trailing code is its own block, and section dividers and tool directives (`// eslint-disable-next-line`, `<!-- svelte-ignore -->`) don't count as lines. The file header is the file's first comment, with nothing above it but imports, and gets twenty lines. A contract, for the five-line budget, is a docblock right above an `export interface` or `export type`, or a docblock on anything a published entry point (`index.ts`, `plugin.ts`, `testing.ts`, `editor-props.ts`, `block-component.ts`) exports, members included, since that's what a consumer hovers in the `.d.ts`. Everything else gets two.
 - `src/lib/test/invariants/lint/comment-house-words.test.ts` holds the list of private words and fails a comment under `src/lib` or `src/routes`, or a requirement file's body text, that uses one. Headings, code spans and fenced samples don't count. Each design and contributing doc is held to a baseline there (zero for most) that only goes down: delete a few from a doc and lower its number in the same commit, or the test fails.
 
 ## Directories
