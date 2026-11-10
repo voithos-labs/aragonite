@@ -143,6 +143,20 @@ const NAMED: Named[] = [
 		via: { gap: { parentPath: [], index: 0 } },
 		routes: ['key']
 	},
+	{
+		name: 'the gap caret in a quote above its table',
+		marked: '> | a |\n> | - |\n\nplain\n',
+		clips: ['x'],
+		via: { gap: { parentPath: [0], index: 0 } },
+		routes: ['key']
+	},
+	{
+		name: 'the gap caret at a quote’s end, under its table',
+		marked: '> | a |\n> | - |\n\nplain\n',
+		clips: ['x'],
+		via: { gap: { parentPath: [0], index: 1 } },
+		routes: ['key']
+	},
 	{ name: 'an empty document', marked: '‸', clips: ['x', 'one\n\ntwo'] },
 	// ── A cut, then a paste of it back ──
 	{

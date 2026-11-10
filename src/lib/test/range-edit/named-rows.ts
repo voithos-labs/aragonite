@@ -459,6 +459,33 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: between('x\n'),
 		expect: { source: '# h\nx\n', caret: { at: 6, holds: 'boundary' } }
 	},
+	// Miss-analysis: no draw cuts a list's middle item whole, and law 9 reads no place between items,
+	// so a pasted item kept apart from both its neighbours, three lists for one, met no check.
+	{
+		name: 'L3 an item cut from between two items pastes back as the list’s item',
+		source: '- a\n⟦- q⟧\n- b\n',
+		gesture: 'cut',
+		expect: { source: '- a\n- b\n', caret: { at: 4, holds: 'block' } },
+		then: { gesture: 'paste back', expect: backToStart('- a\n- q\n- b\n') }
+	},
+	{
+		name: 'L9 a paragraph pasted between two items parts the list around it',
+		source: '- a\n⟦⟧- b\n',
+		gesture: between('para'),
+		expect: { source: '- a\n\npara\n- b\n' }
+	},
+	{
+		name: 'L9 at a table row’s first byte nothing lands as a block: the rows stay one table',
+		source: '| a |\n| - |\n⟦⟧| b |\n',
+		gesture: { paste: '| x |', plain: false, holds: 'block' },
+		expect: { source: '| a |\n| - |\n| x || b |\n' }
+	},
+	{
+		name: 'L5 over the end of a quoted paragraph and the block after, the paste is a paragraph of its own',
+		source: '> a\n> ⟦b\n\npara⟧\n',
+		gesture: paste('x'),
+		expect: { source: '> a\n>\n> x\n' }
+	},
 	{
 		name: 'L9 in a quote, the pasted lines and the block after them keep its marker',
 		source: '> a\n>\n> ⟦⟧```\n> x\n> ```\n',

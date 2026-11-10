@@ -166,6 +166,8 @@ export function cutPasteBack(call: Call, host: CheckHost, input: RangeInput): st
 		read.blocks.some((b) => b.to - endingLength(input.source, b.to) === to);
 	const pinned = want.shape !== 'other' && !(want.shape === 'apart' && whole);
 	if (pinned && !want.bytes.includes(input.source)) return [];
+	// A part of a block cut out, the caret left in no text: pasted there, it is no part of that block.
+	if (cut.caret.holds !== 'text' && !whole) return [];
 	const back = call(cut.source, caretRange(cut.caret.at), paste(text, cut.caret.holds), input.mode);
 	if (!back) return [];
 	const [source, got] = mixedEndings(input.source)

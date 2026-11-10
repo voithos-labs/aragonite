@@ -507,6 +507,9 @@ function landedApart(read: Read, at: number, clip: string, host: CheckHost): str
 	// A container holds the place once its marker on the place's line has ended.
 	const holds = (c: LaidBlock) => c.from < at && lineOf(c, at).markerTo <= at;
 	const around = containersHolding(read, at).filter(holds);
+	// Among a table's rows no block stands, and between a list's items the rows hold what lands.
+	const parts = around.at(-1) && host.facts(around.at(-1)!.type).lines;
+	if (parts === 'rows' || parts === 'items') return null;
 	const depth = (around.at(-1)?.path.length ?? 0) + 1;
 	const prefix = continuationAt(read, at, host, holds);
 	const follows = !nothingVisibleAfter(source, at);

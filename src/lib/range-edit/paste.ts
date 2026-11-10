@@ -43,7 +43,8 @@ export function pasteAt(
 	holds: SpliceCaret['holds']
 ): Edit {
 	const lf = clipboard.replace(/\r\n?/g, '\n');
-	if (holds !== 'text') return pasteApart(doc, from, offText(doc, from, lf, plain));
+	const apart = holds === 'text' ? null : pasteApart(doc, from, offText(doc, from, lf, plain));
+	if (apart) return apart;
 	const edit = landed(doc, from, to, lf, plain);
 	// What lands in an empty paragraph, its line ending alone, stays apart from the block under it.
 	const leaf = leafHolding(doc, from, to)?.leaf;
@@ -91,8 +92,9 @@ function landed(doc: Doc, from: number, to: number, lf: string, plain: boolean):
 		if (rest !== null) return bytes(rest);
 		const text = offText(doc, from, clip, plain);
 		// Where a block starts, the clipboard lands as blocks above it, never in its syntax.
-		if (visibleAfter && findWithin(doc, from, from, (b) => b.from === from))
-			return pasteApart(doc, from, text);
+		const starts = visibleAfter && findWithin(doc, from, from, (b) => b.from === from);
+		const above = starts ? pasteApart(doc, from, text) : null;
+		if (above) return above;
 		// On an empty line no block holds, what lands stays apart from the block under it too.
 		const lineStart = from - lineHead(doc.source, from).length;
 		const emptyLine = !visibleAfter && pastMarkers(doc.source, lineStart) === from;

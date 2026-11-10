@@ -61,17 +61,19 @@ export function splitOut(
 	const numbered = whole ? out : numberedAfterSplit(doc, list, item.path.at(-1)!, to, out, copyAt);
 	const under = lineEnd(numbered, head.length) + 1;
 	const lower = numbered.slice(under + outer.length, lineEnd(numbered, under));
-	const pair = { path: list.path.slice(0, -1), index: list.path.at(-1)!, upper: last, lower };
+	const [path, index] = [list.path.slice(0, -1), list.path.at(-1)!];
+	const pair = { path, index, upper: last, lower, placed: true };
 	return { source: parted(doc, numbered, under, outer, pair), caret: head.length };
 }
 
 /** Two blocks a paste leaves touching, children `index` and `index + 1` of the block at `path`
- *  once it lands, each by its own bytes. */
+ *  once it lands, each by its own bytes; `placed` where the lower one must stay a block of its own. */
 interface Touching {
 	path: readonly number[];
 	index: number;
 	upper: string;
 	lower: string;
+	placed: boolean;
 }
 
 /** `out` with a blank line behind `marks` opened at `line`, where the lower block's line starts,
@@ -83,7 +85,14 @@ function parted(doc: Doc, out: string, line: number, marks: string, pair: Touchi
 		line > 0 &&
 		!isBlankText(pair.lower) &&
 		!isBlankText(out.slice(pastMarkers(out, above), line)) &&
-		doc.host.parts(doc.tree, pair.path, pair.index, ended(pair.upper), ended(pair.lower), true);
+		doc.host.parts(
+			doc.tree,
+			pair.path,
+			pair.index,
+			ended(pair.upper),
+			ended(pair.lower),
+			pair.placed
+		);
 	return apart ? out.slice(0, line) + marks.trimEnd() + doc.ending + out.slice(line) : out;
 }
 
@@ -91,11 +100,18 @@ function parted(doc: Doc, out: string, line: number, marks: string, pair: Touchi
  *  place's line has ended by it. */
 const around = (at: number) => (c: LaidBlock) => c.from < at && lineOf(c, at).markerTo <= at;
 
-/** The clipboard landing at `at`, a place in no block's text (between two blocks, where one
- *  starts), as blocks of its own: what stood after `at` on its line starts the line under them. */
-export function pasteApart(doc: Doc, at: number, clip: string): Edit {
+/** How the nearest container around the place `at` lays out its lines; `'none'` for the document. */
+function linesAround(doc: Doc, at: number) {
+	const holder = containersHolding(doc, at).findLast(around(at));
+	return holder ? factsOf(doc, holder).lines : 'none';
+}
+
+/** The clipboard as blocks of its own at `at`, a place in no block's text: what follows `at` on
+ *  its line starts the line under them. Null among a table's rows, where no block can stand. */
+export function pasteApart(doc: Doc, at: number, clip: string): Edit | null {
 	const { source } = doc;
 	const outside = around(at);
+	if (linesAround(doc, at) === 'rows') return null;
 	// The line break that sets what follows on its own line stands for the clipboard's last one.
 	const follows = !isBlankText(clip) && !isBlankText(lineRest(source, at));
 	const pasted = spliced(doc, at, at, outside)(follows ? clip.replace(/\n$/, '') : clip);
@@ -119,9 +135,13 @@ function setApart(doc: Doc, edit: Edit, at: number, clip: string, above: boolean
 	if (blocks.length === 0) return edit;
 	const { source } = doc;
 	const outside = around(at);
-	// The blocks either side are children of the nearest container around the place.
+	const lines = linesAround(doc, at);
+	if (lines === 'rows') return edit;
+	// The blocks either side are children of the nearest container around the place; between a
+	// list's items a pasted list is the list's own, which nothing keeps from folding into it.
 	const holder = containersHolding(doc, at).findLast(outside);
 	const path = holder?.path ?? [];
+	const placed = (kind: string) => !(lines === 'items' && kind === holder!.type);
 	const child = (b: LaidBlock) =>
 		b.path.length === path.length + 1 && path.every((p, i) => p === b.path[i]);
 	const head = lineHead(source, at);
@@ -134,7 +154,8 @@ function setApart(doc: Doc, edit: Edit, at: number, clip: string, above: boolean
 			path,
 			index: lower.path.at(-1)!,
 			upper: blocks.at(-1)!.raw,
-			lower: nodeAt(doc, lower.path).raw
+			lower: nodeAt(doc, lower.path).raw,
+			placed: placed(blocks.at(-1)!.kind)
 		};
 		out = parted(doc, out, line, continuation(doc, at, outside), pair);
 	}
@@ -148,7 +169,8 @@ function setApart(doc: Doc, edit: Edit, at: number, clip: string, above: boolean
 		path,
 		index: upper.path.at(-1)!,
 		upper: nodeAt(doc, upper.path).raw,
-		lower: blocks[0].raw
+		lower: blocks[0].raw,
+		placed: placed(blocks[0].kind)
 	};
 	const grown = parted(doc, out, at - head.length, head, pair);
 	return { source: grown, caret: edit.caret + grown.length - out.length };
