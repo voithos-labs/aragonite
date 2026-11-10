@@ -298,6 +298,7 @@ const caretLine = (answer: { source: string; caret: { at: number; holds: string 
 const TWIN_ROWS: [name: string, marked: string, gesture: Gesture, depths?: number[]][] = [
 	['a rule taken from between a paragraph and code', '> a\n> ⟦***⟧\n>     code\n', 'backspace'],
 	['a rule taken from above a table', '> a\n> ⟦***⟧\n> | h |\n> | - |\n', 'backspace'],
+	['a rule taken from under a blank line above code', '> a\n>\n> ⟦***⟧\n>     code\n', 'backspace'],
 	[
 		'a paste into an emptied heading under a blank line',
 		'> a\n>\n> #⟦⟧\n>\n> b\n',
@@ -336,6 +337,23 @@ describe('the range-edit core answers a named quote row alike under the box’s 
 	it.each(TWIN_ROWS)('%s', async (_name, marked, gesture, depths) => {
 		const { got, want } = await twinAnswers(marked, gesture, 'source', boxing(depths));
 		expect(got).toEqual(want);
+	});
+
+	// Miss-analysis: every twin row mounted its editor with the box on, so none read a marker the
+	// editor's list turned on after a range edit had read the markers once.
+	it('after `use` turns the box on in an editor that has made a range edit', async () => {
+		const editor = mountEditor<EditorTestSurface>({
+			source: 'x\n',
+			plugins: PLUGINS.filter((plugin) => plugin !== boxes)
+		});
+		await editor.settle();
+		const host = rangeHost(fixtureReading({ grammar: editor.instance.__test.getGrammar() }));
+		const marked = '%> a\n%> ⟦***⟧\n%>     code\n';
+		const answer = () => editRange(unmark(marked), rangeOf(marked), 'backspace', 'source', host);
+		answer();
+		editor.instance.use(PLUGINS);
+		await editor.settle();
+		expect(answer().source).toBe('%> a\n%>\n%>     code\n');
 	});
 });
 

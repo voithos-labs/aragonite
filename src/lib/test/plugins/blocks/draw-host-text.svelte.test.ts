@@ -228,34 +228,43 @@ describe('a drawn text block', () => {
 
 	// Miss-analysis: no clipboard row over a drawn block ran by key from outside it, where the
 	// key's handler resumes after the cut or paste has unmounted the block.
-	it.each([
-		['a cut by key', 'incd\n\noutro\n', (e: Editor) => clipboardGesture(e, 'cut', 'key')],
-		[
-			'a cut aimed at the page',
-			'incd\n\noutro\n',
-			(e: Editor) => clipboardGesture(e, 'cut', 'key at body')
-		],
-		[
-			'a paste by key',
-			'inZcd\n\noutro\n',
-			(e: Editor) => pasteGesture(e, { 'text/plain': 'Z' }, 'key')
-		]
-	])(
-		'reads nothing of its own once %s from the paragraph above takes it',
-		async (_name, left, gesture) => {
-			installClipboardEvents();
-			installSystemClipboard();
-			const draw = (_block: Block<never>, ctx: TextDrawContext) => badged(ctx);
-			const editor = mount(marked({ edit: 'text', draw })) as unknown as Editor;
-			await editor.settle();
-			await placeRange(editor, {
-				anchor: { path: [0], offset: 2 },
-				focus: { path: LEAF, offset: 5 }
-			});
-			await gesture(editor);
-			expect(editor.source()).toBe(left);
-		}
-	);
+	describe.each(['text', 'source'] as const)('with edit: %s', (edit) => {
+		it.each([
+			['a cut by key', 'incd\n\noutro\n', (e: Editor) => clipboardGesture(e, 'cut', 'key')],
+			[
+				'a cut aimed at the page',
+				'incd\n\noutro\n',
+				(e: Editor) => clipboardGesture(e, 'cut', 'key at body')
+			],
+			[
+				'a paste by key',
+				'inZcd\n\noutro\n',
+				(e: Editor) => pasteGesture(e, { 'text/plain': 'Z' }, 'key')
+			]
+		])(
+			'reads nothing of its own once %s from the paragraph above takes it',
+			async (_name, left, gesture) => {
+				installClipboardEvents();
+				installSystemClipboard();
+				const draw = (_block: Block<never>, ctx: TextDrawContext) => badged(ctx);
+				const editor = mount(marked({ edit, draw })) as unknown as Editor;
+				await editor.settle();
+				// A picture opens its text on a click, so the range can end inside the text.
+				if (edit === 'source') {
+					const badge = blockHostAt(editor as never, LEAF).querySelector('span')!;
+					badge.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+					badge.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+					await editor.settle();
+				}
+				await placeRange(editor, {
+					anchor: { path: [0], offset: 2 },
+					focus: { path: LEAF, offset: 5 }
+				});
+				await gesture(editor);
+				expect(editor.source()).toBe(left);
+			}
+		);
+	});
 });
 
 describe('a drawn picture that opens its text (edit: source)', () => {
