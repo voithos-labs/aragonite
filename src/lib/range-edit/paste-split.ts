@@ -6,7 +6,7 @@
 
 import { isBlankText } from '../core/lines';
 import type { LaidBlock } from './layout';
-import { contentEnd, endingOf, factsOf, parentOf, type Doc } from './document';
+import { contentEnd, factsOf, parentOf, type Doc } from './document';
 import { numberedAfterSplit } from './list-numbers';
 import { continuation } from './markers';
 import { lineEnd, lineRest, spliced, type Edit } from './leaf-splice';
@@ -23,7 +23,7 @@ export function splitOut(
 	last: string
 ): Edit {
 	const { source } = doc;
-	const eol = endingOf(source);
+	const eol = doc.ending;
 	const outside = (c: LaidBlock) => c !== list;
 	const outer = continuation(doc, at, outside);
 	const item = parentOf(doc, leaf)!;
@@ -64,7 +64,7 @@ export function splitAt(
 	lastJoins: boolean
 ): Edit {
 	const { source } = doc;
-	const eol = endingOf(source);
+	const eol = doc.ending;
 	const prefix = continuation(doc, at);
 	const blank = prefix.trimEnd();
 	const text = leaf.text!;

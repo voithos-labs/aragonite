@@ -16,6 +16,9 @@ export interface Doc {
 	layout: Layout;
 	host: RangeHost;
 	mode: Mode;
+	/** The line ending a new line takes: the first the gesture's source held before any byte of it
+	 *  changed, `\n` where it held none, as pasted text arrives. */
+	ending: LineEnding;
 	/** The range names blocks the editor was asked to remove whole, not text: a paragraph goes too,
 	 *  and a block ending its parent takes the separator above it. */
 	wholeBlocks?: boolean;
@@ -23,7 +26,14 @@ export interface Doc {
 
 export function readDoc(source: string, host: RangeHost, mode: Mode): Doc {
 	const tree = host.read(source);
-	return { source, tree, layout: host.layout(tree), host, mode };
+	return {
+		source,
+		tree,
+		layout: host.layout(tree),
+		host,
+		mode,
+		ending: firstLineEnding(source) ?? '\n'
+	};
 }
 
 export const factsOf = (doc: Doc, block: LaidBlock): BlockFacts => doc.host.facts(block.type);
@@ -47,9 +57,6 @@ export const parentOf = (doc: Doc, block: LaidBlock): LaidBlock | undefined =>
 /** Where a block's last line ends, before its line ending. */
 export const contentEnd = (doc: Doc, block: LaidBlock) =>
 	block.to - ownTrailingLineEnding(doc.source.slice(block.from, block.to)).length;
-
-/** The document's line ending, its first; `\n` where it has none, as pasted text arrives. */
-export const endingOf = (source: string): LineEnding => firstLineEnding(source) ?? '\n';
 
 /** The text block whose text holds `byte`, with the offset into its bytes. */
 export function leafAt(doc: Doc, byte: number): { leaf: LaidBlock; offset: number } | null {

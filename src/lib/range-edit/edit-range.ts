@@ -74,7 +74,8 @@ export function editRange(
 ): RangeEditResult {
 	const doc = readDoc(source, host, mode);
 	const { from, to } = range;
-	const read = (edit: Edit) => readDoc(edit.source, host, mode);
+	// What the gesture leaves is read with the line ending its source started with.
+	const read = (edit: Edit) => ({ ...readDoc(edit.source, host, mode), ending: doc.ending });
 	const answer = (edit: Removal): RangeEditResult => ({
 		source: edit.source,
 		caret: caretOf(edit, read(edit), besideOf(gesture))

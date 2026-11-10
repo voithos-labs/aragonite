@@ -8,7 +8,6 @@ import type { LaidBlock } from './layout';
 import {
 	containersAt,
 	contentEnd,
-	endingOf,
 	factsOf,
 	leafAt,
 	lineOf,
@@ -46,8 +45,7 @@ export function copyOf(doc: Doc, from: number, to: number): string {
 		else if (container.from < from) opening += openingOf(doc, container, from);
 	}
 	const end = lineEnd(doc.source, to);
-	const eol =
-		startRow || endRow ? (doc.source[end - 1] === '\r' ? '\r\n' : '\n') : endingOf(doc.source);
+	const eol = startRow || endRow ? (doc.source[end - 1] === '\r' ? '\r\n' : '\n') : doc.ending;
 	let closing = endRow ? rowTail(doc, endRow, to, end) : '';
 	if (!live) closing += fenceCloser(doc, shared, from, to, eol);
 	for (const container of containersAt(doc, to, 'end').reverse()) {

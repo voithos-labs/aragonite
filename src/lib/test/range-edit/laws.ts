@@ -209,6 +209,11 @@ export function deleteLaws(call: Call, input: RangeInput): string[] {
 	return out;
 }
 
+/** `a` is `b`, line endings aside where the cut left another first ending than its source had: one
+ *  gesture writes the source's, a paste after the cut the one it finds. */
+const sameAfterCut = (a: string, b: string, source: string, cut: string) =>
+	endingOf(source) === endingOf(cut) ? a === b : lf(a) === lf(b);
+
 /** The text block whose text holds the whole range, between its fence lines where it has them: a
  *  paste over the range is one write of that block, which keeps its kind and its other lines. */
 export function oneTextBlock(read: Read, range: Range, host: CheckHost): LaidBlock | null {
@@ -276,7 +281,7 @@ export function replaceLaws(
 		const then = call(cut.source, caretRange(cut.caret.at), paste(text), input.mode);
 		const block = oneTextBlock(read, input.range, host);
 		if (block) out.push(...oneWrite(host, input, block, text, { over, cut, then }));
-		else if (then && then.source !== over.source)
+		else if (then && !sameAfterCut(then.source, over.source, input.source, cut.source))
 			out.push(`L5 paste over gave ${q(over.source)}, cut then paste ${q(then.source)}`);
 	}
 	const pairs: [Gesture, Gesture][] = [
@@ -326,7 +331,7 @@ export function dropLaws(call: Call, input: RangeInput, at: number): string[] {
 	if (mapped === null) return out;
 	const carried: Gesture = { paste: cut.clipboard ?? '', plain: false, own: cut.own };
 	const then = call(cut.source, caretRange(mapped), carried, input.mode);
-	if (then && then.source !== moved.source)
+	if (then && !sameAfterCut(then.source, moved.source, input.source, cut.source))
 		out.push(`L6 drop gave ${q(moved.source)}, a cut then a paste at the drop ${q(then.source)}`);
 	return out;
 }

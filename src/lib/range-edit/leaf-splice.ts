@@ -8,7 +8,7 @@ import { displayLines, isBlankText } from '../core/lines';
 import { sharedPrefixLength, sharedSuffixLength } from '../core/written-span';
 import type { LeafWrite } from './host';
 import type { LaidBlock } from './layout';
-import { endingOf, nodeAt, type Doc } from './document';
+import { nodeAt, type Doc } from './document';
 import { continuation } from './markers';
 
 /** New bytes for the whole document and the caret's byte in them. */
@@ -88,7 +88,7 @@ export function spliced(
 	keep?: (c: LaidBlock) => boolean,
 	indent = ''
 ) {
-	const eol = endingOf(doc.source);
+	const eol = doc.ending;
 	const rest = lineRest(doc.source, end);
 	const prefix = continuation(doc, start, keep) + indent;
 	return (text: string) =>

@@ -1288,6 +1288,28 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: paste('- q\n\n- r\n'),
 		expect: { source: '| x | - q - ry |\n| - | - |\n' }
 	},
+	// ── A paste over a range writes the line ending its source had (§ 5.10) ──
+	// Miss-analysis: the core read the ending after its removal, and every CRLF row left a line
+	// ending standing for it to find.
+	{
+		name: 'L5 a paste over every line of a CRLF document writes CRLF',
+		source: '⟦one\r\n\r\ntwo⟧',
+		gesture: paste('a\nb'),
+		expect: { source: 'a\r\nb' }
+	},
+	{
+		name: 'L5 blocks pasted over them stay apart in CRLF too',
+		source: '⟦one\r\n\r\ntwo⟧',
+		gesture: paste('a\n\n# b\n'),
+		expect: { source: 'a\r\n\r\n# b\r\n' }
+	},
+	{
+		name: 'L3 the cut alone leaves no ending, so its text pasted back takes LF',
+		source: '⟦one\r\n\r\ntwo⟧',
+		gesture: 'cut',
+		expect: { source: '' },
+		then: { gesture: 'paste back', expect: { source: 'one\n\ntwo' } }
+	},
 	// ── An ordered list the removal shortens numbers on from where it was ──
 	// Miss-analysis: the editor renumbered after the core, so no core row read the numbers shown.
 	{

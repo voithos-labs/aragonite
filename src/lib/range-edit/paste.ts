@@ -8,7 +8,6 @@
 import { displayLines, isBlankText, withLineEnding } from '../core/lines';
 import type { LaidBlock } from './layout';
 import {
-	endingOf,
 	factsOf,
 	isCell,
 	leafHolding,
@@ -56,7 +55,7 @@ export function pasteAt(
 
 /** The last block a paste into the empty paragraph `leaf` writes, as its own bytes. */
 function lastPasted(doc: Doc, leaf: LaidBlock, clip: string, plain: boolean): string | null {
-	const ended = (raw: string) => withLineEnding(raw.replace(/\n?$/, '\n'), endingOf(doc.source));
+	const ended = (raw: string) => withLineEnding(raw.replace(/\n?$/, '\n'), doc.ending);
 	if (plain) return ended(doc.host.leaf.plain(doc.tree, leaf.path, clip));
 	const blocks = readDoc(clip, doc.host, doc.mode).tree.children;
 	const last = blocks.filter((b) => !isBlankText(b.raw)).at(-1);
