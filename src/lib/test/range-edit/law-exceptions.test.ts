@@ -89,6 +89,16 @@ describe('law 5', () => {
 		}
 	});
 
+	it('holds text over a block held whole in a quote, a blank line set over it', () => {
+		const { host, real, fake } = calls('> a\n> x\n> zzz\n', true);
+		const whole = marked('> a\n> ⟦***⟧\n> b\n');
+		expect(real(whole.source, whole.range, paste('x'), 'source')!.source).toBe(
+			'> a\n>\n> x\n>\n> b\n'
+		);
+		expect(l5(replaceLaws(real, host, whole, 'x'))).toEqual([]);
+		expect(l5(replaceLaws(fake, host, whole, 'x'))).not.toEqual([]);
+	});
+
 	it('holds a live range in a quote’s two lines to the lines its clipboard brings', () => {
 		const added = calls('> x one\n>\n> more\n>\n> two z\n> word\n', true);
 		const outside = marked('> x⟦ y⟧ z\n> word\n', 'live');

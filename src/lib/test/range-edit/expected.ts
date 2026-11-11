@@ -505,8 +505,8 @@ export function startsLaterLine(read: Read, leaf: LaidBlock, byte: number): bool
 export const aboveLine = (source: string, byte: number) =>
 	source.slice(0, source.lastIndexOf('\n', byte - 1) + 1).replace(/\r?\n$/, '');
 
-/** The bytes over the line of `block`, which a paste empties, as blocks pasted there leave them:
- *  the blank lines under a list go where a pasted list of its own type joins it. */
+/** The bytes a paste over `block` keeps above it: up to its line's start, where a blank line may
+ *  go in, or to the end of the list above where a pasted list of its own type joins that list. */
 export function overEmptied(read: Read, block: LaidBlock, text: string, host: CheckHost): string {
 	const clip = readOf(host, lf(text));
 	const first = clip.blocks.find(
@@ -515,7 +515,8 @@ export function overEmptied(read: Read, block: LaidBlock, text: string, host: Ch
 	const over = [...block.path.slice(0, -1), block.path.at(-1)! - 1].join();
 	const upper = read.blocks.find((b) => b.path.join() === over);
 	const joins = sameList(read, upper, clip, first, true, host);
-	return read.source.slice(0, joins ? upper!.to : block.from);
+	const line = read.source.lastIndexOf('\n', block.from - 1) + 1;
+	return read.source.slice(0, joins ? upper!.to : line);
 }
 
 /** What keeps two lists apart: an item's bullet character, or its ordered delimiter. */
