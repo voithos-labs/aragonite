@@ -1,6 +1,8 @@
 // The parity table between `claimsChord` and the keydown handlers: each row mounts an editor, puts
 // focus in one context, asks `claimsChord` from a window capture listener (where a host asks) and
 // then reads what the handlers did with the same keystroke.
+// Miss-analysis for the keyless row: every row sent a `KeyboardEvent`, which always names a key, so
+// none sent the keyless keydown Chrome's autofill dispatches.
 
 import { describe, expect, it } from 'vitest';
 import type { BlockComponent } from '#lib/block-component.js';
@@ -175,7 +177,58 @@ async function expectTextKeysParity(context: ClaimContext, chords: string[]): Pr
 	}
 }
 
-/** One row per non-text chord per context, and one row per context for its text keys. */
+/** A keydown and a keyup that name no key, as Chrome sends when it autofills a field, at the
+ *  context's element and at the document: nothing throws, prevents or claims them, or moves. */
+async function expectKeylessIgnored(context: ClaimContext): Promise<void> {
+	const editor = mountEditor<Probe>({
+		source: context.source,
+		presentationMode: context.mode ?? 'source',
+		plugins: context.plugins,
+		keybindings: context.keybindings
+	});
+	const errors: unknown[] = [];
+	const onError = (e: ErrorEvent) => errors.push(e.error);
+	const onRejection = (reason: unknown) => errors.push(reason);
+	const claims: boolean[] = [];
+	const ask = (e: Event) => claims.push(editor.instance.claimsChord(e as KeyboardEvent));
+	try {
+		await editor.settle();
+		const el = await context.enter(editor);
+		const before = { source: editor.source(), selection: editor.instance.getSelection() };
+		window.addEventListener('error', onError);
+		process.on('unhandledRejection', onRejection);
+		window.addEventListener('keydown', ask, true);
+		const sent = [el, document].flatMap((target) =>
+			['keydown', 'keyup'].map((type) => {
+				const event = new Event(type, { bubbles: true, cancelable: true });
+				target.dispatchEvent(event);
+				return event;
+			})
+		);
+		await editor.settle();
+		// Node reports a rejected async handler only once the task ends.
+		await new Promise((done) => setImmediate(done));
+		expect(errors, context.name).toEqual([]);
+		expect(claims, `${context.name}: claimsChord`).toEqual([false, false]);
+		expect(sent.map((e) => e.defaultPrevented)).toEqual([false, false, false, false]);
+		expect(editor.source()).toBe(before.source);
+		expect(editor.instance.getSelection()).toEqual(before.selection);
+	} finally {
+		window.removeEventListener('keydown', ask, true);
+		window.removeEventListener('error', onError);
+		process.off('unhandledRejection', onRejection);
+		await editor.destroy();
+	}
+}
+
+/** One row per context: a key event naming no key, which every handler skips and `claimsChord`
+ *  leaves alone. */
+export function describeKeyless(contexts: ClaimContext[]): void {
+	it.each(contexts)('a key event naming no key is ignored: $name', expectKeylessIgnored);
+}
+
+/** One row per non-text chord per context, one per context for its text keys, and the keyless
+ *  row. */
 export function describeParity(contexts: ClaimContext[]): void {
 	describe('claimsChord reads the focus its handler stands at', () => {
 		it.each(contexts.filter((context) => context.focus))('$name', expectFocusAgrees);
@@ -192,6 +245,7 @@ export function describeParity(contexts: ClaimContext[]): void {
 			)
 		);
 	});
+	describeKeyless(contexts);
 }
 
 /** `claimsChord`'s read of where a key lands agrees with where the context's handler stands, the

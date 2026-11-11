@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
 	createCompositionTracker,
 	imeOwnsKey,
+	neverACommand,
 	type CompositionOwner,
 	type CompositionTracker
 } from '../../browser/composition';
@@ -66,6 +67,22 @@ describe('imeOwnsKey', () => {
 		['Enter', key({ key: 'Enter', keyCode: 13 }), false]
 	])('%s: %s', (_name, e, owned) => {
 		expect(imeOwnsKey(e)).toBe(owned);
+	});
+});
+
+describe('neverACommand', () => {
+	it.each([
+		['a key the IME owns', key({ key: 'Process' }), true],
+		[
+			'a keydown with no key, as Chrome sends when it autofills a field',
+			new Event('keydown'),
+			true
+		],
+		['a keydown with an empty key', key({ key: '' }), true],
+		['a plain letter', key({ key: 'n', keyCode: 78 }), false],
+		['a bare modifier', key({ key: 'Shift', shiftKey: true }), false]
+	])('%s', (_name, e, never) => {
+		expect(neverACommand(e as KeyboardEvent)).toBe(never);
 	});
 });
 

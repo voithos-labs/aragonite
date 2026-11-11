@@ -3,6 +3,7 @@
 // of the surfaces with no text block focused: the gap caret, the root, a range, the find bar, a card,
 // and an open menu, which takes Escape at the document wherever the caret is.
 import { afterEach, beforeAll, expect } from 'vitest';
+import { IMAGE_ALT_FIELD, IMAGE_CROP, IMAGE_CROP_APPLY } from '#lib/a11y-strings.js';
 import { defineBlockView } from '#lib/plugin.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { registerBuiltInDescriptors } from '#lib/schema/built-in-descriptors.js';
@@ -15,7 +16,7 @@ import {
 import { pressKey } from '#lib/test/harness/settle.js';
 import { cellAt } from '../blocks/table/mount-table';
 import { markerLeafPlugin } from '../plugins/fixtures/dom-views';
-import { describeParity, type ClaimContext, type Probe } from './claims-parity';
+import { describeKeyless, describeParity, type ClaimContext, type Probe } from './claims-parity';
 
 beforeAll(installLayoutStubs);
 // The host-field context leaves its input on the page.
@@ -57,6 +58,24 @@ async function caretInLink(editor: MountedEditor<Probe>): Promise<HTMLElement> {
 	const para = surfaceAt(editor, [0]);
 	placeCaret(para, 6);
 	return para;
+}
+
+const IMAGE = '![alt](https://x.test/a.png) end\n';
+
+/** The image at the paragraph's start selected whole, its properties card showing. */
+async function selectImage(editor: MountedEditor<Probe>): Promise<HTMLElement> {
+	const para = surfaceAt(editor, [0]);
+	editor.instance.__test.getBlockComponent([0])!.enterEdgeWidget!('start');
+	await editor.settle();
+	expect(document.querySelector('[data-image-overlay]')).not.toBeNull();
+	return para;
+}
+
+async function pressCardButton(editor: MountedEditor<Probe>, label: string): Promise<void> {
+	const button = editor.target.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
+	if (!button) throw new Error(`no ${label} button on the image's card`);
+	button.click();
+	await editor.settle();
 }
 
 const CONTEXTS: ClaimContext[] = [
@@ -191,3 +210,37 @@ const CONTEXTS: ClaimContext[] = [
 ];
 
 describeParity(CONTEXTS);
+
+// A selected image's keys and its card's Tab disagree with `claimsChord` (a widget selected whole
+// takes every key), so these contexts hold the keyless row alone.
+const IMAGE_CONTEXTS: ClaimContext[] = [
+	{ name: 'image selected whole', source: IMAGE, mode: 'live', enter: selectImage },
+	{
+		name: 'image alt text field',
+		source: IMAGE,
+		mode: 'live',
+		enter: async (editor) => {
+			await selectImage(editor);
+			await pressCardButton(editor, IMAGE_ALT_FIELD);
+			return focusIn(editor.target.querySelector(`input[aria-label="${IMAGE_ALT_FIELD}"]`));
+		}
+	},
+	{
+		name: 'image crop',
+		source: IMAGE,
+		mode: 'live',
+		enter: async (editor) => {
+			const para = await selectImage(editor);
+			// jsdom loads no image, and a crop needs the picture's own size.
+			const img = editor.target.querySelector('[data-image-widget] img')!;
+			Object.defineProperties(img, { naturalWidth: { value: 40 }, naturalHeight: { value: 30 } });
+			await pressCardButton(editor, IMAGE_CROP);
+			expect(
+				editor.target.querySelector(`button[aria-label="${IMAGE_CROP_APPLY}"]`)
+			).not.toBeNull();
+			return para;
+		}
+	}
+];
+
+describeKeyless(IMAGE_CONTEXTS);
