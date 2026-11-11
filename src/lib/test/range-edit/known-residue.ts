@@ -7,7 +7,7 @@
 import type { Mode } from '#lib/range-edit/host.js';
 import type { Range } from '#lib/range-edit/edit-range.js';
 import type { LaidBlock } from '#lib/range-edit/layout.js';
-import { containersAt, leafAt, readOf, type Read } from './expected';
+import { containersAt, containersHolding, leafAt, readOf, type Read } from './expected';
 import { blockHeldWhole } from './laws';
 import type { CheckHost } from './test-host';
 
@@ -43,12 +43,26 @@ const lineHead = (source: string, at: number) =>
 /** A line that opens with a tab its container markers may split with its indent. */
 const TAB_SPLIT = /^[ >*+\-\d.)]*\t/;
 
-/** A caret on a line whose run of markers and indent holds a tab beside a container's marker, or
- *  is the whole line: a tab that only indents text there is no part of the class. */
+/** Whether the line holding `at` has a tab in its run of markers and indent, beside a container's
+ *  marker or, on a blank line, inside a container: a tab that only indents text is no such tab. */
 function atSplitTab(read: Read, at: number): boolean {
-	const line = (lineHead(read.source, at) + restOfLine(read, at)).replace(/\r$/, '');
+	const start = at - lineHead(read.source, at).length;
+	const line = restOfLine(read, start).replace(/\r$/, '');
 	const run = /^[ \t>*+\-\d.)]*/.exec(line)![0];
-	return run.includes('\t') && (/[>*+-]|\d[.)]/.test(run) || run === line);
+	if (!run.includes('\t')) return false;
+	const inContainer = () => containersAt(read, start, 'start').length > 0;
+	return /[>*+-]|\d[.)]/.test(run) || (run === line && inContainer());
+}
+
+/** Whether a line the range touches has such a tab, or a line of a container holding its start. */
+function coversSplitTab(read: Read, { from, to }: Range): boolean {
+	const around = containersHolding(read, from).flatMap((c) => c.lines ?? []);
+	if (around.some((line) => atSplitTab(read, line.from))) return true;
+	for (let at = from; ;) {
+		if (atSplitTab(read, at)) return true;
+		at = read.source.indexOf('\n', at) + 1;
+		if (at === 0 || at > to) return false;
+	}
 }
 
 /** An end of the range right after a line's leading spaces, with the range crossing a line. */
@@ -87,8 +101,7 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 		gap: 'a tab split between a container marker and the line’s indent is read by its columns, which a new line’s markers and the question of two blocks reading as one count otherwise',
 		lane: 'tab columns',
 		law: 'L9',
-		matches: (read, range) =>
-			range.from < range.to && coveredLines(read, range).some((line) => TAB_SPLIT.test(line)),
+		matches: (read, range) => range.from < range.to && coversSplitTab(read, range),
 		repro: {
 			source: '1.\t汉字\n\t> q\n\t- x\n\n>\t`c`\n   > 1. n\n`c`\n',
 			mode: 'source',
