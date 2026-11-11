@@ -94,6 +94,9 @@ export interface RangeHost {
 		 *  Markdown, as written where it is literal. */
 		plain(doc: DocumentView, path: readonly number[], text: string): string;
 	};
+	/** `text` as a paragraph writes it to show every character of it: Paste as plain text between
+	 *  blocks, where no block is there to ask. */
+	escaped(text: string): string;
 	/** The fence a block's bytes open, by the openers of the editor's grammar; null for none. */
 	fence(raw: string): Fence | null;
 }
@@ -210,6 +213,7 @@ export function rangeHost(
 				return literal ? text : escapeMarkdownLiteral(text);
 			}
 		},
+		escaped: escapeMarkdownLiteral,
 		fence(raw) {
 			const body = raw.indexOf('\n') + 1;
 			if (body === 0) return null;

@@ -440,13 +440,14 @@ export type PasteShape =
 	| 'other';
 
 /** The source a paste of `text` at `at`, a caret holding what `held` says, may give, with the rule
- *  that gives it. */
+ *  that gives it. With `to`, a list that breaks out lands over `[at, to)` of the caret's text. */
 export function expectedPaste(
 	read: Read,
 	at: number,
 	text: string,
 	host: CheckHost,
-	held: Held
+	held: Held,
+	to = at
 ): { shape: PasteShape; bytes: string[] } {
 	// Where a block starts and the caret is in no text, the clipboard lands above it all the same.
 	const rest = read.source.slice(at, (read.source + '\n').indexOf('\n', at));
@@ -459,7 +460,7 @@ export function expectedPaste(
 				: landedInGap(read, at, held.parent, lf(text), host);
 		return bytes === null ? { shape: 'other', bytes: [] } : { shape: 'apart', bytes };
 	}
-	const want = landedPaste(read, at, text, host);
+	const want = landedPaste(read, at, to, text, host);
 	const last = host
 		.read(lf(text))
 		.children.filter((b) => b.raw.trim() !== '')
@@ -631,6 +632,7 @@ function landedApart(read: Read, at: number, clip: string, host: CheckHost): str
 function landedPaste(
 	read: Read,
 	at: number,
+	to: number,
 	text: string,
 	host: CheckHost
 ): { shape: PasteShape; bytes: string[] } {
@@ -676,7 +678,7 @@ function landedPaste(
 	const left = listLeft(read, at, clip, first, target, host);
 	if (left) {
 		const outside = continuationAt(read, at, host, (c) => c !== left);
-		const out = brokenOut(read, at, left, target, clip.source, eol, outside, host);
+		const out = brokenOut(read, at, to, left, target, clip.source, eol, outside, host);
 		return out === null ? { shape: 'other', bytes: [] } : { shape: 'broken out', bytes: [out] };
 	}
 	const taker = takerOf(read, at, clip, first, host);
@@ -799,10 +801,11 @@ function listLeft(
 }
 
 /** The bytes `clip` lands as in the column of `list`, between its halves split at `at`, the second
- *  numbered on, a list of its own; null where a number would change width, which the rows hold. */
+ *  from `to` on and numbered on; null where a number would change width, which the rows hold. */
 function brokenOut(
 	read: Read,
 	at: number,
+	to: number,
 	list: LaidBlock,
 	target: LaidBlock,
 	clip: string,
@@ -823,22 +826,25 @@ function brokenOut(
 	const indent = /^[ \t]*/.exec(source.slice(first.from, at))![0];
 	const pasted =
 		(lines[0] === '' ? '' : indent) +
-		join(lines, outside + indent, eol, !nothingVisibleAfter(source, at));
+		join(lines, outside + indent, eol, !nothingVisibleAfter(source, to));
 	const head = whole
 		? source.slice(0, first.from) + pasted
 		: source.slice(0, at) + eol + outside + pasted;
-	const tail = !whole && source.slice(at, item.to).trim() !== '';
+	// A side with no text makes no item: an item emptied both sides gives way, the rest numbered on.
+	const held = source.slice(to, item.to).trim() !== '';
+	const tail = !whole && held;
+	const gone = whole && !held;
 	const digits = /^([ \t]*)(\d+)/.exec(source.slice(first.from, first.markerTo));
-	let rest = source.slice(at);
+	let rest = source.slice(to);
 	const index = item.path.at(-1)!;
 	const count = treeNodeAt(read.tree, list.path)!.children!.length;
-	for (let i = count - 1; digits && !whole && i > index; i--) {
+	for (let i = count - 1; digits && (!whole || gone) && i > index; i--) {
 		const line = itemOf([...list.path, i])!.lines![0];
 		const own = /^([ \t]*)(\d+)/.exec(source.slice(line.from, line.markerTo));
-		const want = String(Number(digits[2]) + i - index + (tail ? 1 : 0));
+		const want = String(Number(digits[2]) + i - index + (tail ? 1 : 0) - (gone ? 1 : 0));
 		if (!own) continue;
 		if (own[2].length !== want.length) return null;
-		const from = line.from + own[1].length - at;
+		const from = line.from + own[1].length - to;
 		rest = rest.slice(0, from) + want + rest.slice(from + own[2].length);
 	}
 	let marker = whole ? source.slice(first.from, at) : source.slice(first.from, first.markerTo);
@@ -847,18 +853,22 @@ function brokenOut(
 		if (want.length !== digits[2].length) return null;
 		marker = digits[1] + want + marker.slice(digits[0].length);
 	}
-	const second = whole || tail ? eol + outside + marker : '';
+	const second = held ? eol + outside + marker : '';
 	const flush = head + second + rest;
 	const under = flush.indexOf('\n', head.length) + 1;
-	if (under === 0 || (source.slice(at).trim() === '' && !whole)) return flush;
+	if (under === 0 || (source.slice(to).trim() === '' && !whole)) return flush;
 	// A blank line under the pasted blocks parts them already.
 	const lineEnd = flush.indexOf('\n', under);
 	if (/^[ \t>]*\r?$/.test(flush.slice(under, lineEnd < 0 ? undefined : lineEnd))) return flush;
-	const starts = readOf(host, flush).blocks.some(
-		(b) =>
-			b.type === list.type &&
-			b.path.length === list.path.length &&
-			b.from === under + outside.length
+	// Under them stands the list's second half, a list of its own; or, where the last item gave way,
+	// the block that stood under the list, which still starts its line.
+	const last = gone && index === count - 1;
+	const starts = readOf(host, flush).blocks.some((b) =>
+		last
+			? b.from >= under && b.from <= under + outside.length
+			: b.type === list.type &&
+				b.path.length === list.path.length &&
+				b.from === under + outside.length
 	);
 	return starts ? flush : flush.slice(0, under) + outside.trimEnd() + eol + flush.slice(under);
 }

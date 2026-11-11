@@ -89,6 +89,20 @@ function endingLength(source: string, to: number): number {
 	return source.slice(to - 2, to) === '\r\n' ? 2 : source[to - 1] === '\n' ? 1 : 0;
 }
 
+/** A heading's whole text that reads as a block alone: at the emptied heading's text start it
+ *  pastes back as that block, under the heading (ruled 2026-11-10); the own entry gives the source. */
+export function headingTextReadsAsBlock(read: Read, range: Range, host: CheckHost): boolean {
+	const heading = read.blocks.find(
+		(b) =>
+			b.text?.from === range.from &&
+			b.text.to === range.to &&
+			b.from < b.text.from &&
+			host.facts(b.type).joins !== 'text'
+	);
+	const text = lf(read.source.slice(range.from, range.to));
+	return !!heading && range.from < range.to && readOf(host, text).blocks[0]?.type !== 'paragraph';
+}
+
 /** A range inside one block's text covering all of it, in live mode: the owner's rule there is that
  *  deleting the whole text leaves a paragraph, so a paste back gives the text as a paragraph. */
 export function liveWholeText(read: Read, range: Range, mode: Mode): boolean {
@@ -162,6 +176,7 @@ export function cutPasteBack(call: Call, host: CheckHost, input: RangeInput): st
 	if (opensWithoutClosing(read, input.range.from, input.range.to, host)) return [];
 	if (leavesLiteralBlock(read, input.range.from, input.range.to, host, input.mode)) return [];
 	if (copiesLinesBeforeRange(read, input.range.from, host)) return [];
+	if (headingTextReadsAsBlock(read, input.range, host)) return [];
 	const cut = call(input.source, input.range, 'cut', input.mode);
 	if (!cut || cut.clipboard === undefined) return [];
 	// The editor hands a paste its text with LF line endings.
@@ -286,6 +301,13 @@ function oneWrite(
 	// One write closes a format run a live range cuts another way than a cut then a paste: there
 	// the bytes outside the range stay and the block keeps its kind.
 	const cutsRun = input.mode === 'live' && liveSplitsRun(read, from, to, host);
+	// A list that breaks out splits the caret's list around the range as law 9 says: an item with no
+	// text left on either side gives way, its marker with it.
+	const out = cutsRun ? null : expectedPaste(read, from, text, host, TEXT, to);
+	if (out?.shape === 'broken out')
+		return out.bytes.includes(over.source)
+			? []
+			: [`L5 a list breaking out over a range gave ${q(over.source)}, not ${q(out.bytes[0])}`];
 	// Paragraphs pasted into prose join the text either side, whatever a cut then a paste would give:
 	// the bytes outside the range stay, and the lines between are the clipboard's, none added.
 	if (joinsProse(read, block, text, host) && !cutsRun) {

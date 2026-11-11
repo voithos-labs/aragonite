@@ -50,8 +50,8 @@ export function pasteAt(doc: Doc, from: number, to: number, pasted: Pasted): Edi
 	// (a title, a cell, literal text, plain text, one line after text) never asks.
 	let read: Doc | undefined;
 	const blocks = () => (read ??= transformed(doc, lf, pasted.transform));
-	const off = () => (plain ? offText(doc, from, lf) : blocks().source);
-	const apart = held.holds === 'text' ? null : pasteApart(doc, from, off, held.parent);
+	const off = () => (plain ? doc.host.escaped(lf) : blocks().source);
+	const apart = held.holds === 'text' ? null : pasteApart(doc, from, off, held.parent, true);
 	if (apart) return apart;
 	const edit = landed(doc, from, to, lf, plain, blocks);
 	// What lands in an empty paragraph, its line ending alone, stays apart from the block under it.
@@ -77,8 +77,8 @@ function lastPasted(doc: Doc, leaf: LaidBlock, clip: string, plain: boolean): st
 	return last && !last.children?.length ? ended(last.raw) : null;
 }
 
-/** Plain text as it goes in at `at`, a place in no block's text: escaped where the block beside
- *  it reads Markdown. */
+/** Plain text as it goes into the bytes at `at`, a place in no block's text: escaped where the
+ *  block beside it reads Markdown. */
 function offText(doc: Doc, at: number, clip: string): string {
 	const near = pointedBlock(doc, at);
 	return near?.text && factsOf(doc, near).body === 'markdown'
@@ -114,11 +114,12 @@ function landed(
 		const marked = !plain && !isBlankText(lineHead(doc.source, from));
 		const rest = marked ? emptiedRest(doc, from, readDoc(clip, doc.host, doc.mode)) : null;
 		if (rest !== null) return bytes(rest);
-		const text = () => (plain ? offText(doc, from, clip) : blocks().source);
+		// Plain text that lands as blocks lands as paragraphs, escaped as a paragraph's text is.
+		const text = () => (plain ? doc.host.escaped(clip) : blocks().source);
 		// Where a block starts on its syntax, the clipboard lands as blocks above it, never in it.
 		const onSyntax = (b: LaidBlock) => b.from === from && b.text?.from !== from;
 		const starts = visibleAfter && findWithin(doc, from, from, onSyntax);
-		const above = starts ? pasteApart(doc, from, text) : null;
+		const above = starts ? pasteApart(doc, from, text, starts.path.slice(0, -1), false) : null;
 		if (above) return above;
 		// On an empty line no block holds, what lands stays apart from the block under it too.
 		const lineStart = from - lineHead(doc.source, from).length;

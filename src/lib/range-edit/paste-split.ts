@@ -20,7 +20,7 @@ import {
 	titleOwner,
 	type Doc
 } from './document';
-import { numberedAfterSplit } from './list-numbers';
+import { numberedAfterSplit, numberedOn } from './list-numbers';
 import { continuation } from './markers';
 import { lineEnd, lineHead, lineRest, spliced, type Edit } from './leaf-splice';
 
@@ -48,17 +48,22 @@ export function splitOut(
 	const indent = /^[ \t]*/.exec(source.slice(first.from, first.markerTo))![0];
 	const pasted =
 		(body.startsWith('\n') ? '' : indent) + spliced(doc, at, to, outside, indent)(body);
-	// At the item's first text byte the whole item is the second half.
+	// At the item's first text byte the whole item is the second half; with no text after the range
+	// either it has none to be an item of, and gives way to the items under it.
 	const whole = at === leaf.text!.from && leaf.path.at(-1) === 0;
+	const rest = !isBlankText(source.slice(to, contentEnd(doc, item)));
 	const head = whole
 		? source.slice(0, first.from) + pasted
 		: source.slice(0, at) + eol + outer + pasted;
-	const tail = !whole && !isBlankText(source.slice(to, contentEnd(doc, item)));
-	const marker =
-		whole || tail ? eol + outer + source.slice(first.from, whole ? at : first.markerTo) : '';
+	const tail = !whole && rest;
+	const marker = rest ? eol + outer + source.slice(first.from, whole ? at : first.markerTo) : '';
 	const copyAt = tail ? head.length + eol.length + outer.length : null;
 	const out = head + marker + source.slice(to);
-	const numbered = whole ? out : numberedAfterSplit(doc, list, item.path.at(-1)!, to, out, copyAt);
+	const numbered = !whole
+		? numberedAfterSplit(doc, list, item.path.at(-1)!, to, out, copyAt)
+		: rest
+			? out
+			: numberedOn(doc, first.from, to, out);
 	const under = lineEnd(numbered, head.length) + 1;
 	const lower = numbered.slice(under + outer.length, lineEnd(numbered, under));
 	const [path, index] = [list.path.slice(0, -1), list.path.at(-1)!];
@@ -190,22 +195,22 @@ function setIn(doc: Doc, at: number, holder: LaidBlock | undefined, clip: string
 	return { source: out, caret: stop, place, line, marks, stop, under, follows, leads };
 }
 
-/** The clipboard as blocks of its own between the children of the block at `parent`, a blank line
- *  either side; with no `parent`, of the container around `at`, one only where two would read as one. */
+/** The clipboard as blocks of its own at `at`, between the children of the block at `parent`: with
+ *  `always` a blank line apart from the block either side, else only where two would read as one. */
 export function pasteApart(
 	doc: Doc,
 	at: number,
 	read: () => string,
-	parent?: readonly number[]
+	parent: readonly number[],
+	always: boolean
 ): Edit | null {
-	const named = parent?.length ? doc.layout.block(parent) : undefined;
-	// A path that names no container is read as no path.
-	const gap = !!parent && (parent.length === 0 || !!named?.container);
-	const holder = gap ? named : holderAt(doc, at);
+	const named = parent.length ? doc.layout.block(parent) : undefined;
+	// A path that names no container is read as the container around the place.
+	const holder = parent.length === 0 || named?.container ? named : holderAt(doc, at);
 	// Among a table's rows no block stands, and the clipboard stays unread.
 	if (holder && factsOf(doc, holder).lines === 'rows') return null;
 	const clip = read();
-	return setApart(doc, setIn(doc, at, holder, clip), holder, clip, true, gap);
+	return setApart(doc, setIn(doc, at, holder, clip), holder, clip, true, always);
 }
 
 /** `clip` on the empty line at `at` that no block holds: its last block stays apart from the

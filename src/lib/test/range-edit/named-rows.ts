@@ -803,7 +803,72 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: 'copy',
 		expect: { clipboard: 'pha\nbe' }
 	},
+	// ── A side of a broken-out list with no text makes no item (ruled 2026-11-10) ──
+	// Miss-analysis: every break-out row left text on a side of the caret, and law 5 held a range over
+	// an item's whole text to "the bytes outside stay", so the emptied marker stood under the paste.
+	{
+		name: 'C8 with no text after the caret the caret’s item is not split in two',
+		source: '1. a⟦⟧\n2. c\n',
+		gesture: paste('- q\n- r'),
+		expect: { source: '1. a\n- q\n- r\n2. c\n' }
+	},
+	{
+		name: 'C8 with none before it the item stands under the pasted list, its number kept',
+		source: '1. ⟦⟧b\n2. c\n',
+		gesture: paste('- q'),
+		expect: { source: '- q\n1. b\n2. c\n' }
+	},
+	{
+		name: 'C8 over an item’s whole text the item gives way and the list numbers on',
+		source: '1. ⟦n⟧\n2. c\n',
+		gesture: paste('- q'),
+		expect: { source: '- q\n1. c\n', caret: text(3) }
+	},
+	{
+		name: 'C8 an empty item at the caret gives way the same',
+		source: '1. ⟦⟧\n2. c\n',
+		gesture: paste('- q'),
+		expect: { source: '- q\n1. c\n' }
+	},
+	{
+		name: 'C8 a middle item emptied gives way, in a quote, the items after numbered on',
+		source: '> 1. a\n> 2. ⟦n⟧\n> 3. c\n',
+		gesture: paste('- q\n- r'),
+		expect: { source: '> 1. a\n> - q\n> - r\n> 2. c\n' }
+	},
+	{
+		name: 'C8 a last item emptied gives way and leaves no line',
+		source: '1. a\n2. ⟦n⟧',
+		gesture: paste('- q'),
+		expect: { source: '1. a\n- q' }
+	},
+	{
+		name: 'C8 an item that holds more than the emptied text keeps its marker for the rest',
+		source: '1. ⟦n⟧\n\n   more\n2. c\n',
+		gesture: paste('- q'),
+		expect: { source: '- q\n1. \n\n   more\n2. c\n' }
+	},
 	// ── Paste as plain text (law 11) ──
+	// Miss-analysis: law 11 draws its carets in text, and the one boundary a plain paste met stood
+	// beside a paragraph, whose escape it borrowed; beside a table it had none to borrow.
+	{
+		name: 'L11 plain text between blocks is escaped as a paragraph’s text, beside a table too',
+		source: '⟦⟧| a |\n| - |\n',
+		gesture: { paste: '**x**\n# y', plain: true, holds: 'boundary', parent: [] },
+		expect: { source: '\\*\\*x\\*\\*\n\\# y\n\n| a |\n| - |\n' }
+	},
+	{
+		name: 'L11 and at a text caret on the table’s first byte, where it lands above the table',
+		source: '⟦⟧| a |\n| - |\n',
+		gesture: plain('**x**\n# y'),
+		expect: { source: '\\*\\*x\\*\\*\n\\# y\n\n| a |\n| - |\n' }
+	},
+	{
+		name: 'L11 and over a rule held whole, which it replaces as a paragraph apart from both sides',
+		source: 'a\n⟦---⟧\nb\n',
+		gesture: plain('# x'),
+		expect: { source: 'a\n\n\\# x\n\nb\n' }
+	},
 	{
 		name: 'L11 plain text into a paragraph is escaped where it would read as Markdown',
 		source: 'ab⟦⟧cd\n',
@@ -1682,6 +1747,23 @@ export const NAMED_ROWS: NamedRow[] = [
 		mode: 'live',
 		gesture: paste('> q\n\nafter'),
 		expect: { source: '# \n\n> q\n\nafter\n' }
+	},
+	// ── One line at an emptied heading's text start reads as blocks (ruled 2026-11-10) ──
+	// Miss-analysis: the base dropped the emptied heading's marker, so no row cut a heading's text
+	// that reads as a block alone and pasted it back.
+	{
+		name: 'L3 a heading’s text that reads as a quote pastes back under the heading, not in it',
+		source: '#### ⟦> foo@bar.com⟧\n',
+		gesture: 'cut',
+		expect: { source: '#### \n', clipboard: '> foo@bar.com', caret: text(5) },
+		then: { gesture: 'paste back', expect: { source: '#### \n\n> foo@bar.com\n' } }
+	},
+	{
+		name: 'L12 and with its own entry it is the heading’s text again',
+		source: '#### ⟦> foo@bar.com⟧\n',
+		gesture: 'cut',
+		expect: { source: '#### \n' },
+		then: { gesture: 'paste back with own', expect: backToStart('#### > foo@bar.com\n') }
 	},
 	// ── Blocks pasted over a range that cuts a format run leave the run closed (§ 5.11) ──
 	// Miss-analysis: the rows that split a block over a range ran in source mode or held a whole
