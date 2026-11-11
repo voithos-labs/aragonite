@@ -7,7 +7,6 @@
 import type { DocumentView } from '../core/node-views';
 import { getContentRange } from '../core/inline';
 import { cutOutsideWhole } from '../core/inline/live-edit/live-split';
-import { visibleText } from '../core/inline/link-source-bytes';
 import { documentLineEnding, ownTrailingLineEnding, trimTrailingLineEnding } from '../core/lines';
 import { makeBlockNode } from '../core/nodes';
 import { hidesDelimitersAtCaret } from '../presentation-mode';
@@ -286,15 +285,12 @@ export function rangeHost(
 						'lineEnding' in holder ? holder.lineEnding : documentLineEnding(doc),
 						{
 							first: storedAsAt(doc, path, cutIn),
-							second: storedAsIn(holder, index + 1, cutIn, node.kind)
+							second: storedAsIn(holder, index + 1, cutIn, node.kind),
+							behind: lead
 						}
 					);
-					// A second half that lands behind pasted text must read there as it reads alone.
-					const opened = trimTrailingLineEnding(halves.secondRaw);
-					const shown = (text: string) => visibleText(text, cutIn);
-					const sound = lead === '' || shown(lead + opened) === shown(lead) + shown(opened);
-					if (halves.reopened && sound)
-						[head, tail] = [trimTrailingLineEnding(halves.firstRaw), opened];
+					if (halves.reopened)
+						[head, tail] = [halves.firstRaw, halves.secondRaw].map(trimTrailingLineEnding);
 				}
 				if (after === '') return { head, tail, at: 0, empty: content.start === content.end };
 				// The second half ends on the block's text from the cut on, wherever it reopened.

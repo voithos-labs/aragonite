@@ -20,16 +20,22 @@ const caretOf = (marked: string, text: string) => ({
 });
 
 describe('law 9 in live mode', () => {
-	const OPEN: [name: string, marked: string, cutByBytes: string][] = [
+	const OPEN: [name: string, marked: string, cutByBytes: string, text?: string][] = [
 		['a bold run', 'a **bo‸ld** z\n', 'a **bo\n\n| a |\n| - |\n\nld** z\n'],
 		['a link', 'a [bo‸ld](u) z\n', 'a [bo\n\n| a |\n| - |\n\nld](u) z\n'],
 		['a code span', 'a `bo‸ld` z\n', 'a `bo\n\n| a |\n| - |\n\nld` z\n'],
-		['an underscore run', 'a __bo‸ld__ z\n', 'a __bo\n\n| a |\n| - |\n\nld__ z\n']
+		['an underscore run', 'a __bo‸ld__ z\n', 'a __bo\n\n| a |\n| - |\n\nld__ z\n'],
+		[
+			'a half behind an item’s last line',
+			'a __bo‸ld__ z\n',
+			'a __bo\n\n- q\n- rld__ z\n',
+			'- q\n- r'
+		]
 	];
-	for (const [name, marked, cutByBytes] of OPEN) {
-		it(`reds on ${name} a pasted table leaves open`, () => {
+	for (const [name, marked, cutByBytes, text = TABLE] of OPEN) {
+		it(`reds on ${name} pasted blocks leave open`, () => {
 			const literal: Call = () => ({ source: cutByBytes, caret: { at: 0, holds: 'text' } });
-			expect(pasteAtCaret(literal, checkHost(), caretOf(marked, TABLE))).not.toEqual([]);
+			expect(pasteAtCaret(literal, checkHost(), caretOf(marked, text))).not.toEqual([]);
 		});
 	}
 
@@ -39,10 +45,16 @@ describe('law 9 in live mode', () => {
 		['an image’s alt text', 'a ![al‸t](i.png) z\n', TABLE, 'a [al‸t](i.png) z\n'],
 		['three delimiters in a row', 'a ***b‸c*** *d*\n', 'one\n\ntwo', 'a **b‸c** *d*\n'],
 		[
-			'a half that would not reopen behind a pasted item',
-			'a __bo‸ld__ z\n',
+			'a half on punctuation behind an item’s last letter',
+			'a **bo‸(ld)** z\n',
 			'- q\n- r',
 			'a **bo‸ld** z\n'
+		],
+		[
+			'a run in a run of its own kind behind an item’s last letter',
+			'a *b _c‸d_ e* z\n',
+			'- q\n- r',
+			'a **b _c‸d_ e** z\n'
 		]
 	];
 	for (const [name, marked, text, held] of DECLARED) {

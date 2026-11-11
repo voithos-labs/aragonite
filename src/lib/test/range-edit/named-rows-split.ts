@@ -251,10 +251,28 @@ const RUN_ROWS: NamedRow[] = [
 		'a **boone**\n\n**twold** z\n'
 	),
 	live(
-		'a half that would not reopen behind a pasted item keeps the literal cut',
+		'a half behind an item’s last line reopens in the marker that opens there',
 		'a __bo⟦⟧ld__ z\n',
 		paste('- q\n- r'),
-		'a __bo\n\n- q\n- rld__ z\n'
+		'a __bo__\n\n- q\n- r**ld** z\n'
+	),
+	live(
+		'so does the half behind the last item of a list the caret’s item takes in',
+		'- a __bo⟦⟧ld__ z\n',
+		paste('- q\n- r'),
+		'- a __boq__\n- r**ld** z\n'
+	),
+	live(
+		'a half on punctuation behind a letter opens in no marker, so the cut stays literal',
+		'a **bo⟦⟧(ld)** z\n',
+		paste('- q\n- r'),
+		'a **bo\n\n- q\n- r(ld)** z\n'
+	),
+	live(
+		'so does a run in a run of its own kind',
+		'a *b _c⟦⟧d_ e* z\n',
+		paste('- q\n- r'),
+		'a *b _c\n\n- q\n- rd_ e* z\n'
 	),
 	live('emphasis', 'a *bo⟦⟧ld* z\n', paste('one\n\ntwo'), 'a *boone*\n\n*twold* z\n'),
 	live('strikethrough', 'a ~~bo⟦⟧ld~~ z\n', paste(TABLE), 'a ~~bo~~\n\n| a |\n| - |\n\n~~ld~~ z\n'),
@@ -301,6 +319,12 @@ const RUN_ROWS: NamedRow[] = [
 		'a ⟦<http://xy.z>⟧ w\n',
 		paste('one\n\ntwo'),
 		'a one\n\ntwo w\n'
+	),
+	live(
+		'a range that cuts an autolink is the removal then the paste: the remnant is the removal’s',
+		'a <http://x⟦y.z> w⟧ v\n',
+		paste('one\n\ntwo'),
+		'a <http://xone\n\ntwo v\n'
 	),
 	live(
 		'a half with none of the run’s text takes none of its delimiters',

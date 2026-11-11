@@ -672,13 +672,29 @@ function structuredPaste(
 /** `CheckHost.liveCut` for the caret at `at`: what a live split does with the constructs it
  *  sits in. */
 export function liveCutAt(read: Read, at: number, host: CheckHost): 'whole' | 'literal' | null {
+	const around = markdownTextAt(read, at, host);
+	return around && host.liveCut(around.text, around.offset);
+}
+
+/** The Markdown text of the block the caret at `at` is in, and the caret's offset in it. */
+function markdownTextAt(read: Read, at: number, host: CheckHost) {
 	const point = read.layout.pointAt(at);
 	const leaf = point && read.blocks.find((b) => b.path.join() === point.path.join());
 	if (!point || !leaf?.text || host.facts(leaf.type).body !== 'markdown') return null;
 	const start = read.layout.pointAt(leaf.text.from)!.offset;
 	const end = read.layout.pointAt(leaf.text.to)!.offset;
 	const raw = treeNodeAt(read.tree, leaf.path)!.raw;
-	return host.liveCut(raw.slice(start, end), point.offset - start);
+	return { text: raw.slice(start, end), offset: point.offset - start };
+}
+
+/** Whether no marker opens the half a live cut at `at` leaves behind `lead`, a pasted line ending
+ *  on a letter: the half starts on punctuation, or its run sits in a run of its own kind. */
+export function reopensNowhere(read: Read, at: number, lead: string, host: CheckHost): boolean {
+	const around = markdownTextAt(read, at, host);
+	if (!around || !/[\p{L}\p{N}]$/u.test(lead)) return false;
+	const runs = host.runsAt(around.text, around.offset);
+	const onPunctuation = /^[^\p{L}\p{N}\s]/u.test(around.text.slice(around.offset));
+	return runs.length > 0 && (onPunctuation || new Set(runs).size < runs.length);
 }
 
 /** How many format delimiters the Markdown text blocks of `source` show in live mode: a run left

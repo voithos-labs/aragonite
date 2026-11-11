@@ -19,8 +19,14 @@ import type { Reading } from '../../../schema/reading';
 import type { StoredAs } from '../../../schema/stored-as';
 import type { AnyInlineKind, InlineNode } from '../../nodes';
 import type { NodeView } from '../../node-views';
-import { isBlankText, readsAsBlankLine } from '../../lines';
-import { closeBefore, closesAndReopens, reopenAfter, type CutConstruct } from './close-reopen';
+import { isBlankText, readsAsBlankLine, trimTrailingLineEnding } from '../../lines';
+import {
+	chordSpelling,
+	closeBefore,
+	closesAndReopens,
+	reopenAfter,
+	type CutConstruct
+} from './close-reopen';
 import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
 
 // ── The rewrite ──────────────────────────────────────────────────────────────
@@ -30,6 +36,9 @@ import { getInlineConstructPolicy } from '../../../schema/inline-construct-polic
 export interface SplitStores {
 	first: StoredAs;
 	second: StoredAs;
+	/** Text the second half lands behind on its line (a paste's last line): the half reads there
+	 *  as it reads alone, in its chord's marker where its own can't open after that text. */
+	behind?: string;
 }
 
 /** The two halves with the cut's constructs closed and reopened, or null to keep the literal cut. */
@@ -64,7 +73,8 @@ export function rebalanceLiveSplit(
 	const candidates = [
 		assemble(bytes, seam),
 		assembleSpaceOutside(bytes, seam),
-		assembleDroppingTerminalTrivia(bytes, seam)
+		assembleDroppingTerminalTrivia(bytes, seam),
+		stores.behind ? assembleInChordMarkers(bytes, seam, chain) : null
 	];
 	for (const candidate of candidates) {
 		// The dropped bytes are the check's business, not the caller's: what the caller gets back
@@ -238,6 +248,29 @@ function assembleDroppingTerminalTrivia(
 	};
 }
 
+/** The cut with the reopened runs in their chords' markers, which open after a word character
+ *  where `__` can't: the first half keeps the bytes it had. */
+function assembleInChordMarkers(
+	bytes: SplitBytes,
+	seam: SeamParts,
+	chain: readonly CutConstruct[]
+): RebalancedHalves | null {
+	const right = reopenAfter(bytes.raw, chain, bytes.cut);
+	let [openers, tail, at] = ['', '', right.start];
+	// Innermost first, the order the closers stand in.
+	for (const link of right.reopened) {
+		const { opener, closer } = chordSpelling(bytes.raw, link);
+		openers = opener + openers;
+		tail += bytes.raw.slice(at, link.contentEnd) + closer;
+		at = link.end;
+	}
+	if (openers === seam.openers) return null;
+	return {
+		firstRaw: seam.head + seam.closers + bytes.firstResidue,
+		secondRaw: openers + tail + bytes.raw.slice(at, bytes.contentEnd) + bytes.secondResidue
+	};
+}
+
 // ── Verification ─────────────────────────────────────────────────────────────
 
 interface HalfRead {
@@ -262,6 +295,7 @@ export function parsesBack(
 	if (readsAsBlankLine(candidate.firstRaw) || readsAsBlankLine(candidate.secondRaw)) return false;
 	if (!seam.closed.every((kind) => first.kinds.has(kind))) return false;
 	if (!seam.reopened.every((kind) => second.kinds.has(kind))) return false;
+	if (stores.behind && !readsAloneBehind(stores.behind, candidate.secondRaw, reading)) return false;
 	// The render check below counts characters while CSS collapses a trailing run to nothing, so
 	// the "the screen never showed it" rule is tested here rather than taken on trust.
 	if (candidate.droppedTail !== undefined && !isBlankText(candidate.droppedTail)) return false;
@@ -277,6 +311,19 @@ export function parsesBack(
 	const rest = whole.slice(first.visible.length);
 	const tail = second.visible + (candidate.droppedTail ?? '');
 	return rest === tail || rest === '\n' + tail || rest === '\r\n' + tail;
+}
+
+/** Whether `half` shows behind `text` on one line what each shows alone. */
+function readsAloneBehind(text: string, half: string, reading: Reading): boolean {
+	const shown = (raw: string) =>
+		renderedText(
+			readInline(raw, 0, raw.length, reading.resolver, reading.grammar),
+			raw,
+			CONTENT_VISIBILITY,
+			{ grammar: reading.grammar }
+		);
+	const line = trimTrailingLineEnding(half);
+	return shown(text + line) === shown(text) + shown(line);
 }
 
 /** A half read where `store` keeps it: exactly one prose block, or null. */

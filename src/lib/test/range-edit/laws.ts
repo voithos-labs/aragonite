@@ -23,6 +23,7 @@ import {
 	leafAt,
 	leavesLiteralBlock,
 	liveCutAt,
+	reopensNowhere,
 	lf,
 	liveSplitsRun,
 	opensWithoutClosing,
@@ -521,11 +522,11 @@ function runsStayClosed(
 		(b) => b.path.length === 1 && text.slice(b.from, b.to).trim() !== ''
 	);
 	if (tops.length < 2 && tops[0]?.type === 'paragraph') return [];
-	// A second half that joins a pasted block's last line is read behind that line: where its opener
-	// would not open there, the literal cut stands, law 9's own bytes.
-	const last = readOf(host, lf(text)).blocks.findLast((b) => b.path.length === 1);
+	// A second half that joins a pasted block's last line reopens in a marker that opens there;
+	// where none does, the literal cut stands.
+	const last = tops.at(-1);
 	const behind = last && last.type !== 'paragraph' && host.facts(last.type).joins !== 'never';
-	if (behind && expectedPaste(read, at, text, host, TEXT).bytes.includes(got)) return [];
+	if (behind && !text.endsWith('\n') && reopensNowhere(read, at, text, host)) return [];
 	const letters = text.replace(/\s*\n\s*/g, '');
 	if (letters === '') return [];
 	const typed = read.source.slice(0, at) + letters + read.source.slice(at);

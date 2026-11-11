@@ -208,15 +208,6 @@ function landed(
 	const joins = isText(first);
 	const left = joins ? null : leftBy(doc, from, pasted, first, leaf);
 	if (left) return splitOut(doc, left, leaf, from, to, cutWith('', ''), clip, lastRaw);
-	// A pasted container the caret's container takes in joins it from its first text, a line
-	// break before it included, where its last block can take the text after the caret or none follows.
-	const taker = joins ? null : takerOf(doc, from, pasted, first);
-	if (taker && (lastJoins || !follows)) {
-		const keep = (c: LaidBlock) => c !== taker;
-		const inner = takenIn(pasted, first);
-		const edit = around(cutWith(inner.before, inner.after), inner.mid, keep);
-		return closedBy(doc, pasted, first, taker, edit);
-	}
 	// A paragraph the clipboard ends on joins the text after the cut where the last block takes it;
 	// any other last block takes that text behind its own last line, which the cut is read behind.
 	const ended = /^\n?$/.test(clip.slice(contentEnd(pasted, last!)));
@@ -224,6 +215,16 @@ function landed(
 		joined && isText(last!) && ended ? clip.slice(last!.from) : '';
 	const lastLine = lastJoins && !clip.endsWith('\n') ? lastLineOf(pasted, last!) : null;
 	const lead = lastLine === null || isText(last!) ? '' : clip.slice(lastLine);
+	// A pasted container the caret's container takes in joins it from its first text, a line
+	// break before it included, where its last block can take the text after the caret or none follows.
+	const taker = joins ? null : takerOf(doc, from, pasted, first);
+	if (taker && (lastJoins || !follows)) {
+		const keep = (c: LaidBlock) => c !== taker;
+		const inner = takenIn(pasted, first);
+		const behind = inner.after === '' ? lead : '';
+		const edit = around(cutWith(inner.before, inner.after, behind), inner.mid, keep);
+		return closedBy(doc, pasted, first, taker, edit);
+	}
 	// A clipboard opening with a line break or a paragraph joins the text before the caret; text
 	// after it that the last block can't take goes on a line of its own, apart where it must be.
 	if (joins || clip.startsWith('\n')) {
