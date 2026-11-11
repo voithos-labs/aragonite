@@ -74,6 +74,20 @@ describe('law 5', () => {
 			expect(l5(replaceLaws(kept.fake, kept.host, input, '> q'))).not.toEqual([]);
 		}
 	});
+
+	// Miss-analysis: no drawn range on the lane's seeds sat inside an autolink, so law 5 never met a
+	// paste the core moves to the autolink's edge, outside the range.
+	it('holds a paste over a range inside an autolink to the cut then the paste', () => {
+		const { host, real, fake } = calls('zzz\n', true);
+		const inside = marked('a <http://x⟦y⟧.z> w\n', 'live');
+		expect(real(inside.source, inside.range, paste('one\n\ntwo'), 'live')!.source).toBe(
+			'a <http://x.z>one\n\ntwo w\n'
+		);
+		expect(l5(replaceLaws(real, host, inside, 'one\n\ntwo'))).toEqual([]);
+		expect(l5(replaceLaws(fake, host, inside, 'one\n\ntwo'))).not.toEqual([]);
+		const beside = marked('a <http://xy.z> ⟦w⟧ v\n', 'live');
+		expect(l5(replaceLaws(fake, host, beside, 'one\n\ntwo'))).not.toEqual([]);
+	});
 });
 
 describe('law 9 in a cell', () => {

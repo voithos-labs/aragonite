@@ -334,9 +334,13 @@ function oneWrite(
 		return out.bytes.includes(over.source)
 			? []
 			: [`L5 a list breaking out over a range gave ${q(over.source)}, not ${q(out.bytes[0])}`];
+	// Where a construct that splits whole (an autolink) holds an end, the paste lands at its edge,
+	// outside the range, and the cut then the paste holds it.
+	const moves =
+		input.mode === 'live' && [from, to].some((at) => liveCutAt(read, at, host) === 'whole');
 	// Paragraphs pasted into prose join the text either side, whatever a cut then a paste would give:
 	// the bytes outside the range stay, and the lines between are the clipboard's, none added.
-	if (joinsProse(read, block, text, host) && !cutsRun) {
+	if (joinsProse(read, block, text, host) && !cutsRun && !moves) {
 		if (!kept)
 			return [`L5 paste over text in one block changed bytes outside it: ${q(over.source)}`];
 		const lines = (bytes: string) => bytes.split('\n').length;
