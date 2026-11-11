@@ -53,6 +53,24 @@ describe('Editor.blockAt', () => {
 		const outside = [-1, DOC.length + 1, 0.5].map((at) => editor.blockAt(at));
 		expect(outside).toEqual([null, null, null]);
 	});
+
+	// Miss-analysis: every read row read a document no write had touched, so a byte map kept past
+	// a write answered every one of them.
+	it('follows each write above a block, for a block held across them too', async () => {
+		const editor = await editorOn(DOC);
+		const held = editor.blockAt(DOC.indexOf('two'))!;
+		let text = DOC;
+		for (const intro of ['introduction', 'in']) {
+			const line = text.indexOf('\n');
+			const result = await editor.edit().replace({ from: 0, to: line }, intro).commit();
+			expect(result).toEqual({ ok: true });
+			text = intro + text.slice(line);
+			expect(held.from).toBe(text.indexOf('one'));
+			expect(editor.blockAt(text.indexOf('Lovelace'))!.text).toBe('Ada Lovelace');
+			expect(editor.blockAt(text.length - 2)!.text).toBe('dev');
+			expect(editor.blockAt(text.length + 1)).toBeNull();
+		}
+	});
 });
 
 describe("a block's positions", () => {
