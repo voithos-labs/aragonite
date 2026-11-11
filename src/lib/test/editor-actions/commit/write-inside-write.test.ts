@@ -413,3 +413,41 @@ describe.each(BUILDS)('a public write started inside another, in $build', ({ isD
 		expect(takeDevWarns()).toEqual([]);
 	});
 });
+
+// Miss-analysis: the rows after the announcement wrote through the commit's own entry points, so
+// no row held a host's `use` or `edit` from an `edit` handler to the answer the guide gives it.
+describe('a public write started from an `edit` handler', () => {
+	/** The source and what `start` answered, run once from the `edit` a removal announces. */
+	async function fromEdit<T>(start: (m: Mounted) => T) {
+		const alone = await mountedHoldingRange();
+		await backspace(alone);
+		const m = await mountedHoldingRange();
+		const errors: EditorError[] = [];
+		m.instance.getEvents().on('error', (error) => errors.push(error));
+		let answer: T | undefined;
+		const off = m.instance.getEvents().on('edit', () => {
+			off();
+			answer = start(m);
+		});
+		await backspace(m);
+		expect(errors).toEqual([]);
+		return { m, removed: alone.source(), answer: await answer };
+	}
+
+	it('`use` changes the plugin list and reads the same bytes again', async () => {
+		contributed = 0;
+		const { m, removed } = await fromEdit((m) => m.instance.use([listed()]));
+		expect(contributed).toBe(1);
+		expect(m.instance.plugins).toEqual(['listed-inside-a-write']);
+		expect(m.source()).toBe(removed);
+	});
+
+	it('`edit().commit()` lands', async () => {
+		const { m, removed, answer } = await fromEdit((m) =>
+			m.instance.edit().replace({ from: 0, to: 0 }, 'Z').commit()
+		);
+		await m.settle();
+		expect(answer).toEqual({ ok: true });
+		expect(m.source()).toBe('Z' + removed);
+	});
+});
