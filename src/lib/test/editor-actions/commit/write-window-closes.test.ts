@@ -107,6 +107,8 @@ function swapDoor(write: (swap: DocumentSwap, source: string) => void, draftThro
 		starts,
 		selection,
 		heard: () => heard,
+		// Nothing rolls an adopted tree back, so what is kept of the document steps aside.
+		afterThrow: () => expect(starts.unannounced()).toBe(true),
 		throwInside: through('never adopted\n', true),
 		writeAgain: through('adopted\n\nblock\n', false)
 	};

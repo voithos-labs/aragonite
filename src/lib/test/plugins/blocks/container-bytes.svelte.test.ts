@@ -323,7 +323,7 @@ const TWIN_ROWS: [name: string, marked: string, gesture: Gesture, depths?: numbe
 describe('the range-edit core answers a named quote row alike under the box’s marker', () => {
 	const rows = NAMED_ROWS.filter(
 		(row) =>
-			typeof row.gesture === 'string' &&
+			(typeof row.gesture === 'string' || 'paste' in row.gesture) &&
 			/^ {0,3}>/m.test(unmark(row.source)) &&
 			// An alert's head line is the quote's own; under `%>` it is text.
 			!row.source.includes('[!')
