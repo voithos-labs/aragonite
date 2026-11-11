@@ -62,12 +62,13 @@ export function createHistoryActions(
 		deps.selectionState.dropForDocumentSwap();
 		const capture = deps.drafts.watching() ? captureChange(deps.doc, null) : null;
 		const kept = sameGrammar(entry.grammar, grammarStamp(deps.reading.grammar));
-		// Read before the record opens for the write, which a read inside would measure again.
+		// Read before the write's window opens, where a read would measure again.
 		const reading = kept ? null : readingFor(entry);
-		deps.starts.opened();
-		const { caret, replaced, touched } = kept ? putBack(entry, from) : readAgain(entry, reading);
-		if (capture) deps.drafts.record(changeAfter(deps.doc, capture, null));
-		deps.bumpContentVersion(touched);
+		const { caret, replaced } = deps.starts.duringWrite(() => {
+			const installed = kept ? putBack(entry, from) : readAgain(entry, reading);
+			if (capture) deps.drafts.record(changeAfter(deps.doc, capture, null));
+			return installed;
+		});
 		const selection = caret();
 		// Before the awaits below, so a host that loads another document meanwhile never hears
 		// this undo after its own swap.

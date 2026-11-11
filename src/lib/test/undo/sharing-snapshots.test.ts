@@ -6,7 +6,7 @@ import { serialize } from '../../core/serializer';
 import { createUndoController } from '../../editor-actions/commit/undo-controller';
 import { createHistoryActions } from '../../editor-actions/commit/history';
 import { createBlockEditActions } from '../../editor-actions/block-edit';
-import { makeEditorActionsDeps, makeNestedHarness } from '../harness/editor-actions';
+import { makeEditorActionsDeps, makeNestedHarness, writeBytes } from '../harness/editor-actions';
 
 function makeHarness(source: string) {
 	const { deps } = makeEditorActionsDeps(parse(source).children);
@@ -21,9 +21,7 @@ type Harness = ReturnType<typeof makeHarness>;
  *  bytes rather than one the undo stack passes over. */
 function pushThenAppend(deps: Harness['deps'], controller: Harness['controller']): void {
 	deps.undoManager.push(controller.captureCurrentState());
-	deps.starts.opened();
-	deps.doc.children.push(parse('appended\n').children[0]);
-	deps.bumpContentVersion(null);
+	writeBytes(deps, () => deps.doc.children.push(parse('appended\n').children[0]));
 }
 
 describe('structural-sharing snapshots', () => {

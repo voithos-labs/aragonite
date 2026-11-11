@@ -5,7 +5,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
-import { makeTopHarness } from '#lib/test/harness/editor-actions.js';
+import { makeTopHarness, writeBytes } from '#lib/test/harness/editor-actions.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { createGrammarView } from '#lib/schema/block-openers.js';
 import { parse } from '#lib/core/parser.js';
@@ -53,10 +53,10 @@ async function pushEntry({ controller, deps }: Setup, insert = '!'): Promise<voi
 function switchGrammar({ deps }: Pick<Setup, 'deps'>): void {
 	deps.reading = fixtureReading({ grammar: withoutIndentedCode });
 	const reread = parse(serialize(deps.doc), { grammar: withoutIndentedCode });
-	deps.starts.opened();
-	deps.setDoc(reread);
-	deps.setBlockIds(assignIds(reread.children));
-	deps.bumpContentVersion(null);
+	writeBytes(deps, () => {
+		deps.setDoc(reread);
+		deps.setBlockIds(assignIds(reread.children));
+	});
 }
 
 const kinds = ({ deps }: Setup) => deps.doc.children.map((b) => b.kind);

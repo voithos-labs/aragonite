@@ -37,14 +37,20 @@ function answers(doc: DocumentView, starts = measured(doc).starts) {
 
 /** `doc` with a record a question has measured, and a write made the way every announcer makes one. */
 function kept(doc: Document) {
-	const record = createKeptStarts(() => doc);
+	let announced = 0;
+	const record = createKeptStarts(
+		() => doc,
+		() => announced++
+	);
 	void record.read().starts.length;
 	return {
 		record,
+		announced: () => announced,
 		write(mutate: () => void, changes: readonly TopLevelChange[] | null) {
-			record.opened();
-			mutate();
-			record.changed(changes && (() => changes));
+			record.duringWrite(() => {
+				mutate();
+				return { touched: changes && (() => changes) };
+			});
 		}
 	};
 }
@@ -120,11 +126,12 @@ describe('G1.209 the kept record answers as a fresh measure does', () => {
 		const k = kept(doc);
 		const view = k.record.read();
 		const was = answers(view.doc);
-		k.record.opened();
-		doc.children = [...doc.children.slice(0, 2), ...blocks(3, 'new'), ...doc.children.slice(3)];
-		doc.suffix = '\n';
-		expect(answers(view.doc, view.starts)).toEqual(was);
-		k.record.changed(() => [{ at: 2, removed: 1, inserted: 3 }]);
+		k.record.duringWrite(() => {
+			doc.children = [...doc.children.slice(0, 2), ...blocks(3, 'new'), ...doc.children.slice(3)];
+			doc.suffix = '\n';
+			expect(answers(view.doc, view.starts)).toEqual(was);
+			return { touched: () => [{ at: 2, removed: 1, inserted: 3 }] };
+		});
 		expect(answers(doc, k.record.read().starts)).toEqual(answers(doc));
 		// Kept past the announcement, it still answers for its own document, and leaves the record be.
 		expect(answers(view.doc, view.starts)).toEqual(was);
@@ -180,13 +187,19 @@ describe('G1.209 the kept record answers as a fresh measure does', () => {
 
 	it('measures nothing until a position is asked for, and asks no write for its runs till then', () => {
 		const doc = parse(paragraphs(6));
-		const record = createKeptStarts(() => doc);
+		const record = createKeptStarts(
+			() => doc,
+			() => {}
+		);
 		resetPerfInstruments();
 		enablePerfInstruments();
 		void record.read();
-		record.opened();
-		doc.children[1].raw = 'x\n';
-		record.changed(() => expect.unreachable('a record nobody asked has no use for the runs'));
+		record.duringWrite(() => {
+			doc.children[1].raw = 'x\n';
+			return {
+				touched: () => expect.unreachable('a record nobody asked has no use for the runs')
+			};
+		});
 		expect([record.isMeasured(), perfSnapshot().topBlocksMeasured]).toEqual([false, 0]);
 		expect(record.read().starts.end(1)).toBe(serialize(doc).indexOf('x\n') + 2);
 		expect([record.isMeasured(), perfSnapshot().topBlocksMeasured]).toEqual([true, 6]);
@@ -213,10 +226,11 @@ describe('G1.209 the kept record answers as a fresh measure does', () => {
 	it('forgets when one write runs inside another', () => {
 		const doc = parse(paragraphs(6));
 		const k = kept(doc);
-		k.record.opened();
-		doc.children[1].raw = 'outer\n';
-		k.write(() => (doc.children[4].raw = 'inner\n'), [{ at: 4, removed: 1, inserted: 1 }]);
-		k.record.changed(() => [{ at: 1, removed: 1, inserted: 1 }]);
+		k.record.duringWrite(() => {
+			doc.children[1].raw = 'outer\n';
+			k.write(() => (doc.children[4].raw = 'inner\n'), [{ at: 4, removed: 1, inserted: 1 }]);
+			return { touched: () => [{ at: 1, removed: 1, inserted: 1 }] };
+		});
 		expect(k.record.isMeasured()).toBe(false);
 		expect(answers(doc, k.record.read().starts)).toEqual(answers(doc));
 		expect(takeDevWarns()).toEqual([]);
@@ -268,33 +282,41 @@ describe('G1.209 a record told wrong, or read too early, is caught', () => {
 	it('a read between a write and its announcement, which is answered from the tree', () => {
 		const doc = parse(paragraphs(6));
 		const k = kept(doc);
-		k.record.opened();
-		doc.children[0].raw = 'a longer first line\n';
-		expect(answers(doc, k.record.read().starts)).toEqual(answers(doc));
-		expect(tags()).toEqual(['invariant:kept-starts-current']);
-		k.record.changed(() => [{ at: 0, removed: 1, inserted: 1 }]);
+		k.record.duringWrite(() => {
+			doc.children[0].raw = 'a longer first line\n';
+			expect(answers(doc, k.record.read().starts)).toEqual(answers(doc));
+			expect(tags()).toEqual(['invariant:kept-starts-current']);
+			return { touched: () => [{ at: 0, removed: 1, inserted: 1 }] };
+		});
 		expect(tags()).toEqual([]);
 	});
 
 	it('a write put back as it stood reads again without complaint', () => {
 		const doc = parse(paragraphs(6));
 		const k = kept(doc);
-		k.record.opened();
-		k.record.abandoned();
+		k.record.duringWrite(() => ({ touched: 'unchanged' }));
 		expect(answers(doc, k.record.read().starts)).toEqual(answers(doc));
+		expect([k.record.isMeasured(), k.announced()]).toEqual([true, 0]);
 		expect(tags()).toEqual([]);
 	});
 
 	it('a write that threw leaves nothing kept until the next write announces', () => {
 		const doc = parse(paragraphs(6));
 		const k = kept(doc);
-		k.record.opened();
-		doc.children[1].raw = 'left behind by the rollback\n';
-		k.record.failed();
+		const thrown = () =>
+			k.record.duringWrite(() => {
+				doc.children[1].raw = 'left behind by the rollback\n';
+				throw new Error('part way');
+			});
+		expect(thrown).toThrow('part way');
 		expect(answers(doc, k.record.read().starts)).toEqual(answers(doc));
-		expect([k.record.isMeasured(), k.record.unannounced()]).toEqual([false, true]);
+		expect([k.record.isMeasured(), k.record.unannounced(), k.announced()]).toEqual([
+			false,
+			true,
+			0
+		]);
 		k.write(() => (doc.children[2].raw = 'the next write\n'), [{ at: 2, removed: 1, inserted: 1 }]);
-		expect(k.record.unannounced()).toBe(false);
+		expect([k.record.unannounced(), k.announced()]).toEqual([false, 1]);
 		expect(answers(doc, k.record.read().starts)).toEqual(answers(doc));
 		expect(k.record.isMeasured()).toBe(true);
 		expect(tags()).toEqual([]);
@@ -302,13 +324,17 @@ describe('G1.209 a record told wrong, or read too early, is caught', () => {
 
 	it('a view asked its first question between a write and its announcement', () => {
 		const doc = parse(paragraphs(6));
-		const record = createKeptStarts(() => doc);
+		const record = createKeptStarts(
+			() => doc,
+			() => {}
+		);
 		const { starts } = record.read();
-		record.opened();
-		doc.children[0].raw = 'a longer first line\n';
-		expect(starts.end(0)).toBe(doc.children[0].raw.length);
-		expect(tags()).toEqual(['invariant:kept-starts-current']);
-		record.changed(() => [{ at: 0, removed: 1, inserted: 1 }]);
+		record.duringWrite(() => {
+			doc.children[0].raw = 'a longer first line\n';
+			expect(starts.end(0)).toBe(doc.children[0].raw.length);
+			expect(tags()).toEqual(['invariant:kept-starts-current']);
+			return { touched: () => [{ at: 0, removed: 1, inserted: 1 }] };
+		});
 		expect(answers(doc, record.read().starts)).toEqual(answers(doc));
 		expect(tags()).toEqual([]);
 	});
@@ -318,13 +344,6 @@ describe('G1.209 a record told wrong, or read too early, is caught', () => {
 		const k = kept(doc);
 		doc.children.splice(2, 0, ...blocks(1, 'unannounced'));
 		expect(answers(doc, k.record.read().starts)).toEqual(answers(doc));
-		expect(tags()).toEqual(['invariant:kept-starts-current']);
-	});
-
-	it('an announcement no write opened', () => {
-		const doc = parse(paragraphs(6));
-		const k = kept(doc);
-		k.record.changed(null);
 		expect(tags()).toEqual(['invariant:kept-starts-current']);
 	});
 });

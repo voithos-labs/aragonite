@@ -134,38 +134,41 @@ export function createCommitFrame(
 			: null;
 		const whole = capture && devChecksOn ? captureChange(deps.doc, null) : null;
 		const announced = (): FrameOutcome => {
+			let ended = 'written' as FrameOutcome;
 			try {
 				// Inside the try: the push reads the live selection through plugin block refs.
 				undo.push(write.snapshot, write.history);
 				const wasOpen = endsOpen(deps.doc);
-				deps.starts.opened();
-				const changed = owned.during(() => write.apply(wasOpen));
-				if (write.discardIfNoop && !changed) {
-					restore();
-					deps.starts.abandoned();
-					return 'discarded';
-				}
-				if (devChecksOn) {
-					const written = write.written();
-					assertCommittedNodes(written.nodes, deps.reading.grammar);
-					assertLastLineKept(deps.doc, wasOpen);
-					assertKeepsABlock(deps.doc, written.nodes);
-					assertReadsBack(written.tops, deps.reading.grammar);
-					assertListMarkerWidths(written.tops);
-					write.check?.(written);
-				}
+				deps.starts.duringWrite(() => {
+					const changed = owned.during(() => write.apply(wasOpen));
+					if (write.discardIfNoop && !changed) {
+						restore();
+						ended = 'discarded';
+						return { touched: 'unchanged' };
+					}
+					if (devChecksOn) {
+						const written = write.written();
+						assertCommittedNodes(written.nodes, deps.reading.grammar);
+						assertLastLineKept(deps.doc, wasOpen);
+						assertKeepsABlock(deps.doc, written.nodes);
+						assertReadsBack(written.tops, deps.reading.grammar);
+						assertListMarkerWidths(written.tops);
+						write.check?.(written);
+					}
+					if (capture) {
+						const change = changeAfter(deps.doc, capture, write.typedEnd?.() ?? null);
+						if (devChecksOn && whole) {
+							assertChangeInReach(changeAfter(deps.doc, whole, null), change);
+						}
+						deps.drafts.record(change);
+					}
+					return { touched: () => write.touched() };
+				});
 			} catch (err) {
 				restore();
-				deps.starts.failed();
 				return failed(write, err);
 			}
-			if (capture) {
-				const change = changeAfter(deps.doc, capture, write.typedEnd?.() ?? null);
-				if (devChecksOn && whole) assertChangeInReach(changeAfter(deps.doc, whole, null), change);
-				deps.drafts.record(change);
-			}
-			deps.bumpContentVersion(() => write.touched());
-			return 'written';
+			return ended;
 		};
 		let outcome = 'written' as FrameOutcome;
 		// A selection the write changes is announced once the write is, so no listener is called on

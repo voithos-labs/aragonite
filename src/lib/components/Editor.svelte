@@ -43,7 +43,7 @@
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { coverRange, rangeCoverage } from '../selection/range-coverage';
 	import { documentBytes, rangePaint } from '../selection/range-bytes';
-	import { createKeptStarts, type ChangedRuns } from '../editor-actions/commit/kept-starts';
+	import { createKeptStarts } from '../editor-actions/commit/kept-starts';
 	import { findSurfacePathForElement } from '../selection/path-lookup';
 	import { createSelectionDescription } from '../selection/selection-description';
 	import { EDITOR_LABEL } from '../a11y-strings';
@@ -257,16 +257,12 @@
 	// Bumped by every path that writes bytes. Inline widgets derive on it directly, and the
 	// decoration engine's `editEpoch` follows it a tick later.
 	const contentVersion = createContentVersion();
-	const starts = createKeptStarts(() => doc);
+	const starts = createKeptStarts(() => doc, contentVersion.bump);
 	const currentSource = createCurrentSource({
 		version: contentVersion.read,
 		doc: () => doc,
 		unannounced: starts.unannounced
 	});
-	const announceBytes = (runs: ChangedRuns) => {
-		starts.changed(runs);
-		contentVersion.bump();
-	};
 	const bytes = documentBytes({
 		version: contentVersion.read,
 		doc: () => doc,
@@ -457,7 +453,6 @@
 			doc = next;
 			blockIds = assignIds(doc.children);
 		},
-		bumpContentVersion: announceBytes,
 		starts,
 		clearBlockRefs: () => {
 			blockRefs.length = 0;
@@ -633,7 +628,6 @@
 		setDoc: (v) => {
 			doc = v;
 		},
-		bumpContentVersion: announceBytes,
 		starts,
 		bytes,
 		refreshDefinitions: (replaced) => {
