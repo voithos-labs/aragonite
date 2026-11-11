@@ -6,6 +6,8 @@ import {
 	measureContainerEdit,
 	measureContainerInteriorTyping,
 	measureListCopy,
+	measureNewParagraphLetter,
+	measureRangeRemoval,
 	measureStructuralRebuild,
 	measureTypingLatency,
 	measureTypingWithPositionReads,
@@ -125,6 +127,31 @@ test.describe('perf gate: keystroke p50 with a listener reading a position on ev
 	}
 });
 
+// A new paragraph's first letter is the keystroke whose fix-up writes the block beside it; a write
+// naming no blocks costs the listener every block, so the row is held to the letter typed alone.
+test.describe('perf gate: the first letter of a new paragraph, with a listener reading a position', () => {
+	test('many small blocks 1MB reading new paragraph', async ({ page }) => {
+		const key = 'many-small-blocks-1MB-reading-new-paragraph';
+		const m = await measureNewParagraphLetter(
+			page,
+			new EditorPage(page),
+			'many-small-blocks',
+			SIZE_BYTES['1MB'],
+			SIZE_KEYSTROKES['10MB']
+		);
+		// The twin ran on this machine, so the runner's scale widens the millisecond floor alone.
+		const ceilingMs = m.alone.p50Ms * TOLERANCE + FLOOR_MS * RUNNER_SCALE;
+		console.log(
+			`PERF-GATE ${key} p50=${m.reading.p50Ms.toFixed(1)}ms ` +
+				`ceiling=${ceilingMs.toFixed(1)}ms (alone ${m.alone.p50Ms.toFixed(1)}ms) ` +
+				`p95=${m.reading.p95Ms.toFixed(1)}ms`
+		);
+		expect(m.reading.p50Ms, `${key} p50 past the letter typed alone`).toBeLessThanOrEqual(
+			ceilingMs
+		);
+	});
+});
+
 // Typing inside a container, which no row above reaches. The caret sits on the first child, always
 // mounted and the only position whose keystroke moves the container's opening line.
 const CONTAINER_INTERIOR_ROWS: Array<[shape: FixtureShape, leafPath: number[], size: string]> = [
@@ -200,6 +227,23 @@ test.describe('perf gate: a copy over a range in a giant list', () => {
 				`ceiling=${ceilingMs.toFixed(1)}ms (baseline ${baselineMs}ms) p95=${m.p95Ms.toFixed(1)}ms ` +
 				`first=${m.samples[0].toFixed(1)}ms`
 		);
+		expect(m.p50Ms, `${key} p50 regressed past baseline+budget`).toBeLessThanOrEqual(ceilingMs);
+	});
+});
+
+// A removal over a range goes through the range-edit core and one byte splice. Its baseline is
+// what the key cost before they did, so a range edit that reads the whole document reds the row.
+test.describe('perf gate: a removal over a range across small blocks', () => {
+	test('many small blocks 1MB range removal', async ({ page }) => {
+		const key = 'many-small-blocks-1MB-range-removal';
+		const m = await measureRangeRemoval(page, new EditorPage(page), SIZE_BYTES['1MB'], 20);
+		// Printed ahead of the gate, so a run still shows the row while its baseline waits a bless.
+		console.log(
+			`PERF-GATE ${key} p50=${m.p50Ms.toFixed(1)}ms p95=${m.p95Ms.toFixed(1)}ms ` +
+				`first=${m.samples[0].toFixed(1)}ms load=${m.loadMs.toFixed(1)}ms`
+		);
+		const { baselineMs, ceilingMs } = gateFor(key);
+		console.log(`PERF-GATE ${key} ceiling=${ceilingMs.toFixed(1)}ms (baseline ${baselineMs}ms)`);
 		expect(m.p50Ms, `${key} p50 regressed past baseline+budget`).toBeLessThanOrEqual(ceilingMs);
 	});
 });

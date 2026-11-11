@@ -306,8 +306,9 @@ describe('caret-reachable order', () => {
 			fc.property(arbDoc, (d) => {
 				const source = sourceOf(d);
 				const doc = parse(source);
-				const layout = documentLayout(measured(doc));
-				const host = rangeHost(kitReading(), { source, tree: doc, layout });
+				const laid = measured(doc);
+				const layout = documentLayout(laid);
+				const host = rangeHost(kitReading(), { source, measured: laid, layout });
 				const leaves = caretWalks(doc).forward;
 				for (const path of allPaths(doc).filter(
 					(p) => !inGrid(doc, p) && mountedReachable(doc, p)

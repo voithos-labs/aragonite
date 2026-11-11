@@ -14,9 +14,10 @@ import type { ScopedOpDescriptor } from '../../schema/operations';
 import { blockFacts } from '../../schema/block-facts';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { docPathFrom } from '../../core/coordinate-spaces';
-import { spliceMany } from '../../tree-operations/splice-many';
 import {
+	runsOf,
 	spliceReading,
+	withWindows,
 	type SpliceReading,
 	type SpliceWindow
 } from '../../tree-operations/byte-splice';
@@ -24,11 +25,10 @@ import type { ByteChange } from '../../tree-operations/byte-changes';
 import {
 	applyStructuralChangeToIdsRefs,
 	replacePreservingFirst,
-	stampOwned,
 	type StructuralChange
 } from '../../tree-operations/structural-change';
 import { byteOfLeaf, leafAtByte } from '../../tree-operations/container-offsets';
-import type { Measured, TopLevelChange } from '../../tree-operations/top-level-starts';
+import { topsOf, type Measured } from '../../tree-operations/top-level-starts';
 import { readCurrentSelection } from '../../selection/native-bridge';
 import type { BlockReach } from './change-record';
 import type { GapCaretSelection } from '../../selection/gap-caret';
@@ -94,7 +94,7 @@ export function createByteSplice(
 			apply: () => {
 				if (!reading) return false;
 				saved = { children: deps.doc.children, ids: deps.blockIds, refs: [...deps.blockRefs] };
-				replaced = installReading(deps, reading);
+				replaced = installReading(deps, reading, topsOf(was));
 				// A range the editor holds names the blocks just replaced; the landing puts the caret down.
 				if (deps.selectionState.ownsRange) {
 					deps.selectionState.clear();
@@ -130,22 +130,24 @@ export function createByteSplice(
 	};
 }
 
-/** The live document's top-level blocks read again as `reading` says, ids and refs moved with
- *  them; blocks outside its windows keep their nodes. Returns the blocks it replaced. */
-export function installReading(deps: EditorActionsDeps, reading: SpliceReading): ReplacedBlocks {
-	const replaced = replacedBy(deps.doc.children, reading.windows);
-	// Off the tree's `$state` proxy, where every index a splice shifts is a tracked write.
-	const children = [...deps.doc.children];
+/** The live document's top-level blocks (`tops`, a plain list of them as they stand) read again as
+ *  `reading` says, ids and refs moved with them. Returns the blocks it replaced. */
+export function installReading(
+	deps: EditorActionsDeps,
+	reading: SpliceReading,
+	tops: readonly NodeView[]
+): ReplacedBlocks {
+	const replaced = replacedBy(tops, reading.windows);
+	// A new list: on the tree's `$state` proxy every index a splice shifts is a tracked write.
+	const children = withWindows(tops, reading.windows);
 	const ids = [...deps.blockIds];
 	const refs = [...deps.blockRefs];
 	// Last window first, so each one's indices still hold.
 	for (const window of [...reading.windows].reverse()) {
-		spliceMany(children, window.at, window.count, window.blocks);
-		const change = changeOf(window);
 		// The reading gave its blocks their ids, so a window holding a long container's kept
 		// children walks none of them.
-		stampOwned(children, change, deps.sharing);
-		applyStructuralChangeToIdsRefs(change, ids, refs);
+		for (const block of window.blocks) deps.sharing.stamp(block);
+		applyStructuralChangeToIdsRefs(changeOf(window), ids, refs);
 	}
 	deps.doc.children = children;
 	deps.doc.suffix = reading.suffix;
@@ -156,10 +158,6 @@ export function installReading(deps: EditorActionsDeps, reading: SpliceReading):
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────
-
-/** The windows as the runs of top-level blocks a reading's install changes. */
-export const runsOf = (windows: readonly SpliceWindow[]): TopLevelChange[] =>
-	windows.map(({ at, count, blocks }) => ({ at, removed: count, inserted: blocks.length }));
 
 /** The blocks `windows` take out of `tops` and put in; a window inside a container names only the
  *  run of its children read again, so a long list isn't walked whole. */

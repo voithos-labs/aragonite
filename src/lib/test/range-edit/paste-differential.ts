@@ -156,8 +156,9 @@ export function coreAnswer(
 ): { raw: RangeEditResult; landed: Answer; window?: string } {
 	const reading = fixtureReading({ grammar }, mode);
 	const doc = readAsOpened(source, { grammar, scope: 'document' }) as Document;
-	const layout = documentLayout(measured(doc));
-	const host = noTransforms(rangeHost(reading, { source, tree: doc, layout }));
+	const laid = measured(doc);
+	const layout = documentLayout(laid);
+	const host = noTransforms(rangeHost(reading, { source, measured: laid, layout }));
 	const raw = editRange(source, range, gesture, mode, host);
 	const changes = changesBetween(source, raw.source);
 	const read = spliceReading(measured(doc), source, changes, grammar);
@@ -483,8 +484,9 @@ export function lawsOf(row: PasteRow, grammar: GrammarView): LawVerdicts | undef
  *  chord wrote. */
 function wholeCut(source: string, path: number[], mode: Mode, grammar: GrammarView, clip: string) {
 	const doc = readAsOpened(source, { grammar, scope: 'document' }) as Document;
-	const layout = documentLayout(measured(doc));
-	const host = rangeHost(fixtureReading({ grammar }, mode), { source, tree: doc, layout });
+	const laid = measured(doc);
+	const layout = documentLayout(laid);
+	const host = rangeHost(fixtureReading({ grammar }, mode), { source, measured: laid, layout });
 	const range = wholeBlockBytes(doc, layout, path)!;
 	return { raw: { ...wholeBlocksRemovalOf(source, range, 'cut', mode, host), clipboard: clip } };
 }

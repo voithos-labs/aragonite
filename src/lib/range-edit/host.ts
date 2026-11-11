@@ -25,7 +25,9 @@ import { storedAsAt, writeTargetAt } from '../tree-operations/stored-as';
 import { cellText } from '../core/parsers/table-line';
 import { editorHost } from '../tree-operations/fix-up/editor-host';
 import { blankLineBelongs } from '../tree-operations/fix-up/joins';
-import { measured } from '../tree-operations/top-level-starts';
+import { changesBetween } from '../tree-operations/byte-changes';
+import { applied, runsOf, spliceReading } from '../tree-operations/byte-splice';
+import { measured, topsOf, type Measured } from '../tree-operations/top-level-starts';
 import { documentLayout, type Layout } from './layout';
 
 export type Mode = 'source' | 'live';
@@ -118,12 +120,16 @@ export interface Fence {
 	mayClose(line: string): boolean;
 }
 
+/** The editor's own document, whose bytes are `source`; its layout, when given, is laid out already. */
+export interface CurrentDocument {
+	source: string;
+	measured: Measured;
+	layout?: Layout;
+}
+
 /** The host over `reading`. With `current`, the editor's own tree answers a read of its own bytes,
- *  and its layout, when given, is laid out already; the core never writes to either. */
-export function rangeHost(
-	reading: Reading,
-	current?: { source: string; tree: DocumentView; layout?: Layout }
-): RangeHost {
+ *  and a read of other bytes reads again only the blocks they change; the core writes to neither. */
+export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHost {
 	// The editor's reading at the moment of the write, in the gesture's mode.
 	const readingIn = (mode: Mode): Reading => ({
 		grammar: reading.grammar,
@@ -159,15 +165,28 @@ export function rangeHost(
 		};
 	};
 	let currentLayout: Layout | undefined;
+	// Each document read off the current one, with starts that measured only its new blocks.
+	const reread = new WeakMap<DocumentView, Measured>();
+	const parsed = (source: string) =>
+		readAsOpened(source, { grammar: reading.grammar, scope: 'document' });
+	const readFrom = (now: CurrentDocument, source: string): DocumentView => {
+		if (source === now.source) return now.measured.doc;
+		// No bytes parse to no block, where the splice keeps an emptied document one paragraph.
+		if (source === '') return parsed(source);
+		const changes = changesBetween(now.source, source);
+		const read = spliceReading(now.measured, now.source, changes, reading.grammar);
+		if (!read) return now.measured.doc;
+		// Off the plain list, so the blocks the bytes leave alone are copied without a read each.
+		const doc = applied({ ...now.measured.doc, children: topsOf(now.measured) }, read);
+		reread.set(doc, { doc, starts: now.measured.starts.after(doc, runsOf(read.windows)) });
+		return doc;
+	};
 	return {
-		read: (source) =>
-			source === current?.source
-				? current.tree
-				: readAsOpened(source, { grammar: reading.grammar, scope: 'document' }),
+		read: (source) => (current ? readFrom(current, source) : parsed(source)),
 		layout: (doc) =>
-			doc === current?.tree
-				? (currentLayout ??= current.layout ?? documentLayout(measured(doc)))
-				: documentLayout(measured(doc)),
+			doc === current?.measured.doc
+				? (currentLayout ??= current.layout ?? documentLayout(current.measured))
+				: documentLayout(reread.get(doc) ?? measured(doc)),
 		facts: blockFacts,
 		parts(doc, parent, index, upper, lower, placed) {
 			const fixUp = editorHost(reading.grammar);
