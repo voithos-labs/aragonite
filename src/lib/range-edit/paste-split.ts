@@ -65,10 +65,29 @@ export function splitOut(
 			? out
 			: numberedOn(doc, first.from, to, out);
 	const under = lineEnd(numbered, head.length) + 1;
+	// With no item left under the pasted blocks, what stood under the list may sit outside its
+	// parent, where the pair's question has no slot: the new bytes say whether it still starts a block.
+	const ended = marker === '' && !doc.layout.block([...list.path, item.path.at(-1)! + 1]);
+	if (ended && under < numbered.length) {
+		const starts = startsBlock(doc, numbered, under, list.path.length);
+		return {
+			source: starts ? numbered : parted(doc, numbered, under, outer, null),
+			caret: head.length
+		};
+	}
 	const lower = numbered.slice(under + outer.length, lineEnd(numbered, under));
 	const [path, index] = [list.path.slice(0, -1), list.path.at(-1)!];
 	const pair = { path, index, upper: last, lower, placed: true };
 	return { source: parted(doc, numbered, under, outer, pair), caret: head.length };
+}
+
+/** Whether a block no deeper than `depth` starts on the line of `out` that starts at `line`. */
+function startsBlock(doc: Doc, out: string, line: number, depth: number): boolean {
+	const end = lineEnd(out, line);
+	if (isBlankText(out.slice(line, end))) return true;
+	const read = readDoc(out, doc.host, doc.mode);
+	const there = (b: LaidBlock) => b.path.length <= depth && b.from >= line && b.from < end;
+	return findWithin(read, line, end, there) !== undefined;
 }
 
 /** Two blocks a paste leaves touching, children `index` and `index + 1` of the block at `path`

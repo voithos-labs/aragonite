@@ -682,6 +682,20 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: between('x'),
 		expect: { source: 'a\n\nx' }
 	},
+	// Miss-analysis: no row pasted an empty clipboard, and the fixed seed draws no cut that takes
+	// nothing and leaves its caret at a container's end, where the place wrote the container's marker.
+	{
+		name: 'L9 nothing pasted at a container’s end writes no marker',
+		source: '> a\n⟦⟧',
+		gesture: between('', [0]),
+		expect: { source: '> a\n', caret: boundary(4, [0]) }
+	},
+	{
+		name: 'L9 nor do blank lines alone, which bring no block',
+		source: '> a\n⟦⟧',
+		gesture: between('\n', [0]),
+		expect: { source: '> a\n' }
+	},
 	// A range that is exactly one block is no named place: the text takes the block's line (§ 5.9).
 	{
 		name: 'L5 text pasted over a code block held whole by a range takes its line, as today',
@@ -848,6 +862,32 @@ export const NAMED_ROWS: NamedRow[] = [
 		source: '- ⟦</a>⟧\n\n- one\n  two\n',
 		gesture: paste('1. one'),
 		expect: { source: '1. one\n\n- one\n  two\n' }
+	},
+	// Miss-analysis: every row that left no second half ended its document or its parent there, and
+	// the fixed seed draws no nested list whose last item gives way above an outer item.
+	{
+		name: 'C8 a nested list’s only item gives way: the outer item under it stays flush',
+		source: '- a\n  - ⟦b⟧\n- c\n',
+		gesture: paste('1. one'),
+		expect: { source: '- a\n  1. one\n- c\n' }
+	},
+	{
+		name: 'C8 a list pasted at a nested list’s end stays flush over the outer item under it',
+		source: '- a\n  - b⟦⟧\n- c\n',
+		gesture: paste('1. one\n2. two'),
+		expect: { source: '- a\n  - b\n  1. one\n  2. two\n- c\n' }
+	},
+	{
+		name: 'C8 a quoted list’s last item gives way: the heading under the quote stays flush',
+		source: '> - a\n> - ⟦b⟧\n# h\n',
+		gesture: paste('1. one'),
+		expect: { source: '> - a\n> 1. one\n# h\n' }
+	},
+	{
+		name: 'C8 text under an item that gives way with its heading stays out of the pasted item',
+		source: '- # ⟦Title⟧\npara\n',
+		gesture: paste('1. one'),
+		expect: { source: '1. one\n\npara\n' }
 	},
 	// ── Paste as plain text (law 11) ──
 	// Miss-analysis: law 11 draws its carets in text, and the one boundary a plain paste met stood
