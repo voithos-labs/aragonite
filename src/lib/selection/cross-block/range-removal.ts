@@ -177,9 +177,10 @@ export function emptiedPlace(measured: Measured, removed: Removed): number[] | n
 		const { parentPath, index } = gapOfPlace(measured, landed);
 		// The root's trailing boundary takes no gap caret, but a paragraph opens there all the same.
 		const rootEnd = parentPath.length === 0 && index === committed.children.length;
-		return gapEligibleAt(committed, parentPath, index) || rootEnd ? [...parentPath, index] : null;
+		if (gapEligibleAt(committed, parentPath, index) || rootEnd) return [...parentPath, index];
 	}
-	if (!took || (caret && landed.holds === 'text' && inProse(committed, caret))) return null;
+	// A boundary no gap caret takes leaves the caret on the text at its byte, prose or not.
+	if (!took || (caret && landed.holds !== 'block' && inProse(committed, caret))) return null;
 	return liveSlot(committed, took);
 }
 
