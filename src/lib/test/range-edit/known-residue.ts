@@ -5,7 +5,7 @@
 // their law matches, and the pin suite on a class whose repro passes: its fix deletes the row.
 
 import type { Mode } from '#lib/range-edit/host.js';
-import type { Range } from '#lib/range-edit/edit-range.js';
+import type { Place, Range } from '#lib/range-edit/edit-range.js';
 import type { LaidBlock } from '#lib/range-edit/layout.js';
 import { containersAt, containersHolding, leafAt, readOf, type Read } from './expected';
 import { blockHeldWhole } from './laws';
@@ -15,11 +15,12 @@ export interface KnownResidue {
 	/** What plain text can't carry back, in one line. */
 	gap: string;
 	/** The lane whose fix deletes the row. */
-	lane: 'tab columns' | '2b';
+	lane: 'tab columns' | '2b' | 'stage 5';
 	/** The law it breaks: law 3, law 4's bytes past the range, law 9 at the caret the cut left or
 	 *  at a drawn caret (a range with no bytes), law 11 at a drawn caret. */
 	law: 'L3' | 'L4' | 'L9' | 'L11';
-	matches(read: Read, range: Range, host: CheckHost): boolean;
+	/** `left`: the caret the cut left, for a class that turns on it. */
+	matches(read: Read, range: Range, host: CheckHost, left?: Place): boolean;
 	/** `text`: what a caret law's repro pastes. */
 	repro: { source: string; mode: Mode; range: Range; text?: string };
 }
@@ -82,7 +83,52 @@ function bodyOf(read: Read, container: LaidBlock, host: CheckHost): LaidBlock[] 
 	);
 }
 
+/** Whether the cut left a caret between blocks, where a paste back lands as blocks set apart. */
+const named = (left?: Place) => !!left && left.holds !== 'text';
+
 export const KNOWN_RESIDUE: KnownResidue[] = [
+	{
+		gap: 'a cut from an item’s text start into a later line leaves the marker’s space beside the text’s own, and a caret no text holds',
+		lane: 'stage 5',
+		law: 'L3',
+		matches: (read, range, _host, left) =>
+			named(left) &&
+			/^[ \t]/.test(read.source.slice(range.to)) &&
+			read.source.slice(range.from, range.to).includes('\n') &&
+			containersHolding(read, range.from).some((c) => (c.lines ?? [])[0]?.markerTo === range.from),
+		repro: { source: '- x\n- y z\n', mode: 'source', range: { from: 2, to: 7 } }
+	},
+	{
+		gap: 'a cut that ends in a line over a delimiter row leaves it with that row’s cells: a table where text was, and a caret no text holds',
+		lane: 'stage 5',
+		law: 'L3',
+		matches: (read, range, host, left) => {
+			const { source } = read;
+			const end = (source + '\n').indexOf('\n', range.to);
+			const under = source.slice(end + 1, (source + '\n').indexOf('\n', end + 1));
+			const inTable = read.blocks.some(
+				(b) => host.facts(b.type).lines === 'rows' && b.from <= range.to && range.to < b.to
+			);
+			const delimiters = /^[\s|:-]*-[\s|:-]*$/.test(under);
+			return named(left) && !inTable && delimiters && source.slice(range.to, end).includes('|');
+		},
+		repro: {
+			source: 'a\n\n| H0 | H1 | H2 |\n| --- | --- |\n| b | b |\n',
+			mode: 'source',
+			range: { from: 0, to: 9 }
+		}
+	},
+	{
+		gap: 'a cut from a block above to a line’s end inside a text block leaves a caret between blocks: pasted back, its last line stands apart from the line it ran on with',
+		lane: 'stage 5',
+		law: 'L3',
+		matches: (read, range, _host, left) => {
+			const leaf = leafAt(read, range.to);
+			const within = !!leaf?.text && range.from < leaf.from && range.to < leaf.text.to;
+			return named(left) && within && /[\r\n]/.test(read.source[range.to]);
+		},
+		repro: { source: '# h\nthree\n\none\ntwo\n', mode: 'source', range: { from: 4, to: 14 } }
+	},
 	{
 		gap: 'a tab split between a container marker and the line’s indent loses its columns',
 		lane: 'tab columns',
@@ -373,10 +419,11 @@ export function knownResidue(
 	host: CheckHost,
 	source: string,
 	range: Range,
-	law: KnownResidue['law'] = 'L3'
+	law: KnownResidue['law'] = 'L3',
+	left?: Place
 ): KnownResidue | null {
 	const read = readOf(host, source);
-	return (
-		KNOWN_RESIDUE.find((known) => known.law === law && known.matches(read, range, host)) ?? null
-	);
+	const found = (known: KnownResidue) =>
+		known.law === law && known.matches(read, range, host, left);
+	return KNOWN_RESIDUE.find(found) ?? null;
 }

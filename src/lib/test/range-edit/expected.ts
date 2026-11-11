@@ -669,6 +669,13 @@ function structuredPaste(
 	return { shape: want.shape, bytes };
 }
 
+/** Whether the caret at `at` is in a table cell's text. */
+export function cellAt(read: Read, at: number, host: CheckHost): boolean {
+	const leaf = leafAt(read, at);
+	const row = leaf && read.blocks.find((b) => b.path.join() === leaf.path.slice(0, -1).join());
+	return !!row && host.facts(row.type).lines === 'cells';
+}
+
 /** `CheckHost.liveCut` for the caret at `at`: what a live split does with the constructs it
  *  sits in. */
 export function liveCutAt(read: Read, at: number, host: CheckHost): 'whole' | 'literal' | null {

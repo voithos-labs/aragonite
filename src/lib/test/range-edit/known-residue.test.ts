@@ -40,8 +40,9 @@ describe('the known residue', () => {
 				L11: () => plainPaste(call, host, drawn)
 			}[known.law]();
 			expect(broken).not.toEqual([]);
-			const { source, range } = known.repro;
-			expect(knownResidue(host, source, range, known.law)?.gap).toBe(known.gap);
+			const { source, range, mode } = known.repro;
+			const left = call(source, range, 'cut', mode)?.caret;
+			expect(knownResidue(host, source, range, known.law, left)?.gap).toBe(known.gap);
 		});
 	}
 });
