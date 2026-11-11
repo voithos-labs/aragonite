@@ -176,6 +176,18 @@ describe('a splice reads as the document it leaves', () => {
 			'an opener typed above a directive takes its closer',
 			'<details>\n<summary>S</summary>\n</details>\n\n:::note\n:::\n',
 			':::note\n<details>\n<summary>S</summary>\n</details>\n\n:::note\n:::\n'
+		],
+		// Miss-analysis: the generator changed a table's rows, never its column count over a row
+		// whose bytes stayed, and a kept row was told from a new one by its bytes alone.
+		[
+			'a table that loses a column reads its short row again',
+			'| a | b |\n| - | - |\nshort\n\nafter\n',
+			'| a |\n| - |\nshort\n\nafter\n'
+		],
+		[
+			'a table that gains a column reads its short row again',
+			'| a |\n| - |\nshort\n| x |\n',
+			'| a | b |\n| - | - |\nshort\n| x |\n'
 		]
 	])('%s', (_name, before, after) => {
 		expect(divergence(before, to(after))).toBeNull();
