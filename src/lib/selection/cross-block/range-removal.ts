@@ -23,7 +23,8 @@ import { deleteSnapshot, type SelectionPoint } from '../primitives';
 import { liveSlot, type RemovalGesture as BlockGesture } from '../caret-target';
 
 import { firstCaretLeafFrom, previousCaretPath } from '../path-lookup';
-import { gapAtByte, pointAtByte, removalBytes, wholeBlockBytes } from '../range-bytes';
+import { gapOfPlace, pointAtByte, removalBytes, wholeBlockBytes } from '../range-bytes';
+import { gapEligibleAt } from '../gap-caret';
 import type { RangeCoverage } from '../range-coverage';
 import type { CrossBlockDispatchContext } from './dispatch';
 
@@ -166,18 +167,17 @@ export function commandLandingKind(doc: DocumentView, coverage: RangeCoverage): 
 	return beside ? kindAt(doc, beside) : 'paragraph';
 }
 
-/** Where text over the range opens a paragraph, by the core's answer: the boundary its caret sits
- *  on, or the block the range started in, taken, with the caret off prose. Null types in place. */
+/** Where text over the range opens a paragraph: the boundary the core's place names, or the block
+ *  the range started in, taken, with the caret off prose. Null types in place. */
 export function emptiedPlace(measured: Measured, removed: Removed): number[] | null {
-	const { doc: committed, starts } = measured;
+	const { doc: committed } = measured;
 	const { landed, caret, took } = removed;
 	if (!landed || !removed.wrote) return null;
 	if (landed.holds === 'boundary') {
-		const gap = gapAtByte(measured, landed.at);
-		if (gap) return [...gap.parentPath, gap.index];
+		const { parentPath, index } = gapOfPlace(measured, landed);
 		// The root's trailing boundary takes no gap caret, but a paragraph opens there all the same.
-		const end = starts.length - committed.suffix.length;
-		return landed.at >= end ? [committed.children.length] : null;
+		const rootEnd = parentPath.length === 0 && index === committed.children.length;
+		return gapEligibleAt(committed, parentPath, index) || rootEnd ? [...parentPath, index] : null;
 	}
 	if (!took || (caret && landed.holds === 'text' && inProse(committed, caret))) return null;
 	return liveSlot(committed, took);

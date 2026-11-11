@@ -92,7 +92,7 @@ export function caretOf(editor: Editor): SpliceCaret | null {
 	const gap = editor.instance.__test.getGapCaret();
 	if (gap) {
 		const at = byteOfGap(measured(doc), gap);
-		return at === null ? null : { at, holds: 'boundary' };
+		return at === null ? null : { at, holds: 'boundary', parent: gap.parentPath };
 	}
 	const selection = editor.instance.getSelection();
 	if (!selection) return null;
@@ -102,5 +102,7 @@ export function caretOf(editor: Editor): SpliceCaret | null {
 	const node = blockNodeAt(doc, anchor.path);
 	const at = byteOfLeaf(measured(doc), anchor.path, anchor.offset);
 	if (!node || at === null) return null;
-	return { at, holds: isWholeBlockUnit(node) ? 'block' : 'text' };
+	return isWholeBlockUnit(node)
+		? { at, holds: 'block', parent: anchor.path.slice(0, -1) }
+		: { at, holds: 'text' };
 }

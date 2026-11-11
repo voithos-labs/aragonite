@@ -9,12 +9,12 @@ import type { DocumentView } from '../core/node-views';
 import { displayLength, ownTrailingLineEnding } from '../core/lines';
 import { metadataOf } from '../core/nodes';
 import { docPathFrom, type DocPath } from '../core/coordinate-spaces';
-import { countsCells } from '../schema/block-kind-descriptor';
+import { countsCells, isGridKind } from '../schema/block-kind-descriptor';
 import { isMergeEligible } from '../schema/merge-rules';
 import { blockNodeAt } from '../tree-operations/node-primitives';
 import { documentByteMap, leafAtByte } from '../tree-operations/container-offsets';
 import type { Measured } from '../tree-operations/top-level-starts';
-import { gapEligibleAt, type GapCaretPosition } from './gap-caret';
+import { gapEligibleAt, gapScopeChildren, type GapCaretPosition } from './gap-caret';
 import type { Range } from '../range-edit/edit-range';
 import { documentLayout, type LaidBlock, type Layout } from '../range-edit/layout';
 import { pathsEqual } from './path-math';
@@ -224,8 +224,34 @@ export function byteOfGap(
 	return map.endOf(parentPath, (parent as { raw: string }).raw.length);
 }
 
+/** The boundary a place names among `parent`'s children: before the first starting at or past
+ *  `at`, else after the last; a path holding no blocks (a table, a leaf) reads as the one around. */
+export function gapOfPlace(
+	measured: Measured,
+	place: { at: number; parent: readonly number[] }
+): GapCaretPosition {
+	const { doc } = measured;
+	let parentPath = [...place.parent];
+	const grid = parentPath.findIndex((_, i) => {
+		const node = blockNodeAt(doc, parentPath.slice(0, i + 1));
+		return !!node && isGridKind(node.kind);
+	});
+	if (grid >= 0) parentPath = parentPath.slice(0, grid);
+	while (parentPath.length > 0 && !gapScopeChildren(doc, parentPath))
+		parentPath = parentPath.slice(0, -1);
+	const children = gapScopeChildren(doc, parentPath) ?? [];
+	const map = documentByteMap(measured);
+	let index = 0;
+	for (let past = children.length; index < past;) {
+		const mid = (index + past) >> 1;
+		if (map.byteOf([...parentPath, mid], 0)! >= place.at) past = mid;
+		else index = mid + 1;
+	}
+	return { parentPath, index };
+}
+
 /** The deepest boundary a gap caret may take where a block starts, or a container ends, at byte
- *  `at`; null where none may. */
+ *  `at`, for a caller holding only the byte; null where none may. */
 export function gapAtByte(measured: Measured, at: number): GapCaretPosition | null {
 	const { doc, starts } = measured;
 	const map = documentByteMap(measured);
