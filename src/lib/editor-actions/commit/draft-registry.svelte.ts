@@ -16,14 +16,13 @@ import { serialize } from '../../core/serializer';
 import { devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 import { assertDraftBytesKept } from '../../invariants/install';
 import { docPathFrom } from '../../core/coordinate-spaces';
-import { leafAtByte } from '../../tree-operations/container-offsets';
+import { documentByteMap, leafAtByte } from '../../tree-operations/container-offsets';
 import { splitLines } from '../../core/lines';
 import type { GrammarView } from '../../schema/block-openers';
 import { makingOf } from '../../schema/block-type';
 import { nodeOfBlock, type Block } from '../../schema/doc-view';
 import type { Measured } from '../../tree-operations/top-level-starts';
 import {
-	blockByteOf,
 	blockRange,
 	pathOfNode,
 	byteAt,
@@ -162,7 +161,7 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 				unsorted.push({ from: byteAt(now, at.from), to: byteAt(now, at.to), insert: pending.text });
 			}
 			for (const { block, data } of datas) {
-				const changes = dataChanges(doc, block, data, deps.grammar);
+				const changes = dataChanges(deps.measured(), block, data, deps.grammar);
 				if (!Array.isArray(changes)) return changes;
 				for (const change of changes) unsorted.push(change);
 			}
@@ -321,15 +320,16 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 /** The changes that write `data` into `block` as the document holds it now: one per line that
  *  differs, so the markers of the containers around it stay. */
 function dataChanges(
-	doc: DocumentView,
+	laid: Measured,
 	block: Block<unknown>,
 	data: unknown,
 	grammar: GrammarView
 ): ByteChange[] | DraftResult {
 	const node = nodeOfBlock(block);
-	const path = node && pathOfNode(doc, node);
-	const byteOf = path && blockByteOf(doc, path);
-	if (!node || !byteOf) return refused('moved', 'its block was rewritten or removed');
+	const path = node && pathOfNode(laid.doc, node);
+	if (!node || !path) return refused('moved', 'its block was rewritten or removed');
+	const map = documentByteMap(laid);
+	const byteOf = (offset: number) => map.byteOf(path, offset);
 	const written = makingOf(block.type)?.writeData?.(node, data, grammar) ?? null;
 	if (written === null)
 		return refused('illegal', `block type '${block.type.name}' has no writer for that data`);

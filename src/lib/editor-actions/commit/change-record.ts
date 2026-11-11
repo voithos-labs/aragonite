@@ -148,6 +148,7 @@ export function blockRange(doc: DocumentView, path: readonly number[]): PartRang
 	const blank = top.leadingTrivia.length;
 	if (path.length === 1)
 		return { from: { part, offset: blank }, to: { part: part + 1, offset: 0 } };
+	// A document of the one block is its part: a byte of it counts the block's blank lines too.
 	const alone = documentByteMap(
 		measured({ kind: 'document', prefix: '', children: [top], suffix: '' })
 	);
@@ -155,10 +156,12 @@ export function blockRange(doc: DocumentView, path: readonly number[]): PartRang
 	const node = blockAt(top, path.slice(1));
 	if (!node) return null;
 	const start = alone.byteOf(inner, 0);
-	const end = alone.byteOf(inner, node.raw.length);
-	if (start === null || end === null) return null;
-	const to = end === top.raw.length ? { part: part + 1, offset: 0 } : { part, offset: blank + end };
-	return { from: { part, offset: blank + start }, to };
+	// Past its last byte: the offset after that one sits beyond the next line's marker.
+	const last = node.raw === '' ? start : alone.byteOf(inner, node.raw.length - 1);
+	if (start === null || last === null) return null;
+	const end = node.raw === '' ? last : last + 1;
+	const to = end === blank + top.raw.length ? { part: part + 1, offset: 0 } : { part, offset: end };
+	return { from: { part, offset: start }, to };
 }
 
 /** Where `node` sits in the document now, found by identity; null once it has left it. */
@@ -167,28 +170,6 @@ export function pathOfNode(doc: DocumentView, node: NodeView): number[] | null {
 	let path = null as number[] | null;
 	walkBlocks(doc, (each, at) => (each === node ? ((path = at), 'stop') : undefined));
 	return path;
-}
-
-/** Where a byte of the block at `path` sits in the document's text, its ancestors' markers
- *  counted; null for a path that holds no block. */
-export function blockByteOf(
-	doc: DocumentView,
-	path: readonly number[]
-): ((offset: number) => number | null) | null {
-	const top = doc.children[path[0]];
-	if (!top) return null;
-	const before = partLengths(doc).slice(0, path[0] + 1);
-	const start = before.reduce((sum, length) => sum + length, 0) + top.leadingTrivia.length;
-	if (path.length === 1) return (offset) => start + offset;
-	if (!blockAt(top, path.slice(1))) return null;
-	const alone = documentByteMap(
-		measured({ kind: 'document', prefix: '', children: [top], suffix: '' })
-	);
-	const inner = [0, ...path.slice(1)];
-	return (offset) => {
-		const at = alone.byteOf(inner, offset);
-		return at === null ? null : start + at;
-	};
 }
 
 /** `range` after `change`, or null when the change wrote inside it. Text written at either edge

@@ -119,6 +119,19 @@ describe('Draft.data', () => {
 		expect(editor.source()).toBe('> %%1 hello\n> %%5 there\n');
 	});
 
+	// Miss-analysis: every nested row put its container first in the document, with no blank line
+	// above it, so a block's byte counted past that line twice went unseen.
+	it('writes a block inside a container that a blank line stands above', async () => {
+		const editor = await mounted('intro\n\n> %%1 hello\n> %%2 there\n');
+		const result = await editor.instance
+			.edit()
+			.data(seen.get('%%2 there') as Block<number>, 5)
+			.commit();
+		await editor.settle();
+		expect(result).toEqual({ ok: true });
+		expect(editor.source()).toBe('intro\n\n> %%1 hello\n> %%5 there\n');
+	});
+
 	it("rewrites a container's head line and leaves its children's bytes alone", async () => {
 		const editor = await mounted('%> [!NOTE]\n%> %%1 inside\n');
 		const alert = seen.get('alert') as Block<{ type: string }>;
