@@ -104,3 +104,26 @@ describe('law 9 in a cell', () => {
 		expect(pasteAtCaret(moved.fake, moved.host, moved.input)).not.toEqual([]);
 	});
 });
+
+// Miss-analysis: the live law took every caret whose carried bytes differ from its plain ones for
+// a caret in a run, most of them in no construct, and passed one pasted paragraph unread.
+describe('law 9 in live mode, outside its live shape', () => {
+	const live = (text: string, pasted: string) => ({
+		source: text.replace('‸', ''),
+		mode: 'live' as const,
+		at: text.indexOf('‸'),
+		held: { holds: 'text' as const },
+		text: pasted
+	});
+
+	it.each([
+		['a caret no construct holds, in a quote’s two lines', '> x‸ y\n> word\n', 'one\ntwo'],
+		['blocks pasted at that caret', '> x‸ y\n> word\n', '- q\n- r'],
+		['one paragraph pasted inside a run', 'a **bo‸ld** z\n', 'x'],
+		['a paragraph of two lines pasted inside a run', 'a **bo‸ld** z\n', 'line one\nline two']
+	])('judges %s by its bytes', (_name, text, pasted) => {
+		const { host, real, fake } = calls('zzz\n');
+		expect(pasteAtCaret(real, host, live(text, pasted))).toEqual([]);
+		expect(pasteAtCaret(fake, host, live(text, pasted))).not.toEqual([]);
+	});
+});

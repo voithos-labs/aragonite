@@ -33,6 +33,8 @@ export interface CheckHost extends PasteHost {
 	/** A live split at `offset` of a block's `text`, by its constructs' policy rows: `whole` moves
 	 *  the cut to an edge; `literal` has no sound rewrite (a plain kind, a code span beside a backtick). */
 	liveCut(text: string, offset: number): 'whole' | 'literal' | null;
+	/** Whether a construct of a block's `text` holds `offset` between its first and last byte. */
+	heldAt(text: string, offset: number): boolean;
 	/** The kinds of the format runs a cut at `offset` of a block's `text` goes through. */
 	runsAt(text: string, offset: number): string[];
 }
@@ -48,6 +50,8 @@ export function checkHost(reading: Reading = testReading()): CheckHost {
 		[
 			...inlineDescendants(readInline(text, 0, text.length, reading.resolver, reading.grammar))
 		].filter((node) => node.start < offset && offset < node.end);
+	const heldAt = (text: string, offset: number) =>
+		holding(text, offset).some((node) => node.kind !== 'text');
 	const runsAt = (text: string, offset: number) =>
 		holding(text, offset)
 			.filter((node) => {
@@ -66,5 +70,5 @@ export function checkHost(reading: Reading = testReading()): CheckHost {
 		}
 		return cut;
 	};
-	return { ...noTransforms(rangeHost(reading)), shows, liveCut, runsAt };
+	return { ...noTransforms(rangeHost(reading)), shows, liveCut, heldAt, runsAt };
 }

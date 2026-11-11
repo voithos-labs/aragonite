@@ -694,6 +694,12 @@ function markdownTextAt(read: Read, at: number, host: CheckHost) {
 	return { text: raw.slice(start, end), offset: point.offset - start };
 }
 
+/** Whether the caret at `at` stands inside an inline construct of a Markdown text block. */
+export function inConstructAt(read: Read, at: number, host: CheckHost): boolean {
+	const around = markdownTextAt(read, at, host);
+	return !!around && host.heldAt(around.text, around.offset);
+}
+
 /** Whether no marker opens the half a live cut at `at` leaves behind `lead`, a pasted line ending
  *  on a letter: the half starts on punctuation, or its run sits in a run of its own kind. */
 export function reopensNowhere(read: Read, at: number, lead: string, host: CheckHost): boolean {

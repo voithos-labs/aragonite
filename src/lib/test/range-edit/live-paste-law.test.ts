@@ -45,6 +45,12 @@ describe('law 9 in live mode', () => {
 		['an image’s alt text', 'a ![al‸t](i.png) z\n', TABLE, 'a [al‸t](i.png) z\n'],
 		['three delimiters in a row', 'a ***b‸c*** *d*\n', 'one\n\ntwo', 'a **b‸c** *d*\n'],
 		[
+			'a caret between two delimiters, where no live caret stands',
+			'a *‸*bc** z\n',
+			TABLE,
+			'a **b‸c** z\n'
+		],
+		[
 			'a half on punctuation behind an item’s last letter',
 			'a **bo‸(ld)** z\n',
 			'- q\n- r',
