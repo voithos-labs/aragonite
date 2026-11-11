@@ -463,6 +463,58 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: paste('```\ncode\n```'),
 		expect: { source: '# he\n\n```\ncode\n```\nad\n' }
 	},
+	// ── A last pasted block that takes no text stays apart from the text under it (§ 5.4) ──
+	// Miss-analysis: law 9 named no bytes for a clipboard ending in such a block, and the rows ended
+	// theirs in a fence, which closes itself: a table or an HTML block took the line under it in.
+	{
+		name: 'L9 a table pasted mid-paragraph keeps the text after it a paragraph',
+		source: 'ab⟦⟧cd\n',
+		gesture: paste('| a |\n| - |'),
+		expect: { source: 'ab\n\n| a |\n| - |\n\ncd\n', caret: { at: 15, holds: 'boundary' } }
+	},
+	{
+		name: 'L9 and at the paragraph’s start, in a quote',
+		source: '> ⟦⟧cd\n',
+		gesture: paste('| a |\n| - |'),
+		expect: { source: '> | a |\n> | - |\n>\n> cd\n' }
+	},
+	{
+		name: 'L9 and after a paragraph the clipboard opens with',
+		source: 'ab⟦⟧cd\n',
+		gesture: paste('x\n\n| a |\n| - |\n'),
+		expect: { source: 'abx\n\n| a |\n| - |\n\ncd\n' }
+	},
+	{
+		name: 'L9 and from the paragraph’s later lines, where the caret ends its line',
+		source: 'ab⟦⟧\ncd\n',
+		gesture: paste('<div>\nx\n</div>'),
+		expect: { source: 'ab\n\n<div>\nx\n</div>\n\ncd\n' }
+	},
+	{
+		name: 'L9 and from the block flush under the caret’s, where none of its text is left',
+		source: 'ab⟦⟧\n# h\n',
+		gesture: paste('<div>\nx\n</div>'),
+		expect: { source: 'ab\n\n<div>\nx\n</div>\n\n# h\n' }
+	},
+	{
+		name: 'L9 and mid-heading, where the tail is a paragraph',
+		source: '# he⟦⟧ad\n',
+		gesture: paste('| a |\n| - |'),
+		expect: { source: '# he\n\n| a |\n| - |\n\nad\n' }
+	},
+	{
+		name: 'L9 a heading under a pasted table keeps its line, as it reads apart already',
+		source: '# ⟦⟧head\n',
+		gesture: paste('| a |\n| - |'),
+		expect: { source: '| a |\n| - |\n# head\n' }
+	},
+	{
+		name: 'L3 an HTML block cut whole from above a paragraph pastes back above it',
+		source: '⟦<div>\nx\n</div>⟧\n\npara\n',
+		gesture: 'cut',
+		expect: { source: 'para\n', clipboard: '<div>\nx\n</div>', caret: text(0) },
+		then: { gesture: 'paste back', expect: backToStart('<div>\nx\n</div>\n\npara\n') }
+	},
 	// ── A paste where the caret holds no text lands as blocks of its own (§ 5.4 rule 7) ──
 	// Miss-analysis: a paste gesture couldn't say its caret stood between blocks, so every row and
 	// law pasted at a byte in text, and a cut's `'boundary'` caret was pasted at as if it held text.

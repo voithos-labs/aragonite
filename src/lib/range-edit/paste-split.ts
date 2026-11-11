@@ -96,6 +96,37 @@ function parted(doc: Doc, out: string, line: number, marks: string, pair: Touchi
 	return apart ? out.slice(0, line) + marks.trimEnd() + doc.ending + out.slice(line) : out;
 }
 
+/** `edit` left `last`, a pasted block that takes no text, over what `leaf` holds from `to` on, or
+ *  over the block flush under it: a blank line between the two where they would read as one. */
+export function restApart(
+	doc: Doc,
+	edit: Edit,
+	leaf: LaidBlock,
+	to: number,
+	last: string,
+	marker = ''
+): Edit {
+	const shift = edit.source.length - doc.source.length;
+	const tail = !isBlankText(lineRest(doc.source, to));
+	const rest = nodeAt(doc, leaf.path).raw.slice(doc.layout.pointAt(to)!.offset);
+	// What the leaf still holds stands behind the marker it kept (a heading's).
+	const held = marker + (tail ? rest : rest.replace(/^\r?\n/, ''));
+	const [path, index] = [leaf.path.slice(0, -1), leaf.path.at(-1)!];
+	const next = isBlankText(held) ? doc.layout.block([...path, index + 1]) : undefined;
+	const flush = next && next.from <= pastMarkers(doc.source, leaf.to);
+	const line = flush
+		? leaf.to + shift
+		: tail
+			? edit.source.lastIndexOf('\n', to + shift - 1) + 1
+			: lineEnd(edit.source, to + shift) + 1;
+	const lower = flush ? nodeAt(doc, next.path).raw : held;
+	const pair = { path, index, upper: last, lower, placed: true };
+	const source = parted(doc, edit.source, line, continuation(doc, to), pair);
+	// A caret past a pasted last line ending stays over the rest, on the blank line.
+	const blank = source.length - edit.source.length - doc.ending.length;
+	return { source, caret: blank >= 0 && edit.caret > line ? line + blank : edit.caret };
+}
+
 /** Whether a container is around the place `at`: it starts before it, and its marker on the
  *  place's line has ended by it. */
 const around = (at: number) => (c: LaidBlock) => c.from < at && lineOf(c, at).markerTo <= at;
@@ -177,15 +208,18 @@ function setApart(doc: Doc, edit: Edit, at: number, clip: string, above: boolean
 }
 
 /** The block at the caret split there, the pasted blocks between its halves; `lastJoins`: the
- *  last of them takes the text after the caret. */
+ *  last of them, `last`, takes the text after the caret. */
 export function splitAt(
 	doc: Doc,
 	leaf: LaidBlock,
 	at: number,
 	to: number,
 	clip: string,
-	lastJoins: boolean
+	lastJoins: boolean,
+	last: string
 ): Edit {
+	const overRest = (edit: Edit, marker = '') =>
+		lastJoins ? edit : restApart(doc, edit, leaf, to, last, marker);
 	const { source } = doc;
 	const eol = doc.ending;
 	const prefix = continuation(doc, at);
@@ -207,7 +241,7 @@ export function splitAt(
 		const opening = (parted ? eol + blank + eol : eol) + prefix + lines(clip);
 		const caret = at + opening.length;
 		const closing = tail && !lastJoins ? eol + prefix : '';
-		return { source: source.slice(0, at) + opening + closing + source.slice(to), caret };
+		return overRest({ source: source.slice(0, at) + opening + closing + source.slice(to), caret });
 	}
 	const body = clip.replace(/\n$/, '');
 	// With nothing before the caret the pasted blocks go before its block, which keeps its line,
@@ -220,8 +254,10 @@ export function splitAt(
 	const under = lineEnd(source, to) + 1;
 	const next = source.slice(under, lineEnd(source, under));
 	const kept = at === to && !tail && next.replace(/^[\s>]*/, '') !== '' ? eol + blank : '';
-	const apart = eol + (body !== clip ? blank + eol : '') + prefix + (joinsBefore ? '' : own);
+	const marker = joinsBefore ? '' : own;
+	const apart = eol + (body !== clip ? blank + eol : '') + prefix + marker;
 	const taken = joinsBefore && lastJoins && body === clip;
 	const closing = tail ? (taken ? '' : apart) : kept;
-	return { source: source.slice(0, from) + opening + closing + source.slice(to), caret };
+	const out = source.slice(0, from) + opening + closing + source.slice(to);
+	return overRest({ source: out, caret }, marker);
 }

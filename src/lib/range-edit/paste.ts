@@ -22,7 +22,7 @@ import {
 } from './document';
 import { apartAt, pastMarkers } from './apart';
 import { closedBy, emptiedRest, leftBy, takerOf, withoutOpening } from './container-merge';
-import { apartBelow, pasteApart, splitAt, splitOut } from './paste-split';
+import { apartBelow, pasteApart, restApart, splitAt, splitOut } from './paste-split';
 import {
 	byteAt,
 	lineHead,
@@ -156,6 +156,7 @@ function landed(
 	const first = tops[0];
 	const last = tops.at(-1);
 	const lastJoins = !last || factsOf(pasted, last).joins !== 'never';
+	const lastRaw = last ? nodeAt(pasted, last.path).raw : '';
 	// Where nothing follows the caret, a last block that takes no text (code, a table) ends on the
 	// caret line's own ending, which stands for the clipboard's last one.
 	const ownEnding = !lastJoins && !visibleAfter && clip.endsWith('\n');
@@ -165,7 +166,7 @@ function landed(
 	if (!first) return bytes(clip);
 	const joins = isText(first) || lineAfter;
 	const left = joins ? null : leftBy(doc, from, pasted, first, leaf);
-	if (left) return splitOut(doc, left, leaf, from, to, clip, nodeAt(pasted, last!.path).raw);
+	if (left) return splitOut(doc, left, leaf, from, to, clip, lastRaw);
 	// A pasted container the caret's container takes in joins it from its first text, a line
 	// break before it included, where its last block can take the text after the caret or none follows.
 	const taker = joins ? null : takerOf(doc, from, pasted, first);
@@ -174,15 +175,16 @@ function landed(
 		return closedBy(doc, pasted, first, taker, edit);
 	}
 	// A clipboard opening with a line break or a paragraph joins the text before the caret; text
-	// after it that the last block can't take goes on a line of its own.
+	// after it that the last block can't take goes on a line of its own, apart where it must be.
 	if (joins || clip.startsWith('\n')) {
 		const apart = !lastJoins && visibleAfter && !clip.endsWith('\n');
 		const edit = write(apart ? text + '\n' : text);
-		if (!apart) return edit;
-		const caret = edit.source.lastIndexOf('\n', edit.caret - 1);
-		return { source: edit.source, caret: edit.source[caret - 1] === '\r' ? caret - 1 : caret };
+		if (lastJoins) return edit;
+		const ending = apart ? edit.source.lastIndexOf('\n', edit.caret - 1) : edit.caret;
+		const caret = apart && edit.source[ending - 1] === '\r' ? ending - 1 : ending;
+		return restApart(doc, { source: edit.source, caret }, leaf, to, lastRaw);
 	}
-	return splitAt(doc, leaf, from, to, text, lastJoins);
+	return splitAt(doc, leaf, from, to, text, lastJoins, lastRaw);
 }
 
 /** Text for a block that holds one line: each run of line breaks a space, a last one dropped. */
