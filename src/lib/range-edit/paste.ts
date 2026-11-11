@@ -163,8 +163,11 @@ function landed(
 	// The block's text after the range on its line, and whether structure stands past it there (a
 	// heading's closing run): such a block holds one line.
 	const textTo = leaf.text!.to;
-	const follows =
-		doc.source.slice(to, Math.max(to, Math.min(lineEndBefore(doc.source, to), textTo))) !== '';
+	const onLine = doc.source.slice(
+		to,
+		Math.max(to, Math.min(lineEndBefore(doc.source, to), textTo))
+	);
+	const follows = onLine !== '';
 	const past = doc.source.slice(textTo, contentEnd(doc, leaf));
 	const oneLined = /^[^\r\n]*\S/.test(past);
 	// Text joins the block's text either side. A blank line in it is a block boundary, and so is a
@@ -242,7 +245,7 @@ function landed(
 	// Under text the last block joins what follows; with none before the cut only a paragraph's
 	// text joins it, and only where the clipboard ends on no line ending.
 	const under = doc.source.slice(leaf.text!.from, from) !== '';
-	const flush = follows && factsOf(doc, leaf).joins === 'text' && !clip.endsWith('\n');
+	const flush = !isBlankText(onLine) && factsOf(doc, leaf).joins === 'text' && !clip.endsWith('\n');
 	const after = tailOf(lastJoins && (under || flush));
 	const cut = cutWith('', after, lead);
 	// A heading left with no text gives way: the blocks land on its line as on an empty one.

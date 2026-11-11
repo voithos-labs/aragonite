@@ -1207,6 +1207,14 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: paste(' \n> q'),
 		expect: { source: 'ab\n\n \n> q\n' }
 	},
+	// Miss-analysis: every row on a line holding only spaces put the caret after them, so a last
+	// pasted paragraph that took the spaces for text to join met no check.
+	{
+		name: 'L9 a paragraph pasted before the spaces of such a line joins none of them',
+		source: '⟦⟧\t\n### h\n',
+		gesture: paste('> q\n\nafter'),
+		expect: { source: '> q\n\nafter\n\t\n### h\n' }
+	},
 	{
 		name: 'L12 a cut from a code block text through its closing line pastes back exact with its entry',
 		source: '```\nco⟦de\n```⟧\n\nafter\n',
