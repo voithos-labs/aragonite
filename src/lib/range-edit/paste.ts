@@ -200,6 +200,9 @@ function landed(
  *  leaves the block, and where that letter stands; null where the write changes no other byte. */
 function typedOver(doc: Doc, leaf: LaidBlock, from: number, to: number) {
 	const [start, end] = [byteAt(doc, leaf, from), byteAt(doc, leaf, to)];
+	// A range that cuts no format run goes by its bytes: a run it holds whole goes with it.
+	const taken = nodeAt(doc, leaf.path).raw.slice(from, to);
+	if (doc.host.leaf.carried(doc.tree, leaf.path, from, to, doc.mode) === taken) return null;
 	const edit = writeText(doc, leaf, from, to, 'x');
 	const at = edit.caret - 1;
 	if (edit.source === doc.source.slice(0, start) + 'x' + doc.source.slice(end)) return null;

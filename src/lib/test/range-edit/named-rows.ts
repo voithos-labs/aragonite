@@ -1813,6 +1813,13 @@ export const NAMED_ROWS: NamedRow[] = [
 		expect: { source: 'x \n **c** d\n' }
 	},
 	{
+		name: 'L5 live, a range that holds a run whole cuts none: the run goes with its bytes, as today',
+		source: '> ⟦**b**⟧\n',
+		mode: 'live',
+		gesture: paste('# not a heading'),
+		expect: { source: '> # not a heading\n' }
+	},
+	{
 		name: 'L5 in source mode the same range goes by its bytes, the delimiters text like any other',
 		source: '- ⟦**b⟧ c**\n- d\n',
 		gesture: paste('1. q'),
