@@ -86,7 +86,7 @@ export function describeLaws(
 							source: input.source,
 							mode: input.mode,
 							at: c.at,
-							holds: 'text' as const,
+							held: { holds: 'text' as const },
 							text
 						};
 						const where = `in ${JSON.stringify(input.source)} ${input.mode} at ${c.at}`;

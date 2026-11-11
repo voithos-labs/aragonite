@@ -2,8 +2,8 @@
 // package under test: the bytes a copy writes, the bytes a paste at a caret gives, and the bytes a
 // new line in a container starts with.
 
-import type { SpliceCaret } from '#lib/action-contracts.js';
 import type { DocumentView, NodeView } from '#lib/core/node-views.js';
+import type { Held } from '#lib/range-edit/edit-range.js';
 import type { Mode } from '#lib/range-edit/host.js';
 import type { LaidBlock, LaidLine, Layout } from '#lib/range-edit/layout.js';
 import type { CheckHost } from './test-host';
@@ -439,24 +439,24 @@ export type PasteShape =
 	| 'apart'
 	| 'other';
 
-/** What a caret holds, as the answer that left it there named it. */
-export type Holds = SpliceCaret['holds'];
-
-/** The source a paste of `text` at `at`, a caret holding `holds`, may give, with the rule that
- *  gives it. */
+/** The source a paste of `text` at `at`, a caret holding what `held` says, may give, with the rule
+ *  that gives it. */
 export function expectedPaste(
 	read: Read,
 	at: number,
 	text: string,
 	host: CheckHost,
-	holds: Holds
+	held: Held
 ): { shape: PasteShape; bytes: string[] } {
 	// Where a block starts and the caret is in no text, the clipboard lands above it all the same.
 	const rest = read.source.slice(at, (read.source + '\n').indexOf('\n', at));
 	const onSyntax =
 		!leafAt(read, at) && rest.trim() !== '' && read.blocks.some((b) => b.from === at);
-	if (holds !== 'text' || onSyntax) {
-		const bytes = landedApart(read, at, lf(text), host);
+	if (held.holds !== 'text' || onSyntax) {
+		const bytes =
+			held.holds === 'text'
+				? landedApart(read, at, lf(text), host)
+				: landedInGap(read, at, held.parent, lf(text), host);
 		return bytes === null ? { shape: 'other', bytes: [] } : { shape: 'apart', bytes };
 	}
 	const want = landedPaste(read, at, text, host);
@@ -498,6 +498,72 @@ export function apartBelow(
 		readOf(host, source).blocks.some((b) => b.type === next.type && b.from === from);
 	if (starts(bytes, next.from + shift)) return [bytes, apart];
 	return starts(apart, next.from + shift + marks.length) ? [apart] : [bytes];
+}
+
+/** `clip` between the children of the block at `parent`, on lines of its own, a blank line between
+ *  it and the block either side; past the last child the place is the parent's end. */
+function landedInGap(
+	read: Read,
+	at: number,
+	parent: readonly number[],
+	clip: string,
+	host: CheckHost
+): string[] | null {
+	const { source } = read;
+	const eol = endingOf(source);
+	if (readOf(host, clip).blocks.every((b) => clip.slice(b.from, b.to).trim() === '')) return null;
+	const holder = read.blocks.find((b) => parent.length > 0 && b.path.join() === parent.join());
+	if (parent.length > 0 && !holder?.lines) return null;
+	// Among a table's rows no block stands, and between a list's items the rows hold what lands.
+	const shape = holder ? host.facts(holder.type).lines : 'none';
+	if (shape === 'rows' || shape === 'items') return null;
+	const closer = holder?.lines?.at(-1);
+	const closed = shape === 'fenced' && holder!.lines!.length > 1 && closer!.own;
+	const end = !holder ? source.length : closed ? closer!.from : holder.to;
+	const past = at >= end;
+	const place = past ? end : at;
+	const inside = (c: LaidBlock) =>
+		c.path.length <= parent.length && c.path.every((p, i) => p === parent[i]);
+	const prefix = continuationAt(read, past ? Math.max(place - 1, 0) : place, host, inside);
+	const lineStart = (bytes: string, byte: number) => bytes.lastIndexOf('\n', byte - 1) + 1;
+	const head = source.slice(lineStart(source, place), place);
+	const marked = /^[ \t>]*$/.test(head);
+	// The first line takes the markers its line lacks; after a last line with no ending, a new line.
+	const reached = prefix.startsWith(head) ? prefix.slice(head.length) : '';
+	const lead = marked ? reached : past ? eol + prefix : '';
+	const follows = past ? place < source.length : !nothingVisibleAfter(source, place);
+	const lines = (follows ? clip.replace(/\n$/, '') : clip).split('\n');
+	const pasted = lead + join(lines, prefix, eol, follows && !past);
+	const under = past ? (marked ? head : '') : prefix;
+	let out = source.slice(0, place) + pasted + (follows ? eol + under : '') + source.slice(place);
+	const blank = (bytes: string, line: number) =>
+		/^[ \t>]*\r?$/.test(bytes.slice(line, (bytes + '\n').indexOf('\n', line)));
+	// Under it: whatever line follows, save one that closes a container.
+	const stop = place + pasted.length;
+	const below = out.indexOf('\n', stop) + 1;
+	const next = follows ? place : source.indexOf('\n', place) + 1;
+	const closes = read.blocks.some((c) => {
+		const last = c.lines?.at(-1);
+		const text = next + /^[ \t>]*/.exec(source.slice(next))![0].length;
+		return !!last && c.lines!.length > 1 && last.own && last.from <= text && text < last.to;
+	});
+	if (below > 0 && !blank(out, below) && !blank(out, lineStart(out, stop)) && !closes)
+		out = out.slice(0, below) + under.trimEnd() + eol + out.slice(below);
+	// Over it: the child of the parent that ends where the place's line starts, a title row aside.
+	const title = holder && host.facts(holder.type).titleRow?.type;
+	const over = read.blocks.findLast(
+		(b) =>
+			b.path.length === parent.length + 1 &&
+			b.path.slice(0, -1).join() === parent.join() &&
+			b.to <= place &&
+			b.type !== title
+	);
+	const first = lineStart(out, place + lead.length);
+	const apart = first === 0 || blank(out, lineStart(out, first - 1)) || blank(out, first);
+	const flush = !!over && over.to >= lineStart(source, place) && (marked || past);
+	if (!flush || apart) return [out];
+	const marks = out.slice(first, place + lead.length).trimEnd();
+	return [out.slice(0, first) + marks + eol + out.slice(first)];
 }
 
 /** `clip` at `at`, a place in no block's text, on lines of its own above what follows `at` on its

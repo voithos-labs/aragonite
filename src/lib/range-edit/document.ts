@@ -24,6 +24,13 @@ export interface Doc {
 	wholeBlocks?: boolean;
 }
 
+/** What a caret holds: a block's text, or a place between two children of the block at `parent`
+ *  (the document's own behind an empty path), `'block'` where a block with no text place starts. */
+export type Held = { holds: 'text' } | { holds: 'block' | 'boundary'; parent: readonly number[] };
+
+/** A caret by its byte and what it holds there. */
+export type Place = { at: number } & Held;
+
 export function readDoc(source: string, host: RangeHost, mode: Mode): Doc {
 	const tree = host.read(source);
 	return {
@@ -111,6 +118,11 @@ export function containersHolding(doc: Doc, at: number): LaidBlock[] {
 			(at < b.to || (at === b.to && !doc.source.endsWith('\n', b.to)))
 	);
 }
+
+/** The nearest container around the place `at`: it starts before it, and its marker on the
+ *  place's line has ended by it. */
+export const holderAt = (doc: Doc, at: number) =>
+	containersHolding(doc, at).findLast((c) => c.from < at && lineOf(c, at).markerTo <= at);
 
 /** The container's line holding `byte`, or its last. */
 export function lineOf(container: LaidBlock, byte: number): LaidLine {

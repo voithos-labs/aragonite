@@ -7,7 +7,7 @@ import type { Document } from '#lib/core/nodes.js';
 import type { SpliceCaret } from '#lib/action-contracts.js';
 import type { EditorSelection } from '#lib/selection/primitives.js';
 import type { GapCaretPosition } from '#lib/selection/gap-caret.js';
-import type { Gesture, Range, RangeEditResult } from '#lib/range-edit/edit-range.js';
+import type { Gesture, Held, Range, RangeEditResult } from '#lib/range-edit/edit-range.js';
 import { editRange, wholeBlocksRemovalOf } from '#lib/range-edit/edit-range.js';
 import { rangeHost, type Mode } from '#lib/range-edit/host.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
@@ -37,7 +37,8 @@ import {
 import { pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
 import { visibleText } from '#lib/core/inline/link-source-bytes.js';
 import { hidesDelimitersAtCaret } from '#lib/presentation-mode.js';
-import { expectedPaste, plainPasteHolds, readOf, type Holds } from './expected';
+import { expectedPaste, plainPasteHolds, readOf } from './expected';
+import { heldBy } from './laws';
 import { noTransforms, type CheckHost } from './test-host';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import {
@@ -102,8 +103,12 @@ export interface PasteRow extends PasteCase {
 }
 
 const LF = (text: string) => text.replace(/\r\n?/g, '\n');
-/** What the core is told the caret holds: a block focused whole and a gap are the boundary under them. */
-const holdsAt = (via: Place): Holds => ('whole' in via || 'gap' in via ? 'boundary' : 'text');
+/** What the core is told the caret holds: a block focused whole and a gap are the boundary under
+ *  them, between their parent's children. */
+function heldAt(via: Place): Held {
+	if ('whole' in via) return { holds: 'boundary', parent: via.whole.slice(0, -1) };
+	return 'gap' in via ? { holds: 'boundary', parent: via.gap.parentPath } : { holds: 'text' };
+}
 const CUTS: readonly DiffRoute[] = ['cut then key', 'cut then plain'];
 
 /** The editor's range as the core receives it, read as a removal reads it; a block focused whole
@@ -338,7 +343,7 @@ function coreSide(
 	grammar: GrammarView,
 	row: PasteRow
 ): Answer | { threw: string } {
-	const holds = holdsAt(input.via);
+	const held = heldAt(input.via);
 	try {
 		let answer: ReturnType<typeof coreAnswer>;
 		if (CUTS.includes(input.route)) {
@@ -349,16 +354,16 @@ function coreSide(
 			const at = { from: cut.raw.caret.at, to: cut.raw.caret.at };
 			const text = LF(cut.raw.clipboard ?? '');
 			const plain = input.route === 'cut then plain';
-			const { holds } = cut.raw.caret;
-			answer = coreAnswer(cut.raw.source, at, { paste: text, plain, holds }, input.mode, grammar);
-			const own = { paste: text, plain, holds, own: cut.raw.own };
+			const left = heldBy(cut.raw.caret);
+			answer = coreAnswer(cut.raw.source, at, { paste: text, plain, ...left }, input.mode, grammar);
+			const own = { paste: text, plain, ...left, own: cut.raw.own };
 			row.coreOwn = coreAnswer(cut.raw.source, at, own, input.mode, grammar).landed;
 		} else {
 			const plain = input.route === 'plain menu' || input.route === 'shift key';
 			answer = coreAnswer(
 				source,
 				range,
-				{ paste: LF(input.clip), plain, holds },
+				{ paste: LF(input.clip), plain, ...held },
 				input.mode,
 				grammar
 			);
@@ -368,7 +373,7 @@ function coreSide(
 		const clip = LF(row.clip);
 		if (!CUTS.includes(input.route) && clip.endsWith('\n')) {
 			const plain = input.route === 'plain menu' || input.route === 'shift key';
-			const gesture = { paste: clip.slice(0, -1), plain, holds };
+			const gesture = { paste: clip.slice(0, -1), plain, ...held };
 			row.coreNoTrail = coreAnswer(source, range, gesture, input.mode, grammar).landed;
 		}
 		return answer.landed;
@@ -467,7 +472,7 @@ export function lawsOf(row: PasteRow, grammar: GrammarView): LawVerdicts | undef
 			got === undefined ? undefined : plainPasteHolds(read, range.from, text, got, host, row.mode);
 		return { law: 'L11', today: holds(today), core: holds(core) };
 	}
-	const want = expectedPaste(read, range.from, text, host, holdsAt(row.via));
+	const want = expectedPaste(read, range.from, text, host, heldAt(row.via));
 	if (want.shape === 'other') return { law: 'L9', shape: 'other' };
 	const holds = (got?: string) => (got === undefined ? undefined : want.bytes.includes(got));
 	return { law: 'L9', shape: want.shape, today: holds(today), core: holds(core) };

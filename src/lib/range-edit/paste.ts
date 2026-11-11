@@ -5,7 +5,6 @@
  * everything pasted, its last line ending too.
  */
 
-import type { SpliceCaret } from '../action-contracts';
 import { displayLines, isBlankText, withLineEnding } from '../core/lines';
 import type { PasteHost } from './host';
 import type { LaidBlock } from './layout';
@@ -18,7 +17,8 @@ import {
 	pointedBlock,
 	readDoc,
 	titleOwner,
-	type Doc
+	type Doc,
+	type Held
 } from './document';
 import { apartAt, pastMarkers } from './apart';
 import { closedBy, emptiedRest, leftBy, takerOf, withoutOpening } from './container-merge';
@@ -38,20 +38,20 @@ import {
 export interface Pasted {
 	text: string;
 	plain: boolean;
-	holds: SpliceCaret['holds'];
+	held: Held;
 	transform: PasteHost['transformPaste'] | null;
 }
 
 /** The paste of `pasted` over `[from, to)`: a caret, or a range inside one text block's text. */
 export function pasteAt(doc: Doc, from: number, to: number, pasted: Pasted): Edit {
-	const { plain, holds } = pasted;
+	const { plain, held } = pasted;
 	const lf = pasted.text.replace(/\r\n?/g, '\n');
 	// Where the clipboard lands as blocks it is read once, after the transforms: a landing as text
 	// (a title, a cell, literal text, plain text, one line after text) never asks.
 	let read: Doc | undefined;
 	const blocks = () => (read ??= transformed(doc, lf, pasted.transform));
 	const off = () => (plain ? offText(doc, from, lf) : blocks().source);
-	const apart = holds === 'text' ? null : pasteApart(doc, from, off);
+	const apart = held.holds === 'text' ? null : pasteApart(doc, from, off, held.parent);
 	if (apart) return apart;
 	const edit = landed(doc, from, to, lf, plain, blocks);
 	// What lands in an empty paragraph, its line ending alone, stays apart from the block under it.
@@ -123,7 +123,7 @@ function landed(
 		// On an empty line no block holds, what lands stays apart from the block under it too.
 		const lineStart = from - lineHead(doc.source, from).length;
 		const emptyLine = !visibleAfter && pastMarkers(doc.source, lineStart) === from;
-		if (emptyLine) return apartBelow(doc, bytes(text()), from, text());
+		if (emptyLine) return apartBelow(doc, from, text());
 		return bytes(plain ? offText(doc, from, clip) : clip);
 	}
 	const { leaf } = target;

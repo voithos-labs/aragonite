@@ -7,6 +7,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { editRange, type Gesture } from '#lib/range-edit/edit-range.js';
+import { heldBy } from './laws';
 import type { PasteHost } from '#lib/range-edit/host.js';
 import { checkHost } from './test-host';
 
@@ -27,12 +28,9 @@ function stubHost(): { host: PasteHost; seen: string[][] } {
 }
 
 const at = (marked: string) => ({ from: marked.indexOf('‸'), to: marked.indexOf('‸') });
-const paste = (more: Partial<Extract<Gesture, { paste: string }>> = {}): Gesture => ({
-	paste: ALERT,
-	plain: false,
-	holds: 'text',
-	...more
-});
+const paste = (more: Partial<Extract<Gesture, { paste: string }>> = {}): Gesture =>
+	({ paste: ALERT, plain: false, holds: 'text', ...more }) as Gesture;
+const BETWEEN = { holds: 'boundary', parent: [] } as const;
 
 const LANDS_AS_BLOCKS: [name: string, marked: string, gesture: Gesture, want: string][] = [
 	['in a paragraph’s text', 'ab‸cd\n', paste(), 'ab\n\n:::note\nbody\n:::\ncd\n'],
@@ -40,8 +38,8 @@ const LANDS_AS_BLOCKS: [name: string, marked: string, gesture: Gesture, want: st
 	[
 		'between two blocks',
 		'a\n\n‸```\nx\n```\n',
-		paste({ holds: 'boundary' }),
-		'a\n\n:::note\nbody\n:::\n```\nx\n```\n'
+		paste(BETWEEN),
+		'a\n\n:::note\nbody\n:::\n\n```\nx\n```\n'
 	],
 	['where a block starts', '‸# h\n', paste(), ':::note\nbody\n:::\n# h\n'],
 	[
@@ -58,7 +56,7 @@ const LANDS_AS_TEXT: [name: string, marked: string, gesture: Gesture][] = [
 	['in a table cell', '| a‸ |\n| - |\n', paste()],
 	['as plain text', 'ab‸cd\n', paste({ plain: true })],
 	['one line after text', 'ab‸cd\n', paste({ paste: '> [!NOTE]' })],
-	['among a table’s rows', '| a |\n| - |\n‸| b |\n', paste({ holds: 'boundary' })],
+	['among a table’s rows', '| a |\n| - |\n‸| b |\n', paste({ holds: 'boundary', parent: [0] })],
 	['at a table row’s first byte', '| a |\n| - |\n‸| b |\n', paste()]
 ];
 
@@ -89,7 +87,7 @@ describe('the paste transforms, called by the core', () => {
 		const { host, seen } = stubHost();
 		const source = 'ab\n\n> [!NOTE]\n> body\n\ncd\n';
 		const cut = editRange(source, { from: 4, to: 20 }, 'cut', 'source', host);
-		const own = paste({ paste: cut.clipboard!, own: cut.own, holds: cut.caret.holds });
+		const own = paste({ paste: cut.clipboard!, own: cut.own, ...heldBy(cut.caret) });
 		const back = editRange(cut.source, at2(cut.caret.at), own, 'source', host);
 		expect(back.source).toBe(source);
 		const elsewhere = editRange(cut.source, at2(1), own, 'source', host);

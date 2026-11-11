@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { editRange, type Gesture, type RangeEditResult } from '#lib/range-edit/edit-range.js';
-import { caretLaw, copyMarkers, pasteAtCaret, type Call } from './laws';
+import { caretLaw, copyMarkers, heldBy, pasteAtCaret, type Call } from './laws';
 import { NAMED_ROWS, rangeOf, unmark } from './named-rows';
 import { checkHost, type CheckHost } from './test-host';
 
@@ -43,7 +43,7 @@ function lawsOf(host: CheckHost, row: (typeof NAMED_ROWS)[number]): string[] {
 				source,
 				mode,
 				at: range.from,
-				holds: gesture.holds,
+				held: gesture,
 				text: gesture.paste
 			})
 		);
@@ -66,7 +66,7 @@ describe('the named rows', () => {
 			const back = {
 				paste: (first.clipboard ?? '').replace(/\r\n/g, '\n'),
 				plain: false,
-				holds: first.caret.holds
+				...heldBy(first.caret)
 			};
 			const gesture: Gesture =
 				row.then.gesture === 'paste back'

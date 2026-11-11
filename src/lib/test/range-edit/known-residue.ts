@@ -202,16 +202,6 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 		repro: { source: 'p\n\n \n# h - x\n', mode: 'source', range: { from: 4, to: 8 } }
 	},
 	{
-		gap: 'text opening with a space, joined at an item’s text start, pads the marker: the cut’s caret holds no text there, and the paste back stands apart',
-		lane: '2b',
-		law: 'L3',
-		matches: (read, { from, to }) =>
-			read.source.slice(from, to).includes('\n') &&
-			/^[ \t]/.test(restOfLine(read, to)) &&
-			/(?:[-*+]|\d[.)])[ \t]+$/.test(lineHead(read.source, from)),
-		repro: { source: '- x\n- y z\n', mode: 'source', range: { from: 2, to: 7 } }
-	},
-	{
 		gap: 'a range ending at the text of a block that takes no joined text keeps its marker, which the copy carries too',
 		lane: '2b',
 		law: 'L3',
