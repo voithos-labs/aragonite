@@ -212,7 +212,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.270 | The selection, the point lookups, `inputType` and `isComposing` are read only under `browser/` | L |
 | G4.271 | A windowed list hands each child the index and id from its own slice entry | L |
 | G4.272 | Every child process a file under `src/lib` spawns carries a timeout of its own | L |
-| G4.273 | A keydown handler that runs a command asks `imeOwnsKey` first | L |
+| G4.273 | A keydown handler that runs a command asks `neverACommand` first | L |
 | G4.274 | A typed insert or a typed key is read only where the editor decides where it lands | L |
 | G4.275 | Words are cut by one rule, read only through `wordSegments` | L |
 | G4.276 | A widget's raw span is read only through `widgetSourceRange` | L |
@@ -642,7 +642,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.272 · A spawned child process has a timeout.** Every `spawn`, `exec`, `execFile`, `fork` and their sync forms under `src/lib`, tests included, passes a `timeout` in its options, so a hung child fails its own test instead of holding the whole run. `lint/spawn-timeouts.test.ts`.
 
-**G4.273 · An IME key is never a command.** A keydown handler that runs a command starts with `imeOwnsKey(e)`, which also catches the key opening a composition (code 229, `isComposing: false` in Chromium and WebKit). The scan counts each file's keydown wirings against its `imeOwnsKey` calls, and lists a forward to a handler that asks, or a listener that runs no command, with why. The bundled plugins ask too, through the `imeOwnsKey` the plugin entry point exports. `lint/ime-key-fence.test.ts`.
+**G4.273 · An IME key, or a key event naming no key, is never a command.** A keydown handler that runs a command starts with `neverACommand(e)`, which catches the key opening a composition (code 229, `isComposing: false` in Chromium and WebKit) and the keyless keydown Chrome's autofill sends. The scan counts each file's wirings against its `neverACommand` calls, lists a forward or a listener that runs no command with why, and fails an editor file asking `imeOwnsKey` alone. Bundled plugins ask the exported `imeOwnsKey`. `lint/ime-key-fence.test.ts`.
 
 **G4.274 · One home for where a typed letter lands.** The `insert` intent (off `readInput`) and `typesCharacter` (`schema/keybindings.ts`, the one answer to which keys type) are read only in `components/blocks/editable/typed-insert.ts` and a short list, each with its reason: the delimiter auto-pair, the range edit in live mode, a selection the editor holds (`held-input.ts`), the caret hosts, the composition tracker, a code body and a painted source, the selected widget's splice, the open line, a text field's own keys and the image dialog's own fields. `lint/typed-insert-home.test.ts`.
 

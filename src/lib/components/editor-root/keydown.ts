@@ -4,7 +4,7 @@
  * pressed inside a block (`test/editor-root/keydown.test.ts` pins the order).
  */
 
-import { imeOwnsKey } from '../../browser/composition';
+import { neverACommand } from '../../browser/composition';
 import type { SearchState } from '../../search/search-state.svelte';
 import type { CrossBlockHandlers } from '../../selection/cross-block/dispatch';
 import type { CommandDispatchContext } from '../../schema/block-commands';
@@ -77,7 +77,7 @@ export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRoot
 
 	return {
 		handleKeyDown(event, root) {
-			if (imeOwnsKey(event)) return;
+			if (neverACommand(event)) return;
 			// Normalizes the key (CapsLock uppercases e.key without Shift), matching
 			// every other chord-dispatch site.
 			const chord = eventToChord(event);

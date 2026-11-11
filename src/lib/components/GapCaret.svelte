@@ -5,7 +5,7 @@
 	 * block, so it adds nothing to any block's text content. Text and Enter create a paragraph at
 	 * the boundary; every other input is refused at `beforeinput`.
 	 */
-	import { imeOwnsKey } from '../browser/composition';
+	import { neverACommand } from '../browser/composition';
 	import { getContext } from 'svelte';
 	import type { BlockEditActions, FocusActions } from '../action-contracts';
 	import { GAP_CARET_LABEL } from '../a11y-strings';
@@ -78,7 +78,7 @@
 	}
 
 	function onKeyDown(event: KeyboardEvent): void {
-		if (imeOwnsKey(event)) return;
+		if (neverACommand(event)) return;
 		// The composed text's paragraph sits at this gap, so Enter opens the one after it.
 		const after = composedAt + 1;
 		if (hostInput.takesKey(event, () => mint('', after))) return;

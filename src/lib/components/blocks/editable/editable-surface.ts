@@ -133,7 +133,7 @@ import { createPlaceholderHint, type PlaceholderPolicy } from '../placeholder-hi
 import type { CompositionSeat } from '../text/composition-seat';
 import {
 	imeOwnsInput,
-	imeOwnsKey,
+	neverACommand,
 	type CompositionOwner,
 	type CompositionTracker
 } from '../../../browser/composition';
@@ -739,7 +739,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		const el = deps.getEl();
 		deps.caretWriter.checkDecidedMotion();
 		if (el && !deps.composition.live()) deps.caretWriter.canonicalizeCaret(el);
-		if (imeOwnsKey(e)) {
+		if (neverACommand(e)) {
 			deleteKeydown = null;
 			return;
 		}
