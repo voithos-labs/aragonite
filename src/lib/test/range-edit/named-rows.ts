@@ -698,12 +698,6 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: between('', [0]),
 		expect: { source: '> a\n', caret: boundary(4, [0]) }
 	},
-	{
-		name: 'L9 nor do blank lines alone, which bring no block',
-		source: '> a\n⟦⟧',
-		gesture: between('\n', [0]),
-		expect: { source: '> a\n' }
-	},
 	// A range that is exactly one block is no named place: the text takes the block's line (§ 5.9).
 	{
 		name: 'L5 text pasted over a code block held whole by a range takes its line, as today',

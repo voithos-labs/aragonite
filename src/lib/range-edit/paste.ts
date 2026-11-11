@@ -46,10 +46,8 @@ export interface Pasted {
 export function pasteAt(doc: Doc, from: number, to: number, pasted: Pasted): Edit {
 	const { plain, held } = pasted;
 	const lf = pasted.text.replace(/\r\n?/g, '\n');
-	// Nothing pasted at a caret changes nothing, and blank lines alone bring no block to a place
-	// between blocks, which would write its markers for them.
-	const none = lf === '' || (held.holds !== 'text' && isBlankText(lf));
-	if (none && from === to) return { source: doc.source, caret: from };
+	// Nothing pasted at a caret changes nothing: a place between blocks would write its markers.
+	if (lf === '' && from === to) return { source: doc.source, caret: from };
 	// Where the clipboard lands as blocks it is read once, after the transforms: a landing as text
 	// (a title, a cell, literal text, plain text, one line after text) never asks.
 	let read: Doc | undefined;
