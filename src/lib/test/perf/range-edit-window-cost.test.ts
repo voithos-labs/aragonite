@@ -1,10 +1,14 @@
 // @vitest-environment jsdom
 // G4.342: a range edit reads the blocks its range reaches, never the document. It parses the same
 // bytes and measures the same top-level blocks at 400 blocks as at 40. One cost is recorded, not
-// held yet: each route serializes the document once, and a fix that stops it reds that row.
+// held yet: each route serializes the document once, and a fix that stops it reds that row. A
+// removal also walks the tree's top-level list three times and no more, counted with dev checks off.
 // Miss-analysis: the splice cost rows drove `commitSource` alone and the gate timed no range
 // edit, so nothing counted what the range-edit core reads to make its answer.
+// Miss-analysis, the walks: a walk never parses or measures, so the count rows above stayed green
+// with the list read once by the range's host and again by the commit.
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { configureEditorEnv, resetEditorEnv } from '@voithos-labs/aragonite/dev-checks';
 import { serialize } from '#lib/core/serializer.js';
 import {
 	disablePerfInstruments,
@@ -30,6 +34,7 @@ vi.mock('#lib/core/serializer.js', async (importOriginal) => {
 
 beforeAll(installLayoutStubs);
 afterEach(async () => {
+	resetEditorEnv();
 	disablePerfInstruments();
 	await destroyMountedEditors();
 });
@@ -117,5 +122,49 @@ describe('G4.342 a range edit reads the blocks its range reaches', () => {
 describe('G4.342 recorded: a range edit serializes the document', () => {
 	it.each([...RANGE_EDITS, COPY])('$name, once', async (gesture) => {
 		expect((await growthOf(gesture)).serializes).toEqual([1, 1]);
+	});
+});
+
+/** The callers that walk the tree's top-level list to its end while `run` runs, with dev checks
+ *  off as a production build has them: each such walk pays a proxy trap per block. */
+async function wholeWalks(m: Mounted, run: () => Promise<void>): Promise<string[]> {
+	const iterate = Array.prototype[Symbol.iterator];
+	const callers: string[] = [];
+	Array.prototype[Symbol.iterator] = function (this: unknown[]) {
+		const steps = iterate.call(this);
+		if (this !== m.instance.__test.getDocument().children) return steps;
+		const caller = /at (?:\w+\.)?(\w+)/.exec(new Error().stack?.split('\n')[2] ?? '')?.[1];
+		const next = steps.next.bind(steps);
+		steps.next = () => {
+			const step = next();
+			if (step.done) callers.push(caller ?? 'unnamed');
+			return step;
+		};
+		return steps;
+	};
+	configureEditorEnv({ isDev: false });
+	try {
+		await run();
+	} finally {
+		Array.prototype[Symbol.iterator] = iterate;
+		resetEditorEnv();
+	}
+	return callers;
+}
+
+const REMOVALS = RANGE_EDITS.filter((route) => /^Backspace|^a cut/.test(route.name));
+
+describe('G4.342 recorded: a removal walks the top-level list three times', () => {
+	// The text it serializes, the plain list its host and its commit share, and its undo snapshot.
+	it.each(REMOVALS)('$name', async (gesture) => {
+		expect(REMOVALS).toHaveLength(3);
+		const m: Mounted = mountEditor<EditorTestSurface>({ source: gesture.source(SMALL) });
+		await m.settle();
+		await gesture.setUp?.(m, SMALL);
+		const callers = await wholeWalks(m, async () => {
+			await gesture.write(m, SMALL);
+			await m.settle();
+		});
+		expect(callers).toEqual(['concatChildren', 'topsOf', 'shareSnapshot']);
 	});
 });
