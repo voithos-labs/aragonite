@@ -456,6 +456,31 @@ const PLACE_SHAPES: Record<
 	'a rule ending them after a table, a tight item below': {
 		lines: (wrap, d) => [...itemOf(nest(wrap, d, ['a', '', '| b |', '| - |', '', '---'])), '- c'],
 		take: innerRule
+	},
+	// The core names the directive the range started in, and its byte sits inside the callout.
+	'from a title row into a fence in a callout': {
+		lines: (wrap, d) => [
+			...nest(wrap, d, [
+				':::note',
+				'> [!NOTE]',
+				'> ```',
+				'> x',
+				'> ```',
+				'> ~~~',
+				'> y',
+				'> ~~~',
+				':::'
+			]),
+			'',
+			'after'
+		],
+		take: (doc) => {
+			const title = pathsOf(doc, 'directiveOpenerLine').at(-1);
+			const code = pathsOf(doc, 'fencedCode')[0];
+			if (!title || !code) return null;
+			const end = blockNodeAt(doc, title)!.raw.replace(/\r?\n$/, '').length;
+			return range(at(title, end), at(code, blockNodeAt(doc, code)!.raw.indexOf('x') + 1));
+		}
 	}
 };
 
@@ -516,10 +541,20 @@ function namedGap(doc: Document, caret: RangeEditResult['caret']): GapCaretPosit
 	while (parentPath.length > 0 && !parentPath.every((_, i) => holds(parentPath.slice(0, i + 1))))
 		parentPath = parentPath.slice(0, -1);
 	const layout = documentLayout(measured(doc));
-	const children = (parentPath.length === 0 ? doc : blockNodeAt(doc, parentPath))?.children ?? [];
-	let index = children.findIndex((_, k) => layout.block([...parentPath, k])!.from >= caret.at);
-	if (index < 0) index = children.length;
-	return gapEligibleAt(doc, parentPath, index) ? { parentPath, index } : null;
+	for (;;) {
+		const children = (parentPath.length === 0 ? doc : blockNodeAt(doc, parentPath))?.children ?? [];
+		let index = children.findIndex((_, k) => layout.block([...parentPath, k])!.from >= caret.at);
+		if (index < 0) index = children.length;
+		// A byte inside the child before, ahead of one of its own children, names a boundary among them.
+		const inside = layout.block([...parentPath, index - 1]);
+		const own = inside && holds(inside.path) ? blockNodeAt(doc, inside.path)!.children! : [];
+		const last = own.length > 0 ? layout.block([...inside!.path, own.length - 1]) : undefined;
+		if (inside && last && inside.from < caret.at && last.from >= caret.at) {
+			parentPath = inside.path;
+			continue;
+		}
+		return gapEligibleAt(doc, parentPath, index) ? { parentPath, index } : null;
+	}
 }
 
 /** Whether a paragraph holding only the typed letter stands at `path`. */

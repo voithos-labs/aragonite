@@ -224,13 +224,14 @@ export function byteOfGap(
 	return map.endOf(parentPath, (parent as { raw: string }).raw.length);
 }
 
-/** The boundary a place names among `parent`'s children: before the first starting at or past
- *  `at`, else after the last; a path holding no blocks (a table, a leaf) reads as the one around. */
+/** The boundary a place names among `parent`'s children, or a child's own where `at` falls ahead
+ *  of them: before the first starting at or past `at`, else after the last. */
 export function gapOfPlace(
 	measured: Measured,
 	place: { at: number; parent: readonly number[] }
 ): GapCaretPosition {
 	const { doc } = measured;
+	// A table's rows, or a path holding no blocks, stand for the block around them.
 	let parentPath = [...place.parent];
 	const grid = parentPath.findIndex((_, i) => {
 		const node = blockNodeAt(doc, parentPath.slice(0, i + 1));
@@ -239,15 +240,23 @@ export function gapOfPlace(
 	if (grid >= 0) parentPath = parentPath.slice(0, grid);
 	while (parentPath.length > 0 && !gapScopeChildren(doc, parentPath))
 		parentPath = parentPath.slice(0, -1);
-	const children = gapScopeChildren(doc, parentPath) ?? [];
 	const map = documentByteMap(measured);
-	let index = 0;
-	for (let past = children.length; index < past;) {
-		const mid = (index + past) >> 1;
-		if (map.byteOf([...parentPath, mid], 0)! >= place.at) past = mid;
-		else index = mid + 1;
+	for (;;) {
+		const children = gapScopeChildren(doc, parentPath) ?? [];
+		let index = 0;
+		for (let past = children.length; index < past;) {
+			const mid = (index + past) >> 1;
+			if (map.byteOf([...parentPath, mid], 0)! >= place.at) past = mid;
+			else index = mid + 1;
+		}
+		const inside = [...parentPath, index - 1];
+		const child = children[index - 1];
+		const own = child && !isGridKind(child.kind) ? gapScopeChildren(doc, inside) : null;
+		// The byte sits inside the child before, ahead of one of that child's own children.
+		const within = !!own?.length && map.byteOf([...inside, own.length - 1], 0)! >= place.at;
+		if (!within) return { parentPath, index };
+		parentPath = inside;
 	}
-	return { parentPath, index };
 }
 
 /** The deepest boundary a gap caret may take where a block starts, or a container ends, at byte
