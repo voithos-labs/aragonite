@@ -81,7 +81,7 @@ The commit's steps, in order. `src/lib/editor-actions/commit/undo-controller.ts`
 12. `await tick()`, then read the caller's `landing` and put the caret there, awaited,
 13. speak the caller's `announce` line in the edit live region, when the commit wrote.
 
-A throw anywhere from the snapshot through the tail step (9) rolls the tree and the undo stacks back. A throw in the landing doesn't: the commit already succeeded, so it's reported on the `error` channel (§ The event channel) and the next edit runs as normal.
+A throw anywhere from the snapshot through the tail step (9) rolls the tree and the undo stacks back. That covers the nodes a commit wrote where they stood, because an undo entry it joined had already copied them: the frame keeps what each one held, and hears of it from `SharingState.isShared`, so a new write route asks that before it writes a node in place. A throw in the landing doesn't: the commit already succeeded, so it's reported on the `error` channel (§ The event channel) and the next edit runs as normal.
 
 **The keystroke takes the same frame, minus the tick.** A key that keeps its leaf's kind (most of them) writes in place: `src/lib/editor-actions/commit/leaf-commit.ts` :: `createLeafCommit` copies the path down to the leaf, writes it, runs the fix-up over the leaf's list (step 6) and rebuilds the ancestors, all inside the frame, then hands back where the caret goes only if the write moved it off the leaf. So a keystroke gets what a commit gets: the rollback, the dev checks (scoped to the leaf and its ancestors, which keeps typing cheap), the content version, and an `edit` that fires before the decorations re-read anything. Two things differ:
 

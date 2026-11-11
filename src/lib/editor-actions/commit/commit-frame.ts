@@ -27,6 +27,7 @@ import {
 import type { UndoManager } from '../../undo/types';
 import { captureChange, changeAfter, type BlockReach } from './change-record';
 import { admitsWrite } from './reading-write-gate';
+import { keepOwnedNodes } from './saved-bytes';
 import type { EditorActionsDeps } from '../deps';
 import type { TopLevelChange } from '../../tree-operations/top-level-starts';
 
@@ -119,10 +120,13 @@ export function createCommitFrame(
 		const savedStacks = undo.stacksToRestore(write.history);
 		// The trailing-line fix-up can consume the document's suffix, which no write holds.
 		const savedSuffix = deps.doc.suffix;
+		const owned = keepOwnedNodes(deps.sharing);
 		const restore = () => {
 			if (savedStacks) undo.restoreStacks(savedStacks);
 			deps.doc.suffix = savedSuffix;
 			write.rollback();
+			// Last: a rollback puts back the lists a write replaced, and these are the nodes still in them.
+			owned.restore();
 		};
 		// Only while a draft is open: otherwise the write reads nothing more.
 		const capture = deps.drafts.watching()
@@ -135,7 +139,7 @@ export function createCommitFrame(
 				undo.push(write.snapshot, write.history);
 				const wasOpen = endsOpen(deps.doc);
 				deps.starts.opened();
-				const changed = write.apply(wasOpen);
+				const changed = owned.during(() => write.apply(wasOpen));
 				if (write.discardIfNoop && !changed) {
 					restore();
 					deps.starts.abandoned();
