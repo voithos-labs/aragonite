@@ -13,7 +13,7 @@ import { checkSnapshotIntegrity } from '../../invariants/snapshot-integrity';
 import { checkInstalledEntry } from '../../invariants/history-install';
 import { admitsHistoryRequest, startsAlone } from './reading-write-gate';
 import { installReading } from './byte-splice';
-import { gapAtByte } from '../../selection/range-bytes';
+import { byteOfGap, gapAtByte } from '../../selection/range-bytes';
 import { emitEdit, NOTHING_REPLACED, type ReplacedBlocks } from './emit-edit';
 import type { EditorActionsDeps, UndoController } from '../deps';
 import { grammarStamp, sameGrammar } from './grammar-stamp';
@@ -29,9 +29,8 @@ import {
 	type Measured,
 	type TopLevelChange
 } from '../../tree-operations/top-level-starts';
-import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { assertRestoredUnderGrammar } from '../../invariants/install';
-import { isGapSelection, type GapCaretPosition } from '../../selection/gap-caret';
+import { isGapSelection } from '../../selection/gap-caret';
 import type { DocumentView } from '../../core/node-views';
 import type { SelectionPoint } from '../../selection/primitives';
 
@@ -198,7 +197,7 @@ function selectionBytes(
 	const laid = measured(doc);
 	const map = documentByteMap(laid);
 	if (isGapSelection(selection)) {
-		const gap = gapByte(laid, selection.gapCaret);
+		const gap = byteOfGap(laid, selection.gapCaret);
 		return gap === null ? null : { gap };
 	}
 	// A table cell's index is no byte, so a cell end stands at its table's start.
@@ -207,17 +206,6 @@ function selectionBytes(
 	const focus = byteOf(selection.focus);
 	if (focus === null) return null;
 	return { anchor: byteOf(selection.anchor) ?? focus, focus };
-}
-
-/** Where a block starts, or where its container ends past its last child. */
-function gapByte(laid: Measured, { parentPath, index }: GapCaretPosition): number | null {
-	const { doc, starts } = laid;
-	const map = documentByteMap(laid);
-	const parent = parentPath.length === 0 ? doc : blockNodeAt(doc, parentPath);
-	if (!parent?.children) return null;
-	if (index < parent.children.length) return map.byteOf([...parentPath, index], 0);
-	if (parentPath.length === 0) return starts.length;
-	return map.endOf(parentPath, (parent as { raw: string }).raw.length);
 }
 
 function selectionAtBytes(laid: Measured, at: SelectionBytes): UndoEntry['selection'] | null {

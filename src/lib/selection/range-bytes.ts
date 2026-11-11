@@ -210,6 +210,20 @@ function edgeLeaf(doc: DocumentView, at: 0 | -1): number[] | null {
 	return path.length > 0 ? path : null;
 }
 
+/** The byte a gap caret stands at: where the block after it starts, or where its container ends. */
+export function byteOfGap(
+	measured: Measured,
+	{ parentPath, index }: GapCaretPosition
+): number | null {
+	const { doc, starts } = measured;
+	const parent = parentPath.length === 0 ? doc : blockNodeAt(doc, parentPath);
+	if (!parent?.children) return null;
+	const map = documentByteMap(measured);
+	if (index < parent.children.length) return map.byteOf([...parentPath, index], 0);
+	if (parentPath.length === 0) return starts.length;
+	return map.endOf(parentPath, (parent as { raw: string }).raw.length);
+}
+
 /** The deepest boundary a gap caret may take where a block starts, or a container ends, at byte
  *  `at`; null where none may. */
 export function gapAtByte(measured: Measured, at: number): GapCaretPosition | null {

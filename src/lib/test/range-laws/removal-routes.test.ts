@@ -129,6 +129,12 @@ const SHAPES: Record<string, Shape> = {
 	'out of a math block': {
 		source: 'Before\n\n$$\nx^2\n$$\n\nAfter\n',
 		select: range(at([1], 4), at([2], 0))
+	},
+	// Miss-analysis: no shape left a gap caret two containers deep, where the walk from a byte and
+	// the laws' reading of the caret back each added a container's raw length to a document byte.
+	'from code in a quote in a quote out to the paragraph after': {
+		source: '> > ```\n> > x\n> > ```\n> >\n> > ~~~\n> > y\n> > ~~~\n\nafter',
+		select: range(at([0, 0, 1], 0), at([1], 5))
 	}
 };
 
@@ -182,7 +188,7 @@ async function expectCoreCaret(
 	mode: PresentationMode
 ): Promise<void> {
 	if (caret.holds === 'boundary') {
-		expect(left.byte, 'the core’s caret').toEqual(caret);
+		expect(left.byte, 'the core’s caret').toEqual({ at: caret.at, holds: caret.holds });
 		return;
 	}
 	const fresh = mountCase(left.source, mode);
