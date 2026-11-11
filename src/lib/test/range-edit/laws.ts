@@ -511,8 +511,10 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
  *  around the caret has a write rule that changes it there (a closing tag alone). */
 function strandedInBody(read: Read, at: number, got: string, host: CheckHost) {
 	const { source } = read;
-	const start = source.lastIndexOf('\n', at - 1) + 1;
-	const end = (source + '\n').indexOf('\n', at);
+	const text = leafAt(read, at)?.text;
+	if (!text) return undefined;
+	const start = Math.max(source.lastIndexOf('\n', at - 1) + 1, text.from);
+	const end = Math.min((source + '\n').indexOf('\n', at), text.to);
 	const kinds = containersHolding(read, at).map((container) => container.type);
 	const lines = (bytes: string, line: string) =>
 		lf(bytes)
