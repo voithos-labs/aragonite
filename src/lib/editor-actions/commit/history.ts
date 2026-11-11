@@ -171,14 +171,14 @@ export function createHistoryActions(
 	};
 }
 
-/** An undo entry installed: where its caret goes, asked once the install is announced, the blocks
- *  the install replaced, and the runs of top-level blocks it changed. */
 /** A reading of the live document, and the document it was read from. */
 interface Reread {
 	reading: SpliceReading;
 	was: Measured;
 }
 
+/** An undo entry installed: where its caret goes, asked once the install is announced, the blocks
+ *  the install replaced, and the runs of top-level blocks it changed. */
 interface Installed {
 	caret(): UndoEntry['selection'] | null;
 	replaced: ReplacedBlocks;
