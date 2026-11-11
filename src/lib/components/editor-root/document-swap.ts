@@ -1,6 +1,7 @@
 /**
- * The `source` prop's whole-document replacement. Every piece of per-document state resets here
- * in one fixed order, so a swap cannot skip a step.
+ * The `source` prop's whole-document replacement, and the re-read of the same bytes a changed
+ * plugin list makes. Every piece of per-document state resets here in one fixed order, so neither
+ * can skip a step.
  */
 
 import type { Document } from '../../core/nodes';

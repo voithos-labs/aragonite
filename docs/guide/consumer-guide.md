@@ -376,7 +376,7 @@ And what you can write:
 | `insertMarkdown(md, options?)` | Inserts Markdown at the caret, or in a new paragraph below its block, exactly as pasting it would (see [Inserting Markdown at the caret](#inserting-markdown-at-the-caret)) |
 | `edit()` | Writes byte ranges of the document as one undo step, now or after a wait, and is refused with a reason if the author wrote over them meanwhile (see [`Draft`](plugin-api.md#draft-draftresult)) |
 | `runCommand(id, arg?)` | Runs an editor command by name, no keystroke involved (see [Toolbar commands](#toolbar-commands)) |
-| `use(plugins)` | Swaps this editor's plugin list for a new one and reads the document again under it, keeping the bytes and the undo history. Whatever a plugin you took off added goes with it |
+| `use(plugins)` | Swaps this editor's plugin list for a new one and reads the document again under it, keeping the bytes and the undo history. Whatever a plugin you took off added goes with it. Called while a write is still running (from a plugin's `rebuildRaw`, say), it changes nothing and says so on `error`, and a dev build throws |
 
 ### Reading the document and the selection
 
