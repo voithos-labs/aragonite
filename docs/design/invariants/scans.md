@@ -240,6 +240,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.330 | A key, clipboard or input handler that removes prevents the browser's default before it waits | L |
 | G4.338 | `edit` is emitted in one function, which first hands the link definitions what the write replaced | L |
 | G4.340 | A position read after a write, or a byte splice, measures the blocks the write changed, not the document | harness |
+| G4.342 | A range edit reads the blocks its range reaches, not the document (recorded, not held yet) | harness |
 
 ### The entries
 
@@ -697,3 +698,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.338 · One emit for `edit`.** `editor-actions/commit/emit-edit.ts :: emitEdit` takes the blocks the write replaced as a required argument and hands them to `refreshDefinitions` before it emits, so a route that emitted `edit` itself would leave the editor serving stale reference links. The writes G4.107 lists call it. `lint/edit-emitters.test.ts`.
 
 **G4.340 · A position costs its path.** Every write route (`test/harness/write-routes.ts`), with a listener asking a position on every edit, measures as many top-level blocks at 80 as at 20, unless it names no blocks or lays out a parse of its answer; with no listener, none, unless the write reads positions to make itself. A byte splice measures as many at 400 as at 40. `measured(doc)` measures every block it's handed, so its callers are a declared list. `test/perf/top-level-starts-reads.test.ts`, `splice-top-level-cost.test.ts`, `lint/measured-callers.test.ts`.
+
+**G4.342 · A range edit costs its range.** Recorded, not held yet. Each route through the range-edit core that G4.340 lists as laying out its answer serializes the document once and parses its whole answer once, so both grow with the document. A fix that stops either reds its row, which then flips to hold the cost the same at 400 blocks as at 40. `test/perf/range-edit-window-cost.test.ts`.
