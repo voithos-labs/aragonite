@@ -67,7 +67,7 @@ await scope.commit({
 
 The commit's steps, in order. `src/lib/editor-actions/commit/undo-controller.ts` :: `__commit` runs them all. The part from the reading-mode check to the `edit` event is the commit frame (`src/lib/editor-actions/commit/commit-frame.ts` :: `createCommitFrame`), which a keystroke runs too (below):
 
-1. ask whether reading mode admits the write (below), and stop if not,
+1. refuse a write started inside another (below), then ask whether reading mode admits it, and stop if not,
 2. forget the caret memory and end the typing batch's current burst,
 3. capture the snapshot (skipped when an open undo step or the typing batch already holds this gesture's entry, as above),
 4. hand the mutation owned copies: the path down to each container scope, and a top-level children array of its own (the old one is what a throw puts back). With the document among the scopes that's a plain array off the `$state` proxy, published at step 8, since splicing the live one would pay a tracked write for every block it shifts,
@@ -80,6 +80,8 @@ The commit's steps, in order. `src/lib/editor-actions/commit/undo-controller.ts`
 11. bump the content version, clear a gap caret, and, when the commit names an `op`, emit an `edit` event (`emitEdit`, which first reads the link definitions again if a block the write took out or put in holds one),
 12. `await tick()`, then read the caller's `landing` and put the caret there, awaited,
 13. speak the caller's `announce` line in the edit live region, when the commit wrote.
+
+**One write at a time.** A write started while another is being written (from a write rule or a `rebuildRaw`, say) would vanish under the outer write's publish, so it's refused: nothing lands, `error` hears it, a dev build throws where it started, and production answers as it does for any refused write. An `edit` or `selectionChange` handler runs once the write has announced, so it may write (G1.211).
 
 A throw anywhere from the snapshot to the content version's bump (11) rolls the tree and the undo stacks back. A write route that changes a node in place asks `SharingState.isShared` first: the frame saves each node that answer clears, and that's how the rollback reaches it. A throw in the landing rolls nothing back: the commit already succeeded, so it's reported on the `error` channel (§ The event channel) and the next edit runs as normal.
 
@@ -141,7 +143,7 @@ It goes through the same commit frame as everything else (reading-mode gate, und
 
 ## Drafts
 
-A draft is an edit held outside the document until it commits: a plugin's or a host's write, a shown math source, a diagram's edit box. It's a `Draft` (`src/lib/schema/drafts.ts`) from `edit()` on the editor, and its positions are byte offsets into the text as it stood when the draft opened. Its commit is one byte splice, so one undo step, landing after whatever the author typed in the meantime, or it's refused with a reason (`moved`, `unloaded`, `reading`, `overlap`, `illegal`, `empty`) instead of throwing. The splice can add to what a draft writes (a closing line its opener needs folds into the change, and G1.190 records it) but never takes out bytes the draft didn't name. A block's own draft (`openDraft` on its context) also watches the block's bytes, and the editor closes it at a swap, a mode change or an undo, through the `close` it was opened with.
+A draft is an edit held outside the document until it commits: a plugin's or a host's write, a shown math source, a diagram's edit box. It's a `Draft` (`src/lib/schema/drafts.ts`) from `edit()` on the editor, and its positions are byte offsets into the text as it stood when the draft opened. Its commit is one byte splice, so one undo step, landing after whatever the author typed in the meantime, or it's refused with a reason (`moved`, `unloaded`, `reading`, `overlap`, `illegal`, `empty`) instead of throwing. One committed inside another write is `illegal`, and a dev build throws it too. The splice can add to what a draft writes (a closing line its opener needs folds into the change, and G1.190 records it) but never takes out bytes the draft didn't name. A block's own draft (`openDraft` on its context) also watches the block's bytes, and the editor closes it at a swap, a mode change or an undo, through the `close` it was opened with.
 
 The interesting part is how a draft knows the document moved under it. While any draft is open, every write records what it changed (`src/lib/editor-actions/commit/change-record.ts`):
 

@@ -11,7 +11,7 @@ import type { UndoEntry } from '../../undo/types';
 import { assertInvariant, devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 import { checkSnapshotIntegrity } from '../../invariants/snapshot-integrity';
 import { checkInstalledEntry } from '../../invariants/history-install';
-import { admitsHistoryRequest } from './reading-write-gate';
+import { admitsHistoryRequest, startsAlone } from './reading-write-gate';
 import { installReading, runsOf } from './byte-splice';
 import { gapAtByte } from '../../selection/range-bytes';
 import { emitEdit, NOTHING_REPLACED, type ReplacedBlocks } from './emit-edit';
@@ -145,7 +145,7 @@ export function createHistoryActions(
 
 	return {
 		async requestUndo(): Promise<void> {
-			if (!admitsHistoryRequest(deps, 'undo')) return;
+			if (!startsAlone(deps, { kind: 'undo' }) || !admitsHistoryRequest(deps, 'undo')) return;
 			await beginHistorySwap();
 			// Check the stack before capturing: captureCurrentState marks the whole tree as
 			// shared with a snapshot, forcing the next edit to copy its path first.
@@ -157,7 +157,7 @@ export function createHistoryActions(
 		},
 
 		async requestRedo(): Promise<void> {
-			if (!admitsHistoryRequest(deps, 'redo')) return;
+			if (!startsAlone(deps, { kind: 'redo' }) || !admitsHistoryRequest(deps, 'redo')) return;
 			await beginHistorySwap();
 			if (!deps.undoManager.canRedo) return;
 			const from = controller.captureCurrentState();

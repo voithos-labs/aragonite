@@ -44,11 +44,11 @@ const INSIDE_THE_COMMIT: Record<string, string> = {
 		'copies the leaf’s chain in the step the commit frame runs after its reading-mode check'
 };
 
-type ReadingCheck = 'admitsWrite' | 'admitsSnapshot' | 'admitsHistoryRequest';
+type DoorCheck = 'admitsWrite' | 'admitsSnapshot' | 'admitsHistoryRequest' | 'startsAlone';
 
 /** Writers that must refuse reading mode, and the functions in each that must ask the check. The
  *  `source` prop swap is absent: reading mode allows the host to replace the document. */
-const READING_CHECKED: Record<string, Partial<Record<ReadingCheck, string[]>>> = {
+const READING_CHECKED: Record<string, Partial<Record<DoorCheck, string[]>>> = {
 	'src/lib/editor-actions/commit/commit-frame.ts': { admitsWrite: ['runFrame'] },
 	'src/lib/editor-actions/commit/undo-controller.ts': {
 		admitsSnapshot: ['pushCommitSnapshot', 'typingKeystroke']
@@ -58,8 +58,23 @@ const READING_CHECKED: Record<string, Partial<Record<ReadingCheck, string[]>>> =
 	}
 };
 
+/** Each announcer that opens a window for a write it starts, and the functions that must refuse a
+ *  write started while another is open, before their first side effect (G1.211). */
+const ALONE_CHECKED: Record<string, Partial<Record<DoorCheck, string[]>>> = {
+	'src/lib/editor-actions/commit/commit-frame.ts': { startsAlone: ['runFrame'] },
+	'src/lib/editor-actions/commit/history.ts': { startsAlone: ['requestUndo', 'requestRedo'] },
+	'src/lib/components/editor-root/document-swap.ts': { startsAlone: ['swapTo'] }
+};
+
+/** Announcers that start no write of their own. */
+const STARTS_NO_WRITE = new Set([
+	'src/lib/editor-actions/commit/kept-starts.ts',
+	'src/lib/components/Editor.svelte',
+	'src/lib/testing/headless-actions.ts'
+]);
+
 /** `check:function` for each named function in `file` that never calls its check. */
-function missingReadingChecks(file: SourceFile, spec: Partial<Record<ReadingCheck, string[]>>) {
+function missingDoorChecks(file: SourceFile, spec: Partial<Record<DoorCheck, string[]>>) {
 	const { code } = file;
 	const classes = fileClasses(file);
 	return Object.entries(spec).flatMap(([check, functions]) => {
@@ -123,7 +138,7 @@ describe('content-version entry points that write outside a commit', () => {
 	it('each of those functions asks the reading-mode check itself', () => {
 		const fileAt = new Map(sources.map((f) => [f.relPath, f]));
 		const missing = Object.entries(READING_CHECKED).flatMap(([relPath, spec]) =>
-			missingReadingChecks(fileAt.get(relPath) ?? sourceFile(relPath, ''), spec).map(
+			missingDoorChecks(fileAt.get(relPath) ?? sourceFile(relPath, ''), spec).map(
 				(m) => `${relPath} ${m}`
 			)
 		);
@@ -133,12 +148,29 @@ describe('content-version entry points that write outside a commit', () => {
 		).toEqual([]);
 	});
 
+	it('every announcer that starts a write names the functions that refuse one started inside another', () => {
+		const unnamed = Object.keys(ANNOUNCERS).filter(
+			(relPath) => !STARTS_NO_WRITE.has(relPath) && !(relPath in ALONE_CHECKED)
+		);
+		expect(unnamed).toEqual([]);
+	});
+
+	it('each of those functions asks whether another write is open', () => {
+		const fileAt = new Map(sources.map((f) => [f.relPath, f]));
+		const missing = Object.entries(ALONE_CHECKED).flatMap(([relPath, spec]) =>
+			missingDoorChecks(fileAt.get(relPath) ?? sourceFile(relPath, ''), spec).map(
+				(m) => `${relPath} ${m}`
+			)
+		);
+		expect(missing, 'a door that skips `startsAlone` lets a write land inside another').toEqual([]);
+	});
+
 	it('the per-function check sees a sibling that asks while the named one does not', () => {
 		const file = sourceFile(
 			'x.ts',
 			'function requestUndo() { swap(); }\nfunction requestRedo() { if (!admitsWrite(r, "redo")) return; }'
 		);
-		expect(missingReadingChecks(file, { admitsWrite: ['requestUndo', 'requestRedo'] })).toEqual([
+		expect(missingDoorChecks(file, { admitsWrite: ['requestUndo', 'requestRedo'] })).toEqual([
 			'admitsWrite:requestUndo'
 		]);
 	});
