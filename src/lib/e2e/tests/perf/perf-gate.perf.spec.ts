@@ -6,6 +6,7 @@ import {
 	measureContainerEdit,
 	measureContainerInteriorTyping,
 	measureListCopy,
+	measureNewParagraphLetter,
 	measureRangeRemoval,
 	measureStructuralRebuild,
 	measureTypingLatency,
@@ -124,6 +125,30 @@ test.describe('perf gate: keystroke p50 with a listener reading a position on ev
 			expect(m.p50Ms, `${key} p50 regressed past baseline+budget`).toBeLessThanOrEqual(ceilingMs);
 		});
 	}
+});
+
+// A new paragraph's first letter is the keystroke whose fix-up writes the block beside it; a write
+// naming no blocks costs the listener every block, so the row is held to the letter typed alone.
+test.describe('perf gate: the first letter of a new paragraph, with a listener reading a position', () => {
+	test('many small blocks 1MB reading new paragraph', async ({ page }) => {
+		const key = 'many-small-blocks-1MB-reading-new-paragraph';
+		const m = await measureNewParagraphLetter(
+			page,
+			new EditorPage(page),
+			'many-small-blocks',
+			SIZE_BYTES['1MB'],
+			SIZE_KEYSTROKES['10MB']
+		);
+		const ceilingMs = (m.alone.p50Ms * TOLERANCE + FLOOR_MS) * RUNNER_SCALE;
+		console.log(
+			`PERF-GATE ${key} p50=${m.reading.p50Ms.toFixed(1)}ms ` +
+				`ceiling=${ceilingMs.toFixed(1)}ms (alone ${m.alone.p50Ms.toFixed(1)}ms) ` +
+				`p95=${m.reading.p95Ms.toFixed(1)}ms`
+		);
+		expect(m.reading.p50Ms, `${key} p50 past the letter typed alone`).toBeLessThanOrEqual(
+			ceilingMs
+		);
+	});
 });
 
 // Typing inside a container, which no row above reaches. The caret sits on the first child, always

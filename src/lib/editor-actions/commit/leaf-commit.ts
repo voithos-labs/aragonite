@@ -21,7 +21,13 @@ import {
 	type FixedUpWrite
 } from '../../tree-operations/content-write';
 import { ensureUnsharedPath } from '../../tree-operations/unshare';
-import { documentBody, type BodyParent } from '../../tree-operations/node-primitives';
+import {
+	documentBody,
+	type BodyParent,
+	type ListWatcher
+} from '../../tree-operations/node-primitives';
+import type { StructuralChange } from '../../tree-operations/structural-change';
+import type { TopLevelChange } from '../../tree-operations/top-level-starts';
 import { rawOffsetOfLeaf } from '../../tree-operations/container-offsets';
 import { keepOneBlock, keepOpenTail } from '../../tree-operations/fix-up/apply';
 import { spliceMany } from '../../tree-operations/splice-many';
@@ -63,8 +69,8 @@ export function createLeafCommit(
 		let leafBefore: NodeView | null = null;
 		// Whether the write reached past the leaf: blocks fixed up beside it, or an ancestor read again.
 		const moved = () => settled.change.op !== 'noop' || folds.length > 0 || reclassified.length > 0;
-		// Whether the fix-up spliced the leaf's list: it can rewrite a neighbour and report no change.
-		let spliced = () => false;
+		// The top-level blocks the keystroke changed: the leaf's own, until a write beside it widens it.
+		const run: TopLevelChange = { at: leafPath[0], removed: 1, inserted: 1 };
 
 		const outcome = runFrame({
 			entry: 'updateContent',
@@ -102,14 +108,17 @@ export function createLeafCommit(
 			},
 			apply(wasOpen) {
 				const owner = depth > 1 ? chain[depth - 2] : undefined;
-				// The chain reached the leaf through the owner's children, so below the root they exist.
-				const siblings = savedOnWrite(owner ? owner.children! : deps.doc.children);
+				// Below the root the chain reached the leaf through the owner's children, so they exist;
+				// a container keeps its fix-up inside its own block, so only the document's list widens the run.
+				const siblings = savedOnWrite(
+					owner ? owner.children! : deps.doc.children,
+					owner ? null : run
+				);
 				body = owner
 					? { children: siblings.list, owner, lineEnding: documentLineEnding(deps.doc) }
 					: documentBody(deps.doc, siblings.list);
 				// The fix-up writes the leaf's list only through `spliceList`, which calls this first.
 				body.beforeWrite = siblings.save;
-				spliced = siblings.saved;
 				restoreChain = saveChain(deps, leafPath, chain, siblings.restore);
 				// Read before the write: the ancestors' rebuild locates the leaf's region by these bytes.
 				leafPreviousRaw = chain[depth - 1].raw;
@@ -129,6 +138,8 @@ export function createLeafCommit(
 						{ path: leafPath, leafPreviousRaw }
 					);
 					unwindFolds = publishAncestryFolds(deps, folds);
+					// A collapse at the top level merged the leaf's block with the blocks beside it.
+					for (const fold of folds) if (!fold.owner) widenOver(run, fold.change);
 				}
 				keepOpenTail(deps.doc, wasOpen, deps.sharing, deps.reading.grammar);
 				// An ancestor's new bytes reach the view once Svelte re-reads doc.children.
@@ -141,12 +152,7 @@ export function createLeafCommit(
 					? 'unknown'
 					: { before: [leafBefore], after: [leaf] };
 			},
-			// A container keeps its fix-up inside its own top-level block. The document's list names
-			// the leaf alone only where the fix-up spliced nothing beside it.
-			touched: () =>
-				folds.length > 0 || reclassified.length > 0 || (depth === 1 && (moved() || spliced()))
-					? null
-					: [{ at: leafPath[0], removed: 1, inserted: 1 }],
+			touched: () => [run],
 			// The ancestors still in the tree, any a kind change swapped in, and the leaf where it
 			// settled; the top block reads back only above a container, as a top-level leaf keeps its kind.
 			written() {
@@ -208,24 +214,41 @@ function saveChain(
 	};
 }
 
-/** The leaf's list, copied at the fix-up's first write to it and put back by `restore`. */
-function savedOnWrite(list: CstNode[]): {
-	list: CstNode[];
-	save(): void;
-	saved(): boolean;
-	restore(): void;
-} {
+/** The leaf's list, copied at the fix-up's first write to it and put back by `restore`; each
+ *  write to it widens `run`, when the list is the document's. */
+function savedOnWrite(
+	list: CstNode[],
+	run: TopLevelChange | null
+): { list: CstNode[]; save: ListWatcher; restore(): void } {
 	let before: CstNode[] | null = null;
 	return {
 		list,
-		save: () => {
+		save(at, count, added) {
 			before ??= list.slice();
+			if (run) widen(run, at, count, added);
 		},
-		saved: () => before !== null,
 		restore: () => {
 			if (before) spliceMany(list, 0, list.length, before);
 		}
 	};
+}
+
+// ── The blocks a keystroke changed ───────────────────────────────────────────
+
+/** `run` widened over a later write to its list, where `count` blocks at `at` gave way to `added`:
+ *  the blocks between the two are counted as they stood. */
+function widen(run: TopLevelChange, at: number, count: number, added: number): void {
+	const from = Math.min(run.at, at);
+	const to = Math.max(run.at + run.inserted, at + count);
+	run.removed += to - from - run.inserted;
+	run.inserted = to - from - count + added;
+	run.at = from;
+}
+
+function widenOver(run: TopLevelChange, change: StructuralChange): void {
+	if (change.op === 'insert') widen(run, change.at, 0, change.count);
+	else if (change.op === 'delete') widen(run, change.at, change.count, 0);
+	else if (change.op === 'replace') widen(run, change.at, change.count, change.newCount);
 }
 
 // ── Where the caret goes after an in-place write ─────────────────────────────

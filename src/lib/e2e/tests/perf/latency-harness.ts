@@ -237,6 +237,62 @@ export async function measureTypingWithPositionReads(
 }
 
 /**
+ * The first letter of a paragraph Enter just opened under block 0, timed alone and then with the
+ * position listener of {@link measureTypingWithPositionReads}; each sample's Enter and letter are undone.
+ */
+export async function measureNewParagraphLetter(
+	page: Page,
+	editor: EditorPage,
+	shape: FixtureShape,
+	bytes: number,
+	letters: number
+): Promise<{ loadMs: number; alone: LatencyMeasurement; reading: LatencyMeasurement }> {
+	await editor.goto('');
+	const loadMs = await loadFixture(page, editor, generateFixture(shape, bytes));
+	const count = await page.evaluate(topLevelCountInPage);
+	const sample = async (): Promise<number[]> => {
+		const samples: number[] = [];
+		for (let i = 0; i < letters; i++) {
+			await editor.focusBlockEnd(0);
+			await page.keyboard.press('Enter');
+			await waitForTopLevelCount(page, count + 1);
+			const keyStart = performance.now();
+			await editor.typeSlowly('x');
+			await page.waitForFunction(
+				() => (window as any).__test.getDocument().children[1].raw.startsWith('x'),
+				undefined,
+				{ timeout: KEYSTROKE_TIMEOUT_MS, polling: 16 }
+			);
+			samples.push(performance.now() - keyStart);
+			// The letter and the Enter are undo entries of their own, or one, by the typing pause.
+			for (let undo = 0; undo < 3 && (await page.evaluate(topLevelCountInPage)) !== count; undo++) {
+				await editor.undo();
+			}
+			await waitForTopLevelCount(page, count);
+		}
+		return samples;
+	};
+	const measured = (samples: number[]): LatencyMeasurement => ({
+		loadMs,
+		samples,
+		p50Ms: percentileMs(samples, 50),
+		p95Ms: percentileMs(samples, 95)
+	});
+	const alone = await sample();
+	await page.evaluate(() => (window as any).__test.startPositionReads());
+	const reading = await sample();
+	const reads: (number | null)[] = await page.evaluate(() =>
+		(window as any).__test.stopPositionReads()
+	);
+	// An undo's edit names no block, so only the letters' reads count: each placed the new block.
+	const placed = reads.filter((at) => at !== null && at > 0).length;
+	if (placed !== letters) {
+		throw new Error(`the listener placed ${placed} new paragraphs over ${letters} letters`);
+	}
+	return { loadMs, alone: measured(alone), reading: measured(reading) };
+}
+
+/**
  * The inside-a-container companion to {@link measureTypingLatency}. The caret sits on the first
  * child, always mounted, whose keystroke moves the container's opening line.
  */
