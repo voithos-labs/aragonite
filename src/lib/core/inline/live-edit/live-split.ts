@@ -221,18 +221,22 @@ const assemble = (bytes: SplitBytes, seam: SeamParts): RebalancedHalves => ({
 /** The same cut with a boundary space handed to the plain text beside it: a run cannot open or close
  *  against whitespace, and a space's formatting is invisible anyway. */
 function assembleSpaceOutside(bytes: SplitBytes, seam: SeamParts): RebalancedHalves | null {
-	const trailing = seam.closers !== '' && seam.head.endsWith(' ');
 	const leading = seam.openers !== '' && seam.tail.startsWith(' ');
-	if (!trailing && !leading) return null;
+	if (!closesPastSpace(seam) && !leading) return null;
 	return {
-		firstRaw:
-			(trailing ? seam.head.slice(0, -1) + seam.closers + ' ' : seam.head + seam.closers) +
-			bytes.firstResidue,
+		firstRaw: firstSpaceOutside(bytes, seam),
 		secondRaw:
 			(leading ? ' ' + seam.openers + seam.tail.slice(1) : seam.openers + seam.tail) +
 			bytes.secondResidue
 	};
 }
+
+const closesPastSpace = (seam: SeamParts) => seam.closers !== '' && seam.head.endsWith(' ');
+
+/** The first half closed, a space before the cut left outside its closers. */
+const firstSpaceOutside = (bytes: SplitBytes, seam: SeamParts) =>
+	(closesPastSpace(seam) ? seam.head.slice(0, -1) + seam.closers + ' ' : seam.head + seam.closers) +
+	bytes.firstResidue;
 
 /** The cut with a whitespace-only tail dropped: trailing whitespace draws nothing, and live mode
  *  may drop what it never showed (`docs/design/live-mode.md` § 4.5). */
@@ -249,7 +253,7 @@ function assembleDroppingTerminalTrivia(
 }
 
 /** The cut with the reopened runs in their chords' markers, which open after a word character
- *  where `__` can't: the first half keeps the bytes it had. */
+ *  where `__` can't: the first half closes in its own bytes, past a space before the cut. */
 function assembleInChordMarkers(
 	bytes: SplitBytes,
 	seam: SeamParts,
@@ -266,7 +270,7 @@ function assembleInChordMarkers(
 	}
 	if (openers === seam.openers) return null;
 	return {
-		firstRaw: seam.head + seam.closers + bytes.firstResidue,
+		firstRaw: firstSpaceOutside(bytes, seam),
 		secondRaw: openers + tail + bytes.raw.slice(at, bytes.contentEnd) + bytes.secondResidue
 	};
 }

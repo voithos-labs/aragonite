@@ -382,6 +382,18 @@ const RUN_ROWS: NamedRow[] = [
 		'> a **boq**\n>\n> **rld** z\n'
 	),
 	live(
+		'a cut after a space in an underscore run closes before the space, the half behind an item respelled',
+		'a __bo ⟦⟧ld__ z\n',
+		paste('- q\n- r'),
+		'a __bo__ \n\n- q\n- r**ld** z\n'
+	),
+	live(
+		'and in an item under a quote taken in',
+		'- a __a (b) ⟦⟧c__ z\n',
+		paste('> q\n>\n> r'),
+		'- a __a (b)__ \n\n  > q\n  >\n  > r**c** z\n'
+	),
+	live(
 		'a paragraph that ends the clipboard outside the quote taken in lands inside the run too',
 		'> a **bo⟦⟧ld** z\n',
 		paste('> q\n\nafter'),
