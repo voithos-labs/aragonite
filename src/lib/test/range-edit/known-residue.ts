@@ -1,12 +1,14 @@
 // The cuts whose plain-text paste back can't give the source back yet, each class named once with
 // why and its smallest repro. The editor's own clipboard entry gives every one of them back (law 12
-// holds on all), so these are gaps in what plain text carries. The law suites fail on a violation no
-// class of their law matches, and the pin suite on a class whose repro passes: its fix deletes the row.
+// holds on all), so these are gaps in what plain text carries. Three rows are pastes at a caret
+// beside a split tab, which no entry is part of. The law suites fail on a violation no class of
+// their law matches, and the pin suite on a class whose repro passes: its fix deletes the row.
 
 import type { Mode } from '#lib/range-edit/host.js';
 import type { Range } from '#lib/range-edit/edit-range.js';
 import type { LaidBlock } from '#lib/range-edit/layout.js';
-import { containersAt, leafAt, readOf, type Read } from './expected';
+import { containersAt, containersHolding, leafAt, readOf, type Read } from './expected';
+import { blockHeldWhole } from './laws';
 import type { CheckHost } from './test-host';
 
 export interface KnownResidue {
@@ -14,10 +16,12 @@ export interface KnownResidue {
 	gap: string;
 	/** The lane whose fix deletes the row. */
 	lane: 'tab columns' | '2b';
-	/** The law it breaks: law 3, law 4's bytes past the range, or law 9 at the caret the cut left. */
-	law: 'L3' | 'L4' | 'L9';
+	/** The law it breaks: law 3, law 4's bytes past the range, law 9 at the caret the cut left or
+	 *  at a drawn caret (a range with no bytes), law 11 at a drawn caret. */
+	law: 'L3' | 'L4' | 'L9' | 'L11';
 	matches(read: Read, range: Range, host: CheckHost): boolean;
-	repro: { source: string; mode: Mode; range: Range };
+	/** `text`: what a caret law's repro pastes. */
+	repro: { source: string; mode: Mode; range: Range; text?: string };
 }
 
 /** The lines the range touches, its first and last whole. */
@@ -27,13 +31,38 @@ function coveredLines(read: Read, { from, to }: Range): string[] {
 	return read.source.slice(start, end < 0 ? undefined : end).split('\n');
 }
 
-const lineHead = (source: string, at: number) =>
-	source.slice(source.lastIndexOf('\n', at - 1) + 1, at);
-
 /** The text after `at` on its line, which a cut joins to the start's line. */
 function restOfLine(read: Read, at: number): string {
 	const end = read.source.indexOf('\n', at);
 	return read.source.slice(at, end < 0 ? undefined : end);
+}
+
+const lineHead = (source: string, at: number) =>
+	source.slice(source.lastIndexOf('\n', at - 1) + 1, at);
+
+/** A line that opens with a tab its container markers may split with its indent. */
+const TAB_SPLIT = /^[ >*+\-\d.)]*\t/;
+
+/** Whether the line holding `at` has a tab in its run of markers and indent, beside a container's
+ *  marker or, on a blank line, inside a container: a tab that only indents text is no such tab. */
+function atSplitTab(read: Read, at: number): boolean {
+	const start = at - lineHead(read.source, at).length;
+	const line = restOfLine(read, start).replace(/\r$/, '');
+	const run = /^[ \t>*+\-\d.)]*/.exec(line)![0];
+	if (!run.includes('\t')) return false;
+	const inContainer = () => containersAt(read, start, 'start').length > 0;
+	return /[>*+-]|\d[.)]/.test(run) || (run === line && inContainer());
+}
+
+/** Whether a line the range touches has such a tab, or a line of a container holding its start. */
+function coversSplitTab(read: Read, { from, to }: Range): boolean {
+	const around = containersHolding(read, from).flatMap((c) => c.lines ?? []);
+	if (around.some((line) => atSplitTab(read, line.from))) return true;
+	for (let at = from; ;) {
+		if (atSplitTab(read, at)) return true;
+		at = read.source.indexOf('\n', at) + 1;
+		if (at === 0 || at > to) return false;
+	}
 }
 
 /** An end of the range right after a line's leading spaces, with the range crossing a line. */
@@ -58,17 +87,50 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 		gap: 'a tab split between a container marker and the line’s indent loses its columns',
 		lane: 'tab columns',
 		law: 'L3',
-		matches: (read, range) =>
-			coveredLines(read, range).some((line) => /^[ >*+\-\d.)]*\t/.test(line)),
+		matches: (read, range) => coveredLines(read, range).some((line) => TAB_SPLIT.test(line)),
 		repro: { source: '2) 汉字\n    \n\t1. n', mode: 'live', range: { from: 4, to: 15 } }
 	},
 	{
 		gap: 'a tab split between a container marker and the line’s indent joins as the spaces of its columns',
 		lane: 'tab columns',
 		law: 'L4',
-		matches: (read, range) =>
-			coveredLines(read, range).some((line) => /^[ >*+\-\d.)]*\t/.test(line)),
+		matches: (read, range) => coveredLines(read, range).some((line) => TAB_SPLIT.test(line)),
 		repro: { source: ' - `c`\n\t> q\n\t\n\t**b**\n', mode: 'source', range: { from: 11, to: 14 } }
+	},
+	{
+		gap: 'a tab split between a container marker and the line’s indent is read by its columns, which a new line’s markers and the question of two blocks reading as one count otherwise',
+		lane: 'tab columns',
+		law: 'L9',
+		matches: (read, range) => range.from < range.to && coversSplitTab(read, range),
+		repro: {
+			source: '1.\t汉字\n\t> q\n\t- x\n\n>\t`c`\n   > 1. n\n`c`\n',
+			mode: 'source',
+			range: { from: 15, to: 31 }
+		}
+	},
+	{
+		gap: 'at a drawn caret on a line where a tab stands beside a container’s marker, a pasted line’s markers and the question of two blocks reading as one count the tab by its bytes, not its columns',
+		lane: 'tab columns',
+		law: 'L9',
+		matches: (read, range) => range.from === range.to && atSplitTab(read, range.from),
+		repro: {
+			source: '- x\n    \n\t       -\tword\n',
+			mode: 'source',
+			range: { from: 9, to: 9 },
+			text: 'line one\nline two\n'
+		}
+	},
+	{
+		gap: 'plain text at a caret on a line where a tab stands beside a container’s marker takes later lines’ markers by its bytes, not its columns',
+		lane: 'tab columns',
+		law: 'L11',
+		matches: (read, range) => atSplitTab(read, range.from),
+		repro: {
+			source: '- x\n    \n\t       -\tword\n',
+			mode: 'source',
+			range: { from: 9, to: 9 },
+			text: 'line one\nline two\n'
+		}
 	},
 	{
 		gap: 'a line that reads as a setext underline or a break (`---`, `- `) re-reads the paragraph above it',
@@ -201,6 +263,48 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 		repro: { source: 'p\n\n \n# h - x\n', mode: 'source', range: { from: 4, to: 8 } }
 	},
 	{
+		gap: 'a cut from an unindented line a list item or footnote holds, or from the line right under one with an indented line after the range, leaves an empty line that container takes in: the paste back lands inside it, behind its indent',
+		lane: '2b',
+		law: 'L3',
+		matches: (read, { from, to }, host) => {
+			const marked = (b: LaidBlock) => host.facts(b.type).lines === 'first-line';
+			// An item or a footnote that starts at the range's first byte is cut as a block of its own.
+			if (
+				lineHead(read.source, from) !== '' ||
+				read.blocks.some((b) => b.from === from && marked(b))
+			)
+				return false;
+			const below = read.source.indexOf('\n', to);
+			const under = below < 0 ? '' : read.source.slice(below + 1);
+			const indentedBelow = /^(?:[ \t]*\r?\n)*[ \t]+\S/.test(under);
+			return read.blocks.some(
+				(c) => marked(c) && c.from < from && (from < c.to || (from === c.to && indentedBelow))
+			);
+		},
+		repro: {
+			source: '1. word\n   a\n   \n       > - x\n\t> q\na\n   > \n',
+			mode: 'source',
+			range: { from: 35, to: 36 }
+		}
+	},
+	{
+		gap: 'a range ending inside an indented code block it enters: pasted back, what it copied of the block and the rest of that line read as two blocks',
+		lane: '2b',
+		law: 'L3',
+		matches: (read, { from, to }, host) => {
+			const end = leafAt(read, to);
+			return (
+				!!end &&
+				host.facts(end.type).body === 'literal' &&
+				/^(?: {4}|\t)/.test(read.source.slice(end.from)) &&
+				from < end.from &&
+				end.text!.from < to &&
+				to < end.text!.to
+			);
+		},
+		repro: { source: '- [ ] x y\r\n \n       汉字\r\n', mode: 'source', range: { from: 9, to: 21 } }
+	},
+	{
 		gap: 'a range ending at the text of a block that takes no joined text keeps its marker, which the copy carries too',
 		lane: '2b',
 		law: 'L3',
@@ -232,12 +336,17 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 		repro: { source: '    word\n', mode: 'source', range: { from: 0, to: 6 } }
 	},
 	{
-		gap: 'an HTML block cut from its first byte carries no line ending, so pasted back it runs into the block after it',
+		gap: 'an HTML block cut from its first byte, save one held whole at the top level, pastes back as blocks apart from what the cut left',
 		lane: '2b',
 		law: 'L3',
 		matches: (read, range) =>
-			read.blocks.some((b) => b.type === 'htmlBlock' && b.from === range.from),
-		repro: { source: '<!DOCTYPE html>\n> one\n', mode: 'source', range: { from: 0, to: 15 } }
+			read.blocks.some((b) => b.type === 'htmlBlock' && b.from === range.from) &&
+			blockHeldWhole(read, range)?.path.length !== 1,
+		repro: {
+			source: '- <!-- a note -->\n- <!-- a note -->\n',
+			mode: 'source',
+			range: { from: 2, to: 17 }
+		}
 	},
 	{
 		gap: 'a range ending inside an HTML block it enters joins the rest of that line to where it began',

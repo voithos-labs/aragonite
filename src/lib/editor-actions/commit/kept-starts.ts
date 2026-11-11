@@ -5,7 +5,7 @@
  * asked for, so a document nobody asks about pays nothing. The record answers for the live document
  * between two announcements. From a write's first change to the tree until it announces, the
  * record is behind the tree, so a read there is answered from a fresh measure and fails a dev build.
- * `duringWrite` is the one way into that window, so no writer can leave it open.
+ * `duringWrite` is the one way into that window, so no writer can leave it open or open a second.
  */
 
 import { untrack } from 'svelte';
@@ -41,8 +41,10 @@ export interface KeptStarts {
 	/** Whether the tree may hold bytes no announcement covers: a write is open, or one threw and
 	 *  none has announced since. Whatever is kept of the document steps aside while it holds. */
 	unannounced(): boolean;
-	/** Runs one write to the tree, from before its first change, then announces what it touched.
-	 *  A throw goes on up, and the tree counts as unannounced until the next write announces. */
+	/** Whether a write is open now, from before its first change until it announces. */
+	writing(): boolean;
+	/** Runs one write to the tree, then announces what it touched; one opened inside another throws
+	 *  first. A throw counts the tree unannounced until the next write announces. */
 	duringWrite<T extends Written>(write: () => T): T;
 }
 
@@ -53,12 +55,12 @@ const WIDEST_RUN = 512;
 export function createKeptStarts(doc: () => DocumentView, announce: () => void): KeptStarts {
 	let kept: BlockLengths | null = null;
 	let view: Measured | null = null;
-	let open = 0;
+	let open = false;
 	let threw = false;
 
 	const misused = (message: string) =>
 		assertInvariant('kept-starts-current', () => ({ code: 'kept-starts-misused', message }));
-	const unannounced = () => open > 0 || threw;
+	const unannounced = () => open || threw;
 	// Nothing vouches for the rollback of a write that threw, so the record goes with it.
 	const forget = () => {
 		kept = view = null;
@@ -83,8 +85,7 @@ export function createKeptStarts(doc: () => DocumentView, announce: () => void):
 		});
 	};
 	const inWrite = () => {
-		if (devChecksOn && open > 0)
-			misused('a position was read between a write and its announcement');
+		if (devChecksOn && open) misused('a position was read between a write and its announcement');
 		return unannounced();
 	};
 	const pinned = (): Measured => {
@@ -116,27 +117,24 @@ export function createKeptStarts(doc: () => DocumentView, announce: () => void):
 			}),
 		isMeasured: () => kept !== null,
 		unannounced,
+		writing: () => open,
 		duringWrite(write) {
-			open++;
-			let written: ReturnType<typeof write>;
+			// The outer write would publish over the inner one's bytes (G1.211).
+			if (open) throw new Error('aragonite: a write started inside another write');
+			open = true;
 			try {
-				written = write();
-			} catch (err) {
-				open--;
-				forget();
-				throw err;
-			}
-			// A write made inside another's leaves neither able to place its runs.
-			const alone = --open === 0;
-			if (written.touched === 'unchanged') return written;
-			try {
-				place(alone ? written.touched : null);
-				announce();
+				const written = write();
+				if (written.touched !== 'unchanged') {
+					place(written.touched);
+					announce();
+				}
+				return written;
 			} catch (err) {
 				forget();
 				throw err;
+			} finally {
+				open = false;
 			}
-			return written;
 		}
 	};
 }

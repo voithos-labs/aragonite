@@ -288,7 +288,6 @@ export const TYPE_EDGES: readonly string[] = [
 	'plugin.ts -> menu-icons.ts',
 	'plugin.ts -> plugin-view.ts',
 	'plugin.ts -> presentation-mode.ts',
-	'range-edit -> action-contracts.ts',
 	'schema -> activation-click.ts',
 	'schema -> block-component.ts',
 	'schema -> decorations',

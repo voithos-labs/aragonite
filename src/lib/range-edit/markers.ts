@@ -30,8 +30,9 @@ export function continuation(doc: Doc, byte: number, keep: (c: LaidBlock) => boo
 		if (!MARKED.includes(facts.lines)) continue;
 		const line = lineOf(container, byte);
 		if (line.own) continue;
-		const marker = markerOn(doc, line) || lazyMarker(doc, container, line, facts.lines);
-		if (facts.lines === 'first-line' && line === firstBodyLine(container)) {
+		const marked = line.markerTo > line.from ? line : lazyMarked(doc, container, line, facts.lines);
+		const marker = marked ? markerOn(doc, marked) : '';
+		if (facts.lines === 'first-line' && marked === firstBodyLine(container)) {
 			prefix +=
 				facts.indent !== undefined
 					? ' '.repeat(facts.indent)
@@ -45,12 +46,17 @@ export function continuation(doc: Doc, byte: number, keep: (c: LaidBlock) => boo
 }
 
 /** A line its container reads without a marker still holds the caret inside it, so a line after
- *  it takes the marker as the container's nearest marked line spells it. */
-function lazyMarker(doc: Doc, container: LaidBlock, line: LaidLine, shape: string): string {
-	if (shape !== 'every-line') return '';
+ *  it takes the marker of the container's nearest marked line. */
+function lazyMarked(
+	doc: Doc,
+	container: LaidBlock,
+	line: LaidLine,
+	shape: string
+): LaidLine | undefined {
+	// Under a first-line marker, an indent with no marker is one a block inside holds as its own.
+	if (shape === 'first-line' && /[ \t]/.test(doc.source[line.from] ?? '')) return undefined;
 	const marked = container.lines!.filter((l) => !l.own && l.markerTo > l.from);
-	const nearest = marked.filter((l) => l.from < line.from).at(-1) ?? marked[0];
-	return nearest ? markerOn(doc, nearest) : '';
+	return marked.filter((l) => l.from < line.from).at(-1) ?? marked[0];
 }
 
 /** The lines a container opens with before its body: an alert's title line, a `:::` line, a

@@ -21,8 +21,25 @@ export interface NamedRow {
 }
 
 const text = (at: number): RangeEditResult['caret'] => ({ at, holds: 'text' });
-const paste = (t: string): Gesture => ({ paste: t, plain: false });
-const plain = (t: string): Gesture => ({ paste: t, plain: true });
+const paste = (t: string): Gesture => ({ paste: t, plain: false, holds: 'text' });
+const plain = (t: string): Gesture => ({ paste: t, plain: true, holds: 'text' });
+// A paste at a caret between two children of the block at `parent`, as the editor's gap caret holds it.
+const between = (t: string, parent: number[] = []): Gesture => ({
+	paste: t,
+	plain: false,
+	holds: 'boundary',
+	parent
+});
+const boundary = (at: number, parent: number[] = []): RangeEditResult['caret'] => ({
+	at,
+	holds: 'boundary',
+	parent
+});
+const block = (at: number, parent: number[] = []): RangeEditResult['caret'] => ({
+	at,
+	holds: 'block',
+	parent
+});
 const backToStart = (marked: string) => ({ source: unmark(marked) });
 // Filler that puts more bytes either side than an own entry hashes, so only its hashes place it.
 const LONG = 'a paragraph long enough that the entry hashes only part of it';
@@ -269,6 +286,500 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: paste('# T\nbody'),
 		expect: { source: 'ab\n\n# T\nbodycd\n' }
 	},
+	// ── A title row takes a paste on its one line, never in its name ──
+	// Miss-analysis: no row pasted at a name's end, and law 11 never drew a title row with a
+	// clipboard of two lines.
+	{
+		name: 'L9 a paste at the end of a row’s name starts its title, a space first',
+		source: ':::note⟦⟧\na\n:::\n',
+		gesture: paste('😀'),
+		expect: { source: ':::note 😀\na\n:::\n', caret: text(10) }
+	},
+	{
+		name: 'L11 the same as plain text, as written where a title shows its bytes',
+		source: '> :::note⟦⟧\n> a\n> :::\n',
+		gesture: plain('*x*'),
+		expect: { source: '> :::note *x*\n> a\n> :::\n' }
+	},
+	{
+		name: 'L9 a run of line breaks pasted into a title is one space',
+		source: ':::note Ti⟦⟧tle\nbody\n:::\n',
+		gesture: paste('a\n\nb\n'),
+		expect: { source: ':::note Tia btle\nbody\n:::\n', caret: text(13) }
+	},
+	{
+		name: 'L11 plain text pasted into a title stays on its line',
+		source: ':::note Ti⟦⟧tle\nbody\n:::\n',
+		gesture: plain('x\n*y*'),
+		expect: { source: ':::note Tix *y*tle\nbody\n:::\n' }
+	},
+	// ── Lines pasted into literal text stay in its block ──
+	// Miss-analysis: law 11 read a literal paste with no marker on its later lines, so the core
+	// dropped them, and no row pasted two lines into indented code or into code in a container.
+	{
+		name: 'L9 lines pasted into indented code take the caret line’s indent',
+		source: '    co⟦⟧de\n',
+		gesture: paste('a\n\nb'),
+		expect: { source: '    coa\n\n    bde\n', caret: text(14) }
+	},
+	{
+		name: 'L9 a fence pasted on indented code’s last line stays code, and opens nothing',
+		source: '    code\n\t⟦⟧\n\nnext\n',
+		gesture: paste('```\ncode\n```\n'),
+		expect: { source: '    code\n\t```\n\tcode\n\t```\n\n\nnext\n' }
+	},
+	{
+		name: 'L11 plain lines pasted into code in a quote keep the quote’s marker',
+		source: '> ```\n> x⟦⟧\n> ```\n',
+		gesture: plain('a\n*b*'),
+		expect: { source: '> ```\n> xa\n> *b*\n> ```\n' }
+	},
+	{
+		name: 'L11 a plain fence line pasted into a code block grows its fence',
+		source: '```\nx⟦⟧\n```\n',
+		gesture: plain('a\n```'),
+		expect: { source: '````\nxa\n```\n````\n' }
+	},
+	{
+		name: 'L11 plain lines into indented code in a list item keep the item and the indent',
+		source: '- a\n\n      c⟦⟧ode\n',
+		gesture: plain('x\ny'),
+		expect: { source: '- a\n\n      cx\n      yode\n' }
+	},
+	// ── A list pasted into a list of the other kind breaks out of it (C8) ──
+	// Miss-analysis: the merge fact's mismatch rule was read by neither the core nor the law's
+	// expectation, and every list row pasted a list of the caret's own kind.
+	{
+		name: 'C8 a bullet list pasted in an ordered item lands between the list’s halves',
+		source: '1. a⟦⟧b\n2. c\n',
+		gesture: paste('- q\n- r'),
+		expect: { source: '1. a\n- q\n- r\n2. b\n3. c\n', caret: text(12) }
+	},
+	{
+		name: 'C8 an ordered list pasted in a bullet item does the same, CRLF',
+		source: '> - a⟦⟧b\r\n> - c\r\n',
+		gesture: paste('1. q\n2. r\n'),
+		expect: { source: '> - a\r\n> 1. q\r\n> 2. r\r\n> - b\r\n> - c\r\n' }
+	},
+	{
+		name: 'C8 at an item’s first text byte the item opens the second half as it stands',
+		source: '1. x\n2. ⟦⟧ab\n',
+		gesture: paste('- q'),
+		expect: { source: '1. x\n- q\n2. ab\n', caret: text(8) }
+	},
+	{
+		name: 'C8 at an item’s end the items after it number on, and a wider number moves its lines',
+		source: '8. x\n9. a⟦⟧b\n   more\n10. c\n',
+		gesture: paste('- q\n- r'),
+		expect: { source: '8. x\n9. a\n- q\n- r\n10. b\n    more\n11. c\n' }
+	},
+	{
+		name: 'C8 the nearest list decides, whatever list holds it',
+		source: '- x\n  1. a⟦⟧b\n',
+		gesture: paste('- q\n- r'),
+		expect: { source: '- x\n  1. a\n  - q\n  - r\n  2. b\n' }
+	},
+	{
+		name: 'C8 a last pasted paragraph stays apart from the item under it',
+		source: '1. a⟦⟧b\n2. c\n',
+		gesture: paste('- q\n\npara'),
+		expect: { source: '1. a\n- q\n\npara\n\n2. b\n3. c\n' }
+	},
+	// Miss-analysis: every break-out row's list stood at its line's start, where a pasted list at
+	// the line's start can't take the item under it in; the 120-document draw held no indented one.
+	{
+		name: 'C8 a list breaking out of an indented list stands in that list’s column',
+		source: '   - a⟦⟧b\n   - c\n',
+		gesture: paste('1. q\n2. r'),
+		expect: { source: '   - a\n   1. q\n   2. r\n   - b\n   - c\n', caret: text(22) }
+	},
+	{
+		name: 'C8 at an indented item’s first text byte too, the to-do under it a sibling',
+		source: '   - [ ] ⟦⟧word\r\n',
+		gesture: paste('1. one'),
+		expect: { source: '   1. one\r\n   - [ ] word\r\n', caret: text(9) }
+	},
+	{
+		name: 'C8 with nothing after the caret, the items after it stay the list’s',
+		source: '   1. a⟦⟧\n   2. c\n',
+		gesture: paste('- q\n- r'),
+		expect: { source: '   1. a\n   - q\n   - r\n   2. c\n' }
+	},
+	{
+		name: 'C8 an indent the outer item’s tab spells goes with the pasted list',
+		source: '- x\n\t- a⟦⟧b\n',
+		gesture: paste('1. q\n2. r'),
+		expect: { source: '- x\n\t- a\n\t1. q\n\t2. r\n\t- b\n' }
+	},
+	{
+		name: 'C8 in a footnote, the pasted list keeps the indent on the label’s line',
+		source: '[^1]:    - ⟦⟧d\n',
+		gesture: paste('1. one'),
+		expect: { source: '[^1]:    1. one\n       - d\n' }
+	},
+	{
+		name: 'C8 the indent a clipboard brings gives way to the list’s',
+		source: '   - a⟦⟧b\n',
+		gesture: paste(' 1. q\n 2. r'),
+		expect: { source: '   - a\n   1. q\n   2. r\n   - b\n' }
+	},
+	{
+		name: 'C8 an indented clipboard pasted in a list at the line’s start leaves the item too',
+		source: '1. n⟦⟧b\n',
+		gesture: paste('   - q\n     more\n   - r'),
+		expect: { source: '1. n\n- q\n  more\n- r\n2. b\n' }
+	},
+	{
+		name: 'C8 a blank line already under the pasted list is the only one',
+		source: '- a\n\n  ⟦⟧\n\n1. z\n',
+		gesture: paste('1. one'),
+		expect: { source: '- a\n\n  \n1. one\n\n1. z\n' }
+	},
+	{
+		name: 'C8 a last pasted list of the caret’s kind stays apart from the item under it',
+		source: '- x⟦⟧word\n',
+		gesture: paste('1. q\n\n- r'),
+		expect: { source: '- x\n1. q\n\n- r\n\n- word\n' }
+	},
+	// ── A new line on a list item's or footnote's lazy line stays in it (§ 5.5) ──
+	// Miss-analysis: the lazy-line rows and law 9's expectation both read a quote, whose every line
+	// has a marker to copy; an item's later lines carry an indent, which neither turned its marker into.
+	{
+		name: 'L9 blocks pasted on a list item’s lazy line stay in the item',
+		source: '- a\nlazy⟦⟧\n',
+		gesture: paste('x\n\ny'),
+		expect: { source: '- a\nlazyx\n\n  y\n' }
+	},
+	{
+		name: 'L9 on a later lazy line they take the indent of the item’s nearest marked line',
+		source: '1. a\n   b\nlazy⟦⟧\n',
+		gesture: paste('x\n\ny'),
+		expect: { source: '1. a\n   b\nlazyx\n\n   y\n' }
+	},
+	{
+		name: 'L9 on a footnote’s lazy line they stay in the footnote',
+		source: '[^1]: a\nlazy⟦⟧\n',
+		gesture: paste('x\n\ny'),
+		expect: { source: '[^1]: a\nlazyx\n\n    y\n' }
+	},
+	// The removal writes its joined lines through the same rule, so its bytes move with the paste's.
+	{
+		name: 'L4 a cut from an item’s lazy line into a paragraph keeps the joined line in the item',
+		source: '- a\nlazy⟦ x\n\none⟧\ntwo\n',
+		gesture: 'cut',
+		expect: { source: '- a\nlazy\n  two\n', caret: text(8) }
+	},
+	// ── Blocks pasted mid-heading leave its tail a paragraph (§ 5.4 rule 4) ──
+	// Miss-analysis: law 9's split shape reads a paragraph only, and the one heading row pasted at
+	// the heading's end, where no tail is left to take the marker again.
+	{
+		name: 'L9 a code block pasted mid-heading leaves the text after it a paragraph',
+		source: '# he⟦⟧ad\n',
+		gesture: paste('```\ncode\n```'),
+		expect: { source: '# he\n\n```\ncode\n```\nad\n' }
+	},
+	// Miss-analysis: the fixed draw put no caret at the start of a paragraph whose first byte is a tab
+	// split with its item's indent, a text place that maps to no byte of its own; a fresh seed did.
+	{
+		name: 'L9 text at the start of a paragraph a tab indents in its item goes in as text',
+		source: '- x\n\n⟦⟧\t汉字\n',
+		gesture: paste('y'),
+		expect: { source: '- x\n\ny\t汉字\n', caret: text(6) }
+	},
+	// ── A last pasted block that takes no text stays apart from the text under it (§ 5.4) ──
+	// Miss-analysis: law 9 named no bytes for a clipboard ending in such a block, and the rows ended
+	// theirs in a fence, which closes itself: a table or an HTML block took the line under it in.
+	{
+		name: 'L9 a table pasted mid-paragraph keeps the text after it a paragraph',
+		source: 'ab⟦⟧cd\n',
+		gesture: paste('| a |\n| - |'),
+		expect: { source: 'ab\n\n| a |\n| - |\n\ncd\n', caret: boundary(15) }
+	},
+	{
+		name: 'L9 and at the paragraph’s start, in a quote',
+		source: '> ⟦⟧cd\n',
+		gesture: paste('| a |\n| - |'),
+		expect: { source: '> | a |\n> | - |\n>\n> cd\n' }
+	},
+	{
+		name: 'L9 and after a paragraph the clipboard opens with',
+		source: 'ab⟦⟧cd\n',
+		gesture: paste('x\n\n| a |\n| - |\n'),
+		expect: { source: 'abx\n\n| a |\n| - |\n\ncd\n' }
+	},
+	{
+		name: 'L9 and from the paragraph’s later lines, where the caret ends its line',
+		source: 'ab⟦⟧\ncd\n',
+		gesture: paste('<div>\nx\n</div>'),
+		expect: { source: 'ab\n\n<div>\nx\n</div>\n\ncd\n' }
+	},
+	{
+		name: 'L9 and from the block flush under the caret’s, where none of its text is left',
+		source: 'ab⟦⟧\n# h\n',
+		gesture: paste('<div>\nx\n</div>'),
+		expect: { source: 'ab\n\n<div>\nx\n</div>\n\n# h\n' }
+	},
+	{
+		name: 'L9 and in a CRLF quote, from the line under the caret’s',
+		source: '> ab⟦⟧\r\n> cd\r\n',
+		gesture: paste('| a |\n| - |'),
+		expect: { source: '> ab\r\n>\r\n> | a |\r\n> | - |\r\n>\r\n> cd\r\n' }
+	},
+	{
+		name: 'L9 and in live mode, after a run the caret closes',
+		mode: 'live',
+		source: 'a **b**⟦⟧ cd\n',
+		gesture: paste('| a |\n| - |'),
+		expect: { source: 'a **b**\n\n| a |\n| - |\n\n cd\n' }
+	},
+	{
+		name: 'L9 and mid-heading, where the tail is a paragraph',
+		source: '# he⟦⟧ad\n',
+		gesture: paste('| a |\n| - |'),
+		expect: { source: '# he\n\n| a |\n| - |\n\nad\n' }
+	},
+	{
+		name: 'L9 a heading under a pasted table keeps its line, as it reads apart already',
+		source: '# ⟦⟧head\n',
+		gesture: paste('| a |\n| - |'),
+		expect: { source: '| a |\n| - |\n# head\n' }
+	},
+	{
+		name: 'L3 an HTML block cut whole from above a paragraph pastes back above it',
+		source: '⟦<div>\nx\n</div>⟧\n\npara\n',
+		gesture: 'cut',
+		expect: { source: 'para\n', clipboard: '<div>\nx\n</div>', caret: text(0) },
+		then: { gesture: 'paste back', expect: backToStart('<div>\nx\n</div>\n\npara\n') }
+	},
+	// ── A paste where the caret holds no text lands as blocks of its own (§ 5.4 rule 7) ──
+	// Miss-analysis: a paste gesture couldn't say its caret stood between blocks, so every row and
+	// law pasted at a byte in text, and a cut's `'boundary'` caret was pasted at as if it held text.
+	{
+		name: 'L9 text pasted in the gap above a table stays a paragraph above it',
+		source: '⟦⟧| a |\n| - |\n',
+		gesture: between('x'),
+		expect: { source: 'x\n\n| a |\n| - |\n', caret: text(1) }
+	},
+	{
+		name: 'L9 in the gap above a paragraph it stays a paragraph of its own',
+		source: 'a\n\n⟦⟧b\n',
+		gesture: between('x'),
+		expect: { source: 'a\n\nx\n\nb\n', caret: text(4) }
+	},
+	{
+		name: 'L9 a list pasted in the gap under a list of its kind stays a list of its own',
+		source: '- a\n⟦⟧# h\n',
+		gesture: between('- q'),
+		expect: { source: '- a\n\n- q\n\n# h\n', caret: text(8) }
+	},
+	{
+		name: 'L9 in the gap after a quote, a pasted paragraph stays out of it',
+		source: '> a\n⟦⟧',
+		gesture: between('x'),
+		expect: { source: '> a\n\nx' }
+	},
+	{
+		name: 'L9 with nothing after the gap, the clipboard’s last line ending stays',
+		source: '# h\n⟦⟧',
+		gesture: between('x\n'),
+		expect: { source: '# h\n\nx\n', caret: boundary(7) }
+	},
+	// ── A place between blocks names the block whose children it sits between (ruled 2026-11-10) ──
+	// Miss-analysis: a place was a byte alone, and at a container's end one byte ends every container
+	// there, so the core read the outermost and no row pasted at a quote's end.
+	{
+		name: 'L9 at a quote’s end, among the quote’s children, the paste lands inside it',
+		source: '> | a |\n> | - |\n⟦⟧',
+		gesture: between('x', [0]),
+		expect: { source: '> | a |\n> | - |\n>\n> x', caret: text(21) }
+	},
+	{
+		name: 'L9 at the same byte among an item’s children it lands in the item',
+		source: '> - a\n⟦⟧',
+		gesture: between('x', [0, 0, 0]),
+		expect: { source: '> - a\n>\n>   x' }
+	},
+	{
+		name: 'L9 and among the quote’s, in the quote under its list',
+		source: '> - a\n⟦⟧',
+		gesture: between('x', [0]),
+		expect: { source: '> - a\n>\n> x' }
+	},
+	{
+		name: 'L9 and among the document’s, under the quote',
+		source: '> - a\n⟦⟧',
+		gesture: between('x'),
+		expect: { source: '> - a\n\nx' }
+	},
+	{
+		name: 'L9 at the end of a quote with no last line ending it opens a line of its own',
+		source: '> a⟦⟧',
+		gesture: between('x', [0]),
+		expect: { source: '> a\n>\n> x' }
+	},
+	{
+		name: 'L9 past a container’s closing line, among its children, it lands before that line',
+		source: ':::note\nbody\n:::\n⟦⟧',
+		gesture: between('x', [0]),
+		expect: { source: ':::note\nbody\n\nx\n:::\n' }
+	},
+	{
+		name: 'L9 and at the closing line’s first byte, under a table it would join as a row',
+		source: ':::note\n| a |\n| - |\n⟦⟧:::\n',
+		gesture: between('x', [0]),
+		expect: { source: ':::note\n| a |\n| - |\n\nx\n:::\n' }
+	},
+	{
+		name: 'L9 on an empty line inside an item, the first pasted line takes the item’s indent too',
+		source: '- a\n⟦⟧\n  b\n',
+		gesture: between('one\n\ntwo', [0, 0]),
+		expect: { source: '- a\n\n  one\n\n  two\n\n  b\n' }
+	},
+	{
+		name: 'L3 a rule cut from a container’s end leaves a caret among its children, and pastes back there',
+		source: ':::note\nbody\n\n⟦---⟧\n:::\n',
+		gesture: 'cut',
+		expect: { source: ':::note\nbody\n\n:::\n', caret: boundary(14, [0]) },
+		then: { gesture: 'paste back', expect: backToStart(':::note\nbody\n\n---\n:::\n') }
+	},
+	{
+		name: 'L3 text cut from a quote’s last line leaves its caret among the quote’s children',
+		source: '> a\n> ⟦b⟧',
+		gesture: 'cut',
+		expect: { source: '> a\n> ', caret: boundary(6, [0]) },
+		then: { gesture: 'paste back', expect: { source: '> a\n>\n> b' } }
+	},
+	// ── Blocks pasted between blocks stand a blank line apart from each (ruled 2026-11-10) ──
+	// Miss-analysis: the rows asked for a blank line only where two blocks would read as one, which
+	// today's gap paste and whole-block paste never ask: they always set one.
+	{
+		name: 'L9 a paragraph pasted between a heading and a paragraph stands apart from both',
+		source: '# h\n⟦⟧para\n',
+		gesture: between('x'),
+		expect: { source: '# h\n\nx\n\npara\n', caret: text(6) }
+	},
+	{
+		name: 'L9 a blank line that is there is not doubled',
+		source: '# h\n\n⟦⟧para\n',
+		gesture: between('x'),
+		expect: { source: '# h\n\nx\n\npara\n' }
+	},
+	{
+		name: 'L9 nor are the blank lines the clipboard brings',
+		source: '# h\n⟦⟧para\n',
+		gesture: between('\nx\n\n'),
+		expect: { source: '# h\n\nx\n\npara\n' }
+	},
+	{
+		name: 'L9 under a container’s title line the pasted block takes no blank line above',
+		source: '> [!NOTE]\n> ⟦⟧a\n',
+		gesture: between('x', [0]),
+		expect: { source: '> [!NOTE]\n> x\n>\n> a\n' }
+	},
+	{
+		name: 'L9 at a document’s end with no last line ending the pasted block opens its own line',
+		source: 'a⟦⟧',
+		gesture: between('x'),
+		expect: { source: 'a\n\nx' }
+	},
+	// Miss-analysis: every row at a container's end had a blank line or nothing under the container,
+	// so the blank line that keeps the text under it out of a pasted paragraph met no check.
+	{
+		name: 'L9 at a quote’s end a pasted paragraph stays apart from the text under the quote',
+		source: '> # h\n⟦⟧para\n',
+		gesture: between('x', [0]),
+		expect: { source: '> # h\n>\n> x\n\npara\n' }
+	},
+	// Miss-analysis: no row pasted an empty clipboard, and the fixed seed draws no cut that takes
+	// nothing and leaves its caret at a container's end, where the place wrote the container's marker.
+	{
+		name: 'L9 nothing pasted at a container’s end writes no marker',
+		source: '> a\n⟦⟧',
+		gesture: between('', [0]),
+		expect: { source: '> a\n', caret: boundary(4, [0]) }
+	},
+	// A range that is exactly one block is no named place: the text takes the block's line (§ 5.9).
+	{
+		name: 'L5 text pasted over a code block held whole by a range takes its line, as today',
+		source: '- a\n⟦```\nx\n```⟧\n',
+		gesture: paste('汉字'),
+		expect: { source: '- a\n汉字\n' }
+	},
+	// Miss-analysis: no draw cuts a list's middle item whole, and law 9 reads no place between items,
+	// so a pasted item kept apart from both its neighbours, three lists for one, met no check.
+	{
+		name: 'L3 an item cut from between two items pastes back as the list’s item',
+		source: '- a\n⟦- q⟧\n- b\n',
+		gesture: 'cut',
+		expect: { source: '- a\n- b\n', caret: block(4, [0]) },
+		then: { gesture: 'paste back', expect: backToStart('- a\n- q\n- b\n') }
+	},
+	{
+		name: 'L9 a paragraph pasted between two items parts the list around it',
+		source: '- a\n⟦⟧- b\n',
+		gesture: between('para', [0]),
+		expect: { source: '- a\n\npara\n\n- b\n' }
+	},
+	{
+		name: 'L9 at a table row’s first byte nothing lands as a block: the rows stay one table',
+		source: '| a |\n| - |\n⟦⟧| b |\n',
+		gesture: { paste: '| x |', plain: false, holds: 'block', parent: [0] },
+		expect: { source: '| a |\n| - |\n| x || b |\n' }
+	},
+	{
+		name: 'L5 over the end of a quoted paragraph and the block after, the paste is a paragraph of its own',
+		source: '> a\n> ⟦b\n\npara⟧\n',
+		gesture: paste('x'),
+		expect: { source: '> a\n>\n> x\n' }
+	},
+	{
+		name: 'L9 in a quote, the pasted lines and the block after them keep its marker',
+		source: '> a\n>\n> ⟦⟧```\n> x\n> ```\n',
+		gesture: between('one\ntwo', [0]),
+		expect: { source: '> a\n>\n> one\n> two\n>\n> ```\n> x\n> ```\n' }
+	},
+	{
+		name: 'L12 a rule cut from above a code block pastes back exact with its own entry',
+		source: 'para\n\n⟦---⟧\n\n```\nx\n```\n',
+		gesture: 'cut',
+		expect: { source: 'para\n\n```\nx\n```\n', caret: boundary(6) },
+		then: {
+			gesture: 'paste back with own',
+			expect: backToStart('para\n\n---\n\n```\nx\n```\n')
+		}
+	},
+	{
+		name: 'L3 its text alone lands the rule as a block above the code, a blank line between',
+		source: 'para\n\n⟦---⟧\n\n```\nx\n```\n',
+		gesture: 'cut',
+		expect: { clipboard: '---' },
+		then: { gesture: 'paste back', expect: backToStart('para\n\n---\n\n```\nx\n```\n') }
+	},
+	{
+		name: 'L3 a quote cut from above a list pastes back above it, the list still a list',
+		source: 'x\n\n⟦> a\n> b⟧\n\n- c\n',
+		gesture: 'cut',
+		expect: { source: 'x\n\n- c\n', caret: block(3) },
+		then: { gesture: 'paste back', expect: backToStart('x\n\n> a\n> b\n\n- c\n') }
+	},
+	{
+		name: 'L9 a paste over a range that leaves the caret before an item keeps it an item',
+		source: '[^1]: ⟦**b**\n\t- x\n    ⟧- y\n',
+		gesture: paste('a\nb'),
+		expect: { source: '[^1]: a\n    b\n\n    - y\n' }
+	},
+	{
+		name: 'L9 at a heading’s first byte the pasted lines land above the heading',
+		source: '⟦⟧# h\n',
+		gesture: paste('x\ny'),
+		expect: { source: 'x\ny\n# h\n', caret: text(3) }
+	},
+	{
+		name: 'L5 text over a rule held whole stays apart from the indented code under it',
+		source: 'para\n⟦***⟧\n    code\n',
+		gesture: paste('p'),
+		expect: { source: 'para\np\n\n    code\n', caret: text(6) }
+	},
 	// ── Copy (law 10) ──
 	{
 		name: 'L10 a copy ending at a list item text start carries its marker',
@@ -303,7 +814,104 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: 'copy',
 		expect: { clipboard: 'pha\nbe' }
 	},
+	// ── A side of a broken-out list with no text makes no item (ruled 2026-11-10) ──
+	// Miss-analysis: every break-out row left text on a side of the caret, and law 5 held a range over
+	// an item's whole text to "the bytes outside stay", so the emptied marker stood under the paste.
+	{
+		name: 'C8 with no text after the caret the caret’s item is not split in two',
+		source: '1. a⟦⟧\n2. c\n',
+		gesture: paste('- q\n- r'),
+		expect: { source: '1. a\n- q\n- r\n2. c\n' }
+	},
+	{
+		name: 'C8 with none before it the item stands under the pasted list, its number kept',
+		source: '1. ⟦⟧b\n2. c\n',
+		gesture: paste('- q'),
+		expect: { source: '- q\n1. b\n2. c\n' }
+	},
+	{
+		name: 'C8 over an item’s whole text the item gives way and the list numbers on',
+		source: '1. ⟦n⟧\n2. c\n',
+		gesture: paste('- q'),
+		expect: { source: '- q\n1. c\n', caret: text(3) }
+	},
+	{
+		name: 'C8 an empty item at the caret gives way the same',
+		source: '1. ⟦⟧\n2. c\n',
+		gesture: paste('- q'),
+		expect: { source: '- q\n1. c\n' }
+	},
+	{
+		name: 'C8 a middle item emptied gives way, in a quote, the items after numbered on',
+		source: '> 1. a\n> 2. ⟦n⟧\n> 3. c\n',
+		gesture: paste('- q\n- r'),
+		expect: { source: '> 1. a\n> - q\n> - r\n> 2. c\n' }
+	},
+	{
+		name: 'C8 a last item emptied gives way and leaves no line',
+		source: '1. a\n2. ⟦n⟧',
+		gesture: paste('- q'),
+		expect: { source: '1. a\n- q' }
+	},
+	{
+		name: 'C8 an item that holds more than the emptied text keeps its marker for the rest',
+		source: '1. ⟦n⟧\n\n   more\n2. c\n',
+		gesture: paste('- q'),
+		expect: { source: '- q\n1. \n\n   more\n2. c\n' }
+	},
+	{
+		name: 'C8 over the one block an item holds, held whole by a range, the item gives way too',
+		source: '- ⟦</a>⟧\n\n- one\n  two\n',
+		gesture: paste('1. one'),
+		expect: { source: '1. one\n\n- one\n  two\n' }
+	},
+	// Miss-analysis: every row that left no second half ended its document or its parent there, and
+	// the fixed seed draws no nested list whose last item gives way above an outer item.
+	{
+		name: 'C8 a nested list’s only item gives way: the outer item under it stays flush',
+		source: '- a\n  - ⟦b⟧\n- c\n',
+		gesture: paste('1. one'),
+		expect: { source: '- a\n  1. one\n- c\n' }
+	},
+	{
+		name: 'C8 a list pasted at a nested list’s end stays flush over the outer item under it',
+		source: '- a\n  - b⟦⟧\n- c\n',
+		gesture: paste('1. one\n2. two'),
+		expect: { source: '- a\n  - b\n  1. one\n  2. two\n- c\n' }
+	},
+	{
+		name: 'C8 a quoted list’s last item gives way: the heading under the quote stays flush',
+		source: '> - a\n> - ⟦b⟧\n# h\n',
+		gesture: paste('1. one'),
+		expect: { source: '> - a\n> 1. one\n# h\n' }
+	},
+	{
+		name: 'C8 text under an item that gives way with its heading stays out of the pasted item',
+		source: '- # ⟦Title⟧\npara\n',
+		gesture: paste('1. one'),
+		expect: { source: '1. one\n\npara\n' }
+	},
 	// ── Paste as plain text (law 11) ──
+	// Miss-analysis: law 11 draws its carets in text, and the one boundary a plain paste met stood
+	// beside a paragraph, whose escape it borrowed; beside a table it had none to borrow.
+	{
+		name: 'L11 plain text between blocks is escaped as a paragraph’s text, beside a table too',
+		source: '⟦⟧| a |\n| - |\n',
+		gesture: { paste: '**x**\n# y', plain: true, holds: 'boundary', parent: [] },
+		expect: { source: '\\*\\*x\\*\\*\n\\# y\n\n| a |\n| - |\n' }
+	},
+	{
+		name: 'L11 and at a text caret on the table’s first byte, where it lands above the table',
+		source: '⟦⟧| a |\n| - |\n',
+		gesture: plain('**x**\n# y'),
+		expect: { source: '\\*\\*x\\*\\*\n\\# y\n\n| a |\n| - |\n' }
+	},
+	{
+		name: 'L11 and over a rule held whole by a range, on the rule’s line',
+		source: 'a\n\n⟦***⟧\n\nb\n',
+		gesture: plain('# x'),
+		expect: { source: 'a\n\n\\# x\n\nb\n' }
+	},
 	{
 		name: 'L11 plain text into a paragraph is escaped where it would read as Markdown',
 		source: 'ab⟦⟧cd\n',
@@ -394,7 +1002,7 @@ export const NAMED_ROWS: NamedRow[] = [
 		name: 'L9 the caret lands after everything pasted, its last line ending too',
 		source: 'abc⟦⟧\n',
 		gesture: paste('x\n'),
-		expect: { source: 'abcx\n\n', caret: { at: 5, holds: 'boundary' } }
+		expect: { source: 'abcx\n\n', caret: boundary(5) }
 	},
 	{
 		name: 'L9 a document with no line break takes LF, whatever the clipboard held',
@@ -930,7 +1538,7 @@ export const NAMED_ROWS: NamedRow[] = [
 		name: 'L4 a range from the document start to a rule it cannot join adds no line before it',
 		source: '⟦| c |\n| - |\n\n⟧---\n',
 		gesture: 'delete',
-		expect: { source: '---\n', caret: { at: 0, holds: 'block' } }
+		expect: { source: '---\n', caret: block(0) }
 	},
 	{
 		name: 'L4 a range from the document start into a list item it enters adds no line before it',
@@ -1115,6 +1723,177 @@ export const NAMED_ROWS: NamedRow[] = [
 		source: '| ⟦apple⟧ pie | b |\n| - | - |\n',
 		gesture: plain('*x*'),
 		expect: { source: '| \\*x\\* pie | b |\n| - | - |\n' }
+	},
+	// ── A paste over a range inside one block's text is one write of that block (law 5) ──
+	// Miss-analysis: law 5 held every paste over a range to the cut then the paste, and a cut that
+	// empties a line reads the block again as two, so no row asked the block to stay one.
+	{
+		name: 'L5 a paste over a quoted line’s text keeps the paragraph’s other lines its own',
+		source: '> ⟦a⟧\n> b\n',
+		gesture: paste('two words'),
+		expect: { source: '> two words\n> b\n', caret: text(11) }
+	},
+	{
+		name: 'L5 two paragraphs pasted over it stay in the quote, the second taking the lines after',
+		source: '>\t⟦a⟧\n>\tb\n',
+		gesture: paste('one\n\ntwo'),
+		expect: { source: '>\tone\n>\n>\ttwo\n>\tb\n' }
+	},
+	{
+		name: 'L5 a paragraph’s first line pasted over stays one paragraph with the rest',
+		source: '⟦one⟧\ntwo\n',
+		gesture: paste('two words'),
+		expect: { source: 'two words\ntwo\n' }
+	},
+	{
+		name: 'L5 live, a paste over a heading’s whole text keeps the heading',
+		source: '# ⟦Title⟧\n',
+		mode: 'live',
+		gesture: paste('😀'),
+		expect: { source: '# 😀\n' }
+	},
+	{
+		name: 'L5 live, blocks pasted over it join the heading, as in source mode',
+		source: '# ⟦Title⟧\n',
+		mode: 'live',
+		gesture: paste('one\n\ntwo'),
+		expect: { source: '# one\n\ntwo\n' }
+	},
+	{
+		name: 'L5 a heading pasted over a to-do’s text keeps its box and the list tight',
+		source: '- [ ] ⟦a⟧\n- [x] b\n',
+		gesture: paste('# h'),
+		expect: { source: '- [ ] # h\n- [x] b\n' }
+	},
+	{
+		name: 'L5 a heading pasted over a quoted paragraph’s text adds no line',
+		source: '> ⟦q⟧\n# h\n',
+		gesture: paste('# t'),
+		expect: { source: '> # t\n# h\n' }
+	},
+	{
+		name: 'L5 lines pasted over an item’s text on a last line with no ending stay in the item',
+		source: '- ⟦xy⟧',
+		gesture: paste('one\n\ntwo'),
+		expect: { source: '- one\n\n  two' }
+	},
+	// Miss-analysis: law 9 leaves a caret in a heading to the rows, and none pasted a block there.
+	{
+		name: 'L9 blocks pasted in an emptied heading land under it, which keeps its marker',
+		source: '> q\n# ⟦⟧\n',
+		gesture: paste('- item'),
+		expect: { source: '> q\n# \n\n- item\n', caret: text(14) }
+	},
+	{
+		name: 'L5 live, blocks that join no text pasted over a heading’s whole text do the same',
+		source: '# ⟦Title⟧\n',
+		mode: 'live',
+		gesture: paste('> q\n\nafter'),
+		expect: { source: '# \n\n> q\n\nafter\n' }
+	},
+	// ── One line at an emptied heading's text start reads as blocks (ruled 2026-11-10) ──
+	// Miss-analysis: the base dropped the emptied heading's marker, so no row cut a heading's text
+	// that reads as a block alone and pasted it back.
+	{
+		name: 'L3 a heading’s text that reads as a quote pastes back under the heading, not in it',
+		source: '#### ⟦> foo@bar.com⟧\n',
+		gesture: 'cut',
+		expect: { source: '#### \n', clipboard: '> foo@bar.com', caret: text(5) },
+		then: { gesture: 'paste back', expect: { source: '#### \n\n> foo@bar.com\n' } }
+	},
+	{
+		name: 'L12 and with its own entry it is the heading’s text again',
+		source: '#### ⟦> foo@bar.com⟧\n',
+		gesture: 'cut',
+		expect: { source: '#### \n' },
+		then: { gesture: 'paste back with own', expect: backToStart('#### > foo@bar.com\n') }
+	},
+	// ── Blocks pasted over a range that cuts a format run leave the run closed (§ 5.11) ──
+	// Miss-analysis: the rows that split a block over a range ran in source mode or held a whole
+	// text, and the fixed draw cut no run with a clipboard that splits; a fresh seed did.
+	{
+		name: 'L5 live, a quote pasted over a range out of a link and its bold run leaves neither open',
+		source: '## ⟦[**bold⟧**](url) foo\n',
+		mode: 'live',
+		gesture: paste('> quoted'),
+		expect: { source: '> quoted\n##  foo\n', caret: text(8) }
+	},
+	{
+		name: 'L5 live, which is what its cut, then the quote pasted at the cut’s caret, leaves',
+		source: '## ⟦[**bold⟧**](url) foo\n',
+		mode: 'live',
+		gesture: 'cut',
+		expect: { source: '##  foo\n', clipboard: '[**bold**](url)', caret: text(3) },
+		then: { gesture: paste('> quoted'), expect: { source: '> quoted\n##  foo\n' } }
+	},
+	{
+		name: 'L5 live, a table pasted over a range into a quoted run leaves the run’s rest closed',
+		source: '> a ⟦**b⟧ c**\n> d\n',
+		mode: 'live',
+		gesture: paste('| a |\n| - |'),
+		expect: { source: '> a \n>\n> | a |\n> | - |\n>\n>  **c**\n> d\n' }
+	},
+	{
+		name: 'L5 live, a table pasted over a range into a heading’s run does the same',
+		source: '# a ⟦**b⟧ c**\nnext\n',
+		mode: 'live',
+		gesture: paste('| a |\n| - |'),
+		expect: { source: '# a \n\n| a |\n| - |\n\n **c**\nnext\n' }
+	},
+	{
+		name: 'L5 live, a list breaking out over a range from an item’s text start into a run',
+		source: '- ⟦**b⟧ c**\n- d\n',
+		mode: 'live',
+		gesture: paste('1. q'),
+		expect: { source: '1. q\n-  **c**\n- d\n' }
+	},
+	{
+		name: 'L5 live, a line break alone pasted over a range into a run',
+		source: 'x ⟦a **b⟧ c** d\n',
+		mode: 'live',
+		gesture: paste('\n'),
+		expect: { source: 'x \n **c** d\n' }
+	},
+	{
+		name: 'L5 live, a range that holds a run whole cuts none: the run goes with its bytes, as today',
+		source: '> ⟦**b**⟧\n',
+		mode: 'live',
+		gesture: paste('# not a heading'),
+		expect: { source: '> # not a heading\n' }
+	},
+	{
+		name: 'L5 in source mode the same range goes by its bytes, the delimiters text like any other',
+		source: '- ⟦**b⟧ c**\n- d\n',
+		gesture: paste('1. q'),
+		expect: { source: '1. q\n-  c**\n- d\n' }
+	},
+	{
+		name: 'L9 blocks pasted at a cell’s text start go in on its one line, as its text',
+		source: '| x | ⟦⟧y |\n| - | - |\n',
+		gesture: paste('- q\n\n- r\n'),
+		expect: { source: '| x | - q - ry |\n| - | - |\n' }
+	},
+	// ── A paste over a range writes the line ending its source had (§ 5.10) ──
+	// Miss-analysis: the core read the ending after its removal, and every CRLF row left a line
+	// ending standing for it to find.
+	{
+		name: 'L5 a paste over every line of a CRLF document writes CRLF',
+		source: '⟦one\r\n\r\ntwo⟧',
+		gesture: paste('a\nb'),
+		expect: { source: 'a\r\nb' }
+	},
+	{
+		name: 'L5 blocks pasted over them stay apart in CRLF too',
+		source: '⟦one\r\n\r\ntwo⟧',
+		gesture: paste('a\n\n# b\n'),
+		expect: { source: 'a\r\n\r\n# b\r\n' }
+	},
+	{
+		name: 'L3 the cut alone leaves no ending, so its text pasted back takes LF',
+		source: '⟦one\r\n\r\ntwo⟧',
+		gesture: 'cut',
+		expect: { source: '' },
+		then: { gesture: 'paste back', expect: { source: 'one\n\ntwo' } }
 	},
 	// ── An ordered list the removal shortens numbers on from where it was ──
 	// Miss-analysis: the editor renumbered after the core, so no core row read the numbers shown.

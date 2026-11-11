@@ -18,6 +18,7 @@ import type { DraftRegistry } from '../../editor-actions/commit/draft-registry.s
 import type { DocumentStamps } from '../../editor-actions/commit/document-stamp';
 import type { KeptStarts } from '../../editor-actions/commit/kept-starts';
 import type { MarkHoverTracker } from '../../decorations/mark-hover';
+import { startsAlone } from '../../editor-actions/commit/reading-write-gate';
 
 export interface ParsedDocument {
 	doc: Document;
@@ -55,7 +56,7 @@ export interface DocumentSwapDeps {
 	/** Writes the tree into the `$state` root and re-keys its blocks. */
 	adoptDocument(doc: Document): void;
 	/** The window the tree changes in, as every byte writer's does; its close announces the bytes. */
-	starts: Pick<KeptStarts, 'duringWrite'>;
+	starts: Pick<KeptStarts, 'duringWrite' | 'writing'>;
 	clearBlockRefs(): void;
 	layout: Pick<LayoutState, 'forgetMeasuredHeights'>;
 	undoManager: Pick<UndoManager, 'clear'>;
@@ -84,7 +85,7 @@ export function createDocumentSwap(deps: DocumentSwapDeps): DocumentSwap {
 
 	return {
 		swapTo(source) {
-			if (source === deps.currentSource()) return;
+			if (source === deps.currentSource() || !startsAlone(deps)) return;
 			replace(source);
 			// Last, so a subscriber reading the document sees the new tree, selection and resolver.
 			deps.events.emit('sourceSwap', { generation });

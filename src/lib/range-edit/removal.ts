@@ -15,7 +15,6 @@ import {
 	containersAt,
 	contentEnd,
 	findWithin,
-	endingOf,
 	factsOf,
 	leafAt,
 	lineOf,
@@ -172,7 +171,7 @@ function across(
 			const gone = kept ? /^[ \t>]*\r?\n/ : /^[ \t>]*(?=\r?\n|$)/;
 			tail = kept + (lineGoes ? rest.replace(gone, '') : rest);
 		}
-		if (tail !== '' && !first && !(lineGoes && kept === '')) tail = endingOf(source) + tail;
+		if (tail !== '' && !first && !(lineGoes && kept === '')) tail = doc.ending + tail;
 	}
 	const joined = before + tail;
 	const closerAt = lineEndBefore(joined, before.length);
@@ -417,7 +416,7 @@ function closers(doc: Doc, from: number, to: number): string {
 		// A range starting on or past the closing line leaves it standing, as the fence's does.
 		if (!last.own || last.from >= to || from >= last.from) continue;
 		const lineStart = doc.source.lastIndexOf('\n', last.from - 1) + 1;
-		out += endingOf(doc.source) + doc.source.slice(lineStart, last.to).replace(/\r?\n$/, '');
+		out += doc.ending + doc.source.slice(lineStart, last.to).replace(/\r?\n$/, '');
 	}
 	return out;
 }

@@ -1,7 +1,8 @@
 /**
  * The synchronous body every write to the document runs, a structural commit and a keystroke
- * written in place alike: the reading-mode check, the undo entry, the write with its rollback on a
- * throw, the dev checks over what it wrote, then the content version, the gap caret and `edit`.
+ * written in place alike: the refusal of a write started inside another, the reading-mode check,
+ * the undo entry, the write with its rollback on a throw, the dev checks over what it wrote, then
+ * the content version, the gap caret and `edit`.
  * Decorations read nothing while it runs (`commit-scope.ts`).
  */
 
@@ -26,7 +27,7 @@ import {
 } from '../../invariants/install';
 import type { UndoManager } from '../../undo/types';
 import { captureChange, changeAfter, type BlockReach } from './change-record';
-import { admitsWrite } from './reading-write-gate';
+import { admitsWrite, failWrite, startsAlone } from './reading-write-gate';
 import { keepOwnedNodes } from './saved-bytes';
 import type { EditorActionsDeps } from '../deps';
 import type { TopLevelChange } from '../../tree-operations/top-level-starts';
@@ -92,7 +93,7 @@ export interface FrameUndo {
 	restoreStacks(stacks: UndoStacks): void;
 }
 
-/** The one path to the `error` event for a write, so every throw site reports alike. */
+/** The `error` event for a write that already landed, such as one whose landing threw. */
 export function reportWriteError(
 	deps: EditorActionsDeps,
 	write: Pick<FrameWrite, 'op'>,
@@ -197,13 +198,12 @@ export function createCommitFrame(
 	}
 
 	function failed(write: FrameWrite, err: unknown): 'failed' {
-		reportWriteError(deps, write, err);
-		// Loud in dev; production swallows it so one failed edit does not kill the editor.
-		if (devChecksOn) throw err;
+		failWrite(deps, err, write.op);
 		return 'failed';
 	}
 
 	function runFrame(write: FrameWrite): FrameOutcome {
+		if (!startsAlone(deps, write.op)) return 'failed';
 		const target = write.op?.eventPath ?? write.snapshot.path;
 		const op = write.op?.kind ?? write.entry;
 		if (!admitsWrite(deps, op, () => blockNodeAt(deps.doc, target)?.kind)) return 'refused';

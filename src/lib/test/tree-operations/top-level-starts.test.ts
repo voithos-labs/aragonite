@@ -223,15 +223,23 @@ describe('G1.209 the kept record answers as a fresh measure does', () => {
 		expect(answers(doc, k.record.read().starts)).toEqual(answers(doc));
 	});
 
-	it('forgets when one write runs inside another', () => {
+	it('refuses a write that opens inside another before it runs, and keeps the outer one', () => {
 		const doc = parse(paragraphs(6));
 		const k = kept(doc);
+		let inner: unknown = null;
 		k.record.duringWrite(() => {
 			doc.children[1].raw = 'outer\n';
-			k.write(() => (doc.children[4].raw = 'inner\n'), [{ at: 4, removed: 1, inserted: 1 }]);
+			expect(k.record.writing()).toBe(true);
+			try {
+				k.write(() => (doc.children[4].raw = 'inner\n'), [{ at: 4, removed: 1, inserted: 1 }]);
+			} catch (error) {
+				inner = error;
+			}
 			return { touched: () => [{ at: 1, removed: 1, inserted: 1 }] };
 		});
-		expect(k.record.isMeasured()).toBe(false);
+		expect((inner as Error).message).toBe('aragonite: a write started inside another write');
+		expect(doc.children[4].raw).not.toBe('inner\n');
+		expect([k.record.writing(), k.record.isMeasured(), k.announced()]).toEqual([false, true, 1]);
 		expect(answers(doc, k.record.read().starts)).toEqual(answers(doc));
 		expect(takeDevWarns()).toEqual([]);
 	});
