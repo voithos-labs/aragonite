@@ -682,6 +682,14 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: between('x'),
 		expect: { source: 'a\n\nx' }
 	},
+	// Miss-analysis: every row at a container's end had a blank line or nothing under the container,
+	// so the blank line that keeps the text under it out of a pasted paragraph met no check.
+	{
+		name: 'L9 at a quote’s end a pasted paragraph stays apart from the text under the quote',
+		source: '> # h\n⟦⟧para\n',
+		gesture: between('x', [0]),
+		expect: { source: '> # h\n>\n> x\n\npara\n' }
+	},
 	// Miss-analysis: no row pasted an empty clipboard, and the fixed seed draws no cut that takes
 	// nothing and leaves its caret at a container's end, where the place wrote the container's marker.
 	{

@@ -125,10 +125,10 @@ export function editRange(
 	return answer(restored(removed.source, at, at, own) ?? pasteAt(after, at, at, dropped));
 }
 
-/** Whether the range sits in one block's text, between its fence lines where it has them: a paste
- *  over it is that block's one write. A block held whole gives way to the text instead. */
 const TEXT: Held = { holds: 'text' };
 
+/** Whether the range sits in one block's text, between its fence lines where it has them: a paste
+ *  over it is that block's one write. A block held whole gives way to the text instead. */
 function inOneText(doc: Doc, from: number, to: number): boolean {
 	const held = leafHolding(doc, from, to);
 	if (!held || heldAlone(doc, from, to)) return false;
