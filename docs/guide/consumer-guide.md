@@ -604,12 +604,12 @@ A keystroke fires its `input` as it's written, one per key, with no `detail` (re
 
 `path` always walks from the document root to the block operated on, nested blocks and typing included. One event names one path even when the write spanned several blocks; a `delete`, `updateContent`, `tableDeleteRow` or `tableDeleteColumn` that did carries `detail.crossBlock: true`, and a host that reconciles incrementally should re-read the whole affected range on those rather than just `path`.
 
-**`selectionChange`** carries the same snapshot [`getSelection()`](#reading-the-document-and-the-selection) returns, or `null` when nothing is focused. In reading mode, which has no caret, a click or a jump reports `null` too.
+**`selectionChange`** carries the same snapshot [`getSelection()`](#reading-the-document-and-the-selection) returns, or `null` when the editor holds no selection: nothing is focused, or a delete has just taken a selection and its caret is about to land (the next event carries it). In reading mode, which has no caret, a click or a jump reports `null` too.
 
 ```ts
 events.on('selectionChange', (sel) => sel);
 // { anchor: { path: [0], offset: 3 }, focus: { path: [0], offset: 3 } }
-// null    (focus left the editor)
+// null    (no selection: focus left, or a delete's caret is about to land)
 ```
 
 Read the value the channel settles on rather than counting emissions. Most changes emit once, but a caret landing between two blocks emits a short burst, and its last value is `null` (a caret between blocks has no selection to report). Focus leaving the editor reads `null` too, so a button greyed off this channel can't go stale when the user clicks out.

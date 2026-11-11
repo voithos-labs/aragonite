@@ -166,7 +166,7 @@ async function replaceInStep(
 	);
 	if (!removed.wrote && !removed.caret) return 'nothing';
 	const removalCaret = held ?? (removed.wrote ? null : caretAt(ctx, removed.caret!));
-	const place = family !== 'structural' ? emptiedPlace(ctx.getDoc(), removed) : null;
+	const place = family !== 'structural' ? emptiedPlace(ctx.bytes.measured(), removed) : null;
 	if (place) return insertInEmptiedPlace(ctx, coverage, insertion, place, removalCaret);
 
 	const at = removed.caret;

@@ -356,6 +356,7 @@ const menuProbe = createSessionProbe<boolean[]>(() => []);
 const sourceSwapProbe = createSessionProbe<number[]>(() => []);
 const caretProbe = createSessionProbe<CaretProbeState>(() => ({ captured: false, rect: null }));
 const selectionProbe = createSessionProbe<SelectionChangeRecord[]>(() => []);
+const positionProbe = createSessionProbe<(number | null)[]>(() => []);
 
 /** A container whose registered BlockListState has drifted from its children. */
 interface StateDrift {
@@ -439,6 +440,7 @@ export function installTestProbes({
 	sourceSwapProbe.invalidate(remounted);
 	caretProbe.invalidate(remounted);
 	selectionProbe.invalidate(remounted);
+	positionProbe.invalidate(remounted);
 
 	// Nothing is filtered out: the requirement files claim "exactly one edit event per user
 	// gesture" with no exceptions, so a filter would let a second commit go uncounted.
@@ -769,6 +771,15 @@ export function installTestProbes({
 		dumpUndoStack: (n = 10) => dumpUndoStack(editor.__test.getUndoStack(), n),
 		dumpOperationsLog: (n = 20) => dumpOperationsLog(editor.__test.getOperationsLog(), n),
 		dumpInteractionTrace: (n = 50) => dumpInteractionTrace(interactionTraceSnapshot(), n),
+		// ── Position-read probe ───────────────────────────────────────────
+		// Asks where the edited block starts on every edit, as a plugin following the caret asks.
+		startPositionReads: (): void =>
+			positionProbe.start((bytes) =>
+				editor.getEvents().on('edit', (e: { path: readonly number[] }) => {
+					bytes.push(editor.__test.byteOf(e.path, 0));
+				})
+			),
+		stopPositionReads: (): (number | null)[] => positionProbe.stop(),
 		// ── Edit-event capture probe ──────────────────────────────────────
 		// One array; a second start replaces the first. A caller wanting a count takes the
 		// array's length.

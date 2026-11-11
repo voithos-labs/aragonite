@@ -16,7 +16,9 @@ import type { EditorEvents } from '../../editor-events';
 import type { MenuPresence } from '../menu/menu-presence.svelte';
 import type { DraftRegistry } from '../../editor-actions/commit/draft-registry.svelte';
 import type { DocumentStamps } from '../../editor-actions/commit/document-stamp';
+import type { KeptStarts } from '../../editor-actions/commit/kept-starts';
 import type { MarkHoverTracker } from '../../decorations/mark-hover';
+import { startsAlone } from '../../editor-actions/commit/reading-write-gate';
 
 export interface ParsedDocument {
 	doc: Document;
@@ -53,7 +55,8 @@ export interface DocumentSwapDeps {
 	noteTreeSwap(): void;
 	/** Writes the tree into the `$state` root and re-keys its blocks. */
 	adoptDocument(doc: Document): void;
-	bumpContentVersion(): void;
+	/** The window the tree changes in, as every byte writer's does; its close announces the bytes. */
+	starts: Pick<KeptStarts, 'duringWrite' | 'writing'>;
 	clearBlockRefs(): void;
 	layout: Pick<LayoutState, 'forgetMeasuredHeights'>;
 	undoManager: Pick<UndoManager, 'clear'>;
@@ -82,7 +85,7 @@ export function createDocumentSwap(deps: DocumentSwapDeps): DocumentSwap {
 
 	return {
 		swapTo(source) {
-			if (source === deps.currentSource()) return;
+			if (source === deps.currentSource() || !startsAlone(deps)) return;
 			replace(source);
 			// Last, so a subscriber reading the document sees the new tree, selection and resolver.
 			deps.events.emit('sourceSwap', { generation });
@@ -97,8 +100,10 @@ export function createDocumentSwap(deps: DocumentSwapDeps): DocumentSwap {
 		deps.flushDebouncedCheckpoint();
 		deps.noteTreeSwap();
 		const reset = initDocument(source, deps.grammar);
-		deps.adoptDocument(reset.doc);
-		deps.bumpContentVersion();
+		deps.starts.duringWrite(() => {
+			deps.adoptDocument(reset.doc);
+			return { touched: null };
+		});
 		deps.clearBlockRefs();
 		// Block ids never recur, so every measured height belongs to a block that can't come back.
 		deps.layout.forgetMeasuredHeights();

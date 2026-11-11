@@ -8,6 +8,7 @@ import {
 	measureListCopy,
 	measureStructuralRebuild,
 	measureTypingLatency,
+	measureTypingWithPositionReads,
 	type GiantContainer
 } from './latency-harness';
 
@@ -90,6 +91,34 @@ test.describe('perf gate: keystroke p50 within budget', () => {
 				`PERF-GATE ${key} p50=${m.p50Ms.toFixed(1)}ms ` +
 					`ceiling=${ceilingMs.toFixed(1)}ms (baseline ${baselineMs}ms) ` +
 					`p95=${m.p95Ms.toFixed(1)}ms load=${m.loadMs.toFixed(1)}ms`
+			);
+			expect(m.p50Ms, `${key} p50 regressed past baseline+budget`).toBeLessThanOrEqual(ceilingMs);
+		});
+	}
+});
+
+// A plugin that follows the caret asks a position's byte on every edit. The answer costs the
+// position's path, so each row is held to its twin above, which types with no listener.
+const READING_ROWS: Array<[shape: FixtureShape, size: string]> = [
+	['many-small-blocks', '1MB'],
+	['many-small-blocks', '10MB']
+];
+
+test.describe('perf gate: keystroke p50 with a listener reading a position on every edit', () => {
+	for (const [shape, size] of READING_ROWS) {
+		const key = `${shape}-${size}-reading`;
+		test(key.replace(/-/g, ' '), async ({ page }) => {
+			const { baselineMs, ceilingMs } = gateFor(key);
+			const m = await measureTypingWithPositionReads(
+				page,
+				new EditorPage(page),
+				shape,
+				SIZE_BYTES[size],
+				SIZE_KEYSTROKES[size]
+			);
+			console.log(
+				`PERF-GATE ${key} p50=${m.p50Ms.toFixed(1)}ms ` +
+					`ceiling=${ceilingMs.toFixed(1)}ms (baseline ${baselineMs}ms) p95=${m.p95Ms.toFixed(1)}ms`
 			);
 			expect(m.p50Ms, `${key} p50 regressed past baseline+budget`).toBeLessThanOrEqual(ceilingMs);
 		});

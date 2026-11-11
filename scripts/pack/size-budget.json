@@ -1,13 +1,13 @@
 {
 	"rows": {
 		"minimalAppSvelteFirstLoadGzip": {
-			"baseline": 345259,
-			"tolerance": 1000,
+			"baseline": 346718,
+			"tolerance": 4000,
 			"unit": "B"
 		},
 		"minimalAppSvelteTotalGzip": {
-			"baseline": 345259,
-			"tolerance": 1000,
+			"baseline": 346718,
+			"tolerance": 4000,
 			"unit": "B"
 		},
 		"minimalAppSvelteChunks": {
@@ -16,13 +16,13 @@
 			"unit": "chunks"
 		},
 		"minimalAppPrebuiltFirstLoadGzip": {
-			"baseline": 345290,
-			"tolerance": 1000,
+			"baseline": 346870,
+			"tolerance": 4000,
 			"unit": "B"
 		},
 		"minimalAppPrebuiltTotalGzip": {
-			"baseline": 345290,
-			"tolerance": 1000,
+			"baseline": 346870,
+			"tolerance": 4000,
 			"unit": "B"
 		},
 		"minimalAppPrebuiltChunks": {

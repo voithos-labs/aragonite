@@ -5,7 +5,7 @@
  * block at a time as a gesture asks, so a range edit's work stays near its range.
  */
 
-import type { DocumentView, NodeView } from '../core/node-views';
+import type { NodeView } from '../core/node-views';
 import { getContentRange } from '../core/inline';
 import { blockNodeAt } from '../tree-operations/node-primitives';
 import {
@@ -13,6 +13,7 @@ import {
 	containerLines,
 	documentByteMap
 } from '../tree-operations/container-offsets';
+import type { Measured } from '../tree-operations/top-level-starts';
 
 export interface LaidLine {
 	from: number;
@@ -51,29 +52,18 @@ export interface Layout {
 }
 
 /** Reads nothing until asked, so a layout made ahead of its first question costs nothing. */
-export function documentLayout(doc: DocumentView): Layout {
-	const map = documentByteMap(doc);
+export function documentLayout(measured: Measured): Layout {
+	const { doc, starts } = measured;
+	const map = documentByteMap(measured);
 	const laid = new Map<string, LaidBlock>();
-	let tops: { start: number; raw: string }[] | undefined;
-	const topAt = (i: number) => {
-		if (!tops) {
-			tops = [];
-			let at = doc.prefix.length;
-			for (let j = 0; j < doc.children.length; j++) {
-				const node = doc.children[j];
-				tops.push({ start: at, raw: node.raw });
-				at += node.leadingTrivia.length + node.raw.length;
-			}
-		}
-		return tops[i];
-	};
-	const rawStart = (i: number) => topAt(i).start + doc.children[i].leadingTrivia.length;
 	// A block's last line runs to the end of its line in the source, past a title's closing tag too.
 	const pastLine = (path: readonly number[], raw: string, end: number): number => {
 		if (!raw.endsWith('\n', end)) return map.byteOf(path, end)!;
 		const top = path[0];
 		const byte = map.byteOf(path, end - (raw.endsWith('\r\n', end) ? 2 : 1))!;
-		return rawStart(top) + topAt(top).raw.indexOf('\n', byte - rawStart(top)) + 1;
+		return (
+			starts.rawStart(top) + doc.children[top].raw.indexOf('\n', byte - starts.rawStart(top)) + 1
+		);
 	};
 	const leaf = (path: readonly number[]): NodeView | null => {
 		const node = blockNodeAt(doc, path);
@@ -91,7 +81,7 @@ export function documentLayout(doc: DocumentView): Layout {
 		const parentMap = parent && map.containerMap(parent);
 		const index = path[path.length - 1];
 		const start = !parent
-			? topAt(index).start
+			? starts.start(index)
 			: parentMap
 				? map.byteOf(parentPath, childTriviaStart(parentMap, parent, index))!
 				: 0;

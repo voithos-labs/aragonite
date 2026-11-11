@@ -25,6 +25,10 @@ Per-keystroke (or, for the structural row, per-edit) **p50** for each gated row,
   ahead of one. The caret sits at the container's first child, the one child windowing
   guarantees is mounted, at the end whose keystroke still moves the container's opener
   line; what they stand for is any keystroke inside a large container.
+- The `-reading` rows type into `many-small-blocks` at 1MB and 10MB with a listener that asks
+  where the edited block starts on every edit, the way a plugin following the caret does.
+  Each is held to its no-reader twin's baseline, so an answer that reads every top-level
+  block reds it. A row whose listener placed no byte fails.
 - `flat-prose-10MB-structural` times a top-level Enter at the end of block 0 and the
   Backspace that merges the new block back, each a change to the top-level block list that
   rebuilds the whole windowing model. A typed character never runs that rebuild, so no other

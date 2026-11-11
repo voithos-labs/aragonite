@@ -50,6 +50,7 @@ import {
 import type { BlockListState } from '../../block-lists/block-list-state.svelte';
 import { assertIdsInLockstep, assertTopLevelUntouched } from '../../invariants/install';
 import { checkSettledOnce, startCommitSettles } from '../../invariants/settle-once';
+import { changedRun, type TopLevelChange } from '../../tree-operations/top-level-starts';
 import { saveBytes } from './saved-bytes';
 import { perfEnabled } from '../../perf/instruments';
 import type { FrameWrite } from './commit-frame';
@@ -356,6 +357,10 @@ export function createStructuralCommit(
 		let foldLanding: FoldLanding | null = null;
 		let unwindFolds: (() => void) | null = null;
 		let topLevelBefore: CstNode[] | null = null;
+		// The document scope's list before the mutation, copied only while its starts are kept, and
+		// the run of it the write changed.
+		let docBefore: CstNode[] | null = null;
+		let docRun: TopLevelChange | null = null;
 		// A write that changed no list and kept every child of each container it owned rewrote only
 		// those containers' own lines, which are no block (a to-do's checkbox, say).
 		const ownLinesOnly = () =>
@@ -402,6 +407,7 @@ export function createStructuralCommit(
 					prepared.push(prepareScopeView(s, topLevel));
 				}
 				if (hasDoc) prepared.unshift(prepareScopeView(scopes[0], topLevel));
+				if (hasDoc && deps.starts.isMeasured()) docBefore = [...prepared[0].view.children];
 				const treeAtMutate = hasDoc && devChecksOn && !perfEnabled() ? [...topLevel] : null;
 				const changes = mutate(prepared.map((p) => p.view) as { [K in keyof S]: ContainerScope });
 				if (treeAtMutate) assertTopLevelUntouched(deps.doc.children, topLevel, treeAtMutate);
@@ -445,6 +451,9 @@ export function createStructuralCommit(
 					// that step leaves its line ending as it is.
 					if (prepared[i].isDoc) {
 						changeList[i] = keepOneBlock(prepared[i].view.body, changeList[i], deps.sharing);
+						// Before the publish, while the working list is a plain array.
+						const shared = deps.undoManager.peekUndo()?.snapshot.children;
+						if (docBefore && shared) docRun = changedRun(docBefore, p.view.children, shared);
 					}
 					publishScopeView(prepared[i], changeList[i], args.entry);
 				}
@@ -485,6 +494,16 @@ export function createStructuralCommit(
 			discardIfNoop,
 			history: args.history ?? 'entry',
 			replaced: () => (ownLinesOnly() ? NOTHING_REPLACED : 'unknown'),
+			// A collapsed container recreates blocks beside it, and a container scope beside the
+			// document's writes below blocks the document's run was read without.
+			touched: () => {
+				if (folds.length > 0) return null;
+				if (!scopes.some(isDocScope)) {
+					const tops = [...new Set(scopes.map((s) => s.path[0]))].sort((a, b) => a - b);
+					return tops.map((at) => ({ at, removed: 1, inserted: 1 }));
+				}
+				return scopes.length === 1 && docRun ? [docRun] : null;
+			},
 			written: () => {
 				const nodes: CstNode[] = [];
 				// A set: a doc scope's caller can name a block the scope's change already placed.

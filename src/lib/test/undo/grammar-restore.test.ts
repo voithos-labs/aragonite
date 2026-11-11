@@ -5,7 +5,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
-import { makeTopHarness } from '#lib/test/harness/editor-actions.js';
+import { makeTopHarness, writeBytes } from '#lib/test/harness/editor-actions.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { createGrammarView } from '#lib/schema/block-openers.js';
 import { parse } from '#lib/core/parser.js';
@@ -19,6 +19,7 @@ import { isGapSelection, type GapCaretSelection } from '#lib/selection/gap-caret
 import type { EditorSelection } from '#lib/selection/primitives.js';
 import { checkRestoredUnderGrammar } from '#lib/invariants/reads-back.js';
 import type { Document } from '#lib/core/nodes.js';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 const withoutIndentedCode = createGrammarView((key) => key !== 'indentedCode');
 
@@ -52,8 +53,10 @@ async function pushEntry({ controller, deps }: Setup, insert = '!'): Promise<voi
 function switchGrammar({ deps }: Pick<Setup, 'deps'>): void {
 	deps.reading = fixtureReading({ grammar: withoutIndentedCode });
 	const reread = parse(serialize(deps.doc), { grammar: withoutIndentedCode });
-	deps.setDoc(reread);
-	deps.setBlockIds(assignIds(reread.children));
+	writeBytes(deps, () => {
+		deps.setDoc(reread);
+		deps.setBlockIds(assignIds(reread.children));
+	});
 }
 
 const kinds = ({ deps }: Setup) => deps.doc.children.map((b) => b.kind);
@@ -84,8 +87,28 @@ describe('an undo across a grammar change', () => {
 		await s.history.requestUndo();
 		const selection = restoredSelection(s);
 		const now = parse(SOURCE, { grammar: withoutIndentedCode });
-		expect(selection.focus).toEqual(leafAtByte(now, CARET));
-		expect(byteOfLeaf(s.deps.doc, selection.focus.path, selection.focus.offset)).toBe(CARET);
+		expect(selection.focus).toEqual(leafAtByte(measured(now), CARET));
+		expect(byteOfLeaf(measured(s.deps.doc), selection.focus.path, selection.focus.offset)).toBe(
+			CARET
+		);
+	});
+
+	// G1.209: the re-read names the windows it read again, so the starts kept across it stay the
+	// document's.
+	it('keeps the starts of the top-level blocks the document’s own', async () => {
+		const s = setup();
+		await pushEntry(s);
+		switchGrammar(s);
+		const ends = () => {
+			const { starts } = s.deps.bytes.measured();
+			return s.deps.doc.children.map((_, i) => starts.end(i));
+		};
+		ends();
+		await s.history.requestUndo();
+		const { starts } = measured(s.deps.doc);
+		expect(ends()).toEqual(s.deps.doc.children.map((_, i) => starts.end(i)));
+		expect(s.deps.starts.isMeasured()).toBe(true);
+		expect(takeDevWarns()).toEqual([]);
 	});
 
 	it('keeps the blocks the undo left alone, ids included', async () => {

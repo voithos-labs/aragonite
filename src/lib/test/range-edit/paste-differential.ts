@@ -26,6 +26,7 @@ import {
 	type SpliceReading
 } from '#lib/tree-operations/byte-splice.js';
 import { splicedOpenerClosers, withSplicedClosers } from '#lib/tree-operations/spliced-openers.js';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 import { offsetPastClosers } from '#lib/tree-operations/written-openers.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { dispatchKey } from '#lib/test/harness/settle.js';
@@ -114,7 +115,7 @@ const CUTS: readonly DiffRoute[] = ['cut then key', 'cut then plain'];
 /** The editor's range as the core receives it, read as a removal reads it; a block focused whole
  *  or a gap is the byte of the boundary below it. Null for a rectangle of cells. */
 export function bytesOf(doc: Document, place: Place): Range | null {
-	const layout = documentLayout(doc);
+	const layout = documentLayout(measured(doc));
 	if ('whole' in place || 'gap' in place) {
 		const [parent, index] =
 			'whole' in place
@@ -155,12 +156,12 @@ export function coreAnswer(
 ): { raw: RangeEditResult; landed: Answer; window?: string } {
 	const reading = fixtureReading({ grammar }, mode);
 	const doc = readAsOpened(source, { grammar, scope: 'document' }) as Document;
-	const layout = documentLayout(doc);
+	const layout = documentLayout(measured(doc));
 	const host = noTransforms(rangeHost(reading, { source, tree: doc, layout }));
 	const raw = editRange(source, range, gesture, mode, host);
 	const changes = changesBetween(source, raw.source);
-	const read = spliceReading(doc, source, changes, grammar);
-	const closers = read ? splicedOpenerClosers(doc, source, changes, read, grammar) : [];
+	const read = spliceReading(measured(doc), source, changes, grammar);
+	const closers = read ? splicedOpenerClosers(measured(doc), source, changes, read, grammar) : [];
 	const made = withSplicedClosers(source, changes, closers);
 	const written = changedBytes(source, 0, source.length, made);
 	const caret = { ...raw.caret, at: offsetPastClosers(raw.caret.at, closers) };
@@ -181,10 +182,10 @@ function windowParity(
 			doc.children.splice(w.at, w.count, ...(w.blocks as Document['children']));
 		if (reading) doc.suffix = reading.suffix;
 	};
-	const windows = spliceReading(inside, source, changes, grammar)?.windows ?? [];
+	const windows = spliceReading(measured(inside), source, changes, grammar)?.windows ?? [];
 	if (!windows.some((w) => w.run)) return undefined;
-	install(inside, spliceReading(inside, source, changes, grammar));
-	install(outside, topLevelReading(outside, source, changes, grammar));
+	install(inside, spliceReading(measured(inside), source, changes, grammar));
+	install(outside, topLevelReading(measured(outside), source, changes, grammar));
 	const [a, b] = [serialize(inside), serialize(outside)];
 	if (a !== b) return `bytes ${JSON.stringify(a)}, top level ${JSON.stringify(b)}`;
 	return describeShapeDivergence(inside, outside) ?? undefined;
@@ -241,7 +242,7 @@ async function landsSame(row: PasteRow): Promise<boolean> {
 	const fresh = mountCase(today.source, row.mode);
 	try {
 		await fresh.settle();
-		const landing = landingAt(fresh.instance.__test.getDocument(), caret);
+		const landing = landingAt(measured(fresh.instance.__test.getDocument()), caret);
 		if (!landing) return false;
 		if ('anchor' in landing) await fresh.instance.setSelection(landing).catch(() => false);
 		else if (!('gapCaret' in landing)) {
@@ -401,7 +402,7 @@ export function tagsOf(row: PasteRow, grammar: GrammarView): Tags | undefined {
 	const { range, via } = row;
 	if (!range) return undefined;
 	const doc = readAsOpened(row.source, { grammar, scope: 'document' }) as Document;
-	const layout = documentLayout(doc);
+	const layout = documentLayout(measured(doc));
 	const point = layout.pointAt(range.from);
 	const path = point?.path ?? [];
 	const kinds: string[] = [];
@@ -482,7 +483,7 @@ export function lawsOf(row: PasteRow, grammar: GrammarView): LawVerdicts | undef
  *  chord wrote. */
 function wholeCut(source: string, path: number[], mode: Mode, grammar: GrammarView, clip: string) {
 	const doc = readAsOpened(source, { grammar, scope: 'document' }) as Document;
-	const layout = documentLayout(doc);
+	const layout = documentLayout(measured(doc));
 	const host = rangeHost(fixtureReading({ grammar }, mode), { source, tree: doc, layout });
 	const range = wholeBlockBytes(doc, layout, path)!;
 	return { raw: { ...wholeBlocksRemovalOf(source, range, 'cut', mode, host), clipboard: clip } };

@@ -6,7 +6,7 @@
  */
 
 import type { CstNode } from '../core/nodes';
-import type { DocumentView, NodeView } from '../core/node-views';
+import type { NodeView } from '../core/node-views';
 import { isBlankParagraph } from '../core/parser';
 import { splitLines } from '../core/lines';
 import { countsAfterRewrite } from '../core/parsers/list';
@@ -17,14 +17,12 @@ import { assignChildIdsDeep, keepUnchangedDeep } from '../block-id';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { changedBytes, takenLines, writtenLines, type ByteChange } from './byte-changes';
 import type { SpliceWindow } from './byte-splice';
+import type { Measured } from './top-level-starts';
 
-/** What the window reads with: the document, its bytes, where its top-level blocks sit, and the
- *  reader the whole document takes. */
-export interface TopLevel {
-	doc: DocumentView;
+/** What the window reads with: the document and where its top-level blocks sit, its bytes, and
+ *  the reader the whole document takes. */
+export interface TopLevel extends Measured {
 	before: string;
-	rawStartOf(index: number): number;
-	ends: readonly number[];
 	readings: readonly UnfinishedReading[];
 	read(text: string): { children: CstNode[]; suffix: string };
 }
@@ -42,7 +40,7 @@ export function containerWindow(
 	const lines = blockFacts(node.kind).lines;
 	if (lines !== 'items' && lines !== 'every-line' && lines !== 'rows') return null;
 	if (!kids || kids.length < 2 || spans?.length !== kids.length * 2) return null;
-	const base = top.rawStartOf(t);
+	const base = top.starts.rawStart(t);
 	let first = kids.length;
 	let hi = -1;
 	for (const change of changes) {
@@ -196,12 +194,12 @@ function tailAfter(top: TopLevel, t: number): string | null {
 	const { doc, before } = top;
 	const node = doc.children[t];
 	const own = node.raw.slice(node.childSpans!.at(-1));
-	if (t === doc.children.length - 1) return own + before.slice(top.ends[t]);
+	if (t === doc.children.length - 1) return own + before.slice(top.starts.end(t));
 	const k = textAfter(doc.children, t);
 	if (isBlankParagraph(doc.children[k])) return null;
 	const next = doc.children[k].raw;
 	const firstLine = next.slice(0, next.indexOf('\n') + 1 || next.length);
-	return own + before.slice(top.ends[t], top.rawStartOf(k)) + firstLine;
+	return own + before.slice(top.starts.end(t), top.starts.rawStart(k)) + firstLine;
 }
 
 /** Child `index`'s blank lines and its first line, the bytes that say where it starts. */

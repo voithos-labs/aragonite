@@ -6,7 +6,7 @@
  * alone where its span says where it sits (a quote, a table), every line where none does.
  */
 
-import type { DocumentView, NodeView } from '../core/node-views';
+import type { NodeView } from '../core/node-views';
 import {
 	displayLength,
 	isBlankText,
@@ -19,6 +19,7 @@ import { isGridKind, tryGetBlockKindDescriptor } from '../schema/block-kind-desc
 import { reservedChromeKindOf, rowIsOpenerLine } from '../schema/reserved-chrome';
 import { spanHolding } from '../schema/child-spans';
 import { recordLinesPaired } from '../perf/instruments';
+import type { Measured } from './top-level-starts';
 
 export interface LeafPosition {
 	/** Child indices from the node down to the leaf; empty when the node is the leaf. */
@@ -31,17 +32,17 @@ export interface LeafPosition {
 
 /** The leaf and offset byte `at` of the document's bytes sits at; a byte of a marker, a container's
  *  own line or a line ending goes to the nearest text on its line. Null for an empty document. */
-export function leafAtByte(doc: DocumentView, at: number): LeafPosition | null {
-	return documentByteMap(doc).leafAt(at);
+export function leafAtByte(measured: Measured, at: number): LeafPosition | null {
+	return documentByteMap(measured).leafAt(at);
 }
 
 /** The byte of the document's bytes that offset `offset` of the leaf at `path` sits at. */
 export function byteOfLeaf(
-	doc: DocumentView,
+	measured: Measured,
 	path: readonly number[],
 	offset: number
 ): number | null {
-	return documentByteMap(doc).byteOf(path, offset);
+	return documentByteMap(measured).byteOf(path, offset);
 }
 
 /** One document's byte map, each container's lines paired once for the map's life, so a caller
@@ -64,7 +65,7 @@ export interface ContainerLine {
 	own: boolean;
 }
 
-export function documentByteMap(doc: DocumentView): DocumentByteMap {
+export function documentByteMap({ doc, starts }: Measured): DocumentByteMap {
 	const maps = new Map<NodeView, ContainerMap>();
 	const mapOf = (node: NodeView): ContainerMap => {
 		let map = maps.get(node);
@@ -72,39 +73,18 @@ export function documentByteMap(doc: DocumentView): DocumentByteMap {
 		return map;
 	};
 	const tops = doc.children;
-	// Summed at the first question, so a map made ahead of one reads no block.
-	let rawStarts: number[] | undefined;
-	const rawStartOf = (i: number): number => {
-		if (!rawStarts) {
-			rawStarts = [];
-			let start = doc.prefix.length;
-			for (let j = 0; j < tops.length; j++) {
-				const top = tops[j];
-				rawStarts.push(start + top.leadingTrivia.length);
-				start += top.leadingTrivia.length + top.raw.length;
-			}
-		}
-		return rawStarts[i];
-	};
 	return {
 		leafAt(at) {
 			if (tops.length === 0) return null;
-			// The first block whose bytes end past `at`, or the last.
-			let lo = 0;
-			let hi = tops.length - 1;
-			while (lo < hi) {
-				const mid = (lo + hi) >> 1;
-				if (at < rawStartOf(mid) + tops[mid].raw.length) hi = mid;
-				else lo = mid + 1;
-			}
-			const leaf = leafIn(tops[lo], at - rawStartOf(lo), false, mapOf);
-			return leaf && { path: [lo, ...leaf.path], offset: leaf.offset };
+			const top = starts.holding(at);
+			const leaf = leafIn(tops[top], at - starts.rawStart(top), false, mapOf);
+			return leaf && { path: [top, ...leaf.path], offset: leaf.offset };
 		},
 		byteOf(path, offset) {
 			const top = tops[path[0]];
 			if (!top) return null;
 			const inBlock = byteIn(top, path.slice(1), offset, false, mapOf);
-			return inBlock === null ? null : rawStartOf(path[0]) + inBlock;
+			return inBlock === null ? null : starts.rawStart(path[0]) + inBlock;
 		},
 		containerMap: (node) => (isMapped(node) ? mapOf(node) : null)
 	};

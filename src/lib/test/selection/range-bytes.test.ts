@@ -8,6 +8,7 @@ import { cellPoint, type SelectionPoint } from '#lib/selection/primitives.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
 import { rangeBytes } from '#lib/selection/range-bytes.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 const TABLE = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |';
 
@@ -16,7 +17,7 @@ function bytesOf(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const range = rangeBytes(
 		doc,
 		rangeCoverage(doc, coverRange(doc, start, end)),
-		documentLayout(doc)
+		documentLayout(measured(doc))
 	)!;
 	return source.slice(range.from, range.to);
 }

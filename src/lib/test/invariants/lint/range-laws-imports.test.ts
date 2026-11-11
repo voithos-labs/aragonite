@@ -27,6 +27,8 @@ const ALLOWED: Record<string, string> = {
 	'src/lib/selection/range-bytes.ts':
 		'the blocks a range paints whole, which law 10 leaves open at their edges (a read)',
 	'src/lib/range-edit/layout.ts': 'where those blocks sit in the bytes (a read)',
+	'src/lib/tree-operations/top-level-starts.ts':
+		'the one measure of a parsed document a layout or a byte read takes (a read)',
 	'src/lib/core/inline/link-source-bytes.ts': 'the text a block shows, which law 11 reads',
 	'src/lib/components/menu/default-context-actions.ts':
 		'the menu rows the editor registers at startup, which the menu routes press',

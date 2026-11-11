@@ -8,6 +8,7 @@ import type { GrammarView } from '#lib/schema/block-openers.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
 import type { Mode } from '#lib/range-edit/host.js';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 import type { DiffRoute, PasteCase, Place } from './paste-differential';
 
 /** Every route a text paste at a caret or over a range comes in by. */
@@ -199,7 +200,7 @@ const NAMED: Named[] = [
 
 /** `marked`'s caret or range on the tree `source` opens to. */
 function placeOf(doc: Document, marked: string): EditorSelection | null {
-	const layout = documentLayout(doc);
+	const layout = documentLayout(measured(doc));
 	const clean = (at: number) => marked.slice(0, at).replace(/[‸⟦⟧]/g, '').length;
 	const caret = marked.indexOf('‸');
 	const source = marked.replace(/[‸⟦⟧]/g, '');

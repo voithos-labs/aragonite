@@ -17,6 +17,7 @@ import {
 	topLevelReading,
 	type SpliceReading
 } from '#lib/tree-operations/byte-splice.js';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 import { changesBetween, type ByteChange } from '#lib/tree-operations/byte-changes.js';
 import { splicedOpenerClosers, withSplicedClosers } from '#lib/tree-operations/spliced-openers.js';
 import { editRange } from '#lib/range-edit/edit-range.js';
@@ -71,12 +72,12 @@ function divergence(source: string, changes: (before: string) => ByteChange[]) {
 	}));
 	enablePerfInstruments();
 	resetPerfInstruments();
-	const reading = spliceReading(inside, before, made, defaultGrammarView);
+	const reading = spliceReading(measured(inside), before, made, defaultGrammarView);
 	const parsed = perfSnapshot().parseBytes;
 	disablePerfInstruments();
 	const oldsOut = outside.children.map((b) => ({ kids: b.children ?? [], ids: b.childIds }));
 	install(inside, reading);
-	install(outside, topLevelReading(outside, before, made, defaultGrammarView));
+	install(outside, topLevelReading(measured(outside), before, made, defaultGrammarView));
 	const bytes = serialize(inside);
 	const failure = (() => {
 		if (bytes !== serialize(outside)) return `bytes ${JSON.stringify(bytes)}`;
@@ -309,7 +310,7 @@ const CLIPS = [
  *  byte splice writes them: the core's bytes, and a closing line under an opener they leave open. */
 function pasteChanges(before: string, at: number, clip: string): ByteChange[] {
 	const doc = open(before);
-	const layout = documentLayout(doc);
+	const layout = documentLayout(measured(doc));
 	let from = at;
 	while (from < before.length && !layout.pointAt(from)) from++;
 	const host = rangeHost(fixtureReading({ grammar: defaultGrammarView }, 'source'));
@@ -317,8 +318,10 @@ function pasteChanges(before: string, at: number, clip: string): ByteChange[] {
 	const pasting = { ...host, transformPaste: (text: string) => text };
 	const after = editRange(before, { from, to: from }, paste, 'source', pasting).source;
 	const changes = changesBetween(before, after);
-	const read = spliceReading(doc, before, changes, defaultGrammarView);
-	const closers = read ? splicedOpenerClosers(doc, before, changes, read, defaultGrammarView) : [];
+	const read = spliceReading(measured(doc), before, changes, defaultGrammarView);
+	const closers = read
+		? splicedOpenerClosers(measured(doc), before, changes, read, defaultGrammarView)
+		: [];
 	return withSplicedClosers(before, changes, closers);
 }
 

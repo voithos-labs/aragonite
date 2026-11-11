@@ -34,13 +34,22 @@ import type { CrossBlockHandlers } from '#lib/selection/cross-block/dispatch.js'
 import { documentBytes } from '#lib/selection/range-bytes.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { createKeptStarts } from '#lib/editor-actions/commit/kept-starts.js';
 
 describe('a copy reads the editor’s bytes, made once per content version', () => {
 	it('serializes nothing and lays the document out once for two copies of one version', () => {
 		const doc = parse('- one\n- two\n- three\n\nafter\n');
 		const source = serialize(doc);
-		let version = 1;
-		const bytes = documentBytes({ version: () => version, doc: () => doc, source: () => source });
+		const starts = createKeptStarts(
+			() => doc,
+			() => {}
+		);
+		const bytes = documentBytes({
+			version: () => 1,
+			doc: () => doc,
+			source: () => source,
+			measured: starts.read
+		});
 		const selection = createSelectionState({ getDoc: () => doc });
 		selection.enterCrossBlock({ path: [0, 1, 0], offset: 1 }, { path: [1], offset: 2 });
 		const crossBlock = { reading: fixtureReading(), bytes } as unknown as CrossBlockHandlers;
@@ -52,7 +61,7 @@ describe('a copy reads the editor’s bytes, made once per content version', () 
 		expect(arm.copy()?.write.text).toBe('- wo\n- three\n\naf');
 		expect(made).toEqual({ serialized: 0, laidOut: 1 });
 
-		version++;
+		starts.duringWrite(() => ({ touched: null }));
 		arm.copy();
 		expect(made).toEqual({ serialized: 0, laidOut: 2 });
 	});

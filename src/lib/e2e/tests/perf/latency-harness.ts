@@ -209,6 +209,33 @@ export async function measureTypingLatency(
 }
 
 /**
+ * {@link measureTypingLatency} with a listener that asks where the edited block starts on every
+ * edit, the way a plugin following the caret does. A row whose listener placed no byte fails.
+ */
+export async function measureTypingWithPositionReads(
+	page: Page,
+	editor: EditorPage,
+	shape: FixtureShape,
+	bytes: number,
+	keystrokes: number
+): Promise<LatencyMeasurement> {
+	await editor.goto('');
+	const loadMs = await loadFixture(page, editor, generateFixture(shape, bytes));
+	await editor.focusBlockEnd(0);
+	await assertMounted(page, [0], 'perf target block');
+	const base0 = await block0Length(page);
+	await page.evaluate(() => (window as any).__test.startPositionReads());
+	const samples = await sampleKeystrokes(page, editor, base0, keystrokes);
+	const reads: (number | null)[] = await page.evaluate(() =>
+		(window as any).__test.stopPositionReads()
+	);
+	if (reads.length < keystrokes || reads.includes(null)) {
+		throw new Error(`the listener placed ${reads.length} bytes over ${keystrokes} keystrokes`);
+	}
+	return { loadMs, samples, p50Ms: percentileMs(samples, 50), p95Ms: percentileMs(samples, 95) };
+}
+
+/**
  * The inside-a-container companion to {@link measureTypingLatency}. The caret sits on the first
  * child, always mounted, whose keystroke moves the container's opening line.
  */

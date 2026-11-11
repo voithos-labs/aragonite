@@ -18,7 +18,7 @@ import { pathsEqual } from '../../selection/path-math';
 import { checkLandingIsAValue, readCaretWhereabouts } from '../../invariants/landing-value';
 import { createTextBatch } from './text-batch';
 import { createStructuralCommit, type CommitArgs } from './structural-commit';
-import { admitsSnapshot, admitsWrite } from './reading-write-gate';
+import { admitsSnapshot, admitsWrite, startsAlone } from './reading-write-gate';
 import { createCommitFrame, reportWriteError, type FrameHistory } from './commit-frame';
 import { createLeafCommit } from './leaf-commit';
 import { createByteSplice } from './byte-splice';
@@ -393,6 +393,7 @@ export function createUndoController(
 		},
 		holdLandings,
 		// The snapshot's answer is the write gate's, with no warning.
-		admitsGesture: (op) => (op === null ? admitsSnapshot(deps) : admitsWrite(deps, op))
+		admitsGesture: (op) =>
+			startsAlone(deps) && (op === null ? admitsSnapshot(deps) : admitsWrite(deps, op))
 	};
 }

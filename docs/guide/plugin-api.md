@@ -152,7 +152,7 @@ if (!result.ok) console.warn(result.reason, result.message); // 'moved': they ty
 - `stale` turns true once a write elsewhere touches one of your ranges, or the host loads another document. It's reactive, so a Svelte effect reading it reruns.
 - `end()` drops the draft without writing. One you just let go of is dropped eventually too, but ending it stops the editor tracking writes for it right away.
 
-What a commit can come back with (nothing throws, and a refused commit writes nothing):
+What a commit can come back with (nothing throws in production, and a refused commit writes nothing):
 
 | `reason` | When |
 | --- | --- |
@@ -160,7 +160,7 @@ What a commit can come back with (nothing throws, and a refused commit writes no
 | `unloaded` | The host loaded another document |
 | `reading` | The editor's in reading mode |
 | `overlap` | Two of your own ranges overlap |
-| `illegal` | A range runs past the document's end or splits a `\r\n`, or the insert had no caret to land at |
+| `illegal` | A range runs past the document's end or splits a `\r\n`, the insert had no caret to land at, or you committed while another write was still running (from your `rebuildRaw`, say), which a dev build also throws |
 | `empty` | Nothing to write: no ranges, only the bytes already there, or the draft was ended |
 
 ### Kind declaration

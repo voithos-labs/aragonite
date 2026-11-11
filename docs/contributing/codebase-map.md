@@ -76,6 +76,7 @@ A row is a behavior the way a bug report would say it, the entry to open, and th
 | --- | --- | --- |
 | Any structural mutation; one undo entry per gesture; a mutation writing below its commit scope | `src/lib/editor-actions/commit/structural-commit.ts` (several lists in one commit is `commitMultiScope`), `src/lib/editor-actions/commit/undo-controller.ts` :: `undoStep` (several commits, one entry), `src/lib/editor-actions/commit/scope-writes.ts` | `docs/design/commit-and-undo.md` § The commit primitive, `docs/design/commit-and-undo.md` § Undo / redo |
 | Applying an edit that already knows its new bytes | `src/lib/editor-actions/commit/byte-splice.ts` | `docs/design/commit-and-undo.md` § The byte splice |
+| Where a top-level block starts in the document's bytes, and what a write must say it changed | `src/lib/tree-operations/top-level-starts.ts` :: `measured` for a document nobody keeps, `src/lib/editor-actions/commit/kept-starts.ts` :: `createKeptStarts` for the editor's own, `src/lib/editor-actions/commit/commit-frame.ts` :: `FrameWrite` (`touched`) | `docs/design/invariants/runtime.md` (G1.209), `docs/design/invariants/scans.md` (G4.340) |
 | Undo and redo, copy on write, keystroke batching | `src/lib/editor-actions/commit/history.ts`, `src/lib/tree-operations/unshare.ts`, `src/lib/editor-actions/commit/text-batch.ts` | `docs/design/commit-and-undo.md` § Undo / redo |
 
 ## Windowing and scroll

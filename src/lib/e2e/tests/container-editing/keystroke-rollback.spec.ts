@@ -87,6 +87,23 @@ test.describe('a keystroke inside a container whose rebuild throws', () => {
 		});
 	}
 
+	test('a key that makes its list item a to-do leaves the source and the text as they were', async ({
+		page
+	}) => {
+		const source = '> - [ ]ab\n';
+		const path = [0, 0, 0, 0];
+		await editor.loadContent(source);
+		await editor.focusBlockAtPath(path, 3);
+		await throwOnQuoteRebuild(page, true);
+
+		await editor.typeSlowly(' ');
+
+		await expect.poll(() => capturedErrors(page)).toContain('commit');
+		expect(await editor.bridge.getSource()).toBe(source);
+		const shown = page.locator(`[data-block-path='${JSON.stringify(path)}'] [contenteditable]`);
+		await expect(shown.first()).toHaveText('[ ]ab');
+	});
+
 	test('an IME commit reports the throw and leaves the source and the text as they were', async ({
 		page
 	}) => {

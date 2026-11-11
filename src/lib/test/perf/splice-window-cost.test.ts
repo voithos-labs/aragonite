@@ -78,7 +78,7 @@ async function cost(shape: keyof typeof SHAPES, n: number, edit: 'paste' | 'remo
 	const changes: ByteChange[] = [changeAt(shape, before, n, edit)];
 	enablePerfInstruments();
 	resetPerfInstruments();
-	spliceReading(deps.doc, before, changes, deps.reading.grammar);
+	spliceReading(deps.bytes.measured(), before, changes, deps.reading.grammar);
 	const read = perfSnapshot().parseBytes;
 	resetPerfInstruments();
 	const wrote = await createUndoController(deps).commitSource({

@@ -14,6 +14,7 @@ import type { SelectionPoint } from '../selection/primitives';
 import { createSelectionState } from '../selection/selection-state.svelte';
 import { rangeClipboard } from '../selection/range-clipboard';
 import { documentBytes } from '../selection/range-bytes';
+import { measured } from '../tree-operations/top-level-starts';
 import { serialize } from '../core/serializer';
 import { coverRange, rangeCoverage } from '../selection/range-coverage';
 import { kitReading } from './kit-reading';
@@ -240,7 +241,13 @@ export function copyThroughFunnel(
 	selection.enterCrossBlock(anchor, focus);
 	const { start, end } = selection;
 	if (!start || !end) fail('the selection funnel refused the cross-block endpoint pair');
-	const bytes = documentBytes({ version: () => 0, doc: () => doc, source: () => serialize(doc) });
+	const laid = measured(doc);
+	const bytes = documentBytes({
+		version: () => 0,
+		doc: () => doc,
+		source: () => serialize(doc),
+		measured: () => laid
+	});
 	const coverage = rangeCoverage(doc, coverRange(doc, start, end));
 	return rangeClipboard(bytes, coverage, kitReading())?.text ?? '';
 }
