@@ -322,6 +322,28 @@ describe('G1.209 a record told wrong, or read too early, is caught', () => {
 		expect(tags()).toEqual([]);
 	});
 
+	it('a write that throws as it says what it changed leaves nothing kept either', () => {
+		const doc = parse(paragraphs(6));
+		const k = kept(doc);
+		const thrown = () =>
+			k.record.duringWrite(() => {
+				doc.children[1].raw = 'written, then the runs threw\n';
+				return {
+					touched: () => {
+						throw new Error('no runs');
+					}
+				};
+			});
+		expect(thrown).toThrow('no runs');
+		expect(answers(doc, k.record.read().starts)).toEqual(answers(doc));
+		expect([k.record.isMeasured(), k.record.unannounced(), k.announced()]).toEqual([
+			false,
+			true,
+			0
+		]);
+		expect(tags()).toEqual([]);
+	});
+
 	it('a view asked its first question between a write and its announcement', () => {
 		const doc = parse(paragraphs(6));
 		const record = createKeptStarts(

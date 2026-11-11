@@ -37,7 +37,7 @@ import {
 	publishScopeChange,
 	restoreFoldedChildren
 } from '../ancestry-folds';
-import { saveBytes } from './saved-bytes';
+import { saveOwnedBytes } from './saved-bytes';
 import { pairsStay } from './change-record';
 import type { EditorActionsDeps } from '../deps';
 import type { FrameOutcome, FrameWrite } from './commit-frame';
@@ -193,7 +193,7 @@ function saveChain(
 	chain: CstNode[],
 	restoreSiblings: () => void
 ): () => void {
-	const restoreBytes = saveBytes(chain);
+	const restoreBytes = saveOwnedBytes(chain);
 	// A write that reads the leaf as another kind in place swaps its children for the new reading's.
 	const leaf = chain[chain.length - 1];
 	const leafChildren = leaf.children;

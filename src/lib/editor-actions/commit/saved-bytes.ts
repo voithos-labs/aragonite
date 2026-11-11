@@ -1,12 +1,14 @@
 /**
  * What a rolled-back write puts back on the nodes it may have written, so the restored tree
  * serializes as it did before the write. `saveBytes` saves the bytes of nodes a write names up
- * front, and what a rebuild re-reads from them. `keepOwnedNodes` saves everything a node holds,
- * for each node the write goes on to change where it stands.
+ * front, and what a rebuild re-reads from them; `saveOwnedBytes` is the same for nodes the write
+ * owns. `keepOwnedNodes` saves everything a node holds, for each node the write goes on to change
+ * where it stands.
  */
 
 import type { CstNode } from '../../core/nodes';
 import { dropChildSpans } from '../../schema/child-spans';
+import { cloneMetadata } from '../../tree-operations/clone';
 import type { SharingState } from '../../tree-operations/sharing';
 import { spliceMany } from '../../tree-operations/splice-many';
 
@@ -27,8 +29,19 @@ export function saveBytes(nodes: readonly CstNode[]): () => void {
 	};
 }
 
+/** `saveBytes` for nodes the write owns: it may change their metadata field by field. */
+export function saveOwnedBytes(nodes: readonly CstNode[]): () => void {
+	const restoreFields = nodes.map(saveMetadataFields);
+	const restoreBytes = saveBytes(nodes);
+	return () => {
+		restoreBytes();
+		for (const restore of restoreFields) restore();
+	};
+}
+
 export interface OwnedNodes {
-	/** Runs `write`, keeping each node it writes where it stands as the node was before. */
+	/** Runs `write`, keeping each node it may change where it stands as the node was when the
+	 *  write first asked about it. */
 	during<T>(write: () => T): T;
 	/** Puts every kept node back, the last one kept first. */
 	restore(): void;
@@ -56,14 +69,28 @@ export function keepOwnedNodes(sharing: SharingState): OwnedNodes {
 /** Every field `node` holds and the blocks and ids in its lists, put back by the returned function. */
 function saveNode(node: CstNode): () => void {
 	const fields: Record<string, unknown> = { ...node };
+	const restoreMetadataFields = saveMetadataFields(node);
 	const children = node.children?.slice();
 	const childIds = node.childIds?.slice();
 	return () => {
 		const now = node as unknown as Record<string, unknown>;
 		for (const key of Object.keys(now)) if (!(key in fields)) delete now[key];
 		for (const [key, value] of Object.entries(fields)) if (now[key] !== value) now[key] = value;
+		restoreMetadataFields();
 		if (children) spliceMany(node.children!, 0, node.children!.length, children);
 		if (childIds) spliceMany(node.childIds!, 0, node.childIds!.length, childIds);
 		dropChildSpans(node);
+	};
+}
+
+/** What `node`'s metadata holds, put back into that same object: a save of the object alone
+ *  holds whatever a write has since made of it. */
+function saveMetadataFields(node: CstNode): () => void {
+	const metadata = node.metadata as Record<string, unknown> | undefined;
+	if (!metadata) return () => {};
+	const held = cloneMetadata(node.metadata!) as unknown as Record<string, unknown>;
+	return () => {
+		for (const key of Object.keys(metadata)) if (!(key in held)) delete metadata[key];
+		Object.assign(metadata, held);
 	};
 }

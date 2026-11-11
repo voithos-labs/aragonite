@@ -2,7 +2,9 @@
 // scope it wrote and however deep: every node holds the bytes and the children it held.
 // Miss-analysis: every rollback row failed a commit that had to copy the block it wrote, so the
 // array the rollback puts back dropped the copy. A commit that joins its undo entry writes a block
-// the entry already copied where it stands, and no row threw after one.
+// the entry already copied where it stands, and no row threw after one. Nor did a row change
+// metadata, which a write changes field by field, so a save that held the object held nothing.
+// Nor did one ask about a block it had already written, as a keystroke does of its own leaf.
 import { afterEach, describe, expect, it } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
@@ -11,8 +13,15 @@ import type { CstNode } from '#lib/core/nodes.js';
 import type { ContainerScope, MultiScopeTarget } from '#lib/action-contracts.js';
 import type { EditorActionsDeps, UndoController } from '#lib/editor-actions/deps.js';
 import { augmentBuiltin, tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
+import { assignChildIdsDeep } from '#lib/block-id.js';
+import { checkChildSpansLockstep } from '#lib/invariants/structural-descriptor.js';
+import { renumberOrderedListFrom } from '#lib/tree-operations/list/ordered-markers.js';
+import { spliceChildren } from '#lib/tree-operations/children.js';
+import { insertEmptyColumn } from '#lib/tree-operations/table-mutations.js';
+import { ensureUnsharedSubtree } from '#lib/tree-operations/unshare.js';
 import {
 	makeBlockListState,
+	makeContainerHarness,
 	makeNestedHarness,
 	makeTopHarness
 } from '#lib/test/harness/editor-actions.js';
@@ -34,9 +43,9 @@ interface Harness {
 	controller: UndoController;
 }
 
-/** An editor over `SOURCE` with its list's own scope; the state is made once, as a mounted list's is. */
-function listHarness() {
-	const h = makeTopHarness(SOURCE);
+/** An editor with the scope of its second block; the state is made once, as a mounted list's is. */
+function listHarness(source = SOURCE) {
+	const h = makeTopHarness(source);
 	const getList = () => h.deps.doc.children[LIST];
 	const state = makeBlockListState(getList);
 	// Read when a commit starts: an earlier commit copied the list's node.
@@ -60,16 +69,19 @@ function held(root: { children?: CstNode[] }, path: number[] = []): unknown[] {
 			kind: node.kind,
 			leadingTrivia: node.leadingTrivia,
 			raw: node.raw,
+			innerPrefix: node.innerPrefix,
+			innerSuffix: node.innerSuffix,
 			metadata: JSON.stringify(node.metadata),
 			markerWidths: node.markerWidths?.slice(),
-			childIds: node.childIds?.slice()
+			childIds: node.childIds?.slice(),
+			staleSpans: checkChildSpansLockstep(node)?.message
 		},
 		...held(node, [...path, i])
 	]);
 }
 
-/** Opens an undo step that stays open and copies every block inside it, so each later commit
- *  joins that entry and writes whatever it reaches where it stands. */
+/** Opens an undo step that stays open, copies every block in it and gives each list its ids, so
+ *  a later commit joins that entry and writes whatever it reaches where it stands. */
 async function ownEveryBlock({ deps, controller }: Harness): Promise<void> {
 	void controller.undoStep(snapshot, () => new Promise(() => {}));
 	await controller.commitStructural({
@@ -79,6 +91,7 @@ async function ownEveryBlock({ deps, controller }: Harness): Promise<void> {
 			return { op: 'noop' };
 		}
 	});
+	deps.doc.children.forEach(assignChildIdsDeep);
 }
 
 /** The document as it stands, and the check that it stands so again. */
@@ -273,6 +286,79 @@ describe('a keystroke that writes in place and fails', () => {
 
 		await expect(
 			h.bundle.blockEdit.updateBlockContent(index, text, 'authored', 'join-typing', 0)
+		).rejects.toThrow('rebuild blew up');
+
+		expectStanding();
+	});
+});
+
+describe('a write that changes more than bytes where it stands and fails', () => {
+	const ORDERED = 'alpha\n\n1. a\n2. b\n3. c\n';
+	const TABLE = 'alpha\n\n| a | b |\n| - | - |\n| 1 | 2 |\n';
+	const WRITES: { name: string; source: string; commit: Commit; write: Write }[] = [
+		{
+			name: 'an ordered list renumbered through its own scope',
+			source: ORDERED,
+			commit: overList,
+			write: ([list]) => renumberOrderedListFrom(list.node, 7, list.sharing)
+		},
+		{
+			name: 'an ordered list renumbered through the document scope',
+			source: ORDERED,
+			commit: overDocument,
+			write: ([doc]) => renumberOrderedListFrom(doc.own([LIST])[0], 7, doc.sharing)
+		},
+		{
+			name: 'a table given a column',
+			source: TABLE,
+			commit: overDocument,
+			write: ([doc]) => {
+				const [table] = doc.own([LIST]);
+				ensureUnsharedSubtree(table, doc.sharing);
+				insertEmptyColumn(table, 0, 'right');
+			}
+		},
+		{
+			name: 'a field and a metadata key the block did not hold, and a list’s ids',
+			source: SOURCE,
+			commit: overDocument,
+			write: ([doc]) => {
+				const [list] = doc.own([LIST]);
+				doc.own([0])[0].innerSuffix = '\n';
+				(list.metadata as unknown as Record<string, unknown>).added = true;
+				spliceChildren(list, 1, 1, []);
+			}
+		}
+	];
+
+	it.each(WRITES)('$name', async ({ source, commit, write }) => {
+		const h = listHarness(source);
+		await ownEveryBlock(h);
+		const expectStanding = standing(h);
+
+		const thrown = commit(h, (scopes) => {
+			write(scopes);
+			throw new Error('part way');
+		});
+
+		await expect(thrown).rejects.toThrow('part way');
+		expectStanding();
+	});
+
+	it('a keystroke that makes its list item a task, thrown out of the quote’s rebuild', async () => {
+		const h = makeContainerHarness('> - ab\n', [0, 0, 0]);
+		await ownEveryBlock(h);
+		const expectStanding = standing(h);
+		augmentBuiltin('blockquote', {
+			container: {
+				rebuildRaw: () => {
+					throw new Error('rebuild blew up');
+				}
+			}
+		});
+
+		await expect(
+			h.bundle.blockEdit.updateBlockContent(0, '[ ] ab\n', 'authored', 'join-typing', 4)
 		).rejects.toThrow('rebuild blew up');
 
 		expectStanding();

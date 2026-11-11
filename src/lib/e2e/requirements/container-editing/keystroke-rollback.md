@@ -15,6 +15,11 @@ drew goes away, because the block repaints from the tree.
   throws: the source stays as it was and neither shows the `x`, since each kind of element
   repaints itself
 
+## Edge cases
+
+- Type a space after `[ ]` in `> - [ ]ab` while the quote's rebuild throws, which would make the
+  item a to-do: the source stays `> - [ ]ab` and the paragraph shows `[ ]ab`
+
 ## User interactions
 
 - An IME composition committed as `か` while the rebuild throws: the `error` event fires, the source
@@ -26,3 +31,5 @@ drew goes away, because the block repaints from the tree.
   no event. Every rollback test drove a structural commit; none typed into a container.
 - The code block and the table cell repaint through their own functions, and only the paragraph
   had a row, so either could drop its repaint with every suite green.
+- A key that moves a to-do marker out of its paragraph writes that paragraph twice, and the
+  rollback put back what the second write found. Every row typed a key that writes its leaf once.
