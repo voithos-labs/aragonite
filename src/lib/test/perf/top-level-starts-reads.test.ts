@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
 // G4.340: a listener that asks where the caret is after every write reads the top-level blocks the
-// write changed, the same number in a document four times as long. A route that names no blocks is
+// write changed, the same number in a document ten times as long. A route that names no blocks is
 // declared `whole` and reads every block once; making it exact flips its row here.
 // Miss-analysis: the keystroke cost rows drove the commit alone, so nothing priced the position
 // read a plugin makes after it, which summed every top-level block once per content version.
+// Miss-analysis, a new paragraph's first letter, a container's collapse and a write over two
+// scopes: the route table declared each `whole`, so its forgotten record read as intended, and
+// the gate's reading rows typed only at block 0's end.
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
 	disablePerfInstruments,
@@ -29,7 +32,8 @@ afterEach(async () => {
 	await destroyMountedEditors();
 });
 
-const N = 20;
+const N = 40;
+const LONG = 400;
 
 /** Top-level blocks measured over `route`'s write in a document of `n`, with a listener asking a
  *  position's byte on every edit and once more when the write has settled. */
@@ -82,19 +86,20 @@ describe('G4.340 a document nobody asks a position of keeps no record', () => {
 });
 
 describe('G4.340 a position read after a write measures the blocks the write changed', () => {
-	it.each(WRITE_ROUTES.filter((route) => route.announces === 'exact' && !route.laysOutItsAnswer))(
-		'$name: as many at 80 blocks as at 20',
+	it.each(WRITE_ROUTES.filter((route) => route.announces === 'exact'))(
+		'$name: as many at 400 blocks as at 40',
 		async (route) => {
-			expect(await blocksMeasured(route, 4 * N)).toBe(await blocksMeasured(route, N));
+			const long = route.longest ?? LONG;
+			expect(await blocksMeasured(route, long)).toBe(await blocksMeasured(route, N));
 		}
 	);
 
-	it.each(WRITE_ROUTES.filter((route) => route.announces === 'whole' || route.laysOutItsAnswer))(
-		'$name names no blocks, or lays out a parse of its answer: every block is measured',
+	it.each(WRITE_ROUTES.filter((route) => route.announces === 'whole'))(
+		'$name names no blocks: every block is measured',
 		async (route) => {
 			// One fewer than the document started with, where the write joined two blocks.
 			expect(await blocksMeasured(route, N)).toBeGreaterThanOrEqual(N - 1);
-			expect(await blocksMeasured(route, 4 * N)).toBeGreaterThanOrEqual(4 * N - 1);
+			expect(await blocksMeasured(route, LONG)).toBeGreaterThanOrEqual(LONG - 1);
 		}
 	);
 });

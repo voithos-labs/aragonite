@@ -10,7 +10,8 @@ import type { NodeView } from '../core/node-views';
 import { isBlankParagraph } from '../core/parser';
 import { splitLines } from '../core/lines';
 import { countsAfterRewrite } from '../core/parsers/list';
-import type { UnfinishedReading } from '../schema/block-openers';
+import { matchSetextUnderline } from '../core/parsers/paragraph';
+import { lineInterruptsParagraph, type UnfinishedReading } from '../schema/block-openers';
 import { blockFacts } from '../schema/block-facts';
 import { spanHolding } from '../schema/child-spans';
 import { assignChildIdsDeep, keepUnchangedDeep } from '../block-id';
@@ -54,9 +55,8 @@ export function containerWindow(
 	if (first < 1 || reachesPast(top.before, changes, top.readings)) return null;
 	// Every item and every quote line opens its container again; a table's rows need its head.
 	const head = lines === 'rows' ? 1 : 0;
-	let lo = first - 1;
-	while (lo > head && isBlankParagraph(kids[lo])) lo--;
-	lo = Math.max(lo, head);
+	// A row or an item is no block of its own, so none of them waits on a line below it.
+	const lo = windowStart(kids, first, head, lines === 'every-line' ? top.readings : []);
 	const run: Run = {
 		top,
 		t,
@@ -95,6 +95,41 @@ export function containerWindow(
 		};
 		return { window, suffix: now.suffix };
 	}
+}
+
+// ── Where a window starts ────────────────────────────────────────────────────
+
+/** The block a window starts at for a change beginning in block `first`: the last one above with
+ *  text, or a block higher up that waits on lines below it, as a definition does on its title. */
+export function windowStart(
+	blocks: readonly NodeView[],
+	first: number,
+	floor: number,
+	readings: readonly UnfinishedReading[]
+): number {
+	let lo = first - 1;
+	while (lo > floor && isBlankParagraph(blocks[lo])) lo--;
+	lo = Math.max(lo, floor);
+	const unclosed = readings.filter((reading) => reading.closer === null);
+	if (unclosed.length === 0) return lo;
+	const waits = (block: NodeView) => unclosed.some((reading) => reading.notFinal(block.raw));
+	let start = lo;
+	for (let i = lo; i > floor; i--) {
+		// A blank line above a block, or a first line no paragraph runs on to, is where a wait ends.
+		if (blocks[i].leadingTrivia !== '' || startsApart(blocks[i].raw)) break;
+		if (!waits(blocks[i - 1])) continue;
+		// A waiting block right under another one took the line the upper one waited on.
+		if (waits(blocks[i])) break;
+		start = i - 1;
+	}
+	return start;
+}
+
+/** Whether a block's first line is one a paragraph above it would not run on to. */
+function startsApart(raw: string): boolean {
+	const end = raw.indexOf('\n');
+	const line = (end < 0 ? raw : raw.slice(0, end)).replace(/\r$/, '');
+	return lineInterruptsParagraph(line) || matchSetextUnderline(line) !== null;
 }
 
 // ── Where a window stops ─────────────────────────────────────────────────────

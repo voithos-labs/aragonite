@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { imeOwnsKey } from '../../browser/composition';
+	import { neverACommand } from '../../browser/composition';
 	import { untrack } from 'svelte';
 	import type { ImageCrop, ImageFields } from '../../core/nodes';
 	import { pressLeavesImage } from './image-press';
@@ -157,7 +157,7 @@
 	}
 
 	function onFieldKeydown(e: KeyboardEvent) {
-		if (imeOwnsKey(e)) return;
+		if (neverACommand(e)) return;
 		if (e.key === 'Enter') {
 			e.preventDefault();
 			void endField(true);
@@ -419,7 +419,7 @@
 
 	// Reached when keyboard focus sits on the toolbar.
 	function onRootKeydown(e: KeyboardEvent) {
-		if (imeOwnsKey(e)) return;
+		if (neverACommand(e)) return;
 		if (e.key === 'Escape' && !fieldOpen && !cropping) {
 			e.preventDefault();
 			onDismiss();

@@ -266,9 +266,10 @@ function wholeAnswer(editor: Editor, mode: PresentationMode, path: number[], rou
 	const reading = fixtureReading({ grammar }, mode);
 	const source = editor.source();
 	const doc = readAsOpened(source, { grammar, scope: 'document' }) as Document;
-	const layout = documentLayout(measured(doc));
+	const laid = measured(doc);
+	const layout = documentLayout(laid);
 	const range = wholeBlockBytes(doc, layout, path)!;
-	const host = rangeHost(reading, { source, tree: doc, layout });
+	const host = rangeHost(reading, { source, measured: laid, layout });
 	const core = mode === 'live' ? 'live' : 'source';
 	const gesture: RemovalGesture = 'menu' in route ? 'keyless' : 'cut' in route ? 'cut' : route.key;
 	return wholeBlocksRemovalOf(source, range, CORE_GESTURE[gesture], core, host);

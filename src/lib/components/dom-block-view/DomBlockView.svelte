@@ -4,7 +4,7 @@
   error boundary, as a Svelte block's does.
 -->
 <script lang="ts">
-	import { imeOwnsKey } from '../../browser/composition';
+	import { neverACommand } from '../../browser/composition';
 	import { getAllContexts, getContext, mount, unmount, untrack } from 'svelte';
 	import { on } from 'svelte/events';
 	import type { FocusActions } from '../../action-contracts';
@@ -285,7 +285,7 @@
 	// A plain arrow outside the view's own text field leaves the block; any other key goes to the
 	// containers around it.
 	function handBuiltKeydown(e: KeyboardEvent): void {
-		if (imeOwnsKey(e)) return;
+		if (neverACommand(e)) return;
 		if (e.defaultPrevented || !services) return;
 		const { caretMemory, commands, containerChords } = services;
 		const exit = {

@@ -5,7 +5,7 @@
  * runs exactly where the editor would do nothing with the key.
  */
 
-import { imeOwnsKey } from '../../browser/composition';
+import { imeOwnsKey, neverACommand } from '../../browser/composition';
 import type { InlineMenuState } from '../../inline-menu/inline-menu-state.svelte';
 import type { AnyBlockKind, Document } from '../../core/nodes';
 import type { ContainerChords } from '../../editor-actions/container-chords';
@@ -221,7 +221,8 @@ export function createKeyClaims(deps: KeyClaimsDeps): KeyClaims {
 		const root = deps.root();
 		if (!root || focus.at === 'host-chrome') return false;
 		const el = keyTargetOf(e, root, deps);
-		if (imeOwnsKey(e)) return focusInEditor(root, el, deps);
+		// The handlers skip what is never a command; an IME key in the editor is the IME's to take.
+		if (neverACommand(e)) return imeOwnsKey(e) && focusInEditor(root, el, deps);
 		const chord = eventToChord(e);
 		if (rootTakes(e, chord, root, el)) return true;
 		switch (focus.at) {

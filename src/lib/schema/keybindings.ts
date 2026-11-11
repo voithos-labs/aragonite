@@ -35,19 +35,21 @@ const BARE_MODIFIERS = new Set<string>(BARE_MODIFIER_KEYS);
 
 /** A `key` value that is one typed character: one code point, so an astral glyph's two
  *  UTF-16 units still count as a single keystroke. */
-export function isCharacterKey(key: string): boolean {
-	return [...key].length === 1;
+export function isCharacterKey(key: string | undefined): boolean {
+	return !!key && [...key].length === 1;
 }
 
 function normalizeKey(key: string): string {
 	return key.length === 1 ? key.toUpperCase() : key;
 }
 
-/** The fields of a keydown a chord is read from; a `KeyboardEvent` is one. */
-export type ChordKeys = Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'altKey' | 'shiftKey'>;
+/** The fields of a keydown a chord is read from; a `KeyboardEvent` is one. `key` is missing on the
+ *  keydown Chrome's autofill sends, and every reader here answers that as no key. */
+export type ChordKeys = Partial<Pick<KeyboardEvent, 'key'>> &
+	Pick<KeyboardEvent, 'ctrlKey' | 'metaKey' | 'altKey' | 'shiftKey'>;
 
 export function eventToChord(e: ChordKeys): string | null {
-	if (BARE_MODIFIERS.has(e.key)) return null;
+	if (!e.key || BARE_MODIFIERS.has(e.key)) return null;
 	const mods: string[] = [];
 	if (e.ctrlKey || e.metaKey) mods.push('Mod');
 	if (e.altKey) mods.push('Alt');
@@ -82,9 +84,11 @@ export type CaretEdgeKey =
 	  }
 	| { readonly to: 'block' | 'doc'; readonly side: 'start' | 'end'; readonly arrow: boolean };
 
-/** A keydown's key and whichever modifier flags it carries; an absent flag is not held. */
-export type EdgeKeys = Pick<KeyboardEvent, 'key'> &
-	Partial<Pick<KeyboardEvent, 'ctrlKey' | 'metaKey' | 'altKey' | 'shiftKey'>>;
+/** A keydown's key and whichever modifier flags it carries; an absent key names none, an absent
+ *  flag is not held. */
+export type EdgeKeys = Partial<
+	Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'altKey' | 'shiftKey'>
+>;
 
 /**
  * The one reading of a caret-edge key, from Home and End with their usual modifiers or from

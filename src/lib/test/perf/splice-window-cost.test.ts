@@ -1,6 +1,6 @@
-// A byte splice inside a long list, quote or table reads only the children its change reaches:
-// the bytes it parses, the children its commit joins and compares, and the lines it pairs to put
-// the caret down, are the same at N and 4N.
+// A byte splice inside a long list, quote or table, or among many blocks with a definition far
+// above, reads only the blocks its change reaches: the bytes it parses, the children its commit
+// joins and compares, and the lines it pairs to put the caret down, are the same at N and 4N.
 import { describe, it, expect, afterEach } from 'vitest';
 import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { serialize } from '#lib/core/serializer.js';
@@ -40,6 +40,31 @@ const SHAPES = {
 			Array.from({ length: n }, (_, i) => `| ${word(i)} | x |\n`).join(''),
 		line: (c: number) => c + 1,
 		pasted: 'one two'
+	},
+	// A window's start looks up from its change for a definition still
+	// waiting on its title, and stops at a blank line, a heading, or a second definition.
+	'quote of headings under a definition': {
+		source: (n: number) =>
+			'> [a]: /u\n' + Array.from({ length: n - 1 }, (_, i) => `> # ${word(i)}\n`).join(''),
+		line: (c: number) => c,
+		pasted: 'one\n> # two'
+	},
+	'headings under a definition': {
+		source: (n: number) =>
+			'[a]: /u\n' + Array.from({ length: n - 1 }, (_, i) => `# ${word(i)}\n`).join(''),
+		line: (c: number) => c,
+		pasted: 'one\n# two'
+	},
+	'paragraphs under a definition': {
+		source: (n: number) =>
+			'[a]: /u\n\n' + Array.from({ length: n - 1 }, (_, i) => `${word(i)}\n\n`).join(''),
+		line: (c: number) => 2 * c,
+		pasted: 'one\ntwo'
+	},
+	definitions: {
+		source: (n: number) => Array.from({ length: n }, (_, i) => `[${word(i)}]: /u\n`).join(''),
+		line: (c: number) => c,
+		pasted: 'one\n[two]: /u'
 	}
 };
 
@@ -100,10 +125,10 @@ async function cost(shape: keyof typeof SHAPES, n: number, edit: 'paste' | 'remo
 
 afterEach(() => disablePerfInstruments());
 
-describe('a byte splice inside a long container', () => {
-	for (const shape of ['list', 'quote', 'table'] as const) {
+describe('a byte splice among many blocks', () => {
+	for (const shape of Object.keys(SHAPES) as (keyof typeof SHAPES)[]) {
 		for (const edit of ['paste', 'removal'] as const) {
-			it(`reads the same few children at N and 4N: a ${edit} in a ${shape}`, async () => {
+			it(`reads the same few blocks at N and 4N: ${shape}, a ${edit}`, async () => {
 				const small = await cost(shape, N, edit);
 				const large = await cost(shape, 4 * N, edit);
 				expect(small.read).toBeGreaterThan(0);

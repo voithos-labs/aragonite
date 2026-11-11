@@ -21,19 +21,22 @@ import { spliceMany } from './splice-many';
 /** A children array an op mutates structurally: splice, delete, reorder. */
 export type NodeParent = {
 	children: CstNode[];
-	/** Called before each write through {@link spliceList}; a keystroke saves its list here. */
-	beforeWrite?: () => void;
+	/** Called before each write through {@link spliceList} with what it writes: `count` blocks at
+	 *  `at` give way to `added`. A keystroke saves its list here and notes the blocks it changed. */
+	beforeWrite?: ListWatcher;
 };
+
+export type ListWatcher = (at: number, count: number, added: number) => void;
 
 /** The one write to a list of blocks on the fix-up's path (G4.259): `count` blocks at `at`
  *  replaced by `add`, after telling the list's watcher. */
 export function spliceList(
-	parent: { children?: CstNode[]; beforeWrite?: () => void },
+	parent: { children?: CstNode[]; beforeWrite?: ListWatcher },
 	at: number,
 	count: number,
 	add: readonly CstNode[]
 ): void {
-	parent.beforeWrite?.();
+	parent.beforeWrite?.(at, count, add.length);
 	spliceMany((parent.children ??= []), at, count, add);
 }
 

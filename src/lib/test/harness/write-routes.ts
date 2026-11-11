@@ -5,7 +5,9 @@
 import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
 import { pressKey } from '#lib/test/harness/settle.js';
 import { dispatchPaste, pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
+import { dispatchClipboardEvent, StubDataTransfer } from '#lib/test/harness/clipboard-events.js';
 import {
+	placeCaret,
 	pressKeyAt,
 	surfaceAt,
 	typeInto,
@@ -25,11 +27,13 @@ export interface WriteRoute {
 	asks(n: number): { path: number[]; offset: number };
 	/** `whole`: the write names no blocks, so the next position read measures every one. */
 	announces: 'exact' | 'whole';
+	/** The longest document whose block the route writes in the harness still mounts, where the
+	 *  write sits at the document's end. */
+	longest?: number;
 	/** The write, or the range it starts from, asks positions itself: a reader with no listener. */
 	readsItself?: true;
-	/** The range edit lays out its answer, a parse of the whole document, to find its caret
-	 *  (`range-edit/edit-range.ts :: answerOf`), so it measures every block of that parse. */
-	laysOutItsAnswer?: true;
+	/** A range edit through the range-edit core, which reads the blocks its range reaches. */
+	rangeEdit?: true;
 }
 
 /** The block every route writes at, far enough down that blocks stand on both sides. */
@@ -98,7 +102,8 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		source: (n) => paragraphs(n).slice(0, -1),
 		write: (m, n) => typeLetter(m, [n - 1]),
 		asks: (n) => ({ path: [n - 1], offset: 0 }),
-		announces: 'exact'
+		announces: 'exact',
+		longest: 80
 	},
 	// The fix-up splices the document's list to give the filled paragraph its blank line back.
 	{
@@ -107,7 +112,26 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		setUp: async (m) => void (await pressKeyAt(m, [AT], 6, { key: 'Enter' })),
 		write: (m) => typeLetter(m, [AT + 1]),
 		asks: () => ({ path: [AT + 1], offset: 0 }),
-		announces: 'whole'
+		announces: 'exact'
+	},
+	{
+		name: 'a letter into the empty paragraph an Enter left under a heading',
+		source: withBlock('# head\n'),
+		setUp: async (m) => void (await pressKeyAt(m, [AT], 6, { key: 'Enter' })),
+		write: (m) => typeLetter(m, [AT + 1]),
+		asks: () => ({ path: [AT + 1], offset: 0 }),
+		announces: 'exact'
+	},
+	// The fix-up takes the emptied paragraph's blank line back out of the block below.
+	{
+		name: 'the only letter of a paragraph deleted',
+		source: withBlock('q\n'),
+		async write(m) {
+			typeInto(surfaceAt(m, [AT]), '');
+			await m.settle();
+		},
+		asks: () => ({ path: [AT + 1], offset: 0 }),
+		announces: 'exact'
 	},
 	// The list reads its bytes again and the item's second paragraph becomes a top-level block.
 	{
@@ -119,7 +143,7 @@ export const WRITE_ROUTES: WriteRoute[] = [
 			await m.settle();
 		},
 		asks: () => ({ path: [AT - 1], offset: 0 }),
-		announces: 'whole'
+		announces: 'exact'
 	},
 	{
 		name: 'Enter in a paragraph',
@@ -180,7 +204,7 @@ export const WRITE_ROUTES: WriteRoute[] = [
 			await m.settle();
 		},
 		asks: () => ({ path: [AT + 1], offset: 0 }),
-		announces: 'whole',
+		announces: 'exact',
 		readsItself: true
 	},
 	// The quote's heading becomes a paragraph, so the quote runs on into the line under it and the
@@ -193,7 +217,7 @@ export const WRITE_ROUTES: WriteRoute[] = [
 			await m.settle();
 		},
 		asks: () => ({ path: [AT + 1], offset: 0 }),
-		announces: 'whole'
+		announces: 'exact'
 	},
 	{
 		name: 'a paragraph typed into a heading',
@@ -262,7 +286,7 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		asks: () => ({ path: [AT], offset: 0 }),
 		announces: 'exact',
 		readsItself: true,
-		laysOutItsAnswer: true
+		rangeEdit: true
 	},
 	{
 		name: 'a letter typed over a range the editor holds across blocks',
@@ -275,7 +299,7 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		asks: () => ({ path: [AT], offset: 0 }),
 		announces: 'exact',
 		readsItself: true,
-		laysOutItsAnswer: true
+		rangeEdit: true
 	},
 	// Two writes in one undo entry: the removal's splice, then the paste's commit, whose undo
 	// snapshot is the document from before both.
@@ -290,7 +314,34 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		asks: () => ({ path: [AT], offset: 0 }),
 		announces: 'exact',
 		readsItself: true,
-		laysOutItsAnswer: true
+		rangeEdit: true
+	},
+	{
+		name: 'a cut of a range the editor holds across blocks',
+		source: paragraphs,
+		setUp: (m) => holdRange(m, [AT], [AT + 2]),
+		async write(m) {
+			dispatchClipboardEvent(surfaceAt(m, [AT]), 'cut', new StubDataTransfer());
+			await m.settle();
+		},
+		asks: () => ({ path: [AT], offset: 0 }),
+		announces: 'exact',
+		readsItself: true,
+		rangeEdit: true
+	},
+	{
+		name: 'Backspace at the top of an empty fence, which removes the block whole',
+		source: withBlock('```\n```\n'),
+		async write(m) {
+			const el = surfaceAt(m, [AT]);
+			placeCaret(el, 0);
+			await pressKey(el, { key: 'Backspace' });
+			await m.settle();
+		},
+		asks: () => ({ path: [AT], offset: 0 }),
+		announces: 'exact',
+		readsItself: true,
+		rangeEdit: true
 	},
 	{
 		name: 'undo',

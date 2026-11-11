@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// One range edit's work doesn't grow with the document (G4.312): a copy parses nothing beyond the
-// editor's own tree, every gesture lays out only the blocks near its range, and the host's in-block
-// writes are handed only those blocks.
+// One range edit's work doesn't grow with the document (G4.312): a copy reads no document but the
+// editor's own tree, every gesture parses and lays out only the blocks near its range, and the
+// host's in-block writes are handed only those blocks.
 
 import { describe, expect, it } from 'vitest';
 import type { DocumentView } from '#lib/core/node-views.js';
@@ -9,6 +9,13 @@ import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { editRange, type Gesture } from '#lib/range-edit/edit-range.js';
 import { rangeHost, type RangeHost } from '#lib/range-edit/host.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
+import {
+	disablePerfInstruments,
+	enablePerfInstruments,
+	perfSnapshot,
+	resetPerfInstruments
+} from '#lib/perf/instruments.js';
 import { noTransforms, testReading } from './test-host';
 
 const SHAPES: Record<string, (n: number) => string> = {
@@ -27,8 +34,8 @@ const GESTURES: Gesture[] = [
 	{ paste: 'one\n\ntwo', plain: false, holds: 'text' }
 ];
 
-/** The host, counting whole-document parses, the blocks laid out and the block bytes its in-block
- *  writes are handed. */
+/** The host, counting the documents read beside the editor's own, the blocks laid out and the
+ *  block bytes its in-block writes are handed. */
 function counted(host: RangeHost, current: DocumentView) {
 	const work = { reads: 0, laid: 0, bytes: 0 };
 	const handed = (doc: DocumentView, path: readonly number[]) =>
@@ -69,9 +76,13 @@ function cost(source: string, gesture: Gesture) {
 	const to = source.indexOf('with', from + 10) + 2;
 	const reading = testReading();
 	const tree = readAsOpened(source, { grammar: reading.grammar, scope: 'document' });
-	const { work, host } = counted(rangeHost(reading, { source, tree }), tree);
+	const { work, host } = counted(rangeHost(reading, { source, measured: measured(tree) }), tree);
+	enablePerfInstruments();
+	resetPerfInstruments();
 	editRange(source, { from, to }, gesture, 'source', noTransforms(host));
-	return work;
+	const parsed = perfSnapshot().parseBytes;
+	disablePerfInstruments();
+	return { ...work, parsed };
 }
 
 describe('work per gesture', () => {
@@ -80,9 +91,13 @@ describe('work per gesture', () => {
 			it(`${shape}, ${JSON.stringify(gesture)}`, () => {
 				const small = cost(make(500), gesture);
 				const large = cost(make(2000), gesture);
-				expect(large.reads, 'whole-document parses').toBeLessThanOrEqual(
+				expect(large.reads, 'documents read beside the editor’s own').toBeLessThanOrEqual(
 					gesture === 'copy' ? 0 : 3
 				);
+				expect(
+					large.parsed,
+					`bytes parsed: ${small.parsed} at 500 blocks, ${large.parsed} at 2,000`
+				).toBeLessThanOrEqual(small.parsed * 1.5 + 64);
 				expect(
 					large.laid,
 					`blocks laid out: ${small.laid} at 500 blocks, ${large.laid} at 2,000`

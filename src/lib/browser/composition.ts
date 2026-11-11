@@ -1,8 +1,9 @@
 /**
- * Whether the IME owns a key or an input, and the editor's one record of the composition in
- * progress. The tracker asks at every key, input and composition start in the editor's root
- * whether the browser dropped the composition without a `compositionend`, so no element hosting
- * one can miss a signal; the element only opens its composition and commits it.
+ * Who owns a key or an input (the IME, or nobody for a key event that names no key), and the
+ * editor's one record of the composition in progress. The tracker asks at every key, input and
+ * composition start in the editor's root whether the browser dropped the composition without a
+ * `compositionend`, so no element hosting one can miss a signal; the element only opens its
+ * composition and commits it.
  */
 
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
@@ -14,6 +15,12 @@ import { readInput } from './input';
  *  or feeds one, which Chromium and WebKit send with `isComposing: false` (`Process`, code 229). */
 export function imeOwnsKey(e: Pick<KeyboardEvent, 'isComposing' | 'key' | 'keyCode'>): boolean {
 	return e.isComposing || e.key === 'Process' || e.keyCode === 229;
+}
+
+/** Whether `e` can never be a command, the question every editor keydown handler asks first: the
+ *  IME owns it, or it names no key, as the plain `Event` Chrome's autofill sends as a keydown. */
+export function neverACommand(e: Pick<KeyboardEvent, 'isComposing' | 'key' | 'keyCode'>): boolean {
+	return !e.key || imeOwnsKey(e);
 }
 
 /** Whether the browser sent `e` inside a composition. */
