@@ -109,9 +109,9 @@ holding a table. The container kit holds a third-party `rebuildRaw` to the same 
 
 **G2.17 · A throwing commit changes nothing.** A commit mutation that throws publishes no partial
 tree, leaves the undo and redo stacks as they were (`UndoManager.restoreStacks`), puts back each
-scope's children, child ids, bytes, metadata and list counts, and every node it wrote where it
-stood, at any depth (`sharing.isShared` is asked before each such write), emits
-`error{origin:'commit'}`, then re-throws in dev and swallows in production.
+scope's children, child ids, bytes, metadata and list counts, and every node `sharing.isShared`
+cleared for a write where it stood, at any depth, emits `error{origin:'commit'}`, then re-throws
+in dev and swallows in production. The table rebuild writes rows without asking (G1.9).
 `commit-rollback.test.ts`, `commit-rollback-bytes.test.ts`, `failed-write-restores.test.ts`.
 
 **G2.18 · The range-edit laws.** The gestures that copy, remove, replace or paste a range agree:
