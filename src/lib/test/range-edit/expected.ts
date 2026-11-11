@@ -268,7 +268,8 @@ export function opensWithoutClosing(
 	return read.blocks.some((b) => {
 		if (!(b.from >= from && b.from < to && to < b.to)) return false;
 		const lines = host.facts(b.type).lines;
-		return (!b.lines && !!fenceOf(read, b, host)) || lines === 'fenced' || lines === 'rows';
+		const fenced = host.facts(b.type).body === 'literal' && !!fenceOf(read, b, host);
+		return fenced || lines === 'fenced' || lines === 'rows';
 	});
 }
 
