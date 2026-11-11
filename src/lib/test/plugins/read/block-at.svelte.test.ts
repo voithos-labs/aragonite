@@ -84,6 +84,26 @@ describe("a block's positions", () => {
 		expect(block.from).toBe(DOC.indexOf('one'));
 	});
 
+	// Miss-analysis: no row read `to` on a block inside a container, where the offset past a
+	// block's last byte sits behind the next line's marker, or short of a last child's line ending.
+	it('end one past its last byte, whatever the next line starts with', async () => {
+		const source = 'one\n\n> two\n>\n> three\n\n- ant\n- bee\n\n| cell |\n| - |\n\nlast';
+		const editor = await editorOn(source);
+		const held = (word: string) => {
+			const block = editor.blockAt(source.indexOf(word))!;
+			return source.slice(block.from, block.to);
+		};
+		expect(['one', 'two', 'three', 'ant', 'bee', 'cell', 'last'].map(held)).toEqual([
+			'one\n',
+			'two\n',
+			'three\n',
+			'ant\n',
+			'bee\n',
+			'cell',
+			'last'
+		]);
+	});
+
 	it('gives each piece its document bytes, a text piece one line at most', async () => {
 		const editor = await editorOn(DOC);
 		const pieces = editor.blockAt(DOC.indexOf('two'))!.pieces;

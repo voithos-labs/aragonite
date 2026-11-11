@@ -99,7 +99,10 @@ export function blockOf<D>(
 			return byteAt(0);
 		},
 		get to() {
-			return byteAt(node.raw.length);
+			// One past its last byte: the offset after that one sits behind the next line's marker.
+			const last = node.raw.length - 1;
+			const at = byteAt(Math.max(last, 0));
+			return at < 0 || last < 0 ? at : at + 1;
 		},
 		get pieces() {
 			if (pieces) return pieces;
