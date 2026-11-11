@@ -806,6 +806,17 @@ function landedPaste(
 		if (lines[0] === '') return { shape: 'split', bytes: [splice(prefix, '')(lines)] };
 		if (read.source.slice(leaf.text.from, at).trim() === '')
 			return { shape: 'split', bytes: [line] };
+		// At a later line's start the line break above ends the first half, as a split leaves it:
+		// one blank line under it, then the pasted block behind the markers the caret stood behind.
+		const lineFrom = read.source.lastIndexOf('\n', at - 1) + 1;
+		const marks = read.source.slice(lineFrom, at);
+		if (lineFrom > leaf.text.from && /^[ \t>]*$/.test(marks)) {
+			const head = read.source.slice(0, lineFrom) + prefix.trimEnd() + eol + marks;
+			return {
+				shape: 'split',
+				bytes: [head + join(lines, prefix, eol, after) + read.source.slice(at)]
+			};
+		}
 		const blank = splice(prefix, eol + prefix.trimEnd() + eol + prefix)(lines);
 		return { shape: 'split', bytes: own ? [blank, line] : [blank] };
 	}

@@ -444,12 +444,35 @@ const PLAIN_ROWS: NamedRow[] = [
 
 // Miss-analysis: every row cut a block at a line's end before a line break, none before a CR
 // that ends no line, which the cut then took for one.
-const LINE_ROWS: NamedRow[] = both(
-	'S a CR that ends no line is text the cut stands before, not a line break',
-	'a⟦⟧\rb\r\nx\n',
-	paste('para\n\n- a\n- b\n'),
-	'apara\r\n\r\n- a\r\n- b\r\n\rb\r\nx\n'
-);
+const LINE_ROWS: NamedRow[] = [
+	...both(
+		'S a CR that ends no line is text the cut stands before, not a line break',
+		'a⟦⟧\rb\r\nx\n',
+		paste('para\n\n- a\n- b\n'),
+		'apara\r\n\r\n- a\r\n- b\r\n\rb\r\nx\n'
+	),
+	// Miss-analysis: every row cut a paragraph on its first line or at a line's end, so the empty
+	// line a cut at a later line's start left above the pasted blocks met no row.
+	...both(
+		'S blocks pasted at the start of a paragraph’s later line leave one blank line, as Enter does',
+		'one\n⟦⟧two\n',
+		paste('# T'),
+		'one\n\n# Ttwo\n'
+	),
+	...both(
+		'S and in a quote, none of them a marker with a space after it',
+		'> one\n> ⟦⟧two\n',
+		paste(TABLE),
+		'> one\n>\n> | a |\n> | - |\n>\n> two\n'
+	),
+	...both('S and in an item', '- one\n  ⟦⟧two\n', paste('# T'), '- one\n\n  # Ttwo\n'),
+	...both(
+		'S and over the later line’s whole text',
+		'> one\n> ⟦two⟧\n',
+		paste(TABLE),
+		'> one\n>\n> | a |\n> | - |\n'
+	)
+];
 
 // Miss-analysis: no to-do, drawn or named, had text that alone opens a fence, so the closing line
 // the block's own write put under it met no row.

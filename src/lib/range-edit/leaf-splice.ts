@@ -134,8 +134,9 @@ export function cutLeaf(doc: Doc, leaf: LaidBlock, from: number, to: number, joi
 	const tailAt = cut.head.length + sep.length;
 	const start = placed(tailAt);
 	const lineBreak = source.lastIndexOf('\n', start - 1);
-	// A first half that ends at a line's start keeps that line's markers.
-	const end = lineStart ? start : source[lineBreak - 1] === '\r' ? lineBreak - 1 : lineBreak;
+	// The first half ends before the line break over the second, at a line's start too: that break
+	// is the first half's own line ending, as a split leaves it, never an empty line under it.
+	const end = source[lineBreak - 1] === '\r' ? lineBreak - 1 : lineBreak;
 	const restAt = below ? end : start;
 	return {
 		head: source.slice(0, end),
