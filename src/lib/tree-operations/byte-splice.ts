@@ -1,9 +1,10 @@
 /**
  * What a document's tree becomes when runs of its bytes change: the top-level blocks each change
  * reaches, read again from the new bytes, so the tree is what opening them gives. A read starts at
- * the last block before the change with text of its own and runs on past it until the next such
- * block still starts where it stood; inside a list, quote or table it reads only the children the
- * change reaches (`docs/design/commit-and-undo.md` § The byte splice).
+ * the last block before the change with text of its own, or at a definition above that still
+ * waiting on its title, and runs on past the change until the next block with text still starts
+ * where it stood; inside a list, quote or table it reads only the children the change reaches
+ * (`docs/design/commit-and-undo.md` § The byte splice).
  */
 
 import type { CstNode } from '../core/nodes';
@@ -18,7 +19,7 @@ import { splitLines } from '../core/lines';
 import { readAsOpened } from '../schema/opened-reading';
 import { assignChildIdsDeep, keepUnchangedDeep } from '../block-id';
 import { changedBytes, narrowed, writtenLines, type ByteChange } from './byte-changes';
-import { containerWindow, standsBelow, textAfter } from './container-window';
+import { containerWindow, standsBelow, textAfter, windowStart } from './container-window';
 import { spliceMany } from './splice-many';
 import type { Measured, TopLevelChange } from './top-level-starts';
 
@@ -98,9 +99,7 @@ function readAgain(
 	const pending: Span[] = [];
 	for (const change of made) {
 		const first = starts.holding(change.from);
-		let lo = first - 1;
-		while (lo > 0 && isBlankParagraph(children[lo])) lo--;
-		lo = Math.max(lo, 0);
+		const lo = windowStart(children, first, 0, readings);
 		// A closer the change writes finishes a block above it that waits on one.
 		const lines = writtenLines(before, change);
 		const waiting = waitingAboveClosedBy(lines, (i) => children[i].raw, lo, readings);
