@@ -1,0 +1,207 @@
+// Where a nested block's bytes start and end in the document, as every reader of them answers:
+// from the blank line above its container counted once, to one past its own last byte, never past
+// the next line's marker or short of its own line ending. A new reader joins as a row of READERS.
+import { describe, expect, it } from 'vitest';
+import type { Document } from '#lib/core/nodes.js';
+import { parse } from '#lib/core/parser.js';
+import { installPlugins } from '#lib/schema/plugin-install.js';
+import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
+import { documentByteMap } from '#lib/tree-operations/container-offsets.js';
+import { measured, type Measured } from '#lib/tree-operations/top-level-starts.js';
+import { documentLayout } from '#lib/range-edit/layout.js';
+import {
+	blockRange,
+	byteAt,
+	captureChange,
+	changeAfter,
+	partLengths
+} from '#lib/editor-actions/commit/change-record.js';
+import { idleDraftRegistry } from '#lib/test/harness/drafts.js';
+import { SYNTAX_PLUGINS } from '../behavior/corpus';
+
+interface Shape {
+	name: string;
+	source: string;
+	plugins?: boolean;
+	/** Each nested block by its path, and the bytes it holds in the document. */
+	held: [path: string, bytes: string][];
+}
+
+const SHAPES: Shape[] = [
+	{
+		name: 'a quote under a blank line',
+		source: 'one\n\n> two\n>\n> three\n\nfour\n',
+		held: [
+			['1.0', 'two\n'],
+			['1.1', 'three\n']
+		]
+	},
+	{
+		name: 'a quote first, its last child with no line ending',
+		source: '> two\n>\n> three',
+		held: [
+			['0.0', 'two\n'],
+			['0.1', 'three']
+		]
+	},
+	{
+		name: 'a quote in CRLF',
+		source: 'one\r\n\r\n> two\r\n>\r\n> three\r\n\r\nfour\r\n',
+		held: [
+			['1.0', 'two\r\n'],
+			['1.1', 'three\r\n']
+		]
+	},
+	{
+		name: 'list items under a blank line',
+		source: 'one\n\n- ant\n- bee\n\nlast\n',
+		held: [
+			['1.0', '- ant\n'],
+			['1.0.0', 'ant\n'],
+			['1.1.0', 'bee\n']
+		]
+	},
+	{
+		name: 'list items in CRLF, the last with no line ending',
+		source: 'one\r\n\r\n- ant\r\n- bee',
+		held: [
+			['1.0.0', 'ant\r\n'],
+			['1.1.0', 'bee']
+		]
+	},
+	{
+		name: 'a nested list',
+		source: '- a\n  - b\n  - c\n- d\n',
+		held: [
+			['0.0.0', 'a\n'],
+			['0.0.1', '- b\n  - c\n'],
+			['0.0.1.0.0', 'b\n'],
+			['0.0.1.1.0', 'c\n']
+		]
+	},
+	{
+		name: 'a list in a quote',
+		source: 'one\n\n> - a\n>   b\n>\n> c\n',
+		held: [
+			['1.0', '- a\n>   b\n'],
+			['1.0.0.0', 'a\n>   b\n'],
+			['1.1', 'c\n']
+		]
+	},
+	{
+		name: 'a callout',
+		source: 'one\n\n> [!NOTE]\n> body\n>\n> ```\n> x\n> ```\n\nlast\n',
+		plugins: true,
+		held: [
+			['1.0', 'body\n'],
+			['1.1', '```\n> x\n> ```\n']
+		]
+	},
+	{
+		name: 'a titled container in a quote',
+		source: 'one\n\n> <details>\n> <summary>S</summary>\n>\n> body\n>\n> </details>\n',
+		plugins: true,
+		held: [
+			['1.0.0', 'S</summary>\n'],
+			['1.0.1', 'body\n']
+		]
+	},
+	{
+		name: 'a table',
+		source: 'one\n\n| a | b |\n| - | - |\n| c | d |\n',
+		held: [
+			['1.0', '| a | b |\n'],
+			['1.0.0', 'a'],
+			['1.1.1', 'd']
+		]
+	}
+];
+
+/** Every reader of a nested block's bytes, as `[from, to)` of the document. */
+const READERS: [string, (laid: Measured, path: number[]) => (number | null)[] | null][] = [
+	[
+		'the byte map',
+		(laid, path) => {
+			const map = documentByteMap(laid);
+			return [map.byteOf(path, 0), map.endOf(path, blockNodeAt(laid.doc, path)!.raw.length)];
+		}
+	],
+	[
+		'a layout block',
+		(laid, path) => {
+			const block = documentLayout(laid).block(path);
+			return block ? [block.from, block.to] : null;
+		}
+	],
+	[
+		"a block draft's range",
+		({ doc }, path) => {
+			const range = blockRange(doc, path);
+			const lengths = partLengths(doc);
+			return range && [byteAt(lengths, range.from), byteAt(lengths, range.to)];
+		}
+	]
+];
+
+function opened(shape: Shape): Document {
+	if (shape.plugins) installPlugins(SYNTAX_PLUGINS);
+	return parse(shape.source);
+}
+
+const pathOf = (key: string) => key.split('.').map(Number);
+
+/** Where `bytes` sit in `source`, which holds them once. */
+function spanOf(source: string, bytes: string): [number, number] {
+	const from = source.indexOf(bytes);
+	expect(from, `${JSON.stringify(bytes)} once in the source`).toBe(source.lastIndexOf(bytes));
+	return [from, from + bytes.length];
+}
+
+const ROWS = SHAPES.flatMap((shape) => shape.held.map(([path, bytes]) => ({ shape, path, bytes })));
+
+// Miss-analysis: each reader's rows put the container first or its block last in the document,
+// and no row read CRLF, so a blank line counted twice and an end off by a marker went unseen.
+describe("a nested block's bytes", () => {
+	for (const [reader, read] of READERS) {
+		it.each(ROWS)(`${reader}: $shape.name, $path`, ({ shape, path, bytes }) => {
+			const doc = opened(shape);
+			expect(read(measured(doc), pathOf(path))).toEqual(spanOf(shape.source, bytes));
+		});
+	}
+});
+
+// Miss-analysis: every draft row opened on a top-level block, so a write to a nested block's first
+// byte that left its draft fresh, or one to the next line's marker that staled it, went unseen.
+describe('a draft on a nested block', () => {
+	it.each(ROWS)('goes stale at a write to its own bytes only: $shape.name, $path', (row) => {
+		const doc = opened(row.shape);
+		const [from, to] = spanOf(row.shape.source, row.bytes);
+		const at = { first: from, last: to - 1, before: from - 1, after: to };
+		const stale = Object.fromEntries(
+			Object.entries(at)
+				.filter(([, byte]) => byte >= 0 && byte < row.shape.source.length)
+				.map(([edge, byte]) => [
+					edge,
+					staleAfterWrite(doc, row.shape.source, pathOf(row.path), byte)
+				])
+		);
+		expect(stale).toEqual({
+			first: true,
+			last: true,
+			...('before' in stale && { before: false }),
+			...('after' in stale && { after: false })
+		});
+	});
+});
+
+/** Whether a draft opened on the block at `path` goes stale once byte `at` is written over. */
+function staleAfterWrite(doc: Document, source: string, path: number[], at: number): boolean {
+	const live = { doc };
+	const registry = idleDraftRegistry(undefined, () => live.doc);
+	const draft = registry.open({ close: () => {} }, path);
+	const capture = captureChange(live.doc, null);
+	const other = source[at] === 'Z' ? 'Y' : 'Z';
+	live.doc = parse(source.slice(0, at) + other + source.slice(at + 1));
+	registry.record(changeAfter(live.doc, capture, null));
+	return draft.stale;
+}

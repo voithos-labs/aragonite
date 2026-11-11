@@ -56,15 +56,6 @@ export function documentLayout(measured: Measured): Layout {
 	const { doc, starts } = measured;
 	const map = documentByteMap(measured);
 	const laid = new Map<string, LaidBlock>();
-	// A block's last line runs to the end of its line in the source, past a title's closing tag too.
-	const pastLine = (path: readonly number[], raw: string, end: number): number => {
-		if (!raw.endsWith('\n', end)) return map.byteOf(path, end)!;
-		const top = path[0];
-		const byte = map.byteOf(path, end - (raw.endsWith('\r\n', end) ? 2 : 1))!;
-		return (
-			starts.rawStart(top) + doc.children[top].raw.indexOf('\n', byte - starts.rawStart(top)) + 1
-		);
-	};
 	const leaf = (path: readonly number[]): NodeView | null => {
 		const node = blockNodeAt(doc, path);
 		return node && childless(node) ? node : null;
@@ -91,7 +82,7 @@ export function documentLayout(measured: Measured): Layout {
 			type: node.kind,
 			start,
 			from: map.byteOf(path, 0)!,
-			to: pastLine(path, node.raw, node.raw.length),
+			to: map.endOf(path, node.raw.length)!,
 			container: own !== null && 'rawLines' in own
 		};
 		if (childless(node)) {
@@ -103,10 +94,8 @@ export function documentLayout(measured: Measured): Layout {
 				get: () =>
 					(lines ??= (containerLines(own!) ?? []).map((line) => ({
 						from: map.byteOf(path, line.start)!,
-						markerTo: line.own
-							? pastLine(path, node.raw, line.end)
-							: map.byteOf(path, line.markerEnd)!,
-						to: pastLine(path, node.raw, line.end),
+						markerTo: line.own ? map.endOf(path, line.end)! : map.byteOf(path, line.markerEnd)!,
+						to: map.endOf(path, line.end)!,
 						own: line.own
 					})))
 			});

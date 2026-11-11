@@ -147,6 +147,7 @@ export function blockRange(doc: DocumentView, path: readonly number[]): PartRang
 	const blank = top.leadingTrivia.length;
 	if (path.length === 1)
 		return { from: { part, offset: blank }, to: { part: part + 1, offset: 0 } };
+	// A document of the one block is its part: a byte of it counts the block's blank lines too.
 	const alone = documentByteMap(
 		measured({ kind: 'document', prefix: '', children: [top], suffix: '' })
 	);
@@ -154,10 +155,10 @@ export function blockRange(doc: DocumentView, path: readonly number[]): PartRang
 	const node = blockAt(top, path.slice(1));
 	if (!node) return null;
 	const start = alone.byteOf(inner, 0);
-	const end = alone.byteOf(inner, node.raw.length);
+	const end = alone.endOf(inner, node.raw.length);
 	if (start === null || end === null) return null;
-	const to = end === top.raw.length ? { part: part + 1, offset: 0 } : { part, offset: blank + end };
-	return { from: { part, offset: blank + start }, to };
+	const to = end === blank + top.raw.length ? { part: part + 1, offset: 0 } : { part, offset: end };
+	return { from: { part, offset: start }, to };
 }
 
 /** `range` after `change`, or null when the change wrote inside it. Text written at either edge

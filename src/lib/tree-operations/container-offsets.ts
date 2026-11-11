@@ -51,6 +51,9 @@ export interface DocumentByteMap {
 	leafAt(at: number): LeafPosition | null;
 	/** The byte offset `offset` of the block at `path` sits at, a leaf or a container. */
 	byteOf(path: readonly number[], offset: number): number | null;
+	/** Where the bytes of the block at `path` before `offset` end. Bytes ending on a line ending end
+	 *  past it, behind a title's closing tag too, where `byteOf` answers past the next line's marker. */
+	endOf(path: readonly number[], offset: number): number | null;
 	/** The map `node`'s lines are paired in, kept for the map's life; null for a block read as a leaf. */
 	containerMap(node: NodeView): ContainerMap | null;
 }
@@ -73,6 +76,12 @@ export function documentByteMap({ doc, starts }: Measured): DocumentByteMap {
 		return map;
 	};
 	const tops = doc.children;
+	const byteOf = (path: readonly number[], offset: number): number | null => {
+		const top = tops[path[0]];
+		if (!top) return null;
+		const inBlock = byteIn(top, path.slice(1), offset, false, mapOf);
+		return inBlock === null ? null : starts.rawStart(path[0]) + inBlock;
+	};
 	return {
 		leafAt(at) {
 			if (tops.length === 0) return null;
@@ -80,11 +89,16 @@ export function documentByteMap({ doc, starts }: Measured): DocumentByteMap {
 			const leaf = leafIn(tops[top], at - starts.rawStart(top), false, mapOf);
 			return leaf && { path: [top, ...leaf.path], offset: leaf.offset };
 		},
-		byteOf(path, offset) {
-			const top = tops[path[0]];
-			if (!top) return null;
-			const inBlock = byteIn(top, path.slice(1), offset, false, mapOf);
-			return inBlock === null ? null : starts.rawStart(path[0]) + inBlock;
+		byteOf,
+		endOf(path, offset) {
+			let node: NodeView | undefined = tops[path[0]];
+			for (let depth = 1; depth < path.length; depth++) node = node?.children?.[path[depth]];
+			if (!node || !node.raw.endsWith('\n', offset)) return node ? byteOf(path, offset) : null;
+			// The map puts a line ending where its line's text ends, before a title's closing tag.
+			const at = byteOf(path, offset - 1);
+			if (at === null) return null;
+			const base = starts.rawStart(path[0]);
+			return base + tops[path[0]].raw.indexOf('\n', at - base) + 1;
 		},
 		containerMap: (node) => (isMapped(node) ? mapOf(node) : null)
 	};
