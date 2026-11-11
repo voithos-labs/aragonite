@@ -15,8 +15,8 @@ export interface SharingState {
 	isShared(node: { ownerEpoch?: number }): boolean;
 	/** Mark a freshly created or copied node as owned by the live tree. */
 	stamp(node: { ownerEpoch?: number }): void;
-	/** Calls `keep` with each node `isShared` clears for a write, once and as it is first asked
-	 *  about, until the returned function is called. A node stamped meanwhile is new, and is left out. */
+	/** Calls `keep` with each node `isShared` clears for a write, once, at its first ask, until the
+	 *  returned function is called. One stamped meanwhile is new or saved already, and is left out. */
 	watchOwned(keep: (node: CstNode) => void): () => void;
 }
 

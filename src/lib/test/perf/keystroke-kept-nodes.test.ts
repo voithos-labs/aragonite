@@ -56,4 +56,13 @@ describe(`what a keystroke keeps for its rollback, beside ${SIBLINGS} siblings`,
 			h.actions.updateBlockContent(1, text, 'authored', 'join-typing', text.length - 1);
 		expect(await keptBySecondKey(h.deps, type, 'zz')).toEqual([]);
 	});
+
+	it('in a cell of a long table', async () => {
+		const rows = Array.from({ length: SIBLINGS }, () => '| a | b |\n').join('');
+		const h = makeContainerHarness(`| a | b |\n| - | - |\n${rows}`, [0, SIBLINGS >> 1]);
+		// A cell holds no line ending of its own.
+		const type: Type = (text) =>
+			h.bundle.blockEdit.updateBlockContent(0, text.trimEnd(), 'authored', 'join-typing', 1);
+		expect(await keptBySecondKey(h.deps, type, 'a')).toEqual([]);
+	});
 });

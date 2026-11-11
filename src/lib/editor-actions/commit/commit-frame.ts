@@ -124,10 +124,10 @@ export function createCommitFrame(
 		const restore = () => {
 			if (savedStacks) undo.restoreStacks(savedStacks);
 			deps.doc.suffix = savedSuffix;
-			// First: a node is kept as it stood when the write first asked about it, which may be after
-			// the write changed it. The rollback's own saves are from before, so they go in last.
-			owned.restore();
 			write.rollback();
+			// Last: a kept node is as it stood before the write, lists and all, while a collapse the
+			// rollback unwinds puts back a list from part way through.
+			owned.restore();
 		};
 		// Only while a draft is open: otherwise the write reads nothing more.
 		const capture = deps.drafts.watching()

@@ -4,7 +4,8 @@
 // array the rollback puts back dropped the copy. A commit that joins its undo entry writes a block
 // the entry already copied where it stands, and no row threw after one. Nor did a row change
 // metadata, which a write changes field by field, so a save that held the object held nothing.
-// Nor did one ask about a block it had already written, as a keystroke does of its own leaf.
+// Nor did one ask about a block it had already written, as a keystroke does of its own leaf,
+// or collapse a container inside a commit that joined its entry.
 import { afterEach, describe, expect, it } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
@@ -362,6 +363,81 @@ describe('a write that changes more than bytes where it stands and fails', () =>
 		).rejects.toThrow('rebuild blew up');
 
 		expectStanding();
+	});
+});
+
+// The inner quote's write lets it take in the line below, so the outer quote's list is spliced.
+describe('a write that collapses its container into the block below and fails', () => {
+	const NESTED = '> > a\n> > # h\n> text\n>\n> tail\n';
+
+	/** Copies the outer quote alone into the open undo step: the inner one is still the entry's. */
+	async function ownOuterQuote({ deps, controller }: Harness): Promise<void> {
+		void controller.undoStep(snapshot, () => new Promise(() => {}));
+		await controller.commitStructural({
+			snapshot,
+			mutate: (_, scope) => {
+				scope.own([0]);
+				return { op: 'noop' };
+			}
+		});
+		deps.doc.children.forEach(assignChildIdsDeep);
+	}
+
+	const throwOnOuterQuote = ({ deps }: Harness) =>
+		augmentBuiltin('blockquote', {
+			container: {
+				rebuildRaw: (node: CstNode) => {
+					if (node === deps.doc.children[0]) throw new Error('rebuild blew up');
+					originalQuoteRebuild(node);
+				}
+			}
+		});
+
+	it('a commit that removes the heading, thrown once the collapse is published', async () => {
+		const h = makeContainerHarness(NESTED, [0, 0]);
+		await ownOuterQuote(h);
+		const expectStanding = standing(h);
+		const outer = h.deps.doc.children[0];
+		const inner = outer.children![0];
+		// Thrown once the write is in and its collapse is published, where the drafts hear of it.
+		const quiet = h.deps.drafts;
+		h.deps.drafts = {
+			...quiet,
+			watching: () => true,
+			record: () => {
+				h.deps.drafts = quiet;
+				throw new Error('part way');
+			}
+		};
+
+		const thrown = h.controller.commitMultiScope({
+			scopes: [{ node: h.getNode(), state: h.state, path: [0, 0] }],
+			snapshot,
+			mutate: ([quote]) => {
+				quote.children.splice(1, 1);
+				return [{ op: 'delete', at: 1, count: 1 }];
+			}
+		});
+
+		await expect(thrown).rejects.toThrow('part way');
+		expectStanding();
+		expect(h.deps.doc.children[0]).toBe(outer);
+		expect(outer.children![0]).toBe(inner);
+	});
+
+	it('a keystroke that makes the heading a paragraph, thrown out of the outer quote’s rebuild', async () => {
+		const h = makeContainerHarness(NESTED, [0, 0]);
+		await ownOuterQuote(h);
+		const expectStanding = standing(h);
+		const outer = h.deps.doc.children[0];
+		throwOnOuterQuote(h);
+
+		await expect(
+			h.bundle.blockEdit.updateBlockContent(1, 'h\n', 'authored', 'join-typing', 0)
+		).rejects.toThrow('rebuild blew up');
+
+		expectStanding();
+		expect(h.deps.doc.children[0]).toBe(outer);
 	});
 });
 
