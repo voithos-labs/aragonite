@@ -252,9 +252,9 @@ export function splitAt(
 	const caret = from + opening.length;
 	// An empty line that text follows right after stays, keeping the pasted blocks apart from it;
 	// a line the paste took the text of was never empty.
-	const under = lineEnd(source, to) + 1;
-	const next = source.slice(under, lineEnd(source, under));
-	const kept = at === to && !tail && next.replace(/^[\s>]*/, '') !== '' ? eol + blank : '';
+	const under = Math.min(lineEnd(source, to) + 1, source.length);
+	const next = lineRest(source, pastMarkers(source, under));
+	const kept = at === to && !tail && !isBlankText(next) ? eol + blank : '';
 	const marker = joinsBefore ? '' : own;
 	const apart = eol + (body !== clip ? blank + eol : '') + prefix + marker;
 	const taken = joinsBefore && lastJoins && body === clip;
