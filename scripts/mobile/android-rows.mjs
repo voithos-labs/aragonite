@@ -520,15 +520,18 @@ async function handleOnScreen(ctx, index, end) {
 }
 
 // Types on Gboard's own keys. A keyboard that isn't on screen is brought up by tapping the caret's
-// paragraph again, since a tap at a key's spot would land on the page instead.
+// paragraph again, since a tap at a key's spot would land on the page instead. One still sliding
+// in lists its top rows first, so it is read again, never tapped at.
 async function typeOnGboard(ctx, name, index) {
+	const whole = (keys) => keys.has('h') && keys.has(' ');
 	let keys = ctx.device.gboardKeys(`${name}-windows`);
-	for (let attempt = 1; !keys.has('h') && attempt <= 2; attempt++) {
-		await tapCaret(ctx, index, `${name}-retap`);
+	for (let attempt = 1; !whole(keys) && attempt <= 4; attempt++) {
+		if (keys.has('h')) await sleep(300);
+		else await tapCaret(ctx, index, `${name}-retap`);
 		keys = ctx.device.gboardKeys(`${name}-windows`);
 	}
 	ctx.device.screenshot(`${name}-keyboard`);
-	if (!keys.has('h') || !keys.has(' '))
+	if (!whole(keys))
 		throw new Error(`Gboard never showed its keys on screen (${ctx.device.gboardMode()})`);
 	for (const ch of ` ${WORD} `) {
 		ctx.device.tap(keys.get(ch).x, keys.get(ch).y);
