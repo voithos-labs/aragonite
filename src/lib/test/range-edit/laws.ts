@@ -196,15 +196,16 @@ export function cutPasteBack(call: Call, host: CheckHost, input: RangeInput): st
 	if (cut.caret.holds !== 'text' && !whole && oneTextBlock(read, input.range, host)) return [];
 	const back = call(cut.source, caretRange(cut.caret.at), paste(text, held), input.mode);
 	if (!back) return [];
-	const [source, got] = mixedEndings(input.source)
-		? [lf(input.source), lf(back.source)]
-		: [input.source, back.source];
+	// Mixed line endings compare as LF, the range's offsets counted in the same bytes.
+	const norm = mixedEndings(input.source) ? lf : (bytes: string) => bytes;
+	const [source, got] = [norm(input.source), norm(back.source)];
 	if (got === source) return [];
+	const at = (byte: number) => norm(input.source.slice(0, byte)).length;
 	// Plain text can't carry how each covered line spelled its markers: the same blocks will do.
-	if (sameDocument(host, source, got, from, to)) return [];
+	if (sameDocument(host, source, got, at(from), at(to))) return [];
 	// A block taken whole takes a blank line beside it, which plain text can't give back (spec § 4).
-	const taken = input.source.length - cut.source.length - (to - from);
-	if (taken > endingOf(input.source).length && sameBlocks(host, source, got)) return [];
+	const taken = source.length - norm(cut.source).length - (at(to) - at(from));
+	if (taken > endingOf(source).length && sameBlocks(host, source, got)) return [];
 	return [`L3 cut ${q(cut.source)}, pasted back ${q(back.source)}`];
 }
 

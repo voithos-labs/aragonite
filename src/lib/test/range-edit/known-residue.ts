@@ -1,6 +1,6 @@
 // The cuts whose plain-text paste back can't give the source back yet, each class named once with
 // why and its smallest repro. The editor's own clipboard entry gives every one of them back (law 12
-// holds on all), so these are gaps in what plain text carries. Two rows are pastes at a drawn caret
+// holds on all), so these are gaps in what plain text carries. Three rows are pastes at a caret
 // beside a split tab, which no entry is part of. The law suites fail on a violation no class of
 // their law matches, and the pin suite on a class whose repro passes: its fix deletes the row.
 
@@ -40,6 +40,17 @@ function restOfLine(read: Read, at: number): string {
 const lineHead = (source: string, at: number) =>
 	source.slice(source.lastIndexOf('\n', at - 1) + 1, at);
 
+/** A line that opens with a tab its container markers may split with its indent. */
+const TAB_SPLIT = /^[ >*+\-\d.)]*\t/;
+
+/** A caret on a line whose run of markers and indent holds a tab beside a container's marker, or
+ *  is the whole line: a tab that only indents text there is no part of the class. */
+function atSplitTab(read: Read, at: number): boolean {
+	const line = (lineHead(read.source, at) + restOfLine(read, at)).replace(/\r$/, '');
+	const run = /^[ \t>*+\-\d.)]*/.exec(line)![0];
+	return run.includes('\t') && (/[>*+-]|\d[.)]/.test(run) || run === line);
+}
+
 /** An end of the range right after a line's leading spaces, with the range crossing a line. */
 const besideSpaces = (read: Read, { from, to }: Range) =>
 	read.source.slice(from, to).includes('\n') &&
@@ -62,16 +73,14 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 		gap: 'a tab split between a container marker and the line’s indent loses its columns',
 		lane: 'tab columns',
 		law: 'L3',
-		matches: (read, range) =>
-			coveredLines(read, range).some((line) => /^[ >*+\-\d.)]*\t/.test(line)),
+		matches: (read, range) => coveredLines(read, range).some((line) => TAB_SPLIT.test(line)),
 		repro: { source: '2) 汉字\n    \n\t1. n', mode: 'live', range: { from: 4, to: 15 } }
 	},
 	{
 		gap: 'a tab split between a container marker and the line’s indent joins as the spaces of its columns',
 		lane: 'tab columns',
 		law: 'L4',
-		matches: (read, range) =>
-			coveredLines(read, range).some((line) => /^[ >*+\-\d.)]*\t/.test(line)),
+		matches: (read, range) => coveredLines(read, range).some((line) => TAB_SPLIT.test(line)),
 		repro: { source: ' - `c`\n\t> q\n\t\n\t**b**\n', mode: 'source', range: { from: 11, to: 14 } }
 	},
 	{
@@ -79,7 +88,7 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 		lane: 'tab columns',
 		law: 'L9',
 		matches: (read, range) =>
-			coveredLines(read, range).some((line) => /^[ >*+\-\d.)]*\t/.test(line)),
+			range.from < range.to && coveredLines(read, range).some((line) => TAB_SPLIT.test(line)),
 		repro: {
 			source: '1.\t汉字\n\t> q\n\t- x\n\n>\t`c`\n   > 1. n\n`c`\n',
 			mode: 'source',
@@ -87,15 +96,26 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 		}
 	},
 	{
-		gap: 'plain text at a caret before a tab split between a marker and the line’s indent takes later lines’ markers by its bytes, not its columns',
+		gap: 'at a drawn caret on a line where a tab stands beside a container’s marker, a pasted line’s markers and the question of two blocks reading as one count the tab by its bytes, not its columns',
+		lane: 'tab columns',
+		law: 'L9',
+		matches: (read, range) => range.from === range.to && atSplitTab(read, range.from),
+		repro: {
+			source: '- x\n    \n\t       -\tword\n',
+			mode: 'source',
+			range: { from: 9, to: 9 },
+			text: 'line one\nline two\n'
+		}
+	},
+	{
+		gap: 'plain text at a caret on a line where a tab stands beside a container’s marker takes later lines’ markers by its bytes, not its columns',
 		lane: 'tab columns',
 		law: 'L11',
-		matches: (read, range) =>
-			coveredLines(read, range).some((line) => /^[ >*+\-\d.)]*\t/.test(line)),
+		matches: (read, range) => atSplitTab(read, range.from),
 		repro: {
-			source: '[^1]:> q\r\n\n\t- [ ] > q\r\n- x\n    \r\n\t       -\tword\n',
+			source: '- x\n    \n\t       -\tword\n',
 			mode: 'source',
-			range: { from: 33, to: 33 },
+			range: { from: 9, to: 9 },
 			text: 'line one\nline two\n'
 		}
 	},
