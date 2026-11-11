@@ -11,6 +11,7 @@ import type { DocumentView, NodeView } from '#lib/core/node-views.js';
 import { editRange, type Gesture, type Range } from '#lib/range-edit/edit-range.js';
 import { rangeHost, type Mode, type PasteHost, type RangeHost } from '#lib/range-edit/host.js';
 import { unfinishedReadings, type GrammarView } from '#lib/schema/block-openers.js';
+import { documentLayout } from '#lib/range-edit/layout.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
 import { lawInputs } from './inputs';
@@ -160,5 +161,21 @@ describe('G4.342 the editor’s host reads an answer as a fresh parse does', () 
 		}
 		expect(report(seen)).toBe('');
 		expect(seen.leftOpen).toBeGreaterThan(0);
+	});
+
+	// Miss-analysis: the rows above skip the read of the editor's own bytes, and no row held an
+	// editor with none, whose tree is one empty paragraph where a parse of no bytes gives no block.
+	it('an empty editor’s own bytes read as the tree it holds, laid out as it was handed', () => {
+		const empty: DocumentView = {
+			kind: 'document',
+			prefix: '',
+			children: [{ kind: 'paragraph', leadingTrivia: '', raw: '' }],
+			suffix: ''
+		};
+		const laid = measured(empty);
+		const layout = documentLayout(laid);
+		const host = rangeHost(testReading(), { source: '', measured: laid, layout });
+		expect(host.read('')).toBe(empty);
+		expect(host.layout(host.read(''))).toBe(layout);
 	});
 });

@@ -170,6 +170,7 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 	const parsed = (source: string) =>
 		readAsOpened(source, { grammar: reading.grammar, scope: 'document' });
 	const readFrom = (now: CurrentDocument, source: string): DocumentView => {
+		if (source === now.source) return now.measured.doc;
 		// No bytes parse to no block, where the splice keeps an emptied document one paragraph.
 		if (source === '') return parsed(source);
 		const changes = changesBetween(now.source, source);
