@@ -64,6 +64,8 @@ afterEach(async () => {
 interface Shape {
 	source: string;
 	select: EditorSelection;
+	/** The core's caret is a boundary for every route that takes the range forward. */
+	boundaryForward?: true;
 }
 
 const at = (path: number[], offset: number) => ({ path, offset });
@@ -134,7 +136,8 @@ const SHAPES: Record<string, Shape> = {
 	// the laws' reading of the caret back each added a container's raw length to a document byte.
 	'from code in a quote in a quote out to the paragraph after': {
 		source: '> > ```\n> > x\n> > ```\n> >\n> > ~~~\n> > y\n> > ~~~\n\nafter',
-		select: range(at([0, 0, 1], 0), at([1], 5))
+		select: range(at([0, 0, 1], 0), at([1], 5)),
+		boundaryForward: true
 	}
 };
 
@@ -214,13 +217,15 @@ async function drive(editor: Editor, route: Route): Promise<string | null> {
 
 describe('every removal route leaves the core’s bytes', () => {
 	for (const mode of ['source', 'live'] as const) {
-		for (const [shape, { source, select }] of Object.entries(SHAPES)) {
+		for (const [shape, { source, select, boundaryForward }] of Object.entries(SHAPES)) {
 			it.each(Object.entries(ROUTES))(`${mode}, ${shape}: %s`, async (_, route) => {
 				const editor = mountCase(source, mode);
 				await editor.settle();
 				expect(await placeRange(editor, select), 'the range would not place').toBe(true);
 				const gesture: RemovalGesture = 'cut' in route ? 'cut' : route.key;
 				const want = coreAnswer(editor, mode, gesture);
+				if (boundaryForward && gesture !== 'Backspace')
+					expect(want.caret.holds, 'the core’s caret').toBe('boundary');
 				let wrote: string | null;
 				try {
 					wrote = await drive(editor, route);
