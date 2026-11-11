@@ -139,7 +139,8 @@ test.describe('perf gate: the first letter of a new paragraph, with a listener r
 			SIZE_BYTES['1MB'],
 			SIZE_KEYSTROKES['10MB']
 		);
-		const ceilingMs = (m.alone.p50Ms * TOLERANCE + FLOOR_MS) * RUNNER_SCALE;
+		// The twin ran on this machine, so the runner's scale widens the millisecond floor alone.
+		const ceilingMs = m.alone.p50Ms * TOLERANCE + FLOOR_MS * RUNNER_SCALE;
 		console.log(
 			`PERF-GATE ${key} p50=${m.reading.p50Ms.toFixed(1)}ms ` +
 				`ceiling=${ceilingMs.toFixed(1)}ms (alone ${m.alone.p50Ms.toFixed(1)}ms) ` +
