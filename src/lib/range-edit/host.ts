@@ -5,7 +5,11 @@
  */
 
 import type { DocumentView } from '../core/node-views';
-import { documentLineEnding } from '../core/lines';
+import { getContentRange } from '../core/inline';
+import { cutOutsideWhole } from '../core/inline/live-edit/live-split';
+import { visibleText } from '../core/inline/link-source-bytes';
+import { documentLineEnding, ownTrailingLineEnding, trimTrailingLineEnding } from '../core/lines';
+import { makeBlockNode } from '../core/nodes';
 import { hidesDelimitersAtCaret } from '../presentation-mode';
 import { blockFacts, type BlockFacts } from '../schema/block-facts';
 import { unfinishedReadings } from '../schema/block-openers';
@@ -19,9 +23,11 @@ import {
 	replaceRangeInLeaf,
 	type LeafRangeEdit
 } from '../tree-operations/leaf-range';
+import { splitHalves } from '../tree-operations/node-ops';
 import { blockNodeAt } from '../tree-operations/node-primitives';
+import { cutKeepingStructure } from '../tree-operations/structural-suffix';
 import { escapeMarkdownLiteral } from '../tree-operations/paste/markdown-literal';
-import { storedAsAt, writeTargetAt } from '../tree-operations/stored-as';
+import { storedAsAt, storedAsIn, writeTargetAt } from '../tree-operations/stored-as';
 import { cellText } from '../core/parsers/table-line';
 import { editorHost } from '../tree-operations/fix-up/editor-host';
 import { blankLineBelongs } from '../tree-operations/fix-up/joins';
@@ -35,6 +41,25 @@ export interface JoinSide {
 	readonly raw: string;
 	readonly kind?: string;
 	readonly children?: readonly unknown[];
+}
+
+/** What a paste joins to a block it cuts: the text `before` the cut and `after` it, and `lead`,
+ *  pasted text the second half lands behind on its line where no `after` joins it. */
+export interface Joined {
+	before: string;
+	after: string;
+	lead: string;
+}
+
+/** A block cut in two for a paste, each half in the block's own bytes: the first ends on a line
+ *  ending only where the cut stands at a line's start, the second on none. */
+export interface LeafCut {
+	head: string;
+	tail: string;
+	/** Where the text joined to the second half ends in it. */
+	at: number;
+	/** The block is left with no text. */
+	empty: boolean;
 }
 
 /** One in-block write, offsets into the block's new bytes. */
@@ -83,6 +108,16 @@ export interface RangeHost {
 			tail: { path: readonly number[]; offset: number },
 			mode: Mode
 		): LeafWrite;
+		/** The block with `[from, to)` written over by the joined text, then cut in it as a split cuts
+		 *  it: structure past the text stays with the first half, a hidden format run closes and reopens. */
+		cut(
+			doc: DocumentView,
+			path: readonly number[],
+			from: number,
+			to: number,
+			joined: Joined,
+			mode: Mode
+		): LeafCut;
 		/** The bytes `[from, to)` of the block carry out of it, a format run they cut closed. */
 		carried(
 			doc: DocumentView,
@@ -91,12 +126,9 @@ export interface RangeHost {
 			to: number,
 			mode: Mode
 		): string;
-		/** `text` as Paste as plain text writes it into the block: escaped where its text reads
-		 *  Markdown, as written where it is literal. */
-		plain(doc: DocumentView, path: readonly number[], text: string): string;
 	};
-	/** `text` as a paragraph writes it to show every character of it: Paste as plain text between
-	 *  blocks, where no block is there to ask. */
+	/** `text` escaped so a block that reads Markdown shows every character of it: Paste as plain
+	 *  text. A block whose text is literal takes the text as written, which the core checks. */
 	escaped(text: string): string;
 	/** The fence a block's bytes open, by the openers of the editor's grammar; null for none. */
 	fence(raw: string): Fence | null;
@@ -205,13 +237,82 @@ export function rangeHost(
 				);
 				return stored(doc, head.path, { raw, caret: seam, afterRange: seam });
 			},
+			cut(doc, path, from, to, { before, after, lead }, mode) {
+				const node = leafAt(doc, path);
+				const reading = readingIn(mode);
+				const store = storedAsAt(doc, path, reading);
+				// Plain text either side is typed as one run and cut in the middle, so both halves take
+				// the caret's format; text that brings format characters joins the second half after the cut.
+				const together = after !== '' && !/[*_~`[\]<\\]/.test(before + after);
+				const text = together ? before + after : before;
+				const last = together ? after.length : 0;
+				// With no text to join, the range leaves as a removal takes it, the block's kind kept.
+				const over = (leaf: typeof node, start: number, end: number) =>
+					text !== '' && start < end
+						? replaceDrawnRange(leaf, { start, end }, text, store)
+						: replaceRangeInLeaf(leaf, { start, end }, text, store);
+				let edit = over(node, from, to);
+				const torn = () =>
+					text !== '' &&
+					reading.hidesDelimitersAtCaret() &&
+					cutOutsideWhole({ ...node, raw: edit.raw }, edit.caret - last, reading) !==
+						edit.caret - last;
+				// A construct that splits whole takes the paste at its nearer edge, never torn around it.
+				if (torn()) {
+					const gone = replaceRangeInLeaf(node, { start: from, end: to }, '', store);
+					const kept = { ...node, raw: gone.raw };
+					const edge = cutOutsideWhole(kept, gone.caret, reading);
+					edit = over(kept, edge, edge);
+				}
+				// Where the joined text itself grew such a construct around the cut, the cut stays literal.
+				const cutIn = torn() ? readingIn('source') : reading;
+				const at = edit.caret - last;
+				const write =
+					text === '' && from === to
+						? { bytes: node.raw, caret: from, after: from }
+						: stored(doc, path, { raw: edit.raw, caret: at, afterRange: edit.caret });
+				const written = { ...node, raw: write.bytes };
+				const content = getContentRange(written);
+				const { holder, index } = writeTargetAt(doc, path);
+				// The cut by the block's bytes, its structure kept; a line ending the cut stands before
+				// stays the first half's line's unless text joins the second half in front of it.
+				const cut = cutKeepingStructure(written, write.caret);
+				let [head, tail] = [cut.head, after === '' ? cut.rest.replace(/^\r?\n/, '') : cut.rest];
+				if (cutIn.hidesDelimitersAtCaret()) {
+					const halves = splitHalves(
+						written,
+						write.caret,
+						'owner' in holder ? holder.owner : undefined,
+						'lineEnding' in holder ? holder.lineEnding : documentLineEnding(doc),
+						{
+							first: storedAsAt(doc, path, cutIn),
+							second: storedAsIn(holder, index + 1, cutIn, node.kind)
+						}
+					);
+					// A second half that lands behind pasted text must read there as it reads alone.
+					const opened = trimTrailingLineEnding(halves.secondRaw);
+					const shown = (text: string) => visibleText(text, cutIn);
+					const sound = lead === '' || shown(lead + opened) === shown(lead) + shown(opened);
+					if (halves.reopened && sound)
+						[head, tail] = [trimTrailingLineEnding(halves.firstRaw), opened];
+				}
+				if (after === '') return { head, tail, at: 0, empty: content.start === content.end };
+				// The second half ends on the block's text from the cut on, wherever it reopened.
+				const kept = trimTrailingLineEnding(write.bytes).slice(write.caret, content.end);
+				const seam = kept === '' ? tail.length : Math.max(tail.lastIndexOf(kept), 0);
+				if (together) return { head, tail, at: seam + write.after - write.caret, empty: false };
+				const ending = ownTrailingLineEnding(node.raw);
+				const half =
+					head === ''
+						? { ...node, raw: tail + ending }
+						: makeBlockNode({ kind: 'paragraph', leadingTrivia: '', raw: tail + ending });
+				const second = storedAsIn(holder, index + 1, reading, half.kind);
+				const joined = replaceRangeInLeaf(half, { start: seam, end: seam }, after, second);
+				return { head, tail: trimTrailingLineEnding(joined.raw), at: joined.caret, empty: false };
+			},
 			carried(doc, path, from, to, mode) {
 				const store = storedAsAt(doc, path, readingIn(mode));
 				return bytesLeavingLeaf(leafAt(doc, path), { start: from, end: to }, store);
-			},
-			plain(doc, path, text) {
-				const literal = blockFacts(leafAt(doc, path).kind).body === 'literal';
-				return literal ? text : escapeMarkdownLiteral(text);
 			}
 		},
 		escaped: escapeMarkdownLiteral,

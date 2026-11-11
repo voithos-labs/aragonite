@@ -3,7 +3,9 @@
 // over them, and the host the core reads through, with what a block's text shows on screen.
 
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
+import { constructContentRange, inlineDescendants, readInline } from '#lib/core/inline/index.js';
 import { visibleText } from '#lib/core/inline/link-source-bytes.js';
+import { getInlineConstructPolicy } from '#lib/schema/inline-construct-policy.js';
 import { hidesDelimitersAtCaret } from '#lib/presentation-mode.js';
 import { installPlugins } from '#lib/schema/plugin-install.js';
 import type { Reading } from '#lib/schema/reading.js';
@@ -28,6 +30,9 @@ export const noTransforms = (host: RangeHost): PasteHost => ({
 /** The host, and what text shows on screen in a mode, which law 11 reads. */
 export interface CheckHost extends PasteHost {
 	shows(text: string, mode: Mode): string;
+	/** A live split at `offset` of a block's `text`, by its constructs' policy rows: `whole` moves
+	 *  the cut to an edge; `literal` has no sound rewrite (a plain kind, a code span beside a backtick). */
+	liveCut(text: string, offset: number): 'whole' | 'literal' | null;
 }
 
 export function checkHost(reading: Reading = testReading()): CheckHost {
@@ -37,5 +42,18 @@ export function checkHost(reading: Reading = testReading()): CheckHost {
 			mode: () => mode,
 			hidesDelimitersAtCaret: () => hidesDelimitersAtCaret(mode)
 		});
-	return { ...noTransforms(rangeHost(reading)), shows };
+	const liveCut = (text: string, offset: number) => {
+		const inlines = readInline(text, 0, text.length, reading.resolver, reading.grammar);
+		let cut: 'whole' | 'literal' | null = null;
+		for (const node of inlineDescendants(inlines)) {
+			if (!(node.start < offset && offset < node.end)) continue;
+			const split = getInlineConstructPolicy(node.kind)?.splitBehavior;
+			const besideTick = /`/.test(text.slice(offset - 1, offset + 1));
+			if (split === 'whole') return 'whole';
+			if (split === 'plain' && constructContentRange(node)) cut = 'literal';
+			if (node.kind === 'inlineCode' && besideTick) cut = 'literal';
+		}
+		return cut;
+	};
+	return { ...noTransforms(rangeHost(reading)), shows, liveCut };
 }

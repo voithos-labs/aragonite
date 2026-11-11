@@ -4,6 +4,7 @@
 
 import type { Gesture, RangeEditResult } from '#lib/range-edit/edit-range.js';
 import type { Mode } from '#lib/range-edit/host.js';
+import { SPLIT_ROWS } from './named-rows-split';
 
 export interface NamedRow {
 	name: string;
@@ -1779,27 +1780,26 @@ export const NAMED_ROWS: NamedRow[] = [
 	},
 	// Miss-analysis: law 9 leaves a caret in a heading to the rows, and none pasted a block there.
 	{
-		name: 'L9 blocks pasted in an emptied heading land under it, which keeps its marker',
+		name: 'L9 blocks pasted in an emptied heading take its line',
 		source: '> q\n# ⟦⟧\n',
 		gesture: paste('- item'),
-		expect: { source: '> q\n# \n\n- item\n', caret: text(14) }
+		expect: { source: '> q\n- item\n' }
 	},
 	{
 		name: 'L5 live, blocks that join no text pasted over a heading’s whole text do the same',
 		source: '# ⟦Title⟧\n',
 		mode: 'live',
 		gesture: paste('> q\n\nafter'),
-		expect: { source: '# \n\n> q\n\nafter\n' }
+		expect: { source: '> q\n\nafter\n' }
 	},
-	// ── One line at an emptied heading's text start reads as blocks (ruled 2026-11-10) ──
-	// Miss-analysis: the base dropped the emptied heading's marker, so no row cut a heading's text
-	// that reads as a block alone and pasted it back.
+	// ── One line at an emptied heading's text start reads as blocks, which take its line ──
+	// Miss-analysis: no row cut a heading's text that reads as a block alone and pasted it back.
 	{
-		name: 'L3 a heading’s text that reads as a quote pastes back under the heading, not in it',
+		name: 'L3 a heading’s text that reads as a quote pastes back as the quote, the heading gone',
 		source: '#### ⟦> foo@bar.com⟧\n',
 		gesture: 'cut',
 		expect: { source: '#### \n', clipboard: '> foo@bar.com', caret: text(5) },
-		then: { gesture: 'paste back', expect: { source: '#### \n\n> foo@bar.com\n' } }
+		then: { gesture: 'paste back', expect: { source: '> foo@bar.com\n' } }
 	},
 	{
 		name: 'L12 and with its own entry it is the heading’s text again',
@@ -1968,5 +1968,6 @@ export const NAMED_ROWS: NamedRow[] = [
 		source: '> - x\n> y⟦\n\n- > 1.⟧ n\n  > m\n',
 		gesture: 'backspace',
 		expect: { source: '> - x\n>\n> y n\n  > m\n' }
-	}
+	},
+	...SPLIT_ROWS
 ];

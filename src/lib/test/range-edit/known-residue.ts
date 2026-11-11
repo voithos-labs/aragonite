@@ -145,7 +145,7 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 				(line) => /^[ >]*(?:-+|=+)[ \t]*\r?$/.test(line)
 			);
 		},
-		repro: { source: 'Title\n===\n', mode: 'source', range: { from: 1, to: 9 } }
+		repro: { source: '# h\n- a\n', mode: 'source', range: { from: 2, to: 6 } }
 	},
 	{
 		gap: 'a line its container reads without a marker comes back with one, nested where it lands',

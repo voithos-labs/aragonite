@@ -40,7 +40,7 @@ import { visibleText } from '#lib/core/inline/link-source-bytes.js';
 import { hidesDelimitersAtCaret } from '#lib/presentation-mode.js';
 import { expectedPaste, plainPasteHolds, readOf } from './expected';
 import { heldBy } from './laws';
-import { noTransforms, type CheckHost } from './test-host';
+import { checkHost, noTransforms, type CheckHost } from './test-host';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import {
 	clipboardGesture,
@@ -462,7 +462,7 @@ export function lawsOf(row: PasteRow, grammar: GrammarView): LawVerdicts | undef
 			mode: () => mode,
 			hidesDelimitersAtCaret: () => hidesDelimitersAtCaret(mode)
 		});
-	const host: CheckHost = { ...noTransforms(rangeHost(reading)), shows };
+	const host: CheckHost = { ...checkHost(reading), shows };
 	const read = readOf(host, row.source);
 	const text = LF(row.clip);
 	const bytes = (side: PasteRow['today'] | PasteRow['core']) =>

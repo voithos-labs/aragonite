@@ -15,6 +15,7 @@ import {
 } from '../index';
 import { CONTENT_VISIBILITY, paintsOnlyChrome, renderedText } from '../visibility';
 import { readBack, shownOf } from './read-back';
+import type { Reading } from '../../../schema/reading';
 import type { StoredAs } from '../../../schema/stored-as';
 import type { AnyInlineKind, InlineNode } from '../../nodes';
 import type { NodeView } from '../../node-views';
@@ -73,6 +74,15 @@ export function rebalanceLiveSplit(
 		}
 	}
 	return null;
+}
+
+/** Where a cut at `offset` of `node` lands: the nearer edge of a construct that splits whole and
+ *  holds it, `offset` itself anywhere else. */
+export function cutOutsideWhole(node: NodeView, offset: number, reading: Reading): number {
+	if (!isProseKind(node.kind)) return offset;
+	const { start, end } = getContentRange(node);
+	const inlines = readInline(node.raw, start, end, reading.resolver, reading.grammar);
+	return wholeConstructEdge(inlines, offset) ?? offset;
 }
 
 // ── What the caller already decided ──────────────────────────────────────────

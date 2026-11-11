@@ -1,9 +1,8 @@
 /**
- * Pasted blocks that land as blocks of their own: the block at the caret splits there and the
- * pasted blocks go between its halves, or the caret's list does, where a pasted list leaves it.
- * A range `[at, to)` inside the block's text goes with the split. At a place between blocks they
- * stand a blank line apart from the block either side; at a text caret in no block's text, only
- * where two would read as one.
+ * Pasted blocks that land as blocks of their own: the block at the caret is cut there (`Cut`, the
+ * halves a split leaves) and the pasted blocks go between its halves, or the caret's list splits,
+ * where a pasted list leaves it. At a place between blocks they stand a blank line apart from the
+ * block either side; at a text caret in no block's text, only where two would read as one.
  */
 
 import { isBlankText } from '../core/lines';
@@ -22,16 +21,17 @@ import {
 } from './document';
 import { numberedAfterSplit, numberedOn } from './list-numbers';
 import { continuation } from './markers';
-import { lineEnd, lineHead, lineRest, spliced, type Edit } from './leaf-splice';
+import { lineEnd, lineHead, lineRest, spliced, type Cut, type Edit } from './leaf-splice';
 
 /** A pasted list of another kind than `list`, the caret's: the pasted blocks land between the
- *  list's halves, and what the caret's item holds after the caret is the second half's first item. */
+ *  list's halves, and what the caret's item holds after the cut is the second half's first item. */
 export function splitOut(
 	doc: Doc,
 	list: LaidBlock,
 	leaf: LaidBlock,
 	at: number,
 	to: number,
+	cut: Cut,
 	clip: string,
 	last: string
 ): Edit {
@@ -48,17 +48,18 @@ export function splitOut(
 	const indent = /^[ \t]*/.exec(source.slice(first.from, first.markerTo))![0];
 	const pasted =
 		(body.startsWith('\n') ? '' : indent) + spliced(doc, at, to, outside, indent)(body);
-	// At the item's first text byte the whole item is the second half; with no text after the range
+	// With no text of the item before the cut the whole item is the second half; with none after it
 	// either it has none to be an item of, and gives way to the items under it.
-	const whole = at === leaf.text!.from && leaf.path.at(-1) === 0;
-	const rest = !isBlankText(source.slice(to, contentEnd(doc, item)));
-	const head = whole
-		? source.slice(0, first.from) + pasted
-		: source.slice(0, at) + eol + outer + pasted;
+	const textFrom = leaf.text!.from;
+	const whole = (cut.empty || cut.head.length <= textFrom) && leaf.path.at(-1) === 0;
+	const grown = cut.rest.length - (source.length - to);
+	const rest = !isBlankText(cut.rest.slice(0, contentEnd(doc, item) - to + grown));
+	const head = whole ? source.slice(0, first.from) + pasted : cut.head + eol + outer + pasted;
 	const tail = !whole && rest;
-	const marker = rest ? eol + outer + source.slice(first.from, whole ? at : first.markerTo) : '';
+	const own = whole ? Math.min(cut.head.length, textFrom) : first.markerTo;
+	const marker = rest ? eol + outer + source.slice(first.from, own) : '';
 	const copyAt = tail ? head.length + eol.length + outer.length : null;
-	const out = head + marker + source.slice(to);
+	const out = head + marker + cut.rest;
 	const numbered = !whole
 		? numberedAfterSplit(doc, list, item.path.at(-1)!, to, out, copyAt)
 		: rest
@@ -124,30 +125,27 @@ function parted(doc: Doc, out: string, line: number, marks: string, pair: Touchi
 	return apart ? out.slice(0, line) + marks.trimEnd() + doc.ending + out.slice(line) : out;
 }
 
-/** `edit` left `last`, a pasted block that takes no text, over what `leaf` holds from `to` on, or
- *  over the block flush under it: a blank line between the two where they would read as one. */
+/** `edit` left `last`, a pasted block that takes no text, over the second half of `cut`, or over
+ *  the block flush under `leaf`: a blank line between the two where they would read as one. */
 export function restApart(
 	doc: Doc,
 	edit: Edit,
 	leaf: LaidBlock,
 	to: number,
-	last: string,
-	marker = ''
+	cut: Cut,
+	last: string
 ): Edit {
 	const shift = edit.source.length - doc.source.length;
-	const tail = !isBlankText(lineRest(doc.source, to));
-	const rest = nodeAt(doc, leaf.path).raw.slice(doc.layout.pointAt(to)!.offset);
-	// What the leaf still holds stands behind the marker it kept (a heading's).
-	const held = marker + (tail ? rest : rest.replace(/^\r?\n/, ''));
+	const from = edit.source.length - cut.rest.length;
 	const [path, index] = [leaf.path.slice(0, -1), leaf.path.at(-1)!];
-	const next = isBlankText(held) ? doc.layout.block([...path, index + 1]) : undefined;
+	const next = isBlankText(cut.tail) ? doc.layout.block([...path, index + 1]) : undefined;
 	const flush = next && next.from <= pastMarkers(doc.source, leaf.to);
 	const line = flush
 		? leaf.to + shift
-		: tail
-			? edit.source.lastIndexOf('\n', to + shift - 1) + 1
-			: lineEnd(edit.source, to + shift) + 1;
-	const lower = flush ? nodeAt(doc, next.path).raw : held;
+		: cut.follows
+			? edit.source.lastIndexOf('\n', from - 1) + 1
+			: lineEnd(edit.source, from) + 1;
+	const lower = flush ? nodeAt(doc, next.path).raw : cut.tail;
 	const pair = { path, index, upper: last, lower, placed: true };
 	const source = parted(doc, edit.source, line, continuation(doc, to), pair);
 	// A caret past a pasted last line ending stays over the rest, on the blank line.
@@ -303,57 +301,50 @@ function closes(doc: Doc, byte: number): boolean {
 	return findWithin(doc, byte, byte, closing) !== undefined;
 }
 
-/** The block at the caret split there, the pasted blocks between its halves; `lastJoins`: the
- *  last of them, `last`, takes the text after the caret. */
+/** The pasted blocks between the halves of `cut`, the caret's block cut at `[at, to)`; `lastJoins`:
+ *  the last of them, `last`, takes the text after the cut. */
 export function splitAt(
 	doc: Doc,
 	leaf: LaidBlock,
 	at: number,
 	to: number,
+	cut: Cut,
 	clip: string,
 	lastJoins: boolean,
 	last: string
 ): Edit {
-	const overRest = (edit: Edit, marker = '') =>
-		lastJoins ? edit : restApart(doc, edit, leaf, to, last, marker);
+	const overRest = (edit: Edit) => (lastJoins ? edit : restApart(doc, edit, leaf, to, cut, last));
 	const { source } = doc;
 	const eol = doc.ending;
 	const prefix = continuation(doc, at);
 	const blank = prefix.trimEnd();
-	const text = leaf.text!;
-	const lineStart = source.lastIndexOf('\n', at - 1) + 1;
-	// A heading's own marker, which a tail of its own takes again.
-	const own = leaf.from >= lineStart ? source.slice(leaf.from, text.from) : '';
-	const joinsBefore = factsOf(doc, leaf).joins === 'text';
-	const before = source.slice(text.from, at);
-	const tail = !isBlankText(lineRest(source, to));
-	const lines = spliced(doc, at, to);
-	// A heading emptied of its text keeps its marker, which stands before the caret as text would.
-	const marked = !joinsBefore && !tail;
-	if (before !== '' || marked) {
+	// A paragraph the clipboard ends on is joined to the second half already.
+	const { joined } = cut;
+	const lines = spliced(doc, at, to, undefined, '', joined || undefined);
+	// A block left with no text gives way to the pasted blocks, its own markers with it.
+	const head = cut.empty ? source.slice(0, leaf.from) : cut.head;
+	const before = head.slice(leaf.from);
+	if (before !== '') {
 		// The head keeps its line, a blank line under it (a head of blanks is one already), then the
 		// clipboard as written; the tail joins the last block that takes joined text, else is a paragraph.
-		const parted = !isBlankText(before) || marked;
-		const opening = (parted ? eol + blank + eol : eol) + prefix + lines(clip);
-		const caret = at + opening.length;
-		const closing = tail && !lastJoins ? eol + prefix : '';
-		return overRest({ source: source.slice(0, at) + opening + closing + source.slice(to), caret });
+		const opening = (isBlankText(before) ? eol : eol + blank + eol) + prefix + lines(clip);
+		const closing = cut.follows && !lastJoins ? eol + prefix : '';
+		const caret = head.length + opening.length + cut.caret;
+		return overRest({ source: head + opening + closing + cut.rest, caret });
 	}
-	const body = clip.replace(/\n$/, '');
-	// With nothing before the caret the pasted blocks go before its block, which keeps its line,
-	// save a paragraph's text the last pasted block takes.
-	const from = joinsBefore ? at : leaf.from;
+	// With nothing before the cut the pasted blocks go before the block's second half, which keeps
+	// a line of its own, save a paragraph's text the last pasted block takes.
+	const body = joined ? clip : clip.replace(/\n$/, '');
 	const opening = lines(body);
-	const caret = from + opening.length;
 	// An empty line that text follows right after stays, keeping the pasted blocks apart from it;
 	// a line the paste took the text of was never empty.
 	const under = Math.min(lineEnd(source, to) + 1, source.length);
 	const next = lineRest(source, pastMarkers(source, under));
-	const kept = at === to && !tail && !isBlankText(next) ? eol + blank : '';
-	const marker = joinsBefore ? '' : own;
-	const apart = eol + (body !== clip ? blank + eol : '') + prefix + marker;
-	const taken = joinsBefore && lastJoins && body === clip;
-	const closing = tail ? (taken ? '' : apart) : kept;
-	const out = source.slice(0, from) + opening + closing + source.slice(to);
-	return overRest({ source: out, caret }, marker);
+	const gaveWay = cut.empty && cut.head.length > leaf.from;
+	const kept = at === to && !gaveWay && !cut.follows && !isBlankText(next) ? eol + blank : '';
+	const apart = eol + (body !== clip ? blank + eol : '') + prefix;
+	const taken = joined || (factsOf(doc, leaf).joins === 'text' && lastJoins && body === clip);
+	const closing = cut.follows ? (taken ? '' : apart) : kept;
+	const caret = head.length + opening.length + cut.caret;
+	return overRest({ source: head + opening + closing + cut.rest, caret });
 }
