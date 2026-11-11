@@ -167,7 +167,13 @@ export function createHeadlessActions(
 	const events = createEditorEvents();
 	const landings: RecordedLanding[] = [];
 	let contentVersion = 0;
-	const starts = createKeptStarts(() => doc);
+	const starts = createKeptStarts(
+		() => doc,
+		() => {
+			contentVersion++;
+			options.bumpContentVersion?.();
+		}
+	);
 	const stamps = createDocumentStamps();
 	const deps: EditorActionsDeps = {
 		get doc() {
@@ -189,11 +195,6 @@ export function createHeadlessActions(
 		},
 		setBlockRefs: (next: (BlockComponent | undefined)[]) => {
 			replaceRefs(blockRefs, next);
-		},
-		bumpContentVersion: (runs) => {
-			starts.changed(runs);
-			contentVersion++;
-			options.bumpContentVersion?.();
 		},
 		starts,
 		bytes: documentBytes({

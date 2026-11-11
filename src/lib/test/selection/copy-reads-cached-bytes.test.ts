@@ -40,7 +40,10 @@ describe('a copy reads the editor’s bytes, made once per content version', () 
 	it('serializes nothing and lays the document out once for two copies of one version', () => {
 		const doc = parse('- one\n- two\n- three\n\nafter\n');
 		const source = serialize(doc);
-		const starts = createKeptStarts(() => doc);
+		const starts = createKeptStarts(
+			() => doc,
+			() => {}
+		);
 		const bytes = documentBytes({
 			version: () => 1,
 			doc: () => doc,
@@ -58,8 +61,7 @@ describe('a copy reads the editor’s bytes, made once per content version', () 
 		expect(arm.copy()?.write.text).toBe('- wo\n- three\n\naf');
 		expect(made).toEqual({ serialized: 0, laidOut: 1 });
 
-		starts.opened();
-		starts.changed(null);
+		starts.duringWrite(() => ({ touched: null }));
 		arm.copy();
 		expect(made).toEqual({ serialized: 0, laidOut: 2 });
 	});

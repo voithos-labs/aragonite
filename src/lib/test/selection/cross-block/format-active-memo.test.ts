@@ -8,6 +8,7 @@ import { crossBlockActiveFormats } from '#lib/selection/cross-block/format-range
 import type { SelectionPoint } from '#lib/selection/primitives.js';
 import { makeKeydownEnv } from './keydown-env';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { writeBytes } from '#lib/test/harness/editor-actions.js';
 import { coverRange } from '#lib/selection/range-coverage.js';
 
 const MARKS = listInlineMarks();
@@ -69,8 +70,7 @@ describe('the memo invalidates', () => {
 		env.doc.children[1].raw = 'beta\n';
 		expect(isStrong(env)).toBe(true);
 
-		env.deps.starts.opened();
-		env.deps.bumpContentVersion(null);
+		writeBytes(env.deps);
 		expect(isStrong(env)).toBe(false);
 	});
 

@@ -54,9 +54,8 @@ export interface DocumentSwapDeps {
 	noteTreeSwap(): void;
 	/** Writes the tree into the `$state` root and re-keys its blocks. */
 	adoptDocument(doc: Document): void;
-	bumpContentVersion(changes: null): void;
-	/** Opened before the tree changes, as every byte writer opens it. */
-	starts: Pick<KeptStarts, 'opened'>;
+	/** The window the tree changes in, as every byte writer's does; its close announces the bytes. */
+	starts: Pick<KeptStarts, 'duringWrite'>;
 	clearBlockRefs(): void;
 	layout: Pick<LayoutState, 'forgetMeasuredHeights'>;
 	undoManager: Pick<UndoManager, 'clear'>;
@@ -100,9 +99,10 @@ export function createDocumentSwap(deps: DocumentSwapDeps): DocumentSwap {
 		deps.flushDebouncedCheckpoint();
 		deps.noteTreeSwap();
 		const reset = initDocument(source, deps.grammar);
-		deps.starts.opened();
-		deps.adoptDocument(reset.doc);
-		deps.bumpContentVersion(null);
+		deps.starts.duringWrite(() => {
+			deps.adoptDocument(reset.doc);
+			return { touched: null };
+		});
 		deps.clearBlockRefs();
 		// Block ids never recur, so every measured height belongs to a block that can't come back.
 		deps.layout.forgetMeasuredHeights();

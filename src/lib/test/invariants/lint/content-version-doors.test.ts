@@ -16,13 +16,13 @@ import {
 } from './scan-source';
 import { describeManifests } from './file-rule';
 
-/** Every file naming the announcement, and the write it owns. */
+/** Every file that opens a write window, whose close is the announcement, and the write it owns. */
 const ANNOUNCERS: Record<string, string> = {
-	'src/lib/editor-actions/deps.ts': 'the declaration',
+	'src/lib/editor-actions/commit/kept-starts.ts': 'the declaration',
 	'src/lib/editor-actions/commit/commit-frame.ts':
 		'the commit frame, under every structural commit and every keystroke written in place',
 	'src/lib/editor-actions/commit/history.ts': 'the undo/redo tree swap',
-	'src/lib/components/Editor.svelte': 'the wiring',
+	'src/lib/components/Editor.svelte': 'the wiring, which hands the window the content version',
 	'src/lib/components/editor-root/document-swap.ts': 'the `source` prop swap',
 	'src/lib/testing/headless-actions.ts': 'the published harness counts what its doors announced'
 };
@@ -69,7 +69,7 @@ function missingReadingChecks(file: SourceFile, spec: Partial<Record<ReadingChec
 	});
 }
 
-const ANNOUNCES = /\bbumpContentVersion\b|\bcontentVersion\.bump\b/;
+const ANNOUNCES = /\bduringWrite\b|\bcreateKeptStarts\b|\bcontentVersion\.bump\b/;
 const UNSHARES_ROOT = /\bensureUnsharedPath\s*\(\s*deps\.doc\b/;
 
 const sources = collectEditorSources();
@@ -82,8 +82,12 @@ describeManifests(
 			declared: ANNOUNCERS,
 			reason:
 				'an announcement was added or dropped: name the entry point it owns, or the memos over the document go stale',
-			hits: ['deps.bumpContentVersion();', 'contentVersion.bump();'],
-			misses: ['// bumpContentVersion would announce it']
+			hits: [
+				'deps.starts.duringWrite(() => ({ touched: null }));',
+				'createKeptStarts(() => doc, contentVersion.bump);',
+				'contentVersion.bump();'
+			],
+			misses: ['// a write window would announce it']
 		},
 		{
 			id: 'exactly the declared files unshare an ancestor chain off the editor’s own document',
