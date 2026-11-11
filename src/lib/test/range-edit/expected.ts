@@ -438,6 +438,8 @@ export type PasteShape =
 	| 'split'
 	/** At a place in no block's text: blocks of their own between the blocks there. */
 	| 'apart'
+	/** On an empty line no block holds, a heading's that gave way too: blocks of their own there. */
+	| 'on a line'
 	| 'other';
 
 /** The source a paste of `text` at `at`, a caret holding what `held` says, may give, with the rule
@@ -462,7 +464,8 @@ export function expectedPaste(
 			held.holds === 'text'
 				? landedApart(read, at, lf(text), host)
 				: landedInGap(read, at, held.parent, lf(text), host);
-		return bytes === null ? { shape: 'other', bytes: [] } : { shape: 'apart', bytes };
+		const shape = held.holds === 'text' && !onSyntax ? 'on a line' : 'apart';
+		return bytes === null ? { shape: 'other', bytes: [] } : { shape, bytes };
 	}
 	// A top-level heading with no text gives way to blocks that join none of it: they land on its
 	// line as on an empty one.

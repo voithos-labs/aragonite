@@ -588,6 +588,24 @@ const SEAM_ROWS: NamedRow[] = [
 		paste('- b\n\npara'),
 		'- a\n- b\n\npara\n\nafter\n'
 	),
+	{
+		name: 'M the caret stays after the joined list’s last text',
+		source: '- a\n\n⟦⟧\n',
+		gesture: paste('- b'),
+		expect: { source: '- a\n- b\n', caret: { at: 7, holds: 'text' } }
+	},
+	{
+		name: 'M and after a list joined to the list under it, not on the line that went',
+		source: 'top\n\n⟦⟧\n- c\n',
+		gesture: paste('para\n\n- a\n- b\n'),
+		expect: { source: 'top\n\npara\n\n- a\n- b\n- c\n', caret: { at: 18, holds: 'text' } }
+	},
+	...both(
+		'M a list pasted at a text caret on a list’s marker joins it',
+		'top\n\n⟦⟧- c\n',
+		paste('- b'),
+		'top\n\n- b\n- c\n'
+	),
 	// On a separator line, which no block holds.
 	...both(
 		'M a paragraph on a separator line stands apart from both',

@@ -53,6 +53,14 @@ describe('law 3', () => {
 		expect(cutPasteBack(fake, host, beside)).not.toEqual([]);
 	});
 
+	it('compares the paste back on the line an emptied heading gave way on', () => {
+		const { host, real } = calls('');
+		const cut = real('a\n# h\n---\n', { from: 4, to: 9 }, 'cut', 'source')!;
+		expect(cut.source).toBe('a\n# \n');
+		const input = { source: 'a\n# h\n---\n', mode: 'source' as const, range: { from: 4, to: 9 } };
+		expect(cutPasteBack(real, host, input)).not.toEqual([]);
+	});
+
 	it('is silent on a live range a run holds an end of, and judges one in a quote’s two lines', () => {
 		const { host, real, fake } = calls('zzz\n');
 		expect(cutPasteBack(fake, host, marked('> a **b⟦o⟧ld** z\n> word\n', 'live'))).toEqual([]);
@@ -97,6 +105,14 @@ describe('law 5', () => {
 		);
 		expect(l5(replaceLaws(real, host, whole, 'x'))).toEqual([]);
 		expect(l5(replaceLaws(fake, host, whole, 'x'))).not.toEqual([]);
+	});
+
+	it('reads blocks pasted from a later line’s start as a cut over that line', () => {
+		const fence = '```\ncode\n```\n';
+		const { host, real, fake } = calls('> zzz\n>\n> ```\n> code\n> ```\n> > deep\n', true);
+		const later = marked('> Ithaka\n> ⟦By C. P. Cavafy⟧\n> > deep\n');
+		expect(l5(replaceLaws(real, host, later, fence))).toEqual([]);
+		expect(l5(replaceLaws(fake, host, later, fence))).not.toEqual([]);
 	});
 
 	it('holds a live range in a quote’s two lines to the lines its clipboard brings', () => {

@@ -206,7 +206,9 @@ export function cutPasteBack(call: Call, host: CheckHost, input: RangeInput): st
 	const whole =
 		read.blocks.some((b) => b.from === from) &&
 		read.blocks.some((b) => b.to - endingLength(input.source, b.to) === to);
-	const pinned = want.shape !== 'other' && !(want.shape === 'apart' && whole);
+	// On an empty line the paste back is compared too: law 9 only says where its blocks stand.
+	const pinned =
+		want.shape !== 'other' && want.shape !== 'on a line' && !(want.shape === 'apart' && whole);
 	if (pinned && held.holds === 'text' && !want.bytes.includes(input.source)) return [];
 	// A part of one block's text cut out, the caret left in no text: pasted there, it is no part of
 	// that block.
