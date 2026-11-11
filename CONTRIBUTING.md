@@ -55,7 +55,8 @@ A bug fix has three habits: fix the class of bug and not the one instance, watch
 
 - **Inner loop**, while you work: the area scripts (`package.json` lists them). Pick by the files you touched, not by the task's theme.
 - **Commit gate**, green before every commit: `npm test`, `npm run check` (0 errors, 0 warnings) and `npm run lint`.
-- **Ship gate**, before a merge or a release: the commit gate plus `npm run perf:check`, plus `npm run test:e2e:webkit` or `npm run test:e2e:firefox` when the change touches selection, typing or the clipboard.
+- **Before a pull request**: the commit gate, plus `npm run test:e2e:webkit` or `npm run test:e2e:firefox` when the change touches selection, typing or the clipboard. CI times the keystrokes for you.
+- **Ship gate**, before a release: `npm run perf:check` on the calibration machine. That one is ours.
 
 They have a few ways of lying to you:
 
