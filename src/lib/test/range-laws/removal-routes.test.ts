@@ -398,7 +398,8 @@ const WRAPS: Record<string, (body: Lines) => Lines> = {
 	'list item': itemOf,
 	callout: (body) => ['> [!NOTE]', ...quoted(body)],
 	directive: (body) => [':::note', ...body, ':::'],
-	details: (body) => ['<details>', '<summary>S</summary>', '', ...body, '', '</details>']
+	// Open, since a closed body mounts nothing a caret could sit in.
+	details: (body) => ['<details open>', '<summary>S</summary>', '', ...body, '', '</details>']
 };
 const nest = (wrap: (body: Lines) => Lines, depth: number, body: Lines): Lines =>
 	depth === 0 ? body : nest(wrap, depth - 1, wrap(body));
@@ -414,6 +415,12 @@ const topRule = (doc: Document): Take | null => {
 	return rule ? { whole: rule } : null;
 };
 
+/** The deepest rule, removed whole. */
+const innerRule = (doc: Document): Take | null => {
+	const rule = pathsOf(doc, 'thematicBreak').at(-1);
+	return rule ? { whole: rule } : null;
+};
+
 /** Where two boundaries meet on one byte, or a removal empties the line above a block: the
  *  removal's caret must sit among the children of the block the core names, two deep or one. */
 const PLACE_SHAPES: Record<
@@ -421,26 +428,21 @@ const PLACE_SHAPES: Record<
 	{
 		lines: (wrap: (b: Lines) => Lines, d: number) => Lines;
 		take: (doc: Document) => Take | null;
-		/** The block a rule removed whole sat among, whose children its caret must sit among. */
-		parent?: number[];
 		unended?: true;
 	}
 > = {
 	'a rule under them': {
 		lines: (wrap, d) => [...nest(wrap, d, ['| b |', '| - |']), '---'],
 		take: topRule,
-		parent: [],
 		unended: true
 	},
 	'a rule under them, ended': {
 		lines: (wrap, d) => [...nest(wrap, d, ['| b |', '| - |']), '---'],
-		take: topRule,
-		parent: []
+		take: topRule
 	},
 	'a rule under them, text below': {
 		lines: (wrap, d) => [...nest(wrap, d, ['| b |', '| - |']), '---', '', 'after'],
-		take: topRule,
-		parent: []
+		take: topRule
 	},
 	'a cut across two fences': {
 		lines: (wrap, d) => [...nest(wrap, d, ['```', 'x', '```', '~~~', 'y', '~~~']), '', 'after'],
@@ -449,13 +451,11 @@ const PLACE_SHAPES: Record<
 			return range(at(first, 0), at(second, blockNodeAt(doc, second)!.raw.indexOf('y') + 1));
 		}
 	},
-	'text into code, a tight item below': {
-		lines: (wrap, d) => [...itemOf(nest(wrap, d, ['a', '', '```', 'x', '```'])), '- b'],
-		take: (doc) => {
-			const [para] = pathsOf(doc, 'paragraph');
-			const [code] = pathsOf(doc, 'fencedCode');
-			return para && code ? range(at(para, 0), at(code, 0)) : null;
-		}
+	// The item ends on a tight item's first byte, and the caret the core names is the end of the
+	// table's last line, where no block starts or ends.
+	'a rule ending them after a table, a tight item below': {
+		lines: (wrap, d) => [...itemOf(nest(wrap, d, ['a', '', '| b |', '| - |', '', '---'])), '- c'],
+		take: innerRule
 	}
 };
 
@@ -549,8 +549,7 @@ describe('a removal’s caret sits among the children of the block the core name
 					wrap,
 					ending: eol === '\n' ? 'LF' : 'CRLF',
 					source: spec.lines(fn, depth).join(eol) + (spec.unended ? '' : eol),
-					take: spec.take,
-					parent: spec.parent
+					take: spec.take
 				}))
 			)
 		)
@@ -558,9 +557,9 @@ describe('a removal’s caret sits among the children of the block the core name
 	for (const mode of ['source', 'live'] as const) {
 		for (const route of PLACE_ROUTES) {
 			const title = `${mode}, ${route}: $shape, $depth deep in a $wrap, $ending`;
-			it.each(rows)(title, async ({ shape, wrap, source, take, parent }) => {
-				// Known divergences, in the lane report: a live Delete or cut over two fences in a callout
-				// or directive leaves a blank line the core doesn't; a details gap caret takes no letter here.
+			it.each(rows)(title, async ({ shape, wrap, source, take }) => {
+				// In live mode a code block the caret lands in with no body line writes one on arrival
+				// (`CodeBlock.svelte` :: `bareFenceCompletion`), a byte the core's answer doesn't hold.
 				const diverges =
 					mode === 'live' &&
 					shape === 'a cut across two fences' &&
@@ -582,8 +581,10 @@ describe('a removal’s caret sits among the children of the block the core name
 					grammar: editor.instance.__test.getGrammar(),
 					scope: 'document'
 				}) as Document;
-				if (parent && want.caret.holds === 'boundary')
-					expect(want.caret.parent, 'the block the rule sat among').toEqual(parent);
+				if ('whole' in target && want.caret.holds === 'boundary')
+					expect(want.caret.parent, 'the block the rule sat among').toEqual(
+						target.whole.slice(0, -1)
+					);
 				const gap = namedGap(doc, want.caret);
 				if (route === 'a letter') {
 					const root = want.caret.holds === 'boundary' && want.caret.parent.length === 0;
@@ -593,7 +594,7 @@ describe('a removal’s caret sits among the children of the block the core name
 					return;
 				}
 				expect(editor.instance.__test.getGapCaret(), 'the gap caret').toEqual(gap);
-				if (!gap || wrap === 'details') return;
+				if (!gap) return;
 				await pressHardwareKey(document.activeElement as HTMLElement, { key: 'q' });
 				await editor.settle();
 				expect(letterAt(editor, [...gap.parentPath, gap.index]), editor.source()).toBe(true);
