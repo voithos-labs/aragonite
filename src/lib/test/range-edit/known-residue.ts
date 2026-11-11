@@ -1,7 +1,8 @@
 // The cuts whose plain-text paste back can't give the source back yet, each class named once with
 // why and its smallest repro. The editor's own clipboard entry gives every one of them back (law 12
-// holds on all), so these are gaps in what plain text carries. The law suites fail on a violation no
-// class of their law matches, and the pin suite on a class whose repro passes: its fix deletes the row.
+// holds on all), so these are gaps in what plain text carries. Two rows are pastes at a drawn caret
+// beside a split tab, which no entry is part of. The law suites fail on a violation no class of
+// their law matches, and the pin suite on a class whose repro passes: its fix deletes the row.
 
 import type { Mode } from '#lib/range-edit/host.js';
 import type { Range } from '#lib/range-edit/edit-range.js';
@@ -229,14 +230,24 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 		repro: { source: 'p\n\n \n# h - x\n', mode: 'source', range: { from: 4, to: 8 } }
 	},
 	{
-		gap: 'a cut from a line’s first byte in or right under a list item or footnote leaves an empty line that container holds: the paste back lands inside it, behind its indent and a blank line',
+		gap: 'a cut from an unindented line a list item or footnote holds, or from the line right under one with an indented line after the range, leaves an empty line that container takes in: the paste back lands inside it, behind its indent',
 		lane: '2b',
 		law: 'L3',
-		matches: (read, { from }, host) =>
-			lineHead(read.source, from) === '' &&
-			read.blocks.some(
-				(c) => host.facts(c.type).lines === 'first-line' && c.from < from && from <= c.to
-			),
+		matches: (read, { from, to }, host) => {
+			const marked = (b: LaidBlock) => host.facts(b.type).lines === 'first-line';
+			// An item or a footnote that starts at the range's first byte is cut as a block of its own.
+			if (
+				lineHead(read.source, from) !== '' ||
+				read.blocks.some((b) => b.from === from && marked(b))
+			)
+				return false;
+			const below = read.source.indexOf('\n', to);
+			const under = below < 0 ? '' : read.source.slice(below + 1);
+			const indentedBelow = /^(?:[ \t]*\r?\n)*[ \t]+\S/.test(under);
+			return read.blocks.some(
+				(c) => marked(c) && c.from < from && (from < c.to || (from === c.to && indentedBelow))
+			);
+		},
 		repro: {
 			source: '1. word\n   a\n   \n       > - x\n\t> q\na\n   > \n',
 			mode: 'source',
@@ -244,16 +255,18 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 		}
 	},
 	{
-		gap: 'a line’s own indent past its container’s, copied after a blank line, reads as indented code alone: pasted back, the text after it stays apart',
+		gap: 'a range ending inside an indented code block it enters: pasted back, what it copied of the block and the rest of that line read as two blocks',
 		lane: '2b',
 		law: 'L3',
-		matches: (read, { from, to }) => {
-			const start = read.source.lastIndexOf('\n', to - 1) + 1;
+		matches: (read, { from, to }, host) => {
+			const end = leafAt(read, to);
 			return (
-				from < start &&
-				/^(?: {4}|\t)/.test(read.source.slice(start, to)) &&
-				/\n[ \t>]*\r?\n(?:(?: {4}|\t)[^\n]*\n)*$/.test(read.source.slice(from, start)) &&
-				restOfLine(read, to).trim() !== ''
+				!!end &&
+				host.facts(end.type).body === 'literal' &&
+				/^(?: {4}|\t)/.test(read.source.slice(end.from)) &&
+				from < end.from &&
+				end.text!.from < to &&
+				to < end.text!.to
 			);
 		},
 		repro: { source: '- [ ] x y\r\n \n       汉字\r\n', mode: 'source', range: { from: 9, to: 21 } }

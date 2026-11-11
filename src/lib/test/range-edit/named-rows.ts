@@ -682,17 +682,12 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: between('x'),
 		expect: { source: 'a\n\nx' }
 	},
+	// A range that is exactly one block is no named place: the text takes the block's line (§ 5.9).
 	{
-		name: 'L5 text pasted over a rule held whole stands apart from the blocks either side',
-		source: 'before\n⟦---⟧\nafter\n',
-		gesture: paste('x'),
-		expect: { source: 'before\n\nx\n\nafter\n', caret: text(9) }
-	},
-	{
-		name: 'L5 over a code block held whole in a quote, behind the quote’s markers',
-		source: '> a\n> ⟦```\n> x\n> ```⟧\n> b\n',
-		gesture: paste('x'),
-		expect: { source: '> a\n>\n> x\n>\n> b\n' }
+		name: 'L5 text pasted over a code block held whole by a range takes its line, as today',
+		source: '- a\n⟦```\nx\n```⟧\n',
+		gesture: paste('汉字'),
+		expect: { source: '- a\n汉字\n' }
 	},
 	// Miss-analysis: no draw cuts a list's middle item whole, and law 9 reads no place between items,
 	// so a pasted item kept apart from both its neighbours, three lists for one, met no check.
@@ -767,7 +762,7 @@ export const NAMED_ROWS: NamedRow[] = [
 		name: 'L5 text over a rule held whole stays apart from the indented code under it',
 		source: 'para\n⟦***⟧\n    code\n',
 		gesture: paste('p'),
-		expect: { source: 'para\n\np\n\n    code\n', caret: text(7) }
+		expect: { source: 'para\np\n\n    code\n', caret: text(6) }
 	},
 	// ── Copy (law 10) ──
 	{
@@ -848,6 +843,12 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: paste('- q'),
 		expect: { source: '- q\n1. \n\n   more\n2. c\n' }
 	},
+	{
+		name: 'C8 over the one block an item holds, held whole by a range, the item gives way too',
+		source: '- ⟦</a>⟧\n\n- one\n  two\n',
+		gesture: paste('1. one'),
+		expect: { source: '1. one\n\n- one\n  two\n' }
+	},
 	// ── Paste as plain text (law 11) ──
 	// Miss-analysis: law 11 draws its carets in text, and the one boundary a plain paste met stood
 	// beside a paragraph, whose escape it borrowed; beside a table it had none to borrow.
@@ -864,8 +865,8 @@ export const NAMED_ROWS: NamedRow[] = [
 		expect: { source: '\\*\\*x\\*\\*\n\\# y\n\n| a |\n| - |\n' }
 	},
 	{
-		name: 'L11 and over a rule held whole, which it replaces as a paragraph apart from both sides',
-		source: 'a\n⟦---⟧\nb\n',
+		name: 'L11 and over a rule held whole by a range, on the rule’s line',
+		source: 'a\n\n⟦***⟧\n\nb\n',
 		gesture: plain('# x'),
 		expect: { source: 'a\n\n\\# x\n\nb\n' }
 	},

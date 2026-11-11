@@ -108,12 +108,11 @@ export function editRange(
 		if (from === to) return answer(pasteAt(doc, from, to, pasted(gesture)));
 		if (inOneText(doc, from, to)) return answer(pasteAt(doc, from, to, pasted(TEXT)));
 		// Across blocks the paste lands where the removal's caret does, as a cut's then a paste's
-		// would, and over one block held whole takes its place among its parent's children.
+		// would, and over one block held whole takes its place, as typed text does.
 		const removed = removalEdit(doc, from, to, 'type');
 		const after = read(removed);
 		const caret = caretOf(removed, after, 'start after', () => startedIn(doc, from));
-		const whole = heldAlone(doc, from, to);
-		const place: Held = whole ? { holds: 'boundary', parent: whole.path.slice(0, -1) } : caret;
+		const place = heldAlone(doc, from, to) ? TEXT : caret;
 		return answer(pasteAt(after, caret.at, caret.at, pasted(place)));
 	}
 	const { removed, clipboard, own } = taken(doc, from, to);
@@ -245,12 +244,12 @@ function taken(doc: Doc, from: number, to: number) {
 	return { removed, clipboard: copies ? copy : '', own: ownEntry(doc.source, from, to, removed) };
 }
 
-/** The one block other than a paragraph the range is exactly, from its first byte to the end of its
+/** The range is exactly one block other than a paragraph, from its first byte to the end of its
  *  last line. */
-function heldAlone(doc: Doc, from: number, to: number): LaidBlock | undefined {
+function heldAlone(doc: Doc, from: number, to: number): boolean {
 	const alone = (b: LaidBlock) =>
 		b.from === from && contentEnd(doc, b) === to && factsOf(doc, b).joins !== 'text';
-	return from < to ? findWithin(doc, from, from, alone) : undefined;
+	return from < to && findWithin(doc, from, from, alone) !== undefined;
 }
 
 /** The caret named by what the new bytes hold there: text, the text before it on its line, a block

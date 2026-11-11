@@ -353,16 +353,18 @@ export function replaceLaws(
 	const over = call(input.source, input.range, paste(text), input.mode);
 	const cut = call(input.source, input.range, 'cut', input.mode);
 	if (over && unit) {
-		// The blank line that sets the pasted blocks apart from the block above opens over the held
-		// block's line, behind that line's own markers.
-		const line = input.source.lastIndexOf('\n', unit.from - 1) + 1;
-		const marks = input.source.slice(line, unit.from);
-		const before = input.source.slice(0, line);
+		const before = input.source.slice(0, unit.from);
 		const after = input.source.slice(input.range.to);
-		const kept = [marks, marks.trimEnd() + endingOf(input.source) + marks].some((opening) =>
-			over.source.startsWith(before + opening)
-		);
-		if (!kept || !over.source.endsWith(after))
+		// A list that breaks out of the item the block emptied lands as law 9 says, the item gone.
+		const left = readOf(host, before + after);
+		const out9 =
+			input.mode === 'live' && /[*_`~[\]<]/.test(text)
+				? null
+				: expectedPaste(left, unit.from, text, host, { holds: 'text' });
+		if (out9?.shape === 'broken out') {
+			if (!out9.bytes.includes(over.source))
+				out.push(`L5 a list breaking out over a block held whole gave ${q(over.source)}`);
+		} else if (!over.source.startsWith(before) || !over.source.endsWith(after))
 			out.push(`L5 paste over a block held whole changed bytes outside it: ${q(over.source)}`);
 	} else if (over && cut) {
 		const then = call(
