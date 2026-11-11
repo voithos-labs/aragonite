@@ -27,6 +27,7 @@ import {
 import type { UndoManager } from '../../undo/types';
 import { captureChange, changeAfter, type BlockReach } from './change-record';
 import { admitsWrite } from './reading-write-gate';
+import { keepOwnedNodes } from './saved-bytes';
 import type { EditorActionsDeps } from '../deps';
 import type { TopLevelChange } from '../../tree-operations/top-level-starts';
 
@@ -119,10 +120,14 @@ export function createCommitFrame(
 		const savedStacks = undo.stacksToRestore(write.history);
 		// The trailing-line fix-up can consume the document's suffix, which no write holds.
 		const savedSuffix = deps.doc.suffix;
+		const owned = keepOwnedNodes(deps.sharing);
 		const restore = () => {
 			if (savedStacks) undo.restoreStacks(savedStacks);
 			deps.doc.suffix = savedSuffix;
 			write.rollback();
+			// Last: a kept node is as it stood before the write, lists and all, while a collapse the
+			// rollback unwinds puts back a list from part way through.
+			owned.restore();
 		};
 		// Only while a draft is open: otherwise the write reads nothing more.
 		const capture = deps.drafts.watching()
@@ -130,38 +135,41 @@ export function createCommitFrame(
 			: null;
 		const whole = capture && devChecksOn ? captureChange(deps.doc, null) : null;
 		const announced = (): FrameOutcome => {
+			let ended = 'written' as FrameOutcome;
 			try {
 				// Inside the try: the push reads the live selection through plugin block refs.
 				undo.push(write.snapshot, write.history);
 				const wasOpen = endsOpen(deps.doc);
-				deps.starts.opened();
-				const changed = write.apply(wasOpen);
-				if (write.discardIfNoop && !changed) {
-					restore();
-					deps.starts.abandoned();
-					return 'discarded';
-				}
-				if (devChecksOn) {
-					const written = write.written();
-					assertCommittedNodes(written.nodes, deps.reading.grammar);
-					assertLastLineKept(deps.doc, wasOpen);
-					assertKeepsABlock(deps.doc, written.nodes);
-					assertReadsBack(written.tops, deps.reading.grammar);
-					assertListMarkerWidths(written.tops);
-					write.check?.(written);
-				}
+				deps.starts.duringWrite(() => {
+					const changed = owned.during(() => write.apply(wasOpen));
+					if (write.discardIfNoop && !changed) {
+						restore();
+						ended = 'discarded';
+						return { touched: 'unchanged' };
+					}
+					if (devChecksOn) {
+						const written = write.written();
+						assertCommittedNodes(written.nodes, deps.reading.grammar);
+						assertLastLineKept(deps.doc, wasOpen);
+						assertKeepsABlock(deps.doc, written.nodes);
+						assertReadsBack(written.tops, deps.reading.grammar);
+						assertListMarkerWidths(written.tops);
+						write.check?.(written);
+					}
+					if (capture) {
+						const change = changeAfter(deps.doc, capture, write.typedEnd?.() ?? null);
+						if (devChecksOn && whole) {
+							assertChangeInReach(changeAfter(deps.doc, whole, null), change);
+						}
+						deps.drafts.record(change);
+					}
+					return { touched: () => write.touched() };
+				});
 			} catch (err) {
 				restore();
-				deps.starts.failed();
 				return failed(write, err);
 			}
-			if (capture) {
-				const change = changeAfter(deps.doc, capture, write.typedEnd?.() ?? null);
-				if (devChecksOn && whole) assertChangeInReach(changeAfter(deps.doc, whole, null), change);
-				deps.drafts.record(change);
-			}
-			deps.bumpContentVersion(() => write.touched());
-			return 'written';
+			return ended;
 		};
 		let outcome = 'written' as FrameOutcome;
 		// A selection the write changes is announced once the write is, so no listener is called on

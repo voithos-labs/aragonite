@@ -426,6 +426,17 @@ export function pasteContext(
 	return { reading: fixtureReading(), activePlugins: everyInstalledPlugin, ...fields };
 }
 
+/** A byte write made the way every writer makes one, saying nothing of what it changed. */
+export function writeBytes(
+	deps: Pick<EditorActionsDeps, 'starts'>,
+	write: () => void = () => {}
+): void {
+	deps.starts.duringWrite(() => {
+		write();
+		return { touched: null };
+	});
+}
+
 /** The published headless deps with spied collaborators and a content-version counter. */
 export function makeEditorActionsDeps(
 	source: string | CstNode[] | Document,

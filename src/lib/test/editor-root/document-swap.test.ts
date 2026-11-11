@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { createDocumentSwap, initDocument } from '#lib/components/editor-root/document-swap.js';
+import { createKeptStarts } from '#lib/editor-actions/commit/kept-starts.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { selectWidgetWhole } from '#lib/selection/place-caret.js';
 import { serialize } from '#lib/core/serializer.js';
@@ -52,8 +53,10 @@ describe('the swap commit sequence', () => {
 				adopted = doc;
 				order.push('adopt');
 			},
-			bumpContentVersion: step('bump'),
-			starts: { opened: () => {} },
+			starts: createKeptStarts(
+				() => adopted ?? initDocument('held\n', defaultGrammarView).doc,
+				step('bump')
+			),
 			clearBlockRefs: step('refs'),
 			layout: { forgetMeasuredHeights: step('heights') },
 			undoManager: { clear: step('undo') },

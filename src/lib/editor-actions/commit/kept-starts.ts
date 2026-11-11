@@ -5,6 +5,7 @@
  * asked for, so a document nobody asks about pays nothing. The record answers for the live document
  * between two announcements. From a write's first change to the tree until it announces, the
  * record is behind the tree, so a read there is answered from a fresh measure and fails a dev build.
+ * `duringWrite` is the one way into that window, so no writer can leave it open.
  */
 
 import { untrack } from 'svelte';
@@ -26,6 +27,11 @@ import {
  *  while the record is measured; null, or a null answer, when the write can't say. */
 export type ChangedRuns = (() => readonly TopLevelChange[] | null) | null;
 
+/** What a write hands back: the runs it changed, or `unchanged` when the tree stands as it did. */
+export interface Written {
+	touched: ChangedRuns | 'unchanged';
+}
+
 export interface KeptStarts {
 	/** The document as it stands, with its starts. Read it again after a write: a pair held across
 	 *  one stays true only where the write put in a new list, as the byte splice's own does. */
@@ -35,21 +41,16 @@ export interface KeptStarts {
 	/** Whether the tree may hold bytes no announcement covers: a write is open, or one threw and
 	 *  none has announced since. Whatever is kept of the document steps aside while it holds. */
 	unannounced(): boolean;
-	/** A write is about to change the tree. */
-	opened(): void;
-	/** The open write changed nothing, so the tree stands as it did. */
-	abandoned(): void;
-	/** The open write threw. Nothing vouches for its rollback, so the record is forgotten and
-	 *  the tree counts as unannounced until the next write announces. */
-	failed(): void;
-	/** The open write is done. */
-	changed(runs: ChangedRuns): void;
+	/** Runs one write to the tree, from before its first change, then announces what it touched.
+	 *  A throw goes on up, and the tree counts as unannounced until the next write announces. */
+	duringWrite<T extends Written>(write: () => T): T;
 }
 
 /** A run wider than this forgets the record, so no write measures more than a few hundred blocks. */
 const WIDEST_RUN = 512;
 
-export function createKeptStarts(doc: () => DocumentView): KeptStarts {
+/** `announce` tells the editor its bytes changed (the content version), once the record has moved. */
+export function createKeptStarts(doc: () => DocumentView, announce: () => void): KeptStarts {
 	let kept: BlockLengths | null = null;
 	let view: Measured | null = null;
 	let open = 0;
@@ -58,6 +59,29 @@ export function createKeptStarts(doc: () => DocumentView): KeptStarts {
 	const misused = (message: string) =>
 		assertInvariant('kept-starts-current', () => ({ code: 'kept-starts-misused', message }));
 	const unannounced = () => open > 0 || threw;
+	// Nothing vouches for the rollback of a write that threw, so the record goes with it.
+	const forget = () => {
+		kept = view = null;
+		threw = true;
+	};
+	/** Moves the record past a write's runs, or forgets it when the write can't say. */
+	const place = (runsOf: ChangedRuns) => {
+		threw = false;
+		view = null;
+		if (!kept) return;
+		const runs = runsOf?.();
+		if (!runs || runs.some((run) => run.inserted > WIDEST_RUN)) {
+			kept = null;
+			return;
+		}
+		const record = kept;
+		untrack(() => {
+			applyChanges(doc(), record, runs);
+			if (devChecksOn && !perfEnabled()) {
+				assertInvariant('kept-starts-current', () => checkKeptStarts(record.lengths, doc(), runs));
+			}
+		});
+	};
 	const inWrite = () => {
 		if (devChecksOn && open > 0)
 			misused('a position was read between a write and its announcement');
@@ -92,38 +116,27 @@ export function createKeptStarts(doc: () => DocumentView): KeptStarts {
 			}),
 		isMeasured: () => kept !== null,
 		unannounced,
-		opened() {
+		duringWrite(write) {
 			open++;
-		},
-		abandoned() {
-			open = Math.max(open - 1, 0);
-		},
-		failed() {
-			open = Math.max(open - 1, 0);
-			kept = view = null;
-			threw = true;
-		},
-		changed(runsOf) {
-			if (devChecksOn && open === 0) misused('a write announced its changes without opening first');
-			// A write made inside another's leaves neither able to place its runs.
-			const runs = kept && open === 1 ? runsOf?.() : null;
-			open = Math.max(open - 1, 0);
-			threw = false;
-			view = null;
-			if (!kept) return;
-			if (!runs || runs.some((run) => run.inserted > WIDEST_RUN)) {
-				kept = null;
-				return;
+			let written: ReturnType<typeof write>;
+			try {
+				written = write();
+			} catch (err) {
+				open--;
+				forget();
+				throw err;
 			}
-			const record = kept;
-			untrack(() => {
-				applyChanges(doc(), record, runs);
-				if (devChecksOn && !perfEnabled()) {
-					assertInvariant('kept-starts-current', () =>
-						checkKeptStarts(record.lengths, doc(), runs)
-					);
-				}
-			});
+			// A write made inside another's leaves neither able to place its runs.
+			const alone = --open === 0;
+			if (written.touched === 'unchanged') return written;
+			try {
+				place(alone ? written.touched : null);
+				announce();
+			} catch (err) {
+				forget();
+				throw err;
+			}
+			return written;
 		}
 	};
 }

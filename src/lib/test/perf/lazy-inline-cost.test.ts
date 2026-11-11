@@ -5,7 +5,7 @@ import { getInlineContent } from '../../core/inline/inline-cache';
 import { updateNodeContent } from '../../tree-operations/content-write';
 import { createUndoController } from '../../editor-actions/commit/undo-controller';
 import { createHistoryActions } from '../../editor-actions/commit/history';
-import { makeEditorActionsDeps } from '../harness/editor-actions';
+import { makeEditorActionsDeps, writeBytes } from '../harness/editor-actions';
 import type { CstNode } from '../../core/nodes';
 import {
 	disablePerfInstruments,
@@ -76,9 +76,7 @@ describe('lazy inline: undo restore does no inline work', () => {
 
 		deps.undoManager.push(controller.captureCurrentState());
 		// A new node, as a commit would write, so the entry is a step that changes the bytes.
-		deps.starts.opened();
-		deps.doc.children[0] = para('edited\n');
-		deps.bumpContentVersion(null);
+		writeBytes(deps, () => (deps.doc.children[0] = para('edited\n')));
 
 		resetPerfInstruments();
 		await history.requestUndo();
