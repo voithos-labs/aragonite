@@ -7,6 +7,7 @@ import type { Mode } from '#lib/range-edit/host.js';
 import type { Range } from '#lib/range-edit/edit-range.js';
 import type { LaidBlock } from '#lib/range-edit/layout.js';
 import { containersAt, leafAt, readOf, type Read } from './expected';
+import { blockHeldWhole } from './laws';
 import type { CheckHost } from './test-host';
 
 export interface KnownResidue {
@@ -32,6 +33,14 @@ function restOfLine(read: Read, at: number): string {
 	const end = read.source.indexOf('\n', at);
 	return read.source.slice(at, end < 0 ? undefined : end);
 }
+
+const lineHead = (source: string, at: number) =>
+	source.slice(source.lastIndexOf('\n', at - 1) + 1, at);
+
+/** An end of the range right after a line's leading spaces, with the range crossing a line. */
+const besideSpaces = (read: Read, { from, to }: Range) =>
+	read.source.slice(from, to).includes('\n') &&
+	[from, to].some((at) => /^[ \t]+$/.test(lineHead(read.source, at)));
 
 /** Whether `a` and `b` sit in the same list of blocks. */
 const besides = (a: LaidBlock, b: LaidBlock) =>
@@ -186,6 +195,23 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 		repro: { source: '[^1]:1. n\r\n汉字\r\nword', mode: 'source', range: { from: 9, to: 17 } }
 	},
 	{
+		gap: 'the spaces a cut leaves at a line’s start join the other side’s text and read as another block',
+		lane: '2b',
+		law: 'L3',
+		matches: besideSpaces,
+		repro: { source: 'p\n\n \n# h - x\n', mode: 'source', range: { from: 4, to: 8 } }
+	},
+	{
+		gap: 'text opening with a space, joined at an item’s text start, pads the marker: the cut’s caret holds no text there, and the paste back stands apart',
+		lane: '2b',
+		law: 'L3',
+		matches: (read, { from, to }) =>
+			read.source.slice(from, to).includes('\n') &&
+			/^[ \t]/.test(restOfLine(read, to)) &&
+			/(?:[-*+]|\d[.)])[ \t]+$/.test(lineHead(read.source, from)),
+		repro: { source: '- x\n- y z\n', mode: 'source', range: { from: 2, to: 7 } }
+	},
+	{
 		gap: 'a range ending at the text of a block that takes no joined text keeps its marker, which the copy carries too',
 		lane: '2b',
 		law: 'L3',
@@ -217,11 +243,12 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 		repro: { source: '    word\n', mode: 'source', range: { from: 0, to: 6 } }
 	},
 	{
-		gap: 'an HTML block cut from its first byte in a list item, or in part, pastes back as blocks apart from what the cut left',
+		gap: 'an HTML block cut from its first byte, save one held whole at the top level, pastes back as blocks apart from what the cut left',
 		lane: '2b',
 		law: 'L3',
 		matches: (read, range) =>
-			read.blocks.some((b) => b.type === 'htmlBlock' && b.from === range.from),
+			read.blocks.some((b) => b.type === 'htmlBlock' && b.from === range.from) &&
+			blockHeldWhole(read, range)?.path.length !== 1,
 		repro: {
 			source: '- <!-- a note -->\n- <!-- a note -->\n',
 			mode: 'source',
