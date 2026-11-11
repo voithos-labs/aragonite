@@ -123,10 +123,9 @@ function landed(
 		const starts = visibleAfter && findWithin(doc, from, from, onSyntax);
 		const above = starts ? pasteApart(doc, from, text, starts.path.slice(0, -1), false) : null;
 		if (above) return above;
-		// On an empty line no block holds, what lands stays apart from the block under it too.
-		const lineStart = from - lineHead(doc.source, from).length;
-		const emptyLine = !visibleAfter && pastMarkers(doc.source, lineStart) === from;
-		if (emptyLine) return apartBelow(doc, from, text());
+		// A caret no text holds with nothing after it stands on an empty line, and what lands there
+		// stays apart from the block under it too.
+		if (!visibleAfter) return apartBelow(doc, from, text());
 		return bytes(plain ? offText(doc, from, clip) : clip);
 	}
 	const { leaf } = target;
