@@ -1,6 +1,7 @@
 // Named rows for a paste that puts a block boundary in a block's text: the block is cut there as
 // Enter cuts it. A heading keeps its underline or closing `#` run on the half that stays its line,
-// and in live mode a format run the cut goes through closes above and reopens below.
+// and in live mode a format run the cut goes through closes above and reopens below. The last
+// rows hold a to-do's first line, whose own write every such paste goes through.
 
 import type { Gesture } from '#lib/range-edit/edit-range.js';
 import type { NamedRow } from './named-rows';
@@ -417,9 +418,29 @@ const PLAIN_ROWS: NamedRow[] = [
 	}
 ];
 
+// Miss-analysis: no to-do, drawn or named, had text that alone opens a fence, so the closing line
+// the block's own write put under it met no row.
+const TODO = '- [x] ````t⟦s⟧\n\n  next\n';
+const TODO_ROWS: NamedRow[] = [
+	...both(
+		'T a cut in a to-do’s first line that alone opens a fence writes no closing line',
+		TODO,
+		'cut',
+		'- [x] ````t\n\n  next\n'
+	),
+	...both('T text pasted over it writes none', TODO, paste('x'), '- [x] ````tx\n\n  next\n'),
+	...both(
+		'T nor do blocks pasted into it',
+		TODO,
+		paste('> q\n\nafter'),
+		'- [x] ````t\n\n  > q\n\n  after\n\n  next\n'
+	)
+];
+
 export const SPLIT_ROWS: NamedRow[] = [
 	...STRUCTURE_ROWS,
 	...EMPTIED_ROWS,
 	...RUN_ROWS,
-	...PLAIN_ROWS
+	...PLAIN_ROWS,
+	...TODO_ROWS
 ];
