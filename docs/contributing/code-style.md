@@ -1,155 +1,44 @@
-# Code Style
+# Code style
 
-How we name, shape, comment, and format code. Nothing exotic; most decent codebases converge on roughly this list, and it's written down so you don't have to guess which flavour of it we speak. You can absorb this page as you go; you've probably absorbed most of it already.
+Read this when you're about to write a comment, add a module or reorganize a file. It holds only the style rules a gate or a reviewer will hold you to. How you name a loop variable stays between you and your conscience.
 
-There's one rule that outranks the rest of the page: **when you touch messy code, improve what you touch.** Don't conform to bad patterns already in the file. Renaming a bad local, adding a section divider, pruning a stale comment are part of the edit, not a chore you file for later and never do.
+## Improve what you touch
 
-## Naming
-
-Name by role, not implementation: `userRecords`, not `hashMap`. Booleans read as questions (`isVisible`, `hasChildren`); functions name their action or their return value (`fetchUser`, `parseConfig`). Generic names (`data`, `item`, `temp`) get a lifespan of a handful of lines, no more. And stay consistent: if it's `user` here, it's not `account` there. Half the confusion I've seen in any codebase is two names for one thing.
-
-## One job per piece
-
-Every function, file, and module does one thing you can state in a short sentence. If the sentence needs an "and", split. If a function needs a paragraph to explain what it does, it's doing too much, split that too. And a long function steered by a mode flag would rather be two composable functions.
-
-A few adjacent habits:
-
-- At the second copy, ask whether both enforce one rule. If they do, pull it into one place now. If they only look alike, leave them (a third copy settles it when you can't tell).
-- Prefer flat control flow.
-- Delete dead code. Git remembers.
-
-Now, the one place this rule looks broken on purpose: block components. The editor renders a document as blocks (a paragraph, a table, a code fence, each kind its own Svelte component), and a block's `.svelte` file is a **composition root**: its one job is wiring together state, lifecycle, and the per-concern modules sitting beside it. Wiring is a single responsibility no matter how many wires, so line count alone never forces a split there.
-
-A split is forced when new logic arrives that neither touches lifecycle nor needs the whole component's state. That logic never goes inline: it becomes a `createX(deps)` factory in a sibling `.ts` module. Hand the factory its reactive values as getters (`() => value`, not `value`), so it always reads the live value instead of a snapshot from mount time. The table and text block folders (`src/lib/components/blocks/table`, `src/lib/components/blocks/text`) are the pattern to copy.
-
-## Inside a file
-
-A complex file reads top to bottom in newspaper order: the point first, the details after. In practice:
-
-- The first screen states the file's one responsibility, in a header comment that also gives the idea a newcomer needs before reading on.
-- Public API near the top, internals below, and the main operation before its sub-steps, so a reader meets `parse()` before `parseNextBlock()`.
-- Section dividers mark the logical groupings:
-
-  ```
-  /* ------------------------------ Section name ------------------------------ */
-  ```
-
-  and each section holds only what its name says, ordered by what a reader wants first, not by when things got written.
-
-- State sits near the effects that use it, and a helper with a single caller sits within a screen of that caller.
-- Types live next to the code that uses them; a separate `types` file exists only when a type is genuinely shared.
-
-The test for all of it: a maintainer can answer "what does this file do, and where would I change X?" from headers, section names, and signatures alone. If they have to read the bodies to find out, the file isn't organized, it's sorted by the order you happened to write things in.
+Editing messy code means leaving it better. A bad pattern that's already there is no reason to repeat it. A big cleanup (a rename with many call sites, a file split) gets a commit of its own.
 
 ## Comments
 
-Default to none. The reader of a comment is someone competent who opened this repo today, and they read it once. Every word they'd have to look up and every sentence they'd have to read twice is a defect. (That reader is also me. When I can't read a comment it isn't a comment, it's a technical essay, and the repo has enough of those already.)
+Default to none. The reader is competent, new to the repo today, and reading once. There are three kinds, each with a line budget:
 
-Two kinds of comment earn their lines:
+- **File header**, the file's first comment, with only imports above it: introduces the file to someone opening it cold. Free-form, up to 20 lines.
+- **Contract docblock**, on an exported interface or type, or on an export (members included) of a published entry file (`index.ts`, `plugin.ts`, `svelte.ts`, `testing.ts`, `editor-props.ts`, `block-component.ts` in `src/lib/`): the purpose, plus at most one thing a caller must get right. Up to 5 lines.
+- **Body comment**: why a line is the way it is, in one sentence. 1 or 2 lines, like ``// A depth, not a boolean: a commit started from an `edit` handler must not end the outer one.`` above `let depth = 0;`.
 
-- A **file header** (the first thing in the file) introduces it to someone opening it cold: what it is, and the idea they need before the code makes sense. Any shape that does that job is fine, up to twenty lines. Details stay with the code they describe.
-- A **contract docblock** (above an exported type, or on an export of a published entry point) says what the thing is for and at most the one thing a caller has to get right. Five lines, tops.
-- A **comment in a body** says why this line is the way it is, in one plain sentence: the non-obvious choice, the workaround, the thing left out on purpose. One or two lines.
+`src/lib/test/invariants/lint/comment-budget.test.ts` enforces the budgets. `comment-house-words.test.ts`, beside it, enforces the banned words, in comments and in the design and contributing docs, where a doc's allowance can only go down. Its `HOUSE_WORDS` table names each banned word and the phrase to write instead. Whatever the kind:
 
-Neither says what the code does or how (names and types already do), and neither argues for the choice over its alternatives. If the why needs more than a sentence, it's a design doc. Leave a pointer (`docs/design/virtual-rendering.md` § Keeping the page still while heights change) and nothing else.
+- No comment describes what the code does or how, argues against the alternatives, or keeps history: no union or enum members, versions, dates, issue numbers, callers, former behavior or rejected designs (a regression test may name its issue). A why that needs more room becomes a pointer to a design doc section.
+- Everyday English. Name the subject (the parser, the undo stack), never "this" or "the layer". A private word that a symbol's name forces on you gets a gloss of three words or fewer.
+- A catalog number like `G1.28` explains nothing, so state the fact. No capitals for emphasis.
+- Would a reader be confused without the comment? If not, delete it. Editing a file makes its comments yours, inherited ones included.
 
-The budget alone didn't stop the essays. The rules that do:
+## Organizing a file
 
-- **Plain words.** Write the English you'd use out loud to a colleague from another team. The repo grew a private vocabulary (seam, door, oracle, and a few dozen more), and a comment written in it reads as encrypted to anyone who didn't grow up here. Use the plain phrase: "the module boundary", "the one entry point", "the estimated height", "where the caret sits". Where a symbol forces the word (`heightOracle` is the type's name), gloss it in three words or fewer: "the height oracle (estimates block heights)". [`glossary.md`](glossary.md) is there so you can read the comments that still use them, not so you can write more.
-- **Name the subject.** "Least destructive first:" is not a sentence. Least destructive _what_? Say the thing: the paragraph block, the scroll container, the undo stack, the caret. A comment about "the surface", "the layer" or "this" makes the reader reconstruct the subject from the code, which was the comment's job.
-- **A code is not a reason.** `G1.28` and `VR-15` are catalogue numbers. Say what holds ("a `<br>` adds no text, so the offset walk stays exact") and put the number after it if you like.
-- **No shouting.** ON, CURRENT, OWN and BEFORE in capitals mean the sentence is carrying too much. Rewrite the sentence.
-
-Three before-and-afters from this repo:
+Files are being reorganized one at a time, and `src/lib/browser/offsets.ts` went first, so read it and do the same. Group the code by feature, with each helper next to the export that uses it. Mark the groups with dividers 80 columns wide. A feature in a big file gets the three-line form the model file uses, and a sub-topic gets one line:
 
 ```ts
-// before: two private words per line, and "owes" doing the work of a sentence
-// An edit that empties the body leaves the same chrome-only source a bare block arrives
-// as, so the edit door owes the completion the reveal door applies.
-
-// after
-// Emptying the body leaves only the markers, the same source a new block starts with,
-// so this edit path applies the same marker completion the reveal path does.
+/* ---------------------------------- Name ---------------------------------- */
 ```
 
-```ts
-// before: a five-line essay, with a citation code and a mode flip nobody defined
-/**
- * A surviving block keeps the height the model measured (VR-15); `carried` is null only
- * where a width or type-scale change has earned a reseed from the oracle. The cache behind
- * those heights can be gone (a mode flip drops it, and a block whose box never moved reports
- * no resize to put it back), so reseeding a structural rebuild would trade a whole document
- * of measurements for estimates and scroll the reader by the difference.
- */
+A reorganization is a commit of its own and changes no line of code. Many files still carry the outgoing `// ── Name ──` banners, and lose them when their turn comes.
 
-// after
-/**
- * A block that survives a rebuild keeps its measured height (`carried`); re-estimating would
- * swap a document of measurements for guesses and scroll the user by the difference.
- * Null after a width or font-size change, when the old heights are wrong anyway.
- */
-```
+## Components are wiring
 
-```ts
-// before: no subject, three private words, one shouted
-/** The press landed ON the island: the engine answers such a point with a position in the
- *  neighbouring text, so its own caret is no reason to stand this seat down. */
-inside: boolean;
-
-// after
-/** The click landed on the widget itself. The browser would put the caret in the text
- *  beside it, and that caret is no reason to drop this snap. */
-inside: boolean;
-```
-
-And one that was right all along, so you know the target exists:
-
-```ts
-// Reading mode keeps checkboxes visible but inert: a toggle rewrites the
-// document, and reading mode writes no bytes.
-```
-
-For the comments already in a file: if removing one wouldn't confuse a reader, delete it. You own a file's signal-to-noise the moment you touch it, so prune the failing ones even when you didn't write them. Especially when you didn't write them.
-
-Delete on sight:
-
-- Enumerating a union's or enum's members in prose. The moment someone adds a variant the comment starts lying, and nobody notices for a year.
-- Version or date references (`post-0.5.4`, `as of 2024`): ephemeral context, frozen into the file forever.
-- Narrating the next line (`// now set the flag`), or restating a name in prose. No information beyond the code.
-- Naming callers or the current task (`used by the X flow`, `added for #123`). That belongs in the commit or the issue.
-- Multi-paragraph docstrings on internal functions. The name and the signature carry the load.
-- Design-rationale essays (incidents, rejected alternatives, review history). That context lives in git log, issues, and `docs/`; the code keeps one line of why, at most.
-- Past-state narration (`used to`, `previously`, `no longer`, `the old X did Y`). The reader needs the current rule, not the diff. Git has the diff.
-
-### The gate
-
-Two scans in the unit suite hold the budget, and each names the `path:line` or file it fails on:
-
-- `src/lib/test/invariants/lint/comment-budget.test.ts` counts lines per comment block. A comment trailing code is its own block, and section dividers and tool directives (`// eslint-disable-next-line`, `<!-- svelte-ignore -->`) don't count as lines. The file header is the file's first comment, with nothing above it but imports, and gets twenty lines. A contract, for the five-line budget, is a docblock right above an `export interface` or `export type`, or a docblock on anything a published entry point (`index.ts`, `plugin.ts`, `testing.ts`, `editor-props.ts`, `block-component.ts`) exports, members included, since that's what a consumer hovers in the `.d.ts`. Everything else gets two.
-- `src/lib/test/invariants/lint/comment-house-words.test.ts` holds the list of private words and fails a comment under `src/lib` or `src/routes`, or a requirement file's body text, that uses one. Headings, code spans and fenced samples don't count. Each design and contributing doc is held to a baseline there (zero for most) that only goes down: delete a few from a doc and lower its number in the same commit, or the test fails.
+A block's `.svelte` file connects state, lifecycle and its sibling modules. That is one job at any length, so size alone never forces a split. Logic that needs neither the lifecycle nor the whole component's state moves out, into a `createX(deps)` factory in a sibling `.ts` file that takes reactive values as getters; the table and text folders under `src/lib/components/blocks/` show the pattern. Extract a second copy of some code when both copies enforce the same rule; leave it when they merely look alike.
 
 ## Directories
 
-A directory reflects a decision, not an accident. Name the concept that lives there (`selection/`, `undo/`, `search/`), never the role (`utils/`, `helpers/`, `managers/`). A role name is a shelf rather than a boundary, and a shelf is where code goes when its author didn't know where else to put it. (A plural of the domain, like `core/parsers/`, is fine: it still says what's inside.) Beyond the names, what changes together lives together, and imports between directories should flow one way, volatile code depending on stable code and never the reverse.
-
-The tree isn't all the way there yet (`src/lib`'s top-level directories still hold two import cycles), so `src/lib/test/invariants/lint/directory-layering.test.ts` holds the graph to today's edges. An import that adds a new edge between two directories fails it, and adding that edge to its baseline is a reviewer's call, not yours alone.
+A directory is named for a concept (`selection/`, `undo/`), not a role (`utils/`, `helpers/`). `src/lib/test/invariants/lint/directory-layering.test.ts` pins which top-level directory of `src/lib` may import which. A new edge fails, and adding it to the baseline needs a reviewer's agreement.
 
 ## Formatting
 
-Prettier owns every formatting decision, so there's nothing to argue about here. Tabs, single quotes, 100 columns: `.prettierrc` has the full config.
-
-One exception, configured rather than argued: inside a Markdown file, a code fence is quoted syntax, not code, so Prettier's embedded formatting is off for `*.md`. Otherwise a fence demonstrating `~single tilde~` would get helpfully rewritten into the exact spelling the demonstration is contrasting against.
-
-```bash
-npm run format   # write
-npm run lint     # check
-```
-
-`npm run lint` sits in the commit gate (the checks that must be green before a commit), and it's actually four checks in a row:
-
-1. the Prettier check
-2. the docs-pack link gate (`scripts/docs/build-docs-pack.mjs`): every relative link in the docs points at a file that exists, links in the published guide (`docs/guide/`) may not leave it, and an `#anchor` inside the guide must name a heading its target doc still has
-3. the codebase-map reference gate (`scripts/docs/check-codebase-map.mjs`): every path a design, contributing or requirement doc names in backticks must still exist, whether it's written from the repo root or short (`test/browser/<name>.test.ts`), and every `<doc>.md § Section name` pointer must still name a heading that doc has
-4. ESLint
-
-A failure says which of the four fired, so read that instead of assuming it was formatting. It usually isn't.
+Prettier owns it: `npm run format` writes, `npm run lint` checks. `npm run lint` is four checks in a row (Prettier, docs links, docs paths, ESLint). The failure names which, so look before you blame formatting.

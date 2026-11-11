@@ -63,15 +63,21 @@ async function reportSelection(m: MountedEditor): Promise<void> {
 	await m.settle();
 }
 
-/** Whole-list reads the byte map made while a letter was typed into `el` and its caret reported. */
+/** Whole lists read to place a byte: containers the byte map paired, top-level blocks measured. */
+function listReads(): number {
+	const { byteMapReads, topBlocksMeasured } = perfSnapshot();
+	return byteMapReads + topBlocksMeasured;
+}
+
+/** Whole-list reads made while a letter was typed into `el` and its caret reported. */
 async function listReadsTyping(m: MountedEditor, el: HTMLElement): Promise<number> {
 	const before = m.source();
-	const reads = perfSnapshot().byteMapReads;
+	const reads = listReads();
 	typeInto(el, el.textContent + 'x');
 	await m.settle();
 	await reportSelection(m);
 	expect(m.source()).not.toBe(before);
-	return perfSnapshot().byteMapReads - reads;
+	return listReads() - reads;
 }
 
 describe('G4.339 a typed letter and its caret move read no whole list through the byte map', () => {
@@ -177,7 +183,7 @@ async function linesPairedFollowing(place: (typeof SIBLINGS)[number], n: number)
 // priced a read a plugin makes, least of all in a quote no keystroke had rebuilt yet.
 describe('G4.339 a plugin reading selectedRange() on every caret move and edit maps no whole container', () => {
 	it.each(SIBLINGS)(
-		"in $name it pairs one child's lines, at 40 siblings as at 400 (the sum of top-level block starts isn't covered)",
+		"in $name it pairs one child's lines, at 40 siblings as at 400",
 		async (place) => {
 			expect(await linesPairedFollowing(place, 400)).toBe(await linesPairedFollowing(place, 40));
 		}

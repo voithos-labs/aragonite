@@ -6,9 +6,11 @@ import {
 	type DocumentStamps
 } from '#lib/editor-actions/commit/document-stamp.js';
 import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
 import type { DocumentView } from '#lib/core/node-views.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import type { TopHarness } from './editor-actions';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 export function idleDraftRegistry(
 	stamps: DocumentStamps = createDocumentStamps(),
@@ -16,7 +18,11 @@ export function idleDraftRegistry(
 ) {
 	return createDraftRegistry({
 		stamps,
+		starts: { writing: () => false },
+		events: { emit() {} },
 		doc,
+		measured: () => measured(doc()),
+		source: () => serialize(doc()),
 		isReading: () => false,
 		isOn: () => true,
 		grammar: defaultGrammarView,
@@ -31,7 +37,11 @@ export function idleDraftRegistry(
 export function draftRegistryOver(h: TopHarness) {
 	return createDraftRegistry({
 		stamps: createDocumentStamps(),
+		starts: h.deps.starts,
+		events: h.events,
 		doc: () => h.deps.doc,
+		measured: () => h.deps.bytes.measured(),
+		source: () => h.deps.bytes.source(),
 		isReading: () => false,
 		isOn: () => true,
 		grammar: defaultGrammarView,

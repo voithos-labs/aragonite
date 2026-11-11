@@ -34,11 +34,16 @@ function harness(options: HarnessOptions = {}) {
 
 	const selection = createSelectionState();
 	if (options.widgetBlock) {
-		selectWidgetWhole(selection, testCaretWriter, {
-			paragraphPath: [0],
-			sourceStart: 0,
-			preSelectOffset: 0
-		});
+		selectWidgetWhole(
+			selection,
+			testCaretWriter,
+			{
+				paragraphPath: [0],
+				sourceStart: 0,
+				preSelectOffset: 0
+			},
+			() => null
+		);
 	}
 	const doc = parse('hello\n\nworld\n');
 	const pasted: (string | undefined)[] = [];

@@ -5,7 +5,7 @@
  * so a popover the release reveals never covers what the drag hit-tests (G4.225).
  */
 
-import { imeOwnsKey } from '../browser/composition';
+import { neverACommand } from '../browser/composition';
 import { createAutoScroll, type AutoScrollDeps } from './autoscroll';
 import { isTouchPointer } from './pointer-gesture';
 
@@ -133,7 +133,7 @@ export function createPointerDragSession(
 	}
 
 	function onKeyDown(e: KeyboardEvent): void {
-		if (imeOwnsKey(e)) return;
+		if (neverACommand(e)) return;
 		if (e.key === 'Escape') dispose();
 	}
 

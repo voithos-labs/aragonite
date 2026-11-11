@@ -8,15 +8,35 @@ import { containersHolding, factsOf, nodeAt, titleOwner, type Doc } from './docu
 import { continuation } from './markers';
 import { lineHead, type Edit } from './leaf-splice';
 
+/** What a container's type says two of it must share to merge, as `block` holds it. */
+const sharedOf = (doc: Doc, block: LaidBlock, key: string | undefined) =>
+	key
+		? (nodeAt(doc, block.path).metadata as Record<string, unknown> | undefined)?.[key]
+		: undefined;
+
 /** The deepest container at `at` a pasted leading block merges into. */
 export function takerOf(doc: Doc, at: number, pasted: Doc, first: LaidBlock): LaidBlock | null {
 	const { into, key } = factsOf(pasted, first).merges;
-	const keyOf = (d: Doc, b: LaidBlock) =>
-		key ? (nodeAt(d, b.path).metadata as Record<string, unknown> | undefined)?.[key] : undefined;
 	let taker: LaidBlock | null = null;
 	for (const c of containersHolding(doc, at))
-		if (into.includes(c.type) && keyOf(doc, c) === keyOf(pasted, first)) taker = c;
+		if (into.includes(c.type) && sharedOf(doc, c, key) === sharedOf(pasted, first, key)) taker = c;
 	return taker;
+}
+
+/** The container a pasted leading block breaks out of: the nearest of its type at `at`, where the
+ *  two differ and the type says to leave, with `leaf` an item of it and not nested deeper. */
+export function leftBy(
+	doc: Doc,
+	at: number,
+	pasted: Doc,
+	first: LaidBlock,
+	leaf: LaidBlock
+): LaidBlock | null {
+	const { into, key, onMismatch } = factsOf(pasted, first).merges;
+	const nearest = containersHolding(doc, at).findLast((c) => into.includes(c.type));
+	if (!nearest || onMismatch !== 'break-out' || leaf.path.length !== nearest.path.length + 2)
+		return null;
+	return sharedOf(doc, nearest, key) === sharedOf(pasted, first, key) ? null : nearest;
 }
 
 /** A caret right after an emptied container's marker takes a pasted container opening with that

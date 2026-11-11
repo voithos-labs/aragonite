@@ -12,7 +12,6 @@ import { inlineDescendants } from '../../../core/inline';
 import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 import { isRevealableInlineKind } from '../../../schema/inline-construct-policy';
 import { CONSTRUCT_REVEAL_CLASS } from '../../../browser/painted';
-import { rawSelectionFocus } from '../../../browser/selection-read';
 import type { CaretWriter } from '../../../browser/caret-writer';
 import { caretShownSelector } from '../../../core/inline/visibility';
 import {
@@ -51,6 +50,8 @@ export interface ConstructRevealDeps {
 	get node(): NodeView;
 	get reading(): Reading;
 	getEl: () => HTMLElement | null;
+	/** The caret's raw offset in the block, null with none there to show markers for. */
+	caretFocus: () => number | null;
 	/** A range the editor holds freezes what is shown, so a drag anchored in visible marker text
 	 *  keeps its layout. */
 	ownsRange: () => boolean;
@@ -92,7 +93,7 @@ export function createConstructReveal(deps: ConstructRevealDeps): ConstructRevea
 		// Asked on every key and render, so a block with nothing to show never reads the selection;
 		// a window that lost focus keeps its selection, but nobody is editing there any more.
 		if (!el || shown === null || !el.querySelector(shown) || !document.hasFocus()) return null;
-		return rawSelectionFocus(el);
+		return deps.caretFocus();
 	}
 
 	function inlines(): InlineNode[] {

@@ -4,7 +4,7 @@
  * The core adds a blank line to keep two readings nowhere else.
  */
 
-import { contentEnd, endingOf, nodeAt, type Doc } from './document';
+import { contentEnd, nodeAt, type Doc } from './document';
 import type { JoinSide } from './host';
 import type { LaidBlock } from './layout';
 import { lineRest } from './leaf-splice';
@@ -53,7 +53,7 @@ export function apartAt(doc: Doc, out: string, at: number, join: Join, placed: b
 	// blank line into it; a line whose text the upper side still opens keeps its own.
 	const holding = (c: LaidBlock) => c.path.length <= pair.parent.length;
 	const marks = at + run.length < join.from ? run : continuation(doc, pair.below.from, holding);
-	return out.slice(0, at) + marks.trimEnd() + endingOf(doc.source) + out.slice(at);
+	return out.slice(0, at) + marks.trimEnd() + doc.ending + out.slice(at);
 }
 
 /** The kinds of the containers holding both sides of `join`, outermost first. */

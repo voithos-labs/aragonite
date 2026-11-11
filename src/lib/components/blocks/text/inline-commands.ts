@@ -33,7 +33,7 @@ export interface InlineCommandsDeps {
 	get path(): number[];
 	reading: Reading;
 	cursor: SurfaceBackend;
-	selection: Pick<SelectionState, 'ownsRange' | 'rangeInOneBlock' | 'start' | 'end'>;
+	selection: Pick<SelectionState, 'ownsRange' | 'rangeInOneBlock' | 'start' | 'end' | 'widgetIn'>;
 	widgets: Pick<WidgetInteraction, 'isRevealing' | 'foldRevealBeforeMutation' | 'enterWidget'>;
 	surface: Pick<EditableSurface, 'blockEdit' | 'pendingMarks'>;
 	controller: Pick<UndoController, 'flushDebouncedCheckpoint'>;
@@ -71,6 +71,7 @@ export function createInlineCommands(deps: InlineCommandsDeps): InlineCommands {
 			block: deps.node,
 			path: deps.path,
 			reading: deps.reading,
+			holdsWidget: deps.selection.widgetIn(deps.path) !== null,
 			selection: inThisBlock ? { start: start.offset, end: end.offset } : range,
 			spansBlocks: deps.selection.ownsRange && !inThisBlock
 		};

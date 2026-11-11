@@ -24,6 +24,7 @@ import { readAsOpened } from '#lib/schema/opened-reading.js';
 import { hidesDelimitersAtCaret } from '#lib/presentation-mode.js';
 import type { SharingState } from '#lib/tree-operations/sharing.js';
 import { fixtureReading } from './fixture-grammar';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 export interface RangeDeleteOptions {
 	sharing?: SharingState;
@@ -48,15 +49,16 @@ export function deleteRange(
 ): RangeDeleteResult {
 	const coverage = rangeCoverage(doc, coverRange(doc, start, end));
 	const source = serialize(doc);
-	const layout = documentLayout(doc);
+	const laid = measured(doc);
+	const layout = documentLayout(laid);
 	const range = removalBytes(doc, coverage, layout);
 	if (!range) throw new Error('deleteRange: a range of cells never reaches the core');
 	const mode = hidesDelimitersAtCaret(reading.mode()) ? 'live' : 'source';
 	const host = rangeHost(reading, { source, tree: doc, layout });
 	const answer = removalOf(source, range, CORE_GESTURE[gesture], mode, host);
 	const changes = changesBetween(source, answer.source);
-	const read = spliceReading(doc, source, changes, reading.grammar);
-	const closers = read ? splicedOpenerClosers(doc, source, changes, read, reading.grammar) : [];
+	const read = spliceReading(laid, source, changes, reading.grammar);
+	const closers = read ? splicedOpenerClosers(laid, source, changes, read, reading.grammar) : [];
 	const written = withSplicedClosers(source, changes, closers);
 	const bytes = changedBytes(source, 0, source.length, written);
 	const opened = readAsOpened(bytes, { grammar: reading.grammar, scope: 'document' }) as Document;
@@ -67,5 +69,5 @@ export function deleteRange(
 		landed: { ...answer.caret, at },
 		took: answer.took ?? null
 	};
-	return { newDoc: doc, caret: (committed) => pointAtByte(committed, at), removed };
+	return { newDoc: doc, caret: (committed) => pointAtByte(measured(committed), at), removed };
 }

@@ -1,12 +1,13 @@
 /**
  * One editor's read of its document for plugins: the block at a document byte, and the block view
  * of a node it renders. Lazy: nothing is measured until a plugin reads a position, and the byte
- * layout is built once per version of the document.
+ * map is built once per write, over the starts the editor keeps.
  */
 import type { DocumentView, NodeView } from '../../core/node-views';
 import type { AnyBlockKind } from '../../core/nodes';
 import { resolvedInlineContent, type InlineReading } from '../../core/inline/inline-cache';
 import { documentByteMap, type DocumentByteMap } from '../../tree-operations/container-offsets';
+import type { Measured } from '../../tree-operations/top-level-starts';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { pathOfNode } from './change-record';
 import { blockOf, type Block, type BlockReading } from '../../schema/doc-view';
@@ -27,28 +28,17 @@ export interface DocumentRead {
 
 export function createDocumentRead(deps: {
 	getDoc(): DocumentView;
-	/** Bumped on every change to the document's bytes. */
-	version(): number;
+	/** That document with the starts the editor keeps for it, a new pair after every write. */
+	measured(): Measured;
 	typeOf(kind: AnyBlockKind): BlockType<unknown>;
 	reading: InlineReading;
 }): DocumentRead {
 	let held: Layout | null = null;
 
 	function layout(): Layout {
-		const version = deps.version();
-		if (held?.version !== version) held = { version, map: documentByteMap(deps.getDoc()) };
+		const of = deps.measured();
+		if (held?.of !== of) held = { of, map: documentByteMap(of) };
 		return held;
-	}
-
-	// Summed for `blockAt` alone, since it walks every top-level block and a paint never needs it.
-	function lengthOf(laid: Layout): number {
-		if (laid.length === undefined) {
-			const doc = deps.getDoc();
-			let length = doc.prefix.length + doc.suffix.length;
-			for (const top of doc.children) length += top.leadingTrivia.length + top.raw.length;
-			laid.length = length;
-		}
-		return laid.length;
 	}
 
 	const reading: BlockReading = {
@@ -66,7 +56,7 @@ export function createDocumentRead(deps: {
 	return {
 		blockAt(at) {
 			const laid = layout();
-			if (!Number.isInteger(at) || at < 0 || at > lengthOf(laid)) return null;
+			if (!Number.isInteger(at) || at < 0 || at > laid.of.starts.length) return null;
 			const leaf = laid.map.leafAt(at);
 			const node = leaf && blockNodeAt(deps.getDoc(), leaf.path);
 			return node ? blockOf(node, reading, leaf.path) : null;
@@ -85,7 +75,6 @@ export function createDocumentRead(deps: {
 }
 
 interface Layout {
-	version: number;
+	of: Measured;
 	map: DocumentByteMap;
-	length?: number;
 }

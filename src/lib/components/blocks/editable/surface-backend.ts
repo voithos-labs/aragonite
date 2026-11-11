@@ -17,6 +17,9 @@ export interface SurfaceBackendDeps {
 	/** Where the user meant the caret, in raw units, when the browser holds no usable range: Chromium
 	 *  drops an element-level caret beside an atomic widget across an event-loop yield. */
 	getSnapTarget?: () => number | null;
+	/** Whether a widget in the block is selected whole: the caret it keeps is for input to arrive
+	 *  at, so every read here answers as with no selection. Omitted where no widgets draw. */
+	holdsWidget?: () => boolean;
 }
 
 /** The caret calls the editable-surface factory needs from a block. */
@@ -46,8 +49,13 @@ export function createSurfaceBackend(deps: SurfaceBackendDeps): SurfaceBackend {
 		return target === null ? null : asRawOffset(target);
 	}
 
-	function getRaw(): RawOffset | null {
+	const readLive = (): LiveRange => {
 		const live = readLiveRange(deps.getEl());
+		return live.state === 'live' && deps.holdsWidget?.() ? { state: 'dropped' } : live;
+	};
+
+	function getRaw(): RawOffset | null {
+		const live = readLive();
 		if (live.state === 'inactive') return null;
 		// A dropped range, or one bounced into the read-only prefix: the snap target holds where the
 		// user meant the caret.
@@ -63,11 +71,11 @@ export function createSurfaceBackend(deps: SurfaceBackendDeps): SurfaceBackend {
 
 	function getFocusOffset(): RawOffset | null {
 		const el = deps.getEl();
-		return el ? rawSelectionFocus(el) : null;
+		return el && !deps.holdsWidget?.() ? rawSelectionFocus(el) : null;
 	}
 
 	function getRawSelection(): { start: RawOffset; end: RawOffset } | null {
-		const live = readLiveRange(deps.getEl());
+		const live = readLive();
 		if (live.state !== 'live' || live.collapsed) return null;
 		// No snap-target fallback: one caret intent cannot stand in for one end of a pair, and an
 		// endpoint inside the prefix already reads as raw 0.

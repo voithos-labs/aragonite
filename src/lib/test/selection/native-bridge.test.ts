@@ -48,11 +48,16 @@ describe('readCurrentSelection: an image selected whole', () => {
 		const imageEnd = { path: [0], offset: 41 };
 		const blockRefs = [stubBlockComponent({ getCursorOffset: () => 0 })];
 		const selection = createSelectionState({ widgetSpan: () => ({ start: 30, end: 41 }) });
-		selectWidgetWhole(selection, testCaretWriter, {
-			paragraphPath: [0],
-			sourceStart: 30,
-			preSelectOffset: 41
-		});
+		selectWidgetWhole(
+			selection,
+			testCaretWriter,
+			{
+				paragraphPath: [0],
+				sourceStart: 30,
+				preSelectOffset: 41
+			},
+			() => null
+		);
 
 		const result = readCurrentSelection(selection, blockRefs);
 

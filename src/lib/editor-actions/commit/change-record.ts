@@ -8,6 +8,7 @@
 import type { DocumentView, NodeView } from '../../core/node-views';
 import { sharedPrefixLength, sharedSuffixLength, writtenSpan } from '../../core/written-span';
 import { documentByteMap } from '../../tree-operations/container-offsets';
+import { measured } from '../../tree-operations/top-level-starts';
 import { splitLines } from '../../core/lines';
 import { walkBlocks } from '../../core/paths';
 import { unfinishedReadings, type GrammarView } from '../../schema/block-openers';
@@ -147,7 +148,9 @@ export function blockRange(doc: DocumentView, path: readonly number[]): PartRang
 	const blank = top.leadingTrivia.length;
 	if (path.length === 1)
 		return { from: { part, offset: blank }, to: { part: part + 1, offset: 0 } };
-	const alone = documentByteMap({ kind: 'document', prefix: '', children: [top], suffix: '' });
+	const alone = documentByteMap(
+		measured({ kind: 'document', prefix: '', children: [top], suffix: '' })
+	);
 	const inner = [0, ...path.slice(1)];
 	const node = blockAt(top, path.slice(1));
 	if (!node) return null;
@@ -178,7 +181,9 @@ export function blockByteOf(
 	const start = before.reduce((sum, length) => sum + length, 0) + top.leadingTrivia.length;
 	if (path.length === 1) return (offset) => start + offset;
 	if (!blockAt(top, path.slice(1))) return null;
-	const alone = documentByteMap({ kind: 'document', prefix: '', children: [top], suffix: '' });
+	const alone = documentByteMap(
+		measured({ kind: 'document', prefix: '', children: [top], suffix: '' })
+	);
 	const inner = [0, ...path.slice(1)];
 	return (offset) => {
 		const at = alone.byteOf(inner, offset);

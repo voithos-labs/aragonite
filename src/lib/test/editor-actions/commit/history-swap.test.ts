@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
-import { makeEditorActionsDeps, makeNode } from '#lib/test/harness/editor-actions.js';
+import { makeEditorActionsDeps, makeNode, writeBytes } from '#lib/test/harness/editor-actions.js';
 import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { grammarStamp } from '#lib/editor-actions/commit/grammar-stamp.js';
 
@@ -178,8 +178,7 @@ describe('history swap: the typing batch ends', () => {
 				async () => undefined
 			);
 			// Stands in for the keystroke's own write, so the entry is a step to undo.
-			deps.doc.children[0] = makeNode('paragraph', 'aaab\n');
-			deps.bumpContentVersion();
+			writeBytes(deps, () => (deps.doc.children[0] = makeNode('paragraph', 'aaab\n')));
 			await history.requestUndo();
 			vi.advanceTimersByTime(1000);
 			expect(ops).toEqual(['undo']);

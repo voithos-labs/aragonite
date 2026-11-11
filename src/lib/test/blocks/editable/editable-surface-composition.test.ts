@@ -222,7 +222,8 @@ describe('composing gate', () => {
 		// So a block that keeps its place but not the caret (a table cell the range emptied) holds
 		// no composition open.
 		it('a compositionstart over a range across blocks opens nothing here', () => {
-			const selection = { ownsRange: true };
+			const noWidget: EditableSurfaceDeps['selection']['widgetIn'] = () => null;
+			const selection = { ownsRange: true, widgetIn: noWidget };
 			const { surface, commits, el } = makeSurface({
 				overrides: { selection: selection as EditableSurfaceDeps['selection'] }
 			});

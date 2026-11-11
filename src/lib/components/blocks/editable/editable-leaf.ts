@@ -5,7 +5,7 @@
  * synchronously during initialisation. `plugin-guide/editable-content.md` § The editable leaf.
  */
 
-import { imeOwnsInput, imeOwnsKey } from '../../../browser/composition';
+import { imeOwnsInput, neverACommand } from '../../../browser/composition';
 import { onDestroy, tick, untrack } from 'svelte';
 import { createAttachmentKey } from 'svelte/attachments';
 import type { EditableLeafBlockApi, StickyColumnDirection } from '../../../block-component';
@@ -797,7 +797,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			if (!isRevealed()) onRenderClick(e);
 		},
 		onkeydown: (e) => {
-			if (!isRevealed() && !imeOwnsKey(e)) void dispatchChord(e);
+			if (!isRevealed() && !neverACommand(e)) void dispatchChord(e);
 		}
 	};
 

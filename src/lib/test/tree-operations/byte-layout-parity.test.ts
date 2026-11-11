@@ -14,6 +14,7 @@ import { byteOfLeaf, leafAtByte } from '#lib/tree-operations/container-offsets.j
 import { SYNTAX_PLUGINS } from '../behavior/corpus';
 import { arbLawDocument } from '../range-laws/shapes';
 import { bytePositions } from '../range-laws/positions';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 const EXTRA = [
 	'> [!NOTE]\n> alpha\n> beta\n\nafter\n',
@@ -47,13 +48,13 @@ it('every leaf offset the parser places is the byte the map gives it, and back',
 			// A blank paragraph's place is any byte of its blank lines, so the marker reads it anywhere;
 			// past a leaf's text is its line ending, where no caret sits.
 			if (!leaf || leaf.raw.trim() === '' || offset > displayLength(leaf.raw)) continue;
-			const got = byteOfLeaf(doc, path, offset);
+			const got = byteOfLeaf(measured(doc), path, offset);
 			// Every byte of a line holding only spaces and tabs is one place to the marker.
 			const between = got === null ? 'x' : source.slice(Math.min(got, byte), Math.max(got, byte));
 			if (got !== byte && !/^[ \t\r]*$/.test(between)) {
 				misses.push(`${JSON.stringify(source)} ${key}: byte ${got}, not ${byte}`);
 			}
-			const back = leafAtByte(doc, byte);
+			const back = leafAtByte(measured(doc), byte);
 			const backKey = back && `${back.path.join('.')}@${back.offset}`;
 			if (backKey !== key && !/^[ \t\r]*$/.test(between)) {
 				misses.push(`${JSON.stringify(source)} byte ${byte}: ${backKey}, not ${key}`);
@@ -72,10 +73,10 @@ it('every leaf, blank ones too, sits at a byte in document order that names it b
 		for (const path of leafPaths(doc)) {
 			const leaf = blockNodeAt(doc, path)!;
 			for (const offset of [0, displayLength(leaf.raw)]) {
-				const byte = byteOfLeaf(doc, path, offset);
-				const back = byte === null ? null : leafAtByte(doc, byte);
+				const byte = byteOfLeaf(measured(doc), path, offset);
+				const back = byte === null ? null : leafAtByte(measured(doc), byte);
 				// Where two leaves meet at one byte, the map may name either.
-				const again = back && byteOfLeaf(doc, back.path, back.offset);
+				const again = back && byteOfLeaf(measured(doc), back.path, back.offset);
 				if (byte === null || byte < previous || again !== byte) {
 					misses.push(`${JSON.stringify(source)} ${path.join('.')}@${offset}: byte ${byte}`);
 				}

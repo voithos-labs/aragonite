@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { imeOwnsKey } from '../../browser/composition';
+	import { neverACommand } from '../../browser/composition';
 	import { tick, untrack } from 'svelte';
 	import {
 		LINK_CARD_LABEL,
@@ -102,7 +102,7 @@
 
 	function handleKeyDown(e: KeyboardEvent): void {
 		// An IME's confirm and step keys are the composition's, never the card's.
-		if (imeOwnsKey(e)) return;
+		if (neverACommand(e)) return;
 		if (e.key === 'Tab') {
 			e.preventDefault();
 			stepTrap(e.shiftKey);

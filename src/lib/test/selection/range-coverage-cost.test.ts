@@ -44,6 +44,7 @@ import {
 	measureScanGrowth
 } from '../harness/scan-growth';
 import { deleteRange } from '../harness/range-delete';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 const N = 250;
 
@@ -124,7 +125,7 @@ describe('a range over a long list costs in proportion to what it covers', () =>
 		/** Path comparisons and blocks laid out for one block's paint, once the paint has its bytes. */
 		const cost = (items: number) => {
 			const { doc, coverage } = midTextCoverageOf(items);
-			const layout = documentLayout(doc);
+			const layout = documentLayout(measured(doc));
 			let laid = 0;
 			const counting = {
 				...layout,

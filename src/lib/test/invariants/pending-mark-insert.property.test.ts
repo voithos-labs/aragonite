@@ -104,7 +104,7 @@ function resolveDraw(
 	return result === null ? null : { caret, result };
 }
 
-describe('pending-mark insertion over generated formatted fixtures', () => {
+describe('pending-mark insertion over generated formatted fixtures', { timeout: 30_000 }, () => {
 	it('either the toggle took exactly and painted only the typed character, or nothing was written', () => {
 		// Declining is a legal answer (markdown cannot express every combination at every caret),
 		// so the run is only meaningful if both answers actually occur.

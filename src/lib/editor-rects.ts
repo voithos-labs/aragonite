@@ -15,8 +15,8 @@ export interface EditorRects {
 	 *  one per grid cell. `end` accepts `SELECTION_END`; empty when the block isn't mounted. */
 	rangeRects(path: number[], start: number, end: number): DOMRect[];
 	/**
-	 * The browser's caret when it sits in one block, or null. Null in cross-block mode too,
-	 * where the held range is not a caret and must not leak out as one.
+	 * The browser's caret when it sits in one block, or null. Null under a range across blocks or
+	 * a widget selected whole too: the caret the browser keeps there is hidden, and nobody's.
 	 */
 	caretRect(): DOMRect | null;
 	/** Scroll a block that is not rendered yet into the mounted range and await its mount.
@@ -42,6 +42,8 @@ export function createEditorRects(deps: {
 	getEditorRoot: () => HTMLElement | null;
 	scroll: Pick<ScrollOwner, 'place'>;
 	ownsRange: () => boolean;
+	/** Whether a widget is selected whole. */
+	holdsWidget: () => boolean;
 	/** True for nodes in the host's `header` snippet: inside the root, but not this
 	 *  editor's content. */
 	isHostChrome: (node: Node | null) => boolean;
@@ -63,7 +65,7 @@ export function createEditorRects(deps: {
 		caretRect() {
 			// Read `SelectionState`, not the `data-painted-range` attribute: a deferred `$effect`
 			// writes the attribute, so it lags the synchronous `selectionChange` emit.
-			if (deps.ownsRange()) return null;
+			if (deps.ownsRange() || deps.holdsWidget()) return null;
 			const root = deps.getEditorRoot();
 			if (!root) return null;
 			const range = deps.readSelection()?.range;

@@ -3,7 +3,7 @@
  * beside it, as the thematic break has them. A box whose drawing has an editing surface of its own
  * (`Drawn.focus`) takes the caret from a neighbour's arrow and gives it back at its edges.
  */
-import { imeOwnsKey } from '../../browser/composition';
+import { neverACommand } from '../../browser/composition';
 import { CURSOR_END, entryEdge, type BlockComponent } from '../../block-component';
 import type { NodeView } from '../../core/node-views';
 import { asEditorX, type EditorX } from '../../core/coordinate-spaces';
@@ -100,7 +100,7 @@ export function createDrawnBox(deps: DrawnBoxDeps) {
 	};
 
 	function onKeydown(e: KeyboardEvent): void {
-		if (imeOwnsKey(e)) return;
+		if (neverACommand(e)) return;
 		const drawn = deps.drawn();
 		if (!drawn || drawn.keep?.(e)) return;
 		// In the drawing's own editing surface (`focus`, or a field of its own) a plain key is the

@@ -5,7 +5,14 @@
 import { describe, expect, it } from 'vitest';
 import { editRange } from '#lib/range-edit/edit-range.js';
 import { KNOWN_RESIDUE, knownResidue, type KnownResidue } from './known-residue';
-import { cutPasteBack, keepsOutside, pasteAtCutCaret, type Call } from './laws';
+import {
+	cutPasteBack,
+	keepsOutside,
+	pasteAtCaret,
+	pasteAtCutCaret,
+	plainPaste,
+	type Call
+} from './laws';
 import { checkHost } from './test-host';
 
 describe('the known residue', () => {
@@ -14,10 +21,23 @@ describe('the known residue', () => {
 			const host = checkHost();
 			const call: Call = (source, range, gesture, mode) =>
 				editRange(source, range, gesture, mode, host);
+			const { repro } = known;
+			const drawn = {
+				source: repro.source,
+				mode: repro.mode,
+				at: repro.range.from,
+				held: { holds: 'text' as const },
+				text: repro.text!
+			};
 			const broken = {
-				L3: () => cutPasteBack(call, host, known.repro),
-				L4: () => keepsOutside(call, host, known.repro),
-				L9: () => pasteAtCutCaret(call, host, known.repro)
+				L3: () => cutPasteBack(call, host, repro),
+				L4: () => keepsOutside(call, host, repro),
+				// A range is the cut that leaves the caret; none is a drawn caret, which pastes `text`.
+				L9: () =>
+					repro.range.from < repro.range.to
+						? pasteAtCutCaret(call, host, repro)
+						: pasteAtCaret(call, host, drawn),
+				L11: () => plainPaste(call, host, drawn)
 			}[known.law]();
 			expect(broken).not.toEqual([]);
 			const { source, range } = known.repro;

@@ -280,7 +280,8 @@ const ALLOWLIST: Record<string, Exemption> = {
 			'#lib/schema/plugin-activation.js',
 			'#lib/schema/plugin-unit.js',
 			'#lib/schema/caret-menu.js',
-			'#lib/schema/drafts.js'
+			'#lib/schema/drafts.js',
+			'#lib/tree-operations/top-level-starts.js'
 		],
 		reason:
 			'no headless caret-menu session on the testing barrel: typing a trigger and the draft a pick ' +

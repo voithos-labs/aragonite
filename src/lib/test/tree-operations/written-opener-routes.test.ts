@@ -21,6 +21,7 @@ import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
 import { checkSplicedOpenersClosed } from '#lib/tree-operations/written-openers.js';
 import { checkSplicedChangesClosed } from '#lib/tree-operations/spliced-openers.js';
 import { spliceReading } from '#lib/tree-operations/byte-splice.js';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 beforeEach(() => {
 	installPlugins([latexPlugin(), admonitionsPlugin(), detailsPlugin()]);
@@ -319,8 +320,8 @@ describe('a spliced opener a block below would close', () => {
 			const at = container[1].length;
 			const check = (insert: string) => {
 				const changes = [{ from: at, to: at + 1, insert }];
-				const reading = spliceReading(doc, before, changes, fixtureGrammar)!;
-				return checkSplicedChangesClosed(doc, before, changes, reading, fixtureGrammar);
+				const reading = spliceReading(measured(doc), before, changes, fixtureGrammar)!;
+				return checkSplicedChangesClosed(measured(doc), before, changes, reading, fixtureGrammar);
 			};
 			expect(check(opener)?.code).toBe('spliced-opener-closed');
 			expect(check(`${opener}\n${container[2]}${closer}`)).toBeNull();

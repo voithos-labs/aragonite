@@ -12,7 +12,15 @@ export type DraftResult =
 	| {
 			readonly ok: false;
 			readonly reason:
-				'moved' | 'unloaded' | 'off' | 'reading' | 'overlap' | 'illegal' | 'empty' | 'closed';
+				| 'moved'
+				| 'unloaded'
+				| 'off'
+				| 'reading'
+				| 'overlap'
+				| 'illegal'
+				| 'busy'
+				| 'empty'
+				| 'closed';
 			readonly message: string;
 	  };
 

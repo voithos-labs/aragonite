@@ -87,11 +87,16 @@ describe('handleShiftClick with an image selected whole', () => {
 			getDoc: () => doc,
 			widgetSpan: () => ({ start: 7, end: 18 })
 		});
-		selectWidgetWhole(s, testCaretWriter, {
-			paragraphPath: [0],
-			sourceStart: 7,
-			preSelectOffset: 7
-		});
+		selectWidgetWhole(
+			s,
+			testCaretWriter,
+			{
+				paragraphPath: [0],
+				sourceStart: 7,
+				preSelectOffset: 7
+			},
+			() => null
+		);
 		return s;
 	}
 

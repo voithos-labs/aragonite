@@ -31,7 +31,11 @@ function fenceMenu(source: string) {
 	const editor = makeTopHarness(source);
 	const drafts = createDraftRegistry({
 		stamps: editor.deps.stamps,
+		starts: editor.deps.starts,
+		events: editor.events,
 		doc: () => editor.doc,
+		measured: () => editor.deps.bytes.measured(),
+		source: () => editor.deps.bytes.source(),
 		isReading: () => false,
 		isOn: () => true,
 		grammar: defaultGrammarView,

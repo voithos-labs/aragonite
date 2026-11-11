@@ -10,6 +10,7 @@ import { createSelectionActions } from '#lib/components/editor-root/selection-ac
 import type { InternalDraft } from '#lib/editor-actions/commit/draft-registry.svelte.js';
 import type { Editor } from '#lib/schema/plugin-unit.js';
 import type { SelectionAction } from '#lib/schema/selection-action.js';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 const doc = parse('abc def ghi\n');
 
@@ -24,7 +25,7 @@ function actionsOver(selection: Range, action: SelectionAction | null) {
 	const actions = createSelectionActions({
 		actions: () => (counted ? [{ plugin: 'acts', action: counted }] : []),
 		editorFor: () => ({}) as Editor,
-		getDoc: () => doc,
+		measured: () => measured(doc),
 		source: () => serialize(doc),
 		selection: () => (asked.selections++, selection),
 		hasRange: () => selection.from < selection.to,

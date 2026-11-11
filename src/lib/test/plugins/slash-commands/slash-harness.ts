@@ -14,6 +14,7 @@ import { installPluginList, type Editor, type Plugin } from '#lib/schema/plugin-
 import type { PickDraft } from '#lib/schema/caret-menu.js';
 import type { DraftResult } from '#lib/schema/drafts.js';
 import { slashCommands, type SlashCommandsOptions } from '#packages/slash-commands/src/index.js';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 
 const typedEdit = (path: number[]): EditEvent => ({ op: 'input', path, timestamp: 0 }) as EditEvent;
@@ -86,6 +87,7 @@ export function slashHarness(
 
 	const menu = createInlineMenuState({
 		getDoc: () => doc,
+		measured: () => measured(doc),
 		getSelection: () => ({
 			anchor: { path: [0], offset: caret },
 			focus: { path: [0], offset: caret }

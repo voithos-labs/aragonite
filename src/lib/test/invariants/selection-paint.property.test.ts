@@ -19,6 +19,7 @@ import { createSelectionState } from '../../selection/selection-state.svelte';
 import { pathsEqual } from '../../selection/path-math';
 import type { SelectionPoint } from '../../selection/primitives';
 import { allBlockPaths, arbDocWithSelection, freshOrFixedSeed } from './arbitraries';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 const PARAMS = { numRuns: 1000, seed: freshOrFixedSeed(424243) } as const;
 
@@ -33,7 +34,7 @@ function painted(doc: Document, anchor: SelectionPoint, focus: SelectionPoint): 
 	const coverage = rangeCoverage(doc, coverRange(doc, anchor, focus));
 	const { start, end } = coverage.range;
 	if (pathsEqual(start.path, end.path) || coverage.grid) return null;
-	const layout = documentLayout(doc);
+	const layout = documentLayout(measured(doc));
 	const bytes = rangeBytes(doc, coverage, layout);
 	if (!bytes) throw new Error(`no bytes for [${start.path}]@${start.offset} → [${end.path}]`);
 	return { doc, paint: rangePaint(doc, coverage, layout), inside: insideOf(doc, layout, bytes) };

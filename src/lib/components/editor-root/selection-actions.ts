@@ -4,7 +4,6 @@
  * opened at the pick and closed with its menu.
  */
 import { ACTION_ROWS_PENDING } from '../../a11y-strings';
-import type { DocumentView } from '../../core/node-views';
 import type { InternalDraft } from '../../editor-actions/commit/draft-registry.svelte';
 import type { Editor, PluginError } from '../../schema/plugin-unit';
 import type {
@@ -14,6 +13,7 @@ import type {
 	SelectionAction
 } from '../../schema/selection-action';
 import { documentByteMap } from '../../tree-operations/container-offsets';
+import type { Measured } from '../../tree-operations/top-level-starts';
 import { isThenable } from '../../schema/editor-contributions';
 import type { MenuEntry } from '../menu/BlockMenu.svelte';
 
@@ -50,7 +50,8 @@ export interface SelectionActions {
 export function createSelectionActions(deps: {
 	actions(): readonly ContributedAction[];
 	editorFor(plugin: string): Editor | undefined;
-	getDoc(): DocumentView;
+	/** The document with the starts the editor keeps for it. */
+	measured(): Measured;
 	/** The document's bytes, serialized once per content version. */
 	source(): string;
 	/** The selection in document bytes, null for none or a cell selection. */
@@ -65,7 +66,7 @@ export function createSelectionActions(deps: {
 }): SelectionActions {
 	// One leaf's rects joined; a range across leaves has no one box.
 	function box(from: number, to: number): DOMRect | null {
-		const map = documentByteMap(deps.getDoc());
+		const map = documentByteMap(deps.measured());
 		const start = map.leafAt(from);
 		const end = map.leafAt(to);
 		if (!start || !end || start.path.join() !== end.path.join()) return null;

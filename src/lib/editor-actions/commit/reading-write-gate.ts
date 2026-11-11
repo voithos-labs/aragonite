@@ -1,15 +1,19 @@
 /**
  * Every entry point that writes the document asks here first. A write in reading mode is declined,
  * and a dev build names it; one made for a document a `source` swap replaced, after the editor
- * unmounted, or while an undo or redo installs its entry, is declined quietly. Ask synchronously,
- * before the first await, or the report loses the caller and the write's stamp.
+ * unmounted, or while an undo or redo installs its entry, is declined quietly. A write started
+ * while another is open is refused out loud: the `error` event hears it and a dev build throws.
+ * Ask synchronously, before the first await, or the report loses the caller and the write's stamp.
  */
 
 import { splitLines } from '../../core/lines';
 import { devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';
+import { emitCommitError, type EditorEvents } from '../../editor-events';
 import { isReadingMode } from '../../presentation-mode';
 import type { Reading } from '../../schema/reading';
+import type { OperationKind } from '../../schema/operations';
 import type { DocumentStamps } from './document-stamp';
+import type { KeptStarts } from './kept-starts';
 
 export const READING_WRITE_TAG = 'reading-write';
 
@@ -19,6 +23,38 @@ export const READING_WRITE_TAG = 'reading-write';
 export interface WriteGate {
 	readonly reading: Reading;
 	readonly stamps: DocumentStamps;
+}
+
+/** What an entry point that opens a write window reads besides: whether a write is open now,
+ *  and the channel a write refused for it, or failed, is reported on. */
+export interface OpenWriteCheck {
+	readonly starts: Pick<KeptStarts, 'writing'>;
+	readonly events: Pick<EditorEvents, 'emit'>;
+}
+
+/** The op a failed write names on the `error` event. */
+interface FailedOp {
+	kind: OperationKind;
+	eventPath?: number[];
+}
+
+/** Whether a write may start: false while another is open, whose publish would overwrite it, and
+ *  then refused through `failWrite`. Ask before the write's first side effect. */
+export function startsAlone(door: OpenWriteCheck, op?: FailedOp): boolean {
+	if (!door.starts.writing()) return true;
+	failWrite(door, new Error('aragonite: a write started inside another write'), op);
+	return false;
+}
+
+/** The one way a write fails: the `error` event hears it and a dev build throws, so the code that
+ *  started the write sees it. In production the caller answers as a refused write does. */
+export function failWrite(
+	door: Pick<OpenWriteCheck, 'events'>,
+	error: unknown,
+	op?: FailedOp
+): void {
+	emitCommitError(door.events, { error, op: op?.kind, path: op?.eventPath });
+	if (devChecksOn) throw error;
 }
 
 /** Whether a write naming `op` may land: quietly false for a swapped-out or ended document or
@@ -54,8 +90,13 @@ export function admitsHistoryRequest(
  * For an undo snapshot pushed ahead of a write: declined wherever the write will be, so no empty
  * entry is left on the stack, and silent, because the write that follows reports itself.
  */
-export function admitsSnapshot(gate: WriteGate): boolean {
-	return !gate.stamps.historySwapping() && madeForLiveDocument(gate) && !isReadOnly(gate.reading);
+export function admitsSnapshot(gate: WriteGate & Pick<OpenWriteCheck, 'starts'>): boolean {
+	return (
+		!gate.starts.writing() &&
+		!gate.stamps.historySwapping() &&
+		madeForLiveDocument(gate) &&
+		!isReadOnly(gate.reading)
+	);
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────

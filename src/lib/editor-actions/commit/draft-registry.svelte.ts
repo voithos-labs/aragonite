@@ -2,7 +2,8 @@
  * The editor's open drafts, and the record of what each write changed, kept only while one is open.
  * A draft holds its ranges in the bytes it opened on and maps them through every write since; a
  * write that touched one makes it stale, and its commit is one byte splice, refused with a reason
- * rather than thrown (`docs/design/commit-and-undo.md` § Drafts).
+ * rather than thrown, except that a dev build also throws one started inside another write
+ * (`docs/design/commit-and-undo.md` § Drafts).
  */
 
 import type { Draft, DraftCloseCause, DraftResult, DraftSpec } from '../../schema/drafts';
@@ -10,6 +11,7 @@ import type { DocumentView } from '../../core/node-views';
 import type { CommitSnapshotArg, SourceSplice } from '../../action-contracts';
 import type { ByteChange } from '../../tree-operations/byte-changes';
 import type { DocumentStamps } from './document-stamp';
+import { startsAlone, type OpenWriteCheck } from './reading-write-gate';
 import { serialize } from '../../core/serializer';
 import { devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 import { assertDraftBytesKept } from '../../invariants/install';
@@ -19,6 +21,7 @@ import { splitLines } from '../../core/lines';
 import type { GrammarView } from '../../schema/block-openers';
 import { makingOf } from '../../schema/block-type';
 import { nodeOfBlock, type Block } from '../../schema/doc-view';
+import type { Measured } from '../../tree-operations/top-level-starts';
 import {
 	blockByteOf,
 	blockRange,
@@ -64,9 +67,14 @@ export interface DraftWrites {
 	insert(markdown: string, below: boolean): Promise<boolean>;
 }
 
-export interface DraftRegistryDeps {
+/** `starts` and `events` refuse a commit started while another write is open. */
+export interface DraftRegistryDeps extends OpenWriteCheck {
 	stamps: Pick<DocumentStamps, 'current' | 'historySwapping'>;
 	doc(): DocumentView;
+	/** That document with the starts the editor keeps for it. */
+	measured(): Measured;
+	/** Its bytes, serialized once per content version. */
+	source(): string;
 	isReading(): boolean;
 	/** Whether the editor still runs the plugin. */
 	isOn(plugin: string): boolean;
@@ -135,6 +143,8 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 		}
 
 		async function land(caret: number | undefined): Promise<DraftResult> {
+			if (!startsAlone(deps, { kind: 'replaceBlock' }))
+				return refused('busy', 'it was committed inside another write');
 			if (gone()) return refused('unloaded', 'another document replaced the one it opened on');
 			if (plugin !== undefined && !deps.isOn(plugin))
 				return refused('off', `plugin '${plugin}' was turned off in this editor`);
@@ -161,7 +171,7 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 				if (changes[i].from < changes[i - 1].to || changes[i].from === changes[i - 1].from)
 					return refused('overlap', `two of its ranges meet at byte ${changes[i].from}`);
 			}
-			const text = serialize(doc);
+			const text = deps.source();
 			if (devChecksOn && lengths) {
 				const was = writes.map(({ range }) => ({
 					from: byteAt(lengths!, range.from),
@@ -187,7 +197,7 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 			// A draft needs no record of its own write.
 			drop(opened);
 			const writer = deps.writes();
-			const seed = changes.length > 0 ? snapshotAt(doc, changes[0].from) : null;
+			const seed = changes.length > 0 ? snapshotAt(deps.measured(), changes[0].from) : null;
 			let landed = true;
 			const run = async () => {
 				if (seed) {
@@ -356,8 +366,8 @@ function refused(
 const splitsLineEnding = (text: string, at: number) => text[at - 1] === '\r' && text[at] === '\n';
 
 /** Where undo puts the caret back when nothing is focused: the text at byte `at`. */
-function snapshotAt(doc: DocumentView, at: number): CommitSnapshotArg {
-	const leaf = leafAtByte(doc, at);
+function snapshotAt(measured: Measured, at: number): CommitSnapshotArg {
+	const leaf = leafAtByte(measured, at);
 	return leaf
 		? { path: docPathFrom(leaf.path), offset: leaf.offset }
 		: { path: docPathFrom([0]), offset: 0 };

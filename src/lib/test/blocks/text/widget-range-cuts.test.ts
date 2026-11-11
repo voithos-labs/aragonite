@@ -109,11 +109,16 @@ function clipboardOver(source: string, start = IMAGE_RANGE.start) {
 	const { deps: actions } = makeEditorActionsDeps(source, { reading: LIVE });
 	const blockEdit = makeStubBlockEdit();
 	const selection = createSelectionState();
-	selectWidgetWhole(selection, testCaretWriter, {
-		paragraphPath: [0],
-		sourceStart: start,
-		preSelectOffset: start
-	});
+	selectWidgetWhole(
+		selection,
+		testCaretWriter,
+		{
+			paragraphPath: [0],
+			sourceStart: start,
+			preSelectOffset: start
+		},
+		() => null
+	);
 	const deps = {
 		get node() {
 			return actions.doc.children[0] as CstNode;

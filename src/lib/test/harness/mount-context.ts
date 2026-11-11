@@ -61,6 +61,7 @@ import { createWidgetEdgeHolder, type DrawnCaret } from '#lib/caret/drawn-caret.
 import { bindActivationClick, createPressTracker } from '#lib/activation-click.js';
 import { createTextMoves } from '#lib/components/overlays/text-moves.js';
 import { rangeHolder } from '#lib/selection/held-selection.js';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 interface HistoryStub {
 	requestUndo: () => void;
@@ -106,7 +107,7 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		decorations: createDecorationEngine({ getDoc }),
 		read: createDocumentRead({
 			getDoc,
-			version: () => 0,
+			measured: () => measured(getDoc()),
 			typeOf: (kind) => ({ name: kind, label: kind }),
 			reading: { grammar: defaultGrammarView, resolver: undefined, resolverSignature: '' }
 		}),
@@ -279,7 +280,7 @@ export function editorMountContext(overrides: MountContextOverrides = {}): Map<s
 		overrides.services?.rangePaint ??
 		(() => {
 			const coverage = services.rangeCoverage();
-			return coverage && rangePaint(doc.doc(), coverage, documentLayout(doc.doc()));
+			return coverage && rangePaint(doc.doc(), coverage, documentLayout(measured(doc.doc())));
 		});
 	const history = overrides.history ?? { requestUndo: vi.fn(), requestRedo: vi.fn() };
 	// The editor's one command context, read from the groups above so a test's override of the

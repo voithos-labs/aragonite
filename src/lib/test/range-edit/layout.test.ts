@@ -16,6 +16,7 @@ import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
 import { SYNTAX_PLUGINS } from '../behavior/corpus';
 import { arbLawDocument } from '../range-laws/shapes';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 const EXTRA = [
 	'> [!NOTE]\n> alpha\n> beta\n\nafter\n',
@@ -58,7 +59,7 @@ it('every block and container line reads back from the bytes', () => {
 	const misses: string[] = [];
 	for (const source of docs) {
 		const doc = readAsOpened(source, { grammar, scope: 'document' });
-		const layout = documentLayout(doc);
+		const layout = documentLayout(measured(doc));
 		const q = (what: string) => misses.push(`${JSON.stringify(source)} ${what}`);
 		for (const block of layout.within(0, Infinity)) {
 			const node = blockNodeAt(doc, block.path)!;
@@ -89,7 +90,7 @@ it('a block with an empty children array lays out as the byte map reads it, a bl
 	const source = 'above\n\n```mermaid\ngraph TD\n```\n';
 	const doc = readAsOpened(source, { grammar: defaultGrammarView, scope: 'document' });
 	expect(blockNodeAt(doc, [1])!.children).toEqual([]);
-	const layout = documentLayout(doc);
+	const layout = documentLayout(measured(doc));
 	expect(layout.block([1])!.text).toEqual({ from: 7, to: source.length - 1 });
 	expect(layout.byteOf([1], 0)).toBe(7);
 	expect(layout.pointAt(7)).toEqual({ path: [1], offset: 0 });

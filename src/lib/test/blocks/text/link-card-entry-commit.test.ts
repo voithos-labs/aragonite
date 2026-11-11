@@ -322,6 +322,7 @@ describe('create entry', () => {
 			spansBlocks = false
 		): void {
 			enterLinkCardAtCaret({
+				holdsWidget: false,
 				contentEl: document.createElement('div'),
 				block: parse(source).children[0] as NodeView,
 				path: [0],
@@ -414,6 +415,7 @@ describe('range entry', () => {
 		seat(el, start, end);
 		const card = makeCard(spansBlocks);
 		enterLinkCardAtCaret({
+			holdsWidget: false,
 			contentEl: el,
 			block: node,
 			path: [0],

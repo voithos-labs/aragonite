@@ -86,7 +86,7 @@ Below the verbs:
 - Then `src/lib/browser/caret-writer.ts` :: `placeCaretAtRaw` turns the raw offset into a DOM position: past the container's marker prefix, never behind a hidden marker run, and only where a caret can actually sit. A line's start lands in the text after the line break, not at the end of the node that holds it, since WebKit and Firefox draw a caret there on the line above. In an empty block that's before its placeholder `<br>` (the line break an empty editable holds so it has a line at all, alone or after a list item's marker), since Chromium drops an IME composition started after it.
 - Last, the writer checks that something will actually show the caret there (`src/lib/browser/caret-spot.ts` :: `caretSpotOf`). Text, a `<br>`'s line and the spot beside a widget all have a line the browser can paint on, since every widget lays out inline, pictures included. A widget laid out as a block would have no line beside it (the letter lands on the next line and Chromium starts no composition there), and in a dev build G1.160 fails a caret written beside one. Beside a picture the drawn caret shows the caret itself (`docs/design/selection.md` § The drawn caret). A caret with nothing but hidden marker runs around it moves to visible text at the same offset, and if there's none the write is refused (G1.159), which only a plugin block drawing nothing but markers ever hits.
 - A browser range put down inside one block without a pointer (a first Mod+A, a block's `setSelection`) goes through `selectInBlock` in `place-caret.ts`, which ends what the editor had selected the way `focus` does.
-- The two selections the editor keeps without a DOM caret have their own entries in the same file: `placeGapCaret` for the gap between blocks, and `selectWidgetWhole` for an inline widget selected whole (an image, say). Each ends the others the way `focus` does, and a lint fails any other file that writes either.
+- The two selections the editor keeps without a caret on screen have their own entries in the same file: `placeGapCaret` for the gap between blocks, and `selectWidgetWhole` for an inline widget selected whole (an image, say). Each ends the others the way `focus` does, and a lint fails any other file that writes either.
 - A lint (G4.270) fails any native selection write outside the caret writer, `browser/caret-writer.ts`.
 
 ## 4. The snap
@@ -109,7 +109,7 @@ The widgets it measures are every widget the block draws, a picture inside a lin
 
 The snap does nothing when the browser already put the caret in visible text, or when the surface holds a range (the second and third clicks of a run are a word or block selection, `src/lib/selection/multi-click.ts`, not a caret).
 
-The same click also moves a caret that landed inside the container's marker prefix (the `[^label]: ` in front of a footnote definition's text) back into the content. And while a widget is selected whole, a caret the browser puts in its block is dropped, so the document has no caret until a key places one or a press lands elsewhere (`docs/design/selection.md`).
+The same click also moves a caret that landed inside the container's marker prefix (the `[^label]: ` in front of a footnote definition's text) back into the content. And while a widget is selected whole, a caret the browser puts in its block goes back to the widget's edge, where it stays hidden until a key places one or a press lands elsewhere (`docs/design/selection.md`).
 
 That's the caret placed. Now the keyboard.
 

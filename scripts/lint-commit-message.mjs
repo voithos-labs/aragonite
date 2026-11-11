@@ -179,7 +179,7 @@ function report(problems, label) {
 		console.error(`  line ${problem.line}  ${problem.rule}: ${problem.detail}`);
 		console.error(`    ${problem.text}`);
 	}
-	console.error('  convention: docs/contributing/commit-conventions.md');
+	console.error('  convention: CONTRIBUTING.md § Commit messages');
 }
 
 /**

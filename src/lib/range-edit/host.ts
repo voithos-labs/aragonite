@@ -28,6 +28,7 @@ import { storedAsAt, writeTargetAt } from '../tree-operations/stored-as';
 import { cellText } from '../core/parsers/table-line';
 import { editorHost } from '../tree-operations/fix-up/editor-host';
 import { blankLineBelongs } from '../tree-operations/fix-up/joins';
+import { measured } from '../tree-operations/top-level-starts';
 import { documentLayout, type Layout } from './layout';
 
 export type Mode = 'source' | 'live';
@@ -97,6 +98,9 @@ export interface RangeHost {
 		 *  Markdown, as written where it is literal. */
 		plain(doc: DocumentView, path: readonly number[], text: string): string;
 	};
+	/** `text` as a paragraph writes it to show every character of it: Paste as plain text between
+	 *  blocks, where no block is there to ask. */
+	escaped(text: string): string;
 	/** The fence a block's bytes open, by the openers of the editor's grammar; null for none. */
 	fence(raw: string): Fence | null;
 	/** Where the text of the line holding `at` starts from `at`, past the markers of the grammar's
@@ -105,6 +109,13 @@ export interface RangeHost {
 	/** Whether `line` already keeps two blocks inside containers of `kinds` (outermost first) apart:
 	 *  blank past one marker of each, or holding only markers no paragraph runs into (a quote's). */
 	blankIn(kinds: readonly string[], line: string): boolean;
+}
+
+/** The host a paste reads through: the range host, and the editor's paste transforms. */
+export interface PasteHost extends RangeHost {
+	/** `text`, a clipboard read as `blocks`, as the paste transforms rewrite it, or `text` itself.
+	 *  The core calls it at most once per paste, and never where the clipboard lands unread as text. */
+	transformPaste(text: string, blocks: DocumentView): string;
 }
 
 export interface Fence {
@@ -164,8 +175,8 @@ export function rangeHost(
 				: readAsOpened(source, { grammar: reading.grammar, scope: 'document' }),
 		layout: (doc) =>
 			doc === current?.tree
-				? (currentLayout ??= current.layout ?? documentLayout(doc))
-				: documentLayout(doc),
+				? (currentLayout ??= current.layout ?? documentLayout(measured(doc)))
+				: documentLayout(measured(doc)),
 		facts: blockFacts,
 		parts(doc, parent, index, upper, lower, placed) {
 			const fixUp = editorHost(reading.grammar);
@@ -212,6 +223,7 @@ export function rangeHost(
 				return literal ? text : escapeMarkdownLiteral(text);
 			}
 		},
+		escaped: escapeMarkdownLiteral,
 		fence(raw) {
 			const body = raw.indexOf('\n') + 1;
 			if (body === 0) return null;

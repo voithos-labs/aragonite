@@ -62,4 +62,7 @@ export interface EditorTestSurface {
 	/** Writes `source` through the byte splice, the commit the range gestures move onto, until a
 	 *  gesture calls it: the range laws' twin editor and the perf rows reach it here. */
 	spliceSource(source: string, caret: SpliceCaret, op: OpDescriptor): Promise<boolean>;
+	/** The document byte offset `offset` of the text block at `path` sits at, read as a range
+	 *  gesture reads it: what a listener asking where the caret is on every edit costs. */
+	byteOf(path: readonly number[], offset: number): number | null;
 }

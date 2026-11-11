@@ -9,6 +9,7 @@ import { createConstructReveal } from '#lib/components/blocks/text/construct-rev
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import { makeRenderHarness } from '#lib/test/harness/text-render.js';
 import { placeCaretAt } from './math-widget-fixture';
+import { rawSelectionFocus } from '#lib/browser/selection-read.js';
 
 const CONSTRUCTS = 'plain **bold** and *em* and [a link](u)\n';
 
@@ -26,6 +27,7 @@ function readsFor(raw: string, mode: PresentationMode): number {
 			return harness.deps.reading;
 		},
 		getEl: () => harness.el,
+		caretFocus: () => rawSelectionFocus(harness.el),
 		ownsRange: () => false,
 		textMoves: { movedWithin: () => {} },
 		caretWriter: { rewriteCaret: () => false }

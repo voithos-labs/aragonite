@@ -11,6 +11,7 @@ import { SELECTION_END } from '../../block-component';
 import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { rangePaint, type RangePaint } from '../../selection/range-bytes';
 import { documentLayout } from '../../range-edit/layout';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 const FIVE = 'p0\n\np1\n\np2\n\np3\n\np4\n';
 /** [0] and [2] quotes of two paragraphs each, [1] a paragraph between them. */
@@ -23,7 +24,11 @@ function sel(
 	source = FIVE
 ): RangePaint {
 	const doc = parse(source);
-	return rangePaint(doc, rangeCoverage(doc, coverRange(doc, anchor, focus)), documentLayout(doc));
+	return rangePaint(
+		doc,
+		rangeCoverage(doc, coverRange(doc, anchor, focus)),
+		documentLayout(measured(doc))
+	);
 }
 
 describe('classifyBlockForSelection', () => {
@@ -192,7 +197,11 @@ describe('a closed details the range takes whole', () => {
 		['starting on its title row', { path: [1, 0], offset: 1 }, { path: [2], offset: 2 }]
 	])('%s paints one box, and its title row paints no endpoint', (_, anchor, focus) => {
 		const d = doc();
-		const range = rangePaint(d, rangeCoverage(d, coverRange(d, anchor, focus)), documentLayout(d));
+		const range = rangePaint(
+			d,
+			rangeCoverage(d, coverRange(d, anchor, focus)),
+			documentLayout(measured(d))
+		);
 		expect(blockPaintsWholeBox([1], range, null)).toBe(true);
 		expect(classifyBlockForSelection([1], range)).toBe('whole');
 		for (const inside of [

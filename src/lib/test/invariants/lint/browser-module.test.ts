@@ -189,7 +189,7 @@ const RULES: FileRule[] = [
 		mustMatch: [SOURCE.compositionTracker],
 		reaches: [SOURCE.editableSurface, SOURCE.typedInput, SOURCE.delimiterAutopair],
 		reason:
-			'engines disagree about when a key is the IME’s (Chromium and WebKit send the key that opens a composition with `isComposing: false`), so the editor asks in one place: `imeOwnsKey` for a key, `imeOwnsInput` for an input, in browser/composition.ts',
+			'engines disagree about when a key is the IME’s (Chromium and WebKit send the key that opens a composition with `isComposing: false`), so the editor asks in one place: `neverACommand` for a key, `imeOwnsInput` for an input, in browser/composition.ts',
 		hits: [
 			'if (e.isComposing) return;',
 			"e: Pick<KeyboardEvent, 'key' | 'isComposing'>",
@@ -197,6 +197,7 @@ const RULES: FileRule[] = [
 			inBrowser('if (e.isComposing) return;')
 		],
 		misses: [
+			'if (neverACommand(e)) return;',
 			'if (imeOwnsKey(e)) return;',
 			'if (imeOwnsInput(e)) return;',
 			at(SOURCE.compositionTracker, 'return e.isComposing;'),

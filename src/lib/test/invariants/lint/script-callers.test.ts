@@ -97,7 +97,7 @@ const CALLERS = callerFiles();
 /** Scripts a person runs by hand: no npm script, workflow or import reaches them. */
 const HAND_RUN: Record<string, string> = {
 	'scripts/issues/audit-issues.mjs': 'a maintainer runs it before a release; rules.md names it',
-	'scripts/ci/ci-time.mjs': 'a report of the last dev push, run by hand; testing.md names it',
+	'scripts/ci/ci-time.mjs': 'a report of the last dev push, run by hand; its header says how',
 	'scripts/vendor/extract-spec-examples.mjs': 'regenerates the CommonMark examples on a spec bump',
 	'scripts/ci/refresh-shard-timings.mjs': 'release prep rewrites the shard table; its test says so',
 	'scripts/docs/render-perf-chart.mjs': 'redraws the README charts after a perf re-bless',

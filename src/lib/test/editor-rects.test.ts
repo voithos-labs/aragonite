@@ -34,6 +34,7 @@ function makeRects(over: Partial<Parameters<typeof createEditorRects>[0]> = {}) 
 		getEditorRoot: () => null,
 		scroll: { place },
 		ownsRange: () => false,
+		holdsWidget: () => false,
 		isHostChrome: () => false,
 		landCaretAt,
 		caretRectAt,
@@ -142,6 +143,14 @@ describe('EditorRects.caretRect', () => {
 	it('is null while a cross-block selection is active, however the browser selection reads', () => {
 		const { root } = rootWithCaret();
 		const { rects } = makeRects({ getEditorRoot: () => root, ownsRange: () => true });
+		expect(rects.caretRect()).toBeNull();
+	});
+
+	// Miss-analysis: a selected widget held no browser caret until it kept one for input, and no
+	// row asked the public rect for a caret nobody sees.
+	it('is null while a widget is selected whole, whose caret is hidden under it', () => {
+		const { root } = rootWithCaret();
+		const { rects } = makeRects({ getEditorRoot: () => root, holdsWidget: () => true });
 		expect(rects.caretRect()).toBeNull();
 	});
 

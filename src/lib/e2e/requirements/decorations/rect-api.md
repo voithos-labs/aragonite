@@ -35,6 +35,11 @@ reports boxes of about zero size, so the geometry is tested end to end.
 - `SELECTION_END` on a grid takes its meaning from `measurePartialRects` and is tested only
   where a text block clamps it: passing `SELECTION_END` as `end` on a table addresses "through
   the last cell", but no spec pins that clamp on a grid. Recorded, not covered
+- `caretRect` while a picture is selected whole returns `null`, and a rect again once a typed
+  letter has replaced the picture: the browser keeps a caret at a selected widget's edge for text
+  to arrive at, hidden, and a control that follows the caret has nothing to follow there
+  - Miss-analysis: a selected widget held no browser caret until it kept one for input, and no
+    spec read the public rect while one was selected
 - `caretRect` called from inside a `selectionChange` handler during cross-block entry returns
   `null`: it reads live `SelectionState`, not the `data-painted-range` DOM mirror the deferred effect
   writes one flush later, so the range held aside never leaks during the synchronous emit window
@@ -46,6 +51,7 @@ The answers that aren't geometry run without a page:
 - `reveal` on a path it cannot mount (out of range, no block there) resolves `false`
   (`test/editor-rects.test.ts`)
 - `scrollTo` on a path it cannot mount resolves `false` (`test/editor-rects.test.ts`)
-- `caretRect` returns `null` while a cross-block selection is active, when nothing in the editor is
-  focused, when the caret sits outside the editor or in the host's header snippet
+- `caretRect` returns `null` while a cross-block selection is active or a widget is selected
+  whole, when nothing in the editor is focused, when the caret sits outside the editor or in the
+  host's header snippet
   (`test/editor-rects.test.ts`)

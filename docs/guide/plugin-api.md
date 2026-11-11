@@ -169,7 +169,11 @@ interface Draft {
 
 type DraftResult =
 	| { ok: true }
-	| { ok: false; reason: 'moved' | 'unloaded' | 'off' | 'reading' | 'overlap' | 'illegal' | 'empty'; message: string };
+	| {
+			ok: false;
+			reason: 'moved' | 'unloaded' | 'off' | 'reading' | 'overlap' | 'illegal' | 'busy' | 'empty' | 'closed';
+			message: string;
+	  };
 ```
 
 The way your plugin writes bytes, from `edit()` on the `Editor` your `setup` gets or on an `EditorContext` (a host gets the same from `EditorInstance.edit()`). Positions are byte offsets into the document's text as it stood when you called `edit()`, so you can measure a range, go fetch something, and write when it comes back:
@@ -188,7 +192,7 @@ if (!result.ok) console.warn(result.reason, result.message); // 'moved': they ty
 - `stale` turns true once a write elsewhere touches one of your ranges, or the host loads another document. It's reactive, so a Svelte effect reading it reruns.
 - `end()` drops the draft without writing. One you just let go of is dropped eventually too, but ending it stops the editor tracking writes for it right away.
 
-What a commit can come back with (nothing throws, and a refused commit writes nothing):
+What a commit can come back with (nothing throws in production, and a refused commit writes nothing):
 
 | `reason` | When |
 | --- | --- |
@@ -198,6 +202,7 @@ What a commit can come back with (nothing throws, and a refused commit writes no
 | `reading` | The editor's in reading mode |
 | `overlap` | Two of your own ranges overlap |
 | `illegal` | A range runs past the document's end or splits a `\r\n`, or the insert had no caret to land at |
+| `busy` | You committed while another write was still running (from your `rebuildRaw`, say). A dev build also throws |
 | `empty` | Nothing to write: no ranges, only the bytes already there, or the draft was ended |
 | `closed` | The menu the row was picked from closed before the write (a selection action's row) |
 

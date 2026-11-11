@@ -5,7 +5,7 @@
  * it without the menu or its opener ever holding focus (Safari never focuses a clicked button).
  */
 
-import { imeOwnsKey } from '../../browser/composition';
+import { neverACommand } from '../../browser/composition';
 import { tick, untrack } from 'svelte';
 import type { Attachment } from 'svelte/attachments';
 import { assertInvariant, devWarn } from '@voithos-labs/aragonite/dev-checks';
@@ -87,7 +87,7 @@ export function createMenuPresence(deps: MenuPresenceDeps): MenuPresence {
 	};
 	const onKeyDown = (e: KeyboardEvent) => {
 		// A composing Escape cancels the IME's conversion, not a menu.
-		if (e.key !== 'Escape' || imeOwnsKey(e)) return;
+		if (e.key !== 'Escape' || neverACommand(e)) return;
 		const newest = open.at(-1);
 		if (!newest || !closeMenu(newest, 'escape-key')) return;
 		e.preventDefault();

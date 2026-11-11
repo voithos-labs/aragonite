@@ -1,5 +1,9 @@
 import { test, expect } from '../../fixtures';
-import { documentCaret, waitForFirstImageLoaded } from '../blocks/image/helpers';
+import {
+	selectedImageCaret,
+	HIDDEN_AT_IMAGE_END,
+	waitForFirstImageLoaded
+} from '../blocks/image/helpers';
 import { PluginsPage } from '../plugins/helpers';
 import { nativeSelectionText, inlineWidgetCenter } from './multi-click-helpers';
 import { multiClick } from '../../multi-click';
@@ -126,9 +130,12 @@ test.describe('multi-click: the block inline syntax handler beside inline widget
 			await expect(page.locator('[data-image-overlay]')).toHaveCount(1);
 			await page.waitForTimeout(150);
 			expect(await nativeSelectionText(page)).toBe('');
-			// No native caret; the editor's read answers the image's end, where the click left it.
+			// No caret shows; the editor's read answers the image's end, where the click left it.
 			const imageEnd = { path: [0], offset: IMAGE_PARAGRAPH.indexOf(')') + 1 };
-			expect(await documentCaret(page)).toEqual([0, { anchor: imageEnd, focus: imageEnd }]);
+			expect(await selectedImageCaret(page)).toEqual([
+				HIDDEN_AT_IMAGE_END,
+				{ anchor: imageEnd, focus: imageEnd }
+			]);
 			// The open crop holds typing; Escape ends just the crop, and the image stays selected.
 			await page.keyboard.press('Escape');
 			await expect(page.locator('.md-image-crop-surface')).toHaveCount(0);

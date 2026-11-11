@@ -27,8 +27,9 @@ import {
 	traceStickyReset
 } from '../debug/interaction-trace';
 
-/** The part of a keydown the classifiers read. */
-export type CaretKey = EdgeKeys;
+/** The part of a keydown the classifiers read: one past its handler's `neverACommand`, so it
+ *  names its key. */
+export type CaretKey = EdgeKeys & Pick<KeyboardEvent, 'key'>;
 
 export interface CaretMemory {
 	/** The editor-relative x a vertical move aims for, or null outside an Up/Down run. */

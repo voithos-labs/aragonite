@@ -132,7 +132,10 @@ These checks run in three kinds of place:
 | G1.205 | A painted mark covers the document bytes it was painted at, and its handlers read those bytes back | N |
 | G1.206 | A write that replaced no link definition leaves the definitions as they were | A·N |
 | G1.207 | A container's text has its bytes under whatever marker its line shape states | harness |
+| G1.208 | A widget selected whole in the focused block leaves the browser a collapsed caret there | A·N |
+| G1.209 | The starts the editor keeps for its top-level blocks are the document's | A·N |
 | G1.210 | A range edit reads a container line's markers through the line shapes the parser reads | harness |
+| G1.211 | A write started while another is open writes nothing | A·L·N |
 
 ### The entries
 
@@ -150,7 +153,7 @@ These checks run in three kinds of place:
 
 **G1.8 · Well-formed content ranges.** `getContentRange` is well-formed for every kind that has one: the prose kinds, plus any non-prose kind declaring its own (the directive leaf does), because the range is consumed without asking `supportsInline` first. Predicate `checkContentRange` (`descriptor.ts`) · commit primitive · `descriptor.test.ts`.
 
-**G1.9 · Snapshot aliasing.** No mutation writes bytes through a node an undo or redo entry shares; moving one within the live tree is fine. Readers and plugins hold bytes-readonly views (G3.8; G4.13 guards the casts), and a writer copies the path, then re-reads the copy through the `$state` tree (`tree-operations/unshare.ts` header); the table rebuild alone writes a child's bytes, to a row the edit already copied. Dev hashes every node's bytes. `checkSnapshotIntegrity` · `snapshot-integrity.test.ts`, `undo-restoration.property.test.ts`, `grammar-restore.test.ts`; a throwing commit is G2.17.
+**G1.9 · Snapshot aliasing.** No mutation writes bytes through a node an undo or redo entry shares; moving one is fine. Readers and plugins hold bytes-readonly views (G3.8, G4.13), and a writer copies the path first (`tree-operations/unshare.ts`); only the table rebuild writes a child's bytes, to a row already copied. G1.209 leans on it, finding a block written in place by its absence from the newest snapshot. Dev hashes every node's bytes. `checkSnapshotIntegrity` · `snapshot-integrity.test.ts`, `undo-restoration.property.test.ts`, `grammar-restore.test.ts`; a throwing commit is G2.17.
 
 **G1.10 · Unique opener priorities.** No two openers share a priority: a tie still dispatches by kind name, but it's almost always a mistake. Predicate `checkOpenerRegistry` (`registry.ts`) · bootstrap · `opener-registry.test.ts`.
 
@@ -222,7 +225,7 @@ These checks run in three kinds of place:
 
 **G1.47 · A child measures into its own list** (`measures-in-own-list`). Each block list gives its direct children one measure channel, which they join through `useMeasuredChild` with their own path. The channel refuses any other path: a list item calling the hook after providing its own inner list would put its height in a table that doesn't index it. Predicate `isOwnChild` · `use-container-windowing.svelte.ts` · `measured-child-routes.svelte.test.ts`; G4.97 is the source half.
 
-**G1.52 · The cached text is the document** (`current-source`). `getSource()` serializes once per content version, and a `source` prop write is compared with that string, so a write that skips the version bump (G4.52) reports text the editor no longer holds. In dev the first reuse of a version's text re-serializes and compares, except with the perf instruments armed and in the `source` swap compare, which an echoing host hits every keystroke. `invariants/current-source.ts` · `commit/current-source.ts :: createCurrentSource` · `current-source.test.ts`.
+**G1.52 · The cached text is the document** (`current-source`). `getSource()` serializes once per content version, and a `source` prop write is compared with that string, so a write that skips the version bump (G4.52) reports text the editor no longer holds. A read inside a write serializes afresh. In dev the first reuse of a version's text re-serializes and compares, except with the perf instruments armed and in the `source` swap compare, which an echoing host hits every keystroke. `invariants/current-source.ts` · `commit/current-source.ts :: createCurrentSource` · `current-source.test.ts`.
 
 **G1.54 · The tree's top-level array comes back untouched** (`top-level-untouched`). A commit with the document among its scopes hands its mutation a copy of the top-level array and installs it at publish, so a write to the tree's own array is thrown away; the commit fails when that array was replaced or written (not with the perf instruments armed). Predicate `checkTopLevelUntouched` · `structural-commit.ts` · `top-level-untouched.test.ts`, `top-level-splice-writes.test.ts`.
 
@@ -278,7 +281,7 @@ These checks run in three kinds of place:
 
 **G1.122 · A metadata read names the node's kind** (`metadata-of-kind`). `metadataOf(node, kind)` is for a caller that already knows the node is a `kind` (it checked, or found the node where only that kind lives), and dev fails when it isn't. A node that might be something else, plugin containers included, is read with `metadataIfKind`, which gives undefined there. That's what keeps a container whose metadata has an `ordered` field from renumbering like a list. `core/nodes.ts` · `plugin-metadata.test.ts`.
 
-**G1.128 · A caret key on a selected widget leaves it** (`selected-widget-motion`). Selecting a widget clears the browser's range, so a key that moves or extends the caret, passed on to the shared keydown or the browser, needs a real selection first: a caret at the edge the key moves toward, or for an extend the widget as a range anchored at its far edge. Dev fails a caret key the widget's handler passed on with the widget still selected. `checkMotionLeftWidget` · `selected-widget-motion.test.ts`.
+**G1.128 · A caret key on a selected widget leaves it** (`selected-widget-motion`). A selected widget keeps only a hidden caret no read answers, so a key that moves or extends the caret, passed on to the shared keydown or the browser, needs a real selection first: a caret at the edge the key moves toward, or for an extend the widget as a range anchored at its far edge. Dev fails a caret key the widget's handler passed on with the widget still selected. `checkMotionLeftWidget` · `selected-widget-motion.test.ts`.
 
 **G1.131 · A reading-mode landing leaves no caret** (`reading-landing-leaves-no-caret`). Reading mode has no caret, so a landing there (a footnote jump, an outline entry, `navigateTo`) moves focus to its target and clears the selection: Firefox starts Tab from a selection, the others from focus. Dev fails a selection still in the landed block once the landing has scrolled (only that block, so a click elsewhere mid-scroll passes). `checkReadingLandingLeavesNoCaret` · `caret-landing.test.ts`, `reading-jump-focus.spec.ts`.
 
@@ -366,4 +369,10 @@ These checks run in three kinds of place:
 
 **G1.207 · A container's marker is read from its line shape.** The byte map finds where a line's text starts with the kind's own `reads` or `open`, so a `container` block type under a marker no built-in writes has a byte for every text position, and a range in it is cut and removed as the same range in a quote is. A kind that states no line shape is read by the built-in markers. `markerOf` (`tree-operations/container-offsets.ts`) · `plugins/blocks/container-bytes.svelte.test.ts`.
 
+**G1.208 · A selected widget keeps a caret** (`widget-keeps-caret`). Text that arrives with no key (a soft keyboard, an emoji picker, an IME) goes only to a selection, so a widget selected whole in the focused block keeps a collapsed caret in that block, hidden, and the selection bridge puts it back when the browser moves or drops it. Nothing shows it, so G1.159 doesn't judge it (`placeUnshownCaret`). Dev fails the bridge's check with none there. Reading mode holds no caret and is exempt. `checkWidgetKeepsCaret` · `widget-keeps-caret.test.ts`, `typed-insert-class.spec.ts`.
+
+**G1.209 · The kept starts are the document's** (`kept-starts-current`). A byte writer changes the tree inside the record's `duringWrite` and hands back the runs it changed, or null, which forgets the record; a throw forgets it too. A view is read again after each write. Dev fails a kept length unlike the tree's, a block count changed unannounced, and a read inside a write (answered from a fresh measure in every build). `invariants/kept-starts.ts` · `commit/kept-starts.ts` · `top-level-starts.test.ts`, `kept-starts-routes.test.ts`, `write-window-closes.test.ts`.
+
 **G1.210 · A range edit reads markers through the line shapes.** A removal or a paste asks the host where a line's text starts and whether a line parts two blocks, and the host reads the grammar's `markedLines()` through each shape's own line syntax. So a `container` block type under its own marker keeps its lines as a quote does. Markers alone part two blocks only where they interrupt a paragraph. Over the built-ins every read ends where a run of spaces, tabs and `>` does. `range-edit/host.ts` · `range-edit/line-markers.test.ts`, `plugins/blocks/container-bytes.svelte.test.ts`.
+
+**G1.211 · One write at a time.** A write started between another's first change and its announcement (from a write rule or a `rebuildRaw`, say) would vanish under the outer publish, so it writes nothing, pushes no entry, emits no `edit`, reports on `error` and throws in dev. Each entry point asks `startsAlone` first; `duringWrite` refuses a second window in every build. An `edit` or `selectionChange` handler may write. `commit/reading-write-gate.ts` · `write-inside-write.test.ts`, `lint/content-version-doors.test.ts`.

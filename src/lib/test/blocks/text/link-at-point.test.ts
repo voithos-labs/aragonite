@@ -55,12 +55,12 @@ function clickInside(el: HTMLElement, word: string): Element {
 	throw new Error(`clickInside: "${word}" not found`);
 }
 
-function resolve(source: string, word: string) {
+function resolve(source: string, word: string, holdsWidget = false) {
 	const { el, node, reading } = mount(source);
 	const hit = clickInside(el, word).closest(LINK_ELEMENT_SELECTOR);
 	return hit === null
 		? null
-		: resolveLinkAtPoint({ contentEl: el, block: node, path: [0], reading });
+		: resolveLinkAtPoint({ contentEl: el, block: node, path: [0], reading, holdsWidget });
 }
 
 afterEach(() => {
@@ -69,6 +69,12 @@ afterEach(() => {
 });
 
 describe('resolveLinkAtPoint', () => {
+	// Miss-analysis: a selected widget held no caret, so no row asked what a click on a picture
+	// inside a link follows; with its hidden caret there, the link's card opened over the picture's.
+	it('follows nothing from the caret a widget selected whole keeps inside a link', () => {
+		expect(resolve('Visit [example](https://x.com) now\n', 'example', true)).toBeNull();
+	});
+
 	it('resolves an inline link to its path and construct start', () => {
 		expect(resolve('Visit [example](https://x.com) now\n', 'example')).toMatchObject({
 			target: { path: [0], sourceStart: 6 },

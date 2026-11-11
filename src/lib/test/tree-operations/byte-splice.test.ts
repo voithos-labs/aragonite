@@ -11,6 +11,7 @@ import { installPlugins } from '#lib/schema/plugin-install.js';
 import { initDocument } from '#lib/components/editor-root/document-swap.js';
 import { assignChildIdsDeep } from '#lib/block-id.js';
 import { spliceReading } from '#lib/tree-operations/byte-splice.js';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 import { changesBetween, type ByteChange } from '#lib/tree-operations/byte-changes.js';
 import { reloadDivergence } from '#lib/test/exhaustive/edit-driver.js';
 import { SYNTAX_PLUGINS } from '../behavior/corpus';
@@ -36,7 +37,7 @@ function splice(source: string, changes: (before: string) => ByteChange[]) {
 	const kept = [...doc.children];
 	const before = serialize(doc);
 	const made = changes(before);
-	const reading = spliceReading(doc, before, made, defaultGrammarView);
+	const reading = spliceReading(measured(doc), before, made, defaultGrammarView);
 	for (const window of [...(reading?.windows ?? [])].reverse()) {
 		doc.children.splice(window.at, window.count, ...window.blocks);
 	}

@@ -16,14 +16,31 @@ export interface Doc {
 	layout: Layout;
 	host: RangeHost;
 	mode: Mode;
+	/** The line ending a new line takes: the first the gesture's source held before any byte of it
+	 *  changed, `\n` where it held none, as pasted text arrives. */
+	ending: LineEnding;
 	/** The range names blocks the editor was asked to remove whole, not text: a paragraph goes too,
 	 *  and a block ending its parent takes the separator above it. */
 	wholeBlocks?: boolean;
 }
 
+/** What a caret holds: a block's text, or a place between two children of the block at `parent`
+ *  (the document's own behind an empty path), `'block'` where a block with no text place starts. */
+export type Held = { holds: 'text' } | { holds: 'block' | 'boundary'; parent: readonly number[] };
+
+/** A caret by its byte and what it holds there. */
+export type Place = { at: number } & Held;
+
 export function readDoc(source: string, host: RangeHost, mode: Mode): Doc {
 	const tree = host.read(source);
-	return { source, tree, layout: host.layout(tree), host, mode };
+	return {
+		source,
+		tree,
+		layout: host.layout(tree),
+		host,
+		mode,
+		ending: firstLineEnding(source) ?? '\n'
+	};
 }
 
 export const factsOf = (doc: Doc, block: LaidBlock): BlockFacts => doc.host.facts(block.type);
@@ -48,9 +65,6 @@ export const parentOf = (doc: Doc, block: LaidBlock): LaidBlock | undefined =>
 export const contentEnd = (doc: Doc, block: LaidBlock) =>
 	block.to - ownTrailingLineEnding(doc.source.slice(block.from, block.to)).length;
 
-/** The document's line ending, its first; `\n` where it has none, as pasted text arrives. */
-export const endingOf = (source: string): LineEnding => firstLineEnding(source) ?? '\n';
-
 /** The text block whose text holds `byte`, with the offset into its bytes. */
 export function leafAt(doc: Doc, byte: number): { leaf: LaidBlock; offset: number } | null {
 	const point = doc.layout.pointAt(byte);
@@ -61,6 +75,21 @@ export function leafAt(doc: Doc, byte: number): { leaf: LaidBlock; offset: numbe
 	const before = point!.offset > 0 ? doc.layout.byteOf(leaf.path, point!.offset - 1) : -1;
 	const empty = leaf.text.from === leaf.text.to && leaf.from < leaf.to;
 	return empty || (before !== null && before < byte) ? { leaf, offset: point!.offset } : null;
+}
+
+/** The text block whose text holds both `from` and `to`, with their offsets into its bytes. */
+export function leafHolding(doc: Doc, from: number, to: number) {
+	const head = leafAt(doc, from);
+	const tail = from === to ? head : leafAt(doc, to);
+	return head && head.leaf === tail?.leaf
+		? { leaf: head.leaf, from: head.offset, to: tail.offset }
+		: null;
+}
+
+/** Whether `leaf` is a table cell, which holds one line. */
+export function isCell(doc: Doc, leaf: LaidBlock): boolean {
+	const row = parentOf(doc, leaf);
+	return !!row && factsOf(doc, row).lines === 'cells';
 }
 
 /** The block a byte's text position names, in its text or past it. */
@@ -89,6 +118,11 @@ export function containersHolding(doc: Doc, at: number): LaidBlock[] {
 			(at < b.to || (at === b.to && !doc.source.endsWith('\n', b.to)))
 	);
 }
+
+/** The nearest container around the place `at`: it starts before it, and its marker on the
+ *  place's line has ended by it. */
+export const holderAt = (doc: Doc, at: number) =>
+	containersHolding(doc, at).findLast((c) => c.from < at && lineOf(c, at).markerTo <= at);
 
 /** The container's line holding `byte`, or its last. */
 export function lineOf(container: LaidBlock, byte: number): LaidLine {

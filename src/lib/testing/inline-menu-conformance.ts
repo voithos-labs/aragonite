@@ -5,6 +5,8 @@
  */
 
 import { parse } from '../core/parser';
+import { serialize } from '../core/serializer';
+import { measured } from '../tree-operations/top-level-starts';
 import { createDraftRegistry } from '../editor-actions/commit/draft-registry.svelte';
 import { createDocumentStamps } from '../editor-actions/commit/document-stamp';
 import { createMenuPick } from '../schema/caret-menu';
@@ -30,7 +32,12 @@ export async function checkMenuPickAcrossSwap(c: MenuPickCase): Promise<void> {
 	let document = parse('\n');
 	const drafts = createDraftRegistry({
 		stamps,
+		// No write is open while a pick commits.
+		starts: { writing: () => false },
+		events: { emit() {} },
 		doc: () => document,
+		measured: () => measured(document),
+		source: () => serialize(document),
 		isReading: () => false,
 		isOn: () => true,
 		grammar: defaultGrammarView,

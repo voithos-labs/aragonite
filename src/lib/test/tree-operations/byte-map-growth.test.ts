@@ -22,6 +22,7 @@ import {
 	resetPerfInstruments
 } from '#lib/perf/instruments.js';
 import { expectBoundedGrowth, measureScanGrowth, type ScanSource } from '../harness/scan-growth';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 /** Each run builds the map afresh twice, so its pairing outweighs the parse in the timing. */
 function mapTwice(source: string): void {
@@ -30,9 +31,9 @@ function mapTwice(source: string): void {
 	// Without its spans, as a stale span leaves it, the map pairs every line of the container.
 	container.childSpans = undefined;
 	const middle = Math.floor(source.length / 2);
-	documentByteMap(doc).leafAt(middle);
+	documentByteMap(measured(doc)).leafAt(middle);
 	const child = Math.floor(container.children!.length / 2);
-	documentByteMap(doc).byteOf(container.kind === 'table' ? [0, child, 0] : [0, child], 0);
+	documentByteMap(measured(doc)).byteOf(container.kind === 'table' ? [0, child, 0] : [0, child], 0);
 }
 
 const SHAPES: [string, ScanSource][] = [
@@ -78,15 +79,15 @@ type Container = (typeof CONTAINERS)[keyof typeof CONTAINERS];
 
 /** Every way a question about one child reaches the container's map. */
 const ROUTES: [string, (doc: Document, shape: Container, c: number) => unknown][] = [
-	['leafAtByte', (doc, shape, c) => leafAtByte(doc, shape.start(c) + 3)],
-	['byteOfLeaf', (doc, shape, c) => byteOfLeaf(doc, shape.leaf(c), 3)],
+	['leafAtByte', (doc, shape, c) => leafAtByte(measured(doc), shape.start(c) + 3)],
+	['byteOfLeaf', (doc, shape, c) => byteOfLeaf(measured(doc), shape.leaf(c), 3)],
 	['leafAtRawOffset', (doc, shape, c) => leafAtRawOffset(doc.children[0], shape.start(c) + 3)],
 	[
 		'rawOffsetOfLeaf',
 		(doc, shape, c) => rawOffsetOfLeaf(doc.children[0], shape.leaf(c).slice(1), 3)
 	],
-	['a layout block', (doc, _shape, c) => documentLayout(doc).block([0, c])],
-	['gapAtByte', (doc, shape, c) => gapAtByte(doc, shape.start(c))]
+	['a layout block', (doc, _shape, c) => documentLayout(measured(doc)).block([0, c])],
+	['gapAtByte', (doc, shape, c) => gapAtByte(measured(doc), shape.start(c))]
 ];
 
 /** Lines the route pairs to answer for the middle child of a container `n` children long. */

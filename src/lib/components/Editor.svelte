@@ -43,6 +43,7 @@
 	import { createSelectionState } from '../selection/selection-state.svelte';
 	import { coverRange, rangeCoverage } from '../selection/range-coverage';
 	import { documentBytes, rangePaint } from '../selection/range-bytes';
+	import { createKeptStarts } from '../editor-actions/commit/kept-starts';
 	import { findSurfacePathForElement } from '../selection/path-lookup';
 	import { createSelectionDescription } from '../selection/selection-description';
 	import { EDITOR_LABEL, blockKindLabel } from '../a11y-strings';
@@ -53,6 +54,7 @@
 	import { createDraftRegistry } from '../editor-actions/commit/draft-registry.svelte';
 	import { createShownSourceState } from './blocks/text/shown-source.svelte';
 	import { createDocumentStamps } from '../editor-actions/commit/document-stamp';
+	import { startsAlone } from '../editor-actions/commit/reading-write-gate';
 	import { isCollapsed, type EditorSelection } from '../selection/primitives';
 	import { widgetSpanAt } from './blocks/text/widget-adjacency';
 	import { assignIds } from '../block-id';
@@ -320,11 +322,17 @@
 	// Bumped by every path that writes bytes. Inline widgets derive on it directly, and the
 	// decoration engine's `editEpoch` follows it a tick later.
 	const contentVersion = createContentVersion();
-	const currentSource = createCurrentSource({ version: contentVersion.read, doc: () => doc });
+	const starts = createKeptStarts(() => doc, contentVersion.bump);
+	const currentSource = createCurrentSource({
+		version: contentVersion.read,
+		doc: () => doc,
+		unannounced: starts.unannounced
+	});
 	const bytes = documentBytes({
 		version: contentVersion.read,
 		doc: () => doc,
-		source: currentSource.read
+		source: currentSource.read,
+		measured: starts.read
 	});
 	let currentResolver = $state<LinkReferenceResolver>(initial.resolver);
 	let currentSignature = $state<string>(initial.signature);
@@ -481,7 +489,11 @@
 	// Apart from the menus, so a shown source fires no `menuChange`.
 	const drafts = createDraftRegistry({
 		stamps,
+		starts,
+		events,
 		doc: () => doc,
+		measured: starts.read,
+		source: currentSource.read,
 		isReading: () => reading.mode() === 'reading',
 		isOn: (plugin) => activePlugins.isActive(plugin),
 		grammar: editorGrammar,
@@ -514,7 +526,7 @@
 			doc = next;
 			blockIds = assignIds(doc.children);
 		},
-		bumpContentVersion: contentVersion.bump,
+		starts,
 		clearBlockRefs: () => {
 			blockRefs.length = 0;
 		},
@@ -689,7 +701,7 @@
 		setDoc: (v) => {
 			doc = v;
 		},
-		bumpContentVersion: contentVersion.bump,
+		starts,
 		bytes,
 		refreshDefinitions: (replaced) => {
 			const map = definitionsAfter(doc, replaced, currentSignature);
@@ -739,7 +751,7 @@
 	const decorations: DecorationRegistry = { addSource: decorationEngine.addSource };
 	const documentRead = createDocumentRead({
 		getDoc,
-		version: () => untrack(contentVersion.read),
+		measured: starts.read,
 		typeOf: blockTypeOf,
 		reading
 	});
@@ -801,6 +813,7 @@
 		getEditorRoot: () => editorEl ?? null,
 		scroll: scrollOwner,
 		ownsRange: () => selectionState.ownsRange,
+		holdsWidget: () => selectionState.widget !== null,
 		isHostChrome,
 		landCaretAt: navigateCaret,
 		caretRectAt,
@@ -814,6 +827,7 @@
 	const inlineRange = createInlineRangeCommit({ deps: editorActionsDeps, controller });
 	const inlineMenu = createInlineMenuState({
 		getDoc,
+		measured: starts.read,
 		getSelection,
 		getMode: reading.mode,
 		events,
@@ -1130,7 +1144,7 @@
 	const selectionActions = createSelectionActions({
 		actions: () => contributions.actions,
 		editorFor: (plugin) => pluginContexts.scoped(plugin),
-		getDoc,
+		measured: starts.read,
 		source: currentSource.readUnchecked,
 		selection: () => selectedRange(),
 		hasRange: () => {
@@ -1231,6 +1245,7 @@
 			isHostChrome,
 			announceIfMoved: selectionAnnouncer.announceIfMoved,
 			selection: selectionState,
+			isReading: () => reading.mode() === 'reading',
 			caretWriter,
 			composition
 		});
@@ -1514,6 +1529,7 @@
 	}
 
 	export function runCommand(commandId: string, arg?: unknown): boolean {
+		if (!startsAlone({ starts, events })) return false;
 		return runCommandById(commandId as AnyCommandId, arg, focusedSurface.commandTarget(), commands);
 	}
 
@@ -1648,6 +1664,8 @@
 
 	/** Turns plugins on and off in this editor, reading the document again; the history stays. */
 	export function use(next: PluginsProp): void {
+		// Before the list changes: the re-read below is a write, refused inside another.
+		if (!startsAlone({ starts, events })) return;
 		// Read before installing: with no list, the names are whatever the page has installed.
 		const before = new Set(activePlugins.names);
 		const entries = normalizePluginEntries(next);
@@ -1765,7 +1783,8 @@
 				caret,
 				op,
 				snapshot: { path: docPathFrom([0]), offset: 0 }
-			})
+			}),
+		byteOf: (path, offset) => bytes.layout().byteOf(path, offset)
 	};
 </script>
 

@@ -7,6 +7,7 @@ import { parse } from '#lib/core/parser.js';
 import type { SelectionPoint } from '#lib/selection/primitives.js';
 import { emptiedPlace } from '#lib/selection/cross-block/range-removal.js';
 import { deleteRange } from '../harness/range-delete';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 const cell = (path: number[], offset = 0): SelectionPoint => ({
 	path,
@@ -21,7 +22,7 @@ function placeAfterRemoval(source: string, start: SelectionPoint, end: Selection
 	const result = deleteRange(parse(source), start, end, { gesture: 'Delete' });
 	const caret = result.caret(result.newDoc);
 	if (!caret) throw new Error('the removal left no caret');
-	return emptiedPlace(result.newDoc, { ...result.removed, caret });
+	return emptiedPlace(measured(result.newDoc), { ...result.removed, caret });
 }
 
 const TABLE = '| c |\n| - |\n\n';

@@ -16,6 +16,7 @@ import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { documentByteMap } from '#lib/tree-operations/container-offsets.js';
 import { editRange, type Gesture } from '#lib/range-edit/edit-range.js';
 import { rangeHost } from '#lib/range-edit/host.js';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -30,6 +31,7 @@ import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import { SYNTAX_PLUGINS } from '../../behavior/corpus';
 import { NAMED_ROWS, rangeOf, unmark } from '../../range-edit/named-rows';
+import { noTransforms } from '../../range-edit/test-host';
 import { allBlockPaths } from '../../invariants/arbitraries/index';
 import { clipboardGesture, placeRange, type Editor } from '../../range-laws/gestures';
 
@@ -123,7 +125,7 @@ const withoutSpans = (node: CstNode): CstNode =>
 /** Each text position of `doc` whose byte holds another character, or reads back as another. */
 function misplaced(doc: Document): string[] {
 	const source = serialize(doc);
-	const map = documentByteMap(doc);
+	const map = documentByteMap(measured(doc));
 	const out: string[] = [];
 	for (const path of allBlockPaths(doc)) {
 		const node = blockNodeAt(doc, path)!;
@@ -253,7 +255,7 @@ async function twinAnswers(
 	twin = boxed
 ) {
 	const grammar = (await mounted('x\n')).instance.__test.getGrammar();
-	const host = rangeHost(fixtureReading({ grammar }, mode));
+	const host = noTransforms(rangeHost(fixtureReading({ grammar }, mode)));
 	const source = unmark(marked);
 	const range = rangeOf(marked);
 	const quote = editRange(source, range, gesture, mode, host);
@@ -302,17 +304,17 @@ const TWIN_ROWS: [name: string, marked: string, gesture: Gesture, depths?: numbe
 	[
 		'a paste into an emptied heading under a blank line',
 		'> a\n>\n> #⟦⟧\n>\n> b\n',
-		{ paste: '# h\n', plain: false }
+		{ paste: '# h\n', plain: false, holds: 'text' }
 	],
 	[
 		'a paste into an empty list item above an empty first line',
 		'- ⟦⟧\n>\n> x\n',
-		{ paste: '# h\n', plain: false }
+		{ paste: '# h\n', plain: false, holds: 'text' }
 	],
 	[
 		'a paste into an empty paragraph above code',
 		'> para\n>\n> ⟦⟧\n>     code\n',
-		{ paste: 'p', plain: false }
+		{ paste: 'p', plain: false, holds: 'text' }
 	],
 	['a box in a quote', '> > ⟦a⟧\n> >\n> > b\n>\n> c\n', 'backspace', [1]],
 	['a quote in a box', '> > ⟦a⟧\n> >\n> > b\n>\n> c\n', 'backspace', [0]]
@@ -347,7 +349,9 @@ describe('the range-edit core answers a named quote row alike under the box’s 
 			plugins: PLUGINS.filter((plugin) => plugin !== boxes)
 		});
 		await editor.settle();
-		const host = rangeHost(fixtureReading({ grammar: editor.instance.__test.getGrammar() }));
+		const host = noTransforms(
+			rangeHost(fixtureReading({ grammar: editor.instance.__test.getGrammar() }))
+		);
 		const marked = '%> a\n%> ⟦***⟧\n%>     code\n';
 		const answer = () => editRange(unmark(marked), rangeOf(marked), 'backspace', 'source', host);
 		answer();
@@ -377,8 +381,8 @@ const QUIET_BELOW = Object.entries(DEPTHS).flatMap(([depth, write]) =>
 		const rows: [Gesture, string][] = [
 			['backspace', taken],
 			['cut', taken],
-			[{ paste: 'p\n', plain: false }, taken],
-			[{ paste: 'p', plain: false }, empty]
+			[{ paste: 'p\n', plain: false, holds: 'text' }, taken],
+			[{ paste: 'p', plain: false, holds: 'text' }, empty]
 		];
 		return rows.map(([gesture, marked]) => ({
 			name: `${depth}, ${JSON.stringify(gesture)}: ${JSON.stringify(marked)}`,
@@ -391,7 +395,7 @@ const QUIET_BELOW = Object.entries(DEPTHS).flatMap(([depth, write]) =>
 describe('a box that interrupts no paragraph stays a box under the block an edit leaves above it', () => {
 	it.each(QUIET_BELOW)('$name', async ({ gesture, marked }) => {
 		const grammar = (await mounted('x\n')).instance.__test.getGrammar();
-		const host = rangeHost(fixtureReading({ grammar }));
+		const host = noTransforms(rangeHost(fixtureReading({ grammar })));
 		const source = unmark(marked);
 		const out = editRange(source, rangeOf(marked), gesture, 'source', host).source;
 		const kinds = (text: string) => outline(parse(text, { grammar }).children as CstNode[]);

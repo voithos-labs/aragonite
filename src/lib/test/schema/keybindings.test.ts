@@ -1,10 +1,45 @@
 // @vitest-environment jsdom
+// Miss-analysis: every row built a `KeyboardEvent`, which always names a key, so no reader was
+// handed the keyless keydown Chrome's autofill sends.
 import { describe, it, expect } from 'vitest';
-import { caretEdgeKey, eventToChord, normalizeChord, pageKey } from '#lib/schema/keybindings.js';
+import {
+	caretEdgeKey,
+	endsSelectAllRun,
+	eventToChord,
+	isCharacterKey,
+	isPasteKey,
+	isSelectAllChord,
+	motionKey,
+	normalizeChord,
+	pageKey,
+	textKeyRole,
+	typesCharacter
+} from '#lib/schema/keybindings.js';
 
 function ke(init: Partial<KeyboardEventInit> & { key: string }): KeyboardEvent {
 	return new KeyboardEvent('keydown', init);
 }
+
+// A plain `Event` carries no `key` at all; a bare `KeyboardEvent` carries an empty one.
+describe.each([
+	['no key', () => new Event('keydown') as KeyboardEvent],
+	['an empty key', () => new KeyboardEvent('keydown', { ctrlKey: true })]
+])('a keydown naming %s reads as no key', (_name, keyless) => {
+	it.each([
+		['eventToChord', () => eventToChord(keyless()), null],
+		['isCharacterKey', () => isCharacterKey(keyless().key), false],
+		['typesCharacter', () => typesCharacter(keyless()), false],
+		['textKeyRole', () => textKeyRole(keyless()), null],
+		['caretEdgeKey', () => caretEdgeKey(keyless()), null],
+		['motionKey', () => motionKey(keyless()), null],
+		['pageKey', () => pageKey(keyless()), null],
+		['isPasteKey', () => isPasteKey(keyless()), false],
+		['isSelectAllChord', () => isSelectAllChord(keyless()), false],
+		['endsSelectAllRun', () => endsSelectAllRun(keyless()), false]
+	])('%s', (_reader, read, expected) => {
+		expect(read()).toBe(expected);
+	});
+});
 
 describe('eventToChord', () => {
 	it('encodes Ctrl/Cmd as Mod and uppercases letters', () => {

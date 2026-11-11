@@ -4,6 +4,7 @@ import type { CaretMemory } from '../caret/caret-memory';
 import type { CaretWriter } from '../browser/caret-writer';
 import type { BlockElLookup } from '../caret/block-el-lookup';
 import type { SelectionState } from '../selection/selection-state.svelte';
+import type { KeptStarts } from './commit/kept-starts';
 import type { DocumentBytes } from '../selection/range-bytes';
 import type { UndoEntry, UndoManager } from '../undo/types';
 import type { SharingState } from '../tree-operations/sharing';
@@ -26,9 +27,9 @@ export interface EditorActionsDeps {
 	setDoc(doc: Document): void;
 	setBlockIds(ids: string[]): void;
 	setBlockRefs(refs: (BlockComponent | undefined)[]): void;
-	/** Announce that the document's bytes changed. A commit calls it once; a writer outside a
-	 *  commit must call it itself (G4.52). */
-	bumpContentVersion(): void;
+	/** Where the top-level blocks start, kept across writes. Every byte writer changes the tree
+	 *  inside its `duringWrite`, which announces that the document's bytes changed (G4.52). */
+	starts: KeptStarts;
 	/** The document's bytes and their layout, made once per content version, which a block removed
 	 *  whole reads. */
 	bytes: DocumentBytes;

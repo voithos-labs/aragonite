@@ -13,6 +13,7 @@ import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { isWholeBlockUnit } from '#lib/schema/whole-block-unit.js';
 import { isBlankParagraph } from '#lib/core/parser.js';
 import { placeRange, Undetermined } from './gestures';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 const ON = !!process.env.BYTE_SPLICE;
 
@@ -72,7 +73,7 @@ function sameSpot(
 ): string | null {
 	if (!landed || !wanted) return null;
 	const doc = editor.instance.__test.getDocument();
-	const [a, b] = [landed, wanted].map((p) => byteOfLeaf(doc, p.path, p.offset));
+	const [a, b] = [landed, wanted].map((p) => byteOfLeaf(measured(doc), p.path, p.offset));
 	if (a === null || b === null) return null;
 	if (a === b) return 'one byte, two leaves';
 	if (isBlankParagraph(blockNodeAt(doc, wanted.path) ?? { kind: '', raw: 'x' }))
@@ -93,10 +94,10 @@ export function caretOf(editor: Editor): SpliceCaret | null {
 		const parent = parentPath.length === 0 ? doc : blockNodeAt(doc, parentPath);
 		if (!parent?.children) return null;
 		if (index < parent.children.length) {
-			const at = byteOfLeaf(doc, [...parentPath, index], 0);
+			const at = byteOfLeaf(measured(doc), [...parentPath, index], 0);
 			return at === null ? null : { at, holds: 'boundary' };
 		}
-		const start = parentPath.length === 0 ? 0 : byteOfLeaf(doc, parentPath, 0);
+		const start = parentPath.length === 0 ? 0 : byteOfLeaf(measured(doc), parentPath, 0);
 		const length =
 			parentPath.length === 0 ? editor.source().length : (parent as { raw: string }).raw.length;
 		return start === null ? null : { at: start + length, holds: 'boundary' };
@@ -107,7 +108,7 @@ export function caretOf(editor: Editor): SpliceCaret | null {
 	if (anchor.cellCoordinate || focus.cellCoordinate) return null;
 	if (anchor.path.join() !== focus.path.join() || anchor.offset !== focus.offset) return null;
 	const node = blockNodeAt(doc, anchor.path);
-	const at = byteOfLeaf(doc, anchor.path, anchor.offset);
+	const at = byteOfLeaf(measured(doc), anchor.path, anchor.offset);
 	if (!node || at === null) return null;
 	return { at, holds: isWholeBlockUnit(node) ? 'block' : 'text' };
 }

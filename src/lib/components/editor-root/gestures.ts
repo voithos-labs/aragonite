@@ -129,7 +129,9 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 		const block = nodeAt(deps.getDoc(), path);
 		if (block === null || !isBlockNode(block)) return null;
 		const contentEl = deps.getBlockElByPath(path);
-		return contentEl ? { contentEl, block, path, reading: deps.reading } : null;
+		if (!contentEl) return null;
+		const holdsWidget = deps.selection.widgetIn(path) !== null;
+		return { contentEl, block, path, reading: deps.reading, holdsWidget };
 	}
 
 	/** Open the card on the link `el` renders, or report that nothing there is one. The caret

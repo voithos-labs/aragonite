@@ -8,6 +8,13 @@ import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate
 import { takeDevWarns } from '../../support/warn-gate';
 import { fingerPress } from '#lib/selection/pointer-gesture.js';
 import { makeKeydownEnv, press } from './keydown-env';
+import { createCrossBlockKeydown } from '#lib/selection/cross-block/keydown.js';
+import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
+import { selectWidgetWhole } from '#lib/selection/place-caret.js';
+import { widgetSpanAt } from '#lib/components/blocks/text/widget-adjacency.js';
+import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
+import { stubBlockComponent } from '#lib/test/harness/editor-actions.js';
+import { settleEditor } from '#lib/test/harness/settle.js';
 
 const SOURCE = 'alpha\n\nbeta\n\ngamma\n';
 
@@ -104,6 +111,68 @@ describe('cross-block keydown: compositionstart', () => {
 		expect(env.keydown.handleCompositionStart()).toBe(false);
 
 		expect(env.source()).toBe(SOURCE);
+	});
+
+	// Miss-analysis: every compositionstart row held a range or nothing, so none started over a
+	// selected widget, where the composition ran beside it and left it selected.
+	describe('over a widget selected whole', () => {
+		const WIDGET = 'a ![x](u) b\n\nnext\n';
+
+		/** The env's keydown over a selection that reads a widget's span, as the editor's does; the
+		 *  undo controller reads the same one. */
+		function held(sourceStart: number, myPath = [0]) {
+			const env = makeKeydownEnv(WIDGET);
+			const selection = createSelectionState({
+				getDoc: () => env.deps.doc,
+				widgetSpan: (target) => widgetSpanAt(env.deps.doc, target, env.ctx.reading)
+			});
+			Object.assign(env.deps, { selectionState: selection });
+			const target = { paragraphPath: [0], sourceStart, preSelectOffset: sourceStart };
+			selectWidgetWhole(selection, testCaretWriter, target, () => null);
+			const ctx = { ...env.ctx, selection, getMyPath: () => myPath };
+			return { env, selection, keydown: createCrossBlockKeydown(ctx) };
+		}
+
+		it('removes the widget’s bytes before it returns, ends it, and reports it handled', () => {
+			const { env, selection, keydown } = held(2);
+
+			expect(keydown.handleCompositionStart()).toBe(true);
+
+			expect(env.source()).toBe('a  b\n\nnext\n');
+			expect(selection.widget).toBeNull();
+		});
+
+		it('the undo entry records the widget’s caret, whatever caret its block reports', async () => {
+			const { env, keydown } = held(2);
+			env.deps.blockRefs[0] = stubBlockComponent({ getCursorOffset: () => 0 });
+
+			keydown.handleCompositionStart();
+			await settleEditor();
+
+			const at = { path: [0], offset: 2 };
+			expect(env.deps.undoManager.getStacks().undo.at(-1)!.selection).toEqual({
+				anchor: at,
+				focus: at
+			});
+		});
+
+		it('ends a widget whose bytes are already gone, and writes nothing', () => {
+			const { env, selection, keydown } = held(0);
+
+			expect(keydown.handleCompositionStart()).toBe(true);
+
+			expect(env.source()).toBe(WIDGET);
+			expect(selection.widget).toBeNull();
+		});
+
+		it('leaves a widget selected in another block alone', () => {
+			const { env, selection, keydown } = held(2, [1]);
+
+			expect(keydown.handleCompositionStart()).toBe(false);
+
+			expect(env.source()).toBe(WIDGET);
+			expect(selection.widget).not.toBeNull();
+		});
 	});
 
 	// Miss-analysis: only the arm's own reading-mode check was tested, never the delete's refusal.

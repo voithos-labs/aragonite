@@ -2,8 +2,8 @@
  * A doc that pastes a gate's output is quoting a live contract, and a fence is the one place
  * `check-codebase-map.mjs` deliberately cannot see. So every pasted `codebase-map:`, `docs-links:`
  * or `docs-pack:` line is matched against what the script actually prints, green run and failure
- * run alike. `…` and `...` are the elision markers the docs already use, and match anything;
- * everything else is literal, so a drifted count or a reworded suffix fails the run.
+ * run alike. `…` and `...` are the elision markers, and match anything; everything else is
+ * literal, so a drifted count or a reworded suffix fails the run.
  */
 import { describe, it, expect } from 'vitest';
 import { execFileSync } from 'node:child_process';
@@ -66,16 +66,19 @@ function liveLines(): string[] {
 
 // ── What the docs paste ──────────────────────────────────────────────────────
 
+interface Pasted {
+	rel: string;
+	line: number;
+	text: string;
+}
+
 /** A pasted line is one whose first token is a gate's prefix; the indented detail lines under
  *  a failure head name example files no live run reproduces, so they stay prose. */
-function pastedLines(rel: string): Array<{ rel: string; line: number; text: string }> {
+function pastedLines(rel: string): Pasted[] {
 	return pastedLinesIn(rel, readFileSync(path.join(ROOT, rel), 'utf8'));
 }
 
-function pastedLinesIn(
-	rel: string,
-	text: string
-): Array<{ rel: string; line: number; text: string }> {
+function pastedLinesIn(rel: string, text: string): Pasted[] {
 	return text
 		.split('\n')
 		.map((line, index) => ({ rel, line: index + 1, text: line.trimEnd() }))
@@ -147,6 +150,13 @@ export function elisionPattern(pasted: string): RegExp {
 	return new RegExp(`^${escaped.replace(/…|\\\.\\\.\\\./g, '.*')}$`);
 }
 
+/** The pastes no live line matches, as `file:line  text`. */
+function stalePastes(entries: Pasted[], liveLines: string[]): string[] {
+	return entries
+		.filter((entry) => !liveLines.some((actual) => elisionPattern(entry.text).test(actual)))
+		.map((entry) => `${entry.rel}:${entry.line}  ${entry.text}`);
+}
+
 const docs = corpusFiles(['docs', 'README.md', 'CONTRIBUTING.md'], ['.md']);
 const pasted = docs.flatMap(pastedLines);
 const live = liveLines();
@@ -162,9 +172,7 @@ describe('pasted gate output ↔ what the gate prints', () => {
 	});
 
 	it('every pasted line matches a line a live run produces', () => {
-		const stale = pasted
-			.filter((entry) => !live.some((actual) => elisionPattern(entry.text).test(actual)))
-			.map((entry) => `${entry.rel}:${entry.line}  ${entry.text}`);
+		const stale = stalePastes(pasted, live);
 		expect(
 			stale,
 			`these pastes no longer match what the script prints: re-run it and copy the line, eliding a count with \`…\`: ${stale.join('\n  ')}`
@@ -174,7 +182,20 @@ describe('pasted gate output ↔ what the gate prints', () => {
 
 // ── Non-vacuity self-tests ───────────────────────────────────────────────────
 // A reader that finds no pastes, or a run that captures no output, lets the gate above pass
-// on two empty sets.
+// on two empty sets. The docs may paste no gate at all, so the proofs read a fixture doc.
+
+const FENCE = '```';
+
+/** A doc pasting one gate run, npm's echo included, every count elided. */
+const FIXTURE_DOC = [
+	'Run the map check:',
+	FENCE,
+	'$ npm run docs:map:check',
+	`> ${pkg.name}@… docs:map:check`,
+	`> ${pkg.scripts['docs:map:check']}`,
+	'codebase-map: … references resolve …',
+	FENCE
+].join('\n');
 
 describe('pasted gate output: self-tests', () => {
 	it('reads a real corpus, and its reader finds a paste of every gate prefix', () => {
@@ -209,30 +230,26 @@ describe('pasted gate output: self-tests', () => {
 		).toBe(true);
 	});
 
-	it('reads the transcripts, and reds on a banner or body that drifted', () => {
-		const transcripts = docs.filter((rel) =>
-			fences(readFileSync(path.join(ROOT, rel), 'utf8')).some((block) =>
-				block.some((line) => RUN_LINE.test(line))
-			)
-		);
-		expect(transcripts.length).toBeGreaterThan(1);
-		const fence = '```';
-		const transcript = (...lines: string[]) => [fence, ...lines, fence].join('\n');
-		// A console transcript that never ran npm must not be read as one.
-		expect(echoFailures('x.md', transcript('> __test.dumpTree()'))).toEqual([]);
-		expect(echoFailures('x.md', transcript('$ npm run check', `> ${pkg.scripts.check}`))).toEqual(
-			[]
-		);
-		expect(
-			echoFailures('x.md', transcript('$ npm run check', '> svelte-check --tsconfig ./nope.json'))
-		).toHaveLength(1);
-		expect(
-			echoFailures('x.md', transcript('$ npm run check', `> ${pkg.name}@0.0.1 check`))
-		).toHaveLength(1);
+	it('passes a faithful paste, and reds on a reworded one or a count left in', () => {
+		const pastes = (doc: string) => stalePastes(pastedLinesIn('fixture.md', doc), live);
+		expect(pastedLinesIn('fixture.md', FIXTURE_DOC)).toHaveLength(1);
+		expect(pastes(FIXTURE_DOC)).toEqual([]);
+		expect(pastes(FIXTURE_DOC.replace('references resolve', 'refs resolve'))).toHaveLength(1);
+		expect(pastes(FIXTURE_DOC.replace('… references', '1 references'))).toHaveLength(1);
 	});
 
-	it('reds on a count that drifted rather than being elided', () => {
-		const drifted = 'codebase-map: 1 references resolve (1 naming a symbol) across 1 files';
-		expect(live.some((actual) => elisionPattern(drifted).test(actual))).toBe(false);
+	it('reads a fenced transcript, and reds on a banner or body that drifted', () => {
+		const oldBanner = FIXTURE_DOC.replace('@…', '@0.0.1');
+		expect(echoFailures('fixture.md', FIXTURE_DOC)).toEqual([]);
+		expect(echoFailures('fixture.md', oldBanner)).toHaveLength(1);
+		expect(
+			echoFailures('fixture.md', FIXTURE_DOC.replace(pkg.scripts['docs:map:check'], 'node x.mjs'))
+		).toHaveLength(1);
+		// Unfenced, the same `>` lines are a markdown blockquote, not a transcript.
+		expect(echoFailures('fixture.md', oldBanner.replaceAll(FENCE, ''))).toEqual([]);
+		// A console transcript that never ran npm must not be read as one.
+		expect(echoFailures('fixture.md', [FENCE, '> __test.dumpTree()', FENCE].join('\n'))).toEqual(
+			[]
+		);
 	});
 });

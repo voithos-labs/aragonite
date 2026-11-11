@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { imeOwnsKey } from '../../browser/composition';
+	import { neverACommand } from '../../browser/composition';
 	import { tick } from 'svelte';
 	import { INLINE_MENU_LABEL } from '../../a11y-strings';
 	import type { EditorEvents } from '../../editor-events';
@@ -81,7 +81,7 @@
 		if (!showing || !root) return;
 		const onKeyDown = (e: KeyboardEvent) => {
 			// A composing Enter belongs to the IME's candidate window.
-			if (imeOwnsKey(e)) return;
+			if (neverACommand(e)) return;
 			const key = menu.listKey(e);
 			if (key === null) return;
 			if (key === 'commit') menu.commit();

@@ -23,7 +23,7 @@ async function parsed(source: string, at: number, insert: string) {
 	const changes = [{ from: at, to: at, insert }];
 	enablePerfInstruments();
 	resetPerfInstruments();
-	spliceReading(deps.doc, serialize(deps.doc), changes, deps.reading.grammar);
+	spliceReading(deps.bytes.measured(), serialize(deps.doc), changes, deps.reading.grammar);
 	const read = perfSnapshot().parseBytes;
 	resetPerfInstruments();
 	const wrote = await createUndoController(deps).commitSource({

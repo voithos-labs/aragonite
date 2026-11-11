@@ -75,6 +75,10 @@ export function describeLaws(
 			return report(fails);
 		}
 
+		/** A caret law's lines, none where the caret falls under a known class of that law. */
+		const undeclared = (i: CaretInput, law: 'L9' | 'L11', lines: string[]) =>
+			lines.length > 0 && knownResidue(host, i.source, { from: i.at, to: i.at }, law) ? [] : lines;
+
 		function atCarets(law: (call: Call, input: CaretInput) => string[]): string {
 			setUp();
 			const fails: string[] = [];
@@ -82,7 +86,13 @@ export function describeLaws(
 			for (const input of inputs) {
 				for (const c of input.carets) {
 					for (const text of c.texts) {
-						const at = { source: input.source, mode: input.mode, at: c.at, text };
+						const at = {
+							source: input.source,
+							mode: input.mode,
+							at: c.at,
+							held: { holds: 'text' as const },
+							text
+						};
 						const where = `in ${JSON.stringify(input.source)} ${input.mode} at ${c.at}`;
 						fails.push(...law(call, at).map((line) => `${line}\n    ${where}`));
 					}
@@ -134,7 +144,7 @@ export function describeLaws(
 			expect(report(fails)).toBe('');
 		});
 		it('L9: a paste at a caret puts its bytes there', () => {
-			expect(atCarets((call, i) => pasteAtCaret(call, host, i))).toBe('');
+			expect(atCarets((call, i) => undeclared(i, 'L9', pasteAtCaret(call, host, i)))).toBe('');
 		});
 		it('L9: a paste at the caret a cut left puts its bytes there', () => {
 			expect(
@@ -148,7 +158,7 @@ export function describeLaws(
 			expect(overRanges((call, i) => copyMarkers(call, host, i))).toBe('');
 		});
 		it('L11: Paste as plain text never converts', () => {
-			expect(atCarets((call, i) => plainPaste(call, host, i))).toBe('');
+			expect(atCarets((call, i) => undeclared(i, 'L11', plainPaste(call, host, i)))).toBe('');
 		});
 		it('L12: with its own entry a cut pasted back is exact', () => {
 			setUp();

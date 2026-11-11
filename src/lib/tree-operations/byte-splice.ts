@@ -20,6 +20,7 @@ import { assignChildIdsDeep, keepUnchangedDeep } from '../block-id';
 import { changedBytes, narrowed, writtenLines, type ByteChange } from './byte-changes';
 import { containerWindow, standsBelow, textAfter } from './container-window';
 import { spliceMany } from './splice-many';
+import type { Measured } from './top-level-starts';
 
 /** Top-level blocks `[at, at + count)` give way to `blocks`; the first new block keeps the first
  *  replaced one's id, and every container in them has its child ids. */
@@ -45,43 +46,30 @@ export function applied(doc: DocumentView, reading: SpliceReading): DocumentView
 	return { kind: 'document', prefix: doc.prefix, children, suffix: reading.suffix };
 }
 
-/** Where each block of a list's bytes ends, its blank lines and its own bytes counted, from
- *  the end of the blank lines above them all. */
-export function segmentEnds(list: {
-	readonly prefix: string;
-	readonly children: readonly NodeView[];
-}): number[] {
-	const ends: number[] = [];
-	let at = list.prefix.length;
-	for (const child of list.children)
-		ends.push((at += child.leadingTrivia.length + child.raw.length));
-	return ends;
-}
-
-/** `doc`, whose bytes are `before`, read again with `changes` made (sorted, none overlapping),
- *  each change in its own window unless they grow into each other; null when none changes a byte. */
+/** `measured`'s document, whose bytes are `before`, read again with `changes` made (sorted, none
+ *  overlapping), each in its own window unless they grow into each other; null when none changes. */
 export function spliceReading(
-	doc: DocumentView,
+	measured: Measured,
 	before: string,
 	changes: readonly ByteChange[],
 	grammar: GrammarView
 ): SpliceReading | null {
-	return readAgain(doc, before, changes, grammar, true);
+	return readAgain(measured, before, changes, grammar, true);
 }
 
 /** {@link spliceReading} with every window at the top level, never inside a container: what the
  *  windows inside one must come out equal to. */
 export function topLevelReading(
-	doc: DocumentView,
+	measured: Measured,
 	before: string,
 	changes: readonly ByteChange[],
 	grammar: GrammarView
 ): SpliceReading | null {
-	return readAgain(doc, before, changes, grammar, false);
+	return readAgain(measured, before, changes, grammar, false);
 }
 
 function readAgain(
-	doc: DocumentView,
+	measured: Measured,
 	before: string,
 	changes: readonly ByteChange[],
 	grammar: GrammarView,
@@ -89,32 +77,20 @@ function readAgain(
 ): SpliceReading | null {
 	const made = changes.filter((change) => before.slice(change.from, change.to) !== change.insert);
 	if (made.length === 0) return null;
+	const { doc, starts } = measured;
 	const children = doc.children;
 	const last = children.length - 1;
-	const ends = segmentEnds(doc);
 	const readings = unfinishedReadings(grammar);
-	const rawStartOf = (i: number) =>
-		(i === 0 ? doc.prefix.length : ends[i - 1]) + children[i].leadingTrivia.length;
-	const holding = (byte: number) => {
-		let lo = 0;
-		let hi = last;
-		while (lo < hi) {
-			const mid = (lo + hi) >> 1;
-			if (byte < ends[mid]) hi = mid;
-			else lo = mid + 1;
-		}
-		return lo;
-	};
 	const pending: Span[] = [];
 	for (const change of made) {
-		const first = holding(change.from);
+		const first = starts.holding(change.from);
 		let lo = first - 1;
 		while (lo > 0 && isBlankParagraph(children[lo])) lo--;
 		lo = Math.max(lo, 0);
 		// A closer the change writes finishes a block above it that waits on one.
 		const lines = writtenLines(before, change);
 		const waiting = waitingAboveClosedBy(lines, (i) => children[i].raw, lo, readings);
-		const hi = Math.max(first, holding(Math.max(change.to - 1, change.from)));
+		const hi = Math.max(first, starts.holding(Math.max(change.to - 1, change.from)));
 		let span: Span = { lo: waiting >= 0 ? waiting : lo, hi, top: first === 0, changes: [change] };
 		while (pending.length > 0 && span.lo <= pending[pending.length - 1].hi) {
 			const above = pending.pop()!;
@@ -131,9 +107,8 @@ function readAgain(
 	let suffix = doc.suffix;
 	const top = {
 		doc,
+		starts,
 		before,
-		rawStartOf,
-		ends,
 		readings,
 		read: (t: string) => readOpened(t, grammar)
 	};
@@ -148,7 +123,7 @@ function readAgain(
 		}
 		// From the document's top a read takes every blank line as a block; elsewhere the window
 		// starts behind the blank lines of a block no change reaches.
-		const start = span.top ? doc.prefix.length : rawStartOf(span.lo);
+		const start = span.top ? doc.prefix.length : starts.rawStart(span.lo);
 		const carried = span.top ? '' : children[span.lo].leadingTrivia;
 		for (let grow = 1; ; grow *= 2) {
 			const next = pending[0];
@@ -174,9 +149,9 @@ function readAgain(
 	 *  bytes; null when they reach more than one block. */
 	function insideOneBlock(changes: readonly ByteChange[]) {
 		const bytes = changes.flatMap((change) => narrowed(before, change));
-		const block = bytes.length > 0 ? holding(bytes[0].from) : -1;
+		const block = bytes.length > 0 ? starts.holding(bytes[0].from) : -1;
 		const inBlock = (change: ByteChange) =>
-			change.from >= rawStartOf(block) && change.to <= ends[block];
+			change.from >= starts.rawStart(block) && change.to <= starts.end(block);
 		return block >= 0 && bytes.every(inBlock) ? { block, changes: bytes } : null;
 	}
 
@@ -197,10 +172,11 @@ function readAgain(
 	): { blocks: CstNode[]; suffix?: undefined } | { closerAt: number } | null {
 		const { hi } = span;
 		if (isBlankParagraph(children[k])) return null;
-		const head = changedBytes(before, start, ends[hi], span.changes);
+		const head = changedBytes(before, start, starts.end(hi), span.changes);
 		const next = children[k].raw;
 		const lookahead =
-			before.slice(ends[hi], rawStartOf(k)) + next.slice(0, next.indexOf('\n') + 1 || next.length);
+			before.slice(starts.end(hi), starts.rawStart(k)) +
+			next.slice(0, next.indexOf('\n') + 1 || next.length);
 		const blocks = readOpened(head + lookahead, grammar).children;
 		let at = 0;
 		let m = 0;

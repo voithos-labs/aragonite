@@ -8,7 +8,7 @@ import { expect, it } from 'vitest';
 import fc from 'fast-check';
 import { readDoc } from '#lib/range-edit/document.js';
 import { rangeHost } from '#lib/range-edit/host.js';
-import { holdsTextPastMarkers, markersOnly } from '#lib/range-edit/markers.js';
+import { markersOnly } from '#lib/range-edit/markers.js';
 import { testReading } from './test-host';
 
 const PIECES = [
@@ -65,16 +65,6 @@ it('a line holds markers alone where it holds spaces, tabs and `>` alone', () =>
 			}
 		}),
 		{ numRuns: 400 }
-	);
-});
-
-it('text past markers and whitespace is a character outside `\\s` and `>`', () => {
-	const doc = readDoc('', rangeHost(testReading()), 'source');
-	fc.assert(
-		fc.property(arbText, (text) => {
-			expect(holdsTextPastMarkers(doc, text), JSON.stringify(text)).toBe(/[^\s>]/.test(text));
-		}),
-		{ numRuns: 1000 }
 	);
 });
 

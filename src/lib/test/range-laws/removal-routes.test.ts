@@ -47,6 +47,7 @@ import {
 	Undetermined,
 	type Editor
 } from './gestures';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 beforeAll(installLayoutStubs);
 beforeEach(() => {
@@ -150,7 +151,12 @@ function coreAnswer(editor: Editor, mode: PresentationMode, gesture: RemovalGest
 	selection.enterCrossBlock(held.anchor, held.focus);
 	const { start, end } = selection;
 	const coverage = rangeCoverage(doc, coverRange(doc, start!, end!));
-	const bytes = documentBytes({ version: () => 0, doc: () => doc, source: () => serialize(doc) });
+	const bytes = documentBytes({
+		version: () => 0,
+		doc: () => doc,
+		source: () => serialize(doc),
+		measured: () => measured(doc)
+	});
 	const copy = rangeClipboard(bytes, coverage, reading)?.text ?? '';
 	const { removed } = deleteRange(doc, start!, end!, { reading, gesture });
 	return { source: serialize(doc), copy, caret: removed.landed! };
@@ -180,7 +186,7 @@ async function expectCoreCaret(
 	const fresh = mountCase(left.source, mode);
 	await fresh.settle();
 	const doc = fresh.instance.__test.getDocument();
-	const landing = landingAt(doc, caret)!;
+	const landing = landingAt(measured(doc), caret)!;
 	if ('anchor' in landing) await fresh.instance.setSelection(landing);
 	else if (!('gapCaret' in landing)) {
 		const target = caretTargetFor(doc, landing)!;
@@ -258,7 +264,7 @@ function wholeAnswer(editor: Editor, mode: PresentationMode, path: number[], rou
 	const reading = fixtureReading({ grammar }, mode);
 	const source = editor.source();
 	const doc = readAsOpened(source, { grammar, scope: 'document' }) as Document;
-	const layout = documentLayout(doc);
+	const layout = documentLayout(measured(doc));
 	const range = wholeBlockBytes(doc, layout, path)!;
 	const host = rangeHost(reading, { source, tree: doc, layout });
 	const core = mode === 'live' ? 'live' : 'source';

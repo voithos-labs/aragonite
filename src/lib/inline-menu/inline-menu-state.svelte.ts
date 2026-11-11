@@ -42,10 +42,13 @@ import {
 import type { Editor } from '../schema/plugin-unit';
 import { isBlankText } from '../core/lines';
 import { byteOfLeaf, leafAtByte } from '../tree-operations/container-offsets';
+import type { Measured } from '../tree-operations/top-level-starts';
 import type { PluginView } from '../plugin-view';
 
 export interface InlineMenuStateDeps {
 	getDoc: () => DocumentView;
+	/** That document with the starts the editor keeps for it. */
+	measured: () => Measured;
 	getSelection: () => EditorSelection | null;
 	getMode: () => PresentationMode;
 	events: EditorEvents;
@@ -486,10 +489,10 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		item: InlineMenuItem,
 		{ plugin, menu }: ContributedMenu
 	): Promise<void> {
-		const doc = deps.getDoc();
+		const laid = deps.measured();
 		const raw = nodeRaw(live.path);
-		const from = byteOfLeaf(doc, live.path, live.start);
-		const to = byteOfLeaf(doc, live.path, end);
+		const from = byteOfLeaf(laid, live.path, live.start);
+		const to = byteOfLeaf(laid, live.path, end);
 		const pickedQuery = query;
 		close();
 		deps.endBurst();
@@ -514,7 +517,7 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 
 	/** Takes `typed` out of the leaf it starts in at byte `at`, landing the caret where it was. */
 	async function removeQuery(at: number | null, typed: string) {
-		const leaf = at === null ? null : leafAtByte(deps.getDoc(), at);
+		const leaf = at === null ? null : leafAtByte(deps.measured(), at);
 		const raw = leaf ? nodeRaw(leaf.path) : '';
 		const end = leaf ? leaf.offset + typed.length : 0;
 		if (!leaf || raw.slice(leaf.offset, end) !== typed) return null;

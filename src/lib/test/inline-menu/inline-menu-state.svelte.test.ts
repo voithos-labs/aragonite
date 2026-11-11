@@ -3,6 +3,7 @@ import { tick } from 'svelte';
 import { parse } from '#lib/core/parser.js';
 import type { DocumentView } from '#lib/core/node-views.js';
 import { createEditorEvents, type EditEvent } from '#lib/editor-events.js';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 import { createInlineMenuState } from '#lib/inline-menu/inline-menu-state.svelte.js';
 import type { InlineMenuItem, InlineMenuSource } from '#lib/inline-menu/types.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
@@ -59,6 +60,7 @@ function harness(
 
 	const menu = createInlineMenuState({
 		getDoc: () => doc,
+		measured: () => measured(doc),
 		getSelection: () =>
 			caret === null
 				? null
@@ -691,6 +693,7 @@ describe('a table cell', () => {
 		const events = createEditorEvents();
 		const menu = createInlineMenuState({
 			getDoc: () => doc,
+			measured: () => measured(doc),
 			getSelection: () => ({
 				anchor: { path: CELL, offset: caret },
 				focus: { path: CELL, offset: caret }
