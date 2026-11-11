@@ -5,7 +5,9 @@
 import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
 import { pressKey } from '#lib/test/harness/settle.js';
 import { dispatchPaste, pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
+import { dispatchClipboardEvent, StubDataTransfer } from '#lib/test/harness/clipboard-events.js';
 import {
+	placeCaret,
 	pressKeyAt,
 	surfaceAt,
 	typeInto,
@@ -285,6 +287,33 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		setUp: (m) => holdRange(m, [AT], [AT + 2]),
 		async write(m) {
 			dispatchPaste(surfaceAt(m, [AT]), 'pasted');
+			await m.settle();
+		},
+		asks: () => ({ path: [AT], offset: 0 }),
+		announces: 'exact',
+		readsItself: true,
+		laysOutItsAnswer: true
+	},
+	{
+		name: 'a cut of a range the editor holds across blocks',
+		source: paragraphs,
+		setUp: (m) => holdRange(m, [AT], [AT + 2]),
+		async write(m) {
+			dispatchClipboardEvent(surfaceAt(m, [AT]), 'cut', new StubDataTransfer());
+			await m.settle();
+		},
+		asks: () => ({ path: [AT], offset: 0 }),
+		announces: 'exact',
+		readsItself: true,
+		laysOutItsAnswer: true
+	},
+	{
+		name: 'Backspace at the top of an empty fence, which removes the block whole',
+		source: withBlock('```\n```\n'),
+		async write(m) {
+			const el = surfaceAt(m, [AT]);
+			placeCaret(el, 0);
+			await pressKey(el, { key: 'Backspace' });
 			await m.settle();
 		},
 		asks: () => ({ path: [AT], offset: 0 }),
