@@ -278,7 +278,7 @@ function lastLineStart(pasted: Doc, leaf: LaidBlock): number {
 }
 
 /** A pasted container's content as its taker holds it: its first paragraph's first line, the last
- *  line of a paragraph of its own that ends the clipboard, and the clipboard's own bytes between. */
+ *  line of a paragraph that ends the clipboard (its own, or one under it), and the bytes between. */
 function takenIn(pasted: Doc, first: LaidBlock): { before: string; mid: string; after: string } {
 	const { source } = pasted;
 	const texts = [...pasted.layout.within(first.from, source.length)].filter(
@@ -291,7 +291,8 @@ function takenIn(pasted: Doc, first: LaidBlock): { before: string; mid: string; 
 	const closes =
 		tail !== undefined &&
 		paragraph(tail) &&
-		tail.path.slice(0, -1).join() === first.path.join() &&
+		(tail.path.slice(0, -1).join() === first.path.join() ||
+			(tail.path.length === first.path.length && !isBlankText(nodeAt(pasted, tail.path).raw))) &&
 		contentEnd(pasted, tail) === source.length &&
 		lastLineStart(pasted, tail) > joined;
 	const end = closes ? lastLineStart(pasted, tail) : source.length;

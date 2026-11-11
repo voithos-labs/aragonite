@@ -382,6 +382,18 @@ const RUN_ROWS: NamedRow[] = [
 		'> a **boq**\n>\n> **rld** z\n'
 	),
 	live(
+		'a paragraph that ends the clipboard outside the quote taken in lands inside the run too',
+		'> a **bo⟦⟧ld** z\n',
+		paste('> q\n\nafter'),
+		'> a **boq**\n\n**afterld** z\n'
+	),
+	live(
+		'and inside an underscore run in emphasis, which no marker opens behind its last letter',
+		'> a *x __t⟦⟧wo words__ y* z\n',
+		paste('> q\n\nafter'),
+		'> a *x __tq__*\n\n*__afterwo words__ y* z\n'
+	),
+	live(
 		'a run in a setext title keeps the underline above too',
 		'a **bo⟦⟧ld** z\n===\n',
 		paste(TABLE),
