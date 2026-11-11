@@ -279,6 +279,24 @@ const GAPS: GapShape[] = [
 		plugins: true,
 		gap: { parentPath: [0, 0, 1], index: 1 },
 		after: '  > x\n  > ```\n'
+	},
+	{
+		name: 'after code that ends an item in a quote, no line ending at the end',
+		source: '> - a\n>   ```\n>   x\n>   ```',
+		gap: { parentPath: [0, 0, 0], index: 2 },
+		after: '>   x\n>   ```'
+	},
+	{
+		name: 'after a table that ends an item in a quote',
+		source: '> - a\n>\n>   | b |\n>   | - |\n>\n> c\n',
+		gap: { parentPath: [0, 0, 0], index: 2 },
+		after: '>   | b |\n>   | - |\n'
+	},
+	{
+		name: 'after a table that ends a quote in a list item',
+		source: '- a\n\n  > | b |\n  > | - |\n\n  c\n',
+		gap: { parentPath: [0, 0, 1], index: 1 },
+		after: '  > | b |\n  > | - |\n'
 	}
 ];
 
@@ -308,8 +326,10 @@ describe("a gap caret's byte at a nested boundary", () => {
 		const restore = vi.spyOn(s.deps.caretLanding, 'restore');
 		s.deps.selectionState.setGapCaret(shape.gap);
 		const end = shape.source.length;
+		// A line of its own, keeping whether the document ends on a line ending.
+		const insert = shape.source.endsWith('\n') ? 'z\n' : '\nz';
 		const wrote = await s.controller.commitSource({
-			changes: [{ from: end, to: end, insert: 'z\n' }],
+			changes: [{ from: end, to: end, insert }],
 			caret: { at: end + 2, holds: 'text' },
 			op: { kind: 'input' },
 			snapshot: { path: docPathFrom([0]), offset: 0 }
