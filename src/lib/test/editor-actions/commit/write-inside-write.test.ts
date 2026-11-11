@@ -257,6 +257,27 @@ describe.each(BUILDS)('a write started inside another, in $build', ({ isDev }) =
 	});
 });
 
+describe.each(BUILDS)('a refused write leaves the outer one going on, in $build', ({ isDev }) => {
+	it("the next keystroke joins the outer keystroke's undo entry", async () => {
+		const nextKey = (d: Doors) =>
+			d.h.actions.updateBlockContent(2, 'two!!\n', 'authored', 'join-typing', 4, 5);
+		const alone = await doors();
+		await OUTERS[0].run(alone);
+		await nextKey(alone);
+
+		const d = await doors();
+		const write = started(() => INNERS[2].start(d));
+		insideNextWrite(d.h.deps.starts, write.run);
+		configureEditorEnv({ isDev });
+		await OUTERS[0].run(d);
+		await write.settled();
+		await nextKey(d);
+
+		expect(outcome(d)).toEqual(outcome(alone));
+		expect(d.errors).toHaveLength(1);
+	});
+});
+
 // ── After the announcement ──────────────────────────────────────────────────
 
 describe('a write started once the outer one has announced', () => {

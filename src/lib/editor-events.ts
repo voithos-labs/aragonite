@@ -1,7 +1,7 @@
 /**
- * The event subscription object reached through `getEvents()`. Events fire synchronously. An
- * `edit` event fires once its change is written and announced, so its handler sees the updated
- * document and may write; a write started inside another is refused.
+ * The event subscription object reached through `getEvents()`. Events fire synchronously and a
+ * handler must not mutate the document; an `edit` event fires after its change is written and
+ * announced, so its handler sees the updated document.
  */
 
 import type { AnyBlockKind } from './core/nodes';
