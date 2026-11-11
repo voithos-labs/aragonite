@@ -120,9 +120,10 @@ export function cutLeaf(doc: Doc, leaf: LaidBlock, from: number, to: number, joi
 	const ending = ownTrailingLineEnding(raw);
 	// A cut at the end of a line the block goes on under leaves that line break as it is written.
 	const cutAt = byteAt(doc, leaf, to);
-	const below = after === '' && cutAt < leaf.text!.to && /[\r\n]/.test(doc.source[cutAt]);
+	const nextBreak = after === '' && cutAt < leaf.text!.to ? /^\r?\n/.exec(raw.slice(to)) : null;
+	const below = nextBreak !== null;
 	const lineStart = /\n$/.test(cut.head);
-	const sep = lineStart ? '' : below ? (/^\r?\n/.exec(raw.slice(to))?.[0] ?? '\n') : '\n';
+	const sep = lineStart ? '' : (nextBreak?.[0] ?? '\n');
 	const bytes = cut.head + sep + cut.tail + ending;
 	const { source } = writeLeaf(doc, leaf, { bytes, caret: 0, after: 0 }, from, to);
 	// A place before text is read off the character after it: a line's markers end where it stands.

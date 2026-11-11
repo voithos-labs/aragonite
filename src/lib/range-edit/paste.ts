@@ -268,9 +268,13 @@ function lastLineOf(pasted: Doc, block: LaidBlock): number | null {
 	const leaf = [...pasted.layout.within(block.from, block.to)].filter((b) => b.text).at(-1);
 	if (!leaf || contentEnd(pasted, leaf) !== contentEnd(pasted, block)) return null;
 	if (factsOf(pasted, leaf).body !== 'markdown') return null;
+	return Math.max(lastLineStart(pasted, leaf), leaf.text!.from);
+}
+
+/** Where the last line of the text block `leaf` starts. */
+function lastLineStart(pasted: Doc, leaf: LaidBlock): number {
 	const raw = trimTrailingLineEnding(nodeAt(pasted, leaf.path).raw);
-	const line = pasted.layout.byteOf(leaf.path, raw.lastIndexOf('\n') + 1)!;
-	return Math.max(line, leaf.text!.from);
+	return pasted.layout.byteOf(leaf.path, raw.lastIndexOf('\n') + 1)!;
 }
 
 /** A pasted container's content as its taker holds it: its first paragraph's first line, the last
@@ -284,17 +288,13 @@ function takenIn(pasted: Doc, first: LaidBlock): { before: string; mid: string; 
 	const [head, tail] = [texts[0], texts.at(-1)];
 	const start = head?.text?.from ?? first.from;
 	const joined = head && paragraph(head) ? lineEndBefore(source, start) : start;
-	const lastLine = (b: LaidBlock) => {
-		const raw = trimTrailingLineEnding(nodeAt(pasted, b.path).raw);
-		return pasted.layout.byteOf(b.path, raw.lastIndexOf('\n') + 1)!;
-	};
 	const closes =
 		tail !== undefined &&
 		paragraph(tail) &&
 		tail.path.slice(0, -1).join() === first.path.join() &&
 		contentEnd(pasted, tail) === source.length &&
-		lastLine(tail) > joined;
-	const end = closes ? lastLine(tail) : source.length;
+		lastLineStart(pasted, tail) > joined;
+	const end = closes ? lastLineStart(pasted, tail) : source.length;
 	return {
 		before: source.slice(start, joined),
 		mid: source.slice(joined, end),

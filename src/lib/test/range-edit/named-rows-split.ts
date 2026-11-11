@@ -418,6 +418,15 @@ const PLAIN_ROWS: NamedRow[] = [
 	}
 ];
 
+// Miss-analysis: every row cut a block at a line's end before a line break, none before a CR
+// that ends no line, which the cut then took for one.
+const LINE_ROWS: NamedRow[] = both(
+	'S a CR that ends no line is text the cut stands before, not a line break',
+	'a⟦⟧\rb\r\nx\n',
+	paste('para\n\n- a\n- b\n'),
+	'apara\r\n\r\n- a\r\n- b\r\n\rb\r\nx\n'
+);
+
 // Miss-analysis: no to-do, drawn or named, had text that alone opens a fence, so the closing line
 // the block's own write put under it met no row.
 const TODO = '- [x] ````t⟦s⟧\n\n  next\n';
@@ -442,5 +451,6 @@ export const SPLIT_ROWS: NamedRow[] = [
 	...EMPTIED_ROWS,
 	...RUN_ROWS,
 	...PLAIN_ROWS,
+	...LINE_ROWS,
 	...TODO_ROWS
 ];

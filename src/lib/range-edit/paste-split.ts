@@ -321,8 +321,7 @@ export function splitAt(
 	// A paragraph the clipboard ends on is joined to the second half already.
 	const { joined } = cut;
 	const lines = spliced(doc, at, to, undefined, '', joined || undefined);
-	// A block left with no text gives way to the pasted blocks, its own markers with it.
-	const head = cut.empty ? source.slice(0, leaf.from) : cut.head;
+	const { head } = cut;
 	const before = head.slice(leaf.from);
 	if (before !== '') {
 		// The head keeps its line, a blank line under it (a head of blanks is one already), then the
@@ -340,8 +339,7 @@ export function splitAt(
 	// a line the paste took the text of was never empty.
 	const under = Math.min(lineEnd(source, to) + 1, source.length);
 	const next = lineRest(source, pastMarkers(source, under));
-	const gaveWay = cut.empty && cut.head.length > leaf.from;
-	const kept = at === to && !gaveWay && !cut.follows && !isBlankText(next) ? eol + blank : '';
+	const kept = at === to && !cut.follows && !isBlankText(next) ? eol + blank : '';
 	const apart = eol + (body !== clip ? blank + eol : '') + prefix;
 	const taken = joined || (factsOf(doc, leaf).joins === 'text' && lastJoins && body === clip);
 	const closing = cut.follows ? (taken ? '' : apart) : kept;
