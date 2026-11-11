@@ -699,12 +699,13 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: between('', [0]),
 		expect: { source: '> a\n', caret: boundary(4, [0]) }
 	},
-	// A range that is exactly one block is no named place: the text takes the block's line (§ 5.9).
+	// A range that is exactly one block is no named place: the text takes the block's line (§ 5.9),
+	// a blank line over it only where it would read into the block above.
 	{
-		name: 'L5 text pasted over a code block held whole by a range takes its line, as today',
+		name: 'L5 text pasted over a code block held whole by a range takes its line, no lazy line',
 		source: '- a\n⟦```\nx\n```⟧\n',
 		gesture: paste('汉字'),
-		expect: { source: '- a\n汉字\n' }
+		expect: { source: '- a\n\n汉字\n' }
 	},
 	// Miss-analysis: no draw cuts a list's middle item whole, and law 9 reads no place between items,
 	// so a pasted item kept apart from both its neighbours, three lists for one, met no check.
@@ -776,10 +777,10 @@ export const NAMED_ROWS: NamedRow[] = [
 		expect: { source: 'x\ny\n# h\n', caret: text(3) }
 	},
 	{
-		name: 'L5 text over a rule held whole stays apart from the indented code under it',
+		name: 'L5 text over a rule held whole stays apart from the text over it and the code under',
 		source: 'para\n⟦***⟧\n    code\n',
 		gesture: paste('p'),
-		expect: { source: 'para\np\n\n    code\n', caret: text(6) }
+		expect: { source: 'para\n\np\n\n    code\n', caret: text(7) }
 	},
 	// ── Copy (law 10) ──
 	{

@@ -520,6 +520,83 @@ const BODY_ROWS: NamedRow[] = [
 	}
 ];
 
+// Miss-analysis: every row that put a block on a line of its own had a blank line or nothing over
+// it, so a pasted quote reading into the quote above, and a paragraph into a table, met no row.
+const ALERT = '> [!NOTE]\n> body\n';
+const GRID = '| a |\n| - |\n';
+const SEAM_ROWS: NamedRow[] = [
+	// Over a heading's whole text, and at a caret in an empty heading.
+	...both('M a quote under a quote stays a quote', '> q\n# ⟦h⟧\n', paste('> p'), '> q\n\n> p\n'),
+	...both('M at an empty heading too', '> q\n# ⟦⟧\n', paste('> p'), '> q\n\n> p\n'),
+	...both('M and under an alert', `${ALERT}# ⟦h⟧\n`, paste('> p'), `${ALERT}\n> p\n`),
+	...both(
+		'M and between two quotes, apart from both',
+		'> q\n# ⟦h⟧\n> r\n',
+		paste('> p'),
+		'> q\n\n> p\n\n> r\n'
+	),
+	...both('M a list under a list of its type joins it', '- a\n# ⟦h⟧\n', paste('- b'), '- a\n- b\n'),
+	...both('M at an empty heading too, a list', '- a\n# ⟦⟧\n', paste('- b'), '- a\n- b\n'),
+	...both('M an ordered one', '1. a\n# ⟦h⟧\n', paste('1. b'), '1. a\n1. b\n'),
+	...both(
+		'M and between two lists, joining both',
+		'- a\n# ⟦h⟧\n- c\n',
+		paste('- b'),
+		'- a\n- b\n- c\n'
+	),
+	...both('M a list of the other kind lands flush', '- a\n# ⟦h⟧\n', paste('1. b'), '- a\n1. b\n'),
+	...both('M and a list under a quote', '> q\n# ⟦h⟧\n', paste('- b'), '> q\n- b\n'),
+	...both('M and a quote under a table', `${GRID}# ⟦h⟧\n`, paste('> p'), `${GRID}> p\n`),
+	...both(
+		'M and a quote under a callout',
+		':::note\nbody\n:::\n# ⟦h⟧\n',
+		paste('> p'),
+		':::note\nbody\n:::\n> p\n'
+	),
+	...both('M a paragraph joins the heading’s text', '> q\n# ⟦h⟧\n', paste('para'), '> q\n# para\n'),
+	// Over the block's own range.
+	...both('M a quote over a block held whole', '> q\n⟦# h⟧\n', paste('> p'), '> q\n\n> p\n'),
+	...both('M a list over one, under its list', '- a\n⟦# h⟧\n', paste('- b'), '- a\n- b\n'),
+	...both(
+		'M a paragraph over one is no lazy line of the quote',
+		'> q\n⟦# h⟧\n',
+		paste('para'),
+		'> q\n\npara\n'
+	),
+	...both('M nor of an item', '- a\n⟦# h⟧\n', paste('para'), '- a\n\npara\n'),
+	...both('M nor a table’s row', `${GRID}⟦# h⟧\n`, paste('para'), `${GRID}\npara\n`),
+	// In an empty paragraph, which a blank line parts from the block above.
+	...both('M a quote in an empty paragraph', '> q\n\n⟦⟧\n', paste('> p'), '> q\n\n> p\n'),
+	...both(
+		'M a list there joins the list above, the blank line gone',
+		'- a\n\n⟦⟧\n',
+		paste('- b'),
+		'- a\n- b\n'
+	),
+	...both('M inside a quote too', '> - a\n>\n> ⟦⟧\n', paste('- b'), '> - a\n> - b\n'),
+	...both('M and the list under it', '- a\n\n⟦⟧\n- c\n', paste('- b'), '- a\n- b\n- c\n'),
+	...both(
+		'M a list numbered with the same delimiter joins',
+		'1) a\n\n⟦⟧\n',
+		paste('3) b'),
+		'1) a\n3) b\n'
+	),
+	...both('M another bullet keeps its blank line', '- a\n\n⟦⟧\n', paste('* b'), '- a\n\n* b\n'),
+	...both(
+		'M only the list joins: a paragraph under it stays apart',
+		'- a\n\n⟦⟧\nafter\n',
+		paste('- b\n\npara'),
+		'- a\n- b\n\npara\n\nafter\n'
+	),
+	// On a separator line, which no block holds.
+	...both(
+		'M a paragraph on a separator line stands apart from both',
+		'p\n⟦⟧\nafter\n',
+		paste('x'),
+		'p\n\nx\n\nafter\n'
+	)
+];
+
 export const SPLIT_ROWS: NamedRow[] = [
 	...STRUCTURE_ROWS,
 	...EMPTIED_ROWS,
@@ -527,5 +604,6 @@ export const SPLIT_ROWS: NamedRow[] = [
 	...PLAIN_ROWS,
 	...LINE_ROWS,
 	...TODO_ROWS,
-	...BODY_ROWS
+	...BODY_ROWS,
+	...SEAM_ROWS
 ];

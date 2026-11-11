@@ -454,12 +454,34 @@ export function expectedPaste(
 	const rest = read.source.slice(at, (read.source + '\n').indexOf('\n', at));
 	const onSyntax =
 		!leafAt(read, at) && rest.trim() !== '' && read.blocks.some((b) => b.from === at);
-	if (held.holds !== 'text' || onSyntax) {
+	// On an empty line no block holds it lands as blocks of its own, apart where two read as one.
+	const head = read.source.slice(read.source.lastIndexOf('\n', at - 1) + 1, at);
+	const onEmptyLine = !leafAt(read, at) && rest.trim() === '' && /^[ \t>]*$/.test(head);
+	if (held.holds !== 'text' || onSyntax || onEmptyLine) {
 		const bytes =
 			held.holds === 'text'
 				? landedApart(read, at, lf(text), host)
 				: landedInGap(read, at, held.parent, lf(text), host);
 		return bytes === null ? { shape: 'other', bytes: [] } : { shape: 'apart', bytes };
+	}
+	// A top-level heading with no text gives way to blocks that join none of it: they land on its
+	// line as on an empty one.
+	const leaf = leafAt(read, at);
+	const firstPasted = readOf(host, lf(text)).blocks.find(
+		(b) => b.path.length === 1 && lf(text).slice(b.from, b.to).trim() !== ''
+	);
+	const emptied =
+		at === to &&
+		leaf?.path.length === 1 &&
+		leaf.from < leaf.text!.from &&
+		leaf.text!.from === leaf.text!.to &&
+		!!firstPasted &&
+		firstPasted.type !== 'paragraph' &&
+		!lf(text).startsWith('\n');
+	if (emptied) {
+		const end = lineContentEnd(read.source, leaf.to);
+		const bare = readOf(host, read.source.slice(0, leaf.from) + read.source.slice(end));
+		return expectedPaste(bare, leaf.from, text, host, held);
 	}
 	const want = structuredPaste(read, at, to, text, host);
 	const last = host
@@ -468,7 +490,63 @@ export function expectedPaste(
 		.at(-1);
 	const container = !!last?.children?.length;
 	const apart = (bytes: string) => apartBelow(read, at, bytes, host, container);
-	return { ...want, bytes: want.bytes.flatMap(apart) };
+	const joined = (bytes: string) => joinedLists(read, at, bytes, readOf(host, lf(text)), host);
+	return { ...want, bytes: want.bytes.flatMap(apart).map(joined) };
+}
+
+/** What keeps two lists apart: an item's bullet character, or its ordered delimiter. */
+function markerFamily(read: Read, list: LaidBlock | undefined, last: boolean): string | null {
+	const items = read.blocks.filter(
+		(b) =>
+			b.path.length === list!.path.length + 1 && b.path.slice(0, -1).join() === list!.path.join()
+	);
+	const item = last ? items.at(-1) : items[0];
+	const marker = item && /^[ \t>]*(?:([-+*])|\d+([.)]))/.exec(read.source.slice(item.from));
+	return marker ? (marker[1] ?? marker[2]) : null;
+}
+
+/** Whether `pasted`, a block of `clip`, is a list of the type of `list` beside it in `read`, so the
+ *  two join as items: `under` where the pasted one is the lower. */
+function sameList(
+	read: Read,
+	list: LaidBlock | undefined,
+	clip: Read,
+	pasted: LaidBlock | undefined,
+	under: boolean,
+	host: CheckHost
+): boolean {
+	if (!list || pasted?.type !== list.type || host.facts(list.type).lines !== 'items') return false;
+	const family = markerFamily(read, list, under);
+	return family !== null && family === markerFamily(clip, pasted, !under);
+}
+
+/** `bytes`, a paste of `clip` into the empty paragraph at `at`, with a pasted list joined to a list
+ *  of its own type either side of that paragraph: no blank line stands between items of one list. */
+function joinedLists(read: Read, at: number, bytes: string, clip: Read, host: CheckHost): string {
+	const target = leafAt(read, at);
+	const empty = !!target && /^\r?\n?$/.test(treeNodeAt(read.tree, target.path)?.raw ?? '-');
+	if (target?.type !== 'paragraph' || !empty || inTitleRow(read, at, host)) return bytes;
+	const tops = clip.blocks.filter(
+		(b) => b.path.length === 1 && clip.source.slice(b.from, b.to).trim() !== ''
+	);
+	const beside = (step: number) =>
+		read.blocks.find(
+			(b) => b.path.join() === [...target.path.slice(0, -1), target.path.at(-1)! + step].join()
+		);
+	const lineOf = (source: string, byte: number) => source.lastIndexOf('\n', byte - 1) + 1;
+	const joins = (list: LaidBlock | undefined, pasted: LaidBlock | undefined, under: boolean) =>
+		sameList(read, list, clip, pasted, under, host);
+	let out = bytes;
+	const [upper, lower] = [beside(-1), beside(1)];
+	const flush = !!lower && lineOf(read.source, lower.from) === target.to;
+	if (flush && joins(lower, tops.at(-1), false)) {
+		const line = target.to + bytes.length - read.source.length;
+		const above = lineOf(out, line - 1);
+		if (/^[ \t>]*\r?\n$/.test(out.slice(above, line))) out = out.slice(0, above) + out.slice(line);
+	}
+	if (joins(upper, tops[0], true))
+		out = out.slice(0, upper!.to) + out.slice(lineOf(read.source, target.from));
+	return out;
 }
 
 /** `bytes`, or `bytes` with a blank line over the block flush under an empty paragraph the paste
@@ -622,15 +700,19 @@ function landedApart(read: Read, at: number, clip: string, host: CheckHost): str
 			source.slice(b.from, b.to).trim() !== '' &&
 			(!holder || (b.from >= holder.from && b.to <= holder.to))
 	);
+	// A pasted list joins a list of its own type either side as items, no blank line between.
+	const clipRead = readOf(host, clip);
 	const under = beside.find((b) => b.from >= at);
-	const below = under
-		? parted(out, under.from + out.length - source.length, under.type, prefix)
-		: [out];
+	const below =
+		under && !sameList(read, under, clipRead, tops.at(-1), false, host)
+			? parted(out, under.from + out.length - source.length, under.type, prefix)
+			: [out];
 	// Past where its line's text starts, the place is on a line of the block above, never under it.
 	const head = lineStart(source, at);
 	const textStart = holder ? lineOf(holder, at).markerTo : head;
 	const over = beside.find((b) => b.to >= head && b.to <= at && !inTitleRow(read, b.from, host));
-	if (!over || at !== textStart) return below;
+	if (!over || at !== textStart || sameList(read, over, clipRead, tops[0], true, host))
+		return below;
 	return below.flatMap((bytes) => parted(bytes, at, tops[0].type, source.slice(head, at)));
 }
 

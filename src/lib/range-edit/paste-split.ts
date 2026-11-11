@@ -6,6 +6,8 @@
  */
 
 import { isBlankText } from '../core/lines';
+import type { NodeView } from '../core/node-views';
+import { itemsShareList } from '../tree-operations/list/ordered-markers';
 import type { LaidBlock } from './layout';
 import { pastMarkers } from './apart';
 import {
@@ -230,11 +232,26 @@ export function pasteApart(
 	return setApart(doc, setIn(doc, at, holder, clip), holder, clip, true, always);
 }
 
-/** `clip` on the empty line at `at` that no block holds: its last block stays apart from the
- *  block under it. */
-export function apartBelow(doc: Doc, at: number, clip: string): Edit {
+/** `clip` on the empty line at `at` that no block holds: its first and last blocks stay apart from
+ *  the block either side where the two would read as one, save a list of its own type, which it joins. */
+export function onEmptyLine(doc: Doc, at: number, clip: string): Edit {
 	const holder = holderAt(doc, at);
-	return setApart(doc, setIn(doc, at, holder, clip), holder, clip, false, false);
+	return setApart(doc, setIn(doc, at, holder, clip), holder, clip, true, false);
+}
+
+/** Whether the pasted list `block` joins the list `beside` it as items once nothing parts the two,
+ *  `under` where the pasted one is the lower: one bullet character, or one ordered delimiter. */
+export function joinsList(
+	doc: Doc,
+	beside: LaidBlock | undefined,
+	block: NodeView | undefined,
+	under: boolean
+): boolean {
+	if (!beside || beside.type !== block?.kind || factsOf(doc, beside).lines !== 'items')
+		return false;
+	const lists = [nodeAt(doc, beside.path), block];
+	const [upper, lower] = under ? lists : lists.reverse();
+	return itemsShareList(upper.children?.at(-1), lower.children?.[0]);
 }
 
 /** `edit` with a blank line under the last block of `clip` and, with `above`, over its first: with
@@ -252,9 +269,12 @@ function setApart(
 	if (blocks.length === 0 || lines === 'rows') return edit;
 	const { source } = doc;
 	const { place } = edit;
-	// Between a list's items a pasted list is the list's own, which nothing keeps from folding into it.
+	// Between a list's items a pasted list is the list's own, and beside a list of its own type it
+	// joins it as items unless a gap caret named the place: nothing keeps either from folding in.
 	const path = holder?.path ?? [];
-	const placed = (kind: string) => !(lines === 'items' && kind === holder!.type);
+	const placed = (block: NodeView, beside: LaidBlock | undefined, under: boolean) =>
+		!(lines === 'items' && block.kind === holder!.type) &&
+		(always || !joinsList(doc, beside, block, under));
 	const child = (b: LaidBlock) =>
 		b.path.length === path.length + 1 && path.every((p, i) => p === b.path[i]);
 	const next = pastMarkers(source, Math.min(lineEnd(source, place) + 1, source.length));
@@ -268,7 +288,7 @@ function setApart(
 			index: lower!.path.at(-1)!,
 			upper: blocks.at(-1)!.raw,
 			lower: lowerRaw,
-			placed: placed(blocks.at(-1)!.kind)
+			placed: placed(blocks.at(-1)!, lower, false)
 		};
 		out = parted(doc, out, under, edit.under, always && pair.placed ? null : pair);
 	} else if (always && under > 0 && !closes(doc, edit.follows ? place : next)) {
@@ -286,7 +306,7 @@ function setApart(
 		index: upper.path.at(-1)!,
 		upper: nodeAt(doc, upper.path).raw,
 		lower: blocks[0].raw,
-		placed: placed(blocks[0].kind)
+		placed: placed(blocks[0], upper, true)
 	};
 	const grown = parted(doc, out, edit.line, edit.marks, always && pair.placed ? null : pair);
 	return { source: grown, caret: edit.caret + grown.length - out.length };
