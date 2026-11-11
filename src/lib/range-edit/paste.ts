@@ -94,14 +94,15 @@ function transformed(doc: Doc, clip: string, transform: Pasted['transform']): Do
 }
 
 /** The paste of `lf`, clipboard text with LF line endings, over `[from, to)`; `blocks` reads it as
- *  the blocks it lands as. */
+ *  the blocks it lands as. `typed`: the range is the letter `typedOver` left. */
 function landed(
 	doc: Doc,
 	from: number,
 	to: number,
 	lf: string,
 	plain: boolean,
-	blocks: () => Doc
+	blocks: () => Doc,
+	typed = false
 ): Edit {
 	const visibleAfter = lineRest(doc.source, to) !== '';
 	// Plain text goes in as lines of the block at the caret: with nothing after the caret, its last
@@ -145,6 +146,12 @@ function landed(
 	}
 	// Plain text never converts: it goes in escaped where the block reads Markdown.
 	if (plain) return write(escaped());
+	// A landing that takes the range out by its bytes runs on the bytes the block's own write leaves
+	// around it, where those differ: in live mode that write closes a format run the range cuts.
+	const byBytes = (land: () => Edit) => {
+		const over = from < to && !typed ? typedOver(doc, leaf, target.from, target.to) : null;
+		return over ? landed(over.doc, over.from, over.to, lf, plain, blocks, true) : land();
+	};
 	// One line after text on the caret's line reads as text, so no transform sees it; any other
 	// clipboard lands as the blocks the transforms leave.
 	const lineAfter = afterText(doc, leaf, target.from, clip);
@@ -164,10 +171,10 @@ function landed(
 	const text = ownEnding ? clip.slice(0, -1) : clip;
 	// Line breaks alone go in as bytes: the block's own write could re-read them (a setext heading's
 	// underline would go).
-	if (!first) return bytes(clip);
+	if (!first) return byBytes(() => bytes(clip));
 	const joins = isText(first) || lineAfter;
 	const left = joins ? null : leftBy(doc, from, pasted, first, leaf);
-	if (left) return splitOut(doc, left, leaf, from, to, clip, lastRaw);
+	if (left) return byBytes(() => splitOut(doc, left, leaf, from, to, clip, lastRaw));
 	// A pasted container the caret's container takes in joins it from its first text, a line
 	// break before it included, where its last block can take the text after the caret or none follows.
 	const taker = joins ? null : takerOf(doc, from, pasted, first);
@@ -185,7 +192,19 @@ function landed(
 		const caret = apart && edit.source[ending - 1] === '\r' ? ending - 1 : ending;
 		return restApart(doc, { source: edit.source, caret }, leaf, to, lastRaw);
 	}
-	return splitAt(doc, leaf, from, to, text, lastJoins, lastRaw);
+	return byBytes(() => splitAt(doc, leaf, from, to, text, lastJoins, lastRaw));
+}
+
+/** `doc` with `[from, to)` of the block's bytes written over by one letter, as typing over the range
+ *  leaves the block, and where that letter stands; null where the write changes no other byte. */
+function typedOver(doc: Doc, leaf: LaidBlock, from: number, to: number) {
+	const [start, end] = [byteAt(doc, leaf, from), byteAt(doc, leaf, to)];
+	const edit = writeText(doc, leaf, from, to, 'x');
+	const at = edit.caret - 1;
+	if (edit.source === doc.source.slice(0, start) + 'x' + doc.source.slice(end)) return null;
+	const written = { ...readDoc(edit.source, doc.host, doc.mode), ending: doc.ending };
+	const held = edit.source[at] === 'x' && leafHolding(written, at, edit.caret);
+	return held ? { doc: written, from: at, to: edit.caret } : null;
 }
 
 /** Text for a block that holds one line: each run of line breaks a space, a last one dropped. */

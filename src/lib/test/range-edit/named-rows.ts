@@ -1558,6 +1558,58 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: paste('> q\n\nafter'),
 		expect: { source: '# \n\n> q\n\nafter\n' }
 	},
+	// ── Blocks pasted over a range that cuts a format run leave the run closed (§ 5.11) ──
+	// Miss-analysis: the rows that split a block over a range ran in source mode or held a whole
+	// text, and the fixed draw cut no run with a clipboard that splits; a fresh seed did.
+	{
+		name: 'L5 live, a quote pasted over a range out of a link and its bold run leaves neither open',
+		source: '## ⟦[**bold⟧**](url) foo\n',
+		mode: 'live',
+		gesture: paste('> quoted'),
+		expect: { source: '> quoted\n##  foo\n', caret: text(8) }
+	},
+	{
+		name: 'L5 live, which is what its cut, then the quote pasted at the cut’s caret, leaves',
+		source: '## ⟦[**bold⟧**](url) foo\n',
+		mode: 'live',
+		gesture: 'cut',
+		expect: { source: '##  foo\n', clipboard: '[**bold**](url)', caret: text(3) },
+		then: { gesture: paste('> quoted'), expect: { source: '> quoted\n##  foo\n' } }
+	},
+	{
+		name: 'L5 live, a table pasted over a range into a quoted run leaves the run’s rest closed',
+		source: '> a ⟦**b⟧ c**\n> d\n',
+		mode: 'live',
+		gesture: paste('| a |\n| - |'),
+		expect: { source: '> a \n>\n> | a |\n> | - |\n>\n>  **c**\n> d\n' }
+	},
+	{
+		name: 'L5 live, a table pasted over a range into a heading’s run does the same',
+		source: '# a ⟦**b⟧ c**\nnext\n',
+		mode: 'live',
+		gesture: paste('| a |\n| - |'),
+		expect: { source: '# a \n\n| a |\n| - |\n\n **c**\nnext\n' }
+	},
+	{
+		name: 'L5 live, a list breaking out over a range from an item’s text start into a run',
+		source: '- ⟦**b⟧ c**\n- d\n',
+		mode: 'live',
+		gesture: paste('1. q'),
+		expect: { source: '1. q\n-  **c**\n- d\n' }
+	},
+	{
+		name: 'L5 live, a line break alone pasted over a range into a run',
+		source: 'x ⟦a **b⟧ c** d\n',
+		mode: 'live',
+		gesture: paste('\n'),
+		expect: { source: 'x \n **c** d\n' }
+	},
+	{
+		name: 'L5 in source mode the same range goes by its bytes, the delimiters text like any other',
+		source: '- ⟦**b⟧ c**\n- d\n',
+		gesture: paste('1. q'),
+		expect: { source: '1. q\n-  c**\n- d\n' }
+	},
 	{
 		name: 'L9 blocks pasted at a cell’s text start go in on its one line, as its text',
 		source: '| x | ⟦⟧y |\n| - | - |\n',
