@@ -86,7 +86,7 @@ describe('G4.340 a document nobody asks a position of keeps no record', () => {
 });
 
 describe('G4.340 a position read after a write measures the blocks the write changed', () => {
-	it.each(WRITE_ROUTES.filter((route) => route.announces === 'exact' && !route.laysOutItsAnswer))(
+	it.each(WRITE_ROUTES.filter((route) => route.announces === 'exact'))(
 		'$name: as many at 400 blocks as at 40',
 		async (route) => {
 			const long = route.longest ?? LONG;
@@ -94,8 +94,8 @@ describe('G4.340 a position read after a write measures the blocks the write cha
 		}
 	);
 
-	it.each(WRITE_ROUTES.filter((route) => route.announces === 'whole' || route.laysOutItsAnswer))(
-		'$name names no blocks, or lays out a parse of its answer: every block is measured',
+	it.each(WRITE_ROUTES.filter((route) => route.announces === 'whole'))(
+		'$name names no blocks: every block is measured',
 		async (route) => {
 			// One fewer than the document started with, where the write joined two blocks.
 			expect(await blocksMeasured(route, N)).toBeGreaterThanOrEqual(N - 1);

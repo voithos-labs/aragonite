@@ -32,9 +32,8 @@ export interface WriteRoute {
 	longest?: number;
 	/** The write, or the range it starts from, asks positions itself: a reader with no listener. */
 	readsItself?: true;
-	/** The range edit lays out its answer, a parse of the whole document, to find its caret
-	 *  (`range-edit/edit-range.ts :: answerOf`), so it measures every block of that parse. */
-	laysOutItsAnswer?: true;
+	/** A range edit through the range-edit core, which reads the blocks its range reaches. */
+	rangeEdit?: true;
 }
 
 /** The block every route writes at, far enough down that blocks stand on both sides. */
@@ -287,7 +286,7 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		asks: () => ({ path: [AT], offset: 0 }),
 		announces: 'exact',
 		readsItself: true,
-		laysOutItsAnswer: true
+		rangeEdit: true
 	},
 	{
 		name: 'a letter typed over a range the editor holds across blocks',
@@ -300,7 +299,7 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		asks: () => ({ path: [AT], offset: 0 }),
 		announces: 'exact',
 		readsItself: true,
-		laysOutItsAnswer: true
+		rangeEdit: true
 	},
 	// Two writes in one undo entry: the removal's splice, then the paste's commit, whose undo
 	// snapshot is the document from before both.
@@ -315,7 +314,7 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		asks: () => ({ path: [AT], offset: 0 }),
 		announces: 'exact',
 		readsItself: true,
-		laysOutItsAnswer: true
+		rangeEdit: true
 	},
 	{
 		name: 'a cut of a range the editor holds across blocks',
@@ -328,7 +327,7 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		asks: () => ({ path: [AT], offset: 0 }),
 		announces: 'exact',
 		readsItself: true,
-		laysOutItsAnswer: true
+		rangeEdit: true
 	},
 	{
 		name: 'Backspace at the top of an empty fence, which removes the block whole',
@@ -342,7 +341,7 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		asks: () => ({ path: [AT], offset: 0 }),
 		announces: 'exact',
 		readsItself: true,
-		laysOutItsAnswer: true
+		rangeEdit: true
 	},
 	{
 		name: 'undo',

@@ -19,7 +19,8 @@ describeManifests(
 				'src/lib/editor-actions/commit/history.ts': 'an undo entry’s snapshot',
 				'src/lib/editor-actions/commit/change-record.ts': 'one top-level block, alone',
 				'src/lib/tree-operations/spliced-openers.ts': 'one container’s run of children',
-				'src/lib/range-edit/host.ts': 'a range edit’s parse of its answer, or a tree it was handed',
+				'src/lib/range-edit/host.ts':
+					'a parse of a document no editor holds: a host with none of its own, or one left with no bytes',
 				'src/lib/testing/conformance-core.ts': 'the conformance kit’s own parse',
 				'src/lib/testing/inline-menu-conformance.ts': 'the kit’s stand-in host document'
 			},

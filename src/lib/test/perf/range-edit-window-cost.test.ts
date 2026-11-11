@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
-// G4.342: a range edit reads the blocks its range reaches, never the document. Recorded, not held
-// yet: every route through the range-edit core serializes the document once, and each that lays
-// out its answer parses it whole and measures its every top-level block, so all three grow with
-// the document. A fix that brings a cost down to the range's blocks reds that cost's rows here,
-// which then flip to hold it the same at 400 blocks as at 40.
+// G4.342: a range edit reads the blocks its range reaches, never the document. It parses the same
+// bytes and measures the same top-level blocks at 400 blocks as at 40. One cost is recorded, not
+// held yet: each route serializes the document once, and a fix that stops it reds that row.
 // Miss-analysis: the splice cost rows drove `commitSource` alone and the gate timed no range
 // edit, so nothing counted what the range-edit core reads to make its answer.
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -38,7 +36,7 @@ afterEach(async () => {
 
 type RangeGesture = Pick<WriteRoute, 'name' | 'source' | 'setUp' | 'write' | 'asks'>;
 
-const RANGE_EDITS: RangeGesture[] = WRITE_ROUTES.filter((route) => route.laysOutItsAnswer);
+const RANGE_EDITS: RangeGesture[] = WRITE_ROUTES.filter((route) => route.rangeEdit);
 
 const SMALL = 40;
 const LARGE = 400;
@@ -102,24 +100,22 @@ async function growthOf(gesture: RangeGesture) {
 	};
 }
 
-describe('G4.342 recorded: a range edit reads its whole document', () => {
-	it.each(RANGE_EDITS)('$name parses its whole answer, once', async (gesture) => {
-		const grown = gesture.source(LARGE).length - gesture.source(SMALL).length;
-		expect((await growthOf(gesture)).parsedBytes).toBe(grown);
+describe('G4.342 a range edit reads the blocks its range reaches', () => {
+	it.each([...RANGE_EDITS, COPY])('$name parses as many bytes at 400 blocks', async (gesture) => {
+		expect((await growthOf(gesture)).parsedBytes).toBe(0);
 	});
 
-	it.each(RANGE_EDITS)('$name measures every top-level block of its answer', async (gesture) => {
-		expect((await growthOf(gesture)).topBlocksMeasured).toBe(LARGE - SMALL);
+	it.each([...RANGE_EDITS, COPY])('$name measures as many blocks at 400', async (gesture) => {
+		expect((await growthOf(gesture)).topBlocksMeasured).toBe(0);
 	});
 
-	it.each([...RANGE_EDITS, COPY])('$name serializes the document, once', async (gesture) => {
-		expect((await growthOf(gesture)).serializes).toEqual([1, 1]);
+	it('a copy parses nothing and measures no block', async () => {
+		expect(await readsOf(COPY, SMALL)).toMatchObject({ parsedBytes: 0, topBlocksMeasured: 0 });
 	});
 });
 
-describe('G4.342 a copy reads its range off the tree the editor holds', () => {
-	it('parses nothing and measures no block, at 400 blocks as at 40', async () => {
-		expect(await readsOf(COPY, SMALL)).toMatchObject({ parsedBytes: 0, topBlocksMeasured: 0 });
-		expect(await readsOf(COPY, LARGE)).toMatchObject({ parsedBytes: 0, topBlocksMeasured: 0 });
+describe('G4.342 recorded: a range edit serializes the document', () => {
+	it.each([...RANGE_EDITS, COPY])('$name, once', async (gesture) => {
+		expect((await growthOf(gesture)).serializes).toEqual([1, 1]);
 	});
 });

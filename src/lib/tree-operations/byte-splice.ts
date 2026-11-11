@@ -20,7 +20,7 @@ import { assignChildIdsDeep, keepUnchangedDeep } from '../block-id';
 import { changedBytes, narrowed, writtenLines, type ByteChange } from './byte-changes';
 import { containerWindow, standsBelow, textAfter } from './container-window';
 import { spliceMany } from './splice-many';
-import type { Measured } from './top-level-starts';
+import type { Measured, TopLevelChange } from './top-level-starts';
 
 /** Top-level blocks `[at, at + count)` give way to `blocks`; the first new block keeps the first
  *  replaced one's id, and every container in them has its child ids. */
@@ -38,11 +38,25 @@ export interface SpliceReading {
 	suffix: string;
 }
 
+/** The windows as the runs of top-level blocks a reading's install changes. */
+export const runsOf = (windows: readonly SpliceWindow[]): TopLevelChange[] =>
+	windows.map(({ at, count, blocks }) => ({ at, removed: count, inserted: blocks.length }));
+
+/** `tops` with `windows` put in, as a new list: a block outside them is the node it was. */
+export function withWindows(
+	tops: readonly NodeView[],
+	windows: readonly SpliceWindow[]
+): CstNode[] {
+	const children = [...tops] as CstNode[];
+	// Last window first, so each one's indices still hold.
+	for (const window of [...windows].reverse())
+		spliceMany(children, window.at, window.count, window.blocks);
+	return children;
+}
+
 /** The document `reading` leaves, its blocks outside the windows the nodes they were. */
 export function applied(doc: DocumentView, reading: SpliceReading): DocumentView {
-	const children = [...doc.children] as CstNode[];
-	for (const window of [...reading.windows].reverse())
-		spliceMany(children, window.at, window.count, window.blocks);
+	const children = withWindows(doc.children, reading.windows);
 	return { kind: 'document', prefix: doc.prefix, children, suffix: reading.suffix };
 }
 

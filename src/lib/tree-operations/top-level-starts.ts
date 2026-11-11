@@ -7,7 +7,7 @@
  * changed (`editor-actions/commit/kept-starts.ts`).
  */
 
-import type { DocumentView } from '../core/node-views';
+import type { DocumentView, NodeView } from '../core/node-views';
 import { recordTopBlocksMeasured } from '../perf/instruments';
 import { spliceMany } from './splice-many';
 import type { StructuralChange } from './structural-change';
@@ -23,6 +23,9 @@ export interface TopLevelStarts {
 	rawStart(index: number): number;
 	/** The first block whose bytes end past `byte`, or the last; -1 in a document with none. */
 	holding(byte: number): number;
+	/** The starts of `doc`, which `changes` turned the document into: only the blocks they put in
+	 *  are measured. */
+	after(doc: DocumentView, changes: readonly TopLevelChange[]): TopLevelStarts;
 }
 
 /** A document and the starts that describe it: the pair every reader of a position takes, so the
@@ -82,8 +85,24 @@ export function startsOver(doc: DocumentView, kept: () => BlockLengths): TopLeve
 				else lo = mid + 1;
 			}
 			return hi;
+		},
+		after(next, changes) {
+			const { lengths, sums, summed } = kept();
+			const own = { lengths: lengths.slice(), sums: sums.slice(), summed };
+			applyChanges(next, own, changes);
+			return startsOver(next, () => own);
 		}
 	};
+}
+
+const plainTops = new WeakMap<Measured, readonly NodeView[]>();
+
+/** `of`'s top-level blocks as a plain array, read off its document once: the editor's own list
+ *  pays a trap per block read, so a caller that walks or copies them all takes them from here. */
+export function topsOf(of: Measured): readonly NodeView[] {
+	let tops = plainTops.get(of);
+	if (!tops) plainTops.set(of, (tops = [...of.doc.children]));
+	return tops;
 }
 
 /** `kept` brought up to `doc` as `changes` left it: runs in document order, none overlapping, each
