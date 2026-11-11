@@ -10,6 +10,7 @@
 import type { DocumentView } from '../core/node-views';
 import { recordTopBlocksMeasured } from '../perf/instruments';
 import { spliceMany } from './splice-many';
+import type { StructuralChange } from './structural-change';
 
 export interface TopLevelStarts {
 	/** The document's length, its suffix counted. */
@@ -127,6 +128,23 @@ export function changedRun<T>(
 	)
 		tail++;
 	return { at: head, removed: before.length - head - tail, inserted: after.length - head - tail };
+}
+
+/** `run` widened over a later write to its list, where `count` blocks at `at` (as the list then
+ *  stood) gave way to `added`: the blocks between the two are counted as they stood. */
+export function widenRun(run: TopLevelChange, at: number, count: number, added: number): void {
+	const from = Math.min(run.at, at);
+	const to = Math.max(run.at + run.inserted, at + count);
+	run.removed += to - from - run.inserted;
+	run.inserted = to - from - count + added;
+	run.at = from;
+}
+
+/** {@link widenRun} over a change to the top-level list, a container's collapse into it say. */
+export function widenRunOver(run: TopLevelChange, change: StructuralChange): void {
+	if (change.op === 'insert') widenRun(run, change.at, 0, change.count);
+	else if (change.op === 'delete') widenRun(run, change.at, change.count, 0);
+	else if (change.op === 'replace') widenRun(run, change.at, change.count, change.newCount);
 }
 
 function lengthsOf(doc: DocumentView, from: number, to: number): number[] {

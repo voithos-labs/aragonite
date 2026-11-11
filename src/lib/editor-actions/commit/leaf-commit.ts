@@ -26,8 +26,11 @@ import {
 	type BodyParent,
 	type ListWatcher
 } from '../../tree-operations/node-primitives';
-import type { StructuralChange } from '../../tree-operations/structural-change';
-import type { TopLevelChange } from '../../tree-operations/top-level-starts';
+import {
+	widenRun,
+	widenRunOver,
+	type TopLevelChange
+} from '../../tree-operations/top-level-starts';
 import { rawOffsetOfLeaf } from '../../tree-operations/container-offsets';
 import { keepOneBlock, keepOpenTail } from '../../tree-operations/fix-up/apply';
 import { spliceMany } from '../../tree-operations/splice-many';
@@ -139,7 +142,7 @@ export function createLeafCommit(
 					);
 					unwindFolds = publishAncestryFolds(deps, folds);
 					// A collapse at the top level merged the leaf's block with the blocks beside it.
-					for (const fold of folds) if (!fold.owner) widenOver(run, fold.change);
+					for (const fold of folds) if (!fold.owner) widenRunOver(run, fold.change);
 				}
 				keepOpenTail(deps.doc, wasOpen, deps.sharing, deps.reading.grammar);
 				// An ancestor's new bytes reach the view once Svelte re-reads doc.children.
@@ -224,30 +227,12 @@ function savedOnWrite(
 		list,
 		save(at, count, added) {
 			before ??= list.slice();
-			if (run) widen(run, at, count, added);
+			if (run) widenRun(run, at, count, added);
 		},
 		restore: () => {
 			if (before) spliceMany(list, 0, list.length, before);
 		}
 	};
-}
-
-// ── The blocks a keystroke changed ───────────────────────────────────────────
-
-/** `run` widened over a later write to its list, where `count` blocks at `at` gave way to `added`:
- *  the blocks between the two are counted as they stood. */
-function widen(run: TopLevelChange, at: number, count: number, added: number): void {
-	const from = Math.min(run.at, at);
-	const to = Math.max(run.at + run.inserted, at + count);
-	run.removed += to - from - run.inserted;
-	run.inserted = to - from - count + added;
-	run.at = from;
-}
-
-function widenOver(run: TopLevelChange, change: StructuralChange): void {
-	if (change.op === 'insert') widen(run, change.at, 0, change.count);
-	else if (change.op === 'delete') widen(run, change.at, change.count, 0);
-	else if (change.op === 'replace') widen(run, change.at, change.count, change.newCount);
 }
 
 // ── Where the caret goes after an in-place write ─────────────────────────────

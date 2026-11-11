@@ -205,7 +205,7 @@ export const WRITE_ROUTES: WriteRoute[] = [
 			await m.settle();
 		},
 		asks: () => ({ path: [AT + 1], offset: 0 }),
-		announces: 'whole',
+		announces: 'exact',
 		readsItself: true
 	},
 	// The quote's heading becomes a paragraph, so the quote runs on into the line under it and the
@@ -218,7 +218,7 @@ export const WRITE_ROUTES: WriteRoute[] = [
 			await m.settle();
 		},
 		asks: () => ({ path: [AT + 1], offset: 0 }),
-		announces: 'whole'
+		announces: 'exact'
 	},
 	{
 		name: 'a paragraph typed into a heading',

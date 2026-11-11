@@ -4,8 +4,9 @@
 // declared `whole` and reads every block once; making it exact flips its row here.
 // Miss-analysis: the keystroke cost rows drove the commit alone, so nothing priced the position
 // read a plugin makes after it, which summed every top-level block once per content version.
-// Miss-analysis, a new paragraph's first letter: the route table declared it `whole`, so its
-// forgotten record read as intended, and the gate's reading rows typed only at block 0's end.
+// Miss-analysis, a new paragraph's first letter, a container's collapse and a write over two
+// scopes: the route table declared each `whole`, so its forgotten record read as intended, and
+// the gate's reading rows typed only at block 0's end.
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
 	disablePerfInstruments,
