@@ -105,6 +105,30 @@ describe('law 9 in a cell', () => {
 	});
 });
 
+describe('law 9 in a container with a write rule for its body', () => {
+	const BODY = '<details>\n<summary>s</summary>\n\nab‸</details>\n\nmore\n\n</details>\n';
+	const input = {
+		source: BODY.replace('‸', ''),
+		mode: 'source' as const,
+		at: BODY.indexOf('‸'),
+		held: { holds: 'text' as const },
+		text: 'one\n\n'
+	};
+
+	it('holds a half left alone on its line to that rule, on that one line', () => {
+		const escaped = BODY.replace('‸</details>', 'one\n\n&lt;/details>');
+		const { host, real } = calls('');
+		expect(pasteAtCaret(real, host, input)).toEqual([]);
+		expect(
+			real(input.source, { from: input.at, to: input.at }, paste(input.text), 'source')
+		).toMatchObject({ source: escaped });
+		const another = calls(escaped.replace('more', 'less'));
+		expect(pasteAtCaret(another.fake, another.host, input)).not.toEqual([]);
+		const unescaped = calls(BODY.replace('‸', 'one\n\n'));
+		expect(pasteAtCaret(unescaped.fake, unescaped.host, input)).not.toEqual([]);
+	});
+});
+
 // Miss-analysis: the live law took every caret whose carried bytes differ from its plain ones for
 // a caret in a run, most of them in no construct, and passed one pasted paragraph unread.
 describe('law 9 in live mode, outside its live shape', () => {

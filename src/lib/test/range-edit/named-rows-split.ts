@@ -446,11 +446,30 @@ const TODO_ROWS: NamedRow[] = [
 	)
 ];
 
+// Miss-analysis: every row cut a block whose container has no write rule for its body, so no cut
+// left a half that reads as the container’s own closing line.
+const DETAILS = '<details>\n<summary>s</summary>\n\nab⟦⟧</details>\n\nmore\n\n</details>\n';
+const BODY_ROWS: NamedRow[] = [
+	...both(
+		'B a cut that leaves a details closing tag alone on its line escapes it, as Enter does',
+		DETAILS,
+		paste('one\n\n'),
+		'<details>\n<summary>s</summary>\n\nabone\n\n&lt;/details>\n\nmore\n\n</details>\n'
+	),
+	...both(
+		'B and under a pasted table, a blank line apart from it',
+		DETAILS,
+		paste(TABLE),
+		'<details>\n<summary>s</summary>\n\nab\n\n| a |\n| - |\n\n&lt;/details>\n\nmore\n\n</details>\n'
+	)
+];
+
 export const SPLIT_ROWS: NamedRow[] = [
 	...STRUCTURE_ROWS,
 	...EMPTIED_ROWS,
 	...RUN_ROWS,
 	...PLAIN_ROWS,
 	...LINE_ROWS,
-	...TODO_ROWS
+	...TODO_ROWS,
+	...BODY_ROWS
 ];

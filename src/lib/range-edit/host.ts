@@ -11,6 +11,7 @@ import { documentLineEnding, ownTrailingLineEnding, trimTrailingLineEnding } fro
 import { makeBlockNode } from '../core/nodes';
 import { hidesDelimitersAtCaret } from '../presentation-mode';
 import { blockFacts, type BlockFacts } from '../schema/block-facts';
+import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { unfinishedReadings } from '../schema/block-openers';
 import { readAsOpened } from '../schema/opened-reading';
 import type { Reading } from '../schema/reading';
@@ -292,30 +293,41 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 				const written = { ...node, raw: write.bytes };
 				const content = getContentRange(written);
 				const { holder, index } = writeTargetAt(doc, path);
+				const owner = 'owner' in holder ? holder.owner : undefined;
+				const lineEnding = 'lineEnding' in holder ? holder.lineEnding : documentLineEnding(doc);
+				// A half parted from its line can read as its container's own syntax (a closing tag
+				// alone), so each takes the container's write rule for its body, as a split's halves do.
+				const inBody = (cut: LeafCut): LeafCut => {
+					const rule = owner && tryGetBlockKindDescriptor(owner.kind)?.bodyWrite;
+					if (!rule) return cut;
+					const ctx = { node: owner, mode: 'literal' as const, lineEnding };
+					return {
+						...cut,
+						head: rule.normalize(cut.head, ctx),
+						tail: rule.normalize(cut.tail, ctx),
+						at: rule.mapOffset(cut.tail, cut.at, ctx)
+					};
+				};
 				// The cut by the block's bytes, its structure kept; a line ending the cut stands before
 				// stays the first half's line's unless text joins the second half in front of it.
 				const cut = cutKeepingStructure(written, write.caret);
 				let [head, tail] = [cut.head, after === '' ? cut.rest.replace(/^\r?\n/, '') : cut.rest];
 				if (cutIn.hidesDelimitersAtCaret()) {
-					const halves = splitHalves(
-						written,
-						write.caret,
-						'owner' in holder ? holder.owner : undefined,
-						'lineEnding' in holder ? holder.lineEnding : documentLineEnding(doc),
-						{
-							first: storedAsAt(doc, path, cutIn),
-							second: storedAsIn(holder, index + 1, cutIn, node.kind),
-							behind: lead
-						}
-					);
+					const halves = splitHalves(written, write.caret, owner, lineEnding, {
+						first: storedAsAt(doc, path, cutIn),
+						second: storedAsIn(holder, index + 1, cutIn, node.kind),
+						behind: lead
+					});
 					if (halves.reopened)
 						[head, tail] = [halves.firstRaw, halves.secondRaw].map(trimTrailingLineEnding);
 				}
-				if (after === '') return { head, tail, at: 0, empty: content.start === content.end };
+				if (after === '')
+					return inBody({ head, tail, at: 0, empty: content.start === content.end });
 				// The second half ends on the block's text from the cut on, wherever it reopened.
 				const kept = trimTrailingLineEnding(write.bytes).slice(write.caret, content.end);
 				const seam = kept === '' ? tail.length : Math.max(tail.lastIndexOf(kept), 0);
-				if (together) return { head, tail, at: seam + write.after - write.caret, empty: false };
+				if (together)
+					return inBody({ head, tail, at: seam + write.after - write.caret, empty: false });
 				const ending = ownTrailingLineEnding(node.raw);
 				const half =
 					head === ''
@@ -323,7 +335,8 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 						: makeBlockNode({ kind: 'paragraph', leadingTrivia: '', raw: tail + ending });
 				const second = storedAsIn(holder, index + 1, reading, half.kind);
 				const joined = replaceRangeInLeaf(half, { start: seam, end: seam }, after, second);
-				return { head, tail: trimTrailingLineEnding(joined.raw), at: joined.caret, empty: false };
+				tail = trimTrailingLineEnding(joined.raw);
+				return inBody({ head, tail, at: joined.caret, empty: false });
 			},
 			carried(doc, path, from, to, mode) {
 				const store = storedAsAt(doc, path, readingIn(mode));

@@ -25,6 +25,7 @@ import {
 	liveCutAt,
 	inConstructAt,
 	cellAt,
+	containersHolding,
 	reopensNowhere,
 	lf,
 	liveSplitsRun,
@@ -491,11 +492,44 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 			? runsStayClosed(read, input.at, input.text, got.source, host)
 			: null;
 	if (closed !== null) return closed;
+	const stranded = strandedInBody(read, input.at, got.source, host);
+	if (stranded !== undefined)
+		return [`L9 left ${q(stranded)} alone on a line its container reads as its own syntax`];
 	const want = expectedPaste(read, input.at, input.text, host, input.held);
 	if (want.shape === 'other' || want.bytes.includes(got.source)) return [];
 	// A cell holds one line, which its row writes: the paste adds none and moves no other line.
 	if (cellAt(read, input.at, host) && onOneLine(input.source, input.at, got.source)) return [];
+	if (want.bytes.some((bytes) => oneLineInBody(read, input.at, bytes, got.source, host))) return [];
 	return [`L9 (${want.shape}) gave ${q(got.source)}, not ${q(want.bytes[0])}`];
+}
+
+/** The half of the caret's line that `got` leaves alone on a line of its own, where a container
+ *  around the caret has a write rule that changes it there (a closing tag alone). */
+function strandedInBody(read: Read, at: number, got: string, host: CheckHost) {
+	const { source } = read;
+	const start = source.lastIndexOf('\n', at - 1) + 1;
+	const end = (source + '\n').indexOf('\n', at);
+	const kinds = containersHolding(read, at).map((container) => container.type);
+	const lines = (bytes: string, line: string) =>
+		lf(bytes)
+			.split('\n')
+			.filter((l) => l === line);
+	return [source.slice(start, at), source.slice(at, end).replace(/\r$/, '')].find(
+		(half) =>
+			kinds.some((kind) => host.inBody(kind, half) !== half) &&
+			lines(got, half).length > lines(source, half).length
+	);
+}
+
+/** Whether `got` is `want` with one line as a container around the caret takes it into its body:
+ *  a half the cut leaves alone on a line that would read as that container's own closing tag. */
+function oneLineInBody(read: Read, at: number, want: string, got: string, host: CheckHost) {
+	const differs = sharedPrefixLength(want, got, Math.min(want.length, got.length));
+	const start = want.lastIndexOf('\n', differs - 1) + 1;
+	const end = (want + '\n').indexOf('\n', differs);
+	const taken = (kind: string) =>
+		want.slice(0, start) + host.inBody(kind, want.slice(start, end)) + want.slice(end);
+	return containersHolding(read, at).some((container) => taken(container.type) === got);
 }
 
 /** Whether `got` is `source` with only the line holding `at` rewritten, still one line. */
