@@ -55,7 +55,7 @@ import { selectWidgetWhole } from '#lib/selection/place-caret.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 import { deleteRange } from '#lib/test/harness/range-delete.js';
-import { editRange } from '#lib/range-edit/edit-range.js';
+import { copyRange, removalOf } from '#lib/range-edit/edit-range.js';
 import { rangeHost } from '#lib/range-edit/host.js';
 
 // While `TOP.on`, every store the source makes is a lone top-level paragraph's instead of its own.
@@ -728,20 +728,19 @@ const FAMILIES: Family[] = [
 			{
 				shape: 'a to-do',
 				run: () =>
-					editRange(TODO.source, { from: 8, to: 9 }, 'delete', 'live', rangeHost(LIVE)).source,
+					removalOf(TODO.source, { from: 8, to: 9 }, 'delete', 'live', rangeHost(LIVE)).source,
 				want: '- [ ] # y\n'
 			},
 			{
 				shape: 'a table cell',
 				run: () =>
-					editRange(CELL.source, { from: 16, to: 17 }, 'delete', 'live', rangeHost(LIVE)).source,
+					removalOf(CELL.source, { from: 16, to: 17 }, 'delete', 'live', rangeHost(LIVE)).source,
 				want: '| h |\n| - |\n| # y |\n'
 			},
 			{
 				shape: 'the bytes a copy carries',
 				run: () =>
-					editRange('- [ ] **x**# y z\n', { from: 9, to: 14 }, 'copy', 'live', rangeHost(LIVE))
-						.clipboard,
+					copyRange('- [ ] **x**# y z\n', { from: 9, to: 14 }, 'live', rangeHost(LIVE)).clipboard,
 				want: '# y'
 			}
 		]

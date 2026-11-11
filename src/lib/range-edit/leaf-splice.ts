@@ -8,7 +8,7 @@ import { displayLines, isBlankText } from '../core/lines';
 import { sharedPrefixLength, sharedSuffixLength } from '../core/written-span';
 import type { LeafWrite } from './host';
 import type { LaidBlock } from './layout';
-import { endingOf, nodeAt, type Doc } from './document';
+import { nodeAt, type Doc } from './document';
 import { continuation } from './markers';
 
 /** New bytes for the whole document and the caret's byte in them. */
@@ -30,6 +30,23 @@ export function byteAt(doc: Doc, leaf: LaidBlock, at: number): number {
 export function lineTextStart(doc: Doc, leaf: LaidBlock, at: number): number {
 	const raw = nodeAt(doc, leaf.path).raw;
 	return Math.max(byteAt(doc, leaf, raw.lastIndexOf('\n', at - 1) + 1), leaf.text!.from);
+}
+
+/** `text` over `[from, to)` of a text block's bytes, as the block's own write puts it there. */
+export function writeText(
+	doc: Doc,
+	leaf: LaidBlock,
+	from: number,
+	to: number,
+	text: string,
+	keep?: (c: LaidBlock) => boolean
+): Edit {
+	const { host, tree, mode } = doc;
+	const write =
+		from === to
+			? host.leaf.insert(tree, leaf.path, from, text, mode)
+			: host.leaf.replace(tree, leaf.path, from, to, text, mode);
+	return writeLeaf(doc, leaf, write, from, to, keep);
 }
 
 /** `write` replaced `[from, to)` of the block's bytes: what changed goes into the source, each new
@@ -63,11 +80,17 @@ export function writeLeaf(
 }
 
 /** Text going in at `start` (up to `end`) in the document's line ending, each later line behind
- *  the markers there; a blank one takes them without trailing spaces unless the caret's text follows. */
-export function spliced(doc: Doc, start: number, end: number, keep?: (c: LaidBlock) => boolean) {
-	const eol = endingOf(doc.source);
+ *  the markers there and `indent`; a blank one takes them without trailing spaces unless the caret's text follows. */
+export function spliced(
+	doc: Doc,
+	start: number,
+	end: number,
+	keep?: (c: LaidBlock) => boolean,
+	indent = ''
+) {
+	const eol = doc.ending;
 	const rest = lineRest(doc.source, end);
-	const prefix = continuation(doc, start, keep);
+	const prefix = continuation(doc, start, keep) + indent;
 	return (text: string) =>
 		displayLines(text)
 			.map(({ text: line }, i, lines) => {

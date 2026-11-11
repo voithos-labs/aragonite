@@ -1,6 +1,7 @@
 // A splice inside a list, quote or table reads only the children it reaches, and comes out as the
 // top-level window would: the same bytes, the same tree, the same nodes and ids kept, and what a
-// reload reads. The shapes at the run's edges are drawn by name, so each fallback has a row.
+// reload reads. The shapes at the run's edges are drawn by name, so each fallback has a row, and
+// the pastes the range-edit core writes are drawn as it answers them.
 import { describe, it, expect, afterEach } from 'vitest';
 import fc from 'fast-check';
 import type { Document } from '#lib/core/nodes.js';
@@ -18,6 +19,11 @@ import {
 } from '#lib/tree-operations/byte-splice.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
 import { changesBetween, type ByteChange } from '#lib/tree-operations/byte-changes.js';
+import { splicedOpenerClosers, withSplicedClosers } from '#lib/tree-operations/spliced-openers.js';
+import { editRange } from '#lib/range-edit/edit-range.js';
+import { rangeHost } from '#lib/range-edit/host.js';
+import { documentLayout } from '#lib/range-edit/layout.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
@@ -281,6 +287,60 @@ describe('a splice inside a container comes out as the top-level window does', (
 				expect(divergence(source, (before) => changesAt(before, spots)).failure).toBeNull();
 			}),
 			{ numRuns: 200, seed: freshOrFixedSeed(20261108) }
+		);
+	});
+});
+
+// ── Pastes, as the range-edit core answers them ──────────────────────────────
+
+/** What a paste brings: blocks that land beside the caret's, a list or quote the caret's container
+ *  takes in or a list of the other kind leaves, and blocks whose opener waits on a closing line. */
+const CLIPS = [
+	'one\n\ntwo',
+	'- q\n- r',
+	'1. q\n2. r',
+	'> q\n\n> r\n',
+	'# h\n| a |\n| - |\n',
+	'```\ncode\n```\n',
+	':::note\nx\n:::\n',
+	'$$\nx\n'
+];
+
+/** The changes a paste of `clip` makes at the first place in a block's text from `at` on, as the
+ *  byte splice writes them: the core's bytes, and a closing line under an opener they leave open. */
+function pasteChanges(before: string, at: number, clip: string): ByteChange[] {
+	const doc = open(before);
+	const layout = documentLayout(measured(doc));
+	let from = at;
+	while (from < before.length && !layout.pointAt(from)) from++;
+	const host = rangeHost(fixtureReading({ grammar: defaultGrammarView }, 'source'));
+	const paste = { paste: clip, plain: false, holds: 'text' as const };
+	const pasting = { ...host, transformPaste: (text: string) => text };
+	const after = editRange(before, { from, to: from }, paste, 'source', pasting).source;
+	const changes = changesBetween(before, after);
+	const read = spliceReading(measured(doc), before, changes, defaultGrammarView);
+	const closers = read
+		? splicedOpenerClosers(measured(doc), before, changes, read, defaultGrammarView)
+		: [];
+	return withSplicedClosers(before, changes, closers);
+}
+
+describe('a paste inside a container comes out as the top-level window does', () => {
+	// Miss-analysis: the draws above write one line's worth at a spot, so no edit added several
+	// blocks, changed how many children a container holds by a merge, or closed an opener inside one.
+	it('over generated containers, places and clipboards', () => {
+		fc.assert(
+			fc.property(
+				arbContainerDoc(KINDS),
+				fc.double({ min: 0.05, max: 0.95, noNaN: true }),
+				fc.constantFrom(...CLIPS),
+				(source, spot, clip) => {
+					const pasted = (before: string) =>
+						pasteChanges(before, Math.floor(spot * before.length), clip);
+					expect(divergence(source, pasted).failure).toBeNull();
+				}
+			),
+			{ numRuns: 300, seed: freshOrFixedSeed(20261110) }
 		);
 	});
 });

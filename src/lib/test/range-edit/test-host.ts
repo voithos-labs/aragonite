@@ -8,7 +8,7 @@ import { hidesDelimitersAtCaret } from '#lib/presentation-mode.js';
 import { installPlugins } from '#lib/schema/plugin-install.js';
 import type { Reading } from '#lib/schema/reading.js';
 import { kitReading } from '#lib/testing/kit-reading.js';
-import { rangeHost, type Mode, type RangeHost } from '#lib/range-edit/host.js';
+import { rangeHost, type Mode, type PasteHost, type RangeHost } from '#lib/range-edit/host.js';
 import { SYNTAX_PLUGINS } from '../behavior/corpus';
 
 const PLUGINS = [...SYNTAX_PLUGINS, mermaidPlugin()];
@@ -19,8 +19,14 @@ export function testReading(): Reading {
 	return kitReading();
 }
 
+/** `host` as a paste reads through it in an editor that registered no paste transform. */
+export const noTransforms = (host: RangeHost): PasteHost => ({
+	...host,
+	transformPaste: (text) => text
+});
+
 /** The host, and what text shows on screen in a mode, which law 11 reads. */
-export interface CheckHost extends RangeHost {
+export interface CheckHost extends PasteHost {
 	shows(text: string, mode: Mode): string;
 }
 
@@ -31,5 +37,5 @@ export function checkHost(reading: Reading = testReading()): CheckHost {
 			mode: () => mode,
 			hidesDelimitersAtCaret: () => hidesDelimitersAtCaret(mode)
 		});
-	return { ...rangeHost(reading), shows };
+	return { ...noTransforms(rangeHost(reading)), shows };
 }
