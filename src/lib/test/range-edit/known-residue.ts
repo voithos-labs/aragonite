@@ -252,7 +252,7 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 			return (
 				from < start &&
 				/^(?: {4}|\t)/.test(read.source.slice(start, to)) &&
-				/\n[ \t>]*\r?\n$/.test(read.source.slice(from, start)) &&
+				/\n[ \t>]*\r?\n(?:(?: {4}|\t)[^\n]*\n)*$/.test(read.source.slice(from, start)) &&
 				restOfLine(read, to).trim() !== ''
 			);
 		},
