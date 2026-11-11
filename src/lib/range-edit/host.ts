@@ -277,14 +277,15 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 					cutOutsideWhole({ ...node, raw: edit.raw }, edit.caret - last, reading) !==
 						edit.caret - last;
 				// A construct that splits whole takes the paste at its nearer edge, never torn around it.
-				if (torn()) {
+				const moved = torn();
+				if (moved) {
 					const gone = replaceRangeInLeaf(node, { start: from, end: to }, '', store);
 					const kept = { ...node, raw: gone.raw };
 					const edge = cutOutsideWhole(kept, gone.caret, reading);
 					edit = over(kept, edge, edge);
 				}
 				// Where the joined text itself grew such a construct around the cut, the cut stays literal.
-				const cutIn = torn() ? readingIn('source') : reading;
+				const cutIn = moved && torn() ? readingIn('source') : reading;
 				const at = edit.caret - last;
 				const write =
 					text === '' && from === to
