@@ -485,7 +485,16 @@ const BODY_ROWS: NamedRow[] = [
 		DETAILS,
 		paste(TABLE),
 		'<details>\n<summary>s</summary>\n\nab\n\n| a |\n| - |\n\n&lt;/details>\n\nmore\n\n</details>\n'
-	)
+	),
+	{
+		name: 'B the caret stays after pasted text that completes such a tag',
+		source: '<details>\n<summary>s</summary>\n\nab⟦⟧ails>\n\nmore\n\n</details>\n',
+		gesture: paste('one\n\n</det'),
+		expect: {
+			source: '<details>\n<summary>s</summary>\n\nabone\n\n&lt;/details>\n\nmore\n\n</details>\n',
+			caret: { at: 47, holds: 'text' }
+		}
+	}
 ];
 
 export const SPLIT_ROWS: NamedRow[] = [
