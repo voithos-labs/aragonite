@@ -218,7 +218,7 @@ export function gapAtByte(measured: Measured, at: number): GapCaretPosition | nu
 	let found: GapCaretPosition | null = null;
 	let parentPath: number[] = [];
 	let children = doc.children;
-	let startOf = starts.rawStart;
+	const startOf = (k: number) => map.byteOf([...parentPath, k], 0)!;
 	// A child starting at or past `at`, or holding it; inside a container, the map's answer alone.
 	let near = 0;
 	for (let past = children.length; near < past;) {
@@ -228,6 +228,8 @@ export function gapAtByte(measured: Measured, at: number): GapCaretPosition | nu
 	}
 	if (near === children.length) near = children.length - 1;
 	let end = starts.length;
+	// Where the container the walk is in reads `at`: the child it goes to and the offset there.
+	let held: { index: number; offset: number } | null = null;
 	for (;;) {
 		const index = at === end ? children.length : startOf(near) === at ? near : -1;
 		if (index >= 0 && gapEligibleAt(doc, parentPath, index)) found = { parentPath, index };
@@ -238,11 +240,14 @@ export function gapAtByte(measured: Measured, at: number): GapCaretPosition | nu
 		const child = children[i];
 		const inner = child?.children?.length ? map.containerMap(child) : null;
 		if (!inner) return found;
-		const base = startOf(i);
-		end = base + child.raw.length;
+		// `at` in the child's raw: a top-level block's raw is its bytes, and a byte the container
+		// gave a later child lies past this one's end.
+		let offset = at - startOf(i);
+		if (held) offset = i === held.index ? held.offset : i < held.index ? child.raw.length : 0;
 		parentPath = [...parentPath, i];
+		end = map.endOf(parentPath, child.raw.length)!;
 		children = child.children!;
-		startOf = (k) => base + inner.rawOf(k, 0);
-		near = inner.childAt(at - base).index;
+		held = inner.childAt(offset);
+		near = held.index;
 	}
 }

@@ -1,9 +1,14 @@
+// @vitest-environment jsdom
 // Where a nested block's bytes start and end in the document, as every reader of them answers:
 // from the blank line above its container counted once, to one past its own last byte, never past
 // the next line's marker or short of its own line ending. A new reader joins as a row of READERS.
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Document } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
+import { assignIds } from '#lib/block-id.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
+import { createGrammarView } from '#lib/schema/block-openers.js';
 import { installPlugins } from '#lib/schema/plugin-install.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { documentByteMap } from '#lib/tree-operations/container-offsets.js';
@@ -16,7 +21,12 @@ import {
 	changeAfter,
 	partLengths
 } from '#lib/editor-actions/commit/change-record.js';
+import { createHistoryActions } from '#lib/editor-actions/commit/history.js';
+import { gapAtByte } from '#lib/selection/range-bytes.js';
+import type { GapCaretPosition } from '#lib/selection/gap-caret.js';
 import { idleDraftRegistry } from '#lib/test/harness/drafts.js';
+import { makeTopHarness, writeBytes } from '#lib/test/harness/editor-actions.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { SYNTAX_PLUGINS } from '../behavior/corpus';
 
 interface Shape {
@@ -205,3 +215,115 @@ function staleAfterWrite(doc: Document, source: string, path: number[], at: numb
 	registry.record(changeAfter(live.doc, capture, null));
 	return draft.stale;
 }
+
+// ── A gap caret's byte ───────────────────────────────────────────────────────
+
+interface GapShape {
+	name: string;
+	source: string;
+	plugins?: boolean;
+	gap: GapCaretPosition;
+	/** The bytes the boundary sits right behind. */
+	after: string;
+}
+
+const GAPS: GapShape[] = [
+	{
+		name: 'after code that ends a top-level quote',
+		source: '> ```\n> x\n> ```\n\nc\n',
+		gap: { parentPath: [0], index: 1 },
+		after: '> x\n> ```\n'
+	},
+	{
+		name: 'after code that ends an item in a quote, at the document end',
+		source: '> - a\n>   ```\n>   x\n>   ```\n',
+		gap: { parentPath: [0, 0, 0], index: 2 },
+		after: '>   x\n>   ```\n'
+	},
+	{
+		name: 'after code that ends an item in a quote under a blank line',
+		source: 'one\n\n> - a\n>   ```\n>   x\n>   ```\n',
+		gap: { parentPath: [1, 0, 0], index: 2 },
+		after: '>   x\n>   ```\n'
+	},
+	{
+		name: 'after code that ends an item in a quote, a quote line below',
+		source: '> - a\n>   ```\n>   x\n>   ```\n>\n> c\n',
+		gap: { parentPath: [0, 0, 0], index: 2 },
+		after: '>   x\n>   ```\n'
+	},
+	{
+		name: 'after code that ends an item in a quote, in CRLF',
+		source: '> - a\r\n>   ```\r\n>   x\r\n>   ```\r\n>\r\n> c\r\n',
+		gap: { parentPath: [0, 0, 0], index: 2 },
+		after: '>   x\r\n>   ```\r\n'
+	},
+	{
+		name: 'between two code blocks in an item in a quote',
+		source: '> - ```\n>   x\n>   ```\n>   ```\n>   y\n>   ```\n',
+		gap: { parentPath: [0, 0, 0], index: 1 },
+		after: 'x\n>   ```\n>   '
+	},
+	{
+		// Its markers make the item's bytes longer in the document than its raw by more than a block.
+		name: 'between code blocks in an item in a quote, the first one long',
+		source:
+			'> - ```\n>   1\n>   2\n>   3\n>   4\n>   5\n>   6\n>   ```\n' +
+			'>   ```\n>   y\n>   ```\n>   ```\n>   z\n>   ```\n',
+		gap: { parentPath: [0, 0, 0], index: 1 },
+		after: '6\n>   ```\n>   '
+	},
+	{
+		name: 'after code that ends a callout in a list item',
+		source: '- a\n\n  > [!NOTE]\n  > ```\n  > x\n  > ```\n\n  c\n',
+		plugins: true,
+		gap: { parentPath: [0, 0, 1], index: 1 },
+		after: '  > x\n  > ```\n'
+	}
+];
+
+function gapDoc(shape: GapShape): Document {
+	if (shape.plugins) installPlugins(SYNTAX_PLUGINS);
+	return parse(shape.source);
+}
+
+// Miss-analysis: every gap-byte row stood in a top-level container, whose raw is the document's
+// bytes, so a container's raw offset added to a document byte below it went unseen.
+describe("a gap caret's byte at a nested boundary", () => {
+	it.each(GAPS)('is the one byte that names it: $name', (shape) => {
+		const laid = measured(gapDoc(shape));
+		const naming = [];
+		for (let at = 0; at <= shape.source.length; at++) {
+			const gap = gapAtByte(laid, at);
+			if (gap && JSON.stringify(gap) === JSON.stringify(shape.gap)) naming.push(at);
+		}
+		expect(naming).toEqual([spanOf(shape.source, shape.after)[1]]);
+	});
+
+	// An editor reads one grammar for its life on this branch, so the row swaps it as `use()` would.
+	it.each(GAPS)('comes back from an undo under another grammar: $name', async (shape) => {
+		gapDoc(shape);
+		const s = makeTopHarness(shape.source, { reading: fixtureReading() });
+		const history = createHistoryActions(s.deps, s.controller);
+		const restore = vi.spyOn(s.deps.caretLanding, 'restore');
+		s.deps.selectionState.setGapCaret(shape.gap);
+		const end = shape.source.length;
+		const wrote = await s.controller.commitSource({
+			changes: [{ from: end, to: end, insert: 'z\n' }],
+			caret: { at: end + 2, holds: 'text' },
+			op: { kind: 'input' },
+			snapshot: { path: docPathFrom([0]), offset: 0 }
+		});
+		expect(wrote).toBe(true);
+		const grammar = createGrammarView((key) => key !== 'indentedCode');
+		s.deps.reading = fixtureReading({ grammar });
+		const reread = parse(serialize(s.deps.doc), { grammar });
+		writeBytes(s.deps, () => {
+			s.deps.setDoc(reread);
+			s.deps.setBlockIds(assignIds(reread.children));
+		});
+		await history.requestUndo();
+		expect(serialize(s.deps.doc)).toBe(shape.source);
+		expect(restore.mock.lastCall?.[0]).toEqual({ gapCaret: shape.gap });
+	});
+});

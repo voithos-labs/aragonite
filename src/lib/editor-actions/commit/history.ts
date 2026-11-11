@@ -217,7 +217,7 @@ function gapByte(laid: Measured, { parentPath, index }: GapCaretPosition): numbe
 	if (!parent?.children) return null;
 	if (index < parent.children.length) return map.byteOf([...parentPath, index], 0);
 	if (parentPath.length === 0) return starts.length;
-	return map.byteOf(parentPath, (parent as { raw: string }).raw.length);
+	return map.endOf(parentPath, (parent as { raw: string }).raw.length);
 }
 
 function selectionAtBytes(laid: Measured, at: SelectionBytes): UndoEntry['selection'] | null {
