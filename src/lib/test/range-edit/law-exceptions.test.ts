@@ -3,6 +3,12 @@
 // answers otherwise there, and a wrong answer one step outside it still reds.
 // Miss-analysis: two reviews found a law's exceptions wider than their rulings, and no test stood
 // one step outside an exception.
+// Laws 3 and 5 step aside for a live range only where a construct holds an end and the bytes it
+// carries differ. The carried bytes alone skipped some 290 live ranges a seed that no construct
+// holds (any range in a quote's or an item's two lines). Judged, those red 47 lines on four seeds,
+// every one in a class `known-residue.ts` declares: a tab split beside a marker (25), an HTML block
+// cut from its first byte (7), an item's text start (5), a container nested when pasted back (4), a
+// marker that comes back (3), the spaces a cut leaves at a line's start (2), a setext re-read (1).
 
 import { describe, expect, it } from 'vitest';
 import { editRange, type Gesture } from '#lib/range-edit/edit-range.js';
@@ -46,6 +52,14 @@ describe('law 3', () => {
 		expect(cutPasteBack(real, host, beside)).toEqual([]);
 		expect(cutPasteBack(fake, host, beside)).not.toEqual([]);
 	});
+
+	it('is silent on a live range a run holds an end of, and judges one in a quote’s two lines', () => {
+		const { host, real, fake } = calls('zzz\n');
+		expect(cutPasteBack(fake, host, marked('> a **b⟦o⟧ld** z\n> word\n', 'live'))).toEqual([]);
+		const outside = marked('> x⟦ y⟧ z\n> word\n', 'live');
+		expect(cutPasteBack(real, host, outside)).toEqual([]);
+		expect(cutPasteBack(fake, host, outside)).not.toEqual([]);
+	});
 });
 
 describe('law 5', () => {
@@ -73,6 +87,13 @@ describe('law 5', () => {
 			expect(l5(replaceLaws(kept.real, kept.host, input, '> q'))).toEqual([]);
 			expect(l5(replaceLaws(kept.fake, kept.host, input, '> q'))).not.toEqual([]);
 		}
+	});
+
+	it('holds a live range in a quote’s two lines to the lines its clipboard brings', () => {
+		const added = calls('> x one\n>\n> more\n>\n> two z\n> word\n', true);
+		const outside = marked('> x⟦ y⟧ z\n> word\n', 'live');
+		expect(l5(replaceLaws(added.real, added.host, outside, 'one\n\ntwo'))).toEqual([]);
+		expect(l5(replaceLaws(added.fake, added.host, outside, 'one\n\ntwo'))).not.toEqual([]);
 	});
 
 	// Miss-analysis: no drawn range on the lane's seeds sat inside an autolink, so law 5 never met a

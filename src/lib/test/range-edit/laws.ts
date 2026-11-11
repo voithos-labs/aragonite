@@ -29,6 +29,9 @@ import {
 	reopensNowhere,
 	lf,
 	liveSplitsRun,
+	aboveLine,
+	overEmptied,
+	startsLaterLine,
 	opensWithoutClosing,
 	mixedEndings,
 	plainPasteHolds,
@@ -124,6 +127,13 @@ export function liveWholeText(read: Read, range: Range, mode: Mode): boolean {
 	);
 }
 
+/** In live mode, whether a construct holds an end of the range and the bytes the range carries out
+ *  close it: there a paste back can't give the bytes back, and one write closes the run its own way. */
+function cutsLiveRun(read: Read, { from, to }: Range, host: CheckHost): boolean {
+	const held = [from, to].some((at) => inConstructAt(read, at, host));
+	return held && liveSplitsRun(read, from, to, host);
+}
+
 // ── The laws ─────────────────────────────────────────────────────────────────
 
 /** L1: a copy and a cut of one range write the same clipboard. L2: a copy changes no byte. */
@@ -177,8 +187,7 @@ export function ownEntry(call: Call, host: CheckHost, input: RangeInput, at: num
 export function cutPasteBack(call: Call, host: CheckHost, input: RangeInput): string[] {
 	const read = readOf(host, input.source);
 	if (liveWholeText(read, input.range, input.mode)) return [];
-	if (input.mode === 'live' && liveSplitsRun(read, input.range.from, input.range.to, host))
-		return [];
+	if (input.mode === 'live' && cutsLiveRun(read, input.range, host)) return [];
 	if (opensWithoutClosing(read, input.range.from, input.range.to, host)) return [];
 	if (leavesLiteralBlock(read, input.range.from, input.range.to, host, input.mode)) return [];
 	if (copiesLinesBeforeRange(read, input.range.from, host)) return [];
@@ -324,9 +333,15 @@ function oneWrite(
 	const runless = (bytes: string) => (input.mode === 'live' ? bytes.replace(/[*_~`]/g, '') : bytes);
 	const [got, before, after] = [over.source, source.slice(0, from), source.slice(to)].map(runless);
 	const kept = got.startsWith(before) && got.endsWith(after);
+	// Blocks pasted from a later line's start cut the block there, and the first half ends before
+	// the line break above, as a split's does.
+	const cutAbove =
+		startsLaterLine(read, block, from) &&
+		got.startsWith(runless(aboveLine(source, from))) &&
+		got.endsWith(after);
 	// One write closes a format run a live range cuts another way than a cut then a paste: there
 	// the bytes outside the range stay and the block keeps its kind.
-	const cutsRun = input.mode === 'live' && liveSplitsRun(read, from, to, host);
+	const cutsRun = input.mode === 'live' && cutsLiveRun(read, input.range, host);
 	// A list that breaks out splits the caret's list around the range as law 9 says: an item with no
 	// text left on either side gives way, its marker with it.
 	const out = cutsRun ? null : expectedPaste(read, from, text, host, TEXT, to);
@@ -358,7 +373,8 @@ function oneWrite(
 	// A line that could close the fence around literal text grows the fence, which the rows hold.
 	const fence = fenceOf(read, block, host);
 	if (fence && text.split('\n').some((line) => fence.mayClose(line))) return [];
-	if (!kept) return [`L5 paste over text in one block changed bytes outside it: ${q(over.source)}`];
+	if (!kept && !cutAbove)
+		return [`L5 paste over text in one block changed bytes outside it: ${q(over.source)}`];
 	const kindAt = (bytes: string | undefined) =>
 		bytes === undefined
 			? undefined
@@ -383,10 +399,11 @@ export function replaceLaws(
 	const over = call(input.source, input.range, paste(text), input.mode);
 	const cut = call(input.source, input.range, 'cut', input.mode);
 	if (over && unit) {
-		const before = input.source.slice(0, unit.from);
+		// A pasted list joins a list of its own type over the block, the blank lines between gone.
+		const before = overEmptied(read, unit, text, host);
 		const after = input.source.slice(input.range.to);
 		// A list that breaks out of the item the block emptied lands as law 9 says, the item gone.
-		const left = readOf(host, before + after);
+		const left = readOf(host, input.source.slice(0, unit.from) + after);
 		const out9 =
 			input.mode === 'live' && /[*_`~[\]<]/.test(text)
 				? null

@@ -494,6 +494,30 @@ export function expectedPaste(
 	return { ...want, bytes: want.bytes.flatMap(apart).map(joined) };
 }
 
+/** Whether `byte` is where a later line of `leaf`'s own bytes starts: a paste's cut there ends the
+ *  first half before the line break above, as a split does. */
+export function startsLaterLine(read: Read, leaf: LaidBlock, byte: number): boolean {
+	const offset = read.layout.pointAt(byte)?.offset ?? 0;
+	return byte > leaf.text!.from && treeNodeAt(read.tree, leaf.path)?.raw[offset - 1] === '\n';
+}
+
+/** `source` up to the line break over the line holding `byte`, that break left out. */
+export const aboveLine = (source: string, byte: number) =>
+	source.slice(0, source.lastIndexOf('\n', byte - 1) + 1).replace(/\r?\n$/, '');
+
+/** The bytes over the line of `block`, which a paste empties, as blocks pasted there leave them:
+ *  the blank lines under a list go where a pasted list of its own type joins it. */
+export function overEmptied(read: Read, block: LaidBlock, text: string, host: CheckHost): string {
+	const clip = readOf(host, lf(text));
+	const first = clip.blocks.find(
+		(b) => b.path.length === 1 && clip.source.slice(b.from, b.to).trim() !== ''
+	);
+	const over = [...block.path.slice(0, -1), block.path.at(-1)! - 1].join();
+	const upper = read.blocks.find((b) => b.path.join() === over);
+	const joins = sameList(read, upper, clip, first, true, host);
+	return read.source.slice(0, joins ? upper!.to : block.from);
+}
+
 /** What keeps two lists apart: an item's bullet character, or its ordered delimiter. */
 function markerFamily(read: Read, list: LaidBlock | undefined, last: boolean): string | null {
 	const items = read.blocks.filter(
@@ -889,11 +913,9 @@ function landedPaste(
 		if (read.source.slice(leaf.text.from, at).trim() === '')
 			return { shape: 'split', bytes: [line] };
 		// At a later line's start the line break above ends the first half, as a split leaves it:
-		// one blank line under it, then the pasted block behind the markers the caret stood behind.
-		const lineFrom = read.source.lastIndexOf('\n', at - 1) + 1;
-		const marks = read.source.slice(lineFrom, at);
-		if (lineFrom > leaf.text.from && /^[ \t>]*$/.test(marks)) {
-			const head = read.source.slice(0, lineFrom) + prefix.trimEnd() + eol + marks;
+		// one blank line under it, then the pasted block behind the markers a new line takes there.
+		if (startsLaterLine(read, leaf, at)) {
+			const head = aboveLine(read.source, at) + eol + prefix.trimEnd() + eol + prefix;
 			return {
 				shape: 'split',
 				bytes: [head + join(lines, prefix, eol, after) + read.source.slice(at)]
@@ -1021,9 +1043,9 @@ function brokenOut(
 	const pasted =
 		(lines[0] === '' ? '' : indent) +
 		join(lines, outside + indent, eol, !nothingVisibleAfter(source, to));
-	const head = whole
-		? source.slice(0, first.from) + pasted
-		: source.slice(0, at) + eol + outside + pasted;
+	// At a later line's start the first half ends before the line break above, as a split's does.
+	const upTo = startsLaterLine(read, target, at) ? aboveLine(source, at) : source.slice(0, at);
+	const head = whole ? source.slice(0, first.from) + pasted : upTo + eol + outside + pasted;
 	// A side with no text makes no item: an item emptied both sides gives way, the rest numbered on.
 	const held = source.slice(to, item.to).trim() !== '';
 	const tail = !whole && held;
