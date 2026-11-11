@@ -2,7 +2,8 @@
  * The editor's open drafts, and the record of what each write changed, kept only while one is open.
  * A draft holds its ranges in the bytes it opened on and maps them through every write since; a
  * write that touched one makes it stale, and its commit is one byte splice, refused with a reason
- * rather than thrown (`docs/design/commit-and-undo.md` § Drafts).
+ * rather than thrown, except that a dev build also throws one started inside another write
+ * (`docs/design/commit-and-undo.md` § Drafts).
  */
 
 import type { Draft, DraftCloseCause, DraftResult, DraftSpec } from '../../schema/drafts';
@@ -10,6 +11,7 @@ import type { DocumentView } from '../../core/node-views';
 import type { CommitSnapshotArg, SourceSplice } from '../../action-contracts';
 import type { ByteChange } from '../../tree-operations/byte-changes';
 import type { DocumentStamps } from './document-stamp';
+import { startsAlone, type OpenWriteCheck } from './reading-write-gate';
 import { serialize } from '../../core/serializer';
 import { devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 import { assertDraftBytesKept } from '../../invariants/install';
@@ -53,7 +55,8 @@ export interface DraftWrites {
 	insert(markdown: string, below: boolean): Promise<boolean>;
 }
 
-export interface DraftRegistryDeps {
+/** `starts` and `events` refuse a commit started while another write is open. */
+export interface DraftRegistryDeps extends OpenWriteCheck {
 	stamps: Pick<DocumentStamps, 'current' | 'historySwapping'>;
 	doc(): DocumentView;
 	/** That document with the starts the editor keeps for it. */
@@ -117,6 +120,8 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 		}
 
 		async function land(caret: number | undefined): Promise<DraftResult> {
+			if (!startsAlone(deps, { kind: 'replaceBlock' }))
+				return refused('illegal', 'it was committed inside another write');
 			if (!openedOn.live)
 				return refused('unloaded', 'another document replaced the one it opened on');
 			if (deps.isReading()) return refused('reading', 'the editor is in reading mode');

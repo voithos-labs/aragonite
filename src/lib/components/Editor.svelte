@@ -54,6 +54,7 @@
 	import { createDraftRegistry } from '../editor-actions/commit/draft-registry.svelte';
 	import { createShownSourceState } from './blocks/text/shown-source.svelte';
 	import { createDocumentStamps } from '../editor-actions/commit/document-stamp';
+	import { startsAlone } from '../editor-actions/commit/reading-write-gate';
 	import { selectionsEqual, type EditorSelection } from '../selection/primitives';
 	import { widgetSpanAt } from './blocks/text/widget-adjacency';
 	import { assignIds } from '../block-id';
@@ -421,6 +422,8 @@
 	// Apart from the menus, so a shown source fires no `menuChange`.
 	const drafts = createDraftRegistry({
 		stamps,
+		starts,
+		events,
 		doc: () => doc,
 		measured: starts.read,
 		source: currentSource.read,
@@ -1369,6 +1372,7 @@
 	}
 
 	export function runCommand(commandId: string, arg?: unknown): boolean {
+		if (!startsAlone({ starts, events })) return false;
 		return runCommandById(commandId as AnyCommandId, arg, focusedSurface.commandTarget(), commands);
 	}
 

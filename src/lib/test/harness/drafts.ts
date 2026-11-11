@@ -17,6 +17,8 @@ export function idleDraftRegistry(
 ) {
 	return createDraftRegistry({
 		stamps,
+		starts: { writing: () => false },
+		events: { emit() {} },
 		doc,
 		measured: () => measured(doc()),
 		source: () => serialize(doc()),
@@ -32,6 +34,8 @@ export function idleDraftRegistry(
 export function draftRegistryOver(h: TopHarness) {
 	return createDraftRegistry({
 		stamps: createDocumentStamps(),
+		starts: h.deps.starts,
+		events: h.events,
 		doc: () => h.deps.doc,
 		measured: () => h.deps.bytes.measured(),
 		source: () => h.deps.bytes.source(),

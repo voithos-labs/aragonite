@@ -1,7 +1,7 @@
 /**
- * The event subscription object reached through `getEvents()`. Events fire synchronously
- * and a handler must not mutate the document; an `edit` event fires after its change is
- * written to state, so its handler sees the updated document.
+ * The event subscription object reached through `getEvents()`. Events fire synchronously and a
+ * handler must not mutate the document; an `edit` event fires after its change is written and
+ * announced, so its handler sees the updated document.
  */
 
 import type { AnyBlockKind } from './core/nodes';
@@ -165,7 +165,7 @@ export function emitCommandError(
 
 /** Report a failed or refused write to the `error` channel with its op and document path. */
 export function emitCommitError(
-	events: EditorEvents,
+	events: Pick<EditorEvents, 'emit'>,
 	report: { error: unknown; op?: OperationKind; path?: number[] }
 ): void {
 	events.emit('error', {
