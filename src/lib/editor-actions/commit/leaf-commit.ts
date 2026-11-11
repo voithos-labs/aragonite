@@ -37,7 +37,7 @@ import {
 	publishScopeChange,
 	restoreFoldedChildren
 } from '../ancestry-folds';
-import { saveOwnedBytes } from './saved-bytes';
+import { saveFields } from './saved-bytes';
 import { pairsStay } from './change-record';
 import type { EditorActionsDeps } from '../deps';
 import type { FrameOutcome, FrameWrite } from './commit-frame';
@@ -184,8 +184,8 @@ export function createLeafCommit(
 // ── Rollback ─────────────────────────────────────────────────────────────────
 
 /**
- * What a rolled-back keystroke puts back: the chain's bytes and each chain node in its slot
- * (O(depth)), and the leaf's list as `restoreSiblings` saved it.
+ * What a rolled-back keystroke puts back: every field of each chain node and each chain node in
+ * its slot (O(depth)), and the leaf's list as `restoreSiblings` saved it.
  */
 function saveChain(
 	deps: EditorActionsDeps,
@@ -194,20 +194,16 @@ function saveChain(
 	restoreSiblings: () => void
 ): () => void {
 	// Stamped, so the frame keeps no chain node: one asked about later in the write would be kept
-	// half written and put back over the bytes saved here.
+	// half written and put back over the fields saved here.
 	for (const node of chain) deps.sharing.stamp(node);
-	const restoreBytes = saveOwnedBytes(chain);
-	// A write that reads the leaf as another kind in place swaps its children for the new reading's.
-	const leaf = chain[chain.length - 1];
-	const leafChildren = leaf.children;
+	const restoreFields = chain.map(saveFields);
 	return () => {
-		if (leaf.children !== leafChildren) leaf.children = leafChildren;
+		for (const restore of restoreFields) restore();
 		restoreSiblings();
 		for (let i = 0; i < chain.length; i++) {
 			const parent = i === 0 ? deps.doc.children : chain[i - 1].children!;
 			if (parent[leafPath[i]] !== chain[i]) parent[leafPath[i]] = chain[i];
 		}
-		restoreBytes();
 	};
 }
 

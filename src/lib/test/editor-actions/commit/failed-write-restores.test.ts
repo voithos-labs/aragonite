@@ -23,7 +23,6 @@ import { ensureUnsharedSubtree } from '#lib/tree-operations/unshare.js';
 import {
 	makeBlockListState,
 	makeContainerHarness,
-	makeNestedHarness,
 	makeTopHarness
 } from '#lib/test/harness/editor-actions.js';
 
@@ -265,16 +264,33 @@ describe.each(ROWS)('a commit that writes in place and fails: $name', (row) => {
 
 describe('a keystroke that writes in place and fails', () => {
 	it.each([
-		{ name: 'in its leaf alone', source: '> ab\n', index: 0, text: 'abx\n' },
+		{ name: 'in its leaf alone', source: '> ab\n', container: [0], index: 0, text: 'abx\n' },
 		// Indented text on the blank line makes the list above absorb it.
 		{
 			name: 'with blocks its fix-up merges',
 			source: '> - a\n>\n>\n> zz\n',
+			container: [0],
 			index: 1,
 			text: '  b\n'
+		},
+		// The item's metadata takes the marker, and the paragraph is written again without it.
+		{
+			name: 'that makes its list item a to-do',
+			source: '> - ab\n',
+			container: [0, 0, 0],
+			index: 0,
+			text: '[ ] ab\n'
+		},
+		// The write changes the blank lines above the nested list, which is on the key's own chain.
+		{
+			name: 'that empties a nested item',
+			source: '> - a\n>   - b\n>\n> c\n',
+			container: [0, 0, 0, 1, 0],
+			index: 0,
+			text: '\n'
 		}
-	])('$name, thrown out of the quote’s rebuild', async ({ source, index, text }) => {
-		const h = makeNestedHarness(source, { index: 0 });
+	])('$name, thrown out of the quote’s rebuild', async ({ source, container, index, text }) => {
+		const h = makeContainerHarness(source, container);
 		await ownEveryBlock(h);
 		const expectStanding = standing(h);
 		augmentBuiltin('blockquote', {
@@ -343,25 +359,6 @@ describe('a write that changes more than bytes where it stands and fails', () =>
 		});
 
 		await expect(thrown).rejects.toThrow('part way');
-		expectStanding();
-	});
-
-	it('a keystroke that makes its list item a task, thrown out of the quote’s rebuild', async () => {
-		const h = makeContainerHarness('> - ab\n', [0, 0, 0]);
-		await ownEveryBlock(h);
-		const expectStanding = standing(h);
-		augmentBuiltin('blockquote', {
-			container: {
-				rebuildRaw: () => {
-					throw new Error('rebuild blew up');
-				}
-			}
-		});
-
-		await expect(
-			h.bundle.blockEdit.updateBlockContent(0, '[ ] ab\n', 'authored', 'join-typing', 4)
-		).rejects.toThrow('rebuild blew up');
-
 		expectStanding();
 	});
 });
