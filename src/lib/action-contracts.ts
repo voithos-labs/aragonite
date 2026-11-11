@@ -354,9 +354,8 @@ export interface CommitController {
 	continueTypingBurst(): void;
 	/** Ends what `continueTypingBurst` armed, written to or not; called at compositionend. */
 	endContinuedBurst(): void;
-	/** Whether a gesture may write now: false in reading mode, for a document a `source` swap
-	 *  replaced, or while another write is open. A reading-mode refusal names `op` in a dev warning
-	 *  and a null `op` is refused quietly; the open write is reported on `error`, thrown in dev. */
+	/** Whether a gesture may write now: not in reading mode (a dev warning names a non-null `op`),
+	 *  for a swapped-out document, or while another write is open, which `error` hears. */
 	admitsGesture(op: string | null): boolean;
 	/** The keystroke that keeps its leaf's kind, written in place through the commit frame;
 	 *  `relanding` is null when the browser's caret stays where it is. */
