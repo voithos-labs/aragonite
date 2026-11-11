@@ -495,8 +495,12 @@ export function apartBelow(
 	const line = target.to + shift;
 	const marks = read.source.slice(target.to, next.from).trimEnd() + endingOf(read.source);
 	const apart = bytes.slice(0, line) + marks + bytes.slice(line);
+	// The block starts on the line of `from`: spaces before it there may be its own or the line's.
+	const lineOf = (source: string, byte: number) => source.lastIndexOf('\n', byte - 1);
 	const starts = (source: string, from: number) =>
-		readOf(host, source).blocks.some((b) => b.type === next.type && b.from === from);
+		readOf(host, source).blocks.some(
+			(b) => b.type === next.type && lineOf(source, b.from) === lineOf(source, from)
+		);
 	if (starts(bytes, next.from + shift)) return [bytes, apart];
 	return starts(apart, next.from + shift + marks.length) ? [apart] : [bytes];
 }
@@ -857,15 +861,17 @@ function brokenOut(
 	const flush = head + second + rest;
 	const under = flush.indexOf('\n', head.length) + 1;
 	if (under === 0 || (source.slice(to).trim() === '' && !whole)) return flush;
-	// A blank line under the pasted blocks parts them already.
+	// A blank line under the pasted blocks, or one they end on, parts them already.
 	const lineEnd = flush.indexOf('\n', under);
-	if (/^[ \t>]*\r?$/.test(flush.slice(under, lineEnd < 0 ? undefined : lineEnd))) return flush;
-	// Under them stands the list's second half, a list of its own; or, where the last item gave way,
-	// the block that stood under the list, which still starts its line.
-	const last = gone && index === count - 1;
+	const stop = lineEnd < 0 ? flush.length : lineEnd;
+	const above = flush.slice(flush.lastIndexOf('\n', under - 2) + 1, under);
+	if (/^[ \t>]*\r?$/.test(flush.slice(under, stop)) || /^[ \t>]*\r?\n$/.test(above)) return flush;
+	// Under them stands the list's second half, a list of its own; or, where no item is left to be
+	// one, the block that stood under the list, which still starts its line outside the pasted ones.
+	const last = !held && index === count - 1;
 	const starts = readOf(host, flush).blocks.some((b) =>
 		last
-			? b.from >= under && b.from <= under + outside.length
+			? b.path.length <= list.path.length && b.from >= under && b.from < stop
 			: b.type === list.type &&
 				b.path.length === list.path.length &&
 				b.from === under + outside.length

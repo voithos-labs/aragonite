@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import { editRange } from '#lib/range-edit/edit-range.js';
 import { KNOWN_RESIDUE, knownResidue, type KnownResidue } from './known-residue';
-import { cutPasteBack, keepsOutside, pasteAtCutCaret, type Call } from './laws';
+import { cutPasteBack, keepsOutside, pasteAtCutCaret, plainPaste, type Call } from './laws';
 import { checkHost } from './test-host';
 
 describe('the known residue', () => {
@@ -17,7 +17,15 @@ describe('the known residue', () => {
 			const broken = {
 				L3: () => cutPasteBack(call, host, known.repro),
 				L4: () => keepsOutside(call, host, known.repro),
-				L9: () => pasteAtCutCaret(call, host, known.repro)
+				L9: () => pasteAtCutCaret(call, host, known.repro),
+				L11: () =>
+					plainPaste(call, host, {
+						source: known.repro.source,
+						mode: known.repro.mode,
+						at: known.repro.range.from,
+						held: { holds: 'text' },
+						text: known.repro.text!
+					})
 			}[known.law]();
 			expect(broken).not.toEqual([]);
 			const { source, range } = known.repro;

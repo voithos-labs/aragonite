@@ -15,10 +15,12 @@ export interface KnownResidue {
 	gap: string;
 	/** The lane whose fix deletes the row. */
 	lane: 'tab columns' | '2b';
-	/** The law it breaks: law 3, law 4's bytes past the range, or law 9 at the caret the cut left. */
-	law: 'L3' | 'L4' | 'L9';
+	/** The law it breaks: law 3, law 4's bytes past the range, law 9 at the caret the cut left or
+	 *  at a drawn caret (a range with no bytes), law 11 at a drawn caret. */
+	law: 'L3' | 'L4' | 'L9' | 'L11';
 	matches(read: Read, range: Range, host: CheckHost): boolean;
-	repro: { source: string; mode: Mode; range: Range };
+	/** `text`: what a caret law's repro pastes. */
+	repro: { source: string; mode: Mode; range: Range; text?: string };
 }
 
 /** The lines the range touches, its first and last whole. */
@@ -70,6 +72,31 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 		matches: (read, range) =>
 			coveredLines(read, range).some((line) => /^[ >*+\-\d.)]*\t/.test(line)),
 		repro: { source: ' - `c`\n\t> q\n\t\n\t**b**\n', mode: 'source', range: { from: 11, to: 14 } }
+	},
+	{
+		gap: 'a tab split between a container marker and the line’s indent is read by its columns, which a new line’s markers and the question of two blocks reading as one count otherwise',
+		lane: 'tab columns',
+		law: 'L9',
+		matches: (read, range) =>
+			coveredLines(read, range).some((line) => /^[ >*+\-\d.)]*\t/.test(line)),
+		repro: {
+			source: '1.\t汉字\n\t> q\n\t- x\n\n>\t`c`\n   > 1. n\n`c`\n',
+			mode: 'source',
+			range: { from: 15, to: 31 }
+		}
+	},
+	{
+		gap: 'plain text at a caret before a tab split between a marker and the line’s indent takes later lines’ markers by its bytes, not its columns',
+		lane: 'tab columns',
+		law: 'L11',
+		matches: (read, range) =>
+			coveredLines(read, range).some((line) => /^[ >*+\-\d.)]*\t/.test(line)),
+		repro: {
+			source: '[^1]:> q\r\n\n\t- [ ] > q\r\n- x\n    \r\n\t       -\tword\n',
+			mode: 'source',
+			range: { from: 33, to: 33 },
+			text: 'line one\nline two\n'
+		}
 	},
 	{
 		gap: 'a line that reads as a setext underline or a break (`---`, `- `) re-reads the paragraph above it',
@@ -200,6 +227,36 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 		law: 'L3',
 		matches: besideSpaces,
 		repro: { source: 'p\n\n \n# h - x\n', mode: 'source', range: { from: 4, to: 8 } }
+	},
+	{
+		gap: 'a cut from a line’s first byte in or right under a list item or footnote leaves an empty line that container holds: the paste back lands inside it, behind its indent and a blank line',
+		lane: '2b',
+		law: 'L3',
+		matches: (read, { from }, host) =>
+			lineHead(read.source, from) === '' &&
+			read.blocks.some(
+				(c) => host.facts(c.type).lines === 'first-line' && c.from < from && from <= c.to
+			),
+		repro: {
+			source: '1. word\n   a\n   \n       > - x\n\t> q\na\n   > \n',
+			mode: 'source',
+			range: { from: 35, to: 36 }
+		}
+	},
+	{
+		gap: 'a line’s own indent past its container’s, copied after a blank line, reads as indented code alone: pasted back, the text after it stays apart',
+		lane: '2b',
+		law: 'L3',
+		matches: (read, { from, to }) => {
+			const start = read.source.lastIndexOf('\n', to - 1) + 1;
+			return (
+				from < start &&
+				/^(?: {4}|\t)/.test(read.source.slice(start, to)) &&
+				/\n[ \t>]*\r?\n$/.test(read.source.slice(from, start)) &&
+				restOfLine(read, to).trim() !== ''
+			);
+		},
+		repro: { source: '- [ ] x y\r\n \n       汉字\r\n', mode: 'source', range: { from: 9, to: 21 } }
 	},
 	{
 		gap: 'a range ending at the text of a block that takes no joined text keeps its marker, which the copy carries too',
