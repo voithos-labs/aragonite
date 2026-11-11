@@ -114,8 +114,9 @@ function landed(
 		const rest = marked ? emptiedRest(doc, from, readDoc(clip, doc.host, doc.mode)) : null;
 		if (rest !== null) return bytes(rest);
 		const text = () => (plain ? offText(doc, from, clip) : blocks().source);
-		// Where a block starts, the clipboard lands as blocks above it, never in its syntax.
-		const starts = visibleAfter && findWithin(doc, from, from, (b) => b.from === from);
+		// Where a block starts on its syntax, the clipboard lands as blocks above it, never in it.
+		const onSyntax = (b: LaidBlock) => b.from === from && b.text?.from !== from;
+		const starts = visibleAfter && findWithin(doc, from, from, onSyntax);
 		const above = starts ? pasteApart(doc, from, text()) : null;
 		if (above) return above;
 		// On an empty line no block holds, what lands stays apart from the block under it too.

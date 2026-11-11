@@ -463,6 +463,14 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: paste('```\ncode\n```'),
 		expect: { source: '# he\n\n```\ncode\n```\nad\n' }
 	},
+	// Miss-analysis: the fixed draw put no caret at the start of a paragraph whose first byte is a tab
+	// split with its item's indent, a text place that maps to no byte of its own; a fresh seed did.
+	{
+		name: 'L9 text at the start of a paragraph a tab indents in its item goes in as text',
+		source: '- x\n\n⟦⟧\t汉字\n',
+		gesture: paste('y'),
+		expect: { source: '- x\n\ny\t汉字\n', caret: text(6) }
+	},
 	// ── A last pasted block that takes no text stays apart from the text under it (§ 5.4) ──
 	// Miss-analysis: law 9 named no bytes for a clipboard ending in such a block, and the rows ended
 	// theirs in a fence, which closes itself: a table or an HTML block took the line under it in.
