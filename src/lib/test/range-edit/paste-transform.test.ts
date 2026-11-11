@@ -57,7 +57,9 @@ const LANDS_AS_TEXT: [name: string, marked: string, gesture: Gesture][] = [
 	['in a container’s title', ':::note ‸\nx\n:::\n', paste()],
 	['in a table cell', '| a‸ |\n| - |\n', paste()],
 	['as plain text', 'ab‸cd\n', paste({ plain: true })],
-	['one line after text', 'ab‸cd\n', paste({ paste: '> [!NOTE]' })]
+	['one line after text', 'ab‸cd\n', paste({ paste: '> [!NOTE]' })],
+	['among a table’s rows', '| a |\n| - |\n‸| b |\n', paste({ holds: 'boundary' })],
+	['at a table row’s first byte', '| a |\n| - |\n‸| b |\n', paste()]
 ];
 
 describe('the paste transforms, called by the core', () => {

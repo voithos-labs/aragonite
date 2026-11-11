@@ -101,7 +101,8 @@ export interface RangeHost {
 /** The host a paste reads through: the range host, and the editor's paste transforms. */
 export interface PasteHost extends RangeHost {
 	/** `text`, a clipboard read as `blocks`, as the paste transforms rewrite it, or `text` itself.
-	 *  The core calls it at most once per paste, and never where the clipboard lands as text. */
+	 *  The core calls it at most once per paste, and never where the clipboard lands unread: in a
+	 *  title, a cell, literal text or a table's rows, as plain text, or as one line after text. */
 	transformPaste(text: string, blocks: DocumentView): string;
 }
 

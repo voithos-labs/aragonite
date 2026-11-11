@@ -138,11 +138,12 @@ function linesAround(doc: Doc, at: number) {
 }
 
 /** The clipboard as blocks of its own at `at`, a place in no block's text: what follows `at` on
- *  its line starts the line under them. Null among a table's rows, where no block can stand. */
-export function pasteApart(doc: Doc, at: number, clip: string): Edit | null {
+ *  its line starts the line under them. Null, the clipboard unread, among a table's rows. */
+export function pasteApart(doc: Doc, at: number, read: () => string): Edit | null {
 	const { source } = doc;
 	const outside = around(at);
 	if (linesAround(doc, at) === 'rows') return null;
+	const clip = read();
 	// The line break that sets what follows on its own line stands for the clipboard's last one.
 	const follows = !isBlankText(clip) && !isBlankText(lineRest(source, at));
 	const pasted = spliced(doc, at, at, outside)(follows ? clip.replace(/\n$/, '') : clip);

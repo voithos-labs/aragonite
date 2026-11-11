@@ -51,7 +51,7 @@ export function pasteAt(doc: Doc, from: number, to: number, pasted: Pasted): Edi
 	let read: Doc | undefined;
 	const blocks = () => (read ??= transformed(doc, lf, pasted.transform));
 	const off = () => (plain ? offText(doc, from, lf) : blocks().source);
-	const apart = holds === 'text' ? null : pasteApart(doc, from, off());
+	const apart = holds === 'text' ? null : pasteApart(doc, from, off);
 	if (apart) return apart;
 	const edit = landed(doc, from, to, lf, plain, blocks);
 	// What lands in an empty paragraph, its line ending alone, stays apart from the block under it.
@@ -117,7 +117,7 @@ function landed(
 		// Where a block starts on its syntax, the clipboard lands as blocks above it, never in it.
 		const onSyntax = (b: LaidBlock) => b.from === from && b.text?.from !== from;
 		const starts = visibleAfter && findWithin(doc, from, from, onSyntax);
-		const above = starts ? pasteApart(doc, from, text()) : null;
+		const above = starts ? pasteApart(doc, from, text) : null;
 		if (above) return above;
 		// On an empty line no block holds, what lands stays apart from the block under it too.
 		const lineStart = from - lineHead(doc.source, from).length;
