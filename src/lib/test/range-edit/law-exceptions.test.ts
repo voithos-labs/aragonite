@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 // Each shape a law steps aside for, held to that shape: the law is silent on it, the core really
 // answers otherwise there, and a wrong answer one step outside it still reds.
-// Miss-analysis: two reviews found doors wider than their rulings, and no test stood at a door's edge.
+// Miss-analysis: two reviews found a law's exceptions wider than their rulings, and no test stood
+// one step outside an exception.
 
 import { describe, expect, it } from 'vitest';
 import { editRange, type Gesture } from '#lib/range-edit/edit-range.js';
