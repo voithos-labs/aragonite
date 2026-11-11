@@ -170,6 +170,12 @@ const EMPTIED_ROWS: NamedRow[] = [
 	...both('E over a heading’s whole text', '# ⟦Title⟧\n', paste('> q\n\nafter'), '> q\n\nafter\n'),
 	...both('E its closing run goes with it', '# ⟦Title⟧ #\n', paste('> q'), '> q\n'),
 	...both('E a table', '# ⟦Title⟧ #\n', paste(TABLE), '| a |\n| - |\n'),
+	...both(
+		'E the blocks land as on an empty line, apart from a line that would re-read them',
+		'# ⟦h⟧\n---\n',
+		paste('> q\n\nafter'),
+		'> q\n\nafter\n\n---\n'
+	),
 	...both('E a setext heading’s underline goes with it', '⟦Title⟧\n===\n', paste('> q'), '> q\n'),
 	...both('E and under a table', '⟦Title⟧\n===\n', paste(TABLE), '| a |\n| - |\n'),
 	...both(
