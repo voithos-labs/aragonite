@@ -505,6 +505,19 @@ export const NAMED_ROWS: NamedRow[] = [
 		expect: { source: 'ab\n\n<div>\nx\n</div>\n\n# h\n' }
 	},
 	{
+		name: 'L9 and in a CRLF quote, from the line under the caret’s',
+		source: '> ab⟦⟧\r\n> cd\r\n',
+		gesture: paste('| a |\n| - |'),
+		expect: { source: '> ab\r\n>\r\n> | a |\r\n> | - |\r\n>\r\n> cd\r\n' }
+	},
+	{
+		name: 'L9 and in live mode, after a run the caret closes',
+		mode: 'live',
+		source: 'a **b**⟦⟧ cd\n',
+		gesture: paste('| a |\n| - |'),
+		expect: { source: 'a **b**\n\n| a |\n| - |\n\n cd\n' }
+	},
+	{
 		name: 'L9 and mid-heading, where the tail is a paragraph',
 		source: '# he⟦⟧ad\n',
 		gesture: paste('| a |\n| - |'),
