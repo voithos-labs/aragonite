@@ -57,7 +57,7 @@ export interface BlockOpener {
 }
 
 /** The two halves of {@link BlockOpener.readingNotFinal}, declared together: a reading a line
- *  closes names that line, and one no line closes says which lines its wait runs across. */
+ *  closes names that line, and one no line closes may say which lines its wait stops at. */
 export type UnfinishedReading = ClosedReading | UnclosedReading;
 
 interface ReadingNotFinal {
