@@ -221,10 +221,11 @@ export interface EditorInstance {
 	 */
 	edit(): Draft;
 	/**
-	 * Insert markdown exactly as pasting it would, minus the clipboard: paste transforms,
-	 * delete-selection-first, one undo entry, focus at the end. `edit().insert(md)`, resolved to
-	 * whether it landed: false, with nothing changed, with no caret, in reading mode, or at a gap
-	 * caret. `placement: 'below'` first adds an empty paragraph after the caret's top-level block.
+	 * Insert markdown exactly as pasting it would, minus the clipboard: delete-selection-first, one
+	 * undo entry, focus at the end, so one line after text on its line goes in as text. Resolved
+	 * to whether it landed: false, with nothing changed, with no caret or in reading mode.
+	 * `placement: 'below'` first adds an empty paragraph after the caret's top-level block, where
+	 * the markdown lands as the blocks it reads as.
 	 */
 	insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean>;
 	/**
@@ -259,7 +260,8 @@ export interface EditorInstance {
 	/**
 	 * The blocks the insert menus offer, in menu order: the built-ins, then each block a plugin this
 	 * editor activated registered. The list the right-click flyout draws, for a host building its own
-	 * insert button; each entry's `markdown` is what to hand `insertMarkdown`. A fresh frozen list per call.
+	 * insert button; each entry's `markdown` is what to hand `insertMarkdown`, with
+	 * `placement: 'below'` unless the caret's line is empty. A fresh frozen list per call.
 	 */
 	getInsertCatalogue(): readonly InsertEntry[];
 	getRects(): EditorRects;

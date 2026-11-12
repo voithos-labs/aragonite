@@ -130,6 +130,7 @@ These checks run in three kinds of place:
 | G1.208 | A widget selected whole in the focused block leaves the browser a collapsed caret there | A·N |
 | G1.209 | The starts the editor keeps for its top-level blocks are the document's | A·N |
 | G1.211 | A write started while another is open writes nothing | A·L·N |
+| G1.213 | Every paste route leaves the range-edit core's bytes and caret, by the commit its answer calls for | harness |
 
 ### The entries
 
@@ -356,5 +357,7 @@ These checks run in three kinds of place:
 **G1.209 · The kept starts are the document's** (`kept-starts-current`). A byte writer changes the tree inside the record's `duringWrite` and hands back the runs it changed, or null, which forgets the record; a throw forgets it too. A view is read again after each write. Dev fails a kept length unlike the tree's, a block count changed unannounced, and a read inside a write (answered from a fresh measure in every build). `invariants/kept-starts.ts` · `commit/kept-starts.ts` · `top-level-starts.test.ts`, `kept-starts-routes.test.ts`, `write-window-closes.test.ts`.
 
 **G1.211 · One write at a time.** A write started between another's first change and its announcement (from a write rule or a `rebuildRaw`, say) would vanish under the outer publish, so it writes nothing, pushes no entry, emits no `edit`, reports on `error` and throws in dev. Each entry point asks `startsAlone` first; `duringWrite` refuses a second window in every build. An `edit` or `selectionChange` handler may write. `commit/reading-write-gate.ts` · `write-inside-write.test.ts`, `lint/content-version-doors.test.ts`.
+
+**G1.213 · One paste, whatever brought it.** A paste by its event, a menu, Ctrl+Shift+V, `insertMarkdown` or a cut pasted back leaves the bytes and the caret the range-edit core answers for the place, as a text block's own write where the core names one and a byte splice otherwise, and one undo gives the bytes back. A range across blocks is removed first, as typing over it removes it. `test/range-edit/paste-routes.test.ts` runs every route over each named place; a row waiting for a ruling sits in `paste-routes-pending.ts`.
 
 **G1.201 · A container's window reads back first** (`container-window-reads-back`). Before a byte splice reads a run of a list's, quote's or table's children again with the change made, it reads their old bytes the same way, and those must come out as the children the container held. When they don't, the child spans were stale or the container's own reading disagrees with the document's, so dev warns and the splice takes the top-level window. Inline in `tree-operations/container-window.ts :: containerWindow` · `container-window.property.test.ts`.

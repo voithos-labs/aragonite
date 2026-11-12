@@ -274,7 +274,7 @@ A kind's `view` is what draws it, and the editor never talks to whatever drew it
 | --- | --- | --- |
 | view | `focus`, `getCursorOffset` and `focusable` (required), plus the optional caret, selection and command members | What a hand-built `'none'` view can answer from its own DOM; `HAND_BUILT_MEMBERS` is the list `ctx.block.publish` takes |
 | host | `editable` | The kind's registration declares it, so no view reports it |
-| leaf surface | `insertMarkdown`, `typeText` and the other insert and commit hooks | A view that wants them has built a text editor, and should ask for the leaf instead |
+| leaf surface | `preparePaste`, `typeText` and the other insert and commit hooks | A view that wants them has built a text editor, and should ask for the leaf instead |
 | container surface | `childList`, `focusByPath` and the rest of the child walk | `childList` returns the editor's own ref slots and windowing, which no outside view can make |
 | editor | the point-snap, drag, cell, row-window, selection-offset and clipboard members | Only the text block and the table implement them, so they stay off the published view type |
 

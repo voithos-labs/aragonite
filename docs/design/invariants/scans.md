@@ -159,7 +159,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.187 | Every framework app under `examples/` runs in the adapter suite | L |
 | G4.188 | Every wrapper entry imports in Node with no DOM, as a server render does | harness |
 | G4.189 | A host color read inside the editor carries no fallback, and the root reads the resolved one | L |
-| G4.194 | A block reaches the clipboard steps and its inline paste only through its editable surface | L |
+| G4.194 | A block reaches the clipboard steps only through its editable surface, and dispatches no paste | L |
 | G4.195 | _Retired upward_: every write declares its undo grouping (`history`), a command's as `entry` | T |
 | G4.197 | A parse finds every built-in kind whichever module a host imports first | harness |
 | G4.200 | Whether a block hides markers at the caret, with the screen it reads, is asked in one place | L |
@@ -241,6 +241,8 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.338 | `edit` is emitted in one function, which first hands the link definitions what the write replaced | L |
 | G4.340 | A position read after a write, or a byte splice, measures the blocks the write changed, not the document | harness |
 | G4.342 | A range edit parses and measures the blocks its range reaches, not the document | harness |
+| G4.344 | A paste makes one clipboard read, in one module | L |
+| G4.345 | No production module imports the paste dispatch the range-edit core replaced | L |
 
 ### The entries
 
@@ -318,7 +320,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 
 **G4.37 · Content-empty stamp parity.** The files rendering a fragment into a contenteditable the caret walk reads (`renderInlineNodes`, `renderCodeBlock`) are exactly the files stamping `data-content-empty`; a surface without the stamp paints a marker-only block as an empty line nobody can reach. A file naming a renderer that mounts nothing carries a reason. `lint/manifest-rules.test.ts`.
 
-**G4.38 · Editable surface parity.** Every component mounting the text surface (`createEditableSurface`) publishes each member of `src/lib/block-component.ts` :: `EDITABLE_SURFACE_MEMBERS`, as an instance export or in the surface literal it hands `publishRefSlot`. `BlockComponent` declares them optional, so a missing one compiles and silently declines (every `editor.insertMarkdown()`, say). A `createEditableLeaf` leaf is G4.73's. Add a member to the tuple and both rules take it. `lint/insert-door-surface-parity.test.ts`.
+**G4.38 · Editable surface parity.** Every component mounting the text surface (`createEditableSurface`) publishes each member of `src/lib/block-component.ts` :: `EDITABLE_SURFACE_MEMBERS`, as an instance export or in the surface literal it hands `publishRefSlot`. `BlockComponent` declares them optional, so a missing one compiles and silently declines (every paste into the block, say). A `createEditableLeaf` leaf is G4.73's. Add a member to the tuple and both rules take it. `lint/insert-door-surface-parity.test.ts`.
 
 **G4.39 · Command surface parity.** Every component mounting the text surface (`createEditableSurface`) publishes `runCommand` as an instance export, since that's where the built-in text commands live; it's optional on `BlockComponent`, so a missing one compiles and declines every built-in `editor.runCommand()`. The two reorder ids resolve in the dispatch and don't count. `lint/file-rules.test.ts`.
 
@@ -384,7 +386,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 
 **G4.72 · The grammar's whitespace is GFM's.** Where a rule wants spaces or tabs, it says `[ \t]`; where the spec says whitespace, it means the ASCII set of § 2.1 (`src/lib/core/lines.ts :: isWhitespaceChar`). JS `\s` and `trim()` admit a non-breaking space, so the scan fails both in `core/parsers/`, `core/directive/`, the other grammar files and the bundled plugins (which read the helpers through `src/lib/plugin.ts`). Emphasis is outside it (its flanking rule is Unicode), and the allowlist carries a reason per file. `lint/file-rules.test.ts`.
 
-**G4.73 · A leaf component exports `blockApi`.** Every component calling `createEditableLeaf`, test fixtures included, exports `blockApi` and no `BlockComponent` member of its own. A flat copy out of the factory's object still compiles while dropping what it skipped (no `insertMarkdown` means every `editor.insertMarkdown()` declines). The scan reads the member names off `BlockComponent`'s declaration, so a new member joins it. `lint/leaf-block-api-export.test.ts`.
+**G4.73 · A leaf component exports `blockApi`.** Every component calling `createEditableLeaf`, test fixtures included, exports `blockApi` and no `BlockComponent` member of its own. A flat copy out of the factory's object still compiles while dropping what it skipped (no `preparePaste` means every paste into the block is left to the browser). The scan reads the member names off `BlockComponent`'s declaration, so a new member joins it. `lint/leaf-block-api-export.test.ts`.
 
 **G4.75 · One leaf write.** New text for a leaf is written one way at every depth: a commit through `src/lib/editor-actions/block-edit-core.ts` :: `commitLeafText`, or the keystroke's in-place write, `src/lib/editor-actions/commit/leaf-commit.ts` :: `createLeafCommit`. Each step of the write has a short list of files allowed to name it (an aliased import counts):
 
@@ -543,7 +545,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.189 · Host colors come from one place.** `editor.css` resolves each host color on the editor root (the page's value, or the built-in palette for the editor's mode) and hands it to the root's children under the host's own name. A read inside the editor carries no fallback, since a literal would hold one mode whatever `theme` says; a rule on the root (or its scrollbar) reads the resolved `--md-color-*` name. The rules live in `editor.css` so a replaced theme file keeps them. `lint/host-color-reads.test.ts` covers the library and plugins; route pages are the host.
 
-**G4.194 · A block's clipboard comes from its surface.** A block gets its copy, cut and paste handlers from `editable-surface.ts :: clipboard`, which adds the editor's half (the reading-mode check, caret memory, the image hook, a cross-block copy and cut), and pastes into its own text through `pasteInline`, which puts the caret where the paste left it. A block's own copies would drift. `lint/file-rules.test.ts` fails a `createClipboardHandlers` or `pasteDispatch` call outside the surface, `surface-clipboard.ts` and the cross-block range replace.
+**G4.194 · A block's clipboard comes from its surface.** A block gets its copy and cut handlers, and its answer to a paste (`preparePaste`), from `editable-surface.ts :: clipboard`, which adds the editor's half (the reading-mode check, caret memory, a cross-block copy and cut). A block's own copies would drift. `lint/file-rules.test.ts` fails a `createClipboardHandlers` or `pasteDispatch` call outside the surface.
 
 **G4.197 · Built-ins register on the first grammar read.** The block parser's modules import each other in a loop, so a built-in registered at a module's top level runs before that module finishes loading, and a host importing it first crashes or gets none. `schema/block-openers.ts` instead registers them on the first grammar read, through `registerBuiltInDescriptors` under `registerAsCore`: they belong to no plugin whoever arrives first, and survive the test reset. `built-in-load-order.test.ts` imports each loop module first and parses every built-in kind.
 
@@ -575,7 +577,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.220 · One system clipboard module.** A read or write of the clipboard outside a clipboard event (menu Copy and Paste, whole-block Mod+C, the code block's Copy button) goes through `browser/clipboard.ts`, where a refused call resolves to nothing instead of an unhandled rejection. A read waits for a closing menu to leave the page (Safari draws its Paste prompt over it), and a block's text (its Markdown, or a fence's code from the Copy button) copies through `copyBlockToClipboard`, so every route writes the same text. `lint/system-clipboard-calls.test.ts`.
 
-**G4.221 · Clipboard text the engines agree on.** A paste with no paste event of its own (the menus' Paste rows) hands its text to the focused block's `insertMarkdown` or `insertPlainText`, since Firefox empties `clipboardData` on a `new ClipboardEvent(...)`. The selection's shown text is read only through `shownSelectionText` (`browser/selection-read.ts`), which reads LF where Firefox on Windows writes CRLF, and nothing for an empty block's placeholder `<br>` selected alone. `lint/file-rules.test.ts`.
+**G4.221 · Clipboard text the engines agree on.** A paste with no paste event of its own (the menus' Paste rows) reads the clipboard and hands the read to the editor's paste entry, since Firefox empties `clipboardData` on a `new ClipboardEvent(...)`. The selection's shown text is read only through `shownSelectionText` (`browser/selection-read.ts`), which reads LF where Firefox on Windows writes CRLF, and nothing for an empty block's placeholder `<br>` selected alone. `lint/file-rules.test.ts`.
 
 **G4.223 · No engine sniffing.** `src/lib` outside `debug/` names no engine in script (`isFirefox`, a user-agent read, `Edg/`): an engine bug is fixed where the editor reads or decides, the same way on all three, and a CSS vendor prefix or a platform read (Mac's Cmd) is fine. Zero is the baseline (`editor.md` § Browser engines). `lint/engine-sniffing.test.ts`.
 
@@ -700,3 +702,7 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.340 · A position costs its path.** Every write route (`test/harness/write-routes.ts`), with a listener asking a position on every edit, measures as many top-level blocks at 400 as at 40, unless it names no blocks; with no listener, none, unless the write reads positions to make itself. A byte splice measures as many at 400 as at 40. `measured(doc)` measures every block it's handed, so its callers are a declared list. `test/perf/top-level-starts-reads.test.ts`, `splice-top-level-cost.test.ts`, `lint/measured-callers.test.ts`.
 
 **G4.342 · A range edit costs its range.** The editor's host (`range-edit/host.ts :: rangeHost`) reads the range-edit core's answer through the byte splice's windowed read, so each range route and a copy parse the same bytes and measure as many top-level blocks at 400 as at 40, and each read comes back as a fresh parse gives it. Recorded, not held: each serializes the document once, and a removal walks the tree's top-level list three times (its text, the list host and commit share, its undo snapshot). `test/perf/range-edit-window-cost.test.ts`, `test/range-edit/answer-read.property.test.ts`.
+
+**G4.344 · One clipboard read.** Only `browser/clipboard.ts` calls `getData` or `clipboard.readText`: `readPasteEvent` takes every type of a paste event's data at once, the editor's own entry and the plain-paste chord with it, and `readClipboard` the system clipboard's text. A second read sees less, or another clipboard. The input recorder copies a payload and writes nothing. `lint/file-rules.test.ts`.
+
+**G4.345 · The old paste dispatch has no caller.** No module outside `tree-operations/paste/` imports `tree-operations/paste/dispatch`: a paste is one answer of the range-edit core (G1.213), and a route through the old dispatch would paste by other rules. `lint/file-rules.test.ts`.

@@ -1011,7 +1011,7 @@ _(pre-freeze / unstable)_ The recipe: [Paste transforms](plugin-guide/paste-tran
 
 | Export | Role |
 | --- | --- |
-| `registerPasteTransform` | Register a pre-parse rewrite of pasted text; transforms run at every paste site, in install order, each seeing the previous one's output (the first gets CRLF already turned to LF), and never on load or typing |
+| `registerPasteTransform` | Register a pre-parse rewrite of pasted text; transforms run wherever a paste lands as blocks, in install order, each seeing the previous one's output (the first gets CRLF already turned to LF), and never on load or typing |
 | `PasteTransform` | The unit: a process-unique `name`, plus `transform(text)` returning the replacement or null for "not mine" |
 
 ### Decorations

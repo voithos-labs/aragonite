@@ -7,6 +7,7 @@ import {
 	measureContainerInteriorTyping,
 	measureListCopy,
 	measureNewParagraphLetter,
+	measurePaste,
 	measureRangeRemoval,
 	measureStructuralRebuild,
 	measureTypingLatency,
@@ -246,6 +247,50 @@ test.describe('perf gate: a removal over a range across small blocks', () => {
 		console.log(`PERF-GATE ${key} ceiling=${ceilingMs.toFixed(1)}ms (baseline ${baselineMs}ms)`);
 		expect(m.p50Ms, `${key} p50 regressed past baseline+budget`).toBeLessThanOrEqual(ceilingMs);
 	});
+});
+
+// A paste is the range-edit core's answer: the block's own write for text, one byte splice for
+// blocks that cut it, and over a range across blocks the removal's splice first.
+type PasteLands = 'text' | 'blocks' | 'over-range';
+const PASTE_ROWS: Array<[shape: Parameters<typeof measurePaste>[2], lands: PasteLands]> = [
+	['many-small-blocks', 'text'],
+	['giant-single-list', 'text'],
+	['giant-single-blockquote', 'text'],
+	['many-small-blocks', 'blocks'],
+	['giant-single-list', 'blocks'],
+	['giant-single-blockquote', 'blocks'],
+	['many-small-blocks', 'over-range']
+];
+const PASTE_CLIP = {
+	text: 'one\ntwo',
+	blocks: 'one\n\n# two\n\nthree',
+	'over-range': 'one\ntwo'
+};
+const PASTE_AT = { text: 'end', blocks: 'middle', 'over-range': 'range' } as const;
+
+test.describe('perf gate: a paste', () => {
+	for (const [shape, lands] of PASTE_ROWS) {
+		test(`${shape.replace(/-/g, ' ')} 1MB paste ${lands}`, async ({ page }) => {
+			const key = `${shape}-1MB-paste-${lands}`;
+			const m = await measurePaste(
+				page,
+				new EditorPage(page),
+				shape,
+				SIZE_BYTES['1MB'],
+				PASTE_CLIP[lands],
+				PASTE_AT[lands],
+				12
+			);
+			// Printed ahead of the gate, so a run still shows the row while its baseline waits a bless.
+			console.log(
+				`PERF-GATE ${key} p50=${m.p50Ms.toFixed(1)}ms p95=${m.p95Ms.toFixed(1)}ms ` +
+					`first=${m.samples[0].toFixed(1)}ms load=${m.loadMs.toFixed(1)}ms`
+			);
+			const { baselineMs, ceilingMs } = gateFor(key);
+			console.log(`PERF-GATE ${key} ceiling=${ceilingMs.toFixed(1)}ms (baseline ${baselineMs}ms)`);
+			expect(m.p50Ms, `${key} p50 regressed past baseline+budget`).toBeLessThanOrEqual(ceilingMs);
+		});
+	}
 });
 
 // An edit inside a giant container, made today's way and then through the byte splice the range

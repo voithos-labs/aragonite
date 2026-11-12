@@ -482,15 +482,15 @@ await editor.insertMarkdown('**hi**'); // false with no caret (reading mode, or 
 
 One call runs the whole paste route:
 
-1. Any registered paste transforms rewrite the text first (a plugin hook, see the [plugin guide](plugin-guide.md)).
-2. A live selection is deleted, then the text is spliced in the way a paste would pick: a table as a block, a one-liner inline at the caret, list items absorbed into a matching list.
+1. A live selection is deleted, then the text goes in the way a paste would pick: a table as a block, a one-liner inline at the caret, a list beside a list of its type as more of its items.
+2. Where it lands as blocks, any registered paste transforms rewrite it first (a plugin hook, see the [plugin guide](plugin-guide.md)).
 3. Focus lands at the end of the insertion, and the whole thing is one undo entry.
 
-The caret is read when you call, and the promise resolves once the edit has landed and the caret is placed, so `getSource()` after an `await` sees it. `false` means nothing changed: no caret in this editor, reading mode, or a caret parked between two blocks.
+The caret is read when you call, and the promise resolves once the edit has landed and the caret is placed, so `getSource()` after an `await` sees it. `false` means nothing changed: no caret in this editor, or reading mode. A caret parked between two blocks takes the insert as blocks there.
 
 `placement: 'below'` is what the right-click "Insert block" rows do: an empty paragraph goes in after the top-level block holding the caret, and the text is pasted into it, so a sentence is never split around a new block. The paragraph and the insert are one undo entry.
 
-`getInsertCatalogue()` lists the blocks those rows offer, in their order: an `id`, a `label`, an `icon` name, `keywords`, the `markdown` to hand this call, and on some an optional `withArgument(word)` that answers the Markdown for a typed argument (`/table 3x4`). A plugin's block is in the list while this editor lists its plugin, so a `+` button or a menu of your own shows it without naming it.
+`getInsertCatalogue()` lists the blocks those rows offer, in their order: an `id`, a `label`, an `icon` name, `keywords`, the `markdown` to hand this call, and on some an optional `withArgument(word)` that answers the Markdown for a typed argument (`/table 3x4`). A plugin's block is in the list while this editor lists its plugin, so a `+` button or a menu of your own shows it without naming it. Hand an entry over with `placement: 'below'` unless the caret's line is empty: an entry such as `- ` is one line, and one line after text goes in as text.
 
 ### Toolbar commands
 
