@@ -270,13 +270,13 @@ function caretOf(edit: Removal, result: Doc, beside: Beside, started: () => Laid
 	if (edit.source === '' || result.layout.pointAt(text)) return { at: text, holds: 'text' };
 	const block = findWithin(result, at, at, (b) => b.from === at);
 	if (block) return { at, holds: 'block', parent: block.path.slice(0, -1) };
-	// A boundary sits among the children of the deepest block the gesture started in that still
-	// holds it, else of the nearest container around it.
+	// A boundary sits among the children of the block the removal took from, else of the deepest
+	// block the gesture started in that still holds it, else of the nearest container around it.
 	const still = (b: LaidBlock) => {
 		const now = result.layout.block(b.path);
 		return !!now && !now.text && now.type === b.type && now.from <= at && at <= now.to;
 	};
-	const parent = started().findLast(still)?.path ?? holderAt(result, at)?.path ?? [];
+	const parent = edit.parent ?? started().findLast(still)?.path ?? holderAt(result, at)?.path ?? [];
 	return { at, holds: 'boundary', parent };
 }
 

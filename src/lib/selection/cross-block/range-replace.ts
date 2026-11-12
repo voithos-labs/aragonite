@@ -173,6 +173,8 @@ async function replaceInStep(
 	if (insertion.kind === 'command') {
 		// Before the command runs, since the block reads the caret to run it.
 		await removalCaret?.place();
+		const gap = ctx.selection.gapCaret;
+		if (gap) return keyAtGap(ctx, [...gap.parentPath, gap.index], insertion.chord);
 		const path = at?.path ?? coverage.range.start.path;
 		if (claimed) {
 			assertInvariant('command-key-landing', () =>
@@ -187,6 +189,18 @@ async function replaceInStep(
 		return 'written';
 	}
 	return insertAtCaret(ctx, coverage, insertion, at, removalCaret);
+}
+
+/** A command key where the removal left the caret in a gap, at `slot`, with no block to run in:
+ *  Enter opens an empty paragraph there, as `GapCaret.svelte` answers it, and no other key runs. */
+async function keyAtGap(
+	ctx: CrossBlockMutationContext,
+	slot: number[],
+	chord: string
+): Promise<RangeReplaceOutcome> {
+	if (chord === 'Enter' || chord === 'Shift+Enter')
+		await ctx.pasteCoordinator.insertParagraph(slot, '');
+	return 'written';
 }
 
 /** The caret a removal that took nothing leaves at the range's start, ending the range when placed. */

@@ -7,7 +7,7 @@
 	 */
 	import { neverACommand } from '../browser/composition';
 	import { getContext } from 'svelte';
-	import type { BlockEditActions, FocusActions } from '../action-contracts';
+	import type { BlockEditActions, FocusActions, MoveFocusOptions } from '../action-contracts';
 	import { GAP_CARET_LABEL } from '../a11y-strings';
 	import {
 		EDITOR_DOC_KEY,
@@ -55,8 +55,8 @@
 	// The move that leaves must not be re-captured by the boundary it is leaving.
 	const EXIT = { skipGapStop: true } as const;
 
-	function leaveForward(): void {
-		void focusActions?.moveFocus(index, 'start', EXIT);
+	function leaveForward(more?: MoveFocusOptions): void {
+		void focusActions?.moveFocus(index, 'start', { ...EXIT, ...more });
 	}
 
 	function leaveBackward(): void {
@@ -97,9 +97,12 @@
 			// is not a representable cross-block state (docs/design/selection.md § The gap caret).
 			case 'ArrowDown':
 			case 'ArrowRight':
-			case 'Delete':
 				event.preventDefault();
 				return leaveForward();
+			case 'Delete':
+				event.preventDefault();
+				// Delete writes nothing, so past the document's last block the caret stays.
+				return leaveForward({ append: false });
 			case 'ArrowUp':
 			case 'ArrowLeft':
 			case 'Backspace':

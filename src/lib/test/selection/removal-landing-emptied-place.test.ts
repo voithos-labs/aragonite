@@ -8,6 +8,8 @@ import type { SelectionPoint } from '#lib/selection/primitives.js';
 import { emptiedPlace } from '#lib/selection/cross-block/range-removal.js';
 import { deleteRange } from '../harness/range-delete';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
+import { installPlugins } from '#lib/schema/plugin-install.js';
+import { SYNTAX_PLUGINS } from '#lib/test/behavior/corpus.js';
 
 const cell = (path: number[], offset = 0): SelectionPoint => ({
 	path,
@@ -89,6 +91,32 @@ describe('a removal whose caret sits between blocks', () => {
 		const head = '| A | B |\n| --- | --- |\n';
 		const source = `${head}| 1 | 2 |\n| 3 | 4 |\n\n${head}| 1 | 2 |\n`;
 		expect(placeAfterRemoval(source, cell([0], 2), cell([1], 0))).toEqual([1]);
+	});
+});
+
+// Miss-analysis: every boundary row named a gap caret or the document's end, so a boundary that
+// takes neither returned before the rule for a range that took its start block was asked.
+describe('a range that took its start block, ending on a boundary no gap caret takes', () => {
+	const DETAILS =
+		'one\n\n> [!NOTE]\n> :::note\n> <details>\n> <summary>S</summary>\n>\n> ```\n> x\n> ```\n> ---\n> <div>\n> h\n> </div>\n>\n> </details>\n> :::\n\nafter';
+	it('opens a paragraph where the start block was, not on the rule beside it', () => {
+		installPlugins(SYNTAX_PLUGINS);
+		expect(placeAfterRemoval(DETAILS, at([1, 0, 1, 3], 0), at([2], 5))).toEqual([1, 0, 1, 3]);
+	});
+});
+
+// Miss-analysis: every range that took its start block started on a table held whole, so a start
+// in a row the removal took named a slot among the table's rows, where opening a paragraph throws.
+describe('a range that took the table row it started in', () => {
+	it('opens a paragraph after the table, never among its rows', () => {
+		const doc = parse('| A |\n| - |\n| 1 |\n\n```\nx\n```\n');
+		const removed = {
+			wrote: true,
+			caret: at([1], 0),
+			landed: { at: 17, holds: 'text' as const },
+			took: [0, 2]
+		};
+		expect(emptiedPlace(measured(doc), removed)).toEqual([1]);
 	});
 });
 

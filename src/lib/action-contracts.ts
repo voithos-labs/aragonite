@@ -52,11 +52,11 @@ export type DiscardIfNoop = boolean;
 export type CommitLanding = () => Landing | GapCaretSelection | null;
 
 /** Where the caret lands in a byte splice's new bytes: at byte `at`, in a block's text, on the
- *  block starting there focused whole, or between the two blocks meeting there. */
-export interface SpliceCaret {
-	at: number;
-	holds: 'text' | 'block' | 'boundary';
-}
+ *  block starting there focused whole, or between two of `parent`'s children, the block whose
+ *  children the place sits between (the range-edit core's `Place`). */
+export type SpliceCaret = { at: number } & (
+	{ holds: 'text' } | { holds: 'block' | 'boundary'; parent: readonly number[] }
+);
 
 /** A byte splice: sorted, non-overlapping changes to the current bytes and the caret after them,
  *  or `keep` for the author's caret moved past the changes. The edit event names `op` at its own
