@@ -48,6 +48,7 @@ import {
 	pasteGesture,
 	pastePlainGesture,
 	placeRange,
+	runHistory,
 	Undetermined,
 	type Editor,
 	type PasteRoute
@@ -71,6 +72,8 @@ export interface PasteCase {
 	/** The clipboard's `text/plain`, its line endings as another app wrote them. */
 	clip: string;
 	route: DiffRoute;
+	/** The bytes a ruling spells for the case, where the place the paste is named at decides them. */
+	pin?: string;
 }
 
 export interface Answer {
@@ -99,6 +102,8 @@ export interface PasteRow extends PasteCase {
 	laws?: LawVerdicts;
 	/** For a row whose bytes agree: whether the core's caret lands where today's does. */
 	landsSame?: boolean;
+	/** Whether one undo gave back the bytes the paste started from; unset for a cut first. */
+	undone?: boolean;
 	warns: string[];
 	verdict: 'same' | 'bytes' | 'caret' | 'undetermined' | 'no core' | 'core threw';
 }
@@ -216,6 +221,10 @@ export async function diffCase(input: PasteCase): Promise<PasteRow> {
 		}
 		row.today = await todayAnswer(editor, input, row);
 		row.warns = takeDevWarns().map((w) => `${w.tag}: ${w.message}`);
+		if (!CUTS.includes(input.route) && editor.source() !== before) {
+			await runHistory(editor, 'undo');
+			row.undone = editor.source() === before;
+		}
 		if (row.range) row.core = coreSide(before, row.range, input, grammar, row);
 		row.tags = tagsOf(row, grammar);
 		row.laws = lawsOf(row, grammar);

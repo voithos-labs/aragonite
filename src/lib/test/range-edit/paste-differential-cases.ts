@@ -22,6 +22,8 @@ interface Named {
 	routes?: DiffRoute[];
 	/** A place the marks can't say: a block focused whole, the gap caret, a cell rectangle. */
 	via?: Place;
+	/** The bytes every route and mode of the case must leave. */
+	pin?: string;
 }
 
 const CRLF = (text: string) => text.replace(/\n/g, '\r\n');
@@ -194,7 +196,38 @@ const NAMED: Named[] = [
 		marked: 'para\n\n---\n\n```\ncode\n```\n',
 		clips: [''],
 		via: { whole: [1] },
-		routes: ['cut then key']
+		routes: ['cut then key'],
+		pin: 'para\n\n---\n\n```\ncode\n```\n'
+	},
+	// ── Where the place the paste is named at decides the bytes ──
+	{
+		name: 'a rule cut under a quoted table, its caret held as no gap, pasted back',
+		marked: '> | b |\n> | - |\n---\n\nafter\n',
+		clips: [''],
+		via: { whole: [1] },
+		routes: ['cut then key'],
+		pin: '> | b |\n> | - |\n---\n\nafter\n'
+	},
+	{
+		name: 'a rule cut from an item’s end under a table, a tight item below, pasted back',
+		marked: '- > a\n  >\n  > | b |\n  > | - |\n  >\n  > ---\n- c\n',
+		clips: [''],
+		via: { whole: [0, 0, 0, 2] },
+		routes: ['cut then key'],
+		pin: '- > a\n  >\n  > | b |\n  > | - |\n  >\n  > ---\n- c\n'
+	},
+	{
+		name: 'a live heading’s text start takes one line as text',
+		marked: '# ‸Hi\n',
+		clips: ['x'],
+		modes: ['live'],
+		pin: '# xHi\n'
+	},
+	{
+		name: 'a cut pasted back as plain text ignores the editor’s own entry',
+		marked: 'a **b⟦old** text\n\n# next⟧ one\n',
+		clips: [''],
+		routes: ['cut then plain']
 	}
 ];
 
@@ -229,7 +262,15 @@ export function namedCases(grammar: GrammarView): PasteCase[] {
 		if (!via) return [];
 		return (named.modes ?? (['source', 'live'] as const)).flatMap((mode) =>
 			(named.routes ?? TEXT_ROUTES).flatMap((route) =>
-				named.clips.map((clip) => ({ name: named.name, source, mode, via, clip, route }))
+				named.clips.map((clip) => ({
+					name: named.name,
+					source,
+					mode,
+					via,
+					clip,
+					route,
+					...(named.pin !== undefined && { pin: named.pin })
+				}))
 			)
 		);
 	});
