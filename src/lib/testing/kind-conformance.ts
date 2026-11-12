@@ -51,6 +51,7 @@ import {
 	defaultGrammarView,
 	type BlockOpener,
 	type OpenContext,
+	type ClosedReading,
 	type UnclosedReading
 } from '../schema/block-openers';
 import { createHeadlessActions } from './headless-actions';
@@ -408,7 +409,8 @@ function execUnfinishedReading({ parsed: ctx }: KindRun): CellOutcome {
 	const waiting = defaultGrammarView.orderedOpeners().filter((opener) => {
 		const reading = opener.readingNotFinal;
 		if (!reading || lines.length < 2 || !opensKind(opener, ctx.node.raw, ctx.kind)) return false;
-		return reading.notFinal(opened);
+		// A reading no line closes is held even where it says nothing waits: saying so is its job.
+		return reading.closer === null || reading.notFinal(opened);
 	});
 	if (waiting.length === 0) {
 		// A fence that nothing closes takes in every block below, so its opener has to say so.
@@ -437,6 +439,7 @@ function execUnfinishedReading({ parsed: ctx }: KindRun): CellOutcome {
 			assertWaitCrossesFixture(ctx.kind, reading, ctx.node.raw, lines.slice(1));
 			continue;
 		}
+		assertStaysFinal(ctx.kind, reading, ctx.node.raw);
 		assert(
 			reading.mayClose(closer),
 			`${ctx.kind}'s opener says its fixture without its last line is unfinished, but its ` +
@@ -450,17 +453,44 @@ function execUnfinishedReading({ parsed: ctx }: KindRun): CellOutcome {
 				`close its fixture: the closer must make the opener's bytes one block of the kind`
 		);
 	}
-	return 'each reading closes or crosses its own fixture';
+	return 'each reading waits through its fixture, and closes or crosses it';
 }
 
-/** A reading no line closes waits across its own fixture: `crosses`, where it is declared,
- *  accepts each line under the first, and the fixture whole reads as final. */
+/** `notFinal` asked of the fixture a line at a time: once it says final, more lines keep it so. */
+function assertStaysFinal(kind: string, reading: ClosedReading, raw: string): void {
+	let bytes = '';
+	let final = false;
+	for (const line of splitLines(raw)) {
+		bytes += line.raw;
+		const now = !reading.notFinal(bytes);
+		assert(
+			now || !final,
+			`${kind}'s readingNotFinal.notFinal calls its fixture's first lines final and then, with ` +
+				`${show(line.text)} under them, not final: once final it has to stay final, or an edit ` +
+				`further down reads the block above it wrong`
+		);
+		final = now;
+	}
+}
+
+/** A reading no line closes waits across its own fixture: every line short of the whole waits,
+ *  `crosses`, where it is declared, accepts each line under the first, and the whole is final. */
 function assertWaitCrossesFixture(
 	kind: string,
 	reading: UnclosedReading,
 	raw: string,
 	under: readonly { text: string }[]
 ): void {
+	let bytes = '';
+	splitLines(raw).forEach((line, i) => {
+		bytes += line.raw;
+		assert(
+			i === under.length || reading.notFinal(bytes),
+			`${kind}'s readingNotFinal.notFinal calls the first ${i ? `${i + 1} lines` : 'line'} of ` +
+				`its fixture final, though the lines under still change the block: notFinal gets a ` +
+				`block's bytes with or without the blocks under it, and waits until none can change it`
+		);
+	});
 	for (const line of under) {
 		assert(
 			reading.crosses?.(line.text) ?? true,
