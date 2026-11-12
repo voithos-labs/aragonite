@@ -33,6 +33,7 @@ import {
 	keepLastLineOpen,
 	lastLineOpen,
 	mergeJoins,
+	settleWaitAt,
 	withOneBlock
 } from './index';
 import type { ListEdit, ListResult, SiblingList } from './types';
@@ -192,6 +193,30 @@ export function mergeJoinsAt(
 	beforeWrite?: () => void
 ): StructuralChange {
 	const result = mergeJoins(listOf(body), at, added, editorHost(grammar), tracked);
+	return writeJoinPatch(body, result, sharing, tracked, beforeWrite);
+}
+
+/** Re-reads from a block left waiting where the container at `at` starts, by a reading no line
+ *  closes, after the container took new bytes that no fix-up of this list follows. */
+export function rereadWaitAt(
+	body: BodyParent,
+	at: number,
+	grammar: GrammarView,
+	sharing: SharingState,
+	tracked?: TrackedPosition,
+	beforeWrite?: () => void
+): StructuralChange {
+	const result = settleWaitAt(listOf(body), at, editorHost(grammar), tracked);
+	return writeJoinPatch(body, result, sharing, tracked, beforeWrite);
+}
+
+function writeJoinPatch(
+	body: BodyParent,
+	result: ListResult,
+	sharing: SharingState,
+	tracked?: TrackedPosition,
+	beforeWrite?: () => void
+): StructuralChange {
 	if (result.removed === 0 && result.blocks.length === 0) return { op: 'noop' };
 	beforeWrite?.();
 	const merged = writePatch(body, result, { op: 'noop' }, sharing, (i) => body.children[i]);

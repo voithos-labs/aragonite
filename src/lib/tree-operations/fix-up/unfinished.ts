@@ -5,9 +5,9 @@
 import { ownTrailingLineEnding, splitLines } from '../../core/lines';
 import type { CstNode } from '../../core/nodes';
 import type { UnfinishedReading } from '../../schema/block-openers';
-import type { Host } from './types';
+import type { Caret, Host, ListResult, SiblingList } from './types';
 import { bodyStart, bytesOf, isBlankBlock, readAt } from './reading';
-import { replace, type Work } from './work';
+import { finish, replace, startWork, type Work } from './work';
 
 const lines = (node: CstNode): string[] => splitLines(node.raw).map((line) => line.text);
 
@@ -75,6 +75,14 @@ export function partWaits(work: Work, from: number, to: number, host: Host): voi
 		work.blocks.set(j, { ...work.blocks.at(j), leadingTrivia: ending });
 		return 'parted';
 	});
+}
+
+/** {@link settleWaits} at the one join above block `at`, for a container there that took new
+ *  bytes with no fix-up of its list to follow. */
+export function settleWaitAt(list: SiblingList, at: number, host: Host, caret?: Caret): ListResult {
+	const work = startWork(list, caret ? { caret } : {});
+	settleWaits(work, at, at, host);
+	return finish(work);
 }
 
 type WaitReading = { lo: number; hi: number; next: CstNode[]; trailing?: string };

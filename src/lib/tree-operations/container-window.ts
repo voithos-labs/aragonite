@@ -347,7 +347,7 @@ function reachesPast(
 
 /** Whether a block above `blocks[at]` still waits at the end of that block's first line, under a
  *  reading no line closes: a change further down in the block can alter the one that waits. */
-function waitsInto(
+export function waitsInto(
 	blocks: readonly NodeView[],
 	at: number,
 	readings: readonly UnfinishedReading[]

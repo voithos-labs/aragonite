@@ -124,6 +124,35 @@ describe('a key under a definition whose title has started', () => {
 	}
 });
 
+/** A list or a table flush under the started title: the lines, the leaf, the text before the key. */
+const CONTAINERS: [string, string[], number[], string][] = [
+	['at the end of a list item', ['[a]: /u', '    "code', '2. item'], [2, 0, 0], 'item'],
+	[
+		'in an item, a lazy line under it',
+		['[a]: /u', '    "code', '2. item', '   more'],
+		[2, 0, 0],
+		'item'
+	],
+	[
+		'at the end of that lazy line',
+		['[a]: /u', '    "code', '2. item', '   more'],
+		[2, 0, 0],
+		'more'
+	],
+	['in a table header cell', ['[a]: /u', '    "code', 'a | b', '- | -', 'c | d'], [2, 0, 1], 'b']
+];
+
+// Miss-analysis: a container's slot was asked for its joins only when its first or last line
+// moved, and then as pairs, so a title that started above the container never saw the key.
+describe('a quote typed in a container flush under a started title', () => {
+	it.each(CONTAINERS)('%s', async (_, lines, path, after) => {
+		const source = wrapped([...lines, ...TAIL], 'top', '\n');
+		const raw = leafAt(opened(source).children, path).raw;
+
+		expect(await judge(source, path, raw.indexOf(after) + after.length, typed('"'))).toBeNull();
+	});
+});
+
 // Miss-analysis: the split asked whether its halves rejoin with the second half's first line
 // alone, so a title that closes two lines down never showed, and Enter wrote no byte.
 describe('Enter inside a title that runs over lines writes its blank line', () => {
