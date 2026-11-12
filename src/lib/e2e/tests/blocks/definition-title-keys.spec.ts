@@ -42,6 +42,24 @@ test.describe('keys under a definition whose title has started', () => {
 		expect(caret?.focus).toMatchObject({ path: [0], offset: closed.length - 1 });
 	});
 
+	test('Enter inside a title that runs over lines opens a blank line there', async ({ page }) => {
+		await editor.loadContent("[a]: /u\n    'code\ntext\nend'\n");
+		expect(await blocks(page)).toHaveLength(1);
+
+		await editor.clickBlockAtPath([0], '[a]: /u'.length);
+		await page.keyboard.press('Enter');
+		await editor.waitForRenderFlush();
+
+		expect(await editor.bridge.getSource()).toBe("[a]: /u\n\n    'code\ntext\nend'\n");
+		expect((await blocks(page)).map(([kind]) => kind)).toEqual([
+			'linkReferenceDefinition',
+			'indentedCode',
+			'paragraph'
+		]);
+		const caret = await editor.bridge.getSelection();
+		expect(caret?.focus).toMatchObject({ path: [1], offset: 0 });
+	});
+
 	test('undo gives back the blocks the title took', async ({ page }) => {
 		await editor.loadContent(STARTED);
 		await editor.clickBlockAtPath([4], 3);

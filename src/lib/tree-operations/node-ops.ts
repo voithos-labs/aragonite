@@ -7,7 +7,7 @@ import { assertInvariant, devChecksOn, devWarn } from '@voithos-labs/aragonite/d
 import type { CstNode } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { isBlankParagraph, readBlocks } from '../core/parser';
-import type { GrammarView } from '../schema/block-openers';
+import { unfinishedReadings, type GrammarView } from '../schema/block-openers';
 import { rebalanceLiveSplit, type SplitStores } from '../core/inline/live-edit/live-split';
 import type { StoredAs } from '../schema/stored-as';
 import type { Reading } from '../schema/reading';
@@ -139,8 +139,9 @@ export function splitNode(
 		stores.second.readWritten,
 		lineEnding
 	);
-	if (devChecksOn && first.nodes.length > 1) {
-		// Legal, since the result carries the caret index, but rare enough to keep visible.
+	// Legal, since the result carries the caret index, but rare enough to keep visible. A cut inside
+	// a title leaves the lines the title had taken every time, so that one is no news.
+	if (devChecksOn && first.nodes.length > 1 && !waitsOnLinesBelow(first.nodes[0].raw, grammar)) {
 		devWarn('tree-ops', `splitNode: the first half parsed to ${first.nodes.length} blocks`);
 	}
 
@@ -283,11 +284,18 @@ function separatorSplitsOffNextLine(
 	// Both lines that will ever sit under `raw`: the second half's actual head (a promoted table
 	// absorbs a pipe-bearing one), and the prose stand-in for whatever a later edit puts there.
 	const probes = [secondRaw.slice(0, secondRaw.indexOf('\n') + 1), NEXT_PROSE_LINE + lineEnding];
+	// A first half left waiting reads on past the head line, as far as the second half runs.
+	if (waitsOnLinesBelow(raw, grammar)) probes.push(secondRaw);
 	return probes.some(
 		(probe) =>
 			contentBlockCount(raw + lineEnding + probe, grammar) > contentBlockCount(raw + probe, grammar)
 	);
 }
+
+/** Whether a block of these bytes waits where no line closes it, as a definition does on a title
+ *  that may run over the lines below. */
+const waitsOnLinesBelow = (raw: string, grammar: GrammarView): boolean =>
+	unfinishedReadings(grammar).some((reading) => reading.closer === null && reading.notFinal(raw));
 
 /** Blank blocks don't count, or a blank line would split a block off every raw. */
 function contentBlockCount(source: string, grammar: GrammarView): number {

@@ -93,6 +93,19 @@ const ROWS: Row[] = [
 	]
 ];
 
+/** Enter inside a title that runs over lines: a row is the lines and the text the cut follows. */
+const TITLES: [string, string[], string][] = [
+	[
+		'after the definition line, the title starting in code',
+		['[a]: /u', "    'code", 'text', "end'"],
+		'/u'
+	],
+	['after the code line the title starts in', ['[a]: /u', "    'code", 'text', "end'"], "'code"],
+	['inside the title, at a line end', ['[a]: /u', "    'code", 'text', "end'"], 'text'],
+	['after the definition line, the title on its own line', ['[a]: /u', '"title', 'more"'], '/u'],
+	['after the line a title in parens starts on', ['[a]: /u', '(title', 'more)'], '(title']
+];
+
 beforeEach(() => installPlugins(ALPHABET_PLUGINS()));
 
 describe('a key under a definition whose title has started', () => {
@@ -108,5 +121,21 @@ describe('a key under a definition whose title has started', () => {
 				expect(await judge(source, path, offset, edit)).toBeNull();
 			});
 		}
+	}
+});
+
+// Miss-analysis: the split asked whether its halves rejoin with the second half's first line
+// alone, so a title that closes two lines down never showed, and Enter wrote no byte.
+describe('Enter inside a title that runs over lines writes its blank line', () => {
+	for (const wrap of ['top', 'quote'] as const) {
+		it.each(TITLES)(`${wrap}: %s`, async (_, lines, after) => {
+			const source = wrapped([...lines, ...TAIL], wrap, '\n');
+			const path = [...LIST[wrap], 0];
+			const raw = leafAt(opened(source).children, path).raw;
+
+			expect(
+				await judge(source, path, raw.indexOf(after) + after.length, named('split'))
+			).toBeNull();
+		});
 	}
 });
