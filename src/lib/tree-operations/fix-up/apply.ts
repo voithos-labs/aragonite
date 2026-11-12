@@ -13,10 +13,13 @@ import { dropChildSpans } from '../../schema/child-spans';
 import { ensureEditableContainers } from '../../schema/opened-reading';
 import { assignChildIdsDeep } from '../../block-id';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
-import { recordSettlePass } from '../../perf/instruments';
+import { perfEnabled, recordSettlePass } from '../../perf/instruments';
 import { checkStructuralDescriptor } from '../../invariants/structural-descriptor';
 import { noteBodySettled } from '../../invariants/settle-once';
-import { checkSettledWindowReadsBack } from '../../invariants/settled-window-reads-back';
+import {
+	checkSettledWindowReadsBack,
+	checkWrittenInPlaceReadsBack
+} from '../../invariants/settled-window-reads-back';
 import { checkSplicedOpenersClosed } from '../written-openers';
 import type { SharingState } from '../sharing';
 import { cloneMetadata } from '../clone';
@@ -136,6 +139,11 @@ export function fixUpWrite(
 		i === slot.index ? written.previous : given[i < slot.index ? i : i + shift];
 	const widened = writePatch(body, result, change, sharing, before);
 	checkReadsBack(body, widened, grammar);
+	// Not while the perf rows count a keystroke's parses, since the check reads the blocks beside it.
+	if (widened.op === 'noop' && !perfEnabled())
+		assertInvariant('settled-window-reads-back', () =>
+			checkWrittenInPlaceReadsBack(body, slot.index, grammar)
+		);
 	const start = result.writtenStart ?? { index: slot.index, offset: 0 };
 	return { change: widened, textStart: offsetInWindow(body.children, widened, start) };
 }
@@ -432,8 +440,7 @@ function checkSplicedOpeners(body: BodyParent, edit: BodyEdit, grammar: GrammarV
 	);
 }
 
-/** G1.145 over the window a fix-up reports; a write that kept its block in place reports none,
- *  and a keystroke never pays for reading its neighbours again. */
+/** G1.145 over the window a fix-up reports; a write that kept its block in place reports none. */
 function checkReadsBack(body: BodyParent, change: StructuralChange, grammar: GrammarView): void {
 	const window = spanOf(change);
 	if (!window) return;

@@ -84,16 +84,26 @@ export function spliceRuns(
 		const waits = run.some((node) => waitingReading(node.raw, readings));
 		const from = run.some(closes) ? 0 : Math.max(at - 1, 0);
 		const to = waits ? top.length : at + count + 1;
-		// Found by blank lines alone, not the splice's own look, so a window cut short shows.
-		let above = Math.min(at, top.length - 1);
-		while (above > 0 && top[above].leadingTrivia === '') above--;
-		let below = at + count;
-		while (below < top.length && top[below].leadingTrivia === '') below++;
-		const flush = top.slice(Math.min(from, above), Math.max(to, below));
+		const flush = flushRun(top, at, count);
+		const wide = top.slice(Math.min(from, flush.from), Math.max(to, flush.to));
 		// A run past the limit is read with its neighbours alone, which the check can afford.
-		return bytesIn(flush) > READ_BACK_LIMIT ? top.slice(from, to) : flush;
+		return bytesIn(wide) > READ_BACK_LIMIT ? top.slice(from, to) : wide;
 	});
 }
 
-const bytesIn = (run: readonly NodeView[]): number =>
+/** The blocks around `[at, at + count)` that no blank line parts from them, as `[from, to)`. Found
+ *  by blank lines alone, never by a look for a wait, so a read cut short of one shows. */
+export function flushRun(
+	blocks: readonly NodeView[],
+	at: number,
+	count: number
+): { from: number; to: number } {
+	let from = Math.min(at, blocks.length - 1);
+	while (from > 0 && blocks[from].leadingTrivia === '') from--;
+	let to = at + count;
+	while (to < blocks.length && blocks[to].leadingTrivia === '') to++;
+	return { from: Math.max(from, 0), to };
+}
+
+export const bytesIn = (run: readonly NodeView[]): number =>
 	run.reduce((bytes, node) => bytes + node.leadingTrivia.length + node.raw.length, 0);

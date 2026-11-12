@@ -20,6 +20,7 @@ import { commitLeafText } from '#lib/editor-actions/block-edit-core.js';
 import { describeConvergence, expectParseConverged } from '#lib/test/harness/parse-converged.js';
 import { serialize } from '#lib/core/serializer.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { latexPlugin } from '#packages/latex/src/index.js';
@@ -112,11 +113,12 @@ describe('a backing-out opener that leaves its declaration out', () => {
 		testLeaf('declared', { opener: fencedOpener('declared', '@@@', true) });
 	});
 
-	it('leaves its own shape two blocks where a reload reads one', () => {
+	it('leaves its own shape two blocks where a reload reads one, which the read-back names', () => {
 		const doc = parse('%%%\n<div>\nx\n');
 		updateNodeContent(doc, 1, '<div>\n%%%\n', defaultGrammarView, createSharingState());
 
 		expect(describeConvergence(doc)).toBe('[] live has 2 children, reparsed has 1');
+		expect(takeDevWarns().map((warn) => warn.tag)).toEqual(['invariant:settled-window-reads-back']);
 	});
 
 	it('and nothing else: the same write converges once the opener declares it', () => {
