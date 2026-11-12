@@ -90,7 +90,7 @@ const blockTypes = () =>
 				lineBlock({
 					name: 'level',
 					label: 'Level',
-					match: /^%%(?<n>\d) (?<text>.*)$/,
+					match: /^%%(?<n>\d+) (?<text>.*)$/,
 					data: (m) => Number(m.groups!.n),
 					write: (n, text) => `%%${n} ${text}`,
 					sample: '%%1 hi',
@@ -449,7 +449,8 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		asks: () => ({ path: [AT + 2], offset: 0 }),
 		announces: 'whole'
 	},
-	// The data is written into the one line that carries it, a byte splice like any draft's.
+	// The data is written into the one line that carries it, a byte splice like any draft's; a
+	// digit longer, so a run that names another block leaves the starts wrong.
 	{
 		name: 'a draft setting the data of a plugin block type',
 		source: withBlock('%%1 hello\n'),
@@ -458,7 +459,7 @@ export const WRITE_ROUTES: WriteRoute[] = [
 			const block = m.instance.blockAt(m.source().indexOf('%%1'))!;
 			await m.instance
 				.edit()
-				.data(block as Block<number>, 5)
+				.data(block as Block<number>, 10)
 				.commit();
 			await m.settle();
 		},
