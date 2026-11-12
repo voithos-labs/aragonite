@@ -105,17 +105,6 @@ export function copyBlockToClipboard(write: ClipboardWrite): Promise<boolean> {
 	return writeClipboardText({ ...write, text: trimTrailingLineEnding(write.text) });
 }
 
-/** The clipboard's text, or null when the read is refused. It reads once a menu that just closed
- *  has left the page, since Safari draws its Paste prompt over whatever still shows. */
-export async function readClipboardText(): Promise<string | null> {
-	await tick();
-	try {
-		return await navigator.clipboard.readText();
-	} catch {
-		return null;
-	}
-}
-
 /** The editor's own entry for clipboard text the editor wrote last, compared with LF line endings
  *  on both sides, since the system may rewrite them; undefined for any other text. */
 export function ownEntryFor(text: string): string | undefined {

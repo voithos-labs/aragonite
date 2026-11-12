@@ -91,8 +91,7 @@ export const RANGE_LAW_CASES: readonly RangeLawCase[] = [
 			{ do: 'cut', route: 'key' },
 			{ do: 'paste', route: 'key' }
 		],
-		expected: { source: 'alpha bravo\n\ncharlie delta\n', clipboard: 'bravo\n\ncharlie ' },
-		today: { source: 'alpha \n\nbravo\n\ncharlie \ndelta\n', clipboard: 'bravo\n\ncharlie ' }
+		expected: { source: 'alpha bravo\n\ncharlie delta\n', clipboard: 'bravo\n\ncharlie ' }
 	},
 	{
 		name: 'a copy from a paragraph into a nested quote',
@@ -117,8 +116,7 @@ export const RANGE_LAW_CASES: readonly RangeLawCase[] = [
 			{ do: 'cut', route: 'key' },
 			{ do: 'paste', route: 'key' }
 		],
-		expected: { source: DOC_816 },
-		today: { source: '- i0\n  - i1\n    - i\n    - - 2\n    - i\n    - 3\n    - i4\n\n    p5\n' }
+		expected: { source: DOC_816 }
 	},
 	{
 		name: 'a key typed over a range ending at a picture',
@@ -156,8 +154,7 @@ export const RANGE_LAW_CASES: readonly RangeLawCase[] = [
 		mode: 'source',
 		select: caret([0], 6),
 		steps: [{ do: 'paste', route: 'insertMarkdown', text: 'one\n\ntwo' }],
-		expected: { source: 'alpha one\n\ntwobravo\n' },
-		today: { source: 'alpha \n\none\n\ntwo\nbravo\n' }
+		expected: { source: 'alpha one\n\ntwobravo\n' }
 	},
 	{
 		name: 'Paste as plain text into a paragraph',
@@ -198,8 +195,7 @@ export const RANGE_LAW_CASES: readonly RangeLawCase[] = [
 			{ do: 'cut', route: 'key' },
 			{ do: 'paste', route: 'key' }
 		],
-		expected: { source: 'one\r\n\r\ntwo\r\n' },
-		today: { source: 'o\r\n\r\nne\r\n\r\ntw\r\no\r\n' }
+		expected: { source: 'one\r\n\r\ntwo\r\n' }
 	},
 	{
 		name: 'undo after a paste puts the caret where the paste began',

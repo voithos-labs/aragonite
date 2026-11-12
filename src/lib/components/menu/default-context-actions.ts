@@ -9,7 +9,7 @@ import type { NodeView } from '../../core/node-views';
 import { pictureImageCount } from '../../core/inline/picture';
 import type { InlineReading } from '../../core/inline/inline-cache';
 import { EVERY_KIND, registerBuiltinBlockContextActions } from '../../schema/context-actions';
-import { copyBlockToClipboard, readClipboardText } from '../../browser/clipboard';
+import { copyBlockToClipboard, readClipboard } from '../../browser/clipboard';
 
 /** The noun the menu uses for a block: its kind's name mid-sentence, and "image" or "images"
  *  for a paragraph holding nothing but images. */
@@ -40,8 +40,8 @@ export function registerDefaultContextActions(): void {
 			label: 'Replace with clipboard',
 			icon: 'clipboard',
 			run: async (ctx) => {
-				const text = await readClipboardText();
-				if (text === null || text.trim() === '') return;
+				const text = (await readClipboard())?.text ?? '';
+				if (text.trim() === '') return;
 				// The paste transforms first, as any paste gets, so a plugin's rewrite applies.
 				const md = ctx.transformPaste(text);
 				await ctx.replaceRaw(md.endsWith('\n') ? md : md + '\n');

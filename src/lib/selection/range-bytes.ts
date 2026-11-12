@@ -259,6 +259,12 @@ export function placeInBlock(
 	return from < text.from ? placeBeside(bytes, path, 0) : placeBeside(bytes, path, 1);
 }
 
+/** The bytes a range the editor holds covers, which a paste over it replaces. */
+export function placeOverRange(bytes: DocumentBytes, coverage: RangeCoverage): PastePlace | null {
+	const range = removalBytes(bytes.doc(), coverage, bytes.layout());
+	return range && { range, holds: 'text' };
+}
+
 /** The boundary a gap caret stands at, among its parent's children. */
 export function placeOfGap(bytes: DocumentBytes, gap: GapCaretPosition): PastePlace | null {
 	const at = byteOfGap(bytes.measured(), gap);
@@ -274,8 +280,12 @@ export function placeAfterBlock(bytes: DocumentBytes, path: readonly number[]): 
 	if (block && cut?.of === bytes.measured() && cut.caret.holds === 'block')
 		if (cut.caret.at === block.from)
 			return { range: { from: block.from, to: block.from }, ...cut.caret };
-	return placeBeside(bytes, path, 1);
+	return placeBelow(bytes, path);
 }
+
+/** The boundary under the block at `path`, whatever the caret last did there. */
+export const placeBelow = (bytes: DocumentBytes, path: readonly number[]): PastePlace | null =>
+	placeBeside(bytes, path, 1);
 
 /** The place a caret at byte `at` names where the last cut left its caret there: the core's own
  *  caret for that cut, so its entry fits. Null for any other byte, or once the document moved on. */
@@ -286,7 +296,9 @@ export function cutPlaceAt(bytes: DocumentBytes, at: number): PastePlace | null 
 	const gap = cut.caret.holds === 'boundary' ? heldGapOf(measured, cut.caret) : null;
 	const landed = gap ? byteOfGap(measured, gap) : leafByteAt(measured, cut.caret.at);
 	if (landed !== at) return null;
-	const { at: byte, ...held } = cut.caret;
+	// A gap stands where its line starts, which the core's byte for a container's end comes before.
+	const { at: named, ...held } = cut.caret;
+	const byte = gap ? at : named;
 	return { range: { from: byte, to: byte }, ...held };
 }
 

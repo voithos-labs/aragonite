@@ -27,7 +27,11 @@ const GRID = '| A | B |\n| --- | --- |\n| one | 2 |\n';
 async function pasteInto(el: HTMLElement, text: string): Promise<void> {
 	const event = new Event('paste', { bubbles: true, cancelable: true });
 	Object.defineProperty(event, 'clipboardData', {
-		value: { getData: (type: string) => (type === 'text/plain' ? text : ''), setData: () => {} }
+		value: {
+			types: ['text/plain'],
+			getData: (type: string) => (type === 'text/plain' ? text : ''),
+			setData: () => {}
+		}
 	});
 	el.dispatchEvent(event);
 	await mounted!.settle();

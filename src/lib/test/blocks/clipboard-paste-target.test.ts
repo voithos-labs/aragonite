@@ -41,7 +41,12 @@ type Editor = MountedEditor<EditorTestSurface>;
 function paste(target: EventTarget, text: string): void {
 	const e = new Event('paste', { bubbles: true, cancelable: true });
 	Object.defineProperty(e, 'clipboardData', {
-		value: { getData: (type: string) => (type === 'text/plain' ? text : ''), files: [], items: [] }
+		value: {
+			types: ['text/plain'],
+			getData: (type: string) => (type === 'text/plain' ? text : ''),
+			files: [],
+			items: []
+		}
 	});
 	target.dispatchEvent(e);
 }

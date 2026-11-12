@@ -93,10 +93,3 @@ export function makeBeforeInputEvent(typed: string): InputEvent {
 		cancelable: true
 	});
 }
-
-export function makePasteEvent(text: string): ClipboardEvent {
-	return {
-		clipboardData: { getData: () => text },
-		preventDefault: () => {}
-	} as unknown as ClipboardEvent;
-}

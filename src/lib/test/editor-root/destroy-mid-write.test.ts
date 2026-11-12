@@ -17,40 +17,41 @@ import type { EditorSelection } from '#lib/selection/primitives.js';
 installLayoutStubs();
 afterEach(destroyMountedEditors);
 
-describe.each<{ placement: InsertMarkdownOptions['placement'] }>([
-	{ placement: 'caret' },
-	{ placement: 'below' }
-])('an insertMarkdown at $placement still in flight', ({ placement }) => {
-	it('lands nowhere and reports nothing once the editor unmounts', async () => {
-		const { editor } = mountWithCaret('hello\n', 2, 'source');
-		await editor.settle();
-		const inserted = editor.instance.insertMarkdown('**x**', { placement });
-		const heard: string[] = [];
-		const events = editor.instance.getEvents();
-		events.on('edit', () => heard.push('edit'));
-		events.on('error', (e) => heard.push(`error ${e.origin}`));
-		await editor.destroy();
+// An insert below lands before the call returns, so nothing of it is ever in flight.
+describe.each<{ placement: InsertMarkdownOptions['placement'] }>([{ placement: 'caret' }])(
+	'an insertMarkdown at $placement still in flight',
+	({ placement }) => {
+		it('lands nowhere and reports nothing once the editor unmounts', async () => {
+			const { editor } = mountWithCaret('hello\n', 2, 'source');
+			await editor.settle();
+			const inserted = editor.instance.insertMarkdown('**x**', { placement });
+			const heard: string[] = [];
+			const events = editor.instance.getEvents();
+			events.on('edit', () => heard.push('edit'));
+			events.on('error', (e) => heard.push(`error ${e.origin}`));
+			await editor.destroy();
 
-		expect(await inserted).toBe(false);
-		await editor.settle();
-		expect(heard).toEqual([]);
-	});
+			expect(await inserted).toBe(false);
+			await editor.settle();
+			expect(heard).toEqual([]);
+		});
 
-	it('does not land in the document a source swap put in its place', async () => {
-		const { editor } = mountWithCaret('hello\n', 2, 'source');
-		await editor.settle();
+		it('does not land in the document a source swap put in its place', async () => {
+			const { editor } = mountWithCaret('hello\n', 2, 'source');
+			await editor.settle();
 
-		const inserted = editor.instance.insertMarkdown('**x**', { placement });
-		editor.props.source = 'other\n';
-		flushSync();
-		// Where the user puts the caret in the new document is where a stray insert would go.
-		placeCaret(surfaceAt(editor, [0]), 1);
+			const inserted = editor.instance.insertMarkdown('**x**', { placement });
+			editor.props.source = 'other\n';
+			flushSync();
+			// Where the user puts the caret in the new document is where a stray insert would go.
+			placeCaret(surfaceAt(editor, [0]), 1);
 
-		expect(await inserted).toBe(false);
-		await editor.settle();
-		expect(editor.source()).toBe('other\n');
-	});
-});
+			expect(await inserted).toBe(false);
+			await editor.settle();
+			expect(editor.source()).toBe('other\n');
+		});
+	}
+);
 
 describe('an image import still running at the unmount', () => {
 	const SOURCE = 'hello\n\nworld\n';

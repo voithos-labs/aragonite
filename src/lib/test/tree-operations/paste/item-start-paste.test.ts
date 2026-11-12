@@ -41,7 +41,7 @@ async function pasteOverRangeFromItemStart(source: string, pasted: string): Prom
 	);
 	await replaceRange(rangeContext(deps, createUndoController(deps)), {
 		kind: 'paste',
-		text: pasted
+		clip: { text: pasted, plain: false }
 	});
 	return deps.doc;
 }

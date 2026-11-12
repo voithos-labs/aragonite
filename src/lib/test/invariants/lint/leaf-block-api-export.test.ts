@@ -84,13 +84,7 @@ const LEAF_EXPORT: FileRule = {
 
 describe('G4.73 reads the block surface off its declaration', () => {
 	it('finds the required and the optional members', () => {
-		for (const member of [
-			'editable',
-			'focus',
-			'parkCaret',
-			'afterSourceCommit',
-			'insertMarkdown'
-		]) {
+		for (const member of ['editable', 'focus', 'parkCaret', 'afterSourceCommit', 'preparePaste']) {
 			expect(MEMBERS.has(member), member).toBe(true);
 		}
 		expect(MEMBERS.has('path'), 'a nested field is not a member').toBe(false);

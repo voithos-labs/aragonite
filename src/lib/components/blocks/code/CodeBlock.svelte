@@ -701,8 +701,7 @@
 		parkCaret,
 		getCursorOffset,
 		focusAtColumn,
-		insertMarkdown,
-		insertPlainText,
+		preparePaste,
 		runCommand,
 		afterSelectionRemoved
 	} satisfies BlockComponent);
@@ -740,26 +739,13 @@
 
 	const clipboard = editableSurface.clipboard({
 		removeRange: (range: RawRange) => void removeRange(range, 'cut'),
-		pasteTail: (pastedText, { range }) => {
-			// Paste refuses where typing refuses; the tree-op owns the splice.
-			const span = editSpan(node, range ?? { start: 0, end: 0 }, fenceLinesShown);
-			if (!span) return;
-			return editableSurface.pasteInline({
-				pastedText,
-				offset: span.start,
-				preDelete: span.start !== span.end ? span : undefined,
-				caretBefore: editableSurface.caret.getPreEditOffset()
-			});
-		}
+		// A paste is refused where typing is.
+		pasteRange: (selection) => editSpan(node, selection ?? { start: 0, end: 0 }, fenceLinesShown)
 	});
-	const { onCopy, onCut, onPaste } = clipboard;
+	const { onCopy, onCut } = clipboard;
 
-	export function insertMarkdown(md: string): Promise<boolean> {
-		return clipboard.insertMarkdown(md);
-	}
-
-	export function insertPlainText(text: string): Promise<boolean> {
-		return clipboard.insertPlainText(text);
+	export function preparePaste() {
+		return clipboard.preparePaste();
 	}
 </script>
 
@@ -775,7 +761,6 @@
 	onbeforeinput={editableSurface.onBeforeInput}
 	oncopy={onCopy}
 	oncut={onCut}
-	onpaste={onPaste}
 	onpointerdown={onPointerDown}
 	oncompositionstart={onCompositionStart}
 	oncompositionend={onCompositionEnd}

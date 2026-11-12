@@ -24,6 +24,7 @@ interface Named {
 	via?: Place;
 	/** The bytes every route and mode of the case must leave. */
 	pin?: string;
+	drafted?: string;
 }
 
 const CRLF = (text: string) => text.replace(/\n/g, '\r\n');
@@ -53,10 +54,12 @@ const NAMED: Named[] = [
 	{ name: 'a lazy quote line', marked: '> a\nla‸zy\n', clips: ['x\n\ny'] },
 	{ name: '#819 a footnote line', marked: '  [^n]: ‸a\n', clips: ['line one\nline two\n'] },
 	{
+		// Ruling 40: the paste takes the side of the hidden edge a typed letter takes.
 		name: '#819 hidden bold before the caret',
 		marked: 'a **b**‸\n',
 		clips: ['x'],
-		modes: ['live']
+		modes: ['live'],
+		pin: 'a **bx**\n'
 	},
 	{ name: '#819 after an autolink', marked: '<http://a.b>‸\n', clips: ['1. one'], modes: ['live'] },
 	{ name: '#819 an empty quote line', marked: '> [!NOTE]\n>‸\n>\n> two words\n', clips: ['a\nb'] },
@@ -83,13 +86,37 @@ const NAMED: Named[] = [
 		clips: ['x', '```\ninner\n```\n', '# T', 'a\n\nb']
 	},
 	{ name: 'an indented code body', marked: '    co‸de\n', clips: ['# not a heading', 'a\nb'] },
-	{ name: 'a math block', marked: '$$\nx‸\n$$\n', clips: ['y', '$$\n'] },
+	{
+		name: 'a math block',
+		marked: '$$\nx‸\n$$\n',
+		clips: ['y', '$$\n'],
+		drafted: 'a shown source is the block’s draft, which the document holds once it hides'
+	},
 	{
 		name: 'a table cell',
 		marked: '| a‸ | b |\n| - | - |\n| 1 | 2 |\n',
-		clips: ['x', 'one\ntwo', 'one\n\ntwo', '| p | q |\n| - | - |\n| 3 | 4 |']
+		clips: ['x', 'one\ntwo']
+	},
+	{
+		// Ruling 6: the cell answers ahead of the core.
+		name: 'blocks pasted in a cell slice its table',
+		marked: '| a‸ | b |\n| - | - |\n| 1 | 2 |\n',
+		clips: ['one\n\ntwo'],
+		pin: '| a | b |\n| - | - |\n\none\n\ntwo\n\n| 1 | 2 |\n| - | - |\n'
+	},
+	{
+		name: 'a grid pasted in a cell fills cells from it',
+		marked: '| a‸ | b |\n| - | - |\n| 1 | 2 |\n',
+		clips: ['| p | q |\n| - | - |\n| 3 | 4 |'],
+		routes: ['key', 'menu', 'insertMarkdown'],
+		pin: '| p | q |\n| - | - |\n| 3 | 4 |\n'
 	},
 	{ name: 'a range inside one cell', marked: '| a⟦bc⟧ | b |\n| - | - |\n', clips: ['x', 'p\nq'] },
+	{
+		name: 'a range over a cell’s whole text',
+		marked: '| A | B |\n| --- | --- |\n| ⟦one⟧ | 2 |\n',
+		clips: ['two', 'first\nsecond']
+	},
 	{
 		name: 'a rectangle of cells',
 		marked: '| a | b |\n| - | - |\n| 1 | 2 |\n',
@@ -160,6 +187,15 @@ const NAMED: Named[] = [
 		via: { gap: { parentPath: [0], index: 1 } },
 		routes: ['key']
 	},
+	{
+		// G1.41: a block pasted at the document's end keeps the line break the document ended in.
+		name: 'the gap caret at the document’s end',
+		marked: '| a |\n| - |\n',
+		clips: ['x'],
+		via: { gap: { parentPath: [], index: 1 } },
+		routes: ['key'],
+		pin: '| a |\n| - |\n\nx\n'
+	},
 	{ name: 'an empty document', marked: '‸', clips: ['x', 'one\n\ntwo'] },
 	// ── A cut, then a paste of it back ──
 	{
@@ -227,7 +263,7 @@ const NAMED: Named[] = [
 		name: 'a cut pasted back as plain text ignores the editor’s own entry',
 		marked: 'a **b⟦old** text\n\n# next⟧ one\n',
 		clips: [''],
-		routes: ['cut then plain']
+		routes: ['cut then plain', 'cut then shift key']
 	}
 ];
 
@@ -269,7 +305,8 @@ export function namedCases(grammar: GrammarView): PasteCase[] {
 					via,
 					clip,
 					route,
-					...(named.pin !== undefined && { pin: named.pin })
+					...(named.pin !== undefined && { pin: named.pin }),
+					...(named.drafted !== undefined && { drafted: named.drafted })
 				}))
 			)
 		);

@@ -20,9 +20,9 @@ import type { Reading } from '../../schema/reading';
 import type { DocumentBytes } from '../range-bytes';
 import type { PluginActivation } from '../../schema/plugin-activation';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
-import { normalizeLineEndings } from '../../core/lines';
 import { isReadingMode } from '../../presentation-mode';
 import { replaceRange, type RangeInsertion } from './range-replace';
+import type { Clip } from './range-paste';
 import { heldInputOf, type HeldInput } from '../held-input';
 import { createCrossBlockKeydown } from './keydown';
 import { createCrossBlockPointer, type PaddingPress } from './pointer';
@@ -87,9 +87,8 @@ export interface CrossBlockHandlers {
 	/** Returns true if the event was fully handled (caller should return). */
 	handleKeyDown(e: KeyboardEvent): Promise<boolean>;
 	handlePointerDown(e: PointerEvent, press?: PointerPressOptions): boolean;
-	/** `replacement` stands in for the clipboard text, for a caller that already converted the
-	 *  payload and can't re-read the event after its awaits. A null event is a scripted insert. */
-	handlePaste(e: ClipboardEvent | null, replacement?: string): Promise<boolean>;
+	/** Pastes `clip` over the range the editor holds; false where it holds none or nothing landed. */
+	pasteOverRange(clip: Clip): Promise<boolean>;
 	/** Whether `handleBeforeInput` takes `e`, known before it runs: any input that reaches a block
 	 *  under a range but an IME's, undo and redo, and a paste, drop or cut's own. */
 	claimsBeforeInput(e: InputEvent): boolean;
@@ -122,18 +121,8 @@ export function createCrossBlockHandlers(ctx: CrossBlockDispatchContext): CrossB
 		handleCompositionStart: keydown.handleCompositionStart,
 		handleCompositionEnd: keydown.handleCompositionEnd,
 		handlePointerDown: pointer.handlePointerDown,
-		handlePaste: async (e, replacement) => {
-			if (!ctx.selection.ownsRange) return false;
-			e?.preventDefault();
-			// `!== undefined`, not `??`: a caller supplying its own payload must never reach the
-			// clipboard read, and `??` would make that depend on callers never passing ''.
-			const text =
-				replacement !== undefined
-					? replacement
-					: normalizeLineEndings(e?.clipboardData?.getData('text/plain') ?? '');
-			await replaceRange(ctx, { kind: 'paste', text });
-			return true;
-		},
+		pasteOverRange: async (clip) =>
+			(await replaceRange(ctx, { kind: 'paste', clip })) === 'written',
 		claimsBeforeInput: (e) => rangeInput(e) !== null,
 		handleBeforeInput: async (e) => {
 			const input = rangeInput(e);

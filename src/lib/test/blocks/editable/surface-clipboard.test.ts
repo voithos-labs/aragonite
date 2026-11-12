@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-// The editable surface's clipboard handlers: step order, then the image-paste branch.
+// The editable surface's clipboard handlers: the order of a copy's and a cut's steps, and what
+// the block answers a paste with.
 import { describe, it, expect } from 'vitest';
 import {
 	createClipboardHandlers,
@@ -7,14 +8,10 @@ import {
 } from '../../../components/blocks/editable/surface-clipboard';
 import { type ClipboardArm } from '../../../components/blocks/editable/clipboard-step';
 import { createInsertionRecords } from '#lib/caret/next-insertion.js';
-import type { PastedImage, PasteImageHook } from '../../../host-hooks';
-
-// The block's element; a paste whose block has gone lands nothing.
-const mountedEl = document.createElement('div');
 
 describe('step order', () => {
 	// The order of steps `createClipboardHandlers` runs: reading check, each arm, a cut's payload
-	// before the hide, paste's `preventDefault` before any await, a text write as its own undo entry.
+	// before the hide; a paste's reads before its source hides.
 
 	interface Recorder {
 		log: string[];
@@ -76,28 +73,18 @@ describe('step order', () => {
 			selection: { ownsRange: false, anchor: null, focus: null } as never,
 			getDoc: () => null as never,
 			crossBlock: {
-				handlePaste: async () => {
-					log.push('crossblock-paste');
-					return false;
-				},
 				performCrossBlockCut: async () => void log.push('cross-delete')
 			} as never,
 			isReadOnly: () => false,
 			caret: {
-				getEl: () => mountedEl,
-				getCursorOffset: () => null,
-				focus: () => {},
 				recordPreEditOffset: () => void log.push('record'),
-				getPreEditOffset: () => 0,
+				getPreEditOffset: () => 3,
 				getSelection: () => ({ start: 0, end: 5 }),
 				holdInsertion: () => createInsertionRecords([]).hold({}, null)
 			},
-			events: { on: () => () => {}, emit: () => {} },
-			onPasteImage: () => undefined,
 			endTypingBurst: () => void log.push('end-burst'),
-			readsMarkdown: () => true,
 			...blockRange(log),
-			pasteTail: (text) => void log.push(`pasteTail:${text}`),
+			pasteRange: (selection) => (log.push('pasteRange'), selection),
 			...over
 		};
 	}
@@ -210,489 +197,49 @@ describe('step order', () => {
 		});
 	});
 
-	describe('clipboard skeleton: paste order', () => {
-		it('prevents default synchronously, before the first await', () => {
+	// Miss-analysis: the paste's order was pinned through the block's own paste handler, which
+	// read the clipboard and wrote the document; the answer a block gives the editor had no test.
+	describe('what the block answers a paste with', () => {
+		it('reads undo’s caret, the selection and the held records before the source hides', () => {
 			const log: string[] = [];
-			const rec = recorder('X');
-			// A deferred handlePaste that never resolves during this synchronous check:
-			// if preventDefault sat behind the cross-block await, it would not have fired.
-			const d = createClipboardHandlers(
-				deps(log, { crossBlock: { handlePaste: () => new Promise<boolean>(() => {}) } as never })
-			).onPaste(rec.e);
-			void d;
-			expect(rec.prevented).toBe(true);
-		});
-
-		it('records undo’s caret, then runs fold, cross-block, reset and the tail', async () => {
-			const log: string[] = [];
-			const rec = recorder('HELLO');
-			await createClipboardHandlers(
+			const settled = Promise.resolve();
+			const caret = deps(log).caret;
+			const answer = createClipboardHandlers(
 				deps(log, {
-					foldReveal: () => {
-						log.push('fold');
-						return { caret: 2, settled: Promise.resolve() };
+					foldReveal: () => (log.push('fold'), { caret: 0, settled }),
+					caret: {
+						...caret,
+						getSelection: () => (log.push('selection'), caret.getSelection()),
+						holdInsertion: () => (log.push('hold'), caret.holdInsertion())
 					}
 				})
-			).onPaste(rec.e);
-			expect(log).toEqual([
-				'record',
-				'fold',
-				'crossblock-paste',
-				'forget',
-				'end-burst',
-				'pasteTail:HELLO',
-				'end-burst'
-			]);
+			).preparePaste();
+			expect(log).toEqual(['record', 'selection', 'hold', 'fold', 'pasteRange', 'forget']);
+			expect(answer).toMatchObject({ start: 0, end: 5, caretBefore: 3, settled });
 		});
 
-		it('reading mode prevents and stays inert: no cross-block, no tail', async () => {
-			const log: string[] = [];
-			const rec = recorder('X');
-			let tailRan = false;
-			await createClipboardHandlers(
-				deps(log, { isReadOnly: () => true, pasteTail: () => void (tailRan = true) })
-			).onPaste(rec.e);
-			expect(log).toEqual([]);
-			expect(tailRan).toBe(false);
-			expect(rec.prevented).toBe(true);
+		it('names undo’s caret and the wait the block gives over the surface’s own', () => {
+			const waits = Promise.resolve();
+			const answer = createClipboardHandlers(
+				deps([], { pasteRange: () => ({ start: 2, end: 4, caretBefore: 9, settled: waits }) })
+			).preparePaste();
+			expect(answer).toMatchObject({ start: 2, end: 4, caretBefore: 9, settled: waits });
 		});
 
-		// Miss-analysis: every paste row seeded a one-line payload and the document-level CRLF rows
-		// paste into a CRLF document, so no row saw the tail get CRLF clipboard text.
-		it('hands the tail the clipboard text with CRLF read as LF', async () => {
-			const log: string[] = [];
-			const rec = recorder('one\r\n\r\ntwo\r\n');
-			await createClipboardHandlers(deps(log)).onPaste(rec.e);
-			expect(log).toEqual([
-				'record',
-				'crossblock-paste',
-				'forget',
-				'end-burst',
-				'pasteTail:one\n\ntwo\n',
-				'end-burst'
-			]);
-		});
-
-		it('an empty clipboard normalizes to nothing and never reaches the tail', async () => {
-			const log: string[] = [];
-			const rec = recorder(''); // nothing on the clipboard
-			let tailRan = false;
-			await createClipboardHandlers(deps(log, { pasteTail: () => void (tailRan = true) })).onPaste(
-				rec.e
-			);
-			expect(log).toEqual(['record', 'crossblock-paste', 'forget']);
-			expect(tailRan).toBe(false);
-		});
-	});
-
-	// `insertMarkdown` is a second way into a paste, so it must run the gesture's steps in the same
-	// order; its promise resolves after the block's own paste step.
-	describe('clipboard skeleton: programmatic insertMarkdown', () => {
-		it('runs the same record → fold → cross-block → reset → tail order a paste does', async () => {
-			const log: string[] = [];
-			const handlers = createClipboardHandlers(
-				deps(log, {
-					foldReveal: () => {
-						log.push('fold');
-						return { caret: 2, settled: Promise.resolve() };
-					}
+		it('lets the held records go where the block refuses the paste', () => {
+			const finished: boolean[] = [];
+			const held = {
+				...createInsertionRecords([]).hold({}, null),
+				finish: (changed: boolean) => void finished.push(changed)
+			};
+			const answer = createClipboardHandlers(
+				deps([], {
+					caret: { ...deps([]).caret, holdInsertion: () => held },
+					pasteRange: () => null
 				})
-			);
-			expect(await handlers.insertMarkdown('HELLO')).toBe(true);
-			expect(log).toEqual([
-				'record',
-				'fold',
-				'crossblock-paste',
-				'forget',
-				'end-burst',
-				'pasteTail:HELLO',
-				'end-burst'
-			]);
-		});
-
-		it('hands the cross-block dispatch the payload, so a range is replaced rather than re-read', async () => {
-			const log: string[] = [];
-			const seen: Array<string | undefined> = [];
-			const handlers = createClipboardHandlers(
-				deps(log, {
-					crossBlock: {
-						handlePaste: async (_e: ClipboardEvent | null, replacement?: string) => {
-							seen.push(replacement);
-							return true;
-						}
-					} as never
-				})
-			);
-			expect(await handlers.insertMarkdown('PAYLOAD')).toBe(true);
-			expect(seen).toEqual(['PAYLOAD']);
-		});
-
-		it('declines in reading mode without touching a branch', async () => {
-			const log: string[] = [];
-			let tailRan = false;
-			const handlers = createClipboardHandlers(
-				deps(log, { isReadOnly: () => true, pasteTail: () => void (tailRan = true) })
-			);
-			expect(await handlers.insertMarkdown('X')).toBe(false);
-			expect(log).toEqual([]);
-			expect(tailRan).toBe(false);
-		});
-
-		it('declines an empty payload', async () => {
-			const log: string[] = [];
-			const handlers = createClipboardHandlers(deps(log));
-			expect(await handlers.insertMarkdown('')).toBe(false);
-			expect(log).toEqual([]);
-		});
-
-		it('normalizes CRLF the way a pasted payload is normalized', async () => {
-			const log: string[] = [];
-			const handlers = createClipboardHandlers(deps(log));
-			expect(await handlers.insertMarkdown('a\r\nb')).toBe(true);
-			expect(log).toEqual([
-				'record',
-				'crossblock-paste',
-				'forget',
-				'end-burst',
-				'pasteTail:a\nb',
-				'end-burst'
-			]);
-		});
-	});
-
-	// Miss-analysis: the menu escaped plain text before it knew the target, and no row pasted it into a block that takes text literally.
-	describe('plain text escapes where it lands as Markdown', () => {
-		/** What each branch was handed for `*a*`: the grid hook, the cross-block range, the tail. */
-		async function landed(over: Partial<ClipboardSurfaceDeps>, crossBlock = false) {
-			const log: string[] = [];
-			const seen: Record<string, string | undefined> = {};
-			const handlers = createClipboardHandlers(
-				deps(log, {
-					pastePreHook: (text) => ((seen.preHook = text), false),
-					crossBlock: {
-						handlePaste: async (_e: ClipboardEvent | null, replacement?: string) => {
-							seen.crossBlock = replacement;
-							return crossBlock;
-						}
-					} as never,
-					pasteTail: (text) => void (seen.tail = text),
-					...over
-				})
-			);
-			return { handlers, seen };
-		}
-
-		it('a block that reads Markdown gets the text escaped on every branch', async () => {
-			const { handlers, seen } = await landed({ readsMarkdown: () => true });
-			expect(await handlers.insertPlainText('*a*')).toBe(true);
-			expect(seen).toEqual({ preHook: '\\*a\\*', crossBlock: '\\*a\\*', tail: '\\*a\\*' });
-		});
-
-		it('a block that takes text literally gets it as is, a range across blocks still escaped', async () => {
-			const { handlers, seen } = await landed({ readsMarkdown: () => false });
-			expect(await handlers.insertPlainText('*a*')).toBe(true);
-			expect(seen).toEqual({ preHook: '*a*', crossBlock: '\\*a\\*', tail: '*a*' });
-		});
-
-		it('insertMarkdown escapes nothing, whatever the block reads', async () => {
-			const { handlers, seen } = await landed({ readsMarkdown: () => true });
-			expect(await handlers.insertMarkdown('*a*')).toBe(true);
-			expect(seen).toEqual({ preHook: '*a*', crossBlock: '*a*', tail: '*a*' });
-		});
-	});
-});
-
-describe('image paste', () => {
-	// Image paste reads the files inside the event, prevents before awaiting, and inserts at the caret the paste started from.
-
-	const imageFile = (name: string, type = 'image/png'): File =>
-		new File([new Uint8Array([137, 80, 78, 71])], name, { type });
-
-	/** A paste event carrying `files`, plus the `text/plain` a real image paste often
-	 *  ships alongside them: the fallback that must not run once the image branch takes over. */
-	function pasteEvent(files: File[], text = '') {
-		let prevented = false;
-		const e = {
-			preventDefault: () => void (prevented = true),
-			clipboardData: {
-				files,
-				setData: () => {},
-				getData: (type: string) => (type === 'text/plain' ? text : '')
-			}
-		} as unknown as ClipboardEvent;
-		return { e, wasPrevented: () => prevented };
-	}
-
-	interface SurfaceState {
-		caret: number | null;
-		el: HTMLElement | null;
-	}
-
-	const liveSurface = (): SurfaceState => ({ caret: 5, el: document.createElement('div') });
-
-	/** A cross-block route that takes the paste, recording the text it was offered. */
-	const claimingCrossBlock = (log: string[]) =>
-		({
-			handlePaste: async (_e: ClipboardEvent, replacement?: string) => {
-				log.push(`crossblock-claimed:${replacement ?? ''}`);
-				return true;
-			}
-		}) as never;
-
-	/** `onPasteImage` is the hook itself, as a host installs it. */
-	function harness(
-		{
-			onPasteImage,
-			...over
-		}: Partial<Omit<ClipboardSurfaceDeps, 'onPasteImage'>> & { onPasteImage?: PasteImageHook } = {},
-		state = liveSurface()
-	) {
-		const log: string[] = [];
-		const inserted: string[] = [];
-		const targets: (number | null)[] = [];
-		const seated: number[] = [];
-		const errors: unknown[] = [];
-		const deps: ClipboardSurfaceDeps = {
-			caretMemory: { forget: () => {} } as never,
-			selection: { ownsRange: false } as never,
-			getDoc: () => null as never,
-			crossBlock: {
-				handlePaste: async (_e: ClipboardEvent, replacement?: string) => {
-					log.push(`crossblock:${replacement ?? ''}`);
-					return false;
-				}
-			} as never,
-			isReadOnly: () => false,
-			caret: {
-				getEl: () => state.el,
-				getCursorOffset: () => state.caret,
-				focus: (offset: number) => void seated.push(offset),
-				recordPreEditOffset: () => {},
-				getPreEditOffset: () => 0,
-				getSelection: () =>
-					state.caret === null ? null : { start: state.caret, end: state.caret },
-				holdInsertion: () => createInsertionRecords([]).hold({}, null)
-			},
-			events: {
-				emit: (name: string, payload: unknown) => void (name === 'error' && errors.push(payload))
-			} as never,
-			onPasteImage: () => onPasteImage,
-			endTypingBurst: () => {},
-			readsMarkdown: () => true,
-			copyRange: () => null,
-			removeRange: () => {},
-			pasteTail: (text, target) => {
-				inserted.push(text);
-				targets.push(target.range?.start ?? null);
-			},
-			...over
-		};
-		return { deps, log, inserted, targets, seated, errors };
-	}
-
-	describe('image paste: the hook contract', () => {
-		it('hands each image file to the hook in clipboard order, blob and metadata intact', async () => {
-			const seen: PastedImage[] = [];
-			const files = [imageFile('a.png'), imageFile('b.jpg', 'image/jpeg')];
-			const h = harness({
-				onPasteImage: async (image) => {
-					seen.push(image);
-					return null;
-				}
-			});
-			await createClipboardHandlers(h.deps).onPaste(pasteEvent(files).e);
-			expect(seen.map((i) => i.suggestedName)).toEqual(['a.png', 'b.jpg']);
-			expect(seen.map((i) => i.mimeType)).toEqual(['image/png', 'image/jpeg']);
-			expect(seen.map((i) => i.blob)).toEqual(files);
-		});
-
-		it('prevents the native paste before the hook resolves', () => {
-			const h = harness({ onPasteImage: () => new Promise<string | null>(() => {}) });
-			const ev = pasteEvent([imageFile('a.png')], 'FALLBACK');
-			void createClipboardHandlers(h.deps).onPaste(ev.e);
-			expect(ev.wasPrevented()).toBe(true);
-			expect(h.inserted).toEqual([]);
-		});
-
-		it('consumes the paste: the cross-block route is offered the markdown, never the clipboard text', async () => {
-			const h = harness({ onPasteImage: async () => '![[a.png]]' });
-			await createClipboardHandlers(h.deps).onPaste(pasteEvent([imageFile('a.png')], 'FALLBACK').e);
-			expect(h.log).toEqual(['crossblock:![[a.png]]']);
-			expect(h.inserted).toEqual(['![[a.png]]']);
-		});
-	});
-
-	describe('image paste, replacing a cross-block selection', () => {
-		it('hands the markdown to the cross-block route and skips the surface tail', async () => {
-			const log: string[] = [];
-			const h = harness({
-				crossBlock: claimingCrossBlock(log),
-				onPasteImage: async () => '![[a.png]]'
-			});
-			await createClipboardHandlers(h.deps).onPaste(pasteEvent([imageFile('a.png')]).e);
-			// The cross-block paste deletes the range and inserts by path, so the originating
-			// block's own paste step and its caret stay out of it.
-			expect(log).toEqual(['crossblock-claimed:![[a.png]]']);
-			expect(h.inserted).toEqual([]);
-			expect(h.seated).toEqual([]);
-		});
-
-		// The image branch reads the selection live, so a cross-block selection collapsed during the
-		// upload leaves nothing to act on, and the paste falls back to the caret it captured.
-		it('a selection collapsed before the import lands falls through to the caret', async () => {
-			let stillCrossBlock = true;
-			const h = harness({
-				crossBlock: { handlePaste: async () => stillCrossBlock } as never,
-				onPasteImage: async () => {
-					stillCrossBlock = false;
-					return '![[a.png]]';
-				}
-			});
-			await createClipboardHandlers(h.deps).onPaste(pasteEvent([imageFile('a.png')]).e);
-			expect(h.inserted).toEqual(['![[a.png]]']);
-		});
-
-		it('the hook decides first: a null result destroys nothing', async () => {
-			const log: string[] = [];
-			const h = harness({ crossBlock: claimingCrossBlock(log), onPasteImage: async () => null });
-			await createClipboardHandlers(h.deps).onPaste(pasteEvent([imageFile('a.png')]).e);
-			expect(log).toEqual([]);
-			expect(h.inserted).toEqual([]);
-		});
-	});
-
-	describe('image paste: where the markdown lands', () => {
-		it('inserts at the caret held when the paste fired, not where it moved to', async () => {
-			const state = liveSurface();
-			state.caret = 7;
-			const h = harness(
-				{
-					onPasteImage: async () => {
-						state.caret = 99;
-						return '![[a.png]]';
-					}
-				},
-				state
-			);
-			await createClipboardHandlers(h.deps).onPaste(pasteEvent([imageFile('a.png')]).e);
-			expect(h.seated).toEqual([7]);
-			expect(h.inserted).toEqual(['![[a.png]]']);
-		});
-
-		it('leaves an untouched selection alone, so the surface tail replaces it', async () => {
-			const h = harness({ onPasteImage: async () => '![[a.png]]' });
-			await createClipboardHandlers(h.deps).onPaste(pasteEvent([imageFile('a.png')]).e);
-			// Placing the caret again collapses the DOM range, and every block reads its
-			// replaced span from that range, so a caret that never moved is left alone.
-			expect(h.seated).toEqual([]);
-			expect(h.inserted).toEqual(['![[a.png]]']);
-		});
-
-		it('two images land as one insertion, in clipboard order', async () => {
-			const h = harness({ onPasteImage: async (image) => `![[${image.suggestedName}]]` });
-			await createClipboardHandlers(h.deps).onPaste(
-				pasteEvent([imageFile('a.png'), imageFile('b.png')]).e
-			);
-			expect(h.inserted).toEqual(['![[a.png]]![[b.png]]']);
-		});
-
-		it('a null result for one of two images lands only the other', async () => {
-			const h = harness({
-				onPasteImage: async (image) => (image.suggestedName === 'a.png' ? null : '![[b.png]]')
-			});
-			await createClipboardHandlers(h.deps).onPaste(
-				pasteEvent([imageFile('a.png'), imageFile('b.png')]).e
-			);
-			expect(h.inserted).toEqual(['![[b.png]]']);
-			expect(h.errors).toEqual([]);
-		});
-
-		// Hiding a shown source leaves the caret on the widget's element edge, where it reads as
-		// null, so the caret read as the paste arrived anchors the insertion.
-		it('after a reveal fold, the caret read before the hide anchors the insertion', async () => {
-			const state: SurfaceState = { caret: 3, el: document.createElement('div') };
-			const h = harness(
-				{
-					foldReveal: () => {
-						state.caret = null;
-						return { caret: 3, settled: Promise.resolve() };
-					},
-					onPasteImage: async () => '![[a.png]]'
-				},
-				state
-			);
-			await createClipboardHandlers(h.deps).onPaste(pasteEvent([imageFile('a.png')]).e);
-			expect(h.seated).toEqual([3]);
-			expect(h.targets).toEqual([3]);
-		});
-
-		it('declines and reports when the surface is gone before a slow hook resolves', async () => {
-			const state = liveSurface();
-			const h = harness(
-				{
-					onPasteImage: async () => {
-						state.el = null;
-						return '![[a.png]]';
-					}
-				},
-				state
-			);
-			await createClipboardHandlers(h.deps).onPaste(pasteEvent([imageFile('a.png')]).e);
-			expect(h.inserted).toEqual([]);
-			expect(h.errors).toHaveLength(1);
-		});
-	});
-
-	describe('image paste, declining and failing', () => {
-		it('a null result inserts nothing and reports nothing', async () => {
-			const h = harness({ onPasteImage: async () => null });
-			await createClipboardHandlers(h.deps).onPaste(pasteEvent([imageFile('a.png')], 'FALLBACK').e);
-			expect(h.inserted).toEqual([]);
-			expect(h.errors).toEqual([]);
-		});
-
-		it('a rejected import reports as origin `clipboard` and its sibling still lands', async () => {
-			const boom = new Error('asset import failed');
-			const h = harness({
-				onPasteImage: async (image) => {
-					if (image.suggestedName === 'a.png') throw boom;
-					return '![[b.png]]';
-				}
-			});
-			await createClipboardHandlers(h.deps).onPaste(
-				pasteEvent([imageFile('a.png'), imageFile('b.png')]).e
-			);
-			expect(h.errors).toEqual([{ origin: 'clipboard', error: boom }]);
-			expect(h.inserted).toEqual(['![[b.png]]']);
-		});
-
-		it('reading mode never reaches the hook', async () => {
-			let called = false;
-			const h = harness({
-				isReadOnly: () => true,
-				onPasteImage: async () => {
-					called = true;
-					return '![[a.png]]';
-				}
-			});
-			await createClipboardHandlers(h.deps).onPaste(pasteEvent([imageFile('a.png')]).e);
-			expect(called).toBe(false);
-			expect(h.inserted).toEqual([]);
-		});
-	});
-
-	describe('image paste: pastes the branch must not claim', () => {
-		it('without the hook, an image-bearing paste takes the text/plain path', async () => {
-			const h = harness();
-			await createClipboardHandlers(h.deps).onPaste(pasteEvent([imageFile('a.png')], 'FALLBACK').e);
-			expect(h.inserted).toEqual(['FALLBACK']);
-		});
-
-		it('a non-image file is not an image paste', async () => {
-			const h = harness({ onPasteImage: async () => '![[wrong]]' });
-			const attachment = new File(['notes'], 'notes.txt', { type: 'text/plain' });
-			await createClipboardHandlers(h.deps).onPaste(pasteEvent([attachment], 'FALLBACK').e);
-			expect(h.inserted).toEqual(['FALLBACK']);
+			).preparePaste();
+			expect(answer).toBeNull();
+			expect(finished).toEqual([false]);
 		});
 	});
 });

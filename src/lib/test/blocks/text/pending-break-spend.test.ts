@@ -35,7 +35,12 @@ async function openBreak(
 function paste(el: HTMLElement, text: string): void {
 	const e = new Event('paste', { bubbles: true, cancelable: true });
 	Object.defineProperty(e, 'clipboardData', {
-		value: { getData: (type: string) => (type === 'text/plain' ? text : ''), files: [], items: [] }
+		value: {
+			types: ['text/plain'],
+			getData: (type: string) => (type === 'text/plain' ? text : ''),
+			files: [],
+			items: []
+		}
 	});
 	el.dispatchEvent(e);
 }

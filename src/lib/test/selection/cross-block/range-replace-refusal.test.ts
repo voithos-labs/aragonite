@@ -31,7 +31,7 @@ const GESTURES: [name: string, insertion: RangeInsertion, warns: boolean][] = [
 	['Enter', { kind: 'command', chord: 'Enter' }, true],
 	['a composition', { kind: 'composition' }, true],
 	['a cut', { kind: 'none', gesture: 'cut' }, false],
-	['a paste', { kind: 'paste', text: 'P' }, false]
+	['a paste', { kind: 'paste', clip: { text: 'P', plain: false } }, false]
 ];
 
 describe('the range replace in reading mode', () => {
@@ -85,12 +85,11 @@ describe('a range gesture a `source` swap outran', () => {
 });
 
 // Miss-analysis: every row over the paragraph a removal opens let it open, so no test saw the
-// text written in front of the kept block's syntax when it couldn't.
+// text written in front of the kept block's syntax when it couldn't. A paste opens none.
 describe('text over a range whose paragraph where the range was cannot open', () => {
 	const KEPT = '| c |\n| - |\n\n# Head\n';
 	const TEXT: [name: string, insertion: RangeInsertion][] = [
-		['a typed character', { kind: 'text', text: 'x' }],
-		['a paste', { kind: 'paste', text: 'x' }]
+		['a typed character', { kind: 'text', text: 'x' }]
 	];
 	for (const [name, insertion] of TEXT) {
 		it(`drops ${name} with the warning, never writing it in front of the heading's \`#\``, async () => {

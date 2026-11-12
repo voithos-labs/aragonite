@@ -22,7 +22,7 @@ import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 const noCross: CrossBlockHandlers = {
 	handleKeyDown: async () => false,
 	handlePointerDown: () => false,
-	handlePaste: async () => false,
+	pasteOverRange: async () => false,
 	claimsBeforeInput: () => false,
 	handleBeforeInput: async () => false,
 	handleCompositionStart: () => false,

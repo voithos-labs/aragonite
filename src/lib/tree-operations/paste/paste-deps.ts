@@ -11,7 +11,7 @@ import type {
 	LeafWriteResult,
 	MultiScopeTarget,
 	ReplaceFocus,
-	ReplaceSource
+	ReplaceOptions
 } from '../../action-contracts';
 import type { CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
@@ -42,7 +42,7 @@ export interface PasteCommitCoordinator {
 		blockPath: number[],
 		replacement: CstNode[],
 		focus: ReplaceFocus,
-		opts: { source: ReplaceSource; trailingBlank?: boolean; snapshotOffset: number }
+		opts: ReplaceOptions
 	): Promise<number | null>;
 	/** Create a paragraph holding `text` before the child `boundaryPath` names, or after the last
 	 *  child when it names one past the end, as one commit at that list; caret after the text. */

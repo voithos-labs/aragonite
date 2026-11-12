@@ -18,6 +18,8 @@ export interface Edit {
 	/** Set where the edit is one write of one text block: the block, its finished bytes and the
 	 *  caret in them. */
 	leaf?: LeafEdit;
+	/** For a paste that read the clipboard as blocks and landed it so: how many it read. */
+	blocks?: number;
 }
 
 /** One text block's finished bytes, as its own write stores them, and the caret's offset there. */
@@ -59,7 +61,34 @@ export function writeText(
 	const edit = writeLeaf(doc, leaf, write, from, to, keep);
 	// A caret past the block's last line ending stands on no text of it, so the write names none.
 	if (write.caret === write.bytes.length && write.bytes.endsWith('\n')) return edit;
-	return { ...edit, leaf: { path: leaf.path, raw: write.bytes, caret: write.caret } };
+	return { ...edit, leaf: { path: leaf.path, ...inDocumentEnding(doc, leaf, write, from, to) } };
+}
+
+/** `write`'s bytes and caret with the line breaks it put over `[from, to)` in the document's line
+ *  ending, as the source holds them; the block's own endings stay. */
+function inDocumentEnding(
+	doc: Doc,
+	leaf: LaidBlock,
+	write: LeafWrite,
+	from: number,
+	to: number
+): Pick<LeafEdit, 'raw' | 'caret'> {
+	const { bytes, caret } = write;
+	if (doc.ending === '\n') return { raw: bytes, caret };
+	const raw = nodeAt(doc, leaf.path).raw;
+	const head = sharedPrefixLength(raw, bytes, Math.min(from, bytes.length));
+	const tail = sharedSuffixLength(raw, bytes, Math.min(raw.length - to, bytes.length - head));
+	const ended = (text: string) => text.replace(/\r?\n/g, doc.ending);
+	const end = bytes.length - tail;
+	const written = ended(bytes.slice(head, end));
+	const grown = written.length - (end - head);
+	const at =
+		caret <= head
+			? caret
+			: caret >= end
+				? caret + grown
+				: head + ended(bytes.slice(head, caret)).length;
+	return { raw: bytes.slice(0, head) + written + bytes.slice(end), caret: at };
 }
 
 /** `write` replaced `[from, to)` of the block's bytes: what changed goes into the source, each new

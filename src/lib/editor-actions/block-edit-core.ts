@@ -49,7 +49,6 @@ import type {
 	LeafWriteResult,
 	ReplaceFocus,
 	ReplaceOptions,
-	ReplaceSource,
 	UndoGrouping
 } from '../action-contracts';
 import {
@@ -248,13 +247,11 @@ export interface BlockEditCore {
 	): Promise<number | null>;
 }
 
-/** The edit event a replace names: a paste route's source, else how many blocks landed. A
- *  container reports an empty replace as the delete it is. */
-function replaceOp(
-	scope: CommitScope,
-	count: number,
-	source: ReplaceSource | undefined
-): OpDescriptor {
+/** The edit event a replace names: a paste and the blocks it landed, a drop's or a draft's source,
+ *  else how many blocks landed. A container reports an empty replace as the delete it is. */
+function replaceOp(scope: CommitScope, count: number, options?: ReplaceOptions): OpDescriptor {
+	const { pasted, source } = options ?? {};
+	if (pasted !== undefined) return { kind: 'paste', detail: { count: pasted } };
 	if (source) return { kind: 'replaceBlock', detail: { source } };
 	if (count === 0 && scope.collapseEmptyReplaceToDelete) return { kind: 'delete' };
 	return { kind: 'replaceBlock', detail: { count } };
@@ -518,7 +515,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				? trackedPasteCaret(replacement, i, focusIndex, caret.offset)
 				: undefined;
 			const snapshot = { index: i, offset: options.snapshotOffset };
-			const op = replaceOp(scope, replacement.length, options?.source);
+			const op = replaceOp(scope, replacement.length, options);
 			if (replacement.length === 0) {
 				// None is `deleteBlock`, a delete no key asked for.
 				return (await scope.removeWhole(i, 'keyless', { snapshot, op })) ? 0 : null;

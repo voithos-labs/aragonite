@@ -49,6 +49,22 @@ export interface Pasted {
 
 /** The paste of `pasted` over `[from, to)`: a caret, or a range inside one text block's text. */
 export function pasteAt(doc: Doc, from: number, to: number, pasted: Pasted): Edit {
+	const seen: { blocks?: Doc } = {};
+	const edit = landedAt(doc, from, to, pasted, seen);
+	// One write of a block's text is text, whatever the clipboard read as.
+	if (!seen.blocks || edit.leaf) return edit;
+	const tops = seen.blocks.tree.children.filter((b) => !isBlankText(b.raw));
+	return { ...edit, blocks: tops.length };
+}
+
+/** `pasteAt`, noting in `seen` the clipboard as blocks where the landing read it so. */
+function landedAt(
+	doc: Doc,
+	from: number,
+	to: number,
+	pasted: Pasted,
+	seen: { blocks?: Doc }
+): Edit {
 	const { plain, held } = pasted;
 	const lf = pasted.text.replace(/\r\n?/g, '\n');
 	// Nothing pasted at a caret changes nothing: a place between blocks would write its markers.
@@ -56,7 +72,7 @@ export function pasteAt(doc: Doc, from: number, to: number, pasted: Pasted): Edi
 	// Where the clipboard lands as blocks it is read once, after the transforms: a landing as text
 	// (a title, a cell, literal text, plain text, one line after text) never asks.
 	let read: Doc | undefined;
-	const blocks = () => (read ??= transformed(doc, lf, pasted.transform));
+	const blocks = () => (seen.blocks = read ??= transformed(doc, lf, pasted.transform));
 	const off = () => (plain ? doc.host.escaped(lf) : blocks().source);
 	const apart = held.holds === 'text' ? null : pasteApart(doc, from, off, held.parent, true);
 	if (apart) return apart;
@@ -98,7 +114,9 @@ function listsJoined(
 		}
 	}
 	const upper = doc.layout.block([...leaf.path.slice(0, -1), leaf.path.at(-1)! - 1]);
-	if (!upper || !joinsList(doc, upper, tops[0], true)) return { source, caret };
+	// A paste that joined no list is the landing as it stood, the block it names with it.
+	if (!upper || !joinsList(doc, upper, tops[0], true))
+		return source === edit.source ? edit : { source, caret };
 	const gap = lineOf(leaf.from) - upper.to;
 	return { source: source.slice(0, upper.to) + source.slice(upper.to + gap), caret: caret - gap };
 }
@@ -180,7 +198,12 @@ function landed(
 		if (fence && displayLines(clip).some((line) => fence.mayClose(line.text))) return write(clip);
 		// With no fence, a line stays in the block by its indent, which a new line repeats.
 		const lineStart = raw.lastIndexOf('\n', target.from - 1) + 1;
-		return bytes(clip, fence ? '' : /^[ \t]*/.exec(raw.slice(lineStart, target.from))![0]);
+		const indent = fence ? '' : /^[ \t]*/.exec(raw.slice(lineStart, target.from))![0];
+		// The same bytes as the block's own: its text with the lines in, no container's markers.
+		const lines = displayLines(clip).map((line, i) => (i === 0 ? '' : indent) + line.text);
+		const own = raw.slice(0, target.from) + lines.join(doc.ending) + raw.slice(target.to);
+		const caret = own.length - (raw.length - target.to);
+		return { ...bytes(clip, indent), leaf: { path: leaf.path, raw: own, caret } };
 	}
 	// Every landing below that sets a block boundary in the block's text asks for the cut once.
 	const cutWith = (before: string, after: string, lead = '') =>
@@ -215,8 +238,9 @@ function landed(
 			return around(cutWith(text.slice(0, line), text.slice(line + 1)), '\n');
 		if (text.endsWith('\n') && !follows && /\S/.test(past))
 			return around(cutWith(text.slice(0, -1), ''), '\n');
-		// Line breaks alone at a caret go in as bytes, which no write rule re-reads.
-		return from === to && isBlankText(text) ? bytes(text) : write(text);
+		// Line breaks alone at a caret go in as bytes, which no write rule re-reads; spaces alone are
+		// text the block writes, where a caret at a hidden edge places them.
+		return from === to && isBlankText(text) && text.includes('\n') ? bytes(text) : write(text);
 	};
 	// Plain text never converts: it goes in escaped where the block reads Markdown.
 	if (plain) return asText(escaped());

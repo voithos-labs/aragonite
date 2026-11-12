@@ -442,6 +442,8 @@ export interface ReplaceOptions {
 	trailingBlank?: boolean;
 	/** The route a paste or a drop names in the edit event, in place of the block count. */
 	source?: ReplaceSource;
+	/** How many blocks a paste landed: the edit event is then `paste` with that count. */
+	pasted?: number;
 }
 
 export type ReplaceSource = Extract<
@@ -510,9 +512,6 @@ export interface TableContext {
 	cycleAlignment(colIdx: number): Promise<void>;
 	/** Set a column's alignment directly, as opposed to cycling it. */
 	setColumnAlignment(colIdx: number, alignment: TableAlignment): Promise<void>;
-	/** Write a grid of cell texts from `origin`, appending the rows and columns it needs, as one
-	 *  commit: a spreadsheet-like paste. Empty grids are a no-op. */
-	pasteGrid(origin: { rowIdx: number; colIdx: number }, grid: string[][]): Promise<void>;
 }
 
 /**

@@ -70,6 +70,8 @@ export interface RangeEditResult {
 	/** Set where a paste was one write of one text block of `source`: the editor may commit it as
 	 *  that block's write, which leaves these bytes. */
 	leaf?: LeafEdit;
+	/** How many blocks a paste landed as; 0 where it went in as text. */
+	blocks?: number;
 }
 
 export function editRange(
@@ -111,7 +113,7 @@ export function editRange(
 		// One write of one block of `source` is named where the caret stays on the text it wrote, so
 		// the editor can make it as that block does.
 		const inPlace = (edit: Edit): RangeEditResult => {
-			const named = answer(edit);
+			const named = { ...answer(edit), blocks: edit.blocks ?? 0 };
 			const { caret } = named;
 			const kept = edit.leaf && caret.holds === 'text' && caret.at === edit.caret;
 			return kept ? { ...named, leaf: edit.leaf } : named;
@@ -124,7 +126,8 @@ export function editRange(
 		const after = read(removed);
 		const caret = caretOf(removed, after, 'start after', () => startedIn(doc, from));
 		const place = heldAlone(doc, from, to) ? TEXT : caret;
-		return answer(pasteAt(after, caret.at, caret.at, pasted(place)));
+		const over = pasteAt(after, caret.at, caret.at, pasted(place));
+		return { ...answer(over), blocks: over.blocks ?? 0 };
 	}
 	const { removed, clipboard, own } = taken(doc, from, to);
 	const { drop } = gesture;
@@ -256,10 +259,13 @@ function taken(doc: Doc, from: number, to: number) {
 }
 
 /** The range is exactly one block other than a paragraph, from its first byte to the end of its
- *  last line. */
+ *  last line. A cell's whole text is text of its table, never a block held alone. */
 function heldAlone(doc: Doc, from: number, to: number): boolean {
 	const alone = (b: LaidBlock) =>
-		b.from === from && contentEnd(doc, b) === to && factsOf(doc, b).joins !== 'text';
+		b.from === from &&
+		contentEnd(doc, b) === to &&
+		factsOf(doc, b).joins !== 'text' &&
+		!isCell(doc, b);
 	return from < to && findWithin(doc, from, from, alone) !== undefined;
 }
 

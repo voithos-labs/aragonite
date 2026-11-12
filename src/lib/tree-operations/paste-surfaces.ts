@@ -4,6 +4,7 @@ import type { StoredAs } from '../schema/stored-as';
 import type { ChildSlot } from './list/task-paragraph';
 import type { PasteCommitCoordinator } from './paste/paste-deps';
 import type { PluginActivation } from '../schema/plugin-activation';
+import type { Reading } from '../schema/reading';
 import { createBlockKindRegistry } from '../schema/plugin-kind';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -31,6 +32,18 @@ export interface ScopedStructuralPasteInput {
 	/** Pasted blocks, blank-line-materialized. */
 	blocks: CstNode[];
 	controller: PasteCommitCoordinator;
+}
+
+/** A paste a kind answers itself: the text block at `targetPath`, the clipboard, and the cells of
+ *  the block's table the editor holds selected. */
+export interface ClipPasteInput {
+	doc: Document;
+	targetPath: number[];
+	clip: { text: string; plain: boolean; own?: string };
+	cells: { top: number; left: number; rows: number; cols: number } | null;
+	controller: PasteCommitCoordinator;
+	reading: Reading;
+	activePlugins: PluginActivation;
 }
 
 export interface PasteSurface {
@@ -64,6 +77,9 @@ export interface PasteSurface {
 	 * table's parent). The hook owns the whole mutation; dispatch does nothing afterward.
 	 */
 	onScopedStructuralPaste?(input: ScopedStructuralPasteInput): Promise<void>;
+	/** A paste the kind answers ahead of the range-edit core, with the clipboard in hand (a table
+	 *  cell fills cells from a grid and slices its table for blocks). False leaves it to the core. */
+	onClipPaste?(input: ClipPasteInput): Promise<boolean>;
 }
 
 // ── Registry ───────────────────────────────────────────────────────────────

@@ -534,18 +534,14 @@ const RULES: FileRule[] = [
 		misses: ['registerBlockKind(kind, { rawWrite: fencedCodeWrite });', 'rawWrite: mathBlockWrite,']
 	},
 	{
-		id: 'G4.194 a block reaches the clipboard steps and the inline paste through its surface',
+		id: 'G4.194 a block reaches the clipboard steps through its surface, and dispatches no paste',
 		matches: /(?<!function\s)\b(?:createClipboardHandlers|pasteDispatch)\s*\(/,
 		allowed: {
 			'src/lib/components/blocks/editable/editable-surface.ts':
-				'`clipboard`: the surface fills in the editor-wide half for every block',
-			'src/lib/components/blocks/editable/surface-clipboard.ts':
-				'`pasteIntoBlock`: the one paste into a block’s own text, which the surface’s `pasteInline` calls',
-			'src/lib/selection/cross-block/range-replace.ts':
-				'a paste over a range across blocks, which lands where the range’s delete left the caret'
+				'`clipboard`: the surface fills in the editor-wide half for every block'
 		},
 		reason:
-			'a block that builds its own clipboard or dispatches its own paste copies the editor-wide fields and the caret park, and a copy drifts: go through `editableSurface.clipboard` and `pasteInline`',
+			'a block that builds its own clipboard copies the editor-wide fields and the caret park, and a copy drifts: go through `editableSurface.clipboard`; a paste goes through the editor’s one entry (`editor-root/paste.ts`), where the block only answers `preparePaste`',
 		hits: ['const c = createClipboardHandlers({ rangeArm });', 'await pasteDispatch(input, ctx);'],
 		misses: [
 			'export function createClipboardHandlers(deps) {}',
@@ -680,11 +676,44 @@ const RULES: FileRule[] = [
 		misses: ['import { caretRectAt } from "./lines";', 'caretRectAt,']
 	},
 	{
+		id: 'G4.344 a paste makes one clipboard read, in one module',
+		matches: /[!?]?\.\s*getData\s*\(|clipboard\s*[!?]?\s*\.\s*read(?:Text)?\s*\(/,
+		allowed: {
+			'src/lib/browser/clipboard.ts':
+				'`readPasteEvent` and `readClipboard`: every type of a paste event’s data and the system clipboard’s text, read once and handed on whole',
+			'src/lib/debug/input-recorder.ts':
+				'copies a paste or drop payload into an input recording; nothing is written'
+		},
+		reason:
+			'a second read of the clipboard sees less than the first (the editor’s own entry, the plain-paste chord, the files) and a later read may find another clipboard: take the `ClipboardRead` the one read returns',
+		hits: [
+			"const text = e.clipboardData?.getData('text/plain') ?? '';",
+			'raw = await navigator.clipboard.readText();'
+		],
+		misses: ['const clip = readPasteEvent(event, plain);', 'const clip = await readClipboard();']
+	},
+	{
+		id: 'G4.345 no production module imports the paste dispatch the range-edit core replaced',
+		population: (file) => !file.relPath.startsWith(`${SOURCE_DIR.treeOperations}paste/`),
+		matches: /from\s+'[^']*tree-operations\/paste\/dispatch'|from\s+'[^']*\/paste\/dispatch'/,
+		allowed: {},
+		reason:
+			'a paste is one answer of the range-edit core, landed by `selection/cross-block/range-paste.ts`; a route through the old dispatch pastes by other rules than every other route',
+		hits: [
+			"import { pasteDispatch } from '../../tree-operations/paste/dispatch';",
+			"import type { PasteDispatchInput } from '../paste/dispatch';"
+		],
+		misses: [
+			"import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';",
+			"import { escapeMarkdownLiteral } from '../../../tree-operations/paste/markdown-literal';"
+		]
+	},
+	{
 		id: 'G4.221 a paste with no paste event calls the paste step, never a constructed event',
 		matches: /\bnew\s+(?:\w+\.)?ClipboardEvent\s*\(/,
 		allowed: {},
 		reason:
-			'Firefox empties `clipboardData` on a constructed `ClipboardEvent`, so a paste dispatched as one pastes nothing: hand the text to the focused block’s `insertMarkdown`',
+			'Firefox empties `clipboardData` on a constructed `ClipboardEvent`, so a paste dispatched as one pastes nothing: read the clipboard (`browser/clipboard.ts :: readClipboard`) and hand the read to the editor’s paste entry',
 		hits: [
 			"el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data }));",
 			"const e = new ClipboardEvent ('copy');",
@@ -1944,8 +1973,6 @@ const LEAF_RANGE_RULES: FileRule[] = [
 		matches: namesPasteRangeWithoutReplace,
 		allowed: {
 			'src/lib/tree-operations/paste-surfaces.ts': 'declares the parameter and cuts nothing',
-			'src/lib/components/blocks/code/CodeBlock.svelte':
-				'makes the range from its selection and hands it to the dispatch',
 			'src/lib/components/blocks/code/code-paste-surface.ts':
 				'the one literal splice: a fence body has no inline constructs to clean'
 		},

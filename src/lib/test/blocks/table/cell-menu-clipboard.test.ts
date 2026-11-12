@@ -1,17 +1,10 @@
 // @vitest-environment jsdom
 // The right-click menu's clipboard handling, the cell's second way into a paste: the menu click
-// has moved focus off the cell and there is no ClipboardEvent, so the clipboard has to be asked.
-// The e2e spec covers the happy paths; a unit mount reaches a clipboard that refuses, and what
-// happens before anything is written.
+// has moved focus off the cell and there is no ClipboardEvent, so the clipboard has to be asked
+// and its text handed to the editor's paste entry. The e2e spec covers the happy paths; a unit
+// mount reaches a clipboard that refuses, and what happens before anything is written.
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { registerBuiltInBlocks } from '#lib/components/built-in-blocks.js';
 import { mountCell, type MountedCell } from './mount-cell';
-import { installClipboardEvents } from '#lib/test/harness/clipboard-events.js';
-import { settleEditor } from '#lib/test/harness/settle.js';
-
-// The cell's paste handling is registered by the editor itself; without it the dispatcher falls
-// through to the prose default and the cell's own escaping never runs.
-registerBuiltInBlocks();
 
 let mounted: MountedCell | null = null;
 afterEach(async () => {
@@ -31,18 +24,21 @@ function committedRaw(): string | null {
 	return calls.length === 0 ? null : calls[calls.length - 1][1];
 }
 
-describe('a menu paste asks the clipboard and lands through the cell’s paste surface', () => {
-	it('inserts what it read, collapsing the newlines the row cannot hold', async () => {
-		// Also the control for the refusal below: a plain splice would leave the newline in, and
-		// a `\n` in `cell.raw` reparses the row one column short.
+describe('a menu paste asks the clipboard and hands it to the editor’s paste entry', () => {
+	it('pastes what it read over the selection the menu opened on', async () => {
+		// Also the control for the refusal below.
 		installClipboard(async () => 'x\ny');
-		installClipboardEvents();
-		mounted = mountCell('one');
+		const pasted: unknown[] = [];
+		const pasteTarget = () => async (clip: { text: string }) => {
+			pasted.push({ text: clip.text, over: mounted!.ref().getSelectionOffsets?.() });
+			return true;
+		};
+		mounted = mountCell('one', { menuClipboard: { take: () => null, pasteTarget } });
 
-		await mounted.ref().applyMenuClipboard!('paste', { start: 3, end: 3 });
-		await settleEditor(() => committedRaw() !== null);
+		await mounted.ref().applyMenuClipboard!('paste', { start: 1, end: 3 });
 
-		expect(committedRaw()).toBe('onex y');
+		expect(pasted).toEqual([{ text: 'x\ny', over: { start: 1, end: 3 } }]);
+		expect(committedRaw()).toBeNull();
 	});
 
 	it('degrades to a no-op when the clipboard refuses to be read', async () => {

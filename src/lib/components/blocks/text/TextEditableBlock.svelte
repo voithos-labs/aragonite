@@ -457,8 +457,7 @@
 	}
 
 	export const claimRootClipboard = clipboardHandlers.claimRootClipboard;
-	export const insertMarkdown = clipboardHandlers.insertMarkdown;
-	export const insertPlainText = clipboardHandlers.insertPlainText;
+	export const preparePaste = clipboardHandlers.preparePaste;
 
 	export const readSnapAtPoint = widgetInteraction.readSnapAtPoint;
 
@@ -650,8 +649,7 @@
 		isVerticallyTransparent,
 		enterEdgeWidget,
 		claimRootClipboard,
-		insertMarkdown,
-		insertPlainText,
+		preparePaste,
 		readSnapAtPoint,
 		runCommand,
 		afterSourceCommit,
@@ -876,7 +874,6 @@
 	onbeforeinput={editableSurface.onBeforeInput}
 	oncopy={clipboardHandlers.onCopy}
 	oncut={clipboardHandlers.onCut}
-	onpaste={clipboardHandlers.onPaste}
 	onpointerdown={onPointerDown}
 	onclick={onClick}
 	onblur={onBlur}

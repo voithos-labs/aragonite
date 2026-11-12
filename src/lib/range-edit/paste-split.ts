@@ -293,8 +293,11 @@ function setApart(
 		out = parted(doc, out, under, edit.under, always && pair.placed ? null : pair);
 	} else if (always && under > 0 && !closes(doc, edit.follows ? place : next)) {
 		// What follows the holder's last child is no child of it, yet a last pasted paragraph would
-		// read it as its own next line: a blank line keeps it out.
-		out = parted(doc, out, under, edit.under, null);
+		// read it as its own next line: a blank line keeps it out, unless that line reads as a block.
+		const read = readDoc(out, doc.host, doc.mode);
+		const starts = (b: LaidBlock) => b.from >= under && b.from <= pastMarkers(out, under);
+		if (!findWithin(read, under, pastMarkers(out, under), starts))
+			out = parted(doc, out, under, edit.under, null);
 	}
 	const lineStart = place - lineHead(source, place).length;
 	const reach = above && edit.leads ? [...doc.layout.within(lineStart, place)] : [];

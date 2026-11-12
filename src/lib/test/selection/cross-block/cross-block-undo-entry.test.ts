@@ -8,7 +8,7 @@ import type { UndoEntry } from '#lib/undo/types.js';
 import type { SelectionEndpoint, SelectionPoint } from '#lib/selection/primitives.js';
 import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
 import { stubBlockComponent } from '../../harness/editor-actions';
-import { makeEnv, makeHandlers, makeBeforeInputEvent, makePasteEvent } from './typed-char-env';
+import { makeEnv, makeHandlers, makeBeforeInputEvent } from './typed-char-env';
 import { makeKeydownEnv, press } from './keydown-env';
 import { settleEditor } from '../../harness/settle';
 import { makeSurface } from '../../harness/editable-surface';
@@ -50,7 +50,7 @@ describe('a cross-block gesture is one undo entry holding the state before it', 
 			else env.selectionState.enterCrossBlock(anchor, focus);
 			const handlers = makeHandlers(env, [0]);
 
-			if (gesture === 'paste') await handlers.handlePaste(makePasteEvent('X'));
+			if (gesture === 'paste') await handlers.pasteOverRange({ text: 'X', plain: false });
 			else await handlers.handleBeforeInput(makeBeforeInputEvent('X'));
 
 			expect(serialize(env.doc)).not.toBe(SOURCE);

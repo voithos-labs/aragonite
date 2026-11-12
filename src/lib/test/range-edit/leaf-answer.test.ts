@@ -22,12 +22,31 @@ describe('the leaf a paste names', () => {
 		['text mid-paragraph', 'alpha bravo\n', 6, 'x', [0], 'alpha xbravo\n', 7],
 		['lines into a quote’s paragraph', '> ab\n', 3, 'x\ny', [0, 0], 'ax\nyb\n', 4],
 		['one line after text, whatever it reads as alone', 'para text\n', 5, '# h', [0], null, 8],
-		['text into a cell', '| a | b |\n| - | - |\n', 3, 'x', [0, 0, 0], 'ax', 2]
+		['text into a cell', '| a | b |\n| - | - |\n', 3, 'x', [0, 0, 0], 'ax', 2],
+		['text into a fenced code body', '```\ncode\n```\n', 6, 'x', [0], '```\ncoxde\n```\n', 7],
+		['a space alone, which the block places', 'ab\n', 1, ' ', [0], 'a b\n', 2]
 	] as const)('%s', (_, source, at, clip, path, raw, caret) => {
 		const { leaf } = paste(source, at, clip);
 		expect(leaf?.path).toEqual(path);
 		if (raw !== null) expect(leaf?.raw).toBe(raw);
 		expect(leaf?.caret).toBe(caret);
+	});
+
+	// Miss-analysis: the named block's bytes were the write's own, LF lines in a CRLF document, and
+	// no row read them where the document's ending is not LF.
+	it('writes the lines a paste adds in the document’s line ending', () => {
+		const { leaf, source } = paste('one\r\n\r\ntwo\r\n', 10, 'a\nb');
+		expect(source).toBe('one\r\n\r\ntwoa\r\nb\r\n');
+		expect(leaf).toEqual({ path: [1], raw: 'twoa\r\nb\r\n', caret: 7 });
+	});
+
+	// Miss-analysis: a cell's whole text read as a block held alone, so the paste emptied the cell
+	// and landed in its padding; every cell row pasted at a caret or over part of the text.
+	it('names the cell for a paste over the cell’s whole text', () => {
+		const grid = '| A | B |\n| --- | --- |\n| one | 2 |\n';
+		const { leaf, source } = paste(grid, 26, 'two', 29);
+		expect(source).toBe('| A | B |\n| --- | --- |\n| two | 2 |\n');
+		expect(leaf).toEqual({ path: [0, 1, 0], raw: 'two', caret: 3 });
 	});
 
 	it.each([

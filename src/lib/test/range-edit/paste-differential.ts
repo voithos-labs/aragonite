@@ -7,14 +7,22 @@ import type { Document } from '#lib/core/nodes.js';
 import type { SpliceCaret } from '#lib/action-contracts.js';
 import type { EditorSelection } from '#lib/selection/primitives.js';
 import type { GapCaretPosition } from '#lib/selection/gap-caret.js';
-import type { Gesture, Held, Range, RangeEditResult } from '#lib/range-edit/edit-range.js';
+import type { Gesture, Range, RangeEditResult } from '#lib/range-edit/edit-range.js';
 import { editRange, wholeBlocksRemovalOf } from '#lib/range-edit/edit-range.js';
 import { rangeHost, type Mode } from '#lib/range-edit/host.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
 import { normalizeCharEndpoint } from '#lib/selection/char-endpoint-snap.js';
 import { pathsEqual } from '#lib/selection/path-math.js';
-import { removalBytes, wholeBlockBytes } from '#lib/selection/range-bytes.js';
+import {
+	documentBytes,
+	placeAfterBlock,
+	placeInBlock,
+	placeOfGap,
+	placeOverRange,
+	wholeBlockBytes,
+	type PastePlace
+} from '#lib/selection/range-bytes.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
 import type { GrammarView } from '#lib/schema/block-openers.js';
 import { serialize } from '#lib/core/serializer.js';
@@ -59,7 +67,13 @@ import { caretTargetFor } from '#lib/selection/caret-target.js';
 
 /** How today's editor gets the paste: a route of its own, Ctrl+Shift+V, or a cut by its chord and
  *  then Ctrl+V (or the menu's plain paste) of what the cut wrote, at the caret it left. */
-export type DiffRoute = PasteRoute | 'plain menu' | 'shift key' | 'cut then key' | 'cut then plain';
+export type DiffRoute =
+	| PasteRoute
+	| 'plain menu'
+	| 'shift key'
+	| 'cut then key'
+	| 'cut then plain'
+	| 'cut then shift key';
 
 /** Where the paste arrives: a caret or range the editor holds, a block focused whole, the gap caret. */
 export type Place = EditorSelection | { whole: number[] } | { gap: GapCaretPosition };
@@ -74,6 +88,8 @@ export interface PasteCase {
 	route: DiffRoute;
 	/** The bytes a ruling spells for the case, where the place the paste is named at decides them. */
 	pin?: string;
+	/** Why the document can say nothing of the case: the paste lands in a block's own draft. */
+	drafted?: string;
 }
 
 export interface Answer {
@@ -86,6 +102,11 @@ export interface Answer {
 export interface PasteRow extends PasteCase {
 	/** The bytes the core was handed; null where the editor keeps the gesture (a cell rectangle). */
 	range: Range | null;
+	/** Where the editor's own place readers say the paste goes, which the core is handed. */
+	place?: PastePlace | null;
+	/** Whether the core named the paste one write of one text block, which the editor commits as
+	 *  that block's own write. */
+	coreLeaf?: boolean;
 	today: Answer | { undetermined: string };
 	/** The core's answer as the byte splice lands it, and before, where a closer changed it. */
 	core: Answer | { threw: string } | null;
@@ -109,45 +130,32 @@ export interface PasteRow extends PasteCase {
 }
 
 const LF = (text: string) => text.replace(/\r\n?/g, '\n');
-/** What the core is told the caret holds: a block focused whole and a gap are the boundary under
- *  them, between their parent's children. */
-function heldAt(via: Place): Held {
-	if ('whole' in via) return { holds: 'boundary', parent: via.whole.slice(0, -1) };
-	return 'gap' in via ? { holds: 'boundary', parent: via.gap.parentPath } : { holds: 'text' };
-}
-const CUTS: readonly DiffRoute[] = ['cut then key', 'cut then plain'];
+const CUTS: readonly DiffRoute[] = ['cut then key', 'cut then plain', 'cut then shift key'];
 
-/** The editor's range as the core receives it, read as a removal reads it; a block focused whole
- *  or a gap is the byte of the boundary below it. Null for a rectangle of cells. */
-export function bytesOf(doc: Document, place: Place): Range | null {
-	const layout = documentLayout(measured(doc));
-	if ('whole' in place || 'gap' in place) {
-		const [parent, index] =
-			'whole' in place
-				? [place.whole.slice(0, -1), place.whole.at(-1)! + 1]
-				: [place.gap.parentPath, place.gap.index];
-		const at = layout.block([...parent, index])?.from ?? endOf(doc, layout, parent);
-		return { from: at, to: at };
-	}
-	const { anchor, focus } = place;
-	if (
-		pathsEqual(anchor.path, focus.path) &&
-		anchor.offset === focus.offset &&
-		!anchor.cellCoordinate
-	) {
-		const at = layout.byteOf(anchor.path, anchor.offset);
-		return at === null ? null : { from: at, to: at };
+/** Where the paste goes, by the readers the editor's own paste entry asks; null for a rectangle
+ *  of cells. */
+export function placeFor(doc: Document, source: string, via: Place, mode: Mode): PastePlace | null {
+	const laid = measured(doc);
+	const bytes = documentBytes({
+		version: () => 0,
+		doc: () => doc,
+		source: () => source,
+		measured: () => laid
+	});
+	if ('whole' in via) return placeAfterBlock(bytes, via.whole);
+	if ('gap' in via) return placeOfGap(bytes, via.gap);
+	const { anchor, focus } = via;
+	const cells = anchor.cellCoordinate || focus.cellCoordinate;
+	if (pathsEqual(anchor.path, focus.path) && !cells) {
+		const [start, end] = [anchor.offset, focus.offset].sort((x, y) => x - y);
+		return placeInBlock(bytes, anchor.path, start, end, mode === 'live');
 	}
 	const snapped = (point: typeof anchor, other: typeof anchor) =>
 		point.cellCoordinate || pathsEqual(point.path, other.path)
 			? point
 			: normalizeCharEndpoint(doc, point, other.path);
 	const covered = coverRange(doc, snapped(anchor, focus), snapped(focus, anchor));
-	return removalBytes(doc, rangeCoverage(doc, covered), layout);
-}
-
-function endOf(doc: Document, layout: ReturnType<typeof documentLayout>, parent: number[]): number {
-	return parent.length === 0 ? serialize(doc).length : (layout.block(parent)?.to ?? 0);
+	return placeOverRange(bytes, rangeCoverage(doc, covered));
 }
 
 /** The core's answer to `gesture` on `source`, as the editor's grammar reads it, and that answer
@@ -163,8 +171,13 @@ export function coreAnswer(
 	const doc = readAsOpened(source, { grammar, scope: 'document' }) as Document;
 	const laid = measured(doc);
 	const layout = documentLayout(laid);
-	const host = noTransforms(rangeHost(reading, { source, measured: laid, layout }));
+	// An emptied document opens with no block here, where the editor holds an empty paragraph: the
+	// host then reads every answer from its bytes, and nothing is landed through the splice.
+	const empty = doc.children.length === 0;
+	const current = empty ? undefined : { source, measured: laid, layout };
+	const host = noTransforms(rangeHost(reading, current));
 	const raw = editRange(source, range, gesture, mode, host);
+	if (empty || raw.source === '') return { raw, landed: { source: raw.source, caret: raw.caret } };
 	const changes = changesBetween(source, raw.source);
 	const read = spliceReading(measured(doc), source, changes, grammar);
 	const closers = read ? splicedOpenerClosers(measured(doc), source, changes, read, grammar) : [];
@@ -214,7 +227,8 @@ export async function diffCase(input: PasteCase): Promise<PasteRow> {
 		const grammar = editor.instance.__test.getGrammar();
 		const doc = editor.instance.__test.getDocument() as Document;
 		const before = editor.source();
-		row.range = bytesOf(doc, input.via);
+		row.place = placeFor(doc, before, input.via, input.mode);
+		row.range = row.place?.range ?? null;
 		if (!(await place(editor, input.via))) {
 			row.today = { undetermined: 'unplaceable' };
 			return row;
@@ -225,7 +239,7 @@ export async function diffCase(input: PasteCase): Promise<PasteRow> {
 			await runHistory(editor, 'undo');
 			row.undone = editor.source() === before;
 		}
-		if (row.range) row.core = coreSide(before, row.range, input, grammar, row);
+		if (row.place) row.core = coreSide(before, row.place, input, grammar, row);
 		row.tags = tagsOf(row, grammar);
 		row.laws = lawsOf(row, grammar);
 	} catch (error) {
@@ -254,6 +268,8 @@ async function landsSame(row: PasteRow): Promise<boolean> {
 		await fresh.settle();
 		const landing = landingAt(measured(fresh.instance.__test.getDocument()), caret);
 		if (!landing) return false;
+		// A gap caret is held, not put down by any call a test has: compare what would be held.
+		if ('gapCaret' in landing) return JSON.stringify([null, landing.gapCaret]) === today.held;
 		if ('anchor' in landing) await fresh.instance.setSelection(landing).catch(() => false);
 		else if (!('gapCaret' in landing)) {
 			const target = caretTargetFor(fresh.instance.__test.getDocument(), landing);
@@ -322,6 +338,7 @@ async function todayAnswer(editor: Editor, input: PasteCase, row: PasteRow): Pro
 			row.cut.sameAsCore = cut.landed.source === cutSource && cut.raw.clipboard === clip;
 		}
 		if (input.route === 'cut then plain') await pastePlainGesture(editor, clip);
+		else if (input.route === 'cut then shift key') await shiftPaste(editor, clip);
 		else await pasteGesture(editor, { 'text/plain': clip }, 'key');
 	} else if (input.route === 'plain menu') await pastePlainGesture(editor, input.clip);
 	else if (input.route === 'shift key') await shiftPaste(editor, input.clip);
@@ -349,12 +366,12 @@ async function shiftPaste(editor: Editor, clip: string): Promise<void> {
 
 function coreSide(
 	source: string,
-	range: Range,
+	place: PastePlace,
 	input: PasteCase,
 	grammar: GrammarView,
 	row: PasteRow
 ): Answer | { threw: string } {
-	const held = heldAt(input.via);
+	const { range, ...held } = place;
 	try {
 		let answer: ReturnType<typeof coreAnswer>;
 		if (CUTS.includes(input.route)) {
@@ -364,11 +381,13 @@ function coreSide(
 					: coreAnswer(source, range, 'cut', input.mode, grammar);
 			const at = { from: cut.raw.caret.at, to: cut.raw.caret.at };
 			const text = LF(cut.raw.clipboard ?? '');
-			const plain = input.route === 'cut then plain';
+			const plain = input.route !== 'cut then key';
 			const left = heldBy(cut.raw.caret);
 			answer = coreAnswer(cut.raw.source, at, { paste: text, plain, ...left }, input.mode, grammar);
 			const own = { paste: text, plain, ...left, own: cut.raw.own };
 			row.coreOwn = coreAnswer(cut.raw.source, at, own, input.mode, grammar).landed;
+			// A cut pasted back by its chord carries the editor's own entry; a plain paste declines it.
+			if (!plain) answer = { ...answer, landed: row.coreOwn };
 		} else {
 			const plain = input.route === 'plain menu' || input.route === 'shift key';
 			answer = coreAnswer(
@@ -381,6 +400,7 @@ function coreSide(
 		}
 		if (answer.raw.source !== answer.landed.source) row.coreRaw = answer.raw;
 		if (answer.window) row.window = answer.window;
+		row.coreLeaf = answer.raw.leaf !== undefined;
 		const clip = LF(row.clip);
 		if (!CUTS.includes(input.route) && clip.endsWith('\n')) {
 			const plain = input.route === 'plain menu' || input.route === 'shift key';
@@ -483,7 +503,8 @@ export function lawsOf(row: PasteRow, grammar: GrammarView): LawVerdicts | undef
 			got === undefined ? undefined : plainPasteHolds(read, range.from, text, got, host, row.mode);
 		return { law: 'L11', today: holds(today), core: holds(core) };
 	}
-	const want = expectedPaste(read, range.from, text, host, heldAt(row.via));
+	const { range: _, ...held } = row.place ?? { range, holds: 'text' as const };
+	const want = expectedPaste(read, range.from, text, host, held);
 	if (want.shape === 'other') return { law: 'L9', shape: 'other' };
 	const holds = (got?: string) => (got === undefined ? undefined : want.bytes.includes(got));
 	return { law: 'L9', shape: want.shape, today: holds(today), core: holds(core) };
