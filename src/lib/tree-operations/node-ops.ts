@@ -36,7 +36,7 @@ import { checkSingleNodeSink } from '../invariants/single-node-sink';
 import {
 	NEXT_PROSE_LINE,
 	asBody,
-	forBody,
+	normalizeBodyWrite,
 	parentLineEnding,
 	type BodyParentArg
 } from './node-primitives';
@@ -115,30 +115,13 @@ export function splitNode(
 	if (descriptor.contextDependentKind) return noop;
 
 	const lineEnding = trailingLineEnding(node.raw, parentLineEnding(parent));
-	const { head, rest } = cutKeepingStructure(node, cutPastLineEnding(descriptor, node, offset));
-	// Both halves are escaped: either can collide with the container's syntax alone (a stranded
-	// `</details>`, or a first half that is a bare closer once its trailing text is cut away).
-	let firstRaw = forBody(parent, head);
-	let secondRaw = forBody(parent, rest);
-
-	firstRaw = terminateLine(firstRaw, lineEnding);
-	secondRaw = terminateLine(secondRaw, lineEnding);
-	let reopened = false;
-
-	// Only a block that hides its delimiters rebalances, since a literal half would show runs the
-	// user never saw; the rebalancer declines when its bytes do not parse back.
-	if (reading.hidesDelimitersAtCaret()) {
-		const rebalanced = rebalanceLiveSplit(node, offset, firstRaw, secondRaw, stores);
-		if (rebalanced) {
-			reopened = true;
-			firstRaw = rebalanced.firstRaw;
-			secondRaw = rebalanced.secondRaw;
-			// The rewrite verifies each half on its own, where a missing final line ending is
-			// legal; side by side the halves would share a line and rejoin on reload.
-			firstRaw = terminateLine(firstRaw, lineEnding);
-			secondRaw = terminateLine(secondRaw, lineEnding);
-		}
-	}
+	const { firstRaw, secondRaw, reopened } = splitHalves(
+		node,
+		offset,
+		holder.owner,
+		holder.lineEnding,
+		stores
+	);
 
 	const separator = splitSeparator(
 		firstRaw,
@@ -183,11 +166,46 @@ export function splitNode(
 	};
 }
 
+/** A split's halves of `node` cut at `offset`: structure past the text stays with the first, and a
+ *  format run the cut goes through closes on it and reopens on the second where delimiters hide. */
+export function splitHalves(
+	node: NodeView,
+	offset: number,
+	owner: NodeView | undefined,
+	bodyEnding: LineEnding,
+	stores: SplitStores
+): { firstRaw: string; secondRaw: string; reopened: boolean } {
+	const lineEnding = trailingLineEnding(node.raw, bodyEnding);
+	const cut = cutPastLineEnding(getBlockKindDescriptor(node.kind), node, offset);
+	const { head, rest } = cutKeepingStructure(node, cut);
+	// Both halves are escaped: either can collide with the container's syntax alone (a stranded
+	// `</details>`, or a first half that is a bare closer once its trailing text is cut away).
+	const written = (half: string) =>
+		terminateLine(normalizeBodyWrite(owner, half, bodyEnding), lineEnding);
+	const literal = { firstRaw: written(head), secondRaw: written(rest), reopened: false };
+	// Only a block that hides its delimiters rebalances, since a literal half would show runs the
+	// user never saw; the rebalancer declines when its bytes do not parse back.
+	if (!stores.first.reading.hidesDelimitersAtCaret()) return literal;
+	const rebalanced = rebalanceLiveSplit(node, offset, literal.firstRaw, literal.secondRaw, stores);
+	if (!rebalanced) return literal;
+	// The rewrite verifies each half on its own, where a missing final line ending is legal; side
+	// by side the halves would share a line and rejoin on reload.
+	return {
+		firstRaw: terminateLine(rebalanced.firstRaw, lineEnding),
+		secondRaw: terminateLine(rebalanced.secondRaw, lineEnding),
+		reopened: true
+	};
+}
+
 /**
  * A line ending at the cut ends the first half rather than opening the second, which would
  * create a blank line nobody typed; a CRLF counts as one boundary.
  */
-function cutPastLineEnding(descriptor: BlockKindDescriptor, node: CstNode, offset: number): number {
+function cutPastLineEnding(
+	descriptor: BlockKindDescriptor,
+	node: NodeView,
+	offset: number
+): number {
 	const raw = node.raw;
 	// A surrogate pair is one boundary too: a cut through it leaves each half in a block of its
 	// own, where nothing can put them back.

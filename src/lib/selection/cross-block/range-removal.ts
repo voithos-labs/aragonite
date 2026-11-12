@@ -142,7 +142,7 @@ const modeOf = (ctx: CommitContext) =>
 const hostOf = (ctx: CommitContext) =>
 	rangeHost(ctx.reading, {
 		source: ctx.bytes.source(),
-		tree: ctx.bytes.doc(),
+		measured: ctx.bytes.measured(),
 		layout: ctx.bytes.layout()
 	});
 

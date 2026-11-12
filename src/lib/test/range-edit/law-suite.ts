@@ -108,7 +108,9 @@ export function describeLaws(
 			expect(
 				overRanges((call, i) => {
 					const lines = cutPasteBack(call, host, i);
-					return lines.length > 0 && knownResidue(host, i.source, i.range) ? [] : lines;
+					if (lines.length === 0) return lines;
+					const left = call(i.source, i.range, 'cut', i.mode)?.caret;
+					return knownResidue(host, i.source, i.range, 'L3', left) ? [] : lines;
 				})
 			).toBe('');
 		});

@@ -55,7 +55,7 @@ import { selectWidgetWhole } from '#lib/selection/place-caret.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 import { deleteRange } from '#lib/test/harness/range-delete.js';
-import { copyRange, removalOf } from '#lib/range-edit/edit-range.js';
+import { copyRange, editRange, removalOf } from '#lib/range-edit/edit-range.js';
 import { rangeHost } from '#lib/range-edit/host.js';
 
 // While `TOP.on`, every store the source makes is a lone top-level paragraph's instead of its own.
@@ -723,7 +723,7 @@ const FAMILIES: Family[] = [
 	{
 		// Deleting `x` empties the bold, so its runs go; in a to-do or a cell `# y` then reads as text.
 		name: 'the range-edit core’s in-block writes',
-		stores: { 'range-edit/host.ts': 4 },
+		stores: { 'range-edit/host.ts': 8 },
 		rows: [
 			{
 				shape: 'a to-do',
@@ -742,6 +742,18 @@ const FAMILIES: Family[] = [
 				run: () =>
 					copyRange('- [ ] **x**# y z\n', { from: 9, to: 14 }, 'live', rangeHost(LIVE)).clipboard,
 				want: '# y'
+			},
+			{
+				shape: 'a pasted block boundary in a to-do’s bold run',
+				run: () =>
+					editRange(
+						'- [ ] # **bold** z\n',
+						{ from: 12, to: 12 },
+						{ paste: 'one\n\ntwo', plain: false, holds: 'text' },
+						'live',
+						{ ...rangeHost(LIVE), transformPaste: (text) => text }
+					).source,
+				want: '- [ ] # **boone**\n\n  **twold** z\n'
 			}
 		]
 	},

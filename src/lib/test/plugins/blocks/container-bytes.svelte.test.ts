@@ -326,7 +326,13 @@ describe('the range-edit core answers a named quote row alike under the box’s 
 			(typeof row.gesture === 'string' || 'paste' in row.gesture) &&
 			/^ {0,3}>/m.test(unmark(row.source)) &&
 			// An alert's head line is the quote's own; under `%>` it is text.
-			!row.source.includes('[!')
+			!row.source.includes('[!') &&
+			// A quote takes a pasted quote in; a `container` block type declares no such merge.
+			!(
+				typeof row.gesture === 'object' &&
+				'paste' in row.gesture &&
+				/^ {0,3}>/.test(row.gesture.paste)
+			)
 	);
 	for (const mode of ['source', 'live'] as const) {
 		it.each(rows)(`${mode}: $name`, async (row) => {
@@ -372,33 +378,34 @@ const DEPTHS: Record<string, (lines: string[]) => string> = {
 	box: (lines) => lines.map((l) => (l ? `%> ${l}` : '%>')).join('\n')
 };
 
-/** A box that interrupts no paragraph under a block an edit leaves above it, with and without an
- *  empty first line: a rule taken from between them, or a paste into an empty paragraph. */
+/** A box that interrupts no paragraph under a block an edit leaves above it: a rule taken from
+ *  between them or pasted over (`left` stands in its place), or a paste into an empty paragraph. */
 const QUIET_BELOW = Object.entries(DEPTHS).flatMap(([depth, write]) =>
 	[['&> x'], ['&>', '&> x']].flatMap((box) => {
 		const taken = write(['para', '⟦***⟧', ...box]) + '\n';
 		const empty = write(['para', '', '⟦⟧', ...box]) + '\n';
-		const rows: [Gesture, string][] = [
+		const rows: [Gesture, string, left?: string][] = [
 			['backspace', taken],
 			['cut', taken],
-			[{ paste: 'p\n', plain: false, holds: 'text' }, taken],
+			[{ paste: 'p\n', plain: false, holds: 'text' }, taken, ' paragraph'],
 			[{ paste: 'p', plain: false, holds: 'text' }, empty]
 		];
-		return rows.map(([gesture, marked]) => ({
+		return rows.map(([gesture, marked, left = '']) => ({
 			name: `${depth}, ${JSON.stringify(gesture)}: ${JSON.stringify(marked)}`,
 			gesture,
-			marked
+			marked,
+			left
 		}));
 	})
 );
 
 describe('a box that interrupts no paragraph stays a box under the block an edit leaves above it', () => {
-	it.each(QUIET_BELOW)('$name', async ({ gesture, marked }) => {
+	it.each(QUIET_BELOW)('$name', async ({ gesture, marked, left }) => {
 		const grammar = (await mounted('x\n')).instance.__test.getGrammar();
 		const host = noTransforms(rangeHost(fixtureReading({ grammar })));
 		const source = unmark(marked);
 		const out = editRange(source, rangeOf(marked), gesture, 'source', host).source;
 		const kinds = (text: string) => outline(parse(text, { grammar }).children as CstNode[]);
-		expect(kinds(out), out).toBe(kinds(source).replace(' thematicBreak', ''));
+		expect(kinds(out), out).toBe(kinds(source).replace(' thematicBreak', left));
 	});
 });

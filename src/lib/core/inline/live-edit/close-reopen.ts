@@ -87,3 +87,11 @@ export function markSpelling(kind: AnyInlineKind): string | null {
 	const mark = getInlineMarkPolicy(kind);
 	return mark && !mark.wrapBytes ? mark.markerBytes : null;
 }
+
+/** The delimiters of `c`, a construct of `raw`, in its chord's marker; its own bytes where it has none. */
+export function chordSpelling(raw: string, c: CutConstruct): { opener: string; closer: string } {
+	const marker = markSpelling(c.kind);
+	return marker === null
+		? { opener: raw.slice(c.start, c.contentStart), closer: raw.slice(c.contentEnd, c.end) }
+		: { opener: marker, closer: marker };
+}

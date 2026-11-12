@@ -30,7 +30,7 @@ export function rangeClipboard(
 		source,
 		range,
 		mode,
-		rangeHost(reading, { source, tree, layout })
+		rangeHost(reading, { source, measured: bytes.measured(), layout })
 	);
 	return { text: clipboard, own };
 }

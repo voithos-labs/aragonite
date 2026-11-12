@@ -15,9 +15,9 @@ import {
 import { CONTENT_VISIBILITY, paintsOnlyChrome, renderedText, visibleRuns } from '../visibility';
 import { readBack, readSource, shownRunsOf } from './read-back';
 import {
+	chordSpelling,
 	closeBefore,
 	closesAndReopens,
-	markSpelling,
 	reopenAfter,
 	type CutConstruct
 } from './close-reopen';
@@ -381,10 +381,7 @@ const asCut: Spelling = (side, c) => ({
 	closer: side.raw.slice(c.contentEnd, c.end)
 });
 
-const asRow: Spelling = (side, c) => {
-	const marker = markSpelling(c.kind);
-	return marker === null ? asCut(side, c) : { opener: marker, closer: marker };
-};
+const asRow: Spelling = (side, c) => chordSpelling(side.raw, c);
 
 /** The cut's own bytes first, the boundary space moved outside the runs next, then the runs in
  *  their rows' own markers, for a spelling that cannot close mid-word. */

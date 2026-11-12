@@ -54,7 +54,7 @@ export function deleteRange(
 	const range = removalBytes(doc, coverage, layout);
 	if (!range) throw new Error('deleteRange: a range of cells never reaches the core');
 	const mode = hidesDelimitersAtCaret(reading.mode()) ? 'live' : 'source';
-	const host = rangeHost(reading, { source, tree: doc, layout });
+	const host = rangeHost(reading, { source, measured: laid, layout });
 	const answer = removalOf(source, range, CORE_GESTURE[gesture], mode, host);
 	const changes = changesBetween(source, answer.source);
 	const read = spliceReading(laid, source, changes, reading.grammar);

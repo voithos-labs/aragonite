@@ -61,8 +61,12 @@ function idsAcross(
 	return [...ids.slice(0, head), ...created, ...ids.slice(before - tail)];
 }
 
+// The child count too: a table row's bytes read as one cell per column of its table.
 const same = (a: NodeView, b: NodeView): boolean =>
-	a.kind === b.kind && a.leadingTrivia === b.leadingTrivia && a.raw === b.raw;
+	a.kind === b.kind &&
+	a.leadingTrivia === b.leadingTrivia &&
+	a.raw === b.raw &&
+	a.children?.length === b.children?.length;
 
 /** How many blocks at the start, then at the end, `next` holds as `previous` did. */
 export function unchangedEnds(previous: readonly NodeView[], next: readonly NodeView[]) {

@@ -11,12 +11,17 @@ import { getPluginMetadata, type AnyBlockKind } from '#lib/core/nodes.js';
 import type { NodeView } from '#lib/core/node-views.js';
 import type { PluginError } from '#lib/schema/plugin-unit.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
+import { editRange } from '#lib/range-edit/edit-range.js';
+import { rangeHost } from '#lib/range-edit/host.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
 	mountEditor,
 	pressKeyAt
 } from '#lib/test/harness/mount-editor.svelte.js';
+import { noTransforms } from '../../range-edit/test-host';
 
 beforeAll(() => installLayoutStubs());
 afterEach(destroyMountedEditors);
@@ -196,6 +201,42 @@ describe('a line block', () => {
 		expect([kindAt(m, 0), kindAt(m, 1)]).toEqual(['notes/note', 'paragraph']);
 		expect(m.instance.getSource()).toMatch(/^%%note ab\n\n?cd\n$/);
 	});
+
+	// Miss-analysis: every row a paste cut a block in cut a built-in's text, so none asked the
+	// range host's cut about a plugin block type's leaf.
+	it.each(
+		(['source', 'live'] as const).flatMap((mode) =>
+			[
+				['%%note a **bold** z\n', '%%note a **bo'.length],
+				['%%note see <http://xy.z> w\n', '%%note see <http://x'.length],
+				['%%note ab\n', '%%note a'.length]
+			].map(([source, at]) => ({ mode, source: source as string, at: at as number }))
+		)
+	)(
+		'is cut by pasted blocks where Enter splits it: $mode, $source',
+		async ({ mode, source, at }) => {
+			const m = mountEditor<EditorTestSurface>({
+				source,
+				plugins: [notes()],
+				presentationMode: mode
+			});
+			await m.settle();
+			const reading = fixtureReading({ grammar: m.instance.__test.getGrammar() }, mode);
+			const pasted = editRange(
+				source,
+				{ from: at, to: at },
+				{ paste: 'one\n\ntwo', plain: false, holds: 'text' },
+				mode,
+				noTransforms(rangeHost(reading))
+			).source;
+			await pressKeyAt(m, [0], at, { key: 'Enter' });
+			await m.settle();
+
+			// The pasted paragraphs taken back out leave Enter's two halves.
+			const halves = pasted.replace('one', '').replace('two', '').replace('\n\n', '\n');
+			expect(halves).toBe(m.instance.getSource());
+		}
+	);
 
 	it('cuts a paragraph short only where it says so', async () => {
 		const m = mountEditor({ source: 'text\n%%note hi\n', plugins: [notes()] });

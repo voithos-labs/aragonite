@@ -50,7 +50,12 @@ import {
 import type { BlockListState } from '../../block-lists/block-list-state.svelte';
 import { assertIdsInLockstep, assertTopLevelUntouched } from '../../invariants/install';
 import { checkSettledOnce, startCommitSettles } from '../../invariants/settle-once';
-import { changedRun, type TopLevelChange } from '../../tree-operations/top-level-starts';
+import {
+	changedRun,
+	widenRun,
+	widenRunOver,
+	type TopLevelChange
+} from '../../tree-operations/top-level-starts';
 import { saveBytes } from './saved-bytes';
 import { perfEnabled } from '../../perf/instruments';
 import type { FrameWrite } from './commit-frame';
@@ -494,15 +499,23 @@ export function createStructuralCommit(
 			discardIfNoop,
 			history: args.history ?? 'entry',
 			replaced: () => (ownLinesOnly() ? NOTHING_REPLACED : 'unknown'),
-			// A collapsed container recreates blocks beside it, and a container scope beside the
-			// document's writes below blocks the document's run was read without.
 			touched: () => {
-				if (folds.length > 0) return null;
-				if (!scopes.some(isDocScope)) {
-					const tops = [...new Set(scopes.map((s) => s.path[0]))].sort((a, b) => a - b);
+				const hasDoc = scopes.some(isDocScope);
+				// The document scope's run holds each container scope's block too: a scope writes a copy,
+				// which is no block of the undo snapshot the run was read against.
+				if (hasDoc && !docRun) return null;
+				const tops = [...new Set(scopes.filter((s) => !isDocScope(s)).map((s) => s.path[0]))];
+				tops.sort((a, b) => a - b);
+				const collapses = folds.filter((fold) => !fold.owner);
+				if (!hasDoc && collapses.length === 0) {
 					return tops.map((at) => ({ at, removed: 1, inserted: 1 }));
 				}
-				return scopes.length === 1 && docRun ? [docRun] : null;
+				// A container that collapsed into the top level merged with the blocks beside it, so the
+				// scopes' blocks and each collapse make one run.
+				const run = docRun ? { ...docRun } : { at: tops[0], removed: 1, inserted: 1 };
+				if (!docRun) for (const top of tops) widenRun(run, top, 1, 1);
+				for (const fold of collapses) widenRunOver(run, fold.change);
+				return [run];
 			},
 			written: () => {
 				const nodes: CstNode[] = [];

@@ -4,6 +4,7 @@
  * before any parse for a write whose changed lines wait on nothing, which is every keystroke in prose.
  */
 
+import { isProseKind } from '../core/inline';
 import type { Document } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import {
@@ -60,8 +61,10 @@ export function writtenOpenerClosers(
 		const ending = ownTrailingLineEnding(last ? text : block.raw);
 		if (ending === '') continue;
 		if (last && takesCloserBelow(text, block, next, read, readings)) continue;
-		if (!reading.readsOn && !takesBlocksBelow(children, index, text, parsed, k, reading, read))
-			continue;
+		// Bytes the slot read as text (a to-do's first line, behind its checkbox) read on only if a
+		// reread with the blocks below says so, whatever they would open alone.
+		const readsOn = reading.readsOn && !isProseKind(block.kind);
+		if (!readsOn && !takesBlocksBelow(children, index, text, parsed, k, reading, read)) continue;
 		closers.push({ at: last ? text.length : at, text: reading.closer(block.raw) + ending });
 	}
 	return closers;

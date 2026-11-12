@@ -176,6 +176,75 @@ describe('a splice reads as the document it leaves', () => {
 			'an opener typed above a directive takes its closer',
 			'<details>\n<summary>S</summary>\n</details>\n\n:::note\n:::\n',
 			':::note\n<details>\n<summary>S</summary>\n</details>\n\n:::note\n:::\n'
+		],
+		// Miss-analysis: the generator changed a table's rows, never its column count over a row
+		// whose bytes stayed, and a kept row was told from a new one by its bytes alone.
+		[
+			'a table that loses a column reads its short row again',
+			'| a | b |\n| - | - |\nshort\n\nafter\n',
+			'| a |\n| - |\nshort\n\nafter\n'
+		],
+		[
+			'a table that gains a column reads its short row again',
+			'| a |\n| - |\nshort\n| x |\n',
+			'| a | b |\n| - | - |\nshort\n| x |\n'
+		],
+		// Miss-analysis: a window started at the block before the change, and a definition waits on
+		// its title from further up; the generator drew no title on a line of its own.
+		[
+			'a definition two blocks up takes the title a heading cut short',
+			'[a]: /u\n"title\n# h\n\nend"\n\nlast\n',
+			'[a]: /u\n"title\nd"\n\nlast\n'
+		],
+		[
+			'a definition takes its title once the blank line in it goes',
+			'[a]: /u\n"title\n\nend"\n\nlast\n',
+			'[a]: /u\n"title\nend"\n\nlast\n'
+		],
+		[
+			'a definition takes a title that starts in an indented line',
+			"[a]: /u\n    'code\nmore\n# h'\n\nlast\n",
+			"[a]: /u\n    'code\nmore\nh'\n\nlast\n"
+		],
+		[
+			'the second of two definitions takes the title, the first stands',
+			'[a]: /u\n[b]: /v\n"t\n# h"\n\nlast\n',
+			'[a]: /u\n[b]: /v\n"t\nh"\n\nlast\n'
+		],
+		[
+			'a definition takes a title that holds another definition’s line',
+			'[a]: /u\n    "t\n[b]: /v\nx\n# more"\n\nlast\n',
+			'[a]: /u\n    "t\n[b]: /v\nx\nmore"\n\nlast\n'
+		],
+		[
+			'a definition takes the title a fence hid, closed below the change',
+			'[a]: /u\n"title\n```\nx\ny"\n```\n\nend\n',
+			'[a]: /u\n"title\nx\ny"\n```\n\nend\n'
+		],
+		[
+			'a definition in a quote takes its title from two blocks down',
+			'> [a]: /u\n> "title\n> # h\n>\n> end"\n>\n> last\n',
+			'> [a]: /u\n> "title\n> d"\n>\n> last\n'
+		],
+		[
+			'a definition in a quote takes its title once the blank line goes',
+			'> [a]: /u\n> "title\n>\n> end"\n>\n> last\n',
+			'> [a]: /u\n> "title\n> end"\n>\n> last\n'
+		],
+		[
+			'a title over mixed line endings, a blank line taken out of it',
+			"[a]:[a]:\r\n'multi$$\r\n    - deep\r\n2) two\r\n\r\n /u\r\nline'\r\n\r\n<div>\r\n===",
+			"[a]:[a]:\r\n'multi$$\r\n    - deep\r\n2) two\r\n</script>\r\ne'\r\n\r\n<div>\r\n==="
+		],
+		[
+			'a title closed by a line a fence held',
+			'[a]: /u\r\n"title  - nested\n```js\r\nline\'\r\n"\r\n:::',
+			'[a]: /u\r\n"title  - nested\n``- iteme\'\r\n"\r\n:::'
+		],
+		[
+			'a title that runs on once a directive line stops opening one',
+			'[a]: /u\r\n\'multi\r\n:::note\nline\'\n  [a]: /u  - deep\r\n> q\r\n"title"\n    code\r\n\ntext\\\n',
+			'[a]: /u\r\n\'multi\r\n| a | b |:::note\nline\'\n  [a]: /u  - deep\r\n> q\r\n"title"\n    code\r\n\ntext\\\n'
 		]
 	])('%s', (_name, before, after) => {
 		expect(divergence(before, to(after))).toBeNull();

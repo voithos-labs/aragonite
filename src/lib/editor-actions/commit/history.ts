@@ -12,7 +12,7 @@ import { assertInvariant, devChecksOn } from '@voithos-labs/aragonite/dev-checks
 import { checkSnapshotIntegrity } from '../../invariants/snapshot-integrity';
 import { checkInstalledEntry } from '../../invariants/history-install';
 import { admitsHistoryRequest, startsAlone } from './reading-write-gate';
-import { installReading, runsOf } from './byte-splice';
+import { installReading } from './byte-splice';
 import { gapAtByte } from '../../selection/range-bytes';
 import { emitEdit, NOTHING_REPLACED, type ReplacedBlocks } from './emit-edit';
 import type { EditorActionsDeps, UndoController } from '../deps';
@@ -20,11 +20,12 @@ import { grammarStamp, sameGrammar } from './grammar-stamp';
 import { captureChange, changeAfter } from './change-record';
 import { serialize } from '../../core/serializer';
 import { changesBetween } from '../../tree-operations/byte-changes';
-import { spliceReading, type SpliceReading } from '../../tree-operations/byte-splice';
+import { runsOf, spliceReading, type SpliceReading } from '../../tree-operations/byte-splice';
 import { documentByteMap } from '../../tree-operations/container-offsets';
 import {
 	changedRun,
 	measured,
+	topsOf,
 	type Measured,
 	type TopLevelChange
 } from '../../tree-operations/top-level-starts';
@@ -113,22 +114,24 @@ export function createHistoryActions(
 
 	/** The live document read again to the entry's bytes, since its snapshot was read under another
 	 *  grammar; null when they are the same bytes. */
-	function readingFor(entry: UndoEntry): SpliceReading | null {
+	function readingFor(entry: UndoEntry): Reread | null {
 		const before = deps.bytes.source();
+		const was = deps.bytes.measured();
 		const changes = changesBetween(before, serialize(entry.snapshot));
-		return spliceReading(deps.bytes.measured(), before, changes, deps.reading.grammar);
+		const reading = spliceReading(was, before, changes, deps.reading.grammar);
+		return reading && { reading, was };
 	}
 
 	/** `reading` installed: the blocks the undo leaves alone keep their nodes, and the caret keeps
 	 *  its byte. */
-	function readAgain(entry: UndoEntry, reading: SpliceReading | null): Installed {
+	function readAgain(entry: UndoEntry, read: Reread | null): Installed {
 		const caret = selectionBytes(entry.snapshot, entry.selection);
-		const replaced = reading ? installReading(deps, reading) : NOTHING_REPLACED;
+		const replaced = read ? installReading(deps, read.reading, topsOf(read.was)) : NOTHING_REPLACED;
 		assertRestoredUnderGrammar(deps.doc.children, deps.reading.grammar, entry.grammar);
 		return {
 			caret: () => caret && selectionAtBytes(deps.bytes.measured(), caret),
 			replaced,
-			touched: () => (reading ? runsOf(reading.windows) : [])
+			touched: () => (read ? runsOf(read.reading.windows) : [])
 		};
 	}
 
@@ -166,6 +169,12 @@ export function createHistoryActions(
 			await restore(entry, 'redo', from);
 		}
 	};
+}
+
+/** A reading of the live document, and the document it was read from. */
+interface Reread {
+	reading: SpliceReading;
+	was: Measured;
 }
 
 /** An undo entry installed: where its caret goes, asked once the install is announced, the blocks

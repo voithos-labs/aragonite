@@ -373,6 +373,11 @@
 			"keystrokeP50Ms": 2.7,
 			"keystrokeP95Ms": 151.1
 		},
+		"many-small-blocks-1MB-range-removal": {
+			"loadMs": 179.7,
+			"keystrokeP50Ms": 81.6,
+			"keystrokeP95Ms": 88.2
+		},
 		"single-giant-paragraph-100KB": {
 			"loadMs": 40.4,
 			"keystrokeP50Ms": 14.7,

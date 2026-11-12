@@ -14,7 +14,7 @@ import { rangeBytes } from '#lib/selection/range-bytes.js';
 import type { Range } from '#lib/range-edit/edit-range.js';
 import type { Mode } from '#lib/range-edit/host.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
-import { arbClipboardText, arbLawDocument } from '../range-laws/shapes';
+import { arbClipboardText, arbLawDocument, arbRunPaste } from '../range-laws/shapes';
 import { arbEnd, arbRangeSeed, resolveCaret, resolveRange } from '../range-laws/ranges';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
 
@@ -58,6 +58,19 @@ export function lawInputs(
 			};
 		});
 	});
+}
+
+/** `count` carets drawn from `seed`, each inside a format run with blocks to paste there, in both
+ *  modes: the place a live paste closes the run above and reopens it below. */
+export function runPasteInputs(count: number, seed: number): LawInput[] {
+	return fc.sample(arbRunPaste, { numRuns: count, seed }).flatMap(({ marked, text }) =>
+		(['source', 'live'] as const).map((mode) => ({
+			source: marked.replace('‸', ''),
+			mode,
+			ranges: [],
+			carets: [{ at: marked.indexOf('‸'), texts: [text] }]
+		}))
+	);
 }
 
 /** The editor's range as the core receives it, its ends snapped as the selection snaps them and

@@ -126,12 +126,13 @@ function leafRawLength(page: Page, path: number[]): Promise<number> {
 	}, path);
 }
 
-async function block0Length(page: Page): Promise<number> {
-	return page.evaluate(() => {
-		const c = (window as any).__test.getDocument().children[0];
-		return c.leadingTrivia.length + c.raw.length;
-	});
+/** Block 0's bytes, blank lines included. Runs in the page. */
+function block0LengthInPage(): number {
+	const block = (window as any).__test.getDocument().children[0];
+	return block.leadingTrivia.length + block.raw.length;
 }
+
+const block0Length = (page: Page): Promise<number> => page.evaluate(block0LengthInPage);
 
 /** One `x` per sample, each timed to block 0 growing by one character, which it must whichever
  *  child took the keystroke, since the rebuild carries it up to the root. */
@@ -233,6 +234,62 @@ export async function measureTypingWithPositionReads(
 		throw new Error(`the listener placed ${reads.length} bytes over ${keystrokes} keystrokes`);
 	}
 	return { loadMs, samples, p50Ms: percentileMs(samples, 50), p95Ms: percentileMs(samples, 95) };
+}
+
+/**
+ * The first letter of a paragraph Enter just opened under block 0, timed alone and then with the
+ * position listener of {@link measureTypingWithPositionReads}; each sample's Enter and letter are undone.
+ */
+export async function measureNewParagraphLetter(
+	page: Page,
+	editor: EditorPage,
+	shape: FixtureShape,
+	bytes: number,
+	letters: number
+): Promise<{ loadMs: number; alone: LatencyMeasurement; reading: LatencyMeasurement }> {
+	await editor.goto('');
+	const loadMs = await loadFixture(page, editor, generateFixture(shape, bytes));
+	const count = await page.evaluate(topLevelCountInPage);
+	const sample = async (): Promise<number[]> => {
+		const samples: number[] = [];
+		for (let i = 0; i < letters; i++) {
+			await editor.focusBlockEnd(0);
+			await page.keyboard.press('Enter');
+			await waitForTopLevelCount(page, count + 1);
+			const keyStart = performance.now();
+			await editor.typeSlowly('x');
+			await page.waitForFunction(
+				() => (window as any).__test.getDocument().children[1].raw.startsWith('x'),
+				undefined,
+				{ timeout: KEYSTROKE_TIMEOUT_MS, polling: 16 }
+			);
+			samples.push(performance.now() - keyStart);
+			// The letter and the Enter are undo entries of their own, or one, by the typing pause.
+			for (let undo = 0; undo < 3 && (await page.evaluate(topLevelCountInPage)) !== count; undo++) {
+				await editor.undo();
+			}
+			await waitForTopLevelCount(page, count);
+		}
+		return samples;
+	};
+	const measured = (samples: number[]): LatencyMeasurement => ({
+		loadMs,
+		samples,
+		p50Ms: percentileMs(samples, 50),
+		p95Ms: percentileMs(samples, 95)
+	});
+	const alone = await sample();
+	await page.evaluate(() => (window as any).__test.startPositionReads());
+	const reading = await sample();
+	const reads: (number | null)[] = await page.evaluate(() =>
+		(window as any).__test.stopPositionReads()
+	);
+	// An undo's edit names no block, so only the letters' reads count: each placed the new block.
+	const placed = reads.filter((at) => at !== null && at > 0).length;
+	if (placed !== letters) {
+		throw new Error(`the listener placed ${placed} new paragraphs over ${letters} letters`);
+	}
+	return { loadMs, alone: measured(alone), reading: measured(reading) };
 }
 
 /**
@@ -374,7 +431,12 @@ export async function measureVerticalArrival(
 	return { loadMs, fromAbove, fromBelow };
 }
 
-/** Whether the document has exactly `count` top-level blocks: an O(1) read, whatever its size. */
+/** The top-level block count: one read, whatever the document's size. Runs in the page. */
+function topLevelCountInPage(): number {
+	return (window as any).__test.getDocument().children.length;
+}
+
+/** Whether the document has exactly `count` top-level blocks. */
 async function waitForTopLevelCount(page: Page, count: number): Promise<void> {
 	await page.waitForFunction(
 		(n) => (window as any).__test.getDocument().children.length === n,
@@ -398,9 +460,7 @@ export async function measureStructuralRebuild(
 	const loadMs = await loadFixture(page, editor, generateFixture(shape, bytes));
 	await editor.focusBlockEnd(0);
 	await assertMounted(page, [0], 'structural edit target block');
-	const baseCount = await page.evaluate(
-		() => (window as any).__test.getDocument().children.length as number
-	);
+	const baseCount = await page.evaluate(topLevelCountInPage);
 
 	const samples: number[] = [];
 	for (let i = 0; i < edits; i++) {
@@ -583,7 +643,9 @@ export async function measureContainerEdit(
 		await page.evaluate(() => {
 			(window as any).__editBefore = (window as any).__test.getSource();
 		});
-		today.push(row.edit === 'paste' ? await timedPaste(page) : await timedBackspace(page));
+		today.push(
+			row.edit === 'paste' ? await timedPaste(page) : await timedBackspace(page, block0LengthInPage)
+		);
 		splice.push(
 			await page.evaluate(
 				async ({ editOf, editAt, lines }) => {
@@ -629,31 +691,81 @@ async function timedPaste(page: Page): Promise<number> {
 	});
 }
 
-/** Backspace over the live range, timed in the page from its keydown to the frame after block 0
- *  shrinks; a removal that took nothing fails the row rather than reading fast. */
-async function timedBackspace(page: Page): Promise<number> {
-	await page.evaluate((timeout) => {
-		const w = window as any;
-		const length = () => {
-			const block = w.__test.getDocument().children[0];
-			return block.leadingTrivia.length + block.raw.length;
-		};
-		const before = length();
-		w.__removal = new Promise<number>((done, fail) => {
-			const listen = () => {
-				const start = performance.now();
-				const poll = () =>
-					requestAnimationFrame(() => {
-						if (length() < before) requestAnimationFrame(() => done(performance.now() - start));
-						else if (performance.now() - start > timeout)
-							fail(new Error('the removal wrote nothing'));
-						else poll();
-					});
-				poll();
-			};
-			window.addEventListener('keydown', listen, { capture: true, once: true });
-		});
-	}, KEYSTROKE_TIMEOUT_MS);
+/** Backspace over the live range, timed in the page from its keydown to the frame after `size`
+ *  drops; a removal that took nothing fails the row rather than reading fast. */
+async function timedBackspace(page: Page, size: () => number): Promise<number> {
+	await page.evaluate(
+		({ timeout, sizeSrc }) => {
+			const w = window as any;
+			const size = new Function(`return (${sizeSrc})`)() as () => number;
+			const before = size();
+			w.__removal = new Promise<number>((done, fail) => {
+				const listen = () => {
+					const start = performance.now();
+					const poll = () =>
+						requestAnimationFrame(() => {
+							if (size() < before) requestAnimationFrame(() => done(performance.now() - start));
+							else if (performance.now() - start > timeout)
+								fail(new Error('the removal wrote nothing'));
+							else poll();
+						});
+					poll();
+				};
+				window.addEventListener('keydown', listen, { capture: true, once: true });
+			});
+		},
+		{ timeout: KEYSTROKE_TIMEOUT_MS, sizeSrc: size.toString() }
+	);
 	await page.keyboard.press('Backspace');
 	return page.evaluate(() => (window as any).__removal as Promise<number>);
+}
+
+// ── A removal over a range across top-level blocks ──────────────────────────
+
+/** Backspace over a range across three paragraphs in the middle of a `many-small-blocks` document,
+ *  each timed from its keydown to the frame after two blocks go, then undone. */
+export async function measureRangeRemoval(
+	page: Page,
+	editor: EditorPage,
+	bytes: number,
+	removals: number
+): Promise<LatencyMeasurement> {
+	await editor.goto();
+	const loadMs = await loadFixture(page, editor, generateFixture('many-small-blocks', bytes));
+	const count = await page.evaluate(topLevelCountInPage);
+	const first = Math.floor(count / 2);
+	const samples: number[] = [];
+	for (let i = 0; i < removals; i++) {
+		await page.evaluate(
+			(path) => (window as any).__test.rects.scrollTo(path, { block: 'center' }),
+			[first]
+		);
+		await editor.waitForRenderFlush();
+		for (const block of [first, first + 1, first + 2]) {
+			await assertMounted(page, [block], 'range removal block');
+		}
+		const anchor = { path: [first], offset: (await leafRawLength(page, [first])) >> 1 };
+		const focus = { path: [first + 2], offset: (await leafRawLength(page, [first + 2])) >> 1 };
+		await editor.focusBlockAtPath(anchor.path, anchor.offset);
+		// Placed through the bridge: an arrow key stops at each block's end, never mid-paragraph.
+		const held = await page.evaluate(
+			async (range) => {
+				const t = (window as any).__test;
+				return (
+					(await t.setSelection(range)) && t.getSelection()?.focus.path[0] === range.focus.path[0]
+				);
+			},
+			{ anchor, focus }
+		);
+		if (!held) throw new Error(`no range held from block ${first} to block ${first + 2}`);
+		await editor.waitForRenderFlush();
+		samples.push(await timedBackspace(page, topLevelCountInPage));
+		await waitForTopLevelCount(page, count - 2);
+		// No read of the document's text from here to the next key: the editor makes it once per
+		// content version, and a key handed one already made reads fast.
+		await editor.undo();
+		await waitForTopLevelCount(page, count);
+		await editor.waitForRenderFlush();
+	}
+	return { loadMs, samples, p50Ms: percentileMs(samples, 50), p95Ms: percentileMs(samples, 95) };
 }
