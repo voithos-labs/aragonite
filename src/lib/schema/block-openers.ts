@@ -96,11 +96,12 @@ type OpenerRecord = RegistryRecord<AnyBlockKind, BlockOpener>;
 // A registration change drops the ordering; the caches below hold the ordering they were built from.
 let orderedRecordsCache: OpenerRecord[] | null = null;
 let orderedCache: { records: readonly OpenerRecord[]; openers: BlockOpener[] } | null = null;
-let interruptCache: {
+interface Interrupts {
 	records: readonly OpenerRecord[];
 	generation: number;
 	predicates: ((lineText: string) => boolean)[];
-} | null = null;
+}
+let interruptCache: Interrupts | null = null;
 
 /** A per-instance enablement predicate: `true` keeps the kind's opener in the grammar. */
 export type OpenerEnablement = (kind: AnyBlockKind) => boolean;
@@ -148,6 +149,14 @@ function registerBuiltIns(): void {
  * setup threw interrupts nothing. The paragraph parser stops at `---` itself.
  */
 export function lineInterruptsParagraph(lineText: string): boolean {
+	for (const predicate of currentInterrupts().predicates) {
+		if (predicate(lineText)) return true;
+	}
+	return false;
+}
+
+/** The installed paragraph interrupts: a new object after any registration or install. */
+function currentInterrupts(): Interrupts {
 	const records = consumedRecords();
 	const generation = pluginInstallGeneration();
 	if (interruptCache?.records !== records || interruptCache.generation !== generation) {
@@ -160,10 +169,7 @@ export function lineInterruptsParagraph(lineText: string): boolean {
 				.filter((p): p is (lineText: string) => boolean => p !== false)
 		};
 	}
-	for (const predicate of interruptCache.predicates) {
-		if (predicate(lineText)) return true;
-	}
-	return false;
+	return interruptCache;
 }
 
 // Kept against the grammar's opener list, which a walk up a long body reads once per block.
@@ -253,21 +259,58 @@ export function waitingInto(
 	return live.some((reading) => reading.notFinal(block(at - 1).raw)) ? at - 1 : -1;
 }
 
+/** What a block answered with the first line of the block under it, kept on that lower block. */
+interface FirstAsk {
+	above: string;
+	raw: string;
+	leadingTrivia: string;
+	live: readonly UnclosedReading[];
+	interrupts: Interrupts;
+	reached: UnclosedReading[];
+	waiting: UnclosedReading[];
+}
+
+const firstAsks = new WeakMap<Held, FirstAsk>();
+
+// A walk up a long run asks each pair once while both blocks hold the bytes and blank lines they
+// did, the same readings ask and the same paragraph interrupts stand, which a definition reads.
+function firstAsk(above: Held, below: Held, live: UnclosedReading[], interrupts: Interrupts) {
+	const kept = firstAsks.get(below);
+	if (
+		kept?.above === above.raw &&
+		kept.raw === below.raw &&
+		kept.leadingTrivia === below.leadingTrivia &&
+		kept.interrupts === interrupts &&
+		kept.live.length === live.length &&
+		kept.live.every((reading, k) => reading === live[k])
+	)
+		return kept;
+	const reached = live.filter((reading) => reaches(reading, below));
+	const line = below.raw.slice(0, below.raw.indexOf('\n') + 1 || below.raw.length);
+	const waiting = reached.filter((reading) => reading.notFinal(above.raw + line));
+	const { raw, leadingTrivia } = below;
+	const asked = { above: above.raw, raw, leadingTrivia, live, interrupts, reached, waiting };
+	firstAsks.set(below, asked);
+	return asked;
+}
+
 function waitingPast(
 	block: (index: number) => Held,
 	from: number,
 	floor: number,
 	live: UnclosedReading[]
 ): number {
+	if (from <= floor || live.length === 0) return -1;
+	const interrupts = currentInterrupts();
 	let top = -1;
 	for (let i = from; i > floor && live.length > 0; i--) {
-		const below = block(i);
-		live = live.filter((reading) => reaches(reading, below));
-		let bytes = block(i - 1).raw;
+		const above = block(i - 1);
+		const first = firstAsk(above, block(i), live, interrupts);
+		live = first.reached;
+		let bytes = above.raw;
 		// Asked with the next line alone, then with twice the blocks each time: a block a few lines
 		// settle stays settled with more under them, so it is never handed the whole run.
-		const line = below.raw.slice(0, below.raw.indexOf('\n') + 1 || below.raw.length);
-		let waiting = live.filter((reading) => reading.notFinal(bytes + line));
+		let waiting = first.waiting;
 		for (let k = i, step = 1; k <= from && waiting.length > 0; step *= 2) {
 			for (const end = Math.min(from, k + step - 1); k <= end; k++) bytes += block(k).raw;
 			waiting = waiting.filter((reading) => reading.notFinal(bytes));

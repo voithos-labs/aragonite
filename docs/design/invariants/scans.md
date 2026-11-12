@@ -241,6 +241,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.338 | `edit` is emitted in one function, which first hands the link definitions what the write replaced | L |
 | G4.340 | A position read after a write, or a byte splice, measures the blocks the write changed, not the document | harness |
 | G4.342 | A range edit parses and measures the blocks its range reaches, not the document | harness |
+| G4.346 | The look for a wait asks each pair of blocks once while both keep their bytes, so a second key at the foot of a long run asks a few | harness |
 | G4.347 | A byte splice's window holds every block whose wait reaches the change, and what it asks to find them grows no faster than the run | harness |
 
 ### The entries
@@ -701,5 +702,7 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.340 · A position costs its path.** Every write route (`test/harness/write-routes.ts`), with a listener asking a position on every edit, measures as many top-level blocks at 400 as at 40, unless it names no blocks; with no listener, none, unless the write reads positions to make itself. A byte splice measures as many at 400 as at 40. `measured(doc)` measures every block it's handed, so its callers are a declared list. `test/perf/top-level-starts-reads.test.ts`, `splice-top-level-cost.test.ts`, `lint/measured-callers.test.ts`.
 
 **G4.342 · A range edit costs its range.** The editor's host (`range-edit/host.ts :: rangeHost`) reads the range-edit core's answer through the byte splice's windowed read, so each range route and a copy parse the same bytes and measure as many top-level blocks at 400 as at 40. Given a tree that is the parse of its bytes, each read comes back as a fresh parse gives it (G4.347). Recorded, not held: each serializes the document once, and a removal walks the top-level list three times. `test/perf/range-edit-window-cost.test.ts`, `test/range-edit/answer-read.property.test.ts`.
+
+**G4.346 · A key asks a long run once.** The look for a wait (`schema/block-openers.ts :: waitingPast`) keeps each pair's first answer while both blocks, the readings and the paragraph interrupts stand as they did. A second key at the foot of 2,000 or 8,000 blank-less definitions asks the same few. G1.214 skips a run past 16 KB, so the guard is a differential: the kept look equals one that keeps nothing after every drawn step. `test/perf/keystroke-wait-cost.svelte.test.ts`, `test/schema/wait-look-memo.svelte.test.ts`, `test/range-laws/wait-look-session.test.ts`.
 
 **G4.347 · A window covers a wait.** Given a tree that is the parse of its bytes, a byte splice reads from the highest block waiting at the change under a reading no line closes, until no block it read waits past it, and at the top level where the wait runs into a container (`schema/block-openers.ts :: waitingAboveThrough`). A tree wrong outside the window stays so. In a run with no blank line it parses the same bytes at N lines as at 4N, and its asks grow as the run does. `test/tree-operations/byte-splice.test.ts`, `splice-window-declared-reach.test.ts`, `test/perf/splice-look-cost.test.ts`.
