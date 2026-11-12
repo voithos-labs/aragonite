@@ -7,7 +7,11 @@
 // asked a path in the answer of the bytes the answer wrote.
 
 import { describe, expect, it } from 'vitest';
-import { removalOf, type RemovalGesture } from '#lib/range-edit/edit-range.js';
+import {
+	removalOf,
+	wholeBlocksRemovalOf,
+	type RemovalGesture
+} from '#lib/range-edit/edit-range.js';
 import { rangeHost } from '#lib/range-edit/host.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
@@ -60,5 +64,15 @@ describe('a removal names its places on the bytes it leaves', () => {
 		const answer = removalOf(source, range, 'type', 'source', rangeHost(testReading()));
 		expect(answer.source).toBe('abc\n\n> | a |\n> |---|\n> \n# h\n');
 		expect(answer.taken).toEqual({ at: range.from, parent: [1] });
+	});
+
+	// The nested item the block was the last of ends before the byte once its blank line is gone.
+	it('names a whole block’s place among the item around the one it ended', () => {
+		const source = '- a\n  - b\n     \t \n\n      \n  # head\n';
+		const from = source.indexOf('      \n') + 4;
+		const host = rangeHost(testReading());
+		const answer = wholeBlocksRemovalOf(source, { from, to: from + 2 }, 'cut', 'source', host);
+		expect(answer.source).toBe('- a\n  - b\n     \t \n\n  # head\n');
+		expect(answer.caret).toEqual({ at: 19, holds: 'boundary', parent: [0, 0] });
 	});
 });
