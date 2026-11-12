@@ -241,6 +241,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.338 | `edit` is emitted in one function, which first hands the link definitions what the write replaced | L |
 | G4.340 | A position read after a write, or a byte splice, measures the blocks the write changed, not the document | harness |
 | G4.342 | A range edit parses and measures the blocks its range reaches, not the document | harness |
+| G4.347 | A byte splice's window holds every block whose wait reaches the change, and asks each block once to find them | harness |
 
 ### The entries
 
@@ -699,4 +700,6 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.340 · A position costs its path.** Every write route (`test/harness/write-routes.ts`), with a listener asking a position on every edit, measures as many top-level blocks at 400 as at 40, unless it names no blocks; with no listener, none, unless the write reads positions to make itself. A byte splice measures as many at 400 as at 40. `measured(doc)` measures every block it's handed, so its callers are a declared list. `test/perf/top-level-starts-reads.test.ts`, `splice-top-level-cost.test.ts`, `lint/measured-callers.test.ts`.
 
-**G4.342 · A range edit costs its range.** The editor's host (`range-edit/host.ts :: rangeHost`) reads the range-edit core's answer through the byte splice's windowed read, so each range route and a copy parse the same bytes and measure as many top-level blocks at 400 as at 40, and each read comes back as a fresh parse gives it. Recorded, not held: each serializes the document once, and a removal walks the tree's top-level list three times (its text, the list host and commit share, its undo snapshot). `test/perf/range-edit-window-cost.test.ts`, `test/range-edit/answer-read.property.test.ts`.
+**G4.342 · A range edit costs its range.** The editor's host (`range-edit/host.ts :: rangeHost`) reads the range-edit core's answer through the byte splice's windowed read, so each range route and a copy parse the same bytes and measure as many top-level blocks at 400 as at 40. Given a tree that is the parse of its bytes, each read comes back as a fresh parse gives it (G4.347). Recorded, not held: each serializes the document once, and a removal walks the top-level list three times. `test/perf/range-edit-window-cost.test.ts`, `test/range-edit/answer-read.property.test.ts`.
+
+**G4.347 · A window covers a wait.** Given a tree that is the parse of its bytes, a byte splice reads from the highest block still waiting at the change under a reading no line closes, and on until no block it read waits past it (`schema/block-openers.ts :: waitingAboveThrough`, by the reading's own `notFinal` and `crosses`). A tree wrong outside the window stays so. In a run with no blank line it parses the same bytes at N lines as at 4N and asks each block once. `test/tree-operations/byte-splice.test.ts`, `splice-window-declared-reach.test.ts`, `test/perf/splice-look-cost.test.ts`.

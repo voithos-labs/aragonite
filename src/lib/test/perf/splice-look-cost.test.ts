@@ -1,6 +1,6 @@
-// What a byte splice parses and asks to find where its window starts and stops, in a run with no
-// blank line: the bytes parsed are the same at N lines and 4N, a reading is asked about a block at
-// most once, and a run under a title that has started is read through, never once per block.
+// G4.347: what a byte splice parses and asks to find where its window starts and stops, in a run
+// with no blank line. The bytes parsed are the same at N lines and 4N, a reading is asked about a
+// block at most once, and a run under a title that has started is read through, never once a block.
 // Miss-analysis: the splice's cost rows counted bytes parsed, so nothing held what the look for a
 // waiting definition asks, and a run of code and definitions was read whole unseen.
 import { describe, it, expect, afterEach } from 'vitest';
@@ -56,8 +56,9 @@ const SHAPES: Record<string, { growth: Growth; run: (n: number) => string[] }> =
 	}
 };
 
-/** A letter typed at the end of a text line under the run, with two headings below it. */
-function cost(shape: keyof typeof SHAPES, n: number, quoted: boolean) {
+/** A letter typed at the end of the line `under`: by default a text line at the run's foot, with
+ *  two headings below it. */
+function cost(shape: keyof typeof SHAPES, n: number, quoted: boolean, under = 'tail text') {
 	const text =
 		[...SHAPES[shape].run(n), 'tail text', '# end', '# end']
 			.map((line) => (quoted ? `> ${line}` : line))
@@ -65,7 +66,7 @@ function cost(shape: keyof typeof SHAPES, n: number, quoted: boolean) {
 	const { doc } = initDocument(text, defaultGrammarView);
 	for (const block of doc.children) assignChildIdsDeep(block);
 	const before = serialize(doc);
-	const at = before.indexOf('tail text') + 'tail text'.length;
+	const at = before.indexOf(under) + under.length;
 	const changes = [{ from: at, to: at, insert: 'x' }];
 	const readings = unfinishedReadings(defaultGrammarView) as UnfinishedReading[];
 	const saved = readings.map((reading) => reading.notFinal);
@@ -117,4 +118,20 @@ describe('the look for a waiting definition, in a run with no blank line', () =>
 			});
 		}
 	}
+
+	// Miss-analysis: every row changed the run's foot, where the first read already holds the run,
+	// so nothing held a read that starts at the head to reaching the foot in one more step.
+	it('reads a run under a started title through from a change at its head', () => {
+		for (const n of [N, 4 * N]) {
+			const first = `[${word(0)}]: /u`;
+			const { parsed, asks, length } = cost(
+				'definitions under a title that has started',
+				n,
+				false,
+				first
+			);
+			expect(parsed).toBeLessThan(2.5 * length);
+			expect(asks).toBeLessThan(2.5 * n);
+		}
+	});
 });

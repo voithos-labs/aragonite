@@ -1,7 +1,7 @@
-// An edit's window reaches as far as a reading declares, by the reading's own rule and not the
-// link definition's: a test block that waits on a body below it, across a heading's line but not
-// across a `!!` line, reads as a parse reads it when a change closes the body or takes away the
-// line that ended it.
+// G4.347: an edit's window reaches as far as a reading declares, by the reading's own rule and
+// not the link definition's. A test block that waits on a body below it, across a heading's line
+// but not across a `!!` line, reads as a parse reads it when a change closes the body or takes
+// away the line that ended it.
 // Miss-analysis: new surface; the window knew one reading no line closes, the definition's, and
 // where that one's wait ends was written into the window itself.
 import { beforeEach, describe, expect, it } from 'vitest';
