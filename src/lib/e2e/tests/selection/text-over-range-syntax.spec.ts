@@ -194,8 +194,6 @@ const TITLED = {
 };
 for (const gesture of ['type', 'paste'] as const) {
 	test.describe(`${gesture} over a heading and half the line below, under a started title`, () => {
-		// A paste into a definition's title takes the default hooks, which the dispatch names.
-		if (gesture === 'paste') test.use({ expectWarns: ['paste-dispatch'] });
 		for (const [where, row] of Object.entries(TITLED)) {
 			test(`${where}: the text lands at the removal's caret`, async ({ page }) => {
 				const editor = new EditorPage(page);
