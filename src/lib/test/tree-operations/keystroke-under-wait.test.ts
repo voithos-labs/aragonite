@@ -7,7 +7,16 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import type { BlockEditActions } from '#lib/action-contracts.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { installPlugins } from '#lib/schema/plugin-install.js';
-import { EDITS, judge, leafAt, opened, type Edit } from '#lib/test/exhaustive/edit-driver.js';
+import {
+	EDITS,
+	harnessOver,
+	judge,
+	leafAt,
+	opened,
+	type Edit
+} from '#lib/test/exhaustive/edit-driver.js';
+import { endTypingBatchesForTests } from '#lib/editor-actions/commit/text-batch.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { ALPHABET_PLUGINS } from '#lib/test/exhaustive/alphabet.js';
 import { wrapped, type Wrap } from '../invariants/arbitraries/waiting-definition';
 
@@ -141,6 +150,25 @@ const CONTAINERS: [string, string[], number[], string][] = [
 	],
 	['in a table header cell', ['[a]: /u', '    "code', 'a | b', '- | -', 'c | d'], [2, 0, 1], 'b']
 ];
+
+// Miss-analysis: the keystroke told an open draft it changes its own block and one either side,
+// which held while no key could reach further up; no row typed with a draft open under a wait.
+describe('a draft open while a key folds the blocks above it', () => {
+	it('hears every block the key changed', async () => {
+		const lines = ['[a]: /u', '    "code', '[b]: /v', '[b]: /v', 'end', ...TAIL];
+		const h = harnessOver(opened(wrapped(lines, 'top', '\n')));
+		Object.assign(h.deps.drafts, { watching: () => true });
+
+		await h.blockEdit.updateBlockContent(4, 'end"\n', 'authored', 'join-typing', 3, 4);
+		endTypingBatchesForTests();
+
+		expect(h.deps.doc.children.map((node) => node.kind)).toEqual([
+			'linkReferenceDefinition',
+			'paragraph'
+		]);
+		expect(takeDevWarns().map((warn) => warn.tag)).toEqual([]);
+	});
+});
 
 // Miss-analysis: a container's slot was asked for its joins only when its first or last line
 // moved, and then as pairs, so a title that started above the container never saw the key.
