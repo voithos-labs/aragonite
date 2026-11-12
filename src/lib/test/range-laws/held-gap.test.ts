@@ -216,9 +216,79 @@ describe('a boundary no arrow stops at holds the caret, unless a letter there jo
 	);
 });
 
-// ── What the next key does ───────────────────────────────────────────────────
+// ── A command key over the range ─────────────────────────────────────────────
 
 const END = ROWS['the last paragraph, tight under a fence'];
+
+const OVER: Record<string, Pick<Row, 'source' | 'take' | 'gap'>> = {
+	'the last paragraph, tight under a fence': END,
+	'the last two paragraphs under a fence': {
+		source: `intro\n\n${FENCE}last\n\nend\n`,
+		take: { anchor: at([2], 0), focus: at([3], 3) },
+		gap: heldAt([], 2)
+	},
+	'a line under a heading in a quote': ROWS['a line under a heading in a quote']
+};
+
+const COMMAND_KEYS: Record<string, KeyboardEventInit> = {
+	Enter: {},
+	'Shift+Enter': { shiftKey: true }
+};
+
+// Miss-analysis: every row pressed a removal key or a letter over its range and none a command
+// key, which then ran in the block at the gap's byte, a block that held no caret.
+describe('a command key over a range that leaves the caret in a gap', () => {
+	const reads = (editor: Editor) => ({
+		source: editor.source(),
+		caret: editor.instance.getSelection(),
+		gap: editor.instance.__test.getGapCaret()
+	});
+	const cases = MODES.flatMap((mode) =>
+		Object.entries(OVER).flatMap(([name, row]) =>
+			Object.entries(COMMAND_KEYS).map(([chord, init]) => ({ mode, name, chord, init, row }))
+		)
+	);
+	it.each(cases)(
+		'$mode, $name: $chord is the removal, then $chord at the gap',
+		async ({ mode, init, row }) => {
+			const stepwise = mountCase(row.source, mode);
+			await stepwise.settle();
+			await remove(stepwise, row.take, 'Backspace');
+			expectGapShown(stepwise, row.gap!);
+			await key(stepwise, 'Enter', init);
+			const want = reads(stepwise);
+			expect(
+				want.caret,
+				'Enter at the gap opens a paragraph and puts the caret in it'
+			).not.toBeNull();
+
+			await destroyMountedEditors();
+			const over = mountCase(row.source, mode);
+			await over.settle();
+			expect(await placeOwnedRange(over, row.take as EditorSelection)).toBe(true);
+			await key(over, 'Enter', init);
+			expect(reads(over)).toEqual(want);
+		}
+	);
+
+	it.each(MODES)(
+		'%s: an IME composition over the range opens its paragraph there',
+		async (mode) => {
+			const editor = mountCase(END.source, mode);
+			await editor.settle();
+			expect(await placeOwnedRange(editor, END.take as EditorSelection)).toBe(true);
+			await insertBy('composition', document.activeElement as HTMLElement, '汉');
+			await editor.settle();
+			expect(blocksIn(editor), editor.source()).toEqual(
+				await blocksOfSource(`${FENCE}\n汉\n`, mode)
+			);
+			expect(editor.instance.getSelection()).toEqual(caretAt([1], 1));
+		}
+	);
+});
+
+// ── What the next key does ───────────────────────────────────────────────────
+
 const TITLE = ROWS['an untitled directive cut down to its title row'];
 const caretAt = (path: number[], offset: number) => ({
 	anchor: at(path, offset),
@@ -319,6 +389,18 @@ const NEXT: Record<string, Next> = {
 		},
 		source: `${FENCE}\n汉\n`,
 		caret: caretAt([1], 1)
+	},
+	'a letter after a composition the browser dropped joins the composed text': {
+		from: END,
+		run: async (e) => {
+			const proxy = document.activeElement as HTMLElement;
+			proxy.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
+			proxy.textContent = 'か';
+			await key(e, 'q');
+			expect(takeDevWarns().map((w) => w.tag)).toEqual(['composition']);
+		},
+		source: `${FENCE}\nかq\n`,
+		caret: caretAt([1], 2)
 	},
 	'a paste lands there as blocks': {
 		from: TITLE,
