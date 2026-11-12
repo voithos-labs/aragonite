@@ -167,3 +167,9 @@ export function titleOwner(doc: Doc, leaf: LaidBlock): LaidBlock | undefined {
 	const parent = parentOf(doc, leaf);
 	return parent && factsOf(doc, parent).titleRow?.type === leaf.type ? parent : undefined;
 }
+
+/** Whether text written at byte `at` of `owner`'s title row would run on from its `:::name`. */
+export const joinsName = (doc: Doc, owner: LaidBlock, row: LaidBlock, at: number): boolean =>
+	factsOf(doc, owner).titleRow!.nameNeverEntered &&
+	at === row.text!.from &&
+	/\S/.test(doc.source[at - 1] ?? ' ');
