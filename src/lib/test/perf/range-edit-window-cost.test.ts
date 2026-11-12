@@ -88,7 +88,9 @@ async function readsOf(gesture: RangeGesture, n: number) {
 	const reads = {
 		parsedBytes: perfSnapshot().parseBytes,
 		topBlocksMeasured: perfSnapshot().topBlocksMeasured,
-		serializes: vi.mocked(serialize).mock.calls.length
+		serializes: vi.mocked(serialize).mock.calls.length,
+		spliceReads: perfSnapshot().spliceReads,
+		spliceReadsKept: perfSnapshot().spliceReadsKept
 	};
 	await m.destroy();
 	return reads;
@@ -116,6 +118,19 @@ describe('G4.342 a range edit reads the blocks its range reaches', () => {
 
 	it('a copy parses nothing and measures no block', async () => {
 		expect(await readsOf(COPY, SMALL)).toMatchObject({ parsedBytes: 0, topBlocksMeasured: 0 });
+	});
+});
+
+// Miss-analysis, the second read: the rows counted bytes parsed, which the commit's read of the
+// same window added in a small window, so nothing saw the answer's window read twice.
+describe('G4.342 a range edit reads its answer’s window once', () => {
+	it.each(RANGE_EDITS)('$name: the commit takes the core’s reading', async (gesture) => {
+		const { spliceReads, spliceReadsKept } = await readsOf(gesture, SMALL);
+		expect(spliceReadsKept, `readings taken, beside ${spliceReads} made`).toBe(1);
+	});
+
+	it('a copy reads no window', async () => {
+		expect(await readsOf(COPY, SMALL)).toMatchObject({ spliceReads: 0, spliceReadsKept: 0 });
 	});
 });
 
