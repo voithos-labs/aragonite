@@ -41,10 +41,11 @@ import {
  *  Backspace's caret goes to the block before (`structural-edits.md` § Structural operations). */
 export interface Removal extends Edit {
 	gone?: boolean;
-	/** The block the range started in, by its path, when the removal took it whole. */
-	took?: readonly number[];
-	/** The block whose children the caret sits between, where the removal knows it. */
-	parent?: readonly number[];
+	/** The removal took the block the range started in whole. */
+	took?: boolean;
+	/** The block whose children the caret sits between, as laid before the removal (null for the
+	 *  document), where the removal knows it: its path is asked of the bytes after. */
+	parent?: LaidBlock | null;
 }
 
 export function removeRange(doc: Doc, start: number, end: number): Removal {
@@ -103,7 +104,7 @@ function endingItsParent(doc: Doc, block: LaidBlock, to: number): Removal | null
 		join,
 		false
 	);
-	return { source, caret: at, gone: true, parent: block.path.slice(0, -1) };
+	return { source, caret: at, gone: true, parent: parentOf(doc, block) ?? null };
 }
 
 /** A range across blocks: the end's tail joins the start where the start takes joined text, and
@@ -209,7 +210,7 @@ function across(
 		source: out,
 		caret: lines?.caret ?? start?.caret ?? from,
 		...(gone && { gone }),
-		...(held && first && { took: first.path })
+		...(held && first && { took: true })
 	};
 }
 

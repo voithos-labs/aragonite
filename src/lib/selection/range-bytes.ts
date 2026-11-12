@@ -281,6 +281,18 @@ export function gapOfPlace(
 	}
 }
 
+/** The boundary where a block the removal took stood, `place` read on the bytes after; null where
+ *  the text below joined a block above, whose own bytes then run on both sides of the byte. */
+export function takenGapOf(
+	measured: Measured,
+	place: { at: number; parent: readonly number[] }
+): GapCaretPosition | null {
+	const leaf = leafAtByte(measured, place.at);
+	const node = leaf && blockNodeAt(measured.doc, leaf.path);
+	if (node && leaf.offset > 0 && leaf.offset < node.raw.trimEnd().length) return null;
+	return gapOfPlace(measured, place);
+}
+
 /** The gap caret a removal's boundary place is held as, `held` where no arrow stops; null where
  *  the caret goes to the text at its byte (prose a typed letter joins, or a hidden body). */
 export function heldGapOf(
