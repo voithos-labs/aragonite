@@ -19,7 +19,9 @@ export const ISSUE_DOCUMENTS = {
 		'alpha bravo charlie\n\n> Ithaka\n> By C. P. Cavafy\n> > As you set out for Ithaka\n> > hope your road is a long one,\n',
 	'#816': '- i0\n  - i1\n    - i2\n  - i3\n    - i4\n\n    p5\n',
 	'#817': 'alpha\n\nbeta\n\n![pic](p.png)\n',
-	'#818': 'alpha bravo\n\ncharlie delta\n'
+	'#818': 'alpha bravo\n\ncharlie delta\n',
+	'#826':
+		'<details>\n<summary>Sum</summary>\n\nbody\n\n</details>\n\npara\n\n:::note\n<details>\n<summary>Sum</summary>\n\nbody\n\n</details>\n\npara\n:::\n\nabc\n\n<details open>\n<summary>Sum</summary>\n\nbody\n\n</details>\n\n# h\n'
 } as const;
 
 const PICTURES = [
