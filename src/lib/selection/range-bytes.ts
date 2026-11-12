@@ -72,22 +72,17 @@ export function rangeBytes(
 	if (from === null || to === null) return null;
 	to = Math.max(from, endBesideText(doc, layout, coverage, to));
 	// After the end steps back, so it never stops inside a block held whole (a closed details).
-	for (const root of coverage.wholeRoots) {
-		const block = layout.block(root);
-		if (!block) return null;
-		from = Math.min(from, block.from);
-		to = Math.max(to, textEnd(doc, block));
+	const held = heldSpans(doc, coverage, layout);
+	if (!held) return null;
+	for (const span of held) {
+		from = Math.min(from, span.from);
+		to = Math.max(to, span.to);
 	}
 	// A range across blocks from the first caret position to the last is select-all's, which takes
 	// every container's markers with it.
 	const edges = !pathsEqual(start.path, end.path) && caretEdges(doc, layout);
 	if (edges && from <= edges.first && to >= edges.last) from = 0;
-	assertInvariant('range-holds-whole', () =>
-		checkRangeHoldsWhole(
-			{ from, to },
-			coverage.wholeRoots.map((root) => wholeBlockBytes(doc, layout, root)!)
-		)
-	);
+	assertInvariant('range-holds-whole', () => checkRangeHoldsWhole({ from, to }, held));
 	return { from, to };
 }
 
@@ -154,6 +149,20 @@ export function rangePaint(doc: DocumentView, coverage: RangeCoverage, layout: L
  *  line's edge. */
 const textEnd = (doc: DocumentView, block: LaidBlock) =>
 	block.to - ownTrailingLineEnding(blockNodeAt(doc, block.path)!.raw).length;
+
+/** The bytes of each block the coverage holds whole: a container's to its last line's text, a
+ *  leaf's to its last character, since a title row's line goes on into its container's tags. */
+function heldSpans(doc: DocumentView, coverage: RangeCoverage, layout: Layout): Range[] | null {
+	const spans: Range[] = [];
+	for (const root of coverage.wholeRoots) {
+		const block = layout.block(root);
+		const node = blockNodeAt(doc, root);
+		if (!block || !node) return null;
+		const last = node.children?.length ? null : layout.byteOf(root, displayLength(node.raw));
+		spans.push({ from: block.from, to: last ?? textEnd(doc, block) });
+	}
+	return spans;
+}
 
 /** A text end's byte; a cell end's row, or its whole table where the range enters by the first row
  *  or leaves by the last; any other block's own edge, since its offsets address no text. */

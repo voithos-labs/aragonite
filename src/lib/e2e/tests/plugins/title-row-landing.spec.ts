@@ -9,6 +9,11 @@ import { wholeBlockInput } from '../../whole-block-input';
 const ROWS = [
 	['no title', ':::note', { live: ':::note\n\nxpara\n:::\n', source: ':::notex\n\npara\n:::\n' }],
 	[
+		'no title, in a plugin container',
+		':::callout',
+		{ live: ':::callout\n\nxpara\n:::\n', source: ':::calloutx\n\npara\n:::\n' }
+	],
+	[
 		'a title',
 		':::note Title',
 		{ live: ':::note Titlex\n\npara\n:::\n', source: ':::note Titlex\n\npara\n:::\n' }

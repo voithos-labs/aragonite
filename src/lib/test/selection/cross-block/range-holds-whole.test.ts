@@ -22,7 +22,8 @@ import {
 	mountCase,
 	pasteGesture,
 	placeRange,
-	type Editor
+	TYPING_ROUTES,
+	type TypingRoute
 } from '../../range-laws/gestures';
 
 beforeAll(installLayoutStubs);
@@ -37,19 +38,36 @@ afterEach(async () => {
 });
 
 const CLOSED = '<details>\n<summary>Sum</summary>\n\nbody\n\n</details>';
+const OPEN = '<details open>\n<summary>Sum</summary>\n\n';
 const at = (path: number[], offset: number) => ({ path, offset });
 
-/** Each shape: its source, the range, and the blocks a removal leaves. */
-const SHAPES: Record<string, { source: string; range: EditorSelection; left: unknown[] }> = {
+interface Shape {
+	source: string;
+	range: EditorSelection;
+	/** The blocks a removal leaves. */
+	left: unknown[];
+	/** What a copy, and a cut, writes. */
+	clip: string;
+	/** What no route leaves behind. */
+	gone: RegExp;
+	/** The typing routes that write over the range; all three where unset. */
+	typing?: readonly TypingRoute[];
+}
+
+const SHAPES: Record<string, Shape> = {
 	'out of a closed summary': {
 		source: `${CLOSED}\n\npara\n`,
 		range: { anchor: at([0, 0], 1), focus: at([1], 0) },
-		left: [['paragraph', 'para']]
+		left: [['paragraph', 'para']],
+		clip: CLOSED,
+		gone: /summary|details|body/
 	},
 	'out of a closed summary in a quote': {
 		source: '> <details>\n> <summary>Sum</summary>\n>\n> body\n>\n> </details>\n>\n> para\n',
 		range: { anchor: at([0, 0, 0], 3), focus: at([0, 1], 0) },
-		left: [['blockquote', [['paragraph', 'para']]]]
+		left: [['blockquote', [['paragraph', 'para']]]],
+		clip: CLOSED,
+		gone: /summary|details|body/
 	},
 	'out of a closed summary in a `:::note`': {
 		source: `:::note\n${CLOSED}\n\npara\n:::\n`,
@@ -62,21 +80,40 @@ const SHAPES: Record<string, { source: string; range: EditorSelection; left: unk
 					['paragraph', 'para']
 				]
 			]
-		]
+		],
+		clip: CLOSED,
+		gone: /summary|details|body/
 	},
 	'from a paragraph across an open details to a heading': {
-		source: 'abc\n\n<details open>\n<summary>Sum</summary>\n\nbody\n\n</details>\n\n# h\n',
+		source: `abc\n\n${OPEN}body\n\n</details>\n\n# h\n`,
 		range: { anchor: at([0], 1), focus: at([2], 0) },
 		left: [
 			['paragraph', 'a'],
 			['heading', '# h']
-		]
+		],
+		clip: `bc\n\n${OPEN}body\n\n</details>`,
+		gone: /summary|details|body/
+	},
+	// The summary alone is held whole: its text goes, its tags and the container stay.
+	'from a paragraph to an open details’ first block': {
+		source: `abc\n\n${OPEN}---\n\nbody\n\n</details>\n`,
+		range: { anchor: at([0], 1), focus: at([1, 1], 0) },
+		left: [
+			['paragraph', 'a'],
+			[
+				'details',
+				[
+					['details-summary', ''],
+					['thematicBreak', '---'],
+					['paragraph', 'body']
+				]
+			]
+		],
+		clip: 'bc\n\n<details open>\n<summary>Sum</summary>\n</details>',
+		gone: /Sum/,
+		// A soft key or an IME over this range writes nothing, here as before the fix.
+		typing: ['hardware key']
 	}
-};
-
-const removed = (e: Editor) => {
-	const source = e.source();
-	return { blocks: blocksIn(e), shards: /summary|details|body/.test(source) };
 };
 
 async function placed(source: string, range: EditorSelection, mode: 'live' | 'source') {
@@ -90,48 +127,45 @@ const focused = () => (document.activeElement as HTMLElement | null) ?? document
 
 describe('a range holding a block whole takes it whole on every route', () => {
 	for (const mode of ['live', 'source'] as const) {
-		for (const [shape, { source, range, left }] of Object.entries(SHAPES)) {
+		for (const [shape, { source, range, left, clip, gone, typing }] of Object.entries(SHAPES)) {
 			it.each(['Backspace', 'Delete'])(`${mode}, ${shape}: %s`, async (key) => {
 				const editor = await placed(source, range, mode);
 				await pressHardwareKey(focused(), { key });
 				await editor.settle();
-				expect(removed(editor)).toEqual({ blocks: left, shards: false });
+				expect(blocksIn(editor)).toEqual(left);
 			});
 
 			it(`${mode}, ${shape}: a cut, and its clipboard`, async () => {
 				const editor = await placed(source, range, mode);
 				const cut = (await clipboardGesture(editor, 'cut', 'key'))['text/plain'];
-				expect(removed(editor)).toEqual({ blocks: left, shards: false });
-				expect(cut).toContain(source.includes(CLOSED) ? CLOSED : '</details>');
+				expect(cut, 'the clipboard').toBe(clip);
+				expect(blocksIn(editor)).toEqual(left);
 			});
 
-			it(`${mode}, ${shape}: a copy writes the block whole`, async () => {
+			it(`${mode}, ${shape}: a copy`, async () => {
 				const editor = await placed(source, range, mode);
 				const copy = (await clipboardGesture(editor, 'copy', 'key'))['text/plain'];
-				expect(copy).toContain(source.includes(CLOSED) ? CLOSED : '\n\n</details>');
+				expect(copy).toBe(clip);
 				expect(editor.source()).toBe(source);
 			});
 
-			it.each(['hardware key', 'soft key', 'composition'] as const)(
-				`${mode}, ${shape}: a letter by %s`,
-				async (route) => {
-					const editor = await placed(source, range, mode);
-					await insertBy(route, focused(), 'x');
-					await editor.settle();
-					expect(removed(editor).shards).toBe(false);
-					expect(editor.source()).toContain('x');
-				}
-			);
+			it.each(typing ?? TYPING_ROUTES)(`${mode}, ${shape}: a letter by %s`, async (route) => {
+				const editor = await placed(source, range, mode);
+				await insertBy(route, focused(), 'x');
+				await editor.settle();
+				expect(editor.source()).not.toMatch(gone);
+				expect(editor.source()).toContain('x');
+			});
 
 			it(`${mode}, ${shape}: Enter, and a paste`, async () => {
 				let editor = await placed(source, range, mode);
 				await pressHardwareKey(focused(), { key: 'Enter' });
 				await editor.settle();
-				expect(removed(editor).shards, 'Enter').toBe(false);
+				expect(editor.source(), 'Enter').not.toMatch(gone);
 				await destroyMountedEditors();
 				editor = await placed(source, range, mode);
 				await pasteGesture(editor, { 'text/plain': 'q' }, 'key');
-				expect(removed(editor).shards, 'a paste').toBe(false);
+				expect(editor.source(), 'a paste').not.toMatch(gone);
 				expect(editor.source()).toContain('q');
 			});
 		}

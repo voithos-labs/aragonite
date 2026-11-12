@@ -117,6 +117,20 @@ test.describe('a selection across a container to a block it can’t join', () =>
 	}
 });
 
+test('(source) a selection from a paragraph to an open details’ first block empties the summary', async ({
+	page
+}) => {
+	await open('source', `abc\n\n${OPEN.replace('body', '# h\n\nbody')}\n`);
+	await editor.clickBlockAtPath([0], 1);
+	await editor.shiftClickBlock([1, 1], 0);
+	await editor.waitForCrossBlock(true);
+
+	await page.keyboard.press('Backspace');
+	await editor.bridge.waitForSourceEquals(
+		'a\n\n<details open>\n<summary></summary>\n\n# h\n\nbody\n\n</details>\n'
+	);
+});
+
 test('a selection out of an open summary keeps the details', async ({ page }) => {
 	await open('live', `${OPEN}\n\npara\n`);
 	await editor.clickBlockAtPath([0, 0], 1);

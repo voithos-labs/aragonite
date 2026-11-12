@@ -6,18 +6,32 @@ import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import type { Document } from '../../core/nodes';
 import { checkRangeHoldsWhole } from '../../invariants/range-holds-whole';
-import { documentLayout } from '../../range-edit/layout';
+import { displayLength } from '../../core/lines';
+import { documentLayout, type Layout } from '../../range-edit/layout';
+import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { defaultGrammarView } from '../../schema/block-openers';
 import { installPlugins } from '../../schema/plugin-install';
 import { rangeBytes, wholeBlockBytes } from '../../selection/range-bytes';
 import { coverRange, rangeCoverage } from '../../selection/range-coverage';
 import { measured } from '../../tree-operations/top-level-starts';
 import { SYNTAX_PLUGINS } from '../behavior/corpus';
-import { opened } from '../range-laws/positions';
+import { bytePositions, opened, pointKey } from '../range-laws/positions';
 import { arbRangeSeed, resolveRange } from '../range-laws/ranges';
 import { arbLawDocument } from '../range-laws/shapes';
 import { takeDevWarns } from '../support/warn-gate';
 import { freshOrFixedSeed } from './arbitraries';
+
+/** A block's span as the parser alone reads it: a leaf whose line runs past its bytes (a title
+ *  row inside its container's tags) ends at its last character; any other at its last line. */
+function heldSpan(source: string, doc: Document, layout: Layout, root: readonly number[]) {
+	const span = wholeBlockBytes(doc, layout, root)!;
+	const node = blockNodeAt(doc, root)!;
+	if (node.children?.length || span.to - span.from <= displayLength(node.raw)) return span;
+	const last = bytePositions(source, defaultGrammarView).get(
+		pointKey(root, displayLength(node.raw))
+	);
+	return { from: span.from, to: last ?? span.to };
+}
 
 describe('G1.212 a range read as bytes holds every block it holds whole', () => {
 	it('names the block a range cuts, and passes one it spans', () => {
@@ -40,7 +54,7 @@ describe('G1.212 a range read as bytes holds every block it holds whole', () => 
 				const bytes = rangeBytes(doc, coverage, layout);
 				takeDevWarns();
 				if (!bytes) return;
-				const whole = coverage.wholeRoots.map((root) => wholeBlockBytes(doc, layout, root)!);
+				const whole = coverage.wholeRoots.map((root) => heldSpan(source, doc, layout, root));
 				expect(checkRangeHoldsWhole(bytes, whole)).toBeNull();
 			}),
 			{ numRuns: 2000, seed: freshOrFixedSeed(826) }

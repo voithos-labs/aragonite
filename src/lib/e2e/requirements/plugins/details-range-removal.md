@@ -21,6 +21,8 @@ Shift+ArrowRight, which ends it at the start of `para`.
 - A selection from a paragraph across an open details or a `:::note` to a heading's start takes the
   container whole, closing line included, and leaves the heading alone
 - A selection out of an open summary keeps the details: the selected text and the body go
+- A selection from a paragraph to the start of an open details' first block takes the summary's
+  text and keeps its tags and the details: the summary is the one block it holds whole
 
 ## Miss-analysis
 

@@ -145,3 +145,20 @@ describe('a block the range holds whole goes whole, the end narrowed or not', ()
 		});
 	});
 });
+
+describe('a title row the range holds whole on its own', () => {
+	it.each([
+		[
+			'a summary',
+			'<details open>\n<summary>Sum</summary>\n\n---\n\nbody\n\n</details>',
+			'bc\n\n<details open>\n<summary>Sum'
+		],
+		['a `:::` row', ':::note Title\n---\n\nbody\n:::', 'bc\n\n:::note Title']
+	])('%s ends at its text, its line ending and tags left', (_, block, bytes) => {
+		for (const eol of ['\n', '\r\n']) {
+			const source = `abc\n\n${block}\n`.replace(/\n/g, eol);
+			const got = read(source, { path: [0], offset: 1 }, { path: [1, 1], offset: 0 });
+			expect(got.bytes, JSON.stringify(eol)).toBe(bytes.replace(/\n/g, eol));
+		}
+	});
+});
