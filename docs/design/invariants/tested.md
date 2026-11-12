@@ -27,6 +27,7 @@ No runtime check sees these; the test suite is the whole enforcement. Test files
 | G2.17 | A commit that throws leaves the document and the undo stacks as they were    | N     |
 | G2.18 | Copy, cut, paste, typing and deleting over a range keep the range-edit laws  | P·N   |
 | G2.19 | A keystroke asks the edited block's paint and measures only its marks        | N     |
+| G2.20 | A `use` that fails part way leaves the editor running the list it ran        | N     |
 
 ### The entries
 
@@ -127,3 +128,10 @@ reads its paint through `DecorationEngine.paintOf`, kept while its bytes hold an
 the same arrays, so a keystroke asks only the edited block's `paint` (a container goes to
 `paintContainer`) and measures only its marks; a block is first asked once it mounts.
 `e2e/tests/decorations/paint.spec.ts`, `paint-reactivity.svelte.test.ts`, `plugin-paint.svelte.test.ts`.
+
+**G2.20 · A failed `use` changes nothing.** A `use` that fails part way (its list can't install,
+the re-read throws, a plugin throws as it starts or cleans up) leaves the editor running the list
+it ran: names, definitions, block types, grammar, the undo stacks, each plugin attached once.
+Every `setup` and cleanup finds one list whole, and `error` hears each throw once the list is back,
+the failure last. A plugin that threw as it started cost a second read of the document.
+`failed-use-restores.test.ts`.

@@ -34,7 +34,7 @@ setup(ctx) {
 | `presentationMode` | The effective presentation mode, live, paired with the `presentationModeChange` event ([Presentation modes](presentation-modes.md#presentation-modes)) |
 | `theme` | The editor's theme name, live, paired with the `themeChange` event, for content whose colors an engine paints |
 
-Return a disposer from the callback and the editor runs it at unmount. Registration is synchronous-only: call `onEditor` from `setup`, since a call after `setup` returns throws.
+Return a disposer from the callback and the editor runs it at unmount, or when the host's `use` turns your plugin off. Registration is synchronous-only: call `onEditor` from `setup`, since a call after `setup` returns throws.
 
 ## Recipe: per-instance derived state
 
