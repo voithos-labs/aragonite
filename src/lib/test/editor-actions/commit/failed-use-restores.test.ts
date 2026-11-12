@@ -326,7 +326,7 @@ describe('a `use` put back over a plugin that will not start again', () => {
 describe('a `use` that fails as its second plugin starts', () => {
 	// Miss-analysis: no `setup` or cleanup recorded what it found, so the steps of the call and of
 	// the put-back could change places with every row green.
-	it('shows each `setup` and cleanup one list, whole', async () => {
+	it('shows each `setup` and cleanup the names and the document of one list', async () => {
 		let m: Mounted | null = null;
 		const found: [string, ReturnType<typeof standing>][] = [];
 		const sees = (who: string) => (during: string) =>

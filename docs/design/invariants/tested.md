@@ -132,6 +132,6 @@ the same arrays, so a keystroke asks only the edited block's `paint` (a containe
 **G2.20 · A failed `use` changes nothing.** A `use` that fails part way (its list can't install,
 the re-read throws, a plugin throws as it starts or cleans up) leaves the editor running the list
 it ran: names, definitions, block types, grammar, the undo stacks, each plugin attached once.
-Every `setup` and cleanup finds one list whole, and `error` hears each throw once the list is back,
-the failure last. A plugin that threw as it started cost a second read of the document.
+Every `setup` and cleanup finds the names and the document of one list, and `error` hears each
+throw once the list is back, the failure last. A plugin that threw as it started cost a second read of the document.
 `failed-use-restores.test.ts`.
