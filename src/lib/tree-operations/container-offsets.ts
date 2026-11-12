@@ -18,7 +18,7 @@ import { blockFacts } from '../schema/block-facts';
 import { isGridKind, tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { reservedChromeKindOf, rowIsOpenerLine } from '../schema/reserved-chrome';
 import { spanHolding } from '../schema/child-spans';
-import { recordLinesPaired } from '../perf/instruments';
+import { recordLinesLaid, recordLinesPaired } from '../perf/instruments';
 import type { Measured } from './top-level-starts';
 
 export interface LeafPosition {
@@ -54,8 +54,24 @@ export interface DocumentByteMap {
 	/** Where the bytes of the block at `path` before `offset` end. Bytes ending on a line ending end
 	 *  past it, behind a title's closing tag too, where `byteOf` answers past the next line's marker. */
 	endOf(path: readonly number[], offset: number): number | null;
+	/** The offset into the raw of the block at `path` that byte `at` reads as: a byte before or past
+	 *  the block clamps to its nearer end, a byte on a marker around it goes to that line's text. */
+	offsetIn(path: readonly number[], at: number): number;
+	/** Where line `line` of the container at `path` sits in the document's bytes. */
+	lineBytes(path: readonly number[], line: ContainerLine): LineBytes;
 	/** The map `node`'s lines are paired in, kept for the map's life; null for a block read as a leaf. */
 	containerMap(node: NodeView): ContainerMap | null;
+}
+
+/** A container line in the document's bytes. */
+export interface LineBytes {
+	from: number;
+	/** Where the container's marker on the line ends; `from` on a line with none. */
+	markerTo: number;
+	/** Past the line's ending. */
+	to: number;
+	/** The line holds none of the container's children: a line that opens or closes it, a title. */
+	own: boolean;
 }
 
 export interface ContainerLine {
@@ -82,6 +98,16 @@ export function documentByteMap({ doc, starts }: Measured): DocumentByteMap {
 		const inBlock = byteIn(top, path.slice(1), offset, false, mapOf);
 		return inBlock === null ? null : starts.rawStart(path[0]) + inBlock;
 	};
+	const endOf = (path: readonly number[], offset: number): number | null => {
+		let node: NodeView | undefined = tops[path[0]];
+		for (let depth = 1; depth < path.length; depth++) node = node?.children?.[path[depth]];
+		if (!node || !node.raw.endsWith('\n', offset)) return node ? byteOf(path, offset) : null;
+		// The map puts a line ending where its line's text ends, before a title's closing tag.
+		const at = byteOf(path, offset - 1);
+		if (at === null) return null;
+		const base = starts.rawStart(path[0]);
+		return base + tops[path[0]].raw.indexOf('\n', at - base) + 1;
+	};
 	return {
 		leafAt(at) {
 			if (tops.length === 0) return null;
@@ -90,31 +116,51 @@ export function documentByteMap({ doc, starts }: Measured): DocumentByteMap {
 			return leaf && { path: [top, ...leaf.path], offset: leaf.offset };
 		},
 		byteOf,
-		endOf(path, offset) {
-			let node: NodeView | undefined = tops[path[0]];
-			for (let depth = 1; depth < path.length; depth++) node = node?.children?.[path[depth]];
-			if (!node || !node.raw.endsWith('\n', offset)) return node ? byteOf(path, offset) : null;
-			// The map puts a line ending where its line's text ends, before a title's closing tag.
-			const at = byteOf(path, offset - 1);
-			if (at === null) return null;
-			const base = starts.rawStart(path[0]);
-			return base + tops[path[0]].raw.indexOf('\n', at - base) + 1;
+		endOf,
+		offsetIn(path, at) {
+			let node = tops[path[0]];
+			let offset = Math.min(Math.max(at - starts.rawStart(path[0]), 0), node.raw.length);
+			for (let depth = 1; depth < path.length; depth++) {
+				const index = path[depth];
+				const held = mapOf(node).childAt(offset);
+				node = node.children![index];
+				offset = held.index === index ? held.offset : held.index < index ? 0 : node.raw.length;
+			}
+			return offset;
+		},
+		lineBytes(path, line) {
+			recordLinesLaid(1);
+			const to = endOf(path, line.end)!;
+			const markerTo = line.own ? to : byteOf(path, line.markerEnd)!;
+			return { from: byteOf(path, line.start)!, markerTo, to, own: line.own };
 		},
 		containerMap: (node) => (isMapped(node) ? mapOf(node) : null)
 	};
 }
 
-/** A container's lines, offsets into its raw; null for a table row, whose cells share one line. */
+/** Every line of a container, offsets into its raw, paired whole: the lines `ContainerMap.lineAt`
+ *  answers one at a time. Null for a table row, whose cells share one line. */
 export function containerLines(map: ContainerMap): ContainerLine[] | null {
 	const { rawLines, paired } = map;
 	if (!rawLines || !paired) return null;
-	return rawLines.map((line, r) => {
-		const pair = paired[r];
-		const markerEnd = pair
-			? line.start + Math.min(Math.max(pair.at, 0), line.text.length)
-			: line.end;
-		return { start: line.start, markerEnd, end: line.end, own: !pair };
-	});
+	return rawLines.map((line, r) => containerLine(line, paired[r]));
+}
+
+/** Raw line `line` as a container's line, carrying the body line `pair` names, moved by `base`. */
+function containerLine(line: ParsedLine, pair: { at: number } | null, base = 0): ContainerLine {
+	const markerEnd = pair ? line.start + Math.min(Math.max(pair.at, 0), line.text.length) : line.end;
+	return {
+		start: base + line.start,
+		markerEnd: base + markerEnd,
+		end: base + line.end,
+		own: !pair
+	};
+}
+
+/** The line of `pairing` holding `offset`, an offset into its raw text that starts at `base`. */
+function pairedLineAt(pairing: Pairing, offset: number, base = 0): ContainerLine {
+	const r = lineHolding(pairing.rawLines, offset);
+	return containerLine(pairing.rawLines[r], pairing.paired[r], base);
 }
 
 /** Where child `index` of `node` starts its blank lines, in `node`'s raw. */
@@ -209,8 +255,11 @@ export interface ContainerMap {
 	/** Where offset `offset` of child `index`'s raw sits in the container's; a negative offset counts
 	 *  back into the child's blank lines. */
 	rawOf(index: number, offset: number): number;
-	/** The container's raw lines, and the body line and text column each carries; a table row,
-	 *  whose cells share one line, has neither. */
+	/** The line holding `rawOffset` of its raw, or its last, paired alone where its spans say where
+	 *  it sits; a table row, whose cells share one line, has none. */
+	lineAt?(rawOffset: number): ContainerLine;
+	/** The container's raw lines, and the body line and text column each carries, paired whole; a
+	 *  table row has neither. */
 	rawLines?: ParsedLine[];
 	paired?: ({ line: number; at: number } | null)[];
 }
@@ -281,7 +330,12 @@ function lineMap(node: NodeView, titled: boolean): ContainerMap {
 	for (let i = titled ? 1 : 0; i < children.length; i++) add(i);
 	append(node.innerSuffix ?? '');
 	const pairing = pairLines(node.raw, body, (index) => childStarts[index]);
-	return { ...throughBody(children, pairing), rawLines: pairing.rawLines, paired: pairing.paired };
+	return {
+		...throughBody(children, pairing),
+		lineAt: (rawOffset) => pairedLineAt(pairing, rawOffset),
+		rawLines: pairing.rawLines,
+		paired: pairing.paired
+	};
 }
 
 /** Whether a quote's or a table's spans can be asked: one per child. A span that doesn't hold its
@@ -299,10 +353,44 @@ function spannedMap(node: NodeView): ContainerMap {
 	const spans = node.childSpans!;
 	let whole: ContainerMap | undefined;
 	const all = () => (whole ??= lineMap(node, false));
-	const regions = new Map<number, BodyMap | null>();
+	const regions = new Map<number, Pairing | null>();
 	const region = (index: number) => {
 		if (!regions.has(index)) regions.set(index, regionMap(node, index));
 		return regions.get(index)!;
+	};
+	// The lines no span holds, before child `k`: none of a child's text between two children (a
+	// table's delimiter), the container's own blank lines before the first and past the last.
+	const gaps = new Map<number, Pairing>();
+	const gap = (k: number) => {
+		let pairing = gaps.get(k);
+		if (!pairing) {
+			const from = k === 0 ? 0 : spans[k * 2 - 1];
+			const to = k === children.length ? node.raw.length : spans[k * 2];
+			const body =
+				k === 0 ? (node.innerPrefix ?? '') : k === children.length ? (node.innerSuffix ?? '') : '';
+			gaps.set(k, (pairing = pairLines(node.raw.slice(from, to), body, () => 0)));
+		}
+		return pairing;
+	};
+	const lineAt = (rawOffset: number): ContainerLine => {
+		const index = spanHolding(spans, rawOffset);
+		const map = index < 0 ? null : region(index);
+		if (map) return pairedLineAt(map, rawOffset - spans[index * 2], spans[index * 2]);
+		if (index >= 0) return all().lineAt!(rawOffset);
+		// The children before the byte, found by their spans' starts.
+		let k = 0;
+		for (let hi = children.length; k < hi;) {
+			const mid = (k + hi) >> 1;
+			if (spans[mid * 2] <= rawOffset) k = mid + 1;
+			else hi = mid;
+		}
+		const from = k === 0 ? 0 : spans[k * 2 - 1];
+		// Past the last line, where no lines follow the last child, the last line is its own.
+		if (k === children.length && from >= node.raw.length) return lineAt(from - 1);
+		const lines = gap(k);
+		return lines.rawLines.length > 0
+			? pairedLineAt(lines, rawOffset - from, from)
+			: all().lineAt!(rawOffset);
 	};
 	const rawOf = (index: number, offset: number): number => {
 		const child = children[index];
@@ -326,6 +414,7 @@ function spannedMap(node: NodeView): ContainerMap {
 			return { index, offset: Math.max(inner - map.childStart(0), 0) };
 		},
 		rawOf,
+		lineAt,
 		get rawLines() {
 			return all().rawLines;
 		},
@@ -337,7 +426,7 @@ function spannedMap(node: NodeView): ContainerMap {
 
 /** Child `index`'s lines paired against the region its span gives it; null where they don't pair
  *  one for one, a span that doesn't say where the child sits. */
-function regionMap(node: NodeView, index: number): BodyMap | null {
+function regionMap(node: NodeView, index: number): Pairing | null {
 	const child = node.children![index];
 	const spans = node.childSpans!;
 	const region = node.raw.slice(spans[index * 2], spans[index * 2 + 1]);
@@ -346,18 +435,17 @@ function regionMap(node: NodeView, index: number): BodyMap | null {
 	return pairing.oneForOne ? pairing : null;
 }
 
-/** `rawText`'s lines paired in order with `body`'s: each raw line with the body line it carries and
- *  the column that line's text starts at, or with none. */
-function pairLines(
-	rawText: string,
-	body: string,
-	childStart: (index: number) => number
-): BodyMap & {
+/** Raw lines paired in order with a body's: each raw line with the body line it carries and the
+ *  column that line's text starts at, or with none. */
+interface Pairing extends BodyMap {
 	rawLines: ParsedLine[];
 	paired: ({ line: number; at: number } | null)[];
 	/** Every raw line carries the body line of its own index, and every body line is carried. */
 	oneForOne: boolean;
-} {
+}
+
+/** `rawText`'s lines paired in order with `body`'s. */
+function pairLines(rawText: string, body: string, childStart: (index: number) => number): Pairing {
 	const raw = splitLines(rawText);
 	const bodyLines = splitLines(body);
 	const paired: ({ line: number; at: number } | null)[] = [];
@@ -443,8 +531,16 @@ const same = (offset: number) => offset;
 function identityMap(node: NodeView, childStart: (index: number) => number): ContainerMap {
 	let lines: ParsedLine[] | undefined;
 	const rawLines = () => (lines ??= splitLines(node.raw));
+	const { raw } = node;
 	return {
 		...throughBody(node.children ?? [], { childStart, toBody: same, toRaw: same }),
+		lineAt(rawOffset) {
+			// An offset past a last line ending reads as that line, as `lineHolding` reads it.
+			const at = Math.min(rawOffset, raw.endsWith('\n') ? raw.length - 1 : raw.length);
+			const start = at === 0 ? 0 : raw.lastIndexOf('\n', at - 1) + 1;
+			const end = raw.indexOf('\n', at) + 1 || raw.length;
+			return { start, markerEnd: start, end, own: false };
+		},
 		get rawLines() {
 			return rawLines();
 		},
