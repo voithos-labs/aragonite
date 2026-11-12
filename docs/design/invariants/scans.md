@@ -241,7 +241,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.338 | `edit` is emitted in one function, which first hands the link definitions what the write replaced | L |
 | G4.340 | A position read after a write, or a byte splice, measures the blocks the write changed, not the document | harness |
 | G4.342 | A range edit parses and measures the blocks its range reaches, not the document | harness |
-| G4.347 | A byte splice's window holds every block whose wait reaches the change, and asks each block once to find them | harness |
+| G4.347 | A byte splice's window holds every block whose wait reaches the change, and what it asks to find them grows no faster than the run | harness |
 
 ### The entries
 
@@ -702,4 +702,4 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.342 · A range edit costs its range.** The editor's host (`range-edit/host.ts :: rangeHost`) reads the range-edit core's answer through the byte splice's windowed read, so each range route and a copy parse the same bytes and measure as many top-level blocks at 400 as at 40. Given a tree that is the parse of its bytes, each read comes back as a fresh parse gives it (G4.347). Recorded, not held: each serializes the document once, and a removal walks the top-level list three times. `test/perf/range-edit-window-cost.test.ts`, `test/range-edit/answer-read.property.test.ts`.
 
-**G4.347 · A window covers a wait.** Given a tree that is the parse of its bytes, a byte splice reads from the highest block still waiting at the change under a reading no line closes, and on until no block it read waits past it (`schema/block-openers.ts :: waitingAboveThrough`, by the reading's own `notFinal` and `crosses`). A tree wrong outside the window stays so. In a run with no blank line it parses the same bytes at N lines as at 4N and asks each block once. `test/tree-operations/byte-splice.test.ts`, `splice-window-declared-reach.test.ts`, `test/perf/splice-look-cost.test.ts`.
+**G4.347 · A window covers a wait.** Given a tree that is the parse of its bytes, a byte splice reads from the highest block waiting at the change under a reading no line closes, until no block it read waits past it, and at the top level where the wait runs into a container (`schema/block-openers.ts :: waitingAboveThrough`). A tree wrong outside the window stays so. In a run with no blank line it parses the same bytes at N lines as at 4N, and its asks grow as the run does. `test/tree-operations/byte-splice.test.ts`, `splice-window-declared-reach.test.ts`, `test/perf/splice-look-cost.test.ts`.
