@@ -66,7 +66,11 @@ function landedAt(
 	seen: { blocks?: Doc }
 ): Edit {
 	const { plain, held } = pasted;
-	const lf = pasted.text.replace(/\r\n?/g, '\n');
+	// Every container around the place writes its body by its own rule, pasted lines included.
+	const around =
+		held.holds === 'text' ? leafHolding(doc, from, to)?.leaf.path.slice(0, -1) : held.parent;
+	const text = pasted.text.replace(/\r\n?/g, '\n');
+	const lf = around?.length ? doc.host.inBodies(doc.tree, around, text) : text;
 	// Nothing pasted at a caret changes nothing: a place between blocks would write its markers.
 	if (lf === '' && from === to) return { source: doc.source, caret: from };
 	// Where the clipboard lands as blocks it is read once, after the transforms: a landing as text

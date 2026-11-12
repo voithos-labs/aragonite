@@ -22,12 +22,7 @@ import {
 	type PasteContext
 } from '../../selection/cross-block/range-paste';
 import { findSurfacePathForElement } from '../../selection/path-lookup';
-import {
-	placeAfterBlock,
-	placeBelow,
-	placeOfGap,
-	type PastePlace
-} from '../../selection/range-bytes';
+import { placeAfterBlock, placeOfGap, type PastePlace } from '../../selection/range-bytes';
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import { isWholeBlockInputProxy } from '../../selection/whole-block-input';
 import type { SurfacePaste } from '../blocks/editable/surface-clipboard';
@@ -37,9 +32,12 @@ export interface RootPasteDeps {
 	/** A getter, never a value: the root binds after construction. */
 	get editorEl(): HTMLElement | undefined;
 	selection: Pick<SelectionState, 'ownsRange' | 'gapCaret' | 'widget'>;
+	/** What the paste reads and commits through; its controller is the editor's own. */
 	context: PasteContext;
 	/** Pastes over the range the editor holds (`CrossBlockHandlers.pasteOverRange`). */
 	pasteOverRange(clip: Clip): Promise<boolean>;
+	/** Makes an empty top-level paragraph at `boundary`. */
+	insertParagraph(boundary: number, text: string): Promise<boolean>;
 	getBlockComponent(path: number[]): BlockComponent | null;
 	getBlockElByPath: BlockElLookup;
 	/** Whether the paste event arriving now came of the plain-paste chord. */
@@ -161,6 +159,20 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 		};
 	}
 
+	/** The paste into a paragraph opened under top-level block `top`, both one undo entry: the
+	 *  clipboard lands there as on any empty line, so a list beside a list of its type joins it. */
+	async function below(top: number, clip: Clip): Promise<boolean> {
+		const madeFor = deps.stamps.current();
+		const opened = docPathFrom([top + 1]);
+		let landed = false;
+		await ctx.controller.undoStep({ path: docPathFrom([top]), offset: 0 }, async () => {
+			if (!(await deps.insertParagraph(top + 1, '')) || !madeFor.live) return;
+			const at = { path: opened, start: 0, end: 0 };
+			landed = await pasteInBlock(ctx, at, clip, { path: opened, offset: 0 });
+		});
+		return landed && madeFor.live;
+	}
+
 	/** The paste over the bytes `answer` names, once the block's view is ready for the write. */
 	async function intoBlock(
 		path: number[],
@@ -185,13 +197,19 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 		}
 	}
 
-	/** Images go to the host's import first, and what it answers is pasted as Markdown where the
-	 *  paste was aimed as the event arrived. */
+	/** Images go to the host's import first, and what it answers is pasted as Markdown: over a
+	 *  range the editor came to hold meanwhile, else where the paste was aimed as the event arrived. */
 	async function pasteRead(aimed: AimedPaste, clip: ClipboardRead): Promise<void> {
 		const images = imageArm.filesOf(clip.files);
 		if (images.length === 0) return void (await aimed(clip));
-		const markdown = await imageArm.run(images);
-		if ((await aimed(scriptedClip(markdown))) || !markdown) return;
+		const madeFor = deps.stamps.current();
+		const markdown = scriptedClip(await imageArm.run(images));
+		const overRange = !!markdown.text && madeFor.live && deps.selection.ownsRange;
+		// The aim is still asked, with nothing, so a block it prepared lets its records go.
+		const landed = overRange
+			? !(await aimed(scriptedClip(''))) && (await deps.pasteOverRange(markdown))
+			: await aimed(markdown);
+		if (landed || !markdown.text) return;
 		// The asset is imported and nothing shows it, which only the host can clean up.
 		emitClipboardError(deps.events, {
 			error: new Error('an imported image had nowhere to land; nothing inserted')
@@ -216,9 +234,7 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 			}
 			const block = blockAt(active);
 			const lands = block?.at === 'block' && !!clip.text && ctx.controller.admitsGesture(null);
-			if (!lands) return Promise.resolve(false);
-			const top = [block.path[0]];
-			return atPlace(() => placeBelow(ctx.bytes, top), top)(clip);
+			return lands ? below(block.path[0], clip) : Promise.resolve(false);
 		},
 		aim() {
 			const holder = holderAt(document.activeElement);

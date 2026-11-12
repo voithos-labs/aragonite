@@ -1,11 +1,11 @@
 # Clipboard: a block pasted at the start of a to-do's text
 
-A to-do's checkbox sits on its first line, so whatever lands at the start of its text is read the way a reload reads that whole line. A block the bare bullet can hold (a heading, a quote) takes the text's place, and the to-do gives its box up. A block the bare bullet can't hold stays the to-do's text instead, the same as typing it there would.
+A paste puts bytes at the caret and takes nothing the user didn't select, so a to-do keeps its checkbox whatever lands at the start of its text. The pasted line is read the way a reload reads the to-do's whole line, which is as text beside the box, the same as typing it there.
 
 ## Happy paths
 
 - `- [ ] bc`, caret before `b`, paste `---`: the source is `- [ ] ---\n  bc\n`, still a to-do, and a reload reads the same tree. (`- ---` on its own line is a divider, which would end the list.)
-- `- [ ] bc`, caret before `b`, paste `# h`: the source is `- # h\n  bc\n`, a plain item holding a heading, and a reload agrees.
+- `- [ ] bc`, caret before `b`, paste `# h`: the source is `- [ ] # hbc\n`, still a to-do with its box, the `# h` text beside it, and a reload agrees.
 
 ## Miss-analysis
 

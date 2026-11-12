@@ -47,9 +47,18 @@ describe('a caret in a block', () => {
 		});
 	});
 
-	it('a range is its bytes, whatever its ends stand on', () => {
-		expect(placeInBlock(bytesOf('> # Hi\n'), [0, 0], 0, 4, true)).toEqual({
+	it('a range is its bytes in source mode, whatever its ends stand on', () => {
+		expect(placeInBlock(bytesOf('> # Hi\n'), [0, 0], 0, 4, false)).toEqual({
 			range: { from: 2, to: 6 },
+			holds: 'text'
+		});
+	});
+
+	// Miss-analysis: a range from a heading's hidden marker was handed over as its raw bytes, and
+	// the core read a paste over the heading's whole text as one across blocks.
+	it('a live range’s ends on hidden syntax stand at the text’s edges', () => {
+		expect(placeInBlock(bytesOf('> # Hi #\n'), [0, 0], 0, 6, true)).toEqual({
+			range: { from: 4, to: 6 },
 			holds: 'text'
 		});
 	});

@@ -73,7 +73,9 @@ function parts(input: PasteCase, row: PasteRow, took: string): string | null {
 		return `${row.verdict}: ${JSON.stringify(row.today)} for ${JSON.stringify(row.core)}`;
 	if (!pinnedApart && row.coreLeaf && took !== 'leaf')
 		return `text in one block took ${took || 'no commit'}, not the block's own write`;
-	if (!pinnedApart && row.coreLeaf === false && took.includes('leaf'))
+	// Across blocks the editor removes, then pastes where it holds the caret: text there is a leaf's.
+	const acrossBlocks = row.tags?.place === 'range across blocks';
+	if (!pinnedApart && !acrossBlocks && row.coreLeaf === false && took.includes('leaf'))
 		return `a landing the core names no block for took ${took}`;
 	return row.undone === false ? 'one undo did not give the bytes back' : null;
 }

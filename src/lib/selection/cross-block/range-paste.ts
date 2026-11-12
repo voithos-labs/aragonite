@@ -21,11 +21,13 @@ import { getPasteSurface, type ClipPasteInput } from '../../tree-operations/past
 import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 import type { CaretLanding } from '../caret-landing';
-import { placeInBlock, type PastePlace } from '../range-bytes';
+import { placeInBlock, pointAtByte, type PastePlace } from '../range-bytes';
+import type { SelectionState } from '../selection-state.svelte';
 import { commitBytes, hostOf, modeOf, type CommitContext } from './range-removal';
 
 export type PasteContext = CommitContext & {
 	getDoc: DocumentGetter;
+	selection: Pick<SelectionState, 'collapse'>;
 	/** The plugins this editor activated, whose paste transforms run where a paste lands as blocks. */
 	activePlugins: PluginActivation;
 	pasteCoordinator: PasteCommitCoordinator;
@@ -91,7 +93,7 @@ export async function answeredAhead(
 
 /** Pastes `clip` at `place` in one commit, whose undo puts the caret back at `undo`. False where
  *  the paste changed nothing or the commit refused it. */
-export function pasteThroughCore(
+export async function pasteThroughCore(
 	ctx: PasteContext,
 	place: PastePlace,
 	clip: Clip,
@@ -107,7 +109,11 @@ export function pasteThroughCore(
 	const { range, ...held } = place;
 	const gesture = { paste: clip.text, plain: clip.plain, own: clip.own, ...held };
 	const answer = editRange(source, range, gesture, modeOf(ctx), host);
-	if (answer.source === source) return Promise.resolve(false);
+	if (answer.source === source) {
+		// A range pasted over with its own bytes is written nowhere, and still ends where they end.
+		if (range.from !== range.to) await endRangeAt(ctx, answer.caret.at);
+		return false;
+	}
 	if (answer.leaf) return writeLeaf(ctx, answer.leaf, undo);
 	// A block pasted at the document's end lands on its last line, whose line break stays under it.
 	const ending = ownTrailingLineEnding(source);
@@ -117,6 +123,13 @@ export function pasteThroughCore(
 		op: { kind: 'paste', detail: { count: answer.blocks ?? 0 } },
 		snapshot: undo
 	});
+}
+
+/** The selection ended as a caret at byte `at`, with nothing written. */
+async function endRangeAt(ctx: PasteContext, at: number): Promise<void> {
+	const point = pointAtByte(ctx.bytes.measured(), at);
+	ctx.selection.collapse();
+	if (point) await ctx.caretLanding.restore({ anchor: point, focus: point });
 }
 
 /** `host` with the paste's own write of a block's text spent as an insertion: only the core knows

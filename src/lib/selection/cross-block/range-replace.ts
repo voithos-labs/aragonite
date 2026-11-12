@@ -9,7 +9,7 @@
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
-import { documentLineEnding } from '../../core/lines';
+import { documentLineEnding, firstLineEnding } from '../../core/lines';
 import { CURSOR_END } from '../../block-component';
 import type { HeldLanding } from '../../action-contracts';
 import type { CrossBlockDispatchContext } from './dispatch';
@@ -29,7 +29,8 @@ import {
 	type Removed
 } from './range-removal';
 import { answeredAhead, pasteInBlock, pasteThroughCore, type Clip } from './range-paste';
-import { placeOverRange } from '../range-bytes';
+import { placeInBlock, placeOfGap, placeOverRange, type PastePlace } from '../range-bytes';
+import { hidesDelimitersAtCaret } from '../../presentation-mode';
 import { parseReplacement } from '../../tree-operations/paste/replacement-parse';
 import { slotReaderAt } from '../../tree-operations/list/task-paragraph';
 import { dispatchKeyCommand } from '../../schema/block-commands';
@@ -469,9 +470,42 @@ async function pasteOver(
 		const within = { path: start.path, start: start.offset, end: end.offset };
 		return (await pasteInBlock(ctx, within, clip, undo)) ? 'written' : 'refused';
 	}
-	const place = placeOverRange(ctx.bytes, coverage);
-	if (!place) return 'nothing';
-	return (await pasteThroughCore(ctx, place, clip, undo)) ? 'written' : 'refused';
+	// One block held whole gives its line to the paste, in one answer of the core.
+	if (pathsEqual(start.path, end.path) || grid) {
+		const place = placeOverRange(ctx.bytes, coverage);
+		if (!place) return 'nothing';
+		return (await pasteThroughCore(ctx, place, clip, undo)) ? 'written' : 'refused';
+	}
+	// Read before the removal, which may take every line ending the document has.
+	const ending = firstLineEnding(ctx.bytes.source()) ?? undefined;
+	const [removed, removalCaret] = await ctx.controller.holdLandings(() =>
+		removeThroughCore(ctx, coverage, 'type')
+	);
+	if (!removed.wrote && !removed.caret) return 'nothing';
+	const at = placeAfterRemoval(ctx, removed);
+	const place = at && { ...at, ending };
+	// The paste's own commit names a block of the document the removal left.
+	const left = removed.caret ?? { path: [0], offset: 0 };
+	const after = deleteSnapshot(left.path, left.offset);
+	const wrote = !!place && (await pasteThroughCore(ctx, place, clip, after));
+	if (!wrote) await (removalCaret ?? (removed.caret && caretAt(ctx, removed.caret)))?.place();
+	return 'written';
+}
+
+/** Where a paste goes once the range is gone: the boundary the editor holds the removal's caret
+ *  at, else the caret's text, else the place the core named for a caret on a block. */
+function placeAfterRemoval(ctx: CrossBlockMutationContext, removed: Removed): PastePlace | null {
+	const slot = emptiedPlace(ctx.bytes.measured(), removed);
+	if (slot) return placeOfGap(ctx.bytes, { parentPath: slot.slice(0, -1), index: slot.at(-1)! });
+	const { landed, caret } = removed;
+	if (landed && landed.holds !== 'text') {
+		const { at, ...held } = landed;
+		return { range: { from: at, to: at }, ...held };
+	}
+	if (!caret) return null;
+	const at = charOffsetOf(caret, 'range-replace:paste');
+	const live = hidesDelimitersAtCaret(ctx.reading.mode());
+	return placeInBlock(ctx.bytes, caret.path, at, at, live);
 }
 
 /** At the caret the removal left, never over stale block indices: a table's endpoint caret is a

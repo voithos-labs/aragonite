@@ -40,7 +40,10 @@ function harness(options: HarnessOptions = {}) {
 	const doc = parse(SOURCE);
 	const commits: SourceSplice[] = [];
 	const ranged: string[] = [];
+	const opened: number[] = [];
+	const steps: number[][] = [];
 	const leafWrites: { path: number[]; raw: string }[] = [];
+	const restored: { path: number[]; offset: number }[] = [];
 	const events = createEditorEvents();
 	const errors: EditorError[] = [];
 	events.on('error', (e) => errors.push(e));
@@ -68,9 +71,14 @@ function harness(options: HarnessOptions = {}) {
 			reading: fixtureReading(),
 			controller: {
 				admitsGesture: () => !options.refuses,
+				undoStep: async (seed: { path: readonly number[] }, run: () => Promise<unknown>) => {
+					steps.push([...seed.path]);
+					await run();
+				},
 				flushDebouncedCheckpoint: () => {},
 				commitSource: async (splice: SourceSplice) => (commits.push(splice), true)
 			},
+			selection,
 			getDoc: () => doc,
 			activePlugins: everyInstalledPlugin,
 			pasteCoordinator: {
@@ -79,9 +87,15 @@ function harness(options: HarnessOptions = {}) {
 					return Object.assign(Promise.resolve(true), { admitted: true, keepsCaret: false, caret });
 				}
 			},
-			caretLanding: { restore: async () => 'applied' }
+			caretLanding: {
+				restore: async (to: { anchor: { path: number[]; offset: number } }) => {
+					restored.push({ path: [...to.anchor.path], offset: to.anchor.offset });
+					return 'applied';
+				}
+			}
 		} as never,
 		pasteOverRange: async (clip) => (ranged.push(clip.text), true),
+		insertParagraph: async (boundary) => (opened.push(boundary), false),
 		getBlockComponent: (path) => (blocks.get(path.join()) as BlockComponent) ?? null,
 		getBlockElByPath: (path) => els.get(path.join()) ?? null,
 		plainPaste: () => options.plain ?? false,
@@ -124,8 +138,11 @@ function harness(options: HarnessOptions = {}) {
 		block,
 		fire,
 		ranged,
+		opened,
+		steps,
 		commits,
 		leafWrites,
+		restored,
 		written,
 		errors
 	};
@@ -247,6 +264,18 @@ describe('where a paste is aimed', () => {
 		await vi.waitFor(() => expect(h.written()).toEqual(['hone\n\ntwoo\n\n---\n\nworld\n']));
 	});
 
+	// Miss-analysis: every paste over a selection changed its bytes, so none saw a copy pasted over
+	// itself, which writes nothing and has no commit to end the selection.
+	it('ends a selection pasted over with its own bytes as a caret after them', async () => {
+		const h = harness();
+		const el = h.block([0], { preparePaste: answers(1, 4) });
+
+		h.fire(el, { text: 'ell' });
+		await vi.waitFor(() => expect(h.restored).toEqual([{ path: [0], offset: 4 }]));
+		expect(h.commits).toEqual([]);
+		expect(h.leafWrites).toEqual([]);
+	});
+
 	it('asks nothing of a block the editor may not write to', () => {
 		const h = harness({ refuses: true });
 		const preparePaste = answers(0);
@@ -282,14 +311,17 @@ describe('where a paste is aimed', () => {
 		expect(h.commits).toEqual([]);
 	});
 
-	it('`below` lands under the top-level block holding the caret', async () => {
+	it('`below` opens a paragraph under the top-level block holding the caret, in one undo step', async () => {
 		const h = harness();
-		const el = h.block([0], { preparePaste: answers(2) });
+		const el = h.block([2, 0], { preparePaste: answers(2) });
 		el.tabIndex = 0;
 		el.focus();
 
-		expect(await h.paste.paste({ text: '- item', plain: false }, { below: true })).toBe(true);
-		expect(h.written()).toEqual(['hello\n\n- item\n\n---\n\nworld\n']);
+		// The harness opens none, so nothing is pasted: the paste goes nowhere else.
+		expect(await h.paste.paste({ text: '- item', plain: false }, { below: true })).toBe(false);
+		expect(h.opened).toEqual([3]);
+		expect(h.steps).toEqual([[2]]);
+		expect(h.commits).toEqual([]);
 	});
 
 	it('refuses a paste made for a document a swap replaced', async () => {
@@ -314,6 +346,21 @@ describe('a paste carrying images', () => {
 		expect(h.fire(document.body, { text: '', files: [pngFile()] }).taken).toBe(true);
 		await vi.waitFor(() => expect(h.ranged).toEqual(['![[shot.png]]']));
 		expect(imported).toEqual(['shot.png']);
+	});
+
+	it('replaces a range the editor came to hold while the import ran', async () => {
+		let answer: (markdown: string) => void = () => {};
+		const h = harness({ onPasteImage: () => new Promise((resolve) => (answer = resolve)) });
+		const finish = vi.fn();
+		const el = h.block([0], { preparePaste: () => ({ start: 0, end: 0, finish }) as never });
+
+		h.fire(el, { text: '', files: [pngFile()] });
+		h.selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [2], offset: 5 });
+		answer('![[shot.png]]');
+
+		await vi.waitFor(() => expect(h.ranged).toEqual(['![[shot.png]]']));
+		expect(finish).toHaveBeenCalledWith(true);
+		expect(h.leafWrites).toEqual([]);
 	});
 
 	it('asks the block where before the import waits', () => {

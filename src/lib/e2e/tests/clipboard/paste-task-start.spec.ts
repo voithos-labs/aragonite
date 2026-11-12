@@ -25,14 +25,15 @@ test.describe('a block pasted at the start of a to-do’s text', () => {
 		expect(await editor.parseConverged()).toBe(true);
 	});
 
-	test('a heading takes the text’s place and the to-do gives its box up', async () => {
+	test('a heading goes in as text beside the box, which stays', async ({ page }) => {
 		await editor.loadContent('- [ ] bc\n');
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.seedClipboard('# h');
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('# h');
 
-		expect(asLf(await editor.bridge.getSource())).toBe('- # h\n  bc\n');
+		expect(asLf(await editor.bridge.getSource())).toBe('- [ ] # hbc\n');
+		await expect(page.locator('.task-checkbox')).toHaveCount(1);
 		expect(await editor.parseConverged()).toBe(true);
 	});
 });

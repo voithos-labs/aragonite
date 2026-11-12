@@ -15,7 +15,7 @@ An HTML block can change what it reads as without changing kind, and when it doe
 ## Edge cases
 
 - inside a list item, `- a\n\n  <!-- x -->\n\n  b\n`, a click into the comment, End, Backspace: the source is `- a\n\n  <!-- x --\n\n  b\n`, and a reload reads the same tree.
-- a paste: `<div>\n\nfoo\n`, `div` selected, `pre` pasted over it: the source is `<pre>\n\nfoo\n`, one HTML block, and the reload agrees. An HTML block has no paste handling of its own, so the paste reports falling through to the default (the `paste-dispatch` dev warning, expected here).
+- a paste: `<div>\n\nfoo\n`, `div` selected, `pre` pasted over it: the source is `<pre>\n\nfoo\n`, one HTML block, and the reload agrees. An HTML block's body is written as it stands, so the paste goes in as the text it is, with no warning.
 
 ## Error cases
 

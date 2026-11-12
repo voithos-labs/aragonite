@@ -7,7 +7,7 @@
 
 import { untrack } from 'svelte';
 import type { DocumentView, NodeView } from '../core/node-views';
-import { displayLength, ownTrailingLineEnding } from '../core/lines';
+import { displayLength, ownTrailingLineEnding, type LineEnding } from '../core/lines';
 import { metadataOf } from '../core/nodes';
 import { docPathFrom, type DocPath } from '../core/coordinate-spaces';
 import { countsCells, isGridKind } from '../schema/block-kind-descriptor';
@@ -236,10 +236,10 @@ export function byteOfGap(
 
 /** Where a paste goes, as the range-edit core takes it: the bytes it replaces, and for a caret what
  *  sits there. Made only by the readers below, so a caret on a block's syntax is never called text. */
-export type PastePlace = { range: Range } & Held;
+export type PastePlace = { range: Range; ending?: LineEnding } & Held;
 
-/** The place of raw offsets `[start, end]` of the text block at `path`. In live mode a caret outside
- *  the block's text stands on syntax no one sees, so it names the boundary beside the block. */
+/** The place of raw offsets `[start, end]` of the text block at `path`. A live caret outside the
+ *  block's text names the boundary beside it; a live range's ends stand at the text's edges. */
 export function placeInBlock(
 	bytes: DocumentBytes,
 	path: readonly number[],
@@ -254,8 +254,10 @@ export function placeInBlock(
 	const cut = from === to ? cutPlaceAt(bytes, from) : null;
 	if (cut) return cut;
 	const text = layout.block(path)?.text;
-	const onSyntax = live && from === to && !!text && (from < text.from || from > text.to);
-	if (!onSyntax) return { range: { from, to }, holds: 'text' };
+	if (!live || !text) return { range: { from, to }, holds: 'text' };
+	const inText = (at: number) => Math.min(Math.max(at, text.from), text.to);
+	if (from !== to) return { range: { from: inText(from), to: inText(to) }, holds: 'text' };
+	if (from === inText(from)) return { range: { from, to }, holds: 'text' };
 	return from < text.from ? placeBeside(bytes, path, 0) : placeBeside(bytes, path, 1);
 }
 
@@ -280,12 +282,8 @@ export function placeAfterBlock(bytes: DocumentBytes, path: readonly number[]): 
 	if (block && cut?.of === bytes.measured() && cut.caret.holds === 'block')
 		if (cut.caret.at === block.from)
 			return { range: { from: block.from, to: block.from }, ...cut.caret };
-	return placeBelow(bytes, path);
+	return placeBeside(bytes, path, 1);
 }
-
-/** The boundary under the block at `path`, whatever the caret last did there. */
-export const placeBelow = (bytes: DocumentBytes, path: readonly number[]): PastePlace | null =>
-	placeBeside(bytes, path, 1);
 
 /** The place a caret at byte `at` names where the last cut left its caret there: the core's own
  *  caret for that cut, so its entry fits. Null for any other byte, or once the document moved on. */

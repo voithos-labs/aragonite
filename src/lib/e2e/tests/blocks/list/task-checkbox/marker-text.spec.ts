@@ -123,9 +123,7 @@ test.describe('task checkbox: the text after the marker', () => {
 		expect(await editor.parseConverged()).toBe(true);
 	});
 
-	test('a heading pasted at the start of `- [ ] bc` stays the heading the clipboard held', async ({
-		page
-	}) => {
+	test('a heading pasted at the start of `- [ ] bc` is text beside the box', async ({ page }) => {
 		await editor.loadContent('- [ ] bc\n');
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.seedClipboard('# x');
@@ -133,8 +131,9 @@ test.describe('task checkbox: the text after the marker', () => {
 		await editor.paste();
 
 		await editor.bridge.waitForSourceContains('# x');
-		expect(await editor.bridge.getSource()).toBe('- # x\n  bc\n');
-		await expect(page.locator('.heading-1')).toHaveCount(1);
+		expect(await editor.bridge.getSource()).toBe('- [ ] # xbc\n');
+		await expect(page.locator('.task-checkbox')).toHaveCount(1);
+		await expect(page.locator('.heading-1')).toHaveCount(0);
 		expect(await editor.parseConverged()).toBe(true);
 	});
 

@@ -65,8 +65,7 @@ test.describe('clipboard: cross-container round-trip', () => {
 	});
 });
 
-// A cut then a paste at the caret it left gives the document back; until the paste joins its
-// first and last blocks to the text around the caret, each row is expected to fail.
+// A cut then a paste at the caret it left gives the document back.
 const CUT_AND_PASTE_BACK: {
 	name: string;
 	doc: string;
@@ -97,7 +96,6 @@ const CUT_AND_PASTE_BACK: {
 test.describe('clipboard: a cut pasted back in place', () => {
 	for (const row of CUT_AND_PASTE_BACK) {
 		test(`#818 ${row.name}: cut then paste gives the document back`, async ({ page }) => {
-			test.fail();
 			const editor = new EditorPage(page);
 			await editor.goto('?presentationMode=live');
 			await editor.loadContent(row.doc);

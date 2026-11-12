@@ -26,12 +26,12 @@ function undoStack(editor: MountedEditor): UndoEntry[] {
 	).__test.getUndoStack().undo;
 }
 
-/** A draft's replacement, then its insert at the caret: two writes, one entry. */
+/** An insert below the focused block: a new paragraph, then the paste into it, one entry. */
 async function writeTwiceWhile(editor: MountedEditor, meanwhile: () => void): Promise<void> {
 	placeCaret(surfaceAt(editor, [0]), 3);
-	const writing = editor.instance.edit().replace({ from: 0, to: 1 }, 'O').insert('x').commit();
+	const inserting = editor.instance.insertMarkdown('x', { placement: 'below' });
 	meanwhile();
-	await writing;
+	await inserting;
 	await editor.settle();
 }
 
@@ -46,7 +46,7 @@ describe('the author-input end of an open undo entry', () => {
 
 		await writeTwiceWhile(first, () => keydownOn(surfaceAt(second, [0])));
 
-		expect(first.source()).toBe('Onex\n');
+		expect(first.source()).toBe('one\n\nx\n');
 		expect(undoStack(first)).toHaveLength(1);
 	});
 
@@ -55,7 +55,7 @@ describe('the author-input end of an open undo entry', () => {
 
 		await writeTwiceWhile(first, () => keydownOn(surfaceAt(first, [0])));
 
-		expect(first.source()).toBe('Onex\n');
+		expect(first.source()).toBe('one\n\nx\n');
 		expect(undoStack(first)).toHaveLength(2);
 	});
 });

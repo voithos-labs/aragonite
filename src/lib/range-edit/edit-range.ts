@@ -6,7 +6,7 @@
  */
 
 import { getContentRange, structuralSuffix } from '../core/inline';
-import { isBlankText } from '../core/lines';
+import { isBlankText, type LineEnding } from '../core/lines';
 import type { Mode, PasteHost, RangeHost } from './host';
 import { copyOf } from './copy';
 import {
@@ -52,9 +52,9 @@ export type RemovalGesture =
 export type Gesture =
 	| 'copy'
 	| RemovalGesture
-	/** Clipboard text with LF line endings, the editor's own entry while the clipboard still holds
-	 *  it, and what the caret holds: anywhere but in text the clipboard lands as blocks of its own. */
-	| ({ paste: string; plain: boolean; own?: string } & Held)
+	/** Clipboard text with LF line endings, the editor's own entry, what the caret holds (anywhere
+	 *  but in text the clipboard lands as blocks), and the line ending a removal before it took. */
+	| ({ paste: string; plain: boolean; own?: string; ending?: LineEnding } & Held)
 	/** The range dragged and dropped at byte `drop`: moved, or copied. */
 	| { drop: number; copy: boolean };
 
@@ -81,7 +81,9 @@ export function editRange(
 	mode: Mode,
 	host: PasteHost
 ): RangeEditResult {
-	const doc = readDoc(source, host, mode);
+	const asRead = readDoc(source, host, mode);
+	const carried = typeof gesture === 'object' && 'paste' in gesture ? gesture.ending : undefined;
+	const doc = carried ? { ...asRead, ending: carried } : asRead;
 	const { from, to } = range;
 	// What the gesture leaves is read with the line ending its source started with.
 	const read = (edit: Edit) => ({ ...readDoc(edit.source, host, mode), ending: doc.ending });

@@ -24,7 +24,7 @@ import {
 	type LeafRangeEdit
 } from '../tree-operations/leaf-range';
 import { splitHalves } from '../tree-operations/node-ops';
-import { blockNodeAt } from '../tree-operations/node-primitives';
+import { blockNodeAt, normalizeBodyWrite } from '../tree-operations/node-primitives';
 import { cutKeepingStructure } from '../tree-operations/structural-suffix';
 import { escapeMarkdownLiteral } from '../tree-operations/paste/markdown-literal';
 import { storedAsAt, storedAsIn, writeTargetAt } from '../tree-operations/stored-as';
@@ -132,6 +132,9 @@ export interface RangeHost {
 	/** `text` escaped so a block that reads Markdown shows every character of it: Paste as plain
 	 *  text. A block whose text is literal takes the text as written, which the core checks. */
 	escaped(text: string): string;
+	/** `text` as the body of each container from the block at `path` up takes it: a line that would
+	 *  close one of them comes in escaped. */
+	inBodies(doc: DocumentView, path: readonly number[], text: string): string;
 	/** The fence a block's bytes open, by the openers of the editor's grammar; null for none. */
 	fence(raw: string): Fence | null;
 }
@@ -345,6 +348,14 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 			}
 		},
 		escaped: escapeMarkdownLiteral,
+		inBodies(doc, path, text) {
+			const ending = documentLineEnding(doc);
+			return path.reduceRight(
+				(out, _, depth) =>
+					normalizeBodyWrite(blockNodeAt(doc, path.slice(0, depth + 1)) ?? undefined, out, ending),
+				text
+			);
+		},
 		fence(raw) {
 			const body = raw.indexOf('\n') + 1;
 			if (body === 0) return null;

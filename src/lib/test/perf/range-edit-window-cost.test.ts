@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // G4.342: a range edit reads the blocks its range reaches, never the document. It parses the same
 // bytes and measures the same top-level blocks at 400 blocks as at 40. One cost is recorded, not
-// held yet: each route serializes the document once, and a fix that stops it reds that row. A
+// held yet: each commit of a route serializes the document once, and a fix that stops it reds that row. A
 // removal also walks the tree's top-level list three times and no more, counted with dev checks off.
 // Miss-analysis: the splice cost rows drove `commitSource` alone and the gate timed no range
 // edit, so nothing counted what the range-edit core reads to make its answer.
@@ -120,8 +120,12 @@ describe('G4.342 a range edit reads the blocks its range reaches', () => {
 });
 
 describe('G4.342 recorded: a range edit serializes the document', () => {
-	it.each([...RANGE_EDITS, COPY])('$name, once', async (gesture) => {
-		expect((await growthOf(gesture)).serializes).toEqual([1, 1]);
+	// A paste over a range across blocks is two commits, the removal's and then the paste's.
+	const commitsOf = (gesture: RangeGesture) => (gesture.name.startsWith('a paste over') ? 2 : 1);
+
+	it.each([...RANGE_EDITS, COPY])('$name, once a commit', async (gesture) => {
+		const each = commitsOf(gesture);
+		expect((await growthOf(gesture)).serializes).toEqual([each, each]);
 	});
 });
 
