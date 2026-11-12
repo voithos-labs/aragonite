@@ -51,9 +51,7 @@ function readDefinition(
 	// end means there is no definition; a title that fails on a later line leaves it untitled.
 	let lastOffset = -1;
 	let title: string | undefined;
-	// A next line that opens no title is never joined, so each of a run of definitions reads alone.
-	const alone = atLineEnd(window.text, destination.end) && !window.nextOpensTitle();
-	const titleStart = alone ? destination.end : skipSeparator(window, destination.end);
+	const titleStart = skipSeparator(window, destination.end);
 	if (titleStart > destination.end) {
 		const titleEnd = readSpan(window, titleStart, readTitle);
 		if (titleEnd >= 0 && atLineEnd(window.text, titleEnd)) {
@@ -122,13 +120,6 @@ class DefinitionWindow {
 		this.lineEnds.push(this.text.length);
 		this.next++;
 		return true;
-	}
-
-	/** Whether the next line, past its indent, opens a title; a read past the last line ran out. */
-	nextOpensTitle(): boolean {
-		if (this.next < this.endIndex) return /^[ \t]*["'(]/.test(this.lines[this.next].text);
-		this.ranOut = true;
-		return false;
 	}
 
 	/** The index into `lines` of the joined line holding `offset`. */
