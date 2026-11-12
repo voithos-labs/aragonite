@@ -136,10 +136,9 @@ function backingOut(name: string, fence: string, closer: UnfinishedReading['clos
 		const [opener, ...rest] = raw.split('\n');
 		return opener === fence && !rest.includes(fence);
 	};
-	const asks = { notFinal: awaitsCloser, mayClose: (line: string) => line === fence };
 	const reading: UnfinishedReading = closer
-		? { ...asks, closer }
-		: { ...asks, closer: null, crosses: () => true };
+		? { notFinal: awaitsCloser, mayClose: (line: string) => line === fence, closer }
+		: { notFinal: awaitsCloser, closer: null };
 	return testLeaf(name, (kind) => ({
 		conformanceFixture: `${fence}\nx\n${fence}\n`,
 		opener: {
@@ -189,7 +188,11 @@ describe('kind conformance: a backing-out kind names its closer', () => {
 
 /** A `%%name` line that takes a `<<` to `>>` body from the lines under it and stands alone where
  *  the body never closes, so its reading names no closing line and says what its wait crosses. */
-function bodyTaker(name: string, crosses: (line: string) => boolean, takes = crosses) {
+function bodyTaker(
+	name: string,
+	crosses: ((line: string) => boolean) | undefined,
+	takes: (line: string) => boolean = crosses ?? (() => true)
+) {
 	const opens = (line: string) => line.startsWith(`%%${name}`);
 	const bodyEnd = (lines: readonly string[]): number | 'open' | 'none' => {
 		if (lines.length === 1) return 'open';
@@ -210,7 +213,6 @@ function bodyTaker(name: string, crosses: (line: string) => boolean, takes = cro
 					const lines = raw.replace(/\n$/, '').split('\n');
 					return opens(lines[0]) && bodyEnd(lines) === 'open';
 				},
-				mayClose: () => false,
 				closer: null,
 				crosses
 			},
@@ -245,11 +247,9 @@ describe('kind conformance: a kind no line closes says what its wait crosses', (
 		await expect(runKindConformance(refuses)).rejects.toThrow(/crosses refuses "text"/);
 	});
 
-	// Miss-analysis: both rows above declare `crosses`, so the message a reading written without
-	// types meets when it leaves `crosses` out could go and a bare TypeError take its place.
-	it('fails a reading that leaves `crosses` out, and says so', async () => {
-		const untyped = bodyTaker('untyped', undefined as never, () => true);
-		await expect(runKindConformance(untyped)).rejects.toThrow(/declares no crosses/);
+	it('asserts a reading that leaves `crosses` out, whose wait runs to the blank line', async () => {
+		const report = await runKindConformance(bodyTaker('bare', undefined));
+		expect(statusOf(report, 'unfinishedReading')).toBe('asserted');
 	});
 });
 

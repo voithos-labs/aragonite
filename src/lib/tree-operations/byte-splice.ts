@@ -10,6 +10,7 @@
 import type { CstNode } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import {
+	closed,
 	unfinishedReadings,
 	waitRunsTo,
 	waitingAboveClosedBy,
@@ -214,8 +215,8 @@ function readAgain(
 	/** The first block below `hi` with a line that may close one `read` leaves waiting, or -1. */
 	function closerBelow(read: readonly CstNode[], hi: number): number {
 		// A wait no line closes was read on above, as far as it runs.
-		const waiting = readings.filter(
-			(reading) => reading.closer !== null && read.some((block) => reading.notFinal(block.raw))
+		const waiting = closed(readings).filter((reading) =>
+			read.some((block) => reading.notFinal(block.raw))
 		);
 		if (waiting.length === 0) return -1;
 		const closes = (line: { text: string }) => waiting.some((r) => r.mayClose(line.text));

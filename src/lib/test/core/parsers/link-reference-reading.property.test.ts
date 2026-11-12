@@ -122,6 +122,6 @@ describe.each([
 		installPlugins([...plugins]);
 		const blocks = parse(`[a]: /u\n"t\n${line}\nend"\n`).children;
 		const oneDefinition = blocks.length === 1 && blocks[0].kind === 'linkReferenceDefinition';
-		expect(definitionReading().crosses(line)).toBe(oneDefinition);
+		expect(definitionReading().crosses!(line)).toBe(oneDefinition);
 	});
 });

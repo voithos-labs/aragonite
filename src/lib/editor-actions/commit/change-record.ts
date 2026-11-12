@@ -96,7 +96,9 @@ export function pairsStay(before: string, after: string, grammar: GrammarView): 
 	const pairing = (text: string) =>
 		splitLines(text)
 			.map((line) => line.text)
-			.filter((line) => readings.some((r) => r.mayClose(line) || r.notFinal(line + '\n')));
+			.filter((line) =>
+				readings.some((r) => (r.closer !== null && r.mayClose(line)) || r.notFinal(line + '\n'))
+			);
 	const [was, now] = [pairing(before), pairing(after)];
 	return was.length === now.length && was.every((line, i) => line === now[i]);
 }

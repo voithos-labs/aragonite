@@ -142,7 +142,6 @@ export const BUILT_IN_OPENERS = {
 		// A definition ends at a blank line, so no line past one finishes it.
 		readingNotFinal: {
 			notFinal: definitionReadingNotFinal,
-			mayClose: () => false,
 			closer: null,
 			crosses: definitionCrosses
 		}

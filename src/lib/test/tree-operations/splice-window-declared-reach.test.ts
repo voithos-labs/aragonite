@@ -43,7 +43,6 @@ const tagged: BlockOpener = {
 			const lines = raw.replace(/\r?\n$/, '').split(/\r?\n/);
 			return OPENS.test(lines[0]) && bodyEnd(lines) === 'open';
 		},
-		mayClose: () => false,
 		closer: null,
 		crosses: (line) => !line.startsWith('!!')
 	},
@@ -130,8 +129,8 @@ describe('a window under a reading that declares what its wait crosses', () => {
 		expect(divergence(`${quoted(before)}\nafter\n`, `${quoted(after)}\nafter\n`)).toBeNull();
 	});
 
-	// Miss-analysis: the type requires `crosses`, and nothing held what a reading written without
-	// types, which can leave it out, costs: the widest reading of it, never a throw or a wrong tree.
+	// Miss-analysis: nothing held what a reading that leaves `crosses` out costs: the widest
+	// reading of it, never a throw or a wrong tree.
 	it('waits to the blank line under a reading that leaves `crosses` out', () => {
 		const reading = tagged.readingNotFinal as { crosses?: (line: string) => boolean };
 		const declared = reading.crosses;

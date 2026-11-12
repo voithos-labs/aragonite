@@ -347,7 +347,7 @@ function reachesPast(
 	readings: readonly UnfinishedReading[]
 ): boolean {
 	const opens = (text: string) =>
-		readings.some((reading) => reading.mayClose(text) || reading.notFinal(text + '\n'));
+		readings.some((r) => (r.closer !== null && r.mayClose(text)) || r.notFinal(text + '\n'));
 	return changes.some((change) =>
 		[...writtenLines(before, change), ...takenLines(before, change)].some((line) => {
 			const quoted = line.replace(/^[ \t>]*/, '');

@@ -35,12 +35,14 @@ function lookDown(
 		if (waiting.length === 0) continue;
 		let toEnd = false;
 		const closes = (k: number) =>
-			lines(work.blocks.at(k)).some((line) => waiting.some((r) => r.mayClose(line)));
+			lines(work.blocks.at(k)).some((line) =>
+				waiting.some((r) => r.closer !== null && r.mayClose(line))
+			);
 		let last: number | null = null;
 		// A candidate the opener refuses reads the same: try the next one down.
 		for (let end = i + 1; ; end++) {
 			while (end < work.blocks.length && !closes(end)) end++;
-			if (end === work.blocks.length && !waiting.some((reading) => reading.readsOn)) break;
+			if (end === work.blocks.length && !waiting.some((r) => r.closer !== null && r.readsOn)) break;
 			toEnd = end >= work.blocks.length - 1;
 			last = reread(work, i, Math.min(end, work.blocks.length - 1), host);
 			if (last !== null || toEnd) break;

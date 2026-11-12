@@ -64,27 +64,32 @@ interface ReadingNotFinal {
 	/** Given a block's bytes from its first line on: my reading of them isn't final, a line below
 	 *  could change it. Once final on some bytes, it stays final with more lines under them. */
 	notFinal: (raw: string) => boolean;
+}
+
+export interface ClosedReading extends ReadingNotFinal {
 	/** Whether a line could be the one that changes it. A cheap candidate test, not a match: true
 	 *  for every line this opener accepts as its closer, wider is fine, narrower breaks the edit. */
 	mayClose: (lineText: string) => boolean;
-	/** The block takes in every line below it until its closer, as an unclosed fence does: it never
-	 *  stands above another block, and with no closer below it reads to the body's end. */
-	readsOn?: boolean;
-}
-
-interface ClosedReading extends ReadingNotFinal {
 	/** The line that closes a waiting block whose bytes are `raw`, which an opener typed on its own
 	 *  line is given so it takes in no block below it. */
 	closer: (raw: string) => string;
+	/** The block takes in every line below it until its closer, as an unclosed fence does: it never
+	 *  stands above another block, and with no closer below it reads to the body's end. */
+	readsOn?: boolean;
 }
 
 /** A reading no line closes, as a link definition waits on a title: `notFinal` is also asked of a
  *  block's bytes together with the blocks under it, and a blank line always ends the wait. */
 export interface UnclosedReading extends ReadingNotFinal {
 	closer: null;
-	/** Whether the wait runs on across a block under the waiting one that opens with this line. */
-	crosses: (lineText: string) => boolean;
+	/** Whether the wait runs on across a block under the waiting one that opens with this line.
+	 *  Absent: across every line, to the blank line. */
+	crosses?: (lineText: string) => boolean;
 }
+
+/** The readings a line closes, which alone say `mayClose` and `readsOn`. */
+export const closed = (readings: readonly UnfinishedReading[]): ClosedReading[] =>
+	readings.filter((reading): reading is ClosedReading => reading.closer !== null);
 
 type OpenerRecord = RegistryRecord<AnyBlockKind, BlockOpener>;
 
@@ -181,8 +186,8 @@ export function unfinishedReadings(grammar: GrammarView): readonly UnfinishedRea
 export function waitingReading(
 	raw: string,
 	readings: readonly UnfinishedReading[]
-): UnfinishedReading | null {
-	return readings.find((reading) => reading.closer !== null && reading.notFinal(raw)) ?? null;
+): ClosedReading | null {
+	return closed(readings).find((reading) => reading.notFinal(raw)) ?? null;
 }
 
 /** The topmost of the `count` blocks above that a line of `written` closes by the same reading, the
@@ -193,7 +198,7 @@ export function waitingAboveClosedBy(
 	count: number,
 	readings: readonly UnfinishedReading[]
 ): number {
-	const closing = readings.filter(
+	const closing = closed(readings).filter(
 		(reading) => !reading.readsOn && written.some((line) => reading.mayClose(line))
 	);
 	if (closing.length === 0) return -1;
@@ -218,8 +223,7 @@ function reaches(reading: UnclosedReading, below: Held): boolean {
 	if (below.leadingTrivia !== '') return false;
 	const end = below.raw.indexOf('\n');
 	const line = (end < 0 ? below.raw : below.raw.slice(0, end)).replace(/\r$/, '');
-	// A reading written without types may leave `crosses` out: then it waits to the blank line.
-	return (reading as Partial<UnclosedReading>).crosses?.(line) ?? true;
+	return reading.crosses?.(line) ?? true;
 }
 
 /** The highest block above `from` that a reading no line closes leaves waiting past `from`'s end:

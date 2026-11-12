@@ -5,7 +5,7 @@
  */
 
 import { escalateTerminatorRun } from '../terminator-escalation';
-import type { UnfinishedReading } from '../../schema/block-openers';
+import type { ClosedReading } from '../../schema/block-openers';
 import {
 	displayLines,
 	firstDisplayLine,
@@ -156,7 +156,7 @@ export function fenceLanguage(info: string): string {
  * A fence opener's `readingNotFinal`: a fence nothing closes yet takes every line below it, so the
  * settle after an edit re-reads down to the first bare run that may close it, or to the body's end.
  */
-export const fenceReading: UnfinishedReading = {
+export const fenceReading: ClosedReading = {
 	notFinal: awaitsFenceCloser,
 	mayClose: (text) => matchFenceClose(text, '`', 3) || matchFenceClose(text, '~', 3),
 	closer: fenceCloser,

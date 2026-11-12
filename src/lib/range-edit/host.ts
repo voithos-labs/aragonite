@@ -12,7 +12,7 @@ import { makeBlockNode } from '../core/nodes';
 import { hidesDelimitersAtCaret } from '../presentation-mode';
 import { blockFacts, type BlockFacts } from '../schema/block-facts';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
-import { unfinishedReadings } from '../schema/block-openers';
+import { closed as lineClosed, unfinishedReadings } from '../schema/block-openers';
 import { readAsOpened } from '../schema/opened-reading';
 import type { Reading } from '../schema/reading';
 import { legalizeWrite } from '../tree-operations/content-write';
@@ -349,8 +349,8 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 			const body = raw.indexOf('\n') + 1;
 			if (body === 0) return null;
 			// A fence's opening line alone waits on the line that closes it.
-			const fence = unfinishedReadings(reading.grammar).find(
-				(r) => r.closer !== null && r.notFinal(raw.slice(0, body))
+			const fence = lineClosed(unfinishedReadings(reading.grammar)).find((r) =>
+				r.notFinal(raw.slice(0, body))
 			);
 			if (!fence) return null;
 			const last = raw.lastIndexOf('\n', raw.length - 2) + 1;

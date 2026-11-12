@@ -51,7 +51,7 @@ import {
 	defaultGrammarView,
 	type BlockOpener,
 	type OpenContext,
-	type UnfinishedReading
+	type UnclosedReading
 } from '../schema/block-openers';
 import { createHeadlessActions } from './headless-actions';
 import { KIND_CELL_CONTRACTS } from './cell-contracts';
@@ -405,14 +405,11 @@ function execUnfinishedReading({ parsed: ctx }: KindRun): CellOutcome {
 	const lines = displayLines(trimTrailingLineEnding(ctx.node.raw));
 	const closer = lines[lines.length - 1].text;
 	const opened = ctx.node.raw.slice(0, ctx.node.raw.lastIndexOf(closer));
-	const waiting = defaultGrammarView
-		.orderedOpeners()
-		.filter(
-			(opener) =>
-				lines.length > 1 &&
-				opensKind(opener, ctx.node.raw, ctx.kind) &&
-				opener.readingNotFinal?.notFinal(opened)
-		);
+	const waiting = defaultGrammarView.orderedOpeners().filter((opener) => {
+		const reading = opener.readingNotFinal;
+		if (!reading || lines.length < 2 || !opensKind(opener, ctx.node.raw, ctx.kind)) return false;
+		return reading.notFinal(opened);
+	});
 	if (waiting.length === 0) {
 		// A fence that nothing closes takes in every block below, so its opener has to say so.
 		assert(
@@ -429,7 +426,14 @@ function execUnfinishedReading({ parsed: ctx }: KindRun): CellOutcome {
 	const ending = trailingLineEnding(ctx.node.raw, '\n');
 	for (const opener of waiting) {
 		const reading = opener.readingNotFinal!;
-		if (reading.closer === null && !reading.mayClose(closer)) {
+		if (reading.closer === null) {
+			assert(
+				(opener.tryOpen(openContext(opened + ending + closer + ending))?.consumed ?? 0) <=
+					lines.length,
+				`${ctx.kind}'s readingNotFinal declares no closer, but its opener reads on across a blank ` +
+					`line to ${show(closer)}: a wait no line closes ends at a blank line, so name the ` +
+					`closer, or an edit under the blank line leaves the block above it unread`
+			);
 			assertWaitCrossesFixture(ctx.kind, reading, ctx.node.raw, lines.slice(1));
 			continue;
 		}
@@ -439,13 +443,6 @@ function execUnfinishedReading({ parsed: ctx }: KindRun): CellOutcome {
 				`readingNotFinal.mayClose refuses ${show(closer)}, the line that finishes it: mayClose ` +
 				`must accept every closer the opener takes, or a closer typed blocks below is never asked`
 		);
-		// A completer only answers a line typed at its end, so a paste needs the closer too.
-		assert(
-			typeof reading.closer === 'function',
-			`${ctx.kind}'s opener backs out when unclosed but its readingNotFinal declares no closer: ` +
-				`declare the line that closes it, or an opener typed on its own line takes in every ` +
-				`block below it down to the next line that may close it`
-		);
 		const closed = opened + reading.closer(opened) + ending;
 		assert(
 			opensKind(opener, closed, ctx.kind),
@@ -453,26 +450,20 @@ function execUnfinishedReading({ parsed: ctx }: KindRun): CellOutcome {
 				`close its fixture: the closer must make the opener's bytes one block of the kind`
 		);
 	}
-	return 'mayClose accepts the closer that finishes the fixture, and closer gives one';
+	return 'each reading closes or crosses its own fixture';
 }
 
-/** A reading no line closes waits across its own fixture: `crosses` accepts each line under the
- *  first, and the fixture whole reads as final. */
+/** A reading no line closes waits across its own fixture: `crosses`, where it is declared,
+ *  accepts each line under the first, and the fixture whole reads as final. */
 function assertWaitCrossesFixture(
 	kind: string,
-	reading: UnfinishedReading,
+	reading: UnclosedReading,
 	raw: string,
 	under: readonly { text: string }[]
 ): void {
-	const crosses = (reading as { crosses?: (line: string) => boolean }).crosses;
-	assert(
-		typeof crosses === 'function',
-		`${kind}'s readingNotFinal has closer: null and declares no crosses: say which lines its ` +
-			`wait runs across, or an edit under a waiting block reads on to the next blank line`
-	);
 	for (const line of under) {
 		assert(
-			crosses(line.text),
+			reading.crosses?.(line.text) ?? true,
 			`${kind}'s readingNotFinal.crosses refuses ${show(line.text)}, a line of its own fixture: ` +
 				`crosses must accept every line the opener reads through, or an edit below such a ` +
 				`line leaves the block above it unread`
@@ -487,8 +478,13 @@ function assertWaitCrossesFixture(
 
 /** Whether `opener` reads `raw` alone as a block of `kind`. */
 function opensKind(opener: BlockOpener, raw: string, kind: AnyBlockKind): boolean {
+	return opener.tryOpen(openContext(raw))?.node.kind === kind;
+}
+
+/** `raw` as the lines an opener is asked to open at, on their own. */
+function openContext(raw: string): OpenContext {
 	const lines = splitLines(raw);
-	const ctx: OpenContext = {
+	return {
 		lines,
 		index: 0,
 		end: lines.length,
@@ -498,7 +494,6 @@ function opensKind(opener: BlockOpener, raw: string, kind: AnyBlockKind): boolea
 		depth: 0,
 		grammar: defaultGrammarView
 	};
-	return opener.tryOpen(ctx)?.node.kind === kind;
 }
 
 // ── Exported executors (direct-drive for regression tests) ───────────────────
