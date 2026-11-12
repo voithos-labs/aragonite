@@ -181,6 +181,16 @@ describe('a quote typed in a container flush under a started title', () => {
 	});
 });
 
+// Miss-analysis: every container row kept its list one block. None made the list give a line up,
+// where the rebuild's own re-division and the look for a wait each wrote that line.
+describe('a key that makes a list under a started title give a line up', () => {
+	it('writes the line once', async () => {
+		const lines = ['[a]: /u', "    'code", '2. two', '2. two', 'end', ...TAIL];
+
+		expect(await judge(wrapped(lines, 'top', '\n'), [2, 1, 0], 0, typed('>'))).toBeNull();
+	});
+});
+
 // Miss-analysis: the split asked whether its halves rejoin with the second half's first line
 // alone, so a title that closes two lines down never showed, and Enter wrote no byte.
 describe('Enter inside a title that runs over lines writes its blank line', () => {

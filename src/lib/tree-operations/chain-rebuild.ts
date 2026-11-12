@@ -153,7 +153,7 @@ export function rebuildUnsharedChain(
 		const before = folds.length;
 		// After the kind re-derive: the join check reads whatever occupies the position now.
 		if (moved) settleSlotSeams({ ...slot, openerMoved, closerMoved }, sharing, folds, grammar);
-		if (mayBeWaitedOn && siblings[index] === here)
+		if (mayBeWaitedOn && !spilled && siblings[index] === here)
 			settleSlotWait(slot, openerMoved, sharing, folds, grammar);
 		// A merge re-divided the owner's children, so its child spans describe a shape that is gone.
 		if (folds.length > before && owner) dropChildSpans(owner);
