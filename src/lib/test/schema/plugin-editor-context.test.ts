@@ -155,13 +155,15 @@ describe('createEditorPluginContexts', () => {
 		expect(disposed).toBe(1);
 	});
 
-	it('a throwing callback is contained and attributed; siblings still fire', () => {
+	it('a throwing callback is contained and attributed, its plugin left with nothing attached; siblings still fire', () => {
 		const errors: string[] = [];
 		const fired: string[] = [];
+		const cleaned: string[] = [];
 		installPlugins([
 			definePlugin({
 				name: 'bad',
 				setup(ctx) {
+					ctx.onEditor(() => () => void cleaned.push('bad'));
 					ctx.onEditor(() => {
 						throw new Error('boom');
 					});
@@ -183,6 +185,7 @@ describe('createEditorPluginContexts', () => {
 		ctxs.attachAll();
 		expect(errors).toEqual(['bad']);
 		expect(fired).toEqual(['good']);
+		expect(cleaned).toEqual(['bad']);
 	});
 
 	it('threads editor.decorations: addSource fills the state, the disposer runs, and a throwing source surfaces as origin decoration', () => {

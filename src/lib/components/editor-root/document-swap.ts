@@ -1,7 +1,7 @@
 /**
  * The `source` prop's whole-document replacement, and the re-read of the same bytes a changed
- * plugin list makes. Every piece of per-document state resets here in one fixed order, so neither
- * can skip a step.
+ * plugin list makes. The incoming bytes are read first, so a read that throws changes nothing;
+ * then every piece of per-document state resets in one fixed order, so neither can skip a step.
  */
 
 import type { Document } from '../../core/nodes';
@@ -94,25 +94,24 @@ export function createDocumentSwap(deps: DocumentSwapDeps): DocumentSwap {
 	return {
 		swapTo(source) {
 			if (source === deps.currentSource() || !startsAlone(deps)) return;
-			adopt(source, 'clear');
+			adopt(initDocument(source, deps.grammar), 'clear');
 			generation++;
 			// Last, so a subscriber reading the document sees the new tree, selection and resolver.
 			deps.events.emit('sourceSwap', { generation });
 		},
 		reparse() {
-			if (startsAlone(deps)) adopt(deps.currentSource(), 'keep');
+			if (startsAlone(deps)) adopt(initDocument(deps.currentSource(), deps.grammar), 'keep');
 		},
 		generation: () => generation
 	};
 
-	function adopt(source: string, history: 'clear' | 'keep'): void {
+	function adopt(reset: ParsedDocument, history: 'clear' | 'keep'): void {
 		// A re-read keeps the bytes, so a write waiting on them still lands.
 		if (history === 'clear') deps.stamps.retire();
 		deps.drafts.closeAll('document-swap');
 		deps.markHover.end();
 		deps.flushDebouncedCheckpoint();
 		deps.noteTreeSwap();
-		const reset = initDocument(source, deps.grammar);
 		// Only a re-read still has a draft open here: a swap's all closed above.
 		const capture = deps.drafts.watching() ? captureChange(deps.doc(), null) : null;
 		deps.starts.duringWrite(() => {

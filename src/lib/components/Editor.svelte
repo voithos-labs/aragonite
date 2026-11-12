@@ -54,7 +54,7 @@
 	import { createDraftRegistry } from '../editor-actions/commit/draft-registry.svelte';
 	import { createShownSourceState } from './blocks/text/shown-source.svelte';
 	import { createDocumentStamps } from '../editor-actions/commit/document-stamp';
-	import { startsAlone } from '../editor-actions/commit/reading-write-gate';
+	import { failWrite, startsAlone } from '../editor-actions/commit/reading-write-gate';
 	import { isCollapsed, type EditorSelection } from '../selection/primitives';
 	import { widgetSpanAt } from './blocks/text/widget-adjacency';
 	import { assignIds } from '../block-id';
@@ -66,7 +66,12 @@
 	import type { LinkReferenceResolver } from '../core/inline/scan/definitions';
 	import { createUndoManager } from '../undo/manager';
 	import { createSharingState } from '../tree-operations/sharing';
-	import { createEditorEvents, emitBlockedLinkError, emitCommandError } from '../editor-events';
+	import {
+		createEditorEvents,
+		emitBlockedLinkError,
+		emitCommandError,
+		emitCommitError
+	} from '../editor-events';
 	import { createEditorActions, type EditorActionsDeps } from '../editor-actions';
 	import { createReorderAction } from '../editor-actions/reorder-action';
 	import { createSearchReplace } from '../editor-actions/search-replace';
@@ -233,7 +238,11 @@
 	// Mount-time errors reach `onError` at once, and the `error` event once the editor has mounted.
 	const heldErrors: PluginError[] = [];
 	let errorsOpen = false;
+	// What a `use` in flight raised, heard once its list is settled, so no handler finds it half
+	// changed.
+	let raisedInUse: PluginError[] | null = null;
 	function reportPluginError(error: PluginError): void {
+		if (raisedInUse) return void raisedInUse.push(error);
 		onError?.(error);
 		if (errorsOpen) emitPluginError(error);
 		else heldErrors.push(error);
@@ -1662,36 +1671,107 @@
 		return rootMenus.openGroup(group, point, block, pointer);
 	}
 
-	/** Turns plugins on and off in this editor, reading the document again; the history stays. */
+	/** The plugins the editor runs: the list as written, its plugin values with their definitions
+	 *  read, the block types they hold, and the names turned on. */
+	interface RunningList {
+		entries: typeof pluginEntries;
+		units: readonly InstalledPlugin[];
+		blocks: typeof ownBlocks;
+		names: readonly string[];
+	}
+
+	/** Makes `list` the one the editor runs; its definitions are read already. */
+	function runList(list: RunningList): void {
+		pluginEntries = list.entries;
+		units = list.units;
+		ownBlocks = list.blocks;
+		inlineMenu.setMenus(contributions.menus);
+		activePlugins.set(list.names);
+		pluginNames = activePlugins.names;
+	}
+
+	/** A plugin's own throw, or the re-read's. */
+	type UseFailure = PluginError | { cause: unknown };
+
+	/** Detaches `leaving` (naming each in `detached` as it goes), reads the document again under
+	 *  the list now running and attaches `joining`; the first failure, or null. */
+	function changeOver(
+		leaving: readonly string[],
+		joining: readonly string[],
+		detached: string[]
+	): UseFailure | null {
+		for (const name of leaving) {
+			detached.push(name);
+			const thrown = pluginContexts.detach(name);
+			if (thrown) return thrown;
+		}
+		try {
+			documentSwap.reparse();
+		} catch (cause) {
+			return { cause };
+		}
+		return pluginContexts.attach(joining);
+	}
+
+	/** Turns plugins on and off in this editor, reading the document again; the history stays. A
+	 *  call that fails part way leaves the editor running the list it ran and says so on `error`. */
 	export function use(next: PluginsProp): void {
 		// Before the list changes: the re-read below is a write, refused inside another.
 		if (!startsAlone({ starts, events })) return;
 		// Read before installing: with no list, the names are whatever the page has installed.
-		const before = new Set(activePlugins.names);
+		const was: RunningList = {
+			entries: pluginEntries,
+			units,
+			blocks: ownBlocks,
+			names: activePlugins.names
+		};
+		const tree = doc;
 		const entries = normalizePluginEntries(next);
-		// Before any write, so a `setup` that throws leaves the editor running what it ran.
+		// Page-wide and before this editor changes, so a `setup` that throws leaves it as it ran.
 		installPlugins(entries.plugins);
-		const beforeEntries = pluginEntries;
-		const beforeUnits = units;
-		pluginEntries = entries;
-		units = installList(entries.values, beforeUnits);
-		// The new list is held first, so a block type in both lists keeps its facts throughout.
-		const beforeBlocks = ownBlocks;
-		ownBlocks = installBlockTypes(units, reportPluginError);
-		beforeBlocks.release();
-		inlineMenu.setMenus(contributions.menus);
-		const after = listedNames() ?? [];
-		// A plugin listed again with other options starts over on them, whichever shape it has.
-		const replaced = (name: string) =>
-			beforeUnits.find((u) => u.name === name)?.contribution !==
-				units.find((u) => u.name === name)?.contribution ||
-			beforeEntries?.optionsByName.get(name) !== entries.optionsByName.get(name);
-		for (const name of before)
-			if (!after.includes(name) || replaced(name)) pluginContexts.detach(name);
-		activePlugins.set(after);
-		pluginNames = activePlugins.names;
-		documentSwap.reparse();
-		pluginContexts.attach(after.filter((name) => !before.has(name) || replaced(name)));
+		let failure = null as UseFailure | null;
+		// What putting the document back threw, which nothing here can mend.
+		let unread = null as { cause: unknown } | null;
+		raisedInUse = [];
+		try {
+			// One selection change for the whole call, announced once the list is settled.
+			selectionState.batch(() => {
+				const kept = installList(entries.values, was.units);
+				// Both lists' block types are held until the call lands, so one in both keeps its facts.
+				const blocks = installBlockTypes(kept, reportPluginError);
+				runList({ entries, units: kept, blocks, names: runningNames(entries, kept) });
+				// A plugin listed again with other options starts over on them, whichever shape it has.
+				const replaced = (name: string) =>
+					was.units.find((u) => u.name === name)?.contribution !==
+						kept.find((u) => u.name === name)?.contribution ||
+					was.entries?.optionsByName.get(name) !== entries.optionsByName.get(name);
+				const leaving = was.names.filter((name) => !pluginNames.includes(name) || replaced(name));
+				const joining = pluginNames.filter((name) => !was.names.includes(name) || replaced(name));
+				const detached: string[] = [];
+				failure = changeOver(leaving, joining, detached);
+				if (!failure) return was.blocks.release();
+				// A list that never ran left nothing out, so only the putting back is reported.
+				raisedInUse = [];
+				contributions.read(was.units);
+				runList(was);
+				blocks.release();
+				try {
+					if (doc !== tree) documentSwap.reparse();
+				} catch (cause) {
+					unread = { cause };
+				}
+				pluginContexts.attachAgain(detached);
+			});
+		} finally {
+			const raised = raisedInUse;
+			raisedInUse = null;
+			raised?.forEach(reportPluginError);
+		}
+		if (unread) emitCommitError(events, { error: unread.cause });
+		if (!failure) return;
+		// Last: a dev build throws the re-read's failure back to the caller.
+		if ('plugin' in failure) reportPluginError(failure);
+		else failWrite({ events }, failure.cause);
 	}
 
 	const diagnostics = createEditorDiagnostics({

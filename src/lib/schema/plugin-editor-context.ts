@@ -33,12 +33,17 @@ export interface EditorPluginContexts {
 	/** This editor's context for a plugin it activated; `undefined` for one it did not. The empty
 	 *  name returns the editor's base context, the one kinds no plugin owns use, never filtered. */
 	get(pluginName: string): EditorContext | undefined;
-	/** Runs every turned-on plugin's `onEditor` callbacks and `setup`, once the editor is mounted. */
+	/** Runs every turned-on plugin's `onEditor` callbacks and `setup`, once the editor is mounted.
+	 *  One that throws is reported and left with nothing attached; the rest attach. */
 	attachAll(): void;
-	/** `attachAll` for the plugins `use` turned on. */
-	attach(pluginNames: readonly string[]): void;
-	/** Disposes what a plugin `use` turned off added, and forgets its views. */
-	detach(pluginName: string): void;
+	/** Attaches the plugins `use` turned on, all or none: the first throw is returned, with
+	 *  everything the call attached taken back. */
+	attach(pluginNames: readonly string[]): PluginError | null;
+	/** `attachAll` for the plugins a failed `use` had detached. */
+	attachAgain(pluginNames: readonly string[]): void;
+	/** Disposes what a plugin `use` turned off added, and forgets its views. Returns what its
+	 *  cleanup threw; the plugin is detached all the same. */
+	detach(pluginName: string): PluginError | null;
 	/** The editor a plugin value sees, scoped to it, as its `setup` and its drawings get it. */
 	editor(pluginName: string): Editor;
 	/** The `Editor` a running plugin value's `setup` and commands get: one per plugin, kept while a
@@ -51,6 +56,12 @@ export interface EditorPluginContexts {
 // mount, so a plugin can key its per-editor state on `editor.editorId`.
 let n = 0;
 export const mintEditorId = () => `editor-${++n}`;
+
+/** One callback an attach runs for `plugin`, answering the cleanup it registered, if any. */
+interface AttachStep {
+	plugin: string;
+	run(): void | (() => void);
+}
 
 export function createEditorPluginContexts(deps: {
 	editorId: string;
@@ -90,6 +101,7 @@ export function createEditorPluginContexts(deps: {
 	const editors = new Map<string, Editor>();
 	const disposers: { plugin: string; dispose: () => void }[] = [];
 	const { report } = deps;
+	const reportThrown = (error: PluginError | null) => void (error && report(error));
 
 	function optionsFor(pluginName: string): unknown {
 		const plugin = installedPlugin(pluginName) ?? {};
@@ -171,7 +183,7 @@ export function createEditorPluginContexts(deps: {
 			on(event, listen) {
 				const disposer = { plugin, dispose: listenAs(plugin, event, listen) };
 				disposers.push(disposer);
-				return () => disposeOne(disposer);
+				return () => reportThrown(disposeOne(disposer));
 			},
 			run: (command: Command<unknown> | string, arg?: unknown) => deps.runCommand(command, arg),
 			can: (command: Command<unknown> | string, arg?: unknown) => deps.canRunCommand(command, arg),
@@ -201,38 +213,69 @@ export function createEditorPluginContexts(deps: {
 		});
 	}
 
-	function attach(names: ReadonlySet<string> | null): void {
+	/** What attaching runs, in order: each `onEditor` callback of a turned-on `setup` plugin, then
+	 *  each plugin value's `setup`; `names` keeps only those plugins. */
+	function attachSteps(names: ReadonlySet<string> | null): AttachStep[] {
+		const steps: AttachStep[] = [];
 		for (const plugin of installedPluginNames()) {
 			if (!resolvesIn(deps.activation, plugin) || (names && !names.has(plugin))) continue;
-			for (const cb of onEditorCallbacks(plugin)) {
-				try {
-					const dispose = cb(get(plugin)!);
-					if (typeof dispose === 'function') disposers.push({ plugin, dispose });
-				} catch (cause) {
-					report({ plugin, doing: 'setup', cause });
-				}
-			}
+			for (const cb of onEditorCallbacks(plugin))
+				steps.push({ plugin, run: () => cb(get(plugin)!) });
 		}
 		for (const { name, contribution } of deps.units()) {
-			if (names && !names.has(name)) continue;
-			try {
-				const cleanup = contribution.setup?.(editorFor(name));
-				if (typeof cleanup === 'function') disposers.push({ plugin: name, dispose: cleanup });
-			} catch (cause) {
-				report({ plugin: name, doing: 'setup', cause });
-			}
+			const { setup } = contribution;
+			if (setup && (!names || names.has(name)))
+				steps.push({ plugin: name, run: () => setup(editorFor(name)) });
 		}
+		return steps;
 	}
 
-	function disposeOne(disposer: { plugin: string; dispose: () => void }): void {
+	/** Attaches each plugin whole or not at all: one that throws loses what it had attached and is
+	 *  handed to `failed`, whose `false` stops the rest. Returns the plugins attached, in order. */
+	function attach(
+		names: ReadonlySet<string> | null,
+		failed: (error: PluginError) => boolean
+	): string[] {
+		const attached = new Set<string>();
+		const dropped = new Set<string>();
+		for (const { plugin, run } of attachSteps(names)) {
+			if (dropped.has(plugin)) continue;
+			try {
+				const dispose = run();
+				if (typeof dispose === 'function') disposers.push({ plugin, dispose });
+				attached.add(plugin);
+			} catch (cause) {
+				attached.delete(plugin);
+				dropped.add(plugin);
+				remove(plugin).forEach(report);
+				if (!failed({ plugin, doing: 'setup', cause })) break;
+			}
+		}
+		return [...attached];
+	}
+
+	/** Runs `disposer` once; what its cleanup threw, or null. */
+	function disposeOne(disposer: { plugin: string; dispose: () => void }): PluginError | null {
 		const at = disposers.indexOf(disposer);
-		if (at < 0) return;
+		if (at < 0) return null;
 		disposers.splice(at, 1);
 		try {
 			disposer.dispose();
+			return null;
 		} catch (cause) {
-			report({ plugin: disposer.plugin, doing: 'dispose', cause });
+			return { plugin: disposer.plugin, doing: 'dispose', cause };
 		}
+	}
+
+	/** Disposes everything `plugin` added and forgets its views; what its cleanups threw. */
+	function remove(plugin: string): PluginError[] {
+		const thrown = disposers
+			.filter((disposer) => disposer.plugin === plugin)
+			.map(disposeOne)
+			.filter((error) => error !== null);
+		contexts.delete(plugin);
+		editors.delete(plugin);
+		return thrown;
 	}
 
 	return {
@@ -240,15 +283,22 @@ export function createEditorPluginContexts(deps: {
 		editor: editorFor,
 		scoped: (pluginName) =>
 			deps.units().some((unit) => unit.name === pluginName) ? editorFor(pluginName) : undefined,
-		attachAll: () => attach(null),
-		attach: (pluginNames) => attach(new Set(pluginNames)),
+		attachAll: () => void attach(null, (error) => (report(error), true)),
+		attachAgain: (pluginNames) =>
+			void attach(new Set(pluginNames), (error) => (report(error), true)),
+		attach(pluginNames) {
+			let failure = null as PluginError | null;
+			const attached = attach(new Set(pluginNames), (error) => ((failure = error), false));
+			if (failure) for (const plugin of attached.reverse()) remove(plugin).forEach(report);
+			return failure;
+		},
 		detach(pluginName) {
-			for (const disposer of disposers.filter((d) => d.plugin === pluginName)) disposeOne(disposer);
-			contexts.delete(pluginName);
-			editors.delete(pluginName);
+			const [first, ...rest] = remove(pluginName);
+			rest.forEach(report);
+			return first ?? null;
 		},
 		dispose() {
-			for (const disposer of [...disposers]) disposeOne(disposer);
+			for (const disposer of [...disposers]) reportThrown(disposeOne(disposer));
 		}
 	};
 }

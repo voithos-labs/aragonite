@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import { createDocumentSwap, initDocument } from '#lib/components/editor-root/document-swap.js';
+import {
+	createDocumentSwap,
+	initDocument,
+	type DocumentSwap
+} from '#lib/components/editor-root/document-swap.js';
+import type { GrammarView } from '#lib/schema/block-openers.js';
 import { createKeptStarts } from '#lib/editor-actions/commit/kept-starts.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { selectWidgetWhole } from '#lib/selection/place-caret.js';
@@ -34,7 +39,7 @@ describe('initDocument', () => {
 
 describe('the swap commit sequence', () => {
 	/** An editor holding `held\n` until the first swap adopts a document. */
-	function harness() {
+	function harness(grammar: GrammarView = defaultGrammarView) {
 		const order: string[] = [];
 		const step = (name: string) => () => void order.push(name);
 		const selection = createSelectionState({ onChange: step('announce') });
@@ -42,7 +47,7 @@ describe('the swap commit sequence', () => {
 		let links: { resolver: LinkReferenceResolver; signature: string } | null = null;
 		const swaps: { generation: number; source: string }[] = [];
 		const swap = createDocumentSwap({
-			grammar: defaultGrammarView,
+			grammar,
 			currentSource: () => (adopted ? serialize(adopted) : 'held\n'),
 			stamps: { retire: step('stamps') },
 			doc: () => adopted ?? initDocument('held\n', defaultGrammarView).doc,
@@ -105,6 +110,25 @@ describe('the swap commit sequence', () => {
 			'sourceSwap'
 		]);
 		expect(serialize(h.adopted()!)).toBe('# B\n');
+	});
+
+	// Miss-analysis: every row read bytes that parse, so none saw the outgoing document retired
+	// and its drafts closed ahead of a read that then threw.
+	it.each([
+		{ name: 'a swap', write: (swap: DocumentSwap) => swap.swapTo('# B\n') },
+		{ name: 'a re-read', write: (swap: DocumentSwap) => swap.reparse() }
+	])('$name whose read throws runs no step', ({ write }) => {
+		const throwing: GrammarView = Object.create(defaultGrammarView, {
+			orderedOpeners: {
+				value: () => {
+					throw new Error('an opener blew up');
+				}
+			}
+		});
+		const h = harness(throwing);
+		expect(() => write(h.swap)).toThrow('an opener blew up');
+		expect(h.order).toEqual([]);
+		expect(h.adopted()).toBeNull();
 	});
 
 	it('announces once per swap even over a live range, and hands over the new resolver', () => {

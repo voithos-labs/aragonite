@@ -193,7 +193,8 @@ export interface InsertMarkdownOptions {
 /** The `bind:this` handle a consumer can name and hold a ref to. */
 export interface EditorInstance extends Editor {
 	/** Turns plugins on and off in this editor and reads the document again; undo history stays.
-	 *  What a plugin turned off added goes away with it. */
+	 *  What a plugin turned off added goes away with it. A call that fails part way leaves the
+	 *  editor running the list it ran and says so on `error`. */
 	use(plugins: PluginsProp): void;
 	getSource(): string;
 	/**
