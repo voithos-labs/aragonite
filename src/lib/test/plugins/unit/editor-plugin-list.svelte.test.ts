@@ -190,6 +190,39 @@ describe('an error raised while the editor mounts', () => {
 		handle.destroy();
 		target.remove();
 	});
+
+	// Miss-analysis: every thrower here threw before it added anything, so none showed what a
+	// plugin value keeps attached when its `setup` throws part way, or that the others start.
+	it('starts the plugins around one whose `setup` throws, which keeps nothing attached', async () => {
+		const edits: string[] = [];
+		const errors: PluginError[] = [];
+		const onEvent: unknown[] = [];
+		const value = (name: string) =>
+			definePlugin({
+				name,
+				version: '1.0.0',
+				editor: '*',
+				contributes: () => ({
+					setup(editor: Editor) {
+						editor.on('edit', () => void edits.push(name));
+						if (name === 'unit-first') editor.on('error', (e) => onEvent.push(e.context?.plugin));
+						if (name === 'unit-broken') throw new Error('setup failed');
+					}
+				})
+			});
+		const m = mountEditor({
+			source: 'text\n',
+			plugins: [value('unit-first'), value('unit-broken'), value('unit-last')],
+			onError: (e) => errors.push(e)
+		});
+		await m.settle();
+		typeInFirstBlock(m.target, 'texts');
+		await m.settle();
+
+		expect(heard(errors)).toEqual(['unit-broken setup']);
+		expect(onEvent).toEqual(['unit-broken']);
+		expect(edits).toEqual(['unit-first', 'unit-last']);
+	});
 });
 
 // Miss-analysis: no listener a plugin added ever threw, so a throw reported without its plugin passed.

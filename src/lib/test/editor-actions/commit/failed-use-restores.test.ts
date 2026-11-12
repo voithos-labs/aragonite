@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// `use` is a write: when it fails part way (a block type throws as the document is read again, a
+// G2.20. `use` is a write: when it fails part way (a block type throws as the document is read again, a
 // plugin throws as it starts, a plugin taken off throws as it cleans up), a mounted editor runs the
 // list it ran, with its definitions, its grammar and what each plugin had attached, and `error`
 // hears it once the list is back.
@@ -246,6 +246,7 @@ describe.each(BUILDS)('a `use` that fails part way, in $build', ({ isDev }) => {
 			seen.push({ event: 'error', stood: standing(m) });
 		});
 		events.on('selectionChange', () => seen.push({ event: 'selectionChange', stood: standing(m) }));
+		events.on('edit', () => seen.push({ event: 'edit', stood: standing(m) }));
 		const waiting = m.instance.edit().replace({ from: 0, to: 0 }, 'Z');
 		configureEditorEnv({ isDev });
 
@@ -353,6 +354,38 @@ describe('a `use` that fails as its second plugin starts', () => {
 			['first cleanup', refused],
 			['leaving setup', ran]
 		]);
+	});
+
+	it('keeps the undo stacks, so a step undone before the call is still redone after it', async () => {
+		const stays = staying();
+		const second = listed('use-second', { blocks: [boom()], throws: 'setup' });
+		const m = await mountedHoldingRange([stays]);
+		const last = () => surfaceAt(m, [m.instance.__test.getDocument().children.length - 1]);
+		await m.instance.setSelection({
+			anchor: { path: [3], offset: 3 },
+			focus: { path: [3], offset: 3 }
+		});
+		typeInto(last(), 'twox');
+		await m.settle();
+		m.instance.runCommand('history.undo');
+		await m.settle();
+		const stacks = JSON.stringify(m.instance.__test.getUndoStack());
+		m.instance.getEvents().on('error', () => {});
+
+		m.instance.use([stays.plugin, second.plugin]);
+		await m.settle();
+
+		expect(JSON.stringify(m.instance.__test.getUndoStack())).toBe(stacks);
+		m.instance.runCommand('history.redo');
+		await m.settle();
+		expect(m.source()).toBe(SOURCE.replace('two', 'twox'));
+		m.instance.runCommand('history.undo');
+		await m.settle();
+		expect(standing(m)).toEqual({
+			plugins: ['use-stays'],
+			kinds: ['paragraph', 'use-stays/keep', 'paragraph', 'paragraph'],
+			source: SOURCE
+		});
 	});
 
 	// Miss-analysis: every scene had one plugin throw, so none saw a second throw of the same call
@@ -512,6 +545,38 @@ describe('a `use` whose list works', () => {
 			plugins: ['use-stays'],
 			kinds: ['paragraph', 'use-stays/keep', 'paragraph', 'paragraph'],
 			source: 'Z' + SOURCE
+		});
+	});
+
+	// Miss-analysis: no handler called `use`, a write an `edit` handler may make.
+	it.each([
+		{ name: 'a list that works', fails: false },
+		{ name: 'a list whose plugin throws as it starts', fails: true }
+	])('runs from an `edit` handler: $name', async ({ fails }) => {
+		const stays = staying();
+		const joining = listed('use-joining', {
+			blocks: [boom()],
+			throws: fails ? 'setup' : undefined
+		});
+		const m = await mountedHoldingRange([stays]);
+		const errors: EditorError[] = [];
+		m.instance.getEvents().on('error', (error) => errors.push(error));
+		let next: PluginList | null = [stays.plugin, joining.plugin];
+		m.instance.getEvents().on('edit', () => {
+			const list = next;
+			next = null;
+			if (list) m.instance.use(list);
+		});
+		const end = { path: [3], offset: 3 };
+		await m.instance.setSelection({ anchor: end, focus: end });
+		typeInto(surfaceAt(m, [3]), 'twox');
+		await m.settle();
+
+		expect(errors.map((e) => e.context?.plugin)).toEqual(fails ? ['use-joining'] : []);
+		expect(standing(m)).toEqual({
+			plugins: fails ? ['use-stays'] : ['use-stays', 'use-joining'],
+			kinds: ['paragraph', 'use-stays/keep', fails ? 'paragraph' : 'use-joining/boom', 'paragraph'],
+			source: SOURCE.replace('two', 'twox')
 		});
 	});
 
