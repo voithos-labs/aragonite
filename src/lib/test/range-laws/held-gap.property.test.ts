@@ -380,12 +380,13 @@ const KNOWN: Record<string, Known> = {
 		cause:
 			'in live mode, in a list item, a range from the first byte of a fence into the indented ' +
 			'code below keeps the fence, and the text goes into its body (minor)',
-		matches: (d) =>
+		matches: (d, _r, line) =>
 			d.mode === 'live' &&
 			d.wrap === 'item' &&
 			d.shape === 'indentedCode' &&
 			d.middle === 'fence' &&
-			texts(d),
+			texts(d) &&
+			/^the text|^over the range/.test(line),
 		example: { ...draw('indentedCode', 'fence', 'item', 'edge..lower', 'letter', 'live'), lead: 0 }
 	},
 	"a lone block's emptied line": {
@@ -426,12 +427,17 @@ const KNOWN: Record<string, Known> = {
 	},
 	'Enter from a table in a container': {
 		cause: "Enter from a table's cell in a quote or an item to the block below (minor)",
-		matches: (d) => d.wrap !== 'top' && d.range === 'cell..middle' && d.gesture === 'Enter',
+		matches: (d, _r, line) =>
+			d.wrap !== 'top' &&
+			d.range === 'cell..middle' &&
+			d.gesture === 'Enter' &&
+			line.startsWith('over the range'),
 		example: { ...draw('tableHalves', 'fence', 'item', 'cell..middle', 'Enter'), lead: 0 }
 	},
 	'a gesture that reached nothing': {
 		cause: "jsdom aims the gesture at an element that isn't the range's (undetermined)",
-		matches: (d, r) => texts(d) && r.over.source === r.built.source,
+		matches: (d, r, line) =>
+			texts(d) && r.over.source === r.built.source && /^over the range|dropped$/.test(line),
 		example: draw('tableHalves', 'rule', 'item', 'cell..middle', 'composition')
 	},
 	'a paste into a block with no paste surface': {
@@ -443,11 +449,26 @@ const KNOWN: Record<string, Known> = {
 };
 
 /** Draws that reach the place a removal took its start block from, the class's own rows. */
-const REACH: Draw[] = [
-	draw('htmlBlocks', 'heading', 'top', 'edge..lower', 'composition'),
-	draw('htmlUnderText', 'heading', 'quote', 'edge..lower', 'composition'),
-	{ ...draw('tableRows', 'fence', 'top', 'cell..middle', 'composition'), lead: 0 }
-];
+const REACH: Record<string, Draw> = {
+	'before an HTML block': draw('htmlBlocks', 'heading', 'top', 'edge..lower', 'composition'),
+	'before an HTML block in a quote': draw(
+		'htmlUnderText',
+		'heading',
+		'quote',
+		'edge..lower',
+		'composition'
+	),
+	'past the rows of a table': {
+		...draw('tableRows', 'fence', 'top', 'cell..middle', 'composition'),
+		lead: 0
+	}
+};
+
+/** Every draw the fixed run always takes, by name. */
+const EXAMPLES: Record<string, Draw> = {
+	...Object.fromEntries(Object.entries(KNOWN).map(([name, k]) => [name, k.example])),
+	...REACH
+};
 
 // ── The property ─────────────────────────────────────────────────────────────
 
@@ -471,15 +492,37 @@ const FIXED_TALLY = {
 	'a paste into a block with no paste surface': 2
 };
 
+/** What each example leaves over the range. */
+const LANDED: Record<string, string> = {
+	'stale taken place': "intro\n\n[a]: /u\n    'code\nxt\nend'\n\nlast\n\nж\n",
+	'a stale command claim': 'intro\n\n<!-- a -->\n\n\nlast\n',
+	'a started title read wrong': "intro\n\n[a]: /u\n    'code\n汉text\nend'\n\nlast\n",
+	'Enter inside a started title': "intro\n\n[a]: /u\n    'code\nxt\nend'\n\nlast\n",
+	'an opener kept in an item': '-     a\n  ```\nж\n  ```\n    b\n\nlast\n',
+	"a lone block's emptied line": 'intro\n\n> quoted\n\nжlazy\n\nlast\n',
+	'a letter where two indented code blocks join': 'intro\n\n    a\nж\n    b\n\nlast\n',
+	'a live caret past a hidden marker': 'intro\n\n汉\n\n# h\n| 2 |\n\nlast\n',
+	'Enter from a table in a container': '- \n- \n  ```\n  x\n  ```\n  | 2 |\n\nlast\n',
+	'a gesture that reached nothing': 'intro\n\n- | a |\n  | - |\n  | 1 |\n  ***\n  | 2 |\n\nlast\n',
+	'a paste into a block with no paste surface': 'intro\n\n> <!-- ж\n> <div>\n> x\n\nlast\n',
+	'before an HTML block': 'intro\n\n<!-- a -->\n\n汉\n\n<div>\nx\n\nlast\n',
+	'before an HTML block in a quote': 'intro\n\n> text\n>\n> 汉\n>\n> <span class="x">\n\nlast\n',
+	'past the rows of a table': '| a |\n| - |\n\n汉\n\n```\nx\n```\n| 2 |\n\nlast\n'
+};
+
 describe('text and Enter over a range whose removal reads a neighbour again', () => {
 	it('leave what the law says, save the violations known today', async () => {
 		const tally: Record<string, number> = { unplaced: 0, 'took the start block': 0 };
 		const unknown: string[] = [];
+		const names = new Map(Object.entries(EXAMPLES).map(([name, d]) => [JSON.stringify(d), name]));
+		const landed: Record<string, string> = {};
 		await fc.assert(
 			fc.asyncProperty(arbDraw, async (d) => {
 				const r = await run(d);
 				if (r === 'unplaced') return void tally.unplaced++;
 				if (r.took) tally['took the start block']++;
+				const example = names.get(JSON.stringify(d));
+				if (example) landed[example] = r.over.source;
 				const warns = [...r.over.warns, ...r.removed.warns, ...r.step.warns];
 				const classes = new Set<string>();
 				for (const line of [...violations(d, r), ...warns.map((tag) => `warn: ${tag}`)]) {
@@ -490,15 +533,17 @@ describe('text and Enter over a range whose removal reads a neighbour again', ()
 				for (const name of classes) tally[name] = (tally[name] ?? 0) + 1;
 			}),
 			{
-				numRuns: DRAWS + Object.keys(KNOWN).length + REACH.length,
+				numRuns: DRAWS + Object.keys(EXAMPLES).length,
 				seed: SEED,
-				examples: [...Object.values(KNOWN).map((k) => k.example), ...REACH].map((d) => [d])
+				examples: Object.values(EXAMPLES).map((d) => [d])
 			}
 		);
 		if (process.env.HELD_GAP_TALLY)
-			appendFileSync(process.env.HELD_GAP_TALLY, `${JSON.stringify({ tally, unknown })}\n`);
+			appendFileSync(process.env.HELD_GAP_TALLY, `${JSON.stringify({ tally, unknown, landed })}\n`);
 		expect(unknown).toEqual([]);
 		for (const name of Object.keys(KNOWN)) expect(tally[name], `${name} fired`).toBeGreaterThan(0);
 		if (FIXED) expect(tally).toEqual(FIXED_TALLY);
+		// A declared draw that gets worse, or a taken place that moves, shows here.
+		expect(landed).toEqual(LANDED);
 	}, 600_000);
 });
