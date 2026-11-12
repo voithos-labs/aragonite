@@ -7,7 +7,6 @@
 
 import { getContentRange, structuralSuffix } from '../core/inline';
 import { isBlankText } from '../core/lines';
-import { titleInsertionPoint } from '../schema/reserved-chrome';
 import type { Mode, PasteHost, RangeHost } from './host';
 import { copyOf } from './copy';
 import {
@@ -16,7 +15,9 @@ import {
 	findWithin,
 	holderAt,
 	isCell,
+	joinsName,
 	leafHolding,
+	lineOf,
 	nodeAt,
 	pointedBlock,
 	readDoc,
@@ -290,13 +291,11 @@ function endBefore(doc: Doc, at: number): Place | null {
 		if (factsOf(doc, block).textPosition === 'never')
 			return { at: block.from, ...held('block', block) };
 		const owner = doc.mode === 'live' ? titleOwner(doc, block) : undefined;
-		if (owner) {
-			// Read as a paste reads the row: one that moves off the row's end would join the name.
-			const row = nodeAt(doc, block.path);
-			const last = getContentRange(row).end;
-			const spot = titleInsertionPoint(nodeAt(doc, owner.path), row, last);
-			if (spot.offset !== last || spot.gap !== '')
-				return { at, holds: 'boundary', parent: owner.path };
+		if (owner && joinsName(doc, owner, block, block.text!.to)) {
+			// A block removed past the container's closing line still lands inside, under the row.
+			const line = lineOf(owner, at);
+			const closes = line.own && line.from > block.from;
+			return { at: closes ? Math.min(at, line.from) : at, holds: 'boundary', parent: owner.path };
 		}
 		// A caret ends after a character, and before a line ending, both bytes of a pair.
 		const { source } = doc;

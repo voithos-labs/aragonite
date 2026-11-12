@@ -11,6 +11,8 @@ focused by ArrowUp from `para`, then `para`, in the `/test/plugins` harness.
 - A row with no title, live mode: the row's end is the end of `:::note`, which live mode hides.
   Backspace lands where Delete does, at the start of `para`, and `x` gives `xpara`
 - The harness's own `:::callout` container with no title lands the same way, in each mode
+- An empty `:::note` with no title, the rule after it, live mode: Backspace lands inside the note,
+  under the row, and `x` starts its first line. The paragraph after the rule keeps its text
 - A row with no title, source mode: `:::note` shows as text, the caret lands after it, and `x`
   types there (`:::notex`), as a caret placed there types
 

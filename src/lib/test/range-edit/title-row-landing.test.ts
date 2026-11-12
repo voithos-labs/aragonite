@@ -27,6 +27,18 @@ const ROWS: [kind: string, source: string, live: Place, source: Place][] = [
 		{ at: 10, holds: 'text' }
 	],
 	[
+		'an empty untitled `:::` container above the rule',
+		':::note\n:::\n\n---\n\npara\n',
+		{ at: 8, holds: 'boundary', parent: [0] },
+		{ at: 7, holds: 'text' }
+	],
+	[
+		'an empty untitled `:::` container in a quote above the rule',
+		'> :::note\n> :::\n\n---\n',
+		{ at: 12, holds: 'boundary', parent: [0, 0] },
+		{ at: 9, holds: 'text' }
+	],
+	[
 		'an untitled `:::` row with a space after the name',
 		':::note \n---\n\npara\n:::\n',
 		{ at: 8, holds: 'text' },
