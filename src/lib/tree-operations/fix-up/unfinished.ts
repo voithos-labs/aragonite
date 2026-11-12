@@ -2,7 +2,7 @@
 // blocks down to its closer, or to the body's end when it reads on; a closer the edit wrote
 // finishes the opener above it. A wait no line closes (a definition's, on its title) is read
 // from the block that waits down to where the wait ends.
-import { splitLines } from '../../core/lines';
+import { ownTrailingLineEnding, splitLines } from '../../core/lines';
 import type { CstNode } from '../../core/nodes';
 import type { UnfinishedReading } from '../../schema/block-openers';
 import type { Host } from './types';
@@ -61,6 +61,31 @@ function lookDown(
 /** Re-reads the blocks a wait no line closes reaches at the joins `from` to `to`, join `j` lying
  *  between blocks `j - 1` and `j`, where they read otherwise than they stand. */
 export function settleWaits(work: Work, from: number, to: number, host: Host): void {
+	eachWait(work, from, to, host, ({ lo, hi, next, trailing }) => {
+		if (trailing !== undefined) work.trailing = trailing;
+		replace(work, lo, hi, next);
+	});
+}
+
+/** Gives a blank line to each join from `from` to `to` where a wait would read the blocks
+ *  otherwise than they stand: the wait ends there, and both readings stay. */
+export function partWaits(work: Work, from: number, to: number, host: Host): void {
+	eachWait(work, from, to, host, (_, j) => {
+		const ending = ownTrailingLineEnding(work.blocks.at(j - 1).raw) || work.list.lineEnding;
+		work.blocks.set(j, { ...work.blocks.at(j), leadingTrivia: ending });
+		return 'parted';
+	});
+}
+
+type WaitReading = { lo: number; hi: number; next: CstNode[]; trailing?: string };
+
+function eachWait(
+	work: Work,
+	from: number,
+	to: number,
+	host: Host,
+	settle: (reading: WaitReading, j: number) => 'parted' | void
+): void {
 	let floor = bodyStart(work, host);
 	for (let j = Math.max(from, floor + 1); j <= to && j < work.blocks.length; j++) {
 		const reading = waitReading(work, j, floor, host);
@@ -68,11 +93,9 @@ export function settleWaits(work: Work, from: number, to: number, host: Host): v
 		floor = j;
 		if (!reading) continue;
 		const { lo, hi, next } = reading;
-		if (next) {
-			if (reading.trailing !== undefined) work.trailing = reading.trailing;
-			replace(work, lo, hi, next);
-			to += next.length - (hi - lo + 1);
-		}
+		// A parted join ends the wait where it stands; the blocks under it are asked in turn.
+		if (next && settle({ ...reading, next }, j) === 'parted') continue;
+		if (next) to += next.length - (hi - lo + 1);
 		// The read settled every join down to its last block.
 		j = floor = lo + (next ? next.length : hi - lo + 1) - 1;
 	}
