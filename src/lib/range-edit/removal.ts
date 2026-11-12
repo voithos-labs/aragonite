@@ -10,12 +10,15 @@ import {
 	trimTrailingLineEnding
 } from '../core/lines';
 import { getContentRange } from '../core/inline';
-import type { LaidBlock } from './layout';
+import type { LaidBlock, LaidLine } from './layout';
 import {
 	containersAt,
 	contentEnd,
-	findWithin,
 	factsOf,
+	findWithin,
+	firstBodyLine,
+	firstLine,
+	lastLine,
 	leafAt,
 	lineOf,
 	nodeAt,
@@ -345,7 +348,7 @@ function enteredOpening(
 ): { kept: string; endLine: number } | null {
 	const entered =
 		containersAt(doc, to, 'end').find(
-			(c) => opensFenced(doc, c, to) && c.from > from && c.lines!.at(-1)!.from >= to
+			(c) => opensFenced(doc, c, to) && c.from > from && lastLine(c).from >= to
 		) ??
 		findWithin(doc, from, to, (b) => {
 			if (!b.text || b.from <= from || to <= b.from) return false;
@@ -382,10 +385,9 @@ function openingEnd(doc: Doc, block: LaidBlock): number {
 		const body = doc.host.fence(nodeAt(doc, block.path).raw)?.body;
 		return body === undefined ? block.from : byteAt(doc, block, body);
 	}
-	if (factsOf(doc, block).lines === 'rows')
-		return block.lines!.find((l) => l.own)?.to ?? block.from;
+	if (factsOf(doc, block).lines === 'rows') return firstLine(block, (l) => l.own)?.to ?? block.from;
 	let at = block.from;
-	for (const line of block.lines!) {
+	for (const line of block.linesIn!(block.from)) {
 		if (!line.own) break;
 		at = line.to;
 	}
@@ -414,7 +416,7 @@ function closers(doc: Doc, from: number, to: number): string {
 	}
 	for (const c of containersAt(doc, from, 'start').reverse()) {
 		if (factsOf(doc, c).lines !== 'fenced' || c.from >= from) continue;
-		const last = c.lines!.at(-1)!;
+		const last = lastLine(c);
 		// A range starting on or past the closing line leaves it standing, as the fence's does.
 		if (!last.own || last.from >= to || from >= last.from) continue;
 		const lineStart = doc.source.lastIndexOf('\n', last.from - 1) + 1;
@@ -436,12 +438,15 @@ function movedMarkers(doc: Doc, from: number, to: number, out: string, past: num
 		if (end.path.slice(0, c.path.length).join() !== c.path.join()) continue;
 		const parent = parentOf(doc, c);
 		if (parent && factsOf(doc, parent).lines === 'items') continue;
-		const firstLine = c.lines!.find((l) => !l.own)!;
-		const next = c.lines!.find(
-			(l) => l.from >= past && !isBlankText(lineRest(doc.source, l.markerTo))
-		);
+		const first = firstBodyLine(c)!;
+		let next: LaidLine | undefined;
+		for (const line of c.linesIn!(past)) {
+			if (line.from < past || isBlankText(lineRest(doc.source, line.markerTo))) continue;
+			next = line;
+			break;
+		}
 		if (!next || next === lineOf(c, to)) continue;
-		const marker = doc.source.slice(firstLine.from, firstLine.markerTo);
+		const marker = doc.source.slice(first.from, first.markerTo);
 		const at = next.from + shift + (result.length - out.length);
 		result = result.slice(0, at) + marker + result.slice(at + next.markerTo - next.from);
 	}

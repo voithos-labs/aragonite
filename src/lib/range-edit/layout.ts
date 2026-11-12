@@ -10,7 +10,6 @@ import { getContentRange } from '../core/inline';
 import { blockNodeAt } from '../tree-operations/node-primitives';
 import {
 	childTriviaStart,
-	containerLines,
 	documentByteMap,
 	type ContainerLine,
 	type LineBytes
@@ -37,7 +36,6 @@ export interface LaidBlock {
 	/** The container's lines from the one holding `from` through the one holding `to`, which is its
 	 *  end unless given. */
 	linesIn?(from: number, to?: number): Iterable<LaidLine>;
-	readonly lines?: LaidLine[];
 }
 
 export interface Layout {
@@ -97,10 +95,6 @@ export function documentLayout(measured: Measured): Layout {
 				if (!made) lines.set(line.start, (made = map.lineBytes(path, line)));
 				return made;
 			};
-			let every: LaidLine[] | undefined;
-			Object.defineProperty(laidBlock, 'lines', {
-				get: () => (every ??= (containerLines(own!) ?? []).map((line) => map.lineBytes(path, line)))
-			});
 			laidBlock.lineAt = (byte) => laidLine(lineAt(map.offsetIn(path, byte)));
 			laidBlock.linesIn = function* (from, to = laidBlock.to) {
 				const length = node.raw.length;
