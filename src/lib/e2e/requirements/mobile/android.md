@@ -59,3 +59,10 @@ colon is the row's key, and `mobile-rows-lockstep.test.ts` holds the two lists t
   it (far short of its middle) takes the outline into the range.
   - Miss-analysis: the join rule was tested with a mouse on short blocks only, where its middle is
     a line away; on a phone an outline is most of the screen.
+- Backspace over a long-pressed last paragraph leaves a caret under the code block: a long press
+  on a one-word last paragraph, tight under a code block, makes it the editor's range. Gboard's
+  Backspace empties it and leaves the gap caret under the code block with the keyboard still up,
+  and the next Gboard letter opens a paragraph there holding it.
+  - Miss-analysis: the caret once went into the code block's closing fence, and only a finger's
+    range empties that paragraph whole; the gap caret's focus sits on a hidden proxy jsdom can't
+    show, so no unit row could tell whether the keyboard stays.

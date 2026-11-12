@@ -25,6 +25,10 @@ const OUTLINE = `alpha beta gamma\n\n[[toc]]\n\n${HEADINGS.join('\n\n')}\n`;
 const OUTLINE_URL = HARNESS_URL.replace('/test/editor', '/test/plugins?seed=toc');
 // Past a block's top edge by more than a line and well short of its middle.
 const PAST_EDGE = 40;
+// A last paragraph of one word, tight under a code block: the third block, which only a finger's
+// range empties whole.
+const TIGHT_END = 'alpha beta\n\n```\ncode\n```\nomega\n';
+const EMPTIED_END = 'alpha beta\n\n```\ncode\n```\n\n';
 
 // ── Rows ──────────────────────────
 
@@ -234,6 +238,27 @@ export const rows = {
 		if (after.editor?.focus.path[0] !== 1)
 			reasons.push(`a drag a line into the outline left ${json(after.editor)}`);
 		return { reasons, evidence: { handle, after, pointerLog: log } };
+	},
+
+	'Backspace over a long-pressed last paragraph leaves a caret under the code block': async (
+		ctx
+	) => {
+		await ctx.fresh(TIGHT_END);
+		// A caret first, so the keyboard is up before the long press takes the word.
+		await tapCaret(ctx, 0, 'held-gap');
+		const pressed = await pressOn(ctx, 'omega', 'held-gap-press');
+		if (!rangeIn(pressed.after.editor, 2))
+			return { reasons: [`the long press left ${json(pressed.after.editor)}, not the last word`] };
+		const reasons = await tapGboardKey(ctx, 'held-gap-backspace', 'Backspace', EMPTIED_END);
+		const gap = await ctx.page.evaluate('window.__test.getGapCaret()');
+		if (reasons.length === 0 && !(gap?.parentPath.length === 0 && gap.index === 2))
+			reasons.push(`Backspace left the caret at ${json(gap)}, not the gap under the code block`);
+		if (reasons.length === 0 && !ctx.device.imeShown())
+			reasons.push('the keyboard went down with the caret in the gap');
+		// Gboard may capitalise a paragraph's first letter.
+		if (reasons.length === 0)
+			reasons.push(...(await tapGboardKey(ctx, 'held-gap-letter', 'h', `${EMPTIED_END}h\n`)));
+		return { reasons, evidence: { ...pressed, gap, after: await source(ctx) } };
 	}
 };
 
@@ -364,7 +389,12 @@ async function pressBesideRange(ctx, name) {
 
 // A held finger: `input swipe` from a point on block `index`'s first word to itself.
 async function longPress(ctx, index, name) {
-	const box = await ctx.device.paragraphBox(lineText(await source(ctx), index), `${name}-target`);
+	return pressOn(ctx, lineText(await source(ctx), index), name);
+}
+
+// The same on the paragraph reading `text`, for a block no blank line sets apart.
+async function pressOn(ctx, text, name) {
+	const box = await ctx.device.paragraphBox(text, `${name}-target`);
 	const [x, y] = [box.x1 + 50, centre(box).y].map(Math.round);
 	return pressReport(ctx, name, () => ctx.device.swipe(x, y, x, y, 1500));
 }
@@ -537,6 +567,32 @@ async function typeOnGboard(ctx, name, index) {
 		ctx.device.tap(keys.get(ch).x, keys.get(ch).y);
 		await sleep(400);
 	}
+}
+
+// Taps one of Gboard's keys once the whole keyboard is on screen, then waits for the source to read
+// `want`, letter case aside. The keyboard is waited for and never tapped up: a tap on the page
+// would end the range or the caret the row holds. Returns the reasons it failed.
+async function tapGboardKey(ctx, name, key, want) {
+	const whole = (keys) => keys.has('h') && keys.has(key);
+	let keys = ctx.device.gboardKeys(`${name}-windows`);
+	for (let i = 0; i < 10 && !whole(keys); i++) {
+		await sleep(300);
+		keys = ctx.device.gboardKeys(`${name}-windows`);
+	}
+	ctx.device.screenshot(`${name}-keyboard`);
+	if (!whole(keys))
+		return [
+			`Gboard showed no ${key} key (${ctx.device.gboardMode()}, ime ${ctx.device.imeShown()})`
+		];
+	ctx.device.tap(keys.get(key).x, keys.get(key).y);
+	const landed = (text) => text.toLowerCase() === want.toLowerCase();
+	let text = await source(ctx);
+	for (let i = 0; i < 40 && !landed(text); i++) {
+		await sleep(250);
+		text = await source(ctx);
+	}
+	ctx.device.screenshot(name);
+	return landed(text) ? [] : [`${key} left ${json(text)}, not ${json(want)}`];
 }
 
 // Taps block `index`, records the typing, and expects the word (between spaces) at the caret.

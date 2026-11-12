@@ -119,12 +119,13 @@ export function createDevice(out) {
 
 	// Gboard's keys by their accessibility labels, from a dump of every window; an empty map when the
 	// keyboard isn't on screen, which includes Gboard's hardware mode (no keys, input still connected).
+	// Its backspace key is labelled Delete.
 	function gboardKeys(name) {
 		const keys = new Map();
 		for (const n of dumpNodes(name, '--windows')) {
 			if (!n.pkg.includes('inputmethod')) continue;
-			const label = n.desc === 'Space' ? ' ' : n.desc;
-			if (/^[a-z ]$/.test(label)) keys.set(label, centre(n.box));
+			const label = n.desc === 'Space' ? ' ' : n.desc === 'Delete' ? 'Backspace' : n.desc;
+			if (/^([a-z ]|Backspace)$/.test(label)) keys.set(label, centre(n.box));
 		}
 		return keys;
 	}
