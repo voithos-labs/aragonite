@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 // G2.20. `use` is a write: when it fails part way (a block type throws as the document is read again, a
-// plugin throws as it starts, a plugin taken off throws as it cleans up), a mounted editor runs the
-// list it ran, with its definitions, its grammar and what each plugin had attached, and `error`
-// hears it once the list is back.
+// plugin throws as it starts), a mounted editor runs the list it ran, with its definitions, its
+// grammar and what each plugin had attached, and `error` hears it once the list is back. A plugin
+// taken off whose cleanup throws is reported and goes all the same.
 // Miss-analysis: every `use` row changed a list that worked, so none threw between the list's
 // install and the last plugin's start, where the list had changed and the tree had not.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
@@ -68,7 +68,7 @@ const throwsOnBoom = () =>
 	});
 
 /** A plugin value and what its `setup` has lived through in the one editor that lists it: the
- *  times it finished, and the times what it returned ran. A cleanup that throws throws once. */
+ *  times it finished, and the times what it returned ran. */
 interface Listed {
 	name: string;
 	plugin: PluginList[number];
@@ -102,8 +102,8 @@ function listed(
 				life.setups++;
 				return () => {
 					spec.sees?.('cleanup', editor);
-					const first = life.cleanups++ === 0;
-					if (first && spec.throws === 'cleanup') throw new Error(`${name} cleanup blew up`);
+					life.cleanups++;
+					if (spec.throws === 'cleanup') throw new Error(`${name} cleanup blew up`);
 				};
 			}
 		})
@@ -176,20 +176,6 @@ const SCENES: {
 		},
 		error: { origin: 'subscriber', message: 'use-second setup blew up', plugin: 'use-second' },
 		rereads: true
-	},
-	{
-		name: 'a plugin taken off that throws as it cleans up',
-		make() {
-			const [stays, leaving] = [staying(), listed('use-leaving', { blocks: [rule()] })];
-			const sticky = listed('use-sticky', { throws: 'cleanup' });
-			return {
-				before: [stays, leaving, sticky],
-				next: [stays],
-				on: [stays, leaving, sticky],
-				off: []
-			};
-		},
-		error: { origin: 'subscriber', message: 'use-sticky cleanup blew up', plugin: 'use-sticky' }
 	},
 	{
 		name: 'a list with a block type the editor cannot install',
@@ -304,22 +290,22 @@ describe('a `use` put back over a plugin that will not start again', () => {
 	it('reports that plugin and starts the others it had detached', async () => {
 		const [stays, leaving] = [staying(), listed('use-leaving', { blocks: [rule()] })];
 		const once = listed('use-once', { throws: 'second setup' });
-		const sticky = listed('use-sticky', { throws: 'cleanup' });
-		const m = await mountedHoldingRange([stays, leaving, once, sticky]);
+		const second = listed('use-second', { throws: 'setup' });
+		const m = await mountedHoldingRange([stays, leaving, once]);
 		const stood = standing(m);
 		const errors: EditorError[] = [];
 		m.instance.getEvents().on('error', (error) => errors.push(error));
 
-		m.instance.use([stays.plugin]);
+		m.instance.use([stays.plugin, second.plugin]);
 		await m.settle();
 
 		expect(standing(m)).toEqual(stood);
 		expect(errors.map((e) => (e.error as Error).message)).toEqual([
 			'use-once setup blew up',
-			'use-sticky cleanup blew up'
+			'use-second setup blew up'
 		]);
-		const attached = [stays, leaving, once, sticky].map((each) => each.setups - each.cleanups);
-		expect(attached).toEqual([1, 1, 0, 1]);
+		const attached = [stays, leaving, once, second].map((each) => each.setups - each.cleanups);
+		expect(attached).toEqual([1, 1, 0, 0]);
 	});
 });
 
@@ -495,6 +481,33 @@ describe.each(BUILDS)(
 			expect(standing(m).plugins).toEqual(isDev ? stood.plugins : ['use-stays', 'use-nesting']);
 			expect(stays.setups - stays.cleanups).toBe(1);
 		});
+
+		// Miss-analysis: only a `setup` called `use`; a cleanup's throw fails no call, so its `use`
+		// is refused and the call around it lands.
+		it('from a cleanup is refused, and the outer call lands', async () => {
+			const stays = staying();
+			let inner: (() => void) | null = null;
+			const leaving = listed('use-leaving', {
+				sees: (during) => void (during === 'cleanup' && inner?.())
+			});
+			const m = await mountedHoldingRange([stays, leaving]);
+			const errors: EditorError[] = [];
+			m.instance.getEvents().on('error', (error) => errors.push(error));
+			inner = () => m.instance.use([stays.plugin, leaving.plugin]);
+			configureEditorEnv({ isDev });
+
+			m.instance.use([stays.plugin]);
+			await m.settle();
+
+			expect(errors.map((e) => [(e.error as Error).message, e.context?.plugin])).toEqual([
+				[
+					'aragonite: `use` called while the plugin list is changing',
+					isDev ? 'use-leaving' : undefined
+				]
+			]);
+			expect(standing(m).plugins).toEqual(['use-stays']);
+			expect(leaving.setups).toBe(1);
+		});
 	}
 );
 
@@ -518,6 +531,39 @@ describe('a `use` whose list works', () => {
 		]);
 		expect([stays, leaving, joining].map((each) => each.setups - each.cleanups)).toEqual([1, 0, 1]);
 	});
+
+	// Miss-analysis: the one cleanup that threw threw once and failed its call, so no row took off
+	// a plugin whose cleanup throws every time, which then could never go and started again each try.
+	it.each(BUILDS)(
+		'takes off a plugin whose cleanup throws, and reports it, in $build',
+		async ({ isDev }) => {
+			const [stays, leaving] = [staying(), listed('use-leaving', { blocks: [rule()] })];
+			const sticky = listed('use-sticky', { throws: 'cleanup' });
+			const m = await mountedHoldingRange([stays, leaving, sticky]);
+			const errors: EditorError[] = [];
+			m.instance.getEvents().on('error', (error) => errors.push(error));
+			expect(sticky.setups - sticky.cleanups).toBe(1);
+			configureEditorEnv({ isDev });
+
+			// The second call is the retry a host makes once it hears the error.
+			for (const list of [[stays], [stays]]) {
+				m.instance.use(list.map((each) => each.plugin));
+				await m.settle();
+			}
+
+			expect(errors.map((e) => [e.origin, (e.error as Error).message, e.context?.plugin])).toEqual([
+				['subscriber', 'use-sticky cleanup blew up', 'use-sticky']
+			]);
+			expect(standing(m)).toEqual({
+				plugins: ['use-stays'],
+				kinds: ['paragraph', 'use-stays/keep', 'paragraph', 'paragraph'],
+				source: SOURCE
+			});
+			expect([sticky.setups, sticky.setups - sticky.cleanups]).toEqual([1, 0]);
+			expect([stays, leaving].map((each) => each.setups - each.cleanups)).toEqual([1, 0]);
+			expect(m.instance.canRunCommand('use-sticky/ping')).toBe(false);
+		}
+	);
 
 	// Miss-analysis: no cleanup read its editor or wrote, so a plugin turned off ahead of its own
 	// cleanup, whose edit is then refused, changed no row.

@@ -41,9 +41,9 @@ export interface EditorPluginContexts {
 	attach(pluginNames: readonly string[]): PluginError | null;
 	/** `attachAll` for the plugins a failed `use` had detached. */
 	attachAgain(pluginNames: readonly string[]): void;
-	/** Disposes what a plugin `use` turned off added, and forgets its views. Returns what its
-	 *  cleanup threw; the plugin is detached all the same. */
-	detach(pluginName: string): PluginError | null;
+	/** Disposes what a plugin `use` turned off added, and forgets its views. A cleanup that throws
+	 *  is reported; the plugin is detached all the same. */
+	detach(pluginName: string): void;
 	/** The editor a plugin value sees, scoped to it, as its `setup` and its drawings get it. */
 	editor(pluginName: string): Editor;
 	/** The `Editor` a running plugin value's `setup` and commands get: one per plugin, kept while a
@@ -292,11 +292,7 @@ export function createEditorPluginContexts(deps: {
 			if (failure) for (const plugin of attached.reverse()) remove(plugin).forEach(report);
 			return failure;
 		},
-		detach(pluginName) {
-			const [first, ...rest] = remove(pluginName);
-			rest.forEach(report);
-			return first ?? null;
-		},
+		detach: (pluginName) => remove(pluginName).forEach(report),
 		dispose() {
 			for (const disposer of [...disposers]) reportThrown(disposeOne(disposer));
 		}

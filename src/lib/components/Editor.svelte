@@ -1719,8 +1719,7 @@
 		// Before the new list runs: a plugin cleans up still turned on, so what it writes lands.
 		for (const name of leaving) {
 			detached.push(name);
-			const thrown = pluginContexts.detach(name);
-			if (thrown) return thrown;
+			pluginContexts.detach(name);
 		}
 		runList({ entries, units: kept, blocks, names });
 		try {
@@ -1734,13 +1733,12 @@
 	/** Turns plugins on and off in this editor, reading the document again; the history stays. A
 	 *  call that fails part way leaves the editor running the list it ran and says so on `error`. */
 	export function use(next: PluginsProp): void {
-		// Started from a plugin's `setup` or cleanup while the list changes: refused as a write inside
-		// a write is, and said once that change has settled.
+		// Started from a plugin's `setup` or cleanup while the list changes: refused as a write inside a
+		// write is. A dev build throws into that plugin, whose report says it; production says it after.
 		if (afterUse) {
 			const error = new Error('aragonite: `use` called while the plugin list is changing');
-			afterUse.push({ cause: error });
 			if (devChecksOn) throw error;
-			return;
+			return void afterUse.push({ cause: error });
 		}
 		// Before the list changes: the re-read below is a write, refused inside another.
 		if (!startsAlone({ starts, events })) return;
@@ -1756,10 +1754,10 @@
 		// Page-wide and before this editor changes, so a `setup` that throws leaves it as it ran.
 		installPlugins(entries.plugins);
 		let failure = null as UseFailure | null;
-		let said: UseFailure[] = [];
+		const waiting: UseFailure[] = [];
 		// One selection change for the whole call, announced once the list is settled.
 		selectionState.batch(() => {
-			const waiting: UseFailure[] = (afterUse = []);
+			afterUse = waiting;
 			try {
 				let blocks: typeof ownBlocks | null = null;
 				// Until the new list is installed, every report waiting is its install's.
@@ -1788,11 +1786,9 @@
 			} finally {
 				// Settled before the batch announces, so a handler of that selection change may `use`.
 				afterUse = null;
-				// A refused `use` thrown into a plugin's `setup` is the failure itself, said last, once.
-				said = waiting.filter((each) => each.cause !== failure?.cause);
 			}
 		});
-		said.forEach(hearFailure);
+		waiting.forEach(hearFailure);
 		if (!failure) return;
 		// Last: a dev build throws the re-read's failure back to the caller.
 		if ('plugin' in failure) reportPluginError(failure);
