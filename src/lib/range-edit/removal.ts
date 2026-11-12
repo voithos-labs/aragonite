@@ -43,6 +43,8 @@ export interface Removal extends Edit {
 	gone?: boolean;
 	/** The block the range started in, by its path, when the removal took it whole. */
 	took?: readonly number[];
+	/** The block whose children the caret sits between, where the removal knows it. */
+	parent?: readonly number[];
 }
 
 export function removeRange(doc: Doc, start: number, end: number): Removal {
@@ -101,7 +103,7 @@ function endingItsParent(doc: Doc, block: LaidBlock, to: number): Removal | null
 		join,
 		false
 	);
-	return { source, caret: at, gone: true };
+	return { source, caret: at, gone: true, parent: block.path.slice(0, -1) };
 }
 
 /** A range across blocks: the end's tail joins the start where the start takes joined text, and

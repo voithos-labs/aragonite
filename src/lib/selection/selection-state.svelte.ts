@@ -216,8 +216,7 @@ class SelectionStateImpl implements SelectionState {
 	// Copied out, as `setGapCaret` copies in: a consumer that mutates what it reads back
 	// would otherwise write state without notifying anyone.
 	get gapCaret(): GapCaretPosition | null {
-		const gap = this.#gapCaret;
-		return gap && { parentPath: gap.parentPath.slice(), index: gap.index };
+		return this.#gapCaret && copyGap(this.#gapCaret);
 	}
 
 	get ownsRange(): boolean {
@@ -426,7 +425,7 @@ class SelectionStateImpl implements SelectionState {
 
 	// The copy keeps a caller's own position object from writing through.
 	setGapCaret(pos: GapCaretPosition): void {
-		this.#claim({ gap: { parentPath: pos.parentPath.slice(), index: pos.index } });
+		this.#claim({ gap: copyGap(pos) });
 		this.#notify();
 	}
 
@@ -491,6 +490,11 @@ class SelectionStateImpl implements SelectionState {
 	announcePlacement(): void {
 		this.#notify(true);
 	}
+}
+
+function copyGap(pos: GapCaretPosition): GapCaretPosition {
+	const { parentPath, index } = pos;
+	return { parentPath: parentPath.slice(), index, ...(pos.held && { held: true }) };
 }
 
 // Copied at both ends, as the gap caret is: neither a caller's object nor a reader's copy can

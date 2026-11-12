@@ -10,8 +10,17 @@ import { serialize } from '#lib/core/serializer.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
 import { cellPoint, type EditorSelection } from '#lib/selection/primitives.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
-import { documentBytes, wholeBlockBytes } from '#lib/selection/range-bytes.js';
-import { wholeBlocksRemovalOf } from '#lib/range-edit/edit-range.js';
+import { documentBytes, removalBytes, wholeBlockBytes } from '#lib/selection/range-bytes.js';
+import { gapEligibleAt, type GapCaretPosition } from '#lib/selection/gap-caret.js';
+import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
+import { leafAtByte } from '#lib/tree-operations/container-offsets.js';
+import { allBlockPaths } from '../invariants/arbitraries/index';
+import {
+	removalOf,
+	wholeBlocksRemovalOf,
+	type RangeEditResult,
+	type RemovalGesture as CoreGesture
+} from '#lib/range-edit/edit-range.js';
 import { rangeHost } from '#lib/range-edit/host.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
@@ -21,10 +30,6 @@ import { CORE_GESTURE } from '#lib/selection/cross-block/range-removal.js';
 import type { SpliceCaret } from '#lib/action-contracts.js';
 import { landingAt } from '#lib/editor-actions/commit/byte-splice.js';
 import { CURSOR_END, CURSOR_START } from '#lib/block-component.js';
-import {
-	getAllRegisteredKinds,
-	getBlockKindDescriptor
-} from '#lib/schema/block-kind-descriptor.js';
 import { caretOf } from './through-splice';
 import { registerDefaultContextActions } from '#lib/components/menu/default-context-actions.js';
 import {
@@ -41,7 +46,9 @@ import { deleteRange } from '#lib/test/harness/range-delete.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import {
 	CLIPBOARD_ROUTES,
+	blocksIn,
 	clipboardGesture,
+	kitFixtures,
 	mountCase,
 	placeRange,
 	runHistory,
@@ -64,6 +71,8 @@ afterEach(async () => {
 interface Shape {
 	source: string;
 	select: EditorSelection;
+	/** The core's caret is a boundary for every route that takes the range forward. */
+	boundaryForward?: true;
 }
 
 const at = (path: number[], offset: number) => ({ path, offset });
@@ -129,6 +138,13 @@ const SHAPES: Record<string, Shape> = {
 	'out of a math block': {
 		source: 'Before\n\n$$\nx^2\n$$\n\nAfter\n',
 		select: range(at([1], 4), at([2], 0))
+	},
+	// Miss-analysis: no shape left a gap caret two containers deep, where the walk from a byte and
+	// the laws' reading of the caret back each added a container's raw length to a document byte.
+	'from code in a quote in a quote out to the paragraph after': {
+		source: '> > ```\n> > x\n> > ```\n> >\n> > ~~~\n> > y\n> > ~~~\n\nafter',
+		select: range(at([0, 0, 1], 0), at([1], 5)),
+		boundaryForward: true
 	}
 };
 
@@ -208,13 +224,15 @@ async function drive(editor: Editor, route: Route): Promise<string | null> {
 
 describe('every removal route leaves the core’s bytes', () => {
 	for (const mode of ['source', 'live'] as const) {
-		for (const [shape, { source, select }] of Object.entries(SHAPES)) {
+		for (const [shape, { source, select, boundaryForward }] of Object.entries(SHAPES)) {
 			it.each(Object.entries(ROUTES))(`${mode}, ${shape}: %s`, async (_, route) => {
 				const editor = mountCase(source, mode);
 				await editor.settle();
 				expect(await placeRange(editor, select), 'the range would not place').toBe(true);
 				const gesture: RemovalGesture = 'cut' in route ? 'cut' : route.key;
 				const want = coreAnswer(editor, mode, gesture);
+				if (boundaryForward && gesture !== 'Backspace')
+					expect(want.caret.holds, 'the core’s caret').toBe('boundary');
 				let wrote: string | null;
 				try {
 					wrote = await drive(editor, route);
@@ -317,16 +335,20 @@ describe('every whole-block route leaves the core’s bytes', () => {
 
 // Miss-analysis: the core's caret table holds every kit kind's byte, and R1 each route's landing of
 // it, but nothing held that byte, landed, to where the kind itself puts a caret it is entered at.
-describe('a rule removed whole lands where the kind beside it takes a caret', () => {
+describe('a rule removed whole lands where the kind beside it takes a caret, or in the gap', () => {
+	// `gap`: the kinds a route leaves the gap above, where the core names the boundary the rule
+	// left and a letter there would go into the kind's syntax.
 	const sides = {
-		'above the rule, by Backspace': { route: { key: 'Backspace' }, above: true },
-		'above the rule, by the block menu’s Remove': { route: { menu: true }, above: true },
-		'below the rule, by Delete': { route: { key: 'Delete' }, above: false },
-		'below the rule, by Mod+X': { route: { cut: true }, above: false }
-	} satisfies Record<string, { route: WholeRoute; above: boolean }>;
+		'above the rule, by Backspace': { route: { key: 'Backspace' }, above: true, gap: [] },
+		'above the rule, by the block menu’s Remove': { route: { menu: true }, above: true, gap: [] },
+		'below the rule, by Delete': { route: { key: 'Delete' }, above: false, gap: [] },
+		'below the rule, by Mod+X': { route: { cut: true }, above: false, gap: ['fencedCode'] }
+	} satisfies Record<string, { route: WholeRoute; above: boolean; gap: string[] }>;
 	for (const mode of ['source', 'live'] as const) {
-		it.each(Object.entries(sides))(`${mode}, every kit kind %s`, async (_, { route, above }) => {
+		it.each(Object.entries(sides))(`${mode}, every kit kind %s`, async (_, side) => {
+			const { route, above } = side;
 			const out: string[] = [];
+			const gaps: string[] = [];
 			const kits = await kitFixtures();
 			expect(kits.map(([kind]) => kind)).toContain('table');
 			for (const [kind, fixture] of kits) {
@@ -339,7 +361,14 @@ describe('a rule removed whole lands where the kind beside it takes a caret', ()
 				if (mode === 'live' && !above && TITLE_ROW_KINDS.has(kind)) continue;
 				if (!(await driveWhole(editor, [1], route))) out.push(`${kind}: the route took no action`);
 				const removed = editor.source();
+				const held = editor.instance.__test.getGapCaret()?.held;
 				const left = { caret: heldCaret(editor), typed: await typedAt(editor) };
+				if (held) {
+					gaps.push(kind);
+					const own = above ? `${block}\n\nx\n\nbelow\n` : `above\n\nx\n\n${block}\n`;
+					if (left.typed !== own) out.push(`${kind}: ${left.typed}`);
+					continue;
+				}
 				const fresh = mountCase(removed, mode);
 				await fresh.settle();
 				fresh.instance.__test.getBlockComponent(above ? [0] : [1])!.focus(edge(above));
@@ -350,6 +379,7 @@ describe('a rule removed whole lands where the kind beside it takes a caret', ()
 					out.push(`${kind}: ${left.caret}, not ${own.caret}`);
 			}
 			expect(out).toEqual([]);
+			expect(gaps, 'the kinds the gap is held above').toEqual(side.gap);
 		});
 	}
 });
@@ -369,12 +399,268 @@ async function typedAt(editor: Editor): Promise<string> {
 	return typed === before ? 'nothing typed' : typed;
 }
 
-/** Every registered kind with a conformance fixture, read once an editor has installed its plugins. */
-async function kitFixtures(): Promise<[string, string][]> {
-	mountCase('', 'source');
-	await destroyMountedEditors();
-	return getAllRegisteredKinds().flatMap((kind) => {
-		const fixture = getBlockKindDescriptor(kind).conformanceFixture;
-		return fixture ? [[kind, fixture] as [string, string]] : [];
+// ── The place the core names ─────────────────────────────────────────────────
+
+type Lines = string[];
+const quoted = (body: Lines) => body.map((l) => (l === '' ? '>' : `> ${l}`));
+const itemOf = (body: Lines) => body.map((l, i) => (i === 0 ? `- ${l}` : l === '' ? '' : `  ${l}`));
+const WRAPS: Record<string, (body: Lines) => Lines> = {
+	quote: quoted,
+	'list item': itemOf,
+	callout: (body) => ['> [!NOTE]', ...quoted(body)],
+	directive: (body) => [':::note', ...body, ':::'],
+	// Open, since a closed body mounts nothing a caret could sit in.
+	details: (body) => ['<details open>', '<summary>S</summary>', '', ...body, '', '</details>']
+};
+const nest = (wrap: (body: Lines) => Lines, depth: number, body: Lines): Lines =>
+	depth === 0 ? body : nest(wrap, depth - 1, wrap(body));
+
+const pathsOf = (doc: Document, kind: string) =>
+	allBlockPaths(doc).filter((path) => blockNodeAt(doc, path)!.kind === kind);
+
+type Take = EditorSelection | { whole: number[] };
+
+/** The top-level rule a shape removes whole; null where the wrapper's own closing line takes it. */
+const topRule = (doc: Document): Take | null => {
+	const rule = pathsOf(doc, 'thematicBreak').find((path) => path.length === 1);
+	return rule ? { whole: rule } : null;
+};
+
+/** The deepest rule, removed whole. */
+const innerRule = (doc: Document): Take | null => {
+	const rule = pathsOf(doc, 'thematicBreak').at(-1);
+	return rule ? { whole: rule } : null;
+};
+
+/** Where two boundaries meet on one byte, or a removal empties the line above a block: the
+ *  removal's caret must sit among the children of the block the core names, two deep or one. */
+const PLACE_SHAPES: Record<
+	string,
+	{
+		lines: (wrap: (b: Lines) => Lines, d: number) => Lines;
+		take: (doc: Document) => Take | null;
+		unended?: true;
+	}
+> = {
+	'a rule under them': {
+		lines: (wrap, d) => [...nest(wrap, d, ['| b |', '| - |']), '---'],
+		take: topRule,
+		unended: true
+	},
+	'a rule under them, ended': {
+		lines: (wrap, d) => [...nest(wrap, d, ['| b |', '| - |']), '---'],
+		take: topRule
+	},
+	'a rule under them, text below': {
+		lines: (wrap, d) => [...nest(wrap, d, ['| b |', '| - |']), '---', '', 'after'],
+		take: topRule
+	},
+	'a cut across two fences': {
+		lines: (wrap, d) => [...nest(wrap, d, ['```', 'x', '```', '~~~', 'y', '~~~']), '', 'after'],
+		take: (doc) => {
+			const [first, second] = pathsOf(doc, 'fencedCode');
+			return range(at(first, 0), at(second, blockNodeAt(doc, second)!.raw.indexOf('y') + 1));
+		}
+	},
+	// The item ends on a tight item's first byte, and the caret the core names is the end of the
+	// table's last line, where no block starts or ends.
+	'a rule ending them after a table, a tight item below': {
+		lines: (wrap, d) => [...itemOf(nest(wrap, d, ['a', '', '| b |', '| - |', '', '---'])), '- c'],
+		take: innerRule
+	},
+	// The core names the directive the range started in, and its byte sits inside the callout.
+	'from a title row into a fence in a callout': {
+		lines: (wrap, d) => [
+			...nest(wrap, d, [
+				':::note',
+				'> [!NOTE]',
+				'> ```',
+				'> x',
+				'> ```',
+				'> ~~~',
+				'> y',
+				'> ~~~',
+				':::'
+			]),
+			'',
+			'after'
+		],
+		take: (doc) => {
+			const title = pathsOf(doc, 'directiveOpenerLine').at(-1);
+			const code = pathsOf(doc, 'fencedCode')[0];
+			if (!title || !code) return null;
+			const end = blockNodeAt(doc, title)!.raw.replace(/\r?\n$/, '').length;
+			return range(at(title, end), at(code, blockNodeAt(doc, code)!.raw.indexOf('x') + 1));
+		}
+	}
+};
+
+type PlaceRoute = 'Backspace' | 'Delete' | 'Mod+X' | 'a letter';
+const PLACE_ROUTES: PlaceRoute[] = ['Backspace', 'Delete', 'Mod+X', 'a letter'];
+
+/** The core's caret for `route` over what `take` names, as the route hands it over. */
+function corePlace(editor: Editor, mode: PresentationMode, take: Take, route: PlaceRoute) {
+	const grammar = editor.instance.__test.getGrammar();
+	const source = editor.source();
+	const doc = readAsOpened(source, { grammar, scope: 'document' }) as Document;
+	const laid = measured(doc);
+	const layout = documentLayout(laid);
+	const host = rangeHost(fixtureReading({ grammar }, mode), { source, measured: laid, layout });
+	const core = mode === 'live' ? 'live' : 'source';
+	const gesture: CoreGesture =
+		route === 'a letter'
+			? 'type'
+			: route === 'Mod+X'
+				? 'cut'
+				: route === 'Delete'
+					? 'delete'
+					: 'backspace';
+	if ('whole' in take)
+		return wholeBlocksRemovalOf(
+			source,
+			wholeBlockBytes(doc, layout, take.whole)!,
+			gesture,
+			core,
+			host
+		);
+	const held = editor.instance.getSelection()!;
+	const selection = createSelectionState({ getDoc: () => doc });
+	selection.enterCrossBlock(held.anchor, held.focus);
+	const coverage = rangeCoverage(doc, coverRange(doc, selection.start!, selection.end!));
+	if (route === 'a letter')
+		return removalOf(source, removalBytes(doc, coverage, layout)!, gesture, core, host);
+	// As the byte splice writes it, a closer under an opener the removal leaves included.
+	const reading = fixtureReading({ grammar }, mode);
+	const removal: RemovalGesture = route === 'Mod+X' ? 'cut' : route;
+	const { removed } = deleteRange(doc, selection.start!, selection.end!, {
+		reading,
+		gesture: removal
 	});
+	return { source: serialize(doc), caret: removed.landed as RangeEditResult['caret'] };
 }
+
+/** What a removal's caret is held as: the gap a boundary names, marked where no arrow stops at
+ *  it, or no gap where a paragraph's own text takes the letter (or the caret names no boundary). */
+function heldAs(doc: Document, caret: RangeEditResult['caret']): GapCaretPosition | null {
+	const named = namedBoundary(doc, caret);
+	if (!named || gapEligibleAt(doc, named.parentPath, named.index)) return named;
+	const rootEnd = named.parentPath.length === 0 && named.index === doc.children.length;
+	const text = leafAtByte(measured(doc), caret.at);
+	if (!rootEnd && text && blockNodeAt(doc, text.path)?.kind === 'paragraph') return null;
+	return { ...named, held: true };
+}
+
+/** The boundary a caret names: among its parent's children, before the first whose own bytes
+ *  start at or past its byte, else after the last; null for a caret on text or on a block. */
+function namedBoundary(doc: Document, caret: RangeEditResult['caret']): GapCaretPosition | null {
+	if (caret.holds !== 'boundary') return null;
+	// A table's rows, or a path holding no blocks, stand for the container around them.
+	let parentPath = [...caret.parent];
+	const holds = (path: number[]) => {
+		const node = path.length === 0 ? doc : blockNodeAt(doc, path);
+		return !!node?.children?.length && !('raw' in node && node.kind === 'table');
+	};
+	while (parentPath.length > 0 && !parentPath.every((_, i) => holds(parentPath.slice(0, i + 1))))
+		parentPath = parentPath.slice(0, -1);
+	const layout = documentLayout(measured(doc));
+	for (;;) {
+		const children = (parentPath.length === 0 ? doc : blockNodeAt(doc, parentPath))?.children ?? [];
+		let index = children.findIndex((_, k) => layout.block([...parentPath, k])!.from >= caret.at);
+		if (index < 0) index = children.length;
+		// A byte inside the child before, ahead of one of its own children, names a boundary among them.
+		const inside = layout.block([...parentPath, index - 1]);
+		const own = inside && holds(inside.path) ? blockNodeAt(doc, inside.path)!.children! : [];
+		const last = own.length > 0 ? layout.block([...inside!.path, own.length - 1]) : undefined;
+		if (inside && last && inside.from < caret.at && last.from >= caret.at) {
+			parentPath = inside.path;
+			continue;
+		}
+		return { parentPath, index };
+	}
+}
+
+/** Whether a paragraph holding only the typed letter stands at `path`. */
+const letterAt = (editor: Editor, path: readonly number[]) =>
+	/^q\r?\n?$/.test(blockNodeAt(editor.instance.__test.getDocument(), path)?.raw ?? '');
+
+async function drivePlace(editor: Editor, take: Take, route: PlaceRoute): Promise<boolean> {
+	if ('whole' in take) {
+		if (route === 'a letter') return false;
+		return driveWhole(editor, take.whole, route === 'Mod+X' ? { cut: true } : { key: route });
+	}
+	if (!(await placeRange(editor, take))) return false;
+	if (route === 'Mod+X') return (await drive(editor, { cut: 'key' })) !== null;
+	const key = route === 'a letter' ? 'q' : route;
+	return (await pressHardwareKey(document.activeElement as HTMLElement, { key })) !== 'browser';
+}
+
+// Miss-analysis: every landing row read the core's caret back by its byte alone, and no row put
+// two boundaries on one byte, so a caret that left the block the core named went unseen.
+describe('a removal’s caret sits among the children of the block the core names', () => {
+	const rows = Object.entries(PLACE_SHAPES).flatMap(([shape, spec]) =>
+		Object.entries(WRAPS).flatMap(([wrap, fn]) =>
+			[1, 2, 3].flatMap((depth) =>
+				['\n', '\r\n'].map((eol) => ({
+					shape,
+					depth,
+					wrap,
+					ending: eol === '\n' ? 'LF' : 'CRLF',
+					source: spec.lines(fn, depth).join(eol) + (spec.unended ? '' : eol),
+					take: spec.take
+				}))
+			)
+		)
+	);
+	for (const mode of ['source', 'live'] as const) {
+		for (const route of PLACE_ROUTES) {
+			const title = `${mode}, ${route}: $shape, $depth deep in a $wrap, $ending`;
+			it.each(rows)(title, async ({ shape, wrap, source, take }) => {
+				// In live mode a code block the caret lands in with no body line writes one on arrival
+				// (`CodeBlock.svelte` :: `bareFenceCompletion`), a byte the core's answer doesn't hold.
+				const diverges =
+					mode === 'live' &&
+					shape === 'a cut across two fences' &&
+					((route === 'Delete' && wrap === 'callout') ||
+						(route !== 'Backspace' && route !== 'a letter' && wrap === 'directive'));
+				if (diverges) return;
+				const editor = mountCase(source, mode);
+				await editor.settle();
+				const target = take(editor.instance.__test.getDocument());
+				// A wrapper whose closing line the rule reads into leaves no such block to take.
+				if (!target || ('whole' in target && route === 'a letter')) return;
+				if (!('whole' in target))
+					expect(await placeRange(editor, target), 'the range would not place').toBe(true);
+				const want = corePlace(editor, mode, target, route);
+				expect(await drivePlace(editor, target, route), 'the route took no action').toBe(true);
+				await editor.settle();
+				if (route !== 'a letter') expect(editor.source(), 'the core’s bytes').toBe(want.source);
+				const doc = readAsOpened(want.source, {
+					grammar: editor.instance.__test.getGrammar(),
+					scope: 'document'
+				}) as Document;
+				if ('whole' in target && want.caret.holds === 'boundary')
+					expect(want.caret.parent, 'the block the rule sat among').toEqual(
+						target.whole.slice(0, -1)
+					);
+				const gap = heldAs(doc, want.caret);
+				const opens = gap && [...gap.parentPath, gap.index];
+				if (route === 'a letter') {
+					if (opens) expect(letterAt(editor, opens), editor.source()).toBe(true);
+					return;
+				}
+				expect(editor.instance.__test.getGapCaret(), 'the gap caret').toStrictEqual(gap);
+				if (want.caret.holds !== 'boundary') return;
+				await pressHardwareKey(document.activeElement as HTMLElement, { key: 'q' });
+				await editor.settle();
+				if (opens) expect(letterAt(editor, opens), editor.source()).toBe(true);
+				if ('whole' in target) return;
+				// The key and then a letter leave what the letter typed over the range leaves.
+				const over = mountCase(source, mode);
+				await over.settle();
+				expect(await drivePlace(over, target, 'a letter'), 'no letter went over').toBe(true);
+				await over.settle();
+				expect(blocksIn(editor), 'the letter typed over the range').toEqual(blocksIn(over));
+			});
+		}
+	}
+});

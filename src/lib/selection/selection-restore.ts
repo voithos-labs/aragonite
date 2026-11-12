@@ -37,7 +37,7 @@ export interface GapCaretRestoreDeps {
 }
 
 /** Restores a gap caret with only the child-list check: the tree is the one the gap was made
- *  against, so its `gapEdges` hold, but the path may name something no BlockList renders. */
+ *  against, so what faced it still does, but the path may name something no BlockList renders. */
 export async function restoreGapCaret(
 	pos: GapCaretPosition,
 	deps: GapCaretRestoreDeps
@@ -53,7 +53,7 @@ export async function restoreGapCaret(
 	const neighbourPath = [...pos.parentPath, neighbour];
 	const mounted = (await deps.mount(neighbourPath)) !== null;
 	if (!deps.current()) return 'unplaced';
-	placeGapCaret(deps.selectionState, deps.caretWriter, { parentPath: pos.parentPath, index });
+	placeGapCaret(deps.selectionState, deps.caretWriter, { ...pos, index });
 	if (mounted) await deps.show();
 	return mounted ? 'applied' : 'unplaced';
 }

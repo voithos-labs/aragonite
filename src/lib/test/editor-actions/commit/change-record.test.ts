@@ -4,6 +4,7 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
 import {
+	blockRange,
 	byteAt,
 	captureChange,
 	changeAfter,
@@ -70,5 +71,32 @@ describe('a range through a write', () => {
 	it('follows a keystroke caret to where its typed text went', () => {
 		expect(through('@que\n', '@quee\n', [0, 4], { block: 0, offset: 4 })).toBeNull();
 		expect(through('@que\n', '@quee\n', [0, 4], { block: 0, offset: 5 })).toEqual([0, 4]);
+	});
+});
+
+// Miss-analysis: every block draft opened on a top-level block, or in a container no blank line
+// stood above, so that line counted twice in a nested block's range went unseen.
+describe("a block's range", () => {
+	const source = 'one\n\n> two\n>\n> three\n\nfour\n';
+	const doc = parse(source);
+	const bytes = (path: number[]) => {
+		const lengths = partLengths(doc);
+		const range = blockRange(doc, path)!;
+		return source.slice(byteAt(lengths, range.from), byteAt(lengths, range.to));
+	};
+
+	it('holds its own bytes, under a container that a blank line stands above too', () => {
+		expect(bytes([1])).toBe('> two\n>\n> three\n');
+		expect(bytes([1, 0])).toBe('two\n');
+		expect(bytes([1, 1])).toBe('three\n');
+	});
+
+	it('ends at the next block where it is the last its top-level block holds', () => {
+		expect(blockRange(doc, [1, 1])!.to).toEqual({ part: 3, offset: 0 });
+		expect(blockRange(doc, [1, 0])!.to.part).toBe(2);
+	});
+
+	it('is null for a path that holds no block', () => {
+		expect([blockRange(doc, [3]), blockRange(doc, [1, 4])]).toEqual([null, null]);
 	});
 });

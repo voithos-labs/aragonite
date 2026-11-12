@@ -13,7 +13,7 @@ const ROGUE = 'src/lib/selection/rogue.ts';
 const SELECTION_BYTES: FileRule = {
 	id: 'G4.315 a range is read as bytes only in selection/range-bytes.ts',
 	population: under(SOURCE_DIR.selection),
-	matches: /\b(?:byteOf\w*|leafAtByte|documentByteMap)\s*\(/,
+	matches: /\b(?:byteOf\w*|endOf|leafAtByte|documentByteMap)\s*\(/,
 	allowed: {
 		'src/lib/selection/range-bytes.ts': 'the adapter: a selection read as the bytes the core takes'
 	},
@@ -22,7 +22,8 @@ const SELECTION_BYTES: FileRule = {
 	reaches: [SOURCE.rangeBytes],
 	hits: [
 		{ relPath: ROGUE, code: 'const at = layout.byteOf(path, offset);' },
-		{ relPath: ROGUE, code: 'documentByteMap(doc).leafAt(byte)' }
+		{ relPath: ROGUE, code: 'documentByteMap(doc).leafAt(byte)' },
+		{ relPath: ROGUE, code: 'const end = map.endOf(path, raw.length);' }
 	],
 	misses: [
 		{ relPath: ROGUE, code: 'rangeBytes(doc, coverage, layout)' },

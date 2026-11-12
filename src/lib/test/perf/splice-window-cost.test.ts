@@ -34,6 +34,14 @@ const SHAPES = {
 		line: (c: number) => 2 * c,
 		pasted: 'one\n> two'
 	},
+	// Miss-analysis: every container stood first, where its first byte and its blank lines' first
+	// byte are both 0, so a window counted from either, or from 0, read the same bytes.
+	'quote under a paragraph': {
+		source: (n: number) =>
+			'intro\n\n' + Array.from({ length: n }, (_, i) => `> ${word(i)}\n>\n`).join(''),
+		line: (c: number) => 2 * c + 2,
+		pasted: 'one\n> two'
+	},
 	table: {
 		source: (n: number) =>
 			'| a | b |\n| --- | --- |\n' +
@@ -114,6 +122,8 @@ async function cost(shape: keyof typeof SHAPES, n: number, edit: 'paste' | 'remo
 	});
 	expect(wrote).toBe(true);
 	const { parseBytes, joinedChildReads, siblingsCompared, linesPaired } = perfSnapshot();
+	const [{ from, to, insert }] = changes;
+	expect(serialize(deps.doc)).toBe(before.slice(0, from) + insert + before.slice(to));
 	return {
 		read,
 		commit: parseBytes,
