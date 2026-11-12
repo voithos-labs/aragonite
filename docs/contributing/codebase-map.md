@@ -38,7 +38,7 @@ A row is a behavior the way a bug report would say it, the entry to open, and th
 | What the caret remembers between keys: pending marks (a format toggled at a collapsed caret), the pending break (Shift+Enter at a block's end), the held space (a space typed at a hidden closer) | `src/lib/caret/caret-memory.ts`, one file beside it per record | `docs/design/live-mode.md` § 4.3 Format toggles at a collapsed caret: pending marks, `docs/design/live-mode.md` § 4.2 Typing at a hidden edge, `docs/design/editor.md` § Shift+Enter at the end of a block |
 | Selecting an inline widget whole | `src/lib/selection/place-caret.ts` :: `selectWidgetWhole` | `docs/design/editor.md` § Atomic inline widgets |
 | Keys and focus on a block focused whole (a divider, a plugin container) | `src/lib/editor-actions/container-block-component.ts` :: `handleWholeBlockKeys`, `src/lib/editor-actions/whole-block-focus-surface.svelte.ts`. Reading mode switches off the editing branches only. | `docs/design/structural-edits.md` § Whole-block focus |
-| The gap caret | `src/lib/selection/gap-caret.ts` :: `canGapStop`, which the arrows (through `tryGapStop`) and a dead-space click both ask | `docs/design/selection.md` § The gap caret |
+| The gap caret | `src/lib/selection/gap-caret.ts` :: `canGapStop`, which the arrows (through `tryGapStop`) and a dead-space click both ask. The gap a removal leaves the caret in: `src/lib/selection/range-bytes.ts` :: `heldGapOf` | `docs/design/selection.md` § The gap caret |
 
 ## Selection and clipboard
 
