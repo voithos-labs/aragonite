@@ -140,7 +140,7 @@ describe('the swap commit sequence', () => {
 	});
 
 	// Miss-analysis: no row's outgoing handler wrote, so the stale parse a re-read adopted lost
-	// nothing a row saw. Held at this seam only: no mounted editor has reproduced it yet.
+	// nothing a row saw. Held by this harness alone: no mounted editor has reproduced it yet.
 	it('a re-read adopts what a handler of the outgoing document wrote as it ended', () => {
 		const h = harness(defaultGrammarView, () => h.write('held\n\nwritten as the hover ended\n'));
 		h.swap.reparse();
