@@ -15,7 +15,9 @@ import {
 	findWithin,
 	holderAt,
 	isCell,
+	joinsName,
 	leafHolding,
+	lineOf,
 	nodeAt,
 	pointedBlock,
 	readDoc,
@@ -280,14 +282,21 @@ function caretOf(edit: Removal, result: Doc, beside: Beside, started: () => Laid
 	return { at, holds: 'boundary', parent };
 }
 
-/** The end of the block before byte `at`: the last place a caret takes in its text, or the block
- *  itself where it has no text position (a rule). Null where no block comes before. */
+/** The end of the block before byte `at`, the block itself where it has no text position (a rule),
+ *  or in live mode the boundary under a title row ending in its hidden `:::name`; null for none. */
 function endBefore(doc: Doc, at: number): Place | null {
 	for (let byte = at - 1; byte >= 0; byte--) {
 		const block = pointedBlock(doc, byte);
 		if (!block) continue;
 		if (factsOf(doc, block).textPosition === 'never')
 			return { at: block.from, ...held('block', block) };
+		const owner = doc.mode === 'live' ? titleOwner(doc, block) : undefined;
+		if (owner && joinsName(doc, owner, block, block.text!.to)) {
+			// A block removed past the container's closing line still lands inside, under the row.
+			const line = lineOf(owner, at);
+			const closes = line.own && line.from > block.from;
+			return { at: closes ? Math.min(at, line.from) : at, holds: 'boundary', parent: owner.path };
+		}
 		// A caret ends after a character, and before a line ending, both bytes of a pair.
 		const { source } = doc;
 		const end = !/[\r\n]/.test(source[byte])
