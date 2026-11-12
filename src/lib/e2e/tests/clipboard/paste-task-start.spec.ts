@@ -14,14 +14,17 @@ test.describe('a block pasted at the start of a to-do’s text', () => {
 		await editor.goto();
 	});
 
-	test('a line the bare bullet reads as a divider stays the to-do’s text', async () => {
+	test('a line the bare bullet reads as a divider stays the to-do’s text, on a line of its own', async ({
+		page
+	}) => {
 		await editor.loadContent('- [ ] bc\n');
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.seedClipboard('---');
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('---');
 
-		expect(asLf(await editor.bridge.getSource())).toBe('- [ ] ---\n  bc\n');
+		expect(asLf(await editor.bridge.getSource())).toBe('- [ ] ---\n\n  bc\n');
+		await expect(page.locator('.task-checkbox')).toHaveCount(1);
 		expect(await editor.parseConverged()).toBe(true);
 	});
 

@@ -4,7 +4,7 @@ A paste puts bytes at the caret and takes nothing the user didn't select, so a t
 
 ## Happy paths
 
-- `- [ ] bc`, caret before `b`, paste `---`: the source is `- [ ] ---\n  bc\n`, still a to-do, and a reload reads the same tree. (`- ---` on its own line is a divider, which would end the list.)
+- `- [ ] bc`, caret before `b`, paste `---`: the source is `- [ ] ---\n\n  bc\n`, still a to-do, and a reload reads the same tree. The pasted line stays a line of its own: with no blank line a reload would read `bc` into it. (`- ---` on its own line is a divider, which would end the list.)
 - `- [ ] bc`, caret before `b`, paste `# h`: the source is `- [ ] # hbc\n`, still a to-do with its box, the `# h` text beside it, and a reload agrees.
 
 ## Miss-analysis

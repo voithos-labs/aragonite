@@ -26,9 +26,10 @@ splice, the one write that never reached the closing step.
   `:::note` closes at its first letter, `<details>` is written as typed
 - `$`, Home, `$` on an empty line: the second `$` lands in front of the first, where the auto-pair
   declines to pair, and the `$$` it finishes gets a closer
-- pasted into an empty line as one line of text
+- pasted into an empty line as one line of text: the pasted block takes the empty line, so one
+  blank line stands under it, where a typed opener keeps the two the empty paragraph had
 - pasted as two blocks, the opener first and `foo` after it: the opener is closed at its own
-  block's end, above `foo`
+  block's end, above `foo`, and the pair takes the empty line the same way
 - dropped: the opener's text, selected with Shift+ArrowLeft at the end of `from <opener>` and
   dragged onto the empty line below
 - pasted over a selection from the start of one paragraph to the end of the next
