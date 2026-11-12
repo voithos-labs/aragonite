@@ -63,8 +63,8 @@ export function checkRunReadsBack(
 		: { code: 'reads-back', message: `${kinds}'s bytes read as another tree: ${divergence}` };
 }
 
-/** The runs a byte splice's windows read back as: each window with the block on either side, and
- *  on to the document's end (or start) around an opener still waiting for its closer. */
+/** The runs a byte splice's windows read back as: each with the block on either side, out to the
+ *  blank lines where it stands flush against them, and to the far end around a waiting opener. */
 export function spliceRuns(
 	top: readonly NodeView[],
 	windows: readonly { at: number; count: number }[],
@@ -77,6 +77,17 @@ export function spliceRuns(
 		const run = top.slice(Math.max(at - 1, 0), at + count + 1);
 		const waits = run.some((node) => waitingReading(node.raw, readings));
 		const from = run.some(closes) ? 0 : Math.max(at - 1, 0);
-		return top.slice(from, waits ? top.length : at + count + 1);
+		const to = waits ? top.length : at + count + 1;
+		// Found by blank lines alone, not the splice's own look, so a window cut short shows.
+		let above = Math.min(at, top.length - 1);
+		while (above > 0 && top[above].leadingTrivia === '') above--;
+		let below = at + count;
+		while (below < top.length && top[below].leadingTrivia === '') below++;
+		const flush = top.slice(Math.min(from, above), Math.max(to, below));
+		// A run past the limit is read with its neighbours alone, which the check can afford.
+		return bytesIn(flush) > READ_BACK_LIMIT ? top.slice(from, to) : flush;
 	});
 }
+
+const bytesIn = (run: readonly NodeView[]): number =>
+	run.reduce((bytes, node) => bytes + node.leadingTrivia.length + node.raw.length, 0);
