@@ -1,8 +1,10 @@
 // G4.347: what a byte splice parses and asks to find where its window starts and stops, in a run
-// with no blank line. The bytes parsed are the same at N lines and 4N, a reading is asked about a
-// block at most once, and a run under a title that has started is read through, never once a block.
+// with no blank line. The bytes parsed are the same at N lines and 4N, what a reading is asked
+// grows no faster than the run, and a run under a title that has started is read through, never
+// once a block.
 // Miss-analysis: the splice's cost rows counted bytes parsed, so nothing held what the look for a
-// waiting definition asks, and a run of code and definitions was read whole unseen.
+// waiting definition asks, and a run of code and definitions was read whole unseen. No row drew a
+// title that starts under every definition, so each was asked of the whole run below it.
 import { describe, it, expect, afterEach } from 'vitest';
 import { serialize } from '#lib/core/serializer.js';
 import {
@@ -49,6 +51,14 @@ const SHAPES: Record<string, { growth: Growth; run: (n: number) => string[] }> =
 	'code and definitions alternating': {
 		growth: 'asks',
 		run: (n) => lines(n >> 1, (i) => [`[${word(i)}]: /u`, `    ${word(i)}`])
+	},
+	'definitions each under a title started in code': {
+		growth: 'asks',
+		run: (n) => lines(n >> 1, (i) => [`[${word(i)}]: /u`, `    '${word(i)}`])
+	},
+	'a long code block between two definitions': {
+		growth: 'asks',
+		run: (n) => ['[a]: /u', ...lines(n - 2, (i) => [`    ${word(i)}`]), '[b]: /v']
 	},
 	'definitions under a title that has started': {
 		growth: 'run',
@@ -110,14 +120,21 @@ describe('the look for a waiting definition, in a run with no blank line', () =>
 				expect(small.parsed).toBeLessThan(400);
 				expect(large.parsed).toBe(small.parsed);
 				if (growth === 'flat') expect(large.asks).toBe(small.asks);
-				// One ask a block, each of the block and the line under it: four times the lines, four
-				// times the asks and the bytes.
+				// Each block is asked with the line under it, and one that line leaves waiting with a
+				// few blocks more: four times the lines, four times the asks and the bytes.
 				expect(large.asks).toBeLessThan(4 * small.asks + 64);
-				expect(small.asks).toBeLessThan(N + 64);
+				expect(small.asks).toBeLessThan(2 * N + 64);
 				expect(large.asked).toBeLessThan(4 * small.asked + 4096);
 			});
 		}
 	}
+
+	// Miss-analysis: every block in the rows above is a line or two long, so asking a definition with
+	// the whole block under it cost what asking it with that block's first line does.
+	it('asks a definition with the first line of a long block under it, not the block', () => {
+		const { asked, length } = cost('a long code block between two definitions', 4 * N, false);
+		expect(asked).toBeLessThan(1.5 * length);
+	});
 
 	// Miss-analysis: every row changed the run's foot, where the first read already holds the run,
 	// so nothing held a read that starts at the head to reaching the foot in one more step.

@@ -235,14 +235,16 @@ export function waitingAboveThrough(
 	for (let i = from; i > floor && live.length > 0; i--) {
 		const below = block(i);
 		live = live.filter((reading) => reaches(reading, below));
-		const { raw } = block(i - 1);
-		// Asked with the next line alone first: a block that line settles waits on nothing below it.
+		let bytes = block(i - 1).raw;
+		// Asked with the next line alone, then with twice the blocks each time: a block a few lines
+		// settle stays settled with more under them, so it is never handed the whole run.
 		const line = below.raw.slice(0, below.raw.indexOf('\n') + 1 || below.raw.length);
-		const waiting = live.filter((reading) => reading.notFinal(raw + line));
-		if (waiting.length === 0) continue;
-		let bytes = raw;
-		for (let k = i; k <= from; k++) bytes += block(k).raw;
-		if (waiting.some((reading) => reading.notFinal(bytes))) top = i - 1;
+		let waiting = live.filter((reading) => reading.notFinal(bytes + line));
+		for (let k = i, step = 1; k <= from && waiting.length > 0; step *= 2) {
+			for (const end = Math.min(from, k + step - 1); k <= end; k++) bytes += block(k).raw;
+			waiting = waiting.filter((reading) => reading.notFinal(bytes));
+		}
+		if (waiting.length > 0) top = i - 1;
 	}
 	return top;
 }
