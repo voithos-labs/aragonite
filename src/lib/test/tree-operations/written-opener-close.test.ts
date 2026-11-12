@@ -5,6 +5,9 @@
 // Miss-analysis (#800): every fresh row typed a fence, so none typed an opener that backs out.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { installPlugins } from '#lib';
+import { parse } from '#lib/core/parser.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { legalizeWrite } from '#lib/tree-operations/content-write.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { registerDetailsKind } from '#packages/details/src/details-kind.js';
 import { registerMathBlock } from '#packages/latex/src/latex-kind.js';
@@ -115,5 +118,23 @@ describe('an opener that backs out, with nothing below to close it', () => {
 		const { type } = typingOver(source);
 
 		expect(type(0, written)).toBe(expected);
+	});
+});
+
+// Miss-analysis: every row wrote an opener into a slot that reads one, so none wrote bytes that
+// open a fence alone into a to-do's first line, which the item reads as text behind its checkbox.
+describe('bytes that open a fence alone, written into a to-do’s first line', () => {
+	const firstLine = (source: string, text: string) => {
+		const item = parse(source).children[0].children![0];
+		const slot = { children: item.children!, owner: item, lineEnding: '\n' as const };
+		return legalizeWrite(slot, 0, text, 'authored', defaultGrammarView).text;
+	};
+
+	it('get no closer: the checkbox makes them text', () => {
+		expect(firstLine('- [ ] ```js\n\n  next\n', '```jsx\n')).toBe('```jsx\n');
+	});
+
+	it('get one in a plain item, where they open a fence', () => {
+		expect(firstLine('- a\n\n  next\n', '```\n')).toBe('```\n```\n');
 	});
 });

@@ -22,14 +22,23 @@ import {
 	inTitleRow,
 	leafAt,
 	leavesLiteralBlock,
+	liveCutAt,
+	inConstructAt,
+	cellAt,
+	containersHolding,
+	reopensNowhere,
 	lf,
 	liveSplitsRun,
+	aboveLine,
+	overEmptied,
+	startsLaterLine,
 	opensWithoutClosing,
 	mixedEndings,
 	plainPasteHolds,
 	readOf,
 	sameBlocks,
 	sameDocument,
+	shownDelimiters,
 	copiesLinesBeforeRange,
 	type Read
 } from './expected';
@@ -89,13 +98,13 @@ function endingLength(source: string, to: number): number {
 	return source.slice(to - 2, to) === '\r\n' ? 2 : source[to - 1] === '\n' ? 1 : 0;
 }
 
-/** A heading's whole text that reads as a block alone: at the emptied heading's text start it
- *  pastes back as that block, under the heading (ruled 2026-11-10); the own entry gives the source. */
+/** A cut from a heading's text start that reads as a block alone, the whole text or not: at that
+ *  text start it pastes back as blocks, never as the heading's text; the own entry gives the source. */
 export function headingTextReadsAsBlock(read: Read, range: Range, host: CheckHost): boolean {
 	const heading = read.blocks.find(
 		(b) =>
 			b.text?.from === range.from &&
-			b.text.to === range.to &&
+			range.to <= b.text.to &&
 			b.from < b.text.from &&
 			host.facts(b.type).joins !== 'text'
 	);
@@ -116,6 +125,13 @@ export function liveWholeText(read: Read, range: Range, mode: Mode): boolean {
 			range.to <= b.to &&
 			b.text.from < b.text.to
 	);
+}
+
+/** In live mode, whether a construct holds an end of the range and the bytes the range carries out
+ *  close it: there a paste back can't give the bytes back, and one write closes the run its own way. */
+function cutsLiveRun(read: Read, { from, to }: Range, host: CheckHost): boolean {
+	const held = [from, to].some((at) => inConstructAt(read, at, host));
+	return held && liveSplitsRun(read, from, to, host);
 }
 
 // ── The laws ─────────────────────────────────────────────────────────────────
@@ -171,26 +187,29 @@ export function ownEntry(call: Call, host: CheckHost, input: RangeInput, at: num
 export function cutPasteBack(call: Call, host: CheckHost, input: RangeInput): string[] {
 	const read = readOf(host, input.source);
 	if (liveWholeText(read, input.range, input.mode)) return [];
-	if (input.mode === 'live' && liveSplitsRun(read, input.range.from, input.range.to, host))
-		return [];
+	if (input.mode === 'live' && cutsLiveRun(read, input.range, host)) return [];
 	if (opensWithoutClosing(read, input.range.from, input.range.to, host)) return [];
 	if (leavesLiteralBlock(read, input.range.from, input.range.to, host, input.mode)) return [];
 	if (copiesLinesBeforeRange(read, input.range.from, host)) return [];
 	if (headingTextReadsAsBlock(read, input.range, host)) return [];
 	const cut = call(input.source, input.range, 'cut', input.mode);
 	if (!cut || cut.clipboard === undefined) return [];
+	// A live caret beside three delimiters in a row: no cut of the run there is sound.
+	if (input.mode === 'live' && crowded(readOf(host, cut.source), cut.caret.at)) return [];
 	// The editor hands a paste its text with LF line endings.
 	const text = lf(cut.clipboard);
-	// Where law 9 pins the paste back to other bytes, law 9 wins; the own entry gives them back.
-	// Blocks cut whole and pasted back where they stood are held to the source, blank lines aside.
+	// Where law 9 pins a paste in text to other bytes (one line after text is text), law 9 wins and
+	// the own entry gives them back. At a caret between blocks the paste back is compared.
 	const held = heldBy(cut.caret);
 	const want = expectedPaste(readOf(host, cut.source), cut.caret.at, text, host, held);
 	const { from, to } = input.range;
 	const whole =
 		read.blocks.some((b) => b.from === from) &&
 		read.blocks.some((b) => b.to - endingLength(input.source, b.to) === to);
-	const pinned = want.shape !== 'other' && !(want.shape === 'apart' && whole);
-	if (pinned && !want.bytes.includes(input.source)) return [];
+	// On an empty line the paste back is compared too: law 9 only says where its blocks stand.
+	const pinned =
+		want.shape !== 'other' && want.shape !== 'on a line' && !(want.shape === 'apart' && whole);
+	if (pinned && held.holds === 'text' && !want.bytes.includes(input.source)) return [];
 	// A part of one block's text cut out, the caret left in no text: pasted there, it is no part of
 	// that block.
 	if (cut.caret.holds !== 'text' && !whole && oneTextBlock(read, input.range, host)) return [];
@@ -290,18 +309,41 @@ function oneWrite(
 	input: RangeInput,
 	block: LaidBlock,
 	text: string,
-	results: { over: Result; cut: Result; then: Result | undefined }
+	results: { over: Result; cut: Result; then: Result | undefined; flat: () => Result | undefined }
 ): string[] {
 	const { over, cut, then } = results;
 	const { from, to } = input.range;
 	const { source } = input;
 	const read = readOf(host, source);
+	// The cut of a setext title's whole text leaves its underline a line of its own, so the cut
+	// then the paste is no guide there: the rows hold the bytes.
+	const allText = block.text!.from === from && block.text!.to === to;
+	const end = block.to - endingLength(source, block.to);
+	const underlined = block.from === from && source.slice(to, end).trim() !== '';
+	if (allText && underlined) return [];
+	// Blocks pasted over a heading's whole text answer as the cut then the paste. A live cut leaves
+	// a paragraph and a place between blocks, no guide: there the answer is the source mode's.
+	const blocks = readOf(host, lf(text)).blocks[0]?.type !== 'paragraph';
+	if (allText && block.from < from && blocks) {
+		const live = input.mode === 'live';
+		const want = live ? (/[*_`~[\]<]/.test(text) ? undefined : results.flat()) : then;
+		if (!want || (live && want.source === over.source)) return [];
+		return !live && sameAfterCut(want.source, over.source, source, cut.source)
+			? []
+			: [`L5 paste over a heading gave ${q(over.source)}, not ${q(want.source)}`];
+	}
 	const runless = (bytes: string) => (input.mode === 'live' ? bytes.replace(/[*_~`]/g, '') : bytes);
 	const [got, before, after] = [over.source, source.slice(0, from), source.slice(to)].map(runless);
 	const kept = got.startsWith(before) && got.endsWith(after);
+	// Blocks pasted from a later line's start cut the block there, and the first half ends before
+	// the line break above, as a split's does.
+	const cutAbove =
+		startsLaterLine(read, block, from) &&
+		got.startsWith(runless(aboveLine(source, from))) &&
+		got.endsWith(after);
 	// One write closes a format run a live range cuts another way than a cut then a paste: there
 	// the bytes outside the range stay and the block keeps its kind.
-	const cutsRun = input.mode === 'live' && liveSplitsRun(read, from, to, host);
+	const cutsRun = input.mode === 'live' && cutsLiveRun(read, input.range, host);
 	// A list that breaks out splits the caret's list around the range as law 9 says: an item with no
 	// text left on either side gives way, its marker with it.
 	const out = cutsRun ? null : expectedPaste(read, from, text, host, TEXT, to);
@@ -309,9 +351,13 @@ function oneWrite(
 		return out.bytes.includes(over.source)
 			? []
 			: [`L5 a list breaking out over a range gave ${q(over.source)}, not ${q(out.bytes[0])}`];
+	// Where a construct that splits whole (an autolink) holds an end, the paste lands at its edge,
+	// outside the range, and the cut then the paste holds it.
+	const moves =
+		input.mode === 'live' && [from, to].some((at) => liveCutAt(read, at, host) === 'whole');
 	// Paragraphs pasted into prose join the text either side, whatever a cut then a paste would give:
 	// the bytes outside the range stay, and the lines between are the clipboard's, none added.
-	if (joinsProse(read, block, text, host) && !cutsRun) {
+	if (joinsProse(read, block, text, host) && !cutsRun && !moves) {
 		if (!kept)
 			return [`L5 paste over text in one block changed bytes outside it: ${q(over.source)}`];
 		const lines = (bytes: string) => bytes.split('\n').length;
@@ -329,7 +375,8 @@ function oneWrite(
 	// A line that could close the fence around literal text grows the fence, which the rows hold.
 	const fence = fenceOf(read, block, host);
 	if (fence && text.split('\n').some((line) => fence.mayClose(line))) return [];
-	if (!kept) return [`L5 paste over text in one block changed bytes outside it: ${q(over.source)}`];
+	if (!kept && !cutAbove)
+		return [`L5 paste over text in one block changed bytes outside it: ${q(over.source)}`];
 	const kindAt = (bytes: string | undefined) =>
 		bytes === undefined
 			? undefined
@@ -354,10 +401,11 @@ export function replaceLaws(
 	const over = call(input.source, input.range, paste(text), input.mode);
 	const cut = call(input.source, input.range, 'cut', input.mode);
 	if (over && unit) {
-		const before = input.source.slice(0, unit.from);
+		// A pasted list joins a list of its own type over the block, the blank lines between gone.
+		const before = overEmptied(read, unit, text, host);
 		const after = input.source.slice(input.range.to);
 		// A list that breaks out of the item the block emptied lands as law 9 says, the item gone.
-		const left = readOf(host, before + after);
+		const left = readOf(host, input.source.slice(0, unit.from) + after);
 		const out9 =
 			input.mode === 'live' && /[*_`~[\]<]/.test(text)
 				? null
@@ -375,7 +423,8 @@ export function replaceLaws(
 			input.mode
 		);
 		const block = oneTextBlock(read, input.range, host);
-		if (block) out.push(...oneWrite(host, input, block, text, { over, cut, then }));
+		const flat = () => call(input.source, input.range, paste(text), 'source');
+		if (block) out.push(...oneWrite(host, input, block, text, { over, cut, then, flat }));
 		else if (then && !sameAfterCut(then.source, over.source, input.source, cut.source))
 			out.push(`L5 paste over gave ${q(over.source)}, cut then paste ${q(then.source)}`);
 	}
@@ -458,11 +507,111 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 	const read = readOf(host, input.source);
 	// Live mode lands text that brings format runs of its own so the runs close around it.
 	if (input.mode === 'live' && /[*_`~[\]<]/.test(input.text)) return [];
-	const want = expectedPaste(read, input.at, input.text, host, input.held);
-	if (want.shape === 'other') return [];
 	const got = call(input.source, caretRange(input.at), paste(input.text, input.held), input.mode);
-	if (!got || want.bytes.includes(got.source)) return [];
+	if (!got) return [];
+	// In a hidden run pasted blocks cut the block as a split cuts it, by bytes the rows hold.
+	const closed =
+		input.mode === 'live' && inHiddenRun(read, input.at, host)
+			? runsStayClosed(read, input.at, input.text, got.source, host)
+			: null;
+	if (closed !== null) return closed;
+	const stranded = strandedInBody(read, input.at, got.source, host);
+	if (stranded !== undefined)
+		return [`L9 left ${q(stranded)} alone on a line its container reads as its own syntax`];
+	const want = expectedPaste(read, input.at, input.text, host, input.held);
+	if (want.shape === 'other' || want.bytes.includes(got.source)) return [];
+	// A cell holds one line, which its row writes: the paste adds none and moves no other line.
+	if (cellAt(read, input.at, host) && onOneLine(input.source, input.at, got.source)) return [];
+	if (want.bytes.some((bytes) => oneLineInBody(read, input.at, bytes, got.source, host))) return [];
 	return [`L9 (${want.shape}) gave ${q(got.source)}, not ${q(want.bytes[0])}`];
+}
+
+/** The half of the caret's line that `got` leaves alone on a line of its own, where a container
+ *  around the caret has a write rule that changes it there (a closing tag alone). */
+function strandedInBody(read: Read, at: number, got: string, host: CheckHost) {
+	const { source } = read;
+	const text = leafAt(read, at)?.text;
+	if (!text) return undefined;
+	const start = Math.max(source.lastIndexOf('\n', at - 1) + 1, text.from);
+	const end = Math.min((source + '\n').indexOf('\n', at), text.to);
+	const kinds = containersHolding(read, at).map((container) => container.type);
+	const lines = (bytes: string, line: string) =>
+		lf(bytes)
+			.split('\n')
+			.filter((l) => l === line);
+	return [source.slice(start, at), source.slice(at, end).replace(/\r$/, '')].find(
+		(half) =>
+			kinds.some((kind) => host.inBody(kind, half) !== half) &&
+			lines(got, half).length > lines(source, half).length
+	);
+}
+
+/** Whether `got` is `want` with one line as a container around the caret takes it into its body:
+ *  a half the cut leaves alone on a line that would read as that container's own closing tag. */
+function oneLineInBody(read: Read, at: number, want: string, got: string, host: CheckHost) {
+	const differs = sharedPrefixLength(want, got, Math.min(want.length, got.length));
+	const start = want.lastIndexOf('\n', differs - 1) + 1;
+	const end = (want + '\n').indexOf('\n', differs);
+	const taken = (kind: string) =>
+		want.slice(0, start) + host.inBody(kind, want.slice(start, end)) + want.slice(end);
+	return containersHolding(read, at).some((container) => taken(container.type) === got);
+}
+
+/** Whether `got` is `source` with only the line holding `at` rewritten, still one line. */
+function onOneLine(source: string, at: number, got: string): boolean {
+	const start = source.lastIndexOf('\n', at - 1) + 1;
+	const rest = source.slice((source + '\n').indexOf('\n', at));
+	const kept = got.startsWith(source.slice(0, start)) && got.endsWith(rest);
+	return kept && !got.slice(start, got.length - rest.length).includes('\n');
+}
+
+/** Whether the caret sits in a format run of a prose block, or between two delimiter characters,
+ *  a place no live caret takes: text written there re-reads the runs around it. */
+function inHiddenRun(read: Read, at: number, host: CheckHost): boolean {
+	const leaf = leafAt(read, at);
+	if (!leaf || !['text', 'text-keeping-type'].includes(host.facts(leaf.type).joins)) return false;
+	return (
+		betweenDelimiters(read.source, at) ||
+		liveCutAt(read, at, host) !== null ||
+		inConstructAt(read, at, host)
+	);
+}
+
+/** Whether the caret's block holds three of one delimiter in a row: a closer or an opener beside
+ *  a run of its own character re-reads both, so no cut of a run there is sound. */
+function crowded(read: Read, at: number): boolean {
+	const leaf = leafAt(read, at);
+	return !!leaf?.text && /([*_~])\1\1/.test(read.source.slice(leaf.text.from, leaf.text.to));
+}
+
+const betweenDelimiters = (source: string, at: number) =>
+	/^[*_~`[\]()]{2}$/.test(source.slice(at - 1, at + 1));
+
+/** L9 in live mode at a caret in a format run: pasted blocks leave open no run that their text
+ *  typed there on one line leaves closed. Null for one paragraph, which the bytes judge. */
+function runsStayClosed(
+	read: Read,
+	at: number,
+	text: string,
+	got: string,
+	host: CheckHost
+): string[] | null {
+	if (liveCutAt(read, at, host) === 'literal' || betweenDelimiters(read.source, at)) return [];
+	if (crowded(read, at)) return [];
+	const tops = readOf(host, lf(text)).blocks.filter(
+		(b) => b.path.length === 1 && text.slice(b.from, b.to).trim() !== ''
+	);
+	if (tops.length < 2 && tops[0]?.type === 'paragraph') return null;
+	// A second half that joins a pasted block's last line reopens in a marker that opens there;
+	// where none does, the literal cut stands.
+	const last = tops.at(-1);
+	const behind = last && last.type !== 'paragraph' && host.facts(last.type).joins !== 'never';
+	if (behind && !text.endsWith('\n') && reopensNowhere(read, at, text, host)) return [];
+	const letters = text.replace(/\s*\n\s*/g, '');
+	if (letters === '') return [];
+	const typed = read.source.slice(0, at) + letters + read.source.slice(at);
+	const [was, now] = [shownDelimiters(host, typed), shownDelimiters(host, got)];
+	return was === now ? [] : [`L9 live shows ${now} format delimiters, not ${was}: ${q(got)}`];
 }
 
 /** L9 at the caret a cut left, for the cut's own clipboard and for `text`. */
@@ -511,7 +660,18 @@ export function plainPaste(call: Call, host: CheckHost, input: CaretInput): stri
 	);
 	if (!got) return [];
 	const read = readOf(host, input.source);
-	return plainPasteHolds(read, input.at, input.text, got.source, host, input.mode)
+	if (plainPasteHolds(read, input.at, input.text, got.source, host, input.mode)) return [];
+	// A blank line in the text cuts the block as a pasted block boundary does: law 9 holds the
+	// escaped text's bytes, and in a hidden run the rows do.
+	const escaped = host.escaped(lf(input.text));
+	const closed =
+		input.mode === 'live' && inHiddenRun(read, input.at, host)
+			? runsStayClosed(read, input.at, escaped, got.source, host)
+			: null;
+	if (closed !== null) return closed;
+	const lands = (text: string) =>
+		expectedPaste(read, input.at, text, host, input.held).bytes.includes(got.source);
+	return lands(escaped) || lands(escaped.replace(/\n$/, ''))
 		? []
 		: [`L11 plain paste of ${q(input.text)} gave ${q(got.source)}`];
 }
