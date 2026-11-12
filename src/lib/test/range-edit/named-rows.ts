@@ -4,6 +4,7 @@
 
 import type { Gesture, RangeEditResult } from '#lib/range-edit/edit-range.js';
 import type { Mode } from '#lib/range-edit/host.js';
+import { SPLIT_ROWS } from './named-rows-split';
 
 export interface NamedRow {
 	name: string;
@@ -698,12 +699,13 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: between('', [0]),
 		expect: { source: '> a\n', caret: boundary(4, [0]) }
 	},
-	// A range that is exactly one block is no named place: the text takes the block's line (§ 5.9).
+	// A range that is exactly one block is no named place: the text takes the block's line (§ 5.9),
+	// a blank line over it only where it would read into the block above.
 	{
-		name: 'L5 text pasted over a code block held whole by a range takes its line, as today',
+		name: 'L5 text pasted over a code block held whole by a range takes its line, no lazy line',
 		source: '- a\n⟦```\nx\n```⟧\n',
 		gesture: paste('汉字'),
-		expect: { source: '- a\n汉字\n' }
+		expect: { source: '- a\n\n汉字\n' }
 	},
 	// Miss-analysis: no draw cuts a list's middle item whole, and law 9 reads no place between items,
 	// so a pasted item kept apart from both its neighbours, three lists for one, met no check.
@@ -775,10 +777,10 @@ export const NAMED_ROWS: NamedRow[] = [
 		expect: { source: 'x\ny\n# h\n', caret: text(3) }
 	},
 	{
-		name: 'L5 text over a rule held whole stays apart from the indented code under it',
+		name: 'L5 text over a rule held whole stays apart from the text over it and the code under',
 		source: 'para\n⟦***⟧\n    code\n',
 		gesture: paste('p'),
-		expect: { source: 'para\np\n\n    code\n', caret: text(6) }
+		expect: { source: 'para\n\np\n\n    code\n', caret: text(7) }
 	},
 	// ── Copy (law 10) ──
 	{
@@ -1205,6 +1207,14 @@ export const NAMED_ROWS: NamedRow[] = [
 		source: 'ab⟦⟧\n',
 		gesture: paste(' \n> q'),
 		expect: { source: 'ab\n\n \n> q\n' }
+	},
+	// Miss-analysis: every row on a line holding only spaces put the caret after them, so a last
+	// pasted paragraph that took the spaces for text to join met no check.
+	{
+		name: 'L9 a paragraph pasted before the spaces of such a line joins none of them',
+		source: '⟦⟧\t\n### h\n',
+		gesture: paste('> q\n\nafter'),
+		expect: { source: '> q\n\nafter\n\t\n### h\n' }
 	},
 	{
 		name: 'L12 a cut from a code block text through its closing line pastes back exact with its entry',
@@ -1779,27 +1789,26 @@ export const NAMED_ROWS: NamedRow[] = [
 	},
 	// Miss-analysis: law 9 leaves a caret in a heading to the rows, and none pasted a block there.
 	{
-		name: 'L9 blocks pasted in an emptied heading land under it, which keeps its marker',
+		name: 'L9 blocks pasted in an emptied heading take its line',
 		source: '> q\n# ⟦⟧\n',
 		gesture: paste('- item'),
-		expect: { source: '> q\n# \n\n- item\n', caret: text(14) }
+		expect: { source: '> q\n- item\n' }
 	},
 	{
 		name: 'L5 live, blocks that join no text pasted over a heading’s whole text do the same',
 		source: '# ⟦Title⟧\n',
 		mode: 'live',
 		gesture: paste('> q\n\nafter'),
-		expect: { source: '# \n\n> q\n\nafter\n' }
+		expect: { source: '> q\n\nafter\n' }
 	},
-	// ── One line at an emptied heading's text start reads as blocks (ruled 2026-11-10) ──
-	// Miss-analysis: the base dropped the emptied heading's marker, so no row cut a heading's text
-	// that reads as a block alone and pasted it back.
+	// ── One line at an emptied heading's text start reads as blocks, which take its line ──
+	// Miss-analysis: no row cut a heading's text that reads as a block alone and pasted it back.
 	{
-		name: 'L3 a heading’s text that reads as a quote pastes back under the heading, not in it',
+		name: 'L3 a heading’s text that reads as a quote pastes back as the quote, the heading gone',
 		source: '#### ⟦> foo@bar.com⟧\n',
 		gesture: 'cut',
 		expect: { source: '#### \n', clipboard: '> foo@bar.com', caret: text(5) },
-		then: { gesture: 'paste back', expect: { source: '#### \n\n> foo@bar.com\n' } }
+		then: { gesture: 'paste back', expect: { source: '> foo@bar.com\n' } }
 	},
 	{
 		name: 'L12 and with its own entry it is the heading’s text again',
@@ -1968,5 +1977,6 @@ export const NAMED_ROWS: NamedRow[] = [
 		source: '> - x\n> y⟦\n\n- > 1.⟧ n\n  > m\n',
 		gesture: 'backspace',
 		expect: { source: '> - x\n>\n> y n\n  > m\n' }
-	}
+	},
+	...SPLIT_ROWS
 ];

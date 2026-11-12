@@ -63,8 +63,8 @@ function counted(host: RangeHost, current: DocumentView) {
 				handed(doc, tail.path),
 				leaf.join(doc, head, tail, mode)
 			),
-			carried: (doc, path, ...rest) => (handed(doc, path), leaf.carried(doc, path, ...rest)),
-			plain: (doc, path, text) => (handed(doc, path), leaf.plain(doc, path, text))
+			cut: (doc, path, ...rest) => (handed(doc, path), leaf.cut(doc, path, ...rest)),
+			carried: (doc, path, ...rest) => (handed(doc, path), leaf.carried(doc, path, ...rest))
 		}
 	};
 	return { work, host: counting };

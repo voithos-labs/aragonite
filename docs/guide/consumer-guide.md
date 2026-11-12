@@ -587,7 +587,7 @@ Eight channels:
 | `menuChange` | `true` when an editor-owned menu or popover opens and `false` when the last one closes (not the selection toolbar's own flyout, nor a view a plugin draws); hide selection chrome meanwhile. A mode change or a `source` swap closes them all. |
 | `searchChange` | When what the find bar shows changes: open or closed, the query, the options, the current match, the match count, the error or a replace's count. No payload; read `getSearch()`. Once per change; a regex search or a replace fires when it's done |
 
-Events fire synchronously from wherever they happen, and **a handler must not edit the document**: reentrant edits aren't supported.
+Events fire synchronously from wherever they happen. **An `edit` or `selectionChange` handler may edit the document**: both fire once the write has landed. A write started while another is still being written is refused: nothing lands and `error` hears it.
 
 What each channel hands you:
 

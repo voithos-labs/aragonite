@@ -118,3 +118,41 @@ export const arbClipboardText: fc.Arbitrary<string> = fc.oneof(
 	fc.constantFrom('a\nb', 'line one\nline two\n'),
 	fc.constantFrom('one\n\ntwo', 'para\n\n- a\n- b\n', '> q\n\nafter', '```\ncode\n```\n')
 );
+
+const RUNS: readonly (readonly [open: string, close: string])[] = [
+	['**', '**'],
+	['__', '__'],
+	['*', '*'],
+	['_', '_'],
+	['~~', '~~'],
+	['[', '](u)'],
+	['**x _', '_ y**'],
+	['*x __', '__ y*'],
+	['[x __', '__ y](u)']
+];
+
+/** A paragraph whose format run holds the caret (`‸`), with blocks to paste there: lists and a
+ *  quote whose last line the run's second half lands behind, and blocks it lands under. */
+export const arbRunPaste: fc.Arbitrary<{ marked: string; text: string }> = fc
+	.record({
+		lead: fc.constantFrom('', '> ', '- ', '1. ', '# ', '- [ ] '),
+		run: fc.constantFrom(...RUNS),
+		inner: fc.constantFrom('bold', 'two words', '汉字é', 'a (b) c'),
+		at: fc.double({ min: 0, max: 1, noNaN: true }),
+		text: fc.constantFrom(
+			'- q\n- r',
+			'1. q\n2. r',
+			'> q\n>\n> r',
+			'one\n\n- a\n- b',
+			'- q\n- r\n',
+			'one\n\ntwo',
+			'| a |\n| - |',
+			'> q\n\nafter'
+		)
+	})
+	.map(({ lead, run: [open, close], inner, at, text }) => {
+		const chars = [...inner];
+		const cut = 1 + Math.min(Math.floor(at * (chars.length - 1)), chars.length - 2);
+		const [before, after] = [chars.slice(0, cut).join(''), chars.slice(cut).join('')];
+		return { marked: `${lead}a ${open}${before}‸${after}${close} z\n`, text };
+	});
