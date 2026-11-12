@@ -4,7 +4,7 @@
  * typing over the same text does. Built from the editor's `Reading`; the mode comes with each call.
  */
 
-import type { DocumentView } from '../core/node-views';
+import type { DocumentView, NodeView } from '../core/node-views';
 import { getContentRange } from '../core/inline';
 import { cutOutsideWhole } from '../core/inline/live-edit/live-split';
 import { documentLineEnding, ownTrailingLineEnding, trimTrailingLineEnding } from '../core/lines';
@@ -15,6 +15,7 @@ import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
 import { unfinishedReadings } from '../schema/block-openers';
 import { readAsOpened } from '../schema/opened-reading';
 import type { Reading } from '../schema/reading';
+import type { StoredAs } from '../schema/stored-as';
 import { legalizeWrite } from '../tree-operations/content-write';
 import {
 	bytesLeavingLeaf,
@@ -120,6 +121,9 @@ export interface RangeHost {
 			joined: Joined,
 			mode: Mode
 		): LeafCut;
+		/** The block with a line break at `at`, as its last line ending ends text pasted there: a
+		 *  split's cut where a run closes at `at`, so the run closes before the break; else as written. */
+		broken(doc: DocumentView, path: readonly number[], at: number, mode: Mode): LeafWrite;
 		/** The bytes `[from, to)` of the block carry out of it, a format run they cut closed. */
 		carried(
 			doc: DocumentView,
@@ -259,88 +263,24 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 				);
 				return stored(doc, head.path, { raw, caret: seam, afterRange: seam });
 			},
-			cut(doc, path, from, to, { before, after, lead }, mode) {
-				const node = leafAt(doc, path);
-				const reading = readingIn(mode);
-				const store = storedAsAt(doc, path, reading);
-				// Plain text either side is typed as one run and cut in the middle, so both halves take
-				// the caret's format; text that brings format characters joins the second half after the cut.
-				const together = after !== '' && !/[*_~`[\]<\\]/.test(before + after);
-				const text = together ? before + after : before;
-				const last = together ? after.length : 0;
-				// With no text to join, the range leaves as a removal takes it, the block's kind kept.
-				const over = (leaf: typeof node, start: number, end: number) =>
-					text !== '' && start < end
-						? replaceDrawnRange(leaf, { start, end }, text, store)
-						: replaceRangeInLeaf(leaf, { start, end }, text, store);
-				let edit = over(node, from, to);
-				const torn = () =>
-					text !== '' &&
-					reading.hidesDelimitersAtCaret() &&
-					cutOutsideWhole({ ...node, raw: edit.raw }, edit.caret - last, reading) !==
-						edit.caret - last;
-				// A construct that splits whole takes the paste at its nearer edge, never torn around it.
-				const moved = torn();
-				if (moved) {
-					const gone = replaceRangeInLeaf(node, { start: from, end: to }, '', store);
-					const kept = { ...node, raw: gone.raw };
-					const edge = cutOutsideWhole(kept, gone.caret, reading);
-					edit = over(kept, edge, edge);
-				}
-				// Where the joined text itself grew such a construct around the cut, the cut stays literal.
-				const cutIn = moved && torn() ? readingIn('source') : reading;
-				const at = edit.caret - last;
-				const write =
-					text === '' && from === to
-						? { bytes: node.raw, caret: from, after: from }
-						: stored(doc, path, { raw: edit.raw, caret: at, afterRange: edit.caret });
-				const written = { ...node, raw: write.bytes };
-				const content = getContentRange(written);
+			cut(doc, path, from, to, joined, mode) {
+				const ended = /\r?\n$/.exec(joined.after)?.[0];
+				if (!ended) return cutAt(doc, path, from, to, joined, mode);
+				// A last line ending the second half's joined text brings breaks that half after the text.
+				const after = joined.after.slice(0, -ended.length);
+				const cut = cutAt(doc, path, from, to, { ...joined, after }, mode);
 				const { holder, index } = writeTargetAt(doc, path);
-				const owner = 'owner' in holder ? holder.owner : undefined;
+				const kind = cut.head === '' ? leafAt(doc, path).kind : 'paragraph';
 				const lineEnding = 'lineEnding' in holder ? holder.lineEnding : documentLineEnding(doc);
-				// A half parted from its line can read as its container's own syntax (a closing tag
-				// alone), so each takes the container's write rule for its body, as a split's halves do.
-				const inBody = (cut: LeafCut): LeafCut => {
-					const rule = owner && tryGetBlockKindDescriptor(owner.kind)?.bodyWrite;
-					if (!rule) return cut;
-					const ctx = { node: owner, mode: 'literal' as const, lineEnding };
-					return {
-						...cut,
-						head: rule.normalize(cut.head, ctx),
-						tail: rule.normalize(cut.tail, ctx),
-						at: rule.mapOffset(cut.tail, cut.at, ctx)
-					};
-				};
-				// The cut by the block's bytes, its structure kept; a line ending the cut stands before
-				// stays the first half's line's unless text joins the second half in front of it.
-				const cut = cutKeepingStructure(written, write.caret);
-				let [head, tail] = [cut.head, after === '' ? cut.rest.replace(/^\r?\n/, '') : cut.rest];
-				if (cutIn.hidesDelimitersAtCaret()) {
-					const halves = splitHalves(written, write.caret, owner, lineEnding, {
-						first: storedAsAt(doc, path, cutIn),
-						second: storedAsIn(holder, index + 1, cutIn, node.kind),
-						behind: lead
-					});
-					if (halves.reopened)
-						[head, tail] = [halves.firstRaw, halves.secondRaw].map(trimTrailingLineEnding);
-				}
-				if (after === '')
-					return inBody({ head, tail, at: 0, empty: content.start === content.end });
-				// The second half ends on the block's text from the cut on, wherever it reopened.
-				const kept = trimTrailingLineEnding(write.bytes).slice(write.caret, content.end);
-				const seam = kept === '' ? tail.length : Math.max(tail.lastIndexOf(kept), 0);
-				if (together)
-					return inBody({ head, tail, at: seam + write.after - write.caret, empty: false });
-				const ending = ownTrailingLineEnding(node.raw);
-				const half =
-					head === ''
-						? { ...node, raw: tail + ending }
-						: makeBlockNode({ kind: 'paragraph', leadingTrivia: '', raw: tail + ending });
-				const second = storedAsIn(holder, index + 1, reading, half.kind);
-				const joined = replaceRangeInLeaf(half, { start: seam, end: seam }, after, second);
-				tail = trimTrailingLineEnding(joined.raw);
-				return inBody({ head, tail, at: joined.caret, empty: false });
+				const half = makeBlockNode({ kind, leadingTrivia: '', raw: cut.tail + lineEnding });
+				const store = storedAsIn(holder, index + 1, readingIn(mode), kind);
+				const line = brokenAt(doc, path, half, cut.at, store);
+				return { ...cut, tail: trimTrailingLineEnding(line.raw), at: line.caret };
+			},
+			broken(doc, path, at, mode) {
+				const node = leafAt(doc, path);
+				const line = brokenAt(doc, path, node, at, storedAsAt(doc, path, readingIn(mode)));
+				return { bytes: line.raw, caret: line.caret, after: line.caret };
 			},
 			carried(doc, path, from, to, mode) {
 				const store = storedAsAt(doc, path, readingIn(mode));
@@ -369,4 +309,119 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 			return { body, closer: closed ? last : null, mayClose: fence.mayClose };
 		}
 	};
+
+	/** `node`, read at `path`'s slot through `store`, broken at `at`: a split's cut where the split
+	 *  closes a run there, so the break lands past it, else the break as written; `caret` past it. */
+	function brokenAt(
+		doc: DocumentView,
+		path: readonly number[],
+		node: NodeView,
+		at: number,
+		store: StoredAs
+	): { raw: string; caret: number } {
+		const { holder } = writeTargetAt(doc, path);
+		const owner = 'owner' in holder ? holder.owner : undefined;
+		const lineEnding = 'lineEnding' in holder ? holder.lineEnding : documentLineEnding(doc);
+		const ending = ownTrailingLineEnding(node.raw);
+		const written = trimTrailingLineEnding(node.raw).slice(at);
+		// Both lines stay one block's, so each is read where that block lands.
+		const halves = splitHalves(node, at, owner, lineEnding, {
+			first: store,
+			second: store,
+			behind: ''
+		});
+		const [line, rest] = [halves.firstRaw, halves.secondRaw].map(trimTrailingLineEnding);
+		const closes = rest.length < written.length && written.endsWith(rest);
+		const head = closes ? line : node.raw.slice(0, at);
+		return { raw: head + '\n' + (closes ? rest : written) + ending, caret: head.length + 1 };
+	}
+
+	/** `RangeHost.leaf.cut` for joined text that brings no line ending of its own at its end. */
+	function cutAt(
+		doc: DocumentView,
+		path: readonly number[],
+		from: number,
+		to: number,
+		{ before, after, lead }: Joined,
+		mode: Mode
+	): LeafCut {
+		const node = leafAt(doc, path);
+		const reading = readingIn(mode);
+		const store = storedAsAt(doc, path, reading);
+		// Plain text either side is typed as one run and cut in the middle, so both halves take
+		// the caret's format; text that brings format characters joins the second half after the cut.
+		const together = after !== '' && !/[*_~`[\]<\\]/.test(before + after);
+		const text = together ? before + after : before;
+		const last = together ? after.length : 0;
+		// With no text to join, the range leaves as a removal takes it, the block's kind kept.
+		const over = (leaf: typeof node, start: number, end: number) =>
+			text !== '' && start < end
+				? replaceDrawnRange(leaf, { start, end }, text, store)
+				: replaceRangeInLeaf(leaf, { start, end }, text, store);
+		let edit = over(node, from, to);
+		const torn = () =>
+			text !== '' &&
+			reading.hidesDelimitersAtCaret() &&
+			cutOutsideWhole({ ...node, raw: edit.raw }, edit.caret - last, reading) !== edit.caret - last;
+		// A construct that splits whole takes the paste at its nearer edge, never torn around it.
+		const moved = torn();
+		if (moved) {
+			const gone = replaceRangeInLeaf(node, { start: from, end: to }, '', store);
+			const kept = { ...node, raw: gone.raw };
+			const edge = cutOutsideWhole(kept, gone.caret, reading);
+			edit = over(kept, edge, edge);
+		}
+		// Where the joined text itself grew such a construct around the cut, the cut stays literal.
+		const cutIn = moved && torn() ? readingIn('source') : reading;
+		const at = edit.caret - last;
+		const write =
+			text === '' && from === to
+				? { bytes: node.raw, caret: from, after: from }
+				: stored(doc, path, { raw: edit.raw, caret: at, afterRange: edit.caret });
+		const written = { ...node, raw: write.bytes };
+		const content = getContentRange(written);
+		const { holder, index } = writeTargetAt(doc, path);
+		const owner = 'owner' in holder ? holder.owner : undefined;
+		const lineEnding = 'lineEnding' in holder ? holder.lineEnding : documentLineEnding(doc);
+		// A half parted from its line can read as its container's own syntax (a closing tag
+		// alone), so each takes the container's write rule for its body, as a split's halves do.
+		const inBody = (cut: LeafCut): LeafCut => {
+			const rule = owner && tryGetBlockKindDescriptor(owner.kind)?.bodyWrite;
+			if (!rule) return cut;
+			const ctx = { node: owner, mode: 'literal' as const, lineEnding };
+			return {
+				...cut,
+				head: rule.normalize(cut.head, ctx),
+				tail: rule.normalize(cut.tail, ctx),
+				at: rule.mapOffset(cut.tail, cut.at, ctx)
+			};
+		};
+		// The cut by the block's bytes, its structure kept; a line ending the cut stands before
+		// stays the first half's line's unless text joins the second half in front of it.
+		const cut = cutKeepingStructure(written, write.caret);
+		let [head, tail] = [cut.head, after === '' ? cut.rest.replace(/^\r?\n/, '') : cut.rest];
+		if (cutIn.hidesDelimitersAtCaret()) {
+			const halves = splitHalves(written, write.caret, owner, lineEnding, {
+				first: storedAsAt(doc, path, cutIn),
+				second: storedAsIn(holder, index + 1, cutIn, node.kind),
+				behind: lead
+			});
+			if (halves.reopened)
+				[head, tail] = [halves.firstRaw, halves.secondRaw].map(trimTrailingLineEnding);
+		}
+		if (after === '') return inBody({ head, tail, at: 0, empty: content.start === content.end });
+		// The second half ends on the block's text from the cut on, wherever it reopened.
+		const kept = trimTrailingLineEnding(write.bytes).slice(write.caret, content.end);
+		const seam = kept === '' ? tail.length : Math.max(tail.lastIndexOf(kept), 0);
+		if (together) return inBody({ head, tail, at: seam + write.after - write.caret, empty: false });
+		const ending = ownTrailingLineEnding(node.raw);
+		const half =
+			head === ''
+				? { ...node, raw: tail + ending }
+				: makeBlockNode({ kind: 'paragraph', leadingTrivia: '', raw: tail + ending });
+		const second = storedAsIn(holder, index + 1, reading, half.kind);
+		const joined = replaceRangeInLeaf(half, { start: seam, end: seam }, after, second);
+		tail = trimTrailingLineEnding(joined.raw);
+		return inBody({ head, tail, at: joined.caret, empty: false });
+	}
 }

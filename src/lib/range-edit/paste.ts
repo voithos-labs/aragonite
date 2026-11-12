@@ -20,12 +20,14 @@ import {
 	pointedBlock,
 	readDoc,
 	titleOwner,
+	withLeafBytes,
 	type Doc,
 	type Held
 } from './document';
 import { apartAt, pastMarkers } from './apart';
 import { closedBy, emptiedRest, leftBy, takerOf } from './container-merge';
 import { joinsList, onEmptyLine, pasteApart, restApart, splitAt, splitOut } from './paste-split';
+import { numberedAfterTaking } from './list-numbers';
 import {
 	byteAt,
 	cutLeaf,
@@ -35,6 +37,7 @@ import {
 	lineTextStart,
 	spliced,
 	writeText,
+	writtenText,
 	type Cut,
 	type Edit
 } from './leaf-splice';
@@ -213,6 +216,14 @@ function landed(
 	// Every landing below that sets a block boundary in the block's text asks for the cut once.
 	const cutWith = (before: string, after: string, lead = '') =>
 		cutLeaf(doc, leaf, target.from, target.to, { before, after, lead });
+	// `written`, the block's write of a text, with that text's last line ending after it.
+	const brokenAfter = (written: Edit, text: string): Edit => {
+		const own = written.leaf;
+		if (!own) return write(text);
+		const moved = withLeafBytes(doc.tree, leaf.path, own.raw);
+		const line = doc.host.leaf.broken(moved, leaf.path, own.caret, doc.mode);
+		return writtenText(doc, leaf, line, target.from, target.to);
+	};
 	const around = (cut: Cut, mid: string, keep?: (c: LaidBlock) => boolean): Edit => {
 		const body = spliced(doc, from, to, keep, '', cut.follows)(mid);
 		return { source: cut.head + body + cut.rest, caret: cut.head.length + body.length + cut.caret };
@@ -241,8 +252,12 @@ function landed(
 		const line = text.indexOf('\n');
 		if (line >= 0 && oneLined)
 			return around(cutWith(text.slice(0, line), text.slice(line + 1)), '\n');
-		if (text.endsWith('\n') && !follows && /\S/.test(past))
-			return around(cutWith(text.slice(0, -1), ''), '\n');
+		// A last line ending cuts the block as a split there does where structure stands past its text.
+		const ending = text.endsWith('\n');
+		if (ending && !follows && /\S/.test(past)) return around(cutWith(text.slice(0, -1), ''), '\n');
+		// Any other goes in after the text as the block wrote it: the caret memory spends on the text
+		// alone, and a run the text ends in closes before the break (`RangeHost.leaf.broken`).
+		if (ending && !isBlankText(text)) return brokenAfter(write(text.slice(0, -1)), text);
 		// Line breaks alone at a caret go in as bytes, which no write rule re-reads; spaces alone are
 		// text the block writes, where a caret at a hidden edge places them.
 		return from === to && isBlankText(text) && text.includes('\n') ? bytes(text) : write(text);
@@ -281,7 +296,8 @@ function landed(
 		const inner = takenIn(pasted, first);
 		const behind = inner.after === '' ? lead : '';
 		const edit = around(cutWith(inner.before, inner.after, behind), inner.mid, keep);
-		return closedBy(doc, pasted, first, taker, edit);
+		const item = leaf.path[taker.path.length];
+		return numberedAfterTaking(doc, taker, item, closedBy(doc, pasted, first, taker, edit));
 	}
 	// A clipboard opening with a line break or a paragraph joins the text before the caret; text
 	// after it that the last block can't take goes on a line of its own, apart where it must be.

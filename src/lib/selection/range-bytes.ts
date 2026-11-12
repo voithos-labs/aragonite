@@ -9,7 +9,7 @@
 import { untrack } from 'svelte';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import type { DocumentView, NodeView } from '../core/node-views';
-import { displayLength, ownTrailingLineEnding, type LineEnding } from '../core/lines';
+import { displayLength, isBlankText, ownTrailingLineEnding, type LineEnding } from '../core/lines';
 import { metadataOf } from '../core/nodes';
 import { docPathFrom, type DocPath } from '../core/coordinate-spaces';
 import { countsCells, isGridKind } from '../schema/block-kind-descriptor';
@@ -380,27 +380,41 @@ export function gapOfPlace(
  *  the caret goes to the text at its byte (prose a typed letter joins, or a hidden body). */
 export function heldGapOf(
 	measured: Measured,
-	place: { at: number; parent: readonly number[] }
+	place: { at: number; parent: readonly number[]; line?: true }
 ): GapCaretPosition | null {
 	const gap = gapOfPlace(measured, place);
 	const { doc } = measured;
 	if (gapEligibleAt(doc, gap.parentPath, gap.index)) return gap;
-	// The line a range emptied at the document's end is a place of its own, whatever stands above.
+	// The line a range emptied at the document's end is a place of its own, whatever stands above,
+	// and so is the line a pasted last line ending opened, whatever text stands below it.
 	const rootEnd = gap.parentPath.length === 0 && gap.index === doc.children.length;
-	if (!rootEnd && joinsProse(measured, place.at)) return null;
+	if (!rootEnd && joinsProse(measured, place.at, place.line)) return null;
 	if (boundaryHidden(doc, gap.parentPath, gap.index)) return null;
-	// A list's children are its items, which no paragraph stands among.
+	// A list's children are its items, which no paragraph stands among: a line of its own under an
+	// item is that item's last line.
 	const parent = blockNodeAt(doc, gap.parentPath);
-	if (parent && blockFacts(parent.kind).lines === 'items') return null;
+	if (parent && blockFacts(parent.kind).lines === 'items') {
+		const item = place.line && gap.index > 0 ? parent.children![gap.index - 1] : null;
+		if (!item?.children) return null;
+		return {
+			parentPath: [...gap.parentPath, gap.index - 1],
+			index: item.children.length,
+			held: true
+		};
+	}
 	return { ...gap, held: true };
 }
 
 /** Whether a letter typed on a line of its own at byte `at` joins the text there: a block's own
- *  text, of a kind whose text takes the line. */
-function joinsProse(measured: Measured, at: number): boolean {
-	const leaf = leafAtByte(measured, at);
+ *  text, of a kind whose text takes the line; on a `line` of its own, no text starting below it. */
+function joinsProse(measured: Measured, at: number, line?: true): boolean {
+	const map = documentByteMap(measured);
+	const leaf = map.leafAt(at);
 	const node = leaf && blockNodeAt(measured.doc, leaf.path);
-	return !!node && blockFacts(node.kind).joins === 'text' && readsAsText(node, leaf.offset);
+	if (!leaf || !node) return false;
+	// An empty paragraph there is that line itself.
+	if (line && map.byteOf(leaf.path, leaf.offset)! > at && !isBlankText(node.raw)) return false;
+	return blockFacts(node.kind).joins === 'text' && readsAsText(node, leaf.offset);
 }
 
 /** Whether text written at `offset` of `node` reads as its text: a prose block, inside its content. */

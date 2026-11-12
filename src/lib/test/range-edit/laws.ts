@@ -509,6 +509,10 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 	if (input.mode === 'live' && /[*_`~[\]<]/.test(input.text)) return [];
 	const got = call(input.source, caretRange(input.at), paste(input.text, input.held), input.mode);
 	if (!got) return [];
+	// A last line ending where a run closes right after the text cuts the block as a split cuts it,
+	// the run closed before the ending, by bytes the rows hold.
+	if (input.mode === 'live' && input.text.endsWith('\n') && closesAt(read, input.at, host))
+		return [];
 	// In a hidden run pasted blocks cut the block as a split cuts it, by bytes the rows hold.
 	const closed =
 		input.mode === 'live' && inHiddenRun(read, input.at, host)
@@ -575,6 +579,15 @@ function inHiddenRun(read: Read, at: number, host: CheckHost): boolean {
 		liveCutAt(read, at, host) !== null ||
 		inConstructAt(read, at, host)
 	);
+}
+
+/** Whether a format run of the caret's prose block ends its text at `at`, its closer after it. */
+function closesAt(read: Read, at: number, host: CheckHost): boolean {
+	const leaf = leafAt(read, at);
+	if (!leaf?.text) return false;
+	const text = read.source.slice(leaf.text.from, leaf.text.to);
+	const offset = at - leaf.text.from;
+	return host.heldAt(text, offset) && host.runsAt(text, offset).length === 0;
 }
 
 /** Whether the caret's block holds three of one delimiter in a row: a closer or an opener beside

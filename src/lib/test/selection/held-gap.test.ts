@@ -89,6 +89,33 @@ const ROWS: Record<string, Row> = {
 	}
 };
 
+// Miss-analysis: every row named a removal's place, so none held the empty line a pasted last line
+// ending opens right above a block a typed letter would join.
+describe('the line a pasted last line ending opened is held as its own', () => {
+	it.each([
+		['above a paragraph flush under it', '# h\n\npara\n', 4, [], { parentPath: [], index: 1 }],
+		[
+			'in a quote, above its paragraph',
+			'> # h\n>\n> para\n',
+			7,
+			[0],
+			{ parentPath: [0], index: 1 }
+		],
+		[
+			'under a list item, above the next',
+			'- a\n\n- b\n',
+			4,
+			[0, 0],
+			{ parentPath: [0, 0], index: 1 }
+		],
+		['over an empty paragraph, which is that line', 'p\n\n\nafter\n', 2, [], null]
+	] as const)('%s', (_, source, at, parent, gap) => {
+		const laid = measured(opened(source));
+		const want = gap && { ...gap, parentPath: [...gap.parentPath], held: true as const };
+		expect(heldGapOf(laid, { at, parent, line: true })).toStrictEqual(want);
+	});
+});
+
 function opened(source: string): Document {
 	installPlugins(SYNTAX_PLUGINS);
 	return parse(source);

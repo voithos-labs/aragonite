@@ -723,7 +723,7 @@ const FAMILIES: Family[] = [
 	{
 		// Deleting `x` empties the bold, so its runs go; in a to-do or a cell `# y` then reads as text.
 		name: 'the range-edit core’s in-block writes',
-		stores: { 'range-edit/host.ts': 8 },
+		stores: { 'range-edit/host.ts': 10 },
 		rows: [
 			{
 				shape: 'a to-do',
@@ -754,6 +754,30 @@ const FAMILIES: Family[] = [
 						{ ...rangeHost(LIVE), transformPaste: (text) => text }
 					).source,
 				want: '- [ ] # **boone**\n\n  **twold** z\n'
+			},
+			{
+				shape: 'a last line ending pasted at a to-do’s bold run’s end',
+				run: () =>
+					editRange(
+						'- [ ] # **bold** z\n',
+						{ from: 14, to: 14 },
+						{ paste: 'one\n', plain: false, holds: 'text' },
+						'live',
+						{ ...rangeHost(LIVE), transformPaste: (text) => text }
+					).source,
+				want: '- [ ] # **boldone**\n   z\n'
+			},
+			{
+				shape: 'a last paragraph’s line ending joined at a to-do’s bold run’s end',
+				run: () =>
+					editRange(
+						'- [ ] # **bold** z\n',
+						{ from: 14, to: 14 },
+						{ paste: 'one\n\ntwo\n', plain: false, holds: 'text' },
+						'live',
+						{ ...rangeHost(LIVE), transformPaste: (text) => text }
+					).source,
+				want: '- [ ] # **boldone**\n\n  **two**\n   z\n'
 			}
 		]
 	},

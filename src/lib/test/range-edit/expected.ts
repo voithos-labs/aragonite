@@ -898,10 +898,9 @@ function landedPaste(
 		// The block's own opening (its marker, a title line) is the taker's already.
 		const firstText = clip.blocks.find((b) => b.text && b.from >= first.from)?.text?.from;
 		const rest = clip.source.slice(firstText ?? first.from).split('\n');
-		return {
-			shape: 'absorbed',
-			bytes: [read.source.slice(0, at) + join(rest, outside, eol, after) + read.source.slice(at)]
-		};
+		const bytes =
+			read.source.slice(0, at) + join(rest, outside, eol, after) + read.source.slice(at);
+		return { shape: 'absorbed', bytes: [numberedOn(host, bytes, taker, target)] };
 	}
 	const point = read.layout.pointAt(at);
 	const leaf = point && read.blocks.find((b) => b.path.join() === point.path.join());
@@ -1093,6 +1092,31 @@ function brokenOut(
 				b.from === under + outside.length
 	);
 	return starts ? flush : flush.slice(0, under) + outside.trimEnd() + eol + flush.slice(under);
+}
+
+/** `bytes`, where an ordered `list` took pasted items in after the item holding `leaf`, with every
+ *  item after that one numbered on from its number. */
+function numberedOn(host: CheckHost, bytes: string, list: LaidBlock, leaf: LaidBlock): string {
+	const read = readOf(host, bytes);
+	const ordered = treeNodeAt(read.tree, list.path)?.metadata as { ordered?: boolean } | undefined;
+	if (!ordered?.ordered) return bytes;
+	const depth = list.path.length;
+	const items = read.blocks.filter(
+		(b) => b.path.length === depth + 1 && b.path.slice(0, depth).join() === list.path.join()
+	);
+	const own = leaf.path[depth];
+	let out = bytes;
+	let next = Number(/\d+/.exec(bytes.slice(items[own].lines![0].from))![0]) + 1;
+	// Last first, so each rewrite leaves the bytes of the items before it where they were.
+	const later = items.slice(own + 1).map((item) => ({ item, number: next++ }));
+	for (const { item, number } of later.reverse()) {
+		const line = item.lines![0];
+		const digits = /^([ \t]*)(\d+)/.exec(out.slice(line.from, line.markerTo));
+		if (!digits) continue;
+		const from = line.from + digits[1].length;
+		out = out.slice(0, from) + number + out.slice(from + digits[2].length);
+	}
+	return out;
 }
 
 function treeNodeAt(tree: DocumentView, path: readonly number[]) {

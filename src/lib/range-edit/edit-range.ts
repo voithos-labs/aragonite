@@ -114,10 +114,15 @@ export function editRange(
 			held,
 			transform
 		});
+		// The empty line a last line ending opens is the caret's own, never the block below it.
+		const lined = (result: RangeEditResult): RangeEditResult =>
+			gesture.paste.endsWith('\n') && result.caret.holds === 'boundary'
+				? { ...result, caret: { ...result.caret, line: true } }
+				: result;
 		// One write of one block of `source` is named where the caret stays on the text it wrote, so
 		// the editor can make it as that block does.
 		const inPlace = (edit: Edit): RangeEditResult => {
-			const named = { ...answer(edit), blocks: edit.blocks ?? 0 };
+			const named = lined({ ...answer(edit), blocks: edit.blocks ?? 0 });
 			const { caret } = named;
 			const kept = edit.leaf && caret.holds === 'text' && caret.at === edit.caret;
 			return kept ? { ...named, leaf: edit.leaf } : named;
@@ -131,7 +136,7 @@ export function editRange(
 		const caret = caretOf(removed, after, 'start after', () => startedIn(doc, from));
 		const place = heldAlone(doc, from, to) ? TEXT : caret;
 		const over = pasteAt(after, caret.at, caret.at, pasted(place));
-		return { ...answer(over), blocks: over.blocks ?? 0 };
+		return lined({ ...answer(over), blocks: over.blocks ?? 0 });
 	}
 	const { removed, clipboard, own } = taken(doc, from, to);
 	const { drop } = gesture;

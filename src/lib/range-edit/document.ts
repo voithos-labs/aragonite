@@ -28,8 +28,9 @@ export interface Doc {
  *  (the document's own behind an empty path), `'block'` where a block with no text place starts. */
 export type Held = { holds: 'text' } | { holds: 'block' | 'boundary'; parent: readonly number[] };
 
-/** A caret by its byte and what it holds there. */
-export type Place = { at: number } & Held;
+/** A caret by its byte and what it holds there; `line` marks a boundary that is the empty line a
+ *  pasted last line ending opened, which a typed letter there never joins to the block below. */
+export type Place = { at: number; line?: true } & Held;
 
 export function readDoc(source: string, host: RangeHost, mode: Mode): Doc {
 	const tree = host.read(source);
@@ -173,3 +174,19 @@ export const joinsName = (doc: Doc, owner: LaidBlock, row: LaidBlock, at: number
 	factsOf(doc, owner).titleRow!.nameNeverEntered &&
 	at === row.text!.from &&
 	/\S/.test(doc.source[at - 1] ?? ' ');
+
+/** `doc` with the text block at `path` holding `raw`, for a host read of that block alone. */
+export function withLeafBytes(
+	doc: DocumentView,
+	path: readonly number[],
+	raw: string
+): DocumentView {
+	const swap = <T extends { children?: readonly NodeView[] }>(node: T, depth: number): T => {
+		const children = [...node.children!];
+		const i = path[depth];
+		children[i] =
+			depth === path.length - 1 ? { ...children[i], raw } : swap(children[i], depth + 1);
+		return { ...node, children };
+	};
+	return swap(doc, 0);
+}

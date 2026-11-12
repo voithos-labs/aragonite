@@ -615,7 +615,63 @@ const SEAM_ROWS: NamedRow[] = [
 	)
 ];
 
+// Miss-analysis: every live row with a last line ending had visible text after it, so none saw the
+// ending land inside a run that closes right behind it, where the run can't close.
+const ENDING_ROWS: NamedRow[] = [
+	{
+		...live('a last line ending at a run’s end', 'a **bc⟦⟧**\n\nAfter\n', paste('one\n'), ''),
+		expect: {
+			source: 'a **bcone**\n\n\nAfter\n',
+			caret: { at: 12, holds: 'boundary', parent: [], line: true }
+		}
+	},
+	{
+		...live(
+			'a run’s tail at the line’s end, pasted over',
+			'a **b⟦c⟧**\n\nAfter\n',
+			paste('one\n'),
+			''
+		),
+		expect: {
+			source: 'a **bone**\n\n\nAfter\n',
+			caret: { at: 11, holds: 'boundary', parent: [], line: true }
+		}
+	},
+	live(
+		'a last line ending before text past a run',
+		'a **bc⟦⟧** d\n',
+		paste('one\n'),
+		'a **bcone**\n d\n'
+	),
+	live(
+		'a last paragraph’s ending before text past a run',
+		'a **bc⟦⟧** d\n',
+		paste('one\n\ntwo\n'),
+		'a **bcone**\n\n**two**\n d\n'
+	),
+	live('a last line ending with run text after it', '**bo⟦⟧ld**\n', paste('x\n'), '**box\nld**\n'),
+	{
+		name: 'a source run’s closer stays where the bytes put it',
+		source: 'a **bc⟦⟧**\n',
+		gesture: paste('one\n'),
+		expect: { source: 'a **bcone\n**\n' }
+	}
+];
+
+// Miss-analysis: the taker branch built an ordered list's new items and no row read the numbers of
+// the items under them.
+const NUMBER_ROWS: NamedRow[] = [
+	...both(
+		'an ordered list an item takes in numbers on',
+		'1. alpha⟦⟧\n2. after\n',
+		paste('1. one\n2. two'),
+		'1. alphaone\n2. two\n3. after\n'
+	)
+];
+
 export const SPLIT_ROWS: NamedRow[] = [
+	...ENDING_ROWS,
+	...NUMBER_ROWS,
 	...STRUCTURE_ROWS,
 	...EMPTIED_ROWS,
 	...RUN_ROWS,

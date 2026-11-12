@@ -58,6 +58,19 @@ export function writeText(
 		from === to
 			? host.leaf.insert(tree, leaf.path, from, text, mode)
 			: host.leaf.replace(tree, leaf.path, from, to, text, mode);
+	return writtenText(doc, leaf, write, from, to, keep);
+}
+
+/** `write`, the block's own write over `[from, to)` of its bytes, landed in the source, the block
+ *  named where the caret stays on its text. */
+export function writtenText(
+	doc: Doc,
+	leaf: LaidBlock,
+	write: LeafWrite,
+	from: number,
+	to: number,
+	keep?: (c: LaidBlock) => boolean
+): Edit {
 	const edit = writeLeaf(doc, leaf, write, from, to, keep);
 	// A caret past the block's last line ending stands on no text of it, so the write names none.
 	if (write.caret === write.bytes.length && write.bytes.endsWith('\n')) return edit;

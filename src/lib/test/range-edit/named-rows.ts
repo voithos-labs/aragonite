@@ -36,6 +36,11 @@ const boundary = (at: number, parent: number[] = []): RangeEditResult['caret'] =
 	holds: 'boundary',
 	parent
 });
+/** The empty line a pasted last line ending opened, which a letter typed there keeps its own. */
+const ownLine = (at: number, parent: number[] = []): RangeEditResult['caret'] => ({
+	...boundary(at, parent),
+	line: true
+});
 const block = (at: number, parent: number[] = []): RangeEditResult['caret'] => ({
 	at,
 	holds: 'block',
@@ -583,7 +588,7 @@ export const NAMED_ROWS: NamedRow[] = [
 		name: 'L9 with nothing after the gap, the clipboard’s last line ending stays',
 		source: '# h\n⟦⟧',
 		gesture: between('x\n'),
-		expect: { source: '# h\n\nx\n', caret: boundary(7) }
+		expect: { source: '# h\n\nx\n', caret: ownLine(7) }
 	},
 	// ── A place between blocks names the block whose children it sits between (ruled 2026-11-10) ──
 	// Miss-analysis: a place was a byte alone, and at a container's end one byte ends every container
@@ -1004,7 +1009,7 @@ export const NAMED_ROWS: NamedRow[] = [
 		name: 'L9 the caret lands after everything pasted, its last line ending too',
 		source: 'abc⟦⟧\n',
 		gesture: paste('x\n'),
-		expect: { source: 'abcx\n\n', caret: boundary(5) }
+		expect: { source: 'abcx\n\n', caret: ownLine(5) }
 	},
 	{
 		name: 'L9 a document with no line break takes LF, whatever the clipboard held',

@@ -12,6 +12,7 @@ import { docPathFrom } from '../../core/coordinate-spaces';
 import { ownTrailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import type { DocumentView } from '../../core/node-views';
 import type { DocumentGetter } from '../../editor-keys';
+import { withLeafBytes } from '../../range-edit/document';
 import { editRange } from '../../range-edit/edit-range';
 import type { LeafWrite, PasteHost, RangeHost } from '../../range-edit/host';
 import type { LeafEdit } from '../../range-edit/leaf-splice';
@@ -132,8 +133,8 @@ async function endRangeAt(ctx: PasteContext, at: number): Promise<void> {
 	if (point) await ctx.caretLanding.restore({ anchor: point, focus: point });
 }
 
-/** `host` with the paste's own write of a block's text spent as an insertion: only the core knows
- *  whether a paste lands as text, so the records are spent where it writes that text. */
+/** `host` with every write of text into a block spent as an insertion, the text a cut joins to the
+ *  first half too: only the core knows whether a paste lands as text, so it spends where it writes. */
 function spending(host: RangeHost, spend: SpendInsertion): RangeHost {
 	const spent = (doc: DocumentView, path: readonly number[], write: LeafWrite): LeafWrite => {
 		const before = trimTrailingLineEnding(blockNodeAt(doc, path)!.raw);
@@ -143,14 +144,29 @@ function spending(host: RangeHost, spend: SpendInsertion): RangeHost {
 		const grown = edit.text.length - text.length;
 		return { bytes: edit.text + ending, caret: edit.caretAfter, after: write.after + grown };
 	};
+	const insert: RangeHost['leaf']['insert'] = (doc, path, at, text, mode) =>
+		spent(doc, path, host.leaf.insert(doc, path, at, text, mode));
+	const replace: RangeHost['leaf']['replace'] = (doc, path, from, to, text, mode) =>
+		spent(doc, path, host.leaf.replace(doc, path, from, to, text, mode));
 	return {
 		...host,
 		leaf: {
 			...host.leaf,
-			insert: (doc, path, at, text, mode) =>
-				spent(doc, path, host.leaf.insert(doc, path, at, text, mode)),
-			replace: (doc, path, from, to, text, mode) =>
-				spent(doc, path, host.leaf.replace(doc, path, from, to, text, mode))
+			insert,
+			replace,
+			cut(doc, path, from, to, joined, mode) {
+				if (joined.before === '') return host.leaf.cut(doc, path, from, to, joined, mode);
+				const { before } = joined;
+				const plain =
+					from === to
+						? host.leaf.insert(doc, path, from, before, mode)
+						: host.leaf.replace(doc, path, from, to, before, mode);
+				const own = spent(doc, path, plain);
+				if (own.bytes === plain.bytes) return host.leaf.cut(doc, path, from, to, joined, mode);
+				// The records moved or marked the text: the block is cut where they left its caret.
+				const written = withLeafBytes(doc, path, own.bytes);
+				return host.leaf.cut(written, path, own.caret, own.caret, { ...joined, before: '' }, mode);
+			}
 		}
 	};
 }
