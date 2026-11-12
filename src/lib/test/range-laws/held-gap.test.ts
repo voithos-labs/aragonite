@@ -227,7 +227,13 @@ const OVER: Record<string, Pick<Row, 'source' | 'take' | 'gap'>> = {
 		take: { anchor: at([2], 0), focus: at([3], 3) },
 		gap: heldAt([], 2)
 	},
-	'a line under a heading in a quote': ROWS['a line under a heading in a quote']
+	'a line under a heading in a quote': ROWS['a line under a heading in a quote'],
+	// A gap an arrow stops at too: the same key, the same answer.
+	'a paragraph tight between two fences': {
+		source: `${FENCE}para\n${FENCE}`,
+		take: over([1], 0, 4),
+		gap: { parentPath: [], index: 1 }
+	}
 };
 
 const COMMAND_KEYS: Record<string, KeyboardEventInit> = {
@@ -270,6 +276,17 @@ describe('a command key over a range that leaves the caret in a gap', () => {
 			expect(reads(over)).toEqual(want);
 		}
 	);
+
+	it.each(MODES)('%s: one undo takes Enter over the range back, range and all', async (mode) => {
+		const row = OVER['the last two paragraphs under a fence'];
+		const editor = mountCase(row.source, mode);
+		await editor.settle();
+		expect(await placeOwnedRange(editor, row.take as EditorSelection)).toBe(true);
+		await key(editor, 'Enter');
+		await runHistory(editor, 'undo');
+		expect(editor.source()).toBe(row.source);
+		expect(editor.instance.getSelection()).toEqual(row.take);
+	});
 
 	it.each(MODES)(
 		'%s: an IME composition over the range opens its paragraph there',
