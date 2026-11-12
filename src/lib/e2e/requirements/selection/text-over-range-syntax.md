@@ -42,9 +42,9 @@ Where the caret is on text, the text joins the block there. Every row runs in so
 
 - A definition `[a]: /u` whose title starts on the next line (`    'code`), then `# h`, `text`,
   `end'`: click at the heading's first byte and Shift+click in the middle of `text`, at top level
-  and inside a quote, then type `x` or paste `x`. The removal joins what is left of `text` to the
-  title, so no boundary stands where the range began, and the text joins the title there (`xxt`),
-  as Ctrl+X and then `x` leave it. Source mode only: a live click lands behind the hidden `# `.
+  and inside a quote, then type `Q` or paste `Q`. The text lands where the range began, at the
+  caret the removal leaves, as Ctrl+X and then `Q` leave it; the caret is collapsed and the tree
+  is the parse of the bytes. Source mode only: a live click lands behind the hidden `# `.
   Miss-analysis: every row's removal left the blocks above the range where they were, so the
   start block's path from before the removal still named its place, and the text landed after the
   document's last block or was dropped where the commit had joined the lines.

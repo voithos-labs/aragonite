@@ -205,8 +205,10 @@ for (const gesture of ['type', 'paste'] as const) {
 				await editor.shiftClickBlock(row.to, 2);
 				await editor.waitForCrossBlock(true);
 				const range = await editor.bridge.getSelection();
-				await apply(editor, gesture);
-				const text = TEXT[gesture];
+				// A letter the document doesn't hold, so finding it finds the one written.
+				const text = 'Q';
+				if (gesture === 'type') await editor.typeSlowly(text);
+				else await editor.seedClipboard(text).then(() => editor.paste());
 				await expect.poll(() => editor.bridge.getSource()).toContain(text);
 				// Where the range began, the blank lines a removal may set there aside.
 				const source = await editor.bridge.getSource();

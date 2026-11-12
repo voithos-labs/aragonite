@@ -12,12 +12,15 @@ import { rangeHost } from '#lib/range-edit/host.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
-import { arbNeighbourDocument } from '../range-laws/shapes';
+import fc from 'fast-check';
+import { arbLawDocument, arbNeighbourDocument } from '../range-laws/shapes';
 import { lawInputs } from './inputs';
 import { testReading } from './test-host';
 
 const DOCUMENTS = process.env.RANGE_EDIT_FULL === '1' ? 600 : 120;
 const SEED = freshOrFixedSeed(20261112);
+// The law documents bring nested containers a removal ends; the neighbours bring taken blocks.
+const DOCUMENTS_DRAWN = fc.oneof(arbLawDocument, arbNeighbourDocument);
 const GESTURES: RemovalGesture[] = ['backspace', 'delete', 'cut', 'type', 'compose', 'command'];
 
 describe('a removal names its places on the bytes it leaves', () => {
@@ -26,7 +29,7 @@ describe('a removal names its places on the bytes it leaves', () => {
 		const host = rangeHost(reading);
 		const fails: string[] = [];
 		let taken = 0;
-		for (const input of lawInputs(DOCUMENTS, SEED, reading.grammar, arbNeighbourDocument))
+		for (const input of lawInputs(DOCUMENTS, SEED, reading.grammar, DOCUMENTS_DRAWN))
 			for (const range of input.ranges)
 				for (const gesture of GESTURES) {
 					const answer = removalOf(input.source, range, gesture, input.mode, host);
