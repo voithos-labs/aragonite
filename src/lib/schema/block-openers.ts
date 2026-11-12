@@ -234,7 +234,31 @@ export function waitingAboveThrough(
 	floor: number,
 	readings: readonly UnfinishedReading[]
 ): number {
-	let live = unclosed(readings);
+	return waitingPast(block, from, floor, unclosed(readings));
+}
+
+/** The highest block above `at` whose wait, under a reading no line closes, is still open where
+ *  block `at` starts and runs on into it, so a line of `at` could still change it. -1 when none. */
+export function waitingInto(
+	block: (index: number) => Held,
+	at: number,
+	floor: number,
+	readings: readonly UnfinishedReading[]
+): number {
+	if (at <= floor) return -1;
+	const live = unclosed(readings).filter((reading) => reaches(reading, block(at)));
+	if (live.length === 0) return -1;
+	const above = waitingPast(block, at - 1, floor, live);
+	if (above >= 0) return above;
+	return live.some((reading) => reading.notFinal(block(at - 1).raw)) ? at - 1 : -1;
+}
+
+function waitingPast(
+	block: (index: number) => Held,
+	from: number,
+	floor: number,
+	live: UnclosedReading[]
+): number {
 	let top = -1;
 	for (let i = from; i > floor && live.length > 0; i--) {
 		const below = block(i);
@@ -253,13 +277,16 @@ export function waitingAboveThrough(
 	return top;
 }
 
-/** The last block at or below `from` that a wait still open at block `from`'s end can run on to. */
-export function waitRunsTo(
+/** Where a read has to run on to: the last block from `from` that a wait still open past the end
+ *  of `read` can reach, or -1 when no block of `read` still waits there. */
+export function waitRunsPast(
+	read: readonly Held[],
 	block: (index: number) => Held,
 	from: number,
 	last: number,
 	readings: readonly UnfinishedReading[]
 ): number {
+	if (waitingAboveThrough((i) => read[i], read.length - 1, 0, readings) < 0) return -1;
 	const live = unclosed(readings);
 	let to = from;
 	while (to < last && live.some((reading) => reaches(reading, block(to + 1)))) to++;

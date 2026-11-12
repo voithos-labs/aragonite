@@ -13,7 +13,7 @@ import {
 	returnFenceLine,
 	takeRemovedLines
 } from './runs';
-import { rereadUnfinished } from './unfinished';
+import { rereadUnfinished, settleWaits } from './unfinished';
 import { finish, startWork, type Work } from './work';
 
 export function fixUpList(
@@ -60,9 +60,33 @@ export function fixUpList(
 	mergeAcross(work, above, from + count, host);
 	if (!typed) endMergedLast(work, edit, from, count, host);
 	rereadUnfinished(work, from, count, host);
+	const [first, last] = reached(work, from, count, joins);
+	settleWaits(work, first, last, host);
 	if (from + count >= work.blocks.length) releaseOpenBlankLine(work, host);
 	if (edit.moved) followMovedBlock(work, edit.moved.to);
 	return finish(work);
+}
+
+/** The joins the edit asked and the steps above reached, first and last. */
+function reached(
+	work: Work,
+	from: number,
+	count: number,
+	joins: readonly [number, Role][]
+): [number, number] {
+	let [first, last] = work.blocks.touched() ?? [from, from + count];
+	const reach = (j: number) => {
+		first = Math.min(first, j);
+		last = Math.max(last, j);
+	};
+	reach(from);
+	reach(from + count);
+	for (const [j] of joins) reach(j);
+	for (const mark of Object.values(work.marks)) {
+		reach(mark.index);
+		reach(mark.index + 1);
+	}
+	return [first, last];
 }
 
 /** Whether a typed write leaves the join above alone, which it does unless the two touch, the

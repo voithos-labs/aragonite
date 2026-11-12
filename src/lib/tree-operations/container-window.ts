@@ -10,7 +10,7 @@ import type { NodeView } from '../core/node-views';
 import { isBlankParagraph } from '../core/parser';
 import { splitLines } from '../core/lines';
 import { countsAfterRewrite } from '../core/parsers/list';
-import { waitRunsTo, waitingAboveThrough, type UnfinishedReading } from '../schema/block-openers';
+import { waitRunsPast, waitingAboveThrough, type UnfinishedReading } from '../schema/block-openers';
 import { blockFacts } from '../schema/block-facts';
 import { spanHolding } from '../schema/child-spans';
 import { assignChildIdsDeep, keepUnchangedDeep } from '../block-id';
@@ -129,15 +129,6 @@ export function textAfter(blocks: readonly NodeView[], at: number): number {
 	return k;
 }
 
-/** Whether a block of `read` still waits on lines past the read's end, under a reading no line
- *  closes: the read stopped short of what that block may yet take in. */
-export function waitsPast(
-	read: readonly NodeView[],
-	readings: readonly UnfinishedReading[]
-): boolean {
-	return waitingAboveThrough((i) => read[i], read.length - 1, 0, readings) >= 0;
-}
-
 /** Whether `read` holds the blocks after `was[at]` up to `k`, the next with text, as they stood: the
  *  blank ones whole and `k` starting where it did, so every block past it reads as it did too. */
 export function standsBelow(
@@ -215,10 +206,8 @@ function readRun(run: Run, text: string): RunRead | 'moved' | 'mismatch' {
 	if (!last) {
 		if (!standsBelow(kids, hi, k, below)) return 'moved';
 		// Asked of the new bytes alone: the bytes as they stood read as held, wait and all.
-		const waitsTo = waitsPast(container.children, run.readings)
-			? waitRunsTo((i) => kids[i], k, kids.length - 1, run.readings)
-			: undefined;
-		return { ...found, waitsTo };
+		const to = waitRunsPast(container.children, (i) => kids[i], k, kids.length - 1, run.readings);
+		return { ...found, waitsTo: to < 0 ? undefined : to };
 	}
 	const ownTail = container.innerSuffix ?? '';
 	if (below.length > 0 || ownTail !== (node.innerSuffix ?? '')) return 'moved';

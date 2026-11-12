@@ -12,7 +12,7 @@ import type { DocumentView, NodeView } from '../core/node-views';
 import {
 	closed,
 	unfinishedReadings,
-	waitRunsTo,
+	waitRunsPast,
 	waitingAboveClosedBy,
 	type GrammarView
 } from '../schema/block-openers';
@@ -21,13 +21,7 @@ import { splitLines } from '../core/lines';
 import { readAsOpened } from '../schema/opened-reading';
 import { assignChildIdsDeep, keepUnchangedDeep } from '../block-id';
 import { changedBytes, narrowed, writtenLines, type ByteChange } from './byte-changes';
-import {
-	containerWindow,
-	standsBelow,
-	textAfter,
-	waitsPast,
-	windowStart
-} from './container-window';
+import { containerWindow, standsBelow, textAfter, windowStart } from './container-window';
 import { spliceMany } from './splice-many';
 import type { Measured, TopLevelChange } from './top-level-starts';
 
@@ -205,8 +199,8 @@ function readAgain(
 			at += blocks[m].leadingTrivia.length + blocks[m++].raw.length;
 		if (at !== head.length || !standsBelow(children, hi, k, blocks.slice(m))) return null;
 		// A block still waiting past the read's end reads on as far as its wait can run.
-		if (waitsPast(blocks, readings))
-			return k === last ? null : { readTo: waitRunsTo((i) => children[i], k, last, readings) };
+		const runsTo = waitRunsPast(blocks, (i) => children[i], k, last, readings);
+		if (runsTo >= 0) return k === last ? null : { readTo: runsTo };
 		// A block the window leaves waiting on a closer reads on to the first line below that may be it.
 		const closerAt = closerBelow(blocks.slice(0, m), hi);
 		return closerAt < 0 ? { blocks: blocks.slice(0, m) } : { readTo: closerAt };
