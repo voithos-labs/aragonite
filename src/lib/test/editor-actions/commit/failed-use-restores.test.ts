@@ -11,7 +11,7 @@ import type { EditorTestSurface } from '#lib/components/editor-root/test-surface
 import type { AnyBlockKind } from '#lib/core/nodes.js';
 import type { EditorError } from '#lib/editor-events.js';
 import { tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
-import { definePlugin, lineBlock, type BlockType } from '#lib/plugin.js';
+import { definePlugin, lineBlock, type BlockType, type Editor } from '#lib/plugin.js';
 import { command } from '#lib/schema/plugin-command.js';
 import type { PluginList } from '#lib/schema/plugin-unit.js';
 import {
@@ -22,7 +22,7 @@ import {
 	typeInto,
 	type MountedEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
-import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { allowDevWarns } from '#lib/test/support/warn-gate.js';
 
 beforeAll(installLayoutStubs);
 afterEach(async () => {
@@ -79,7 +79,12 @@ interface Listed {
 
 function listed(
 	name: string,
-	spec: { blocks?: BlockType<never>[]; throws?: 'setup' | 'second setup' | 'cleanup' } = {}
+	spec: {
+		blocks?: BlockType<never>[];
+		throws?: 'setup' | 'second setup' | 'cleanup';
+		/** Called as the `setup` starts and as what it returned runs. */
+		sees?(during: 'setup' | 'cleanup', editor: Editor): void;
+	} = {}
 ): Listed {
 	const life: Listed = { name, plugin: null as never, setups: 0, cleanups: 0, edits: 0 };
 	life.plugin = definePlugin({
@@ -90,11 +95,13 @@ function listed(
 			blocks: spec.blocks ?? [],
 			commands: [command({ id: 'ping', title: 'Ping', run: () => {} })],
 			setup(editor) {
+				spec.sees?.('setup', editor);
 				editor.on('edit', () => life.edits++);
 				const again = spec.throws === 'second setup' && life.setups > 0;
 				if (spec.throws === 'setup' || again) throw new Error(`${name} setup blew up`);
 				life.setups++;
 				return () => {
+					spec.sees?.('cleanup', editor);
 					const first = life.cleanups++ === 0;
 					if (first && spec.throws === 'cleanup') throw new Error(`${name} cleanup blew up`);
 				};
@@ -228,6 +235,7 @@ describe.each(BUILDS)('a `use` that fails part way, in $build', ({ isDev }) => {
 		const m = await mountedHoldingRange(before);
 		const stood = standing(m);
 		const tree = m.instance.__test.getDocument();
+		const range = m.instance.getSelection();
 		expect(stood.kinds).toContain('use-leaving/rule');
 		const events = m.instance.getEvents();
 		const errors: EditorError[] = [];
@@ -262,6 +270,7 @@ describe.each(BUILDS)('a `use` that fails part way, in $build', ({ isDev }) => {
 		);
 		for (const { stood: found } of seen) expect(found).toEqual(stood);
 		expect(m.instance.__test.getDocument() === tree).toBe(!scene.rereads);
+		expect(m.instance.getSelection()).toEqual(scene.rereads ? null : range);
 
 		expect(tryGetBlockKindDescriptor('use-stays/keep' as AnyBlockKind)?.isContainer).toBe(false);
 		// The list's definitions answer, the refused list's don't.
@@ -285,7 +294,8 @@ describe.each(BUILDS)('a `use` that fails part way, in $build', ({ isDev }) => {
 		// Every hold on a block type's facts goes back with the editor, the refused list's too.
 		await m.destroy();
 		expect(tryGetBlockKindDescriptor('use-stays/keep' as AnyBlockKind)).toBeUndefined();
-		takeDevWarns();
+		// The row types into a block while the range it held still stands.
+		allowDevWarns(['invariant:typed-write-outside-range']);
 	});
 });
 
@@ -309,6 +319,85 @@ describe('a `use` put back over a plugin that will not start again', () => {
 		]);
 		const attached = [stays, leaving, once, sticky].map((each) => each.setups - each.cleanups);
 		expect(attached).toEqual([1, 1, 0, 1]);
+	});
+});
+
+describe('a `use` that fails as its second plugin starts', () => {
+	// Miss-analysis: no `setup` or cleanup recorded what it found, so the steps of the call and of
+	// the put-back could change places with every row green.
+	it('shows each `setup` and cleanup one list, whole', async () => {
+		let m: Mounted | null = null;
+		const found: [string, ReturnType<typeof standing>][] = [];
+		const sees = (who: string) => (during: string) =>
+			void (m && found.push([`${who} ${during}`, standing(m)]));
+		const stays = staying();
+		const leaving = listed('use-leaving', { blocks: [rule()], sees: sees('leaving') });
+		const first = listed('use-first', { blocks: [boom()], sees: sees('first') });
+		const second = listed('use-second', { throws: 'setup', sees: sees('second') });
+		m = await mountedHoldingRange([stays, leaving]);
+		const ran = standing(m);
+		m.instance.getEvents().on('error', () => {});
+
+		m.instance.use([stays.plugin, first.plugin, second.plugin]);
+		await m.settle();
+
+		const refused = {
+			plugins: ['use-stays', 'use-first', 'use-second'],
+			kinds: ['paragraph', 'use-stays/keep', 'use-first/boom', 'paragraph'],
+			source: SOURCE
+		};
+		expect(found).toEqual([
+			['leaving cleanup', ran],
+			['first setup', refused],
+			['second setup', refused],
+			['first cleanup', refused],
+			['leaving setup', ran]
+		]);
+	});
+
+	// Miss-analysis: every scene had one plugin throw, so none saw a second throw of the same call
+	// dropped with the refused list's install reports.
+	it('reports a plugin that throws as the call takes it back', async () => {
+		const stays = staying();
+		const first = listed('use-first', { throws: 'cleanup' });
+		const second = listed('use-second', { throws: 'setup' });
+		const m = await mountedHoldingRange([stays]);
+		const errors: EditorError[] = [];
+		m.instance.getEvents().on('error', (error) => errors.push(error));
+
+		m.instance.use([stays.plugin, first.plugin, second.plugin]);
+		await m.settle();
+
+		expect(errors.map((e) => (e.error as Error).message)).toEqual([
+			'use-first cleanup blew up',
+			'use-second setup blew up'
+		]);
+	});
+
+	it('reports a `use` it refused on the way, in a production build', async () => {
+		const stays = staying();
+		let inner: (() => void) | null = null;
+		const nesting = definePlugin({
+			name: 'use-nesting',
+			version: '1.0.0',
+			editor: '*',
+			contributes: () => ({ setup: () => void inner?.() })
+		});
+		const second = listed('use-second', { throws: 'setup' });
+		const m = await mountedHoldingRange([stays]);
+		const errors: EditorError[] = [];
+		m.instance.getEvents().on('error', (error) => errors.push(error));
+		inner = () => m.instance.use([]);
+		configureEditorEnv({ isDev: false });
+
+		m.instance.use([stays.plugin, nesting, second.plugin]);
+		await m.settle();
+
+		expect(errors.map((e) => (e.error as Error).message)).toEqual([
+			'aragonite: `use` called while the plugin list is changing',
+			'use-second setup blew up'
+		]);
+		expect(standing(m).plugins).toEqual(['use-stays']);
 	});
 });
 
@@ -338,7 +427,6 @@ describe('a `use` that fails in an editor mounted with no list', () => {
 		expect(errors.map((e) => e.context?.plugin)).toEqual(['use-second']);
 		expect(m.instance.plugins).toEqual(ran);
 		expect(attached).toBe(0);
-		takeDevWarns();
 	});
 });
 
@@ -373,7 +461,6 @@ describe.each(BUILDS)(
 			]);
 			expect(standing(m).plugins).toEqual(isDev ? stood.plugins : ['use-stays', 'use-nesting']);
 			expect(stays.setups - stays.cleanups).toBe(1);
-			takeDevWarns();
 		});
 	}
 );
@@ -397,5 +484,57 @@ describe('a `use` whose list works', () => {
 			'paragraph'
 		]);
 		expect([stays, leaving, joining].map((each) => each.setups - each.cleanups)).toEqual([1, 0, 1]);
+	});
+
+	// Miss-analysis: no cleanup read its editor or wrote, so a plugin turned off ahead of its own
+	// cleanup, whose edit is then refused, changed no row.
+	it('cleans a plugin up while it is still on, so its edit lands', async () => {
+		const stays = staying();
+		let found: readonly string[] = [];
+		let landed: unknown;
+		const leaving = listed('use-leaving', {
+			blocks: [rule()],
+			sees(during, editor) {
+				if (during !== 'cleanup') return;
+				found = [...editor.plugins];
+				const write = editor.edit().replace({ from: 0, to: 0 }, 'Z').commit();
+				void write.then((result) => (landed = result));
+			}
+		});
+		const m = await mountedHoldingRange([stays, leaving]);
+
+		m.instance.use([stays.plugin]);
+		await m.settle();
+
+		expect(found).toEqual(['use-stays', 'use-leaving']);
+		expect(landed).toEqual({ ok: true });
+		expect(standing(m)).toEqual({
+			plugins: ['use-stays'],
+			kinds: ['paragraph', 'use-stays/keep', 'paragraph', 'paragraph'],
+			source: 'Z' + SOURCE
+		});
+	});
+
+	// Miss-analysis: no handler of the selection change a `use` announces called `use`, which the
+	// call still counted as inside itself.
+	it.each(BUILDS)('lets the selection change it announces start another, in $build', async (b) => {
+		const [stays, joining] = [staying(), listed('use-joining', { blocks: [boom()] })];
+		const m = await mountedHoldingRange([stays]);
+		const errors: EditorError[] = [];
+		m.instance.getEvents().on('error', (error) => errors.push(error));
+		let next: PluginList | null = [stays.plugin];
+		m.instance.getEvents().on('selectionChange', () => {
+			const list = next;
+			next = null;
+			if (list) m.instance.use(list);
+		});
+		configureEditorEnv({ isDev: b.isDev });
+
+		m.instance.use([stays.plugin, joining.plugin]);
+		await m.settle();
+
+		expect(errors).toEqual([]);
+		expect(standing(m).plugins).toEqual(['use-stays']);
+		expect([stays, joining].map((each) => each.setups - each.cleanups)).toEqual([1, 0]);
 	});
 });

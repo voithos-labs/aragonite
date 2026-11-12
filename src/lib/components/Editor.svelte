@@ -240,9 +240,9 @@
 	let errorsOpen = false;
 	// What a `use` in flight has to report, said once its list is settled, so no handler finds it
 	// half changed.
-	let afterUse: (() => void)[] | null = null;
+	let afterUse: UseFailure[] | null = null;
 	function reportPluginError(error: PluginError): void {
-		if (afterUse) return void afterUse.push(() => reportPluginError(error));
+		if (afterUse) return void afterUse.push(error);
 		onError?.(error);
 		if (errorsOpen) emitPluginError(error);
 		else heldErrors.push(error);
@@ -1690,11 +1690,14 @@
 		pluginNames = activePlugins.names;
 	}
 
-	/** A plugin's own throw, or the re-read's. */
+	/** A plugin's own throw, or one naming no plugin: the re-read's, or a `use` refused. */
 	type UseFailure = PluginError | { cause: unknown };
 
-	/** Installs `entries` over `was` (its block types go to `held`), detaches the plugins leaving
-	 *  into `detached`, reads the document again and attaches the ones joining; the first failure. */
+	const hearFailure = (said: UseFailure) =>
+		'plugin' in said ? reportPluginError(said) : emitCommitError(events, { error: said.cause });
+
+	/** Installs `entries` (its block types go to `held`), detaches what leaves `was` into `detached`,
+	 *  runs the new list, reads the document again and attaches what joins; the first failure. */
 	function changeList(
 		entries: NonNullable<typeof pluginEntries>,
 		was: RunningList,
@@ -1705,19 +1708,21 @@
 		// Both lists' block types are held until the call lands, so one in both keeps its facts.
 		const blocks = installBlockTypes(kept, reportPluginError);
 		held(blocks);
-		runList({ entries, units: kept, blocks, names: runningNames(entries, kept) });
+		const names = runningNames(entries, kept);
 		// A plugin listed again with other options starts over on them, whichever shape it has.
 		const replaced = (name: string) =>
 			was.units.find((u) => u.name === name)?.contribution !==
 				kept.find((u) => u.name === name)?.contribution ||
 			was.entries?.optionsByName.get(name) !== entries.optionsByName.get(name);
-		const leaving = was.names.filter((name) => !pluginNames.includes(name) || replaced(name));
-		const joining = pluginNames.filter((name) => !was.names.includes(name) || replaced(name));
+		const leaving = was.names.filter((name) => !names.includes(name) || replaced(name));
+		const joining = names.filter((name) => !was.names.includes(name) || replaced(name));
+		// Before the new list runs: a plugin cleans up still turned on, so what it writes lands.
 		for (const name of leaving) {
 			detached.push(name);
 			const thrown = pluginContexts.detach(name);
 			if (thrown) return thrown;
 		}
+		runList({ entries, units: kept, blocks, names });
 		try {
 			documentSwap.reparse();
 		} catch (cause) {
@@ -1733,7 +1738,7 @@
 		// a write is, and said once that change has settled.
 		if (afterUse) {
 			const error = new Error('aragonite: `use` called while the plugin list is changing');
-			afterUse.push(() => emitCommitError(events, { error }));
+			afterUse.push({ cause: error });
 			if (devChecksOn) throw error;
 			return;
 		}
@@ -1751,38 +1756,43 @@
 		// Page-wide and before this editor changes, so a `setup` that throws leaves it as it ran.
 		installPlugins(entries.plugins);
 		let failure = null as UseFailure | null;
-		// What putting the document back threw, which nothing here can mend.
-		let unread = null as { cause: unknown } | null;
-		afterUse = [];
-		try {
-			// One selection change for the whole call, announced once the list is settled.
-			selectionState.batch(() => {
+		let said: UseFailure[] = [];
+		// One selection change for the whole call, announced once the list is settled.
+		selectionState.batch(() => {
+			const waiting: UseFailure[] = (afterUse = []);
+			try {
 				let blocks: typeof ownBlocks | null = null;
+				// Until the new list is installed, every report waiting is its install's.
+				let installSaid = Infinity;
 				const detached: string[] = [];
 				try {
-					failure = changeList(entries, was, detached, (held) => (blocks = held));
+					failure = changeList(entries, was, detached, (held) => {
+						blocks = held;
+						installSaid = waiting.length;
+					});
 				} catch (cause) {
 					failure = { cause };
 				}
 				if (!failure) return was.blocks.release();
-				// A list that never ran left nothing out, so only the putting back is reported.
-				afterUse = [];
+				// A list that never ran left nothing out, so what its install said is dropped.
+				waiting.splice(0, installSaid);
 				contributions.read(was.units);
 				runList(was);
 				(blocks as typeof ownBlocks | null)?.release();
 				try {
 					if (doc !== tree) documentSwap.reparse();
 				} catch (cause) {
-					unread = { cause };
+					waiting.push({ cause });
 				}
 				pluginContexts.attachAgain(detached);
-			});
-		} finally {
-			const waiting = afterUse;
-			afterUse = null;
-			waiting?.forEach((say) => say());
-		}
-		if (unread) emitCommitError(events, { error: unread.cause });
+			} finally {
+				// Settled before the batch announces, so a handler of that selection change may `use`.
+				afterUse = null;
+				// A refused `use` thrown into a plugin's `setup` is the failure itself, said last, once.
+				said = waiting.filter((each) => each.cause !== failure?.cause);
+			}
+		});
+		said.forEach(hearFailure);
 		if (!failure) return;
 		// Last: a dev build throws the re-read's failure back to the caller.
 		if ('plugin' in failure) reportPluginError(failure);
