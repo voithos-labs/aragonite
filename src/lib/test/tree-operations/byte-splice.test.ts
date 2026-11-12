@@ -17,6 +17,10 @@ import { reloadDivergence } from '#lib/test/exhaustive/edit-driver.js';
 import { SYNTAX_PLUGINS } from '../behavior/corpus';
 import { arbLawDocument } from '../range-laws/shapes';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
+import {
+	WAITING_DEFINITION_ROWS,
+	arbWaitingDefinitionEdit
+} from '../invariants/arbitraries/waiting-definition';
 
 // The editor opens an empty file as one empty paragraph.
 const open = (source: string): Document => initDocument(source, defaultGrammarView).doc;
@@ -248,6 +252,23 @@ describe('a splice reads as the document it leaves', () => {
 		]
 	])('%s', (_name, before, after) => {
 		expect(divergence(before, to(after))).toBeNull();
+	});
+
+	// Miss-analysis: the generator drew no title that starts on a line of its own and runs across
+	// lines that read as other blocks, so no window had to reach past the block beside its change.
+	describe('under a definition whose title has started', () => {
+		it.fails.each(WAITING_DEFINITION_ROWS)('%s', (_name, { before, after }) => {
+			expect(divergence(before, to(after))).toBeNull();
+		});
+
+		it.fails('a drawn change that closes the title or takes away what ended it', () => {
+			fc.assert(
+				fc.property(arbWaitingDefinitionEdit, ({ before, after }) => {
+					expect(divergence(before, to(after))).toBeNull();
+				}),
+				{ numRuns: 300, seed: freshOrFixedSeed(20261112) }
+			);
+		});
 	});
 
 	it('reads two far-apart changes as two windows, and two that meet as one', () => {

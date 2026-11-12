@@ -7,19 +7,27 @@
 // so nothing compared the editor's host, which reads an answer off the tree it holds.
 
 import { describe, expect, it } from 'vitest';
+import fc from 'fast-check';
 import type { DocumentView, NodeView } from '#lib/core/node-views.js';
 import { editRange, type Gesture, type Range } from '#lib/range-edit/edit-range.js';
 import { rangeHost, type Mode, type PasteHost, type RangeHost } from '#lib/range-edit/host.js';
 import { unfinishedReadings, type GrammarView } from '#lib/schema/block-openers.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
+import { changesBetween } from '#lib/tree-operations/byte-changes.js';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
+import {
+	WAITING_DEFINITION_ROWS,
+	arbWaitingDefinitionEdit
+} from '../invariants/arbitraries/waiting-definition';
 import { lawInputs } from './inputs';
 import { rangeOf, unmark } from './named-rows';
 import { noTransforms, testReading } from './test-host';
 
 const DOCUMENTS = process.env.RANGE_EDIT_FULL === '1' ? 600 : 120;
 const SEED = freshOrFixedSeed(20261111);
+/** Drawn changes under a waiting definition. */
+const WAITING = 200;
 
 interface Compared {
 	/** Documents the core asked for beside the editor's own. */
@@ -142,6 +150,37 @@ describe('G4.342 the editor’s host reads an answer as a fresh parse does', () 
 		// Not vacuous: answers were read, and a paste read the document after its removal half.
 		expect(seen.reads).toBeGreaterThan(DOCUMENTS);
 		expect(overRange).toBeGreaterThan(0);
+	});
+
+	// Miss-analysis: the drawn documents held no definition waiting on its title, and no drawn
+	// range or paste took the line that ended one or wrote the mark that closes it.
+	it.fails(`under a definition whose title has started, seed ${SEED}`, () => {
+		const reading = testReading();
+		const seen: Compared = { reads: 0, leftOpen: 0, fails: [] };
+		const edits = fc.sample(arbWaitingDefinitionEdit, { numRuns: WAITING, seed: SEED });
+		for (const { before, after } of edits) {
+			const [{ from, to, insert }] = changesBetween(before, after);
+			const gestures: Gesture[] =
+				insert === '' ? ['backspace', 'delete', 'cut'] : [paste(insert, true)];
+			for (const mode of ['source', 'live'] as const) {
+				for (const gesture of gestures)
+					compare(seen, reading.grammar, reading, {
+						source: before,
+						range: { from, to },
+						gesture,
+						mode
+					});
+			}
+		}
+		expect(report(seen)).toBe('');
+		expect(seen.reads).toBeGreaterThan(WAITING);
+	});
+
+	it.fails.each(WAITING_DEFINITION_ROWS)('the host reads %s', (_name, { before, after }) => {
+		const reading = testReading();
+		const fresh = rangeHost(reading);
+		const own = rangeHost(reading, { source: before, measured: measured(fresh.read(before)) });
+		expect(differences(after, own.read(after), fresh.read(after), own, fresh)).toEqual([]);
 	});
 
 	it.each([
