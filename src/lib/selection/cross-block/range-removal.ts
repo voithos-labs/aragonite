@@ -7,7 +7,6 @@
 import type { SourceSplice, SpliceCaret } from '../../action-contracts';
 import type { DocumentView } from '../../core/node-views';
 import type { AnyBlockKind } from '../../core/nodes';
-import { getContentRange, isProseKind } from '../../core/inline';
 import { hidesDelimitersAtCaret } from '../../presentation-mode';
 import {
 	removalOf,
@@ -16,6 +15,7 @@ import {
 	type RemovalGesture
 } from '../../range-edit/edit-range';
 import { rangeHost } from '../../range-edit/host';
+import { isGridKind } from '../../schema/block-kind-descriptor';
 import { changesBetween } from '../../tree-operations/byte-changes';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import type { Measured } from '../../tree-operations/top-level-starts';
@@ -23,8 +23,7 @@ import { deleteSnapshot, type SelectionPoint } from '../primitives';
 import { liveSlot, type RemovalGesture as BlockGesture } from '../caret-target';
 
 import { firstCaretLeafFrom, previousCaretPath } from '../path-lookup';
-import { gapOfPlace, pointAtByte, removalBytes, wholeBlockBytes } from '../range-bytes';
-import { gapEligibleAt } from '../gap-caret';
+import { heldGapOf, pointAtByte, readsAsText, removalBytes, wholeBlockBytes } from '../range-bytes';
 import type { RangeCoverage } from '../range-coverage';
 import type { CrossBlockDispatchContext } from './dispatch';
 
@@ -167,29 +166,32 @@ export function commandLandingKind(doc: DocumentView, coverage: RangeCoverage): 
 	return beside ? kindAt(doc, beside) : 'paragraph';
 }
 
-/** Where text over the range opens a paragraph: the boundary the core's place names, or the block
- *  the range started in, taken, with the caret off prose. Null types in place. */
+/** Where text over the range opens a paragraph: the boundary the core's place is held at, or the
+ *  block the range started in, taken, with the caret off prose. Null types in place. */
 export function emptiedPlace(measured: Measured, removed: Removed): number[] | null {
 	const { doc: committed } = measured;
 	const { landed, caret, took } = removed;
 	if (!landed || !removed.wrote) return null;
 	if (landed.holds === 'boundary') {
-		const { parentPath, index } = gapOfPlace(measured, landed);
-		// The root's trailing boundary takes no gap caret, but a paragraph opens there all the same.
-		const rootEnd = parentPath.length === 0 && index === committed.children.length;
-		if (gapEligibleAt(committed, parentPath, index) || rootEnd) return [...parentPath, index];
+		const gap = heldGapOf(measured, landed);
+		if (gap) return [...gap.parentPath, gap.index];
 	}
-	// A boundary no gap caret takes leaves the caret on the text at its byte, prose or not.
+	// A boundary held as no gap leaves the caret on the text at its byte.
 	if (!took || (caret && landed.holds !== 'block' && inProse(committed, caret))) return null;
-	return liveSlot(committed, took);
+	const slot = liveSlot(committed, took);
+	return slot && pastGrid(committed, slot);
 }
 
-/** Whether text written at `point` reads as its block's text: a prose block, inside its content. */
+/** `slot`, or the slot after the table holding it, since no paragraph stands among a table's rows. */
+function pastGrid(doc: DocumentView, slot: number[]): number[] {
+	const grid = slot.findIndex((_, i) => isGridKind(kindAt(doc, slot.slice(0, i + 1))));
+	return grid < 0 || grid === slot.length - 1 ? slot : [...slot.slice(0, grid), slot[grid] + 1];
+}
+
+/** Whether text written at `point` reads as its block's text. */
 function inProse(doc: DocumentView, point: SelectionPoint): boolean {
 	const leaf = blockNodeAt(doc, point.path);
-	if (!leaf) return true;
-	const content = getContentRange(leaf);
-	return isProseKind(leaf.kind) && point.offset >= content.start && point.offset <= content.end;
+	return !leaf || readsAsText(leaf, point.offset);
 }
 
 function kindAt(doc: DocumentView, path: readonly number[]): AnyBlockKind {

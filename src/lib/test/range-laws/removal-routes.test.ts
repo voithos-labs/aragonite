@@ -13,6 +13,7 @@ import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
 import { documentBytes, removalBytes, wholeBlockBytes } from '#lib/selection/range-bytes.js';
 import { gapEligibleAt, type GapCaretPosition } from '#lib/selection/gap-caret.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
+import { leafAtByte } from '#lib/tree-operations/container-offsets.js';
 import { allBlockPaths } from '../invariants/arbitraries/index';
 import {
 	removalOf,
@@ -29,10 +30,6 @@ import { CORE_GESTURE } from '#lib/selection/cross-block/range-removal.js';
 import type { SpliceCaret } from '#lib/action-contracts.js';
 import { landingAt } from '#lib/editor-actions/commit/byte-splice.js';
 import { CURSOR_END, CURSOR_START } from '#lib/block-component.js';
-import {
-	getAllRegisteredKinds,
-	getBlockKindDescriptor
-} from '#lib/schema/block-kind-descriptor.js';
 import { caretOf } from './through-splice';
 import { registerDefaultContextActions } from '#lib/components/menu/default-context-actions.js';
 import {
@@ -49,7 +46,9 @@ import { deleteRange } from '#lib/test/harness/range-delete.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import {
 	CLIPBOARD_ROUTES,
+	blocksIn,
 	clipboardGesture,
+	kitFixtures,
 	mountCase,
 	placeRange,
 	runHistory,
@@ -336,16 +335,20 @@ describe('every whole-block route leaves the core’s bytes', () => {
 
 // Miss-analysis: the core's caret table holds every kit kind's byte, and R1 each route's landing of
 // it, but nothing held that byte, landed, to where the kind itself puts a caret it is entered at.
-describe('a rule removed whole lands where the kind beside it takes a caret', () => {
+describe('a rule removed whole lands where the kind beside it takes a caret, or in the gap', () => {
+	// `gap`: the kinds a route leaves the gap above, where the core names the boundary the rule
+	// left and a letter there would go into the kind's syntax.
 	const sides = {
-		'above the rule, by Backspace': { route: { key: 'Backspace' }, above: true },
-		'above the rule, by the block menu’s Remove': { route: { menu: true }, above: true },
-		'below the rule, by Delete': { route: { key: 'Delete' }, above: false },
-		'below the rule, by Mod+X': { route: { cut: true }, above: false }
-	} satisfies Record<string, { route: WholeRoute; above: boolean }>;
+		'above the rule, by Backspace': { route: { key: 'Backspace' }, above: true, gap: [] },
+		'above the rule, by the block menu’s Remove': { route: { menu: true }, above: true, gap: [] },
+		'below the rule, by Delete': { route: { key: 'Delete' }, above: false, gap: [] },
+		'below the rule, by Mod+X': { route: { cut: true }, above: false, gap: ['fencedCode'] }
+	} satisfies Record<string, { route: WholeRoute; above: boolean; gap: string[] }>;
 	for (const mode of ['source', 'live'] as const) {
-		it.each(Object.entries(sides))(`${mode}, every kit kind %s`, async (_, { route, above }) => {
+		it.each(Object.entries(sides))(`${mode}, every kit kind %s`, async (_, side) => {
+			const { route, above } = side;
 			const out: string[] = [];
+			const gaps: string[] = [];
 			const kits = await kitFixtures();
 			expect(kits.map(([kind]) => kind)).toContain('table');
 			for (const [kind, fixture] of kits) {
@@ -358,7 +361,14 @@ describe('a rule removed whole lands where the kind beside it takes a caret', ()
 				if (mode === 'live' && !above && TITLE_ROW_KINDS.has(kind)) continue;
 				if (!(await driveWhole(editor, [1], route))) out.push(`${kind}: the route took no action`);
 				const removed = editor.source();
+				const held = editor.instance.__test.getGapCaret()?.held;
 				const left = { caret: heldCaret(editor), typed: await typedAt(editor) };
+				if (held) {
+					gaps.push(kind);
+					const own = above ? `${block}\n\nx\n\nbelow\n` : `above\n\nx\n\n${block}\n`;
+					if (left.typed !== own) out.push(`${kind}: ${left.typed}`);
+					continue;
+				}
 				const fresh = mountCase(removed, mode);
 				await fresh.settle();
 				fresh.instance.__test.getBlockComponent(above ? [0] : [1])!.focus(edge(above));
@@ -369,6 +379,7 @@ describe('a rule removed whole lands where the kind beside it takes a caret', ()
 					out.push(`${kind}: ${left.caret}, not ${own.caret}`);
 			}
 			expect(out).toEqual([]);
+			expect(gaps, 'the kinds the gap is held above').toEqual(side.gap);
 		});
 	}
 });
@@ -528,9 +539,20 @@ function corePlace(editor: Editor, mode: PresentationMode, take: Take, route: Pl
 	return { source: serialize(doc), caret: removed.landed as RangeEditResult['caret'] };
 }
 
-/** The gap a boundary names: among its parent's children, before the first whose own bytes start
- *  at or past its byte, else after the last; null where no gap caret may sit there. */
-function namedGap(doc: Document, caret: RangeEditResult['caret']): GapCaretPosition | null {
+/** What a removal's caret is held as: the gap a boundary names, marked where no arrow stops at
+ *  it, or no gap where a paragraph's own text takes the letter (or the caret names no boundary). */
+function heldAs(doc: Document, caret: RangeEditResult['caret']): GapCaretPosition | null {
+	const named = namedBoundary(doc, caret);
+	if (!named || gapEligibleAt(doc, named.parentPath, named.index)) return named;
+	const rootEnd = named.parentPath.length === 0 && named.index === doc.children.length;
+	const text = leafAtByte(measured(doc), caret.at);
+	if (!rootEnd && text && blockNodeAt(doc, text.path)?.kind === 'paragraph') return null;
+	return { ...named, held: true };
+}
+
+/** The boundary a caret names: among its parent's children, before the first whose own bytes
+ *  start at or past its byte, else after the last; null for a caret on text or on a block. */
+function namedBoundary(doc: Document, caret: RangeEditResult['caret']): GapCaretPosition | null {
 	if (caret.holds !== 'boundary') return null;
 	// A table's rows, or a path holding no blocks, stand for the container around them.
 	let parentPath = [...caret.parent];
@@ -553,7 +575,7 @@ function namedGap(doc: Document, caret: RangeEditResult['caret']): GapCaretPosit
 			parentPath = inside.path;
 			continue;
 		}
-		return gapEligibleAt(doc, parentPath, index) ? { parentPath, index } : null;
+		return { parentPath, index };
 	}
 }
 
@@ -620,30 +642,25 @@ describe('a removal’s caret sits among the children of the block the core name
 					expect(want.caret.parent, 'the block the rule sat among').toEqual(
 						target.whole.slice(0, -1)
 					);
-				const gap = namedGap(doc, want.caret);
+				const gap = heldAs(doc, want.caret);
+				const opens = gap && [...gap.parentPath, gap.index];
 				if (route === 'a letter') {
-					const root = want.caret.holds === 'boundary' && want.caret.parent.length === 0;
-					const end = root && want.caret.at >= serialize(doc).length - doc.suffix.length;
-					const opens = gap ? [...gap.parentPath, gap.index] : end ? [doc.children.length] : null;
 					if (opens) expect(letterAt(editor, opens), editor.source()).toBe(true);
 					return;
 				}
-				expect(editor.instance.__test.getGapCaret(), 'the gap caret').toEqual(gap);
-				if (!gap) return;
+				expect(editor.instance.__test.getGapCaret(), 'the gap caret').toStrictEqual(gap);
+				if (want.caret.holds !== 'boundary') return;
 				await pressHardwareKey(document.activeElement as HTMLElement, { key: 'q' });
 				await editor.settle();
-				expect(letterAt(editor, [...gap.parentPath, gap.index]), editor.source()).toBe(true);
+				if (opens) expect(letterAt(editor, opens), editor.source()).toBe(true);
+				if ('whole' in target) return;
+				// The key and then a letter leave what the letter typed over the range leaves.
+				const over = mountCase(source, mode);
+				await over.settle();
+				expect(await drivePlace(over, target, 'a letter'), 'no letter went over').toBe(true);
+				await over.settle();
+				expect(blocksIn(editor), 'the letter typed over the range').toEqual(blocksIn(over));
 			});
 		}
 	}
 });
-
-/** Every registered kind with a conformance fixture, read once an editor has installed its plugins. */
-async function kitFixtures(): Promise<[string, string][]> {
-	mountCase('', 'source');
-	await destroyMountedEditors();
-	return getAllRegisteredKinds().flatMap((kind) => {
-		const fixture = getBlockKindDescriptor(kind).conformanceFixture;
-		return fixture ? [[kind, fixture] as [string, string]] : [];
-	});
-}

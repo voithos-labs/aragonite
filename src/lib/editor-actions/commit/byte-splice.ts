@@ -31,8 +31,8 @@ import { byteOfLeaf, leafAtByte } from '../../tree-operations/container-offsets'
 import { topsOf, type Measured } from '../../tree-operations/top-level-starts';
 import { readCurrentSelection } from '../../selection/native-bridge';
 import type { BlockReach } from './change-record';
-import { gapEligibleAt, type GapCaretSelection } from '../../selection/gap-caret';
-import { gapOfPlace } from '../../selection/range-bytes';
+import type { GapCaretSelection } from '../../selection/gap-caret';
+import { heldGapOf } from '../../selection/range-bytes';
 import { replaceRefs } from '../../block-lists/child-refs';
 import { assertIdsInLockstep, assertSpliceReadsBack } from '../../invariants/install';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
@@ -221,15 +221,15 @@ function placed(windows: readonly SpliceWindow[]): { at: number; count: number }
 	});
 }
 
-/** The caret at byte `caret.at`: the gap caret its place names, else text at that byte exactly,
- *  else the block's own landing (a block held whole, or a picture of its source). */
+/** The caret at byte `caret.at`: the gap caret a boundary is held as, else text at that byte
+ *  exactly, else the block's own landing (a block held whole, or a picture of its source). */
 export function landingAt(
 	measured: Measured,
 	caret: SpliceCaret
 ): Landing | GapCaretSelection | null {
 	if (caret.holds === 'boundary') {
-		const gap = gapOfPlace(measured, caret);
-		if (gapEligibleAt(measured.doc, gap.parentPath, gap.index)) return { gapCaret: gap };
+		const gap = heldGapOf(measured, caret);
+		if (gap) return { gapCaret: gap };
 	}
 	const leaf = leafAtByte(measured, caret.at);
 	if (!leaf) return null;

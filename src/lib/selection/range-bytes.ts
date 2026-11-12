@@ -1,11 +1,12 @@
 /**
  * A selection read as the bytes the range-edit core takes (`range-edit/edit-range.ts :: Range`):
  * each end's byte in the document, widened to every block the coverage holds whole and kept off a
- * block its start can't join. Copy, cut and the overlay read a range through here.
+ * block its start can't join. Copy, cut and the overlay read a range through here. The other way,
+ * a place the core names reads back as the gap caret there (`gapOfPlace`, `heldGapOf`).
  */
 
 import { untrack } from 'svelte';
-import type { DocumentView } from '../core/node-views';
+import type { DocumentView, NodeView } from '../core/node-views';
 import { displayLength, ownTrailingLineEnding } from '../core/lines';
 import { metadataOf } from '../core/nodes';
 import { docPathFrom, type DocPath } from '../core/coordinate-spaces';
@@ -15,10 +16,12 @@ import { blockNodeAt } from '../tree-operations/node-primitives';
 import { documentByteMap, leafAtByte } from '../tree-operations/container-offsets';
 import type { Measured } from '../tree-operations/top-level-starts';
 import { gapEligibleAt, gapScopeChildren, type GapCaretPosition } from './gap-caret';
+import { blockFacts } from '../schema/block-facts';
+import { getContentRange, isProseKind } from '../core/inline';
 import type { Range } from '../range-edit/edit-range';
 import { documentLayout, type LaidBlock, type Layout } from '../range-edit/layout';
 import { pathsEqual } from './path-math';
-import { previousCaretPath } from './path-lookup';
+import { boundaryHidden, previousCaretPath } from './path-lookup';
 import type { SelectionPoint } from './primitives';
 import type { RangeCoverage } from './range-coverage';
 
@@ -257,6 +260,39 @@ export function gapOfPlace(
 		if (!within) return { parentPath, index };
 		parentPath = inside;
 	}
+}
+
+/** The gap caret a removal's boundary place is held as, `held` where no arrow stops; null where
+ *  the caret goes to the text at its byte (prose a typed letter joins, or a hidden body). */
+export function heldGapOf(
+	measured: Measured,
+	place: { at: number; parent: readonly number[] }
+): GapCaretPosition | null {
+	const gap = gapOfPlace(measured, place);
+	const { doc } = measured;
+	if (gapEligibleAt(doc, gap.parentPath, gap.index)) return gap;
+	// The line a range emptied at the document's end is a place of its own, whatever stands above.
+	const rootEnd = gap.parentPath.length === 0 && gap.index === doc.children.length;
+	if (!rootEnd && joinsProse(measured, place.at)) return null;
+	if (boundaryHidden(doc, gap.parentPath, gap.index)) return null;
+	// A list's children are its items, which no paragraph stands among.
+	const parent = blockNodeAt(doc, gap.parentPath);
+	if (parent && blockFacts(parent.kind).lines === 'items') return null;
+	return { ...gap, held: true };
+}
+
+/** Whether a letter typed on a line of its own at byte `at` joins the text there: a block's own
+ *  text, of a kind whose text takes the line. */
+function joinsProse(measured: Measured, at: number): boolean {
+	const leaf = leafAtByte(measured, at);
+	const node = leaf && blockNodeAt(measured.doc, leaf.path);
+	return !!node && blockFacts(node.kind).joins === 'text' && readsAsText(node, leaf.offset);
+}
+
+/** Whether text written at `offset` of `node` reads as its text: a prose block, inside its content. */
+export function readsAsText(node: NodeView, offset: number): boolean {
+	const content = getContentRange(node);
+	return isProseKind(node.kind) && offset >= content.start && offset <= content.end;
 }
 
 /** The deepest boundary a gap caret may take where a block starts, or a container ends, at byte

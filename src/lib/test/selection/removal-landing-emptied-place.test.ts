@@ -105,6 +105,21 @@ describe('a range that took its start block, ending on a boundary no gap caret t
 	});
 });
 
+// Miss-analysis: every range that took its start block started on a table held whole, so a start
+// in a row the removal took named a slot among the table's rows, where opening a paragraph throws.
+describe('a range that took the table row it started in', () => {
+	it('opens a paragraph after the table, never among its rows', () => {
+		const doc = parse('| A |\n| - |\n| 1 |\n\n```\nx\n```\n');
+		const removed = {
+			wrote: true,
+			caret: at([1], 0),
+			landed: { at: 17, holds: 'text' as const },
+			took: [0, 2]
+		};
+		expect(emptiedPlace(measured(doc), removed)).toEqual([1]);
+	});
+});
+
 describe('a range whose start block survives', () => {
 	it('keeps its caret where the range started, even beside a fence', () => {
 		expect(placeAfterRemoval('alpha\n\n```js\nbody\n```\n', at([0], 2), at([1], 0))).toBeNull();
