@@ -47,6 +47,7 @@ import {
 	placeOwnedRange,
 	type Editor
 } from './gestures';
+import { MIDDLES, NEIGHBOURS } from './shapes';
 
 /** Each `emptiedPlace` call in a draw: whether its removal took the block the range started in. */
 const seen: { took: boolean }[] = [];
@@ -56,7 +57,7 @@ vi.mock('#lib/selection/cross-block/range-removal.js', async (importOriginal) =>
 	return {
 		...actual,
 		emptiedPlace: vi.fn((m: Measured, removed: Removed) => {
-			seen.push({ took: removed.took !== null });
+			seen.push({ took: removed.taken !== null });
 			return actual.emptiedPlace(m, removed);
 		})
 	};
@@ -72,24 +73,6 @@ afterEach(destroyMountedEditors);
 
 // ── The drawn documents ──────────────────────────────────────────────────────
 
-/** The lines above the taken block and below it, which its removal leaves touching. */
-const SHAPES: Record<string, { upper: string[]; lower: string[] }> = {
-	tableHalves: { upper: ['| a |', '| - |', '| 1 |'], lower: ['| 2 |'] },
-	tableRows: { upper: ['| a |', '| - |', '| 1 |', '| 3 |'], lower: ['| 2 |'] },
-	indentedCode: { upper: ['    a'], lower: ['    b'] },
-	htmlBlocks: { upper: ['<!-- a -->'], lower: ['<div>', 'x'] },
-	htmlUnderText: { upper: ['text'], lower: ['<span class="x">'] },
-	setextUnderline: { upper: ['text'], lower: ['==='] },
-	lazyQuote: { upper: ['> quoted'], lower: ['lazy'] },
-	lazyItem: { upper: ['- item'], lower: ['lazy'] },
-	startedTitle: { upper: ['[a]: /u', "    'code"], lower: ['text', "end'"] },
-	paragraphs: { upper: ['above'], lower: ['below'] }
-};
-const MIDDLES: Record<string, string[]> = {
-	heading: ['# h'],
-	rule: ['***'],
-	fence: ['```', 'x', '```']
-};
 const WRAPS = ['top', 'quote', 'item'] as const;
 /** Where the range starts (the taken block's edge, mid-line above it, a table row's cell) and ends. */
 const RANGES = [
@@ -108,18 +91,21 @@ const TEXT = { letter: 'ж', paste: 'ж', composition: '汉' } as const;
 interface Draw {
 	shape: string;
 	middle: string;
-	wrap: (typeof WRAPS)[number];
+	/** A quote in an item too, for the depth row only. */
+	wrap: (typeof WRAPS)[number] | 'quote in item';
 	range: (typeof RANGES)[number];
 	gesture: (typeof GESTURES)[number];
 	mode: PresentationMode;
 	eol: '\n' | '\r\n';
 	lead: 0 | 1 | 2;
 	word: string;
+	/** The block below the wrap; `last`, a paragraph, where absent. */
+	tail?: 'fence';
 }
 
 const arbDraw: fc.Arbitrary<Draw> = fc
 	.record({
-		shape: fc.constantFrom(...Object.keys(SHAPES)),
+		shape: fc.constantFrom(...Object.keys(NEIGHBOURS)),
 		middle: fc.constantFrom(...Object.keys(MIDDLES)),
 		wrap: fc.constantFrom(...WRAPS),
 		range: fc.constantFrom(...RANGES),
@@ -141,11 +127,13 @@ interface Built {
 
 function build(d: Draw): Built {
 	const word = (line: string) => line.replace('text', d.word);
-	const lines = [...SHAPES[d.shape].upper, ...MIDDLES[d.middle], ...SHAPES[d.shape].lower].map(
-		word
-	);
+	const lines = [
+		...NEIGHBOURS[d.shape].upper,
+		...MIDDLES[d.middle],
+		...NEIGHBOURS[d.shape].lower
+	].map(word);
 	const marker = (i: number) =>
-		d.wrap === 'quote' ? '> ' : d.wrap === 'item' ? (i ? '  ' : '- ') : '';
+		({ top: '', quote: '> ', item: i ? '  ' : '- ', 'quote in item': i ? '  > ' : '- > ' })[d.wrap];
 	let source = ['', `intro${d.eol}${d.eol}`, `intro${d.eol}${d.eol}more${d.eol}${d.eol}`][d.lead];
 	const texts = lines.map((line, i) => {
 		const at = source.length + marker(i).length;
@@ -153,9 +141,9 @@ function build(d: Draw): Built {
 		return at;
 	});
 	const wrapEnd = source.length - d.eol.length;
-	source += `${d.eol}last${d.eol}`;
-	const last = source.length - 4 - d.eol.length;
-	const upper = SHAPES[d.shape].upper.length;
+	const last = source.length + d.eol.length;
+	source += d.eol + (d.tail ? MIDDLES.fence.join(d.eol).replace('x', 'last') : 'last') + d.eol;
+	const upper = NEIGHBOURS[d.shape].upper.length;
 	const lower = upper + MIDDLES[d.middle].length;
 	const mid = (i: number) => texts[i] + Math.max(1, lines[i].length >> 1);
 	const [from, to] = {
@@ -337,20 +325,6 @@ const draw = (
 ): Draw => ({ shape, middle, wrap, range, gesture, mode, eol: '\n', lead: 1, word: 'text' });
 
 const KNOWN: Record<string, Known> = {
-	'stale taken place': {
-		cause:
-			'emptiedPlace puts the path the start block had before the commit on the tree after it; ' +
-			'under a started title the commit joins the lines below to it, and the text lands at the ' +
-			"document's end or is dropped (this lane, slice 2)",
-		matches: (d, r, line) =>
-			d.shape === 'startedTitle' &&
-			texts(d) &&
-			r.took &&
-			/^the text|^over the range|^warn: invariant:(commit-path-dialect|structural-descriptor)$/.test(
-				line
-			),
-		example: draw('startedTitle', 'heading', 'top', 'edge..lower mid', 'letter')
-	},
 	'a stale command claim': {
 		cause:
 			'commandLandingKind reads the kind of the block the removal lands in before the removal ' +
@@ -458,6 +432,11 @@ const REACH: Record<string, Draw> = {
 		'edge..lower',
 		'composition'
 	),
+	'under a started title': draw('startedTitle', 'heading', 'top', 'edge..lower mid', 'letter'),
+	'two containers deep, out past both': {
+		...draw('paragraphs', 'heading', 'quote in item', 'edge..last', 'composition'),
+		tail: 'fence'
+	},
 	'past the rows of a table': {
 		...draw('tableRows', 'fence', 'top', 'cell..middle', 'composition'),
 		lead: 0
@@ -478,8 +457,7 @@ const FIXED = DRAWS === 40 && SEED === 20261112;
 /** The fixed run's draws by what they met: a class here going to 0 or growing is a change to read. */
 const FIXED_TALLY = {
 	unplaced: 0,
-	'took the start block': 29,
-	'stale taken place': 2,
+	'took the start block': 30,
 	'a stale command claim': 8,
 	'a started title read wrong': 2,
 	'Enter inside a started title': 1,
@@ -494,10 +472,7 @@ const FIXED_TALLY = {
 
 /** What each example leaves over the range. */
 const LANDED: Record<string, string> = {
-	'stale taken place': "intro\n\n[a]: /u\n    'code\nxt\nend'\n\nlast\n\nж\n",
 	'a stale command claim': 'intro\n\n<!-- a -->\n\n\nlast\n',
-	'a started title read wrong': "intro\n\n[a]: /u\n    'code\n汉text\nend'\n\nlast\n",
-	'Enter inside a started title': "intro\n\n[a]: /u\n    'code\nxt\nend'\n\nlast\n",
 	'an opener kept in an item': '-     a\n  ```\nж\n  ```\n    b\n\nlast\n',
 	"a lone block's emptied line": 'intro\n\n> quoted\n\nжlazy\n\nlast\n',
 	'a letter where two indented code blocks join': 'intro\n\n    a\nж\n    b\n\nlast\n',
@@ -507,6 +482,8 @@ const LANDED: Record<string, string> = {
 	'a paste into a block with no paste surface': 'intro\n\n> <!-- ж\n> <div>\n> x\n\nlast\n',
 	'before an HTML block': 'intro\n\n<!-- a -->\n\n汉\n\n<div>\nx\n\nlast\n',
 	'before an HTML block in a quote': 'intro\n\n> text\n>\n> 汉\n>\n> <span class="x">\n\nlast\n',
+	'two containers deep, out past both':
+		'intro\n\n- > above\n  > \n  > 汉\n  >\n  >\n\n```\nlast\n```\n',
 	'past the rows of a table': '| a |\n| - |\n\n汉\n\n```\nx\n```\n| 2 |\n\nlast\n'
 };
 
@@ -522,7 +499,9 @@ describe('text and Enter over a range whose removal reads a neighbour again', ()
 				if (r === 'unplaced') return void tally.unplaced++;
 				if (r.took) tally['took the start block']++;
 				const example = names.get(JSON.stringify(d));
-				if (example) landed[example] = r.over.source;
+				// Under a started title a removal folds the text into the definition today, so the law,
+				// not the bytes, is the pin there.
+				if (example && d.shape !== 'startedTitle') landed[example] = r.over.source;
 				const warns = [...r.over.warns, ...r.removed.warns, ...r.step.warns];
 				const classes = new Set<string>();
 				for (const line of [...violations(d, r), ...warns.map((tag) => `warn: ${tag}`)]) {

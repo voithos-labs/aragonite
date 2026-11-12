@@ -115,7 +115,7 @@ describe('a range that took the table row it started in', () => {
 			wrote: true,
 			caret: at([1], 0),
 			landed: { at: 17, holds: 'text' as const },
-			took: [0, 2]
+			taken: { at: 12, parent: [0] }
 		};
 		expect(emptiedPlace(measured(doc), removed)).toEqual([1]);
 	});
@@ -145,7 +145,8 @@ function placeAfterCut(source: string, from: string, to: string) {
 // block's old path always still named the right slot on the tree the commit leaves.
 describe('a removal that joins the text below it to a title a definition started above', () => {
 	const TITLE = "[a]: /u\n    'code\n# h\ntext\nend'\n\nlast\n";
-	// The text joins the title where the cut leaves the caret, as the cut and then the text do.
+	// The text joins the title, as the cut and then the text do, while a removal under a started
+	// title folds the text into the definition: these bytes hold only until it doesn't.
 	const ROWS: Array<[string, string, string, string]> = [
 		['the heading line', TITLE, '# h', '# h\n'],
 		['the heading to the middle of the line below', TITLE, '# h', 'xt'],
@@ -163,7 +164,7 @@ describe('a removal that joins the text below it to a title a definition started
 		]
 	];
 	for (const [name, source, from, to] of ROWS) {
-		it.fails(`${name}: the text joins the title, where no boundary stands`, () => {
+		it(`${name}: the text joins the title, where no boundary stands`, () => {
 			expect(placeAfterCut(source, from, to)).toBeNull();
 		});
 	}

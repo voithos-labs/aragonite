@@ -175,3 +175,50 @@ test('an abandoned composition over the range leaves the removal and the paragra
 	expect(await kindAt(editor, [0])).toBe('paragraph');
 	expect(await kindAt(editor, [1])).toBe('heading');
 });
+
+// The removal uncovers the text below a title a definition started above; the text lands at the
+// removal's caret. Source mode, since a live click lands behind the hidden `# `.
+const TITLED = {
+	'at top level': {
+		source: "intro\n\n[a]: /u\n    'code\n# h\ntext\nend'\n\nlast\n",
+		from: [3],
+		to: [4],
+		before: "intro\n\n[a]: /u\n    'code\n"
+	},
+	'in a quote': {
+		source: "intro\n\n> [a]: /u\n>     'code\n> # h\n> text\n> end'\n\nlast\n",
+		from: [1, 2],
+		to: [1, 3],
+		before: "intro\n\n> [a]: /u\n>     'code\n"
+	}
+};
+for (const gesture of ['type', 'paste'] as const) {
+	test.describe(`${gesture} over a heading and half the line below, under a started title`, () => {
+		// A paste into a definition's title takes the default hooks, which the dispatch names.
+		if (gesture === 'paste') test.use({ expectWarns: ['paste-dispatch'] });
+		for (const [where, row] of Object.entries(TITLED)) {
+			test(`${where}: the text lands at the removal's caret`, async ({ page }) => {
+				const editor = new EditorPage(page);
+				await editor.goto();
+				await editor.loadContent(row.source);
+				await editor.clickBlockAtPath(row.from, 0);
+				await editor.shiftClickBlock(row.to, 2);
+				await editor.waitForCrossBlock(true);
+				const range = await editor.bridge.getSelection();
+				await apply(editor, gesture);
+				const text = TEXT[gesture];
+				await expect.poll(() => editor.bridge.getSource()).toContain(text);
+				// Where the range began, the blank lines a removal may set there aside.
+				const source = await editor.bridge.getSource();
+				const unmarked = (bytes: string) => bytes.replace(/[\s>]+$/, '');
+				expect(unmarked(source.slice(0, source.indexOf(text)))).toBe(unmarked(row.before));
+				const caret = await editor.bridge.getSelection();
+				expect(caret?.anchor).toEqual(caret?.focus);
+				expect(await editor.parseConverged()).toBe(true);
+				await editor.undo();
+				await editor.bridge.waitForSourceEquals(row.source);
+				expect(await editor.bridge.getSelection()).toEqual(range);
+			});
+		}
+	});
+}
