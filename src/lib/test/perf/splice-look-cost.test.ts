@@ -37,6 +37,10 @@ const SHAPES: Record<string, { growth: Growth; run: (n: number) => string[] }> =
 		growth: 'flat',
 		run: (n) => ['[a]: /u', ...lines(n - 1, (i) => [`# ${word(i)}`])]
 	},
+	'paragraphs apart under a definition': {
+		growth: 'flat',
+		run: (n) => ['[a]: /u', ...lines(n >> 1, (i) => ['', word(i)])]
+	},
 	definitions: { growth: 'asks', run: (n) => lines(n, (i) => [`[${word(i)}]: /u`]) },
 	'definitions with a title on the next line': {
 		growth: 'asks',
@@ -85,9 +89,7 @@ afterEach(() => disablePerfInstruments());
 describe('the look for a waiting definition, in a run with no blank line', () => {
 	for (const shape of Object.keys(SHAPES)) {
 		for (const quoted of [false, true]) {
-			// A run of code and definitions is read whole until the look tells a wait from a pair.
-			const row = shape === 'code and definitions alternating' ? it.fails : it;
-			row(`grows no faster than its shape allows: ${shape}${quoted ? ', in a quote' : ''}`, () => {
+			it(`grows no faster than its shape allows: ${shape}${quoted ? ', in a quote' : ''}`, () => {
 				const small = cost(shape, N, quoted);
 				const large = cost(shape, 4 * N, quoted);
 				const { growth } = SHAPES[shape];

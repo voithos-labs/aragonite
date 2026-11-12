@@ -25,7 +25,19 @@ export function parseLinkReferenceDefinition(
 ): BlockOpenerResult | null {
 	const labelStart = labelOpenerOffset(lines[startIndex].text);
 	if (labelStart < 0) return null;
-	const window = new DefinitionWindow(lines, startIndex, endIndex);
+	return readDefinition(
+		new DefinitionWindow(lines, startIndex, endIndex),
+		labelStart,
+		leadingTrivia
+	);
+}
+
+function readDefinition(
+	window: DefinitionWindow,
+	labelStart: number,
+	leadingTrivia: string
+): BlockOpenerResult | null {
+	const { lines, startIndex } = window;
 	const opener = readLabel(window, labelStart);
 	if (!opener) return null;
 	const { label, afterColon } = opener;
@@ -39,7 +51,9 @@ export function parseLinkReferenceDefinition(
 	// end means there is no definition; a title that fails on a later line leaves it untitled.
 	let lastOffset = -1;
 	let title: string | undefined;
-	const titleStart = skipSeparator(window, destination.end);
+	// A next line that opens no title is never joined, so each of a run of definitions reads alone.
+	const alone = atLineEnd(window.text, destination.end) && !window.nextOpensTitle();
+	const titleStart = alone ? destination.end : skipSeparator(window, destination.end);
 	if (titleStart > destination.end) {
 		const titleEnd = readSpan(window, titleStart, readTitle);
 		if (titleEnd >= 0 && atLineEnd(window.text, titleEnd)) {
@@ -70,6 +84,12 @@ export function parseLinkReferenceDefinition(
 
 // ── The lines a definition can span ─────────────────────────────────────────
 
+/** Whether a definition still being read runs on across a line that isn't blank: any line a
+ *  paragraph would run on to. */
+export function definitionCrosses(line: string): boolean {
+	return !lineInterruptsParagraph(line) && matchSetextUnderline(line) === null;
+}
+
 /** The definition's first line plus each later line a paragraph would continue onto, joined by
  *  `\n` without leading whitespace (§4.7); a line joins only when a read runs off the end. */
 class DefinitionWindow {
@@ -77,10 +97,12 @@ class DefinitionWindow {
 	/** Offset in `text` where each joined line ends. */
 	private readonly lineEnds: number[];
 	private next: number;
+	/** Whether a read asked for a line past the last one given, so more lines could change it. */
+	ranOut = false;
 
 	constructor(
-		private readonly lines: ParsedLine[],
-		private readonly startIndex: number,
+		readonly lines: ParsedLine[],
+		readonly startIndex: number,
 		private readonly endIndex: number
 	) {
 		this.text = lines[startIndex].text;
@@ -90,15 +112,23 @@ class DefinitionWindow {
 
 	/** Joins the next line if a paragraph would continue onto it. */
 	grow(): boolean {
-		if (this.next >= this.endIndex) return false;
-		const line = this.lines[this.next].text;
-		if (isBlankLine(line) || lineInterruptsParagraph(line) || matchSetextUnderline(line)) {
+		if (this.next >= this.endIndex) {
+			this.ranOut = true;
 			return false;
 		}
+		const line = this.lines[this.next].text;
+		if (isBlankLine(line) || !definitionCrosses(line)) return false;
 		this.text += '\n' + line.replace(/^[ \t]+/, '');
 		this.lineEnds.push(this.text.length);
 		this.next++;
 		return true;
+	}
+
+	/** Whether the next line, past its indent, opens a title; a read past the last line ran out. */
+	nextOpensTitle(): boolean {
+		if (this.next < this.endIndex) return /^[ \t]*["'(]/.test(this.lines[this.next].text);
+		this.ranOut = true;
+		return false;
 	}
 
 	/** The index into `lines` of the joined line holding `offset`. */
@@ -139,22 +169,21 @@ function skipSpaces(text: string, pos: number): number {
 	return pos;
 }
 
-// ── Label ───────────────────────────────────────────────────────────────────
+// ── Whether a reading is final ──────────────────────────────────────────────
 
-/** Whether lines below a block with these bytes could still change it: a label not closed yet, a
- *  `]:` awaiting its destination, or a definition with no title, which takes one from below. */
+/** Whether lines below these bytes, a block's own or with the blocks under it, could still change
+ *  how the first block reads: its label, destination or title was still being read at their end. */
 export function definitionReadingNotFinal(raw: string): boolean {
 	// The first line decides before any line is split, since a walk asks this of every block.
-	if (labelOpenerOffset(raw) < 0) return false;
+	const labelStart = labelOpenerOffset(raw);
+	if (labelStart < 0) return false;
 	const lines = splitLines(raw);
-	const labelStart = labelOpenerOffset(lines[0].text);
 	const window = new DefinitionWindow(lines, 0, lines.length);
-	const labelClose = readSpan(window, labelStart, labelEnd);
-	// A label that never closed may still close below; one followed by anything but `:` is a link.
-	if (labelClose >= 0 && window.text[labelClose] !== ':') return false;
-	const definition = parseLinkReferenceDefinition(lines, 0, lines.length, '');
-	return definition === null || !('title' in (definition.node.metadata ?? {}));
+	readDefinition(window, labelStart, '');
+	return window.ranOut;
 }
+
+// ── Label ───────────────────────────────────────────────────────────────────
 
 /** Where the definition's `[` sits, up to three spaces in, or -1. */
 function labelOpenerOffset(line: string): number {

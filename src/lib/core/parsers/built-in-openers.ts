@@ -18,7 +18,11 @@ import {
 	parseHtmlBlock,
 	canInterruptParagraph as htmlCanInterrupt
 } from './html-block';
-import { definitionReadingNotFinal, parseLinkReferenceDefinition } from './link-reference';
+import {
+	definitionCrosses,
+	definitionReadingNotFinal,
+	parseLinkReferenceDefinition
+} from './link-reference';
 
 export const BUILT_IN_OPENERS = {
 	fencedCode: {
@@ -136,6 +140,11 @@ export const BUILT_IN_OPENERS = {
 		},
 		interruptsParagraph: false,
 		// A definition ends at a blank line, so no line past one finishes it.
-		readingNotFinal: { notFinal: definitionReadingNotFinal, mayClose: () => false, closer: null }
+		readingNotFinal: {
+			notFinal: definitionReadingNotFinal,
+			mayClose: () => false,
+			closer: null,
+			crosses: definitionCrosses
+		}
 	}
 } satisfies Partial<Record<BlockKind, BlockOpener>>;

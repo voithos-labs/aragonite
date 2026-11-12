@@ -257,11 +257,11 @@ describe('a splice reads as the document it leaves', () => {
 	// Miss-analysis: the generator drew no title that starts on a line of its own and runs across
 	// lines that read as other blocks, so no window had to reach past the block beside its change.
 	describe('under a definition whose title has started', () => {
-		it.fails.each(WAITING_DEFINITION_ROWS)('%s', (_name, { before, after }) => {
+		it.each(WAITING_DEFINITION_ROWS)('%s', (_name, { before, after }) => {
 			expect(divergence(before, to(after))).toBeNull();
 		});
 
-		it.fails('a drawn change that closes the title or takes away what ended it', () => {
+		it('a drawn change that closes the title or takes away what ended it', () => {
 			fc.assert(
 				fc.property(arbWaitingDefinitionEdit, ({ before, after }) => {
 					expect(divergence(before, to(after))).toBeNull();

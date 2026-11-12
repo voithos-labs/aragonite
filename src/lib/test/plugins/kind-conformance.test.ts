@@ -136,12 +136,16 @@ function backingOut(name: string, fence: string, closer: UnfinishedReading['clos
 		const [opener, ...rest] = raw.split('\n');
 		return opener === fence && !rest.includes(fence);
 	};
+	const asks = { notFinal: awaitsCloser, mayClose: (line: string) => line === fence };
+	const reading: UnfinishedReading = closer
+		? { ...asks, closer }
+		: { ...asks, closer: null, crosses: () => true };
 	return testLeaf(name, (kind) => ({
 		conformanceFixture: `${fence}\nx\n${fence}\n`,
 		opener: {
 			priority: OPENER_PRIORITIES.fencedCode + 7,
 			interruptsParagraph: (line) => line === fence,
-			readingNotFinal: { notFinal: awaitsCloser, mayClose: (line) => line === fence, closer },
+			readingNotFinal: reading,
 			tryOpen(ctx) {
 				if (ctx.line.text !== fence) return null;
 				let close = ctx.index + 1;

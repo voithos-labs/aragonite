@@ -154,7 +154,7 @@ describe('G4.342 the editor’s host reads an answer as a fresh parse does', () 
 
 	// Miss-analysis: the drawn documents held no definition waiting on its title, and no drawn
 	// range or paste took the line that ended one or wrote the mark that closes it.
-	it.fails(`under a definition whose title has started, seed ${SEED}`, () => {
+	it(`under a definition whose title has started, seed ${SEED}`, () => {
 		const reading = testReading();
 		const seen: Compared = { reads: 0, leftOpen: 0, fails: [] };
 		const edits = fc.sample(arbWaitingDefinitionEdit, { numRuns: WAITING, seed: SEED });
@@ -176,7 +176,7 @@ describe('G4.342 the editor’s host reads an answer as a fresh parse does', () 
 		expect(seen.reads).toBeGreaterThan(WAITING);
 	});
 
-	it.fails.each(WAITING_DEFINITION_ROWS)('the host reads %s', (_name, { before, after }) => {
+	it.each(WAITING_DEFINITION_ROWS)('the host reads %s', (_name, { before, after }) => {
 		const reading = testReading();
 		const fresh = rangeHost(reading);
 		const own = rangeHost(reading, { source: before, measured: measured(fresh.read(before)) });

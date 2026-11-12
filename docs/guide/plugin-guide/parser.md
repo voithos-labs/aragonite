@@ -65,6 +65,8 @@ Some openers read past their first line looking for something and decline when i
 
 A fence is the other shape. It never backs out: left open, it takes in every line below it. But where it closes can still move, and when it does, every fence further down pairs up differently. If your opener claims a fence, declare `readingNotFinal: fenceReading` and you're done. Writing your own reading for something that takes everything below like that? Add `readsOn: true`. Then the editor knows it can't be waiting above anything, so it never walks up for it, and when nothing below closes it, the block reads on to the end.
 
+A third shape waits on no line you could name. A link definition takes its title from the lines below and stays a plain definition if the title never closes. For a reading like that, set `closer: null` and add `crosses(line)`, true for a line the wait runs on across. Then an edit ten lines down still reads your block again. A blank line always ends the wait, and `notFinal` gets your block's bytes together with the blocks under it.
+
 ```ts
 registerBlockKind(mathBlock, {
 	// ...the descriptor fields and the view

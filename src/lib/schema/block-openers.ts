@@ -56,19 +56,34 @@ export interface BlockOpener {
 	readingNotFinal?: UnfinishedReading;
 }
 
-/** The two halves of {@link BlockOpener.readingNotFinal}, declared together. */
-export interface UnfinishedReading {
-	/** Given a block's own bytes: my reading of them isn't final, a line below could change it. */
+/** The two halves of {@link BlockOpener.readingNotFinal}, declared together: a reading a line
+ *  closes names that line, and one no line closes says which lines its wait runs across. */
+export type UnfinishedReading = ClosedReading | UnclosedReading;
+
+interface ReadingNotFinal {
+	/** Given a block's bytes from its first line on: my reading of them isn't final, a line below
+	 *  could change it. Once final on some bytes, it stays final with more lines under them. */
 	notFinal: (raw: string) => boolean;
 	/** Whether a line could be the one that changes it. A cheap candidate test, not a match: true
 	 *  for every line this opener accepts as its closer, wider is fine, narrower breaks the edit. */
 	mayClose: (lineText: string) => boolean;
-	/** The line that closes a waiting block whose bytes are `raw`, which an opener typed on its own
-	 *  line is given so it takes in no block below it; null where no line closes it. */
-	closer: ((raw: string) => string) | null;
 	/** The block takes in every line below it until its closer, as an unclosed fence does: it never
 	 *  stands above another block, and with no closer below it reads to the body's end. */
 	readsOn?: boolean;
+}
+
+interface ClosedReading extends ReadingNotFinal {
+	/** The line that closes a waiting block whose bytes are `raw`, which an opener typed on its own
+	 *  line is given so it takes in no block below it. */
+	closer: (raw: string) => string;
+}
+
+/** A reading no line closes, as a link definition waits on a title: `notFinal` is also asked of a
+ *  block's bytes together with the blocks under it, and a blank line always ends the wait. */
+export interface UnclosedReading extends ReadingNotFinal {
+	closer: null;
+	/** Whether the wait runs on across a block under the waiting one that opens with this line. */
+	crosses: (lineText: string) => boolean;
 }
 
 type OpenerRecord = RegistryRecord<AnyBlockKind, BlockOpener>;
@@ -161,8 +176,8 @@ export function unfinishedReadings(grammar: GrammarView): readonly UnfinishedRea
 	return readings;
 }
 
-/** The reading under which a block of these bytes waits on a line below that closes it, or null:
- *  a reading with no closing line (a link definition's) never takes in the blocks below. */
+/** The reading under which a block of these bytes waits on a line below that closes it, or null.
+ *  A wait no line closes is {@link waitingAboveThrough}'s to find. */
 export function waitingReading(
 	raw: string,
 	readings: readonly UnfinishedReading[]
@@ -187,6 +202,60 @@ export function waitingAboveClosedBy(
 		if (closing.some((reading) => reading.notFinal(rawAbove(i)))) top = i;
 	}
 	return top;
+}
+
+/** A block's bytes and the blank lines above it, all the look for a wait reads of it. */
+interface Held {
+	readonly raw: string;
+	readonly leadingTrivia: string;
+}
+
+const unclosed = (readings: readonly UnfinishedReading[]): UnclosedReading[] =>
+	readings.filter((reading): reading is UnclosedReading => reading.closer === null);
+
+/** Whether a wait under `reading` runs on into `below`, the block right under the waiting one. */
+function reaches(reading: UnclosedReading, below: Held): boolean {
+	if (below.leadingTrivia !== '') return false;
+	const end = below.raw.indexOf('\n');
+	return reading.crosses((end < 0 ? below.raw : below.raw.slice(0, end)).replace(/\r$/, ''));
+}
+
+/** The highest block above `from` that a reading no line closes leaves waiting past `from`'s end:
+ *  read from its first line down to there, a line below could still change it. -1 when none. */
+export function waitingAboveThrough(
+	block: (index: number) => Held,
+	from: number,
+	floor: number,
+	readings: readonly UnfinishedReading[]
+): number {
+	let live = unclosed(readings);
+	let top = -1;
+	for (let i = from; i > floor && live.length > 0; i--) {
+		const below = block(i);
+		live = live.filter((reading) => reaches(reading, below));
+		const { raw } = block(i - 1);
+		// Asked with the next line alone first: a block that line settles waits on nothing below it.
+		const line = below.raw.slice(0, below.raw.indexOf('\n') + 1 || below.raw.length);
+		const waiting = live.filter((reading) => reading.notFinal(raw + line));
+		if (waiting.length === 0) continue;
+		let bytes = raw;
+		for (let k = i; k <= from; k++) bytes += block(k).raw;
+		if (waiting.some((reading) => reading.notFinal(bytes))) top = i - 1;
+	}
+	return top;
+}
+
+/** The last block at or below `from` that a wait still open at block `from`'s end can run on to. */
+export function waitRunsTo(
+	block: (index: number) => Held,
+	from: number,
+	last: number,
+	readings: readonly UnfinishedReading[]
+): number {
+	const live = unclosed(readings);
+	let to = from;
+	while (to < last && live.some((reading) => reaches(reading, block(to + 1)))) to++;
+	return to;
 }
 
 /**
