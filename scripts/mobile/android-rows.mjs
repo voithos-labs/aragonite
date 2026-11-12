@@ -573,7 +573,8 @@ async function typeOnGboard(ctx, name, index) {
 // `want`. The keyboard is waited for and never tapped up: a tap on the page would end the range or
 // the caret the row holds. Returns the reasons it failed.
 async function tapGboardKey(ctx, name, key, want) {
-	const whole = (keys) => keys.has('h') && keys.has(key);
+	// Space sits on the last row, which a keyboard still sliding in lists last.
+	const whole = (keys) => keys.has(' ') && keys.has(key);
 	let keys = ctx.device.gboardKeys(`${name}-windows`);
 	for (let i = 0; i < 10 && !whole(keys); i++) {
 		await sleep(300);
