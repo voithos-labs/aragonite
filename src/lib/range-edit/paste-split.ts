@@ -122,7 +122,8 @@ function parted(doc: Doc, out: string, line: number, marks: string, pair: Touchi
 					pair.index,
 					ended(pair.upper),
 					ended(pair.lower),
-					pair.placed
+					pair.placed,
+					null
 				)));
 	return apart ? out.slice(0, line) + marks.trimEnd() + doc.ending + out.slice(line) : out;
 }

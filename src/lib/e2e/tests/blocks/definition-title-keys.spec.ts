@@ -60,6 +60,23 @@ test.describe('keys under a definition whose title has started', () => {
 		expect(caret?.focus).toMatchObject({ path: [1], offset: 0 });
 	});
 
+	test('a heading removed from under a started title leaves the blocks around it', async ({
+		page
+	}) => {
+		await editor.loadContent("[a]: /u\n    'code\n# h\ntext\nend'\n");
+		await editor.clickBlockAtPath([1], "    'code".length);
+		await editor.shiftClickBlock([3], 0);
+		await page.keyboard.press('Backspace');
+		await editor.waitForRenderFlush();
+
+		expect(await editor.bridge.getSource()).toBe("[a]: /u\n    'code\n\ntext\nend'\n");
+		expect((await blocks(page)).map(([kind]) => kind)).toEqual([
+			'linkReferenceDefinition',
+			'indentedCode',
+			'paragraph'
+		]);
+	});
+
 	test('undo gives back the blocks the title took', async ({ page }) => {
 		await editor.loadContent(STARTED);
 		await editor.clickBlockAtPath([4], 3);

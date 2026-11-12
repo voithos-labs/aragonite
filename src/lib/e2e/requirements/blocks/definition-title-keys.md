@@ -16,7 +16,15 @@ in one of them can close the title, and then they are the definition's.
   `text`, `end'` is one definition; Enter after `/u` writes a blank line there, leaves the
   definition, the code and a paragraph, and puts the caret at the code's start
 
+- a removal keeps the blocks a started title would take: `[a]: /u`, an indented `'code`, `# h`,
+  `text`, `end'`; a range from the code's end to `text`'s start, then Backspace, leaves the code
+  and the paragraph apart with a blank line, as the move and Enter do
+
 ## Regressions
+
+- the removal joined the code and the paragraph into the definition's title.
+  Miss-analysis: the removal asked the pair it left alone; no row put a block above the pair that
+  still waited on the lines under it
 
 - Enter there wrote no byte and split the definition in the tree, three blocks for one.
   Miss-analysis: the split's rows cut blocks whose halves rejoin through the line right under

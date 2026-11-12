@@ -4,7 +4,9 @@
 // from the block that waits down to where the wait ends.
 import { ownTrailingLineEnding, splitLines } from '../../core/lines';
 import type { CstNode } from '../../core/nodes';
+import type { BytesView } from '../../core/node-views';
 import type { UnfinishedReading } from '../../schema/block-openers';
+import type { JoinBlock } from './joins';
 import type { Caret, Host, ListResult, SiblingList } from './types';
 import { bodyStart, bytesOf, isBlankBlock, readAt } from './reading';
 import { finish, replace, startWork, type Work } from './work';
@@ -75,6 +77,24 @@ export function partWaits(work: Work, from: number, to: number, host: Host): voi
 		work.blocks.set(j, { ...work.blocks.at(j), leadingTrivia: ending });
 		return 'parted';
 	});
+}
+
+/** Whether a wait from above would read `pair`, touching in place of blocks `index` to `last`,
+ *  otherwise than it stands: a removal that leaves it so parts it, as a move does. */
+export function waitTakesPair(
+	list: BytesView<SiblingList>,
+	index: number,
+	last: number,
+	pair: readonly [JoinBlock, JoinBlock],
+	host: Host
+): boolean {
+	// The look only reads, so a view of the list stands in for its nodes.
+	const work = startWork(list as SiblingList, {});
+	const upper = { ...pair[0], leadingTrivia: list.children[index].leadingTrivia } as CstNode;
+	work.blocks.splice(index, last - index + 1, [upper, pair[1] as CstNode], [index, last]);
+	const reading = waitReading(work, index + 1, bodyStart(work, host), host);
+	// A wait the upper opens itself is the pair's own question, which the join asks.
+	return !!reading?.next && reading.lo < index;
 }
 
 /** {@link settleWaits} at the one join above block `at`, for a container there that took new

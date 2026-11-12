@@ -31,6 +31,7 @@ import { storedAsAt, storedAsIn, writeTargetAt } from '../tree-operations/stored
 import { cellText } from '../core/parsers/table-line';
 import { editorHost } from '../tree-operations/fix-up/editor-host';
 import { blankLineBelongs } from '../tree-operations/fix-up/joins';
+import { waitTakesPair } from '../tree-operations/fix-up/unfinished';
 import { changesBetween } from '../tree-operations/byte-changes';
 import { applied, runsOf, spliceReading } from '../tree-operations/byte-splice';
 import { measured, topsOf, type Measured } from '../tree-operations/top-level-starts';
@@ -76,15 +77,16 @@ export interface RangeHost {
 	read(source: string): DocumentView;
 	layout(doc: DocumentView): Layout;
 	facts(kind: string): BlockFacts;
-	/** Whether children `index` and `index + 1` of the block at `parent`, left touching, need a blank
-	 *  line to keep their readings (the fix-up's join question); `placed` where `lower` was set apart. */
+	/** Whether children `index` and `index + 1` of `parent`, left touching, need a blank line to keep
+	 *  their readings; `placed` where `lower` was set apart, `stood` the child it was before a removal. */
 	parts(
 		doc: DocumentView,
 		parent: readonly number[],
 		index: number,
 		upper: JoinSide,
 		lower: JoinSide,
-		placed: boolean
+		placed: boolean,
+		stood: number | null
 	): boolean;
 	leaf: {
 		replace(
@@ -220,7 +222,7 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 				? (currentLayout ??= current.layout ?? documentLayout(current.measured))
 				: documentLayout(reread.get(doc) ?? measured(doc)),
 		facts: blockFacts,
-		parts(doc, parent, index, upper, lower, placed) {
+		parts(doc, parent, index, upper, lower, placed, stood) {
 			const fixUp = editorHost(reading.grammar);
 			const owner = (parent.length > 0 && blockNodeAt(doc, parent)) || undefined;
 			const block = (side: JoinSide, at: number) => {
@@ -230,9 +232,16 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 			};
 			const up = block(upper, index);
 			const down = block(lower, index + 1);
-			const slot = { owner, index, lineEnding: documentLineEnding(doc) };
+			const lineEnding = documentLineEnding(doc);
+			const slot = { owner, index, lineEnding };
 			const role = placed ? 'placed' : 'rewritten';
-			return !!up && !!down && blankLineBelongs(fixUp, slot, up, down, role, false);
+			if (!up || !down) return false;
+			if (blankLineBelongs(fixUp, slot, up, down, role, false)) return true;
+			if (stood === null) return false;
+			const list = owner
+				? { owner, children: owner.children ?? [], lineEnding }
+				: { children: doc.children, suffix: doc.suffix, lineEnding };
+			return waitTakesPair(list, index, stood, [up, down], fixUp);
 		},
 		leaf: {
 			replace(doc, path, from, to, text, mode) {
