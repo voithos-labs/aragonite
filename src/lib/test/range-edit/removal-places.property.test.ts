@@ -52,4 +52,13 @@ describe('a removal names its places on the bytes it leaves', () => {
 		expect(fails.slice(0, 8)).toEqual([]);
 		expect(taken, 'draws whose removal took the block the range started in').toBeGreaterThan(20);
 	});
+
+	// The table the range starts among the rows of ends before the byte once its rows are gone.
+	it('names the taken place among a quote, not the table the range left', () => {
+		const source = 'abc\n\n> | a |\n> |---|\n> | 1 |\n> | 2 |\n\n# h\n';
+		const range = { from: source.indexOf('| 1 |'), to: source.indexOf('# h') };
+		const answer = removalOf(source, range, 'type', 'source', rangeHost(testReading()));
+		expect(answer.source).toBe('abc\n\n> | a |\n> |---|\n> \n# h\n');
+		expect(answer.taken).toEqual({ at: range.from, parent: [1] });
+	});
 });

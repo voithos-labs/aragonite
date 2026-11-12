@@ -411,7 +411,10 @@ const KNOWN: Record<string, Known> = {
 	'a gesture that reached nothing': {
 		cause: "jsdom aims the gesture at an element that isn't the range's (undetermined)",
 		matches: (d, r, line) =>
-			texts(d) && r.over.source === r.built.source && /^over the range|dropped$/.test(line),
+			d.gesture === 'composition' &&
+			d.range === 'cell..middle' &&
+			r.over.source === r.built.source &&
+			/^over the range|dropped$/.test(line),
 		example: draw('tableHalves', 'rule', 'item', 'cell..middle', 'composition')
 	},
 	'a paste into a block with no paste surface': {
