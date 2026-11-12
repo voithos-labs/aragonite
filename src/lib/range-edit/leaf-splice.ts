@@ -15,6 +15,16 @@ import { continuation } from './markers';
 export interface Edit {
 	source: string;
 	caret: number;
+	/** Set where the edit is one write of one text block: the block, its finished bytes and the
+	 *  caret in them. */
+	leaf?: LeafEdit;
+}
+
+/** One text block's finished bytes, as its own write stores them, and the caret's offset there. */
+export interface LeafEdit {
+	path: readonly number[];
+	raw: string;
+	caret: number;
 }
 
 /** Where offset `at` of a text block's bytes sits in the source; past its last line ending is the
@@ -46,7 +56,10 @@ export function writeText(
 		from === to
 			? host.leaf.insert(tree, leaf.path, from, text, mode)
 			: host.leaf.replace(tree, leaf.path, from, to, text, mode);
-	return writeLeaf(doc, leaf, write, from, to, keep);
+	const edit = writeLeaf(doc, leaf, write, from, to, keep);
+	// A caret past the block's last line ending stands on no text of it, so the write names none.
+	if (write.caret === write.bytes.length && write.bytes.endsWith('\n')) return edit;
+	return { ...edit, leaf: { path: leaf.path, raw: write.bytes, caret: write.caret } };
 }
 
 /** `write` replaced `[from, to)` of the block's bytes: what changed goes into the source, each new

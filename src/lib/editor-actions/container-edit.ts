@@ -20,7 +20,7 @@ export function createContainerEditActions(
 		commitContainer: (args) => controller.commitContainerStructural(args),
 		typingKeystroke: (leafPath, preEditOffset, batchKey, history, work) =>
 			controller.typingKeystroke(leafPath, preEditOffset, batchKey, history, work),
-		typeLeaf: (leafPath, write, caret) => controller.typeLeaf(leafPath, write, caret),
+		typeLeaf: (leafPath, write, caret, op) => controller.typeLeaf(leafPath, write, caret, op),
 		land: (pos) => deps.caretLanding.land(pos),
 		removeWhole: (path, gesture, commit) =>
 			removeWholeBlock(

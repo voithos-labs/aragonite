@@ -32,10 +32,10 @@ export type RemovalContext = Pick<
 	'bytes' | 'reading' | 'controller' | 'getDoc'
 >;
 
-/** What a removal reads and commits through, the caret read back aside. */
-type CommitContext = Omit<RemovalContext, 'getDoc'>;
+/** What a range edit reads and commits through, the caret read back aside. */
+export type CommitContext = Omit<RemovalContext, 'getDoc'>;
 
-type RemovalCommit = Pick<SourceSplice, 'op' | 'snapshot'> & { caret: SpliceCaret };
+export type CoreCommit = Pick<SourceSplice, 'op' | 'snapshot'> & { caret: SpliceCaret };
 
 export interface Removed {
 	/** False also where the range held nothing to take, which leaves the caret at its start. */
@@ -84,19 +84,20 @@ export async function removeThroughCore(
 		snapshot: deleteSnapshot(start.path, start.offset)
 	});
 	const caret = wrote ? pointAtByte(ctx.bytes.measured(), landed.at) : null;
+	if (wrote && gesture === 'cut') rememberCut(ctx, landed);
 	return { wrote, caret, landed, took: answer.took ?? null };
 }
 
 /** Removes the block at `path` whole, as the block menu's Delete does, in one commit whose edit
  *  event and undo snapshot the caller names; the caret lands on the side `gesture` points. */
-export function removeWholeBlock(
+export async function removeWholeBlock(
 	ctx: CommitContext,
 	path: readonly number[],
 	gesture: BlockGesture,
-	commit: Omit<RemovalCommit, 'caret'>
+	commit: Omit<CoreCommit, 'caret'>
 ): Promise<boolean> {
 	const range = wholeBlockBytes(ctx.bytes.doc(), ctx.bytes.layout(), path);
-	if (!range) return Promise.resolve(false);
+	if (!range) return false;
 	const source = ctx.bytes.source();
 	const answer = wholeBlocksRemovalOf(
 		source,
@@ -105,7 +106,14 @@ export function removeWholeBlock(
 		modeOf(ctx),
 		hostOf(ctx)
 	);
-	return commitBytes(ctx, answer.source, { ...commit, caret: answer.caret });
+	const wrote = await commitBytes(ctx, answer.source, { ...commit, caret: answer.caret });
+	if (wrote && gesture === 'cut') rememberCut(ctx, answer.caret);
+	return wrote;
+}
+
+/** Keeps the caret the core named for a cut, for the paste that puts the cut back there. */
+function rememberCut(ctx: CommitContext, caret: SpliceCaret): void {
+	ctx.bytes.cut = { caret, of: ctx.bytes.measured() };
 }
 
 /** Writes `text` over what `coverage` holds inside one table cell as one write of the cell, in one
@@ -131,15 +139,19 @@ export async function writeInCell(
 }
 
 /** The core's new bytes landed as one byte splice. */
-function commitBytes(ctx: CommitContext, after: string, splice: RemovalCommit): Promise<boolean> {
+export function commitBytes(
+	ctx: CommitContext,
+	after: string,
+	splice: CoreCommit
+): Promise<boolean> {
 	const changes = changesBetween(ctx.bytes.source(), after);
 	return ctx.controller.commitSource({ changes, ...splice });
 }
 
-const modeOf = (ctx: CommitContext) =>
+export const modeOf = (ctx: CommitContext) =>
 	hidesDelimitersAtCaret(ctx.reading.mode()) ? 'live' : 'source';
 
-const hostOf = (ctx: CommitContext) =>
+export const hostOf = (ctx: CommitContext) =>
 	rangeHost(ctx.reading, {
 		source: ctx.bytes.source(),
 		measured: ctx.bytes.measured(),

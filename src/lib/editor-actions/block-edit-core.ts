@@ -100,8 +100,11 @@ async function handleIneligibleNeighbor(
 // ── The keystroke ────────────────────────────────────────────────────────────
 
 /** Every level's `updateBlockContent`: a commit when the trial reparse sees the block change, an
- *  in-place write otherwise, both in the entry `typeIn` pushed before the work's first await. */
-export function contentUpdate(scope: CommitScope): BlockEditActions['updateBlockContent'] {
+ *  in-place write otherwise, both in `typeIn`'s entry. `op` names a write that is no keystroke. */
+export function contentUpdate(
+	scope: CommitScope,
+	op?: OpDescriptor
+): BlockEditActions['updateBlockContent'] {
 	return (index, text, mode, history, preEditOffset, postEditFocusOffset) => {
 		scope.caretMemory.forget();
 		assertInvariant('caret-in-written-text', () =>
@@ -120,11 +123,12 @@ export function contentUpdate(scope: CommitScope): BlockEditActions['updateBlock
 					snapshotOffset: preEditOffset,
 					caret,
 					landing: unlessFocusMoved,
-					history: 'join-typing'
+					history: 'join-typing',
+					op
 				});
 				return landed.wrote;
 			}
-			const written = scope.typeLeaf(index, write, caret);
+			const written = scope.typeLeaf(index, write, caret, op);
 			if (!written.wrote) return false;
 			keepsCaret = !written.relanding;
 			if (!written.relanding) return true;
@@ -155,6 +159,7 @@ export async function commitLeafText(
 		reveal?: RevealPolicy;
 		/** `join-typing` for a keystroke, whose typing push already made the entry. */
 		history?: UndoGrouping;
+		op?: OpDescriptor;
 	}
 ): Promise<LeafWriteResult> {
 	let readSettled = (): FixedUpWrite | null => null;
@@ -179,7 +184,7 @@ export async function commitLeafText(
 	const wrote = await scope.commit({
 		snapshot: { index, offset: opts.snapshotOffset },
 		eventTarget: index,
-		op: { kind: 'updateContent', detail: { length: write.text.length } },
+		op: opts.op ?? { kind: 'updateContent', detail: { length: write.text.length } },
 		mutate: (view) => {
 			const settled = view.writeLeaf([index], write);
 			readSettled = () => settled;

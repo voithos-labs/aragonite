@@ -283,7 +283,9 @@ function landed(
 		const bare = doc.source.slice(0, leaf.from) + doc.source.slice(contentEnd(doc, leaf));
 		const emptied = { ...readDoc(bare, doc.host, doc.mode), ending: doc.ending };
 		const landing: Pasted = { text: clip, plain: false, held: { holds: 'text' }, transform: null };
-		return pasteAt(emptied, leaf.from, leaf.from, landing);
+		// Bytes alone: a block the landing names is one of the document without the heading.
+		const { source, caret } = pasteAt(emptied, leaf.from, leaf.from, landing);
+		return { source, caret };
 	}
 	const ownEnding = !lastJoins && lineRest(cut.rest, 0) === '' && clip.endsWith('\n');
 	const text = ownEnding ? clip.slice(0, -1) : clip;

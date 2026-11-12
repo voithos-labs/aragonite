@@ -18,7 +18,8 @@ import type { Measured } from '../tree-operations/top-level-starts';
 import { gapEligibleAt, gapScopeChildren, type GapCaretPosition } from './gap-caret';
 import { blockFacts } from '../schema/block-facts';
 import { getContentRange, isProseKind } from '../core/inline';
-import type { Range } from '../range-edit/edit-range';
+import type { Held, Range } from '../range-edit/edit-range';
+import type { SpliceCaret } from '../action-contracts';
 import { documentLayout, type LaidBlock, type Layout } from '../range-edit/layout';
 import { pathsEqual } from './path-math';
 import { boundaryHidden, previousCaretPath } from './path-lookup';
@@ -32,6 +33,9 @@ export interface DocumentBytes {
 	layout(): Layout;
 	/** The document with the starts of its top-level blocks, kept across writes. */
 	measured(): Measured;
+	/** The caret the core named for the last cut and the measure the cut left, which a paste back
+	 *  at that caret reads; null once anything else is known to have written. */
+	cut: { caret: SpliceCaret; of: Measured } | null;
 }
 
 /** The layout is made once per measured document, which every byte writer's announcement
@@ -47,6 +51,7 @@ export function documentBytes(deps: {
 		doc: deps.doc,
 		source: deps.source,
 		measured: deps.measured,
+		cut: null,
 		layout() {
 			deps.version();
 			const of = deps.measured();
@@ -225,6 +230,86 @@ export function byteOfGap(
 	if (index < parent.children.length) return map.byteOf([...parentPath, index], 0);
 	if (parentPath.length === 0) return starts.length;
 	return map.endOf(parentPath, (parent as { raw: string }).raw.length);
+}
+
+// ── Where a paste goes ──────────────────────────────────────────────────────
+
+/** Where a paste goes, as the range-edit core takes it: the bytes it replaces, and for a caret what
+ *  sits there. Made only by the readers below, so a caret on a block's syntax is never called text. */
+export type PastePlace = { range: Range } & Held;
+
+/** The place of raw offsets `[start, end]` of the text block at `path`. In live mode a caret outside
+ *  the block's text stands on syntax no one sees, so it names the boundary beside the block. */
+export function placeInBlock(
+	bytes: DocumentBytes,
+	path: readonly number[],
+	start: number,
+	end: number,
+	live: boolean
+): PastePlace | null {
+	const layout = bytes.layout();
+	const from = layout.byteOf(path, start);
+	const to = start === end ? from : layout.byteOf(path, end);
+	if (from === null || to === null) return null;
+	const cut = from === to ? cutPlaceAt(bytes, from) : null;
+	if (cut) return cut;
+	const text = layout.block(path)?.text;
+	const onSyntax = live && from === to && !!text && (from < text.from || from > text.to);
+	if (!onSyntax) return { range: { from, to }, holds: 'text' };
+	return from < text.from ? placeBeside(bytes, path, 0) : placeBeside(bytes, path, 1);
+}
+
+/** The boundary a gap caret stands at, among its parent's children. */
+export function placeOfGap(bytes: DocumentBytes, gap: GapCaretPosition): PastePlace | null {
+	const at = byteOfGap(bytes.measured(), gap);
+	if (at === null) return null;
+	return cutPlaceAt(bytes, at) ?? boundary(at, gap.parentPath);
+}
+
+/** The boundary under the block at `path`, where a paste on a block focused whole lands. */
+export function placeAfterBlock(bytes: DocumentBytes, path: readonly number[]): PastePlace | null {
+	const block = bytes.layout().block(path);
+	const cut = bytes.cut;
+	// A cut that left the caret on this block pastes back above it, where the cut took from.
+	if (block && cut?.of === bytes.measured() && cut.caret.holds === 'block')
+		if (cut.caret.at === block.from)
+			return { range: { from: block.from, to: block.from }, ...cut.caret };
+	return placeBeside(bytes, path, 1);
+}
+
+/** The place a caret at byte `at` names where the last cut left its caret there: the core's own
+ *  caret for that cut, so its entry fits. Null for any other byte, or once the document moved on. */
+export function cutPlaceAt(bytes: DocumentBytes, at: number): PastePlace | null {
+	const cut = bytes.cut;
+	if (!cut || cut.of !== bytes.measured() || cut.caret.holds === 'block') return null;
+	const measured = bytes.measured();
+	const gap = cut.caret.holds === 'boundary' ? heldGapOf(measured, cut.caret) : null;
+	const landed = gap ? byteOfGap(measured, gap) : leafByteAt(measured, cut.caret.at);
+	if (landed !== at) return null;
+	const { at: byte, ...held } = cut.caret;
+	return { range: { from: byte, to: byte }, ...held };
+}
+
+/** The byte of the text place a caret put down at byte `at` takes. */
+function leafByteAt(measured: Measured, at: number): number | null {
+	const leaf = leafAtByte(measured, at);
+	return leaf && documentByteMap(measured).byteOf(leaf.path, leaf.offset);
+}
+
+const boundary = (at: number, parent: readonly number[]): PastePlace => ({
+	range: { from: at, to: at },
+	holds: 'boundary',
+	parent
+});
+
+function placeBeside(
+	bytes: DocumentBytes,
+	path: readonly number[],
+	after: 0 | 1
+): PastePlace | null {
+	const parentPath = path.slice(0, -1);
+	const at = byteOfGap(bytes.measured(), { parentPath, index: path[path.length - 1] + after });
+	return at === null ? null : boundary(at, parentPath);
 }
 
 /** The boundary a place names among `parent`'s children, or a child's own where `at` falls ahead

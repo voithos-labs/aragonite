@@ -5,6 +5,7 @@
  */
 
 import type {
+	ContentWrite,
 	CommitMultiScopeArgs,
 	LeafTextOptions,
 	LeafWriteResult,
@@ -27,6 +28,14 @@ export interface PasteCommitCoordinator {
 	/** Write `text` into the leaf at `leafPath` as one commit at its parent list, through the write
 	 *  every keystroke takes. */
 	commitLeafText(leafPath: number[], text: string, opts: LeafTextOptions): Promise<LeafWriteResult>;
+	/** Write `text` as the bytes of the leaf at `leafPath` through the write a keystroke ends in: in
+	 *  place while the block keeps its kind, a commit at its list otherwise. Offsets are the leaf's. */
+	writeLeaf(
+		leafPath: readonly number[],
+		text: string,
+		preEditOffset: number,
+		caret: number
+	): ContentWrite;
 	/** Replace the block at `blockPath` as one commit at its parent list, resolving to how many blocks
 	 *  landed or null; `snapshotOffset` is undo's caret in the block when nothing is focused. */
 	replaceBlock(

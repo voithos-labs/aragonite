@@ -25,7 +25,7 @@ import {
 	type Place
 } from './document';
 import type { LaidBlock } from './layout';
-import { byteAt, writeText, type Edit } from './leaf-splice';
+import { byteAt, writeText, type Edit, type LeafEdit } from './leaf-splice';
 import { ownEntry, restored } from './own-entry';
 import { numberedOn } from './list-numbers';
 import { pasteAt, type Pasted } from './paste';
@@ -67,6 +67,9 @@ export interface RangeEditResult {
 	clipboard?: string;
 	/** The editor's own clipboard entry a copy or a cut writes beside it. */
 	own?: string;
+	/** Set where a paste was one write of one text block of `source`: the editor may commit it as
+	 *  that block's write, which leaves these bytes. */
+	leaf?: LeafEdit;
 }
 
 export function editRange(
@@ -105,8 +108,16 @@ export function editRange(
 			held,
 			transform
 		});
-		if (from === to) return answer(pasteAt(doc, from, to, pasted(gesture)));
-		if (inOneText(doc, from, to)) return answer(pasteAt(doc, from, to, pasted(TEXT)));
+		// One write of one block of `source` is named where the caret stays on the text it wrote, so
+		// the editor can make it as that block does.
+		const inPlace = (edit: Edit): RangeEditResult => {
+			const named = answer(edit);
+			const { caret } = named;
+			const kept = edit.leaf && caret.holds === 'text' && caret.at === edit.caret;
+			return kept ? { ...named, leaf: edit.leaf } : named;
+		};
+		if (from === to) return inPlace(pasteAt(doc, from, to, pasted(gesture)));
+		if (inOneText(doc, from, to)) return inPlace(pasteAt(doc, from, to, pasted(TEXT)));
 		// Across blocks the paste lands where the removal's caret does, as a cut's then a paste's
 		// would, and over one block held whole takes its place, as typed text does.
 		const removed = removalEdit(doc, from, to, 'type');

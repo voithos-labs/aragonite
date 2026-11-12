@@ -42,6 +42,10 @@ export interface EditorRootKeydown {
 	/** `root` is the element the installing effect captured, not a live binding: a
 	 *  teardown that nulled the component's reference must not reach here. */
 	handleKeyDown(event: KeyboardEvent, root: HTMLElement): void;
+	/** A key let go ends the plain-paste chord, whether or not a paste came of it. */
+	handleKeyUp(): void;
+	/** Whether the paste event arriving now is the plain-paste chord's, which the event can't say. */
+	plainPaste(): boolean;
 }
 
 export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRootKeydown {
@@ -75,12 +79,20 @@ export function createEditorRootKeydown(deps: EditorRootKeydownDeps): EditorRoot
 		return false;
 	}
 
+	// The last keydown was Mod+Shift+V and no key has come up since: the browser sends that chord's
+	// paste event the text alone, with nothing to tell it from Mod+V's.
+	let plainChord = false;
+
 	return {
+		handleKeyUp: () => void (plainChord = false),
+		plainPaste: () => plainChord,
 		handleKeyDown(event, root) {
+			plainChord = false;
 			if (neverACommand(event)) return;
 			// Normalizes the key (CapsLock uppercases e.key without Shift), matching
 			// every other chord-dispatch site.
 			const chord = eventToChord(event);
+			plainChord = chord === 'Mod+Shift+V';
 			const active = root.ownerDocument.activeElement;
 
 			// The host's header owns its keystrokes; `isForeignTextEntry` cannot tell, since the

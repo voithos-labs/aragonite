@@ -357,9 +357,9 @@ export interface CommitController {
 	/** Whether a gesture may write now: not in reading mode (a dev warning names a non-null `op`),
 	 *  for a swapped-out document, or while another write is open, which `error` hears. */
 	admitsGesture(op: string | null): boolean;
-	/** The keystroke that keeps its leaf's kind, written in place through the commit frame;
-	 *  `relanding` is null when the browser's caret stays where it is. */
-	typeLeaf(leafPath: DocPath, write: LegalWrite, caret: number): InPlaceResult;
+	/** The write that keeps its leaf's kind, in place through the commit frame: a keystroke, or the
+	 *  edit `op` names. `relanding` is null when the browser's caret stays where it is. */
+	typeLeaf(leafPath: DocPath, write: LegalWrite, caret: number, op?: OpDescriptor): InPlaceResult;
 }
 
 /** What a container reaches the editor root for, forwarded unchanged through nested containers.
@@ -374,7 +374,7 @@ export interface ContainerEditActions {
 	typingKeystroke: CommitController['typingKeystroke'];
 	/** The keystroke's write in place, through the commit frame, for a write that keeps the
 	 *  leaf's kind. */
-	typeLeaf(leafPath: DocPath, write: LegalWrite, caret: number): InPlaceResult;
+	typeLeaf: CommitController['typeLeaf'];
 	/** Put the caret at a document position through the editor's caret landing, for an edit that
 	 *  moves the caret without a commit. */
 	land(pos: CaretPosition): Promise<LandingOutcome>;

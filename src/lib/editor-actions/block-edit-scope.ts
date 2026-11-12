@@ -104,7 +104,7 @@ export interface CommitScope {
 		work: () => Promise<T>
 	): Promise<T>;
 	/** The keystroke's in-place write, for a write the trial reparse keeps in its block. */
-	typeLeaf(i: number, write: LegalWrite, caret: number): InPlaceResult;
+	typeLeaf(i: number, write: LegalWrite, caret: number, op?: OpDescriptor): InPlaceResult;
 	/** A position below child `i`. */
 	at(i: number, subPath: readonly number[], offset: number): CaretPosition;
 	/** Put the caret at `pos` through the editor's caret landing, for an edit with no commit. */
@@ -167,7 +167,7 @@ export function createTopLevelScope(
 		},
 		typeIn: (i, preEditOffset, history, work) =>
 			controller.typingKeystroke(docPathFrom([i]), preEditOffset, deps.blockIds[i], history, work),
-		typeLeaf: (i, write, caret) => controller.typeLeaf(docPathFrom([i]), write, caret),
+		typeLeaf: (i, write, caret, op) => controller.typeLeaf(docPathFrom([i]), write, caret, op),
 		at: (i, subPath, offset) => ({ path: docPathFrom([i, ...subPath]), offset }),
 		land: (pos) => deps.caretLanding.land(pos),
 		reportCommitError: (error, op, i) => emitCommitError(deps.events, { error, op, path: [i] })
@@ -284,8 +284,8 @@ function containerScope(parts: ContainerParts): CommitScope {
 				history,
 				work
 			),
-		typeLeaf: (i, write, caret) =>
-			parts.containerEdit.typeLeaf(extendDocPath(parts.path(), i), write, caret),
+		typeLeaf: (i, write, caret, op) =>
+			parts.containerEdit.typeLeaf(extendDocPath(parts.path(), i), write, caret, op),
 		at: (i, subPath, offset) => ({ path: docPathFrom([...parts.path(), i, ...subPath]), offset }),
 		// Through the editor root rather than this list's refs: a write that changed this
 		// container's kind replaced its component, and its refs with it.

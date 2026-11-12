@@ -4,7 +4,8 @@
 import type { PasteCommitCoordinator } from '../tree-operations/paste/paste-deps';
 import type { EditorActionsDeps, UndoController } from './deps';
 import { getStateForNode } from '../block-lists/state-registry';
-import { commitLeafTextAt, createBlockEditCore } from './block-edit-core';
+import { commitLeafTextAt, contentUpdate, createBlockEditCore } from './block-edit-core';
+import { refusedWrite } from './stored-caret';
 import { createPathScope } from './block-edit-scope';
 import { docPathFrom } from '../core/coordinate-spaces';
 
@@ -21,6 +22,13 @@ export function createPasteCoordinator(
 		// from importing it itself.
 		resolveState: getStateForNode,
 		commitLeafText: (leafPath, text, opts) => commitLeafTextAt(root, leafPath, text, opts),
+		writeLeaf(leafPath, text, preEditOffset, caret) {
+			const scope = createPathScope(root, docPathFrom(leafPath.slice(0, -1)));
+			if (!scope) return refusedWrite();
+			const index = leafPath[leafPath.length - 1];
+			const pasted = contentUpdate(scope, { kind: 'paste', detail: { count: 0 } });
+			return pasted(index, text, 'literal', 'join-typing', preEditOffset, caret);
+		},
 		async replaceBlock(blockPath, replacement, focus, opts) {
 			const scope = createPathScope(root, docPathFrom(blockPath.slice(0, -1)));
 			if (!scope) return null;

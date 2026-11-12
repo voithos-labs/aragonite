@@ -473,6 +473,8 @@ const MANIFESTS: ManifestRule[] = [
 		declared: {
 			'src/lib/components/editor-root/menus.ts':
 				'the block menu hands its actions the editor’s transforms, which "Replace with clipboard" runs before it replaces the block’s bytes',
+			'src/lib/selection/cross-block/range-paste.ts':
+				'the paste through the range-edit core hands the core the transforms, which it runs where the clipboard lands as blocks',
 			'src/lib/selection/cross-block/range-replace.ts':
 				'a paste over a block a range holds whole parses the pasted text in its place',
 			'src/lib/selection/selection-drop.ts':
