@@ -238,11 +238,11 @@
 	// Mount-time errors reach `onError` at once, and the `error` event once the editor has mounted.
 	const heldErrors: PluginError[] = [];
 	let errorsOpen = false;
-	// What a `use` in flight raised, heard once its list is settled, so no handler finds it half
-	// changed.
-	let raisedInUse: PluginError[] | null = null;
+	// What a `use` in flight has to report, said once its list is settled, so no handler finds it
+	// half changed.
+	let afterUse: (() => void)[] | null = null;
 	function reportPluginError(error: PluginError): void {
-		if (raisedInUse) return void raisedInUse.push(error);
+		if (afterUse) return void afterUse.push(() => reportPluginError(error));
 		onError?.(error);
 		if (errorsOpen) emitPluginError(error);
 		else heldErrors.push(error);
@@ -1693,13 +1693,26 @@
 	/** A plugin's own throw, or the re-read's. */
 	type UseFailure = PluginError | { cause: unknown };
 
-	/** Detaches `leaving` (naming each in `detached` as it goes), reads the document again under
-	 *  the list now running and attaches `joining`; the first failure, or null. */
-	function changeOver(
-		leaving: readonly string[],
-		joining: readonly string[],
-		detached: string[]
+	/** Installs `entries` over `was` (its block types go to `held`), detaches the plugins leaving
+	 *  into `detached`, reads the document again and attaches the ones joining; the first failure. */
+	function changeList(
+		entries: NonNullable<typeof pluginEntries>,
+		was: RunningList,
+		detached: string[],
+		held: (blocks: typeof ownBlocks) => void
 	): UseFailure | null {
+		const kept = installList(entries.values, was.units);
+		// Both lists' block types are held until the call lands, so one in both keeps its facts.
+		const blocks = installBlockTypes(kept, reportPluginError);
+		held(blocks);
+		runList({ entries, units: kept, blocks, names: runningNames(entries, kept) });
+		// A plugin listed again with other options starts over on them, whichever shape it has.
+		const replaced = (name: string) =>
+			was.units.find((u) => u.name === name)?.contribution !==
+				kept.find((u) => u.name === name)?.contribution ||
+			was.entries?.optionsByName.get(name) !== entries.optionsByName.get(name);
+		const leaving = was.names.filter((name) => !pluginNames.includes(name) || replaced(name));
+		const joining = pluginNames.filter((name) => !was.names.includes(name) || replaced(name));
 		for (const name of leaving) {
 			detached.push(name);
 			const thrown = pluginContexts.detach(name);
@@ -1716,6 +1729,14 @@
 	/** Turns plugins on and off in this editor, reading the document again; the history stays. A
 	 *  call that fails part way leaves the editor running the list it ran and says so on `error`. */
 	export function use(next: PluginsProp): void {
+		// Started from a plugin's `setup` or cleanup while the list changes: refused as a write inside
+		// a write is, and said once that change has settled.
+		if (afterUse) {
+			const error = new Error('aragonite: `use` called while the plugin list is changing');
+			afterUse.push(() => emitCommitError(events, { error }));
+			if (devChecksOn) throw error;
+			return;
+		}
 		// Before the list changes: the re-read below is a write, refused inside another.
 		if (!startsAlone({ starts, events })) return;
 		// Read before installing: with no list, the names are whatever the page has installed.
@@ -1732,29 +1753,23 @@
 		let failure = null as UseFailure | null;
 		// What putting the document back threw, which nothing here can mend.
 		let unread = null as { cause: unknown } | null;
-		raisedInUse = [];
+		afterUse = [];
 		try {
 			// One selection change for the whole call, announced once the list is settled.
 			selectionState.batch(() => {
-				const kept = installList(entries.values, was.units);
-				// Both lists' block types are held until the call lands, so one in both keeps its facts.
-				const blocks = installBlockTypes(kept, reportPluginError);
-				runList({ entries, units: kept, blocks, names: runningNames(entries, kept) });
-				// A plugin listed again with other options starts over on them, whichever shape it has.
-				const replaced = (name: string) =>
-					was.units.find((u) => u.name === name)?.contribution !==
-						kept.find((u) => u.name === name)?.contribution ||
-					was.entries?.optionsByName.get(name) !== entries.optionsByName.get(name);
-				const leaving = was.names.filter((name) => !pluginNames.includes(name) || replaced(name));
-				const joining = pluginNames.filter((name) => !was.names.includes(name) || replaced(name));
+				let blocks: typeof ownBlocks | null = null;
 				const detached: string[] = [];
-				failure = changeOver(leaving, joining, detached);
+				try {
+					failure = changeList(entries, was, detached, (held) => (blocks = held));
+				} catch (cause) {
+					failure = { cause };
+				}
 				if (!failure) return was.blocks.release();
 				// A list that never ran left nothing out, so only the putting back is reported.
-				raisedInUse = [];
+				afterUse = [];
 				contributions.read(was.units);
 				runList(was);
-				blocks.release();
+				(blocks as typeof ownBlocks | null)?.release();
 				try {
 					if (doc !== tree) documentSwap.reparse();
 				} catch (cause) {
@@ -1763,9 +1778,9 @@
 				pluginContexts.attachAgain(detached);
 			});
 		} finally {
-			const raised = raisedInUse;
-			raisedInUse = null;
-			raised?.forEach(reportPluginError);
+			const waiting = afterUse;
+			afterUse = null;
+			waiting?.forEach((say) => say());
 		}
 		if (unread) emitCommitError(events, { error: unread.cause });
 		if (!failure) return;
