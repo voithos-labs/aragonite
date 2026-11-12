@@ -197,6 +197,32 @@ const NAMED: Named[] = [
 		pin: '| a |\n| - |\n\nx\n'
 	},
 	{ name: 'an empty document', marked: '‸', clips: ['x', 'one\n\ntwo'] },
+	// ── A range that ends past a container, on a block that joins no text ──
+	{
+		name: 'a range from a paragraph through an open details into a heading',
+		marked: 'al⟦pha\n\n<details open>\n<summary>S</summary>\n\nbody\n\n</details>\n\n# He⟧ad\n',
+		clips: ['x', 'one\n\ntwo']
+	},
+	{
+		name: 'a range from a paragraph through a callout into a heading',
+		marked: 'al⟦pha\n\n:::note\nbody\n:::\n\n# He⟧ad\n',
+		clips: ['x', 'one\n\ntwo']
+	},
+	{
+		name: 'a range from a paragraph through a quote ending in a blank line into a fence',
+		marked: 'al⟦pha\n\n> q\n>\n\n```\nco⟧de\n```\n',
+		clips: ['x', 'one\n\ntwo']
+	},
+	{
+		name: 'a range from a paragraph through an item ending in a blank line into a heading',
+		marked: 'al⟦pha\n\n- a\n\n  b\n\n# He⟧ad\n',
+		clips: ['x', 'one\n\ntwo']
+	},
+	{
+		name: 'a range from a closed details’ summary to the next block’s start',
+		marked: '<details>\n<summary>S⟦S</summary>\n\nbody\n\n</details>\n\n⟧after\n',
+		clips: ['x', 'one\n\ntwo']
+	},
 	// ── A cut, then a paste of it back ──
 	{
 		name: '#818 cut and paste back',
