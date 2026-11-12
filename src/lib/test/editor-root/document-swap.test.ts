@@ -38,8 +38,9 @@ describe('initDocument', () => {
 });
 
 describe('the swap commit sequence', () => {
-	/** An editor holding `held\n` until the first swap adopts a document. */
-	function harness(grammar: GrammarView = defaultGrammarView) {
+	/** An editor holding `held\n` until the first swap adopts a document; `hoverEnds` is a mark's
+	 *  handler, run as the outgoing document's hover ends. */
+	function harness(grammar: GrammarView = defaultGrammarView, hoverEnds = () => {}) {
 		const order: string[] = [];
 		const step = (name: string) => () => void order.push(name);
 		const selection = createSelectionState({ onChange: step('announce') });
@@ -56,7 +57,12 @@ describe('the swap commit sequence', () => {
 				watching: () => false,
 				record: () => {}
 			},
-			markHover: { end: step('hover') },
+			markHover: {
+				end() {
+					order.push('hover');
+					hoverEnds();
+				}
+			},
 			flushDebouncedCheckpoint: step('flush'),
 			noteTreeSwap: step('landings'),
 			adoptDocument: (doc) => {
@@ -86,7 +92,9 @@ describe('the swap commit sequence', () => {
 				}
 			}
 		});
-		return { swap, selection, order, swaps, adopted: () => adopted, links: () => links };
+		/** Writes the document as a byte writer does, outside any swap. */
+		const write = (source: string) => void (adopted = initDocument(source, grammar).doc);
+		return { swap, selection, order, swaps, write, adopted: () => adopted, links: () => links };
 	}
 
 	it('runs every reset in order, the outgoing document retired first, the announcement last', () => {
@@ -129,6 +137,14 @@ describe('the swap commit sequence', () => {
 		expect(() => write(h.swap)).toThrow('an opener blew up');
 		expect(h.order).toEqual([]);
 		expect(h.adopted()).toBeNull();
+	});
+
+	// Miss-analysis: no row's outgoing handler wrote, so a re-read that adopted bytes read before
+	// the handler ran lost nothing a row could see.
+	it('a re-read adopts what a handler of the outgoing document wrote as it ended', () => {
+		const h = harness(defaultGrammarView, () => h.write('held\n\nwritten as the hover ended\n'));
+		h.swap.reparse();
+		expect(serialize(h.adopted()!)).toBe('held\n\nwritten as the hover ended\n');
 	});
 
 	it('announces once per swap even over a live range, and hands over the new resolver', () => {

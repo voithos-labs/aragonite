@@ -94,24 +94,28 @@ export function createDocumentSwap(deps: DocumentSwapDeps): DocumentSwap {
 	return {
 		swapTo(source) {
 			if (source === deps.currentSource() || !startsAlone(deps)) return;
-			adopt(initDocument(source, deps.grammar), 'clear');
+			adopt(() => source, 'clear');
 			generation++;
 			// Last, so a subscriber reading the document sees the new tree, selection and resolver.
 			deps.events.emit('sourceSwap', { generation });
 		},
 		reparse() {
-			if (startsAlone(deps)) adopt(initDocument(deps.currentSource(), deps.grammar), 'keep');
+			if (startsAlone(deps)) adopt(deps.currentSource, 'keep');
 		},
 		generation: () => generation
 	};
 
-	function adopt(reset: ParsedDocument, history: 'clear' | 'keep'): void {
+	function adopt(incoming: () => string, history: 'clear' | 'keep'): void {
+		const source = incoming();
+		let reset = initDocument(source, deps.grammar);
 		// A re-read keeps the bytes, so a write waiting on them still lands.
 		if (history === 'clear') deps.stamps.retire();
 		deps.drafts.closeAll('document-swap');
 		deps.markHover.end();
 		deps.flushDebouncedCheckpoint();
 		deps.noteTreeSwap();
+		// A handler of the outgoing document may have written as it ended; a re-read reads that too.
+		if (incoming() !== source) reset = initDocument(incoming(), deps.grammar);
 		// Only a re-read still has a draft open here: a swap's all closed above.
 		const capture = deps.drafts.watching() ? captureChange(deps.doc(), null) : null;
 		deps.starts.duringWrite(() => {
