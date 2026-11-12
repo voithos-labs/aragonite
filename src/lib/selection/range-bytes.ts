@@ -1,11 +1,13 @@
 /**
  * A selection read as the bytes the range-edit core takes (`range-edit/edit-range.ts :: Range`):
- * each end's byte in the document, widened to every block the coverage holds whole and kept off a
- * block its start can't join. Copy, cut and the overlay read a range through here. The other way,
- * a place the core names reads back as the gap caret there (`gapOfPlace`, `heldGapOf`).
+ * each end's byte in the document, kept off a block its start can't join, then widened to every
+ * block the coverage holds whole (G1.212). Copy, cut and the overlay read a range through here.
+ * The other way, a place the core names reads back as the gap caret there (`gapOfPlace`,
+ * `heldGapOf`).
  */
 
 import { untrack } from 'svelte';
+import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { displayLength, ownTrailingLineEnding } from '../core/lines';
 import { metadataOf } from '../core/nodes';
@@ -24,6 +26,7 @@ import { pathsEqual } from './path-math';
 import { boundaryHidden, previousCaretPath } from './path-lookup';
 import type { SelectionPoint } from './primitives';
 import type { RangeCoverage } from './range-coverage';
+import { checkRangeHoldsWhole } from '../invariants/range-holds-whole';
 
 /** The editor's document as a range edit reads it: its tree, its bytes and their layout. */
 export interface DocumentBytes {
@@ -67,17 +70,19 @@ export function rangeBytes(
 	let from = endByte(doc, layout, start, 'start');
 	let to = endByte(doc, layout, end, 'end');
 	if (from === null || to === null) return null;
-	for (const root of coverage.wholeRoots) {
-		const block = layout.block(root);
-		if (!block) return null;
-		from = Math.min(from, block.from);
-		to = Math.max(to, textEnd(doc, block));
-	}
 	to = Math.max(from, endBesideText(doc, layout, coverage, to));
+	// After the end steps back, so it never stops inside a block held whole (a closed details).
+	const held = heldSpans(doc, coverage, layout);
+	if (!held) return null;
+	for (const span of held) {
+		from = Math.min(from, span.from);
+		to = Math.max(to, span.to);
+	}
 	// A range across blocks from the first caret position to the last is select-all's, which takes
 	// every container's markers with it.
 	const edges = !pathsEqual(start.path, end.path) && caretEdges(doc, layout);
 	if (edges && from <= edges.first && to >= edges.last) from = 0;
+	assertInvariant('range-holds-whole', () => checkRangeHoldsWhole({ from, to }, held));
 	return { from, to };
 }
 
@@ -144,6 +149,20 @@ export function rangePaint(doc: DocumentView, coverage: RangeCoverage, layout: L
  *  line's edge. */
 const textEnd = (doc: DocumentView, block: LaidBlock) =>
 	block.to - ownTrailingLineEnding(blockNodeAt(doc, block.path)!.raw).length;
+
+/** The bytes of each block the coverage holds whole: a container's to its last line's text, a
+ *  leaf's to its last character, since a title row's line goes on into its container's tags. */
+function heldSpans(doc: DocumentView, coverage: RangeCoverage, layout: Layout): Range[] | null {
+	const spans: Range[] = [];
+	for (const root of coverage.wholeRoots) {
+		const block = layout.block(root);
+		const node = blockNodeAt(doc, root);
+		if (!block || !node) return null;
+		const last = node.children?.length ? null : layout.byteOf(root, displayLength(node.raw));
+		spans.push({ from: block.from, to: last ?? textEnd(doc, block) });
+	}
+	return spans;
+}
 
 /** A text end's byte; a cell end's row, or its whole table where the range enters by the first row
  *  or leaves by the last; any other block's own edge, since its offsets address no text. */
@@ -260,6 +279,18 @@ export function gapOfPlace(
 		if (!within) return { parentPath, index };
 		parentPath = inside;
 	}
+}
+
+/** The boundary where a block the removal took stood, `place` read on the bytes after; null where
+ *  the text below joined a block above, whose own bytes then run on both sides of the byte. */
+export function takenGapOf(
+	measured: Measured,
+	place: { at: number; parent: readonly number[] }
+): GapCaretPosition | null {
+	const leaf = leafAtByte(measured, place.at);
+	const node = leaf && blockNodeAt(measured.doc, leaf.path);
+	if (node && leaf.offset > 0 && leaf.offset < node.raw.trimEnd().length) return null;
+	return gapOfPlace(measured, place);
 }
 
 /** The gap caret a removal's boundary place is held as, `held` where no arrow stops; null where

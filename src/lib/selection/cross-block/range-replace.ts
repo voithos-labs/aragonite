@@ -338,7 +338,7 @@ const inCell = (caret: SelectionPoint | null): Removed => ({
 	wrote: caret !== null,
 	caret,
 	landed: null,
-	took: null
+	taken: null
 });
 
 /** How the core names the removal a gesture makes: typed or pasted text removes as a cut does, a
