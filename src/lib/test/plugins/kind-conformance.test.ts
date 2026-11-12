@@ -244,6 +244,13 @@ describe('kind conformance: a kind no line closes says what its wait crosses', (
 		);
 		await expect(runKindConformance(refuses)).rejects.toThrow(/crosses refuses "text"/);
 	});
+
+	// Miss-analysis: both rows above declare `crosses`, so the message a reading written without
+	// types meets when it leaves `crosses` out could go and a bare TypeError take its place.
+	it('fails a reading that leaves `crosses` out, and says so', async () => {
+		const untyped = bodyTaker('untyped', undefined as never, () => true);
+		await expect(runKindConformance(untyped)).rejects.toThrow(/declares no crosses/);
+	});
 });
 
 // ── Bundled plugins: the shipped kinds enroll too ────────────────────────────

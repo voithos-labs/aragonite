@@ -90,9 +90,8 @@ export const WAITING_DEFINITION_ROWS: [string, DocumentEdit][] = [
 		['[a]: /u', '    "code', '[b]: /v', '[b]: /v', '[c]: /w', '[c]: /w', 'end', ...TAIL],
 		{ put: 6, line: 'end"' }
 	),
-	// A list numbered from 2 and a table interrupt no paragraph, so a title runs on into them.
-	// Miss-analysis: no row and no drawn line put a container under the title, so the window
-	// inside a list or a table was never asked about a wait above it.
+	// Miss-analysis: no row or drawn line put a list numbered from 2 or a table, which interrupt no
+	// paragraph, under a title, so the window inside one was never asked about a wait above it.
 	...(['top', 'quote'] as const).flatMap((wrap) => [
 		row(wrap, '\n', ['[a]: /u', '    "code', '2. two', '3. three', 'end', ...TAIL], {
 			put: 4,
