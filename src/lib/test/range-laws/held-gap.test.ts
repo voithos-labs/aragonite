@@ -36,10 +36,7 @@ beforeEach(() => {
 	installSystemClipboard();
 	registerDefaultContextActions();
 });
-afterEach(async () => {
-	await destroyMountedEditors();
-	takeDevWarns();
-});
+afterEach(destroyMountedEditors);
 
 type Route = 'Backspace' | 'Delete' | 'Mod+X' | 'a letter';
 const ROUTES: Route[] = ['Backspace', 'Delete', 'Mod+X', 'a letter'];
