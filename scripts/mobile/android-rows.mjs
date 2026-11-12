@@ -255,9 +255,9 @@ export const rows = {
 			reasons.push(`Backspace left the caret at ${json(gap)}, not the gap under the code block`);
 		if (reasons.length === 0 && !ctx.device.imeShown())
 			reasons.push('the keyboard went down with the caret in the gap');
-		// Gboard may capitalise a paragraph's first letter.
+		// Gboard shifts at the gap as at any paragraph's start, so its h key types the capital.
 		if (reasons.length === 0)
-			reasons.push(...(await tapGboardKey(ctx, 'held-gap-letter', 'h', `${EMPTIED_END}h\n`)));
+			reasons.push(...(await tapGboardKey(ctx, 'held-gap-letter', 'h', `${EMPTIED_END}H\n`)));
 		return { reasons, evidence: { ...pressed, gap, after: await source(ctx) } };
 	}
 };
@@ -570,8 +570,8 @@ async function typeOnGboard(ctx, name, index) {
 }
 
 // Taps one of Gboard's keys once the whole keyboard is on screen, then waits for the source to read
-// `want`, letter case aside. The keyboard is waited for and never tapped up: a tap on the page
-// would end the range or the caret the row holds. Returns the reasons it failed.
+// `want`. The keyboard is waited for and never tapped up: a tap on the page would end the range or
+// the caret the row holds. Returns the reasons it failed.
 async function tapGboardKey(ctx, name, key, want) {
 	const whole = (keys) => keys.has('h') && keys.has(key);
 	let keys = ctx.device.gboardKeys(`${name}-windows`);
@@ -585,14 +585,13 @@ async function tapGboardKey(ctx, name, key, want) {
 			`Gboard showed no ${key} key (${ctx.device.gboardMode()}, ime ${ctx.device.imeShown()})`
 		];
 	ctx.device.tap(keys.get(key).x, keys.get(key).y);
-	const landed = (text) => text.toLowerCase() === want.toLowerCase();
 	let text = await source(ctx);
-	for (let i = 0; i < 40 && !landed(text); i++) {
+	for (let i = 0; i < 40 && text !== want; i++) {
 		await sleep(250);
 		text = await source(ctx);
 	}
 	ctx.device.screenshot(name);
-	return landed(text) ? [] : [`${key} left ${json(text)}, not ${json(want)}`];
+	return text === want ? [] : [`${key} left ${json(text)}, not ${json(want)}`];
 }
 
 // Taps block `index`, records the typing, and expects the word (between spaces) at the caret.
