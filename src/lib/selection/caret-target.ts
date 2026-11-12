@@ -74,13 +74,3 @@ export function caretPointFor(doc: DocumentView, pos: CaretPosition): SelectionP
 /** What removed a block: the key pressed (by its `KeyboardEvent.key`), a cut, or a delete no key
  *  asked for (the block menu, or typing and pasting over a range). */
 export type RemovalGesture = 'Backspace' | 'Delete' | 'cut' | 'keyless';
-
-/** `removedPath`, or its nearest ancestor's position when the removal emptied the parent and took
- *  it too (the path then resolves to nothing, or to a childless neighbour or the new empty block). */
-export function liveSlot(doc: DocumentView, removedPath: readonly number[]): number[] | null {
-	let slot = [...removedPath];
-	while (slot.length > 1 && !nodeAt(doc, slot.slice(0, -1))?.children?.length) {
-		slot = slot.slice(0, -1);
-	}
-	return slot.length > 0 ? slot : null;
-}

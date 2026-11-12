@@ -15,15 +15,21 @@ import {
 	type RemovalGesture
 } from '../../range-edit/edit-range';
 import { rangeHost } from '../../range-edit/host';
-import { isGridKind } from '../../schema/block-kind-descriptor';
 import { changesBetween } from '../../tree-operations/byte-changes';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import type { Measured } from '../../tree-operations/top-level-starts';
 import { deleteSnapshot, type SelectionPoint } from '../primitives';
-import { liveSlot, type RemovalGesture as BlockGesture } from '../caret-target';
+import type { RemovalGesture as BlockGesture } from '../caret-target';
 
 import { firstCaretLeafFrom, previousCaretPath } from '../path-lookup';
-import { heldGapOf, pointAtByte, readsAsText, removalBytes, wholeBlockBytes } from '../range-bytes';
+import {
+	heldGapOf,
+	pointAtByte,
+	readsAsText,
+	removalBytes,
+	takenGapOf,
+	wholeBlockBytes
+} from '../range-bytes';
 import type { RangeCoverage } from '../range-coverage';
 import type { CrossBlockDispatchContext } from './dispatch';
 
@@ -44,8 +50,9 @@ export interface Removed {
 	caret: SelectionPoint | null;
 	/** The core's caret: its byte, and whether text, a block held whole or a boundary sits there. */
 	landed: SpliceCaret | null;
-	/** The block the range started in, by its path before the removal, when the removal took it. */
-	took: readonly number[] | null;
+	/** Where the block the range started in stood, read on the bytes after, when the removal took
+	 *  it. */
+	taken: { at: number; parent: readonly number[] } | null;
 }
 
 /** How the core names the removal each block gesture makes: a delete no key asked for removes as
@@ -65,7 +72,7 @@ export async function removeThroughCore(
 ): Promise<Removed> {
 	const tree = ctx.bytes.doc();
 	const range = removalBytes(tree, coverage, ctx.bytes.layout());
-	if (!range) return { wrote: false, caret: null, landed: null, took: null };
+	if (!range) return { wrote: false, caret: null, landed: null, taken: null };
 	const source = ctx.bytes.source();
 	const answer = removalOf(source, range, gesture, modeOf(ctx), hostOf(ctx));
 	const landed = answer.caret;
@@ -75,7 +82,7 @@ export async function removeThroughCore(
 			wrote: false,
 			caret: pointAtByte(ctx.bytes.measured(), landed.at),
 			landed,
-			took: null
+			taken: null
 		};
 	const { start } = coverage.range;
 	const wrote = await commitBytes(ctx, answer.source, {
@@ -84,7 +91,7 @@ export async function removeThroughCore(
 		snapshot: deleteSnapshot(start.path, start.offset)
 	});
 	const caret = wrote ? pointAtByte(ctx.bytes.measured(), landed.at) : null;
-	return { wrote, caret, landed, took: answer.took ?? null };
+	return { wrote, caret, landed, taken: answer.taken ?? null };
 }
 
 /** Removes the block at `path` whole, as the block menu's Delete does, in one commit whose edit
@@ -170,22 +177,16 @@ export function commandLandingKind(doc: DocumentView, coverage: RangeCoverage): 
  *  block the range started in, taken, with the caret off prose. Null types in place. */
 export function emptiedPlace(measured: Measured, removed: Removed): number[] | null {
 	const { doc: committed } = measured;
-	const { landed, caret, took } = removed;
+	const { landed, caret, taken } = removed;
 	if (!landed || !removed.wrote) return null;
 	if (landed.holds === 'boundary') {
 		const gap = heldGapOf(measured, landed);
 		if (gap) return [...gap.parentPath, gap.index];
 	}
 	// A boundary held as no gap leaves the caret on the text at its byte.
-	if (!took || (caret && landed.holds !== 'block' && inProse(committed, caret))) return null;
-	const slot = liveSlot(committed, took);
-	return slot && pastGrid(committed, slot);
-}
-
-/** `slot`, or the slot after the table holding it, since no paragraph stands among a table's rows. */
-function pastGrid(doc: DocumentView, slot: number[]): number[] {
-	const grid = slot.findIndex((_, i) => isGridKind(kindAt(doc, slot.slice(0, i + 1))));
-	return grid < 0 || grid === slot.length - 1 ? slot : [...slot.slice(0, grid), slot[grid] + 1];
+	if (!taken || (caret && landed.holds !== 'block' && inProse(committed, caret))) return null;
+	const gap = takenGapOf(measured, taken);
+	return gap && [...gap.parentPath, gap.index];
 }
 
 /** Whether text written at `point` reads as its block's text. */
