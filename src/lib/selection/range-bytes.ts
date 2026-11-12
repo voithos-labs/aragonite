@@ -1,11 +1,13 @@
 /**
  * A selection read as the bytes the range-edit core takes (`range-edit/edit-range.ts :: Range`):
- * each end's byte in the document, widened to every block the coverage holds whole and kept off a
- * block its start can't join. Copy, cut and the overlay read a range through here. The other way,
- * a place the core names reads back as the gap caret there (`gapOfPlace`, `heldGapOf`).
+ * each end's byte in the document, kept off a block its start can't join, then widened to every
+ * block the coverage holds whole (G1.212). Copy, cut and the overlay read a range through here.
+ * The other way, a place the core names reads back as the gap caret there (`gapOfPlace`,
+ * `heldGapOf`).
  */
 
 import { untrack } from 'svelte';
+import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { displayLength, ownTrailingLineEnding } from '../core/lines';
 import { metadataOf } from '../core/nodes';
@@ -24,6 +26,7 @@ import { pathsEqual } from './path-math';
 import { boundaryHidden, previousCaretPath } from './path-lookup';
 import type { SelectionPoint } from './primitives';
 import type { RangeCoverage } from './range-coverage';
+import { checkRangeHoldsWhole } from '../invariants/range-holds-whole';
 
 /** The editor's document as a range edit reads it: its tree, its bytes and their layout. */
 export interface DocumentBytes {
@@ -67,17 +70,24 @@ export function rangeBytes(
 	let from = endByte(doc, layout, start, 'start');
 	let to = endByte(doc, layout, end, 'end');
 	if (from === null || to === null) return null;
+	to = Math.max(from, endBesideText(doc, layout, coverage, to));
+	// After the end steps back, so it never stops inside a block held whole (a closed details).
 	for (const root of coverage.wholeRoots) {
 		const block = layout.block(root);
 		if (!block) return null;
 		from = Math.min(from, block.from);
 		to = Math.max(to, textEnd(doc, block));
 	}
-	to = Math.max(from, endBesideText(doc, layout, coverage, to));
 	// A range across blocks from the first caret position to the last is select-all's, which takes
 	// every container's markers with it.
 	const edges = !pathsEqual(start.path, end.path) && caretEdges(doc, layout);
 	if (edges && from <= edges.first && to >= edges.last) from = 0;
+	assertInvariant('range-holds-whole', () =>
+		checkRangeHoldsWhole(
+			{ from, to },
+			coverage.wholeRoots.map((root) => wholeBlockBytes(doc, layout, root)!)
+		)
+	);
 	return { from, to };
 }
 

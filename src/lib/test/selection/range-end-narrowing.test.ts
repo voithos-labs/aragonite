@@ -16,10 +16,12 @@ import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 beforeEach(registerChromePluginsForTests);
 
+const layoutOf = (doc: ReturnType<typeof parse>) => documentLayout(measured(doc));
+
 function read(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const doc = parse(source);
 	const coverage = rangeCoverage(doc, coverRange(doc, start, end));
-	const layout = documentLayout(measured(doc));
+	const layout = layoutOf(doc);
 	const range = rangeBytes(doc, coverage, layout)!;
 	const paint = rangePaint(doc, coverage, layout);
 	const removed = parse(source);
@@ -86,6 +88,60 @@ describe('a range ending on the edge of a block its start cannot join', () => {
 				[0, 0]
 			],
 			removed: 'albeta\n'
+		});
+	});
+});
+
+// Miss-analysis: the ends this file narrowed all stopped after a block ending in its last text,
+// never one whose closing line or hidden body comes after.
+describe('a block the range holds whole goes whole, the end narrowed or not', () => {
+	const CLOSED = '<details>\n<summary>Sum</summary>\n\nbody\n\n</details>';
+	it.each([
+		['out of a closed summary', `${CLOSED}\n\npara\n`, [0, 0], [1], CLOSED, 'para\n'],
+		['out of a closed summary, to a heading', `${CLOSED}\n\n# h\n`, [0, 0], [1], CLOSED, '# h\n'],
+		[
+			'out of a closed summary in a quote',
+			'> <details>\n> <summary>Sum</summary>\n>\n> body\n>\n> </details>\n>\n> para\n',
+			[0, 0, 0],
+			[0, 1],
+			'<details>\n> <summary>Sum</summary>\n>\n> body\n>\n> </details>',
+			'> para\n'
+		],
+		[
+			'out of a closed summary in a directive',
+			`:::note\n${CLOSED}\n\npara\n:::\n`,
+			[0, 1, 0],
+			[0, 2],
+			CLOSED,
+			':::note\n\npara\n:::\n'
+		]
+	])('%s: takes the details with its hidden body', (_, source, from, to, bytes, removed) => {
+		const start = { path: from, offset: 1 };
+		const end = { path: to, offset: 0 };
+		expect(read(source, start, end)).toMatchObject({ bytes, removed });
+		// The details paints as one box, the summary inside it.
+		const doc = parse(source);
+		const paint = rangePaint(doc, rangeCoverage(doc, coverRange(doc, start, end)), layoutOf(doc));
+		expect(paint.boxHolding(from)).toEqual(from.slice(0, -1));
+	});
+
+	it.each([
+		['an open details', '<details open>\n<summary>Sum</summary>\n\nbody\n\n</details>', '# h'],
+		['a closed details', CLOSED, '# h'],
+		['a directive', ':::note\nbody\n:::', '---'],
+		['a quote ending in a blank line', '> body\n>', '```\nz\n```']
+	])('%s between a paragraph and a block it cannot join goes whole', (_, block, after) => {
+		const source = `abc\n\n${block}\n\n${after}\n`;
+		expect(read(source, { path: [0], offset: 1 }, { path: [2], offset: 0 })).toMatchObject({
+			bytes: `bc\n\n${block}`,
+			removed: `a\n\n${after}\n`
+		});
+	});
+
+	it('an open summary keeps its container: the body goes, the details stays', () => {
+		const source = '<details open>\n<summary>Sum</summary>\n\nbody\n\n</details>\n\npara\n';
+		expect(read(source, { path: [0, 0], offset: 1 }, { path: [1], offset: 0 })).toMatchObject({
+			bytes: 'um</summary>\n\nbody'
 		});
 	});
 });

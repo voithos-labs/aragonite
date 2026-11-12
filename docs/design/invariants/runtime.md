@@ -130,6 +130,7 @@ These checks run in three kinds of place:
 | G1.208 | A widget selected whole in the focused block leaves the browser a collapsed caret there | A·N |
 | G1.209 | The starts the editor keeps for its top-level blocks are the document's | A·N |
 | G1.211 | A write started while another is open writes nothing | A·L·N |
+| G1.212 | A range read as bytes spans every block its coverage holds whole | A·N·P |
 
 ### The entries
 
@@ -356,5 +357,7 @@ These checks run in three kinds of place:
 **G1.209 · The kept starts are the document's** (`kept-starts-current`). A byte writer changes the tree inside the record's `duringWrite` and hands back the runs it changed, or null, which forgets the record; a throw forgets it too. A view is read again after each write. Dev fails a kept length unlike the tree's, a block count changed unannounced, and a read inside a write (answered from a fresh measure in every build). `invariants/kept-starts.ts` · `commit/kept-starts.ts` · `top-level-starts.test.ts`, `kept-starts-routes.test.ts`, `write-window-closes.test.ts`.
 
 **G1.211 · One write at a time.** A write started between another's first change and its announcement (from a write rule or a `rebuildRaw`, say) would vanish under the outer publish, so it writes nothing, pushes no entry, emits no `edit`, reports on `error` and throws in dev. Each entry point asks `startsAlone` first; `duringWrite` refuses a second window in every build. An `edit` or `selectionChange` handler may write. `commit/reading-write-gate.ts` · `write-inside-write.test.ts`, `lint/content-version-doors.test.ts`.
+
+**G1.212 · A range holds its whole blocks** (`range-holds-whole`). The bytes a copy, a removal and the overlay read span every block the coverage holds whole. An end stepping back off a block it can't join would otherwise stop inside one: at a closed summary's text, before a `:::` closing line. `rangeBytes` widens last; dev checks its answer. `checkRangeHoldsWhole` (`range-holds-whole.ts`) · `selection/range-bytes.ts :: rangeBytes` · `range-holds-whole.property.test.ts`, `selection/range-end-narrowing.test.ts`, `selection/cross-block/range-holds-whole.test.ts`.
 
 **G1.201 · A container's window reads back first** (`container-window-reads-back`). Before a byte splice reads a run of a list's, quote's or table's children again with the change made, it reads their old bytes the same way, and those must come out as the children the container held. When they don't, the child spans were stale or the container's own reading disagrees with the document's, so dev warns and the splice takes the top-level window. Inline in `tree-operations/container-window.ts :: containerWindow` · `container-window.property.test.ts`.
