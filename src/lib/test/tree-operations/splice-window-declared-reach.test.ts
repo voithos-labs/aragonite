@@ -116,6 +116,11 @@ describe('a window under a reading that declares what its wait crosses', () => {
 			'%%tag a\n<<b\n!!x\n# h\nend>>\n\nlast\n'
 		],
 		[
+			'a body closed inside a quote the wait runs on into',
+			'%%tag a\n<<b\n> # h\n> end\n\nlast\n',
+			'%%tag a\n<<b\n> # h\n> end>>\n\nlast\n'
+		],
+		[
 			'a body closed under a link definition that waits too',
 			'[a]: /u\n    "code\n%%tag a\n<<b\n# h\nend\n\nlast\n',
 			'[a]: /u\n    "code\n%%tag a\n<<b\n# h\nend>>\n\nlast\n'
@@ -142,7 +147,10 @@ describe('a window under a reading that declares what its wait crosses', () => {
 	});
 
 	it('any one line changed under the test block', () => {
-		const LINES = ['%%tag a', '<<b', '# h', 'text', '!!x', '', 'end', 'end>>', '[a]: /u', '    c'];
+		const LINES = [
+			...['%%tag a', '<<b', '# h', 'text', '!!x', '', 'end', 'end>>', '[a]: /u', '    c'],
+			...['> # q', '> end', '> end>>']
+		];
 		const arbLine = fc.constantFrom(...LINES);
 		fc.assert(
 			fc.property(

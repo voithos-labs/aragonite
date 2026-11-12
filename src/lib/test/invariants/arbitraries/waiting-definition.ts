@@ -89,12 +89,29 @@ export const WAITING_DEFINITION_ROWS: [string, DocumentEdit][] = [
 		'\n',
 		['[a]: /u', '    "code', '[b]: /v', '[b]: /v', '[c]: /w', '[c]: /w', 'end', ...TAIL],
 		{ put: 6, line: 'end"' }
-	)
+	),
+	// A list numbered from 2 and a table interrupt no paragraph, so a title runs on into them.
+	// Miss-analysis: no row and no drawn line put a container under the title, so the window
+	// inside a list or a table was never asked about a wait above it.
+	...(['top', 'quote'] as const).flatMap((wrap) => [
+		row(wrap, '\n', ['[a]: /u', '    "code', '2. two', '3. three', 'end', ...TAIL], {
+			put: 4,
+			line: 'end"'
+		}),
+		row(wrap, '\n', ['[a]: /u', '    "code', '2. two', '3. th"ree', '4. four"', ...TAIL], {
+			put: 3,
+			line: '3. three'
+		}),
+		row(wrap, '\n', ['[a]: /u', '"a | b', ':- | -', 'x | y', 'z | w', ...TAIL], {
+			put: 4,
+			line: 'z | w"'
+		})
+	])
 ];
 
 // ── Drawn ────────────────────────────────────────────────────────────────────
 
-const RUNS_ON = ['[b]: /v', '[b]: /v', '    code', 'text', '[c]: /w'];
+const RUNS_ON = ['[b]: /v', '[b]: /v', '    code', 'text', '[c]: /w', '2. two', '3. three'];
 const ENDS_A_TITLE = ['# h', '***', '', '- item', '> q', '```'];
 
 /** A waiting definition and one change under it, biased to changes that close its title or take

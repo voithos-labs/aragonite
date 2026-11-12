@@ -52,6 +52,7 @@ export function containerWindow(
 	}
 	// Child 0 holds the container's own first line, and a table's header sits above its delimiter.
 	if (first < 1 || reachesPast(top.before, changes, top.readings)) return null;
+	if (waitsInto(top.doc.children, t, top.readings)) return null;
 	// Every item and every quote line opens its container again; a table's rows need its head.
 	const head = lines === 'rows' ? 1 : 0;
 	// A row or an item is no block of its own, so none of them waits on a line below it.
@@ -353,6 +354,18 @@ function reachesPast(
 			return [line, quoted, quoted.replace(/^(?:[-+*]|\d{1,9}[.)])[ \t]+/, '')].some(opens);
 		})
 	);
+}
+
+/** Whether a block above `blocks[at]` still waits at the end of that block's first line, under a
+ *  reading no line closes: a change further down in the block can alter the one that waits. */
+function waitsInto(
+	blocks: readonly NodeView[],
+	at: number,
+	readings: readonly UnfinishedReading[]
+): boolean {
+	const { raw, leadingTrivia } = blocks[at];
+	const opening = { raw: raw.slice(0, raw.indexOf('\n') + 1 || raw.length), leadingTrivia };
+	return waitingAboveThrough((i) => (i === at ? opening : blocks[i]), at, 0, readings) >= 0;
 }
 
 const sameMetadata = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
