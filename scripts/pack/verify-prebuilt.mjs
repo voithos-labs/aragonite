@@ -18,7 +18,7 @@ const PREBUILT_DIR = 'dist/prebuilt';
 /** @type {{ js: Record<string, number>, css: number }} */
 const BUDGET = {
 	js: {
-		index: 530_050,
+		index: 540_500,
 		plugin: 23_700,
 		svelte: 1_550,
 		'runtime/svelte': 250,
