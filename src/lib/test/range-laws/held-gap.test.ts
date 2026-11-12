@@ -395,4 +395,22 @@ describe('at a gap a removal held, each next key does what it does at any gap', 
 		expect(document.querySelectorAll('[data-gap-caret]'), 'the gap caret drawn').toHaveLength(0);
 		expect(editor.instance.getSelection()).toEqual(next.caret);
 	});
+
+	// An arrow's gap ending the document's last container has nothing below it either.
+	it.each(MODES)(
+		'%s: Delete at a gap an arrow stops at, past the last block, stays too',
+		async (mode) => {
+			const source = `:::note\n${FENCE}:::\n`;
+			const editor = mountCase(source, mode);
+			await editor.settle();
+			editor.instance.__test.getBlockComponent([0, 1])!.focus(5);
+			await editor.settle();
+			await key(editor, 'Delete');
+			const gap = { parentPath: [0], index: 2 };
+			expectGapShown(editor, gap);
+			await key(editor, 'Delete');
+			expectGapShown(editor, gap);
+			expect(editor.source()).toBe(source);
+		}
+	);
 });
