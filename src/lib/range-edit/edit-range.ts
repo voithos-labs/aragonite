@@ -7,6 +7,7 @@
 
 import { getContentRange, structuralSuffix } from '../core/inline';
 import { isBlankText } from '../core/lines';
+import { titleInsertionPoint } from '../schema/reserved-chrome';
 import type { Mode, PasteHost, RangeHost } from './host';
 import { copyOf } from './copy';
 import {
@@ -280,14 +281,23 @@ function caretOf(edit: Removal, result: Doc, beside: Beside, started: () => Laid
 	return { at, holds: 'boundary', parent };
 }
 
-/** The end of the block before byte `at`: the last place a caret takes in its text, or the block
- *  itself where it has no text position (a rule). Null where no block comes before. */
+/** The end of the block before byte `at`, the block itself where it has no text position (a rule),
+ *  or in live mode the boundary under a title row ending in its hidden `:::name`; null for none. */
 function endBefore(doc: Doc, at: number): Place | null {
 	for (let byte = at - 1; byte >= 0; byte--) {
 		const block = pointedBlock(doc, byte);
 		if (!block) continue;
 		if (factsOf(doc, block).textPosition === 'never')
 			return { at: block.from, ...held('block', block) };
+		const owner = doc.mode === 'live' ? titleOwner(doc, block) : undefined;
+		if (owner) {
+			// Read as a paste reads the row: one that moves off the row's end would join the name.
+			const row = nodeAt(doc, block.path);
+			const last = getContentRange(row).end;
+			const spot = titleInsertionPoint(nodeAt(doc, owner.path), row, last);
+			if (spot.offset !== last || spot.gap !== '')
+				return { at, holds: 'boundary', parent: owner.path };
+		}
 		// A caret ends after a character, and before a line ending, both bytes of a pair.
 		const { source } = doc;
 		const end = !/[\r\n]/.test(source[byte])
