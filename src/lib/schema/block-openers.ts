@@ -217,7 +217,9 @@ const unclosed = (readings: readonly UnfinishedReading[]): UnclosedReading[] =>
 function reaches(reading: UnclosedReading, below: Held): boolean {
 	if (below.leadingTrivia !== '') return false;
 	const end = below.raw.indexOf('\n');
-	return reading.crosses((end < 0 ? below.raw : below.raw.slice(0, end)).replace(/\r$/, ''));
+	const line = (end < 0 ? below.raw : below.raw.slice(0, end)).replace(/\r$/, '');
+	// A reading written without types may leave `crosses` out: then it waits to the blank line.
+	return (reading as Partial<UnclosedReading>).crosses?.(line) ?? true;
 }
 
 /** The highest block above `from` that a reading no line closes leaves waiting past `from`'s end:

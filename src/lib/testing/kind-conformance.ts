@@ -47,7 +47,12 @@ import {
 	type KitCell
 } from './conformance-core';
 import { installOwnRaw } from '../tree-operations/node-primitives';
-import { defaultGrammarView, type BlockOpener, type OpenContext } from '../schema/block-openers';
+import {
+	defaultGrammarView,
+	type BlockOpener,
+	type OpenContext,
+	type UnfinishedReading
+} from '../schema/block-openers';
 import { createHeadlessActions } from './headless-actions';
 import { KIND_CELL_CONTRACTS } from './cell-contracts';
 import { assertParseConverged } from './parse-convergence';
@@ -424,6 +429,10 @@ function execUnfinishedReading({ parsed: ctx }: KindRun): CellOutcome {
 	const ending = trailingLineEnding(ctx.node.raw, '\n');
 	for (const opener of waiting) {
 		const reading = opener.readingNotFinal!;
+		if (reading.closer === null && !reading.mayClose(closer)) {
+			assertWaitCrossesFixture(ctx.kind, reading, ctx.node.raw, lines.slice(1));
+			continue;
+		}
 		assert(
 			reading.mayClose(closer),
 			`${ctx.kind}'s opener says its fixture without its last line is unfinished, but its ` +
@@ -445,6 +454,35 @@ function execUnfinishedReading({ parsed: ctx }: KindRun): CellOutcome {
 		);
 	}
 	return 'mayClose accepts the closer that finishes the fixture, and closer gives one';
+}
+
+/** A reading no line closes waits across its own fixture: `crosses` accepts each line under the
+ *  first, and the fixture whole reads as final. */
+function assertWaitCrossesFixture(
+	kind: string,
+	reading: UnfinishedReading,
+	raw: string,
+	under: readonly { text: string }[]
+): void {
+	const crosses = (reading as { crosses?: (line: string) => boolean }).crosses;
+	assert(
+		typeof crosses === 'function',
+		`${kind}'s readingNotFinal has closer: null and declares no crosses: say which lines its ` +
+			`wait runs across, or an edit under a waiting block reads on to the next blank line`
+	);
+	for (const line of under) {
+		assert(
+			crosses(line.text),
+			`${kind}'s readingNotFinal.crosses refuses ${show(line.text)}, a line of its own fixture: ` +
+				`crosses must accept every line the opener reads through, or an edit below such a ` +
+				`line leaves the block above it unread`
+		);
+	}
+	assert(
+		!reading.notFinal(raw),
+		`${kind}'s readingNotFinal.notFinal says its whole fixture still waits: it must answer ` +
+			`final once nothing below can change the block, or every edit under one reads to the blank line`
+	);
 }
 
 /** Whether `opener` reads `raw` alone as a block of `kind`. */

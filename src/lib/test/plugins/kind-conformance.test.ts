@@ -185,6 +185,67 @@ describe('kind conformance: a backing-out kind names its closer', () => {
 	});
 });
 
+// ── A kind no line closes ────────────────────────────────────────────────────
+
+/** A `%%name` line that takes a `<<` to `>>` body from the lines under it and stands alone where
+ *  the body never closes, so its reading names no closing line and says what its wait crosses. */
+function bodyTaker(name: string, crosses: (line: string) => boolean, takes = crosses) {
+	const opens = (line: string) => line.startsWith(`%%${name}`);
+	const bodyEnd = (lines: readonly string[]): number | 'open' | 'none' => {
+		if (lines.length === 1) return 'open';
+		if (!lines[1].startsWith('<<')) return 'none';
+		for (let i = 1; i < lines.length; i++) {
+			if (i > 1 && (lines[i].trim() === '' || !takes(lines[i]))) return 'none';
+			if (lines[i].endsWith('>>')) return i;
+		}
+		return 'open';
+	};
+	return testLeaf(name, (kind) => ({
+		conformanceFixture: `%%${name}\n<<b\ntext\nend>>\n`,
+		opener: {
+			priority: OPENER_PRIORITIES.fencedCode + 8,
+			interruptsParagraph: opens,
+			readingNotFinal: {
+				notFinal: (raw) => {
+					const lines = raw.replace(/\n$/, '').split('\n');
+					return opens(lines[0]) && bodyEnd(lines) === 'open';
+				},
+				mayClose: () => false,
+				closer: null,
+				crosses
+			},
+			tryOpen(ctx) {
+				if (!opens(ctx.line.text)) return null;
+				const end = bodyEnd(ctx.lines.slice(ctx.index, ctx.end).map((line) => line.text));
+				const consumed = typeof end === 'number' ? end + 1 : 1;
+				const raw = ctx.lines
+					.slice(ctx.index, ctx.index + consumed)
+					.map((line) => line.raw)
+					.join('');
+				return { node: { kind, leadingTrivia: ctx.leadingTrivia, raw }, consumed };
+			}
+		}
+	}));
+}
+
+// Miss-analysis: the cell took every waiting reading for one a line closes, so a reading with
+// `closer: null`, the shape a link definition has, could not pass and nothing held its `crosses`.
+describe('kind conformance: a kind no line closes says what its wait crosses', () => {
+	it('asserts a reading whose wait crosses every line of its fixture', async () => {
+		const report = await runKindConformance(bodyTaker('takes', (line) => !line.startsWith('!!')));
+		expect(statusOf(report, 'unfinishedReading')).toBe('asserted');
+	});
+
+	it('fails a reading whose `crosses` refuses a line of its own fixture', async () => {
+		const refuses = bodyTaker(
+			'refuses',
+			(line) => line !== 'text',
+			() => true
+		);
+		await expect(runKindConformance(refuses)).rejects.toThrow(/crosses refuses "text"/);
+	});
+});
+
 // ── Bundled plugins: the shipped kinds enroll too ────────────────────────────
 // The workspace's plugin packages are the bundled set, so a plugin directory added or
 // dropped outside this table fails the check below at once.

@@ -125,6 +125,22 @@ describe('a window under a reading that declares what its wait crosses', () => {
 		expect(divergence(`${quoted(before)}\nafter\n`, `${quoted(after)}\nafter\n`)).toBeNull();
 	});
 
+	// Miss-analysis: the type requires `crosses`, and nothing held what a reading written without
+	// types, which can leave it out, costs: the widest reading of it, never a throw or a wrong tree.
+	it('waits to the blank line under a reading that leaves `crosses` out', () => {
+		const reading = tagged.readingNotFinal as { crosses?: (line: string) => boolean };
+		const declared = reading.crosses;
+		delete reading.crosses;
+		try {
+			const closed = (lines: string) =>
+				[`${lines}end\n\nlast\n`, `${lines}end>>\n\nlast\n`] as const;
+			expect(divergence(...closed('%%tag a\n<<b\n# h\n# i\n'))).toBeNull();
+			expect(divergence(...closed('%%tag a\n<<b\n!!x\n# h\n'))).toBeNull();
+		} finally {
+			reading.crosses = declared;
+		}
+	});
+
 	it('any one line changed under the test block', () => {
 		const LINES = ['%%tag a', '<<b', '# h', 'text', '!!x', '', 'end', 'end>>', '[a]: /u', '    c'];
 		const arbLine = fc.constantFrom(...LINES);

@@ -245,6 +245,8 @@ describe('G1.55 over a run of blocks', () => {
 			]);
 		expect(spans(parse('a\n\n# b\n# c\n# d\n\ne\n').children, 3)).toEqual([[1, 4]]);
 		expect(spans(parse('a\n\n# b\n\n# c\n\n# d\n').children, 2)).toEqual([[1, 3]]);
+		// A blank line right above the window parts it from what stands higher, right or not.
+		expect(spans(parse('# a\n# b\n\n# c\n\nd\n').children, 2)).toEqual([[1, 3]]);
 		const long = parse('# heading\n'.repeat(READ_BACK_LIMIT / 5)).children;
 		expect(spans(long, 100)).toEqual([[99, 3]]);
 	});
