@@ -139,8 +139,8 @@ describe('the swap commit sequence', () => {
 		expect(h.adopted()).toBeNull();
 	});
 
-	// Miss-analysis: no row's outgoing handler wrote, so a re-read that adopted bytes read before
-	// the handler ran lost nothing a row could see.
+	// Miss-analysis: no row's outgoing handler wrote, so the stale parse a re-read adopted lost
+	// nothing a row saw. Held at this seam only: no mounted editor has reproduced it yet.
 	it('a re-read adopts what a handler of the outgoing document wrote as it ended', () => {
 		const h = harness(defaultGrammarView, () => h.write('held\n\nwritten as the hover ended\n'));
 		h.swap.reparse();
