@@ -8,6 +8,11 @@ import type { Mode } from '#lib/range-edit/host.js';
 import type { LaidBlock, LaidLine, Layout } from '#lib/range-edit/layout.js';
 import type { CheckHost } from './test-host';
 
+/** Every line of a container from its first, as the expected answers read them; undefined for a
+ *  block with no lines of its own. */
+const linesOf = (block: LaidBlock): LaidLine[] | undefined =>
+	block.linesIn && [...block.linesIn(block.from)];
+
 export interface Read {
 	source: string;
 	tree: DocumentView;
@@ -43,7 +48,7 @@ const MARKED: readonly string[] = ['every-line', 'first-line'];
 export function containersAt(read: Read, byte: number, side: 'start' | 'end'): LaidBlock[] {
 	return read.blocks.filter(
 		(b) =>
-			b.lines !== undefined &&
+			linesOf(b) !== undefined &&
 			(side === 'start' ? b.from <= byte && byte < b.to : b.from < byte && byte <= b.to)
 	);
 }
@@ -53,7 +58,7 @@ export function containersAt(read: Read, byte: number, side: 'start' | 'end'): L
 export function containersHolding(read: Read, at: number): LaidBlock[] {
 	return read.blocks.filter(
 		(b) =>
-			b.lines !== undefined &&
+			linesOf(b) !== undefined &&
 			b.from <= at &&
 			(at < b.to || (at === b.to && !read.source.slice(b.from, b.to).endsWith('\n')))
 	);
@@ -72,7 +77,7 @@ export function leafAt(read: Read, at: number): LaidBlock | null {
 export function inTitleRow(read: Read, at: number, host: CheckHost): boolean {
 	return read.blocks.some(
 		(c) =>
-			c.lines &&
+			linesOf(c) &&
 			read.blocks.some(
 				(row) =>
 					row.type === host.facts(c.type).titleRow?.type &&
@@ -95,10 +100,12 @@ export function sharedContainer(read: Read, from: number, to: number): LaidBlock
 }
 
 function lineOf(container: LaidBlock, byte: number): LaidLine {
-	return container.lines!.find((l) => l.from <= byte && byte < l.to) ?? container.lines!.at(-1)!;
+	return (
+		linesOf(container)!.find((l) => l.from <= byte && byte < l.to) ?? linesOf(container)!.at(-1)!
+	);
 }
 
-const firstBodyLine = (container: LaidBlock) => container.lines!.find((l) => !l.own);
+const firstBodyLine = (container: LaidBlock) => linesOf(container)!.find((l) => !l.own);
 
 /** The marker `container` writes on `line`, as `source` spells it there. */
 const markerOn = (read: Read, line: LaidLine) => read.source.slice(line.from, line.markerTo);
@@ -142,7 +149,7 @@ function markedFor(
 ): LaidLine | undefined {
 	if (facts.lines === 'first-line' && /^[ \t]/.test(read.source.slice(line.from, line.to)))
 		return undefined;
-	const lines = container.lines!.filter((l) => !l.own && l.markerTo > l.from);
+	const lines = linesOf(container)!.filter((l) => !l.own && l.markerTo > l.from);
 	return lines.filter((l) => l.from < line.from).at(-1) ?? lines[0];
 }
 
@@ -160,11 +167,11 @@ function openingLines(read: Read, container: LaidBlock, host: CheckHost): string
 				b.to <= container.to
 		);
 	if (row) {
-		const line = container.lines!.find((l) => l.from <= row.from && row.from < l.to);
+		const line = linesOf(container)!.find((l) => l.from <= row.from && row.from < l.to);
 		return read.source.slice(container.from, line ? line.to : row.to);
 	}
-	const first = container.lines!.findIndex((l) => !l.own);
-	const lines = first < 0 ? container.lines! : container.lines!.slice(0, first);
+	const first = linesOf(container)!.findIndex((l) => !l.own);
+	const lines = first < 0 ? linesOf(container)! : linesOf(container)!.slice(0, first);
 	return lines.map((l) => read.source.slice(l.from, l.to)).join('');
 }
 
@@ -209,7 +216,7 @@ export function expectedCopy(read: Read, from: number, to: number, host: CheckHo
 	}
 	for (const container of containersAt(read, to, 'end').reverse()) {
 		if (container.path.length <= depth || host.facts(container.type).lines !== 'fenced') continue;
-		const last = container.lines!.at(-1)!;
+		const last = linesOf(container)!.at(-1)!;
 		if (!last.own || last.from < to) continue;
 		const closer = read.source.slice(last.from, last.to).replace(/\r?\n$/, '');
 		closing += endingOf(read.source) + closer;
@@ -220,13 +227,13 @@ export function expectedCopy(read: Read, from: number, to: number, host: CheckHo
 /** A table's header and delimiter lines when `from` sits in a row below them, each line followed by
  *  what `from`'s line holds before it inside `shared`: a copy of its rows still reads as a table. */
 function tableHeadAbove(read: Read, table: LaidBlock, shared: LaidBlock | null, from: number) {
-	const delimiter = table.lines!.findIndex((line) => line.own);
-	if (delimiter < 0 || from < table.lines![delimiter].to) return '';
+	const delimiter = linesOf(table)!.findIndex((line) => line.own);
+	if (delimiter < 0 || from < linesOf(table)![delimiter].to) return '';
 	const lineStart = read.source.lastIndexOf('\n', from - 1) + 1;
 	const inside = shared ? Math.max(lineStart, lineOf(shared, lineStart).markerTo) : lineStart;
 	const markers = read.source.slice(inside, from);
-	return table
-		.lines!.slice(0, delimiter + 1)
+	return linesOf(table)!
+		.slice(0, delimiter + 1)
 		.map((line) => read.source.slice(line.from, line.to) + markers)
 		.join('');
 }
@@ -239,10 +246,10 @@ export function copiesLinesBeforeRange(
 	host: Pick<CheckHost, 'facts'>
 ): boolean {
 	return read.blocks.some((b) => {
-		if (!b.lines || !(b.from < from && from < b.to)) return false;
+		if (!linesOf(b) || !(b.from < from && from < b.to)) return false;
 		const facts = host.facts(b.type);
 		if (facts.lines === 'rows') {
-			const delimiter = b.lines.find((line) => line.own);
+			const delimiter = linesOf(b)!.find((line) => line.own);
 			return delimiter !== undefined && from >= delimiter.to;
 		}
 		const row = read.blocks.find(
@@ -345,7 +352,7 @@ function withoutSharedMarkers(
 	if (!shared) return read.source.slice(from, to);
 	let out = '';
 	let at = from;
-	for (const line of shared.lines!) {
+	for (const line of linesOf(shared)!) {
 		if (line.to <= from || line.from >= to) continue;
 		if (line.from > from) at = Math.max(at, Math.min(line.markerTo, to));
 		// A nested container's line runs on to the next line's outer markers; those stay behind.
@@ -398,7 +405,7 @@ function shapeOf(host: CheckHost, source: string): string {
 	const read = readOf(host, source);
 	// A container's own lines (`:::note Title`, `> [!NOTE]`, a summary) name it.
 	const titles = read.blocks.flatMap((b) =>
-		(b.lines ?? []).filter((l) => l.own).map((l) => trimmed(source.slice(l.from, l.to)))
+		(linesOf(b) ?? []).filter((l) => l.own).map((l) => trimmed(source.slice(l.from, l.to)))
 	);
 	const blocks = read.tree.children.filter((n) => !(n.kind === 'paragraph' && n.raw.trim() === ''));
 	return JSON.stringify([blocks.map(shape), titles]);
@@ -625,12 +632,12 @@ function landedInGap(
 	const eol = endingOf(source);
 	if (readOf(host, clip).blocks.every((b) => clip.slice(b.from, b.to).trim() === '')) return null;
 	const holder = read.blocks.find((b) => parent.length > 0 && b.path.join() === parent.join());
-	if (parent.length > 0 && !holder?.lines) return null;
+	if (parent.length > 0 && !(holder && linesOf(holder))) return null;
 	// Among a table's rows no block stands, and between a list's items the rows hold what lands.
 	const shape = holder ? host.facts(holder.type).lines : 'none';
 	if (shape === 'rows' || shape === 'items') return null;
-	const closer = holder?.lines?.at(-1);
-	const closed = shape === 'fenced' && holder!.lines!.length > 1 && closer!.own;
+	const closer = (holder && linesOf(holder))?.at(-1);
+	const closed = shape === 'fenced' && linesOf(holder!)!.length > 1 && closer!.own;
 	const end = !holder ? source.length : closed ? closer!.from : holder.to;
 	const past = at >= end;
 	const place = past ? end : at;
@@ -655,9 +662,9 @@ function landedInGap(
 	const below = out.indexOf('\n', stop) + 1;
 	const next = follows ? place : source.indexOf('\n', place) + 1;
 	const closes = read.blocks.some((c) => {
-		const last = c.lines?.at(-1);
+		const last = linesOf(c)?.at(-1);
 		const text = next + /^[ \t>]*/.exec(source.slice(next))![0].length;
-		return !!last && c.lines!.length > 1 && last.own && last.from <= text && text < last.to;
+		return !!last && linesOf(c)!.length > 1 && last.own && last.from <= text && text < last.to;
 	});
 	if (below > 0 && !blank(out, below) && !blank(out, lineStart(out, stop)) && !closes)
 		out = out.slice(0, below) + under.trimEnd() + eol + out.slice(below);
@@ -965,7 +972,7 @@ function titleLine(
 ): string | null {
 	const owner = read.blocks.find(
 		(b) =>
-			b.lines &&
+			linesOf(b) &&
 			host.facts(b.type).titleRow?.type === row.type &&
 			b.from <= row.from &&
 			row.to <= b.to
@@ -1037,7 +1044,7 @@ function brokenOut(
 	const itemOf = (path: readonly number[]) =>
 		read.blocks.find((b) => b.path.join() === path.join());
 	const item = itemOf(target.path.slice(0, -1))!;
-	const first = item.lines![0];
+	const first = linesOf(item)![0];
 	const whole = at === target.text!.from && target.path.at(-1) === 0;
 	const spaces = (line: string) => line.search(/[^ ]|$/);
 	const written = clip.replace(/\n$/, '').split('\n');
@@ -1059,7 +1066,7 @@ function brokenOut(
 	const index = item.path.at(-1)!;
 	const count = treeNodeAt(read.tree, list.path)!.children!.length;
 	for (let i = count - 1; digits && (!whole || gone) && i > index; i--) {
-		const line = itemOf([...list.path, i])!.lines![0];
+		const line = linesOf(itemOf([...list.path, i])!)![0];
 		const own = /^([ \t]*)(\d+)/.exec(source.slice(line.from, line.markerTo));
 		const want = String(Number(digits[2]) + i - index + (tail ? 1 : 0) - (gone ? 1 : 0));
 		if (!own) continue;

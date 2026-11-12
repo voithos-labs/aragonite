@@ -103,7 +103,7 @@ function siblingsAt(doc: Doc, join: Join, out: string, at: number): Pair | null 
 }
 
 /** `out` from `block`'s start to `at`, its parent's markers off each unchanged line (those starting
- *  by `last`); null where the parent lays out no lines (a list, whose items mark their own). */
+ *  by `last`), where a list's lines carry none; null under a table row, whose cells share a line. */
 function ownBytes(
 	doc: Doc,
 	block: LaidBlock,
@@ -113,9 +113,9 @@ function ownBytes(
 ): string | null {
 	const parent = block.path.length > 1 ? doc.layout.block(block.path.slice(0, -1)) : undefined;
 	if (!parent) return out.slice(block.from, at);
-	if (!parent.lines) return null;
+	if (!parent.linesIn) return null;
 	let raw = '';
-	for (const line of parent.lines) {
+	for (const line of parent.linesIn(block.from, last)) {
 		if (line.to <= block.from || line.from > last) continue;
 		const end = out.indexOf('\n', line.from) + 1 || out.length;
 		raw += out.slice(Math.max(line.markerTo, block.from), Math.min(end, at));

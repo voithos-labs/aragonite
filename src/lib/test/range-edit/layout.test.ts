@@ -69,9 +69,9 @@ it('every block and container line reads back from the bytes', () => {
 			const first = node.raw.trimStart()[0];
 			if (first && source.slice(block.from).trimStart()[0] !== first)
 				q(`[${block.path}] starts at ${block.from}, not at its first byte`);
-			if (!block.lines) continue;
+			if (!block.linesIn) continue;
 			const bodyLines = splitLines(bodyOf(node)).map((line) => line.raw);
-			const laid = block.lines
+			const laid = [...block.linesIn(block.from)]
 				.filter((line) => !line.own)
 				.map((line) => source.slice(line.markerTo, line.to));
 			if (laid.length !== bodyLines.length || laid.some((line, i) => !sameLine(line, bodyLines[i])))
