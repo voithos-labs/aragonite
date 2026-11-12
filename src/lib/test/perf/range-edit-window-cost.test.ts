@@ -134,6 +134,28 @@ describe('G4.342 a range edit reads its answer’s window once', () => {
 	});
 });
 
+// Miss-analysis, the lines: G4.349's rows run the range-edit core alone, so nothing held that the
+// editor's own reads around a range (a keystroke, a held range's paint) lay out no container line.
+describe('G4.349 a keystroke and a held range in a giant quote lay out no container line', () => {
+	it('typing a letter, then holding a range across two children', async () => {
+		const quote = Array.from({ length: LARGE }, (_, i) => `> line ${i} with words\n>\n`).join('');
+		const m: Mounted = mountEditor<EditorTestSurface>({ source: quote });
+		await m.settle();
+		enablePerfInstruments();
+		resetPerfInstruments();
+		const leaf = surfaceAt(m, [0, 3]);
+		typeInto(leaf, leaf.textContent + 'x');
+		await m.settle();
+		await m.instance.setSelection({
+			anchor: { path: [0, 3], offset: 2 },
+			focus: { path: [0, 4], offset: 2 }
+		});
+		await m.settle();
+		expect(perfSnapshot().linesLaid).toBe(0);
+		await m.destroy();
+	});
+});
+
 describe('G4.342 recorded: a range edit serializes the document', () => {
 	it.each([...RANGE_EDITS, COPY])('$name, once', async (gesture) => {
 		expect((await growthOf(gesture)).serializes).toEqual([1, 1]);

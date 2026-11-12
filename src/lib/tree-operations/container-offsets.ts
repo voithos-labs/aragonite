@@ -138,14 +138,6 @@ export function documentByteMap({ doc, starts }: Measured): DocumentByteMap {
 	};
 }
 
-/** Every line of a container, offsets into its raw, paired whole: the lines `ContainerMap.lineAt`
- *  answers one at a time. Null for a table row, whose cells share one line. */
-export function containerLines(map: ContainerMap): ContainerLine[] | null {
-	const { rawLines, paired } = map;
-	if (!rawLines || !paired) return null;
-	return rawLines.map((line, r) => containerLine(line, paired[r]));
-}
-
 /** Raw line `line` as a container's line, carrying the body line `pair` names, moved by `base`. */
 function containerLine(line: ParsedLine, pair: { at: number } | null, base = 0): ContainerLine {
 	const markerEnd = pair ? line.start + Math.min(Math.max(pair.at, 0), line.text.length) : line.end;
@@ -258,10 +250,6 @@ export interface ContainerMap {
 	/** The line holding `rawOffset` of its raw, or its last, paired alone where its spans say where
 	 *  it sits; a table row, whose cells share one line, has none. */
 	lineAt?(rawOffset: number): ContainerLine;
-	/** The container's raw lines, and the body line and text column each carries, paired whole; a
-	 *  table row has neither. */
-	rawLines?: ParsedLine[];
-	paired?: ({ line: number; at: number } | null)[];
 }
 
 /** Offsets in the body, the children's bytes as they read on their own, joined. */
@@ -332,9 +320,7 @@ function lineMap(node: NodeView, titled: boolean): ContainerMap {
 	const pairing = pairLines(node.raw, body, (index) => childStarts[index]);
 	return {
 		...throughBody(children, pairing),
-		lineAt: (rawOffset) => pairedLineAt(pairing, rawOffset),
-		rawLines: pairing.rawLines,
-		paired: pairing.paired
+		lineAt: (rawOffset) => pairedLineAt(pairing, rawOffset)
 	};
 }
 
@@ -414,13 +400,7 @@ function spannedMap(node: NodeView): ContainerMap {
 			return { index, offset: Math.max(inner - map.childStart(0), 0) };
 		},
 		rawOf,
-		lineAt,
-		get rawLines() {
-			return all().rawLines;
-		},
-		get paired() {
-			return all().paired;
-		}
+		lineAt
 	};
 }
 
@@ -527,10 +507,8 @@ function summedStarts(children: readonly NodeView[], raw: string): number[] | nu
 const same = (offset: number) => offset;
 
 /** A container that adds no bytes to its children's (a list): every offset is the same in both,
- *  and its lines are split only when a caller asks for them. */
+ *  and a line is read off the raw around the offset asked. */
 function identityMap(node: NodeView, childStart: (index: number) => number): ContainerMap {
-	let lines: ParsedLine[] | undefined;
-	const rawLines = () => (lines ??= splitLines(node.raw));
 	const { raw } = node;
 	return {
 		...throughBody(node.children ?? [], { childStart, toBody: same, toRaw: same }),
@@ -540,12 +518,6 @@ function identityMap(node: NodeView, childStart: (index: number) => number): Con
 			const start = at === 0 ? 0 : raw.lastIndexOf('\n', at - 1) + 1;
 			const end = raw.indexOf('\n', at) + 1 || raw.length;
 			return { start, markerEnd: start, end, own: false };
-		},
-		get rawLines() {
-			return rawLines();
-		},
-		get paired() {
-			return rawLines().map((_, line) => ({ line, at: 0 }));
 		}
 	};
 }

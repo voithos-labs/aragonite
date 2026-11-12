@@ -6,14 +6,17 @@
 // Miss-analysis: new surface; the layout laid out every line of a container to answer one.
 
 import { describe, expect, it } from 'vitest';
+import fc from 'fast-check';
 import type { DocumentView, NodeView } from '#lib/core/node-views.js';
 import { rangeHost } from '#lib/range-edit/host.js';
 import { documentLayout, type LaidBlock, type LaidLine } from '#lib/range-edit/layout.js';
-import { containerLines, documentByteMap } from '#lib/tree-operations/container-offsets.js';
+import { documentByteMap } from '#lib/tree-operations/container-offsets.js';
+import { splitLines } from '#lib/core/lines.js';
+import { blockFacts } from '#lib/schema/block-facts.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { measured, type Measured } from '#lib/tree-operations/top-level-starts.js';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
-import { lawInputs } from './inputs';
+import { arbLawDocument } from '../range-laws/shapes';
 import { testReading } from './test-host';
 
 const DOCUMENTS = process.env.RANGE_EDIT_FULL === '1' ? 600 : 150;
@@ -35,20 +38,61 @@ const NAMED = [
 	'<details>\n<summary>S</summary>\n\nbody\n\n</details>\n',
 	'- > quoted in a list\n  > more\n- next\n',
 	'> - item\n>   cont\n> - two\n>\n> para\n',
-	'> one\n> two'
+	'> one\n> two',
+	'>\n>\n> one\n> two\n',
+	'>\t>\tone\r\n>\t>\ttwo\r\n>\r\n> three\r\n',
+	'> > one\nlazy\n> two\n',
+	' > one\n  >\n   > two\n',
+	'> | a | b |\n> | - | - |\n> | c | d |\n',
+	'| a |\n| - |\n',
+	'> ```\n> code\n>\n> ```\n> after\n',
+	'- a\n  - b\n    - c\n  - d\n- e\n',
+	'- a\n\n- b\n\n  para\n- c\n',
+	'-\tone\r\n\ttwo\r\n-\tthree\r\n',
+	'> <details>\n> <summary>S</summary>\n>\n> body\n> </details>\n'
 ];
+
+/** Where a write inside `source` lands that the splice reads into a container: a letter on the
+ *  middle line of each of its first containers, a line split there, and that line joined to the next. */
+function editsOf(source: string, doc: DocumentView): string[] {
+	// No caret sits inside a CRLF, so a letter typed there goes past it.
+	const typed = (at: number) => {
+		const to = source[at - 1] === '\r' && source[at] === '\n' ? at + 1 : at;
+		return source.slice(0, to) + 'x' + source.slice(to);
+	};
+	const edits = [typed(source.length >> 1)];
+	const containers = [...documentLayout(measured(doc)).within(0, source.length)].filter(
+		(b) => b.container
+	);
+	for (const block of containers.slice(0, 4)) {
+		const line = block.lineAt!((block.from + block.to) >> 1);
+		edits.push(typed(line.markerTo));
+		const ending = /\r?\n$/.exec(source.slice(line.from, line.to))?.[0];
+		if (!ending) continue;
+		const eol = line.to - ending.length;
+		edits.push(source.slice(0, eol) + ending + 'x' + source.slice(eol));
+		if (line.to < block.to) edits.push(source.slice(0, eol) + source.slice(line.to));
+	}
+	return edits;
+}
 
 type Line = Pick<LaidLine, 'from' | 'markerTo' | 'to' | 'own'>;
 
-/** Every line of the container at `path`, paired whole and placed in the bytes: the expected
- *  result, placed here rather than by `lineBytes`, so a slip there shows. */
+/** The container at `path` with no child spans, every line paired whole, placed here rather than
+ *  by `lineBytes` so a slip there shows; a list's lines carry no marker. */
 function everyLine(m: Measured, path: readonly number[]): Line[] {
 	const map = documentByteMap(m);
-	const own = map.containerMap(blockNodeAt(m.doc, path)!);
-	return (own && containerLines(own) ? containerLines(own)! : []).map((line) => {
+	const node = blockNodeAt(m.doc, path)!;
+	const bare = { ...m.doc, children: m.doc.children.map(spansDropped) };
+	const whole = documentByteMap(measured(bare)).containerMap(blockNodeAt(bare, path)!);
+	if (!whole?.lineAt) return [];
+	const list = blockFacts(node.kind).lines === 'items';
+	return splitLines(node.raw).map(({ start }) => {
+		const line = whole.lineAt!(start);
+		const own = !list && line.own;
 		const to = map.endOf(path, line.end)!;
-		const markerTo = line.own ? to : map.byteOf(path, line.markerEnd)!;
-		return { from: map.byteOf(path, line.start)!, markerTo, to, own: line.own };
+		const markerTo = own ? to : map.byteOf(path, list ? line.start : line.markerEnd)!;
+		return { from: map.byteOf(path, line.start)!, markerTo, to, own };
 	});
 }
 
@@ -108,33 +152,38 @@ const report = (fails: string[]) =>
 	fails.length === 0 ? '' : `${fails.slice(0, 10).join('\n')}\n(${fails.length} in all)`;
 
 describe('G4.349 a container line laid out alone is the whole pairing’s', () => {
-	it(`over ${DOCUMENTS} drawn documents and the named shapes, seed ${SEED}`, () => {
-		const reading = testReading();
-		const drawn = lawInputs(DOCUMENTS, SEED, reading.grammar).filter((_, i) => i % 2 === 0);
-		const fails: string[] = [];
-		let containers = 0;
-		const host = rangeHost(reading);
-		for (const source of [...NAMED, ...drawn.map((input) => input.source)]) {
-			const doc = host.read(source);
-			containers += [...documentLayout(measured(doc)).within(0, source.length)].filter(
-				(b) => b.container
-			).length;
-			fails.push(...differences(source, doc));
-			const dropped = { ...doc, children: doc.children.map(spansDropped) };
-			fails.push(...differences(source, dropped));
-			// A document the splice wrote into: a letter typed in the middle of the source. An editor
-			// always holds a block, where a parse of blank lines alone gives none.
-			if (doc.children.length === 0) continue;
-			const own = rangeHost(reading, { source, measured: measured(doc) });
-			const at = source.length >> 1;
-			const edited = source.slice(0, at) + 'x' + source.slice(at);
-			try {
-				fails.push(...differences(edited, own.read(edited)));
-			} catch (error) {
-				fails.push(`${(error as Error).message} reading ${JSON.stringify(edited)}`);
+	it(
+		`over ${DOCUMENTS} drawn documents and the named shapes, seed ${SEED}`,
+		{ timeout: DOCUMENTS * 200 },
+		() => {
+			const reading = testReading();
+			// The documents the range-edit laws draw from the same seed.
+			const drawn = fc.sample(arbLawDocument, { numRuns: DOCUMENTS, seed: SEED });
+			const fails: string[] = [];
+			let containers = 0;
+			const host = rangeHost(reading);
+			for (const source of [...NAMED, ...drawn]) {
+				const doc = host.read(source);
+				containers += [...documentLayout(measured(doc)).within(0, source.length)].filter(
+					(b) => b.container
+				).length;
+				fails.push(...differences(source, doc));
+				const dropped = { ...doc, children: doc.children.map(spansDropped) };
+				fails.push(...differences(source, dropped));
+				// A document the splice wrote into. An editor always holds a block, where a parse of blank
+				// lines alone gives none.
+				if (doc.children.length === 0) continue;
+				const own = rangeHost(reading, { source, measured: measured(doc) });
+				for (const edited of editsOf(source, doc)) {
+					try {
+						fails.push(...differences(edited, own.read(edited)));
+					} catch (error) {
+						fails.push(`${(error as Error).message} reading ${JSON.stringify(edited)}`);
+					}
+				}
 			}
+			expect(report(fails)).toBe('');
+			expect(containers).toBeGreaterThan(DOCUMENTS / 2);
 		}
-		expect(report(fails)).toBe('');
-		expect(containers).toBeGreaterThan(DOCUMENTS / 2);
-	});
+	);
 });
