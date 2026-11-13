@@ -28,6 +28,7 @@ import { getContentRange, isProseKind } from '../core/inline';
 import type { Held, Range } from '../range-edit/edit-range';
 import type { SpliceCaret } from '../action-contracts';
 import { documentLayout, type LaidBlock, type Layout } from '../range-edit/layout';
+import type { CurrentDocument } from '../range-edit/host';
 import { pathsEqual } from './path-math';
 import { boundaryHidden, previousCaretPath } from './path-lookup';
 import type { Landing, SelectionPoint } from './primitives';
@@ -68,6 +69,19 @@ export function documentBytes(deps: {
 			if (laid?.of !== of) laid = { of, layout: documentLayout(of) };
 			return laid.layout;
 		}
+	};
+}
+
+/** `doc`, bytes a gesture answered and has not committed, read as the editor reads its own; no cut
+ *  is remembered there. */
+export function answeredBytes(doc: CurrentDocument): DocumentBytes {
+	const layout = doc.layout ?? documentLayout(doc.measured);
+	return {
+		doc: () => doc.measured.doc,
+		source: () => doc.source,
+		layout: () => layout,
+		measured: () => doc.measured,
+		cut: null
 	};
 }
 

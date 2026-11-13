@@ -23,13 +23,33 @@ import { commitGridClear, commitGridLineDelete } from './grid-removal';
 import {
 	CORE_GESTURE,
 	commandLandingKind,
+	commitRemoval,
+	currentOf,
 	emptiedPlace,
+	removalAnswer,
+	removedIn,
 	removeThroughCore,
 	writeInCell,
 	type Removed
 } from './range-removal';
-import { answeredAhead, pasteInBlock, pasteThroughCore, type Clip } from './range-paste';
-import { placeInBlock, placeOfGap, placeOverRange, type PastePlace } from '../range-bytes';
+import {
+	answeredAhead,
+	landAnswer,
+	pasteAnswer,
+	pasteInBlock,
+	pasteThroughCore,
+	type Clip
+} from './range-paste';
+import {
+	answeredBytes,
+	placeInBlock,
+	placeOfGap,
+	placeOverRange,
+	type DocumentBytes,
+	type PastePlace
+} from '../range-bytes';
+import { answeredDocument } from '../../range-edit/host';
+import { splicedBytes } from '../../tree-operations/spliced-openers';
 import { hidesDelimitersAtCaret } from '../../presentation-mode';
 import { parseReplacement } from '../../tree-operations/paste/replacement-parse';
 import { slotReaderAt } from '../../tree-operations/list/task-paragraph';
@@ -476,27 +496,49 @@ async function pasteOver(
 		if (!place) return 'nothing';
 		return (await pasteThroughCore(ctx, place, clip, undo)) ? 'written' : 'refused';
 	}
-	// Read before the removal, which may take every line ending the document has.
-	const ending = firstLineEnding(ctx.bytes.source()) ?? undefined;
+	// The pair is answered whole before either commits, so the removal goes only with a paste.
+	const pair = pairOver(ctx, coverage, clip);
+	if (!pair) return 'nothing';
 	const [removed, removalCaret] = await ctx.controller.holdLandings(() =>
-		removeThroughCore(ctx, coverage, 'type')
+		commitRemoval(ctx, coverage, 'type', pair.removal)
 	);
 	if (!removed.wrote && !removed.caret) return 'nothing';
-	const at = placeAfterRemoval(ctx, removed);
-	const place = at && { ...at, ending };
 	// The paste's own commit names a block of the document the removal left.
 	const left = removed.caret ?? { path: [0], offset: 0 };
 	const after = deleteSnapshot(left.path, left.offset);
-	const wrote = !!place && (await pasteThroughCore(ctx, place, clip, after));
+	const wrote = pair.lands && (await landAnswer(ctx, pair.left.source, pair.paste, after));
 	if (!wrote) await (removalCaret ?? (removed.caret && caretAt(ctx, removed.caret)))?.place();
 	return 'written';
 }
 
-/** Where a paste goes once the range is gone: the boundary the editor holds the removal's caret
+/** The removal typing over the range makes, then the paste at the place the editor would hold on
+ *  the bytes it leaves, both answered before either commits; null where the paste has no place. */
+function pairOver(ctx: CrossBlockMutationContext, coverage: RangeCoverage, clip: Clip) {
+	const source = ctx.bytes.source();
+	const removal = removalAnswer(ctx, coverage, 'type');
+	if (!removal) return null;
+	const { grammar } = ctx.reading;
+	const written = splicedBytes(ctx.bytes.measured(), source, removal.source, grammar);
+	const left = answeredDocument(ctx.reading, currentOf(ctx), written);
+	const bytes = answeredBytes(left);
+	const removed = removedIn(bytes, removal, written !== source);
+	const at = placeAfterRemoval(bytes, removed, hidesDelimitersAtCaret(ctx.reading.mode()));
+	if (!at) return null;
+	// Read before the removal, which may take every line ending the document has.
+	const ending = firstLineEnding(source) ?? undefined;
+	const paste = pasteAnswer(ctx, left, { ...at, ending }, clip);
+	return { removal, left, paste, lands: paste.source !== left.source };
+}
+
+/** Where a paste goes on `bytes`, what the removal leaves: the boundary the editor holds its caret
  *  at, else the caret's text, else the place the core named for a caret on a block. */
-function placeAfterRemoval(ctx: CrossBlockMutationContext, removed: Removed): PastePlace | null {
-	const slot = emptiedPlace(ctx.bytes.measured(), removed);
-	if (slot) return placeOfGap(ctx.bytes, { parentPath: slot.slice(0, -1), index: slot.at(-1)! });
+function placeAfterRemoval(
+	bytes: DocumentBytes,
+	removed: Removed,
+	live: boolean
+): PastePlace | null {
+	const slot = emptiedPlace(bytes.measured(), removed);
+	if (slot) return placeOfGap(bytes, { parentPath: slot.slice(0, -1), index: slot.at(-1)! });
 	const { landed, caret } = removed;
 	if (landed?.holds === 'block') {
 		const { at, ...held } = landed;
@@ -504,8 +546,7 @@ function placeAfterRemoval(ctx: CrossBlockMutationContext, removed: Removed): Pa
 	}
 	if (!caret) return null;
 	const at = charOffsetOf(caret, 'range-replace:paste');
-	const live = hidesDelimitersAtCaret(ctx.reading.mode());
-	return placeInBlock(ctx.bytes, caret.path, at, at, live);
+	return placeInBlock(bytes, caret.path, at, at, live);
 }
 
 /** At the caret the removal left, never over stale block indices: a table's endpoint caret is a

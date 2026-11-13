@@ -17,7 +17,13 @@ import { assertPasteLanded } from '../../invariants/install';
 import { withLeafBytes } from '../../range-edit/document';
 import { editRange, type RangeEditResult } from '../../range-edit/edit-range';
 import { restored } from '../../range-edit/own-entry';
-import type { LeafWrite, PasteHost, RangeHost } from '../../range-edit/host';
+import {
+	rangeHost,
+	type CurrentDocument,
+	type LeafWrite,
+	type PasteHost,
+	type RangeHost
+} from '../../range-edit/host';
 import type { LeafEdit } from '../../range-edit/leaf-splice';
 import type { PluginActivation } from '../../schema/plugin-activation';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
@@ -28,7 +34,7 @@ import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-d
 import type { CaretLanding } from '../caret-landing';
 import { placeInBlock, pointAtByte, type PastePlace } from '../range-bytes';
 import type { SelectionState } from '../selection-state.svelte';
-import { commitBytes, hostOf, modeOf, type CommitContext } from './range-removal';
+import { commitBytes, currentOf, modeOf, type CommitContext } from './range-removal';
 
 export type PasteContext = CommitContext & {
 	getDoc: DocumentGetter;
@@ -105,31 +111,45 @@ export async function pasteThroughCore(
 	undo: CommitSnapshotArg,
 	spend?: SpendInsertion
 ): Promise<boolean> {
-	const source = ctx.bytes.source();
-	const core = hostOf(ctx);
+	const current = currentOf(ctx);
+	const answer = pasteAnswer(ctx, current, place, clip, spend);
+	if (answer.source === current.source) {
+		// A range pasted over with its own bytes is written nowhere, and still ends where they end.
+		if (place.range.from !== place.range.to) await endRangeAt(ctx, answer.caret.at);
+		return false;
+	}
+	return landAnswer(ctx, current.source, answer, undo);
+}
+
+/** The core's answer for `clip` pasted at `place` in `doc`: the editor's document, or the bytes a
+ *  removal not yet committed leaves. */
+export function pasteAnswer(
+	ctx: PasteContext,
+	doc: CurrentDocument,
+	place: PastePlace,
+	clip: Clip,
+	spend?: SpendInsertion
+): RangeEditResult {
+	const core = rangeHost(ctx.reading, doc);
 	const host: PasteHost = {
 		...(spend ? spending(core, spend) : core),
 		transformPaste: (text) => applyPasteTransforms(text, ctx.activePlugins)
 	};
-	const { range, ...held } = puttingBack(place, clip, source);
+	const { range, ...held } = puttingBack(place, clip, doc.source);
 	const gesture = { paste: clip.text, plain: clip.plain, own: clip.own, ...held };
-	const answer = editRange(source, range, gesture, modeOf(ctx), host);
-	if (answer.source === source) {
-		// A range pasted over with its own bytes is written nowhere, and still ends where they end.
-		if (range.from !== range.to) await endRangeAt(ctx, answer.caret.at);
-		return false;
-	}
-	return landAnswer(ctx, source, answer, undo);
+	return editRange(doc.source, range, gesture, modeOf(ctx), host);
 }
 
-/** `answer`, the core's paste over the document `base`, landed in one commit: as the block's own
- *  write, for its cost, where that write leaves the answer's bytes, else as a byte splice. */
-async function landAnswer(
+/** `answer`, the core's paste over `base`, landed in one commit: the block's own write where it
+ *  leaves the answer's bytes, else a byte splice; nothing where the document is not `base`. */
+export async function landAnswer(
 	ctx: PasteContext,
 	base: string,
 	answer: RangeEditResult,
 	undo: CommitSnapshotArg
 ): Promise<boolean> {
+	// A write since the answer was made (a listener to a removal's edit) leaves it no place.
+	if (ctx.bytes.source() !== base) return false;
 	// A block pasted at the document's end lands on its last line, whose line break stays under it.
 	const ending = ownTrailingLineEnding(base);
 	const kept = ownTrailingLineEnding(answer.source) || !answer.source ? '' : ending;

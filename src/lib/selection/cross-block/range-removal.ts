@@ -12,9 +12,10 @@ import {
 	removalOf,
 	textInCell,
 	wholeBlocksRemovalOf,
+	type RemovalAnswer,
 	type RemovalGesture
 } from '../../range-edit/edit-range';
-import { rangeHost } from '../../range-edit/host';
+import { rangeHost, type CurrentDocument } from '../../range-edit/host';
 import { changesBetween } from '../../tree-operations/byte-changes';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import type { Measured } from '../../tree-operations/top-level-starts';
@@ -28,7 +29,8 @@ import {
 	readsAsText,
 	removalBytes,
 	takenGapOf,
-	wholeBlockBytes
+	wholeBlockBytes,
+	type DocumentBytes
 } from '../range-bytes';
 import type { RangeCoverage } from '../range-coverage';
 import type { CrossBlockDispatchContext } from './dispatch';
@@ -70,29 +72,48 @@ export async function removeThroughCore(
 	coverage: RangeCoverage,
 	gesture: RemovalGesture
 ): Promise<Removed> {
-	const tree = ctx.bytes.doc();
-	const range = removalBytes(tree, coverage, ctx.bytes.layout());
-	if (!range) return { wrote: false, caret: null, landed: null, taken: null };
-	const source = ctx.bytes.source();
-	const answer = removalOf(source, range, gesture, modeOf(ctx), hostOf(ctx));
-	const landed = answer.caret;
+	const answer = removalAnswer(ctx, coverage, gesture);
+	if (!answer) return { wrote: false, caret: null, landed: null, taken: null };
+	return commitRemoval(ctx, coverage, gesture, answer);
+}
+
+/** The core's answer for removing what `coverage` holds as `gesture` does, nothing committed; null
+ *  where the coverage reads as no bytes. */
+export function removalAnswer(
+	ctx: RemovalContext,
+	coverage: RangeCoverage,
+	gesture: RemovalGesture
+): RemovalAnswer | null {
+	const range = removalBytes(ctx.bytes.doc(), coverage, ctx.bytes.layout());
+	return range && removalOf(ctx.bytes.source(), range, gesture, modeOf(ctx), hostOf(ctx));
+}
+
+/** `answer`, the removal of what `coverage` holds as `gesture` does, in one commit. */
+export async function commitRemoval(
+	ctx: RemovalContext,
+	coverage: RangeCoverage,
+	gesture: RemovalGesture,
+	answer: RemovalAnswer
+): Promise<Removed> {
 	// A range holding nothing to take (an end narrowed to the text before it) is a caret there.
-	if (answer.source === source)
-		return {
-			wrote: false,
-			caret: pointAtByte(ctx.bytes.measured(), landed.at),
-			landed,
-			taken: null
-		};
+	if (answer.source === ctx.bytes.source()) return removedIn(ctx.bytes, answer, false);
+	const landed = answer.caret;
 	const { start } = coverage.range;
 	const wrote = await commitBytes(ctx, answer.source, {
 		caret: landed,
 		op: { kind: 'delete', detail: { crossBlock: true } },
 		snapshot: deleteSnapshot(start.path, start.offset)
 	});
-	const caret = wrote ? pointAtByte(ctx.bytes.measured(), landed.at) : null;
-	if (wrote && gesture === 'cut') rememberCut(ctx, landed);
-	return { wrote, caret, landed, taken: answer.taken ?? null };
+	if (!wrote) return { wrote, caret: null, landed, taken: null };
+	if (gesture === 'cut') rememberCut(ctx, landed);
+	return removedIn(ctx.bytes, answer, true);
+}
+
+/** What `answer` left, read on `bytes`, the document holding its bytes: committed, or answered
+ *  ahead of its commit. */
+export function removedIn(bytes: DocumentBytes, answer: RemovalAnswer, wrote: boolean): Removed {
+	const caret = pointAtByte(bytes.measured(), answer.caret.at);
+	return { wrote, caret, landed: answer.caret, taken: wrote ? (answer.taken ?? null) : null };
 }
 
 /** Removes the block at `path` whole, as the block menu's Delete does, in one commit whose edit
@@ -158,12 +179,14 @@ export function commitBytes(
 export const modeOf = (ctx: CommitContext) =>
 	hidesDelimitersAtCaret(ctx.reading.mode()) ? 'live' : 'source';
 
-export const hostOf = (ctx: CommitContext) =>
-	rangeHost(ctx.reading, {
-		source: ctx.bytes.source(),
-		measured: ctx.bytes.measured(),
-		layout: ctx.bytes.layout()
-	});
+/** The editor's document as the range-edit host reads it. */
+export const currentOf = (ctx: CommitContext): CurrentDocument => ({
+	source: ctx.bytes.source(),
+	measured: ctx.bytes.measured(),
+	layout: ctx.bytes.layout()
+});
+
+export const hostOf = (ctx: CommitContext) => rangeHost(ctx.reading, currentOf(ctx));
 
 // ── Where the removal leaves the caret, read around it ───────────────────────
 

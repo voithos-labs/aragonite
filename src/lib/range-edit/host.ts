@@ -172,6 +172,33 @@ export interface CurrentDocument {
 	layout?: Layout;
 }
 
+/** `source` read as the editor's document `now` would be once it holds those bytes, for a second
+ *  half answered before the first commits; it is never put in the tree. */
+export function answeredDocument(
+	reading: Reading,
+	now: CurrentDocument,
+	source: string
+): CurrentDocument {
+	const measured = readOff(reading, now, source);
+	return { source, measured, layout: documentLayout(measured) };
+}
+
+const parsedIn = (reading: Reading, source: string) =>
+	readAsOpened(source, { grammar: reading.grammar, scope: 'document' });
+
+/** `source` read off `now`, with starts that measured only the blocks it changes. */
+function readOff(reading: Reading, now: CurrentDocument, source: string): Measured {
+	if (source === now.source) return now.measured;
+	// No bytes parse to no block, where the splice keeps an emptied document one paragraph.
+	if (source === '') return measured(parsedIn(reading, source));
+	const changes = changesBetween(now.source, source);
+	const read = spliceReading(now.measured, now.source, changes, reading.grammar);
+	if (!read) return now.measured;
+	// Off the plain list, so the blocks the bytes leave alone are copied without a read each.
+	const doc = applied({ ...now.measured.doc, children: topsOf(now.measured) }, read);
+	return { doc, starts: now.measured.starts.after(doc, runsOf(read.windows)) };
+}
+
 /** The host over `reading`. With `current`, the editor's own tree answers a read of its own bytes,
  *  and a read of other bytes reads again only the blocks they change; the core writes to neither. */
 export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHost {
@@ -212,22 +239,13 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 	let currentLayout: Layout | undefined;
 	// Each document read off the current one, with starts that measured only its new blocks.
 	const reread = new WeakMap<DocumentView, Measured>();
-	const parsed = (source: string) =>
-		readAsOpened(source, { grammar: reading.grammar, scope: 'document' });
 	const readFrom = (now: CurrentDocument, source: string): DocumentView => {
-		if (source === now.source) return now.measured.doc;
-		// No bytes parse to no block, where the splice keeps an emptied document one paragraph.
-		if (source === '') return parsed(source);
-		const changes = changesBetween(now.source, source);
-		const read = spliceReading(now.measured, now.source, changes, reading.grammar);
-		if (!read) return now.measured.doc;
-		// Off the plain list, so the blocks the bytes leave alone are copied without a read each.
-		const doc = applied({ ...now.measured.doc, children: topsOf(now.measured) }, read);
-		reread.set(doc, { doc, starts: now.measured.starts.after(doc, runsOf(read.windows)) });
-		return doc;
+		const read = readOff(reading, now, source);
+		if (read !== now.measured) reread.set(read.doc, read);
+		return read.doc;
 	};
 	return {
-		read: (source) => (current ? readFrom(current, source) : parsed(source)),
+		read: (source) => (current ? readFrom(current, source) : parsedIn(reading, source)),
 		layout: (doc) =>
 			doc === current?.measured.doc
 				? (currentLayout ??= current.layout ?? documentLayout(current.measured))
