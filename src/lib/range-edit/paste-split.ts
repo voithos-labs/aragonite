@@ -519,7 +519,9 @@ export function splitAt(
 	const apart = eol + (body !== clip ? blank + eol : '') + prefix;
 	const taken = joined || (factsOf(doc, leaf).joins === 'text' && lastJoins && body === clip);
 	const closing = cut.follows ? (taken ? '' : apart) : kept;
-	const caret = head.length + opening.length + cut.caret;
+	// The last line ending taken off stands for the empty line it opens, which takes the caret.
+	const opened = cut.follows && !taken && body !== clip ? eol.length + blank.length : 0;
+	const caret = head.length + opening.length + opened + cut.caret;
 	const out = head + opening + closing + cut.rest;
 	// Under an empty item the next line gets a blank line only where the pasted blocks would read it
 	// in: no block beside them starts there.
