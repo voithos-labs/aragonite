@@ -440,10 +440,22 @@ const REACH: Record<string, Draw> = {
 	}
 };
 
+/** Draws whose paste lands where a letter typed over the range does: on the text the removal's
+ *  caret stands on, whatever caret the core named. */
+const LANDS_AS_TYPED: Record<string, Draw> = {
+	// Miss-analysis: no fixed draw pasted where the core names a boundary the editor holds as prose,
+	// so a paste there landed as a block, and after a cut it took the cut's caret with no entry.
+	'a paste over a rule held whole, the text under it prose': {
+		...draw('setextUnderline', 'rule', 'item', 'edge..lower', 'paste', 'live'),
+		lead: 2
+	}
+};
+
 /** Every draw the fixed run always takes, by name. */
 const EXAMPLES: Record<string, Draw> = {
 	...Object.fromEntries(Object.entries(KNOWN).map(([name, k]) => [name, k.example])),
-	...REACH
+	...REACH,
+	...LANDS_AS_TYPED
 };
 
 // ── The property ─────────────────────────────────────────────────────────────
@@ -479,7 +491,9 @@ const LANDED: Record<string, string> = {
 	'before an HTML block in a quote': 'intro\n\n> text\n>\n> 汉\n>\n> <span class="x">\n\nlast\n',
 	'two containers deep, out past both':
 		'intro\n\n- > above\n  > \n  > 汉\n  >\n  >\n\n```\nlast\n```\n',
-	'past the rows of a table': '| a |\n| - |\n\n汉\n\n```\nx\n```\n| 2 |\n\nlast\n'
+	'past the rows of a table': '| a |\n| - |\n\n汉\n\n```\nx\n```\n| 2 |\n\nlast\n',
+	'a paste over a rule held whole, the text under it prose':
+		'intro\n\nmore\n\n- text\n  \n  ж===\n\nlast\n'
 };
 
 describe('text and Enter over a range whose removal reads a neighbour again', () => {

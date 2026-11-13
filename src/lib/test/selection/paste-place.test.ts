@@ -85,13 +85,13 @@ describe('a caret between blocks', () => {
 });
 
 describe('the caret a cut left', () => {
-	it('is named as the core named it while nothing has written since', () => {
+	it('stands beside the caret, as the core named it, while nothing has written since', () => {
 		const bytes = bytesOf('> | b |\n> | - |\n\nafter\n');
 		bytes.cut = { caret: { at: 16, holds: 'boundary', parent: [] }, of: bytes.measured() };
 		expect(placeInBlock(bytes, [1], 0, 0, false)).toEqual({
-			range: { from: 16, to: 16 },
-			holds: 'boundary',
-			parent: []
+			range: { from: 17, to: 17 },
+			holds: 'text',
+			back: { at: 16, holds: 'boundary', parent: [] }
 		});
 	});
 

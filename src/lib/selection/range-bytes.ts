@@ -254,8 +254,10 @@ export function byteOfGap(
 // ── Where a paste goes ──────────────────────────────────────────────────────
 
 /** Where a paste goes, as the range-edit core takes it: the bytes it replaces, and for a caret what
- *  sits there. Made only by the readers below, so a caret on a block's syntax is never called text. */
-export type PastePlace = { range: Range; ending?: LineEnding } & Held;
+ *  sits there. Made only by the readers below, so a caret on a block's syntax is never called text.
+ *  `back`, on a caret where the last cut left it, is that cut's own caret: the one place the entry
+ *  the cut wrote fits, so only a paste of that entry goes there. */
+export type PastePlace = { range: Range; ending?: LineEnding; back?: SpliceCaret } & Held;
 
 /** The place of raw offsets `[start, end]` of the text block at `path`. A live caret outside the
  *  block's text names the boundary beside it; a live range's ends stand at the text's edges. */
@@ -270,9 +272,19 @@ export function placeInBlock(
 	const from = layout.byteOf(path, start);
 	const to = start === end ? from : layout.byteOf(path, end);
 	if (from === null || to === null) return null;
-	const cut = from === to ? cutPlaceAt(bytes, from) : null;
-	if (cut) return cut;
-	const text = layout.block(path)?.text;
+	const place = textPlace(bytes, path, from, to, live);
+	const back = from === to ? cutCaretAt(bytes, from) : null;
+	return place && back ? { ...place, back } : place;
+}
+
+function textPlace(
+	bytes: DocumentBytes,
+	path: readonly number[],
+	from: number,
+	to: number,
+	live: boolean
+): PastePlace | null {
+	const text = bytes.layout().block(path)?.text;
 	if (!live || !text) return { range: { from, to }, holds: 'text' };
 	const inText = (at: number) => Math.min(Math.max(at, text.from), text.to);
 	if (from !== to) return { range: { from: inText(from), to: inText(to) }, holds: 'text' };
@@ -290,23 +302,24 @@ export function placeOverRange(bytes: DocumentBytes, coverage: RangeCoverage): P
 export function placeOfGap(bytes: DocumentBytes, gap: GapCaretPosition): PastePlace | null {
 	const at = byteOfGap(bytes.measured(), gap);
 	if (at === null) return null;
-	return cutPlaceAt(bytes, at) ?? boundary(at, gap.parentPath);
+	const back = cutCaretAt(bytes, at);
+	return { ...boundary(at, gap.parentPath), ...(back && { back }) };
 }
 
 /** The boundary under the block at `path`, where a paste on a block focused whole lands. */
 export function placeAfterBlock(bytes: DocumentBytes, path: readonly number[]): PastePlace | null {
+	const place = placeBeside(bytes, path, 1);
 	const block = bytes.layout().block(path);
 	const cut = bytes.cut;
-	// A cut that left the caret on this block pastes back above it, where the cut took from.
-	if (block && cut?.of === bytes.measured() && cut.caret.holds === 'block')
-		if (cut.caret.at === block.from)
-			return { range: { from: block.from, to: block.from }, ...cut.caret };
-	return placeBeside(bytes, path, 1);
+	// A cut that left the caret on this block took from above it, where its entry goes back.
+	if (place && block && cut?.of === bytes.measured() && cut.caret.holds === 'block')
+		if (cut.caret.at === block.from) return { ...place, back: cut.caret };
+	return place;
 }
 
-/** The place a caret at byte `at` names where the last cut left its caret there: the core's own
- *  caret for that cut, so its entry fits. Null for any other byte, or once the document moved on. */
-export function cutPlaceAt(bytes: DocumentBytes, at: number): PastePlace | null {
+/** The core's own caret for the last cut, where a caret at byte `at` stands where that cut left it.
+ *  Null for any other byte, or once the document moved on. */
+function cutCaretAt(bytes: DocumentBytes, at: number): SpliceCaret | null {
 	const cut = bytes.cut;
 	if (!cut || cut.of !== bytes.measured() || cut.caret.holds === 'block') return null;
 	const measured = bytes.measured();
@@ -314,9 +327,7 @@ export function cutPlaceAt(bytes: DocumentBytes, at: number): PastePlace | null 
 	const landed = gap ? byteOfGap(measured, gap) : leafByteAt(measured, cut.caret.at);
 	if (landed !== at) return null;
 	// A gap stands where its line starts, which the core's byte for a container's end comes before.
-	const { at: named, ...held } = cut.caret;
-	const byte = gap ? at : named;
-	return { range: { from: byte, to: byte }, ...held };
+	return gap ? { ...cut.caret, at } : cut.caret;
 }
 
 /** The byte of the text place a caret put down at byte `at` takes. */

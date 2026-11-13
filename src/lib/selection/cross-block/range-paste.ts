@@ -14,6 +14,7 @@ import type { DocumentView } from '../../core/node-views';
 import type { DocumentGetter } from '../../editor-keys';
 import { withLeafBytes } from '../../range-edit/document';
 import { editRange } from '../../range-edit/edit-range';
+import { restored } from '../../range-edit/own-entry';
 import type { LeafWrite, PasteHost, RangeHost } from '../../range-edit/host';
 import type { LeafEdit } from '../../range-edit/leaf-splice';
 import type { PluginActivation } from '../../schema/plugin-activation';
@@ -107,7 +108,7 @@ export async function pasteThroughCore(
 		...(spend ? spending(core, spend) : core),
 		transformPaste: (text) => applyPasteTransforms(text, ctx.activePlugins)
 	};
-	const { range, ...held } = place;
+	const { range, ...held } = puttingBack(place, clip, source);
 	const gesture = { paste: clip.text, plain: clip.plain, own: clip.own, ...held };
 	const answer = editRange(source, range, gesture, modeOf(ctx), host);
 	if (answer.source === source) {
@@ -124,6 +125,16 @@ export async function pasteThroughCore(
 		op: { kind: 'paste', detail: { count: answer.blocks ?? 0 } },
 		snapshot: undo
 	});
+}
+
+/** `place`, or the last cut's own caret where the clipboard carries the entry that cut wrote, which
+ *  fits only there; a plain paste declines the entry, so it goes where the caret is. */
+function puttingBack(place: PastePlace, clip: Clip, source: string): PastePlace {
+	const { back, ...rest } = place;
+	if (!back || clip.plain || clip.own === undefined) return rest;
+	if (!restored(source, back.at, back.at, clip.own)) return rest;
+	const { at, ...held } = back;
+	return { ...held, range: { from: at, to: at }, ending: rest.ending };
 }
 
 /** The selection ended as a caret at byte `at`, with nothing written. */

@@ -498,7 +498,7 @@ function placeAfterRemoval(ctx: CrossBlockMutationContext, removed: Removed): Pa
 	const slot = emptiedPlace(ctx.bytes.measured(), removed);
 	if (slot) return placeOfGap(ctx.bytes, { parentPath: slot.slice(0, -1), index: slot.at(-1)! });
 	const { landed, caret } = removed;
-	if (landed && landed.holds !== 'text') {
+	if (landed?.holds === 'block') {
 		const { at, ...held } = landed;
 		return { range: { from: at, to: at }, ...held };
 	}
