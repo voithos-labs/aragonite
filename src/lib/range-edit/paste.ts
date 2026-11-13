@@ -112,7 +112,8 @@ function itemEntered(
 	};
 	const bare = landedAt(doc, from, to, rest, seen);
 	const { path } = host.item;
-	const kind = { node: nodeAt(doc, path), marker: doc.host.itemAfter(doc.tree, path) };
+	const marker = doc.host.itemAfter(doc.tree, path);
+	const kind = { node: nodeAt(doc, path), marker, depth: path.length };
 	return enteredAt(
 		{ ...readDoc(bare.source, doc.host, doc.mode), ending: doc.ending },
 		bare.caret,

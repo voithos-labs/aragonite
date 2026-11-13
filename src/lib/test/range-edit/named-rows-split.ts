@@ -867,6 +867,13 @@ const LIST_ENDING_ROWS: NamedRow[] = [
 	),
 	...both('over the host’s whole text', '1. ⟦n⟧\n2. c\n', paste('- q\n'), '- q\n1. \n2. c\n'),
 	...both(
+		'a nested list of another kind opens its own next item',
+		'- a⟦⟧b\n',
+		paste('- q\n  1. r\n'),
+		'- aq\n  1. r\n  2. b\n'
+	),
+	...both('at its end too', '1. a⟦⟧\n', paste('1. q\n   - r\n'), '1. aq\n   - r\n   - \n'),
+	...both(
 		'a list joined in opens one too',
 		'- [ ] a⟦⟧b\n',
 		paste('- q\n- r\n'),

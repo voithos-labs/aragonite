@@ -48,16 +48,21 @@ export function itemHolding(doc: Doc, from: number, to: number) {
 export interface HostItem {
 	node: NodeView;
 	marker: string;
+	depth: number;
 }
 
 /** Enter at byte `caret` in a list item's own text, or at the item's end, opening an item of
- *  `host`'s kind: the next item holds what follows, the items under it numbered on. */
+ *  `host`'s kind at its depth: the next item holds what follows, the items under it numbered on. */
 export function enteredAt(doc: Doc, caret: number, host: HostItem): Edit | null {
 	const there = itemHolding(doc, caret, caret);
 	const item = there?.item ?? endedItem(doc, caret);
 	const list = item && parentOf(doc, item);
 	if (!item || !list) return null;
-	if (!itemsShareList(host.node, nodeAt(doc, item.path))) return openedUnder(doc, list, host);
+	// A list nested deeper than the host's item opens its own next item, as Enter there does.
+	const nested = item.path.length > host.depth;
+	const own = doc.host.itemAfter(doc.tree, item.path);
+	if (!nested && !itemsShareList(host.node, nodeAt(doc, item.path)))
+		return openedUnder(doc, list, host);
 	const held = there?.held;
 	const none = { before: '', after: '', lead: '' };
 	const cut = held
@@ -66,7 +71,7 @@ export function enteredAt(doc: Doc, caret: number, host: HostItem): Edit | null 
 	const outer = continuation(doc, caret, (c) => c !== list);
 	const first = item.lineAt!(item.from);
 	const indent = /^[ \t]*/.exec(doc.source.slice(first.from, first.markerTo))![0];
-	const marker = numberedAs(host.marker, doc.host.itemAfter(doc.tree, item.path));
+	const marker = nested ? own : numberedAs(host.marker, own);
 	const head = cut.head + doc.ending + outer + indent + marker;
 	const opened = { source: head + cut.rest, caret: head.length + cut.caret };
 	return numberedAfterTaking(doc, list, item.path.at(-1)! + 1, opened);
