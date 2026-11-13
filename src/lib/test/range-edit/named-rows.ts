@@ -352,6 +352,45 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: plain('x\ny'),
 		expect: { source: '- a\n\n      cx\n      yode\n' }
 	},
+	// ── A paste that leaves a block held whole blank gives up the blank line under it ──
+	// Miss-analysis: the held-whole rows pasted text, which keeps the line apart from the block
+	// under it, so no row typed blank text over a block, which empties it as its own write does.
+	{
+		name: 'L5 a space pasted over a whole ATX heading leaves its line, not the blank line under it',
+		source: '⟦# Plan⟧\n\nnext\n',
+		gesture: paste(' '),
+		expect: { source: ' \nnext\n', caret: text(1) }
+	},
+	{
+		name: 'L5 the same over an ATX heading with a closing run',
+		source: '⟦# Plan #⟧\n\nnext\n',
+		gesture: paste(' '),
+		expect: { source: ' \nnext\n', caret: text(1) }
+	},
+	{
+		name: 'L5 the same over a setext title and its underline',
+		source: '⟦Plan\n---⟧\n\nnext\n',
+		gesture: paste(' '),
+		expect: { source: ' \nnext\n', caret: text(1) }
+	},
+	{
+		name: 'L5 the same in a quote, CRLF',
+		source: '> ⟦# Plan⟧\r\n>\r\n> next\r\n',
+		gesture: paste('\t'),
+		expect: { source: '> \t\r\n> next\r\n', caret: text(3) }
+	},
+	{
+		name: 'L5 the same under a paragraph, whose blank line above stays',
+		source: 'before\n\n⟦# Plan⟧\n\nnext\n',
+		gesture: paste(' '),
+		expect: { source: 'before\n\n \nnext\n', caret: text(9) }
+	},
+	{
+		name: 'L5 text pasted over a whole heading keeps the blank line under it',
+		source: '⟦# Plan⟧\n\nnext\n',
+		gesture: paste('x'),
+		expect: { source: 'x\n\nnext\n', caret: text(1) }
+	},
 	// ── A list pasted into a list of the other kind breaks out of it (C8) ──
 	// Miss-analysis: the merge fact's mismatch rule was read by neither the core nor the law's
 	// expectation, and every list row pasted a list of the caret's own kind.
