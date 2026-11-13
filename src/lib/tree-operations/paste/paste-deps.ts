@@ -36,6 +36,8 @@ export interface PasteCommitCoordinator {
 		preEditOffset: number,
 		caret: number
 	): ContentWrite;
+	/** Whether `writeLeaf` of `text` at `leafPath` leaves those bytes and no others. */
+	landsAsWritten(leafPath: readonly number[], text: string): boolean;
 	/** Replace the block at `blockPath` as one commit at its parent list, resolving to how many blocks
 	 *  landed or null; `snapshotOffset` is undo's caret in the block when nothing is focused. */
 	replaceBlock(

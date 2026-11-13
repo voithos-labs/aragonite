@@ -16,13 +16,18 @@ export function rangeSelectionOf(entry: UndoEntry): EditorSelection {
 	return entry.selection;
 }
 
-/** The caret the newest undo entry of a mounted editor puts back; it must be a collapsed one. */
-export function newestEntryCaret(editor: MountedEditor): SelectionPoint {
+/** The selection the newest undo entry of a mounted editor puts back. */
+export function newestEntrySelection(editor: MountedEditor): EditorSelection {
 	const { undo } = (
 		editor.instance as unknown as { __test: { getUndoStack(): { undo: UndoEntry[] } } }
 	).__test.getUndoStack();
 	expect(undo.length, 'no undo entry was pushed').toBeGreaterThan(0);
-	const { anchor, focus } = rangeSelectionOf(undo[undo.length - 1]);
+	return rangeSelectionOf(undo[undo.length - 1]);
+}
+
+/** The caret the newest undo entry of a mounted editor puts back; it must be a collapsed one. */
+export function newestEntryCaret(editor: MountedEditor): SelectionPoint {
+	const { anchor, focus } = newestEntrySelection(editor);
 	expect(focus, 'the entry holds a range, not a caret').toEqual(anchor);
 	return anchor;
 }

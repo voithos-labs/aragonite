@@ -254,6 +254,9 @@ function landed(
 	if (factsOf(doc, leaf).body === 'literal') {
 		const raw = nodeAt(doc, leaf.path).raw;
 		const fence = doc.host.fence(raw);
+		// The opening fence line is the block's own syntax, which its write rule reads: an info
+		// string holds no backtick, and a run grown at its end grows the closer with it.
+		if (fence && target.from < fence.body) return write(clip);
 		if (fence && displayLines(clip).some((line) => fence.mayClose(line.text))) return write(clip);
 		// With no fence, a line stays in the block by its indent, which a new line repeats.
 		const lineStart = raw.lastIndexOf('\n', target.from - 1) + 1;

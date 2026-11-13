@@ -15,5 +15,6 @@ What the caret memory holds at the caret, a paste spends as a typed letter spend
 
 - A clipboard's last line ending goes in after the text, past a run the text closed, and the letter typed next takes the empty line it opened.
 - Two paragraphs: the first takes the record, the second reopens the run where the record kept it open.
+- In a list item or a quote, one line pasted after a held space, a pending bold, a typed closer or a chip stop past a code span takes the record as at the top level, though it commits as a byte splice there, not as the block's own write.
 
 Miss-analysis: the records were held only by the scratch differential, and a last line ending tried as Enter spent them on a landing that was then thrown away.

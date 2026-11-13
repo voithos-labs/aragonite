@@ -1,9 +1,10 @@
 /**
  * A paste through the range-edit core: the clipboard over a place read as bytes, and the core's
- * answer landed in one commit. A paste that is one write of one text block commits as that block's
- * own write, the one a typed letter ends in; any other lands as a byte splice. A kind that answers
- * a paste itself (a table cell's grid and slice) goes first. Every paste route ends here, whatever
- * brought the clipboard.
+ * answer landed in one commit. A paste that is one write of a top-level text block commits as that
+ * block's own write, the one a typed letter ends in, where that write leaves the core's bytes; any
+ * other lands as a byte splice. The caret memory's records are spent where the core writes text,
+ * before either. A kind that answers a paste itself (a table cell's grid and slice) goes first.
+ * Every paste route ends here, whatever brought the clipboard.
  */
 
 import type { CommitSnapshotArg } from '../../action-contracts';
@@ -12,14 +13,16 @@ import { docPathFrom } from '../../core/coordinate-spaces';
 import { ownTrailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import type { DocumentView } from '../../core/node-views';
 import type { DocumentGetter } from '../../editor-keys';
+import { assertPasteLanded } from '../../invariants/install';
 import { withLeafBytes } from '../../range-edit/document';
-import { editRange } from '../../range-edit/edit-range';
+import { editRange, type RangeEditResult } from '../../range-edit/edit-range';
 import { restored } from '../../range-edit/own-entry';
 import type { LeafWrite, PasteHost, RangeHost } from '../../range-edit/host';
 import type { LeafEdit } from '../../range-edit/leaf-splice';
 import type { PluginActivation } from '../../schema/plugin-activation';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { getPasteSurface, type ClipPasteInput } from '../../tree-operations/paste-surfaces';
+import { splicedBytes } from '../../tree-operations/spliced-openers';
 import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 import type { CaretLanding } from '../caret-landing';
@@ -116,15 +119,39 @@ export async function pasteThroughCore(
 		if (range.from !== range.to) await endRangeAt(ctx, answer.caret.at);
 		return false;
 	}
-	if (answer.leaf) return writeLeaf(ctx, answer.leaf, undo);
+	return landAnswer(ctx, source, answer, undo);
+}
+
+/** `answer`, the core's paste over the document `base`, landed in one commit: as the block's own
+ *  write, for its cost, where that write leaves the answer's bytes, else as a byte splice. */
+async function landAnswer(
+	ctx: PasteContext,
+	base: string,
+	answer: RangeEditResult,
+	undo: CommitSnapshotArg
+): Promise<boolean> {
 	// A block pasted at the document's end lands on its last line, whose line break stays under it.
-	const ending = ownTrailingLineEnding(source);
+	const ending = ownTrailingLineEnding(base);
 	const kept = ownTrailingLineEnding(answer.source) || !answer.source ? '' : ending;
-	return commitBytes(ctx, answer.source + kept, {
-		caret: answer.caret,
-		op: { kind: 'paste', detail: { count: answer.blocks ?? 0 } },
-		snapshot: undo
-	});
+	const landed = answer.source + kept;
+	const was = ctx.bytes.measured();
+	const { leaf } = answer;
+	const wrote =
+		leaf && ctx.pasteCoordinator.landsAsWritten(leaf.path, leaf.raw)
+			? await writeLeaf(ctx, leaf, undo)
+			: await commitBytes(ctx, landed, {
+					caret: answer.caret,
+					op: { kind: 'paste', detail: { count: answer.blocks ?? 0 } },
+					snapshot: undo
+				});
+	if (wrote) {
+		const { grammar } = ctx.reading;
+		assertPasteLanded(
+			() => splicedBytes(was, base, landed, grammar),
+			() => ctx.bytes.source()
+		);
+	}
+	return wrote;
 }
 
 /** `place`, or the last cut's own caret where the clipboard carries the entry that cut wrote, which

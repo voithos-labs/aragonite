@@ -18,6 +18,14 @@ import { changedBytes } from '#lib/tree-operations/byte-changes.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { freshBytes } from '#lib/test/harness/copied-text.js';
 import { WHOLE_BLOCK_INPUT_ATTR } from '#lib/selection/whole-block-input.js';
+import { leafWriteLands } from '#lib/editor-actions/paste-coordinator.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+
+// The fake commits record their bytes and write none, so no document here holds a paste to check.
+vi.mock('#lib/invariants/install.js', async (original) => ({
+	...(await original<typeof import('#lib/invariants/install.js')>()),
+	assertPasteLanded: () => {}
+}));
 
 interface HarnessOptions {
 	onPasteImage?: PasteImageHook;
@@ -85,7 +93,9 @@ function harness(options: HarnessOptions = {}) {
 				writeLeaf: (path: readonly number[], raw: string, _before: number, caret: number) => {
 					leafWrites.push({ path: [...path], raw });
 					return Object.assign(Promise.resolve(true), { admitted: true, keepsCaret: false, caret });
-				}
+				},
+				landsAsWritten: (path: readonly number[], raw: string) =>
+					leafWriteLands(doc, path, raw, defaultGrammarView)
 			},
 			caretLanding: {
 				restore: async (to: { anchor: { path: number[]; offset: number } }) => {

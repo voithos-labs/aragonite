@@ -395,7 +395,8 @@ const SPLICE_READS: FileRule = {
 	population: under(SOURCE_DIR.library, SOURCE_DIR.plugins),
 	matches: /(?<!function )\bspliceReading\(/,
 	allowed: {
-		[SOURCE.byteSplice]: 'the byte splice, which gives an opener its changes write a closer first',
+		[SOURCE.splicedOpeners]:
+			'the byte splice’s read, which gives an opener its changes write a closer first',
 		[SOURCE.historyActions]:
 			"an undo puts back its entry's exact bytes, which were legal when written",
 		[SOURCE.rangeHost]:
@@ -403,7 +404,7 @@ const SPLICE_READS: FileRule = {
 	},
 	reason:
 		'a route that reads bytes into the tree itself skips the closer every write gives an opener it puts above a block that would close it; hand the bytes to `commitSource` instead',
-	reaches: [SOURCE.byteSplice, SOURCE.historyActions, SOURCE.rangeHost],
+	reaches: [SOURCE.splicedOpeners, SOURCE.historyActions, SOURCE.rangeHost],
 	hits: [
 		at('src/lib/x.ts', 'const reading = spliceReading(deps.doc, before, changes, grammar);'),
 		at('src/lib/x.ts', 'installReading(deps, spliceReading(doc, text, [change], grammar)!);')

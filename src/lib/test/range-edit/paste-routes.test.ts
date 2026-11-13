@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 // G1.213: every route a paste comes in by leaves the range-edit core's bytes and its caret as the
 // byte splice lands it, by the commit the core's answer calls for (a text block's own write where
-// it names one, else the byte splice), and one undo gives the bytes back.
+// it names one and that write lands its bytes, else the byte splice), and one undo gives the bytes
+// back.
 // Miss-analysis: each paste route had suites of its own bytes, and none ran every route over one
 // place against the answer they all share.
 import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest';
@@ -71,8 +72,10 @@ function parts(input: PasteCase, row: PasteRow, took: string): string | null {
 	const agrees = row.verdict === 'same' || (row.verdict === 'caret' && row.landsSame);
 	if (!pinnedApart && !agrees)
 		return `${row.verdict}: ${JSON.stringify(row.today)} for ${JSON.stringify(row.core)}`;
-	if (!pinnedApart && row.coreLeaf && took !== 'leaf')
-		return `text in one block took ${took || 'no commit'}, not the block's own write`;
+	// The block's own write is taken exactly where it lands the core's bytes, for its cost.
+	const arm = row.coreLeafLands ? 'leaf' : 'splice';
+	if (!pinnedApart && row.coreLeaf && took !== arm)
+		return `text in one block took ${took || 'no commit'}, where its own write lands ${row.coreLeafLands ? 'the core’s bytes' : 'other bytes'}`;
 	// Across blocks the editor removes, then pastes where it holds the caret: text there is a leaf's.
 	const acrossBlocks = row.tags?.place === 'range across blocks';
 	if (!pinnedApart && !acrossBlocks && row.coreLeaf === false && took.includes('leaf'))

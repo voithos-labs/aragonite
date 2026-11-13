@@ -49,6 +49,7 @@ import { hidesDelimitersAtCaret } from '#lib/presentation-mode.js';
 import { expectedPaste, plainPasteHolds, readOf } from './expected';
 import { heldBy } from './laws';
 import { checkHost, noTransforms, type CheckHost } from './test-host';
+import { leafWriteLands } from '#lib/editor-actions/paste-coordinator.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import {
 	clipboardGesture,
@@ -107,6 +108,8 @@ export interface PasteRow extends PasteCase {
 	/** Whether the core named the paste one write of one text block, which the editor commits as
 	 *  that block's own write. */
 	coreLeaf?: boolean;
+	/** Whether that write lands the core's bytes, so the editor takes it (`leafWriteLands`). */
+	coreLeafLands?: boolean;
 	today: Answer | { undetermined: string };
 	/** The core's answer as the byte splice lands it, and before, where a closer changed it. */
 	core: Answer | { threw: string } | null;
@@ -166,7 +169,7 @@ export function coreAnswer(
 	gesture: Gesture,
 	mode: Mode,
 	grammar: GrammarView
-): { raw: RangeEditResult; landed: Answer; window?: string } {
+): { raw: RangeEditResult; landed: Answer; window?: string; lands?: boolean } {
 	const reading = fixtureReading({ grammar }, mode);
 	const doc = readAsOpened(source, { grammar, scope: 'document' }) as Document;
 	const laid = measured(doc);
@@ -177,14 +180,17 @@ export function coreAnswer(
 	const current = empty ? undefined : { source, measured: laid, layout };
 	const host = noTransforms(rangeHost(reading, current));
 	const raw = editRange(source, range, gesture, mode, host);
-	if (empty || raw.source === '') return { raw, landed: { source: raw.source, caret: raw.caret } };
+	const lands = !!raw.leaf && leafWriteLands(doc, raw.leaf.path, raw.leaf.raw, grammar);
+	if (empty || raw.source === '')
+		return { raw, landed: { source: raw.source, caret: raw.caret }, lands };
 	const changes = changesBetween(source, raw.source);
 	const read = spliceReading(measured(doc), source, changes, grammar);
 	const closers = read ? splicedOpenerClosers(measured(doc), source, changes, read, grammar) : [];
 	const made = withSplicedClosers(source, changes, closers);
 	const written = changedBytes(source, 0, source.length, made);
 	const caret = { ...raw.caret, at: offsetPastClosers(raw.caret.at, closers) };
-	return { raw, landed: { source: written, caret }, window: windowParity(source, made, grammar) };
+	const window = windowParity(source, made, grammar);
+	return { raw, landed: { source: written, caret }, window, lands };
 }
 
 /** Why the splice's windows read `changes` other than the top-level window would; undefined when
@@ -401,6 +407,7 @@ function coreSide(
 		if (answer.raw.source !== answer.landed.source) row.coreRaw = answer.raw;
 		if (answer.window) row.window = answer.window;
 		row.coreLeaf = answer.raw.leaf !== undefined;
+		row.coreLeafLands = answer.lands;
 		const clip = LF(row.clip);
 		if (!CUTS.includes(input.route) && clip.endsWith('\n')) {
 			const plain = input.route === 'plain menu' || input.route === 'shift key';

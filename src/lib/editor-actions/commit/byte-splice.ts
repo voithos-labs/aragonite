@@ -13,7 +13,6 @@ import type { ScopedOpDescriptor } from '../../schema/operations';
 import { docPathFrom } from '../../core/coordinate-spaces';
 import {
 	runsOf,
-	spliceReading,
 	withWindows,
 	type SpliceReading,
 	type SpliceWindow
@@ -32,11 +31,7 @@ import { landingAt } from '../../selection/range-bytes';
 import { replaceRefs } from '../../block-lists/child-refs';
 import { assertIdsInLockstep, assertSpliceReadsBack } from '../../invariants/install';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
-import {
-	checkSplicedChangesClosed,
-	splicedOpenerClosers,
-	withSplicedClosers
-} from '../../tree-operations/spliced-openers';
+import { checkSplicedChangesClosed, closedSplice } from '../../tree-operations/spliced-openers';
 import { offsetPastClosers } from '../../tree-operations/written-openers';
 import type { EditorActionsDeps } from '../deps';
 import type { CommitArgs } from './structural-commit';
@@ -72,12 +67,10 @@ export function createByteSplice(
 			discardIfNoop: true,
 			// Inside the frame, so a block opener that throws on the new bytes fails the write.
 			prepare: () => {
-				const read = spliceReading(was, before, splice.changes, grammar);
-				const closers = read
-					? splicedOpenerClosers(was, before, splice.changes, read, grammar)
-					: [];
-				if (closers.length > 0) changes = withSplicedClosers(before, splice.changes, closers);
-				reading = closers.length > 0 ? spliceReading(was, before, changes, grammar) : read;
+				const closed = closedSplice(was, before, splice.changes, grammar);
+				const { closers } = closed;
+				changes = closed.changes;
+				reading = closed.reading;
 				windows = reading?.windows ?? [];
 				if (!('eventPath' in splice.op)) op.eventPath = docPathFrom([windows[0]?.at ?? 0]);
 				// Measured in the caller's bytes, then past the closers, so a caret inside a write stays

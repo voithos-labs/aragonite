@@ -164,22 +164,6 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		issue: '#819',
 		lane: 'rebuild',
 		defect:
-			'a paste at a caret rewrites the container prefix of the line it lands on (`  [^n]: ` to `[^n]: `, `>a` to `> a`, a tab to spaces)',
-		lines: /^L9\.prefix /,
-		keeps: sameWords,
-		repro: {
-			law: 'L9',
-			args: [
-				{ source: '  [^n]: a\n', mode: 'source', caret: end(0, 'start') },
-				'line one\nline two\n',
-				'menu'
-			]
-		}
-	},
-	{
-		issue: '#819',
-		lane: 'rebuild',
-		defect:
 			'in live mode, text pasted at a caret past a hidden closing run goes inside the run, not at the offset the selection reports',
 		lines: /^L9 \[[^\]]*\] paste:\S+ text live\//,
 		keeps: sameCharacters,

@@ -7,7 +7,11 @@ import { getStateForNode } from '../block-lists/state-registry';
 import { commitLeafTextAt, contentUpdate, createBlockEditCore } from './block-edit-core';
 import { refusedWrite } from './stored-caret';
 import { createPathScope } from './block-edit-scope';
+import { previewContentReparse } from './replacement-focus';
 import { docPathFrom } from '../core/coordinate-spaces';
+import type { DocumentView } from '../core/node-views';
+import type { GrammarView } from '../schema/block-openers';
+import { legalizeWrite } from '../tree-operations/content-write';
 
 export function createPasteCoordinator(
 	deps: EditorActionsDeps,
@@ -29,6 +33,8 @@ export function createPasteCoordinator(
 			const pasted = contentUpdate(scope, { kind: 'paste', detail: { count: 0 } });
 			return pasted(index, text, 'literal', 'join-typing', preEditOffset, caret);
 		},
+		landsAsWritten: (leafPath, text) =>
+			leafWriteLands(deps.doc, leafPath, text, deps.reading.grammar),
 		async replaceBlock(blockPath, replacement, focus, opts) {
 			const scope = createPathScope(root, docPathFrom(blockPath.slice(0, -1)));
 			if (!scope) return null;
@@ -49,4 +55,17 @@ export function createPasteCoordinator(
 		}
 	};
 	return coordinator;
+}
+
+/** Whether a block's own write of `text` at `path` in `doc` stores exactly those bytes: a top-level
+ *  block (a container rebuilds around it) whose rule keeps them, read as one block of its kind. */
+export function leafWriteLands(
+	doc: DocumentView,
+	path: readonly number[],
+	text: string,
+	grammar: GrammarView
+): boolean {
+	if (path.length !== 1) return false;
+	const write = legalizeWrite(doc, path[0], text, 'literal', grammar);
+	return write.text === text && previewContentReparse(doc, path[0], write, grammar).op === 'noop';
 }
