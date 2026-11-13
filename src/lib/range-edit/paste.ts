@@ -102,6 +102,9 @@ function entered(
 	const ending = pasted.plain ? null : /\r?\n$/.exec(pasted.text);
 	if (!ending || pasted.held.holds !== 'text') return null;
 	const text = pasted.text.slice(0, ending.index);
+	const leaf = leafHolding(doc, from, to)?.leaf;
+	// Literal text takes the ending as a line of its own text.
+	if (leaf && factsOf(doc, leaf).body === 'literal') return null;
 	const host = itemHolding(doc, from, to);
 	// Outside a list item only a pasted list can end in a list of the document.
 	if (!host && !endsOnList(doc, text)) return null;

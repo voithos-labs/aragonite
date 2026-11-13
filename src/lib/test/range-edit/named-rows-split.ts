@@ -935,6 +935,13 @@ const LIST_ENDING_ROWS: NamedRow[] = [
 		'- [ ] a⟦⟧b\n',
 		paste('- q\n- r\n'),
 		'- [ ] aq\n- r\n- [ ] b\n'
+	),
+	// Miss-analysis: the HTML laws at a fresh seed found it; no row ended an item in literal text.
+	...both(
+		'in literal text that ends an item the ending is a line of that text',
+		'- ```\n  co⟦⟧',
+		paste('- x\n- y\n'),
+		'- ```\n  co- x\n  - y\n'
 	)
 ];
 
