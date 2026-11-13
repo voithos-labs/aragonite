@@ -33,7 +33,12 @@ import { settleEditor } from '#lib/test/harness/settle.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { SYNTAX_PLUGINS } from '#lib/test/behavior/corpus.js';
-import { clipboardGesture, runHistory } from '#lib/test/range-laws/gestures.js';
+import {
+	clipboardGesture,
+	pasteGesture,
+	placeOwnedRange,
+	runHistory
+} from '#lib/test/range-laws/gestures.js';
 
 beforeAll(installLayoutStubs);
 beforeEach(() => {
@@ -273,6 +278,17 @@ describe('an edit on an opener line', () => check(OPENER_ROWS));
 describe('a list that gives up a lazy line', () => check(LAZY_LINE_ROWS));
 describe('an opener line emptied', () => check(EMPTIED_ROWS));
 
+async function mounted(source: string, mode: PresentationMode): Promise<Editor> {
+	const editor = mountEditor<EditorTestSurface>({
+		source,
+		presentationMode: mode,
+		plugins: SYNTAX_PLUGINS
+	});
+	await editor.settle();
+	takeDevWarns();
+	return editor;
+}
+
 // Miss-analysis: every lazy-line row edited its list's first item, where the list's start is also
 // where the caret belongs, and none typed a second key.
 describe('the key after an item gives up its lazy line', () => {
@@ -293,12 +309,7 @@ describe('the key after an item gives up its lazy line', () => {
 
 	for (const mode of MODES)
 		it.each(rows)(`${mode}: lands after the mark typed, %s`, async (_, source, path, bytes) => {
-			const editor = mountEditor<EditorTestSurface>({
-				source,
-				presentationMode: mode,
-				plugins: SYNTAX_PLUGINS
-			});
-			await editor.settle();
+			const editor = await mounted(source, mode);
 			const el = surfaceAt(editor, path);
 			placeCaret(el, 0);
 			await editor.settle();
@@ -310,4 +321,72 @@ describe('the key after an item gives up its lazy line', () => {
 
 			expect(editor.source()).toBe(bytes);
 		});
+});
+
+/** Types `q` where the caret is, checks the tree is a reload's with no dev warn, and returns the
+ *  lines. */
+async function typeNext(editor: Editor): Promise<string[]> {
+	await insertBy('hardware key', document.activeElement as HTMLElement, 'q');
+	await editor.settle();
+	const { getDocument, getGrammar } = editor.instance.__test;
+	expect(describeConvergence(getDocument(), getGrammar())).toBeNull();
+	expect(takeDevWarns().map((warn) => warn.tag)).toEqual([]);
+	return editor.source().split('\n');
+}
+
+// Miss-analysis: no row typed after a spill that took away the block the caret was sent to, so the
+// fallback to the container's own landing could go and every suite stayed green.
+describe('the key after Enter before a lazy line the quote gives up', () => {
+	const rows: [string, string, number[], string][] = [
+		['at the top level', '> # h\n> text\nlazy\n\nlast\n', [0, 1], '> text'],
+		['in a quote', '> > # h\n> > text\n> lazy\n> more\n', [0, 0, 1], '> > text'],
+		['in an item', '- > # h\n  > text\n  lazy\n  more\n', [0, 0, 0, 1], '  > text']
+	];
+
+	for (const mode of MODES)
+		it.each(rows)(`${mode}: leaves the line Enter ended, %s`, async (_, source, path, ended) => {
+			const editor = await mounted(source, mode);
+			const el = surfaceAt(editor, path);
+			placeCaret(el, 4);
+			await editor.settle();
+			await pressHardwareKey(el, { key: 'Enter' });
+			await editor.settle();
+
+			const lines = await typeNext(editor);
+
+			expect(lines).toContain(ended);
+			expect(lines.filter((line) => line.includes('q'))).toHaveLength(1);
+		});
+});
+
+// Miss-analysis: no row pasted over a whole opener line, the one gesture whose spill takes its
+// container away on the structural route, so every spill could be said to keep it.
+describe('the key after a paste over a whole opener line', () => {
+	const rows: [string, string, number[], number, string, string][] = [
+		[
+			'a nested container under it',
+			`y\n::::note\nx\n:::tip\nner\n:::\n::::${TAIL}`,
+			[1, 0],
+			8,
+			'z',
+			':::tip'
+		],
+		['a quote over its body', `x\n:::tip\nner\n:::${TAIL}`, [1, 0], 6, '> z', 'ner']
+	];
+
+	for (const mode of MODES)
+		it.each(rows)(
+			`${mode}: lands on the pasted line, %s`,
+			async (_, source, path, length, text, untouched) => {
+				const editor = await mounted(source, mode);
+				const range = { anchor: { path, offset: 0 }, focus: { path, offset: length } };
+				expect(await placeOwnedRange(editor, range)).toBe(true);
+				await pasteGesture(editor, { 'text/plain': text }, 'key');
+
+				const lines = await typeNext(editor);
+
+				expect(lines).toContain(untouched);
+				expect(lines.find((line) => line.includes('q'))).toContain('z');
+			}
+		);
 });
