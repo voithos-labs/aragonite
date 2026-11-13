@@ -55,6 +55,7 @@ test.describe('text editing, a file with no final line break, emptied', () => {
 					await selectEverything();
 					await page.keyboard.press('ControlOrMeta+x');
 					await expectSource('');
+					await editor.waitForClipboardContains('tail');
 					await editor.paste();
 					// Which line endings a paste into an empty file writes is its own rule, so this row
 					// reads the text alone.

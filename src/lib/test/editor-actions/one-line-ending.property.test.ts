@@ -11,14 +11,7 @@ import { firstLineEnding, type LineEnding } from '#lib/core/lines.js';
 import { lineEndingCounts } from '#lib/core/line-ending-pairs.js';
 import { serialize } from '#lib/core/serializer.js';
 import { freshOrFixedSeed } from '../invariants/arbitraries';
-import {
-	arbOp,
-	arbSource,
-	makeHarness,
-	runOp,
-	type Harness,
-	type Op
-} from '../undo/restoration-ops';
+import { arbOp, arbSource, makeHarness, runOp, type Op } from '../undo/restoration-ops';
 import { takeDevWarns } from '../support/warn-gate';
 
 const PARAMS = { numRuns: 60, seed: freshOrFixedSeed(20261114) } as const;
@@ -29,17 +22,21 @@ function otherEndings(text: string, ending: LineEnding): number {
 	return ending === '\r\n' ? loneCr + loneLf : pairs + loneCr;
 }
 
-const warnings = () => takeDevWarns().map((warn) => `${warn.tag}: ${warn.message}`);
-
-/** Runs `ops`, failing on the first that leaves an ending other than the source's. */
-async function runKeepingEnding(source: string, ops: readonly Op[]): Promise<Harness> {
+/** Runs `ops`, failing on the first that warns or leaves an ending other than the source's.
+ *  Returns the source, then the bytes after each operation. */
+async function runKeepingEnding(source: string, ops: readonly Op[]): Promise<string[]> {
 	const ending = firstLineEnding(source)!;
 	const h = makeHarness(source);
+	const states = [source];
 	for (const op of ops) {
 		await runOp(h, op);
-		expect(otherEndings(serialize(h.deps.doc), ending), JSON.stringify(op)).toBe(0);
+		// Taken before either check can throw, so a failing run leaves no warning for the next.
+		const warned = takeDevWarns().map((warn) => `${warn.tag}: ${warn.message}`);
+		states.push(serialize(h.deps.doc));
+		expect(otherEndings(states.at(-1)!, ending), JSON.stringify(op)).toBe(0);
+		expect(warned, JSON.stringify(op)).toEqual([]);
 	}
-	return h;
+	return states;
 }
 
 const LIST = 'lead\r\n\r\n- one\r\n- two\r\n- three\r\n\r\ntail\r\n';
@@ -79,28 +76,17 @@ const ON_CRLF: Record<Op['t'], { source: string; ops: Op[] }> = {
 
 describe('G4.20 a document keeps its one line ending through every drawn write', () => {
 	it.each(Object.entries(ON_CRLF))('%s on a CRLF document', async (_, { source, ops }) => {
-		const ending = firstLineEnding(source)!;
-		const h = makeHarness(source);
-		const states = [source];
-		for (const op of ops) {
-			await runOp(h, op);
-			states.push(serialize(h.deps.doc));
-			expect(otherEndings(states.at(-1)!, ending), JSON.stringify(op)).toBe(0);
-		}
+		const states = await runKeepingEnding(source, ops);
 		// An operation that wrote nothing would pass with nothing checked.
 		expect(states.at(-1)).not.toBe(states.at(-2));
-		expect(warnings()).toEqual([]);
 	});
 
 	it('a letter typed in a paragraph, then an item added to the list below', async () => {
-		const h = await runKeepingEnding(LIST, [
+		const states = await runKeepingEnding(LIST, [
 			{ t: 'typeChar', i: 0, off: 0, ch: 0 },
 			{ t: 'insertItem', i: 0 }
 		]);
-		expect(serialize(h.deps.doc)).toBe(
-			'|lead\r\n\r\n- one\r\n- \r\n- two\r\n- three\r\n\r\ntail\r\n'
-		);
-		expect(warnings()).toEqual([]);
+		expect(states.at(-1)).toBe('|lead\r\n\r\n- one\r\n- \r\n- two\r\n- three\r\n\r\ntail\r\n');
 	});
 
 	it('over drawn sources and operations', async () => {
@@ -110,8 +96,6 @@ describe('G4.20 a document keeps its one line ending through every drawn write',
 				fc.array(arbOp, { minLength: 1, maxLength: 12 }),
 				async (source, ops) => {
 					await runKeepingEnding(source, ops);
-					// Read per run, so a counterexample shrinks to the write that warned.
-					expect(warnings()).toEqual([]);
 				}
 			),
 			PARAMS
