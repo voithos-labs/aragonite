@@ -179,7 +179,7 @@ function across(
 			tail = kept + (lineGoes ? rest.replace(gone, '') : rest);
 		}
 		// A start line taken whole has ended already.
-		const ended = /\n$/.test(before);
+		const ended = held && /\n$/.test(before);
 		if (tail !== '' && !first && !ended && !(lineGoes && kept === '')) tail = doc.ending + tail;
 	}
 	const joined = before + tail;
@@ -188,6 +188,7 @@ function across(
 	// where that line went whole and the tail goes on from its markers, above the tail as whole lines.
 	const marks = lineHead(joined, before.length);
 	const lineGone =
+		held &&
 		(!!lines || !joins) &&
 		before.length > marks.length &&
 		/^[ \t>]*$/.test(marks) &&

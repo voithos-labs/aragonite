@@ -13,7 +13,7 @@ import type {
 import type { Mode } from '#lib/range-edit/host.js';
 import type { LaidBlock } from '#lib/range-edit/layout.js';
 import type { CheckHost } from './test-host';
-import { movedLine } from './kept-lines';
+import { gluedStart, movedLine } from './kept-lines';
 import {
 	endingOf,
 	expectedCopy,
@@ -252,7 +252,8 @@ export function keepsOutside(call: Call, host: CheckHost, input: RangeInput): st
 		const kept = runless(got.source).startsWith(runless(source.slice(0, from)));
 		if (!kept || (tail !== '' && got.source.indexOf(tail, from) < 0))
 			out.push(`L4 ${key} changed bytes outside the range: ${q(got.source)}`);
-		const moved = movedLine(host, read, from, to, got.source);
+		const glued = input.mode === 'source' && gluedStart(host, read, from, to, got.source);
+		const moved = glued || movedLine(host, read, from, to, got.source);
 		if (moved) out.push(`L4 ${key} ${moved}: ${q(got.source)}`);
 	}
 	return out;

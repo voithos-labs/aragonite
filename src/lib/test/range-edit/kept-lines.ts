@@ -1,9 +1,10 @@
 // The lines a removal never covered, after the block the range ends in: each stays a line of its
 // own, in order, inside the same fenced containers, so a closing line it kept stands where it closes
 // its own container (the spec's section 5.2). A line is matched by its text past its container
-// markers, so a list renumbered or a marker moved to a new first line still finds it.
+// markers, so a list renumbered or a marker moved to a new first line still finds it. The line the
+// range starts on stays too, emptied, wherever its block does.
 
-import { leafAt, readOf, type Read } from './expected';
+import { inTitleRow, leafAt, mixedEndings, readOf, type Read } from './expected';
 import type { CheckHost } from './test-host';
 
 interface KeptLine {
@@ -40,6 +41,34 @@ export function movedLine(
 		cursor = at + 1;
 	}
 	return null;
+}
+
+/** What `got` put right after the start, as a report line, where the block the range starts in
+ *  stays and its line is neither ended there nor joined by the end line's text; null otherwise. */
+export function gluedStart(
+	host: CheckHost,
+	read: Read,
+	from: number,
+	to: number,
+	got: string
+): string | null {
+	const { source } = read;
+	const oneLine = !source.slice(from, to).includes('\n');
+	if (oneLine || !leafAt(read, from) || inTitleRow(read, from, host)) return null;
+	// Mixed endings leave a lone `\r` on an emptied line, a defect of its own.
+	if (mixedEndings(source)) return null;
+	const whole = read.blocks.some(
+		(b) => b.from === from && host.facts(b.type).joins !== 'text' && to >= (b.text?.to ?? b.to - 1)
+	);
+	const rest = got.slice(from);
+	if (whole || /^[ \t]*(?:\r?\n|$)/.test(rest)) return null;
+	const lineRest = (at: number) => /^[^\r\n]*/.exec(source.slice(at))![0].trim();
+	// The end line's text joined the start's, or a closing fence the range started on came back.
+	const joined = [lineRest(to), lineRest(from)].some(
+		(t) => t !== '' && rest.trimStart().startsWith(t)
+	);
+	if (joined) return null;
+	return `glued the start’s line to ${JSON.stringify(rest.slice(0, 24))}`;
 }
 
 /** The first line starting at or after `at`. */

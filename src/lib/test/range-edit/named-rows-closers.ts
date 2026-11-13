@@ -4,10 +4,15 @@
 
 import type { NamedRow } from './named-rows';
 
-const cut = (name: string, source: string, out: string): NamedRow[] => [
-	{ name, source, gesture: 'cut', expect: { source: out } },
-	{ name: `${name}, live`, source, mode: 'live', gesture: 'cut', expect: { source: out } }
-];
+type Caret = NonNullable<NamedRow['expect']['caret']>;
+
+const cut = (name: string, source: string, out: string, caret?: Caret): NamedRow[] => {
+	const expect = { source: out, ...(caret && { caret }) };
+	return [
+		{ name, source, gesture: 'cut', expect },
+		{ name: `${name}, live`, source, mode: 'live', gesture: 'cut', expect }
+	];
+};
 
 // Miss-analysis: no drawn fenced container held a block a range takes whole from its first byte
 // (its bodies held paragraphs and `# head`), so no range left one from there with a block after it.
@@ -104,4 +109,32 @@ const OPENING_ROWS: NamedRow[] = [
 	)
 ];
 
-export const CLOSER_ROWS: NamedRow[] = [...CLOSING_LINE_ROWS, ...LINE_ROWS, ...OPENING_ROWS];
+// Miss-analysis: every row that left a container without joining text started in a block taken
+// whole or in mid-line, so none started at a line's first byte in a block that stays.
+const START_LINE_ROWS: NamedRow[] = [
+	...cut(
+		'L4 from a paragraph’s second line into a container right below, that line stays, emptied',
+		'x\n⟦body\n:::tip\nin⟧ner\n:::\n\n# h\n',
+		'x\n\n:::tip\nner\n:::\n\n# h\n',
+		{ at: 2, holds: 'boundary', parent: [] }
+	),
+	...cut(
+		'L4 from a code line’s start out of its block, that line stays, emptied',
+		'```\none\n⟦two\n```\n\npa⟧ra\n',
+		'```\none\n\n```\nra\n',
+		{ at: 8, holds: 'text' }
+	),
+	...cut(
+		'L4 a paragraph emptied from its first byte keeps its line in the note the range leaves',
+		':::note\n⟦body\n:::\n\n```\nco⟧de\n```\n',
+		':::note\n\n:::\n\n```\nde\n```\n',
+		{ at: 8, holds: 'text' }
+	)
+];
+
+export const CLOSER_ROWS: NamedRow[] = [
+	...CLOSING_LINE_ROWS,
+	...LINE_ROWS,
+	...OPENING_ROWS,
+	...START_LINE_ROWS
+];
