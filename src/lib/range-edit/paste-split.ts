@@ -6,7 +6,7 @@
  */
 
 import { isBlankText } from '../core/lines';
-import type { NodeView } from '../core/node-views';
+import type { DocumentView, NodeView } from '../core/node-views';
 import { itemsShareList } from '../tree-operations/list/ordered-markers';
 import type { LaidBlock } from './layout';
 import { pastMarkers } from './apart';
@@ -151,7 +151,8 @@ function parted(doc: Doc, out: string, line: number, marks: string, pair: Touchi
 					ended(pair.upper),
 					ended(pair.lower),
 					pair.placed,
-					null
+					// The pair stands where child `index` stood, so a block above that waits is asked too.
+					pair.index
 				)));
 	return apart ? out.slice(0, line) + marks.trimEnd() + doc.ending + out.slice(line) : out;
 }
@@ -359,8 +360,28 @@ function setApart(
 		lower: blocks[0].raw,
 		placed: placed(blocks[0], upper, true)
 	};
-	const grown = parted(doc, out, edit.line, edit.marks, always && pair.placed ? null : pair);
+	// A block above that waits is asked with the run as the paste leaves it: where the clipboard
+	// took the blank line over the lower block, that block stands flush under it.
+	const taken = lower && out === edit.source && nodeAt(doc, lower.path).leadingTrivia !== '';
+	const asLeft = taken ? { ...doc, tree: flushAt(doc.tree, path, lower.path.at(-1)!) } : doc;
+	const grown = parted(asLeft, out, edit.line, edit.marks, always && pair.placed ? null : pair);
 	return { source: grown, caret: edit.caret + grown.length - out.length };
+}
+
+/** `tree` read with child `index` of the block at `path` flush under the child above it. */
+function flushAt(tree: DocumentView, path: readonly number[], index: number): DocumentView {
+	const flushed = (children: readonly NodeView[], at: readonly number[]): NodeView[] => {
+		const copy = [...children];
+		const [step, ...rest] = at;
+		if (step === undefined) copy[index] = { ...copy[index], leadingTrivia: '' } as NodeView;
+		else
+			copy[step] = {
+				...copy[step],
+				children: flushed(copy[step].children ?? [], rest)
+			} as NodeView;
+		return copy;
+	};
+	return { ...tree, children: flushed(tree.children, path) };
 }
 
 /** Whether `byte` sits on the line that closes a container. */
