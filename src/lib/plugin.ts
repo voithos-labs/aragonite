@@ -370,8 +370,8 @@ export type {
 export { createScanIndex } from './scan-index';
 
 // ── Paste transforms (pre-freeze) ────────────────────────────────────────────
-// A pre-parse clipboard rewrite: inspect the raw pasted text, replace it or decline
-// (null). Transforms run in install order at every paste, never on load or while typing.
+// A pre-parse clipboard rewrite: inspect the raw pasted text, replace it or decline (null).
+// Transforms run in install order where a paste lands as blocks, never on load or while typing.
 export { registerPasteTransform } from './tree-operations/paste/paste-transforms';
 export type { PasteTransform } from './tree-operations/paste/paste-transforms';
 
