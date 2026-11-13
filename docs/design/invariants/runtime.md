@@ -132,6 +132,7 @@ These checks run in three kinds of place:
 | G1.211 | A write started while another is open writes nothing | A·L·N |
 | G1.212 | A range read as bytes spans every block its coverage holds whole | A·N·P |
 | G1.214 | A block a keystroke wrote in place reads back with the blocks flush around it | A·N |
+| G1.220 | A fold of the chain rebuild spells the lines its list spelled before it | A·N |
 
 ### The entries
 
@@ -362,5 +363,7 @@ These checks run in three kinds of place:
 **G1.212 · A range holds its whole blocks** (`range-holds-whole`). The bytes a copy, a removal and the overlay read span every block the coverage holds whole, a title row to its text. An end stepping back off a block it can't join would otherwise stop inside one: at a closed summary's text, before a `:::` closer. `rangeBytes` widens last; dev checks it. `checkRangeHoldsWhole` (`range-holds-whole.ts`) · `selection/range-bytes.ts :: rangeBytes` · `range-holds-whole.property.test.ts`, `selection/range-end-narrowing.test.ts`, `selection/cross-block/range-holds-whole.test.ts`.
 
 **G1.214 · A block written in place reads back with its run** (`settled-window-reads-back`). A keystroke that keeps its block's kind reports no window, yet its bytes can change a neighbour: a `"` that closes a title a definition above was waiting on. So where the written block stands flush against one, it is read with every block no blank line parts from it, and so is a list or quote it sits in. Skipped past 16 KB and in perf runs. `checkWrittenInPlaceReadsBack` · `fix-up/apply.ts`, `chain-rebuild.ts` · `settled-window-reads-back.test.ts`, `backing-out-opener-join.test.ts`.
+
+**G1.220 · A fold keeps its lines** (`fold-keeps-lines`). A fold re-reads blocks where they stand: a container's new bytes placed as the blocks they read as, a join merged, a wait read again. It may write a blank line and nothing else, so its list spells the same lines in the same order afterwards. No read-back holds that, because lines written twice can read as the tree does. When it fires, a fold wrote at an index that had moved. Skipped past 1 MB. `checkFoldKeepsLines` · `chain-rebuild.ts :: foldWrite` · `fold-keeps-lines.test.ts`, `container-slot-reading.test.ts`.
 
 **G1.201 · A container's window reads back first** (`container-window-reads-back`). Before a byte splice reads a run of a list's, quote's or table's children again with the change made, it reads their old bytes the same way, and those must come out as the children the container held. When they don't, the child spans were stale or the container's own reading disagrees with the document's, so dev warns and the splice takes the top-level window. Inline in `tree-operations/container-window.ts :: containerWindow` · `container-window.property.test.ts`.

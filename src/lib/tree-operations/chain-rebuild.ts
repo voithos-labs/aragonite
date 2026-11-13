@@ -17,7 +17,8 @@ import { blockFacts } from '../schema/block-facts';
 import { firstLine, followBytes, lastLine } from '../schema/container-raw';
 import { reservedChromeKindOf, rowMarker } from '../schema/reserved-chrome';
 import { perfEnabled, recordRebuildDepth } from '../perf/instruments';
-import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
+import { assertInvariant, devChecksOn } from '@voithos-labs/aragonite/dev-checks';
+import { checkFoldKeepsLines, foldedBytes } from '../invariants/fold-keeps-lines';
 import { checkWrittenInPlaceReadsBack } from '../invariants/settled-window-reads-back';
 import { rebuildOwnedContainer, walkUnsharing } from './unshare';
 import { fixUpWrite, mergeJoinsAt, rereadWaitAt, type TrackedPosition } from './fix-up/apply';
@@ -226,7 +227,8 @@ function writeSpill(
 		assignChildIdsDeep(block);
 	}
 	blocks[0].leadingTrivia = node.leadingTrivia;
-	const before = body.children.slice();
+	const fold = foldWrite(slot, folds);
+	fold.capture();
 	spliceList(body, index, 1, blocks);
 	for (let k = 0; k < blocks.length; k++) sharing.stamp(body.children[index + k]);
 	// Before the fix-up, which then reads the fixed-up bytes.
@@ -238,15 +240,37 @@ function writeSpill(
 		grammar,
 		sharing
 	);
-	folds.push({
-		depth: slot.depth,
-		siblings: body.children,
-		owner: slot.owner,
-		change: settled.change,
-		before,
-		landing: settledCaretPosition(settled, index, 0, body.children)
-	});
+	fold.push(settled.change, settledCaretPosition(settled, index, 0, body.children));
 	return true;
+}
+
+/**
+ * One fold of `slot`'s list: `capture` keeps the list as it stood, for rollback, and `push` is the
+ * one place a fold is reported, held there to the lines the list spelled before it.
+ */
+function foldWrite(slot: Pick<ChainSlot, 'body' | 'owner' | 'depth'>, folds: AncestrySeamFold[]) {
+	const { body } = slot;
+	let before: CstNode[] | null = null;
+	let held: string | null = null;
+	return {
+		capture(): void {
+			if (before) return;
+			before = body.children.slice();
+			if (devChecksOn) held = foldedBytes(body);
+		},
+		push(change: StructuralChange, landing: TrackedPosition): void {
+			// A fold follows a write, so the capture ran first.
+			folds.push({
+				depth: slot.depth,
+				siblings: body.children,
+				owner: slot.owner,
+				change,
+				before: before!,
+				landing
+			});
+			assertInvariant('fold-keeps-lines', () => checkFoldKeepsLines(held, foldedBytes(body)));
+		}
+	};
 }
 
 /**
@@ -318,10 +342,9 @@ function settleSlotSeams(
 	grammar: GrammarView
 ): void {
 	const { body, index, above, below } = slot;
-	const siblings = body.children;
 	// The rollback snapshot is captured only once a merge is certain, since a copy costs
 	// O(children) reactive reads on every keystroke inside a large container.
-	let before: CstNode[] | null = null;
+	const fold = foldWrite(slot, folds);
 	const landing: TrackedPosition = { index, offset: 0 };
 	const change = mergeJoinsAt(
 		body,
@@ -330,20 +353,9 @@ function settleSlotSeams(
 		grammar,
 		sharing,
 		landing,
-		() => {
-			before ??= siblings.slice();
-		}
+		fold.capture
 	);
-	if (change.op === 'noop') return;
-	folds.push({
-		depth: slot.depth,
-		siblings,
-		owner: slot.owner,
-		change,
-		// A non-noop change means a splice ran, so the capture ran first.
-		before: before!,
-		landing
-	});
+	if (change.op !== 'noop') fold.push(change, landing);
 }
 
 /** Whether `owner`'s children are blocks: an item or a row is none, so no wait runs into one. */
@@ -365,13 +377,10 @@ function settleSlotWait(
 	const siblings = body.children;
 	// A first line that moved can end a wait itself; below it, only a wait that ran past it matters.
 	if (!openerMoved && !waitsInto(siblings, index, unfinishedReadings(grammar))) return;
-	let before: CstNode[] | null = null;
+	const fold = foldWrite(slot, folds);
 	const landing: TrackedPosition = { index, offset: 0 };
-	const change = rereadWaitAt(body, index, grammar, sharing, landing, () => {
-		before ??= siblings.slice();
-	});
-	if (change.op === 'noop') return;
-	folds.push({ depth: slot.depth, siblings, owner: slot.owner, change, before: before!, landing });
+	const change = rereadWaitAt(body, index, grammar, sharing, landing, fold.capture);
+	if (change.op !== 'noop') fold.push(change, landing);
 }
 
 /**
