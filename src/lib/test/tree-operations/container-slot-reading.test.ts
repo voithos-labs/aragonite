@@ -254,6 +254,6 @@ function check(rows: Record<string, Row>): void {
 			});
 }
 
-describe('an opener line whose edit dissolves its container', () => check(OPENER_ROWS));
+describe('an edit on an opener line', () => check(OPENER_ROWS));
 describe('a list that gives up a lazy line', () => check(LAZY_LINE_ROWS));
 describe('an opener line emptied', () => check(EMPTIED_ROWS));
