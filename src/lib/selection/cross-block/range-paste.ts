@@ -258,6 +258,10 @@ async function writeLeaf(
 	leaf: LeafEdit,
 	undo: CommitSnapshotArg
 ): Promise<boolean> {
+	// The write takes bytes worked out off the kept record with no compare of its own, so the record
+	// must still hold the block's bytes, as a splice's reading must.
+	const [top] = leaf.path;
+	if (!ctx.bytes.vouch(top, top)) return false;
 	const path = docPathFrom([...leaf.path]);
 	const before = undo.path.join() === path.join() ? undo.offset : leaf.caret;
 	ctx.controller.flushDebouncedCheckpoint();
