@@ -252,11 +252,72 @@ const ENTERED_ROWS: NamedRow[] = [
 	)
 ];
 
+// Miss-analysis: the rows above entered two openings at most, both `:::` and from inside a note, so
+// none started at the document's start, crossed another kind, or took the end's block whole.
+const MIXED_ROWS: NamedRow[] = [
+	...deleted(
+		'L8 two openings entered from the document’s first block',
+		'⟦***\n\nbody\n\n::::note\n:::tip\nin⟧ner\n:::\n::::\n\n# h\n',
+		'::::note\n:::tip\nner\n:::\n::::\n\n# h\n',
+		{ at: 16, holds: 'text' }
+	),
+	...deleted(
+		'L8 three openings entered',
+		':::note\n⟦***\n\nbody\n:::\n\n:::::note\n::::note\n:::tip\nin⟧ner\n:::\n::::\n:::::\n\n# h\n',
+		':::note\n:::\n\n:::::note\n::::note\n:::tip\nner\n:::\n::::\n:::::\n\n# h\n',
+		{ at: 39, holds: 'text' }
+	),
+	...deleted(
+		'L8 a code block in a tip in a details in a note keeps all four openings',
+		':::note\n⟦***\n\nbody\n:::\n\n::::note\n<details open>\n<summary>Sum</summary>\n\n:::tip\n```\nco⟧de\n```\n:::\n\n</details>\n::::\n\n# h\n',
+		':::note\n:::\n\n::::note\n<details open>\n<summary>Sum</summary>\n:::tip\n```\nde\n```\n:::\n\n</details>\n::::\n\n# h\n',
+		{ at: 71, holds: 'text' }
+	),
+	...deleted(
+		'L8 a tip in a quote, past the quote’s marker',
+		'⟦***\n\nbody\n\n> :::tip\n> in⟧ner\n> :::\n\n# h\n',
+		'> :::tip\n> ner\n> :::\n\n# h\n',
+		{ at: 11, holds: 'text' }
+	),
+	...deleted(
+		'L8 a tip in an item, past the item’s indent',
+		'⟦***\n\nbody\n\n- :::tip\n  in⟧ner\n  :::\n\n# h\n',
+		'- :::tip\n  ner\n  :::\n\n# h\n',
+		{ at: 11, holds: 'text' }
+	),
+	...deleted(
+		'L8 a block taken whole between two openings goes',
+		':::note\n⟦***\n\nbody\n:::\n\n::::note\n***\n\n:::tip\nin⟧ner\n:::\n::::\n\n# h\n',
+		':::note\n:::\n\n::::note\n:::tip\nner\n:::\n::::\n\n# h\n',
+		{ at: 29, holds: 'text' }
+	),
+	...deleted(
+		'L8 a tip whose only block the range takes holds the caret at its closing line',
+		':::note\n⟦***\n\nbody\n:::\n\n:::tip\n***⟧\n:::\n\n# h\n',
+		':::note\n:::\n\n:::tip\n:::\n\n# h\n',
+		{ at: 20, holds: 'boundary', parent: [1] }
+	),
+	...deleted(
+		'L8 a block taken whole under a blank line in a note the range leaves',
+		':::note\nx\n\n⟦***\n\nbody\n:::\n\n:::tip\nin⟧ner\n:::\n\n# h\n',
+		':::note\nx\n\n:::\n\n:::tip\nner\n:::\n\n# h\n',
+		{ at: 23, holds: 'text' }
+	),
+	{
+		name: 'L8 a bold run the range empties goes, and Delete lands at the text after it, live',
+		source: '⟦***\n\nbody\n\n:::tip\n**in⟧**ner\n:::\n\n# h\n',
+		mode: 'live',
+		gesture: 'delete',
+		expect: { source: ':::tip\nner\n:::\n\n# h\n', caret: { at: 7, holds: 'text' } }
+	}
+];
+
 export const CLOSER_ROWS: NamedRow[] = [
 	...CLOSING_LINE_ROWS,
 	...LINE_ROWS,
 	...OPENING_ROWS,
 	...START_LINE_ROWS,
 	...TEXT_AFTER_ROWS,
-	...ENTERED_ROWS
+	...ENTERED_ROWS,
+	...MIXED_ROWS
 ];

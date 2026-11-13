@@ -54,6 +54,12 @@ const ROWS: Row[] = [
 		typed: ':::note\n:::\n\n::::note\n:::tip\nxner\n:::\n::::\n\n# h\n'
 	},
 	{
+		name: 'from the document’s first block into a tip inside a note',
+		source: '***\n\nbody\n\n::::note\n:::tip\ninner\n:::\n::::\n\n# h\n',
+		select: { anchor: { path: [0], offset: 0 }, focus: { path: [2, 1, 1], offset: 2 } },
+		typed: '::::note\n:::tip\nxner\n:::\n::::\n\n# h\n'
+	},
+	{
 		name: 'into a titled tip’s body',
 		source: `${NOTE}:::tip Title\ninner\n:::\n\n# h\n`,
 		select: to([1, 1], 2),

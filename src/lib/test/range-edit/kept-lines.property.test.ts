@@ -8,7 +8,8 @@
 // Miss-analysis: the law draws filled fenced bodies with paragraphs and `# head` only, and drew
 // tables and rules outside fenced containers, so no range left one from a block it took whole. And
 // no draw started at a line's first byte in a block that stays, with an end that joins no text.
-// No draw ended in a later container's body, and nothing read where Delete put the caret.
+// No draw ended in a later container's body, and nothing read where Delete put the caret. No draw
+// started at the top level, crossed a details, a quote or an item on the way in, or went three deep.
 
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
@@ -25,7 +26,7 @@ import { removalBytes } from '#lib/selection/range-bytes.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
-import { readOf } from './expected';
+import { leafAt, readOf } from './expected';
 import { gluedStart, movedLine } from './kept-lines';
 import { checkHost, testReading } from './test-host';
 
@@ -34,7 +35,7 @@ const quoted = (lines: string[]) => lines.map((l) => (l ? `> ${l}` : '>'));
 const under = (first: string, rest: string) => (lines: string[]) =>
 	lines.map((l, i) => (i === 0 ? first + l : l ? rest + l : ''));
 
-/** Each container around its body. */
+/** Each container around its body; the last leaves the body at the top level. */
 const WRAPS: Record<string, (body: string[]) => string[]> = {
 	'open details': (b) => ['<details open>', '<summary>Sum</summary>', '', ...b, '', '</details>'],
 	note: (b) => [':::note', ...b, ':::'],
@@ -64,7 +65,8 @@ const WRAPS: Record<string, (body: string[]) => string[]> = {
 	alert: (b) => ['> [!NOTE]', ...quoted(b)],
 	quote: quoted,
 	item: under('- ', '  '),
-	footnote: under('[^1]: ', '    ')
+	footnote: under('[^1]: ', '    '),
+	'no container': (b) => b
 };
 
 /** The container's body: `⟦` at the first byte of a block the range takes whole, inside a block's
@@ -97,6 +99,41 @@ const ENDS: Record<string, { lines: string[]; cell?: number }> = {
 	'a code block in a later container': {
 		lines: ['', ':::tip', '```', 'co⟧de', '```', ':::', '', '# h']
 	},
+	'a code block three openings deep': {
+		lines: ['', '::::note', ':::tip', '```', 'co⟧de', '```', ':::', '::::', '', '# h']
+	},
+	'a details in a later container': {
+		lines: [
+			'',
+			':::tip',
+			'<details open>',
+			'<summary>Sum</summary>',
+			'',
+			'in⟧ner',
+			'',
+			'</details>',
+			':::',
+			'',
+			'# h'
+		]
+	},
+	'a container in a later details': {
+		lines: [
+			'',
+			'<details open>',
+			'<summary>Sum</summary>',
+			'',
+			':::tip',
+			'in⟧ner',
+			':::',
+			'',
+			'</details>',
+			'',
+			'# h'
+		]
+	},
+	'a container in a quote': { lines: ['', '> :::tip', '> in⟧ner', '> :::', '', '# h'] },
+	'a container in an item': { lines: ['', '- :::tip', '  in⟧ner', '  :::', '', '# h'] },
 	'a code block right below': { lines: ['```', 'co⟧de', '```', '', '# h'] },
 	'the document’s end': { lines: ['', 'para⟧'] }
 };
@@ -183,10 +220,14 @@ describe('G4.350 a removal keeps the lines after its range', () => {
 				const rest = lineRest(source, range.to);
 				if (!c.body.endsWith('taken whole') || cell !== undefined || isBlankText(rest)) return;
 				landed++;
+				const kind = leafAt(read, range.to)?.type;
 				for (const g of ['delete', 'compose'] as const) {
 					const { caret, source: got } = removalOf(source, range, g, c.mode, host);
 					const emptied = caret.at <= range.from && isBlankText(lineRest(got, caret.at));
-					if (caret.holds !== 'text' || !(got.startsWith(rest, caret.at) || emptied))
+					// The text after stays the kind of block it was, so an opening the removal lost shows.
+					const after =
+						got.startsWith(rest, caret.at) && leafAt(readOf(host, got), caret.at)?.type === kind;
+					if (caret.holds !== 'text' || !(after || emptied))
 						landings.push(
 							`${g} landed at ${caret.at}: ${JSON.stringify(got)}\n    ${JSON.stringify(c)}`
 						);

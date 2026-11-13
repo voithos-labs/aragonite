@@ -40,14 +40,13 @@ import {
 	type Edit
 } from './leaf-splice';
 
-/** A removal's new bytes; `gone` when the blocks at its start went whole and no text stayed, so
- *  Backspace's caret goes to the block before (`structural-edits.md` § Structural operations). */
+/** A removal's new bytes. `after` is set when the blocks at its start went whole and no text stayed:
+ *  the byte where what followed the range begins, so Backspace's caret goes to the block before and
+ *  Delete's to the text from there (`structural-edits.md` § Structural operations). */
 export interface Removal extends Edit {
-	gone?: boolean;
+	after?: number;
 	/** The removal took the block the range started in whole. */
 	took?: boolean;
-	/** Where `gone`, the byte where what followed the range begins, so Delete finds the text after. */
-	after?: number;
 	/** The block whose children the caret sits between, as laid before the removal (null for the
 	 *  document), where the removal knows it: its path is asked of the bytes after. */
 	parent?: LaidBlock | null;
@@ -109,7 +108,7 @@ function endingItsParent(doc: Doc, block: LaidBlock, to: number): Removal | null
 		join,
 		false
 	);
-	return { source, caret: at, gone: true, parent: parentOf(doc, block) ?? null };
+	return { source, caret: at, after: at, parent: parentOf(doc, block) ?? null };
 }
 
 /** A range across blocks: the end's tail joins the start where the start takes joined text, and
@@ -244,7 +243,7 @@ function across(
 	return {
 		source: out,
 		caret: opened > 0 ? at + opened - doc.ending.length : caret,
-		...(gone && { gone, after }),
+		...(gone && { after }),
 		...(held && first && { took: true })
 	};
 }

@@ -266,13 +266,15 @@ function heldAlone(doc: Doc, from: number, to: number): boolean {
 /** The caret named by what the new bytes hold there: text, the text before it on its line, a block
  *  start or a boundary, or where no text stayed, the side `beside` names. */
 function caretOf(edit: Removal, result: Doc, beside: Beside, started: () => LaidBlock[]): Place {
-	const side = !edit.gone
-		? null
-		: beside === 'end before'
-			? endBefore(result, edit.caret)
-			: beside === 'text after'
-				? startAfter(result, edit.caret, edit.after ?? edit.caret)
-				: beforeFence(result, edit.caret);
+	const { after } = edit;
+	const side =
+		after === undefined
+			? null
+			: beside === 'end before'
+				? endBefore(result, edit.caret)
+				: beside === 'text after'
+					? startAfter(result, edit.caret, after)
+					: beforeFence(result, edit.caret);
 	if (side) return side;
 	const at = edit.caret;
 	let text = at;
