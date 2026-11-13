@@ -89,12 +89,15 @@ export function definitionCrosses(line: string): boolean {
 }
 
 /** The definition's first line plus each later line a paragraph would continue onto, joined by
- *  `\n` without leading whitespace (§4.7); a line joins only when a read runs off the end. */
+ *  `\n` without leading whitespace (§4.7); lines join only when a read runs off the end. */
 class DefinitionWindow {
 	text: string;
 	/** Offset in `text` where each joined line ends. */
 	private readonly lineEnds: number[];
 	private next: number;
+	// Twice as many lines each time a read runs off the end, so a long title is scanned in a few
+	// passes over its text, not one a line.
+	private batch = 1;
 	/** Whether a read asked for a line past the last one given, so more lines could change it. */
 	ranOut = false;
 
@@ -108,18 +111,23 @@ class DefinitionWindow {
 		this.next = startIndex + 1;
 	}
 
-	/** Joins the next line if a paragraph would continue onto it. */
+	/** Joins the next lines a paragraph would continue onto, at least one; false for none. */
 	grow(): boolean {
 		if (this.next >= this.endIndex) {
 			this.ranOut = true;
 			return false;
 		}
-		const line = this.lines[this.next].text;
-		if (isBlankLine(line) || !definitionCrosses(line)) return false;
-		this.text += '\n' + line.replace(/^[ \t]+/, '');
-		this.lineEnds.push(this.text.length);
-		this.next++;
-		return true;
+		let joined = '';
+		for (const stop = Math.min(this.endIndex, this.next + this.batch); this.next < stop;) {
+			const line = this.lines[this.next].text;
+			if (isBlankLine(line) || !definitionCrosses(line)) break;
+			joined += '\n' + line.replace(/^[ \t]+/, '');
+			this.lineEnds.push(this.text.length + joined.length);
+			this.next++;
+		}
+		this.text += joined;
+		this.batch *= 2;
+		return joined !== '';
 	}
 
 	/** The index into `lines` of the joined line holding `offset`. */
