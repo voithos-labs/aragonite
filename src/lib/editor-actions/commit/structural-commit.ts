@@ -499,6 +499,7 @@ export function createStructuralCommit(
 				const at = (fold: FoldLanding) => ({ path: docPathFrom(fold.path), offset: fold.offset });
 				if (foldLanding) return at(foldLanding);
 				const asked = args.landing?.() ?? null;
+				if (!spillLanding) return asked;
 				// A gap names no block of its own, so it stands as asked.
 				const points =
 					!asked || 'gapCaret' in asked
@@ -507,7 +508,7 @@ export function createStructuralCommit(
 							? [asked]
 							: [asked.anchor, asked.focus];
 				const gone = !asked || points.some((point) => !nodeAt(deps.doc, point.path));
-				return spillLanding && gone ? at(spillLanding) : asked;
+				return gone ? at(spillLanding) : asked;
 			},
 			reveal: args.reveal,
 			announce: args.announce,
