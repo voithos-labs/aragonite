@@ -1,0 +1,96 @@
+// @vitest-environment jsdom
+// A clipboard's last line ending lands as Enter does where it lands: in a list item, a paste of
+// `X⏎` leaves what a paste of `X` and then Enter leave, the next item open with the caret in it,
+// and a letter typed next goes into that item.
+// Miss-analysis: the rows for a last line ending were paragraphs, where Enter leaves the empty line
+// the paste left, so no row asked what Enter leaves in an item.
+import { afterEach, beforeAll, beforeEach, expect, it } from 'vitest';
+import type { PresentationMode } from '#lib/presentation-mode.js';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
+import { pointAtByte } from '#lib/selection/range-bytes.js';
+import { registerDefaultContextActions } from '#lib/components/menu/default-context-actions.js';
+import {
+	destroyMountedEditors,
+	installLayoutStubs
+} from '#lib/test/harness/mount-editor.svelte.js';
+import {
+	installClipboardEvents,
+	installSystemClipboard
+} from '#lib/test/harness/clipboard-events.js';
+import { pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { mountCase, pasteGesture, placeRange, type Editor } from '../range-laws/gestures';
+
+beforeAll(installLayoutStubs);
+beforeEach(() => {
+	installClipboardEvents();
+	installSystemClipboard();
+	registerDefaultContextActions();
+});
+afterEach(async () => {
+	await destroyMountedEditors();
+	takeDevWarns();
+});
+
+/** `‸` marks the caret. */
+const ROWS: [name: string, marked: string, clip: string][] = [
+	['a bullet', '- alpha‸\n- after\n', 'one'],
+	['an ordered list numbers on', '1. alpha‸\n2. after\n', '1. one\n2. two'],
+	['a to-do', '- [ ] alpha‸\n- [ ] after\n', 'one'],
+	['a checked to-do opens an unchecked one', '- [x] alpha‸\n- [ ] after\n', 'one'],
+	['a nested item', '- a\n  - alpha‸\n- b\n', 'one'],
+	['the second paragraph of an item', '- a\n\n  alpha‸\n- b\n', 'one'],
+	['an item in a quote', '> - alpha‸\n> - after\n', 'one'],
+	['mid-text', '1. al‸pha\n2. beta\n', '1. x\n2. y'],
+	['a CRLF document', '- alpha‸\r\n- after\r\n', 'one']
+];
+
+interface Left {
+	source: string;
+	caret: string;
+}
+
+async function mounted(marked: string, mode: PresentationMode): Promise<Editor> {
+	const source = marked.replace('‸', '');
+	const editor = mountCase(source, mode);
+	await editor.settle();
+	const point = pointAtByte(measured(editor.instance.__test.getDocument()), marked.indexOf('‸'))!;
+	expect(await placeRange(editor, { anchor: point, focus: point })).toBe(true);
+	return editor;
+}
+
+const leftBy = (editor: Editor): Left => ({
+	source: editor.source(),
+	caret: JSON.stringify(editor.instance.getSelection()?.focus)
+});
+
+async function key(editor: Editor, key: string): Promise<void> {
+	await pressHardwareKey(document.activeElement as HTMLElement, { key });
+	await editor.settle();
+}
+
+/** What the paste leaves, and then a typed letter. */
+async function pasted(marked: string, mode: PresentationMode, clip: string, enter: boolean) {
+	const editor = await mounted(marked, mode);
+	await pasteGesture(editor, { 'text/plain': enter ? clip : clip + '\n' }, 'key');
+	if (enter) await key(editor, 'Enter');
+	const after = leftBy(editor);
+	await key(editor, 'Z');
+	const typed = editor.source();
+	await destroyMountedEditors();
+	return { after, typed };
+}
+
+for (const mode of ['source', 'live'] as const)
+	for (const [name, marked, clip] of ROWS)
+		it(`${mode}: ${name}, the clipboard's last line ending is Enter`, async () => {
+			const ended = await pasted(marked, mode, clip, false);
+			const entered = await pasted(marked, mode, clip, true);
+			expect(ended).toEqual(entered);
+		});
+
+it('the ruled row: an ordered list ending in a line ending opens item 3', async () => {
+	const { after, typed } = await pasted('1. alpha‸\n2. after\n', 'source', '1. one\n2. two', false);
+	expect(after.source).toBe('1. alphaone\n2. two\n3. \n4. after\n');
+	expect(typed).toBe('1. alphaone\n2. two\n3. Z\n4. after\n');
+});

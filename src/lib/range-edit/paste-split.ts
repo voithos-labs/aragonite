@@ -16,6 +16,7 @@ import {
 	findWithin,
 	holderAt,
 	lastLine,
+	leafHolding,
 	multiline,
 	nodeAt,
 	parentOf,
@@ -23,9 +24,25 @@ import {
 	titleOwner,
 	type Doc
 } from './document';
-import { numberedAfterSplit, numberedOn } from './list-numbers';
+import { numberedAfterSplit, numberedAfterTaking, numberedOn } from './list-numbers';
 import { continuation } from './markers';
-import { lineEnd, lineHead, lineRest, spliced, type Cut, type Edit } from './leaf-splice';
+import { cutLeaf, lineEnd, lineHead, lineRest, spliced, type Cut, type Edit } from './leaf-splice';
+
+/** Enter at byte `caret` of `doc`, where it stands in a list item's text: the item cut there and
+ *  the item Enter opens holding what follows, the items under it numbered on. Null elsewhere. */
+export function enteredAt(doc: Doc, caret: number): Edit | null {
+	const held = leafHolding(doc, caret, caret);
+	const item = held && parentOf(doc, held.leaf);
+	const list = item && parentOf(doc, item);
+	if (!held || !list || factsOf(doc, list).lines !== 'items') return null;
+	const cut = cutLeaf(doc, held.leaf, held.from, held.to, { before: '', after: '', lead: '' });
+	const outer = continuation(doc, caret, (c) => c !== list);
+	const first = item.lineAt!(item.from);
+	const indent = /^[ \t]*/.exec(doc.source.slice(first.from, first.markerTo))![0];
+	const head = cut.head + doc.ending + outer + indent + doc.host.itemAfter(doc.tree, item.path);
+	const opened = { source: head + cut.rest, caret: head.length + cut.caret };
+	return numberedAfterTaking(doc, list, item.path.at(-1)! + 1, opened);
+}
 
 /** A pasted list of another kind than `list`, the caret's: the pasted blocks land between the
  *  list's halves, and what the caret's item holds after the cut is the second half's first item. */

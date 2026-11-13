@@ -89,6 +89,6 @@ test.describe('copy-paste round-trip: list selections preserve structure', () =>
 
 		const src = await editor.bridge.getSource();
 		// Windows clipboard stores CRLF even when written with LF.
-		expect(src.replace(/\r\n/g, '\n').trim()).toBe('- pasted a\n- pasted b');
+		expect(src.replace(/\r\n/g, '\n').trim()).toBe('- pasted a\n- pasted b\n-');
 	});
 });

@@ -1,23 +1,10 @@
-# Feature: Cross-block list paste merge, caret at end of pasted content
+# Feature: a list pasted over a range from an item into the paragraph below
 
-A cross-block paste of a matching-type list into a non-empty list item merges the
-first pasted item into the target leaf at the caret, splices the remaining items
-as siblings, and reattaches the surviving post-caret residue to the last pasted
-item. The post-paste caret follows the clipboard contract: focus lands at the end
-of the pasted content.
+The removal joins the paragraph's tail to the item, the pasted items land at the caret it leaves, and the clipboard's last line ending opens the next item with the tail in it, as Enter does there.
 
 ## Happy paths
 
-- Cross-block selection from a list item's end into a paragraph below merges the
-  paragraph's tail into the list item; pasting a matching list reattaches that
-  tail (the residue) to the last pasted item. Focus lands at the end of the last
-  pasted item, before the residue: typing a character appends it there, not past
-  the residue.
-- Single-item clipboard (singleton merge): the one pasted item merges into the
-  target leaf and the residue reattaches after it in the same leaf; focus lands
-  at the join, before the residue.
+- `- alpha⟦\n\nbeta ⟧gamma` + `- x\n- y\n` is `- alphax\n- y\n- gamma`, the caret at `gamma`'s start; a typed `Z` gives `- Zgamma`.
+- One item, `- x\n`: `- alphax\n- gamma`, the caret at `gamma`'s start; a typed `Z` gives `- Zgamma`.
 
-## Edge cases
-
-- No residue (caret at the block end after the delete): the end of the pasted
-  content coincides with the item end, so the caret lands there either way.
+Miss-analysis: the rows pinned a clipboard whose last line ending was dropped, so none asked where Enter would leave the tail.

@@ -1551,7 +1551,7 @@ const RULES: FileRule[] = [
 				'renumbers an ordered list, and asks whether two items read as one list',
 			'src/lib/tree-operations/list/task-paragraph.ts':
 				'measures how far a new item’s first line widens its marker, for the item to take it',
-			'src/lib/editor-actions/list-context.ts': 'gives a new item the next marker',
+			'src/lib/tree-operations/list/list-builders.ts': 'gives the item Enter opens the next marker',
 			'src/lib/components/blocks/list/ListItemBlock.svelte': 'draws a bullet or a number',
 			'src/lib/components/blocks/list/task-checkbox.ts': 'paints the marker before the checkbox',
 			'src/lib/debug/dump-tree.ts': 'prints it in the tree dump'

@@ -70,9 +70,9 @@ const q = (text: string) => JSON.stringify(text);
 const caretRange = (at: number): Range => ({ from: at, to: at });
 const TEXT: Held = { holds: 'text' };
 const paste = (text: string, held: Held = TEXT): Extract<Gesture, { paste: string }> => ({
+	...held,
 	paste: text,
-	plain: false,
-	...held
+	plain: false
 });
 /** What a caret an answer left holds, apart from its byte. */
 export const heldBy = (caret: Place): Held =>
@@ -509,6 +509,22 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 	if (input.mode === 'live' && /[*_`~[\]<]/.test(input.text)) return [];
 	const got = call(input.source, caretRange(input.at), paste(input.text, input.held), input.mode);
 	if (!got) return [];
+	// A last line ending that lands in a list item is Enter there, held against the editor's own
+	// Enter (`paste-ending-enter.test.ts`): it leaves the bytes before it, and the law holds the rest.
+	const ended = /\r?\n$/.exec(input.text);
+	const rest = ended && input.text.slice(0, ended.index);
+	const bare =
+		rest !== null
+			? call(input.source, caretRange(input.at), paste(rest, input.held), input.mode)
+			: null;
+	if (rest !== null && bare && inItemText(readOf(host, bare.source), bare.caret.at, host)) {
+		// Up to the caret's line: the cut there may step out of a construct no part of which stands alone.
+		const line = bare.source.lastIndexOf('\n', bare.caret.at - 1) + 1;
+		const kept = got.source.slice(0, line) === bare.source.slice(0, line);
+		if (!kept)
+			return [`L9 a last line ending in an item changed the lines before it: ${q(got.source)}`];
+		return pasteAtCaret(call, host, { ...input, text: rest });
+	}
 	// A last line ending where a run closes right after the text cuts the block as a split cuts it,
 	// the run closed before the ending, by bytes the rows hold.
 	if (input.mode === 'live' && input.text.endsWith('\n') && closesAt(read, input.at, host))
@@ -528,6 +544,14 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 	if (cellAt(read, input.at, host) && onOneLine(input.source, input.at, got.source)) return [];
 	if (want.bytes.some((bytes) => oneLineInBody(read, input.at, bytes, got.source, host))) return [];
 	return [`L9 (${want.shape}) gave ${q(got.source)}, not ${q(want.bytes[0])}`];
+}
+
+/** Whether byte `at` stands in the text of a list item's own block. */
+function inItemText(read: Read, at: number, host: CheckHost): boolean {
+	const leaf = leafAt(read, at);
+	const above = leaf?.path.slice(0, -2).join();
+	const list = leaf && read.blocks.find((b) => b.path.length > 0 && b.path.join() === above);
+	return !!list && host.facts(list.type).lines === 'items';
 }
 
 /** The half of the caret's line that `got` leaves alone on a line of its own, where a container

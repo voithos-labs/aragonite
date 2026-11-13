@@ -8,7 +8,7 @@ import type { DocumentView, NodeView } from '../core/node-views';
 import { getContentRange } from '../core/inline';
 import { cutOutsideWhole } from '../core/inline/live-edit/live-split';
 import { documentLineEnding, ownTrailingLineEnding, trimTrailingLineEnding } from '../core/lines';
-import { makeBlockNode } from '../core/nodes';
+import { makeBlockNode, metadataIfKind } from '../core/nodes';
 import { hidesDelimitersAtCaret } from '../presentation-mode';
 import { blockFacts, type BlockFacts } from '../schema/block-facts';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
@@ -25,6 +25,7 @@ import {
 	type LeafRangeEdit
 } from '../tree-operations/leaf-range';
 import { splitHalves } from '../tree-operations/node-ops';
+import { followerMetadata } from '../tree-operations/list/list-builders';
 import { blockNodeAt, normalizeBodyWrite } from '../tree-operations/node-primitives';
 import { cutKeepingStructure } from '../tree-operations/structural-suffix';
 import { escapeMarkdownLiteral } from '../tree-operations/paste/markdown-literal';
@@ -133,6 +134,9 @@ export interface RangeHost {
 			mode: Mode
 		): string;
 	};
+	/** What the item Enter opens after the list item at `path` starts with: its marker one on, and
+	 *  an unchecked box where it has a box. */
+	itemAfter(doc: DocumentView, path: readonly number[]): string;
 	/** `text` escaped so a block that reads Markdown shows every character of it: Paste as plain
 	 *  text. A block whose text is literal takes the text as written, which the core checks. */
 	escaped(text: string): string;
@@ -286,6 +290,11 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 				const store = storedAsAt(doc, path, readingIn(mode));
 				return bytesLeavingLeaf(leafAt(doc, path), { start: from, end: to }, store);
 			}
+		},
+		itemAfter(doc, path) {
+			const own = metadataIfKind(blockNodeAt(doc, path)!, 'listItem') ?? undefined;
+			const follower = followerMetadata(own);
+			return follower.marker + (follower.taskMarker ?? '');
 		},
 		escaped: escapeMarkdownLiteral,
 		inBodies(doc, path, text) {

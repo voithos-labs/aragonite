@@ -26,7 +26,15 @@ import {
 } from './document';
 import { apartAt, pastMarkers } from './apart';
 import { closedBy, emptiedRest, leftBy, takerOf } from './container-merge';
-import { joinsList, onEmptyLine, pasteApart, restApart, splitAt, splitOut } from './paste-split';
+import {
+	enteredAt,
+	joinsList,
+	onEmptyLine,
+	pasteApart,
+	restApart,
+	splitAt,
+	splitOut
+} from './paste-split';
 import { numberedAfterTaking } from './list-numbers';
 import {
 	byteAt,
@@ -49,16 +57,55 @@ export interface Pasted {
 	plain: boolean;
 	held: Held;
 	transform: PasteHost['transformPaste'] | null;
+	/** Set where the clipboard's last line ending was taken off to land as Enter: it was more than
+	 *  one line, so it never reads as one line after text. */
+	ended?: true;
 }
 
 /** The paste of `pasted` over `[from, to)`: a caret, or a range inside one text block's text. */
 export function pasteAt(doc: Doc, from: number, to: number, pasted: Pasted): Edit {
 	const seen: { blocks?: Doc } = {};
-	const edit = landedAt(doc, from, to, pasted, seen);
+	const once = { ...pasted, transform: ranOnce(pasted.transform) };
+	const edit = itemEntered(doc, from, to, once, seen) ?? landedAt(doc, from, to, once, seen);
 	// One write of a block's text is text, whatever the clipboard read as.
 	if (!seen.blocks || edit.leaf) return edit;
 	const tops = seen.blocks.tree.children.filter((b) => !isBlankText(b.raw));
 	return { ...edit, blocks: tops.length };
+}
+
+/** `transform` called at most once for a text, since a paste may land its clipboard twice. */
+function ranOnce(transform: Pasted['transform']): Pasted['transform'] {
+	if (!transform) return null;
+	const done = new Map<string, string>();
+	return (text, blocks) => {
+		if (!done.has(text)) done.set(text, transform(text, blocks));
+		return done.get(text)!;
+	};
+}
+
+/** A last line ending that lands in a list item's text is Enter there: the rest of the clipboard
+ *  pasted, then the next item opened at the caret. Null where it lands anywhere else. */
+function itemEntered(
+	doc: Doc,
+	from: number,
+	to: number,
+	pasted: Pasted,
+	seen: { blocks?: Doc }
+): Edit | null {
+	const ending = pasted.plain ? null : /\r?\n$/.exec(pasted.text);
+	if (!ending) return null;
+	// The transforms see the whole clipboard, as they would where the ending lands anywhere else.
+	const { transform } = pasted;
+	const whole = (text: string) =>
+		transform!(text + '\n', readDoc(text + '\n', doc.host, doc.mode).tree);
+	const rest: Pasted = {
+		...pasted,
+		text: pasted.text.slice(0, ending.index),
+		ended: true,
+		transform: transform && ((text) => whole(text).replace(/\n$/, ''))
+	};
+	const bare = landedAt(doc, from, to, rest, seen);
+	return enteredAt({ ...readDoc(bare.source, doc.host, doc.mode), ending: doc.ending }, bare.caret);
 }
 
 /** `pasteAt`, noting in `seen` the clipboard as blocks where the landing read it so. */
@@ -84,7 +131,7 @@ function landedAt(
 	const off = () => (plain ? doc.host.escaped(lf) : blocks().source);
 	const apart = held.holds === 'text' ? null : pasteApart(doc, from, off, held.parent, true);
 	if (apart) return apart;
-	const landing = landed(doc, from, to, lf, plain, blocks);
+	const landing = landed(doc, from, to, lf, plain, blocks, pasted.ended === true);
 	// What lands in an empty paragraph, its line ending alone, stays apart from the block under it.
 	const leaf = leafHolding(doc, from, to)?.leaf;
 	if (!leaf || !/^\r?\n?$/.test(nodeAt(doc, leaf.path).raw)) return landing;
@@ -166,7 +213,8 @@ function landed(
 	to: number,
 	lf: string,
 	plain: boolean,
-	blocks: () => Doc
+	blocks: () => Doc,
+	endingOff: boolean
 ): Edit {
 	const visibleAfter = lineRest(doc.source, to) !== '';
 	// Plain text goes in as lines of the block at the caret: with nothing after the caret, its last
@@ -266,7 +314,7 @@ function landed(
 	if (plain) return asText(escaped());
 	// One line after text on the caret's line reads as text, so no transform sees it; any other
 	// clipboard lands as the blocks the transforms leave.
-	const lineAfter = afterText(doc, leaf, target.from, clip);
+	const lineAfter = !endingOff && afterText(doc, leaf, target.from, clip);
 	const pasted = lineAfter ? readDoc(clip, doc.host, doc.mode) : blocks();
 	clip = pasted.source;
 	const isText = (b: LaidBlock) => factsOf(pasted, b).joins === 'text';

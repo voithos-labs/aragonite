@@ -91,10 +91,10 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 		await editor.bridge.waitForSourceMatches(/^- {2}three$/m);
 
 		await editor.page.keyboard.type('X');
-		await editor.bridge.waitForSourceMatches(/^3\. Ordered thirdX$/m);
+		await editor.bridge.waitForSourceMatches(/^4\. X$/m);
 
 		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
-		expect(src).toMatch(/^3\. Ordered thirdX$/m);
+		expect(src).toMatch(/^3\. Ordered third\n4\. X$/m);
 		// The residue item is untouched: the caret never went there.
 		expect(src).toMatch(/^- {2}three$/m);
 		expect(src).not.toMatch(/threeX/);

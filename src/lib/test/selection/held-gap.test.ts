@@ -101,13 +101,8 @@ describe('the line a pasted last line ending opened is held as its own', () => {
 			[0],
 			{ parentPath: [0], index: 1 }
 		],
-		[
-			'under a list item, above the next',
-			'- a\n\n- b\n',
-			4,
-			[0, 0],
-			{ parentPath: [0, 0], index: 1 }
-		],
+		// A list's last line ending opens the next item, as Enter does: no line of its own stands there.
+		['between a list’s items, none', '- a\n\n- b\n', 4, [0], null],
 		['over an empty paragraph, which is that line', 'p\n\n\nafter\n', 2, [], null]
 	] as const)('%s', (_, source, at, parent, gap) => {
 		const laid = measured(opened(source));

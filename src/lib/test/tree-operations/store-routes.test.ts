@@ -765,7 +765,7 @@ const FAMILIES: Family[] = [
 						'live',
 						{ ...rangeHost(LIVE), transformPaste: (text) => text }
 					).source,
-				want: '- [ ] # **boldone**\n   z\n'
+				want: '- [ ] # **boldone**\n- [ ]  z\n'
 			},
 			{
 				shape: 'a last paragraph’s line ending joined at a to-do’s bold run’s end',
@@ -777,7 +777,7 @@ const FAMILIES: Family[] = [
 						'live',
 						{ ...rangeHost(LIVE), transformPaste: (text) => text }
 					).source,
-				want: '- [ ] # **boldone**\n\n  **two**\n   z\n'
+				want: '- [ ] # **boldone**\n\n  **two**\n- [ ]  z\n'
 			}
 		]
 	},

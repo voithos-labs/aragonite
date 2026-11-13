@@ -19,7 +19,7 @@ import { readItemShape } from '../../core/parsers/list';
 import { cloneMetadata, cloneNode } from '../clone';
 import { parseCutResidue, parseFirstBlock } from '../parse-block';
 import { cutKeepingStructure } from '../structural-suffix';
-import { renumberOrderedListFrom } from './ordered-markers';
+import { bumpOrderedMarker, renumberOrderedListFrom } from './ordered-markers';
 import { createSharingState } from '../sharing';
 import { assignIds } from '../../block-id';
 import { fragmentReaderAt, markerLineWidening, type FragmentReader } from './task-paragraph';
@@ -55,6 +55,18 @@ export function assembleListHalf(
 	renumberOrderedListFrom(half, startNumber, createSharingState());
 	rebuildListRaw(half);
 	return half;
+}
+
+/** The marker and checkbox of the item Enter opens after an item: its marker bumped, its task
+ *  checkbox inherited unchecked. */
+export function followerMetadata(prevMeta: ListItemMetadata | undefined): ListItemMetadata {
+	const inheritTask = prevMeta?.taskItem === true;
+	return {
+		marker: bumpOrderedMarker(prevMeta?.marker ?? '- '),
+		taskItem: inheritTask,
+		taskChecked: false,
+		taskMarker: inheritTask ? '[ ] ' : null
+	};
 }
 
 /** A listItem mirroring `template`'s metadata, affixes and bytes, so lines it keeps keep their

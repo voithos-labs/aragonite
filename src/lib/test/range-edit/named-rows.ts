@@ -365,7 +365,7 @@ export const NAMED_ROWS: NamedRow[] = [
 		name: 'C8 an ordered list pasted in a bullet item does the same, CRLF',
 		source: '> - a⟦⟧b\r\n> - c\r\n',
 		gesture: paste('1. q\n2. r\n'),
-		expect: { source: '> - a\r\n> 1. q\r\n> 2. r\r\n> - b\r\n> - c\r\n' }
+		expect: { source: '> - a\r\n> 1. q\r\n> 2. r\r\n> 3. \r\n> - b\r\n> - c\r\n' }
 	},
 	{
 		name: 'C8 at an item’s first text byte the item opens the second half as it stands',

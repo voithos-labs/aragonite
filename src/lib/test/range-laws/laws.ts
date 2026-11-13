@@ -500,6 +500,12 @@ export async function law9(
 		const declaredEnd = text.endsWith('\n')
 			? splicedAt(source, byte, text.slice(0, -1), prefix)
 			: null;
+		// A last line ending in a list item is Enter there (`test/range-edit/paste-ending-enter.test.ts`
+		// holds it against Enter): the law holds the bytes pasted before it.
+		const inItem = leafAt(at.editor.instance.__test.getDocument(), caret.path.slice(0, -1));
+		const entered = declaredEnd !== null && inItem?.kind === 'listItem' ? declaredEnd : null;
+		const pastedTo = (bytes: string) =>
+			bytes.slice(0, byte + (entered ?? '').length - source.length);
 		const before = snapshot(at);
 		await pasteGesture(at.editor, { 'text/plain': text }, paste);
 		law8(at, `paste:${paste}`, run);
@@ -513,6 +519,8 @@ export async function law9(
 			// pass
 		} else if (wanted.includes(pasted)) {
 			run.declared.push('L9 trailing line ending dropped');
+		} else if (entered !== null && pastedTo(entered) === pastedTo(pasted)) {
+			run.declared.push('L9 a last line ending in an item is Enter');
 		} else {
 			const respelled = wanted.find((w) => prefixRespelledAt(pasted, w, lineOf(source, byte)));
 			const law = respelled === undefined ? 'L9' : 'L9.prefix';

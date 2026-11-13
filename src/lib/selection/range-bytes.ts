@@ -413,18 +413,9 @@ export function heldGapOf(
 	const rootEnd = gap.parentPath.length === 0 && gap.index === doc.children.length;
 	if (!rootEnd && joinsProse(measured, place.at, place.line)) return null;
 	if (boundaryHidden(doc, gap.parentPath, gap.index)) return null;
-	// A list's children are its items, which no paragraph stands among: a line of its own under an
-	// item is that item's last line.
+	// A list's children are its items, which no paragraph stands among.
 	const parent = blockNodeAt(doc, gap.parentPath);
-	if (parent && blockFacts(parent.kind).lines === 'items') {
-		const item = place.line && gap.index > 0 ? parent.children![gap.index - 1] : null;
-		if (!item?.children) return null;
-		return {
-			parentPath: [...gap.parentPath, gap.index - 1],
-			index: item.children.length,
-			held: true
-		};
-	}
+	if (parent && blockFacts(parent.kind).lines === 'items') return null;
 	return { ...gap, held: true };
 }
 
