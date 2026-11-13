@@ -6,7 +6,7 @@ Some kinds shouldn't be typeable: a chart card, a survey embed, a citation block
 
 Own a `:::name` directive instead. The grammar is real, so the bytes reload as your kind, and the syntax is implausible to arrive at by typing: it needs three colons, a name, a body and a `:::` terminator, and nothing along the way paints a half-formed block. That's as close to "not typeable" as an editor that reloads from bytes can honestly get, and it costs you nothing, since the [directive walkthrough](container-walkthrough.md#walkthrough-a-conspiracy-container-end-to-end) is the same registration you'd have written anyway.
 
-Creation then comes from the host's own UI. The consumer's `editor.insertMarkdown(md)` inserts your kind's canonical bytes at the caret exactly as pasting them would, so a menu entry is:
+Creation then comes from the host's own UI. The consumer's `editor.insertMarkdown(md)` inserts your kind's canonical bytes at the caret as pasting them would (its last line ending ends the snippet, so the caret stays in your block), so a menu entry is:
 
 ```ts
 editor.insertMarkdown(':::chart\ntype: bar\n:::\n');

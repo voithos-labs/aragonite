@@ -34,7 +34,7 @@ Every write to a block's text says which of those it is, as its `history`. Typin
 **Where undo puts the caret.** The snapshot's selection path is read live from the focused leaf, so undo lands the caret on the exact leaf that was being typed in, including deep inside nested containers. The offset on that leaf is the one the caller supplies rather than the live (post-edit) one, so the caret goes back to where the edit began:
 
 - For typed text a block reads that position at `beforeinput`, which every input route fires (a composition reads it where the composition starts), so dictation or a soft keyboard undoes in place like a keystroke.
-- Every other edit passes where it began, never where it leaves the caret: a command its selection's start, a paste the start of the range it replaced (or the side a selected widget was selected from), and the paste dispatch hands that one offset to every commit it makes.
+- Every other edit passes where it began, never where it leaves the caret: a command its selection's start, a paste the start of the range it replaced (or the side a selected widget was selected from), and the paste dispatch hands that one offset to every commit it makes. Over a range inside one block the two kinds of paste differ: text undoes to a caret at the range's start, as a letter typed over it does, and blocks undo to the range itself, selected again.
 - When no ref reports a cursor (headless harness, handle drags, menu-driven ops), the path falls back to the commit's declared doc-absolute restore coordinate, so it resolves to the operated child rather than a scope-local index.
 - While a widget is selected whole, the entry records the widget edge the selection came from (`docs/design/selection.md`).
 

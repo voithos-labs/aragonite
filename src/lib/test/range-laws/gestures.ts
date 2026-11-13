@@ -180,7 +180,8 @@ async function paste(editor: Editor, payload: Payload, route: PasteRoute): Promi
 	systemClipboard.clear();
 	for (const [type, value] of Object.entries(payload)) systemClipboard.set(type, value);
 	if (route === 'insertMarkdown') {
-		await editor.instance.insertMarkdown(payload['text/plain'] ?? '');
+		// The call drops a snippet's last line ending, so the clipboard goes in with one more.
+		await editor.instance.insertMarkdown(`${payload['text/plain'] ?? ''}\n`);
 		await editor.settle();
 		return;
 	}

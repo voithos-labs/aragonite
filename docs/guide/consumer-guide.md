@@ -368,7 +368,7 @@ And what you can write:
 | --- | --- |
 | `setSelection(snapshot)` | Puts a `getSelection()` snapshot back on the document (see [Restoring a selection](#restoring-a-selection)) |
 | `placeCaretAtPoint(x, y)` | Lands the caret at a viewport point, exactly as a click there would (see [Placing the caret at a point](#placing-the-caret-at-a-point)) |
-| `insertMarkdown(md, options?)` | Inserts Markdown at the caret, or in a new paragraph below its block, exactly as pasting it would (see [Inserting Markdown at the caret](#inserting-markdown-at-the-caret)) |
+| `insertMarkdown(md, options?)` | Inserts Markdown at the caret, or in a new paragraph below its block, exactly as pasting it would, less its last line ending (see [Inserting Markdown at the caret](#inserting-markdown-at-the-caret)) |
 | `edit()` | Writes byte ranges of the document as one undo step, now or after a wait, and is refused with a reason if the author wrote over them meanwhile (see [`Draft`](plugin-api.md#draft-draftresult)) |
 | `runCommand(id, arg?)` | Runs an editor command by name, no keystroke involved (see [Toolbar commands](#toolbar-commands)) |
 
@@ -472,7 +472,7 @@ A few things about where a point lands:
 
 `insertMarkdown(md: string, options?: { placement?: 'caret' | 'below' }): Promise<boolean>`
 
-Inserts Markdown at the caret the way a paste would. `md` is any Markdown string, `**hi**` or a whole table. The usual caller is a toolbar button inserting a canned snippet; [the insert toolbar recipe](consumer-guide/recipes.md#recipe-an-insert-toolbar) is built on this call.
+Inserts Markdown at the caret the way a paste would. `md` is any Markdown string, `**hi**` or a whole table. One line ending at its end is the snippet's terminator, not a line break, so it isn't inserted: a code block or a table leaves the caret inside what went in, ready to type. Two line endings keep one, which goes in as a pasted line ending does. The usual caller is a toolbar button inserting a canned snippet; [the insert toolbar recipe](consumer-guide/recipes.md#recipe-an-insert-toolbar) is built on this call.
 
 ```ts
 await editor.insertMarkdown('**hi**'); // true
@@ -484,7 +484,7 @@ One call runs the whole paste route:
 
 1. A live selection is deleted, then the text goes in the way a paste would pick: a table as a block, a one-liner inline at the caret, a list beside a list of its type as more of its items.
 2. Where it lands as blocks, any registered paste transforms rewrite it first (a plugin hook, see the [plugin guide](plugin-guide.md)).
-3. Focus lands at the end of the insertion, and the whole thing is one undo entry.
+3. Focus lands at the last place a caret takes in what went in (a code block's body, a table's last cell), and the whole thing is one undo entry.
 
 The caret is read when you call, and the promise resolves once the edit has landed and the caret is placed, so `getSource()` after an `await` sees it. `false` means nothing changed: no caret in this editor, or reading mode. A caret parked between two blocks takes the insert as blocks there.
 

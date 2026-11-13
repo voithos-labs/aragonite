@@ -50,6 +50,17 @@ test.describe('insert toolbar', () => {
 		await editor.bridge.waitForSourceContains('| --- | --- |');
 	});
 
+	test('the rule button after text puts a divider on a line of its own under it', async ({
+		page
+	}) => {
+		await editor.focusBlock(0, 10);
+		await page.getByTestId('insert-rule').click();
+
+		await editor.bridge.waitForSourceContains('---');
+		expect(await editor.bridge.getSource()).toBe('start here\n\n---\n\nsecond block\n');
+		expect(await editor.bridge.getBlockKind(1)).toBe('thematicBreak');
+	});
+
 	for (const { name, marker } of SNIPPET_ROWS) {
 		test(`the ${name} button lands its snippet in the source`, async ({ page }) => {
 			await editor.focusBlock(0, 10);

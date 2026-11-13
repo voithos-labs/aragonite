@@ -13,6 +13,7 @@ import type { ByteChange } from '../../tree-operations/byte-changes';
 import type { DocumentStamps } from './document-stamp';
 import { startsAlone, type OpenWriteCheck } from './reading-write-gate';
 import { serialize } from '../../core/serializer';
+import { trimTrailingLineEnding } from '../../core/lines';
 import { devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 import { assertDraftBytesKept } from '../../invariants/install';
 import { docPathFrom } from '../../core/coordinate-spaces';
@@ -225,12 +226,14 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 					});
 				return this;
 			},
+			// A snippet's last line ending ends it, as a file's last line does; a second one is content.
 			insert(markdown) {
-				if (markdown !== '') inserts.push({ markdown, below: false });
+				const text = trimTrailingLineEnding(markdown);
+				if (text !== '') inserts.push({ markdown: text, below: false });
 				return this;
 			},
 			insertBelow(markdown) {
-				inserts.push({ markdown, below: true });
+				inserts.push({ markdown: trimTrailingLineEnding(markdown), below: true });
 				return this;
 			},
 			async commit(options) {

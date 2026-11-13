@@ -80,7 +80,9 @@ async function run(editor: EditorPage, row: RangeLawCase, step: CaseStep): Promi
 		case 'paste':
 			if (step.text !== undefined) await editor.seedClipboard(step.text);
 			if (step.route === 'insertMarkdown') {
-				await page.evaluate((md) => (window as any).__test.insertMarkdown(md), step.text ?? '');
+				// The call drops a snippet's last line ending, so the clipboard goes in with one more.
+				const md = `${step.text ?? ''}\n`;
+				await page.evaluate((text) => (window as any).__test.insertMarkdown(text), md);
 			} else if (step.route === 'menu') await pickMenuRow(editor, row, 'Paste');
 			else await editor.paste();
 			return;

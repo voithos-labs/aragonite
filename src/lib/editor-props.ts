@@ -221,9 +221,9 @@ export interface EditorInstance {
 	 */
 	edit(): Draft;
 	/**
-	 * Insert markdown exactly as pasting it would, minus the clipboard: delete-selection-first, one
-	 * undo entry, focus at the end, so one line after text on its line goes in as text. Resolved
-	 * to whether it landed: false, with nothing changed, with no caret or in reading mode.
+	 * Insert markdown as pasting it would, less its last line ending (a snippet's terminator): the
+	 * selection deleted first, one undo entry, focus at the last place it holds, one line after
+	 * text as text. False, with nothing changed, with no caret or in reading mode.
 	 * `placement: 'below'` first adds an empty paragraph after the caret's top-level block, where
 	 * the markdown lands as the blocks it reads as.
 	 */

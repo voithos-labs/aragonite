@@ -4,7 +4,7 @@ import { edgeKey, extendKey } from '../../platform-keys';
 
 // `editor.insertMarkdown()`: the paste path entered without a clipboard
 // (`requirements/clipboard/insert-markdown-door.md`). Each case asserts the outcome the same
-// bytes pasted at the same caret produce, since that parity is the whole contract.
+// bytes pasted at the same caret produce, less the payload's last line ending, its terminator.
 
 const TABLE = '| a | b |\n| --- | --- |\n| 1 | 2 |\n';
 
@@ -30,9 +30,9 @@ test.describe('insertMarkdown: programmatic insertion', () => {
 		await editor.bridge.waitForSourceContains('| --- | --- |');
 		expect(await editor.bridge.getBlockKind(1)).toBe('table');
 
-		// The table's last line ending opens the empty line the next keystroke lands on.
+		// The table's last line ending is the snippet's terminator: the next key lands in its last cell.
 		await editor.typeText('X');
-		await editor.bridge.waitForSourceMatches(/\| 1 \| 2 \|\n\nX\n\nafter/);
+		await editor.bridge.waitForSourceMatches(/\| 1 \| 2X \|/);
 	});
 
 	// The structural strategy splices the parent's children itself, a third write that can put a
@@ -44,12 +44,10 @@ test.describe('insertMarkdown: programmatic insertion', () => {
 
 		expect(await insert(TABLE)).toBe(true);
 		await editor.bridge.waitForSourceContains('| --- | --- |');
-		// The item keeps the table in its bullet and the list stays; the ending opens a to-do under it.
-		expect(await editor.bridge.getSource()).toBe(
-			'- | a | b |\n  | --- | --- |\n  | 1 | 2 |\n- [ ] \n'
-		);
+		// The item keeps the table in its bullet, and the list stays one list.
+		expect(await editor.bridge.getSource()).toBe('- | a | b |\n  | --- | --- |\n  | 1 | 2 |\n');
 		expect(await editor.bridge.getBlockCount()).toBe(1);
-		await expect(editor.page.locator('.task-checkbox')).toHaveCount(1);
+		await expect(editor.page.locator('.task-checkbox')).toHaveCount(0);
 	});
 
 	// A widget-only paragraph holds no native selection, so the browser sends clipboard events to
