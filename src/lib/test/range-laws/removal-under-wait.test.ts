@@ -76,6 +76,15 @@ const ROWS: Record<string, Row> = {
 	}
 };
 
+/** A title the definition starts itself folds the line under the range in, as the pair reads. */
+const FOLDS: Record<string, Row> = {
+	'a heading between a definition and its title': {
+		source: '[a]: /u\n# h\n"t"\n\nlast\n',
+		take: line([1], [2]),
+		removed: '[a]: /u\n"t"\n\nlast\n'
+	}
+};
+
 async function key(editor: Editor, name: string): Promise<void> {
 	const el = (document.activeElement as HTMLElement | null) ?? document.body;
 	await pressHardwareKey(el, { key: name });
@@ -131,7 +140,7 @@ describe('a removal under a started title keeps the pair it uncovers apart', () 
 
 describe('a key over the range is the removal, then the key', () => {
 	const cases = MODES.flatMap((mode) =>
-		Object.entries(ROWS).flatMap(([name, row]) =>
+		Object.entries({ ...ROWS, ...FOLDS }).flatMap(([name, row]) =>
 			(['q', 'Enter', 'paste'] as const).map((gesture) => ({ mode, name, row, gesture }))
 		)
 	);
@@ -151,7 +160,7 @@ describe('a key over the range is the removal, then the key', () => {
 		const above = row.source.slice(0, row.source.lastIndexOf('\n', row.source.indexOf('# h')) + 1);
 		expect(editor.source().startsWith(above), 'the lines above the range stay').toBe(true);
 		if (gesture !== 'Enter') {
-			const lower = editor.source().indexOf(row.source.includes('text') ? 'text' : "end'");
+			const lower = editor.source().indexOf(row.removed.slice(above.length).replace(/^[\s>]+/, ''));
 			expect(editor.source().indexOf('q'), 'the text lands where the range began').toBe(lower - 1);
 		}
 	});
