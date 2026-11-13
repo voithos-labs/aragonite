@@ -11,7 +11,8 @@ import type { EditorSelection, Landing } from '../../selection/primitives';
 import type { LandOptions } from '../../selection/caret-landing';
 import type { UndoEntry } from '../../undo/types';
 import type { SelectionPoint } from '../../selection/primitives';
-import { digestDoc } from '../../invariants/snapshot-integrity';
+import { checkSnapshotList, digestDoc } from '../../invariants/snapshot-integrity';
+import { snapshotTops } from '../../tree-operations/top-level-starts';
 import { grammarStamp } from './grammar-stamp';
 import { readCurrentSelection } from '../../selection/native-bridge';
 import { pathsEqual } from '../../selection/path-math';
@@ -72,9 +73,14 @@ export function createUndoController(
 		const snapshot: Document = {
 			kind: 'document',
 			prefix: deps.doc.prefix,
-			children: [...deps.doc.children],
+			children: snapshotTops(deps.bytes.measured()),
 			suffix: deps.doc.suffix
 		};
+		if (devChecksOn && !perfEnabled()) {
+			assertInvariant('snapshot-integrity', () =>
+				checkSnapshotList(snapshot.children, deps.doc.children)
+			);
+		}
 		return {
 			snapshot,
 			integrity: devChecksOn ? digestDoc(snapshot) : undefined,

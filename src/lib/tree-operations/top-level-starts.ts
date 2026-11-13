@@ -1,12 +1,14 @@
 /**
  * Where each top-level block sits in a document's bytes: block `i` starts, blank lines first, where
  * block `i - 1` ends, and block 0 starts past the document's prefix. No block is read until the
- * first question; the lengths are then plain numbers, summed only as far as a question reaches, so
- * an answer after a change costs the blocks between the change and the question. A document nobody
- * keeps is measured on its own (`measured`); the editor's own record is told what each write
- * changed (`editor-actions/commit/kept-starts.ts`).
+ * first question. A record then holds each block's two strings by reference, so its lengths and
+ * the document's text are one reading; the lengths are summed only as far as a question reaches,
+ * so an answer after a change costs the blocks between the change and the question. A document
+ * nobody keeps is measured on its own (`measured`); the editor's own record is told what each
+ * write changed (`editor-actions/commit/kept-starts.ts`).
  */
 
+import type { CstNode } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { recordTopBlocksMeasured } from '../perf/instruments';
 import { spliceMany } from './splice-many';
@@ -42,8 +44,10 @@ export interface TopLevelChange {
 	inserted: number;
 }
 
-/** Each block's length, blank lines and bytes, and their running sums as far as `summed`. */
-export interface BlockLengths {
+/** Each block's two strings, blank lines then bytes, with the length of the pair and the running
+ *  sums of those lengths as far as `summed`. */
+export interface BlockBytes {
+	pieces: string[];
 	lengths: number[];
 	sums: number[];
 	summed: number;
@@ -51,16 +55,35 @@ export interface BlockLengths {
 
 /** `doc` with starts of its own: for a document nobody keeps (a snapshot, a parse). */
 export function measured(doc: DocumentView): Measured {
-	let own: BlockLengths | undefined;
-	return { doc, starts: startsOver(doc, () => (own ??= blockLengths(doc))) };
+	let own: BlockBytes | undefined;
+	return { doc, starts: startsOver(doc, () => (own ??= blockBytes(doc.children))) };
 }
 
-export function blockLengths(doc: DocumentView): BlockLengths {
-	return { lengths: lengthsOf(doc, 0, doc.children.length), sums: [], summed: 0 };
+/** The record of `tops`, a document's top-level blocks, each read once. */
+export function blockBytes(tops: readonly NodeView[]): BlockBytes {
+	recordTopBlocksMeasured(tops.length);
+	const pieces = piecesOf(tops, 0, tops.length);
+	return { pieces, lengths: lengthsOf(pieces), sums: [], summed: 0 };
+}
+
+/** Whether `kept` holds, for blocks `[from, to]`, the very strings `tops` holds, and as many blocks. */
+export function holdsBytes(
+	kept: BlockBytes,
+	tops: readonly NodeView[],
+	from: number,
+	to: number
+): boolean {
+	const count = tops.length;
+	for (let i = Math.max(from, 0); i <= Math.min(to, count - 1); i++) {
+		const top = tops[i];
+		if (kept.pieces[2 * i] !== top.leadingTrivia || kept.pieces[2 * i + 1] !== top.raw)
+			return false;
+	}
+	return kept.lengths.length === count;
 }
 
 /** The answers about `doc` that `kept`, asked at each question, gives from its blocks' lengths. */
-export function startsOver(doc: DocumentView, kept: () => BlockLengths): TopLevelStarts {
+export function startsOver(doc: DocumentView, kept: () => BlockBytes): TopLevelStarts {
 	const end = (index: number): number => {
 		const own = kept();
 		const { lengths, sums } = own;
@@ -87,8 +110,8 @@ export function startsOver(doc: DocumentView, kept: () => BlockLengths): TopLeve
 			return hi;
 		},
 		after(next, changes) {
-			const { lengths, sums, summed } = kept();
-			const own = { lengths: lengths.slice(), sums: sums.slice(), summed };
+			const { pieces, lengths, sums, summed } = kept();
+			const own = { pieces: pieces.slice(), lengths: lengths.slice(), sums: sums.slice(), summed };
 			applyChanges(next, own, changes);
 			return startsOver(next, () => own);
 		}
@@ -105,26 +128,42 @@ export function topsOf(of: Measured): readonly NodeView[] {
 	return tops;
 }
 
+/** A copy of {@link topsOf} for an undo snapshot to own, so a push after a gesture that read the
+ *  list walks nothing; the nodes are the tree's, shared with it and never written through. */
+export function snapshotTops(of: Measured): CstNode[] {
+	return topsOf(of).slice() as CstNode[];
+}
+
 /** `kept` brought up to `doc` as `changes` left it: runs in document order, none overlapping, each
  *  `at` counted before any of them was made. Only the blocks the runs put in and the last are read. */
 export function applyChanges(
 	doc: DocumentView,
-	kept: BlockLengths,
+	kept: BlockBytes,
 	changes: readonly TopLevelChange[]
 ): void {
+	const tops = doc.children;
 	let grown = 0;
 	const placed = changes.map((change) => {
 		const at = change.at + grown;
 		grown += change.inserted - change.removed;
-		return lengthsOf(doc, at, at + change.inserted);
+		recordTopBlocksMeasured(change.inserted);
+		return piecesOf(tops, at, at + change.inserted);
 	});
 	// Last run first, so each one's `at` still holds.
 	for (let i = changes.length - 1; i >= 0; i--) {
-		spliceMany(kept.lengths, changes[i].at, changes[i].removed, placed[i]);
+		const { at, removed } = changes[i];
+		spliceMany(kept.pieces, at * 2, removed * 2, placed[i]);
+		spliceMany(kept.lengths, at, removed, lengthsOf(placed[i]));
 	}
 	// The last block too: a write that leaves the document's last line open rewrites it.
 	const last = kept.lengths.length - 1;
-	if (last >= 0) kept.lengths[last] = lengthsOf(doc, last, last + 1)[0];
+	if (last >= 0) {
+		recordTopBlocksMeasured(1);
+		const [blank, bytes] = piecesOf(tops, last, last + 1);
+		kept.pieces[last * 2] = blank;
+		kept.pieces[last * 2 + 1] = bytes;
+		kept.lengths[last] = blank.length + bytes.length;
+	}
 	kept.summed = Math.min(kept.summed, changes[0]?.at ?? last, Math.max(last, 0));
 }
 
@@ -166,15 +205,20 @@ export function widenRunOver(run: TopLevelChange, change: StructuralChange): voi
 	else if (change.op === 'replace') widenRun(run, change.at, change.count, change.newCount);
 }
 
-function lengthsOf(doc: DocumentView, from: number, to: number): number[] {
-	recordTopBlocksMeasured(to - from);
-	const tops = doc.children;
-	const lengths: number[] = [];
+/** The two strings of each of `tops[from, to)`. */
+export function piecesOf(tops: readonly NodeView[], from: number, to: number): string[] {
+	const pieces: string[] = [];
 	// Indexed: the list may be a `$state` proxy, where an iterator pays a trap per step.
 	for (let i = from; i < to; i++) {
 		const top = tops[i];
 		// A run that names a block the document doesn't hold is the caller's to catch, not a throw.
-		lengths.push(top ? top.leadingTrivia.length + top.raw.length : 0);
+		pieces.push(top ? top.leadingTrivia : '', top ? top.raw : '');
 	}
+	return pieces;
+}
+
+function lengthsOf(pieces: readonly string[]): number[] {
+	const lengths: number[] = [];
+	for (let i = 0; i < pieces.length; i += 2) lengths.push(pieces[i].length + pieces[i + 1].length);
 	return lengths;
 }

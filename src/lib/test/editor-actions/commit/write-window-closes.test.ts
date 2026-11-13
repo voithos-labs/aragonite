@@ -118,7 +118,10 @@ const DOORS: { name: string; open(): Door | Promise<Door> }[] = [
 			let throws = false;
 			const starts = createKeptStarts(
 				() => doc,
-				() => {}
+				() => {},
+				(error) => {
+					throw error;
+				}
 			);
 			const selection = createSelectionState({ onChange: () => heard++, getDoc: () => doc });
 			const swap = createDocumentSwap({

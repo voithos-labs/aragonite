@@ -13,6 +13,7 @@ import {
 	measureStructuralRebuild,
 	measureTypingLatency,
 	measureTypingWithPositionReads,
+	type FirstCopyShape,
 	type GiantContainer
 } from './latency-harness';
 
@@ -250,15 +251,16 @@ test.describe('perf gate: a removal over a range across small blocks', () => {
 	});
 });
 
-// A copy right after a write, held to the same copy made again: what a range edit reads of a
-// container is laid out once per content version, so reading the whole container reds the row.
-const FIRST_COPY_ROWS: Array<[shape: GiantContainer, size: string]> = [
+// A copy right after a write, held to the same copy made again: one that reads the whole
+// container after each write, or every block of a long flat document, reds its row.
+const FIRST_COPY_ROWS: Array<[shape: FirstCopyShape, size: string]> = [
+	['many-small-blocks', '1MB'],
 	['giant-single-blockquote', '1MB'],
 	['giant-single-list', '1MB'],
 	['giant-single-list', '10MB']
 ];
 
-test.describe('perf gate: the first copy after a write in a giant container', () => {
+test.describe('perf gate: the first copy after a write', () => {
 	for (const [shape, size] of FIRST_COPY_ROWS) {
 		const key = `${shape}-${size}-copy-first`;
 		test(key.replace(/-/g, ' '), async ({ page }) => {
