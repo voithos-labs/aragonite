@@ -179,7 +179,7 @@ describe('every separator entry point retires the child spans it invalidates', (
 		installMergedLeaf: 'writes the survivor’s line inside a merge splice; the count moves',
 		writeParsedContent: 'carries the target’s line onto its own fresh reparse',
 		installReplacement: 'carries the line onto the replacement, byte for byte',
-		spliceSpill: 'carries the line onto the first block of a splice; the count moves',
+		writeSpill: 'carries the line onto the first block of a splice; the count moves',
 		normalizeReplacementTrivia: 'the same carry, for a replacement built elsewhere'
 	};
 

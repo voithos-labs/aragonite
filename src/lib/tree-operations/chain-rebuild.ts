@@ -20,9 +20,9 @@ import { perfEnabled, recordRebuildDepth } from '../perf/instruments';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkWrittenInPlaceReadsBack } from '../invariants/settled-window-reads-back';
 import { rebuildOwnedContainer, walkUnsharing } from './unshare';
-import { mergeJoinsAt, rereadWaitAt, type TrackedPosition } from './fix-up/apply';
+import { fixUpWrite, mergeJoinsAt, rereadWaitAt, type TrackedPosition } from './fix-up/apply';
 import { waitsInto } from './container-window';
-import { installReading } from './content-write';
+import { installReading, settledCaretPosition } from './content-write';
 import { settleSublistSeparator } from './list/sublist-separator';
 
 /**
@@ -105,8 +105,8 @@ export function rebuildUnsharedChain(
 	// The bytes chain[i + 1] held before this pass, known only when the caller named the leaf's
 	// own; with no hint, every level re-derives its whole raw.
 	let childPreviousRaw: string | undefined;
-	// The level below read as blocks its own position cannot hold, so this level reads whole.
-	let spilled: Spill | null = null;
+	// The level below read as blocks its list cannot hold, so this level reads whole.
+	let spilled = false;
 	for (let i = chain.length - 1; i >= floor; i--) {
 		const node = chain[i];
 		const rawBefore = node.raw;
@@ -120,8 +120,8 @@ export function rebuildUnsharedChain(
 
 		const openerMoved = firstLine(rawBefore) !== firstLine(node.raw);
 		const closerMoved = lastLine(rawBefore) !== lastLine(node.raw);
-		const whole = rereads || spilled !== null || (shared?.readsWhole.has(node) ?? false);
-		spilled = null;
+		const whole = rereads || spilled || (shared?.readsWhole.has(node) ?? false);
+		spilled = false;
 		const moved = openerMoved || closerMoved;
 		const owner = i === 0 ? null : chain[i - 1];
 		// A blank line above ends every wait, so only a container flush under a block is asked.
@@ -143,7 +143,26 @@ export function rebuildUnsharedChain(
 				sharing.stamp(replacement);
 				reclassified.push({ siblings, index, previous: node, replacement });
 			} else if (reading.outcome === 'diverged' && reading.blocks.length > 0) {
-				spilled = { siblings, index, node, blocks: reading.blocks };
+				const spill = { index, node, rawBefore, blocks: reading.blocks };
+				// A list of blocks takes them as it takes a typed write's; an item or a row is no block.
+				if (
+					folds &&
+					holdsBlocks(owner) &&
+					writeSpill(
+						spill,
+						{ body: slotBody(root, owner), owner, depth: i },
+						sharing,
+						folds,
+						grammar
+					)
+				) {
+					if (owner) dropChildSpans(owner);
+					continue;
+				}
+				// A node whose bytes read otherwise has no join of its own to ask.
+				if (openerMoved) settleSublistSeparator(siblings, index);
+				spilled = true;
+				continue;
 			}
 		}
 		// Before the join check, which then reads the fixed-up bytes: a list rebuilt down to an
@@ -155,7 +174,7 @@ export function rebuildUnsharedChain(
 		const before = folds.length;
 		// After the kind re-derive: the join check reads whatever occupies the position now.
 		if (moved) settleSlotSeams({ ...slot, openerMoved, closerMoved }, sharing, folds, grammar);
-		if (mayBeWaitedOn && !spilled && siblings[index] === here) {
+		if (mayBeWaitedOn && siblings[index] === here) {
 			settleSlotWait(slot, openerMoved, sharing, folds, grammar);
 			// Not while the perf rows count a keystroke's parses, since the check reads the run around.
 			if (!perfEnabled())
@@ -167,27 +186,33 @@ export function rebuildUnsharedChain(
 		if (folds.length > before && owner) dropChildSpans(owner);
 	}
 	if (spilled && floor > 0) shared!.readsWhole.add(chain[floor - 1]);
-	else if (spilled && folds) spliceSpill(spilled, sharing, folds);
 	if (perfEnabled() && chain.length > floor) recordRebuildDepth(chain.length - floor);
 	return reclassified;
 }
 
-/** A chain node whose bytes read as blocks its position cannot hold as one node. */
+/** A chain node whose new bytes read as blocks its position cannot hold as one node. */
 interface Spill {
-	siblings: CstNode[];
 	index: number;
 	node: CstNode;
+	rawBefore: string;
 	blocks: CstNode[];
 }
 
 /**
- * The root's children take the blocks a top-level node's bytes read as, one fold the caller
- * publishes: the first block keeps the node's id, the rest are new.
+ * The slot's list takes the blocks a node's new bytes read as, fixed up as a typed write of those
+ * bytes is, in one fold the caller publishes. False when the blocks don't spell the node's bytes.
  */
-function spliceSpill(spill: Spill, sharing: SharingState, folds: AncestrySeamFold[]): void {
-	const { siblings, index, node, blocks } = spill;
+function writeSpill(
+	spill: Spill,
+	slot: Pick<ChainSlot, 'body' | 'owner' | 'depth'>,
+	sharing: SharingState,
+	folds: AncestrySeamFold[],
+	grammar: GrammarView
+): boolean {
+	const { index, node, blocks } = spill;
+	const { body } = slot;
 	// A blank tail the parse set aside has no block to hold it, so such bytes stay as they stand.
-	if (blocks.map((block) => block.leadingTrivia + block.raw).join('') !== node.raw) return;
+	if (blocks.map((block) => block.leadingTrivia + block.raw).join('') !== node.raw) return false;
 	const lineEnding = firstLineEnding(node.raw) ?? '\n';
 	// The first block keeps the node's id, so its children the re-read left alone stay as they were.
 	keepUnchanged(node, blocks[0]);
@@ -196,17 +221,27 @@ function spliceSpill(spill: Spill, sharing: SharingState, folds: AncestrySeamFol
 		assignChildIdsDeep(block);
 	}
 	blocks[0].leadingTrivia = node.leadingTrivia;
-	const before = siblings.slice();
-	spliceList({ children: siblings }, index, 1, blocks);
-	for (let k = 0; k < blocks.length; k++) sharing.stamp(siblings[index + k]);
+	const before = body.children.slice();
+	spliceList(body, index, 1, blocks);
+	for (let k = 0; k < blocks.length; k++) sharing.stamp(body.children[index + k]);
+	// Before the fix-up, which then reads the fixed-up bytes.
+	settleSublistSeparator(body.children, index);
+	const settled = fixUpWrite(
+		body,
+		{ index, previous: { ...node, raw: spill.rawBefore }, text: node.raw },
+		replacePreservingFirst(index, 1, blocks.length),
+		grammar,
+		sharing
+	);
 	folds.push({
-		depth: 0,
-		siblings,
-		owner: null,
-		change: replacePreservingFirst(index, 1, blocks.length),
+		depth: slot.depth,
+		siblings: body.children,
+		owner: slot.owner,
+		change: settled.change,
 		before,
-		landing: { index, offset: 0 }
+		landing: settledCaretPosition(settled, index, 0, body.children)
 	});
+	return true;
 }
 
 /**
