@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 // The look for a wait keeps what each block answered with the first line of the block under it,
 // on the editor's own `$state` tree. After every step of a drawn session there (a key, Enter, a
-// move, an undo and a redo, a removal over a range, a paste), every look answers as a look that
-// keeps nothing, and the tree is the parse of its bytes.
+// move, an undo and a redo, a removal over a range, a paste, a key over a range in one block), every
+// look answers as a look that keeps nothing, and the tree is the parse of its bytes.
 import fc from 'fast-check';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { CstNode } from '#lib/core/nodes.js';
@@ -35,7 +35,18 @@ afterEach(async () => {
 	takeDevWarns();
 });
 
-const LINES = ['[b]: /v', '[b]: /v', "    'code", 'text', "end'", 'end', '# h', '2. two', ''];
+const LINES = [
+	'[b]: /v',
+	'[b]: /v',
+	'# [b]: /v',
+	"    'code",
+	'text',
+	"end'",
+	'end',
+	'# h',
+	'2. two',
+	''
+];
 
 const arbDocument = fc
 	.record({
@@ -53,7 +64,8 @@ type Step =
 	| { move: 'block.moveUp' | 'block.moveDown'; leaf: number }
 	| { history: 'undo' | 'redo' }
 	| { remove: number; to: number }
-	| { paste: string; leaf: number };
+	| { paste: string; leaf: number }
+	| { over: [number, number]; type: string; leaf: number };
 
 const arbStep: fc.Arbitrary<Step> = fc.oneof(
 	fc.record({ key: fc.constantFrom("'", '"', '#', ' ', 'x'), leaf: fc.nat(), at: fc.nat() }),
@@ -68,7 +80,12 @@ const arbStep: fc.Arbitrary<Step> = fc.oneof(
 	}),
 	fc.record({ history: fc.constantFrom('undo' as const, 'redo' as const) }),
 	fc.record({ remove: fc.nat(), to: fc.nat() }),
-	fc.record({ paste: fc.constantFrom('# p', "x'", '[c]: /w\ny'), leaf: fc.nat() })
+	fc.record({ paste: fc.constantFrom('# p', "x'", '[c]: /w\ny'), leaf: fc.nat() }),
+	fc.record({
+		over: fc.tuple(fc.nat(3), fc.nat(3)),
+		type: fc.constantFrom('[', '#', 'x'),
+		leaf: fc.nat()
+	})
 );
 
 const leaves = (editor: Editor) => leafPaths(editor.instance.__test.getDocument().children);
@@ -97,7 +114,13 @@ async function run(editor: Editor, step: Step): Promise<void> {
 	const focused = () => (document.activeElement as HTMLElement | null) ?? document.body;
 	const leaf = 'leaf' in step ? step.leaf : 0;
 	if ('leaf' in step && !(await caretAt(editor, leaf, 'at' in step ? step.at : 0))) return;
-	if ('key' in step) {
+	if ('over' in step) {
+		const { path, length } = leafAt(editor, leaf);
+		const [from, to] = step.over.map((at) => Math.min(at, length)).sort((a, b) => a - b);
+		const range = { anchor: { path, offset: from }, focus: { path, offset: to } };
+		if (!(await placeRange(editor, range))) return;
+		await insertBy('hardware key', focused(), step.type);
+	} else if ('key' in step) {
 		await insertBy('hardware key', focused(), step.key);
 	} else if ('press' in step) {
 		await pressHardwareKey(focused(), { key: step.press });
@@ -152,6 +175,15 @@ const SEED = freshOrFixedSeed(20261112);
 
 /** An edit above a pair the look kept, then a key below it: `# h` becomes `#h`, then `'` closes. */
 const NAMED: [string, Step[]][] = [
+	// The look is filled under a heading; `[` typed over `# [` makes the heading a definition and
+	// leaves the code under it the node it was, whose kept answer was for the heading.
+	[
+		"# [a]: /u\n    'code\ntext\nend\n\nlast\n",
+		[
+			{ key: 'x', leaf: 2, at: 0 },
+			{ over: [0, 3], type: '[', leaf: 0 }
+		]
+	],
 	[
 		"[a]: /u\n    'code\n# h\ntext\nend\n\nlast\n",
 		[
