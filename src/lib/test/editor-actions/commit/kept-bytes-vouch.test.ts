@@ -5,6 +5,7 @@
 // Miss-analysis: nothing in production compared the kept record with the tree, so a wrong run was
 // served until the block count changed.
 import { describe, expect, it } from 'vitest';
+import { configureEditorEnv, resetEditorEnv } from '@voithos-labs/aragonite/dev-checks';
 import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
@@ -82,6 +83,30 @@ describe('G1.219 kept bytes leave the record through a vouch', () => {
 		expect(copy?.text).toBe('LINE 2');
 		expect(h.errors).toHaveLength(1);
 		allowDevWarns(FIXTURE_WARNS);
+	});
+
+	// A production build runs no dev check, so the vouch is the only thing that can tell.
+	it('with dev checks off, a refusal and a copy each still tell the `error` channel', async () => {
+		configureEditorEnv({ isDev: false });
+		try {
+			const h = await staleAtBlockTwo();
+			const before = serialize(h.deps.doc);
+			expect(await letterIn(h, 2)).toBe(false);
+			expect(serialize(h.deps.doc)).toBe(before);
+			expect(h.errors).toHaveLength(1);
+
+			const again = await staleAtBlockTwo();
+			const copy = blockRangeClipboard(
+				again.deps.bytes,
+				[2],
+				{ start: 0, end: 6 },
+				again.deps.reading
+			);
+			expect(copy?.text).toBe('LINE 2');
+			expect(again.errors).toHaveLength(1);
+		} finally {
+			resetEditorEnv();
+		}
 	});
 
 	it('a save reads the tree, and says so where the record held other bytes', () => {
