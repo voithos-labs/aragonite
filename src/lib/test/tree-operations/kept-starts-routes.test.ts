@@ -2,8 +2,8 @@
 // G1.209 over every write route: after the write, with a listener reading a position on every
 // event the editor emits, the editor places every text position where a fresh read of its bytes
 // does, the text it keeps for a gesture is the document's, and no listener is called between a
-// write and its announcement. The tree the write left
-// also finds the same text at every byte as that fresh read: its nodes kept their identity.
+// write and its announcement. The tree the write left also finds the same text at every byte as
+// that fresh read: its nodes kept their identity.
 // Miss-analysis: the byte map was built afresh per content version, so no test had to ask whether
 // a record kept across writes still described the document a route left.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
@@ -218,6 +218,34 @@ describe('G1.209 over writes that leave the document as it stood, or break a rul
 			op: { kind: 'input', eventPath: snapshot.path }
 		});
 		expect(h.deps.doc.children[2].raw).toHaveLength('line 2\n'.length);
+		expect(takeDevWarns().map((warn) => warn.tag)).toContain('invariant:kept-starts-current');
+	});
+});
+
+// Miss-analysis: every row for a record found wrong ran on the headless wiring, so the mounted
+// editor could have dropped the report and no test would have said so.
+describe('G1.219 on the mounted editor', () => {
+	it('a draft over a block written with no write announced lands, and `error` fires once', async () => {
+		const source = Array.from({ length: N }, (_, i) => `line ${i}\n`).join('\n');
+		const m = mountEditor<EditorTestSurface>({ source });
+		await m.settle();
+		const errors: unknown[] = [];
+		m.instance.getEvents().on('error', (error) => errors.push(error));
+		// A block past the first, whose start is a sum the record is measured for.
+		void m.instance.__test.byteOf([N - 1], 0);
+		const grown = 'LINE 2 grown past the blocks below it\n';
+		(m.instance.__test.getDocument().children[2] as { raw: string }).raw = grown;
+
+		const at = source.indexOf('line 2') + 20;
+		const landed = await m.instance
+			.edit()
+			.replace({ from: at, to: at + 1 }, 'Q')
+			.commit();
+		await m.settle();
+
+		expect(landed).toEqual({ ok: true });
+		expect(m.source()).toContain(`${grown.slice(0, 20)}Q${grown.slice(21)}`);
+		expect(errors).toHaveLength(1);
 		expect(takeDevWarns().map((warn) => warn.tag)).toContain('invariant:kept-starts-current');
 	});
 });

@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 // G1.209 over drawn writes: with the record measured, after every operation of a random run of
 // real action-factory operations, undo and redo among them, the bytes the editor keeps for every
-// top-level block are the tree's, their text is a fresh serialize and every start a fresh measure's. The dev guard compares the
-// same strings at each announcement inside an operation, and its warning fails the run.
+// top-level block are the tree's, their text is a fresh serialize and every start a fresh
+// measure's. The dev guard compares the same strings at each announcement inside an operation,
+// and its warning fails the run.
 // Miss-analysis: the guard compared lengths, so a run of writes that kept a block's length could
 // leave its kept bytes behind with nothing to say so.
 import { describe, expect, it } from 'vitest';

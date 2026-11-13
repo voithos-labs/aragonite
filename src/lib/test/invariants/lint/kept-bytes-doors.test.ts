@@ -21,7 +21,7 @@ const TEXT_READERS: Record<string, string> = {
 	'src/lib/editor-actions/commit/history.ts':
 		'an undo read again under another grammar vouches its reading, and reads once more',
 	'src/lib/components/Editor.svelte':
-		'the wiring: a draft and the test door’s splice both land through the byte splice'
+		'the wiring: a draft vouches the blocks it names, and it and the test door land through the byte splice'
 };
 
 /** Each file that hands the range-edit core the editor's own document. */
