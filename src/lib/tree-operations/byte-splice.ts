@@ -40,6 +40,9 @@ export interface SpliceWindow {
 export interface SpliceReading {
 	windows: SpliceWindow[];
 	suffix: string;
+	/** Top-level blocks `[from, to]` whose bytes each read took from the text: the blocks it read
+	 *  again and those it read past them, which a caller compares with the tree before it installs. */
+	took: { from: number; to: number }[];
 }
 
 /** The windows as the runs of top-level blocks a reading's install changes. */
@@ -145,6 +148,7 @@ function readAgain(
 		pending.push(span);
 	}
 	const windows: SpliceWindow[] = [];
+	const took: SpliceReading['took'] = [];
 	let suffix = doc.suffix;
 	const top = {
 		doc,
@@ -159,6 +163,7 @@ function readAgain(
 		const read = within && containerWindow(top, within.block, within.changes);
 		if (read) {
 			windows.push(read.window);
+			took.push({ from: within!.block, to: Math.min(last, textAfter(children, within!.block)) });
 			if (read.suffix !== undefined) suffix = read.suffix;
 			continue;
 		}
@@ -180,11 +185,12 @@ function readAgain(
 			else {
 				if (read.suffix !== undefined) suffix = read.suffix;
 				windows.push(trimmed(doc, span.lo, span.hi, carried, read.blocks));
+				took.push({ from: span.lo, to: k });
 				break;
 			}
 		}
 	}
-	return { windows, suffix };
+	return { windows, suffix, took };
 
 	/** The top-level block every byte `changes` change lies in, past its blank lines, and those
 	 *  bytes; null when they reach more than one block. */

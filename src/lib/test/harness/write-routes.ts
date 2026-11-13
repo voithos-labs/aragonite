@@ -51,6 +51,13 @@ async function typeLetter(m: Mounted, path: number[]): Promise<void> {
 	await m.settle();
 }
 
+/** Types another letter over the first one, so the block is as long as it was. */
+async function typeOver(m: Mounted, path: number[]): Promise<void> {
+	const el = surfaceAt(m, path);
+	typeInto(el, 'Z' + el.textContent.slice(1));
+	await m.settle();
+}
+
 /** A range the editor holds, from inside the text at `from` to inside the text at `to`. */
 async function holdRange(m: Mounted, from: number[], to: number[]): Promise<void> {
 	await m.instance.setSelection({
@@ -78,6 +85,29 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		source: withList,
 		write: (m) => typeLetter(m, [AT, 0, 0]),
 		asks: () => ({ path: [AT, 0, 0], offset: 0 }),
+		announces: 'exact'
+	},
+	// A write that keeps every length: only a compare of bytes sees a block it failed to name.
+	{
+		name: 'a letter typed over a letter in a top-level paragraph',
+		source: paragraphs,
+		write: (m) => typeOver(m, [AT]),
+		asks: () => ({ path: [AT], offset: 0 }),
+		announces: 'exact'
+	},
+	{
+		name: 'a letter typed over a letter in a list item',
+		source: withList,
+		write: (m) => typeOver(m, [AT, 0, 0]),
+		asks: () => ({ path: [AT, 0, 0], offset: 0 }),
+		announces: 'exact'
+	},
+	{
+		name: 'a second letter typed over a letter, written in place',
+		source: paragraphs,
+		setUp: (m) => typeLetter(m, [AT]),
+		write: (m) => typeOver(m, [AT]),
+		asks: () => ({ path: [AT], offset: 0 }),
 		announces: 'exact'
 	},
 	// The second letter of a burst writes in place, its containers the same nodes with new bytes.
@@ -259,6 +289,38 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		announces: 'exact',
 		readsItself: true
 	},
+	{
+		name: 'a byte splice writing one letter over another',
+		source: paragraphs,
+		async write(m) {
+			const before = m.source();
+			const at = before.indexOf(`line ${AT}`);
+			await m.instance.__test.spliceSource(
+				before.slice(0, at) + 'L' + before.slice(at + 1),
+				{ at: at + 1, holds: 'text' },
+				{ kind: 'paste', detail: { count: 1 } }
+			);
+			await m.settle();
+		},
+		asks: () => ({ path: [AT], offset: 0 }),
+		announces: 'exact',
+		readsItself: true
+	},
+	{
+		name: 'a draft writing one letter over another',
+		source: paragraphs,
+		async write(m) {
+			const at = m.source().indexOf(`line ${AT}`);
+			await m.instance
+				.edit()
+				.replace({ from: at, to: at + 1 }, 'L')
+				.commit();
+			await m.settle();
+		},
+		asks: () => ({ path: [AT], offset: 0 }),
+		announces: 'exact',
+		readsItself: true
+	},
 	// The draft maps its ranges through `change-record.ts :: partLengths`, a sum of every block that
 	// no counter sees yet.
 	{
@@ -348,6 +410,25 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		source: paragraphs,
 		setUp: (m) => typeLetter(m, [AT]),
 		write: (m) => history(m, 'history.undo'),
+		asks: () => ({ path: [AT], offset: 0 }),
+		announces: 'exact'
+	},
+	{
+		name: 'undo of a letter typed over a letter',
+		source: paragraphs,
+		setUp: (m) => typeOver(m, [AT]),
+		write: (m) => history(m, 'history.undo'),
+		asks: () => ({ path: [AT], offset: 0 }),
+		announces: 'exact'
+	},
+	{
+		name: 'redo of a letter typed over a letter',
+		source: paragraphs,
+		async setUp(m) {
+			await typeOver(m, [AT]);
+			await history(m, 'history.undo');
+		},
+		write: (m) => history(m, 'history.redo'),
 		asks: () => ({ path: [AT], offset: 0 }),
 		announces: 'exact'
 	},

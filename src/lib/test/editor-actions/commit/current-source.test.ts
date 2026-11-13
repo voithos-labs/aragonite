@@ -23,6 +23,7 @@ function harness(source: string) {
 	const text = createCurrentSource({
 		version: () => version,
 		doc: () => doc,
+		saved: () => serialize(doc),
 		unannounced: () => writing
 	});
 	vi.mocked(serialize).mockClear();

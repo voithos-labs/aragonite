@@ -34,7 +34,7 @@ export async function checkInlineMenuCommitAcrossSwap(c: InlineMenuCommitCase): 
 	const drafts = createDraftRegistry({
 		stamps,
 		// No write is open while a pick commits.
-		starts: { writing: () => false },
+		starts: { writing: () => false, vouch: () => true },
 		events: { emit() {} },
 		doc: () => host.document,
 		measured: () => measured(host.document),

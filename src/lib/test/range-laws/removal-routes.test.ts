@@ -173,7 +173,8 @@ function coreAnswer(editor: Editor, mode: PresentationMode, gesture: RemovalGest
 		version: () => 0,
 		doc: () => doc,
 		source: () => serialize(doc),
-		measured: () => measured(doc)
+		measured: () => measured(doc),
+		vouch: () => true
 	});
 	const copy = rangeClipboard(bytes, coverage, reading)?.text ?? '';
 	const { removed } = deleteRange(doc, start!, end!, { reading, gesture });

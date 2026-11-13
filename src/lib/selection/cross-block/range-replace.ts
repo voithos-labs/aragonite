@@ -24,7 +24,6 @@ import {
 	CORE_GESTURE,
 	commandLandingKind,
 	commitRemoval,
-	currentOf,
 	emptiedPlace,
 	removalAnswer,
 	removedIn,
@@ -42,6 +41,7 @@ import {
 } from './range-paste';
 import {
 	answeredBytes,
+	endsOf,
 	placeInBlock,
 	placeOfGap,
 	placeOverRange,
@@ -492,9 +492,8 @@ async function pasteOver(
 	}
 	// One block held whole gives its line to the paste, in one answer of the core.
 	if (pathsEqual(start.path, end.path) || grid) {
-		const place = placeOverRange(ctx.bytes, coverage);
-		if (!place) return 'nothing';
-		return (await pasteThroughCore(ctx, place, clip, undo)) ? 'written' : 'refused';
+		const aim = { named: endsOf(coverage), place: () => placeOverRange(ctx.bytes, coverage) };
+		return (await pasteThroughCore(ctx, aim, clip, undo)) ? 'written' : 'refused';
 	}
 	// The pair is answered whole before either commits, so the removal goes only with a paste.
 	const pair = pairOver(ctx, coverage, clip);
@@ -514,14 +513,15 @@ async function pasteOver(
 /** The removal typing over the range makes, then the paste at the place the editor would hold on
  *  the bytes it leaves, both answered before either commits; null where the paste has no place. */
 function pairOver(ctx: CrossBlockMutationContext, coverage: RangeCoverage, clip: Clip) {
-	const source = ctx.bytes.source();
 	const removal = removalAnswer(ctx, coverage, 'type');
 	if (!removal) return null;
+	const { read, answer } = removal;
+	const { source } = read;
 	const { grammar } = ctx.reading;
-	const written = splicedBytes(ctx.bytes.measured(), source, removal.source, grammar);
-	const left = answeredDocument(ctx.reading, currentOf(ctx), written);
+	const written = splicedBytes(read.measured, source, answer.source, grammar);
+	const left = answeredDocument(ctx.reading, read, written);
 	const bytes = answeredBytes(left);
-	const removed = removedIn(bytes, removal, written !== source);
+	const removed = removedIn(bytes, answer, written !== source);
 	const at = placeAfterRemoval(bytes, removed, hidesDelimitersAtCaret(ctx.reading.mode()));
 	if (!at) return null;
 	// Read before the removal, which may take every line ending the document has.

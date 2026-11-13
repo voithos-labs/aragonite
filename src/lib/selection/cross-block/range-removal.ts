@@ -15,7 +15,7 @@ import {
 	type RemovalAnswer,
 	type RemovalGesture
 } from '../../range-edit/edit-range';
-import { rangeHost, type CurrentDocument } from '../../range-edit/host';
+import { rangeHost } from '../../range-edit/host';
 import { changesBetween } from '../../tree-operations/byte-changes';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import type { Measured } from '../../tree-operations/top-level-starts';
@@ -24,13 +24,16 @@ import type { RemovalGesture as BlockGesture } from '../caret-target';
 
 import { firstCaretLeafFrom, previousCaretPath } from '../path-lookup';
 import {
+	endsOf,
 	heldGapOf,
 	pointAtByte,
+	rangeRead,
 	readsAsText,
 	removalBytes,
 	takenGapOf,
 	wholeBlockBytes,
-	type DocumentBytes
+	type DocumentBytes,
+	type RangeRead
 } from '../range-bytes';
 import type { RangeCoverage } from '../range-coverage';
 import type { CrossBlockDispatchContext } from './dispatch';
@@ -72,9 +75,15 @@ export async function removeThroughCore(
 	coverage: RangeCoverage,
 	gesture: RemovalGesture
 ): Promise<Removed> {
-	const answer = removalAnswer(ctx, coverage, gesture);
-	if (!answer) return { wrote: false, caret: null, landed: null, taken: null };
-	return commitRemoval(ctx, coverage, gesture, answer);
+	const removal = removalAnswer(ctx, coverage, gesture);
+	if (!removal) return { wrote: false, caret: null, landed: null, taken: null };
+	return commitRemoval(ctx, coverage, gesture, removal);
+}
+
+/** The core's answer for a removal, and the read it was answered on. */
+export interface RemovalRead {
+	read: RangeRead;
+	answer: RemovalAnswer;
 }
 
 /** The core's answer for removing what `coverage` holds as `gesture` does, nothing committed; null
@@ -83,20 +92,25 @@ export function removalAnswer(
 	ctx: RemovalContext,
 	coverage: RangeCoverage,
 	gesture: RemovalGesture
-): RemovalAnswer | null {
-	const range = removalBytes(ctx.bytes.doc(), coverage, ctx.bytes.layout());
-	return range && removalOf(ctx.bytes.source(), range, gesture, modeOf(ctx), hostOf(ctx));
+): RemovalRead | null {
+	const tree = ctx.bytes.doc();
+	const read = rangeRead(ctx.bytes, endsOf(coverage), (layout) =>
+		removalBytes(tree, coverage, layout)
+	);
+	if (!read) return null;
+	const host = rangeHost(ctx.reading, read);
+	return { read, answer: removalOf(read.source, read.range, gesture, modeOf(ctx), host) };
 }
 
-/** `answer`, the removal of what `coverage` holds as `gesture` does, in one commit. */
+/** `removal`, of what `coverage` holds as `gesture` does, in one commit. */
 export async function commitRemoval(
 	ctx: RemovalContext,
 	coverage: RangeCoverage,
 	gesture: RemovalGesture,
-	answer: RemovalAnswer
+	{ read, answer }: RemovalRead
 ): Promise<Removed> {
 	// A range holding nothing to take (an end narrowed to the text before it) is a caret there.
-	if (answer.source === ctx.bytes.source()) return removedIn(ctx.bytes, answer, false);
+	if (answer.source === read.source) return removedIn(ctx.bytes, answer, false);
 	const landed = answer.caret;
 	const { start } = coverage.range;
 	const wrote = await commitBytes(ctx, answer.source, {
@@ -124,15 +138,15 @@ export async function removeWholeBlock(
 	gesture: BlockGesture,
 	commit: Omit<CoreCommit, 'caret'>
 ): Promise<boolean> {
-	const range = wholeBlockBytes(ctx.bytes.doc(), ctx.bytes.layout(), path);
-	if (!range) return false;
-	const source = ctx.bytes.source();
+	const tree = ctx.bytes.doc();
+	const read = rangeRead(ctx.bytes, [path], (layout) => wholeBlockBytes(tree, layout, path));
+	if (!read) return false;
 	const answer = wholeBlocksRemovalOf(
-		source,
-		range,
+		read.source,
+		read.range,
 		CORE_GESTURE[gesture],
 		modeOf(ctx),
-		hostOf(ctx)
+		rangeHost(ctx.reading, read)
 	);
 	const wrote = await commitBytes(ctx, answer.source, { ...commit, caret: answer.caret });
 	if (wrote && gesture === 'cut') rememberCut(ctx, answer.caret);
@@ -152,10 +166,13 @@ export async function writeInCell(
 	text: string
 ): Promise<boolean | null> {
 	const tree = ctx.bytes.doc();
-	const source = ctx.bytes.source();
-	const range = removalBytes(tree, coverage, ctx.bytes.layout());
-	const answer = range && textInCell(source, range, text, modeOf(ctx), hostOf(ctx));
-	if (!answer) return null;
+	const read = rangeRead(ctx.bytes, endsOf(coverage), (layout) =>
+		removalBytes(tree, coverage, layout)
+	);
+	const answer =
+		read && textInCell(read.source, read.range, text, modeOf(ctx), rangeHost(ctx.reading, read));
+	if (!answer || !read) return null;
+	const { source } = read;
 	const { start } = coverage.range;
 	const length =
 		(blockNodeAt(tree, start.path)?.raw.length ?? 0) + answer.source.length - source.length;
@@ -178,15 +195,6 @@ export function commitBytes(
 
 export const modeOf = (ctx: CommitContext) =>
 	hidesDelimitersAtCaret(ctx.reading.mode()) ? 'live' : 'source';
-
-/** The editor's document as the range-edit host reads it. */
-export const currentOf = (ctx: CommitContext): CurrentDocument => ({
-	source: ctx.bytes.source(),
-	measured: ctx.bytes.measured(),
-	layout: ctx.bytes.layout()
-});
-
-export const hostOf = (ctx: CommitContext) => rangeHost(ctx.reading, currentOf(ctx));
 
 // ── Where the removal leaves the caret, read around it ───────────────────────
 

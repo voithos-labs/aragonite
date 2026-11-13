@@ -12,7 +12,7 @@ import { assertInvariant, devChecksOn } from '@voithos-labs/aragonite/dev-checks
 import { checkSnapshotIntegrity } from '../../invariants/snapshot-integrity';
 import { checkInstalledEntry } from '../../invariants/history-install';
 import { admitsHistoryRequest, startsAlone } from './reading-write-gate';
-import { installReading } from './byte-splice';
+import { installReading, tookTreeBytes } from './byte-splice';
 import { byteOfGap, gapAtByte } from '../../selection/range-bytes';
 import { emitEdit, NOTHING_REPLACED, type ReplacedBlocks } from './emit-edit';
 import type { EditorActionsDeps, UndoController } from '../deps';
@@ -114,11 +114,16 @@ export function createHistoryActions(
 	/** The live document read again to the entry's bytes, since its snapshot was read under another
 	 *  grammar; null when they are the same bytes. */
 	function readingFor(entry: UndoEntry): Reread | null {
-		const before = deps.bytes.source();
-		const was = deps.bytes.measured();
-		const changes = changesBetween(before, serialize(entry.snapshot));
-		const reading = spliceReading(was, before, changes, deps.reading.grammar);
-		return reading && { reading, was };
+		const read = (): Reread | null => {
+			const before = deps.bytes.source();
+			const was = deps.bytes.measured();
+			const changes = changesBetween(before, serialize(entry.snapshot));
+			const reading = spliceReading(was, before, changes, deps.reading.grammar);
+			return reading && { reading, was };
+		};
+		const first = read();
+		// A reading off a record the tree has left is made again; the record is forgotten by then.
+		return first && !tookTreeBytes(deps, first.reading) ? read() : first;
 	}
 
 	/** `reading` installed: the blocks the undo leaves alone keep their nodes, and the caret keeps

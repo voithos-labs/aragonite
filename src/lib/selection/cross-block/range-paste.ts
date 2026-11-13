@@ -32,9 +32,15 @@ import { splicedBytes } from '../../tree-operations/spliced-openers';
 import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 import type { CaretLanding } from '../caret-landing';
-import { placeInBlock, pointAtByte, type PastePlace } from '../range-bytes';
+import {
+	placeInBlock,
+	placeRead,
+	pointAtByte,
+	type PasteAim,
+	type PastePlace
+} from '../range-bytes';
 import type { SelectionState } from '../selection-state.svelte';
-import { commitBytes, currentOf, modeOf, type CommitContext } from './range-removal';
+import { commitBytes, modeOf, type CommitContext } from './range-removal';
 
 export type PasteContext = CommitContext & {
 	getDoc: DocumentGetter;
@@ -75,8 +81,9 @@ export async function pasteInBlock(
 ): Promise<boolean> {
 	if (await answeredAhead(ctx, span.path, clip, null)) return true;
 	const live = modeOf(ctx) === 'live';
-	const place = placeInBlock(ctx.bytes, span.path, span.start, span.end, live);
-	return place ? pasteThroughCore(ctx, place, clip, undo, spend) : false;
+	const { path, start, end } = span;
+	const aim = { named: [path], place: () => placeInBlock(ctx.bytes, path, start, end, live) };
+	return pasteThroughCore(ctx, aim, clip, undo, spend);
 }
 
 /** Whether the kind of the text block at `path` answered the paste itself, ahead of the core;
@@ -102,23 +109,25 @@ export async function answeredAhead(
 	});
 }
 
-/** Pastes `clip` at `place` in one commit, whose undo puts the caret back at `undo`. False where
- *  the paste changed nothing or the commit refused it. */
+/** Pastes `clip` at the place `aim` finds in one commit, whose undo puts the caret back at `undo`.
+ *  False where the paste changed nothing or the commit refused it. */
 export async function pasteThroughCore(
 	ctx: PasteContext,
-	place: PastePlace,
+	aim: PasteAim,
 	clip: Clip,
 	undo: CommitSnapshotArg,
 	spend?: SpendInsertion
 ): Promise<boolean> {
-	const current = currentOf(ctx);
-	const answer = pasteAnswer(ctx, current, place, clip, spend);
-	if (answer.source === current.source) {
+	const read = placeRead(ctx.bytes, aim);
+	if (!read) return false;
+	const { place } = read;
+	const answer = pasteAnswer(ctx, read, place, clip, spend);
+	if (answer.source === read.source) {
 		// A range pasted over with its own bytes is written nowhere, and still ends where they end.
 		if (place.range.from !== place.range.to) await endRangeAt(ctx, answer.caret.at);
 		return false;
 	}
-	return landAnswer(ctx, current.source, answer, undo);
+	return landAnswer(ctx, read.source, answer, undo);
 }
 
 /** The core's answer for `clip` pasted at `place` in `doc`: the editor's document, or the bytes a

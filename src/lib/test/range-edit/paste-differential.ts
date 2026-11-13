@@ -140,7 +140,8 @@ export function placeFor(doc: Document, source: string, via: Place, mode: Mode):
 		version: () => 0,
 		doc: () => doc,
 		source: () => source,
-		measured: () => laid
+		measured: () => laid,
+		vouch: () => true
 	});
 	if ('whole' in via) return placeAfterBlock(bytes, via.whole);
 	if ('gap' in via) return placeOfGap(bytes, via.gap);

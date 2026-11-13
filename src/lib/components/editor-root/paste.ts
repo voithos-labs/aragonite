@@ -22,7 +22,7 @@ import {
 	type PasteContext
 } from '../../selection/cross-block/range-paste';
 import { findSurfacePathForElement } from '../../selection/path-lookup';
-import { placeAfterBlock, placeOfGap, type PastePlace } from '../../selection/range-bytes';
+import { placeAfterBlock, placeOfGap, type PasteAim } from '../../selection/range-bytes';
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import { isWholeBlockInputProxy } from '../../selection/whole-block-input';
 import type { SurfacePaste } from '../blocks/editable/surface-clipboard';
@@ -131,10 +131,15 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 				const gap = deps.selection.gapCaret!;
 				// Undo puts the caret back on the block beside the gap, the nearest place one can stand.
 				const beside = [...gap.parentPath, Math.max(0, gap.index - 1)];
-				return live(atPlace(() => placeOfGap(ctx.bytes, gap), beside));
+				const named = [beside, [...gap.parentPath, gap.index]];
+				return live(atPlace({ named, place: () => placeOfGap(ctx.bytes, gap) }, beside));
 			}
-			case 'whole':
-				return live(atPlace(() => placeAfterBlock(ctx.bytes, holder.path), holder.path));
+			case 'whole': {
+				const { path } = holder;
+				return live(
+					atPlace({ named: [path], place: () => placeAfterBlock(ctx.bytes, path) }, path)
+				);
+			}
 			case 'block': {
 				const { path, block } = holder;
 				const ask = () => block.preparePaste?.() as BlockAnswer;
@@ -151,12 +156,9 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 	}
 
 	/** A paste at a place between blocks, whose undo puts the caret back on the block at `beside`. */
-	function atPlace(place: () => PastePlace | null, beside: number[]): AimedPaste {
+	function atPlace(aim: PasteAim, beside: number[]): AimedPaste {
 		const undo = { path: docPathFrom(beside), offset: 0 };
-		return async (clip) => {
-			const at = place();
-			return at ? pasteThroughCore(ctx, at, clip, undo) : false;
-		};
+		return (clip) => pasteThroughCore(ctx, aim, clip, undo);
 	}
 
 	/** The paste into a paragraph opened under top-level block `top`, both one undo entry: the

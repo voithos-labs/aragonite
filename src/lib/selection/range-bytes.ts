@@ -3,7 +3,8 @@
  * each end's byte in the document, kept off a block its start can't join, then widened to every
  * block the coverage holds whole (G1.212). Copy, cut and the overlay read a range through here.
  * The other way, a place the core names reads back as the caret the editor puts down there
- * (`landingAt`, `heldGapOf`), and a paste is named a place (`placeInBlock` and its siblings).
+ * (`landingAt`, `heldGapOf`), and a paste is named a place (`placeInBlock` and its siblings, read
+ * through `placeRead`).
  */
 
 import { untrack } from 'svelte';
@@ -47,6 +48,9 @@ export interface DocumentBytes {
 	/** The caret the core named for the last cut and the measure the cut left, which a paste back
 	 *  at that caret reads; null once anything else is known to have written. */
 	cut: { caret: SpliceCaret; of: Measured } | null;
+	/** Whether what is kept of top-level blocks `[from, to]` is what the tree holds; a record found
+	 *  wrong is forgotten, so the next read is fresh (`KeptStarts.vouch`). */
+	vouch(from: number, to: number): boolean;
 }
 
 /** The layout is made once per measured document, which every byte writer's announcement
@@ -56,6 +60,7 @@ export function documentBytes(deps: {
 	doc(): DocumentView;
 	source(): string;
 	measured(): Measured;
+	vouch(from: number, to: number): boolean;
 }): DocumentBytes {
 	let laid: { of: Measured; layout: Layout } | undefined;
 	return {
@@ -63,6 +68,7 @@ export function documentBytes(deps: {
 		source: deps.source,
 		measured: deps.measured,
 		cut: null,
+		vouch: deps.vouch,
 		layout() {
 			deps.version();
 			const of = deps.measured();
@@ -81,9 +87,46 @@ export function answeredBytes(doc: CurrentDocument): DocumentBytes {
 		source: () => doc.source,
 		layout: () => layout,
 		measured: () => doc.measured,
-		cut: null
+		cut: null,
+		vouch: () => true
 	};
 }
+
+/** A range and the document it was read from, as the range-edit core takes them. */
+export interface RangeRead {
+	range: Range;
+	source: string;
+	measured: Measured;
+	layout: Layout;
+}
+
+/** The one read every range gesture starts from: the range `rangeOf` finds for `named`, the paths
+ *  it was asked by, and its document. A record wrong for their blocks or the range's reads twice. */
+export function rangeRead(
+	bytes: DocumentBytes,
+	named: readonly (readonly number[])[],
+	rangeOf: (layout: Layout) => Range | null
+): RangeRead | null {
+	for (let fresh = false; ; fresh = true) {
+		const source = bytes.source();
+		const measured = bytes.measured();
+		const layout = bytes.layout();
+		const range = rangeOf(layout);
+		if (!range) return null;
+		const { starts } = measured;
+		let from = starts.holding(range.from);
+		let to = starts.holding(Math.max(range.to - 1, range.from));
+		// A named block the record holds at another length puts its bytes in other blocks.
+		for (const [top] of named) {
+			from = Math.min(from, top);
+			to = Math.max(to, top);
+		}
+		if (bytes.vouch(from, to) || fresh) return { range, source, measured, layout };
+	}
+}
+
+/** The paths a coverage's range was asked by. */
+export const endsOf = ({ range }: RangeCoverage) => [range.start.path, range.end.path];
 
 /** The range's bytes; null for a rectangle of cells inside one table, which never reaches the core. */
 export function rangeBytes(
@@ -279,6 +322,24 @@ export function byteOfGap(
  *  `back`, on a caret where the last cut left it, is that cut's own caret: the one place the entry
  *  the cut wrote fits, so only a paste of that entry goes there. */
 export type PastePlace = { range: Range; ending?: LineEnding; back?: SpliceCaret } & Held;
+
+/** A paste's place as one of the readers below finds it, and the paths it was asked by, which
+ *  `placeRead` vouches with the place's own blocks. */
+export interface PasteAim {
+	named: readonly (readonly number[])[];
+	place(): PastePlace | null;
+}
+
+/** `rangeRead` for a paste: the place `aim` finds and its document, both read again where the
+ *  record is found wrong for the blocks they reach. */
+export function placeRead(
+	bytes: DocumentBytes,
+	aim: PasteAim
+): (RangeRead & { place: PastePlace }) | null {
+	const found: { place?: PastePlace | null } = {};
+	const read = rangeRead(bytes, aim.named, () => (found.place = aim.place())?.range ?? null);
+	return read && found.place ? { ...read, place: found.place } : null;
+}
 
 /** The place of raw offsets `[start, end]` of the text block at `path`. A live caret outside the
  *  block's text names the boundary beside it; a live range's ends stand at the text's edges. */

@@ -246,7 +246,9 @@ export function copyThroughFunnel(
 		version: () => 0,
 		doc: () => doc,
 		source: () => serialize(doc),
-		measured: () => laid
+		measured: () => laid,
+		// A document measured for this one read keeps nothing a write could leave wrong.
+		vouch: () => true
 	});
 	const coverage = rangeCoverage(doc, coverRange(doc, start, end));
 	return rangeClipboard(bytes, coverage, kitReading())?.text ?? '';

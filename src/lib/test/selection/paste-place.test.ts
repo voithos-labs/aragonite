@@ -19,7 +19,8 @@ function bytesOf(source: string) {
 		version: () => 0,
 		doc: () => doc,
 		source: () => source,
-		measured: () => laid
+		measured: () => laid,
+		vouch: () => true
 	});
 }
 
