@@ -13,7 +13,7 @@ import { SOURCE } from './source-paths';
 /** Each reader of the text a write is worked out from, and where its bytes are vouched. */
 const TEXT_READERS: Record<string, string> = {
 	'src/lib/selection/range-bytes.ts':
-		'`rangeRead`, the one read a range gesture starts from, vouches the range’s blocks',
+		'`rangeRead`, the one read a range gesture starts from, vouches the blocks it names and reaches',
 	'src/lib/selection/cross-block/range-removal.ts':
 		'the changes it makes from that read land through the byte splice',
 	'src/lib/editor-actions/commit/byte-splice.ts':
@@ -49,7 +49,7 @@ describeManifests(
 			matches: /\brangeHost\s*\(/,
 			declared: CORE_HOSTS,
 			reason:
-				'a new range gesture: take its range and its document from `rangeRead`, which vouches the range’s blocks',
+				'a new range gesture: take its range and its document from `rangeRead`, which vouches the blocks it names and reaches',
 			hits: ['rangeHost(ctx.reading, read)'],
 			misses: ['const host: RangeHost = hostOf(read);']
 		}

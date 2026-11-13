@@ -72,10 +72,11 @@ export interface RangeRead {
 	layout: Layout;
 }
 
-/** The range `rangeOf` finds on the layout and the document it was read from: the one read every
- *  range gesture starts from. A kept record found wrong for the range's blocks costs a second read. */
+/** The one read every range gesture starts from: the range `rangeOf` finds for `named`, the paths
+ *  it was asked by, and its document. A record wrong for their blocks or the range's reads twice. */
 export function rangeRead(
 	bytes: DocumentBytes,
+	named: readonly (readonly number[])[],
 	rangeOf: (layout: Layout) => Range | null
 ): RangeRead | null {
 	for (let fresh = false; ; fresh = true) {
@@ -85,13 +86,19 @@ export function rangeRead(
 		const range = rangeOf(layout);
 		if (!range) return null;
 		const { starts } = measured;
-		const held = bytes.vouch(
-			starts.holding(range.from),
-			starts.holding(Math.max(range.to - 1, range.from))
-		);
-		if (held || fresh) return { range, source, measured, layout };
+		let from = starts.holding(range.from);
+		let to = starts.holding(Math.max(range.to - 1, range.from));
+		// A named block the record holds at another length puts its bytes in other blocks.
+		for (const [top] of named) {
+			from = Math.min(from, top);
+			to = Math.max(to, top);
+		}
+		if (bytes.vouch(from, to) || fresh) return { range, source, measured, layout };
 	}
 }
+
+/** The paths a coverage's range was asked by. */
+export const endsOf = ({ range }: RangeCoverage) => [range.start.path, range.end.path];
 
 /** The range's bytes; null for a rectangle of cells inside one table, which never reaches the core. */
 export function rangeBytes(

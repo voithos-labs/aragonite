@@ -17,7 +17,7 @@ export function idleDraftRegistry(
 ) {
 	return createDraftRegistry({
 		stamps,
-		starts: { writing: () => false },
+		starts: { writing: () => false, vouch: () => true },
 		events: { emit() {} },
 		doc,
 		measured: () => measured(doc()),

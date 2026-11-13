@@ -23,6 +23,7 @@ import type { RemovalGesture as BlockGesture } from '../caret-target';
 
 import { firstCaretLeafFrom, previousCaretPath } from '../path-lookup';
 import {
+	endsOf,
 	heldGapOf,
 	pointAtByte,
 	rangeRead,
@@ -72,7 +73,9 @@ export async function removeThroughCore(
 	gesture: RemovalGesture
 ): Promise<Removed> {
 	const tree = ctx.bytes.doc();
-	const read = rangeRead(ctx.bytes, (layout) => removalBytes(tree, coverage, layout));
+	const read = rangeRead(ctx.bytes, endsOf(coverage), (layout) =>
+		removalBytes(tree, coverage, layout)
+	);
 	if (!read) return { wrote: false, caret: null, landed: null, taken: null };
 	const { source, range } = read;
 	const answer = removalOf(source, range, gesture, modeOf(ctx), rangeHost(ctx.reading, read));
@@ -104,7 +107,7 @@ export function removeWholeBlock(
 	commit: Omit<RemovalCommit, 'caret'>
 ): Promise<boolean> {
 	const tree = ctx.bytes.doc();
-	const read = rangeRead(ctx.bytes, (layout) => wholeBlockBytes(tree, layout, path));
+	const read = rangeRead(ctx.bytes, [path], (layout) => wholeBlockBytes(tree, layout, path));
 	if (!read) return Promise.resolve(false);
 	const answer = wholeBlocksRemovalOf(
 		read.source,
@@ -124,7 +127,9 @@ export async function writeInCell(
 	text: string
 ): Promise<boolean | null> {
 	const tree = ctx.bytes.doc();
-	const read = rangeRead(ctx.bytes, (layout) => removalBytes(tree, coverage, layout));
+	const read = rangeRead(ctx.bytes, endsOf(coverage), (layout) =>
+		removalBytes(tree, coverage, layout)
+	);
 	const answer =
 		read && textInCell(read.source, read.range, text, modeOf(ctx), rangeHost(ctx.reading, read));
 	if (!answer || !read) return null;

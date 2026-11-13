@@ -11,7 +11,7 @@ import type { ClipboardWrite } from '../browser/clipboard';
 import type { RawRange } from '../browser/offsets';
 import { copyRange } from '../range-edit/edit-range';
 import { rangeHost, type Mode } from '../range-edit/host';
-import { rangeBytes, rangeRead, type DocumentBytes } from './range-bytes';
+import { endsOf, rangeBytes, rangeRead, type DocumentBytes } from './range-bytes';
 import { coverRange, rangeCoverage, type RangeCoverage } from './range-coverage';
 
 /** The copy of a covered range; null for a rectangle of cells, which copies as a grid. */
@@ -21,7 +21,7 @@ export function rangeClipboard(
 	reading: Reading
 ): ClipboardWrite | null {
 	const tree = bytes.doc();
-	const read = rangeRead(bytes, (layout) => rangeBytes(tree, coverage, layout));
+	const read = rangeRead(bytes, endsOf(coverage), (layout) => rangeBytes(tree, coverage, layout));
 	if (!read) return null;
 	const mode: Mode = hidesDelimitersAtCaret(reading.mode()) ? 'live' : 'source';
 	const { clipboard, own } = copyRange(read.source, read.range, mode, rangeHost(reading, read));
