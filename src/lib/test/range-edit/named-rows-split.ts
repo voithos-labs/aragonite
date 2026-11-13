@@ -191,6 +191,23 @@ const EMPTIED_ROWS: NamedRow[] = [
 		paste('\n\ntwo'),
 		'\n\n# twoHi\n'
 	),
+	// Miss-analysis: the give-way rows were headings; ruling 16 names an item the same way, and no
+	// row emptied one with blocks that join none of it.
+	...both('E an item a paste empties gives way', '- [ ] ⟦alpha⟧\n', paste(TABLE), '| a |\n| - |\n'),
+	...both('E a fence too', '- ⟦alpha⟧\n', paste('```\ncode\n```'), '```\ncode\n```\n'),
+	...both('E and the list numbers on', '1. ⟦n⟧\n2. c\n', paste(TABLE), '| a |\n| - |\n\n1. c\n'),
+	...both(
+		'E a middle item gives way between the list’s halves',
+		'- a\n- ⟦alpha⟧\n- c\n',
+		paste(TABLE),
+		'- a\n\n| a |\n| - |\n- c\n'
+	),
+	...both(
+		'E an item holding more keeps its marker',
+		'- ⟦alpha⟧\n  - sub\n',
+		paste(TABLE),
+		'- | a |\n  | - |\n  - sub\n'
+	),
 	...both(
 		'E text that joins keeps the heading',
 		'# ⟦Title⟧\n',

@@ -17,6 +17,7 @@ import {
 	joinsName,
 	leafHolding,
 	nodeAt,
+	parentOf,
 	pointedBlock,
 	readDoc,
 	titleOwner,
@@ -37,7 +38,7 @@ import {
 	splitAt,
 	splitOut
 } from './paste-split';
-import { numberedAfterTaking } from './list-numbers';
+import { numberedAfterTaking, numberedOn } from './list-numbers';
 import {
 	byteAt,
 	cutLeaf,
@@ -373,19 +374,34 @@ function landed(
 	const flush = !isBlankText(onLine) && factsOf(doc, leaf).joins === 'text' && !clip.endsWith('\n');
 	const after = tailOf(lastJoins && (under || flush));
 	const cut = cutWith('', after, lead);
-	// A heading left with no text gives way: the blocks land on its line as on an empty one.
-	if (cut.empty && cut.head.length > leaf.from) {
-		const bare = doc.source.slice(0, leaf.from) + doc.source.slice(contentEnd(doc, leaf));
+	// A heading or a list item left with no text gives way: the blocks land on its line as on an
+	// empty one, and a list it stood in numbers on.
+	const gone = cut.empty ? givesWay(doc, leaf, cut, clip) : null;
+	if (gone) {
+		const end = contentEnd(doc, gone);
+		const bare = doc.source.slice(0, gone.from) + doc.source.slice(end);
 		const emptied = { ...readDoc(bare, doc.host, doc.mode), ending: doc.ending };
 		const landing: Pasted = { text: clip, plain: false, held: { holds: 'text' }, transform: null };
-		// Bytes alone: a block the landing names is one of the document without the heading.
-		const { source, caret } = pasteAt(emptied, leaf.from, leaf.from, landing);
-		return { source, caret };
+		// Bytes alone: a block the landing names is one of the document without the one that went.
+		const { source, caret } = pasteAt(emptied, gone.from, gone.from, landing);
+		return { source: numberedOn(doc, gone.from, end, source), caret };
 	}
 	const ownEnding = !lastJoins && lineRest(cut.rest, 0) === '' && clip.endsWith('\n');
 	const text = ownEnding ? clip.slice(0, -1) : clip;
 	const mid = text.slice(0, text.length - after.length);
 	return splitAt(doc, leaf, from, to, cut, mid, lastJoins, lastRaw);
+}
+
+/** The block that gives way to blocks pasted over all of `leaf`'s text, `cut` there: a heading,
+ *  whose syntax stands before its text, or the list item `leaf` is all of, for blocks of lines. */
+function givesWay(doc: Doc, leaf: LaidBlock, cut: Cut, clip: string): LaidBlock | null {
+	if (cut.head.length > leaf.from) return leaf;
+	// One line goes in after an item's marker as typing it there would; more is no item's text.
+	if (!clip.trimEnd().includes('\n')) return null;
+	const item = parentOf(doc, leaf);
+	const list = item && parentOf(doc, item);
+	if (!list || factsOf(doc, list).lines !== 'items') return null;
+	return nodeAt(doc, item.path).children?.length === 1 ? item : null;
 }
 
 /** Where the last line of the text `block` ends on starts, in a pasted block that is no paragraph;
