@@ -131,6 +131,11 @@ const NAMED: Named[] = [
 	{ name: 'a callout title row', marked: ':::note Ti‸tle\nbody\n:::\n', clips: ['x\ny', 'a\n\nb'] },
 	{ name: 'a callout body a delete emptied', marked: ':::note\n‸\n:::\n', clips: ['xy', 'a\n\nb'] },
 	{
+		name: 'a definition over a heading under a started title',
+		marked: "[a]: /u\n    'code\n# ⟦h⟧\ntext\nend'\n",
+		clips: ['[c]: /w']
+	},
+	{
 		name: 'a details summary',
 		marked: '<details>\n<summary>S‸S</summary>\n\nbody\n\n</details>\n',
 		clips: ['a\n\nb']
