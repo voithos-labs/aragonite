@@ -24,3 +24,12 @@ a later container, where the caret stopped on that container's opening line.
 - A note whose body starts with a table, a tip after it; select from the first cell into the tip's
   first line; Delete, then type a letter: the letter lands at the start of what is left of that
   line, not on the tip's `:::tip`. In live and source mode.
+
+## A range ending at a line's end
+
+Miss-analysis: every row ended mid-line, so none ended at a line's end inside a block that runs on,
+where the removal wrote that line's quote marker in front of the next line's.
+
+- A table, a paragraph, then a code block in a quote with two lines; select from the first cell to
+  the end of the code's first line; Delete, then type a letter: the code's second line keeps one
+  quote marker, and the letter lands at its start. In live and source mode.

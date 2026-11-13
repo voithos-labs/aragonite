@@ -10,6 +10,8 @@
 // no draw started at a line's first byte in a block that stays, with an end that joins no text.
 // No draw ended in a later container's body, and nothing read where Delete put the caret. No draw
 // started at the top level, crossed a details, a quote or an item on the way in, or went three deep.
+// No draw ended at a line's end with its block running on, and the law read a line past its markers,
+// so a marker the removal wrote twice there passed.
 
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
@@ -27,7 +29,7 @@ import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
 import { leafAt, readOf } from './expected';
-import { gluedStart, movedLine } from './kept-lines';
+import { gluedStart, movedLine, rewrittenAfter, textBelow } from './kept-lines';
 import { checkHost, testReading } from './test-host';
 
 const TABLE = ['| a | b |', '|---|---|', '| 1 | 2 |', '| 3 | 4 |'];
@@ -135,6 +137,15 @@ const ENDS: Record<string, { lines: string[]; cell?: number }> = {
 	'a container in a quote': { lines: ['', '> :::tip', '> in⟧ner', '> :::', '', '# h'] },
 	'a container in an item': { lines: ['', '- :::tip', '  in⟧ner', '  :::', '', '# h'] },
 	'a code block right below': { lines: ['```', 'co⟧de', '```', '', '# h'] },
+	'a quote line’s end in a later container': {
+		lines: ['', ':::note', '> inner⟧', '> more', ':::', '', '# h']
+	},
+	'a code line’s end in a quote': { lines: ['', '> ```', '> code⟧', '> more', '> ```', '', '# h'] },
+	'a code line’s end in an item': { lines: ['', '- ```', '  code⟧', '  more', '  ```', '', '# h'] },
+	'a code line’s end over a blank code line': {
+		lines: ['', ':::tip', '```', 'code⟧', '', 'more', '```', ':::', '', '# h']
+	},
+	'a rule’s end in a tip in a quote': { lines: ['', '> :::tip', '> ***⟧', '> :::', '', '# h'] },
 	'the document’s end': { lines: ['', 'para⟧'] }
 };
 
@@ -212,12 +223,14 @@ describe('G4.350 a removal keeps the lines after its range', () => {
 				for (const got of [cut, ...keys]) {
 					const moved =
 						gluedStart(host, read, range.from, range.to, got) ??
-						movedLine(host, read, range.from, range.to, got);
+						movedLine(host, read, range.from, range.to, got) ??
+						rewrittenAfter(read, range.to, got);
 					if (moved) fails.push(`${moved}: ${JSON.stringify(got)}\n    ${JSON.stringify(c)}`);
 				}
-				// G4.351: where the start's block went whole, Delete lands on the text left after the range,
-				// or on the line the removal left emptied at the range's start.
-				const rest = lineRest(source, range.to);
+				// G4.351: where the start's block went whole, Delete lands on the text after the range (the
+				// next line's, at its line's end) or on a line the removal emptied at the range's start.
+				const below = isBlankText(lineRest(source, range.to)) ? textBelow(read, range.to) : null;
+				const rest = lineRest(source, below ?? range.to);
 				if (!c.body.endsWith('taken whole') || cell !== undefined || isBlankText(rest)) return;
 				landed++;
 				const kind = leafAt(read, range.to)?.type;

@@ -63,4 +63,16 @@ for (const mode of ['live', 'source'] as const) {
 		await page.keyboard.type('x');
 		await editor.bridge.waitForSourceEquals(':::note\n:::\n\n:::tip\nxner\nmore\n:::\n\n# h\n');
 	});
+
+	test(`(${mode}) Delete to a code line's end in a quote keeps one marker on the line after`, async ({
+		page
+	}) => {
+		await open(mode, `${TABLE}\n\nbody\n\n> \`\`\`\n> code\n> more\n> \`\`\`\n`);
+		await selectFromFirstCell([0, 0, 0], [2, 0], 8);
+
+		await page.keyboard.press('Delete');
+		await editor.bridge.waitForSourceEquals('> ```\n> more\n> ```\n');
+		await page.keyboard.type('x');
+		await editor.bridge.waitForSourceEquals('> ```\n> xmore\n> ```\n');
+	});
 }

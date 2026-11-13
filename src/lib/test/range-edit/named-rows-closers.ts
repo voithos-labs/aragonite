@@ -312,6 +312,97 @@ const MIXED_ROWS: NamedRow[] = [
 	}
 ];
 
+// Miss-analysis: every range the rows drew into a block that runs on ended mid-line, so none ended at
+// a line's end, where whole lines took that line and its markers stood again before the next line's.
+const LINE_END_ROWS: NamedRow[] = [
+	...cut(
+		'L4 a range ending at a code line’s end in a quote leaves the closing fence behind one marker',
+		'⟦***\n\nbody\n\n> ```\n> code⟧\n> ```\n',
+		'> ```\n> ```\n'
+	),
+	...cut(
+		'L4 the same at a quote line’s end in a note',
+		'⟦***\n\nbody\n\n:::note\n> inner⟧\n> more\n:::\n',
+		':::note\n> more\n:::\n'
+	),
+	...cut(
+		'L4 in an item the code line after keeps one indent',
+		'⟦***\n\nbody\n\n- ```\n  code⟧\n  more\n  ```\n',
+		'- ```\n  more\n  ```\n'
+	),
+	...cut(
+		'L4 in a footnote the line after keeps one indent',
+		'⟦***\n\nbody\n\n[^1]: :::tip\n    inner⟧\n    more\n    :::\n',
+		'[^1]: :::tip\n    more\n    :::\n'
+	),
+	...cut(
+		'L4 in a quote in an item the closing line keeps both markers once',
+		'⟦***\n\nbody\n\n- > :::tip\n  > ***⟧\n  > :::\n',
+		'- > :::tip\n  > :::\n'
+	),
+	...cut(
+		'L4 two quotes deep',
+		'⟦***\n\nbody\n\n> > ```\n> > code⟧\n> > ```\n',
+		'> > ```\n> > ```\n'
+	),
+	...cut(
+		'L4 in CRLF',
+		'⟦***\r\n\r\nbody\r\n\r\n> ```\r\n> code⟧\r\n> ```\r\n',
+		'> ```\r\n> ```\r\n'
+	),
+	...cut(
+		'L4 where the line after is the document’s last',
+		'⟦***\n\nbody\n\n> ```\n> code⟧\n> ```',
+		'> ```\n> ```'
+	),
+	...cut(
+		'L4 from a quote the range starts in, the line after takes that quote’s marker back',
+		'> x\n>\n> ⟦***\n> > ```\n> > code⟧\n> > ```\n',
+		'> x\n>\n> \n> > ```\n> > ```\n'
+	),
+	...cut(
+		'L4 an HTML block entered from a note in a quote keeps the line after behind one marker',
+		'> :::note\n> ⟦***\n>\n> body\n> :::\n>\n> <div>\n> b⟧\n> c\n> </div>\n',
+		'> :::note\n> :::\n> c\n> </div>\n'
+	),
+	...cut(
+		'L4 a blank code line right after the range stays',
+		'⟦***\n\nbody\n\n```\ncode⟧\n\nmore\n```\n',
+		'```\n\nmore\n```\n'
+	),
+	...deleted(
+		'L8 a range ending at a code line’s end in a quote lands at the next line’s text',
+		'⟦***\n\nbody\n\n> ```\n> code⟧\n> more\n> ```\n',
+		'> ```\n> more\n> ```\n',
+		{ at: 8, holds: 'text' },
+		true
+	),
+	...deleted(
+		'L8 the same at a quote line’s end in a note',
+		'⟦***\n\nbody\n\n:::note\n> inner⟧\n> more\n:::\n',
+		':::note\n> more\n:::\n',
+		{ at: 10, holds: 'text' }
+	),
+	...deleted(
+		'L8 in an item, past the code line’s indent',
+		'⟦***\n\nbody\n\n- ```\n  code⟧\n  more\n  ```\n',
+		'- ```\n  more\n  ```\n',
+		{ at: 8, holds: 'text' }
+	),
+	...deleted(
+		'L8 a blank code line after the range holds the caret',
+		'⟦***\n\nbody\n\n:::tip\n```\ncode⟧\n\nmore\n```\n:::\n',
+		':::tip\n```\n\nmore\n```\n:::\n',
+		{ at: 11, holds: 'text' }
+	),
+	...deleted(
+		'L8 an HTML block entered from a note in a quote, at its next line’s text',
+		'> :::note\n> ⟦***\n>\n> body\n> :::\n>\n> <div>\n> b⟧\n> c\n> </div>\n',
+		'> :::note\n> :::\n> c\n> </div>\n',
+		{ at: 18, holds: 'text' }
+	)
+];
+
 export const CLOSER_ROWS: NamedRow[] = [
 	...CLOSING_LINE_ROWS,
 	...LINE_ROWS,
@@ -319,5 +410,6 @@ export const CLOSER_ROWS: NamedRow[] = [
 	...START_LINE_ROWS,
 	...TEXT_AFTER_ROWS,
 	...ENTERED_ROWS,
-	...MIXED_ROWS
+	...MIXED_ROWS,
+	...LINE_END_ROWS
 ];

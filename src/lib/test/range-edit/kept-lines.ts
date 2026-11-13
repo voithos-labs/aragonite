@@ -2,7 +2,8 @@
 // own, in order, inside the same fenced containers, so a closing line it kept stands where it closes
 // its own container (the spec's section 5.2). A line is matched by its text past its container
 // markers, so a list renumbered or a marker moved to a new first line still finds it. The line the
-// range starts on stays too, emptied, wherever its block does.
+// range starts on stays too, emptied, wherever its block does. Where no text joins across the range,
+// the lines after its end line stay byte for byte, each keeping its own markers once.
 
 import { inTitleRow, leafAt, mixedEndings, readOf, type Read } from './expected';
 import type { CheckHost } from './test-host';
@@ -70,6 +71,30 @@ export function gluedStart(
 	);
 	if (joined) return null;
 	return `glued the start’s line to ${JSON.stringify(rest.slice(0, 24))}`;
+}
+
+/** The first line after the range's end line that `got` doesn't end with, byte for byte from a
+ *  line's start, as a report line; null where it ends with all of them. */
+export function rewrittenAfter(read: Read, to: number, got: string): string | null {
+	const lineEnd = read.source.indexOf('\n', to);
+	if (lineEnd < 0) return null;
+	const below = read.source.slice(lineEnd + 1);
+	// A blank line opening them may go with a block the range took, unless the end's block holds it.
+	const after = textBelow(read, to) === null ? below.replace(/^(?:[ \t>]*\r?\n)+/, '') : below;
+	const at = got.length - after.length;
+	if (after === '' || (got.endsWith(after) && (at === 0 || got[at - 1] === '\n'))) return null;
+	return `rewrote the line ${JSON.stringify(/^[^\r\n]*/.exec(after)![0])} after the range`;
+}
+
+/** Where the text of the block the range ends in goes on below the range's end line, past that
+ *  line's markers; null where its text ends on the end line. */
+export function textBelow(read: Read, to: number): number | null {
+	const leaf = leafAt(read, to);
+	const lineEnd = read.source.indexOf('\n', to);
+	if (!leaf?.text || lineEnd < 0 || leaf.text.to <= lineEnd + 1) return null;
+	for (let at = lineEnd + 1; at <= leaf.text.to; at++)
+		if (read.layout.pointAt(at)?.path.join() === leaf.path.join()) return at;
+	return null;
 }
 
 /** The first line starting at or after `at`. */

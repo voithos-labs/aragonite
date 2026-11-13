@@ -13,6 +13,7 @@ import { getContentRange } from '../core/inline';
 import type { LaidBlock, LaidLine } from './layout';
 import {
 	containersAt,
+	containersHolding,
 	contentEnd,
 	factsOf,
 	findWithin,
@@ -141,8 +142,9 @@ function across(
 	const closing = closers(doc, from, to);
 	const lines = held ? wholeLines(doc, from, to, closing !== '') : null;
 	let tail = lines?.tail ?? source.slice(to);
-	// How many of the tail's last bytes are what followed the range.
-	let follows = tail.length;
+	// How many of the tail's last bytes are what followed the range: from the next line's text, past
+	// its markers, where whole lines took the end's line.
+	let follows = lines ? source.length - textStartAt(doc, source.length - tail.length) : tail.length;
 	// Where no text joins it, each end the range leaves is cut through its own block's write; a
 	// range ending in the start block's own trailing syntax splices the bytes alone.
 	const leaves = head !== null && to >= contentEnd(doc, head.leaf);
@@ -166,6 +168,10 @@ function across(
 		const first = before === '' && !start;
 		const opened = opening?.kept ?? '';
 		const kept = first ? opened.replace(/^(?:[ \t]*\r?\n)+/, '') : opened;
+		// The tail opens on a line of its own, save at the document's start, after a start line taken
+		// whole, and where the end's line went with no opening kept, leaving it on the start's line.
+		const ended = held && /\n$/.test(before);
+		const breaks = !first && !ended && !(lineGoes && kept === '');
 		if (cut) {
 			tail = kept + cut.source.slice(lineStart);
 			follows = cut.source.length - cut.caret;
@@ -178,16 +184,23 @@ function across(
 					: to;
 			const markers =
 				lineStart > from && textStart >= lineStart ? source.slice(lineStart, textStart) : '';
-			const rest = (opening ? source.slice(opening.endLine, textStart) : markers) + tail;
+			// Whole lines took the end's line and its line ending, so the tail is the next line behind
+			// the start line's markers, which it takes back on a line of its own.
+			const lead = lines
+				? breaks
+					? lines.marks
+					: ''
+				: opening
+					? source.slice(opening.endLine, textStart)
+					: markers;
+			const rest = lead + tail;
 			// A kept opening ends the line itself, so the line a whole end block leaves goes too.
 			const gone = kept ? /^[ \t>]*\r?\n/ : /^[ \t>]*(?=\r?\n|$)/;
 			const left = lineGoes ? rest.replace(gone, '') : rest;
 			tail = kept + left;
 			follows = Math.min(follows, left.length);
 		}
-		// A start line taken whole has ended already.
-		const ended = held && /\n$/.test(before);
-		if (tail !== '' && !first && !ended && !(lineGoes && kept === '')) tail = doc.ending + tail;
+		if (tail !== '' && breaks) tail = doc.ending + tail;
 	}
 	const joined = before + tail;
 	const opens = /^\r?\n/.exec(tail)?.[0].length ?? 0;
@@ -248,6 +261,16 @@ function across(
 	};
 }
 
+/** Where the text of the line holding `at` starts, past the marker of each container on it. */
+function textStartAt(doc: Doc, at: number): number {
+	let start = at;
+	for (const container of containersHolding(doc, at)) {
+		const line = lineOf(container, at);
+		start = Math.max(start, line.own ? line.from : line.markerTo);
+	}
+	return start;
+}
+
 function siblingBefore(doc: Doc, block: LaidBlock): LaidBlock | undefined {
 	const index = block.path.at(-1)!;
 	return index > 0 ? doc.layout.block([...block.path.slice(0, -1), index - 1]) : undefined;
@@ -301,9 +324,11 @@ function wholeLines(doc: Doc, from: number, to: number, closed: boolean) {
 	let tail = ending === undefined ? '' : source.slice(to + ending.length);
 	// A document emptied whole keeps its last line ending, as the line its one empty block holds.
 	if (ending === undefined || (above === '' && tail === '')) return null;
-	tail = tail.slice(closed ? 0 : blankBelowGoes(above, tail));
+	// A blank line the end's block still holds (a code block's) is its text, so it stays.
+	const holds = end !== undefined && to + ending.length < contentEnd(doc, end);
+	tail = tail.slice(closed || holds ? 0 : blankBelowGoes(above, tail));
 	if (marks !== '' && !tail.startsWith(marks)) return null;
-	return { before: source.slice(0, from), tail: tail.slice(marks.length), caret: from };
+	return { before: source.slice(0, from), tail: tail.slice(marks.length), marks, caret: from };
 }
 
 /** The blank line opening `below` where `above` ends in one too or is the document's start, which

@@ -355,7 +355,7 @@ function startAfter(doc: Doc, caret: number, after: number): Place | null {
 	const text = end?.text;
 	// A block that starts before `from` and still has text there is the end's, its first part gone.
 	const kept = text && end.from < from && text.from <= from && from < text.to;
-	if (kept && !/[\r\n]/.test(doc.source[from])) return { at: from, holds: 'text' };
+	if (kept) return { at: from, holds: 'text' };
 	for (let byte = from; byte < (entered?.to ?? doc.source.length); byte++) {
 		const block = pointedBlock(doc, byte);
 		if (!block || block.from < from) continue;
