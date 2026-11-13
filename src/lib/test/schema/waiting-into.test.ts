@@ -28,6 +28,13 @@ const ROWS: [string, string[], number, number, number][] = [
 		0,
 		2
 	],
+	[
+		'and so does one two blocks above the block asked about',
+		['[a]: /u', "~    'code", 'text', 'end'],
+		3,
+		0,
+		-1
+	],
 	['a heading is a line no title runs on to', ['[a]: /u', '# h'], 1, 0, -1],
 	['and stops a title that started above it', ['[a]: /u', '    "code', '# h', 'end'], 3, 0, -1],
 	['no block above the floor is asked', STARTED, 3, 1, 2],

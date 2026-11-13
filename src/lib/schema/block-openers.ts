@@ -265,7 +265,7 @@ interface FirstAsk {
 	above: string;
 	raw: string;
 	leadingTrivia: string;
-	live: readonly UnclosedReading[];
+	live: UnclosedReading[];
 	interrupts: Interrupts;
 	reached: UnclosedReading[];
 	waiting: UnclosedReading[];
@@ -275,24 +275,39 @@ const firstAsks = new WeakMap<Held, FirstAsk>();
 
 // A walk up a long run asks each pair once while both blocks hold the bytes and blank lines they
 // did, the same readings ask and the same paragraph interrupts stand, which a definition reads.
-function firstAsk(above: Held, below: Held, live: UnclosedReading[], interrupts: Interrupts) {
-	const kept = firstAsks.get(below);
+function firstAsk(
+	above: string,
+	node: Held,
+	raw: string,
+	leadingTrivia: string,
+	live: UnclosedReading[],
+	interrupts: Interrupts
+): FirstAsk {
+	const kept = firstAsks.get(node);
 	if (
-		kept?.above === above.raw &&
-		kept.raw === below.raw &&
-		kept.leadingTrivia === below.leadingTrivia &&
+		kept?.above === above &&
+		kept.raw === raw &&
+		kept.leadingTrivia === leadingTrivia &&
 		kept.interrupts === interrupts &&
-		kept.live.length === live.length &&
-		kept.live.every((reading, k) => reading === live[k])
+		askedBy(kept, live)
 	)
 		return kept;
+	const below = { raw, leadingTrivia };
 	const reached = live.filter((reading) => reaches(reading, below));
-	const line = below.raw.slice(0, below.raw.indexOf('\n') + 1 || below.raw.length);
-	const waiting = reached.filter((reading) => reading.notFinal(above.raw + line));
-	const { raw, leadingTrivia } = below;
-	const asked = { above: above.raw, raw, leadingTrivia, live, interrupts, reached, waiting };
-	firstAsks.set(below, asked);
+	const line = raw.slice(0, raw.indexOf('\n') + 1 || raw.length);
+	const waiting = reached.filter((reading) => reading.notFinal(above + line));
+	const asked = { above, raw, leadingTrivia, live, interrupts, reached, waiting };
+	firstAsks.set(node, asked);
 	return asked;
+}
+
+/** Whether these readings asked `kept`. It keeps the list it matched, which a walk hands it again. */
+function askedBy(kept: FirstAsk, live: UnclosedReading[]): boolean {
+	if (kept.live === live) return true;
+	if (kept.live.length !== live.length || kept.live.some((reading, k) => reading !== live[k]))
+		return false;
+	kept.live = live;
+	return true;
 }
 
 function waitingPast(
@@ -304,11 +319,16 @@ function waitingPast(
 	if (from <= floor || live.length === 0) return -1;
 	const interrupts = currentInterrupts();
 	let top = -1;
+	// One read of a block's bytes a walk, a pair's upper block being the next pair's lower: over the
+	// editor's tree each read goes through a proxy, and a long run pays for every one.
+	let below = block(from);
+	let raw = below.raw;
 	for (let i = from; i > floor && live.length > 0; i--) {
 		const above = block(i - 1);
-		const first = firstAsk(above, block(i), live, interrupts);
+		const aboveRaw = above.raw;
+		const first = firstAsk(aboveRaw, below, raw, below.leadingTrivia, live, interrupts);
 		live = first.reached;
-		let bytes = above.raw;
+		let bytes = aboveRaw;
 		// Asked with the next line alone, then with twice the blocks each time: a block a few lines
 		// settle stays settled with more under them, so it is never handed the whole run.
 		let waiting = first.waiting;
@@ -317,6 +337,8 @@ function waitingPast(
 			waiting = waiting.filter((reading) => reading.notFinal(bytes));
 		}
 		if (waiting.length > 0) top = i - 1;
+		below = above;
+		raw = aboveRaw;
 	}
 	return top;
 }

@@ -73,8 +73,8 @@ describe('a key at the foot of a run of definitions with no blank line', () => {
 		const [small, large] = [at(2000), at(8000)];
 		expect(large.asks).toBe(small.asks);
 		expect(large.asks).toBeLessThan(10);
-		// The walk still reads every pair, at most twice a block more.
-		expect(large.reads - small.reads).toBeLessThanOrEqual(2 * (8000 - 2000));
+		// The walk still reads every block, once: over the editor's tree each read is a proxy's.
+		expect(large.reads - small.reads).toBeLessThanOrEqual(8000 - 2000);
 	});
 
 	it('on the editor’s `$state` tree too', () => {
