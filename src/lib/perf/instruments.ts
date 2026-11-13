@@ -25,6 +25,12 @@ export interface PerfSnapshot {
 	siblingsCompared: number;
 	/** Lines a byte map paired between a container's bytes and its children's, to find a leaf or a byte. */
 	linesPaired: number;
+	/** Container lines a range edit's layout placed in the document's bytes, each counted once. */
+	linesLaid: number;
+	/** Windows the byte splice read from a document's bytes; a reading a caller took from the one
+	 *  its document kept is `spliceReadsKept`. */
+	spliceReads: number;
+	spliceReadsKept: number;
 	/** Top-level blocks read to find where one starts in the document's bytes: flat per edit,
 	 *  however long the document. */
 	topBlocksMeasured: number;
@@ -104,6 +110,9 @@ function emptySnapshot(): PerfSnapshot {
 		joinedChildReads: 0,
 		siblingsCompared: 0,
 		linesPaired: 0,
+		linesLaid: 0,
+		spliceReads: 0,
+		spliceReadsKept: 0,
 		topBlocksMeasured: 0,
 		listMarkerReads: 0,
 		parseCount: 0,
@@ -217,6 +226,17 @@ export function recordSiblingsCompared(children: number): void {
 export function recordLinesPaired(lines: number): void {
 	if (!enabled) return;
 	counters.linesPaired += lines;
+}
+
+export function recordLinesLaid(lines: number): void {
+	if (!enabled) return;
+	counters.linesLaid += lines;
+}
+
+export function recordSpliceRead(kept: boolean): void {
+	if (!enabled) return;
+	if (kept) counters.spliceReadsKept += 1;
+	else counters.spliceReads += 1;
 }
 
 export function recordTopBlocksMeasured(blocks: number): void {
