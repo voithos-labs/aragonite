@@ -1,8 +1,9 @@
 /**
  * G4.353: bytes read off the record the editor keeps across writes leave it through a vouch, so
- * every file that reads the document's text for a write, or hands the range-edit core the
- * editor's own document, is declared with the vouch its bytes pass. A new reader fails here until
- * it names one: a wrong record would otherwise reach the tree or the clipboard unseen.
+ * every file that reads the document's text for a write, hands the range-edit core the editor's
+ * own document, or takes a position off the kept starts is declared with the vouch its bytes
+ * pass. A new reader fails here until it names one: a wrong record would otherwise reach the tree
+ * or the clipboard unseen.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -31,6 +32,26 @@ const CORE_HOSTS: Record<string, string> = {
 	'src/lib/selection/range-clipboard.ts': 'over a `rangeRead`'
 };
 
+/** Each file that takes a position off the kept starts, and what holds the bytes made from one:
+ *  a byte counted from a path's offset is right only where the record holds that path's block. */
+const POSITION_READERS: Record<string, string> = {
+	'src/lib/selection/range-bytes.ts':
+		'`rangeRead` vouches the blocks its paths name; the layout it hands on paints and places',
+	'src/lib/editor-actions/commit/draft-registry.svelte.ts':
+		'a commit vouches the blocks its ranges name before it reads a start',
+	'src/lib/editor-actions/commit/byte-splice.ts':
+		'the splice vouches what its reading took; its other reads place a caret',
+	'src/lib/editor-actions/commit/history.ts':
+		'the reading is vouched and made again; its other read places a caret',
+	'src/lib/editor-actions/commit/undo-controller.ts':
+		'takes the version’s list for an undo snapshot, and no position',
+	'src/lib/selection/cross-block/range-removal.ts':
+		'places the caret a removal leaves, after its `rangeRead`',
+	'src/lib/selection/cross-block/range-replace.ts':
+		'names the place a removal emptied, for the caret',
+	'src/lib/components/Editor.svelte': 'the overlay’s paint and the test door, which write no byte'
+};
+
 const sources = collectEditorSources();
 
 describeManifests(
@@ -52,6 +73,15 @@ describeManifests(
 				'a new range gesture: take its range and its document from `rangeRead`, which vouches the blocks it names and reaches',
 			hits: ['rangeHost(ctx.reading, read)'],
 			misses: ['const host: RangeHost = hostOf(read);']
+		},
+		{
+			id: 'exactly the declared files take a position off the kept starts',
+			matches: /\b(?:bytes|deps)\.(?:measured|layout)\(\)/,
+			declared: POSITION_READERS,
+			reason:
+				'a new reader of a position: vouch the blocks its paths name before a byte made from one is written or copied (`rangeRead`, `KeptStarts.vouch`), or say that it writes none',
+			hits: ['const now = deps.measured();', 'pointAtByte(ctx.bytes.measured(), at)'],
+			misses: ['const { starts } = read.measured;', '// bytes.layout() is laid out once']
 		}
 	],
 	sources
