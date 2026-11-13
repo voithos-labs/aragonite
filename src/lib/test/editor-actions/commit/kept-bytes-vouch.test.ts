@@ -127,4 +127,24 @@ describe('G1.219 kept bytes leave the record through a vouch', () => {
 		expect(reported).toHaveLength(1);
 		allowDevWarns(['invariant:kept-starts-current']);
 	});
+
+	// Miss-analysis: a position read forgot a record the tree had left by a block, but the text
+	// was served as joined before it, and the vouch after it had no record left to compare.
+	it('a block added with no write announced is in the text a gesture reads, and is reported', () => {
+		const doc = parse(SOURCE);
+		const reported: Error[] = [];
+		const starts = createKeptStarts(
+			() => doc,
+			() => {},
+			(error) => reported.push(error)
+		);
+		void starts.read().starts.length;
+		expect(starts.source()).toBe(serialize(doc));
+		doc.children.push({ ...doc.children[0], raw: 'added\n' });
+
+		expect(starts.source()).toBe(serialize(doc));
+		expect(reported).toHaveLength(1);
+		expect(starts.vouch(0, doc.children.length - 1)).toBe(true);
+		allowDevWarns(['invariant:kept-starts-current']);
+	});
 });

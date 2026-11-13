@@ -84,19 +84,19 @@ export function createKeptStarts(
 	const unannounced = () => open || threw;
 	// Nothing vouches for the rollback of a write that threw, so the record goes with it.
 	const forget = () => {
-		kept = view = null;
+		kept = view = joined = null;
 		threw = true;
 	};
 	// A write named too few of the blocks it changed. The next read measures the tree again.
 	const stale = (message: string) => {
-		kept = view = null;
+		kept = view = joined = null;
 		assertInvariant('kept-starts-current', () => ({ code: 'kept-starts-stale', message }));
 		report(new Error(`aragonite: ${message}`));
 	};
 	/** Moves the record past a write's runs, or forgets it when the write can't say. */
 	const place = (runsOf: ChangedRuns) => {
 		threw = false;
-		view = null;
+		view = joined = null;
 		if (!kept) return;
 		const runs = runsOf?.();
 		if (!runs || runs.some((run) => run.inserted > WIDEST_RUN)) {
@@ -114,6 +114,17 @@ export function createKeptStarts(
 	const inWrite = () => {
 		if (devChecksOn && open) misused('a position was read between a write and its announcement');
 		return unannounced();
+	};
+	/** The pair for the document as it stands, which every read of the record starts from: one
+	 *  the tree has left by a block is forgotten, and reported, before anything is served. */
+	const current = (): Measured => {
+		if (kept && kept.lengths.length !== doc().children.length) {
+			const message = 'the document changed its blocks with no write announced';
+			if (devChecksOn) misused(message);
+			kept = view = joined = null;
+			report(new Error(`aragonite: ${message}`));
+		}
+		return (view ??= pinned());
 	};
 	// Off the version's plain list, so the list is walked once for every reader.
 	const measure = (of: Measured) => (kept = blockBytes(topsOf(of)));
@@ -134,16 +145,7 @@ export function createKeptStarts(
 	};
 
 	return {
-		read: () =>
-			untrack(() => {
-				if (inWrite()) return measured(doc());
-				if (kept && kept.lengths.length !== doc().children.length) {
-					if (devChecksOn) misused('the document changed its blocks with no write announced');
-					kept = null;
-					view = null;
-				}
-				return (view ??= pinned());
-			}),
+		read: () => untrack(() => (inWrite() ? measured(doc()) : current())),
 		isMeasured: () => kept !== null,
 		vouch: (from, to) =>
 			untrack(() => {
@@ -153,7 +155,7 @@ export function createKeptStarts(
 			}),
 		saved: () =>
 			untrack(() => {
-				const now = (view ??= pinned());
+				const now = current();
 				const tops = topsOf(now);
 				recordTextRead();
 				const fresh = piecesOf(tops, 0, tops.length);
@@ -165,7 +167,7 @@ export function createKeptStarts(
 		source: () =>
 			untrack(() => {
 				if (unannounced()) return serialize(doc());
-				const now = (view ??= pinned());
+				const now = current();
 				if (joined?.of !== now) {
 					const { pieces } = kept ?? measure(now);
 					joined = { of: now, text: now.doc.prefix + pieces.join('') + now.doc.suffix };
@@ -186,7 +188,7 @@ export function createKeptStarts(
 				} else {
 					// The bytes stand, but the write may have left copies in the tree's slots, so
 					// whatever the outgoing view cached of the list (`topsOf`) goes with it.
-					view = null;
+					view = joined = null;
 				}
 				return written;
 			} catch (err) {

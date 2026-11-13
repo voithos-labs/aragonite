@@ -41,9 +41,8 @@ function kept(doc: Document) {
 	const record = createKeptStarts(
 		() => doc,
 		() => announced++,
-		(error) => {
-			throw error;
-		}
+		// The rows that break the record on purpose assert on the dev warning it raises.
+		() => {}
 	);
 	void record.read().starts.length;
 	return {
