@@ -382,9 +382,11 @@ function enteredOpening(
 	const opened = Math.min(openingEnd(doc, entered), endLine);
 	const outer =
 		containersAt(doc, entered.from, 'start').find((c) => c.from > from && c !== entered) ?? entered;
-	const first = Math.max(from, source.lastIndexOf('\n', entered.from - 1) + 1);
+	// Whole lines, so each keeps the markers of the containers around it once.
+	const lineStart = (at: number) => source.lastIndexOf('\n', at - 1) + 1;
+	const first = Math.max(from, lineStart(entered.from));
 	const kept =
-		source.slice(Math.max(from, outer.start), Math.max(from, outer.from)) +
+		source.slice(Math.max(from, lineStart(outer.start)), Math.max(from, lineStart(outer.from))) +
 		source.slice(first, Math.max(first, opened));
 	return { kept, endLine: Math.max(opened, endLine) };
 }

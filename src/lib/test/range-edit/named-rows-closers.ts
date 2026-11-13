@@ -84,4 +84,24 @@ const LINE_ROWS: NamedRow[] = [
 	)
 ];
 
-export const CLOSER_ROWS: NamedRow[] = [...CLOSING_LINE_ROWS, ...LINE_ROWS];
+// Miss-analysis: every range into a table's middle row started at the top level or in a note, so no
+// kept header carried a quote's, an alert's or a footnote's markers.
+const OPENING_ROWS: NamedRow[] = [
+	...cut(
+		'L4 a table entered below its header in a quote keeps that header behind one marker',
+		'> a⟦bc\n>\n> | a | b |\n> |---|---|\n> | 1 | 2 |\n⟧> | 3 | 4 |\n\npara\n',
+		'> a\n>\n> | a | b |\n> |---|---|\n> | 3 | 4 |\n\npara\n'
+	),
+	...cut(
+		'L4 the same in a footnote keeps its header at the footnote’s indent',
+		'[^1]: a⟦bc\n\n    | a | b |\n    |---|---|\n    | 1 | 2 |\n⟧    | 3 | 4 |\n\npara\n',
+		'[^1]: a\n\n    | a | b |\n    |---|---|\n    | 3 | 4 |\n\npara\n'
+	),
+	...cut(
+		'L4 and in an alert',
+		'> [!NOTE]\n> a⟦bc\n>\n> | a | b |\n> |---|---|\n> | 1 | 2 |\n⟧> | 3 | 4 |\n\npara\n',
+		'> [!NOTE]\n> a\n>\n> | a | b |\n> |---|---|\n> | 3 | 4 |\n\npara\n'
+	)
+];
+
+export const CLOSER_ROWS: NamedRow[] = [...CLOSING_LINE_ROWS, ...LINE_ROWS, ...OPENING_ROWS];
