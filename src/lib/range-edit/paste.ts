@@ -78,7 +78,9 @@ export function pasteAt(doc: Doc, from: number, to: number, pasted: Pasted): Edi
 	const seen: { blocks?: Doc } = {};
 	const once = { ...pasted, transform: ranOnce(pasted.transform) };
 	const landing = entered(doc, from, to, once, seen) ?? landedAt(doc, from, to, once, seen);
-	const edit = pasted.emptied ? blankedApart(landing) : landing;
+	// Only blank text with no line ending leaves the block's own line blank.
+	const blanked = pasted.emptied && /^[ \t]+$/.test(pasted.text);
+	const edit = blanked ? blankedApart(landing) : landing;
 	// One write of a block's text is text, whatever the clipboard read as.
 	if (!seen.blocks || edit.leaf) return edit;
 	const tops = seen.blocks.tree.children.filter((b) => !isBlankText(b.raw));
@@ -327,9 +329,10 @@ function landed(
 		const lines = displayLines(clip).map((line, i) => (i === 0 ? '' : indent) + line.text);
 		const own = raw.slice(0, target.from) + lines.join(doc.ending) + raw.slice(target.to);
 		const caret = own.length - (raw.length - target.to);
-		// A source shown while it's edited lands as its draft does, through the write rule as typed:
-		// a one-line `$$` given two lines takes fence lines of its own.
-		const shown = factsOf(doc, leaf).textPosition === 'while-source-shows';
+		// A one-line source shown while it's edited, given a line break, takes the shape typing gives
+		// it: a one-line `$$` given two lines takes fence lines of its own.
+		const oneLine = !/\n/.test(trimTrailingLineEnding(raw)) && /\n/.test(clip);
+		const shown = oneLine && factsOf(doc, leaf).textPosition === 'while-source-shows';
 		const shaped = shown ? doc.host.leaf.typed(doc.tree, leaf.path, own, caret) : null;
 		if (shaped && shaped.bytes !== own)
 			return writtenText(doc, leaf, shaped, target.from, target.to);

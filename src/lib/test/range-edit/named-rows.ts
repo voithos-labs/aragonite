@@ -386,6 +386,15 @@ export const NAMED_ROWS: NamedRow[] = [
 		expect: { source: 'before\n\n \nnext\n', caret: text(9) }
 	},
 	{
+		name: 'L5 text and its line ending pasted over a whole heading keep the blank line under it',
+		source: '⟦# Plan⟧\n\nnext\n',
+		gesture: paste('x\n'),
+		expect: {
+			source: 'x\n\n\nnext\n',
+			caret: { at: 2, holds: 'boundary', parent: [], line: true }
+		}
+	},
+	{
 		name: 'L5 text pasted over a whole heading keeps the blank line under it',
 		source: '⟦# Plan⟧\n\nnext\n',
 		gesture: paste('x'),
