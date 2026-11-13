@@ -545,7 +545,7 @@ An opener whose reading a line further down can still change (an unclosed `$$` b
 - `closer(raw)` gives the line that closes it. An opener written on a line of its own above such a line gets it at once, whether it was typed, pasted, dropped, moved there or written by a `Draft`.
 - `readsOn` marks a reading that takes in every line below until its closer, like an open fence.
 
-A reading no line closes, like a link definition waiting on its title, is `{ notFinal, closer: null }` and needs nothing else: no `mayClose`, no `readsOn`. Its `notFinal` also gets a block's bytes together with the blocks under it, so the first line alone has to say it waits. Its wait always ends at a blank line. An optional `crosses(line)` ends it sooner: does the wait run on across a block that opens with this line? Leave it out and the editor reads to the blank line.
+A reading no line closes, like a link definition waiting on its title, is `{ notFinal, closer: null }` and needs nothing else: no `mayClose`, no `readsOn`. Its `notFinal` also gets a block's bytes together with the blocks under it, so the first line alone has to say it waits. Its wait always ends at a blank line. An optional `crosses(line)` ends it sooner: does the wait run on across a block that opens with this line? Leave it out and the editor reads to the blank line. Both answer from the bytes they're given alone, because the editor keeps what they said.
 
 The parrot's opener is a whole one ([The first fifteen minutes](plugin-guide.md#the-first-fifteen-minutes)), and [A reading that isn't final](plugin-guide/parser.md#a-reading-that-isnt-final) has the rest of `readingNotFinal`.
 
