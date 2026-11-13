@@ -191,4 +191,52 @@ describe('G4.350 a removal keeps the lines after its range', () => {
 		expect(pastTable(source, doc, range.to)).toBe(true);
 		expect(movedLine(host, readOf(host, source), range.from, range.to, got)).not.toBeNull();
 	});
+
+	// The law's own reading, on bytes no removal gives today: each is a way a kept line goes wrong.
+	it.each([
+		{
+			name: 'a heading under the closing line that should stand above it',
+			marked: '<details open>\n<summary>S</summary>\n\n⟦***\n\n</details>\n\npara⟧\n\n# h\n',
+			got: '<details open>\n<summary>S</summary>\n\n# h\n</details>\n',
+			reads: /# h/
+		},
+		{
+			name: 'the outer closing line before the inner',
+			marked: '::::note\n:::tip\n⟦***\n:::\n\npara⟧\n::::\n',
+			got: '::::note\n:::tip\n::::\n:::\n',
+			reads: /":::"/
+		},
+		{
+			name: 'a closing line the removal dropped',
+			marked: '::::note\n:::tip\n⟦***\n:::\n\npara⟧\n::::\n',
+			got: '::::note\n:::tip\n::::\n',
+			reads: /lost the line ":::"/
+		},
+		{
+			name: 'a closing line glued to the text before it',
+			marked: ':::note\nbo⟦dy\n:::\n\npara⟧\n\n# h\n',
+			got: ':::note\nbo:::\n\n# h\n',
+			reads: /glued the start’s line/
+		},
+		{
+			name: 'an opening line where the start’s emptied line stood',
+			marked: 'x\n⟦body\n:::tip\nin⟧ner\n:::\n',
+			got: 'x\n:::tip\nner\n:::\n',
+			reads: /glued the start’s line/
+		},
+		{
+			name: 'nothing, where each stands in place',
+			marked: '::::note\n:::tip\n⟦***\n:::\n\npara⟧\n::::\n',
+			got: '::::note\n:::tip\n:::\n::::\n',
+			reads: null
+		}
+	])('the law reads $name', ({ marked, got, reads }) => {
+		const host = checkHost(testReading());
+		const from = marked.indexOf('⟦');
+		const to = marked.indexOf('⟧') - 1;
+		const read = readOf(host, marked.replace('⟦', '').replace('⟧', ''));
+		const line = gluedStart(host, read, from, to, got) ?? movedLine(host, read, from, to, got);
+		if (reads) expect(line).toMatch(reads);
+		else expect(line).toBeNull();
+	});
 });

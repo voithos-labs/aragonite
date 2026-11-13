@@ -29,11 +29,12 @@ export function movedLine(
 	const leaf = leafAt(read, to);
 	// A range ending at a line's start, where no text joins, leaves that line starting a line.
 	const atLineStart = !leaf && to > 0 && source[to - 1] === '\n';
-	const want = keptLines(host, read, atLineStart ? to : nextLine(source, leaf?.to ?? to));
+	const closing = keptClosers(host, read, from, to);
+	const after = keptLines(host, read, atLineStart ? to : nextLine(source, leaf?.to ?? to));
 	const lines = keptLines(host, readOf(host, got), got.lastIndexOf('\n', from - 1) + 1);
 	let cursor = 0;
-	for (const [i, line] of want.entries()) {
-		if (line.text === '' && !(atLineStart && i === 0)) continue;
+	for (const [i, line] of [...closing, ...after].entries()) {
+		if (line.text === '' && !(atLineStart && i === closing.length)) continue;
 		const at = lines.findIndex((l, j) => j >= cursor && l.text === line.text);
 		if (at < 0) return `lost the line ${JSON.stringify(line.text)}`;
 		if (line.text !== '' && lines[at].fenced !== line.fenced)
@@ -78,14 +79,29 @@ function nextLine(source: string, at: number): number {
 	return end < 0 ? source.length : end + 1;
 }
 
-/** Each line from `start` on, past its markers. */
-function keptLines(host: CheckHost, read: Read, start: number): KeptLine[] {
-	const { source } = read;
+/** The closing lines the range covers of the fenced containers it starts inside, innermost first:
+ *  the removal keeps each, since the container stays. */
+function keptClosers(host: CheckHost, read: Read, from: number, to: number): KeptLine[] {
+	const out: KeptLine[] = [];
+	for (const block of [...read.blocks].reverse()) {
+		const holds = block.from < from && from < block.to && block.linesIn;
+		if (!holds || host.facts(block.type).lines !== 'fenced') continue;
+		const last = [...block.linesIn!(block.from)].at(-1);
+		if (!last?.own || from >= last.from || last.from >= to) continue;
+		const lineStart = read.source.lastIndexOf('\n', last.from - 1) + 1;
+		out.push(keptLines(host, read, lineStart, last.to)[0]);
+	}
+	return out;
+}
+
+/** Each line from `start` to `stop`, the document's end unless given, past its markers. */
+function keptLines(host: CheckHost, read: Read, start: number, stop?: number): KeptLine[] {
+	const source = read.source.slice(0, stop);
 	const out: KeptLine[] = [];
 	for (let at = start; at < source.length;) {
 		const end = source.indexOf('\n', at);
-		const stop = end < 0 ? source.length : end + 1;
-		const line = source.slice(at, stop).replace(/\r?\n$/, '');
+		const next = end < 0 ? source.length : end + 1;
+		const line = source.slice(at, next).replace(/\r?\n$/, '');
 		const marks = MARKERS.exec(line)![0].length;
 		const textAt = at + marks;
 		const fenced = read.blocks
@@ -93,7 +109,7 @@ function keptLines(host: CheckHost, read: Read, start: number): KeptLine[] {
 			.map((b) => b.type)
 			.join('>');
 		out.push({ text: line.slice(marks), fenced });
-		at = stop;
+		at = next;
 	}
 	return out;
 }
