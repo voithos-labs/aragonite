@@ -310,6 +310,12 @@ function landed(
 		const lines = displayLines(clip).map((line, i) => (i === 0 ? '' : indent) + line.text);
 		const own = raw.slice(0, target.from) + lines.join(doc.ending) + raw.slice(target.to);
 		const caret = own.length - (raw.length - target.to);
+		// A source shown while it's edited lands as its draft does, through the write rule as typed:
+		// a one-line `$$` given two lines takes fence lines of its own.
+		const shown = factsOf(doc, leaf).textPosition === 'while-source-shows';
+		const shaped = shown ? doc.host.leaf.typed(doc.tree, leaf.path, own, caret) : null;
+		if (shaped && shaped.bytes !== own)
+			return writtenText(doc, leaf, shaped, target.from, target.to);
 		return { ...bytes(clip, indent), leaf: { path: leaf.path, raw: own, caret } };
 	}
 	// Every landing below that sets a block boundary in the block's text asks for the cut once.
