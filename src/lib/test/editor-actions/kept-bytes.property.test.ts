@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 // G1.209 over drawn writes: with the record measured, after every operation of a random run of
 // real action-factory operations, undo and redo among them, the bytes the editor keeps for every
-// top-level block are the tree's and every start is a fresh measure's. The dev guard compares the
+// top-level block are the tree's, their text is a fresh serialize and every start a fresh measure's. The dev guard compares the
 // same strings at each announcement inside an operation, and its warning fails the run.
 // Miss-analysis: the guard compared lengths, so a run of writes that kept a block's length could
 // leave its kept bytes behind with nothing to say so.
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
+import { serialize } from '#lib/core/serializer.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
 import { freshOrFixedSeed } from '../invariants/arbitraries';
 import { arbOp, arbSource, makeHarness, runOp } from '../undo/restoration-ops';
@@ -34,6 +35,7 @@ describe('G1.209 the kept bytes are the document’s after every drawn write', (
 						expect(h.deps.starts.isMeasured() ? h.deps.starts.vouch(0, count - 1) : true).toBe(
 							true
 						);
+						expect(h.deps.bytes.source()).toBe(serialize(h.deps.doc));
 						const fresh = measured(h.deps.doc).starts;
 						expect(ends()).toEqual(h.deps.doc.children.map((_, i) => fresh.end(i)));
 					}

@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 // G1.209 over every write route: after the write, with a listener reading a position on every
 // event the editor emits, the editor places every text position where a fresh read of its bytes
-// does, and no listener is called between a write and its announcement. The tree the write left
+// does, the text it keeps for a gesture is the document's, and no listener is called between a
+// write and its announcement. The tree the write left
 // also finds the same text at every byte as that fresh read: its nodes kept their identity.
 // Miss-analysis: the byte map was built afresh per content version, so no test had to ask whether
 // a record kept across writes still described the document a route left.
@@ -91,6 +92,7 @@ describe('G1.209 the kept starts are the document’s after every write route', 
 		const { kept, fresh, leaves, freshLeaves } = placed(m);
 		expect(kept).toEqual(fresh);
 		expect(leaves).toEqual(freshLeaves);
+		expect(m.instance.__test.keptSource()).toBe(m.source());
 		expect(takeDevWarns()).toEqual([]);
 		offs.forEach((off) => off());
 	});

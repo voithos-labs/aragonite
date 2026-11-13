@@ -757,9 +757,16 @@ export async function measureRangeRemoval(
 
 // ── The first range edit after a write inside a giant container ─────────────
 
-/** Holds a range from the middle of child 3 to the middle of child 4 of the container. */
-async function holdChildren(page: Page, editor: EditorPage, shape: GiantContainer): Promise<void> {
-	const at = CONTAINER_CHILD[shape];
+/** A shape whose first copy after a write is timed: a giant container, or top-level paragraphs. */
+export type FirstCopyShape = GiantContainer | 'many-small-blocks';
+
+/** The text block `child` names: a container's child, or a top-level paragraph. */
+const copyLeaf = (shape: FirstCopyShape) =>
+	shape === 'many-small-blocks' ? (child: number) => [child] : CONTAINER_CHILD[shape].leaf;
+
+/** Holds a range from the middle of child 3 to the middle of child 4 of the shape. */
+async function holdChildren(page: Page, editor: EditorPage, shape: FirstCopyShape): Promise<void> {
+	const at = { leaf: copyLeaf(shape) };
 	const middle = async (path: number[]) => ({
 		path,
 		offset: (await leafRawLength(page, path)) >> 1
@@ -779,18 +786,18 @@ async function holdChildren(page: Page, editor: EditorPage, shape: GiantContaine
 	await editor.waitForRenderFlush();
 }
 
-/** A copy across two children of a giant container right after a write (a letter typed in the
- *  first and taken back), and the same copy made again. */
+/** A copy across two children of the shape right after a write (a letter typed in the first and
+ *  taken back), and the same copy made again. */
 export async function measureFirstCopy(
 	page: Page,
 	editor: EditorPage,
-	shape: GiantContainer,
+	shape: FirstCopyShape,
 	bytes: number,
 	copies: number
 ): Promise<{ loadMs: number; first: LatencyMeasurement; again: LatencyMeasurement }> {
 	await editor.goto();
 	const loadMs = await loadFixture(page, editor, generateFixture(shape, bytes));
-	const at = CONTAINER_CHILD[shape];
+	const at = { leaf: copyLeaf(shape) };
 	await assertMounted(page, at.leaf(4), `${shape} child`);
 	const first: number[] = [];
 	const again: number[] = [];

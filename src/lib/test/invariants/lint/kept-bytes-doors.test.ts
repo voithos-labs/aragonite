@@ -5,8 +5,10 @@
  * it names one: a wrong record would otherwise reach the tree or the clipboard unseen.
  */
 
+import { describe, expect, it } from 'vitest';
 import { collectEditorSources } from './scan-source';
 import { describeManifests } from './file-rule';
+import { SOURCE } from './source-paths';
 
 /** Each reader of the text a write is worked out from, and where its bytes are vouched. */
 const TEXT_READERS: Record<string, string> = {
@@ -29,6 +31,8 @@ const CORE_HOSTS: Record<string, string> = {
 	'src/lib/selection/range-clipboard.ts': 'over a `rangeRead`'
 };
 
+const sources = collectEditorSources();
+
 describeManifests(
 	[
 		{
@@ -50,5 +54,17 @@ describeManifests(
 			misses: ['const host: RangeHost = hostOf(read);']
 		}
 	],
-	collectEditorSources()
+	sources
 );
+
+// The saved text is read off the tree and never off the record, so it has the two readers a host
+// reaches, and nothing that works out a write may take it in place of the record's text.
+describe('exactly `getSource()` and the swap check read the saved text', () => {
+	it('each of the editor’s two reads is made once', () => {
+		const editor = sources.find((file) => file.relPath === SOURCE.editorShell);
+		const reads = [...(editor?.code ?? '').matchAll(/\bcurrentSource\.(read\w*)\b/g)].map(
+			(m) => m[1]
+		);
+		expect(reads.sort()).toEqual(['read', 'readUnchecked']);
+	});
+});

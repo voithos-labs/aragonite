@@ -13,6 +13,7 @@
 import { untrack } from 'svelte';
 import { assertInvariant, devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 import type { DocumentView } from '../../core/node-views';
+import { serialize } from '../../core/serializer';
 import { checkKeptStarts } from '../../invariants/kept-starts';
 import { perfEnabled, recordTextRead } from '../../perf/instruments';
 import {
@@ -49,6 +50,9 @@ export interface KeptStarts {
 	/** The document's text read off the tree, never off the record; a record that held other
 	 *  bytes is forgotten and reported. Asked only while every write has announced. */
 	saved(): string;
+	/** The document's text as the record holds it, joined once per read pair: what a gesture works
+	 *  its bytes out from, which `vouch` then compares with the tree. Never what a save writes. */
+	source(): string;
 	/** Whether the tree may hold bytes no announcement covers: a write is open, or one threw and
 	 *  none has announced since. Whatever is kept of the document steps aside while it holds. */
 	unannounced(): boolean;
@@ -71,6 +75,7 @@ export function createKeptStarts(
 ): KeptStarts {
 	let kept: BlockBytes | null = null;
 	let view: Measured | null = null;
+	let joined: { of: Measured; text: string } | null = null;
 	let open = false;
 	let threw = false;
 
@@ -110,6 +115,8 @@ export function createKeptStarts(
 		if (devChecksOn && open) misused('a position was read between a write and its announcement');
 		return unannounced();
 	};
+	// Off the version's plain list, so the list is walked once for every reader.
+	const measure = (of: Measured) => (kept = blockBytes(topsOf(of)));
 	const pinned = (): Measured => {
 		const at = { ...doc() };
 		let own: BlockBytes | undefined;
@@ -119,8 +126,7 @@ export function createKeptStarts(
 			return untrack(() => {
 				// A view kept past the next announcement measures its own document, once.
 				if (view !== made) return (own ??= blockBytes(at.children));
-				// Off the version's plain list, so the list is walked once for every reader.
-				return inWrite() ? blockBytes(at.children) : (kept = blockBytes(topsOf(made)));
+				return inWrite() ? blockBytes(at.children) : measure(made);
 			});
 		};
 		const made: Measured = { doc: at, starts: startsOver(at, lengths) };
@@ -155,6 +161,16 @@ export function createKeptStarts(
 				if (was && !(was.length === fresh.length && fresh.every((s, i) => s === was[i])))
 					stale('a save read bytes the kept record did not hold');
 				return now.doc.prefix + fresh.join('') + now.doc.suffix;
+			}),
+		source: () =>
+			untrack(() => {
+				if (unannounced()) return serialize(doc());
+				const now = (view ??= pinned());
+				if (joined?.of !== now) {
+					const { pieces } = kept ?? measure(now);
+					joined = { of: now, text: now.doc.prefix + pieces.join('') + now.doc.suffix };
+				}
+				return joined.text;
 			}),
 		unannounced,
 		writing: () => open,

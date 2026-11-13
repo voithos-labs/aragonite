@@ -278,7 +278,7 @@
 	const bytes = documentBytes({
 		version: contentVersion.read,
 		doc: () => doc,
-		source: currentSource.read,
+		source: starts.source,
 		measured: starts.read,
 		vouch: starts.vouch
 	});
@@ -1520,7 +1520,8 @@
 				op,
 				snapshot: { path: docPathFrom([0]), offset: 0 }
 			}),
-		byteOf: (path, offset) => bytes.layout().byteOf(path, offset)
+		byteOf: (path, offset) => bytes.layout().byteOf(path, offset),
+		keptSource: bytes.source
 	};
 </script>
 

@@ -79,7 +79,6 @@ export function rangeRead(
 	rangeOf: (layout: Layout) => Range | null
 ): RangeRead | null {
 	for (let fresh = false; ; fresh = true) {
-		// The text first: read off the tree, it forgets a record that holds other bytes.
 		const source = bytes.source();
 		const measured = bytes.measured();
 		const layout = bytes.layout();

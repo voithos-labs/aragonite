@@ -21,7 +21,6 @@ import type { ChildList } from '../block-lists/child-list';
 import { createSelectionState } from '../selection/selection-state.svelte';
 import { documentBytes } from '../selection/range-bytes';
 import { createKeptStarts } from '../editor-actions/commit/kept-starts';
-import { serialize } from '../core/serializer';
 import {
 	createCaretLanding,
 	type CaretLanding,
@@ -201,7 +200,7 @@ export function createHeadlessActions(
 		bytes: documentBytes({
 			version: () => contentVersion,
 			doc: () => doc,
-			source: () => serialize(doc),
+			source: starts.source,
 			measured: starts.read,
 			vouch: starts.vouch
 		}),
