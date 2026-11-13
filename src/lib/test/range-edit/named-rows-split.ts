@@ -10,6 +10,7 @@ const paste = (t: string): Gesture => ({ paste: t, plain: false, holds: 'text' }
 const plain = (t: string): Gesture => ({ paste: t, plain: true, holds: 'text' });
 const TABLE = '| a |\n| - |';
 const FENCE = '```\nx\n```';
+const CALLOUT = ':::note\nbody\n:::';
 
 /** One row per mode, for bytes both modes share. */
 const both = (name: string, source: string, gesture: Gesture, out: string): NamedRow[] => [
@@ -892,7 +893,34 @@ const NUMBER_ROWS: NamedRow[] = [
 	)
 ];
 
+// Miss-analysis: every container pasted before text was a quote or a list, whose last line is
+// text, so no row saw the text after the caret glued to a closing `:::` or `</details>` line.
+const CLOSED = '<details>\n<summary>s</summary>\n\nbody\n\n</details>';
+const CLOSING_LINE_ROWS: NamedRow[] = [
+	...both(
+		'K text after a pasted callout goes on a line of its own',
+		'⟦⟧alpha\n',
+		paste(CALLOUT),
+		':::note\nbody\n:::\nalpha\n'
+	),
+	...both(
+		'K with text before the caret too',
+		'abc⟦⟧def\n',
+		paste(CALLOUT),
+		'abc\n\n:::note\nbody\n:::\ndef\n'
+	),
+	...both(
+		'K a paragraph then a callout',
+		'abc⟦⟧def\n',
+		paste(`one\n\n${CALLOUT}`),
+		'abcone\n\n:::note\nbody\n:::\ndef\n'
+	),
+	...both('K in an item', '- ⟦⟧alpha\n', paste(CALLOUT), '- :::note\n  body\n  :::\n  alpha\n'),
+	...both('K and after a closing tag', 'abc⟦⟧def\n', paste(CLOSED), `abc\n\n${CLOSED}\ndef\n`)
+];
+
 export const SPLIT_ROWS: NamedRow[] = [
+	...CLOSING_LINE_ROWS,
 	...ENDING_ROWS,
 	...KEPT_ENDING_ROWS,
 	...LIST_ENDING_ROWS,

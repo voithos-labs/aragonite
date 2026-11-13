@@ -11,6 +11,7 @@ import { itemsShareList } from '../tree-operations/list/ordered-markers';
 import type { LaidBlock } from './layout';
 import { pastMarkers } from './apart';
 import {
+	closedByOwnLine,
 	containersHolding,
 	contentEnd,
 	factsOf,
@@ -277,8 +278,8 @@ const holding = (parent: readonly number[]) => (c: LaidBlock) =>
 /** Where the children of `holder` end: at its closing line, its own end, or the document's. */
 function bodyEnd(doc: Doc, holder: LaidBlock | undefined): number {
 	if (!holder) return doc.source.length;
-	const fenced = factsOf(doc, holder).lines === 'fenced' && !!holder.lineAt && multiline(holder);
-	return fenced && lastLine(holder).own ? lastLine(holder).from : holder.to;
+	const fenced = closedByOwnLine(doc, holder);
+	return fenced ? lastLine(holder).from : holder.to;
 }
 
 /** A clipboard set among a container's children on lines of its own. */

@@ -11,6 +11,7 @@ import { metadataIfKind } from '../core/nodes';
 import type { PasteHost } from './host';
 import type { LaidBlock } from './layout';
 import {
+	closedByOwnLine,
 	contentEnd,
 	factsOf,
 	findWithin,
@@ -338,6 +339,8 @@ function landed(
 	const last = tops.at(-1);
 	if (lineAfter || !first || (tops.length === 1 && isText(first))) return asText(clip);
 	const lastJoins = factsOf(pasted, last!).joins !== 'never';
+	// A closing line holds no text, so the text after the cut goes on a line of its own under it.
+	const lastTakes = lastJoins && !closedByOwnLine(pasted, last!);
 	const lastRaw = nodeAt(pasted, last!.path).raw;
 	const joins = isText(first);
 	const left = joins ? null : leftBy(doc, from, pasted, first, leaf);
@@ -364,14 +367,14 @@ function landed(
 	// after it that the last block can't take goes on a line of its own, apart where it must be.
 	if (joins || clip.startsWith('\n')) {
 		const before = clip.startsWith('\n') ? '' : clip.slice(0, contentEnd(pasted, first));
-		const after = tailOf(lastJoins && (last !== first || before === ''));
+		const after = tailOf(lastTakes && (last !== first || before === ''));
 		const cut = cutWith(before, after, lead);
 		const visible = lineRest(cut.rest, 0) !== '';
-		const apart = !lastJoins && visible && !clip.endsWith('\n');
-		const ends = !lastJoins && !visible;
+		const apart = !lastTakes && visible && !clip.endsWith('\n');
+		const ends = !lastTakes && !visible;
 		const text = apart ? clip + '\n' : ends ? intoBlankUnder(doc, to, clip) : clip;
 		const edit = around(cut, text.slice(before.length, text.length - after.length));
-		if (lastJoins) return restUnder(doc, edit, leaf, to, cut, lastRaw);
+		if (lastTakes) return restUnder(doc, edit, leaf, to, cut, lastRaw);
 		const ending = apart ? edit.source.lastIndexOf('\n', edit.caret - 1) : edit.caret;
 		const caret = apart && edit.source[ending - 1] === '\r' ? ending - 1 : ending;
 		return restApart(doc, { source: edit.source, caret }, leaf, to, cut, lastRaw);
@@ -380,7 +383,7 @@ function landed(
 	// text joins it, and only where the clipboard ends on no line ending.
 	const under = doc.source.slice(leaf.text!.from, from) !== '';
 	const flush = !isBlankText(onLine) && factsOf(doc, leaf).joins === 'text' && !clip.endsWith('\n');
-	const after = tailOf(lastJoins && (under || flush));
+	const after = tailOf(lastTakes && (under || flush));
 	const cut = cutWith('', after, lead);
 	// A heading or a to-do left with no text gives way: the blocks land on its line as on an empty
 	// one, and a list it stood in numbers on.
@@ -396,10 +399,10 @@ function landed(
 		const { source, caret } = pasteAt(emptied, gone.from, gone.from, landing);
 		return { source: numberedOn(doc, gone.from, end, source), caret };
 	}
-	const ends = !lastJoins && lineRest(cut.rest, 0) === '';
+	const ends = !lastTakes && lineRest(cut.rest, 0) === '';
 	const text = ends ? intoBlankUnder(doc, to, clip) : clip;
 	const mid = text.slice(0, text.length - after.length);
-	return splitAt(doc, leaf, from, to, cut, mid, lastJoins, lastRaw);
+	return splitAt(doc, leaf, from, to, cut, mid, lastTakes, lastRaw);
 }
 
 /** What gives way to blocks pasted over all of `leaf`'s text, the first of them `first`: a heading,

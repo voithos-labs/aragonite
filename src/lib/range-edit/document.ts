@@ -145,6 +145,14 @@ export const lastLine = (container: LaidBlock): LaidLine => container.lineAt!(co
 export const multiline = (container: LaidBlock) =>
 	container.lineAt!(container.from) !== lastLine(container);
 
+/** Whether the block is a fenced container ending on its closing line (`:::`, `</details>`), a
+ *  line that holds no text. */
+export const closedByOwnLine = (doc: Doc, block: LaidBlock) =>
+	factsOf(doc, block).lines === 'fenced' &&
+	!!block.lineAt &&
+	multiline(block) &&
+	lastLine(block).own;
+
 /** The block that is a container's title row, when it has one. */
 export function titleRowOf(doc: Doc, container: LaidBlock): LaidBlock | undefined {
 	const type = factsOf(doc, container).titleRow?.type;

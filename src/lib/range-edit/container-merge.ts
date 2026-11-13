@@ -5,11 +5,11 @@
 
 import type { LaidBlock } from './layout';
 import {
+	closedByOwnLine,
 	containersHolding,
 	factsOf,
 	firstBodyLine,
 	lastLine,
-	multiline,
 	nodeAt,
 	titleOwner,
 	type Doc
@@ -77,8 +77,7 @@ export function closedBy(
 	taker: LaidBlock,
 	edit: Edit
 ): Edit {
-	if (factsOf(pasted, first).lines !== 'fenced' || !first.lineAt || !multiline(first)) return edit;
-	if (!lastLine(first).own) return edit;
+	if (!closedByOwnLine(pasted, first)) return edit;
 	const last = lastLine(taker);
 	const shift = edit.source.length - doc.source.length;
 	const end = last.to + shift;

@@ -894,7 +894,10 @@ function landedPaste(
 	const last = tops.at(-1);
 	const lastJoins = !last || host.facts(last.type).joins !== 'never';
 	const after = !nothingVisibleAfter(read.source, at);
-	const lines = clip.source.split('\n');
+	// A closing line (`:::`, `</details>`) holds no text: the text after the caret goes under it.
+	const fenced = !!last && host.facts(last.type).lines === 'fenced';
+	const closed = fenced && after && linesOf(last)?.at(-1)?.own === true;
+	const lines = [...clip.source.split('\n'), ...(closed ? [''] : [])];
 	const variants = (write: (ls: string[]) => string) => [write(lines)];
 	const splice = (prefix: string, head: string) => (ls: string[]) =>
 		read.source.slice(0, at) + head + join(ls, prefix, eol, after) + read.source.slice(at);
