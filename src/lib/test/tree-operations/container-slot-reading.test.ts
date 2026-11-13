@@ -272,3 +272,42 @@ function check(rows: Record<string, Row>): void {
 describe('an edit on an opener line', () => check(OPENER_ROWS));
 describe('a list that gives up a lazy line', () => check(LAZY_LINE_ROWS));
 describe('an opener line emptied', () => check(EMPTIED_ROWS));
+
+// Miss-analysis: every lazy-line row edited its list's first item, where the list's start is also
+// where the caret belongs, and none typed a second key.
+describe('the key after an item gives up its lazy line', () => {
+	const rows: [string, string, number[], string][] = [
+		[
+			'at the top level',
+			'- one\n- item\ntext\n3. three\n',
+			[0, 1, 0],
+			'- one\n- >qitem\ntext\n3. three\n'
+		],
+		[
+			'in a quote',
+			`> - one\n> - item\n> text${TAIL}`,
+			[0, 0, 1, 0],
+			`> - one\n> - >qitem\n> text${TAIL}`
+		]
+	];
+
+	for (const mode of MODES)
+		it.each(rows)(`${mode}: lands after the mark typed, %s`, async (_, source, path, bytes) => {
+			const editor = mountEditor<EditorTestSurface>({
+				source,
+				presentationMode: mode,
+				plugins: SYNTAX_PLUGINS
+			});
+			await editor.settle();
+			const el = surfaceAt(editor, path);
+			placeCaret(el, 0);
+			await editor.settle();
+
+			await insertBy('hardware key', el, '>');
+			await editor.settle();
+			await insertBy('hardware key', document.activeElement as HTMLElement, 'q');
+			await editor.settle();
+
+			expect(editor.source()).toBe(bytes);
+		});
+});

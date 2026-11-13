@@ -360,6 +360,8 @@ export function createStructuralCommit(
 		// collapse recreates every block in its range, so a swallowed scope has no ref to focus.
 		const folds: AncestrySeamFold[] = [];
 		let foldLanding: FoldLanding | null = null;
+		// A fold that left its container standing: its landing serves only where the caller's is gone.
+		let spillLanding: FoldLanding | null = null;
 		let unwindFolds: (() => void) | null = null;
 		let topLevelBefore: CstNode[] | null = null;
 		// The document scope's list before the mutation, copied only while its starts are kept, and
@@ -481,7 +483,10 @@ export function createStructuralCommit(
 							levels[i]
 						)
 					);
-					foldLanding = foldLandingFor(folds.slice(before), p.target.path) ?? foldLanding;
+					const made = folds.slice(before);
+					const landing = foldLandingFor(made, p.target.path);
+					if (made.every((fold) => fold.keepsPaths)) spillLanding = landing ?? spillLanding;
+					else foldLanding = landing ?? foldLanding;
 				});
 				unwindFolds = publishAncestryFolds(deps, folds);
 				keepOpenTail(deps.doc, wasOpen, deps.sharing, deps.reading.grammar);
@@ -490,10 +495,20 @@ export function createStructuralCommit(
 			op,
 			// A collapsed container recreated every block in its range, so its position replaces the
 			// caller's rather than following it.
-			landing: () =>
-				foldLanding
-					? { path: docPathFrom(foldLanding.path), offset: foldLanding.offset }
-					: (args.landing?.() ?? null),
+			landing: () => {
+				const at = (fold: FoldLanding) => ({ path: docPathFrom(fold.path), offset: fold.offset });
+				if (foldLanding) return at(foldLanding);
+				const asked = args.landing?.() ?? null;
+				// A gap names no block of its own, so it stands as asked.
+				const points =
+					!asked || 'gapCaret' in asked
+						? []
+						: 'path' in asked
+							? [asked]
+							: [asked.anchor, asked.focus];
+				const gone = !asked || points.some((point) => !nodeAt(deps.doc, point.path));
+				return spillLanding && gone ? at(spillLanding) : asked;
+			},
 			reveal: args.reveal,
 			announce: args.announce,
 			discardIfNoop,

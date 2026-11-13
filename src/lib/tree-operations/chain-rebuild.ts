@@ -51,6 +51,8 @@ export interface AncestrySeamFold {
 	change: StructuralChange;
 	before: CstNode[];
 	landing: TrackedPosition;
+	/** The container stands at its index as the same kind, so a path into it still holds. */
+	keepsPaths: boolean;
 }
 
 /**
@@ -240,7 +242,10 @@ function writeSpill(
 		grammar,
 		sharing
 	);
-	fold.push(settled.change, settledCaretPosition(settled, index, 0, body.children));
+	const { change } = settled;
+	const stands =
+		change.op === 'replace' && change.at === index && body.children[index].kind === node.kind;
+	fold.push(change, settledCaretPosition(settled, index, 0, body.children), stands);
 	return true;
 }
 
@@ -258,7 +263,7 @@ function foldWrite(slot: Pick<ChainSlot, 'body' | 'owner' | 'depth'>, folds: Anc
 			before = body.children.slice();
 			if (devChecksOn) held = foldedBytes(body);
 		},
-		push(change: StructuralChange, landing: TrackedPosition): void {
+		push(change: StructuralChange, landing: TrackedPosition, keepsPaths = false): void {
 			// A fold follows a write, so the capture ran first.
 			folds.push({
 				depth: slot.depth,
@@ -266,7 +271,8 @@ function foldWrite(slot: Pick<ChainSlot, 'body' | 'owner' | 'depth'>, folds: Anc
 				owner: slot.owner,
 				change,
 				before: before!,
-				landing
+				landing,
+				keepsPaths
 			});
 			assertInvariant('fold-keeps-lines', () => checkFoldKeepsLines(held, foldedBytes(body)));
 		}
