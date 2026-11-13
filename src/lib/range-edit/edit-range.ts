@@ -10,6 +10,7 @@ import { isBlankText } from '../core/lines';
 import type { Mode, PasteHost, RangeHost } from './host';
 import { copyOf } from './copy';
 import {
+	containersHolding,
 	contentEnd,
 	factsOf,
 	findWithin,
@@ -270,7 +271,7 @@ function caretOf(edit: Removal, result: Doc, beside: Beside, started: () => Laid
 		: beside === 'end before'
 			? endBefore(result, edit.caret)
 			: beside === 'text after'
-				? startAfter(result, edit.caret)
+				? startAfter(result, edit.caret, edit.after ?? edit.caret)
 				: beforeFence(result, edit.caret);
 	if (side) return side;
 	const at = edit.caret;
@@ -339,17 +340,24 @@ const held = (holds: 'block' | 'boundary', block: LaidBlock): Held => ({
 	parent: block.path.slice(0, -1)
 });
 
-/** The first block from byte `at` on, past the parent the removal ended: a fenced block's body
- *  start (its fence lines take no caret), or the block itself where it has no text position. */
-function startAfter(doc: Doc, at: number): Place | null {
-	for (let byte = at; byte < doc.source.length; byte++) {
+/** The text after the range, from byte `after` where what followed it begins: the end block's own
+ *  text where some stayed, else the next block's start, or a boundary in an entered container. */
+function startAfter(doc: Doc, caret: number, after: number): Place | null {
+	const end = pointedBlock(doc, after);
+	const text = end?.text;
+	// A block that starts before `after` and still has text there is the end's, its first part gone.
+	const kept = text && end.from < after && text.from <= after && after < text.to;
+	if (kept && !/[\r\n]/.test(doc.source[after])) return { at: after, holds: 'text' };
+	// A container whose opening the removal kept before `after`: the text after stays inside it.
+	const entered = containersHolding(doc, after).findLast((c) => c.from >= caret && c.from < after);
+	for (let byte = after; byte < (entered?.to ?? doc.source.length); byte++) {
 		const block = pointedBlock(doc, byte);
-		if (!block || block.from < at) continue;
+		if (!block || block.from < after) continue;
 		if (factsOf(doc, block).textPosition === 'never')
 			return { at: block.from, ...held('block', block) };
 		return { at: fenceBody(doc, block)?.from ?? block.from, holds: 'text' };
 	}
-	return null;
+	return entered ? { at: after, holds: 'boundary', parent: entered.path } : null;
 }
 
 /** A leaf's last caret place: a fenced block's body end, else its text's end past a structural

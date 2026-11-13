@@ -51,4 +51,16 @@ for (const mode of ['live', 'source'] as const) {
 		await page.keyboard.press('ControlOrMeta+x');
 		await editor.bridge.waitForSourceEquals('::::note\n:::tip\n:::\n::::\n');
 	});
+
+	test(`(${mode}) Delete out of a note into a tip's body puts the next letter at the tip's text`, async ({
+		page
+	}) => {
+		await open(mode, `:::note\n${TABLE}\n\nbody\n:::\n\n:::tip\ninner\nmore\n:::\n\n# h\n`);
+		await selectFromFirstCell([0, 1, 0, 0], [1, 1], 2);
+
+		await page.keyboard.press('Delete');
+		await editor.bridge.waitForSourceEquals(':::note\n:::\n\n:::tip\nner\nmore\n:::\n\n# h\n');
+		await page.keyboard.type('x');
+		await editor.bridge.waitForSourceEquals(':::note\n:::\n\n:::tip\nxner\nmore\n:::\n\n# h\n');
+	});
 }

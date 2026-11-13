@@ -1,6 +1,7 @@
 // Named rows for the lines a removal keeps: a closing line the range leaves stands under what is
 // left of its own container, above whatever followed it, and the line after the range still starts
-// a line. Each row is a cut; Backspace and Delete leave the same bytes (law 4).
+// a line. Each row is a cut; Backspace and Delete leave the same bytes (law 4). The last rows are
+// Delete's, whose caret lands at the text after the range, past an opening the removal kept.
 
 import type { NamedRow } from './named-rows';
 
@@ -132,9 +133,94 @@ const START_LINE_ROWS: NamedRow[] = [
 	)
 ];
 
+/** Delete's rows in both modes, and a composition's where `composes`, which lands where Delete does. */
+const deleted = (name: string, source: string, out: string, caret: Caret, composes = false) =>
+	(composes ? (['delete', 'compose'] as const) : (['delete'] as const)).flatMap((gesture) =>
+		(['source', 'live'] as const).map((mode): NamedRow => ({
+			name: `${name}, ${gesture === 'compose' ? 'a composition' : 'Delete'}, ${mode}`,
+			source,
+			mode,
+			gesture,
+			expect: { source: out, caret }
+		}))
+	);
+
+// Miss-analysis: no row ran Delete over a block taken whole into a fenced container's body, so none
+// saw the caret stop on the opening line the removal kept, short of the text after the range.
+const TEXT_AFTER_ROWS: NamedRow[] = [
+	...deleted(
+		'L8 a block taken whole out of a note into a tip’s body lands at the tip’s text',
+		':::note\n⟦***\n\nbody\n:::\n\n:::tip\nin⟧ner\nmore\n:::\n\n# h\n',
+		':::note\n:::\n\n:::tip\nner\nmore\n:::\n\n# h\n',
+		{ at: 20, holds: 'text' },
+		true
+	),
+	...deleted(
+		'L8 the same from the document’s first block',
+		'⟦***\n\nbody\n\n:::tip\nin⟧ner\nmore\n:::\n\n# h\n',
+		':::tip\nner\nmore\n:::\n\n# h\n',
+		{ at: 7, holds: 'text' }
+	),
+	...deleted(
+		'L8 into a titled tip’s body, past its title',
+		':::note\n⟦***\n\nbody\n:::\n\n:::tip Title\nin⟧ner\n:::\n\n# h\n',
+		':::note\n:::\n\n:::tip Title\nner\n:::\n\n# h\n',
+		{ at: 26, holds: 'text' }
+	),
+	...deleted(
+		'L8 into a tip’s title, at what is left of it',
+		':::note\n⟦***\n\nbody\n:::\n\n:::tip Ti⟧tle\ninner\n:::\n\n# h\n',
+		':::note\n:::\n\n:::tip tle\ninner\n:::\n\n# h\n',
+		{ at: 20, holds: 'text' }
+	),
+	...deleted(
+		'L8 to a tip’s title end, at its body’s text',
+		':::note\n⟦***\n\nbody\n:::\n\n:::tip⟧\ninner\n:::\n\n# h\n',
+		':::note\n:::\n\n:::tip\ninner\n:::\n\n# h\n',
+		{ at: 20, holds: 'text' }
+	),
+	...deleted(
+		'L8 into an item in a tip, past the item’s marker',
+		':::note\n⟦***\n\nbody\n:::\n\n:::tip\n- in⟧ner\n:::\n\n# h\n',
+		':::note\n:::\n\n:::tip\n- ner\n:::\n\n# h\n',
+		{ at: 22, holds: 'text' }
+	),
+	...deleted(
+		'L8 into a quote in a tip, past the quote’s marker',
+		':::note\n⟦***\n\nbody\n:::\n\n:::tip\n> in⟧ner\n:::\n\n# h\n',
+		':::note\n:::\n\n:::tip\n> ner\n:::\n\n# h\n',
+		{ at: 22, holds: 'text' }
+	),
+	...deleted(
+		'L8 past a rule in a tip it took whole',
+		':::note\n⟦***\n\nbody\n:::\n\n:::tip\n***\n\nin⟧ner\n:::\n\n# h\n',
+		':::note\n:::\n\n:::tip\nner\n:::\n\n# h\n',
+		{ at: 20, holds: 'text' }
+	),
+	...deleted(
+		'L8 into an open details’ body, past its summary',
+		':::note\n⟦***\n\nbody\n:::\n\n<details open>\n<summary>Sum</summary>\n\nin⟧ner\n\n</details>\n\n# h\n',
+		':::note\n:::\n\n<details open>\n<summary>Sum</summary>\nner\n\n</details>\n\n# h\n',
+		{ at: 51, holds: 'text' }
+	),
+	...deleted(
+		'L8 a tip whose body the range empties holds the caret where its blocks were',
+		':::note\n⟦***\n\nbody\n:::\n\n:::tip\ninner⟧\n:::\n\n# h\n',
+		':::note\n:::\n\n:::tip\n:::\n\n# h\n',
+		{ at: 20, holds: 'boundary', parent: [1] }
+	),
+	...deleted(
+		'L8 a range that stops before a tip it never entered lands on the tip’s first byte',
+		':::note\n⟦***\n\nbody\n:::\n\npara⟧\n\n:::tip\ninner\n:::\n\n# h\n',
+		':::note\n:::\n\n:::tip\ninner\n:::\n\n# h\n',
+		{ at: 13, holds: 'text' }
+	)
+];
+
 export const CLOSER_ROWS: NamedRow[] = [
 	...CLOSING_LINE_ROWS,
 	...LINE_ROWS,
 	...OPENING_ROWS,
-	...START_LINE_ROWS
+	...START_LINE_ROWS,
+	...TEXT_AFTER_ROWS
 ];

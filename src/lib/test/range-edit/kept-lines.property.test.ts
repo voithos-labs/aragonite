@@ -3,16 +3,20 @@
 // containers that held it, and the line it starts on where that line's block stays, over ranges
 // that leave a container from a block it takes whole, from mid-text or from a line's first byte,
 // into the block after it, a table's rows, a later block's opening or the document's end. The range
-// goes through the editor's own adapter, as a selection's does.
+// goes through the editor's own adapter, as a selection's does. Where the start's block went whole,
+// Delete and a composition land on the text left after the range.
 // Miss-analysis: the law draws filled fenced bodies with paragraphs and `# head` only, and drew
 // tables and rules outside fenced containers, so no range left one from a block it took whole. And
 // no draw started at a line's first byte in a block that stays, with an end that joins no text.
+// No draw ended in a later container's body, and nothing read where Delete put the caret.
 
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
+import { isBlankText } from '#lib/core/lines.js';
 import type { DocumentView } from '#lib/core/node-views.js';
 import { editRange, removalOf } from '#lib/range-edit/edit-range.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
+import { lineRest } from '#lib/range-edit/leaf-splice.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
 import { normalizeCharEndpoint } from '#lib/selection/char-endpoint-snap.js';
 import { pathsEqual } from '#lib/selection/path-math.js';
@@ -86,6 +90,7 @@ const ENDS: Record<string, { lines: string[]; cell?: number }> = {
 	},
 	'a table’s last row': { lines: ['', ...TABLE.slice(0, 3), '| ⟧3 | 4 |', '', '# h'], cell: 4 },
 	'a later container’s title row': { lines: ['', ':::tip Ti⟧tle', 'inner', ':::', '', '# h'] },
+	'a later container’s body': { lines: ['', ':::tip', 'in⟧ner', 'more', ':::', '', '# h'] },
 	'a code block right below': { lines: ['```', 'co⟧de', '```', '', '# h'] },
 	'the document’s end': { lines: ['', 'para⟧'] }
 };
@@ -141,7 +146,9 @@ describe('G4.350 a removal keeps the lines after its range', () => {
 		const reading = testReading();
 		const host = checkHost(reading);
 		const fails: string[] = [];
+		const landings: string[] = [];
 		let waiting = 0;
+		let landed = 0;
 		fc.assert(
 			fc.property(arbCase, (c) => {
 				const { marked, cell } = sourceOf(c);
@@ -165,11 +172,24 @@ describe('G4.350 a removal keeps the lines after its range', () => {
 						movedLine(host, read, range.from, range.to, got);
 					if (moved) fails.push(`${moved}: ${JSON.stringify(got)}\n    ${JSON.stringify(c)}`);
 				}
+				// G4.351: where the start's block went whole, Delete lands on the text left after the range.
+				const rest = lineRest(source, range.to);
+				if (!c.body.endsWith('taken whole') || cell !== undefined || isBlankText(rest)) return;
+				landed++;
+				for (const g of ['delete', 'compose'] as const) {
+					const { caret, source: got } = removalOf(source, range, g, c.mode, host);
+					if (caret.holds !== 'text' || !got.startsWith(rest, caret.at))
+						landings.push(
+							`${g} landed at ${caret.at}: ${JSON.stringify(got)}\n    ${JSON.stringify(c)}`
+						);
+				}
 			}),
 			{ numRuns: 400, seed: freshOrFixedSeed(20261112) }
 		);
 		expect(fails.slice(0, 10)).toEqual([]);
+		expect(landings.slice(0, 10), 'G4.351 Delete lands on the text after').toEqual([]);
 		expect(waiting).toBeGreaterThan(0);
+		expect(landed).toBeGreaterThan(0);
 	});
 
 	// The draws above skip that range; this row goes red the day its fix lands.

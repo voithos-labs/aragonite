@@ -46,6 +46,8 @@ export interface Removal extends Edit {
 	gone?: boolean;
 	/** The removal took the block the range started in whole. */
 	took?: boolean;
+	/** Where `gone`, the byte where what followed the range begins, so Delete finds the text after. */
+	after?: number;
 	/** The block whose children the caret sits between, as laid before the removal (null for the
 	 *  document), where the removal knows it: its path is asked of the bytes after. */
 	parent?: LaidBlock | null;
@@ -140,6 +142,8 @@ function across(
 	const closing = closers(doc, from, to);
 	const lines = held ? wholeLines(doc, from, to, closing !== '') : null;
 	let tail = lines?.tail ?? source.slice(to);
+	// How many of the tail's last bytes are what followed the range.
+	let follows = tail.length;
 	// Where no text joins it, each end the range leaves is cut through its own block's write; a
 	// range ending in the start block's own trailing syntax splices the bytes alone.
 	const leaves = head !== null && to >= contentEnd(doc, head.leaf);
@@ -163,8 +167,10 @@ function across(
 		const first = before === '' && !start;
 		const opened = opening?.kept ?? '';
 		const kept = first ? opened.replace(/^(?:[ \t]*\r?\n)+/, '') : opened;
-		if (cut) tail = kept + cut.source.slice(lineStart);
-		else {
+		if (cut) {
+			tail = kept + cut.source.slice(lineStart);
+			follows = cut.source.length - cut.caret;
+		} else {
 			// An end on no block's text keeps its line's bytes, only the markers of a whole end block's.
 			const textStart = goes
 				? Math.min(to, pastMarkers(source, lineStart))
@@ -176,7 +182,9 @@ function across(
 			const rest = (opening ? source.slice(opening.endLine, textStart) : markers) + tail;
 			// A kept opening ends the line itself, so the line a whole end block leaves goes too.
 			const gone = kept ? /^[ \t>]*\r?\n/ : /^[ \t>]*(?=\r?\n|$)/;
-			tail = kept + (lineGoes ? rest.replace(gone, '') : rest);
+			const left = lineGoes ? rest.replace(gone, '') : rest;
+			tail = kept + left;
+			follows = Math.min(follows, left.length);
 		}
 		// A start line taken whole has ended already.
 		const ended = held && /\n$/.test(before);
@@ -197,6 +205,9 @@ function across(
 	const closerAt = lineGone ? before.length - marks.length : lineEndBefore(joined, before.length);
 	const closer = lineGone ? closing.slice(lead.length) + lead : closing;
 	const closed = joined.slice(0, closerAt) + closer + joined.slice(closerAt);
+	// Where what followed the range begins, past a closing line put before it.
+	const followed = joined.length - follows;
+	const resumes = followed + (closerAt <= followed ? closer.length : 0);
 	// The tail's line: the one `before` ends on behind its markers, or the next where the tail
 	// opens with a line ending.
 	const lowerLine = joined.lastIndexOf('\n', before.length + opens - 1) + 1;
@@ -213,9 +224,9 @@ function across(
 		: (place ?? end?.leaf ?? deepestAt(doc, to));
 	// Where the tail takes a held block's place, or the range enters a block that stays, the end block
 	// keeps only what follows the range, its emptied end line gone.
-	const after =
+	const endRest =
 		end && (joins || entered) && !lines ? nodeAt(doc, end.leaf.path).raw.slice(end.offset) : null;
-	const rest = after !== null && emptied ? after.replace(/^\r?\n/, '') : after;
+	const rest = endRest !== null && emptied ? endRest.replace(/^\r?\n/, '') : endRest;
 	const rewritten = {
 		...(head && start && { upper: { block: head.leaf, raw: start.raw, kind: head.leaf.type } }),
 		...(end && cut && { lower: { block: end.leaf, raw: cut.raw, kind: end.leaf.type } }),
@@ -228,10 +239,12 @@ function across(
 	const caret = lines?.caret ?? start?.caret ?? from;
 	// A caret past the markers of the lower block's line stays on the blank line opened there.
 	const opened = caret > at ? parted.length - numbered.length : 0;
+	// The numbering writes only past that byte; a blank line opened at or before it moves it on.
+	const after = resumes + (at <= resumes ? parted.length - numbered.length : 0);
 	return {
 		source: out,
 		caret: opened > 0 ? at + opened - doc.ending.length : caret,
-		...(gone && { gone }),
+		...(gone && { gone, after }),
 		...(held && first && { took: true })
 	};
 }
