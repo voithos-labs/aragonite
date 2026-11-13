@@ -285,6 +285,20 @@ const NAMED: Named[] = [
 		modes: ['live'],
 		pin: '# xHi\n'
 	},
+	// Miss-analysis: no cut started in a details body, so none left its caret at the summary's end,
+	// where the paste back went into the summary as one title line.
+	...['', ' open'].flatMap((open): Named[] =>
+		[
+			['the next block’s start', '⟧next para'],
+			['the next block’s middle', 'next⟧ para']
+		].map(([end, next]) => ({
+			name: `a cut from a details${open || ' closed'} body’s first line to ${end}, pasted back`,
+			marked: `<details${open}>\n<summary>S</summary>\n⟦one\n</details>\n\n${next}\n`,
+			clips: [''],
+			routes: ['cut then key'],
+			pin: `<details${open}>\n<summary>S</summary>\none\n</details>\n\nnext para\n`
+		}))
+	),
 	{
 		name: 'a cut pasted back as plain text ignores the editor’s own entry',
 		marked: 'a **b⟦old** text\n\n# next⟧ one\n',

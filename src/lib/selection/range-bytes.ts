@@ -2,8 +2,8 @@
  * A selection read as the bytes the range-edit core takes (`range-edit/edit-range.ts :: Range`):
  * each end's byte in the document, kept off a block its start can't join, then widened to every
  * block the coverage holds whole (G1.212). Copy, cut and the overlay read a range through here.
- * The other way, a place the core names reads back as the gap caret there (`gapOfPlace`,
- * `heldGapOf`).
+ * The other way, a place the core names reads back as the caret the editor puts down there
+ * (`landingAt`, `heldGapOf`), and a paste is named a place (`placeInBlock` and its siblings).
  */
 
 import { untrack } from 'svelte';
@@ -17,7 +17,12 @@ import { isMergeEligible } from '../schema/merge-rules';
 import { blockNodeAt } from '../tree-operations/node-primitives';
 import { documentByteMap, leafAtByte } from '../tree-operations/container-offsets';
 import type { Measured } from '../tree-operations/top-level-starts';
-import { gapEligibleAt, gapScopeChildren, type GapCaretPosition } from './gap-caret';
+import {
+	gapEligibleAt,
+	gapScopeChildren,
+	type GapCaretPosition,
+	type GapCaretSelection
+} from './gap-caret';
 import { blockFacts } from '../schema/block-facts';
 import { getContentRange, isProseKind } from '../core/inline';
 import type { Held, Range } from '../range-edit/edit-range';
@@ -25,7 +30,9 @@ import type { SpliceCaret } from '../action-contracts';
 import { documentLayout, type LaidBlock, type Layout } from '../range-edit/layout';
 import { pathsEqual } from './path-math';
 import { boundaryHidden, previousCaretPath } from './path-lookup';
-import type { SelectionPoint } from './primitives';
+import type { Landing, SelectionPoint } from './primitives';
+import { caretTargetFor } from './caret-target';
+import { CURSOR_END } from '../block-component';
 import type { RangeCoverage } from './range-coverage';
 import { checkRangeHoldsWhole } from '../invariants/range-holds-whole';
 
@@ -323,17 +330,22 @@ function cutCaretAt(bytes: DocumentBytes, at: number): SpliceCaret | null {
 	const cut = bytes.cut;
 	if (!cut || cut.of !== bytes.measured() || cut.caret.holds === 'block') return null;
 	const measured = bytes.measured();
-	const gap = cut.caret.holds === 'boundary' ? heldGapOf(measured, cut.caret) : null;
-	const landed = gap ? byteOfGap(measured, gap) : leafByteAt(measured, cut.caret.at);
-	if (landed !== at) return null;
+	const landing = landingAt(measured, cut.caret);
+	if (!landing || landedByte(measured, landing) !== at) return null;
 	// A gap stands where its line starts, which the core's byte for a container's end comes before.
-	return gap ? { ...cut.caret, at } : cut.caret;
+	return 'gapCaret' in landing ? { ...cut.caret, at } : cut.caret;
 }
 
-/** The byte of the text place a caret put down at byte `at` takes. */
-function leafByteAt(measured: Measured, at: number): number | null {
-	const leaf = leafAtByte(measured, at);
-	return leaf && documentByteMap(measured).byteOf(leaf.path, leaf.offset);
+/** The byte the editor puts a landing down at: a gap's, a stored caret's, or where the block's own
+ *  landing rule moves a caret (out of a body a closed container hides). */
+function landedByte(measured: Measured, landing: Landing | GapCaretSelection): number | null {
+	if ('gapCaret' in landing) return byteOfGap(measured, landing.gapCaret);
+	const at = 'anchor' in landing ? landing.anchor : landing;
+	const target = caretTargetFor(measured.doc, { path: docPathFrom(at.path), offset: at.offset });
+	if (!target) return null;
+	const raw = blockNodeAt(measured.doc, target.leafPath)?.raw ?? '';
+	const offset = target.offset === CURSOR_END ? displayLength(raw) : target.offset;
+	return documentByteMap(measured).byteOf(target.leafPath, offset);
 }
 
 const boundary = (at: number, parent: readonly number[]): PastePlace => ({
@@ -417,6 +429,25 @@ export function heldGapOf(
 	const parent = blockNodeAt(doc, gap.parentPath);
 	if (parent && blockFacts(parent.kind).lines === 'items') return null;
 	return { ...gap, held: true };
+}
+
+/** The caret at byte `caret.at`: the gap caret a boundary is held as, else text at that byte
+ *  exactly, else the block's own landing (a block held whole, or a picture of its source). */
+export function landingAt(
+	measured: Measured,
+	caret: SpliceCaret
+): Landing | GapCaretSelection | null {
+	if (caret.holds === 'boundary') {
+		const gap = heldGapOf(measured, caret);
+		if (gap) return { gapCaret: gap };
+	}
+	const leaf = leafAtByte(measured, caret.at);
+	if (!leaf) return null;
+	const point = { path: docPathFrom(leaf.path), offset: leaf.offset };
+	const kind = blockNodeAt(measured.doc, leaf.path)?.kind;
+	const exact = caret.holds === 'text' && kind && blockFacts(kind).textPosition === 'always';
+	// Put down as a stored caret is, since a kind's own landing rule would move it off the byte.
+	return exact ? { anchor: point, focus: point } : point;
 }
 
 /** Whether a letter typed on a line of its own at byte `at` joins the text there: a block's own

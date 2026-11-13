@@ -62,7 +62,7 @@ import {
 	type PasteRoute
 } from '../range-laws/gestures';
 import { caretOf } from '../range-laws/through-splice';
-import { landingAt } from '#lib/editor-actions/commit/byte-splice.js';
+import { landingAt } from '#lib/selection/range-bytes.js';
 import { caretTargetFor } from '#lib/selection/caret-target.js';
 
 /** How today's editor gets the paste: a route of its own, Ctrl+Shift+V, or a cut by its chord and
