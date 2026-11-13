@@ -41,7 +41,7 @@ import {
 	splitAt,
 	splitOut
 } from './paste-split';
-import { numberedAfterTaking, numberedOn } from './list-numbers';
+import { numberedAfterTaking } from './list-numbers';
 import {
 	byteAt,
 	cutLeaf,
@@ -379,25 +379,22 @@ function landed(
 		const caret = apart && edit.source[ending - 1] === '\r' ? ending - 1 : ending;
 		return restApart(doc, { source: edit.source, caret }, leaf, to, cut, lastRaw);
 	}
+	const under = doc.source.slice(leaf.text!.from, from) !== '';
+	// A box stands in front of text alone (GFM task lists): a block of lines that is no text, pasted
+	// at a to-do's text start, takes the text's place in the bullet, and the box goes.
+	const box = under
+		? null
+		: boxBefore(doc, leaf, clip.slice(first.from, contentEnd(pasted, first)));
+	if (box) return landedWithout(doc, box, from - box.length, to - box.length, clip);
 	// Under text the last block joins what follows; with none before the cut only a paragraph's
 	// text joins it, and only where the clipboard ends on no line ending.
-	const under = doc.source.slice(leaf.text!.from, from) !== '';
 	const flush = !isBlankText(onLine) && factsOf(doc, leaf).joins === 'text' && !clip.endsWith('\n');
 	const after = tailOf(lastTakes && (under || flush));
 	const cut = cutWith('', after, lead);
-	// A heading or a to-do left with no text gives way: the blocks land on its line as on an empty
-	// one, and a list it stood in numbers on.
-	const gone = cut.empty
-		? givesWay(doc, leaf, cut, clip.slice(first.from, contentEnd(pasted, first)))
-		: null;
-	if (gone) {
-		const end = contentEnd(doc, gone);
-		const bare = doc.source.slice(0, gone.from) + doc.source.slice(end);
-		const emptied = { ...readDoc(bare, doc.host, doc.mode), ending: doc.ending };
-		const landing: Pasted = { text: clip, plain: false, held: { holds: 'text' }, transform: null };
-		// Bytes alone: a block the landing names is one of the document without the one that went.
-		const { source, caret } = pasteAt(emptied, gone.from, gone.from, landing);
-		return { source: numberedOn(doc, gone.from, end, source), caret };
+	// A heading left with no text gives way: the blocks land on its line as on an empty one.
+	if (cut.empty && cut.head.length > leaf.from) {
+		const heading = { from: leaf.from, length: contentEnd(doc, leaf) - leaf.from };
+		return landedWithout(doc, heading, leaf.from, leaf.from, clip);
 	}
 	const ends = !lastTakes && lineRest(cut.rest, 0) === '';
 	const text = ends ? intoBlankUnder(doc, to, clip) : clip;
@@ -405,17 +402,28 @@ function landed(
 	return splitAt(doc, leaf, from, to, cut, mid, lastTakes, lastRaw);
 }
 
-/** What gives way to blocks pasted over all of `leaf`'s text, the first of them `first`: a heading,
- *  or the to-do `leaf` is all of where `first` has lines. A plain item holds them after its marker. */
-function givesWay(doc: Doc, leaf: LaidBlock, cut: Cut, first: string): LaidBlock | null {
-	if (cut.head.length > leaf.from) return leaf;
-	// A to-do's box marks one line of text, as typing after it does; a block of lines is no text.
-	if (!first.includes('\n')) return null;
-	const item = parentOf(doc, leaf);
-	const list = item && parentOf(doc, item);
-	if (!list || factsOf(doc, list).lines !== 'items') return null;
-	const node = nodeAt(doc, item.path);
-	return metadataIfKind(node, 'listItem')?.taskItem && node.children?.length === 1 ? item : null;
+/** The to-do box in front of `leaf`'s text, where `first`, a pasted block that is no text, holds
+ *  more than one line; null for any other block. */
+function boxBefore(doc: Doc, leaf: LaidBlock, first: string): Span | null {
+	const item = first.includes('\n') && leaf.path.at(-1) === 0 ? parentOf(doc, leaf) : undefined;
+	const box = item && metadataIfKind(nodeAt(doc, item.path), 'listItem')?.taskMarker;
+	const at = leaf.text!.from;
+	return box && doc.source.endsWith(box, at) ? { from: at - box.length, length: box.length } : null;
+}
+
+interface Span {
+	from: number;
+	length: number;
+}
+
+/** The paste of `clip` at `[from, to)` of the document with `cut` taken out, its bytes and caret
+ *  alone: a block that landing names is one of that other document. */
+function landedWithout(doc: Doc, cut: Span, from: number, to: number, clip: string): Edit {
+	const bare = doc.source.slice(0, cut.from) + doc.source.slice(cut.from + cut.length);
+	const without = { ...readDoc(bare, doc.host, doc.mode), ending: doc.ending };
+	const landing: Pasted = { text: clip, plain: false, held: { holds: 'text' }, transform: null };
+	const { source, caret } = pasteAt(without, from, to, landing);
+	return { source, caret };
 }
 
 /** Where the last line of the text `block` ends on starts, in a pasted block that is no paragraph;

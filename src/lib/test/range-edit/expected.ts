@@ -504,6 +504,37 @@ export function expectedPaste(
 	return { ...want, bytes: want.bytes.flatMap(apart).map(joined) };
 }
 
+/** A block of lines that is no text, pasted at a to-do's text start, lands as at the bare bullet (a
+ *  box stands before text alone): that source and caret, or null for any other paste. */
+export function unboxedAt(
+	read: Read,
+	at: number,
+	text: string,
+	host: CheckHost
+): { source: string; at: number } | null {
+	const leaf = leafAt(read, at);
+	if (!leaf?.text || leaf.text.from !== at || leaf.path.at(-1) !== 0) return null;
+	const item = read.blocks.find((b) => b.path.join() === leaf.path.slice(0, -1).join());
+	const meta = item && treeNodeAt(read.tree, item.path)?.metadata;
+	const box = (meta as { taskMarker?: string | null } | undefined)?.taskMarker;
+	if (!box || read.source.slice(at - box.length, at) !== box) return null;
+	const clip = readOf(host, lf(text));
+	const first = clip.blocks.find(
+		(b) => b.path.length === 1 && clip.source.slice(b.from, b.to).trim() !== ''
+	);
+	if (!first || clip.source.startsWith('\n') || host.facts(first.type).joins === 'text')
+		return null;
+	if (!clip.source.slice(first.from, lineContentEnd(clip.source, first.to)).includes('\n'))
+		return null;
+	// A list the to-do's list takes in or breaks out of, or a container around it takes, lands so.
+	if (takerOf(read, at, clip, first, host) || listLeft(read, at, clip, first, leaf, host))
+		return null;
+	return {
+		source: read.source.slice(0, at - box.length) + read.source.slice(at),
+		at: at - box.length
+	};
+}
+
 /** `want`, blocks pasted at `at` with a last line ending and text after the caret: a blank line over
  *  that text where the last pasted block, a paragraph aside, would read it in. */
 function restKept(

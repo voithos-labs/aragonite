@@ -44,8 +44,12 @@ test.describe('insertMarkdown: programmatic insertion', () => {
 
 		expect(await insert(TABLE)).toBe(true);
 		await editor.bridge.waitForSourceContains('| --- | --- |');
-		expect(await editor.bridge.getSource()).not.toContain('[ ]');
-		await expect(editor.page.locator('.task-checkbox')).toHaveCount(0);
+		// The item keeps the table in its bullet and the list stays; the ending opens a to-do under it.
+		expect(await editor.bridge.getSource()).toBe(
+			'- | a | b |\n  | --- | --- |\n  | 1 | 2 |\n- [ ] \n'
+		);
+		expect(await editor.bridge.getBlockCount()).toBe(1);
+		await expect(editor.page.locator('.task-checkbox')).toHaveCount(1);
 	});
 
 	// A widget-only paragraph holds no native selection, so the browser sends clipboard events to

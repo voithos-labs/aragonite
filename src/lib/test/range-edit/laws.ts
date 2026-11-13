@@ -40,6 +40,7 @@ import {
 	sameDocument,
 	shownDelimiters,
 	copiesLinesBeforeRange,
+	unboxedAt,
 	type Read
 } from './expected';
 
@@ -525,6 +526,16 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 		if (!kept)
 			return [`L9 a last line ending in an item changed the lines before it: ${q(got.source)}`];
 		return pasteAtCaret(call, host, { ...input, text: rest });
+	}
+	const unboxed = unboxedAt(read, input.at, input.text, host);
+	if (unboxed) {
+		const gesture = paste(input.text, input.held);
+		const bare = call(unboxed.source, caretRange(unboxed.at), gesture, input.mode);
+		if (bare && bare.source !== got.source)
+			return [
+				`L9 a to-do kept its box under a block of lines: ${q(got.source)}, not ${q(bare.source)}`
+			];
+		return pasteAtCaret(call, host, { ...input, ...unboxed });
 	}
 	// A last line ending where a run closes right after the text cuts the block as a split cuts it,
 	// the run closed before the ending, by bytes the rows hold.

@@ -192,15 +192,6 @@ const EMPTIED_ROWS: NamedRow[] = [
 		paste('\n\ntwo'),
 		'\n\n# twoHi\n'
 	),
-	// Miss-analysis: the give-way rows were headings; ruling 16 names an item the same way, and no
-	// row emptied one with blocks that join none of it.
-	...both('E a to-do a paste empties gives way', '- [ ] ⟦alpha⟧\n', paste(TABLE), '| a |\n| - |\n'),
-	...both(
-		'E to a quote of lines too',
-		'- [ ] ⟦a⟧\n- [x] b\n',
-		paste('> q\n> r'),
-		'> q\n> r\n\n- [x] b\n'
-	),
 	// Miss-analysis: the rows above held only to-dos and items emptied whole, so nothing showed a
 	// plain item parting its list where `next` keeps the pasted blocks in it.
 	...both(
@@ -266,6 +257,66 @@ const EMPTIED_ROWS: NamedRow[] = [
 		'# ⟦Title⟧\n',
 		paste('one\n\ntwo'),
 		'# one\n\ntwo\n'
+	)
+];
+
+/** Blocks of lines that are not text, each as it stands in a bullet, and the blank line it keeps
+ *  over text under it that would read as its own. */
+const BULLET_BLOCKS: [name: string, clip: string, held: string, apart: string][] = [
+	['a table', TABLE, '| a |\n  | - |', '\n'],
+	['a fence', FENCE, '```\n  x\n  ```', ''],
+	['a $$ block', '$$\nx\n$$', '$$\n  x\n  $$', ''],
+	['a callout', CALLOUT, ':::note\n  body\n  :::', '']
+];
+
+// Miss-analysis: the to-do rows read "the item gives its checkbox up" as the item giving way, and
+// no row pasted a block of lines at a to-do's text start with text left after the caret.
+const TODO_BOX_ROWS: NamedRow[] = [
+	...BULLET_BLOCKS.flatMap(([name, clip, held, apart]) => [
+		...both(
+			`X ${name} over a to-do’s text takes its place in the bullet`,
+			'- [ ] ⟦a⟧\n- [x] b\n',
+			paste(clip),
+			`- ${held}\n- [x] b\n`
+		),
+		...both(
+			`X ${name} at a to-do’s text start, the text under it`,
+			'- [ ] ⟦⟧alpha\n- [x] b\n',
+			paste(clip),
+			`- ${held}\n${apart}  alpha\n- [x] b\n`
+		),
+		...both(
+			`X ${name} in an empty to-do`,
+			'- [ ] ⟦⟧\n- [x] b\n',
+			paste(clip),
+			`- ${held}\n- [x] b\n`
+		),
+		...both(
+			`X ${name} in a middle to-do, the list one list`,
+			'- [x] z\n- [ ] ⟦a⟧\n- [x] c\n',
+			paste(clip),
+			`- [x] z\n- ${held}\n- [x] c\n`
+		)
+	]),
+	...both(
+		'X a to-do that is the whole list holds a table too',
+		'- [ ] ⟦alpha⟧\n',
+		paste(TABLE),
+		'- | a |\n  | - |\n'
+	),
+	...both(
+		'X a quote of lines over a to-do’s text',
+		'- [ ] ⟦a⟧\n- [x] b\n',
+		paste('> q\n> r'),
+		'- > q\n  > r\n- [x] b\n'
+	),
+	// One line stays the to-do's text beside its box.
+	...both('X a heading at its text start', '- [ ] ⟦⟧bc\n', paste('# h'), '- [ ] # hbc\n'),
+	...both(
+		'X a rule there, on a line of its own',
+		'- [ ] ⟦⟧bc\n',
+		paste('---'),
+		'- [ ] ---\n\n  bc\n'
 	)
 ];
 
@@ -927,6 +978,7 @@ export const SPLIT_ROWS: NamedRow[] = [
 	...NUMBER_ROWS,
 	...STRUCTURE_ROWS,
 	...EMPTIED_ROWS,
+	...TODO_BOX_ROWS,
 	...RUN_ROWS,
 	...PLAIN_ROWS,
 	...LINE_ROWS,
