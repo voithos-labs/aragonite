@@ -76,9 +76,15 @@ export function holdsText(doc: Doc, from: number, to: number): boolean {
  *  A block drawn as a picture of its source is held whole, never entered. */
 export function fenceBody(doc: Doc, leaf: LaidBlock): { from: number; to: number } | null {
 	const facts = factsOf(doc, leaf);
+	if (facts.body !== 'literal' || facts.textPosition !== 'always') return null;
+	return bodyBetweenFences(doc, leaf);
+}
+
+/** The body between a text block's fence lines, a picture's source included; null for a block
+ *  with none. */
+export function bodyBetweenFences(doc: Doc, leaf: LaidBlock): { from: number; to: number } | null {
 	// A `:::` title row's line reads as an opening fence too, but it has no body to stay inside.
-	if (facts.body !== 'literal' || facts.textPosition !== 'always' || titleOwner(doc, leaf))
-		return null;
+	if (titleOwner(doc, leaf)) return null;
 	const raw = nodeAt(doc, leaf.path).raw;
 	const fence = doc.host.fence(raw);
 	if (!fence) return null;

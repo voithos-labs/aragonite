@@ -499,7 +499,7 @@ export const NAMED_ROWS: NamedRow[] = [
 		name: 'L9 a table pasted mid-paragraph keeps the text after it a paragraph',
 		source: 'ab⟦⟧cd\n',
 		gesture: paste('| a |\n| - |'),
-		expect: { source: 'ab\n\n| a |\n| - |\n\ncd\n', caret: boundary(15) }
+		expect: { source: 'ab\n\n| a |\n| - |\n\ncd\n', caret: text(7) }
 	},
 	{
 		name: 'L9 and at the paragraph’s start, in a quote',

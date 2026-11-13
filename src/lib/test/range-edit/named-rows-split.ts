@@ -11,6 +11,7 @@ const plain = (t: string): Gesture => ({ paste: t, plain: true, holds: 'text' })
 const TABLE = '| a |\n| - |';
 const FENCE = '```\nx\n```';
 const CALLOUT = ':::note\nbody\n:::';
+const TWO_HEADERS = '| a | b |\n| - | - |';
 
 /** One row per mode, for bytes both modes share. */
 const both = (name: string, source: string, gesture: Gesture, out: string): NamedRow[] => [
@@ -970,8 +971,80 @@ const CLOSING_LINE_ROWS: NamedRow[] = [
 	...both('K and after a closing tag', 'abc⟦⟧def\n', paste(CLOSED), `abc\n\n${CLOSED}\ndef\n`)
 ];
 
+/** A row whose caret lands in text at the `‸` of `marked`, the bytes it leaves. */
+const landsAt = (name: string, source: string, clip: string, marked: string): NamedRow[] =>
+	(['source', 'live'] as const).map((mode) => ({
+		name: mode === 'live' ? `${name}, live` : name,
+		source,
+		mode,
+		gesture: paste(clip),
+		expect: {
+			source: marked.replace('‸', ''),
+			caret: { at: marked.indexOf('‸'), holds: 'text' as const }
+		}
+	}));
+
+// Miss-analysis: the caret rows pasted text, headings and lists, whose last line takes a caret, and
+// no row asked where it goes after a block that ends on a line no caret takes.
+const LAST_PLACE_ROWS: NamedRow[] = [
+	...landsAt(
+		'P a list’s last fence',
+		'abc⟦⟧\n',
+		'- one\n- ```\n  x\n  ```',
+		'abc\n\n- one\n- ```\n  x‸\n  ```\n'
+	),
+	// A rule holds no text place, and text written on a closing line is that block's own write.
+	{
+		name: 'P a callout ending in a rule keeps the caret after it',
+		source: 'abc⟦⟧\n',
+		gesture: paste(':::note\n---\n:::'),
+		expect: {
+			source: 'abc\n\n:::note\n---\n:::\n',
+			caret: { at: 20, holds: 'boundary', parent: [] }
+		}
+	},
+	{
+		name: 'P text on a fence’s closing line stays where it went',
+		source: '```\nx\n```⟦⟧\n',
+		gesture: paste('y'),
+		expect: { source: '```\nx\n```y\n', caret: { at: 10, holds: 'text' } }
+	},
+	...landsAt('P a fence’s caret stays in its body', 'abc⟦⟧\n', FENCE, 'abc\n\n```\nx‸\n```\n'),
+	...landsAt('P in an item', '- a⟦⟧\n- b\n', FENCE, '- a\n\n  ```\n  x‸\n  ```\n- b\n'),
+	...landsAt('P in a quote', '> a⟦⟧\n> b\n', FENCE, '> a\n>\n> ```\n> x‸\n> ```\n> b\n'),
+	...landsAt('P with text after it', 'abc⟦⟧def\n', FENCE, 'abc\n\n```\nx‸\n```\ndef\n'),
+	...landsAt('P an empty fence’s body', 'abc⟦⟧\n', '```\n```', 'abc\n\n```\n‸```\n'),
+	...landsAt('P a $$ block’s body', 'abc⟦⟧\n', '$$\nx\n$$', 'abc\n\n$$\nx‸\n$$\n'),
+	...landsAt('P a callout’s body', 'abc⟦⟧\n', CALLOUT, 'abc\n\n:::note\nbody‸\n:::\n'),
+	...landsAt(
+		'P a callout in an item',
+		'- a⟦⟧\n- b\n',
+		CALLOUT,
+		'- a\n\n  :::note\n  body‸\n  :::\n- b\n'
+	),
+	...landsAt(
+		'P a details block’s body',
+		'abc⟦⟧\n',
+		CLOSED,
+		'abc\n\n<details>\n<summary>s</summary>\n\nbody‸\n\n</details>\n'
+	),
+	...landsAt(
+		'P a header-only table’s last cell',
+		'abc⟦⟧\n',
+		TWO_HEADERS,
+		'abc\n\n| a | b‸ |\n| - | - |\n'
+	),
+	...landsAt(
+		'P and in an item',
+		'- a⟦⟧\n- b\n',
+		TWO_HEADERS,
+		'- a\n\n  | a | b‸ |\n  | - | - |\n- b\n'
+	)
+];
+
 export const SPLIT_ROWS: NamedRow[] = [
 	...CLOSING_LINE_ROWS,
+	...LAST_PLACE_ROWS,
 	...ENDING_ROWS,
 	...KEPT_ENDING_ROWS,
 	...LIST_ENDING_ROWS,
