@@ -80,4 +80,23 @@ test.describe('text editing, an edit inside a quote or list leaves its other lin
 		expect(await editor.bridge.getBlockCount()).toBe(2);
 		expect(await editor.parseConverged()).toBe(true);
 	});
+
+	for (const [where, source, path, bytes] of [
+		['at the top level', '- one\n- item\ntext\n', [0, 1, 0], '- one\n- >qitem\ntext\n'],
+		['in a quote', '> - one\n> - item\n> text\n', [0, 0, 1, 0], '> - one\n> - >qitem\n> text\n']
+	] as const) {
+		test(`the key after a later item gives its lazy line up lands after the mark, ${where}`, async ({
+			page
+		}) => {
+			await editor.loadContent(source);
+			await editor.clickBlockAtPath([...path], 0);
+			await page.keyboard.press(edgeKey('lineStart'));
+
+			// The second letter proves where the caret stands after the first.
+			await page.keyboard.type('>q');
+
+			await expect.poll(() => editor.bridge.getSource()).toBe(bytes);
+			expect(await editor.parseConverged()).toBe(true);
+		});
+	}
 });
