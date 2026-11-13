@@ -50,7 +50,9 @@ function asking(body: string, run: (deps: EditorActionsDeps) => void) {
 	let asked = 0;
 	readings.forEach((reading, k) => {
 		reading.notFinal = (raw) => (blocks.add(raw), asked++, saved[k].notFinal(raw));
-		reading.mayClose = (line) => (asked++, saved[k].mayClose(line));
+		const was = saved[k];
+		if (reading.closer !== null && was.closer !== null)
+			reading.mayClose = (line) => (asked++, was.mayClose(line));
 	});
 	try {
 		run(deps);

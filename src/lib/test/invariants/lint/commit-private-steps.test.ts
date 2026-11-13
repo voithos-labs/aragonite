@@ -37,9 +37,10 @@ const OUTSIDE: Record<string, { imports: string[]; why: string; until: string }>
 	'src/lib/range-edit/host.ts': {
 		imports: [
 			'src/lib/tree-operations/fix-up/editor-host.ts',
-			'src/lib/tree-operations/fix-up/joins.ts'
+			'src/lib/tree-operations/fix-up/joins.ts',
+			'src/lib/tree-operations/fix-up/unfinished.ts'
 		],
-		why: 'the range-edit core asks the fix-up’s join question of the pair a removal leaves before it writes bytes, so the splice lands bytes that already keep both readings; it writes nothing',
+		why: 'the range-edit core asks the fix-up’s join question of the pair a removal leaves, and whether a wait from above reads it, before it writes bytes, so the splice lands bytes that already keep both readings; it writes nothing',
 		until: 'never: the core answers in bytes, which the commit installs as read, with no fix-up'
 	},
 	'src/lib/editor-actions/search-replace.ts': {

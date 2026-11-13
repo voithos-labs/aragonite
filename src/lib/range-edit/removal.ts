@@ -221,12 +221,16 @@ function across(
 		...(end && cut && { lower: { block: end.leaf, raw: cut.raw, kind: end.leaf.type } }),
 		...(end && rest !== null && { lower: { block: place ?? end.leaf, raw: rest } })
 	};
-	const parted = numberedApart(doc, closed, at, { from, to, upper, lower, rewritten }, !joins);
+	const numbered = numberedOn(doc, from, to, closed);
+	const parted = apartAt(doc, numbered, at, { from, to, upper, lower, rewritten }, !joins);
 	const gone = held && (!!lines || !joins || isBlankText(lineRest(tail, 0)));
 	const out = joins ? movedMarkers(doc, from, to, parted, to) : parted;
+	const caret = lines?.caret ?? start?.caret ?? from;
+	// A caret past the markers of the lower block's line stays on the blank line opened there.
+	const opened = caret > at ? parted.length - numbered.length : 0;
 	return {
 		source: out,
-		caret: lines?.caret ?? start?.caret ?? from,
+		caret: opened > 0 ? at + opened - doc.ending.length : caret,
 		...(gone && { gone }),
 		...(held && first && { took: true })
 	};

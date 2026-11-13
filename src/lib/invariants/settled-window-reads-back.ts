@@ -1,13 +1,16 @@
 /**
- * G1.145: the blocks a fix-up wrote, read again together with the blocks either side, come back as
- * the same blocks with the same blank lines between them, so the live tree divides those bytes the
- * way a reload does. A leaf's own trailing blank line counts as a hidden line of the gap below it.
+ * G1.145: the blocks a fix-up wrote, read again together with the blocks either side and every
+ * block no blank line parts from them, come back as the same blocks with the same blank lines
+ * between them, so the live tree divides those bytes the way a reload does. A leaf's own trailing
+ * blank line counts as a hidden line of the gap below it. G1.214 holds a block a keystroke wrote
+ * in place to the same read.
  */
 
 import type { CstNode } from '../core/nodes';
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
 import { isBlankParagraph, readBlocks } from '../core/parser';
 import type { GrammarView } from '../schema/block-openers';
+import { bytesIn, flushRun, READ_BACK_LIMIT } from './reads-back';
 
 export function checkSettledWindowReadsBack(
 	body: { readonly children: readonly CstNode[] },
@@ -15,7 +18,39 @@ export function checkSettledWindowReadsBack(
 	hi: number,
 	grammar: GrammarView
 ): InvariantViolation | null {
-	const window = body.children.slice(Math.max(lo - 1, 0), hi + 2);
+	const { children } = body;
+	const near = children.slice(Math.max(lo - 1, 0), hi + 2);
+	const wide = runAround(children, lo, hi);
+	// A run past the limit is read with its neighbours alone, which the check can afford.
+	return readsBack(bytesIn(wide) > READ_BACK_LIMIT ? near : wide, lo, hi, grammar);
+}
+
+/** G1.214: a block a keystroke wrote in place reads back with its run, where it stands flush
+ *  against a neighbour. A run past the limit is skipped. */
+export function checkWrittenInPlaceReadsBack(
+	body: { readonly children: readonly CstNode[] },
+	index: number,
+	grammar: GrammarView
+): InvariantViolation | null {
+	const { children } = body;
+	const flush = (i: number) => i > 0 && children[i]?.leadingTrivia === '';
+	if (!flush(index) && !flush(index + 1)) return null;
+	const wide = runAround(children, index, index);
+	return bytesIn(wide) > READ_BACK_LIMIT ? null : readsBack(wide, index, index, grammar);
+}
+
+/** Blocks `[lo, hi]`, the block either side, and every block no blank line parts from them. */
+function runAround(children: readonly CstNode[], lo: number, hi: number): CstNode[] {
+	const flush = flushRun(children, lo, hi - lo + 1);
+	return children.slice(Math.min(Math.max(lo - 1, 0), flush.from), Math.max(hi + 2, flush.to));
+}
+
+function readsBack(
+	window: readonly CstNode[],
+	lo: number,
+	hi: number,
+	grammar: GrammarView
+): InvariantViolation | null {
 	if (window.length === 0) return null;
 	const read = (bytes: string) => readBlocks(bytes, { grammar, scope: 'fragment' }).children;
 	// A block that reads otherwise alone (a list item's bytes read as a list, a table cell's as a

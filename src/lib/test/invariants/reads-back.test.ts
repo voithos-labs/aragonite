@@ -219,4 +219,35 @@ describe('G1.55 over a run of blocks', () => {
 		expect(spans(waiting, 2)).toEqual([[1, 3]]);
 		expect(spans(parse('a\n\nb\n\nc\n\n:::\n').children, 3)).toEqual([[0, 4]]);
 	});
+
+	// Miss-analysis: the run was the splice's own window and a block either side, so a window that
+	// started or stopped short of a definition waiting on its title read back as itself.
+	it('reads a window flush against its neighbours out to the blank lines, where a short one shows', () => {
+		// What a window starting at `end` leaves: the definition four blocks up took no title.
+		const started = [...parse('[a]: /u\n    "code\n[b]: /v\n[b]: /v\nend\n\nlast\n').children];
+		started[4] = { ...started[4], raw: 'end"\n' };
+		const [late] = spliceRuns(started, [{ at: 4, count: 1 }], defaultGrammarView);
+		expect(late[0]).toBe(started[0]);
+		expect(checkRunReadsBack(late, defaultGrammarView)?.code).toBe('reads-back');
+		// What a window stopping at `text` leaves once the heading is gone: the title closes below it.
+		const stopped = parse("[a]: /u\n    'code\n# h\ntext\nend'\n\nlast\n").children.filter(
+			(block) => block.kind !== 'heading'
+		);
+		const [short] = spliceRuns(stopped, [{ at: 2, count: 0 }], defaultGrammarView);
+		expect(checkRunReadsBack(short, defaultGrammarView)?.code).toBe('reads-back');
+	});
+
+	it('stops a run at the blank lines, and keeps to the neighbours where it would pass the limit', () => {
+		const spans = (top: readonly NodeView[], at: number) =>
+			spliceRuns(top, [{ at, count: 1 }], defaultGrammarView).map((run) => [
+				top.indexOf(run[0]),
+				run.length
+			]);
+		expect(spans(parse('a\n\n# b\n# c\n# d\n\ne\n').children, 3)).toEqual([[1, 4]]);
+		expect(spans(parse('a\n\n# b\n\n# c\n\n# d\n').children, 2)).toEqual([[1, 3]]);
+		// A blank line right above the window parts it from what stands higher, right or not.
+		expect(spans(parse('# a\n# b\n\n# c\n\nd\n').children, 2)).toEqual([[1, 3]]);
+		const long = parse('# heading\n'.repeat(READ_BACK_LIMIT / 5)).children;
+		expect(spans(long, 100)).toEqual([[99, 3]]);
+	});
 });

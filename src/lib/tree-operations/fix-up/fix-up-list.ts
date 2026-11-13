@@ -13,7 +13,7 @@ import {
 	returnFenceLine,
 	takeRemovedLines
 } from './runs';
-import { rereadUnfinished } from './unfinished';
+import { partWaits, rereadUnfinished, settleWaits } from './unfinished';
 import { finish, startWork, type Work } from './work';
 
 export function fixUpList(
@@ -53,6 +53,13 @@ export function fixUpList(
 	}
 	joinSameLists(work, edit, from, count, host);
 	for (const [j, role] of joins) partJoin(work, j, role, host, typed);
+	if (edit.moved) {
+		// A move keeps both readings where a wait would take a block it placed or uncovered. The
+		// lower join first, so a blank line never shifts a join still to be asked.
+		const { to, uncovered } = edit.moved;
+		partWaits(work, to, to + 1, host);
+		if (uncovered !== null) partWaits(work, uncovered, uncovered, host);
+	}
 	// From the bottom up, so a merge never moves a join still to be asked.
 	for (const [j] of [...joins].sort((a, b) => b[0] - a[0])) {
 		if (j < from || j > from + count) mergeAcross(work, j, j, host);
@@ -60,9 +67,34 @@ export function fixUpList(
 	mergeAcross(work, above, from + count, host);
 	if (!typed) endMergedLast(work, edit, from, count, host);
 	rereadUnfinished(work, from, count, host);
+	// A move's own joins were parted above, and the blocks between kept their neighbours.
+	const [first, last] = reached(work, from, count, edit.moved ? [] : joins);
+	settleWaits(work, first, last, host);
 	if (from + count >= work.blocks.length) releaseOpenBlankLine(work, host);
 	if (edit.moved) followMovedBlock(work, edit.moved.to);
 	return finish(work);
+}
+
+/** The joins the edit asked and the steps above reached, first and last. */
+function reached(
+	work: Work,
+	from: number,
+	count: number,
+	joins: readonly [number, Role][]
+): [number, number] {
+	let [first, last] = work.blocks.touched() ?? [from, from + count];
+	const reach = (j: number) => {
+		first = Math.min(first, j);
+		last = Math.max(last, j);
+	};
+	reach(from);
+	reach(from + count);
+	for (const [j] of joins) reach(j);
+	for (const mark of Object.values(work.marks)) {
+		reach(mark.index);
+		reach(mark.index + 1);
+	}
+	return [first, last];
 }
 
 /** Whether a typed write leaves the join above alone, which it does unless the two touch, the

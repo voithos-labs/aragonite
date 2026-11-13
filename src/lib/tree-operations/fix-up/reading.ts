@@ -28,7 +28,7 @@ export function bytesOf(blocks: { at(i: number): CstNode }, lo: number, hi: numb
 
 /** Whether `node` takes in every line below it until a closer that hasn't come. */
 export const readsOn = (host: Host, node: CstNode): boolean =>
-	host.readingsThatMayChange().some((reading) => reading.readsOn && reading.notFinal(node.raw));
+	host.readingsThatMayChange().some((r) => r.closer !== null && r.readsOn && r.notFinal(node.raw));
 
 /** A leaf whose bytes end in a blank line its own reading leaves out, which it holds as its own. */
 export const ownsBlankLine = (
