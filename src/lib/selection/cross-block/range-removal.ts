@@ -43,7 +43,7 @@ export type RemovalContext = Pick<
 /** What a range edit reads and commits through, the caret read back aside. */
 export type CommitContext = Omit<RemovalContext, 'getDoc'>;
 
-export type CoreCommit = Pick<SourceSplice, 'op' | 'snapshot'> & { caret: SpliceCaret };
+export type CoreCommit = Pick<SourceSplice, 'op' | 'snapshot' | 'history'> & { caret: SpliceCaret };
 
 export interface Removed {
 	/** False also where the range held nothing to take, which leaves the caret at its start. */

@@ -14,7 +14,7 @@ import {
 	type MountedEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { dispatchKey } from '#lib/test/harness/settle.js';
-import { newestEntryCaret, newestEntrySelection } from '../harness/undo-entry';
+import { newestEntryCaret } from '../harness/undo-entry';
 import { definePlugin } from '#lib/plugin.js';
 import { svelteBlockView } from '#lib/svelte.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
@@ -151,17 +151,22 @@ describe('a paste’s undo caret is where it began, after a key at another caret
 		surface: (editor: Editor) => HTMLElement;
 		path: number[];
 		at: number;
-		/** The paste commits as a byte splice, whose entry keeps a range the paste replaced. */
-		splices?: true;
 	}[] = [
 		{ name: 'a paragraph', source: 'abcd\n', surface: (e) => surfaceAt(e, [0]), path: [0], at: 1 },
+		// Below the top level a paste commits as a byte splice, whose entry the live range can't fill.
+		{
+			name: 'a list item',
+			source: '- abcd\n',
+			surface: (e) => surfaceAt(e, [0, 0, 0]),
+			path: [0, 0, 0],
+			at: 1
+		},
 		{
 			name: 'a table cell',
 			source: '| h |\n| --- |\n| abcd |\n',
 			surface: (e) => cell(e, 1),
 			path: [0, 1, 0],
-			at: 1,
-			splices: true
+			at: 1
 		},
 		{
 			name: 'a code block',
@@ -178,7 +183,7 @@ describe('a paste’s undo caret is where it began, after a key at another caret
 			at: 3
 		}
 	];
-	for (const { name, source, surface, path, at, splices } of SURFACES) {
+	for (const { name, source, surface, path, at } of SURFACES) {
 		it.each(['a caret', 'a range'] as const)(`${name}, at %s`, async (shape) => {
 			const editor: Editor = mountEditor({ source, plugins: [plainLeaf] });
 			await editor.settle();
@@ -191,11 +196,21 @@ describe('a paste’s undo caret is where it began, after a key at another caret
 			paste(el, 'Z');
 			await editor.settle();
 
-			if (splices && shape === 'a range') {
-				const range = { anchor: { path, offset: at }, focus: { path, offset: at + 2 } };
-				return expect(newestEntrySelection(editor)).toMatchObject(range);
-			}
 			expect(newestEntryCaret(editor)).toEqual({ path, offset: at });
 		});
 	}
+
+	// The block's own write can't land a title the paste leaves blank, so the splice takes it.
+	it('a top-level block the splice writes, at a range', async () => {
+		const editor: Editor = mountEditor({ source: 'Plan\n---\n\nnext\n' });
+		await editor.settle();
+		const el = surfaceAt(editor, [0]);
+		selectRange(el, 0, 4);
+
+		paste(el, ' ');
+		await editor.settle();
+
+		expect(editor.source()).toBe(' \nnext\n');
+		expect(newestEntryCaret(editor)).toEqual({ path: [0], offset: 0 });
+	});
 });

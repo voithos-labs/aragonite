@@ -7,7 +7,7 @@
  * Every paste route ends here, whatever brought the clipboard.
  */
 
-import type { CommitSnapshotArg } from '../../action-contracts';
+import type { CommitSnapshotArg, UndoGrouping } from '../../action-contracts';
 import type { TextEdit } from '../../caret/next-insertion';
 import { docPathFrom } from '../../core/coordinate-spaces';
 import { ownTrailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
@@ -156,14 +156,23 @@ export async function landAnswer(
 	const landed = answer.source + kept;
 	const was = ctx.bytes.measured();
 	const { leaf } = answer;
-	const wrote =
-		leaf && ctx.pasteCoordinator.landsAsWritten(leaf.path, leaf.raw)
+	const splice = (history?: UndoGrouping) =>
+		commitBytes(ctx, landed, {
+			caret: answer.caret,
+			op: { kind: 'paste', detail: { count: answer.blocks ?? 0 } },
+			snapshot: undo,
+			history
+		});
+	// Text in one block undoes to the caret it began at, as the block's own write records it.
+	const asTyped = () =>
+		ctx.controller.typingKeystroke(undo.path, undo.offset, undo.path.join(), 'entry', () =>
+			splice('join-typing')
+		);
+	const wrote = !leaf
+		? await splice()
+		: ctx.pasteCoordinator.landsAsWritten(leaf.path, leaf.raw)
 			? await writeLeaf(ctx, leaf, undo)
-			: await commitBytes(ctx, landed, {
-					caret: answer.caret,
-					op: { kind: 'paste', detail: { count: answer.blocks ?? 0 } },
-					snapshot: undo
-				});
+			: await asTyped();
 	if (wrote) {
 		const { grammar } = ctx.reading;
 		assertPasteLanded(
