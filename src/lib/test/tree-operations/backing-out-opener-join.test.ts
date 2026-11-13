@@ -21,6 +21,7 @@ import { describeConvergence, expectParseConverged } from '#lib/test/harness/par
 import { serialize } from '#lib/core/serializer.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { judge, type Edit } from '#lib/test/exhaustive/edit-driver.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { latexPlugin } from '#packages/latex/src/index.js';
@@ -124,6 +125,53 @@ describe('a backing-out opener that leaves its declaration out', () => {
 	it('and nothing else: the same write converges once the opener declares it', () => {
 		expect(typedOverSecond('@@@\n<div>\nx\n', '<div>\n@@@\n')).toEqual(['declared']);
 		expect(typedOverSecond('foo\n<div>\n', '<span>\n')).toEqual(['paragraph']);
+	});
+});
+
+/** `@ref` takes the lines under it down to one ending in `"`, as a definition takes its title,
+ *  and declares no reading. */
+const undeclaredWait: BlockOpener = {
+	priority: OPENER_PRIORITIES.fencedCode + 8,
+	interruptsParagraph: (line) => line === '@ref',
+	tryOpen(ctx): BlockOpenerResult | null {
+		if (ctx.line.text !== '@ref') return null;
+		let close = ctx.index + 1;
+		while (close < ctx.end && ctx.lines[close].text !== '' && !ctx.lines[close].text.endsWith('"'))
+			close++;
+		const closed = close < ctx.end && ctx.lines[close].text !== '';
+		const raw = ctx.lines
+			.slice(ctx.index, closed ? close + 1 : ctx.index + 1)
+			.map((line) => line.raw)
+			.join('');
+		const node = { kind: 'undeclaredWait', leadingTrivia: ctx.leadingTrivia, raw } as CstNode;
+		return { node, consumed: closed ? close + 1 - ctx.index : 1 };
+	}
+};
+
+// Miss-analysis: the read-back after a key ran in the key's own list, so a key inside a list or
+// a quote that changes a block above its container had no check to name it.
+describe('an opener that waits on the lines below and leaves its declaration out', () => {
+	beforeEach(() => {
+		testLeaf('undeclaredWait', { opener: undeclaredWait });
+	});
+
+	it('is named by the read-back when a key inside a list under it closes it', async () => {
+		const closes: Edit = {
+			name: 'type "',
+			apply: async (blockEdit, index, node, offset) =>
+				blockEdit.updateBlockContent(
+					index,
+					`${node.raw.slice(0, offset)}"${node.raw.slice(offset)}`,
+					'authored',
+					'join-typing',
+					offset,
+					offset + 1
+				)
+		};
+
+		expect(await judge('@ref\ntext\n- item\n\nlast\n', [2, 0, 0], 4, closes)).toMatch(
+			/differs from a reload.*fired invariant:settled-window-reads-back$/
+		);
 	});
 });
 

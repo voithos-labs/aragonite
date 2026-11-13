@@ -17,6 +17,8 @@ import { blockFacts } from '../schema/block-facts';
 import { firstLine, followBytes, lastLine } from '../schema/container-raw';
 import { reservedChromeKindOf, rowMarker } from '../schema/reserved-chrome';
 import { perfEnabled, recordRebuildDepth } from '../perf/instruments';
+import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
+import { checkWrittenInPlaceReadsBack } from '../invariants/settled-window-reads-back';
 import { rebuildOwnedContainer, walkUnsharing } from './unshare';
 import { mergeJoinsAt, rereadWaitAt, type TrackedPosition } from './fix-up/apply';
 import { waitsInto } from './container-window';
@@ -153,8 +155,14 @@ export function rebuildUnsharedChain(
 		const before = folds.length;
 		// After the kind re-derive: the join check reads whatever occupies the position now.
 		if (moved) settleSlotSeams({ ...slot, openerMoved, closerMoved }, sharing, folds, grammar);
-		if (mayBeWaitedOn && !spilled && siblings[index] === here)
+		if (mayBeWaitedOn && !spilled && siblings[index] === here) {
 			settleSlotWait(slot, openerMoved, sharing, folds, grammar);
+			// Not while the perf rows count a keystroke's parses, since the check reads the run around.
+			if (!perfEnabled())
+				assertInvariant('settled-window-reads-back', () =>
+					checkWrittenInPlaceReadsBack(slot.body, index, grammar)
+				);
+		}
 		// A merge re-divided the owner's children, so its child spans describe a shape that is gone.
 		if (folds.length > before && owner) dropChildSpans(owner);
 	}
