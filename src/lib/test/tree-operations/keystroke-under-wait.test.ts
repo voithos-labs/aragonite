@@ -18,7 +18,16 @@ import {
 import { endTypingBatchesForTests } from '#lib/editor-actions/commit/text-batch.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { ALPHABET_PLUGINS } from '#lib/test/exhaustive/alphabet.js';
-import { wrapped, type Wrap } from '../invariants/arbitraries/waiting-definition';
+import fc from 'fast-check';
+import { changesBetween } from '#lib/tree-operations/byte-changes.js';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
+import { pointAtByte } from '#lib/selection/range-bytes.js';
+import {
+	arbWaitingDefinitionEdit,
+	wrapped,
+	type Wrap
+} from '../invariants/arbitraries/waiting-definition';
+import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
 
 const typed = (text: string): Edit => ({
 	name: `type ${JSON.stringify(text)}`,
@@ -205,4 +214,56 @@ describe('Enter inside a title that runs over lines writes its blank line', () =
 			).toBeNull();
 		});
 	}
+});
+
+/** The drawn change written into the leaf at the caret, as typing or deleting it would. */
+const rewritten = (insert: string, removed: number): Edit => ({
+	name: 'the drawn change',
+	apply: async (blockEdit: BlockEditActions, index: number, node: CstNode, offset: number) =>
+		blockEdit.updateBlockContent(
+			index,
+			node.raw.slice(0, offset) + insert + node.raw.slice(offset + removed),
+			'authored',
+			'join-typing',
+			offset + removed,
+			offset + insert.length
+		)
+});
+
+const SEED = freshOrFixedSeed(20261112);
+
+// Miss-analysis: the keystroke rows were named shapes; the drawn changes under a started title ran
+// through the byte splice and the range host only, never as the keystroke that makes them.
+describe('a drawn change under a started title, made as a keystroke', () => {
+	it(`leaves the tree a reload reads, seed ${SEED}`, async () => {
+		const out: string[] = [];
+		let made = 0;
+		for (const { before, after } of fc.sample(arbWaitingDefinitionEdit, {
+			numRuns: 300,
+			seed: SEED
+		})) {
+			const [{ from, to, insert }] = changesBetween(before, after);
+			// A line taken whole is a removal across blocks, the range route's.
+			if (before.slice(from, to).includes('\n') || insert.includes('\n')) continue;
+			const doc = opened(before);
+			const point = pointAtByte(measured(doc), from);
+			// A change to a container's markers is no key in a block's text.
+			const leaf = point && leafAt(doc.children, [...point.path]);
+			if (
+				!point ||
+				leaf?.raw.slice(point.offset, point.offset + to - from) !== before.slice(from, to)
+			)
+				continue;
+			made++;
+			const failure = await judge(
+				before,
+				[...point.path],
+				point.offset,
+				rewritten(insert, to - from)
+			);
+			if (failure) out.push(`${JSON.stringify(before)} to ${JSON.stringify(after)}: ${failure}`);
+		}
+		expect(out).toEqual([]);
+		expect(made).toBeGreaterThan(100);
+	});
 });
