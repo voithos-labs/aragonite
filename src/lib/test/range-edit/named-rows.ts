@@ -330,10 +330,10 @@ export const NAMED_ROWS: NamedRow[] = [
 	},
 	// A shown math source drafts the paste; `latex-block.spec.ts` holds it to these bytes at blur.
 	{
-		name: 'L9 Markdown pasted into a math block’s body is text of the body',
+		name: 'L9 a table pasted into a math block’s body is text of the body',
 		source: 'Before\n\n$$x⟦⟧^2$$\n\nAfter\n',
-		gesture: paste('# y'),
-		expect: { source: 'Before\n\n$$x# y^2$$\n\nAfter\n' }
+		gesture: paste('| a |\n| - |'),
+		expect: { source: 'Before\n\n$$x| a |\n| - |^2$$\n\nAfter\n' }
 	},
 	{
 		name: 'L9 a fence pasted on indented code’s last line stays code, and opens nothing',

@@ -133,18 +133,18 @@ test.describe('plugin block math: render-primary, source-on-focus', () => {
 		expect(await roundTripStable(editor.page)).toBe(true);
 	});
 
-	test('Markdown pasted into the shown source lands at blur as the body’s text', async ({
+	test('a table pasted into the shown source lands at blur as the body’s text', async ({
 		page
 	}) => {
 		await editor.revealByClick();
 		await page.keyboard.press(edgeKey('lineStart'));
 		for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowRight');
-		await editor.seedClipboard('# y');
+		await editor.seedClipboard('| a |\n| - |');
 		await editor.paste();
 		await editor.getBlock(2).click();
 
 		// The range-edit core's answer for the same paste (`named-rows.ts`, a math block's body).
-		await editor.bridge.waitForSourceEquals('Before\n\n$$x# y^2$$\n\nAfter\n');
+		await editor.bridge.waitForSourceEquals('Before\n\n$$x| a |\n| - |^2$$\n\nAfter\n');
 	});
 
 	test('A1: the reveal caret lands at the source edge and a typed char lands inside it', async ({
