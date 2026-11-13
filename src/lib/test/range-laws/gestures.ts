@@ -200,6 +200,18 @@ export async function pastePlainGesture(editor: Editor, text: string): Promise<v
 	});
 }
 
+/** Ctrl+Shift+V over the editor's selection: the browser sends the paste event `text/plain` alone. */
+export async function shiftPaste(editor: Editor, clip: string): Promise<void> {
+	return throughSplice(editor, INSERTION, async () => {
+		systemClipboard.clear();
+		systemClipboard.set('text/plain', clip);
+		const at = focused();
+		if (dispatchKey(at, { ...chord('V'), shiftKey: true }).defaultPrevented) return editor.settle();
+		dispatchClipboardEvent(at, 'paste', new StubDataTransfer({ 'text/plain': clip }));
+		await editor.settle();
+	});
+}
+
 /** Opens the menu over the focused element, as a right-click on the selection does, and picks
  *  the row labelled `label`. jsdom aims no pointer, so the press keeps the selection it has. */
 async function pickMenuRow(editor: Editor, label: string): Promise<void> {

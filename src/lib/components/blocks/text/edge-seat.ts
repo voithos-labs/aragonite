@@ -103,9 +103,20 @@ export function hiddenEdges(
 				{ grammar }
 			);
 		const before = (shownBefore ??= shown(raw, content.end));
+		// A paste holding syntax shows less than its bytes, so an offset where the screen gains what
+		// those bytes show on their own holds too.
+		let alone: string | undefined;
 		const holds = (offset: number): boolean => {
 			const candidate = raw.slice(0, offset) + typed + raw.slice(offset);
-			return insertsExactly(before, shown(candidate, content.end + typed.length), typed);
+			const after = shown(candidate, content.end + typed.length);
+			if (insertsExactly(before, after, typed)) return true;
+			alone ??= renderedText(
+				readInline(typed, 0, typed.length, reading.resolver, grammar),
+				typed,
+				CONTENT_VISIBILITY,
+				{ grammar }
+			);
+			return alone !== typed && insertsExactly(before, after, alone);
 		};
 		const position = screenPosition(run, runs);
 		return candidateOffsets(position, record, caret, raw, inlines).find(holds) ?? null;

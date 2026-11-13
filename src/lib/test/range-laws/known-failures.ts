@@ -209,18 +209,6 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		issue: '#819',
 		lane: 'rebuild',
 		defect:
-			'Paste as plain text rewrites bytes away from the caret (a line’s container prefix, a live autolink’s hidden `>`) or escapes text in an indented code block',
-		lines:
-			/^L11 \[[^\]]*\] paste:plain \S+: "(?:[^"\\]|\\.)*" into (?:indentedCode put in|\w+ changed bytes away)/,
-		repro: {
-			law: 'L11',
-			args: [{ source: '<http://a.b>\n', mode: 'live', caret: end(62, 'end', 48) }, '1. one']
-		}
-	},
-	{
-		issue: '#819',
-		lane: 'rebuild',
-		defect:
 			'a copy that starts inside a quote and leaves it writes the markers of the start line it starts past, and drops the markers before the end',
 		lines: /^L10 \[[^|\]]*\| [^\]]*blockquote>paragraph → /,
 		keeps: sameBesideMarkers,

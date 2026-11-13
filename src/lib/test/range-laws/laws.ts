@@ -673,10 +673,7 @@ function commonDepth(a: readonly number[], b: readonly number[]): number {
 
 /** Law 11: the menu's Paste as plain text puts `text` in as text the block reads: the bytes change
  *  only at the caret, and what goes in reads as `text` (verbatim where the block reads no Markdown). */
-export async function law11(
-	input: Omit<LawInput, 'seed'> & { caret: EndSeed },
-	text: string
-): Promise<LawRun> {
+export async function law11(input: CaretInput, text: string): Promise<LawRun> {
 	const run = emptyRun();
 	const at = await open({ ...input, seed: { a: input.caret, b: input.caret } }, run, (doc) =>
 		resolveCaret(doc, input.caret)
@@ -697,10 +694,18 @@ export async function law11(
 		await pastePlainGesture(at.editor, text);
 		law8(at, 'paste:plain', run);
 		const pasted = at.editor.source();
+		await law7(at, 'paste:plain', before, run, true);
 		const grown = pasted.length - source.length;
-		const kept =
-			grown >= 0 && pasted.startsWith(source.slice(0, byte)) && pasted.endsWith(source.slice(byte));
-		const inserted = kept ? pasted.slice(byte, byte + grown) : null;
+		const keptAt = (offset: number) =>
+			grown >= 0 &&
+			pasted.startsWith(source.slice(0, offset)) &&
+			pasted.endsWith(source.slice(offset));
+		// At a hidden edge the screen position is the caret, so the paste goes in on the side a
+		// typed letter takes there, whichever raw offset the caret holds.
+		const letter = keptAt(byte) ? null : await letterByte(input);
+		const from = letter !== null && keptAt(letter) ? letter : byte;
+		if (from !== byte) run.declared.push('L11 lands where a typed letter does');
+		const inserted = keptAt(from) ? pasted.slice(from, from + grown) : null;
 		// Continuation lines carry their containers' prefixes, which aren't the pasted text.
 		const unprefixed = (t: string) => lf(t).replace(/\n[ \t>]*/g, '\n');
 		// A pasted line's own line ending goes where nothing visible follows it.
@@ -717,13 +722,32 @@ export async function law11(
 				at.line('L11', 'paste:plain', `${quote(text)} into ${kind} ${what}: ${quote(pasted)}`)
 			);
 		}
-		await law7(at, 'paste:plain', before, run, true);
 	} catch (error) {
 		undecided(run, error);
 	} finally {
 		await destroy(at);
 	}
 	return run;
+}
+
+/** The byte a letter typed at `input`'s caret goes in at, in an editor of its own; null where the
+ *  key wrote anything but that one letter. */
+async function letterByte(input: CaretInput): Promise<number | null> {
+	const at = await open({ ...input, seed: { a: input.caret, b: input.caret } }, emptyRun(), (doc) =>
+		resolveCaret(doc, input.caret)
+	);
+	if (!at) return null;
+	try {
+		const before = at.editor.source();
+		await typeGesture(at.editor, { text: 'X', route: 'hardware key' });
+		takeDevWarns();
+		const after = at.editor.source();
+		let byte = 0;
+		while (byte < before.length && before[byte] === after[byte]) byte++;
+		return after === before.slice(0, byte) + 'X' + before.slice(byte) ? byte : null;
+	} finally {
+		await destroy(at);
+	}
 }
 
 // ── Laws 7 and 8 on their own: any gesture ───────────────────────────────────

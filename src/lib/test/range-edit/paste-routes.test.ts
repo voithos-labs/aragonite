@@ -21,7 +21,6 @@ import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { SYNTAX_PLUGINS } from '../behavior/corpus';
 import { diffCase, type PasteCase, type PasteRow } from './paste-differential';
 import { namedCases } from './paste-differential-cases';
-import { PENDING_PASTE_ROWS } from './paste-routes-pending';
 
 /** The commits each paste took, in order: a text block's own write, or the byte splice. */
 const commits = vi.hoisted(() => ({ taken: [] as ('leaf' | 'splice')[] }));
@@ -85,24 +84,15 @@ function parts(input: PasteCase, row: PasteRow, took: string): string | null {
 
 it('every paste route leaves the core’s bytes and caret', { timeout: 300_000 }, async () => {
 	installPlugins(SYNTAX_PLUGINS);
-	const cases = namedCases(defaultGrammarView);
-	const keys = new Set(cases.map(rowKey));
-	expect(
-		Object.keys(PENDING_PASTE_ROWS).filter((key) => !keys.has(key)),
-		'pending rows that name no case'
-	).toEqual([]);
 	const out: string[] = [];
-	for (const input of cases) {
-		const key = rowKey(input);
+	for (const input of namedCases(defaultGrammarView)) {
 		commits.taken = [];
 		const row = await diffCase(input);
 		await destroyMountedEditors();
 		// A place or a route jsdom can't drive decides nothing here; the e2e specs hold it.
 		if (row.verdict === 'undetermined' || row.verdict === 'no core' || input.drafted) continue;
 		const parted = parts(input, row, commits.taken.join('+'));
-		const pending = PENDING_PASTE_ROWS[key];
-		if (pending && !parted) out.push(`${key}: agrees now, so ${pending} leaves the pending list`);
-		if (!pending && parted) out.push(`${key}: ${parted}`);
+		if (parted) out.push(`${rowKey(input)}: ${parted}`);
 	}
 	expect(out).toEqual([]);
 });

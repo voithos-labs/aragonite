@@ -38,11 +38,7 @@ import { measured } from '#lib/tree-operations/top-level-starts.js';
 import { offsetPastClosers } from '#lib/tree-operations/written-openers.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { dispatchKey } from '#lib/test/harness/settle.js';
-import {
-	StubDataTransfer,
-	dispatchClipboardEvent,
-	systemClipboard
-} from '#lib/test/harness/clipboard-events.js';
+import { StubDataTransfer, dispatchClipboardEvent } from '#lib/test/harness/clipboard-events.js';
 import { pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
 import { visibleText } from '#lib/core/inline/link-source-bytes.js';
 import { hidesDelimitersAtCaret } from '#lib/presentation-mode.js';
@@ -57,6 +53,7 @@ import {
 	pasteGesture,
 	pastePlainGesture,
 	placeRange,
+	shiftPaste,
 	runHistory,
 	Undetermined,
 	type Editor,
@@ -357,17 +354,6 @@ async function todayAnswer(editor: Editor, input: PasteCase, row: PasteRow): Pro
 		await editor.settle();
 	} else await pasteGesture(editor, { 'text/plain': input.clip }, input.route as PasteRoute);
 	return { source: editor.source(), caret: caretOf(editor), held: heldOf(editor) };
-}
-
-/** Ctrl+Shift+V: the browser sends the paste event `text/plain` alone. */
-async function shiftPaste(editor: Editor, clip: string): Promise<void> {
-	systemClipboard.clear();
-	systemClipboard.set('text/plain', clip);
-	const at = (document.activeElement as HTMLElement | null) ?? document.body;
-	if (dispatchKey(at, { key: 'V', ctrlKey: true, shiftKey: true }).defaultPrevented)
-		return editor.settle();
-	dispatchClipboardEvent(at, 'paste', new StubDataTransfer({ 'text/plain': clip }));
-	await editor.settle();
 }
 
 function coreSide(
