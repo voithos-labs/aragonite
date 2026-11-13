@@ -88,7 +88,9 @@ async function readsOf(gesture: RangeGesture, n: number) {
 	const reads = {
 		parsedBytes: perfSnapshot().parseBytes,
 		topBlocksMeasured: perfSnapshot().topBlocksMeasured,
-		serializes: vi.mocked(serialize).mock.calls.length
+		serializes: vi.mocked(serialize).mock.calls.length,
+		spliceReads: perfSnapshot().spliceReads,
+		spliceReadsKept: perfSnapshot().spliceReadsKept
 	};
 	await m.destroy();
 	return reads;
@@ -116,6 +118,41 @@ describe('G4.342 a range edit reads the blocks its range reaches', () => {
 
 	it('a copy parses nothing and measures no block', async () => {
 		expect(await readsOf(COPY, SMALL)).toMatchObject({ parsedBytes: 0, topBlocksMeasured: 0 });
+	});
+});
+
+// Miss-analysis, the second read: the rows counted bytes parsed, which the commit's read of the
+// same window added in a small window, so nothing saw the answer's window read twice.
+describe('G4.342 a range edit reads its answer’s window once', () => {
+	it.each(RANGE_EDITS)('$name: the commit takes the core’s reading', async (gesture) => {
+		const { spliceReads, spliceReadsKept } = await readsOf(gesture, SMALL);
+		expect(spliceReadsKept, `readings taken, beside ${spliceReads} made`).toBe(1);
+	});
+
+	it('a copy reads no window', async () => {
+		expect(await readsOf(COPY, SMALL)).toMatchObject({ spliceReads: 0, spliceReadsKept: 0 });
+	});
+});
+
+// Miss-analysis, the lines: G4.349's rows run the range-edit core alone, so nothing held that the
+// editor's own reads around a range (a keystroke, a held range's paint) lay out no container line.
+describe('G4.349 a keystroke and a held range in a giant quote lay out no container line', () => {
+	it('typing a letter, then holding a range across two children', async () => {
+		const quote = Array.from({ length: LARGE }, (_, i) => `> line ${i} with words\n>\n`).join('');
+		const m: Mounted = mountEditor<EditorTestSurface>({ source: quote });
+		await m.settle();
+		enablePerfInstruments();
+		resetPerfInstruments();
+		const leaf = surfaceAt(m, [0, 3]);
+		typeInto(leaf, leaf.textContent + 'x');
+		await m.settle();
+		await m.instance.setSelection({
+			anchor: { path: [0, 3], offset: 2 },
+			focus: { path: [0, 4], offset: 2 }
+		});
+		await m.settle();
+		expect(perfSnapshot().linesLaid).toBe(0);
+		await m.destroy();
 	});
 });
 

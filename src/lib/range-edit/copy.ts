@@ -4,11 +4,12 @@
  * as the same blocks.
  */
 
-import type { LaidBlock } from './layout';
+import type { LaidBlock, LaidLine } from './layout';
 import {
 	containersAt,
 	contentEnd,
 	factsOf,
+	lastLine,
 	leafAt,
 	lineOf,
 	nodeAt,
@@ -50,7 +51,7 @@ export function copyOf(doc: Doc, from: number, to: number): string {
 	if (!live) closing += fenceCloser(doc, shared, from, to, eol);
 	for (const container of containersAt(doc, to, 'end').reverse()) {
 		if (container.path.length <= depth || factsOf(doc, container).lines !== 'fenced') continue;
-		const last = container.lines!.at(-1)!;
+		const last = lastLine(container);
 		if (last.own && last.from >= to)
 			closing += eol + doc.source.slice(last.from, last.to).replace(/\r?\n$/, '');
 	}
@@ -64,9 +65,12 @@ export function copyOf(doc: Doc, from: number, to: number): string {
 /** A table the range starts in below its delimiter opens with its header and delimiter, each line
  *  followed by the markers its containers below `shared` write on the range's first line. */
 function tableHead(doc: Doc, shared: LaidBlock | null, table: LaidBlock, from: number): string {
-	const lines = table.lines!;
-	const head = lines.slice(0, lines.findIndex((line) => line.own) + 1);
-	if (head.length === 0 || from < head.at(-1)!.to) return '';
+	const head: LaidLine[] = [];
+	for (const line of table.linesIn!(table.from)) {
+		head.push(line);
+		if (line.own) break;
+	}
+	if (!head.at(-1)?.own || from < head.at(-1)!.to) return '';
 	const lineStart = doc.source.lastIndexOf('\n', from - 1) + 1;
 	const markers = doc.source.slice(
 		shared ? Math.max(lineStart, lineOf(shared, lineStart).markerTo) : lineStart,
@@ -127,7 +131,7 @@ function withoutMarkers(doc: Doc, shared: LaidBlock | null, from: number, to: nu
 	if (bare) return doc.source.slice(from, to);
 	let out = '';
 	let at = from;
-	for (const line of shared.lines!) {
+	for (const line of shared.linesIn!(from, to)) {
 		if (line.to <= from || line.from >= to) continue;
 		if (line.from > from) at = Math.max(at, Math.min(line.markerTo, to));
 		const end = Math.min(line.to, to);

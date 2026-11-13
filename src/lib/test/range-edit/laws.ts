@@ -380,7 +380,7 @@ function oneWrite(
 	const kindAt = (bytes: string | undefined) =>
 		bytes === undefined
 			? undefined
-			: readOf(host, bytes).blocks.find((b) => b.from === block.from && !b.lines)?.type;
+			: readOf(host, bytes).blocks.find((b) => b.from === block.from && !b.linesIn)?.type;
 	const kinds = [block.type, kindAt(then?.source)];
 	return !(whole && cutsRun) || kinds.includes(kindAt(over.source))
 		? []

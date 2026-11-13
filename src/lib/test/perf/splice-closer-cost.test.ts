@@ -45,6 +45,7 @@ describe('a byte splice writing prose', () => {
 	])('in %s parses only what its read parses', async (_, source, at) => {
 		const { read, commit } = await parsed(source, at, 'x');
 		expect(read).toBeGreaterThan(0);
-		expect(commit).toBe(read);
+		// The commit takes that reading, closers and all, and parses nothing of its own.
+		expect(commit).toBe(0);
 	});
 });

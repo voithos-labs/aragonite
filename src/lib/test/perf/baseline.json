@@ -378,6 +378,11 @@
 			"keystrokeP50Ms": 81.6,
 			"keystrokeP95Ms": 88.2
 		},
+		"giant-single-blockquote-1MB-range-removal": {
+			"loadMs": 153.3,
+			"keystrokeP50Ms": 31.3,
+			"keystrokeP95Ms": 32.6
+		},
 		"single-giant-paragraph-100KB": {
 			"loadMs": 40.4,
 			"keystrokeP50Ms": 14.7,

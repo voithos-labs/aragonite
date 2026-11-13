@@ -21,6 +21,7 @@ import { assignChildIdsDeep, keepUnchangedDeep } from '../block-id';
 import { changedBytes, narrowed, writtenLines, type ByteChange } from './byte-changes';
 import { containerWindow, standsBelow, textAfter, windowStart } from './container-window';
 import { spliceMany } from './splice-many';
+import { recordSpliceRead } from '../perf/instruments';
 import type { Measured, TopLevelChange } from './top-level-starts';
 
 /** Top-level blocks `[at, at + count)` give way to `blocks`; the first new block keeps the first
@@ -62,15 +63,40 @@ export function applied(doc: DocumentView, reading: SpliceReading): DocumentView
 }
 
 /** `measured`'s document, whose bytes are `before`, read again with `changes` made (sorted, none
- *  overlapping), each in its own window unless they grow into each other; null when none changes. */
+ *  overlapping), once for the same bytes of the same document; null when none changes. */
 export function spliceReading(
 	measured: Measured,
 	before: string,
 	changes: readonly ByteChange[],
 	grammar: GrammarView
 ): SpliceReading | null {
-	return readAgain(measured, before, changes, grammar, true);
+	const last = lastReading.get(measured);
+	const kept =
+		last?.before === before && last.grammar === grammar && sameChanges(last.changes, changes)
+			? last
+			: undefined;
+	recordSpliceRead(kept !== undefined);
+	if (kept) return kept.reading;
+	const reading = readAgain(measured, before, changes, grammar, true);
+	lastReading.set(measured, { before, changes, grammar, reading });
+	return reading;
 }
+
+// The last reading of each document, so the commit landing the core's answer takes the core's
+// reading of it. A write announces a new `Measured`, so none outlives the bytes it read.
+const lastReading = new WeakMap<
+	Measured,
+	{
+		before: string;
+		changes: readonly ByteChange[];
+		grammar: GrammarView;
+		reading: SpliceReading | null;
+	}
+>();
+
+const sameChanges = (a: readonly ByteChange[], b: readonly ByteChange[]) =>
+	a.length === b.length &&
+	a.every((c, i) => c.from === b[i].from && c.to === b[i].to && c.insert === b[i].insert);
 
 /** {@link spliceReading} with every window at the top level, never inside a container: what the
  *  windows inside one must come out equal to. */
