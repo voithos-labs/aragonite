@@ -64,4 +64,24 @@ const CLOSING_LINE_ROWS: NamedRow[] = [
 	)
 ];
 
-export const CLOSER_ROWS: NamedRow[] = [...CLOSING_LINE_ROWS];
+// Miss-analysis: no row started at a title row's end over a table, and none ended in a title row
+// after a block the range took whole.
+const LINE_ROWS: NamedRow[] = [
+	...cut(
+		'L4 from a title row’s end into a table’s middle row, the header and the rows below it stay',
+		':::note T⟦\n| a | b |\n|---|---|\n| 1 | 2 |\n⟧| 3 | 4 |\n:::\n\npara\n',
+		':::note T\n| a | b |\n|---|---|\n| 3 | 4 |\n:::\n\npara\n'
+	),
+	...cut(
+		'L4 a range ending in a title row keeps that row’s line',
+		'⟦<details>\n<summary>S</summary>\n\nx\n\n</details>\n\n:::note⟧\ntwo words\none\n\n:::\n',
+		':::note\ntwo words\none\n\n:::\n'
+	),
+	...cut(
+		'L4 and a titled one keeps its line, its title emptied',
+		'⟦<details>\n<summary>S</summary>\n\nx\n\n</details>\n\n:::note Title⟧\ntwo words\n:::\n',
+		':::note \ntwo words\n:::\n'
+	)
+];
+
+export const CLOSER_ROWS: NamedRow[] = [...CLOSING_LINE_ROWS, ...LINE_ROWS];

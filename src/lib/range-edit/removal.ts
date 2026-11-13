@@ -272,6 +272,9 @@ function cutLeaf(doc: Doc, leaf: LaidBlock, at: number, side: 'after' | 'before'
 function wholeLines(doc: Doc, from: number, to: number, closed: boolean) {
 	const { source } = doc;
 	const marks = lineHead(source, from);
+	// A title row only ever empties, so a range ending in one leaves its line.
+	const end = leafAt(doc, to)?.leaf;
+	if (end && titleOwner(doc, end)) return null;
 	const holder = containersAt(doc, from, 'start').at(-1);
 	// A container holding only the block keeps its line, emptied.
 	const shared = holder !== undefined && (nodeAt(doc, holder.path).children?.length ?? 0) > 1;

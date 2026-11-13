@@ -9,6 +9,7 @@ import {
 	contentEnd,
 	factsOf,
 	findWithin,
+	isCell,
 	leafAt,
 	nodeAt,
 	titleAt,
@@ -35,6 +36,8 @@ export function removalRange(doc: Doc, start: number, end: number): { from: numb
 	if (row && from >= row.text!.to) {
 		const after = row.text!.to;
 		const first = findWithin(doc, after, doc.source.length, (b) => !!b.text && b.text.from > after);
+		// A table's rows go whole, so a range reaching one keeps its start before the table.
+		if (first && isCell(doc, first) && to > first.text!.from) return { from, to };
 		return { from: Math.min(first?.text!.from ?? to, to), to };
 	}
 	if (leafAt(doc, from) || heldAt(doc, from, to)) return { from, to };
