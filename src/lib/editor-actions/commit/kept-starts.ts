@@ -127,6 +127,10 @@ export function createKeptStarts(doc: () => DocumentView, announce: () => void):
 				if (written.touched !== 'unchanged') {
 					place(written.touched);
 					announce();
+				} else {
+					// The bytes stand, but the write may have left copies in the tree's slots, so
+					// whatever the outgoing view cached of the list (`topsOf`) goes with it.
+					view = null;
 				}
 				return written;
 			} catch (err) {

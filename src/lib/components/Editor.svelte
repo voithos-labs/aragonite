@@ -262,6 +262,7 @@
 	const currentSource = createCurrentSource({
 		version: contentVersion.read,
 		doc: () => doc,
+		measured: starts.read,
 		unannounced: starts.unannounced
 	});
 	const bytes = documentBytes({

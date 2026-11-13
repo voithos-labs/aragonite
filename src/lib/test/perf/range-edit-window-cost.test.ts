@@ -2,7 +2,8 @@
 // G4.342: a range edit reads the blocks its range reaches, never the document. It parses the same
 // bytes and measures the same top-level blocks at 400 blocks as at 40. One cost is recorded, not
 // held yet: each route serializes the document once, and a fix that stops it reds that row. A
-// removal also walks the tree's top-level list three times and no more, counted with dev checks off.
+// removal and a copy walk the tree's top-level list once, counted with dev checks off: the text,
+// the range's host, the commit and the undo snapshot all take the version's plain list.
 // Miss-analysis: the splice cost rows drove `commitSource` alone and the gate timed no range
 // edit, so nothing counted what the range-edit core reads to make its answer.
 // Miss-analysis, the walks: a walk never parses or measures, so the count rows above stayed green
@@ -191,17 +192,22 @@ async function wholeWalks(m: Mounted, run: () => Promise<void>): Promise<string[
 
 const REMOVALS = RANGE_EDITS.filter((route) => /^Backspace|^a cut/.test(route.name));
 
-describe('G4.342 recorded: a removal walks the top-level list three times', () => {
-	// The text it serializes, the plain list its host and its commit share, and its undo snapshot.
-	it.each(REMOVALS)('$name', async (gesture) => {
+// Miss-analysis, the one walk: the row recorded three walks (the text, the plain list, the undo
+// snapshot) as what a removal costs, so nothing held them to one.
+describe('G4.342 a removal and a copy walk the top-level list once', () => {
+	it.each([...REMOVALS, COPY])('$name', async (gesture) => {
 		expect(REMOVALS).toHaveLength(3);
 		const m: Mounted = mountEditor<EditorTestSurface>({ source: gesture.source(SMALL) });
+		await m.settle();
+		// A letter first, so the range's reads are the first of their content version.
+		const first = surfaceAt(m, [0]);
+		typeInto(first, first.textContent + 'x');
 		await m.settle();
 		await gesture.setUp?.(m, SMALL);
 		const callers = await wholeWalks(m, async () => {
 			await gesture.write(m, SMALL);
 			await m.settle();
 		});
-		expect(callers).toEqual(['concatChildren', 'topsOf', 'shareSnapshot']);
+		expect(callers).toEqual(['topsOf']);
 	});
 });

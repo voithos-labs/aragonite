@@ -7,6 +7,7 @@
  * changed (`editor-actions/commit/kept-starts.ts`).
  */
 
+import type { CstNode } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { recordTopBlocksMeasured } from '../perf/instruments';
 import { spliceMany } from './splice-many';
@@ -103,6 +104,12 @@ export function topsOf(of: Measured): readonly NodeView[] {
 	let tops = plainTops.get(of);
 	if (!tops) plainTops.set(of, (tops = [...of.doc.children]));
 	return tops;
+}
+
+/** A copy of {@link topsOf} for an undo snapshot to own, so a push after a gesture that read the
+ *  list walks nothing; the nodes are the tree's, shared with it and never written through. */
+export function snapshotTops(of: Measured): CstNode[] {
+	return topsOf(of).slice() as CstNode[];
 }
 
 /** `kept` brought up to `doc` as `changes` left it: runs in document order, none overlapping, each
