@@ -497,22 +497,7 @@ export async function measureListCopy(
 	for (let i = 0; i < items; i++) await page.keyboard.press('Shift+ArrowDown');
 	await editor.waitForCrossBlock(true);
 	const samples: number[] = [];
-	for (let i = 0; i < copies; i++) {
-		samples.push(
-			await page.evaluate(() => {
-				let written = '';
-				const read = (e: ClipboardEvent) =>
-					(written = e.clipboardData?.getData('text/plain') ?? '');
-				window.addEventListener('copy', read, { once: true });
-				const start = performance.now();
-				document.execCommand('copy');
-				const ms = performance.now() - start;
-				// A copy that wrote nothing would time as fast as one that did.
-				if (written === '') throw new Error('the copy wrote nothing');
-				return ms;
-			})
-		);
-	}
+	for (let i = 0; i < copies; i++) samples.push(await timedCopy(page));
 	return {
 		loadMs,
 		samples,
@@ -768,4 +753,111 @@ export async function measureRangeRemoval(
 		await editor.waitForRenderFlush();
 	}
 	return { loadMs, samples, p50Ms: percentileMs(samples, 50), p95Ms: percentileMs(samples, 95) };
+}
+
+// ── The first range edit after a write inside a giant container ─────────────
+
+/** Holds a range from the middle of child 3 to the middle of child 4 of the container. */
+async function holdChildren(page: Page, editor: EditorPage, shape: GiantContainer): Promise<void> {
+	const at = CONTAINER_CHILD[shape];
+	const middle = async (path: number[]) => ({
+		path,
+		offset: (await leafRawLength(page, path)) >> 1
+	});
+	const anchor = await middle(at.leaf(3));
+	const focus = await middle(at.leaf(4));
+	await editor.focusBlockAtPath(anchor.path, anchor.offset);
+	const held = await page.evaluate(
+		async (range) => {
+			const t = (window as any).__test;
+			const got = (await t.setSelection(range)) && t.getSelection()?.focus.path;
+			return !!got && got.join() === range.focus.path.join();
+		},
+		{ anchor, focus }
+	);
+	if (!held) throw new Error(`no range held across children 3 and 4 of a ${shape}`);
+	await editor.waitForRenderFlush();
+}
+
+/** A copy across two children of a giant container right after a write (a letter typed in the
+ *  first and taken back), and the same copy made again. */
+export async function measureFirstCopy(
+	page: Page,
+	editor: EditorPage,
+	shape: GiantContainer,
+	bytes: number,
+	copies: number
+): Promise<{ loadMs: number; first: LatencyMeasurement; again: LatencyMeasurement }> {
+	await editor.goto();
+	const loadMs = await loadFixture(page, editor, generateFixture(shape, bytes));
+	const at = CONTAINER_CHILD[shape];
+	await assertMounted(page, at.leaf(4), `${shape} child`);
+	const first: number[] = [];
+	const again: number[] = [];
+	for (let i = 0; i < copies; i++) {
+		const base0 = await block0Length(page);
+		await editor.focusBlockAtPath(at.leaf(0), Number.MAX_SAFE_INTEGER);
+		await editor.typeSlowly('x');
+		await waitForBlock0Len(page, base0 + 1, KEYSTROKE_TIMEOUT_MS);
+		await page.keyboard.press('Backspace');
+		await waitForBlock0Back(page, base0);
+		await holdChildren(page, editor, shape);
+		first.push(await timedCopy(page));
+		again.push(await timedCopy(page));
+	}
+	const measured = (samples: number[]): LatencyMeasurement => ({
+		loadMs,
+		samples,
+		p50Ms: percentileMs(samples, 50),
+		p95Ms: percentileMs(samples, 95)
+	});
+	return { loadMs, first: measured(first), again: measured(again) };
+}
+
+/** One copy of the range the editor holds, timed around the command, which writes before it returns. */
+function timedCopy(page: Page): Promise<number> {
+	return page.evaluate(() => {
+		let written = '';
+		const read = (e: ClipboardEvent) => (written = e.clipboardData?.getData('text/plain') ?? '');
+		window.addEventListener('copy', read, { once: true });
+		const start = performance.now();
+		document.execCommand('copy');
+		const ms = performance.now() - start;
+		// A copy that wrote nothing would time as fast as one that did.
+		if (written === '') throw new Error('the copy wrote nothing');
+		return ms;
+	});
+}
+
+/** Backspace over a range across children 3 and 4 of a giant container, each right after the
+ *  undo of the last, timed from its keydown to the frame after the container shrinks. */
+export async function measureContainerRangeRemoval(
+	page: Page,
+	editor: EditorPage,
+	shape: GiantContainer,
+	bytes: number,
+	removals: number
+): Promise<LatencyMeasurement> {
+	await editor.goto();
+	const loadMs = await loadFixture(page, editor, generateFixture(shape, bytes));
+	await assertMounted(page, CONTAINER_CHILD[shape].leaf(4), `${shape} child`);
+	const base0 = await block0Length(page);
+	const samples: number[] = [];
+	for (let i = 0; i < removals; i++) {
+		await holdChildren(page, editor, shape);
+		samples.push(await timedBackspace(page, block0LengthInPage));
+		await editor.undo();
+		await waitForBlock0Back(page, base0);
+		await editor.waitForRenderFlush();
+	}
+	return { loadMs, samples, p50Ms: percentileMs(samples, 50), p95Ms: percentileMs(samples, 95) };
+}
+
+/** Waits until block 0 is `length` long again. */
+async function waitForBlock0Back(page: Page, length: number): Promise<void> {
+	await page.waitForFunction(
+		({ fnSrc, length }) => (new Function(`return (${fnSrc})();`)() as number) === length,
+		{ fnSrc: block0LengthInPage.toString(), length },
+		{ timeout: KEYSTROKE_TIMEOUT_MS, polling: 16 }
+	);
 }

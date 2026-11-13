@@ -15,6 +15,8 @@ import {
 	factsOf,
 	findWithin,
 	holderAt,
+	lastLine,
+	multiline,
 	nodeAt,
 	parentOf,
 	readDoc,
@@ -42,7 +44,7 @@ export function splitOut(
 	const outside = (c: LaidBlock) => c !== list;
 	const outer = continuation(doc, at, outside);
 	const item = parentOf(doc, leaf)!;
-	const first = item.lines![0];
+	const first = item.lineAt!(item.from);
 	// The pasted list stands in the caret list's column, or one would nest in the other: its lines
 	// lose the indent the clipboard's first line brings and take the one before the item's marker.
 	const brought = /^\n*( *)/.exec(clip)![1].length;
@@ -162,9 +164,8 @@ const holding = (parent: readonly number[]) => (c: LaidBlock) =>
 /** Where the children of `holder` end: at its closing line, its own end, or the document's. */
 function bodyEnd(doc: Doc, holder: LaidBlock | undefined): number {
 	if (!holder) return doc.source.length;
-	const lines = holder.lines ?? [];
-	const fenced = factsOf(doc, holder).lines === 'fenced' && lines.length > 1;
-	return fenced && lines.at(-1)!.own ? lines.at(-1)!.from : holder.to;
+	const fenced = factsOf(doc, holder).lines === 'fenced' && !!holder.lineAt && multiline(holder);
+	return fenced && lastLine(holder).own ? lastLine(holder).from : holder.to;
 }
 
 /** A clipboard set among a container's children on lines of its own. */
@@ -315,8 +316,9 @@ function setApart(
 /** Whether `byte` sits on the line that closes a container. */
 function closes(doc: Doc, byte: number): boolean {
 	const closing = (c: LaidBlock) => {
-		const last = c.lines?.at(-1);
-		return !!last && c.lines!.length > 1 && last.own && last.from <= byte && byte < last.to;
+		if (!c.lineAt || !multiline(c)) return false;
+		const last = lastLine(c);
+		return last.own && last.from <= byte && byte < last.to;
 	};
 	return findWithin(doc, byte, byte, closing) !== undefined;
 }

@@ -125,19 +125,24 @@ export const holderAt = (doc: Doc, at: number) =>
 	containersHolding(doc, at).findLast((c) => c.from < at && lineOf(c, at).markerTo <= at);
 
 /** The container's line holding `byte`, or its last. */
-export function lineOf(container: LaidBlock, byte: number): LaidLine {
-	const lines = container.lines!;
-	let lo = 0;
-	let hi = lines.length - 1;
-	while (lo < hi) {
-		const mid = (lo + hi) >> 1;
-		if (byte < lines[mid].to) hi = mid;
-		else lo = mid + 1;
-	}
-	return lines[lo];
+export const lineOf = (container: LaidBlock, byte: number): LaidLine => container.lineAt!(byte);
+
+/** The container's first line that `matches`, read from its start until one does. */
+export function firstLine(
+	container: LaidBlock,
+	matches: (line: LaidLine) => boolean
+): LaidLine | undefined {
+	for (const line of container.linesIn!(container.from)) if (matches(line)) return line;
+	return undefined;
 }
 
-export const firstBodyLine = (container: LaidBlock) => container.lines!.find((l) => !l.own);
+export const firstBodyLine = (container: LaidBlock) => firstLine(container, (l) => !l.own);
+
+export const lastLine = (container: LaidBlock): LaidLine => container.lineAt!(container.to);
+
+/** Whether the container runs over more than one line. */
+export const multiline = (container: LaidBlock) =>
+	container.lineAt!(container.from) !== lastLine(container);
 
 /** The block that is a container's title row, when it has one. */
 export function titleRowOf(doc: Doc, container: LaidBlock): LaidBlock | undefined {
