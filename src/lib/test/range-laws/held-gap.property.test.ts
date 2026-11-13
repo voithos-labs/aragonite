@@ -333,23 +333,6 @@ const KNOWN: Record<string, Known> = {
 			d.gesture === 'Enter' && line === 'warn: invariant:command-key-landing',
 		example: draw('htmlBlocks', 'rule', 'top', 'edge..last', 'Enter')
 	},
-	'a started title read wrong': {
-		cause:
-			'the byte splice reads no title waiting above the change, so the tree is not the parse ' +
-			'(the window lane, fix/window-definition-title)',
-		matches: (d, _r, line) => d.shape === 'startedTitle' && line.startsWith('tree: '),
-		example: draw('startedTitle', 'heading', 'top', 'edge..lower', 'composition')
-	},
-	'Enter inside a started title': {
-		cause: 'the split reads no wait across blocks, so its halves read back as one (#825)',
-		matches: (d, _r, line) =>
-			d.shape === 'startedTitle' &&
-			d.gesture === 'Enter' &&
-			/^tree: |^warn: (tree-ops|invariant:reads-back|invariant:settled-window-reads-back)$/.test(
-				line
-			),
-		example: draw('startedTitle', 'heading', 'top', 'edge..lower mid', 'Enter')
-	},
 	'an opener kept in an item': {
 		cause:
 			'in live mode, in a list item, a range from the first byte of a fence into the indented ' +
@@ -436,6 +419,15 @@ const REACH: Record<string, Draw> = {
 		'composition'
 	),
 	'under a started title': draw('startedTitle', 'heading', 'top', 'edge..lower mid', 'letter'),
+	// Both once read wrong: the removal folded the lines into the title, and Enter split inside it.
+	'the line under it, under a started title': draw(
+		'startedTitle',
+		'heading',
+		'top',
+		'edge..lower',
+		'composition'
+	),
+	'Enter under a started title': draw('startedTitle', 'heading', 'top', 'edge..lower mid', 'Enter'),
 	'two containers deep, out past both': {
 		...draw('paragraphs', 'heading', 'quote in item', 'edge..last', 'composition'),
 		tail: 'fence'
@@ -462,8 +454,6 @@ const FIXED_TALLY = {
 	unplaced: 0,
 	'took the start block': 30,
 	'a stale command claim': 8,
-	'a started title read wrong': 2,
-	'Enter inside a started title': 1,
 	'an opener kept in an item': 1,
 	"a lone block's emptied line": 2,
 	'a letter where two indented code blocks join': 1,
@@ -485,6 +475,10 @@ const LANDED: Record<string, string> = {
 	'a paste into a block with no paste surface': 'intro\n\n> <!-- ж\n> <div>\n> x\n\nlast\n',
 	'before an HTML block': 'intro\n\n<!-- a -->\n\n汉\n\n<div>\nx\n\nlast\n',
 	'before an HTML block in a quote': 'intro\n\n> text\n>\n> 汉\n>\n> <span class="x">\n\nlast\n',
+	'under a started title': "intro\n\n[a]: /u\n    'code\n\nжxt\nend'\n\nlast\n",
+	'the line under it, under a started title':
+		"intro\n\n[a]: /u\n    'code\n\n汉text\nend'\n\nlast\n",
+	'Enter under a started title': "intro\n\n[a]: /u\n    'code\n\n\nxt\nend'\n\nlast\n",
 	'two containers deep, out past both':
 		'intro\n\n- > above\n  > \n  > 汉\n  >\n  >\n\n```\nlast\n```\n',
 	'past the rows of a table': '| a |\n| - |\n\n汉\n\n```\nx\n```\n| 2 |\n\nlast\n'
@@ -502,9 +496,7 @@ describe('text and Enter over a range whose removal reads a neighbour again', ()
 				if (r === 'unplaced') return void tally.unplaced++;
 				if (r.took) tally['took the start block']++;
 				const example = names.get(JSON.stringify(d));
-				// Under a started title a removal folds the text into the definition today, so the law,
-				// not the bytes, is the pin there.
-				if (example && d.shape !== 'startedTitle') landed[example] = r.over.source;
+				if (example) landed[example] = r.over.source;
 				const warns = [...r.over.warns, ...r.removed.warns, ...r.step.warns];
 				const classes = new Set<string>();
 				for (const line of [...violations(d, r), ...warns.map((tag) => `warn: ${tag}`)]) {

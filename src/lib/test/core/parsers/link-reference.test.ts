@@ -224,6 +224,20 @@ describe('a definition title may span lines, never a blank one', () => {
 		expect(metadataOf(node, 'linkReferenceDefinition').title).toBe('one\ntwo');
 	});
 
+	// Miss-analysis: every own-line title fixture opened with `"` at column 0, so a reader that
+	// looks at the next line's first character before joining it had its other openers unheld.
+	it.each(
+		['"t"', "'t'", '(t)'].flatMap((title) =>
+			['', '   ', '    ', '\t', ' \t '].map((indent) => [indent + title])
+		)
+	)('takes a title on the line under the destination: %j', (line) => {
+		for (const head of ['[foo]: /url', '[foo]:\n/url']) {
+			const node = definitionOf(`${head}\n${line}\nafter\n`);
+			expect(node.raw).toBe(`${head}\n${line}\n`);
+			expect(metadataOf(node, 'linkReferenceDefinition').title).toBe('t');
+		}
+	});
+
 	it('refuses a title a blank line cuts, the way the paragraph ends there', () => {
 		const doc = parse("[foo]: /url 'title\n\nwith blank line'\n");
 		expect(doc.children.map((n) => n.kind)).toEqual(['paragraph', 'paragraph']);

@@ -13,10 +13,13 @@ import { dropChildSpans } from '../../schema/child-spans';
 import { ensureEditableContainers } from '../../schema/opened-reading';
 import { assignChildIdsDeep } from '../../block-id';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
-import { recordSettlePass } from '../../perf/instruments';
+import { perfEnabled, recordSettlePass } from '../../perf/instruments';
 import { checkStructuralDescriptor } from '../../invariants/structural-descriptor';
 import { noteBodySettled } from '../../invariants/settle-once';
-import { checkSettledWindowReadsBack } from '../../invariants/settled-window-reads-back';
+import {
+	checkSettledWindowReadsBack,
+	checkWrittenInPlaceReadsBack
+} from '../../invariants/settled-window-reads-back';
 import { checkSplicedOpenersClosed } from '../written-openers';
 import type { SharingState } from '../sharing';
 import { cloneMetadata } from '../clone';
@@ -30,6 +33,7 @@ import {
 	keepLastLineOpen,
 	lastLineOpen,
 	mergeJoins,
+	settleWaitAt,
 	withOneBlock
 } from './index';
 import type { ListEdit, ListResult, SiblingList } from './types';
@@ -136,6 +140,11 @@ export function fixUpWrite(
 		i === slot.index ? written.previous : given[i < slot.index ? i : i + shift];
 	const widened = writePatch(body, result, change, sharing, before);
 	checkReadsBack(body, widened, grammar);
+	// Not while the perf rows count a keystroke's parses, since the check reads the blocks beside it.
+	if (widened.op === 'noop' && !perfEnabled())
+		assertInvariant('settled-window-reads-back', () =>
+			checkWrittenInPlaceReadsBack(body, slot.index, grammar)
+		);
 	const start = result.writtenStart ?? { index: slot.index, offset: 0 };
 	return { change: widened, textStart: offsetInWindow(body.children, widened, start) };
 }
@@ -184,6 +193,30 @@ export function mergeJoinsAt(
 	beforeWrite?: () => void
 ): StructuralChange {
 	const result = mergeJoins(listOf(body), at, added, editorHost(grammar), tracked);
+	return writeJoinPatch(body, result, sharing, tracked, beforeWrite);
+}
+
+/** Re-reads from a block left waiting where the container at `at` starts, by a reading no line
+ *  closes, after the container took new bytes that no fix-up of this list follows. */
+export function rereadWaitAt(
+	body: BodyParent,
+	at: number,
+	grammar: GrammarView,
+	sharing: SharingState,
+	tracked?: TrackedPosition,
+	beforeWrite?: () => void
+): StructuralChange {
+	const result = settleWaitAt(listOf(body), at, editorHost(grammar), tracked);
+	return writeJoinPatch(body, result, sharing, tracked, beforeWrite);
+}
+
+function writeJoinPatch(
+	body: BodyParent,
+	result: ListResult,
+	sharing: SharingState,
+	tracked?: TrackedPosition,
+	beforeWrite?: () => void
+): StructuralChange {
 	if (result.removed === 0 && result.blocks.length === 0) return { op: 'noop' };
 	beforeWrite?.();
 	const merged = writePatch(body, result, { op: 'noop' }, sharing, (i) => body.children[i]);
@@ -432,8 +465,7 @@ function checkSplicedOpeners(body: BodyParent, edit: BodyEdit, grammar: GrammarV
 	);
 }
 
-/** G1.145 over the window a fix-up reports; a write that kept its block in place reports none,
- *  and a keystroke never pays for reading its neighbours again. */
+/** G1.145 over the window a fix-up reports; a write that kept its block in place reports none. */
 function checkReadsBack(body: BodyParent, change: StructuralChange, grammar: GrammarView): void {
 	const window = spanOf(change);
 	if (!window) return;
