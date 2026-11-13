@@ -46,8 +46,7 @@ export interface Removal extends Edit {
 	gone?: boolean;
 	/** The removal took the block the range started in whole. */
 	took?: boolean;
-	/** Where `gone` past an opening the range entered, the byte where what followed the range begins,
-	 *  so Delete finds the text after it. */
+	/** Where `gone`, the byte where what followed the range begins, so Delete finds the text after. */
 	after?: number;
 	/** The block whose children the caret sits between, as laid before the removal (null for the
 	 *  document), where the removal knows it: its path is asked of the bytes after. */
@@ -245,7 +244,7 @@ function across(
 	return {
 		source: out,
 		caret: opened > 0 ? at + opened - doc.ending.length : caret,
-		...(gone && { gone, ...(opening && { after }) }),
+		...(gone && { gone, after }),
 		...(held && first && { took: true })
 	};
 }
