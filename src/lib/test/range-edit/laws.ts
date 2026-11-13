@@ -13,6 +13,7 @@ import type {
 import type { Mode } from '#lib/range-edit/host.js';
 import type { LaidBlock } from '#lib/range-edit/layout.js';
 import type { CheckHost } from './test-host';
+import { movedLine } from './kept-lines';
 import {
 	endingOf,
 	expectedCopy,
@@ -228,7 +229,7 @@ export function cutPasteBack(call: Call, host: CheckHost, input: RangeInput): st
 	return [`L3 cut ${q(cut.source)}, pasted back ${q(back.source)}`];
 }
 
-/** A removal keeps the bytes before the range and the end line's text after it (spec § 5.2);
+/** A removal keeps the bytes before the range, the end line's text and the lines after (§ 5.2);
  *  live mode, whose rules rewrite format runs at the edges, is held to the bytes before, runs aside. */
 export function keepsOutside(call: Call, host: CheckHost, input: RangeInput): string[] {
 	const { source } = input;
@@ -251,6 +252,8 @@ export function keepsOutside(call: Call, host: CheckHost, input: RangeInput): st
 		const kept = runless(got.source).startsWith(runless(source.slice(0, from)));
 		if (!kept || (tail !== '' && got.source.indexOf(tail, from) < 0))
 			out.push(`L4 ${key} changed bytes outside the range: ${q(got.source)}`);
+		const moved = movedLine(host, read, from, to, got.source);
+		if (moved) out.push(`L4 ${key} ${moved}: ${q(got.source)}`);
 	}
 	return out;
 }

@@ -242,6 +242,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.340 | A position read after a write, or a byte splice, measures the blocks the write changed, not the document | harness |
 | G4.342 | A range edit parses and measures the blocks its range reaches, not the document | harness |
 | G4.349 | A range edit lays out the container lines it asks for, each the line the whole container pairs | harness |
+| G4.350 | A removal keeps each line after its range a line of its own, in the fenced containers that held it | harness |
 
 ### The entries
 
@@ -703,3 +704,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.342 · A range edit costs its range.** The editor's host (`range-edit/host.ts :: rangeHost`) reads the core's answer through the byte splice's windowed read, as a fresh parse gives it, and the commit takes that reading (`tree-operations/byte-splice.ts :: spliceReading`), so a range route or a copy parses and measures as much at 400 blocks as at 40. Recorded: each serializes the document once, and a removal walks the top-level list three times. `test/perf/range-edit-window-cost.test.ts`, `test/range-edit/answer-read.property.test.ts`.
 
 **G4.349 · A container line costs its child.** The range-edit layout lays out a container's lines one at a time (`ContainerMap.lineAt`), from the child holding the byte, each the line the whole pairing gives at every byte, spans dropped or just spliced. A range gesture lays out as many lines among 2,000 children as among 500, save what its cost rows declare, and a keystroke or a held range lays out none. `test/range-edit/layout-lines.property.test.ts`, `test/range-edit/cost.test.ts`, `test/perf/range-edit-window-cost.test.ts`.
+
+**G4.350 · The lines after a removal stay.** Each line after the block a range ends in stays a line of its own, in order, in the fenced containers that held it, so a kept closing line closes its own container. Law 4 asks it of every draw (`test/range-edit/kept-lines.ts :: movedLine`); a property draws containers left from a block taken whole or from mid-text, into the block after, a table's rows or the document's end. A range ending past a table's last line ending is skipped, pinned by a row that still fails. `test/range-edit/kept-lines.property.test.ts`, `named-rows-closers.ts`.
