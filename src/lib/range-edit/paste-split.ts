@@ -25,7 +25,12 @@ import {
 	titleOwner,
 	type Doc
 } from './document';
-import { numberedAfterSplit, numberedAfterTaking, numberedOn } from './list-numbers';
+import {
+	numberedAfterSplit,
+	numberedAfterTaking,
+	numberedFromHead,
+	numberedOn
+} from './list-numbers';
 import { continuation } from './markers';
 import { cutLeaf, lineEnd, lineHead, lineRest, spliced, type Cut, type Edit } from './leaf-splice';
 
@@ -39,13 +44,20 @@ export function itemHolding(doc: Doc, from: number, to: number) {
 	return factsOf(doc, held.leaf).body === 'literal' ? null : { held, item, list };
 }
 
-/** Enter at byte `caret` in a list item's own text, or at the item's end: the next item holds what
- *  follows, the items under it numbered on. Null anywhere else. */
-export function enteredAt(doc: Doc, caret: number): Edit | null {
+/** The list item a paste landed in, and what an item Enter opens after it starts with. */
+export interface HostItem {
+	node: NodeView;
+	marker: string;
+}
+
+/** Enter at byte `caret` in a list item's own text, or at the item's end, opening an item of
+ *  `host`'s kind: the next item holds what follows, the items under it numbered on. */
+export function enteredAt(doc: Doc, caret: number, host: HostItem): Edit | null {
 	const there = itemHolding(doc, caret, caret);
 	const item = there?.item ?? endedItem(doc, caret);
 	const list = item && parentOf(doc, item);
 	if (!item || !list) return null;
+	if (!itemsShareList(host.node, nodeAt(doc, item.path))) return openedUnder(doc, list, host);
 	const held = there?.held;
 	const none = { before: '', after: '', lead: '' };
 	const cut = held
@@ -54,9 +66,33 @@ export function enteredAt(doc: Doc, caret: number): Edit | null {
 	const outer = continuation(doc, caret, (c) => c !== list);
 	const first = item.lineAt!(item.from);
 	const indent = /^[ \t]*/.exec(doc.source.slice(first.from, first.markerTo))![0];
-	const head = cut.head + doc.ending + outer + indent + doc.host.itemAfter(doc.tree, item.path);
+	const marker = numberedAs(host.marker, doc.host.itemAfter(doc.tree, item.path));
+	const head = cut.head + doc.ending + outer + indent + marker;
 	const opened = { source: head + cut.rest, caret: head.length + cut.caret };
 	return numberedAfterTaking(doc, list, item.path.at(-1)! + 1, opened);
+}
+
+/** `marker` with the number `other` starts with, where both are an ordered item's. */
+function numberedAs(marker: string, other: string | undefined): string {
+	const number = other && /^\d+/.exec(other)?.[0];
+	return number ? marker.replace(/^\d+/, number) : marker;
+}
+
+/** `host`'s next item on a line of its own under `list`, a pasted list of another kind that broke
+ *  out of the host's: it heads the host's items below, numbered on from the first of them. */
+function openedUnder(doc: Doc, list: LaidBlock, host: HostItem): Edit {
+	const at = contentEnd(doc, list);
+	const outer = continuation(doc, at, (c) => c !== list);
+	const first = doc.layout.block([...list.path, 0])!;
+	const line = first.lineAt!(first.from);
+	const indent = /^[ \t]*/.exec(doc.source.slice(line.from, line.markerTo))![0];
+	const next = doc.layout.block([...list.path.slice(0, -1), list.path.at(-1)! + 1]);
+	const head = next && nodeAt(doc, next.path).children?.[0];
+	const below = head && itemsShareList(host.node, head) ? next : undefined;
+	const opens = doc.ending + outer + indent + host.marker;
+	const source = doc.source.slice(0, at) + opens + doc.source.slice(at);
+	const opened = { source, caret: at + opens.length };
+	return below ? numberedFromHead(doc, below, opened) : opened;
 }
 
 /** `clip` with its trailing blank line, a separation, taken into the blank line under the line

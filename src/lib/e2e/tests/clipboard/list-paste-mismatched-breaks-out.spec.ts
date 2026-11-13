@@ -84,17 +84,17 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 		await editor.loadContent('- Unordered three\n');
 		await editor.seedClipboard('1. Ordered first\n2. Ordered second\n3. Ordered third\n');
 
-		// Break out mid-item, so the residue "three" becomes the trailing second-half list; the caret
-		// must land at the end of the last pasted item, never on the residue.
+		// Break out mid-item, so the residue "three" becomes the trailing second-half list; the
+		// clipboard's ending opens an item of the host's kind over it, the caret in that item.
 		await editor.focusBlockAtPath([0, 0, 0], 9);
 		await editor.paste();
 		await editor.bridge.waitForSourceMatches(/^- {2}three$/m);
 
 		await editor.page.keyboard.type('X');
-		await editor.bridge.waitForSourceMatches(/^4\. X$/m);
+		await editor.bridge.waitForSourceMatches(/^- X$/m);
 
 		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
-		expect(src).toMatch(/^3\. Ordered third\n4\. X$/m);
+		expect(src).toMatch(/^3\. Ordered third\n- X\n- {2}three$/m);
 		// The residue item is untouched: the caret never went there.
 		expect(src).toMatch(/^- {2}three$/m);
 		expect(src).not.toMatch(/threeX/);
@@ -106,15 +106,15 @@ test.describe('paste: mismatched-type list into list item breaks out', () => {
 
 		await editor.focusBlockAtPath([0, 0, 0], 'First'.length);
 		await editor.paste();
-		await editor.bridge.waitForSourceMatches(/^2\. {2}target$/m);
+		await editor.bridge.waitForSourceMatches(/^3\. {2}target$/m);
 
 		const src = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
 		expect(src).toMatch(/^1\. First$/m);
 		expect(src).toMatch(/^- paste one$/m);
 		expect(src).toMatch(/^- paste two$/m);
-		// Continuous numbering across the paste gap: the split position uses one number, so
-		// the second half starts at 2. Same convention as the exit paragraph.
-		expect(src).toMatch(/^2\. {2}target$/m);
+		// Continuous numbering across the paste gap: the clipboard's ending opens item 2 under the
+		// pasted list, so the second half starts at 3.
+		expect(src).toMatch(/^2\. \n3\. {2}target$/m);
 		// Nesting the paste would indent the unordered list.
 		expect(src).not.toMatch(/^ {2,}- paste one$/m);
 	});

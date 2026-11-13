@@ -157,6 +157,33 @@ const OTHER_HOSTS: [
 		'- one\n- two\n',
 		'abc\n\n- one\n- two\n\n',
 		'abc\n\n- one\n- two\n\nZ\n'
+	],
+	// Miss-analysis: no row pasted a list over a list of its own type, which takes no empty line.
+	[
+		'a paragraph over a list it joins',
+		'live',
+		'abc‸\n- c\n',
+		'- one\n- two\n',
+		'abc\n\n- one\n- two\n- c\n',
+		'abc\n\n- one\n- twoZ\n- c\n'
+	],
+	// Miss-analysis: the item rows pasted lists of the host's kind, so the kind of the item the
+	// ending opens was never the host's against the clipboard's.
+	[
+		'a bullet a numbered list broke out of',
+		'source',
+		'- a‸b\n',
+		'1. q\n2. r\n',
+		'- a\n1. q\n2. r\n- \n- b\n',
+		'- a\n1. q\n2. r\n- Z\n- b\n'
+	],
+	[
+		'a to-do bullets joined',
+		'live',
+		'- [ ] a‸b\n',
+		'- q\n- r\n',
+		'- [ ] aq\n- r\n- [ ] b\n',
+		'- [ ] aq\n- r\n- [ ] Zb\n'
 	]
 ];
 

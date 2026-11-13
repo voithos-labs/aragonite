@@ -795,6 +795,85 @@ const KEPT_ENDING_ROWS: NamedRow[] = [
 	)
 ];
 
+/** A row in source mode whose caret ends in the text at byte `at`. */
+const caretAt = (
+	name: string,
+	source: string,
+	clip: string,
+	out: string,
+	at: number
+): NamedRow => ({
+	name,
+	source,
+	gesture: paste(clip),
+	expect: { source: out, caret: { at, holds: 'text' } }
+});
+
+// Miss-analysis: the ending rows that opened an item were pasted lists of the host's own kind, and
+// no row pasted a list that joins the one under the caret's line, so no row read the line it opened.
+const LIST_ENDING_ROWS: NamedRow[] = [
+	caretAt(
+		'a list joining the list under the paragraph opens no line',
+		'abc⟦⟧\n- c\n',
+		'- one\n- two\n',
+		'abc\n\n- one\n- two\n- c\n',
+		16
+	),
+	...both(
+		'ordered too',
+		'abc⟦⟧\n1. c\n',
+		paste('1. one\n2. two\n'),
+		'abc\n\n1. one\n2. two\n1. c\n'
+	),
+	...both(
+		'in a quote',
+		'> abc⟦⟧\n> - c\n',
+		paste('- one\n- two\n'),
+		'> abc\n>\n> - one\n> - two\n> - c\n'
+	),
+	...both('after a paragraph', 'abc⟦⟧\n- c\n', paste('one\n\n- two\n'), 'abcone\n\n- two\n- c\n'),
+	onLine(
+		'a list it doesn’t join keeps the line',
+		'abc⟦⟧\n* c\n',
+		'- one\n- two\n',
+		'abc\n\n- one\n- two\n\n* c\n',
+		17
+	),
+	caretAt(
+		'a list that broke out opens an item of the host’s kind',
+		'- a⟦⟧b\n',
+		'1. q\n2. r\n',
+		'- a\n1. q\n2. r\n- \n- b\n',
+		16
+	),
+	...both(
+		'with nothing after the caret',
+		'- a⟦⟧\n',
+		paste('1. q\n2. r\n'),
+		'- a\n1. q\n2. r\n- \n'
+	),
+	...both('numbered on', '1. a⟦⟧b\n', paste('- q\n- r\n'), '1. a\n- q\n- r\n2. \n3. b\n'),
+	...both(
+		'a to-do host opens an unchecked to-do',
+		'- [x] a⟦⟧b\n',
+		paste('1. q\n2. r\n'),
+		'- [x] a\n1. q\n2. r\n- [ ] \n- [x] b\n'
+	),
+	...both(
+		'in a quote too',
+		'> - a⟦⟧b\n',
+		paste('1. q\n2. r\n'),
+		'> - a\n> 1. q\n> 2. r\n> - \n> - b\n'
+	),
+	...both('over the host’s whole text', '1. ⟦n⟧\n2. c\n', paste('- q\n'), '- q\n1. \n2. c\n'),
+	...both(
+		'a list joined in opens one too',
+		'- [ ] a⟦⟧b\n',
+		paste('- q\n- r\n'),
+		'- [ ] aq\n- r\n- [ ] b\n'
+	)
+];
+
 // Miss-analysis: the taker branch built an ordered list's new items and no row read the numbers of
 // the items under them.
 const NUMBER_ROWS: NamedRow[] = [
@@ -809,6 +888,7 @@ const NUMBER_ROWS: NamedRow[] = [
 export const SPLIT_ROWS: NamedRow[] = [
 	...ENDING_ROWS,
 	...KEPT_ENDING_ROWS,
+	...LIST_ENDING_ROWS,
 	...NUMBER_ROWS,
 	...STRUCTURE_ROWS,
 	...EMPTIED_ROWS,

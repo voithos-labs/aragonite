@@ -584,12 +584,14 @@ function sameList(
 	return family !== null && family === markerFamily(clip, pasted, !under);
 }
 
-/** `bytes`, a paste of `clip` into the empty paragraph at `at`, with a pasted list joined to a list
- *  of its own type either side of that paragraph: no blank line stands between items of one list. */
+/** `bytes`, a paste of `clip` at `at`, with a pasted list joined to a list of its own type flush
+ *  under the caret's line, or over an empty paragraph: no blank line stands between items. */
 function joinedLists(read: Read, at: number, bytes: string, clip: Read, host: CheckHost): string {
 	const target = leafAt(read, at);
-	const empty = !!target && /^\r?\n?$/.test(treeNodeAt(read.tree, target.path)?.raw ?? '-');
-	if (target?.type !== 'paragraph' || !empty || inTitleRow(read, at, host)) return bytes;
+	if (!target || host.facts(target.type).body === 'literal' || inTitleRow(read, at, host))
+		return bytes;
+	// A list joins the one flush under any line; only an empty paragraph's joins the one above.
+	const empty = /^\r?\n?$/.test(treeNodeAt(read.tree, target.path)?.raw ?? '-');
 	const tops = clip.blocks.filter(
 		(b) => b.path.length === 1 && clip.source.slice(b.from, b.to).trim() !== ''
 	);
@@ -608,7 +610,7 @@ function joinedLists(read: Read, at: number, bytes: string, clip: Read, host: Ch
 		const above = lineOf(out, line - 1);
 		if (/^[ \t>]*\r?\n$/.test(out.slice(above, line))) out = out.slice(0, above) + out.slice(line);
 	}
-	if (joins(upper, tops[0], true))
+	if (target.type === 'paragraph' && empty && joins(upper, tops[0], true))
 		out = out.slice(0, upper!.to) + out.slice(lineOf(read.source, target.from));
 	return out;
 }

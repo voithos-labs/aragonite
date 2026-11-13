@@ -67,14 +67,36 @@ export function numberedAfterSplit(
 /** `edit`, a paste whose items the ordered list at `list` took in after its item `index`, with the
  *  items from there on numbered on from that item's number. */
 export function numberedAfterTaking(doc: Doc, list: LaidBlock, index: number, edit: Edit): Edit {
+	const after = (items: LaidBlock[], source: string) =>
+		(markerOf(source, items[index])?.number ?? 1) + 1;
+	return numberedFrom(doc, list, edit, index + 1, after);
+}
+
+/** `edit`, which opened an item at the head of the ordered list at `list`, with every item
+ *  numbered on from the number the list started at. */
+export function numberedFromHead(doc: Doc, list: LaidBlock, edit: Edit): Edit {
+	const head = doc.layout.block([...list.path, 0]);
+	const start = (head && markerOf(doc.source, head)?.number) ?? 1;
+	return numberedFrom(doc, list, edit, 0, () => start);
+}
+
+/** `edit` with the items of the ordered list at `list` from item `from` on numbered on from the
+ *  number `first` reads off the new bytes. */
+function numberedFrom(
+	doc: Doc,
+	list: LaidBlock,
+	edit: Edit,
+	from: number,
+	first: (items: LaidBlock[], source: string) => number
+): Edit {
 	if (!metadataIfKind(nodeAt(doc, list.path), 'list')?.ordered) return edit;
 	const read = readDoc(edit.source, doc.host, doc.mode);
 	const node = nodeAt(read, list.path);
 	if (!metadataIfKind(node, 'list')?.ordered) return edit;
 	const items = node.children!.map((_, i) => read.layout.block([...list.path, i])!);
 	const edits: Renumbering[] = [];
-	let next = (markerOf(read.source, items[index])?.number ?? 1) + 1;
-	for (const item of items.slice(index + 1)) {
+	let next = first(items, read.source);
+	for (const item of items.slice(from)) {
 		const marker = markerOf(read.source, item);
 		if (marker && marker.number !== next) renumber(edits, read.source, item, marker, next);
 		next++;
