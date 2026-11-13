@@ -759,6 +759,20 @@ const KEPT_ENDING_ROWS: NamedRow[] = [
 		17
 	),
 	onLine('over a heading’s whole text', '# ⟦Title⟧\n', `${FENCE}\n`, '```\nx\n```\n\n', 10),
+	// Miss-analysis: no row pasted a trailing blank line over a blank line, which stands for it.
+	onLine(
+		'its blank line is the one under it',
+		'abc⟦⟧\n\nnext\n',
+		`${FENCE}\n\n`,
+		'abc\n\n```\nx\n```\n\n\nnext\n',
+		15
+	),
+	...both(
+		'over a paragraph’s whole text too',
+		'⟦alpha⟧\n\nnext\n',
+		paste('- one\n- two\n\n'),
+		'- one\n- two\n\n\nnext\n'
+	),
 	...both('in a quote', '> abc⟦⟧\n', paste(`${FENCE}\n`), '> abc\n>\n> ```\n> x\n> ```\n>\n'),
 	...both('live too', 'abc⟦⟧\n', paste('---\n'), 'abc\n\n---\n\n'),
 	{

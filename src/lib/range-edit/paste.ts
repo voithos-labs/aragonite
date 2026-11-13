@@ -30,6 +30,7 @@ import { apartAt, pastMarkers } from './apart';
 import { closedBy, emptiedRest, leftBy, takerOf } from './container-merge';
 import {
 	enteredAt,
+	intoBlankUnder,
 	itemHolding,
 	joinsList,
 	onEmptyLine,
@@ -359,7 +360,8 @@ function landed(
 		const cut = cutWith(before, after, lead);
 		const visible = lineRest(cut.rest, 0) !== '';
 		const apart = !lastJoins && visible && !clip.endsWith('\n');
-		const text = apart ? clip + '\n' : clip;
+		const ends = !lastJoins && !visible;
+		const text = apart ? clip + '\n' : ends ? intoBlankUnder(doc, to, clip) : clip;
 		const edit = around(cut, text.slice(before.length, text.length - after.length));
 		if (lastJoins) return restUnder(doc, edit, leaf, to, cut, lastRaw);
 		const ending = apart ? edit.source.lastIndexOf('\n', edit.caret - 1) : edit.caret;
@@ -386,7 +388,9 @@ function landed(
 		const { source, caret } = pasteAt(emptied, gone.from, gone.from, landing);
 		return { source: numberedOn(doc, gone.from, end, source), caret };
 	}
-	const mid = clip.slice(0, clip.length - after.length);
+	const ends = !lastJoins && lineRest(cut.rest, 0) === '';
+	const text = ends ? intoBlankUnder(doc, to, clip) : clip;
+	const mid = text.slice(0, text.length - after.length);
 	return splitAt(doc, leaf, from, to, cut, mid, lastJoins, lastRaw);
 }
 

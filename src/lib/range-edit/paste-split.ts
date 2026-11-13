@@ -59,6 +59,14 @@ export function enteredAt(doc: Doc, caret: number): Edit | null {
 	return numberedAfterTaking(doc, list, item.path.at(-1)! + 1, opened);
 }
 
+/** `clip` with its trailing blank line, a separation, taken into the blank line under the line
+ *  holding `at`, where one stands there or the document ends. */
+export function intoBlankUnder(doc: Doc, at: number, clip: string): string {
+	const under = Math.min(lineEnd(doc.source, at) + 1, doc.source.length);
+	const blank = isBlankText(lineRest(doc.source, pastMarkers(doc.source, under)));
+	return blank ? clip.replace(/\n[ \t]*\n$/, '\n') : clip;
+}
+
 /** The list item whose content ends at `caret`. */
 function endedItem(doc: Doc, caret: number): LaidBlock | undefined {
 	const inList = (c: LaidBlock) => {
@@ -443,7 +451,11 @@ export function splitAt(
 	}
 	// With nothing before the cut the pasted blocks go before the second half, on a line of its own
 	// save a paragraph's text the last block takes; with nothing after, the ending opens its line.
-	const body = joined || !cut.follows ? clip : clip.replace(/\n$/, '');
+	const body = joined
+		? clip
+		: cut.follows
+			? clip.replace(/\n$/, '')
+			: intoBlankUnder(doc, to, clip);
 	const opening = lines(body);
 	// An empty line that text follows right after stays, keeping the pasted blocks apart from it;
 	// a line the paste took the text of was never empty, nor is an empty item's, its marker's.
