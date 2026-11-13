@@ -216,6 +216,46 @@ const EMPTIED_ROWS: NamedRow[] = [
 	)
 ];
 
+// Miss-analysis: the block's own write gave up the blank line under a block a paste left blank, so
+// no core row was asked once the paste stopped going through that write.
+const BLANKED_ROWS: NamedRow[] = [
+	...both('B a space over a setext title', '⟦Plan⟧\n---\n\nnext\n', paste(' '), ' \nnext\n'),
+	...both('B under `===` too', '⟦Plan⟧\n===\n\nnext\n', paste(' '), ' \nnext\n'),
+	...both('B a title of two lines', '⟦Plan\nmore⟧\n---\n\nnext\n', paste(' '), ' \nnext\n'),
+	...both('B in a quote', '> ⟦Plan⟧\n> ---\n>\n> next\n', paste(' '), '>  \n> next\n'),
+	...both('B a paragraph', '⟦Plan⟧\n\nnext\n', paste(' '), ' \nnext\n'),
+	...both('B the line above stays', 'alpha\n\n⟦Plan⟧\n\nnext\n', paste(' '), 'alpha\n\n \nnext\n'),
+	...both('B one of two lines goes', '⟦Plan⟧\n\n\nnext\n', paste(' '), ' \n\nnext\n'),
+	...both('B none at the end', 'alpha\n\n⟦Plan⟧\n', paste(' '), 'alpha\n\n \n'),
+	...both('B in a list item', '- ⟦Plan⟧\n\n  next\n', paste(' '), '-  \n  next\n'),
+	// A body opened by a line of its own reads the line under that opener as its own, not a block.
+	...both(
+		'B a callout’s first block takes the line above it',
+		'> [!NOTE]\n> ⟦Plan⟧\n>\n> next\n',
+		paste(' '),
+		'> [!NOTE]\n>\n>  \n> next\n'
+	),
+	...both(
+		'B and so does an admonition’s',
+		':::note\n⟦Plan⟧\n\nnext\n:::\n',
+		paste(' '),
+		':::note\n\n \nnext\n:::\n'
+	),
+	...both(
+		'B a callout’s later block gives its line up',
+		'> [!NOTE]\n> a\n>\n> ⟦Plan⟧\n>\n> next\n',
+		paste(' '),
+		'> [!NOTE]\n> a\n>\n>  \n> next\n'
+	),
+	live('an ATX heading’s whole text', '# ⟦Plan⟧\n\nnext\n', paste(' '), ' \nnext\n'),
+	{
+		name: 'B a heading that keeps its `#` keeps the line',
+		source: '# ⟦Plan⟧\n\nnext\n',
+		gesture: paste(' '),
+		expect: { source: '#  \n\nnext\n' }
+	}
+];
+
 // Miss-analysis: law 5 strips delimiters before it compares, and every live paste row landed its
 // blocks over a range, so no row or law saw a caret inside a run leave both halves open.
 const RUN_ROWS: NamedRow[] = [
@@ -692,6 +732,7 @@ export const SPLIT_ROWS: NamedRow[] = [
 	...NUMBER_ROWS,
 	...STRUCTURE_ROWS,
 	...EMPTIED_ROWS,
+	...BLANKED_ROWS,
 	...RUN_ROWS,
 	...PLAIN_ROWS,
 	...LINE_ROWS,

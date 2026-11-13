@@ -1,14 +1,15 @@
 /**
  * Putting a text block's new bytes back into the source: the host's in-block writes answer in the
  * block's own bytes, its container markers stripped, and the changed part goes back behind the
- * markers of the lines it lands on.
+ * markers of the lines it lands on. A write that leaves its block blank gives up the blank line
+ * under it, as the block's emptying write does.
  */
 
 import { displayLines, isBlankText, ownTrailingLineEnding } from '../core/lines';
 import { sharedPrefixLength, sharedSuffixLength } from '../core/written-span';
 import type { Joined, LeafWrite } from './host';
 import type { LaidBlock } from './layout';
-import { nodeAt, type Doc } from './document';
+import { isCell, lineOf, nodeAt, parentOf, titleOwner, type Doc } from './document';
 import { continuation } from './markers';
 
 /** New bytes for the whole document and the caret's byte in them. */
@@ -71,10 +72,52 @@ export function writtenText(
 	to: number,
 	keep?: (c: LaidBlock) => boolean
 ): Edit {
-	const edit = writeLeaf(doc, leaf, write, from, to, keep);
+	const written = writeLeaf(doc, leaf, write, from, to, keep);
+	const edit = isBlankText(write.bytes) ? blankedApart(doc, leaf, written) : written;
 	// A caret past the block's last line ending stands on no text of it, so the write names none.
 	if (write.caret === write.bytes.length && write.bytes.endsWith('\n')) return edit;
 	return { ...edit, leaf: { path: leaf.path, ...inDocumentEnding(doc, leaf, write, from, to) } };
+}
+
+/** `edit`, which left `leaf` blank, less the blank line under it where text follows in its list;
+ *  under an opening line of its own that line moves above it, as the block's emptying write does. */
+function blankedApart(doc: Doc, leaf: LaidBlock, edit: Edit): Edit {
+	const { source } = doc;
+	if (isBlankText(nodeAt(doc, leaf.path).raw) || isCell(doc, leaf) || titleOwner(doc, leaf))
+		return edit;
+	const next = textSibling(doc, leaf, 1);
+	const lineStart = (at: number) => source.lastIndexOf('\n', at - 1) + 1;
+	if (!next || lineStart(next.from) <= leaf.to) return edit;
+	const shift = edit.source.length - source.length;
+	const [under, below] = [leaf.to + shift, lineEnd(source, leaf.to) + 1 + shift];
+	const out = edit.source;
+	if (!underOpenerLine(doc, leaf))
+		return { ...edit, source: out.slice(0, under) + out.slice(below) };
+	const head = lineStart(leaf.from);
+	const line = out.slice(under, below);
+	return {
+		...edit,
+		source: out.slice(0, head) + line + out.slice(head, under) + out.slice(below),
+		caret: edit.caret >= head ? edit.caret + line.length : edit.caret
+	};
+}
+
+/** The nearest sibling of `leaf` with text, `step` away and on in that direction. */
+function textSibling(doc: Doc, leaf: LaidBlock, step: 1 | -1): LaidBlock | undefined {
+	const parent = leaf.path.slice(0, -1);
+	let at: LaidBlock | undefined;
+	for (let i = leaf.path.at(-1)! + step; (at = doc.layout.block([...parent, i])); i += step)
+		if (!isBlankText(nodeAt(doc, at.path).raw)) return at;
+	return undefined;
+}
+
+/** Whether no text stands between `leaf` and its container's opening line of its own (a callout's
+ *  `[!NOTE]`, a title row), whose body reads the blank line under it as its own. */
+function underOpenerLine(doc: Doc, leaf: LaidBlock): boolean {
+	const above = textSibling(doc, leaf, -1);
+	if (above) return titleOwner(doc, above) !== undefined;
+	const parent = parentOf(doc, leaf);
+	return !!parent?.lineAt && lineOf(parent, parent.from).own;
 }
 
 /** `write`'s bytes and caret with the line breaks it put over `[from, to)` in the document's line
