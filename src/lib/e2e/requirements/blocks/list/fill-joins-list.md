@@ -10,7 +10,7 @@ A new line made right above or below a to-do list, then filled with a to-do, bec
 ## User interactions
 
 - The slash menu's To-do list row picked on a new line over the list: the row's `- [ ] ` joins the list and the typed `start` lands in the new item
-- `- [ ] start` and its line ending pasted on a new line over the list: the pasted to-do joins the list, and the line ending opens an empty to-do under it, as Enter does
+- `- [ ] start` and its line ending pasted on a new line over the list: the pasted to-do joins the list, and the line ending opens no empty to-do, since the new line was no list item
 - Right-click `intro`, Insert block, To-do list, with the list one blank line below: the inserted to-do joins the list
 
 ## Edge cases

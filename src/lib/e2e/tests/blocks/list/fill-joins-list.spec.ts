@@ -21,8 +21,6 @@ interface Gesture {
 	list: number;
 	/** The bytes after each Ctrl+Z, down to the entry that wrote the join. */
 	undos: string[];
-	/** The item line a key typed after the fill lands on, where it isn't `start`'s. */
-	typedOn?: string;
 }
 
 const enterAfterIntro = async (editor: EditorPage, page: Page) => {
@@ -88,11 +86,9 @@ const GESTURES: Gesture[] = [
 			await editor.seedClipboard('- [ ] start\n');
 			await editor.paste();
 		},
-		joined: `intro\n\n- [ ] start\n- [ ] \n${LIST}`,
+		joined: `intro\n\n- [ ] start\n${LIST}`,
 		list: 1,
-		undos: [`intro\n\n\n${LIST}`],
-		// The pasted line ending opened the next to-do, as Enter does, and left the caret in it.
-		typedOn: '- [ ] !\n'
+		undos: [`intro\n\n\n${LIST}`]
 	},
 	{
 		name: 'the right-click Insert block to-do row over the list',
@@ -114,8 +110,7 @@ async function itemSteps(page: Page, list: number): Promise<number[]> {
 	return page.evaluate((at) => {
 		const probe = (window as any).__test;
 		const tops: number[] = [];
-		// The item's text block's box, since a to-do Enter left empty draws no text to measure.
-		for (let i = 0; i < 3; i++) tops.push(probe.rects.blockRect([at, i, 0]).top);
+		for (let i = 0; i < 3; i++) tops.push(probe.rects.rangeRects([at, i, 0], 0, 1)[0].top);
 		return tops.slice(1).map((top, i) => Math.round(top - tops[i]));
 	}, list);
 }
@@ -134,7 +129,7 @@ test.describe('a to-do filled beside a to-do list joins it', () => {
 				expect(await editor.parseConverged()).toBe(true);
 				// The caret stayed in the new item: the key after the fill lands in its text.
 				await page.keyboard.type('!');
-				await editor.bridge.waitForSourceContains(gesture.typedOn ?? '- [ ] start!\n');
+				await editor.bridge.waitForSourceContains('- [ ] start!\n');
 				await page.keyboard.press('Backspace');
 				await editor.bridge.waitForSourceEquals(gesture.joined);
 

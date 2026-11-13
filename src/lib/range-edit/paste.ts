@@ -28,10 +28,12 @@ import { apartAt, pastMarkers } from './apart';
 import { closedBy, emptiedRest, leftBy, takerOf } from './container-merge';
 import {
 	enteredAt,
+	itemHolding,
 	joinsList,
 	onEmptyLine,
 	pasteApart,
 	restApart,
+	restUnder,
 	splitAt,
 	splitOut
 } from './paste-split';
@@ -83,8 +85,8 @@ function ranOnce(transform: Pasted['transform']): Pasted['transform'] {
 	};
 }
 
-/** A last line ending that lands in a list item's text is Enter there: the rest of the clipboard
- *  pasted, then the next item opened at the caret. Null where it lands anywhere else. */
+/** A last line ending pasted in a list item's text is Enter where it lands: the rest pasted, then
+ *  the next item opened at the caret. Null for a caret in any other block, whatever is pasted. */
 function itemEntered(
 	doc: Doc,
 	from: number,
@@ -93,7 +95,7 @@ function itemEntered(
 	seen: { blocks?: Doc }
 ): Edit | null {
 	const ending = pasted.plain ? null : /\r?\n$/.exec(pasted.text);
-	if (!ending) return null;
+	if (!ending || pasted.held.holds !== 'text' || !itemHolding(doc, from, to)) return null;
 	// The transforms see the whole clipboard, as they would where the ending lands anywhere else.
 	const { transform } = pasted;
 	const whole = (text: string) =>
@@ -360,7 +362,7 @@ function landed(
 		const apart = !lastJoins && visible && !clip.endsWith('\n');
 		const text = ownEnding ? clip.slice(0, -1) : apart ? clip + '\n' : clip;
 		const edit = around(cut, text.slice(before.length, text.length - after.length));
-		if (lastJoins) return edit;
+		if (lastJoins) return restUnder(doc, edit, leaf, to, cut, lastRaw);
 		const ending = apart ? edit.source.lastIndexOf('\n', edit.caret - 1) : edit.caret;
 		const caret = apart && edit.source[ending - 1] === '\r' ? ending - 1 : ending;
 		return restApart(doc, { source: edit.source, caret }, leaf, to, cut, lastRaw);

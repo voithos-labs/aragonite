@@ -449,7 +449,7 @@ const LINE_ROWS: NamedRow[] = [
 		'S a CR that ends no line is text the cut stands before, not a line break',
 		'a⟦⟧\rb\r\nx\n',
 		paste('para\n\n- a\n- b\n'),
-		'apara\r\n\r\n- a\r\n- b\r\n- \rb\r\nx\n'
+		'apara\r\n\r\n- a\r\n- b\r\n\r\n\rb\r\nx\n'
 	),
 	// Miss-analysis: every row cut a paragraph on its first line or at a line's end, so the empty
 	// line a cut at a later line's start left above the pasted blocks met no row.
@@ -598,8 +598,8 @@ const SEAM_ROWS: NamedRow[] = [
 		name: 'M and after a list joined to the list under it, not on the line that went',
 		source: 'top\n\n⟦⟧\n- c\n',
 		gesture: paste('para\n\n- a\n- b\n'),
-		// The clipboard's last line ending lands in item `b`, so it opens the next item, as Enter does.
-		expect: { source: 'top\n\npara\n\n- a\n- b\n- \n- c\n', caret: { at: 21, holds: 'text' } }
+		// The caret's line is no list item's, so the clipboard's last line ending stands for its own.
+		expect: { source: 'top\n\npara\n\n- a\n- b\n- c\n', caret: { at: 18, holds: 'text' } }
 	},
 	...both(
 		'M a list pasted at a text caret on a list’s marker joins it',

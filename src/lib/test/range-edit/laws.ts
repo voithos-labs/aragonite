@@ -509,12 +509,12 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 	if (input.mode === 'live' && /[*_`~[\]<]/.test(input.text)) return [];
 	const got = call(input.source, caretRange(input.at), paste(input.text, input.held), input.mode);
 	if (!got) return [];
-	// A last line ending that lands in a list item is Enter there, held against the editor's own
-	// Enter (`paste-ending-enter.test.ts`): it leaves the bytes before it, and the law holds the rest.
+	// A last line ending pasted in a list item's text is Enter (`paste-ending-enter.test.ts`): it
+	// leaves the bytes before it, and the law holds the rest.
 	const ended = /\r?\n$/.exec(input.text);
 	const rest = ended && input.text.slice(0, ended.index);
 	const bare =
-		rest !== null
+		rest !== null && input.held.holds === 'text' && inItemText(read, input.at, host)
 			? call(input.source, caretRange(input.at), paste(rest, input.held), input.mode)
 			: null;
 	if (rest !== null && bare && inItemText(readOf(host, bare.source), bare.caret.at, host)) {

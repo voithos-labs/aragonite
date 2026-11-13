@@ -10,7 +10,7 @@ Copy of a list selection pasted back over itself reconstructs the original struc
 - 3-item ordered list, select items 1-2 whole, Ctrl+C+V: original 3-item structure restored.
 - 2-item ordered list, select all, Ctrl+C+V: original 2-item structure restored.
 - Unordered list round-trip: same behavior as ordered.
-- Pre-staged clipboard of list content, paste over cross-block selection of entire target list: pasted items flatten at the outer level, and the clipboard's last line ending opens an empty item under them.
+- Pre-staged clipboard of list content, paste over cross-block selection of entire target list: pasted items flatten at the outer level, and the clipboard's last line ending opens no empty item, since the removal left no list item at the caret.
 
 ## Edge cases
 

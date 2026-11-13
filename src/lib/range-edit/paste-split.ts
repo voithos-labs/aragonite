@@ -28,14 +28,22 @@ import { numberedAfterSplit, numberedAfterTaking, numberedOn } from './list-numb
 import { continuation } from './markers';
 import { cutLeaf, lineEnd, lineHead, lineRest, spliced, type Cut, type Edit } from './leaf-splice';
 
-/** Enter at byte `caret` in the text of a list item's own block: the next item holding what
- *  follows, the items under it numbered on. Null elsewhere, and in literal text (a line there). */
-export function enteredAt(doc: Doc, caret: number): Edit | null {
-	const held = leafHolding(doc, caret, caret);
+/** The list item whose own block holds `[from, to)` in its text, with that block and its list;
+ *  null elsewhere, and in literal text, where Enter adds a line. */
+export function itemHolding(doc: Doc, from: number, to: number) {
+	const held = leafHolding(doc, from, to);
 	const item = held && parentOf(doc, held.leaf);
 	const list = item && parentOf(doc, item);
 	if (!held || !list || factsOf(doc, list).lines !== 'items') return null;
-	if (factsOf(doc, held.leaf).body === 'literal') return null;
+	return factsOf(doc, held.leaf).body === 'literal' ? null : { held, item, list };
+}
+
+/** Enter at byte `caret` in the text of a list item's own block: the next item holding what
+ *  follows, the items under it numbered on. Null where `itemHolding` names no item. */
+export function enteredAt(doc: Doc, caret: number): Edit | null {
+	const there = itemHolding(doc, caret, caret);
+	if (!there) return null;
+	const { held, item, list } = there;
 	const cut = cutLeaf(doc, held.leaf, held.from, held.to, { before: '', after: '', lead: '' });
 	const outer = continuation(doc, caret, (c) => c !== list);
 	const first = item.lineAt!(item.from);
@@ -173,6 +181,26 @@ export function restApart(
 	// A caret past a pasted last line ending stays over the rest, on the blank line.
 	const blank = source.length - edit.source.length - doc.ending.length;
 	return { source, caret: blank >= 0 && edit.caret > line ? line + blank : edit.caret };
+}
+
+/** `edit` left `cut`'s second half on the line a last line ending opened under `last`, a pasted
+ *  block that takes text: a blank line parts the two where `last` would read the half in. */
+export function restUnder(
+	doc: Doc,
+	edit: Edit,
+	leaf: LaidBlock,
+	to: number,
+	cut: Cut,
+	last: string
+): Edit {
+	const from = edit.source.length - cut.rest.length;
+	const line = edit.source.lastIndexOf('\n', from - 1) + 1;
+	// A half joined to the last block, or still on its line, has no line of its own to keep.
+	if (!cut.follows || cut.joined || pastMarkers(edit.source, line) < from) return edit;
+	const [path, index] = [leaf.path.slice(0, -1), leaf.path.at(-1)!];
+	const pair = { path, index, upper: last, lower: cut.tail, placed: true };
+	const source = parted(doc, edit.source, line, continuation(doc, to), pair);
+	return { source, caret: edit.caret + source.length - edit.source.length };
 }
 
 /** Whether `c` is the block at `parent` or a block around it. */
@@ -356,7 +384,8 @@ export function splitAt(
 	lastJoins: boolean,
 	last: string
 ): Edit {
-	const overRest = (edit: Edit) => (lastJoins ? edit : restApart(doc, edit, leaf, to, cut, last));
+	const overRest = (edit: Edit) =>
+		(lastJoins ? restUnder : restApart)(doc, edit, leaf, to, cut, last);
 	const { source } = doc;
 	const eol = doc.ending;
 	const prefix = continuation(doc, at);

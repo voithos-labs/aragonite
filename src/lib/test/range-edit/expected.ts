@@ -504,6 +504,35 @@ export function expectedPaste(
 	return { ...want, bytes: want.bytes.flatMap(apart).map(joined) };
 }
 
+/** `want`, blocks pasted at `at` with a last line ending and text after the caret: a blank line over
+ *  that text where the last pasted block, a paragraph aside, would read it in. */
+function restKept(
+	read: Read,
+	at: number,
+	text: string,
+	host: CheckHost,
+	want: { shape: PasteShape; bytes: string[] }
+): { shape: PasteShape; bytes: string[] } {
+	const clip = readOf(host, lf(text));
+	const last = clip.blocks
+		.filter((b) => b.path.length === 1 && clip.source.slice(b.from, b.to).trim() !== '')
+		.at(-1);
+	if (want.shape !== 'blocks' && want.shape !== 'split') return want;
+	if (!clip.source.endsWith('\n') || nothingVisibleAfter(read.source, at)) return want;
+	if (!last || last.type === 'paragraph' || host.facts(last.type).joins === 'never') return want;
+	const kept = (bytes: string) => {
+		const rest = bytes.length - (read.source.length - at);
+		const line = bytes.lastIndexOf('\n', rest - 1) + 1;
+		if (bytes.slice(line, rest).replace(/^[ \t>]*/, '') !== '') return bytes;
+		const end = (bytes + '\n').indexOf('\n', rest);
+		const after = readOf(host, bytes);
+		if (after.blocks.some((b) => b.text && b.from >= line && b.from < end)) return bytes;
+		const blank = continuationAt(read, at, host).trimEnd() + endingOf(read.source);
+		return bytes.slice(0, line) + blank + bytes.slice(line);
+	};
+	return { ...want, bytes: want.bytes.map(kept) };
+}
+
 /** Whether `byte` is where a later line of `leaf`'s own bytes starts: a paste's cut there ends the
  *  first half before the line break above, as a split does. */
 export function startsLaterLine(read: Read, leaf: LaidBlock, byte: number): boolean {
@@ -763,16 +792,18 @@ function structuredPaste(
 	text: string,
 	host: CheckHost
 ): { shape: PasteShape; bytes: string[] } {
+	const landed = (over: Read, eol?: '\n' | '\r\n') =>
+		restKept(over, at, text, host, landedPaste(over, at, to, text, host, eol));
 	const leaf = leafAt(read, at);
 	const end = leaf ? lineContentEnd(read.source, leaf.to) : 0;
-	if (!leaf?.text || leaf.text.to >= end) return landedPaste(read, at, to, text, host);
+	if (!leaf?.text || leaf.text.to >= end) return landed(read);
 	const other = { shape: 'other' as const, bytes: [] };
 	const structure = read.source.slice(leaf.text.to, end);
-	if (structure.trim() === '') return landedPaste(read, at, to, text, host);
+	if (structure.trim() === '') return landed(read);
 	const bare = readOf(host, read.source.slice(0, leaf.text.to) + read.source.slice(end));
 	const same = bare.blocks.find((b) => b.from === leaf.from && b.text?.to === leaf.text!.to);
 	if (!same) return other;
-	const want = landedPaste(bare, at, to, text, host, endingOf(read.source));
+	const want = landed(bare, endingOf(read.source));
 	const bytes: string[] = [];
 	for (const landed of want.bytes) {
 		const head = readOf(host, landed).blocks.find((b) => b.from === leaf.from && b.text);
