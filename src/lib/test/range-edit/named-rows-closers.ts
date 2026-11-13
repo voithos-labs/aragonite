@@ -396,6 +396,12 @@ const LINE_END_ROWS: NamedRow[] = [
 		{ at: 11, holds: 'text' }
 	),
 	...deleted(
+		'L8 the same in CRLF, before the empty line’s pair',
+		'⟦***\r\n\r\nbody\r\n\r\n:::tip\r\n```\r\ncode⟧\r\n\r\nmore\r\n```\r\n:::\r\n',
+		':::tip\r\n```\r\n\r\nmore\r\n```\r\n:::\r\n',
+		{ at: 13, holds: 'text' }
+	),
+	...deleted(
 		'L8 an HTML block entered from a note in a quote, at its next line’s text',
 		'> :::note\n> ⟦***\n>\n> body\n> :::\n>\n> <div>\n> b⟧\n> c\n> </div>\n',
 		'> :::note\n> :::\n> c\n> </div>\n',
