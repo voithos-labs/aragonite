@@ -138,6 +138,56 @@ describe('a removal under a started title keeps the pair it uncovers apart', () 
 	});
 });
 
+/** Code right under the code a title started in: a blank line between them lies inside one block. */
+const CODE: Record<string, { row: Row; backspace: string; cut: string }> = {
+	'at the top level': {
+		row: {
+			source: "[a]: /u\n    'code\n# h\n    code2\ntext\n\nlast\n",
+			take: line([2], [3]),
+			removed: "[a]: /u\n    'code\n\n    code2\ntext\n\nlast\n"
+		},
+		backspace: "[a]: /u\n    'codeq\n\n    code2\ntext\n\nlast\n",
+		cut: "[a]: /u\n    'code\nq\n    code2\ntext\n\nlast\n"
+	},
+	'inside a quote': {
+		row: {
+			source: "> [a]: /u\n>     'code\n> # h\n>     code2\n> text\n\nlast\n",
+			take: line([0, 2], [0, 3]),
+			removed: "> [a]: /u\n>     'code\n>\n>     code2\n> text\n\nlast\n"
+		},
+		backspace: "> [a]: /u\n>     'codeq\n>\n>     code2\n> text\n\nlast\n",
+		cut: "> [a]: /u\n>     'code\n> q\n>     code2\n> text\n\nlast\n"
+	},
+	'inside a list item': {
+		row: {
+			source: "- [a]: /u\n      'code\n  # h\n      code2\n  text\n\nlast\n",
+			take: line([0, 0, 2], [0, 0, 3]),
+			removed: "- [a]: /u\n      'code\n\n      code2\n  text\n\nlast\n"
+		},
+		backspace: "- [a]: /u\n      'codeq\n\n      code2\n  text\n\nlast\n",
+		cut: "- [a]: /u\n      'code\n  q\n      code2\n  text\n\nlast\n"
+	}
+};
+
+// Miss-analysis: every row put a paragraph under the range, whose blank line no block holds; code
+// under code reads the blank line the removal opens as its own, and no row typed after a removal.
+describe('a letter typed after a removal that opens a blank line inside one code block', () => {
+	const cases = MODES.flatMap((mode) =>
+		Object.entries(CODE).flatMap(([name, { row, backspace, cut }]) => [
+			{ mode, name, row, gesture: 'Backspace' as const, typed: backspace },
+			{ mode, name, row, gesture: 'Mod+X' as const, typed: cut }
+		])
+	);
+	it.each(cases)('$mode, $name: $gesture', async ({ mode, row, gesture, typed }) => {
+		const editor = await over(row, mode, gesture);
+		expect(editor.source()).toBe(row.removed);
+		await press(editor, 'q');
+		// Backspace leaves the caret at the end of the code above; a cut, on the line the range left.
+		expect(editor.source()).toBe(typed);
+		expect(blocksIn(editor)).toEqual(await reloaded(editor, mode));
+	});
+});
+
 describe('a key over the range is the removal, then the key', () => {
 	const cases = MODES.flatMap((mode) =>
 		Object.entries({ ...ROWS, ...FOLDS }).flatMap(([name, row]) =>
