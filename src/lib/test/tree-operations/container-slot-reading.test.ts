@@ -359,7 +359,7 @@ describe('the key after Enter before a lazy line the quote gives up', () => {
 		});
 });
 
-// Miss-analysis: no row pasted over a whole opener line, the one gesture whose spill takes its
+// Miss-analysis: no row pasted over a whole opener line from a long press, where the spill takes its
 // container away on the structural route, so every spill could be said to keep it.
 describe('the key after a paste over a whole opener line', () => {
 	const rows: [string, string, number[], number, string, string][] = [
