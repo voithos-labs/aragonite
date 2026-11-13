@@ -36,6 +36,8 @@ const mockCall = (spec: string) => `vi.${'mock'}(${quoted("'", spec)}, () => ({}
 const spyCall = (mark: string, channel: string) =>
 	`vi.spyOn(console, ${quoted(mark, channel)}).mockImplementation(() => {});`;
 const clockRead = (host: string) => `const t = ${host}.now();`;
+const filteredTake = (gap: string) =>
+	`const mine = ${'take'}DevWarns()${gap}.filter((w) => w.tag === TAG);`;
 const depsField = (name: string) => `const deps = { ${name}: refSlotsOver(refs) };`;
 const timerWait = (timer: string) => `await new Promise((r) => ${timer}(r));`;
 const rune = (name: string, arg: string) => `const x = ${'$'}${name}(${arg});`;
@@ -245,6 +247,18 @@ const RULES: FileRule[] = [
 			'a registered sink takes reporting over, so a console spy sees nothing a dev warning wrote, and one that swallows the call hides every Svelte runtime warning from the gate',
 		hits: [spyCall("'", 'warn'), spyCall('`', 'warn')],
 		misses: [spyCall("'", 'error')]
+	},
+	{
+		id: 'G4.357 a test reads one guard’s warnings through the one-tag take',
+		matches: /takeDevWarns\(\)\s*\.filter\(/,
+		reason:
+			'a filtered takeDevWarns() drains every other guard’s fire unseen, so the gate cannot fail the test on it: takeDevWarnsOf(tag) takes one tag and leaves the rest',
+		reaches: BOTH_HALVES,
+		hits: [filteredTake(''), filteredTake('\n\t\t')],
+		misses: [
+			'const mine = takeDevWarnsOf(TAG);',
+			'expect(takeDevWarns()).toEqual([]);\nconst tags = takeDevWarns().map((w) => w.tag);'
+		]
 	},
 	{
 		id: 'G4.48 wall-clock budgets outside the perf projects go through the growth harness',

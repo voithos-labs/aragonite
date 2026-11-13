@@ -15,7 +15,7 @@ import {
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { pressKey } from '#lib/test/harness/settle.js';
 import { insertBy } from '#lib/test/harness/insertion-routes.js';
-import { takeDevWarns } from '../support/warn-gate';
+import { takeDevWarnsOf } from '../support/warn-gate';
 
 beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);
@@ -23,7 +23,7 @@ afterEach(destroyMountedEditors);
 const MIXED = '# Title\n\nprose\n\n> quoted\n\n- item\n\n```js\ncode\n```\n\n| a |\n| - |\n| b |\n';
 
 function readingWrites(): number {
-	return takeDevWarns().filter((w) => w.tag === READING_WRITE_TAG).length;
+	return takeDevWarnsOf(READING_WRITE_TAG).length;
 }
 
 /** Type `x` at the end of the paragraph's `hi`, after `Mod+B` there left a mark pending. */

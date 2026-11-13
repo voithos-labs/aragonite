@@ -1,6 +1,6 @@
 /**
  * Vitest setup that fails a unit test on any `devWarn` or Svelte runtime warning it did not claim
- * (`takeDevWarns`, `drainDevWarns`, `allowDevWarns`) and that `warn-allowlist.json` does not list.
+ * (`takeDevWarns`, `takeDevWarnsOf`, `drainDevWarns`, `allowDevWarns`) and that `warn-allowlist.json` does not list.
  * Claims run in file-level `afterEach` hooks, so the config's `sequence.hooks: 'stack'` runs them
  * before this verdict. A per-file `afterAll` also fails a declared tag that never fired and a
  * warning that arrived after the last test.
@@ -39,6 +39,14 @@ export const UNKNOWN_SITE = '<unattributed>';
 export function takeDevWarns(): DevWarnRecord[] {
 	const taken = recorded;
 	recorded = [];
+	return taken;
+}
+
+/** Take the warnings recorded under `tag` and leave every other tag for the gate: how a test about
+ *  one guard reads its own fires, so another guard's fire still fails it. */
+export function takeDevWarnsOf(tag: string): DevWarnRecord[] {
+	const taken = recorded.filter((record) => record.tag === tag);
+	recorded = recorded.filter((record) => record.tag !== tag);
 	return taken;
 }
 

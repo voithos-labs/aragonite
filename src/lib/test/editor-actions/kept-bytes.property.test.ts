@@ -52,11 +52,8 @@ describe('G1.209 the kept bytes are the document’s after every drawn write', (
 						const fresh = measured(h.deps.doc).starts;
 						expect(ends()).toEqual(h.deps.doc.children.map((_, i) => fresh.end(i)));
 					}
-					// Other guards' warnings belong to their own suites.
-					const stale = takeDevWarns().filter(
-						(warn) => warn.tag === 'invariant:kept-starts-current'
-					);
-					expect(stale).toEqual([]);
+					// Read per run, so a counterexample shrinks to the write that warned.
+					expect(takeDevWarns().map((warn) => `${warn.tag}: ${warn.message}`)).toEqual([]);
 				}
 			),
 			PARAMS

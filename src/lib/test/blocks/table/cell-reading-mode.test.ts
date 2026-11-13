@@ -11,7 +11,7 @@ import type { BlockComponent } from '#lib/block-component.js';
 import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
 import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
 import { pressKey } from '#lib/test/harness/settle.js';
-import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { takeDevWarnsOf } from '#lib/test/support/warn-gate.js';
 import { cellAt, installTableLayoutStubs, pressInCell } from './mount-table';
 import { installClipboardEvents } from '#lib/test/harness/clipboard-events.js';
 
@@ -114,9 +114,7 @@ describe('the right-click menu clipboard in reading mode', () => {
 	}
 
 	function readingWrites(): string[] {
-		return takeDevWarns()
-			.filter((w) => w.tag === READING_WRITE_TAG)
-			.map((w) => w.tag);
+		return takeDevWarnsOf(READING_WRITE_TAG).map((w) => w.tag);
 	}
 
 	it.each([
