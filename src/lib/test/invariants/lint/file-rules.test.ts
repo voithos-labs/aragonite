@@ -2635,17 +2635,18 @@ const ITEM_MOVES_HOME = SOURCE.listItemMoves;
 const RANGE_INDENT: ManifestRule[] = [
 	{
 		id: 'G4.112 a list item nests or lifts through the shared item moves only',
-		matches: /(?<![\w.'])(?:nestListItem|liftNestedItem)\s*\(/,
+		matches: /(?<![\w.'])(?:nestListItem|liftNestedItem|liftItemOut)\s*\(/,
 		declared: {
-			[ITEM_MOVES_HOME]: 'defines the two moves',
+			[ITEM_MOVES_HOME]: 'defines the two moves, and the lift’s moves that one makes',
 			'src/lib/editor-actions/list-context.ts': 'one item, from a caret’s own Tab or Shift+Tab',
 			'src/lib/selection/cross-block/range-indent.ts': 'every item a range touches, from its Tab'
 		},
 		reason:
-			'a route that moves list items itself splits what Tab means: a range’s items would nest one way and a caret’s another; call `nestListItem` or `liftNestedItem`',
+			'a route that moves list items itself splits what Tab means: a range’s items would nest one way and a caret’s another; call `nestListItem` or `liftNestedItem`, or `liftItemOut` off to the side',
 		hits: [
 			at(ROGUE_INDENT_ROUTE, 'await nestListItem(commits, list, 1);'),
-			at(ROGUE_INDENT_ROUTE, 'void liftNestedItem(commits, outer, 0, nested, 1, grammar);')
+			at(ROGUE_INDENT_ROUTE, 'void liftNestedItem(commits, outer, 0, nested, 1, grammar);'),
+			at(ROGUE_INDENT_ROUTE, 'const at = liftItemOut(nested, writes);')
 		],
 		misses: [
 			at(ROGUE_INDENT_ROUTE, 'await listContext.promoteNestedItem(0, nested, 1);'),
