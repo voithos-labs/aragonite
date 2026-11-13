@@ -133,6 +133,8 @@ export function rebuildUnsharedChain(
 		const index = siblings ? childIndexOf(siblings, node, hint?.path[i]) : -1;
 		if (!siblings || index < 0) continue;
 
+		// The position took a block of another kind, so the join on either side can read otherwise.
+		let rekinded = false;
 		if (moved || whole) {
 			const reading = followBytes(node, rawBefore, grammar, {
 				titleRowOnly: changed !== undefined && onlyTitleChanged(node, changed),
@@ -142,6 +144,7 @@ export function rebuildUnsharedChain(
 			if (replacement) {
 				sharing.stamp(replacement);
 				reclassified.push({ siblings, index, previous: node, replacement });
+				rekinded = replacement.kind !== node.kind;
 			} else if (reading.outcome === 'diverged' && reading.blocks.length > 0) {
 				const spill = { index, node, rawBefore, blocks: reading.blocks };
 				// A list of blocks takes them as it takes a typed write's; an item or a row is no block.
@@ -169,11 +172,13 @@ export function rebuildUnsharedChain(
 		// empty marker must give the paragraph above it a separating line.
 		if (openerMoved) settleSublistSeparator(siblings, index);
 		if (!folds) continue;
+		const above = openerMoved || rekinded;
+		const below = closerMoved || rekinded;
 		const slot = { body: slotBody(root, owner), owner, depth: i, index };
 		const here = siblings[index];
 		const before = folds.length;
 		// After the kind re-derive: the join check reads whatever occupies the position now.
-		if (moved) settleSlotSeams({ ...slot, openerMoved, closerMoved }, sharing, folds, grammar);
+		if (above || below) settleSlotSeams({ ...slot, above, below }, sharing, folds, grammar);
 		if (mayBeWaitedOn && siblings[index] === here) {
 			settleSlotWait(slot, openerMoved, sharing, folds, grammar);
 			// Not while the perf rows count a keystroke's parses, since the check reads the run around.
@@ -297,14 +302,14 @@ interface ChainSlot {
 	depth: number;
 	index: number;
 	/** The join above depends on the opener line and the one below on the closer, so each is
-	 *  checked only when its own line moved. */
-	openerMoved: boolean;
-	closerMoved: boolean;
+	 *  asked when its own line moved, and both when the position took another kind. */
+	above: boolean;
+	below: boolean;
 }
 
 /**
  * Check the joins at a rebuilt container's position, since its new bytes can stop interrupting
- * a neighbour; the window passed below covers exactly the sides whose line moved.
+ * a neighbour; the window passed below covers exactly the sides the slot names.
  */
 function settleSlotSeams(
 	slot: ChainSlot,
@@ -312,7 +317,7 @@ function settleSlotSeams(
 	folds: AncestrySeamFold[],
 	grammar: GrammarView
 ): void {
-	const { body, index, openerMoved, closerMoved } = slot;
+	const { body, index, above, below } = slot;
 	const siblings = body.children;
 	// The rollback snapshot is captured only once a merge is certain, since a copy costs
 	// O(children) reactive reads on every keystroke inside a large container.
@@ -320,8 +325,8 @@ function settleSlotSeams(
 	const landing: TrackedPosition = { index, offset: 0 };
 	const change = mergeJoinsAt(
 		body,
-		openerMoved ? index : index + 1,
-		openerMoved && closerMoved ? 1 : 0,
+		above ? index : index + 1,
+		above && below ? 1 : 0,
 		grammar,
 		sharing,
 		landing,

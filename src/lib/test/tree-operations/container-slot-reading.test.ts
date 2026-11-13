@@ -89,6 +89,13 @@ const OPENER_ROWS: Record<string, Row> = {
 	'an admonition under a heading': row(`# x\n:::tip\nner\n:::${TAIL}`, [1, 0]),
 	'an admonition under a blank line': row(`x\n\n:::tip\nner\n:::${TAIL}`, [1, 0]),
 	'an admonition over a paragraph': row(`:::tip\nner\n:::\nmore${TAIL}`, [0, 0]),
+	'a directive over a paragraph': row(
+		`:::foo
+ner
+:::
+more${TAIL}`,
+		[0, 0]
+	),
 	'an admonition over a list from 3': row(`:::tip\nner\n:::\n3. three${TAIL}`, [0, 0]),
 	'an admonition in an admonition, under a paragraph': row(
 		`::::note\nx\n:::tip\nner\n:::\n::::${TAIL}`,
