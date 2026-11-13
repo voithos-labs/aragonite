@@ -50,6 +50,7 @@ const EMPTY: PerfSnapshot = {
 	spliceReads: 0,
 	spliceReadsKept: 0,
 	topBlocksMeasured: 0,
+	textReads: 0,
 	listMarkerReads: 0,
 	parseCount: 0,
 	parseMsTotal: 0,

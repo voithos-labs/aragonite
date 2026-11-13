@@ -100,14 +100,17 @@ describe('a host that echoes getSource() back through source', () => {
 		expect(host.editor.getSource()).toBe('abc\n');
 	});
 
-	it('serializes the document once per flushed keystroke, dev check included', async () => {
+	// The echo's text is read off the tree once per version (`current-source.test.ts`), by a read
+	// that is no `serialize` call, so one here could only be the dev check's.
+	it('runs no dev check of the text on a flushed keystroke', async () => {
 		const host = mountHost('a\n', true);
 		await host.type('ab');
 		vi.mocked(serialize).mockClear();
 
 		await host.type('abc');
 
-		expect(vi.mocked(serialize).mock.calls).toHaveLength(1);
+		expect(vi.mocked(serialize).mock.calls).toHaveLength(0);
+		expect(host.editor.getSource()).toBe('abc\n');
 	});
 
 	it('mounted empty, an echo of the placeholder line is no change, and a later empty write is', async () => {

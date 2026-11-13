@@ -1,11 +1,15 @@
 // @vitest-environment jsdom
-// A byte splice reads the document's bytes from the text the editor serializes once per content
-// version, so a gesture that read them first, to work out its changes, serializes nothing more.
+// A byte splice reads the document's bytes from the text the editor reads once per content
+// version, so a gesture that read them first, to work out its changes, reads nothing more.
 // Miss-analysis: nothing counted how often a write serialized the document, so a removal and a
 // draft each serialized it twice per commit, once for its changes and once in the splice.
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { serialize } from '#lib/core/serializer.js';
-import { disablePerfInstruments, enablePerfInstruments } from '#lib/perf/instruments.js';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import {
+	disablePerfInstruments,
+	enablePerfInstruments,
+	perfSnapshot,
+	resetPerfInstruments
+} from '#lib/perf/instruments.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -16,11 +20,6 @@ import { pressKey } from '#lib/test/harness/settle.js';
 import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
 import type { Mounted } from '#lib/test/harness/write-routes.js';
 import type { Draft } from '#lib/schema/drafts.js';
-
-vi.mock('#lib/core/serializer.js', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('#lib/core/serializer.js')>();
-	return { ...actual, serialize: vi.fn(actual.serialize) };
-});
 
 beforeAll(installLayoutStubs);
 afterEach(async () => {
@@ -55,17 +54,17 @@ const GESTURES: Record<
 };
 let draft: Draft | undefined;
 
-describe('a byte splice serializes the document once per content version', () => {
+describe('a byte splice reads the document’s text once per content version', () => {
 	it.each(Object.entries(GESTURES))('%s', async (_, gesture) => {
 		const m = mountEditor<EditorTestSurface>({ source: SOURCE });
 		await m.settle();
 		await gesture.setUp?.(m);
-		// Armed, so the dev check that re-serializes a reused text stays out of the count.
+		// Armed, which also keeps the dev check that serializes a reused text from running.
 		enablePerfInstruments();
-		vi.mocked(serialize).mockClear();
+		resetPerfInstruments();
 		await gesture.write(m);
 		await m.settle();
-		expect(vi.mocked(serialize)).toHaveBeenCalledTimes(1);
+		expect(perfSnapshot().textReads).toBe(1);
 		expect(m.source()).not.toBe(SOURCE);
 	});
 });

@@ -15,7 +15,7 @@ import type { EditorActionsDeps } from '../editor-actions/deps';
 import { refusedWrite, withStoredCaret } from '../editor-actions/stored-caret';
 import { kitReading } from './kit-reading';
 import type { Reading } from '../schema/reading';
-import { createEditorEvents, type EditorEvents } from '../editor-events';
+import { createEditorEvents, emitCommitError, type EditorEvents } from '../editor-events';
 import { refSlotsOver, replaceRefs } from '../block-lists/child-refs';
 import type { ChildList } from '../block-lists/child-list';
 import { createSelectionState } from '../selection/selection-state.svelte';
@@ -172,7 +172,8 @@ export function createHeadlessActions(
 		() => {
 			contentVersion++;
 			options.bumpContentVersion?.();
-		}
+		},
+		(error) => emitCommitError(events, { error })
 	);
 	const stamps = createDocumentStamps();
 	const deps: EditorActionsDeps = {
@@ -201,7 +202,8 @@ export function createHeadlessActions(
 			version: () => contentVersion,
 			doc: () => doc,
 			source: () => serialize(doc),
-			measured: starts.read
+			measured: starts.read,
+			vouch: starts.vouch
 		}),
 		// Nothing here draws a reference link, so the blocks a write replaced reach only a listener.
 		refreshDefinitions: (replaced) => options.onReplaced?.(replaced),

@@ -35,6 +35,9 @@ export interface DocumentBytes {
 	layout(): Layout;
 	/** The document with the starts of its top-level blocks, kept across writes. */
 	measured(): Measured;
+	/** Whether what is kept of top-level blocks `[from, to]` is what the tree holds; a record found
+	 *  wrong is forgotten, so the next read is fresh (`KeptStarts.vouch`). */
+	vouch(from: number, to: number): boolean;
 }
 
 /** The layout is made once per measured document, which every byte writer's announcement
@@ -44,12 +47,14 @@ export function documentBytes(deps: {
 	doc(): DocumentView;
 	source(): string;
 	measured(): Measured;
+	vouch(from: number, to: number): boolean;
 }): DocumentBytes {
 	let laid: { of: Measured; layout: Layout } | undefined;
 	return {
 		doc: deps.doc,
 		source: deps.source,
 		measured: deps.measured,
+		vouch: deps.vouch,
 		layout() {
 			deps.version();
 			const of = deps.measured();
@@ -57,6 +62,36 @@ export function documentBytes(deps: {
 			return laid.layout;
 		}
 	};
+}
+
+/** A range and the document it was read from, as the range-edit core takes them. */
+export interface RangeRead {
+	range: Range;
+	source: string;
+	measured: Measured;
+	layout: Layout;
+}
+
+/** The range `rangeOf` finds on the layout and the document it was read from: the one read every
+ *  range gesture starts from. A kept record found wrong for the range's blocks costs a second read. */
+export function rangeRead(
+	bytes: DocumentBytes,
+	rangeOf: (layout: Layout) => Range | null
+): RangeRead | null {
+	for (let fresh = false; ; fresh = true) {
+		// The text first: read off the tree, it forgets a record that holds other bytes.
+		const source = bytes.source();
+		const measured = bytes.measured();
+		const layout = bytes.layout();
+		const range = rangeOf(layout);
+		if (!range) return null;
+		const { starts } = measured;
+		const held = bytes.vouch(
+			starts.holding(range.from),
+			starts.holding(Math.max(range.to - 1, range.from))
+		);
+		if (held || fresh) return { range, source, measured, layout };
+	}
 }
 
 /** The range's bytes; null for a rectangle of cells inside one table, which never reaches the core. */

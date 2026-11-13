@@ -244,6 +244,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.346 | The look for a wait asks each pair of blocks once while both keep their bytes, so a second key at the foot of a long run asks a few | harness |
 | G4.347 | A byte splice's window holds every block whose wait reaches the change, and what it asks to find them grows no faster than the run | harness |
 | G4.349 | A range edit lays out the container lines it asks for, each the line the whole container pairs | harness |
+| G4.353 | Every reader of the text a write is worked out from names the vouch its bytes pass | L |
 
 ### The entries
 
@@ -709,3 +710,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.347 · A window covers a wait.** Given a tree that is the parse of its bytes, a byte splice reads from the highest block waiting at the change under a reading no line closes, until no block it read waits past it, and at the top level where the wait runs into a container (`schema/block-openers.ts :: waitingAboveThrough`). A tree wrong outside the window stays so. In a run with no blank line it parses the same bytes at N lines as at 4N, and its asks grow as the run does. `test/tree-operations/byte-splice.test.ts`, `splice-window-declared-reach.test.ts`, `test/perf/splice-look-cost.test.ts`.
 
 **G4.349 · A container line costs its child.** The range-edit layout lays out a container's lines one at a time (`ContainerMap.lineAt`), from the child holding the byte, each the line the whole pairing gives at every byte, spans dropped or just spliced. A range gesture lays out as many lines among 2,000 children as among 500, save what its cost rows declare, and a keystroke or a held range lays out none. `test/range-edit/layout-lines.property.test.ts`, `test/range-edit/cost.test.ts`, `test/perf/range-edit-window-cost.test.ts`.
+
+**G4.353 · A reader of kept bytes names its vouch.** The files that read `bytes.source` and those that hand the range-edit core the editor's own document are declared sets, each row saying where its bytes are compared with the tree (G1.219). A new range gesture or splice caller fails here until it takes its read from `rangeRead` or lands through the byte splice. `lint/kept-bytes-doors.test.ts`.

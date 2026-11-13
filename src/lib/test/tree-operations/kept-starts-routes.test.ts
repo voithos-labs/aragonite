@@ -202,4 +202,20 @@ describe('G1.209 over writes that leave the document as it stood, or break a rul
 		});
 		expect(takeDevWarns().map((warn) => warn.tag)).toContain('invariant:kept-starts-current');
 	});
+
+	// Miss-analysis: the row above lengthens the block, and the guard compared lengths, so a write
+	// that kept the block's length left its kept bytes behind unseen.
+	it('a block written in place without that copy, as long as it was', async () => {
+		const h = measuredHarness();
+		await h.controller.commitStructural({
+			snapshot,
+			mutate(children) {
+				children[2].raw = 'LINE 2\n';
+				return { op: 'noop' };
+			},
+			op: { kind: 'input', eventPath: snapshot.path }
+		});
+		expect(h.deps.doc.children[2].raw).toHaveLength('line 2\n'.length);
+		expect(takeDevWarns().map((warn) => warn.tag)).toContain('invariant:kept-starts-current');
+	});
 });

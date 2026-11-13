@@ -55,7 +55,10 @@ describe('the list a reader made ends where a write may have left copies', () =>
 	it('a window that announces nothing ends the pair read before it', () => {
 		const starts = createKeptStarts(
 			() => parse(SOURCE),
-			() => {}
+			() => {},
+			(error) => {
+				throw error;
+			}
 		);
 		const before = starts.read();
 		starts.duringWrite(() => ({ touched: 'unchanged' }));

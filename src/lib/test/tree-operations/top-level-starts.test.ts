@@ -40,7 +40,10 @@ function kept(doc: Document) {
 	let announced = 0;
 	const record = createKeptStarts(
 		() => doc,
-		() => announced++
+		() => announced++,
+		(error) => {
+			throw error;
+		}
 	);
 	void record.read().starts.length;
 	return {
@@ -189,7 +192,10 @@ describe('G1.209 the kept record answers as a fresh measure does', () => {
 		const doc = parse(paragraphs(6));
 		const record = createKeptStarts(
 			() => doc,
-			() => {}
+			() => {},
+			(error) => {
+				throw error;
+			}
 		);
 		resetPerfInstruments();
 		enablePerfInstruments();
@@ -356,7 +362,10 @@ describe('G1.209 a record told wrong, or read too early, is caught', () => {
 		const doc = parse(paragraphs(6));
 		const record = createKeptStarts(
 			() => doc,
-			() => {}
+			() => {},
+			(error) => {
+				throw error;
+			}
 		);
 		const { starts } = record.read();
 		record.duringWrite(() => {

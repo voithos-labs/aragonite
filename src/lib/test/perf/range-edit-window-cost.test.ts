@@ -1,16 +1,16 @@
 // @vitest-environment jsdom
 // G4.342: a range edit reads the blocks its range reaches, never the document. It parses the same
 // bytes and measures the same top-level blocks at 400 blocks as at 40. One cost is recorded, not
-// held yet: each route serializes the document once, and a fix that stops it reds that row. A
-// removal and a copy walk the tree's top-level list once, counted with dev checks off: the text,
-// the range's host, the commit and the undo snapshot all take the version's plain list.
+// held yet: each route reads the document's text off the tree once, and a fix that stops it reds
+// that row. A removal and a copy walk the tree's top-level list once, counted with dev checks off:
+// the positions, the text, the range's host, the commit and the undo snapshot all take the
+// version's plain list.
 // Miss-analysis: the splice cost rows drove `commitSource` alone and the gate timed no range
 // edit, so nothing counted what the range-edit core reads to make its answer.
 // Miss-analysis, the walks: a walk never parses or measures, so the count rows above stayed green
 // with the list read once by the range's host and again by the commit.
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { configureEditorEnv, resetEditorEnv } from '@voithos-labs/aragonite/dev-checks';
-import { serialize } from '#lib/core/serializer.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
@@ -27,11 +27,6 @@ import {
 import { dispatchClipboardEvent, StubDataTransfer } from '#lib/test/harness/clipboard-events.js';
 import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
 import { WRITE_ROUTES, type Mounted, type WriteRoute } from '#lib/test/harness/write-routes.js';
-
-vi.mock('#lib/core/serializer.js', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('#lib/core/serializer.js')>();
-	return { ...actual, serialize: vi.fn(actual.serialize) };
-});
 
 beforeAll(installLayoutStubs);
 afterEach(async () => {
@@ -83,13 +78,12 @@ async function readsOf(gesture: RangeGesture, n: number) {
 	// Armed, so the dev checks that parse and serialize the document stay out of the counts.
 	enablePerfInstruments();
 	resetPerfInstruments();
-	vi.mocked(serialize).mockClear();
 	await gesture.write(m, n);
 	await m.settle();
 	const reads = {
 		parsedBytes: perfSnapshot().parseBytes,
 		topBlocksMeasured: perfSnapshot().topBlocksMeasured,
-		serializes: vi.mocked(serialize).mock.calls.length,
+		textReads: perfSnapshot().textReads,
 		spliceReads: perfSnapshot().spliceReads,
 		spliceReadsKept: perfSnapshot().spliceReadsKept
 	};
@@ -104,7 +98,7 @@ async function growthOf(gesture: RangeGesture) {
 	return {
 		parsedBytes: large.parsedBytes - small.parsedBytes,
 		topBlocksMeasured: large.topBlocksMeasured - small.topBlocksMeasured,
-		serializes: [small.serializes, large.serializes]
+		textReads: [small.textReads, large.textReads]
 	};
 }
 
@@ -157,9 +151,9 @@ describe('G4.349 a keystroke and a held range in a giant quote lay out no contai
 	});
 });
 
-describe('G4.342 recorded: a range edit serializes the document', () => {
+describe('G4.342 recorded: a range edit reads the document’s text off the tree', () => {
 	it.each([...RANGE_EDITS, COPY])('$name, once', async (gesture) => {
-		expect((await growthOf(gesture)).serializes).toEqual([1, 1]);
+		expect((await growthOf(gesture)).textReads).toEqual([1, 1]);
 	});
 });
 
@@ -203,8 +197,9 @@ describe('G4.342 a removal and a copy walk the top-level list once', () => {
 		const first = surfaceAt(m, [0]);
 		typeInto(first, first.textContent + 'x');
 		await m.settle();
-		await gesture.setUp?.(m, SMALL);
+		// From the range's hold on, whose position reads take the same list.
 		const callers = await wholeWalks(m, async () => {
+			await gesture.setUp?.(m, SMALL);
 			await gesture.write(m, SMALL);
 			await m.settle();
 		});

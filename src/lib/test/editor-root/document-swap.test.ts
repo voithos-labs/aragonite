@@ -55,7 +55,10 @@ describe('the swap commit sequence', () => {
 			},
 			starts: createKeptStarts(
 				() => adopted ?? initDocument('held\n', defaultGrammarView).doc,
-				step('bump')
+				step('bump'),
+				(error) => {
+					throw error;
+				}
 			),
 			clearBlockRefs: step('refs'),
 			layout: { forgetMeasuredHeights: step('heights') },

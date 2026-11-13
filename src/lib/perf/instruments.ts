@@ -34,6 +34,8 @@ export interface PerfSnapshot {
 	/** Top-level blocks read to find where one starts in the document's bytes: flat per edit,
 	 *  however long the document. */
 	topBlocksMeasured: number;
+	/** Times the document's text was read off the tree, every top-level block's strings once. */
+	textReads: number;
 	/** List items whose marker the marker-width counts read, the column's own cost. */
 	listMarkerReads: number;
 	parseCount: number;
@@ -114,6 +116,7 @@ function emptySnapshot(): PerfSnapshot {
 		spliceReads: 0,
 		spliceReadsKept: 0,
 		topBlocksMeasured: 0,
+		textReads: 0,
 		listMarkerReads: 0,
 		parseCount: 0,
 		parseMsTotal: 0,
@@ -242,6 +245,11 @@ export function recordSpliceRead(kept: boolean): void {
 export function recordTopBlocksMeasured(blocks: number): void {
 	if (!enabled) return;
 	counters.topBlocksMeasured += blocks;
+}
+
+export function recordTextRead(): void {
+	if (!enabled) return;
+	counters.textReads += 1;
 }
 
 export function recordListMarkerReads(items: number): void {

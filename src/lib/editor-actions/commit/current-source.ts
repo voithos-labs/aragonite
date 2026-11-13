@@ -2,9 +2,9 @@
  * The document's Markdown, serialized once per content version. `getSource()` and the `source`
  * prop's swap check share it, so a host passing `getSource()` back hands over the same string.
  * It is only as fresh as the version: every byte writer must bump it (checked in dev, G1.52).
- * Its blocks are read off the version's plain list (`topsOf`), so the tree's own list is walked
- * once however many readers ask. While the tree may hold bytes the version hasn't heard of (a
- * write is open, or one threw), a read serializes the tree and keeps nothing.
+ * The text is read off the tree at every version, never off the record kept across writes, which
+ * that read checks (`KeptStarts.saved`). While the tree may hold bytes the version
+ * hasn't heard of (a write is open, or one threw), a read serializes the tree and keeps nothing.
  */
 
 import { untrack } from 'svelte';
@@ -13,13 +13,12 @@ import type { Document } from '../../core/nodes';
 import { serialize } from '../../core/serializer';
 import { checkCurrentSource } from '../../invariants/current-source';
 import { perfEnabled } from '../../perf/instruments';
-import { topsOf, type Measured } from '../../tree-operations/top-level-starts';
 
 export interface CurrentSourceDeps {
 	version(): number;
 	doc(): Document;
-	/** The document as it stands, the one every reader of this version takes (`KeptStarts.read`). */
-	measured(): Measured;
+	/** The text read off the tree while every write has announced (`KeptStarts.saved`). */
+	saved(): string;
 	/** Whether the tree may hold bytes no version announced (`KeptStarts.unannounced`). */
 	unannounced(): boolean;
 }
@@ -42,8 +41,7 @@ export function createCurrentSource(deps: CurrentSourceDeps): CurrentSource {
 			// Not kept: the write may yet put the tree back, under the same version.
 			if (deps.unannounced()) return serialize(deps.doc());
 			if (version !== servedVersion) {
-				const now = deps.measured();
-				served = serialize({ ...now.doc, children: topsOf(now) });
+				served = deps.saved();
 				servedVersion = version;
 			} else if (check && checkedVersion !== version && !perfEnabled()) {
 				checkedVersion = version;

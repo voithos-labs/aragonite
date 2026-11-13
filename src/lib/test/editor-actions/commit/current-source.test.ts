@@ -5,7 +5,6 @@ import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { createCurrentSource } from '#lib/editor-actions/commit/current-source.js';
 import { checkCurrentSource } from '#lib/invariants/current-source.js';
-import { measured } from '#lib/tree-operations/top-level-starts.js';
 import { disablePerfInstruments, enablePerfInstruments } from '#lib/perf/instruments.js';
 import { takeDevWarns } from '../../support/warn-gate';
 
@@ -24,7 +23,7 @@ function harness(source: string) {
 	const text = createCurrentSource({
 		version: () => version,
 		doc: () => doc,
-		measured: () => measured(doc),
+		saved: () => serialize(doc),
 		unannounced: () => writing
 	});
 	vi.mocked(serialize).mockClear();

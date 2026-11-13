@@ -21,6 +21,7 @@ import type { Measured } from '../../tree-operations/top-level-starts';
 import {
 	blockRange,
 	byteAt,
+	byteIn,
 	lengthsBefore,
 	partLengths,
 	positionAt,
@@ -130,12 +131,12 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 			if (illegal) return refused('illegal', illegal);
 			const doc = deps.doc();
 			if (writes.length === 0) return write(doc, [], caret);
-			const now = partLengths(doc);
+			const now = deps.measured();
 			const unsorted: ByteChange[] = [];
 			for (const pending of writes) {
 				const at = current(pending.range);
 				if (!at) return refused('moved', 'a write elsewhere changed bytes it replaces');
-				unsorted.push({ from: byteAt(now, at.from), to: byteAt(now, at.to), insert: pending.text });
+				unsorted.push({ from: byteIn(now, at.from), to: byteIn(now, at.to), insert: pending.text });
 			}
 			const changes = [...unsorted].sort((a, b) => a.from - b.from || a.to - b.to);
 			for (let i = 1; i < changes.length; i++) {
