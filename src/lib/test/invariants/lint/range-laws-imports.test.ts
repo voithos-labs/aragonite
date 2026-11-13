@@ -55,7 +55,9 @@ const ALLOWED: Record<string, string> = {
 		'whether a gap caret may sit where the core’s place names, a landing row’s oracle (a read)',
 	'src/lib/block-component.ts': 'the edges a block’s own `focus` enters at, a landing row’s oracle',
 	'src/lib/schema/block-kind-descriptor.ts':
-		'every registered kind and its conformance fixture, which a landing row draws (a read)'
+		'every registered kind and its conformance fixture, which a landing row draws (a read)',
+	'src/lib/schema/block-openers.ts':
+		'the look for a wait, which a session’s differential asks of the editor’s tree (a read)'
 };
 const PACKAGES = new Set(['vitest', 'fast-check', 'node:fs', 'node:path']);
 

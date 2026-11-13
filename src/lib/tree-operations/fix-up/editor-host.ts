@@ -4,7 +4,9 @@ import { splitLines } from '../../core/lines';
 import { tableTakesLine } from '../../core/parsers/table';
 import {
 	unfinishedReadings,
+	waitRunsPast,
 	waitingAboveClosedBy,
+	waitingInto,
 	type GrammarView
 } from '../../schema/block-openers';
 import { readAsOpened } from '../../schema/opened-reading';
@@ -36,6 +38,9 @@ function createHost(grammar: GrammarView): Host {
 		readingsThatMayChange: () => unfinishedReadings(grammar),
 		waitingAboveClosedBy: (written, rawAbove, count) =>
 			waitingAboveClosedBy(written, rawAbove, count, unfinishedReadings(grammar)),
+		waitingInto: (block, at, floor) => waitingInto(block, at, floor, unfinishedReadings(grammar)),
+		waitRunsPast: (read, block, from, last) =>
+			waitRunsPast(read, block, from, last, unfinishedReadings(grammar)),
 		kindTraits: (kind) => {
 			const descriptor = tryGetBlockKindDescriptor(kind as CstNode['kind']);
 			return {

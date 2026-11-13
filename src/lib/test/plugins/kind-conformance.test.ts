@@ -131,17 +131,25 @@ describe('kind conformance: a fence kind declares the fence reading', () => {
 
 /** A `@@`-bounded kind that, unclosed, backs out to a paragraph, as `$$` does; its reading names
  *  `closer` for the line that closes it. */
-function backingOut(name: string, fence: string, closer: UnfinishedReading['closer']) {
+function backingOut(
+	name: string,
+	fence: string,
+	closer: UnfinishedReading['closer'],
+	waits: (rest: string[]) => boolean = () => true
+) {
 	const awaitsCloser = (raw: string) => {
 		const [opener, ...rest] = raw.split('\n');
-		return opener === fence && !rest.includes(fence);
+		return opener === fence && !rest.includes(fence) && waits(rest);
 	};
+	const reading: UnfinishedReading = closer
+		? { notFinal: awaitsCloser, mayClose: (line: string) => line === fence, closer }
+		: { notFinal: awaitsCloser, closer: null };
 	return testLeaf(name, (kind) => ({
 		conformanceFixture: `${fence}\nx\n${fence}\n`,
 		opener: {
 			priority: OPENER_PRIORITIES.fencedCode + 7,
 			interruptsParagraph: (line) => line === fence,
-			readingNotFinal: { notFinal: awaitsCloser, mayClose: (line) => line === fence, closer },
+			readingNotFinal: reading,
 			tryOpen(ctx) {
 				if (ctx.line.text !== fence) return null;
 				let close = ctx.index + 1;
@@ -177,6 +185,102 @@ describe('kind conformance: a backing-out kind names its closer', () => {
 
 	it('asserts a closer that closes the fixture', async () => {
 		const report = await runKindConformance(backingOut('own-closer', '@@3', () => '@@3'));
+		expect(statusOf(report, 'unfinishedReading')).toBe('asserted');
+	});
+
+	// Miss-analysis: the cell asked `notFinal` of the fixture less its last line and nothing
+	// shorter, so a reading that calls a lone opener final and its body waiting passed.
+	it('fails a reading that says final and then, with more lines, not final', async () => {
+		const flips = backingOut(
+			'flips',
+			'@@4',
+			() => '@@4',
+			(rest) => rest.length > 1
+		);
+		await expect(runKindConformance(flips)).rejects.toThrow(/once final it has to stay final/);
+	});
+});
+
+// ── A kind no line closes ────────────────────────────────────────────────────
+
+/** A `%%name` line that takes a `<<` to `>>` body from the lines under it and stands alone where
+ *  the body never closes, so its reading names no closing line and says what its wait crosses. */
+function bodyTaker(
+	name: string,
+	crosses: ((line: string) => boolean) | undefined,
+	takes: (line: string) => boolean = crosses ?? (() => true),
+	waits?: (raw: string) => boolean
+) {
+	const opens = (line: string) => line.startsWith(`%%${name}`);
+	const bodyEnd = (lines: readonly string[]): number | 'open' | 'none' => {
+		if (lines.length === 1) return 'open';
+		if (!lines[1].startsWith('<<')) return 'none';
+		for (let i = 1; i < lines.length; i++) {
+			if (i > 1 && (lines[i].trim() === '' || !takes(lines[i]))) return 'none';
+			if (lines[i].endsWith('>>')) return i;
+		}
+		return 'open';
+	};
+	return testLeaf(name, (kind) => ({
+		conformanceFixture: `%%${name}\n<<b\ntext\nend>>\n`,
+		opener: {
+			priority: OPENER_PRIORITIES.fencedCode + 8,
+			interruptsParagraph: opens,
+			readingNotFinal: {
+				notFinal: (raw) => {
+					const lines = raw.replace(/\n$/, '').split('\n');
+					return waits ? waits(raw) : opens(lines[0]) && bodyEnd(lines) === 'open';
+				},
+				closer: null,
+				crosses
+			},
+			tryOpen(ctx) {
+				if (!opens(ctx.line.text)) return null;
+				const end = bodyEnd(ctx.lines.slice(ctx.index, ctx.end).map((line) => line.text));
+				const consumed = typeof end === 'number' ? end + 1 : 1;
+				const raw = ctx.lines
+					.slice(ctx.index, ctx.index + consumed)
+					.map((line) => line.raw)
+					.join('');
+				return { node: { kind, leadingTrivia: ctx.leadingTrivia, raw }, consumed };
+			}
+		}
+	}));
+}
+
+// Miss-analysis: the cell took every waiting reading for one a line closes, so a reading with
+// `closer: null`, the shape a link definition has, could not pass and nothing held its `crosses`.
+describe('kind conformance: a kind no line closes says what its wait crosses', () => {
+	it('asserts a reading whose wait crosses every line of its fixture', async () => {
+		const report = await runKindConformance(bodyTaker('takes', (line) => !line.startsWith('!!')));
+		expect(statusOf(report, 'unfinishedReading')).toBe('asserted');
+	});
+
+	it('fails a reading whose `crosses` refuses a line of its own fixture', async () => {
+		const refuses = bodyTaker(
+			'refuses',
+			(line) => line !== 'text',
+			() => true
+		);
+		await expect(runKindConformance(refuses)).rejects.toThrow(/crosses refuses "text"/);
+	});
+
+	// Miss-analysis: a reading written for the block's own bytes says final for the fixture less
+	// its last line, so the cell saw nothing waiting and called the kind exempt.
+	it.each([
+		['its own bytes alone', (raw: string) => raw.trim() === '%%own', /first 2 lines/],
+		[
+			'a body that has started',
+			(raw: string) => raw.includes('<<') && !raw.includes('>>'),
+			/first line/
+		]
+	])('fails a `notFinal` written for %s', async (_name, waits, message) => {
+		const taker = bodyTaker('own', undefined, () => true, waits);
+		await expect(runKindConformance(taker)).rejects.toThrow(message);
+	});
+
+	it('asserts a reading that leaves `crosses` out, whose wait runs to the blank line', async () => {
+		const report = await runKindConformance(bodyTaker('bare', undefined));
 		expect(statusOf(report, 'unfinishedReading')).toBe('asserted');
 	});
 });

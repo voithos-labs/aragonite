@@ -49,6 +49,7 @@ import {
 } from '../ancestry-folds';
 import { saveFields } from './saved-bytes';
 import { pairsStay } from './change-record';
+import { unfinishedReadings, waitingInto, type GrammarView } from '../../schema/block-openers';
 import type { EditorActionsDeps } from '../deps';
 import type { FrameOutcome, FrameWrite } from './commit-frame';
 
@@ -87,12 +88,16 @@ export function createLeafCommit(
 			op: { ...op, eventPath: leafPath },
 			snapshot: { path: leafPath, offset: caret },
 			history: 'burst',
-			// A top-level write that opens, closes or moves a fence re-pairs blocks however far below.
-			reach: () =>
-				depth > 1 ||
-				pairsStay(blockNodeAt(deps.doc, leafPath)?.raw ?? '', write.text, deps.reading.grammar)
+			// A top-level write that opens, closes or moves a fence re-pairs blocks however far below,
+			// and one under a block that still waits there can change blocks above it.
+			reach: () => {
+				const before = blockNodeAt(deps.doc, leafPath)?.raw ?? '';
+				const own = depth > 1 || pairsStay(before, write.text, deps.reading.grammar);
+				const written = depth > 1 ? null : write.text;
+				return own && !waitedOn(deps.doc.children, leafPath[0], written, deps.reading.grammar)
 					? { from: leafPath[0], to: leafPath[0] + 1 }
-					: null,
+					: null;
+			},
 			// Inside a container the caret's byte can cost a walk over its lines, so the record counts
 			// every place the typed text could have gone instead.
 			typedEnd: () => {
@@ -194,6 +199,22 @@ export function createLeafCommit(
 				: null
 		};
 	};
+}
+
+/** Whether a block above top-level block `index` still waits where it starts, under a reading no
+ *  line closes, as the block stands or with `written` as its bytes. */
+function waitedOn(
+	tops: readonly CstNode[],
+	index: number,
+	written: string | null,
+	grammar: GrammarView
+): boolean {
+	const readings = unfinishedReadings(grammar);
+	const { leadingTrivia } = tops[index];
+	const as = (raw: string) => (i: number) => (i === index ? { raw, leadingTrivia } : tops[i]);
+	return [tops[index].raw, ...(written === null ? [] : [written])].some(
+		(raw) => waitingInto(as(raw), index, 0, readings) >= 0
+	);
 }
 
 // ── Rollback ─────────────────────────────────────────────────────────────────

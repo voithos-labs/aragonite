@@ -79,6 +79,9 @@ export interface KindTraits {
 	grid: boolean;
 }
 
+/** What a look for a wait reads of a block. */
+export type Held = Pick<CstNode, 'raw' | 'leadingTrivia'>;
+
 /** The block parser the fix-up reads with; every answer is the parser's own. */
 export interface Host {
 	readOpened(text: string): Document;
@@ -93,6 +96,17 @@ export interface Host {
 		written: readonly string[],
 		rawAbove: (i: number) => string,
 		count: number
+	): number;
+	/** The topmost block above `at` left waiting where block `at` starts, by a reading no line
+	 *  closes, with a wait that runs on into it; -1 for none (`schema/block-openers.ts`). */
+	waitingInto(block: (i: number) => Held, at: number, floor: number): number;
+	/** Where a read has to run on to: the last block from `from` that a wait still open past the
+	 *  end of `read` can reach, or -1 when none of it waits (`schema/block-openers.ts`). */
+	waitRunsPast(
+		read: readonly Held[],
+		block: (i: number) => Held,
+		from: number,
+		last: number
 	): number;
 	kindTraits(kind: string): KindTraits;
 	/** A copy of a container whose `raw` was rewritten from `rawBefore`, its metadata read again. */

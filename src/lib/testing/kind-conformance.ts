@@ -47,7 +47,13 @@ import {
 	type KitCell
 } from './conformance-core';
 import { installOwnRaw } from '../tree-operations/node-primitives';
-import { defaultGrammarView, type BlockOpener, type OpenContext } from '../schema/block-openers';
+import {
+	defaultGrammarView,
+	type BlockOpener,
+	type OpenContext,
+	type ClosedReading,
+	type UnclosedReading
+} from '../schema/block-openers';
 import { createHeadlessActions } from './headless-actions';
 import { KIND_CELL_CONTRACTS } from './cell-contracts';
 import { assertParseConverged } from './parse-convergence';
@@ -400,14 +406,12 @@ function execUnfinishedReading({ parsed: ctx }: KindRun): CellOutcome {
 	const lines = displayLines(trimTrailingLineEnding(ctx.node.raw));
 	const closer = lines[lines.length - 1].text;
 	const opened = ctx.node.raw.slice(0, ctx.node.raw.lastIndexOf(closer));
-	const waiting = defaultGrammarView
-		.orderedOpeners()
-		.filter(
-			(opener) =>
-				lines.length > 1 &&
-				opensKind(opener, ctx.node.raw, ctx.kind) &&
-				opener.readingNotFinal?.notFinal(opened)
-		);
+	const waiting = defaultGrammarView.orderedOpeners().filter((opener) => {
+		const reading = opener.readingNotFinal;
+		if (!reading || lines.length < 2 || !opensKind(opener, ctx.node.raw, ctx.kind)) return false;
+		// A reading no line closes is held even where it says nothing waits: saying so is its job.
+		return reading.closer === null || reading.notFinal(opened);
+	});
 	if (waiting.length === 0) {
 		// A fence that nothing closes takes in every block below, so its opener has to say so.
 		assert(
@@ -424,18 +428,23 @@ function execUnfinishedReading({ parsed: ctx }: KindRun): CellOutcome {
 	const ending = trailingLineEnding(ctx.node.raw, '\n');
 	for (const opener of waiting) {
 		const reading = opener.readingNotFinal!;
+		if (reading.closer === null) {
+			assert(
+				(opener.tryOpen(openContext(opened + ending + closer + ending))?.consumed ?? 0) <=
+					lines.length,
+				`${ctx.kind}'s readingNotFinal declares no closer, but its opener reads on across a blank ` +
+					`line to ${show(closer)}: a wait no line closes ends at a blank line, so name the ` +
+					`closer, or an edit under the blank line leaves the block above it unread`
+			);
+			assertWaitCrossesFixture(ctx.kind, reading, ctx.node.raw, lines.slice(1));
+			continue;
+		}
+		assertStaysFinal(ctx.kind, reading, ctx.node.raw);
 		assert(
 			reading.mayClose(closer),
 			`${ctx.kind}'s opener says its fixture without its last line is unfinished, but its ` +
 				`readingNotFinal.mayClose refuses ${show(closer)}, the line that finishes it: mayClose ` +
 				`must accept every closer the opener takes, or a closer typed blocks below is never asked`
-		);
-		// A completer only answers a line typed at its end, so a paste needs the closer too.
-		assert(
-			typeof reading.closer === 'function',
-			`${ctx.kind}'s opener backs out when unclosed but its readingNotFinal declares no closer: ` +
-				`declare the line that closes it, or an opener typed on its own line takes in every ` +
-				`block below it down to the next line that may close it`
 		);
 		const closed = opened + reading.closer(opened) + ending;
 		assert(
@@ -444,13 +453,68 @@ function execUnfinishedReading({ parsed: ctx }: KindRun): CellOutcome {
 				`close its fixture: the closer must make the opener's bytes one block of the kind`
 		);
 	}
-	return 'mayClose accepts the closer that finishes the fixture, and closer gives one';
+	return 'each reading waits through its fixture, and closes or crosses it';
+}
+
+/** `notFinal` asked of the fixture a line at a time: once it says final, more lines keep it so. */
+function assertStaysFinal(kind: string, reading: ClosedReading, raw: string): void {
+	let bytes = '';
+	let final = false;
+	for (const line of splitLines(raw)) {
+		bytes += line.raw;
+		const now = !reading.notFinal(bytes);
+		assert(
+			now || !final,
+			`${kind}'s readingNotFinal.notFinal calls its fixture's first lines final and then, with ` +
+				`${show(line.text)} under them, not final: once final it has to stay final, or an edit ` +
+				`further down reads the block above it wrong`
+		);
+		final = now;
+	}
+}
+
+/** A reading no line closes waits across its own fixture: every line short of the whole waits,
+ *  `crosses`, where it is declared, accepts each line under the first, and the whole is final. */
+function assertWaitCrossesFixture(
+	kind: string,
+	reading: UnclosedReading,
+	raw: string,
+	under: readonly { text: string }[]
+): void {
+	let bytes = '';
+	splitLines(raw).forEach((line, i) => {
+		bytes += line.raw;
+		assert(
+			i === under.length || reading.notFinal(bytes),
+			`${kind}'s readingNotFinal.notFinal calls the first ${i ? `${i + 1} lines` : 'line'} of ` +
+				`its fixture final, though the lines under still change the block: notFinal gets a ` +
+				`block's bytes with or without the blocks under it, and waits until none can change it`
+		);
+	});
+	for (const line of under) {
+		assert(
+			reading.crosses?.(line.text) ?? true,
+			`${kind}'s readingNotFinal.crosses refuses ${show(line.text)}, a line of its own fixture: ` +
+				`crosses must accept every line the opener reads through, or an edit below such a ` +
+				`line leaves the block above it unread`
+		);
+	}
+	assert(
+		!reading.notFinal(raw),
+		`${kind}'s readingNotFinal.notFinal says its whole fixture still waits: it must answer ` +
+			`final once nothing below can change the block, or every edit under one reads to the blank line`
+	);
 }
 
 /** Whether `opener` reads `raw` alone as a block of `kind`. */
 function opensKind(opener: BlockOpener, raw: string, kind: AnyBlockKind): boolean {
+	return opener.tryOpen(openContext(raw))?.node.kind === kind;
+}
+
+/** `raw` as the lines an opener is asked to open at, on their own. */
+function openContext(raw: string): OpenContext {
 	const lines = splitLines(raw);
-	const ctx: OpenContext = {
+	return {
 		lines,
 		index: 0,
 		end: lines.length,
@@ -460,7 +524,6 @@ function opensKind(opener: BlockOpener, raw: string, kind: AnyBlockKind): boolea
 		depth: 0,
 		grammar: defaultGrammarView
 	};
-	return opener.tryOpen(ctx)?.node.kind === kind;
 }
 
 // ── Exported executors (direct-drive for regression tests) ───────────────────

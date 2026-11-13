@@ -45,7 +45,11 @@ export function apartAt(doc: Doc, out: string, at: number, join: Join, placed: b
 	// A blank line parts them already.
 	if (/^[ \t>]*$/.test(line) || /^[ \t>]*\r?$/.test(lineAbove)) return out;
 	const pair = siblingsAt(doc, join, out, at);
-	if (!pair || !doc.host.parts(doc.tree, pair.parent, pair.index, pair.upper, pair.lower, placed))
+	const stood = pair?.below.path.at(-1) ?? null;
+	if (
+		!pair ||
+		!doc.host.parts(doc.tree, pair.parent, pair.index, pair.upper, pair.lower, placed, stood)
+	)
 		return out;
 	const run = /^[ \t>]*/.exec(line)![0];
 	// The markers of the containers holding both, never the lower block's own, which would take the

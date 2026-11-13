@@ -4,6 +4,7 @@
 // text written at the landing caret lands inside its block's text or in front of its opener.
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
 import type { SelectionPoint } from '#lib/selection/primitives.js';
 import { emptiedPlace } from '#lib/selection/cross-block/range-removal.js';
 import { deleteRange } from '../harness/range-delete';
@@ -127,45 +128,55 @@ describe('a range whose start block survives', () => {
 	});
 });
 
-/** The place `emptiedPlace` names once the text from `from` to `to` in `source` is cut. */
-function placeAfterCut(source: string, from: string, to: string) {
+/** The bytes a cut of the text from `from` to `to` in `source` leaves, and the place
+ *  `emptiedPlace` names then. */
+function cutThenPlace(source: string, from: string, to: string) {
 	const doc = parse(source);
 	const m = measured(doc);
 	const start = pointAtByte(m, source.indexOf(from));
 	const end = pointAtByte(m, source.indexOf(to) + (to.endsWith('\n') ? to.length : 0));
 	if (!start || !end) throw new Error('no point at the range');
 	const result = deleteRange(doc, start, end, { gesture: 'cut' });
-	return emptiedPlace(measured(result.newDoc), {
+	const place = emptiedPlace(measured(result.newDoc), {
 		...result.removed,
 		caret: result.caret(result.newDoc)
 	});
+	return { bytes: serialize(result.newDoc), place };
 }
 
 // Miss-analysis: no row's commit joined the text below the range to a block above it, so the start
 // block's old path always still named the right slot on the tree the commit leaves.
-describe('a removal that joins the text below it to a title a definition started above', () => {
+describe('a removal under a title a definition started above', () => {
 	const TITLE = "[a]: /u\n    'code\n# h\ntext\nend'\n\nlast\n";
-	// The text joins the title, as the cut and then the text do, while a removal under a started
-	// title folds the text into the definition: these bytes hold only until it doesn't.
-	const ROWS: Array<[string, string, string, string]> = [
-		['the heading line', TITLE, '# h', '# h\n'],
-		['the heading to the middle of the line below', TITLE, '# h', 'xt'],
+	// The removal parts the blocks the title would take, and the text joins the lower one at the
+	// caret, as the cut and then the text do; a title the definition starts itself takes it in.
+	const ROWS: Array<[string, string, string, string, string]> = [
+		['the heading line', TITLE, '# h', '# h\n', "[a]: /u\n    'code\n\ntext\nend'\n\nlast\n"],
+		[
+			'the heading to the middle of the line below',
+			TITLE,
+			'# h',
+			'xt',
+			"[a]: /u\n    'code\n\nxt\nend'\n\nlast\n"
+		],
 		[
 			'the heading line under a second definition',
 			"[a]: /u\n    'code\n[b]: /v\n# h\nend'\n\nlast\n",
 			'# h',
-			'# h\n'
+			'# h\n',
+			"[a]: /u\n    'code\n[b]: /v\n\nend'\n\nlast\n"
 		],
 		[
 			'the heading line between a definition and its title',
 			'[a]: /u\n# h\n"t"\n\nlast\n',
 			'# h',
-			'# h\n'
+			'# h\n',
+			'[a]: /u\n"t"\n\nlast\n'
 		]
 	];
-	for (const [name, source, from, to] of ROWS) {
-		it(`${name}: the text joins the title, where no boundary stands`, () => {
-			expect(placeAfterCut(source, from, to)).toBeNull();
+	for (const [name, source, from, to, left] of ROWS) {
+		it(`${name}: the text joins the block under the range, where no boundary stands`, () => {
+			expect(cutThenPlace(source, from, to)).toEqual({ bytes: left, place: null });
 		});
 	}
 });

@@ -1,16 +1,18 @@
 /**
  * What a document's tree becomes when runs of its bytes change: the top-level blocks each change
  * reaches, read again from the new bytes, so the tree is what opening them gives. A read starts at
- * the last block before the change with text of its own, or at a definition above that still
- * waiting on its title, and runs on past the change until the next block with text still starts
- * where it stood; inside a list, quote or table it reads only the children the change reaches
- * (`docs/design/commit-and-undo.md` § The byte splice).
+ * the last block before the change with text of its own, or at a block above whose wait (a
+ * definition's, on its title) reaches the change. It runs on until the next block with text still
+ * starts where it stood and no block read still waits past it; inside a list, quote or table it
+ * reads only the children the change reaches (`docs/design/commit-and-undo.md` § The byte splice).
  */
 
 import type { CstNode } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import {
+	closed,
 	unfinishedReadings,
+	waitRunsPast,
 	waitingAboveClosedBy,
 	type GrammarView
 } from '../schema/block-openers';
@@ -174,7 +176,7 @@ function readAgain(
 			}
 			const read = span.hi === last ? readTail(start, span.changes) : readUpTo(span, start, k);
 			if (!read) span.hi = Math.min(last, span.hi + grow);
-			else if ('closerAt' in read) span.hi = read.closerAt;
+			else if ('readTo' in read) span.hi = read.readTo;
 			else {
 				if (read.suffix !== undefined) suffix = read.suffix;
 				windows.push(trimmed(doc, span.lo, span.hi, carried, read.blocks));
@@ -208,7 +210,7 @@ function readAgain(
 		span: Span,
 		start: number,
 		k: number
-	): { blocks: CstNode[]; suffix?: undefined } | { closerAt: number } | null {
+	): { blocks: CstNode[]; suffix?: undefined } | { readTo: number } | null {
 		const { hi } = span;
 		if (isBlankParagraph(children[k])) return null;
 		const head = changedBytes(before, start, starts.end(hi), span.changes);
@@ -222,16 +224,19 @@ function readAgain(
 		while (m < blocks.length && at < head.length)
 			at += blocks[m].leadingTrivia.length + blocks[m++].raw.length;
 		if (at !== head.length || !standsBelow(children, hi, k, blocks.slice(m))) return null;
+		// A block still waiting past the read's end reads on as far as its wait can run.
+		const runsTo = waitRunsPast(blocks, (i) => children[i], k, last, readings);
+		if (runsTo >= 0) return k === last ? null : { readTo: runsTo };
 		// A block the window leaves waiting on a closer reads on to the first line below that may be it.
 		const closerAt = closerBelow(blocks.slice(0, m), hi);
-		return closerAt < 0 ? { blocks: blocks.slice(0, m) } : { closerAt };
+		return closerAt < 0 ? { blocks: blocks.slice(0, m) } : { readTo: closerAt };
 	}
 
 	/** The first block below `hi` with a line that may close one `read` leaves waiting, or -1. */
 	function closerBelow(read: readonly CstNode[], hi: number): number {
-		// A reading no line closes (a link definition's) waits on nothing below.
-		const waiting = readings.filter(
-			(reading) => reading.closer !== null && read.some((block) => reading.notFinal(block.raw))
+		// A wait no line closes was read on above, as far as it runs.
+		const waiting = closed(readings).filter((reading) =>
+			read.some((block) => reading.notFinal(block.raw))
 		);
 		if (waiting.length === 0) return -1;
 		const closes = (line: { text: string }) => waiting.some((r) => r.mayClose(line.text));

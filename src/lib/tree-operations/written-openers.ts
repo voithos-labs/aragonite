@@ -18,6 +18,7 @@ import {
 	unfinishedReadings,
 	waitingReading,
 	type GrammarView,
+	type ClosedReading,
 	type UnfinishedReading
 } from '../schema/block-openers';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
@@ -52,7 +53,7 @@ export function writtenOpenerClosers(
 		const start = at + block.leadingTrivia.length;
 		at = start + block.raw.length;
 		const reading = waitingReading(block.raw, readings);
-		if (!reading?.closer) continue;
+		if (!reading) continue;
 		const lineEnd = start + firstDisplayLine(block.raw).text.length;
 		// An opener the write only exposed reads on as a reload reads it, closer and all.
 		if (span.start > lineEnd || span.end < start) continue;
@@ -154,7 +155,7 @@ function takesBlocksBelow(
 	text: string,
 	parsed: Document,
 	k: number,
-	reading: UnfinishedReading,
+	reading: ClosedReading,
 	read: FragmentReader
 ): boolean {
 	let bytes = text;

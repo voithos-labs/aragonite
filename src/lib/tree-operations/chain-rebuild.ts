@@ -12,12 +12,16 @@ import { documentBody, spliceList, type BodyParent, type NodeParent } from './no
 import { ensureEditableContainers } from '../schema/opened-reading';
 import { replacePreservingFirst, type StructuralChange } from './structural-change';
 import { dropChildSpans, type ChildRawChange } from '../schema/child-spans';
-import type { GrammarView } from '../schema/block-openers';
+import { unfinishedReadings, type GrammarView } from '../schema/block-openers';
+import { blockFacts } from '../schema/block-facts';
 import { firstLine, followBytes, lastLine } from '../schema/container-raw';
 import { reservedChromeKindOf, rowMarker } from '../schema/reserved-chrome';
 import { perfEnabled, recordRebuildDepth } from '../perf/instruments';
+import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
+import { checkWrittenInPlaceReadsBack } from '../invariants/settled-window-reads-back';
 import { rebuildOwnedContainer, walkUnsharing } from './unshare';
-import { mergeJoinsAt, type TrackedPosition } from './fix-up/apply';
+import { mergeJoinsAt, rereadWaitAt, type TrackedPosition } from './fix-up/apply';
+import { waitsInto } from './container-window';
 import { installReading } from './content-write';
 import { settleSublistSeparator } from './list/sublist-separator';
 
@@ -118,41 +122,49 @@ export function rebuildUnsharedChain(
 		const closerMoved = lastLine(rawBefore) !== lastLine(node.raw);
 		const whole = rereads || spilled !== null || (shared?.readsWhole.has(node) ?? false);
 		spilled = null;
-		if (!openerMoved && !closerMoved && !whole) continue;
-
+		const moved = openerMoved || closerMoved;
 		const owner = i === 0 ? null : chain[i - 1];
+		// A blank line above ends every wait, so only a container flush under a block is asked.
+		const mayBeWaitedOn =
+			folds !== null && node.leadingTrivia === '' && rawBefore !== node.raw && holdsBlocks(owner);
+		if (!moved && !whole && !mayBeWaitedOn) continue;
+
 		const siblings = (owner ?? root).children;
 		const index = siblings ? childIndexOf(siblings, node, hint?.path[i]) : -1;
 		if (!siblings || index < 0) continue;
 
-		const reading = followBytes(node, rawBefore, grammar, {
-			titleRowOnly: changed !== undefined && onlyTitleChanged(node, changed),
-			whole
-		});
-		const replacement = installReading({ children: siblings }, index, reading, grammar);
-		if (replacement) {
-			sharing.stamp(replacement);
-			reclassified.push({ siblings, index, previous: node, replacement });
-		} else if (reading.outcome === 'diverged' && reading.blocks.length > 0) {
-			spilled = { siblings, index, node, blocks: reading.blocks };
+		if (moved || whole) {
+			const reading = followBytes(node, rawBefore, grammar, {
+				titleRowOnly: changed !== undefined && onlyTitleChanged(node, changed),
+				whole
+			});
+			const replacement = installReading({ children: siblings }, index, reading, grammar);
+			if (replacement) {
+				sharing.stamp(replacement);
+				reclassified.push({ siblings, index, previous: node, replacement });
+			} else if (reading.outcome === 'diverged' && reading.blocks.length > 0) {
+				spilled = { siblings, index, node, blocks: reading.blocks };
+			}
 		}
-		if (!openerMoved && !closerMoved) continue;
 		// Before the join check, which then reads the fixed-up bytes: a list rebuilt down to an
 		// empty marker must give the paragraph above it a separating line.
 		if (openerMoved) settleSublistSeparator(siblings, index);
+		if (!folds) continue;
+		const slot = { body: slotBody(root, owner), owner, depth: i, index };
+		const here = siblings[index];
+		const before = folds.length;
 		// After the kind re-derive: the join check reads whatever occupies the position now.
-		if (folds) {
-			const before = folds.length;
-			settleSlotSeams(
-				{ body: slotBody(root, owner), owner, depth: i, index, openerMoved, closerMoved },
-				sharing,
-				folds,
-				grammar
-			);
-			// A merge re-divided the owner's children, so its child spans describe a shape that
-			// is gone.
-			if (folds.length > before && owner) dropChildSpans(owner);
+		if (moved) settleSlotSeams({ ...slot, openerMoved, closerMoved }, sharing, folds, grammar);
+		if (mayBeWaitedOn && !spilled && siblings[index] === here) {
+			settleSlotWait(slot, openerMoved, sharing, folds, grammar);
+			// Not while the perf rows count a keystroke's parses, since the check reads the run around.
+			if (!perfEnabled())
+				assertInvariant('settled-window-reads-back', () =>
+					checkWrittenInPlaceReadsBack(slot.body, index, grammar)
+				);
 		}
+		// A merge re-divided the owner's children, so its child spans describe a shape that is gone.
+		if (folds.length > before && owner) dropChildSpans(owner);
 	}
 	if (spilled && floor > 0) shared!.readsWhole.add(chain[floor - 1]);
 	else if (spilled && folds) spliceSpill(spilled, sharing, folds);
@@ -292,6 +304,34 @@ function settleSlotSeams(
 		before: before!,
 		landing
 	});
+}
+
+/** Whether `owner`'s children are blocks: an item or a row is none, so no wait runs into one. */
+function holdsBlocks(owner: CstNode | null): boolean {
+	const lines = owner && blockFacts(owner.kind).lines;
+	return lines !== 'items' && lines !== 'rows';
+}
+
+/** Reads again from a block above the rebuilt container that waits where it starts, under a
+ *  reading no line closes: the container's new bytes can change that block. */
+function settleSlotWait(
+	slot: Pick<ChainSlot, 'body' | 'owner' | 'depth' | 'index'>,
+	openerMoved: boolean,
+	sharing: SharingState,
+	folds: AncestrySeamFold[],
+	grammar: GrammarView
+): void {
+	const { body, index } = slot;
+	const siblings = body.children;
+	// A first line that moved can end a wait itself; below it, only a wait that ran past it matters.
+	if (!openerMoved && !waitsInto(siblings, index, unfinishedReadings(grammar))) return;
+	let before: CstNode[] | null = null;
+	const landing: TrackedPosition = { index, offset: 0 };
+	const change = rereadWaitAt(body, index, grammar, sharing, landing, () => {
+		before ??= siblings.slice();
+	});
+	if (change.op === 'noop') return;
+	folds.push({ depth: slot.depth, siblings, owner: slot.owner, change, before: before!, landing });
 }
 
 /**

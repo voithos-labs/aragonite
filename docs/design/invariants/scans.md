@@ -243,6 +243,8 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.342 | A range edit parses and measures the blocks its range reaches, not the document | harness |
 | G4.344 | A paste makes one clipboard read, in one module | L |
 | G4.345 | No production module imports the paste dispatch the range-edit core replaced | L |
+| G4.346 | The look for a wait asks each pair of blocks once while both keep their bytes, so a second key at the foot of a long run asks a few | harness |
+| G4.347 | A byte splice's window holds every block whose wait reaches the change, and what it asks to find them grows no faster than the run | harness |
 | G4.349 | A range edit lays out the container lines it asks for, each the line the whole container pairs | harness |
 
 ### The entries
@@ -702,7 +704,11 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.340 · A position costs its path.** Every write route (`test/harness/write-routes.ts`), with a listener asking a position on every edit, measures as many top-level blocks at 400 as at 40, unless it names no blocks; with no listener, none, unless the write reads positions to make itself. A byte splice measures as many at 400 as at 40. `measured(doc)` measures every block it's handed, so its callers are a declared list. `test/perf/top-level-starts-reads.test.ts`, `splice-top-level-cost.test.ts`, `lint/measured-callers.test.ts`.
 
-**G4.342 · A range edit costs its range.** The editor's host (`range-edit/host.ts :: rangeHost`) reads the core's answer through the byte splice's windowed read, as a fresh parse gives it, and the commit takes that reading (`tree-operations/byte-splice.ts :: spliceReading`), so a range route or a copy parses and measures as much at 400 blocks as at 40. Recorded: each serializes the document once, and a removal walks the top-level list three times. `test/perf/range-edit-window-cost.test.ts`, `test/range-edit/answer-read.property.test.ts`.
+**G4.342 · A range edit costs its range.** `range-edit/host.ts :: rangeHost` reads the core's answer through the byte splice's windowed read and the commit takes that reading (`tree-operations/byte-splice.ts :: spliceReading`), so a range route or a copy parses and measures as much at 400 blocks as at 40. Given a tree that is the parse of its bytes, each read is what a fresh parse gives (G4.347). Recorded: each commit serializes the document once, and a removal walks the top-level list three times. `test/perf/range-edit-window-cost.test.ts`, `test/range-edit/answer-read.property.test.ts`.
+
+**G4.346 · A key asks a long run once.** The look for a wait (`schema/block-openers.ts :: waitingPast`) keeps each pair's first answer while both blocks, the readings and the paragraph interrupts stand. A second key at the foot of 2,000 or 8,000 flush definitions asks the same few and reads each block once: 0.4 and 1.6 ms in Chromium. G1.214 skips a run past 16 KB, so a differential guards it: the kept look equals one that keeps nothing, step by drawn step. `test/perf/keystroke-wait-cost.svelte.test.ts`, `test/schema/wait-look-memo.svelte.test.ts`, `test/range-laws/wait-look-session.test.ts`.
+
+**G4.347 · A window covers a wait.** Given a tree that is the parse of its bytes, a byte splice reads from the highest block waiting at the change under a reading no line closes, until no block it read waits past it, and at the top level where the wait runs into a container (`schema/block-openers.ts :: waitingAboveThrough`). A tree wrong outside the window stays so. In a run with no blank line it parses the same bytes at N lines as at 4N, and its asks grow as the run does. `test/tree-operations/byte-splice.test.ts`, `splice-window-declared-reach.test.ts`, `test/perf/splice-look-cost.test.ts`.
 
 **G4.344 · One clipboard read.** Only `browser/clipboard.ts` calls `getData` or `clipboard.readText`: `readPasteEvent` takes every type of a paste event's data at once, the editor's own entry and the plain-paste chord with it, and `readClipboard` the system clipboard's text. A second read sees less, or another clipboard. The input recorder copies a payload and writes nothing. `lint/file-rules.test.ts`.
 

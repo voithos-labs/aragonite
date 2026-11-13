@@ -10,8 +10,7 @@ import type { NodeView } from '../core/node-views';
 import { isBlankParagraph } from '../core/parser';
 import { splitLines } from '../core/lines';
 import { countsAfterRewrite } from '../core/parsers/list';
-import { matchSetextUnderline } from '../core/parsers/paragraph';
-import { lineInterruptsParagraph, type UnfinishedReading } from '../schema/block-openers';
+import { waitRunsPast, waitingAboveThrough, type UnfinishedReading } from '../schema/block-openers';
 import { blockFacts } from '../schema/block-facts';
 import { spanHolding } from '../schema/child-spans';
 import { assignChildIdsDeep, keepUnchangedDeep } from '../block-id';
@@ -53,12 +52,15 @@ export function containerWindow(
 	}
 	// Child 0 holds the container's own first line, and a table's header sits above its delimiter.
 	if (first < 1 || reachesPast(top.before, changes, top.readings)) return null;
+	if (waitsInto(top.doc.children, t, top.readings)) return null;
 	// Every item and every quote line opens its container again; a table's rows need its head.
 	const head = lines === 'rows' ? 1 : 0;
 	// A row or an item is no block of its own, so none of them waits on a line below it.
-	const lo = windowStart(kids, first, head, lines === 'every-line' ? top.readings : []);
+	const readings = lines === 'every-line' ? top.readings : [];
+	const lo = windowStart(kids, first, head, readings);
 	const run: Run = {
 		top,
+		readings,
 		t,
 		lo,
 		hi,
@@ -87,6 +89,10 @@ export function containerWindow(
 			run.hi = Math.min(kids.length - 1, run.hi + grow);
 			continue;
 		}
+		if (now.waitsTo !== undefined) {
+			run.hi = now.waitsTo;
+			continue;
+		}
 		const window = {
 			at: t,
 			count: 1,
@@ -100,7 +106,7 @@ export function containerWindow(
 // ── Where a window starts ────────────────────────────────────────────────────
 
 /** The block a window starts at for a change beginning in block `first`: the last one above with
- *  text, or a block higher up that waits on lines below it, as a definition does on its title. */
+ *  text, or a block higher up whose wait reaches that far, as a definition's does for its title. */
 export function windowStart(
 	blocks: readonly NodeView[],
 	first: number,
@@ -110,26 +116,8 @@ export function windowStart(
 	let lo = first - 1;
 	while (lo > floor && isBlankParagraph(blocks[lo])) lo--;
 	lo = Math.max(lo, floor);
-	const unclosed = readings.filter((reading) => reading.closer === null);
-	if (unclosed.length === 0) return lo;
-	const waits = (block: NodeView) => unclosed.some((reading) => reading.notFinal(block.raw));
-	let start = lo;
-	for (let i = lo; i > floor; i--) {
-		// A blank line above a block, or a first line no paragraph runs on to, is where a wait ends.
-		if (blocks[i].leadingTrivia !== '' || startsApart(blocks[i].raw)) break;
-		if (!waits(blocks[i - 1])) continue;
-		// A waiting block right under another one took the line the upper one waited on.
-		if (waits(blocks[i])) break;
-		start = i - 1;
-	}
-	return start;
-}
-
-/** Whether a block's first line is one a paragraph above it would not run on to. */
-function startsApart(raw: string): boolean {
-	const end = raw.indexOf('\n');
-	const line = (end < 0 ? raw : raw.slice(0, end)).replace(/\r$/, '');
-	return lineInterruptsParagraph(line) || matchSetextUnderline(line) !== null;
+	const waiting = waitingAboveThrough((i) => blocks[i], lo, floor, readings);
+	return waiting < 0 ? lo : waiting;
 }
 
 // ── Where a window stops ─────────────────────────────────────────────────────
@@ -163,6 +151,8 @@ export function standsBelow(
 /** Children `[lo, hi]` of top-level block `t`, read from byte `start` of its raw. */
 interface Run {
 	top: TopLevel;
+	/** The readings a child of the container may wait under; none where a child is no block. */
+	readings: readonly UnfinishedReading[];
 	t: number;
 	lo: number;
 	hi: number;
@@ -178,6 +168,8 @@ interface RunRead {
 	metadata: CstNode['metadata'];
 	/** The document's trailing blank line, when the read ran to its end. */
 	suffix?: string;
+	/** Set where a block of the read still waits past its end: the child its wait can run on to. */
+	waitsTo?: number;
 }
 
 /** `text` read in the run's place, the way the document reads it: `moved` where the run's end or
@@ -211,7 +203,12 @@ function readRun(run: Run, text: string): RunRead | 'moved' | 'mismatch' {
 	const runSpans = readSpans.slice(head * 2, (m + 1) * 2).map((at) => at - headText.length);
 	const found = { blocks, spans: runSpans, metadata: container.metadata };
 	const below = container.children.slice(m + 1);
-	if (!last) return standsBelow(kids, hi, k, below) ? found : 'moved';
+	if (!last) {
+		if (!standsBelow(kids, hi, k, below)) return 'moved';
+		// Asked of the new bytes alone: the bytes as they stood read as held, wait and all.
+		const to = waitRunsPast(container.children, (i) => kids[i], k, kids.length - 1, run.readings);
+		return { ...found, waitsTo: to < 0 ? undefined : to };
+	}
 	const ownTail = container.innerSuffix ?? '';
 	if (below.length > 0 || ownTail !== (node.innerSuffix ?? '')) return 'moved';
 	const tops = top.doc.children;
@@ -339,13 +336,25 @@ function reachesPast(
 	readings: readonly UnfinishedReading[]
 ): boolean {
 	const opens = (text: string) =>
-		readings.some((reading) => reading.mayClose(text) || reading.notFinal(text + '\n'));
+		readings.some((r) => (r.closer !== null && r.mayClose(text)) || r.notFinal(text + '\n'));
 	return changes.some((change) =>
 		[...writtenLines(before, change), ...takenLines(before, change)].some((line) => {
 			const quoted = line.replace(/^[ \t>]*/, '');
 			return [line, quoted, quoted.replace(/^(?:[-+*]|\d{1,9}[.)])[ \t]+/, '')].some(opens);
 		})
 	);
+}
+
+/** Whether a block above `blocks[at]` still waits at the end of that block's first line, under a
+ *  reading no line closes: a change further down in the block can alter the one that waits. */
+export function waitsInto(
+	blocks: readonly NodeView[],
+	at: number,
+	readings: readonly UnfinishedReading[]
+): boolean {
+	const { raw, leadingTrivia } = blocks[at];
+	const opening = { raw: raw.slice(0, raw.indexOf('\n') + 1 || raw.length), leadingTrivia };
+	return waitingAboveThrough((i) => (i === at ? opening : blocks[i]), at, 0, readings) >= 0;
 }
 
 const sameMetadata = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
