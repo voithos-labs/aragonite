@@ -137,7 +137,8 @@ function across(
 	const joins = opening === null && (takesPlace || (first !== undefined && takes(first))) && ends;
 	const head = held ? null : leafAt(doc, from);
 	if (joins && head && end && head.leaf !== end.leaf) return joinedLeaves(doc, from, to, head, end);
-	const lines = held ? wholeLines(doc, from, to) : null;
+	const closing = closers(doc, from, to);
+	const lines = held ? wholeLines(doc, from, to, closing !== '') : null;
 	let tail = lines?.tail ?? source.slice(to);
 	// Where no text joins it, each end the range leaves is cut through its own block's write; a
 	// range ending in the start block's own trailing syntax splices the bytes alone.
@@ -177,16 +178,29 @@ function across(
 			const gone = kept ? /^[ \t>]*\r?\n/ : /^[ \t>]*(?=\r?\n|$)/;
 			tail = kept + (lineGoes ? rest.replace(gone, '') : rest);
 		}
-		if (tail !== '' && !first && !(lineGoes && kept === '')) tail = doc.ending + tail;
+		// A start line taken whole has ended already.
+		const ended = /\n$/.test(before);
+		if (tail !== '' && !first && !ended && !(lineGoes && kept === '')) tail = doc.ending + tail;
 	}
 	const joined = before + tail;
-	const closerAt = lineEndBefore(joined, before.length);
-	const closed = withClosers(doc, from, to, joined, closerAt);
+	const opens = /^\r?\n/.exec(tail)?.[0].length ?? 0;
+	// The closing lines stand under what is left of their containers: after the start's line, or,
+	// where that line went whole and the tail goes on from its markers, above the tail as whole lines.
+	const marks = lineHead(joined, before.length);
+	const lineGone =
+		(!!lines || !joins) &&
+		before.length > marks.length &&
+		/^[ \t>]*$/.test(marks) &&
+		(marks === '' || !opens);
+	const lead = /^\r?\n/.exec(closing)?.[0] ?? '';
+	const closerAt = lineGone ? before.length - marks.length : lineEndBefore(joined, before.length);
+	const closer = lineGone ? closing.slice(lead.length) + lead : closing;
+	const closed = joined.slice(0, closerAt) + closer + joined.slice(closerAt);
 	// The tail's line: the one `before` ends on behind its markers, or the next where the tail
 	// opens with a line ending.
-	const opens = /^\r?\n/.exec(tail)?.[0].length ?? 0;
 	const lowerLine = joined.lastIndexOf('\n', before.length + opens - 1) + 1;
-	const at = lowerLine > closerAt ? lowerLine + closed.length - joined.length : lowerLine;
+	const shifts = lineGone ? lowerLine >= closerAt : lowerLine > closerAt;
+	const at = shifts ? lowerLine + closed.length - joined.length : lowerLine;
 	// Where blocks go whole from the start, the sibling before the first of them (none where it led a
 	// container, whose own neighbours touched before), else the start's own block.
 	const upper =
@@ -253,9 +267,9 @@ function cutLeaf(doc: Doc, leaf: LaidBlock, at: number, side: 'after' | 'before'
 	return { ...written, end: contentEnd(doc, leaf) + shift, raw: write.bytes };
 }
 
-/** Blocks taken whole go with their line (behind markers, the next line's markers go instead), and
- *  with the blank line after them where one stands before them too. Null: it stays. */
-function wholeLines(doc: Doc, from: number, to: number) {
+/** Blocks taken whole go with their line (behind markers, the next line's go instead), and with the
+ *  blank line after them where one stands before too and no kept closing line between. Null: stays. */
+function wholeLines(doc: Doc, from: number, to: number, closed: boolean) {
 	const { source } = doc;
 	const marks = lineHead(source, from);
 	const holder = containersAt(doc, from, 'start').at(-1);
@@ -267,7 +281,7 @@ function wholeLines(doc: Doc, from: number, to: number) {
 	let tail = ending === undefined ? '' : source.slice(to + ending.length);
 	// A document emptied whole keeps its last line ending, as the line its one empty block holds.
 	if (ending === undefined || (above === '' && tail === '')) return null;
-	tail = tail.slice(blankBelowGoes(above, tail));
+	tail = tail.slice(closed ? 0 : blankBelowGoes(above, tail));
 	if (marks !== '' && !tail.startsWith(marks)) return null;
 	return { before: source.slice(0, from), tail: tail.slice(marks.length), caret: from };
 }
