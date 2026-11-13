@@ -86,6 +86,10 @@ const OPENER_ROWS: Record<string, Row> = {
 		{ bare: true }
 	),
 	'a directive holding a heading': row(`x\n:::foo\n# in\n:::${TAIL}`, [1, 0]),
+	'an admonition holding code with a blank line in it': row(
+		`x\n:::tip\n\`\`\`\na\n\nb\n\`\`\`\n:::${TAIL}`,
+		[1, 0]
+	),
 	'an admonition under a heading': row(`# x\n:::tip\nner\n:::${TAIL}`, [1, 0]),
 	'an admonition under a blank line': row(`x\n\n:::tip\nner\n:::${TAIL}`, [1, 0]),
 	'an admonition over a paragraph': row(`:::tip\nner\n:::\nmore${TAIL}`, [0, 0]),
@@ -147,6 +151,17 @@ const LAZY_LINE_ROWS: Record<string, Row> = {
 	}),
 	'the same in a quote': row(`> - item\n> text\n> 3. three${TAIL}`, [0, 0, 0, 0], {
 		gesture: { type: '>' }
+	}),
+	// A bare marker can't interrupt the paragraph above, so the list takes a blank line there.
+	'an item emptied over its lazy line, under a paragraph': row(
+		`x\n- item\ntext${TAIL}`,
+		[1, 0, 0],
+		{ to: 4, gesture: { remove: 'Backspace' }, bytes: `x\n\n- \ntext${TAIL}` }
+	),
+	'the same under a title that has started': row(`[a]: /u\n't\n- item\ntext'${TAIL}`, [2, 0, 0], {
+		to: 4,
+		gesture: { remove: 'Backspace' },
+		bytes: `[a]: /u\n't\n\n- \ntext'${TAIL}`
 	})
 };
 

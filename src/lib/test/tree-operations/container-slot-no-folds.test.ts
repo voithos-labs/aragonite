@@ -35,6 +35,7 @@ describe('a replace that dissolves a container', () => {
 			where: 'a nested opener line under a blank line',
 			source: '::::note\nx\n\n:::tip\nner\n:::\n::::\n',
 			path: [0, 2, 0],
+			end: 1,
 			text: 'x:',
 			bytes: '::::note\nx\n\nx:::tip\nner\n:::\n::::\n'
 		},
@@ -42,6 +43,7 @@ describe('a replace that dissolves a container', () => {
 			where: 'a nested opener line flush under a paragraph',
 			source: '::::note\nx\n:::tip\nner\n:::\n::::\n',
 			path: [0, 2, 0],
+			end: 1,
 			text: 'x:',
 			bytes: '::::note\nx\nx:::tip\nner\n:::\n::::\n'
 		},
@@ -49,14 +51,23 @@ describe('a replace that dissolves a container', () => {
 			where: 'an item with a lazy line, in a quote',
 			source: '> - item\n> text\n> 3. three\n',
 			path: [0, 0, 0, 0],
+			end: 1,
 			text: '>i',
 			bytes: '> - >item\n> text\n> 3. three\n'
+		},
+		{
+			where: 'an item emptied over its lazy line, in a quote under a paragraph',
+			source: '> x\n> - item\n> text\n',
+			path: [0, 1, 0, 0],
+			end: 4,
+			text: '',
+			bytes: '> x\n>\n> - \n> text\n'
 		}
-	])('re-reads the block whole at $where', async ({ source, path, text, bytes }) => {
+	])('re-reads the block whole at $where', async ({ source, path, end, text, bytes }) => {
 		const { deps } = makeEditorActionsDeps(parse(source));
 		const replace = createSearchReplace(deps, createUndoController(deps));
 
-		await replace.replaceAll([{ path, start: 0, end: 1 }], text);
+		await replace.replaceAll([{ path, start: 0, end }], text);
 
 		expect(serialize(deps.doc)).toBe(bytes);
 		expect(describeConvergence(deps.doc)).toBeNull();
