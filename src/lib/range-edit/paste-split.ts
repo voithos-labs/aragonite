@@ -52,18 +52,28 @@ export interface HostItem {
 	depth: number;
 }
 
-/** Enter at byte `caret` in a list item's own text, or at the item's end, opening an item of
- *  `host`'s kind at its depth: the next item holds what follows, the items under it numbered on. */
-export function enteredAt(doc: Doc, caret: number, host: HostItem): Edit | null {
+/** Enter at `caret`, where a paste ended, in a list holding an item the document had (its first byte
+ *  `own`) or nested in `host`, the item pasted in; under a pasted list alone, `host`'s next item. */
+export function enteredAt(
+	doc: Doc,
+	caret: number,
+	host: HostItem | undefined,
+	own: (byte: number) => boolean
+): Edit | null {
 	const there = itemHolding(doc, caret, caret);
 	const item = there?.item ?? endedItem(doc, caret);
 	const list = item && parentOf(doc, item);
 	if (!item || !list) return null;
 	// A list nested deeper than the host's item opens its own next item, as Enter there does.
-	const nested = item.path.length > host.depth;
-	const own = doc.host.itemAfter(doc.tree, item.path);
-	if (!nested && !itemsShareList(host.node, nodeAt(doc, item.path)))
-		return openedUnder(doc, list, host);
+	const nested = !!host && item.path.length > host.depth;
+	// The pasted items joined that list where it holds one of the document's of their own type.
+	const node = nodeAt(doc, item.path);
+	const joined = (nodeAt(doc, list.path).children ?? []).some((other, i) => {
+		const laid = doc.layout.block([...list.path, i]);
+		return !!laid && own(laid.from) && itemsShareList(other, node);
+	});
+	if (!nested && !joined) return host ? openedUnder(doc, list, host) : null;
+	const ownKind = doc.host.itemAfter(doc.tree, item.path);
 	const held = there?.held;
 	const none = { before: '', after: '', lead: '' };
 	const cut = held
@@ -72,7 +82,7 @@ export function enteredAt(doc: Doc, caret: number, host: HostItem): Edit | null 
 	const outer = continuation(doc, caret, (c) => c !== list);
 	const first = item.lineAt!(item.from);
 	const indent = /^[ \t]*/.exec(doc.source.slice(first.from, first.markerTo))![0];
-	const marker = nested ? own : numberedAs(host.marker, own);
+	const marker = host && !nested ? numberedAs(host.marker, ownKind) : ownKind;
 	const head = cut.head + doc.ending + outer + indent + marker;
 	const opened = { source: head + cut.rest, caret: head.length + cut.caret };
 	return numberedAfterTaking(doc, list, item.path.at(-1)! + 1, opened);

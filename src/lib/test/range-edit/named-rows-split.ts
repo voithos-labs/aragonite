@@ -717,11 +717,10 @@ const SEAM_ROWS: NamedRow[] = [
 		expect: { source: '- a\n- b\n', caret: { at: 7, holds: 'text' } }
 	},
 	{
-		name: 'M and after a list joined to the list under it, not on the line that went',
+		name: 'M and a list joined to the list under it takes the ending as its next item',
 		source: 'top\n\n⟦⟧\n- c\n',
 		gesture: paste('para\n\n- a\n- b\n'),
-		// The caret's line is no list item's, so the clipboard's last line ending stands for its own.
-		expect: { source: 'top\n\npara\n\n- a\n- b\n- c\n', caret: { at: 18, holds: 'text' } }
+		expect: { source: 'top\n\npara\n\n- a\n- b\n- \n- c\n', caret: { at: 21, holds: 'text' } }
 	},
 	...both(
 		'M a list pasted at a text caret on a list’s marker joins it',
@@ -866,25 +865,30 @@ const caretAt = (
 // no row pasted a list that joins the one under the caret's line, so no row read the line it opened.
 const LIST_ENDING_ROWS: NamedRow[] = [
 	caretAt(
-		'a list joining the list under the paragraph opens no line',
+		'a list joining the list under the paragraph opens its next item',
 		'abc⟦⟧\n- c\n',
 		'- one\n- two\n',
-		'abc\n\n- one\n- two\n- c\n',
-		16
+		'abc\n\n- one\n- two\n- \n- c\n',
+		19
 	),
 	...both(
 		'ordered too',
 		'abc⟦⟧\n1. c\n',
 		paste('1. one\n2. two\n'),
-		'abc\n\n1. one\n2. two\n1. c\n'
+		'abc\n\n1. one\n2. two\n3. \n4. c\n'
 	),
 	...both(
 		'in a quote',
 		'> abc⟦⟧\n> - c\n',
 		paste('- one\n- two\n'),
-		'> abc\n>\n> - one\n> - two\n> - c\n'
+		'> abc\n>\n> - one\n> - two\n> - \n> - c\n'
 	),
-	...both('after a paragraph', 'abc⟦⟧\n- c\n', paste('one\n\n- two\n'), 'abcone\n\n- two\n- c\n'),
+	...both(
+		'after a paragraph',
+		'abc⟦⟧\n- c\n',
+		paste('one\n\n- two\n'),
+		'abcone\n\n- two\n- \n- c\n'
+	),
 	onLine(
 		'a list it doesn’t join keeps the line',
 		'abc⟦⟧\n* c\n',

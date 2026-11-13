@@ -41,6 +41,7 @@ import {
 	shownDelimiters,
 	copiesLinesBeforeRange,
 	unboxedAt,
+	endsInListBeside,
 	type Read
 } from './expected';
 
@@ -510,12 +511,14 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 	if (input.mode === 'live' && /[*_`~[\]<]/.test(input.text)) return [];
 	const got = call(input.source, caretRange(input.at), paste(input.text, input.held), input.mode);
 	if (!got) return [];
-	// A last line ending pasted in a list item's text is Enter (`paste-ending-enter.test.ts`): it
-	// leaves the bytes before it, and the law holds the rest.
+	// A last line ending pasted in a list item's text, or ending a list the paste joins, is Enter
+	// (`paste-ending-enter.test.ts`): it leaves the bytes before it, and the law holds the rest.
 	const ended = /\r?\n$/.exec(input.text);
 	const rest = ended && input.text.slice(0, ended.index);
 	const bare =
-		rest !== null && input.held.holds === 'text' && inItemText(read, input.at, host)
+		rest !== null &&
+		input.held.holds === 'text' &&
+		(inItemText(read, input.at, host) || endsInListBeside(read, input.at, rest, host))
 			? call(input.source, caretRange(input.at), paste(rest, input.held), input.mode)
 			: null;
 	const enters = (read: Read, at: number) => inItemText(read, at, host) || endsItem(read, at, host);

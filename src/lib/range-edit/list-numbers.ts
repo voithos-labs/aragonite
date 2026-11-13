@@ -136,8 +136,8 @@ interface Marker {
 }
 
 /** An ordered item's number and where its digits sit; null for an item opening with none. */
-function markerOf(source: string, item: LaidBlock): Marker | null {
-	const line = item.lineAt?.(item.from);
+function markerOf(source: string, item: LaidBlock | undefined): Marker | null {
+	const line = item?.lineAt?.(item.from);
 	if (!line) return null;
 	const digits = /^[ \t]*(\d+)/.exec(source.slice(line.from, line.markerTo));
 	if (!digits) return null;

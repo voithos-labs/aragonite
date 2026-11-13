@@ -617,11 +617,12 @@ function sameList(
 
 /** `bytes`, a paste of `clip` at `at`, with a pasted list joined to a list of its own type flush
  *  under the caret's line, or over an empty paragraph: no blank line stands between items. */
-function joinedLists(read: Read, at: number, bytes: string, clip: Read, host: CheckHost): string {
+/** Which lists beside the caret's text block the clipboard `clip` joins: its last list the one flush
+ *  under the caret's line, and from an empty paragraph its first list the one above. */
+function listsJoined(read: Read, at: number, clip: Read, host: CheckHost) {
 	const target = leafAt(read, at);
 	if (!target || host.facts(target.type).body === 'literal' || inTitleRow(read, at, host))
-		return bytes;
-	// A list joins the one flush under any line; only an empty paragraph's joins the one above.
+		return null;
 	const empty = /^\r?\n?$/.test(treeNodeAt(read.tree, target.path)?.raw ?? '-');
 	const tops = clip.blocks.filter(
 		(b) => b.path.length === 1 && clip.source.slice(b.from, b.to).trim() !== ''
@@ -630,19 +631,41 @@ function joinedLists(read: Read, at: number, bytes: string, clip: Read, host: Ch
 		read.blocks.find(
 			(b) => b.path.join() === [...target.path.slice(0, -1), target.path.at(-1)! + step].join()
 		);
-	const lineOf = (source: string, byte: number) => source.lastIndexOf('\n', byte - 1) + 1;
 	const joins = (list: LaidBlock | undefined, pasted: LaidBlock | undefined, under: boolean) =>
 		sameList(read, list, clip, pasted, under, host);
-	let out = bytes;
 	const [upper, lower] = [beside(-1), beside(1)];
-	const flush = !!lower && lineOf(read.source, lower.from) === target.to;
-	if (flush && joins(lower, tops.at(-1), false)) {
+	const flush = !!lower && lineStartOf(read.source, lower.from) === target.to;
+	return {
+		target,
+		upper,
+		below: flush && joins(lower, tops.at(-1), false),
+		above: target.type === 'paragraph' && empty && joins(upper, tops[0], true),
+		alone: tops.length === 1
+	};
+}
+
+const lineStartOf = (source: string, byte: number) => source.lastIndexOf('\n', byte - 1) + 1;
+
+/** Whether a paste of `text` at `at` ends in a list beside the caret's block that it joins, where a
+ *  last line ending is Enter in that list. */
+export function endsInListBeside(read: Read, at: number, text: string, host: CheckHost): boolean {
+	const joined = listsJoined(read, at, readOf(host, lf(text)), host);
+	return !!joined && (joined.below || (joined.above && joined.alone));
+}
+
+/** `bytes` with the pasted lists joined to the lists beside the caret's block they join. */
+function joinedLists(read: Read, at: number, bytes: string, clip: Read, host: CheckHost): string {
+	const joined = listsJoined(read, at, clip, host);
+	if (!joined) return bytes;
+	const { target, upper } = joined;
+	let out = bytes;
+	if (joined.below) {
 		const line = target.to + bytes.length - read.source.length;
-		const above = lineOf(out, line - 1);
+		const above = lineStartOf(out, line - 1);
 		if (/^[ \t>]*\r?\n$/.test(out.slice(above, line))) out = out.slice(0, above) + out.slice(line);
 	}
-	if (target.type === 'paragraph' && empty && joins(upper, tops[0], true))
-		out = out.slice(0, upper!.to) + out.slice(lineOf(read.source, target.from));
+	if (joined.above)
+		out = out.slice(0, upper!.to) + out.slice(lineStartOf(read.source, target.from));
 	return out;
 }
 
