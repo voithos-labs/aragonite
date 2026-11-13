@@ -90,8 +90,8 @@ function ranOnce(transform: Pasted['transform']): Pasted['transform'] {
 	};
 }
 
-/** A last line ending is Enter where what was pasted ends in a list, or in a list item's text an
- *  item of that item's kind; null where it opens a line of the caret's block instead. */
+/** The clipboard's last line endings as Enters, where what was pasted ends in a list or a list
+ *  item's text, each where the one before left the caret; null where they land as lines instead. */
 function entered(
 	doc: Doc,
 	from: number,
@@ -99,9 +99,10 @@ function entered(
 	pasted: Pasted,
 	seen: { blocks?: Doc }
 ): Edit | null {
-	const ending = pasted.plain ? null : /\r?\n$/.exec(pasted.text);
-	if (!ending || pasted.held.holds !== 'text') return null;
-	const text = pasted.text.slice(0, ending.index);
+	const endings = pasted.plain ? null : /(?:\r?\n)+$/.exec(pasted.text);
+	if (!endings || pasted.held.holds !== 'text') return null;
+	const text = pasted.text.slice(0, endings.index);
+	const count = endings[0].match(/\n/g)!.length;
 	const leaf = leafHolding(doc, from, to)?.leaf;
 	// Literal text takes the ending as a line of its own text.
 	if (leaf && factsOf(doc, leaf).body === 'literal') return null;
@@ -110,13 +111,14 @@ function entered(
 	if (!host && !endsOnList(doc, text)) return null;
 	// The transforms see the whole clipboard, as they would where the ending lands anywhere else.
 	const { transform } = pasted;
+	const lines = '\n'.repeat(count);
 	const whole = (text: string) =>
-		transform!(text + '\n', readDoc(text + '\n', doc.host, doc.mode).tree);
+		transform!(text + lines, readDoc(text + lines, doc.host, doc.mode).tree);
 	const rest: Pasted = {
 		...pasted,
 		text,
 		ended: true,
-		transform: transform && ((text) => whole(text).replace(/\n$/, ''))
+		transform: transform && ((text) => whole(text).replace(new RegExp(`\\n{0,${count}}$`), ''))
 	};
 	const bare = landedAt(doc, from, to, rest, seen);
 	const path = host?.item.path;
@@ -131,7 +133,23 @@ function entered(
 	const head = sharedPrefixLength(doc.source, bare.source, shorter);
 	const tail = sharedSuffixLength(doc.source, bare.source, shorter - head);
 	const own = (byte: number) => byte < head || byte >= bare.source.length - tail;
-	return enteredAt(after, bare.caret, kind, own);
+	let edit = enteredAt(after, bare.caret, kind, own);
+	for (let i = 1; edit && i < count; i++) edit = enteredAgain(doc, edit);
+	return edit;
+}
+
+/** `edit` with Enter where it left the caret: an item Enter takes out goes as the editor takes it
+ *  (`RangeHost.enterOut`), an item's text opens the next item, any other block takes a line ending. */
+function enteredAgain(doc: Doc, edit: Edit): Edit {
+	const now = { ...readDoc(edit.source, doc.host, doc.mode), ending: doc.ending };
+	const item = itemHolding(now, edit.caret, edit.caret)?.item;
+	const out = item && doc.host.enterOut(now.tree, item.path);
+	if (out) return out;
+	const next = item && enteredAt(now, edit.caret, undefined, () => true);
+	if (next) return next;
+	const line: Pasted = { text: '\n', plain: false, held: { holds: 'text' }, transform: null };
+	const { source, caret } = pasteAt(now, edit.caret, edit.caret, line);
+	return { source, caret };
 }
 
 /** Whether the clipboard's last block is a list. */

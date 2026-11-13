@@ -2639,7 +2639,9 @@ const RANGE_INDENT: ManifestRule[] = [
 		declared: {
 			[ITEM_MOVES_HOME]: 'defines the two moves, and the lift’s moves that one makes',
 			'src/lib/editor-actions/list-context.ts': 'one item, from a caret’s own Tab or Shift+Tab',
-			'src/lib/selection/cross-block/range-indent.ts': 'every item a range touches, from its Tab'
+			'src/lib/selection/cross-block/range-indent.ts': 'every item a range touches, from its Tab',
+			'src/lib/tree-operations/list/enter-out.ts':
+				'Enter on an empty nested item, on a copy, for a paste’s later line endings'
 		},
 		reason:
 			'a route that moves list items itself splits what Tab means: a range’s items would nest one way and a caret’s another; call `nestListItem` or `liftNestedItem`, or `liftItemOut` off to the side',
