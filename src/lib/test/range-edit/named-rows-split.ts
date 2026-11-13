@@ -193,20 +193,72 @@ const EMPTIED_ROWS: NamedRow[] = [
 	),
 	// Miss-analysis: the give-way rows were headings; ruling 16 names an item the same way, and no
 	// row emptied one with blocks that join none of it.
-	...both('E an item a paste empties gives way', '- [ ] ⟦alpha⟧\n', paste(TABLE), '| a |\n| - |\n'),
-	...both('E a fence too', '- ⟦alpha⟧\n', paste('```\ncode\n```'), '```\ncode\n```\n'),
-	...both('E and the list numbers on', '1. ⟦n⟧\n2. c\n', paste(TABLE), '| a |\n| - |\n\n1. c\n'),
+	...both('E a to-do a paste empties gives way', '- [ ] ⟦alpha⟧\n', paste(TABLE), '| a |\n| - |\n'),
 	...both(
-		'E a middle item gives way between the list’s halves',
+		'E to a quote of lines too',
+		'- [ ] ⟦a⟧\n- [x] b\n',
+		paste('> q\n> r'),
+		'> q\n> r\n\n- [x] b\n'
+	),
+	// Miss-analysis: the rows above held only to-dos and items emptied whole, so nothing showed a
+	// plain item parting its list where `next` keeps the pasted blocks in it.
+	...both(
+		'E a to-do keeps its box under a one-line block with more after it',
+		'- [ ] ⟦a⟧\n- [x] b\n',
+		paste('# h\n\npara'),
+		'- [ ] # h\n\n  para\n- [x] b\n'
+	),
+	...both(
+		'E a plain item holds a fence',
+		'- ⟦alpha⟧\n',
+		paste('```\ncode\n```'),
+		'- ```\n  code\n  ```\n'
+	),
+	...both(
+		'E and a table, the list kept whole',
+		'1. ⟦n⟧\n2. c\n',
+		paste(TABLE),
+		'1. | a |\n   | - |\n2. c\n'
+	),
+	...both(
+		'E a middle item holds it too',
 		'- a\n- ⟦alpha⟧\n- c\n',
 		paste(TABLE),
-		'- a\n\n| a |\n| - |\n- c\n'
+		'- a\n- | a |\n  | - |\n- c\n'
+	),
+	...both(
+		'E and blocks after a heading, later lines indented',
+		'- ⟦a⟧\n- b\n',
+		paste('# h\n\npara'),
+		'- # h\n\n  para\n- b\n'
 	),
 	...both(
 		'E an item holding more keeps its marker',
 		'- ⟦alpha⟧\n  - sub\n',
 		paste(TABLE),
 		'- | a |\n  | - |\n  - sub\n'
+	),
+	// Miss-analysis: no row pasted at the caret in an empty item, which kept the blank line an empty
+	// paragraph keeps and turned the list loose.
+	...both('E an empty item takes a heading', '1. ⟦⟧\n2. c\n', paste('# h'), '1. # h\n2. c\n'),
+	...both(
+		'E a to-do too, its box kept',
+		'- [ ] ⟦⟧\n- [x] b\n',
+		paste('# h'),
+		'- [ ] # h\n- [x] b\n'
+	),
+	...both('E and a table', '- ⟦⟧\n- c\n', paste(TABLE), '- | a |\n  | - |\n- c\n'),
+	...both(
+		'E a line the pasted table would read as a row stays apart',
+		'- ⟦⟧\nafter\n',
+		paste(TABLE),
+		'- | a |\n  | - |\n\nafter\n'
+	),
+	...both(
+		'E a line that stays a block keeps none',
+		'- ⟦⟧\nafter\n',
+		paste('# h'),
+		'- # h\nafter\n'
 	),
 	...both(
 		'E text that joins keeps the heading',

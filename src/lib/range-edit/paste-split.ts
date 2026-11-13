@@ -430,13 +430,20 @@ export function splitAt(
 	const body = joined ? clip : clip.replace(/\n$/, '');
 	const opening = lines(body);
 	// An empty line that text follows right after stays, keeping the pasted blocks apart from it;
-	// a line the paste took the text of was never empty.
+	// a line the paste took the text of was never empty, nor is an empty item's, its marker's.
 	const under = Math.min(lineEnd(source, to) + 1, source.length);
 	const next = lineRest(source, pastMarkers(source, under));
-	const kept = at === to && !cut.follows && !isBlankText(next) ? eol + blank : '';
+	const emptied = at === to && !cut.follows && !isBlankText(next);
+	const item = emptied ? itemHolding(doc, at, to)?.item : undefined;
+	const kept = emptied && !item ? eol + blank : '';
 	const apart = eol + (body !== clip ? blank + eol : '') + prefix;
 	const taken = joined || (factsOf(doc, leaf).joins === 'text' && lastJoins && body === clip);
 	const closing = cut.follows ? (taken ? '' : apart) : kept;
 	const caret = head.length + opening.length + cut.caret;
-	return overRest({ source: head + opening + closing + cut.rest, caret });
+	const out = head + opening + closing + cut.rest;
+	// Under an empty item the next line gets a blank line only where the pasted blocks would read it
+	// in: no block beside them starts there.
+	const line = lineEnd(out, head.length + opening.length) + 1;
+	const readIn = item && !startsBlock(doc, out, line, item.path.length + 1);
+	return overRest({ source: readIn ? parted(doc, out, line, prefix, null) : out, caret });
 }

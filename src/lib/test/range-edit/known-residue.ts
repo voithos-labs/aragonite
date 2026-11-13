@@ -395,11 +395,7 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 		matches: (read, range) =>
 			read.blocks.some((b) => b.type === 'htmlBlock' && b.from === range.from) &&
 			blockHeldWhole(read, range)?.path.length !== 1,
-		repro: {
-			source: '- <!-- a note -->\n- <!-- a note -->\n',
-			mode: 'source',
-			range: { from: 2, to: 17 }
-		}
+		repro: { source: '</a>\n- alpha bravo\n', mode: 'source', range: { from: 0, to: 11 } }
 	},
 	{
 		gap: 'a range ending inside an HTML block it enters joins the rest of that line to where it began',
