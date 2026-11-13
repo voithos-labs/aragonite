@@ -6,7 +6,7 @@
  */
 
 import { getContentRange, structuralSuffix } from '../core/inline';
-import { isBlankText, type LineEnding } from '../core/lines';
+import { isBlankText, ownTrailingLineEnding, type LineEnding } from '../core/lines';
 import type { Mode, PasteHost, RangeHost } from './host';
 import { copyOf } from './copy';
 import {
@@ -102,6 +102,12 @@ export function editRange(
 	}
 	if (typeof gesture === 'string') return answer(removalEdit(doc, from, to, gesture));
 	if ('paste' in gesture) {
+		// The document's last line keeps the line ending it had, which blocks pasted after it spend.
+		const ending = ownTrailingLineEnding(source);
+		const ended = (result: RangeEditResult): RangeEditResult =>
+			!ending || !result.source || ownTrailingLineEnding(result.source)
+				? result
+				: { ...result, source: result.source + ending };
 		const own = gesture.plain ? undefined : gesture.own;
 		const back = own === undefined ? null : restored(source, from, to, own);
 		if (back) return answer(back);
@@ -127,8 +133,8 @@ export function editRange(
 			const kept = edit.leaf && caret.holds === 'text' && caret.at === edit.caret;
 			return kept ? { ...named, leaf: edit.leaf } : named;
 		};
-		if (from === to) return inPlace(pasteAt(doc, from, to, pasted(gesture)));
-		if (inOneText(doc, from, to)) return inPlace(pasteAt(doc, from, to, pasted(TEXT)));
+		if (from === to) return ended(inPlace(pasteAt(doc, from, to, pasted(gesture))));
+		if (inOneText(doc, from, to)) return ended(inPlace(pasteAt(doc, from, to, pasted(TEXT))));
 		// Across blocks the paste lands where the removal's caret does, as a cut's then a paste's
 		// would, and over one block held whole takes its place, as typed text does.
 		const removed = removalEdit(doc, from, to, 'type');
@@ -136,7 +142,7 @@ export function editRange(
 		const caret = caretOf(removed, after, 'start after', () => startedIn(doc, from));
 		const place = heldAlone(doc, from, to) ? TEXT : caret;
 		const over = pasteAt(after, caret.at, caret.at, pasted(place));
-		return lined({ ...answer(over), blocks: over.blocks ?? 0 });
+		return ended(lined({ ...answer(over), blocks: over.blocks ?? 0 }));
 	}
 	const { removed, clipboard, own } = taken(doc, from, to);
 	const { drop } = gesture;

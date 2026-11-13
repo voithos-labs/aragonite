@@ -472,7 +472,7 @@ export function expectedPaste(
 				? landedApart(read, at, lf(text), host)
 				: landedInGap(read, at, held.parent, lf(text), host);
 		const shape = held.holds === 'text' && !onSyntax ? 'on a line' : 'apart';
-		return bytes === null ? { shape: 'other', bytes: [] } : { shape, bytes };
+		return bytes === null ? { shape: 'other', bytes: [] } : { shape, bytes: bytes.map(ended) };
 	}
 	// A top-level heading with no text gives way to blocks that join none of it: they land on its
 	// line as on an empty one.
@@ -501,7 +501,13 @@ export function expectedPaste(
 	const container = !!last?.children?.length;
 	const apart = (bytes: string) => apartBelow(read, at, bytes, host, container);
 	const joined = (bytes: string) => joinedLists(read, at, bytes, readOf(host, lf(text)), host);
-	return { ...want, bytes: want.bytes.flatMap(apart).map(joined) };
+	return { ...want, bytes: want.bytes.flatMap(apart).map(joined).map(ended) };
+
+	/** `bytes` with the line ending the document's last line had, which a paste keeps. */
+	function ended(bytes: string): string {
+		const ending = /\r?\n$/.exec(read.source)?.[0];
+		return !ending || bytes === '' || bytes.endsWith('\n') ? bytes : bytes + ending;
+	}
 }
 
 /** `want`, blocks pasted at `at` with a last line ending and text after the caret: a blank line over

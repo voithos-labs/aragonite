@@ -150,10 +150,7 @@ export async function landAnswer(
 ): Promise<boolean> {
 	// A write since the answer was made (a listener to a removal's edit) leaves it no place.
 	if (ctx.bytes.source() !== base) return false;
-	// A block pasted at the document's end lands on its last line, whose line break stays under it.
-	const ending = ownTrailingLineEnding(base);
-	const kept = ownTrailingLineEnding(answer.source) || !answer.source ? '' : ending;
-	const landed = answer.source + kept;
+	const landed = answer.source;
 	const was = ctx.bytes.measured();
 	const { leaf } = answer;
 	const splice = (history?: UndoGrouping) =>

@@ -582,7 +582,7 @@ export const NAMED_ROWS: NamedRow[] = [
 		name: 'L9 in the gap after a quote, a pasted paragraph stays out of it',
 		source: '> a\n⟦⟧',
 		gesture: between('x'),
-		expect: { source: '> a\n\nx' }
+		expect: { source: '> a\n\nx\n' }
 	},
 	{
 		name: 'L9 with nothing after the gap, the clipboard’s last line ending stays',
@@ -597,25 +597,25 @@ export const NAMED_ROWS: NamedRow[] = [
 		name: 'L9 at a quote’s end, among the quote’s children, the paste lands inside it',
 		source: '> | a |\n> | - |\n⟦⟧',
 		gesture: between('x', [0]),
-		expect: { source: '> | a |\n> | - |\n>\n> x', caret: text(21) }
+		expect: { source: '> | a |\n> | - |\n>\n> x\n', caret: text(21) }
 	},
 	{
 		name: 'L9 at the same byte among an item’s children it lands in the item',
 		source: '> - a\n⟦⟧',
 		gesture: between('x', [0, 0, 0]),
-		expect: { source: '> - a\n>\n>   x' }
+		expect: { source: '> - a\n>\n>   x\n' }
 	},
 	{
 		name: 'L9 and among the quote’s, in the quote under its list',
 		source: '> - a\n⟦⟧',
 		gesture: between('x', [0]),
-		expect: { source: '> - a\n>\n> x' }
+		expect: { source: '> - a\n>\n> x\n' }
 	},
 	{
 		name: 'L9 and among the document’s, under the quote',
 		source: '> - a\n⟦⟧',
 		gesture: between('x'),
-		expect: { source: '> - a\n\nx' }
+		expect: { source: '> - a\n\nx\n' }
 	},
 	{
 		name: 'L9 at the end of a quote with no last line ending it opens a line of its own',
@@ -675,6 +675,26 @@ export const NAMED_ROWS: NamedRow[] = [
 		source: '# h\n⟦⟧para\n',
 		gesture: between('\nx\n\n'),
 		expect: { source: '# h\n\nx\n\npara\n' }
+	},
+	// Miss-analysis: the editor's paste kept the document's last line ending by hand (G1.41), so no
+	// row asked the core for it after the last block.
+	{
+		name: 'L9 after the last block, the document keeps its last line ending',
+		source: 'abc\n⟦⟧',
+		gesture: between('- x'),
+		expect: { source: 'abc\n\n- x\n', caret: text(8) }
+	},
+	{
+		name: 'L9 and in its own line ending',
+		source: 'abc\r\n⟦⟧',
+		gesture: between('- x'),
+		expect: { source: 'abc\r\n\r\n- x\r\n' }
+	},
+	{
+		name: 'L9 a document with no last line ending gains none',
+		source: 'abc⟦⟧',
+		gesture: between('- x'),
+		expect: { source: 'abc\n\n- x' }
 	},
 	{
 		name: 'L9 under a container’s title line the pasted block takes no blank line above',
