@@ -357,12 +357,9 @@ function landed(
 		const before = clip.startsWith('\n') ? '' : clip.slice(0, contentEnd(pasted, first));
 		const after = tailOf(lastJoins && (last !== first || before === ''));
 		const cut = cutWith(before, after, lead);
-		// Where nothing follows the cut, a last block that takes no text (code, a table) ends on the
-		// caret line's own ending, which stands for the clipboard's last one.
 		const visible = lineRest(cut.rest, 0) !== '';
-		const ownEnding = !lastJoins && !visible && clip.endsWith('\n');
 		const apart = !lastJoins && visible && !clip.endsWith('\n');
-		const text = ownEnding ? clip.slice(0, -1) : apart ? clip + '\n' : clip;
+		const text = apart ? clip + '\n' : clip;
 		const edit = around(cut, text.slice(before.length, text.length - after.length));
 		if (lastJoins) return restUnder(doc, edit, leaf, to, cut, lastRaw);
 		const ending = apart ? edit.source.lastIndexOf('\n', edit.caret - 1) : edit.caret;
@@ -389,9 +386,7 @@ function landed(
 		const { source, caret } = pasteAt(emptied, gone.from, gone.from, landing);
 		return { source: numberedOn(doc, gone.from, end, source), caret };
 	}
-	const ownEnding = !lastJoins && lineRest(cut.rest, 0) === '' && clip.endsWith('\n');
-	const text = ownEnding ? clip.slice(0, -1) : clip;
-	const mid = text.slice(0, text.length - after.length);
+	const mid = clip.slice(0, clip.length - after.length);
 	return splitAt(doc, leaf, from, to, cut, mid, lastJoins, lastRaw);
 }
 

@@ -9,8 +9,8 @@ and has no behavior of its own.
 ## Happy paths
 
 - Table markdown inserted at the end of a paragraph: the paste splits structurally, a
-  `table` block lands between the two halves, and the next keystroke appends inside the
-  inserted table's last cell.
+  `table` block lands between the two halves, and its last line ending opens an empty line
+  under it, where the next keystroke lands.
 - A table over a to-do's whole paragraph: the item gives its checkbox up with the paragraph,
   since a task marker stands in front of a paragraph and nothing else.
   - Miss-analysis: the task-marker rule was pinned on the routes a keystroke reaches, and the

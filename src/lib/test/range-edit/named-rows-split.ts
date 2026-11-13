@@ -728,6 +728,59 @@ const ENDING_ROWS: NamedRow[] = [
 	}
 ];
 
+/** A row in source mode whose caret lands on the empty line the clipboard's last ending opened. */
+const onLine = (name: string, source: string, clip: string, out: string, at: number): NamedRow => ({
+	name: `the ending stays, ${name}`,
+	source,
+	gesture: paste(clip),
+	expect: { source: out, caret: { at, holds: 'boundary', parent: [], line: true } }
+});
+
+// Miss-analysis: the ending rows pasted text, a heading or a list, which take the caret line's
+// text; no row ended on a fence or a rule, whose ending stood for the caret line's own.
+const KEPT_ENDING_ROWS: NamedRow[] = [
+	onLine('a fence at a paragraph’s end', 'abc⟦⟧\n', `${FENCE}\n`, 'abc\n\n```\nx\n```\n\n', 15),
+	onLine('a rule', 'abc⟦⟧\n', '---\n', 'abc\n\n---\n\n', 9),
+	onLine('a rule after a paragraph', 'abc⟦⟧\n', 'one\n\n---\n', 'abcone\n\n---\n\n', 12),
+	onLine(
+		'over the blank line under it',
+		'abc⟦⟧\n\nnext\n',
+		`${FENCE}\n`,
+		'abc\n\n```\nx\n```\n\n\nnext\n',
+		15
+	),
+	onLine('on an empty line', 'a\n\n⟦⟧\nb\n', '# h\n', 'a\n\n# h\n\nb\n', 7),
+	onLine('on an empty line over a blank one', 'a\n\n⟦⟧\n\nb\n', '# h\n', 'a\n\n# h\n\n\nb\n', 7),
+	onLine(
+		'a paragraph and a rule on an empty line',
+		'Loaded\n\n⟦⟧\n\tcode\n',
+		'Plan\n***\n',
+		'Loaded\n\nPlan\n***\n\n\tcode\n',
+		17
+	),
+	onLine('over a heading’s whole text', '# ⟦Title⟧\n', `${FENCE}\n`, '```\nx\n```\n\n', 10),
+	...both('in a quote', '> abc⟦⟧\n', paste(`${FENCE}\n`), '> abc\n>\n> ```\n> x\n> ```\n>\n'),
+	...both('live too', 'abc⟦⟧\n', paste('---\n'), 'abc\n\n---\n\n'),
+	{
+		name: 'the ending stays, an item’s next item after a fence',
+		source: '- abc⟦⟧\n- d\n',
+		gesture: paste(`${FENCE}\n`),
+		expect: { source: '- abc\n\n  ```\n  x\n  ```\n- \n- d\n', caret: { at: 25, holds: 'text' } }
+	},
+	...both(
+		'numbered on after a rule',
+		'1. abc⟦⟧\n2. d\n',
+		paste('---\n'),
+		'1. abc\n\n   ---\n2. \n3. d\n'
+	),
+	...both(
+		'an unchecked to-do after a table',
+		'- [x] abc⟦⟧\n',
+		paste(`${TABLE}\n`),
+		'- [x] abc\n\n  | a |\n  | - |\n- [ ] \n'
+	)
+];
+
 // Miss-analysis: the taker branch built an ordered list's new items and no row read the numbers of
 // the items under them.
 const NUMBER_ROWS: NamedRow[] = [
@@ -741,6 +794,7 @@ const NUMBER_ROWS: NamedRow[] = [
 
 export const SPLIT_ROWS: NamedRow[] = [
 	...ENDING_ROWS,
+	...KEPT_ENDING_ROWS,
 	...NUMBER_ROWS,
 	...STRUCTURE_ROWS,
 	...EMPTIED_ROWS,

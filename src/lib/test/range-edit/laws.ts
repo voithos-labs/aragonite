@@ -517,7 +517,8 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 		rest !== null && input.held.holds === 'text' && inItemText(read, input.at, host)
 			? call(input.source, caretRange(input.at), paste(rest, input.held), input.mode)
 			: null;
-	if (rest !== null && bare && inItemText(readOf(host, bare.source), bare.caret.at, host)) {
+	const enters = (read: Read, at: number) => inItemText(read, at, host) || endsItem(read, at, host);
+	if (rest !== null && bare && enters(readOf(host, bare.source), bare.caret.at)) {
 		// Up to the caret's line: the cut there may step out of a construct no part of which stands alone.
 		const line = bare.source.lastIndexOf('\n', bare.caret.at - 1) + 1;
 		const kept = got.source.slice(0, line) === bare.source.slice(0, line);
@@ -553,6 +554,16 @@ function inItemText(read: Read, at: number, host: CheckHost): boolean {
 	const above = leaf?.path.slice(0, -2).join();
 	const list = leaf && read.blocks.find((b) => b.path.length > 0 && b.path.join() === above);
 	return !!list && host.facts(list.type).lines === 'items';
+}
+
+/** Whether byte `at` ends a list item's content, past a block that holds none of its text. */
+function endsItem(read: Read, at: number, host: CheckHost): boolean {
+	const item = containersHolding(read, at).findLast((c) => {
+		const list = read.blocks.find((b) => b.path.join() === c.path.slice(0, -1).join());
+		return c.path.length > 1 && !!list && host.facts(list.type).lines === 'items';
+	});
+	const ending = item && /\r?\n$/.exec(read.source.slice(item.from, item.to));
+	return !!item && item.to - (ending?.[0].length ?? 0) === at;
 }
 
 /** The half of the caret's line that `got` leaves alone on a line of its own, where a container
