@@ -376,38 +376,47 @@ function withClosers(doc: Doc, from: number, to: number, joined: string, at: num
 	return kept ? joined.slice(0, at) + kept + joined.slice(at) : joined;
 }
 
-/** The opening of a fenced block the range enters from outside, kept with the blank lines before
- *  it so no closing line is left alone, and where the end's line starts; null where it enters none. */
+/** The openings of the fenced blocks the range enters from outside, kept with the blank lines
+ *  before them so no closing line is left alone, and where the end's line starts; null for none. */
 function enteredOpening(
 	doc: Doc,
 	from: number,
 	to: number
 ): { kept: string; endLine: number } | null {
-	const entered =
-		containersAt(doc, to, 'end').find(
+	const fence = findWithin(doc, from, to, (b) => {
+		if (!b.text || b.from <= from || to <= b.from) return false;
+		const closer = doc.host.fence(nodeAt(doc, b.path).raw)?.closer;
+		return closer !== null && closer !== undefined && to <= byteAt(doc, b, closer);
+	});
+	const entered = [
+		...containersAt(doc, to, 'end').filter(
 			(c) => opensFenced(doc, c, to) && c.from > from && lastLine(c).from >= to
-		) ??
-		findWithin(doc, from, to, (b) => {
-			if (!b.text || b.from <= from || to <= b.from) return false;
-			const closer = doc.host.fence(nodeAt(doc, b.path).raw)?.closer;
-			return closer !== null && closer !== undefined && to <= byteAt(doc, b, closer);
-		});
-	if (!entered) return null;
+		),
+		...(fence ? [fence] : [])
+	];
+	if (entered.length === 0) return null;
 	const end = leafAt(doc, to);
 	const { source } = doc;
 	// An end inside the opening's own syntax, before any text, keeps the bytes up to it.
 	const textStart = end ? lineTextStart(doc, end.leaf, end.offset) : to;
 	const endLine = source.lastIndexOf('\n', textStart - 1) + 1;
-	const opened = Math.min(openingEnd(doc, entered), endLine);
 	const outer =
-		containersAt(doc, entered.from, 'start').find((c) => c.from > from && c !== entered) ?? entered;
+		containersAt(doc, entered[0].from, 'start').find((c) => c.from > from && c !== entered[0]) ??
+		entered[0];
 	// Whole lines, so each keeps the markers of the containers around it once.
 	const lineStart = (at: number) => source.lastIndexOf('\n', at - 1) + 1;
-	const first = Math.max(from, lineStart(entered.from));
-	const kept =
-		source.slice(Math.max(from, lineStart(outer.start)), Math.max(from, lineStart(outer.from))) +
-		source.slice(first, Math.max(first, opened));
-	return { kept, endLine: Math.max(opened, endLine) };
+	let kept = source.slice(
+		Math.max(from, lineStart(outer.start)),
+		Math.max(from, lineStart(outer.from))
+	);
+	let opened = from;
+	for (const block of entered) {
+		// What the range takes between two openings goes; each opening stays.
+		const first = Math.max(opened, lineStart(block.from));
+		opened = Math.max(first, Math.min(openingEnd(doc, block), endLine));
+		kept += source.slice(first, opened);
+	}
+	return { kept, endLine };
 }
 
 /** A container whose structure opens it, entered past that opening: a fenced container, or a table

@@ -225,10 +225,38 @@ const TEXT_AFTER_ROWS: NamedRow[] = [
 	)
 ];
 
+// Miss-analysis: every range the rows entered crossed one opening, so none entered a tip inside a
+// note or a code block inside a tip, where the inner opening went.
+const ENTERED_ROWS: NamedRow[] = [
+	...cut(
+		'L4 a range entering a tip inside a note keeps both openings',
+		':::note\n⟦***\n\nbody\n:::\n\n::::note\n:::tip\nin⟧ner\n:::\n::::\n\n# h\n',
+		':::note\n:::\n\n::::note\n:::tip\nner\n:::\n::::\n\n# h\n'
+	),
+	...cut(
+		'L4 a range entering a code block inside a tip keeps the fence’s opening line',
+		':::note\n⟦***\n\nbody\n:::\n\n:::tip\n```\nco⟧de\n```\n:::\n\n# h\n',
+		':::note\n:::\n\n:::tip\n```\nde\n```\n:::\n\n# h\n'
+	),
+	...deleted(
+		'L8 two openings entered, Delete lands at the inner one’s text',
+		':::note\n⟦***\n\nbody\n:::\n\n::::note\n:::tip\nin⟧ner\n:::\n::::\n\n# h\n',
+		':::note\n:::\n\n::::note\n:::tip\nner\n:::\n::::\n\n# h\n',
+		{ at: 29, holds: 'text' }
+	),
+	...deleted(
+		'L8 a code block entered inside a tip, Delete lands at its text',
+		':::note\n⟦***\n\nbody\n:::\n\n:::tip\n```\nco⟧de\n```\n:::\n\n# h\n',
+		':::note\n:::\n\n:::tip\n```\nde\n```\n:::\n\n# h\n',
+		{ at: 24, holds: 'text' }
+	)
+];
+
 export const CLOSER_ROWS: NamedRow[] = [
 	...CLOSING_LINE_ROWS,
 	...LINE_ROWS,
 	...OPENING_ROWS,
 	...START_LINE_ROWS,
-	...TEXT_AFTER_ROWS
+	...TEXT_AFTER_ROWS,
+	...ENTERED_ROWS
 ];

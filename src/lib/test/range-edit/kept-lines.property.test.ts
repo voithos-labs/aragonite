@@ -91,6 +91,12 @@ const ENDS: Record<string, { lines: string[]; cell?: number }> = {
 	'a table’s last row': { lines: ['', ...TABLE.slice(0, 3), '| ⟧3 | 4 |', '', '# h'], cell: 4 },
 	'a later container’s title row': { lines: ['', ':::tip Ti⟧tle', 'inner', ':::', '', '# h'] },
 	'a later container’s body': { lines: ['', ':::tip', 'in⟧ner', 'more', ':::', '', '# h'] },
+	'a container in a later container': {
+		lines: ['', '::::note', ':::tip', 'in⟧ner', ':::', '::::', '', '# h']
+	},
+	'a code block in a later container': {
+		lines: ['', ':::tip', '```', 'co⟧de', '```', ':::', '', '# h']
+	},
 	'a code block right below': { lines: ['```', 'co⟧de', '```', '', '# h'] },
 	'the document’s end': { lines: ['', 'para⟧'] }
 };

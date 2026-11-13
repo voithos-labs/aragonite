@@ -343,10 +343,12 @@ const held = (holds: 'block' | 'boundary', block: LaidBlock): Held => ({
 /** The text after the range, from byte `after` where what followed it begins: the end block's own
  *  text where some stayed, else the next block's start, or a boundary in an entered container. */
 function startAfter(doc: Doc, caret: number, after: number): Place | null {
-	// A container whose opening the removal kept before `after`: the text after stays inside it.
-	const entered = containersHolding(doc, after).findLast((c) => c.from >= caret && c.from < after);
+	// The containers whose openings the removal kept before `after`: the text after stays inside them.
+	const opened = containersHolding(doc, after).filter((c) => c.from >= caret && c.from < after);
+	const entered = opened.at(-1);
 	// A block the removal left at the caret, outside what it entered, holds the caret where it is.
-	const from = pointedBlock(doc, caret)?.from === caret && entered?.from !== caret ? caret : after;
+	const from =
+		pointedBlock(doc, caret)?.from === caret && opened[0]?.from !== caret ? caret : after;
 	const end = pointedBlock(doc, from);
 	const text = end?.text;
 	// A block that starts before `from` and still has text there is the end's, its first part gone.
