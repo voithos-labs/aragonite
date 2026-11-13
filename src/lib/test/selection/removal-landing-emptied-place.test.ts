@@ -8,6 +8,7 @@ import type { SelectionPoint } from '#lib/selection/primitives.js';
 import { emptiedPlace } from '#lib/selection/cross-block/range-removal.js';
 import { deleteRange } from '../harness/range-delete';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
+import { pointAtByte } from '#lib/selection/range-bytes.js';
 import { installPlugins } from '#lib/schema/plugin-install.js';
 import { SYNTAX_PLUGINS } from '#lib/test/behavior/corpus.js';
 
@@ -114,7 +115,7 @@ describe('a range that took the table row it started in', () => {
 			wrote: true,
 			caret: at([1], 0),
 			landed: { at: 17, holds: 'text' as const },
-			took: [0, 2]
+			taken: { at: 12, parent: [0] }
 		};
 		expect(emptiedPlace(measured(doc), removed)).toEqual([1]);
 	});
@@ -124,4 +125,47 @@ describe('a range whose start block survives', () => {
 	it('keeps its caret where the range started, even beside a fence', () => {
 		expect(placeAfterRemoval('alpha\n\n```js\nbody\n```\n', at([0], 2), at([1], 0))).toBeNull();
 	});
+});
+
+/** The place `emptiedPlace` names once the text from `from` to `to` in `source` is cut. */
+function placeAfterCut(source: string, from: string, to: string) {
+	const doc = parse(source);
+	const m = measured(doc);
+	const start = pointAtByte(m, source.indexOf(from));
+	const end = pointAtByte(m, source.indexOf(to) + (to.endsWith('\n') ? to.length : 0));
+	if (!start || !end) throw new Error('no point at the range');
+	const result = deleteRange(doc, start, end, { gesture: 'cut' });
+	return emptiedPlace(measured(result.newDoc), {
+		...result.removed,
+		caret: result.caret(result.newDoc)
+	});
+}
+
+// Miss-analysis: no row's commit joined the text below the range to a block above it, so the start
+// block's old path always still named the right slot on the tree the commit leaves.
+describe('a removal that joins the text below it to a title a definition started above', () => {
+	const TITLE = "[a]: /u\n    'code\n# h\ntext\nend'\n\nlast\n";
+	// The text joins the title, as the cut and then the text do, while a removal under a started
+	// title folds the text into the definition: these bytes hold only until it doesn't.
+	const ROWS: Array<[string, string, string, string]> = [
+		['the heading line', TITLE, '# h', '# h\n'],
+		['the heading to the middle of the line below', TITLE, '# h', 'xt'],
+		[
+			'the heading line under a second definition',
+			"[a]: /u\n    'code\n[b]: /v\n# h\nend'\n\nlast\n",
+			'# h',
+			'# h\n'
+		],
+		[
+			'the heading line between a definition and its title',
+			'[a]: /u\n# h\n"t"\n\nlast\n',
+			'# h',
+			'# h\n'
+		]
+	];
+	for (const [name, source, from, to] of ROWS) {
+		it(`${name}: the text joins the title, where no boundary stands`, () => {
+			expect(placeAfterCut(source, from, to)).toBeNull();
+		});
+	}
 });

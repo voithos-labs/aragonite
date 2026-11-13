@@ -158,3 +158,39 @@ export const arbRunPaste: fc.Arbitrary<{ marked: string; text: string }> = fc
 		const [before, after] = [chars.slice(0, cut).join(''), chars.slice(cut).join('')];
 		return { marked: `${lead}a ${open}${before}‸${after}${close} z\n`, text };
 	});
+
+// ── A block between two neighbours ───────────────────────────────────────────
+
+/** The lines above the taken block and below it, which its removal leaves touching. */
+export const NEIGHBOURS: Record<string, { upper: string[]; lower: string[] }> = {
+	tableHalves: { upper: ['| a |', '| - |', '| 1 |'], lower: ['| 2 |'] },
+	tableRows: { upper: ['| a |', '| - |', '| 1 |', '| 3 |'], lower: ['| 2 |'] },
+	indentedCode: { upper: ['    a'], lower: ['    b'] },
+	htmlBlocks: { upper: ['<!-- a -->'], lower: ['<div>', 'x'] },
+	htmlUnderText: { upper: ['text'], lower: ['<span class="x">'] },
+	setextUnderline: { upper: ['text'], lower: ['==='] },
+	lazyQuote: { upper: ['> quoted'], lower: ['lazy'] },
+	lazyItem: { upper: ['- item'], lower: ['lazy'] },
+	startedTitle: { upper: ['[a]: /u', "    'code"], lower: ['text', "end'"] },
+	paragraphs: { upper: ['above'], lower: ['below'] }
+};
+/** The block between them, which a range takes. */
+export const MIDDLES: Record<string, string[]> = {
+	heading: ['# h'],
+	rule: ['***'],
+	fence: ['```', 'x', '```']
+};
+
+/** `NEIGHBOURS` with a block between, at top level, in a quote or in an item, under a paragraph. */
+export const arbNeighbourDocument: fc.Arbitrary<string> = fc
+	.record({
+		shape: fc.constantFrom(...Object.values(NEIGHBOURS)),
+		middle: fc.constantFrom(...Object.values(MIDDLES)),
+		marker: fc.constantFrom(['', ''], ['> ', '> '], ['- ', '  ']),
+		eol: fc.constantFrom('\n', '\r\n')
+	})
+	.map(({ shape, middle, marker, eol }) => {
+		const lines = [...shape.upper, ...middle, ...shape.lower];
+		const body = lines.map((line, i) => (i ? marker[1] : marker[0]) + line);
+		return ['intro', '', ...body, '', 'last', ''].join(eol);
+	});

@@ -37,8 +37,8 @@ export interface RangeDeleteOptions {
 export interface RangeDeleteResult {
 	newDoc: Document;
 	caret: (committed: DocumentView) => SelectionPoint | null;
-	/** What `removeThroughCore` reports beside its caret: the core's caret and the block it took. */
-	removed: Pick<Removed, 'wrote' | 'landed' | 'took'>;
+	/** What `removeThroughCore` reports beside its caret: the core's caret and the place it took. */
+	removed: Pick<Removed, 'wrote' | 'landed' | 'taken'>;
 }
 
 export function deleteRange(
@@ -67,7 +67,7 @@ export function deleteRange(
 	const removed = {
 		wrote: true,
 		landed: { ...answer.caret, at },
-		took: answer.took ?? null
+		taken: answer.taken ?? null
 	};
 	return { newDoc: doc, caret: (committed) => pointAtByte(measured(committed), at), removed };
 }

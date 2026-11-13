@@ -40,6 +40,15 @@ Where the caret is on text, the text joins the block there. Every row runs in so
 - An abandoned composition (compose `か`, commit nothing) over the table and the heading below
   leaves the removal and the empty paragraph it opened.
 
+- A definition `[a]: /u` whose title starts on the next line (`    'code`), then `# h`, `text`,
+  `end'`: click at the heading's first byte and Shift+click in the middle of `text`, at top level
+  and inside a quote, then type `Q` or paste `Q`. The text lands where the range began, at the
+  caret the removal leaves, as Ctrl+X and then `Q` leave it; the caret is collapsed and the tree
+  is the parse of the bytes. Source mode only: a live click lands behind the hidden `# `.
+  Miss-analysis: every row's removal left the blocks above the range where they were, so the
+  start block's path from before the removal still named its place, and the text landed after the
+  document's last block or was dropped where the commit had joined the lines.
+
 ## User interactions
 
 - One Ctrl+Z after each gesture puts the table and the block back and the range back as drawn:
