@@ -343,16 +343,18 @@ const held = (holds: 'block' | 'boundary', block: LaidBlock): Held => ({
 /** The text after the range, from byte `after` where what followed it begins: the end block's own
  *  text where some stayed, else the next block's start, or a boundary in an entered container. */
 function startAfter(doc: Doc, caret: number, after: number): Place | null {
-	const end = pointedBlock(doc, after);
-	const text = end?.text;
-	// A block that starts before `after` and still has text there is the end's, its first part gone.
-	const kept = text && end.from < after && text.from <= after && after < text.to;
-	if (kept && !/[\r\n]/.test(doc.source[after])) return { at: after, holds: 'text' };
 	// A container whose opening the removal kept before `after`: the text after stays inside it.
 	const entered = containersHolding(doc, after).findLast((c) => c.from >= caret && c.from < after);
-	for (let byte = after; byte < (entered?.to ?? doc.source.length); byte++) {
+	// A block the removal left at the caret, outside what it entered, holds the caret where it is.
+	const from = pointedBlock(doc, caret)?.from === caret && entered?.from !== caret ? caret : after;
+	const end = pointedBlock(doc, from);
+	const text = end?.text;
+	// A block that starts before `from` and still has text there is the end's, its first part gone.
+	const kept = text && end.from < from && text.from <= from && from < text.to;
+	if (kept && !/[\r\n]/.test(doc.source[from])) return { at: from, holds: 'text' };
+	for (let byte = from; byte < (entered?.to ?? doc.source.length); byte++) {
 		const block = pointedBlock(doc, byte);
-		if (!block || block.from < after) continue;
+		if (!block || block.from < from) continue;
 		if (factsOf(doc, block).textPosition === 'never')
 			return { at: block.from, ...held('block', block) };
 		return { at: fenceBody(doc, block)?.from ?? block.from, holds: 'text' };

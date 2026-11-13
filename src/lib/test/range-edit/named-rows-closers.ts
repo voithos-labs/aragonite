@@ -214,6 +214,14 @@ const TEXT_AFTER_ROWS: NamedRow[] = [
 		':::note\n⟦***\n\nbody\n:::\n\npara⟧\n\n:::tip\ninner\n:::\n\n# h\n',
 		':::note\n:::\n\n:::tip\ninner\n:::\n\n# h\n',
 		{ at: 13, holds: 'text' }
+	),
+	// Miss-analysis: every row above left the caret on syntax, none on a line the removal emptied.
+	...deleted(
+		'L8 a quote the range only empties keeps the caret on its emptied line',
+		'> ⟦```\n> code\n> ```\n>\n> body\n\n:::tip Ti⟧tle\ninner\n:::\n\n# h\n',
+		'> \n\n:::tip tle\ninner\n:::\n\n# h\n',
+		{ at: 2, holds: 'text' },
+		true
 	)
 ];
 

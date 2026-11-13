@@ -4,7 +4,7 @@
 // that leave a container from a block it takes whole, from mid-text or from a line's first byte,
 // into the block after it, a table's rows, a later block's opening or the document's end. The range
 // goes through the editor's own adapter, as a selection's does. Where the start's block went whole,
-// Delete and a composition land on the text left after the range.
+// Delete and a composition land on the text left after the range, or on a line emptied at its start.
 // Miss-analysis: the law draws filled fenced bodies with paragraphs and `# head` only, and drew
 // tables and rules outside fenced containers, so no range left one from a block it took whole. And
 // no draw started at a line's first byte in a block that stays, with an end that joins no text.
@@ -172,13 +172,15 @@ describe('G4.350 a removal keeps the lines after its range', () => {
 						movedLine(host, read, range.from, range.to, got);
 					if (moved) fails.push(`${moved}: ${JSON.stringify(got)}\n    ${JSON.stringify(c)}`);
 				}
-				// G4.351: where the start's block went whole, Delete lands on the text left after the range.
+				// G4.351: where the start's block went whole, Delete lands on the text left after the range,
+				// or on the line the removal left emptied at the range's start.
 				const rest = lineRest(source, range.to);
 				if (!c.body.endsWith('taken whole') || cell !== undefined || isBlankText(rest)) return;
 				landed++;
 				for (const g of ['delete', 'compose'] as const) {
 					const { caret, source: got } = removalOf(source, range, g, c.mode, host);
-					if (caret.holds !== 'text' || !got.startsWith(rest, caret.at))
+					const emptied = caret.at <= range.from && isBlankText(lineRest(got, caret.at));
+					if (caret.holds !== 'text' || !(got.startsWith(rest, caret.at) || emptied))
 						landings.push(
 							`${g} landed at ${caret.at}: ${JSON.stringify(got)}\n    ${JSON.stringify(c)}`
 						);

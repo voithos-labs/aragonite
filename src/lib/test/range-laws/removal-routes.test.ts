@@ -620,7 +620,7 @@ describe('a removal’s caret sits among the children of the block the core name
 				const diverges =
 					mode === 'live' &&
 					shape === 'a cut across two fences' &&
-					((route === 'Delete' && ['callout', 'details', 'quote'].includes(wrap)) ||
+					((route === 'Delete' && (wrap === 'callout' || wrap === 'details')) ||
 						(route !== 'Backspace' && route !== 'a letter' && wrap === 'directive'));
 				if (diverges) return;
 				const editor = mountCase(source, mode);
