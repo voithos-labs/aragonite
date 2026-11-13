@@ -28,13 +28,14 @@ import { numberedAfterSplit, numberedAfterTaking, numberedOn } from './list-numb
 import { continuation } from './markers';
 import { cutLeaf, lineEnd, lineHead, lineRest, spliced, type Cut, type Edit } from './leaf-splice';
 
-/** Enter at byte `caret` of `doc`, where it stands in a list item's text: the item cut there and
- *  the item Enter opens holding what follows, the items under it numbered on. Null elsewhere. */
+/** Enter at byte `caret` in the text of a list item's own block: the next item holding what
+ *  follows, the items under it numbered on. Null elsewhere, and in literal text (a line there). */
 export function enteredAt(doc: Doc, caret: number): Edit | null {
 	const held = leafHolding(doc, caret, caret);
 	const item = held && parentOf(doc, held.leaf);
 	const list = item && parentOf(doc, item);
 	if (!held || !list || factsOf(doc, list).lines !== 'items') return null;
+	if (factsOf(doc, held.leaf).body === 'literal') return null;
 	const cut = cutLeaf(doc, held.leaf, held.from, held.to, { before: '', after: '', lead: '' });
 	const outer = continuation(doc, caret, (c) => c !== list);
 	const first = item.lineAt!(item.from);

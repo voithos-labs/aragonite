@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// A clipboard's last line ending lands as Enter does where it lands: in a list item, a paste of
-// `X⏎` leaves what a paste of `X` and then Enter leave, the next item open with the caret in it,
-// and a letter typed next goes into that item.
+// A clipboard's last line ending lands as Enter does where it lands: in a list item's text, a paste
+// of `X⏎` (words, or several lines) leaves what a paste of `X` and then Enter leave, the next item
+// open with the caret in it, and a letter typed next goes into that item.
 // Miss-analysis: the rows for a last line ending were paragraphs, where Enter leaves the empty line
 // the paste left, so no row asked what Enter leaves in an item.
 import { afterEach, beforeAll, beforeEach, expect, it } from 'vitest';
@@ -42,7 +42,10 @@ const ROWS: [name: string, marked: string, clip: string][] = [
 	['the second paragraph of an item', '- a\n\n  alpha‸\n- b\n', 'one'],
 	['an item in a quote', '> - alpha‸\n> - after\n', 'one'],
 	['mid-text', '1. al‸pha\n2. beta\n', '1. x\n2. y'],
-	['a CRLF document', '- alpha‸\r\n- after\r\n', 'one']
+	['a CRLF document', '- alpha‸\r\n- after\r\n', 'one'],
+	['a fence in an item', '- ```\n  co‸de\n  ```\n', 'x'],
+	['indented code in an item', '-     co‸de\n', 'x'],
+	['a heading in an item', '- # h‸\n- b\n', 'x']
 ];
 
 interface Left {

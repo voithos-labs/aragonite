@@ -502,8 +502,10 @@ export async function law9(
 			: null;
 		// A last line ending in a list item is Enter there (`test/range-edit/paste-ending-enter.test.ts`
 		// holds it against Enter): the law holds the bytes pasted before it.
-		const inItem = leafAt(at.editor.instance.__test.getDocument(), caret.path.slice(0, -1));
-		const entered = declaredEnd !== null && inItem?.kind === 'listItem' ? declaredEnd : null;
+		const opened = at.editor.instance.__test.getDocument();
+		const inItem = leafAt(opened, caret.path.slice(0, -1))?.kind === 'listItem';
+		const literal = blockFacts(leafAt(opened, caret.path)?.kind ?? 'paragraph').body === 'literal';
+		const entered = declaredEnd !== null && inItem && !literal ? declaredEnd : null;
 		const pastedTo = (bytes: string) =>
 			bytes.slice(0, byte + (entered ?? '').length - source.length);
 		const before = snapshot(at);

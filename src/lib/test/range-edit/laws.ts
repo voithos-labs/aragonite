@@ -546,9 +546,10 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 	return [`L9 (${want.shape}) gave ${q(got.source)}, not ${q(want.bytes[0])}`];
 }
 
-/** Whether byte `at` stands in the text of a list item's own block. */
+/** Whether byte `at` stands in the text of a list item's own block, text that isn't literal. */
 function inItemText(read: Read, at: number, host: CheckHost): boolean {
 	const leaf = leafAt(read, at);
+	if (leaf && host.facts(leaf.type).body === 'literal') return false;
 	const above = leaf?.path.slice(0, -2).join();
 	const list = leaf && read.blocks.find((b) => b.path.length > 0 && b.path.join() === above);
 	return !!list && host.facts(list.type).lines === 'items';
