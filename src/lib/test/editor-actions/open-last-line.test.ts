@@ -257,6 +257,17 @@ const ROUTES: { name: string; source: string; after: string; route: Route }[] = 
 		source: 'a\n\nb\n\nc',
 		after: 'a\n\nb\n\n>\n\nc',
 		route: paste([1], 1, '>')
+	},
+	// Miss-analysis: every row wrote into a document that still held a line, so none typed into an
+	// emptied one, which the last-line check read as ending in a line break.
+	{
+		name: 'a letter typed once the only line is erased stands with no break',
+		source: 'one',
+		after: 'x',
+		route: top(async (h) => {
+			await h.actions.updateBlockContent(0, '', 'authored', 'join-typing', 3, 0);
+			await h.actions.updateBlockContent(0, 'x', 'authored', 'join-typing', 0, 1);
+		})
 	}
 ];
 

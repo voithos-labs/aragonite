@@ -272,6 +272,8 @@ The last line is the one line allowed to have no line ending, and a file saved w
 
 One exception, on purpose: when the new last line is blank, it keeps its break, since a blank line is nothing but its break and dropping it would drop the block too. That covers Enter at the very end, ArrowDown past the last block, an empty inserted paragraph, and the empty line Enter leaves in a last quote or list item.
 
+An emptied file has no last line, so nothing is kept or lost: a file that had no final break types its next letter with none.
+
 #### Where the separators get fixed up
 
 The fix-up after an edit does the counting, and it lives in `tree-operations/fix-up/`. Its run layout (`tree-operations/fix-up/runs.ts :: layOutRun`) takes every run an edit touched and lays it out the way a reload would. It keeps what you can see (the run's blank blocks, and a block's own erased last line) and rewrites the rest: each separator, the lines a container's fence lines take (below), and the document's trailing blank line, which becomes a blank block once one stands above it. A unit row holds its layout to the parser's own reading of every run (`blank-run-layout.test.ts`), so the two can't drift apart.
