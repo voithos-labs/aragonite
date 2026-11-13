@@ -147,11 +147,19 @@ async function endRangeAt(ctx: PasteContext, at: number): Promise<void> {
 /** `host` with every write of text into a block spent as an insertion, the text a cut joins to the
  *  first half too: only the core knows whether a paste lands as text, so it spends where it writes. */
 function spending(host: RangeHost, spend: SpendInsertion): RangeHost {
+	// Spending uses the records up, and the core may land the clipboard twice (a last line ending
+	// tried as Enter), so each write is spent once and its answer kept.
+	const answers = new Map<string, TextEdit>();
+	const once = (before: string, edit: TextEdit) => {
+		const key = JSON.stringify([before, edit.text, edit.caretAfter]);
+		if (!answers.has(key)) answers.set(key, spend(before, edit));
+		return answers.get(key)!;
+	};
 	const spent = (doc: DocumentView, path: readonly number[], write: LeafWrite): LeafWrite => {
 		const before = trimTrailingLineEnding(blockNodeAt(doc, path)!.raw);
 		const ending = ownTrailingLineEnding(write.bytes);
 		const text = trimTrailingLineEnding(write.bytes);
-		const edit = spend(before, { text, caretAfter: write.caret });
+		const edit = once(before, { text, caretAfter: write.caret });
 		const grown = edit.text.length - text.length;
 		return { bytes: edit.text + ending, caret: edit.caretAfter, after: write.after + grown };
 	};
