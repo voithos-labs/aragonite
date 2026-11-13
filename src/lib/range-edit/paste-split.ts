@@ -11,6 +11,8 @@ import { itemsShareList } from '../tree-operations/list/ordered-markers';
 import type { LaidBlock } from './layout';
 import { pastMarkers } from './apart';
 import {
+	closedByOwnLine,
+	containersHolding,
 	contentEnd,
 	factsOf,
 	findWithin,
@@ -24,7 +26,12 @@ import {
 	titleOwner,
 	type Doc
 } from './document';
-import { numberedAfterSplit, numberedAfterTaking, numberedOn } from './list-numbers';
+import {
+	numberedAfterSplit,
+	numberedAfterTaking,
+	numberedFromHead,
+	numberedOn
+} from './list-numbers';
 import { continuation } from './markers';
 import { cutLeaf, lineEnd, lineHead, lineRest, spliced, type Cut, type Edit } from './leaf-splice';
 
@@ -38,19 +45,88 @@ export function itemHolding(doc: Doc, from: number, to: number) {
 	return factsOf(doc, held.leaf).body === 'literal' ? null : { held, item, list };
 }
 
-/** Enter at byte `caret` in the text of a list item's own block: the next item holding what
- *  follows, the items under it numbered on. Null where `itemHolding` names no item. */
-export function enteredAt(doc: Doc, caret: number): Edit | null {
+/** The list item a paste landed in, and what an item Enter opens after it starts with. */
+export interface HostItem {
+	node: NodeView;
+	marker: string;
+	depth: number;
+}
+
+/** Enter at `caret`, where a paste ended, in a list holding an item the document had (its first byte
+ *  `own`) or nested in `host`, the item pasted in; under a pasted list alone, `host`'s next item. */
+export function enteredAt(
+	doc: Doc,
+	caret: number,
+	host: HostItem | undefined,
+	own: (byte: number) => boolean
+): Edit | null {
 	const there = itemHolding(doc, caret, caret);
-	if (!there) return null;
-	const { held, item, list } = there;
-	const cut = cutLeaf(doc, held.leaf, held.from, held.to, { before: '', after: '', lead: '' });
+	const item = there?.item ?? endedItem(doc, caret);
+	const list = item && parentOf(doc, item);
+	if (!item || !list) return null;
+	// A list nested deeper than the host's item opens its own next item, as Enter there does.
+	const nested = !!host && item.path.length > host.depth;
+	// The pasted items joined that list where it holds one of the document's of their own type.
+	const node = nodeAt(doc, item.path);
+	const joined = (nodeAt(doc, list.path).children ?? []).some((other, i) => {
+		const laid = doc.layout.block([...list.path, i]);
+		return !!laid && own(laid.from) && itemsShareList(other, node);
+	});
+	if (!nested && !joined) return host ? openedUnder(doc, list, host) : null;
+	const ownKind = doc.host.itemAfter(doc.tree, item.path);
+	const held = there?.held;
+	const none = { before: '', after: '', lead: '' };
+	const cut = held
+		? cutLeaf(doc, held.leaf, held.from, held.to, none)
+		: { head: doc.source.slice(0, caret), rest: doc.source.slice(caret), caret: 0 };
 	const outer = continuation(doc, caret, (c) => c !== list);
 	const first = item.lineAt!(item.from);
 	const indent = /^[ \t]*/.exec(doc.source.slice(first.from, first.markerTo))![0];
-	const head = cut.head + doc.ending + outer + indent + doc.host.itemAfter(doc.tree, item.path);
+	const marker = host && !nested ? numberedAs(host.marker, ownKind) : ownKind;
+	const head = cut.head + doc.ending + outer + indent + marker;
 	const opened = { source: head + cut.rest, caret: head.length + cut.caret };
 	return numberedAfterTaking(doc, list, item.path.at(-1)! + 1, opened);
+}
+
+/** `marker` with the number `other` starts with, where both are an ordered item's. */
+function numberedAs(marker: string, other: string | undefined): string {
+	const number = other && /^\d+/.exec(other)?.[0];
+	return number ? marker.replace(/^\d+/, number) : marker;
+}
+
+/** `host`'s next item on a line of its own under `list`, a pasted list of another kind that broke
+ *  out of the host's: it heads the host's items below, numbered on from the first of them. */
+function openedUnder(doc: Doc, list: LaidBlock, host: HostItem): Edit {
+	const at = contentEnd(doc, list);
+	const outer = continuation(doc, at, (c) => c !== list);
+	const first = doc.layout.block([...list.path, 0])!;
+	const line = first.lineAt!(first.from);
+	const indent = /^[ \t]*/.exec(doc.source.slice(line.from, line.markerTo))![0];
+	const next = doc.layout.block([...list.path.slice(0, -1), list.path.at(-1)! + 1]);
+	const head = next && nodeAt(doc, next.path).children?.[0];
+	const below = head && itemsShareList(host.node, head) ? next : undefined;
+	const opens = doc.ending + outer + indent + host.marker;
+	const source = doc.source.slice(0, at) + opens + doc.source.slice(at);
+	const opened = { source, caret: at + opens.length };
+	return below ? numberedFromHead(doc, below, opened) : opened;
+}
+
+/** `clip` with its trailing blank line, a separation, taken into the blank line under the line
+ *  holding `at`, where one stands there or the document ends. */
+export function intoBlankUnder(doc: Doc, at: number, clip: string): string {
+	const under = Math.min(lineEnd(doc.source, at) + 1, doc.source.length);
+	const blank = isBlankText(lineRest(doc.source, pastMarkers(doc.source, under)));
+	return blank ? clip.replace(/\n[ \t]*\n$/, '\n') : clip;
+}
+
+/** The list item whose content ends at `caret`. */
+function endedItem(doc: Doc, caret: number): LaidBlock | undefined {
+	const inList = (c: LaidBlock) => {
+		const list = parentOf(doc, c);
+		return !!list && factsOf(doc, list).lines === 'items';
+	};
+	const item = containersHolding(doc, caret).findLast(inList);
+	return item && contentEnd(doc, item) === caret ? item : undefined;
 }
 
 /** A pasted list of another kind than `list`, the caret's: the pasted blocks land between the
@@ -212,8 +288,8 @@ const holding = (parent: readonly number[]) => (c: LaidBlock) =>
 /** Where the children of `holder` end: at its closing line, its own end, or the document's. */
 function bodyEnd(doc: Doc, holder: LaidBlock | undefined): number {
 	if (!holder) return doc.source.length;
-	const fenced = factsOf(doc, holder).lines === 'fenced' && !!holder.lineAt && multiline(holder);
-	return fenced && lastLine(holder).own ? lastLine(holder).from : holder.to;
+	const fenced = closedByOwnLine(doc, holder);
+	return fenced ? lastLine(holder).from : holder.to;
 }
 
 /** A clipboard set among a container's children on lines of its own. */
@@ -425,18 +501,29 @@ export function splitAt(
 		const caret = head.length + opening.length + cut.caret;
 		return overRest({ source: head + opening + closing + cut.rest, caret });
 	}
-	// With nothing before the cut the pasted blocks go before the block's second half, which keeps
-	// a line of its own, save a paragraph's text the last pasted block takes.
-	const body = joined ? clip : clip.replace(/\n$/, '');
+	// With nothing before the cut the pasted blocks go before the second half, on a line of its own
+	// save a paragraph's text the last block takes; with nothing after, the ending opens its line.
+	const body = joined
+		? clip
+		: cut.follows
+			? clip.replace(/\n$/, '')
+			: intoBlankUnder(doc, to, clip);
 	const opening = lines(body);
 	// An empty line that text follows right after stays, keeping the pasted blocks apart from it;
-	// a line the paste took the text of was never empty.
+	// a line the paste took the text of was never empty, nor is an empty item's, its marker's.
 	const under = Math.min(lineEnd(source, to) + 1, source.length);
 	const next = lineRest(source, pastMarkers(source, under));
-	const kept = at === to && !cut.follows && !isBlankText(next) ? eol + blank : '';
+	const emptied = at === to && !cut.follows && !body.endsWith('\n') && !isBlankText(next);
+	const item = emptied ? itemHolding(doc, at, to)?.item : undefined;
+	const kept = emptied && !item ? eol + blank : '';
 	const apart = eol + (body !== clip ? blank + eol : '') + prefix;
 	const taken = joined || (factsOf(doc, leaf).joins === 'text' && lastJoins && body === clip);
 	const closing = cut.follows ? (taken ? '' : apart) : kept;
 	const caret = head.length + opening.length + cut.caret;
-	return overRest({ source: head + opening + closing + cut.rest, caret });
+	const out = head + opening + closing + cut.rest;
+	// Under an empty item the next line gets a blank line only where the pasted blocks would read it
+	// in: no block beside them starts there.
+	const line = lineEnd(out, head.length + opening.length) + 1;
+	const readIn = item && !startsBlock(doc, out, line, item.path.length + 1);
+	return overRest({ source: readIn ? parted(doc, out, line, prefix, null) : out, caret });
 }

@@ -157,6 +157,74 @@ const OTHER_HOSTS: [
 		'- one\n- two\n',
 		'abc\n\n- one\n- two\n\n',
 		'abc\n\n- one\n- two\n\nZ\n'
+	],
+	// Miss-analysis: the rows of a pasted list joining the list under it read "opens no line" from
+	// a first form of the ruling, so no row asked for the item Enter opens there.
+	[
+		'a paragraph over a list it joins',
+		'source',
+		'abc‸\n- c\n',
+		'- one\n- two\n',
+		'abc\n\n- one\n- two\n- \n- c\n',
+		'abc\n\n- one\n- two\n- Z\n- c\n'
+	],
+	[
+		'a paragraph over an ordered list it joins, numbered on',
+		'source',
+		'abc‸\n1. c\n',
+		'1. one\n2. two\n',
+		'abc\n\n1. one\n2. two\n3. \n4. c\n',
+		'abc\n\n1. one\n2. two\n3. Z\n4. c\n'
+	],
+	[
+		'a quote’s paragraph over a list it joins',
+		'source',
+		'> abc‸\n> - c\n',
+		'- one\n- two\n',
+		'> abc\n>\n> - one\n> - two\n> - \n> - c\n',
+		'> abc\n>\n> - one\n> - two\n> - Z\n> - c\n'
+	],
+	[
+		'a paragraph over a list it joins',
+		'live',
+		'abc‸\n- c\n',
+		'- one\n- two\n',
+		'abc\n\n- one\n- two\n- \n- c\n',
+		'abc\n\n- one\n- two\n- Z\n- c\n'
+	],
+	[
+		'a paragraph over an ordered list it joins, numbered on',
+		'live',
+		'abc‸\n1. c\n',
+		'1. one\n2. two\n',
+		'abc\n\n1. one\n2. two\n3. \n4. c\n',
+		'abc\n\n1. one\n2. two\n3. Z\n4. c\n'
+	],
+	[
+		'a quote’s paragraph over a list it joins',
+		'live',
+		'> abc‸\n> - c\n',
+		'- one\n- two\n',
+		'> abc\n>\n> - one\n> - two\n> - \n> - c\n',
+		'> abc\n>\n> - one\n> - two\n> - Z\n> - c\n'
+	],
+	// Miss-analysis: the item rows pasted lists of the host's kind, so the kind of the item the
+	// ending opens was never the host's against the clipboard's.
+	[
+		'a bullet a numbered list broke out of',
+		'source',
+		'- a‸b\n',
+		'1. q\n2. r\n',
+		'- a\n1. q\n2. r\n- \n- b\n',
+		'- a\n1. q\n2. r\n- Z\n- b\n'
+	],
+	[
+		'a to-do bullets joined',
+		'live',
+		'- [ ] a‸b\n',
+		'- q\n- r\n',
+		'- [ ] aq\n- r\n- [ ] b\n',
+		'- [ ] aq\n- r\n- [ ] Zb\n'
 	]
 ];
 
@@ -181,5 +249,21 @@ for (const mode of ['source', 'live'] as const)
 		it(`${mode}: ${name}, two last line endings are two Enters`, async () => {
 			const ended = await pasted(marked, mode, clip + '\n\n');
 			const entered = await pasted(marked, mode, clip, 2);
+			expect(ended).toEqual(entered);
+		});
+
+// A pasted list that joins the list under the caret's line takes its last line ending as Enter at
+// its last item, as a paste without the ending and then Enter leave it.
+const JOINED: [name: string, marked: string, clip: string][] = [
+	['a bullet list', 'abc‸\n- c\n', '- one\n- two'],
+	['an ordered list, numbered on', 'abc‸\n1. c\n', '1. one\n2. two'],
+	['a list in a quote', '> abc‸\n> - c\n', '- one\n- two']
+];
+
+for (const mode of ['source', 'live'] as const)
+	for (const [name, marked, clip] of JOINED)
+		it(`${mode}: ${name} joined below takes its ending as Enter`, async () => {
+			const ended = await pasted(marked, mode, clip + '\n');
+			const entered = await pasted(marked, mode, clip, 1);
 			expect(ended).toEqual(entered);
 		});

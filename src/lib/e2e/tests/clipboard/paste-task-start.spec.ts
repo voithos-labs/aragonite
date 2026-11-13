@@ -39,4 +39,19 @@ test.describe('a block pasted at the start of a to-do’s text', () => {
 		await expect(page.locator('.task-checkbox')).toHaveCount(1);
 		expect(await editor.parseConverged()).toBe(true);
 	});
+
+	test('a code block takes the text’s place in the bullet, the list one list', async ({ page }) => {
+		await editor.loadContent('- [x] z\n- [ ] alpha\n- [x] c\n');
+		await editor.focusBlockAtPath([0, 1, 0], 0);
+		await editor.seedClipboard('```\ncode\n```');
+		await editor.paste();
+		await editor.bridge.waitForSourceContains('code');
+
+		expect(asLf(await editor.bridge.getSource())).toBe(
+			'- [x] z\n- ```\n  code\n  ```\n  alpha\n- [x] c\n'
+		);
+		expect(await editor.bridge.getBlockCount()).toBe(1);
+		await expect(page.locator('.task-checkbox')).toHaveCount(2);
+		expect(await editor.parseConverged()).toBe(true);
+	});
 });

@@ -40,6 +40,8 @@ import {
 	sameDocument,
 	shownDelimiters,
 	copiesLinesBeforeRange,
+	unboxedAt,
+	endsInListBeside,
 	type Read
 } from './expected';
 
@@ -509,21 +511,34 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 	if (input.mode === 'live' && /[*_`~[\]<]/.test(input.text)) return [];
 	const got = call(input.source, caretRange(input.at), paste(input.text, input.held), input.mode);
 	if (!got) return [];
-	// A last line ending pasted in a list item's text is Enter (`paste-ending-enter.test.ts`): it
-	// leaves the bytes before it, and the law holds the rest.
+	// A last line ending pasted in a list item's text, or ending a list the paste joins, is Enter
+	// (`paste-ending-enter.test.ts`): it leaves the bytes before it, and the law holds the rest.
 	const ended = /\r?\n$/.exec(input.text);
 	const rest = ended && input.text.slice(0, ended.index);
 	const bare =
-		rest !== null && input.held.holds === 'text' && inItemText(read, input.at, host)
+		rest !== null &&
+		input.held.holds === 'text' &&
+		(inItemText(read, input.at, host) || endsInListBeside(read, input.at, rest, host))
 			? call(input.source, caretRange(input.at), paste(rest, input.held), input.mode)
 			: null;
-	if (rest !== null && bare && inItemText(readOf(host, bare.source), bare.caret.at, host)) {
+	const enters = (read: Read, at: number) => inItemText(read, at, host) || endsItem(read, at, host);
+	if (rest !== null && bare && enters(readOf(host, bare.source), bare.caret.at)) {
 		// Up to the caret's line: the cut there may step out of a construct no part of which stands alone.
 		const line = bare.source.lastIndexOf('\n', bare.caret.at - 1) + 1;
 		const kept = got.source.slice(0, line) === bare.source.slice(0, line);
 		if (!kept)
 			return [`L9 a last line ending in an item changed the lines before it: ${q(got.source)}`];
 		return pasteAtCaret(call, host, { ...input, text: rest });
+	}
+	const unboxed = unboxedAt(read, input.at, input.text, host);
+	if (unboxed) {
+		const gesture = paste(input.text, input.held);
+		const bare = call(unboxed.source, caretRange(unboxed.at), gesture, input.mode);
+		if (bare && bare.source !== got.source)
+			return [
+				`L9 a to-do kept its box under a block of lines: ${q(got.source)}, not ${q(bare.source)}`
+			];
+		return pasteAtCaret(call, host, { ...input, ...unboxed });
 	}
 	// A last line ending where a run closes right after the text cuts the block as a split cuts it,
 	// the run closed before the ending, by bytes the rows hold.
@@ -553,6 +568,16 @@ function inItemText(read: Read, at: number, host: CheckHost): boolean {
 	const above = leaf?.path.slice(0, -2).join();
 	const list = leaf && read.blocks.find((b) => b.path.length > 0 && b.path.join() === above);
 	return !!list && host.facts(list.type).lines === 'items';
+}
+
+/** Whether byte `at` ends a list item's content, past a block that holds none of its text. */
+function endsItem(read: Read, at: number, host: CheckHost): boolean {
+	const item = containersHolding(read, at).findLast((c) => {
+		const list = read.blocks.find((b) => b.path.join() === c.path.slice(0, -1).join());
+		return c.path.length > 1 && !!list && host.facts(list.type).lines === 'items';
+	});
+	const ending = item && /\r?\n$/.exec(read.source.slice(item.from, item.to));
+	return !!item && item.to - (ending?.[0].length ?? 0) === at;
 }
 
 /** The half of the caret's line that `got` leaves alone on a line of its own, where a container

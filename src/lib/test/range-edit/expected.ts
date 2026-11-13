@@ -510,6 +510,37 @@ export function expectedPaste(
 	}
 }
 
+/** A block of lines that is no text, pasted at a to-do's text start, lands as at the bare bullet (a
+ *  box stands before text alone): that source and caret, or null for any other paste. */
+export function unboxedAt(
+	read: Read,
+	at: number,
+	text: string,
+	host: CheckHost
+): { source: string; at: number } | null {
+	const leaf = leafAt(read, at);
+	if (!leaf?.text || leaf.text.from !== at || leaf.path.at(-1) !== 0) return null;
+	const item = read.blocks.find((b) => b.path.join() === leaf.path.slice(0, -1).join());
+	const meta = item && treeNodeAt(read.tree, item.path)?.metadata;
+	const box = (meta as { taskMarker?: string | null } | undefined)?.taskMarker;
+	if (!box || read.source.slice(at - box.length, at) !== box) return null;
+	const clip = readOf(host, lf(text));
+	const first = clip.blocks.find(
+		(b) => b.path.length === 1 && clip.source.slice(b.from, b.to).trim() !== ''
+	);
+	if (!first || clip.source.startsWith('\n') || host.facts(first.type).joins === 'text')
+		return null;
+	if (!clip.source.slice(first.from, lineContentEnd(clip.source, first.to)).includes('\n'))
+		return null;
+	// A list the to-do's list takes in or breaks out of, or a container around it takes, lands so.
+	if (takerOf(read, at, clip, first, host) || listLeft(read, at, clip, first, leaf, host))
+		return null;
+	return {
+		source: read.source.slice(0, at - box.length) + read.source.slice(at),
+		at: at - box.length
+	};
+}
+
 /** `want`, blocks pasted at `at` with a last line ending and text after the caret: a blank line over
  *  that text where the last pasted block, a paragraph aside, would read it in. */
 function restKept(
@@ -590,12 +621,15 @@ function sameList(
 	return family !== null && family === markerFamily(clip, pasted, !under);
 }
 
-/** `bytes`, a paste of `clip` into the empty paragraph at `at`, with a pasted list joined to a list
- *  of its own type either side of that paragraph: no blank line stands between items of one list. */
-function joinedLists(read: Read, at: number, bytes: string, clip: Read, host: CheckHost): string {
+/** `bytes`, a paste of `clip` at `at`, with a pasted list joined to a list of its own type flush
+ *  under the caret's line, or over an empty paragraph: no blank line stands between items. */
+/** Which lists beside the caret's text block the clipboard `clip` joins: its last list the one flush
+ *  under the caret's line, and from an empty paragraph its first list the one above. */
+function listsJoined(read: Read, at: number, clip: Read, host: CheckHost) {
 	const target = leafAt(read, at);
-	const empty = !!target && /^\r?\n?$/.test(treeNodeAt(read.tree, target.path)?.raw ?? '-');
-	if (target?.type !== 'paragraph' || !empty || inTitleRow(read, at, host)) return bytes;
+	if (!target || host.facts(target.type).body === 'literal' || inTitleRow(read, at, host))
+		return null;
+	const empty = /^\r?\n?$/.test(treeNodeAt(read.tree, target.path)?.raw ?? '-');
 	const tops = clip.blocks.filter(
 		(b) => b.path.length === 1 && clip.source.slice(b.from, b.to).trim() !== ''
 	);
@@ -603,19 +637,41 @@ function joinedLists(read: Read, at: number, bytes: string, clip: Read, host: Ch
 		read.blocks.find(
 			(b) => b.path.join() === [...target.path.slice(0, -1), target.path.at(-1)! + step].join()
 		);
-	const lineOf = (source: string, byte: number) => source.lastIndexOf('\n', byte - 1) + 1;
 	const joins = (list: LaidBlock | undefined, pasted: LaidBlock | undefined, under: boolean) =>
 		sameList(read, list, clip, pasted, under, host);
-	let out = bytes;
 	const [upper, lower] = [beside(-1), beside(1)];
-	const flush = !!lower && lineOf(read.source, lower.from) === target.to;
-	if (flush && joins(lower, tops.at(-1), false)) {
+	const flush = !!lower && lineStartOf(read.source, lower.from) === target.to;
+	return {
+		target,
+		upper,
+		below: flush && joins(lower, tops.at(-1), false),
+		above: target.type === 'paragraph' && empty && joins(upper, tops[0], true),
+		alone: tops.length === 1
+	};
+}
+
+const lineStartOf = (source: string, byte: number) => source.lastIndexOf('\n', byte - 1) + 1;
+
+/** Whether a paste of `text` at `at` ends in a list beside the caret's block that it joins, where a
+ *  last line ending is Enter in that list. */
+export function endsInListBeside(read: Read, at: number, text: string, host: CheckHost): boolean {
+	const joined = listsJoined(read, at, readOf(host, lf(text)), host);
+	return !!joined && (joined.below || (joined.above && joined.alone));
+}
+
+/** `bytes` with the pasted lists joined to the lists beside the caret's block they join. */
+function joinedLists(read: Read, at: number, bytes: string, clip: Read, host: CheckHost): string {
+	const joined = listsJoined(read, at, clip, host);
+	if (!joined) return bytes;
+	const { target, upper } = joined;
+	let out = bytes;
+	if (joined.below) {
 		const line = target.to + bytes.length - read.source.length;
-		const above = lineOf(out, line - 1);
+		const above = lineStartOf(out, line - 1);
 		if (/^[ \t>]*\r?\n$/.test(out.slice(above, line))) out = out.slice(0, above) + out.slice(line);
 	}
-	if (joins(upper, tops[0], true))
-		out = out.slice(0, upper!.to) + out.slice(lineOf(read.source, target.from));
+	if (joined.above)
+		out = out.slice(0, upper!.to) + out.slice(lineStartOf(read.source, target.from));
 	return out;
 }
 
@@ -898,7 +954,10 @@ function landedPaste(
 	const last = tops.at(-1);
 	const lastJoins = !last || host.facts(last.type).joins !== 'never';
 	const after = !nothingVisibleAfter(read.source, at);
-	const lines = clip.source.split('\n');
+	// A closing line (`:::`, `</details>`) holds no text: the text after the caret goes under it.
+	const fenced = !!last && host.facts(last.type).lines === 'fenced';
+	const closed = fenced && after && linesOf(last)?.at(-1)?.own === true;
+	const lines = [...clip.source.split('\n'), ...(closed ? [''] : [])];
 	const variants = (write: (ls: string[]) => string) => [write(lines)];
 	const splice = (prefix: string, head: string) => (ls: string[]) =>
 		read.source.slice(0, at) + head + join(ls, prefix, eol, after) + read.source.slice(at);

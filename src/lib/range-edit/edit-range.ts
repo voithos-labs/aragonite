@@ -32,7 +32,7 @@ import { ownEntry, restored } from './own-entry';
 import { numberedOn } from './list-numbers';
 import { pasteAt, type Pasted } from './paste';
 import { removeRange, type Removal } from './removal';
-import { fenceBody, holdsText } from './removal-range';
+import { bodyBetweenFences, fenceBody, holdsText } from './removal-range';
 
 /** Two byte offsets, `from <= to`, after the editor widened the range to every block it takes
  *  whole; a caret is a range with `from === to`. */
@@ -91,9 +91,9 @@ export function editRange(
 	const read = (edit: Edit) => ({ ...readDoc(edit.source, host, mode), ending: doc.ending });
 	const inside = typeof gesture === 'object' && 'parent' in gesture ? gesture.parent : from;
 	const started = () => startedIn(doc, inside);
-	const answer = (edit: Removal): RangeEditResult => ({
+	const answer = (edit: Removal, result = read(edit)): RangeEditResult => ({
 		source: edit.source,
-		caret: caretOf(edit, read(edit), besideOf(gesture), started)
+		caret: caretOf(edit, result, besideOf(gesture), started)
 	});
 	if (gesture === 'copy' || gesture === 'cut') {
 		const { removed, clipboard, own } = taken(doc, from, to);
@@ -104,7 +104,7 @@ export function editRange(
 	if ('paste' in gesture) {
 		// The document's last line keeps the line ending it had, which blocks pasted after it spend.
 		const ending = ownTrailingLineEnding(source);
-		const ended = (result: RangeEditResult): RangeEditResult =>
+		const keepLastEnding = (result: RangeEditResult): RangeEditResult =>
 			!ending || !result.source || ownTrailingLineEnding(result.source)
 				? result
 				: { ...result, source: result.source + ending };
@@ -120,21 +120,29 @@ export function editRange(
 			held,
 			transform
 		});
+		const ended = gesture.paste.endsWith('\n');
 		// The empty line a last line ending opens is the caret's own, never the block below it.
 		const lined = (result: RangeEditResult): RangeEditResult =>
-			gesture.paste.endsWith('\n') && result.caret.holds === 'boundary'
+			ended && result.caret.holds === 'boundary'
 				? { ...result, caret: { ...result.caret, line: true } }
 				: result;
+		// Without that ending the caret stays in the last block pasted, at the last place it takes.
+		const landed = (edit: Edit): RangeEditResult => {
+			const result = read(edit);
+			const last = ended || !edit.blocks ? null : lastPlaceAt(result, edit.caret);
+			return lined(answer(last === null ? edit : { ...edit, caret: last }, result));
+		};
 		// One write of one block of `source` is named where the caret stays on the text it wrote, so
 		// the editor can make it as that block does.
 		const inPlace = (edit: Edit): RangeEditResult => {
-			const named = lined({ ...answer(edit), blocks: edit.blocks ?? 0 });
+			const named = { ...landed(edit), blocks: edit.blocks ?? 0 };
 			const { caret } = named;
 			const kept = edit.leaf && caret.holds === 'text' && caret.at === edit.caret;
 			return kept ? { ...named, leaf: edit.leaf } : named;
 		};
-		if (from === to) return ended(inPlace(pasteAt(doc, from, to, pasted(gesture))));
-		if (inOneText(doc, from, to)) return ended(inPlace(pasteAt(doc, from, to, pasted(TEXT))));
+		if (from === to) return keepLastEnding(inPlace(pasteAt(doc, from, to, pasted(gesture))));
+		if (inOneText(doc, from, to))
+			return keepLastEnding(inPlace(pasteAt(doc, from, to, pasted(TEXT))));
 		// Across blocks the paste lands where the removal's caret does, as a cut's then a paste's
 		// would, and over one block held whole takes its place, as typed text does.
 		const removed = removalEdit(doc, from, to, 'type');
@@ -142,7 +150,7 @@ export function editRange(
 		const caret = caretOf(removed, after, 'start after', () => startedIn(doc, from));
 		const place = heldAlone(doc, from, to) ? TEXT : caret;
 		const over = pasteAt(after, caret.at, caret.at, pasted(place));
-		return ended(lined({ ...answer(over), blocks: over.blocks ?? 0 }));
+		return keepLastEnding({ ...landed(over), blocks: over.blocks ?? 0 });
 	}
 	const { removed, clipboard, own } = taken(doc, from, to);
 	const { drop } = gesture;
@@ -380,6 +388,22 @@ function startAfter(doc: Doc, at: number): Place | null {
 		return { at: fenceBody(doc, block)?.from ?? block.from, holds: 'text' };
 	}
 	return null;
+}
+
+/** The last place a caret takes in the block ending at `at`: a fenced block's body end, a container's
+ *  or a table's last text; null for text that ends there, or a block with no text place (a rule). */
+function lastPlaceAt(doc: Doc, at: number): number | null {
+	const block = [...doc.layout.within(at, at)].filter((b) => contentEnd(doc, b) === at).at(-1);
+	if (!block || (block.text && !bodyBetweenFences(doc, block))) return null;
+	return lastPlaceIn(doc, block);
+}
+
+function lastPlaceIn(doc: Doc, block: LaidBlock): number | null {
+	if (factsOf(doc, block).textPosition === 'never') return null;
+	if (block.text) return bodyBetweenFences(doc, block)?.to ?? block.text.to;
+	const count = nodeAt(doc, block.path).children?.length ?? 0;
+	const last = count > 0 ? doc.layout.block([...block.path, count - 1]) : undefined;
+	return last ? lastPlaceIn(doc, last) : null;
 }
 
 /** A leaf's last caret place: a fenced block's body end, else its text's end past a structural

@@ -7,9 +7,12 @@
  */
 
 import { displayLines, isBlankText, trimTrailingLineEnding, withLineEnding } from '../core/lines';
+import { metadataIfKind } from '../core/nodes';
+import { sharedPrefixLength, sharedSuffixLength } from '../core/written-span';
 import type { PasteHost } from './host';
 import type { LaidBlock } from './layout';
 import {
+	closedByOwnLine,
 	contentEnd,
 	factsOf,
 	findWithin,
@@ -29,6 +32,7 @@ import { apartAt, pastMarkers } from './apart';
 import { closedBy, emptiedRest, leftBy, takerOf } from './container-merge';
 import {
 	enteredAt,
+	intoBlankUnder,
 	itemHolding,
 	joinsList,
 	onEmptyLine,
@@ -38,7 +42,7 @@ import {
 	splitAt,
 	splitOut
 } from './paste-split';
-import { numberedAfterTaking, numberedOn } from './list-numbers';
+import { numberedAfterTaking } from './list-numbers';
 import {
 	byteAt,
 	cutLeaf,
@@ -69,7 +73,7 @@ export interface Pasted {
 export function pasteAt(doc: Doc, from: number, to: number, pasted: Pasted): Edit {
 	const seen: { blocks?: Doc } = {};
 	const once = { ...pasted, transform: ranOnce(pasted.transform) };
-	const edit = itemEntered(doc, from, to, once, seen) ?? landedAt(doc, from, to, once, seen);
+	const edit = entered(doc, from, to, once, seen) ?? landedAt(doc, from, to, once, seen);
 	// One write of a block's text is text, whatever the clipboard read as.
 	if (!seen.blocks || edit.leaf) return edit;
 	const tops = seen.blocks.tree.children.filter((b) => !isBlankText(b.raw));
@@ -86,9 +90,9 @@ function ranOnce(transform: Pasted['transform']): Pasted['transform'] {
 	};
 }
 
-/** A last line ending pasted in a list item's text is Enter where it lands: the rest pasted, then
- *  the next item opened at the caret. Null for a caret in any other block, whatever is pasted. */
-function itemEntered(
+/** A last line ending is Enter where what was pasted ends in a list, or in a list item's text an
+ *  item of that item's kind; null where it opens a line of the caret's block instead. */
+function entered(
 	doc: Doc,
 	from: number,
 	to: number,
@@ -96,19 +100,46 @@ function itemEntered(
 	seen: { blocks?: Doc }
 ): Edit | null {
 	const ending = pasted.plain ? null : /\r?\n$/.exec(pasted.text);
-	if (!ending || pasted.held.holds !== 'text' || !itemHolding(doc, from, to)) return null;
+	if (!ending || pasted.held.holds !== 'text') return null;
+	const text = pasted.text.slice(0, ending.index);
+	const leaf = leafHolding(doc, from, to)?.leaf;
+	// Literal text takes the ending as a line of its own text.
+	if (leaf && factsOf(doc, leaf).body === 'literal') return null;
+	const host = itemHolding(doc, from, to);
+	// Outside a list item only a pasted list can end in a list of the document.
+	if (!host && !endsOnList(doc, text)) return null;
 	// The transforms see the whole clipboard, as they would where the ending lands anywhere else.
 	const { transform } = pasted;
 	const whole = (text: string) =>
 		transform!(text + '\n', readDoc(text + '\n', doc.host, doc.mode).tree);
 	const rest: Pasted = {
 		...pasted,
-		text: pasted.text.slice(0, ending.index),
+		text,
 		ended: true,
 		transform: transform && ((text) => whole(text).replace(/\n$/, ''))
 	};
 	const bare = landedAt(doc, from, to, rest, seen);
-	return enteredAt({ ...readDoc(bare.source, doc.host, doc.mode), ending: doc.ending }, bare.caret);
+	const path = host?.item.path;
+	const kind = path && {
+		node: nodeAt(doc, path),
+		marker: doc.host.itemAfter(doc.tree, path),
+		depth: path.length
+	};
+	const after = { ...readDoc(bare.source, doc.host, doc.mode), ending: doc.ending };
+	// A byte the paste left as it was, before or after what it changed, is the document's own.
+	const shorter = Math.min(doc.source.length, bare.source.length);
+	const head = sharedPrefixLength(doc.source, bare.source, shorter);
+	const tail = sharedSuffixLength(doc.source, bare.source, shorter - head);
+	const own = (byte: number) => byte < head || byte >= bare.source.length - tail;
+	return enteredAt(after, bare.caret, kind, own);
+}
+
+/** Whether the clipboard's last block is a list. */
+function endsOnList(doc: Doc, text: string): boolean {
+	const read = readDoc(text, doc.host, doc.mode);
+	const index = read.tree.children.findLastIndex((b) => !isBlankText(b.raw));
+	const last = index < 0 ? undefined : read.layout.block([index]);
+	return !!last && factsOf(read, last).lines === 'items';
 }
 
 /** `pasteAt`, noting in `seen` the clipboard as blocks where the landing read it so. */
@@ -135,14 +166,15 @@ function landedAt(
 	const apart = held.holds === 'text' ? null : pasteApart(doc, from, off, held.parent, true);
 	if (apart) return apart;
 	const landing = landed(doc, from, to, lf, plain, blocks, pasted.ended === true);
-	// What lands in an empty paragraph, its line ending alone, stays apart from the block under it.
 	const leaf = leafHolding(doc, from, to)?.leaf;
-	if (!leaf || !/^\r?\n?$/.test(nodeAt(doc, leaf.path).raw)) return landing;
-	if (titleOwner(doc, leaf) || factsOf(doc, leaf).joins !== 'text') return landing;
+	if (!leaf) return landing;
 	const lower = doc.layout.block([...leaf.path.slice(0, -1), leaf.path.at(-1)! + 1]);
-	const flush = lower && lower.from <= pastMarkers(doc.source, leaf.to);
-	const edit =
-		read && !plain ? listsJoined(doc, leaf, flush ? lower : undefined, landing, read) : landing;
+	const flush = lower && lower.from <= pastMarkers(doc.source, leaf.to) ? lower : undefined;
+	const joined = read && !plain && flush ? joinedBelow(doc, flush, landing, read) : landing;
+	// What lands in an empty paragraph, its line ending alone, stays apart from the block under it.
+	if (!/^\r?\n?$/.test(nodeAt(doc, leaf.path).raw)) return joined;
+	if (titleOwner(doc, leaf) || factsOf(doc, leaf).joins !== 'text') return landing;
+	const edit = read && !plain ? joinedAbove(doc, leaf, joined, read) : landing;
 	const raw = flush ? lastPasted(doc, leaf, read?.source ?? lf, plain) : null;
 	if (!lower || raw === null) return edit;
 	const below = leaf.to + edit.source.length - doc.source.length;
@@ -150,34 +182,32 @@ function landedAt(
 	return { source: apartAt(doc, edit.source, below, join, true), caret: edit.caret };
 }
 
-/** `edit`, a paste of `pasted` into the empty paragraph `leaf`, with a pasted list joined to a list
- *  of its own type over it and to `lower`, flush under it: the blank line between the two goes. */
-function listsJoined(
-	doc: Doc,
-	leaf: LaidBlock,
-	lower: LaidBlock | undefined,
-	edit: Edit,
-	pasted: Doc
-): Edit {
-	const tops = pasted.tree.children.filter((b) => !isBlankText(b.raw));
-	const lineOf = (at: number) => at - lineHead(doc.source, at).length;
-	let { source, caret } = edit;
-	if (lower && joinsList(doc, lower, tops.at(-1), false)) {
-		const line = lineOf(lower.from) + source.length - doc.source.length;
-		const above = source.lastIndexOf('\n', line - 2) + 1;
-		if (isBlankText(source.slice(pastMarkers(source, above), line))) {
-			source = source.slice(0, above) + source.slice(line);
-			// A caret on the line that went stays after the pasted list's last text.
-			if (caret >= above) caret = above - (source[above - 2] === '\r' ? 2 : 1);
-		}
-	}
+/** `edit` with the list `pasted` ends on joined, as items, to `lower`, a list of its own type flush
+ *  under the caret's line: the empty line between the two goes. */
+function joinedBelow(doc: Doc, lower: LaidBlock, edit: Edit, pasted: Doc): Edit {
+	const last = pasted.tree.children.findLast((b) => !isBlankText(b.raw));
+	if (!joinsList(doc, lower, last, false)) return edit;
+	const { source } = edit;
+	const line = lineStart(doc, lower.from) + source.length - doc.source.length;
+	const above = source.lastIndexOf('\n', line - 2) + 1;
+	if (!isBlankText(source.slice(pastMarkers(source, above), line))) return edit;
+	const caret = edit.caret >= line ? edit.caret - (line - above) : edit.caret;
+	return { source: source.slice(0, above) + source.slice(line), caret };
+}
+
+/** `edit`, a paste into the empty paragraph `leaf`, with the list `pasted` opens with joined to a
+ *  list of its own type over it: the blank line between the two goes. */
+function joinedAbove(doc: Doc, leaf: LaidBlock, edit: Edit, pasted: Doc): Edit {
+	const first = pasted.tree.children.find((b) => !isBlankText(b.raw));
 	const upper = doc.layout.block([...leaf.path.slice(0, -1), leaf.path.at(-1)! - 1]);
 	// A paste that joined no list is the landing as it stood, the block it names with it.
-	if (!upper || !joinsList(doc, upper, tops[0], true))
-		return source === edit.source ? edit : { source, caret };
-	const gap = lineOf(leaf.from) - upper.to;
+	if (!upper || !joinsList(doc, upper, first, true)) return edit;
+	const gap = lineStart(doc, leaf.from) - upper.to;
+	const { source, caret } = edit;
 	return { source: source.slice(0, upper.to) + source.slice(upper.to + gap), caret: caret - gap };
 }
+
+const lineStart = (doc: Doc, at: number) => at - lineHead(doc.source, at).length;
 
 /** The last block a paste into the empty paragraph `leaf` writes, as its own bytes. */
 function lastPasted(doc: Doc, leaf: LaidBlock, clip: string, plain: boolean): string | null {
@@ -331,6 +361,8 @@ function landed(
 	const last = tops.at(-1);
 	if (lineAfter || !first || (tops.length === 1 && isText(first))) return asText(clip);
 	const lastJoins = factsOf(pasted, last!).joins !== 'never';
+	// A closing line holds no text, so the text after the cut goes on a line of its own under it.
+	const lastTakes = lastJoins && !closedByOwnLine(pasted, last!);
 	const lastRaw = nodeAt(pasted, last!.path).raw;
 	const joins = isText(first);
 	const left = joins ? null : leftBy(doc, from, pasted, first, leaf);
@@ -357,54 +389,63 @@ function landed(
 	// after it that the last block can't take goes on a line of its own, apart where it must be.
 	if (joins || clip.startsWith('\n')) {
 		const before = clip.startsWith('\n') ? '' : clip.slice(0, contentEnd(pasted, first));
-		const after = tailOf(lastJoins && (last !== first || before === ''));
+		const after = tailOf(lastTakes && (last !== first || before === ''));
 		const cut = cutWith(before, after, lead);
-		// Where nothing follows the cut, a last block that takes no text (code, a table) ends on the
-		// caret line's own ending, which stands for the clipboard's last one.
 		const visible = lineRest(cut.rest, 0) !== '';
-		const ownEnding = !lastJoins && !visible && clip.endsWith('\n');
-		const apart = !lastJoins && visible && !clip.endsWith('\n');
-		const text = ownEnding ? clip.slice(0, -1) : apart ? clip + '\n' : clip;
+		const apart = !lastTakes && visible && !clip.endsWith('\n');
+		const ends = !lastTakes && !visible;
+		const text = apart ? clip + '\n' : ends ? intoBlankUnder(doc, to, clip) : clip;
 		const edit = around(cut, text.slice(before.length, text.length - after.length));
-		if (lastJoins) return restUnder(doc, edit, leaf, to, cut, lastRaw);
+		if (lastTakes) return restUnder(doc, edit, leaf, to, cut, lastRaw);
 		const ending = apart ? edit.source.lastIndexOf('\n', edit.caret - 1) : edit.caret;
 		const caret = apart && edit.source[ending - 1] === '\r' ? ending - 1 : ending;
 		return restApart(doc, { source: edit.source, caret }, leaf, to, cut, lastRaw);
 	}
+	const under = doc.source.slice(leaf.text!.from, from) !== '';
+	// A box stands in front of text alone (GFM task lists): a block of lines that is no text, pasted
+	// at a to-do's text start, takes the text's place in the bullet, and the box goes.
+	const box = under
+		? null
+		: boxBefore(doc, leaf, clip.slice(first.from, contentEnd(pasted, first)));
+	if (box) return landedWithout(doc, box, from - box.length, to - box.length, clip);
 	// Under text the last block joins what follows; with none before the cut only a paragraph's
 	// text joins it, and only where the clipboard ends on no line ending.
-	const under = doc.source.slice(leaf.text!.from, from) !== '';
 	const flush = !isBlankText(onLine) && factsOf(doc, leaf).joins === 'text' && !clip.endsWith('\n');
-	const after = tailOf(lastJoins && (under || flush));
+	const after = tailOf(lastTakes && (under || flush));
 	const cut = cutWith('', after, lead);
-	// A heading or a list item left with no text gives way: the blocks land on its line as on an
-	// empty one, and a list it stood in numbers on.
-	const gone = cut.empty ? givesWay(doc, leaf, cut, clip) : null;
-	if (gone) {
-		const end = contentEnd(doc, gone);
-		const bare = doc.source.slice(0, gone.from) + doc.source.slice(end);
-		const emptied = { ...readDoc(bare, doc.host, doc.mode), ending: doc.ending };
-		const landing: Pasted = { text: clip, plain: false, held: { holds: 'text' }, transform: null };
-		// Bytes alone: a block the landing names is one of the document without the one that went.
-		const { source, caret } = pasteAt(emptied, gone.from, gone.from, landing);
-		return { source: numberedOn(doc, gone.from, end, source), caret };
+	// A heading left with no text gives way: the blocks land on its line as on an empty one.
+	if (cut.empty && cut.head.length > leaf.from) {
+		const heading = { from: leaf.from, length: contentEnd(doc, leaf) - leaf.from };
+		return landedWithout(doc, heading, leaf.from, leaf.from, clip);
 	}
-	const ownEnding = !lastJoins && lineRest(cut.rest, 0) === '' && clip.endsWith('\n');
-	const text = ownEnding ? clip.slice(0, -1) : clip;
+	const ends = !lastTakes && lineRest(cut.rest, 0) === '';
+	const text = ends ? intoBlankUnder(doc, to, clip) : clip;
 	const mid = text.slice(0, text.length - after.length);
-	return splitAt(doc, leaf, from, to, cut, mid, lastJoins, lastRaw);
+	return splitAt(doc, leaf, from, to, cut, mid, lastTakes, lastRaw);
 }
 
-/** The block that gives way to blocks pasted over all of `leaf`'s text, `cut` there: a heading,
- *  whose syntax stands before its text, or the list item `leaf` is all of, for blocks of lines. */
-function givesWay(doc: Doc, leaf: LaidBlock, cut: Cut, clip: string): LaidBlock | null {
-	if (cut.head.length > leaf.from) return leaf;
-	// One line goes in after an item's marker as typing it there would; more is no item's text.
-	if (!clip.trimEnd().includes('\n')) return null;
-	const item = parentOf(doc, leaf);
-	const list = item && parentOf(doc, item);
-	if (!list || factsOf(doc, list).lines !== 'items') return null;
-	return nodeAt(doc, item.path).children?.length === 1 ? item : null;
+/** The to-do box in front of `leaf`'s text, where `first`, a pasted block that is no text, holds
+ *  more than one line; null for any other block. */
+function boxBefore(doc: Doc, leaf: LaidBlock, first: string): Span | null {
+	const item = first.includes('\n') && leaf.path.at(-1) === 0 ? parentOf(doc, leaf) : undefined;
+	const box = item && metadataIfKind(nodeAt(doc, item.path), 'listItem')?.taskMarker;
+	const at = leaf.text!.from;
+	return box && doc.source.endsWith(box, at) ? { from: at - box.length, length: box.length } : null;
+}
+
+interface Span {
+	from: number;
+	length: number;
+}
+
+/** The paste of `clip` at `[from, to)` of the document with `cut` taken out, its bytes and caret
+ *  alone: a block that landing names is one of that other document. */
+function landedWithout(doc: Doc, cut: Span, from: number, to: number, clip: string): Edit {
+	const bare = doc.source.slice(0, cut.from) + doc.source.slice(cut.from + cut.length);
+	const without = { ...readDoc(bare, doc.host, doc.mode), ending: doc.ending };
+	const landing: Pasted = { text: clip, plain: false, held: { holds: 'text' }, transform: null };
+	const { source, caret } = pasteAt(without, from, to, landing);
+	return { source, caret };
 }
 
 /** Where the last line of the text `block` ends on starts, in a pasted block that is no paragraph;

@@ -10,6 +10,8 @@ const paste = (t: string): Gesture => ({ paste: t, plain: false, holds: 'text' }
 const plain = (t: string): Gesture => ({ paste: t, plain: true, holds: 'text' });
 const TABLE = '| a |\n| - |';
 const FENCE = '```\nx\n```';
+const CALLOUT = ':::note\nbody\n:::';
+const TWO_HEADERS = '| a | b |\n| - | - |';
 
 /** One row per mode, for bytes both modes share. */
 const both = (name: string, source: string, gesture: Gesture, out: string): NamedRow[] => [
@@ -191,22 +193,65 @@ const EMPTIED_ROWS: NamedRow[] = [
 		paste('\n\ntwo'),
 		'\n\n# twoHi\n'
 	),
-	// Miss-analysis: the give-way rows were headings; ruling 16 names an item the same way, and no
-	// row emptied one with blocks that join none of it.
-	...both('E an item a paste empties gives way', '- [ ] ⟦alpha⟧\n', paste(TABLE), '| a |\n| - |\n'),
-	...both('E a fence too', '- ⟦alpha⟧\n', paste('```\ncode\n```'), '```\ncode\n```\n'),
-	...both('E and the list numbers on', '1. ⟦n⟧\n2. c\n', paste(TABLE), '| a |\n| - |\n\n1. c\n'),
+	// Miss-analysis: the rows above held only to-dos and items emptied whole, so nothing showed a
+	// plain item parting its list where `next` keeps the pasted blocks in it.
 	...both(
-		'E a middle item gives way between the list’s halves',
+		'E a to-do keeps its box under a one-line block with more after it',
+		'- [ ] ⟦a⟧\n- [x] b\n',
+		paste('# h\n\npara'),
+		'- [ ] # h\n\n  para\n- [x] b\n'
+	),
+	...both(
+		'E a plain item holds a fence',
+		'- ⟦alpha⟧\n',
+		paste('```\ncode\n```'),
+		'- ```\n  code\n  ```\n'
+	),
+	...both(
+		'E and a table, the list kept whole',
+		'1. ⟦n⟧\n2. c\n',
+		paste(TABLE),
+		'1. | a |\n   | - |\n2. c\n'
+	),
+	...both(
+		'E a middle item holds it too',
 		'- a\n- ⟦alpha⟧\n- c\n',
 		paste(TABLE),
-		'- a\n\n| a |\n| - |\n- c\n'
+		'- a\n- | a |\n  | - |\n- c\n'
+	),
+	...both(
+		'E and blocks after a heading, later lines indented',
+		'- ⟦a⟧\n- b\n',
+		paste('# h\n\npara'),
+		'- # h\n\n  para\n- b\n'
 	),
 	...both(
 		'E an item holding more keeps its marker',
 		'- ⟦alpha⟧\n  - sub\n',
 		paste(TABLE),
 		'- | a |\n  | - |\n  - sub\n'
+	),
+	// Miss-analysis: no row pasted at the caret in an empty item, which kept the blank line an empty
+	// paragraph keeps and turned the list loose.
+	...both('E an empty item takes a heading', '1. ⟦⟧\n2. c\n', paste('# h'), '1. # h\n2. c\n'),
+	...both(
+		'E a to-do too, its box kept',
+		'- [ ] ⟦⟧\n- [x] b\n',
+		paste('# h'),
+		'- [ ] # h\n- [x] b\n'
+	),
+	...both('E and a table', '- ⟦⟧\n- c\n', paste(TABLE), '- | a |\n  | - |\n- c\n'),
+	...both(
+		'E a line the pasted table would read as a row stays apart',
+		'- ⟦⟧\nafter\n',
+		paste(TABLE),
+		'- | a |\n  | - |\n\nafter\n'
+	),
+	...both(
+		'E a line that stays a block keeps none',
+		'- ⟦⟧\nafter\n',
+		paste('# h'),
+		'- # h\nafter\n'
 	),
 	...both(
 		'E text that joins keeps the heading',
@@ -254,6 +299,66 @@ const BLANKED_ROWS: NamedRow[] = [
 		gesture: paste(' '),
 		expect: { source: '#  \n\nnext\n' }
 	}
+];
+
+/** Blocks of lines that are not text, each as it stands in a bullet, and the blank line it keeps
+ *  over text under it that would read as its own. */
+const BULLET_BLOCKS: [name: string, clip: string, held: string, apart: string][] = [
+	['a table', TABLE, '| a |\n  | - |', '\n'],
+	['a fence', FENCE, '```\n  x\n  ```', ''],
+	['a $$ block', '$$\nx\n$$', '$$\n  x\n  $$', ''],
+	['a callout', CALLOUT, ':::note\n  body\n  :::', '']
+];
+
+// Miss-analysis: the to-do rows read "the item gives its checkbox up" as the item giving way, and
+// no row pasted a block of lines at a to-do's text start with text left after the caret.
+const TODO_BOX_ROWS: NamedRow[] = [
+	...BULLET_BLOCKS.flatMap(([name, clip, held, apart]) => [
+		...both(
+			`X ${name} over a to-do’s text takes its place in the bullet`,
+			'- [ ] ⟦a⟧\n- [x] b\n',
+			paste(clip),
+			`- ${held}\n- [x] b\n`
+		),
+		...both(
+			`X ${name} at a to-do’s text start, the text under it`,
+			'- [ ] ⟦⟧alpha\n- [x] b\n',
+			paste(clip),
+			`- ${held}\n${apart}  alpha\n- [x] b\n`
+		),
+		...both(
+			`X ${name} in an empty to-do`,
+			'- [ ] ⟦⟧\n- [x] b\n',
+			paste(clip),
+			`- ${held}\n- [x] b\n`
+		),
+		...both(
+			`X ${name} in a middle to-do, the list one list`,
+			'- [x] z\n- [ ] ⟦a⟧\n- [x] c\n',
+			paste(clip),
+			`- [x] z\n- ${held}\n- [x] c\n`
+		)
+	]),
+	...both(
+		'X a to-do that is the whole list holds a table too',
+		'- [ ] ⟦alpha⟧\n',
+		paste(TABLE),
+		'- | a |\n  | - |\n'
+	),
+	...both(
+		'X a quote of lines over a to-do’s text',
+		'- [ ] ⟦a⟧\n- [x] b\n',
+		paste('> q\n> r'),
+		'- > q\n  > r\n- [x] b\n'
+	),
+	// One line stays the to-do's text beside its box.
+	...both('X a heading at its text start', '- [ ] ⟦⟧bc\n', paste('# h'), '- [ ] # hbc\n'),
+	...both(
+		'X a rule there, on a line of its own',
+		'- [ ] ⟦⟧bc\n',
+		paste('---'),
+		'- [ ] ---\n\n  bc\n'
+	)
 ];
 
 // Miss-analysis: law 5 strips delimiters before it compares, and every live paste row landed its
@@ -652,11 +757,10 @@ const SEAM_ROWS: NamedRow[] = [
 		expect: { source: '- a\n- b\n', caret: { at: 7, holds: 'text' } }
 	},
 	{
-		name: 'M and after a list joined to the list under it, not on the line that went',
+		name: 'M and a list joined to the list under it takes the ending as its next item',
 		source: 'top\n\n⟦⟧\n- c\n',
 		gesture: paste('para\n\n- a\n- b\n'),
-		// The caret's line is no list item's, so the clipboard's last line ending stands for its own.
-		expect: { source: 'top\n\npara\n\n- a\n- b\n- c\n', caret: { at: 18, holds: 'text' } }
+		expect: { source: 'top\n\npara\n\n- a\n- b\n- \n- c\n', caret: { at: 21, holds: 'text' } }
 	},
 	...both(
 		'M a list pasted at a text caret on a list’s marker joins it',
@@ -716,6 +820,171 @@ const ENDING_ROWS: NamedRow[] = [
 	}
 ];
 
+/** A row in source mode whose caret lands on the empty line the clipboard's last ending opened. */
+const onLine = (name: string, source: string, clip: string, out: string, at: number): NamedRow => ({
+	name: `the ending stays, ${name}`,
+	source,
+	gesture: paste(clip),
+	expect: { source: out, caret: { at, holds: 'boundary', parent: [], line: true } }
+});
+
+// Miss-analysis: the ending rows pasted text, a heading or a list, which take the caret line's
+// text; no row ended on a fence or a rule, whose ending stood for the caret line's own.
+const KEPT_ENDING_ROWS: NamedRow[] = [
+	onLine('a fence at a paragraph’s end', 'abc⟦⟧\n', `${FENCE}\n`, 'abc\n\n```\nx\n```\n\n', 15),
+	onLine('a rule', 'abc⟦⟧\n', '---\n', 'abc\n\n---\n\n', 9),
+	onLine('a rule after a paragraph', 'abc⟦⟧\n', 'one\n\n---\n', 'abcone\n\n---\n\n', 12),
+	onLine(
+		'over the blank line under it',
+		'abc⟦⟧\n\nnext\n',
+		`${FENCE}\n`,
+		'abc\n\n```\nx\n```\n\n\nnext\n',
+		15
+	),
+	onLine('on an empty line', 'a\n\n⟦⟧\nb\n', '# h\n', 'a\n\n# h\n\nb\n', 7),
+	onLine('on an empty line over a blank one', 'a\n\n⟦⟧\n\nb\n', '# h\n', 'a\n\n# h\n\n\nb\n', 7),
+	onLine(
+		'a paragraph and a rule on an empty line',
+		'Loaded\n\n⟦⟧\n\tcode\n',
+		'Plan\n***\n',
+		'Loaded\n\nPlan\n***\n\n\tcode\n',
+		17
+	),
+	onLine('over a heading’s whole text', '# ⟦Title⟧\n', `${FENCE}\n`, '```\nx\n```\n\n', 10),
+	// Miss-analysis: no row pasted a trailing blank line over a blank line, which stands for it.
+	onLine(
+		'its blank line is the one under it',
+		'abc⟦⟧\n\nnext\n',
+		`${FENCE}\n\n`,
+		'abc\n\n```\nx\n```\n\n\nnext\n',
+		15
+	),
+	...both(
+		'over a paragraph’s whole text too',
+		'⟦alpha⟧\n\nnext\n',
+		paste('- one\n- two\n\n'),
+		'- one\n- two\n\n\nnext\n'
+	),
+	...both('in a quote', '> abc⟦⟧\n', paste(`${FENCE}\n`), '> abc\n>\n> ```\n> x\n> ```\n>\n'),
+	...both('live too', 'abc⟦⟧\n', paste('---\n'), 'abc\n\n---\n\n'),
+	{
+		name: 'the ending stays, an item’s next item after a fence',
+		source: '- abc⟦⟧\n- d\n',
+		gesture: paste(`${FENCE}\n`),
+		expect: { source: '- abc\n\n  ```\n  x\n  ```\n- \n- d\n', caret: { at: 25, holds: 'text' } }
+	},
+	...both(
+		'numbered on after a rule',
+		'1. abc⟦⟧\n2. d\n',
+		paste('---\n'),
+		'1. abc\n\n   ---\n2. \n3. d\n'
+	),
+	...both(
+		'an unchecked to-do after a table',
+		'- [x] abc⟦⟧\n',
+		paste(`${TABLE}\n`),
+		'- [x] abc\n\n  | a |\n  | - |\n- [ ] \n'
+	)
+];
+
+/** A row in source mode whose caret ends in the text at byte `at`. */
+const caretAt = (
+	name: string,
+	source: string,
+	clip: string,
+	out: string,
+	at: number
+): NamedRow => ({
+	name,
+	source,
+	gesture: paste(clip),
+	expect: { source: out, caret: { at, holds: 'text' } }
+});
+
+// Miss-analysis: the ending rows that opened an item were pasted lists of the host's own kind, and
+// no row pasted a list that joins the one under the caret's line, so no row read the line it opened.
+const LIST_ENDING_ROWS: NamedRow[] = [
+	caretAt(
+		'a list joining the list under the paragraph opens its next item',
+		'abc⟦⟧\n- c\n',
+		'- one\n- two\n',
+		'abc\n\n- one\n- two\n- \n- c\n',
+		19
+	),
+	...both(
+		'ordered too',
+		'abc⟦⟧\n1. c\n',
+		paste('1. one\n2. two\n'),
+		'abc\n\n1. one\n2. two\n3. \n4. c\n'
+	),
+	...both(
+		'in a quote',
+		'> abc⟦⟧\n> - c\n',
+		paste('- one\n- two\n'),
+		'> abc\n>\n> - one\n> - two\n> - \n> - c\n'
+	),
+	...both(
+		'after a paragraph',
+		'abc⟦⟧\n- c\n',
+		paste('one\n\n- two\n'),
+		'abcone\n\n- two\n- \n- c\n'
+	),
+	onLine(
+		'a list it doesn’t join keeps the line',
+		'abc⟦⟧\n* c\n',
+		'- one\n- two\n',
+		'abc\n\n- one\n- two\n\n* c\n',
+		17
+	),
+	caretAt(
+		'a list that broke out opens an item of the host’s kind',
+		'- a⟦⟧b\n',
+		'1. q\n2. r\n',
+		'- a\n1. q\n2. r\n- \n- b\n',
+		16
+	),
+	...both(
+		'with nothing after the caret',
+		'- a⟦⟧\n',
+		paste('1. q\n2. r\n'),
+		'- a\n1. q\n2. r\n- \n'
+	),
+	...both('numbered on', '1. a⟦⟧b\n', paste('- q\n- r\n'), '1. a\n- q\n- r\n2. \n3. b\n'),
+	...both(
+		'a to-do host opens an unchecked to-do',
+		'- [x] a⟦⟧b\n',
+		paste('1. q\n2. r\n'),
+		'- [x] a\n1. q\n2. r\n- [ ] \n- [x] b\n'
+	),
+	...both(
+		'in a quote too',
+		'> - a⟦⟧b\n',
+		paste('1. q\n2. r\n'),
+		'> - a\n> 1. q\n> 2. r\n> - \n> - b\n'
+	),
+	...both('over the host’s whole text', '1. ⟦n⟧\n2. c\n', paste('- q\n'), '- q\n1. \n2. c\n'),
+	...both(
+		'a nested list of another kind opens its own next item',
+		'- a⟦⟧b\n',
+		paste('- q\n  1. r\n'),
+		'- aq\n  1. r\n  2. b\n'
+	),
+	...both('at its end too', '1. a⟦⟧\n', paste('1. q\n   - r\n'), '1. aq\n   - r\n   - \n'),
+	...both(
+		'a list joined in opens one too',
+		'- [ ] a⟦⟧b\n',
+		paste('- q\n- r\n'),
+		'- [ ] aq\n- r\n- [ ] b\n'
+	),
+	// Miss-analysis: the HTML laws at a fresh seed found it; no row ended an item in literal text.
+	...both(
+		'in literal text that ends an item the ending is a line of that text',
+		'- ```\n  co⟦⟧',
+		paste('- x\n- y\n'),
+		'- ```\n  co- x\n  - y\n'
+	)
+];
+
 // Miss-analysis: the taker branch built an ordered list's new items and no row read the numbers of
 // the items under them.
 const NUMBER_ROWS: NamedRow[] = [
@@ -727,12 +996,114 @@ const NUMBER_ROWS: NamedRow[] = [
 	)
 ];
 
+// Miss-analysis: every container pasted before text was a quote or a list, whose last line is
+// text, so no row saw the text after the caret glued to a closing `:::` or `</details>` line.
+const CLOSED = '<details>\n<summary>s</summary>\n\nbody\n\n</details>';
+const CLOSING_LINE_ROWS: NamedRow[] = [
+	...both(
+		'K text after a pasted callout goes on a line of its own',
+		'⟦⟧alpha\n',
+		paste(CALLOUT),
+		':::note\nbody\n:::\nalpha\n'
+	),
+	...both(
+		'K with text before the caret too',
+		'abc⟦⟧def\n',
+		paste(CALLOUT),
+		'abc\n\n:::note\nbody\n:::\ndef\n'
+	),
+	...both(
+		'K a paragraph then a callout',
+		'abc⟦⟧def\n',
+		paste(`one\n\n${CALLOUT}`),
+		'abcone\n\n:::note\nbody\n:::\ndef\n'
+	),
+	...both('K in an item', '- ⟦⟧alpha\n', paste(CALLOUT), '- :::note\n  body\n  :::\n  alpha\n'),
+	...both('K and after a closing tag', 'abc⟦⟧def\n', paste(CLOSED), `abc\n\n${CLOSED}\ndef\n`)
+];
+
+/** A row whose caret lands in text at the `‸` of `marked`, the bytes it leaves. */
+const landsAt = (name: string, source: string, clip: string, marked: string): NamedRow[] =>
+	(['source', 'live'] as const).map((mode) => ({
+		name: mode === 'live' ? `${name}, live` : name,
+		source,
+		mode,
+		gesture: paste(clip),
+		expect: {
+			source: marked.replace('‸', ''),
+			caret: { at: marked.indexOf('‸'), holds: 'text' as const }
+		}
+	}));
+
+// Miss-analysis: the caret rows pasted text, headings and lists, whose last line takes a caret, and
+// no row asked where it goes after a block that ends on a line no caret takes.
+const LAST_PLACE_ROWS: NamedRow[] = [
+	...landsAt(
+		'P a list’s last fence',
+		'abc⟦⟧\n',
+		'- one\n- ```\n  x\n  ```',
+		'abc\n\n- one\n- ```\n  x‸\n  ```\n'
+	),
+	// A rule holds no text place, and text written on a closing line is that block's own write.
+	{
+		name: 'P a callout ending in a rule keeps the caret after it',
+		source: 'abc⟦⟧\n',
+		gesture: paste(':::note\n---\n:::'),
+		expect: {
+			source: 'abc\n\n:::note\n---\n:::\n',
+			caret: { at: 20, holds: 'boundary', parent: [] }
+		}
+	},
+	{
+		name: 'P text on a fence’s closing line stays where it went',
+		source: '```\nx\n```⟦⟧\n',
+		gesture: paste('y'),
+		expect: { source: '```\nx\n```y\n', caret: { at: 10, holds: 'text' } }
+	},
+	...landsAt('P a fence’s caret stays in its body', 'abc⟦⟧\n', FENCE, 'abc\n\n```\nx‸\n```\n'),
+	...landsAt('P in an item', '- a⟦⟧\n- b\n', FENCE, '- a\n\n  ```\n  x‸\n  ```\n- b\n'),
+	...landsAt('P in a quote', '> a⟦⟧\n> b\n', FENCE, '> a\n>\n> ```\n> x‸\n> ```\n> b\n'),
+	...landsAt('P with text after it', 'abc⟦⟧def\n', FENCE, 'abc\n\n```\nx‸\n```\ndef\n'),
+	...landsAt('P an empty fence’s body', 'abc⟦⟧\n', '```\n```', 'abc\n\n```\n‸```\n'),
+	...landsAt('P a $$ block’s body', 'abc⟦⟧\n', '$$\nx\n$$', 'abc\n\n$$\nx‸\n$$\n'),
+	...landsAt('P a callout’s body', 'abc⟦⟧\n', CALLOUT, 'abc\n\n:::note\nbody‸\n:::\n'),
+	...landsAt(
+		'P a callout in an item',
+		'- a⟦⟧\n- b\n',
+		CALLOUT,
+		'- a\n\n  :::note\n  body‸\n  :::\n- b\n'
+	),
+	...landsAt(
+		'P a details block’s body',
+		'abc⟦⟧\n',
+		CLOSED,
+		'abc\n\n<details>\n<summary>s</summary>\n\nbody‸\n\n</details>\n'
+	),
+	...landsAt(
+		'P a header-only table’s last cell',
+		'abc⟦⟧\n',
+		TWO_HEADERS,
+		'abc\n\n| a | b‸ |\n| - | - |\n'
+	),
+	...landsAt(
+		'P and in an item',
+		'- a⟦⟧\n- b\n',
+		TWO_HEADERS,
+		'- a\n\n  | a | b‸ |\n  | - | - |\n- b\n'
+	)
+];
+
 export const SPLIT_ROWS: NamedRow[] = [
+	...CLOSING_LINE_ROWS,
+	...LAST_PLACE_ROWS,
 	...ENDING_ROWS,
+	...KEPT_ENDING_ROWS,
+	...LIST_ENDING_ROWS,
 	...NUMBER_ROWS,
 	...STRUCTURE_ROWS,
 	...EMPTIED_ROWS,
 	...BLANKED_ROWS,
+	...TODO_BOX_ROWS,
 	...RUN_ROWS,
 	...PLAIN_ROWS,
 	...LINE_ROWS,

@@ -33,8 +33,8 @@ const paste = (more: Partial<Extract<Gesture, { paste: string }>> = {}): Gesture
 const BETWEEN = { holds: 'boundary', parent: [] } as const;
 
 const LANDS_AS_BLOCKS: [name: string, marked: string, gesture: Gesture, want: string][] = [
-	['in a paragraph’s text', 'ab‸cd\n', paste(), 'ab\n\n:::note\nbody\n:::\ncd\n'],
-	['in an empty paragraph', 'a\n\n‸\n\nb\n', paste(), 'a\n\n:::note\nbody\n:::\n\nb\n'],
+	['in a paragraph’s text', 'ab‸cd\n', paste(), 'ab\n\n:::note\nbody\n:::\n\ncd\n'],
+	['in an empty paragraph', 'a\n\n‸\n\nb\n', paste(), 'a\n\n:::note\nbody\n:::\n\n\nb\n'],
 	[
 		'between two blocks',
 		'a\n\n‸```\nx\n```\n',
