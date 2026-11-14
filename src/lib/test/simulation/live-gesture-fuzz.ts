@@ -206,25 +206,26 @@ const delimitersOnScreen = (text: string): number => (text.match(/[*~`<>[\]]/g) 
 const typedRun = (gesture: Gesture): string =>
 	gesture.kind === 'type' || gesture.kind === 'type-over' ? gesture.char : '';
 
-/** What a typed key wrote, as the delimiter auto-pair answers it (G4.65): the key with the partner
- *  it writes (a run of two or three), nothing where it steps past a closer, else the key alone. */
+/** What a typed key wrote, as the delimiter auto-pair answers it (G4.65): nothing where it steps
+ *  past a closer, the key with its partner where it pairs, else the key alone. */
 function writtenRun(gesture: Gesture, origin: { bytes: string; doc: Document }, after: string) {
 	const key = typedRun(gesture);
 	if (gesture.kind !== 'type') return key;
 	const inserted = insertedRun(origin.bytes, after);
-	if (inserted === '' && stepsOverSomewhere(origin.doc, gesture)) return '';
-	if (!autoPairs(key)) return key;
-	return inserted === key.repeat(2) || inserted === key.repeat(3) ? inserted : key;
+	if (inserted === null) return key;
+	if (inserted.run === '' && stepsOverSomewhere(origin.doc, gesture)) return '';
+	// One press pairs as two bytes; a press after a lone run of the key grows it into a pair of two.
+	const pairs =
+		inserted.run === key.repeat(2)
+			? autoPair('', { start: 0, end: 0 }, 0, key) === 'write'
+			: inserted.run === key.repeat(3) &&
+				origin.bytes[inserted.at - 1] === key &&
+				autoPair(key, { start: 0, end: 1 }, 1, key) === 'write';
+	return pairs ? inserted.run : key;
 }
 
 const autoPair = (text: string, content: { start: number; end: number }, at: number, key: string) =>
 	resolveDelimiterAutoPair(text, content, at, key, fixtureReading(), { ownPair: null })?.kind;
-
-/** Whether the auto-pair writes a partner for `key` anywhere: on an empty line, or after a lone
- *  run of it, where a double-run delimiter pairs. */
-const autoPairs = (key: string): boolean =>
-	autoPair('', { start: 0, end: 0 }, 0, key) === 'write' ||
-	autoPair(key, { start: 0, end: 1 }, 1, key) === 'write';
 
 /** Whether the typed key steps past a closer at some offset of the leaf it was typed in. */
 function stepsOverSomewhere(doc: Document, gesture: Gesture): boolean {
@@ -239,8 +240,9 @@ function stepsOverSomewhere(doc: Document, gesture: Gesture): boolean {
 	return false;
 }
 
-/** The run `after` adds to `before` at one place, or null where it also removed something. */
-function insertedRun(before: string, after: string): string | null {
+/** The run `after` adds to `before` at one place and where it starts, or null where it also
+ *  removed something. */
+function insertedRun(before: string, after: string): { at: number; run: string } | null {
 	let head = 0;
 	while (head < before.length && before[head] === after[head]) head++;
 	let tail = 0;
@@ -250,7 +252,9 @@ function insertedRun(before: string, after: string): string | null {
 	) {
 		tail++;
 	}
-	return head + tail === before.length ? after.slice(head, after.length - tail) : null;
+	return head + tail === before.length
+		? { at: head, run: after.slice(head, after.length - tail) }
+		: null;
 }
 
 /** A typed `>` at a block's start opens a quote, so its byte draws as the quote's bar instead of a

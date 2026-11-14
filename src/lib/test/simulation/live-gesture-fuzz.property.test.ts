@@ -262,6 +262,7 @@ describe('the checks read what the contracts allow and nothing more', () => {
 		// A closer typed at a closer steps past it and writes nothing; with no closer to pass, it is lost.
 		expect(judged('*a* b\n', { offset: 2, char: '*' }, '*a* b\n', '*a*** b\n')).toEqual([]);
 		expect(judged('a b\n', { offset: 2, char: '*' }, 'a b\n', 'a **b\n')).toEqual(['screen']);
+		expect(judged('a b\n', { offset: 2, char: '*' }, 'a ***b\n', 'a **b\n')).toEqual(['screen']);
 	});
 
 	// Miss-analysis: quote markers were taken off every line, so a literal edit that made a quote
