@@ -237,6 +237,51 @@ describe('the shapes that used to need an exclusion', () => {
 	});
 });
 
+/** The checks themselves, judged on written bytes: each one sees the fault it names and passes
+ *  what a contract allows. */
+describe('the checks read what the contracts allow and nothing more', () => {
+	const judged = (source: string, over: Partial<Gesture>, live: string, literal: string) => {
+		const applied = (bytes: string) => ({ bytes, doc: parse(bytes), claimed: false });
+		const drawn = gesture(over);
+		return judgeGesture(
+			drawn,
+			{ bytes: source, doc: parse(source) },
+			applied(live),
+			applied(literal)
+		)
+			.filter((v) => v.category === 'seam')
+			.map((v) => v.oracle);
+	};
+
+	// Miss-analysis: the auto-pair's partner was read as any run of the key, so none or two of it
+	// passed as typed.
+	it('a typed key that lands nowhere, or twice, is a screen fault', () => {
+		expect(judged('ab\n', { offset: 1 }, 'ab\n', 'aab\n')).toEqual(['screen']);
+		expect(judged('ab\n', { offset: 1 }, 'aaab\n', 'aab\n')).toEqual(['screen']);
+		expect(judged('a b\n', { offset: 2, char: '*' }, 'a **b\n', 'a **b\n')).toEqual([]);
+		// A closer typed at a closer steps past it and writes nothing; with no closer to pass, it is lost.
+		expect(judged('*a* b\n', { offset: 2, char: '*' }, '*a* b\n', '*a*** b\n')).toEqual([]);
+		expect(judged('a b\n', { offset: 2, char: '*' }, 'a b\n', 'a **b\n')).toEqual(['screen']);
+	});
+
+	// Miss-analysis: quote markers were taken off every line, so a literal edit that made a quote
+	// read its marker as live's loss.
+	it('a quote marker on a line with text is bytes, one on a line holding nothing is not', () => {
+		const cut = { kind: 'range-delete' as const, offset: 0, endOffset: 2 };
+		expect(judged('**>](*\n', cut, '*>](*\n', '>](*\n')).toEqual([]);
+		expect(judged('> a\n> b\n', cut, 'a\n> b\n', '> a\n> b\n')).toEqual(['bytes']);
+	});
+
+	// Miss-analysis: a delete that leaves a fence opener gets its closer from the fence's write rule,
+	// which the subsequence check read as bytes written.
+	it('a delete may add the closer a fence it leaves open gets, and no other byte', () => {
+		const press = { kind: 'backspace' as const, leaf: 1, offset: 2 };
+		const source = ' ~\n\n~a~~\n';
+		expect(judged(source, press, ' ~\n\n~~~\n~~~\n', ' ~\n\n~~~\n~~~\n')).toEqual([]);
+		expect(judged(source, press, ' ~\n\n~~~*\n', ' ~\n\n~~~\n~~~\n')).toEqual(['bytes']);
+	});
+});
+
 /** Markers standing over no content are bytes the user saw, so neither split nor join may move
  *  them; a sweep check would misfire where live rightly removes the literal edit's residue. */
 describe('painted chrome survives both cut joins', () => {

@@ -12,9 +12,12 @@ import type { EdgeAffinity } from '#lib/caret/edge-affinity.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { getContentRange } from '#lib/core/inline/index.js';
+import { trimTrailingLineEnding } from '#lib/core/lines.js';
 import { describeShapeDivergence } from '#lib/core/shape-divergence.js';
 import { initDocument } from '#lib/components/editor-root/document-swap.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { resolveDelimiterAutoPair } from '#lib/components/blocks/text/delimiter-autopair.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import {
 	isSubsequence,
 	keepsEveryByte,
@@ -203,14 +206,37 @@ const delimitersOnScreen = (text: string): number => (text.match(/[*~`<>[\]]/g) 
 const typedRun = (gesture: Gesture): string =>
 	gesture.kind === 'type' || gesture.kind === 'type-over' ? gesture.char : '';
 
-/** What a typed key wrote: the key alone, or with the partner the delimiter auto-pair writes
- *  beside it (G4.65), read off the bytes as one inserted run of the key's own character. */
-function writtenRun(gesture: Gesture, before: string, after: string): string {
+/** What a typed key wrote, as the delimiter auto-pair answers it (G4.65): the key with the partner
+ *  it writes (a run of two or three), nothing where it steps past a closer, else the key alone. */
+function writtenRun(gesture: Gesture, origin: { bytes: string; doc: Document }, after: string) {
 	const key = typedRun(gesture);
 	if (gesture.kind !== 'type') return key;
-	const inserted = insertedRun(before, after);
-	const paired = inserted !== null && inserted.length <= 3 && [...inserted].every((c) => c === key);
-	return paired ? inserted : key;
+	const inserted = insertedRun(origin.bytes, after);
+	if (inserted === '' && stepsOverSomewhere(origin.doc, gesture)) return '';
+	if (!autoPairs(key)) return key;
+	return inserted === key.repeat(2) || inserted === key.repeat(3) ? inserted : key;
+}
+
+const autoPair = (text: string, content: { start: number; end: number }, at: number, key: string) =>
+	resolveDelimiterAutoPair(text, content, at, key, fixtureReading(), { ownPair: null })?.kind;
+
+/** Whether the auto-pair writes a partner for `key` anywhere: on an empty line, or after a lone
+ *  run of it, where a double-run delimiter pairs. */
+const autoPairs = (key: string): boolean =>
+	autoPair('', { start: 0, end: 0 }, 0, key) === 'write' ||
+	autoPair(key, { start: 0, end: 1 }, 1, key) === 'write';
+
+/** Whether the typed key steps past a closer at some offset of the leaf it was typed in. */
+function stepsOverSomewhere(doc: Document, gesture: Gesture): boolean {
+	const targets = gestureTargets(doc, gesture.kind);
+	const node = targets[gesture.leaf % Math.max(1, targets.length)]?.node;
+	if (!node) return false;
+	const content = getContentRange(node);
+	const text = trimTrailingLineEnding(node.raw);
+	for (let at = content.start; at <= content.end; at++) {
+		if (autoPair(text, content, at, gesture.char) === 'step-over') return true;
+	}
+	return false;
 }
 
 /** The run `after` adds to `before` at one place, or null where it also removed something. */
@@ -267,7 +293,7 @@ function bytesConserved(
 	if (gesture.kind === 'type') return isSubsequence(inked(before), inked(live));
 	if (gesture.kind === 'enter') return keepsEveryByte(before, live);
 	if (gesture.kind === 'backspace' || gesture.kind === 'delete') {
-		return isSubsequence(inked(live), inked(before));
+		return withoutOneFenceLine(live).some((bytes) => isSubsequence(inked(bytes), inked(before)));
 	}
 	// One toggle may strip, move and add its construct's delimiters at once, so the check is exact:
 	// outside those delimiter characters, live matches before byte for byte.
@@ -292,6 +318,18 @@ function bytesConserved(
 	);
 }
 
+/** `bytes`, and `bytes` less each one fence line: a delete that leaves a fence opener gets the
+ *  closer the fence's write rule adds (G1.143). */
+function withoutOneFenceLine(bytes: string): string[] {
+	const fenceLine = /^[ \t]*(?:>[ \t]*)*(?:`{3,}|~{3,})[ \t]*\r?(?:\n|$)/gm;
+	return [
+		bytes,
+		...[...bytes.matchAll(fenceLine)].map(
+			(m) => bytes.slice(0, m.index) + bytes.slice(m.index + m[0].length)
+		)
+	];
+}
+
 /** A block's bytes around its text: a heading's `#` runs, a setext underline. */
 function outsideText(node: CstNode): string {
 	const { start, end } = getContentRange(node);
@@ -308,9 +346,17 @@ function dropsOneRun(longer: string, shorter: string, run: string): boolean {
 }
 
 /** Bytes less what a join may write or drop: delimiter runs, a link's destination (a closed link
- *  writes it again), and the quote markers of the lines a join merges or drops. */
+ *  writes it again), and a quote line holding nothing else, which a join may merge or drop. */
 const unformatted = (bytes: string): string =>
-	inked(bytes.replace(/^[ \t]*(?:>[ \t]*)+/gm, ''))
+	bytes
+		.split('\n')
+		.map((line) => (formatless(line.replace(QUOTE_MARKERS, '')) === '' ? '' : formatless(line)))
+		.join('');
+
+const QUOTE_MARKERS = /^[ \t]*(?:>[ \t]*)+/;
+
+const formatless = (line: string): string =>
+	inked(line)
 		.replace(/\]\([^)]*\)/g, '')
 		.replace(/[*_~`[\]]/g, '');
 
@@ -459,14 +505,14 @@ export function judgeGesture(
 	const screenBefore = documentContentText(start);
 	const liveScreen = documentContentText(live.doc);
 	const literalScreen = documentContentText(literal.doc);
-	const liveTyped = writtenRun(gesture, before, live.bytes);
+	const liveTyped = writtenRun(gesture, origin, live.bytes);
 	const claimHolds = (doc: Document, screen: string, typed: string) =>
 		screenClaimHolds(gesture, screenBefore, screen, typed) ||
 		opensBlock(gesture, { doc: start, screen: screenBefore }, { doc, screen });
 	const literalHolds = claimHolds(
 		literal.doc,
 		literalScreen,
-		writtenRun(gesture, before, literal.bytes)
+		writtenRun(gesture, origin, literal.bytes)
 	);
 
 	if (!claimHolds(live.doc, liveScreen, liveTyped)) {
