@@ -134,15 +134,25 @@ function visibleTextOf(node: Document['children'][number]): string {
 }
 
 describe('live-mode joins over random range deletes', () => {
-	// Miss-analysis: only a reading that keeps the runs was read back for marks, and the fixed
-	// seed drew no drop that left a later run to re-pair over kept text.
-	it('a delete that drops a run never marks a character it kept', () => {
+	// Miss-analysis: the literal join stood wherever a drop marked kept text, unread, so it could
+	// mark text too and show a stray delimiter besides.
+	it('a drop the literal join cannot beat stands, so no stray delimiter shows', () => {
 		const source = '``code``*a **b* c**foo**foo**[text](url)\n';
 		const cut = { startBlock: 0, startOffset: 9, endBlock: 0, endOffset: 16 };
-		const live = deleteAcross(source, cut, 'live')!;
-		const literal = deleteAcross(source, cut, undefined)!;
-		const marks = live.bytes === literal.bytes ? 'literal' : compareMarks(live.marked, live.kept);
-		expect(marks, live.bytes).not.toBe('other');
+		expect(deleteAcross(source, cut, 'live')!.bytes).toBe('``code``*c*foo**foo**[text](url)\n');
+	});
+
+	it('the same holds for a join across two blocks', () => {
+		const across =
+			'[www.x.co][ref]````: &notreal;**a *b** c***a *b** c*\n\n![text](url)***foo****foo*\\*\n';
+		const joined = deleteAcross(
+			across,
+			{ startBlock: 0, startOffset: 47, endBlock: 1, endOffset: 0 },
+			'live'
+		);
+		expect(joined!.bytes).toBe(
+			'[www.x.co][ref]````: &notreal;**a *b** c*a b![text](url)***foo****foo*\\*\n'
+		);
 	});
 
 	// Miss-analysis: the drop's check counted a URL the cut made as a mark, so the literal join

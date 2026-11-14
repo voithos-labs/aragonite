@@ -21,7 +21,7 @@ import {
 	reopenAfter,
 	type CutConstruct
 } from './close-reopen';
-import { keepsEdgeMarks, losesEdgeMarksOnly, marksShown } from './shown-marks';
+import { keepsEdgeMarks, losesEdgeMarksOnly, losesMarksAround, marksShown } from './shown-marks';
 import { displayLength, readsAsBlankLine } from '../../lines';
 import type { Reading } from '../../../schema/reading';
 import type { StoredAs } from '../../../schema/stored-as';
@@ -100,6 +100,7 @@ export function cleanLiveJoinSeam(join: JoinSeam): CleanedJoin | null {
 	// A pair left over nothing also passes the screen check, so among the readings that pass, the
 	// first leaving the fewest such pairs wins (`docs/design/live-mode.md` § 4.1).
 	let best: { written: (typeof written)[number]; residue: number } | null = null;
+	let unchecked: { written: (typeof written)[number]; residue: number } | null = null;
 	let kept: { before: string[]; after: string[] } | null = null;
 	for (const candidate of written) {
 		const read = readCandidate(
@@ -113,12 +114,24 @@ export function cleanLiveJoinSeam(join: JoinSeam): CleanedJoin | null {
 		const fits = candidate.keeps
 			? keepsEdgeMarks(read.marks, kept.before, kept.after)
 			: losesEdgeMarksOnly(read.marksBesideUrls, kept.before, kept.after);
+		if (!fits && !candidate.keeps && (unchecked === null || read.residue < unchecked.residue)) {
+			unchecked = { written: candidate, residue: read.residue };
+		}
 		if (!fits) continue;
 		if (best === null || read.residue < best.residue) {
 			best = { written: candidate, residue: read.residue };
 		}
 		// One leaving no such pair can't lose, so the readings after it go unread.
 		if (read.residue === 0) break;
+	}
+	// A drop that marks kept text still beats a literal join that marks it too and shows the runs.
+	if (
+		best === null &&
+		unchecked !== null &&
+		kept !== null &&
+		!literalLosesMarksOnly(join, left, right, kept)
+	) {
+		best = unchecked;
 	}
 	if (best === null) return null;
 	const { raw, seam, seamEnd, map } = best.written;
@@ -577,6 +590,25 @@ function keptMarks(left: Side, right: Side): { before: string[]; after: string[]
 }
 
 // ── Verification ─────────────────────────────────────────────────────────────
+
+/** Whether the plain concatenation shows each kept character in at most the marks it had, a URL
+ *  aside, the stranded runs it leaves on screen standing among them. */
+function literalLosesMarksOnly(
+	join: JoinSeam,
+	left: Side,
+	right: Side,
+	kept: { before: string[]; after: string[] }
+): boolean {
+	const { mergedRaw, seam, typed, store } = join;
+	const read = readCandidate(mergedRaw.slice(0, seam) + typed + mergedRaw.slice(seam), store);
+	if (read === null) return false;
+	const inked = (text: string) => text.split('').filter((unit) => !/\s/.test(unit));
+	return losesMarksAround(
+		{ chars: inked(read.visible), marks: read.marksBesideUrls },
+		{ chars: inked(visibleSide(left, 'before')), marks: kept.before },
+		{ chars: inked(visibleSide(right, 'after')), marks: kept.after }
+	);
+}
 
 /** What the user must still see, read off each side's parse from before the join: reading the
  *  joined halves would bake the fault this checks for into the expectation. */

@@ -122,6 +122,30 @@ function edgeMarksFit(
 	);
 }
 
+/** A read's characters with their marks, whitespace left out, one entry per code unit. */
+interface MarkedRun {
+	chars: readonly string[];
+	marks: readonly string[];
+}
+
+/** Whether `read` shows `before`'s characters first and `after`'s last, each in at most the marks
+ *  it had, whatever other characters stand among them. */
+export function losesMarksAround(read: MarkedRun, before: MarkedRun, after: MarkedRun): boolean {
+	const runs = [read, before, after];
+	if (runs.some(({ chars, marks }) => chars.length !== marks.length)) return false;
+	let at = 0;
+	for (let i = 0; i < before.chars.length; i++, at++) {
+		while (at < read.chars.length && read.chars[at] !== before.chars[i]) at++;
+		if (at === read.chars.length || !holdsMarks(before.marks[i], read.marks[at])) return false;
+	}
+	let end = read.chars.length - 1;
+	for (let i = after.chars.length - 1; i >= 0; i--, end--) {
+		while (end >= at && read.chars[end] !== after.chars[i]) end--;
+		if (end < at || !holdsMarks(after.marks[i], read.marks[end])) return false;
+	}
+	return true;
+}
+
 /** Whether `outer`'s marks include every one of `inner`'s, in order. */
 function holdsMarks(outer: string, inner: string): boolean {
 	const want = inner === '' ? [] : inner.split(MARK_SEPARATOR);
