@@ -144,6 +144,15 @@ const ROWS: Row[] = [
 		select: range([1], [3, 0], 6),
 		entered: 'first\n\nx\n\n\n:::tip\nbody\n:::\n',
 		shifted: 'first\\\nx\n\n\n:::tip\nbody\n:::\n'
+	},
+	// Miss-analysis: every row took the block its range started in, so a break that ran where the
+	// range began, on a title row the core never picked, went unseen and its guard warned there.
+	{
+		name: 'a range starting in a title, into its body',
+		source: ':::tip Title\nbody\n:::\n',
+		select: { anchor: { path: [0, 0], offset: 9 }, focus: { path: [0, 1], offset: 2 } },
+		entered: ':::tip Ti\nxdy\n:::\n',
+		shifted: ':::tip Tix\ndy\n:::\n'
 	}
 ];
 

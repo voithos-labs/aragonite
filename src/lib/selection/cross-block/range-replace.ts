@@ -188,9 +188,12 @@ async function replaceInStep(
 		// A line break can land past the block it was claimed in (an emptied line, a block read
 		// again), so it is held to breaking a line where it runs instead.
 		if (gesture === 'break') {
-			assertInvariant('range-break-landing', () =>
-				checkBreakLanding(ctx.getDoc(), path, breaksLine(ran(), keyed.chord, ctx.commands))
-			);
+			// A start block the range kept holds the caret where the range began: no landing to check.
+			if (!coverage.startEdge) {
+				assertInvariant('range-break-landing', () =>
+					checkBreakLanding(ctx.getDoc(), path, breaksLine(ran(), keyed.chord, ctx.commands))
+				);
+			}
 		} else if (claimed) {
 			assertInvariant('command-key-landing', () => checkCommandLanding(claimed, ran()));
 		}
