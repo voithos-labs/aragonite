@@ -93,3 +93,13 @@ for (const mode of ['source', 'live'] as const)
 			const [took, , got] = await inserted(marked, mode, md, { placement: 'below' });
 			expect([took, got]).toEqual([changed, typed]);
 		});
+
+// Today's bytes, pinned so a change shows: an empty heading loses its `#`, as on `next` too.
+for (const mode of ['source', 'live'] as const)
+	it(`${mode}: below on an empty heading`, async () => {
+		expect(await inserted('# ‸\n\nnext\n', mode, '---\n', { placement: 'below' })).toEqual([
+			true,
+			'\n---\n\nnext\n',
+			'\n---\n\nZ\n\nnext\n'
+		]);
+	});
