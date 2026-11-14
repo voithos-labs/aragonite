@@ -116,4 +116,57 @@ test.describe('plugin admonitions', () => {
 		await expect(convert).toBeDisabled();
 		expect(await roundTripStable(page)).toBe(true);
 	});
+
+	// An admonition flush under a paragraph, which its opener line joins once it stops opening.
+	const FLUSH = 'x\n:::tip\nner\n:::\n\n# h\n';
+	/** The document still holds five lines, none twice, and the four the edit left alone. */
+	const expectNoLineDoubled = async () => {
+		const lines = (await editor.bridge.getSource()).match(/[^\r\n]+/g) ?? [];
+		expect(lines).toHaveLength(5);
+		expect(new Set(lines).size).toBe(5);
+		expect(lines).toEqual(expect.arrayContaining(['x', 'ner', ':::', '# h']));
+	};
+
+	for (const mode of ['source', 'live'] as const) {
+		test(`${mode}: letters typed where ArrowDown lands on an opener line double no line`, async ({
+			page
+		}) => {
+			await editor.loadContent(FLUSH);
+			await editor.setPresentationMode(mode);
+			await editor.focusBlockAtPath([0], 0);
+			await page.keyboard.press('ArrowDown');
+
+			// The second letter proves where the caret stands after the first.
+			await page.keyboard.type('qw');
+
+			await editor.bridge.waitForSourceContains('qw');
+			// Source mode shows the line as text, so the letters land where they were typed.
+			if (mode === 'source')
+				await editor.bridge.waitForSourceEquals('x\nqw:::tip\nner\n:::\n\n# h\n');
+			await expectNoLineDoubled();
+			expect(await editor.parseConverged()).toBe(true);
+
+			await editor.undo();
+			await editor.undo();
+			await editor.bridge.waitForSourceEquals(FLUSH);
+		});
+
+		for (const [key, offset] of [
+			['Backspace', 1],
+			['Delete', 0]
+		] as const) {
+			test(`${mode}: ${key} inside an opener line's marker doubles no line`, async ({ page }) => {
+				await editor.loadContent(FLUSH);
+				await editor.setPresentationMode(mode);
+				await editor.focusBlockAtPath([1, 0], offset);
+
+				await page.keyboard.press(key);
+
+				if (mode === 'source')
+					await editor.bridge.waitForSourceEquals('x\n::tip\nner\n:::\n\n# h\n');
+				await expectNoLineDoubled();
+				expect(await editor.parseConverged()).toBe(true);
+			});
+		}
+	}
 });

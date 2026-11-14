@@ -200,6 +200,20 @@ describe('a key that makes a list under a started title give a line up', () => {
 	});
 });
 
+// Miss-analysis: every row whose list gave a line up had a blank line under it, so no row read the
+// join between that line and the block flush below, here a list from 3 that can't start there.
+describe('a key that makes a list give a line up over a list that cannot interrupt it', () => {
+	const lines = ['[a]: /u', "'t", '- item', 'text', '    code', '3. three', 'end', ...TAIL];
+
+	it.each<[string, number, Edit]>([
+		['a quote mark before the item’s text', 0, typed('>')],
+		['a line break typed after the item’s text', 4, typed('\n')],
+		['a split after the item’s text', 4, named('split')]
+	])('reads the line with what follows it: %s', async (_, offset, key) => {
+		expect(await judge(wrapped(lines, 'top', '\n'), [2, 0, 0], offset, key)).toBeNull();
+	});
+});
+
 // Miss-analysis: the split asked whether its halves rejoin with the second half's first line
 // alone, so a title that closes two lines down never showed, and Enter wrote no byte.
 describe('Enter inside a title that runs over lines writes its blank line', () => {
