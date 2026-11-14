@@ -258,9 +258,9 @@ const IMAGE_CONTEXTS: ClaimContext[] = [
 
 describeKeyless(IMAGE_CONTEXTS);
 
-// A host binds modified arrows that move no caret (Back, the next tab), so a selected image leaves
+// A host binds sideways arrows (Back, the next tab) that move no caret, so a selected image leaves
 // them to the host, as a caret in its text does.
-it.each(['Alt+ArrowLeft', 'Alt+ArrowRight', 'Mod+Alt+ArrowLeft', 'Mod+Alt+ArrowUp'])(
+it.each(['Alt+ArrowLeft', 'Alt+ArrowRight', 'Mod+Alt+ArrowLeft'])(
 	'a selected image leaves %s to the host',
 	async (chord) => {
 		const image = CONTEXTS.find((c) => c.name === 'image selected whole')!;

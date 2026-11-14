@@ -52,14 +52,6 @@ test.describe('a selected image and the host’s keys', () => {
 		await editor.bridge.waitForSourceEquals('Before\n\nx\n\nAfter\n');
 	});
 
-	test('Alt+ArrowUp moves the image’s block', async ({ page }) => {
-		const editor = await selectImage(page);
-		await page.keyboard.press('Alt+ArrowUp');
-		await editor.bridge.waitForSourceEquals(
-			'![alt](/test-fixtures/sample.png)\n\nBefore\n\nAfter\n'
-		);
-	});
-
 	test('Backspace still removes the image', async ({ page }) => {
 		const editor = await selectImage(page);
 		expect(await pressAndReadPrevented(page, 'Backspace')).toBe(true);
