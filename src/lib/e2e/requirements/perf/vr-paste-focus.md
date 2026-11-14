@@ -10,6 +10,10 @@ assertion cannot cover this: the pasted bytes are identical whatever the caret d
 
 ## User interactions
 
+- Paste a list of many items, with no last line ending, into the middle of an item near the top
+  of a windowed list: the first item joins the text before the caret, the last takes the text
+  after it, and the caret lands in that last pasted item, after its own text, where typing goes
+  in (`- pasted 39ZZ word…`).
 - Paste a list of many items, ending in a line ending, into the middle of an item near the
   top of a windowed list: the clipboard's ending is Enter, so the text after the caret
   becomes the item under the pasted run, the caret at the start of its text (where Enter
