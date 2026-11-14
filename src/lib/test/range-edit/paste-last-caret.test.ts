@@ -108,6 +108,13 @@ for (const mode of ['source', 'live'] as const)
 			expect((await pastedThenTyped(marked, mode, CALLOUT)).typed).toBe(typed);
 		});
 
+// Miss-analysis: a fresh seed's cut pasted back, the one shape where a block follows the callout.
+for (const mode of ['source', 'live'] as const)
+	it(`${mode}: a block after a callout pasted into its own kind still takes the rest`, async () => {
+		const got = await pastedThenTyped(':::note\n‸head\n:::\n', mode, `${CALLOUT}\n\n# `);
+		expect(got.typed).toBe(':::note\nbody\n:::\n\n# Zhead\n');
+	});
+
 // A `$$` block takes no typed letter in this harness, so its row reads the caret: the body's end.
 for (const mode of ['source', 'live'] as const)
 	it(`${mode}: a $$ block pasted without its ending leaves the caret at its body’s end`, async () => {

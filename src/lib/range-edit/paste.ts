@@ -490,9 +490,9 @@ function landed(
 		const inner = takenIn(pasted, first);
 		const behind = inner.after === '' ? lead : '';
 		const cut = cutWith(inner.before, inner.after, behind);
-		// A closing line the container brought holds no text: what follows the caret goes under it,
+		// A closing line that ends the clipboard holds no text: what follows the caret goes under it,
 		// and the caret stays at that line's end, whose last place is the body's.
-		const closed = follows && inner.after === '' && closedByOwnLine(pasted, first);
+		const closed = follows && last === first && closedByOwnLine(pasted, first);
 		const set = around(cut, closed ? inner.mid + '\n' : inner.mid, keep);
 		const above = set.source.lastIndexOf('\n', set.caret - 1);
 		const lineEnd = set.source[above - 1] === '\r' ? above - 1 : above;
