@@ -237,10 +237,13 @@ function opensBlock(
 	return (
 		gesture.kind === 'type' &&
 		BLOCK_MINTING_CHARS.includes(gesture.char) &&
-		normalizeScreen(after.screen) === normalizeScreen(before.screen) &&
+		glyphs(after.screen) === glyphs(before.screen) &&
 		blockShape(after.doc) !== blockShape(before.doc)
 	);
 }
+
+/** A line's leading spaces join the quote marker the `>` opens, so only the glyphs compare. */
+const glyphs = (screen: string): string => normalizeScreen(screen).replace(/^[ \t]+/gm, '');
 
 const blockShape = (holder: Document | CstNode): string =>
 	(holder.children ?? [])
