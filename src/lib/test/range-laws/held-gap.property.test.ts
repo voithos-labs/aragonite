@@ -479,8 +479,7 @@ const LANDED: Record<string, string> = {
 	'the line under it, under a started title':
 		"intro\n\n[a]: /u\n    'code\n\n汉text\nend'\n\nlast\n",
 	'Enter under a started title': "intro\n\n[a]: /u\n    'code\n\n\nxt\nend'\n\nlast\n",
-	'two containers deep, out past both':
-		'intro\n\n- > above\n  > \n  > 汉\n  >\n  >\n\n```\nlast\n```\n',
+	'two containers deep, out past both': 'intro\n\n- > above\n  > \n  > 汉\n\n```\nlast\n```\n',
 	'past the rows of a table': '| a |\n| - |\n\n汉\n\n```\nx\n```\n| 2 |\n\nlast\n'
 };
 

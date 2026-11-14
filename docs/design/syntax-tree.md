@@ -276,7 +276,7 @@ An emptied file has no last line, so nothing is kept or lost: a file that had no
 
 #### Where the separators get fixed up
 
-The fix-up after an edit does the counting, and it lives in `tree-operations/fix-up/`. Its run layout (`tree-operations/fix-up/runs.ts :: layOutRun`) takes every run an edit touched and lays it out the way a reload would. It keeps what you can see (the run's blank blocks, and a block's own erased last line) and rewrites the rest: each separator, the lines a container's fence lines take (below), and the document's trailing blank line, which becomes a blank block once one stands above it. A unit row holds its layout to the parser's own reading of every run (`blank-run-layout.test.ts`), so the two can't drift apart.
+The fix-up after an edit does the counting, and it lives in `tree-operations/fix-up/`. Its run layout (`tree-operations/fix-up/runs.ts :: layOutRun`) takes every run an edit touched and lays it out the way a reload would. It keeps what you can see (the run's blank blocks, and a block's own erased last line) and rewrites the rest: each separator, the lines a container's fence lines take (below), and the document's trailing blank line, which goes once a blank block stands above it, as the separator under any blank block does. A unit row holds its layout to the parser's own reading of every run (`blank-run-layout.test.ts`), so the two can't drift apart.
 
 Around it sit the steps a count can't infer, since they depend on what the edit did rather than what's left:
 
