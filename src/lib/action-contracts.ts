@@ -53,7 +53,8 @@ export type CommitLanding = () => Landing | GapCaretSelection | null;
 
 /** Where the caret lands in a byte splice's new bytes: at byte `at`, in a block's text, on the
  *  block starting there focused whole, or between two of `parent`'s children, the block whose
- *  children the place sits between (the range-edit core's `Place`, `line` included). */
+ *  children the place sits between (the range-edit core's `Place`). `line` marks the line a pasted
+ *  last line ending opened, where the caret lands as Enter's does. */
 export type SpliceCaret = { at: number; line?: true } & (
 	{ holds: 'text' } | { holds: 'block' | 'boundary'; parent: readonly number[] }
 );

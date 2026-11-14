@@ -85,7 +85,21 @@ export function enteredAt(
 	const marker = host && !nested ? numberedAs(host.marker, ownKind) : ownKind;
 	const head = cut.head + doc.ending + outer + indent + marker;
 	const opened = { source: head + cut.rest, caret: head.length + cut.caret };
-	return numberedAfterTaking(doc, list, item.path.at(-1)! + 1, opened);
+	return atTextStart(doc, numberedAfterTaking(doc, list, item.path.at(-1)! + 1, opened));
+}
+
+/** `edit` with a caret left on its line's markers at that line's text start, where Enter leaves it:
+ *  a space or tab the rest starts with becomes the new marker's padding. */
+function atTextStart(doc: Doc, edit: Edit): Edit {
+	const { source, caret } = edit;
+	const read = readDoc(source, doc.host, doc.mode);
+	const leaf = [...read.layout.within(caret, lineEnd(source, caret))].find(
+		(b) => b.text && b.text.from >= caret
+	);
+	const start = leaf?.text?.from;
+	return start !== undefined && /^[ \t]*$/.test(source.slice(caret, start))
+		? { ...edit, caret: start }
+		: edit;
 }
 
 /** `marker` with the number `other` starts with, where both are an ordered item's. */

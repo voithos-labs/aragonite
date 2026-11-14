@@ -77,7 +77,10 @@ export interface Pasted {
 export function pasteAt(doc: Doc, from: number, to: number, pasted: Pasted): Edit {
 	const seen: { blocks?: Doc } = {};
 	const once = { ...pasted, transform: ranOnce(pasted.transform) };
-	const landing = entered(doc, from, to, once, seen) ?? landedAt(doc, from, to, once, seen);
+	const enter = entered(doc, from, to, once, seen);
+	const landing = enter
+		? { ...enter, entered: true as const }
+		: landedAt(doc, from, to, once, seen);
 	// Only blank text with no line ending leaves the block's own line blank.
 	const { emptied } = pasted;
 	const blanked = emptied && /^[ \t]+$/.test(pasted.text);

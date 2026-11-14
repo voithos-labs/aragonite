@@ -102,6 +102,46 @@ for (const mode of ['source', 'live'] as const)
 			expect(ended).toEqual(entered);
 		});
 
+// Miss-analysis: the mid-text rows had a letter right after the caret, so no row asked where the
+// ending leaves the caret when the new marker takes the rest's first space in, or before a run.
+const BEFORE_SPACE: [name: string, marked: string, list: string][] = [
+	['a bullet, before a space', '- al‸ pha\n- after\n', '- one\n- two'],
+	['a bullet, before a tab', '- al‸\tpha\n- after\n', '- one\n- two'],
+	['an ordered item', '1. al‸ pha\n2. after\n', '1. one\n2. two'],
+	['a to-do', '- [ ] al‸ pha\n- [ ] after\n', '- [ ] one\n- [ ] two'],
+	['a nested item', '- a\n  - al‸ pha\n- b\n', '- one\n- two'],
+	['an item in a quote', '> - al‸ pha\n> - after\n', '- one\n- two'],
+	['before a space and a run', '- al‸ **b** c\n- after\n', '- one\n- two'],
+	['right before a run', '- al‸**b** c\n- after\n', '- one\n- two'],
+	['before two words', '- item 2‸ word word\n- item 3\n', '- p0\n- p1']
+];
+
+for (const mode of ['source', 'live'] as const)
+	for (const [name, marked, list] of BEFORE_SPACE)
+		for (const [kind, clip] of [
+			['a list', list],
+			['text', 'one']
+		] as const) {
+			it(`${mode}: ${name}, ${kind} and its line ending leave Enter’s caret`, async () => {
+				expect(await pasted(marked, mode, clip + '\n')).toEqual(
+					await pasted(marked, mode, clip, 1)
+				);
+			});
+			it(`${mode}: ${name}, ${kind} and two line endings are two Enters`, async () => {
+				const ended = await pastedReloaded(marked, mode, clip, 2);
+				const entered = await pasted(marked, mode, clip, 2);
+				// Either side of a hidden run's opener is one place on screen (`live-mode.md` § 4.2),
+				// which Enter's split and Enter at a text start name by different offsets.
+				const hidden = mode === 'live' && /‸\s*\*\*/.test(marked);
+				const place = (left: Left) => (hidden ? JSON.parse(left.caret).path : left.caret);
+				expect([ended.after.source, place(ended.after), ended.typed]).toEqual([
+					entered.after.source,
+					place(entered.after),
+					entered.typed
+				]);
+			});
+		}
+
 it('the ruled row: an ordered list ending in a line ending opens item 3', async () => {
 	const { after, typed } = await pasted('1. alpha‸\n2. after\n', 'source', '1. one\n2. two\n');
 	expect(after.source).toBe('1. alphaone\n2. two\n3. \n4. after\n');

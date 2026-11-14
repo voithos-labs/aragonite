@@ -760,7 +760,10 @@ const SEAM_ROWS: NamedRow[] = [
 		name: 'M and a list joined to the list under it takes the ending as its next item',
 		source: 'top\n\n⟦⟧\n- c\n',
 		gesture: paste('para\n\n- a\n- b\n'),
-		expect: { source: 'top\n\npara\n\n- a\n- b\n- \n- c\n', caret: { at: 21, holds: 'text' } }
+		expect: {
+			source: 'top\n\npara\n\n- a\n- b\n- \n- c\n',
+			caret: { at: 21, holds: 'text', line: true }
+		}
 	},
 	...both(
 		'M a list pasted at a text caret on a list’s marker joins it',
@@ -871,7 +874,10 @@ const KEPT_ENDING_ROWS: NamedRow[] = [
 		name: 'the ending stays, an item’s next item after a fence',
 		source: '- abc⟦⟧\n- d\n',
 		gesture: paste(`${FENCE}\n`),
-		expect: { source: '- abc\n\n  ```\n  x\n  ```\n- \n- d\n', caret: { at: 25, holds: 'text' } }
+		expect: {
+			source: '- abc\n\n  ```\n  x\n  ```\n- \n- d\n',
+			caret: { at: 25, holds: 'text', line: true }
+		}
 	},
 	...both(
 		'numbered on after a rule',
@@ -887,7 +893,8 @@ const KEPT_ENDING_ROWS: NamedRow[] = [
 	)
 ];
 
-/** A row in source mode whose caret ends in the text at byte `at`. */
+/** A row in source mode whose caret ends in the text at byte `at`, on the line the ending's Enter
+ *  opened. */
 const caretAt = (
 	name: string,
 	source: string,
@@ -898,7 +905,7 @@ const caretAt = (
 	name,
 	source,
 	gesture: paste(clip),
-	expect: { source: out, caret: { at, holds: 'text' } }
+	expect: { source: out, caret: { at, holds: 'text', line: true } }
 });
 
 // Miss-analysis: the ending rows that opened an item were pasted lists of the host's own kind, and

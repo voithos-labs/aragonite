@@ -519,6 +519,8 @@ export function landingAt(
 	const leaf = leafAtByte(measured, caret.at);
 	if (!leaf) return null;
 	const point = { path: docPathFrom(leaf.path), offset: leaf.offset };
+	// On the line a pasted last line ending opened, the caret lands as Enter's does: types plain.
+	if (caret.line) return { ...point, fresh: true };
 	const kind = blockNodeAt(measured.doc, leaf.path)?.kind;
 	const exact = caret.holds === 'text' && kind && blockFacts(kind).textPosition === 'always';
 	// Put down as a stored caret is, since a kind's own landing rule would move it off the byte.

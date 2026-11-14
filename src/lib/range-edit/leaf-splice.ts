@@ -21,6 +21,8 @@ export interface Edit {
 	leaf?: LeafEdit;
 	/** For a paste that read the clipboard as blocks and landed it so: how many it read. */
 	blocks?: number;
+	/** Set where a paste's last line ending was Enter: the caret is on the line it opened. */
+	entered?: true;
 }
 
 /** One text block's finished bytes, as its own write stores them, and the caret's offset there. */

@@ -121,16 +121,17 @@ export function editRange(
 			transform
 		});
 		const ended = gesture.paste.endsWith('\n');
-		// The empty line a last line ending opens is the caret's own, never the block below it.
-		const lined = (result: RangeEditResult): RangeEditResult =>
-			ended && result.caret.holds === 'boundary'
+		// The empty line a last line ending opens is the caret's own, never the block below it, and
+		// the caret the ending left as Enter is on a line it opened too.
+		const lined = (result: RangeEditResult, edit: Edit): RangeEditResult =>
+			(ended && result.caret.holds === 'boundary') || edit.entered
 				? { ...result, caret: { ...result.caret, line: true } }
 				: result;
 		// Without that ending the caret stays in the last block pasted, at the last place it takes.
 		const landed = (edit: Edit): RangeEditResult => {
 			const result = read(edit);
 			const last = ended || !edit.blocks ? null : lastPlaceAt(result, edit.caret);
-			return lined(answer(last === null ? edit : { ...edit, caret: last }, result));
+			return lined(answer(last === null ? edit : { ...edit, caret: last }, result), edit);
 		};
 		// One write of one block of `source` is named where the caret stays on the text it wrote, so
 		// the editor can make it as that block does.
