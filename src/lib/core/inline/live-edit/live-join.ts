@@ -108,10 +108,12 @@ export function cleanLiveJoinSeam(join: JoinSeam): CleanedJoin | null {
 		);
 		if (read === null || read.visible !== shown) continue;
 		// G1.91: a reading that keeps the runs keeps every kept character's marks, and one that
-		// drops runs may unmark a character but never mark it.
+		// drops runs may unmark a character but never format it.
 		kept ??= keptMarks(left, right);
-		const fits = candidate.keeps ? keepsEdgeMarks : losesEdgeMarksOnly;
-		if (!fits(read.marks, kept.before, kept.after)) continue;
+		const fits = candidate.keeps
+			? keepsEdgeMarks(read.marks, kept.before, kept.after)
+			: losesEdgeMarksOnly(read.formats, kept.before, kept.after);
+		if (!fits) continue;
 		if (best === null || read.residue < best.residue) {
 			best = { written: candidate, residue: read.residue };
 		}
@@ -629,7 +631,7 @@ export function clipNodes(
 function readCandidate(
 	raw: string,
 	store: StoredAs
-): { visible: string; marks: string[]; residue: number } | null {
+): { visible: string; marks: string[]; formats: string[]; residue: number } | null {
 	const read = readBack(raw, store);
 	if (read === null) return null;
 	const { inlines } = read;
@@ -639,10 +641,15 @@ function readCandidate(
 	return {
 		visible: shown,
 		marks: marksShown(runs, inlines, source, 0, source.length),
+		// A URL the joined text reads as is the text's own reading, not a format put on it.
+		formats: marksShown(runs, inlines, source, 0, source.length, isFormat),
 		// Markers over nothing are all on screen (§ 4.1), so a block that shows them hides no pair.
 		residue: paintsOnlyChrome(inlines, source, render) ? 0 : countResidue(inlines, source, render)
 	};
 }
+
+const isFormat = (kind: InlineNode['kind']): boolean =>
+	getInlineConstructPolicy(kind)?.mark !== undefined;
 
 /** Constructs the user would meet as nothing at all: no visible byte, and a policy that unwraps
  *  them when emptied rather than leaving delimiters over nothing. */

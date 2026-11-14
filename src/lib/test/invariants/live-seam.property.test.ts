@@ -145,6 +145,14 @@ describe('live-mode joins over random range deletes', () => {
 		expect(marks, live.bytes).not.toBe('other');
 	});
 
+	// Miss-analysis: the drop's check counted a URL the cut made as a format, so the literal join
+	// stood with its link's destination on screen.
+	it('a delete whose cut leaves a bare URL still drops the runs it stranded', () => {
+		const source = 'ém\n\n[www.x.co](u`x` "t")www.example.com\n';
+		const cut = { startBlock: 0, startOffset: 0, endBlock: 1, endOffset: 9 };
+		expect(deleteAcross(source, cut, 'live')!.bytes).toBe('www.example.com\n');
+	});
+
 	// G1.91. The counters prove the draws reach the rewrite and that it takes glyphs off the
 	// screen; a comparison over draws that never rewrite proves nothing about the rewrite.
 	it('a live delete keeps every kept character and its marks, adds no residue, and diverges only where the literal one does', () => {

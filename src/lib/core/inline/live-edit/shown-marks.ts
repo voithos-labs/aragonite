@@ -12,18 +12,19 @@ import { markSpelling } from './close-reopen';
 const MARK_SEPARATOR = '\u0001';
 
 /** The marks on each visible character of `[from, to)`, whitespace left out: its enclosing
- *  constructs, outermost first, a link with its destination. */
+ *  constructs of the kinds `counts` takes, outermost first, a link with its destination. */
 export function marksShown(
 	runs: readonly VisibleRun[],
 	inlines: readonly InlineNode[],
 	raw: string,
 	from: number,
-	to: number
+	to: number,
+	counts: (kind: InlineNode['kind']) => boolean = () => true
 ): string[] {
 	const enclosing: { content: { start: number; end: number }; mark: string }[] = [];
 	for (const node of inlineDescendants(inlines)) {
 		const content = node.kind === 'text' ? null : constructContentRange(node);
-		if (!content) continue;
+		if (!content || !counts(node.kind)) continue;
 		const mark = markSpelling(node.kind) ?? raw.slice(content.end, node.end);
 		enclosing.push({ content, mark: `${node.kind}${mark}` });
 	}
@@ -98,7 +99,8 @@ export function keepsEdgeMarks(
 	return edgeMarksFit(marks, before, after, (was, now) => was === now);
 }
 
-/** {@link keepsEdgeMarks} with marks allowed to go but none to arrive: what a dropped run shows. */
+/** {@link keepsEdgeMarks} with marks allowed to go but none of `marks` to arrive: what a dropped
+ *  run shows. */
 export function losesEdgeMarksOnly(
 	marks: readonly string[],
 	before: readonly string[],
