@@ -116,6 +116,20 @@ for (const mode of ['source', 'live'] as const)
 			});
 	}
 
+// At the top level no container is left, and the line ending that was there follows (§ 5.6).
+// Miss-analysis: the laws accept a blank line more anywhere, so only spelled rows hold this edge.
+const TOP: [name: string, marked: string, left: string, typed: string][] = [
+	['the last paragraph', 'alpha‸\n', 'alphaone\n\n', 'alphaone\n\nZ\n'],
+	['a paragraph over a list', 'abc‸\n- c\n', 'abcone\n\n- c\n', 'abcone\n\nZ\n\n- c\n']
+];
+
+for (const mode of ['source', 'live'] as const)
+	for (const [name, marked, left, typed] of TOP)
+		it(`${mode}: ${name}, a line ending keeps § 5.6’s bytes`, async () => {
+			const got = await pasted(marked, mode, 'one\n');
+			expect([got.after.source, got.typed]).toEqual([left, typed]);
+		});
+
 it('the ruled row: a quote joined at a quote’s end opens the quote’s empty line', async () => {
 	const { after, typed } = await pasted('> alpha‸\n>\n> after\n', 'source', '> one\n');
 	expect([after.source, typed]).toEqual([
