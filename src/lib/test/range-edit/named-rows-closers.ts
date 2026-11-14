@@ -226,6 +226,16 @@ const LEFT_LINE_KEPT_ROWS: NamedRow[] = [
 	)
 ];
 
+// Miss-analysis: every drop row cut a range whose bytes before its start stayed, so none dropped
+// one at its own start where the cut took the start's line, and the drop point named later bytes.
+const LEFT_LINE_DROP_ROWS: NamedRow[] = (['source', 'live'] as const).map((mode) => ({
+	name: `L6 a range whose start line goes, dropped at its own start, changes nothing, ${mode}`,
+	source: '> above\n> ⟦# text\n> below⟧\n\nlast\n',
+	mode,
+	gesture: { drop: 10, copy: false },
+	expect: { source: '> above\n> # text\n> below\n\nlast\n' }
+}));
+
 /** Delete's rows in both modes, and a composition's where `composes` (a range ending in text). */
 const deleted = (name: string, source: string, out: string, caret: Caret, composes = false) =>
 	(composes ? (['delete', 'compose'] as const) : (['delete'] as const)).flatMap((gesture) =>
@@ -661,6 +671,7 @@ export const CLOSER_ROWS: NamedRow[] = [
 	...LEFT_LINE_ROWS,
 	...LEFT_TITLE_ROWS,
 	...LEFT_LINE_KEPT_ROWS,
+	...LEFT_LINE_DROP_ROWS,
 	...TEXT_AFTER_ROWS,
 	...ENTERED_ROWS,
 	...MIXED_ROWS,

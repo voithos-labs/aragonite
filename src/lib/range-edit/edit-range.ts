@@ -126,7 +126,9 @@ export function editRange(
 	if (gesture.copy) return answer(pasteAt(doc, drop, drop, dropped));
 	// A moving drop is a cut, then a paste of its text and own entry at the drop point.
 	const after = read(removed);
-	const at = drop <= from ? drop : drop - (source.length - removed.source.length);
+	// A drop point past the cut's caret lay in what the cut took, so the caret is where it stands.
+	const before = Math.min(drop, removed.caret);
+	const at = drop <= from ? before : drop - (source.length - removed.source.length);
 	return answer(restored(removed.source, at, at, own) ?? pasteAt(after, at, at, dropped));
 }
 
