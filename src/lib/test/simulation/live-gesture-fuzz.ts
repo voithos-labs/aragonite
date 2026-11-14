@@ -29,6 +29,7 @@ import { arbLiveDoc } from '#lib/test/invariants/arbitraries/index.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import {
 	documentContentText,
+	admitsNoSeat,
 	documentMarkedChars,
 	hiddenEdgeOffsets,
 	normalizeScreen,
@@ -37,6 +38,7 @@ import {
 import {
 	applyGesture,
 	drawnMark,
+	drawnOffset,
 	drawsMidScalar,
 	drawnWholeText,
 	gestureTargets,
@@ -270,6 +272,20 @@ function opensBlock(
 		glyphs(after.screen) === glyphs(before.screen) &&
 		blockShape(after.doc) !== blockShape(before.doc)
 	);
+}
+
+/** A key typed where no offset of the caret's screen position keeps the screen and the block's
+ *  kind, written once as typed: live-mode.md § 4.2 lets that byte-literal write stand. */
+function fallsBackLiterally(
+	gesture: Gesture,
+	origin: { bytes: string; doc: Document },
+	after: string
+): boolean {
+	if (gesture.kind !== 'type' || insertedRun(origin.bytes, after)?.run !== gesture.char)
+		return false;
+	const targets = gestureTargets(origin.doc, gesture.kind);
+	const node = targets[gesture.leaf % Math.max(1, targets.length)]?.node;
+	return !!node && admitsNoSeat(node, drawnOffset(node, gesture, gesture.offset), gesture.char);
 }
 
 /** A line's leading spaces join the quote marker the `>` opens, so only the glyphs compare. */
@@ -519,7 +535,8 @@ export function judgeGesture(
 		writtenRun(gesture, origin, literal.bytes)
 	);
 
-	if (!claimHolds(live.doc, liveScreen, liveTyped)) {
+	const literalFallback = fallsBackLiterally(gesture, origin, live.bytes);
+	if (!literalFallback && !claimHolds(live.doc, liveScreen, liveTyped)) {
 		say(
 			'screen',
 			literalHolds ? 'seam' : 'ambiguous',
@@ -529,7 +546,7 @@ export function judgeGesture(
 	// A rewrite may never show more delimiters than the document showed plus the typed ones
 	// (§ 4.2), measured before the gesture, since the literal edit can hide runs by accident.
 	const shown = delimitersOnScreen(liveScreen) - delimitersOnScreen(liveTyped);
-	if (live.bytes !== before && shown > delimitersOnScreen(screenBefore)) {
+	if (!literalFallback && live.bytes !== before && shown > delimitersOnScreen(screenBefore)) {
 		const alsoLiteral = delimitersOnScreen(literalScreen) >= shown;
 		say(
 			'delimiters',

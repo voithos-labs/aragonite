@@ -20,7 +20,10 @@ import {
 	markedChars,
 	type MarkedChar
 } from '#lib/test/harness/live-oracles.js';
-import { renderOptions } from '../harness/fixture-grammar';
+import { parse } from '#lib/core/parser.js';
+import { hiddenEdges } from '#lib/components/blocks/text/edge-seat.js';
+import { insertsExactly } from '#lib/components/blocks/text/screen-diff.js';
+import { fixtureReading, renderOptions } from '../harness/fixture-grammar';
 
 /** A prose leaf and the path that addresses it. */
 export interface ProseLeaf {
@@ -114,6 +117,34 @@ export const normalizeScreen = (text: string): string =>
 		.split('\n')
 		.map((line) => line.replace(/[ \t]+$/, ''))
 		.join('\n');
+
+/** Whether no offset the caret's screen position admits takes `typed` with the screen and the
+ *  block's kind kept: where live-mode.md § 4.2 lets the byte-literal write stand (§ 4.8 cues it). */
+export function admitsNoSeat(node: CstNode, caret: number, typed: string): boolean {
+	if (!readable(node)) return false;
+	const range = getContentRange(node);
+	const screen = screenVisibility('live', { chromePaints: chromePaints(node) });
+	const reading = fixtureReading({}, 'live');
+	const offsets = hiddenEdges(
+		parseInline(node.raw, range.start, range.end),
+		node.raw,
+		screen,
+		reading
+	).seatOffsets(caret);
+	const shown = (raw: string, end: number) =>
+		renderedText(parseInline(raw, range.start, end), raw, CONTENT_VISIBILITY, renderOptions());
+	const before = shown(node.raw, range.end);
+	const keeps = (at: number) => {
+		const candidate = node.raw.slice(0, at) + typed + node.raw.slice(at);
+		const kind = parse(candidate).children;
+		return (
+			kind.length === 1 &&
+			kind[0].kind === node.kind &&
+			insertsExactly(before, shown(candidate, range.end + typed.length), typed)
+		);
+	};
+	return offsets.length > 0 && !offsets.some(keeps);
+}
 
 /** Every boundary of a run the user cannot see, plus the content's ends: the positions live-mode.md
  *  § 1 calls ambiguous, which an even draw reaches too rarely. */

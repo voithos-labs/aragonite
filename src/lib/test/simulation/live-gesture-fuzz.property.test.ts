@@ -282,6 +282,16 @@ describe('the checks read what the contracts allow and nothing more', () => {
 		expect(judged(source, press, ' ~\n\n~~~*\n', ' ~\n\n~~~\n~~~\n')).toEqual(['bytes']);
 	});
 
+	// Miss-analysis: the screen checks knew no § 4.2 fallback, so a key every seat of its position
+	// breaks (here each opens a fence) read as live's fault.
+	it('a key no seat of its position keeps stands as typed; one a seat keeps is still checked', () => {
+		const source = '~~\\*[](u)~~c\n';
+		const literal = '~~\\~*[](u)~~c\n';
+		expect(judged(source, { offset: 3, char: '~' }, '~~~\\*[](u)~~c\n', literal)).toEqual([]);
+		const kept = { offset: 3, char: 'a' };
+		expect(judged(source, kept, '~~\\*[](u)~a~c\n', '~~a\\*[](u)~~c\n')).toContain('screen');
+	});
+
 	// The commit rereads a block whose bytes change kind, so no live-only edit reaches this check;
 	// a tree that reads otherwise than its reload still has to red it.
 	it('a tree its reload reads as another kind is a shape fault', () => {
