@@ -7,13 +7,11 @@ import { activationFor, type PluginActivation } from '#lib/schema/plugin-activat
 import { registerPasteTransform } from '#lib/tree-operations/paste/paste-transforms.js';
 import { getPasteSurface, registerPasteSurface } from '#lib/tree-operations/paste-surfaces.js';
 import { defaultInlineHook } from '#lib/tree-operations/paste/hooks.js';
-import { registerChromeLeaf } from '#lib/plugin.js';
 import { makePasteCommit, runPasteDispatch } from '#lib/test/harness/editor-actions.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { topLevelStore } from '../harness/fixture-grammar';
 
 const KIND = 'stamp-note';
-const LEAF = 'stamp-title';
 let ran: string[] = [];
 
 const stampPlugin = definePlugin({
@@ -34,7 +32,6 @@ const stampPlugin = definePlugin({
 				return defaultInlineHook(node, offset, text, undefined, topLevelStore(node), '\n');
 			}
 		});
-		registerChromeLeaf(declarePluginKind(LEAF));
 	}
 });
 
@@ -70,8 +67,8 @@ describe("a plugin's paste hooks run only in an editor that lists it", () => {
 });
 
 describe('the paste surface lookup reads the activation', () => {
-	it('hides a surface registered from setup through registerChromeLeaf', () => {
-		expect(getPasteSurface(LEAF as never, activationFor(['listed']))).toBeDefined();
-		expect(getPasteSurface(LEAF as never, activationFor([]))).toBeUndefined();
+	it('hides a surface registered from setup', () => {
+		expect(getPasteSurface(KIND as never, activationFor(['listed']))).toBeDefined();
+		expect(getPasteSurface(KIND as never, activationFor([]))).toBeUndefined();
 	});
 });
