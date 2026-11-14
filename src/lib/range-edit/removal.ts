@@ -1,6 +1,8 @@
 /**
  * What a removal over a range leaves: the start's line keeps every byte before the range and the
- * end's line every byte after it, and the containers around them stay readable.
+ * end's line every byte after it, and the containers around them stay readable. One start line
+ * goes whole, markers and all: that of a block taken whole out of a quote or an item, right under
+ * the block above it (`leftLineStart`).
  */
 
 import {
@@ -143,8 +145,7 @@ function across(
 	// Where whole lines go (the range ends at a line's end), the start's line goes with its markers
 	// too where the range leaves the container holding its block.
 	const lineFrom = held && first ? leftLineStart(doc, from, to, first) : from;
-	// A kept closing line, or the end of the container the range left, parts the blank lines.
-	const lines = held ? wholeLines(doc, lineFrom, to, closing !== '' || lineFrom < from) : null;
+	const lines = held ? wholeLines(doc, lineFrom, to, closing !== '') : null;
 	let tail = lines?.tail ?? source.slice(to);
 	// How many of the tail's last bytes are what followed the range: from the next line's text, past
 	// its markers, where whole lines took the end's line.
@@ -266,12 +267,14 @@ function across(
 }
 
 /** Where the line `from` is on starts, where the range ends at a line's end and leaves the
- *  container holding `first`, which keeps a block before it; else `from`. */
+ *  container holding `first`, which keeps a block right above that line; else `from`. */
 function leftLineStart(doc: Doc, from: number, to: number, first: LaidBlock): number {
 	const { source } = doc;
 	const marks = lineHead(source, from);
 	const parent = parentOf(doc, first);
 	if (marks === '' || !parent || first.path.at(-1) === 0) return from;
+	// Under a blank line the emptied line joins nothing above, so it stays a place of its own.
+	if (/^[ \t>]*$/.test(lineHead(source, from - marks.length - 1).replace(/\r$/, ''))) return from;
 	const eol = source.startsWith('\r\n', to) ? 2 : source.startsWith('\n', to) ? 1 : 0;
 	// A blank line of the containers around keeps the caret off the block below, which would take it.
 	const below = lineRest(source, to + eol).trimEnd();
@@ -326,8 +329,8 @@ function cutLeaf(doc: Doc, leaf: LaidBlock, at: number, side: 'after' | 'before'
 }
 
 /** Blocks taken whole go with their line (behind markers, the next line's go instead), and with the
- *  blank line after them where one stands before too and nothing `parts` the two. Null: stays. */
-function wholeLines(doc: Doc, from: number, to: number, parts: boolean) {
+ *  blank line after them where one stands before too and no kept closing line between. Null: stays. */
+function wholeLines(doc: Doc, from: number, to: number, closed: boolean) {
 	const { source } = doc;
 	const marks = lineHead(source, from);
 	// A title row only ever empties, so a range ending in one leaves its line.
@@ -344,7 +347,7 @@ function wholeLines(doc: Doc, from: number, to: number, parts: boolean) {
 	if (ending === undefined || (above === '' && tail === '')) return null;
 	// A blank line the end's block still holds (a code block's) is its text, so it stays.
 	const holds = end !== undefined && to + ending.length < contentEnd(doc, end);
-	tail = tail.slice(parts || holds ? 0 : blankBelowGoes(above, tail));
+	tail = tail.slice(closed || holds ? 0 : blankBelowGoes(above, tail));
 	if (marks !== '' && !tail.startsWith(marks)) return null;
 	return { before: source.slice(0, from), tail: tail.slice(marks.length), marks, caret: from };
 }

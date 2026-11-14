@@ -196,11 +196,33 @@ const LEFT_LINE_KEPT_ROWS: NamedRow[] = [
 		'- above\n  \n- next\n',
 		{ at: 10, holds: 'boundary', parent: [0, 0] }
 	),
+	// Miss-analysis: every row above ended its container, so none ended at a line's end inside a
+	// quote that goes on, where the line going is the range's own container's, not one it left.
 	...cut(
-		'L4 out of a quote, its blank line above the range and the one after it both stay',
+		'L4 to a line’s end in a quote that goes on, the start’s emptied line stays',
+		'> above\n> ⟦# text\n> below⟧\n>\n> more\n',
+		'> above\n> \n>\n> more\n',
+		{ at: 10, holds: 'boundary', parent: [0] }
+	),
+	// Miss-analysis: every row that took the start's line stood its block right under the one above,
+	// so none had a blank line of the container over it, where the line going moved a typed key out.
+	...cut(
+		'L4 out of a quote from a block under a blank line of the quote, its emptied line stays',
 		'intro\n\n> above\n>\n> ⟦# text\n> below⟧\n\n# h\n',
-		'intro\n\n> above\n>\n\n# h\n',
-		{ at: 17, holds: 'boundary', parent: [1] }
+		'intro\n\n> above\n>\n> \n\n# h\n',
+		{ at: 19, holds: 'text' }
+	),
+	...cut(
+		'L4 out of an item from a block under a blank line of the item, its emptied line stays',
+		'intro\n\n- above\n\n  ⟦# text\n  below⟧\n\n# h\n',
+		'intro\n\n- above\n\n  \n\n# h\n',
+		{ at: 18, holds: 'text' }
+	),
+	...cut(
+		'L4 the same in CRLF',
+		'intro\r\n\r\n> above\r\n>\r\n> ⟦# text\r\n> below⟧\r\n\r\n# h\r\n',
+		'intro\r\n\r\n> above\r\n>\r\n> \r\n\r\n# h\r\n',
+		{ at: 23, holds: 'text' }
 	)
 ];
 
