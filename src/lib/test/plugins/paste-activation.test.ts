@@ -1,8 +1,7 @@
 // @vitest-environment jsdom
 // Miss-analysis: no test pasted a plugin kind's syntax into an editor that left it out (GH #267).
-import { beforeEach, describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
 import { installPlugins } from '#lib';
-import { parse } from '#lib/core/parser.js';
 import { parrotPlugin, PARROT } from '#packages/parrot/src/index.js';
 import { normalizeReplacementForBody } from '#lib/tree-operations/paste/body-write.js';
 import { declaredPluginKind } from '#lib/schema/plugin-kind.js';
@@ -11,12 +10,6 @@ import type { CstNode } from '#lib/core/nodes.js';
 import { createRegistryView } from '#lib/schema/registry-view.js';
 import { defaultGrammarView, type GrammarView } from '#lib/schema/block-openers.js';
 import { activationFor } from '#lib/schema/plugin-activation.js';
-import {
-	makeStubBlockEdit,
-	runPasteDispatch,
-	makePasteCommit
-} from '#lib/test/harness/editor-actions.js';
-import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
 const PARROT_LINE = '%%parrot party responsibly\n';
@@ -32,34 +25,7 @@ beforeEach(() => {
 	registerDetailsKind(testView());
 });
 
-async function pasteInto(grammar: ReturnType<typeof grammarListing>) {
-	const h = makePasteCommit(parse('target\n').children);
-	const blockEdit = makeStubBlockEdit();
-	await runPasteDispatch(
-		h,
-		{ pastedText: PARROT_LINE, targetPath: [0], offset: 'target'.length },
-		{ blockEdit, reading: fixtureReading({ grammar }) }
-	);
-	return { doc: h.doc, blockEdit };
-}
-
-describe('a paste parses through the instance grammar, not the global one', () => {
-	it('lands the plugin kind for an editor that lists the plugin', async () => {
-		const { doc } = await pasteInto(grammarListing(['parrot']));
-		expect(doc.children.map((c) => c.kind)).toContain(PARROT);
-	});
-
-	// The unlisted opener is gone, so the clipboard is one paragraph: inline, with the marker
-	// bytes arriving as prose rather than creating a kind this editor has no component for.
-	it('falls back to prose for an editor that does not', async () => {
-		const { doc, blockEdit } = await pasteInto(grammarListing([]));
-		expect(doc.children.map((c) => c.kind)).not.toContain(PARROT);
-		const write = vi.mocked(blockEdit.updateBlockContent).mock.calls[0];
-		expect(write[1]).toContain('target%%parrot party responsibly');
-	});
-});
-
-// The splice's own reparse, one layer under the dispatch above: a `bodyWrite` container
+// The splice's own reparse: a `bodyWrite` container
 // escapes the pasted bytes and re-reads them, so it has to use the grammar the clipboard used.
 describe('the bodyWrite escape reparse reads the instance grammar', () => {
 	const pasted = (): CstNode[] => [

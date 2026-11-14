@@ -33,9 +33,6 @@ const TRIVIA_WRITERS: Record<string, string> = {
 		'same head normalization, per promoted item and the item’s first block, plus the lines a dissolving item’s blocks take where no splice probe can infer them: above each list it leaves, which the paragraph above decides, and above a paragraph under the items before it',
 	'src/lib/tree-operations/list/item-moves.ts':
 		'a block carried in after a lifted item’s sublist takes the line it needs to read back where it now stands',
-	'src/lib/tree-operations/paste/list-break-out.ts': 'head normalization inside the built halves',
-	'src/lib/tree-operations/paste/paste-replacement.ts':
-		'positional: the before/after slots around an inline paste each answer for their own line',
 	'src/lib/editor-actions/list-context.ts': 'head normalization of a split item’s second half',
 	'src/lib/tree-operations/chain-rebuild.ts':
 		'a node whose bytes read as several blocks carries its line onto the first of them'

@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
-// The cross-block paste caller must forward the instance grammar onto the PasteDispatchContext it
-// builds, so the join-paste reparse honors per-instance enablement. The apply path's side is
-// `test/tree-operations/paste/dispatch-commit.test.ts`.
+// A paste over a range across blocks reads the editor's own grammar, so the join's reparse
+// honors what that editor switched on.
 import { describe, it, expect } from 'vitest';
 import { createGrammarView } from '#lib/schema/block-openers.js';
 import { makeEnv, makeHandlers, selectAcross } from './typed-char-env';

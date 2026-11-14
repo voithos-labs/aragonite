@@ -176,6 +176,4 @@ A paste is one step, `selection/cross-block/range-paste.ts` :: `pasteThroughCore
 
 Don't build a `ClipboardEvent` to fake a paste: Firefox empties its `clipboardData` (G4.221). Read the clipboard with `browser/clipboard.ts` :: `readClipboard` and hand the read to the entry.
 
-The dispatcher all this replaced (`tree-operations/paste/dispatch.ts` and the modules beside it) still stands, with no caller, until its own removal.
-
-The paste modules depend on a `PasteCommitCoordinator` interface satisfied by an editor-actions factory, which is what keeps `tree-operations/paste/` from importing back into `editor-actions/`.
+A cell's own answer and the range gestures commit through a `PasteCommitCoordinator` interface that an editor-actions factory satisfies, which keeps `tree-operations/` from importing back into `editor-actions/`.

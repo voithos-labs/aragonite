@@ -441,7 +441,8 @@ export interface ReplaceOptions {
 	snapshotOffset: number;
 	/** A clipboard's own trailing blank line, landed as the document's when nothing follows. */
 	trailingBlank?: boolean;
-	/** The route a paste or a drop names in the edit event, in place of the block count. */
+	/** The route a drop or text typed over a block names in the edit event, in place of the block
+	 *  count. */
 	source?: ReplaceSource;
 	/** How many blocks a paste landed: the edit event is then `paste` with that count. */
 	pasted?: number;

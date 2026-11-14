@@ -242,7 +242,6 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.340 | A position read after a write, or a byte splice, measures the blocks the write changed, not the document | harness |
 | G4.342 | A range edit parses and measures the blocks its range reaches, not the document | harness |
 | G4.344 | A paste makes one clipboard read, in one module | L |
-| G4.345 | No production module imports the paste dispatch the range-edit core replaced | L |
 | G4.346 | The look for a wait asks each pair of blocks once while both keep their bytes, so a second key at the foot of a long run asks a few | harness |
 | G4.347 | A byte splice's window holds every block whose wait reaches the change, and what it asks to find them grows no faster than the run | harness |
 | G4.349 | A range edit lays out the container lines it asks for, each the line the whole container pairs | harness |
@@ -714,8 +713,6 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.347 · A window covers a wait.** Given a tree that is the parse of its bytes, a byte splice reads from the highest block waiting at the change under a reading no line closes, until no block it read waits past it, and at the top level where the wait runs into a container (`schema/block-openers.ts :: waitingAboveThrough`). A tree wrong outside the window stays so. In a run with no blank line it parses the same bytes at N lines as at 4N, and its asks grow as the run does. `test/tree-operations/byte-splice.test.ts`, `splice-window-declared-reach.test.ts`, `test/perf/splice-look-cost.test.ts`.
 
 **G4.344 · One clipboard read.** Only `browser/clipboard.ts` calls `getData` or `clipboard.readText`: `readPasteEvent` takes every type of a paste event's data at once, the editor's own entry and the plain-paste chord with it, and `readClipboard` the system clipboard's text. A second read sees less, or another clipboard. The input recorder copies a payload and writes nothing. `lint/file-rules.test.ts`.
-
-**G4.345 · The old paste dispatch has no caller.** No module outside `tree-operations/paste/` imports `tree-operations/paste/dispatch`: a paste is one answer of the range-edit core (G1.213), and a route through the old dispatch would paste by other rules. `lint/file-rules.test.ts`.
 
 **G4.349 · A container line costs its child.** The range-edit layout lays out a container's lines one at a time (`ContainerMap.lineAt`), from the child holding the byte, each the line the whole pairing gives at every byte, spans dropped or just spliced. A range gesture lays out as many lines among 2,000 children as among 500, save what its cost rows declare, and a keystroke or a held range lays out none. `test/range-edit/layout-lines.property.test.ts`, `test/range-edit/cost.test.ts`, `test/perf/range-edit-window-cost.test.ts`.
 

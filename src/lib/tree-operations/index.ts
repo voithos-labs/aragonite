@@ -26,5 +26,3 @@ export { liftFirstChild, sameContainer } from './container-lift';
 export { cascadeCleanupEmptyAncestors } from './cleanup';
 
 export { ensureUnsharedPath, ensureUnsharedChild } from './unshare';
-
-export { buildPastedReplacement } from './paste/paste-replacement';

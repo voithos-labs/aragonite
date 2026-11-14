@@ -1,5 +1,5 @@
-/** The narrow commit interface `tree-operations/paste/` depends on instead of importing
- *  editor-actions. */
+/** The commits a paste, a drop and a range gesture make, as the one narrow interface the modules
+ *  below editor-actions take in place of importing it. */
 
 import type { PasteCommitCoordinator } from '../tree-operations/paste/paste-deps';
 import type { EditorActionsDeps, UndoController } from './deps';
@@ -22,8 +22,7 @@ export function createPasteCoordinator(
 	const coordinator: PasteCommitCoordinator = {
 		commitMultiScope: controller.commitMultiScope,
 		getDocScope: controller.getDocScope,
-		// editor-actions may import reactivity; handing it over here keeps `tree-operations/paste/`
-		// from importing it itself.
+		// Handed over, so a module under `tree-operations/` reads mounted state without importing it.
 		resolveState: getStateForNode,
 		commitLeafText: (leafPath, text, opts) => commitLeafTextAt(root, leafPath, text, opts),
 		writeLeaf(leafPath, text, preEditOffset, caret) {

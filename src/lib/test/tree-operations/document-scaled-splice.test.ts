@@ -51,7 +51,7 @@ describe('a document-scaled splice', { timeout: 30_000 }, () => {
 			[0],
 			clipboard(),
 			{ replacementIndex: 0, offset: 0 },
-			{ source: 'paste-dispatch', snapshotOffset: 0 }
+			{ snapshotOffset: 0 }
 		);
 
 		expect(harness.doc.children).toHaveLength(OVER_LIMIT);

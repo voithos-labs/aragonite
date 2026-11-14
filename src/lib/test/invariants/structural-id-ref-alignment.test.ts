@@ -6,7 +6,6 @@ import type { NestedActionsBundle } from '#lib/editor-actions/nested/nested-acti
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { assignChildIdsDeep } from '#lib/block-id.js';
-import { buildPastedReplacement } from '#lib/tree-operations/index.js';
 import {
 	stubBlockComponent,
 	makeEditorActionsDeps,
@@ -18,8 +17,6 @@ import type { BlockComponent } from '#lib/block-component.js';
 import type { BlockListState } from '#lib/block-lists/block-list-state.svelte.js';
 import { replaceRefs } from '#lib/block-lists/child-refs.js';
 import type { CstNode } from '#lib/core/nodes.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
-import { TOP_SLOT } from '#lib/test/harness/fixture-grammar.js';
 
 /**
  * After every structural op, `children`, the keyed-id array and the ref array stay the same length
@@ -317,16 +314,9 @@ describe('G2.8 deep childIds backfill on reparse-into-container (#4 class)', () 
 		const h = makeTop(['head\n', 'tail\n']);
 		const nested = parse(NESTED_LIST).children;
 
-		// The live paste path merges the clipboard and splices it through replaceBlock
-		// (defaultStructuralHook → buildPastedReplacement), a second route to the fill-in.
-		const { nodes: replacement } = buildPastedReplacement(
-			h.doc.children[0],
-			4,
-			nested,
-			'\n',
-			defaultGrammarView,
-			TOP_SLOT
-		);
+		// A replace landing blocks that hold children (a table sliced around pasted blocks, a drop)
+		// is a second route to the fill-in.
+		const replacement = [makeNode('paragraph', 'head\n'), ...nested];
 		await h.actions.replaceBlock(0, replacement, undefined, { snapshotOffset: 0 });
 
 		assertAligned(h);

@@ -134,3 +134,38 @@ describe('a paste into a cell lands on the cell’s own paste surface', () => {
 		expect(mounted.source()).toBe(GRID);
 	});
 });
+
+// Miss-analysis: what a cell makes of a clipboard was held through the dispatcher the range-edit
+// core replaced, over a stubbed write, so no row read the cell's own answer or the op it names.
+describe('what a cell makes of a clipboard, and the op an `edit` listener hears', () => {
+	async function pasted(clip: string): Promise<{ source: string; ops: unknown[] }> {
+		mounted = mountEditor({ source: GRID });
+		const ops: unknown[] = [];
+		mounted.instance.getEvents().on('edit', (event) => ops.push([event.op, event.detail]));
+		const el = cellAt(mounted!, 1, 0);
+		caretAtCellEnd(el);
+		await pasteInto(el, clip);
+		return { source: mounted.source(), ops };
+	}
+
+	it('keeps text a copy wrapped in blank lines on the cell’s line, a paste of no blocks', async () => {
+		const { source, ops } = await pasted('  \nhello\nworld\n  ');
+		expect(parse(source).children.map((block) => block.kind)).toEqual(['table']);
+		expect(source).toContain('hello world |');
+		expect(ops).toEqual([['paste', { count: 0 }]]);
+	});
+
+	it.each([
+		['two paragraphs', 'a\n\nb\n', 2],
+		['one block that is no paragraph, wrapped in blank lines', '  \n# Hello\n  ', 1]
+	])('slices the table for %s, a paste of that many blocks', async (_name, clip, count) => {
+		const { source, ops } = await pasted(clip);
+		expect(parse(source).children.map((block) => block.kind)).not.toEqual(['table']);
+		expect(ops).toEqual([['paste', { count }]]);
+	});
+
+	it('fills cells from a grid as `tablePasteGrid`', async () => {
+		const { ops } = await pasted('p\tq');
+		expect(ops).toEqual([['tablePasteGrid', { rowIdx: 1, colIdx: 0, rows: 1, cols: 2 }]]);
+	});
+});

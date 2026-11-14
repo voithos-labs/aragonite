@@ -198,21 +198,13 @@ const REWRITE_MODULES: Record<string, string> = {
 	'src/lib/components/blocks/text/pending-mark-insert.ts': 'the pending-mark resolver',
 	'src/lib/core/inline/format-toggle.ts': 'the format toggle',
 	'src/lib/core/inline/live-edit/read-back.ts':
-		'what a removing rewrite’s candidate shows, read where it is stored',
-	'src/lib/tree-operations/paste/hooks.ts':
-		'whether anything shows after a pasted line on its own line, so its ending goes or stays'
+		'what a removing rewrite’s candidate shows, read where it is stored'
 };
 
 /** Every file permitted to name `preDelete` at all; matching the bare name also catches an
  *  aliased import, a bracket access and a helper that forwards it. */
 const PRE_DELETE_NAMERS: Record<string, string> = {
 	'src/lib/tree-operations/paste-surfaces.ts': 'the surface contract declaring the parameter',
-	'src/lib/tree-operations/paste/dispatch.ts':
-		'the request entry carrying the field to the hooks, and the text-less cut the container routes read',
-	'src/lib/tree-operations/paste/hooks.ts':
-		'the prose replacing the range with its text through replaceRangeInLeaf',
-	'src/lib/components/blocks/table/table-cell-paste.ts':
-		'the cell replacing the range with its text through replaceRangeInLeaf, ahead of the escaping',
 	'src/lib/components/blocks/code/code-paste-surface.ts':
 		'the one splicer: a fenced body has no inline constructs to clean'
 };
@@ -286,16 +278,10 @@ const PLAIN_READS: Record<string, string> = {
 		'probe: reads the bytes a byte splice writes at their slot to close an opener in them; the splice then reads its changes again with `readAsOpened`, and installs that',
 	'src/lib/tree-operations/stored-as.ts':
 		'probe: answers how a slot reads bytes, for the write rules and the live join’s comparisons; nothing it reads is installed here',
-	'src/lib/tree-operations/paste/paste-replacement.ts':
-		'installs after backfill: a pasted block ended on the cut line keeps the kind the clipboard’s parse gave it, as every other pasted block does; what it does to a checkbox it lands behind is #624’s question',
 	'src/lib/tree-operations/paste/body-write.ts':
 		'installs after backfill: re-reads a body-rule container’s escaped child; no list item declares a body rule',
-	'src/lib/tree-operations/paste/dispatch.ts':
-		'hands on: reads the clipboard’s own blocks to pick the paste strategy, which a childless container steers; the routes that land them fill in at the splice',
 	'src/lib/tree-operations/fix-up/editor-host.ts':
 		'installs after backfill: the list fix-up reads a body’s blocks at their slot, and its writer gives each block it installs a paragraph to type in (`fix-up/apply.ts :: adopt`)',
-	'src/lib/tree-operations/list/list-builders.ts':
-		'hands on: a split item’s halves are read at the slot and land through list absorb and list break-out, which fill in at the splice',
 	'src/lib/tree-operations/list/reconcile-task.ts':
 		'hands on: the blocks read behind a bare bullet land through `replaceBlock`, which fills in',
 	'src/lib/selection/cross-block/range-replace.ts':
@@ -465,9 +451,7 @@ const MANIFESTS: ManifestRule[] = [
 			'src/lib/components/blocks/table/table-cell-paste.ts':
 				'a clipboard of blocks pasted in a table cell slices the table, ahead of the core, and takes the same rewrite',
 			'src/lib/selection/selection-drop.ts':
-				'a dropped selection is a cut and a paste in one commit, so the moved bytes take the same rewrite',
-			'src/lib/tree-operations/paste/dispatch.ts':
-				'the paste tree-op parses the pasted text into blocks'
+				'a dropped selection is a cut and a paste in one commit, so the moved bytes take the same rewrite'
 		},
 		reason:
 			'every clipboard-to-parse route runs applyPasteTransforms; a new site routes through a declared one or joins the list with a call',
