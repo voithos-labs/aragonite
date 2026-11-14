@@ -17,7 +17,7 @@ import { makeTableMutations } from '../table-mutations-harness';
 import { pasteTableGrid } from '#lib/editor-actions/table-context.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { asDocPath } from '#lib/core/coordinate-spaces.js';
-import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { takeDevWarnsOf } from '#lib/test/support/warn-gate.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { coverRange } from '#lib/selection/range-coverage.js';
 import {
@@ -145,6 +145,6 @@ describe('a mutation’s own rebuild stays off the commit’s chain', () => {
 			}
 		});
 
-		expect(takeDevWarns().map((w) => w.tag)).toContain('invariant:scope-rebuild-off-chain');
+		expect(takeDevWarnsOf('invariant:scope-rebuild-off-chain')).not.toEqual([]);
 	});
 });
