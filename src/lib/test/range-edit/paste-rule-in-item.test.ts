@@ -82,6 +82,24 @@ for (const mode of ['source', 'live'] as const)
 				expect((await landed(marked, mode, block, route))[0]).toBe(left);
 			});
 
+// Miss-analysis: the given-way rows had an item over the list, so none asked whether a rule taking
+// the list's first line reads as the underline of a paragraph over it.
+const UNDER_TEXT: [name: string, marked: string, left: string][] = [
+	['a first bullet under a paragraph', 'abc\n- ‸x\n', 'abc\n\n---\n- x\n'],
+	[
+		'a first nested bullet under its parent’s text',
+		'- top\n  - ‸x\n- b\n',
+		'- top\n\n  ---\n  - x\n- b\n'
+	]
+];
+
+for (const mode of ['source', 'live'] as const)
+	for (const [name, marked, left] of UNDER_TEXT)
+		for (const route of ['key', 'caret'] as const)
+			it(`${mode}: --- by ${route} at ${name}’s text start stays apart from the text`, async () => {
+				expect((await landed(marked, mode, '---', route))[0]).toBe(left);
+			});
+
 // A range over the item's whole text empties it on both sides, as an empty item is.
 for (const mode of ['source', 'live'] as const)
 	for (const route of ['key', 'caret'] as const)

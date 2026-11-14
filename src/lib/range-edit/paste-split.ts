@@ -186,20 +186,37 @@ export function splitOut(
 			? out
 			: numberedOn(doc, first.from, to, out);
 	const under = lineEnd(numbered, head.length) + 1;
+	const [path, index] = [list.path.slice(0, -1), list.path.at(-1)!];
+	// The pasted blocks taking the list's first line stay apart from the block over the list where
+	// the two would read as one (a rule under a paragraph is its underline).
+	const above =
+		whole && item.path.at(-1) === 0 ? doc.layout.block([...path, index - 1]) : undefined;
+	const apartAbove = (edit: Edit): Edit => {
+		if (!above) return edit;
+		const line = first.from - lineHead(source, first.from).length;
+		const upper = {
+			path,
+			index: index - 1,
+			upper: nodeAt(doc, above.path).raw,
+			lower: body,
+			placed: true
+		};
+		const out = parted(doc, edit.source, line, outer, upper);
+		return { source: out, caret: edit.caret + out.length - edit.source.length };
+	};
 	// With no item left under the pasted blocks, what stood under the list may sit outside its
 	// parent, where the pair's question has no slot: the new bytes say whether it still starts a block.
 	const ended = marker === '' && !doc.layout.block([...list.path, item.path.at(-1)! + 1]);
 	if (ended && under < numbered.length) {
 		const starts = startsBlock(doc, numbered, under, list.path.length);
-		return {
+		return apartAbove({
 			source: starts ? numbered : parted(doc, numbered, under, outer, null),
 			caret: head.length
-		};
+		});
 	}
 	const lower = numbered.slice(under + outer.length, lineEnd(numbered, under));
-	const [path, index] = [list.path.slice(0, -1), list.path.at(-1)!];
 	const pair = { path, index, upper: last, lower, placed: true };
-	return { source: parted(doc, numbered, under, outer, pair), caret: head.length };
+	return apartAbove({ source: parted(doc, numbered, under, outer, pair), caret: head.length });
 }
 
 /** Whether a block no deeper than `depth` starts on the line of `out` that starts at `line`. */
