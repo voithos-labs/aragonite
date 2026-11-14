@@ -33,6 +33,11 @@ function regionReads(node: CstNode, region: string): string {
 function expectSpansHold(source: string): void {
 	for (const node of spanned(parse(source).children)) {
 		const spans = node.childSpans;
+		// A quote with no child yet has no child to find; the opened reading fills it.
+		if (node.children!.length === 0) {
+			expect(spans, JSON.stringify(node.raw)).toBeUndefined();
+			continue;
+		}
 		const rebuilt = { ...node, childSpans: undefined } as CstNode;
 		if (node.kind === 'table') rebuildTableRaw(rebuilt);
 		else rebuildBlockquoteRaw(rebuilt);
@@ -59,6 +64,8 @@ describe('a parsed quote and table keep their child spans', () => {
 		['a nested quote', '> a\n> > b\n> > c\n'],
 		['no final line break', '> a\n>\n> b'],
 		['CRLF', '> a\r\n>\r\n> b\r\n'],
+		['a quote with no child yet', 'a\n>'],
+		['a bare quote below a lazy line', '> first\n> > nested\nlazy line\n>'],
 		['a table', '| h |\n| - |\n| a |\n| b |\n'],
 		['a table with no body', '| h |\n| - |\n'],
 		['a table with no final line break', '| h |\n| - |\n| a |']

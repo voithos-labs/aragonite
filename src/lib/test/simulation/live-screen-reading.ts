@@ -52,21 +52,44 @@ export function chromePaints(node: CstNode): boolean {
 /** The content behind every marker, for before/after comparisons: a block's markers stop painting
  *  once content arrives, which a screen diff would call bytes lost. */
 export function documentContentText(holder: Document | CstNode): string {
-	return (holder.children ?? [])
-		.map((child) => {
-			if (child.children !== undefined) return documentContentText(child);
-			if (!readable(child)) return child.raw;
-			const range = getContentRange(child);
-			const nodes = parseInline(child.raw, range.start, range.end);
-			return renderedText(nodes, child.raw, CONTENT_VISIBILITY, renderOptions());
-		})
-		.join('\n');
+	return (
+		(holder.children ?? [])
+			.map((child) => {
+				if (child.children !== undefined) return documentContentText(child);
+				if (!readable(child)) return child.raw;
+				const range = getContentRange(child);
+				const nodes = parseInline(child.raw, range.start, range.end);
+				return renderedText(nodes, child.raw, CONTENT_VISIBILITY, renderOptions());
+			})
+			.join('\n')
+			// A CRLF pair draws as the one line break LF draws.
+			.replace(/\r\n/g, '\n')
+	);
 }
 
-/** Every character the document's prose shows, in order, with the constructs it is drawn in. */
+/** Every character the document's prose shows, in order, with the constructs it is drawn in; a pair
+ *  around nothing paints the glyphs a literal run shows, a block's own chrome is the screen check's. */
 export function documentMarkedChars(holder: Document | CstNode): MarkedChar[] {
 	const leaves = proseLeaves(holder).filter(({ node }) => readable(node));
-	return markedChars(leaves.map(({ node }) => ({ raw: node.raw, content: getContentRange(node) })));
+	return markedChars(
+		leaves.map(({ node }) => {
+			const painted = paintedBytes(node, false);
+			return { raw: node.raw, content: getContentRange(node), painted: (at) => painted[at] };
+		})
+	);
+}
+
+/** Which of a readable leaf's bytes live mode draws, with or without the block's own chrome. */
+function paintedBytes(node: CstNode, blockChrome = chromePaints(node)): boolean[] {
+	const range = getContentRange(node);
+	const nodes = parseInline(node.raw, range.start, range.end);
+	const ctx = screenVisibility('live', { chromePaints: blockChrome });
+	const painted = new Array<boolean>(node.raw.length).fill(false);
+	for (const run of visibleRuns(nodes, node.raw, ctx, renderOptions())) {
+		if (!run.visible) continue;
+		for (let at = run.start; at < run.end; at++) painted[at] = true;
+	}
+	return painted;
 }
 
 /** Delimiter pairs enclosing nothing whose every byte goes unpainted (live-mode.md § 4.1); the
@@ -76,13 +99,7 @@ export function unpaintedResidue(holder: Document | CstNode): number {
 		if (child.children !== undefined) return total + unpaintedResidue(child);
 		if (!readable(child)) return total;
 		const range = getContentRange(child);
-		const nodes = parseInline(child.raw, range.start, range.end);
-		const ctx = screenVisibility('live', { chromePaints: chromePaints(child) });
-		const painted = new Array<boolean>(child.raw.length).fill(false);
-		for (const run of visibleRuns(nodes, child.raw, ctx, renderOptions())) {
-			if (!run.visible) continue;
-			for (let at = run.start; at < run.end; at++) painted[at] = true;
-		}
+		const painted = paintedBytes(child);
 		const hidden = emptyConstructSpans(child.raw, range).filter(
 			(span) => !painted.slice(span.start, span.end).includes(true)
 		);

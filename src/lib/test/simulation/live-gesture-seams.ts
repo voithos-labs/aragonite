@@ -27,6 +27,7 @@ import {
 	isHiddenMarkerText
 } from '#lib/browser/painted.js';
 import { asRawOffset, type RawOffset } from '#lib/core/coordinate-spaces.js';
+import { splitsLineEndingPair } from '#lib/core/line-ending-pairs.js';
 import { createEdgePolicyDispatch } from '#lib/components/blocks/text/edge-policy-dispatch.js';
 import { createSurfaceWrite } from '#lib/components/blocks/editable/surface-write.js';
 import { keepsKindAt } from '#lib/core/inline/live-edit/read-back.js';
@@ -232,8 +233,28 @@ function drawnSites(doc: Document, gesture: Gesture): { node: CstNode; offset: n
 	if (gesture.kind === 'type' || gesture.kind === 'backspace' || gesture.kind === 'delete') {
 		return [site];
 	}
-	const end = targets[gesture.endLeaf % targets.length].node;
+	// A range inside one block takes both ends from the start leaf, as `drawnRange` does.
+	const inOneLeaf = ['type-over', 'word-delete', 'format-toggle'].includes(gesture.kind);
+	const end = inOneLeaf ? start : targets[gesture.endLeaf % targets.length].node;
 	return [site, { node: end, offset: contentOffset(end, gesture.endOffset) }];
+}
+
+/** The leaf whose whole text the span the applier hands over covers, or null: live-mode.md § 4.5
+ *  makes it a paragraph when the span is deleted or typed over with a space. */
+export function drawnWholeText(doc: Document, gesture: Gesture): CstNode | null {
+	const targets = gestureTargets(doc, gesture.kind);
+	if (targets.length === 0) return null;
+	let node: CstNode | null = targets[gesture.leaf % targets.length].node;
+	let span = drawnRange(node, gesture);
+	if (spansLeaves(gesture.kind)) {
+		const range = drawnLeafRange(doc, gesture);
+		const oneLeaf = range !== null && comparePaths(range.start.path, range.end.path) === 0;
+		node = oneLeaf ? (nodeAt(doc, range.start.path) as CstNode) : null;
+		span = oneLeaf ? { start: range.start.offset, end: range.end.offset } : null;
+	}
+	if (!node || !span) return null;
+	const { start, end } = getContentRange(node);
+	return start < end && span.start <= start && span.end >= end ? node : null;
 }
 
 function contentOffset(node: CstNode, offset: number): number {
@@ -241,10 +262,12 @@ function contentOffset(node: CstNode, offset: number): number {
 	return start + (offset % Math.max(1, end - start + 1));
 }
 
-/** The browser never reports an offset inside a surrogate pair, so keypresses and selections snap;
+/** Keypresses and selections snap off a surrogate pair and a CRLF pair, as the DOM walk reads them;
  *  the split and the range gestures take raw offsets, which production code has to catch. */
 function throughDoor(node: CstNode, offset: number, kind: GestureKind): number {
-	return kind === 'enter' || spansLeaves(kind) ? offset : snapToScalarBoundary(node.raw, offset);
+	if (kind === 'enter' || spansLeaves(kind)) return offset;
+	const snapped = snapToScalarBoundary(node.raw, offset);
+	return splitsLineEndingPair(node.raw, snapped) ? snapped - 1 : snapped;
 }
 
 const drawnOffset = (node: CstNode, gesture: Gesture, offset: number): number =>

@@ -20,7 +20,8 @@ import { deleteRange } from '../harness/range-delete';
  * reload shape, round-trip and § 4.1's leftovers; what shows on screen is the unit suite's job.
  */
 
-const PARAMS = { numRuns: 400, seed: freshOrFixedSeed(515151) } as const;
+// Enough draws that the drop share below reads as a rate, not a coin toss (about 550 rewrites).
+const PARAMS = { numRuns: 2000, seed: freshOrFixedSeed(515151) } as const;
 
 interface Cut {
 	startBlock: number;
@@ -133,6 +134,35 @@ function visibleTextOf(node: Document['children'][number]): string {
 }
 
 describe('live-mode joins over random range deletes', () => {
+	// Miss-analysis: the literal join stood wherever a drop marked kept text, unread, so it could
+	// mark text too and show a stray delimiter besides.
+	it('a drop the literal join cannot beat stands, so no stray delimiter shows', () => {
+		const source = '``code``*a **b* c**foo**foo**[text](url)\n';
+		const cut = { startBlock: 0, startOffset: 9, endBlock: 0, endOffset: 16 };
+		expect(deleteAcross(source, cut, 'live')!.bytes).toBe('``code``*c*foo**foo**[text](url)\n');
+	});
+
+	it('the same holds for a join across two blocks', () => {
+		const across =
+			'[www.x.co][ref]````: &notreal;**a *b** c***a *b** c*\n\n![text](url)***foo****foo*\\*\n';
+		const joined = deleteAcross(
+			across,
+			{ startBlock: 0, startOffset: 47, endBlock: 1, endOffset: 0 },
+			'live'
+		);
+		expect(joined!.bytes).toBe(
+			'[www.x.co][ref]````: &notreal;**a *b** c*a b![text](url)***foo****foo*\\*\n'
+		);
+	});
+
+	// Miss-analysis: the drop's check counted a URL the cut made as a mark, so the literal join
+	// stood with its link's destination on screen.
+	it('a delete whose cut leaves a bare URL still drops the runs it stranded', () => {
+		const source = 'ém\n\n[www.x.co](u`x` "t")www.example.com\n';
+		const cut = { startBlock: 0, startOffset: 0, endBlock: 1, endOffset: 9 };
+		expect(deleteAcross(source, cut, 'live')!.bytes).toBe('www.example.com\n');
+	});
+
 	// G1.91. The counters prove the draws reach the rewrite and that it takes glyphs off the
 	// screen; a comparison over draws that never rewrite proves nothing about the rewrite.
 	it('a live delete keeps every kept character and its marks, adds no residue, and diverges only where the literal one does', () => {
@@ -182,11 +212,11 @@ describe('live-mode joins over random range deletes', () => {
 			}),
 			PARAMS
 		);
-		expect(rewritten).toBeGreaterThan(20);
-		expect(cleaned).toBeGreaterThan(10);
+		expect(rewritten).toBeGreaterThan(100);
+		expect(cleaned).toBeGreaterThan(50);
 		// A run whose closer would butt against a run of its own delimiter has no spelling, so a few
-		// deletes fall back to dropping it; the rest keep every mark.
-		expect(same).toBeGreaterThan(80);
-		expect(fewer).toBeLessThan(rewritten / 8);
+		// deletes fall back to dropping it: a tenth over seeds, and a fifth with one reading lost.
+		expect(same).toBeGreaterThan(400);
+		expect(fewer).toBeLessThan(rewritten / 7);
 	}, 30_000);
 });

@@ -12,7 +12,12 @@ import type { EdgeAffinity } from '#lib/caret/edge-affinity.js';
 import { parse } from '#lib/core/parser.js';
 import { serialize } from '#lib/core/serializer.js';
 import { getContentRange } from '#lib/core/inline/index.js';
-import { describeConvergence } from '#lib/test/harness/parse-converged.js';
+import { trimTrailingLineEnding } from '#lib/core/lines.js';
+import { describeShapeDivergence } from '#lib/core/shape-divergence.js';
+import { initDocument } from '#lib/components/editor-root/document-swap.js';
+import { defaultGrammarView } from '#lib/schema/block-openers.js';
+import { resolveDelimiterAutoPair } from '#lib/components/blocks/text/delimiter-autopair.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import {
 	isSubsequence,
 	keepsEveryByte,
@@ -33,6 +38,7 @@ import {
 	applyGesture,
 	drawnMark,
 	drawsMidScalar,
+	drawnWholeText,
 	gestureTargets,
 	resetSurfaces,
 	scalarInteriors,
@@ -152,8 +158,8 @@ function drawGesture(rng: Rng, doc: Document): Gesture {
 
 /** The screen shows what the gesture claimed, read as the content behind every marker: a block's
  *  markers stop painting once content arrives, which a screen diff would call bytes lost. */
-function screenClaimHolds(gesture: Gesture, before: string, after: string): boolean {
-	if (gesture.kind === 'type') return insertsSomewhere(before, after, gesture.char);
+function screenClaimHolds(gesture: Gesture, before: string, after: string, typed: string): boolean {
+	if (gesture.kind === 'type') return insertsSomewhere(before, after, typed);
 	// A two-step gesture has no single-glyph change to claim: its first write adds a sibling before
 	// the drawn one lands. The shape, round-trip and dev-warning checks judge it instead.
 	if (gesture.kind === 'type-in-container' || gesture.kind === 'blank-in-container') return true;
@@ -200,13 +206,98 @@ const delimitersOnScreen = (text: string): number => (text.match(/[*~`<>[\]]/g) 
 const typedRun = (gesture: Gesture): string =>
 	gesture.kind === 'type' || gesture.kind === 'type-over' ? gesture.char : '';
 
+/** What a typed key wrote, as the delimiter auto-pair answers it (G4.65): nothing where it steps
+ *  past a closer, the key with its partner where it pairs, else the key alone. */
+function writtenRun(gesture: Gesture, origin: { bytes: string; doc: Document }, after: string) {
+	const key = typedRun(gesture);
+	if (gesture.kind !== 'type') return key;
+	const inserted = insertedRun(origin.bytes, after);
+	if (inserted === null) return key;
+	if (inserted.run === '' && stepsOverSomewhere(origin.doc, gesture)) return '';
+	// One press pairs as two bytes; a press after a lone run of the key grows it into a pair of two.
+	const pairs =
+		inserted.run === key.repeat(2)
+			? autoPair('', { start: 0, end: 0 }, 0, key) === 'write'
+			: inserted.run === key.repeat(3) &&
+				origin.bytes[inserted.at - 1] === key &&
+				autoPair(key, { start: 0, end: 1 }, 1, key) === 'write';
+	return pairs ? inserted.run : key;
+}
+
+const autoPair = (text: string, content: { start: number; end: number }, at: number, key: string) =>
+	resolveDelimiterAutoPair(text, content, at, key, fixtureReading(), { ownPair: null })?.kind;
+
+/** Whether the typed key steps past a closer at some offset of the leaf it was typed in. */
+function stepsOverSomewhere(doc: Document, gesture: Gesture): boolean {
+	const targets = gestureTargets(doc, gesture.kind);
+	const node = targets[gesture.leaf % Math.max(1, targets.length)]?.node;
+	if (!node) return false;
+	const content = getContentRange(node);
+	const text = trimTrailingLineEnding(node.raw);
+	for (let at = content.start; at <= content.end; at++) {
+		if (autoPair(text, content, at, gesture.char) === 'step-over') return true;
+	}
+	return false;
+}
+
+/** The run `after` adds to `before` at one place and where it starts, or null where it also
+ *  removed something. */
+function insertedRun(before: string, after: string): { at: number; run: string } | null {
+	let head = 0;
+	while (head < before.length && before[head] === after[head]) head++;
+	let tail = 0;
+	while (
+		tail < before.length - head &&
+		before[before.length - 1 - tail] === after[after.length - 1 - tail]
+	) {
+		tail++;
+	}
+	return head + tail === before.length
+		? { at: head, run: after.slice(head, after.length - tail) }
+		: null;
+}
+
+/** A typed `>` at a block's start opens a quote, so its byte draws as the quote's bar instead of a
+ *  glyph: every glyph stays and the block shape is what changed. */
+function opensBlock(
+	gesture: Gesture,
+	before: { doc: Document; screen: string },
+	after: { doc: Document; screen: string }
+): boolean {
+	return (
+		gesture.kind === 'type' &&
+		BLOCK_MINTING_CHARS.includes(gesture.char) &&
+		glyphs(after.screen) === glyphs(before.screen) &&
+		blockShape(after.doc) !== blockShape(before.doc)
+	);
+}
+
+/** A line's leading spaces join the quote marker the `>` opens, so only the glyphs compare. */
+const glyphs = (screen: string): string => normalizeScreen(screen).replace(/^[ \t]+/gm, '');
+
+const blockShape = (holder: Document | CstNode): string =>
+	(holder.children ?? [])
+		.map((child) => (child.children ? `${child.kind}(${blockShape(child)})` : child.kind))
+		.join(',');
+
+/** The first place the tree parts from the one the editor opens its own bytes to, where an emptied
+ *  document or container holds the empty paragraph a reload gives it (G1.44). */
+const reloadDivergence = (doc: Document): string | null =>
+	describeShapeDivergence(doc, initDocument(serialize(doc), defaultGrammarView).doc);
+
 /** What live-mode.md § 2 allows over bytes, per gesture family. The range gestures cut the same
  *  span in both runs, so there the run with live mode off is the upper bound. */
-function bytesConserved(gesture: Gesture, before: string, live: string, literal: string): boolean {
+function bytesConserved(
+	gesture: Gesture,
+	before: string,
+	live: string,
+	literal: string,
+	whole: CstNode | null
+): boolean {
 	if (gesture.kind === 'type') return isSubsequence(inked(before), inked(live));
 	if (gesture.kind === 'enter') return keepsEveryByte(before, live);
 	if (gesture.kind === 'backspace' || gesture.kind === 'delete') {
-		return isSubsequence(inked(live), inked(before));
+		return withoutOneFenceLine(live).some((bytes) => isSubsequence(inked(bytes), inked(before)));
 	}
 	// One toggle may strip, move and add its construct's delimiters at once, so the check is exact:
 	// outside those delimiter characters, live matches before byte for byte.
@@ -215,19 +306,61 @@ function bytesConserved(gesture: Gesture, before: string, live: string, literal:
 		const scrub = (bytes: string) => [...inked(bytes)].filter((ch) => !alphabet.has(ch)).join('');
 		return scrub(live) === scrub(before);
 	}
+	// A whole text deleted, or typed over with a space, leaves a paragraph: its block's markers go.
+	const markersGo =
+		whole !== null &&
+		!/^\S/.test(typedRun(gesture)) &&
+		dropsOneRun(unformatted(literal), unformatted(live), unformatted(outsideText(whole)));
+
 	// A join closes, reopens or drops delimiter runs and nothing else, a branch with no sound rewrite
 	// writes nothing, and a whole text emptied leaves only what was typed (live-mode.md § 4.5).
 	return (
 		live === before ||
 		unformatted(live) === unformatted(literal) ||
-		inked(live) === inked(typedRun(gesture))
+		inked(live) === inked(typedRun(gesture)) ||
+		markersGo
 	);
 }
 
-/** Bytes with what a join may write or drop taken out: delimiter runs and a link's destination,
- *  which closing a link writes again on the half that keeps its text. */
+/** `bytes`, and `bytes` less each one fence line: a delete that leaves a fence opener gets the
+ *  closer the fence's write rule adds (G1.143). */
+function withoutOneFenceLine(bytes: string): string[] {
+	const fenceLine = /^[ \t]*(?:>[ \t]*)*(?:`{3,}|~{3,})[ \t]*\r?(?:\n|$)/gm;
+	return [
+		bytes,
+		...[...bytes.matchAll(fenceLine)].map(
+			(m) => bytes.slice(0, m.index) + bytes.slice(m.index + m[0].length)
+		)
+	];
+}
+
+/** A block's bytes around its text: a heading's `#` runs, a setext underline. */
+function outsideText(node: CstNode): string {
+	const { start, end } = getContentRange(node);
+	return node.raw.slice(0, start) + node.raw.slice(end);
+}
+
+/** Whether taking one copy of `run` out of `longer` leaves `shorter`. */
+function dropsOneRun(longer: string, shorter: string, run: string): boolean {
+	if (run === '') return longer === shorter;
+	for (let at = longer.indexOf(run); at >= 0; at = longer.indexOf(run, at + 1)) {
+		if (longer.slice(0, at) + longer.slice(at + run.length) === shorter) return true;
+	}
+	return false;
+}
+
+/** Bytes less what a join may write or drop: delimiter runs, a link's destination (a closed link
+ *  writes it again), and a quote line holding nothing else, which a join may merge or drop. */
 const unformatted = (bytes: string): string =>
-	inked(bytes)
+	bytes
+		.split('\n')
+		.map((line) => (formatless(line.replace(QUOTE_MARKERS, '')) === '' ? '' : formatless(line)))
+		.join('');
+
+const QUOTE_MARKERS = /^[ \t]*(?:>[ \t]*)+/;
+
+const formatless = (line: string): string =>
+	inked(line)
 		.replace(/\]\([^)]*\)/g, '')
 		.replace(/[*_~`[\]]/g, '');
 
@@ -238,15 +371,20 @@ function keptMarks(
 	after: readonly MarkedChar[],
 	typed: string
 ): 'same' | 'fewer' | 'other' {
+	// Code units, as the marked characters are. A typed character may also match one shown later,
+	// so each count of spares used keeps its own earliest reach rather than matching greedily.
+	const spare = typed.replace(/\s/g, '').length;
 	const matches = (fits: (a: MarkedChar, b: MarkedChar) => boolean): boolean => {
-		let at = 0;
-		let spare = [...typed.replace(/\s/g, '')].length;
+		let reach = Array.from({ length: spare + 1 }, (_, used) => (used === 0 ? 0 : Infinity));
 		for (const char of after) {
-			const found = before.findIndex((was, i) => i >= at && fits(char, was));
-			if (found >= 0) at = found + 1;
-			else if (spare-- <= 0) return false;
+			reach = reach.map((at, used) => {
+				const found =
+					at === Infinity ? -1 : before.findIndex((was, i) => i >= at && fits(char, was));
+				const matched = found >= 0 ? found + 1 : Infinity;
+				return Math.min(matched, used > 0 ? reach[used - 1] : Infinity);
+			});
 		}
-		return true;
+		return reach.some((at) => at !== Infinity);
 	};
 	if (matches((a, b) => a.char === b.char && a.marks === b.marks)) return 'same';
 	return matches((a, b) => a.char === b.char && marksWithin(a.marks, b.marks)) ? 'fewer' : 'other';
@@ -313,6 +451,7 @@ export async function fuzzLiveGestures(options: FuzzOptions): Promise<FuzzStats>
 					category: guarded || liveWarns.length > literalWarns.length ? 'seam' : 'ambiguous',
 					report:
 						`${liveWarns.map((w) => `${w.tag} ${w.message}`).join(' | ')}\n` +
+						`  ${describeGesture(gesture)}\n` +
 						`  before ${JSON.stringify(current)}\n  live   ${JSON.stringify(live.bytes)}`
 				});
 			}
@@ -328,6 +467,12 @@ export async function fuzzLiveGestures(options: FuzzOptions): Promise<FuzzStats>
 	return stats;
 }
 
+/** Every field a replay needs, so a report can be pinned as it stands. */
+const describeGesture = (gesture: Gesture): string =>
+	`gesture ${gesture.kind} leaf ${gesture.leaf}@${gesture.offset} to ` +
+	`${gesture.endLeaf}@${gesture.endOffset} mark ${gesture.mark} ` +
+	`char ${JSON.stringify(gesture.char)} affinity ${gesture.affinity}`;
+
 /** Every violation one applied gesture reports; exported so a pin can replay one draw's result. */
 export function judgeGesture(
 	gesture: Gesture,
@@ -342,14 +487,13 @@ export function judgeGesture(
 			oracle,
 			category,
 			report:
-				`${oracle} — ${detail}\n  gesture ${gesture.kind} leaf ${gesture.leaf}@${gesture.offset} ` +
-				`char ${JSON.stringify(gesture.char)} affinity ${gesture.affinity}\n` +
+				`${oracle} — ${detail}\n  ${describeGesture(gesture)}\n` +
 				`  before  ${JSON.stringify(before)}\n  live    ${JSON.stringify(live.bytes)}\n` +
 				`  literal ${JSON.stringify(literal.bytes)}`
 		});
 
-	const liveShape = describeConvergence(live.doc);
-	if (liveShape && describeConvergence(literal.doc) === null) say('shape', 'seam', liveShape);
+	const liveShape = reloadDivergence(live.doc);
+	if (liveShape && reloadDivergence(literal.doc) === null) say('shape', 'seam', liveShape);
 	const roundTrips = (bytes: string) => serialize(parse(bytes)) === bytes;
 	if (!roundTrips(live.bytes) && roundTrips(literal.bytes)) {
 		say('round-trip', 'seam', 'live bytes do not reparse to themselves');
@@ -365,9 +509,17 @@ export function judgeGesture(
 	const screenBefore = documentContentText(start);
 	const liveScreen = documentContentText(live.doc);
 	const literalScreen = documentContentText(literal.doc);
-	const literalHolds = screenClaimHolds(gesture, screenBefore, literalScreen);
+	const liveTyped = writtenRun(gesture, origin, live.bytes);
+	const claimHolds = (doc: Document, screen: string, typed: string) =>
+		screenClaimHolds(gesture, screenBefore, screen, typed) ||
+		opensBlock(gesture, { doc: start, screen: screenBefore }, { doc, screen });
+	const literalHolds = claimHolds(
+		literal.doc,
+		literalScreen,
+		writtenRun(gesture, origin, literal.bytes)
+	);
 
-	if (!screenClaimHolds(gesture, screenBefore, liveScreen)) {
+	if (!claimHolds(live.doc, liveScreen, liveTyped)) {
 		say(
 			'screen',
 			literalHolds ? 'seam' : 'ambiguous',
@@ -376,7 +528,7 @@ export function judgeGesture(
 	}
 	// A rewrite may never show more delimiters than the document showed plus the typed ones
 	// (§ 4.2), measured before the gesture, since the literal edit can hide runs by accident.
-	const shown = delimitersOnScreen(liveScreen) - delimitersOnScreen(typedRun(gesture));
+	const shown = delimitersOnScreen(liveScreen) - delimitersOnScreen(liveTyped);
 	if (live.bytes !== before && shown > delimitersOnScreen(screenBefore)) {
 		const alsoLiteral = delimitersOnScreen(literalScreen) >= shown;
 		say(
@@ -386,7 +538,8 @@ export function judgeGesture(
 		);
 	}
 
-	if (!bytesConserved(gesture, before, live.bytes, literal.bytes)) {
+	const whole = JOINS.has(gesture.kind) ? drawnWholeText(start, gesture) : null;
+	if (!bytesConserved(gesture, before, live.bytes, literal.bytes, whole)) {
 		say('bytes', 'seam', 'live wrote bytes its gesture family may not write');
 	}
 	// G1.91: a join that rewrote shows each character it kept in the marks it had.

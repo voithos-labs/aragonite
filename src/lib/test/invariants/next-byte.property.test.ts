@@ -294,6 +294,17 @@ const PINNED: [name: string, c: Omit<Case, 'host'>][] = [
 		}
 	],
 	[
+		// Miss-analysis: no pinned case typed a delimiter right after a construct's own closer.
+		'a backtick typed right after a code span’s closer',
+		{
+			line: 'b `cd` e',
+			caret: 6,
+			mode: 'source',
+			memory: { kind: 'closer', delimiter: '`' },
+			route: 'hardware key'
+		}
+	],
+	[
 		'a code span inside bold',
 		{
 			line: 'b **c `dd` c** e',
