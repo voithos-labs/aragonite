@@ -116,14 +116,14 @@ for (const mode of ['source', 'live'] as const)
 			});
 	}
 
-// A blank line after the pasted quote leaves it, and the rest leaves the caret's quote with it.
+// A trailing line of spaces is an ending: the quote joins, then a line break and a blank line.
 // Miss-analysis: every joined row's quote ended the clipboard, so no row put a line after it.
 for (const mode of ['source', 'live'] as const)
-	it(`${mode}: a quote with a blank line after it leaves the caret’s quote with the rest`, async () => {
+	it(`${mode}: a quote with a line of spaces after it joins, its endings mid-text`, async () => {
 		const { after, typed } = await pasted('> al‸pha\n> after\n', mode, '> q\n  \n');
 		expect([after.source, typed]).toEqual([
-			'> alq\n  \npha\n> after\n',
-			'> alq\n  \nZpha\n> after\n'
+			'> alq\n>\n> pha\n> after\n',
+			'> alq\n>\n> Zpha\n> after\n'
 		]);
 	});
 

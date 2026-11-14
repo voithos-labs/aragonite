@@ -79,7 +79,8 @@ export interface Pasted {
 /** The paste of `pasted` over `[from, to)`: a caret, or a range inside one text block's text. */
 export function pasteAt(doc: Doc, from: number, to: number, pasted: Pasted): Edit {
 	const seen: { blocks?: Doc } = {};
-	const once = { ...pasted, transform: ranOnce(pasted.transform) };
+	const text = asPasted(doc, from, to, pasted.text);
+	const once = { ...pasted, text, transform: ranOnce(pasted.transform) };
 	const landing = entered(doc, from, to, once, seen) ?? landedAt(doc, from, to, once, seen);
 	// Only blank text with no line ending leaves the block's own line blank.
 	const { emptied } = pasted;
@@ -89,6 +90,14 @@ export function pasteAt(doc: Doc, from: number, to: number, pasted: Pasted): Edi
 	if (!seen.blocks || edit.leaf) return edit;
 	const tops = seen.blocks.tree.children.filter((b) => !isBlankText(b.raw));
 	return { ...edit, blocks: tops.length };
+}
+
+/** The clipboard as the place `[from, to)` takes it: a trailing line of only spaces or tabs is a
+ *  blank line, so a line ending, its spaces unwritten; literal text keeps every byte. */
+export function asPasted(doc: Doc, from: number, to: number, text: string): string {
+	const held = leafHolding(doc, from, to);
+	if (held && literalLines(doc, held.leaf)) return text;
+	return text.replace(/(?:\r?\n[ \t]*)+$/, (tail) => tail.replace(/[ \t]/g, ''));
 }
 
 /** `transform` called at most once for a text, since a paste may land its clipboard twice. */
@@ -131,14 +140,16 @@ function entered(
 	};
 	const host = itemHolding(doc, from, to);
 	const bare: Pasted = { ...keeping(0), ended: true };
-	// Outside a list item only a pasted list can end in a list of the document; a container the
-	// caret's took in ends inside the caret's, where the ending is the text's.
+	// In an item, endings alone are Enter from the first. Elsewhere only a pasted list ends in a list
+	// of the document; a container the caret's took in ends inside it, where the ending is text's.
 	const first =
-		host || endsOnList(doc, text)
-			? enteredInList(doc, from, to, bare, host, seen)
-			: endsTakenIn(doc, from, text)
-				? enteredInText(doc, from, to, bare, seen)
-				: null;
+		host && text === ''
+			? enteredAgain(doc, landedAt(doc, from, to, bare, seen))
+			: host || endsOnList(doc, text)
+				? enteredInList(doc, from, to, bare, host, seen)
+				: endsTakenIn(doc, from, text)
+					? enteredInText(doc, from, to, bare, seen)
+					: null;
 	if (!first && count === 1) return null;
 	let edit = first ?? landedAt(doc, from, to, keeping(1), seen);
 	// Past an empty line the first ending opened, each later one goes as Enter does there.

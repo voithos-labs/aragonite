@@ -449,6 +449,15 @@ export type PasteShape =
 	| 'on a line'
 	| 'other';
 
+/** `text` as a paste at `at` takes it: a trailing line of only spaces or tabs is a line ending,
+ *  save in literal text that keeps its lines. */
+export function blankTail(read: Read, at: number, text: string, host: CheckHost): string {
+	const target = leafAt(read, at);
+	const facts = target && host.facts(target.type);
+	if (facts?.body === 'literal' && facts.holdsLines) return text;
+	return text.replace(/(?:\r?\n[ \t]*)+$/, (tail) => tail.replace(/[ \t]/g, ''));
+}
+
 /** The source a paste of `text` at `at`, a caret holding what `held` says, may give, with the rule
  *  that gives it. With `to`, a list that breaks out lands over `[at, to)` of the caret's text. */
 export function expectedPaste(
@@ -459,6 +468,7 @@ export function expectedPaste(
 	held: Held,
 	to = at
 ): { shape: PasteShape; bytes: string[] } {
+	text = blankTail(read, at, text, host);
 	// Where a block starts and the caret is in no text, the clipboard lands above it all the same.
 	const rest = read.source.slice(at, (read.source + '\n').indexOf('\n', at));
 	const onSyntax =
@@ -971,7 +981,7 @@ function landedPaste(
 		return { shape: 'text', bytes: [read.source.slice(0, at) + title + read.source.slice(at)] };
 	// Literal text (code) takes the paste as written, whatever it would read as elsewhere.
 	if (targetFacts.body === 'literal') {
-		// A link definition holds no pasted line: lines land under it (ruling 77), as the rows hold.
+		// A link definition holds no pasted line: lines land under it, as the rows hold.
 		if (!targetFacts.holdsLines && text.includes('\n')) return { shape: 'other', bytes: [] };
 		const prefix = literalPrefix(read, at, target, lf(text), host);
 		if (prefix === null) return { shape: 'other', bytes: [] };

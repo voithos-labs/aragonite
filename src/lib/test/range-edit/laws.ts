@@ -15,6 +15,7 @@ import type { Mode } from '#lib/range-edit/host.js';
 import type { LaidBlock } from '#lib/range-edit/layout.js';
 import type { CheckHost } from './test-host';
 import {
+	blankTail,
 	endingOf,
 	expectedCopy,
 	expectedPaste,
@@ -529,6 +530,8 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 	if (input.mode === 'live' && /[*_`~[\]<]/.test(input.text)) return [];
 	const got = call(input.source, caretRange(input.at), paste(input.text, input.held), input.mode);
 	if (!got) return [];
+	const text = blankTail(read, input.at, input.text, host);
+	if (text !== input.text) return pasteAtCaret(call, host, { ...input, text });
 	// A last line ending pasted in a list item's text, or ending a list the paste joins, is Enter
 	// (`paste-ending-enter.test.ts`): it leaves the bytes before it, and the law holds the rest.
 	const ended = /\r?\n$/.exec(input.text);

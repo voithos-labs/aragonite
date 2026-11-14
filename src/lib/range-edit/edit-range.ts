@@ -30,7 +30,7 @@ import type { LaidBlock } from './layout';
 import { byteAt, writeText, type Edit, type LeafEdit } from './leaf-splice';
 import { ownEntry, restored } from './own-entry';
 import { numberedOn } from './list-numbers';
-import { pasteAt, type Pasted } from './paste';
+import { asPasted, pasteAt, type Pasted } from './paste';
 import { removeRange, type Removal } from './removal';
 import { bodyBetweenFences, fenceBody, holdsText } from './removal-range';
 
@@ -129,7 +129,7 @@ export function editRange(
 			held,
 			transform
 		});
-		const ended = gesture.paste.endsWith('\n');
+		const ended = asPasted(doc, from, to, gesture.paste).endsWith('\n');
 		// The empty line a last line ending opens is the caret's own, never the block below it, and
 		// the caret the ending left as Enter is on a line it opened too.
 		const lined = (result: RangeEditResult, edit: Edit): RangeEditResult =>
@@ -181,7 +181,8 @@ const TEXT: Held = { holds: 'text' };
  *  text and over no range that empties the document, which has no last line to keep. */
 function opensLastLine(doc: Doc, from: number, to: number, at: number, text: string): boolean {
 	const { source } = doc;
-	if (!source || ownTrailingLineEnding(source) || !text.endsWith('\n')) return false;
+	if (!source || ownTrailingLineEnding(source) || !asPasted(doc, at, at, text).endsWith('\n'))
+		return false;
 	if (source.includes('\n', at) || (from === 0 && to === source.length)) return false;
 	const leaf = leafHolding(doc, at, at)?.leaf;
 	return !leaf || factsOf(doc, leaf).body !== 'literal';
