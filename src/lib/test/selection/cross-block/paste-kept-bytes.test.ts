@@ -14,7 +14,7 @@ import {
 	installClipboardEvents,
 	installSystemClipboard
 } from '#lib/test/harness/clipboard-events.js';
-import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { takeDevWarns, takeDevWarnsOf } from '#lib/test/support/warn-gate.js';
 import { mountCase, placeRange, type Editor } from '../../range-laws/gestures';
 
 const N = 12;
@@ -49,7 +49,11 @@ const writeUnannounced = (editor: Editor, index: number, raw: string) => {
 	(editor.instance.__test.getDocument().children[index] as { raw: string }).raw = raw;
 };
 
-const warnTags = () => takeDevWarns().map((warn) => warn.tag);
+/** The record's guard fired, and no other guard did. */
+const keptGuardAlone = () => {
+	expect(takeDevWarnsOf('invariant:kept-starts-current')).not.toEqual([]);
+	expect(takeDevWarns()).toEqual([]);
+};
 
 describe('G1.219 a paste beside a block the record holds wrong', () => {
 	it.each([
@@ -72,7 +76,7 @@ describe('G1.219 a paste beside a block the record holds wrong', () => {
 		expect(editor.source()).toContain(`${GROWN.slice(0, 30)}${text}`);
 		expect(editor.source()).toContain('line 3\n\nline 4\n');
 		expect(errors).toHaveLength(1);
-		expect(warnTags()).toContain('invariant:kept-starts-current');
+		keptGuardAlone();
 	});
 
 	it('a paste answered before a write that named no block is refused, which keeps that write', async () => {
@@ -90,6 +94,6 @@ describe('G1.219 a paste beside a block the record holds wrong', () => {
 		expect(editor.source()).toBe('ALMA\n');
 		expect(ops).toEqual(['delete']);
 		expect(errors).toHaveLength(1);
-		expect(warnTags()).toContain('invariant:kept-starts-current');
+		keptGuardAlone();
 	});
 });
