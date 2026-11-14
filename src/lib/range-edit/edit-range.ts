@@ -8,6 +8,7 @@
 import { getContentRange, structuralSuffix } from '../core/inline';
 import { isBlankText, ownTrailingLineEnding, type LineEnding } from '../core/lines';
 import type { Mode, PasteHost, RangeHost } from './host';
+import { pastMarkers } from './apart';
 import { copyOf } from './copy';
 import {
 	contentEnd,
@@ -101,6 +102,13 @@ export function editRange(
 		return { source, caret: { at: to, holds: 'text' }, clipboard, own };
 	}
 	if (typeof gesture === 'string') return answer(removalEdit(doc, from, to, gesture));
+	// A line ending landing on a last line that has none lands as on one that has, then the break
+	// comes back off unless the line left last is blank (`syntax-tree.md` § The last line).
+	const reclosed = (at: number, text: string): RangeEditResult | null => {
+		if (!opensLastLine(doc, from, to, at, text)) return null;
+		const closed = editRange(source + doc.ending, range, gesture, mode, host);
+		return reopened(closed, doc.ending, (body) => endsBlank(readDoc(body, host, mode)));
+	};
 	if ('paste' in gesture) {
 		// The document's last line keeps the line ending it had, which blocks pasted after it spend.
 		const ending = ownTrailingLineEnding(source);
@@ -111,6 +119,8 @@ export function editRange(
 		const own = gesture.plain ? undefined : gesture.own;
 		const back = own === undefined ? null : restored(source, from, to, own);
 		if (back) return answer(back);
+		const onClosed = reclosed(to, gesture.paste);
+		if (onClosed) return onClosed;
 		// A clipboard that carries the editor's own entry is the editor's own bytes: no transform runs.
 		const transform: Pasted['transform'] =
 			gesture.own === undefined ? (text, blocks) => host.transformPaste(text, blocks) : null;
@@ -157,6 +167,8 @@ export function editRange(
 	const { removed, clipboard, own } = taken(doc, from, to);
 	const { drop } = gesture;
 	const dropped: Pasted = { text: clipboard, plain: false, held: TEXT, transform: null };
+	const onClosed = reclosed(drop, clipboard);
+	if (onClosed) return onClosed;
 	if (gesture.copy) return answer(pasteAt(doc, drop, drop, dropped));
 	// A moving drop is a cut, then a paste of its text and own entry at the drop point.
 	const after = read(removed);
@@ -165,6 +177,47 @@ export function editRange(
 }
 
 const TEXT: Held = { holds: 'text' };
+
+/** Whether text ending in a line ending lands at `at` on a last line with none, in no literal
+ *  text and over no range that empties the document, which has no last line to keep. */
+function opensLastLine(doc: Doc, from: number, to: number, at: number, text: string): boolean {
+	const { source } = doc;
+	if (!source || ownTrailingLineEnding(source) || !text.endsWith('\n')) return false;
+	if (source.includes('\n', at) || (from === 0 && to === source.length)) return false;
+	const leaf = leafHolding(doc, at, at)?.leaf;
+	return !leaf || factsOf(doc, leaf).body !== 'literal';
+}
+
+/** `closed`, a paste into the document given the last line ending it lacked: the ending goes
+ *  again unless the line left last is blank, which keeps it as Enter's does. */
+function reopened(
+	closed: RangeEditResult,
+	eol: string,
+	blank: (body: string) => boolean
+): RangeEditResult {
+	// The one write of a block was the closed document's.
+	const result: RangeEditResult = { ...closed, leaf: undefined };
+	const { source, caret } = result;
+	if (!source.endsWith(eol)) return result;
+	const body = source.slice(0, -eol.length);
+	const line = body.lastIndexOf('\n') + 1;
+	if (!blank(body)) {
+		return { ...result, source: body, caret: { ...caret, at: Math.min(caret.at, body.length) } };
+	}
+	// An empty last line right under a block's last line is Enter's empty paragraph there.
+	const under = line > 0 && !isBlankText(body.slice(body.lastIndexOf('\n', line - 2) + 1, line));
+	if (line < body.length || caret.at !== line || !under) return result;
+	const at = line + eol.length;
+	return { ...result, source: body + eol + eol, caret: { at, holds: 'text', line: true } };
+}
+
+/** Whether `doc`'s last line holds no text past its markers: an empty item's or quote's too. */
+function endsBlank(doc: Doc): boolean {
+	const { source } = doc;
+	const leaf = leafHolding(doc, source.length, source.length)?.leaf;
+	if (leaf?.text) return isBlankText(source.slice(leaf.text.from, leaf.text.to));
+	return isBlankText(source.slice(pastMarkers(source, source.lastIndexOf('\n') + 1)));
+}
 
 /** Whether the range sits in one block's text, between its fence lines where it has them: a paste
  *  over it is that block's one write. A block held whole gives way to the text instead. */
