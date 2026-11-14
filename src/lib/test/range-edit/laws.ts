@@ -444,7 +444,7 @@ export function replaceLaws(
 		else if (
 			then &&
 			!sameAfterCut(then.source, over.source, input.source, cut.source) &&
-			!openEndEntered(input.source, input.range, over.source, then.source)
+			!openEndEntered(input.source, input.range, text, over.source, then.source)
 		)
 			out.push(`L5 paste over gave ${q(over.source)}, cut then paste ${q(then.source)}`);
 	}
@@ -620,9 +620,15 @@ const eolOf = (source: string) => (/\r\n/.test(source.match(/\r?\n/)?.[0] ?? '')
 
 /** Whether `over`, a paste over a range to the end of the open file `source`, is `then`, its cut
  *  then its paste, with the line Enter opens there: the cut alone ends the file on a line break. */
-function openEndEntered(source: string, range: Range, over: string, then: string): boolean {
+function openEndEntered(
+	source: string,
+	range: Range,
+	text: string,
+	over: string,
+	then: string
+): boolean {
 	const eol = eolOf(source);
-	if (/\n$/.test(source) || range.to !== source.length) return false;
+	if (/\n$/.test(source) || range.to !== source.length || !/\n$/.test(text)) return false;
 	return over === then + eol + eol || over === then + eol;
 }
 

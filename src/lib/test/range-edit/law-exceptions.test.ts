@@ -212,3 +212,21 @@ describe('law 9 in live mode, outside its live shape', () => {
 		expect(pasteAtCaret(fake, host, live(text, pasted))).not.toEqual([]);
 	});
 });
+
+describe('law 5 at an open file’s end', () => {
+	// Miss-analysis: the acceptance asked only where the range ends, so a paste of text with no line
+	// ending could leave a stray one at the file's end and pass as Enter's line.
+	it('steps aside for Enter’s line only under a clipboard that ends in a line ending', () => {
+		const { host, real } = calls('');
+		const stray: Call = (source, range, gesture, mode) => {
+			const got = real(source, range, gesture, mode)!;
+			return isPaste(gesture) && range.from < range.to
+				? { ...got, source: got.source + '\n' }
+				: got;
+		};
+		const open = marked('al⟦pha\n\nbeta⟧');
+		expect(replaceLaws(real, host, open, 'x')).toEqual([]);
+		expect(replaceLaws(real, host, open, 'x\n')).toEqual([]);
+		expect(replaceLaws(stray, host, open, 'x')).not.toEqual([]);
+	});
+});
