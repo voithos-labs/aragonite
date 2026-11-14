@@ -65,34 +65,16 @@ describe('a range out of a container from a block taken whole', () => {
 		for (const [wrap, w] of Object.entries(WRAPS))
 			for (const [spacing, lineGoes] of Object.entries(SPACINGS))
 				for (const [name, block] of Object.entries(AFTER)) {
-					const tail =
-						block === null
-							? ''
-							: `
-${block}
-`;
-					const kept = `intro
-
-${w.open}above
-`;
-					const lead = lineGoes
-						? kept
-						: `${kept}${w.blank}
-`;
-					const source = `${lead}${w.next}# text
-${w.next}below
-${tail}`;
+					const tail = block === null ? '' : `\n${block}\n`;
+					const kept = `intro\n\n${w.open}above\n`;
+					const lead = lineGoes ? kept : `${kept}${w.blank}\n`;
+					const source = `${lead}${w.next}# text\n${w.next}below\n${tail}`;
 					const select = {
 						anchor: { path: [...w.path, 1], offset: 0 },
 						focus: { path: [...w.path, 2], offset: 5 }
 					};
-					const cut = lineGoes
-						? `${kept}${tail}`
-						: `${lead}${w.next}
-${tail}`;
-					const own = (text: string) => `${kept}${w.blank}
-${w.next}${text}
-${tail}`;
+					const cut = lineGoes ? `${kept}${tail}` : `${lead}${w.next}\n${tail}`;
+					const own = (text: string) => `${kept}${w.blank}\n${w.next}${text}\n${tail}`;
 					const title = `${mode}: ${wrap}, ${spacing}, ${name} after`;
 
 					it(`${title}, a cut then a letter`, async () => {
