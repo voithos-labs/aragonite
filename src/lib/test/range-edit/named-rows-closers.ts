@@ -188,6 +188,14 @@ const LEFT_LINE_KEPT_ROWS: NamedRow[] = [
 		'intro\n\n```\nlast\n```\n',
 		{ at: 7, holds: 'boundary', parent: [] }
 	),
+	// Miss-analysis: every row above had a blank line or the document's end under the range, so none
+	// met a block right below, whose first byte took the caret once the line went.
+	...cut(
+		'L4 out of an item with the next item right below, the start’s emptied line stays',
+		'- above\n  ⟦# text\n  below⟧\n- next\n',
+		'- above\n  \n- next\n',
+		{ at: 10, holds: 'boundary', parent: [0, 0] }
+	),
 	...cut(
 		'L4 out of a quote, its blank line above the range and the one after it both stay',
 		'intro\n\n> above\n>\n> ⟦# text\n> below⟧\n\n# h\n',

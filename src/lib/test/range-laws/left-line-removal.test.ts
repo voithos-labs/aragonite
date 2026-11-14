@@ -48,6 +48,7 @@ const AFTER = {
 	'a tip': ':::tip\nbody\n:::',
 	'a heading': '# h',
 	'a table': '| a |\n|---|\n| 1 |',
+	'a paragraph': 'last',
 	nothing: null
 };
 

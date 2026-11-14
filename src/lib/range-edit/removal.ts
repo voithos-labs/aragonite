@@ -268,12 +268,15 @@ function across(
 /** Where the line `from` is on starts, where the range ends at a line's end and leaves the
  *  container holding `first`, which keeps a block before it; else `from`. */
 function leftLineStart(doc: Doc, from: number, to: number, first: LaidBlock): number {
-	const marks = lineHead(doc.source, from);
+	const { source } = doc;
+	const marks = lineHead(source, from);
 	const parent = parentOf(doc, first);
 	if (marks === '' || !parent || first.path.at(-1) === 0) return from;
-	const atLineEnd = doc.source.startsWith('\n', to) || doc.source.startsWith('\r\n', to);
-	const leaves = atLineEnd && to >= contentEnd(doc, parent);
-	return leaves ? from - marks.length : from;
+	const eol = source.startsWith('\r\n', to) ? 2 : source.startsWith('\n', to) ? 1 : 0;
+	// A blank line of the containers around keeps the caret off the block below, which would take it.
+	const below = lineRest(source, to + eol).trimEnd();
+	const parted = /^[ \t>]*$/.test(below) && marks.trimEnd().startsWith(below);
+	return eol > 0 && parted && to >= contentEnd(doc, parent) ? from - marks.length : from;
 }
 
 /** Where the text of the line holding `at` starts, past the marker of each container on it. */
