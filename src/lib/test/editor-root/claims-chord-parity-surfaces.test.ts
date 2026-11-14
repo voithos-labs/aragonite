@@ -2,7 +2,7 @@
 // Miss-analysis: `claimsChord` was a second computation no test held against the keydown handlers
 // of the surfaces with no text block focused: the gap caret, the root, a range, the find bar, a card,
 // and an open menu, which takes Escape at the document wherever the caret is.
-import { afterEach, beforeAll, expect } from 'vitest';
+import { afterEach, beforeAll, expect, it } from 'vitest';
 import { IMAGE_ALT_FIELD, IMAGE_CROP, IMAGE_CROP_APPLY } from '#lib/a11y-strings.js';
 import { defineBlockView } from '#lib/plugin.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
@@ -16,7 +16,13 @@ import {
 import { pressKey } from '#lib/test/harness/settle.js';
 import { cellAt } from '../blocks/table/mount-table';
 import { markerLeafPlugin } from '../plugins/fixtures/dom-views';
-import { describeKeyless, describeParity, type ClaimContext, type Probe } from './claims-parity';
+import {
+	describeKeyless,
+	describeParity,
+	probe,
+	type ClaimContext,
+	type Probe
+} from './claims-parity';
 
 beforeAll(installLayoutStubs);
 // The host-field context leaves its input on the page.
@@ -206,15 +212,22 @@ const CONTEXTS: ClaimContext[] = [
 		plugins: [badge],
 		enter: async (editor) =>
 			focusIn(editor.target.querySelector('[data-block-path="[1]"] textarea'))
+	},
+	// A widget selected whole keeps every key but a modified chord and a key with no editing
+	// default, and `claimsChord` claims exactly those.
+	{
+		name: 'image selected whole',
+		source: IMAGE,
+		mode: 'live',
+		focus: { at: 'leaf', path: [0] },
+		enter: selectImage
 	}
 ];
 
 describeParity(CONTEXTS);
 
-// A selected image's keys and its card's Tab disagree with `claimsChord` (a widget selected whole
-// takes every key), so these contexts hold the keyless row alone.
+// The image card's Tab disagrees with `claimsChord`, so its fields hold the keyless row alone.
 const IMAGE_CONTEXTS: ClaimContext[] = [
-	{ name: 'image selected whole', source: IMAGE, mode: 'live', enter: selectImage },
 	{
 		name: 'image alt text field',
 		source: IMAGE,
@@ -244,3 +257,14 @@ const IMAGE_CONTEXTS: ClaimContext[] = [
 ];
 
 describeKeyless(IMAGE_CONTEXTS);
+
+// A host binds sideways arrows (Back, the next tab) that move no caret, so a selected image leaves
+// them to the host, as a caret in its text does.
+it.each(['Alt+ArrowLeft', 'Alt+ArrowRight', 'Mod+Alt+ArrowLeft'])(
+	'a selected image leaves %s to the host',
+	async (chord) => {
+		const image = CONTEXTS.find((c) => c.name === 'image selected whole')!;
+		const { claimed, prevented } = await probe(image, chord);
+		expect([claimed, prevented]).toEqual([false, false]);
+	}
+);

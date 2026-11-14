@@ -55,9 +55,7 @@ carries it):
   them: they are a hard break with no line after them, so they paint nothing. Carried along, the
   pair reloads as a different shape (#106), and falling back to the byte-literal cut prints the
   delimiters the user never saw. The screen after the split and the screen after a reload both
-  show none. The join and delete path carries the same rule (#113, pinned by its own unit suite);
-  the fresh-seed property lane can still go red on that signature through #129, the
-  suffix-materialization hole, which is independent of the mode and is no one path's to close
+  show none. The join and delete path carries the same rule (#113, pinned by its own unit suite)
 - a cut that would leave a delimiter run against whitespace moves the space outside the run rather
   than killing the construct: `**a *|ital* b**` gives `**a** ` and `***ital* b**`, which read
   identically on screen and parse back, where the literal `**a **` would print its stars

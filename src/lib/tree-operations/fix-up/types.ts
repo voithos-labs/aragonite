@@ -75,6 +75,8 @@ export interface KindTraits {
 	contextDependent: boolean;
 	/** A container whose children are its lines, each behind its marker (a quote). */
 	stripContainer: boolean;
+	/** A strip container marked on its first line only (a list item), so its blank lines are bare. */
+	firstLineMarker: boolean;
 	/** A table or a table row, whose cells sit inside one line. */
 	grid: boolean;
 }

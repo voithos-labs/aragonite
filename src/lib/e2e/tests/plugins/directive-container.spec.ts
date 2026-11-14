@@ -102,4 +102,21 @@ test.describe('plugin container: generic :::name directive', () => {
 		await editor.bridge.waitForSourceEquals('x\nqw:::foo\nner\n\nmore\n:::\n\n# h\n');
 		expect(await editor.parseConverged()).toBe(true);
 	});
+
+	// A nested `:::` container asks the outer fence for four colons, which the row's own write must
+	// not put back over the colons typed. Live mode shows the colons with the caret on the row.
+	for (const mode of ['live', 'source'] as const)
+		test(`a letter in the colons of a long fence writes what was typed, ${mode}`, async ({
+			page
+		}) => {
+			const rest = '\nx\n:::tip\nner\n:::\n::::\n';
+			await editor.setPresentationMode(mode);
+			await editor.loadContent('::::foo Hi' + rest);
+			await editor.focusBlockAtPath([0, 0], 2);
+
+			await page.keyboard.type('xw');
+
+			await editor.bridge.waitForSourceEquals('::xw::foo Hi' + rest);
+			expect(await editor.parseConverged()).toBe(true);
+		});
 });
