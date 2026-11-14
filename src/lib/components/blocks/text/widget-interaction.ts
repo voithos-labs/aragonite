@@ -49,6 +49,7 @@ import { checkWidgetCaretLanding } from '../../../invariants/widget-caret-landin
 import { checkMotionLeftWidget } from '../../../invariants/selected-widget-motion';
 import type { RevealFold } from '../editable/surface-clipboard';
 import { hasModifier, surfaceHoldsRange } from './click-snap-guard';
+import { selectedWidgetKeeps } from './selected-widget-keys';
 import { caretEdgeKey, pageKey, typesCharacter } from '../../../schema/keybindings';
 import { elementAtPoint } from '../../../browser/point';
 import {
@@ -643,10 +644,10 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			leaveWidgetBy(motion, widget);
 			return false;
 		}
-		// A modified chord goes on to the keymap dispatch, which owns undo and redo. Arrows stop here:
-		// no read answers the caret a selected widget keeps, so a later handler would read offset 0.
+		// A modified arrow stops here: no read answers the caret a selected widget keeps, so a later
+		// handler would read offset 0. Any other modified chord goes on to the keymap dispatch.
+		if (!selectedWidgetKeeps(e)) return false;
 		if (hasModifier(e)) {
-			if (!e.key.startsWith('Arrow')) return false;
 			e.preventDefault();
 			return true;
 		}

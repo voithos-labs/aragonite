@@ -206,15 +206,22 @@ const CONTEXTS: ClaimContext[] = [
 		plugins: [badge],
 		enter: async (editor) =>
 			focusIn(editor.target.querySelector('[data-block-path="[1]"] textarea'))
+	},
+	// A widget selected whole keeps every key but a modified chord and a key with no editing
+	// default, and `claimsChord` claims exactly those.
+	{
+		name: 'image selected whole',
+		source: IMAGE,
+		mode: 'live',
+		focus: { at: 'leaf', path: [0] },
+		enter: selectImage
 	}
 ];
 
 describeParity(CONTEXTS);
 
-// A selected image's keys and its card's Tab disagree with `claimsChord` (a widget selected whole
-// takes every key), so these contexts hold the keyless row alone.
+// The image card's Tab disagrees with `claimsChord`, so its fields hold the keyless row alone.
 const IMAGE_CONTEXTS: ClaimContext[] = [
-	{ name: 'image selected whole', source: IMAGE, mode: 'live', enter: selectImage },
 	{
 		name: 'image alt text field',
 		source: IMAGE,
