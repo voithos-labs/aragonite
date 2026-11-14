@@ -306,9 +306,8 @@ function landedAt(
 	const apart = held.holds === 'text' ? null : pasteApart(doc, from, off, held.parent, true);
 	if (apart) return apart;
 	const leaf = leafHolding(doc, from, to)?.leaf;
-	// A block whose lines are no body (a link definition) holds no pasted line: lines land as
-	// blocks of their own under it, as at a caret on its syntax (§ 5.4 rule 7).
-	// Line endings alone bring no block: they are the definition's own line breaks.
+	// A block whose lines are no body (a link definition) holds no pasted line: lines with text land
+	// as blocks of their own under it, as at a caret on its syntax; endings alone are its own.
 	const lined = !plain && !isBlankText(lf) && (pasted.ended || lf.includes('\n'));
 	if (lined && leaf && !factsOf(doc, leaf).holdsLines) {
 		if (from === to) return underBlock(doc, leaf, to, () => blocks().source, lf.endsWith('\n'));
