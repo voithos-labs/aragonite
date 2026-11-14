@@ -17,6 +17,7 @@ import {
 	mountEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { dispatchBeforeInput, pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
+import { takeDevWarnsOf } from '#lib/test/support/warn-gate.js';
 import { mountCase, placeRange, type Editor } from './gestures';
 
 beforeAll(installLayoutStubs);
@@ -242,5 +243,17 @@ describe('a line break over a range goes by the command its key runs', () => {
 		const keyed = await pressed(source, select, binding, { key: 'Enter' });
 		expect(keyed.startsWith('## firstx\n')).toBe(true);
 		expect(await pressed(source, select, binding, 'insertParagraph')).toBe(keyed);
+	});
+});
+
+// Miss-analysis: no row sent a break as input where its key runs nothing, so the check could read
+// how the removal was named, which calls every such input a break, and pass.
+describe('G1.223 reads the keymap of the block a line break ran in', () => {
+	it('a soft paragraph break left on a rule, which binds no Enter, fires it', async () => {
+		const editor = mountCase('***\n\n***\n\nbody\n\nafter\n', 'source');
+		await editor.settle();
+		await placeRange(editor, range([1], [2], 4));
+		await lineBreak(editor, 'a soft paragraph break');
+		expect(takeDevWarnsOf('invariant:range-break-landing')).toHaveLength(1);
 	});
 });
