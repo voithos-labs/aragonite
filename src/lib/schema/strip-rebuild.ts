@@ -110,6 +110,7 @@ function rebuildStripBody(
 		const full = (scratch: CstNode) => rebuildStripBody(scratch, lines, undefined, lines);
 		if (spliceChildRegion(node, changed, rewrite) && spliceIsFaithful(node, full)) return outcome;
 	}
+	const closing = closesBlank(node.raw, previous);
 
 	// One indexed read per child: the array is a `$state` proxy, so every read is a proxy trap.
 	const children = node.children!.map((child) => child);
@@ -124,7 +125,7 @@ function rebuildStripBody(
 
 	// A child ending mid-line shares that line with whatever follows, so its lines can't be told
 	// apart from the next child's: the whole body is written as one text.
-	if (opensMidLine(children, suffix)) return rebuildWholeStrip(node, lines, previous);
+	if (opensMidLine(children, suffix)) return rebuildWholeStrip(node, lines, previous, closing);
 
 	const raw = node.raw;
 	const spans = new Uint32Array(children.length * 2);
@@ -132,10 +133,12 @@ function rebuildStripBody(
 	const keeps = previous === lines;
 	const head = keeps ? keptHead(raw, children, lines, spans) : NO_HEAD;
 	let tail = keeps && suffix === '' ? keptTail(raw, children, lines, head) : noTail(raw, children);
-	let rest = writeBetween(raw, children, suffix, lines, previous, head, tail, tailIsBlank);
+	const between = (kept: KeptTail) =>
+		writeBetween(raw, children, suffix, lines, previous, head, kept, tailIsBlank, closing);
+	let rest = between(tail);
 	if (rest === null) {
 		tail = noTail(raw, children);
-		rest = writeBetween(raw, children, suffix, lines, previous, head, tail, tailIsBlank)!;
+		rest = between(tail)!;
 	}
 	// The kept tail's bytes move by however much the lines above it grew or shrank.
 	const shift = head.rawEnd + rest.out.length - tail.rawStart;
@@ -158,7 +161,8 @@ function writeBetween(
 	previous: LineCodec,
 	head: KeptHead,
 	tail: KeptTail,
-	tailIsBlank: (i: number) => () => boolean
+	tailIsBlank: (i: number) => () => boolean,
+	closing: boolean
 ): { out: string; offsets: number[]; bounds: number[]; rereads: boolean } | null {
 	const fresh: BodyLineOut[] = [];
 	// Pairs of a span slot and the line index it starts or ends at.
@@ -177,6 +181,7 @@ function writeBetween(
 		if (whole) bounds.push(i * 2 + 1, fresh.length);
 	}
 	if (suffix !== '') pushLines(fresh, suffix, fresh.length === 0 && head.lines === 0, () => true);
+	if (closing && tail.rawStart === raw.length) pushClosingLine(fresh);
 
 	const old = readOldLines(raw.slice(head.rawEnd, tail.rawStart), previous, head.rawEnd === 0);
 	if (tail.first && runsIntoTail(old, fresh, tail.first)) return null;
@@ -415,12 +420,18 @@ function lineAt(text: string, start: number): { text: string; ending: string } {
 	return { text: text.slice(start, crlf ? breakAt - 1 : breakAt), ending: crlf ? '\r\n' : '\n' };
 }
 
-function rebuildWholeStrip(node: CstNode, lines: LineCodec, previous: LineCodec): StripRebuild {
+function rebuildWholeStrip(
+	node: CstNode,
+	lines: LineCodec,
+	previous: LineCodec,
+	closing = false
+): StripRebuild {
 	const fresh: BodyLineOut[] = [];
 	pushLines(fresh, concatChildren(node.children!) + (node.innerSuffix ?? ''), true, () => true);
 	// An empty body still sits on the container's opening line, which holds its marker; with no
 	// line written, a reload reads no container at all.
 	if (fresh.length === 0) fresh.push({ text: '', ending: '', place: FIRST_LINE });
+	else if (closing) pushClosingLine(fresh);
 	const written = writeLines(readOldLines(node.raw, previous, true), fresh, lines);
 	node.childSpans = undefined;
 	node.raw = written.out;
@@ -518,6 +529,20 @@ function pushLines(
 			place: { first: first && i === 0, trailingBlank: endsBlank && i > lastContent }
 		})
 	);
+}
+
+/** Whether the previous bytes end on a line with no line break that holds no body text (the `> `
+ *  under a quote's last blank line): the body's text can't spell that line, so the rebuild adds it. */
+function closesBlank(raw: string, previous: LineCodec): boolean {
+	const lastBreak = raw.lastIndexOf('\n');
+	if (lastBreak < 0 || lastBreak === raw.length - 1) return false;
+	return readLine(previous, raw.slice(lastBreak + 1), INNER_LINE)?.text === '';
+}
+
+/** The closing line {@link closesBlank} finds, written last, under a line that ends in a break. */
+function pushClosingLine(out: BodyLineOut[]): void {
+	if (out.length > 0 && out[out.length - 1].ending === '') return;
+	out.push({ text: '', ending: '', place: { first: false, trailingBlank: true } });
 }
 
 function readOldLines(raw: string, codec: LineCodec, opensContainer: boolean): OldLine[] {
