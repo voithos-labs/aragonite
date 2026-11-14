@@ -45,7 +45,7 @@ export interface DraftRegistry {
 	record(change: RecordedChange | null): void;
 }
 
-/** A draft whose Markdown can also go into a new paragraph below the caret's block. */
+/** A draft whose Markdown can also go in as a block of its own (`insertMarkdown`'s `below`). */
 export interface InternalDraft extends Draft {
 	insertBelow(markdown: string): this;
 }
@@ -54,7 +54,7 @@ export interface InternalDraft extends Draft {
 export interface DraftWrites {
 	commitSource(splice: SourceSplice): Promise<boolean>;
 	undoStep(seed: CommitSnapshotArg, run: () => Promise<unknown>): Promise<void>;
-	/** Pastes at the caret, or into a new paragraph after its top-level block; true when bytes landed. */
+	/** Pastes at the caret, or as a block of its own; true when bytes landed. */
 	insert(markdown: string, below: boolean): Promise<boolean>;
 }
 

@@ -167,3 +167,20 @@ After
 				await expect.poll(() => editor.bridge.getSource()).toBe(typed);
 			});
 });
+
+// Miss-analysis: the item rows pasted one line, so no row typed after a last line ending, which
+// Enter takes, where the new item starts with a hidden run.
+test('a line ending pasted mid-item before a run leaves a letter plain, as Enter does (live)', async ({
+	page
+}) => {
+	const editor = new EditorPage(page);
+	await editor.goto();
+	await editor.setPresentationMode('live');
+	await editor.loadContent('- al **b** c\n- after\n');
+	await editor.focusBlockAtPath([0, 0, 0], 2);
+	await editor.seedClipboard('one\n');
+	await editor.paste();
+	await editor.bridge.waitForSourceEquals('- alone\n-  **b** c\n- after\n');
+	await page.keyboard.type('Z');
+	await expect.poll(() => editor.bridge.getSource()).toBe('- alone\n-  Z**b** c\n- after\n');
+});

@@ -3,8 +3,8 @@
 The right-click menu on a paragraph or heading carries the clipboard rows and, below a divider,
 an "Insert block" flyout listing the empty blocks the editor can add (lists, quote,
 divider, code block, table, and a plugin's blocks while it is installed). Choosing one creates an
-empty paragraph after the block under the pointer and puts the snippet in it, so the new block is
-empty and the caret is inside it.
+empty paragraph after the block under the pointer and puts the snippet in it (on an empty line,
+the line itself takes it), so the new block is empty and the caret is inside it.
 
 ## Happy paths
 
