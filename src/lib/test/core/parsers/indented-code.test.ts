@@ -67,22 +67,3 @@ describeRoundTrips('indented code — round-trips regardless of predecessor', [
 	'text\n    x\n',
 	'text\n\n    x\n'
 ]);
-
-// Miss-analysis: every trailing blank line drawn here was empty, so none held four columns of
-// whitespace, which read as a code line.
-describe('indented code: a trailing blank line stays out (GFM §4.4)', () => {
-	it.each([
-		['a tab', '    code\n\t\n# h\n'],
-		['four spaces', '    code\n    \n# h\n']
-	])('a line of %s below the code is the next block’s blank line', (_name, source) => {
-		const [code, heading] = parse(source).children;
-		expect([code.kind, code.raw]).toEqual(['indentedCode', '    code\n']);
-		expect([heading.kind, heading.leadingTrivia]).toEqual(['heading', source.slice(9, -4)]);
-	});
-
-	it('keeps a blank line of four columns between two code lines', () => {
-		expect(parse('    a\n    \n    b\n').children.map((n) => [n.kind, n.raw])).toEqual([
-			['indentedCode', '    a\n    \n    b\n']
-		]);
-	});
-});

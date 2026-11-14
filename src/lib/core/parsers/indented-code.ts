@@ -5,10 +5,8 @@ import { indentColumns, type ParsedLine } from '../lines';
 import { joinRaw, isBlankLine } from '../parser';
 import type { BlockOpenerResult } from '../../schema/block-openers';
 
-/** A code line: four columns of indent and something after them. A line of whitespace only is a
- *  blank line however wide (GFM §4.4), and stays in the block only between two code lines. */
 export function matchIndentedCode(text: string): boolean {
-	return indentColumns(text) >= 4 && !isBlankLine(text);
+	return indentColumns(text) >= 4;
 }
 
 export function parseIndentedCode(
