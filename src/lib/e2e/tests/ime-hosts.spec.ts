@@ -197,6 +197,12 @@ const OVER_A_RANGE: { name: string; source: string; click: number[]; select: Edi
 		source: 'first\n\n***\n\npara\n\n```\ncode\n```\n',
 		click: [0],
 		select: { anchor: { path: [1], offset: 0 }, focus: { path: [2], offset: 4 } }
+	},
+	{
+		name: 'from a rule to an item’s end before the next item',
+		source: 'first\n\n***\n\nbody\n\n- one\n- two\n',
+		click: [0],
+		select: { anchor: { path: [1], offset: 0 }, focus: { path: [3, 0, 0], offset: 3 } }
 	}
 ];
 
