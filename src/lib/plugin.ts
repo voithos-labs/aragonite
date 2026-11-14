@@ -120,7 +120,8 @@ export type {
 	AmbientPrefix,
 	BlockComponent,
 	BlockComponentExports,
-	BlockComponentProps
+	BlockComponentProps,
+	PreparedPaste
 } from './block-component';
 
 // ── Parser openers ───────────────────────────────────────────────────────────

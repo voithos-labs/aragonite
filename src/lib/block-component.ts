@@ -159,11 +159,27 @@ export interface BlockComponentProps {
 // ── BlockComponent ─────────────────────────────────────────────────────────
 
 /** What a block answers a paste with: the raw range of its own bytes the paste replaces, a caret
- *  as `start === end`, and `settled` where its view takes a moment to be ready for the write. */
+ *  where `start === end`. A block showing a source the document doesn't hold yet takes the text
+ *  through `draft` instead, and the document changes when that source is written. `spend` and
+ *  `finish` are the editor's own leaf's; a hand-built block leaves them out. */
 export interface PreparedPaste {
 	start: number;
 	end: number;
+	/** Settles once the block's view is ready for the write. */
 	settled?: Promise<unknown>;
+	/** Where undo puts the caret back, where that isn't `start`. */
+	caretBefore?: number;
+	draft?(text: string): void;
+	/** What the caret memory kept for the block's next insertion, spent on the pasted text. */
+	spend?(
+		before: string,
+		edit: { text: string; caretAfter: number }
+	): {
+		text: string;
+		caretAfter: number;
+	};
+	/** Lets those records go once the paste is over; `changed` is whether it wrote. */
+	finish?(changed: boolean): void;
 }
 
 export interface BlockComponent {

@@ -8,7 +8,7 @@
  */
 
 import { claimsBodyChord } from '../../active-editor';
-import type { BlockComponent } from '../../block-component';
+import type { BlockComponent, PreparedPaste } from '../../block-component';
 import { readPasteEvent, scriptedClip, type ClipboardRead } from '../../browser/clipboard';
 import type { BlockElLookup } from '../../caret/block-el-lookup';
 import { docPathFrom } from '../../core/coordinate-spaces';
@@ -27,7 +27,6 @@ import { placeAfterBlock, placeOfGap, type PasteAim } from '../../selection/rang
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import { isWholeBlockInputProxy } from '../../selection/whole-block-input';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
-import type { SurfacePaste } from '../blocks/editable/surface-clipboard';
 import { createImagePasteArm } from '../paste-image-arm';
 
 export interface RootPasteDeps {
@@ -65,9 +64,6 @@ export interface RootPaste {
 	 *  null with nowhere to aim. */
 	aim(): AimedPaste | null;
 }
-
-/** What a block answers `preparePaste` with: the editor's own surface adds its extras. */
-type BlockAnswer = Partial<SurfacePaste> | null | undefined;
 
 /** Where a paste goes, before the block is asked anything. */
 type Holder =
@@ -153,7 +149,7 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 			}
 			case 'block': {
 				const { path, block } = holder;
-				const ask = () => block.preparePaste?.() as BlockAnswer;
+				const ask = () => block.preparePaste?.() ?? null;
 				if (!now) return live((clip) => intoBlock(path, block, ask(), clip));
 				const answer = ask();
 				// Asked, the block holds the caret memory's records until the paste lets them go.
@@ -190,10 +186,10 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 	async function intoBlock(
 		path: number[],
 		block: BlockComponent,
-		answer: BlockAnswer,
+		answer: PreparedPaste | null,
 		clip: Clip
 	): Promise<boolean> {
-		if (!answer || answer.start === undefined || answer.end === undefined) return false;
+		if (!answer) return false;
 		const { start, end } = answer;
 		try {
 			await answer.settled;

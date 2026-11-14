@@ -80,17 +80,11 @@ export type PasteRange = RawRange & { caretBefore?: number; draft?: (text: strin
 
 export type ClipboardSurfaceDeps = SurfaceClipboardContext & BlockClipboard;
 
-/** A block's answer to a paste, with what the editor's own surface reads beside the range. */
+/** A block's answer to a paste as the editor's own surface makes it, every record filled. */
 export interface SurfacePaste extends PreparedPaste {
-	/** Where undo puts the caret back. */
 	caretBefore: number;
-	/** What the caret memory kept for the block's next insertion, which a paste that lands as text
-	 *  spends; `finish` lets the records go once the paste is over. */
 	spend: HeldInsertion['spend'];
 	finish: HeldInsertion['finish'];
-	/** Writes the pasted text into a shown source that is the block's own draft: the document
-	 *  holds none of it until the source hides, so the range-edit core has no bytes to read. */
-	draft?: (text: string) => void;
 }
 
 export interface ClipboardHandlers {

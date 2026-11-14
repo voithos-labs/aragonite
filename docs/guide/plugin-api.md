@@ -128,6 +128,7 @@ interface Draft {
 	readonly stale: boolean;
 	replace(range: { from: number; to: number }, text: string): this;
 	insert(markdown: string): this;
+	insertBelow(markdown: string): this;
 	commit(options?: { caret?: number }): Promise<DraftResult>;
 	end(): void;
 }
@@ -147,7 +148,7 @@ if (!result.ok) console.warn(result.reason, result.message); // 'moved': they ty
 ```
 
 - `replace(range, text)` swaps bytes `from` to `to` for `text`. Chain as many as you like; two far-apart ranges are still one undo step. These are the document's bytes, markers and all, so a new line you write inside a container carries the container's marker (`> `, a list item's indent) in `text`. Write an opener on a line of its own (a `$$`, a fence, a `:::note`) above a block that would close it, and the editor adds its closing line under it, same as it does for one the author types.
-- `insert(markdown)` pastes Markdown at the caret once the replacements land, the way `insertMarkdown` does.
+- `insert(markdown)` pastes Markdown at the caret once the replacements land, the way `insertMarkdown` does. `insertBelow(markdown)` makes it a block of its own instead, as `placement: 'below'` does, in the same undo step.
 - `commit({ caret })` writes it all as one undo step, with the caret at byte `caret` of the text as you wrote it (a closing line the editor added above it pushes it down for you). Leave `caret` out and the author's caret stays where it is, since a write landing while they type shouldn't drag them anywhere.
 - `stale` turns true once a write elsewhere touches one of your ranges, or the host loads another document. It's reactive, so a Svelte effect reading it reruns.
 - `end()` drops the draft without writing. One you just let go of is dropped eventually too, but ending it stops the editor tracking writes for it right away.
@@ -301,6 +302,7 @@ A declared title line already decides what Backspace does at its start, so its `
 | `BlockView` | What draws a kind, the registration's `view`. You can't look inside one: `defineBlockView`, `svelteBlockView` or `textBlockView` makes it, and `registerBlockKind` throws on anything else, a hand-built object included |
 | `BlockComponent`, `BlockComponentExports` | The surface a block component publishes: a factory leaf's single `blockApi` export, a container's single `containerApi` export, or a hand-built leaf's own members |
 | [`BlockComponentProps`](#blockcomponentprops) | The props every block component receives |
+| `PreparedPaste` | What a hand-built leaf's `preparePaste` answers: the raw range of its own bytes a paste replaces, or `draft` to take the text into a source it shows and hasn't written yet |
 
 #### `defineBlockView`
 
