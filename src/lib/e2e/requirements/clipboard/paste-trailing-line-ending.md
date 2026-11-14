@@ -1,10 +1,10 @@
 # Clipboard: a one-line clipboard ending in a line ending
 
-Copying one line usually brings its line ending along. Pasted at the end of a paragraph, that ending breaks nothing, so it is dropped rather than left as a blank line inside the paragraph.
+Copying one line usually brings its line ending along. The ending is part of what was copied, so it lands as Enter does where it lands.
 
 ## Happy paths
 
-- `abc\n\nAfter\n`, caret at the end of `abc`, paste `x\n`: the source is `abcx\n\nAfter\n`, it reloads as the two paragraphs the editor holds, and a typed `Z` lands after `x`
+- `abc\n\nAfter\n`, caret at the end of `abc`, paste `x\n`: the source is `abcx\n\n\nAfter\n`, the caret on the empty line under `abcx`, it reloads as the blocks the editor holds, and a typed `Z` lands on that line: `abcx\n\nZ\n\nAfter\n`
 
 ## Edge cases
 

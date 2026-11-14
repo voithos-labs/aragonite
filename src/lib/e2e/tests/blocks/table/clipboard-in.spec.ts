@@ -250,9 +250,10 @@ test.describe('table block: paste in', () => {
 			focus: { path: [0], offset: 5, cellCoordinate: true }
 		});
 
+		// The clipboard's last line ending is Enter: an empty line under the paragraph.
 		await editor.redo();
 		await editor.bridge.waitForSourceNotContains('| --- | --- |');
-		expect(await editor.bridge.getSource()).toBe('replaced text\n');
+		expect(await editor.bridge.getSource()).toBe('replaced text\n\n');
 		await editor.waitForCrossBlock(false);
 	});
 });

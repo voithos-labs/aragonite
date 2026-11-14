@@ -30,13 +30,15 @@ Later lines of the item still open blocks as they do in any list item.
     and the shape property keeps list-item bodies out of its split gesture, so no test split a
     to-do whose text would open a block on its own.
 
-- pasting two paragraphs right after `# b` in `- [ ] # bc` leaves `- [ ] # b` with its box and
-  no heading, the pasted text below it, and the tree reloads to the same shape (#666).
+- pasting two paragraphs right after `# b` in `- [ ] # bc` leaves `- [ ] # bx` with its box and
+  no heading, the last paragraph joining `c` below it (`- [ ] # bx\n\n  yc\n`), and the tree
+  reloads to the same shape (#666).
   - Miss-analysis: the paste re-read the text left before the cut on its own, where `# b` opens a
     heading, and the paste suites only ever split plain paragraphs and plain items.
-- pasting a list right after `# b` in `- [ ] # bc` splits the to-do around it: `- [ ] # b`, the
-  pasted items, then `- [ ] c`, each half text beside its box (#666). A list takes a different
-  route from paragraphs (it splits the item), so it gets a row of its own.
+- pasting a list right after `# b` in `- [ ] # bc` joins it as a list pasted mid-text joins any
+  item: the first item's text joins the to-do's line, beside its one box, and the last takes
+  `c`: `- [ ] # bp\n- qc\n` (#666). A list takes a different route from paragraphs, so it gets a
+  row of its own.
 
 - pasting `# x` at the very start of `- [ ] bc` leaves `- [ ] # xbc`: the box stays, `# x` is
   text beside it as a reload reads that line, and no heading is drawn.

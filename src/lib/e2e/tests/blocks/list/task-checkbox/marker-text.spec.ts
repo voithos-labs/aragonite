@@ -101,14 +101,14 @@ test.describe('task checkbox: the text after the marker', () => {
 
 		await editor.paste();
 
-		await editor.bridge.waitForSourceContains('y');
-		expect(await editor.bridge.getSource()).toMatch(/^- \[ \] # b\n/);
+		// The first paragraph joins `# b`, which stays text beside the box; the last joins `c`.
+		await editor.bridge.waitForSourceEquals('- [ ] # bx\n\n  yc\n');
 		await expect(page.locator('.task-checkbox')).toHaveCount(1);
 		await expect(page.locator('.heading-1')).toHaveCount(0);
 		expect(await editor.parseConverged()).toBe(true);
 	});
 
-	test('a list pasted after `# b` in `- [ ] # bc` splits the to-do with text beside each box', async ({
+	test('a list pasted after `# b` in `- [ ] # bc` joins the to-do with text beside its box', async ({
 		page
 	}) => {
 		await editor.loadContent('- [ ] # bc\n');
@@ -117,8 +117,9 @@ test.describe('task checkbox: the text after the marker', () => {
 
 		await editor.paste();
 
-		await editor.bridge.waitForSourceEquals('- [ ] # b\n- p\n- q\n- [ ] c\n');
-		await expect(page.locator('.task-checkbox')).toHaveCount(2);
+		// The first item joins the to-do's line and the last takes `c`, as mid-text in any item.
+		await editor.bridge.waitForSourceEquals('- [ ] # bp\n- qc\n');
+		await expect(page.locator('.task-checkbox')).toHaveCount(1);
 		await expect(page.locator('.heading-1')).toHaveCount(0);
 		expect(await editor.parseConverged()).toBe(true);
 	});

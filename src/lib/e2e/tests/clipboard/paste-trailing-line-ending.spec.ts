@@ -15,16 +15,19 @@ test.describe('a one-line clipboard ending in a line ending', () => {
 		await editor.seedClipboard('x\n');
 	});
 
-	test('at the end of a paragraph drops the ending', async ({ page }) => {
+	test('at the end of a paragraph leaves an empty line under it, as Enter does', async ({
+		page
+	}) => {
 		await editor.focusBlockAtPath([0], 0);
 		await page.keyboard.press(edgeKey('lineEnd'));
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('abcx');
 
-		expect(asLf(await editor.bridge.getSource())).toBe('abcx\n\nAfter\n');
+		expect(asLf(await editor.bridge.getSource())).toBe('abcx\n\n\nAfter\n');
 		expect(await editor.parseConverged()).toBe(true);
 		await page.keyboard.type('Z');
-		await editor.bridge.waitForSourceContains('abcxZ');
+		await editor.bridge.waitForSourceContains('Z');
+		expect(asLf(await editor.bridge.getSource())).toBe('abcx\n\nZ\n\nAfter\n');
 	});
 
 	test('in the middle of a paragraph keeps it as a line break', async () => {
