@@ -134,12 +134,13 @@ export function admitsNoSeat(node: CstNode, caret: number, typed: string): boole
 	const shown = (raw: string, end: number) =>
 		renderedText(parseInline(raw, range.start, end), raw, CONTENT_VISIBILITY, renderOptions());
 	const before = shown(node.raw, range.end);
+	// Read alone, as the bytes before: a cell's or an item's text needn't read as its kind out there.
+	const shape = (raw: string) => (parse(raw).children ?? []).map((block) => block.kind).join(',');
+	const shapeBefore = shape(node.raw);
 	const keeps = (at: number) => {
 		const candidate = node.raw.slice(0, at) + typed + node.raw.slice(at);
-		const kind = parse(candidate).children;
 		return (
-			kind.length === 1 &&
-			kind[0].kind === node.kind &&
+			shape(candidate) === shapeBefore &&
 			insertsExactly(before, shown(candidate, range.end + typed.length), typed)
 		);
 	};

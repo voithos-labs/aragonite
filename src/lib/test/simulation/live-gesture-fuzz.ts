@@ -274,15 +274,17 @@ function opensBlock(
 	);
 }
 
-/** A key typed where no offset of the caret's screen position keeps the screen and the block's
- *  kind, written once as typed: live-mode.md § 4.2 lets that byte-literal write stand. */
+/** A key written once against a run of its own character, where no offset of the caret's screen
+ *  position keeps the screen and the block's kind: live-mode.md § 4.2 lets that write stand. */
 function fallsBackLiterally(
 	gesture: Gesture,
 	origin: { bytes: string; doc: Document },
 	after: string
 ): boolean {
-	if (gesture.kind !== 'type' || insertedRun(origin.bytes, after)?.run !== gesture.char)
-		return false;
+	const inserted = insertedRun(origin.bytes, after);
+	if (gesture.kind !== 'type' || inserted?.run !== gesture.char) return false;
+	const key = gesture.char;
+	if (after[inserted.at - 1] !== key && after[inserted.at + 1] !== key) return false;
 	const targets = gestureTargets(origin.doc, gesture.kind);
 	const node = targets[gesture.leaf % Math.max(1, targets.length)]?.node;
 	return !!node && admitsNoSeat(node, drawnOffset(node, gesture, gesture.offset), gesture.char);

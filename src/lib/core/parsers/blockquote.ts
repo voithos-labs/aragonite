@@ -126,7 +126,7 @@ export function parseBlockquote(
 }
 
 /** Where each child's lines sit in the quote's lines `[start, end)`; none with no child yet, with a
- *  child opening on a lazy line, or with a line no child holds, which only a full rebuild writes. */
+ *  child opening on a lazy line, or with a line no child holds but a closing bare `>`. */
 function childLineSpans(
 	lines: ParsedLine[],
 	start: number,
