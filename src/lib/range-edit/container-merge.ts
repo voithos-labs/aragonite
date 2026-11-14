@@ -81,9 +81,11 @@ export function closedBy(
 	const last = lastLine(taker);
 	const shift = edit.source.length - doc.source.length;
 	const end = last.to + shift;
-	// A closing line with no line ending of its own takes the one before it.
+	// The line goes from its first byte, the markers of the containers around the taker too; a
+	// closing line with no line ending of its own takes the one before it.
 	const ended = doc.source.endsWith('\n', last.to);
-	const from = ended ? last.from + shift : edit.source.lastIndexOf('\n', last.from + shift - 1);
+	const above = edit.source.lastIndexOf('\n', last.from + shift - 1);
+	const from = ended ? above + 1 : above;
 	const start = !ended && edit.source[from - 1] === '\r' ? from - 1 : from;
 	return { source: edit.source.slice(0, start) + edit.source.slice(end), caret: edit.caret };
 }

@@ -94,6 +94,20 @@ for (const mode of ['source', 'live'] as const)
 			expect((await pastedThenTyped(marked, mode, clip)).typed).toBe(typed);
 		});
 
+// Miss-analysis: the callout rows pasted where no callout takes the pasted one in, so no row left
+// text after the caret behind a closing line the caret's callout took for its own.
+const TAKEN_IN: [name: string, marked: string, typed: string][] = [
+	['mid-text', ':::note\nal‸pha\n:::\n', ':::note\nalbodyZ\n:::\npha\n'],
+	['its text start', ':::note\n‸alpha\n:::\n', ':::note\nbodyZ\n:::\nalpha\n'],
+	['a quoted callout', '> :::note\n> al‸pha\n> :::\n', '> :::note\n> albodyZ\n> :::\n> pha\n']
+];
+
+for (const mode of ['source', 'live'] as const)
+	for (const [name, marked, typed] of TAKEN_IN)
+		it(`${mode}: a callout pasted into its own kind at ${name} leaves the rest under its closing line`, async () => {
+			expect((await pastedThenTyped(marked, mode, CALLOUT)).typed).toBe(typed);
+		});
+
 // A `$$` block takes no typed letter in this harness, so its row reads the caret: the body's end.
 for (const mode of ['source', 'live'] as const)
 	it(`${mode}: a $$ block pasted without its ending leaves the caret at its body’s end`, async () => {
