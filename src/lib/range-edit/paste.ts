@@ -385,8 +385,9 @@ function landed(
 		const indent = fence ? '' : /^[ \t]*/.exec(raw.slice(lineStart, target.from))![0];
 		// The same bytes as the block's own: its text with the lines in, no container's markers, a
 		// blank line bare where the source writes it bare (`spliced`).
+		const textAfter = !isBlankText(lineRest(doc.source, to));
 		const lines = displayLines(clip).map(({ text }, i, all) => {
-			const bare = i === 0 || (text === '' && !(i === all.length - 1 && visibleAfter));
+			const bare = i === 0 || (text === '' && !(i === all.length - 1 && textAfter));
 			return (bare ? '' : indent) + text;
 		});
 		const own = raw.slice(0, target.from) + lines.join(doc.ending) + raw.slice(target.to);

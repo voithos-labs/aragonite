@@ -60,6 +60,14 @@ describe('the leaf a paste names', () => {
 			left: '    cox\n\n    de\n'
 		},
 		{
+			name: 'before spaces alone on the caret’s line, which the source reads as none',
+			doc: '    code  \n    more\n',
+			at: 8,
+			clip: 'x\n\n',
+			leaf: { path: [0], raw: '    codex\n\n  \n    more\n', caret: 11 },
+			left: '    codex\n\n  \n    more\n'
+		},
+		{
 			name: 'in a quote',
 			doc: '>     code\n',
 			at: 10,
