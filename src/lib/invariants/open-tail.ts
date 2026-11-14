@@ -1,5 +1,5 @@
 /**
- * G1.41: after a structural commit only the document's last line may lack a line ending, and it
+ * G1.41: after every commit only the document's last line may lack a line ending, and it
  * lacks one exactly when it did before the commit, unless it is blank. An empty document has no
  * last line, so a write into one keeps nothing. Read off the bytes, never off the fix-up that
  * wrote them.

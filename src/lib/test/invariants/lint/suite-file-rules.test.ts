@@ -248,6 +248,8 @@ const RULES: FileRule[] = [
 		hits: [spyCall("'", 'warn'), spyCall('`', 'warn')],
 		misses: [spyCall("'", 'error')]
 	},
+	// Miss-analysis: the row matched `.filter(` alone, so five reads narrowed by `.some(` or a map of
+	// tags passed, and one of them hid a fixture's fire.
 	{
 		id: 'G4.357 a test reads one guard’s warnings through the one-tag take',
 		matches:
