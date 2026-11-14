@@ -39,6 +39,7 @@ import {
 	pasteAnswer,
 	pasteInBlock,
 	pasteThroughCore,
+	stillOn,
 	type Clip
 } from './range-paste';
 import {
@@ -57,6 +58,7 @@ import { parseReplacement } from '../../tree-operations/paste/replacement-parse'
 import { slotReaderAt } from '../../tree-operations/list/task-paragraph';
 import { dispatchKeyCommand } from '../../schema/block-commands';
 import { blockFacts } from '../../schema/block-facts';
+import { emitClipboardError } from '../../editor-events';
 import { assertInvariant, devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { checkCommandLanding } from '../../invariants/command-key-landing';
 import { checkBreakLanding } from '../../invariants/range-break-landing';
@@ -524,8 +526,15 @@ async function pasteOver(
 	// The paste's own commit names a block of the document the removal left.
 	const left = removed.caret ?? { path: [0], offset: 0 };
 	const after = deleteSnapshot(left.path, left.offset);
-	const wrote = pair.lands && (await landAnswer(ctx, pair.left.source, pair.paste, after));
+	// A write between the two commits (a listener to the removal's edit) leaves the paste no place.
+	const moved = pair.lands && !stillOn(ctx, pair.left.source);
+	const wrote =
+		pair.lands && !moved && (await landAnswer(ctx, pair.left.source, pair.paste, after));
 	if (!wrote) await (removalCaret ?? (removed.caret && caretAt(ctx, removed.caret)))?.place();
+	if (moved) {
+		const error = new Error('the document changed after the range went; nothing was pasted');
+		emitClipboardError(ctx.events, { error, path: [...left.path] });
+	}
 	return 'written';
 }
 

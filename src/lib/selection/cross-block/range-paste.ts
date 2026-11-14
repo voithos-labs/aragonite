@@ -156,16 +156,17 @@ export function pasteAnswer(
 	return editRange(doc.source, range, gesture, modeOf(ctx), host);
 }
 
+/** Whether the document is still `base`, the text a paste was answered on. */
+export const stillOn = (ctx: PasteContext, base: string): boolean => ctx.bytes.source() === base;
+
 /** `answer`, the core's paste over `base`, landed in one commit: the block's own write where it
- *  leaves the answer's bytes, else a byte splice; nothing where the document is not `base`. */
+ *  leaves the answer's bytes, else a byte splice. The document must still be `base`. */
 export async function landAnswer(
 	ctx: PasteContext,
 	base: string,
 	answer: RangeEditResult,
 	undo: CommitSnapshotArg
 ): Promise<boolean> {
-	// A write since the answer was made (a listener to a removal's edit) leaves it no place.
-	if (ctx.bytes.source() !== base) return false;
 	const landed = answer.source;
 	const was = ctx.bytes.measured();
 	const { leaf } = answer;
