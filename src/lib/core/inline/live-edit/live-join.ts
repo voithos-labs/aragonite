@@ -21,7 +21,7 @@ import {
 	reopenAfter,
 	type CutConstruct
 } from './close-reopen';
-import { keepsEdgeMarks, marksShown } from './shown-marks';
+import { keepsEdgeMarks, losesEdgeMarksOnly, marksShown } from './shown-marks';
 import { displayLength, readsAsBlankLine } from '../../lines';
 import type { Reading } from '../../../schema/reading';
 import type { StoredAs } from '../../../schema/stored-as';
@@ -107,11 +107,11 @@ export function cleanLiveJoinSeam(join: JoinSeam): CleanedJoin | null {
 			store
 		);
 		if (read === null || read.visible !== shown) continue;
-		// G1.91: a reading that keeps the runs must keep every kept character's marks.
-		if (candidate.keeps) {
-			kept ??= keptMarks(left, right);
-			if (!keepsEdgeMarks(read.marks, kept.before, kept.after)) continue;
-		}
+		// G1.91: a reading that keeps the runs keeps every kept character's marks, and one that
+		// drops runs may unmark a character but never mark it.
+		kept ??= keptMarks(left, right);
+		const fits = candidate.keeps ? keepsEdgeMarks : losesEdgeMarksOnly;
+		if (!fits(read.marks, kept.before, kept.after)) continue;
 		if (best === null || read.residue < best.residue) {
 			best = { written: candidate, residue: read.residue };
 		}

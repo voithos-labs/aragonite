@@ -133,6 +133,17 @@ function visibleTextOf(node: Document['children'][number]): string {
 }
 
 describe('live-mode joins over random range deletes', () => {
+	// Miss-analysis: only a reading that keeps the runs was read back for marks, and the fixed
+	// seed drew no drop that left a later run to re-pair over kept text.
+	it('a delete that drops a run never marks a character it kept', () => {
+		const source = '``code``*a **b* c**foo**foo**[text](url)\n';
+		const cut = { startBlock: 0, startOffset: 9, endBlock: 0, endOffset: 16 };
+		const live = deleteAcross(source, cut, 'live')!;
+		const literal = deleteAcross(source, cut, undefined)!;
+		const marks = live.bytes === literal.bytes ? 'literal' : compareMarks(live.marked, live.kept);
+		expect(marks, live.bytes).not.toBe('other');
+	});
+
 	// G1.91. The counters prove the draws reach the rewrite and that it takes glyphs off the
 	// screen; a comparison over draws that never rewrite proves nothing about the rewrite.
 	it('a live delete keeps every kept character and its marks, adds no residue, and diverges only where the literal one does', () => {

@@ -95,9 +95,29 @@ export function keepsEdgeMarks(
 	before: readonly string[],
 	after: readonly string[]
 ): boolean {
+	return edgeMarksFit(marks, before, after, (was, now) => was === now);
+}
+
+/** {@link keepsEdgeMarks} with marks allowed to go but none to arrive: what a dropped run shows. */
+export function losesEdgeMarksOnly(
+	marks: readonly string[],
+	before: readonly string[],
+	after: readonly string[]
+): boolean {
+	return edgeMarksFit(marks, before, after, holdsMarks);
+}
+
+function edgeMarksFit(
+	marks: readonly string[],
+	before: readonly string[],
+	after: readonly string[],
+	fits: (was: string, now: string) => boolean
+): boolean {
 	if (marks.length < before.length + after.length) return false;
 	const tail = marks.slice(marks.length - after.length);
-	return before.every((mark, i) => marks[i] === mark) && after.every((mark, i) => tail[i] === mark);
+	return (
+		before.every((was, i) => fits(was, marks[i])) && after.every((was, i) => fits(was, tail[i]))
+	);
 }
 
 /** Whether `outer`'s marks include every one of `inner`'s, in order. */

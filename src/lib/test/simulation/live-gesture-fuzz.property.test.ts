@@ -213,6 +213,18 @@ describe('the shapes that used to need an exclusion', () => {
 		expect(typed.live).toBe(typed.literal);
 	});
 
+	// Dropping the bold runs frees the struck pair to close past the kept text: the literal join
+	// stands. Miss-analysis: the join read marks back only for readings that keep the runs.
+	it('a join that drops runs never strikes the text it kept', async () => {
+		const typed = await liveAndLiteral('~~[](u)~~***a**b*xmpp:a@b.com/r~~a~~bar\n', {
+			kind: 'type-over',
+			offset: 13,
+			endOffset: 17,
+			char: ':'
+		});
+		expect(typed.seams().map((v) => v.oracle)).toEqual([]);
+	});
+
 	// A join whose bytes reparse to two blocks doesn't fit the one child slot, so both runs refuse
 	// it, silently, since a refusal is an ordinary editing outcome (G1.35).
 	it('#166: a join whose bytes reparse to two blocks is refused, not truncated', async () => {
