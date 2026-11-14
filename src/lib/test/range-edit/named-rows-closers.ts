@@ -196,7 +196,7 @@ const LEFT_LINE_KEPT_ROWS: NamedRow[] = [
 	)
 ];
 
-/** Delete's rows in both modes, and a composition's where `composes`, which lands where Delete does. */
+/** Delete's rows in both modes, and a composition's where `composes` (a range ending in text). */
 const deleted = (name: string, source: string, out: string, caret: Caret, composes = false) =>
 	(composes ? (['delete', 'compose'] as const) : (['delete'] as const)).flatMap((gesture) =>
 		(['source', 'live'] as const).map((mode): NamedRow => ({
@@ -496,6 +496,33 @@ const broken = (name: string, source: string, out: string, caret: Caret) =>
 		expect: { source: out, caret }
 	}));
 
+/** A composition's rows in both modes. */
+const composed = (name: string, source: string, out: string, caret: Caret) =>
+	(['source', 'live'] as const).map((mode): NamedRow => ({
+		name: `${name}, a composition, ${mode}`,
+		source,
+		mode,
+		gesture: 'compose',
+		expect: { source: out, caret }
+	}));
+
+// Miss-analysis: every composition row ended inside a leaf's text, so none ended at a row's or a
+// paragraph's end, where pairing a composition with Delete joined the block after.
+const COMPOSITION_ROWS: NamedRow[] = [
+	...composed(
+		'L8 a range ending at a table row’s end lands where a typed key does, not in the next row',
+		':::note\n⟦***\n\nbody\n:::\n\n| a | b |\n|---|---|\n| 1 | 2 |⟧\n| 3 | 4 |\n\n# h\n',
+		':::note\n:::\n\n| a | b |\n|---|---|\n| 3 | 4 |\n\n# h\n',
+		{ at: 8, holds: 'boundary', parent: [0] }
+	),
+	...composed(
+		'L8 the same at a paragraph’s end before a heading',
+		':::note\n⟦***\n\nbody\n:::\n\npara⟧\n\n# h\n',
+		':::note\n:::\n\n# h\n',
+		{ at: 8, holds: 'boundary', parent: [0] }
+	)
+];
+
 // Miss-analysis: the rows stated Delete's caret alone, and a line break's removal landed as
 // Backspace's, at the block before the range, where Enter then pressed on a kept opening line.
 const LINE_BREAK_ROWS: NamedRow[] = [
@@ -590,5 +617,6 @@ export const CLOSER_ROWS: NamedRow[] = [
 	...ENTERED_ROWS,
 	...MIXED_ROWS,
 	...LINE_END_ROWS,
+	...COMPOSITION_ROWS,
 	...LINE_BREAK_ROWS
 ];

@@ -5,7 +5,8 @@
 // level, in a quote, in an item; the range from that block's edge, mid-line or a table row.
 // Enter over the range leaves what Delete then Enter leave where the range ends inside the block it
 // entered, and Backspace then Enter where it ends between blocks. Text over it (a letter, a paste, a
-// composition) leaves what the removal then the text leave where that removal's caret is a gap,
+// composition, whose removal is Delete's only where the range ends inside a block's text, else a
+// cut's) leaves what the removal then the text leave where that removal's caret is a gap,
 // prose, or no block boundary stands where the range started; anywhere else the text stands in a
 // paragraph of its own there, the rest as the removal left it (`docs/design/selection.md`).
 // Every violation must match a class declared below, and the fixed run pins the counts.
@@ -253,9 +254,9 @@ async function placed(d: Draw, built: Built) {
 	return { editor, start: range?.from ?? -1 };
 }
 
-/** The key whose removal Enter's matches: Delete's, which goes on to the text after, where the range
- *  ends partway through a block's text; Backspace's where it ends between blocks. */
-const enterRemoval = (d: Draw) => (d.range === 'edge..lower mid' ? 'Delete' : 'Backspace');
+/** Whether the range ends partway through a block's text, where Enter's and a composition's removal
+ *  are Delete's, which goes on to that text; elsewhere Enter's is Backspace's, a composition's a cut's. */
+const endsInText = (d: Draw) => d.range === 'edge..lower mid';
 
 async function run(d: Draw): Promise<Run | 'unplaced'> {
 	const built = build(d);
@@ -271,9 +272,11 @@ async function run(d: Draw): Promise<Run | 'unplaced'> {
 	await destroyMountedEditors();
 	const step = await placed(d, built);
 	if (!step) return 'unplaced';
-	if (d.gesture === 'letter' || d.gesture === 'paste')
+	const cuts = d.gesture === 'letter' || d.gesture === 'paste';
+	if (cuts || (d.gesture === 'composition' && !endsInText(d)))
 		await clipboardGesture(step.editor, 'cut', 'key');
-	else await key(step.editor, { key: d.gesture === 'Enter' ? enterRemoval(d) : 'Delete' });
+	else if (d.gesture === 'Enter' && !endsInText(d)) await key(step.editor, { key: 'Backspace' });
+	else await key(step.editor, { key: 'Delete' });
 	const removedSide = sideOf(step.editor);
 	const removed = {
 		...removedSide,

@@ -49,3 +49,14 @@ Shift+Enter, so its break reached the range as input and took Backspace's side o
 - A table, a paragraph, then a tip with a title; select from the first cell into the title;
   Shift+Enter, then type a letter: an empty line opens above the tip, as Enter's does, and the
   letter lands there, never on the tip's `:::tip`. In live and source mode.
+
+## A composition over the range
+
+Miss-analysis: the composition rows over a range were synthetic events in jsdom, which took a
+composition's place to be Delete's, so no row composed through a real IME at a table row's end,
+where the text joined the next row's first cell.
+
+- A table in an open details, a paragraph, then a table after the details; select from the first
+  cell to the end of the second table's first body row; compose a letter and commit it: the text
+  lands where the same letter typed over the range does, in its own paragraph in the details, and
+  the row after stays as it was. In live and source mode, Chromium only, whose IME runs over CDP.

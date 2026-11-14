@@ -1,4 +1,6 @@
-import { test } from '../../fixtures';
+import { test, expect } from '../../fixtures';
+import { isChromium } from '../../browser-engine';
+import { attachIme } from '../../simulation/ime';
 import { PluginsPage } from './helpers';
 
 // A selection from a container's first block, taken whole, out past the container leaves the
@@ -98,5 +100,27 @@ for (const mode of ['live', 'source'] as const) {
 		await editor.bridge.waitForSourceEquals('\n:::tip tle\nbody\n:::\n');
 		await page.keyboard.type('x');
 		await editor.bridge.waitForSourceEquals('x\n\n:::tip tle\nbody\n:::\n');
+	});
+
+	test(`(${mode}) a composition out of an open details to a table row's end lands as a typed key`, async ({
+		page
+	}) => {
+		test.skip(!isChromium(page), 'only Chromium drives a real IME, over CDP');
+		const source = `<details open>\n<summary>Sum</summary>\n\n${TABLE}\n\nbody\n\n</details>\n\n${TABLE}\n| 3 | 4 |\n\n# h\n`;
+		const over = async (write: () => Promise<void>): Promise<string> => {
+			await open(mode, source);
+			await selectFromFirstCell([0, 1, 0, 0], [1, 1, 1], 1);
+			await write();
+			await editor.bridge.waitForSourceContains('Q');
+			return editor.bridge.getSource();
+		};
+		const typed = await over(() => page.keyboard.type('Q'));
+		const ime = await attachIme(page);
+		const composed = await over(async () => {
+			await ime.compose('Q');
+			await ime.commit('Q');
+		});
+		expect(composed).toBe(typed);
+		expect(composed).toContain('\n| 3 | 4 |');
 	});
 }

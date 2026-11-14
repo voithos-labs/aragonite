@@ -223,7 +223,9 @@ type Beside = 'end before' | 'text after' | 'start after' | 'break inside' | 'br
 function besideOf(gesture: Gesture, doc: Doc, range: Range): Beside {
 	if (gesture === 'break') return entersAtEnd(doc, range) ? 'break inside' : 'break between';
 	if (gesture === 'backspace' || gesture === 'command') return 'end before';
-	return gesture === 'delete' || gesture === 'compose' ? 'text after' : 'start after';
+	// A composition is typing: it joins the text after only where that text is the end leaf's own.
+	if (gesture === 'compose') return entersAtEnd(doc, range) ? 'text after' : 'start after';
+	return gesture === 'delete' ? 'text after' : 'start after';
 }
 
 /** Whether the range ends before the end of a leaf that starts inside it, so that leaf's text
