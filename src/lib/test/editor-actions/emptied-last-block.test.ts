@@ -3,7 +3,8 @@
 // blank block under it: the trailing blank line below goes, as the blank line under any blank block
 // goes, so a reload reads the blank blocks the screen shows and a letter typed next stands alone.
 // Miss-analysis: the fix-up's tail rows asked only that the tree reload as itself, and no mounted
-// row typed into a blank last block, so the second blank block under `x` went unseen.
+// row typed into a blank last block, so the second blank block under `x` went unseen; and none
+// emptied a list item over a table, where dropping the item's line joined the two on reload.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
 	destroyMountedEditors,
@@ -169,7 +170,16 @@ describe('a last block that keeps its trailing line', () => {
 		['a quote', '> ab\n\n', MODES, [[0, 0], 0, 2], '>\n\n', '> x\n\n'],
 		['a closed last line', 'ab\n', MODES, [[0], 0, 2], '\n', 'x\n'],
 		['a closed live heading', '# ab\n', ['live'], [[0], 2, 4], '\n', 'x\n'],
-		['an open last line', 'ab', MODES, [[0], 0, 2], '', 'x']
+		['an open last line', 'ab', MODES, [[0], 0, 2], '', 'x'],
+		// The item's own blank line is all that parts the list from the table under it.
+		[
+			'a task item over a table',
+			'- [x] ab\n \t \n| H |\n| - |\n',
+			MODES,
+			[[0, 0, 0], 0, 2],
+			'- [x] \n \t \n| H |\n| - |\n',
+			'- [x] x\n\n \t \n| H |\n| - |\n'
+		]
 	];
 	for (const [name, source, modes, selection, emptied, typed] of ROWS)
 		for (const mode of modes)
