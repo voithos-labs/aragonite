@@ -145,7 +145,7 @@ describe('live-mode joins over random range deletes', () => {
 		expect(marks, live.bytes).not.toBe('other');
 	});
 
-	// Miss-analysis: the drop's check counted a URL the cut made as a format, so the literal join
+	// Miss-analysis: the drop's check counted a URL the cut made as a mark, so the literal join
 	// stood with its link's destination on screen.
 	it('a delete whose cut leaves a bare URL still drops the runs it stranded', () => {
 		const source = 'ém\n\n[www.x.co](u`x` "t")www.example.com\n';
