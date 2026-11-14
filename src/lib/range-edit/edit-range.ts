@@ -8,7 +8,6 @@
 import { getContentRange, structuralSuffix } from '../core/inline';
 import { isBlankText, ownTrailingLineEnding, type LineEnding } from '../core/lines';
 import type { Mode, PasteHost, RangeHost } from './host';
-import { pastMarkers } from './apart';
 import { copyOf } from './copy';
 import {
 	contentEnd,
@@ -193,7 +192,7 @@ function opensLastLine(doc: Doc, from: number, to: number, at: number, text: str
 function reopened(
 	closed: RangeEditResult,
 	eol: string,
-	blank: (body: string) => boolean
+	blank: (source: string) => boolean
 ): RangeEditResult {
 	// The one write of a block was the closed document's.
 	const result: RangeEditResult = { ...closed, leaf: undefined };
@@ -201,7 +200,7 @@ function reopened(
 	if (!source.endsWith(eol)) return result;
 	const body = source.slice(0, -eol.length);
 	const line = body.lastIndexOf('\n') + 1;
-	if (!blank(body)) {
+	if (!blank(source)) {
 		return { ...result, source: body, caret: { ...caret, at: Math.min(caret.at, body.length) } };
 	}
 	// An empty last line right under a block's last line is Enter's empty paragraph there.
@@ -211,12 +210,14 @@ function reopened(
 	return { ...result, source: body + eol + eol, caret: { at, holds: 'text', line: true } };
 }
 
-/** Whether `doc`'s last line holds no text past its markers: an empty item's or quote's too. */
+/** Whether the last line of `doc`, which ends in a line ending, is blank: an empty block's (an empty
+ *  item's or quote's paragraph), or an empty line; a container's own marker line is not. */
 function endsBlank(doc: Doc): boolean {
 	const { source } = doc;
-	const leaf = leafHolding(doc, source.length, source.length)?.leaf;
+	const end = source.length - ownTrailingLineEnding(source).length;
+	const leaf = leafHolding(doc, end, end)?.leaf;
 	if (leaf?.text) return isBlankText(source.slice(leaf.text.from, leaf.text.to));
-	return isBlankText(source.slice(pastMarkers(source, source.lastIndexOf('\n') + 1)));
+	return /^\r?$/.test(source.slice(source.lastIndexOf('\n', end - 1) + 1, end));
 }
 
 /** Whether the range sits in one block's text, between its fence lines where it has them: a paste

@@ -97,6 +97,24 @@ for (const mode of ['source', 'live'] as const)
 				});
 			}
 
+// In an open quote the line a fence's or a rule's ending opens is the quote's own marker line, no
+// block, so it gives the break back. Miss-analysis: the rows pasted text, whose line is a paragraph.
+const IN_QUOTE: [clip: string, block: string][] = [
+	['```\nq\n```', '> ```\n> q\n> ```'],
+	['---', '> ---']
+];
+
+for (const mode of ['source', 'live'] as const)
+	for (const [clip, block] of IN_QUOTE)
+		for (const endings of ['\n', '\n\n'])
+			it(`${mode}: ${JSON.stringify(clip)} and ${endings.length} ending(s) at an open quote’s end`, async () => {
+				const { after, typed } = await pasted('> abc‸', mode, clip + endings);
+				expect([after.source, typed]).toEqual([
+					`> abc\n>\n${block}\n>`,
+					`> abc\n>\n${block}\n>\n> Z`
+				]);
+			});
+
 // No Enter follows a pasted fence, which takes no text: its ending opens the empty line under it
 // as a last paragraph's does.
 for (const mode of ['source', 'live'] as const)
