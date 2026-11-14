@@ -1,8 +1,8 @@
 /**
  * Putting a text block's new bytes back into the source: the host's in-block writes answer in the
  * block's own bytes, its container markers stripped, and the changed part goes back behind the
- * markers of the lines it lands on. A write that leaves its block blank gives up the blank line
- * under it, as the block's emptying write does.
+ * markers of the lines it lands on. A write or a paste that leaves a block blank gives up the blank
+ * line under it, as the block's emptying write does (`blankedApart`).
  */
 
 import { displayLines, isBlankText, ownTrailingLineEnding } from '../core/lines';
@@ -79,9 +79,9 @@ export function writtenText(
 	return { ...edit, leaf: { path: leaf.path, ...inDocumentEnding(doc, leaf, write, from, to) } };
 }
 
-/** `edit`, which left `leaf` blank, less the blank line under it where text follows in its list;
- *  under an opening line of its own that line moves above it, as the block's emptying write does. */
-function blankedApart(doc: Doc, leaf: LaidBlock, edit: Edit): Edit {
+/** `edit`, which left `leaf`, a block of `doc`, blank: less the blank line under it where text
+ *  follows in its container; under an opening line of its own that line moves above it. */
+export function blankedApart(doc: Doc, leaf: LaidBlock, edit: Edit): Edit {
 	const { source } = doc;
 	if (isBlankText(nodeAt(doc, leaf.path).raw) || isCell(doc, leaf) || titleOwner(doc, leaf))
 		return edit;

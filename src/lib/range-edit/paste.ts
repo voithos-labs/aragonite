@@ -44,9 +44,9 @@ import {
 } from './paste-split';
 import { numberedAfterTaking } from './list-numbers';
 import {
+	blankedApart,
 	byteAt,
 	cutLeaf,
-	lineEnd,
 	lineEndBefore,
 	lineHead,
 	lineRest,
@@ -68,9 +68,9 @@ export interface Pasted {
 	/** Set where the clipboard's last line ending was taken off to land as Enter: it was more than
 	 *  one line, so it never reads as one line after text. */
 	ended?: true;
-	/** Set where the gesture first took the text of a block held whole, whose line the paste fills:
-	 *  a paste that leaves that line blank answers as the block's emptying write does. */
-	emptied?: boolean;
+	/** The block held whole the gesture took first, in the document before it did: a paste that
+	 *  leaves its line blank answers as the block's emptying write does. */
+	emptied?: { doc: Doc; block: LaidBlock };
 }
 
 /** The paste of `pasted` over `[from, to)`: a caret, or a range inside one text block's text. */
@@ -79,24 +79,13 @@ export function pasteAt(doc: Doc, from: number, to: number, pasted: Pasted): Edi
 	const once = { ...pasted, transform: ranOnce(pasted.transform) };
 	const landing = entered(doc, from, to, once, seen) ?? landedAt(doc, from, to, once, seen);
 	// Only blank text with no line ending leaves the block's own line blank.
-	const blanked = pasted.emptied && /^[ \t]+$/.test(pasted.text);
-	const edit = blanked ? blankedApart(landing) : landing;
+	const { emptied } = pasted;
+	const blanked = emptied && /^[ \t]+$/.test(pasted.text);
+	const edit = blanked ? blankedApart(emptied.doc, emptied.block, landing) : landing;
 	// One write of a block's text is text, whatever the clipboard read as.
 	if (!seen.blocks || edit.leaf) return edit;
 	const tops = seen.blocks.tree.children.filter((b) => !isBlankText(b.raw));
 	return { ...edit, blocks: tops.length };
-}
-
-/** `edit` less the blank line under the caret's line where that line is blank and text follows:
- *  a block its own write empties gives that line up. */
-function blankedApart(edit: Edit): Edit {
-	const { source, caret } = edit;
-	const blank = (at: number) => isBlankText(lineRest(source, pastMarkers(source, at)));
-	const under = lineEnd(source, caret) + 1;
-	const next = lineEnd(source, under) + 1;
-	const start = caret - lineHead(source, caret).length;
-	if (next >= source.length || !blank(start) || !blank(under) || blank(next)) return edit;
-	return { source: source.slice(0, under) + source.slice(next), caret };
 }
 
 /** `transform` called at most once for a text, since a paste may land its clipboard twice. */

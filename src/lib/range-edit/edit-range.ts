@@ -148,8 +148,9 @@ export function editRange(
 		const removed = removalEdit(doc, from, to, 'type');
 		const after = read(removed);
 		const caret = caretOf(removed, after, 'start after', () => startedIn(doc, from));
-		const place = heldAlone(doc, from, to) ? TEXT : caret;
-		const over = pasteAt(after, caret.at, caret.at, { ...pasted(place), emptied: place === TEXT });
+		const alone = heldAlone(doc, from, to);
+		const emptied = alone && { doc, block: alone };
+		const over = pasteAt(after, caret.at, caret.at, { ...pasted(alone ? TEXT : caret), emptied });
 		return keepLastEnding({ ...landed(over), blocks: over.blocks ?? 0 });
 	}
 	const { removed, clipboard, own } = taken(doc, from, to);
@@ -289,15 +290,15 @@ function taken(doc: Doc, from: number, to: number) {
 	return { removed, clipboard: copies ? copy : '', own: ownEntry(doc.source, from, to, removed) };
 }
 
-/** The range is exactly one block other than a paragraph, from its first byte to the end of its
- *  last line. A cell's whole text is text of its table, never a block held alone. */
-function heldAlone(doc: Doc, from: number, to: number): boolean {
+/** The block the range is exactly, one other than a paragraph, from its first byte to the end of
+ *  its last line. A cell's whole text is text of its table, never a block held alone. */
+function heldAlone(doc: Doc, from: number, to: number): LaidBlock | undefined {
 	const alone = (b: LaidBlock) =>
 		b.from === from &&
 		contentEnd(doc, b) === to &&
 		factsOf(doc, b).joins !== 'text' &&
 		!isCell(doc, b);
-	return from < to && findWithin(doc, from, from, alone) !== undefined;
+	return from < to ? findWithin(doc, from, from, alone) : undefined;
 }
 
 /** The caret named by what the new bytes hold there: text, the text before it on its line, a block
