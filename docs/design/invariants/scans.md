@@ -245,7 +245,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.347 | A byte splice's window holds every block whose wait reaches the change, and what it asks to find them grows no faster than the run | harness |
 | G4.349 | A range edit lays out the container lines it asks for, each the line the whole container pairs | harness |
 | G4.350 | A removal keeps each line after its range a line of its own, in the fenced containers that held it | harness |
-| G4.351 | Delete over a range whose first blocks went whole lands on the text left after the range | harness |
+| G4.351 | Delete over a range whose first blocks went whole lands on the text left after the range, and so does Enter into a block it entered | harness |
 | G4.353 | Every reader of the text a write is worked out from names the vouch its bytes pass | L |
 | G4.355 | The chain rebuild reports a fold in one place, which checks it | L |
 
@@ -716,7 +716,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.350 · The lines a removal leaves stay.** Each line after the block a range ends in stays a line of its own, in order, in the fenced containers that held it, so a kept closing line closes its own container; the line the range starts on stays, emptied, where its block does. Law 4 asks both of every draw (`test/range-edit/kept-lines.ts`). Its property, whose draws join no text, also asks that the lines after the end's line keep their bytes, each marker once. A range ending past a table's last line ending is skipped. `test/range-edit/kept-lines.property.test.ts`, `named-rows-closers.ts`.
 
-**G4.351 · Delete lands on the text after.** Where the blocks a range starts in go whole and it enters a fenced block, Delete and a composition land where the text after the range starts, past the openings the removal kept and the next line's markers (`range-edit/removal.ts` hands that byte to `edit-range.ts :: startAfter`). A container it entered and emptied holds the caret where its blocks were; a line the removal emptied at the range's start keeps it. The G4.350 property asks it of each draw with text after the range. `test/range-edit/kept-lines.property.test.ts`, `named-rows-closers.ts`.
+**G4.351 · Delete lands on the text after.** Where a range's first blocks go whole and it enters a fenced block, Delete and a composition land at the text after it, past the openings kept and the next line's markers (`edit-range.ts :: startAfter`); so does a line break where the range ends inside a block it entered. An emptied container it entered holds the caret where its blocks were; a line emptied at the range's start keeps it. The G4.350 property asks it of each draw with text after the range. `test/range-edit/kept-lines.property.test.ts`, `named-rows-closers.ts`.
 
 **G4.353 · A reader of kept bytes names its vouch.** The files that read `bytes.source`, hand the range-edit core the editor's own document, or take a position off the kept starts are declared sets, each row saying where its bytes are compared with the tree (G1.219). A new range gesture or splice caller fails here until it takes its read from `rangeRead` or lands through the byte splice. `lint/kept-bytes-doors.test.ts`.
 

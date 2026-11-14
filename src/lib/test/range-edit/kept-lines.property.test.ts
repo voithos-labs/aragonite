@@ -4,14 +4,15 @@
 // that leave a container from a block it takes whole, from mid-text or from a line's first byte,
 // into the block after it, a table's rows, a later block's opening or the document's end. The range
 // goes through the editor's own adapter, as a selection's does. Where the start's block went whole,
-// Delete and a composition land on the text left after the range, or on a line emptied at its start.
+// Delete and a composition land on the text left after the range, or on a line emptied at its start,
+// and a line break does too where the range ends inside a block it entered.
 // Miss-analysis: the law draws filled fenced bodies with paragraphs and `# head` only, and drew
 // tables and rules outside fenced containers, so no range left one from a block it took whole. And
 // no draw started at a line's first byte in a block that stays, with an end that joins no text.
 // No draw ended in a later container's body, and nothing read where Delete put the caret. No draw
 // started at the top level, crossed a details, a quote or an item on the way in, or went three deep.
 // No draw ended at a line's end with its block running on, and the law read a line past its markers,
-// so a marker the removal wrote twice there passed.
+// so a marker the removal wrote twice there passed. Nothing read where a line break put the caret.
 
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
@@ -188,6 +189,9 @@ function rangeOf(doc: DocumentView, source: string, from: number, to: number, ce
 	return removalBytes(doc, rangeCoverage(doc, covered), layout);
 }
 
+/** The ends between blocks, where the range enters nothing that stays. */
+const BETWEEN = new Set(['a paragraph’s start', 'a paragraph’s end', 'the document’s end']);
+
 /** A range the adapter ends past a table's last line ending, which the removal glues to the next
  *  line: its fix waits on the paste back of a cut that ends at a table's text end. */
 const pastTable = (source: string, doc: DocumentView, to: number) =>
@@ -234,9 +238,12 @@ describe('G4.350 a removal keeps the lines after its range', () => {
 				if (!c.body.endsWith('taken whole') || cell !== undefined || isBlankText(rest)) return;
 				landed++;
 				const kind = leafAt(read, range.to)?.type;
+				const caretOf = (g: 'delete' | 'compose' | 'backspace' | 'break') =>
+					removalOf(source, range, g, c.mode, host);
+				let emptied = false;
 				for (const g of ['delete', 'compose'] as const) {
-					const { caret, source: got } = removalOf(source, range, g, c.mode, host);
-					const emptied = caret.at <= range.from && isBlankText(lineRest(got, caret.at));
+					const { caret, source: got } = caretOf(g);
+					emptied = caret.at <= range.from && isBlankText(lineRest(got, caret.at));
 					// The text after stays the kind of block it was, so an opening the removal lost shows.
 					const after =
 						got.startsWith(rest, caret.at) && leafAt(readOf(host, got), caret.at)?.type === kind;
@@ -245,11 +252,22 @@ describe('G4.350 a removal keeps the lines after its range', () => {
 							`${g} landed at ${caret.at}: ${JSON.stringify(got)}\n    ${JSON.stringify(c)}`
 						);
 				}
+				// A line break lands where Delete does where the range ends inside a block it entered, and
+				// where Backspace does where it ends between blocks; a title row takes none.
+				const broke = caretOf('break').caret;
+				const titled = c.end === 'a later container’s title row' && !emptied;
+				const like = caretOf(BETWEEN.has(c.end) ? 'backspace' : 'delete').caret;
+				if (titled ? broke.holds !== 'boundary' : JSON.stringify(broke) !== JSON.stringify(like))
+					landings.push(
+						`a line break landed at ${JSON.stringify(broke)}\n    ${JSON.stringify(c)}`
+					);
 			}),
 			{ numRuns: 400, seed: freshOrFixedSeed(20261112) }
 		);
 		expect(fails.slice(0, 10)).toEqual([]);
-		expect(landings.slice(0, 10), 'G4.351 Delete lands on the text after').toEqual([]);
+		expect(landings.slice(0, 10), 'G4.351 Delete and a line break land on the text after').toEqual(
+			[]
+		);
 		expect(waiting).toBeGreaterThan(0);
 		expect(landed).toBeGreaterThan(0);
 	});

@@ -86,19 +86,27 @@ export const RANGE_DECLINED_COMMAND_IDS: ReadonlySet<string> = new Set<CommandId
 	'heading.cycle'
 ]);
 
-/**
- * Built-in commands a key over a range runs after removing it, at the caret that's left; a plugin
- * command opts in at registration. A toolbar removes nothing first, so it declines `heading.cycle`.
- */
-export const AFTER_RANGE_REMOVAL_COMMAND_IDS: ReadonlySet<AnyCommandId> = new Set<CommandId>([
+const LINE_BREAKS: CommandId[] = [
 	'block.split',
 	'block.hardBreak',
-	'heading.cycle',
 	'code.newline',
 	'code.softBreak',
 	'cell.enter',
 	'cell.lineBreak',
 	'chrome.descendToBody'
+];
+
+/** The built-in commands Enter and Shift+Enter run. Over a range the break writes forward, so the
+ *  removal before it leaves the caret at the text after the range, where it entered that text. */
+export const LINE_BREAK_COMMAND_IDS: ReadonlySet<AnyCommandId> = new Set<CommandId>(LINE_BREAKS);
+
+/**
+ * Built-in commands a key over a range runs after removing it, at the caret that's left; a plugin
+ * command opts in at registration. A toolbar removes nothing first, so it declines `heading.cycle`.
+ */
+export const AFTER_RANGE_REMOVAL_COMMAND_IDS: ReadonlySet<AnyCommandId> = new Set<CommandId>([
+	...LINE_BREAKS,
+	'heading.cycle'
 ]);
 
 /**

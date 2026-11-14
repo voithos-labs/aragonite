@@ -15,6 +15,8 @@ import {
 	type RemovalGesture
 } from '../../range-edit/edit-range';
 import { rangeHost } from '../../range-edit/host';
+import type { CommandDispatchContext } from '../../schema/block-commands';
+import { LINE_BREAK_COMMAND_IDS, resolveBinding } from '../../schema/commands';
 import { changesBetween } from '../../tree-operations/byte-changes';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import type { Measured } from '../../tree-operations/top-level-starts';
@@ -65,6 +67,18 @@ export const CORE_GESTURE: Record<BlockGesture, RemovalGesture> = {
 	cut: 'cut',
 	keyless: 'command'
 };
+
+/** How the core names a command key's removal, by the command `chord` runs in `kind`, the block
+ *  the key was claimed in: a line break's, any other command's from Backspace's side. */
+export function commandGesture(
+	kind: AnyBlockKind,
+	chord: string,
+	commands: Pick<CommandDispatchContext, 'keybindingOverrides' | 'activation'>
+): RemovalGesture {
+	const overrides = commands.keybindingOverrides();
+	const command = resolveBinding(chord, kind, overrides, commands.activation)?.command;
+	return command !== undefined && LINE_BREAK_COMMAND_IDS.has(command) ? 'break' : 'command';
+}
 
 /** Removes what `coverage` holds as `gesture` does, in one commit. */
 export async function removeThroughCore(

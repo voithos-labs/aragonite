@@ -33,3 +33,12 @@ where the removal wrote that line's quote marker in front of the next line's.
 - A table, a paragraph, then a code block in a quote with two lines; select from the first cell to
   the end of the code's first line; Delete, then type a letter: the code's second line keeps one
   quote marker, and the letter lands at its start. In live and source mode.
+
+## Enter over the range
+
+Miss-analysis: every row here deleted or cut, so none pressed Enter over a range into a container,
+whose removal kept the caret short of the text and whose key then landed on the tip's `:::tip`.
+
+- A table, a paragraph, then a tip inside a note; select from the first cell into the tip's first
+  line; Enter, then type a letter: both openings stay, an empty line comes before what is left of
+  the tip's line, and the letter lands at its start. In live and source mode.

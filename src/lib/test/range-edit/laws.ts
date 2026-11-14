@@ -435,7 +435,8 @@ export function replaceLaws(
 	const pairs: [Gesture, Gesture][] = [
 		['type', 'cut'],
 		['compose', 'delete'],
-		['command', 'backspace']
+		['command', 'backspace'],
+		['break', 'delete']
 	];
 	for (const [gesture, like] of pairs) {
 		const got = call(input.source, input.range, gesture, input.mode);

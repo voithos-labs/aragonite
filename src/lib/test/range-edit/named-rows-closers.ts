@@ -1,7 +1,8 @@
 // Named rows for the lines a removal keeps: a closing line the range leaves stands under what is
 // left of its own container, above whatever followed it, and the line after the range still starts
-// a line. Each row is a cut; Backspace and Delete leave the same bytes (law 4). The last rows are
-// Delete's, whose caret lands at the text after the range, past an opening the removal kept.
+// a line. Each row is a cut; Backspace and Delete leave the same bytes (law 4). The later rows are
+// Delete's, whose caret lands at the text after the range, past an opening the removal kept, and a
+// line break's, which lands there too where the range entered the block holding that text.
 
 import type { NamedRow } from './named-rows';
 
@@ -401,12 +402,119 @@ const LINE_END_ROWS: NamedRow[] = [
 		':::tip\r\n```\r\n\r\nmore\r\n```\r\n:::\r\n',
 		{ at: 13, holds: 'text' }
 	),
+	// Miss-analysis: every row whose text after slid up to the caret started outside the container
+	// holding it, so none met the caret's block holding the text after, behind its indent.
+	...deleted(
+		'L8 from inside a note, the lines under a nested item’s first line, past their indent',
+		':::note\n⟦***\n\nbody\n\n- - inner⟧\n    more\n:::\n\n# h\n',
+		':::note\n    more\n:::\n\n# h\n',
+		{ at: 12, holds: 'text' }
+	),
+	...deleted(
+		'L8 the same under one item',
+		':::note\n⟦***\n\nbody\n\n- inner⟧\n  more\n:::\n\n# h\n',
+		':::note\n  more\n:::\n\n# h\n',
+		{ at: 10, holds: 'text' }
+	),
 	...deleted(
 		'L8 an HTML block entered from a note in a quote, at its next line’s text',
 		'> :::note\n> ⟦***\n>\n> body\n> :::\n>\n> <div>\n> b⟧\n> c\n> </div>\n',
 		'> :::note\n> :::\n> c\n> </div>\n',
 		{ at: 18, holds: 'text' }
 	)
+];
+
+/** A line break's rows in both modes: Enter and Shift+Enter over the range remove it this way. */
+const broken = (name: string, source: string, out: string, caret: Caret) =>
+	(['source', 'live'] as const).map((mode): NamedRow => ({
+		name: `${name}, a line break, ${mode}`,
+		source,
+		mode,
+		gesture: 'break',
+		expect: { source: out, caret }
+	}));
+
+// Miss-analysis: the rows stated Delete's caret alone, and a line break's removal landed as
+// Backspace's, at the block before the range, where Enter then pressed on a kept opening line.
+const LINE_BREAK_ROWS: NamedRow[] = [
+	...broken(
+		'L8 two openings entered from the document’s first block, the break goes before the text after',
+		'⟦***\n\nbody\n\n::::note\n:::tip\nin⟧ner\n:::\n::::\n\n# h\n',
+		'::::note\n:::tip\nner\n:::\n::::\n\n# h\n',
+		{ at: 16, holds: 'text' }
+	),
+	...broken(
+		'L8 a tip in a note entered from a note',
+		':::note\n⟦***\n\nbody\n:::\n\n::::note\n:::tip\nin⟧ner\n:::\n::::\n\n# h\n',
+		':::note\n:::\n\n::::note\n:::tip\nner\n:::\n::::\n\n# h\n',
+		{ at: 29, holds: 'text' }
+	),
+	...broken(
+		'L8 an open details entered inside a note',
+		'⟦***\n\nbody\n\n:::note\n<details open>\n<summary>Sum</summary>\n\nin⟧ner\nmore\n\n</details>\n:::\n',
+		':::note\n<details open>\n<summary>Sum</summary>\nner\nmore\n\n</details>\n:::\n',
+		{ at: 46, holds: 'text' }
+	),
+	...broken(
+		'L8 an item’s first line taken in a note, past the indent of the line after',
+		'⟦***\n\nbody\n\n:::note\n- inner⟧\n  more\n:::\n',
+		':::note\n  more\n:::\n',
+		{ at: 10, holds: 'text' }
+	),
+	...broken(
+		'L8 the same in an open details, in CRLF',
+		'⟦***\r\n\r\nbody\r\n\r\n<details open>\r\n<summary>Sum</summary>\r\n\r\n- inner⟧\r\n  more\r\n\r\n</details>\r\n',
+		'<details open>\r\n<summary>Sum</summary>\r\n  more\r\n\r\n</details>\r\n',
+		{ at: 42, holds: 'text' }
+	),
+	...broken(
+		'L8 a tip entered to a block’s end, at the block after inside it',
+		'⟦***\n\nbody\n\n:::tip\ninner⟧\n\nmore\n:::\n',
+		':::tip\nmore\n:::\n',
+		{ at: 7, holds: 'text' }
+	),
+	...broken(
+		'L8 from inside a note, an item’s first line taken, past the indent of the line after',
+		':::note\n⟦***\n\nbody\n\n- inner⟧\n  more\n:::\n\n# h\n',
+		':::note\n  more\n:::\n\n# h\n',
+		{ at: 10, holds: 'text' }
+	),
+	...broken(
+		'L8 a range ending between blocks breaks at the end of the block before',
+		'first\n\n⟦***\n\npara⟧\n\n> quote\n',
+		'first\n\n> quote\n',
+		{ at: 5, holds: 'text' }
+	),
+	...broken(
+		'L8 the same before a code block',
+		'first\n\n⟦***\n\npara⟧\n\n```\ncode\n```\n',
+		'first\n\n```\ncode\n```\n',
+		{ at: 5, holds: 'text' }
+	),
+	...broken(
+		'L8 a tip’s opening line after the range takes no break, so the gap before the tip does',
+		'⟦***\n\npara⟧\n\n:::tip\nbody\n:::\n',
+		':::tip\nbody\n:::\n',
+		{ at: 0, holds: 'boundary', parent: [] }
+	),
+	...broken(
+		'L8 the same for a tip that ends what the range entered',
+		'⟦***\n\nbody\n\n::::note\ninner⟧\n\n:::tip\nmore\n:::\n::::\n',
+		'::::note\n:::tip\nmore\n:::\n::::\n',
+		{ at: 9, holds: 'boundary', parent: [0] }
+	),
+	...broken(
+		'L8 and for a title the range ends in',
+		'⟦***\n\nbody\n\n:::tip Ti⟧tle\ninner\n:::\n',
+		':::tip tle\ninner\n:::\n',
+		{ at: 0, holds: 'boundary', parent: [] }
+	),
+	{
+		name: 'L8 any other command key’s removal still lands at the end of the block before',
+		source: 'first\n\n⟦***\n\nbody\n\n::::note\n:::tip\nin⟧ner\n:::\n::::\n',
+		gesture: 'command',
+		expect: { caret: { at: 5, holds: 'text' } }
+	}
 ];
 
 export const CLOSER_ROWS: NamedRow[] = [
@@ -417,5 +525,6 @@ export const CLOSER_ROWS: NamedRow[] = [
 	...TEXT_AFTER_ROWS,
 	...ENTERED_ROWS,
 	...MIXED_ROWS,
-	...LINE_END_ROWS
+	...LINE_END_ROWS,
+	...LINE_BREAK_ROWS
 ];

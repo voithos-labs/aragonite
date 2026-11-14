@@ -21,6 +21,7 @@ import { blockNodeAt, isBlockNode } from '../../tree-operations/node-primitives'
 import { commitGridClear, commitGridLineDelete } from './grid-removal';
 import {
 	CORE_GESTURE,
+	commandGesture,
 	commandLandingKind,
 	emptiedPlace,
 	removeThroughCore,
@@ -34,8 +35,9 @@ import { slotReaderAt } from '../../tree-operations/list/task-paragraph';
 import { dispatchKeyCommand } from '../../schema/block-commands';
 import { blockFacts } from '../../schema/block-facts';
 import { emitClipboardError } from '../../editor-events';
-import { assertInvariant, devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';
+import { assertInvariant, devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { checkCommandLanding } from '../../invariants/command-key-landing';
+import { checkBreakLanding } from '../../invariants/range-break-landing';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -141,7 +143,7 @@ async function replaceHeld(
 }
 
 /** Every commit's caret is held, so the replace puts down one: the last commit's that wrote, else
- *  the removal's. A command key is Backspace and then the key, so its block lands its own too. */
+ *  the removal's. A command key is the removal and then the key, so its block lands its own too. */
 async function replaceInStep(
 	ctx: CrossBlockMutationContext,
 	coverage: RangeCoverage,
@@ -159,10 +161,13 @@ async function replaceInStep(
 	const inCell = family === 'content' ? await replaceInCell(ctx, coverage, insertion) : null;
 	if (inCell !== null) return inCell;
 
-	const claimed =
-		insertion.kind === 'command' && devChecksOn ? commandLandingKind(ctx.getDoc(), coverage) : null;
+	const claimed = insertion.kind === 'command' ? commandLandingKind(ctx.getDoc(), coverage) : null;
+	const gesture =
+		insertion.kind === 'command' && claimed
+			? commandGesture(claimed, insertion.chord, ctx.commands)
+			: coreGestureOf(insertion);
 	const [removed, held] = await ctx.controller.holdLandings(() =>
-		removeRange(ctx, coverage, removal, insertion)
+		removeRange(ctx, coverage, removal, gesture)
 	);
 	if (!removed.wrote && !removed.caret) return 'nothing';
 	const removalCaret = held ?? (removed.wrote ? null : caretAt(ctx, removed.caret!));
@@ -176,10 +181,19 @@ async function replaceInStep(
 		const gap = ctx.selection.gapCaret;
 		if (gap) return keyAtGap(ctx, [...gap.parentPath, gap.index], insertion.chord);
 		const path = at?.path ?? coverage.range.start.path;
-		if (claimed) {
-			assertInvariant('command-key-landing', () =>
-				checkCommandLanding(claimed, kindOfPath(path, ctx.getDoc()))
+		const ran = () => kindOfPath(path, ctx.getDoc());
+		// A line break can land past the block it was claimed in (an emptied line, a block read
+		// again), so it is held to breaking a line where it runs instead.
+		if (gesture === 'break') {
+			assertInvariant('range-break-landing', () =>
+				checkBreakLanding(
+					ctx.getDoc(),
+					path,
+					commandGesture(ran(), insertion.chord, ctx.commands) === 'break'
+				)
 			);
+		} else if (claimed) {
+			assertInvariant('command-key-landing', () => checkCommandLanding(claimed, ran()));
 		}
 		await runCommandAt(ctx, path, insertion.chord);
 		return 'written';
@@ -325,13 +339,13 @@ function removeRange(
 	ctx: CrossBlockMutationContext,
 	coverage: RangeCoverage,
 	removal: Exclude<Removal, 'replace-in-slot'>,
-	insertion: RangeInsertion
+	gesture: CoreGesture
 ): Promise<Removed> {
 	const grid = coverage.grid;
 	if (grid && removal === 'remove-lines' && (grid.kind === 'row' || grid.kind === 'column'))
 		return commitGridLineDelete(ctx, grid).then(inCell);
 	if (grid && removal !== 'remove-whole') return commitGridClear(ctx, coverage, grid).then(inCell);
-	return removeThroughCore(ctx, coverage, coreGestureOf(insertion));
+	return removeThroughCore(ctx, coverage, gesture);
 }
 
 const inCell = (caret: SelectionPoint | null): Removed => ({
@@ -341,8 +355,8 @@ const inCell = (caret: SelectionPoint | null): Removed => ({
 	taken: null
 });
 
-/** How the core names the removal a gesture makes: typed or pasted text removes as a cut does, a
- *  composition as Delete does, a command key and a delete no key asked for as Backspace does. */
+/** How the core names the removal a gesture makes (a command key's is `commandGesture`'s): typed or
+ *  pasted text as a cut, a composition as Delete, a delete no key asked for as Backspace. */
 function coreGestureOf(insertion: RangeInsertion): CoreGesture {
 	switch (insertion.kind) {
 		case 'none':

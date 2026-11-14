@@ -75,4 +75,16 @@ for (const mode of ['live', 'source'] as const) {
 		await page.keyboard.type('x');
 		await editor.bridge.waitForSourceEquals('> ```\n> xmore\n> ```\n');
 	});
+
+	test(`(${mode}) Enter into a tip inside a note breaks the line before the tip's text`, async ({
+		page
+	}) => {
+		await open(mode, `${TABLE}\n\nbody\n\n::::note\n:::tip\ninner\nmore\n:::\n::::\n`);
+		await selectFromFirstCell([0, 0, 0], [2, 1, 1], 2);
+
+		await page.keyboard.press('Enter');
+		await editor.bridge.waitForSourceEquals('::::note\n:::tip\n\n\nner\nmore\n:::\n::::\n');
+		await page.keyboard.type('x');
+		await editor.bridge.waitForSourceEquals('::::note\n:::tip\n\n\nxner\nmore\n:::\n::::\n');
+	});
 }

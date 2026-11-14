@@ -3,7 +3,8 @@
 // neighbour again: a block's line between two table halves, two indented code blocks or two HTML
 // blocks, above a setext underline or a lazy line, under a title a definition started; at top
 // level, in a quote, in an item; the range from that block's edge, mid-line or a table row.
-// Enter over the range leaves what Backspace then Enter leave. Text over it (a letter, a paste, a
+// Enter over the range leaves what Delete then Enter leave where the range ends inside the block it
+// entered, and Backspace then Enter where it ends between blocks. Text over it (a letter, a paste, a
 // composition) leaves what the removal then the text leave where that removal's caret is a gap,
 // prose, or no block boundary stands where the range started; anywhere else the text stands in a
 // paragraph of its own there, the rest as the removal left it (`docs/design/selection.md`).
@@ -244,6 +245,10 @@ async function placed(d: Draw, built: Built) {
 	return { editor, start: range?.from ?? -1 };
 }
 
+/** The key whose removal Enter's matches: Delete's, which goes on to the text after, where the range
+ *  ends inside the block it entered; Backspace's where it ends between blocks. */
+const enterRemoval = (d: Draw) => (d.range === 'edge..lower mid' ? 'Delete' : 'Backspace');
+
 async function run(d: Draw): Promise<Run | 'unplaced'> {
 	const built = build(d);
 	const over = await placed(d, built);
@@ -260,7 +265,7 @@ async function run(d: Draw): Promise<Run | 'unplaced'> {
 	if (!step) return 'unplaced';
 	if (d.gesture === 'letter' || d.gesture === 'paste')
 		await clipboardGesture(step.editor, 'cut', 'key');
-	else await key(step.editor, { key: d.gesture === 'Enter' ? 'Backspace' : 'Delete' });
+	else await key(step.editor, { key: d.gesture === 'Enter' ? enterRemoval(d) : 'Delete' });
 	const removedSide = sideOf(step.editor);
 	const removed = {
 		...removedSide,
@@ -325,14 +330,6 @@ const draw = (
 ): Draw => ({ shape, middle, wrap, range, gesture, mode, eol: '\n', lead: 1, word: 'text' });
 
 const KNOWN: Record<string, Known> = {
-	'a stale command claim': {
-		cause:
-			'commandLandingKind reads the kind of the block the removal lands in before the removal ' +
-			'(this lane, slice 3)',
-		matches: (d, _r, line) =>
-			d.gesture === 'Enter' && line === 'warn: invariant:command-key-landing',
-		example: draw('htmlBlocks', 'rule', 'top', 'edge..last', 'Enter')
-	},
 	'an opener kept in an item': {
 		cause:
 			'in live mode, in a list item, a range from the first byte of a fence into the indented ' +
@@ -453,7 +450,6 @@ const FIXED = DRAWS === 40 && SEED === 20261112;
 const FIXED_TALLY = {
 	unplaced: 0,
 	'took the start block': 30,
-	'a stale command claim': 8,
 	'an opener kept in an item': 1,
 	"a lone block's emptied line": 2,
 	'a letter where two indented code blocks join': 1,
@@ -465,7 +461,6 @@ const FIXED_TALLY = {
 
 /** What each example leaves over the range. */
 const LANDED: Record<string, string> = {
-	'a stale command claim': 'intro\n\n<!-- a -->\n\n\nlast\n',
 	'an opener kept in an item': '-     a\n  ```\nж\n  ```\n    b\n\nlast\n',
 	"a lone block's emptied line": 'intro\n\n> quoted\n\nжlazy\n\nlast\n',
 	'a letter where two indented code blocks join': 'intro\n\n    a\nж\n    b\n\nlast\n',

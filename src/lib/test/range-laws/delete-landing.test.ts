@@ -108,6 +108,12 @@ const ROWS: Row[] = [
 		typed: ':::note\n:::\n\n<details open>\n<summary>Sum</summary>\nxner\n\n</details>\n\n# h\n'
 	},
 	{
+		name: 'under a nested item’s first line, from inside the note',
+		source: ':::note\n***\n\nbody\n\n- - inner\n    more\n:::\n\n# h\n',
+		select: { anchor: FROM_RULE, focus: { path: [0, 3, 0, 0, 0, 0], offset: 5 } },
+		typed: ':::note\n    xmore\n:::\n\n# h\n'
+	},
+	{
 		name: 'out of a quote it empties, which keeps the caret',
 		source: '> ```\n> code\n> ```\n>\n> body\n\n:::tip Title\ninner\n:::\n\n# h\n',
 		select: { anchor: { path: [0, 0], offset: 0 }, focus: { path: [1, 0], offset: 9 } },
