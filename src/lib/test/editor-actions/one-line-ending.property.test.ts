@@ -43,7 +43,7 @@ const LIST = 'lead\r\n\r\n- one\r\n- two\r\n- three\r\n\r\ntail\r\n';
 const QUOTE = 'lead\r\n\r\n> quoted\r\n\r\n- x\r\n- y\r\n';
 const TABLE = 'intro\r\n\r\n| h1 | h2 |\r\n| --- | --- |\r\n| a | b |\r\n| c | d |\r\n\r\ntail\r\n';
 
-// Keyed by operation, so one added to the driver has no row until someone writes it.
+// Keyed by operation, so one added to the driver fails the type check until it has a row.
 const ON_CRLF: Record<Op['t'], { source: string; ops: Op[] }> = {
 	typeTop: { source: LIST, ops: [{ t: 'typeTop', i: 0, n: 0 }] },
 	typeChar: { source: LIST, ops: [{ t: 'typeChar', i: 0, off: 2, ch: 4 }] },
