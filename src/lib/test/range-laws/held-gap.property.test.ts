@@ -3,8 +3,10 @@
 // neighbour again: a block's line between two table halves, two indented code blocks or two HTML
 // blocks, above a setext underline or a lazy line, under a title a definition started; at top
 // level, in a quote, in an item; the range from that block's edge, mid-line or a table row.
-// Enter over the range leaves what Backspace then Enter leave. Text over it (a letter, a paste, a
-// composition) leaves what the removal then the text leave where that removal's caret is a gap,
+// Enter over the range leaves what Delete then Enter leave where the range ends inside the block it
+// entered, and Backspace then Enter where it ends between blocks. Text over it (a letter, a paste, a
+// composition, whose removal is Delete's only where the range ends inside a block's text, else a
+// cut's) leaves what the removal then the text leave where that removal's caret is a gap,
 // prose, or no block boundary stands where the range started; anywhere else the text stands in a
 // paragraph of its own there, the rest as the removal left it (`docs/design/selection.md`).
 // Every violation must match a class declared below, and the fixed run pins the counts.
@@ -225,6 +227,14 @@ function boundaryAt(doc: Parameters<typeof measured>[0], at: number): boolean {
 	return !leaf || point.offset === 0 || point.offset >= leaf.raw.trimEnd().length;
 }
 
+/** Where the range started, read on the bytes `removed` left: its first byte, or its line's first
+ *  where the removal took that line, markers and all. */
+function startIn(source: string, removed: string, start: number): number {
+	return removed.startsWith(source.slice(0, start))
+		? start
+		: source.lastIndexOf('\n', start - 1) + 1;
+}
+
 /** Mounts `source` and puts the drawn range down; null where the editor won't hold it. */
 async function placed(d: Draw, built: Built) {
 	const editor = mountCase(built.source, d.mode);
@@ -244,6 +254,10 @@ async function placed(d: Draw, built: Built) {
 	return { editor, start: range?.from ?? -1 };
 }
 
+/** Whether the range ends partway through a block's text, where Enter's and a composition's removal
+ *  are Delete's, which goes on to that text; elsewhere Enter's is Backspace's, a composition's a cut's. */
+const endsInText = (d: Draw) => d.range === 'edge..lower mid';
+
 async function run(d: Draw): Promise<Run | 'unplaced'> {
 	const built = build(d);
 	const over = await placed(d, built);
@@ -258,16 +272,18 @@ async function run(d: Draw): Promise<Run | 'unplaced'> {
 	await destroyMountedEditors();
 	const step = await placed(d, built);
 	if (!step) return 'unplaced';
-	if (d.gesture === 'letter' || d.gesture === 'paste')
+	const cuts = d.gesture === 'letter' || d.gesture === 'paste';
+	if (cuts || (d.gesture === 'composition' && !endsInText(d)))
 		await clipboardGesture(step.editor, 'cut', 'key');
-	else await key(step.editor, { key: d.gesture === 'Enter' ? 'Backspace' : 'Delete' });
+	else if (d.gesture === 'Enter' && !endsInText(d)) await key(step.editor, { key: 'Backspace' });
+	else await key(step.editor, { key: 'Delete' });
 	const removedSide = sideOf(step.editor);
 	const removed = {
 		...removedSide,
 		landing: landingOf(step.editor),
 		boundary: boundaryAt(
 			readAsOpened(removedSide.source, { grammar, scope: 'document' }),
-			over.start
+			startIn(built.source, removedSide.source, over.start)
 		)
 	};
 	await gesture(step.editor, d.gesture);
@@ -325,14 +341,6 @@ const draw = (
 ): Draw => ({ shape, middle, wrap, range, gesture, mode, eol: '\n', lead: 1, word: 'text' });
 
 const KNOWN: Record<string, Known> = {
-	'a stale command claim': {
-		cause:
-			'commandLandingKind reads the kind of the block the removal lands in before the removal ' +
-			'(this lane, slice 3)',
-		matches: (d, _r, line) =>
-			d.gesture === 'Enter' && line === 'warn: invariant:command-key-landing',
-		example: draw('htmlBlocks', 'rule', 'top', 'edge..last', 'Enter')
-	},
 	"a lone block's emptied line": {
 		cause:
 			'text over a rule or a fence held alone between two lines keeps its emptied line, and the ' +
@@ -446,7 +454,6 @@ const FIXED = DRAWS === 40 && SEED === 20261112;
 const FIXED_TALLY = {
 	unplaced: 0,
 	'took the start block': 30,
-	'a stale command claim': 8,
 	"a lone block's emptied line": 2,
 	'a letter where two indented code blocks join': 1,
 	'a live caret past a hidden marker': 1,
@@ -457,7 +464,6 @@ const FIXED_TALLY = {
 
 /** What each example leaves over the range. */
 const LANDED: Record<string, string> = {
-	'a stale command claim': 'intro\n\n<!-- a -->\n\n\nlast\n',
 	'an opener kept in an item': '-     a\n  ```\nж\n  ```\n    b\n\nlast\n',
 	"a lone block's emptied line": 'intro\n\n> quoted\n\nжlazy\n\nlast\n',
 	'a letter where two indented code blocks join': 'intro\n\n    a\nж\n    b\n\nlast\n',
@@ -471,7 +477,7 @@ const LANDED: Record<string, string> = {
 	'the line under it, under a started title':
 		"intro\n\n[a]: /u\n    'code\n\n汉text\nend'\n\nlast\n",
 	'Enter under a started title': "intro\n\n[a]: /u\n    'code\n\n\nxt\nend'\n\nlast\n",
-	'two containers deep, out past both': 'intro\n\n- > above\n  > \n  > 汉\n\n```\nlast\n```\n',
+	'two containers deep, out past both': 'intro\n\n- > above\n  >\n  > 汉\n\n```\nlast\n```\n',
 	'past the rows of a table': '| a |\n| - |\n\n汉\n\n```\nx\n```\n| 2 |\n\nlast\n'
 };
 

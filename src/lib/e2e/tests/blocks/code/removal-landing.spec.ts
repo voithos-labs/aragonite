@@ -52,7 +52,7 @@ const ROWS: Row[] = [
 		from: { path: [0, 1], offset: 0 },
 		to: { path: [0, 2], offset: 5 },
 		elsewhere: [1],
-		after: ':::note\n\n~~~\nq\n~~~\n:::\n\nafter\n'
+		after: ':::note\n~~~\nq\n~~~\n:::\n\nafter\n'
 	}
 ];
 

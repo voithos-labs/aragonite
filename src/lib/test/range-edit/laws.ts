@@ -13,6 +13,7 @@ import type {
 import type { Mode } from '#lib/range-edit/host.js';
 import type { LaidBlock } from '#lib/range-edit/layout.js';
 import type { CheckHost } from './test-host';
+import { gluedStart, movedLine } from './kept-lines';
 import {
 	endingOf,
 	expectedCopy,
@@ -228,13 +229,14 @@ export function cutPasteBack(call: Call, host: CheckHost, input: RangeInput): st
 	return [`L3 cut ${q(cut.source)}, pasted back ${q(back.source)}`];
 }
 
-/** A removal keeps the bytes before the range and the end line's text after it (spec § 5.2);
+/** A removal keeps the bytes before the range, the end line's text and the lines after (§ 5.2);
  *  live mode, whose rules rewrite format runs at the edges, is held to the bytes before, runs aside. */
 export function keepsOutside(call: Call, host: CheckHost, input: RangeInput): string[] {
 	const { source } = input;
 	const { from, to } = input.range;
 	const read = readOf(host, source);
 	if (liveWholeText(read, input.range, input.mode)) return [];
+	const lineGoes = startLineGoes(read, input.range);
 	const point = read.layout.pointAt(to);
 	const leaf = point && read.blocks.find((b) => b.path.join() === point.path.join());
 	const breakAt = source.indexOf('\n', to);
@@ -248,11 +250,33 @@ export function keepsOutside(call: Call, host: CheckHost, input: RangeInput): st
 		const got = call(source, input.range, key, input.mode);
 		if (!got) continue;
 		const runless = (text: string) => (input.mode === 'live' ? text.replace(/[*_~`]/g, '') : text);
-		const kept = runless(got.source).startsWith(runless(source.slice(0, from)));
+		const kept = [from, lineGoes].some((at) =>
+			runless(got.source).startsWith(runless(source.slice(0, at)))
+		);
 		if (!kept || (tail !== '' && got.source.indexOf(tail, from) < 0))
 			out.push(`L4 ${key} changed bytes outside the range: ${q(got.source)}`);
+		const glued = input.mode === 'source' && gluedStart(host, read, from, to, got.source);
+		const moved = glued || movedLine(host, read, from, to, got.source);
+		if (moved) out.push(`L4 ${key} ${moved}: ${q(got.source)}`);
 	}
 	return out;
+}
+
+/** `from`'s line start where its block goes whole out of its container at a line's end, a block
+ *  right above that line and a blank line or the document's end below it; else `from` (§ 5.2). */
+function startLineGoes(read: Read, { from, to }: Range): number {
+	const { source } = read;
+	const end = (b: LaidBlock) => b.to - endingLength(source, b.to);
+	const blank = (line: string) => /^[ \t>]*\r?$/.test(line);
+	const above = source.slice(0, from).split('\n');
+	const head = above.pop()!;
+	const first = read.blocks.find((b) => b.from === from && b.type !== 'paragraph');
+	const parent = first && read.layout.block(first.path.slice(0, -1));
+	if (!first || !parent || first.path.at(-1) === 0) return from;
+	if (end(first) > to || end(parent) > to || head === '' || !blank(head)) return from;
+	const below = /^\r?\n([^\n]*)/.exec(source.slice(to))?.[1];
+	if (below === undefined || !blank(below) || blank(above.at(-1) ?? '')) return from;
+	return head.trimEnd().startsWith(below.trimEnd()) ? from - head.length : from;
 }
 
 /** L4: Backspace and Delete over a range leave the bytes a cut leaves. */
@@ -431,7 +455,8 @@ export function replaceLaws(
 	const pairs: [Gesture, Gesture][] = [
 		['type', 'cut'],
 		['compose', 'delete'],
-		['command', 'backspace']
+		['command', 'backspace'],
+		['break', 'delete']
 	];
 	for (const [gesture, like] of pairs) {
 		const got = call(input.source, input.range, gesture, input.mode);
