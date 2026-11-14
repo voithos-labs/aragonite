@@ -116,6 +116,17 @@ for (const mode of ['source', 'live'] as const)
 			});
 	}
 
+// A blank line after the pasted quote leaves it, and the rest leaves the caret's quote with it.
+// Miss-analysis: every joined row's quote ended the clipboard, so no row put a line after it.
+for (const mode of ['source', 'live'] as const)
+	it(`${mode}: a quote with a blank line after it leaves the caret’s quote with the rest`, async () => {
+		const { after, typed } = await pasted('> al‸pha\n> after\n', mode, '> q\n  \n');
+		expect([after.source, typed]).toEqual([
+			'> alq\n  \npha\n> after\n',
+			'> alq\n  \nZpha\n> after\n'
+		]);
+	});
+
 // At the top level no container is left, and the line ending that was there follows (§ 5.6).
 // Miss-analysis: the laws accept a blank line more anywhere, so only spelled rows hold this edge.
 const TOP: [name: string, marked: string, left: string, typed: string][] = [

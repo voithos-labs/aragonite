@@ -193,12 +193,14 @@ function enteredInText(
 	return { source, caret };
 }
 
-/** Whether `text` is one container a container at `at` takes in. */
+/** Whether `text` is one container a container at `at` takes in, ending inside it: a blank line
+ *  after it is a line that leaves it. */
 function endsTakenIn(doc: Doc, at: number, text: string): boolean {
 	const read = readDoc(text, doc.host, doc.mode);
 	const tops = read.tree.children.flatMap((b, i) => (isBlankText(b.raw) ? [] : [i]));
 	const first = tops.length === 1 ? read.layout.block([tops[0]]) : undefined;
-	return !!first?.container && takerOf(doc, at, read, first) !== null;
+	if (!first?.container || text.slice(contentEnd(read, first)).includes('\n')) return false;
+	return takerOf(doc, at, read, first) !== null;
 }
 
 /** `edit` with Enter where it left the caret, a block out of its container as Enter's own code takes
