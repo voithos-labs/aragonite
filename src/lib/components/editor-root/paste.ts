@@ -241,10 +241,11 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 		},
 		paste(clip, options) {
 			const active = document.activeElement;
-			if (!options?.below || onEmptyParagraph(active)) {
-				const holder = holderAt(active);
+			const holder = holderAt(active);
+			// A place that lands blocks already takes a block of its own as it stands.
+			const here = holder?.at === 'gap' || holder?.at === 'whole' || onEmptyParagraph(active);
+			if (!options?.below || here)
 				return (holder && aimAt(holder, true)?.(clip)) ?? Promise.resolve(false);
-			}
 			const block = blockAt(active);
 			const lands = block?.at === 'block' && !!clip.text && ctx.controller.admitsGesture(null);
 			return lands ? below(block.path[0], clip) : Promise.resolve(false);
