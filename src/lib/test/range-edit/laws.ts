@@ -374,8 +374,10 @@ function oneWrite(
 		const blanks = lf(mid)
 			.split('\n')
 			.slice(-extra - 1);
-		const opened = /\n$/.test(text) && extra > 0 && extra <= 2 && blanks.every(isMarkersOnly);
-		if (lines(mid) !== lines(text) && !opened)
+		const opened = /\n$/.test(text) && extra > 0 && extra <= 2 && containerLines(blanks, after);
+		// At the end of a file with no last line break, the ending opens Enter's empty paragraph.
+		const atOpenEnd = after === '' && !/\n$/.test(source) && lf(mid) === lf(text) + '\n\n';
+		if (lines(mid) !== lines(text) && !opened && !atOpenEnd)
 			return [`L5 paste over text in one block added a line: ${q(over.source)}`];
 	}
 	if (then && sameAfterCut(then.source, over.source, source, cut.source)) return [];
@@ -577,7 +579,11 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 	const want = expectedPaste(read, input.at, input.text, host, input.held);
 	if (want.shape === 'other' || want.bytes.includes(got.source)) return [];
 	// A last line ending at a container's last block writes the container's empty line under the caret's.
-	if (/\n$/.test(input.text) && want.bytes.some((bytes) => blankLinesAdded(bytes, got.source)))
+	const caret = got.caret.at;
+	if (/\n$/.test(input.text) && want.bytes.some((b) => containerLineAdded(b, got.source, caret)))
+		return [];
+	// At the end of a file with no last line break, the ending opens Enter's empty paragraph.
+	if (/\n$/.test(input.text) && want.bytes.some((b) => enterAtOpenEnd(read, b, got.source, caret)))
 		return [];
 	// A cell holds one line, which its row writes: the paste adds none and moves no other line.
 	if (cellAt(read, input.at, host) && onOneLine(input.source, input.at, got.source)) return [];
@@ -588,20 +594,30 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 /** Whether `line` holds container markers alone. */
 const isMarkersOnly = (line: string) => /^[ \t>]*\r?$/.test(line);
 
-/** Whether `got` is `bytes` with one or two lines of markers alone put in: the empty line a last
- *  line ending opens at a container's last block, and a closing line's blank line over it. */
-function blankLinesAdded(bytes: string, got: string, left = 2): boolean {
-	if (left === 0 || got.length <= bytes.length) return false;
-	for (let at = 0; at < got.length;) {
-		const end = got.indexOf('\n', at);
-		const next = end < 0 ? got.length : end + 1;
-		const fewer = got.slice(0, at) + got.slice(next);
-		if (
-			/^[ \t>]*\r?\n?$/.test(got.slice(at, next)) &&
-			(fewer === bytes || blankLinesAdded(bytes, fewer, left - 1))
-		)
+/** Whether `lines`, blank lines a last line ending wrote, are a container's: they keep its markers,
+ *  or stand over its closing line; a bare line at the top level is not. */
+const containerLines = (lines: string[], below: string) =>
+	lines.every(isMarkersOnly) &&
+	(lines.some((line) => line.replace(/\r$/, '') !== '') || /^\s*(:::|<\/)/.test(below));
+
+/** Whether `got` is `bytes`, ending the open file `read` on a written line, with Enter's empty
+ *  paragraph under it and the caret on that (`syntax-tree.md` § The last line). */
+function enterAtOpenEnd(read: Read, bytes: string, got: string, caret: number): boolean {
+	const eol = /\r\n/.test(read.source.match(/\r?\n/)?.[0] ?? '') ? '\r\n' : '\n';
+	if (/\n$/.test(read.source) || !bytes.endsWith(eol) || bytes.endsWith(eol + eol)) return false;
+	return got === bytes + eol + eol && caret === bytes.length + eol.length;
+}
+
+/** Whether `got` is `bytes` with the empty line a last line ending opens at a container's last
+ *  block put in where the caret is, and a closing line's blank line under it. */
+function containerLineAdded(bytes: string, got: string, caret: number): boolean {
+	const start = got.lastIndexOf('\n', caret - 1) + 1;
+	let end = start;
+	for (let count = 1; count <= 2 && end < got.length; count++) {
+		end = got.indexOf('\n', end) + 1 || got.length;
+		const lines = got.slice(start, end).split('\n').slice(0, count);
+		if (got.slice(0, start) + got.slice(end) === bytes && containerLines(lines, got.slice(end)))
 			return true;
-		at = next;
 	}
 	return false;
 }
