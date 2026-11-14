@@ -42,7 +42,7 @@ const PAYLOADS: [name: string, md: string][] = [
 ];
 
 /** Whether `md` inserted at the caret `‸` changed anything, the bytes it left, then the bytes once
- *  `Z` is typed. */
+ *  `Z` is typed; no dev check fires. */
 async function inserted(
 	marked: string,
 	mode: PresentationMode,
@@ -59,6 +59,8 @@ async function inserted(
 	await pressHardwareKey(document.activeElement as HTMLElement, { key: 'Z' });
 	await editor.settle();
 	const typed = editor.source();
+	// No dev check may fire on either step: a drain after the row would hide it.
+	expect(takeDevWarns().map((w) => w.tag)).toEqual([]);
 	await destroyMountedEditors();
 	return [changed, left, typed];
 }

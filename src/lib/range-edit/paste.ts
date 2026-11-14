@@ -465,7 +465,9 @@ function landed(
 	const lastTakes = lastJoins && !closedByOwnLine(pasted, last!);
 	const lastRaw = nodeAt(pasted, last!.path).raw;
 	const joins = isText(first);
-	const left = joins ? null : leftBy(doc, from, pasted, first, leaf);
+	const left = joins
+		? null
+		: (leftBy(doc, from, pasted, first, leaf) ?? unheld(doc, leaf, from, pasted, first));
 	if (left) return splitOut(doc, left, leaf, from, to, cutWith('', ''), clip, lastRaw);
 	// A paragraph the clipboard ends on joins the text after the cut where the last block takes it;
 	// any other last block takes that text behind its own last line, which the cut is read behind.
@@ -522,6 +524,19 @@ function landed(
 	const text = ends ? intoBlankUnder(doc, to, clip) : clip;
 	const mid = text.slice(0, text.length - after.length);
 	return splitAt(doc, leaf, from, to, cut, mid, lastTakes, lastRaw);
+}
+
+/** The caret's list, where `first`, a pasted block, goes on its item's own line past the marker and
+ *  that line reads back as no item: the item gives way to it, as to a list of the other type. */
+function unheld(doc: Doc, leaf: LaidBlock, from: number, pasted: Doc, first: LaidBlock) {
+	const item = leaf.path.at(-1) === 0 && from === leaf.text!.from ? parentOf(doc, leaf) : undefined;
+	const list = item && parentOf(doc, item);
+	if (!list || factsOf(doc, list).lines !== 'items') return null;
+	const marker = doc.source.slice(item.lineAt!(item.from).from, leaf.text!.from).trimStart();
+	const line = displayLines(nodeAt(pasted, first.path).raw)[0]?.text ?? '';
+	const read = readDoc(marker + line + doc.ending, doc.host, doc.mode);
+	const top = read.layout.block([0]);
+	return top && factsOf(read, top).lines === 'items' ? null : list;
 }
 
 /** The to-do box in front of `leaf`'s text, where `first`, a pasted block that is no text, holds
