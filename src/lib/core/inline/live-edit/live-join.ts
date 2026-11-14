@@ -21,7 +21,7 @@ import {
 	reopenAfter,
 	type CutConstruct
 } from './close-reopen';
-import { keepsEdgeMarks, marksShown } from './shown-marks';
+import { keepsEdgeMarks, losesEdgeMarksOnly, losesMarksAround, marksShown } from './shown-marks';
 import { displayLength, readsAsBlankLine } from '../../lines';
 import type { Reading } from '../../../schema/reading';
 import type { StoredAs } from '../../../schema/stored-as';
@@ -100,6 +100,7 @@ export function cleanLiveJoinSeam(join: JoinSeam): CleanedJoin | null {
 	// A pair left over nothing also passes the screen check, so among the readings that pass, the
 	// first leaving the fewest such pairs wins (`docs/design/live-mode.md` § 4.1).
 	let best: { written: (typeof written)[number]; residue: number } | null = null;
+	let unchecked: { written: (typeof written)[number]; residue: number } | null = null;
 	let kept: { before: string[]; after: string[] } | null = null;
 	for (const candidate of written) {
 		const read = readCandidate(
@@ -107,16 +108,30 @@ export function cleanLiveJoinSeam(join: JoinSeam): CleanedJoin | null {
 			store
 		);
 		if (read === null || read.visible !== shown) continue;
-		// G1.91: a reading that keeps the runs must keep every kept character's marks.
-		if (candidate.keeps) {
-			kept ??= keptMarks(left, right);
-			if (!keepsEdgeMarks(read.marks, kept.before, kept.after)) continue;
+		// G1.91: a reading that keeps the runs keeps every kept character's marks, and one that
+		// drops runs may unmark a character but never mark it.
+		kept ??= keptMarks(left, right);
+		const fits = candidate.keeps
+			? keepsEdgeMarks(read.marks, kept.before, kept.after)
+			: losesEdgeMarksOnly(read.marksBesideUrls, kept.before, kept.after);
+		if (!fits && !candidate.keeps && (unchecked === null || read.residue < unchecked.residue)) {
+			unchecked = { written: candidate, residue: read.residue };
 		}
+		if (!fits) continue;
 		if (best === null || read.residue < best.residue) {
 			best = { written: candidate, residue: read.residue };
 		}
 		// One leaving no such pair can't lose, so the readings after it go unread.
 		if (read.residue === 0) break;
+	}
+	// A drop that marks kept text still beats a literal join that marks it too and shows the runs.
+	if (
+		best === null &&
+		unchecked !== null &&
+		kept !== null &&
+		!literalLosesMarksOnly(join, left, right, kept)
+	) {
+		best = unchecked;
 	}
 	if (best === null) return null;
 	const { raw, seam, seamEnd, map } = best.written;
@@ -576,6 +591,25 @@ function keptMarks(left: Side, right: Side): { before: string[]; after: string[]
 
 // ── Verification ─────────────────────────────────────────────────────────────
 
+/** Whether the plain concatenation shows each kept character in at most the marks it had, a URL
+ *  aside, the stranded runs it leaves on screen standing among them. */
+function literalLosesMarksOnly(
+	join: JoinSeam,
+	left: Side,
+	right: Side,
+	kept: { before: string[]; after: string[] }
+): boolean {
+	const { mergedRaw, seam, typed, store } = join;
+	const read = readCandidate(mergedRaw.slice(0, seam) + typed + mergedRaw.slice(seam), store);
+	if (read === null) return false;
+	const inked = (text: string) => text.split('').filter((unit) => !/\s/.test(unit));
+	return losesMarksAround(
+		{ chars: inked(read.visible), marks: read.marksBesideUrls },
+		{ chars: inked(visibleSide(left, 'before')), marks: kept.before },
+		{ chars: inked(visibleSide(right, 'after')), marks: kept.after }
+	);
+}
+
 /** What the user must still see, read off each side's parse from before the join: reading the
  *  joined halves would bake the fault this checks for into the expectation. */
 const shownAfterJoin = (left: Side, right: Side, typed: string): string =>
@@ -629,7 +663,7 @@ export function clipNodes(
 function readCandidate(
 	raw: string,
 	store: StoredAs
-): { visible: string; marks: string[]; residue: number } | null {
+): { visible: string; marks: string[]; marksBesideUrls: string[]; residue: number } | null {
 	const read = readBack(raw, store);
 	if (read === null) return null;
 	const { inlines } = read;
@@ -639,10 +673,14 @@ function readCandidate(
 	return {
 		visible: shown,
 		marks: marksShown(runs, inlines, source, 0, source.length),
+		// A URL the joined text reads as is the text's own reading, not a mark put on it.
+		marksBesideUrls: marksShown(runs, inlines, source, 0, source.length, isNotUrl),
 		// Markers over nothing are all on screen (§ 4.1), so a block that shows them hides no pair.
 		residue: paintsOnlyChrome(inlines, source, render) ? 0 : countResidue(inlines, source, render)
 	};
 }
+
+const isNotUrl = (kind: InlineNode['kind']): boolean => kind !== 'autolink';
 
 /** Constructs the user would meet as nothing at all: no visible byte, and a policy that unwraps
  *  them when emptied rather than leaving delimiters over nothing. */

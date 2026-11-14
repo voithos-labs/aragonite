@@ -77,15 +77,22 @@ export interface MarkedChar {
 	marks: string;
 }
 
-/** Every non-whitespace character `blocks` show, with the constructs that enclose it; walked
- *  here rather than read off the editor's own marks helper, so the check stands apart from it. */
+/** Every non-whitespace character `blocks` show, `painted` delimiter bytes included, with the
+ *  constructs around it; walked here, not read off the editor's marks helper, to stand apart. */
 export function markedChars(
-	blocks: readonly { raw: string; content: { start: number; end: number } }[]
+	blocks: readonly {
+		raw: string;
+		content: { start: number; end: number };
+		painted?: (at: number) => boolean;
+	}[]
 ): MarkedChar[] {
 	const out: MarkedChar[] = [];
-	blocks.forEach(({ raw, content }, block) => {
+	blocks.forEach(({ raw, content, painted = () => false }, block) => {
 		const push = (at: number, marks: readonly string[]) => {
 			if (!/\s/.test(raw[at])) out.push({ block, at, char: raw[at], marks: marks.join(' ') });
+		};
+		const pushPainted = (from: number, to: number, marks: readonly string[]) => {
+			for (let at = from; at < to; at++) if (painted(at)) push(at, marks);
 		};
 		const visit = (nodes: readonly InlineNode[], marks: readonly string[]): void => {
 			for (const node of nodes) {
@@ -103,12 +110,14 @@ export function markedChars(
 					push(node.end - 1, marks);
 					continue;
 				}
+				pushPainted(node.start, range?.start ?? node.end, marks);
 				const label =
 					node.kind === 'link' && range ? `link${raw.slice(range.end, node.end)}` : node.kind;
 				if (node.children && node.children.length > 0) visit(node.children, [...marks, label]);
 				else if (node.kind === 'inlineCode' && range) {
 					for (let at = range.start; at < range.end; at++) push(at, [...marks, label]);
 				}
+				if (range) pushPainted(range.end, node.end, marks);
 			}
 		};
 		visit(parseInline(raw, content.start, content.end), []);
