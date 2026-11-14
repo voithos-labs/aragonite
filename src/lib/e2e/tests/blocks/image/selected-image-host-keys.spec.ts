@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../../fixtures';
 import { EditorPage } from '../../../editor-page';
+import { skipUnlessSupported } from '../../../browser-engine';
 import { waitForFirstImageLoaded } from './helpers';
 
 // A selected image keeps every key the browser could apply to the DOM under it, and lets a key
@@ -37,6 +38,7 @@ async function pressAndReadPrevented(page: Page, key: string): Promise<boolean> 
 test.describe('a selected image and the host’s keys', () => {
 	for (const key of ['F5', 'ContextMenu']) {
 		test(`${key} reaches the host and the image stays selected`, async ({ page }) => {
+			if (key === 'ContextMenu') skipUnlessSupported(page, 'contextMenuKey');
 			const editor = await selectImage(page);
 			expect(await pressAndReadPrevented(page, key)).toBe(false);
 			await expect(overlay(page)).toBeVisible();
