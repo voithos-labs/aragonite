@@ -43,7 +43,13 @@ export function itemHolding(doc: Doc, from: number, to: number) {
 	const item = held && parentOf(doc, held.leaf);
 	const list = item && parentOf(doc, item);
 	if (!held || !list || factsOf(doc, list).lines !== 'items') return null;
-	return factsOf(doc, held.leaf).body === 'literal' ? null : { held, item, list };
+	return literalLines(doc, held.leaf) ? null : { held, item, list };
+}
+
+/** Whether `leaf` is literal text whose lines take a pasted line, where Enter adds a line. */
+export function literalLines(doc: Doc, leaf: LaidBlock): boolean {
+	const facts = factsOf(doc, leaf);
+	return facts.body === 'literal' && facts.holdsLines;
 }
 
 /** The list item a paste landed in, and what an item Enter opens after it starts with. */

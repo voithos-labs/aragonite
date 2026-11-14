@@ -32,6 +32,7 @@ import { apartAt, pastMarkers } from './apart';
 import { closedBy, emptiedRest, leftBy, takerOf } from './container-merge';
 import {
 	enteredAt,
+	literalLines,
 	intoBlankUnder,
 	itemHolding,
 	joinsList,
@@ -113,9 +114,9 @@ function entered(
 	if (!endings || pasted.held.holds !== 'text') return null;
 	const text = pasted.text.slice(0, endings.index);
 	const count = endings[0].match(/\n/g)!.length;
-	const leaf = leafHolding(doc, from, to)?.leaf;
+	const held = leafHolding(doc, from, to);
 	// Literal text takes the ending as a line of its own text.
-	if (leaf && factsOf(doc, leaf).body === 'literal') return null;
+	if (held && literalLines(doc, held.leaf)) return null;
 	// The transforms see the whole clipboard, as they would where the ending lands anywhere else.
 	const { transform } = pasted;
 	const lines = '\n'.repeat(count);
@@ -256,8 +257,13 @@ function landedAt(
 	const off = () => (plain ? doc.host.escaped(lf) : blocks().source);
 	const apart = held.holds === 'text' ? null : pasteApart(doc, from, off, held.parent, true);
 	if (apart) return apart;
-	const landing = landed(doc, from, to, lf, plain, blocks, pasted.ended === true);
 	const leaf = leafHolding(doc, from, to)?.leaf;
+	// A block whose lines are no body (a link definition) holds no pasted line: lines land as
+	// blocks of their own under it, as at a caret on its syntax (§ 5.4 rule 7).
+	const lined = !plain && (pasted.ended || lf.includes('\n'));
+	if (lined && leaf && !factsOf(doc, leaf).holdsLines)
+		return underBlock(doc, leaf, to, () => blocks().source, lf.endsWith('\n'));
+	const landing = landed(doc, from, to, lf, plain, blocks, pasted.ended === true);
 	if (!leaf) return landing;
 	const lower = doc.layout.block([...leaf.path.slice(0, -1), leaf.path.at(-1)! + 1]);
 	const flush = lower && lower.from <= pastMarkers(doc.source, leaf.to) ? lower : undefined;
@@ -538,6 +544,25 @@ function landed(
 	const text = ends ? intoBlankUnder(doc, to, clip) : clip;
 	const mid = text.slice(0, text.length - after.length);
 	return splitAt(doc, leaf, from, to, cut, mid, lastTakes, lastRaw);
+}
+
+/** The clipboard as blocks of their own under `leaf`, the block at `at`, set apart from it; `ended`:
+ *  its last line ending opens the line under them, the caret's, as at a text's end. */
+function underBlock(
+	doc: Doc,
+	leaf: LaidBlock,
+	at: number,
+	read: () => string,
+	ended: boolean
+): Edit {
+	const parent = leaf.path.slice(0, -1);
+	const below = doc.layout.block([...parent, leaf.path.at(-1)! + 1]);
+	const edit = pasteApart(doc, below?.from ?? leaf.to, read, parent, true)!;
+	if (!ended || onBlankLine(edit)) return edit;
+	// The last child's line stays in its container; elsewhere the blank line under is the line.
+	if (!below) return ownLine(doc, at, edit);
+	const line = pastMarkers(edit.source, lineEnd(edit.source, edit.caret) + 1);
+	return isBlankText(lineRest(edit.source, line)) ? { ...edit, caret: line } : edit;
 }
 
 /** The caret's list, where `first`, a pasted block, goes on its item's own line past the marker and

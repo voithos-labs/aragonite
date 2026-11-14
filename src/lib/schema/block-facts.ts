@@ -33,6 +33,9 @@ export interface BlockFacts {
 	 *  the container's opening line. */
 	titleRow?: { type: string; nameNeverEntered: boolean };
 	body: 'markdown' | 'literal';
+	/** A line pasted into its text stays one of its lines; a link definition's lines are no body,
+	 *  so a clipboard of lines pasted in one lands under it. */
+	holdsLines: boolean;
 	/** What text joined to its end from below does: `into-deepest` lands in its deepest text block. */
 	joins: 'text' | 'text-keeping-type' | 'into-deepest' | 'same-type' | 'never';
 	/** Whether a caret can sit in its text: a block drawn as a picture of its source only while that
@@ -58,6 +61,7 @@ export function blockFacts(kind: string): BlockFacts {
 			? { titleRow: { type: titleRow, nameNeverEntered: rowIsOpenerLine(kind as AnyBlockKind) } }
 			: {}),
 		body: descriptor?.supportsInline || container ? 'markdown' : 'literal',
+		holdsLines: !NO_BODY_LINES.has(kind),
 		joins: descriptor ? JOINS[descriptor.mergeRole] : 'never',
 		textPosition:
 			descriptor?.blockFocus === 'whole-block' ? 'never' : (descriptor?.textPosition ?? 'always')
@@ -72,6 +76,9 @@ const BUILT_IN_LINES: Partial<Record<string, BlockFacts['lines']>> = {
 	table: 'rows',
 	tableRow: 'cells'
 };
+
+// Literal kinds whose bytes are one construct, never a body of lines.
+const NO_BODY_LINES = new Set(['linkReferenceDefinition']);
 
 const JOINS: Record<MergeRole, BlockFacts['joins']> = {
 	prose: 'text',

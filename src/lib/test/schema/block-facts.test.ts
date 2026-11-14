@@ -69,6 +69,8 @@ const MERGE_KEYS: Record<string, string | null> = {
 	githubAlert: 'alertType',
 	'footnote-def': 'label'
 };
+/** Literal kinds whose lines are no body: a line pasted in one is not one of its lines. */
+const NO_BODY_LINES = ['linkReferenceDefinition'];
 /** Drawn by a component that opens the text on a click, which the registration can't see. */
 const PICTURES_BY_COMPONENT = ['mathBlock', 'mathFence', 'toc'];
 const JOINS_BY_ROLE: Record<MergeRole, BlockFacts['joins']> = {
@@ -142,6 +144,7 @@ const EXPECTED: { [Field in keyof BlockFacts]-?: (kind: string) => BlockFacts[Fi
 	},
 	body: (kind) =>
 		descriptorOf(kind)?.supportsInline || holdsBlocks(kind) ? 'markdown' : 'literal',
+	holdsLines: (kind) => !NO_BODY_LINES.includes(kind),
 	joins: (kind) => JOINS_BY_ROLE[descriptorOf(kind)!.mergeRole],
 	textPosition: (kind) => {
 		if (descriptorOf(kind)?.blockFocus === 'whole-block') return 'never';
@@ -163,6 +166,7 @@ describe('block facts agree with every registration', () => {
 			...LAZY_LINES,
 			...Object.keys(BUILT_IN_SHAPES),
 			...Object.keys(MERGE_KEYS),
+			...NO_BODY_LINES,
 			...PICTURES_BY_COMPONENT
 		];
 		expect(named.filter((kind) => !registered.has(kind))).toEqual([]);

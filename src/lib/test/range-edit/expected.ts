@@ -971,6 +971,8 @@ function landedPaste(
 		return { shape: 'text', bytes: [read.source.slice(0, at) + title + read.source.slice(at)] };
 	// Literal text (code) takes the paste as written, whatever it would read as elsewhere.
 	if (targetFacts.body === 'literal') {
+		// A link definition holds no pasted line: lines land under it (ruling 77), as the rows hold.
+		if (!targetFacts.holdsLines && text.includes('\n')) return { shape: 'other', bytes: [] };
 		const prefix = literalPrefix(read, at, target, lf(text), host);
 		if (prefix === null) return { shape: 'other', bytes: [] };
 		return { shape: 'text', bytes: variants(splice(prefix, '')) };
