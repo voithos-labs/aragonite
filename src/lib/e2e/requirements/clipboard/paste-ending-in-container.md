@@ -11,7 +11,9 @@ A clipboard's last line ending lands as Enter does where it lands. At the end of
 - In a quote inside a list item: the empty quoted line stays in the item: `- > alphaone\n  >\n  > Z\n- after\n`
 - In an open details body: the empty line stays above `</details>`: `alphaone\n\nZ\n</details>`
 - A quote pasted with its line ending into a quote joins it, and its ending is the quote's empty line: `> alpha` + `> one\n` gives `> alphaone\n>\n> Z\n>\n> after\n`
+- A block pasted with its line ending at a container's end leaves the caret on the ending's line, and a typed letter takes that line, with no blank container line under it: a rule in a quote gives `> alpha\n>\n> ***\n>\n> Z\n\nAfter\n`, a fence in a callout `:::note\nalpha\n\n```\nq\n```\n\nZ\n:::\n\nAfter\n`
 
 ## Miss-analysis
 
 - The ending rows put the caret in a top-level block or a list item, and the one quote host had a line under the paragraph, so no row asked where the ending's line lands at a container's end; the core rows ran in jsdom alone, which takes no caret in a details body.
+- The block rows stopped at the caret on the ending's line, and the paragraph a letter opens there read only the document's trailing blank line as its separator, never a container's.

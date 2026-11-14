@@ -66,8 +66,8 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		why: 'the table grid re-emits its own bytes from its rows (G4.20 branch 3 reads the same writes)'
 	},
 	'src/lib/schema/child-spans.ts': {
-		count: 3,
-		why: 'the concat container shape re-emitting its own bytes from its children: its span-seeding rebuild and the one-region splice; and a marker gaining its space in its own line'
+		count: 4,
+		why: 'the concat container shape re-emitting its own bytes from its children: its span-seeding rebuild and the one-region splice; a marker gaining its space in its own line; and an open quote giving its bare last line to the block placed last'
 	},
 	'src/lib/schema/strip-rebuild.ts': {
 		count: 4,
