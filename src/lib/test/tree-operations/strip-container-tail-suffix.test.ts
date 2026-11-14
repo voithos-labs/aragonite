@@ -14,8 +14,8 @@ import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { deleteSettled } from '#lib/test/harness/settle-funnel.js';
 
 // A blockquote keeps its body's one trailing blank line in `innerSuffix` only while its last block
-// is non-blank, so once that block turns blank the fix-up makes the line a block.
-// Miss-analysis: GH #393, no case blanked the paragraph above a quote's trailing bare `>` line.
+// is non-blank, so once that block turns blank the fix-up drops the line, as under any blank block.
+// Miss-analysis: no case blanked the paragraph above a quote's trailing bare `>` line.
 
 beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
@@ -58,18 +58,15 @@ function empty(doc: Document, path: number[]): void {
 	rebuild(chain);
 }
 
-describe("blanking a blockquote's last block turns its trailing line into a block", () => {
-	it('a quote ending on a bare `>` line reloads to the two blank blocks it shows', () => {
+describe("blanking a blockquote's last block drops its trailing line", () => {
+	it('a quote ending on a bare `>` line reloads to the one blank block it shows', () => {
 		const doc = parse('> b\n>\n');
 
 		empty(doc, [0, 0]);
 
 		const quote = doc.children[0];
-		expect(serialize(doc)).toBe('>\n>\n');
-		expect(quote.children!.map((c) => [c.leadingTrivia, c.raw])).toEqual([
-			['', '\n'],
-			['', '\n']
-		]);
+		expect(serialize(doc)).toBe('>\n');
+		expect(quote.children!.map((c) => [c.leadingTrivia, c.raw])).toEqual([['', '\n']]);
 		expect(quote.innerSuffix).toBe('');
 		expect(describeConvergence(doc)).toBeNull();
 	});
@@ -102,7 +99,7 @@ describe("blanking a blockquote's last block turns its trailing line into a bloc
 	});
 
 	// The commit's own fix-up over the owned container: a delete that leaves a blank last block.
-	it('a delete that leaves a blank block last turns the line into a block too', () => {
+	it('a delete that leaves a blank block last drops the line too', () => {
 		const doc = parse('> a\n>\n>\n> c\n>\n');
 		const quote = doc.children[0];
 

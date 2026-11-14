@@ -28,6 +28,7 @@ import { findSurfacePathForElement } from '../../selection/path-lookup';
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { GAP_CARET_KEYS } from '../gap-caret-keys';
+import { selectedWidgetKeeps } from '../blocks/text/selected-widget-keys';
 import {
 	chromeHoldsFocus,
 	focusInEditor,
@@ -53,7 +54,7 @@ export interface KeyClaimsDeps extends KeyFocusDeps {
 	opensLinkCard(e: KeyboardEvent): boolean;
 	selection: Pick<
 		SelectionState,
-		'gapCaret' | 'ownsRange' | 'rangeInOneBlock' | 'anchor' | 'focus'
+		'gapCaret' | 'ownsRange' | 'rangeInOneBlock' | 'anchor' | 'focus' | 'widgetIn'
 	>;
 	containerChords: Pick<ContainerChords, 'takes'>;
 	getDoc(): Document;
@@ -122,6 +123,7 @@ export function createKeyClaims(deps: KeyClaimsDeps): KeyClaims {
 
 	function leafTakes(e: KeyboardEvent, chord: string | null, kind: AnyBlockKind, path: number[]) {
 		if (rangeTakes(e)) return true;
+		if (deps.selection.widgetIn(path) && selectedWidgetKeeps(e)) return true;
 		const role = textKeyRole(e);
 		if (role === 'reads' || (role === 'writes' && !reading())) return true;
 		if (chord === null) return false;

@@ -7,6 +7,9 @@ import { wholeBlockInput } from '../whole-block-input';
 import { TABLE_THEN_FENCE, arriveAtBoundary } from './selection/gap-caret-fixtures';
 import { RULE_DOC, focusTheRule, rule } from './text-editing/whole-block-rule';
 import { waitForFirstImageLoaded } from './blocks/image/helpers';
+import { isChromium } from '../browser-engine';
+import type { EditorSelection } from '../../selection/primitives';
+import type { PresentationMode } from '../../presentation-mode';
 
 // Every element a composition can run in, held to one rule each (requirements/ime-hosts.md). Each
 // row compares against the same element with the text typed instead: a composition ends the way
@@ -167,6 +170,77 @@ const OPENED: Host[] = [
 		}
 	}
 ];
+
+const TABLE = '| a | b |\n|---|---|\n| 1 | 2 |\n| 3 | 4 |\n\n# h\n';
+const toRow = (anchor: number[], table: number[]): EditorSelection => ({
+	anchor: { path: anchor, offset: 0 },
+	focus: { path: table, offset: 2, cellCoordinate: true }
+});
+
+/** Ranges that end at a leaf's end, where text written over them stands where a typed key's does;
+ *  `click` is a text block the caret goes into first. */
+const OVER_A_RANGE: { name: string; source: string; click: number[]; select: EditorSelection }[] = [
+	{
+		name: 'from a rule in a quote to a table row’s end',
+		source: `> above\n>\n> ***\n>\n> body\n\n${TABLE}`,
+		click: [0, 0],
+		select: toRow([0, 1], [1])
+	},
+	{
+		name: 'from the document’s first block to a table row’s end',
+		source: `***\n\nbody\n\n${TABLE}`,
+		click: [1],
+		select: toRow([0], [2])
+	},
+	{
+		name: 'from a rule to a paragraph’s end, a gap held before the fence below',
+		source: 'first\n\n***\n\npara\n\n```\ncode\n```\n',
+		click: [0],
+		select: { anchor: { path: [1], offset: 0 }, focus: { path: [2], offset: 4 } }
+	},
+	{
+		name: 'from a rule to an item’s end before the next item',
+		source: 'first\n\n***\n\nbody\n\n- one\n- two\n',
+		click: [0],
+		select: { anchor: { path: [1], offset: 0 }, focus: { path: [3, 0, 0], offset: 3 } }
+	}
+];
+
+/** The document once `text` is in over `row`'s range, typed or composed. */
+async function overTheRange(
+	editor: EditorPage,
+	row: (typeof OVER_A_RANGE)[number],
+	mode: PresentationMode,
+	write: (editor: EditorPage) => Promise<void>
+): Promise<string> {
+	await editor.setPresentationMode(mode);
+	await editor.loadContent(row.source);
+	await editor.focusBlockAtPath(row.click, 0);
+	await editor.bridge.setSelection(row.select);
+	await editor.waitForCrossBlock(true);
+	await write(editor);
+	await editor.bridge.waitForSourceContains('Q');
+	return editor.bridge.getSource();
+}
+
+test.describe('a composition over a range ending at a leaf’s end', () => {
+	for (const mode of ['source', 'live'] as const)
+		for (const row of OVER_A_RANGE) {
+			test(`${mode}: ${row.name}: the text lands where a typed key does`, async ({ page }) => {
+				test.skip(!isChromium(page), 'only Chromium drives a real IME, over CDP');
+				const editor = new EditorPage(page);
+				await editor.goto();
+				const typed = await overTheRange(editor, row, mode, (e) => e.page.keyboard.type('Q'));
+				const ime = await attachIme(page);
+				const composed = await overTheRange(editor, row, mode, async () => {
+					await ime.compose('Q');
+					await ime.commit('Q');
+				});
+				expect(composed).toBe(typed);
+				expect(composed.split('Q').length - 1).toBe(1);
+			});
+		}
+});
 
 // Chromium and WebKit send the key that opens or feeds an IME with code 229 and no composition
 // flag, named `Process` on Windows and the letter on macOS.

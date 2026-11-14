@@ -76,8 +76,8 @@ function mergeAt(
 	return { lo, hi, count: next.length };
 }
 
-/** A cheap refusal: the upper block read with the lower's first line alone reads as two blocks, and
- *  nothing below can change that while the upper is a finished leaf, or the two touch. */
+/** A cheap refusal: the upper read with the lower's first line reads as two blocks, taking no blank
+ *  line in, and nothing below can change that while the upper is a finished leaf, or the two touch. */
 function headLineRefuses(work: Work, lo: number, host: Host): boolean {
 	const upper = work.blocks.at(lo);
 	const lower = work.blocks.at(lo + 1);
@@ -85,9 +85,8 @@ function headLineRefuses(work: Work, lo: number, host: Host): boolean {
 	if (lower.leadingTrivia !== '' && host.kindTraits(upper.kind).container) return false;
 	if (host.readingsThatMayChange().some((reading) => reading.notFinal(upper.raw))) return false;
 	const line = lower.raw.slice(0, lower.raw.indexOf('\n') + 1) || lower.raw;
-	return (
-		readAt(host, work.list.owner, lo, upper.raw + lower.leadingTrivia + line).children.length >= 2
-	);
+	const read = readAt(host, work.list.owner, lo, upper.raw + lower.leadingTrivia + line).children;
+	return read.length >= 2 && read[0].raw.length <= upper.raw.length;
 }
 
 const content = (blocks: readonly CstNode[]) => blocks.filter((node) => !isBlankBlock(node)).length;

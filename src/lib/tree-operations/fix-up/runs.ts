@@ -45,10 +45,14 @@ export function layOutRun(
 	while (pool.length < atLeast) pool.push(ending);
 	let count = hi - lo - 1;
 	let hidden = hiddenCount(pool.length, count, own, above, below);
-	// The body's own trailing lines a reload reads as blocks become blank blocks.
+	// A body with no block left takes its trailing lines as blank blocks, as does a list item, whose
+	// line can part the list from what follows; elsewhere the line under a blank block goes.
 	let appended: string[] = [];
 	const excess = pool.length - hidden;
-	if (excess > 0 && trailing.length > 0 && below === 'none' && (count > 0 || above === 'none')) {
+	const owner = work.list.owner;
+	const partsTheList = !!owner && host.kindTraits(owner.kind).firstLineMarker && count > 0;
+	const takesLines = below === 'none' && ((count === 0 && above === 'none') || partsTheList);
+	if (takesLines && excess > 0 && trailing.length > 0) {
 		appended = trailing.slice(Math.max(trailing.length - excess, 0));
 		pool = pool.slice(0, pool.length - appended.length);
 		count += appended.length;
