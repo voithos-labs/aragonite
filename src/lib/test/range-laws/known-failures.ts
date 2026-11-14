@@ -72,11 +72,11 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 			law: 'L3',
 			args: [
 				{
-					source: '| H0 |\n| --- |\n\n| H0 |\n| --- |\n\n**b**\n\n    code\n',
+					source: 'a\n# h\n---\n',
 					mode: 'source',
-					seed: { a: end(0, 'start'), b: end(30, 'start') }
+					seed: { a: end(1, 'start', 4), b: end(18, 'start', 60) }
 				},
-				'key',
+				'menu',
 				'insertMarkdown'
 			]
 		}

@@ -42,7 +42,7 @@ afterEach(async () => {
 	takeDevWarns();
 });
 
-/** `‸` marks the caret. */
+/** `‸` marks the caret, `⟦…⟧` a range. */
 const ROWS: [name: string, marked: string, clip: string][] = [
 	['a bullet', '- alpha‸\n- after\n', 'one'],
 	['an ordered list numbers on', '1. alpha‸\n2. after\n', '1. one\n2. two'],
@@ -64,11 +64,15 @@ interface Left {
 }
 
 async function mounted(marked: string, mode: PresentationMode): Promise<Editor> {
-	const source = marked.replace('‸', '');
+	const source = marked.replace(/[‸⟦⟧]/g, '');
 	const editor = mountCase(source, mode);
 	await editor.settle();
-	const point = pointAtByte(measured(editor.instance.__test.getDocument()), marked.indexOf('‸'))!;
-	expect(await placeRange(editor, { anchor: point, focus: point })).toBe(true);
+	const ranged = marked.includes('⟦');
+	const [from, to] = ranged
+		? [marked.indexOf('⟦'), marked.indexOf('⟧') - 1]
+		: [marked.indexOf('‸'), marked.indexOf('‸')];
+	const point = (at: number) => pointAtByte(measured(editor.instance.__test.getDocument()), at)!;
+	expect(await placeRange(editor, { anchor: point(from), focus: point(to) })).toBe(true);
 	return editor;
 }
 
@@ -297,7 +301,7 @@ const TWICE: [name: string, marked: string, list: string, text: string | null][]
 	['a to-do', '- [ ] alpha‸\n- [ ] after\n', '- [ ] one\n- [ ] two', 'one'],
 	['an item in a quote', '> - alpha‸\n> - after\n', '- one\n- two', 'one'],
 	['the last item', '- alpha‸\n', '- one\n- two', 'one'],
-	// In a paragraph two endings are an empty line and a blank line, not two Enters.
+	// In a paragraph the second ending adds nothing to the empty line the first opened.
 	['a paragraph over a list the paste joins', 'abc‸\n- c\n', '- one\n- two', null],
 	['a bullet a numbered list breaks out of', '- a‸b\n', '1. q\n2. r', 'one']
 ];
@@ -345,12 +349,71 @@ for (const mode of ['source', 'live'] as const)
 			});
 		}
 
+// Miss-analysis: the two-ending rows skipped the paragraph host with a text clipboard, and the
+// three-ending rows read "three Enters" off the comparator, so none asked what the third stacks.
 for (const mode of ['source', 'live'] as const)
-	for (const clip of ['1. one\n2. two', 'one'])
-		it(`${mode}: three line endings after ${clip === 'one' ? 'text' : 'a list'} are three Enters`, async () => {
+	for (const clip of ['1. one\n2. two', 'one']) {
+		const kind = clip === 'one' ? 'text' : 'a list';
+		it(`${mode}: a third line ending after ${kind} adds nothing once the second left the list`, async () => {
 			const ended = await pastedReloaded('1. alpha‸\n2. after\n', mode, clip, 3);
-			expect(ended).toEqual(await pasted('1. alpha‸\n2. after\n', mode, clip, 3));
+			expect(ended).toEqual(await pasted('1. alpha‸\n2. after\n', mode, clip, 2));
 		});
+		it(`${mode}: a third line ending after ${kind} in a nested item leaves the list`, async () => {
+			const ended = await pastedReloaded('- a\n  - alpha‸\n- b\n', mode, clip, 3);
+			expect(ended).toEqual(await pasted('- a\n  - alpha‸\n- b\n', mode, clip, 3));
+		});
+	}
+
+// Miss-analysis: the paragraph rows asked for one ending, where Enter's empty line is the paste's,
+// so no row asked what a second ending stacks on it.
+const ON_EMPTY_LINE: [name: string, marked: string, clip: string][] = [
+	['a paragraph’s end', 'alpha‸\n\nAfter\n', 'one'],
+	['a paragraph’s end, a list', 'alpha‸\n\nAfter\n', '- one\n- two'],
+	['a paragraph’s whole text', '⟦alpha⟧\n\nAfter\n', 'one'],
+	['a heading’s end', '# alpha‸\n\nAfter\n', 'one'],
+	['a paragraph under a heading', '# h\nalpha‸\n\nAfter\n', '1. one\n2. two'],
+	['a quote’s paragraph with more under it', '> alpha‸\n>\n> after\n', 'one'],
+	['a paragraph over a list', 'abc‸\n- c\n', 'one'],
+	['a CRLF document', 'alpha‸\r\n\r\nAfter\r\n', 'one']
+];
+
+// The one-ending paste is the comparator: a list's ending in a paragraph opens a line of the
+// paragraph's kind (ruling 53), which Enter after the list's last item does not.
+for (const mode of ['source', 'live'] as const)
+	for (const [name, marked, clip] of ON_EMPTY_LINE)
+		it(`${mode}: ${name}, a second and third line ending add nothing`, async () => {
+			const once = await pasted(marked, mode, clip + '\n');
+			expect(await pastedReloaded(marked, mode, clip, 2)).toEqual(once);
+			expect(await pastedReloaded(marked, mode, clip, 3)).toEqual(once);
+		});
+
+// Miss-analysis: the mid-text rows took one ending, so none asked what the second does at the start
+// of the rest the first set on its line, where Enter opens a line above it.
+const AT_REST: [name: string, marked: string, clip: string][] = [
+	['a quote’s paragraph, text', '> al‸pha\n>\n> after\n', 'one'],
+	['a quote’s paragraph, two paragraphs', '> ‸alpha\n>\n> after\n', 'one\n\ntwo']
+];
+
+for (const mode of ['source', 'live'] as const)
+	for (const [name, marked, clip] of AT_REST)
+		it(`${mode}: ${name}, a second line ending is Enter at the rest’s start`, async () => {
+			const ended = await pastedReloaded(marked, mode, clip, 2);
+			expect(ended).toEqual(await pasted(marked, mode, clip + '\n', 1));
+		});
+
+it('the ruled rows: two endings at a paragraph’s end leave one empty line', async () => {
+	const text = await pasted('alpha‸\n\nAfter\n', 'source', 'one\n\n');
+	expect([text.after.source, text.typed]).toEqual([
+		'alphaone\n\n\nAfter\n',
+		'alphaone\n\nZ\n\nAfter\n'
+	]);
+	expect(text).toEqual(await pasted('alpha‸\n\nAfter\n', 'source', 'one', 1));
+	const list = await pasted('alpha‸\n\nAfter\n', 'source', '- one\n- two\n\n');
+	expect([list.after.source, list.typed]).toEqual([
+		'alpha\n\n- one\n- two\n\n\nAfter\n',
+		'alpha\n\n- one\n- two\n\nZ\n\nAfter\n'
+	]);
+});
 
 it('the ruled rows: two endings leave an ordered list, numbered on, and lift a nested item', async () => {
 	const ordered = await pasted('1. alpha‸\n2. after\n', 'source', '1. one\n2. two\n\n');

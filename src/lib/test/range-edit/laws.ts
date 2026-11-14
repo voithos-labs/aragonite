@@ -520,6 +520,12 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 	// (`paste-ending-enter.test.ts`): it leaves the bytes before it, and the law holds the rest.
 	const ended = /\r?\n$/.exec(input.text);
 	const rest = ended && input.text.slice(0, ended.index);
+	// An ending on the empty line the one before it opened adds nothing: the law holds one fewer.
+	if (rest !== null && /\n$/.test(rest) && input.held.holds === 'text') {
+		const fewer = call(input.source, caretRange(input.at), paste(rest, input.held), input.mode);
+		if (fewer?.source === got.source && onBlankLine(got.source, fewer.caret.at))
+			return pasteAtCaret(call, host, { ...input, text: rest });
+	}
 	const bare =
 		rest !== null &&
 		input.held.holds === 'text' &&
@@ -567,6 +573,15 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 	if (cellAt(read, input.at, host) && onOneLine(input.source, input.at, got.source)) return [];
 	if (want.bytes.some((bytes) => oneLineInBody(read, input.at, bytes, got.source, host))) return [];
 	return [`L9 (${want.shape}) gave ${q(got.source)}, not ${q(want.bytes[0])}`];
+}
+
+/** Whether the line holding `at` has nothing past its markers. */
+function onBlankLine(source: string, at: number): boolean {
+	const line = source.slice(
+		source.lastIndexOf('\n', at - 1) + 1,
+		(source + '\n').indexOf('\n', at)
+	);
+	return /^[ \t>]*\r?$/.test(line);
 }
 
 /** Whether `text` gives a line break to the one-line source shown while edited that holds `at`. */

@@ -77,10 +77,7 @@ export interface Pasted {
 export function pasteAt(doc: Doc, from: number, to: number, pasted: Pasted): Edit {
 	const seen: { blocks?: Doc } = {};
 	const once = { ...pasted, transform: ranOnce(pasted.transform) };
-	const enter = entered(doc, from, to, once, seen);
-	const landing = enter
-		? { ...enter, entered: true as const }
-		: landedAt(doc, from, to, once, seen);
+	const landing = entered(doc, from, to, once, seen) ?? landedAt(doc, from, to, once, seen);
 	// Only blank text with no line ending leaves the block's own line blank.
 	const { emptied } = pasted;
 	const blanked = emptied && /^[ \t]+$/.test(pasted.text);
@@ -101,8 +98,8 @@ function ranOnce(transform: Pasted['transform']): Pasted['transform'] {
 	};
 }
 
-/** The clipboard's last line endings as Enters, where what was pasted ends in a list or a list
- *  item's text, each where the one before left the caret; null where they land as lines instead. */
+/** The clipboard's last line endings, each as Enter where the one before left the caret; null where
+ *  they land with the clipboard, a blank line among them a split (`landed`). */
 function entered(
 	doc: Doc,
 	from: number,
@@ -117,20 +114,47 @@ function entered(
 	const leaf = leafHolding(doc, from, to)?.leaf;
 	// Literal text takes the ending as a line of its own text.
 	if (leaf && factsOf(doc, leaf).body === 'literal') return null;
-	const host = itemHolding(doc, from, to);
-	// Outside a list item only a pasted list can end in a list of the document.
-	if (!host && !endsOnList(doc, text)) return null;
 	// The transforms see the whole clipboard, as they would where the ending lands anywhere else.
 	const { transform } = pasted;
 	const lines = '\n'.repeat(count);
-	const whole = (text: string) =>
-		transform!(text + lines, readDoc(text + lines, doc.host, doc.mode).tree);
-	const rest: Pasted = {
-		...pasted,
-		text,
-		ended: true,
-		transform: transform && ((text) => whole(text).replace(new RegExp(`\\n{0,${count}}$`), ''))
+	const keeping = (kept: number): Pasted => {
+		const tail = '\n'.repeat(kept);
+		const whole = (clip: string) => {
+			const all = clip.slice(0, clip.length - kept) + lines;
+			const out = transform!(all, readDoc(all, doc.host, doc.mode).tree);
+			return out.replace(new RegExp(`\\n{0,${count}}$`), '') + tail;
+		};
+		return { ...pasted, text: text + tail, transform: transform && whole };
 	};
+	const host = itemHolding(doc, from, to);
+	// Outside a list item only a pasted list can end in a list of the document.
+	const first =
+		host || endsOnList(doc, text)
+			? enteredInList(doc, from, to, { ...keeping(0), ended: true }, host, seen)
+			: null;
+	if (!first && (count === 1 || text === '')) return null;
+	let edit = first ?? landedAt(doc, from, to, keeping(1), seen);
+	// Past an empty line the first ending opened, each later one goes as Enter does there.
+	if (!first && !onBlankLine(edit)) return null;
+	let enter = first !== null;
+	for (let i = 1; i < count; i++) {
+		const next = enteredAgain(doc, edit);
+		enter ||= next !== edit;
+		edit = next;
+	}
+	return enter ? { ...edit, entered: true } : edit;
+}
+
+/** The first of the clipboard's last line endings as Enter where what was pasted ends in a list
+ *  holding the caret's item or an item of the document's; null where it opens no item. */
+function enteredInList(
+	doc: Doc,
+	from: number,
+	to: number,
+	rest: Pasted,
+	host: ReturnType<typeof itemHolding>,
+	seen: { blocks?: Doc }
+): Edit | null {
 	const bare = landedAt(doc, from, to, rest, seen);
 	const path = host?.item.path;
 	const kind = path && {
@@ -144,13 +168,11 @@ function entered(
 	const head = sharedPrefixLength(doc.source, bare.source, shorter);
 	const tail = sharedSuffixLength(doc.source, bare.source, shorter - head);
 	const own = (byte: number) => byte < head || byte >= bare.source.length - tail;
-	let edit = enteredAt(after, bare.caret, kind, own);
-	for (let i = 1; edit && i < count; i++) edit = enteredAgain(doc, edit);
-	return edit;
+	return enteredAt(after, bare.caret, kind, own);
 }
 
-/** `edit` with Enter where it left the caret: an item Enter takes out goes as the editor takes it
- *  (`RangeHost.enterOut`), an item's text opens the next item, any other block takes a line ending. */
+/** `edit` with Enter where it left the caret, an item out as Enter's own code takes it
+ *  (`RangeHost.enterOut`); on an empty line Enter would only stack another on, nothing (§ 5.6). */
 function enteredAgain(doc: Doc, edit: Edit): Edit {
 	const now = { ...readDoc(edit.source, doc.host, doc.mode), ending: doc.ending };
 	const item = itemHolding(now, edit.caret, edit.caret)?.item;
@@ -158,9 +180,16 @@ function enteredAgain(doc: Doc, edit: Edit): Edit {
 	if (out) return out;
 	const next = item && enteredAt(now, edit.caret, undefined, () => true);
 	if (next) return next;
+	if (onBlankLine(edit)) return edit;
 	const line: Pasted = { text: '\n', plain: false, held: { holds: 'text' }, transform: null };
 	const { source, caret } = pasteAt(now, edit.caret, edit.caret, line);
 	return { source, caret };
+}
+
+/** Whether `edit` left the caret on a line with nothing past its markers. */
+function onBlankLine({ source, caret }: Edit): boolean {
+	const lineStart = caret - lineHead(source, caret).length;
+	return isBlankText(lineRest(source, pastMarkers(source, lineStart)));
 }
 
 /** Whether the clipboard's last block is a list. */
