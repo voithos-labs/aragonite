@@ -12,18 +12,19 @@ import { markSpelling } from './close-reopen';
 const MARK_SEPARATOR = '\u0001';
 
 /** The marks on each visible character of `[from, to)`, whitespace left out: its enclosing
- *  constructs, outermost first, a link with its destination. */
+ *  constructs of the kinds `counts` takes, outermost first, a link with its destination. */
 export function marksShown(
 	runs: readonly VisibleRun[],
 	inlines: readonly InlineNode[],
 	raw: string,
 	from: number,
-	to: number
+	to: number,
+	counts: (kind: InlineNode['kind']) => boolean = () => true
 ): string[] {
 	const enclosing: { content: { start: number; end: number }; mark: string }[] = [];
 	for (const node of inlineDescendants(inlines)) {
 		const content = node.kind === 'text' ? null : constructContentRange(node);
-		if (!content) continue;
+		if (!content || !counts(node.kind)) continue;
 		const mark = markSpelling(node.kind) ?? raw.slice(content.end, node.end);
 		enclosing.push({ content, mark: `${node.kind}${mark}` });
 	}
@@ -95,9 +96,54 @@ export function keepsEdgeMarks(
 	before: readonly string[],
 	after: readonly string[]
 ): boolean {
+	return edgeMarksFit(marks, before, after, (was, now) => was === now);
+}
+
+/** {@link keepsEdgeMarks} with marks allowed to go but none of `marks` to arrive: what a dropped
+ *  run shows. */
+export function losesEdgeMarksOnly(
+	marks: readonly string[],
+	before: readonly string[],
+	after: readonly string[]
+): boolean {
+	return edgeMarksFit(marks, before, after, holdsMarks);
+}
+
+function edgeMarksFit(
+	marks: readonly string[],
+	before: readonly string[],
+	after: readonly string[],
+	fits: (was: string, now: string) => boolean
+): boolean {
 	if (marks.length < before.length + after.length) return false;
 	const tail = marks.slice(marks.length - after.length);
-	return before.every((mark, i) => marks[i] === mark) && after.every((mark, i) => tail[i] === mark);
+	return (
+		before.every((was, i) => fits(was, marks[i])) && after.every((was, i) => fits(was, tail[i]))
+	);
+}
+
+/** A read's characters with their marks, whitespace left out, one entry per code unit. */
+interface MarkedRun {
+	chars: readonly string[];
+	marks: readonly string[];
+}
+
+/** Whether `read` shows `before`'s characters first and `after`'s last, each in at most the marks
+ *  it had, whatever other characters stand among them. */
+export function losesMarksAround(read: MarkedRun, before: MarkedRun, after: MarkedRun): boolean {
+	const runs = [read, before, after];
+	if (runs.some(({ chars, marks }) => chars.length !== marks.length)) return false;
+	let at = 0;
+	for (let i = 0; i < before.chars.length; i++, at++) {
+		while (at < read.chars.length && read.chars[at] !== before.chars[i]) at++;
+		if (at === read.chars.length || !holdsMarks(before.marks[i], read.marks[at])) return false;
+	}
+	let end = read.chars.length - 1;
+	for (let i = after.chars.length - 1; i >= 0; i--, end--) {
+		while (end >= at && read.chars[end] !== after.chars[i]) end--;
+		if (end < at || !holdsMarks(after.marks[i], read.marks[end])) return false;
+	}
+	return true;
 }
 
 /** Whether `outer`'s marks include every one of `inner`'s, in order. */
