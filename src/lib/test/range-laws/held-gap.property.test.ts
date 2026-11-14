@@ -333,19 +333,6 @@ const KNOWN: Record<string, Known> = {
 			d.gesture === 'Enter' && line === 'warn: invariant:command-key-landing',
 		example: draw('htmlBlocks', 'rule', 'top', 'edge..last', 'Enter')
 	},
-	'an opener kept in an item': {
-		cause:
-			'in live mode, in a list item, a range from the first byte of a fence into the indented ' +
-			'code below keeps the fence, and the text goes into its body (minor)',
-		matches: (d, _r, line) =>
-			d.mode === 'live' &&
-			d.wrap === 'item' &&
-			d.shape === 'indentedCode' &&
-			d.middle === 'fence' &&
-			texts(d) &&
-			/^the text|^over the range/.test(line),
-		example: { ...draw('indentedCode', 'fence', 'item', 'edge..lower', 'letter', 'live'), lead: 0 }
-	},
 	"a lone block's emptied line": {
 		cause:
 			'text over a rule or a fence held alone between two lines keeps its emptied line, and the ' +
@@ -410,6 +397,12 @@ const KNOWN: Record<string, Known> = {
 
 /** Draws that reach the place a removal took its start block from, the class's own rows. */
 const REACH: Record<string, Draw> = {
+	// The fence the removal empties gets its body line on the landing, so the letter lands where
+	// the step by step gesture puts it.
+	'an opener kept in an item': {
+		...draw('indentedCode', 'fence', 'item', 'edge..lower', 'letter', 'live'),
+		lead: 0
+	},
 	'before an HTML block': draw('htmlBlocks', 'heading', 'top', 'edge..lower', 'composition'),
 	'before an HTML block in a quote': draw(
 		'htmlUnderText',
@@ -454,7 +447,6 @@ const FIXED_TALLY = {
 	unplaced: 0,
 	'took the start block': 30,
 	'a stale command claim': 8,
-	'an opener kept in an item': 1,
 	"a lone block's emptied line": 2,
 	'a letter where two indented code blocks join': 1,
 	'a live caret past a hidden marker': 1,
