@@ -226,17 +226,20 @@ export function splitOut(
 			: numberedOn(doc, first.from, to, out);
 	const under = lineEnd(numbered, head.length) + 1;
 	const [path, index] = [list.path.slice(0, -1), list.path.at(-1)!];
-	// The pasted blocks taking the list's first line stay apart from the block over the list where
-	// the two would read as one (a rule under a paragraph is its underline).
-	const above =
-		whole && item.path.at(-1) === 0 ? doc.layout.block([...path, index - 1]) : undefined;
+	// The pasted blocks stay apart from the block over the list, or the list's own first half, where
+	// the two would read as one (a rule under text is its underline; one in the list's marker, an item).
+	const nth = item.path.at(-1)!;
+	const items = nodeAt(doc, list.path).children ?? [];
+	const half = items.slice(0, nth).map((c) => c.leadingTrivia + c.raw);
+	const block = whole && nth === 0 ? doc.layout.block([...path, index - 1]) : undefined;
+	const above = block ? nodeAt(doc, block.path).raw : whole && nth > 0 ? half.join('') : null;
 	const apartAbove = (edit: Edit): Edit => {
-		if (!above) return edit;
+		if (above === null) return edit;
 		const line = first.from - lineHead(source, first.from).length;
 		const upper = {
 			path,
-			index: index - 1,
-			upper: nodeAt(doc, above.path).raw,
+			index: block ? index - 1 : index,
+			upper: above,
 			lower: body,
 			placed: true
 		};

@@ -21,6 +21,7 @@ import {
 import { pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { parse } from '#lib/core/parser.js';
+import type { NodeView } from '#lib/core/node-views.js';
 import { blocksIn, blocksOf, mountCase, pasteGesture, placeRange } from '../range-laws/gestures';
 
 beforeAll(installLayoutStubs);
@@ -68,7 +69,16 @@ async function landed(marked: string, mode: PresentationMode, block: string, rou
 const GIVES_WAY: [name: string, marked: string, block: string, left: string][] = [
 	['an empty bullet', '- a\n- ‸\n- b\n', '---', '- a\n---\n- b\n'],
 	['an empty star item, stars', '* a\n* ‸\n* b\n', '***', '* a\n***\n* b\n'],
-	['an empty bullet, spaced dashes', '- a\n- ‸\n- b\n', '- - -', '- a\n- - -\n- b\n'],
+	// A rule spelled with the list's own marker reads as an item beside it: a blank line sets it apart.
+	['an empty bullet, spaced dashes', '- a\n- ‸\n- b\n', '- - -', '- a\n\n- - -\n- b\n'],
+	['an empty star item, spaced stars', '* a\n* ‸\n* b\n', '* * *', '* a\n\n* * *\n* b\n'],
+	['a last empty bullet, spaced dashes', '- a\n- ‸\n', '- - -', '- a\n\n- - -\n'],
+	[
+		'an empty bullet in a quote, spaced dashes',
+		'> - a\n> - ‸\n> - b\n',
+		'- - -',
+		'> - a\n>\n> - - -\n> - b\n'
+	],
 	['an empty nested bullet', '- a\n  - x\n  - ‸\n- b\n', '---', '- a\n  - x\n  ---\n- b\n'],
 	['the first empty bullet', '- ‸\n- b\n', '---', '---\n- b\n'],
 	['the only empty bullet', '- ‸\n', '---', '---\n'],
@@ -80,7 +90,24 @@ for (const mode of ['source', 'live'] as const)
 		for (const route of ROUTES)
 			it(`${mode}: ${block} by ${route} in ${name}: the item gives way`, async () => {
 				expect((await landed(marked, mode, block, route))[0]).toBe(left);
+				expect(kinds(parse(left).children)).toContain('thematicBreak');
 			});
+
+const kinds = (nodes: readonly NodeView[]): string[] =>
+	nodes.flatMap((node) => [node.kind, ...kinds(node.children ?? [])]);
+
+// The rule's line ending then opens the list's next item under it, as Enter after a break-out does.
+// Miss-analysis: the given-way rows pasted rules without their ending, so no row read the line after.
+const ENDED: [name: string, marked: string, clip: string, typed: string][] = [
+	['an empty star item', '* a\n* ‸\n* b\n', '* * *\n', '* a\n\n* * *\n* Z\n* b\n'],
+	['an empty bullet', '- a\n- ‸\n- b\n', '- - -\n', '- a\n\n- - -\n- Z\n- b\n']
+];
+
+for (const mode of ['source', 'live'] as const)
+	for (const [name, marked, clip, typed] of ENDED)
+		it(`${mode}: ${JSON.stringify(clip)} in ${name} opens the next item under the rule`, async () => {
+			expect((await landed(marked, mode, clip, 'key'))[1]).toBe(typed);
+		});
 
 // Miss-analysis: the given-way rows had an item over the list, so none asked whether a rule taking
 // the list's first line reads as the underline of a paragraph over it.
