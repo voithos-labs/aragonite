@@ -717,4 +717,4 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.355 · One push for a fold.** `src/lib/tree-operations/chain-rebuild.ts :: foldWrite` is where a fold is reported and where G1.220 reads it. The scan fails a `folds.push` anywhere else, and a `foldWrite` that stops calling the check. `lint/fold-doors.test.ts`.
 
-**G4.357 · One guard's warnings, taken alone.** A test about one guard reads its fires through `takeDevWarnsOf(tag)` (`test/support/warn-gate.ts`), which leaves every other tag for the gate. A `takeDevWarns()` filtered down to one tag drops the rest unseen: a property did, and hid a check that fired on its every run. `lint/suite-file-rules.test.ts`.
+**G4.357 · One guard's warnings, taken alone.** A test about one guard reads its fires through `takeDevWarnsOf(tag)` (`test/support/warn-gate.ts`), which leaves every other tag for the gate. A `takeDevWarns()` narrowed to one tag (a `filter`, a `some`) drops the rest unseen: a property did, and hid a check that fired on its every run. `lint/suite-file-rules.test.ts`.

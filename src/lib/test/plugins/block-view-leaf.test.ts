@@ -14,7 +14,7 @@ import {
 	type MountedEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { dispatchKey, pressKey } from '#lib/test/harness/settle.js';
-import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { takeDevWarnsOf } from '#lib/test/support/warn-gate.js';
 import { newestEntryCaret } from '../harness/undo-entry';
 import { BLOCK_CONTENT_SELECTOR } from '#lib/caret/block-content-selector.js';
 import { blockContentElAt } from '#lib/caret/block-el-lookup.js';
@@ -302,10 +302,7 @@ describe('G1.136: a DOM leaf view’s element rules', () => {
 				return {};
 			}
 		});
-	const dropWarns = () =>
-		takeDevWarns()
-			.map((w) => w.tag)
-			.filter((tag) => tag === 'invariant:dom-view-content');
+	const dropWarns = () => takeDevWarnsOf('invariant:dom-view-content').map((w) => w.tag);
 
 	it('is quiet for chrome on either side of the attached element', async () => {
 		const editor = mountLeaf(

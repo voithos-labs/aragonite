@@ -36,8 +36,8 @@ const mockCall = (spec: string) => `vi.${'mock'}(${quoted("'", spec)}, () => ({}
 const spyCall = (mark: string, channel: string) =>
 	`vi.spyOn(console, ${quoted(mark, channel)}).mockImplementation(() => {});`;
 const clockRead = (host: string) => `const t = ${host}.now();`;
-const filteredTake = (gap: string) =>
-	`const mine = ${'take'}DevWarns()${gap}.filter((w) => w.tag === TAG);`;
+const narrowedTake = (chain: string) =>
+	`const mine = ${'take'}DevWarns()${chain}((w) => w.tag === TAG);`;
 const depsField = (name: string) => `const deps = { ${name}: refSlotsOver(refs) };`;
 const timerWait = (timer: string) => `await new Promise((r) => ${timer}(r));`;
 const rune = (name: string, arg: string) => `const x = ${'$'}${name}(${arg});`;
@@ -250,14 +250,21 @@ const RULES: FileRule[] = [
 	},
 	{
 		id: 'G4.357 a test reads one guard’s warnings through the one-tag take',
-		matches: /takeDevWarns\(\)\s*\.filter\(/,
+		matches:
+			/takeDevWarns\(\)\s*(?:\.map\(\(?\w+\)?\s*=>\s*\w+\.tag\)\s*)?\.(?:filter|some|find)\(/,
 		reason:
-			'a filtered takeDevWarns() drains every other guard’s fire unseen, so the gate cannot fail the test on it: takeDevWarnsOf(tag) takes one tag and leaves the rest',
+			'a takeDevWarns() narrowed to one tag drains every other guard’s fire unseen, so the gate cannot fail the test on it: takeDevWarnsOf(tag) takes one tag and leaves the rest',
 		reaches: BOTH_HALVES,
-		hits: [filteredTake(''), filteredTake('\n\t\t')],
+		hits: [
+			narrowedTake('.filter'),
+			narrowedTake('\n\t\t.filter'),
+			narrowedTake('.some'),
+			narrowedTake('\n\t\t.map((w) => w.tag)\n\t\t.filter')
+		],
 		misses: [
 			'const mine = takeDevWarnsOf(TAG);',
-			'expect(takeDevWarns()).toEqual([]);\nconst tags = takeDevWarns().map((w) => w.tag);'
+			'expect(takeDevWarns()).toEqual([]);\nconst tags = takeDevWarns().map((w) => w.tag);',
+			'expect(takeDevWarns().every((w) => w.tag === TAG)).toBe(true);'
 		]
 	},
 	{
