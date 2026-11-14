@@ -8,7 +8,7 @@
 import type { DocumentView, NodeView } from '../../core/node-views';
 import { sharedPrefixLength, sharedSuffixLength, writtenSpan } from '../../core/written-span';
 import { documentByteMap } from '../../tree-operations/container-offsets';
-import { measured } from '../../tree-operations/top-level-starts';
+import { measured, type Measured } from '../../tree-operations/top-level-starts';
 import { splitLines } from '../../core/lines';
 import { unfinishedReadings, type GrammarView } from '../../schema/block-openers';
 
@@ -133,6 +133,15 @@ export function positionAt(lengths: readonly number[], at: number): PartPosition
 	let part = 0;
 	while (part < lengths.length && at >= lengths[part]) at -= lengths[part++];
 	return { part, offset: at };
+}
+
+/** Position `at` as a byte of `of`'s document by its kept starts, the coordinates the byte splice
+ *  reads its text in, so a commit's offsets and the bytes it changes come from one record. */
+export function byteIn(of: Measured, at: PartPosition): number {
+	const blocks = of.doc.children.length;
+	if (at.part === 0) return at.offset;
+	// The part past the blocks is the suffix, and the one past that the document's end.
+	return (at.part <= blocks + 1 ? of.starts.start(at.part - 1) : of.starts.length) + at.offset;
 }
 
 export function byteAt(lengths: readonly number[], at: PartPosition): number {

@@ -42,13 +42,17 @@ describe('a copy reads the editor’s bytes, made once per content version', () 
 		const source = serialize(doc);
 		const starts = createKeptStarts(
 			() => doc,
-			() => {}
+			() => {},
+			(error) => {
+				throw error;
+			}
 		);
 		const bytes = documentBytes({
 			version: () => 1,
 			doc: () => doc,
 			source: () => source,
-			measured: starts.read
+			measured: starts.read,
+			vouch: starts.vouch
 		});
 		const selection = createSelectionState({ getDoc: () => doc });
 		selection.enterCrossBlock({ path: [0, 1, 0], offset: 1 }, { path: [1], offset: 2 });

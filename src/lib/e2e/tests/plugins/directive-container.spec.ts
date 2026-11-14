@@ -89,4 +89,17 @@ test.describe('plugin container: generic :::name directive', () => {
 		expect(await editor.bridge.getSource()).toBe(':::foo Title\nhello\n:::\n');
 		expect(await roundTripStable(page)).toBe(true);
 	});
+
+	test('a letter at the start of the :::foo line, two blocks inside and a paragraph above, doubles no line', async ({
+		page
+	}) => {
+		await editor.loadContent('x\n:::foo\nner\n\nmore\n:::\n\n# h\n');
+		await editor.focusBlockAtPath([0], 0);
+		await page.keyboard.press('ArrowDown');
+
+		await page.keyboard.type('qw');
+
+		await editor.bridge.waitForSourceEquals('x\nqw:::foo\nner\n\nmore\n:::\n\n# h\n');
+		expect(await editor.parseConverged()).toBe(true);
+	});
 });

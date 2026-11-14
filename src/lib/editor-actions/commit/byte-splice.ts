@@ -82,6 +82,8 @@ export function createByteSplice(
 					: [];
 				if (closers.length > 0) changes = withSplicedClosers(before, splice.changes, closers);
 				reading = closers.length > 0 ? spliceReading(was, before, changes, grammar) : read;
+				// The record already reported what it found, so the write is refused with no second error.
+				if (reading && !tookTreeBytes(deps, reading)) return false;
 				windows = reading?.windows ?? [];
 				if (!('eventPath' in splice.op)) op.eventPath = docPathFrom([windows[0]?.at ?? 0]);
 				// Measured in the caller's bytes, then past the closers, so a caret inside a write stays
@@ -128,6 +130,15 @@ export function createByteSplice(
 			reveal: splice.reveal
 		});
 	};
+}
+
+/** Whether what the editor keeps of the blocks `reading` took its bytes from is what the tree
+ *  holds: asked before the reading is installed (`KeptStarts.vouch`). */
+export function tookTreeBytes(
+	deps: Pick<EditorActionsDeps, 'starts'>,
+	reading: SpliceReading
+): boolean {
+	return reading.took.every(({ from, to }) => deps.starts.vouch(from, to));
 }
 
 /** The live document's top-level blocks (`tops`, a plain list of them as they stand) read again as

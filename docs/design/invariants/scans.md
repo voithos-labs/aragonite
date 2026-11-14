@@ -246,6 +246,8 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.349 | A range edit lays out the container lines it asks for, each the line the whole container pairs | harness |
 | G4.350 | A removal keeps each line after its range a line of its own, in the fenced containers that held it | harness |
 | G4.351 | Delete over a range whose first blocks went whole lands on the text left after the range | harness |
+| G4.353 | Every reader of the text a write is worked out from names the vouch its bytes pass | L |
+| G4.355 | The chain rebuild reports a fold in one place, which checks it | L |
 
 ### The entries
 
@@ -704,7 +706,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.340 · A position costs its path.** Every write route (`test/harness/write-routes.ts`), with a listener asking a position on every edit, measures as many top-level blocks at 400 as at 40, unless it names no blocks; with no listener, none, unless the write reads positions to make itself. A byte splice measures as many at 400 as at 40. `measured(doc)` measures every block it's handed, so its callers are a declared list. `test/perf/top-level-starts-reads.test.ts`, `splice-top-level-cost.test.ts`, `lint/measured-callers.test.ts`.
 
-**G4.342 · A range edit costs its range.** `range-edit/host.ts :: rangeHost` reads the core's answer through the byte splice's windowed read and the commit takes that reading (`tree-operations/byte-splice.ts :: spliceReading`), so a range route or a copy parses and measures as much at 400 blocks as at 40. Given a tree that is the parse of its bytes, each read is what a fresh parse gives (G4.347). Recorded: each serializes the document once, and a removal walks the top-level list three times. `test/perf/range-edit-window-cost.test.ts`, `test/range-edit/answer-read.property.test.ts`.
+**G4.342 · A range edit costs its range.** `range-edit/host.ts :: rangeHost` reads the core's answer through the byte splice's windowed read and the commit takes that reading (`tree-operations/byte-splice.ts :: spliceReading`), so a range route or a copy parses and measures as much at 400 blocks as at 40. Given a tree that is the parse of its bytes, each read is what a fresh parse gives (G4.347). A removal after a write walks the top-level list once, a copy never; neither reads the tree's text. `test/perf/range-edit-window-cost.test.ts`, `test/range-edit/answer-read.property.test.ts`.
 
 **G4.346 · A key asks a long run once.** The look for a wait (`schema/block-openers.ts :: waitingPast`) keeps each pair's first answer while both blocks, the readings and the paragraph interrupts stand. A second key at the foot of 2,000 or 8,000 flush definitions asks the same few and reads each block once: 0.4 and 1.6 ms in Chromium. G1.214 skips a run past 16 KB, so a differential guards it: the kept look equals one that keeps nothing, step by drawn step. `test/perf/keystroke-wait-cost.svelte.test.ts`, `test/schema/wait-look-memo.svelte.test.ts`, `test/range-laws/wait-look-session.test.ts`.
 
@@ -715,3 +717,7 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.350 · The lines a removal leaves stay.** Each line after the block a range ends in stays a line of its own, in order, in the fenced containers that held it, so a kept closing line closes its own container; the line the range starts on stays, emptied, where its block does. Law 4 asks both of every draw (`test/range-edit/kept-lines.ts`). Its property, whose draws join no text, also asks that the lines after the end's line keep their bytes, each marker once. A range ending past a table's last line ending is skipped. `test/range-edit/kept-lines.property.test.ts`, `named-rows-closers.ts`.
 
 **G4.351 · Delete lands on the text after.** Where the blocks a range starts in go whole and it enters a fenced block, Delete and a composition land where the text after the range starts, past the openings the removal kept and the next line's markers (`range-edit/removal.ts` hands that byte to `edit-range.ts :: startAfter`). A container it entered and emptied holds the caret where its blocks were; a line the removal emptied at the range's start keeps it. The G4.350 property asks it of each draw with text after the range. `test/range-edit/kept-lines.property.test.ts`, `named-rows-closers.ts`.
+
+**G4.353 · A reader of kept bytes names its vouch.** The files that read `bytes.source`, hand the range-edit core the editor's own document, or take a position off the kept starts are declared sets, each row saying where its bytes are compared with the tree (G1.219). A new range gesture or splice caller fails here until it takes its read from `rangeRead` or lands through the byte splice. `lint/kept-bytes-doors.test.ts`.
+
+**G4.355 · One push for a fold.** `src/lib/tree-operations/chain-rebuild.ts :: foldWrite` is where a fold is reported and where G1.220 reads it. The scan fails a `folds.push` anywhere else, and a `foldWrite` that stops calling the check. `lint/fold-doors.test.ts`.

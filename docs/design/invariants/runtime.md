@@ -128,10 +128,12 @@ These checks run in three kinds of place:
 | G1.201 | A byte splice inside a container reads only children whose old bytes read back as themselves | A·N |
 | G1.206 | A write that replaced no link definition leaves the definitions as they were | A·N |
 | G1.208 | A widget selected whole in the focused block leaves the browser a collapsed caret there | A·N |
-| G1.209 | The starts the editor keeps for its top-level blocks are the document's | A·N |
+| G1.209 | The bytes the editor keeps for its top-level blocks are the document's | A·N |
 | G1.211 | A write started while another is open writes nothing | A·L·N |
 | G1.212 | A range read as bytes spans every block its coverage holds whole | A·N·P |
 | G1.214 | A block a keystroke wrote in place reads back with the blocks flush around it | A·N |
+| G1.219 | Bytes read off the kept record are compared with the tree before they leave it | A·N·P |
+| G1.220 | A fold of the chain rebuild spells the lines its list spelled before it | A·N |
 
 ### The entries
 
@@ -149,7 +151,7 @@ These checks run in three kinds of place:
 
 **G1.8 · Well-formed content ranges.** `getContentRange` is well-formed for every kind that has one: the prose kinds, plus any non-prose kind declaring its own (the directive leaf does), because the range is consumed without asking `supportsInline` first. Predicate `checkContentRange` (`descriptor.ts`) · commit primitive · `descriptor.test.ts`.
 
-**G1.9 · Snapshot aliasing.** No mutation writes bytes through a node an undo or redo entry shares; moving one is fine. Readers and plugins hold bytes-readonly views (G3.8, G4.13), and a writer copies the path first (`tree-operations/unshare.ts`); only the table rebuild writes a child's bytes, to a row already copied. G1.209 leans on it, finding a block written in place by its absence from the newest snapshot. Dev hashes every node's bytes. `checkSnapshotIntegrity` · `snapshot-integrity.test.ts`, `undo-restoration.property.test.ts`, `grammar-restore.test.ts`; a throwing commit is G2.17.
+**G1.9 · Snapshot aliasing.** No mutation writes bytes through a node an undo entry shares; moving one is fine. Readers and plugins hold bytes-readonly views (G3.8, G4.13), and a writer copies the path first (`tree-operations/unshare.ts`); only the table rebuild writes a child's bytes, to a row already copied. G1.209 leans on it to find a block written in place. Dev hashes every node's bytes and compares each pushed list with the tree's. `checkSnapshotIntegrity` · `snapshot-integrity.test.ts`, `undo-restoration.property.test.ts`, `grammar-restore.test.ts`; a throwing commit is G2.17.
 
 **G1.10 · Unique opener priorities.** No two openers share a priority: a tie still dispatches by kind name, but it's almost always a mistake. Predicate `checkOpenerRegistry` (`registry.ts`) · bootstrap · `opener-registry.test.ts`.
 
@@ -355,12 +357,16 @@ These checks run in three kinds of place:
 
 **G1.208 · A selected widget keeps a caret** (`widget-keeps-caret`). Text that arrives with no key (a soft keyboard, an emoji picker, an IME) goes only to a selection, so a widget selected whole in the focused block keeps a collapsed caret in that block, hidden, and the selection bridge puts it back when the browser moves or drops it. Nothing shows it, so G1.159 doesn't judge it (`placeUnshownCaret`). Dev fails the bridge's check with none there. Reading mode holds no caret and is exempt. `checkWidgetKeepsCaret` · `widget-keeps-caret.test.ts`, `typed-insert-class.spec.ts`.
 
-**G1.209 · The kept starts are the document's** (`kept-starts-current`). A byte writer changes the tree inside the record's `duringWrite` and hands back the runs it changed, or null, which forgets the record; a throw forgets it too. A view is read again after each write. Dev fails a kept length unlike the tree's, a block count changed unannounced, and a read inside a write (answered from a fresh measure in every build). `invariants/kept-starts.ts` · `commit/kept-starts.ts` · `top-level-starts.test.ts`, `kept-starts-routes.test.ts`, `write-window-closes.test.ts`.
+**G1.209 · The kept bytes are the document's** (`kept-starts-current`). The record holds each top-level block's two strings. A byte writer changes the tree inside its `duringWrite` and hands back the runs it changed, or null, which forgets the record; a throw forgets it too. Dev fails a kept string unlike the tree's, a block count changed unannounced, and a read inside a write (answered from a fresh measure in every build). `invariants/kept-starts.ts` · `commit/kept-starts.ts` · `top-level-starts.test.ts`, `kept-starts-routes.test.ts`, `write-window-closes.test.ts`.
 
 **G1.211 · One write at a time.** A write started between another's first change and its announcement (from a write rule or a `rebuildRaw`, say) would vanish under the outer publish, so it writes nothing, pushes no entry, emits no `edit`, reports on `error` and throws in dev. Each entry point asks `startsAlone` first; `duringWrite` refuses a second window in every build. An `edit` or `selectionChange` handler may write. `commit/reading-write-gate.ts` · `write-inside-write.test.ts`, `lint/content-version-doors.test.ts`.
 
 **G1.212 · A range holds its whole blocks** (`range-holds-whole`). The bytes a copy, a removal and the overlay read span every block the coverage holds whole, a title row to its text. An end stepping back off a block it can't join would otherwise stop inside one: at a closed summary's text, before a `:::` closer. `rangeBytes` widens last; dev checks it. `checkRangeHoldsWhole` (`range-holds-whole.ts`) · `selection/range-bytes.ts :: rangeBytes` · `range-holds-whole.property.test.ts`, `selection/range-end-narrowing.test.ts`, `selection/cross-block/range-holds-whole.test.ts`.
 
+**G1.219 · Kept bytes leave through a vouch** (`kept-starts-current`). A write that named too few blocks leaves the record wrong, and nothing at the write can tell in production. So a range gesture's read (`rangeRead`) and a draft's commit compare the blocks they name or reach with the tree and read again, a byte splice compares the blocks its reading took and refuses the write, and `getSource()` reads the tree, never the record. Each mismatch forgets the record and fires `error`. `KeptStarts.vouch`, `saved` · `kept-bytes-vouch.test.ts`; the readers are G4.353.
+
 **G1.214 · A block written in place reads back with its run** (`settled-window-reads-back`). A keystroke that keeps its block's kind reports no window, yet its bytes can change a neighbour: a `"` that closes a title a definition above was waiting on. So where the written block stands flush against one, it is read with every block no blank line parts from it, and so is a list or quote it sits in. Skipped past 16 KB and in perf runs. `checkWrittenInPlaceReadsBack` · `fix-up/apply.ts`, `chain-rebuild.ts` · `settled-window-reads-back.test.ts`, `backing-out-opener-join.test.ts`.
+
+**G1.220 · A fold keeps its lines** (`fold-keeps-lines`). A fold re-reads blocks where they stand: a container's new bytes placed as the blocks they read as, a join merged, a wait read again. It writes and takes blank lines and nothing else, so its list spells the same lines in the same order afterwards, blank ones aside. No read-back holds that, because lines written twice can read as the tree does. When it fires, a fold wrote at an index that had moved. Skipped past 1 MB. `checkFoldKeepsLines` · `chain-rebuild.ts :: foldWrite` · `fold-keeps-lines.test.ts`, `container-slot-reading.test.ts`.
 
 **G1.201 · A container's window reads back first** (`container-window-reads-back`). Before a byte splice reads a run of a list's, quote's or table's children again with the change made, it reads their old bytes the same way, and those must come out as the children the container held. When they don't, the child spans were stale or the container's own reading disagrees with the document's, so dev warns and the splice takes the top-level window. Inline in `tree-operations/container-window.ts :: containerWindow` · `container-window.property.test.ts`.

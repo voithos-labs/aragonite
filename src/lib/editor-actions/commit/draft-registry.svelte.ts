@@ -18,9 +18,11 @@ import { assertDraftBytesKept } from '../../invariants/install';
 import { docPathFrom } from '../../core/coordinate-spaces';
 import { leafAtByte } from '../../tree-operations/container-offsets';
 import type { Measured } from '../../tree-operations/top-level-starts';
+import type { KeptStarts } from './kept-starts';
 import {
 	blockRange,
 	byteAt,
+	byteIn,
 	lengthsBefore,
 	partLengths,
 	positionAt,
@@ -57,6 +59,8 @@ export interface DraftWrites {
 
 /** `starts` and `events` refuse a commit started while another write is open. */
 export interface DraftRegistryDeps extends OpenWriteCheck {
+	/** `vouch` compares what is kept of the blocks a commit's ranges name with the tree. */
+	readonly starts: Pick<KeptStarts, 'writing' | 'vouch'>;
 	stamps: Pick<DocumentStamps, 'current' | 'historySwapping'>;
 	doc(): DocumentView;
 	/** That document with the starts the editor keeps for it. */
@@ -130,13 +134,21 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 			if (illegal) return refused('illegal', illegal);
 			const doc = deps.doc();
 			if (writes.length === 0) return write(doc, [], caret);
-			const now = partLengths(doc);
-			const unsorted: ByteChange[] = [];
+			const placed: PartRange[] = [];
 			for (const pending of writes) {
 				const at = current(pending.range);
 				if (!at) return refused('moved', 'a write elsewhere changed bytes it replaces');
-				unsorted.push({ from: byteAt(now, at.from), to: byteAt(now, at.to), insert: pending.text });
+				placed.push(at);
 			}
+			// A range's offsets count the tree's bytes, so its blocks are vouched before the kept
+			// starts place them: a record found wrong is forgotten, and the read below is fresh.
+			for (const at of placed) deps.starts.vouch(at.from.part - 1, at.to.part - 1);
+			const now = deps.measured();
+			const unsorted: ByteChange[] = placed.map((at, i) => ({
+				from: byteIn(now, at.from),
+				to: byteIn(now, at.to),
+				insert: writes[i].text
+			}));
 			const changes = [...unsorted].sort((a, b) => a.from - b.from || a.to - b.to);
 			for (let i = 1; i < changes.length; i++) {
 				if (changes[i].from < changes[i - 1].to || changes[i].from === changes[i - 1].from)
