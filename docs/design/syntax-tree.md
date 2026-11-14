@@ -268,11 +268,11 @@ That means a blank block does two jobs at once: it's a block, and it's the separ
 
 #### The last line
 
-The last line is the one line allowed to have no line ending, and a file saved without a final line break keeps it that way through any structural edit and through typing (an inline paste still adds one, for now). The commit ends the lines of every block an edit places, then takes the break back off whichever block ends up last (`docs/design/commit-and-undo.md` § The commit primitive).
+The last line is the one line allowed to have no line ending, and a file saved without a final line break keeps it that way through any structural edit, typing and pasting (a paste over a range that takes the last line from a line's start still adds one, for now). The commit ends the lines of every block an edit places, then takes the break back off whichever block ends up last (`docs/design/commit-and-undo.md` § The commit primitive).
 
 One exception, on purpose: when the new last line is blank, it keeps its break, since a blank line is nothing but its break and dropping it would drop the block too. That covers Enter at the very end, ArrowDown past the last block, an empty inserted paragraph, and the empty line Enter leaves in a last quote or list item.
 
-An emptied file has no last line, so nothing is kept or lost: a file that had no final break types its next letter with none.
+An emptied file has no last line, so nothing is kept or lost: a file that had no final break types its next letter, or takes a paste over all of it, with none.
 
 #### Where the separators get fixed up
 

@@ -540,7 +540,8 @@ function placeAfterRemoval(
 	const slot = emptiedPlace(bytes.measured(), removed);
 	if (slot) return placeOfGap(bytes, { parentPath: slot.slice(0, -1), index: slot.at(-1)! });
 	const { landed, caret } = removed;
-	if (landed?.holds === 'block') {
+	// A document the removal emptied has no block to hold a caret, so the core's landing is the place.
+	if (landed?.holds === 'block' || (landed && bytes.doc().children.length === 0)) {
 		const { at, ...held } = landed;
 		return { range: { from: at, to: at }, ...held };
 	}

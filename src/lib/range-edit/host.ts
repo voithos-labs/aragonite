@@ -197,8 +197,9 @@ const parsedIn = (reading: Reading, source: string) =>
 /** `source` read off `now`, with starts that measured only the blocks it changes. */
 function readOff(reading: Reading, now: CurrentDocument, source: string): Measured {
 	if (source === now.source) return now.measured;
-	// No bytes parse to no block, where the splice keeps an emptied document one paragraph.
-	if (source === '') return measured(parsedIn(reading, source));
+	// No bytes parse to no block, where the splice keeps an emptied document one paragraph; and the
+	// splice has no block to read off in a document with no bytes.
+	if (source === '' || now.source === '') return measured(parsedIn(reading, source));
 	const changes = changesBetween(now.source, source);
 	const read = spliceReading(now.measured, now.source, changes, reading.grammar);
 	if (!read) return now.measured;
