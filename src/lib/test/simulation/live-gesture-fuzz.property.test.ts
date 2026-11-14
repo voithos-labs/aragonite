@@ -51,8 +51,8 @@ describe('live-mode gestures at hidden edges', () => {
 		// reaches. Both count draws where live diverged from the byte-literal edit.
 		expect(stats.rewrote['format-toggle']).toBeGreaterThan(5);
 		expect(stats.rewrote['word-delete']).toBeGreaterThan(5);
-		// G1.91: a join keeps every kept character's marks but where no spelling can close the run;
-		// that share swings with the draw, up to an eighth of the joins over seeds.
+		// G1.91: a join keeps every kept character's marks but where no spelling can close the run.
+		// At about 80 joins this only trips on a gross rise; live-seam draws enough to hold the share.
 		const joins =
 			stats.rewrote['range-delete'] + stats.rewrote['type-over'] + stats.rewrote['word-delete'];
 		expect(stats.marksDropped).toBeLessThan(joins / 5);
@@ -280,6 +280,23 @@ describe('the checks read what the contracts allow and nothing more', () => {
 		const source = ' ~\n\n~a~~\n';
 		expect(judged(source, press, ' ~\n\n~~~\n~~~\n', ' ~\n\n~~~\n~~~\n')).toEqual([]);
 		expect(judged(source, press, ' ~\n\n~~~*\n', ' ~\n\n~~~\n~~~\n')).toEqual(['bytes']);
+	});
+
+	// The commit rereads a block whose bytes change kind, so no live-only edit reaches this check;
+	// a tree that reads otherwise than its reload still has to red it.
+	it('a tree its reload reads as another kind is a shape fault', () => {
+		const source = 'a\n';
+		const stale = parse(source);
+		stale.children[0].raw = '# a\n';
+		const applied = { bytes: '# a\n', doc: stale, claimed: false };
+		const literal = { bytes: '# a\n', doc: parse('# a\n'), claimed: false };
+		const found = judgeGesture(
+			gesture({}),
+			{ bytes: source, doc: parse(source) },
+			applied,
+			literal
+		);
+		expect(found.filter((v) => v.category === 'seam').map((v) => v.oracle)).toContain('shape');
 	});
 });
 
