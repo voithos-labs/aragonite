@@ -83,7 +83,14 @@ export async function pasteInBlock(
 	const live = modeOf(ctx) === 'live';
 	const { path, start, end } = span;
 	const aim = { named: [path], place: () => placeInBlock(ctx.bytes, path, start, end, live) };
-	return pasteThroughCore(ctx, aim, clip, undo, spend);
+	return pasteThroughCore(ctx, aim, takenBy(ctx, path, clip), undo, spend);
+}
+
+/** `clip` as the kind of the text block at `path` takes text in. */
+function takenBy(ctx: PasteContext, path: readonly number[], clip: Clip): Clip {
+	const node = blockNodeAt(ctx.getDoc(), path);
+	const text = node && getPasteSurface(node.kind, ctx.activePlugins)?.pastedText?.(clip.text);
+	return text === undefined || text === null ? clip : { ...clip, text };
 }
 
 /** Whether the kind of the text block at `path` answered the paste itself, ahead of the core;

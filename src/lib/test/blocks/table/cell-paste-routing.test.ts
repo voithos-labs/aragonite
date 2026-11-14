@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// Where a paste dropped on a cell ends up: through the cell's paste handler, the dispatcher and
-// the handling registered for `tableCell`. Either failure breaks the table silently: the generic
-// inline handling taking the paste, or a pasted newline reaching `cell.raw`.
+// Where a paste dropped on a cell ends up: the cell's own answer (a grid, or blocks around the
+// table) ahead of the range-edit core, else text on the cell's one line. Either failure breaks the
+// table silently: blocks written into the cell, or a pasted newline reaching `cell.raw`.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { metadataOf } from '#lib/core/nodes.js';
@@ -133,6 +133,49 @@ describe('a paste into a cell lands on the cell’s own paste surface', () => {
 
 		expect(mounted.source()).toBe(GRID);
 	});
+});
+
+// Miss-analysis: the trim was pinned through the dispatcher the range-edit core replaced, and the
+// one live row over a cell's text began at its edge, where the cell's own write trims anyway.
+describe('a cell trims the blank edges of pasted text, in both modes', () => {
+	const NBSP = ' ';
+	// [name, cell's row and column, the cell text selected, clipboard, the row after]
+	const ROWS: [string, [number, number], [number, number] | null, string, string][] = [
+		['leading spaces', [1, 0], null, '  hello', '| onehello | 2 |'],
+		['trailing spaces', [1, 0], null, 'hello  ', '| onehello | 2 |'],
+		['spaces at both edges', [1, 0], null, '  hello  ', '| onehello | 2 |'],
+		['a tab at each edge, which makes a grid row', [1, 0], null, '\thello\t', '|  | hello |  |'],
+		['a line ending at each edge', [1, 0], null, '\nhello\n', '| onehello | 2 |'],
+		[
+			'text a copy wrapped in blank lines',
+			[1, 0],
+			null,
+			'  \nhello\nworld\n  ',
+			'| onehello world | 2 |'
+		],
+		['a header cell', [0, 0], null, '  x  ', '| Ax | B |'],
+		['text over a range in the cell', [1, 0], [1, 3], '  X  ', '| oX | 2 |'],
+		[
+			'a non-breaking space, which is content',
+			[1, 0],
+			null,
+			`${NBSP}hello `,
+			`| one${NBSP}hello | 2 |`
+		]
+	];
+	for (const mode of ['source', 'live'] as const)
+		for (const [name, [row, col], range, clip, after] of ROWS)
+			it(`${mode}: ${name}`, async () => {
+				mounted = mountEditor({ source: GRID, presentationMode: mode });
+				const el = cellAt(mounted!, row, col);
+				if (range) selectInCell(el, ...range);
+				else caretAtCellEnd(el);
+
+				await pasteInto(el, clip);
+
+				const line = row === 0 ? 0 : 2;
+				expect(mounted.source().split('\n')[line]).toBe(after);
+			});
 });
 
 // Miss-analysis: what a cell makes of a clipboard was held through the dispatcher the range-edit

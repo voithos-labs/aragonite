@@ -10,7 +10,7 @@ import { blockNodeAt } from '../../../tree-operations/node-primitives';
 import { sliceTableAtRow } from '../../../tree-operations/paste/table-slice';
 import { focusIndexBeforeResidue } from '../../../tree-operations/paste/focus-target';
 import { landClipboardBlocks, landedAfter } from '../../../tree-operations/paste/paste-replacement';
-import { documentLineEnding, withLineEnding } from '../../../core/lines';
+import { documentLineEnding, trimWhitespace, withLineEnding } from '../../../core/lines';
 import type {
 	ClipPasteInput,
 	PasteSurface,
@@ -28,7 +28,8 @@ import { parseClipboardGrid, tileGridTo } from '../../../tree-operations/table-g
 
 export const tableCellPasteSurface: PasteSurface = {
 	kind: 'tableCell',
-	onClipPaste: async (input) => (await pasteGridInto(input)) || pasteBlocksAround(input)
+	onClipPaste: async (input) => (await pasteGridInto(input)) || pasteBlocksAround(input),
+	pastedText: trimWhitespace
 };
 
 // ── A grid, then blocks ────────────────────────────────────────────────────

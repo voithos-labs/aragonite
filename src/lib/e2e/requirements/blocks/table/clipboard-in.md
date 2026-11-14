@@ -19,6 +19,11 @@ A grid is data for the cells rather than a block to splice between them, which i
     paragraph last, whose next line the rows below it would continue
 - Paste a multi-block clipboard (paragraph + heading): all blocks are inserted between the halves in order.
 
+## Happy paths (text)
+
+- Paste text into a cell: its line breaks become single spaces and its blank edges are trimmed, so `  ⏎hello⏎world⏎  ` pasted after `1` gives `| 1hello world |`, the table one block
+  - Miss-analysis: the trim was pinned through the dispatcher the range-edit core replaced, so the live path dropped it with no test to see
+
 ## Edge cases
 
 - Paste at the header row (row 0): the paste-row goes to the first half, so the first half is the header-only table, the pasted blocks follow, and the second half is the remaining body rows promoted.
@@ -63,4 +68,4 @@ A grid is data for the cells rather than a block to splice between them, which i
 The text a cell takes in runs on a mounted cell, where the paste event is dispatched and the document read back:
 
 - Plain text lands at the caret or replaces the selected range, and a paste of text containing `|` escapes every pipe to `\|` so the row keeps its column count (`test/blocks/table/cell-paste-routing.test.ts`).
-- Newlines collapse to a single space and the edges are trimmed, and text a copy wrapped in blank lines (one content paragraph) still takes this inline path with the table whole (`test/blocks/table/cell-paste-routing.test.ts`).
+- Newlines collapse to a single space and the blank edges are trimmed in both modes, a non-breaking space kept as text, and text a copy wrapped in blank lines (one content paragraph) still takes this inline path with the table whole (`test/blocks/table/cell-paste-routing.test.ts`).
