@@ -2666,9 +2666,7 @@ const RANGE_INDENT: ManifestRule[] = [
 		matches: /\{\s*kind:\s*'command',/,
 		declared: {
 			'src/lib/selection/cross-block/keydown.ts':
-				'Enter and Mod+digit, whose candidate test leaves Tab to the range indent',
-			'src/lib/selection/cross-block/dispatch.ts':
-				'a break that arrives with no key, which is Enter or Shift+Enter and never Tab'
+				'Enter and Mod+digit, whose candidate test leaves Tab to the range indent'
 		},
 		reason:
 			'a range replace with a command insertion removes the range before the key runs, which Tab must never do: Tab over a range goes to `indentRange`',

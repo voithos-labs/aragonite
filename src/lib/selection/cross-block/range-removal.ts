@@ -68,16 +68,29 @@ export const CORE_GESTURE: Record<BlockGesture, RemovalGesture> = {
 	keyless: 'command'
 };
 
-/** How the core names a command key's removal, by the command `chord` runs in `kind`, the block
- *  the key was claimed in: a line break's, any other command's from Backspace's side. */
+type Keymap = Pick<CommandDispatchContext, 'keybindingOverrides' | 'activation'>;
+
+/** How the core names a command key's removal, by what its chord runs in `kind`, where it was
+ *  claimed: a line break, else Backspace's side. A break input that runs nothing is a break. */
 export function commandGesture(
 	kind: AnyBlockKind,
-	chord: string,
-	commands: Pick<CommandDispatchContext, 'keybindingOverrides' | 'activation'>
+	insertion: { kind: 'command' | 'break'; chord: string },
+	commands: Keymap
 ): RemovalGesture {
+	const command = boundCommand(kind, insertion.chord, commands);
+	if (command === undefined) return insertion.kind === 'break' ? 'break' : 'command';
+	return LINE_BREAK_COMMAND_IDS.has(command) ? 'break' : 'command';
+}
+
+/** Whether `chord` runs a line break in a block of `kind`. */
+export function breaksLine(kind: AnyBlockKind, chord: string, commands: Keymap): boolean {
+	const command = boundCommand(kind, chord, commands);
+	return command !== undefined && LINE_BREAK_COMMAND_IDS.has(command);
+}
+
+function boundCommand(kind: AnyBlockKind, chord: string, commands: Keymap) {
 	const overrides = commands.keybindingOverrides();
-	const command = resolveBinding(chord, kind, overrides, commands.activation)?.command;
-	return command !== undefined && LINE_BREAK_COMMAND_IDS.has(command) ? 'break' : 'command';
+	return resolveBinding(chord, kind, overrides, commands.activation)?.command;
 }
 
 /** Removes what `coverage` holds as `gesture` does, in one commit. */

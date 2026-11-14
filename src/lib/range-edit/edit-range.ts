@@ -230,10 +230,15 @@ function besideOf(gesture: Gesture, doc: Doc, range: Range): Beside {
 	return gesture === 'delete' || gesture === 'compose' ? 'text after' : 'start after';
 }
 
-/** Whether the range ends inside a block that starts inside it, whose text is then the text after. */
+/** Whether the range ends before the end of a leaf that starts inside it, so that leaf's text
+ *  follows the caret: a block after the leaf is one the range never reached. */
 const entersAtEnd = (doc: Doc, { from, to }: Range): boolean =>
-	findWithin(doc, to, to, (b) => from <= b.from && b.from < to && to < contentEnd(doc, b)) !==
-	undefined;
+	findWithin(
+		doc,
+		to,
+		to,
+		(b) => !!b.text && from <= b.from && b.from < to && to < contentEnd(doc, b)
+	) !== undefined;
 
 /** What a removal gesture leaves: text typed over one block held whole takes its place, and the
  *  line stays. */
@@ -344,8 +349,8 @@ function underRow(owner: LaidBlock, row: LaidBlock, at: number): Place {
 	return { at: closes ? Math.min(at, line.from) : at, holds: 'boundary', parent: owner.path };
 }
 
-/** Where a line break goes: before the text after where the range ended inside a block it entered,
- *  else at the end before; beside a title row, which takes none, in the gap on the range's side. */
+/** Where a line break goes: before the text after where the range ended inside a leaf's text, else
+ *  at the end before; beside a title row, which takes none, in the gap on the range's side. */
 function lineBreakAt(doc: Doc, caret: number, after: number, inside: boolean): Place | null {
 	const before = inside ? null : endBefore(doc, caret);
 	const place = before ?? startAfter(doc, caret, after);

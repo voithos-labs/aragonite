@@ -42,3 +42,10 @@ whose removal kept the caret short of the text and whose key then landed on the 
 - A table, a paragraph, then a tip inside a note; select from the first cell into the tip's first
   line; Enter, then type a letter: both openings stay, an empty line comes before what is left of
   the tip's line, and the letter lands at its start. In live and source mode.
+
+Miss-analysis: every Enter row pressed a key the block it ended in binds, and a title row binds no
+Shift+Enter, so its break reached the range as input and took Backspace's side onto the opening.
+
+- A table, a paragraph, then a tip with a title; select from the first cell into the title;
+  Shift+Enter, then type a letter: an empty line opens above the tip, as Enter's does, and the
+  letter lands there, never on the tip's `:::tip`. In live and source mode.

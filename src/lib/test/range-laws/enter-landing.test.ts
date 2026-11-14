@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// Enter over a range, then a letter, mounted in both modes, by a hardware Enter, a soft keyboard's
-// paragraph break and Shift+Enter: where the range entered the block holding the text after it, the
-// break goes before that text and the letter lands at it; where it ended between blocks, the break
+// A line break over a range, then a letter, mounted in both modes, by Enter and Shift+Enter and a
+// soft keyboard's two breaks: where the range ended in a leaf's text, the break goes before what is
+// left of it and the letter lands there; where it ended at a leaf's end or between blocks, the break
 // stands at the end of the block before; a container's opening line never takes it.
 // Miss-analysis: the mounted rows typed after Delete alone, and Enter's removal landed as Backspace's,
 // so its key pressed on a kept opening line and descended onto the next one.
@@ -23,8 +23,8 @@ beforeAll(installLayoutStubs);
 afterEach(destroyMountedEditors);
 
 const MODES: PresentationMode[] = ['source', 'live'];
-type Break = 'Enter' | 'a soft paragraph break' | 'Shift+Enter';
-const BREAKS: Break[] = ['Enter', 'a soft paragraph break', 'Shift+Enter'];
+type Break = 'Enter' | 'a soft paragraph break' | 'Shift+Enter' | 'a soft line break';
+const BREAKS: Break[] = ['Enter', 'a soft paragraph break', 'Shift+Enter', 'a soft line break'];
 
 interface Row {
 	name: string;
@@ -32,7 +32,7 @@ interface Row {
 	select: EditorSelection;
 	/** The document once Enter (or the soft break) and a letter are in. */
 	entered: string;
-	/** The same after Shift+Enter. */
+	/** The same after Shift+Enter or a soft line break. */
 	shifted: string;
 }
 
@@ -88,18 +88,18 @@ const ROWS: Row[] = [
 		shifted: ':::note\n  \\\nxmore\n:::\n'
 	},
 	{
-		name: 'a quote entered, the range ending at its first paragraph’s end',
+		name: 'a quote entered, the range ending at its first paragraph’s end, before the next one',
 		source: 'first\n\n***\n\nbody\n\n> one\n>\n> two\n',
 		select: range([1], [3, 0], 3),
-		entered: 'first\n\n>\n> xtwo\n',
-		shifted: 'first\n\n> \\\n> xtwo\n'
+		entered: 'first\n\nx\n\n> two\n',
+		shifted: 'first\\\nx\n\n> two\n'
 	},
 	{
-		name: 'a list entered, the range ending at its first item’s end',
+		name: 'a list entered, the range ending at its first item’s end, before the next item',
 		source: 'first\n\n***\n\nbody\n\n- a\n- b\n',
 		select: range([1], [3, 0, 0], 1),
-		entered: 'first\n\n- \n- xb\n',
-		shifted: 'first\n\n- \\\n  xb\n'
+		entered: 'first\n\nx\n\n- b\n',
+		shifted: 'first\\\nx\n\n- b\n'
 	},
 	{
 		name: 'a range ending between blocks, before a quote',
@@ -121,6 +121,29 @@ const ROWS: Row[] = [
 		select: range([0], [1], 4),
 		entered: 'x\n\n:::tip\nbody\n:::\n',
 		shifted: 'x\n\n:::tip\nbody\n:::\n'
+	},
+	// Miss-analysis: every row ended where the claimed block binds Shift+Enter, and a title row binds
+	// none, so a line break that came as input took Backspace's side and typed on the opening line.
+	{
+		name: 'a title the range ends in, at the document’s start',
+		source: '***\n\nbody\n\n:::tip Title\nbody\n:::\n',
+		select: range([0], [2, 0], 9),
+		entered: 'x\n\n:::tip tle\nbody\n:::\n',
+		shifted: 'x\n\n:::tip tle\nbody\n:::\n'
+	},
+	{
+		name: 'a summary the range ends in, at the document’s start',
+		source: '***\n\nbody\n\n<details open>\n<summary>Sum</summary>\n\nbody\n\n</details>\n',
+		select: range([0], [2, 0], 2),
+		entered: 'x\n\n<details open>\n<summary>m</summary>\n\nbody\n\n</details>\n',
+		shifted: 'x\n\n<details open>\n<summary>m</summary>\n\nbody\n\n</details>\n'
+	},
+	{
+		name: 'an untitled opening line the range ends at, a block before',
+		source: 'first\n\n***\n\nbody\n\n:::tip\nbody\n:::\n',
+		select: range([1], [3, 0], 6),
+		entered: 'first\n\nx\n\n\n:::tip\nbody\n:::\n',
+		shifted: 'first\\\nx\n\n\n:::tip\nbody\n:::\n'
 	}
 ];
 
@@ -128,6 +151,7 @@ const focused = () => (document.activeElement as HTMLElement | null) ?? document
 
 async function lineBreak(editor: Editor, by: Break): Promise<void> {
 	if (by === 'a soft paragraph break') dispatchBeforeInput(focused(), 'insertParagraph');
+	else if (by === 'a soft line break') dispatchBeforeInput(focused(), 'insertLineBreak');
 	else await pressHardwareKey(focused(), { key: 'Enter', shiftKey: by === 'Shift+Enter' });
 	await editor.settle();
 }
@@ -143,7 +167,8 @@ describe('Enter over a range, then a letter', () => {
 					await lineBreak(editor, by);
 					await pressHardwareKey(focused(), { key: 'x' });
 					await editor.settle();
-					expect(editor.source()).toBe(by === 'Shift+Enter' ? row.shifted : row.entered);
+					const shifted = by === 'Shift+Enter' || by === 'a soft line break';
+					expect(editor.source()).toBe(shifted ? row.shifted : row.entered);
 				});
 			}
 });
@@ -155,8 +180,9 @@ describe('a line break over a range goes by the command its key runs', () => {
 		source: string,
 		select: EditorSelection,
 		binding: KeybindingOverride,
-		key: KeyboardEventInit
+		key: KeyboardEventInit | 'insertParagraph'
 	): Promise<string> {
+		await destroyMountedEditors();
 		const editor = mountEditor<EditorTestSurface>({
 			source,
 			presentationMode: 'source',
@@ -165,7 +191,8 @@ describe('a line break over a range goes by the command its key runs', () => {
 		});
 		await editor.settle();
 		await placeRange(editor, select);
-		await pressHardwareKey(focused(), key);
+		if (key === 'insertParagraph') dispatchBeforeInput(focused(), key);
+		else await pressHardwareKey(focused(), key);
 		await editor.settle();
 		await pressHardwareKey(focused(), { key: 'x' });
 		await editor.settle();
@@ -190,5 +217,21 @@ describe('a line break over a range goes by the command its key runs', () => {
 			{ key: 'Enter' }
 		);
 		expect(typed).toBe('## firstx\n\n> more\n');
+	});
+
+	// Miss-analysis: no row sent a soft keyboard's break under a rebound key, so a break input named a
+	// line break whatever its chord runs went unseen.
+	it('a soft keyboard’s paragraph break goes by what Enter is bound to, as the key does', async () => {
+		const source = 'first\n\n***\n\nbody\n\n:::tip\ninner\n:::\n';
+		const select = range([1], [3, 1], 2);
+		const binding: KeybindingOverride = {
+			kind: 'paragraph',
+			chord: 'Enter',
+			command: 'heading.cycle',
+			arg: 2
+		};
+		const keyed = await pressed(source, select, binding, { key: 'Enter' });
+		expect(keyed.startsWith('## firstx\n')).toBe(true);
+		expect(await pressed(source, select, binding, 'insertParagraph')).toBe(keyed);
 	});
 });

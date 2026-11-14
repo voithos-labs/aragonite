@@ -87,4 +87,16 @@ for (const mode of ['live', 'source'] as const) {
 		await page.keyboard.type('x');
 		await editor.bridge.waitForSourceEquals('::::note\n:::tip\n\n\nxner\nmore\n:::\n::::\n');
 	});
+
+	test(`(${mode}) Shift+Enter into a tip's title opens a line above the tip, as Enter does`, async ({
+		page
+	}) => {
+		await open(mode, `${TABLE}\n\nbody\n\n:::tip Title\nbody\n:::\n`);
+		await selectFromFirstCell([0, 0, 0], [2, 0], 9);
+
+		await page.keyboard.press('Shift+Enter');
+		await editor.bridge.waitForSourceEquals('\n:::tip tle\nbody\n:::\n');
+		await page.keyboard.type('x');
+		await editor.bridge.waitForSourceEquals('x\n\n:::tip tle\nbody\n:::\n');
+	});
 }

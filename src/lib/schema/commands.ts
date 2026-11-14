@@ -97,7 +97,7 @@ const LINE_BREAKS: CommandId[] = [
 ];
 
 /** The built-in commands Enter and Shift+Enter run. Over a range the break writes forward, so the
- *  removal before it leaves the caret at the text after the range, where it entered that text. */
+ *  removal before it leaves the caret at what is left of the text the range ended in. */
 export const LINE_BREAK_COMMAND_IDS: ReadonlySet<AnyCommandId> = new Set<CommandId>(LINE_BREAKS);
 
 /**

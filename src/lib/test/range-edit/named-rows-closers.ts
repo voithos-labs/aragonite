@@ -468,7 +468,7 @@ const LINE_BREAK_ROWS: NamedRow[] = [
 		{ at: 42, holds: 'text' }
 	),
 	...broken(
-		'L8 a tip entered to a block’s end, at the block after inside it',
+		'L8 a tip entered to a block’s end with no block before the range, at the block after',
 		'⟦***\n\nbody\n\n:::tip\ninner⟧\n\nmore\n:::\n',
 		':::tip\nmore\n:::\n',
 		{ at: 7, holds: 'text' }

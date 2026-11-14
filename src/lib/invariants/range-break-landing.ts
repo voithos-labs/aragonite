@@ -7,7 +7,7 @@ import type { DocumentView, NodeView } from '../core/node-views';
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
 import { isReservedChromeChild } from '../schema/reserved-chrome';
 
-/** `breaks`: the key's command in the block at `path` is a line break (`commandGesture`). */
+/** `breaks`: the key's command in the block at `path` is a line break (`breaksLine`). */
 export function checkBreakLanding(
 	doc: DocumentView,
 	path: readonly number[],
