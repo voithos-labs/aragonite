@@ -118,10 +118,10 @@ export const normalizeScreen = (text: string): string =>
 		.map((line) => line.replace(/[ \t]+$/, ''))
 		.join('\n');
 
-/** Whether no offset the caret's screen position admits takes `typed` with the screen and the
- *  block's kind kept: where live-mode.md § 4.2 lets the byte-literal write stand (§ 4.8 cues it). */
-export function admitsNoSeat(node: CstNode, caret: number, typed: string): boolean {
-	if (!readable(node)) return false;
+/** The offsets the caret's screen position admits when none takes `typed` with the screen and the
+ *  block's kind kept, else none: where live-mode.md § 4.2 lets the write stand (§ 4.8 cues it). */
+export function unkeptSeats(node: CstNode, caret: number, typed: string): readonly number[] {
+	if (!readable(node)) return [];
 	const range = getContentRange(node);
 	const screen = screenVisibility('live', { chromePaints: chromePaints(node) });
 	const reading = fixtureReading({}, 'live');
@@ -144,7 +144,7 @@ export function admitsNoSeat(node: CstNode, caret: number, typed: string): boole
 			insertsExactly(before, shown(candidate, range.end + typed.length), typed)
 		);
 	};
-	return offsets.length > 0 && !offsets.some(keeps);
+	return offsets.some(keeps) ? [] : offsets;
 }
 
 /** Every boundary of a run the user cannot see, plus the content's ends: the positions live-mode.md

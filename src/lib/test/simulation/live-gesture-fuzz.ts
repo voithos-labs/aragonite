@@ -25,14 +25,16 @@ import {
 	type MarkedChar
 } from '#lib/test/harness/live-oracles.js';
 import { listInlineMarks } from '#lib/schema/inline-construct-policy.js';
+import { documentByteMap } from '#lib/tree-operations/container-offsets.js';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 import { arbLiveDoc } from '#lib/test/invariants/arbitraries/index.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import {
 	documentContentText,
-	admitsNoSeat,
 	documentMarkedChars,
 	hiddenEdgeOffsets,
 	normalizeScreen,
+	unkeptSeats,
 	unpaintedResidue
 } from './live-screen-reading';
 import {
@@ -274,8 +276,8 @@ function opensBlock(
 	);
 }
 
-/** A key written once against a run of its own character, where no offset of the caret's screen
- *  position keeps the screen and the block's kind: live-mode.md § 4.2 lets that write stand. */
+/** A key written once against a run of its own character, at an offset of the caret's screen
+ *  position where none keeps the screen and the block's kind: live-mode.md § 4.2 lets that stand. */
 function fallsBackLiterally(
 	gesture: Gesture,
 	origin: { bytes: string; doc: Document },
@@ -286,8 +288,14 @@ function fallsBackLiterally(
 	const key = gesture.char;
 	if (after[inserted.at - 1] !== key && after[inserted.at + 1] !== key) return false;
 	const targets = gestureTargets(origin.doc, gesture.kind);
-	const node = targets[gesture.leaf % Math.max(1, targets.length)]?.node;
-	return !!node && admitsNoSeat(node, drawnOffset(node, gesture, gesture.offset), gesture.char);
+	const leaf = targets[gesture.leaf % Math.max(1, targets.length)];
+	if (!leaf) return false;
+	const map = documentByteMap(measured(origin.doc));
+	const seats = unkeptSeats(leaf.node, drawnOffset(leaf.node, gesture, gesture.offset), key);
+	return seats.some((seat) => {
+		const at = map.byteOf(leaf.path, seat);
+		return at !== null && after === origin.bytes.slice(0, at) + key + origin.bytes.slice(at);
+	});
 }
 
 /** A line's leading spaces join the quote marker the `>` opens, so only the glyphs compare. */

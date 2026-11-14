@@ -290,6 +290,10 @@ describe('the checks read what the contracts allow and nothing more', () => {
 		expect(judged(source, { offset: 3, char: '~' }, '~~~\\*[](u)~~c\n', literal)).toEqual([]);
 		const kept = { offset: 3, char: 'a' };
 		expect(judged(source, kept, '~~\\*[](u)~a~c\n', '~~a\\*[](u)~~c\n')).toContain('screen');
+		// Miss-analysis: the stand-down asked only that the key touch a run of its own character.
+		const later = '~~\\*[](u)~~c ~x~\n';
+		const away = { offset: 3, char: '~' };
+		expect(judged(later, away, '~~\\*[](u)~~c ~~x~\n', '~~\\~*[](u)~~c ~x~\n')).toContain('screen');
 	});
 
 	// The commit rereads a block whose bytes change kind, so no live-only edit reaches this check;
