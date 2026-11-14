@@ -1,9 +1,8 @@
 /**
  * A typed inline delimiter (`$`, backtick, `*`, `_`, `~~`) writes its partner after the caret, so
- * it cannot pair with a later run on the line; a partner that would itself pair with one is left
- * out. Typing the partner steps past it, and an empty pair the auto-pair wrote
- * (`auto-pair-record.ts`) drops its partner when the first byte inside makes it no construct.
- * Every prose block runs `applyDelimiterAutoPair` on `beforeinput` (G4.65).
+ * it cannot pair with a later run on the line. Typing the partner steps past it, and an empty pair
+ * the auto-pair wrote (`auto-pair-record.ts`) drops its partner when the first byte inside makes
+ * it no construct. Every prose block runs `applyDelimiterAutoPair` on `beforeinput` (G4.65).
  */
 
 import { imeOwnsInput } from '../../../browser/composition';
@@ -91,11 +90,7 @@ export function resolveDelimiterAutoPair(
 		return { kind: 'close', text: paired, caret: caret + 1 };
 	}
 	const pair = (next: string, pairRange: ContentRange): AutoPairEdit | null => {
-		// A twin that pairs with a later run is left out, and the typed byte stands alone.
-		if (keepsKind(next))
-			return keepsConstructs(text, content, next, caret, reading)
-				? write(next, caret + 1, pairRange)
-				: null;
+		if (keepsKind(next)) return write(next, caret + 1, pairRange);
 		if (after !== typed || !inside) return null;
 		return { kind: 'step-over', caret: caret + 1, overConstruct: false, pair: inside };
 	};
@@ -322,35 +317,6 @@ function closerEndsAt(
 		if (!inner || inner.end < end) return true;
 	}
 	return false;
-}
-
-/** Whether `next`, `text` with bytes inserted at `at`, holds the constructs `text` holds, moved
- *  past the insertion, and no others. */
-function keepsConstructs(
-	text: string,
-	content: ContentRange,
-	next: string,
-	at: number,
-	reading: Reading
-): boolean {
-	const added = next.length - text.length;
-	const spans = (raw: string, end: number, start = (o: number) => o, close = start): string[] => {
-		const found: string[] = [];
-		for (const node of inlineDescendants(
-			readInline(raw, content.start, end, reading.resolver, reading.grammar)
-		)) {
-			if (node.kind !== 'text') found.push(`${node.kind} ${start(node.start)} ${close(node.end)}`);
-		}
-		return found;
-	};
-	const moved = spans(
-		text,
-		content.end,
-		(o) => (o >= at ? o + added : o),
-		(o) => (o > at ? o + added : o)
-	);
-	const read = spans(next, content.end + added);
-	return moved.length === read.length && moved.every((span, i) => span === read[i]);
 }
 
 function constructAt(
