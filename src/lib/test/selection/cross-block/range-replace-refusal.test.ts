@@ -11,7 +11,7 @@ import { stampWrites } from '#lib/editor-actions/commit/document-stamp.js';
 import { replaceRange, type RangeInsertion } from '#lib/selection/cross-block/range-replace.js';
 import { makeEditorActionsDeps, stubBlockComponent } from '#lib/test/harness/editor-actions.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
-import { takeDevWarns } from '../../support/warn-gate';
+import { takeDevWarns, takeDevWarnsOf } from '../../support/warn-gate';
 import { rangeContext } from './range-context';
 
 const SOURCE = 'alpha\n\nbeta\n';
@@ -23,7 +23,7 @@ function makeRange(mode: 'source' | 'reading') {
 	return { deps, controller };
 }
 
-const readingWarns = () => takeDevWarns().filter((w) => w.tag === READING_WRITE_TAG).length;
+const readingWarns = () => takeDevWarnsOf(READING_WRITE_TAG).length;
 
 const GESTURES: [name: string, insertion: RangeInsertion, warns: boolean][] = [
 	['Backspace', { kind: 'none', gesture: 'Backspace' }, true],

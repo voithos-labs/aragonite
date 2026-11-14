@@ -13,7 +13,7 @@ import { previewContentReparse } from '#lib/editor-actions/replacement-focus.js'
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { makeEditorActionsDeps, makeNestedHarness } from '#lib/test/harness/editor-actions.js';
-import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { takeDevWarnsOf } from '#lib/test/support/warn-gate.js';
 import { marksPending, pendMark } from '#lib/test/harness/pending-marks.js';
 
 vi.mock('#lib/editor-actions/replacement-focus.js', async (importOriginal) => {
@@ -71,7 +71,7 @@ function rememberedCaret(): CaretMemory {
 }
 
 function refusedKeys(): number {
-	return takeDevWarns().filter((w) => w.tag === READING_WRITE_TAG).length;
+	return takeDevWarnsOf(READING_WRITE_TAG).length;
 }
 
 beforeEach(() => {

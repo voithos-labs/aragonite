@@ -11,11 +11,10 @@ import { ensureUnsharedChild, ensureUnsharedSubtree } from '#lib/tree-operations
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { asDocPath } from '#lib/core/coordinate-spaces.js';
 import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
-import { drainDevWarns, takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { drainDevWarns, takeDevWarnsOf } from '#lib/test/support/warn-gate.js';
 import { makeKeydownEnv, press } from '../../selection/cross-block/keydown-env';
 
-const firesStaleRaw = (): boolean =>
-	takeDevWarns().some((fire) => fire.tag === 'invariant:stale-raw');
+const firesStaleRaw = (): boolean => takeDevWarnsOf('invariant:stale-raw').length > 0;
 
 /** A quote whose nested quote's bytes don't match its children, which no rebuild of the outer
  *  quote repairs. */
