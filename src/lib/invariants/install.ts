@@ -25,7 +25,7 @@ import { checkChildIdParity } from './child-id-parity';
 import { checkChildSpansLockstep, checkIdsChildrenLockstep } from './structural-descriptor';
 import { checkSnapshotIntegrity, type SnapshotEntry } from './snapshot-integrity';
 import { checkChangeInReach, checkDraftBytesKept } from './change-record';
-import { checkLastLineKept } from './open-tail';
+import { checkLastLineKept, type LastLine } from './open-tail';
 import { checkKeepsABlock } from './keeps-a-block';
 import {
 	checkReadsBack,
@@ -119,9 +119,9 @@ export function documentLineEndings(doc: Document): LineEndingCounts | null {
 	return lineEndingCounts(doc.prefix + concatChildren(doc.children) + doc.suffix);
 }
 
-/** G1.41, after every structural commit publishes: `wasOpen` is `endsOpen` read before it mutated. */
-export function assertLastLineKept(doc: Document, wasOpen: boolean): void {
-	assertInvariant('last-line-kept', () => checkLastLineKept(doc, wasOpen));
+/** G1.41, after every commit publishes: `before` is `lastLineOf` read before it mutated. */
+export function assertLastLineKept(doc: Document, before: LastLine): void {
+	assertInvariant('last-line-kept', () => checkLastLineKept(doc, before));
 }
 
 /** G1.218, after a paste commits: `expected` writes the core's answer as the byte splice does,

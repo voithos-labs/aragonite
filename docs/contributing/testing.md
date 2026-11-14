@@ -74,7 +74,7 @@ A fire that turns no gate red is a bug in the gate, so file it. Under Vitest a d
 
 Four ways, narrowest first. Use the first that fits. The helpers are in `src/lib/test/support/warn-gate.ts`.
 
-1. **The fire is what the test is about.** Assert on what `takeDevWarns()` returns.
+1. **The fire is what the test is about.** Assert on what `takeDevWarns()` returns. If the test is about one guard only, read `takeDevWarnsOf(tag)`: it leaves every other guard's fire to fail the test, where a filtered `takeDevWarns()` throws them away (a scan rejects that).
 2. **The fixture is noisy ahead of the part you assert on.** Call `drainDevWarns()` after the setup.
 3. **The fixture provokes a fire the test isn't about.** Allow the tag for the file, as in `afterEach(() => allowDevWarns(['block-host']))`, with the reason on the line above.
 4. **The run-wide list**, `src/lib/test/support/warn-allowlist.json`. It's empty. A first entry needs a maintainer to agree, and a guard fire never qualifies. It's that strict because an entry hides every fire of that tag at that site, the real ones included.

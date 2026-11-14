@@ -25,6 +25,7 @@ import {
 	assertListMarkerWidths,
 	assertReadsBack
 } from '../../invariants/install';
+import { lastLineOf } from '../../invariants/open-tail';
 import type { UndoManager } from '../../undo/types';
 import { captureChange, changeAfter, type BlockReach } from './change-record';
 import { admitsWrite, failWrite, startsAlone } from './reading-write-gate';
@@ -141,6 +142,7 @@ export function createCommitFrame(
 				// Inside the try: the push reads the live selection through plugin block refs.
 				undo.push(write.snapshot, write.history);
 				const wasOpen = endsOpen(deps.doc);
+				const lastLine = devChecksOn ? lastLineOf(deps.doc) : null;
 				deps.starts.duringWrite(() => {
 					const changed = owned.during(() => write.apply(wasOpen));
 					if (write.discardIfNoop && !changed) {
@@ -151,7 +153,7 @@ export function createCommitFrame(
 					if (devChecksOn) {
 						const written = write.written();
 						assertCommittedNodes(written.nodes, deps.reading.grammar);
-						assertLastLineKept(deps.doc, wasOpen);
+						if (lastLine) assertLastLineKept(deps.doc, lastLine);
 						assertKeepsABlock(deps.doc, written.nodes);
 						assertReadsBack(written.tops, deps.reading.grammar);
 						assertListMarkerWidths(written.tops);

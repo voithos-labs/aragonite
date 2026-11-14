@@ -9,7 +9,7 @@ import { checkTaskMarkerSlot } from '#lib/invariants/node-shape.js';
 import { paragraphNode } from '#lib/tree-operations/node-primitives.js';
 import { assertCommittedNodes } from '#lib/invariants/install.js';
 import { defaultGrammarView } from '#lib/schema/block-openers.js';
-import { drainDevWarns, takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { drainDevWarns, takeDevWarnsOf } from '#lib/test/support/warn-gate.js';
 
 const check = (node: CstNode) => checkTaskMarkerSlot(node, defaultGrammarView);
 
@@ -84,6 +84,6 @@ describe('the commit runs G1.42 over its touched nodes', () => {
 	it('fires on a planted task item holding a heading', () => {
 		drainDevWarns();
 		assertCommittedNodes([taskWithHeading()], defaultGrammarView);
-		expect(takeDevWarns().some((fire) => fire.tag === 'invariant:task-marker-slot')).toBe(true);
+		expect(takeDevWarnsOf('invariant:task-marker-slot')).not.toEqual([]);
 	});
 });

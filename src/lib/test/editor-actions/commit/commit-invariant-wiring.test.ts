@@ -9,21 +9,24 @@ import { asDocPath } from '#lib/core/coordinate-spaces.js';
 import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
 import type { MultiScopeTarget } from '#lib/action-contracts.js';
 import type { CstNode } from '#lib/core/nodes.js';
+import type { SharingState } from '#lib/tree-operations/sharing.js';
+import { ensureUnsharedChild } from '#lib/tree-operations/unshare.js';
 import { makeBlockListState, makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
-import { drainDevWarns, takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { drainDevWarns, takeDevWarnsOf } from '#lib/test/support/warn-gate.js';
 
 function firesStaleRaw(): boolean {
-	return takeDevWarns().some((fire) => fire.tag === 'invariant:stale-raw');
+	return takeDevWarnsOf('invariant:stale-raw').length > 0;
 }
 
 // The commit rebuilds the outer ancestors but never the nested child, so a stale raw
 // planted there survives to assertCommittedNodes, where checkStaleRaw recurses.
 const NESTED_BQ = '> outer\n>\n> > nested one\n> > nested two\n';
 
-function corruptNestedBlockquote(outer: CstNode): void {
-	const nested = outer.children?.find((c) => c.kind === 'blockquote');
-	if (!nested) throw new Error('fixture has no nested blockquote to corrupt');
-	nested.raw = '> DESYNCED\n';
+// Copied before the write, as a commit's own writes are, so the planted bytes reach no undo entry.
+function corruptNestedBlockquote(outer: CstNode, sharing: SharingState): void {
+	const at = outer.children?.findIndex((c) => c.kind === 'blockquote') ?? -1;
+	if (at < 0) throw new Error('fixture has no nested blockquote to corrupt');
+	ensureUnsharedChild(outer, at, sharing).raw = '> DESYNCED\n';
 }
 
 describe('commit sequence fires the node invariants over its touched nodes', () => {
@@ -41,7 +44,7 @@ describe('commit sequence fires the node invariants over its touched nodes', () 
 			scopes,
 			snapshot: { path: asDocPath([0]), offset: 0 },
 			mutate: (views) => {
-				corruptNestedBlockquote(views[0].node as CstNode);
+				corruptNestedBlockquote(views[0].node as CstNode, deps.sharing);
 				return [{ op: 'noop' }];
 			},
 			op: { kind: 'metadataUpdate', eventPath: asDocPath([0]), detail: { fields: ['quoteDepth'] } }
@@ -56,7 +59,7 @@ describe('commit sequence fires the node invariants over its touched nodes', () 
 		const { deps } = makeEditorActionsDeps(parse(NESTED_BQ).children);
 		const controller = createUndoController(deps);
 		const blockEdit = createBlockEditActions(deps, controller);
-		corruptNestedBlockquote(deps.doc.children[0]);
+		corruptNestedBlockquote(deps.doc.children[0], deps.sharing);
 
 		drainDevWarns();
 		await blockEdit.updateBlockMetadata(0, { quoteDepth: 1 });
@@ -86,7 +89,7 @@ describe('commit sequence fires the node invariants over its touched nodes', () 
 			op: { kind: 'metadataUpdate', eventPath: asDocPath([0]), detail: { fields: ['quoteDepth'] } }
 		});
 
-		const fired = takeDevWarns().some((fire) => fire.tag === 'invariant:child-id-parity');
+		const fired = takeDevWarnsOf('invariant:child-id-parity').length > 0;
 		expect(fired, 'expected an invariant:child-id-parity fire').toBe(true);
 	});
 });

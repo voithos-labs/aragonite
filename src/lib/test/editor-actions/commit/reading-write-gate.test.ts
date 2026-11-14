@@ -11,7 +11,7 @@ import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import { fixtureReading } from '../../harness/fixture-grammar';
 import { makeNestedHarness, makeTopHarness } from '../../harness/editor-actions';
-import { takeDevWarns } from '../../support/warn-gate';
+import { takeDevWarnsOf } from '../../support/warn-gate';
 import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 
 interface Writer {
@@ -113,9 +113,7 @@ const WRITERS: WriterRow[] = [
 ];
 
 function readingWrites(): string[] {
-	return takeDevWarns()
-		.filter((w) => w.tag === READING_WRITE_TAG)
-		.map((w) => w.message.split(',')[0]);
+	return takeDevWarnsOf(READING_WRITE_TAG).map((w) => w.message.split(',')[0]);
 }
 
 describe('the reading-mode check at every byte-writing entry point', () => {

@@ -12,7 +12,7 @@ import { latexPlugin } from '#packages/latex/src/index.js';
 import type { MathRenderer } from '#packages/latex/src/math-renderer.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
-import { takeDevWarns } from '../support/warn-gate';
+import { takeDevWarnsOf } from '../support/warn-gate';
 
 const stubRenderer: MathRenderer = () => ({ dom: document.createElement('span') });
 
@@ -49,7 +49,7 @@ describe('a mode switch commits the edit an open source view was holding', () =>
 		'switching to %s keeps the edit, written in the mode it was typed in',
 		async (to) => {
 			expect(await flipWithOpenDraft(to)).toBe('$$\nnew\n$$\n');
-			expect(takeDevWarns().filter((w) => w.tag === READING_WRITE_TAG)).toEqual([]);
+			expect(takeDevWarnsOf(READING_WRITE_TAG)).toEqual([]);
 		}
 	);
 });

@@ -103,13 +103,16 @@ A block notices a boundary event (Enter, Backspace at offset 0, an arrow at an e
 
 The context function is one member of an action bundle (a set of functions the editor hands its blocks through Svelte context). The one for editing blocks is `src/lib/action-contracts.ts` :: `BlockEditActions`, and each member's docstring says what it promises. A member's `blockIndex` is always relative to the calling block's own list, never the document. Every member resolves to whether bytes landed, so a focus move that writes nothing (say, `descendToBody` onto a block that's already there) resolves `false`.
 
-The one a block reaches for most, `updateBlockContent(blockIndex, text, mode, preEditOffset, postEditFocusOffset?)`, hands back the write's promise with a bit more on it, readable the moment the call returns. `admitted` says whether the write got through at all (reading mode turns it away, and so does a block with no text of its own, like a list), and only an admitted write has a caret. That's `caret`, the landing offset counted in the bytes as stored (the kind's write rule can move it, § The block-kind descriptor), and `keepsCaret`, which is false when the write puts the caret somewhere itself (a new kind, a merge into the block above, a container that changed kind).
+The one a block reaches for most, `updateBlockContent(blockIndex, text, mode, history, preEditOffset, postEditFocusOffset?)`, hands back the write's promise with a bit more on it, readable the moment the call returns. `admitted` says whether the write got through at all (reading mode turns it away, and so does a block with no text of its own, like a list), and only an admitted write has a caret. That's `caret`, the landing offset counted in the bytes as stored (the kind's write rule can move it, § The block-kind descriptor), and `keepsCaret`, which is false when the write puts the caret somewhere itself (a new kind, a merge into the block above, a container that changed kind).
 
 ```ts
-const write = blockEdit.updateBlockContent(index, 'Hello!\n', 'authored', 5, 6);
+const text = withOwnEnding(node, 'Hello!');
+const write = blockEdit.updateBlockContent(index, text, 'authored', 'join-typing', 5, 6);
 if (write.admitted && write.keepsCaret) requestCaret(write.caret); // 6, unless a rule moved it
 await write; // true once the bytes are in
 ```
+
+`text` is the block's whole bytes, line ending included, and it has to end the way the block already did. `src/lib/components/blocks/editable/surface-write.ts` :: `withOwnEnding` adds that ending. A `\n` written by hand turns a CRLF line into an LF one, and G1.117 warns.
 
 A block's own editable element doesn't call it by hand for typing, though. The input read-back, the keys a surface types for you (an auto-pair's partner, a Tab) and a plugin source's commit all go through one call, `src/lib/components/blocks/editable/surface-write.ts` :: `writeText`. You hand it the new text, where the caret goes and whether it's typing or a command (`history`, `commit-and-undo.md` § Undo / redo), and it picks where undo will put the caret, keeps the block's line ending, and puts the caret back.
 

@@ -42,21 +42,23 @@ describe('G1.209 the kept bytes are the document’s after every drawn write', (
 					};
 					// Asked first, so the record is measured and each write has blocks to name.
 					ends();
-					for (const op of ops) {
-						await runOp(h, op);
-						const count = h.deps.doc.children.length;
-						expect(h.deps.starts.isMeasured() ? h.deps.starts.vouch(0, count - 1) : true).toBe(
-							true
-						);
-						expect(h.deps.bytes.source()).toBe(serialize(h.deps.doc));
-						const fresh = measured(h.deps.doc).starts;
-						expect(ends()).toEqual(h.deps.doc.children.map((_, i) => fresh.end(i)));
+					let warned: string[];
+					try {
+						for (const op of ops) {
+							await runOp(h, op);
+							const count = h.deps.doc.children.length;
+							expect(h.deps.starts.isMeasured() ? h.deps.starts.vouch(0, count - 1) : true).toBe(
+								true
+							);
+							expect(h.deps.bytes.source()).toBe(serialize(h.deps.doc));
+							const fresh = measured(h.deps.doc).starts;
+							expect(ends()).toEqual(h.deps.doc.children.map((_, i) => fresh.end(i)));
+						}
+					} finally {
+						// Taken even when a check above threw, so a failing run leaves none for the next.
+						warned = takeDevWarns().map((warn) => `${warn.tag}: ${warn.message}`);
 					}
-					// Other guards' warnings belong to their own suites.
-					const stale = takeDevWarns().filter(
-						(warn) => warn.tag === 'invariant:kept-starts-current'
-					);
-					expect(stale).toEqual([]);
+					expect(warned).toEqual([]);
 				}
 			),
 			PARAMS

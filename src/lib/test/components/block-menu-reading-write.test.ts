@@ -13,7 +13,7 @@ import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { makeTopHarness } from '../harness/editor-actions';
 import { settleEditor } from '../harness/settle';
-import { takeDevWarns } from '../support/warn-gate';
+import { takeDevWarnsOf } from '../support/warn-gate';
 
 const SOURCE = '```\ncode\n```\n\nprose here\n';
 
@@ -77,7 +77,7 @@ describe('a block menu left open across a switch to reading mode (#517)', () => 
 		expect(serialize(editor.doc)).toBe(SOURCE);
 		expect(editor.deps.undoManager.canUndo).toBe(false);
 		expect(editor.edits).toEqual([]);
-		const fires = takeDevWarns().filter((w) => w.tag === READING_WRITE_TAG);
+		const fires = takeDevWarnsOf(READING_WRITE_TAG);
 		expect(fires).toHaveLength(1);
 		expect(fires[0].message).toContain("declined 'delete' in reading mode");
 		expect(fires[0].message).toContain('components/editor-root/menus.ts');
