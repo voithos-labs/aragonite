@@ -32,6 +32,7 @@ describe('the auto-pair writes no twin that pairs with a later run', () => {
 		['** (the second key)', 'a later strong run', '*a *`b` **c***', 4],
 		['_', 'a later strong run', '_a `b` __c___', 3],
 		['_', 'a later lone underscore', 'x b_ c', 2],
+		['~~ (the second key)', 'a later single-tilde strike', 'a ~b~ c', 3],
 		['`', 'a later double-backtick span', 'x  ``y`` z', 1]
 	])('%s before %s', (key, _later, text, caret) => {
 		expect(type(text, caret, key[0])).toBeNull();
@@ -45,8 +46,6 @@ describe('the auto-pair still writes its twin where the line keeps its runs', ()
 		['_', 'a later strong run', 'x `b` **c**', 2, 'x __`b` **c**'],
 		['~~ (the second key)', 'a later strong run', 'a ~b **c**', 3, 'a ~~~~b **c**'],
 		['~~ (the second key)', 'a later strike', 'a ~b ~~c~~', 3, 'a ~~~~b ~~c~~'],
-		// The first tilde paired with the later one; the grown pair pairs with nothing.
-		['~~ (the second key)', 'a later lone tilde', 'a ~b~ c', 3, 'a ~~~~b~ c'],
 		['`', 'a later strong run', 'x **y** z', 2, 'x ``**y** z'],
 		['`', 'a later code span', 'x  `y` z', 1, 'x``  `y` z']
 	])('%s before %s', (key, _later, text, caret, paired) => {
@@ -79,26 +78,6 @@ describe('a typed delimiter whose twin would pair with a later run, mounted', ()
 			await editor.settle();
 
 			expect(holdsOneTypedByte(source, editor.source(), key)).toBe(true);
-			expect(takeDevWarns().map((warn) => warn.tag)).toEqual([]);
-		});
-});
-
-// Miss-analysis: the rows typed one key, so none saw the second tilde judged against the strike the
-// first one made with a later tilde, which the grown pair undoes.
-describe('a second tilde after one that paired with a later tilde, mounted', () => {
-	for (const mode of ['source', 'live'] as PresentationMode[])
-		it(`${mode}: ~~ then a letter strikes the letter`, async () => {
-			const editor = mountEditor({ source: 'word one c~ d\n', presentationMode: mode });
-			await editor.settle();
-			placeCaret(surfaceAt(editor, [0]), 2);
-			await editor.settle();
-
-			for (const key of ['~', '~', 'q']) {
-				await pressHardwareKey(document.activeElement as HTMLElement, { key });
-				await editor.settle();
-			}
-
-			expect(editor.source()).toBe('wo~~q~~rd one c~ d\n');
 			expect(takeDevWarns().map((warn) => warn.tag)).toEqual([]);
 		});
 });

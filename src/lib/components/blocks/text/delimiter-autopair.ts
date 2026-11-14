@@ -93,7 +93,7 @@ export function resolveDelimiterAutoPair(
 	const pair = (next: string, pairRange: ContentRange): AutoPairEdit | null => {
 		// A twin that pairs with a later run is left out, and the typed byte stands alone.
 		if (keepsKind(next))
-			return keepsConstructs(text, content, next, pairRange, reading)
+			return keepsConstructs(text, content, next, caret, reading)
 				? write(next, caret + 1, pairRange)
 				: null;
 		if (after !== typed || !inside) return null;
@@ -324,19 +324,17 @@ function closerEndsAt(
 	return false;
 }
 
-/** Whether `next` holds the constructs it holds without the pair's run, moved past that run, and
- *  no others; a pairing of the user's own byte the run undoes isn't one of the line's. */
+/** Whether `next`, `text` with bytes inserted at `at`, holds the constructs `text` holds, moved
+ *  past the insertion, and no others. */
 function keepsConstructs(
 	text: string,
 	content: ContentRange,
 	next: string,
-	run: ContentRange,
+	at: number,
 	reading: Reading
 ): boolean {
-	const added = run.end - run.start;
-	const without = next.slice(0, run.start) + next.slice(run.end);
-	const spans = (raw: string, start = (o: number) => o, close = start): string[] => {
-		const end = content.end + raw.length - text.length;
+	const added = next.length - text.length;
+	const spans = (raw: string, end: number, start = (o: number) => o, close = start): string[] => {
 		const found: string[] = [];
 		for (const node of inlineDescendants(
 			readInline(raw, content.start, end, reading.resolver, reading.grammar)
@@ -346,11 +344,12 @@ function keepsConstructs(
 		return found;
 	};
 	const moved = spans(
-		without,
-		(o) => (o >= run.start ? o + added : o),
-		(o) => (o > run.start ? o + added : o)
+		text,
+		content.end,
+		(o) => (o >= at ? o + added : o),
+		(o) => (o > at ? o + added : o)
 	);
-	const read = spans(next);
+	const read = spans(next, content.end + added);
 	return moved.length === read.length && moved.every((span, i) => span === read[i]);
 }
 
