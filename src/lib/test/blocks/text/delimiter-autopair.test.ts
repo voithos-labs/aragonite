@@ -57,11 +57,11 @@ describe('delimiter auto-pair', () => {
 		expect(type('a `code` b', 2, '`')).toBeNull();
 	});
 
-	// A span closes only on a run as long as its opener, so a pair there would break the span.
-	// Miss-analysis: every run-extending case started a run, none stood after a span's closer.
-	it("does not pair against another span's closer", () => {
+	// Miss-analysis: every run-extending case started a run, none stood after a span's closer, where
+	// a code span's longer run stops closing it and a formula's does not.
+	it("does not pair where the byte would stop a span's closer closing it", () => {
 		expect(type('a `code` b', 8, '`')).toBeNull();
-		expect(type('$x$ b', 3, '$')).toBeNull();
+		expect(type('$x$ b', 3, '$')).toEqual(written('$x$$$ b', 4, pairAt(3, 5)));
 	});
 
 	it('the empty pair keeps its paired closer when the first byte makes a construct', () => {

@@ -148,7 +148,7 @@ It doesn't matter how the text got there. A hardware key, a soft keyboard, an au
 - A typed delimiter closes itself (`delimiter-autopair.ts`, the one `beforeinput` handler every prose surface runs): the keystroke lands its twin after the caret, so a new opener never pairs with a later construct's closer.
   - The closer typed over that twin steps past it, and a closer typed by hand completes the construct. After either, the caret means outside the construct, which is how you leave a construct without a toggle.
   - A first body byte that makes the pair no construct (`$5`) drops the twin, and Backspace between the twins takes both.
-  - A backtick or `$` typed right after a span's own closer lengthens that run and pairs with nothing, since a span closes only on a run as long as its opener.
+  - A backtick typed right after a code span's closer lengthens that run and pairs with nothing, since a code span closes only on a run as long as its opener. A `$` after a formula still opens the next one.
   - Only the pair the auto-pair wrote has a twin, and the editor keeps a record of that pair while its bytes and the text around them stand (`auto-pair-record.ts`). Two delimiters you typed yourself, or two single tildes (which it never writes as a pair), keep both bytes when a key lands between them.
 
 The typing position, on § 2's block (`raw`, `inlines`, `live` and `reading` as there):
