@@ -5,7 +5,7 @@
 // into the block after it, a table's rows, a later block's opening or the document's end. The range
 // goes through the editor's own adapter, as a selection's does. Where the start's block went whole,
 // Delete and a composition land on the text left after the range, or on a line emptied at its start,
-// and a line break does too where the range ends inside a block it entered.
+// and a line break does too where the range ends partway through a block's text.
 // Miss-analysis: the law draws filled fenced bodies with paragraphs and `# head` only, and drew
 // tables and rules outside fenced containers, so no range left one from a block it took whole. And
 // no draw started at a line's first byte in a block that stays, with an end that joins no text.
@@ -252,8 +252,8 @@ describe('G4.350 a removal keeps the lines after its range', () => {
 							`${g} landed at ${caret.at}: ${JSON.stringify(got)}\n    ${JSON.stringify(c)}`
 						);
 				}
-				// A line break lands where Delete does where the range ends inside a block it entered, and
-				// where Backspace does where it ends between blocks; a title row takes none.
+				// A line break lands where Delete does where the range ends partway through a block's text,
+				// and where Backspace does at a block's end or between blocks; a title row takes none.
 				const broke = caretOf('break').caret;
 				const titled = c.end === 'a later container’s title row' && !emptied;
 				const like = caretOf(BETWEEN.has(c.end) ? 'backspace' : 'delete').caret;

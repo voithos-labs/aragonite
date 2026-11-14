@@ -246,7 +246,7 @@ async function placed(d: Draw, built: Built) {
 }
 
 /** The key whose removal Enter's matches: Delete's, which goes on to the text after, where the range
- *  ends inside the block it entered; Backspace's where it ends between blocks. */
+ *  ends partway through a block's text; Backspace's where it ends between blocks. */
 const enterRemoval = (d: Draw) => (d.range === 'edge..lower mid' ? 'Delete' : 'Backspace');
 
 async function run(d: Draw): Promise<Run | 'unplaced'> {
