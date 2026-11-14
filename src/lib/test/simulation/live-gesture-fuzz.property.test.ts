@@ -294,6 +294,11 @@ describe('the checks read what the contracts allow and nothing more', () => {
 		const later = '~~\\*[](u)~~c ~x~\n';
 		const away = { offset: 3, char: '~' };
 		expect(judged(later, away, '~~\\*[](u)~~c ~~x~\n', '~~\\~*[](u)~~c ~x~\n')).toContain('screen');
+		// A seat that opens a fence where the one behind the bold keeps the line is still checked.
+		const struck = '~~**ab**~~ c\n';
+		const inside = { offset: 4, char: '~' };
+		expect(judged(struck, inside, '~~~**ab**~~ c\n', '~~**~ab**~~ c\n')).toContain('screen');
+		expect(judged(struck, inside, '~~~~**ab**~~ c\n', '~~**~ab**~~ c\n')).toContain('screen');
 	});
 
 	// The commit rereads a block whose bytes change kind, so no live-only edit reaches this check;
