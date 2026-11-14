@@ -2,6 +2,7 @@
 // input, and returns a line per broken law. A check that can't decide (the package declined, the
 // shape is one the rows hold) says nothing.
 
+import { ownTrailingLineEnding } from '#lib/core/lines.js';
 import { sharedPrefixLength, sharedSuffixLength } from '#lib/core/written-span.js';
 import type {
 	Gesture,
@@ -274,6 +275,10 @@ export function deleteLaws(call: Call, input: RangeInput): string[] {
  *  the cut took the source's first: `over` writes that one, `then` the one it finds, LF for none. */
 function sameAfterCut(then: string, over: string, source: string, cut: string): boolean {
 	const ending = endingOf(source);
+	// A range to the end of a document with no last line ending leaves a cut that ends in one,
+	// which a paste keeps: the paste over the range keeps the open last line instead.
+	const closed = ownTrailingLineEnding(cut);
+	if (closed && !ownTrailingLineEnding(source) && then === over + closed) return true;
 	if (ending === endingOf(cut)) return then === over;
 	// With no line ending left, every one in `then` is the paste's own.
 	return cut.includes('\n') ? lf(then) === lf(over) : lf(then).replace(/\n/g, ending) === over;
