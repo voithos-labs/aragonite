@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// A clipboard of line endings alone over a heading's whole text leaves what Backspace over the text
-// then Enter leaves: the heading gives way and its line stays, empty, with the caret on it. A
-// second ending there adds nothing, as Enter on an empty line only stacks one. No dev check fires.
+// A clipboard of line endings alone over a heading's whole text: the heading gives way, its line
+// stays empty, and the caret goes to the line under it, as Enter on the emptied heading leaves it.
+// A second ending adds nothing, as Enter there only stacks a line. No dev check fires.
 // Miss-analysis: the endings-alone rows stood at carets, never over a range that empties a block.
 import { afterEach, beforeAll, beforeEach, expect, it } from 'vitest';
 import type { PresentationMode } from '#lib/presentation-mode.js';
@@ -51,11 +51,11 @@ async function landed(marked: string, mode: PresentationMode, clip: string) {
 }
 
 const ROWS: [name: string, marked: string, left: string, typed: string][] = [
-	['an ATX heading', '# ⟦Title⟧\n\nAfter\n', '\n\nAfter\n', 'Z\n\n\nAfter\n'],
-	['an ATX heading with a closing run', '# ⟦Title⟧ #\n\nAfter\n', '\n\nAfter\n', 'Z\n\n\nAfter\n'],
-	['a setext heading', '⟦Title⟧\n===\n\nAfter\n', '\n\nAfter\n', 'Z\n\n\nAfter\n'],
-	['a heading in a quote', '> # ⟦Title⟧\n>\n> After\n', '>\n>\n> After\n', '> Z\n>\n>\n> After\n'],
-	['the last heading', 'Top\n\n# ⟦Title⟧\n', 'Top\n\n\n', 'Top\n\nZ\n']
+	['an ATX heading', '# ⟦Title⟧\n\nAfter\n', '\n\nAfter\n', '\nZ\n\nAfter\n'],
+	['an ATX heading with a closing run', '# ⟦Title⟧ #\n\nAfter\n', '\n\nAfter\n', '\nZ\n\nAfter\n'],
+	['a setext heading', '⟦Title⟧\n===\n\nAfter\n', '\n\nAfter\n', '\nZ\n\nAfter\n'],
+	['a heading in a quote', '> # ⟦Title⟧\n>\n> After\n', '>\n>\n> After\n', '>\n> Z\n>\n> After\n'],
+	['the last heading', 'Top\n\n# ⟦Title⟧\n', 'Top\n\n\n\n', 'Top\n\n\nZ\n']
 ];
 
 for (const mode of ['source', 'live'] as const)

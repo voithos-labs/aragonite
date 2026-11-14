@@ -188,11 +188,16 @@ function headingGone(
 	const marks = lineHead(doc.source, leaf.from).trimEnd();
 	const lineStart = leaf.from - lineHead(doc.source, leaf.from).length;
 	const source = doc.source.slice(0, lineStart) + marks + doc.source.slice(contentEnd(doc, leaf));
-	const gone: Edit = { source, caret: lineStart + marks.length };
-	let edit = gone;
-	for (let i = 0; i < count; i++) edit = enteredAgain(doc, edit);
-	// The emptied line keeps the caret as text; a line Enter opened past it is Enter's.
-	return edit === gone ? edit : { ...edit, entered: true };
+	// The first ending opens the line under the emptied one, which a blank line there stands for.
+	const end = lineStart + marks.length;
+	const under = Math.min(end + 1, source.length);
+	const blank = under < source.length && isBlankText(lineRest(source, pastMarkers(source, under)));
+	const opened = doc.ending + marks;
+	let edit: Edit = blank
+		? { source, caret: pastMarkers(source, under) }
+		: { source: source.slice(0, end) + opened + source.slice(end), caret: end + opened.length };
+	for (let i = 1; i < count; i++) edit = enteredAgain(doc, edit);
+	return { ...edit, entered: true };
 }
 
 /** The first of the clipboard's last line endings as Enter where what was pasted ends in a list
@@ -304,8 +309,18 @@ function landedAt(
 	// A block whose lines are no body (a link definition) holds no pasted line: lines land as
 	// blocks of their own under it, as at a caret on its syntax (§ 5.4 rule 7).
 	const lined = !plain && (pasted.ended || lf.includes('\n'));
-	if (lined && leaf && !factsOf(doc, leaf).holdsLines)
-		return underBlock(doc, leaf, to, () => blocks().source, lf.endsWith('\n'));
+	if (lined && leaf && !factsOf(doc, leaf).holdsLines) {
+		if (from === to) return underBlock(doc, leaf, to, () => blocks().source, lf.endsWith('\n'));
+		// A range in it goes first, as the block's own write.
+		const bare = doc.source.slice(0, from) + doc.source.slice(to);
+		return landedAt(
+			{ ...readDoc(bare, doc.host, doc.mode), ending: doc.ending },
+			from,
+			from,
+			pasted,
+			seen
+		);
+	}
 	const landing = landed(doc, from, to, lf, plain, blocks, pasted.ended === true);
 	if (!leaf) return landing;
 	const lower = doc.layout.block([...leaf.path.slice(0, -1), leaf.path.at(-1)! + 1]);
