@@ -6,11 +6,15 @@
 // Miss-analysis: the mounted rows typed after Delete alone, and Enter's removal landed as Backspace's,
 // so its key pressed on a kept opening line and descended onto the next one.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
+import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
 import type { EditorSelection } from '#lib/selection/primitives.js';
+import { SYNTAX_PLUGINS } from '#lib/test/behavior/corpus.js';
 import {
 	destroyMountedEditors,
-	installLayoutStubs
+	installLayoutStubs,
+	mountEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { dispatchBeforeInput, pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
 import { mountCase, placeRange, type Editor } from './gestures';
@@ -128,4 +132,49 @@ describe('Enter over a range, then a letter', () => {
 					expect(editor.source()).toBe(by === 'Shift+Enter' ? row.shifted : row.entered);
 				});
 			}
+});
+
+// Miss-analysis: every row pressed the key the default keymap binds to its break, so a break named
+// by its chord, and not by the command the chord runs, passed them all.
+describe('a line break over a range goes by the command its key runs', () => {
+	async function pressed(
+		source: string,
+		select: EditorSelection,
+		binding: KeybindingOverride,
+		key: KeyboardEventInit
+	): Promise<string> {
+		const editor = mountEditor<EditorTestSurface>({
+			source,
+			presentationMode: 'source',
+			plugins: SYNTAX_PLUGINS,
+			keybindings: [binding]
+		});
+		await editor.settle();
+		await placeRange(editor, select);
+		await pressHardwareKey(focused(), key);
+		await editor.settle();
+		await pressHardwareKey(focused(), { key: 'x' });
+		await editor.settle();
+		return editor.source();
+	}
+
+	it('another chord bound to the split breaks before the text, as Enter does', async () => {
+		const typed = await pressed(
+			'***\n\nbody\n\n:::tip\ninner\nmore\n:::\n',
+			range([0], [2, 1], 2),
+			{ kind: 'paragraph', chord: 'Mod+J', command: 'block.split' },
+			{ key: 'j', ctrlKey: true }
+		);
+		expect(typed).toBe(':::tip\n\n\nxner\nmore\n:::\n');
+	});
+
+	it('Enter bound to a heading level lands where Backspace would, as that command does', async () => {
+		const typed = await pressed(
+			'first\n\n***\n\nbody\n\n> ***\n>\n> more\n',
+			range([1], [3, 0], 3),
+			{ kind: 'paragraph', chord: 'Enter', command: 'heading.cycle', arg: 2 },
+			{ key: 'Enter' }
+		);
+		expect(typed).toBe('## firstx\n\n> more\n');
+	});
 });
