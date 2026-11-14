@@ -216,6 +216,23 @@ const deleted = (name: string, source: string, out: string, caret: Caret, compos
 		}))
 	);
 
+// Miss-analysis: the closing-line rows emptied a fenced container at the top level only, so none
+// left a quote's emptied line inside it, under its title row.
+const LEFT_TITLE_ROWS: NamedRow[] = [
+	...cut(
+		'L4 a note in a quote emptied from its first block keeps no emptied line under its title row',
+		'> :::note\n> ⟦***\n>\n> body\n> :::\n\npara⟧\n\n# h\n',
+		'> :::note\n> :::\n\n# h\n',
+		{ at: 10, holds: 'boundary', parent: [0, 0] }
+	),
+	...deleted(
+		'L8 the same, Delete lands at the text after',
+		'> :::note\n> ⟦***\n>\n> body\n> :::\n\npara⟧\n\n# h\n',
+		'> :::note\n> :::\n\n# h\n',
+		{ at: 17, holds: 'text' }
+	)
+];
+
 // Miss-analysis: no row ran Delete over a block taken whole into a fenced container's body, so none
 // saw the caret stop on the opening line the removal kept, short of the text after the range.
 const TEXT_AFTER_ROWS: NamedRow[] = [
@@ -620,6 +637,7 @@ export const CLOSER_ROWS: NamedRow[] = [
 	...OPENING_ROWS,
 	...START_LINE_ROWS,
 	...LEFT_LINE_ROWS,
+	...LEFT_TITLE_ROWS,
 	...LEFT_LINE_KEPT_ROWS,
 	...TEXT_AFTER_ROWS,
 	...ENTERED_ROWS,
