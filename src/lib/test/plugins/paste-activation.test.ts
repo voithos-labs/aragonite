@@ -1,7 +1,22 @@
 // @vitest-environment jsdom
-// Miss-analysis: no test pasted a plugin kind's syntax into an editor that left it out (GH #267).
-import { beforeEach, describe, it, expect } from 'vitest';
+// A paste reads the plugins of the editor it lands in: a plugin's kind and its paste transform
+// apply where the editor lists it, and nowhere else, though the plugin is installed.
+// Miss-analysis: no test pasted a plugin kind's syntax into an editor that left it out, and the
+// mounted rows that did drove the dispatcher the range-edit core replaced.
+import { afterEach, beforeAll, beforeEach, describe, it, expect } from 'vitest';
 import { installPlugins } from '#lib';
+import { definePlugin, registerPasteTransform } from '#lib/plugin.js';
+import {
+	destroyMountedEditors,
+	installLayoutStubs,
+	mountEditor
+} from '#lib/test/harness/mount-editor.svelte.js';
+import {
+	installClipboardEvents,
+	installSystemClipboard
+} from '#lib/test/harness/clipboard-events.js';
+import { pasteGesture } from '../range-laws/gestures';
+import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
 import { parrotPlugin, PARROT } from '#packages/parrot/src/index.js';
 import { normalizeReplacementForBody } from '#lib/tree-operations/paste/body-write.js';
 import { declaredPluginKind } from '#lib/schema/plugin-kind.js';
@@ -13,6 +28,7 @@ import { activationFor } from '#lib/schema/plugin-activation.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
 const PARROT_LINE = '%%parrot party responsibly\n';
+const parrot = parrotPlugin();
 
 /** The grammar an editor whose `plugins` prop lists `names` parses through. */
 function grammarListing(names: string[]) {
@@ -20,7 +36,7 @@ function grammarListing(names: string[]) {
 }
 
 beforeEach(() => {
-	installPlugins([parrotPlugin()]);
+	installPlugins([parrot]);
 	// A bodyWrite-declaring owner, so the escape below has a reparse to run.
 	registerDetailsKind(testView());
 });
@@ -45,5 +61,51 @@ describe('the bodyWrite escape reparse reads the instance grammar', () => {
 
 	it('the grammar of an editor without the plugin keeps it prose', () => {
 		expect(landedKinds(grammarListing([]))).not.toContain(PARROT);
+	});
+});
+
+describe('a paste into a mounted editor reads that editor’s plugins', () => {
+	const shouter = definePlugin({
+		name: 'shouter',
+		setup: () =>
+			registerPasteTransform({
+				name: 'upcase-headings',
+				transform: (text) => (text.startsWith('# ') ? text.toUpperCase() : null)
+			})
+	});
+	beforeAll(installLayoutStubs);
+	beforeEach(() => {
+		installPlugins([shouter]);
+		installClipboardEvents();
+		installSystemClipboard();
+	});
+	afterEach(destroyMountedEditors);
+
+	/** The empty document's one line, pasted into by the key route, in an editor listing `plugins`. */
+	async function pasted(plugins: readonly (typeof parrot)[], text: string) {
+		const editor = mountEditor<EditorTestSurface>({ source: '', plugins });
+		await editor.settle();
+		(editor.target.querySelector('[contenteditable="true"]') as HTMLElement).focus();
+		await pasteGesture(editor, { 'text/plain': text }, 'key');
+		return editor;
+	}
+
+	it.each([
+		['lists it', [parrot], true],
+		['lists another plugin, not it', [shouter], false]
+	] as const)('lands the plugin’s kind only where the editor %s', async (_, plugins, lands) => {
+		const editor = await pasted([...plugins], PARROT_LINE);
+		const kinds = editor.instance.__test
+			.getDocument()
+			.children.map((block) => block.kind as string);
+		expect(kinds.includes(PARROT)).toBe(lands);
+	});
+
+	it.each([
+		['lists it', [shouter], '# TITLE'],
+		['lists another plugin, not it', [parrot], '# title']
+	] as const)('runs the plugin’s transform only where the editor %s', async (_, plugins, head) => {
+		const editor = await pasted([...plugins], '# title\n');
+		expect(editor.source().startsWith(head)).toBe(true);
 	});
 });

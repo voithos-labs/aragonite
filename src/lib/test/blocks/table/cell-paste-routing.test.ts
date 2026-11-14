@@ -22,6 +22,8 @@ afterEach(async () => {
 });
 
 const GRID = '| A | B |\n| --- | --- |\n| one | 2 |\n';
+// Spelled by its code, which a formatter would turn into the bare character.
+const NBSP = String.fromCharCode(0xa0);
 
 /** jsdom builds no ClipboardEvent, so the payload travels on a real dispatched event. */
 async function pasteInto(el: HTMLElement, text: string): Promise<void> {
@@ -40,7 +42,8 @@ async function pasteInto(el: HTMLElement, text: string): Promise<void> {
 /** Select `[start, end)` of the cell's rendered text, the way a drag would. */
 function selectInCell(el: HTMLElement, start: number, end: number): void {
 	el.focus();
-	const textNode = el.firstChild;
+	// An empty cell renders no text, so its one caret place is the cell's start.
+	const textNode = el.firstChild ?? (start === 0 && end === 0 ? el : null);
 	if (!textNode) throw new Error('cell has no rendered text to select');
 	const range = document.createRange();
 	range.setStart(textNode, start);
@@ -138,7 +141,6 @@ describe('a paste into a cell lands on the cell’s own paste surface', () => {
 // Miss-analysis: the trim was pinned through the dispatcher the range-edit core replaced, and the
 // one live row over a cell's text began at its edge, where the cell's own write trims anyway.
 describe('a cell trims the blank edges of pasted text, in both modes', () => {
-	const NBSP = ' ';
 	// [name, cell's row and column, the cell text selected, clipboard, the row after]
 	const ROWS: [string, [number, number], [number, number] | null, string, string][] = [
 		['leading spaces', [1, 0], null, '  hello', '| onehello | 2 |'],
@@ -175,6 +177,72 @@ describe('a cell trims the blank edges of pasted text, in both modes', () => {
 
 				const line = row === 0 ? 0 : 2;
 				expect(mounted.source().split('\n')[line]).toBe(after);
+			});
+});
+
+// Miss-analysis: these rows drove the dispatcher the range-edit core replaced, so its deletion took
+// them, and no live row pasted blocks out of a cell or wrote beside an escaped pipe.
+describe('blocks pasted out of a cell, and the pipes a cell keeps escaped', () => {
+	const T = '| a | b |\n| --- | --- |\n';
+	// [name, source, row, column, the cell text's offset or its end, clipboard, the bytes after]
+	const ROWS: [string, string, number, number, number | null, string, string][] = [
+		[
+			'a quote lands under the table, the paragraph after it apart',
+			`${T}| c |  |\n\nAfter\n`,
+			1,
+			1,
+			null,
+			'> quoted\n',
+			`${T}| c |  |\n\n> quoted\n\nAfter\n`
+		],
+		[
+			'a list with no line ending ends its line all the same',
+			`${T}| c |  |\n\nAfter\n`,
+			1,
+			1,
+			null,
+			'- x',
+			`${T}| c |  |\n\n- x\n\nAfter\n`
+		],
+		[
+			'the rows under the cell stay a table of their own',
+			`${T}| c |  |\n| d | e |\n`,
+			1,
+			1,
+			null,
+			'x\n\ny',
+			`${T}| c |  |\n\nx\n\ny\n\n| d | e |\n| --- | --- |\n`
+		],
+		[
+			'a non-breaking space at a grid cell’s edge stays',
+			`${T}|  |  |\n`,
+			1,
+			0,
+			null,
+			`${NBSP}x\ty\n`,
+			`${T}| ${NBSP}x | y |\n`
+		],
+		[
+			'a pipe beside the text pasted stays escaped',
+			`${T}| a\\|b | c |\n`,
+			1,
+			0,
+			1,
+			'X',
+			`${T}| aX\\|b | c |\n`
+		]
+	];
+	for (const mode of ['source', 'live'] as const)
+		for (const [name, source, row, col, at, clip, after] of ROWS)
+			it(`${mode}: ${name}`, async () => {
+				mounted = mountEditor({ source, presentationMode: mode });
+				const el = cellAt(mounted!, row, col);
+				if (at === null) caretAtCellEnd(el);
+				else selectInCell(el, at, at);
+
+				await pasteInto(el, clip);
+
+				expect(mounted.source()).toBe(after);
 			});
 });
 
