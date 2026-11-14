@@ -248,6 +248,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.351 | Delete over a range whose first blocks went whole lands on the text left after the range, and so does Enter into a block it entered | harness |
 | G4.353 | Every reader of the text a write is worked out from names the vouch its bytes pass | L |
 | G4.355 | The chain rebuild reports a fold in one place, which checks it | L |
+| G4.357 | A test takes one guard's warnings and leaves the rest to the gate | L |
 
 ### The entries
 
@@ -285,7 +286,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 
 **G4.17 · One Playwright project per spec.** No spec file is collected by two Playwright projects. The scan reads what `playwright test --list` reports, so the glob depth rules are Playwright's own; a spec no project collects is G4.23's. `e2e/lint/project-partition.test.ts`.
 
-**G4.20 · One document line ending.** New lines take `documentLineEnding` (the document's first break), and per-line work reads lines without endings (`displayLines`, both `core/lines.ts`). `trailingLineEnding(raw, fallback)` requires the fallback: the document's ending if in reach (a commit's scope, a paste's context, `ctx.lineEnding`), else the block's first break, else LF; a block's own text keeps its ending (G4.100). The scan fails a hand `split('\n')` of block bytes and a written newline literal. `lint/trailing-line-ending-parity.test.ts`, the CRLF mirror tests.
+**G4.20 · One document line ending.** New lines take `documentLineEnding` (its first break), and per-line work reads no endings (`displayLines`, both `core/lines.ts`). `trailingLineEnding(raw, fallback)` needs the fallback: the document's ending if in reach (a commit, a paste, `ctx.lineEnding`), else the block's first break, else LF; a block's own text keeps its ending (G4.100). The scan fails a `split('\n')` and a written newline literal, and a property keeps one ending over drawn writes. `lint/trailing-line-ending-parity.test.ts`, `one-line-ending.property.test.ts`, the CRLF mirror tests.
 
 **G4.21 · Image byte-write module.** The GFM image serializer is named in code only inside the image byte module, and only the documented write paths name `buildImageEditBytes` (the popover takes the answer as a prop and names neither), so no route re-emits GFM over an image an inline plugin kind claimed. A path that hand-rolls the bytes from a template gets past it. `lint/manifest-rules.test.ts`.
 
@@ -721,3 +722,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.353 · A reader of kept bytes names its vouch.** The files that read `bytes.source`, hand the range-edit core the editor's own document, or take a position off the kept starts are declared sets, each row saying where its bytes are compared with the tree (G1.219). A new range gesture or splice caller fails here until it takes its read from `rangeRead` or lands through the byte splice. `lint/kept-bytes-doors.test.ts`.
 
 **G4.355 · One push for a fold.** `src/lib/tree-operations/chain-rebuild.ts :: foldWrite` is where a fold is reported and where G1.220 reads it. The scan fails a `folds.push` anywhere else, and a `foldWrite` that stops calling the check. `lint/fold-doors.test.ts`.
+
+**G4.357 · One guard's warnings, taken alone.** A test about one guard reads its fires through `takeDevWarnsOf(tag)` (`test/support/warn-gate.ts`), which leaves every other tag for the gate. A `takeDevWarns()` narrowed to one tag (a `filter`, a `some`) drops the rest unseen: a property did, and hid a check that fired on its every run. `lint/suite-file-rules.test.ts`.

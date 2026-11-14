@@ -11,14 +11,14 @@ import { serialize } from '#lib/core/serializer.js';
 import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { makeNestedHarness, makeTopHarness } from '../harness/editor-actions';
-import { takeDevWarns } from '../support/warn-gate';
+import { takeDevWarnsOf } from '../support/warn-gate';
 
 beforeEach(() => {
 	installPlugins([admonitionsPlugin()]);
 });
 
 function readingWrites(): number {
-	return takeDevWarns().filter((w) => w.tag === READING_WRITE_TAG).length;
+	return takeDevWarnsOf(READING_WRITE_TAG).length;
 }
 
 describe('a keystroke refused in reading mode', () => {
