@@ -246,11 +246,11 @@ describe('a line break over a range goes by the command its key runs', () => {
 	});
 });
 
-// Miss-analysis: no row sent a break as input where its key runs nothing, so the check could read
-// how the removal was named, which calls every such input a break, and pass.
+// Miss-analysis: no row sent a break as input where its key runs nothing, or began at the first byte
+// of a block the removal takes whole, so a check read off the removal's name or the edge passed.
 describe('G1.223 reads the keymap of the block a line break ran in', () => {
 	it('a soft paragraph break left on a rule, which binds no Enter, fires it', async () => {
-		const editor = mountCase('***\n\n***\n\nbody\n\nafter\n', 'source');
+		const editor = mountCase('***\n\n# head\n\nbody\n\nafter\n', 'source');
 		await editor.settle();
 		await placeRange(editor, range([1], [2], 4));
 		await lineBreak(editor, 'a soft paragraph break');
