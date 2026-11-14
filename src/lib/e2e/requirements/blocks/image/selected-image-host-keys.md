@@ -11,3 +11,4 @@ An image selected whole keeps every key the browser could apply to the DOM under
 
 - A letter at a selected image still replaces it (`Before\n\nx\n\nAfter\n`), with its keydown prevented
 - Backspace at a selected image still removes it (`Before\n\n\nAfter\n`), with its keydown prevented
+- Alt+ArrowUp at a selected image moves its block above the paragraph before it (regression: the selected image swallowed every modified arrow, the block move's own chord included, and `claimsChord` said the editor took it; miss-analysis: the selected-image rows pressed only keys with no binding and the arrows that leave the image, never a keymap chord on an arrow)

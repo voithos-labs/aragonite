@@ -644,8 +644,8 @@ export function createWidgetInteraction(deps: WidgetInteractionDeps): WidgetInte
 			leaveWidgetBy(motion, widget);
 			return false;
 		}
-		// A modified arrow stops here: no read answers the caret a selected widget keeps, so a later
-		// handler would read offset 0. Any other modified chord goes on to the keymap dispatch.
+		// A modified arrow that moves a caret stops here: no read answers the caret a selected widget
+		// keeps, so a later handler would read offset 0. Any other modified chord goes on.
 		if (!selectedWidgetKeeps(e)) return false;
 		if (hasModifier(e)) {
 			e.preventDefault();

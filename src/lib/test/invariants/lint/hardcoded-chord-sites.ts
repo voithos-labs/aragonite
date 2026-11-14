@@ -140,7 +140,7 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		file: 'components/blocks/text/widget-interaction.ts',
 		takes: ['Shift+ArrowLeft', 'Shift+ArrowRight'],
 		keys: ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'Backspace', 'Delete', 'Escape'],
-		note: 'Extends a selection into a widget. A modified arrow that reads a caret is also swallowed while a widget is selected, but that is a caret-coherence guard in a transient state, not a binding; a plain vertical arrow, a line-edge key or a page key places a caret and declines.'
+		note: 'Extends a selection into a widget. A modified arrow that moves a caret is also swallowed while a widget is selected, but that is a caret-coherence guard in a transient state, not a binding; a plain vertical arrow, a line-edge key or a page key places a caret and declines.'
 	},
 	{
 		file: 'components/image/ImageProperties.svelte',
