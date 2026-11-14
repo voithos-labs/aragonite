@@ -84,7 +84,8 @@ describe('the trailing blank line under an emptied last block goes', () => {
 			[[1], 2, 4],
 			'zz\n\n\n',
 			'zz\n\nx\n'
-		]
+		],
+		['a quote ending on a bare `>` line', '> ab\n>\n', MODES, [[0, 0], 0, 2], '>\n', '> x\n']
 	];
 	for (const [name, source, modes, selection, emptied, typed] of ROWS)
 		for (const mode of modes)
@@ -95,6 +96,17 @@ describe('the trailing blank line under an emptied last block goes', () => {
 
 	it.each(MODES)('a space typed over a paragraph, %s', async (mode) => {
 		expect(await emptyThenType('ab\n\n', mode, [[0], 0, 2], 'space')).toEqual([' \n', ' x\n']);
+	});
+
+	it.each(MODES)('undo gives the line back with the text, %s', async (mode) => {
+		const editor = mountEditor<EditorTestSurface>({ source: '> ab\n>\n', presentationMode: mode });
+		await editor.settle();
+		selectRange(surfaceAt(editor, [0, 0]), 0, 2);
+		await editor.settle();
+		expect(await press(editor, 'Delete')).toBe('>\n');
+		await pressHardwareKey(document.activeElement as HTMLElement, { key: 'z', ctrlKey: true });
+		await editor.settle();
+		expect(editor.source()).toBe('> ab\n>\n');
 	});
 });
 
