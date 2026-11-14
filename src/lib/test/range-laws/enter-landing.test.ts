@@ -88,6 +88,20 @@ const ROWS: Row[] = [
 		shifted: ':::note\n  \\\nxmore\n:::\n'
 	},
 	{
+		name: 'a quote entered, the range ending at its first paragraph’s end',
+		source: 'first\n\n***\n\nbody\n\n> one\n>\n> two\n',
+		select: range([1], [3, 0], 3),
+		entered: 'first\n\n>\n> xtwo\n',
+		shifted: 'first\n\n> \\\n> xtwo\n'
+	},
+	{
+		name: 'a list entered, the range ending at its first item’s end',
+		source: 'first\n\n***\n\nbody\n\n- a\n- b\n',
+		select: range([1], [3, 0, 0], 1),
+		entered: 'first\n\n- \n- xb\n',
+		shifted: 'first\n\n- \\\n  xb\n'
+	},
+	{
 		name: 'a range ending between blocks, before a quote',
 		source: 'first\n\n***\n\npara\n\n> quote\n',
 		select: range([1], [2], 4),
