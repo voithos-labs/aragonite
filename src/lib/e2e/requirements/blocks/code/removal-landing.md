@@ -6,7 +6,7 @@ Delete over a range that runs from one fence into the body of the next takes the
 
 - At the top level, the range from the first fence's opener into the second's body, Delete, then `q`: `~~~\nq\n~~~` in live and source mode, no picker
 - The same with a language on the second fence: `~~~js\nq\n~~~`
-- In a callout: `:::note\n\n~~~\nq\n~~~\n:::`, both modes
+- In a callout: `:::note\n~~~\nq\n~~~\n:::`, both modes (the first fence went whole, so no empty line stays where it stood)
 
 ## Edge cases
 
