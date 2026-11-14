@@ -385,6 +385,12 @@ describe('G2.13 shape fixed point across load → edit → reload', () => {
 		);
 	});
 
+	// Miss-analysis: the corpus drew no blank line of four columns right under indented code.
+	it('deleting the block between indented code and a tab-only line reloads as it stands', () => {
+		const source = '    code\n\npara\n\t\n# h\n';
+		expect(divergenceAfterEdit(source, { op: 'delete', at: 1, offset: 0 })).toBeNull();
+	});
+
 	it.each(['retype', 'empty'] as const)(
 		'%s keeps the shape of a tab-indented item holding a table (#589)',
 		(op) => {
