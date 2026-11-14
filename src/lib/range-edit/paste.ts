@@ -383,8 +383,12 @@ function landed(
 		// With no fence, a line stays in the block by its indent, which a new line repeats.
 		const lineStart = raw.lastIndexOf('\n', target.from - 1) + 1;
 		const indent = fence ? '' : /^[ \t]*/.exec(raw.slice(lineStart, target.from))![0];
-		// The same bytes as the block's own: its text with the lines in, no container's markers.
-		const lines = displayLines(clip).map((line, i) => (i === 0 ? '' : indent) + line.text);
+		// The same bytes as the block's own: its text with the lines in, no container's markers, a
+		// blank line bare where the source writes it bare (`spliced`).
+		const lines = displayLines(clip).map(({ text }, i, all) => {
+			const bare = i === 0 || (text === '' && !(i === all.length - 1 && visibleAfter));
+			return (bare ? '' : indent) + text;
+		});
 		const own = raw.slice(0, target.from) + lines.join(doc.ending) + raw.slice(target.to);
 		const caret = own.length - (raw.length - target.to);
 		// A one-line source shown while it's edited, given a line break, takes the shape typing gives

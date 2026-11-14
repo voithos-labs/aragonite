@@ -40,6 +40,42 @@ describe('the leaf a paste names', () => {
 		expect(leaf).toEqual({ path: [1], raw: 'twoa\r\nb\r\n', caret: 7 });
 	});
 
+	// Miss-analysis: the literal rows pasted lines of text, so none read a blank pasted line, which
+	// the source wrote bare while the named block wrote it behind the code's indent.
+	it.each([
+		{
+			name: 'mid-code',
+			doc: '    code\n    more\n',
+			at: 6,
+			clip: 'x\n\ny',
+			leaf: { path: [0], raw: '    cox\n\n    yde\n    more\n', caret: 14 },
+			left: '    cox\n\n    yde\n    more\n'
+		},
+		{
+			name: 'before text on the caret’s line, which keeps the indent',
+			doc: '    code\n',
+			at: 6,
+			clip: 'x\n\n',
+			leaf: { path: [0], raw: '    cox\n\n    de\n', caret: 13 },
+			left: '    cox\n\n    de\n'
+		},
+		{
+			name: 'in a quote',
+			doc: '>     code\n',
+			at: 10,
+			clip: 'x\n\ny',
+			leaf: { path: [0, 0], raw: '    codex\n\n    y\n', caret: 16 },
+			left: '>     codex\n>\n>     y\n'
+		}
+	])(
+		'names indented code by the bytes its source holds, $name',
+		({ doc, at, clip, leaf, left }) => {
+			const got = paste(doc, at, clip);
+			expect(got.source).toBe(left);
+			expect(got.leaf).toEqual(leaf);
+		}
+	);
+
 	// Miss-analysis: a cell's whole text read as a block held alone, so the paste emptied the cell
 	// and landed in its padding; every cell row pasted at a caret or over part of the text.
 	it('names the cell for a paste over the cell’s whole text', () => {
