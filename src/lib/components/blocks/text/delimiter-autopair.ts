@@ -113,6 +113,8 @@ export function resolveDelimiterAutoPair(
 		}
 		return null;
 	}
+	// A span closes only on a run as long as its opener, so a byte against its closer lengthens it.
+	if (before === typed && policy.inside === 'step-over') return null;
 	if (!policy.single || (policy.notAfterWord && isWordByte(before))) return null;
 	const opened = text.slice(0, caret) + typed + typed + text.slice(caret);
 	return pair(opened, { start: caret, end: caret + 2 });
