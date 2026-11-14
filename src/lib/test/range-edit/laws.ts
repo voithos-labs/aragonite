@@ -236,10 +236,7 @@ export function keepsOutside(call: Call, host: CheckHost, input: RangeInput): st
 	const { from, to } = input.range;
 	const read = readOf(host, source);
 	if (liveWholeText(read, input.range, input.mode)) return [];
-	// A start line whose block goes whole may go with its markers (`removal.ts :: leftLineStart`).
-	const head = source.slice(source.lastIndexOf('\n', from - 1) + 1, from);
-	const takesStart = read.blocks.some((b) => b.type !== 'paragraph' && b.from === from);
-	const lineGoes = takesStart && /^[ \t>]*$/.test(head) ? from - head.length : from;
+	const lineGoes = startLineGoes(read, input.range);
 	const point = read.layout.pointAt(to);
 	const leaf = point && read.blocks.find((b) => b.path.join() === point.path.join());
 	const breakAt = source.indexOf('\n', to);
@@ -263,6 +260,23 @@ export function keepsOutside(call: Call, host: CheckHost, input: RangeInput): st
 		if (moved) out.push(`L4 ${key} ${moved}: ${q(got.source)}`);
 	}
 	return out;
+}
+
+/** `from`'s line start where its block goes whole out of its container at a line's end, a block
+ *  right above that line and a blank line or the document's end below it; else `from` (§ 5.2). */
+function startLineGoes(read: Read, { from, to }: Range): number {
+	const { source } = read;
+	const end = (b: LaidBlock) => b.to - endingLength(source, b.to);
+	const blank = (line: string) => /^[ \t>]*\r?$/.test(line);
+	const above = source.slice(0, from).split('\n');
+	const head = above.pop()!;
+	const first = read.blocks.find((b) => b.from === from && b.type !== 'paragraph');
+	const parent = first && read.layout.block(first.path.slice(0, -1));
+	if (!first || !parent || first.path.at(-1) === 0) return from;
+	if (end(first) > to || end(parent) > to || head === '' || !blank(head)) return from;
+	const below = /^\r?\n([^\n]*)/.exec(source.slice(to))?.[1];
+	if (below === undefined || !blank(below) || blank(above.at(-1) ?? '')) return from;
+	return head.trimEnd().startsWith(below.trimEnd()) ? from - head.length : from;
 }
 
 /** L4: Backspace and Delete over a range leave the bytes a cut leaves. */
