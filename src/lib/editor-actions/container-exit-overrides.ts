@@ -6,8 +6,8 @@
  */
 
 import type { BlockEditActions } from '../action-contracts';
-import { displayLength, isBlankText } from '../core/lines';
-import { buildQuoteExitReplacement } from '../tree-operations/blockquote';
+import { displayLength } from '../core/lines';
+import { buildQuoteExitReplacement, exitsOnEnter } from '../tree-operations/blockquote';
 import type { Reading } from '../schema/reading';
 import type { NestedActionsBundle, NodeScope } from './nested/nested-actions';
 import type { CommandRun } from '../schema/block-commands';
@@ -31,10 +31,7 @@ export function createContainerExitOverrides(deps: ContainerExitOverridesDeps) {
 				const { parentBlockEdit } = deps;
 				const { node, index } = deps.scope;
 				if (!node.children) return false;
-				const child = node.children[innerIndex];
-				const isLastChild = innerIndex === node.children.length - 1;
-				const isEmpty = child.kind === 'paragraph' && isBlankText(child.raw);
-				if (run?.afterRemoval || !isLastChild || !isEmpty) {
+				if (run?.afterRemoval || !exitsOnEnter(node, innerIndex)) {
 					return defaults.blockEdit.splitBlock(innerIndex, offset, run);
 				}
 				if (node.children.length <= 1) {

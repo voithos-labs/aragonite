@@ -43,10 +43,12 @@ import {
 	splitOut
 } from './paste-split';
 import { numberedAfterTaking } from './list-numbers';
+import { continuation } from './markers';
 import {
 	blankedApart,
 	byteAt,
 	cutLeaf,
+	lineEnd,
 	lineEndBefore,
 	lineHead,
 	lineRest,
@@ -127,11 +129,15 @@ function entered(
 		return { ...pasted, text: text + tail, transform: transform && whole };
 	};
 	const host = itemHolding(doc, from, to);
-	// Outside a list item only a pasted list can end in a list of the document.
+	const bare: Pasted = { ...keeping(0), ended: true };
+	// Outside a list item only a pasted list can end in a list of the document; a container the
+	// caret's took in ends inside the caret's, where the ending is the text's.
 	const first =
 		host || endsOnList(doc, text)
-			? enteredInList(doc, from, to, { ...keeping(0), ended: true }, host, seen)
-			: null;
+			? enteredInList(doc, from, to, bare, host, seen)
+			: endsTakenIn(doc, from, text)
+				? enteredInText(doc, from, to, bare, seen)
+				: null;
 	if (!first && (count === 1 || text === '')) return null;
 	let edit = first ?? landedAt(doc, from, to, keeping(1), seen);
 	// Past an empty line the first ending opened, each later one goes as Enter does there.
@@ -171,12 +177,37 @@ function enteredInList(
 	return enteredAt(after, bare.caret, kind, own);
 }
 
-/** `edit` with Enter where it left the caret, an item out as Enter's own code takes it
- *  (`RangeHost.enterOut`); on an empty line Enter would only stack another on, nothing (§ 5.6). */
+/** The first of the clipboard's last line endings as a line ending pasted where the paste without it
+ *  left the caret, inside the container that took it in. */
+function enteredInText(
+	doc: Doc,
+	from: number,
+	to: number,
+	rest: Pasted,
+	seen: { blocks?: Doc }
+): Edit {
+	const bare = landedAt(doc, from, to, rest, seen);
+	const after = { ...readDoc(bare.source, doc.host, doc.mode), ending: doc.ending };
+	const line: Pasted = { text: '\n', plain: false, held: { holds: 'text' }, transform: null };
+	const { source, caret } = pasteAt(after, bare.caret, bare.caret, line);
+	return { source, caret };
+}
+
+/** Whether `text` is one container a container at `at` takes in. */
+function endsTakenIn(doc: Doc, at: number, text: string): boolean {
+	const read = readDoc(text, doc.host, doc.mode);
+	const tops = read.tree.children.flatMap((b, i) => (isBlankText(b.raw) ? [] : [i]));
+	const first = tops.length === 1 ? read.layout.block([tops[0]]) : undefined;
+	return !!first?.container && takerOf(doc, at, read, first) !== null;
+}
+
+/** `edit` with Enter where it left the caret, a block out of its container as Enter's own code takes
+ *  it (`RangeHost.enterOut`); on an empty line Enter would only stack another on, nothing (§ 5.6). */
 function enteredAgain(doc: Doc, edit: Edit): Edit {
 	const now = { ...readDoc(edit.source, doc.host, doc.mode), ending: doc.ending };
 	const item = itemHolding(now, edit.caret, edit.caret)?.item;
-	const out = item && doc.host.enterOut(now.tree, item.path);
+	const leaf = leafHolding(now, edit.caret, edit.caret)?.leaf;
+	const out = (item ?? leaf) && doc.host.enterOut(now.tree, (item ?? leaf)!.path);
 	if (out) return out;
 	const next = item && enteredAt(now, edit.caret, undefined, () => true);
 	if (next) return next;
@@ -230,7 +261,8 @@ function landedAt(
 	const flush = lower && lower.from <= pastMarkers(doc.source, leaf.to) ? lower : undefined;
 	const joined = read && !plain && flush ? joinedBelow(doc, flush, landing, read) : landing;
 	// What lands in an empty paragraph, its line ending alone, stays apart from the block under it.
-	if (!/^\r?\n?$/.test(nodeAt(doc, leaf.path).raw)) return joined;
+	if (!/^\r?\n?$/.test(nodeAt(doc, leaf.path).raw))
+		return blocksOpened(doc, leaf, to, lf, read, joined);
 	if (titleOwner(doc, leaf) || factsOf(doc, leaf).joins !== 'text') return landing;
 	const edit = read && !plain ? joinedAbove(doc, leaf, joined, read) : landing;
 	const raw = flush ? lastPasted(doc, leaf, read?.source ?? lf, plain) : null;
@@ -406,10 +438,13 @@ function landed(
 		if (ending && !follows && /\S/.test(past)) return around(cutWith(text.slice(0, -1), ''), '\n');
 		// Any other goes in after the text as the block wrote it: the caret memory spends on the text
 		// alone, and a run the text ends in closes before the break (`RangeHost.leaf.broken`).
-		if (ending && !isBlankText(text)) return brokenAfter(write(text.slice(0, -1)), text);
+		const opened = (edit: Edit) => (follows ? edit : ownLine(doc, to, edit));
+		if (ending && !isBlankText(text)) return opened(brokenAfter(write(text.slice(0, -1)), text));
 		// Line breaks alone at a caret go in as bytes, which no write rule re-reads; spaces alone are
 		// text the block writes, where a caret at a hidden edge places them.
-		return from === to && isBlankText(text) && text.includes('\n') ? bytes(text) : write(text);
+		return from === to && isBlankText(text) && text.includes('\n')
+			? opened(markersTrimmed(doc, from, bytes(text)))
+			: write(text);
 	};
 	// Plain text never converts: it goes in escaped where the block reads Markdown.
 	if (plain) return asText(escaped());
@@ -562,6 +597,62 @@ function afterText(doc: Doc, leaf: LaidBlock, offset: number, clip: string): boo
 	if (clip.includes('\n')) return false;
 	const lineStart = lineTextStart(doc, leaf, offset);
 	return !isBlankText(doc.source.slice(lineStart, byteAt(doc, leaf, offset)));
+}
+
+/** `edit`, blocks pasted with a last line ending at the end of a contained block's text: where the
+ *  last of them takes text, the line the ending opens is the container's, as text's is. */
+function blocksOpened(
+	doc: Doc,
+	leaf: LaidBlock,
+	to: number,
+	clip: string,
+	read: Doc | undefined,
+	edit: Edit
+): Edit {
+	if (!read || leaf.path.length < 2 || !clip.endsWith('\n') || !onBlankLine(edit)) return edit;
+	const tops = read.tree.children.flatMap((b, i) => (isBlankText(b.raw) ? [] : [i]));
+	const last = tops.length ? read.layout.block([tops.at(-1)!]) : undefined;
+	const joins = last && factsOf(read, last).joins;
+	// One paragraph landed as text, whose ending opened its line already.
+	if (!joins || joins === 'never' || (tops.length === 1 && joins === 'text')) return edit;
+	return ownLine(doc, to, edit);
+}
+
+/** `edit`, whose last line ending opened the caret's line at a container's last block, with the
+ *  container's own empty line under it for the caret; the top level keeps § 5.6's bytes. */
+function ownLine(doc: Doc, at: number, edit: Edit): Edit {
+	const leaf = leafHolding(doc, at, at)?.leaf;
+	const parent = leaf && parentOf(doc, leaf);
+	// In a list item the ending is Enter's next item (`entered`); under a block with a sibling below,
+	// the line under the caret's is the container's already.
+	if (!parent || itemHolding(doc, at, at)) return edit;
+	if (doc.layout.block([...parent.path, leaf!.path.at(-1)! + 1])) return edit;
+	const marks = continuation(doc, at);
+	// A container that marks its lines with an indent alone keeps it on an empty one.
+	const empty = marks.trimEnd() || marks;
+	const under = ({ source, caret }: Edit, move: boolean): Edit => {
+		const end = lineEndBefore(source, caret);
+		const line = doc.ending + empty;
+		const out = source.slice(0, end) + line + source.slice(end);
+		return { source: out, caret: move ? end + line.length : caret };
+	};
+	const opened = under(edit, true);
+	// A closing line keeps a blank line of its own over it, as Enter leaves one.
+	if (!closedByOwnLine(doc, parent)) return opened;
+	const below = lineEnd(opened.source, opened.caret) + 1;
+	return lineRest(opened.source, below) === empty ? opened : under(opened, false);
+}
+
+/** `edit`, line breaks at `at`, with the line they leave blank, when `at` stood right past its line's
+ *  markers, keeping those markers without their trailing spaces, as Enter leaves it. */
+function markersTrimmed(doc: Doc, at: number, edit: Edit): Edit {
+	const head = lineHead(doc.source, at);
+	const kept = head.trimEnd();
+	// Spaces alone mark no container: they are the line's own bytes.
+	if (kept === head || kept === '' || pastMarkers(head, 0) !== head.length) return edit;
+	const start = at - head.length + kept.length;
+	const source = edit.source.slice(0, start) + edit.source.slice(at);
+	return { source, caret: edit.caret - (head.length - kept.length) };
 }
 
 /** Bytes going in over `[from, to)` as written, each later line behind the markers there and

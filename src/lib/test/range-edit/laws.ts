@@ -368,7 +368,14 @@ function oneWrite(
 		if (!kept)
 			return [`L5 paste over text in one block changed bytes outside it: ${q(over.source)}`];
 		const lines = (bytes: string) => bytes.split('\n').length;
-		if (lines(got.slice(before.length, got.length - after.length)) !== lines(text))
+		const mid = got.slice(before.length, got.length - after.length);
+		// The container's empty line, and a closing line's blank line, a last line ending writes.
+		const extra = lines(mid) - lines(text);
+		const blanks = lf(mid)
+			.split('\n')
+			.slice(-extra - 1);
+		const opened = /\n$/.test(text) && extra > 0 && extra <= 2 && blanks.every(isMarkersOnly);
+		if (lines(mid) !== lines(text) && !opened)
 			return [`L5 paste over text in one block added a line: ${q(over.source)}`];
 	}
 	if (then && sameAfterCut(then.source, over.source, source, cut.source)) return [];
@@ -569,10 +576,34 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 	if (shapedOnBreak(read, input.at, input.text, host)) return [];
 	const want = expectedPaste(read, input.at, input.text, host, input.held);
 	if (want.shape === 'other' || want.bytes.includes(got.source)) return [];
+	// A last line ending at a container's last block writes the container's empty line under the caret's.
+	if (/\n$/.test(input.text) && want.bytes.some((bytes) => blankLinesAdded(bytes, got.source)))
+		return [];
 	// A cell holds one line, which its row writes: the paste adds none and moves no other line.
 	if (cellAt(read, input.at, host) && onOneLine(input.source, input.at, got.source)) return [];
 	if (want.bytes.some((bytes) => oneLineInBody(read, input.at, bytes, got.source, host))) return [];
 	return [`L9 (${want.shape}) gave ${q(got.source)}, not ${q(want.bytes[0])}`];
+}
+
+/** Whether `line` holds container markers alone. */
+const isMarkersOnly = (line: string) => /^[ \t>]*\r?$/.test(line);
+
+/** Whether `got` is `bytes` with one or two lines of markers alone put in: the empty line a last
+ *  line ending opens at a container's last block, and a closing line's blank line over it. */
+function blankLinesAdded(bytes: string, got: string, left = 2): boolean {
+	if (left === 0 || got.length <= bytes.length) return false;
+	for (let at = 0; at < got.length;) {
+		const end = got.indexOf('\n', at);
+		const next = end < 0 ? got.length : end + 1;
+		const fewer = got.slice(0, at) + got.slice(next);
+		if (
+			/^[ \t>]*\r?\n?$/.test(got.slice(at, next)) &&
+			(fewer === bytes || blankLinesAdded(bytes, fewer, left - 1))
+		)
+			return true;
+		at = next;
+	}
+	return false;
 }
 
 /** Whether the line holding `at` has nothing past its markers. */
