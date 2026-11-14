@@ -345,7 +345,8 @@ export function heldGapOf(
 	if (gapEligibleAt(doc, gap.parentPath, gap.index)) return gap;
 	// The line a range emptied at the document's end is a place of its own, whatever stands above.
 	const rootEnd = gap.parentPath.length === 0 && gap.index === doc.children.length;
-	if (!rootEnd && joinsProse(measured, place.at)) return null;
+	const docEnd = rootEnd || place.at === measured.starts.length;
+	if (!docEnd && joinsProse(measured, place.at, gap.parentPath)) return null;
 	if (boundaryHidden(doc, gap.parentPath, gap.index)) return null;
 	// A list's children are its items, which no paragraph stands among.
 	const parent = blockNodeAt(doc, gap.parentPath);
@@ -353,11 +354,12 @@ export function heldGapOf(
 	return { ...gap, held: true };
 }
 
-/** Whether a letter typed on a line of its own at byte `at` joins the text there: a block's own
- *  text, of a kind whose text takes the line. */
-function joinsProse(measured: Measured, at: number): boolean {
+/** Whether a letter typed on a line of its own at byte `at` among `parent`'s children joins the
+ *  text there: a block's own text inside `parent`, of a kind whose text takes the line. */
+function joinsProse(measured: Measured, at: number, parent: readonly number[]): boolean {
 	const leaf = leafAtByte(measured, at);
-	const node = leaf && blockNodeAt(measured.doc, leaf.path);
+	const inside = leaf && parent.every((index, depth) => leaf.path[depth] === index);
+	const node = inside && blockNodeAt(measured.doc, leaf.path);
 	return !!node && blockFacts(node.kind).joins === 'text' && readsAsText(node, leaf.offset);
 }
 

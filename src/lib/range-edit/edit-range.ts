@@ -200,13 +200,9 @@ function answerOf(
 	const result = readDoc(removed.source, doc.host, doc.mode);
 	const started = () => startedIn(doc, from);
 	const caret = caretOf(removed, result, besideOf(gesture, doc, range), started);
-	if (!removed.took) return { source: removed.source, caret };
-	// The bytes before the range stay, so its first byte is where the taken block stood.
-	return {
-		source: removed.source,
-		caret,
-		taken: { at: from, parent: parentAt(result, from, started) }
-	};
+	const at = removed.took;
+	if (at === undefined) return { source: removed.source, caret };
+	return { source: removed.source, caret, taken: { at, parent: parentAt(result, at, started) } };
 }
 
 /** The blocks with children a gesture started among, outermost first: those around the block at

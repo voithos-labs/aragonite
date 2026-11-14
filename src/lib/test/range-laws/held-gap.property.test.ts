@@ -226,6 +226,14 @@ function boundaryAt(doc: Parameters<typeof measured>[0], at: number): boolean {
 	return !leaf || point.offset === 0 || point.offset >= leaf.raw.trimEnd().length;
 }
 
+/** Where the range started, read on the bytes `removed` left: its first byte, or its line's first
+ *  where the removal took that line, markers and all. */
+function startIn(source: string, removed: string, start: number): number {
+	return removed.startsWith(source.slice(0, start))
+		? start
+		: source.lastIndexOf('\n', start - 1) + 1;
+}
+
 /** Mounts `source` and puts the drawn range down; null where the editor won't hold it. */
 async function placed(d: Draw, built: Built) {
 	const editor = mountCase(built.source, d.mode);
@@ -272,7 +280,7 @@ async function run(d: Draw): Promise<Run | 'unplaced'> {
 		landing: landingOf(step.editor),
 		boundary: boundaryAt(
 			readAsOpened(removedSide.source, { grammar, scope: 'document' }),
-			over.start
+			startIn(built.source, removedSide.source, over.start)
 		)
 	};
 	await gesture(step.editor, d.gesture);
@@ -474,8 +482,7 @@ const LANDED: Record<string, string> = {
 	'the line under it, under a started title':
 		"intro\n\n[a]: /u\n    'code\n\n汉text\nend'\n\nlast\n",
 	'Enter under a started title': "intro\n\n[a]: /u\n    'code\n\n\nxt\nend'\n\nlast\n",
-	'two containers deep, out past both':
-		'intro\n\n- > above\n  > \n  > 汉\n  >\n  >\n\n```\nlast\n```\n',
+	'two containers deep, out past both': 'intro\n\n- > above\n  >\n  > 汉\n\n```\nlast\n```\n',
 	'past the rows of a table': '| a |\n| - |\n\n汉\n\n```\nx\n```\n| 2 |\n\nlast\n'
 };
 

@@ -134,6 +134,68 @@ const START_LINE_ROWS: NamedRow[] = [
 	)
 ];
 
+/** A container `wrap` around `above` and the blocks a range takes whole to its end, with `block`
+ *  after it: the opening line's markers, the next lines', and the path of the container. */
+const LEFT_WRAPS = {
+	'a quote': { open: '> ', next: '> ', parent: [1], eol: '\n' },
+	'an item': { open: '- ', next: '  ', parent: [1, 0], eol: '\n' },
+	'a quote in an item': { open: '- > ', next: '  > ', parent: [1, 0, 0], eol: '\n' },
+	'an alert': { open: '> [!NOTE]\n> ', next: '> ', parent: [1], eol: '\n' },
+	'a footnote': { open: '[^1]: ', next: '    ', parent: [1], eol: '\n' },
+	'a quote in CRLF': { open: '> ', next: '> ', parent: [1], eol: '\r\n' }
+};
+const LEFT_BLOCKS = {
+	'a fence': ['```', 'last', '```'],
+	'a math block': ['$$', 'm', '$$'],
+	'a rule': ['***'],
+	'a table': ['| a |', '|---|', '| 1 |'],
+	'a tip': [':::tip', 'body', ':::'],
+	'a heading': ['# h']
+};
+
+// Miss-analysis: every row that took a container's last blocks from a block taken whole started at
+// the top level or emptied the container, so none kept a block above the emptied marker line.
+const LEFT_LINE_ROWS: NamedRow[] = Object.entries(LEFT_WRAPS).flatMap(([wrap, w]) =>
+	Object.entries(LEFT_BLOCKS).flatMap(([name, lines]) => {
+		const [lead, block] = [`intro${w.eol}${w.eol}${w.open}above${w.eol}`, lines.join(w.eol)];
+		const taken = `⟦# text${w.eol}${w.next}below⟧`;
+		return cut(
+			`L4 out of ${wrap} from a block taken whole, its line goes, above ${name}`,
+			`${lead}${w.next}${taken}${w.eol}${w.eol}${block}${w.eol}`,
+			`${lead}${w.eol}${block}${w.eol}`,
+			{ at: lead.length, holds: 'boundary', parent: w.parent }
+		);
+	})
+);
+
+// What the rows above leave as it was: a start in a paragraph, a container taken whole or emptied.
+const LEFT_LINE_KEPT_ROWS: NamedRow[] = [
+	...cut(
+		'L4 out of a quote from a paragraph’s first byte, its emptied line stays',
+		'intro\n\n> above\n>\n> ⟦para\n> # h2⟧\n\n```\nlast\n```\n',
+		'intro\n\n> above\n>\n> \n\n```\nlast\n```\n',
+		{ at: 19, holds: 'text' }
+	),
+	...cut(
+		'L4 a quote the range empties keeps its line',
+		'intro\n\n> ⟦# text\n> below⟧\n\n```\nlast\n```\n',
+		'intro\n\n> \n\n```\nlast\n```\n',
+		{ at: 9, holds: 'text' }
+	),
+	...cut(
+		'L4 a quote the range takes whole goes whole',
+		'intro\n\n⟦> above\n> # text\n> below⟧\n\n```\nlast\n```\n',
+		'intro\n\n```\nlast\n```\n',
+		{ at: 7, holds: 'boundary', parent: [] }
+	),
+	...cut(
+		'L4 out of a quote, its blank line above the range and the one after it both stay',
+		'intro\n\n> above\n>\n> ⟦# text\n> below⟧\n\n# h\n',
+		'intro\n\n> above\n>\n\n# h\n',
+		{ at: 17, holds: 'boundary', parent: [1] }
+	)
+];
+
 /** Delete's rows in both modes, and a composition's where `composes`, which lands where Delete does. */
 const deleted = (name: string, source: string, out: string, caret: Caret, composes = false) =>
 	(composes ? (['delete', 'compose'] as const) : (['delete'] as const)).flatMap((gesture) =>
@@ -522,6 +584,8 @@ export const CLOSER_ROWS: NamedRow[] = [
 	...LINE_ROWS,
 	...OPENING_ROWS,
 	...START_LINE_ROWS,
+	...LEFT_LINE_ROWS,
+	...LEFT_LINE_KEPT_ROWS,
 	...TEXT_AFTER_ROWS,
 	...ENTERED_ROWS,
 	...MIXED_ROWS,
