@@ -130,20 +130,31 @@ function numberedAs(marker: string, other: string | undefined): string {
 	return number ? marker.replace(/^\d+/, number) : marker;
 }
 
-/** `host`'s next item under `block`, pasted blocks that broke out of the host's list (a list of
- *  another kind, a rule): it heads the host's items below, numbered on from the first of them. */
+/** `host`'s next item under `block`, pasted blocks that broke out of the host's list: it heads the
+ *  host's items below, numbered on, apart from `block` where a reload would read its marker into it. */
 function openedUnder(doc: Doc, block: LaidBlock, host: HostItem): Edit {
-	const at = contentEnd(doc, block);
-	const outer = continuation(doc, at, (c) => c !== block);
-	const first = block.container ? doc.layout.block([...block.path, 0]) : undefined;
+	const { source } = doc;
+	const end = contentEnd(doc, block);
+	const outer = continuation(doc, end, (c) => c !== block);
+	const listed = factsOf(doc, block).lines === 'items';
+	const first = listed ? doc.layout.block([...block.path, 0]) : undefined;
 	const line = first?.lineAt!(first.from);
-	const indent = line ? /^[ \t]*/.exec(doc.source.slice(line.from, line.markerTo))![0] : '';
+	const indent = line ? /^[ \t]*/.exec(source.slice(line.from, line.markerTo))![0] : '';
 	const next = doc.layout.block([...block.path.slice(0, -1), block.path.at(-1)! + 1]);
 	const head = next && nodeAt(doc, next.path).children?.[0];
 	const below = head && itemsShareList(host.node, head) ? next : undefined;
+	// Past the blank lines over the host's items below, so the item opened is the first of them.
+	const above = below ? source.lastIndexOf('\n', below.from - 1) : -1;
+	const at = above < 0 ? end : source[above - 1] === '\r' ? above - 1 : above;
 	const opens = doc.ending + outer + indent + host.marker;
-	const source = doc.source.slice(0, at) + opens + doc.source.slice(at);
-	const opened = { source, caret: at + opens.length };
+	const out = source.slice(0, at) + opens + source.slice(at);
+	const under = at + doc.ending.length;
+	const stands = at > end || startsBlock(doc, out, under, block.path.length);
+	const apart = stands ? '' : outer.trimEnd() + doc.ending;
+	const opened = {
+		source: out.slice(0, under) + apart + out.slice(under),
+		caret: at + opens.length + apart.length
+	};
 	return below ? numberedFromHead(doc, below, opened) : opened;
 }
 
