@@ -81,7 +81,6 @@ type Shape =
 
 const ROUTES: Record<string, Shape[]> = {
 	'components/blocks/editable/surface-write.ts': ['a selection deleted', 'a selection typed over'],
-	'components/blocks/table/table-cell-paste.ts': ['a selection typed over'],
 	'components/blocks/table/TableCellBlock.svelte': ['a selection deleted'],
 	'components/blocks/text/composition-seat.ts': ['a selection typed over'],
 	'components/blocks/text/edge-policy-dispatch.ts': [
