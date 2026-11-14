@@ -156,3 +156,14 @@ for (const mode of ['source', 'live'] as const)
 		const [left] = await landed('[ref]: /u‸rl\n\nAfter [ref]\n', mode, '# x');
 		expect(left).toBe('[ref]: /u# xrl\n\nAfter [ref]\n');
 	});
+
+// A definition pasted mid-item takes no text: the rest stays a line apart, as after a fence.
+// Miss-analysis: the rows pasted into definitions, never a definition into an item's text.
+for (const mode of ['source', 'live'] as const)
+	it(`${mode}: a definition pasted mid-item with its ending keeps the rest a line apart`, async () => {
+		const [left, typed] = await landed('- aaa\n- bb‸cc\n- ddd\n', mode, '[def]: /u\n');
+		expect([left, typed]).toEqual([
+			'- aaa\n- bb\n\n  [def]: /u\n\n  cc\n- ddd\n',
+			'- aaa\n- bb\n\n  [def]: /u\n\n  Z\n\n  cc\n- ddd\n'
+		]);
+	});

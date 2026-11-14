@@ -40,10 +40,14 @@ import { cutLeaf, lineEnd, lineHead, lineRest, spliced, type Cut, type Edit } fr
  *  null elsewhere, and in literal text, where Enter adds a line. */
 export function itemHolding(doc: Doc, from: number, to: number) {
 	const held = leafHolding(doc, from, to);
-	const item = held && parentOf(doc, held.leaf);
+	return held && factsOf(doc, held.leaf).body !== 'literal' ? itemAround(doc, held) : null;
+}
+
+/** The list item whose own block is `held`'s, with its list; null outside a list. */
+export function itemAround(doc: Doc, held: NonNullable<ReturnType<typeof leafHolding>>) {
+	const item = parentOf(doc, held.leaf);
 	const list = item && parentOf(doc, item);
-	if (!held || !list || factsOf(doc, list).lines !== 'items') return null;
-	return literalLines(doc, held.leaf) ? null : { held, item, list };
+	return list && factsOf(doc, list).lines === 'items' ? { held, item, list } : null;
 }
 
 /** Whether `leaf` is literal text whose lines take a pasted line, where Enter adds a line. */

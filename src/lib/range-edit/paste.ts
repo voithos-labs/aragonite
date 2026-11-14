@@ -34,6 +34,7 @@ import {
 	enteredAt,
 	literalLines,
 	intoBlankUnder,
+	itemAround,
 	itemHolding,
 	joinsList,
 	onEmptyLine,
@@ -139,7 +140,9 @@ function entered(
 		};
 		return { ...pasted, text: text + tail, transform: transform && whole };
 	};
-	const host = itemHolding(doc, from, to);
+	// A link definition in an item is no literal text: the ending there is the item's Enter.
+	const hostless = held && !factsOf(doc, held.leaf).holdsLines;
+	const host = itemHolding(doc, from, to) ?? (hostless ? itemAround(doc, held) : null);
 	const bare: Pasted = { ...keeping(0), ended: true };
 	// In an item, endings alone are Enter from the first. Elsewhere only a pasted list ends in a list
 	// of the document; a container the caret's took in ends inside it, where the ending is text's.
