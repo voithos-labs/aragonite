@@ -52,7 +52,7 @@ describe('live-mode gestures at hidden edges', () => {
 		expect(stats.rewrote['format-toggle']).toBeGreaterThan(5);
 		expect(stats.rewrote['word-delete']).toBeGreaterThan(5);
 		// G1.91: a join keeps every kept character's marks but where no spelling can close the run.
-		// At about 80 joins this only trips on a gross rise; live-seam draws enough to hold the share.
+		// At about 80 joins this trips only on a gross rise; the range-delete property holds the share.
 		const joins =
 			stats.rewrote['range-delete'] + stats.rewrote['type-over'] + stats.rewrote['word-delete'];
 		expect(stats.marksDropped).toBeLessThan(joins / 5);
