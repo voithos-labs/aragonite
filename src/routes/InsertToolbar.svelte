@@ -9,7 +9,7 @@
 	type Snippet = { name: string; title: string; md: string; options?: InsertMarkdownOptions };
 
 	// One line after text goes in as text, so the rule, the one snippet of one line, asks for a
-	// paragraph of its own below the caret's block.
+	// block of its own: an empty line becomes it, a line with text gets it below.
 	const SNIPPETS: Snippet[] = [
 		{
 			name: 'table',

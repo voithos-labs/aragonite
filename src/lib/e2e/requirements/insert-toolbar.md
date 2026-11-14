@@ -18,6 +18,8 @@ and they grey while the editor holds no caret, the same refusal
 - the rule button with the caret after text puts a divider on a line of its own under
   that text, never `---` into it (miss-analysis: the rows checked only that the snippet's
   bytes reached the source, which `start here---` does too)
+- the rule button on an empty line makes that line the divider, with no empty line left above
+  it (miss-analysis: the rule rows all started after text)
 
 ## User interactions
 

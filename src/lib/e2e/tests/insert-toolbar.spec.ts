@@ -61,6 +61,16 @@ test.describe('insert toolbar', () => {
 		expect(await editor.bridge.getBlockKind(1)).toBe('thematicBreak');
 	});
 
+	test('the rule button on an empty line makes the line the divider', async ({ page }) => {
+		await editor.focusBlock(0, 10);
+		await page.keyboard.press('Enter');
+		await editor.bridge.waitForSourceEquals('start here\n\n\nsecond block\n');
+		await page.getByTestId('insert-rule').click();
+
+		await editor.bridge.waitForSourceContains('---');
+		expect(await editor.bridge.getSource()).toBe('start here\n\n---\n\nsecond block\n');
+	});
+
 	for (const { name, marker } of SNIPPET_ROWS) {
 		test(`the ${name} button lands its snippet in the source`, async ({ page }) => {
 			await editor.focusBlock(0, 10);

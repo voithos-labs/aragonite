@@ -29,6 +29,19 @@ test.describe('right-click menu: Insert block', () => {
 		expect(await editor.bridge.getSource()).toBe('first\n\n```\n\n```\n\nsecond\n');
 	});
 
+	test('on an empty line the picked block takes the line', async ({ page }) => {
+		await editor.loadContent('first\n\nsecond\n');
+		await editor.focusBlock(0, 'first'.length);
+		await page.keyboard.press('Enter');
+		await editor.bridge.waitForSourceEquals('first\n\n\nsecond\n');
+		await editor.getBlock(1).click({ button: 'right' });
+		await page.getByRole('menuitem', { name: 'Insert block' }).hover();
+		await page.getByRole('menuitem', { name: 'Code block' }).click();
+
+		await editor.bridge.waitForSourceContains('```');
+		expect(await editor.bridge.getSource()).toBe('first\n\n```\n\n```\n\nsecond\n');
+	});
+
 	test('one Ctrl+Z takes the inserted block and its paragraph back together', async ({ page }) => {
 		const before = 'first\n\nsecond\n';
 		await editor.loadContent(before);

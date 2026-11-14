@@ -12,6 +12,7 @@ import type { BlockComponent } from '../../block-component';
 import { readPasteEvent, scriptedClip, type ClipboardRead } from '../../browser/clipboard';
 import type { BlockElLookup } from '../../caret/block-el-lookup';
 import { docPathFrom } from '../../core/coordinate-spaces';
+import { isBlankText } from '../../core/lines';
 import type { DocumentStamps } from '../../editor-actions/commit/document-stamp';
 import { emitClipboardError, type EditorEvents } from '../../editor-events';
 import type { PasteImageHook } from '../../host-hooks';
@@ -25,6 +26,7 @@ import { findSurfacePathForElement } from '../../selection/path-lookup';
 import { placeAfterBlock, placeOfGap, type PasteAim } from '../../selection/range-bytes';
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import { isWholeBlockInputProxy } from '../../selection/whole-block-input';
+import { blockNodeAt } from '../../tree-operations/node-primitives';
 import type { SurfacePaste } from '../blocks/editable/surface-clipboard';
 import { createImagePasteArm } from '../paste-image-arm';
 
@@ -55,8 +57,8 @@ export type AimedPaste = (clip: Clip) => Promise<boolean>;
 export interface RootPaste {
 	/** `root` is the element the installing effect captured, not a live binding. */
 	onPasteEvent(event: ClipboardEvent, root: HTMLElement): void;
-	/** Pastes `clip` where the editor's caret or range is; `below` pastes under the top-level block
-	 *  holding the caret. True once bytes moved into the document. */
+	/** Pastes `clip` at the editor's caret or range; `below` makes it a block of its own (see
+	 *  `onEmptyParagraph`). True once bytes moved into the document. */
 	paste(clip: Clip, options?: { below?: boolean }): Promise<boolean>;
 	/** A paste aimed now, for a caller that waits on something first (a menu's clipboard read);
 	 *  null with nowhere to aim. */
@@ -88,6 +90,14 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 		if (!path || !block) return null;
 		if (block.preparePaste) return { at: 'block', path, block };
 		return isWholeBlockInputProxy(el) ? { at: 'whole', path } : null;
+	}
+
+	/** Whether the block at `el` is a paragraph with no text: an empty line, item or to-do, which a
+	 *  block of its own takes the place of. */
+	function onEmptyParagraph(el: Element | null): boolean {
+		const block = blockAt(el);
+		const node = block && blockNodeAt(ctx.getDoc(), block.path);
+		return node?.kind === 'paragraph' && isBlankText(node.raw);
 	}
 
 	/** The place the editor holds: its range, its gap caret, else the block at `el`, the focused
@@ -230,7 +240,7 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 		},
 		paste(clip, options) {
 			const active = document.activeElement;
-			if (!options?.below) {
+			if (!options?.below || onEmptyParagraph(active)) {
 				const holder = holderAt(active);
 				return (holder && aimAt(holder, true)?.(clip)) ?? Promise.resolve(false);
 			}

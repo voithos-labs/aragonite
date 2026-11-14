@@ -43,7 +43,7 @@ describe('the slash list', () => {
 		expect(h.rows()).not.toContain('Quote');
 		await h.type('pull');
 		await h.pick();
-		expect(h.inserted).toEqual([{ markdown: '> Pull: ', placement: 'caret' }]);
+		expect(h.inserted).toEqual([{ markdown: '> Pull: ', placement: 'below' }]);
 	});
 
 	it('shows the parsed argument on the one row a space kept', async () => {
@@ -60,7 +60,7 @@ describe('the slash list', () => {
 		expect(h.details()).toEqual([undefined]);
 		await h.pick();
 		expect(h.inserted).toEqual([
-			{ markdown: '| Column | Column |\n| --- | --- |\n|  |  |\n', placement: 'caret' }
+			{ markdown: '| Column | Column |\n| --- | --- |\n|  |  |\n', placement: 'below' }
 		]);
 	});
 });
@@ -84,7 +84,7 @@ describe('a plugin insert entry with an argument', () => {
 		expect(h.rows()).toEqual(['Sticky note']);
 		expect(h.details()).toEqual(['yellow']);
 		await h.pick();
-		expect(h.inserted).toEqual([{ markdown: ':::sticky yellow\n\n:::\n', placement: 'caret' }]);
+		expect(h.inserted).toEqual([{ markdown: ':::sticky yellow\n\n:::\n', placement: 'below' }]);
 	});
 });
 
@@ -110,7 +110,7 @@ describe('an argument beside a row sharing its word', () => {
 		expect(h.details()).toEqual(['2×3']);
 		await h.pick();
 		expect(h.inserted).toEqual([
-			{ markdown: '| Column | Column |\n| --- | --- |\n|  |  |\n|  |  |\n', placement: 'caret' }
+			{ markdown: '| Column | Column |\n| --- | --- |\n|  |  |\n|  |  |\n', placement: 'below' }
 		]);
 	});
 });
@@ -137,7 +137,7 @@ describe('a label typed in full, spaces and all', () => {
 		expect(h.details()).toEqual([undefined, undefined]);
 		await h.pick();
 		expect(h.inserted).toEqual([
-			{ markdown: '| Column | Column |\n| --- | --- |\n|  |  |\n', placement: 'caret' }
+			{ markdown: '| Column | Column |\n| --- | --- |\n|  |  |\n', placement: 'below' }
 		]);
 	});
 
@@ -152,7 +152,7 @@ describe('a label typed in full, spaces and all', () => {
 			expect(h.rows()).toEqual(['Table of contents']);
 			expect(h.details()).toEqual([undefined]);
 			await h.pick();
-			expect(h.inserted).toEqual([{ markdown: '[[toc]]\n', placement: 'caret' }]);
+			expect(h.inserted).toEqual([{ markdown: '[[toc]]\n', placement: 'below' }]);
 		}
 	);
 
@@ -161,7 +161,7 @@ describe('a label typed in full, spaces and all', () => {
 		await h.type('/bulleted l');
 		expect(h.rows()).toEqual(['Bulleted list']);
 		await h.pick();
-		expect(h.inserted).toEqual([{ markdown: '- ', placement: 'caret' }]);
+		expect(h.inserted).toEqual([{ markdown: '- ', placement: 'below' }]);
 	});
 
 	it('a host row taking a word gets none when its own label was typed', async () => {
@@ -184,11 +184,11 @@ describe('a pick', () => {
 		expect(h.ran).toEqual([{ id: 'heading.cycle', arg: 2 }]);
 	});
 
-	it('/quote on an empty line inserts at the caret', async () => {
+	it('/quote on an empty line asks for a block of its own, which the line becomes', async () => {
 		const h = slashHarness('');
 		await h.type('/quote');
 		await h.pick();
-		expect(h.inserted).toEqual([{ markdown: '> ', placement: 'caret' }]);
+		expect(h.inserted).toEqual([{ markdown: '> ', placement: 'below' }]);
 	});
 
 	it('/quote after text inserts below, keeping the text', async () => {
@@ -203,7 +203,7 @@ describe('a pick', () => {
 		const h = slashHarness('');
 		await h.type('/code js');
 		await h.pick();
-		expect(h.inserted).toEqual([{ markdown: '```js\n\n```\n', placement: 'caret' }]);
+		expect(h.inserted).toEqual([{ markdown: '```js\n\n```\n', placement: 'below' }]);
 	});
 
 	it('a host run entry receives the pick’s context and the argument, an insert entry its Markdown', async () => {
@@ -222,7 +222,7 @@ describe('a pick', () => {
 		expect(argument).toBe('knuth');
 		await h.type('/stamp');
 		await h.pick();
-		expect(h.inserted).toEqual([{ markdown: '**ok**', placement: 'caret' }]);
+		expect(h.inserted).toEqual([{ markdown: '**ok**', placement: 'below' }]);
 	});
 });
 

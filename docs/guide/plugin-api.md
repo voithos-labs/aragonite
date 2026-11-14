@@ -63,7 +63,7 @@ _(pre-freeze / unstable)_ The installable package, and the per-editor context it
 | `PluginSetupContext` | What `setup(ctx)` receives; its `onEditor(cb)` registers a per-editor callback (call it from `setup`, synchronously) |
 | `OnEditorCallback` | The callback itself: receives the `EditorContext` of each mounted editor that listed your plugin, may return a cleanup function the editor runs at unmount |
 | [`EditorContext`](#editorcontext) | One editor's view for your plugin, handed to your `onEditor` callback |
-| `InsertMarkdownOptions` | `insertMarkdown`'s second argument: `placement: 'below'` puts the text into a new paragraph after the top-level block holding the caret, in one undo entry; the default inserts at the caret |
+| `InsertMarkdownOptions` | `insertMarkdown`'s second argument: `placement: 'below'` makes the text a block of its own: at a caret on an empty line, item or to-do, else in a new paragraph after the top-level block holding the caret, in one undo entry; the default inserts at the caret |
 | [`Draft`, `DraftResult`](#draft-draftresult) | A write in the document's bytes from `edit()`, and what its commit came to |
 | `PresentationMode` | The union of the editor's view modes (source, reading, the two previews, live). Switch on it with a default branch, since a new mode would join the union. [Presentation modes](plugin-guide/presentation-modes.md#presentation-modes) |
 | `ClickInput` | What `isActivationClick` reads off a click: its Ctrl and Cmd keys, its click count and its target. A `MouseEvent` is one, so pass the event |

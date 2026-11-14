@@ -177,8 +177,8 @@ export interface PlaceholderBlock {
 }
 
 export interface InsertMarkdownOptions {
-	/** `caret` (the default) inserts where the caret is; `below` inserts into a new paragraph
-	 *  after the top-level block that holds it. */
+	/** `caret` (the default) inserts where the caret is; `below` inserts a block of its own: at the
+	 *  caret on an empty line, item or to-do, else in a new paragraph after the top-level block. */
 	placement?: 'caret' | 'below';
 }
 
@@ -224,8 +224,8 @@ export interface EditorInstance {
 	 * Insert markdown as pasting it would, less its last line ending (a snippet's terminator): the
 	 * selection deleted first, one undo entry, focus at the last place it holds, one line after
 	 * text as text. False, with nothing changed, with no caret or in reading mode.
-	 * `placement: 'below'` first adds an empty paragraph after the caret's top-level block, where
-	 * the markdown lands as the blocks it reads as.
+	 * `placement: 'below'` makes it a block of its own: an empty line, item or to-do at the caret
+	 * takes it, else an empty paragraph added after the caret's top-level block.
 	 */
 	insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean>;
 	/**
@@ -261,7 +261,7 @@ export interface EditorInstance {
 	 * The blocks the insert menus offer, in menu order: the built-ins, then each block a plugin this
 	 * editor activated registered. The list the right-click flyout draws, for a host building its own
 	 * insert button; each entry's `markdown` is what to hand `insertMarkdown`, with
-	 * `placement: 'below'` unless the caret's line is empty. A fresh frozen list per call.
+	 * `placement: 'below'`. A fresh frozen list per call.
 	 */
 	getInsertCatalogue(): readonly InsertEntry[];
 	getRects(): EditorRects;

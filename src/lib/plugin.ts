@@ -24,7 +24,7 @@ export { definePlugin, isPluginInstalled } from './schema/plugin-install';
 export type { EditorPlugin, EditorPluginEntry } from './schema/plugin-install';
 // `setup(ctx)` registers `onEditor` callbacks that receive a per-instance `EditorContext`.
 export type { PluginSetupContext, OnEditorCallback, EditorContext } from './schema/plugin-install';
-// `EditorContext.insertMarkdown`'s options: at the caret, or in a new paragraph below its block.
+// `EditorContext.insertMarkdown`'s options: at the caret, or as a block of its own.
 export type { InsertMarkdownOptions } from './editor-props';
 // `EditorContext.edit()`'s write, in the document's bytes, and what its commit came to.
 export type { Draft, DraftResult } from './schema/drafts';
