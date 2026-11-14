@@ -35,8 +35,9 @@ prove.
   (with the render showing, copying falls back to the browser's own, since there is no source to
   slice)
 - A table pasted into the shown source after `$$x` is text of the body: at blur the document
-  holds `$$x| a |` over `| - |^2$$`, the bytes the range-edit core answers for the same paste
-  (a paragraph would set the table apart).
+  holds `x| a |` over `| - |^2` between `$$` lines of their own, as a typed line break shapes
+  the block, and the bytes the range-edit core answers for the same paste (a paragraph would
+  set the table apart).
   Miss-analysis: the draft takes the paste outside the core, and no row compared what it lands
   at blur with the core's answer
 

@@ -6,12 +6,13 @@
 
 import type { DocumentView, NodeView } from '../core/node-views';
 import { getContentRange } from '../core/inline';
+import { serialize } from '../core/serializer';
 import { cutOutsideWhole } from '../core/inline/live-edit/live-split';
 import { documentLineEnding, ownTrailingLineEnding, trimTrailingLineEnding } from '../core/lines';
 import { makeBlockNode, metadataIfKind } from '../core/nodes';
 import { hidesDelimitersAtCaret } from '../presentation-mode';
 import { blockFacts, type BlockFacts } from '../schema/block-facts';
-import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
+import { tryGetBlockKindDescriptor, type WriteMode } from '../schema/block-kind-descriptor';
 import { closed as lineClosed, unfinishedReadings } from '../schema/block-openers';
 import { readAsOpened } from '../schema/opened-reading';
 import type { Reading } from '../schema/reading';
@@ -25,6 +26,7 @@ import {
 	type LeafRangeEdit
 } from '../tree-operations/leaf-range';
 import { splitHalves } from '../tree-operations/node-ops';
+import { enteredOut } from '../tree-operations/list/enter-out';
 import { followerMetadata } from '../tree-operations/list/list-builders';
 import { blockNodeAt, normalizeBodyWrite } from '../tree-operations/node-primitives';
 import { cutKeepingStructure } from '../tree-operations/structural-suffix';
@@ -127,6 +129,9 @@ export interface RangeHost {
 		/** The block with a line break at `at`, as its last line ending ends text pasted there: a
 		 *  split's cut where a run closes at `at`, so the run closes before the break; else as written. */
 		broken(doc: DocumentView, path: readonly number[], at: number, mode: Mode): LeafWrite;
+		/** The block holding `raw`, its caret at `caret`, as its write rule stores text typed there,
+		 *  as a shown source's draft lands: a one-line `$$` given a line break takes fence lines. */
+		typed(doc: DocumentView, path: readonly number[], raw: string, caret: number): LeafWrite;
 		/** The bytes `[from, to)` of the block carry out of it, a format run they cut closed. */
 		carried(
 			doc: DocumentView,
@@ -139,6 +144,9 @@ export interface RangeHost {
 	/** What the item Enter opens after the list item at `path` starts with: its marker one on, and
 	 *  an unchecked box where it has a box. */
 	itemAfter(doc: DocumentView, path: readonly number[]): string;
+	/** Enter on the list item at `path` where it takes the item out of its list: the bytes the
+	 *  editor's Enter leaves and its caret's byte; null where Enter there opens the next item. */
+	enterOut(doc: DocumentView, path: readonly number[]): { source: string; caret: number } | null;
 	/** `text` escaped so a block that reads Markdown shows every character of it: Paste as plain
 	 *  text. A block whose text is literal takes the text as written, which the core checks. */
 	escaped(text: string): string;
@@ -221,10 +229,11 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 	const stored = (
 		doc: DocumentView,
 		path: readonly number[],
-		edit: Pick<LeafRangeEdit, 'raw' | 'caret' | 'afterRange'>
+		edit: Pick<LeafRangeEdit, 'raw' | 'caret' | 'afterRange'>,
+		mode: WriteMode = 'literal'
 	): LeafWrite => {
 		const { holder, index } = writeTargetAt(doc, path);
-		const legal = legalizeWrite(holder, index, edit.raw, 'literal', reading.grammar);
+		const legal = legalizeWrite(holder, index, edit.raw, mode, reading.grammar);
 		const row = blockNodeAt(doc, path.slice(0, -1));
 		// A row writes a cell's edge spaces as padding, so the cell keeps its text without them.
 		const bytes = row && blockFacts(row.kind).lines === 'cells' ? cellText(legal.text) : legal.text;
@@ -313,6 +322,8 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 				const line = brokenAt(doc, path, node, at, storedAsAt(doc, path, readingIn(mode)));
 				return { bytes: line.raw, caret: line.caret, after: line.caret };
 			},
+			typed: (doc, path, raw, caret) =>
+				stored(doc, path, { raw, caret, afterRange: caret }, 'authored'),
 			carried(doc, path, from, to, mode) {
 				const store = storedAsAt(doc, path, readingIn(mode));
 				return bytesLeavingLeaf(leafAt(doc, path), { start: from, end: to }, store);
@@ -322,6 +333,14 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 			const own = metadataIfKind(blockNodeAt(doc, path)!, 'listItem') ?? undefined;
 			const follower = followerMetadata(own);
 			return follower.marker + (follower.taskMarker ?? '');
+		},
+		enterOut(doc, path) {
+			const out = enteredOut(doc, path, reading.grammar);
+			if (!out) return null;
+			const layout = documentLayout(measured(out.doc));
+			let block = layout.block(out.caret);
+			while (block && !block.text) block = layout.block([...block.path, 0]);
+			return block?.text ? { source: serialize(out.doc), caret: block.text.from } : null;
 		},
 		escaped: escapeMarkdownLiteral,
 		inBodies(doc, path, text) {

@@ -553,12 +553,22 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 	const stranded = strandedInBody(read, input.at, got.source, host);
 	if (stranded !== undefined)
 		return [`L9 left ${q(stranded)} alone on a line its container reads as its own syntax`];
+	// A one-line source shown while it's edited, given a line break, takes the shape its write rule
+	// gives it (a `$$` block's fence lines of its own), by bytes the rows hold.
+	if (shapedOnBreak(read, input.at, input.text, host)) return [];
 	const want = expectedPaste(read, input.at, input.text, host, input.held);
 	if (want.shape === 'other' || want.bytes.includes(got.source)) return [];
 	// A cell holds one line, which its row writes: the paste adds none and moves no other line.
 	if (cellAt(read, input.at, host) && onOneLine(input.source, input.at, got.source)) return [];
 	if (want.bytes.some((bytes) => oneLineInBody(read, input.at, bytes, got.source, host))) return [];
 	return [`L9 (${want.shape}) gave ${q(got.source)}, not ${q(want.bytes[0])}`];
+}
+
+/** Whether `text` gives a line break to the one-line source shown while edited that holds `at`. */
+function shapedOnBreak(read: Read, at: number, text: string, host: CheckHost): boolean {
+	const leaf = leafAt(read, at);
+	if (!leaf || host.facts(leaf.type).textPosition !== 'while-source-shows') return false;
+	return text.includes('\n') && !read.source.slice(leaf.from, leaf.to).trimEnd().includes('\n');
 }
 
 /** Whether byte `at` stands in the text of a list item's own block, text that isn't literal. */

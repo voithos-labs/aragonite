@@ -100,3 +100,25 @@ for (const mode of ['source', 'live'] as const)
 		const { caret } = await pastedThenTyped('abc‸\n', mode, '$$\nx\n$$');
 		expect(caret).toEqual({ path: [1], offset: 4 });
 	});
+
+// With its ending, a block pasted at an item's text start opens the empty line before the text,
+// which takes the caret as a gap in the item: a letter there starts a line of its own.
+
+// Miss-analysis: the ending rows pasted at a text's end, so no row asked where the caret goes when
+// the text after it moves under a closing line.
+const OPENING: [name: string, marked: string, first: string, more: string, tail: string][] = [
+	['a bullet', '- ‸alpha\n- after\n', '- ', '  ', '- after\n'],
+	['a nested bullet', '- top\n  - ‸alpha\n- after\n', '- top\n  - ', '    ', '- after\n'],
+	['a quoted bullet', '> - ‸alpha\n> - after\n', '> - ', '>   ', '> - after\n'],
+	['a to-do', '- [ ] ‸alpha\n- [ ] after\n', '- ', '  ', '- [ ] after\n']
+];
+
+for (const mode of ['source', 'live'] as const)
+	for (const [name, marked, first, more, tail] of OPENING)
+		for (const block of [FENCE, '$$\nx\n$$', CALLOUT])
+			it(`${mode}: a letter after ${block.split('\n')[0]} pasted with its ending at ${name}’s text start starts a line`, async () => {
+				const line = (text: string) => `${text ? more + text : more.trimEnd()}\n`;
+				const lines = block.split('\n').map((text, i) => (i ? line(text) : `${first}${text}\n`));
+				const typed = [...lines, line(''), line('Z'), line(''), line('alpha')].join('') + tail;
+				expect((await pastedThenTyped(marked, mode, `${block}\n`)).typed).toBe(typed);
+			});

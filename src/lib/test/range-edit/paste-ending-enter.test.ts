@@ -20,7 +20,16 @@ import {
 } from '#lib/test/harness/clipboard-events.js';
 import { pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
-import { mountCase, pasteGesture, placeRange, type Editor } from '../range-laws/gestures';
+import { parse } from '#lib/core/parser.js';
+import type { NodeView } from '#lib/core/node-views.js';
+import {
+	blocksIn,
+	blocksOf,
+	mountCase,
+	pasteGesture,
+	placeRange,
+	type Editor
+} from '../range-laws/gestures';
 
 beforeAll(installLayoutStubs);
 beforeEach(() => {
@@ -235,22 +244,80 @@ for (const [name, mode, marked, clip, want, typedWant] of OTHER_HOSTS)
 		if (typedWant !== null) expect(typed).toBe(typedWant);
 	});
 
-// A clipboard ending in two line endings leaves a list as a second Enter there does: the item the
-// first opened parts the list as an empty line.
-const TWICE: [name: string, marked: string, clip: string][] = [
-	['a bullet', '- alpha‸\n- after\n', 'one'],
-	['a to-do', '- [ ] alpha‸\n- [ ] after\n', 'one'],
-	['an item in a quote', '> - alpha‸\n> - after\n', 'one'],
-	['the last item', '- alpha‸\n', 'one']
+// Each line ending after the first is Enter where the one before left the caret: on the empty
+// item the first opened, the second leaves the list, or lifts a nested item a level.
+
+// Miss-analysis: the two-ending rows pasted words into a top-level item, whose exit reads as the
+// separation's blank lines, so no row asked for a lift, a list clipboard or a number.
+const TWICE: [name: string, marked: string, list: string, text: string | null][] = [
+	['a bullet', '- alpha‸\n- after\n', '- one\n- two', 'one'],
+	['an ordered list', '1. alpha‸\n2. after\n', '1. one\n2. two', 'one'],
+	['a nested item', '- a\n  - alpha‸\n- b\n', '- one\n- two', 'one'],
+	['a nested ordered item', '- a\n  1. alpha‸\n  2. after\n- b\n', '1. one\n2. two', 'one'],
+	['a to-do', '- [ ] alpha‸\n- [ ] after\n', '- [ ] one\n- [ ] two', 'one'],
+	['an item in a quote', '> - alpha‸\n> - after\n', '- one\n- two', 'one'],
+	['the last item', '- alpha‸\n', '- one\n- two', 'one'],
+	// In a paragraph two endings are an empty line and a blank line, not two Enters.
+	['a paragraph over a list the paste joins', 'abc‸\n- c\n', '- one\n- two', null],
+	['a bullet a numbered list breaks out of', '- a‸b\n', '1. q\n2. r', 'one']
 ];
 
+/** Whether a reload of `source` reads the lists `editor` holds, none of them parted by a blank line. */
+function readsSameLists(editor: Editor): void {
+	const source = editor.source();
+	const loose = (nodes: readonly NodeView[]): boolean =>
+		nodes.some(
+			(n) => (n.kind === 'list' && /\n[ \t]*\n/.test(n.raw.trimEnd())) || loose(n.children ?? [])
+		);
+	const reload = parse(source).children;
+	expect(blocksOf(reload)).toEqual(blocksIn(editor));
+	expect(loose(reload)).toBe(false);
+}
+
+/** What a paste of `clip` and `endings` line endings leaves, its reload checked, then a letter. */
+async function pastedReloaded(
+	marked: string,
+	mode: PresentationMode,
+	clip: string,
+	endings: number
+) {
+	const editor = await mounted(marked, mode);
+	await pasteGesture(editor, { 'text/plain': clip + '\n'.repeat(endings) }, 'key');
+	readsSameLists(editor);
+	expect(takeDevWarns()).toEqual([]);
+	const after = leftBy(editor);
+	await key(editor, 'Z');
+	const typed = editor.source();
+	await destroyMountedEditors();
+	return { after, typed };
+}
+
 for (const mode of ['source', 'live'] as const)
-	for (const [name, marked, clip] of TWICE)
-		it(`${mode}: ${name}, two last line endings are two Enters`, async () => {
-			const ended = await pasted(marked, mode, clip + '\n\n');
-			const entered = await pasted(marked, mode, clip, 2);
-			expect(ended).toEqual(entered);
+	for (const [name, marked, list, text] of TWICE)
+		for (const [kind, clip] of [
+			['a list', list],
+			['text', text]
+		] as const) {
+			if (clip === null) continue;
+			it(`${mode}: ${name}, two line endings after ${kind} are two Enters`, async () => {
+				const ended = await pastedReloaded(marked, mode, clip, 2);
+				expect(ended).toEqual(await pasted(marked, mode, clip, 2));
+			});
+		}
+
+for (const mode of ['source', 'live'] as const)
+	for (const clip of ['1. one\n2. two', 'one'])
+		it(`${mode}: three line endings after ${clip === 'one' ? 'text' : 'a list'} are three Enters`, async () => {
+			const ended = await pastedReloaded('1. alpha‸\n2. after\n', mode, clip, 3);
+			expect(ended).toEqual(await pasted('1. alpha‸\n2. after\n', mode, clip, 3));
 		});
+
+it('the ruled rows: two endings leave an ordered list, numbered on, and lift a nested item', async () => {
+	const ordered = await pasted('1. alpha‸\n2. after\n', 'source', '1. one\n2. two\n\n');
+	expect(ordered.typed).toBe('1. alphaone\n2. two\n\nZ\n\n3. after\n');
+	const nested = await pasted('- a\n  - alpha‸\n- b\n', 'source', 'one\n\n');
+	expect(nested.typed).toBe('- a\n  - alphaone\n- Z\n- b\n');
+});
 
 // A pasted list that joins the list under the caret's line takes its last line ending as Enter at
 // its last item, as a paste without the ending and then Enter leave it.

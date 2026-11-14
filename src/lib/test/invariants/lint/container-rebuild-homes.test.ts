@@ -42,8 +42,12 @@ const PINNED: Record<string, Pin> = {
 		why: 'the scope’s `rebuild` the commit hands the mutation'
 	},
 	'src/lib/tree-operations/list/item-moves.ts': {
-		calls: { '.rebuild': 2 },
+		calls: { '.rebuild': 1 },
 		why: 'a Tab’s new sublist and a lifted item that took the blocks after it sit below the commit’s chain, which never rebuilds them, and the blank-line rule reads their bytes before the commit returns'
+	},
+	'src/lib/tree-operations/list/enter-out.ts': {
+		calls: { rebuildContainerRaw: 1 },
+		why: 'rebuilds the copy Enter’s exit or lift wrote off to the side for a paste, which no commit holds'
 	},
 	'src/lib/editor-actions/search-replace.ts': {
 		calls: { rebuildContainerRaw: 1 },

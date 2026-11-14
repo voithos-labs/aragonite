@@ -46,6 +46,7 @@ import { numberedAfterTaking } from './list-numbers';
 import {
 	byteAt,
 	cutLeaf,
+	lineEnd,
 	lineEndBefore,
 	lineHead,
 	lineRest,
@@ -67,17 +68,35 @@ export interface Pasted {
 	/** Set where the clipboard's last line ending was taken off to land as Enter: it was more than
 	 *  one line, so it never reads as one line after text. */
 	ended?: true;
+	/** Set where the gesture first took the text of a block held whole, whose line the paste fills:
+	 *  a paste that leaves that line blank answers as the block's emptying write does. */
+	emptied?: boolean;
 }
 
 /** The paste of `pasted` over `[from, to)`: a caret, or a range inside one text block's text. */
 export function pasteAt(doc: Doc, from: number, to: number, pasted: Pasted): Edit {
 	const seen: { blocks?: Doc } = {};
 	const once = { ...pasted, transform: ranOnce(pasted.transform) };
-	const edit = entered(doc, from, to, once, seen) ?? landedAt(doc, from, to, once, seen);
+	const landing = entered(doc, from, to, once, seen) ?? landedAt(doc, from, to, once, seen);
+	// Only blank text with no line ending leaves the block's own line blank.
+	const blanked = pasted.emptied && /^[ \t]+$/.test(pasted.text);
+	const edit = blanked ? blankedApart(landing) : landing;
 	// One write of a block's text is text, whatever the clipboard read as.
 	if (!seen.blocks || edit.leaf) return edit;
 	const tops = seen.blocks.tree.children.filter((b) => !isBlankText(b.raw));
 	return { ...edit, blocks: tops.length };
+}
+
+/** `edit` less the blank line under the caret's line where that line is blank and text follows:
+ *  a block its own write empties gives that line up. */
+function blankedApart(edit: Edit): Edit {
+	const { source, caret } = edit;
+	const blank = (at: number) => isBlankText(lineRest(source, pastMarkers(source, at)));
+	const under = lineEnd(source, caret) + 1;
+	const next = lineEnd(source, under) + 1;
+	const start = caret - lineHead(source, caret).length;
+	if (next >= source.length || !blank(start) || !blank(under) || blank(next)) return edit;
+	return { source: source.slice(0, under) + source.slice(next), caret };
 }
 
 /** `transform` called at most once for a text, since a paste may land its clipboard twice. */
@@ -90,8 +109,8 @@ function ranOnce(transform: Pasted['transform']): Pasted['transform'] {
 	};
 }
 
-/** A last line ending is Enter where what was pasted ends in a list, or in a list item's text an
- *  item of that item's kind; null where it opens a line of the caret's block instead. */
+/** The clipboard's last line endings as Enters, where what was pasted ends in a list or a list
+ *  item's text, each where the one before left the caret; null where they land as lines instead. */
 function entered(
 	doc: Doc,
 	from: number,
@@ -99,9 +118,10 @@ function entered(
 	pasted: Pasted,
 	seen: { blocks?: Doc }
 ): Edit | null {
-	const ending = pasted.plain ? null : /\r?\n$/.exec(pasted.text);
-	if (!ending || pasted.held.holds !== 'text') return null;
-	const text = pasted.text.slice(0, ending.index);
+	const endings = pasted.plain ? null : /(?:\r?\n)+$/.exec(pasted.text);
+	if (!endings || pasted.held.holds !== 'text') return null;
+	const text = pasted.text.slice(0, endings.index);
+	const count = endings[0].match(/\n/g)!.length;
 	const leaf = leafHolding(doc, from, to)?.leaf;
 	// Literal text takes the ending as a line of its own text.
 	if (leaf && factsOf(doc, leaf).body === 'literal') return null;
@@ -110,13 +130,14 @@ function entered(
 	if (!host && !endsOnList(doc, text)) return null;
 	// The transforms see the whole clipboard, as they would where the ending lands anywhere else.
 	const { transform } = pasted;
+	const lines = '\n'.repeat(count);
 	const whole = (text: string) =>
-		transform!(text + '\n', readDoc(text + '\n', doc.host, doc.mode).tree);
+		transform!(text + lines, readDoc(text + lines, doc.host, doc.mode).tree);
 	const rest: Pasted = {
 		...pasted,
 		text,
 		ended: true,
-		transform: transform && ((text) => whole(text).replace(/\n$/, ''))
+		transform: transform && ((text) => whole(text).replace(new RegExp(`\\n{0,${count}}$`), ''))
 	};
 	const bare = landedAt(doc, from, to, rest, seen);
 	const path = host?.item.path;
@@ -131,7 +152,23 @@ function entered(
 	const head = sharedPrefixLength(doc.source, bare.source, shorter);
 	const tail = sharedSuffixLength(doc.source, bare.source, shorter - head);
 	const own = (byte: number) => byte < head || byte >= bare.source.length - tail;
-	return enteredAt(after, bare.caret, kind, own);
+	let edit = enteredAt(after, bare.caret, kind, own);
+	for (let i = 1; edit && i < count; i++) edit = enteredAgain(doc, edit);
+	return edit;
+}
+
+/** `edit` with Enter where it left the caret: an item Enter takes out goes as the editor takes it
+ *  (`RangeHost.enterOut`), an item's text opens the next item, any other block takes a line ending. */
+function enteredAgain(doc: Doc, edit: Edit): Edit {
+	const now = { ...readDoc(edit.source, doc.host, doc.mode), ending: doc.ending };
+	const item = itemHolding(now, edit.caret, edit.caret)?.item;
+	const out = item && doc.host.enterOut(now.tree, item.path);
+	if (out) return out;
+	const next = item && enteredAt(now, edit.caret, undefined, () => true);
+	if (next) return next;
+	const line: Pasted = { text: '\n', plain: false, held: { holds: 'text' }, transform: null };
+	const { source, caret } = pasteAt(now, edit.caret, edit.caret, line);
+	return { source, caret };
 }
 
 /** Whether the clipboard's last block is a list. */
@@ -295,6 +332,13 @@ function landed(
 		const lines = displayLines(clip).map((line, i) => (i === 0 ? '' : indent) + line.text);
 		const own = raw.slice(0, target.from) + lines.join(doc.ending) + raw.slice(target.to);
 		const caret = own.length - (raw.length - target.to);
+		// A one-line source shown while it's edited, given a line break, takes the shape typing gives
+		// it: a one-line `$$` given two lines takes fence lines of its own.
+		const oneLine = !/\n/.test(trimTrailingLineEnding(raw)) && /\n/.test(clip);
+		const shown = oneLine && factsOf(doc, leaf).textPosition === 'while-source-shows';
+		const shaped = shown ? doc.host.leaf.typed(doc.tree, leaf.path, own, caret) : null;
+		if (shaped && shaped.bytes !== own)
+			return writtenText(doc, leaf, shaped, target.from, target.to);
 		return { ...bytes(clip, indent), leaf: { path: leaf.path, raw: own, caret } };
 	}
 	// Every landing below that sets a block boundary in the block's text asks for the cut once.

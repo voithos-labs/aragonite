@@ -149,7 +149,7 @@ export function editRange(
 		const after = read(removed);
 		const caret = caretOf(removed, after, 'start after', () => startedIn(doc, from));
 		const place = heldAlone(doc, from, to) ? TEXT : caret;
-		const over = pasteAt(after, caret.at, caret.at, pasted(place));
+		const over = pasteAt(after, caret.at, caret.at, { ...pasted(place), emptied: place === TEXT });
 		return keepLastEnding({ ...landed(over), blocks: over.blocks ?? 0 });
 	}
 	const { removed, clipboard, own } = taken(doc, from, to);
