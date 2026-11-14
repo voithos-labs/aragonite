@@ -236,6 +236,10 @@ export function keepsOutside(call: Call, host: CheckHost, input: RangeInput): st
 	const { from, to } = input.range;
 	const read = readOf(host, source);
 	if (liveWholeText(read, input.range, input.mode)) return [];
+	// A start line whose block goes whole may go with its markers (`removal.ts :: leftLineStart`).
+	const head = source.slice(source.lastIndexOf('\n', from - 1) + 1, from);
+	const takesStart = read.blocks.some((b) => b.type !== 'paragraph' && b.from === from);
+	const lineGoes = takesStart && /^[ \t>]*$/.test(head) ? from - head.length : from;
 	const point = read.layout.pointAt(to);
 	const leaf = point && read.blocks.find((b) => b.path.join() === point.path.join());
 	const breakAt = source.indexOf('\n', to);
@@ -249,7 +253,9 @@ export function keepsOutside(call: Call, host: CheckHost, input: RangeInput): st
 		const got = call(source, input.range, key, input.mode);
 		if (!got) continue;
 		const runless = (text: string) => (input.mode === 'live' ? text.replace(/[*_~`]/g, '') : text);
-		const kept = runless(got.source).startsWith(runless(source.slice(0, from)));
+		const kept = [from, lineGoes].some((at) =>
+			runless(got.source).startsWith(runless(source.slice(0, at)))
+		);
 		if (!kept || (tail !== '' && got.source.indexOf(tail, from) < 0))
 			out.push(`L4 ${key} changed bytes outside the range: ${q(got.source)}`);
 		const glued = input.mode === 'source' && gluedStart(host, read, from, to, got.source);
