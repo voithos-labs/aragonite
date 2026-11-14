@@ -498,7 +498,9 @@ export function heldGapOf(
 	// The line a range emptied at the document's end is a place of its own, whatever stands above,
 	// and so is the line a pasted last line ending opened, whatever text stands below it.
 	const rootEnd = gap.parentPath.length === 0 && gap.index === doc.children.length;
-	if (!rootEnd && joinsProse(measured, place.at, place.line)) return null;
+	// A `line` stands among the gap's parent's children, where text held inside one of them is not.
+	const among = place.line ? gap.parentPath.length + 1 : null;
+	if (!rootEnd && joinsProse(measured, place.at, among)) return null;
 	if (boundaryHidden(doc, gap.parentPath, gap.index)) return null;
 	// A list's children are its items, which no paragraph stands among.
 	const parent = blockNodeAt(doc, gap.parentPath);
@@ -527,15 +529,17 @@ export function landingAt(
 	return exact ? { anchor: point, focus: point } : point;
 }
 
-/** Whether a letter typed on a line of its own at byte `at` joins the text there: a block's own
- *  text, of a kind whose text takes the line; on a `line` of its own, no text starting below it. */
-function joinsProse(measured: Measured, at: number, line?: true): boolean {
+/** Whether a letter typed on a line of its own at byte `at` joins a block's own text there. A
+ *  pasted ending's line, at depth `line`, joins a block of that depth alone, and none below it. */
+function joinsProse(measured: Measured, at: number, line: number | null): boolean {
 	const map = documentByteMap(measured);
 	const leaf = map.leafAt(at);
 	const node = leaf && blockNodeAt(measured.doc, leaf.path);
 	if (!leaf || !node) return false;
+	if (line !== null && leaf.path.length !== line) return false;
 	// An empty paragraph there is that line itself.
-	if (line && map.byteOf(leaf.path, leaf.offset)! > at && !isBlankText(node.raw)) return false;
+	if (line !== null && map.byteOf(leaf.path, leaf.offset)! > at && !isBlankText(node.raw))
+		return false;
 	return blockFacts(node.kind).joins === 'text' && readsAsText(node, leaf.offset);
 }
 
