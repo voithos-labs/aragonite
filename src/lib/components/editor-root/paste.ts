@@ -51,14 +51,15 @@ export interface RootPasteDeps {
 	stamps: Pick<DocumentStamps, 'current'>;
 }
 
-/** A paste aimed at the place the editor held when it was made; true once bytes moved. */
+/** A paste aimed at the place the editor held when it was made; true once it was taken: bytes
+ *  moved into the document, or a shown source drafted them. */
 export type AimedPaste = (clip: Clip) => Promise<boolean>;
 
 export interface RootPaste {
 	/** `root` is the element the installing effect captured, not a live binding. */
 	onPasteEvent(event: ClipboardEvent, root: HTMLElement): void;
 	/** Pastes `clip` at the editor's caret or range; `below` makes it a block of its own (see
-	 *  `onEmptyParagraph`). True once bytes moved into the document. */
+	 *  `onEmptyParagraph`). True as an `AimedPaste` is. */
 	paste(clip: Clip, options?: { below?: boolean }): Promise<boolean>;
 	/** A paste aimed now, for a caller that waits on something first (a menu's clipboard read);
 	 *  null with nowhere to aim. */
@@ -199,7 +200,7 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 			// A paste that outlived its block (an unmount while its source hid) has nowhere to land.
 			if (deps.getBlockComponent(path) !== block) return false;
 			// A draft takes the text as written; the document changes when its source hides.
-			if (answer.draft) return (answer.draft(clip.text), false);
+			if (answer.draft) return (answer.draft(clip.text), true);
 			const undo = { path: docPathFrom(path), offset: answer.caretBefore ?? start };
 			ctx.controller.flushDebouncedCheckpoint();
 			return await pasteInBlock(ctx, { path, start, end }, clip, undo, answer.spend);

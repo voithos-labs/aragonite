@@ -334,6 +334,22 @@ describe('where a paste is aimed', () => {
 		expect(h.commits).toEqual([]);
 	});
 
+	// Miss-analysis: the draft arm's rows read the text it wrote, never what the paste answered, so
+	// a paste a shown source took was reported as one that went nowhere.
+	it('answers a paste a shown source drafted as taken, with no commit', async () => {
+		const h = harness();
+		const drafted: string[] = [];
+		const draft = (text: string) => void drafted.push(text);
+		const el = h.block([0], { preparePaste: () => ({ start: 2, end: 2, draft }) as never });
+		el.tabIndex = 0;
+		el.focus();
+
+		expect(await h.paste.paste({ text: 'x', plain: false })).toBe(true);
+		expect(drafted).toEqual(['x']);
+		expect(h.commits).toEqual([]);
+		expect(h.leafWrites).toEqual([]);
+	});
+
 	it('refuses a paste made for a document a swap replaced', async () => {
 		const h = harness({ stale: true });
 		const el = h.block([0], { preparePaste: answers(0) });
@@ -388,6 +404,18 @@ describe('a paste carrying images', () => {
 
 		h.fire(el, { text: '', files: [pngFile()] });
 		await vi.waitFor(() => expect(h.errors.map((e) => e.origin)).toEqual(['clipboard']));
+	});
+
+	it('reports nothing for an imported image a shown source drafted', async () => {
+		const h = harness({ onPasteImage: async () => '![[shot.png]]' });
+		const drafted: string[] = [];
+		const draft = (text: string) => void drafted.push(text);
+		const el = h.block([0], { preparePaste: () => ({ start: 0, end: 0, draft }) as never });
+
+		h.fire(el, { text: '', files: [pngFile()] });
+		await vi.waitFor(() => expect(drafted).toEqual(['![[shot.png]]']));
+		await Promise.resolve();
+		expect(h.errors).toEqual([]);
 	});
 
 	it('reports a host import that fails, and pastes nothing', async () => {
