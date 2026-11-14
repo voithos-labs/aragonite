@@ -44,6 +44,14 @@ const EDGES = [
 	{ name: "an escape's backslash", line: 'a \\*b z', caret: 2 }
 ];
 
+// Miss-analysis: every edge row stood at one construct's edge, so none asked where the letter goes
+// when a hidden edge is nested in another run, which a code span could pass outside of.
+const NESTED_EDGES = [
+	{ name: "a link's opener inside bold", line: 'a **[b](u)** z', caret: 4 },
+	{ name: "a bold run's opener inside a link", line: 'a [**b**](u) z', caret: 3 },
+	{ name: "an image's alt", line: 'x ![alt](u) y', caret: 4 }
+];
+
 function arrive(host: Host, edge: (typeof EDGES)[number]): Editor {
 	const editor = mountCase(host.source(edge.line), 'live');
 	placeCaret(host.el(editor), edge.caret);
@@ -66,29 +74,32 @@ const drivenIn = (host: Host, route: Route, clip: string) =>
 	(!route.includes('menu') && (clip !== '1. one' || route === 'shift key'));
 
 describe.each(TEXT_HOSTS)('in $name', (host) => {
-	describe.each(EDGES.slice(0, 2))('a paste holding syntax at $name', (edge) => {
-		let letterAt: number;
-		beforeAll(async () => {
-			const editor = arrive(host, edge);
-			await insertBy('hardware key', host.el(editor), 'X');
-			letterAt = host.line(editor.source()).indexOf('X');
-			await destroyMountedEditors();
-		});
-
-		const cases = ROUTES.flatMap((route) => CLIPS.map((clip) => [route, clip] as const));
-		it.each(cases.filter(([route, clip]) => drivenIn(host, route, clip)))(
-			'by %s, %s lands where a letter does',
-			async (route, clip) => {
+	describe.each([...EDGES.slice(0, 2), ...NESTED_EDGES])(
+		'a paste holding syntax at $name',
+		(edge) => {
+			let letterAt: number;
+			beforeAll(async () => {
 				const editor = arrive(host, edge);
+				await insertBy('hardware key', host.el(editor), 'X');
+				letterAt = host.line(editor.source()).indexOf('X');
+				await destroyMountedEditors();
+			});
 
-				await pasteBy(editor, route, clip);
+			const cases = ROUTES.flatMap((route) => CLIPS.map((clip) => [route, clip] as const));
+			it.each(cases.filter(([route, clip]) => drivenIn(host, route, clip)))(
+				'by %s, %s lands where a letter does',
+				async (route, clip) => {
+					const editor = arrive(host, edge);
 
-				const line = host.line(editor.source());
-				expect(line).not.toBe(edge.line);
-				expect(insertsAt(edge.line, line, letterAt), line).toBe(true);
-			}
-		);
-	});
+					await pasteBy(editor, route, clip);
+
+					const line = host.line(editor.source());
+					expect(line).not.toBe(edge.line);
+					expect(insertsAt(edge.line, line, letterAt), line).toBe(true);
+				}
+			);
+		}
+	);
 });
 
 describe('a syntax character typed at a hidden edge', () => {
