@@ -1,19 +1,20 @@
 // @vitest-environment jsdom
-// Emptying the document's last block over its whole text, by every key that does it: the trailing
-// blank line under it goes, as the blank line under any emptied block goes, so a reload reads the
-// one blank block the screen shows and a letter typed next stands alone.
+// Emptying the document's last block over its whole text, by every key that does it, or opening a
+// blank block under it: the trailing blank line below goes, as the blank line under any blank block
+// goes, so a reload reads the blank blocks the screen shows and a letter typed next stands alone.
 // Miss-analysis: the fix-up's tail rows asked only that the tree reload as itself, and no mounted
-// row typed after emptying a last block, so the second blank block under `x` went unseen.
+// row typed into a blank last block, so the second blank block under `x` went unseen.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
 	mountEditor,
+	placeCaret,
 	selectRange,
 	surfaceAt,
 	type MountedEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
-import { pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
+import { dispatchPaste, pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
@@ -23,6 +24,7 @@ afterEach(destroyMountedEditors);
 
 type Editor = MountedEditor<EditorTestSurface>;
 type Gesture = 'Backspace' | 'Delete' | 'cut' | 'space';
+type Step = 'Enter' | 'paste';
 
 /** A scripted cut with a clipboard that takes what the editor writes. */
 function cut(target: EventTarget): void {
@@ -38,9 +40,10 @@ function browserDelete(focused: HTMLElement, key: 'Backspace' | 'Delete'): void 
 	focused.dispatchEvent(new InputEvent('input', { inputType, bubbles: true }));
 }
 
-async function press(editor: Editor, gesture: Gesture | 'x'): Promise<string> {
+async function press(editor: Editor, gesture: Gesture | Step | 'x'): Promise<string> {
 	const focused = document.activeElement as HTMLElement;
 	if (gesture === 'cut') cut(focused);
+	else if (gesture === 'paste') dispatchPaste(focused, '\n\n');
 	else {
 		const key = gesture === 'space' ? ' ' : gesture;
 		const outcome = await pressHardwareKey(focused, { key });
@@ -108,6 +111,53 @@ describe('the trailing blank line under an emptied last block goes', () => {
 		await editor.settle();
 		expect(editor.source()).toBe('> ab\n>\n');
 	});
+});
+
+// Enter or a paste that opens a blank block at the end meets the same line: one Enter, one line.
+describe('a blank block opened under the last block takes no second line', () => {
+	// [name, source, modes, caret, steps, after the steps, after `x`]
+	const ROWS: [string, string, PresentationMode[], [number[], number], Step[], string, string][] = [
+		['Enter after a paragraph', 'ab\n\n', MODES, [[0], 2], ['Enter'], 'ab\n\n\n', 'ab\n\nx\n'],
+		[
+			'Enter after a live heading',
+			'# ab\n\n',
+			['live'],
+			[[0], 4],
+			['Enter'],
+			'# ab\n\n\n',
+			'# ab\n\nx\n'
+		],
+		[
+			'Enter in a quote over a bare `>`',
+			'> ab\n>\n',
+			MODES,
+			[[0, 0], 2],
+			['Enter'],
+			'> ab\n>\n>\n',
+			'> ab\n>\n> x\n'
+		],
+		[
+			'Enter twice out of an item',
+			'- ab\n\n',
+			MODES,
+			[[0, 0, 0], 2],
+			['Enter', 'Enter'],
+			'- ab\n\n\n',
+			'- ab\n\nx\n'
+		],
+		['two line breaks pasted', 'ab\n\n', MODES, [[0], 2], ['paste'], 'ab\n\n\n\n', 'ab\n\n\nx\n']
+	];
+	for (const [name, source, modes, [path, offset], steps, opened, typed] of ROWS)
+		for (const mode of modes)
+			it(`${name}, ${mode}`, async () => {
+				const editor = mountEditor<EditorTestSurface>({ source, presentationMode: mode });
+				await editor.settle();
+				placeCaret(surfaceAt(editor, path), offset);
+				await editor.settle();
+				let after = '';
+				for (const step of steps) after = await press(editor, step);
+				expect([after, await press(editor, 'x')]).toEqual([opened, typed]);
+			});
 });
 
 // The same gestures where no blank block takes the trailing line: nothing there moves.
