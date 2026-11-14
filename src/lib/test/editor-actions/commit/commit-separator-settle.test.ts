@@ -31,11 +31,8 @@ describe('the commit sequence settle over a window its mutate already settled', 
 	});
 });
 
-// A cross-block delete splices inside `mutate`, then the commit fixes up the same range; the
-// truncated start block is a new node, so a blank one must not be fixed up a second time.
-
-// The new paragraph is blank, so the fix-up turns the suffix's trailing blank line into a block,
-// and the reported change must count it or the id and ref arrays fall one short.
+// A blank paragraph inserted at the end meets the suffix's trailing blank line, and the reported
+// change must count the blocks the fix-up leaves or the id and ref arrays fall out of step.
 describe('an insert past the folded tail line', () => {
 	// Miss-analysis: `makeEditorActionsDeps` hardcoded `suffix: ''`, so no fixture had a tail line.
 	it('keeps blockIds and refs in step with the tree', async () => {

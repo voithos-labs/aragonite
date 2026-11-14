@@ -126,7 +126,7 @@ export function parseBlockquote(
 }
 
 /** Where each child's lines sit in the quote's lines `[start, end)`; none with no child yet, with a
- *  child opening on a lazy line, or with a line no child holds, which only a full rebuild writes. */
+ *  child opening on a lazy line, or with a line no child holds but a closing bare `>`. */
 function childLineSpans(
 	lines: ParsedLine[],
 	start: number,
@@ -151,6 +151,9 @@ function childLineSpans(
 		spans[i * 2 + 1] = at(line);
 	}
 	pass(suffix);
-	// A last bare `>` with no line ending holds no byte of the body.
-	return line === end ? spans : undefined;
+	// A last bare `>` with no line ending holds no byte of the body, and a rebuild keeps it as it is.
+	const closing = lines[end - 1];
+	const closes =
+		closing?.lineEnding === '' && quoteLines.read(closing.text, INNER_LINE)?.text === '';
+	return line === end || (line === end - 1 && closes) ? spans : undefined;
 }

@@ -25,6 +25,8 @@ import {
 	type MarkedChar
 } from '#lib/test/harness/live-oracles.js';
 import { listInlineMarks } from '#lib/schema/inline-construct-policy.js';
+import { documentByteMap } from '#lib/tree-operations/container-offsets.js';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
 import { arbLiveDoc } from '#lib/test/invariants/arbitraries/index.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import {
@@ -32,11 +34,13 @@ import {
 	documentMarkedChars,
 	hiddenEdgeOffsets,
 	normalizeScreen,
+	unkeptSeats,
 	unpaintedResidue
 } from './live-screen-reading';
 import {
 	applyGesture,
 	drawnMark,
+	drawnOffset,
 	drawsMidScalar,
 	drawnWholeText,
 	gestureTargets,
@@ -270,6 +274,28 @@ function opensBlock(
 		glyphs(after.screen) === glyphs(before.screen) &&
 		blockShape(after.doc) !== blockShape(before.doc)
 	);
+}
+
+/** A key written once against a run of its own character, at an offset of the caret's screen
+ *  position where none keeps the screen and the block's kind: live-mode.md § 4.2 lets that stand. */
+function fallsBackLiterally(
+	gesture: Gesture,
+	origin: { bytes: string; doc: Document },
+	after: string
+): boolean {
+	const inserted = insertedRun(origin.bytes, after);
+	if (gesture.kind !== 'type' || inserted?.run !== gesture.char) return false;
+	const key = gesture.char;
+	if (after[inserted.at - 1] !== key && after[inserted.at + 1] !== key) return false;
+	const targets = gestureTargets(origin.doc, gesture.kind);
+	const leaf = targets[gesture.leaf % Math.max(1, targets.length)];
+	if (!leaf) return false;
+	const map = documentByteMap(measured(origin.doc));
+	const seats = unkeptSeats(leaf.node, drawnOffset(leaf.node, gesture, gesture.offset), key);
+	return seats.some((seat) => {
+		const at = map.byteOf(leaf.path, seat);
+		return at !== null && after === origin.bytes.slice(0, at) + key + origin.bytes.slice(at);
+	});
 }
 
 /** A line's leading spaces join the quote marker the `>` opens, so only the glyphs compare. */
@@ -519,7 +545,8 @@ export function judgeGesture(
 		writtenRun(gesture, origin, literal.bytes)
 	);
 
-	if (!claimHolds(live.doc, liveScreen, liveTyped)) {
+	const literalFallback = fallsBackLiterally(gesture, origin, live.bytes);
+	if (!literalFallback && !claimHolds(live.doc, liveScreen, liveTyped)) {
 		say(
 			'screen',
 			literalHolds ? 'seam' : 'ambiguous',
@@ -529,7 +556,7 @@ export function judgeGesture(
 	// A rewrite may never show more delimiters than the document showed plus the typed ones
 	// (§ 4.2), measured before the gesture, since the literal edit can hide runs by accident.
 	const shown = delimitersOnScreen(liveScreen) - delimitersOnScreen(liveTyped);
-	if (live.bytes !== before && shown > delimitersOnScreen(screenBefore)) {
+	if (!literalFallback && live.bytes !== before && shown > delimitersOnScreen(screenBefore)) {
 		const alsoLiteral = delimitersOnScreen(literalScreen) >= shown;
 		say(
 			'delimiters',
