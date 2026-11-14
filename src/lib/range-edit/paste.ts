@@ -126,6 +126,7 @@ function entered(
 	const held = leafHolding(doc, from, to);
 	// Literal text takes the ending as a line of its own text.
 	if (held && literalLines(doc, held.leaf)) return null;
+	if (held && isBlankText(text) && headingEmptied(doc, held)) return headingGone(doc, held, count);
 	// The transforms see the whole clipboard, as they would where the ending lands anywhere else.
 	const { transform } = pasted;
 	const lines = '\n'.repeat(count);
@@ -161,6 +162,34 @@ function entered(
 		edit = next;
 	}
 	return enter ? { ...edit, entered: true } : edit;
+}
+
+/** Whether `held` is the whole text of a block that keeps its type around joined text (a heading):
+ *  a paste of no text there leaves it textless, and its syntax gives way as a blur would write it. */
+function headingEmptied(doc: Doc, { leaf, from, to }: NonNullable<ReturnType<typeof leafHolding>>) {
+	const { text } = leaf;
+	const own = !isCell(doc, leaf) && !titleOwner(doc, leaf);
+	const whole =
+		!!text && byteAt(doc, leaf, from) === text.from && byteAt(doc, leaf, to) === text.to;
+	return own && whole && factsOf(doc, leaf).joins === 'text-keeping-type';
+}
+
+/** Line endings alone over an emptied heading: Enter there takes the heading away, leaving its line
+ *  empty, and each ending is Enter on the line the one before left (an empty line stacks nothing). */
+function headingGone(
+	doc: Doc,
+	{ leaf }: NonNullable<ReturnType<typeof leafHolding>>,
+	count: number
+): Edit {
+	// The line left blank keeps its markers without their trailing spaces, as Enter leaves one.
+	const marks = lineHead(doc.source, leaf.from).trimEnd();
+	const lineStart = leaf.from - lineHead(doc.source, leaf.from).length;
+	const source = doc.source.slice(0, lineStart) + marks + doc.source.slice(contentEnd(doc, leaf));
+	const gone: Edit = { source, caret: lineStart + marks.length };
+	let edit = gone;
+	for (let i = 0; i < count; i++) edit = enteredAgain(doc, edit);
+	// The emptied line keeps the caret as text; a line Enter opened past it is Enter's.
+	return edit === gone ? edit : { ...edit, entered: true };
 }
 
 /** The first of the clipboard's last line endings as Enter where what was pasted ends in a list

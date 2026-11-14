@@ -2058,5 +2058,20 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: 'backspace',
 		expect: { source: '> - x\n>\n> y n\n  > m\n' }
 	},
+	// ── Line endings alone over a heading's whole text: it gives way, its line kept empty ──
+	// Miss-analysis: the core left a textless heading the editor's blur then rewrote, and no row
+	// pasted endings alone over a range.
+	{
+		name: 'L9 a line ending over a heading’s whole text leaves its line empty, the caret on it',
+		source: '# ⟦Title⟧\n\nAfter\n',
+		gesture: paste('\n'),
+		expect: { source: '\n\nAfter\n', caret: text(0) }
+	},
+	{
+		name: 'L9 two over a setext title add nothing more, its underline gone with it',
+		source: '⟦Title⟧\n===\n\nAfter\n',
+		gesture: paste('\n\n'),
+		expect: { source: '\n\nAfter\n', caret: text(0) }
+	},
 	...SPLIT_ROWS
 ];
