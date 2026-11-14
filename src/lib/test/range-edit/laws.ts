@@ -441,7 +441,11 @@ export function replaceLaws(
 		const block = oneTextBlock(read, input.range, host);
 		const flat = () => call(input.source, input.range, paste(text), 'source');
 		if (block) out.push(...oneWrite(host, input, block, text, { over, cut, then, flat }));
-		else if (then && !sameAfterCut(then.source, over.source, input.source, cut.source))
+		else if (
+			then &&
+			!sameAfterCut(then.source, over.source, input.source, cut.source) &&
+			!openEndEntered(input.source, input.range, over.source, then.source)
+		)
 			out.push(`L5 paste over gave ${q(over.source)}, cut then paste ${q(then.source)}`);
 	}
 	const pairs: [Gesture, Gesture][] = [
@@ -603,9 +607,23 @@ const containerLines = (lines: string[], below: string) =>
 /** Whether `got` is `bytes`, ending the open file `read` on a written line, with Enter's empty
  *  paragraph under it and the caret on that (`syntax-tree.md` § The last line). */
 function enterAtOpenEnd(read: Read, bytes: string, got: string, caret: number): boolean {
-	const eol = /\r\n/.test(read.source.match(/\r?\n/)?.[0] ?? '') ? '\r\n' : '\n';
-	if (/\n$/.test(read.source) || !bytes.endsWith(eol) || bytes.endsWith(eol + eol)) return false;
+	const eol = eolOf(read.source);
+	if (/\n$/.test(read.source)) return false;
+	// A container's empty last line keeps its break, as Enter's does.
+	const last = bytes.slice(bytes.lastIndexOf('\n') + 1);
+	if (last !== '' && isMarkersOnly(last)) return got === bytes + eol;
+	if (!bytes.endsWith(eol) || bytes.endsWith(eol + eol)) return false;
 	return got === bytes + eol + eol && caret === bytes.length + eol.length;
+}
+
+const eolOf = (source: string) => (/\r\n/.test(source.match(/\r?\n/)?.[0] ?? '') ? '\r\n' : '\n');
+
+/** Whether `over`, a paste over a range to the end of the open file `source`, is `then`, its cut
+ *  then its paste, with the line Enter opens there: the cut alone ends the file on a line break. */
+function openEndEntered(source: string, range: Range, over: string, then: string): boolean {
+	const eol = eolOf(source);
+	if (/\n$/.test(source) || range.to !== source.length) return false;
+	return over === then + eol + eol || over === then + eol;
 }
 
 /** Whether `got` is `bytes` with the empty line a last line ending opens at a container's last
