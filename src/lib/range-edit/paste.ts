@@ -308,7 +308,8 @@ function landedAt(
 	const leaf = leafHolding(doc, from, to)?.leaf;
 	// A block whose lines are no body (a link definition) holds no pasted line: lines land as
 	// blocks of their own under it, as at a caret on its syntax (§ 5.4 rule 7).
-	const lined = !plain && (pasted.ended || lf.includes('\n'));
+	// Line endings alone bring no block: they are the definition's own line breaks.
+	const lined = !plain && !isBlankText(lf) && (pasted.ended || lf.includes('\n'));
 	if (lined && leaf && !factsOf(doc, leaf).holdsLines) {
 		if (from === to) return underBlock(doc, leaf, to, () => blocks().source, lf.endsWith('\n'));
 		// A range in it goes first, as the block's own write.

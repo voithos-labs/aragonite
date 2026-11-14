@@ -167,3 +167,14 @@ for (const mode of ['source', 'live'] as const)
 			'- aaa\n- bb\n\n  [def]: /u\n\n  Z\n\n  cc\n- ddd\n'
 		]);
 	});
+
+// Line endings alone bring no block: they go in as the definition's own line breaks, as before.
+// Miss-analysis: every definition row's clipboard held text.
+for (const mode of ['source', 'live'] as const)
+	it(`${mode}: a line ending alone in a destination goes in as its byte`, async () => {
+		const [left, typed] = await landed('[ref]: /u‸rl\n\nAfter [ref]\n', mode, '\n');
+		expect([left, typed]).toEqual([
+			'[ref]: /u\nrl\n\nAfter [ref]\n',
+			'[ref]: /u\nZrl\n\nAfter [ref]\n'
+		]);
+	});
