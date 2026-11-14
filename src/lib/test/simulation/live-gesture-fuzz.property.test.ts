@@ -282,8 +282,8 @@ describe('the checks read what the contracts allow and nothing more', () => {
 		expect(judged(source, press, ' ~\n\n~~~*\n', ' ~\n\n~~~\n~~~\n')).toEqual(['bytes']);
 	});
 
-	// Miss-analysis: the screen checks knew no § 4.2 fallback, so a key every seat of its position
-	// breaks (here each opens a fence) read as live's fault.
+	// Miss-analysis: the screen checks knew no § 4.2 fallback, so a key every offset of its caret
+	// position breaks (here each opens a fence) read as live's fault.
 	it('a key no seat of its position keeps stands as typed; one a seat keeps is still checked', () => {
 		const source = '~~\\*[](u)~~c\n';
 		const literal = '~~\\~*[](u)~~c\n';
