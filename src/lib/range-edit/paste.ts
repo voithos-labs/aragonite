@@ -138,7 +138,7 @@ function entered(
 			: endsTakenIn(doc, from, text)
 				? enteredInText(doc, from, to, bare, seen)
 				: null;
-	if (!first && (count === 1 || text === '')) return null;
+	if (!first && count === 1) return null;
 	let edit = first ?? landedAt(doc, from, to, keeping(1), seen);
 	// Past an empty line the first ending opened, each later one goes as Enter does there.
 	if (!first && !onBlankLine(edit)) return null;

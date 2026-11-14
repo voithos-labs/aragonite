@@ -387,6 +387,25 @@ for (const mode of ['source', 'live'] as const)
 			expect(await pastedReloaded(marked, mode, clip, 3)).toEqual(once);
 		});
 
+// Miss-analysis: every stacked ending followed pasted text, so no row pasted line endings alone,
+// which went in whole: two empty lines with the caret on the first, and no Enter out of a quote.
+const ENDINGS_ALONE: [name: string, marked: string, second: 'nothing' | 'Enter'][] = [
+	['a paragraph’s end', 'alpha‸\n\nAfter\n', 'nothing'],
+	['a heading’s end', '# alpha‸\n\nAfter\n', 'nothing'],
+	['a CRLF paragraph’s end', 'alpha‸\r\n\r\nAfter\r\n', 'nothing'],
+	['a quote’s last paragraph', '> alpha‸\n\nAfter\n', 'Enter'],
+	['an alert’s last paragraph', '> [!NOTE]\n> alpha‸\n\nAfter\n', 'Enter']
+];
+
+for (const mode of ['source', 'live'] as const)
+	for (const [name, marked, second] of ENDINGS_ALONE)
+		it(`${mode}: ${name}, of two line endings alone the second is ${second}`, async () => {
+			const enters = second === 'Enter' ? 1 : 0;
+			expect(await pastedReloaded(marked, mode, '', 2)).toEqual(
+				await pasted(marked, mode, '\n', enters)
+			);
+		});
+
 // Miss-analysis: the mid-text rows took one ending, so none asked what the second does at the start
 // of the rest the first set on its line, where Enter opens a line above it.
 const AT_REST: [name: string, marked: string, clip: string][] = [
