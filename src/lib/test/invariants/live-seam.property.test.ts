@@ -20,7 +20,8 @@ import { deleteRange } from '../harness/range-delete';
  * reload shape, round-trip and § 4.1's leftovers; what shows on screen is the unit suite's job.
  */
 
-const PARAMS = { numRuns: 400, seed: freshOrFixedSeed(515151) } as const;
+// Enough draws that the drop share below reads as a rate, not a coin toss (about 550 rewrites).
+const PARAMS = { numRuns: 2000, seed: freshOrFixedSeed(515151) } as const;
 
 interface Cut {
 	startBlock: number;
@@ -193,11 +194,11 @@ describe('live-mode joins over random range deletes', () => {
 			}),
 			PARAMS
 		);
-		expect(rewritten).toBeGreaterThan(20);
-		expect(cleaned).toBeGreaterThan(10);
+		expect(rewritten).toBeGreaterThan(100);
+		expect(cleaned).toBeGreaterThan(50);
 		// A run whose closer would butt against a run of its own delimiter has no spelling, so a few
-		// deletes fall back to dropping it; that share swings with the draw, to a seventh over seeds.
-		expect(same).toBeGreaterThan(80);
-		expect(fewer).toBeLessThan(rewritten / 5);
+		// deletes fall back to dropping it: a tenth over seeds, and a fifth with one reading lost.
+		expect(same).toBeGreaterThan(400);
+		expect(fewer).toBeLessThan(rewritten / 7);
 	}, 30_000);
 });
