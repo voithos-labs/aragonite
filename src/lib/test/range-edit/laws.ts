@@ -402,7 +402,8 @@ function oneWrite(
 			.slice(-extra - 1);
 		const opened = /\n$/.test(text) && extra > 0 && extra <= 2 && containerLines(blanks, after);
 		// At the end of a file with no last line break, the ending opens Enter's empty paragraph.
-		const atOpenEnd = after === '' && !/\n$/.test(source) && lf(mid) === lf(text) + '\n\n';
+		const ended = /\n$/.test(text);
+		const atOpenEnd = ended && after === '' && !/\n$/.test(source) && lf(mid) === lf(text) + '\n\n';
 		if (lines(mid) !== lines(text) && !opened && !atOpenEnd)
 			return [`L5 paste over text in one block added a line: ${q(over.source)}`];
 	}
@@ -558,8 +559,6 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 	if (!got) return [];
 	const text = blankTail(read, input.at, input.text, host);
 	if (text !== input.text) return pasteAtCaret(call, host, { ...input, text });
-	// Pasted items joining a list written with another glyph take its glyph, by bytes the rows hold.
-	if (takesOtherGlyph(read, input.at, input.text, host)) return [];
 	// A last line ending pasted in a list item's text, or ending a list the paste joins, is Enter
 	// (`paste-ending-enter.test.ts`): it leaves the bytes before it, and the law holds the rest.
 	const ended = /\r?\n$/.exec(input.text);
@@ -611,11 +610,16 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 	// A one-line source shown while it's edited, given a line break, takes the shape its write rule
 	// gives it (a `$$` block's fence lines of its own), by bytes the rows hold.
 	if (shapedOnBreak(read, input.at, input.text, host)) return [];
-	// A line that could close a fenced container around the caret grows its fence, as its kind writes
-	// it, by bytes the rows hold (`paste-fence-growth.test.ts`).
-	if (growsFence(read, input.at, input.text, host)) return [];
 	const want = expectedPaste(read, input.at, input.text, host, input.held);
 	if (want.shape === 'other' || want.bytes.includes(got.source)) return [];
+	// Pasted items joining a list written with another glyph take its glyph (`paste-list-glyph.test.ts`):
+	// the answer is the law’s but for the glyphs.
+	const glyphs = takesOtherGlyph(read, input.at, input.text, host);
+	const spelled = glyphs && twoGlyphRuns(got.source) <= twoGlyphRuns(input.source);
+	if (spelled && want.bytes.some((b) => oneGlyph(b) === oneGlyph(got.source))) return [];
+	// A line that could close a fenced container around the caret grows its fence, as its kind writes
+	// it (`paste-fence-growth.test.ts`): the answer shows the longer opening line.
+	if (fenceGrew(read, input.at, input.text, got.source, host)) return [];
 	// A last line ending at a container's last block writes the container's empty line under the caret's.
 	const caret = got.caret.at;
 	if (/\n$/.test(input.text) && want.bytes.some((b) => containerLineAdded(b, got.source, caret)))
@@ -636,7 +640,8 @@ const isMarkersOnly = (line: string) => /^[ \t>]*\r?$/.test(line);
  *  or stand over its closing line; a bare line at the top level is not. */
 const containerLines = (lines: string[], below: string) =>
 	lines.every(isMarkersOnly) &&
-	(lines.some((line) => line.replace(/\r$/, '') !== '') || /^\s*(:::|<\/)/.test(below));
+	(lines.some((line) => line.replace(/\r$/, '') !== '') ||
+		/^[ \t>]*(?::{3,}[ \t]*\r?(?:\n|$)|<\/)/.test(below));
 
 /** Whether `got` is `bytes`, ending the open file `read` on a written line, with Enter's empty
  *  paragraph under it and the caret on that (`syntax-tree.md` § The last line). */
@@ -696,14 +701,36 @@ function shapedOnBreak(read: Read, at: number, text: string, host: CheckHost): b
 	return text.includes('\n') && !read.source.slice(leaf.from, leaf.to).trimEnd().includes('\n');
 }
 
-/** Whether a line of `text` could close a fenced container holding byte `at`. */
-function growsFence(read: Read, at: number, text: string, host: CheckHost): boolean {
+/** Whether a line of `text` could close a fenced container holding byte `at`, and `got` wrote that
+ *  container another opening line for it. */
+function fenceGrew(read: Read, at: number, text: string, got: string, host: CheckHost): boolean {
 	const lines = lf(text).split('\n');
+	const opening = (source: string, from: number) =>
+		source.slice(from, (source + '\n').indexOf('\n', from));
 	return containersHolding(read, at).some((c) => {
 		const fence = host.facts(c.type).lines === 'fenced' ? fenceOf(read, c, host) : null;
-		return !!fence && lines.some((line) => fence.mayClose(line));
+		const closes = !!fence && lines.some((line) => fence.mayClose(line));
+		return closes && opening(read.source, c.from) !== opening(got, c.from);
 	});
 }
+
+/** How many lines of `source` open an item right under an item of the same indent and type that
+ *  writes another glyph: items a paste wrote into a list without taking its glyph show as one. */
+function twoGlyphRuns(source: string): number {
+	const marker = (line: string) => /^([ \t>]*)(?:([-+*])|\d+([.)]))(?=[ \t\r]|$)/.exec(line);
+	const lines = source.split('\n');
+	return lines.filter((line, i) => {
+		const [above, here] = [marker(lines[i - 1] ?? ''), marker(line)];
+		if (!above || !here || above[1] !== here[1] || !above[2] !== !here[2]) return false;
+		return (above[2] ?? above[3]) !== (here[2] ?? here[3]);
+	}).length;
+}
+
+/** `source` with every list marker that starts a line spelled with one bullet and one delimiter. */
+const oneGlyph = (source: string) =>
+	source.replace(/^([ \t>]*)(?:[-+*]|(\d+)[.)])(?=[ \t\r]|$)/gm, (_, lead: string, n?: string) =>
+		n ? `${lead}${n}.` : `${lead}-`
+	);
 
 /** Whether byte `at` stands in the text of a list item's own block, text that isn't literal. */
 function inItemText(read: Read, at: number, host: CheckHost): boolean {

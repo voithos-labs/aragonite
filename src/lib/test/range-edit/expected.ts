@@ -646,8 +646,10 @@ function sameList(
 	host: CheckHost
 ): boolean {
 	if (!list || pasted?.type !== list.type || host.facts(list.type).lines !== 'items') return false;
-	const family = markerFamily(read, list, under);
-	return family !== null && family === markerFamily(clip, pasted, !under);
+	// A glyph names no list type: two bullets join, and two ordered lists, whatever each writes.
+	const ordered = (glyph: string | null) => glyph !== null && '.)'.includes(glyph);
+	const [own, brought] = [markerFamily(read, list, under), markerFamily(clip, pasted, !under)];
+	return own !== null && brought !== null && ordered(own) === ordered(brought);
 }
 
 /** `bytes`, a paste of `clip` at `at`, with a pasted list joined to a list of its own type flush
