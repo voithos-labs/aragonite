@@ -1,6 +1,6 @@
 # Clipboard: Blockquote paste into a non-empty blockquote paragraph
 
-The defect this guards: pasting a single blockquote clipboard while the caret sits in a non-empty blockquote paragraph classified that paragraph as an empty stub and spliced the clipboard over it, deleting the original text. A paragraph counts as empty only when it holds no text, so the paste lands beside the text and deletes nothing.
+The defect this guards: pasting a single blockquote clipboard while the caret sits in a non-empty blockquote paragraph classified that paragraph as an empty stub and spliced the clipboard over it, deleting the original text. The paste keeps the paragraph's text and adds what was pasted.
 
 ## Happy paths
 
