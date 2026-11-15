@@ -371,7 +371,8 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				mutate: (view) => {
 					const { body } = view;
 					const lineEnding = body.lineEnding;
-					const atEnd = i > 0 && i === body.children.length;
+					// A container's own blank last line stays where it alone parts it from the block after it.
+					const atEnd = i > 0 && i === body.children.length && scope.partedBelow();
 					// Past the last block, the body's trailing blank line is the separator, or it would
 					// stay under the new one as an empty paragraph or a blank container line.
 					const trailing = atEnd ? /^[ \t]*\r?\n/.exec(trailingText(body)) : null;

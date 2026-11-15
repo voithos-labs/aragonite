@@ -93,6 +93,8 @@ export interface CommitScope {
 	): Promise<boolean>;
 	/** An empty replaceBlock emits `delete` (container) or `replaceBlock{count:0}` (top-level). */
 	collapseEmptyReplaceToDelete: boolean;
+	/** Whether a blank line or the document's end stands under this list's container. */
+	partedBelow(): boolean;
 	/** Resolves to whether bytes landed. */
 	commit(args: ScopeCommitArgs): Promise<boolean>;
 	/** One keystroke into child `i`: its undo entry (`history` says whose) is pushed before `work`
@@ -135,6 +137,7 @@ export function createTopLevelScope(
 				op: { ...op, eventPath: asDocPath([i]) }
 			}),
 		collapseEmptyReplaceToDelete: false,
+		partedBelow: () => true,
 		commit({
 			snapshot,
 			eventTarget,
@@ -243,6 +246,7 @@ function containerScope(parts: ContainerParts): CommitScope {
 				op: { ...op, eventPath: extendDocPath(parts.path(), i) }
 			}),
 		collapseEmptyReplaceToDelete: true,
+		partedBelow: () => parts.containerEdit.partedBelow(parts.path()),
 		commit({
 			snapshot,
 			eventTarget,

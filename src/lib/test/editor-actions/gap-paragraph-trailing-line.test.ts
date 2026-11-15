@@ -89,6 +89,22 @@ describe('a key at the gap past a container’s last block', () => {
 			':::note\nalpha\n\n***\n\n\n\n:::\n'
 		],
 		[
+			'a quote whose blank last line alone parts it from the paragraph under it',
+			'> alpha\n>\n> ***\n>\nAfter\n',
+			[0],
+			16,
+			'> alpha\n>\n> ***\n>\n> Z\n>\nAfter\n',
+			'> alpha\n>\n> ***\n>\n>\nAfter\n'
+		],
+		[
+			'a quote in an item, the paragraph right under the list',
+			'- > alpha\n  >\n  > ***\n  >\nAfter\n',
+			[0, 0, 0],
+			22,
+			'- > alpha\n  >\n  > ***\n  >\n  > Z\n  >\nAfter\n',
+			'- > alpha\n  >\n  > ***\n  >\n  >\nAfter\n'
+		],
+		[
 			'a callout closing an open file, whose last line is its closer',
 			':::note\nalpha\n\n***\n:::',
 			[0],
@@ -170,4 +186,27 @@ describe('a letter after a block pasted with its line ending at a container’s 
 							const typed = `${after.slice(0, end)}${eol}${w.prefix}Z${after.slice(end)}`;
 							expect(await press(editor, 'Z')).toBe(typed);
 						});
+});
+
+// The two writes to the container's own fields, its blank last line and its bare `>`, undo with
+// the letter. Miss-analysis: no row undid a letter typed at a container's end gap.
+describe('one Ctrl+Z after the letter gives the line back', () => {
+	it.each([
+		['a quote over its blank last line', '> alpha\n>\n> ***\n>\n\nAfter\n'],
+		['an open quote over its bare `>`', '> alpha\n>\n> ***\n>']
+	])('%s', async (_, source) => {
+		const editor = mountCase(source, 'source');
+		await editor.settle();
+		const op = { kind: 'insertBlock' } as const;
+		await editor.instance.__test.spliceSource(
+			source,
+			{ at: 16, holds: 'boundary', parent: [0] },
+			op
+		);
+		await editor.settle();
+		expect(await press(editor, 'Z')).not.toBe(source);
+		await pressHardwareKey(document.activeElement as HTMLElement, { key: 'z', ctrlKey: true });
+		await editor.settle();
+		expect(editor.source()).toBe(source);
+	});
 });

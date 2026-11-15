@@ -173,6 +173,7 @@ export function makeCommitScopeStub(
 		idAt: (i) => `block-${i}`,
 		removeWhole: vi.fn(async () => false),
 		collapseEmptyReplaceToDelete: opts.collapse ?? true,
+		partedBelow: () => true,
 		async commit(args) {
 			commits.push(args);
 			const list = { kind: 'document' as const, prefix: '', suffix: '', children };
@@ -308,6 +309,7 @@ export function makeStubContainerEdit(): ContainerEditActions {
 	return {
 		commitContainer: vi.fn(),
 		lineEnding: () => '\n',
+		partedBelow: () => true,
 		typingKeystroke: vi.fn((_path, _offset, _key, _history, work) => work()),
 		typeLeaf: vi.fn(() => ({ wrote: false as const })),
 		land: vi.fn(async () => 'placed' as const),
