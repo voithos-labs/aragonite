@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 // A line break over a range, then a letter, mounted in both modes, by Enter and Shift+Enter and a
 // soft keyboard's two breaks: where the range ended in a leaf's text, the break goes before what is
-// left of it and the letter lands there; where it ended at a leaf's end or between blocks, the break
-// stands at the end of the block before; a container's opening line never takes it.
+// left of it and the letter lands there; where it emptied a paragraph, that line takes the break;
+// elsewhere the break stands at the end of the block before; an opening line never takes it.
 // Miss-analysis: the mounted rows typed after Delete alone, and Enter's removal landed as Backspace's,
 // so its key pressed on a kept opening line and descended onto the next one.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
@@ -92,8 +92,8 @@ const ROWS: Row[] = [
 		name: 'a quote entered, the range ending at its first paragraph’s end, before the next one',
 		source: 'first\n\n***\n\nbody\n\n> one\n>\n> two\n',
 		select: range([1], [3, 0], 3),
-		entered: 'first\n\nx\n\n> two\n',
-		shifted: 'first\\\nx\n\n> two\n'
+		entered: 'first\n\n\nx\n\n>\n> two\n',
+		shifted: 'first\n\n\\\nx\n\n>\n> two\n'
 	},
 	{
 		name: 'a list entered, the range ending at its first item’s end, before the next item',
@@ -103,25 +103,34 @@ const ROWS: Row[] = [
 		shifted: 'first\\\nx\n\n- b\n'
 	},
 	{
-		name: 'a range ending between blocks, before a quote',
-		source: 'first\n\n***\n\npara\n\n> quote\n',
-		select: range([1], [2], 4),
+		name: 'a range ending at a heading’s end, before a quote',
+		source: 'first\n\n***\n\n# end\n\n> quote\n',
+		select: range([1], [2], 5),
 		entered: 'first\n\nx\n\n> quote\n',
 		shifted: 'first\\\nx\n\n> quote\n'
 	},
+	// Miss-analysis: the rows ending at a paragraph's end pinned the bytes the removal gave, which
+	// took the line the range emptied, so a break on that line went unseen.
 	{
-		name: 'a range ending between blocks, before a tip',
-		source: 'first\n\n***\n\npara\n\n:::tip\nbody\n:::\n',
+		name: 'a range ending at a paragraph’s end before a quote breaks the line it emptied',
+		source: 'first\n\n***\n\npara\n\n> quote\n',
 		select: range([1], [2], 4),
-		entered: 'first\n\nx\n\n:::tip\nbody\n:::\n',
-		shifted: 'first\\\nx\n\n:::tip\nbody\n:::\n'
+		entered: 'first\n\n\nx\n\n> quote\n',
+		shifted: 'first\n\n\\\nx\n\n> quote\n'
 	},
 	{
-		name: 'a tip’s opening line right after the range, at the document’s start',
+		name: 'the same before a tip',
+		source: 'first\n\n***\n\npara\n\n:::tip\nbody\n:::\n',
+		select: range([1], [2], 4),
+		entered: 'first\n\n\nx\n\n:::tip\nbody\n:::\n',
+		shifted: 'first\n\n\\\nx\n\n:::tip\nbody\n:::\n'
+	},
+	{
+		name: 'the same at the document’s start, before a tip’s opening line',
 		source: '***\n\npara\n\n:::tip\nbody\n:::\n',
 		select: range([0], [1], 4),
-		entered: 'x\n\n:::tip\nbody\n:::\n',
-		shifted: 'x\n\n:::tip\nbody\n:::\n'
+		entered: '\nx\n\n:::tip\nbody\n:::\n',
+		shifted: '\\\nx\n\n:::tip\nbody\n:::\n'
 	},
 	// Miss-analysis: every row ended where the claimed block binds Shift+Enter, and a title row binds
 	// none, so a line break that came as input took Backspace's side and typed on the opening line.
@@ -250,9 +259,9 @@ describe('a line break over a range goes by the command its key runs', () => {
 // of a block the removal takes whole, so a check read off the removal's name or the edge passed.
 describe('G1.223 reads the keymap of the block a line break ran in', () => {
 	it('a soft paragraph break left on a rule, which binds no Enter, fires it', async () => {
-		const editor = mountCase('***\n\n# head\n\nbody\n\nafter\n', 'source');
+		const editor = mountCase('---\n***\n\n# h\n\nafter\n', 'source');
 		await editor.settle();
-		await placeRange(editor, range([1], [2], 4));
+		await placeRange(editor, range([1], [2], 3));
 		await lineBreak(editor, 'a soft paragraph break');
 		expect(takeDevWarnsOf('invariant:range-break-landing')).toHaveLength(1);
 	});

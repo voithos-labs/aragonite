@@ -29,7 +29,7 @@ test.beforeEach(({ page }) => {
 });
 
 for (const mode of ['live', 'source'] as const) {
-	test(`(${mode}) Backspace out of an open details keeps its closing line above the heading after it`, async ({
+	test(`(${mode}) Backspace out of an open details keeps the emptied line and its closing line above the heading after it`, async ({
 		page
 	}) => {
 		await open(
@@ -40,7 +40,7 @@ for (const mode of ['live', 'source'] as const) {
 
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceEquals(
-			'<details open>\n<summary>Sum</summary>\n\n</details>\n\n# h\n'
+			'<details open>\n<summary>Sum</summary>\n\n\n</details>\n\n# h\n'
 		);
 	});
 

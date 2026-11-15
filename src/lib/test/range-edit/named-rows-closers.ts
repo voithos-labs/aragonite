@@ -20,9 +20,9 @@ const cut = (name: string, source: string, out: string, caret?: Caret): NamedRow
 // (its bodies held paragraphs and `# head`), so no range left one from there with a block after it.
 const CLOSING_LINE_ROWS: NamedRow[] = [
 	...cut(
-		'L4 a block taken whole out of an open details leaves its closing line above the heading after',
+		'L4 a block taken whole out of an open details keeps the emptied line, its closing line above the heading after',
 		'<details open>\n<summary>Sum</summary>\n\n⟦---\n\nbody\n\n</details>\n\npara⟧\n\n# h\n',
-		'<details open>\n<summary>Sum</summary>\n\n</details>\n\n# h\n'
+		'<details open>\n<summary>Sum</summary>\n\n\n</details>\n\n# h\n'
 	),
 	...cut(
 		'L4 the same from the middle of the body keeps the closing line under the joined text',
@@ -37,7 +37,7 @@ const CLOSING_LINE_ROWS: NamedRow[] = [
 	...cut(
 		'L4 a details in a note keeps its closing line before the note’s',
 		':::note\n<details open>\n<summary>Sum</summary>\n\n⟦---\n\nbody\n\n</details>\n\npara⟧\n:::\n\n# h\n',
-		':::note\n<details open>\n<summary>Sum</summary>\n\n</details>\n:::\n\n# h\n'
+		':::note\n<details open>\n<summary>Sum</summary>\n\n\n</details>\n:::\n\n# h\n'
 	),
 	...cut(
 		'L4 a titled note emptied whole keeps its closing line and the blank line after it',
@@ -52,7 +52,7 @@ const CLOSING_LINE_ROWS: NamedRow[] = [
 	...cut(
 		'L4 in CRLF the closing line keeps the line ending of the line above it',
 		'<details open>\r\n<summary>Sum</summary>\r\n\r\n⟦---\r\n\r\nbody\r\n\r\n</details>\r\n\r\npara⟧\r\n\r\n# h\r\n',
-		'<details open>\r\n<summary>Sum</summary>\r\n\r\n</details>\r\n\r\n# h\r\n'
+		'<details open>\r\n<summary>Sum</summary>\r\n\r\n\r\n</details>\r\n\r\n# h\r\n'
 	),
 	...cut(
 		'L4 with mixed line endings every byte before the range stays',
@@ -67,7 +67,7 @@ const CLOSING_LINE_ROWS: NamedRow[] = [
 	...cut(
 		'L4 a closed details, which a range out of its summary holds whole, still goes whole',
 		'⟦<details>\n<summary>Sum</summary>\n\n***\n\nbody\n\n</details>\n\npara⟧\n\n# h\n',
-		'# h\n'
+		'\n# h\n'
 	)
 ];
 
@@ -202,7 +202,7 @@ const LEFT_LINE_KEPT_ROWS: NamedRow[] = [
 		'L4 to a line’s end in a quote that goes on, the start’s emptied line stays',
 		'> above\n> ⟦# text\n> below⟧\n>\n> more\n',
 		'> above\n> \n>\n> more\n',
-		{ at: 10, holds: 'boundary', parent: [0] }
+		{ at: 12, holds: 'text' }
 	),
 	// Miss-analysis: every row that took the start's line stood its block right under the one above,
 	// so none had a blank line of the container over it, where the line going moved a typed key out.
@@ -626,22 +626,34 @@ const LINE_BREAK_ROWS: NamedRow[] = [
 		{ at: 10, holds: 'text' }
 	),
 	...broken(
-		'L8 a range ending between blocks breaks at the end of the block before',
-		'first\n\n⟦***\n\npara⟧\n\n> quote\n',
+		'L8 a range ending at a block’s end breaks at the end of the block before',
+		'first\n\n⟦***\n\n# end⟧\n\n> quote\n',
 		'first\n\n> quote\n',
 		{ at: 5, holds: 'text' }
 	),
 	...broken(
 		'L8 the same before a code block',
-		'first\n\n⟦***\n\npara⟧\n\n```\ncode\n```\n',
+		'first\n\n⟦***\n\n# end⟧\n\n```\ncode\n```\n',
 		'first\n\n```\ncode\n```\n',
 		{ at: 5, holds: 'text' }
 	),
 	...broken(
+		'L8 a range ending at a paragraph’s end breaks on the line it emptied',
+		'first\n\n⟦***\n\npara⟧\n\n> quote\n',
+		'first\n\n\n> quote\n',
+		{ at: 7, holds: 'text' }
+	),
+	...broken(
 		'L8 a tip’s opening line after the range takes no break, so the gap before the tip does',
-		'⟦***\n\npara⟧\n\n:::tip\nbody\n:::\n',
+		'⟦***\n\n# end⟧\n\n:::tip\nbody\n:::\n',
 		':::tip\nbody\n:::\n',
 		{ at: 0, holds: 'boundary', parent: [] }
+	),
+	...broken(
+		'L8 at the document’s start the line the range emptied takes the break, not the tip’s',
+		'⟦***\n\npara⟧\n\n:::tip\nbody\n:::\n',
+		'\n:::tip\nbody\n:::\n',
+		{ at: 0, holds: 'text' }
 	),
 	...broken(
 		'L8 the same for a tip that ends what the range entered',
@@ -663,6 +675,82 @@ const LINE_BREAK_ROWS: NamedRow[] = [
 	}
 ];
 
+/** Backspace's rows in both modes. */
+const backspaced = (name: string, source: string, out: string, caret: Caret) =>
+	(['source', 'live'] as const).map((mode): NamedRow => ({
+		name: `${name}, Backspace, ${mode}`,
+		source,
+		mode,
+		gesture: 'backspace',
+		expect: { source: out, caret }
+	}));
+
+// Miss-analysis: every row from a block taken whole to a paragraph's end pinned the bytes the
+// removal gave, and none set them beside the same range from a paragraph, so the emptied line went.
+const EMPTIED_LINE_ROWS: NamedRow[] = [
+	...backspaced(
+		'L4 a paragraph the range empties keeps its line, which holds the caret',
+		'first\n\n⟦***\n\npara⟧\n\nnext\n',
+		'first\n\n\nnext\n',
+		{ at: 7, holds: 'text' }
+	),
+	...backspaced(
+		'L4 right under a paragraph too, the emptied line under a blank line',
+		'above\n⟦***\n\npara⟧\n\nnext\n',
+		'above\n\n\nnext\n',
+		{ at: 7, holds: 'text' }
+	),
+	...backspaced(
+		'L4 at the document’s end the emptied line is a place of its own',
+		'above\n⟦***\n\npara⟧\n',
+		'above\n\n',
+		{ at: 6, holds: 'boundary', parent: [] }
+	),
+	...backspaced(
+		'L4 an item emptied from its first block stays as an empty bullet',
+		'- a\n- ⟦***\n\n  para⟧\n- b\n',
+		'- a\n- \n- b\n',
+		{ at: 6, holds: 'text' }
+	),
+	...backspaced(
+		'L4 in a quote under a blank line of the quote the emptied line stays',
+		'> above\n>\n> ⟦***\n>\n> body⟧\n\nlast\n',
+		'> above\n>\n> \n\nlast\n',
+		{ at: 12, holds: 'text' }
+	),
+	...cut(
+		'L4 a callout emptied from its first block keeps no line, which it would read as its own',
+		':::note\n⟦***\n\nbody⟧\n:::\n',
+		':::note\n:::\n'
+	),
+	...backspaced(
+		'L4 nor right under a block in a callout, to its end',
+		':::note\nabove\n⟦***\n\nbody⟧\n:::\n',
+		':::note\nabove\n:::\n',
+		{ at: 13, holds: 'text' }
+	),
+	...backspaced(
+		'L4 nor at the end of a callout’s body under a blank line, which reads as no paragraph',
+		':::note\nabove\n\n⟦***\n\nbody⟧\n:::\n',
+		':::note\nabove\n\n:::\n',
+		{ at: 13, holds: 'text' }
+	),
+	...backspaced(
+		'L4 nor at the end of a details’ body under a blank line',
+		'<details open>\n<summary>S</summary>\n\nabove\n\n⟦***\n\nbody⟧\n\n</details>\n',
+		'<details open>\n<summary>S</summary>\n\nabove\n\n</details>\n',
+		{ at: 42, holds: 'text' }
+	),
+	// Miss-analysis: the tidy asked whether the line under the blank was blank behind the emptied
+	// line's markers trimmed, so an item's indent passed for a top-level blank and the line went.
+	...cut(
+		'L4 two paragraphs emptied in a footnote keep the blank line the footnote ends on',
+		'[^1]: above\n\n    ⟦zero\n\n    body⟧\n\nlast\n',
+		'[^1]: above\n\n    \n\nlast\n'
+	),
+	...cut('L4 and in an item', '- above\n\n  ⟦zero\n\n  below⟧\n\nlast\n', '- above\n\n  \n\nlast\n')
+];
+
 export const CLOSER_ROWS: NamedRow[] = [
 	...CLOSING_LINE_ROWS,
 	...LINE_ROWS,
@@ -677,5 +765,6 @@ export const CLOSER_ROWS: NamedRow[] = [
 	...MIXED_ROWS,
 	...LINE_END_ROWS,
 	...COMPOSITION_ROWS,
-	...LINE_BREAK_ROWS
+	...LINE_BREAK_ROWS,
+	...EMPTIED_LINE_ROWS
 ];

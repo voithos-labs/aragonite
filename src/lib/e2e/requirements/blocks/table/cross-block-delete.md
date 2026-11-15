@@ -15,9 +15,10 @@ all of them flag the table endpoints as cell coordinates.
   Anchor paragraph head preserved; every body row the selection touches goes in full, and the
   header row with its delimiter stays, since a range entering a table below its header keeps it.
   Surviving paragraph and surviving table remain adjacent (no merge).
-- Case 2 (cell mid-table → paragraph below): drag from a body cell into the paragraph below, Backspace.
-  The anchor cell's entire row (and every row below it) is cleared or removed; the head of the
-  paragraph below is dropped. Surviving table + surviving paragraph remain adjacent.
+- Case 2 (cell mid-table → heading below): drag from a body cell onto the heading below, Backspace.
+  The anchor cell's entire row (and every row below it) is cleared or removed, the heading goes
+  whole, and the next letter lands in a surviving cell. (A paragraph emptied there would keep its
+  line, which takes the letter: `structural-edits.md` § Structural operations.)
 - Case 2 into a nested prose end (cell mid-table → paragraph inside a blockquote): drag from a body
   cell into a quoted paragraph, Delete. The nested endpoint (path length 2) goes through the
   cross-container commit that changes the live document, so the reparsed tail must be read again from

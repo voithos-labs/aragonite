@@ -179,7 +179,14 @@ const toRow = (anchor: number[], table: number[]): EditorSelection => ({
 
 /** Ranges that end at a leaf's end, where text written over them stands where a typed key's does;
  *  `click` is a text block the caret goes into first. */
-const OVER_A_RANGE: { name: string; source: string; click: number[]; select: EditorSelection }[] = [
+const OVER_A_RANGE: {
+	name: string;
+	source: string;
+	click: number[];
+	select: EditorSelection;
+	/** The document once the text is in, where a ruling pins it. */
+	lands?: string;
+}[] = [
 	{
 		name: 'from a rule in a quote to a table row’s end',
 		source: `> above\n>\n> ***\n>\n> body\n\n${TABLE}`,
@@ -193,10 +200,11 @@ const OVER_A_RANGE: { name: string; source: string; click: number[]; select: Edi
 		select: toRow([0], [2])
 	},
 	{
-		name: 'from a rule to a paragraph’s end, a gap held before the fence below',
+		name: 'from a rule to a paragraph’s end before a fence, on the line it emptied',
 		source: 'first\n\n***\n\npara\n\n```\ncode\n```\n',
 		click: [0],
-		select: { anchor: { path: [1], offset: 0 }, focus: { path: [2], offset: 4 } }
+		select: { anchor: { path: [1], offset: 0 }, focus: { path: [2], offset: 4 } },
+		lands: 'first\n\nQ\n\n```\ncode\n```\n'
 	},
 	{
 		name: 'from a rule to an item’s end before the next item',
@@ -238,6 +246,7 @@ test.describe('a composition over a range ending at a leaf’s end', () => {
 				});
 				expect(composed).toBe(typed);
 				expect(composed.split('Q').length - 1).toBe(1);
+				if (row.lands) expect(composed).toBe(row.lands);
 			});
 		}
 });

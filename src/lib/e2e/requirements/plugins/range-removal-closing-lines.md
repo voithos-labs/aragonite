@@ -10,8 +10,9 @@ Miss-analysis: no drawn fenced container held a block a range takes whole from i
 ## Happy paths
 
 - An open details whose body starts with a table, then a paragraph and a heading after it; select
-  from the first cell to the paragraph's end; Backspace: the details stays, emptied, with its
-  closing line, and the heading stays after it, outside the details. In live and source mode.
+  from the first cell to the paragraph's end; Backspace: the details stays, holding the emptied
+  line, with its closing line, and the heading stays after it, outside the details. In live and
+  source mode.
 - A tip inside a note, the tip's body starting with a table, a paragraph in the note after the
   tip; select from the first cell to that paragraph's end; cut: the tip's closing line comes
   before the note's. In live and source mode.

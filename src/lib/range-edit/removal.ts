@@ -1,8 +1,9 @@
 /**
  * What a removal over a range leaves: the start's line keeps every byte before the range and the
- * end's line every byte after it, and the containers around them stay readable. One start line
- * goes whole, markers and all: that of a block taken whole out of a quote or an item, right under
- * the block above it (`leftLineStart`).
+ * end's line every byte after it, and the containers around them stay readable. A paragraph the
+ * range empties keeps its line (`keptLine`), save where the tree reads no paragraph there and where
+ * the start's line goes whole, markers and all: that of a block taken whole out of a quote, an item
+ * or a callout, right under the block above it, to the container's end (`leftLine`).
  */
 
 import {
@@ -21,11 +22,13 @@ import {
 	findWithin,
 	firstBodyLine,
 	firstLine,
+	isCell,
 	lastLine,
 	leafAt,
 	lineOf,
 	nodeAt,
 	parentOf,
+	readDoc,
 	titleOwner,
 	titleRowOf,
 	type Doc
@@ -63,7 +66,7 @@ export function removeRange(doc: Doc, start: number, end: number): Removal {
 	const held = heldAt(doc, from, to);
 	const last = held && doc.wholeBlocks ? endingItsParent(doc, held, to) : null;
 	if (last) return last;
-	if (held) return across(doc, from, to, held, true);
+	if (held) return heldAcross(doc, from, to, held);
 	let removed: Removal;
 	if (head && tail && head.leaf === tail.leaf) {
 		const { leaf } = head;
@@ -76,7 +79,7 @@ export function removeRange(doc: Doc, start: number, end: number): Removal {
 			doc.mode
 		);
 		removed = writeLeaf(doc, leaf, write, head.offset, tail.offset);
-	} else removed = across(doc, from, to, head?.leaf, false);
+	} else removed = across(doc, from, to, head?.leaf, false, { lineFrom: from, lines: null });
 	const line = from - lineHead(doc.source, from).length;
 	return { ...removed, source: oneEmptyLine(removed.source, line) };
 }
@@ -114,6 +117,45 @@ function endingItsParent(doc: Doc, block: LaidBlock, to: number): Removal | null
 	return { source, caret: at, after: at, parent: parentOf(doc, block) ?? null };
 }
 
+/** A range from a block it holds whole: the lines it leaves go, save a paragraph's it empties, which
+ *  stays where an empty paragraph reads back on it (`structural-edits.md` § Structural operations). */
+function heldAcross(doc: Doc, from: number, to: number, first: LaidBlock): Removal {
+	const left = leftLine(doc, from, to, first);
+	if (left === null && emptiesParagraph(doc, from, to)) {
+		const kept = keptLine(
+			doc,
+			from,
+			across(doc, from, to, first, true, { lineFrom: from, lines: null })
+		);
+		if (kept) return kept;
+	}
+	const lineFrom = left ?? from;
+	const lines = wholeLines(doc, lineFrom, to, closers(doc, from, to) !== '');
+	return across(doc, from, to, first, true, { lineFrom, lines });
+}
+
+/** `left`, the removal that keeps the line emptied at `from`, tidied and holding the caret where an
+ *  empty paragraph reads back on that line or the one under it, or where it ends the document. */
+function keptLine(doc: Doc, from: number, left: Removal): Removal | null {
+	const source = oneEmptyLine(left.source, from - lineHead(left.source, from).length);
+	const under = source.indexOf('\n', from) + 1;
+	// The line a range emptied at the document's end is a place of its own, whatever stands above.
+	if (under === source.length) return { source, caret: from, took: from };
+	const read = readDoc(source, doc.host, doc.mode);
+	const at = [from, ...(under > 0 ? [textStartAt(read, under)] : [])].find((byte) => {
+		const leaf = leafAt(read, byte)?.leaf;
+		return !!leaf?.text && leaf.text.from === leaf.text.to && factsOf(read, leaf).joins === 'text';
+	});
+	return at === undefined ? null : { source, caret: at, took: from };
+}
+
+/** What a removal takes of the lines at its ends: the start's from `lineFrom`, and, where the end's
+ *  line goes too, the whole lines `wholeLines` names. */
+interface LinesTaken {
+	lineFrom: number;
+	lines: ReturnType<typeof wholeLines>;
+}
+
 /** A range across blocks: the end's tail joins the start where the start takes joined text, and
  *  stays a line of its own where it doesn't (a title row, a code block, a block the range enters). */
 function across(
@@ -121,7 +163,8 @@ function across(
 	from: number,
 	to: number,
 	first: LaidBlock | undefined,
-	held: boolean
+	held: boolean,
+	{ lineFrom, lines }: LinesTaken
 ): Removal {
 	const { source } = doc;
 	// A start block held whole goes, so the tail takes its place; an end block that takes no joined
@@ -142,10 +185,6 @@ function across(
 	const head = held ? null : leafAt(doc, from);
 	if (joins && head && end && head.leaf !== end.leaf) return joinedLeaves(doc, from, to, head, end);
 	const closing = closers(doc, from, to);
-	// Where whole lines go (the range ends at a line's end), the start's line goes with its markers
-	// too where the range leaves the container holding its block.
-	const lineFrom = held && first ? leftLineStart(doc, from, to, first) : from;
-	const lines = held ? wholeLines(doc, lineFrom, to, closing !== '') : null;
 	let tail = lines?.tail ?? source.slice(to);
 	// How many of the tail's last bytes are what followed the range: from the next line's text, past
 	// its markers, where whole lines took the end's line.
@@ -266,20 +305,35 @@ function across(
 	};
 }
 
-/** Where the line `from` is on starts, where the range ends at a line's end and leaves the
- *  container holding `first`, which keeps a block right above that line; else `from`. */
-function leftLineStart(doc: Doc, from: number, to: number, first: LaidBlock): number {
+/** Where the line `from` is on starts, markers and all, where that line goes: the range runs to the
+ *  end of the container holding `first`, right under a block or the container's opening row. */
+function leftLine(doc: Doc, from: number, to: number, first: LaidBlock): number | null {
 	const { source } = doc;
 	const marks = lineHead(source, from);
 	const parent = parentOf(doc, first);
-	if (marks === '' || !parent || first.path.at(-1) === 0) return from;
+	if (!parent) return null;
+	// A fenced container's opening row stands above its first block, and its lines have no markers.
+	const fenced = factsOf(doc, parent).lines === 'fenced';
+	if (!fenced && (marks === '' || first.path.at(-1) === 0)) return null;
 	// Under a blank line the emptied line joins nothing above, so it stays a place of its own.
-	if (/^[ \t>]*$/.test(lineHead(source, from - marks.length - 1).replace(/\r$/, ''))) return from;
+	if (/^[ \t>]*$/.test(lineHead(source, from - marks.length - 1).replace(/\r$/, ''))) return null;
 	const eol = source.startsWith('\r\n', to) ? 2 : source.startsWith('\n', to) ? 1 : 0;
 	// A blank line of the containers around keeps the caret off the block below, which would take it.
 	const below = lineRest(source, to + eol).trimEnd();
 	const parted = /^[ \t>]*$/.test(below) && marks.trimEnd().startsWith(below);
-	return eol > 0 && parted && to >= contentEnd(doc, parent) ? from - marks.length : from;
+	if (eol > 0 && parted && to >= contentEnd(doc, parent)) return from - marks.length;
+	const closing = fenced ? lastLine(parent) : null;
+	return closing?.own && to + eol >= closing.from ? from : null;
+}
+
+/** Whether the range ends at the end of a later paragraph's text, which it empties: not a cell's,
+ *  not past an opening the removal keeps, and not inside a container it holds whole. */
+function emptiesParagraph(doc: Doc, from: number, to: number): boolean {
+	const end = leafAt(doc, to)?.leaf;
+	if (!end?.text || end.from <= from || to < end.text.to || isCell(doc, end)) return false;
+	if (factsOf(doc, end).joins !== 'text' || heldWhole(doc, end, end.from, to)) return false;
+	if (enteredOpening(doc, from, to) !== null) return false;
+	return !containersAt(doc, to, 'end').some((c) => c.from >= from && heldWhole(doc, c, c.from, to));
 }
 
 /** Where the text of the line holding `at` starts, past the marker of each container on it. */
@@ -339,7 +393,7 @@ function wholeLines(doc: Doc, from: number, to: number, closed: boolean) {
 	const holder = containersAt(doc, from, 'start').at(-1);
 	// A container holding only the block keeps its line, emptied.
 	const shared = holder !== undefined && (nodeAt(doc, holder.path).children?.length ?? 0) > 1;
-	if ((marks !== '' && !shared) || !endsHoldingWhole(doc, from, to)) return null;
+	if (marks !== '' && !shared) return null;
 	const ending = /^\r?\n/.exec(source.slice(to))?.[0];
 	const above = source.slice(0, from - marks.length);
 	let tail = ending === undefined ? '' : source.slice(to + ending.length);
@@ -359,8 +413,8 @@ function blankBelowGoes(above: string, below: string): number {
 	return blank && (above === '' || /(^|\n)[ \t>]*\r?\n$/.test(above)) ? blank.length : 0;
 }
 
-/** `out` keeping one empty line where the removal emptied the start's line, at `line`, between
- *  blank lines: the blank line under it goes, unless it is an outer container's. */
+/** `out` keeping one empty line where the removal emptied a line, at `line`, between blank lines:
+ *  the blank line under it goes, unless it is an outer container's. */
 function oneEmptyLine(out: string, line: number): string {
 	const eol = out.indexOf('\n', line);
 	const emptied = eol < 0 ? '' : out.slice(line, eol);
@@ -368,7 +422,12 @@ function oneEmptyLine(out: string, line: number): string {
 	const below = out.slice(eol + 1);
 	const gone = blankBelowGoes(out.slice(0, line), below);
 	if (gone === 0 || below.slice(0, gone).trimEnd() !== emptied.trimEnd()) return out;
-	return out.slice(0, eol + 1) + below.slice(gone);
+	// The line under that blank line is still in the emptied line's containers where it carries
+	// their markers; otherwise they ended there and the blank line is an outer one's.
+	const marks = emptied.replace(/\r$/, '');
+	const next = below.slice(gone);
+	if (marks !== '' && next !== '' && !next.startsWith(marks)) return out;
+	return out.slice(0, eol + 1) + next;
 }
 
 type LeafPoint = NonNullable<ReturnType<typeof leafAt>>;
@@ -485,11 +544,6 @@ function openingEnd(doc: Doc, block: LaidBlock): number {
 	}
 	return Math.max(at, titleRowOf(doc, block)?.to ?? at);
 }
-
-/** Whether the range ends at the end of a block other than a paragraph that it takes from that
- *  block's first byte. */
-const endsHoldingWhole = (doc: Doc, from: number, to: number) =>
-	findWithin(doc, from, to, (b) => b.from >= from && heldWhole(doc, b, b.from, to)) !== undefined;
 
 /** The closing lines the range starts inside and leaves, innermost first: a fenced block's, the
  *  way its own write rule closes it, then each fenced container's. They stay after the joined text. */

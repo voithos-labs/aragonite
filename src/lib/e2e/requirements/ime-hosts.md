@@ -38,8 +38,8 @@ plugin's text block has its own rows in `plugins/editable-leaf-plain.md`.
 - A real composition over a range that ends at a leaf's end (a table row's end, a paragraph's end
   before a fence, a list item's end before the next item) lands where a key typed over the same
   range does, in both modes: the composed text joins no block the range never reached, and where
-  the typed key's place is the gap held before a fence, the composition opens its paragraph there
-  too. Chromium only, whose IME runs over CDP.
+  the range emptied a paragraph before a fence, both write on the line it kept. Chromium only,
+  whose IME runs over CDP.
   - Miss-analysis: the composition rows over a range were synthetic events in jsdom, which took a
     composition's place to be Delete's, so no row composed through a real IME at a row's end,
     where the text joined the next row's first cell.
