@@ -49,6 +49,7 @@ import {
 import { numberedAfterTaking } from './list-numbers';
 import { continuation } from './markers';
 import {
+	blankedApart,
 	byteAt,
 	cutLeaf,
 	lineEnd,
@@ -86,6 +87,9 @@ export function pasteAt(doc: Doc, from: number, to: number, pasted: Pasted): Edi
 	const tops = seen.blocks.tree.children.filter((b) => !isBlankText(b.raw));
 	return { ...edit, blocks: tops.length };
 }
+
+/** One line ending pasted as text, by a gesture that runs no transform. */
+const LINE: Pasted = { text: '\n', plain: false, held: { holds: 'text' }, transform: null };
 
 /** The clipboard as the place `[from, to)` takes it: a trailing line of only spaces or tabs is a
  *  blank line, so a line ending, its spaces unwritten; literal text keeps every byte. */
@@ -171,26 +175,25 @@ function headingEmptied(doc: Doc, { leaf, from, to }: NonNullable<ReturnType<typ
 	return own && whole && factsOf(doc, leaf).joins === 'text-keeping-type';
 }
 
-/** Line endings alone over an emptied heading: Enter there takes the heading away, leaving its line
- *  empty, and each ending is Enter on the line the one before left (an empty line stacks nothing). */
+/** Line endings alone over an emptied heading: Enter there takes the heading away, so its line is
+ *  left blank as a paragraph's emptying write leaves it, and the endings land as over that paragraph. */
 function headingGone(
 	doc: Doc,
-	{ leaf }: NonNullable<ReturnType<typeof leafHolding>>,
+	held: NonNullable<ReturnType<typeof leafHolding>>,
 	count: number
 ): Edit {
-	// The line left blank keeps its markers without their trailing spaces, as Enter leaves one.
-	const marks = lineHead(doc.source, leaf.from).trimEnd();
-	const lineStart = leaf.from - lineHead(doc.source, leaf.from).length;
-	const source = doc.source.slice(0, lineStart) + marks + doc.source.slice(contentEnd(doc, leaf));
-	// The first ending opens the line under the emptied one, which a blank line there stands for.
-	const end = lineStart + marks.length;
-	const under = Math.min(end + 1, source.length);
-	const blank = under < source.length && isBlankText(lineRest(source, pastMarkers(source, under)));
-	const opened = doc.ending + marks;
-	let edit: Edit = blank
-		? { source, caret: pastMarkers(source, under) }
-		: { source: source.slice(0, end) + opened + source.slice(end), caret: end + opened.length };
-	for (let i = 1; i < count; i++) edit = enteredAgain(doc, edit);
+	const { leaf } = held;
+	const head = lineHead(doc.source, leaf.from);
+	// An item's line keeps its marker or indent, which make the line the item's; any other blank line
+	// keeps its markers without their trailing spaces, as Enter leaves one.
+	const inItem = itemAround(doc, held) !== null;
+	const blank = (marks: string) => marks.trimEnd() || marks;
+	const end = leaf.from - head.length + (inItem ? head : blank(head)).length;
+	// In an item each ending is Enter; elsewhere the first opens the line under the blank one.
+	const under = inItem ? '' : doc.ending + blank(continuation(doc, leaf.from));
+	const source = doc.source.slice(0, end) + under + doc.source.slice(contentEnd(doc, leaf));
+	let edit = blankedApart(doc, leaf, { source, caret: end + under.length });
+	for (let i = inItem ? 0 : 1; i < count; i++) edit = enteredAgain(doc, edit);
 	return { ...edit, entered: true };
 }
 
@@ -231,8 +234,7 @@ function enteredInText(
 ): Edit {
 	const bare = landedAt(doc, from, to, rest, seen);
 	const after = { ...readDoc(bare.source, doc.host, doc.mode), ending: doc.ending };
-	const line: Pasted = { text: '\n', plain: false, held: { holds: 'text' }, transform: null };
-	const { source, caret } = pasteAt(after, bare.caret, bare.caret, line);
+	const { source, caret } = pasteAt(after, bare.caret, bare.caret, LINE);
 	return { source, caret };
 }
 
@@ -257,8 +259,7 @@ function enteredAgain(doc: Doc, edit: Edit): Edit {
 	const next = item && enteredAt(now, edit.caret, undefined, () => true);
 	if (next) return next;
 	if (onBlankLine(edit)) return edit;
-	const line: Pasted = { text: '\n', plain: false, held: { holds: 'text' }, transform: null };
-	const { source, caret } = pasteAt(now, edit.caret, edit.caret, line);
+	const { source, caret } = pasteAt(now, edit.caret, edit.caret, LINE);
 	return { source, caret };
 }
 
