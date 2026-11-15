@@ -6,7 +6,7 @@
 // so no row pasted an ending over a block held whole, where one blank line too many was left.
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { editRange } from '#lib/range-edit/edit-range.js';
-import type { PresentationMode } from '#lib/presentation-mode.js';
+import type { Mode } from '#lib/range-edit/host.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
 import { pointAtByte } from '#lib/selection/range-bytes.js';
 import { registerDefaultContextActions } from '#lib/components/menu/default-context-actions.js';
@@ -149,7 +149,7 @@ const UNMOUNTED: [string, string][] = [
 ];
 
 describe('line endings over a block the core alone is handed whole', () => {
-	const answer = (marked: string, clip: string, mode: PresentationMode) => {
+	const answer = (marked: string, clip: string, mode: Mode) => {
 		const [from, to] = [marked.indexOf('⟦'), marked.indexOf('⟧') - 1];
 		const gesture = { paste: clip, plain: false, holds: 'text' } as const;
 		const { source, caret } = editRange(
