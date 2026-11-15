@@ -23,13 +23,26 @@ const sharedOf = (doc: Doc, block: LaidBlock, key: string | undefined) =>
 		? (nodeAt(doc, block.path).metadata as Record<string, unknown> | undefined)?.[key]
 		: undefined;
 
-/** The deepest container at `at` a pasted leading block merges into. */
+/** The deepest container at `at` a pasted leading block of its type merges into, where the clipboard
+ *  opens with every container from there down to the place's own (a quote in an item takes no list). */
 export function takerOf(doc: Doc, at: number, pasted: Doc, first: LaidBlock): LaidBlock | null {
-	const { into, key } = factsOf(pasted, first).merges;
-	let taker: LaidBlock | null = null;
-	for (const c of containersHolding(doc, at))
-		if (into.includes(c.type) && sharedOf(doc, c, key) === sharedOf(pasted, first, key)) taker = c;
-	return taker;
+	// The clipboard's opening containers: its first block, then each first child that is one.
+	const opening: LaidBlock[] = [];
+	for (let b: LaidBlock | undefined = first; b?.container; b = pasted.layout.block([...b.path, 0]))
+		opening.push(b);
+	const shares = (c: LaidBlock, p: LaidBlock) => {
+		const { key } = factsOf(pasted, p).merges;
+		return sharedOf(doc, c, key) === sharedOf(pasted, p, key);
+	};
+	const takes = (c: LaidBlock, i: number) =>
+		(i === 0 ? factsOf(pasted, first).merges.into.includes(c.type) : c.type === opening[i].type) &&
+		shares(c, opening[i]);
+	const around = containersHolding(doc, at);
+	for (let k = around.length - 1; k >= 0; k--) {
+		const down = around.slice(k);
+		if (down.length <= opening.length && down.every(takes)) return around[k];
+	}
+	return null;
 }
 
 /** The container a pasted leading block breaks out of: the nearest of its type at `at`, where the

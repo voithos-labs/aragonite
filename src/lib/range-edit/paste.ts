@@ -630,7 +630,8 @@ function landed(
 			const open = isBlankText(text.slice(0, gaps[0].index)) ? 0 : gaps[0].index;
 			const last = gaps.at(-1)!.index + gaps.at(-1)![0].length;
 			const close = isBlankText(text.slice(last)) ? text.length : last;
-			return around(cutWith(text.slice(0, open), text.slice(close)), text.slice(open, close));
+			const edit = around(cutWith(text.slice(0, open), text.slice(close)), text.slice(open, close));
+			return open === 0 && from === to ? markersTrimmed(doc, from, edit) : edit;
 		}
 		const line = text.indexOf('\n');
 		if (line >= 0 && oneLined)
@@ -891,8 +892,14 @@ function ownLine(doc: Doc, at: number, edit: Edit): Edit {
 function markersTrimmed(doc: Doc, at: number, edit: Edit): Edit {
 	const head = lineHead(doc.source, at);
 	const kept = head.trimEnd();
+	// The block's own line starts at `at` where all before it is its containers' (an item's marker too).
+	const held = leafHolding(doc, at, at);
+	const raw = held && nodeAt(doc, held.leaf.path).raw;
+	const marks = held
+		? byteAt(doc, held.leaf, raw!.lastIndexOf('\n', held.from - 1) + 1) === at
+		: pastMarkers(head, 0) === head.length;
 	// Spaces alone mark no container: they are the line's own bytes.
-	if (kept === head || kept === '' || pastMarkers(head, 0) !== head.length) return edit;
+	if (kept === head || kept === '' || !marks) return edit;
 	const start = at - head.length + kept.length;
 	const source = edit.source.slice(0, start) + edit.source.slice(at);
 	return { source, caret: edit.caret - (head.length - kept.length) };

@@ -1112,7 +1112,8 @@ function titleLine(
 	return atName && flat !== '' ? ' ' + flat : flat;
 }
 
-/** The deepest container at `at` a pasted leading block of `type` merges into. */
+/** The deepest container at `at` a pasted leading block of its type merges into, where the clipboard
+ *  opens with the containers from there down to the place's own: none of another type between. */
 function takerOf(
 	read: Read,
 	at: number,
@@ -1120,12 +1121,23 @@ function takerOf(
 	first: LaidBlock,
 	host: CheckHost
 ): LaidBlock | null {
-	const { into, key } = host.facts(first.type).merges;
-	let taker: LaidBlock | null = null;
-	for (const c of containersHolding(read, at)) {
-		if (into.includes(c.type) && sharedBy(read, c, key) === sharedBy(pasted, first, key)) taker = c;
+	const opening = [first];
+	for (let b = first; ;) {
+		const child = pasted.blocks.find((c) => c.path.join() === [...b.path, 0].join());
+		if (!child || linesOf(child) === undefined) break;
+		opening.push((b = child));
 	}
-	return taker;
+	const takes = (c: LaidBlock, i: number) => {
+		const { into, key } = host.facts(opening[i].type).merges;
+		const kind = i === 0 ? into.includes(c.type) : c.type === opening[i].type;
+		return kind && sharedBy(read, c, key) === sharedBy(pasted, opening[i], key);
+	};
+	const around = containersHolding(read, at);
+	for (let k = around.length - 1; k >= 0; k--) {
+		const down = around.slice(k);
+		if (down.length <= opening.length && down.every(takes)) return around[k];
+	}
+	return null;
 }
 
 /** What two containers of a type must share to merge, as `block` holds it. */

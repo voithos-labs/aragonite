@@ -112,7 +112,9 @@ function hostHolding(doc: Doc, caret: number, host: HostItem) {
 	if (!held || !list || factsOf(doc, list).lines !== 'items') return null;
 	// A cell holds one line and literal text takes the ending: neither is text the item splits.
 	const own = factsOf(doc, held.leaf).body !== 'literal' && !isCell(doc, held.leaf);
-	return own ? { held, item, list } : null;
+	// A block that took none of the item's text after the caret (a footnote) splits nothing of it.
+	const joined = caret < held.leaf.text!.to;
+	return own && joined ? { held, item, list } : null;
 }
 
 /** The block a paste broke the host's list around, its content ending at `caret`. */
