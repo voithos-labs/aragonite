@@ -102,9 +102,9 @@ describe.each(TEXT_HOSTS)('in $name', (host) => {
 	);
 });
 
-// Miss-analysis: at every nested row the letter's seat held the paste too, so none asked where a
-// paste goes when its bytes would run into the construct beside that seat.
-describe('a paste the screen would not show at the letter’s seat', () => {
+// Miss-analysis: at every nested row the offset a letter takes held the paste too, so none asked
+// where a paste goes when its bytes would run into the construct beside that offset.
+describe('a paste the screen would not show where a letter goes', () => {
 	it.each([
 		['before the inner span', 4, 'a `c`~~`b`~~ c\n'],
 		['after it', 7, 'a ~~`b`~~`c` c\n']
