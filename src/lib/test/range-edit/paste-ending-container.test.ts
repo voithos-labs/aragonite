@@ -116,6 +116,35 @@ for (const mode of ['source', 'live'] as const)
 			});
 	}
 
+// A callout the caret's callout takes in ends on its own closing line, which takes no caret: the
+// ending lands at the body's end, as after the text alone, never under the closing line.
+// Miss-analysis: every container joined in a row was a quote, which has no closing line to end on.
+const TAKEN_IN: [name: string, marked: string][] = [
+	['a callout’s body end', ':::note\nalpha‸\n:::\n\nAfter\n'],
+	['the last callout’s body end', ':::note\nalpha‸\n:::\n'],
+	['a callout in an item', '- :::note\n  alpha‸\n  :::\n- after\n'],
+	['a callout in a quote', '> :::note\n> alpha‸\n> :::\n>\n> After\n'],
+	['a CRLF callout', ':::note\r\nalpha‸\r\n:::\r\n\r\nAfter\r\n']
+];
+
+for (const mode of ['source', 'live'] as const)
+	for (const [name, marked] of TAKEN_IN)
+		for (const endings of ['\n', '\n\n'])
+			it(`${mode}: a callout taken in at ${name}, ${endings.length} ending(s) land as text’s`, async () => {
+				expect(await pasted(marked, mode, ':::note\nb\n:::' + endings)).toEqual(
+					await pasted(marked, mode, 'b' + endings)
+				);
+			});
+
+it('a callout taken in by a callout an item holds leaves no blank line among the items', async () => {
+	const { typed } = await pasted(
+		'- :::note\n  alpha‸\n  :::\n- after\n',
+		'live',
+		':::note\nb\n:::\n'
+	);
+	expect(typed).toMatch(/ {2}:::\n- after\n$/);
+});
+
 // A trailing line of spaces is an ending: the quote joins, then a line break and a blank line.
 // Miss-analysis: every joined row's quote ended the clipboard, so no row put a line after it.
 for (const mode of ['source', 'live'] as const)

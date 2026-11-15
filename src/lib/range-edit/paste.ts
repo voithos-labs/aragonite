@@ -48,6 +48,7 @@ import {
 } from './paste-split';
 import { numberedAfterTaking } from './list-numbers';
 import { continuation } from './markers';
+import { lastPlaceAt } from './removal-range';
 import {
 	blankedApart,
 	byteAt,
@@ -234,7 +235,9 @@ function enteredInText(
 ): Edit {
 	const bare = landedAt(doc, from, to, rest, seen);
 	const after = { ...readDoc(bare.source, doc.host, doc.mode), ending: doc.ending };
-	const { source, caret } = pasteAt(after, bare.caret, bare.caret, LINE);
+	// A container closed by its own line left the caret past that line: its last place is the body's.
+	const at = lastPlaceAt(after, bare.caret) ?? bare.caret;
+	const { source, caret } = pasteAt(after, at, at, LINE);
 	return { source, caret };
 }
 

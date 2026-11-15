@@ -98,3 +98,19 @@ export function bodyBetweenFences(doc: Doc, leaf: LaidBlock): { from: number; to
 			: closer - (raw[closer - 2] === '\r' ? 2 : 1);
 	return { from: byteAt(doc, leaf, body), to: byteAt(doc, leaf, Math.max(body, end)) };
 }
+
+/** The last place a caret takes in the block ending at `at`: a fenced block's body end, a container's
+ *  or a table's last text; null for text that ends there, or a block with no text place (a rule). */
+export function lastPlaceAt(doc: Doc, at: number): number | null {
+	const block = [...doc.layout.within(at, at)].filter((b) => contentEnd(doc, b) === at).at(-1);
+	if (!block || (block.text && !bodyBetweenFences(doc, block))) return null;
+	return lastPlaceIn(doc, block);
+}
+
+function lastPlaceIn(doc: Doc, block: LaidBlock): number | null {
+	if (factsOf(doc, block).textPosition === 'never') return null;
+	if (block.text) return bodyBetweenFences(doc, block)?.to ?? block.text.to;
+	const count = nodeAt(doc, block.path).children?.length ?? 0;
+	const last = count > 0 ? doc.layout.block([...block.path, count - 1]) : undefined;
+	return last ? lastPlaceIn(doc, last) : null;
+}

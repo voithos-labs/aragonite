@@ -33,7 +33,7 @@ import { ownEntry, restored } from './own-entry';
 import { numberedOn } from './list-numbers';
 import { asPasted, pasteAt, type Pasted } from './paste';
 import { removeRange, type Removal } from './removal';
-import { bodyBetweenFences, fenceBody, holdsText } from './removal-range';
+import { fenceBody, holdsText, lastPlaceAt } from './removal-range';
 
 /** Two byte offsets, `from <= to`, after the editor widened the range to every block it takes
  *  whole; a caret is a range with `from === to`. */
@@ -500,22 +500,6 @@ function startAfter(doc: Doc, caret: number, after: number): Place | null {
 		return { at: fenceBody(doc, block)?.from ?? block.from, holds: 'text' };
 	}
 	return entered ? { at: after, holds: 'boundary', parent: entered.path } : null;
-}
-
-/** The last place a caret takes in the block ending at `at`: a fenced block's body end, a container's
- *  or a table's last text; null for text that ends there, or a block with no text place (a rule). */
-function lastPlaceAt(doc: Doc, at: number): number | null {
-	const block = [...doc.layout.within(at, at)].filter((b) => contentEnd(doc, b) === at).at(-1);
-	if (!block || (block.text && !bodyBetweenFences(doc, block))) return null;
-	return lastPlaceIn(doc, block);
-}
-
-function lastPlaceIn(doc: Doc, block: LaidBlock): number | null {
-	if (factsOf(doc, block).textPosition === 'never') return null;
-	if (block.text) return bodyBetweenFences(doc, block)?.to ?? block.text.to;
-	const count = nodeAt(doc, block.path).children?.length ?? 0;
-	const last = count > 0 ? doc.layout.block([...block.path, count - 1]) : undefined;
-	return last ? lastPlaceIn(doc, last) : null;
 }
 
 /** A leaf's last caret place: a fenced block's body end, else its text's end past a structural
