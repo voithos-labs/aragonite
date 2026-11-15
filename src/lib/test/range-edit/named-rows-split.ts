@@ -1075,10 +1075,10 @@ const LAST_PLACE_ROWS: NamedRow[] = [
 		}
 	},
 	{
-		name: 'P text on a fence’s closing line stays where it went',
+		name: 'P text on a fence’s closing line stays where it went, a closing line under it',
 		source: '```\nx\n```⟦⟧\n',
 		gesture: paste('y'),
-		expect: { source: '```\nx\n```y\n', caret: { at: 10, holds: 'text' } }
+		expect: { source: '```\nx\n```y\n```\n', caret: { at: 10, holds: 'text' } }
 	},
 	...landsAt('P a fence’s caret stays in its body', 'abc⟦⟧\n', FENCE, 'abc\n\n```\nx‸\n```\n'),
 	...landsAt('P in an item', '- a⟦⟧\n- b\n', FENCE, '- a\n\n  ```\n  x‸\n  ```\n- b\n'),

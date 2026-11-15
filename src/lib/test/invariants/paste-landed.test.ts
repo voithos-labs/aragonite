@@ -73,12 +73,8 @@ describe('in a running editor', () => {
 		takeDevWarns();
 	});
 
-	// A callout's rebuild puts a blank line over a body a delete emptied; a code block's rule moves a
-	// closing fence to a line of its own where the core writes text in front of it.
-	it.each([
-		['a callout body', ':::note\n\n:::\n', [0, 1], 0],
-		['a closing fence', '```js\ncode\n```\n\nAfter\n', [0], 11]
-	] as const)('%s', async (_, source, path, offset) => {
+	/** `xy` pasted at `offset` of the block at `path`: the guard fires with the leaf write forced only. */
+	async function forcedOnlyWarns(source: string, path: number[], offset: number) {
 		for (const [forced, warns] of [
 			[true, ['invariant:paste-lands-core-answer']],
 			[false, []]
@@ -86,13 +82,19 @@ describe('in a running editor', () => {
 			arm.forced = forced;
 			const editor = mountCase(source, 'source');
 			await editor.settle();
-			placeCaret(surfaceAt(editor, [...path]), offset);
+			placeCaret(surfaceAt(editor, path), offset);
 			await editor.settle();
 			await pasteGesture(editor, { 'text/plain': 'xy' }, 'key');
 			expect(takeDevWarns().map((warn) => warn.tag)).toEqual(warns);
 			await destroyMountedEditors();
 		}
-	});
+	}
+
+	// A callout's rebuild puts a blank line over a body a delete emptied.
+	it('a callout body', () => forcedOnlyWarns(':::note\n\n:::\n', [0, 1], 0));
+	// No shape is left where the rule alone rewrites the core's bytes: the core writes a closing line
+	// through that rule (`range-edit/paste-literal-fence.test.ts`), so this row has no witness.
+	it.skip('a closing fence', () => forcedOnlyWarns('```js\ncode\n```\n\nAfter\n', [0], 11));
 
 	// A paste that makes the paragraph a table: the block's own write would put the caret past the
 	// cell's text, where the core's caret ends the pasted text.

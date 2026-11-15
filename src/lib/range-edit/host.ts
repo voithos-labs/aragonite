@@ -6,16 +6,15 @@
 
 import type { DocumentView, NodeView } from '../core/node-views';
 import { getContentRange } from '../core/inline';
-import { concatChildren, serialize } from '../core/serializer';
+import { serialize } from '../core/serializer';
 import { cutOutsideWhole } from '../core/inline/live-edit/live-split';
 import { documentLineEnding, ownTrailingLineEnding, trimTrailingLineEnding } from '../core/lines';
-import { makeBlockNode, metadataIfKind, type CstNode } from '../core/nodes';
+import { makeBlockNode, metadataIfKind } from '../core/nodes';
 import { hidesDelimitersAtCaret } from '../presentation-mode';
 import { blockFacts, type BlockFacts } from '../schema/block-facts';
 import { tryGetBlockKindDescriptor, type WriteMode } from '../schema/block-kind-descriptor';
 import { closed as lineClosed, unfinishedReadings } from '../schema/block-openers';
 import { readAsOpened } from '../schema/opened-reading';
-import { reservedChromeKindOf } from '../schema/reserved-chrome';
 import type { Reading } from '../schema/reading';
 import type { StoredAs } from '../schema/stored-as';
 import { legalizeWrite } from '../tree-operations/content-write';
@@ -29,7 +28,11 @@ import {
 import { splitHalves } from '../tree-operations/node-ops';
 import { enteredOut, exitedOut } from '../tree-operations/list/enter-out';
 import { followerMetadata } from '../tree-operations/list/list-builders';
-import { blockNodeAt, normalizeBodyWrite } from '../tree-operations/node-primitives';
+import {
+	blockNodeAt,
+	normalizeBodyWrite,
+	ownLinesRewritten
+} from '../tree-operations/node-primitives';
 import { cutKeepingStructure } from '../tree-operations/structural-suffix';
 import { escapeMarkdownLiteral } from '../tree-operations/paste/markdown-literal';
 import { storedAsAt, storedAsIn, writeTargetAt } from '../tree-operations/stored-as';
@@ -369,37 +372,7 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 			const closed = last >= body && !fence.notFinal(raw);
 			return { body, closer: closed ? last : null, mayClose: fence.mayClose };
 		},
-		rewritten(doc, path, raw) {
-			const node = blockNodeAt(doc, path)!;
-			const rebuild = tryGetBlockKindDescriptor(node.kind)?.rebuildRaw;
-			const children = node.children ?? [];
-			const chrome = reservedChromeKindOf(node.kind) !== undefined ? children.slice(0, 1) : [];
-			const inner =
-				(node.innerPrefix ?? '') +
-				concatChildren(children.slice(chrome.length)) +
-				(node.innerSuffix ?? '');
-			// The body runs from past the opening lines, which the edit left as they were, to the last line.
-			const start = lastLineStart(node.raw) - inner.length;
-			const end = lastLineStart(raw);
-			if (!rebuild || start < 0 || end < start || raw.slice(0, start) !== node.raw.slice(0, start))
-				return raw;
-			// The kind's rule writes the node it is handed, so it writes a copy holding the new body as
-			// one block of bytes.
-			const body = makeBlockNode({
-				kind: 'paragraph',
-				leadingTrivia: '',
-				raw: raw.slice(start, end)
-			});
-			const copy = {
-				...node,
-				children: [...chrome, body],
-				innerPrefix: '',
-				innerSuffix: ''
-			} as CstNode;
-			if (node.metadata) copy.metadata = { ...node.metadata } as CstNode['metadata'];
-			rebuild(copy);
-			return copy.raw;
-		}
+		rewritten: (doc, path, raw) => ownLinesRewritten(blockNodeAt(doc, path)!, raw)
 	};
 
 	/** `node`, read at `path`'s slot through `store`, broken at `at`: a split's cut where the split
@@ -517,7 +490,3 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 		return inBody({ head, tail, at: joined.caret, empty: false });
 	}
 }
-
-/** Where the last line of `raw` starts, its line ending aside. */
-const lastLineStart = (raw: string) =>
-	raw.lastIndexOf('\n', raw.length - 1 - ownTrailingLineEnding(raw).length) + 1;

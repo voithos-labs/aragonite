@@ -574,7 +574,8 @@ function landed(
 		// The opening fence line is the block's own syntax, which its write rule reads: an info
 		// string holds no backtick, and a run grown at its end grows the closer with it.
 		if (fence && target.from < fence.body) return write(clip);
-		if (fence && displayLines(clip).some((line) => fence.mayClose(line.text))) return write(clip);
+		// So is the closing line, which text in front of it or after it would un-close.
+		if (fence && fence.closer !== null && target.to >= fence.closer) return write(clip);
 		// With no fence, a line stays in the block by its indent, which a new line repeats.
 		const lineStart = raw.lastIndexOf('\n', target.from - 1) + 1;
 		const indent = fence ? '' : /^[ \t]*/.exec(raw.slice(lineStart, target.from))![0];
@@ -587,6 +588,11 @@ function landed(
 		});
 		const own = raw.slice(0, target.from) + lines.join(doc.ending) + raw.slice(target.to);
 		const caret = own.length - (raw.length - target.to);
+		// A body line the paste leaves that could close the fence goes through the block's write rule,
+		// which grows the fence past it.
+		const body =
+			fence && own.slice(fence.body, own.length - (raw.length - (fence.closer ?? raw.length)));
+		if (fence && displayLines(body!).some((line) => fence.mayClose(line.text))) return write(clip);
 		// A one-line source shown while it's edited, given a line break, takes the shape typing gives
 		// it: a one-line `$$` given two lines takes fence lines of its own.
 		const oneLine = !/\n/.test(trimTrailingLineEnding(raw)) && /\n/.test(clip);

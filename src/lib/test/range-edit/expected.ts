@@ -1068,8 +1068,8 @@ function landedPaste(
 export const fenceOf = (read: Read, leaf: LaidBlock, host: CheckHost) =>
 	host.fence(treeNodeAt(read.tree, leaf.path)!.raw);
 
-/** What a later line pasted into literal text at `at` starts with: its containers' markers and,
- *  with no fence around it, the caret line's indent. Null where a line could close the fence. */
+/** What a later line pasted into literal text at `at` starts with; null where the block's write rule
+ *  takes it (the closing line, a line left that could close the fence), which the rows hold. */
 function literalPrefix(
 	read: Read,
 	at: number,
@@ -1079,8 +1079,11 @@ function literalPrefix(
 ): string | null {
 	const raw = treeNodeAt(read.tree, leaf.path)!.raw;
 	const fence = fenceOf(read, leaf, host);
-	if (fence && text.split('\n').some((line) => fence.mayClose(line))) return null;
 	const offset = read.layout.pointAt(at)!.offset;
+	if (fence && fence.closer !== null && offset >= fence.closer) return null;
+	const lines = (raw.slice(0, offset) + text + raw.slice(offset)).slice(fence?.body).split('\n');
+	const body = fence?.closer === null ? lines : lines.slice(0, -2);
+	if (fence && body.some((line) => fence.mayClose(line.replace(/\r$/, '')))) return null;
 	const line = raw.slice(raw.lastIndexOf('\n', offset - 1) + 1, offset);
 	return continuationAt(read, at, host) + (fence ? '' : /^[ \t]*/.exec(line)![0]);
 }
