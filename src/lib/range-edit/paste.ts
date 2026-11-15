@@ -53,10 +53,6 @@ import {
 	blankedApart,
 	byteAt,
 	cutLeaf,
-	lineEnd,
-	lineEndBefore,
-	lineHead,
-	lineRest,
 	lineTextStart,
 	spliced,
 	writeText,
@@ -64,6 +60,7 @@ import {
 	type Cut,
 	type Edit
 } from './leaf-splice';
+import { lineEnd, lineEndBefore, lineHead, lineRest } from './lines';
 
 /** What a paste brings: the clipboard's text, whether it goes in as plain text, what the caret
  *  holds, and the host's paste transforms, null for a gesture that runs none. */

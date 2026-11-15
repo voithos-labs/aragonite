@@ -35,7 +35,8 @@ import {
 	numberedOn
 } from './list-numbers';
 import { continuation } from './markers';
-import { cutLeaf, lineEnd, lineHead, lineRest, spliced, type Cut, type Edit } from './leaf-splice';
+import { cutLeaf, spliced, type Cut, type Edit } from './leaf-splice';
+import { lineEnd, lineHead, lineRest } from './lines';
 
 /** The list item whose own block holds `[from, to)` in its text, with that block and its list;
  *  null elsewhere, and in literal text, where Enter adds a line. */

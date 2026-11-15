@@ -15,7 +15,8 @@ import {
 	type Doc
 } from './document';
 import { continuation } from './markers';
-import { lineHead, type Edit } from './leaf-splice';
+import type { Edit } from './leaf-splice';
+import { lineHead } from './lines';
 
 /** What a container's type says two of it must share to merge, as `block` holds it. */
 const sharedOf = (doc: Doc, block: LaidBlock, key: string | undefined) =>

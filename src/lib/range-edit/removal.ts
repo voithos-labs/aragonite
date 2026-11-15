@@ -33,15 +33,8 @@ import {
 import { apartAt, deepestAt, pastMarkers, type Join } from './apart';
 import { numberedOn } from './list-numbers';
 import { heldAt, heldWhole, removalRange } from './removal-range';
-import {
-	byteAt,
-	lineEndBefore,
-	lineHead,
-	lineRest,
-	lineTextStart,
-	writeLeaf,
-	type Edit
-} from './leaf-splice';
+import { byteAt, lineTextStart, writeLeaf, type Edit } from './leaf-splice';
+import { lineEndBefore, lineHead, lineRest } from './lines';
 
 /** A removal's new bytes. `after` is set when the blocks at its start went whole and no text stayed:
  *  the byte where what followed the range begins, so Backspace's caret goes to the block before and

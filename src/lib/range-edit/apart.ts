@@ -7,7 +7,7 @@
 import { contentEnd, nodeAt, type Doc } from './document';
 import type { JoinSide } from './host';
 import type { LaidBlock } from './layout';
-import { lineRest } from './leaf-splice';
+import { lineRest } from './lines';
 import { continuation } from './markers';
 
 /** A block the edit rewrote, with its bytes after the write; a kind it may have lost is read. */
