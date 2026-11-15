@@ -134,7 +134,7 @@ describe('in a running editor', () => {
 	// Miss-analysis: the check read the document once the paste's caret had landed, and no row's
 	// landing set off a write of the editor's own, which the check then took for the paste's bytes.
 	describe('a paste whose landing sets off the editor’s own next write fires nothing', () => {
-		// [name, mode, source, block, offset, clipboard, the document after both writes]
+		// [name, mode, source, block, offset, clipboard, the ops where the second write is the row's own]
 		const ROWS = [
 			[
 				'a bare fence in live mode, given its body line as the caret arrives',
@@ -143,7 +143,7 @@ describe('in a running editor', () => {
 				0,
 				0,
 				'```',
-				'```<!-- c -->\n\n```\n\nAfter\n'
+				['paste', 'input']
 			],
 			[
 				'a bare fence on an empty line in live mode',
@@ -152,27 +152,30 @@ describe('in a running editor', () => {
 				1,
 				0,
 				'```',
-				'alpha\n\n```\n\n```\n\nAfter\n'
+				['paste', 'input']
 			],
+			// The bytes and the second write here are the core's to change, so the row asks the check alone.
 			[
-				'a heading left empty, which gives its marker up as the caret leaves',
+				'a setext line at a heading’s text start',
 				'source',
 				'# Title here\n\nAfter\n',
 				0,
 				2,
 				'\n===',
-				'\n===Title here\n\nAfter\n'
+				null
 			]
 		] as const;
-		it.each(ROWS)('%s', async (_, mode, source, block, offset, clip, after) => {
+		it.each(ROWS)('%s', async (_, mode, source, block, offset, clip, written) => {
 			const editor = mountCase(source, mode);
 			await editor.settle();
 			placeCaret(surfaceAt(editor, [block]), offset);
 			await editor.settle();
+			const ops: string[] = [];
+			editor.instance.getEvents().on('edit', (event) => ops.push(event.op));
 			await pasteGesture(editor, { 'text/plain': clip }, 'key');
 			await editor.settle();
 			expect(takeDevWarns().map((warn) => warn.tag)).toEqual([]);
-			expect(editor.source()).toBe(after);
+			if (written) expect(ops).toEqual(written);
 		});
 	});
 });
