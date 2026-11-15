@@ -68,6 +68,12 @@ const ROWS: [string, string, string, string][] = [
 		'- > alpha\n  >\n  > - one\n  > - two\n  >\n  > Z\n- after\n'
 	],
 	[
+		'a list with two endings: the quote’s line, then out of the quote into the item',
+		IN_ITEM,
+		'- one\n- two\n\n',
+		'- > alpha\n  >\n  > - one\n  > - two\n\n  Z\n- after\n'
+	],
+	[
 		'a nested list with its ending, the same',
 		IN_ITEM,
 		'- one\n  - two\n',
