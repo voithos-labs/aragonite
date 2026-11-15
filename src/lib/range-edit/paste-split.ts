@@ -97,7 +97,9 @@ export function enteredAt(
 	const outer = continuation(doc, caret, (c) => c !== list);
 	const first = item.lineAt!(item.from);
 	const indent = /^[ \t]*/.exec(doc.source.slice(first.from, first.markerTo))![0];
-	const marker = host && !nested ? numberedAs(host.marker, ownKind) : ownKind;
+	// The host's kind is for its own list: an item of a list around it opens that list's next item.
+	const hosted = host && item.path.length === host.depth;
+	const marker = hosted ? numberedAs(host.marker, ownKind) : ownKind;
 	const head = cut.head + doc.ending + outer + indent + marker;
 	const opened = { source: head + cut.rest, caret: head.length + cut.caret };
 	return atTextStart(doc, numberedAfterTaking(doc, list, item.path.at(-1)! + 1, opened));

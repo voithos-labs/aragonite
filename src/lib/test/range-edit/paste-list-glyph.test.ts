@@ -114,6 +114,48 @@ ROWS.push(
 	]
 );
 
+// Miss-analysis: every glyph row stood at the top level in an LF file, and no row ended what it
+// pasted in the list around the host’s, where the opened item took the nested host’s marker.
+ROWS.push(
+	['* into a - list in a quote', '> - a‸\n> - b\n', '* x\n* y\n', '> - ax\n> - y\n> - Z\n> - b\n'],
+	[
+		'* into a nested + list',
+		'- top\n  + a‸\n  + b\n- end\n',
+		'* x\n* y\n',
+		'- top\n  + ax\n  + y\n  + Z\n  + b\n- end\n'
+	],
+	[
+		'* into a - list in a crlf file',
+		'- a‸\r\n- b\r\n',
+		'* x\n* y\n',
+		'- ax\r\n- y\r\n- Z\r\n- b\r\n'
+	],
+	[
+		'* into an empty to-do: the list’s glyph, the to-do’s box',
+		'- [ ] a\n- [ ] ‸\n- [x] b\n',
+		'* x\n* y\n',
+		'- [ ] a\n- [ ] x\n- y\n- [ ] Z\n- [x] b\n'
+	],
+	[
+		'a pasted list’s own nested lists keep their glyphs',
+		'- a‸\n- b\n',
+		'* x\n  + y\n',
+		'- ax\n  + y\n  + Z\n- b\n'
+	],
+	[
+		'blocks that leave a nested + list: the ending opens the outer - list’s item',
+		'- top\n  + a\n  + ‸\n- end\n',
+		'* x\n\np\n',
+		'- top\n  + a\n  + x\n\n  p\n- Z\n- end\n'
+	],
+	[
+		'blocks that leave a nested ordered list: the outer bullet list’s item',
+		'- top\n  1. a\n  2. ‸\n- end\n',
+		'1. x\n\np\n',
+		'- top\n  1. a\n  2. x\n\n  p\n- Z\n- end\n'
+	]
+);
+
 for (const [name, marked, clip, typed] of ROWS)
 	for (const route of ['key', 'insertMarkdown'] as PasteRoute[])
 		for (const mode of ['source', 'live'] as PresentationMode[])
