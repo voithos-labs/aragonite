@@ -11,6 +11,7 @@ import { documentLayout } from '#lib/range-edit/layout.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 const TABLE = '| A | B |\n| --- | --- |\n| 1 | 2 |\n| 3 | 4 |';
+const quoted = TABLE.replace(/^/gm, '> ');
 
 function bytesOf(source: string, start: SelectionPoint, end: SelectionPoint) {
 	const doc = parse(source);
@@ -39,5 +40,15 @@ describe('a range across a table edge', () => {
 		expect(bytesOf(`intro\n\n${TABLE}\n`, { path: [0], offset: 2 }, cellPoint([1], 2))).toBe(
 			'tro\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n'
 		);
+	});
+
+	// Miss-analysis: the rows above ended a range in a middle row or left a table from its start, so
+	// none read where a range leaving by the last row stops, and its line ending went with it.
+	it.each([
+		['at the top level', `intro\n\n${TABLE}\n\nafter\n`, [0], [1]],
+		['in a quote', `> intro\n>\n${quoted}\n\nafter\n`, [0, 0], [0, 1]]
+	])('leaving by the last row stops at its text, %s', (_, source, intro, table) => {
+		const bytes = bytesOf(source, { path: intro, offset: 2 }, cellPoint(table, 4));
+		expect(bytes).toBe(source.slice(source.indexOf('tro'), source.indexOf('4 |') + 3));
 	});
 });

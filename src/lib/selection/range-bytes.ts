@@ -205,8 +205,8 @@ function heldSpans(doc: DocumentView, coverage: RangeCoverage, layout: Layout): 
 	return spans;
 }
 
-/** A text end's byte; a cell end's row, or its whole table where the range enters by the first row
- *  or leaves by the last; any other block's own edge, since its offsets address no text. */
+/** A text end's byte; a cell end's row, its line ending but the last row's (the table's), or its
+ *  whole table where the range enters by the first row or leaves by the last; else the block's edge. */
 function endByte(
 	doc: DocumentView,
 	layout: Layout,
@@ -224,10 +224,12 @@ function endByte(
 	const row = point.cellCoordinate
 		? Math.floor(point.offset / metadataOf(node, 'table').columnCount)
 		: null;
-	const whole = row !== null && row === (side === 'end' ? 0 : (node.children?.length ?? 0) - 1);
+	const last = (node.children?.length ?? 0) - 1;
+	const whole = row !== null && row === (side === 'end' ? 0 : last);
 	const block = layout.block(row === null || whole ? point.path : [...point.path, row]);
 	if (!block) return null;
-	return side === 'start' ? block.from : row === null || whole ? textEnd(doc, block) : block.to;
+	if (side === 'start') return block.from;
+	return row === null || whole || row === last ? textEnd(doc, block) : block.to;
 }
 
 /** An end on the first byte of a block the start's block can't join moves back to the text before
