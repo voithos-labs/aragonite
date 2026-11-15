@@ -28,7 +28,7 @@ import {
 	type Place
 } from './document';
 import type { LaidBlock } from './layout';
-import { byteAt, writeText, type Edit, type LeafEdit } from './leaf-splice';
+import { blankedApart, byteAt, writeText, type Edit, type LeafEdit } from './leaf-splice';
 import { ownEntry, restored } from './own-entry';
 import { numberedOn } from './list-numbers';
 import { asPasted, pasteAt, type Pasted } from './paste';
@@ -158,12 +158,13 @@ export function editRange(
 			return keepLastEnding(inPlace(pasteAt(doc, from, to, pasted(TEXT))));
 		// Across blocks the paste lands where the removal's caret does, as a cut's then a paste's
 		// would, and over one block held whole takes its place, as typed text does.
-		const removed = removalEdit(doc, from, to, 'type');
+		const alone = heldAlone(doc, from, to);
+		const blank = gesture.paste !== '' && isBlankText(gesture.paste);
+		const removed =
+			alone && blank ? blankedOut(doc, alone, to) : removalEdit(doc, from, to, 'type');
 		const after = read(removed);
 		const caret = caretOf(removed, after, 'start after', () => startedIn(doc, from));
-		const alone = heldAlone(doc, from, to);
-		const emptied = alone && { doc, block: alone };
-		const over = pasteAt(after, caret.at, caret.at, { ...pasted(alone ? TEXT : caret), emptied });
+		const over = pasteAt(after, caret.at, caret.at, pasted(alone ? TEXT : caret));
 		return keepLastEnding({ ...landed(over), blocks: over.blocks ?? 0 });
 	}
 	const { removed, clipboard, own } = taken(doc, from, to);
@@ -338,6 +339,14 @@ function removalEdit(doc: Doc, from: number, to: number, gesture: RemovalGesture
 	if (gesture !== 'type' || !heldAlone(doc, from, to)) return removeRange(doc, from, to);
 	const out = doc.source.slice(0, from) + doc.source.slice(to);
 	return { source: numberedOn(doc, from, to, out), caret: from };
+}
+
+/** What blank text pasted over `block`, held whole up to `to`, leaves before it lands: the block's
+ *  line blank, less the blank line under it, as the block's emptying write leaves them. */
+function blankedOut(doc: Doc, block: LaidBlock, to: number): Removal {
+	const out = doc.source.slice(0, block.from) + doc.source.slice(to);
+	const { source, caret } = blankedApart(doc, block, { source: out, caret: block.from });
+	return { source: numberedOn(doc, block.from, to, source), caret };
 }
 
 /** What a copy of `range` writes, the copy gesture alone: it reads nothing but `source`, so an
