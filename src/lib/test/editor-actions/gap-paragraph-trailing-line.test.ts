@@ -65,6 +65,38 @@ describe('a key at the gap past a container’s last block', () => {
 			'> alpha\n>\n> ***\n>\n>\n'
 		],
 		[
+			'an open quote that ends on its last block, which has no line to give',
+			'> alpha\n>\n> ***',
+			[0],
+			16,
+			'> alpha\n>\n> ***\n>\n> Z',
+			'> alpha\n>\n> ***\n>\n>\n'
+		],
+		[
+			'an open CRLF quote over its bare `>`',
+			'> alpha\r\n>\r\n> ***\r\n>',
+			[0],
+			19,
+			'> alpha\r\n>\r\n> ***\r\n>\r\n> Z',
+			'> alpha\r\n>\r\n> ***\r\n>\r\n>\r\n'
+		],
+		[
+			'a quote ending a callout, the closing line right under it',
+			':::note\n> alpha\n>\n> ***\n>\n:::\n',
+			[0, 1],
+			24,
+			':::note\n> alpha\n>\n> ***\n>\n> Z\n:::\n',
+			':::note\n> alpha\n>\n> ***\n>\n>\n:::\n'
+		],
+		[
+			'a quote in a quote, the outer one’s text right under it',
+			'> > alpha\n> >\n> > ***\n> >\n> tail\n',
+			[0, 0],
+			22,
+			'> > alpha\n> >\n> > ***\n> >\n> > Z\n> >\n> tail\n',
+			'> > alpha\n> >\n> > ***\n> >\n> >\n> tail\n'
+		],
+		[
 			'a CRLF quote over its blank last line',
 			'> alpha\r\n>\r\n> ***\r\n>\r\n\r\nAfter\r\n',
 			[0],
@@ -87,6 +119,14 @@ describe('a key at the gap past a container’s last block', () => {
 			20,
 			':::note\nalpha\n\n***\n\nZ\n:::\n',
 			':::note\nalpha\n\n***\n\n\n\n:::\n'
+		],
+		[
+			'a details body over the blank line above its closing line',
+			'<details open>\n<summary>s</summary>\n\nalpha\n\n***\n\n</details>\n',
+			[0],
+			46,
+			'<details open>\n<summary>s</summary>\n\nalpha\n\n***\n\nZ\n</details>\n',
+			'<details open>\n<summary>s</summary>\n\nalpha\n\n***\n\n\n\n</details>\n'
 		],
 		[
 			'a quote whose blank last line alone parts it from the paragraph under it',
@@ -192,19 +232,55 @@ describe('a letter after a block pasted with its line ending at a container’s 
 // the letter. Miss-analysis: no row undid a letter typed at a container's end gap.
 describe('one Ctrl+Z after the letter gives the line back', () => {
 	it.each([
-		['a quote over its blank last line', '> alpha\n>\n> ***\n>\n\nAfter\n'],
-		['an open quote over its bare `>`', '> alpha\n>\n> ***\n>']
-	])('%s', async (_, source) => {
+		['a quote over its blank last line', '> alpha\n>\n> ***\n>\n\nAfter\n', 16],
+		['an open quote over its bare `>`', '> alpha\n>\n> ***\n>', 16],
+		['an open CRLF quote over its bare `>`', '> alpha\r\n>\r\n> ***\r\n>', 19],
+		[
+			'a details body over the blank line above its closing line',
+			'<details open>\n<summary>s</summary>\n\nalpha\n\n***\n\n</details>\n',
+			46
+		]
+	])('%s', async (_, source, at) => {
 		const editor = mountCase(source, 'source');
 		await editor.settle();
 		const op = { kind: 'insertBlock' } as const;
-		await editor.instance.__test.spliceSource(
-			source,
-			{ at: 16, holds: 'boundary', parent: [0] },
-			op
-		);
+		await editor.instance.__test.spliceSource(source, { at, holds: 'boundary', parent: [0] }, op);
 		await editor.settle();
 		expect(await press(editor, 'Z')).not.toBe(source);
+		await pressHardwareKey(document.activeElement as HTMLElement, { key: 'z', ctrlKey: true });
+		await editor.settle();
+		expect(editor.source()).toBe(source);
+	});
+});
+
+// A letter typed at a rule focused whole opens its paragraph through the same write.
+// Miss-analysis: the gap rows reached the write by the gap caret alone.
+describe('a letter at a rule focused whole, the last block of its container', () => {
+	it.each([
+		[
+			'a quote over its blank last line',
+			'> alpha\n>\n> ***\n>\n\nAfter\n',
+			[0, 1],
+			'> alpha\n>\n> ***\n>\n> Z\n\nAfter\n'
+		],
+		[
+			'an open quote over its bare `>`',
+			'> alpha\n>\n> ***\n>',
+			[0, 1],
+			'> alpha\n>\n> ***\n>\n> Z'
+		],
+		[
+			'a callout over a blank line above its closer',
+			':::note\nalpha\n\n***\n\n:::\n',
+			[0, 2],
+			':::note\nalpha\n\n***\n\nZ\n:::\n'
+		]
+	])('%s', async (_, source, rule, after) => {
+		const editor = mountCase(source, 'source');
+		await editor.settle();
+		editor.instance.__test.getBlockComponent(rule)!.focus(0);
+		await editor.settle();
+		expect(await press(editor, 'Z')).toBe(after);
 		await pressHardwareKey(document.activeElement as HTMLElement, { key: 'z', ctrlKey: true });
 		await editor.settle();
 		expect(editor.source()).toBe(source);
