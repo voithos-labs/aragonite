@@ -9,6 +9,8 @@ import { installPlugins } from '#lib/schema/plugin-install.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
 import { splicedBytes } from '#lib/tree-operations/spliced-openers.js';
 import { checkPasteLanded } from '#lib/invariants/paste-landed.js';
+import { leafWriteLands } from '#lib/editor-actions/paste-coordinator.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
 import { registerDefaultContextActions } from '#lib/components/menu/default-context-actions.js';
 import {
 	destroyMountedEditors,
@@ -59,6 +61,31 @@ describe('the check', () => {
 	});
 });
 
+// Miss-analysis: once the core wrote a closing fence line through the code block's own rule, no
+// built-in kind's rule respelled a paste's bytes and kept its kind, so nothing held the trial's
+// compare of the rule's bytes with the core's.
+describe('the trial of a block’s own write', () => {
+	it('refuses a write whose rule respells the bytes, though the block reads back as its kind', () => {
+		const kind = testLeaf('shouted-line', (kind) => ({
+			opener: {
+				priority: 25,
+				interruptsParagraph: false,
+				tryOpen: (ctx) =>
+					ctx.line.text.startsWith('@@ ')
+						? { node: { kind, leadingTrivia: ctx.leadingTrivia, raw: ctx.line.raw }, consumed: 1 }
+						: null
+			},
+			rawWrite: { normalize: (raw) => raw.toUpperCase(), mapOffset: (_raw, offset) => offset }
+		}));
+		const reading = { grammar: defaultGrammarView, scope: 'document' } as const;
+		const doc = readAsOpened('@@ A\n\nAfter\n', reading);
+		expect(doc.children[0].kind).toBe(kind);
+
+		expect(leafWriteLands(doc, [0], '@@ xyA\n', defaultGrammarView)).toBe(false);
+		expect(leafWriteLands(doc, [0], '@@ XYA\n', defaultGrammarView)).toBe(true);
+	});
+});
+
 describe('in a running editor', () => {
 	beforeAll(installLayoutStubs);
 	beforeEach(() => {
@@ -92,10 +119,6 @@ describe('in a running editor', () => {
 
 	// A callout's rebuild puts a blank line over a body a delete emptied.
 	it('a callout body', () => forcedOnlyWarns(':::note\n\n:::\n', [0, 1], 0));
-	// No shape is left where the rule alone rewrites the core's bytes: the core writes a closing line
-	// through that rule (`range-edit/paste-literal-fence.test.ts`), so this row has no witness.
-	it.skip('a closing fence', () => forcedOnlyWarns('```js\ncode\n```\n\nAfter\n', [0], 11));
-
 	// A paste that makes the paragraph a table: the block's own write would put the caret past the
 	// cell's text, where the core's caret ends the pasted text.
 	it.each(['source', 'live'] as const)('a table the paste completes, %s', async (mode) => {
