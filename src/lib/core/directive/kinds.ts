@@ -17,7 +17,12 @@ import { registerTitleRowLeaf } from '../../schema/title-row-leaf';
 import type { KeyBinding } from '../../schema/keybindings';
 import { getPluginMetadata, type CstNode, type InlineNode } from '../nodes';
 import type { NodeView } from '../node-views';
-import { displayLength, ownTrailingLineEnding, trimTrailingLineEnding } from '../lines';
+import {
+	displayLength,
+	firstDisplayLine,
+	ownTrailingLineEnding,
+	trimTrailingLineEnding
+} from '../lines';
 import { concatChildren as serializeChildren } from '../serializer';
 import { registerCoreInlineWidget } from '../inline/inline-widgets';
 import { mintWidgetShell } from '../inline/widget-shell';
@@ -150,8 +155,8 @@ export function directiveLineContentRange(node: NodeView): { start: number; end:
 	return { start: fence.colonCount + fence.name.length + gap, end: displayLength(node.raw) };
 }
 
-/** Writes the opener line (child 0) back as it stands, the body behind it, and the closing line;
- *  the colon runs widen when a body line would otherwise read as the closer. */
+/** Writes the opener line (child 0) back as it stands, the body and the closing line; the colons
+ *  widen when a body line would read as the closer, unless the write changed them. */
 export function rebuildDirectiveContainerRaw(node: CstNode): void {
 	const meta = getPluginMetadata<DirectiveClosingLine>(node);
 	const [row, ...body] = node.children ?? [];
@@ -164,8 +169,11 @@ export function rebuildDirectiveContainerRaw(node: CstNode): void {
 	// The closer is the raw's last line, so its ending is the raw's own, else the opener's.
 	const closerLineEnding = ownTrailingLineEnding(node.raw) || undefined;
 	const lineEnding = (row && ownTrailingLineEnding(row.raw)) || '\n';
-	// A line that stopped opening a fence is kept as typed; the re-read reads what it now is.
-	node.raw = fence
+	const before = matchDirectiveOpener(firstDisplayLine(node.raw).text);
+	// Colons a write on the opener line changed are the user's, and a line that stopped opening a
+	// fence is kept too: both stand as typed, and the re-read reads what they now are.
+	const typed = !fence || (before !== null && before.colonCount !== fence.colonCount);
+	node.raw = !typed
 		? serializeDirective({
 				colonCount: fence.colonCount,
 				name: fence.name,
@@ -179,7 +187,7 @@ export function rebuildDirectiveContainerRaw(node: CstNode): void {
 				closerLineEnding
 			})
 		: `${line}${lineEnding}${innerPrefix}${serializeChildren(body)}${innerSuffix}` +
-			':'.repeat(closerColonCount) +
+			':'.repeat(Math.max(fence?.colonCount ?? 0, closerColonCount)) +
 			(closerNewline ? (closerLineEnding ?? lineEnding) : '');
 }
 

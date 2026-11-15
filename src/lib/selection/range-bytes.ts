@@ -495,10 +495,10 @@ export function heldGapOf(
 	const gap = gapOfPlace(measured, place);
 	const { doc } = measured;
 	if (gapEligibleAt(doc, gap.parentPath, gap.index)) return gap;
-	// The line a range emptied at the document's end is a place of its own, whatever stands above,
-	// and so is the line a pasted last line ending opened, whatever text stands below it.
+	// The line a range emptied at the document's end is a place of its own, whatever stands above.
 	const rootEnd = gap.parentPath.length === 0 && gap.index === doc.children.length;
-	if (!rootEnd && joinsProse(measured, place.at, place.line)) return null;
+	const docEnd = rootEnd || place.at === measured.starts.length;
+	if (!docEnd && joinsProse(measured, place.at, gap.parentPath, place.line)) return null;
 	if (boundaryHidden(doc, gap.parentPath, gap.index)) return null;
 	// A list's children are its items, which no paragraph stands among.
 	const parent = blockNodeAt(doc, gap.parentPath);
@@ -527,13 +527,19 @@ export function landingAt(
 	return exact ? { anchor: point, focus: point } : point;
 }
 
-/** Whether a letter typed on a line of its own at byte `at` joins the text there: a block's own
- *  text, of a kind whose text takes the line; on a `line` of its own, no text starting below it. */
-function joinsProse(measured: Measured, at: number, line?: true): boolean {
+/** Whether a letter typed on a line of its own at byte `at` joins a prose block's text inside
+ *  `parent`; a pasted ending's `line` joins only a child of `parent`, never text starting below. */
+function joinsProse(
+	measured: Measured,
+	at: number,
+	parent: readonly number[],
+	line?: true
+): boolean {
 	const map = documentByteMap(measured);
 	const leaf = map.leafAt(at);
-	const node = leaf && blockNodeAt(measured.doc, leaf.path);
-	if (!leaf || !node) return false;
+	const inside = leaf && parent.every((index, depth) => leaf.path[depth] === index);
+	const node = inside && blockNodeAt(measured.doc, leaf.path);
+	if (!node || (line && leaf.path.length !== parent.length + 1)) return false;
 	// An empty paragraph there is that line itself.
 	if (line && map.byteOf(leaf.path, leaf.offset)! > at && !isBlankText(node.raw)) return false;
 	return blockFacts(node.kind).joins === 'text' && readsAsText(node, leaf.offset);

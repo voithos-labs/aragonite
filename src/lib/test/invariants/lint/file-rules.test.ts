@@ -694,22 +694,6 @@ const RULES: FileRule[] = [
 		misses: ['const clip = readPasteEvent(event, plain);', 'const clip = await readClipboard();']
 	},
 	{
-		id: 'G4.345 no production module imports the paste dispatch the range-edit core replaced',
-		population: (file) => !file.relPath.startsWith(`${SOURCE_DIR.treeOperations}paste/`),
-		matches: /from\s+'[^']*tree-operations\/paste\/dispatch'|from\s+'[^']*\/paste\/dispatch'/,
-		allowed: {},
-		reason:
-			'a paste is one answer of the range-edit core, landed by `selection/cross-block/range-paste.ts`; a route through the old dispatch pastes by other rules than every other route',
-		hits: [
-			"import { pasteDispatch } from '../../tree-operations/paste/dispatch';",
-			"import type { PasteDispatchInput } from '../paste/dispatch';"
-		],
-		misses: [
-			"import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';",
-			"import { escapeMarkdownLiteral } from '../../../tree-operations/paste/markdown-literal';"
-		]
-	},
-	{
 		id: 'G4.221 a paste with no paste event calls the paste step, never a constructed event',
 		matches: /\bnew\s+(?:\w+\.)?ClipboardEvent\s*\(/,
 		allowed: {},
@@ -1339,8 +1323,6 @@ const RULES: FileRule[] = [
 				'the directive grammar and its components, which a consumer may turn on from a plugin’s setup and the reset drops',
 			'src/lib/schema/commands.ts':
 				'the editor’s own global commands, registered as the module loads',
-			'src/lib/tree-operations/paste/hooks.ts':
-				'the built-in kinds’ default paste surfaces, registered as the module loads',
 			'src/lib/core/parsers/table-completion.ts':
 				'the table’s Enter completer, registered as the parser loads',
 			'src/lib/core/inline/inline-widgets.ts':
@@ -2697,9 +2679,7 @@ const RANGE_INDENT: ManifestRule[] = [
 		matches: /\{\s*kind:\s*'command',/,
 		declared: {
 			'src/lib/selection/cross-block/keydown.ts':
-				'Enter and Mod+digit, whose candidate test leaves Tab to the range indent',
-			'src/lib/selection/cross-block/dispatch.ts':
-				'a break that arrives with no key, which is Enter or Shift+Enter and never Tab'
+				'Enter and Mod+digit, whose candidate test leaves Tab to the range indent'
 		},
 		reason:
 			'a range replace with a command insertion removes the range before the key runs, which Tab must never do: Tab over a range goes to `indentRange`',
@@ -2953,9 +2933,7 @@ const ITEM_PIECES: ManifestRule[] = [
 		population: under(SOURCE_DIR.library, SOURCE_DIR.plugins),
 		matches: /(?<![\w.])(?<!function\s+)assembleListHalf\s*\(/,
 		declared: {
-			[DISSOLVE_HOME]: '`dissolveItem`, the list halves around a dissolving item',
-			'src/lib/tree-operations/paste/list-break-out.ts':
-				'a paste splits the list around the pasted blocks, and no item dissolves'
+			[DISSOLVE_HOME]: '`dissolveItem`, the list halves around a dissolving item'
 		},
 		reason:
 			'a route that dissolves an item has to rebuild the list around it, and one that does so outside `dissolveItem` splits the item’s children its own way: call `dissolveItem`',

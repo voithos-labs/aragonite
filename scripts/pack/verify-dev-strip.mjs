@@ -33,6 +33,7 @@ const MAPPED_FLOOR = 300;
 
 const CHECK_CALL = /\b(?:assertInvariant|devWarn)\(\s*(['"`])([^'"`$\\]+)\1/g;
 const QUOTED = /(['"`])([^'"`$\\\n]+)\1/g;
+const CODE_FIELD = /\bcode:\s*(['"`])([^'"`$\\\n]+)\1/g;
 
 /** What the reader runs to accept the page's new size. */
 export const BLESS_COMMAND = 'node scripts/pack/verify-dev-strip.mjs --bless';
@@ -107,24 +108,34 @@ function devOnlyModules(outDir) {
 // ── The tags ─────────────────────────────────────────────────────────────────
 
 /**
- * The tag each `assertInvariant` and `devWarn` call names, keeping only a tag no other string in
- * the library spells, so finding it in a build means the check shipped.
+ * The tag each `assertInvariant` and `devWarn` call names, keeping only a tag no string in the
+ * library spells but the call and a check's `code` field, so finding it in a build means the check
+ * shipped.
  * @param {string} libDir
  * @returns {string[]}
  */
-function checkTags(libDir) {
+export function checkTags(libDir) {
+	return checkTagsIn(sourceFiles(libDir).map((file) => readFileSync(file, 'utf8')));
+}
+
+/** {@link checkTags} over the library's source texts. @param {string[]} texts @returns {string[]} */
+export function checkTagsIn(texts) {
+	/** @type {(map: Map<string, number>, key: string) => void} */
+	const count = (map, key) => void map.set(key, (map.get(key) ?? 0) + 1);
 	/** @type {Map<string, number>} */
 	const atCalls = new Map();
 	/** @type {Map<string, number>} */
 	const anywhere = new Map();
-	for (const file of sourceFiles(libDir)) {
-		const text = readFileSync(file, 'utf8');
-		for (const [, , tag] of text.matchAll(CHECK_CALL))
-			atCalls.set(tag, (atCalls.get(tag) ?? 0) + 1);
-		for (const [, , value] of text.matchAll(QUOTED))
-			anywhere.set(value, (anywhere.get(value) ?? 0) + 1);
+	/** @type {Map<string, number>} */
+	const codes = new Map();
+	for (const text of texts) {
+		for (const [, , tag] of text.matchAll(CHECK_CALL)) count(atCalls, tag);
+		for (const [, , value] of text.matchAll(QUOTED)) count(anywhere, value);
+		for (const [, , code] of text.matchAll(CODE_FIELD)) count(codes, code);
 	}
-	return [...atCalls].filter(([tag, count]) => anywhere.get(tag) === count).map(([tag]) => tag);
+	return [...atCalls]
+		.filter(([tag, calls]) => anywhere.get(tag) === calls + (codes.get(tag) ?? 0))
+		.map(([tag]) => tag);
 }
 
 /** @param {string} dir @returns {string[]} */

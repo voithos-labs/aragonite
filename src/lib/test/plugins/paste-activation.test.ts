@@ -1,8 +1,22 @@
 // @vitest-environment jsdom
-// Miss-analysis: no test pasted a plugin kind's syntax into an editor that left it out (GH #267).
-import { beforeEach, describe, it, expect, vi } from 'vitest';
+// A paste reads the plugins of the editor it lands in: a plugin's kind and its paste transform
+// apply where the editor lists it, and nowhere else, though the plugin is installed.
+// Miss-analysis: no test pasted a plugin kind's syntax into an editor that left it out, and the
+// mounted rows that did drove the dispatcher the range-edit core replaced.
+import { afterEach, beforeAll, beforeEach, describe, it, expect } from 'vitest';
 import { installPlugins } from '#lib';
-import { parse } from '#lib/core/parser.js';
+import { definePlugin, registerPasteTransform } from '#lib/plugin.js';
+import {
+	destroyMountedEditors,
+	installLayoutStubs,
+	mountEditor
+} from '#lib/test/harness/mount-editor.svelte.js';
+import {
+	installClipboardEvents,
+	installSystemClipboard
+} from '#lib/test/harness/clipboard-events.js';
+import { pasteGesture } from '../range-laws/gestures';
+import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
 import { parrotPlugin, PARROT } from '#packages/parrot/src/index.js';
 import { normalizeReplacementForBody } from '#lib/tree-operations/paste/body-write.js';
 import { declaredPluginKind } from '#lib/schema/plugin-kind.js';
@@ -11,15 +25,10 @@ import type { CstNode } from '#lib/core/nodes.js';
 import { createRegistryView } from '#lib/schema/registry-view.js';
 import { defaultGrammarView, type GrammarView } from '#lib/schema/block-openers.js';
 import { activationFor } from '#lib/schema/plugin-activation.js';
-import {
-	makeStubBlockEdit,
-	runPasteDispatch,
-	makePasteCommit
-} from '#lib/test/harness/editor-actions.js';
-import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { testView } from '#lib/test/harness/test-view.js';
 
 const PARROT_LINE = '%%parrot party responsibly\n';
+const parrot = parrotPlugin();
 
 /** The grammar an editor whose `plugins` prop lists `names` parses through. */
 function grammarListing(names: string[]) {
@@ -27,39 +36,12 @@ function grammarListing(names: string[]) {
 }
 
 beforeEach(() => {
-	installPlugins([parrotPlugin()]);
+	installPlugins([parrot]);
 	// A bodyWrite-declaring owner, so the escape below has a reparse to run.
 	registerDetailsKind(testView());
 });
 
-async function pasteInto(grammar: ReturnType<typeof grammarListing>) {
-	const h = makePasteCommit(parse('target\n').children);
-	const blockEdit = makeStubBlockEdit();
-	await runPasteDispatch(
-		h,
-		{ pastedText: PARROT_LINE, targetPath: [0], offset: 'target'.length },
-		{ blockEdit, reading: fixtureReading({ grammar }) }
-	);
-	return { doc: h.doc, blockEdit };
-}
-
-describe('a paste parses through the instance grammar, not the global one', () => {
-	it('lands the plugin kind for an editor that lists the plugin', async () => {
-		const { doc } = await pasteInto(grammarListing(['parrot']));
-		expect(doc.children.map((c) => c.kind)).toContain(PARROT);
-	});
-
-	// The unlisted opener is gone, so the clipboard is one paragraph: inline, with the marker
-	// bytes arriving as prose rather than creating a kind this editor has no component for.
-	it('falls back to prose for an editor that does not', async () => {
-		const { doc, blockEdit } = await pasteInto(grammarListing([]));
-		expect(doc.children.map((c) => c.kind)).not.toContain(PARROT);
-		const write = vi.mocked(blockEdit.updateBlockContent).mock.calls[0];
-		expect(write[1]).toContain('target%%parrot party responsibly');
-	});
-});
-
-// The splice's own reparse, one layer under the dispatch above: a `bodyWrite` container
+// The splice's own reparse: a `bodyWrite` container
 // escapes the pasted bytes and re-reads them, so it has to use the grammar the clipboard used.
 describe('the bodyWrite escape reparse reads the instance grammar', () => {
 	const pasted = (): CstNode[] => [
@@ -79,5 +61,51 @@ describe('the bodyWrite escape reparse reads the instance grammar', () => {
 
 	it('the grammar of an editor without the plugin keeps it prose', () => {
 		expect(landedKinds(grammarListing([]))).not.toContain(PARROT);
+	});
+});
+
+describe('a paste into a mounted editor reads that editor’s plugins', () => {
+	const shouter = definePlugin({
+		name: 'shouter',
+		setup: () =>
+			registerPasteTransform({
+				name: 'upcase-headings',
+				transform: (text) => (text.startsWith('# ') ? text.toUpperCase() : null)
+			})
+	});
+	beforeAll(installLayoutStubs);
+	beforeEach(() => {
+		installPlugins([shouter]);
+		installClipboardEvents();
+		installSystemClipboard();
+	});
+	afterEach(destroyMountedEditors);
+
+	/** The empty document's one line, pasted into by the key route, in an editor listing `plugins`. */
+	async function pasted(plugins: readonly (typeof parrot)[], text: string) {
+		const editor = mountEditor<EditorTestSurface>({ source: '', plugins });
+		await editor.settle();
+		(editor.target.querySelector('[contenteditable="true"]') as HTMLElement).focus();
+		await pasteGesture(editor, { 'text/plain': text }, 'key');
+		return editor;
+	}
+
+	it.each([
+		['lists it', [parrot], true],
+		['lists another plugin, not it', [shouter], false]
+	] as const)('lands the plugin’s kind only where the editor %s', async (_, plugins, lands) => {
+		const editor = await pasted([...plugins], PARROT_LINE);
+		const kinds = editor.instance.__test
+			.getDocument()
+			.children.map((block) => block.kind as string);
+		expect(kinds.includes(PARROT)).toBe(lands);
+	});
+
+	it.each([
+		['lists it', [shouter], '# TITLE'],
+		['lists another plugin, not it', [parrot], '# title']
+	] as const)('runs the plugin’s transform only where the editor %s', async (_, plugins, head) => {
+		const editor = await pasted([...plugins], '# title\n');
+		expect(editor.source().startsWith(head)).toBe(true);
 	});
 });

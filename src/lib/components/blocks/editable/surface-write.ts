@@ -119,7 +119,7 @@ export function createSurfaceWrite(deps: SurfaceWriteDeps): (write: TextWrite) =
 
 /** `edit` with the label of each reference whose text it changed spelled out, since a caret's
  *  keystroke reaches the text without a range edit (`spellReferenceLabels`). */
-function keepingReferenceLabels<E extends TextEdit>(
+export function keepingReferenceLabels<E extends TextEdit>(
 	node: NodeView,
 	display: string,
 	edit: E,

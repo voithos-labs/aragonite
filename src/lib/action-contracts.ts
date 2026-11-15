@@ -368,6 +368,9 @@ export interface CommitController {
 export interface ContainerEditActions {
 	/** The document's line ending, which every line a write below the root creates takes. */
 	lineEnding(): LineEnding;
+	/** Whether a blank line or the document's end stands under the container at `path`, so its own
+	 *  trailing blank line is not what keeps the block after it from reading on. */
+	partedBelow(path: readonly number[]): boolean;
 	/** Change a container's structure as one undo entry. `mutate` receives the copied container
 	 *  with its working children attached; write through it, never through a captured node. */
 	commitContainer(args: CommitContainerStructuralArgs): Promise<boolean>;
@@ -441,7 +444,8 @@ export interface ReplaceOptions {
 	snapshotOffset: number;
 	/** A clipboard's own trailing blank line, landed as the document's when nothing follows. */
 	trailingBlank?: boolean;
-	/** The route a paste or a drop names in the edit event, in place of the block count. */
+	/** The route a drop or text typed over a block names in the edit event, in place of the block
+	 *  count. */
 	source?: ReplaceSource;
 	/** How many blocks a paste landed: the edit event is then `paste` with that count. */
 	pasted?: number;

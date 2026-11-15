@@ -57,8 +57,25 @@ const ROWS: Record<string, Row> = {
 		boundary: [[], 1],
 		held: 'the text'
 	},
-	'a paragraph’s end, ending a quote': {
+	// Miss-analysis: every container's end the rows named read its own last text at its byte, so
+	// none stood above a block outside the container or ended the document there.
+	'a paragraph’s end, ending a quote and the document': {
 		source: '> para\n',
+		boundary: [[0], 1],
+		held: 'the gap'
+	},
+	'a paragraph’s end, ending a quote above a paragraph': {
+		source: '> para\n>\n\nnext\n',
+		boundary: [[0], 1],
+		held: 'the gap'
+	},
+	'a paragraph’s end, ending an item above a paragraph': {
+		source: '- para\n\nnext\n',
+		boundary: [[0, 0], 1],
+		held: 'the gap'
+	},
+	'a paragraph’s start inside a quote': {
+		source: '> # h\n>\n> para\n\nnext\n',
 		boundary: [[0], 1],
 		held: 'the text'
 	},

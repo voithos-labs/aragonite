@@ -224,6 +224,35 @@ describe('a splice absorbs a join the reload would fold (GH #61)', () => {
 		expect(serialize(doc)).toBe('- a\n  \n  \n> q\n');
 		expect(describeConvergence(doc)).toBeNull();
 	});
+
+	// Indented code takes a whitespace line of four columns as its own last line, as the parser does.
+	// Miss-analysis: the shape check compares kinds, so a blank line given to the wrong block passed.
+	it.each([
+		['a tab-only line before a heading', '\t\n', '# h\n'],
+		['a four-space line before a heading', '    \n', '# h\n'],
+		['a tab-only line before a paragraph', '\t\n', 'para2\n']
+	])('a delete leaving %s under indented code gives it to the code', (_name, line, follower) => {
+		const doc = parse(`    code\n\npara\n${line}${follower}`);
+
+		deleteSettled(doc, 1);
+
+		expect(serialize(doc)).toBe(`    code\n${line}${follower}`);
+		const layout = (blocks: typeof doc.children) =>
+			blocks.map((c) => [c.kind, c.leadingTrivia, c.raw]);
+		expect(layout(doc.children)).toEqual(layout(parse(serialize(doc)).children));
+		expect(layout(doc.children)[0]).toEqual(['indentedCode', '', `    code\n${line}`]);
+	});
+
+	it('a two-space line under indented code stays the next block’s blank line', () => {
+		const doc = parse('    code\n\npara\n  \n# h\n');
+
+		deleteSettled(doc, 1);
+
+		expect(doc.children.map((c) => [c.kind, c.leadingTrivia])).toEqual([
+			['indentedCode', ''],
+			['heading', '  \n']
+		]);
+	});
 });
 
 // A split's second half can open a two-line construct with the follower, which the tree merges.

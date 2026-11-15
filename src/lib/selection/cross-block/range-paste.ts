@@ -83,7 +83,14 @@ export async function pasteInBlock(
 	const live = modeOf(ctx) === 'live';
 	const { path, start, end } = span;
 	const aim = { named: [path], place: () => placeInBlock(ctx.bytes, path, start, end, live) };
-	return pasteThroughCore(ctx, aim, clip, undo, spend);
+	return pasteThroughCore(ctx, aim, takenBy(ctx, path, clip), undo, spend);
+}
+
+/** `clip` as the kind of the text block at `path` takes text in. */
+function takenBy(ctx: PasteContext, path: readonly number[], clip: Clip): Clip {
+	const node = blockNodeAt(ctx.getDoc(), path);
+	const text = node && getPasteSurface(node.kind, ctx.activePlugins)?.pastedText?.(clip.text);
+	return text === undefined || text === null ? clip : { ...clip, text };
 }
 
 /** Whether the kind of the text block at `path` answered the paste itself, ahead of the core;
@@ -149,16 +156,17 @@ export function pasteAnswer(
 	return editRange(doc.source, range, gesture, modeOf(ctx), host);
 }
 
+/** Whether the document is still `base`, the text a paste was answered on. */
+export const stillOn = (ctx: PasteContext, base: string): boolean => ctx.bytes.source() === base;
+
 /** `answer`, the core's paste over `base`, landed in one commit: the block's own write where it
- *  leaves the answer's bytes, else a byte splice; nothing where the document is not `base`. */
+ *  leaves the answer's bytes, else a byte splice. The document must still be `base`. */
 export async function landAnswer(
 	ctx: PasteContext,
 	base: string,
 	answer: RangeEditResult,
 	undo: CommitSnapshotArg
 ): Promise<boolean> {
-	// A write since the answer was made (a listener to a removal's edit) leaves it no place.
-	if (ctx.bytes.source() !== base) return false;
 	const landed = answer.source;
 	const was = ctx.bytes.measured();
 	const { leaf } = answer;

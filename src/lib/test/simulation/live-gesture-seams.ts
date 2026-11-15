@@ -270,7 +270,7 @@ function throughDoor(node: CstNode, offset: number, kind: GestureKind): number {
 	return splitsLineEndingPair(node.raw, snapped) ? snapped - 1 : snapped;
 }
 
-const drawnOffset = (node: CstNode, gesture: Gesture, offset: number): number =>
+export const drawnOffset = (node: CstNode, gesture: Gesture, offset: number): number =>
 	throughDoor(node, contentOffset(node, offset), gesture.kind);
 
 // ── The gestures ─────────────────────────────────────────────────────────────

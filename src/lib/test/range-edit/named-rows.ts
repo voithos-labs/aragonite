@@ -5,6 +5,7 @@
 import type { Gesture, RangeEditResult } from '#lib/range-edit/edit-range.js';
 import type { Mode } from '#lib/range-edit/host.js';
 import { SPLIT_ROWS } from './named-rows-split';
+import { CLOSER_ROWS } from './named-rows-closers';
 
 export interface NamedRow {
 	name: string;
@@ -2081,5 +2082,6 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: paste('\n\n'),
 		expect: { source: '\n\nAfter\n', caret: { ...text(1), line: true } }
 	},
-	...SPLIT_ROWS
+	...SPLIT_ROWS,
+	...CLOSER_ROWS
 ];

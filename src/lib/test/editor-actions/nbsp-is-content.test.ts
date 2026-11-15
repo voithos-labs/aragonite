@@ -15,7 +15,6 @@ import {
 } from '#lib/components/blocks/text/widget-adjacency.js';
 import { isItemUserEmpty } from '#lib/tree-operations/list/empty-check.js';
 import { lacksSublistSeparator } from '#lib/tree-operations/list/sublist-separator.js';
-import { findContainerMatchingUnwrap } from '#lib/tree-operations/paste/container-match.js';
 import { makeStubBlockEdit, makeStubFocus } from '#lib/test/harness/editor-actions.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 
@@ -77,12 +76,6 @@ describe('a non-breaking space counts as content to', () => {
 		];
 		expect(lacksSublistSeparator(children(`${NBSP}\n`), 1)).toBe(true);
 		expect(lacksSublistSeparator(children('x\n'), 1)).toBe(true);
-	});
-
-	it('a container-matching paste, which replaces an empty target outright', () => {
-		const doc = parse(`> a\n>\n> ${NBSP}\n`);
-		const target = [0, doc.children[0].children!.length - 1];
-		expect(findContainerMatchingUnwrap(doc, target, 0, parse('> X\n'), false)).toBeNull();
 	});
 
 	it('vertical traversal, which skips an image-only block', () => {

@@ -305,6 +305,18 @@ const PINNED: [name: string, c: Omit<Case, 'host'>][] = [
 		}
 	],
 	[
+		// Miss-analysis: the trial letter skipped the label respelling the write does, and no pinned
+		// case typed inside a reference label.
+		'a letter typed in a reference label holding a star, inside bold runs',
+		{
+			line: 'b **b[foo\\]b*]**b b',
+			caret: 7,
+			mode: 'live',
+			memory: { kind: 'none' },
+			route: 'hardware key'
+		}
+	],
+	[
 		'a code span inside bold',
 		{
 			line: 'b **c `dd` c** e',

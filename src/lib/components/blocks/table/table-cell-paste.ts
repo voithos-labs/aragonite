@@ -7,20 +7,12 @@
 import { CURSOR_END } from '../../../block-component';
 import type { CstNode } from '../../../core/nodes';
 import { blockNodeAt } from '../../../tree-operations/node-primitives';
-import { replaceDrawnRange } from '../../../tree-operations/leaf-range';
 import { sliceTableAtRow } from '../../../tree-operations/paste/table-slice';
 import { focusIndexBeforeResidue } from '../../../tree-operations/paste/focus-target';
 import { landClipboardBlocks, landedAfter } from '../../../tree-operations/paste/paste-replacement';
-import {
-	documentLineEnding,
-	trimTrailingLineEnding,
-	trimWhitespace,
-	withLineEnding
-} from '../../../core/lines';
+import { documentLineEnding, trimWhitespace, withLineEnding } from '../../../core/lines';
 import type {
 	ClipPasteInput,
-	InlinePasteResult,
-	PasteRange,
 	PasteSurface,
 	ScopedStructuralPasteInput
 } from '../../../tree-operations/paste-surfaces';
@@ -31,33 +23,13 @@ import { escapeMarkdownLiteral } from '../../../tree-operations/paste/markdown-l
 import { applyPasteTransforms } from '../../../tree-operations/paste/paste-transforms';
 import { contentBlocks, pickPasteStrategy } from '../../../tree-operations/paste/strategy';
 import { parseClipboardGrid, tileGridTo } from '../../../tree-operations/table-grid-clipboard';
-import type { StoredAs } from '../../../schema/stored-as';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
-export function normalizeWhitespace(s: string): string {
-	return trimWhitespace(s.replace(/\n+/g, ' '));
-}
-
-export function tableCellInlinePaste(
-	node: CstNode,
-	offset: number,
-	text: string,
-	preDelete: PasteRange | undefined,
-	store: StoredAs
-): InlinePasteResult {
-	// The kind's pipe escaping runs over whatever the join writes, when the cell is written.
-	const cleaned = normalizeWhitespace(text);
-	const edit = replaceDrawnRange(node, preDelete ?? { start: offset, end: offset }, cleaned, store);
-	return { newRaw: trimTrailingLineEnding(edit.raw), caretOffset: edit.caret };
-}
-
 export const tableCellPasteSurface: PasteSurface = {
 	kind: 'tableCell',
-	blankEdgesArePackaging: true,
-	onInlinePaste: tableCellInlinePaste,
-	onScopedStructuralPaste: (input) => sliceTableForBlocks(input).then(() => undefined),
-	onClipPaste: async (input) => (await pasteGridInto(input)) || pasteBlocksAround(input)
+	onClipPaste: async (input) => (await pasteGridInto(input)) || pasteBlocksAround(input),
+	pastedText: trimWhitespace
 };
 
 // ── A grid, then blocks ────────────────────────────────────────────────────

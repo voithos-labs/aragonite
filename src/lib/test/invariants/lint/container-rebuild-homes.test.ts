@@ -93,7 +93,7 @@ const PINNED: Record<string, Pin> = {
 		why: 'builds new items and list halves, nodes no commit has seen, and rewrites a new item whose first line widens its marker or opens below an empty one'
 	},
 	'src/lib/tree-operations/list/ordered-markers.ts': {
-		calls: { rebuildListItemRaw: 4 },
+		calls: { rebuildListItemRaw: 3 },
 		why: 'a renumber rewrites items below the scope, keeping each line its new number still reads'
 	},
 	'src/lib/tree-operations/list/task-paragraph.ts': {
@@ -107,10 +107,6 @@ const PINNED: Record<string, Pin> = {
 	'src/lib/tree-operations/node-ops.ts': {
 		calls: { rebuildAncestryRaw: 1 },
 		why: 'the deep Backspace join reads its caret offset off the rebuilt ancestors inside its mutation, before the commit could rebuild them; it goes once the commit places a tracked caret after rebuilding what the mutation owned'
-	},
-	'src/lib/tree-operations/paste/container-match.ts': {
-		calls: { rebuildContainerRaw: 1 },
-		why: 'the last pasted item, a node no commit has seen until the splice after it'
 	},
 	'src/lib/tree-operations/paste/table-slice.ts': {
 		calls: { rebuildTableRaw: 2 },

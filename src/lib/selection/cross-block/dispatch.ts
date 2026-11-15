@@ -148,7 +148,7 @@ function insertionOf(input: HeldInput): RangeInsertion | null {
 		case 'delete':
 			return { kind: 'none', gesture: input.direction === 'forward' ? 'Delete' : 'Backspace' };
 		case 'break':
-			return { kind: 'command', chord: input.paragraph ? 'Enter' : 'Shift+Enter' };
+			return { kind: 'break', chord: input.paragraph ? 'Enter' : 'Shift+Enter' };
 		case 'other':
 			return null;
 	}

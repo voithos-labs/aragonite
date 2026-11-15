@@ -18,7 +18,7 @@ import type { Relanding } from '../action-contracts';
 
 /**
  * Run the content write on a throwaway copy of child `index` to pick a commit or the in-place
- * write. The last block brings the trailing blank line, since blanking it makes that line a block.
+ * write. The last block brings the trailing blank line, which the trial lays out as the write will.
  */
 export function previewContentReparse(
 	target: WriteTarget,

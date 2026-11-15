@@ -62,19 +62,19 @@ describe('emptying a block inside a container', () => {
 	});
 });
 
-// Blanking the last block turns the suffix's trailing blank line into a block, a structural
-// change, so the typing trial must send it through a commit and blockIds must grow with the tree.
+// Blanking the last block drops the suffix's trailing blank line, as the separator under any
+// emptied block goes, so the one block stays one block and blockIds stay in step with it.
 describe('emptying the tail block of a suffix-folded document', () => {
-	it('materializes the folded line structurally and keeps blockIds in step', async () => {
+	it('drops the folded line and keeps blockIds in step', async () => {
 		// The whole-document parse keeps the trailing blank line in the suffix, which the fixture needs.
 		const h = makeTopHarness('alpha\n\n');
 		expect(h.doc.suffix).toBe('\n');
 
 		await h.actions.updateBlockContent(0, '\n', 'authored', 'join-typing', 0);
 
-		expect(serialize(h.deps.doc)).toBe('\n\n');
-		expect(h.deps.doc.children).toHaveLength(2);
-		expect(h.getBlockIds()).toHaveLength(2);
+		expect(serialize(h.deps.doc)).toBe('\n');
+		expect(h.deps.doc.children).toHaveLength(1);
+		expect(h.getBlockIds()).toHaveLength(1);
 		expectParseConverged(h.deps.doc);
 	});
 });

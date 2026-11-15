@@ -22,6 +22,8 @@ import { blockNodeAt, isBlockNode } from '../../tree-operations/node-primitives'
 import { commitGridClear, commitGridLineDelete } from './grid-removal';
 import {
 	CORE_GESTURE,
+	breaksLine,
+	commandGesture,
 	commandLandingKind,
 	commitRemoval,
 	emptiedPlace,
@@ -37,6 +39,7 @@ import {
 	pasteAnswer,
 	pasteInBlock,
 	pasteThroughCore,
+	stillOn,
 	type Clip
 } from './range-paste';
 import {
@@ -55,8 +58,10 @@ import { parseReplacement } from '../../tree-operations/paste/replacement-parse'
 import { slotReaderAt } from '../../tree-operations/list/task-paragraph';
 import { dispatchKeyCommand } from '../../schema/block-commands';
 import { blockFacts } from '../../schema/block-facts';
-import { assertInvariant, devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';
+import { emitClipboardError } from '../../editor-events';
+import { assertInvariant, devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { checkCommandLanding } from '../../invariants/command-key-landing';
+import { checkBreakLanding } from '../../invariants/range-break-landing';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -67,7 +72,10 @@ export type RangeInsertion =
 	| { kind: 'text'; text: string }
 	| { kind: 'paste'; clip: Clip }
 	| { kind: 'composition' }
-	| { kind: 'command'; chord: string };
+	| { kind: 'command'; chord: string }
+	/** A line break that came as input, not as a key the range claimed: a soft keyboard's, or one a
+	 *  key's default sent. `chord` is the key it stands for. */
+	| { kind: 'break'; chord: 'Enter' | 'Shift+Enter' };
 
 /** Every insertion but a paste, which the range-edit core answers whole. */
 type KeyedInsertion = Exclude<RangeInsertion, { kind: 'paste' }>;
@@ -168,7 +176,7 @@ async function replaceHeld(
 }
 
 /** Every commit's caret is held, so the replace puts down one: the last commit's that wrote, else
- *  the removal's. A command key is Backspace and then the key, so its block lands its own too. */
+ *  the removal's. A command key is the removal and then the key, so its block lands its own too. */
 async function replaceInStep(
 	ctx: CrossBlockMutationContext,
 	coverage: RangeCoverage,
@@ -186,10 +194,12 @@ async function replaceInStep(
 	const inCell = family === 'content' ? await replaceInCell(ctx, coverage, insertion) : null;
 	if (inCell !== null) return inCell;
 
-	const claimed =
-		insertion.kind === 'command' && devChecksOn ? commandLandingKind(ctx.getDoc(), coverage) : null;
+	const keyed = 'chord' in insertion ? insertion : null;
+	const claimed = keyed ? commandLandingKind(ctx.getDoc(), coverage) : null;
+	const gesture =
+		keyed && claimed ? commandGesture(claimed, keyed, ctx.commands) : coreGestureOf(insertion);
 	const [removed, held] = await ctx.controller.holdLandings(() =>
-		removeRange(ctx, coverage, removal, insertion)
+		removeRange(ctx, coverage, removal, gesture)
 	);
 	if (!removed.wrote && !removed.caret) return 'nothing';
 	const removalCaret = held ?? (removed.wrote ? null : caretAt(ctx, removed.caret!));
@@ -197,18 +207,26 @@ async function replaceInStep(
 	if (place) return insertInEmptiedPlace(ctx, insertion, place, removalCaret);
 
 	const at = removed.caret;
-	if (insertion.kind === 'command') {
+	if (keyed) {
 		// Before the command runs, since the block reads the caret to run it.
 		await removalCaret?.place();
 		const gap = ctx.selection.gapCaret;
-		if (gap) return keyAtGap(ctx, [...gap.parentPath, gap.index], insertion.chord);
+		if (gap) return keyAtGap(ctx, [...gap.parentPath, gap.index], keyed.chord);
 		const path = at?.path ?? coverage.range.start.path;
-		if (claimed) {
-			assertInvariant('command-key-landing', () =>
-				checkCommandLanding(claimed, kindOfPath(path, ctx.getDoc()))
-			);
+		const ran = () => kindOfPath(path, ctx.getDoc());
+		// A line break can land past the block it was claimed in (an emptied line, a block read
+		// again), so it is held to breaking a line where it runs instead.
+		if (gesture === 'break') {
+			// A start block the removal kept holds the caret where the range began: no landing to check.
+			if (!removed.wrote || removed.taken) {
+				assertInvariant('range-break-landing', () =>
+					checkBreakLanding(ctx.getDoc(), path, breaksLine(ran(), keyed.chord, ctx.commands))
+				);
+			}
+		} else if (claimed) {
+			assertInvariant('command-key-landing', () => checkCommandLanding(claimed, ran()));
 		}
-		await runCommandAt(ctx, path, insertion.chord);
+		await runCommandAt(ctx, path, keyed.chord);
 		return 'written';
 	}
 	if (insertion.kind === 'none') {
@@ -319,6 +337,7 @@ function familyOf(insertion: KeyedInsertion): Family {
 	switch (insertion.kind) {
 		case 'none':
 		case 'command':
+		case 'break':
 			return 'structural';
 		case 'text':
 			return insertion.text ? 'content' : 'structural';
@@ -340,13 +359,13 @@ function removeRange(
 	ctx: CrossBlockMutationContext,
 	coverage: RangeCoverage,
 	removal: Exclude<Removal, 'replace-in-slot'>,
-	insertion: KeyedInsertion
+	gesture: CoreGesture
 ): Promise<Removed> {
 	const grid = coverage.grid;
 	if (grid && removal === 'remove-lines' && (grid.kind === 'row' || grid.kind === 'column'))
 		return commitGridLineDelete(ctx, grid).then(inCell);
 	if (grid && removal !== 'remove-whole') return commitGridClear(ctx, coverage, grid).then(inCell);
-	return removeThroughCore(ctx, coverage, coreGestureOf(insertion));
+	return removeThroughCore(ctx, coverage, gesture);
 }
 
 const inCell = (caret: SelectionPoint | null): Removed => ({
@@ -356,8 +375,8 @@ const inCell = (caret: SelectionPoint | null): Removed => ({
 	taken: null
 });
 
-/** How the core names the removal a gesture makes: typed text removes as a cut does, a
- *  composition as Delete does, a command key and a delete no key asked for as Backspace does. */
+/** How the core names the removal any other gesture makes (`commandGesture` names a key's): typed
+ *  text as a cut, a composition as Delete, a delete no key asked for as Backspace. */
 function coreGestureOf(insertion: KeyedInsertion): CoreGesture {
 	switch (insertion.kind) {
 		case 'none':
@@ -368,6 +387,8 @@ function coreGestureOf(insertion: KeyedInsertion): CoreGesture {
 			return 'compose';
 		case 'command':
 			return 'command';
+		case 'break':
+			return 'break';
 	}
 }
 
@@ -505,8 +526,15 @@ async function pasteOver(
 	// The paste's own commit names a block of the document the removal left.
 	const left = removed.caret ?? { path: [0], offset: 0 };
 	const after = deleteSnapshot(left.path, left.offset);
-	const wrote = pair.lands && (await landAnswer(ctx, pair.left.source, pair.paste, after));
+	// A write between the two commits (a listener to the removal's edit) leaves the paste no place.
+	const moved = pair.lands && !stillOn(ctx, pair.left.source);
+	const wrote =
+		pair.lands && !moved && (await landAnswer(ctx, pair.left.source, pair.paste, after));
 	if (!wrote) await (removalCaret ?? (removed.caret && caretAt(ctx, removed.caret)))?.place();
+	if (moved) {
+		const error = new Error('the document changed after the range went; nothing was pasted');
+		emitClipboardError(ctx.events, { error, path: [...left.path] });
+	}
 	return 'written';
 }
 

@@ -79,15 +79,16 @@ describe('a parsed quote and table keep their child spans', () => {
 		expect(quote.childSpans).toBeUndefined();
 	});
 
-	// Miss-analysis: the property held each span to its child and to the full rebuild's spans, but
-	// never asked that rebuild for the bytes, which drops a last bare `>` holding none of the body.
+	// A last bare `>` with no line break holds none of the body, and a full rebuild writes it back as
+	// it stands, so the quote keeps spans that agree with that rebuild.
 	it.each([
 		['a last bare marker', '> first\n>\n>'],
 		['a last marker and space', '> first\n>\n> '],
 		['CRLF', '> first\r\n> \r\n> '],
 		['an open fence', '> first\n> ```\n> code\n>']
-	])('leaves a quote ending on %s with no line break no spans', (_name, source) => {
-		expect(parse(source).children[0].childSpans).toBeUndefined();
+	])('keeps the spans of a quote ending on %s with no line break', (_name, source) => {
+		expect(parse(source).children[0].childSpans).toBeInstanceOf(Uint32Array);
+		expectSpansHold(source);
 	});
 
 	it('over generated quotes and tables', () => {

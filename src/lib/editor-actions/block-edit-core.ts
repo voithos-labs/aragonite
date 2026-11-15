@@ -13,6 +13,7 @@ import {
 	ownTrailingLineEnding,
 	withLineEnding
 } from '../core/lines';
+import { takeBareLastLine } from '../schema/child-spans';
 import type { BodyParent } from '../tree-operations/node-primitives';
 import type { OpDescriptor } from '../schema/operations';
 import { normalizeReplacementForBody } from '../tree-operations/paste/body-write';
@@ -94,6 +95,14 @@ async function handleIneligibleNeighbor(
 		snapshot: { index: i, offset: dir < 0 ? 0 : CURSOR_END },
 		op: { kind: 'delete' }
 	});
+}
+
+/** The blank text past a body's last block: the document's own, or its container's. */
+const trailingText = (body: BodyParent): string => body.suffix ?? body.owner?.innerSuffix ?? '';
+
+function setTrailingText(body: BodyParent, text: string): void {
+	if (body.suffix !== undefined) body.suffix = text;
+	else if (body.owner) body.owner.innerSuffix = text;
 }
 
 // ── The keystroke ────────────────────────────────────────────────────────────
@@ -362,11 +371,13 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				mutate: (view) => {
 					const { body } = view;
 					const lineEnding = body.lineEnding;
-					// Past the last block, a trailing blank line is the separator, or it would read
-					// as an empty paragraph after the new one.
-					const trailing =
-						i > 0 && i === body.children.length ? /^[ \t]*\r?\n/.exec(body.suffix ?? '') : null;
-					if (trailing) body.suffix = body.suffix!.slice(trailing[0].length);
+					// A container's own blank last line stays where it alone parts it from the block after it.
+					const atEnd = i > 0 && i === body.children.length && scope.partedBelow();
+					// Past the last block, the body's trailing blank line is the separator, or it would
+					// stay under the new one as an empty paragraph or a blank container line.
+					const trailing = atEnd ? /^[ \t]*\r?\n/.exec(trailingText(body)) : null;
+					if (trailing) setTrailingText(body, trailingText(body).slice(trailing[0].length));
+					if (atEnd && !trailing && body.owner) takeBareLastLine(body.owner, body.children.at(-1));
 					// Only a list's first block has no separator; anywhere else the new paragraph needs
 					// a blank line after its predecessor, whatever the displaced sibling carried.
 					const trivia = trailing

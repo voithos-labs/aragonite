@@ -24,6 +24,8 @@ export interface Draft {
 	/** Insert Markdown at the caret the way `insertMarkdown` does, its last line ending dropped,
 	 *  once the replacements land. */
 	insert(markdown: string): this;
+	/** Insert Markdown as a block of its own, as `insertMarkdown` with `placement: 'below'` does. */
+	insertBelow(markdown: string): this;
 	/** Write it all as one undo step, the caret at byte `caret` of the text as written (past any
 	 *  closing line the editor added above it) or left where it is. */
 	commit(options?: { caret?: number }): Promise<DraftResult>;

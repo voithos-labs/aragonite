@@ -1,5 +1,4 @@
 import type { CstNode } from '../../core/nodes';
-import type { PasteStrategy } from './dispatch';
 import { isBlankParagraph } from '../../core/parser';
 
 /**
@@ -13,6 +12,8 @@ export function contentBlocks(blocks: readonly CstNode[]): readonly CstNode[] {
 	while (end > start && isBlankParagraph(blocks[end - 1])) end--;
 	return blocks.slice(start, end);
 }
+
+export type PasteStrategy = 'inline' | 'structural';
 
 /** One paragraph is text any leaf can take inline; anything else is structure. */
 export function pickPasteStrategy(blocks: readonly CstNode[]): PasteStrategy {

@@ -17,4 +17,6 @@ container's children, never the document root, and round-trips byte for byte.
 
 ## Regressions
 
+- A letter typed in the colons of `::::foo Hi` holding a nested `:::tip` container, in live and source mode: the line takes the colons as typed (`::xw::foo Hi`) and the tree is the one a reload reads. The rebuild grew the opener back to the four colons the nested body asks for, over the colons typed, and Backspace there wrote nothing. Miss-analysis: every opener-line row edited a three-colon fence, whose body asks no growth.
+
 - Letters typed at the start of the `:::foo` line, the container holding two blocks and standing flush under a paragraph: they land where they were typed and the tree is the one a reload reads. The container's first lines were written twice, with no plugin involved. Miss-analysis: the generic container's rows typed in its body or its title, never in its `:::name`, and never with a block flush above it.

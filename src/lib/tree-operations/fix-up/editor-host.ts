@@ -49,6 +49,7 @@ function createHost(grammar: GrammarView): Host {
 				container: descriptor?.isContainer === true,
 				contextDependent: descriptor?.contextDependentKind === true,
 				stripContainer: descriptor?.containerContract === 'strip',
+				firstLineMarker: descriptor?.lines?.marker === 'first-line',
 				grid: isGridKind(kind as CstNode['kind'])
 			};
 		},

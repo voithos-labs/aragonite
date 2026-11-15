@@ -9,21 +9,10 @@ import { serialize } from '#lib/core/serializer.js';
 import { snapToScalarBoundary } from '#lib/core/lines.js';
 import { splitNode } from '#lib/tree-operations/node-ops.js';
 import { replaceRangeInLeaf } from '#lib/tree-operations/leaf-range.js';
-import { buildPastedReplacement } from '#lib/tree-operations/paste/paste-replacement.js';
-import { splitLeafForPaste } from '#lib/tree-operations/list/list-builders.js';
-import { fragmentReaderAt } from '#lib/tree-operations/list/task-paragraph.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
-import type { CstNode } from '#lib/core/nodes.js';
 import type { NodeView } from '#lib/core/node-views.js';
-import { fixtureReading, TOP_SLOT, topLevelStore } from '../harness/fixture-grammar';
+import { fixtureReading, topLevelStore } from '../harness/fixture-grammar';
 import { isPlainSplice } from '../harness/plain-splice';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
-
-/** Both halves read as plain fragments, as they do outside a task item. */
-const plainHalves = {
-	leading: fragmentReaderAt(undefined, 0, defaultGrammarView),
-	trailing: fragmentReaderAt(undefined, 0, defaultGrammarView)
-};
 
 const BOY = 'a\u{1F466}b\n';
 
@@ -85,33 +74,6 @@ describe('the in-leaf range replace', () => {
 		const edit = replaceRangeInLeaf(node, { start: 2, end: 3 }, 'x', topLevelStore(node));
 		expect(isWellFormed(edit.raw)).toBe(true);
 		expect(edit.raw).toBe('axb\n');
-	});
-});
-
-describe('the structural paste’s before/after slices', () => {
-	it('keeps the pair whole on one side of the pasted blocks', () => {
-		const leaf = parse(BOY).children[0];
-		const { nodes: replacement } = buildPastedReplacement(
-			leaf,
-			2,
-			parse('x\n').children,
-			'\n',
-			defaultGrammarView,
-			TOP_SLOT
-		);
-		const raws = replacement.map((node: CstNode) => node.raw);
-		expect(raws.every(isWellFormed)).toBe(true);
-		expect(raws).toEqual(['a\n', 'x\n', '\u{1F466}b\n']);
-	});
-});
-
-describe('the absorb split’s item halves', () => {
-	it('keeps the pair whole on one half', () => {
-		const leaf = parse(BOY).children[0];
-		const { leadingNode, trailingNodes } = splitLeafForPaste(leaf, 2, '\n', undefined, plainHalves);
-		expect(isWellFormed(leadingNode!.raw)).toBe(true);
-		expect(isWellFormed(trailingNodes[0].raw)).toBe(true);
-		expect([leadingNode!.raw, trailingNodes[0].raw]).toEqual(['a\n', '\u{1F466}b\n']);
 	});
 });
 

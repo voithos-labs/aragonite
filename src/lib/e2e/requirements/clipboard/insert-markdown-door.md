@@ -42,9 +42,9 @@ route and checks that.
 hands the cross-block branch):
 
 - List items inserted inside a same-type list absorb as siblings of the target item
-  (`test/tree-operations/paste/list-absorb-rows.test.ts`).
-- A structural insertion is one undo entry (`test/tree-operations/paste/paste-undo-caret.test.ts`).
+  (`test/range-edit/paste-routes.test.ts`).
+- A structural insertion is one undo entry (`test/range-edit/paste-routes.test.ts`).
 - A live cross-block selection is replaced by the payload, and one undo restores both halves
   (`test/selection/cross-block/cross-block-undo-entry.test.ts`).
 - A registered paste transform rewrites the inserted text before it is parsed
-  (`test/tree-operations/paste/dispatch-transforms.test.ts`).
+  (`test/range-edit/paste-transform.test.ts`).

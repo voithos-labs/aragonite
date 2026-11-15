@@ -43,8 +43,6 @@ const NON_JOIN_CONCATENATIONS: Record<string, string> = {
 		"a container splicing ONE child's region back into its own raw: both surrounding operands are bytes that container already emitted",
 	'src/lib/schema/strip-rebuild.ts':
 		'a quote or list item writing its rewritten lines between the head and tail lines it kept: both kept operands are bytes that container already emitted',
-	'src/lib/tree-operations/paste/container-match.ts':
-		'a paste INSERTS between the target’s own halves; its delete half, the one place a cut can strand a run, is `preDelete`, cut by `replaceRangeInLeaf` before the container routes run',
 	'src/lib/selection/cross-block/range-replace.ts':
 		'a key typed over a selection across blocks is a range removal, then the character at the caret it left: the removal cleans its join without the typed text in it, a known gap until the range replace carries the text into the join (T18 slice 5)'
 };

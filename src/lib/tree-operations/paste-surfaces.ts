@@ -80,6 +80,8 @@ export interface PasteSurface {
 	/** A paste the kind answers ahead of the range-edit core, with the clipboard in hand (a table
 	 *  cell fills cells from a grid and slices its table for blocks). False leaves it to the core. */
 	onClipPaste?(input: ClipPasteInput): Promise<boolean>;
+	/** The text the core writes for a paste the kind left to it (a cell trims the blank edges). */
+	pastedText?(text: string): string;
 }
 
 // ── Registry ───────────────────────────────────────────────────────────────

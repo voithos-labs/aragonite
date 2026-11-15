@@ -75,3 +75,39 @@ for (const [name, doc, path, clip, typed] of ROWS)
 		expect(asLf(await editor.bridge.getSource())).toBe(typed);
 		expect(await editor.parseConverged()).toBe(true);
 	});
+
+/** A block pasted with its line ending at the end of each host's last paragraph. */
+const BLOCK_ROWS: [name: string, doc: string, path: number[], clip: string, typed: string][] = [
+	[
+		'a rule in a quote',
+		'> alpha\n\nAfter\n',
+		[0, 0],
+		'***\n',
+		'> alpha\n>\n> ***\n>\n> Z\n\nAfter\n'
+	],
+	[
+		'a fence in a callout',
+		':::note\nalpha\n:::\n\nAfter\n',
+		[0, 1],
+		'```\nq\n```\n',
+		':::note\nalpha\n\n```\nq\n```\n\nZ\n:::\n\nAfter\n'
+	]
+];
+
+for (const [name, doc, path, clip, typed] of BLOCK_ROWS)
+	test(`${name} pasted with its line ending at the end: a letter takes the ending's line`, async ({
+		page
+	}) => {
+		const editor = new PluginsPage(page);
+		await editor.gotoPlugins();
+		await editor.loadContent(doc);
+		await editor.focusBlockAtPath(path, 0);
+		await page.keyboard.press(edgeKey('lineEnd'));
+		await editor.seedClipboard(clip);
+		await editor.paste();
+		await editor.bridge.waitForSourceContains(clip.split('\n')[0]);
+		await page.keyboard.type('Z');
+		await editor.bridge.waitForSourceContains('Z');
+		expect(asLf(await editor.bridge.getSource())).toBe(typed);
+		expect(await editor.parseConverged()).toBe(true);
+	});

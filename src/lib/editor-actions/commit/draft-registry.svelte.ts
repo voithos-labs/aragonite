@@ -34,7 +34,7 @@ import {
 
 export interface DraftRegistry {
 	/** An edit against the document as it is now. */
-	edit(): InternalDraft;
+	edit(): Draft;
 	/** A block's draft over the bytes of the block at `path`, or over none, which the editor closes
 	 *  through `spec` until it ends. */
 	open(spec: DraftSpec, path?: readonly number[]): Draft;
@@ -43,11 +43,6 @@ export interface DraftRegistry {
 	/** Whether a write must record what it changed: true while a draft is open. */
 	watching(): boolean;
 	record(change: RecordedChange | null): void;
-}
-
-/** A draft whose Markdown can also go in as a block of its own (`insertMarkdown`'s `below`). */
-export interface InternalDraft extends Draft {
-	insertBelow(markdown: string): this;
 }
 
 /** How a draft writes; read at its commit, so the editor can build the writers after the drafts. */
@@ -91,7 +86,7 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 		base = oldest;
 	}
 
-	function draft(watched: PartRange | null, onEnd: (made: Draft) => void): InternalDraft {
+	function draft(watched: PartRange | null, onEnd: (made: Draft) => void): Draft {
 		const openedOn = deps.stamps.current();
 		// The bytes it opened on, for the dev check that no write went unrecorded.
 		const openedText = devChecksOn ? serialize(deps.doc()) : '';
@@ -202,7 +197,13 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 				: refused('illegal', 'the write was refused: no caret to insert at, or it rolled back');
 		}
 
-		const made: InternalDraft = {
+		// A snippet's last line ending ends it, as a file's last line does; a second one is content.
+		const queue = (markdown: string, below: boolean): Draft => {
+			const text = trimTrailingLineEnding(markdown);
+			if (text !== '') inserts.push({ markdown: text, below });
+			return made;
+		};
+		const made: Draft = {
 			get stale() {
 				void version;
 				return !openedOn.live || touched();
@@ -226,16 +227,8 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 					});
 				return this;
 			},
-			// A snippet's last line ending ends it, as a file's last line does; a second one is content.
-			insert(markdown) {
-				const text = trimTrailingLineEnding(markdown);
-				if (text !== '') inserts.push({ markdown: text, below: false });
-				return this;
-			},
-			insertBelow(markdown) {
-				inserts.push({ markdown: trimTrailingLineEnding(markdown), below: true });
-				return this;
-			},
+			insert: (markdown) => queue(markdown, false),
+			insertBelow: (markdown) => queue(markdown, true),
 			async commit(options) {
 				if (ended) return refused('empty', 'the draft was ended');
 				if (writes.length === 0 && inserts.length === 0 && !illegal)

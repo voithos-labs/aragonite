@@ -8,7 +8,7 @@
  */
 
 import { claimsBodyChord } from '../../active-editor';
-import type { BlockComponent } from '../../block-component';
+import type { BlockComponent, PreparedPaste } from '../../block-component';
 import { readPasteEvent, scriptedClip, type ClipboardRead } from '../../browser/clipboard';
 import type { BlockElLookup } from '../../caret/block-el-lookup';
 import { docPathFrom } from '../../core/coordinate-spaces';
@@ -27,7 +27,6 @@ import { placeAfterBlock, placeOfGap, type PasteAim } from '../../selection/rang
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import { isWholeBlockInputProxy } from '../../selection/whole-block-input';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
-import type { SurfacePaste } from '../blocks/editable/surface-clipboard';
 import { createImagePasteArm } from '../paste-image-arm';
 
 export interface RootPasteDeps {
@@ -51,22 +50,20 @@ export interface RootPasteDeps {
 	stamps: Pick<DocumentStamps, 'current'>;
 }
 
-/** A paste aimed at the place the editor held when it was made; true once bytes moved. */
+/** A paste aimed at the place the editor held when it was made; true once it was taken: bytes
+ *  moved into the document, or a shown source drafted them. */
 export type AimedPaste = (clip: Clip) => Promise<boolean>;
 
 export interface RootPaste {
 	/** `root` is the element the installing effect captured, not a live binding. */
 	onPasteEvent(event: ClipboardEvent, root: HTMLElement): void;
 	/** Pastes `clip` at the editor's caret or range; `below` makes it a block of its own (see
-	 *  `onEmptyParagraph`). True once bytes moved into the document. */
+	 *  `onEmptyParagraph`). True as an `AimedPaste` is. */
 	paste(clip: Clip, options?: { below?: boolean }): Promise<boolean>;
 	/** A paste aimed now, for a caller that waits on something first (a menu's clipboard read);
 	 *  null with nowhere to aim. */
 	aim(): AimedPaste | null;
 }
-
-/** What a block answers `preparePaste` with: the editor's own surface adds its extras. */
-type BlockAnswer = Partial<SurfacePaste> | null | undefined;
 
 /** Where a paste goes, before the block is asked anything. */
 type Holder =
@@ -152,7 +149,7 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 			}
 			case 'block': {
 				const { path, block } = holder;
-				const ask = () => block.preparePaste?.() as BlockAnswer;
+				const ask = () => block.preparePaste?.() ?? null;
 				if (!now) return live((clip) => intoBlock(path, block, ask(), clip));
 				const answer = ask();
 				// Asked, the block holds the caret memory's records until the paste lets them go.
@@ -189,17 +186,17 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 	async function intoBlock(
 		path: number[],
 		block: BlockComponent,
-		answer: BlockAnswer,
+		answer: PreparedPaste | null,
 		clip: Clip
 	): Promise<boolean> {
-		if (!answer || answer.start === undefined || answer.end === undefined) return false;
+		if (!answer) return false;
 		const { start, end } = answer;
 		try {
 			await answer.settled;
 			// A paste that outlived its block (an unmount while its source hid) has nowhere to land.
 			if (deps.getBlockComponent(path) !== block) return false;
 			// A draft takes the text as written; the document changes when its source hides.
-			if (answer.draft) return (answer.draft(clip.text), false);
+			if (answer.draft) return (answer.draft(clip.text), true);
 			const undo = { path: docPathFrom(path), offset: answer.caretBefore ?? start };
 			ctx.controller.flushDebouncedCheckpoint();
 			return await pasteInBlock(ctx, { path, start, end }, clip, undo, answer.spend);
@@ -240,10 +237,11 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 		},
 		paste(clip, options) {
 			const active = document.activeElement;
-			if (!options?.below || onEmptyParagraph(active)) {
-				const holder = holderAt(active);
+			const holder = holderAt(active);
+			// A place that lands blocks already takes a block of its own as it stands.
+			const here = holder?.at === 'gap' || holder?.at === 'whole' || onEmptyParagraph(active);
+			if (!options?.below || here)
 				return (holder && aimAt(holder, true)?.(clip)) ?? Promise.resolve(false);
-			}
 			const block = blockAt(active);
 			const lands = block?.at === 'block' && !!clip.text && ctx.controller.admitsGesture(null);
 			return lands ? below(block.path[0], clip) : Promise.resolve(false);
