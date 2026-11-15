@@ -22,7 +22,6 @@ export interface PasteCommitCoordinator {
 	commitMultiScope<const S extends readonly MultiScopeTarget[]>(
 		args: CommitMultiScopeArgs<S>
 	): Promise<boolean>;
-	getDocScope(): MultiScopeTarget;
 	/** Resolve a container node to its mounted reactive state. */
 	resolveState(node: NodeView): MultiScopeTarget['state'] | undefined;
 	/** Write `text` into the leaf at `leafPath` as one commit at its parent list, through the write

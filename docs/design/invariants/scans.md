@@ -98,7 +98,6 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.86 | A list item's marker is read only where the list is built, drawn or dumped | L |
 | G4.87 | Only the scroll owner writes the editor's scroll position | L |
 | G4.89 | One in-leaf range replace, and a short list of places that snap an offset | L |
-| G4.90 | A paste inside one block cuts its selection through the range replace, with its text | L |
 | G4.91 | A focus call that may scroll the editor says why | L |
 | G4.93 | A measure round keeps only the block `heldBlock` picks, level by level | L |
 | G4.94 | A gap caret or a widget is selected only in `place-caret.ts`, and held in one store | L |
@@ -159,7 +158,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.187 | Every framework app under `examples/` runs in the adapter suite | L |
 | G4.188 | Every wrapper entry imports in Node with no DOM, as a server render does | harness |
 | G4.189 | A host color read inside the editor carries no fallback, and the root reads the resolved one | L |
-| G4.194 | A block reaches the clipboard steps only through its editable surface, and dispatches no paste | L |
+| G4.194 | A block reaches the clipboard steps only through its editable surface | L |
 | G4.195 | _Retired upward_: every write declares its undo grouping (`history`), a command's as `entry` | T |
 | G4.197 | A parse finds every built-in kind whichever module a host imports first | harness |
 | G4.200 | Whether a block hides markers at the caret, with the screen it reads, is asked in one place | L |
@@ -311,7 +310,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 
 **G4.32 · Inline-cache one spelling.** Every non-render consumer reads the inline tree through `resolvedInlineContent`, so the resolver and the signature travel together; dropping the signature reads an entry the render path didn't fill (brackets where the screen shows a link). The raw `getInlineContent` stays in its own module, plus the vertical-skip decision, which wants the resolver-less answer. `lint/file-rules.test.ts`.
 
-**G4.33 · Live-rewrite verification.** Live-mode byte candidates are verified through the render path's own `renderedText`, never a private walk, and every file naming an inline marker family is manifested with its use. A verification takes the block's own screen where it decides what a press may touch, or the content behind every marker for a before/after diff, which declines a side whose chrome paints (live-mode.md § 4.1). Every destructive join goes through `cleanJoinedRaw`, and the files naming `preDelete` are a closed allowlist. `lint/manifest-rules.test.ts`.
+**G4.33 · Live-rewrite verification.** Live-mode byte candidates are verified through the render path's own `renderedText`, never a private walk, and every file naming an inline marker family is manifested with its use. A verification takes the block's own screen where it decides what a press may touch, or the content behind every marker for a before/after diff, which declines a side whose chrome paints (live-mode.md § 4.1). Every destructive join goes through `cleanJoinedRaw`. `lint/manifest-rules.test.ts`.
 
 **G4.34 · Link byte-write module.** The image rule's twin (G4.21): the GFM link serializer is named in code only inside `link-source-bytes.ts` (`lint/file-rules.test.ts`), and only the documented write paths name `buildLinkEditBytes` and `buildLinkUnwrapBytes`. Every candidate is verified through the render path (G4.33), and a link an inline plugin kind claimed is declined, since there's no `rewriteLink` hook. `lint/manifest-rules.test.ts`.
 
@@ -397,7 +396,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 
 **G4.75 · One leaf write.** New text for a leaf is written one way at every depth: a commit through `src/lib/editor-actions/block-edit-core.ts` :: `commitLeafText`, or the keystroke's in-place write, `src/lib/editor-actions/commit/leaf-commit.ts` :: `createLeafCommit`. Each step of the write has a short list of files allowed to name it (an aliased import counts):
 
-- the content write with its fix-up (`updateNodeContent`): the in-place write, the keystroke's trial reparse, the container-matching paste and the format toggle over several blocks; the commit uses the write alone and fixes it up itself (G4.208)
+- the content write with its fix-up (`updateNodeContent`): the in-place write, the keystroke's trial reparse and the format toggle over several blocks; the commit uses the write alone and fixes it up itself (G4.208)
 - a write in place that skips the reparse (`writeOwnRaw`, `installOwnRaw`): table cells and find and replace's private copy
 - the document as an owner-less body (`documentBody`), plus the trial reparse's throwaway copy
 - the task-marker reconcile: the content write, the join and `replaceBlock`
@@ -431,8 +430,6 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.87 · One writer of the scroll position.** Every scroll write lives in `windowing/scroll-owner.ts`, which decides who owns the position (the browser's anchoring, a held scroll into view, the height correction); `rects.scrollTo(path)` goes through it. Other modules get a `ScrollportReader`, which can't write. The scan fails any other write (`scrollTop =`, a positioned `scroll`/`scrollTo`, `scrollBy`, `setScrollTop`, `scrollIntoView`, a writable port) and lists the `scrollToMount(` callers; a drag's autoscroll and two listboxes say why. `lint/file-rules.test.ts`.
 
 **G4.89 · One in-leaf range replace.** Replacing a range of one leaf is `leaf-range.ts :: replaceRangeInLeaf`: it cuts back to the painted text, moves both ends off any surrogate pair and cleans the join; joining two leaves is `joinLeaves` beside it. The scan holds `snapToScalarBoundary(` and `joinLeaves(` to short lists, and fails a hand-written one-leaf splice (`raw.slice(0, a) + … + raw.slice(b)`) in the live editing paths unless the file says why (the range delete and typing after a cross-block delete are known gaps). `lint/file-rules.test.ts`.
-
-**G4.90 · A paste cuts like typing.** Pasting over a selection inside one block writes what typing the same text over it writes: every file naming the paste's range (`preDelete`) cuts it through `replaceDrawnRange` with the pasted text, or says why not (the code block's paste stays a literal splice). `lint/file-rules.test.ts`.
 
 **G4.91 · A focus call scrolls nothing unless it says why.** `focus()` scrolls an off-screen element into view by itself, a scroll G4.87 can't see, so a caret's focus passes `preventScroll` and asks the scroll owner instead. The scan flags `focus()` with no arguments or without `preventScroll` (a block component's `focus(offset)` passes), and every flagged file is declared with its reason; the manifest is per file. `lint/file-rules.test.ts`, with G1.45 as the runtime half.
 
@@ -552,7 +549,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.189 · Host colors come from one place.** `editor.css` resolves each host color on the editor root (the page's value, or the built-in palette for the editor's mode) and hands it to the root's children under the host's own name. A read inside the editor carries no fallback, since a literal would hold one mode whatever `theme` says; a rule on the root (or its scrollbar) reads the resolved `--md-color-*` name. The rules live in `editor.css` so a replaced theme file keeps them. `lint/host-color-reads.test.ts` covers the library and plugins; route pages are the host.
 
-**G4.194 · A block's clipboard comes from its surface.** A block gets its copy and cut handlers, and its answer to a paste (`preparePaste`), from `editable-surface.ts :: clipboard`, which adds the editor's half (the reading-mode check, caret memory, a cross-block copy and cut). A block's own copies would drift. `lint/file-rules.test.ts` fails a `createClipboardHandlers` or `pasteDispatch` call outside the surface.
+**G4.194 · A block's clipboard comes from its surface.** A block gets its copy and cut handlers, and its answer to a paste (`preparePaste`), from `editable-surface.ts :: clipboard`, which adds the editor's half (the reading-mode check, caret memory, a cross-block copy and cut). A block's own copies would drift. `lint/file-rules.test.ts` fails a `createClipboardHandlers` call outside the surface.
 
 **G4.197 · Built-ins register on the first grammar read.** The block parser's modules import each other in a loop, so a built-in registered at a module's top level runs before that module finishes loading, and a host importing it first crashes or gets none. `schema/block-openers.ts` instead registers them on the first grammar read, through `registerBuiltInDescriptors` under `registerAsCore`: they belong to no plugin whoever arrives first, and survive the test reset. `built-in-load-order.test.ts` imports each loop module first and parses every built-in kind.
 

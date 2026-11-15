@@ -1,38 +1,15 @@
-import { isBuiltinBlockKind, type AnyBlockKind, type CstNode, type Document } from '../core/nodes';
-import type { LineEnding } from '../core/lines';
-import type { StoredAs } from '../schema/stored-as';
-import type { ChildSlot } from './list/task-paragraph';
+/**
+ * What a block kind answers of a paste before the range-edit core does: a table cell fills cells
+ * from a grid, slices its table for blocks, and trims the text it leaves to the core.
+ */
+
+import { isBuiltinBlockKind, type AnyBlockKind, type Document } from '../core/nodes';
 import type { PasteCommitCoordinator } from './paste/paste-deps';
 import type { PluginActivation } from '../schema/plugin-activation';
 import type { Reading } from '../schema/reading';
 import { createBlockKindRegistry } from '../schema/plugin-kind';
 
 // ── Types ──────────────────────────────────────────────────────────────────
-
-export interface PasteRange {
-	start: number;
-	end: number;
-}
-
-export interface InlinePasteResult {
-	/** New raw for the target node (including trailing line ending). */
-	newRaw: string;
-	caretOffset: number;
-}
-
-export interface StructuralPasteResult {
-	replacement: CstNode[];
-	focusReplacementIndex: number;
-	focusOffset: number;
-}
-
-export interface ScopedStructuralPasteInput {
-	doc: Document;
-	targetPath: number[];
-	/** Pasted blocks, blank-line-materialized. */
-	blocks: CstNode[];
-	controller: PasteCommitCoordinator;
-}
 
 /** A paste a kind answers itself: the text block at `targetPath`, the clipboard, and the cells of
  *  the block's table the editor holds selected. */
@@ -48,35 +25,6 @@ export interface ClipPasteInput {
 
 export interface PasteSurface {
 	kind: AnyBlockKind;
-	/** The kind's editable element holds text, never blocks (a table cell), so a blank block at the
-	 *  clipboard's edge is packaging: it neither picks the route nor lands in a splice. */
-	blankEdgesArePackaging?: boolean;
-	/** Pure. The pasted text replaces the pre-delete through `replaceRangeInLeaf`, as typing it
-	 *  would; every line the hook writes takes `lineEnding`, the document's. */
-	onInlinePaste?(
-		node: CstNode,
-		offset: number,
-		text: string,
-		preDelete: PasteRange | undefined,
-		store: StoredAs,
-		lineEnding: LineEnding
-	): InlinePasteResult;
-	/** Splice CST blocks at the target. Pure data transform. `slot` is where the target sits, so
-	 *  the text the hook leaves there is read as a reload reads it. */
-	onStructuralPaste?(
-		node: CstNode,
-		offset: number,
-		blocks: CstNode[],
-		preDelete: PasteRange | undefined,
-		store: StoredAs,
-		lineEnding: LineEnding,
-		slot: ChildSlot
-	): StructuralPasteResult;
-	/**
-	 * Structural paste whose splice scope is an ancestor (a tableCell splices at the
-	 * table's parent). The hook owns the whole mutation; dispatch does nothing afterward.
-	 */
-	onScopedStructuralPaste?(input: ScopedStructuralPasteInput): Promise<void>;
 	/** A paste the kind answers ahead of the range-edit core, with the clipboard in hand (a table
 	 *  cell fills cells from a grid and slices its table for blocks). False leaves it to the core. */
 	onClipPaste?(input: ClipPasteInput): Promise<boolean>;
@@ -100,15 +48,10 @@ export function registerPasteSurface(surface: PasteSurface): void {
 }
 
 /** The kind's surface in an editor with this activation; a plugin kind's surface is absent where
- *  the editor left out the kind's plugin, so the paste takes the default hooks. */
+ *  the editor left out the kind's plugin, so the core answers the paste alone. */
 export function getPasteSurface(
 	kind: AnyBlockKind,
 	activation: PluginActivation
 ): PasteSurface | undefined {
 	return surfaces.get(kind, activation);
-}
-
-/** Whether any plugin or built-in registered a surface for the kind, whatever the activation. */
-export function isPasteSurfaceRegistered(kind: AnyBlockKind): boolean {
-	return surfaces.has(kind);
 }

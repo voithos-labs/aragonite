@@ -11,17 +11,12 @@ import { sliceTableAtRow } from '../../../tree-operations/paste/table-slice';
 import { focusIndexBeforeResidue } from '../../../tree-operations/paste/focus-target';
 import { landClipboardBlocks, landedAfter } from '../../../tree-operations/paste/paste-replacement';
 import { documentLineEnding, trimWhitespace, withLineEnding } from '../../../core/lines';
-import type {
-	ClipPasteInput,
-	PasteSurface,
-	ScopedStructuralPasteInput
-} from '../../../tree-operations/paste-surfaces';
-import { readBlocks } from '../../../core/parser';
+import type { ClipPasteInput, PasteSurface } from '../../../tree-operations/paste-surfaces';
+import { isBlankParagraph, readBlocks } from '../../../core/parser';
 import { pasteTableGrid } from '../../../editor-actions/table-context';
 import { normalizeClipboardForBody } from '../../../tree-operations/paste/body-write';
 import { escapeMarkdownLiteral } from '../../../tree-operations/paste/markdown-literal';
 import { applyPasteTransforms } from '../../../tree-operations/paste/paste-transforms';
-import { contentBlocks, pickPasteStrategy } from '../../../tree-operations/paste/strategy';
 import { parseClipboardGrid, tileGridTo } from '../../../tree-operations/table-grid-clipboard';
 
 // ── Public API ─────────────────────────────────────────────────────────────
@@ -50,8 +45,8 @@ async function pasteGridInto(input: ClipPasteInput): Promise<boolean> {
 	return true;
 }
 
-/** The slice is picked on the clipboard as it came; the paste transforms run after, and never on
- *  the editor's own entry. */
+/** The slice is picked on the clipboard as it came: anything but one paragraph is blocks. The paste
+ *  transforms run after, and never on the editor's own entry. */
 async function pasteBlocksAround(input: ClipPasteInput): Promise<boolean> {
 	const { doc, targetPath, clip, reading } = input;
 	const ending = documentLineEnding(doc);
@@ -63,20 +58,36 @@ async function pasteBlocksAround(input: ClipPasteInput): Promise<boolean> {
 			}).children
 		);
 	const raw = clip.plain ? escapeMarkdownLiteral(clip.text) : clip.text;
-	if (pickPasteStrategy(read(raw)) !== 'structural') return false;
+	if (isText(read(raw))) return false;
 	const transforms = !clip.plain && clip.own === undefined;
 	const text = transforms ? applyPasteTransforms(raw, input.activePlugins) : raw;
 	const blocks = text === raw ? read(raw) : read(text);
 	if (blocks.length === 0) return false;
-	const landed = await sliceTableForBlocks({ ...input, blocks: blocks.slice() });
-	return landed !== null;
+	return (await sliceTableForBlocks(input, blocks)) !== null;
 }
+
+/** The clipboard's blocks less a blank block at either edge, the copy's packaging, which a cell
+ *  skips over. */
+function contentBlocks(blocks: readonly CstNode[]): readonly CstNode[] {
+	let start = 0;
+	let end = blocks.length;
+	while (start < end && isBlankParagraph(blocks[start])) start++;
+	while (end > start && isBlankParagraph(blocks[end - 1])) end--;
+	return blocks.slice(start, end);
+}
+
+/** One paragraph, or nothing but packaging, is text for the cell's one line. */
+const isText = (blocks: readonly CstNode[]): boolean =>
+	blocks.length === 0 || (blocks.length === 1 && blocks[0].kind === 'paragraph');
 
 // ── Internal ───────────────────────────────────────────────────────────────
 
 // The cell's blockEdit is the row-level nested bundle (its `replaceBlock` targets the
 // row's cells), so the splice goes through the paste coordinator at the table's parent.
-async function sliceTableForBlocks(input: ScopedStructuralPasteInput): Promise<number | null> {
+async function sliceTableForBlocks(
+	input: ClipPasteInput,
+	blocks: readonly CstNode[]
+): Promise<number | null> {
 	const tablePath = input.targetPath.slice(0, -2);
 	const rowIdx = input.targetPath[input.targetPath.length - 2];
 	const table = blockNodeAt(input.doc, tablePath);
@@ -87,7 +98,7 @@ async function sliceTableForBlocks(input: ScopedStructuralPasteInput): Promise<n
 	const lineEnding = documentLineEnding(input.doc);
 	const replacement: CstNode[] = [];
 	if (firstHalf) replacement.push(firstHalf);
-	const landed = landClipboardBlocks(firstHalf ?? undefined, input.blocks, lineEnding);
+	const landed = landClipboardBlocks(firstHalf ?? undefined, blocks, lineEnding);
 	// Appended, never spread: a paste can outnumber an argument list (G4.60).
 	for (const block of landed) replacement.push(block);
 	const last = replacement[replacement.length - 1];

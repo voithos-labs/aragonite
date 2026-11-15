@@ -78,8 +78,6 @@ const RULES: CallSiteRule[] = [
 				'the getter for the ending a typed line break takes: its own, else the document’s',
 			'src/lib/components/blocks/text/text-keydown.ts :: insertHardBreak':
 				'a hard break inside the text, a command that keeps the block’s own ending until it moves onto the surface write with the other commands',
-			'src/lib/components/blocks/code/code-paste-surface.ts :: onInlinePaste':
-				'a paste’s own write, which moves onto the surface write with the other clipboard edits',
 			'src/lib/components/blocks/code/code-context-actions.ts :: run':
 				'a second new-text ending, beside the typed line break’s: the dissolve action’s prose replaces the fence, so it takes the document’s ending (the two share one home under #648)',
 			'src/lib/components/blocks/code/code-fence-exit.ts :: computeFenceExit':
