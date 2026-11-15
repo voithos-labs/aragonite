@@ -235,8 +235,12 @@ function enteredInText(
 ): Edit {
 	const bare = landedAt(doc, from, to, rest, seen);
 	const after = { ...readDoc(bare.source, doc.host, doc.mode), ending: doc.ending };
-	// A container closed by its own line left the caret past that line: its last place is the body's.
-	const at = lastPlaceAt(after, bare.caret) ?? bare.caret;
+	// A container closed by its own line left the caret past that line: the ending goes after the
+	// text its body ends on. A body that ends on a fence or a table keeps the caret where it is.
+	const last = lastPlaceAt(after, bare.caret);
+	const leaf = last === null ? undefined : leafHolding(after, last, last)?.leaf;
+	const text = leaf && !isCell(after, leaf) && factsOf(after, leaf).body !== 'literal';
+	const at = text ? last! : bare.caret;
 	const { source, caret } = pasteAt(after, at, at, LINE);
 	return { source, caret };
 }

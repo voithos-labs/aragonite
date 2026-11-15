@@ -144,6 +144,15 @@ it('a callout taken in by a callout an item holds leaves no blank line among the
 	expect(typed).toMatch(/ {2}:::\n- after\n$/);
 });
 
+// Miss-analysis: the taken-in rows ended on a paragraph, so none asked where the ending goes after
+// a body that ends on a fence, whose last caret place is its code.
+for (const mode of ['source', 'live'] as const)
+	it(`${mode}: a quote taken in that ends on a fence keeps its ending out of the code`, async () => {
+		const fence = '> ```\n> code\n> ```\n';
+		const { typed } = await pasted('> alpha‸\n\nAfter\n', mode, `> q\n${fence}`);
+		expect(typed).toContain(`> alphaq\n${fence}`);
+	});
+
 // A trailing line of spaces is an ending: the quote joins, then a line break and a blank line.
 // Miss-analysis: every joined row's quote ended the clipboard, so no row put a line after it.
 for (const mode of ['source', 'live'] as const)
