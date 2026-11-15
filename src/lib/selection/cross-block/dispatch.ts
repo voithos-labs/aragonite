@@ -63,7 +63,7 @@ export interface CrossBlockDispatchContext {
 	/** The editor's command dispatch, which runs a chord pressed over a range. */
 	commands: CommandDispatchContext;
 	pasteCoordinator: PasteCommitCoordinator;
-	/** The plugins this instance activated, forwarded to the paste hooks. */
+	/** The plugins this instance activated, whose paste transforms a paste of blocks runs. */
 	activePlugins: PluginActivation;
 	/** The editor's event emitter, the paste handler's only channel for a gesture it consumed but
 	 *  could not land. Non-nullable: skipping it drops a paste in silence. */
