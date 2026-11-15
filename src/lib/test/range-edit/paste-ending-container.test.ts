@@ -116,8 +116,7 @@ for (const mode of ['source', 'live'] as const)
 			});
 	}
 
-// A callout the caret's callout takes in ends on its own closing line, which takes no caret: the
-// ending lands at the body's end, as after the text alone, never under the closing line.
+// A callout taken in ends on its closing line, which takes no caret: the ending lands in the body.
 // Miss-analysis: every container joined in a row was a quote, which has no closing line to end on.
 const TAKEN_IN: [name: string, marked: string][] = [
 	['a callout’s body end', ':::note\nalpha‸\n:::\n\nAfter\n'],
