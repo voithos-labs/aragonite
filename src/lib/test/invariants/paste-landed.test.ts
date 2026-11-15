@@ -61,9 +61,8 @@ describe('the check', () => {
 	});
 });
 
-// Miss-analysis: once the core wrote a closing fence line through the code block's own rule, no
-// built-in kind's rule respelled a paste's bytes and kept its kind, so nothing held the trial's
-// compare of the rule's bytes with the core's.
+// Miss-analysis: since the core writes a closing fence line through the code block's rule, no
+// built-in rule respells a paste's bytes and keeps its kind, so no row held the trial's compare.
 describe('the trial of a block’s own write', () => {
 	it('refuses a write whose rule respells the bytes, though the block reads back as its kind', () => {
 		const kind = testLeaf('shouted-line', (kind) => ({
@@ -130,5 +129,50 @@ describe('in a running editor', () => {
 		await pressHardwareKey(document.activeElement as HTMLElement, { key: 'Z' });
 		await editor.settle();
 		expect(editor.source()).toBe('|-|Za\n|-|-|\n\nAfter\n');
+	});
+
+	// Miss-analysis: the check read the document once the paste's caret had landed, and no row's
+	// landing set off a write of the editor's own, which the check then took for the paste's bytes.
+	describe('a paste whose landing sets off the editor’s own next write fires nothing', () => {
+		// [name, mode, source, block, offset, clipboard, the document after both writes]
+		const ROWS = [
+			[
+				'a bare fence in live mode, given its body line as the caret arrives',
+				'live',
+				'<!-- c -->\n\nAfter\n',
+				0,
+				0,
+				'```',
+				'```<!-- c -->\n\n```\n\nAfter\n'
+			],
+			[
+				'a bare fence on an empty line in live mode',
+				'live',
+				'alpha\n\n\n\nAfter\n',
+				1,
+				0,
+				'```',
+				'alpha\n\n```\n\n```\n\nAfter\n'
+			],
+			[
+				'a heading left empty, which gives its marker up as the caret leaves',
+				'source',
+				'# Title here\n\nAfter\n',
+				0,
+				2,
+				'\n===',
+				'\n===Title here\n\nAfter\n'
+			]
+		] as const;
+		it.each(ROWS)('%s', async (_, mode, source, block, offset, clip, after) => {
+			const editor = mountCase(source, mode);
+			await editor.settle();
+			placeCaret(surfaceAt(editor, [block]), offset);
+			await editor.settle();
+			await pasteGesture(editor, { 'text/plain': clip }, 'key');
+			await editor.settle();
+			expect(takeDevWarns().map((warn) => warn.tag)).toEqual([]);
+			expect(editor.source()).toBe(after);
+		});
 	});
 });
