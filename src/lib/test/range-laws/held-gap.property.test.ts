@@ -6,9 +6,10 @@
 // Enter over the range leaves what Delete then Enter leave where the range ends inside the block it
 // entered, and Backspace then Enter where it ends between blocks. Text over it (a letter, a paste, a
 // composition, whose removal is Delete's only where the range ends inside a block's text, else a
-// cut's) leaves what the removal then the text leave where that removal's caret is a gap,
-// prose, or no block boundary stands where the range started; anywhere else the text stands in a
-// paragraph of its own there, the rest as the removal left it (`docs/design/selection.md`).
+// cut's) leaves what the removal then the text leave where that removal's caret is a gap, prose
+// the range left of its own (any prose, for a paste), or no block boundary stands where the range
+// started; anywhere else the text stands in a paragraph of its own there, the rest as the removal
+// left it (`docs/design/selection.md`). Before other prose a cut keeps the text start.
 // Every violation must match a class declared below, and the fixed run pins the counts.
 // Miss-analysis: the law's rows were named shapes whose commit never moved the blocks above the
 // range, so a place read before the commit always still named the right block.
@@ -58,9 +59,9 @@ vi.mock('#lib/selection/cross-block/range-removal.js', async (importOriginal) =>
 		await importOriginal<typeof import('#lib/selection/cross-block/range-removal.js')>();
 	return {
 		...actual,
-		emptiedPlace: vi.fn((m: Measured, removed: Removed) => {
+		emptiedPlace: vi.fn((m: Measured, removed: Removed, anyProse: boolean) => {
 			seen.push({ took: removed.taken !== null });
-			return actual.emptiedPlace(m, removed);
+			return actual.emptiedPlace(m, removed, anyProse);
 		})
 	};
 });
@@ -301,8 +302,12 @@ function violations(d: Draw, r: Run): string[] {
 	const out: string[] = [];
 	if (r.over.tree) out.push(`tree: ${r.over.tree}`);
 	const { landing, boundary } = r.removed;
+	// Prose takes the text where the range left it of its own: every drawn range but the wrap end's
+	// stops at or inside a block's text. A paste keeps any prose until its own landing is ruled.
+	const ownProse =
+		landing === 'prose' && (!r.took || d.gesture === 'paste' || d.range !== 'edge..wrap end');
 	// With no boundary where the range started, the text joins the text there, as after the removal.
-	if (d.gesture === 'Enter' || landing === 'gap' || landing === 'prose' || !boundary) {
+	if (d.gesture === 'Enter' || landing === 'gap' || ownProse || !boundary) {
 		if (r.over.blocks !== r.step.blocks)
 			out.push('over the range is not the removal, then the gesture');
 		return out;

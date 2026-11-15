@@ -174,7 +174,12 @@ async function replaceInStep(
 	);
 	if (!removed.wrote && !removed.caret) return 'nothing';
 	const removalCaret = held ?? (removed.wrote ? null : caretAt(ctx, removed.caret!));
-	const place = family !== 'structural' ? emptiedPlace(ctx.bytes.measured(), removed) : null;
+	// A paste writes in any prose until its own landing is ruled; so does a composition over one
+	// block held whole, whose landing waits on a real device.
+	const anyProse =
+		insertion.kind === 'paste' || (family === 'composition' && reachOf(coverage) === 'unit');
+	const place =
+		family !== 'structural' ? emptiedPlace(ctx.bytes.measured(), removed, anyProse) : null;
 	if (place) return insertInEmptiedPlace(ctx, coverage, insertion, place, removalCaret);
 
 	const at = removed.caret;

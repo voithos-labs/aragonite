@@ -63,7 +63,7 @@ describe('a removal names its places on the bytes it leaves', () => {
 		const range = { from: source.indexOf('| 1 |'), to: source.indexOf('# h') };
 		const answer = removalOf(source, range, 'type', 'source', rangeHost(testReading()));
 		expect(answer.source).toBe('abc\n\n> | a |\n> |---|\n> \n# h\n');
-		expect(answer.taken).toEqual({ at: range.from, parent: [1] });
+		expect(answer.taken).toEqual({ at: range.from, parent: [1], own: false });
 	});
 
 	// Miss-analysis: every taken place stood at the range's first byte, the bytes before it kept, so
@@ -73,7 +73,7 @@ describe('a removal names its places on the bytes it leaves', () => {
 		const range = { from: source.indexOf('# text'), to: source.indexOf('below') + 5 };
 		const answer = removalOf(source, range, 'type', 'source', rangeHost(testReading()));
 		expect(answer.source).toBe('intro\n\n> above\n\n```\nlast\n```\n');
-		expect(answer.taken).toEqual({ at: source.indexOf('> # text'), parent: [1] });
+		expect(answer.taken).toEqual({ at: source.indexOf('> # text'), parent: [1], own: false });
 	});
 
 	// The nested item the block was the last of ends before the byte once its blank line is gone.

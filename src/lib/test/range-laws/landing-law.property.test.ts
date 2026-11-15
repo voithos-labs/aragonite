@@ -164,6 +164,40 @@ type Gesture = (typeof GESTURES)[number];
 /** What a written gesture types: no drawn document holds it. */
 const WRITTEN = 'ж';
 
+/** The gestures P2 and P3 bind; a paste waits for its own landing, Shift+Enter and Mod+digit for
+ *  ruling 9. */
+const WRITES = ['a typed key', 'a composition'] as const;
+
+/** The text left of the leaf the range ended in, which written text may stand before. */
+const RESTS: Record<string, string> = {
+	'a leaf’s middle': 'ra',
+	'inside a callout it enters': 'ner'
+};
+
+/** Ruling 8, a later slice: behind a kept opening a typed key writes above the callout, where a
+ *  composition writes before the rest. */
+const restBehindOpening = (d: Draw) => d.end === 'inside a callout it enters';
+
+/** Booked, not ruled: the end leaf's rest takes the place of a block taken whole right under a
+ *  paragraph and runs on into it, as two paragraphs a removal leaves flush rejoin. */
+const restRunsOn = (d: Draw) =>
+	d.end === 'a leaf’s middle' && d.above === 'right under a paragraph';
+
+type Block = { raw: string; children?: readonly Block[] };
+
+/** The text of the leaf holding what a gesture wrote. */
+function writtenLeaf(blocks: readonly Block[]): string | undefined {
+	for (const block of blocks) {
+		const found = block.children?.length
+			? writtenLeaf(block.children)
+			: block.raw.includes(WRITTEN)
+				? block.raw.trimEnd()
+				: undefined;
+		if (found !== undefined) return found;
+	}
+	return undefined;
+}
+
 interface Landing {
 	bytes: string;
 	/** The caret after the gesture: a byte, or the gap it holds. */
@@ -262,6 +296,40 @@ describe('the landing law', () => {
 		);
 	}, 600_000);
 
+	it('P2: text a typed key or a composition writes stands alone or before the end leaf’s rest', async () => {
+		await fc.assert(
+			fc.asyncProperty(
+				arbDraw.filter((d) => !restRunsOn(d)),
+				fc.constantFrom(...WRITES),
+				async (d, g) => {
+					const text = marked(d, STARTS[d.start]);
+					const { editor } = await mounted(text, d.mode);
+					await run(editor, g);
+					takeDevWarns();
+					const rest = RESTS[d.end] ?? '';
+					const leaf = writtenLeaf(editor.instance.__test.getDocument().children);
+					expect([WRITTEN, WRITTEN + rest], `${g} over ${JSON.stringify(text)}`).toContain(leaf);
+				}
+			),
+			params(1.5)
+		);
+	}, 600_000);
+
+	it('P3: a typed key and a composition leave the same bytes', async () => {
+		await fc.assert(
+			fc.asyncProperty(
+				arbDraw.filter((d) => !restBehindOpening(d)),
+				async (d) => {
+					const text = marked(d, STARTS[d.start]);
+					const typed = await land(text, d.mode, 'a typed key');
+					const composed = await land(text, d.mode, 'a composition');
+					expect(composed.bytes, JSON.stringify(text)).toBe(typed.bytes);
+				}
+			),
+			params()
+		);
+	}, 600_000);
+
 	it('P1b: outside its exception, a range from a block taken whole lands as its twin does, every gesture', async () => {
 		await fc.assert(
 			fc.asyncProperty(arbDraw.filter(hasTwin), fc.constantFrom(...GESTURES), async (d, g) => {
@@ -341,4 +409,28 @@ describe('a range from a block taken whole right under a paragraph', () => {
 				const typed = g === 'Shift+Enter' ? '\\\nx' : g === 'Enter' ? '\nx' : `${line}x`;
 				expect(got.lettered).toBe(`above\n\n${typed}\n\nnext\n`);
 			});
+});
+
+// ── Text over a range that leaves no text of its own ─────────────────────────
+
+// Miss-analysis: the rows of text over a range that took its start block ended inside a leaf's
+// text or held a gap, so none ended at a block's end before prose, where the text joined it.
+describe('text written over a range that leaves no text of its own stands in its own paragraph', () => {
+	const ROWS: [string, string, string][] = [
+		['after a block it took whole', 'first\n\n⟦***\n\n# head⟧\n\nlast\n', 'first\n\nж\n\nlast\n'],
+		['right under a heading', '# top\n⟦***\n\n# head⟧\n\nlast\n', '# top\n\nж\n\nlast\n'],
+		[
+			'ending a callout’s body',
+			':::note\nabove\n\n⟦***\n\n# head⟧\n:::\n',
+			':::note\nabove\n\nж\n:::\n'
+		],
+		// The control: text the range left of its own takes the write where it is.
+		['before the end leaf’s rest', 'first\n\n⟦***\n\npa⟧ra\n\nnext\n', 'first\n\nжra\n\nnext\n']
+	];
+	for (const mode of ['source', 'live'] as const)
+		for (const [name, text, written] of ROWS)
+			for (const g of WRITES)
+				it(`${mode}: ${g}, ${name}`, async () => {
+					expect((await land(text, mode, g)).bytes).toBe(written);
+				});
 });

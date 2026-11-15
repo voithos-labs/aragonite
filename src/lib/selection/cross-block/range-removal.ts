@@ -7,6 +7,7 @@
 import type { SourceSplice, SpliceCaret } from '../../action-contracts';
 import type { DocumentView } from '../../core/node-views';
 import type { AnyBlockKind } from '../../core/nodes';
+import { isBlankText } from '../../core/lines';
 import { hidesDelimitersAtCaret } from '../../presentation-mode';
 import {
 	removalOf,
@@ -55,8 +56,8 @@ export interface Removed {
 	/** The core's caret: its byte, and whether text, a block held whole or a boundary sits there. */
 	landed: SpliceCaret | null;
 	/** Where the block the range started in stood, read on the bytes after, when the removal took
-	 *  it. */
-	taken: { at: number; parent: readonly number[] } | null;
+	 *  it; `own` where some of the leaf the range ended in follows it. */
+	taken: { at: number; parent: readonly number[]; own: boolean } | null;
 }
 
 /** How the core names the removal each block gesture makes: a delete no key asked for removes as
@@ -200,9 +201,13 @@ export function commandLandingKind(doc: DocumentView, coverage: RangeCoverage): 
 	return beside ? kindAt(doc, beside) : 'paragraph';
 }
 
-/** Where text over the range opens a paragraph: the boundary the core's place is held at, or the
- *  block the range started in, taken, with the caret off prose. Null types in place. */
-export function emptiedPlace(measured: Measured, removed: Removed): number[] | null {
+/** Where text over the range opens a paragraph: the gap the core's place is held at, or where the
+ *  taken block stood, unless the caret is in prose the range left of its own. Null types in place. */
+export function emptiedPlace(
+	measured: Measured,
+	removed: Removed,
+	anyProse: boolean
+): number[] | null {
 	const { doc: committed } = measured;
 	const { landed, caret, taken } = removed;
 	if (!landed || !removed.wrote) return null;
@@ -211,7 +216,10 @@ export function emptiedPlace(measured: Measured, removed: Removed): number[] | n
 		if (gap) return [...gap.parentPath, gap.index];
 	}
 	// A boundary held as no gap leaves the caret on the text at its byte.
-	if (!taken || (caret && landed.holds !== 'block' && inProse(committed, caret))) return null;
+	const prose = !!caret && landed.holds !== 'block' && inProse(committed, caret);
+	// The range's own: the rest of the leaf it ended in, or an empty line; any prose, for `anyProse`.
+	const own = anyProse || !!taken?.own || (!!caret && emptyLine(committed, caret));
+	if (!taken || (prose && own)) return null;
 	const gap = takenGapOf(measured, taken);
 	return gap && [...gap.parentPath, gap.index];
 }
@@ -220,6 +228,12 @@ export function emptiedPlace(measured: Measured, removed: Removed): number[] | n
 function inProse(doc: DocumentView, point: SelectionPoint): boolean {
 	const leaf = blockNodeAt(doc, point.path);
 	return !leaf || readsAsText(leaf, point.offset);
+}
+
+/** Whether `point` sits in a block with no text, a line the removal left empty. */
+function emptyLine(doc: DocumentView, point: SelectionPoint): boolean {
+	const leaf = blockNodeAt(doc, point.path);
+	return !!leaf && isBlankText(leaf.raw);
 }
 
 function kindAt(doc: DocumentView, path: readonly number[]): AnyBlockKind {

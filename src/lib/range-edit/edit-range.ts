@@ -17,6 +17,7 @@ import {
 	holderAt,
 	isCell,
 	joinsName,
+	leafAt,
 	leafHolding,
 	lineOf,
 	nodeAt,
@@ -157,9 +158,10 @@ export function removalOf(
 }
 
 /** A removal's answer, and where the block the range started in stood when it went whole, read on
- *  the bytes after: text over the range opens a paragraph there when the caret holds no prose. */
+ *  the bytes after. `own` where some of the leaf the range ended in follows it, the one text that
+ *  text written over the range may join. */
 export interface RemovalAnswer extends RangeEditResult {
-	taken?: { at: number; parent: readonly number[] };
+	taken?: { at: number; parent: readonly number[]; own: boolean };
 }
 
 /** Text over a range inside one table cell, for a caller that never pastes elsewhere; null for any
@@ -204,7 +206,18 @@ function answerOf(
 	const caret = caretOf(removed, result, besideOf(gesture, doc, range), started);
 	const at = removed.took;
 	if (at === undefined) return { source: removed.source, caret };
-	return { source: removed.source, caret, taken: { at, parent: parentAt(result, at, started) } };
+	const own = restAfter(doc, range.to);
+	return {
+		source: removed.source,
+		caret,
+		taken: { at, parent: parentAt(result, at, started), own }
+	};
+}
+
+/** Whether byte `to` sits in a leaf's text with some of that text after it. */
+function restAfter(doc: Doc, to: number): boolean {
+	const text = leafAt(doc, to)?.leaf.text;
+	return !!text && to < text.to;
 }
 
 /** The blocks with children a gesture started among, outermost first: those around the block at
