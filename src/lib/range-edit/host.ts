@@ -261,8 +261,19 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 		if (read !== now.measured) reread.set(read.doc, read);
 		return read.doc;
 	};
+	// Each document the gesture read, by its bytes: it reads one answer more than once, and Enter's
+	// own write hands over the tree it built (`enterOut`).
+	const known = new Map<string, DocumentView>();
+	const read = (source: string): DocumentView => {
+		let tree = known.get(source);
+		if (!tree) {
+			tree = current ? readFrom(current, source) : parsedIn(reading, source);
+			known.set(source, tree);
+		}
+		return tree;
+	};
 	return {
-		read: (source) => (current ? readFrom(current, source) : parsedIn(reading, source)),
+		read,
 		layout: (doc) =>
 			doc === current?.measured.doc
 				? (currentLayout ??= current.layout ?? documentLayout(current.measured))
@@ -349,7 +360,10 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 			const layout = documentLayout(measured(out.doc));
 			let block = layout.block(out.caret);
 			while (block && !block.text) block = layout.block([...block.path, 0]);
-			return block?.text ? { source: serialize(out.doc), caret: block.text.from } : null;
+			if (!block?.text) return null;
+			const source = serialize(out.doc);
+			known.set(source, out.doc);
+			return { source, caret: block.text.from };
 		},
 		escaped: escapeMarkdownLiteral,
 		inBodies(doc, path, text) {

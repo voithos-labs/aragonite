@@ -37,13 +37,14 @@ const SHAPES: Record<string, (n: number) => string> = {
 		Array.from({ length: n }, (_, i) => `| cell ${i} with | words |\n`).join('')
 };
 
-const GESTURES: (Gesture | 'caret paste' | 'moving drop')[] = [
+const GESTURES: (Gesture | 'caret paste' | 'ended paste' | 'moving drop')[] = [
 	'copy',
 	'cut',
 	'backspace',
 	'delete',
 	{ paste: 'one\n\ntwo', plain: false, holds: 'text' },
 	'caret paste',
+	'ended paste',
 	'moving drop'
 ];
 
@@ -51,6 +52,8 @@ const GESTURES: (Gesture | 'caret paste' | 'moving drop')[] = [
  *  block bytes its in-block writes are handed. */
 function counted(host: RangeHost, current: DocumentView) {
 	const work = { reads: 0, laid: 0, bytes: 0 };
+	// The host reads a document once per gesture, however often the gesture asks for its bytes.
+	const sources = new Set<string>();
 	const handed = (doc: DocumentView, path: readonly number[]) =>
 		(work.bytes += blockNodeAt(doc, path)!.raw.length);
 	const { leaf } = host;
@@ -58,7 +61,8 @@ function counted(host: RangeHost, current: DocumentView) {
 		...host,
 		read: (source) => {
 			const tree = host.read(source);
-			if (tree !== current) work.reads++;
+			if (tree !== current && !sources.has(source)) work.reads++;
+			sources.add(source);
 			return tree;
 		},
 		layout: (doc) => {
@@ -90,13 +94,16 @@ function counted(host: RangeHost, current: DocumentView) {
 function cost(source: string, named: (typeof GESTURES)[number]) {
 	const start = source.indexOf('with', Math.floor(source.length / 2));
 	const from = start;
-	const to = named === 'caret paste' ? start : source.indexOf('with', from + 10) + 2;
+	const caretOnly = named === 'caret paste' || named === 'ended paste';
+	const to = caretOnly ? start : source.indexOf('with', from + 10) + 2;
 	const gesture: Gesture =
 		named === 'caret paste'
 			? { paste: 'one\ntwo', plain: false, holds: 'text' }
-			: named === 'moving drop'
-				? { drop: source.lastIndexOf('with', from - 1), copy: false }
-				: named;
+			: named === 'ended paste'
+				? { paste: 'one\n\n', plain: false, holds: 'text' }
+				: named === 'moving drop'
+					? { drop: source.lastIndexOf('with', from - 1), copy: false }
+					: named;
 	const reading = testReading();
 	const tree = readAsOpened(source, { grammar: reading.grammar, scope: 'document' });
 	const { work, host } = counted(rangeHost(reading, { source, measured: measured(tree) }), tree);
@@ -134,9 +141,9 @@ describe('work per gesture', () => {
 			it(`${shape}, ${JSON.stringify(gesture)}`, () => {
 				const small = cost(make(500), gesture);
 				const large = cost(make(2000), gesture);
-				expect(large.reads, 'documents read beside the editor’s own').toBeLessThanOrEqual(
-					gesture === 'copy' ? 0 : 3
-				);
+				// An ended paste reads its clipboard with and without the ending, and what each Enter left.
+				const reads = gesture === 'copy' ? 0 : gesture === 'ended paste' ? 5 : 3;
+				expect(large.reads, 'documents read beside the editor’s own').toBeLessThanOrEqual(reads);
 				const declared = DECLARED[shape] ?? {};
 				// A copy reads no answer, so it parses nothing whatever the shape.
 				const parses = gesture === 'copy' ? undefined : declared.parsed;
