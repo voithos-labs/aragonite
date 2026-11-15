@@ -13,11 +13,13 @@ import type { PasteHost } from './host';
 import type { LaidBlock } from './layout';
 import {
 	closedByOwnLine,
+	containersHolding,
 	contentEnd,
 	factsOf,
 	findWithin,
 	isCell,
 	joinsName,
+	lastLine,
 	leafHolding,
 	nodeAt,
 	parentOf,
@@ -282,8 +284,20 @@ function endsOnList(doc: Doc, text: string): boolean {
 	return !!last && factsOf(read, last).lines === 'items';
 }
 
-/** `pasteAt`, noting in `seen` the clipboard as blocks where the landing read it so. */
+/** `pasteAt`, noting in `seen` the clipboard as blocks where the landing read it so; each container
+ *  around what landed then writes its own lines for what it holds. */
 function landedAt(
+	doc: Doc,
+	from: number,
+	to: number,
+	pasted: Pasted,
+	seen: { blocks?: Doc }
+): Edit {
+	return fencesGrown(doc, from, to, bytesLanded(doc, from, to, pasted, seen));
+}
+
+/** The paste's bytes as they land, before any container around them writes its own lines. */
+function bytesLanded(
 	doc: Doc,
 	from: number,
 	to: number,
@@ -313,7 +327,7 @@ function landedAt(
 		if (from === to) return underBlock(doc, leaf, to, () => blocks().source, lf.endsWith('\n'));
 		// A range in it goes first, as the block's own write.
 		const bare = doc.source.slice(0, from) + doc.source.slice(to);
-		return landedAt(
+		return bytesLanded(
 			{ ...readDoc(bare, doc.host, doc.mode), ending: doc.ending },
 			from,
 			from,
@@ -336,6 +350,64 @@ function landedAt(
 	const below = leaf.to + edit.source.length - doc.source.length;
 	const join = { from, to, upper: leaf, lower, rewritten: { upper: { block: leaf, raw } } };
 	return { source: apartAt(doc, edit.source, below, join, true), caret: edit.caret };
+}
+
+/** `edit`, a paste over `[from, to)` of `doc`, with each fenced container around it writing its own
+ *  lines for what it holds (`RangeHost.rewritten`): a `:::` fence grows past a closing line in it. */
+function fencesGrown(doc: Doc, from: number, to: number, edit: Edit): Edit {
+	// The bytes the landing changed, which can reach past the range it landed over.
+	const shorter = Math.min(doc.source.length, edit.source.length);
+	const head = Math.min(from, sharedPrefixLength(doc.source, edit.source, shorter));
+	const tail = sharedSuffixLength(doc.source, edit.source, shorter - head);
+	const end = Math.max(to, doc.source.length - tail);
+	const around = (c: LaidBlock) =>
+		c.from < head && end <= lastLine(c).from && factsOf(doc, c).lines === 'fenced';
+	let out = edit;
+	// Innermost first, so an outer fence counts the lines an inner one grew.
+	for (const c of containersHolding(doc, head).filter(around).reverse()) {
+		const raw = ownBytes(doc, c, out.source, c.to + out.source.length - doc.source.length);
+		const written = raw === null ? raw : doc.host.rewritten(doc.tree, c.path, raw);
+		const lines = written === null ? out : linesWritten(out, c.from, raw!, written);
+		// A write of one block the landing named would leave other bytes.
+		if (lines !== out) out = { ...lines, leaf: undefined };
+	}
+	return out;
+}
+
+/** The bytes of the container `c` of `doc` in `source`, up to `to`, as the container holds them: the
+ *  markers of the containers around it off each line after its first; null where a line has none. */
+function ownBytes(doc: Doc, c: LaidBlock, source: string, to: number): string | null {
+	const outer = continuation(doc, c.from, (x) => x.path.length < c.path.length);
+	const lines = displayLines(source.slice(c.from, to)).map(({ text, ending }, i) => {
+		if (i === 0 || text.startsWith(outer)) return text.slice(i === 0 ? 0 : outer.length) + ending;
+		return text === '' || text === outer.trimEnd() ? ending : null;
+	});
+	return lines.includes(null) ? null : lines.join('');
+}
+
+/** `edit` with each line of the block whose bytes start at `start` and are `raw` written as the same
+ *  line of `written`, behind the markers it stands behind; unchanged where the line counts differ. */
+function linesWritten(edit: Edit, start: number, raw: string, written: string): Edit {
+	const [was, is] = [displayLines(raw), displayLines(written)];
+	if (was.length !== is.length) return edit;
+	const { source } = edit;
+	const parts: string[] = [];
+	let read = 0;
+	let { caret } = edit;
+	for (const [i, line] of was.entries()) {
+		const end = start + lineRest(source, start).length;
+		const from = end - line.text.length;
+		if (source.slice(from, end) !== line.text) return edit;
+		if (line.text !== is[i].text) {
+			parts.push(source.slice(read, from), is[i].text);
+			read = end;
+			if (caret > from) caret += is[i].text.length - line.text.length;
+		}
+		start = lineEnd(source, end) + 1;
+	}
+	if (read === 0) return edit;
+	parts.push(source.slice(read));
+	return { ...edit, source: parts.join(''), caret };
 }
 
 /** `edit` with the list `pasted` ends on joined, as items, to `lower`, a list of its own type flush
@@ -725,9 +797,9 @@ function blocksOpened(
 	const tops = read.tree.children.flatMap((b, i) => (isBlankText(b.raw) ? [] : [i]));
 	const last = tops.length ? read.layout.block([tops.at(-1)!]) : undefined;
 	const joins = last && factsOf(read, last).joins;
-	// One paragraph landed as text, whose ending opened its line already.
+	// One paragraph landed as text, whose ending opened its line already; a closing line takes none.
 	if (!joins || joins === 'never' || (tops.length === 1 && joins === 'text')) return edit;
-	return ownLine(doc, to, edit);
+	return closedByOwnLine(read, last!) ? edit : ownLine(doc, to, edit);
 }
 
 /** `edit`, whose last line ending opened the caret's line at a container's last block, with the

@@ -608,6 +608,9 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 	// A one-line source shown while it's edited, given a line break, takes the shape its write rule
 	// gives it (a `$$` block's fence lines of its own), by bytes the rows hold.
 	if (shapedOnBreak(read, input.at, input.text, host)) return [];
+	// A line that could close a fenced container around the caret grows its fence, as its kind writes
+	// it, by bytes the rows hold (`paste-fence-growth.test.ts`).
+	if (growsFence(read, input.at, input.text, host)) return [];
 	const want = expectedPaste(read, input.at, input.text, host, input.held);
 	if (want.shape === 'other' || want.bytes.includes(got.source)) return [];
 	// A last line ending at a container's last block writes the container's empty line under the caret's.
@@ -688,6 +691,15 @@ function shapedOnBreak(read: Read, at: number, text: string, host: CheckHost): b
 	const leaf = leafAt(read, at);
 	if (!leaf || host.facts(leaf.type).textPosition !== 'while-source-shows') return false;
 	return text.includes('\n') && !read.source.slice(leaf.from, leaf.to).trimEnd().includes('\n');
+}
+
+/** Whether a line of `text` could close a fenced container holding byte `at`. */
+function growsFence(read: Read, at: number, text: string, host: CheckHost): boolean {
+	const lines = lf(text).split('\n');
+	return containersHolding(read, at).some((c) => {
+		const fence = host.facts(c.type).lines === 'fenced' ? fenceOf(read, c, host) : null;
+		return !!fence && lines.some((line) => fence.mayClose(line));
+	});
 }
 
 /** Whether byte `at` stands in the text of a list item's own block, text that isn't literal. */
