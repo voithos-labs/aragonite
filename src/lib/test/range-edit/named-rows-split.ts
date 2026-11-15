@@ -969,6 +969,14 @@ const LIST_ENDING_ROWS: NamedRow[] = [
 		paste('1. q\n2. r\n'),
 		'- a\n1. q\n2. r\n- \n'
 	),
+	// Miss-analysis: every opened item began with plain text, where a caret a byte back, on the
+	// marker's space, is moved to the same place: no row pinned the caret the ending leaves.
+	{
+		name: 'an ending before text that opens a heading leaves the caret before that text',
+		source: '- a⟦⟧# b\n- c\n',
+		gesture: paste('x\n'),
+		expect: { source: '- ax\n- # b\n- c\n', caret: { at: 7, holds: 'text', line: true } }
+	},
 	...both('numbered on', '1. a⟦⟧b\n', paste('- q\n- r\n'), '1. a\n- q\n- r\n2. \n3. b\n'),
 	...both(
 		'a to-do host opens an unchecked to-do',
