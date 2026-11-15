@@ -102,6 +102,23 @@ describe.each(TEXT_HOSTS)('in $name', (host) => {
 	);
 });
 
+// Miss-analysis: at every nested row the offset a letter takes held the paste too, so none asked
+// where a paste goes when its bytes would run into the construct beside that offset.
+describe('a paste the screen would not show where a letter goes', () => {
+	it.each([
+		['before the inner span', 4, 'a `c`~~`b`~~ c\n'],
+		['after it', 7, 'a ~~`b`~~`c` c\n']
+	])('a code span at a code span in strikethrough, %s, lands outside both', async (_, at, want) => {
+		const [host] = TEXT_HOSTS;
+		const editor = mountCase('a ~~`b`~~ c\n', 'live');
+		placeCaret(host.el(editor), at);
+
+		await pasteGesture(editor, { 'text/plain': '`c`' }, 'key');
+
+		expect(editor.source()).toBe(want);
+	});
+});
+
 describe('a syntax character typed at a hidden edge', () => {
 	const typed: [string, string, string][] = [
 		["an autolink's closer", '*', 'a <http://x.y>** z\n'],

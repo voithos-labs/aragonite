@@ -182,11 +182,14 @@ export async function landAnswer(
 		ctx.controller.typingKeystroke(undo.path, undo.offset, undo.path.join(), 'entry', () =>
 			splice('join-typing')
 		);
-	const wrote = !leaf
-		? await splice()
+	const commit = !leaf
+		? () => splice()
 		: ctx.pasteCoordinator.landsAsWritten(leaf.path, leaf.raw)
-			? await writeLeaf(ctx, leaf, undo)
-			: await asTyped();
+			? () => writeLeaf(ctx, leaf, undo)
+			: asTyped;
+	// The caret is held past the check: where it lands can set off a write of the block's own (a
+	// bare fence given its body line, an emptied heading's marker dropped), which is no paste's.
+	const [wrote, landing] = await ctx.controller.holdLandings(commit);
 	if (wrote) {
 		const { grammar } = ctx.reading;
 		assertPasteLanded(
@@ -194,6 +197,7 @@ export async function landAnswer(
 			() => ctx.bytes.source()
 		);
 	}
+	await landing?.place();
 	return wrote;
 }
 

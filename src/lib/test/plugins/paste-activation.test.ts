@@ -6,12 +6,16 @@
 import { afterEach, beforeAll, beforeEach, describe, it, expect } from 'vitest';
 import { installPlugins } from '#lib';
 import { definePlugin, registerPasteTransform } from '#lib/plugin.js';
+import { registerPasteSurface } from '#lib/tree-operations/paste-surfaces.js';
+import { cellAt } from '../blocks/table/mount-table';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
 	mountEditor
 } from '#lib/test/harness/mount-editor.svelte.js';
 import {
+	StubDataTransfer,
+	dispatchClipboardEvent,
 	installClipboardEvents,
 	installSystemClipboard
 } from '#lib/test/harness/clipboard-events.js';
@@ -73,11 +77,23 @@ describe('a paste into a mounted editor reads that editor’s plugins', () => {
 				transform: (text) => (text.startsWith('# ') ? text.toUpperCase() : null)
 			})
 	});
+	/** What `gatekeeper`'s paste surface was asked, in order. */
+	let asked: string[] = [];
+	const gatekeeper = definePlugin({
+		name: 'gatekeeper',
+		setup: () =>
+			registerPasteSurface({
+				kind: 'paragraph',
+				onClipPaste: async () => (asked.push('ahead'), false),
+				pastedText: (text) => (asked.push('text'), text)
+			})
+	});
 	beforeAll(installLayoutStubs);
 	beforeEach(() => {
-		installPlugins([shouter]);
+		installPlugins([shouter, gatekeeper]);
 		installClipboardEvents();
 		installSystemClipboard();
+		asked = [];
 	});
 	afterEach(destroyMountedEditors);
 
@@ -108,4 +124,39 @@ describe('a paste into a mounted editor reads that editor’s plugins', () => {
 		const editor = await pasted([...plugins], '# title\n');
 		expect(editor.source().startsWith(head)).toBe(true);
 	});
+
+	// Miss-analysis: the transform rows pasted at the top level, and blocks pasted out of a table
+	// cell run the transforms from the cell's own answer, a second call site.
+	it.each([
+		['lists it', [shouter], '# TITLE'],
+		['lists another plugin, not it', [parrot], '# title']
+	] as const)(
+		'runs the transform on blocks pasted out of a cell only where the editor %s',
+		async (_, plugins, head) => {
+			const source = '| a |\n| - |\n| b |\n';
+			const editor = mountEditor<EditorTestSurface>({ source, plugins: [...plugins] });
+			await editor.settle();
+			const cell = cellAt(editor, 1, 0);
+			cell.focus();
+			window.getSelection()!.collapse(cell.firstChild, 1);
+			// The event alone: the key's own turn ends before a browser sends it.
+			const clip = new StubDataTransfer({ 'text/plain': '# title\n\npara' });
+			dispatchClipboardEvent(cell, 'paste', clip);
+			await editor.settle();
+			expect(editor.source()).toContain(`${head}\n`);
+		}
+	);
+
+	// Miss-analysis: the row that asked a plugin's paste surface only where its plugin is listed
+	// drove the dispatcher the range-edit core replaced, and no live row registered one.
+	it.each([
+		['lists it', [gatekeeper], ['ahead', 'text']],
+		['lists another plugin, not it', [parrot], []]
+	] as const)(
+		'asks a plugin’s paste surface only where the editor %s',
+		async (_, plugins, said) => {
+			await pasted([...plugins], 'word');
+			expect(asked).toEqual(said);
+		}
+	);
 });

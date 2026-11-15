@@ -90,6 +90,7 @@ function harness(options: HarnessOptions = {}) {
 					await run();
 				},
 				flushDebouncedCheckpoint: () => {},
+				holdLandings: async (run: () => Promise<unknown>) => [await run(), null],
 				commitSource: async (splice: SourceSplice) => (
 					commits.push(splice),
 					options.during?.(),

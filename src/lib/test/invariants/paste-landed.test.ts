@@ -9,6 +9,8 @@ import { installPlugins } from '#lib/schema/plugin-install.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
 import { splicedBytes } from '#lib/tree-operations/spliced-openers.js';
 import { checkPasteLanded } from '#lib/invariants/paste-landed.js';
+import { leafWriteLands } from '#lib/editor-actions/paste-coordinator.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
 import { registerDefaultContextActions } from '#lib/components/menu/default-context-actions.js';
 import {
 	destroyMountedEditors,
@@ -59,6 +61,30 @@ describe('the check', () => {
 	});
 });
 
+// Miss-analysis: since the core writes a closing fence line through the code block's rule, no
+// built-in rule respells a paste's bytes and keeps its kind, so no row held the trial's compare.
+describe('the trial of a block’s own write', () => {
+	it('refuses a write whose rule respells the bytes, though the block reads back as its kind', () => {
+		const kind = testLeaf('shouted-line', (kind) => ({
+			opener: {
+				priority: 25,
+				interruptsParagraph: false,
+				tryOpen: (ctx) =>
+					ctx.line.text.startsWith('@@ ')
+						? { node: { kind, leadingTrivia: ctx.leadingTrivia, raw: ctx.line.raw }, consumed: 1 }
+						: null
+			},
+			rawWrite: { normalize: (raw) => raw.toUpperCase(), mapOffset: (_raw, offset) => offset }
+		}));
+		const reading = { grammar: defaultGrammarView, scope: 'document' } as const;
+		const doc = readAsOpened('@@ A\n\nAfter\n', reading);
+		expect(doc.children[0].kind).toBe(kind);
+
+		expect(leafWriteLands(doc, [0], '@@ xyA\n', defaultGrammarView)).toBe(false);
+		expect(leafWriteLands(doc, [0], '@@ XYA\n', defaultGrammarView)).toBe(true);
+	});
+});
+
 describe('in a running editor', () => {
 	beforeAll(installLayoutStubs);
 	beforeEach(() => {
@@ -92,10 +118,6 @@ describe('in a running editor', () => {
 
 	// A callout's rebuild puts a blank line over a body a delete emptied.
 	it('a callout body', () => forcedOnlyWarns(':::note\n\n:::\n', [0, 1], 0));
-	// No shape is left where the rule alone rewrites the core's bytes: the core writes a closing line
-	// through that rule (`range-edit/paste-literal-fence.test.ts`), so this row has no witness.
-	it.skip('a closing fence', () => forcedOnlyWarns('```js\ncode\n```\n\nAfter\n', [0], 11));
-
 	// A paste that makes the paragraph a table: the block's own write would put the caret past the
 	// cell's text, where the core's caret ends the pasted text.
 	it.each(['source', 'live'] as const)('a table the paste completes, %s', async (mode) => {
@@ -107,5 +129,53 @@ describe('in a running editor', () => {
 		await pressHardwareKey(document.activeElement as HTMLElement, { key: 'Z' });
 		await editor.settle();
 		expect(editor.source()).toBe('|-|Za\n|-|-|\n\nAfter\n');
+	});
+
+	// Miss-analysis: the check read the document once the paste's caret had landed, and no row's
+	// landing set off a write of the editor's own, which the check then took for the paste's bytes.
+	describe('a paste whose landing sets off the editor’s own next write fires nothing', () => {
+		// [name, mode, source, block, offset, clipboard, the ops where the second write is the row's own]
+		const ROWS = [
+			[
+				'a bare fence in live mode, given its body line as the caret arrives',
+				'live',
+				'<!-- c -->\n\nAfter\n',
+				0,
+				0,
+				'```',
+				['paste', 'input']
+			],
+			[
+				'a bare fence on an empty line in live mode',
+				'live',
+				'alpha\n\n\n\nAfter\n',
+				1,
+				0,
+				'```',
+				['paste', 'input']
+			],
+			// The bytes and the second write here are the core's to change, so the row asks the check alone.
+			[
+				'a setext line at a heading’s text start',
+				'source',
+				'# Title here\n\nAfter\n',
+				0,
+				2,
+				'\n===',
+				null
+			]
+		] as const;
+		it.each(ROWS)('%s', async (_, mode, source, block, offset, clip, written) => {
+			const editor = mountCase(source, mode);
+			await editor.settle();
+			placeCaret(surfaceAt(editor, [block]), offset);
+			await editor.settle();
+			const ops: string[] = [];
+			editor.instance.getEvents().on('edit', (event) => ops.push(event.op));
+			await pasteGesture(editor, { 'text/plain': clip }, 'key');
+			await editor.settle();
+			expect(takeDevWarns().map((warn) => warn.tag)).toEqual([]);
+			if (written) expect(ops).toEqual(written);
+		});
 	});
 });
