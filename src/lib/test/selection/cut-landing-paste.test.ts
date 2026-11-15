@@ -70,6 +70,20 @@ it('the cut’s text pasted as plain text declines its entry, and its caret with
 	expect(editor.source()).toBe('intro\n\n- text\n\n  \\*\\*\\*===\n\nlast\n');
 });
 
+// Here the cut's caret is the one the editor holds, so the place is the entry's own and only the
+// core's reading of a plain paste declines it.
+it('the cut’s text pasted as plain text where its entry fits still declines it', async () => {
+	const source = '**a**\n\n**b**\n';
+	const editor = mountCase(source, 'live');
+	await editor.settle();
+	const m = measured(editor.instance.__test.getDocument());
+	const range = { anchor: pointAtByte(m, 0)!, focus: pointAtByte(m, source.length - 1)! };
+	expect(await placeOwnedRange(editor, range)).toBe(true);
+	const payload = await clipboardGesture(editor, 'cut', 'key');
+	await pastePlainGesture(editor, payload['text/plain']);
+	expect(editor.source()).toBe('\\*\\*a\\*\\*\n\n\\*\\*b\\*\\*\n');
+});
+
 it('another entry of the editor’s own goes where the caret is', async () => {
 	const { editor } = await cutRule();
 	const landing = editor.instance.getSelection()!;

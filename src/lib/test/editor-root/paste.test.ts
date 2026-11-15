@@ -33,6 +33,12 @@ interface HarnessOptions {
 	refuses?: boolean;
 	plain?: boolean;
 	stale?: boolean;
+	/** The document's stamp, for a row that has a swap retire it mid-paste. */
+	stamp?: { live: boolean };
+	/** Runs inside every commit, and as a paragraph opens under a block. */
+	during?: () => void;
+	/** Whether a paragraph opened under a block lands. */
+	opens?: boolean;
 }
 
 const SOURCE = 'hello\n\n---\n\nworld\n';
@@ -84,7 +90,11 @@ function harness(options: HarnessOptions = {}) {
 					await run();
 				},
 				flushDebouncedCheckpoint: () => {},
-				commitSource: async (splice: SourceSplice) => (commits.push(splice), true)
+				commitSource: async (splice: SourceSplice) => (
+					commits.push(splice),
+					options.during?.(),
+					true
+				)
 			},
 			selection,
 			getDoc: () => doc,
@@ -92,6 +102,7 @@ function harness(options: HarnessOptions = {}) {
 			pasteCoordinator: {
 				writeLeaf: (path: readonly number[], raw: string, _before: number, caret: number) => {
 					leafWrites.push({ path: [...path], raw });
+					options.during?.();
 					return Object.assign(Promise.resolve(true), { admitted: true, keepsCaret: false, caret });
 				},
 				landsAsWritten: (path: readonly number[], raw: string) =>
@@ -105,14 +116,18 @@ function harness(options: HarnessOptions = {}) {
 			}
 		} as never,
 		pasteOverRange: async (clip) => (ranged.push(clip.text), true),
-		insertParagraph: async (boundary) => (opened.push(boundary), false),
+		insertParagraph: async (boundary) => {
+			opened.push(boundary);
+			options.during?.();
+			return options.opens ?? false;
+		},
 		getBlockComponent: (path) => (blocks.get(path.join()) as BlockComponent) ?? null,
 		getBlockElByPath: (path) => els.get(path.join()) ?? null,
 		plainPaste: () => options.plain ?? false,
 		onPasteImage: () => options.onPasteImage,
 		events,
 		isHostChrome: (node) => !!node && header.contains(node),
-		stamps: { current: () => ({ live: !options.stale }) } as never
+		stamps: { current: () => options.stamp ?? { live: !options.stale } } as never
 	});
 
 	function fire(
@@ -358,6 +373,84 @@ describe('where a paste is aimed', () => {
 
 		expect(await h.paste.paste({ text: 'x', plain: false })).toBe(false);
 		expect(h.commits).toEqual([]);
+	});
+});
+
+// Miss-analysis: the only swap row had the document replaced before the paste began, so no row
+// retired it while a paste waited on the clipboard, an import or its own commit.
+describe('a paste whose document a swap replaced on the way', () => {
+	/** A block at `path` holding the caret; `swap` retires the document's stamp. */
+	function swappable(options: (swap: () => void) => HarnessOptions = () => ({}), path = [0]) {
+		const stamp = { live: true };
+		const swap = () => void (stamp.live = false);
+		const h = harness({ ...options(swap), stamp });
+		const el = h.block(path, { preparePaste: answers(0) });
+		el.tabIndex = 0;
+		el.focus();
+		return { h, el, swap };
+	}
+
+	it('from a menu, writes nothing once the swap came while the clipboard was read', async () => {
+		const { h, swap } = swappable();
+		const aimed = h.paste.aim()!;
+		swap();
+		expect(await aimed({ text: 'x', plain: false })).toBe(false);
+		expect([h.commits, h.leafWrites]).toEqual([[], []]);
+	});
+
+	it.each([
+		['a menu', (h: ReturnType<typeof harness>) => h.paste.aim()!({ text: 'x', plain: false })],
+		[
+			'insertMarkdown',
+			(h: ReturnType<typeof harness>) => h.paste.paste({ text: 'x', plain: false })
+		]
+	])('from %s, answers false once the swap came while it landed', async (_, paste) => {
+		const { h } = swappable((swap) => ({ during: swap }));
+		expect(await paste(h)).toBe(false);
+		expect(h.commits.length + h.leafWrites.length).toBe(1);
+	});
+
+	it('below a block, pastes nothing once the swap came while the paragraph opened', async () => {
+		const { h } = swappable((swap) => ({ opens: true, during: swap }), [1]);
+		expect(await h.paste.paste({ text: 'x', plain: false }, { below: true })).toBe(false);
+		expect(h.opened).toEqual([2]);
+		expect([h.commits, h.leafWrites]).toEqual([[], []]);
+	});
+
+	it('below a block, answers false once the swap came while the paste landed', async () => {
+		let opened = false;
+		const { h } = swappable(
+			(swap) => ({ opens: true, during: () => (opened ? swap() : (opened = true)) }),
+			[1]
+		);
+		expect(await h.paste.paste({ text: 'x', plain: false }, { below: true })).toBe(false);
+		expect(h.commits.length + h.leafWrites.length).toBe(1);
+	});
+
+	describe('with an image the host imports', () => {
+		let answer: (markdown: string) => void = () => {};
+		const importing = () => ({
+			onPasteImage: () => new Promise<string>((resolve) => (answer = resolve))
+		});
+
+		it('writes nothing once the swap came while the host imported it', async () => {
+			const { h, el, swap } = swappable(importing);
+			h.fire(el, { text: '', files: [pngFile()] });
+			swap();
+			answer('![[shot.png]]');
+			await vi.waitFor(() => expect(h.errors).toHaveLength(1));
+			expect([h.commits, h.leafWrites]).toEqual([[], []]);
+		});
+
+		it('leaves alone a range the new document came to hold', async () => {
+			const { h, el, swap } = swappable(importing);
+			h.fire(el, { text: '', files: [pngFile()] });
+			swap();
+			h.selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [2], offset: 5 });
+			answer('![[shot.png]]');
+			await vi.waitFor(() => expect(h.errors).toHaveLength(1));
+			expect(h.ranged).toEqual([]);
+		});
 	});
 });
 
