@@ -9,7 +9,7 @@ test.describe('edit events per paste op', () => {
 		const editor = new EditorPage(page);
 		await editor.goto();
 
-		await test.step('nested paste of multi-block content inside a list item emits exactly one', async () => {
+		await test.step('blocks pasted at the end of a list item’s text emit exactly one', async () => {
 			await nextRow(editor, '- Item 1\n- Item 2\n');
 			const first = editor.page.locator('[contenteditable="true"]', { hasText: 'Item 1' });
 			await first.click();
@@ -25,7 +25,7 @@ test.describe('edit events per paste op', () => {
 			expect(count).toBe(1);
 		});
 
-		await test.step('container-matching paste into list with empty target emits exactly one', async () => {
+		await test.step('a list pasted over a list item’s whole text emits exactly one', async () => {
 			await nextRow(editor, '- alpha\n- beta\n');
 			const second = editor.page.locator('[contenteditable="true"]', { hasText: 'beta' });
 			await second.click();
@@ -42,7 +42,7 @@ test.describe('edit events per paste op', () => {
 			expect(count).toBe(1);
 		});
 
-		await test.step('container-matching merge over a non-empty cross-block target emits exactly two', async () => {
+		await test.step('a list pasted over a range across two items emits exactly two', async () => {
 			await nextRow(editor, '- alpha\n- beta\n');
 			const before = await editor.bridge.getSource();
 			const first = editor.page.locator('[contenteditable="true"]', { hasText: 'alpha' });
@@ -58,7 +58,7 @@ test.describe('edit events per paste op', () => {
 				await editor.bridge.waitForSourceWith((s, b) => s !== b && s.includes('y'), before);
 			});
 
-			// The cross-block delete and the merge-paste each emit one event.
+			// The removal and the paste each emit one event.
 			expect(count).toBe(2);
 		});
 	});

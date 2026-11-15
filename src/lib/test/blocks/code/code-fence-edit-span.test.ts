@@ -3,13 +3,11 @@
 // mode paints the fence lines, its body part where it hides them, and nothing without a body part.
 // Miss-analysis: each route kept its own copy of the span and its own tests, and the removal row
 // ran a no-op command, so the line break Enter writes after a declined removal went unseen.
-import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { asDomTextOffset } from '#lib/core/coordinate-spaces.js';
 import { createRangeAtDomTextOffsets } from '#lib/browser/offsets.js';
-import { codePasteSurface } from '#lib/components/blocks/code/code-paste-surface.js';
 import type { BlockComponent } from '#lib/block-component.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
-import { ensurePasteSurface } from '#lib/test/harness/paste-surface.js';
 import { settleEditor } from '#lib/test/harness/settle.js';
 import { mountCode, type MountedCode } from './mount-code';
 
@@ -151,7 +149,6 @@ function firstWrite(): { text: string; caret: number } | null {
 	return call ? { text: (call[1] as string).replace(/\n$/, ''), caret: call[5] as number } : null;
 }
 
-beforeAll(() => ensurePasteSurface(codePasteSurface));
 afterEach(async () => {
 	await mounted.dispose();
 	document.body.innerHTML = '';

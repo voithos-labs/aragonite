@@ -21,7 +21,6 @@ export function createPasteCoordinator(
 
 	const coordinator: PasteCommitCoordinator = {
 		commitMultiScope: controller.commitMultiScope,
-		getDocScope: controller.getDocScope,
 		// Handed over, so a module under `tree-operations/` reads mounted state without importing it.
 		resolveState: getStateForNode,
 		commitLeafText: (leafPath, text, opts) => commitLeafTextAt(root, leafPath, text, opts),

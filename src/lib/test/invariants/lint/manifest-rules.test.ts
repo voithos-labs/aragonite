@@ -201,14 +201,6 @@ const REWRITE_MODULES: Record<string, string> = {
 		'what a removing rewrite’s candidate shows, read where it is stored'
 };
 
-/** Every file permitted to name `preDelete` at all; matching the bare name also catches an
- *  aliased import, a bracket access and a helper that forwards it. */
-const PRE_DELETE_NAMERS: Record<string, string> = {
-	'src/lib/tree-operations/paste-surfaces.ts': 'the surface contract declaring the parameter',
-	'src/lib/components/blocks/code/code-paste-surface.ts':
-		'the one splicer: a fenced body has no inline constructs to clean'
-};
-
 /** Only the render-path reader in `visibility.ts` answers which marker spans a hiding mode drops.
  *  `.svelte` files sit this rule out: their styles belong to the hidden-run rule above. */
 const MARKER_FAMILY_NAMERS: Record<string, string> = {
@@ -590,21 +582,6 @@ const MANIFESTS: ManifestRule[] = [
 		reason: 'a second caller of a live rewrite is a second opinion on what a join or split writes',
 		hits: ['cleanLiveJoinSeam(join) ?? literal'],
 		misses: ['// rebalanceLiveSplit() answers']
-	},
-	{
-		id: 'G4.33 the files naming preDelete are the declared ones',
-		matches: /(?<![\w.'"])preDelete\b/,
-		declared: PRE_DELETE_NAMERS,
-		reason:
-			'naming the range at all is the tripwire: an alias, a bracket index and a helper forward all still spell it once',
-		hits: [
-			'raw.slice(0, preDelete.start) + raw.slice(preDelete.end)',
-			'const { start, end } = preDelete;',
-			'const pd = preDelete; use(pd.start);',
-			"const s = preDelete['start'];",
-			'const cut = applyPreDelete(node, display, preDelete, offset, seam);'
-		],
-		misses: ['// preDelete is the range the paste deletes first', 'const myPreDelete = ranges;']
 	},
 	{
 		id: 'G4.12 exactly the declared files intercept a plain destructive key under blocks/text',

@@ -535,19 +535,16 @@ const RULES: FileRule[] = [
 		misses: ['registerBlockKind(kind, { rawWrite: fencedCodeWrite });', 'rawWrite: mathBlockWrite,']
 	},
 	{
-		id: 'G4.194 a block reaches the clipboard steps through its surface, and dispatches no paste',
-		matches: /(?<!function\s)\b(?:createClipboardHandlers|pasteDispatch)\s*\(/,
+		id: 'G4.194 a block reaches the clipboard steps through its surface',
+		matches: /(?<!function\s)\bcreateClipboardHandlers\s*\(/,
 		allowed: {
 			'src/lib/components/blocks/editable/editable-surface.ts':
 				'`clipboard`: the surface fills in the editor-wide half for every block'
 		},
 		reason:
 			'a block that builds its own clipboard copies the editor-wide fields and the caret park, and a copy drifts: go through `editableSurface.clipboard`; a paste goes through the editor’s one entry (`editor-root/paste.ts`), where the block only answers `preparePaste`',
-		hits: ['const c = createClipboardHandlers({ rangeArm });', 'await pasteDispatch(input, ctx);'],
-		misses: [
-			'export function createClipboardHandlers(deps) {}',
-			'export async function pasteDispatch(\n\tinput,'
-		]
+		hits: ['const c = createClipboardHandlers({ rangeArm });'],
+		misses: ['export function createClipboardHandlers(deps) {}']
 	},
 	{
 		id: 'G4.201 one painter puts the selection wash on a widget',
@@ -1835,7 +1832,7 @@ const RULES: FileRule[] = [
 	}
 ];
 
-// ── G4.89, G4.90 one in-leaf range replace ─────────────────────────────────
+// ── G4.89 one in-leaf range replace ──────────────────────────────────────────
 
 /** The directories and files holding live editing paths; a fenced code body has no inline constructs. */
 const SPLICE_PATHS = [
@@ -1853,10 +1850,6 @@ const SPLICE_PROBE = `${SOURCE_DIR.textBlock}probe.ts`;
 
 /** One variable's bytes before a cut joined to the same variable's bytes after it. */
 const SAME_SOURCE_SPLICE = /\b([\w.]+)\.slice\(\s*0\s*,[^;]{0,200}?\+[^;]{0,200}?\b\1\.slice\(/s;
-
-/** A file naming the paste's selection that cuts nothing through the in-leaf range replace. */
-const namesPasteRangeWithoutReplace = (file: SourceFile): boolean =>
-	/(?<![\w.'"])preDelete\b/.test(file.code) && !/(?<![\w.])replaceDrawnRange\s*\(/.test(file.code);
 
 const LEAF_RANGE_RULES: FileRule[] = [
 	{
@@ -1949,25 +1942,6 @@ const LEAF_RANGE_RULES: FileRule[] = [
 			at(SPLICE_PROBE, 'const out = head.slice(0, a) + tail.slice(b);'),
 			at(SPLICE_PROBE, 'const edit = replaceRangeInLeaf(node, range, text, store);'),
 			at(`${SOURCE_DIR.codeBlock}probe.ts`, 'const out = raw.slice(0, a) + raw.slice(b);')
-		]
-	},
-	{
-		id: 'G4.90 a paste’s selection is cut through the in-leaf range replace',
-		matches: namesPasteRangeWithoutReplace,
-		allowed: {
-			'src/lib/tree-operations/paste-surfaces.ts': 'declares the parameter and cuts nothing',
-			'src/lib/components/blocks/code/code-paste-surface.ts':
-				'the one literal splice: a fence body has no inline constructs to clean'
-		},
-		reason:
-			'a paste writes what typing writes over the same selection, so its cut is `replaceDrawnRange` with the pasted text; a cut of its own strands the runs typing keeps',
-		hits: [
-			'return display.slice(0, preDelete.start) + text + display.slice(preDelete.end);',
-			'const cut = cutRange(node, preDelete, store);'
-		],
-		misses: [
-			'const edit = replaceDrawnRange(node, preDelete, text, store);',
-			'// preDelete is the range the paste cuts first'
 		]
 	}
 ];

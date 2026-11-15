@@ -20,6 +20,7 @@ import {
 	installClipboardEvents,
 	installSystemClipboard
 } from '#lib/test/harness/clipboard-events.js';
+import { pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { SYNTAX_PLUGINS } from '../behavior/corpus';
 import { mountCase, pasteGesture } from '../range-laws/gestures';
@@ -72,17 +73,37 @@ describe('in a running editor', () => {
 		takeDevWarns();
 	});
 
-	// A callout's rebuild puts a blank line over a body a delete emptied; the splice lands the core's.
+	// A callout's rebuild puts a blank line over a body a delete emptied; a code block's rule moves a
+	// closing fence to a line of its own where the core writes text in front of it.
 	it.each([
-		['the block’s own write, forced', true, ['invariant:paste-lands-core-answer']],
-		['the arm the question picks', false, []]
-	])('%s', async (_, forced, warns) => {
-		arm.forced = forced;
-		const editor = mountCase(':::note\n\n:::\n', 'source');
+		['a callout body', ':::note\n\n:::\n', [0, 1], 0],
+		['a closing fence', '```js\ncode\n```\n\nAfter\n', [0], 11]
+	] as const)('%s', async (_, source, path, offset) => {
+		for (const [forced, warns] of [
+			[true, ['invariant:paste-lands-core-answer']],
+			[false, []]
+		] as const) {
+			arm.forced = forced;
+			const editor = mountCase(source, 'source');
+			await editor.settle();
+			placeCaret(surfaceAt(editor, [...path]), offset);
+			await editor.settle();
+			await pasteGesture(editor, { 'text/plain': 'xy' }, 'key');
+			expect(takeDevWarns().map((warn) => warn.tag)).toEqual(warns);
+			await destroyMountedEditors();
+		}
+	});
+
+	// A paste that makes the paragraph a table: the block's own write would put the caret past the
+	// cell's text, where the core's caret ends the pasted text.
+	it.each(['source', 'live'] as const)('a table the paste completes, %s', async (mode) => {
+		const editor = mountCase('a\n|-|-|\n\nAfter\n', mode);
 		await editor.settle();
-		placeCaret(surfaceAt(editor, [0, 1]), 0);
+		placeCaret(surfaceAt(editor, [0]), 0);
 		await editor.settle();
-		await pasteGesture(editor, { 'text/plain': 'xy' }, 'key');
-		expect(takeDevWarns().map((warn) => warn.tag)).toEqual(warns);
+		await pasteGesture(editor, { 'text/plain': '|-|' }, 'key');
+		await pressHardwareKey(document.activeElement as HTMLElement, { key: 'Z' });
+		await editor.settle();
+		expect(editor.source()).toBe('|-|Za\n|-|-|\n\nAfter\n');
 	});
 });

@@ -1,6 +1,6 @@
 # Clipboard: a pasted blank line is the block a typed or loaded one is
 
-Paste parses the clipboard, so blank lines on it follow the parser's rule and nothing else: in a run of blank lines the first separates and every later one is an empty-paragraph block. The same bytes therefore render the same blocks whether they are typed, loaded, or pasted: the divergence tracked as issue #20, where structural paste created an extra empty row per separator.
+Paste parses the clipboard, so blank lines on it follow the parser's rule and nothing else: in a run of blank lines the first separates and every later one is an empty-paragraph block. The same bytes therefore render the same blocks whether they are typed, loaded, or pasted: the divergence tracked as issue #20, where a paste created an extra empty row per separator.
 
 ## Happy paths
 

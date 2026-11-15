@@ -13,7 +13,8 @@ import { pointAtByte } from '#lib/selection/range-bytes.js';
 import { registerDefaultContextActions } from '#lib/components/menu/default-context-actions.js';
 import {
 	destroyMountedEditors,
-	installLayoutStubs
+	installLayoutStubs,
+	placeCaret
 } from '#lib/test/harness/mount-editor.svelte.js';
 import {
 	installClipboardEvents,
@@ -22,6 +23,7 @@ import {
 import { pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { mountCase, placeRange } from '../range-laws/gestures';
+import { cellAt } from '../blocks/table/mount-table';
 
 beforeAll(installLayoutStubs);
 beforeEach(() => {
@@ -95,6 +97,20 @@ for (const mode of ['source', 'live'] as const)
 			const [took, , got] = await inserted(marked, mode, md, { placement: 'below' });
 			expect([took, got]).toEqual([changed, typed]);
 		});
+
+// An empty cell is blank text but no paragraph: the block opens under the table.
+for (const mode of ['source', 'live'] as const)
+	it(`${mode}: below in an empty table cell opens under the table`, async () => {
+		const editor = mountCase('| a |\n| - |\n|  |\n| b |\n', mode);
+		await editor.settle();
+		placeCaret(cellAt(editor, 1, 0), 0);
+		await editor.settle();
+		expect(await editor.instance.insertMarkdown('---\n', { placement: 'below' })).toBe(true);
+		await pressHardwareKey(document.activeElement as HTMLElement, { key: 'Z' });
+		await editor.settle();
+		expect(editor.source()).toBe('| a |\n| - |\n|  |\n| b |\n\n---\n\nZ\n');
+		expect(takeDevWarns().map((w) => w.tag)).toEqual([]);
+	});
 
 // Today's bytes, pinned so a change shows: an empty heading loses its `#`, as on `next` too.
 for (const mode of ['source', 'live'] as const)
