@@ -284,8 +284,8 @@ function endsOnList(doc: Doc, text: string): boolean {
 	return !!last && factsOf(read, last).lines === 'items';
 }
 
-/** `pasteAt`, noting in `seen` the clipboard as blocks where the landing read it so; each container
- *  around what landed then writes its own lines for what it holds. */
+/** `pasteAt`, noting in `seen` the clipboard as blocks where the landing read it so; then each list
+ *  it joined spells its items one way, and each container around it writes its own lines for them. */
 function landedAt(
 	doc: Doc,
 	from: number,
@@ -293,7 +293,8 @@ function landedAt(
 	pasted: Pasted,
 	seen: { blocks?: Doc }
 ): Edit {
-	return fencesGrown(doc, from, to, bytesLanded(doc, from, to, pasted, seen));
+	const landing = bytesLanded(doc, from, to, pasted, seen);
+	return fencesGrown(doc, from, to, glyphsTaken(doc, from, to, landing, seen.blocks));
 }
 
 /** The paste's bytes as they land, before any container around them writes its own lines. */
@@ -352,14 +353,72 @@ function bytesLanded(
 	return { source: apartAt(doc, edit.source, below, join, true), caret: edit.caret };
 }
 
-/** `edit`, a paste over `[from, to)` of `doc`, with each fenced container around it writing its own
- *  lines for what it holds (`RangeHost.rewritten`): a `:::` fence grows past a closing line in it. */
-function fencesGrown(doc: Doc, from: number, to: number, edit: Edit): Edit {
-	// The bytes the landing changed, which can reach past the range it landed over.
+/** Where a paste over `[from, to)` of `doc` that left `edit` changed bytes: from `head`, to `end` in
+ *  the bytes before it and `endNow` in the bytes after; it can reach past the range it landed over. */
+function changedBy(doc: Doc, from: number, to: number, edit: Edit) {
 	const shorter = Math.min(doc.source.length, edit.source.length);
 	const head = Math.min(from, sharedPrefixLength(doc.source, edit.source, shorter));
 	const tail = sharedSuffixLength(doc.source, edit.source, shorter - head);
 	const end = Math.max(to, doc.source.length - tail);
+	return { head, end, endNow: end + edit.source.length - doc.source.length };
+}
+
+/** `edit`, a paste over `[from, to)` of `doc` reading the clipboard as `pasted`, each item it wrote
+ *  into a list of the document's spelled with that list's glyph, which names no type (§ 5.4 rule 5). */
+function glyphsTaken(doc: Doc, from: number, to: number, edit: Edit, pasted?: Doc): Edit {
+	const listed = (read: Doc) => (b: LaidBlock) => factsOf(read, b).lines === 'items';
+	const glyphs = (read: Doc, lists: LaidBlock[]) =>
+		lists.flatMap((list) => {
+			const first = read.layout.block([...list.path, 0]);
+			return (first && glyphOf(read.source, first)) || [];
+		});
+	const tops = pasted ? pasted.tree.children.map((_, i) => pasted.layout.block([i])!) : [];
+	const brought = pasted ? glyphs(pasted, tops.filter(listed(pasted))) : [];
+	// Only a list of the pasted one's type within a line or two of the place can take it in.
+	const { source: was } = doc;
+	const up = (at: number) => Math.max(0, was.lastIndexOf('\n', at - 1));
+	const near = [...doc.layout.within(up(up(up(from))), lineEnd(was, lineEnd(was, to) + 1))];
+	const differs = glyphs(doc, near.filter(listed(doc))).some((own) =>
+		brought.some((glyph) => glyph.ordered === own.ordered && glyph.char !== own.char)
+	);
+	if (!differs) return edit;
+	const { head, endNow } = changedBy(doc, from, to, edit);
+	const now = readDoc(edit.source, doc.host, doc.mode);
+	const { source } = edit;
+	const swaps = new Map<number, string>();
+	for (const list of [...now.layout.within(head, endNow)].filter(listed(now))) {
+		const items = nodeAt(now, list.path).children!.map((_, i) =>
+			now.layout.block([...list.path, i])!
+		);
+		const written = (item: LaidBlock) => item.from >= head && item.from < endNow;
+		const own =
+			items.findLast((item) => !written(item) && item.from < head) ??
+			items.find((item) => !written(item));
+		const want = own && glyphOf(source, own);
+		for (const item of want ? items.filter(written) : []) {
+			const glyph = glyphOf(source, item);
+			if (glyph && glyph.ordered === want!.ordered) swaps.set(glyph.at, want!.char);
+		}
+	}
+	if (swaps.size === 0) return edit;
+	let out = source;
+	for (const [at, char] of swaps) out = out.slice(0, at) + char + out.slice(at + 1);
+	return { ...edit, source: out, leaf: undefined };
+}
+
+/** The glyph an item's marker writes: its bullet character, or the delimiter after its number. */
+function glyphOf(source: string, item: LaidBlock) {
+	const line = item.lineAt!(item.from);
+	const marker = /^[ \t]*(?:[-*+]|\d{1,9}[.)])/.exec(source.slice(line.from, line.markerTo));
+	if (!marker) return null;
+	const at = line.from + marker[0].length - 1;
+	return { at, char: source[at], ordered: /\d/.test(marker[0]) };
+}
+
+/** `edit`, a paste over `[from, to)` of `doc`, with each fenced container around it writing its own
+ *  lines for what it holds (`RangeHost.rewritten`): a `:::` fence grows past a closing line in it. */
+function fencesGrown(doc: Doc, from: number, to: number, edit: Edit): Edit {
+	const { head, end } = changedBy(doc, from, to, edit);
 	const around = (c: LaidBlock) =>
 		c.from < head && end <= lastLine(c).from && factsOf(doc, c).lines === 'fenced';
 	let out = edit;
@@ -414,7 +473,7 @@ function linesWritten(edit: Edit, start: number, raw: string, written: string): 
  *  under the caret's line: the empty line between the two goes. */
 function joinedBelow(doc: Doc, lower: LaidBlock, edit: Edit, pasted: Doc): Edit {
 	const last = pasted.tree.children.findLast((b) => !isBlankText(b.raw));
-	if (!joinsList(doc, lower, last, false)) return edit;
+	if (!joinsList(doc, lower, last)) return edit;
 	const { source } = edit;
 	const line = lineStart(doc, lower.from) + source.length - doc.source.length;
 	const above = source.lastIndexOf('\n', line - 2) + 1;
@@ -429,7 +488,7 @@ function joinedAbove(doc: Doc, leaf: LaidBlock, edit: Edit, pasted: Doc): Edit {
 	const first = pasted.tree.children.find((b) => !isBlankText(b.raw));
 	const upper = doc.layout.block([...leaf.path.slice(0, -1), leaf.path.at(-1)! - 1]);
 	// A paste that joined no list is the landing as it stood, the block it names with it.
-	if (!upper || !joinsList(doc, upper, first, true)) return edit;
+	if (!upper || !joinsList(doc, upper, first)) return edit;
 	const gap = lineStart(doc, leaf.from) - upper.to;
 	const { source, caret } = edit;
 	return { source: source.slice(0, upper.to) + source.slice(upper.to + gap), caret: caret - gap };

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // A paste's blank lines, line endings and runs, mounted: blocks pasted on a blank line take it, a
-// CRLF document keeps its ending, a title row takes blocks as one line, and live mode keeps the run
+// clipboard's opening line endings add none, a CRLF document keeps its ending, a title row takes blocks as one line, and live mode keeps the run
 // a word was selected out of.
 // Miss-analysis: these rows drove the dispatcher the core replaced, so deleting it deleted them,
 // and no row of the core's own asked the same of the live path.
@@ -51,6 +51,13 @@ const ROWS: [string, string, string, string][] = [
 		'alpha\n\n‸\ndelta\n',
 		'just text',
 		'alpha\n\njust text\n\ndelta\n'
+	],
+	// The tree equals a fresh read of its bytes, the blank lines the clipboard brought included.
+	[
+		'a clipboard opening with line endings puts them at the caret, adding none',
+		'x‸\n',
+		'\n\ntail\n',
+		'x\n\ntail\n\n'
 	],
 	['a clipboard’s trailing blank line kept at the tail', 'x‸\n', '# h\n\n', 'x\n\n# h\n\n'],
 	[

@@ -616,6 +616,25 @@ function markerFamily(read: Read, list: LaidBlock | undefined, last: boolean): s
 	return marker ? (marker[1] ?? marker[2]) : null;
 }
 
+/** Whether a list `text` brings lands in or beside a list of its own type, ordered or bullet, that is
+ *  written with another glyph, which the pasted items then take (`paste-list-glyph.test.ts`). */
+export function takesOtherGlyph(read: Read, at: number, text: string, host: CheckHost): boolean {
+	const clip = readOf(host, lf(text));
+	const kind = (glyph: string | null) => glyph && ('.)'.includes(glyph) ? 'ordered' : 'bullet');
+	const brought = clip.blocks
+		.filter((b) => b.path.length === 1 && host.facts(b.type).lines === 'items')
+		.map((list) => markerFamily(clip, list, false));
+	const { source } = read;
+	const up = (byte: number) => Math.max(0, source.lastIndexOf('\n', byte - 1));
+	const down = (byte: number) => (source.indexOf('\n', byte) + 1 || source.length + 1) - 1;
+	const [from, to] = [up(up(up(at))), down(down(at) + 1)];
+	return read.blocks.some((list) => {
+		if (host.facts(list.type).lines !== 'items' || list.to < from || list.from > to) return false;
+		const own = markerFamily(read, list, false);
+		return brought.some((glyph) => glyph !== own && kind(glyph) === kind(own));
+	});
+}
+
 /** Whether `pasted`, a block of `clip`, is a list of the type of `list` beside it in `read`, so the
  *  two join as items: `under` where the pasted one is the lower. */
 function sameList(

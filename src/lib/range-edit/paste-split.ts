@@ -6,6 +6,7 @@
  */
 
 import { isBlankText } from '../core/lines';
+import { metadataIfKind } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { itemsShareList } from '../tree-operations/list/ordered-markers';
 import type { LaidBlock } from './layout';
@@ -441,20 +442,19 @@ export function onEmptyLine(doc: Doc, at: number, clip: string): Edit {
 	return setApart(doc, setIn(doc, at, holder, clip), holder, clip, true, false);
 }
 
-/** Whether the pasted list `block` joins the list `beside` it as items once nothing parts the two,
- *  `under` where the pasted one is the lower: one bullet character, or one ordered delimiter. */
+/** Whether the pasted list `block` joins the list `beside` it as items once nothing parts the two:
+ *  both ordered or both bullets, whatever glyph each writes (`glyphsTaken` spells them one). */
 export function joinsList(
 	doc: Doc,
 	beside: LaidBlock | undefined,
-	block: NodeView | undefined,
-	under: boolean
+	block: NodeView | undefined
 ): boolean {
 	if (!beside || beside.type !== block?.kind || factsOf(doc, beside).lines !== 'items')
 		return false;
-	const lists = [nodeAt(doc, beside.path), block];
-	const [upper, lower] = under ? lists : lists.reverse();
-	return itemsShareList(upper.children?.at(-1), lower.children?.[0]);
+	return isOrdered(nodeAt(doc, beside.path)) === isOrdered(block);
 }
+
+const isOrdered = (list: NodeView) => !!metadataIfKind(list, 'list')?.ordered;
 
 /** `edit` with a blank line under the last block of `clip` and, with `above`, over its first: with
  *  `always` wherever none stands, else where the two blocks there would read as one. */
@@ -474,9 +474,9 @@ function setApart(
 	// Between a list's items a pasted list is the list's own, and beside a list of its own type it
 	// joins it as items unless a gap caret named the place: nothing keeps either from folding in.
 	const path = holder?.path ?? [];
-	const placed = (block: NodeView, beside: LaidBlock | undefined, under: boolean) =>
+	const placed = (block: NodeView, beside: LaidBlock | undefined) =>
 		!(lines === 'items' && block.kind === holder!.type) &&
-		(always || !joinsList(doc, beside, block, under));
+		(always || !joinsList(doc, beside, block));
 	const child = (b: LaidBlock) =>
 		b.path.length === path.length + 1 && path.every((p, i) => p === b.path[i]);
 	const next = pastMarkers(source, Math.min(lineEnd(source, place) + 1, source.length));
@@ -490,7 +490,7 @@ function setApart(
 			index: lower!.path.at(-1)!,
 			upper: blocks.at(-1)!.raw,
 			lower: lowerRaw,
-			placed: placed(blocks.at(-1)!, lower, false)
+			placed: placed(blocks.at(-1)!, lower)
 		};
 		out = parted(doc, out, under, edit.under, always && pair.placed ? null : pair);
 	} else if (always && under > 0 && !closes(doc, edit.follows ? place : next)) {
@@ -511,7 +511,7 @@ function setApart(
 		index: upper.path.at(-1)!,
 		upper: nodeAt(doc, upper.path).raw,
 		lower: blocks[0].raw,
-		placed: placed(blocks[0], upper, true)
+		placed: placed(blocks[0], upper)
 	};
 	// A block above that waits is asked with the run as the paste leaves it: where the clipboard
 	// took the blank line over the lower block, that block stands flush under it.

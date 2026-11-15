@@ -743,7 +743,13 @@ const SEAM_ROWS: NamedRow[] = [
 		paste('3) b'),
 		'1) a\n3) b\n'
 	),
-	...both('M another bullet keeps its blank line', '- a\n\n⟦⟧\n', paste('* b'), '- a\n\n* b\n'),
+	...both(
+		'M a bullet of another glyph joins too, and takes the list’s',
+		'- a\n\n⟦⟧\n',
+		paste('* b'),
+		'- a\n- b\n'
+	),
+	...both('M an ordered list keeps its blank line', '- a\n\n⟦⟧\n', paste('1. b'), '- a\n\n1. b\n'),
 	...both(
 		'M only the list joins: a paragraph under it stays apart',
 		'- a\n\n⟦⟧\nafter\n',
@@ -938,10 +944,17 @@ const LIST_ENDING_ROWS: NamedRow[] = [
 	),
 	onLine(
 		'a list it doesn’t join keeps the line',
+		'abc⟦⟧\n1. c\n',
+		'- one\n- two\n',
+		'abc\n\n- one\n- two\n\n1. c\n',
+		17
+	),
+	caretAt(
+		'a list of another glyph joins and takes the list’s glyph',
 		'abc⟦⟧\n* c\n',
 		'- one\n- two\n',
-		'abc\n\n- one\n- two\n\n* c\n',
-		17
+		'abc\n\n* one\n* two\n* \n* c\n',
+		19
 	),
 	caretAt(
 		'a list that broke out opens an item of the host’s kind',

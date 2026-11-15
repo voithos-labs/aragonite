@@ -45,6 +45,7 @@ import {
 	copiesLinesBeforeRange,
 	unboxedAt,
 	endsInListBeside,
+	takesOtherGlyph,
 	type Read
 } from './expected';
 
@@ -557,6 +558,8 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 	if (!got) return [];
 	const text = blankTail(read, input.at, input.text, host);
 	if (text !== input.text) return pasteAtCaret(call, host, { ...input, text });
+	// Pasted items joining a list written with another glyph take its glyph, by bytes the rows hold.
+	if (takesOtherGlyph(read, input.at, input.text, host)) return [];
 	// A last line ending pasted in a list item's text, or ending a list the paste joins, is Enter
 	// (`paste-ending-enter.test.ts`): it leaves the bytes before it, and the law holds the rest.
 	const ended = /\r?\n$/.exec(input.text);
