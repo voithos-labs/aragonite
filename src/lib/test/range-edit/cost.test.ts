@@ -91,11 +91,11 @@ function counted(host: RangeHost, current: DocumentView) {
 
 /** What one gesture over a range across two blocks in the middle of `source` costs; a caret
  *  paste writes two lines at the range's start, a moving drop takes the range to the line above. */
-function cost(source: string, named: (typeof GESTURES)[number]) {
+function cost(source: string, named: (typeof GESTURES)[number], atLineEnd = false) {
 	const start = source.indexOf('with', Math.floor(source.length / 2));
-	const from = start;
+	const from = atLineEnd ? source.indexOf('\n', start) : start;
 	const caretOnly = named === 'caret paste' || named === 'ended paste';
-	const to = caretOnly ? start : source.indexOf('with', from + 10) + 2;
+	const to = caretOnly ? from : source.indexOf('with', from + 10) + 2;
 	const gesture: Gesture =
 		named === 'caret paste'
 			? { paste: 'one\ntwo', plain: false, holds: 'text' }
@@ -161,4 +161,12 @@ describe('work per gesture', () => {
 			});
 		}
 	}
+
+	// Miss-analysis: the ended paste stood mid-text, where no ending is Enter's exit from a list, so
+	// no row saw the answer of that exit read again from its bytes.
+	it('two endings at an item’s end read the list Enter’s exit split no more than the exit does', () => {
+		const source = SHAPES.list(2000);
+		// The exit's own rebuild parses the list about twice; each read of its answer is a parse more.
+		expect(cost(source, 'ended paste', true).parsed).toBeLessThanOrEqual(source.length * 2.5);
+	});
 });
