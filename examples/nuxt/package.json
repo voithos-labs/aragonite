@@ -10,7 +10,7 @@
 	"dependencies": {
 		"@voithos-labs/aragonite": "file:../..",
 		"@voithos-labs/aragonite-vue": "file:../../packages/vue",
-		"nuxt": "^4.6.2",
+		"nuxt": "^4.6.4",
 		"vue": "^3.5.44"
 	}
 }
