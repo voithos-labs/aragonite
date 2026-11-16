@@ -29,7 +29,7 @@ the editor's selection and the serialized bytes.
   joins the blocks on either side as for any other covered block
 - a range whose moving end stops on the title row covers the hidden body too: Backspace there
   removes the whole block, and since the range stops at the text before the paragraph below it,
-  a typed character lands at the end of the block above, Backspace's side
+  it empties the paragraph between, whose line stays and takes the typed character
 - Ctrl+X over a range from mid-paragraph onto a closed title row (Shift+Mod+End, which stops past
   the row's first character) cuts the whole details, and pasting it below brings the block back
   with its hidden body. The copy takes exactly what the delete takes (#636)
