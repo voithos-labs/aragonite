@@ -17,8 +17,12 @@ all of them flag the table endpoints as cell coordinates.
   Surviving paragraph and surviving table remain adjacent (no merge).
 - Case 2 (cell mid-table → heading below): drag from a body cell onto the heading below, Backspace.
   The anchor cell's entire row (and every row below it) is cleared or removed, the heading goes
-  whole, and the next letter lands in a surviving cell. (A paragraph emptied there would keep its
-  line, which takes the letter: `structural-edits.md` § Structural operations.)
+  whole, and the next letter lands in a surviving cell.
+- Case 2 into a paragraph (cell mid-table → the paragraph below, to its end): Backspace takes the
+  rows and empties the paragraph, whose line stays and takes the next letter, standing alone under
+  the table.
+  - Miss-analysis: the Case 2 rows dropped the paragraph's line with the rows, as the removal did,
+    so nothing held the line a range empties.
 - Case 2 into a nested prose end (cell mid-table → paragraph inside a blockquote): drag from a body
   cell into a quoted paragraph, Delete. The nested endpoint (path length 2) goes through the
   cross-container commit that changes the live document, so the reparsed tail must be read again from

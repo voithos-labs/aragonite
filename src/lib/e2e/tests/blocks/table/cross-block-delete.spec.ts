@@ -102,6 +102,22 @@ test.describe('table block: cross-block delete', () => {
 		await editor.bridge.waitForSourceContains('| A | B | CZ |');
 	});
 
+	test('Case 2 into a paragraph: the paragraph the range empties keeps its line and the letter', async ({
+		page
+	}) => {
+		await editor.loadContent(`${TABLE_2x3}\nfollow paragraph\n`);
+		const [cellBox, paraBox] = await boxesOf(
+			page.locator('.table-cell').nth(2),
+			page.getByText('follow paragraph')
+		);
+		await dragBetweenBoxes(page, cellBox, paraBox);
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceNotContains('follow');
+		await page.keyboard.type('Z');
+		await editor.bridge.waitForSourceEquals('| A | B |\n| --- | --- |\n\nZ\n');
+	});
+
 	// Miss-analysis: every whole-table row pressed Backspace, so typing and cut over the same range
 	// kept clearing the cells unnoticed.
 	test('whole-table Ctrl+A 2nd press + typing replaces the table with a paragraph', async ({
