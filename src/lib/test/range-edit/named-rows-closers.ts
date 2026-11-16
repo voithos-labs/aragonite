@@ -614,10 +614,10 @@ const LINE_BREAK_ROWS: NamedRow[] = [
 		{ at: 42, holds: 'text' }
 	),
 	...broken(
-		'L8 a tip entered to a block’s end with no block before the range, at the block after',
+		'L8 a tip entered to its first paragraph’s end, nothing before the range, breaks the line it emptied',
 		'⟦***\n\nbody\n\n:::tip\ninner⟧\n\nmore\n:::\n',
-		':::tip\nmore\n:::\n',
-		{ at: 7, holds: 'text' }
+		':::tip\n\n\nmore\n:::\n',
+		{ at: 8, holds: 'text' }
 	),
 	...broken(
 		'L8 from inside a note, an item’s first line taken, past the indent of the line after',
@@ -656,10 +656,10 @@ const LINE_BREAK_ROWS: NamedRow[] = [
 		{ at: 0, holds: 'text' }
 	),
 	...broken(
-		'L8 the same for a tip that ends what the range entered',
+		'L8 a note entered to its first paragraph’s end breaks the line it emptied, above the tip',
 		'⟦***\n\nbody\n\n::::note\ninner⟧\n\n:::tip\nmore\n:::\n::::\n',
-		'::::note\n:::tip\nmore\n:::\n::::\n',
-		{ at: 9, holds: 'boundary', parent: [0] }
+		'::::note\n\n\n:::tip\nmore\n:::\n::::\n',
+		{ at: 10, holds: 'text' }
 	),
 	...broken(
 		'L8 and for a title the range ends in',

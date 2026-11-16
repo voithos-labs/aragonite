@@ -134,19 +134,25 @@ function heldAcross(doc: Doc, from: number, to: number, first: LaidBlock): Remov
 	return across(doc, from, to, first, true, { lineFrom, lines });
 }
 
-/** `left`, the removal that keeps the line emptied at `from`, tidied and holding the caret where an
- *  empty paragraph reads back on that line or the one under it, or where it ends the document. */
+/** `left`, the removal that keeps the line the range emptied, tidied and holding the caret where an
+ *  empty paragraph reads back on or under it, or where it ends the document; null where neither. */
 function keptLine(doc: Doc, from: number, left: Removal): Removal | null {
-	const source = oneEmptyLine(left.source, from - lineHead(left.source, from).length);
-	const under = source.indexOf('\n', from) + 1;
-	// The line a range emptied at the document's end is a place of its own, whatever stands above.
-	if (under === source.length) return { source, caret: from, took: from };
-	const read = readDoc(source, doc.host, doc.mode);
-	const at = [from, ...(under > 0 ? [textStartAt(read, under)] : [])].find((byte) => {
-		const leaf = leafAt(read, byte)?.leaf;
-		return !!leaf?.text && leaf.text.from === leaf.text.to && factsOf(read, leaf).joins === 'text';
-	});
-	return at === undefined ? null : { source, caret: at, took: from };
+	// The emptied line is the start's, or past an opening the removal kept, where what followed begins.
+	for (const emptied of new Set([from, left.after ?? from])) {
+		const source = oneEmptyLine(left.source, emptied - lineHead(left.source, emptied).length);
+		const under = source.indexOf('\n', emptied) + 1;
+		// The line a range emptied at the document's end is a place of its own, whatever stands above.
+		if (under === source.length) return { source, caret: emptied, took: from };
+		const read = readDoc(source, doc.host, doc.mode);
+		const at = [emptied, ...(under > 0 ? [textStartAt(read, under)] : [])].find((byte) => {
+			const leaf = leafAt(read, byte)?.leaf;
+			return (
+				!!leaf?.text && leaf.text.from === leaf.text.to && factsOf(read, leaf).joins === 'text'
+			);
+		});
+		if (at !== undefined) return { source, caret: at, took: from };
+	}
+	return null;
 }
 
 /** What a removal takes of the lines at its ends: the start's from `lineFrom`, and, where the end's
@@ -327,12 +333,11 @@ function leftLine(doc: Doc, from: number, to: number, first: LaidBlock): number 
 }
 
 /** Whether the range ends at the end of a later paragraph's text, which it empties: not a cell's,
- *  not past an opening the removal keeps, and not inside a container it holds whole. */
+ *  and not inside a container it holds whole. */
 function emptiesParagraph(doc: Doc, from: number, to: number): boolean {
 	const end = leafAt(doc, to)?.leaf;
 	if (!end?.text || end.from <= from || to < end.text.to || isCell(doc, end)) return false;
 	if (factsOf(doc, end).joins !== 'text' || heldWhole(doc, end, end.from, to)) return false;
-	if (enteredOpening(doc, from, to) !== null) return false;
 	return !containersAt(doc, to, 'end').some((c) => c.from >= from && heldWhole(doc, c, c.from, to));
 }
 

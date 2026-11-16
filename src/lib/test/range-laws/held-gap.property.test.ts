@@ -182,6 +182,8 @@ interface Run {
 	removed: Side & { landing: Landing; boundary: boolean };
 	step: Side;
 	took: boolean;
+	/** Whether some of the leaf the range ended in follows it: the one text written over it joins. */
+	rest: boolean;
 	/** The blocks `source` opens as in the drawn editor's grammar, blank lines aside. */
 	read(source: string): string;
 }
@@ -246,13 +248,13 @@ async function placed(d: Draw, built: Built) {
 	const anchor = cell ? cellPoint(cell.path.slice(0, -2), 1) : pointAtByte(m, built.from);
 	const focus = pointAtByte(m, built.to);
 	if (!anchor || !focus || !(await placeOwnedRange(editor, { anchor, focus }))) return null;
-	const range = removalBytes(
-		doc,
-		rangeCoverage(doc, coverRange(doc, anchor, focus)),
-		documentLayout(m)
-	);
+	const layout = documentLayout(m);
+	const range = removalBytes(doc, rangeCoverage(doc, coverRange(doc, anchor, focus)), layout);
+	const end = range && layout.pointAt(range.to);
+	const text = end && layout.block(end.path)?.text;
+	const rest = !!range && !!text && range.to >= text.from && range.to < text.to;
 	takeDevWarns();
-	return { editor, start: range?.from ?? -1 };
+	return { editor, start: range?.from ?? -1, rest };
 }
 
 /** Whether the range ends partway through a block's text, where Enter's and a composition's removal
@@ -290,7 +292,16 @@ async function run(d: Draw): Promise<Run | 'unplaced'> {
 	await gesture(step.editor, d.gesture);
 	const stepSide = sideOf(step.editor);
 	await destroyMountedEditors();
-	return { built, start: over.start, over: overSide, removed, step: stepSide, took, read };
+	return {
+		built,
+		start: over.start,
+		over: overSide,
+		removed,
+		step: stepSide,
+		took,
+		rest: over.rest,
+		read
+	};
 }
 
 // ── The law ──────────────────────────────────────────────────────────────────
@@ -302,10 +313,9 @@ function violations(d: Draw, r: Run): string[] {
 	const out: string[] = [];
 	if (r.over.tree) out.push(`tree: ${r.over.tree}`);
 	const { landing, boundary } = r.removed;
-	// Prose takes the text where the range left it of its own: every drawn range but the wrap end's
-	// stops at or inside a block's text. A paste keeps any prose until its own landing is ruled.
-	const ownProse =
-		landing === 'prose' && (!r.took || d.gesture === 'paste' || d.range !== 'edge..wrap end');
+	// Prose takes the text where the range left it of its own; a paste keeps any prose until its own
+	// landing is ruled.
+	const ownProse = landing === 'prose' && (!r.took || d.gesture === 'paste' || r.rest);
 	// With no boundary where the range started, the text joins the text there, as after the removal.
 	if (d.gesture === 'Enter' || landing === 'gap' || ownProse || !boundary) {
 		if (r.over.blocks !== r.step.blocks)
@@ -370,18 +380,6 @@ const KNOWN: Record<string, Known> = {
 			line.startsWith('over the range'),
 		example: draw('indentedCode', 'heading', 'top', 'edge..lower', 'letter')
 	},
-	'a live caret past a hidden marker': {
-		cause:
-			"in live mode the removal's caret moves past a heading's hidden marker, so the text then " +
-			'joins the heading, where text over the range opens a paragraph before it (minor)',
-		matches: (d, r, line) =>
-			texts(d) &&
-			d.mode === 'live' &&
-			d.middle === 'heading' &&
-			r.removed.landing === 'prose' &&
-			line.startsWith('over the range'),
-		example: draw('tableHalves', 'heading', 'top', 'cell..middle', 'composition', 'live')
-	},
 	'Enter from a table in a container': {
 		cause: "Enter from a table's cell in a quote or an item to the block below (minor)",
 		matches: (d, _r, line) =>
@@ -417,6 +415,16 @@ const REACH: Record<string, Draw> = {
 		lead: 0
 	},
 	'before an HTML block': draw('htmlBlocks', 'heading', 'top', 'edge..lower', 'composition'),
+	// The range stops before the heading, so text over it opens its paragraph there; in live mode a
+	// letter after the removal joins the heading past its hidden marker (minor).
+	'before a heading, live': draw(
+		'tableHalves',
+		'heading',
+		'top',
+		'cell..middle',
+		'composition',
+		'live'
+	),
 	'before an HTML block in a quote': draw(
 		'htmlUnderText',
 		'heading',
@@ -461,7 +469,6 @@ const FIXED_TALLY = {
 	'took the start block': 30,
 	"a lone block's emptied line": 2,
 	'a letter where two indented code blocks join': 1,
-	'a live caret past a hidden marker': 1,
 	'Enter from a table in a container': 1,
 	'a gesture that reached nothing': 1,
 	'a paste into a block with no paste surface': 2
@@ -472,7 +479,7 @@ const LANDED: Record<string, string> = {
 	'an opener kept in an item': '-     a\n  ```\nж\n  ```\n    b\n\nlast\n',
 	"a lone block's emptied line": 'intro\n\n> quoted\n\nжlazy\n\nlast\n',
 	'a letter where two indented code blocks join': 'intro\n\n    a\nж\n    b\n\nlast\n',
-	'a live caret past a hidden marker': 'intro\n\n汉\n\n# h\n| 2 |\n\nlast\n',
+	'before a heading, live': 'intro\n\n汉\n\n# h\n| 2 |\n\nlast\n',
 	'Enter from a table in a container': '- \n- \n  ```\n  x\n  ```\n  | 2 |\n\nlast\n',
 	'a gesture that reached nothing': 'intro\n\n- | a |\n  | - |\n  | 1 |\n  ***\n  | 2 |\n\nlast\n',
 	'a paste into a block with no paste surface': 'intro\n\n> <!-- ж\n> <div>\n> x\n\nlast\n',
