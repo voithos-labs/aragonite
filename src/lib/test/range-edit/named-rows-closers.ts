@@ -736,6 +736,12 @@ const EMPTIED_LINE_ROWS: NamedRow[] = [
 		{ at: 13, holds: 'text' }
 	),
 	...backspaced(
+		'L4 a callout the range enters keeps the line of the paragraph it empties',
+		'first\n\n⟦***\n\nbody\n\n:::tip\ninner⟧\n\nmore\n:::\n',
+		'first\n\n\n:::tip\n\n\nmore\n:::\n',
+		{ at: 7, holds: 'text' }
+	),
+	...backspaced(
 		'L4 nor at the end of a details’ body under a blank line',
 		'<details open>\n<summary>S</summary>\n\nabove\n\n⟦***\n\nbody⟧\n\n</details>\n',
 		'<details open>\n<summary>S</summary>\n\nabove\n\n</details>\n',
