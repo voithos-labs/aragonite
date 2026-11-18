@@ -106,6 +106,22 @@ for (const mode of ['source', 'live'] as const)
 			expect(ended).toEqual(entered);
 		});
 
+// Miss-analysis: the rows pasted words before the ending, so none asked what spaces alone before it
+// do in an item they leave blank: Enter there leaves the list or lifts the item, as on an empty one.
+const BLANK_TEXT: [name: string, marked: string, clip: string][] = [
+	["a space over an item's whole text", '- a\n- ⟦beta⟧\n- b\n', ' '],
+	["a tab over an item's whole text", '- a\n- ⟦beta⟧\n- b\n', '\t'],
+	["a space over a nested item's whole text", '- a\n  - ⟦beta⟧\n- b\n', ' '],
+	['a space in an empty item', '- a\n- ‸\n- b\n', ' '],
+	['a space at an item’s end', '- alpha‸\n- b\n', ' ']
+];
+
+for (const mode of ['source', 'live'] as const)
+	for (const [name, marked, clip] of BLANK_TEXT)
+		it(`${mode}: ${name}, then a line ending, is Enter there`, async () => {
+			expect(await pasted(marked, mode, clip + '\n')).toEqual(await pasted(marked, mode, clip, 1));
+		});
+
 // Miss-analysis: the mid-text rows had a letter right after the caret, so no row asked where the
 // ending leaves the caret when the new marker takes the rest's first space in, or before a run.
 const BEFORE_SPACE: [name: string, marked: string, list: string][] = [

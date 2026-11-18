@@ -140,10 +140,10 @@ function entered(
 	const hostless = held && !factsOf(doc, held.leaf).holdsLines;
 	const host = itemHolding(doc, from, to) ?? (hostless ? itemAround(doc, held) : null);
 	const bare: Pasted = { ...keeping(0), ended: true };
-	// In an item, endings alone are Enter from the first. Elsewhere only a pasted list ends in a list
-	// of the document; a container the caret's took in ends inside it, where the ending is text's.
+	// In an item, endings after blank text are Enter from the first. Elsewhere only a pasted list ends
+	// in a list of the document; a container the caret's took in ends inside it, where it is text's.
 	const first =
-		host && text === ''
+		host && isBlankText(text)
 			? enteredAgain(doc, landedAt(doc, from, to, bare, seen))
 			: host || endsOnList(doc, text)
 				? enteredInList(doc, from, to, bare, host, seen)
