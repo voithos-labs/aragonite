@@ -190,6 +190,30 @@ describe('law 9 in a container with a write rule for its body', () => {
 	});
 });
 
+// Miss-analysis: law 9 held the plain splice, which a pasted closing line satisfies by closing the
+// container early, so fence growth turned off passed every law and only the mounted rows saw it.
+describe('law 9 at a line that could close the container around the caret', () => {
+	const BODY = ':::note\nbo‸dy\n:::\n\nAfter\n';
+	const input = {
+		source: BODY.replace('‸', ''),
+		mode: 'source' as const,
+		at: BODY.indexOf('‸'),
+		held: { holds: 'text' as const },
+		text: 'x\n:::\ny'
+	};
+
+	it('passes the grown fence and reds the bytes that close the container early', () => {
+		const { host, real } = calls('');
+		expect(pasteAtCaret(real, host, input)).toEqual([]);
+		const got = real(input.source, { from: input.at, to: input.at }, paste(input.text), 'source');
+		expect(got?.source).toMatch(/^::::note\n/);
+		const spliced = calls(BODY.replace('‸', input.text));
+		expect(pasteAtCaret(spliced.fake, spliced.host, input)).toEqual([
+			expect.stringMatching(/^L9 a pasted line closed the \w+ around it/)
+		]);
+	});
+});
+
 // Miss-analysis: the live law took every caret whose carried bytes differ from its plain ones for
 // a caret in a run, most of them in no construct, and passed one pasted paragraph unread.
 describe('law 9 in live mode, outside its live shape', () => {
@@ -210,6 +234,29 @@ describe('law 9 in live mode, outside its live shape', () => {
 		const { host, real, fake } = calls('zzz\n');
 		expect(pasteAtCaret(real, host, live(text, pasted))).toEqual([]);
 		expect(pasteAtCaret(fake, host, live(text, pasted))).not.toEqual([]);
+	});
+});
+
+// Miss-analysis: law 9 at an open end was first written to take the closed file's answer for any
+// clipboard, which passed text with no line ending that ended the file on a line break.
+describe('law 9 at an open file’s end', () => {
+	const at = (text: string, pasted: string) => ({
+		source: text.replace('‸', ''),
+		mode: 'source' as const,
+		at: text.indexOf('‸'),
+		held: { holds: 'text' as const },
+		text: pasted
+	});
+
+	it('takes the closed file’s answer only under a clipboard that ends in a line ending', () => {
+		const { host, real } = calls('');
+		expect(pasteAtCaret(real, host, at('> a‸', 'x\n'))).toEqual([]);
+		expect(real('> a', { from: 3, to: 3 }, paste('x\n'), 'source')).toMatchObject({
+			source: '> ax\n>\n>\n'
+		});
+		expect(pasteAtCaret(real, host, at('a‸', 'x'))).toEqual([]);
+		const closing = calls('ax\n');
+		expect(pasteAtCaret(closing.fake, closing.host, at('a‸', 'x'))).not.toEqual([]);
 	});
 });
 

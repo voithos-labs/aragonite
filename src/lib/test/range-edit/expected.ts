@@ -506,7 +506,11 @@ export function expectedPaste(
 	if (emptied) {
 		const end = lineContentEnd(read.source, leaf.to);
 		const bare = readOf(host, read.source.slice(0, leaf.from) + read.source.slice(end));
-		return expectedPaste(bare, leaf.from, text, host, held);
+		const landed = expectedPaste(bare, leaf.from, text, host, held);
+		// A heading that ended the file with no line break: the line break left over it is no last
+		// one, so the blocks on its line end the file as it did.
+		const open = !/\n$/.test(read.source) && end === read.source.length && !/\n$/.test(text);
+		return open ? { ...landed, bytes: landed.bytes.map((b) => b.replace(/\r?\n$/, '')) } : landed;
 	}
 	const want = structuredPaste(read, at, to, text, host);
 	const last = host
@@ -653,8 +657,10 @@ function sameList(
 	host: CheckHost
 ): boolean {
 	if (!list || pasted?.type !== list.type || host.facts(list.type).lines !== 'items') return false;
-	const family = markerFamily(read, list, under);
-	return family !== null && family === markerFamily(clip, pasted, !under);
+	// A glyph names no list type: two bullets join, and two ordered lists, whatever each writes.
+	const ordered = (glyph: string | null) => glyph !== null && '.)'.includes(glyph);
+	const [own, brought] = [markerFamily(read, list, under), markerFamily(clip, pasted, !under)];
+	return own !== null && brought !== null && ordered(own) === ordered(brought);
 }
 
 /** `bytes`, a paste of `clip` at `at`, with a pasted list joined to a list of its own type flush
@@ -1082,8 +1088,21 @@ function landedPaste(
 		// The block's own opening (its marker, a title line) is the taker's already.
 		const firstText = clip.blocks.find((b) => b.text && b.from >= first.from)?.text?.from;
 		const rest = clip.source.slice(firstText ?? first.from).split('\n');
-		const bytes =
-			read.source.slice(0, at) + join(rest, outside, eol, after) + read.source.slice(at);
+		// One container's last line ending is the taker's own line break: what follows the caret stays
+		// in the taker, on a line behind its markers, as after the same text pasted with that ending.
+		const endings = /\n*$/.exec(clip.source)![0].length;
+		const kept =
+			last === first &&
+			(endings === 1 || (endings > 1 && after)) &&
+			host.facts(taker.type).lines !== 'items';
+		const inside = continuationAt(read, at, host);
+		const blank = inside.trimEnd() + eol;
+		const ending =
+			eol + blank.repeat(Math.max(endings - 1, 0)) + (after ? inside : blank.trimEnd());
+		const landed = kept
+			? join(rest.slice(0, rest.length - endings), outside, eol, false) + ending
+			: join(rest, outside, eol, after);
+		const bytes = read.source.slice(0, at) + landed + read.source.slice(at);
 		return { shape: 'absorbed', bytes: [numberedOn(host, bytes, taker, target)] };
 	}
 	const point = read.layout.pointAt(at);
@@ -1130,6 +1149,9 @@ function literalPrefix(
 	const raw = treeNodeAt(read.tree, leaf.path)!.raw;
 	const fence = fenceOf(read, leaf, host);
 	const offset = read.layout.pointAt(at)!.offset;
+	// A fence character pasted on the opening fence line re-reads the block's own syntax, which its
+	// write rule settles.
+	if (fence && offset < fence.body && /[`~$]/.test(text)) return null;
 	if (fence && fence.closer !== null && offset >= fence.closer) return null;
 	const lines = (raw.slice(0, offset) + text + raw.slice(offset)).slice(fence?.body).split('\n');
 	const body = fence?.closer === null ? lines : lines.slice(0, -2);
