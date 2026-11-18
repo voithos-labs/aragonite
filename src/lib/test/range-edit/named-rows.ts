@@ -176,12 +176,14 @@ export const NAMED_ROWS: NamedRow[] = [
 		expect: { source: 'see item  x\n', clipboard: '1. then', caret: text(9) },
 		then: { gesture: 'paste back', expect: backToStart('see item 1. then x\n') }
 	},
+	// The emptied item keeps a blank line from the paragraph above, or it would read as an underline;
+	// plain text pasted back leaves it there, the own entry gives the bytes back.
 	{
 		name: 'L3 inside a nested list, the outer item indent stays behind',
 		source: '- i0\n  - ⟦i1\n    - i2\n  - i3⟧\n',
 		gesture: 'cut',
-		expect: { source: '- i0\n  - \n', clipboard: '- i1\n  - i2\n- i3', caret: text(9) },
-		then: { gesture: 'paste back', expect: backToStart('- i0\n  - i1\n    - i2\n  - i3\n') }
+		expect: { source: '- i0\n\n  - \n', clipboard: '- i1\n  - i2\n- i3', caret: text(10) },
+		then: { gesture: 'paste back', expect: backToStart('- i0\n\n  - i1\n    - i2\n  - i3\n') }
 	},
 	// Miss-analysis: the merge ran only for a clipboard whose last block takes joined text, and no
 	// row emptied a container and pasted a container ending in code back on its line.

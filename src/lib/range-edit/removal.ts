@@ -30,7 +30,7 @@ import {
 	titleRowOf,
 	type Doc
 } from './document';
-import { apartAt, deepestAt, pastMarkers, type Join } from './apart';
+import { apartAt, deepestAt, openedApart, pastMarkers, type Join } from './apart';
 import { numberedOn } from './list-numbers';
 import { heldAt, heldWhole, removalRange } from './removal-range';
 import { byteAt, lineTextStart, writeLeaf, type Edit } from './leaf-splice';
@@ -72,6 +72,19 @@ export function removeRange(doc: Doc, start: number, end: number): Removal {
 	} else removed = across(doc, from, to, head?.leaf, false);
 	const line = from - lineHead(doc.source, from).length;
 	return { ...removed, source: oneEmptyLine(removed.source, line) };
+}
+
+/** `removeRange` for a gesture that writes no text where the range was: a first line it leaves
+ *  blank keeps its block apart from the block above (an emptied item's list under a paragraph). */
+export function removeLeavingBlank(doc: Doc, start: number, end: number): Removal {
+	const removed = removeRange(doc, start, end);
+	const { from, to } = removalRange(doc, start, end);
+	const block = leafAt(doc, from)?.leaf ?? heldAt(doc, from, to);
+	const kept = block ? openedApart(doc, block, removed) : removed;
+	// The blank line goes in above the start's line, so every byte the removal names moves past it.
+	const grown = kept.source.length - removed.source.length;
+	const moved = (at: number | undefined) => (at === undefined ? at : at + grown);
+	return grown === 0 ? kept : { ...kept, after: moved(removed.after), took: moved(removed.took) };
 }
 
 /** `out` with each ordered list the removal shortened numbered on, then a blank line at `at` where

@@ -32,7 +32,7 @@ import { blankedApart, byteAt, writeText, type Edit, type LeafEdit } from './lea
 import { ownEntry, restored } from './own-entry';
 import { numberedOn } from './list-numbers';
 import { asPasted, pasteAt, type Pasted } from './paste';
-import { removeRange, type Removal } from './removal';
+import { removeLeavingBlank, removeRange, type Removal } from './removal';
 import { fenceBody, holdsText, lastPlaceAt } from './removal-range';
 
 /** Two byte offsets, `from <= to`, after the editor widened the range to every block it takes
@@ -159,9 +159,9 @@ export function editRange(
 		// Across blocks the paste lands where the removal's caret does, as a cut's then a paste's
 		// would, and over one block held whole takes its place, as typed text does.
 		const alone = heldAlone(doc, from, to);
-		const blank = gesture.paste !== '' && isBlankText(gesture.paste);
+		const removal = removalBeforePaste(gesture.paste);
 		const removed =
-			alone && blank ? blankedOut(doc, alone, to) : removalEdit(doc, from, to, 'type');
+			alone && removal === 'cut' ? blankedOut(doc, alone, to) : removalEdit(doc, from, to, removal);
 		const after = read(removed);
 		const caret = caretOf(removed, after, 'start after', () => startedIn(doc, from));
 		const over = pasteAt(after, caret.at, caret.at, pasted(alone ? TEXT : caret));
@@ -182,6 +182,12 @@ export function editRange(
 }
 
 const TEXT: Held = { holds: 'text' };
+
+/** The removal a paste of `text` over a range across blocks makes first: blank text leaves the
+ *  range's place blank, as a cut does; any other goes in there at once, as a typed character does. */
+export function removalBeforePaste(text: string): RemovalGesture {
+	return text !== '' && isBlankText(text) ? 'cut' : 'type';
+}
 
 /** Whether text ending in a line ending lands at `at` on a last line with none, in no literal
  *  text and over no range that empties the document, which has no last line to keep. */
@@ -282,7 +288,7 @@ export function wholeBlocksRemovalOf(
 	host: RangeHost
 ): RangeEditResult {
 	const doc = { ...readDoc(source, host, mode), wholeBlocks: true };
-	return answerOf(removeRange(doc, range.from, range.to), gesture, doc, range);
+	return answerOf(removeLeavingBlank(doc, range.from, range.to), gesture, doc, range);
 }
 
 function answerOf(
@@ -334,9 +340,10 @@ const entersAtEnd = (doc: Doc, { from, to }: Range): boolean =>
 	) !== undefined;
 
 /** What a removal gesture leaves: text typed over one block held whole takes its place, and the
- *  line stays. */
+ *  line stays; text typed elsewhere goes in at once, so the line it lands on is never left blank. */
 function removalEdit(doc: Doc, from: number, to: number, gesture: RemovalGesture): Removal {
-	if (gesture !== 'type' || !heldAlone(doc, from, to)) return removeRange(doc, from, to);
+	if (gesture !== 'type') return removeLeavingBlank(doc, from, to);
+	if (!heldAlone(doc, from, to)) return removeRange(doc, from, to);
 	const out = doc.source.slice(0, from) + doc.source.slice(to);
 	return { source: numberedOn(doc, from, to, out), caret: from };
 }
@@ -364,7 +371,7 @@ export function copyRange(
 /** What a removal of `[from, to)` takes, as a copy and a cut both write it; a range holding no text
  *  that it takes nothing from (a hidden fence, markers alone) copies blank lines at most. */
 function taken(doc: Doc, from: number, to: number) {
-	const removed = removeRange(doc, from, to);
+	const removed = removeLeavingBlank(doc, from, to);
 	const copy = copyOf(doc, from, to);
 	const copies = removed.source !== doc.source || isBlankText(copy) || holdsText(doc, from, to);
 	return { removed, clipboard: copies ? copy : '', own: ownEntry(doc.source, from, to, removed) };

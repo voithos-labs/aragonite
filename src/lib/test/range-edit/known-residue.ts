@@ -231,16 +231,9 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 		law: 'L3',
 		matches: (read, range) => {
 			const types = containersAt(read, range.from, 'start').map((c) => c.type);
-			return (
-				types.some((type, i) => type !== 'list' && types.indexOf(type) !== i) ||
-				types.filter((type) => type === 'list').length > 2
-			);
+			return types.some((type, i) => type !== 'list' && types.indexOf(type) !== i);
 		},
-		repro: {
-			source: '- i0\n  - i1\n    - i2\n  - i3\n    - i4\n\n    p5\n',
-			mode: 'source',
-			range: { from: 18, to: 44 }
-		}
+		repro: { source: '> > a\n> > b\n> > > c\n\nd\n', mode: 'source', range: { from: 10, to: 22 } }
 	},
 	{
 		gap: 'a container cut out past its end from past an opening line, or from its first text to or through a block that takes no joined text, nests a second one when pasted back',

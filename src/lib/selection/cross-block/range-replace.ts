@@ -16,7 +16,10 @@ import type { CrossBlockDispatchContext } from './dispatch';
 import { charOffsetOf, deleteSnapshot, type SelectionPoint } from '../primitives';
 import { coverRange, rangeCoverage, type RangeCoverage } from '../range-coverage';
 import type { RemovalGesture } from '../caret-target';
-import type { RemovalGesture as CoreGesture } from '../../range-edit/edit-range';
+import {
+	removalBeforePaste,
+	type RemovalGesture as CoreGesture
+} from '../../range-edit/edit-range';
 import { pathsEqual } from '../path-math';
 import { blockNodeAt, isBlockNode } from '../../tree-operations/node-primitives';
 import { commitGridClear, commitGridLineDelete } from './grid-removal';
@@ -538,10 +541,10 @@ async function pasteOver(
 	return 'written';
 }
 
-/** The removal typing over the range makes, then the paste at the place the editor would hold on
- *  the bytes it leaves, both answered before either commits; null where the paste has no place. */
+/** The removal the paste makes first, then the paste at the place the editor would hold on the
+ *  bytes it leaves, both answered before either commits; null where the paste has no place. */
 function pairOver(ctx: CrossBlockMutationContext, coverage: RangeCoverage, clip: Clip) {
-	const removal = removalAnswer(ctx, coverage, 'type');
+	const removal = removalAnswer(ctx, coverage, removalBeforePaste(clip.text));
 	if (!removal) return null;
 	const { read, answer } = removal;
 	const { source } = read;

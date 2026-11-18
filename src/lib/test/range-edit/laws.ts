@@ -255,8 +255,9 @@ export function keepsOutside(call: Call, host: CheckHost, input: RangeInput): st
 		const got = call(source, input.range, key, input.mode);
 		if (!got) continue;
 		const runless = (text: string) => (input.mode === 'live' ? text.replace(/[*_~`]/g, '') : text);
+		const parted = withoutLineAbove(source, from, got.source);
 		const kept = [from, lineGoes].some((at) =>
-			runless(got.source).startsWith(runless(source.slice(0, at)))
+			runless(parted).startsWith(runless(source.slice(0, at)))
 		);
 		if (!kept || (tail !== '' && got.source.indexOf(tail, from) < 0))
 			out.push(`L4 ${key} changed bytes outside the range: ${q(got.source)}`);
@@ -265,6 +266,26 @@ export function keepsOutside(call: Call, host: CheckHost, input: RangeInput): st
 		if (moved) out.push(`L4 ${key} ${moved}: ${q(got.source)}`);
 	}
 	return out;
+}
+
+/** `got` less a blank line a removal put right above `from`'s line, where it left that line blank:
+ *  the start's block stays a block of its own under the one above (an emptied item's list). */
+function withoutLineAbove(source: string, from: number, got: string): string {
+	const line = source.lastIndexOf('\n', from - 1) + 1;
+	const blank = /^[ \t>]*\r?\n/.exec(got.slice(line))?.[0];
+	if (!blank || /^[ \t>]*\r?\n/.test(source.slice(line))) return got;
+	// The start's line under it holds its markers alone, an item's last.
+	const left = /^[^\n]*/.exec(got.slice(line + blank.length))![0];
+	const emptied = /^[ \t>]*(?:[-*+]|\d{1,9}[.)])[ \t]*\r?$/.test(left);
+	return emptied ? got.slice(0, line) + got.slice(line + blank.length) : got;
+}
+
+/** What takes the blank line a removal put above `from`'s line out of bytes built on that removal,
+ *  where it left the line blank (`withoutLineAbove`); null where it put none. */
+function lineAboveOf(source: string, from: number, removal: string) {
+	const width = removal.length - withoutLineAbove(source, from, removal).length;
+	const line = source.lastIndexOf('\n', from - 1) + 1;
+	return width === 0 ? null : (bytes: string) => bytes.slice(0, line) + bytes.slice(line + width);
 }
 
 /** `from`'s line start where its block goes whole out of its container at a line's end, a block
@@ -442,6 +463,9 @@ export function replaceLaws(
 	const unit = blockHeldWhole(read, input.range);
 	const over = call(input.source, input.range, paste(text), input.mode);
 	const cut = call(input.source, input.range, 'cut', input.mode);
+	// Text typed or pasted there at once leaves no blank line where the cut's empties a first line.
+	const apart = cut && lineAboveOf(input.source, input.range.from, cut.source);
+	const atOnce = (bytes: string, cutBytes: string) => apart?.(cutBytes) === bytes;
 	if (over && unit) {
 		// A pasted list joins a list of its own type over the block, the blank lines between gone.
 		const before = overEmptied(read, unit, text, host);
@@ -470,7 +494,8 @@ export function replaceLaws(
 		else if (
 			then &&
 			!sameAfterCut(then.source, over.source, input.source, cut.source) &&
-			!openEndEntered(input.source, input.range, text, over.source, then.source)
+			!openEndEntered(input.source, input.range, text, over.source, then.source) &&
+			!atOnce(over.source, then.source)
 		)
 			out.push(`L5 paste over gave ${q(over.source)}, cut then paste ${q(then.source)}`);
 	}
@@ -488,7 +513,10 @@ export function replaceLaws(
 			const kept = input.source.slice(0, unit.from) + input.source.slice(input.range.to);
 			if (got.source !== kept)
 				out.push(`L5 type over a block held whole left ${q(got.source)}, not ${q(kept)}`);
-		} else if (got.source !== removal.source && !(gesture === 'type' && onSyntax(host, removal))) {
+		} else if (
+			got.source !== removal.source &&
+			!(gesture === 'type' && (onSyntax(host, removal) || atOnce(got.source, removal.source)))
+		) {
 			out.push(`L5 ${gesture} removed to ${q(got.source)}, ${like} to ${q(removal.source)}`);
 		}
 	}

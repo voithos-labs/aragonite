@@ -2,13 +2,15 @@
  * Putting a text block's new bytes back into the source: the host's in-block writes answer in the
  * block's own bytes, its container markers stripped, and the changed part goes back behind the
  * markers of the lines it lands on. A write or a paste that leaves a block blank gives up the blank
- * line under it, as the block's emptying write does (`blankedApart`).
+ * line under it, as the block's emptying write does (`blankedApart`), and one that leaves its first
+ * line blank keeps it apart from the block above (`openedApart`).
  */
 
 import { displayLines, isBlankText, ownTrailingLineEnding } from '../core/lines';
 import { sharedPrefixLength, sharedSuffixLength } from '../core/written-span';
 import type { Joined, LeafWrite } from './host';
 import type { LaidBlock } from './layout';
+import { openedApart } from './apart';
 import { isCell, lineOf, nodeAt, parentOf, titleOwner, type Doc } from './document';
 import { lineEnd, lineRest } from './lines';
 import { continuation } from './markers';
@@ -76,15 +78,22 @@ export function writtenText(
 	keep?: (c: LaidBlock) => boolean
 ): Edit {
 	const written = writeLeaf(doc, leaf, write, from, to, keep);
-	const edit = isBlankText(write.bytes) ? blankedApart(doc, leaf, written) : written;
+	const edit = isBlankText(write.bytes)
+		? blankedApart(doc, leaf, written)
+		: openedApart(doc, leaf, written);
 	// A caret past the block's last line ending stands on no text of it, so the write names none.
 	if (write.caret === write.bytes.length && write.bytes.endsWith('\n')) return edit;
 	return { ...edit, leaf: { path: leaf.path, ...inDocumentEnding(doc, leaf, write, from, to) } };
 }
 
 /** `edit`, which left `leaf`, a block of `doc`, blank: less the blank line under it where text
- *  follows in its container; under an opening line of its own that line moves above it. */
+ *  follows in its container, and apart from the block above where its line would read into it. */
 export function blankedApart(doc: Doc, leaf: LaidBlock, edit: Edit): Edit {
+	return openedApart(doc, leaf, underGivenUp(doc, leaf, edit));
+}
+
+/** `edit` less the blank line under `leaf`; under an opening line of its own that line moves above. */
+function underGivenUp(doc: Doc, leaf: LaidBlock, edit: Edit): Edit {
 	const { source } = doc;
 	if (isBlankText(nodeAt(doc, leaf.path).raw) || isCell(doc, leaf) || titleOwner(doc, leaf))
 		return edit;
