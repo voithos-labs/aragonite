@@ -137,9 +137,21 @@ const FROM_A_RULE: KeyedRow[] = [
 		to: { path: [0, 2], offset: 8 },
 		elsewhere: [1],
 		after: {
-			Delete: ':::note\n\n```\nq\n```\n:::\n\nafter\n',
-			Enter: ':::note\n\n```\n\nq\n```\n:::\n\nafter\n',
-			'Shift+Enter': ':::note\n\n```\n\nq\n```\n:::\n\nafter\n'
+			Delete: ':::note\n```\nq\n```\n:::\n\nafter\n',
+			Enter: ':::note\n```\n\nq\n```\n:::\n\nafter\n',
+			'Shift+Enter': ':::note\n```\n\nq\n```\n:::\n\nafter\n'
+		}
+	},
+	{
+		name: 'a paragraph above, under a blank line',
+		doc: 'first\n\n***\n\nbody\n\n```\ncode\n```\n\nafter\n',
+		from: { path: [1], offset: 0 },
+		to: { path: [3], offset: 8 },
+		elsewhere: [4],
+		after: {
+			Delete: 'first\n\n```\nq\n```\n\nafter\n',
+			Enter: 'first\n\n```\n\nq\n```\n\nafter\n',
+			'Shift+Enter': 'first\n\n```\n\nq\n```\n\nafter\n'
 		}
 	}
 ];

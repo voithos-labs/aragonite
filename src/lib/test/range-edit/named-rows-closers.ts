@@ -740,8 +740,8 @@ const EMPTIED_LINE_ROWS: NamedRow[] = [
 	...backspaced(
 		'L4 a callout the range enters keeps the line of the paragraph it empties',
 		'first\n\n⟦***\n\nbody\n\n:::tip\ninner⟧\n\nmore\n:::\n',
-		'first\n\n\n:::tip\n\n\nmore\n:::\n',
-		{ at: 7, holds: 'text' }
+		'first\n\n:::tip\n\n\nmore\n:::\n',
+		{ at: 15, holds: 'text' }
 	),
 	...backspaced(
 		'L4 nor at the end of a details’ body under a blank line',
@@ -759,6 +759,55 @@ const EMPTIED_LINE_ROWS: NamedRow[] = [
 	...cut('L4 and in an item', '- above\n\n  ⟦zero\n\n  below⟧\n\nlast\n', '- above\n\n  \n\nlast\n')
 ];
 
+// Miss-analysis: every row's first block stood at the document's start, so none took one under a
+// blank line or an opening row, where its blank line stayed above the opening and caught the caret.
+const BARE_START_ROWS: NamedRow[] = [
+	...cut(
+		'L4 a block taken whole under a blank line leaves one blank line above the tip the range enters',
+		'x\n\n⟦***\n\nbody\n\n:::tip\nin⟧ner\nmore\n:::\n\n# h\n',
+		'x\n\n:::tip\nner\nmore\n:::\n\n# h\n'
+	),
+	...deleted(
+		'L8 a block taken whole under a blank line, Delete lands at the tip’s text',
+		'x\n\n⟦***\n\nbody\n\n:::tip\nin⟧ner\nmore\n:::\n\n# h\n',
+		'x\n\n:::tip\nner\nmore\n:::\n\n# h\n',
+		{ at: 10, holds: 'text' },
+		true
+	),
+	...deleted(
+		'L8 the same as a details’ first block',
+		'<details open>\n<summary>Sum</summary>\n\n⟦***\n\nbody\n\n:::tip\nin⟧ner\n:::\n\n</details>\n',
+		'<details open>\n<summary>Sum</summary>\n\n:::tip\nner\n:::\n\n</details>\n',
+		{ at: 46, holds: 'text' }
+	),
+	...deleted(
+		'L8 the same into a code block',
+		'x\n\n⟦***\n\nbody\n\n```\nco⟧de\n```\n\n# h\n',
+		'x\n\n```\nde\n```\n\n# h\n',
+		{ at: 7, holds: 'text' }
+	),
+	...deleted(
+		'L8 a block taken whole right under an opening row, into a code block',
+		':::note\n⟦***\n\nbody\n\n```\nco⟧de\n```\n:::\n',
+		':::note\n```\nde\n```\n:::\n',
+		{ at: 12, holds: 'text' }
+	),
+	...deleted(
+		'L8 the same into a tip inside the note',
+		'::::note\n⟦***\n\n:::tip\nin⟧ner\n:::\n::::\n',
+		'::::note\n:::tip\nner\n:::\n::::\n',
+		{ at: 16, holds: 'text' },
+		true
+	),
+	// The twin, a paragraph emptied from its text start, keeps its line, as ruling 2 says.
+	...deleted(
+		'L8 control: a paragraph emptied under a blank line keeps its line above the tip',
+		'x\n\n⟦zero\n\nbody\n\n:::tip\nin⟧ner\nmore\n:::\n\n# h\n',
+		'x\n\n\n:::tip\nner\nmore\n:::\n\n# h\n',
+		{ at: 3, holds: 'text' }
+	)
+];
+
 export const CLOSER_ROWS: NamedRow[] = [
 	...CLOSING_LINE_ROWS,
 	...LINE_ROWS,
@@ -774,5 +823,6 @@ export const CLOSER_ROWS: NamedRow[] = [
 	...LINE_END_ROWS,
 	...COMPOSITION_ROWS,
 	...LINE_BREAK_ROWS,
-	...EMPTIED_LINE_ROWS
+	...EMPTIED_LINE_ROWS,
+	...BARE_START_ROWS
 ];

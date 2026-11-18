@@ -66,6 +66,18 @@ for (const mode of ['live', 'source'] as const) {
 		await editor.bridge.waitForSourceEquals(':::note\n:::\n\n:::tip\nxner\nmore\n:::\n\n# h\n');
 	});
 
+	test(`(${mode}) Delete from a table under a paragraph into a tip's body leaves one blank line and types at the tip's text`, async ({
+		page
+	}) => {
+		await open(mode, `lead\n\n${TABLE}\n\nbody\n\n:::tip\ninner\nmore\n:::\n\n# h\n`);
+		await selectFromFirstCell([1, 0, 0], [3, 1], 2);
+
+		await page.keyboard.press('Delete');
+		await editor.bridge.waitForSourceEquals('lead\n\n:::tip\nner\nmore\n:::\n\n# h\n');
+		await page.keyboard.type('x');
+		await editor.bridge.waitForSourceEquals('lead\n\n:::tip\nxner\nmore\n:::\n\n# h\n');
+	});
+
 	test(`(${mode}) Delete to a code line's end in a quote keeps one marker on the line after`, async ({
 		page
 	}) => {

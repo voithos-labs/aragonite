@@ -29,6 +29,7 @@ import {
 	nodeAt,
 	parentOf,
 	readDoc,
+	titleAt,
 	titleOwner,
 	titleRowOf,
 	type Doc
@@ -216,8 +217,13 @@ function across(
 		// Nothing stays before the tail at the document's start, where a blank line before an
 		// opening would read as an empty paragraph; an emptied start block keeps its line.
 		const first = before === '' && !start;
+		// A start block taken whole goes with its line: under a blank line or an opening row, no
+		// blank line of its stays before the opening the range enters either.
+		const bare =
+			first ||
+			(held && closing === '' && (endsInBlankLine(before) || !!titleAt(doc, lineFrom - 1)));
 		const opened = opening?.kept ?? '';
-		const kept = first ? opened.replace(/^(?:[ \t]*\r?\n)+/, '') : opened;
+		const kept = bare ? opened.replace(/^(?:[ \t]*\r?\n)+/, '') : opened;
 		// The tail opens on a line of its own, save at the document's start, after a start line taken
 		// whole, and where the end's line went with no opening kept, leaving it on the start's line.
 		const ended = held && /\n$/.test(before);

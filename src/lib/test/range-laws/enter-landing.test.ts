@@ -190,8 +190,8 @@ const ROWS: Row[] = [
 		name: 'an untitled opening line the range ends at, a block before',
 		source: 'first\n\n***\n\nbody\n\n:::tip\nbody\n:::\n',
 		select: range([1], [3, 0], 6),
-		entered: 'first\n\nx\n\n\n:::tip\nbody\n:::\n',
-		shifted: 'first\\\nx\n\n\n:::tip\nbody\n:::\n'
+		entered: 'first\n\nx\n\n:::tip\nbody\n:::\n',
+		shifted: 'first\\\nx\n\n:::tip\nbody\n:::\n'
 	},
 	// Miss-analysis: every row took the block its range started in, so a break that ran where the
 	// range began, on a title row the core never picked, went unseen and its guard warned there.

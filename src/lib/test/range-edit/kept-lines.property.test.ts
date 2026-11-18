@@ -20,7 +20,7 @@ import { isBlankText } from '#lib/core/lines.js';
 import type { DocumentView } from '#lib/core/node-views.js';
 import { editRange, removalOf } from '#lib/range-edit/edit-range.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
-import { lineRest } from '#lib/range-edit/leaf-splice.js';
+import { lineHead, lineRest } from '#lib/range-edit/leaf-splice.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
 import { normalizeCharEndpoint } from '#lib/selection/char-endpoint-snap.js';
 import { pathsEqual } from '#lib/selection/path-math.js';
@@ -69,7 +69,8 @@ const WRAPS: Record<string, (body: string[]) => string[]> = {
 	quote: quoted,
 	item: under('- ', '  '),
 	footnote: under('[^1]: ', '    '),
-	'no container': (b) => b
+	'no container': (b) => b,
+	'no container, a paragraph above': (b) => ['lead', '', ...b]
 };
 
 /** The container's body: `⟦` at the first byte of a block the range takes whole, inside a block's
@@ -234,7 +235,12 @@ describe('G4.350 a removal keeps the lines after its range', () => {
 				let emptied = false;
 				for (const g of ['delete', 'compose'] as const) {
 					const { caret, source: got } = caretOf(g);
-					emptied = caret.at <= range.from && isBlankText(lineRest(got, caret.at));
+					// An emptied line holds the caret behind a container's marker alone: a block taken whole
+					// goes with its line, under a blank line or an opening row too.
+					emptied =
+						caret.at <= range.from &&
+						lineHead(got, caret.at) !== '' &&
+						isBlankText(lineRest(got, caret.at));
 					// The text after stays the kind of block it was, so an opening the removal lost shows.
 					const after =
 						got.startsWith(rest, caret.at) && leafAt(readOf(host, got), caret.at)?.type === kind;

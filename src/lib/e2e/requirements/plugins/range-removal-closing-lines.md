@@ -26,6 +26,13 @@ a later container, where the caret stopped on that container's opening line.
   first line; Delete, then type a letter: the letter lands at the start of what is left of that
   line, not on the tip's `:::tip`. In live and source mode.
 
+Miss-analysis: every row's first block led its container, so none stood under a blank line, where
+the removal kept a second blank line above the tip and the caret stopped on it.
+
+- A paragraph, a table, a paragraph and a tip; select from the table's first cell into the tip's
+  first line; Delete, then type a letter: one blank line stays between the first paragraph and the
+  tip, and the letter lands at the start of what is left of the tip's line. In live and source mode.
+
 ## A range ending at a line's end
 
 Miss-analysis: every row ended mid-line, so none ended at a line's end inside a block that runs on,

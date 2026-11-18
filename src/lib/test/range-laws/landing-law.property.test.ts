@@ -205,11 +205,10 @@ const RESTS: Record<string, string> = {
 	'inside a callout it enters': 'ner'
 };
 
-/** Lane B's: a line the range emptied above a kept opening holds Delete's caret, short of the rest,
- *  under a block or as the first line of a quote or an item the range starts in. */
+/** Booked, not ruled: in a quote or an item, the line a block taken whole leaves keeps its marker
+ *  above an opening the range enters, and holds Delete's caret short of the rest. */
 const lineAboveOpening = (d: Draw) =>
-	d.end === 'inside a callout it enters' &&
-	(d.above !== 'first in its container' || d.wrap === 'a quote' || d.wrap === 'an item');
+	d.end === 'inside a callout it enters' && (d.wrap === 'a quote' || d.wrap === 'an item');
 
 /** Booked, not ruled: the end leaf's rest takes the place of a block taken whole right under a
  *  paragraph and runs on into it, as two paragraphs a removal leaves flush rejoin. */
