@@ -477,6 +477,24 @@ describe('a line break on the line a range keeps at the document’s end lands a
 			});
 });
 
+// Miss-analysis: every drawn document ended on a line ending, so the line a range keeps as the
+// document's last, with none after it, was never set beside its twin, and Backspace left it.
+describe('the line a range keeps at the end of a document with no final line ending lands as its twin’s', () => {
+	const ROWS: [string, string, string][] = [
+		['at the top level', 'first\n\n⟦***\n\npara⟧', 'first\n\n⟦zero\n\npara⟧'],
+		['right under a rule', '___\n⟦***\n\npara⟧', '___\n⟦zero\n\npara⟧'],
+		['in a quote', '> first\n>\n> ⟦***\n>\n> para⟧', '> first\n>\n> ⟦zero\n>\n> para⟧']
+	];
+	for (const mode of ['source', 'live'] as const)
+		for (const [name, text, twin] of ROWS)
+			for (const g of GESTURES)
+				it(`${mode}: ${g}, ${name}`, async () => {
+					const got = await land(text, mode, g);
+					const want = await land(twin, mode, g);
+					expect({ ...got, warns: [] }).toEqual({ ...want, warns: [] });
+				});
+});
+
 // ── Text over a range that leaves no text of its own ─────────────────────────
 
 // Miss-analysis: the rows of text over a range that took its start block ended inside a leaf's

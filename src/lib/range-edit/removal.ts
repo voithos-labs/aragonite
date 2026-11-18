@@ -141,10 +141,11 @@ function keptLine(doc: Doc, from: number, left: Removal): Removal | null {
 	for (const emptied of new Set([from, left.after ?? from])) {
 		const source = oneEmptyLine(left.source, emptied - lineHead(left.source, emptied).length);
 		const under = source.indexOf('\n', emptied) + 1;
-		// The line a range emptied at the document's end is a place of its own, whatever stands above.
-		if (under === source.length) return { source, caret: emptied, took: from };
+		// The line a range emptied at the document's end, its last line ending there or not, is a
+		// place of its own, whatever stands above.
+		if (under === 0 || under === source.length) return { source, caret: emptied, took: from };
 		const read = readDoc(source, doc.host, doc.mode);
-		const at = [emptied, ...(under > 0 ? [textStartAt(read, under)] : [])].find((byte) => {
+		const at = [emptied, textStartAt(read, under)].find((byte) => {
 			const leaf = leafAt(read, byte)?.leaf;
 			return (
 				!!leaf?.text && leaf.text.from === leaf.text.to && factsOf(read, leaf).joins === 'text'
