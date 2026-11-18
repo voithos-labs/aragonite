@@ -125,7 +125,15 @@ export function continuationAt(
 		if (!MARKED.includes(facts.lines)) continue;
 		const line = lineOf(container, byte);
 		if (line.own) continue;
-		const source = markerOn(read, line) === '' ? markedFor(read, container, line, facts) : line;
+		const own = markerOn(read, line) === '' ? markedFor(read, container, line, facts) : line;
+		// A later line spelling less than its item's indent (a lazy or short one) takes the first's.
+		const first = facts.lines === 'first-line' ? firstBodyLine(container) : undefined;
+		const short =
+			!!first &&
+			own === line &&
+			own !== first &&
+			spanOf(read, own, own.markerTo) < itemIndent(read, first);
+		const source = short ? first : own;
 		// A blank line's bare `>` is spelled with the space a line with text takes after it.
 		const spelled = source ? markerOn(read, source) : '';
 		const end = (read.source + '\n').indexOf('\n', source?.markerTo ?? 0);
@@ -142,6 +150,23 @@ export function continuationAt(
 		} else prefix += marker;
 	}
 	return prefix;
+}
+
+/** Columns from `line`'s marker start to `to`, a tab to the next stop of four from the line's start. */
+function spanOf(read: Read, line: LaidLine, to: number): number {
+	const start = read.source.lastIndexOf('\n', line.from - 1) + 1;
+	let [col, before] = [0, 0];
+	for (let i = start; i < to; i++) {
+		if (i === line.from) before = col;
+		col = read.source[i] === '\t' ? col + 4 - (col % 4) : col + 1;
+	}
+	return col - before;
+}
+
+/** The columns an item's first line indents its later lines by: its glyph and the spaces after. */
+function itemIndent(read: Read, first: LaidLine): number {
+	const glyph = /^[ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]*/.exec(markerOn(read, first))?.[0] ?? '';
+	return spanOf(read, first, first.from + glyph.length);
 }
 
 /** A lazy line has no marker, but a new line after it stays in its container: it takes the marker
