@@ -4,7 +4,6 @@
  */
 
 import { ownTrailingLineEnding } from '../core/lines';
-import { structuralSuffix } from '../core/inline';
 import type { LaidBlock } from './layout';
 import {
 	contentEnd,
@@ -28,7 +27,7 @@ export function removalRange(doc: Doc, start: number, end: number): { from: numb
 	const from = body ? Math.max(start, body.from) : start;
 	// A range that leaves the block runs on; the removal keeps the hidden closing line.
 	const stays = body && end <= contentEnd(doc, code.leaf);
-	let to = pastSuffix(doc, from, stays ? Math.max(from, Math.min(end, body.to)) : end);
+	let to = stays ? Math.max(from, Math.min(end, body.to)) : end;
 	const final = ownTrailingLineEnding(doc.source);
 	if (to === doc.source.length && to - final.length > from) to -= final.length;
 	const row = titleAt(doc, from);
@@ -50,14 +49,6 @@ export function removalRange(doc: Doc, start: number, end: number): { from: numb
 	);
 	const between = text ? doc.source.slice(from, text.text!.from) : '\n';
 	return { from: /\n/.test(between) ? from : text!.text!.from, to };
-}
-
-/** `to`, or past the underline or closing run of a heading the range holds through its text, which
- *  goes whole with them. */
-export function pastSuffix(doc: Doc, from: number, to: number): number {
-	const end = leafAt(doc, to)?.leaf;
-	if (!end || end.from <= from || !heldWhole(doc, end, end.from, to)) return to;
-	return structuralSuffix(nodeAt(doc, end.path)) ? Math.max(to, contentEnd(doc, end)) : to;
 }
 
 /** The first block, outermost first, that the range starting at its first byte holds whole. */
