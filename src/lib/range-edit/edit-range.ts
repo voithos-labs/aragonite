@@ -227,8 +227,10 @@ function opensLastLine(doc: Doc, from: number, to: number, at: number, text: str
 		return false;
 	if (source.includes('\n', at) || (from === 0 && to === source.length)) return false;
 	const leaf = leafHolding(doc, at, at)?.leaf;
-	// A literal block held whole gives way to the text, which lands in no literal text.
-	return !leaf || factsOf(doc, leaf).body !== 'literal' || !!heldAlone(doc, from, to);
+	// A literal block held whole gives way to text landing at its end, which is no literal text then.
+	return (
+		!leaf || factsOf(doc, leaf).body !== 'literal' || (at === to && !!heldAlone(doc, from, to))
+	);
 }
 
 /** `closed`, a paste into the document given the last line ending it lacked: the ending goes
