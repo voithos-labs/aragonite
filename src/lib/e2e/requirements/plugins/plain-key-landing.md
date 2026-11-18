@@ -20,6 +20,8 @@ source there).
 - Delete before a `$$` block: `q` starts its body; Backspace after one: `q` ends its body, a
   one-line `$$m$$`'s formula too
 - Enter at a heading's text start: the heading moves down and `q` starts its text
+- Enter at a title row's end: `q` starts the body's first text, past a heading's `# ` and on into
+  a tip under an untitled row; above a table of contents, the gap under the row
 
 ## Edge cases
 
@@ -29,3 +31,5 @@ source there).
 
 - The plain keys landed through each neighbour's own entry caret, which sits before a heading's
   `#` in source mode and at a name's end, and every row typed a letter only after a range.
+- Enter at a title row's end was only typed above a paragraph, so no row met a body whose first
+  block an entry caret puts on syntax.

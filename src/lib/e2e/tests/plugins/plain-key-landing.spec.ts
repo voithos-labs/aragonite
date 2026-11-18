@@ -83,6 +83,27 @@ const ROWS: Row[] = [
 		at: { path: [0], offset: 2 },
 		key: 'Enter',
 		after: '\n# qhead\n\nafter\n'
+	},
+	{
+		name: 'Enter at a title row’s end lands past the heading under it',
+		doc: ':::tip Title\n# in\n:::\n',
+		at: { path: [0, 0], offset: 12 },
+		key: 'Enter',
+		after: ':::tip Title\n# qin\n:::\n'
+	},
+	{
+		name: 'Enter at a titled note’s row end goes on into the tip under it',
+		doc: '::::note Title\n:::tip\nin\n:::\n::::\n',
+		at: { path: [0, 0], offset: 14 },
+		key: 'Enter',
+		after: '::::note Title\n:::tip\nqin\n:::\n::::\n'
+	},
+	{
+		name: 'Enter at a title row’s end above a table of contents holds the gap under the row',
+		doc: ':::tip Title\n[[toc]]\n:::\n',
+		at: { path: [0, 0], offset: 12 },
+		key: 'Enter',
+		after: ':::tip Title\n\nq\n\n[[toc]]\n:::\n'
 	}
 ];
 

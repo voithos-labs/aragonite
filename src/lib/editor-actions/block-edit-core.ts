@@ -5,7 +5,7 @@
  */
 
 import { tick } from 'svelte';
-import { CURSOR_END, CURSOR_START } from '../block-component';
+import { CURSOR_END } from '../block-component';
 import type { CstNode } from '../core/nodes';
 import {
 	displayLength,
@@ -334,11 +334,16 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 
 		async descendToBody(i) {
 			const children = scope.children();
-			// A body child already exists: a focus move, no undo entry.
-			if (i + 1 < children.length) {
-				await scope.land(scope.at(i + 1, [], CURSOR_START));
-				return false;
-			}
+			// A body child already exists: the caret goes on as Delete at the row's end lands, no undo entry.
+			if (i + 1 < children.length)
+				return scope.commit({
+					snapshot: { index: i, offset: CURSOR_END },
+					eventTarget: i,
+					op: { kind: 'appendBlock' },
+					mutate: () => ({ op: 'noop' }),
+					landing: () => scope.beside(i, 1),
+					discardIfNoop: true
+				});
 			return scope.commit({
 				snapshot: { index: i, offset: 0 },
 				eventTarget: i + 1,

@@ -239,16 +239,16 @@ describe('block-edit core: thematicBreak focus-then-delete', () => {
 
 // Miss-analysis: the wrap fix-up tests passed the container node, never the commit view's shape.
 describe('block-edit core: chrome.descendToBody', () => {
-	it('focuses the existing body sibling without creating or committing', async () => {
-		const body = focusSpy();
-		const { scope, commits, children } = makeCommitScopeStub([leaf('Title\n'), leaf('Body\n')], {
-			refs: [undefined, body.ref]
-		});
+	// An existing body takes the caret where Delete at the row's end lands, in a commit that writes
+	// nothing and leaves no undo entry.
+	it('lands beside the row in the existing body without creating a block', async () => {
+		const { scope, commits, children } = makeCommitScopeStub([leaf('Title\n'), leaf('Body\n')]);
+		const asked: [number, number][] = [];
+		scope.beside = (i, dir) => (asked.push([i, dir]), null);
 		await createBlockEditCore(scope).descendToBody(0);
-		expect(commits).toHaveLength(0);
-		expect(children).toHaveLength(2);
-		// The body already exists, so its own focus, not the descend, picks the byte.
-		expect(body.calls).toEqual([CURSOR_START]);
+		expect(children.map((c) => c.raw)).toEqual(['Title\n', 'Body\n']);
+		expect(commits).toMatchObject([{ discardIfNoop: true }]);
+		expect(asked).toEqual([[0, 1]]);
 	});
 
 	it('creates and focuses an empty body paragraph when the chrome has no body child', async () => {
@@ -277,7 +277,7 @@ describe('block-edit core: chrome.descendToBody', () => {
 		// Empty refs: the body child exists in the array but is windowed out.
 		const { scope, commits, children } = makeCommitScopeStub([leaf('Title\n'), leaf('Body\n')]);
 		await createBlockEditCore(scope).descendToBody(0);
-		expect(commits).toHaveLength(0);
+		expect(commits).toMatchObject([{ discardIfNoop: true }]);
 		expect(children).toHaveLength(2);
 	});
 });

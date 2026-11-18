@@ -126,6 +126,36 @@ const BOTH_MODES: Row[] = [
 		['Enter'],
 		'- \n- # xhead\n'
 	],
+	// Miss-analysis: Enter at a title row's end was only typed above a paragraph, so no row met a
+	// body whose first block an entry caret puts on syntax.
+	[
+		'Enter at a titled callout’s row end lands past a heading’s `# `',
+		':::tip Title\n# in\n:::\n',
+		{ path: [0, 0], offset: CURSOR_END },
+		['Enter'],
+		':::tip Title\n# xin\n:::\n'
+	],
+	[
+		'Enter at a titled note’s row end goes on into the tip under it',
+		'::::note Title\n:::tip\nin\n:::\n::::\n',
+		{ path: [0, 0], offset: CURSOR_END },
+		['Enter'],
+		'::::note Title\n:::tip\nxin\n:::\n::::\n'
+	],
+	[
+		'Enter at a titled callout’s row end above a table of contents holds the gap under the row',
+		':::tip Title\n[[toc]]\n:::\n',
+		{ path: [0, 0], offset: CURSOR_END },
+		['Enter'],
+		':::tip Title\n\nx\n\n[[toc]]\n:::\n'
+	],
+	[
+		'Enter at a titled callout’s row end above a paragraph lands at its start',
+		':::tip Title\nin\n:::\n',
+		{ path: [0, 0], offset: CURSOR_END },
+		['Enter'],
+		':::tip Title\nxin\n:::\n'
+	],
 	// From a container's last block the key reaches the block after the container.
 	[
 		'Delete at a quote’s last paragraph before an untitled callout',
