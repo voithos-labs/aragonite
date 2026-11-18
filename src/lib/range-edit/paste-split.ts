@@ -102,7 +102,10 @@ export function enteredAt(
 	const hosted = host && item.path.length === host.depth;
 	const marker = hosted ? numberedAs(host.marker, ownKind) : ownKind;
 	const head = cut.head + doc.ending + outer + indent + marker;
-	const opened = { source: head + cut.rest, caret: head.length + cut.caret };
+	// Text of the block on a later line comes up behind the new marker, as Enter's split brings it.
+	const later = !!held && caret < held.leaf.text!.to && /^\r?\n/.test(cut.rest);
+	const rest = later ? cut.rest.slice(pastMarkers(cut.rest, cut.rest.indexOf('\n') + 1)) : cut.rest;
+	const opened = { source: head + rest, caret: head.length + cut.caret };
 	return atTextStart(doc, numberedAfterTaking(doc, list, item.path.at(-1)! + 1, opened));
 }
 

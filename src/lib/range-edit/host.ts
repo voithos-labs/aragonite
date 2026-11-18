@@ -409,10 +409,14 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 			second: store,
 			behind: ''
 		});
-		const [line, rest] = [halves.firstRaw, halves.secondRaw].map(trimTrailingLineEnding);
-		const closes = rest.length < written.length && written.endsWith(rest);
-		const head = closes ? line : node.raw.slice(0, at);
-		return { raw: head + '\n' + (closes ? rest : written) + ending, caret: head.length + 1 };
+		const line = trimTrailingLineEnding(halves.firstRaw);
+		// What the split moved in front of the break is a closer; a line break it dropped is not.
+		const own = node.raw.slice(0, at);
+		const closer = line.startsWith(own) ? line.slice(at) : '';
+		const closes = closer !== '' && written.startsWith(closer);
+		const head = closes ? line : own;
+		const after = written.slice(closes ? closer.length : 0);
+		return { raw: head + '\n' + after + ending, caret: head.length + 1 };
 	}
 
 	/** `RangeHost.leaf.cut` for joined text that brings no line ending of its own at its end. */

@@ -175,8 +175,8 @@ function entered(
 	if (!first && count === 1) return null;
 	let edit = first ?? landedAt(doc, from, to, keeping(1), seen);
 	// Past an empty line the first ending opened, each later one goes as Enter does there.
-	if (!first && !onBlankLine(edit)) return null;
-	let enter = first !== null;
+	if (!first && !edit.entered && !onBlankLine(edit)) return null;
+	let enter = first !== null || !!edit.entered;
 	for (let i = 1; i < count; i++) {
 		const next = enteredAgain(doc, edit);
 		enter ||= next !== edit;
@@ -306,6 +306,17 @@ function enteredAgain(doc: Doc, edit: Edit): Edit {
 function onBlankLine({ source, caret }: Edit): boolean {
 	const lineStart = caret - lineHead(source, caret).length;
 	return isBlankText(lineRest(source, pastMarkers(source, lineStart)));
+}
+
+/** `edit`, where the line break it wrote left the caret on a blank line over more of the block's
+ *  text: the caret goes to that text, where Enter leaves it. */
+function splitAbove(edit: Edit): Edit {
+	if (!onBlankLine(edit)) return edit;
+	return {
+		...edit,
+		caret: pastMarkers(edit.source, lineEnd(edit.source, edit.caret) + 1),
+		entered: true
+	};
 }
 
 /** The last block of `read`, a clipboard read as blocks. */
@@ -742,10 +753,18 @@ function landed(
 		// A last line ending cuts the block as a split there does where structure stands past its text.
 		const ending = text.endsWith('\n');
 		if (ending && !follows && /\S/.test(past)) return around(cutWith(text.slice(0, -1), ''), '\n');
-		// Any other goes in after the text as the block wrote it: the caret memory spends on the text
-		// alone, and a run the text ends in closes before the break (`RangeHost.leaf.broken`).
-		const opened = (edit: Edit) => (follows ? edit : ownLine(doc, to, edit));
+		// Any other goes in after the text as the block wrote it, a run it ends in closed before the
+		// break (`RangeHost.leaf.broken`); over a line of the text, as Enter there splits it.
+		const opened = (edit: Edit) =>
+			lineEndBefore(doc.source, to) < textTo
+				? splitAbove(edit)
+				: follows
+					? edit
+					: ownLine(doc, to, edit);
 		if (ending && !isBlankText(text)) return opened(brokenAfter(write(text.slice(0, -1)), text));
+		// One line break alone is the block's line break too, which closes a run it stands at the end of.
+		if (from === to && text === '\n')
+			return opened(markersTrimmed(doc, from, brokenAfter(write(''), text)));
 		// Line breaks alone at a caret go in as bytes, which no write rule re-reads; spaces alone are
 		// text the block writes, where a caret at a hidden edge places them.
 		return from === to && isBlankText(text) && text.includes('\n')
