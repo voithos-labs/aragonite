@@ -265,6 +265,17 @@ async function mounted(text: string, mode: PresentationMode) {
 	return { editor, source, select };
 }
 
+/** One Ctrl+Z after `gesture`: the document and the selection it leaves, beside the ones the
+ *  gesture started from. */
+async function undoneOnce(text: string, mode: PresentationMode, gesture: Gesture) {
+	const { editor, source, select } = await mounted(text, mode);
+	await run(editor, gesture);
+	await press(editor, { key: 'z', ctrlKey: true });
+	takeDevWarns();
+	const got = { bytes: editor.source(), selection: editor.instance.getSelection() };
+	return { got, want: { bytes: source, selection: select } };
+}
+
 async function land(text: string, mode: PresentationMode, gesture: Gesture): Promise<Landing> {
 	const { editor } = await mounted(text, mode);
 	await run(editor, gesture);
@@ -362,17 +373,12 @@ describe('the landing law', () => {
 		);
 	}, 600_000);
 
-	it('P8: undo returns the range, every gesture', async () => {
+	it('P8: one undo returns the document and the range, every gesture', async () => {
 		await fc.assert(
 			fc.asyncProperty(arbDraw, fc.constantFrom(...GESTURES), async (d, g) => {
 				const text = marked(d, STARTS[d.start]);
-				const { editor, source, select } = await mounted(text, d.mode);
-				await run(editor, g);
-				for (let n = 0; n < 3 && editor.source() !== source; n++)
-					await press(editor, { key: 'z', ctrlKey: true });
-				takeDevWarns();
-				expect(editor.source(), `${g} over ${JSON.stringify(text)}`).toBe(source);
-				expect(editor.instance.getSelection()).toEqual(select);
+				const { got, want } = await undoneOnce(text, d.mode, g);
+				expect(got, `${g} over ${JSON.stringify(text)}`).toEqual(want);
 			}),
 			params(1.5)
 		);
@@ -432,5 +438,26 @@ describe('text written over a range that leaves no text of its own stands in its
 			for (const g of WRITES)
 				it(`${mode}: ${g}, ${name}`, async () => {
 					expect((await land(text, mode, g)).bytes).toBe(written);
+				});
+});
+
+// ── One gesture, one undo step ───────────────────────────────────────────────
+
+// Miss-analysis: jsdom's IME wrote before the listener's chain was done, so a composition opening a
+// paragraph read as two undo steps, and no row pressed Ctrl+Z once after one in a container.
+describe('text written over a range is one undo step, where its paragraph opens too', () => {
+	const ROWS: [string, string][] = [
+		['at the top level', 'first\n\n⟦***\n\n# head⟧\n\nlast\n'],
+		['ending a callout’s body', ':::note\nabove\n\n⟦***\n\n# head⟧\n:::\n'],
+		['emptying a callout', ':::note\n⟦***\n\nbody⟧\n:::\n'],
+		['in a quote, right under its first line', '> above\n> ⟦***\n>\n> # head⟧\n\nlast\n'],
+		['at the gap held before a fence', 'first\n\n⟦***\n\n# head⟧\n\n```\nc\n```\n']
+	];
+	for (const mode of ['source', 'live'] as const)
+		for (const [name, text] of ROWS)
+			for (const g of WRITES)
+				it(`${mode}: ${g}, ${name}`, async () => {
+					const { got, want } = await undoneOnce(text, mode, g);
+					expect(got).toEqual(want);
 				});
 });

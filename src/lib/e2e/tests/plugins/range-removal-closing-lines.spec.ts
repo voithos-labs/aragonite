@@ -123,4 +123,24 @@ for (const mode of ['live', 'source'] as const) {
 		expect(composed).toBe(typed);
 		expect(composed).toContain('\n| 3 | 4 |');
 	});
+
+	test(`(${mode}) a composition out of a note from a rule opens its paragraph in the note, one undo step`, async ({
+		page
+	}) => {
+		test.skip(!isChromium(page), 'only Chromium drives a real IME, over CDP');
+		const source = ':::note\nabove\n\n***\n\nbody\n:::\n\npara\n';
+		const select = { anchor: { path: [0, 2], offset: 0 }, focus: { path: [1], offset: 4 } };
+		await open(mode, source);
+		await editor.focusBlockAtPath([0, 1], 0);
+		await editor.bridge.setSelection(select);
+		await editor.waitForCrossBlock(true);
+		const ime = await attachIme(page);
+		await ime.compose('Q');
+		await ime.commit('Q');
+		await editor.bridge.waitForSourceEquals(':::note\nabove\n\nQ\n:::\n');
+
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals(source);
+		expect(await editor.bridge.getSelection()).toEqual(select);
+	});
 }
