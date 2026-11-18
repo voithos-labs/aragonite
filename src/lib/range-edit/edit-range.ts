@@ -218,8 +218,13 @@ function answerOf(
  *  entered or prose it ended at the first byte of: anywhere else that byte is the leaf's syntax. */
 function restAfter(doc: Doc, to: number): boolean {
 	const end = leafAt(doc, to)?.leaf;
-	if (!end?.text || to >= end.text.to) return false;
-	return end.from < to || factsOf(doc, end).body === 'markdown';
+	// A fenced block's text is its body; its closing line is no rest.
+	const textEnd = end && (fenceBody(doc, end)?.to ?? end.text?.to);
+	if (!end || textEnd === undefined || isBlankText(doc.source.slice(to, textEnd))) return false;
+	const facts = factsOf(doc, end);
+	// A leaf drawn from its source takes a caret in its text only while that source shows.
+	if (facts.textPosition !== 'always') return false;
+	return end.from < to || facts.body === 'markdown';
 }
 
 /** The blocks with children a gesture started among, outermost first: those around the block at

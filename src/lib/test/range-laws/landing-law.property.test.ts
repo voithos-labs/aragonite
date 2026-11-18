@@ -480,6 +480,28 @@ describe('text written over a range that leaves no text of its own stands in its
 				it(`${mode}: ${g}, ${name}`, async () => {
 					expect((await land(text, mode, g)).bytes).toBe(written);
 				});
+	// With no rest left (a code body emptied to its closing line), or one a caret takes only while its
+	// source shows (a math block), the text stands on its own and the next letter joins it.
+	const ALONE: [string, string, string, readonly Gesture[]][] = [
+		[
+			'in a math block’s text',
+			'⟦***\n\nbody\n\n$$\ny^⟧2\n$$\n\nafter\n',
+			'жx\n\n$$\n2\n$$\n\nafter\n',
+			['a typed key']
+		],
+		[
+			'emptying a code body',
+			'⟦***\n\nbody\n\n```\ncode⟧\n```\n\nlast\n',
+			'жx\n\n```\n```\n\nlast\n',
+			WRITES
+		]
+	];
+	for (const mode of ['source', 'live'] as const)
+		for (const [name, text, lettered, gestures] of ALONE)
+			for (const g of gestures)
+				it(`${mode}: ${g}, ${name}`, async () => {
+					expect((await land(text, mode, g)).lettered).toBe(lettered);
+				});
 });
 
 // Miss-analysis: P3 skipped a range into a callout, so a typed key landing above the callout, where
