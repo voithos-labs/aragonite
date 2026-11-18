@@ -216,6 +216,8 @@ export function cutPasteBack(call: Call, host: CheckHost, input: RangeInput): st
 	const pinned =
 		want.shape !== 'other' && want.shape !== 'on a line' && !(want.shape === 'apart' && whole);
 	if (pinned && held.holds === 'text' && !want.bytes.includes(input.source)) return [];
+	// A cut that leaves its caret in a cell: the cell holds one line, which law 9 holds there.
+	if (held.holds === 'text' && cellAt(readOf(host, cut.source), cut.caret.at, host)) return [];
 	// A part of one block's text cut out, the caret left in no text: pasted there, it is no part of
 	// that block.
 	if (cut.caret.holds !== 'text' && !whole && oneTextBlock(read, input.range, host)) return [];
@@ -297,6 +299,10 @@ export function deleteLaws(call: Call, input: RangeInput): string[] {
 	return out;
 }
 
+/** `bytes` with every ordered item's number that opens a line read as one digit. */
+const numbersAside = (bytes: string) =>
+	bytes.replace(/^([ \t>]*)\d{1,9}(?=[.)][ \t\r\n])/gm, (_, lead: string) => `${lead}0`);
+
 /** `then`, a paste after the cut, is `over`, the one gesture's answer, save in line endings where
  *  the cut took the source's first: `over` writes that one, `then` the one it finds, LF for none. */
 function sameAfterCut(then: string, over: string, source: string, cut: string): boolean {
@@ -367,7 +373,10 @@ function oneWrite(
 	}
 	const runless = (bytes: string) => (input.mode === 'live' ? bytes.replace(/[*_~`]/g, '') : bytes);
 	const [got, before, after] = [over.source, source.slice(0, from), source.slice(to)].map(runless);
-	const kept = got.startsWith(before) && got.endsWith(after);
+	// A last line ending in an ordered item is Enter, which numbers the items under it on.
+	const numbered = /\n$/.test(text) && inItemText(read, from, host);
+	const tail = numbered ? numbersAside : (bytes: string) => bytes;
+	const kept = got.startsWith(before) && tail(got).endsWith(tail(after));
 	// Blocks pasted from a later line's start cut the block there, and the first half ends before
 	// the line break above, as a split's does.
 	const cutAbove =
@@ -403,8 +412,12 @@ function oneWrite(
 		const opened = /\n$/.test(text) && extra > 0 && extra <= 2 && containerLines(blanks, after);
 		// At the end of a file with no last line break, the ending opens Enter's empty paragraph.
 		const ended = /\n$/.test(text);
-		const atOpenEnd = ended && after === '' && !/\n$/.test(source) && lf(mid) === lf(text) + '\n\n';
-		if (lines(mid) !== lines(text) && !opened && !atOpenEnd)
+		const open = ended && after === '' && !/\n$/.test(source);
+		const atOpenEnd = open && lf(mid) === lf(text) + '\n\n';
+		// In an item there the ending is Enter's next item, an empty last line that keeps its break.
+		const itemAtOpenEnd =
+			open && /\n$/.test(mid) && lines(mid) === lines(text) + 1 && inItemText(read, from, host);
+		if (lines(mid) !== lines(text) && !opened && !atOpenEnd && !itemAtOpenEnd)
 			return [`L5 paste over text in one block added a line: ${q(over.source)}`];
 	}
 	if (then && sameAfterCut(then.source, over.source, source, cut.source)) return [];
@@ -576,7 +589,14 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 			? call(input.source, caretRange(input.at), paste(rest, input.held), input.mode)
 			: null;
 	const enters = (read: Read, at: number) => inItemText(read, at, host) || endsItem(read, at, host);
-	if (rest !== null && bare && enters(readOf(host, bare.source), bare.caret.at)) {
+	// A list that breaks out of the caret's item ends on blocks of its own: there the ending opens an
+	// item of the host's kind under them (`paste-ending-broken-out.test.ts`).
+	const breaksOut =
+		rest !== null &&
+		bare !== null &&
+		inItemText(read, input.at, host) &&
+		expectedPaste(read, input.at, rest, host, input.held).shape === 'broken out';
+	if (rest !== null && bare && (breaksOut || enters(readOf(host, bare.source), bare.caret.at))) {
 		// Up to the caret's line: the cut there may step out of a construct no part of which stands alone.
 		const line = bare.source.lastIndexOf('\n', bare.caret.at - 1) + 1;
 		const kept = got.source.slice(0, line) === bare.source.slice(0, line);
@@ -630,7 +650,24 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 	// A cell holds one line, which its row writes: the paste adds none and moves no other line.
 	if (cellAt(read, input.at, host) && onOneLine(input.source, input.at, got.source)) return [];
 	if (want.bytes.some((bytes) => oneLineInBody(read, input.at, bytes, got.source, host))) return [];
+	if (asClosed(call, host, input, got)) return [];
 	return [`L9 (${want.shape}) gave ${q(got.source)}, not ${q(want.bytes[0])}`];
+}
+
+/** Whether `got`, a paste in a file with no last line break, is the paste in that file ended with
+ *  one, which the law holds: the same bytes, or those less that break (`syntax-tree.md` § The last line). */
+function asClosed(call: Call, host: CheckHost, input: CaretInput, got: Result): boolean {
+	const { source } = input;
+	if (source === '' || /\n$/.test(source)) return false;
+	const ended = { ...input, source: source + eolOf(source) };
+	const closed = call(
+		ended.source,
+		caretRange(input.at),
+		paste(input.text, input.held),
+		input.mode
+	);
+	if (!closed || ![got.source, got.source + eolOf(source)].includes(closed.source)) return false;
+	return pasteAtCaret(call, host, ended).length === 0;
 }
 
 /** Whether `line` holds container markers alone. */
@@ -895,9 +932,19 @@ export function plainPaste(call: Call, host: CheckHost, input: CaretInput): stri
 	if (!got) return [];
 	const read = readOf(host, input.source);
 	if (plainPasteHolds(read, input.at, input.text, got.source, host, input.mode)) return [];
+	const escaped = host.escaped(lf(input.text));
+	// A last line ending where a run closes right after the text: the run closes before the break,
+	// so the answer shows the delimiters its text typed there on one line shows, none left bare.
+	if (input.mode === 'live' && input.text.endsWith('\n') && closesAt(read, input.at, host)) {
+		const letters = escaped.replace(/\s*\n\s*/g, '');
+		const typed = read.source.slice(0, input.at) + letters + read.source.slice(input.at);
+		const [was, now] = [shownDelimiters(host, typed), shownDelimiters(host, got.source)];
+		return was === now
+			? []
+			: [`L11 live shows ${now} format delimiters, not ${was}: ${q(got.source)}`];
+	}
 	// A blank line in the text cuts the block as a pasted block boundary does: law 9 holds the
 	// escaped text's bytes, and in a hidden run the rows do.
-	const escaped = host.escaped(lf(input.text));
 	const closed =
 		input.mode === 'live' && inHiddenRun(read, input.at, host)
 			? runsStayClosed(read, input.at, escaped, got.source, host)
