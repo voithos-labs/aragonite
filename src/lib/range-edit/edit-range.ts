@@ -297,25 +297,30 @@ function heldAlone(doc: Doc, from: number, to: number): boolean {
  *  start or a boundary, or where no text stayed, the side `beside` names. */
 function caretOf(edit: Removal, result: Doc, beside: Beside, started: () => LaidBlock[]): Place {
 	const { after } = edit;
+	const at = edit.caret;
+	const boundary = (): Place => ({
+		at,
+		holds: 'boundary',
+		parent: parentAt(result, at, started, edit.parent)
+	});
 	const side =
 		after === undefined
 			? null
 			: beside === 'end before'
-				? endBefore(result, edit.caret)
+				? endBefore(result, at)
 				: beside === 'text after'
-					? startAfter(result, edit.caret, after)
+					? startAfter(result, at, after)
 					: beside === 'start after'
-						? beforeFence(result, edit.caret)
-						: lineBreakAt(result, edit.caret, after, beside === 'break inside');
+						? beforeFence(result, at)
+						: lineBreakAt(result, at, after, beside === 'break inside', boundary);
 	if (side) return side;
-	const at = edit.caret;
 	let text = at;
 	const lineStart = edit.source.lastIndexOf('\n', at - 1) + 1;
 	while (text > lineStart && !result.layout.pointAt(text)) text--;
 	if (edit.source === '' || result.layout.pointAt(text)) return { at: text, holds: 'text' };
 	const block = findWithin(result, at, at, (b) => b.from === at);
 	if (block) return { at, holds: 'block', parent: block.path.slice(0, -1) };
-	return { at, holds: 'boundary', parent: parentAt(result, at, started, edit.parent) };
+	return boundary();
 }
 
 /** The block whose children byte `at` sits among in `result`, each path from before the removal
@@ -365,15 +370,27 @@ function underRow(owner: LaidBlock, row: LaidBlock, at: number): Place {
 	return { at: closes ? Math.min(at, line.from) : at, holds: 'boundary', parent: owner.path };
 }
 
-/** Where a line break goes: before the text after where the range ended inside a leaf's text, else
- *  at the end before; beside a title row, which takes none, in the gap on the range's side. */
-function lineBreakAt(doc: Doc, caret: number, after: number, inside: boolean): Place | null {
+/** Where a line break goes: before the end leaf's rest, else at the end before, else where the range
+ *  was; beside a title row, which takes none, in the gap on the range's side. */
+function lineBreakAt(
+	doc: Doc,
+	caret: number,
+	after: number,
+	inside: boolean,
+	where: () => Place
+): Place | null {
 	const before = inside ? null : endBefore(doc, caret);
 	const place = before ?? startAfter(doc, caret, after);
 	const row = place?.holds === 'text' ? pointedBlock(doc, place.at) : undefined;
 	const owner = row && titleOwner(doc, row);
-	if (!owner) return place;
-	return before ? underRow(owner, row, caret) : { at: owner.from, ...held('boundary', owner) };
+	if (owner)
+		return before ? underRow(owner, row, caret) : { at: owner.from, ...held('boundary', owner) };
+	if (inside || before) return place;
+	// A line the removal emptied takes the break as any empty line does; an emptied document's one
+	// empty block stands where the range was.
+	const leaf = leafAt(doc, caret)?.leaf;
+	const emptied = !!leaf?.text && leaf.text.from === leaf.text.to && !isBlankText(doc.source);
+	return emptied ? null : where();
 }
 
 /** The boundary before the fenced block starting at byte `at`, whose fence line takes no caret. */

@@ -340,6 +340,33 @@ describe('the landing law', () => {
 		);
 	}, 600_000);
 
+	it('P4: the letter after a line break stands alone or before the end leaf’s rest', async () => {
+		// Shift+Enter is held to it with nothing before the range: elsewhere ruling 9 leaves its break
+		// on the block before.
+		const breaks = (d: Draw) =>
+			d.above === 'first in its container' ? ['Enter', 'Shift+Enter'] : ['Enter'];
+		await fc.assert(
+			fc.asyncProperty(
+				arbDraw.chain((d) => fc.tuple(fc.constant(d), fc.constantFrom(...breaks(d)))),
+				async ([d, g]) => {
+					const text = marked(d, STARTS[d.start]);
+					const { editor } = await mounted(text, d.mode);
+					await run(editor, g as Gesture);
+					await press(editor, { key: WRITTEN });
+					takeDevWarns();
+					const line = g === 'Shift+Enter' ? '\\\n' : '';
+					const rest = RESTS[d.end] ?? '';
+					const leaf = writtenLeaf(editor.instance.__test.getDocument().children);
+					expect(
+						[line + WRITTEN, line + WRITTEN + rest],
+						`${g} over ${JSON.stringify(text)}`
+					).toContain(leaf);
+				}
+			),
+			params(1.5)
+		);
+	}, 600_000);
+
 	it('P7: where the end leaf kept text, Delete’s letter stands before it', async () => {
 		const kept = (d: Draw) => d.end in RESTS && !lineAboveOpening(d);
 		await fc.assert(

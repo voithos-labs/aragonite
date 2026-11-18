@@ -2,7 +2,8 @@
 // A line break over a range, then a letter, mounted in both modes, by Enter and Shift+Enter and a
 // soft keyboard's two breaks: where the range ended in a leaf's text, the break goes before what is
 // left of it and the letter lands there; where it emptied a paragraph, that line takes the break;
-// elsewhere the break stands at the end of the block before; an opening line never takes it.
+// elsewhere the break stands at the end of the block before, and with no block before the range (an
+// opening line takes none) it lands in an empty paragraph where the range was.
 // Miss-analysis: the mounted rows typed after Delete alone, and Enter's removal landed as Backspace's,
 // so its key pressed on a kept opening line and descended onto the next one.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
@@ -139,14 +140,51 @@ const ROWS: Row[] = [
 		source: '***\n\nbody\n\n:::tip Title\nbody\n:::\n',
 		select: range([0], [2, 0], 9),
 		entered: 'x\n\n:::tip tle\nbody\n:::\n',
-		shifted: 'x\n\n:::tip tle\nbody\n:::\n'
+		shifted: '\\\nx\n\n:::tip tle\nbody\n:::\n'
 	},
 	{
 		name: 'a summary the range ends in, at the document’s start',
 		source: '***\n\nbody\n\n<details open>\n<summary>Sum</summary>\n\nbody\n\n</details>\n',
 		select: range([0], [2, 0], 2),
 		entered: 'x\n\n<details open>\n<summary>m</summary>\n\nbody\n\n</details>\n',
-		shifted: 'x\n\n<details open>\n<summary>m</summary>\n\nbody\n\n</details>\n'
+		shifted: '\\\nx\n\n<details open>\n<summary>m</summary>\n\nbody\n\n</details>\n'
+	},
+	// Miss-analysis: every row with nothing above the range ended beside a title row, which takes no
+	// break, so a break that ran in the block after (a cell, a code line, the next paragraph) went unseen.
+	...['last', '# next', '```\ncode\n```', '| a | b |\n|---|---|\n| 1 | 2 |'].map((after) => ({
+		name: `nothing above, a heading’s end, then ${after.split('\n')[0]}`,
+		source: `***\n\nbody\n\n# head\n\n${after}\n`,
+		select: range([0], [2], 6),
+		entered: `x\n\n${after}\n`,
+		shifted: `\\\nx\n\n${after}\n`
+	})),
+	{
+		name: 'nothing above, a heading’s end, nothing after',
+		source: '***\n\nbody\n\n# head\n',
+		select: range([0], [2], 6),
+		entered: 'x\n',
+		shifted: '\\\nx\n'
+	},
+	{
+		name: 'a note’s start, a heading’s end, a paragraph after',
+		source: ':::note\n***\n\n# head\n\nlast\n:::\n',
+		select: range([0, 1], [0, 2], 6),
+		entered: ':::note\n\nx\n\nlast\n:::\n',
+		shifted: ':::note\n\n\\\nx\n\nlast\n:::\n'
+	},
+	{
+		name: 'an item the range starts in, whose emptied first line takes the break',
+		source: '- ***\n\n  # head\n\n  last\n',
+		select: range([0, 0, 0], [0, 0, 1], 6),
+		entered: '- \n- x\n\n\n  last\n',
+		shifted: '- \\\n  x\n\n\n  last\n'
+	},
+	{
+		name: 'a quote’s start, a heading’s end, a paragraph after',
+		source: '> ***\n>\n> # head\n>\n> last\n',
+		select: range([0, 0], [0, 1], 6),
+		entered: '> x\n>\n> last\n',
+		shifted: '> \\\n> x\n>\n> last\n'
 	},
 	{
 		name: 'an untitled opening line the range ends at, a block before',

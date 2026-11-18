@@ -8,7 +8,7 @@
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
-import { documentLineEnding } from '../../core/lines';
+import { documentLineEnding, isBlankText } from '../../core/lines';
 import { CURSOR_END } from '../../block-component';
 import type { HeldLanding } from '../../action-contracts';
 import type { CrossBlockDispatchContext } from './dispatch';
@@ -26,9 +26,11 @@ import {
 	commandLandingKind,
 	emptiedPlace,
 	removeThroughCore,
+	splitsParagraph,
 	writeInCell,
 	type Removed
 } from './range-removal';
+import { gapOfPlace } from '../range-bytes';
 import { pasteDispatch } from '../../tree-operations/paste/dispatch';
 import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
 import { parseReplacement } from '../../tree-operations/paste/replacement-parse';
@@ -184,6 +186,9 @@ async function replaceInStep(
 
 	const at = removed.caret;
 	if (keyed) {
+		const landed = removed.landed;
+		if (gesture === 'break' && removed.taken && landed?.holds === 'boundary')
+			return breakWhereRangeWas(ctx, landed, keyed.chord);
 		// Before the command runs, since the block reads the caret to run it.
 		await removalCaret?.place();
 		const gap = ctx.selection.gapCaret;
@@ -221,6 +226,23 @@ async function keyAtGap(
 ): Promise<RangeReplaceOutcome> {
 	if (chord === 'Enter' || chord === 'Shift+Enter')
 		await ctx.pasteCoordinator.insertParagraph(slot, '');
+	return 'written';
+}
+
+/** A line break with no block to run in lands in an empty paragraph where the range was, one an
+ *  emptied document or container keeps or a new one; any break but Enter's split then runs there. */
+async function breakWhereRangeWas(
+	ctx: CrossBlockMutationContext,
+	place: { at: number; parent: readonly number[] },
+	chord: string
+): Promise<RangeReplaceOutcome> {
+	const gap = gapOfPlace(ctx.bytes.measured(), place);
+	const slot = [...gap.parentPath, gap.index];
+	const there = blockNodeAt(ctx.getDoc(), slot);
+	if (there?.kind === 'paragraph' && isBlankText(there.raw))
+		await caretAt(ctx, { path: slot, offset: 0 }).place();
+	else await ctx.pasteCoordinator.insertParagraph(slot, '');
+	if (!splitsParagraph(chord, ctx.commands)) await runCommandAt(ctx, slot, chord);
 	return 'written';
 }
 
