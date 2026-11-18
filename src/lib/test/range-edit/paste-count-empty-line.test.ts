@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 // A paste's `edit` event counts the blocks it landed as, and text counts 0 (ruling 43): one paragraph
 // pasted on an empty line went in as text wherever the line is, between blocks or ending the file,
-// in a container or an item, its last line ending or not. A block of another kind counts.
+// in a container or an item, its last line ending or not, and so does one over a range it takes
+// the place of. A block of another kind counts.
 // Miss-analysis: the count was pinned where the caret held text, and an empty line between blocks
 // reads as no block's text, so the clipboard's read as one paragraph was counted as a block.
 import { afterEach, beforeAll, beforeEach, expect, it } from 'vitest';
@@ -31,12 +32,15 @@ afterEach(async () => {
 	takeDevWarns();
 });
 
-/** The `edit` events a paste of `clip` at `‸` fires, by op and detail. */
+/** The `edit` events a paste of `clip` at `‸` or over `⟦ ⟧` fires, by op and detail. */
 async function edits(marked: string, mode: PresentationMode, clip: string) {
-	const editor = mountCase(marked.replace('‸', ''), mode);
+	const editor = mountCase(marked.replace(/[‸⟦⟧]/g, ''), mode);
 	await editor.settle();
-	const at = pointAtByte(measured(editor.instance.__test.getDocument()), marked.indexOf('‸'))!;
-	expect(await placeRange(editor, { anchor: at, focus: at })).toBe(true);
+	const doc = measured(editor.instance.__test.getDocument());
+	const from = marked.search(/[‸⟦]/);
+	const to = marked.includes('⟧') ? marked.indexOf('⟧') - 1 : from;
+	const [anchor, focus] = [pointAtByte(doc, from)!, pointAtByte(doc, to)!];
+	expect(await placeRange(editor, { anchor, focus })).toBe(true);
 	const seen: unknown[] = [];
 	editor.instance.getEvents().on('edit', (e) => seen.push({ op: e.op, detail: e.detail }));
 	await pasteGesture(editor, { 'text/plain': clip }, 'key');
@@ -72,3 +76,21 @@ for (const mode of ['source', 'live'] as const)
 			it(`${mode}: ${JSON.stringify(clip)} on an empty line ${name} counts ${count}`, async () => {
 				expect(await edits(marked, mode, clip)).toEqual([{ op: 'paste', detail: { count } }]);
 			});
+
+// Source mode holds these blocks whole; the paste takes their place as typed text does, after the
+// removal's own `delete` where the range crosses blocks.
+const RANGES: [string, string][] = [
+	['a heading held whole', 'alpha\n\n⟦# head⟧\n\nb\n'],
+	['a fence held whole', 'alpha\n\n⟦```\ncode\n```⟧\n\nb\n'],
+	['two whole paragraphs', 'alpha\n\n⟦beta\n\ngamma⟧\n\nb\n'],
+	['a heading held whole in a quote', '> a\n>\n> ⟦# head⟧\n>\n> b\n']
+];
+
+for (const [name, marked] of RANGES)
+	for (const [clip, count] of CLIPS)
+		it(`source: ${JSON.stringify(clip)} over ${name} counts ${count}`, async () => {
+			expect((await edits(marked, 'source', clip)).at(-1)).toEqual({
+				op: 'paste',
+				detail: { count }
+			});
+		});
