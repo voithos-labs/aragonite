@@ -277,3 +277,59 @@ describe('law 5 at an open file’s end', () => {
 		expect(replaceLaws(stray, host, open, 'x')).not.toEqual([]);
 	});
 });
+
+// Miss-analysis: law 9 expected no bytes for any paste in an item's text that opens with a line
+// ending, and law 3 skipped every cut that left one, so only the mounted rows held that Enter.
+describe('a clipboard’s leading line ending in an item’s text', () => {
+	const at = (text: string, pasted: string) => ({
+		source: text.replace('‸', ''),
+		mode: 'source' as const,
+		at: text.indexOf('‸'),
+		held: { holds: 'text' as const },
+		text: pasted
+	});
+
+	it.each([
+		['mid-text', '- al‸pha\n- b\n', '\nx', '- al\n- xpha\n- b\n'],
+		['two endings', '- al‸pha\n- b\n', '\n\nx', '- al\n- \n- xpha\n- b\n'],
+		['an ordered item', '1. al‸pha\n2. b\n', '\nx', '1. al\n2. xpha\n3. b\n'],
+		['a to-do', '- [x] al‸pha\n', '\nx', '- [x] al\n- [ ] xpha\n'],
+		['a nested item in a quote', '> - a\n>   - al‸pha\n', '\nx', '> - a\n>   - al\n>   - xpha\n'],
+		['CRLF', '- al‸pha\r\n- b\r\n', '\nx', '- al\r\n- xpha\r\n- b\r\n'],
+		['a list at an item’s text end', '- a‸\n', '\n- b', '- a\n- b\n']
+	])('law 9 holds Enter’s bytes and then the rest: %s', (_name, text, pasted, bytes) => {
+		const { host, real } = calls('');
+		const input = at(text, pasted);
+		const caret = { from: input.at, to: input.at };
+		expect(real(input.source, caret, paste(pasted), 'source')!.source).toBe(bytes);
+		expect(pasteAtCaret(real, host, input)).toEqual([]);
+		// The ending left as a line of the same item, as it lands outside a list.
+		const lined = calls(text.replace('‸', pasted.replace(/\n/g, '\n  ')));
+		expect(pasteAtCaret(lined.fake, lined.host, input)).not.toEqual([]);
+	});
+
+	it('law 9 leaves an item’s text start to the rows, and judges literal text in an item', () => {
+		const { host, real, fake } = calls('zzz\n');
+		expect(pasteAtCaret(fake, host, at('- ‸alpha\n- b\n', '\nx'))).toEqual([]);
+		const code = at('- ```\n  co‸de\n  ```\n', '\nx');
+		expect(pasteAtCaret(real, host, code)).toEqual([]);
+		expect(pasteAtCaret(fake, host, code)).not.toEqual([]);
+	});
+
+	it('law 3 is silent on a cut from a line’s end that takes more of the item, and on no other', () => {
+		const { host, real, fake } = calls('zzz\n');
+		for (const shape of ['- a⟦\n  - b⟧\n', '- a⟦\n  lazy⟧\n', '- a⟦\n\n  para⟧\n']) {
+			const declared = marked(shape);
+			expect(cutPasteBack(fake, host, declared)).toEqual([]);
+			const cut = real(declared.source, declared.range, 'cut', 'source')!;
+			const caret = { from: cut.caret.at, to: cut.caret.at };
+			const back = real(cut.source, caret, paste(cut.clipboard!), 'source')!;
+			expect(back.source).not.toBe(declared.source);
+		}
+		// The next item is no part of the item the range starts in: its cut pastes back exactly.
+		for (const beside of ['- a⟦\n- b⟧\n- c\n', '1. a⟦\n2. b⟧\n3. c\n']) {
+			expect(cutPasteBack(real, host, marked(beside))).toEqual([]);
+			expect(cutPasteBack(fake, host, marked(beside))).not.toEqual([]);
+		}
+	});
+});

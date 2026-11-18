@@ -520,10 +520,16 @@ export function expectedPaste(
 		const shape = held.holds === 'text' && !onSyntax ? 'on a line' : 'apart';
 		return bytes === null ? { shape: 'other', bytes: [] } : { shape, bytes: bytes.map(ended) };
 	}
-	// In a list item a clipboard's leading line endings are Enter there, the rest after it (rulings 34
-	// and 79): `paste-leading-enter.test.ts` holds those bytes.
-	const inItem = containersHolding(read, at).at(-1)?.type === 'listItem';
-	if (inItem && at === to && /^\n+[^]*\S/.test(lf(text))) return { shape: 'other', bytes: [] };
+	// In an item's own text a clipboard's leading line endings are Enter there, and the rest lands
+	// where the last Enter left the caret (rulings 34 and 79).
+	const led = at === to && itemTextAt(read, at, host) ? /^\n+(?=[^]*\S)/.exec(lf(text)) : null;
+	if (led) {
+		const entered = itemEntered(read, at, led[0].length, host);
+		// An Enter no bytes are spelled for here: `paste-leading-enter.test.ts` holds those.
+		if (!entered) return { shape: 'other', bytes: [] };
+		const rest = lf(text).slice(led[0].length);
+		return expectedPaste(readOf(host, entered.source), entered.at, rest, host, held);
+	}
 	// A top-level heading with no text gives way to blocks that join none of it: they land on its
 	// line as on an empty one.
 	const leaf = leafAt(read, at);
@@ -565,6 +571,54 @@ export function expectedPaste(
 		return !ending || bytes === '' || bytes.endsWith('\n') ? bytes : bytes + ending;
 	}
 }
+
+/** The list item whose own block holds `at` in text that isn't literal, where Enter opens an item. */
+export function itemTextAt(read: Read, at: number, host: CheckHost): LaidBlock | null {
+	const leaf = leafAt(read, at);
+	if (!leaf || host.facts(leaf.type).body === 'literal') return null;
+	const above = (b: LaidBlock) =>
+		read.blocks.find((p) => p.path.join() === b.path.slice(0, -1).join());
+	const item = leaf.path.length > 1 ? above(leaf) : undefined;
+	const list = item && item.path.length > 1 ? above(item) : undefined;
+	return list && host.facts(list.type).lines === 'items' ? item! : null;
+}
+
+/** `count` Enters at `at`, after text on the one line of a paragraph an item holds alone: the bytes,
+ *  spelled from that line's marker, and the caret; null for any other place or count. */
+function itemEntered(read: Read, at: number, count: number, host: CheckHost) {
+	const { source } = read;
+	const leaf = leafAt(read, at)!;
+	const item = itemTextAt(read, at, host)!;
+	const list = read.blocks.find((b) => b.path.join() === item.path.slice(0, -1).join())!;
+	const alone = read.blocks.every(
+		(b) => b === leaf || b.path.length <= item.path.length || !within(item.path, b.path)
+	);
+	const line = lineStartOf(source, at);
+	const marker = /^([ \t>]*)(?:([-*+])|(\d{1,8})([.)]))([ \t]+)(?:\[[ xX]\]([ \t]+))?$/.exec(
+		source.slice(line, leaf.text!.from)
+	);
+	const text = source.slice(leaf.text!.from, leaf.text!.to).replace(/\r?\n$/, '');
+	const rest = source.slice(at, leaf.text!.from + text.length);
+	if (leaf.type !== 'paragraph' || !alone || !marker || text.includes('\n')) return null;
+	// The text start, a rest behind spaces and a cut inside a construct each go another way.
+	if (source.slice(leaf.text!.from, at).trim() === '' || /^[ \t]/.test(rest)) return null;
+	if (inConstructAt(read, at, host) || (rest === '' && count > 1)) return null;
+	const [, lead, glyph, number, delimiter, pad, boxPad] = marker;
+	const opens = (nth: number) =>
+		lead + (glyph ?? `${Number(number) + nth}${delimiter}`) + pad + (boxPad ? `[ ]${boxPad}` : '');
+	const eol = endingOf(source);
+	// The first Enter splits the item at the caret; each later one opens an empty item over the rest.
+	let head = source.slice(0, at);
+	for (let nth = 1; nth <= count; nth++) head += eol + opens(nth);
+	const entered = readOf(host, head + source.slice(at));
+	// The items under the last one opened number on from it.
+	const opened = leafAt(entered, head.length);
+	return opened && { source: numberedOn(host, entered.source, list, opened), at: head.length };
+}
+
+/** Whether the block at `path` is the one at `around` or sits inside it. */
+const within = (around: readonly number[], path: readonly number[]) =>
+	around.every((step, i) => path[i] === step);
 
 /** A block of lines that is no text, pasted at a to-do's text start, lands as at the bare bullet (a
  *  box stands before text alone): that source and caret, or null for any other paste. */
