@@ -272,10 +272,9 @@ function enteredInText(
 function lineOver(doc: Doc, container: LaidBlock): Edit {
 	const closing = lastLine(container).from;
 	const start = closing - lineHead(doc.source, closing).length;
-	const marks = doc.source.slice(start, pastMarkers(doc.source, start));
-	const line = (marks.trimEnd() || marks) + doc.ending;
-	const source = doc.source.slice(0, start) + line + doc.source.slice(start);
-	return { source, caret: start + line.length - doc.ending.length };
+	const marks = doc.source.slice(start, pastMarkers(doc.source, start)).trimEnd();
+	const source = doc.source.slice(0, start) + marks + doc.ending + doc.source.slice(start);
+	return { source, caret: start + marks.length };
 }
 
 /** Whether `text` is one container a container at `at` takes in, ending inside it: a blank line

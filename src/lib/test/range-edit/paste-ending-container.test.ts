@@ -145,41 +145,38 @@ it('a callout taken in by a callout an item holds leaves no blank line among the
 });
 
 // A callout taken in ending on a fence or a table: the ending opens a body line over the closing
-// line. Miss-analysis: the taken-in callouts ended on a paragraph, the fence rows were quotes.
-const ENDS_ON: [name: string, marked: string, body: string, left: string][] = [
-	[
-		'a fence',
-		':::note\nalpha‸\n:::\n\nAfter\n',
-		'```\ncode\n```',
-		':::note\nalphab\n```\ncode\n```\n\n:::\n\nAfter\n'
-	],
-	[
-		'a table',
-		':::note\nalpha‸\n:::\n\nAfter\n',
-		'\n| t |\n| - |\n| c |',
-		':::note\nalphab\n\n| t |\n| - |\n| c |\n\n:::\n\nAfter\n'
-	],
-	[
-		'a fence, the last callout',
-		':::note\nalpha‸\n:::\n',
-		'```\ncode\n```',
-		':::note\nalphab\n```\ncode\n```\n\n:::\n'
-	],
-	[
-		'a fence, in a quote',
-		'> :::note\n> alpha‸\n> :::\n\nAfter\n',
-		'```\ncode\n```',
-		'> :::note\n> alphab\n> ```\n> code\n> ```\n>\n> :::\n\nAfter\n'
-	]
+// line, as its body pasted alone. Miss-analysis: the taken-in callouts ended on a paragraph.
+const ENDS_ON: [name: string, marked: string][] = [
+	['a callout’s body end', ':::note\nalpha‸\n:::\n\nAfter\n'],
+	['the last callout’s body end', ':::note\nalpha‸\n:::\n'],
+	['a callout in a quote', '> :::note\n> alpha‸\n> :::\n\nAfter\n'],
+	['a callout in an item', '- :::note\n  alpha‸\n  :::\n- After\n'],
+	['a callout in the last item', '- :::note\n  alpha‸\n  :::\n'],
+	['a CRLF callout', ':::note\r\nalpha‸\r\n:::\r\n\r\nAfter\r\n']
+];
+const BODIES: [name: string, body: string][] = [
+	['a fence', '```\ncode\n```'],
+	['a table', '\n| t |\n| - |\n| c |']
 ];
 
 for (const mode of ['source', 'live'] as const)
-	for (const [name, marked, body, left] of ENDS_ON)
-		for (const endings of ['\n', '\n\n'])
-			it(`${mode}: a callout taken in ending on ${name}, ${endings.length} ending(s): the line is the body's`, async () => {
-				const { after } = await pasted(marked, mode, `:::note\nb\n${body}\n:::${endings}`);
-				expect(after.source).toBe(left);
-			});
+	for (const [name, marked] of ENDS_ON)
+		for (const [kind, body] of BODIES)
+			for (const endings of ['\n', '\n\n'])
+				it(`${mode}: at ${name}, a callout taken in ending on ${kind}, ${endings.length} ending(s)`, async () => {
+					expect(await pasted(marked, mode, `:::note\nb\n${body}\n:::${endings}`)).toEqual(
+						await pasted(marked, mode, `b\n${body}${endings}`)
+					);
+				});
+
+it('a callout taken in ending on a fence writes its body line over the closing line', async () => {
+	const { after } = await pasted(
+		':::note\nalpha‸\n:::\n\nAfter\n',
+		'source',
+		':::note\nb\n```\ncode\n```\n:::\n'
+	);
+	expect(after.source).toBe(':::note\nalphab\n```\ncode\n```\n\n:::\n\nAfter\n');
+});
 
 // Miss-analysis: the taken-in rows ended on a paragraph, so none asked where the ending goes after
 // a body that ends on a fence, whose last caret place is its code.
