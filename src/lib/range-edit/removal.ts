@@ -498,17 +498,7 @@ function enteredOpening(
 	from: number,
 	to: number
 ): { kept: string; endLine: number } | null {
-	const fence = findWithin(doc, from, to, (b) => {
-		if (!b.text || b.from <= from || to <= b.from) return false;
-		const closer = doc.host.fence(nodeAt(doc, b.path).raw)?.closer;
-		return closer !== null && closer !== undefined && to <= byteAt(doc, b, closer);
-	});
-	const entered = [
-		...containersAt(doc, to, 'end').filter(
-			(c) => opensFenced(doc, c, to) && c.from > from && lastLine(c).from >= to
-		),
-		...(fence ? [fence] : [])
-	];
+	const entered = enteredBlocks(doc, from, to);
 	if (entered.length === 0) return null;
 	const end = leafAt(doc, to);
 	const { source } = doc;
@@ -532,6 +522,25 @@ function enteredOpening(
 		kept += source.slice(first, opened);
 	}
 	return { kept, endLine };
+}
+
+/** Whether the range enters a fenced block from outside, past an opening the removal keeps. */
+export const entersOpening = (doc: Doc, from: number, to: number): boolean =>
+	enteredBlocks(doc, from, to).length > 0;
+
+/** The fenced blocks the range enters from outside, past their openings. */
+function enteredBlocks(doc: Doc, from: number, to: number): LaidBlock[] {
+	const fence = findWithin(doc, from, to, (b) => {
+		if (!b.text || b.from <= from || to <= b.from) return false;
+		const closer = doc.host.fence(nodeAt(doc, b.path).raw)?.closer;
+		return closer !== null && closer !== undefined && to <= byteAt(doc, b, closer);
+	});
+	return [
+		...containersAt(doc, to, 'end').filter(
+			(c) => opensFenced(doc, c, to) && c.from > from && lastLine(c).from >= to
+		),
+		...(fence ? [fence] : [])
+	];
 }
 
 /** A container whose structure opens it, entered past that opening: a fenced container, or a table

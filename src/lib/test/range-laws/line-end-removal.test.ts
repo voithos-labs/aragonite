@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 // A range from a block taken whole to a line's end, its block running on below, mounted in both
 // modes: each removal leaves the next line behind its own markers once, and a letter typed after it,
-// or over the range, lands at that line's text, code included. Rows whose Backspace or cut lands on
-// a container's opening line type their letter after Delete and over the range alone.
+// or over the range, lands at that line's text, code included. A cut holds the gap above the fence
+// it entered, and rows whose Backspace lands on a container's opening line type after Delete alone.
 // Miss-analysis: every mounted row ended mid-line, so none ended at a line's end, where the removal
 // wrote that line's markers in front of the next line's.
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -60,7 +60,6 @@ const ROWS: Row[] = [
 		typed: {
 			Backspace: '> ```\n> xmore\n> ```\n',
 			Delete: '> ```\n> xmore\n> ```\n',
-			cut: '> ```\n> xmore\n> ```\n',
 			'a typed key': '> ```\n> xmore\n> ```\n'
 		}
 	},
@@ -72,7 +71,6 @@ const ROWS: Row[] = [
 		typed: {
 			Backspace: '- ```\n  xmore\n  ```\n',
 			Delete: '- ```\n  xmore\n  ```\n',
-			cut: '- ```\n  xmore\n  ```\n',
 			'a typed key': '- ```\n  xmore\n  ```\n'
 		}
 	},
@@ -84,7 +82,6 @@ const ROWS: Row[] = [
 		typed: {
 			Backspace: '> > ```\r\n> > xmore\r\n> > ```\r\n',
 			Delete: '> > ```\r\n> > xmore\r\n> > ```\r\n',
-			cut: '> > ```\r\n> > xmore\r\n> > ```\r\n',
 			'a typed key': '> > ```\r\n> > xmore\r\n> > ```\r\n'
 		}
 	},

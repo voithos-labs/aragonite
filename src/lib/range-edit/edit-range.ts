@@ -33,7 +33,7 @@ import { byteAt, writeText, type Edit } from './leaf-splice';
 import { ownEntry, restored } from './own-entry';
 import { numberedOn } from './list-numbers';
 import { pasteAt, type Pasted } from './paste';
-import { removeRange, type Removal } from './removal';
+import { entersOpening, removeRange, type Removal } from './removal';
 import { fenceBody, holdsText, literalBody, pastSuffix } from './removal-range';
 
 /** Two byte offsets, `from <= to`, after the editor widened the range to every block it takes
@@ -251,10 +251,16 @@ function startedIn(doc: Doc, inside: number | readonly number[]): LaidBlock[] {
 	);
 }
 
-/** Where a caret goes beside blocks the range took whole, no text left at its start: the block
- *  before's end, the block after's text or first byte, or where a line break goes (`lineBreakAt`). */
+/** Where a caret goes beside blocks the range took whole, no text left at its start: the end before,
+ *  the text or first byte after, the gap above a block it entered, or a line break's place. */
 type Beside =
-	'end before' | 'text after' | 'cut' | 'start after' | 'break inside' | 'break between';
+	| 'end before'
+	| 'text after'
+	| 'cut'
+	| 'gap above'
+	| 'start after'
+	| 'break inside'
+	| 'break between';
 
 function besideOf(gesture: Gesture, doc: Doc, range: Range): Beside {
 	if (gesture === 'break') return entersAtEnd(doc, range) ? 'break inside' : 'break between';
@@ -262,7 +268,8 @@ function besideOf(gesture: Gesture, doc: Doc, range: Range): Beside {
 	// Typed or composed text joins the text after only where that text is the end leaf's own.
 	if (gesture === 'type' || gesture === 'compose')
 		return entersAtEnd(doc, range) ? 'text after' : 'start after';
-	if (gesture === 'cut') return 'cut';
+	// A cut's paste goes back above the opening the range entered, a title or a header included.
+	if (gesture === 'cut') return entersOpening(doc, range.from, range.to) ? 'gap above' : 'cut';
 	return gesture === 'delete' ? 'text after' : 'start after';
 }
 
@@ -337,8 +344,8 @@ function caretOf(
 				? (endBefore(result, at) ?? startAfter(result, at, after))
 				: beside === 'text after'
 					? startAfter(result, at, after)
-					: beside === 'cut'
-						? firstPlace(result, at)
+					: beside === 'cut' || beside === 'gap above'
+						? (beside === 'gap above' && gapBefore(result, at)) || firstPlace(result, at)
 						: beside === 'start after'
 							? beforeFence(result, at)
 							: lineBreakAt(result, at, after, beside === 'break inside', boundary);
@@ -430,8 +437,13 @@ function firstPlace(doc: Doc, at: number): Place | null {
 	const edge = textEdge(doc, leaf, 'first');
 	const lineEnd = doc.source.indexOf('\n', at);
 	if (edge && (edge.holds !== 'text' || lineEnd < 0 || edge.at <= lineEnd)) return edge;
-	const outer = findWithin(doc, at, at, (b) => b.from === at)!;
-	return { at, ...held('boundary', outer) };
+	return gapBefore(doc, at);
+}
+
+/** The gap before the outermost block starting at byte `at`; null where none starts there. */
+function gapBefore(doc: Doc, at: number): Place | null {
+	const outer = findWithin(doc, at, at, (b) => b.from === at);
+	return outer ? { at, ...held('boundary', outer) } : null;
 }
 
 /** The boundary under `owner`'s title row `row`, inside the container, at byte `at`. */

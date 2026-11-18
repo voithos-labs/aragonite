@@ -808,6 +808,60 @@ const BARE_START_ROWS: NamedRow[] = [
 	)
 ];
 
+// Miss-analysis: the cut rows that entered a block all entered an untitled row or a fence, whose
+// first line holds no text, so none showed a cut resting on a title or a header a paste then splits.
+const ENTERED_CUT_ROWS: NamedRow[] = [
+	...cut(
+		'L8 a cut into a titled tip’s title holds the gap above the tip',
+		'first\n\n⟦***\n\nbody\n\n:::tip Ti⟧tle\nin\n:::\n',
+		'first\n\n:::tip tle\nin\n:::\n',
+		{ at: 7, holds: 'boundary', parent: [] }
+	),
+	...cut(
+		'L8 the same right under an opening row',
+		'::::note\n⟦***\n\n:::tip Ti⟧tle\nin\n:::\n::::\n',
+		'::::note\n:::tip tle\nin\n:::\n::::\n',
+		{ at: 9, holds: 'boundary', parent: [0] }
+	),
+	...cut(
+		'L8 a cut into a table’s rows holds the gap above the table',
+		'first\n\n⟦***\n\nbody\n\n| a | b |\n|---|---|\n| 1 | 2 |⟧\n| 3 | 4 |\n',
+		'first\n\n| a | b |\n|---|---|\n| 3 | 4 |\n',
+		{ at: 7, holds: 'boundary', parent: [] }
+	),
+	...cut(
+		'L8 the same in a note',
+		':::note\n⟦***\n\n| a | b |\n|---|---|\n| 1 | 2 |⟧\n| 3 | 4 |\n:::\n',
+		':::note\n| a | b |\n|---|---|\n| 3 | 4 |\n:::\n',
+		{ at: 8, holds: 'boundary', parent: [0] }
+	),
+	...cut(
+		'L8 a cut into a code block in a quote holds the gap above the quote',
+		'first\n\n⟦***\n\nbody\n\n> ```\n> code⟧\n> more\n> ```\n',
+		'first\n\n> ```\n> more\n> ```\n',
+		{ at: 7, holds: 'boundary', parent: [] }
+	),
+	...cut(
+		'L8 a cut into a details’ summary holds the gap above the details',
+		'first\n\n⟦***\n\n<details open>\n<summary>Sum⟧</summary>\n\nbody\n\n</details>\n',
+		'first\n\n<details open>\n<summary></summary>\n\nbody\n\n</details>\n',
+		{ at: 7, holds: 'boundary', parent: [] }
+	),
+	// A cut that ends before a block it never entered lands as Delete does.
+	...cut(
+		'L8 control: a cut ending before a titled tip lands at its title',
+		'first\n\n⟦***\n\n# hd⟧\n\n:::tip Title\nin\n:::\n',
+		'first\n\n:::tip Title\nin\n:::\n',
+		{ at: 14, holds: 'text' }
+	),
+	...cut(
+		'L8 control: a cut ending before a table lands on the table',
+		'first\n\n⟦***\n\n# hd⟧\n\n| a | b |\n|---|---|\n| 1 | 2 |\n',
+		'first\n\n| a | b |\n|---|---|\n| 1 | 2 |\n',
+		{ at: 7, holds: 'block', parent: [] }
+	)
+];
+
 export const CLOSER_ROWS: NamedRow[] = [
 	...CLOSING_LINE_ROWS,
 	...LINE_ROWS,
@@ -824,5 +878,6 @@ export const CLOSER_ROWS: NamedRow[] = [
 	...COMPOSITION_ROWS,
 	...LINE_BREAK_ROWS,
 	...EMPTIED_LINE_ROWS,
-	...BARE_START_ROWS
+	...BARE_START_ROWS,
+	...ENTERED_CUT_ROWS
 ];
