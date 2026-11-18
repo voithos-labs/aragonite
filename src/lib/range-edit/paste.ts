@@ -483,8 +483,9 @@ function glyphOf(source: string, item: LaidBlock) {
  *  lines for what it holds (`RangeHost.rewritten`): a `:::` fence grows past a closing line in it. */
 function fencesGrown(doc: Doc, from: number, to: number, edit: Edit): Edit {
 	const { head, end } = changedBy(doc, from, to, edit);
+	// A fence its own line never closed has no closing line for the body to grow past.
 	const around = (c: LaidBlock) =>
-		c.from < head && end <= lastLine(c).from && factsOf(doc, c).lines === 'fenced';
+		c.from < head && end <= lastLine(c).from && closedByOwnLine(doc, c);
 	let out = edit;
 	// Innermost first, so an outer fence counts the lines an inner one grew.
 	for (const c of containersHolding(doc, head).filter(around).reverse()) {

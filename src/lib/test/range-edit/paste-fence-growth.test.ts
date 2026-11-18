@@ -128,6 +128,32 @@ const ROWS: [string, string, string, string, string][] = [
 	]
 ];
 
+// A `:::` line with no closing line opens no container: one pasted in its text closes it there and
+// no fence grows. Miss-analysis: every fence row pasted into a closed container.
+ROWS.push(
+	[
+		'in an open callout',
+		':::note\nbo‸dy\n',
+		'x\n:::\ny',
+		':::note\nbox\n:::\nydy\n',
+		':::note\nbox\n:::\nyZdy\n'
+	],
+	[
+		'in an open callout ending the file',
+		':::note\nbo‸dy',
+		'x\n:::\ny',
+		':::note\nbox\n:::\nydy',
+		':::note\nbox\n:::\nyZdy'
+	],
+	[
+		'in an open callout in a quote',
+		'> :::note\n> bo‸dy\n',
+		'x\n:::\ny',
+		'> :::note\n> box\n> :::\n> ydy\n',
+		'> :::note\n> box\n> :::\n> yZdy\n'
+	]
+);
+
 for (const [name, marked, clip, left, typed] of ROWS)
 	for (const route of ['key', 'insertMarkdown'] as PasteRoute[])
 		for (const mode of ['source', 'live'] as PresentationMode[])
