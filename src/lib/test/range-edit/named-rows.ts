@@ -118,7 +118,7 @@ export const NAMED_ROWS: NamedRow[] = [
 		}
 	},
 	{
-		name: 'L3 from a fenced container out: its closing line stays, and the paste back takes it',
+		name: 'L3 from a fenced container out: its closing line stays, and the paste back nests',
 		source: ':::note\nalpha ⟦bravo\ncharlie\n:::\n\ndelta ⟧echo\n',
 		gesture: 'cut',
 		expect: {
@@ -128,6 +128,16 @@ export const NAMED_ROWS: NamedRow[] = [
 		},
 		then: {
 			gesture: 'paste back',
+			expect: { source: '::::note\nalpha \n\n:::note\nbravo\ncharlie\n:::\n\ndelta echo\n::::\n' }
+		}
+	},
+	{
+		name: 'L12 from a fenced container out: its own entry gives the bytes back',
+		source: ':::note\nalpha ⟦bravo\ncharlie\n:::\n\ndelta ⟧echo\n',
+		gesture: 'cut',
+		expect: { source: ':::note\nalpha echo\n:::\n', caret: text(14) },
+		then: {
+			gesture: 'paste back with own',
 			expect: backToStart(':::note\nalpha bravo\ncharlie\n:::\n\ndelta echo\n')
 		}
 	},

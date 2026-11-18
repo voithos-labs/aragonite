@@ -316,6 +316,22 @@ export function opensWithoutClosing(
 	});
 }
 
+/** The first exception's mirror: a range from a body line of a container closed by a line of its
+ *  own out past that line, whose cut writes the line, and a plain-text paste of it nests. */
+export function leavesFencedContainer(
+	read: Read,
+	from: number,
+	to: number,
+	host: CheckHost
+): boolean {
+	return read.blocks.some((b) => {
+		const lines = host.facts(b.type).lines === 'fenced' ? linesOf(b) : undefined;
+		const closing = lines && lines.length > 1 ? lines.at(-1)! : undefined;
+		if (!closing?.own || to <= closing.from) return false;
+		return lines!.some((line) => !line.own && line.from <= from && from < line.to);
+	});
+}
+
 /** Law 3's second exception: from a code block's text out past or through its closing line, plain
  *  text can't mark that closer. From a fence the mode shows, its first byte holds the block whole. */
 export function leavesLiteralBlock(
@@ -1118,7 +1134,7 @@ function landedPaste(
 		return out === null ? { shape: 'other', bytes: [] } : { shape: 'broken out', bytes: [out] };
 	}
 	const taker = takerOf(read, at, clip, first, host);
-	if (taker && host.facts(first.type).lines !== 'fenced' && lastJoins) {
+	if (taker && lastJoins) {
 		const outside = continuationAt(read, at, host, (c) => c !== taker);
 		// The block's own opening (its marker, a title line) is the taker's already; at the caret's
 		// text start the first block under the levels taken keeps its own syntax unless a paragraph.
@@ -1256,7 +1272,9 @@ function takerOf(
 		c.from >= start;
 	const takes = (c: LaidBlock, i: number) => {
 		const { into, key } = host.facts(opening[i].type).merges;
-		const kind = i === 0 ? into.includes(c.type) : c.type === opening[i].type;
+		// Each level merges by its own type's rule; an item goes where its list went.
+		const item = i > 0 && host.facts(opening[i - 1].type).lines === 'items';
+		const kind = item ? c.type === opening[i].type : into.includes(c.type);
 		return kind && sharedBy(read, c, key) === sharedBy(pasted, opening[i], key) && marked(c);
 	};
 	const around = containersHolding(read, at);

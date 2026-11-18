@@ -32,7 +32,7 @@ import {
 	type Held
 } from './document';
 import { apartAt, deepestAt, pastMarkers } from './apart';
-import { closedBy, emptiedRest, leftBy, takerOf } from './container-merge';
+import { emptiedRest, leftBy, takerOf } from './container-merge';
 import {
 	enteredAt,
 	literalLines,
@@ -49,7 +49,6 @@ import {
 } from './paste-split';
 import { numberedAfterTaking } from './list-numbers';
 import { continuation, openingOf } from './markers';
-import { lastPlaceAt } from './removal-range';
 import {
 	blankedApart,
 	byteAt,
@@ -277,27 +276,8 @@ function enteredInText(
 ): Edit {
 	const bare = landedAt(doc, from, to, rest, seen);
 	const after = { ...readDoc(bare.source, doc.host, doc.mode), ending: doc.ending };
-	// A container closed by its own line left the caret past that line: the ending goes after its
-	// body's last text, else on an empty body line over the closing line (`lineOver`).
-	const last = lastPlaceAt(after, bare.caret);
-	const leaf = last === null ? undefined : leafHolding(after, last, last)?.leaf;
-	const text = leaf && !isCell(after, leaf) && factsOf(after, leaf).body !== 'literal';
-	const closed = [...after.layout.within(bare.caret, bare.caret)].findLast(
-		(c) => c.container && contentEnd(after, c) === bare.caret && closedByOwnLine(after, c)
-	);
-	if (!text && last !== null && closed) return lineOver(after, closed);
-	const at = text ? last! : bare.caret;
-	const { source, caret } = pasteAt(after, at, at, LINE);
+	const { source, caret } = pasteAt(after, bare.caret, bare.caret, LINE);
 	return { source, caret };
-}
-
-/** `doc` with an empty line of `container`'s body over its closing line, the caret on it. */
-function lineOver(doc: Doc, container: LaidBlock): Edit {
-	const closing = lastLine(container).from;
-	const start = closing - lineHead(doc.source, closing).length;
-	const marks = doc.source.slice(start, pastMarkers(doc.source, start)).trimEnd();
-	const source = doc.source.slice(0, start) + marks + doc.ending + doc.source.slice(start);
-	return { source, caret: start + marks.length };
 }
 
 /** Whether `text` is one container a container at `at` takes in, ending inside it: a blank line
@@ -832,16 +812,8 @@ function landed(
 		const textStart = !/[^ \t>\r\n]/.test(doc.source.slice(leaf.text!.from, from));
 		const inner = takenIn(pasted, first, levels, textStart);
 		const behind = inner.after === '' ? lead : '';
-		const cut = cutWith(inner.before, inner.after, behind);
-		// A closing line that ends the clipboard holds no text: what follows the caret goes under it,
-		// and the caret stays at that line's end, whose last place is the body's.
-		const closed = follows && last === first && closedByOwnLine(pasted, first);
-		const set = around(cut, closed ? inner.mid + '\n' : inner.mid, keep);
-		const above = set.source.lastIndexOf('\n', set.caret - 1);
-		const lineEnd = set.source[above - 1] === '\r' ? above - 1 : above;
-		const edit = closed ? { ...set, caret: lineEnd } : set;
-		const item = leaf.path[taker.path.length];
-		return numberedAfterTaking(doc, taker, item, closedBy(doc, pasted, first, taker, edit));
+		const edit = around(cutWith(inner.before, inner.after, behind), inner.mid, keep);
+		return numberedAfterTaking(doc, taker, leaf.path[taker.path.length], edit);
 	}
 	// A clipboard opening with a line break or a paragraph joins the text before the caret; text
 	// after it that the last block can't take goes on a line of its own, apart where it must be.

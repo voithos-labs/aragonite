@@ -4,7 +4,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { AnyBlockKind, CstNode } from '#lib/core/nodes.js';
 import { parse } from '#lib/core/parser.js';
-import { isDirectiveContainerKind } from '#lib/core/directive/registry.js';
 import {
 	blockViewFor,
 	getAllRegisteredKinds,
@@ -129,7 +128,7 @@ const EXPECTED: { [Field in keyof BlockFacts]-?: (kind: string) => BlockFacts[Fi
 		return column === width ? undefined : column;
 	},
 	merges: (kind) => {
-		const key = isDirectiveContainerKind(kind as AnyBlockKind) ? 'name' : MERGE_KEYS[kind];
+		const key = MERGE_KEYS[kind];
 		if (key === undefined) return { into: [], onMismatch: 'nest' };
 		const onMismatch = kind === 'list' ? 'break-out' : 'nest';
 		return { into: [kind], ...(key === null ? {} : { key }), onMismatch };

@@ -116,68 +116,6 @@ for (const mode of ['source', 'live'] as const)
 			});
 	}
 
-// A callout taken in ends on its closing line, which takes no caret: the ending lands in the body.
-// Miss-analysis: every container joined in a row was a quote, which has no closing line to end on.
-const TAKEN_IN: [name: string, marked: string][] = [
-	['a callout’s body end', ':::note\nalpha‸\n:::\n\nAfter\n'],
-	['the last callout’s body end', ':::note\nalpha‸\n:::\n'],
-	['a callout in an item', '- :::note\n  alpha‸\n  :::\n- after\n'],
-	['a callout in a quote', '> :::note\n> alpha‸\n> :::\n>\n> After\n'],
-	['a CRLF callout', ':::note\r\nalpha‸\r\n:::\r\n\r\nAfter\r\n']
-];
-
-for (const mode of ['source', 'live'] as const)
-	for (const [name, marked] of TAKEN_IN)
-		for (const endings of ['\n', '\n\n'])
-			it(`${mode}: a callout taken in at ${name}, ${endings.length} ending(s) land as text’s`, async () => {
-				expect(await pasted(marked, mode, ':::note\nb\n:::' + endings)).toEqual(
-					await pasted(marked, mode, 'b' + endings)
-				);
-			});
-
-it('a callout taken in by a callout an item holds leaves no blank line among the items', async () => {
-	const { typed } = await pasted(
-		'- :::note\n  alpha‸\n  :::\n- after\n',
-		'live',
-		':::note\nb\n:::\n'
-	);
-	expect(typed).toMatch(/ {2}:::\n- after\n$/);
-});
-
-// A callout taken in ending on a fence or a table: the ending opens a body line over the closing
-// line, as its body pasted alone. Miss-analysis: the taken-in callouts ended on a paragraph.
-const ENDS_ON: [name: string, marked: string][] = [
-	['a callout’s body end', ':::note\nalpha‸\n:::\n\nAfter\n'],
-	['the last callout’s body end', ':::note\nalpha‸\n:::\n'],
-	['a callout in a quote', '> :::note\n> alpha‸\n> :::\n\nAfter\n'],
-	['a callout in an item', '- :::note\n  alpha‸\n  :::\n- After\n'],
-	['a callout in the last item', '- :::note\n  alpha‸\n  :::\n'],
-	['a CRLF callout', ':::note\r\nalpha‸\r\n:::\r\n\r\nAfter\r\n']
-];
-const BODIES: [name: string, body: string][] = [
-	['a fence', '```\ncode\n```'],
-	['a table', '\n| t |\n| - |\n| c |']
-];
-
-for (const mode of ['source', 'live'] as const)
-	for (const [name, marked] of ENDS_ON)
-		for (const [kind, body] of BODIES)
-			for (const endings of ['\n', '\n\n'])
-				it(`${mode}: at ${name}, a callout taken in ending on ${kind}, ${endings.length} ending(s)`, async () => {
-					expect(await pasted(marked, mode, `:::note\nb\n${body}\n:::${endings}`)).toEqual(
-						await pasted(marked, mode, `b\n${body}${endings}`)
-					);
-				});
-
-it('a callout taken in ending on a fence writes its body line over the closing line', async () => {
-	const { after } = await pasted(
-		':::note\nalpha‸\n:::\n\nAfter\n',
-		'source',
-		':::note\nb\n```\ncode\n```\n:::\n'
-	);
-	expect(after.source).toBe(':::note\nalphab\n```\ncode\n```\n\n:::\n\nAfter\n');
-});
-
 // Miss-analysis: the taken-in rows ended on a paragraph, so none asked where the ending goes after
 // a body that ends on a fence, whose last caret place is its code.
 for (const mode of ['source', 'live'] as const)
@@ -186,6 +124,23 @@ for (const mode of ['source', 'live'] as const)
 		const { typed } = await pasted('> alpha‸\n\nAfter\n', mode, `> q\n${fence}`);
 		expect(typed).toContain(`> alphaq\n${fence}`);
 	});
+
+// Miss-analysis: the taken-in quotes ended on text or a fence, so no row ended one on a callout,
+// whose closing line the endings went in front of.
+const ENDS_ON_CALLOUT: [name: string, marked: string][] = [
+	['at the end', '> alpha‸\n\nAfter\n'],
+	['at the end, a line under it', '> alpha‸\n>\n> after\n'],
+	['in an item', '- > alpha‸\n- after\n']
+];
+
+for (const mode of ['source', 'live'] as const)
+	for (const [name, marked] of ENDS_ON_CALLOUT)
+		for (const endings of ['\n', '\n\n'])
+			it(`${mode}: a quote ending on a callout, taken in ${name}, ${endings.length} ending(s) land as its text’s`, async () => {
+				expect(await pasted(marked, mode, `> q\n>\n> :::note\n> x\n> :::${endings}`)).toEqual(
+					await pasted(marked, mode, `q\n\n:::note\nx\n:::${endings}`)
+				);
+			});
 
 // A trailing line of spaces is an ending: the quote joins, then a line break and a blank line.
 // Miss-analysis: every joined row's quote ended the clipboard, so no row put a line after it.

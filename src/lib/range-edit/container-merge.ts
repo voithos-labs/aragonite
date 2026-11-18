@@ -1,23 +1,20 @@
 /**
- * A pasted container merging into the one at the caret: its opening is the caret's container's
- * already, and a closing line it brings ends that container in place of the container's own.
+ * A pasted container merging into the one at the caret, whose opening is the caret's container's
+ * already, or breaking out of it. A container closed by a line of its own merges into none.
  */
 
 import { isBlankText } from '../core/lines';
 import { pastMarkers } from './apart';
 import type { LaidBlock } from './layout';
 import {
-	closedByOwnLine,
 	containersHolding,
 	factsOf,
 	firstBodyLine,
-	lastLine,
 	nodeAt,
 	titleOwner,
 	type Doc
 } from './document';
 import { continuation } from './markers';
-import type { Edit } from './leaf-splice';
 import { lineHead, lineRest } from './lines';
 
 /** What a container's type says two of it must share to merge, as `block` holds it. */
@@ -47,10 +44,12 @@ export function takerOf(doc: Doc, at: number, pasted: Doc, first: LaidBlock): La
 		!isBlankText(
 			lineRest(doc.source, pastMarkers(doc.source, at - lineHead(doc.source, at).length))
 		);
-	const takes = (c: LaidBlock, i: number) =>
-		(i === 0 ? factsOf(pasted, first).merges.into.includes(c.type) : c.type === opening[i].type) &&
-		shares(c, opening[i]) &&
-		marked(c);
+	// Each level merges by its own type's rule; an item is its list's, so it goes where the list went.
+	const merges = (c: LaidBlock, i: number) =>
+		i > 0 && factsOf(pasted, opening[i - 1]).lines === 'items'
+			? c.type === opening[i].type
+			: factsOf(pasted, opening[i]).merges.into.includes(c.type);
+	const takes = (c: LaidBlock, i: number) => merges(c, i) && shares(c, opening[i]) && marked(c);
 	for (let k = 0; k < around.length; k++) {
 		const down = around.slice(k);
 		if (down.length <= opening.length && down.every(takes)) return around[k];
@@ -92,26 +91,4 @@ export function withoutOpening(pasted: Doc, first: LaidBlock): string {
 	const body = (b: LaidBlock) => b.text && b.from >= first.from && !titleOwner(pasted, b);
 	const blocks = pasted.layout.within(first.from, pasted.source.length);
 	return pasted.source.slice([...blocks].find(body)?.text?.from ?? first.from);
-}
-
-/** `edit` pasted the rest of `first` into `taker`: where `first` brought its own closing line, the
- *  taker's goes. */
-export function closedBy(
-	doc: Doc,
-	pasted: Doc,
-	first: LaidBlock,
-	taker: LaidBlock,
-	edit: Edit
-): Edit {
-	if (!closedByOwnLine(pasted, first)) return edit;
-	const last = lastLine(taker);
-	const shift = edit.source.length - doc.source.length;
-	const end = last.to + shift;
-	// The line goes from its first byte, the markers of the containers around the taker too; a
-	// closing line with no line ending of its own takes the one before it.
-	const ended = doc.source.endsWith('\n', last.to);
-	const above = edit.source.lastIndexOf('\n', last.from + shift - 1);
-	const from = ended ? above + 1 : above;
-	const start = !ended && edit.source[from - 1] === '\r' ? from - 1 : from;
-	return { source: edit.source.slice(0, start) + edit.source.slice(end), caret: edit.caret };
 }

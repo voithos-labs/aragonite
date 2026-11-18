@@ -6,7 +6,6 @@
  */
 
 import type { AnyBlockKind } from '../core/nodes';
-import { isDirectiveContainerKind } from '../core/directive/registry';
 import {
 	mustHoldChild,
 	tryGetBlockKindDescriptor,
@@ -100,9 +99,9 @@ function mergesOf(
 	descriptor: BlockKindDescriptor | undefined,
 	lines: BlockFacts['lines']
 ): BlockFacts['merges'] {
-	// Every `:::` container's name is its identity, and the colon grammar stores it as `name`.
-	const declared =
-		descriptor?.merges ?? (isDirectiveContainerKind(kind as AnyBlockKind) ? { key: 'name' } : null);
+	// A container closed by a line of its own never joins one: plain text can't say which container
+	// a pasted closing line ends, so a pasted one nests.
+	const declared = lines === 'fenced' ? undefined : descriptor?.merges;
 	if (!declared) return { into: [], onMismatch: 'nest' };
 	// A list of the other kind splits the list it lands in rather than nesting.
 	const onMismatch = lines === 'items' ? 'break-out' : 'nest';

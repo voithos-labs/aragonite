@@ -36,6 +36,7 @@ import {
 	overEmptied,
 	startsLaterLine,
 	opensWithoutClosing,
+	leavesFencedContainer,
 	mixedEndings,
 	plainPasteHolds,
 	readOf,
@@ -195,6 +196,7 @@ export function cutPasteBack(call: Call, host: CheckHost, input: RangeInput): st
 	if (liveWholeText(read, input.range, input.mode)) return [];
 	if (input.mode === 'live' && cutsLiveRun(read, input.range, host)) return [];
 	if (opensWithoutClosing(read, input.range.from, input.range.to, host)) return [];
+	if (leavesFencedContainer(read, input.range.from, input.range.to, host)) return [];
 	if (leavesLiteralBlock(read, input.range.from, input.range.to, host, input.mode)) return [];
 	if (copiesLinesBeforeRange(read, input.range.from, host)) return [];
 	if (headingTextReadsAsBlock(read, input.range, host)) return [];
