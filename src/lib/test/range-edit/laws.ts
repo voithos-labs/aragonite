@@ -662,7 +662,8 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
  *  one, which the law holds: the same bytes, or those less that break (`syntax-tree.md` § The last line). */
 function asClosed(call: Call, host: CheckHost, input: CaretInput, got: Result): boolean {
 	const { source } = input;
-	if (source === '' || /\n$/.test(source)) return false;
+	// Only a clipboard's last line ending may end an open file on a line break, a blank last line's.
+	if (source === '' || /\n$/.test(source) || !/\n$/.test(input.text)) return false;
 	const ended = { ...input, source: source + eolOf(source) };
 	const closed = call(
 		ended.source,

@@ -237,6 +237,29 @@ describe('law 9 in live mode, outside its live shape', () => {
 	});
 });
 
+// Miss-analysis: law 9 at an open end was first written to take the closed file's answer for any
+// clipboard, which passed text with no line ending that ended the file on a line break.
+describe('law 9 at an open file’s end', () => {
+	const at = (text: string, pasted: string) => ({
+		source: text.replace('‸', ''),
+		mode: 'source' as const,
+		at: text.indexOf('‸'),
+		held: { holds: 'text' as const },
+		text: pasted
+	});
+
+	it('takes the closed file’s answer only under a clipboard that ends in a line ending', () => {
+		const { host, real } = calls('');
+		expect(pasteAtCaret(real, host, at('> a‸', 'x\n'))).toEqual([]);
+		expect(real('> a', { from: 3, to: 3 }, paste('x\n'), 'source')).toMatchObject({
+			source: '> ax\n>\n>\n'
+		});
+		expect(pasteAtCaret(real, host, at('a‸', 'x'))).toEqual([]);
+		const closing = calls('ax\n');
+		expect(pasteAtCaret(closing.fake, closing.host, at('a‸', 'x'))).not.toEqual([]);
+	});
+});
+
 describe('law 5 at an open file’s end', () => {
 	// Miss-analysis: the acceptance asked only where the range ends, so a paste of text with no line
 	// ending could leave a stray one at the file's end and pass as Enter's line.
