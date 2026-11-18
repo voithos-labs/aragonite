@@ -15,6 +15,7 @@ harness, both modes; the key, then `x`, then a click away (a `$$` body commits i
   starts that paragraph's text
 - Delete before a `$$` block: `x` starts its body
 - A cut before a `$$` block: `x` stands in its own paragraph above it
+- A cut before a one-line `$$m$$`: the same, never in its formula
 - Backspace after a `$$` block: `x` ends its body; after a one-line `$$m$$`, its formula
 
 ## Miss-analysis
@@ -22,3 +23,5 @@ harness, both modes; the key, then `x`, then a click away (a `$$` body commits i
 - Every landing row beside a block met kinds with text of their own, so none landed beside a
   picture, where Delete put the letter in front of `[[toc]]` and source mode's `$$` took it on its
   fence line.
+- The cut rows met a `$$` block whose body starts on a line of its own, so none met a one-line
+  `$$m$$`, whose formula starts on the opening line and took the cut's caret.

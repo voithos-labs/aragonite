@@ -859,6 +859,14 @@ const ENTERED_CUT_ROWS: NamedRow[] = [
 		'first\n\n⟦***\n\n# hd⟧\n\n| a | b |\n|---|---|\n| 1 | 2 |\n',
 		'first\n\n| a | b |\n|---|---|\n| 1 | 2 |\n',
 		{ at: 7, holds: 'block', parent: [] }
+	),
+	// Miss-analysis: every `$$` row a cut ended before had its body on lines of its own, so none
+	// started the formula on the opening line, where the first-line test let the cut into it.
+	...cut(
+		'L8 a cut ending before a one-line `$$` block holds the gap above it',
+		'first\n\n⟦***\n\n# hd⟧\n\n$$m$$\n\nlast\n',
+		'first\n\n$$m$$\n\nlast\n',
+		{ at: 7, holds: 'boundary', parent: [] }
 	)
 ];
 

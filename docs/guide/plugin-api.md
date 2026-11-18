@@ -204,7 +204,7 @@ What `registerBlockKind` accepts: the descriptor's fields, plus the `view` that 
 - `pageRole`, whether it reads as prose (no drag handle) or as an object.
 - `estimateHeight(node, env)`, its height guess before it's measured (`env` is a `HeightEstimateEnv`).
 - `dragLabel`, what the drag ghost calls it.
-- `textPosition: 'while-source-shows'`, for a block your own component draws as a picture of its source until a click opens the text. Cut, copy and paste only reach the text while it's open, and Backspace or Delete beside it goes to the gap at its edge (or the paragraph right there), unless it has a body: a fence's, or the `bodyRange` you declare. A DOM view with `surface: 'render-primary'` already says this, so it doesn't need the field.
+- `textPosition: 'while-source-shows'`, for a block your own component draws as a picture of its source until a click opens the text. Cut, copy and paste only reach the text while it's open, and Backspace or Delete beside it goes to the gap at its edge (or the paragraph right there), unless it has a body: a fence's, or the `bodyRange` you declare. A cut before it holds the gap, where its paste goes back. A DOM view with `surface: 'render-primary'` already says this, so it doesn't need the field.
 
 Fields that only work together are declared together:
 

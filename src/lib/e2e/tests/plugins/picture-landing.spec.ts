@@ -74,6 +74,15 @@ const ROWS: Row[] = [
 		after: 'first\n\nx\n\n$$\nm\n$$\n'
 	},
 	{
+		name: 'a cut before a one-line `$$` block holds the gap above it',
+		doc: 'first\n\n***\n\nbody\n\n# hd\n\n$$m$$\n\nlast\n',
+		from: [1],
+		to: [3],
+		elsewhere: [0],
+		key: 'ControlOrMeta+x',
+		after: 'first\n\nx\n\n$$m$$\n\nlast\n'
+	},
+	{
 		name: 'Backspace after a `$$` block lands at its body’s end',
 		doc: '$$\nm\n$$\n\n***\n\nbody\n\n# hd\n\nnext\n',
 		from: [1],

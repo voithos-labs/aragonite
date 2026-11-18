@@ -430,11 +430,11 @@ function textEdge(doc: Doc, leaf: LaidBlock, side: 'first' | 'last'): Place | nu
 }
 
 /** Where a cut's caret goes, at the first byte of what follows where its paste goes back: text on
- *  that block's first line, the block itself where no caret goes in, else the gap before it. */
+ *  that block's first line, never a literal body, the block where no caret goes in, else the gap. */
 function firstPlace(doc: Doc, at: number): Place | null {
 	const leaf = pointedBlock(doc, at);
 	if (leaf?.from !== at) return null;
-	const edge = textEdge(doc, leaf, 'first');
+	const edge = literalBody(doc, leaf) ? null : textEdge(doc, leaf, 'first');
 	const lineEnd = doc.source.indexOf('\n', at);
 	if (edge && (edge.holds !== 'text' || lineEnd < 0 || edge.at <= lineEnd)) return edge;
 	return gapBefore(doc, at);
