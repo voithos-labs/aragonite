@@ -98,7 +98,8 @@ const ROUTES: Route[] = [
 			await editor.seedClipboard(`${o.opener}\n\nfoo`);
 			await editor.paste();
 		},
-		after: (o) => `Top\n\n${o.written}\n\nfoo\n\n${tail(o)}`
+		// The pair takes the empty paragraph's line, and `foo` keeps the row under it, as text does.
+		after: (o) => writtenInto(o, `${o.written}\n\nfoo`)
 	},
 	{
 		name: 'dropped onto an empty line',
