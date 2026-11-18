@@ -1085,8 +1085,15 @@ function landedPaste(
 	const taker = takerOf(read, at, clip, first, host);
 	if (taker && host.facts(first.type).lines !== 'fenced' && lastJoins) {
 		const outside = continuationAt(read, at, host, (c) => c !== taker);
-		// The block's own opening (its marker, a title line) is the taker's already.
-		const firstText = clip.blocks.find((b) => b.text && b.from >= first.from)?.text?.from;
+		// The block's own opening (its marker, a title line) is the taker's already; at the caret's
+		// text start the first block under the levels taken keeps its own syntax unless a paragraph.
+		const holding = containersHolding(read, at);
+		const levels = holding.length - holding.indexOf(taker);
+		const atStart = !/[^ \t>\r\n]/.test(read.source.slice(target.text!.from, at));
+		const own = atStart ? openingUnder(clip, first, levels, host) : undefined;
+		const ownFrom = own && own.type !== 'paragraph' ? own.from : undefined;
+		const firstText =
+			ownFrom ?? clip.blocks.find((b) => b.text && b.from >= first.from)?.text?.from;
 		const rest = clip.source.slice(firstText ?? first.from).split('\n');
 		// One container's last line ending is the taker's own line break: what follows the caret stays
 		// in the taker, on a line behind its markers, as after the same text pasted with that ending.
@@ -1187,7 +1194,7 @@ function titleLine(
 	return atName && flat !== '' ? ' ' + flat : flat;
 }
 
-/** The deepest container at `at` a pasted leading block of its type merges into, where the clipboard
+/** The outermost container at `at` a pasted leading block of its type merges into, where the clipboard
  *  opens with the containers from there down to the place's own: none of another type between. */
 function takerOf(
 	read: Read,
@@ -1202,17 +1209,41 @@ function takerOf(
 		if (!child || linesOf(child) === undefined) break;
 		opening.push((b = child));
 	}
+	// An item has no marker on a blank line of its own under its first to stand for a pasted one's.
+	const inner = containersHolding(read, at).at(-1);
+	const start = read.source.lastIndexOf('\n', at - 1) + 1;
+	const end = read.source.indexOf('\n', at);
+	const blank = /^[ \t>]*\r?$/.test(read.source.slice(start, end < 0 ? undefined : end));
+	const marked = (c: LaidBlock) =>
+		host.facts(c.type).lines !== 'first-line' ||
+		c.path.join() !== inner?.path.join() ||
+		!blank ||
+		c.from >= start;
 	const takes = (c: LaidBlock, i: number) => {
 		const { into, key } = host.facts(opening[i].type).merges;
 		const kind = i === 0 ? into.includes(c.type) : c.type === opening[i].type;
-		return kind && sharedBy(read, c, key) === sharedBy(pasted, opening[i], key);
+		return kind && sharedBy(read, c, key) === sharedBy(pasted, opening[i], key) && marked(c);
 	};
 	const around = containersHolding(read, at);
-	for (let k = around.length - 1; k >= 0; k--) {
+	for (let k = 0; k < around.length; k++) {
 		const down = around.slice(k);
 		if (down.length <= opening.length && down.every(takes)) return around[k];
 	}
 	return null;
+}
+
+/** The first block under `levels` of `first` and its first containers, a title row aside. */
+function openingUnder(pasted: Read, first: LaidBlock, levels: number, host: CheckHost) {
+	const child = (b: LaidBlock, i: number) =>
+		pasted.blocks.find((c) => c.path.join() === [...b.path, i].join());
+	let inner: LaidBlock | undefined = first;
+	for (let i = 1; i < levels && inner; i++) inner = child(inner, 0);
+	const title = inner && host.facts(inner.type).titleRow?.type;
+	for (let i = 0; inner; i++) {
+		const b = child(inner, i);
+		if (!b || (b.type !== title && /\S/.test(pasted.source.slice(b.from, b.to)))) return b;
+	}
+	return undefined;
 }
 
 /** What two containers of a type must share to merge, as `block` holds it. */

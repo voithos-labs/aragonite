@@ -804,7 +804,10 @@ function landed(
 	const taker = joins ? null : takerOf(doc, from, pasted, first);
 	if (taker && (lastJoins || !follows)) {
 		const keep = (c: LaidBlock) => c !== taker;
-		const inner = takenIn(pasted, first);
+		const holding = containersHolding(doc, from);
+		const levels = holding.length - holding.indexOf(taker);
+		const textStart = !/[^ \t>\r\n]/.test(doc.source.slice(leaf.text!.from, from));
+		const inner = takenIn(pasted, first, levels, textStart);
 		const behind = inner.after === '' ? lead : '';
 		const cut = cutWith(inner.before, inner.after, behind);
 		// A closing line that ends the clipboard holds no text: what follows the caret goes under it,
@@ -941,17 +944,21 @@ function lastLineStart(pasted: Doc, leaf: LaidBlock): number {
 	return pasted.layout.byteOf(leaf.path, raw.lastIndexOf('\n') + 1)!;
 }
 
-/** A pasted container's content as its taker holds it: its first paragraph's first line, the last
- *  line of a paragraph that ends the clipboard (its own, or one under it), and the bytes between. */
-function takenIn(pasted: Doc, first: LaidBlock): { before: string; mid: string; after: string } {
+/** A pasted container's content as its taker holds it, `levels` of it taken: its first paragraph's
+ *  first line, the last line of a paragraph that ends the clipboard, and the bytes between. */
+function takenIn(pasted: Doc, first: LaidBlock, levels: number, textStart: boolean) {
 	const { source } = pasted;
 	const texts = [...pasted.layout.within(first.from, source.length)].filter(
 		(b) => b.text && b.from >= first.from && !titleOwner(pasted, b)
 	);
 	const paragraph = (b: LaidBlock) => factsOf(pasted, b).joins === 'text';
 	const [head, tail] = [texts[0], texts.at(-1)];
-	const start = head?.text?.from ?? first.from;
-	const joined = head && paragraph(head) ? lineEndBefore(source, start) : start;
+	// At the caret's text start the first block under the levels taken keeps its own syntax (a
+	// list's marker, a heading's `#`, a quote's `>`); only a paragraph joins from its text.
+	const own = textStart ? openingBlock(pasted, first, levels) : undefined;
+	const kept = own && !paragraph(own) ? own : undefined;
+	const start = kept?.from ?? head?.text?.from ?? first.from;
+	const joined = !kept && head && paragraph(head) ? lineEndBefore(source, start) : start;
 	const closes =
 		tail !== undefined &&
 		paragraph(tail) &&
@@ -965,6 +972,18 @@ function takenIn(pasted: Doc, first: LaidBlock): { before: string; mid: string; 
 		mid: source.slice(joined, end),
 		after: source.slice(end)
 	};
+}
+
+/** The first block under `levels` of `first` and its first containers, a title row aside. */
+function openingBlock(pasted: Doc, first: LaidBlock, levels: number): LaidBlock | undefined {
+	let inner: LaidBlock | undefined = first;
+	for (let i = 1; i < levels && inner; i++) inner = pasted.layout.block([...inner.path, 0]);
+	for (let i = 0; inner; i++) {
+		const child = pasted.layout.block([...inner.path, i]);
+		if (!child || (!titleOwner(pasted, child) && !isBlankText(nodeAt(pasted, child.path).raw)))
+			return child;
+	}
+	return undefined;
 }
 
 /** Text for a block that holds one line: each run of line breaks a space, a last one dropped. */

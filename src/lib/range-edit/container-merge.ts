@@ -3,6 +3,8 @@
  * already, and a closing line it brings ends that container in place of the container's own.
  */
 
+import { isBlankText } from '../core/lines';
+import { pastMarkers } from './apart';
 import type { LaidBlock } from './layout';
 import {
 	closedByOwnLine,
@@ -16,7 +18,7 @@ import {
 } from './document';
 import { continuation } from './markers';
 import type { Edit } from './leaf-splice';
-import { lineHead } from './lines';
+import { lineHead, lineRest } from './lines';
 
 /** What a container's type says two of it must share to merge, as `block` holds it. */
 const sharedOf = (doc: Doc, block: LaidBlock, key: string | undefined) =>
@@ -24,7 +26,7 @@ const sharedOf = (doc: Doc, block: LaidBlock, key: string | undefined) =>
 		? (nodeAt(doc, block.path).metadata as Record<string, unknown> | undefined)?.[key]
 		: undefined;
 
-/** The deepest container at `at` a pasted leading block of its type merges into, where the clipboard
+/** The outermost container at `at` a pasted leading block of its type merges into, where the clipboard
  *  opens with every container from there down to the place's own (a quote in an item takes no list). */
 export function takerOf(doc: Doc, at: number, pasted: Doc, first: LaidBlock): LaidBlock | null {
 	// The clipboard's opening containers: its first block, then each first child that is one.
@@ -35,11 +37,21 @@ export function takerOf(doc: Doc, at: number, pasted: Doc, first: LaidBlock): La
 		const { key } = factsOf(pasted, p).merges;
 		return sharedOf(doc, c, key) === sharedOf(pasted, p, key);
 	};
+	const around = containersHolding(doc, at);
+	// An item has no marker on a blank line of its own under its first to stand for a pasted one's,
+	// which keeps its own there.
+	const marked = (c: LaidBlock) =>
+		factsOf(doc, c).lines !== 'first-line' ||
+		c !== around.at(-1) ||
+		c.lineAt!(at).from === c.lineAt!(c.from).from ||
+		!isBlankText(
+			lineRest(doc.source, pastMarkers(doc.source, at - lineHead(doc.source, at).length))
+		);
 	const takes = (c: LaidBlock, i: number) =>
 		(i === 0 ? factsOf(pasted, first).merges.into.includes(c.type) : c.type === opening[i].type) &&
-		shares(c, opening[i]);
-	const around = containersHolding(doc, at);
-	for (let k = around.length - 1; k >= 0; k--) {
+		shares(c, opening[i]) &&
+		marked(c);
+	for (let k = 0; k < around.length; k++) {
 		const down = around.slice(k);
 		if (down.length <= opening.length && down.every(takes)) return around[k];
 	}
