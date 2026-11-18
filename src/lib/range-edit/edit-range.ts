@@ -109,7 +109,10 @@ export function editRange(
 	const reclosed = (at: number, text: string): RangeEditResult | null => {
 		if (!opensLastLine(doc, from, to, at, text)) return null;
 		const closed = editRange(source + doc.ending, range, gesture, mode, host);
-		return reopened(closed, doc.ending, (body) => endsBlank(readDoc(body, host, mode)));
+		const last = (body: string) => lastLineOf(readDoc(body, host, mode));
+		// Literal text takes the ending as a line of its own only where that line stays the text's.
+		if (literalAt(doc, from, to, at) && last(closed.source) !== 'literal') return null;
+		return reopened(closed, doc.ending, last);
 	};
 	if ('paste' in gesture) {
 		// The document's last line keeps the line ending it had, which blocks pasted after it spend.
@@ -225,12 +228,21 @@ function opensLastLine(doc: Doc, from: number, to: number, at: number, text: str
 	const { source } = doc;
 	if (!source || ownTrailingLineEnding(source) || !asPasted(doc, at, at, text).endsWith('\n'))
 		return false;
-	if (source.includes('\n', at) || (from === 0 && to === source.length)) return false;
+	if (from === 0 && to === source.length) return false;
+	// The ending lands at the block's end where text is pasted in a block that holds more lines
+	// (a setext underline): the last line is the block's, literal text's too.
 	const leaf = leafHolding(doc, at, at)?.leaf;
-	// A literal block held whole gives way to text landing at its end, which is no literal text then.
-	return (
-		!leaf || factsOf(doc, leaf).body !== 'literal' || (at === to && !!heldAlone(doc, from, to))
-	);
+	return !source.includes('\n', leaf ? contentEnd(doc, leaf) : at);
+}
+
+/** Whether `at` is in literal text the paste writes in, not a literal block held whole. */
+function literalAt(doc: Doc, from: number, to: number, at: number): boolean {
+	const held = leafHolding(doc, at, at);
+	if (!held || factsOf(doc, held.leaf).body !== 'literal') return false;
+	// A fence's closing line is no text of it.
+	const fence = doc.host.fence(nodeAt(doc, held.leaf.path).raw);
+	if (fence && fence.closer !== null && held.to >= fence.closer) return false;
+	return !(at === to && heldAlone(doc, from, to));
 }
 
 /** `closed`, a paste into the document given the last line ending it lacked: the ending goes
@@ -238,7 +250,7 @@ function opensLastLine(doc: Doc, from: number, to: number, at: number, text: str
 function reopened(
 	closed: RangeEditResult,
 	eol: string,
-	blank: (source: string) => boolean
+	last: (source: string) => LastLine
 ): RangeEditResult {
 	// The one write of a block was the closed document's.
 	const result: RangeEditResult = { ...closed, leaf: undefined };
@@ -246,9 +258,12 @@ function reopened(
 	if (!source.endsWith(eol)) return result;
 	const body = source.slice(0, -eol.length);
 	const line = body.lastIndexOf('\n') + 1;
-	if (!blank(source)) {
+	const kind = last(source);
+	if (kind === 'text') {
 		return { ...result, source: body, caret: { ...caret, at: Math.min(caret.at, body.length) } };
 	}
+	// A code block's empty last line is its own line: no paragraph opens under it.
+	if (kind === 'literal') return result;
 	// An empty last line right under a block's last line is Enter's empty paragraph there.
 	const under = line > 0 && !isBlankText(body.slice(body.lastIndexOf('\n', line - 2) + 1, line));
 	if (line < body.length || caret.at !== line || !under) return result;
@@ -256,15 +271,24 @@ function reopened(
 	return { ...result, source: body + eol + eol, caret: { at, holds: 'text', line: true } };
 }
 
-/** Whether the last line of `doc`, which ends in a line ending, is blank: an empty block's (an empty
- *  item's or quote's paragraph), or an empty line; a container's own marker line is not. */
-function endsBlank(doc: Doc): boolean {
+/** What the last line of `doc`, which ends in a line ending, holds: blank is an empty block's (an
+ *  empty item's or quote's paragraph) or an empty line; a container's own marker line is text. */
+function lastLineOf(doc: Doc): LastLine {
 	const { source } = doc;
 	const end = source.length - ownTrailingLineEnding(source).length;
 	const leaf = leafHolding(doc, end, end)?.leaf;
-	if (leaf?.text) return isBlankText(source.slice(leaf.text.from, leaf.text.to));
-	return /^\r?$/.test(source.slice(source.lastIndexOf('\n', end - 1) + 1, end));
+	const text = leaf?.text && source.slice(leaf.text.from, leaf.text.to);
+	if (text === undefined) {
+		const line = source.slice(source.lastIndexOf('\n', end - 1) + 1, end);
+		return /^\r?$/.test(line) ? 'blank' : 'text';
+	}
+	// Literal text's last line is a line of its own, its other lines no matter.
+	if (factsOf(doc, leaf!).body !== 'literal') return isBlankText(text) ? 'blank' : 'text';
+	return isBlankText(text.slice(text.lastIndexOf('\n') + 1)) ? 'literal' : 'text';
 }
+
+/** A last line with text, a blank one, or a code block's empty last line. */
+type LastLine = 'text' | 'blank' | 'literal';
 
 /** Whether the range sits in one block's text, between its fence lines where it has them: a paste
  *  over it is that block's one write. A block held whole gives way to the text instead. */
