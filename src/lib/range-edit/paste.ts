@@ -829,7 +829,7 @@ function landed(
 	// A heading left with no text gives way: the blocks land on its line as on an empty one.
 	if (cut.empty && cut.head.length > leaf.from) {
 		const heading = { from: leaf.from, length: contentEnd(doc, leaf) - leaf.from };
-		return landedWithout(doc, heading, leaf.from, leaf.from, clip);
+		return landedWithout(doc, heading, leaf.from, leaf.from, clip, true);
 	}
 	const ends = !lastTakes && lineRest(cut.rest, 0) === '';
 	const text = ends ? intoBlankUnder(doc, to, clip) : clip;
@@ -883,12 +883,26 @@ interface Span {
 	length: number;
 }
 
-/** The paste of `clip` at `[from, to)` of the document with `cut` taken out, its bytes and caret
- *  alone: a block that landing names is one of that other document. */
-function landedWithout(doc: Doc, cut: Span, from: number, to: number, clip: string): Edit {
+/** The paste of `clip` at `[from, to)` of the document with `cut` taken out, bytes and caret alone;
+ *  `inPlace` where `cut` was a block's line, the blank line under it still that block's separator. */
+function landedWithout(
+	doc: Doc,
+	cut: Span,
+	from: number,
+	to: number,
+	clip: string,
+	inPlace?: true
+): Edit {
 	const bare = doc.source.slice(0, cut.from) + doc.source.slice(cut.from + cut.length);
 	const without = { ...readDoc(bare, doc.host, doc.mode), ending: doc.ending };
-	const landing: Pasted = { text: clip, plain: false, held: { holds: 'text' }, transform: null };
+	const held = { holds: 'text' } as const;
+	const landing: Pasted = {
+		text: clip,
+		plain: false,
+		held,
+		transform: null,
+		...(inPlace && { inPlace })
+	};
 	const { source, caret } = pasteAt(without, from, to, landing);
 	return { source, caret };
 }

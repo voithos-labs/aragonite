@@ -121,6 +121,21 @@ for (const mode of ['source', 'live'] as const)
 			expect((await filled(marked, mode, 'paste', clip))[0]).toBe(left);
 		});
 
+// Blocks on an empty heading's line take the heading's place: the blank line under it was its
+// separator, never a row. Miss-analysis: every row's empty line was a blank paragraph's.
+const HEADING: [string, string, string][] = [
+	['# ‸\n\nb\n', '# h', '# h\n\nb\n'],
+	['# ‸\n\nb\n', '> q', '> q\n\nb\n'],
+	['a\n\n# ‸\n\nb\n', '- l', 'a\n\n- l\n\nb\n'],
+	['# ‸\n\n\n\nb\n', '# h', '# h\n\n\n\nb\n']
+];
+
+for (const mode of ['source', 'live'] as const)
+	for (const [marked, clip, left] of HEADING)
+		it(`${mode}: ${clip} on the empty heading of ${JSON.stringify(marked)}`, async () => {
+			expect((await filled(marked, mode, 'paste', clip))[0]).toBe(left);
+		});
+
 // The core's answer: an open fence takes the row into its body, so no line goes in; text over a
 // block held whole takes its line, and the blank line under it was its separator, never a row.
 const CORE: [string, string, string, string][] = [
