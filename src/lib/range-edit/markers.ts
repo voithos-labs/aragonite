@@ -11,6 +11,7 @@ import {
 	factsOf,
 	firstBodyLine,
 	firstLine,
+	leafAt,
 	lineOf,
 	titleRowOf,
 	type Doc
@@ -32,8 +33,11 @@ export function continuation(doc: Doc, byte: number, keep: (c: LaidBlock) => boo
 		const facts = factsOf(doc, container);
 		if (!MARKED.includes(facts.lines)) continue;
 		const line = lineOf(container, byte);
-		if (line.own) continue;
-		const first = facts.lines === 'first-line' ? firstBodyLine(container) : undefined;
+		// A file's open last line, a marker over an empty block, is a body line all the same.
+		const openEnd = line.own && byte === doc.source.length && leafAt(doc, byte) !== null;
+		if (line.own && !openEnd) continue;
+		const body = facts.lines === 'first-line' ? firstBodyLine(container) : undefined;
+		const first = body ?? (openEnd && facts.lines === 'first-line' ? line : undefined);
 		const own = line.markerTo > line.from ? line : undefined;
 		// A first-line marker is its width in spaces on every later line (§ 5.5): a line spelling
 		// less of it (a lazy or short one) is no measure of it, one spelling it whole (a tab) is.

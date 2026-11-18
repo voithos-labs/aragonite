@@ -124,10 +124,16 @@ export function continuationAt(
 		const facts = host.facts(container.type);
 		if (!MARKED.includes(facts.lines)) continue;
 		const line = lineOf(container, byte);
-		if (line.own) continue;
+		// A file's open last line, a marker over an empty block, is a body line all the same.
+		const openEnd =
+			line.own &&
+			byte === read.source.length &&
+			read.blocks.some((b) => b.text?.from === byte && b.text.to === byte);
+		if (line.own && !openEnd) continue;
 		const own = markerOn(read, line) === '' ? markedFor(read, container, line, facts) : line;
 		// A later line spelling less than its item's indent (a lazy or short one) takes the first's.
-		const first = facts.lines === 'first-line' ? firstBodyLine(container) : undefined;
+		const body = facts.lines === 'first-line' ? firstBodyLine(container) : undefined;
+		const first = body ?? (openEnd && facts.lines === 'first-line' ? line : undefined);
 		const short =
 			!!first &&
 			own === line &&
@@ -140,7 +146,7 @@ export function continuationAt(
 		const blank = !!source && read.source.slice(source.markerTo, end).trim() === '';
 		const bare = facts.lines === 'every-line' && blank && /[^ \t]$/.test(spelled);
 		const marker = bare ? spelled + ' ' : spelled;
-		if (facts.lines === 'first-line' && source === firstBodyLine(container)) {
+		if (facts.lines === 'first-line' && source === first) {
 			prefix += /^[ \t]*\[\^/.test(marker)
 				? '    '
 				: marker.replace(

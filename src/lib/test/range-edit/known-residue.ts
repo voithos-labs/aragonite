@@ -79,14 +79,6 @@ const besideSpaces = (read: Read, { from, to }: Range) =>
 const besides = (a: LaidBlock, b: LaidBlock) =>
 	a.path.length === b.path.length && a.path.slice(0, -1).join() === b.path.slice(0, -1).join();
 
-/** The blocks directly inside `container`, its title row aside. */
-function bodyOf(read: Read, container: LaidBlock, host: CheckHost): LaidBlock[] {
-	const title = host.facts(container.type).titleRow?.type;
-	return read.blocks.filter(
-		(b) => b.path.slice(0, -1).join() === container.path.join() && b.type !== title
-	);
-}
-
 /** Whether the cut left a caret between blocks, where a paste back lands as blocks set apart. */
 const named = (left?: Place) => !!left && left.holds !== 'text';
 
@@ -270,19 +262,6 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 			return !!owner && owner.from > range.from && host.facts(owner.type).joins === 'never';
 		},
 		repro: { source: 'a[^1]\n\n[^1]: b\n', mode: 'source', range: { from: 5, to: 13 } }
-	},
-	{
-		gap: 'a container the cut empties at the document’s end, with no line ending, gives a paste no markers',
-		lane: '2b',
-		law: 'L3',
-		matches: (read, range, host) =>
-			!read.source.endsWith('\n') &&
-			range.to === read.source.length &&
-			containersAt(read, range.from, 'start').some(
-				(c) =>
-					c.to === read.source.length && bodyOf(read, c, host).every((b) => b.from >= range.from)
-			),
-		repro: { source: '> ```\n> x\n> ```', mode: 'source', range: { from: 2, to: 15 } }
 	},
 	{
 		gap: 'two first-line markers on one line (`[^1]:1. `), cut out past their end, nest when pasted back',
