@@ -235,14 +235,28 @@ function enteredInText(
 ): Edit {
 	const bare = landedAt(doc, from, to, rest, seen);
 	const after = { ...readDoc(bare.source, doc.host, doc.mode), ending: doc.ending };
-	// A container closed by its own line left the caret past that line: the ending goes after the
-	// text its body ends on. A body that ends on a fence or a table keeps the caret where it is.
+	// A container closed by its own line left the caret past that line: the ending goes after its
+	// body's last text, else on an empty body line over the closing line (`lineOver`).
 	const last = lastPlaceAt(after, bare.caret);
 	const leaf = last === null ? undefined : leafHolding(after, last, last)?.leaf;
 	const text = leaf && !isCell(after, leaf) && factsOf(after, leaf).body !== 'literal';
+	const closed = [...after.layout.within(bare.caret, bare.caret)].findLast(
+		(c) => c.container && contentEnd(after, c) === bare.caret && closedByOwnLine(after, c)
+	);
+	if (!text && last !== null && closed) return lineOver(after, closed);
 	const at = text ? last! : bare.caret;
 	const { source, caret } = pasteAt(after, at, at, LINE);
 	return { source, caret };
+}
+
+/** `doc` with an empty line of `container`'s body over its closing line, the caret on it. */
+function lineOver(doc: Doc, container: LaidBlock): Edit {
+	const closing = lastLine(container).from;
+	const start = closing - lineHead(doc.source, closing).length;
+	const marks = doc.source.slice(start, pastMarkers(doc.source, start));
+	const line = (marks.trimEnd() || marks) + doc.ending;
+	const source = doc.source.slice(0, start) + line + doc.source.slice(start);
+	return { source, caret: start + line.length - doc.ending.length };
 }
 
 /** Whether `text` is one container a container at `at` takes in, ending inside it: a blank line
