@@ -9,7 +9,7 @@
 import { describe, expect, it } from 'vitest';
 import type { DocumentView } from '#lib/core/node-views.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
-import { editRange, type Gesture } from '#lib/range-edit/edit-range.js';
+import { editRange, type Gesture, type Range } from '#lib/range-edit/edit-range.js';
 import { rangeHost, type RangeHost } from '#lib/range-edit/host.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
@@ -85,10 +85,10 @@ function counted(host: RangeHost, current: DocumentView) {
 
 /** What one gesture over a range across two blocks in the middle of `source` costs; a caret
  *  paste writes two lines at the range's start, a moving drop takes the range to the line above. */
-function cost(source: string, named: (typeof GESTURES)[number]) {
+function cost(source: string, named: (typeof GESTURES)[number], over?: Range) {
 	const start = source.indexOf('with', Math.floor(source.length / 2));
-	const from = start;
-	const to = named === 'caret paste' ? start : source.indexOf('with', from + 10) + 2;
+	const from = over?.from ?? start;
+	const to = over?.to ?? (named === 'caret paste' ? start : source.indexOf('with', from + 10) + 2);
 	const gesture: Gesture =
 		named === 'caret paste'
 			? { paste: 'one\ntwo', plain: false, holds: 'text' }
@@ -151,5 +151,26 @@ describe('work per gesture', () => {
 				holds('container lines paired', small.paired, large.paired, 64, declared.paired);
 			});
 		}
+	}
+});
+
+// Miss-analysis: every costed range crossed two paragraphs, so the read-back that decides whether a
+// paragraph a range empties keeps its line, asked of a range from a block taken whole, went uncounted.
+describe('a range from a block taken whole to the end of a paragraph it empties', () => {
+	const make = (n: number) =>
+		SHAPES.paragraphs(n / 2) + '\n***\n\nemptied\n\n' + SHAPES.paragraphs(n / 2);
+	const over = (source: string): Range => {
+		const from = source.indexOf('***');
+		return { from, to: source.indexOf('emptied') + 'emptied'.length };
+	};
+	for (const gesture of ['backspace', 'delete', 'cut'] as const) {
+		it(`${gesture} reads back only the blocks near it`, () => {
+			const [small, large] = [500, 2000].map((n) => cost(make(n), gesture, over(make(n))));
+			expect(large.reads, 'documents read beside the editor’s own').toBeLessThanOrEqual(3);
+			holds('bytes parsed', small.parsed, large.parsed, 64);
+			expect(large.laid, `blocks laid out: ${small.laid}, ${large.laid}`).toBeLessThanOrEqual(
+				small.laid * 1.5 + 64
+			);
+		});
 	}
 });

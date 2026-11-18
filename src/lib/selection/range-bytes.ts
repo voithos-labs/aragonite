@@ -1,7 +1,8 @@
 /**
  * A selection read as the bytes the range-edit core takes (`range-edit/edit-range.ts :: Range`):
  * each end's byte in the document, kept off a block its start can't join, then widened to every
- * block the coverage holds whole (G1.212). Copy, cut and the overlay read a range through here.
+ * block the coverage holds whole (G1.212) and through a heading the range holds to its text's end.
+ * Copy, cut and the overlay read a range through here.
  * The other way, a place the core names reads back as the gap caret there (`gapOfPlace`,
  * `heldGapOf`).
  */
@@ -19,7 +20,7 @@ import { documentByteMap, leafAtByte } from '../tree-operations/container-offset
 import type { Measured } from '../tree-operations/top-level-starts';
 import { gapEligibleAt, gapScopeChildren, type GapCaretPosition } from './gap-caret';
 import { blockFacts } from '../schema/block-facts';
-import { getContentRange, isProseKind } from '../core/inline';
+import { getContentRange, isProseKind, structuralSuffix } from '../core/inline';
 import type { Range } from '../range-edit/edit-range';
 import { documentLayout, type LaidBlock, type Layout } from '../range-edit/layout';
 import { pathsEqual } from './path-math';
@@ -119,6 +120,7 @@ export function rangeBytes(
 		from = Math.min(from, span.from);
 		to = Math.max(to, span.to);
 	}
+	to = Math.max(to, suffixEnd(doc, layout, end, from, to));
 	// A range across blocks from the first caret position to the last is select-all's, which takes
 	// every container's markers with it.
 	const edges = !pathsEqual(start.path, end.path) && caretEdges(doc, layout);
@@ -203,6 +205,22 @@ function heldSpans(doc: DocumentView, coverage: RangeCoverage, layout: Layout): 
 		spans.push({ from: block.from, to: last ?? textEnd(doc, block) });
 	}
 	return spans;
+}
+
+/** Where the heading `end` sits in ends, underline or closing run included, when the range holds it
+ *  from its first byte through its text: the removal takes that heading whole. Else 0. */
+function suffixEnd(
+	doc: DocumentView,
+	layout: Layout,
+	end: SelectionPoint,
+	from: number,
+	to: number
+): number {
+	const node = blockNodeAt(doc, end.path);
+	const block = layout.block(end.path);
+	if (!node || !block || end.cellCoordinate || block.from <= from) return 0;
+	if (structuralSuffix(node) === '') return 0;
+	return to >= layout.byteOf(end.path, getContentRange(node).end)! ? textEnd(doc, block) : 0;
 }
 
 /** A text end's byte; a cell end's row, its line ending but the last row's (the table's), or its

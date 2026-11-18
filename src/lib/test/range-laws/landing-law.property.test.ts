@@ -210,8 +210,8 @@ const RESTS: Record<string, string> = {
 const lineAboveOpening = (d: Draw) =>
 	d.end === 'inside a callout it enters' && (d.wrap === 'a quote' || d.wrap === 'an item');
 
-/** Booked, not ruled: the end leaf's rest takes the place of a block taken whole right under a
- *  paragraph and runs on into it, as two paragraphs a removal leaves flush rejoin. */
+/** The end leaf's rest takes the place of a block taken whole right under a paragraph and runs on
+ *  into it, as two paragraphs a removal leaves flush rejoin: text over the range opens that rest. */
 const restRunsOn = (d: Draw) =>
 	d.end === 'a leaf’s middle' && d.above === 'right under a paragraph';
 
@@ -358,19 +358,21 @@ describe('the landing law', () => {
 
 	it('P2: text a typed key or a composition writes stands alone or before the end leaf’s rest', async () => {
 		await fc.assert(
-			fc.asyncProperty(
-				arbDraw.filter((d) => !restRunsOn(d)),
-				fc.constantFrom(...WRITES),
-				async (d, g) => {
-					const text = marked(d, STARTS[d.start]);
-					const { editor } = await mounted(text, d.mode);
-					await run(editor, g);
-					takeDevWarns();
-					const rest = RESTS[d.end] ?? '';
-					const leaf = writtenLeaf(editor.instance.__test.getDocument().children);
-					expect([WRITTEN, WRITTEN + rest], `${g} over ${JSON.stringify(text)}`).toContain(leaf);
-				}
-			),
+			fc.asyncProperty(arbDraw, fc.constantFrom(...WRITES), async (d, g) => {
+				const text = marked(d, STARTS[d.start]);
+				const { editor } = await mounted(text, d.mode);
+				await run(editor, g);
+				takeDevWarns();
+				const rest = RESTS[d.end] ?? '';
+				const leaf = writtenLeaf(editor.instance.__test.getDocument().children);
+				// Where the rest runs on into the paragraph above, the text still opens the rest's line.
+				const stands = restRunsOn(d)
+					? leaf?.endsWith(`\n${WRITTEN}${rest}`)
+					: leaf === WRITTEN || leaf === WRITTEN + rest;
+				expect(stands, `${g} over ${JSON.stringify(text)} wrote in ${JSON.stringify(leaf)}`).toBe(
+					true
+				);
+			}),
 			params(1.5)
 		);
 	}, 600_000);
@@ -527,6 +529,24 @@ describe('a line break on the line a range keeps at the document’s end lands a
 				const want = await land('___\n⟦zero\n\npara⟧\n', mode, g);
 				expect({ ...got, warns: [] }).toEqual({ ...want, warns: [] });
 			});
+});
+
+// Miss-analysis: every drawn document ended on a line ending, so the line a range keeps as the
+// document's last, with none after it, was never set beside its twin, and Backspace left it.
+describe('the line a range keeps at the end of a document with no final line ending lands as its twin’s', () => {
+	const ROWS: [string, string, string][] = [
+		['at the top level', 'first\n\n⟦***\n\npara⟧', 'first\n\n⟦zero\n\npara⟧'],
+		['right under a rule', '___\n⟦***\n\npara⟧', '___\n⟦zero\n\npara⟧'],
+		['in a quote', '> first\n>\n> ⟦***\n>\n> para⟧', '> first\n>\n> ⟦zero\n>\n> para⟧']
+	];
+	for (const mode of ['source', 'live'] as const)
+		for (const [name, text, twin] of ROWS)
+			for (const g of GESTURES)
+				it(`${mode}: ${g}, ${name}`, async () => {
+					const got = await land(text, mode, g);
+					const want = await land(twin, mode, g);
+					expect({ ...got, warns: [] }).toEqual({ ...want, warns: [] });
+				});
 });
 
 // ── Text over a range that leaves no text of its own ─────────────────────────
@@ -706,4 +726,32 @@ describe('a heading the range holds through its text goes whole, as its ATX twin
 					const want = await land(twin, mode, g);
 					expect({ ...got, warns: [] }).toEqual({ ...want, warns: [] });
 				});
+
+	// Miss-analysis: the rows above read the bytes a key left and never the clipboard, so a cut that
+	// took the underline and wrote the text alone went unread.
+	const COPIED: [string, string, string][] = [
+		['a setext underline', 'first\n\n⟦***\n\nhead⟧\n====\n\nnext\n', '***\n\nhead\n===='],
+		['an ATX closing run', 'fi⟦rst\n\n# head⟧ #\n\nnext\n', 'rst\n\n# head #'],
+		['in a quote', '> first\n>\n> ⟦***\n>\n> head⟧\n> ===\n\nnext\n', '***\n\nhead\n===']
+	];
+	for (const mode of ['source', 'live'] as const)
+		for (const [name, text, clipboard] of COPIED)
+			for (const type of ['copy', 'cut'] as const)
+				it(`${mode}: a ${type} writes the heading whole, ${name}`, async () => {
+					const { editor } = await mounted(text, mode);
+					const wrote = await clipboardGesture(editor, type, 'key');
+					expect(wrote['text/plain']).toBe(clipboard);
+				});
+
+	// A title row only ever empties, so a range ending at its text takes no closing tag with it.
+	for (const mode of ['source', 'live'] as const)
+		it(`${mode}: a cut ending at a summary’s text leaves the row, emptied`, async () => {
+			const text =
+				'first\n\n⟦***\n\n<details open>\n<summary>Sum⟧</summary>\n\nbody\n\n</details>\n';
+			const { editor } = await mounted(text, mode);
+			await clipboardGesture(editor, 'cut', 'key');
+			expect(editor.source()).toBe(
+				'first\n\n\n<details open>\n<summary></summary>\n\nbody\n\n</details>\n'
+			);
+		});
 });
