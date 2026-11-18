@@ -83,11 +83,30 @@ export function pasteAt(doc: Doc, from: number, to: number, pasted: Pasted): Edi
 	const text = asPasted(doc, from, to, pasted.text);
 	const once = { ...pasted, text, transform: ranOnce(pasted.transform) };
 	const edit = entered(doc, from, to, once, seen) ?? landedAt(doc, from, to, once, seen);
-	// One write of a block's text is text, whatever the clipboard read as.
+	// One write of a block's text is text, whatever the clipboard read as, and so is one block of
+	// text written on an empty line, as in an empty paragraph.
 	if (!seen.blocks || edit.leaf) return edit;
-	const tops = seen.blocks.tree.children.filter((b) => !isBlankText(b.raw));
-	return { ...edit, blocks: tops.length };
+	const tops = topsOf(seen.blocks);
+	// The line is empty from the caret's block on, or past its markers where no block holds it.
+	const lineStart = from - lineHead(doc.source, from).length;
+	const start = leafHolding(doc, from, to)?.leaf.from ?? pastMarkers(doc.source, lineStart);
+	const filled =
+		pasted.held.holds === 'text' &&
+		isBlankText(lineRest(doc.source, start)) &&
+		tops.length === 1 &&
+		joinsAsText(seen.blocks, tops[0]);
+	return { ...edit, blocks: filled ? 0 : tops.length };
 }
+
+/** `read`'s top-level blocks, less the blank paragraphs between them. */
+function topsOf(read: Doc): LaidBlock[] {
+	return [...read.layout.within(0, read.source.length)].filter(
+		(b) =>
+			b.path.length === 1 && !(joinsAsText(read, b) && isBlankText(read.source.slice(b.from, b.to)))
+	);
+}
+
+const joinsAsText = (doc: Doc, block: LaidBlock) => factsOf(doc, block).joins === 'text';
 
 /** One line ending pasted as text, by a gesture that runs no transform. */
 const LINE: Pasted = { text: '\n', plain: false, held: { holds: 'text' }, transform: null };
@@ -741,10 +760,8 @@ function landed(
 	const lineAfter = !endingOff && afterText(doc, leaf, target.from, clip);
 	const pasted = lineAfter ? readDoc(clip, doc.host, doc.mode) : blocks();
 	clip = pasted.source;
-	const isText = (b: LaidBlock) => factsOf(pasted, b).joins === 'text';
-	const tops = [...pasted.layout.within(0, clip.length)].filter(
-		(b) => b.path.length === 1 && !(isText(b) && isBlankText(clip.slice(b.from, b.to)))
-	);
+	const isText = (b: LaidBlock) => joinsAsText(pasted, b);
+	const tops = topsOf(pasted);
 	const first = tops[0];
 	const last = tops.at(-1);
 	if (lineAfter || !first || (tops.length === 1 && isText(first))) return asText(clip);
