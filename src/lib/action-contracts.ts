@@ -345,6 +345,9 @@ export interface CommitController {
 	/** Make every write made while `run` is pending one undo entry, restoring the selection the step
 	 *  opened with (`seed` when unfocused). Ends when `run` settles or at the author's next input. */
 	undoStep(seed: CommitSnapshotArg, run: () => Promise<unknown>): Promise<void>;
+	/** `undoStep` restoring a caret at `at` whatever the selection, for a gesture that knows where its
+	 *  edit began: text over a range inside one block undoes to the range's start. */
+	undoStepFrom(at: CommitSnapshotArg, run: () => Promise<unknown>): Promise<void>;
 	/** Called on the author's own input: every later write opens its own entry, even while a
 	 *  step's run is still pending. */
 	endUndoStep(): void;

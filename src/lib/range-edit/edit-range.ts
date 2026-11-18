@@ -34,7 +34,7 @@ import { ownEntry, restored } from './own-entry';
 import { numberedOn } from './list-numbers';
 import { pasteAt, type Pasted } from './paste';
 import { removeRange, type Removal } from './removal';
-import { fenceBody, holdsText, literalBody } from './removal-range';
+import { fenceBody, holdsText, literalBody, pastSuffix } from './removal-range';
 
 /** Two byte offsets, `from <= to`, after the editor widened the range to every block it takes
  *  whole; a caret is a range with `from === to`. */
@@ -231,8 +231,13 @@ function answerOf(
  *  entered or prose it ended at the first byte of: anywhere else that byte is the leaf's syntax. */
 function restAfter(doc: Doc, to: number): boolean {
 	const end = leafAt(doc, to)?.leaf;
-	if (!end?.text || to >= end.text.to) return false;
-	return end.from < to || factsOf(doc, end).body === 'markdown';
+	// A fenced block's text is its body; its closing line is no rest.
+	const textEnd = end && (fenceBody(doc, end)?.to ?? end.text?.to);
+	if (!end || textEnd === undefined || isBlankText(doc.source.slice(to, textEnd))) return false;
+	const facts = factsOf(doc, end);
+	// A leaf drawn from its source takes a caret in its text only while that source shows.
+	if (facts.textPosition !== 'always') return false;
+	return end.from < to || facts.body === 'markdown';
 }
 
 /** The blocks with children a gesture started among, outermost first: those around the block at
@@ -261,9 +266,10 @@ function besideOf(gesture: Gesture, doc: Doc, range: Range): Beside {
 	return gesture === 'delete' ? 'text after' : 'start after';
 }
 
-/** Whether the range ends before the end of a leaf that starts inside it, so that leaf's text
- *  follows the caret: a block after the leaf is one the range never reached. */
+/** Whether the range ends before the end of a leaf that starts inside it (a heading held through its
+ *  text goes whole), so that leaf's text follows the caret, not a block the range never reached. */
 const entersAtEnd = (doc: Doc, { from, to }: Range): boolean =>
+	pastSuffix(doc, from, to) === to &&
 	findWithin(
 		doc,
 		to,

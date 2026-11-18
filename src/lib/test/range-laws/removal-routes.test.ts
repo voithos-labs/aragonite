@@ -599,25 +599,6 @@ function namedBoundary(doc: Document, caret: RangeEditResult['caret']): GapCaret
 const letterAt = (editor: Editor, path: readonly number[]) =>
 	/^q\r?\n?$/.test(blockNodeAt(editor.instance.__test.getDocument(), path)?.raw ?? '');
 
-/** Whether the range ends inside a block it entered, some of that block after it. */
-function enters(editor: Editor, take: EditorSelection): boolean {
-	const { anchor, focus } = take;
-	const raw = blockNodeAt(editor.instance.__test.getDocument(), focus.path)?.raw ?? '';
-	const other = anchor.path.join() !== focus.path.join();
-	return other && raw.slice(focus.offset).trim() !== '';
-}
-
-/** The document once Delete, then a letter, go over `take`, mounted on its own. */
-async function deletedThenLetter(source: string, mode: PresentationMode, take: EditorSelection) {
-	const editor = mountCase(source, mode);
-	await editor.settle();
-	expect(await drivePlace(editor, take, 'Delete'), 'Delete took no action').toBe(true);
-	await editor.settle();
-	await pressHardwareKey(document.activeElement as HTMLElement, { key: 'q' });
-	await editor.settle();
-	return editor;
-}
-
 async function drivePlace(editor: Editor, take: Take, route: PlaceRoute): Promise<boolean> {
 	if ('whole' in take) {
 		if (route === 'a letter') return false;
@@ -690,16 +671,12 @@ describe('a removal’s caret sits among the children of the block the core name
 				await editor.settle();
 				if (opens) expect(letterAt(editor, opens), editor.source()).toBe(true);
 				if ('whole' in target) return;
-				// The key and then a letter leave what the letter typed over the range leaves; where the
-				// range ends inside a block it entered, the letter takes Delete's removal instead.
-				const step = enters(editor, target)
-					? await deletedThenLetter(source, mode, target)
-					: editor;
+				// The key and then a letter leave what the letter typed over the range leaves.
 				const over = mountCase(source, mode);
 				await over.settle();
 				expect(await drivePlace(over, target, 'a letter'), 'no letter went over').toBe(true);
 				await over.settle();
-				expect(blocksIn(step), 'the letter typed over the range').toEqual(blocksIn(over));
+				expect(blocksIn(editor), 'the letter typed over the range').toEqual(blocksIn(over));
 			});
 		}
 	}

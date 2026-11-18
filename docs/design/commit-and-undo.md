@@ -40,7 +40,7 @@ Every write to a block's text says which of those it is, as its `history`. Typin
 
 **One gesture, one entry.** Plenty of gestures take more than one commit. A cross-block paste is a delete and then an insert, an IME composition over a range or a selected widget is a delete the composed text then joins (`continueTypingBurst`, below), a drop is a cut and then an insert, an inline-menu pick clears its query and then maybe inserts a block below, and replace-all is one commit per block it rewrites. Each runs its commits inside an undo step (`src/lib/action-contracts.ts` :: `CommitController`'s `undoStep(seed, run)`), and they undo in one press:
 
-- The entry is pushed at the first write that actually lands. It holds the document from just before that write, and the selection as it stood when the step opened (a gesture often collapses its range before it writes anything; `seed` is the fallback when nothing's focused).
+- The entry is pushed at the first write that actually lands. It holds the document from just before that write, and the selection as it stood when the step opened (a gesture often collapses its range before it writes anything; `seed` is the fallback when nothing's focused). Text written over the editor's own range inside one block (a finger's word) opens its step with `undoStepFrom` instead, so it undoes to a caret at the range's start, as text over the browser's range does.
 - Every later write in the step joins that entry, and a step that writes nothing leaves nothing.
 - The step ends when the gesture's own work finishes, or earlier at the author's next input in that editor (a key other than a bare modifier, a keyless `beforeinput`, a paste, a cut or a drop), so typing while a plugin's commit waits gets its own entry.
 
