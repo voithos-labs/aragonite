@@ -333,3 +333,50 @@ describe('a clipboard’s leading line ending in an item’s text', () => {
 		}
 	});
 });
+
+// Miss-analysis: these parts of law 9's expected bytes mirror fixes no drawn input reaches, so no
+// test asked them; the line under a taken-in container still expected the bytes before its fix.
+describe('law 9 where no drawn input reaches', () => {
+	const at = (text: string, pasted: string) => ({
+		source: text.replace('‸', ''),
+		mode: 'source' as const,
+		at: text.indexOf('‸'),
+		held: { holds: 'text' as const },
+		text: pasted
+	});
+
+	it.each([
+		['a short item line', '+ a\n b‸\n', 'x\n\nc', '+ a\n bx\n\n  c\n', '+ a\n bx\n\n c\n'],
+		['a list a quote takes in', '> ‸\n', '> - l', '> - l\n', '> l\n'],
+		[
+			'text under a list a quote takes in',
+			'> a\n>\n>‸\n> b\n',
+			'> - l',
+			'> a\n>\n> - l\n>\n> b\n',
+			'> a\n>\n> - l\n> b\n'
+		],
+		[
+			'text under a quote a quote takes in',
+			'> a\n>\n> ‸\n> b\n',
+			'> > q',
+			'> a\n>\n> > q\n>\n> b\n',
+			'> a\n>\n> > q\n> b\n'
+		]
+	])('holds %s to its bytes', (_name, text, pasted, bytes, wrong) => {
+		const { host, real } = calls('');
+		const input = at(text, pasted);
+		const caret = { from: input.at, to: input.at };
+		expect(real(input.source, caret, paste(pasted), 'source')!.source).toBe(bytes);
+		expect(pasteAtCaret(real, host, input)).toEqual([]);
+		const other = calls(wrong);
+		expect(pasteAtCaret(other.fake, other.host, input)).not.toEqual([]);
+	});
+
+	it('expects no bytes of a list on an item’s empty row, which takes none in there', () => {
+		const { host, real } = calls('');
+		const input = at('- a\n\n  ‸\n\n  b\n', '- l');
+		const caret = { from: input.at, to: input.at };
+		expect(real(input.source, caret, paste('- l'), 'source')!.source).toMatch(/^- a\n\n {2}- l\n/);
+		expect(pasteAtCaret(real, host, input)).toEqual([]);
+	});
+});

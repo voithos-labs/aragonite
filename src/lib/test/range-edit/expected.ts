@@ -558,7 +558,8 @@ export function expectedPaste(
 		.read(lf(text))
 		.children.filter((b) => b.raw.trim() !== '')
 		.at(-1);
-	const container = !!last?.children?.length;
+	// A container the caret's container took in left its last block that container's own.
+	const container = !!last?.children?.length && want.shape !== 'absorbed';
 	const apart = (bytes: string) => apartBelow(read, at, bytes, host, container);
 	const joined = (bytes: string) => joinedLists(read, at, bytes, readOf(host, lf(text)), host);
 	const row = (bytes: string) => rowKeptBelow(read, at, bytes, lf(text), host);
@@ -861,7 +862,7 @@ export function apartBelow(
 	const target = leafAt(read, at);
 	const empty = !!target && /^\r?\n?$/.test(treeNodeAt(read.tree, target.path)?.raw ?? '-');
 	if (target?.type !== 'paragraph' || !empty || inTitleRow(read, at, host)) return [bytes];
-	// A pasted container the caret's container takes in is that block's own, set apart from nothing.
+	// A pasted container that stands as a block of its own is set apart from nothing.
 	if (pastedContainer) return [bytes];
 	const lineEnd = read.source.indexOf('\n', target.to);
 	const lineBelow = read.source.slice(target.to, lineEnd < 0 ? undefined : lineEnd);
