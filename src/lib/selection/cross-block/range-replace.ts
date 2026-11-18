@@ -198,11 +198,15 @@ async function replaceInStep(
 	const at = removed.caret;
 	if (keyed) {
 		const landed = removed.landed;
-		if (gesture === 'break' && removed.taken && landed?.holds === 'boundary')
-			return breakWhereRangeWas(ctx, landed, keyed.chord);
+		if (gesture === 'break' && removed.taken && landed?.holds === 'boundary') {
+			const { parentPath, index } = gapOfPlace(ctx.bytes.measured(), landed);
+			return breakWhereRangeWas(ctx, [...parentPath, index], keyed.chord);
+		}
 		// Before the command runs, since the block reads the caret to run it.
 		await removalCaret?.place();
 		const gap = ctx.selection.gapCaret;
+		if (gap && gesture === 'break')
+			return breakWhereRangeWas(ctx, [...gap.parentPath, gap.index], keyed.chord);
 		if (gap) return keyAtGap(ctx, [...gap.parentPath, gap.index], keyed.chord);
 		const path = at?.path ?? coverage.range.start.path;
 		const ran = () => kindOfPath(path, ctx.getDoc());
@@ -240,15 +244,13 @@ async function keyAtGap(
 	return 'written';
 }
 
-/** A line break with no block to run in lands in an empty paragraph where the range was, one an
- *  emptied document or container keeps or a new one; any break but Enter's split then runs there. */
+/** A line break with no block to run in lands in an empty paragraph at `slot`, one an emptied
+ *  document or container keeps or a new one; any break but Enter's split then runs there. */
 async function breakWhereRangeWas(
 	ctx: CrossBlockMutationContext,
-	place: { at: number; parent: readonly number[] },
+	slot: number[],
 	chord: string
 ): Promise<RangeReplaceOutcome> {
-	const gap = gapOfPlace(ctx.bytes.measured(), place);
-	const slot = [...gap.parentPath, gap.index];
 	const there = blockNodeAt(ctx.getDoc(), slot);
 	if (there?.kind === 'paragraph' && isBlankText(there.raw))
 		await caretAt(ctx, { path: slot, offset: 0 }).place();

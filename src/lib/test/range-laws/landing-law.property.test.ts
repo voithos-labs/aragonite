@@ -465,6 +465,18 @@ describe('a range from a block taken whole right under a paragraph', () => {
 			});
 });
 
+// Miss-analysis: P1b's fixed draws never ended a range at the document's last paragraph under a
+// block, where the kept line is a held gap and a line break reached it by two routes.
+describe('a line break on the line a range keeps at the document’s end lands as its twin’s', () => {
+	for (const mode of ['source', 'live'] as const)
+		for (const g of ['Enter', 'Shift+Enter'] as const)
+			it(`${mode}: ${g}`, async () => {
+				const got = await land('___\n⟦***\n\npara⟧\n', mode, g);
+				const want = await land('___\n⟦zero\n\npara⟧\n', mode, g);
+				expect({ ...got, warns: [] }).toEqual({ ...want, warns: [] });
+			});
+});
+
 // ── Text over a range that leaves no text of its own ─────────────────────────
 
 // Miss-analysis: the rows of text over a range that took its start block ended inside a leaf's
