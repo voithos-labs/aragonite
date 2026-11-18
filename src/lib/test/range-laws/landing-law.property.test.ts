@@ -187,8 +187,8 @@ const lineAboveOpening = (d: Draw) =>
 	d.end === 'inside a callout it enters' &&
 	(d.above !== 'first in its container' || d.wrap === 'a quote' || d.wrap === 'an item');
 
-/** Booked, not ruled: the end leaf's rest takes the place of a block taken whole right under a
- *  paragraph and runs on into it, as two paragraphs a removal leaves flush rejoin. */
+/** The end leaf's rest takes the place of a block taken whole right under a paragraph and runs on
+ *  into it, as two paragraphs a removal leaves flush rejoin: text over the range opens that rest. */
 const restRunsOn = (d: Draw) =>
 	d.end === 'a leaf’s middle' && d.above === 'right under a paragraph';
 
@@ -318,19 +318,21 @@ describe('the landing law', () => {
 
 	it('P2: text a typed key or a composition writes stands alone or before the end leaf’s rest', async () => {
 		await fc.assert(
-			fc.asyncProperty(
-				arbDraw.filter((d) => !restRunsOn(d)),
-				fc.constantFrom(...WRITES),
-				async (d, g) => {
-					const text = marked(d, STARTS[d.start]);
-					const { editor } = await mounted(text, d.mode);
-					await run(editor, g);
-					takeDevWarns();
-					const rest = RESTS[d.end] ?? '';
-					const leaf = writtenLeaf(editor.instance.__test.getDocument().children);
-					expect([WRITTEN, WRITTEN + rest], `${g} over ${JSON.stringify(text)}`).toContain(leaf);
-				}
-			),
+			fc.asyncProperty(arbDraw, fc.constantFrom(...WRITES), async (d, g) => {
+				const text = marked(d, STARTS[d.start]);
+				const { editor } = await mounted(text, d.mode);
+				await run(editor, g);
+				takeDevWarns();
+				const rest = RESTS[d.end] ?? '';
+				const leaf = writtenLeaf(editor.instance.__test.getDocument().children);
+				// Where the rest runs on into the paragraph above, the text still opens the rest's line.
+				const stands = restRunsOn(d)
+					? leaf?.endsWith(`\n${WRITTEN}${rest}`)
+					: leaf === WRITTEN || leaf === WRITTEN + rest;
+				expect(stands, `${g} over ${JSON.stringify(text)} wrote in ${JSON.stringify(leaf)}`).toBe(
+					true
+				);
+			}),
 			params(1.5)
 		);
 	}, 600_000);
