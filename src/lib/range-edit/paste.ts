@@ -72,6 +72,8 @@ export interface Pasted {
 	/** Set where the clipboard's last line ending was taken off to land as Enter: it was more than
 	 *  one line, so it never reads as one line after text. */
 	ended?: true;
+	/** Set where it takes the place of a block held whole: the line under is that block's separator. */
+	inPlace?: true;
 }
 
 /** The paste of `pasted` over `[from, to)`: a caret, or a range inside one text block's text. */
@@ -273,6 +275,25 @@ function onBlankLine({ source, caret }: Edit): boolean {
 	return isBlankText(lineRest(source, pastMarkers(source, lineStart)));
 }
 
+/** The last block of `read`, a clipboard read as blocks. */
+function lastTop(read: Doc): LaidBlock | undefined {
+	const index = read.tree.children.findLastIndex((b) => !isBlankText(b.raw));
+	return index < 0 ? undefined : read.layout.block([index]);
+}
+
+/** Whether the clipboard `read` ends on text, which a last line ending goes after as a line break. */
+function endsOnText(read: Doc): boolean {
+	const last = lastTop(read);
+	return !last || factsOf(read, last).joins === 'text';
+}
+
+/** Whether the clipboard `read` ends on a fence nothing closes, whose body takes what follows. */
+function endsOpen(read: Doc): boolean {
+	const last = lastTop(read);
+	const raw = last && nodeAt(read, last.path).raw.replace(/\n?$/, '\n');
+	return !!raw && read.host.fence(raw)?.closer === null;
+}
+
 /** Whether the clipboard's last block is a list. */
 function endsOnList(doc: Doc, text: string): boolean {
 	const read = readDoc(text, doc.host, doc.mode);
@@ -343,11 +364,29 @@ function bytesLanded(
 		return blocksOpened(doc, leaf, to, lf, read, joined);
 	if (titleOwner(doc, leaf) || factsOf(doc, leaf).joins !== 'text') return landing;
 	const edit = read && !plain ? joinedAbove(doc, leaf, joined, read) : landing;
+	const below = leaf.to + edit.source.length - doc.source.length;
+	const row = flush && !pasted.inPlace && isBlankText(nodeAt(doc, flush.path).raw);
+	if (row && !(read && endsOpen(read)))
+		return rowKept(doc, leaf, edit, below, plain || !read || endsOnText(read));
 	const raw = flush ? lastPasted(doc, leaf, read?.source ?? lf, plain) : null;
 	if (!lower || raw === null) return edit;
-	const below = leaf.to + edit.source.length - doc.source.length;
 	const join = { from, to, upper: leaf, lower, rewritten: { upper: { block: leaf, raw } } };
 	return { source: apartAt(doc, edit.source, below, join, true), caret: edit.caret };
+}
+
+/** `edit`, text pasted into the empty paragraph `leaf` over another empty row, whose line starts at
+ *  `below`: the row keeps the blank line `leaf` was to it, as typed text does (`syntax-tree.md`). */
+function rowKept(doc: Doc, leaf: LaidBlock, edit: Edit, below: number, onText: boolean): Edit {
+	if (isBlankText(lineRest(edit.source, leaf.from))) return edit;
+	// A blank line the paste left over the row parts them already, save the empty line a last line
+	// ending after text opened for the caret, which is a block of its own.
+	const above = edit.source.lastIndexOf('\n', below - 2) + 1;
+	const opened = onText && edit.caret >= above && edit.caret < below;
+	if (!opened && /^[ \t>]*\r?$/.test(lineHead(edit.source, below - 1))) return edit;
+	const marks = continuation(doc, leaf.from);
+	const line = (marks.trimEnd() || marks) + doc.ending;
+	const source = edit.source.slice(0, below) + line + edit.source.slice(below);
+	return { source, caret: edit.caret < below ? edit.caret : edit.caret + line.length };
 }
 
 /** Where a paste over `[from, to)` of `doc` that left `edit` changed bytes: from `head`, to `end` in

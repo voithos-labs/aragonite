@@ -59,7 +59,7 @@ export type Gesture =
 	| RemovalGesture
 	/** Clipboard text with LF line endings, the editor's own entry, what the caret holds (anywhere
 	 *  but in text the clipboard lands as blocks), and the line ending a removal before it took. */
-	| ({ paste: string; plain: boolean; own?: string; ending?: LineEnding } & Held)
+	| ({ paste: string; plain: boolean; own?: string; ending?: LineEnding } & Held & PlaceKept)
 	/** The range dragged and dropped at byte `drop`: moved, or copied. */
 	| { drop: number; copy: boolean };
 
@@ -126,11 +126,12 @@ export function editRange(
 		// A clipboard that carries the editor's own entry is the editor's own bytes: no transform runs.
 		const transform: Pasted['transform'] =
 			gesture.own === undefined ? (text, blocks) => host.transformPaste(text, blocks) : null;
-		const pasted = (held: Held): Pasted => ({
+		const pasted = (held: Held, inPlace = gesture.inPlace): Pasted => ({
 			text: gesture.paste,
 			plain: gesture.plain,
 			held,
-			transform
+			transform,
+			...(inPlace && { inPlace })
 		});
 		const ended = asPasted(doc, from, to, gesture.paste).endsWith('\n');
 		// The empty line a last line ending opens is the caret's own, never the block below it, and
@@ -158,13 +159,15 @@ export function editRange(
 			return keepLastEnding(inPlace(pasteAt(doc, from, to, pasted(TEXT))));
 		// Across blocks the paste lands where the removal's caret does, as a cut's then a paste's
 		// would, and over one block held whole takes its place, as typed text does.
-		const alone = heldAlone(doc, from, to);
-		const removal = removalBeforePaste(gesture.paste);
-		const removed =
-			alone && removal === 'cut' ? blankedOut(doc, alone, to) : removalEdit(doc, from, to, removal);
+		const removed = pasteRemoval(doc, from, to, gesture.paste);
 		const after = read(removed);
 		const caret = caretOf(removed, after, 'start after', () => startedIn(doc, from));
-		const over = pasteAt(after, caret.at, caret.at, pasted(alone ? TEXT : caret));
+		const over = pasteAt(
+			after,
+			caret.at,
+			caret.at,
+			pasted(removed.inPlace ? TEXT : caret, removed.inPlace)
+		);
 		return keepLastEnding({ ...landed(over), blocks: over.blocks ?? 0 });
 	}
 	const { removed, clipboard, own } = taken(doc, from, to);
@@ -183,10 +186,37 @@ export function editRange(
 
 const TEXT: Held = { holds: 'text' };
 
-/** The removal a paste of `text` over a range across blocks makes first: blank text leaves the
- *  range's place blank, as a cut does; any other goes in there at once, as a typed character does. */
-export function removalBeforePaste(text: string): RemovalGesture {
-	return text !== '' && isBlankText(text) ? 'cut' : 'type';
+/** The removal a paste of `text` over `[from, to)` across blocks makes first: blank text leaves the
+ *  place blank, as a cut does; other text goes in at once, as a typed character does (`inPlace`). */
+function pasteRemoval(doc: Doc, from: number, to: number, text: string): Removal & PlaceKept {
+	const alone = heldAlone(doc, from, to);
+	const blank = text !== '' && isBlankText(text);
+	const removed =
+		alone && blank
+			? blankedOut(doc, alone, to)
+			: removalEdit(doc, from, to, blank ? 'cut' : 'type');
+	return alone ? { ...removed, inPlace: true } : removed;
+}
+
+/** Where a paste's removal left a block held whole its line for the text: the blank line under that
+ *  line is the block's separator, never an empty row. */
+export interface PlaceKept {
+	inPlace?: true;
+}
+
+/** The removal a paste over `range` makes first (`pasteRemoval`), for an editor that lands it in a
+ *  commit of its own and then pastes at its caret, handing `inPlace` back with that paste. */
+export function pasteRemovalOf(
+	source: string,
+	range: Range,
+	text: string,
+	mode: Mode,
+	host: RangeHost
+): RemovalAnswer {
+	const doc = readDoc(source, host, mode);
+	const removed = pasteRemoval(doc, range.from, range.to, text);
+	const answer = answerOf(removed, 'type', doc, range);
+	return removed.inPlace ? { ...answer, inPlace: true } : answer;
 }
 
 /** Whether text ending in a line ending lands at `at` on a last line with none, in no literal
@@ -257,7 +287,7 @@ export function removalOf(
 
 /** A removal's answer, and where the block the range started in stood when it went whole, read on
  *  the bytes after: text over the range opens a paragraph there when the caret holds no prose. */
-export interface RemovalAnswer extends RangeEditResult {
+export interface RemovalAnswer extends RangeEditResult, PlaceKept {
 	taken?: { at: number; parent: readonly number[] };
 }
 

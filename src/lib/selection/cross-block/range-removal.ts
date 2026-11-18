@@ -9,6 +9,7 @@ import type { DocumentView } from '../../core/node-views';
 import type { AnyBlockKind } from '../../core/nodes';
 import { hidesDelimitersAtCaret } from '../../presentation-mode';
 import {
+	pasteRemovalOf,
 	removalOf,
 	textInCell,
 	wholeBlocksRemovalOf,
@@ -120,13 +121,33 @@ export function removalAnswer(
 	coverage: RangeCoverage,
 	gesture: RemovalGesture
 ): RemovalRead | null {
+	return answeredOn(ctx, coverage, (read, host) =>
+		removalOf(read.source, read.range, gesture, modeOf(ctx), host)
+	);
+}
+
+/** The core's answer for the removal a paste of `text` over what `coverage` holds makes first. */
+export function pasteRemovalAnswer(
+	ctx: RemovalContext,
+	coverage: RangeCoverage,
+	text: string
+): RemovalRead | null {
+	return answeredOn(ctx, coverage, (read, host) =>
+		pasteRemovalOf(read.source, read.range, text, modeOf(ctx), host)
+	);
+}
+
+function answeredOn(
+	ctx: RemovalContext,
+	coverage: RangeCoverage,
+	answer: (read: RangeRead, host: ReturnType<typeof rangeHost>) => RemovalAnswer
+): RemovalRead | null {
 	const tree = ctx.bytes.doc();
 	const read = rangeRead(ctx.bytes, endsOf(coverage), (layout) =>
 		removalBytes(tree, coverage, layout)
 	);
 	if (!read) return null;
-	const host = rangeHost(ctx.reading, read);
-	return { read, answer: removalOf(read.source, read.range, gesture, modeOf(ctx), host) };
+	return { read, answer: answer(read, rangeHost(ctx.reading, read)) };
 }
 
 /** `removal`, of what `coverage` holds as `gesture` does, in one commit. */

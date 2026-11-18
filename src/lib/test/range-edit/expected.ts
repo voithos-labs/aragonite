@@ -511,7 +511,8 @@ export function expectedPaste(
 	const container = !!last?.children?.length;
 	const apart = (bytes: string) => apartBelow(read, at, bytes, host, container);
 	const joined = (bytes: string) => joinedLists(read, at, bytes, readOf(host, lf(text)), host);
-	return { ...want, bytes: want.bytes.flatMap(apart).map(joined).map(ended) };
+	const row = (bytes: string) => rowKeptBelow(read, at, bytes, lf(text), host);
+	return { ...want, bytes: want.bytes.flatMap(apart).map(joined).map(row).map(ended) };
 
 	/** `bytes` with the line ending the document's last line had, which a paste keeps. */
 	function ended(bytes: string): string {
@@ -702,6 +703,36 @@ function joinedLists(read: Read, at: number, bytes: string, clip: Read, host: Ch
 	if (joined.above)
 		out = out.slice(0, upper!.to) + out.slice(lineStartOf(read.source, target.from));
 	return out;
+}
+
+/** `bytes`, a paste of `clip` into an empty paragraph with an empty row flush under it, with a blank
+ *  line over that row where the paste gave the paragraph's line text: the row stays a row. */
+function rowKeptBelow(read: Read, at: number, bytes: string, clip: string, host: CheckHost) {
+	const target = leafAt(read, at);
+	const blank = (b: LaidBlock | null | undefined) =>
+		b?.type === 'paragraph' && treeNodeAt(read.tree, b.path)!.raw.trim() === '';
+	const empty = target && /^\r?\n?$/.test(treeNodeAt(read.tree, target.path)!.raw);
+	if (!target || !empty || !blank(target) || inTitleRow(read, at, host)) return bytes;
+	const next = [...target.path.slice(0, -1), target.path.at(-1)! + 1].join();
+	const row = read.blocks.find((b) => b.path.join() === next);
+	if (!blank(row) || lineStartOf(read.source, row!.from) !== target.to) return bytes;
+	const own = (source: string) =>
+		(source + '\n').slice(target.from, (source + '\n').indexOf('\n', target.from));
+	if (own(bytes).trim() === '') return bytes;
+	const last = readOf(host, clip)
+		.blocks.filter((b) => b.path.length === 1 && clip.slice(b.from, b.to).trim() !== '')
+		.at(-1);
+	// An open fence takes the row into its body; a last line ending after text opens the caret's line.
+	const fence = last && clip.slice(last.from);
+	if (fence && fenceRun(fence) && !closesItsFence(fence)) return bytes;
+	const line = target.to + bytes.length - read.source.length;
+	const above = bytes.slice(lineStartOf(bytes, line - 1), line);
+	const opened = clip.endsWith('\n') && (!last || host.facts(last.type).joins === 'text');
+	if (/^[ \t>]*\r?\n$/.test(above) && !opened) return bytes;
+	const marks = continuationAt(read, at, host);
+	return (
+		bytes.slice(0, line) + (marks.trimEnd() || marks) + endingOf(read.source) + bytes.slice(line)
+	);
 }
 
 /** `bytes`, or `bytes` with a blank line over the block flush under an empty paragraph the paste

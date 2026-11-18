@@ -226,7 +226,7 @@ const NAMED: Named[] = [
 	{
 		name: 'a range from a closed details’ summary to the next block’s start',
 		marked: '<details>\n<summary>S⟦S</summary>\n\nbody\n\n</details>\n\n⟧after\n',
-		clips: ['x', 'one\n\ntwo']
+		clips: ['x', 'one\n\ntwo', ' ', '\n']
 	},
 	// ── A cut, then a paste of it back ──
 	{

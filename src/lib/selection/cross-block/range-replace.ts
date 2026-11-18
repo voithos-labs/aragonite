@@ -16,10 +16,7 @@ import type { CrossBlockDispatchContext } from './dispatch';
 import { charOffsetOf, deleteSnapshot, type SelectionPoint } from '../primitives';
 import { coverRange, rangeCoverage, type RangeCoverage } from '../range-coverage';
 import type { RemovalGesture } from '../caret-target';
-import {
-	removalBeforePaste,
-	type RemovalGesture as CoreGesture
-} from '../../range-edit/edit-range';
+import type { RemovalGesture as CoreGesture } from '../../range-edit/edit-range';
 import { pathsEqual } from '../path-math';
 import { blockNodeAt, isBlockNode } from '../../tree-operations/node-primitives';
 import { commitGridClear, commitGridLineDelete } from './grid-removal';
@@ -30,7 +27,7 @@ import {
 	commandLandingKind,
 	commitRemoval,
 	emptiedPlace,
-	removalAnswer,
+	pasteRemovalAnswer,
 	removedIn,
 	removeThroughCore,
 	writeInCell,
@@ -544,7 +541,7 @@ async function pasteOver(
 /** The removal the paste makes first, then the paste at the place the editor would hold on the
  *  bytes it leaves, both answered before either commits; null where the paste has no place. */
 function pairOver(ctx: CrossBlockMutationContext, coverage: RangeCoverage, clip: Clip) {
-	const removal = removalAnswer(ctx, coverage, removalBeforePaste(clip.text));
+	const removal = pasteRemovalAnswer(ctx, coverage, clip.text);
 	if (!removal) return null;
 	const { read, answer } = removal;
 	const { source } = read;
@@ -557,7 +554,8 @@ function pairOver(ctx: CrossBlockMutationContext, coverage: RangeCoverage, clip:
 	if (!at) return null;
 	// Read before the removal, which may take every line ending the document has.
 	const ending = firstLineEnding(source) ?? undefined;
-	const paste = pasteAnswer(ctx, left, { ...at, ending }, clip);
+	const kept = removal.answer.inPlace && { inPlace: removal.answer.inPlace };
+	const paste = pasteAnswer(ctx, left, { ...at, ending, ...kept }, clip);
 	return { removal, left, paste, lands: paste.source !== left.source };
 }
 

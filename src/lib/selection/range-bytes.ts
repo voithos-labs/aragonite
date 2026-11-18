@@ -26,7 +26,7 @@ import {
 } from './gap-caret';
 import { blockFacts } from '../schema/block-facts';
 import { getContentRange, isProseKind } from '../core/inline';
-import type { Held, Range } from '../range-edit/edit-range';
+import type { Held, PlaceKept, Range } from '../range-edit/edit-range';
 import type { SpliceCaret } from '../action-contracts';
 import { documentLayout, type LaidBlock, type Layout } from '../range-edit/layout';
 import type { CurrentDocument } from '../range-edit/host';
@@ -321,7 +321,8 @@ export function byteOfGap(
  *  sits there. Made only by the readers below, so a caret on a block's syntax is never called text.
  *  `back`, on a caret where the last cut left it, is that cut's own caret: the one place the entry
  *  the cut wrote fits, so only a paste of that entry goes there. */
-export type PastePlace = { range: Range; ending?: LineEnding; back?: SpliceCaret } & Held;
+export type PastePlace = { range: Range; ending?: LineEnding; back?: SpliceCaret } & Held &
+	PlaceKept;
 
 /** A paste's place as one of the readers below finds it, and the paths it was asked by, which
  *  `placeRead` vouches with the place's own blocks. */
