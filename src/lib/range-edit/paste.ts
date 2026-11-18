@@ -48,7 +48,7 @@ import {
 	splitOut
 } from './paste-split';
 import { numberedAfterTaking } from './list-numbers';
-import { continuation } from './markers';
+import { continuation, openingOf } from './markers';
 import { lastPlaceAt } from './removal-range';
 import {
 	blankedApart,
@@ -247,9 +247,14 @@ function enteredInList(
 ): Edit | null {
 	const bare = landedAt(doc, from, to, rest, seen);
 	const path = host?.item.path;
+	const node = path && nodeAt(doc, path);
+	// An empty host gives way to what was pasted: the item the ending opens takes its marker.
+	const empty = node && (node.children ?? []).every((c) => isBlankText(c.raw));
 	const kind = path && {
-		node: nodeAt(doc, path),
-		marker: doc.host.itemAfter(doc.tree, path),
+		node: node!,
+		marker: empty
+			? openingOf(doc, host!.item, host!.item.from)
+			: doc.host.itemAfter(doc.tree, path),
 		depth: path.length
 	};
 	const after = { ...readDoc(bare.source, doc.host, doc.mode), ending: doc.ending };
