@@ -26,7 +26,7 @@ import { documentLayout, type LaidBlock, type Layout } from '../range-edit/layou
 import { pathsEqual } from './path-math';
 import { boundaryHidden, previousCaretPath } from './path-lookup';
 import type { SelectionPoint } from './primitives';
-import { titleRowOwner, type RangeCoverage } from './range-coverage';
+import type { RangeCoverage } from './range-coverage';
 import { checkRangeHoldsWhole } from '../invariants/range-holds-whole';
 
 /** The editor's document as a range edit reads it: its tree, its bytes and their layout. */
@@ -219,7 +219,7 @@ function suffixEnd(
 	const node = blockNodeAt(doc, end.path);
 	const block = layout.block(end.path);
 	if (!node || !block || end.cellCoordinate || block.from <= from) return 0;
-	if (structuralSuffix(node) === '' || titleRowOwner(doc, end.path)) return 0;
+	if (structuralSuffix(node) === '') return 0;
 	return to >= layout.byteOf(end.path, getContentRange(node).end)! ? textEnd(doc, block) : 0;
 }
 

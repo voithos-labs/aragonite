@@ -679,4 +679,16 @@ describe('a heading the range holds through its text goes whole, as its ATX twin
 					const wrote = await clipboardGesture(editor, type, 'key');
 					expect(wrote['text/plain']).toBe(clipboard);
 				});
+
+	// A title row only ever empties, so a range ending at its text takes no closing tag with it.
+	for (const mode of ['source', 'live'] as const)
+		it(`${mode}: a cut ending at a summary’s text leaves the row, emptied`, async () => {
+			const text =
+				'first\n\n⟦***\n\n<details open>\n<summary>Sum⟧</summary>\n\nbody\n\n</details>\n';
+			const { editor } = await mounted(text, mode);
+			await clipboardGesture(editor, 'cut', 'key');
+			expect(editor.source()).toBe(
+				'first\n\n\n<details open>\n<summary></summary>\n\nbody\n\n</details>\n'
+			);
+		});
 });
