@@ -10,7 +10,7 @@ import { metadataIfKind } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { itemsShareList } from '../tree-operations/list/ordered-markers';
 import type { LaidBlock } from './layout';
-import { pastMarkers } from './apart';
+import { openedApart, pastMarkers } from './apart';
 import {
 	closedByOwnLine,
 	containersHolding,
@@ -106,7 +106,9 @@ export function enteredAt(
 	const later = !!held && caret < held.leaf.text!.to && /^\r?\n/.test(cut.rest);
 	const rest = later ? cut.rest.slice(pastMarkers(cut.rest, cut.rest.indexOf('\n') + 1)) : cut.rest;
 	const opened = { source: head + rest, caret: head.length + cut.caret };
-	return atTextStart(doc, numberedAfterTaking(doc, list, item.path.at(-1)! + 1, opened));
+	// Enter at an item's text start leaves it a blank first line, which keeps the line above apart.
+	const apart = held ? openedApart(doc, held.leaf, opened) : opened;
+	return atTextStart(doc, numberedAfterTaking(doc, list, item.path.at(-1)! + 1, apart));
 }
 
 /** `host`, the item pasted in, where the text at `caret` sits in a block the paste nested in it (a

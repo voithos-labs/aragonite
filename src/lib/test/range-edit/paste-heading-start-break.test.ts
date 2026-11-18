@@ -80,7 +80,7 @@ const ROWS: [string, string, string, string][] = [
 		'a setext line, in an item',
 		'- # ‸Title here\n- After\n',
 		'\n===',
-		'- \n  # ===Title here\n- After\n'
+		'- \n- # ===Title here\n- After\n'
 	],
 	[
 		'a setext line, a setext title',

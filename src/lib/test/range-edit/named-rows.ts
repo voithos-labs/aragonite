@@ -1250,11 +1250,11 @@ export const NAMED_ROWS: NamedRow[] = [
 		expect: { clipboard: '\n\n`' }
 	},
 	{
-		name: 'L9 a nested item cut out pastes back into the item it left, as any paste there lands',
+		name: 'L9 a nested item cut out pastes back as the item’s Enter, then the item',
 		source: '- a⟦\n  - b⟧\n',
 		gesture: 'cut',
 		expect: { source: '- a\n', clipboard: '\n- b', caret: text(3) },
-		then: { gesture: 'paste back', expect: { source: '- ab\n' } }
+		then: { gesture: 'paste back', expect: { source: '- a\n- b\n' } }
 	},
 	{
 		name: 'L4 a cut into a fenced code block keeps its opening line, never its closing line alone',

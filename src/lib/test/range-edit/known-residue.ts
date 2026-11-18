@@ -327,7 +327,7 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 				to < end.text!.to
 			);
 		},
-		repro: { source: '- [ ] x y\r\n \n       汉字\r\n', mode: 'source', range: { from: 9, to: 21 } }
+		repro: { source: 'x y\n\n    汉字\n', mode: 'source', range: { from: 2, to: 10 } }
 	},
 	{
 		gap: 'a range ending at the text of a block that takes no joined text keeps its marker, which the copy carries too',

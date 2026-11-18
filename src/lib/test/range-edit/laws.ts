@@ -216,6 +216,10 @@ export function cutPasteBack(call: Call, host: CheckHost, input: RangeInput): st
 	const pinned =
 		want.shape !== 'other' && want.shape !== 'on a line' && !(want.shape === 'apart' && whole);
 	if (pinned && held.holds === 'text' && !want.bytes.includes(input.source)) return [];
+	// In a list item a clipboard's leading line endings are Enter (rulings 34 and 79): a cut taken
+	// from an item's text end on pastes back as a new item, which `paste-leading-enter` rows hold.
+	const caretIn = containersHolding(readOf(host, cut.source), cut.caret.at).at(-1);
+	if (held.holds === 'text' && caretIn?.type === 'listItem' && /^\n+[^]*\S/.test(text)) return [];
 	// A cut that leaves its caret in a cell: the cell holds one line, which law 9 holds there.
 	if (held.holds === 'text' && cellAt(readOf(host, cut.source), cut.caret.at, host)) return [];
 	// A part of one block's text cut out, the caret left in no text: pasted there, it is no part of

@@ -520,6 +520,10 @@ export function expectedPaste(
 		const shape = held.holds === 'text' && !onSyntax ? 'on a line' : 'apart';
 		return bytes === null ? { shape: 'other', bytes: [] } : { shape, bytes: bytes.map(ended) };
 	}
+	// In a list item a clipboard's leading line endings are Enter there, the rest after it (rulings 34
+	// and 79): `paste-leading-enter.test.ts` holds those bytes.
+	const inItem = containersHolding(read, at).at(-1)?.type === 'listItem';
+	if (inItem && at === to && /^\n+[^]*\S/.test(lf(text))) return { shape: 'other', bytes: [] };
 	// A top-level heading with no text gives way to blocks that join none of it: they land on its
 	// line as on an empty one.
 	const leaf = leafAt(read, at);

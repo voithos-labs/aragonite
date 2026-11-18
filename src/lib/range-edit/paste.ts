@@ -31,7 +31,7 @@ import {
 	type Doc,
 	type Held
 } from './document';
-import { apartAt, pastMarkers } from './apart';
+import { apartAt, deepestAt, pastMarkers } from './apart';
 import { closedBy, emptiedRest, leftBy, takerOf } from './container-merge';
 import {
 	enteredAt,
@@ -82,6 +82,8 @@ export function pasteAt(doc: Doc, from: number, to: number, pasted: Pasted): Edi
 	const seen: { blocks?: Doc } = {};
 	const text = asPasted(doc, from, to, pasted.text);
 	const once = { ...pasted, text, transform: ranOnce(pasted.transform) };
+	const led = leadEntered(doc, from, to, once);
+	if (led) return led;
 	const edit = entered(doc, from, to, once, seen) ?? landedAt(doc, from, to, once, seen);
 	// One write of a block's text is text, whatever the clipboard read as, and so is one block of
 	// text written on an empty line, as in an empty paragraph.
@@ -107,6 +109,22 @@ function topsOf(read: Doc): LaidBlock[] {
 }
 
 const joinsAsText = (doc: Doc, block: LaidBlock) => factsOf(doc, block).joins === 'text';
+
+/** In a list item a clipboard's leading line endings are Enter at the caret, one each, and the rest
+ *  lands where Enter left it (rulings 34 and 79); null where the caret is in no item's own text. */
+function leadEntered(doc: Doc, from: number, to: number, pasted: Pasted): Edit | null {
+	const lead = pasted.plain || from !== to ? null : /^(?:\r?\n)+/.exec(pasted.text);
+	const rest = lead ? pasted.text.slice(lead[0].length) : '';
+	if (!lead || isBlankText(rest) || pasted.held.holds !== 'text' || !itemHolding(doc, from, to))
+		return null;
+	let edit: Edit = { source: doc.source, caret: from };
+	for (const _ of lead[0].match(/\n/g)!) edit = enteredAgain(doc, edit);
+	const now = { ...readDoc(edit.source, doc.host, doc.mode), ending: doc.ending };
+	// Enter leaves the caret before a block's own syntax (a heading's `#`): the rest goes in at its text.
+	const block = deepestAt(now, edit.caret);
+	const at = block?.text && edit.caret < block.text.from ? block.text.from : edit.caret;
+	return pasteAt(now, at, at, { ...pasted, text: rest });
+}
 
 /** One line ending pasted as text, by a gesture that runs no transform. */
 const LINE: Pasted = { text: '\n', plain: false, held: { holds: 'text' }, transform: null };
