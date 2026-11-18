@@ -349,8 +349,22 @@ export function heldGapOf(
 	const rootEnd = gap.parentPath.length === 0 && gap.index === doc.children.length;
 	const docEnd = rootEnd || place.at === measured.starts.length;
 	if (!docEnd && joinsProse(measured, place.at, gap.parentPath)) return null;
+	return standingGap(doc, gap);
+}
+
+/** The gap a key that removed nothing holds at a boundary place, beside prose too, where giving
+ *  way to that text would leave the key doing nothing; null where no caret can stand. */
+export function keyGapOf(
+	measured: Measured,
+	place: { at: number; parent: readonly number[] }
+): GapCaretPosition | null {
+	return standingGap(measured.doc, gapOfPlace(measured, place));
+}
+
+/** `gap` marked `held`, or null where a closed container hides it or it falls among a list's
+ *  items, which no paragraph stands among. */
+function standingGap(doc: DocumentView, gap: GapCaretPosition): GapCaretPosition | null {
 	if (boundaryHidden(doc, gap.parentPath, gap.index)) return null;
-	// A list's children are its items, which no paragraph stands among.
 	const parent = blockNodeAt(doc, gap.parentPath);
 	if (parent && blockFacts(parent.kind).lines === 'items') return null;
 	return { ...gap, held: true };

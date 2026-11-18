@@ -25,8 +25,8 @@ export function landingBeside(
 	const beside = placeBeside(deps, path, dir);
 	const landed = beside && keyLandingAt(beside.measured, beside.place);
 	if (landed) return landed;
-	// A neighbour whose only text place is the document's open last line has no byte for the core
-	// to name, so the caret enters it as any arrival does.
+	// The core names no byte in a neighbour whose only text place is the document's open last line,
+	// and no caret stands in a closed container's body: the caret enters it as any arrival does.
 	const neighbour = docPathFrom([...path.slice(0, -1), path.at(-1)! + dir]);
 	return { path: neighbour, offset: dir < 0 ? CURSOR_END : CURSOR_START };
 }

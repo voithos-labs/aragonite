@@ -32,7 +32,7 @@ import { topsOf, type Measured } from '../../tree-operations/top-level-starts';
 import { readCurrentSelection } from '../../selection/native-bridge';
 import type { BlockReach } from './change-record';
 import type { GapCaretSelection } from '../../selection/gap-caret';
-import { gapOfPlace, heldGapOf } from '../../selection/range-bytes';
+import { heldGapOf, keyGapOf } from '../../selection/range-bytes';
 import { replaceRefs } from '../../block-lists/child-refs';
 import { assertIdsInLockstep, assertSpliceReadsBack } from '../../invariants/install';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
@@ -252,12 +252,13 @@ export function landingAt(
 	return exact ? { anchor: point, focus: point } : point;
 }
 
-/** A key's caret at `caret` when it removed nothing: a boundary is held as the gap there even
- *  beside prose, where giving way to that text would leave the key doing nothing. */
+/** A key's caret at `caret` when it removed nothing: a boundary is held as the gap there
+ *  (`keyGapOf`); null where no caret can stand at it. */
 export function keyLandingAt(
 	measured: Measured,
 	caret: SpliceCaret
 ): Landing | GapCaretSelection | null {
 	if (caret.holds !== 'boundary') return landingAt(measured, caret);
-	return { gapCaret: { ...gapOfPlace(measured, caret), held: true } };
+	const gap = keyGapOf(measured, caret);
+	return gap && { gapCaret: gap };
 }

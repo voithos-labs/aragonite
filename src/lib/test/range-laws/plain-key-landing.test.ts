@@ -149,6 +149,14 @@ const BOTH_MODES: Row[] = [
 		['Delete'],
 		'alpha\n\n> x'
 	],
+	// Miss-analysis: every container beside a key was open, so no gap fell where a closed one hides it.
+	[
+		'Backspace below a closed details ending in a table of contents lands on its summary',
+		'<details>\n<summary>Sum</summary>\n\n[[toc]]\n\n</details>\n\nalpha\n',
+		{ path: [1], offset: 0 },
+		['Backspace'],
+		'<details>\n<summary>Sumx</summary>\n\n[[toc]]\n\n</details>\n\nalpha\n'
+	],
 	// Controls: a caret the user puts on syntax types there.
 	[
 		'a caret placed at a row’s name end',
