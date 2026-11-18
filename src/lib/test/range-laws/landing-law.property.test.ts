@@ -321,14 +321,17 @@ async function land(text: string, mode: PresentationMode, gesture: Gesture): Pro
 /** The gestures whose own landing P5 binds: written text is P2's and P3's, Shift+Enter ruling 9's. */
 const LANDS = ['Backspace', 'Delete', 'a cut', 'Enter', 'Mod+2'] as const;
 
+/** A letter a `:::` name takes, which `WRITTEN` isn't: typed at a name's end it renames the container. */
+const NAMING = 'q';
+
 /** Where the letter typed after `gesture` went: nowhere, or into a leaf's text with every kind kept. */
 async function arrival(text: string, mode: PresentationMode, gesture: Gesture) {
 	const { editor } = await mounted(text, mode);
 	await run(editor, gesture);
 	const before = editor.source();
-	await press(editor, { key: WRITTEN });
+	await press(editor, { key: NAMING });
 	takeDevWarns();
-	const letter = letterLanding(editor, before, editor.source(), WRITTEN);
+	const letter = letterLanding(editor, before, editor.source(), NAMING);
 	return { lost: !letter, offSyntax: !!letter?.offSyntax };
 }
 

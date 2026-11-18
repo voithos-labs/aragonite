@@ -170,6 +170,15 @@ describe('landing a caret', () => {
 		await landing.land(at([0], 2));
 		expect(caretMemory.side()).toBeNull();
 	});
+
+	// Miss-analysis: only browser rows read a removal's mark, so no unit row held it past the forget.
+	it('a removal’s landing is recorded past the forget, and the next landing clears it', async () => {
+		const { landing, caretMemory } = landingOver('a\n\nb\n');
+		await landing.land(at([0], 0), { removal: true });
+		expect(caretMemory.arrivedByRemoval()).toBe(true);
+		await landing.land(at([1], 0));
+		expect(caretMemory.arrivedByRemoval()).toBe(false);
+	});
 });
 
 describe('bringing a landing into view', () => {
