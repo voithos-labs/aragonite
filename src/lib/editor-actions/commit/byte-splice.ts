@@ -72,6 +72,7 @@ export function createByteSplice(
 			snapshot: splice.snapshot,
 			op,
 			history: splice.history ?? 'entry',
+			removal: splice.removal,
 			reach: () => reachOf(windows),
 			discardIfNoop: true,
 			// Inside the frame, so a block opener that throws on the new bytes fails the write.

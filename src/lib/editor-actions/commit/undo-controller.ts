@@ -331,7 +331,7 @@ export function createUndoController(
 		landing: Landing | GapCaretSelection,
 		stamp: number
 	): HeldLanding {
-		const opts: LandOptions = { stamp, reveal: args.reveal };
+		const opts: LandOptions = { stamp, reveal: args.reveal, removal: args.removal };
 		return {
 			async place() {
 				try {

@@ -68,6 +68,8 @@ export interface SourceSplice {
 	snapshot: CommitSnapshotArg;
 	history?: UndoGrouping;
 	reveal?: RevealPolicy;
+	/** The splice removes, so its caret lands as a removal's: no block takes it as someone writing. */
+	removal?: true;
 }
 
 /** A commit's caret kept by `holdLandings` instead of put down; `place` puts it down, unless an

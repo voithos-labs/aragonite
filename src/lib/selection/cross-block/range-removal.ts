@@ -46,7 +46,7 @@ export type RemovalContext = Pick<
 /** What a removal reads and commits through, the caret read back aside. */
 type CommitContext = Omit<RemovalContext, 'getDoc'>;
 
-type RemovalCommit = Pick<SourceSplice, 'op' | 'snapshot'> & { caret: SpliceCaret };
+type RemovalCommit = Pick<SourceSplice, 'op' | 'snapshot' | 'removal'> & { caret: SpliceCaret };
 
 export interface Removed {
 	/** False also where the range held nothing to take, which leaves the caret at its start. */
@@ -120,7 +120,8 @@ export async function removeThroughCore(
 	const wrote = await commitBytes(ctx, answer.source, {
 		caret: landed,
 		op: { kind: 'delete', detail: { crossBlock: true } },
-		snapshot: deleteSnapshot(start.path, start.offset)
+		snapshot: deleteSnapshot(start.path, start.offset),
+		removal: true
 	});
 	const caret = wrote ? pointAtByte(ctx.bytes.measured(), landed.at) : null;
 	return { wrote, caret, landed, taken: answer.taken ?? null };
@@ -144,7 +145,7 @@ export function removeWholeBlock(
 		modeOf(ctx),
 		rangeHost(ctx.reading, read)
 	);
-	return commitBytes(ctx, answer.source, { ...commit, caret: answer.caret });
+	return commitBytes(ctx, answer.source, { ...commit, caret: answer.caret, removal: true });
 }
 
 /** Writes `text` over what `coverage` holds inside one table cell as one write of the cell, in one

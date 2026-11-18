@@ -51,6 +51,7 @@ export function stubCaretMemory(): CaretMemory {
 		column: () => null,
 		side: () => null,
 		arrivedByKey: () => false,
+		arrivedByRemoval: () => false,
 		pendingMarks: { forBlock: () => ({ toggle: () => {}, end: () => {} }) },
 		pendingBreak: {
 			forBlock: () => ({ lines: () => 0, at: () => null, open: () => {}, end: () => {} })
@@ -64,6 +65,7 @@ export function stubCaretMemory(): CaretMemory {
 		changeCount: () => 0,
 		noteKey: () => {},
 		noteTyping: () => {},
+		noteRemovalLanding: () => {},
 		noteOutside: () => {},
 		pin: () => {},
 		pinOnArrival: () => {},
@@ -246,7 +248,8 @@ export function createHeadlessActions(
 			// Read live: a suite may swap in its own caret memory after building the deps.
 			caretMemory: {
 				forget: () => deps.caretMemory.forget(),
-				noteOutside: () => deps.caretMemory.noteOutside()
+				noteOutside: () => deps.caretMemory.noteOutside(),
+				noteRemovalLanding: () => deps.caretMemory.noteRemovalLanding()
 			},
 			getBlockElByPath: (path) => deps.getBlockElByPath(path),
 			getBlockBoxByPath: (path) => deps.getBlockElByPath(path),

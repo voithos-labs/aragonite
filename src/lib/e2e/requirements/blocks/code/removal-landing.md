@@ -10,6 +10,7 @@ Delete over a range that runs from one fence into the body of the next takes the
 
 ## Edge cases
 
+- A range from a divider through a fence's body, the fence taking the divider's slot, live: with nothing above, a heading right above or a note's opening row above, Delete, Enter and Shift+Enter land in the body, and Backspace too with nothing above; `q` lands there and no picker opens (regression: the fence mounted fresh where the divider stood and offered its picker, which took focus and the letter; miss-analysis: every row started on a fence, whose component outlives the removal, so a remount in the divider's slot was never drawn)
 - A fence never focused before the range goes down (the caret waited in another block) and a fence focused first by a click give the same bytes (regression: live mode opened the picker on the landing and it took the letter for the never-focused fence, and dropped the letter past the hidden closer for the focused one; miss-analysis: the completion and the picker ran only on a block's first focus, and every picker row arrived by a click, an arrow or an insert, none by a removal's landing)
 
 ## User interactions
