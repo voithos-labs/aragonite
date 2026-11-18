@@ -61,3 +61,12 @@ where the text joined the next row's first cell.
   cell to the end of the second table's first body row; compose a letter and commit it: the text
   lands where the same letter typed over the range does, in its own paragraph in the details, and
   the row after stays as it was. In live and source mode, Chromium only, whose IME runs over CDP.
+
+Miss-analysis: the composition's undo was counted in jsdom, whose IME wrote partway through the
+replace, so a composition that opened a paragraph in a container read as two undo steps there, and
+no real row pressed Ctrl+Z after one.
+
+- A note holding a paragraph, a rule and a paragraph, then a paragraph after the note; select from
+  the rule to the end of the paragraph after; compose a letter and commit it: the text opens its own
+  paragraph in the note, under the first one, and one Ctrl+Z puts back the document and the range.
+  In live and source mode, Chromium only.

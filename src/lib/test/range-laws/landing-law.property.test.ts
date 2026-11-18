@@ -174,9 +174,11 @@ const RESTS: Record<string, string> = {
 	'inside a callout it enters': 'ner'
 };
 
-/** Ruling 8, a later slice: behind a kept opening a typed key writes above the callout, where a
- *  composition writes before the rest. */
-const restBehindOpening = (d: Draw) => d.end === 'inside a callout it enters';
+/** Lane B's: a line the range emptied above a kept opening holds Delete's caret, short of the rest,
+ *  under a block or as the first line of a quote or an item the range starts in. */
+const lineAboveOpening = (d: Draw) =>
+	d.end === 'inside a callout it enters' &&
+	(d.above !== 'first in its container' || d.wrap === 'a quote' || d.wrap === 'an item');
 
 /** Booked, not ruled: the end leaf's rest takes the place of a block taken whole right under a
  *  paragraph and runs on into it, as two paragraphs a removal leaves flush rejoin. */
@@ -265,6 +267,17 @@ async function mounted(text: string, mode: PresentationMode) {
 	return { editor, source, select };
 }
 
+/** One Ctrl+Z after `gesture`: the document and the selection it leaves, beside the ones the
+ *  gesture started from. */
+async function undoneOnce(text: string, mode: PresentationMode, gesture: Gesture) {
+	const { editor, source, select } = await mounted(text, mode);
+	await run(editor, gesture);
+	await press(editor, { key: 'z', ctrlKey: true });
+	takeDevWarns();
+	const got = { bytes: editor.source(), selection: editor.instance.getSelection() };
+	return { got, want: { bytes: source, selection: select } };
+}
+
 async function land(text: string, mode: PresentationMode, gesture: Gesture): Promise<Landing> {
 	const { editor } = await mounted(text, mode);
 	await run(editor, gesture);
@@ -317,15 +330,27 @@ describe('the landing law', () => {
 
 	it('P3: a typed key and a composition leave the same bytes', async () => {
 		await fc.assert(
-			fc.asyncProperty(
-				arbDraw.filter((d) => !restBehindOpening(d)),
-				async (d) => {
-					const text = marked(d, STARTS[d.start]);
-					const typed = await land(text, d.mode, 'a typed key');
-					const composed = await land(text, d.mode, 'a composition');
-					expect(composed.bytes, JSON.stringify(text)).toBe(typed.bytes);
-				}
-			),
+			fc.asyncProperty(arbDraw, async (d) => {
+				const text = marked(d, STARTS[d.start]);
+				const typed = await land(text, d.mode, 'a typed key');
+				const composed = await land(text, d.mode, 'a composition');
+				expect(composed.bytes, JSON.stringify(text)).toBe(typed.bytes);
+			}),
+			params()
+		);
+	}, 600_000);
+
+	it('P7: where the end leaf kept text, Delete’s letter stands before it', async () => {
+		const kept = (d: Draw) => d.end in RESTS && !lineAboveOpening(d);
+		await fc.assert(
+			fc.asyncProperty(arbDraw.filter(kept), async (d) => {
+				const text = marked(d, STARTS[d.start]);
+				const { editor } = await mounted(text, d.mode);
+				await press(editor, { key: 'Delete' });
+				await press(editor, { key: WRITTEN });
+				takeDevWarns();
+				expect(editor.source(), JSON.stringify(text)).toContain(WRITTEN + RESTS[d.end]);
+			}),
 			params()
 		);
 	}, 600_000);
@@ -362,17 +387,12 @@ describe('the landing law', () => {
 		);
 	}, 600_000);
 
-	it('P8: undo returns the range, every gesture', async () => {
+	it('P8: one undo returns the document and the range, every gesture', async () => {
 		await fc.assert(
 			fc.asyncProperty(arbDraw, fc.constantFrom(...GESTURES), async (d, g) => {
 				const text = marked(d, STARTS[d.start]);
-				const { editor, source, select } = await mounted(text, d.mode);
-				await run(editor, g);
-				for (let n = 0; n < 3 && editor.source() !== source; n++)
-					await press(editor, { key: 'z', ctrlKey: true });
-				takeDevWarns();
-				expect(editor.source(), `${g} over ${JSON.stringify(text)}`).toBe(source);
-				expect(editor.instance.getSelection()).toEqual(select);
+				const { got, want } = await undoneOnce(text, d.mode, g);
+				expect(got, `${g} over ${JSON.stringify(text)}`).toEqual(want);
 			}),
 			params(1.5)
 		);
@@ -432,5 +452,46 @@ describe('text written over a range that leaves no text of its own stands in its
 			for (const g of WRITES)
 				it(`${mode}: ${g}, ${name}`, async () => {
 					expect((await land(text, mode, g)).bytes).toBe(written);
+				});
+});
+
+// Miss-analysis: P3 skipped a range into a callout, so a typed key landing above the callout, where
+// a composition and Delete land before the rest, went unread.
+describe('text written over a range that ends inside a leaf’s text goes before the rest', () => {
+	const ROWS: [string, string, string][] = [
+		['behind a kept opening', '⟦***\n\nbody\n\n:::tip\nin⟧ner\n:::\n', ':::tip\nжner\n:::\n'],
+		[
+			'behind two kept openings',
+			'⟦***\n\nbody\n\n::::note\n:::tip\nin⟧ner\n:::\n::::\n',
+			'::::note\n:::tip\nжner\n:::\n::::\n'
+		],
+		['in a code line', '⟦***\n\nbody\n\n```\nco⟧de\n```\n', '```\nжde\n```\n']
+	];
+	for (const mode of ['source', 'live'] as const)
+		for (const [name, text, written] of ROWS)
+			for (const g of WRITES)
+				it(`${mode}: ${g}, ${name}`, async () => {
+					expect((await land(text, mode, g)).bytes).toBe(written);
+				});
+});
+
+// ── One gesture, one undo step ───────────────────────────────────────────────
+
+// Miss-analysis: jsdom's IME wrote before the listener's chain was done, so a composition opening a
+// paragraph read as two undo steps, and no row pressed Ctrl+Z once after one in a container.
+describe('text written over a range is one undo step, where its paragraph opens too', () => {
+	const ROWS: [string, string][] = [
+		['at the top level', 'first\n\n⟦***\n\n# head⟧\n\nlast\n'],
+		['ending a callout’s body', ':::note\nabove\n\n⟦***\n\n# head⟧\n:::\n'],
+		['emptying a callout', ':::note\n⟦***\n\nbody⟧\n:::\n'],
+		['in a quote, right under its first line', '> above\n> ⟦***\n>\n> # head⟧\n\nlast\n'],
+		['at the gap held before a fence', 'first\n\n⟦***\n\n# head⟧\n\n```\nc\n```\n']
+	];
+	for (const mode of ['source', 'live'] as const)
+		for (const [name, text] of ROWS)
+			for (const g of WRITES)
+				it(`${mode}: ${g}, ${name}`, async () => {
+					const { got, want } = await undoneOnce(text, mode, g);
+					expect(got).toEqual(want);
 				});
 });
