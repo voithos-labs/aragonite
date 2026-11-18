@@ -41,7 +41,7 @@ for (const mode of ['live', 'source'] as const)
 				await editor.focusBlockAtPath([0], 0);
 				await editor.bridge.setSelection({ anchor: { path: [1], offset: 0 }, focus: row.focus });
 				await page.keyboard.press('ControlOrMeta+x');
-				await page.keyboard.press('ControlOrMeta+v');
+				await editor.paste();
 				await editor.bridge.waitForSourceEquals(row.after);
 			});
 			test(`${row.name}: the cut holds the gap, so a letter opens a paragraph above`, async ({
