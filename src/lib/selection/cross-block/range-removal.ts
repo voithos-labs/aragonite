@@ -89,6 +89,11 @@ export function breaksLine(kind: AnyBlockKind, chord: string, commands: Keymap):
 	return command !== undefined && LINE_BREAK_COMMAND_IDS.has(command);
 }
 
+/** Whether `chord` runs Enter's split in a paragraph, which an empty paragraph opened for it is. */
+export function splitsParagraph(chord: string, commands: Keymap): boolean {
+	return boundCommand('paragraph', chord, commands) === 'block.split';
+}
+
 function boundCommand(kind: AnyBlockKind, chord: string, commands: Keymap) {
 	const overrides = commands.keybindingOverrides();
 	return resolveBinding(chord, kind, overrides, commands.activation)?.command;

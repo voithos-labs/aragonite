@@ -48,8 +48,9 @@ Miss-analysis: every Enter row pressed a key the block it ended in binds, and a 
 Shift+Enter, so its break reached the range as input and took Backspace's side onto the opening.
 
 - A table, a paragraph, then a tip with a title; select from the first cell into the title;
-  Shift+Enter, then type a letter: an empty line opens above the tip, as Enter's does, and the
-  letter lands there, never on the tip's `:::tip`. In live and source mode.
+  Shift+Enter, then type a letter: an empty line opens above the tip, as Enter's does, Shift+Enter
+  breaks it as any empty line, and the letter lands on the line under the break, never on the tip's
+  `:::tip`. In live and source mode.
 
 ## A composition over the range
 
