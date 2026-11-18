@@ -126,7 +126,12 @@ export function continuationAt(
 		const line = lineOf(container, byte);
 		if (line.own) continue;
 		const source = markerOn(read, line) === '' ? markedFor(read, container, line, facts) : line;
-		const marker = source ? markerOn(read, source) : '';
+		// A blank line's bare `>` is spelled with the space a line with text takes after it.
+		const spelled = source ? markerOn(read, source) : '';
+		const end = (read.source + '\n').indexOf('\n', source?.markerTo ?? 0);
+		const blank = !!source && read.source.slice(source.markerTo, end).trim() === '';
+		const bare = facts.lines === 'every-line' && blank && /[^ \t]$/.test(spelled);
+		const marker = bare ? spelled + ' ' : spelled;
 		if (facts.lines === 'first-line' && source === firstBodyLine(container)) {
 			prefix += /^[ \t]*\[\^/.test(marker)
 				? '    '
@@ -512,7 +517,8 @@ export function expectedPaste(
 	const apart = (bytes: string) => apartBelow(read, at, bytes, host, container);
 	const joined = (bytes: string) => joinedLists(read, at, bytes, readOf(host, lf(text)), host);
 	const row = (bytes: string) => rowKeptBelow(read, at, bytes, lf(text), host);
-	return { ...want, bytes: want.bytes.flatMap(apart).map(joined).map(row).map(ended) };
+	const spaced = (bytes: string) => markerSpacedAt(read, at, bytes, host);
+	return { ...want, bytes: want.bytes.flatMap(apart).map(joined).map(spaced).map(row).map(ended) };
 
 	/** `bytes` with the line ending the document's last line had, which a paste keeps. */
 	function ended(bytes: string): string {
@@ -703,6 +709,19 @@ function joinedLists(read: Read, at: number, bytes: string, clip: Read, host: Ch
 	if (joined.above)
 		out = out.slice(0, upper!.to) + out.slice(lineStartOf(read.source, target.from));
 	return out;
+}
+
+/** `bytes`, a paste into an empty paragraph on a bare `>` line, with the space a line with text
+ *  takes after that marker where the paste put text on the line. */
+function markerSpacedAt(read: Read, at: number, bytes: string, host: CheckHost) {
+	const target = leafAt(read, at);
+	if (!target || !/^\r?\n?$/.test(treeNodeAt(read.tree, target.path)!.raw)) return bytes;
+	const head = read.source.slice(lineStartOf(read.source, target.from), target.from);
+	const spelled = continuationAt(read, at, host);
+	if (spelled === head || spelled.trimEnd() !== head) return bytes;
+	const line = (bytes + '\n').slice(target.from, (bytes + '\n').indexOf('\n', target.from));
+	if (line.trim() === '') return bytes;
+	return bytes.slice(0, target.from) + spelled.slice(head.length) + bytes.slice(target.from);
 }
 
 /** `bytes`, a paste of `clip` into an empty paragraph with an empty row flush under it, with a blank

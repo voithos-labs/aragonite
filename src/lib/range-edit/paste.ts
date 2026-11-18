@@ -7,6 +7,7 @@
  */
 
 import { displayLines, isBlankText, trimTrailingLineEnding, withLineEnding } from '../core/lines';
+import type { NodeView } from '../core/node-views';
 import { metadataIfKind } from '../core/nodes';
 import { sharedPrefixLength, sharedSuffixLength } from '../core/written-span';
 import type { PasteHost } from './host';
@@ -354,14 +355,15 @@ function bytesLanded(
 			seen
 		);
 	}
-	const landing = landed(doc, from, to, lf, plain, blocks, pasted.ended === true);
-	if (!leaf) return landing;
+	const written = landed(doc, from, to, lf, plain, blocks, pasted.ended === true);
+	if (!leaf) return written;
+	const empty = /^\r?\n?$/.test(nodeAt(doc, leaf.path).raw);
+	const landing = empty ? markerSpaced(doc, leaf, written) : written;
 	const lower = doc.layout.block([...leaf.path.slice(0, -1), leaf.path.at(-1)! + 1]);
 	const flush = lower && lower.from <= pastMarkers(doc.source, leaf.to) ? lower : undefined;
 	const joined = read && !plain && flush ? joinedBelow(doc, flush, landing, read) : landing;
 	// What lands in an empty paragraph, its line ending alone, stays apart from the block under it.
-	if (!/^\r?\n?$/.test(nodeAt(doc, leaf.path).raw))
-		return blocksOpened(doc, leaf, to, lf, read, joined);
+	if (!empty) return blocksOpened(doc, leaf, to, lf, read, joined);
 	if (titleOwner(doc, leaf) || factsOf(doc, leaf).joins !== 'text') return landing;
 	const edit = read && !plain ? joinedAbove(doc, leaf, joined, read) : landing;
 	const below = leaf.to + edit.source.length - doc.source.length;
@@ -372,6 +374,18 @@ function bytesLanded(
 	if (!lower || raw === null) return edit;
 	const join = { from, to, upper: leaf, lower, rewritten: { upper: { block: leaf, raw } } };
 	return { source: apartAt(doc, edit.source, below, join, true), caret: edit.caret };
+}
+
+/** `edit`, a paste into the empty paragraph `leaf`: a bare marker in front of text it put on the
+ *  line takes the space a line with text writes after it, as a typed letter there does. */
+function markerSpaced(doc: Doc, leaf: LaidBlock, edit: Edit): Edit {
+	const head = lineHead(doc.source, leaf.from);
+	const spelled = continuation(doc, leaf.from);
+	const bare = spelled !== head && spelled.trimEnd() === head;
+	if (!bare || isBlankText(lineRest(edit.source, leaf.from))) return edit;
+	const grown = spelled.length - head.length;
+	const source = edit.source.slice(0, leaf.from) + ' '.repeat(grown) + edit.source.slice(leaf.from);
+	return { source, caret: edit.caret < leaf.from ? edit.caret : edit.caret + grown };
 }
 
 /** `edit`, text pasted into the empty paragraph `leaf` over another empty row, whose line starts at
@@ -536,10 +550,18 @@ const lineStart = (doc: Doc, at: number) => at - lineHead(doc.source, at).length
 function lastPasted(doc: Doc, leaf: LaidBlock, clip: string, plain: boolean): string | null {
 	const ended = (raw: string) => withLineEnding(raw.replace(/\n?$/, '\n'), doc.ending);
 	if (plain) return ended(plainText(doc, leaf, clip));
-	const blocks = readDoc(clip, doc.host, doc.mode).tree.children;
-	const last = blocks.filter((b) => !isBlankText(b.raw)).at(-1);
-	// A container the caret's container takes in leaves no block of its own there.
-	return last && !last.children?.length ? ended(last.raw) : null;
+	const read = readDoc(clip, doc.host, doc.mode);
+	const tops = read.tree.children.flatMap((b, i) =>
+		isBlankText(b.raw) ? [] : [read.layout.block([i])!]
+	);
+	let last: NodeView | undefined = tops.length ? nodeAt(read, tops.at(-1)!.path) : undefined;
+	const taker = tops.length === 1 ? takerOf(doc, leaf.from, read, tops[0]) : null;
+	if (!taker) return last && !last.children?.length ? ended(last.raw) : null;
+	// A container the caret's containers take in leaves its last block one of theirs.
+	const around = containersHolding(doc, leaf.from);
+	for (let i = around.length - around.indexOf(taker); i > 0 && last; i--)
+		last = last.children?.findLast((b) => !isBlankText(b.raw));
+	return last ? ended(last.raw) : null;
 }
 
 /** Plain text as `block` takes it: as written where its text is literal, escaped where it reads

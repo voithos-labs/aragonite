@@ -3,7 +3,9 @@
  * enters it opens with.
  */
 
+import { isBlankText } from '../core/lines';
 import type { LaidBlock, LaidLine } from './layout';
+import { lineRest } from './lines';
 import {
 	containersHolding,
 	factsOf,
@@ -32,7 +34,7 @@ export function continuation(doc: Doc, byte: number, keep: (c: LaidBlock) => boo
 		const line = lineOf(container, byte);
 		if (line.own) continue;
 		const marked = line.markerTo > line.from ? line : lazyMarked(doc, container, line, facts.lines);
-		const marker = marked ? markerOn(doc, marked) : '';
+		const marker = marked ? spelledForText(doc, marked, facts.lines) : '';
 		if (facts.lines === 'first-line' && marked === firstBodyLine(container)) {
 			prefix +=
 				facts.indent !== undefined
@@ -44,6 +46,14 @@ export function continuation(doc: Doc, byte: number, keep: (c: LaidBlock) => boo
 		} else prefix += marker;
 	}
 	return prefix;
+}
+
+/** The marker `line` writes, as a line with text spells it: a blank quoted line's bare `>` takes the
+ *  space a typed letter there writes after it. */
+function spelledForText(doc: Doc, line: LaidLine, shape: string): string {
+	const marker = markerOn(doc, line);
+	const bare = shape === 'every-line' && !/[ \t]$/.test(marker);
+	return bare && isBlankText(lineRest(doc.source, line.markerTo)) ? marker + ' ' : marker;
 }
 
 /** A line its container reads without a marker still holds the caret inside it, so a line after

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 // A paste that fills an empty line keeps every other empty row of the document, as a typed letter
 // there does: the empty line was the separator of the row under it too, so that row gets one of
-// its own. One, two and three rows, at the top level, in an item and a callout, CRLF; text, plain
-// text, blocks, line endings. After each, the tree equals a fresh read of the bytes.
+// its own. One, two and three rows, at the top level, in an item, a quote and a callout, CRLF;
+// text, plain text, blocks, line endings. After each, the tree equals a fresh read of the bytes.
 // Miss-analysis: the rows filled an empty line with one row under it or none, where the pasted
 // block's own blank line is the follower's separator, so none asked what a second row becomes.
 import { afterEach, beforeAll, beforeEach, expect, it } from 'vitest';
@@ -80,6 +80,7 @@ const HOSTS: [string, string][] = [
 	['two empty rows in an item', '- a\n\n  ‸\n\n  b\n'],
 	['two empty rows in a callout', ':::note\na\n\n‸\n\nb\n:::\n'],
 	['two empty rows in a CRLF document', 'a\r\n\r\n‸\r\n\r\nb\r\n'],
+	['two empty rows in a quote', '> a\n>\n>‸\n>\n> b\n'],
 	['the only empty row, over a paragraph', 'a\n\n‸\nb\n']
 ];
 
