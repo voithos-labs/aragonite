@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { cellPoint, type SelectionPoint } from '#lib/selection/primitives.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
-import { rangeBytes } from '#lib/selection/range-bytes.js';
+import { rangeBytes, rangePaint } from '#lib/selection/range-bytes.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
 
@@ -50,5 +50,32 @@ describe('a range across a table edge', () => {
 	])('leaving by the last row stops at its text, %s', (_, source, intro, table) => {
 		const bytes = bytesOf(source, { path: intro, offset: 2 }, cellPoint(table, 4));
 		expect(bytes).toBe(source.slice(source.indexOf('tro'), source.indexOf('4 |') + 3));
+	});
+});
+
+// Miss-analysis: every heading a range ended on was ATX with no closing run, whose text ends where
+// its bytes do, so no row read a range that stopped short of an underline the removal takes.
+describe('a range ending at the text of a heading it holds whole', () => {
+	const SETEXT = 'first\n\n***\n\nhead\n====\n\nnext\n';
+	it.each([
+		['a setext underline', SETEXT, [1], [2], 4, '***\n\nhead\n===='],
+		['an ATX closing run', 'first\n\n***\n\n# head ##\n', [1], [2], 6, '***\n\n# head ##'],
+		['in a quote', '> ***\n>\n> head\n> ---\n\nnext\n', [0, 0], [0, 1], 4, '***\n>\n> head\n> ---'],
+		['but not one it ends inside', SETEXT, [1], [2], 2, '***\n\nhe']
+	])('reads through %s', (_, source, rule, heading, offset, bytes) => {
+		expect(bytesOf(source, { path: rule, offset: 0 }, { path: heading, offset })).toBe(bytes);
+	});
+
+	it('paints the heading as one box, underline and all', () => {
+		const doc = parse(SETEXT);
+		const range = coverRange(doc, { path: [1], offset: 0 }, { path: [2], offset: 4 });
+		const paint = rangePaint(doc, rangeCoverage(doc, range), documentLayout(measured(doc)));
+		expect(paint.boxHolding([2])).toEqual([2]);
+	});
+
+	it('a range inside the heading stops at its text', () => {
+		expect(bytesOf('head\n====\n', { path: [0], offset: 0 }, { path: [0], offset: 4 })).toBe(
+			'head'
+		);
 	});
 });

@@ -643,4 +643,20 @@ describe('a heading the range holds through its text goes whole, as its ATX twin
 					const want = await land(twin, mode, g);
 					expect({ ...got, warns: [] }).toEqual({ ...want, warns: [] });
 				});
+
+	// Miss-analysis: the rows above read the bytes a key left and never the clipboard, so a cut that
+	// took the underline and wrote the text alone went unread.
+	const COPIED: [string, string, string][] = [
+		['a setext underline', 'first\n\n⟦***\n\nhead⟧\n====\n\nnext\n', '***\n\nhead\n===='],
+		['an ATX closing run', 'fi⟦rst\n\n# head⟧ #\n\nnext\n', 'rst\n\n# head #'],
+		['in a quote', '> first\n>\n> ⟦***\n>\n> head⟧\n> ===\n\nnext\n', '***\n\nhead\n===']
+	];
+	for (const mode of ['source', 'live'] as const)
+		for (const [name, text, clipboard] of COPIED)
+			for (const type of ['copy', 'cut'] as const)
+				it(`${mode}: a ${type} writes the heading whole, ${name}`, async () => {
+					const { editor } = await mounted(text, mode);
+					const wrote = await clipboardGesture(editor, type, 'key');
+					expect(wrote['text/plain']).toBe(clipboard);
+				});
 });
