@@ -698,8 +698,14 @@ function landed(
 			return open === 0 && from === to ? markersTrimmed(doc, from, edit) : edit;
 		}
 		const line = text.indexOf('\n');
-		if (line >= 0 && oneLined)
-			return around(cutWith(text.slice(0, line), text.slice(line + 1)), '\n');
+		// A line break at the text start of a block whose opening stands before its text (a heading's
+		// `# `) takes the block down with its text, as Enter there does.
+		const headed = line === 0 && from === leaf.text!.from && leaf.text!.from > leaf.from;
+		if (line >= 0 && (oneLined || headed)) {
+			const cut = around(cutWith(text.slice(0, line), text.slice(line + 1)), '\n');
+			// The line it leaves blank keeps its markers without their trailing spaces, as Enter's does.
+			return headed ? markersTrimmed(doc, leaf.from, cut) : cut;
+		}
 		// A last line ending cuts the block as a split there does where structure stands past its text.
 		const ending = text.endsWith('\n');
 		if (ending && !follows && /\S/.test(past)) return around(cutWith(text.slice(0, -1), ''), '\n');
