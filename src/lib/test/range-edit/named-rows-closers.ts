@@ -257,11 +257,12 @@ const LEFT_TITLE_ROWS: NamedRow[] = [
 		'> :::note\n> :::\n\n# h\n',
 		{ at: 10, holds: 'boundary', parent: [0, 0] }
 	),
+	// A landing never rests on syntax: past the heading's `# ` in source mode too.
 	...deleted(
 		'L8 the same, Delete lands at the text after',
 		'> :::note\n> ⟦***\n>\n> body\n> :::\n\npara⟧\n\n# h\n',
 		'> :::note\n> :::\n\n# h\n',
-		{ at: 17, holds: 'text' }
+		{ at: 19, holds: 'text' }
 	)
 ];
 
@@ -329,11 +330,12 @@ const TEXT_AFTER_ROWS: NamedRow[] = [
 		':::note\n:::\n\n:::tip\n:::\n\n# h\n',
 		{ at: 20, holds: 'boundary', parent: [1] }
 	),
+	// A landing never rests on syntax: an untitled row is all name, so Delete goes on into the body.
 	...deleted(
-		'L8 a range that stops before a tip it never entered lands on the tip’s first byte',
+		'L8 a range that stops before a tip it never entered lands at the tip’s first text',
 		':::note\n⟦***\n\nbody\n:::\n\npara⟧\n\n:::tip\ninner\n:::\n\n# h\n',
 		':::note\n:::\n\n:::tip\ninner\n:::\n\n# h\n',
-		{ at: 13, holds: 'text' }
+		{ at: 20, holds: 'text' }
 	),
 	// Miss-analysis: every row above left the caret on syntax, none on a line the removal emptied.
 	...deleted(

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // Backspace or a command key over a block removed whole right under a title row lands at the row's
-// end, except in live mode where that end is a hidden `:::name`, read as a paste reads the row.
+// end, except under a row that is all name, where it lands under the row inside the container, in
+// both modes: a letter typed at the name's end would rename the container.
 // Miss-analysis: the landing rows met titled rows and summaries only, never a `:::` row with no title.
 import { describe, expect, it } from 'vitest';
 import {
@@ -12,60 +13,47 @@ import {
 import type { Mode } from '#lib/range-edit/host.js';
 import { checkHost } from './test-host';
 
-/** Each kind's row above a rule, then a paragraph: where Backspace's caret goes in each mode. */
-const ROWS: [kind: string, source: string, live: Place, source: Place][] = [
+/** Each kind's row above a rule, then a paragraph: where Backspace's caret goes, in either mode. */
+const ROWS: [kind: string, source: string, place: Place][] = [
 	[
 		'an untitled `:::` row',
 		':::note\n---\n\npara\n:::\n',
-		{ at: 8, holds: 'boundary', parent: [0] },
-		{ at: 7, holds: 'text' }
+		{ at: 8, holds: 'boundary', parent: [0] }
 	],
 	[
 		'an untitled `:::` row of a generic directive',
 		':::spoiler\n---\n\npara\n:::\n',
-		{ at: 11, holds: 'boundary', parent: [0] },
-		{ at: 10, holds: 'text' }
+		{ at: 11, holds: 'boundary', parent: [0] }
 	],
 	[
 		'an empty untitled `:::` container above the rule',
 		':::note\n:::\n\n---\n\npara\n',
-		{ at: 8, holds: 'boundary', parent: [0] },
-		{ at: 7, holds: 'text' }
+		{ at: 8, holds: 'boundary', parent: [0] }
 	],
 	[
 		'an empty untitled `:::` container in a quote above the rule',
 		'> :::note\n> :::\n\n---\n',
-		{ at: 12, holds: 'boundary', parent: [0, 0] },
-		{ at: 9, holds: 'text' }
+		{ at: 12, holds: 'boundary', parent: [0, 0] }
 	],
 	[
 		'an untitled `:::` row with a space after the name',
 		':::note \n---\n\npara\n:::\n',
-		{ at: 8, holds: 'text' },
 		{ at: 8, holds: 'text' }
 	],
-	[
-		'a titled `:::` row',
-		':::note Title\n---\n\npara\n:::\n',
-		{ at: 13, holds: 'text' },
-		{ at: 13, holds: 'text' }
-	],
+	['a titled `:::` row', ':::note Title\n---\n\npara\n:::\n', { at: 13, holds: 'text' }],
 	[
 		'a summary with text',
 		'<details open>\n<summary>Sum</summary>\n\n---\n\npara\n\n</details>\n',
-		{ at: 27, holds: 'text' },
 		{ at: 27, holds: 'text' }
 	],
 	[
 		'an empty summary, which takes a letter',
 		'<details open>\n<summary></summary>\n\n---\n\npara\n\n</details>\n',
-		{ at: 24, holds: 'text' },
 		{ at: 24, holds: 'text' }
 	],
 	[
 		"a footnote's label line, no title row",
 		'[^1]: Sum\n\n    ---\n\n    para\n',
-		{ at: 9, holds: 'text' },
 		{ at: 9, holds: 'text' }
 	]
 ];
@@ -76,11 +64,8 @@ const ruleOf = (source: string) => {
 };
 
 describe("Backspace's caret beside a title row", () => {
-	for (const [kind, source, live, inSource] of ROWS) {
-		for (const [mode, expected] of [
-			['live', live],
-			['source', inSource]
-		] as [Mode, Place][]) {
+	for (const [kind, source, expected] of ROWS) {
+		for (const mode of ['live', 'source'] as Mode[]) {
 			for (const gesture of ['backspace', 'command'] as RemovalGesture[]) {
 				it(`${kind}, ${gesture}, ${mode}`, () => {
 					const answer = removalOf(source, ruleOf(source), gesture, mode, checkHost());

@@ -34,7 +34,7 @@ import { ownEntry, restored } from './own-entry';
 import { numberedOn } from './list-numbers';
 import { pasteAt, type Pasted } from './paste';
 import { removeRange, type Removal } from './removal';
-import { fenceBody, holdsText } from './removal-range';
+import { fenceBody, holdsText, literalBody } from './removal-range';
 
 /** Two byte offsets, `from <= to`, after the editor widened the range to every block it takes
  *  whole; a caret is a range with `from === to`. */
@@ -235,7 +235,8 @@ function startedIn(doc: Doc, inside: number | readonly number[]): LaidBlock[] {
 
 /** Where a caret goes beside blocks the range took whole, no text left at its start: the block
  *  before's end, the block after's text or first byte, or where a line break goes (`lineBreakAt`). */
-type Beside = 'end before' | 'text after' | 'start after' | 'break inside' | 'break between';
+type Beside =
+	'end before' | 'text after' | 'cut' | 'start after' | 'break inside' | 'break between';
 
 function besideOf(gesture: Gesture, doc: Doc, range: Range): Beside {
 	if (gesture === 'break') return entersAtEnd(doc, range) ? 'break inside' : 'break between';
@@ -243,6 +244,7 @@ function besideOf(gesture: Gesture, doc: Doc, range: Range): Beside {
 	// Typed or composed text joins the text after only where that text is the end leaf's own.
 	if (gesture === 'type' || gesture === 'compose')
 		return entersAtEnd(doc, range) ? 'text after' : 'start after';
+	if (gesture === 'cut') return 'cut';
 	return gesture === 'delete' ? 'text after' : 'start after';
 }
 
@@ -307,12 +309,14 @@ function caretOf(edit: Removal, result: Doc, beside: Beside, started: () => Laid
 		after === undefined
 			? null
 			: beside === 'end before'
-				? endBefore(result, at)
+				? (endBefore(result, at) ?? startAfter(result, at, after))
 				: beside === 'text after'
 					? startAfter(result, at, after)
-					: beside === 'start after'
-						? beforeFence(result, at)
-						: lineBreakAt(result, at, after, beside === 'break inside', boundary);
+					: beside === 'cut'
+						? firstPlace(result, at)
+						: beside === 'start after'
+							? beforeFence(result, at)
+							: lineBreakAt(result, at, after, beside === 'break inside', boundary);
 	if (side) return side;
 	let text = at;
 	const lineStart = edit.source.lastIndexOf('\n', at - 1) + 1;
@@ -340,16 +344,18 @@ function parentAt(
 	return kept?.path ?? holderAt(result, at)?.path ?? [];
 }
 
-/** The end of the block before byte `at`, the block itself where it has no text position (a rule),
- *  or in live mode the boundary under a title row ending in its hidden `:::name`; null for none. */
+/** The end of the block before byte `at` (`textEdge`): under a title row that is all name, the
+ *  boundary inside its container, and past a block with no text place, the boundary after it. */
 function endBefore(doc: Doc, at: number): Place | null {
 	for (let byte = at - 1; byte >= 0; byte--) {
 		const block = pointedBlock(doc, byte);
 		if (!block) continue;
-		if (factsOf(doc, block).textPosition === 'never')
-			return { at: block.from, ...held('block', block) };
-		const owner = doc.mode === 'live' ? titleOwner(doc, block) : undefined;
-		if (owner && joinsName(doc, owner, block, block.text!.to)) return underRow(owner, block, at);
+		const edge = textEdge(doc, block, 'last');
+		if (!edge) {
+			const owner = titleOwner(doc, block);
+			return owner ? underRow(owner, block, at) : { at, ...held('boundary', block) };
+		}
+		if (edge.holds !== 'text') return edge;
 		// A caret ends after a character, and before a line ending, both bytes of a pair.
 		const { source } = doc;
 		const end = !/[\r\n]/.test(source[byte])
@@ -357,9 +363,34 @@ function endBefore(doc: Doc, at: number): Place | null {
 			: source[byte - 1] === '\r'
 				? byte - 1
 				: byte;
-		return { at: Math.min(end, lastCaretByte(doc, block)), holds: 'text' };
+		return { at: Math.min(end, edge.at), holds: 'text' };
 	}
 	return null;
+}
+
+/** The first or last place in `leaf` a letter renames or re-kinds nothing: its text or fenced body,
+ *  the leaf itself where no caret goes in (a rule); null for a row all name or a bodiless picture. */
+function textEdge(doc: Doc, leaf: LaidBlock, side: 'first' | 'last'): Place | null {
+	const facts = factsOf(doc, leaf);
+	if (facts.textPosition === 'never') return { at: leaf.from, ...held('block', leaf) };
+	const body = literalBody(doc, leaf);
+	if (body) return { at: side === 'first' ? body.from : body.to, holds: 'text' };
+	const owner = titleOwner(doc, leaf);
+	if (facts.textPosition !== 'always' || (owner && joinsName(doc, owner, leaf, leaf.text!.from)))
+		return null;
+	return { at: side === 'first' ? leaf.text!.from : lastCaretByte(doc, leaf), holds: 'text' };
+}
+
+/** Where a cut's caret goes, at the first byte of what follows where its paste goes back: text on
+ *  that block's first line, the block itself where no caret goes in, else the gap before it. */
+function firstPlace(doc: Doc, at: number): Place | null {
+	const leaf = pointedBlock(doc, at);
+	if (leaf?.from !== at) return null;
+	const edge = textEdge(doc, leaf, 'first');
+	const lineEnd = doc.source.indexOf('\n', at);
+	if (edge && (edge.holds !== 'text' || lineEnd < 0 || edge.at <= lineEnd)) return edge;
+	const outer = findWithin(doc, at, at, (b) => b.from === at)!;
+	return { at, ...held('boundary', outer) };
 }
 
 /** The boundary under `owner`'s title row `row`, inside the container, at byte `at`. */
@@ -421,21 +452,27 @@ function startAfter(doc: Doc, caret: number, after: number): Place | null {
 	// A block that starts before `from` and still has text there is the end's, its first part gone.
 	const kept = text && end.from < from && text.from <= from && from < text.to;
 	if (kept) return { at: from, holds: 'text' };
+	// A title row that is all name sends the caret on into its container's body, never past it.
+	let row: LaidBlock | undefined;
 	for (let byte = from; byte < (entered?.to ?? doc.source.length); byte++) {
 		const block = pointedBlock(doc, byte);
 		if (!block || block.from < from) continue;
-		if (factsOf(doc, block).textPosition === 'never')
-			return { at: block.from, ...held('block', block) };
-		return { at: fenceBody(doc, block)?.from ?? block.from, holds: 'text' };
+		const owner = row && titleOwner(doc, row);
+		if (owner && block.from >= owner.to) return underRow(owner, row!, row!.to);
+		const edge = textEdge(doc, block, 'first');
+		if (edge) return edge;
+		if (!titleOwner(doc, block)) return { at: block.from, ...held('boundary', block) };
+		row = block;
+		byte = block.to - 1;
 	}
+	const owner = row && titleOwner(doc, row);
+	if (owner) return underRow(owner, row!, row!.to);
 	return entered ? { at: after, holds: 'boundary', parent: entered.path } : null;
 }
 
-/** A leaf's last caret place: a fenced block's body end, else its text's end past a structural
- *  suffix the block draws after it (a setext underline). */
+/** A leaf's last caret place before its line ending, past a structural suffix it draws after its
+ *  text (a setext underline). */
 function lastCaretByte(doc: Doc, leaf: LaidBlock): number {
-	const body = fenceBody(doc, leaf);
-	if (body) return body.to;
 	const node = nodeAt(doc, leaf.path);
 	return byteAt(doc, leaf, getContentRange(node).end + structuralSuffix(node).length);
 }

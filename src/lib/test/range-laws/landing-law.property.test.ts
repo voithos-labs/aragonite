@@ -16,6 +16,8 @@ import type { PresentationMode } from '#lib/presentation-mode.js';
 import { cellPoint, type EditorSelection, type SelectionPoint } from '#lib/selection/primitives.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
+import type { CstNode } from '#lib/core/nodes.js';
+import { blockFacts } from '#lib/schema/block-facts.js';
 import { registerDefaultContextActions } from '#lib/components/menu/default-context-actions.js';
 import {
 	destroyMountedEditors,
@@ -111,9 +113,32 @@ const arbDraw: fc.Arbitrary<Draw> = fc
 		(d) => !(d.above === 'right under a paragraph' && ['table', 'callout'].includes(d.start))
 	);
 
+/** What P5 draws beside the range too: a table of contents, whose picture holds no text, and an
+ *  empty `:::` container with no title, whose row is all name. */
+const LANDING_ABOVES: Record<string, string[]> = {
+	...ABOVES,
+	'under a table of contents': ['[[toc]]', ''],
+	'under an empty callout': [':::note', ':::', '']
+};
+const LANDING_AFTERS: Record<string, string[]> = { ...AFTERS, 'a table of contents': ['[[toc]]'] };
+
+const arbLanding: fc.Arbitrary<Draw> = fc
+	.record({
+		start: fc.constantFrom(...Object.keys(STARTS)),
+		above: fc.constantFrom(...Object.keys(LANDING_ABOVES)),
+		end: fc.constantFrom(...Object.keys(ENDS)),
+		after: fc.constantFrom(...Object.keys(LANDING_AFTERS)),
+		wrap: fc.constantFrom(...Object.keys(WRAPS)),
+		inside: fc.boolean(),
+		mode: fc.constantFrom<PresentationMode>('source', 'live')
+	})
+	.filter(
+		(d) => !(d.above === 'right under a paragraph' && ['table', 'callout'].includes(d.start))
+	);
+
 function marked(d: Draw, start: string[]): string {
-	const after = AFTERS[d.after];
-	const body = [...ABOVES[d.above], ...start, '', ...ENDS[d.end]];
+	const after = LANDING_AFTERS[d.after];
+	const body = [...LANDING_ABOVES[d.above], ...start, '', ...ENDS[d.end]];
 	const within = d.inside && after.length ? [...body, '', ...after] : body;
 	const outside = !d.inside && after.length ? ['', ...after] : [];
 	return [...WRAPS[d.wrap](within), ...outside].join('\n') + '\n';
@@ -140,7 +165,7 @@ const unclaimed = (d: Draw, g: Gesture) => ['fence', 'callout'].includes(d.start
 const LANE_5A = 'invariant:command-key-landing';
 
 /** Ruling 9 leaves a line break on the block before the range where no emptied line is kept; on a
- *  rule that break warns (G1.223) until ruling 6 moves landings off syntax. */
+ *  rule, held whole and no syntax to move off, that break breaks no line and warns (G1.223). */
 const breaksOnRule = (d: Draw, g: Gesture) =>
 	(g === 'Enter' || g === 'Shift+Enter') &&
 	d.above === 'right under a rule' &&
@@ -288,6 +313,44 @@ async function land(text: string, mode: PresentationMode, gesture: Gesture): Pro
 	return { bytes, caret, lettered: editor.source(), warns };
 }
 
+/** The gestures whose own landing P5 binds: written text is P2's and P3's, Shift+Enter ruling 9's. */
+const LANDS = ['Backspace', 'Delete', 'a cut', 'Enter', 'Mod+2'] as const;
+
+type Census = Record<string, number>;
+
+function censusOf(blocks: readonly CstNode[], into: Census = {}): Census {
+	for (const block of blocks) {
+		into[block.kind] = (into[block.kind] ?? 0) + 1;
+		if (block.children) censusOf(block.children, into);
+	}
+	return into;
+}
+
+/** Where the letter typed after `gesture` went: lost, into a leaf's text, and which kinds it took. */
+async function arrival(text: string, mode: PresentationMode, gesture: Gesture) {
+	const { editor } = await mounted(text, mode);
+	await run(editor, gesture);
+	const before = censusOf(editor.instance.__test.getDocument().children);
+	await press(editor, { key: WRITTEN });
+	takeDevWarns();
+	const doc = editor.instance.__test.getDocument();
+	const after = censusOf(doc.children);
+	const at = editor.source().indexOf(WRITTEN);
+	const layout = documentLayout(measured(doc));
+	const point = at < 0 ? null : layout.pointAt(at);
+	const leaf = point && layout.block(point.path);
+	const inText =
+		!!leaf?.text &&
+		leaf.text.from <= at &&
+		at < leaf.text.to &&
+		blockFacts(leaf.type).textPosition === 'always';
+	return {
+		lost: at < 0,
+		inText,
+		gone: Object.keys(before).filter((kind) => (after[kind] ?? 0) < before[kind])
+	};
+}
+
 const DRAWS = Number(process.env.LANDING_DRAWS ?? 16);
 const SEED = freshOrFixedSeed(20261115);
 const params = (scale = 1) => ({ numRuns: Math.max(1, Math.round(DRAWS * scale)), seed: SEED });
@@ -422,6 +485,22 @@ describe('the landing law', () => {
 				expect(got, `${g} over ${JSON.stringify(text)}`).toEqual(want);
 			}),
 			params(1.5)
+		);
+	}, 600_000);
+
+	it('P5: after a gesture’s own landing a letter goes into a leaf’s text and re-kinds nothing', async () => {
+		await fc.assert(
+			fc.asyncProperty(arbLanding, fc.constantFrom(...LANDS), async (d, g) => {
+				if (unclaimed(d, g)) return;
+				const text = marked(d, STARTS[d.start]);
+				const got = await arrival(text, d.mode, g);
+				expect(got, `${g} over ${JSON.stringify(text)}`).toEqual({
+					lost: false,
+					inText: true,
+					gone: []
+				});
+			}),
+			params(3)
 		);
 	}, 600_000);
 

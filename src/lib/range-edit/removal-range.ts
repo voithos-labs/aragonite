@@ -78,10 +78,14 @@ export function holdsText(doc: Doc, from: number, to: number): boolean {
 /** The body of a fenced block a caret can enter, between its fence lines; null for any other block.
  *  A block drawn as a picture of its source is held whole, never entered. */
 export function fenceBody(doc: Doc, leaf: LaidBlock): { from: number; to: number } | null {
-	const facts = factsOf(doc, leaf);
+	return factsOf(doc, leaf).textPosition === 'always' ? literalBody(doc, leaf) : null;
+}
+
+/** The bytes between a literal block's fence lines, a picture of its source's too; null where no
+ *  fence opens the block. */
+export function literalBody(doc: Doc, leaf: LaidBlock): { from: number; to: number } | null {
 	// A `:::` title row's line reads as an opening fence too, but it has no body to stay inside.
-	if (facts.body !== 'literal' || facts.textPosition !== 'always' || titleOwner(doc, leaf))
-		return null;
+	if (factsOf(doc, leaf).body !== 'literal' || titleOwner(doc, leaf)) return null;
 	const raw = nodeAt(doc, leaf.path).raw;
 	const fence = doc.host.fence(raw);
 	if (!fence) return null;
