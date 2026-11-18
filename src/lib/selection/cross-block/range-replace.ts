@@ -135,17 +135,28 @@ async function replaceHeld(
 	const coverage = rangeCoverage(doc, coverRange(doc, held.anchor, held.focus));
 	// Widened, since the step assigns it inside a callback the compiler can't follow.
 	let outcome = 'nothing' as RangeReplaceOutcome;
-	// Seeded with the selection, so one Ctrl+Z puts it back as it stood.
-	await ctx.controller.undoStep(deleteSnapshot(held.start.path, held.start.offset), async () => {
+	const step = async () => {
 		// The step has read the selection for its entry by now, so a selected widget ends here.
 		ctx.selection.clearWidget();
 		outcome = await replaceInStep(ctx, coverage, insertion);
-	});
+	};
+	const seed = deleteSnapshot(held.start.path, held.start.offset);
+	// Text over the editor's own range inside one block undoes to where it began, as the browser's
+	// range does; anything else puts the selection back as it stood.
+	if (textInOneBlock(ctx, insertion)) await ctx.controller.undoStepFrom(seed, step);
+	else await ctx.controller.undoStep(seed, step);
 	// After the step, whose end starts a new typing batch: the composed text joins the removal.
 	if (insertion.kind === 'composition' && outcome === 'written') {
 		ctx.controller.continueTypingBurst();
 	}
 	return outcome;
+}
+
+/** Typed, composed or one-line pasted text over a range the editor holds inside one block. */
+function textInOneBlock(ctx: CrossBlockMutationContext, insertion: RangeInsertion): boolean {
+	if (!ctx.selection.ownsRange || !ctx.selection.rangeInOneBlock) return false;
+	if (insertion.kind === 'paste') return !/[\r\n]/.test(insertion.text);
+	return insertion.kind === 'text' || insertion.kind === 'composition';
 }
 
 /** Every commit's caret is held, so the replace puts down one: the last commit's that wrote, else

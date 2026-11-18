@@ -151,11 +151,20 @@ export function createUndoController(
 		return inOpenStep() && stepSelection ? stepSelection : own();
 	}
 
-	async function undoStep(seed: CommitSnapshotArg, run: () => Promise<unknown>): Promise<void> {
+	const undoStep = (seed: CommitSnapshotArg, run: () => Promise<unknown>) =>
+		openStep(() => entrySelection(() => collapsedSelectionAtPath(seed.path, seed.offset)), run);
+
+	const undoStepFrom = (at: CommitSnapshotArg, run: () => Promise<unknown>) =>
+		openStep(() => collapsedSelectionAtPath(at.path, at.offset), run);
+
+	async function openStep(
+		opened: () => EntrySelection,
+		run: () => Promise<unknown>
+	): Promise<void> {
 		// A step opened after the author's input is a new gesture, so it groups its own writes.
 		if (stepDepth === 0 || stepEnded) {
 			stepEntry = null;
-			stepSelection = entrySelection(() => collapsedSelectionAtPath(seed.path, seed.offset));
+			stepSelection = opened();
 			stepEnded = false;
 		}
 		stepDepth++;
@@ -392,6 +401,7 @@ export function createUndoController(
 		captureCurrentState,
 		flushDebouncedCheckpoint: textBatch.interrupt,
 		undoStep,
+		undoStepFrom,
 		endUndoStep,
 		continueTypingBurst,
 		endContinuedBurst: () => {

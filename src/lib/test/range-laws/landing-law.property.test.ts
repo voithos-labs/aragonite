@@ -28,7 +28,14 @@ import {
 import { insertBy, pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
-import { clipboardGesture, mountCase, pasteGesture, placeRange, type Editor } from './gestures';
+import {
+	clipboardGesture,
+	mountCase,
+	pasteGesture,
+	placeOwnedRange,
+	placeRange,
+	type Editor
+} from './gestures';
 
 beforeAll(installLayoutStubs);
 beforeEach(() => {
@@ -480,6 +487,26 @@ describe('text written over a range that leaves no text of its own stands in its
 				it(`${mode}: ${g}, ${name}`, async () => {
 					expect((await land(text, mode, g)).bytes).toBe(written);
 				});
+});
+
+// Miss-analysis: P3 skipped a range into a callout, so a typed key landing above the callout, where
+// a composition and Delete land before the rest, went unread.
+describe('text written over a range that ends inside a leaf’s text goes before the rest', () => {
+	const ROWS: [string, string, string][] = [
+		['behind a kept opening', '⟦***\n\nbody\n\n:::tip\nin⟧ner\n:::\n', ':::tip\nжner\n:::\n'],
+		[
+			'behind two kept openings',
+			'⟦***\n\nbody\n\n::::note\n:::tip\nin⟧ner\n:::\n::::\n',
+			'::::note\n:::tip\nжner\n:::\n::::\n'
+		],
+		['in a code line', '⟦***\n\nbody\n\n```\nco⟧de\n```\n', '```\nжde\n```\n']
+	];
+	for (const mode of ['source', 'live'] as const)
+		for (const [name, text, written] of ROWS)
+			for (const g of WRITES)
+				it(`${mode}: ${g}, ${name}`, async () => {
+					expect((await land(text, mode, g)).bytes).toBe(written);
+				});
 	// With no rest left (a code body emptied to its closing line), or one a caret takes only while its
 	// source shows (a math block), the text stands on its own and the next letter joins it.
 	const ALONE: [string, string, string, readonly Gesture[]][] = [
@@ -504,26 +531,6 @@ describe('text written over a range that leaves no text of its own stands in its
 				});
 });
 
-// Miss-analysis: P3 skipped a range into a callout, so a typed key landing above the callout, where
-// a composition and Delete land before the rest, went unread.
-describe('text written over a range that ends inside a leaf’s text goes before the rest', () => {
-	const ROWS: [string, string, string][] = [
-		['behind a kept opening', '⟦***\n\nbody\n\n:::tip\nin⟧ner\n:::\n', ':::tip\nжner\n:::\n'],
-		[
-			'behind two kept openings',
-			'⟦***\n\nbody\n\n::::note\n:::tip\nin⟧ner\n:::\n::::\n',
-			'::::note\n:::tip\nжner\n:::\n::::\n'
-		],
-		['in a code line', '⟦***\n\nbody\n\n```\nco⟧de\n```\n', '```\nжde\n```\n']
-	];
-	for (const mode of ['source', 'live'] as const)
-		for (const [name, text, written] of ROWS)
-			for (const g of WRITES)
-				it(`${mode}: ${g}, ${name}`, async () => {
-					expect((await land(text, mode, g)).bytes).toBe(written);
-				});
-});
-
 // ── One gesture, one undo step ───────────────────────────────────────────────
 
 // Miss-analysis: jsdom's IME wrote before the listener's chain was done, so a composition opening a
@@ -542,5 +549,86 @@ describe('text written over a range is one undo step, where its paragraph opens 
 				it(`${mode}: ${g}, ${name}`, async () => {
 					const { got, want } = await undoneOnce(text, mode, g);
 					expect(got).toEqual(want);
+				});
+});
+
+// Miss-analysis: P8 held only ranges across blocks, so the editor's own range inside one block, a
+// finger's word, undid typed text to the range where the browser's range undoes to a caret.
+describe('inside one block, text over the editor’s own range undoes as over the browser’s', () => {
+	const ROWS: [string, string][] = [
+		['a paragraph’s middle', 'above\n\nal⟦ph⟧a\n\nbelow\n'],
+		['a paragraph’s whole text', 'above\n\n⟦alpha⟧\n\nbelow\n'],
+		['over a line break', 'above\n\non⟦e\nt⟧wo\n\nbelow\n'],
+		['a heading’s middle', 'above\n\n# he⟦a⟧d\n\nbelow\n'],
+		['an item’s middle', '- a\n- i⟦te⟧m\n- c\n'],
+		['a code line’s middle', 'above\n\n```\nco⟦d⟧e\n```\n\nbelow\n']
+	];
+	const TEXT = ['a typed key', 'a composition', 'a one-line paste'] as const;
+	async function undone(text: string, mode: PresentationMode, g: Gesture, owned: boolean) {
+		const source = text.replace('⟦', '').replace('⟧', '');
+		await destroyMountedEditors();
+		const editor = mountCase(source, mode);
+		await editor.settle();
+		const select = rangeOf(editor, text);
+		const placed = owned ? placeOwnedRange(editor, select) : placeRange(editor, select);
+		expect(await placed, 'the range would not place').toBe(true);
+		await run(editor, g);
+		await press(editor, { key: 'z', ctrlKey: true });
+		takeDevWarns();
+		return { bytes: editor.source(), selection: editor.instance.getSelection() };
+	}
+	for (const mode of ['source', 'live'] as const)
+		for (const [name, text] of ROWS)
+			for (const g of TEXT)
+				it(`${mode}: ${g}, ${name}`, async () => {
+					const browsers = await undone(text, mode, g, false);
+					const { anchor } = rangeOf(await mounted(text, mode).then((m) => m.editor), text);
+					expect(browsers.selection).toEqual({ anchor, focus: anchor });
+					expect(await undone(text, mode, g, true)).toEqual(browsers);
+				});
+});
+
+// ── A heading the range holds through its text ───────────────────────────────
+
+// Miss-analysis: every heading a range took whole was ATX with no closing run, so the core took the
+// heading's text and line and left an underline or a closing run standing as a block of its own.
+describe('a heading the range holds through its text goes whole, as its ATX twin does', () => {
+	const ROWS: [string, string, string][] = [
+		[
+			'a setext underline',
+			'first\n\n⟦***\n\nhead⟧\n====\n\nnext\n',
+			'first\n\n⟦***\n\n# head⟧\n\nnext\n'
+		],
+		[
+			'a dash underline',
+			'first\n\n⟦***\n\nhead⟧\n----\n\nnext\n',
+			'first\n\n⟦***\n\n# head⟧\n\nnext\n'
+		],
+		[
+			'an ATX closing run',
+			'first\n\n⟦***\n\n# head⟧ #\n\nnext\n',
+			'first\n\n⟦***\n\n# head⟧\n\nnext\n'
+		],
+		[
+			'two lines over an underline',
+			'first\n\n⟦***\n\nhead\nmore⟧\n===\n\nnext\n',
+			'first\n\n⟦***\n\n# head⟧\n\nnext\n'
+		],
+		[
+			'in a quote',
+			'> first\n>\n> ⟦***\n>\n> head⟧\n> ===\n\nnext\n',
+			'> first\n>\n> ⟦***\n>\n> # head⟧\n\nnext\n'
+		],
+		['at the document’s start', '⟦***\n\nhead⟧\n===\n\nnext\n', '⟦***\n\n# head⟧\n\nnext\n'],
+		['at the document’s end', 'first\n\n⟦***\n\nhead⟧\n===\n', 'first\n\n⟦***\n\n# head⟧\n']
+	];
+	const GESTURES_HERE = ['Backspace', 'Delete', 'a cut', 'a typed key', 'Enter'] as const;
+	for (const mode of ['source', 'live'] as const)
+		for (const [name, text, twin] of ROWS)
+			for (const g of GESTURES_HERE)
+				it(`${mode}: ${g}, ${name}`, async () => {
+					const got = await land(text, mode, g);
+					const want = await land(twin, mode, g);
+					expect({ ...got, warns: [] }).toEqual({ ...want, warns: [] });
 				});
 });

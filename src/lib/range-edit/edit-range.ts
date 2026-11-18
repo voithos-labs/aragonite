@@ -34,7 +34,7 @@ import { ownEntry, restored } from './own-entry';
 import { numberedOn } from './list-numbers';
 import { pasteAt, type Pasted } from './paste';
 import { removeRange, type Removal } from './removal';
-import { fenceBody, holdsText } from './removal-range';
+import { fenceBody, holdsText, pastSuffix } from './removal-range';
 
 /** Two byte offsets, `from <= to`, after the editor widened the range to every block it takes
  *  whole; a caret is a range with `from === to`. */
@@ -251,9 +251,10 @@ function besideOf(gesture: Gesture, doc: Doc, range: Range): Beside {
 	return gesture === 'delete' ? 'text after' : 'start after';
 }
 
-/** Whether the range ends before the end of a leaf that starts inside it, so that leaf's text
- *  follows the caret: a block after the leaf is one the range never reached. */
+/** Whether the range ends before the end of a leaf that starts inside it (a heading held through its
+ *  text goes whole), so that leaf's text follows the caret, not a block the range never reached. */
 const entersAtEnd = (doc: Doc, { from, to }: Range): boolean =>
+	pastSuffix(doc, from, to) === to &&
 	findWithin(
 		doc,
 		to,
