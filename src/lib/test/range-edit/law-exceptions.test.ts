@@ -190,6 +190,30 @@ describe('law 9 in a container with a write rule for its body', () => {
 	});
 });
 
+// Miss-analysis: law 9 held the plain splice, which a pasted closing line satisfies by closing the
+// container early, so fence growth turned off passed every law and only the mounted rows saw it.
+describe('law 9 at a line that could close the container around the caret', () => {
+	const BODY = ':::note\nbo‸dy\n:::\n\nAfter\n';
+	const input = {
+		source: BODY.replace('‸', ''),
+		mode: 'source' as const,
+		at: BODY.indexOf('‸'),
+		held: { holds: 'text' as const },
+		text: 'x\n:::\ny'
+	};
+
+	it('passes the grown fence and reds the bytes that close the container early', () => {
+		const { host, real } = calls('');
+		expect(pasteAtCaret(real, host, input)).toEqual([]);
+		const got = real(input.source, { from: input.at, to: input.at }, paste(input.text), 'source');
+		expect(got?.source).toMatch(/^::::note\n/);
+		const spliced = calls(BODY.replace('‸', input.text));
+		expect(pasteAtCaret(spliced.fake, spliced.host, input)).toEqual([
+			expect.stringMatching(/^L9 a pasted line closed the \w+ around it/)
+		]);
+	});
+});
+
 // Miss-analysis: the live law took every caret whose carried bytes differ from its plain ones for
 // a caret in a run, most of them in no construct, and passed one pasted paragraph unread.
 describe('law 9 in live mode, outside its live shape', () => {

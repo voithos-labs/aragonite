@@ -572,6 +572,10 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 	if (!got) return [];
 	const text = blankTail(read, input.at, input.text, host);
 	if (text !== input.text) return pasteAtCaret(call, host, { ...input, text });
+	// A pasted line that could close a fenced container around the caret stays inside it, whatever
+	// else the law holds: the container still ends past everything that followed the caret.
+	const shut = closedEarly(read, input.at, input.text, got.source, host);
+	if (shut) return [`L9 a pasted line closed the ${shut} around it: ${q(got.source)}`];
 	// A last line ending pasted in a list item's text, or ending a list the paste joins, is Enter
 	// (`paste-ending-enter.test.ts`): it leaves the bytes before it, and the law holds the rest.
 	const ended = /\r?\n$/.exec(input.text);
@@ -736,6 +740,25 @@ function shapedOnBreak(read: Read, at: number, text: string, host: CheckHost): b
 	const leaf = leafAt(read, at);
 	if (!leaf || host.facts(leaf.type).textPosition !== 'while-source-shows') return false;
 	return text.includes('\n') && !read.source.slice(leaf.from, leaf.to).trimEnd().includes('\n');
+}
+
+/** The type of a fenced container at `at`, closed by its own line, that a line of `text` could close
+ *  and that ends in `got` before the bytes that followed it; a container the clipboard opens aside. */
+function closedEarly(read: Read, at: number, text: string, got: string, host: CheckHost) {
+	const clip = readOf(host, lf(text));
+	const opens = clip.blocks.some(
+		(b) => b.path.length === 1 && host.facts(b.type).lines === 'fenced'
+	);
+	if (opens) return undefined;
+	const lines = clip.source.split('\n');
+	const grown = got.length - read.source.length;
+	return containersHolding(read, at).find((c) => {
+		const fence = host.facts(c.type).lines === 'fenced' ? fenceOf(read, c, host) : null;
+		if (!fence || fence.closer === null || !lines.some((line) => fence.mayClose(line)))
+			return false;
+		const now = readOf(host, got).blocks.find((b) => b.from === c.from && b.type === c.type);
+		return !now || now.to < c.to + grown;
+	})?.type;
 }
 
 /** Whether a line of `text` could close a fenced container holding byte `at`, and `got` wrote that
