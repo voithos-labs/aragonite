@@ -174,9 +174,11 @@ const RESTS: Record<string, string> = {
 	'inside a callout it enters': 'ner'
 };
 
-/** Ruling 8, a later slice: behind a kept opening a typed key writes above the callout, where a
- *  composition writes before the rest. */
-const restBehindOpening = (d: Draw) => d.end === 'inside a callout it enters';
+/** Lane B's: a line the range emptied above a kept opening holds Delete's caret, short of the rest,
+ *  under a block or as the first line of a quote or an item the range starts in. */
+const lineAboveOpening = (d: Draw) =>
+	d.end === 'inside a callout it enters' &&
+	(d.above !== 'first in its container' || d.wrap === 'a quote' || d.wrap === 'an item');
 
 /** Booked, not ruled: the end leaf's rest takes the place of a block taken whole right under a
  *  paragraph and runs on into it, as two paragraphs a removal leaves flush rejoin. */
@@ -328,15 +330,27 @@ describe('the landing law', () => {
 
 	it('P3: a typed key and a composition leave the same bytes', async () => {
 		await fc.assert(
-			fc.asyncProperty(
-				arbDraw.filter((d) => !restBehindOpening(d)),
-				async (d) => {
-					const text = marked(d, STARTS[d.start]);
-					const typed = await land(text, d.mode, 'a typed key');
-					const composed = await land(text, d.mode, 'a composition');
-					expect(composed.bytes, JSON.stringify(text)).toBe(typed.bytes);
-				}
-			),
+			fc.asyncProperty(arbDraw, async (d) => {
+				const text = marked(d, STARTS[d.start]);
+				const typed = await land(text, d.mode, 'a typed key');
+				const composed = await land(text, d.mode, 'a composition');
+				expect(composed.bytes, JSON.stringify(text)).toBe(typed.bytes);
+			}),
+			params()
+		);
+	}, 600_000);
+
+	it('P7: where the end leaf kept text, Delete’s letter stands before it', async () => {
+		const kept = (d: Draw) => d.end in RESTS && !lineAboveOpening(d);
+		await fc.assert(
+			fc.asyncProperty(arbDraw.filter(kept), async (d) => {
+				const text = marked(d, STARTS[d.start]);
+				const { editor } = await mounted(text, d.mode);
+				await press(editor, { key: 'Delete' });
+				await press(editor, { key: WRITTEN });
+				takeDevWarns();
+				expect(editor.source(), JSON.stringify(text)).toContain(WRITTEN + RESTS[d.end]);
+			}),
 			params()
 		);
 	}, 600_000);
@@ -432,6 +446,26 @@ describe('text written over a range that leaves no text of its own stands in its
 		],
 		// The control: text the range left of its own takes the write where it is.
 		['before the end leaf’s rest', 'first\n\n⟦***\n\npa⟧ra\n\nnext\n', 'first\n\nжra\n\nnext\n']
+	];
+	for (const mode of ['source', 'live'] as const)
+		for (const [name, text, written] of ROWS)
+			for (const g of WRITES)
+				it(`${mode}: ${g}, ${name}`, async () => {
+					expect((await land(text, mode, g)).bytes).toBe(written);
+				});
+});
+
+// Miss-analysis: P3 skipped a range into a callout, so a typed key landing above the callout, where
+// a composition and Delete land before the rest, went unread.
+describe('text written over a range that ends inside a leaf’s text goes before the rest', () => {
+	const ROWS: [string, string, string][] = [
+		['behind a kept opening', '⟦***\n\nbody\n\n:::tip\nin⟧ner\n:::\n', ':::tip\nжner\n:::\n'],
+		[
+			'behind two kept openings',
+			'⟦***\n\nbody\n\n::::note\n:::tip\nin⟧ner\n:::\n::::\n',
+			'::::note\n:::tip\nжner\n:::\n::::\n'
+		],
+		['in a code line', '⟦***\n\nbody\n\n```\nco⟧de\n```\n', '```\nжde\n```\n']
 	];
 	for (const mode of ['source', 'live'] as const)
 		for (const [name, text, written] of ROWS)

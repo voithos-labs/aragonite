@@ -202,7 +202,7 @@ export function commandLandingKind(doc: DocumentView, coverage: RangeCoverage): 
 }
 
 /** Where text over the range opens a paragraph: the gap the core's place is held at, or where the
- *  taken block stood, unless the caret is in prose the range left of its own. Null types in place. */
+ *  taken block stood, unless the caret is on text the range left of its own. Null types in place. */
 export function emptiedPlace(
 	measured: Measured,
 	removed: Removed,
@@ -215,11 +215,13 @@ export function emptiedPlace(
 		const gap = heldGapOf(measured, landed);
 		if (gap) return [...gap.parentPath, gap.index];
 	}
+	// The core's caret on the rest of the leaf the range ended in, a code line's too, takes the text.
+	if (!taken || (taken.own && landed.holds === 'text')) return null;
 	// A boundary held as no gap leaves the caret on the text at its byte.
 	const prose = !!caret && landed.holds !== 'block' && inProse(committed, caret);
 	// The range's own: the rest of the leaf it ended in, or an empty line; any prose, for `anyProse`.
-	const own = anyProse || !!taken?.own || (!!caret && emptyLine(committed, caret));
-	if (!taken || (prose && own)) return null;
+	const own = anyProse || taken.own || (!!caret && emptyLine(committed, caret));
+	if (prose && own) return null;
 	const gap = takenGapOf(measured, taken);
 	return gap && [...gap.parentPath, gap.index];
 }

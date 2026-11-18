@@ -214,10 +214,12 @@ function answerOf(
 	};
 }
 
-/** Whether byte `to` sits in a leaf's text with some of that text after it. */
+/** Whether byte `to` sits in a leaf's text with some of that text after it, in a leaf the range
+ *  entered or prose it ended at the first byte of: anywhere else that byte is the leaf's syntax. */
 function restAfter(doc: Doc, to: number): boolean {
-	const text = leafAt(doc, to)?.leaf.text;
-	return !!text && to < text.to;
+	const end = leafAt(doc, to)?.leaf;
+	if (!end?.text || to >= end.text.to) return false;
+	return end.from < to || factsOf(doc, end).body === 'markdown';
 }
 
 /** The blocks with children a gesture started among, outermost first: those around the block at
@@ -238,8 +240,9 @@ type Beside = 'end before' | 'text after' | 'start after' | 'break inside' | 'br
 function besideOf(gesture: Gesture, doc: Doc, range: Range): Beside {
 	if (gesture === 'break') return entersAtEnd(doc, range) ? 'break inside' : 'break between';
 	if (gesture === 'backspace' || gesture === 'command') return 'end before';
-	// A composition is typing: it joins the text after only where that text is the end leaf's own.
-	if (gesture === 'compose') return entersAtEnd(doc, range) ? 'text after' : 'start after';
+	// Typed or composed text joins the text after only where that text is the end leaf's own.
+	if (gesture === 'type' || gesture === 'compose')
+		return entersAtEnd(doc, range) ? 'text after' : 'start after';
 	return gesture === 'delete' ? 'text after' : 'start after';
 }
 
