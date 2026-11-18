@@ -90,7 +90,7 @@ export function editRange(
 	const started = () => startedIn(doc, inside);
 	const answer = (edit: Removal): RangeEditResult => ({
 		source: edit.source,
-		caret: caretOf(edit, read(edit), besideOf(gesture, doc, range), started)
+		caret: caretOf(edit, read(edit), besideOf(gesture, doc, range), started, from)
 	});
 	if (gesture === 'copy' || gesture === 'cut') {
 		const { removed, clipboard, own } = taken(doc, from, to);
@@ -117,7 +117,7 @@ export function editRange(
 		// would, and over one block held whole takes its place, as typed text does.
 		const removed = removalEdit(doc, from, to, 'type');
 		const after = read(removed);
-		const caret = caretOf(removed, after, 'start after', () => startedIn(doc, from));
+		const caret = caretOf(removed, after, 'start after', () => startedIn(doc, from), from);
 		const place = heldAlone(doc, from, to) ? TEXT : caret;
 		return answer(pasteAt(after, caret.at, caret.at, pasted(place)));
 	}
@@ -216,7 +216,7 @@ function answerOf(
 	const { from } = range;
 	const result = readDoc(removed.source, doc.host, doc.mode);
 	const started = () => startedIn(doc, from);
-	const caret = caretOf(removed, result, besideOf(gesture, doc, range), started);
+	const caret = caretOf(removed, result, besideOf(gesture, doc, range), started, from);
 	const at = removed.took;
 	if (at === undefined) return { source: removed.source, caret };
 	const own = restAfter(doc, range.to);
@@ -314,9 +314,15 @@ function heldAlone(doc: Doc, from: number, to: number): boolean {
 	return from < to && findWithin(doc, from, from, alone) !== undefined;
 }
 
-/** The caret named by what the new bytes hold there: text, the text before it on its line, a block
+/** The caret of a range from byte `from`, named by what the new bytes hold there: text, a block
  *  start or a boundary, or where no text stayed, the side `beside` names. */
-function caretOf(edit: Removal, result: Doc, beside: Beside, started: () => LaidBlock[]): Place {
+function caretOf(
+	edit: Removal,
+	result: Doc,
+	beside: Beside,
+	started: () => LaidBlock[],
+	from: number
+): Place {
 	const { after } = edit;
 	const at = edit.caret;
 	const boundary = (): Place => ({
@@ -340,7 +346,11 @@ function caretOf(edit: Removal, result: Doc, beside: Beside, started: () => Laid
 	let text = at;
 	const lineStart = edit.source.lastIndexOf('\n', at - 1) + 1;
 	while (text > lineStart && !result.layout.pointAt(text)) text--;
-	if (edit.source === '' || result.layout.pointAt(text)) return { at: text, holds: 'text' };
+	// A removal that left the caret before where the range started left it at the end of a block
+	// the range never reached, which a landing asks as it asks any block before.
+	const before = at < from && beside !== 'start after';
+	if (edit.source === '' || result.layout.pointAt(text))
+		return (before && pastSyntax(result, text)) || { at: text, holds: 'text' };
 	const block = findWithin(result, at, at, (b) => b.from === at);
 	if (block) return { at, holds: 'block', parent: block.path.slice(0, -1) };
 	return boundary();
@@ -370,10 +380,7 @@ function endBefore(doc: Doc, at: number): Place | null {
 		const block = pointedBlock(doc, byte);
 		if (!block) continue;
 		const edge = textEdge(doc, block, 'last');
-		if (!edge) {
-			const owner = titleOwner(doc, block);
-			return owner ? underRow(owner, block, at) : { at, ...held('boundary', block) };
-		}
+		if (!edge) return besideLeaf(doc, block, at);
 		if (edge.holds !== 'text') return edge;
 		// A caret ends after a character, and before a line ending, both bytes of a pair.
 		const { source } = doc;
@@ -385,6 +392,21 @@ function endBefore(doc: Doc, at: number): Place | null {
 		return { at: Math.min(end, edge.at), holds: 'text' };
 	}
 	return null;
+}
+
+/** The place beside `leaf`, which has no text place: under a title row that is all name, inside
+ *  its container, else the boundary after the leaf. */
+function besideLeaf(doc: Doc, leaf: LaidBlock, at: number): Place {
+	const owner = titleOwner(doc, leaf);
+	return owner ? underRow(owner, leaf, at) : { at, ...held('boundary', leaf) };
+}
+
+/** The place past a leaf with no text place that ends at byte `at`, where a removal left the caret
+ *  on the line before the block it took; null at any other byte. */
+function pastSyntax(doc: Doc, at: number): Place | null {
+	const leaf = pointedBlock(doc, at);
+	if (!leaf || contentEnd(doc, leaf) !== at || textEdge(doc, leaf, 'last')) return null;
+	return besideLeaf(doc, leaf, at);
 }
 
 /** The first or last place in `leaf` a letter renames or re-kinds nothing: its text or fenced body,

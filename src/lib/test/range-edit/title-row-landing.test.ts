@@ -79,3 +79,26 @@ describe("Backspace's caret beside a title row", () => {
 		}
 	}
 });
+
+// Miss-analysis: every row took a block with something after it, so none met the block that ends
+// its parent, whose removal leaves the caret on the line before.
+describe("Delete's and a cut's caret past a block that ended its parent", () => {
+	const LAST: [kind: string, source: string, place: Place][] = [
+		[
+			'under an untitled `:::` row',
+			':::note\n---\n:::\n',
+			{ at: 7, holds: 'boundary', parent: [0] }
+		],
+		['after a table of contents', '[[toc]]\n\n---\n', { at: 7, holds: 'boundary', parent: [] }],
+		// Controls: a title and a paragraph take the caret at their end.
+		['under a titled `:::` row', ':::note Title\n---\n:::\n', { at: 13, holds: 'text' }],
+		['after a paragraph', 'above\n\n---\n', { at: 5, holds: 'text' }]
+	];
+	for (const [kind, source, expected] of LAST)
+		for (const mode of ['live', 'source'] as Mode[])
+			for (const gesture of ['delete', 'cut'] as RemovalGesture[])
+				it(`${kind}, a block focused whole, ${gesture}, ${mode}`, () => {
+					const answer = wholeBlocksRemovalOf(source, ruleOf(source), gesture, mode, checkHost());
+					expect(answer.caret).toEqual(expected);
+				});
+});
