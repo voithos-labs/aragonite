@@ -751,7 +751,7 @@ describe('a heading the range holds through its text goes whole, as its ATX twin
 			const { editor } = await mounted(text, mode);
 			await clipboardGesture(editor, 'cut', 'key');
 			expect(editor.source()).toBe(
-				'first\n\n\n<details open>\n<summary></summary>\n\nbody\n\n</details>\n'
+				'first\n\n<details open>\n<summary></summary>\n\nbody\n\n</details>\n'
 			);
 		});
 });
