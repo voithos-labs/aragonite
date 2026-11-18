@@ -15,7 +15,7 @@ harness, both modes; the key, then `x`, then a click away (a `$$` body commits i
   starts that paragraph's text
 - Delete before a `$$` block: `x` starts its body
 - A cut before a `$$` block: `x` stands in its own paragraph above it
-- Backspace after a `$$` block: `x` ends its body
+- Backspace after a `$$` block: `x` ends its body; after a one-line `$$m$$`, its formula
 
 ## Miss-analysis
 

@@ -179,6 +179,7 @@ export function makeCommitScopeStub(
 		target: () => ({ children, owner: opts.owner, lineEnding: lineEnding() }),
 		idAt: (i) => `block-${i}`,
 		removeWhole: vi.fn(async () => false),
+		beside: () => null,
 		collapseEmptyReplaceToDelete: opts.collapse ?? true,
 		async commit(args) {
 			commits.push(args);
@@ -319,6 +320,7 @@ export function makeStubContainerEdit(): ContainerEditActions {
 		typeLeaf: vi.fn(() => ({ wrote: false as const })),
 		land: vi.fn(async () => 'placed' as const),
 		removeWhole: vi.fn(async () => false),
+		beside: () => null,
 		reportCommitError: vi.fn()
 	};
 }

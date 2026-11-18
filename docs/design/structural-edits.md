@@ -26,7 +26,7 @@ Every structural operation is a tree mutation performed by the editor shell, nev
 **Split.** Cut `raw` at the cursor offset and re-parse each half as the blocks it holds, normally one apiece. The original keeps its ID; every other node gets a fresh one. Offsets are raw offsets, markers included, and the block component translates DOM position to raw offset; the marker isn't duplicated, the second half re-parsing as its natural kind. Three edge rules:
 
 - A cut landing _on_ a line ending ends the first half with it, rather than opening the second with a blank line the user never typed.
-- A cut at or before an ATX heading's text moves the whole heading down, `#` and all. An empty heading left above is nothing anyone asked for.
+- A cut at or before an ATX heading's text moves the whole heading down, `#` and all. An empty heading left above is nothing anyone asked for. A caret that stood at the text's start lands there again, past the `#`.
 - A structural suffix (raw past the content range: a setext underline, or an ATX heading's closing `#` run) stays with the first half, so the split can't strand it below where it reparses as something else.
 
 A multi-block paste cuts its target with the same function (`src/lib/tree-operations/structural-suffix.ts` :: `cutKeepingStructure`), so all three hold there too.
@@ -134,8 +134,10 @@ flowchart TD
     F -->|yes| G["Focus it: a second press deletes"]
     F -->|no| H{"Above is non-editable?"}
     H -->|yes| I["Delete it"]
-    H -->|no| J["Move focus to its end"]
+    H -->|no| J["Move the caret to its end, off its syntax"]
 ```
+
+"Its end" is where a removal's Backspace would land (Delete, above): under a `:::` row that is all name the caret holds the gap below the row, and beside a table of contents the gap at its edge. Delete at a block's end mirrors it, so before a heading it lands past the `#`.
 
 Two refinements the diagram elides: a container that declares no unwrap strategy delegates upward, the same decision re-running one level out with the container itself as the block (that's how a list item's children reach the list); and a container may override the _middle_-child branch too, a list routing its non-first items through the same cascade as its first, which is where M1 below comes from.
 

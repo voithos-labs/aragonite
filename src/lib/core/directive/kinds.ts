@@ -73,7 +73,7 @@ export function registerDirectiveKinds(views: DirectiveViews): void {
 			focus: { mode: 'implemented', via: 'focus walks to the opener line / first body child' },
 			mergeBackspace: {
 				mode: 'implemented',
-				via: 'mergeRole=container; Backspace at the body start goes to the opener line, as in any container with a title row'
+				via: 'mergeRole=container; Backspace at the body start goes to a titled opener line’s end, or holds the gap under a row that is all name'
 			},
 			undo: { mode: 'inherit-default' },
 			clipboard: {

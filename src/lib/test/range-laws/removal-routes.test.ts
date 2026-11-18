@@ -56,8 +56,7 @@ import {
 	type Editor
 } from './gestures';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
-import type { CstNode } from '#lib/core/nodes.js';
-import { blockFacts } from '#lib/schema/block-facts.js';
+import { letterLanding } from './letter-landing';
 
 beforeAll(installLayoutStubs);
 beforeEach(() => {
@@ -385,10 +384,10 @@ describe('a rule removed whole lands where the kind beside it takes a caret, off
 				const own = { caret: heldCaret(fresh), typed: await typedAt(fresh) };
 				// Two raw offsets of one screen position, as live mode's hidden markers make, are one place.
 				const same = left.caret === own.caret || left.typed === own.typed;
-				const letter = letterOf(editor, removed, left.typed, path);
-				const beside = !!letter?.offSyntax && (letter.inKind || letter.besideGap);
+				const letter = letterLanding(editor, removed, left.typed, 'x');
+				const beside = !!letter?.offSyntax && (letter.within(path) || letter.after(path));
 				// Null where jsdom types nothing at the kind's own entry (a picture of its source).
-				const ownLetter = letterOf(fresh, removed, own.typed, path);
+				const ownLetter = letterLanding(fresh, removed, own.typed, 'x');
 				const booked = BOOKED[above ? 'above' : 'below'].has(kind);
 				const stands = booked || ownLetter?.offSyntax;
 				if (stands ? !same : ownLetter ? !beside : !same && !beside)
@@ -409,50 +408,11 @@ const BOOKED = {
 	below: new Set(['indentedCode', 'htmlBlock', 'linkReferenceDefinition'])
 };
 
-/** Where the letter typed over `removed` went: into a leaf's text with every kind kept, into the
- *  block at `path`, or into the text a gap beside it gives way to; null where nothing was typed. */
-function letterOf(editor: Editor, removed: string, typed: string, path: number[]) {
-	if (typed === 'nothing typed') return null;
-	const grammar = editor.instance.__test.getGrammar();
-	const read = (bytes: string) => readAsOpened(bytes, { grammar, scope: 'document' }) as Document;
-	let from = 0;
-	while (from < removed.length && removed[from] === typed[from]) from++;
-	// The letter, among the bytes the typing added (a gap's paragraph brings a blank line too).
-	const at = typed.indexOf('x', from);
-	const doc = read(typed);
-	const layout = documentLayout(measured(doc));
-	const point = layout.pointAt(at);
-	const leaf = point && layout.block(point.path);
-	const inText =
-		!!leaf?.text &&
-		leaf.text.from <= at &&
-		at < leaf.text.to &&
-		blockFacts(leaf.type).textPosition === 'always';
-	const before = kindCount(read(removed).children);
-	const after = kindCount(doc.children);
-	const kept = Object.keys(before).every((kind) => (after[kind] ?? 0) >= before[kind]);
-	const kindBlock = layout.block(path);
-	const inKind = !!kindBlock && kindBlock.from <= at && at < kindBlock.to;
-	// The gap after the kind gives way to the paragraph's text it stands before.
-	const besideGap = !!leaf && leaf.type === 'paragraph' && !!kindBlock && leaf.from >= kindBlock.to;
-	return { offSyntax: inText && kept, inKind, besideGap };
-}
-
-function kindCount(blocks: readonly CstNode[], into: Record<string, number> = {}) {
-	for (const block of blocks) {
-		into[block.kind] = (into[block.kind] ?? 0) + 1;
-		if (block.children) kindCount(block.children, into);
-	}
-	return into;
-}
-
 /** The source once a letter is typed at the editor's caret, read before the editor loses focus. */
 async function typedAt(editor: Editor): Promise<string> {
-	const before = editor.source();
 	await pressHardwareKey(document.activeElement as HTMLElement, { key: 'x' });
 	await editor.settle();
-	const typed = editor.source();
-	return typed === before ? 'nothing typed' : typed;
+	return editor.source();
 }
 
 // ── The place the core names ─────────────────────────────────────────────────

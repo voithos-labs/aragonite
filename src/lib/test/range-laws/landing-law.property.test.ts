@@ -16,8 +16,6 @@ import type { PresentationMode } from '#lib/presentation-mode.js';
 import { cellPoint, type EditorSelection, type SelectionPoint } from '#lib/selection/primitives.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
-import type { CstNode } from '#lib/core/nodes.js';
-import { blockFacts } from '#lib/schema/block-facts.js';
 import { registerDefaultContextActions } from '#lib/components/menu/default-context-actions.js';
 import {
 	destroyMountedEditors,
@@ -31,6 +29,7 @@ import { insertBy, pressHardwareKey } from '#lib/test/harness/insertion-routes.j
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
 import { clipboardGesture, mountCase, pasteGesture, placeRange, type Editor } from './gestures';
+import { letterLanding } from './letter-landing';
 
 beforeAll(installLayoutStubs);
 beforeEach(() => {
@@ -316,39 +315,15 @@ async function land(text: string, mode: PresentationMode, gesture: Gesture): Pro
 /** The gestures whose own landing P5 binds: written text is P2's and P3's, Shift+Enter ruling 9's. */
 const LANDS = ['Backspace', 'Delete', 'a cut', 'Enter', 'Mod+2'] as const;
 
-type Census = Record<string, number>;
-
-function censusOf(blocks: readonly CstNode[], into: Census = {}): Census {
-	for (const block of blocks) {
-		into[block.kind] = (into[block.kind] ?? 0) + 1;
-		if (block.children) censusOf(block.children, into);
-	}
-	return into;
-}
-
-/** Where the letter typed after `gesture` went: lost, into a leaf's text, and which kinds it took. */
+/** Where the letter typed after `gesture` went: nowhere, or into a leaf's text with every kind kept. */
 async function arrival(text: string, mode: PresentationMode, gesture: Gesture) {
 	const { editor } = await mounted(text, mode);
 	await run(editor, gesture);
-	const before = censusOf(editor.instance.__test.getDocument().children);
+	const before = editor.source();
 	await press(editor, { key: WRITTEN });
 	takeDevWarns();
-	const doc = editor.instance.__test.getDocument();
-	const after = censusOf(doc.children);
-	const at = editor.source().indexOf(WRITTEN);
-	const layout = documentLayout(measured(doc));
-	const point = at < 0 ? null : layout.pointAt(at);
-	const leaf = point && layout.block(point.path);
-	const inText =
-		!!leaf?.text &&
-		leaf.text.from <= at &&
-		at < leaf.text.to &&
-		blockFacts(leaf.type).textPosition === 'always';
-	return {
-		lost: at < 0,
-		inText,
-		gone: Object.keys(before).filter((kind) => (after[kind] ?? 0) < before[kind])
-	};
+	const letter = letterLanding(editor, before, editor.source(), WRITTEN);
+	return { lost: !letter, offSyntax: !!letter?.offSyntax };
 }
 
 const DRAWS = Number(process.env.LANDING_DRAWS ?? 16);
@@ -494,11 +469,7 @@ describe('the landing law', () => {
 				if (unclaimed(d, g)) return;
 				const text = marked(d, STARTS[d.start]);
 				const got = await arrival(text, d.mode, g);
-				expect(got, `${g} over ${JSON.stringify(text)}`).toEqual({
-					lost: false,
-					inText: true,
-					gone: []
-				});
+				expect(got, `${g} over ${JSON.stringify(text)}`).toEqual({ lost: false, offSyntax: true });
 			}),
 			params(3)
 		);
@@ -600,4 +571,15 @@ describe('text written over a range is one undo step, where its paragraph opens 
 					const { got, want } = await undoneOnce(text, mode, g);
 					expect(got).toEqual(want);
 				});
+});
+
+// ── A line break at a heading's text start ───────────────────────────────────
+
+// Miss-analysis: P5 draws ranges from a block taken whole, so none started at a heading's text,
+// where the split moved the heading down and left the caret before its `# ` in source mode.
+describe('Enter over a range from a heading’s text start keeps the caret past its `# `', () => {
+	for (const mode of ['source', 'live'] as const)
+		it(mode, async () => {
+			expect((await land('# ⟦head\n\npa⟧ra\n', mode, 'Enter')).lettered).toBe('\n# xra\n');
+		});
 });

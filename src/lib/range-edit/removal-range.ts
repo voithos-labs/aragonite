@@ -81,13 +81,17 @@ export function fenceBody(doc: Doc, leaf: LaidBlock): { from: number; to: number
 	return factsOf(doc, leaf).textPosition === 'always' ? literalBody(doc, leaf) : null;
 }
 
-/** The bytes between a literal block's fence lines, a picture of its source's too; null where no
- *  fence opens the block. */
+/** The bytes between a literal block's fence lines, a picture of its source's too, or the body its
+ *  kind declares where no fence line opens it (a one-line `$$x^2$$`); null for none. */
 export function literalBody(doc: Doc, leaf: LaidBlock): { from: number; to: number } | null {
 	// A `:::` title row's line reads as an opening fence too, but it has no body to stay inside.
 	if (factsOf(doc, leaf).body !== 'literal' || titleOwner(doc, leaf)) return null;
-	const raw = nodeAt(doc, leaf.path).raw;
+	const node = nodeAt(doc, leaf.path);
+	const { raw } = node;
 	const fence = doc.host.fence(raw);
+	const declared = fence ? null : doc.host.body(node);
+	if (declared)
+		return { from: byteAt(doc, leaf, declared.start), to: byteAt(doc, leaf, declared.end) };
 	if (!fence) return null;
 	const { body, closer } = fence;
 	const end =

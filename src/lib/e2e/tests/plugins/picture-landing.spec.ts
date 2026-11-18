@@ -81,6 +81,15 @@ const ROWS: Row[] = [
 		elsewhere: [4],
 		key: 'Backspace',
 		after: '$$\nmx\n$$\n\nnext\n'
+	},
+	{
+		name: 'Backspace after a one-line `$$` block lands at its formula’s end',
+		doc: '$$m$$\n\n***\n\nbody\n\n# hd\n\nnext\n',
+		from: [1],
+		to: [3],
+		elsewhere: [4],
+		key: 'Backspace',
+		after: '$$mx$$\n\nnext\n'
 	}
 ];
 

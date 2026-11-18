@@ -75,21 +75,22 @@ describe('block-edit core: shared structural decisions', () => {
 		expect(commits[0].eventTarget).toBe(0);
 	});
 
-	it('merge-prev into an editable-but-unmergeable previous block moves focus without committing', async () => {
-		// fencedCode is the not-mergeable-yet-editable fixture: the else branch only moves focus.
+	// fencedCode is the not-mergeable-yet-editable fixture: the commit writes nothing, discards its
+	// entry and lands the caret where the core puts it beside the neighbour.
+	it('merge-prev into an editable-but-unmergeable previous block only lands the caret', async () => {
 		const { scope, commits, children } = makeCommitScopeStub([leaf('```\n'), leaf('text\n')]);
 		expect(children[0].kind).toBe('fencedCode');
 		await createBlockEditCore(scope).mergeWithPreviousInterior(1);
-		expect(children).toHaveLength(2);
-		expect(commits).toHaveLength(0);
+		expect(children.map((c) => c.raw)).toEqual(['```\n', 'text\n']);
+		expect(commits).toMatchObject([{ discardIfNoop: true }]);
 	});
 
-	it('merge-next into an editable-but-unmergeable next block moves focus without committing', async () => {
+	it('merge-next into an editable-but-unmergeable next block only lands the caret', async () => {
 		const { scope, commits, children } = makeCommitScopeStub([leaf('text\n'), leaf('```\n')]);
 		expect(children[1].kind).toBe('fencedCode');
 		await createBlockEditCore(scope).mergeWithNextInterior(0);
-		expect(children).toHaveLength(2);
-		expect(commits).toHaveLength(0);
+		expect(children.map((c) => c.raw)).toEqual(['text\n', '```\n']);
+		expect(commits).toMatchObject([{ discardIfNoop: true }]);
 	});
 
 	it('replaceBlock with nodes emits replaceBlock with its count', async () => {

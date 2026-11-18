@@ -10,6 +10,7 @@ import type { AnyBlockKind } from '../../core/nodes';
 import { isBlankText } from '../../core/lines';
 import { hidesDelimitersAtCaret } from '../../presentation-mode';
 import {
+	besideEdge,
 	removalOf,
 	textInCell,
 	wholeBlocksRemovalOf,
@@ -153,6 +154,25 @@ export function removeWholeBlock(
 	return commitBytes(ctx, answer.source, { ...commit, caret: answer.caret, removal: true });
 }
 
+/** Where Backspace at the start of the block at `path` (`dir` -1), or Delete at its end (1), lands
+ *  when it joins nothing: the core's place beside it, read on the bytes as they stand. */
+export function placeBeside(
+	ctx: Pick<CommitContext, 'bytes' | 'reading'>,
+	path: readonly number[],
+	dir: -1 | 1
+): { place: SpliceCaret; measured: Measured } | null {
+	const edge = dir < 0 ? path : [...path.slice(0, -1), path.at(-1)! + 1];
+	const read = rangeRead(ctx.bytes, [edge], (layout) => {
+		const from = layout.block(edge)?.from;
+		return from === undefined ? null : { from, to: from };
+	});
+	if (!read) return null;
+	const gesture = dir < 0 ? 'backspace' : 'delete';
+	const host = rangeHost(ctx.reading, read);
+	const place = besideEdge(read.source, read.range.from, gesture, modeOf(ctx), host);
+	return place && { place, measured: read.measured };
+}
+
 /** Writes `text` over what `coverage` holds inside one table cell as one write of the cell, in one
  *  commit; null for a range anywhere else, or text holding a line break. */
 export async function writeInCell(
@@ -184,7 +204,7 @@ function commitBytes(ctx: CommitContext, after: string, splice: RemovalCommit): 
 	return ctx.controller.commitSource({ changes, ...splice });
 }
 
-const modeOf = (ctx: CommitContext) =>
+const modeOf = (ctx: Pick<CommitContext, 'reading'>) =>
 	hidesDelimitersAtCaret(ctx.reading.mode()) ? 'live' : 'source';
 
 // ── Where the removal leaves the caret, read around it ───────────────────────

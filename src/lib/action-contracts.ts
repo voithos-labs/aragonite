@@ -387,6 +387,9 @@ export interface ContainerEditActions {
 		gesture: RemovalGesture,
 		commit: Pick<SourceSplice, 'op' | 'snapshot'>
 	): Promise<boolean>;
+	/** Where Backspace at the start of the block at `path` (`dir` -1), or Delete at its end (1),
+	 *  lands when it joins nothing, as the range-edit core places a removal's caret there. */
+	beside(path: DocPath, dir: -1 | 1): Landing | GapCaretSelection | null;
 	/** Report a write refused before its commit to the editor's `error` event. */
 	reportCommitError(error: unknown, op: OperationKind, path: DocPath): void;
 }

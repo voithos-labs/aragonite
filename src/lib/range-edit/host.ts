@@ -4,7 +4,7 @@
  * typing over the same text does. Built from the editor's `Reading`; the mode comes with each call.
  */
 
-import type { DocumentView } from '../core/node-views';
+import type { DocumentView, NodeView } from '../core/node-views';
 import { getContentRange } from '../core/inline';
 import { cutOutsideWhole } from '../core/inline/live-edit/live-split';
 import { documentLineEnding, ownTrailingLineEnding, trimTrailingLineEnding } from '../core/lines';
@@ -136,6 +136,8 @@ export interface RangeHost {
 	escaped(text: string): string;
 	/** The fence a block's bytes open, by the openers of the editor's grammar; null for none. */
 	fence(raw: string): Fence | null;
+	/** The body the block's kind declares between its own fences (`bodyRange`), on one line too. */
+	body(node: NodeView): { start: number; end: number } | null;
 }
 
 /** The host a paste reads through: the range host, and the editor's paste transforms. */
@@ -354,6 +356,7 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 			}
 		},
 		escaped: escapeMarkdownLiteral,
+		body: (node) => tryGetBlockKindDescriptor(node.kind)?.bodyRange?.(node) ?? null,
 		fence(raw) {
 			const body = raw.indexOf('\n') + 1;
 			if (body === 0) return null;

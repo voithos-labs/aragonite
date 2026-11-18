@@ -181,6 +181,19 @@ export function textInCell(
 	return { source: cell.source, caret: { at: cell.caret, holds: 'text' } };
 }
 
+/** Where Backspace at the start of the block at byte `at`, or Delete at the end of the one before
+ *  it, lands when it joins nothing: the place a removal's caret takes on that side. */
+export function besideEdge(
+	source: string,
+	at: number,
+	gesture: 'backspace' | 'delete',
+	mode: Mode,
+	host: RangeHost
+): Place | null {
+	const doc = readDoc(source, host, mode);
+	return gesture === 'backspace' ? endBefore(doc, at) : startAfter(doc, at, at);
+}
+
 /** A removal of the blocks `range` spans as blocks asked for (the block menu's Delete), not text:
  *  `Doc.wholeBlocks` says what that changes. */
 export function wholeBlocksRemovalOf(
