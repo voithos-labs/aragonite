@@ -313,8 +313,9 @@ export function bodyOpenedAt(
 	if (!parent || host.facts(parent.type).lines !== 'every-line') return null;
 	const line = linesOf(parent)?.find((l) => l.from <= at && at < l.to);
 	const marker = /^[ \t>]*/.exec(read.source.slice(parent.from))![0];
-	const ownEnd = parent.from + marker.length;
-	if (!line?.own || !/\S/.test(read.source.slice(ownEnd, at))) return null;
+	const lineStart = read.source.lastIndexOf('\n', at - 1) + 1;
+	const textFrom = lineStart + /^[ \t>]*/.exec(read.source.slice(lineStart))![0].length;
+	if (!line?.own || !/\S/.test(read.source.slice(textFrom, at))) return null;
 	const eol = endingOf(read.source);
 	const lineEnd = read.source.indexOf('\n', at);
 	const end = lineEnd < 0 ? read.source.length : lineContentEnd(read.source, lineEnd + 1);

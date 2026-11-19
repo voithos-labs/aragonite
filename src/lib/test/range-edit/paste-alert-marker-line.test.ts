@@ -92,6 +92,14 @@ const ROWS: [name: string, marked: string, clip: string, pasted: string, typed: 
 		'> [!TIP]\n> x\n\nafter\n',
 		'> [!TIP]\n> xZ\n\nafter\n'
 	],
+	// A seed found it: a body line of markers alone on the open last line is the body's already.
+	[
+		'text on an open body line',
+		'> [!NOTE]\n   > ‸',
+		'x',
+		'> [!NOTE]\n   > x',
+		'> [!NOTE]\n   > xZ'
+	],
 	[
 		'text in an item',
 		'- > [!NOTE]‸\n- b\n',
