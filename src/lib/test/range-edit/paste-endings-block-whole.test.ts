@@ -60,6 +60,9 @@ const HOSTS: [string, (block: string) => string][] = [
 	['first in the document', (b) => `⟦${b}⟧\n\nAfter\n`],
 	['over two blank lines', (b) => `alpha\n\n⟦${b}⟧\n\n\nAfter\n`],
 	['in a quote', (b) => `> alpha\n>\n> ⟦${inContainer(b, '> ')}⟧\n>\n> After\n`],
+	// Miss-analysis: every quote host had a paragraph under the block, so none left the block's
+	// blank line as the quote's last, where an empty line's ending added a second line.
+	['on a quote’s last line', (b) => `> alpha\n>\n> ⟦${inContainer(b, '> ')}⟧\n`],
 	['second in an item', (b) => `- a\n\n  ⟦${inContainer(b, '  ')}⟧\n\n  more\n- b\n`],
 	['right under an alert’s line', (b) => `> [!NOTE]\n> ⟦${inContainer(b, '> ')}⟧\n>\n> text\n`],
 	['right under a title row', (b) => `:::note Title\n⟦${b}⟧\n\ntext\n:::\n`],

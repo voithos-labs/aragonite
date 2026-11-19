@@ -826,13 +826,16 @@ function landed(
 					? edit
 					: ownLine(doc, to, edit);
 		if (ending && !isBlankText(text)) return opened(brokenAfter(write(text.slice(0, -1)), text));
+		// In an empty block the line break opened the line under it already.
+		const blank = isBlankText(doc.source.slice(leaf.text!.from, textTo));
+		const breaks = (edit: Edit) => (blank ? edit : opened(edit));
 		// One line break alone is the block's line break too, which closes a run it stands at the end of.
 		if (from === to && text === '\n')
-			return opened(markersTrimmed(doc, from, brokenAfter(write(''), text)));
+			return breaks(markersTrimmed(doc, from, brokenAfter(write(''), text)));
 		// Line breaks alone at a caret go in as bytes, which no write rule re-reads; spaces alone are
 		// text the block writes, where a caret at a hidden edge places them.
 		return from === to && isBlankText(text) && text.includes('\n')
-			? opened(markersTrimmed(doc, from, bytes(text)))
+			? breaks(markersTrimmed(doc, from, bytes(text)))
 			: write(text);
 	};
 	// Plain text never converts: it goes in escaped where the block reads Markdown.
