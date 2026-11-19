@@ -153,7 +153,8 @@ for (const mode of ['source', 'live'] as const)
 // Miss-analysis: every after-text row's clipboard opened with text; a seed's cut opened with none.
 const FROM_LINE_END: [name: string, marked: string, clip: string, after: string][] = [
 	['a sublist under a blank line', '- a‸\n- c\n', '- \n\n  - b', '- a\n\n  - bZ\n- c\n'],
-	['a sublist and a list', '* a\n  b‸\n', '* \n\n  * c\n- x', '* a\n  b\n\n  * c\n- xZ\n']
+	['a sublist and a list', '* a\n  b‸\n', '* \n\n  * c\n- x', '* a\n  b\n\n  * c\n- xZ\n'],
+	['a to-do’s box alone', '- a‸\n- c\n', '- [ ] \n\n  - b', '- a\n\n  - bZ\n- c\n']
 ];
 
 for (const mode of ['source', 'live'] as const)

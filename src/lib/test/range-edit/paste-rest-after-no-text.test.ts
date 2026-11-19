@@ -140,6 +140,14 @@ const ROWS: [name: string, marked: string, clip: string, after: string, typed: s
 		'- x\n  ```\n  c\n  ```',
 		'- ax\n  ```\n  c\n  ```\n  b\n- after\n',
 		'- ax\n  ```\n  cZ\n  ```\n  b\n- after\n'
+	],
+	// A seed found it: a last line of markers alone is a blank line, which takes the text.
+	[
+		'quote mid, code then a bare quote line',
+		'> a‸b\n',
+		'> x\n>\n>     co\n> ',
+		'> ax\n>\n>     co\n> b\n',
+		'> ax\n>\n>     co\n> Zb\n'
 	]
 ];
 

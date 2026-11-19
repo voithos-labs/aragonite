@@ -1038,10 +1038,13 @@ function readsAsCode(doc: Doc, edit: Edit): boolean {
 	return !!at && factsOf(after, at.leaf).body === 'literal';
 }
 
-/** Whether the last line of `block` holds no Markdown text: it ends on a closing line, a code block
- *  or a table, at any depth. An empty container still takes text. */
+/** Whether the last line of `block` holds no Markdown text: a closing line, a code block or a table,
+ *  at any depth. An empty container, or a last line of markers alone, still takes text. */
 function endsWithoutText(pasted: Doc, block: LaidBlock): boolean {
 	if (block.text) return factsOf(pasted, block).body !== 'markdown';
+	const end = contentEnd(pasted, block);
+	const lastLine = pasted.source.lastIndexOf('\n', end - 1) + 1;
+	if (end > lastLine && pastMarkers(pasted.source, lastLine) >= end) return false;
 	if (closedByOwnLine(pasted, block) || factsOf(pasted, block).lines === 'rows') return true;
 	const children = nodeAt(pasted, block.path).children ?? [];
 	const index = children.findLastIndex((c) => !isBlankText(c.raw));
@@ -1076,12 +1079,15 @@ function takenIn(pasted: Doc, first: LaidBlock, levels: number, afterText: boole
 	// The first block under the levels taken keeps its own syntax (a list's marker, a heading's `#`,
 	// a quote's `>`); only a paragraph joins from its text.
 	const own = openingBlock(pasted, first, levels);
-	const opening = source.slice(0, lineEnd(source, first.from));
-	const markersAlone = /^[ \t]*(?:(?:>|[-+*]|\d{1,9}[.)])[ \t]*)+\r?$/.test(
-		opening.slice(opening.lastIndexOf('\n') + 1)
+	// After text, an opening line that holds no text and no container's own line (an alert's title)
+	// is a cut's from a line's end: it joins as it came.
+	const lineTo = lineEnd(source, first.from);
+	const filled = [...pasted.layout.within(first.from, lineTo)].some((b) =>
+		b.text
+			? !isBlankText(source.slice(b.text.from, Math.min(b.to, lineTo)))
+			: factsOf(pasted, b).lines !== 'first-line' && !!b.lineAt?.(Math.max(b.from, first.from)).own
 	);
-	// After text, an opening line of markers alone is a cut's from a line's end: it joins as it came.
-	const opens = own && !(afterText && markersAlone);
+	const opens = own && (!afterText || filled);
 	const kept = own && opens && !paragraph(own) ? own : undefined;
 	const start = kept?.from ?? head?.text?.from ?? first.from;
 	const joined = !kept && head && paragraph(head) ? lineEndBefore(source, start) : start;
