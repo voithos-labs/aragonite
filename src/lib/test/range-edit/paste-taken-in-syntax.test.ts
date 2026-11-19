@@ -90,7 +90,9 @@ const ENDED: [name: string, marked: string][] = [
 	['a bare quote line', '> a\n>\n>‸\n> b\n'],
 	['the quote’s last line', '> a\n>\n> ‸\n'],
 	['under a list of the quote', '> - x\n>\n> ‸\n> b\n'],
-	['in a list of the quote', '> - a‸\n> - c\n']
+	['in a list of the quote', '> - a‸\n> - c\n'],
+	['mid-text', '> al‸pha\n>\n> after\n'],
+	['mid-text in an item', '- > al‸pha\n- after\n']
 ];
 
 for (const mode of ['source', 'live'] as const)

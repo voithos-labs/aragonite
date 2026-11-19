@@ -777,8 +777,9 @@ function landed(
 		const shaped = shown ? doc.host.leaf.typed(doc.tree, leaf.path, own, caret) : null;
 		if (shaped && shaped.bytes !== own)
 			return writtenText(doc, leaf, shaped, target.from, target.to);
-		// A fence's blank last line is still its code's, so it keeps the markers it stands behind.
-		const written = insertBytes(doc, from, to, clip, indent, fence ? true : undefined);
+		// A blank last line of a fence nothing closes is its code's only behind the markers it stands behind.
+		const open = fence && fence.closer === null;
+		const written = insertBytes(doc, from, to, clip, indent, open ? true : undefined);
 		return { ...written, leaf: { path: leaf.path, raw: own, caret } };
 	}
 	// Every landing below that sets a block boundary in the block's text asks for the cut once.
@@ -896,20 +897,24 @@ function landed(
 		const textBefore = /[^ \t>\r\n]/.test(doc.source.slice(leaf.text!.from, from));
 		const sublist = inner.kept === 'list' && factsOf(doc, taker).lines === 'items';
 		const blank = sublist ? '' : '\n' + taken.trimEnd();
-		// The line a last line ending opens stays the taker's, behind its markers.
-		const ended = inner.after === '' && /\n$/.test(inner.mid) ? taken.trimEnd() : '';
-		const mid = (inner.kept && textBefore ? blank + '\n' + taken : '') + inner.mid + ended;
-		if (!follows || lastTakes) {
-			const edit = around(cut, mid, keep);
+		// A clipboard that ends in a line ending sets the text after the caret on a line of its own.
+		const ended = inner.after === '' && /\n$/.test(inner.mid);
+		const mid = (inner.kept && textBefore ? blank + '\n' + taken : '') + inner.mid;
+		if (!follows || (lastTakes && !ended)) {
+			// The line the ending opens stays the taker's, behind its markers.
+			const edit = around(cut, ended ? mid + taken.trimEnd() : mid, keep);
 			return numberedAfterTaking(doc, taker, leaf.path[taker.path.length], edit);
 		}
 		// The text after the caret goes under what was taken in, behind the taken containers' markers,
 		// apart where its last block would read it in; the caret stays at that block's last line's end.
-		const set = around(cut, mid + '\n' + taken, keep);
+		const set = around(cut, (ended ? mid : mid + '\n') + taken, keep);
 		const above = set.source.lastIndexOf('\n', set.caret - 1);
 		const lineEnd = set.source[above - 1] === '\r' ? above - 1 : above;
 		const under = lastWithin(nodeAt(pasted, last!.path), levels)?.raw ?? lastRaw;
-		const edit = restApart(doc, { ...set, caret: lineEnd }, leaf, to, cut, under);
+		const apart = restApart(doc, { ...set, caret: lineEnd }, leaf, to, cut, under);
+		// With the clipboard's ending the caret is at the start of the text it set apart, as Enter leaves it.
+		const rest = apart.source.length - cut.rest.length + cut.caret;
+		const edit = ended ? { ...apart, caret: rest } : apart;
 		return numberedAfterTaking(doc, taker, leaf.path[taker.path.length], edit);
 	}
 	// A clipboard opening with a line break or a paragraph joins the text before the caret; text
