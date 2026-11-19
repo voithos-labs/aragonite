@@ -825,18 +825,23 @@ function landed(
 		const keep = (c: LaidBlock) => c !== taker;
 		const holding = containersHolding(doc, from);
 		const levels = holding.length - holding.indexOf(taker);
-		const textStart = !/[^ \t>\r\n]/.test(doc.source.slice(leaf.text!.from, from));
-		const inner = takenIn(pasted, first, levels, textStart);
+		const inner = takenIn(pasted, first, levels);
 		const behind = inner.after === '' ? lead : '';
 		const cut = cutWith(inner.before, inner.after, behind);
+		const taken = continuation(doc, from).slice(continuation(doc, from, keep).length);
+		// A first block that keeps its syntax goes after text on a line of its own, a blank line above
+		// it as Enter leaves one; a list a taken item opens with is a sublist, right under the text.
+		const textBefore = /[^ \t>\r\n]/.test(doc.source.slice(leaf.text!.from, from));
+		const sublist = inner.kept === 'list' && factsOf(doc, taker).lines === 'items';
+		const blank = sublist ? '' : '\n' + taken.trimEnd();
+		const mid = inner.kept && textBefore ? blank + '\n' + taken + inner.mid : inner.mid;
 		if (!follows || lastTakes) {
-			const edit = around(cut, inner.mid, keep);
+			const edit = around(cut, mid, keep);
 			return numberedAfterTaking(doc, taker, leaf.path[taker.path.length], edit);
 		}
 		// The text after the caret goes under what was taken in, behind the taken containers' markers,
 		// apart where its last block would read it in; the caret stays at that block's last line's end.
-		const taken = continuation(doc, from).slice(continuation(doc, from, keep).length);
-		const set = around(cut, inner.mid + '\n' + taken, keep);
+		const set = around(cut, mid + '\n' + taken, keep);
 		const above = set.source.lastIndexOf('\n', set.caret - 1);
 		const lineEnd = set.source[above - 1] === '\r' ? above - 1 : above;
 		const under = lastWithin(nodeAt(pasted, last!.path), levels)?.raw ?? lastRaw;
@@ -980,16 +985,16 @@ function lastLineStart(pasted: Doc, leaf: LaidBlock): number {
 
 /** A pasted container's content as its taker holds it, `levels` of it taken: its first paragraph's
  *  first line, the last line of a paragraph that ends the clipboard, and the bytes between. */
-function takenIn(pasted: Doc, first: LaidBlock, levels: number, textStart: boolean) {
+function takenIn(pasted: Doc, first: LaidBlock, levels: number) {
 	const { source } = pasted;
 	const texts = [...pasted.layout.within(first.from, source.length)].filter(
 		(b) => b.text && b.from >= first.from && !titleOwner(pasted, b)
 	);
 	const paragraph = (b: LaidBlock) => factsOf(pasted, b).joins === 'text';
 	const [head, tail] = [texts[0], texts.at(-1)];
-	// At the caret's text start the first block under the levels taken keeps its own syntax (a
-	// list's marker, a heading's `#`, a quote's `>`); only a paragraph joins from its text.
-	const own = textStart ? openingBlock(pasted, first, levels) : undefined;
+	// The first block under the levels taken keeps its own syntax (a list's marker, a heading's `#`,
+	// a quote's `>`); only a paragraph joins from its text.
+	const own = openingBlock(pasted, first, levels);
 	const kept = own && !paragraph(own) ? own : undefined;
 	const start = kept?.from ?? head?.text?.from ?? first.from;
 	const joined = !kept && head && paragraph(head) ? lineEndBefore(source, start) : start;
@@ -1004,7 +1009,9 @@ function takenIn(pasted: Doc, first: LaidBlock, levels: number, textStart: boole
 	return {
 		before: source.slice(start, joined),
 		mid: source.slice(joined, end),
-		after: source.slice(end)
+		after: source.slice(end),
+		/** Where the first block keeps its syntax: whether it is a list. */
+		kept: kept && (factsOf(pasted, kept).lines === 'items' ? ('list' as const) : ('block' as const))
 	};
 }
 
