@@ -1072,6 +1072,20 @@ export function shownDelimiters(host: CheckHost, source: string): number {
 	return shown;
 }
 
+/** Whether `block`'s last line holds no Markdown text that text after a caret could join; an empty
+ *  container still takes text. */
+function endsWithoutText(read: Read, block: LaidBlock, host: CheckHost): boolean {
+	if (block.text) return host.facts(block.type).body !== 'markdown';
+	const { lines } = host.facts(block.type);
+	if ((lines === 'fenced' && linesOf(block)?.at(-1)?.own) || lines === 'rows') return true;
+	const parent = block.path.join();
+	const last = read.blocks
+		.filter((b) => b.path.slice(0, -1).join() === parent && b.path.length === block.path.length + 1)
+		.filter((b) => /\S/.test(read.source.slice(b.from, b.to)))
+		.at(-1);
+	return !!last && endsWithoutText(read, last, host);
+}
+
 function landedPaste(
 	read: Read,
 	at: number,
@@ -1090,9 +1104,9 @@ function landedPaste(
 	const last = tops.at(-1);
 	const lastJoins = !last || host.facts(last.type).joins !== 'never';
 	const after = !nothingVisibleAfter(read.source, at);
-	// A closing line (`:::`, `</details>`) holds no text: the text after the caret goes under it.
-	const fenced = !!last && host.facts(last.type).lines === 'fenced';
-	const closed = fenced && after && linesOf(last)?.at(-1)?.own === true;
+	// A last line with no text (a closing line, a code block or a table, at any depth) takes none:
+	// the text after the caret goes under it.
+	const closed = !!last && after && lastJoins && endsWithoutText(clip, last, host);
 	const lines = [...clip.source.split('\n'), ...(closed ? [''] : [])];
 	const variants = (write: (ls: string[]) => string) => [write(lines)];
 	const splice = (prefix: string, head: string) => (ls: string[]) =>

@@ -276,6 +276,15 @@ function enteredInText(
 ): Edit {
 	const bare = landedAt(doc, from, to, rest, seen);
 	const after = { ...readDoc(bare.source, doc.host, doc.mode), ending: doc.ending };
+	// Where the paste set the text after the caret on a line of its own, that line break is the
+	// clipboard's own, as mid-text anywhere outside a list, and the caret goes to that text.
+	const movedUnder =
+		!isBlankText(lineRest(doc.source, to)) && lineRest(bare.source, bare.caret) === '';
+	if (movedUnder)
+		return {
+			source: bare.source,
+			caret: pastMarkers(bare.source, lineEnd(bare.source, bare.caret) + 1)
+		};
 	const { source, caret } = pasteAt(after, bare.caret, bare.caret, LINE);
 	return { source, caret };
 }
@@ -606,9 +615,15 @@ function lastPasted(doc: Doc, leaf: LaidBlock, clip: string, plain: boolean): st
 	if (!taker) return last && !last.children?.length ? ended(last.raw) : null;
 	// A container the caret's containers take in leaves its last block one of theirs.
 	const around = containersHolding(doc, leaf.from);
-	for (let i = around.length - around.indexOf(taker); i > 0 && last; i--)
-		last = last.children?.findLast((b) => !isBlankText(b.raw));
+	last = lastWithin(last, around.length - around.indexOf(taker));
 	return last ? ended(last.raw) : null;
+}
+
+/** The last block `depth` levels into `node`, blank paragraphs aside. */
+function lastWithin(node: NodeView | undefined, depth: number): NodeView | undefined {
+	for (let i = 0; i < depth && node; i++)
+		node = node.children?.findLast((b) => !isBlankText(b.raw));
+	return node;
 }
 
 /** Plain text as `block` takes it: as written where its text is literal, escaped where it reads
@@ -787,8 +802,9 @@ function landed(
 	const last = tops.at(-1);
 	if (lineAfter || !first || (tops.length === 1 && isText(first))) return asText(clip);
 	const lastJoins = factsOf(pasted, last!).joins !== 'never';
-	// A closing line holds no text, so the text after the cut goes on a line of its own under it.
-	const lastTakes = lastJoins && !closedByOwnLine(pasted, last!);
+	// A last line with no text (a closing line, a code block, a table's, at any depth) takes none, so
+	// the text after the cut goes on a line of its own under it.
+	const lastTakes = lastJoins && !endsWithoutText(pasted, last!);
 	const lastRaw = nodeAt(pasted, last!.path).raw;
 	const joins = isText(first);
 	const left = joins
@@ -812,7 +828,19 @@ function landed(
 		const textStart = !/[^ \t>\r\n]/.test(doc.source.slice(leaf.text!.from, from));
 		const inner = takenIn(pasted, first, levels, textStart);
 		const behind = inner.after === '' ? lead : '';
-		const edit = around(cutWith(inner.before, inner.after, behind), inner.mid, keep);
+		const cut = cutWith(inner.before, inner.after, behind);
+		if (!follows || lastTakes) {
+			const edit = around(cut, inner.mid, keep);
+			return numberedAfterTaking(doc, taker, leaf.path[taker.path.length], edit);
+		}
+		// The text after the caret goes under what was taken in, behind the taken containers' markers,
+		// apart where its last block would read it in; the caret stays at that block's last line's end.
+		const taken = continuation(doc, from).slice(continuation(doc, from, keep).length);
+		const set = around(cut, inner.mid + '\n' + taken, keep);
+		const above = set.source.lastIndexOf('\n', set.caret - 1);
+		const lineEnd = set.source[above - 1] === '\r' ? above - 1 : above;
+		const under = lastWithin(nodeAt(pasted, last!.path), levels)?.raw ?? lastRaw;
+		const edit = restApart(doc, { ...set, caret: lineEnd }, leaf, to, cut, under);
 		return numberedAfterTaking(doc, taker, leaf.path[taker.path.length], edit);
 	}
 	// A clipboard opening with a line break or a paragraph joins the text before the caret; text
@@ -924,6 +952,17 @@ function landedWithout(
 	return { source, caret };
 }
 
+/** Whether the last line of `block` holds no Markdown text: it ends on a closing line, a code block
+ *  or a table, at any depth. An empty container still takes text. */
+function endsWithoutText(pasted: Doc, block: LaidBlock): boolean {
+	if (block.text) return factsOf(pasted, block).body !== 'markdown';
+	if (closedByOwnLine(pasted, block) || factsOf(pasted, block).lines === 'rows') return true;
+	const children = nodeAt(pasted, block.path).children ?? [];
+	const index = children.findLastIndex((c) => !isBlankText(c.raw));
+	const last = index < 0 ? undefined : pasted.layout.block([...block.path, index]);
+	return !!last && endsWithoutText(pasted, last);
+}
+
 /** Where the last line of the text `block` ends on starts, in a pasted block that is no paragraph;
  *  null where it ends on no Markdown text (a closing line, a code block). */
 function lastLineOf(pasted: Doc, block: LaidBlock): number | null {
@@ -1005,9 +1044,10 @@ function blocksOpened(
 	const tops = read.tree.children.flatMap((b, i) => (isBlankText(b.raw) ? [] : [i]));
 	const last = tops.length ? read.layout.block([tops.at(-1)!]) : undefined;
 	const joins = last && factsOf(read, last).joins;
-	// One paragraph landed as text, whose ending opened its line already; a closing line takes none.
+	// One paragraph landed as text, whose ending opened its line already; a last line with no text
+	// (a closing line, a code block) takes none.
 	if (!joins || joins === 'never' || (tops.length === 1 && joins === 'text')) return edit;
-	return closedByOwnLine(read, last!) ? edit : ownLine(doc, to, edit);
+	return endsWithoutText(read, last!) ? edit : ownLine(doc, to, edit);
 }
 
 /** `edit`, whose last line ending opened the caret's line at a container's last block, with the
