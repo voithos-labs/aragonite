@@ -764,7 +764,9 @@ function landed(
 		const shaped = shown ? doc.host.leaf.typed(doc.tree, leaf.path, own, caret) : null;
 		if (shaped && shaped.bytes !== own)
 			return writtenText(doc, leaf, shaped, target.from, target.to);
-		return { ...bytes(clip, indent), leaf: { path: leaf.path, raw: own, caret } };
+		// A fence's blank last line is still its code's, so it keeps the markers it stands behind.
+		const written = insertBytes(doc, from, to, clip, indent, fence ? true : undefined);
+		return { ...written, leaf: { path: leaf.path, raw: own, caret } };
 	}
 	// Every landing below that sets a block boundary in the block's text asks for the cut once.
 	const cutWith = (before: string, after: string, lead = '') =>
@@ -1146,8 +1148,15 @@ function markersTrimmed(doc: Doc, at: number, edit: Edit): Edit {
 
 /** Bytes going in over `[from, to)` as written, each later line behind the markers there and
  *  `indent`. */
-function insertBytes(doc: Doc, from: number, to: number, text: string, indent = ''): Edit {
-	const lines = spliced(doc, from, to, undefined, indent)(text);
+function insertBytes(
+	doc: Doc,
+	from: number,
+	to: number,
+	text: string,
+	indent = '',
+	follows?: boolean
+): Edit {
+	const lines = spliced(doc, from, to, undefined, indent, follows)(text);
 	return {
 		source: doc.source.slice(0, from) + lines + doc.source.slice(to),
 		caret: from + lines.length

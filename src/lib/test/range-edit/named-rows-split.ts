@@ -1005,11 +1005,12 @@ const LIST_ENDING_ROWS: NamedRow[] = [
 		'- [ ] aq\n- r\n- [ ] b\n'
 	),
 	// Miss-analysis: the HTML laws at a fresh seed found it; no row ended an item in literal text.
+	// The ending's line keeps the item's indent, which keeps it a line of the code.
 	...both(
 		'in literal text that ends an item the ending is a line of that text',
 		'- ```\n  co⟦⟧',
 		paste('- x\n- y\n'),
-		'- ```\n  co- x\n  - y\n'
+		'- ```\n  co- x\n  - y\n  \n'
 	)
 ];
 

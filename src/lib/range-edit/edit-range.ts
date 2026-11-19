@@ -110,8 +110,8 @@ export function editRange(
 		if (!opensLastLine(doc, from, to, at, text)) return null;
 		const closed = editRange(source + doc.ending, range, gesture, mode, host);
 		const last = (body: string) => lastLineOf(readDoc(body, host, mode));
-		// Literal text takes the ending as a line of its own only where that line stays the text's.
-		if (literalAt(doc, from, to, at) && last(closed.source) !== 'literal') return null;
+		// Literal text recloses where the line left last is the code's or blank: never over one with text.
+		if (literalAt(doc, from, to, at) && last(closed.source) === 'text') return null;
 		return reopened(closed, doc.ending, last);
 	};
 	if ('paste' in gesture) {

@@ -98,6 +98,50 @@ const ROWS: [string, string, string, PresentationMode[], string, string][] = [
 		'alpha\n\nx\n===\n\n\n',
 		'alpha\n\nx\n===\n\nZ\n'
 	],
+	// A fence in an item: the new code line keeps the item's indent, which keeps it the code's.
+	// Miss-analysis: every literal row stood at the top level, where a bare blank line is the code's.
+	[
+		'a fence in an item',
+		'- ```\n  co‸',
+		'\n',
+		['source', 'live'],
+		'- ```\n  co\n  \n',
+		'- ```\n  co\n  Z\n'
+	],
+	[
+		'text in a fence in an item',
+		'- ```\n  co‸',
+		'x\n',
+		['source', 'live'],
+		'- ```\n  cox\n  \n',
+		'- ```\n  cox\n  Z\n'
+	],
+	// Code with no fence, and HTML, hold no blank last line: the ending leaves them, as Enter does.
+	[
+		'an indented code block',
+		'alpha\n\n    code‸',
+		'\n',
+		['source', 'live'],
+		'alpha\n\n    code\n\n\n',
+		'alpha\n\n    code\n\nZ\n'
+	],
+	[
+		'text in an indented code block',
+		'alpha\n\n    code‸',
+		'x\n',
+		['source', 'live'],
+		'alpha\n\n    codex\n\n\n',
+		'alpha\n\n    codex\n\nZ\n'
+	],
+	['an HTML block', '<div>\nx‸', 'x\n', ['source'], '<div>\nxx\n\n\n', '<div>\nxx\n\nZ\n'],
+	[
+		'an indented code block in an item',
+		'- a\n\n      code‸',
+		'\n',
+		['source', 'live'],
+		'- a\n\n      code\n\n\n',
+		'- a\n\n      code\n\nZ\n'
+	],
 	// The controls: mid-code, and a paragraph's open end.
 	[
 		'mid-code',
