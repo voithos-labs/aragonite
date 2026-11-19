@@ -37,6 +37,7 @@ import {
 	startsLaterLine,
 	opensWithoutClosing,
 	leavesFencedContainer,
+	bodyOpenedAt,
 	mixedEndings,
 	plainPasteHolds,
 	readOf,
@@ -604,6 +605,8 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 	if (input.mode === 'live' && /[*_`~[\]<]/.test(input.text)) return [];
 	const got = call(input.source, caretRange(input.at), paste(input.text, input.held), input.mode);
 	if (!got) return [];
+	const opened = onOpenedBody(call, host, input, got, false, pasteAtCaret);
+	if (opened) return opened;
 	const text = blankTail(read, input.at, input.text, host);
 	if (text !== input.text) return pasteAtCaret(call, host, { ...input, text });
 	// A pasted line that could close a fenced container around the caret stays inside it, whatever
@@ -707,6 +710,26 @@ function asClosed(call: Call, host: CheckHost, input: CaretInput, got: Result): 
 	);
 	if (!closed || ![got.source, got.source + eolOf(source)].includes(closed.source)) return false;
 	return pasteAtCaret(call, host, ended).length === 0;
+}
+
+/** At an alert's marker line over its empty body block (`bodyOpenedAt`): the paste is the paste on
+ *  the body line a typed letter opens, and `law` holds that document; null anywhere else. */
+function onOpenedBody(
+	call: Call,
+	host: CheckHost,
+	input: CaretInput,
+	got: Result,
+	plain: boolean,
+	law: (call: Call, host: CheckHost, input: CaretInput) => string[]
+): string[] | null {
+	const opened = bodyOpenedAt(readOf(host, input.source), input.at, host);
+	if (!opened) return null;
+	const gesture = { paste: input.text, plain, ...input.held };
+	const there = call(opened.source, caretRange(opened.at), gesture, input.mode);
+	if (!there) return [];
+	const want = opened.open ? there.source.replace(/\r?\n$/, '') : there.source;
+	if (want !== got.source) return [`L9 at a marker line gave ${q(got.source)}, not ${q(want)}`];
+	return law(call, host, { ...input, source: opened.source, at: opened.at });
 }
 
 /** Whether `line` holds container markers alone. */
@@ -988,6 +1011,8 @@ export function plainPaste(call: Call, host: CheckHost, input: CaretInput): stri
 		input.mode
 	);
 	if (!got) return [];
+	const opened = onOpenedBody(call, host, input, got, true, plainPaste);
+	if (opened) return opened;
 	const read = readOf(host, input.source);
 	if (plainPasteHolds(read, input.at, input.text, got.source, host, input.mode)) return [];
 	const escaped = host.escaped(lf(input.text));

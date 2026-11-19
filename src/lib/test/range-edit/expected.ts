@@ -300,6 +300,32 @@ export function copiesLinesBeforeRange(
 	});
 }
 
+/** A caret on an alert's `[!NOTE]` line, in its empty body block: the document with the body line
+ *  a typed letter there opens, the caret on it, which the laws read a paste there on. */
+export function bodyOpenedAt(
+	read: Read,
+	at: number,
+	host: CheckHost
+): { source: string; at: number; open: string } | null {
+	const leaf = leafAt(read, at);
+	if (!leaf || /\S/.test(read.source.slice(leaf.from, leaf.to))) return null;
+	const parent = read.blocks.find((b) => b.path.join() === leaf.path.slice(0, -1).join());
+	if (!parent || host.facts(parent.type).lines !== 'every-line') return null;
+	const line = linesOf(parent)?.find((l) => l.from <= at && at < l.to);
+	const marker = /^[ \t>]*/.exec(read.source.slice(parent.from))![0];
+	const ownEnd = parent.from + marker.length;
+	if (!line?.own || !/\S/.test(read.source.slice(ownEnd, at))) return null;
+	const eol = endingOf(read.source);
+	const lineEnd = read.source.indexOf('\n', at);
+	const end = lineEnd < 0 ? read.source.length : lineContentEnd(read.source, lineEnd + 1);
+	const outside = continuationAt(read, at, host, (c) => c.path.join() !== parent.path.join());
+	const body = eol + outside + marker.trimEnd();
+	// A file's open last line is read closed, as the core reads it, then opened again.
+	const open = end === read.source.length ? eol : '';
+	const source = read.source.slice(0, end) + body + open + read.source.slice(end);
+	return { source, at: end + body.length, open };
+}
+
 /** Law 3's first declared exception: a range that takes the line a fenced block opens with (a
  *  table's header) and ends inside it, whose opening a plain-text paste can't rebuild. */
 export function opensWithoutClosing(

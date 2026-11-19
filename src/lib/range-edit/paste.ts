@@ -81,6 +81,8 @@ export function pasteAt(doc: Doc, from: number, to: number, pasted: Pasted): Edi
 	const seen: { blocks?: Doc } = {};
 	const text = asPasted(doc, from, to, pasted.text);
 	const once = { ...pasted, text, transform: ranOnce(pasted.transform) };
+	const opened = bodyOpened(doc, from, to, once);
+	if (opened) return opened;
 	const led = leadEntered(doc, from, to, once);
 	if (led) return led;
 	const edit = entered(doc, from, to, once, seen) ?? landedAt(doc, from, to, once, seen);
@@ -123,6 +125,37 @@ function leadEntered(doc: Doc, from: number, to: number, pasted: Pasted): Edit |
 	const block = deepestAt(now, edit.caret);
 	const at = block?.text && edit.caret < block.text.from ? block.text.from : edit.caret;
 	return pasteAt(now, at, at, { ...pasted, text: rest });
+}
+
+/** A caret in an empty block that sits on its container's own line (an alert's marker line with
+ *  no line under it) pastes on the body line a typed letter opens there; null anywhere else. */
+function bodyOpened(doc: Doc, from: number, to: number, pasted: Pasted): Edit | null {
+	const leaf =
+		from === to && pasted.held.holds === 'text' ? leafHolding(doc, from, to)?.leaf : null;
+	const parent = leaf && parentOf(doc, leaf);
+	const marked = parent && factsOf(doc, parent).lines === 'every-line';
+	const ownEnd = parent ? pastMarkers(doc.source, parent.from) : 0;
+	// The caret's line is the container's own and holds more than its marker (`[!NOTE]`).
+	const titled = marked && parent.lineAt!(from).own && !isBlankText(doc.source.slice(ownEnd, from));
+	if (!titled || !isBlankText(nodeAt(doc, leaf!.path).raw)) return null;
+	// The body line takes the markers of the containers outside, then the container's own, bare.
+	const outside = continuation(doc, from, (c) => c !== parent);
+	const own = doc.source.slice(parent.from, ownEnd).trimEnd();
+	const end = lineEndBefore(doc.source, from);
+	const body = doc.ending + outside + own;
+	// A file's open last line is read as the line it opens once that line is closed, then opened again.
+	const open = end === doc.source.length ? doc.ending : '';
+	const source = doc.source.slice(0, end) + body + open + doc.source.slice(end);
+	const at = end + body.length;
+	const edit = pasteAt(
+		{ ...readDoc(source, doc.host, doc.mode), ending: doc.ending },
+		at,
+		at,
+		pasted
+	);
+	if (!open || !edit.source.endsWith(open)) return edit;
+	const kept = edit.source.slice(0, -open.length);
+	return { ...edit, source: kept, caret: Math.min(edit.caret, kept.length), leaf: undefined };
 }
 
 /** One line ending pasted as text, by a gesture that runs no transform. */
