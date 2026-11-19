@@ -217,7 +217,7 @@ function entered(
 	const first =
 		host && isBlankText(text)
 			? enteredAgain(doc, landedAt(doc, from, to, bare, seen))
-			: host || endsOnList(doc, text)
+			: host || endsOnList(doc, from, text)
 				? enteredInList(doc, from, to, bare, host, seen)
 				: endsTakenIn(doc, from, text)
 					? enteredInText(doc, from, to, bare, seen)
@@ -383,12 +383,25 @@ function endsOpen(read: Doc): boolean {
 	return !!raw && read.host.fence(raw)?.closer === null;
 }
 
-/** Whether the clipboard's last block is a list. */
-function endsOnList(doc: Doc, text: string): boolean {
-	const read = readDoc(text, doc.host, doc.mode);
-	const index = read.tree.children.findLastIndex((b) => !isBlankText(b.raw));
-	const last = index < 0 ? undefined : read.layout.block([index]);
-	return !!last && factsOf(read, last).lines === 'items';
+/** Whether the last block the clipboard lands as at `at` is a list. */
+function endsOnList(doc: Doc, at: number, text: string): boolean {
+	const last = landingBlocks(doc, at, readDoc(text, doc.host, doc.mode)).at(-1);
+	return !!last && doc.host.facts(last.kind).lines === 'items';
+}
+
+/** The blocks the clipboard `read` lands as at `at`, blank paragraphs aside: its own, or where it is
+ *  one quote-like container the caret's takes in, the blocks that container holds. */
+function landingBlocks(doc: Doc, at: number, read: Doc): NodeView[] {
+	const tops = read.tree.children.filter((b) => !isBlankText(b.raw));
+	const index = tops.length === 1 ? read.tree.children.indexOf(tops[0]) : -1;
+	const first = index < 0 ? undefined : read.layout.block([index]);
+	const taker = first?.container ? takerOf(doc, at, read, first) : null;
+	if (!taker || factsOf(doc, taker).lines === 'items') return tops;
+	const holding = containersHolding(doc, at);
+	let node: NodeView | undefined = tops[0];
+	for (let i = 1; i < holding.length - holding.indexOf(taker) && node; i++)
+		node = node.children?.find((b) => !isBlankText(b.raw));
+	return (node?.children ?? []).filter((b) => !isBlankText(b.raw));
 }
 
 /** `pasteAt`, noting in `seen` the clipboard as blocks where the landing read it so; then each list
@@ -622,7 +635,7 @@ function linesWritten(edit: Edit, start: number, raw: string, written: string): 
 /** `edit` with the list `pasted` ends on joined, as items, to `lower`, a list of its own type flush
  *  under the caret's line: the empty line between the two goes. */
 function joinedBelow(doc: Doc, lower: LaidBlock, edit: Edit, pasted: Doc): Edit {
-	const last = pasted.tree.children.findLast((b) => !isBlankText(b.raw));
+	const last = landingBlocks(doc, lower.from, pasted).at(-1);
 	if (!joinsList(doc, lower, last)) return edit;
 	const { source } = edit;
 	const line = lineStart(doc, lower.from) + source.length - doc.source.length;
@@ -635,7 +648,7 @@ function joinedBelow(doc: Doc, lower: LaidBlock, edit: Edit, pasted: Doc): Edit 
 /** `edit`, a paste into the empty paragraph `leaf`, with the list `pasted` opens with joined to a
  *  list of its own type over it: the blank line between the two goes. */
 function joinedAbove(doc: Doc, leaf: LaidBlock, edit: Edit, pasted: Doc): Edit {
-	const first = pasted.tree.children.find((b) => !isBlankText(b.raw));
+	const first = landingBlocks(doc, leaf.from, pasted)[0];
 	const upper = doc.layout.block([...leaf.path.slice(0, -1), leaf.path.at(-1)! - 1]);
 	// A paste that joined no list is the landing as it stood, the block it names with it.
 	if (!upper || !joinsList(doc, upper, first)) return edit;
@@ -883,7 +896,9 @@ function landed(
 		const textBefore = /[^ \t>\r\n]/.test(doc.source.slice(leaf.text!.from, from));
 		const sublist = inner.kept === 'list' && factsOf(doc, taker).lines === 'items';
 		const blank = sublist ? '' : '\n' + taken.trimEnd();
-		const mid = inner.kept && textBefore ? blank + '\n' + taken + inner.mid : inner.mid;
+		// The line a last line ending opens stays the taker's, behind its markers.
+		const ended = inner.after === '' && /\n$/.test(inner.mid) ? taken.trimEnd() : '';
+		const mid = (inner.kept && textBefore ? blank + '\n' + taken : '') + inner.mid + ended;
 		if (!follows || lastTakes) {
 			const edit = around(cut, mid, keep);
 			return numberedAfterTaking(doc, taker, leaf.path[taker.path.length], edit);

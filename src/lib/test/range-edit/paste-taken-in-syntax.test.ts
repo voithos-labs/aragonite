@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
-// A container the caret's container takes in brings its content, and at the caret's text start
-// the content's first block keeps its own syntax: a list its marker, a heading its `#`, a nested
-// quote its `>`. Only a paragraph joins from its text. An item has no marker on a blank line of its
+// A container the caret's container takes in brings its content, and the content's first block
+// keeps its own syntax: a list its marker, a heading its `#`, a nested quote its `>`. Only a paragraph joins from its text. An item has no marker on a blank line of its
 // own under its first line, so a list pasted there keeps its own and stands nested, as typing it does.
 // Miss-analysis: the taken-in rows pasted quotes of paragraphs, and the list-into-list rows put the
 // caret on an item's first line, so no row took in a container whose first block was no paragraph.
@@ -84,3 +83,26 @@ for (const mode of ['source', 'live'] as const)
 		const marked = '- a\n\n  ‸\n\n  b\n';
 		expect(await put(marked, mode, '- l')).toBe(await put(marked, mode, '- l', true));
 	});
+
+// Miss-analysis: the taken-in rows pasted no ending, so none asked whose line the ending opens.
+// With its ending the list lands as the list alone does (a quote paragraph, or its next item).
+const ENDED: [name: string, marked: string][] = [
+	['a bare quote line', '> a\n>\n>‸\n> b\n'],
+	['the quote’s last line', '> a\n>\n> ‸\n'],
+	['under a list of the quote', '> - x\n>\n> ‸\n> b\n'],
+	['in a list of the quote', '> - a‸\n> - c\n']
+];
+
+for (const mode of ['source', 'live'] as const)
+	for (const [name, marked] of ENDED)
+		for (const list of ['- l', '- l\n- m'])
+			it(`${mode}: a quote of ${JSON.stringify(list)} with its ending at ${name} lands as the list`, async () => {
+				const quoted = list.replace(/^/gm, '> ');
+				expect(await put(marked, mode, `${quoted}\n`)).toBe(await put(marked, mode, `${list}\n`));
+			});
+
+it('a quote of a list with its ending on a quote line opens a paragraph of the quote', async () => {
+	expect(await put('> a\n>\n>‸\n> b\n', 'source', '> - l\n')).toBe(
+		'> a\n>\n> - l\n>\n> Z\n>\n> b\n'
+	);
+});
