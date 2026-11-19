@@ -445,7 +445,9 @@ function oneWrite(
 		// In an item there the ending is Enter's next item, an empty last line that keeps its break.
 		const itemAtOpenEnd =
 			open && /\n$/.test(mid) && lines(mid) === lines(text) + 1 && inItemText(read, from, host);
-		if (lines(mid) !== lines(text) && !opened && !atOpenEnd && !itemAtOpenEnd)
+		// Over code a line of only spaces is an empty line, and what lands there keeps a blank line.
+		const overCode = extra === 1 && /\n$/.test(lf(mid)) && spacesOverCode(read, block, host);
+		if (lines(mid) !== lines(text) && !opened && !atOpenEnd && !itemAtOpenEnd && !overCode)
 			return [`L5 paste over text in one block added a line: ${q(over.source)}`];
 	}
 	if (then && sameAfterCut(then.source, over.source, source, cut.source)) return [];
@@ -710,6 +712,14 @@ function asClosed(call: Call, host: CheckHost, input: CaretInput, got: Result): 
 	);
 	if (!closed || ![got.source, got.source + eolOf(source)].includes(closed.source)) return false;
 	return pasteAtCaret(call, host, ended).length === 0;
+}
+
+/** Whether `block` is a paragraph of only spaces right over an indented code block. */
+function spacesOverCode(read: Read, block: LaidBlock, host: CheckHost): boolean {
+	if (/\S/.test(read.source.slice(block.from, block.to))) return false;
+	const sibling = [...block.path.slice(0, -1), block.path.at(-1)! + 1].join();
+	const next = read.blocks.find((b) => b.path.join() === sibling);
+	return !!next && host.facts(next.type).body === 'literal' && host.facts(next.type).holdsLines;
 }
 
 /** At an alert's marker line over its empty body block (`bodyOpenedAt`): the paste is the paste on

@@ -445,23 +445,34 @@ function bytesLanded(
 	}
 	const written = landed(doc, from, to, lf, plain, blocks, pasted.ended === true);
 	if (!leaf) return written;
-	const empty = /^\r?\n?$/.test(nodeAt(doc, leaf.path).raw);
+	const own = nodeAt(doc, leaf.path).raw;
+	const empty = /^\r?\n?$/.test(own);
 	const landing = empty ? markerSpaced(doc, leaf, written) : written;
 	const lower = doc.layout.block([...leaf.path.slice(0, -1), leaf.path.at(-1)! + 1]);
 	const flush = lower && lower.from <= pastMarkers(doc.source, leaf.to) ? lower : undefined;
 	const joined = read && !plain && flush ? joinedBelow(doc, flush, landing, read) : landing;
-	// What lands in an empty paragraph, its line ending alone, stays apart from the block under it.
-	if (!empty) return blocksOpened(doc, leaf, to, lf, read, joined);
+	// What lands on an empty line stays apart from the block under it, where the two would read as one.
+	const setApart = (edit: Edit): Edit => {
+		const raw = flush ? lastPasted(doc, leaf, read?.source ?? lf, plain) : null;
+		if (!lower || raw === null) return edit;
+		const below = leaf.to + edit.source.length - doc.source.length;
+		const join = { from, to, upper: leaf, lower, rewritten: { upper: { block: leaf, raw } } };
+		return { source: apartAt(doc, edit.source, below, join, true), caret: edit.caret };
+	};
+	if (!empty) {
+		const opened = blocksOpened(doc, leaf, to, lf, read, joined);
+		// Over code a line of only spaces is an empty line too, which a reload would read the code into.
+		const code = flush && factsOf(doc, flush);
+		const overCode = isBlankText(own) && !!code && code.body === 'literal' && code.holdsLines;
+		return overCode && opened === joined ? setApart(opened) : opened;
+	}
 	if (titleOwner(doc, leaf) || factsOf(doc, leaf).joins !== 'text') return landing;
 	const edit = read && !plain ? joinedAbove(doc, leaf, joined, read) : landing;
 	const below = leaf.to + edit.source.length - doc.source.length;
 	const row = flush && !pasted.inPlace && isBlankText(nodeAt(doc, flush.path).raw);
 	if (row && !(read && endsOpen(read)))
 		return rowKept(doc, leaf, edit, below, plain || !read || endsOnText(read));
-	const raw = flush ? lastPasted(doc, leaf, read?.source ?? lf, plain) : null;
-	if (!lower || raw === null) return edit;
-	const join = { from, to, upper: leaf, lower, rewritten: { upper: { block: leaf, raw } } };
-	return { source: apartAt(doc, edit.source, below, join, true), caret: edit.caret };
+	return setApart(edit);
 }
 
 /** `edit`, a paste into the empty paragraph `leaf`: a bare marker in front of text it put on the

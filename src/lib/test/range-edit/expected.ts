@@ -847,8 +847,14 @@ export function apartBelow(
 	pastedContainer = false
 ): string[] {
 	const target = leafAt(read, at);
-	const empty = !!target && /^\r?\n?$/.test(treeNodeAt(read.tree, target.path)?.raw ?? '-');
-	if (target?.type !== 'paragraph' || !empty || inTitleRow(read, at, host)) return [bytes];
+	const raw = target ? (treeNodeAt(read.tree, target.path)?.raw ?? '-') : '-';
+	// Over code a line of only spaces is an empty line too.
+	const overCode = (next: LaidBlock) =>
+		/^[ \t]*\r?\n?$/.test(raw) &&
+		host.facts(next.type).body === 'literal' &&
+		host.facts(next.type).holdsLines;
+	const empty = /^\r?\n?$/.test(raw);
+	if (target?.type !== 'paragraph' || inTitleRow(read, at, host)) return [bytes];
 	// A pasted container the caret's container takes in is that block's own, set apart from nothing.
 	if (pastedContainer) return [bytes];
 	const lineEnd = read.source.indexOf('\n', target.to);
@@ -857,7 +863,7 @@ export function apartBelow(
 	const textStart = target.to + /^[ \t>]*/.exec(lineBelow)![0].length;
 	const sibling = [...target.path.slice(0, -1), target.path.at(-1)! + 1].join();
 	const next = read.blocks.find((b) => b.path.join() === sibling && b.from <= textStart);
-	if (!next) return [bytes];
+	if (!next || !(empty || overCode(next))) return [bytes];
 	const shift = bytes.length - read.source.length;
 	const line = target.to + shift;
 	const marks = read.source.slice(target.to, next.from).trimEnd() + endingOf(read.source);
