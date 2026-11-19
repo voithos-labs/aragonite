@@ -136,10 +136,9 @@ function bodyOpened(doc: Doc, from: number, to: number, pasted: Pasted): Edit | 
 	const parent = leaf && parentOf(doc, leaf);
 	const marked = parent && factsOf(doc, parent).lines === 'every-line';
 	const ownEnd = parent ? pastMarkers(doc.source, parent.from) : 0;
-	// The caret's line is the container's own and holds more than its markers (`[!NOTE]`).
-	const lineText = pastMarkers(doc.source, from - lineHead(doc.source, from).length);
-	const titled =
-		marked && parent.lineAt!(from).own && !isBlankText(doc.source.slice(lineText, from));
+	// The caret's line is the one the container starts on, holding more than its marker (`[!NOTE]`).
+	const first = !!parent && from - lineHead(doc.source, from).length <= parent.from;
+	const titled = marked && first && !isBlankText(doc.source.slice(ownEnd, from));
 	if (!titled || !isBlankText(nodeAt(doc, leaf!.path).raw)) return null;
 	// The body line takes the markers of the containers outside, then the container's own, bare.
 	const outside = continuation(doc, from, (c) => c !== parent);

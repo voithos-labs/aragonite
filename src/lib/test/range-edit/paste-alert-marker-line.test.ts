@@ -100,6 +100,10 @@ const ROWS: [name: string, marked: string, clip: string, pasted: string, typed: 
 		'> [!NOTE]\n   > x',
 		'> [!NOTE]\n   > xZ'
 	],
+	// Miss-analysis: every quote row ended its file on a line break; at an open end the line's
+	// own text was read from the line's start, so an item's marker passed for an alert's title.
+	['text in an item’s empty quote at an open end', '- > ‸', 'x', '- > x', '- > xZ'],
+	['text in an empty quote two deep at an open end', '> - > ‸', 'x', '> - > x', '> - > xZ'],
 	[
 		'text in an item',
 		'- > [!NOTE]‸\n- b\n',

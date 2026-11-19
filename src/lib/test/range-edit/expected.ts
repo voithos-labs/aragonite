@@ -311,11 +311,11 @@ export function bodyOpenedAt(
 	if (!leaf || /\S/.test(read.source.slice(leaf.from, leaf.to))) return null;
 	const parent = read.blocks.find((b) => b.path.join() === leaf.path.slice(0, -1).join());
 	if (!parent || host.facts(parent.type).lines !== 'every-line') return null;
-	const line = linesOf(parent)?.find((l) => l.from <= at && at < l.to);
 	const marker = /^[ \t>]*/.exec(read.source.slice(parent.from))![0];
 	const lineStart = read.source.lastIndexOf('\n', at - 1) + 1;
-	const textFrom = lineStart + /^[ \t>]*/.exec(read.source.slice(lineStart))![0].length;
-	if (!line?.own || !/\S/.test(read.source.slice(textFrom, at))) return null;
+	// The caret's line is the one the container starts on, holding more than its marker.
+	const ownText = read.source.slice(parent.from + marker.length, at);
+	if (lineStart > parent.from || !/\S/.test(ownText)) return null;
 	const eol = endingOf(read.source);
 	const lineEnd = read.source.indexOf('\n', at);
 	const end = lineEnd < 0 ? read.source.length : lineContentEnd(read.source, lineEnd + 1);
@@ -354,7 +354,7 @@ export function leavesFencedContainer(
 	return read.blocks.some((b) => {
 		const lines = host.facts(b.type).lines === 'fenced' ? linesOf(b) : undefined;
 		const closing = lines && lines.length > 1 ? lines.at(-1)! : undefined;
-		if (!closing?.own || to <= closing.from) return false;
+		if (!closing?.own || to <= closing.from || from <= b.from) return false;
 		return lines!.some((line) => !line.own && line.from <= from && from < line.to);
 	});
 }
@@ -893,6 +893,15 @@ function rowKeptBelow(read: Read, at: number, bytes: string, clip: string, host:
 	);
 }
 
+/** Whether `block` is a paragraph of only spaces right over literal text that holds lines: over
+ *  code such a line is an empty line too. */
+export function spacesOverCode(read: Read, block: LaidBlock, host: CheckHost): boolean {
+	if (/\S/.test(read.source.slice(block.from, block.to))) return false;
+	const sibling = [...block.path.slice(0, -1), block.path.at(-1)! + 1].join();
+	const next = read.blocks.find((b) => b.path.join() === sibling);
+	return !!next && host.facts(next.type).body === 'literal' && host.facts(next.type).holdsLines;
+}
+
 /** `bytes`, or `bytes` with a blank line over the block flush under an empty paragraph the paste
  *  landed in: required where only that keeps the block starting its line. */
 export function apartBelow(
@@ -904,11 +913,6 @@ export function apartBelow(
 ): string[] {
 	const target = leafAt(read, at);
 	const raw = target ? (treeNodeAt(read.tree, target.path)?.raw ?? '-') : '-';
-	// Over code a line of only spaces is an empty line too.
-	const overCode = (next: LaidBlock) =>
-		/^[ \t]*\r?\n?$/.test(raw) &&
-		host.facts(next.type).body === 'literal' &&
-		host.facts(next.type).holdsLines;
 	const empty = /^\r?\n?$/.test(raw);
 	if (target?.type !== 'paragraph' || inTitleRow(read, at, host)) return [bytes];
 	// A pasted container that stands as a block of its own is set apart from nothing.
@@ -919,7 +923,7 @@ export function apartBelow(
 	const textStart = target.to + /^[ \t>]*/.exec(lineBelow)![0].length;
 	const sibling = [...target.path.slice(0, -1), target.path.at(-1)! + 1].join();
 	const next = read.blocks.find((b) => b.path.join() === sibling && b.from <= textStart);
-	if (!next || !(empty || overCode(next))) return [bytes];
+	if (!next || !(empty || spacesOverCode(read, target, host))) return [bytes];
 	const shift = bytes.length - read.source.length;
 	const line = target.to + shift;
 	const marks = read.source.slice(target.to, next.from).trimEnd() + endingOf(read.source);

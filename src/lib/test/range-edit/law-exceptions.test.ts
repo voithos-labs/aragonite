@@ -13,7 +13,7 @@
 import { describe, expect, it } from 'vitest';
 import { editRange, type Gesture } from '#lib/range-edit/edit-range.js';
 import type { Mode } from '#lib/range-edit/host.js';
-import { cutPasteBack, pasteAtCaret, replaceLaws, type Call } from './laws';
+import { cutPasteBack, pasteAtCaret, plainPaste, replaceLaws, type Call } from './laws';
 import { checkHost } from './test-host';
 
 const marked = (text: string, mode: Mode = 'source') => ({
@@ -67,6 +67,25 @@ describe('law 3', () => {
 		const outside = marked('> x⟦ y⟧ z\n> word\n', 'live');
 		expect(cutPasteBack(real, host, outside)).toEqual([]);
 		expect(cutPasteBack(fake, host, outside)).not.toEqual([]);
+	});
+
+	// Miss-analysis: a `:::` container's opening line is its title row, no line of its own, so the
+	// exception took a container cut whole for one left from its body, and no row stood beside it.
+	it('is silent on a range from a fenced container’s body out past its closing line', () => {
+		const { host, real, fake } = calls('zzz\n');
+		for (const shape of [':::note\n⟦X\n:::⟧\n', ':::note\nX⟦\n:::\n\nafter⟧\n']) {
+			const declared = marked(shape);
+			expect(cutPasteBack(fake, host, declared)).toEqual([]);
+			const cut = real(declared.source, declared.range, 'cut', 'source')!;
+			const at = { from: cut.caret.at, to: cut.caret.at };
+			const back = real(cut.source, at, paste(cut.clipboard!), 'source')!;
+			expect(back.source).not.toBe(declared.source);
+		}
+		// Held whole from its first byte, plain text carries the container back.
+		for (const whole of ['⟦:::note\nX\n:::\n⟧after\n', 'a\n\n⟦:::note\nX\n:::\n⟧\nb\n']) {
+			expect(cutPasteBack(real, host, marked(whole))).toEqual([]);
+			expect(cutPasteBack(fake, host, marked(whole))).not.toEqual([]);
+		}
 	});
 });
 
@@ -134,6 +153,56 @@ describe('law 5', () => {
 		expect(l5(replaceLaws(fake, host, inside, 'one\n\ntwo'))).not.toEqual([]);
 		const beside = marked('a <http://xy.z> ⟦w⟧ v\n', 'live');
 		expect(l5(replaceLaws(fake, host, beside, 'one\n\ntwo'))).not.toEqual([]);
+	});
+
+	// Miss-analysis: the allowance for a blank line over code asked only what stood under the line of
+	// spaces, so it also passed one written inside the code where the spaces make the text a code line.
+	it('lets text over a line of spaces above code keep a blank line, and none inside the code', () => {
+		const { host, real } = calls('', true);
+		const above = marked(' ⟦ ⟧\n    code\n');
+		expect(real(above.source, above.range, paste('x'), 'source')!.source).toBe(' x\n\n    code\n');
+		expect(l5(replaceLaws(real, host, above, 'x'))).toEqual([]);
+		const inCode = marked('    ⟦ ⟧\n    code\n');
+		expect(real(inCode.source, inCode.range, paste('x'), 'source')!.source).toBe(
+			'    x\n    code\n'
+		);
+		expect(l5(replaceLaws(real, host, inCode, 'x'))).toEqual([]);
+		const lined = calls('    x\n\n    code\n', true);
+		expect(l5(replaceLaws(lined.fake, lined.host, inCode, 'x'))).not.toEqual([]);
+	});
+});
+
+// Miss-analysis: the oracle found the alert's own line by a byte inside it, which the end of a file
+// with no last line break is not, so laws 9 and 11 redded the core's right answer there.
+describe('laws 9 and 11 at an alert’s marker line with no body line under it', () => {
+	const at = (text: string, pasted = 'x') => ({
+		source: text.replace('‸', ''),
+		mode: 'source' as const,
+		at: text.indexOf('‸'),
+		held: { holds: 'text' as const },
+		text: pasted
+	});
+
+	it.each([
+		['in a closed file', '> [!NOTE]‸\n', '> [!NOTE]\n> x\n', '> [!NOTE]x\n'],
+		['at an open file’s end', '> [!NOTE]‸', '> [!NOTE]\n> x', '> [!NOTE]x']
+	])('hold the paste to the body line a typed letter opens, %s', (_name, text, bytes, wrong) => {
+		const { host, real } = calls('');
+		const input = at(text);
+		const caret = { from: input.at, to: input.at };
+		expect(real(input.source, caret, paste('x'), 'source')!.source).toBe(bytes);
+		expect(pasteAtCaret(real, host, input)).toEqual([]);
+		expect(plainPaste(real, host, input)).toEqual([]);
+		const onMarkerLine = calls(wrong);
+		expect(pasteAtCaret(onMarkerLine.fake, onMarkerLine.host, input)).not.toEqual([]);
+		expect(plainPaste(onMarkerLine.fake, onMarkerLine.host, input)).not.toEqual([]);
+	});
+
+	it('judge a caret over a body line by the byte it is given', () => {
+		const { host, real, fake } = calls('zzz\n');
+		const over = at('> [!NOTE]\n> ‸body\n');
+		expect(pasteAtCaret(real, host, over)).toEqual([]);
+		expect(pasteAtCaret(fake, host, over)).not.toEqual([]);
 	});
 });
 
