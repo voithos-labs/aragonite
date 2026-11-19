@@ -45,7 +45,10 @@ const ROWS: [name: string, marked: string, text: string, after: string][] = [
 		'ж',
 		'intro\r\n\r\n  ж\r\n\r\n    b\r\n'
 	],
-	['two words over a rule', '  ⟦  a\n***\n⟧    b\n', 'x y', '  x y\n\n    b\n']
+	['two words over a rule', '  ⟦  a\n***\n⟧    b\n', 'x y', '  x y\n\n    b\n'],
+	// A seed found it: spaces that indent the text into code leave it the code's own line.
+	['four spaces, the text a code line', '    ⟦a\n# h\n⟧    b\n', 'ж', '    ж\n    b\n'],
+	['a tab, the text a code line', '\t⟦a\n# h\n⟧    b\n', 'ж', '\tж\n    b\n']
 ];
 
 async function placed(marked: string, mode: PresentationMode) {

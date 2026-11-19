@@ -148,3 +148,16 @@ for (const mode of ['source', 'live'] as const)
 				const content = clip.replace(/^> ?/gm, '');
 				expect(await pasted(marked, mode, clip)).toEqual(await pasted(marked, mode, content));
 			});
+
+// A clipboard cut from a line's end opens on markers alone and joins after text as it came.
+// Miss-analysis: every after-text row's clipboard opened with text; a seed's cut opened with none.
+const FROM_LINE_END: [name: string, marked: string, clip: string, after: string][] = [
+	['a sublist under a blank line', '- a‸\n- c\n', '- \n\n  - b', '- a\n\n  - bZ\n- c\n'],
+	['a sublist and a list', '* a\n  b‸\n', '* \n\n  * c\n- x', '* a\n  b\n\n  * c\n- xZ\n']
+];
+
+for (const mode of ['source', 'live'] as const)
+	for (const [name, marked, clip, after] of FROM_LINE_END)
+		it(`${mode}: ${name}, from an opening line of markers alone`, async () => {
+			expect((await pasted(marked, mode, clip))[1]).toBe(after);
+		});

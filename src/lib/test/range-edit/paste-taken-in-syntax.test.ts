@@ -103,6 +103,19 @@ for (const mode of ['source', 'live'] as const)
 				expect(await put(marked, mode, `${quoted}\n`)).toBe(await put(marked, mode, `${list}\n`));
 			});
 
+// Miss-analysis: every ending row's clipboard was one container; a seed's had a paragraph after it.
+const OUTSIDE: [name: string, marked: string, clip: string][] = [
+	['at the quote’s end', '> a‸\n\nb\n', '> q\n\nx\n'],
+	['mid-text', '> a‸b\n\nc\n', '> q\n\nx\n'],
+	['after a heading', '> # h‸\n\nc\n', '> \n\nx\n\n']
+];
+
+for (const mode of ['source', 'live'] as const)
+	for (const [name, marked, clip] of OUTSIDE)
+		it(`${mode}: a block after the quote taken in keeps the ending's line out of it, ${name}`, async () => {
+			expect(await put(marked, mode, clip)).not.toMatch(/\nx\r?\n>/);
+		});
+
 it('a quote of a list with its ending on a quote line opens a paragraph of the quote', async () => {
 	expect(await put('> a\n>\n>‸\n> b\n', 'source', '> - l\n')).toBe(
 		'> a\n>\n> - l\n>\n> Z\n>\n> b\n'

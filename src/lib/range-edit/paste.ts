@@ -21,6 +21,7 @@ import {
 	isCell,
 	joinsName,
 	lastLine,
+	leafAt,
 	leafHolding,
 	nodeAt,
 	parentOf,
@@ -476,10 +477,11 @@ function bytesLanded(
 	};
 	if (!empty) {
 		const opened = blocksOpened(doc, leaf, to, lf, read, joined);
-		// Over code a line of only spaces is an empty line too, which a reload would read the code into.
+		// Over code a line of only spaces is an empty line too, which a reload would read the code into,
+		// unless the spaces indent the text into the code itself.
 		const code = flush && factsOf(doc, flush);
 		const overCode = isBlankText(own) && !!code && code.body === 'literal' && code.holdsLines;
-		return overCode && opened === joined ? setApart(opened) : opened;
+		return overCode && opened === joined && !readsAsCode(doc, opened) ? setApart(opened) : opened;
 	}
 	if (titleOwner(doc, leaf) || factsOf(doc, leaf).joins !== 'text') return landing;
 	const edit = read && !plain ? joinedAbove(doc, leaf, joined, read) : landing;
@@ -890,17 +892,18 @@ function landed(
 		const keep = (c: LaidBlock) => c !== taker;
 		const holding = containersHolding(doc, from);
 		const levels = holding.length - holding.indexOf(taker);
-		const inner = takenIn(pasted, first, levels);
+		const textBefore = /[^ \t>\r\n]/.test(doc.source.slice(leaf.text!.from, from));
+		const inner = takenIn(pasted, first, levels, textBefore);
 		const behind = inner.after === '' ? lead : '';
 		const cut = cutWith(inner.before, inner.after, behind);
 		const taken = continuation(doc, from).slice(continuation(doc, from, keep).length);
 		// A first block that keeps its syntax goes after text on a line of its own, a blank line above
 		// it as Enter leaves one; a list a taken item opens with is a sublist, right under the text.
-		const textBefore = /[^ \t>\r\n]/.test(doc.source.slice(leaf.text!.from, from));
 		const sublist = inner.kept === 'list' && factsOf(doc, taker).lines === 'items';
 		const blank = sublist ? '' : '\n' + taken.trimEnd();
-		// A clipboard that ends in a line ending sets the text after the caret on a line of its own.
-		const ended = inner.after === '' && /\n$/.test(inner.mid);
+		// A clipboard that is the one container and ends in a line ending sets the text after the
+		// caret on a line of its own; a block after the container ends outside the taker.
+		const ended = last === first && inner.after === '' && /\n$/.test(inner.mid);
 		const mid = (inner.kept && textBefore ? blank + '\n' + taken : '') + inner.mid;
 		if (!follows || (lastTakes && !ended)) {
 			// The line the ending opens stays the taker's, behind its markers.
@@ -1028,6 +1031,13 @@ function landedWithout(
 	return { source, caret };
 }
 
+/** Whether the text before `edit`'s caret reads as literal text in the document `edit` leaves. */
+function readsAsCode(doc: Doc, edit: Edit): boolean {
+	const after = readDoc(edit.source, doc.host, doc.mode);
+	const at = leafAt(after, edit.caret);
+	return !!at && factsOf(after, at.leaf).body === 'literal';
+}
+
 /** Whether the last line of `block` holds no Markdown text: it ends on a closing line, a code block
  *  or a table, at any depth. An empty container still takes text. */
 function endsWithoutText(pasted: Doc, block: LaidBlock): boolean {
@@ -1056,7 +1066,7 @@ function lastLineStart(pasted: Doc, leaf: LaidBlock): number {
 
 /** A pasted container's content as its taker holds it, `levels` of it taken: its first paragraph's
  *  first line, the last line of a paragraph that ends the clipboard, and the bytes between. */
-function takenIn(pasted: Doc, first: LaidBlock, levels: number) {
+function takenIn(pasted: Doc, first: LaidBlock, levels: number, afterText: boolean) {
 	const { source } = pasted;
 	const texts = [...pasted.layout.within(first.from, source.length)].filter(
 		(b) => b.text && b.from >= first.from && !titleOwner(pasted, b)
@@ -1066,7 +1076,13 @@ function takenIn(pasted: Doc, first: LaidBlock, levels: number) {
 	// The first block under the levels taken keeps its own syntax (a list's marker, a heading's `#`,
 	// a quote's `>`); only a paragraph joins from its text.
 	const own = openingBlock(pasted, first, levels);
-	const kept = own && !paragraph(own) ? own : undefined;
+	const opening = source.slice(0, lineEnd(source, first.from));
+	const markersAlone = /^[ \t]*(?:(?:>|[-+*]|\d{1,9}[.)])[ \t]*)+\r?$/.test(
+		opening.slice(opening.lastIndexOf('\n') + 1)
+	);
+	// After text, an opening line of markers alone is a cut's from a line's end: it joins as it came.
+	const opens = own && !(afterText && markersAlone);
+	const kept = own && opens && !paragraph(own) ? own : undefined;
 	const start = kept?.from ?? head?.text?.from ?? first.from;
 	const joined = !kept && head && paragraph(head) ? lineEndBefore(source, start) : start;
 	const closes =
