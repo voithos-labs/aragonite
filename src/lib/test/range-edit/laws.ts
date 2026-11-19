@@ -27,6 +27,7 @@ import {
 	leavesLiteralBlock,
 	liveCutAt,
 	inConstructAt,
+	itemTextAt,
 	cellAt,
 	containersHolding,
 	reopensNowhere,
@@ -118,6 +119,15 @@ export function headingTextReadsAsBlock(read: Read, range: Range, host: CheckHos
 	);
 	const text = lf(read.source.slice(range.from, range.to));
 	return !!heading && range.from < range.to && readOf(host, text).blocks[0]?.type !== 'paragraph';
+}
+
+/** A range from a line's end in an item's own text that takes more of that item: its leading line
+ *  ending pastes back as the item's Enter, so what it took comes back as the next item. */
+export function takesMoreOfItem(read: Read, { from, to }: Range, host: CheckHost): boolean {
+	const item = itemTextAt(read, from, host);
+	if (!item || !/^\r?\n/.test(read.source.slice(from, to))) return false;
+	const taken = read.source.slice(from, Math.min(to, item.to));
+	return /\S/.test(taken.replace(/^[ \t>]+/gm, ''));
 }
 
 /** A range inside one block's text covering all of it, in live mode: the owner's rule there is that
@@ -219,10 +229,6 @@ export function cutPasteBack(call: Call, host: CheckHost, input: RangeInput): st
 	const pinned =
 		want.shape !== 'other' && want.shape !== 'on a line' && !(want.shape === 'apart' && whole);
 	if (pinned && held.holds === 'text' && !want.bytes.includes(input.source)) return [];
-	// In a list item a clipboard's leading line endings are Enter (rulings 34 and 79): a cut taken
-	// from an item's text end on pastes back as a new item, which `paste-leading-enter` rows hold.
-	const caretIn = containersHolding(readOf(host, cut.source), cut.caret.at).at(-1);
-	if (held.holds === 'text' && caretIn?.type === 'listItem' && /^\n+[^]*\S/.test(text)) return [];
 	// A cut that leaves its caret in a cell: the cell holds one line, which law 9 holds there.
 	if (held.holds === 'text' && cellAt(readOf(host, cut.source), cut.caret.at, host)) return [];
 	// A part of one block's text cut out, the caret left in no text: pasted there, it is no part of
@@ -240,6 +246,8 @@ export function cutPasteBack(call: Call, host: CheckHost, input: RangeInput): st
 	// A block taken whole takes a blank line beside it, which plain text can't give back (spec § 4).
 	const taken = source.length - norm(cut.source).length - (at(to) - at(from));
 	if (taken > endingOf(source).length && sameBlocks(host, source, got)) return [];
+	// The item's Enter stands where the cut's leading line ending was (rulings 34 and 79).
+	if (held.holds === 'text' && takesMoreOfItem(read, input.range, host)) return [];
 	return [`L3 cut ${q(cut.source)}, pasted back ${q(back.source)}`];
 }
 
@@ -861,13 +869,7 @@ const oneGlyph = (source: string) =>
 	);
 
 /** Whether byte `at` stands in the text of a list item's own block, text that isn't literal. */
-function inItemText(read: Read, at: number, host: CheckHost): boolean {
-	const leaf = leafAt(read, at);
-	if (leaf && host.facts(leaf.type).body === 'literal') return false;
-	const above = leaf?.path.slice(0, -2).join();
-	const list = leaf && read.blocks.find((b) => b.path.length > 0 && b.path.join() === above);
-	return !!list && host.facts(list.type).lines === 'items';
-}
+const inItemText = (read: Read, at: number, host: CheckHost) => itemTextAt(read, at, host) !== null;
 
 /** Whether byte `at` ends a list item's content, past a block that holds none of its text. */
 function endsItem(read: Read, at: number, host: CheckHost): boolean {
