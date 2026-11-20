@@ -107,6 +107,7 @@ import { checkTypedInsertAtCaret } from '../../../invariants/typed-insert-at-car
 import { checkTypedWriteOutsideRange } from '../../../invariants/typed-write-outside-range';
 import type { DeleteAnswer, DeleteContext, DeleteVerdict } from '../../../caret/delete-extent';
 import {
+	noteTyped,
 	readInput,
 	targetRange,
 	type DeleteDirection,
@@ -771,6 +772,7 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		adoptsComposition(e);
 		// A drop's text lands at the pointer, not at the caret a chord promised its marks to.
 		const read = readInput(e);
+		noteTyped(e);
 		if (read.kind === 'transfer' && read.via === 'drop') pendingMarks.end();
 		if (isEnterDefault(e)) {
 			e.preventDefault();
@@ -793,6 +795,11 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		if (read.kind === 'history') {
 			e.preventDefault();
 			void (read.redo ? deps.history.requestRedo() : deps.history.requestUndo());
+			return true;
+		}
+		// The browser's formatting is an element the read-back drops, and the selection goes with it.
+		if (read.kind === 'format' && !composing()) {
+			e.preventDefault();
 			return true;
 		}
 		if (!composing() && deps.inputOverWidget?.(e)) return true;
