@@ -108,9 +108,8 @@ describe('the splice window under a definition waiting on its title', () => {
 		expect(cutting.instance.__test.getDocument().children).toHaveLength(5);
 	});
 
-	// Miss-analysis: every row's rule line was a block type, which only its own editor's grammar
-	// holds. A reading asked of the page's grammar then read a wider window, and a window too wide
-	// still reads as a fresh parse.
+	// Miss-analysis: every rule line was a block type, which only its own editor's grammar holds, so
+	// a reading asked of the page's grammar read too wide a window, which still reads as a parse.
 	it.each([
 		{ name: 'under the block above the change', source: BEFORE },
 		{ name: 'inside the block above the change', source: BEFORE.replace('%%rule', '    %%rule') }
