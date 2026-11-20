@@ -585,6 +585,39 @@ describe('text written over a range that leaves no text of its own stands in its
 				});
 });
 
+// Miss-analysis: the paste waited on its own landing, so no row pasted lines over a range that
+// leaves no text of its own, where the last pasted block joined the paragraph after it.
+describe('lines pasted over a range that leaves no text of its own stand as blocks of their own', () => {
+	const ROWS: [string, string, string, string][] = [
+		[
+			'two paragraphs, after a heading it took whole',
+			'first\n\n⟦***\n\n# head⟧\n\nlast\n',
+			'one\n\ntwo',
+			'first\n\none\n\ntwo\n\nlast\n'
+		],
+		[
+			'a list, after the list it took whole',
+			'first\n\n⟦***\n\n- a\n- b⟧\n\nlast\n',
+			'- x\n- y',
+			'first\n\n- x\n- y\n\nlast\n'
+		],
+		[
+			'a heading and a paragraph, over a fence with a paragraph right under it',
+			'first\n\n⟦***\n\n```\ncode\n```⟧\nlast\n',
+			'# P\n\nq',
+			'first\n\n# P\n\nq\n\nlast\n'
+		]
+	];
+	for (const mode of ['source', 'live'] as const)
+		for (const [name, text, clip, pasted] of ROWS)
+			it(`${mode}: ${name}`, async () => {
+				const { editor } = await mounted(text, mode);
+				await pasteGesture(editor, { 'text/plain': clip }, 'key');
+				await editor.settle();
+				expect(editor.source()).toBe(pasted);
+			});
+});
+
 // Miss-analysis: P3 skipped a range into a callout, so a typed key landing above the callout, where
 // a composition and Delete land before the rest, went unread.
 describe('text written over a range that ends inside a leaf’s text goes before the rest', () => {
