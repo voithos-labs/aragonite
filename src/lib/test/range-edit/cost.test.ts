@@ -13,6 +13,8 @@ import { editRange, type Gesture } from '#lib/range-edit/edit-range.js';
 import { rangeHost, type RangeHost } from '#lib/range-edit/host.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
+import { changesBetween } from '#lib/tree-operations/byte-changes.js';
+import { closedSplice } from '#lib/tree-operations/spliced-openers.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
@@ -169,4 +171,31 @@ describe('work per gesture', () => {
 		// The exit's own rebuild parses the list about twice; each read of its answer is a parse more.
 		expect(cost(source, 'ended paste', true).parsed).toBeLessThanOrEqual(source.length * 2.5);
 	});
+
+	// Miss-analysis, the commit: the rows counted the core alone, and the commit reads the exit's
+	// bytes again, where the splice grew its window over the broken list to its end.
+	it('two endings at an item’s end: the commit reads the list the exit split once', () => {
+		const source = SHAPES.list(2000);
+		const from = source.indexOf('\n', source.indexOf('item 6 '));
+		const gesture: Gesture = { paste: 'x\n\n', plain: false, holds: 'text' };
+		// The top-level read of the two lists and the line between parses the list's bytes once.
+		expect(committedCost(source, from, gesture).commit).toBeLessThanOrEqual(source.length * 1.5);
+	});
 });
+
+/** The bytes parsed by `gesture` at a caret at `at`, and then by the commit landing its answer,
+ *  which takes the core's reading of those bytes where it made one and reads them where it didn't. */
+function committedCost(source: string, at: number, gesture: Gesture) {
+	const reading = testReading();
+	const tree = readAsOpened(source, { grammar: reading.grammar, scope: 'document' });
+	const current = { source, measured: measured(tree) };
+	enablePerfInstruments();
+	resetPerfInstruments();
+	const host = noTransforms(rangeHost(reading, current));
+	const answer = editRange(source, { from: at, to: at }, gesture, 'source', host).source;
+	const core = perfSnapshot().parseBytes;
+	closedSplice(current.measured, source, changesBetween(source, answer), reading.grammar);
+	const commit = perfSnapshot().parseBytes - core;
+	disablePerfInstruments();
+	return { core, commit };
+}
