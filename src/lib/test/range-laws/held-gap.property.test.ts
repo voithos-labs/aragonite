@@ -4,12 +4,12 @@
 // blocks, above a setext underline or a lazy line, under a title a definition started; at top
 // level, in a quote, in an item; the range from that block's edge, mid-line or a table row.
 // Enter over the range leaves what Delete then Enter leave where the range ends inside the block it
-// entered, and Backspace then Enter where it ends between blocks. Text over it (a letter or a
-// composition, whose removal is Delete's where the range ends inside a block's text, else a cut's;
-// a paste, a cut's) leaves what the removal then the text leave where that removal's caret is a
-// gap, text the range left of its own (any prose, for a paste), or no block boundary stands where
-// the range started; anywhere else the text stands in a paragraph of its own there, the rest as the
-// removal left it (`docs/design/selection.md`). Before other prose a cut keeps the text start.
+// entered, and Backspace then Enter where it ends between blocks. Text over it (a letter, a
+// composition or a paste, whose removal is Delete's where the range ends inside a block's text,
+// else a cut's) leaves what the removal then the text leave where that removal's caret is a gap,
+// text the range left of its own, or no block boundary stands where the range started; anywhere
+// else the text stands in a paragraph of its own there, the rest as the removal left it
+// (`docs/design/selection.md`). Before other prose a cut keeps the text start.
 // Every violation must match a class declared below, and the fixed run pins the counts.
 // Miss-analysis: the law's rows were named shapes whose commit never moved the blocks above the
 // range, so a place read before the commit always still named the right block.
@@ -275,10 +275,8 @@ async function run(d: Draw): Promise<Run | 'unplaced'> {
 	await destroyMountedEditors();
 	const step = await placed(d, built);
 	if (!step) return 'unplaced';
-	// A paste keeps the cut's removal until its own landing is ruled.
-	const written = d.gesture === 'letter' || d.gesture === 'composition';
-	if (d.gesture === 'paste' || (written && !endsInText(d)))
-		await clipboardGesture(step.editor, 'cut', 'key');
+	const written = d.gesture !== 'Enter';
+	if (written && !endsInText(d)) await clipboardGesture(step.editor, 'cut', 'key');
 	else if (d.gesture === 'Enter' && !endsInText(d)) await key(step.editor, { key: 'Backspace' });
 	else await key(step.editor, { key: 'Delete' });
 	const removedSide = sideOf(step.editor);
@@ -314,9 +312,8 @@ function violations(d: Draw, r: Run): string[] {
 	const out: string[] = [];
 	if (r.over.tree) out.push(`tree: ${r.over.tree}`);
 	const { landing, boundary } = r.removed;
-	// Prose takes the text where the range left it of its own; a paste keeps any prose until its own
-	// landing is ruled.
-	const ownProse = landing === 'prose' && (!r.took || d.gesture === 'paste' || r.rest);
+	// Prose takes the text where the range left it of its own.
+	const ownProse = landing === 'prose' && (!r.took || r.rest);
 	// With no boundary where the range started, the text joins the text there, as after the removal.
 	if (d.gesture === 'Enter' || landing === 'gap' || ownProse || !boundary) {
 		if (r.over.blocks !== r.step.blocks)

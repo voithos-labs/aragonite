@@ -604,8 +604,7 @@ function placeAfterRemoval(
 	removed: Removed,
 	live: boolean
 ): PastePlace | null {
-	// The paste writes in any prose until its own landing is ruled.
-	const slot = emptiedPlace(bytes.measured(), removed, true);
+	const slot = emptiedPlace(bytes.measured(), removed, false);
 	if (slot) return placeOfGap(bytes, { parentPath: slot.slice(0, -1), index: slot.at(-1)! });
 	const { landed, caret } = removed;
 	// A document the removal emptied has no block to hold a caret, so the core's landing is the place.

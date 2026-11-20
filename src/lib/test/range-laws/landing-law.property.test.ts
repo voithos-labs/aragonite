@@ -195,9 +195,8 @@ type Gesture = (typeof GESTURES)[number];
 /** What a written gesture types: no drawn document holds it. */
 const WRITTEN = 'ж';
 
-/** The gestures P2 and P3 bind; a paste waits for its own landing, Shift+Enter and Mod+digit for
- *  ruling 9. */
-const WRITES = ['a typed key', 'a composition'] as const;
+/** The gestures P2 and P3 bind; Shift+Enter and Mod+digit wait for ruling 9. */
+const WRITES = ['a typed key', 'a composition', 'a one-line paste'] as const;
 
 /** The text left of the leaf the range ended in, which written text may stand before. */
 const RESTS: Record<string, string> = {
@@ -214,6 +213,13 @@ const lineAboveOpening = (d: Draw) =>
  *  into it, as two paragraphs a removal leaves flush rejoin: text over the range opens that rest. */
 const restRunsOn = (d: Draw) =>
 	d.end === 'a leaf’s middle' && d.above === 'right under a paragraph';
+
+/** `bytes` less its blank lines, a quote's and an item's included. */
+const nonBlank = (bytes: string) =>
+	bytes
+		.split('\n')
+		.filter((line) => line.replace(/[>\s]/g, '') !== '')
+		.join('\n');
 
 type Block = { raw: string; children?: readonly Block[] };
 
@@ -356,7 +362,7 @@ describe('the landing law', () => {
 		);
 	}, 600_000);
 
-	it('P2: text a typed key or a composition writes stands alone or before the end leaf’s rest', async () => {
+	it('P2: text a typed key, a composition or a one-line paste writes stands alone or before the end leaf’s rest', async () => {
 		await fc.assert(
 			fc.asyncProperty(arbDraw, fc.constantFrom(...WRITES), async (d, g) => {
 				const text = marked(d, STARTS[d.start]);
@@ -377,13 +383,19 @@ describe('the landing law', () => {
 		);
 	}, 600_000);
 
-	it('P3: a typed key and a composition leave the same bytes', async () => {
+	it('P3: a typed key, a composition and a one-line paste leave the same bytes', async () => {
 		await fc.assert(
 			fc.asyncProperty(arbDraw, async (d) => {
 				const text = marked(d, STARTS[d.start]);
 				const typed = await land(text, d.mode, 'a typed key');
 				const composed = await land(text, d.mode, 'a composition');
 				expect(composed.bytes, JSON.stringify(text)).toBe(typed.bytes);
+				// A paste on the only empty row over a block adds no blank line under it, where a typed
+				// letter adds one back, so the paste is held to the typed key's blocks.
+				const pasted = await land(text, d.mode, 'a one-line paste');
+				expect(nonBlank(pasted.bytes), `a paste over ${JSON.stringify(text)}`).toBe(
+					nonBlank(typed.bytes)
+				);
 			}),
 			params()
 		);
