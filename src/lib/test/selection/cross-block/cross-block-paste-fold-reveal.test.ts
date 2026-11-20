@@ -8,7 +8,7 @@ import { makeEnv, makeHandlers, selectAcross } from './typed-char-env';
 
 describe('cross-block paste: a fold above the pasted bytes', () => {
 	it('lands the caret after the pasted byte, in the block the fold merged it into', async () => {
-		const env = makeEnv('a\n# h\n\nkkk\n');
+		const env = makeEnv('a\n# h\nkkk\n');
 		const handlers = makeHandlers(env, [1]);
 
 		selectAcross(env.selectionState, [1], [2], 1);

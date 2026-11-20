@@ -152,9 +152,9 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 			law: 'L5',
 			args: [
 				{
-					source: ':::note\r\n:::\r\n\r\none',
+					source: '- > q',
 					mode: 'source',
-					seed: { a: end(31, 'start'), b: end(15, 'start') }
+					seed: { a: end(5, 'end', 58), b: end(58, 'start', 43) }
 				},
 				{ typed: { key: 'Enter' } }
 			]
