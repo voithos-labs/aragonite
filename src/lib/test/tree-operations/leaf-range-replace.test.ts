@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
+import { makeBlockNode } from '#lib/core/nodes.js';
+import type { NodeView } from '#lib/core/node-views.js';
+import { activateDirectives } from '#lib/plugin.js';
 import { replaceDrawnRange, replaceRangeInLeaf } from '#lib/tree-operations/leaf-range.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import { fixtureReading, topLevelStore } from '../harness/fixture-grammar';
@@ -163,5 +166,34 @@ describe('a drawn range over the block’s whole text', () => {
 
 	it('leaves a range inside the text as drawn', () => {
 		expect(drawn('**Hi** there\n', 0, 6, 'x')).toBe('x there\n');
+	});
+
+	// Miss-analysis: every whole-text row was a block whose bytes make its kind, so none emptied a
+	// title row, whose `:::name` opens its container and which no paragraph can stand in for.
+	describe('at a position that stores text, the markers stay', () => {
+		const stored = (node: NodeView, start: number, end: number, typed: string) =>
+			replaceDrawnRange(
+				node,
+				{ start, end },
+				typed,
+				topLevelStore(node, fixtureReading({}, 'live'))
+			).raw;
+		const titleRow = () => {
+			activateDirectives();
+			return parse(':::tip Title\nin\n:::\n').children[0].children![0];
+		};
+
+		it.each([
+			['a title row, deleted', '', ':::tip \n'],
+			['a title row holding a typed space', ' ', ':::tip  \n'],
+			['a title row, typed over', 'x', ':::tip x\n']
+		])('%s', (_, typed, written) => {
+			expect(stored(titleRow(), 7, 12, typed)).toBe(written);
+		});
+
+		it('a table cell, which has no markers, empties', () => {
+			const cell = makeBlockNode({ kind: 'tableCell', leadingTrivia: '', raw: '**c**' });
+			expect(stored(cell, 0, 5, '')).toBe('');
+		});
 	});
 });
