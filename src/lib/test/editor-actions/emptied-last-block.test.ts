@@ -167,7 +167,7 @@ describe('a last block that keeps its trailing line', () => {
 		['two trailing blank lines', 'ab\n\n\n', MODES, [[0], 0, 2], '\n\n', 'x\n\n\n'],
 		['a source heading', '# ab\n\n', ['source'], [[0], 2, 4], '# \n\n', '# x\n\n'],
 		['an item', '- ab\n\n', MODES, [[0, 0, 0], 0, 2], '- \n\n', '- x\n\n'],
-		['a quote', '> ab\n\n', MODES, [[0, 0], 0, 2], '>\n\n', '> x\n\n'],
+		['a quote', '> ab\n\n', MODES, [[0, 0], 0, 2], '> \n\n', '> x\n\n'],
 		['a closed last line', 'ab\n', MODES, [[0], 0, 2], '\n', 'x\n'],
 		['a closed live heading', '# ab\n', ['live'], [[0], 2, 4], '\n', 'x\n'],
 		['an open last line', 'ab', MODES, [[0], 0, 2], '', 'x'],

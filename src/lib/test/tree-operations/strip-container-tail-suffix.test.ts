@@ -65,7 +65,7 @@ describe("blanking a blockquote's last block drops its trailing line", () => {
 		empty(doc, [0, 0]);
 
 		const quote = doc.children[0];
-		expect(serialize(doc)).toBe('> \n');
+		expect(serialize(doc)).toBe('>\n');
 		expect(quote.children!.map((c) => [c.leadingTrivia, c.raw])).toEqual([['', '\n']]);
 		expect(quote.innerSuffix).toBe('');
 		expect(describeConvergence(doc)).toBeNull();

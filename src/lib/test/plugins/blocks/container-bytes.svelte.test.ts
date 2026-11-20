@@ -168,15 +168,19 @@ describe('the byte map finds the text of a container under its own marker', () =
 
 const at = (path: number[], offset: number) => ({ path, offset });
 
-/** `text` with each line's opening run of quote markers written as the box's, or only the markers
- *  at `depths` of each run, outermost 0. */
+/** `text` with each line's opening run of quote markers, behind a list marker too, written as the
+ *  box's, or only the markers at `depths` of each run, outermost 0. */
 const boxing =
 	(depths?: readonly number[]) =>
 	(text: string): string =>
-		text.replace(/^(?: {0,3}>[ \t]?)+/gm, (run) => {
-			let depth = 0;
-			return run.replace(/>/g, () => (!depths || depths.includes(depth++) ? '%>' : '>'));
-		});
+		text.replace(
+			/^( {0,3}(?:[-*+]|\d{1,9}[.)])[ \t]+)?((?: {0,3}>[ \t]?)+)/gm,
+			(_line, item: string | undefined, run: string) => {
+				let depth = 0;
+				const marks = run.replace(/>/g, () => (!depths || depths.includes(depth++) ? '%>' : '>'));
+				return (item ?? '') + marks;
+			}
+		);
 const boxed = boxing();
 const headed = (text: string) => text.replace(/^>/gm, '%!');
 const noted = (text: string) => text.replace(/\[\^a\]:/g, '@a:');

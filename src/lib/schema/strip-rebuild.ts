@@ -213,7 +213,7 @@ interface Writing {
 	emptiedKeepsMarker: boolean;
 }
 
-/** The syntax a body is written in and was read in, and whether the old bytes close blank. */
+/** The syntax a body is written in, the one it was read in, and whether its bytes close blank. */
 interface StripSyntax {
 	lines: LineCodec;
 	previous: LineCodec;

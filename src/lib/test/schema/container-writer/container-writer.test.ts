@@ -255,8 +255,8 @@ const NAMED_ROWS: [name: string, source: string, edit: string, kind: string, byt
 		'directiveContainer',
 		':::spoiler\nhiddenx\n:::::\n'
 	],
-	// A last line with no line ending that reads as nothing is held by no child, so no writer can
-	// give it back; the parser would have to give it a home.
+	// A last line with no line ending that reads as nothing is held by no child: the writer gives
+	// it back under a body line, and a body with no line loses it.
 	[
 		'an alert’s bare `>` last line with no ending is lost',
 		'> [!NOTE]\n>',
@@ -265,11 +265,11 @@ const NAMED_ROWS: [name: string, source: string, edit: string, kind: string, byt
 		'> [!NOTE]'
 	],
 	[
-		'an item’s blank last line with no ending is lost',
+		'an item’s blank last line with no ending is kept',
 		'- a\n\n  b\n  ',
 		'unchanged',
 		'listItem',
-		'- a\n\n  b\n'
+		'- a\n\n  b\n  '
 	],
 	[
 		'a details block’s tag lines take its opening line’s ending',

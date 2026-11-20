@@ -10,8 +10,7 @@ import { WRITES_LINES, type ColonLines } from '../core/strip-lines';
 import { escalatedColonCount, matchDirectiveOpener } from '../core/directive/grammar';
 
 /** A `:::name` container: the opener line (child 0) as it stands, the body, then a closing line as
- *  long as the one it replaces, every colon run widened past a body line that would close it
- *  unless the write changed the opener's colons. */
+ *  long as the one it replaces, every colon run widened past a body line that would close it. */
 export const COLON_LINES: ColonLines = { shape: 'colon', [WRITES_LINES]: writeColon };
 
 function writeColon(node: CstNode): void {

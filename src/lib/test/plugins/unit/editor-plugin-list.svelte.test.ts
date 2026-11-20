@@ -14,7 +14,7 @@ import { createEditor } from '#lib/create-editor.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
 import { testView } from '#lib/test/harness/test-view.js';
 import { settleEditor } from '#lib/test/harness/settle.js';
-import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { takeDevWarns, takeDevWarnsOf } from '#lib/test/support/warn-gate.js';
 import {
 	blockHostAt,
 	destroyMountedEditors,
@@ -176,7 +176,7 @@ describe('an error raised while the editor mounts', () => {
 	it('goes to the console once in a dev build when nothing hears it', async () => {
 		const m = mountEditor({ source: 'text\n', plugins: [throwingValue] });
 		await m.settle();
-		const fires = takeDevWarns().filter((fire) => fire.tag === 'plugin-error');
+		const fires = takeDevWarnsOf('plugin-error');
 		expect(fires.map((fire) => fire.message)).toEqual([
 			"plugin 'unit-throws' failed (contributes) and nothing heard it: pass onError"
 		]);
