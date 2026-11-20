@@ -46,9 +46,9 @@ export interface DocumentBytes {
 	layout(): Layout;
 	/** The document with the starts of its top-level blocks, kept across writes. */
 	measured(): Measured;
-	/** The caret the core named for the last cut, the byte its entry fits at and the measure the cut
-	 *  left (`of`): a paste back at that caret reads them only while `of` is still the document's. */
-	cut: { caret: SpliceCaret; fits: number; of: Measured } | null;
+	/** The caret the core named for the last cut, the byte its entry fits at and the bytes the cut
+	 *  left (`of`): a paste back at that caret reads them only while the document holds those bytes. */
+	cut: { caret: SpliceCaret; fits: number; of: string } | null;
 	/** Whether what is kept of top-level blocks `[from, to]` is what the tree holds; a record found
 	 *  wrong is forgotten, so the next read is fresh (`KeptStarts.vouch`). */
 	vouch(from: number, to: number): boolean;
@@ -415,16 +415,16 @@ export function placeAfterBlock(bytes: DocumentBytes, path: readonly number[]): 
 	const block = bytes.layout().block(path);
 	const cut = bytes.cut;
 	// A cut that left the caret on this block took from above it, where its entry goes back.
-	if (place && block && cut?.of === bytes.measured() && cut.caret.holds === 'block')
+	if (place && block && cut?.of === bytes.source() && cut.caret.holds === 'block')
 		if (cut.caret.at === block.from) return { ...place, back: cut.caret };
 	return place;
 }
 
 /** The last cut's caret, at the byte its entry fits, where a caret at byte `at` stands where that
- *  cut left it. Null for any other byte, or once the document moved on. */
+ *  cut left it. Null for any other byte, or while the document holds other bytes than the cut left. */
 function cutCaretAt(bytes: DocumentBytes, at: number): SpliceCaret | null {
 	const cut = bytes.cut;
-	if (!cut || cut.of !== bytes.measured() || cut.caret.holds === 'block') return null;
+	if (!cut || cut.of !== bytes.source() || cut.caret.holds === 'block') return null;
 	const measured = bytes.measured();
 	const landing = landingAt(measured, cut.caret);
 	if (!landing || landedByte(measured, landing) !== at) return null;

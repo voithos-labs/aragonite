@@ -86,27 +86,24 @@ describe('a caret between blocks', () => {
 });
 
 describe('the caret a cut left', () => {
-	it('stands beside the caret, as the core named it, while nothing has written since', () => {
-		const bytes = bytesOf('> | b |\n> | - |\n\nafter\n');
-		bytes.cut = {
-			caret: { at: 16, holds: 'boundary', parent: [] },
-			fits: 16,
-			of: bytes.measured()
-		};
+	const left = '> | b |\n> | - |\n\nafter\n';
+	const caret = { at: 16, holds: 'boundary', parent: [] } as const;
+
+	// Miss-analysis: the memory was keyed on the measured document, which every write replaces, so
+	// an undo and a redo back to the same bytes forgot the cut.
+	it('stands beside the caret, as the core named it, on any document that holds the bytes it left', () => {
+		const bytes = bytesOf(left);
+		bytes.cut = { caret, fits: 16, of: bytesOf(left).source() };
 		expect(placeInBlock(bytes, [1], 0, 0, false)).toEqual({
 			range: { from: 17, to: 17 },
 			holds: 'text',
-			back: { at: 16, holds: 'boundary', parent: [] }
+			back: caret
 		});
 	});
 
-	it('is forgotten once the document is measured again', () => {
-		const bytes = bytesOf('> | b |\n> | - |\n\nafter\n');
-		bytes.cut = {
-			caret: { at: 16, holds: 'boundary', parent: [] },
-			fits: 16,
-			of: measured(bytes.doc())
-		};
+	it('is forgotten while the document holds other bytes', () => {
+		const bytes = bytesOf(left);
+		bytes.cut = { caret, fits: 16, of: '> | b |\n> | - |\n\nAfter\n' };
 		expect(placeInBlock(bytes, [1], 0, 0, false)).toEqual({
 			range: { from: 17, to: 17 },
 			holds: 'text'

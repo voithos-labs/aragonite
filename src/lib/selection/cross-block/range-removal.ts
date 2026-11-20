@@ -218,7 +218,7 @@ export async function removeWholeBlock(
 /** Keeps the caret the core named for a cut, and the byte its entry fits at, for the paste that
  *  puts the cut back there. */
 function rememberCut(ctx: CommitContext, { caret, unlanded }: RemovalAnswer): void {
-	ctx.bytes.cut = { caret, fits: unlanded, of: ctx.bytes.measured() };
+	ctx.bytes.cut = { caret, fits: unlanded, of: ctx.bytes.source() };
 }
 
 /** Where Backspace at the start of the block at `path` (`dir` -1), or Delete at its end (1), lands

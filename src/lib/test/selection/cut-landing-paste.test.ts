@@ -17,14 +17,19 @@ import {
 	installClipboardEvents,
 	installSystemClipboard
 } from '#lib/test/harness/clipboard-events.js';
+import { insertBy, pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import type { PresentationMode } from '#lib/presentation-mode.js';
 import {
 	clipboardGesture,
 	mountCase,
 	pasteGesture,
 	pastePlainGesture,
 	placeOwnedRange,
-	type Editor
+	placeRange,
+	runHistory,
+	type Editor,
+	type Payload
 } from '../range-laws/gestures';
 
 beforeAll(installLayoutStubs);
@@ -114,23 +119,92 @@ describe('a cut whose caret lands past where its removal left it pastes back', (
 	for (const mode of ['source', 'live'] as const)
 		for (const [name, marked] of ROWS)
 			it(`${mode}: ${name}`, async () => {
-				const source = marked.replace('⟦', '').replace('⟧', '');
-				const editor = mountCase(source, mode);
-				await editor.settle();
-				const layout = documentLayout(measured(editor.instance.__test.getDocument()));
-				const at = (byte: number) => {
-					const point = layout.pointAt(byte);
-					if (point) return { path: point.path, offset: point.offset };
-					const block = [...layout.within(byte, byte)].find((b) => b.from === byte);
-					return { path: block!.path, offset: 0 };
-				};
-				const range = { anchor: at(marked.indexOf('⟦')), focus: at(marked.indexOf('⟧') - 1) };
-				// A rule alone takes no browser range, so the API selects it.
-				if (!(await placeOwnedRange(editor, range))) await editor.instance.setSelection(range);
-				await editor.settle();
-				const payload = await clipboardGesture(editor, 'cut', 'key');
-				expect(editor.source()).not.toBe(source);
+				const { editor, payload, source } = await cutMarked(marked, mode);
 				await pasteGesture(editor, payload, 'key');
 				expect(editor.source()).toBe(source);
 			});
 });
+
+// Miss-analysis: every row pasted straight after its cut, so none asked what the cut's memory is
+// worth once the document left the bytes the cut wrote and came back to them.
+describe('a cut pastes back after a detour that ends on the bytes it left', () => {
+	const focused = () => document.activeElement as HTMLElement;
+	const DETOURS: [string, (editor: Editor) => Promise<void>][] = [
+		[
+			'an undo and a redo',
+			async (editor) => {
+				await runHistory(editor, 'undo');
+				await editor.settle();
+				await runHistory(editor, 'redo');
+			}
+		],
+		[
+			'a letter typed and deleted',
+			async (editor) => {
+				await insertBy('hardware key', focused(), 'q');
+				await editor.settle();
+				await pressHardwareKey(focused(), { key: 'Backspace' });
+			}
+		],
+		[
+			'the document swapped away and back',
+			async (editor) => {
+				const landing = editor.instance.getSelection()!;
+				const left = editor.source();
+				editor.props.source = 'other\n';
+				await editor.settle();
+				editor.props.source = left;
+				await editor.settle();
+				expect(await placeRange(editor, landing)).toBe(true);
+			}
+		]
+	];
+	const HOSTS: [string, string][] = [
+		['before a heading', 'first\n\n⟦***\n\n# hd⟧\n\n# next\n'],
+		['before a titled callout', 'first\n\n⟦***\n\n# hd⟧\n\n:::tip Title\nin\n:::\n']
+	];
+	for (const mode of ['source', 'live'] as const)
+		for (const [host, marked] of HOSTS)
+			for (const [detour, run] of DETOURS)
+				it(`${mode}: ${detour}, ${host}`, async () => {
+					const { editor, payload, source } = await cutMarked(marked, mode);
+					const left = editor.source();
+					await run(editor);
+					await editor.settle();
+					expect(editor.source()).toBe(left);
+					await pasteGesture(editor, payload, 'key');
+					expect(editor.source()).toBe(source);
+				});
+
+	it('a letter typed and left makes the paste one at the caret, as any paste', async () => {
+		const { editor, payload } = await cutMarked(HOSTS[0][1], 'source');
+		await insertBy('hardware key', focused(), 'q');
+		await editor.settle();
+		await pasteGesture(editor, payload, 'key');
+		expect(editor.source()).toBe('first\n\n# q\n\n***\n\n# hdnext\n');
+	});
+});
+
+/** The range `⟦⟧` of `marked`, cut by its chord: the editor, what the cut wrote, the source before. */
+async function cutMarked(
+	marked: string,
+	mode: PresentationMode
+): Promise<{ editor: Editor; payload: Payload; source: string }> {
+	const source = marked.replace('⟦', '').replace('⟧', '');
+	const editor = mountCase(source, mode);
+	await editor.settle();
+	const layout = documentLayout(measured(editor.instance.__test.getDocument()));
+	const at = (byte: number) => {
+		const point = layout.pointAt(byte);
+		if (point) return { path: point.path, offset: point.offset };
+		const block = [...layout.within(byte, byte)].find((b) => b.from === byte);
+		return { path: block!.path, offset: 0 };
+	};
+	const range = { anchor: at(marked.indexOf('⟦')), focus: at(marked.indexOf('⟧') - 1) };
+	// A rule alone takes no browser range, so the API selects it.
+	if (!(await placeOwnedRange(editor, range))) await editor.instance.setSelection(range);
+	await editor.settle();
+	const payload = await clipboardGesture(editor, 'cut', 'key');
+	expect(editor.source()).not.toBe(source);
+	return { editor, payload, source };
+}
