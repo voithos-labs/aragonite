@@ -22,7 +22,7 @@ export { readingTabOrderProblem } from './testing/reading-tab-order';
 // ── Paste pipeline ───────────────────────────────────────────────────────────
 
 /**
- * The production paste pipeline, the very function every clipboard-to-parse path runs (G4.11),
+ * The production paste transforms, the very function a paste that lands as blocks runs (G4.11),
  * over `text` as an editor whose `plugins` prop lists `plugins` would run it; absent, every
  * installed plugin's transforms run.
  */

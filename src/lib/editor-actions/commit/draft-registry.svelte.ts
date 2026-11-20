@@ -13,6 +13,7 @@ import type { ByteChange } from '../../tree-operations/byte-changes';
 import type { DocumentStamps } from './document-stamp';
 import { startsAlone, type OpenWriteCheck } from './reading-write-gate';
 import { serialize } from '../../core/serializer';
+import { trimTrailingLineEnding } from '../../core/lines';
 import { devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 import { assertDraftBytesKept } from '../../invariants/install';
 import { docPathFrom } from '../../core/coordinate-spaces';
@@ -51,9 +52,8 @@ export interface DraftRegistry {
 	record(change: RecordedChange | null): void;
 }
 
-/** A draft whose Markdown can also go into a new paragraph below the caret's block. */
+/** A draft the editor's own menus open, which knows where its opening bytes went. */
 export interface InternalDraft extends Draft {
-	insertBelow(markdown: string): this;
 	/** Where byte `at` of the text it opened on sits now, or null once a write replaced it. */
 	now(at: number): number | null;
 	/** Ends it because the menu it was picked from closed, so a later commit says `closed`. */
@@ -64,7 +64,7 @@ export interface InternalDraft extends Draft {
 export interface DraftWrites {
 	commitSource(splice: SourceSplice): Promise<boolean>;
 	undoStep(seed: CommitSnapshotArg, run: () => Promise<unknown>): Promise<void>;
-	/** Pastes at the caret, or into a new paragraph after its top-level block; true when bytes landed. */
+	/** Pastes at the caret, or as a block of its own; true when bytes landed. */
 	insert(markdown: string, below: boolean): Promise<boolean>;
 }
 
@@ -237,6 +237,12 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 				: refused('illegal', 'the write was refused: no caret to insert at, or it rolled back');
 		}
 
+		// A snippet's last line ending ends it, as a file's last line does; a second one is content.
+		const queue = (markdown: string, below: boolean): InternalDraft => {
+			const text = trimTrailingLineEnding(markdown);
+			if (text !== '') inserts.push({ markdown: text, below });
+			return made;
+		};
 		const made: InternalDraft = {
 			get stale() {
 				void version;
@@ -261,16 +267,10 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 					});
 				return this;
 			},
-			insert(markdown) {
-				if (markdown !== '') inserts.push({ markdown, below: false });
-				return this;
-			},
+			insert: (markdown) => queue(markdown, false),
+			insertBelow: (markdown) => queue(markdown, true),
 			data(block, data) {
 				datas.push({ block, data });
-				return this;
-			},
-			insertBelow(markdown) {
-				inserts.push({ markdown, below: true });
 				return this;
 			},
 			close() {

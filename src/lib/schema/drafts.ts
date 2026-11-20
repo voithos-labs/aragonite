@@ -32,11 +32,14 @@ export interface Draft {
 	/** Replace bytes `from` to `to` with `text`, a new line inside a container carrying its marker;
 	 *  an opener written above a block that would close it gets its closing line from the editor. */
 	replace(range: { readonly from: number; readonly to: number }, text: string): this;
-	/** Insert Markdown at the caret the way a paste would, once the replacements land. */
+	/** Insert Markdown at the caret the way `insertMarkdown` does, its last line ending dropped,
+	 *  once the replacements land. */
 	insert(markdown: string): this;
 	/** Set a block's data, rewriting only the bytes that carry it; refused as `moved` when the
 	 *  block's bytes changed since it was read. A block not narrowed to a type with data takes none. */
 	data<D>(block: Block<D>, data: unknown extends D ? never : D): this;
+	/** Insert Markdown as a block of its own, as `insertMarkdown` with `placement: 'below'` does. */
+	insertBelow(markdown: string): this;
 	/** Write it all as one undo step, the caret at byte `caret` of the text as written (past any
 	 *  closing line the editor added above it) or left where it is. */
 	commit(options?: { caret?: number }): Promise<DraftResult>;

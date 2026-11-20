@@ -12,7 +12,6 @@ import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { planEnterCompletion } from '#lib/editor-actions/enter-completion.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { describeConvergence } from '../harness/parse-converged';
-import { runPasteDispatch, makePasteCommit } from '../harness/editor-actions';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { deleteRange } from '../harness/range-delete';
 import { reorderSettled } from '#lib/test/harness/settle-funnel.js';
@@ -61,20 +60,5 @@ describe('an edit route reparses in the editor grammar', () => {
 		);
 		expect(kindsOf(doc.children)).toEqual(['paragraph']);
 		expect(describeConvergence(doc, noIndentedCode)).toBeNull();
-	});
-
-	// A context with no join cleanup, as the insertMarkdown route builds one: the split halves
-	// still read the dispatch's own grammar.
-	it('a structural paste that splits an indented paragraph leaves both halves prose', async () => {
-		// One reading for the editor and the paste, as an editor hands both the same one.
-		const reading = fixtureReading({ grammar: noIndentedCode });
-		const h = makePasteCommit(read('    lead tail\n'), { reading });
-		await runPasteDispatch(h, {
-			pastedText: 'a\n\nb\n',
-			targetPath: [0],
-			offset: '    lead'.length
-		});
-		expect(kindsOf(h.doc.children)).toEqual(['paragraph', 'paragraph', 'paragraph', 'paragraph']);
-		expect(describeConvergence(h.doc, noIndentedCode)).toBeNull();
 	});
 });

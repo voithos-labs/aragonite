@@ -63,13 +63,13 @@ test.describe('table block: cross-block delete', () => {
 		await expect(page.locator('.table-cell')).toHaveCount(4);
 	});
 
-	test('Case 2: mid-table → paragraph below Backspace clears whole rows', async ({ page }) => {
-		// Whole-row snap: a drag starting in a body cell marks its anchor as a cell coordinate, as
-		// the keyboard does, so body rows 1 and 2 go when the drag starts in row 1.
-		await editor.loadContent(`${TABLE_2x3}\nfollow paragraph\n`);
+	test('Case 2: mid-table → heading below Backspace clears whole rows', async ({ page }) => {
+		// A drag starting in a body cell anchors on a cell, so rows 1 and 2 go; the heading goes whole,
+		// where a paragraph the range empties would keep its line and take the caret.
+		await editor.loadContent(`${TABLE_2x3}\n# follow heading\n`);
 		const [cellBox, paraBox] = await boxesOf(
 			page.locator('.table-cell').nth(3), // body row 1, col 1 = "2"
-			page.getByText('follow paragraph')
+			page.getByText('follow heading')
 		);
 		await dragBetweenBoxes(page, cellBox, paraBox);
 		await editor.waitForCrossBlock(true);
@@ -77,7 +77,7 @@ test.describe('table block: cross-block delete', () => {
 		await editor.bridge.waitForSourceNotContains('| 1 | 2 |');
 		await editor.bridge.waitForSourceNotContains('| 3 | 4 |');
 		// The caret must land in a real surviving cell: the subsequent keystroke writes into the
-		// grid, never the table wrapper or the dropped paragraph.
+		// grid, never the table wrapper or the dropped heading.
 		await editor.bridge.waitForSourceContains('| A | B |');
 		await page.keyboard.type('Z');
 		await editor.bridge.waitForSourceContains('Z');
@@ -87,12 +87,12 @@ test.describe('table block: cross-block delete', () => {
 
 	test('Case 2: anchor at col 0 lands at end of previous-row last cell', async ({ page }) => {
 		const TABLE_3x3 = '| A | B | C |\n| --- | --- | --- |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\n';
-		await editor.loadContent(`${TABLE_3x3}\nfollow paragraph\n`);
-		// Drag from cell (1, 0) = "1" to the paragraph below; anchorCol === 0
+		await editor.loadContent(`${TABLE_3x3}\n# follow heading\n`);
+		// Drag from cell (1, 0) = "1" to the heading below; anchorCol === 0
 		// removes anchor row entirely. Survivor: end of last cell of row 0 = "C".
 		const [cellBox, paraBox] = await boxesOf(
 			page.locator('.table-cell').nth(3),
-			page.getByText('follow paragraph')
+			page.getByText('follow heading')
 		);
 		await dragBetweenBoxes(page, cellBox, paraBox);
 		await editor.waitForCrossBlock(true);
@@ -100,6 +100,22 @@ test.describe('table block: cross-block delete', () => {
 		await editor.bridge.waitForSourceNotContains('| 1 |');
 		await page.keyboard.type('Z');
 		await editor.bridge.waitForSourceContains('| A | B | CZ |');
+	});
+
+	test('Case 2 into a paragraph: the paragraph the range empties keeps its line and the letter', async ({
+		page
+	}) => {
+		await editor.loadContent(`${TABLE_2x3}\nfollow paragraph\n`);
+		const [cellBox, paraBox] = await boxesOf(
+			page.locator('.table-cell').nth(2),
+			page.getByText('follow paragraph')
+		);
+		await dragBetweenBoxes(page, cellBox, paraBox);
+		await editor.waitForCrossBlock(true);
+		await page.keyboard.press('Backspace');
+		await editor.bridge.waitForSourceNotContains('follow');
+		await page.keyboard.type('Z');
+		await editor.bridge.waitForSourceEquals('| A | B |\n| --- | --- |\n\nZ\n');
 	});
 
 	// Miss-analysis: every whole-table row pressed Backspace, so typing and cut over the same range

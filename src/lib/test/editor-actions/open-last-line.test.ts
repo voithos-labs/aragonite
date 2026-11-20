@@ -12,20 +12,13 @@ import { ensureEditableContainers } from '#lib/schema/opened-reading.js';
 import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
 import { DIRECTIVE_CONTAINER } from '#lib/core/directive/kinds.js';
 import { createFocusActions } from '#lib/editor-actions/focus/focus.js';
-import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
 import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
 import { buildExitReplacement } from '#lib/tree-operations/list/exit-replacement.js';
 import { buildQuoteExitReplacement } from '#lib/tree-operations/blockquote.js';
-import { pasteDispatch } from '#lib/tree-operations/paste/dispatch.js';
-import { __resetSchemaRegistriesForTests } from '#lib/schema/registry-reset.js';
-import { ensurePasteSurface } from '#lib/test/harness/paste-surface.js';
-import { tableCellPasteSurface } from '#lib/components/blocks/table/table-cell-paste.js';
-import { codePasteSurface } from '#lib/components/blocks/code/code-paste-surface.js';
 import {
 	makeContainerHarness,
 	makeListContextAt,
-	makeTopHarness,
-	pasteContext
+	makeTopHarness
 } from '#lib/test/harness/editor-actions.js';
 import { makeHarness, runOp, type Op } from '#lib/test/undo/restoration-ops.js';
 import { testDirectiveViews } from '#lib/test/harness/test-view.js';
@@ -38,24 +31,6 @@ const top =
 	async (source) => {
 		const h = makeTopHarness(source);
 		await edit(h);
-		return h.deps.doc;
-	};
-
-const paste =
-	(path: number[], offset: number, clipboard: string): Route =>
-	async (source) => {
-		__resetSchemaRegistriesForTests();
-		ensurePasteSurface(tableCellPasteSurface);
-		ensurePasteSurface(codePasteSurface);
-		const h = makeTopHarness(source);
-		await pasteDispatch(
-			{ pastedText: clipboard, targetPath: path, offset },
-			pasteContext({
-				doc: h.deps.doc,
-				blockEdit: h.actions,
-				controller: createPasteCoordinator(h.deps, h.controller)
-			})
-		);
 		return h.deps.doc;
 	};
 
@@ -171,18 +146,6 @@ const ROUTES: { name: string; source: string; after: string; route: Route }[] = 
 		after: 'intro\n\n- a\n\n\n- c',
 		route: listExit(1)
 	},
-	{
-		name: 'blocks ending in a line break pasted at the end stay open',
-		source: 'intro\n\nhello',
-		after: 'intro\n\nhello\n\n# T\n\nbody',
-		route: paste([1], 5, '# T\n\nbody\n')
-	},
-	{
-		name: 'blocks ending in a blank line pasted at the end add no break',
-		source: 'intro\n\nhello',
-		after: 'intro\n\nhello\n\n# h',
-		route: paste([1], 5, '# h\n\n')
-	},
 	// ── through a container's commit, on the last line ──
 	{
 		name: 'Enter at the end of the last list item adds an empty item, which keeps its break',
@@ -202,25 +165,7 @@ const ROUTES: { name: string; source: string; after: string; route: Route }[] = 
 		after: 'intro\n\n> a',
 		route: inContainer([1], (bundle) => bundle.blockEdit.deleteBlock(1, 'keyless'))
 	},
-	{
-		name: 'blocks pasted at the end of a last quote stay open',
-		source: 'intro\n\n> hello',
-		after: 'intro\n\n> hello\n>\n> x\n>\n> y',
-		route: paste([1, 0], 5, 'x\n\ny\n')
-	},
-	{
-		name: 'items pasted at the end of a last list stay open',
-		source: 'intro\n\n- a\n- b',
-		after: 'intro\n\n- a\n- b\n- one\n- two',
-		route: paste([1, 1, 0], 1, '- one\n- two\n')
-	},
 	// ── a table row that stops being the last line takes an ending ──
-	{
-		name: 'blocks pasted into a cell of a last table leave the rows below a table',
-		source: 'intro\n\n|a|b|\n|-|:-|\n|1|2|\n|3|4|',
-		after: 'intro\n\n|a|b|\n|-|:-|\n|1|2|\n\nx\n\ny\n\n|3|4|\n|-|:-|',
-		route: paste([1, 1, 0], 1, 'x\n\ny\n')
-	},
 	{
 		name: 'deleting the header of a last table ends the row that replaces it',
 		source: 'intro\n\n|a|\n|-|\n|1|',
@@ -228,12 +173,6 @@ const ROUTES: { name: string; source: string; after: string; route: Route }[] = 
 		route: tableOp({ t: 'tableDeleteRow', i: 0 })
 	},
 	// ── a blank last line stays whole ──
-	{
-		name: 'an unclosed fence ending in an empty line keeps it',
-		source: 'intro\n\nhello',
-		after: 'intro\n\nhello\n\n```\ncode\n\n',
-		route: paste([1], 5, '```\ncode\n\n')
-	},
 	{
 		name: 'a quote’s trailing `>` line gives its break up when the quote becomes last',
 		source: 'intro\n\n> q\n>\n\nlast',
@@ -257,12 +196,6 @@ const ROUTES: { name: string; source: string; after: string; route: Route }[] = 
 		source: 'intro\n\n- > a',
 		after: 'intro\n\n- > a\n  >\n  >\n',
 		route: inContainer([1, 0, 0], (bundle) => bundle.blockEdit.splitBlock(0, 1))
-	},
-	{
-		name: 'an empty quote pasted mid-document ends its line',
-		source: 'a\n\nb\n\nc',
-		after: 'a\n\nb\n\n>\n\nc',
-		route: paste([1], 1, '>')
 	},
 	// Miss-analysis: every row wrote into a document that still held a line, so none typed into an
 	// emptied one, which the last-line check read as ending in a line break.

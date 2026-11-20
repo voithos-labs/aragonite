@@ -95,7 +95,7 @@ describe('every write that can replace a to-do’s first block drops the marker 
 			[0, 0, 0],
 			parse(TABLE).children,
 			{ replacementIndex: 0, offset: 0 },
-			{ source: 'paste-dispatch', snapshotOffset: 0 }
+			{ snapshotOffset: 0 }
 		);
 
 		const item = doc.children[0].children![0];

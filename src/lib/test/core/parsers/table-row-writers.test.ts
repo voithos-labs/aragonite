@@ -2,7 +2,6 @@
 // bytes it writes; a CRLF document's lines are the same bytes ending in CRLF.
 import { describe, expect, it } from 'vitest';
 import { parse } from '#lib/core/parser.js';
-import { serialize } from '#lib/core/serializer.js';
 import type { CstNode, TableAlignment } from '#lib/core/nodes.js';
 import { rebuildTableRaw, rebuildTableRowRaw } from '#lib/schema/container-rebuilders.js';
 import {
@@ -14,8 +13,6 @@ import { copyRectangleAsSubTable } from '#lib/tree-operations/sub-table-copy.js'
 import { tryCompleteTableRow } from '#lib/core/parsers/table-completion.js';
 import { insertRows, rowMarkdown } from '#lib/schema/insert-catalogue.js';
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
-import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
-import { runPasteDispatch, makePasteCommit } from '#lib/test/harness/editor-actions.js';
 
 const ENDINGS = [
 	['LF', '\n'],
@@ -178,20 +175,6 @@ describe.each(ENDINGS)('the table rows each route writes, %s', (_, ending) => {
 		const table = parse(inEnding(`| a | b |\n| --- | --- |\n${row}\n`, ending)).children[0];
 		table.children![1].children![cell].raw = text;
 		expect(rebuilt(table)).toBe(inEnding(`| a | b |\n| --- | --- |\n${lf}\n`, ending));
-	});
-
-	it('the insert menu’s table, landed in the document', async () => {
-		const h = makePasteCommit(parse(`a${ending}`));
-		const blockEdit = createBlockEditActions(h.deps, h.undo);
-		await blockEdit.insertParagraph(1, '');
-		await runPasteDispatch(
-			h,
-			{ pastedText: rowMarkdown(tableEntry()), targetPath: [1], offset: 0 },
-			{ blockEdit }
-		);
-		expect(serialize(h.doc)).toBe(
-			inEnding('a\n\n| Column | Column |\n| --- | --- |\n|  |  |\n', ending)
-		);
 	});
 });
 

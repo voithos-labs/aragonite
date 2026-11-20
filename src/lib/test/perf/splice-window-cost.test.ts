@@ -151,4 +151,20 @@ describe('a byte splice among many blocks', () => {
 			});
 		}
 	}
+
+	// Miss-analysis: every change stayed inside its container, so no row saw a change that closes a
+	// long list grow its window to the list's end, reading the bytes both ways at every step.
+	it('reads a long list a change closes in its middle once, at the top level', () => {
+		const { deps } = makeEditorActionsDeps(SHAPES.list.source(N));
+		const before = serialize(deps.doc);
+		const at = before.indexOf('\n', lineStart(before, N >> 1));
+		const changes = [{ from: at, to: at, insert: '\n\nbetween' }];
+		enablePerfInstruments();
+		resetPerfInstruments();
+		const read = spliceReading(deps.bytes.measured(), before, changes, deps.reading.grammar);
+		expect(read?.windows.map((w) => w.blocks.map((b) => b.kind))).toEqual([
+			['list', 'paragraph', 'list']
+		]);
+		expect(perfSnapshot().parseBytes).toBeLessThanOrEqual(before.length * 1.5);
+	});
 });

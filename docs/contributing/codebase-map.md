@@ -52,7 +52,7 @@ A row is a behavior the way a bug report would say it, the entry to open, and th
 | Touch: a widget's own pointer gesture, a finger's press (a scroll, a long-press selection), its range taken over as the editor's, the selection handles, a table's row and column actions | `src/lib/selection/pointer-gesture.ts`, `src/lib/selection/finger-takeover.ts`, `src/lib/components/overlays/selection-handles.ts` :: `startHandleDrag` (a `touch: 'own'` drag), `src/lib/components/blocks/table/TableBlock.svelte` :: `showCellButton` | `docs/design/selection.md` § Cross-block selection |
 | Dropping a dragged selection | `src/lib/selection/selection-drop.ts` :: `runDrop` | `docs/design/selection.md` |
 | Copy and cut, and whether a selection is held | `src/lib/components/blocks/editable/clipboard-step.ts` :: `runClipboardCut`, `src/lib/selection/held-selection.ts` :: `holdsSelection`. A block that handled the event calls `preventDefault`, and the editor root reads that as handled. | `docs/design/selection.md` § Clipboard |
-| Paste | `src/lib/tree-operations/paste/dispatch.ts` :: `pasteDispatch` | `docs/design/selection.md` § The paste pipeline |
+| Paste | `src/lib/components/editor-root/paste.ts` :: `createRootPaste` (the one entry: the read, and where the paste goes), `src/lib/selection/cross-block/range-paste.ts` :: `pasteThroughCore` (the commit) | `docs/design/selection.md` § The paste pipeline |
 | Find and replace | `src/lib/search/search-state.svelte.ts`, the writes in `src/lib/editor-actions/search-replace.ts` | `docs/design/selection.md` § Search |
 
 ## Structure: split, join, move
@@ -113,7 +113,7 @@ A row is a behavior the way a bug report would say it, the entry to open, and th
 | Which props can change after mount, and which are booleans | `src/lib/editor-props.ts` :: `EDITOR_OPTION_SPECS` | `docs/guide/consumer-guide.md` § Props |
 | The prebuilt build (what a React, Vue or plain JavaScript app runs) | `vite.prebuilt.config.js`, gated by `scripts/pack/verify-prebuilt.mjs` | `docs/guide/consumer-guide.md` § What your build needs |
 | When a `source` write replaces the document | `src/lib/components/editor-root/document-swap.ts` | `docs/design/editor.md` § Serialization |
-| Programmatic insertion (`insertMarkdown`) | `src/lib/components/editor-root/focused-surface.ts` :: `insertMarkdown` | `docs/guide/consumer-guide.md` § Inserting Markdown at the caret |
+| Programmatic insertion (`insertMarkdown`) | `src/lib/components/editor-root/paste.ts` :: `createRootPaste` | `docs/guide/consumer-guide.md` § Inserting Markdown at the caret |
 | The block context menu (right-click), the rows a kind registers, and the selection toolbar | `src/lib/components/editor-root/menus.ts` :: `onRootContextMenu`, `src/lib/components/menu/default-context-actions.ts` :: `blockActionsFor`, `src/lib/components/menu/SelectionToolbar.svelte`. A menu row writes through a draft opened when it's picked, never by touching the DOM, so an edit to the block before the write refuses it. | `docs/design/selection.md` § Clipboard, `docs/guide/consumer-guide/recipes.md` § Recipe: a selection toolbar |
 | What `selectionChange`, `menuChange` and `searchChange` report | `src/lib/selection/selection-announcer.ts`, `src/lib/components/menu/menu-presence.svelte.ts`, `src/lib/search/search-state.svelte.ts` :: `viewKey` | `docs/design/commit-and-undo.md` § The event channel |
 

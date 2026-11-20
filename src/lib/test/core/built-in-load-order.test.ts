@@ -47,7 +47,6 @@ const ENTRIES = [
 	'#lib/core/parser.js',
 	'#lib/core/parsers/table-completion.js',
 	'#lib/schema/editor-grammar.js',
-	'#lib/tree-operations/paste/hooks.js',
 	'#lib/core/inline/index.js',
 	'#lib/schema/built-in-descriptors.js',
 	'#lib/schema/container-rebuilders.js',

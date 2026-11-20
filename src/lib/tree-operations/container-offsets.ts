@@ -550,9 +550,11 @@ function cellStarts(node: NodeView): BodyMap {
 	let cursor = 0;
 	const childStarts = (node.children ?? []).map((cell) => {
 		const found = cell.raw === '' ? -1 : node.raw.indexOf(cell.raw, cursor);
-		// An empty or padded cell sits just past the next pipe, or where the cells before it end.
+		// A padded cell sits just past the next pipe, or where the cells before it end; an empty one
+		// past the space a letter typed there keeps before it.
 		const pipe = node.raw.indexOf('|', cursor);
-		const start = found >= 0 ? found : pipe >= 0 ? pipe + 1 : cursor;
+		const pad = cell.raw === '' && node.raw[pipe + 1] === ' ' ? 1 : 0;
+		const start = found >= 0 ? found : pipe >= 0 ? pipe + 1 + pad : cursor;
 		cursor = start + cell.raw.length;
 		return start;
 	});

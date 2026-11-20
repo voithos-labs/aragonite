@@ -185,8 +185,8 @@ export interface PlaceholderBlock {
 }
 
 export interface InsertMarkdownOptions {
-	/** `caret` (the default) inserts where the caret is; `below` inserts into a new paragraph
-	 *  after the top-level block that holds it. */
+	/** `caret` (the default) inserts where the caret is; `below` inserts a block of its own: at the
+	 *  caret on an empty line, item or to-do, else in a new paragraph after the top-level block. */
 	placement?: 'caret' | 'below';
 }
 
@@ -233,10 +233,11 @@ export interface EditorInstance extends Editor {
 	 */
 	edit(): Draft;
 	/**
-	 * Insert markdown exactly as pasting it would, minus the clipboard: paste transforms,
-	 * delete-selection-first, one undo entry, focus at the end. `edit().insert(md)`, resolved to
-	 * whether it landed: false, with nothing changed, with no caret, in reading mode, or at a gap
-	 * caret. `placement: 'below'` first adds an empty paragraph after the caret's top-level block.
+	 * Insert markdown as pasting it would, less its last line ending (a snippet's terminator): the
+	 * selection deleted first, one undo entry, focus at the last place it holds, one line after
+	 * text as text. False, with nothing changed, with no caret or in reading mode.
+	 * `placement: 'below'` makes it a block of its own: an empty line, item or to-do at the caret
+	 * takes it, else an empty paragraph added after the caret's top-level block.
 	 */
 	insertMarkdown(md: string, options?: InsertMarkdownOptions): Promise<boolean>;
 	/**

@@ -36,11 +36,15 @@ test.describe('a hard break where markers are hidden', () => {
 		await ep.bridge.waitForSourceContains('one  \ntwo');
 
 		expect(await drawnGlyphs(page)).toBe(0);
-		// The clipboard's closing line ending ends the paragraph; it is not a line inside it.
+		// The clipboard's closing line ending is Enter after the paragraph, not a line inside it.
 		expect(await ep.getBlockText(1)).toBe('one  \ntwo');
-		expect(await ep.bridge.getSource()).toBe('start\n\none  \ntwo\n');
+		expect(await ep.bridge.getSource()).toBe('start\n\none  \ntwo\n\n');
 
-		// The paste leaves the caret after `two`; Home is the start of its own line.
+		// The paste leaves the caret under the paragraph; back to after `two`, Home is the start of
+		// its own line.
+		await page.keyboard.press('ArrowLeft');
+		await ep.waitForRenderFlush();
+		expect(await focusPath(ep)).toEqual([1]);
 		await page.keyboard.press(edgeKey('lineStart'));
 		await ep.waitForRenderFlush();
 		expect(await focusOffset(ep)).toBe(6);

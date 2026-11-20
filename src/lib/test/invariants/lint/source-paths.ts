@@ -58,6 +58,7 @@ export const SOURCE = {
 	contentWrite: 'src/lib/tree-operations/content-write.ts',
 	nodeOps: 'src/lib/tree-operations/node-ops.ts',
 	chainRebuild: 'src/lib/tree-operations/chain-rebuild.ts',
+	splicedOpeners: 'src/lib/tree-operations/spliced-openers.ts',
 	blockquoteOps: 'src/lib/tree-operations/blockquote.ts',
 	listItemMoves: 'src/lib/tree-operations/list/item-moves.ts',
 
@@ -231,6 +232,7 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	contentWrite: 'export interface LegalWrite',
 	nodeOps: 'export interface SplitResult',
 	chainRebuild: 'export function rebuildUnsharedChain',
+	splicedOpeners: 'export function closedSplice(',
 	blockquoteOps: 'export function plainQuote',
 	listItemMoves: 'export type ItemMoveCommits',
 

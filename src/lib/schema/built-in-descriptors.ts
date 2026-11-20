@@ -5,7 +5,6 @@
  * only a called binding.
  */
 
-import { metadataOf } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { displayLength } from '../core/lines';
 import { matchHeading } from '../core/parsers/heading';
@@ -390,7 +389,6 @@ function registerBuiltIns(): void {
 		supportsInline: false,
 		container: {
 			lines: QUOTE_LINES,
-			containerPaste: { matchesAncestor: () => true, siblingAbsorb: false },
 			merges: {},
 			unwrapRole: {
 				firstChildBackspace: 'lift-first-child-drop-opener',
@@ -413,12 +411,6 @@ function registerBuiltIns(): void {
 		container: {
 			contract: 'strip',
 			rebuildRaw: rebuildListRaw,
-			containerPaste: {
-				matchesAncestor: (top, ancestor) =>
-					(metadataOf(top, 'list')?.ordered ?? false) ===
-					(metadataOf(ancestor, 'list')?.ordered ?? false),
-				siblingAbsorb: true
-			},
 			merges: { key: 'ordered' },
 			unwrapRole: {
 				firstChildBackspace: 'list-item-cascade',

@@ -11,7 +11,6 @@
 	import { blockNodeAt } from '../../../tree-operations/node-primitives';
 	import { createCompositionSeat } from '../text/composition-seat';
 	import { storedAsAt } from '../../../tree-operations/stored-as';
-	import { parseClipboardGrid, tileGridTo } from '../../../tree-operations/table-grid-clipboard';
 	import { pathsEqual } from '../../../selection/path-math';
 	import { FALLBACK_CONTENT_WIDTH } from '../../../windowing/typography-estimates';
 	import { rawTextOfNode } from '../../../browser/block-text';
@@ -45,7 +44,7 @@
 		type CellKeyState
 	} from './cell-keydown-plan';
 	import { tableAxisCommand } from './cell-table-commands';
-	import { cellPoint, rangeSpansBlocks } from '../../../selection/primitives';
+	import { cellPoint } from '../../../selection/primitives';
 	import type { ClipboardAction } from './table-menu-model';
 	import {
 		installCellDragListener,
@@ -64,7 +63,7 @@
 	import { createTypedPlacement } from '../text/edge-seat';
 	import { resolvedInlineContent } from '../../../core/inline/inline-cache';
 	import { getInlineWidgetEditing, widgetElByStart } from '../../../core/inline/inline-widgets';
-	import { readClipboardText } from '../../../browser/clipboard';
+	import { readClipboard } from '../../../browser/clipboard';
 
 	type ExitDirection = 'up' | 'down';
 
@@ -116,7 +115,6 @@
 		linkCard,
 		rects,
 		decorations: decorationEngine,
-		rangeCoverage,
 		shownSource,
 		presses,
 		textMoves,
@@ -435,8 +433,7 @@
 			getSelectionOffsets,
 			applyMenuClipboard,
 			readSnapAtPoint: widgetInteraction.readSnapAtPoint,
-			insertMarkdown: clipboard.insertMarkdown,
-			insertPlainText: clipboard.insertPlainText,
+			preparePaste: clipboard.preparePaste,
 			claimRootClipboard: clipboard.claimRootClipboard,
 			typeText: editableSurface.surface.typeText,
 			afterSelectionRemoved: editableSurface.afterSelectionRemoved,
@@ -722,25 +719,6 @@
 		};
 	}
 
-	// A pasted grid (spreadsheet tabs or a GFM table) fills cells from the live rectangle's top-left
-	// or this cell, growing the table; over the whole table or a range across blocks it replaces.
-	async function pasteGridHere(text: string): Promise<boolean> {
-		const grid = parseClipboardGrid(text);
-		if (!grid) return false;
-		const tablePath = myPath.slice(0, -2);
-		const coverage = rangeCoverage();
-		if (coverage && rangeSpansBlocks(coverage)) return false;
-		const cells = coverage?.grid ?? null;
-		if (cells && !pathsEqual(cells.path, tablePath)) return false;
-		if (cells?.kind === 'table') return false;
-		const rect = cells?.rect;
-		const origin = rect ? { rowIdx: rect.top, colIdx: rect.left } : { rowIdx, colIdx };
-		const fitted = rect ? tileGridTo(grid, rect.rows, rect.cols) : grid;
-		if (rect) selection.collapse();
-		await tableContext.pasteGrid(origin, fitted);
-		return true;
-	}
-
 	// While a source is shown the DOM holds an edit `node.raw` has not seen, so a copy reads the
 	// cell's live text.
 	const clipboard = createTextClipboard({
@@ -761,10 +739,9 @@
 		foldRevealBeforeMutation: () => widgetInteraction.foldRevealBeforeMutation(),
 		get reading() {
 			return reading;
-		},
-		pastePreHook: pasteGridHere
+		}
 	});
-	const { onCopy, onCut, onPaste } = clipboard;
+	const { onCopy, onCut } = clipboard;
 
 	// ── Right-click menu clipboard ──────────────────────────────────────────
 
@@ -792,13 +769,12 @@
 		caretMemory.forget();
 		el.focus({ preventScroll: true });
 		if (action === 'paste') {
-			const raw = await readClipboardText();
+			const clip = await readClipboard();
 			// The cell can unmount while the read waits (a delete, a `source` swap).
-			if (!el || !raw) return;
+			if (!el || !clip?.text) return;
 			// A live range stays as it is; otherwise the paste replaces what the menu was opened on.
 			if (!selection.ownsRange) setSelection(sel.start, sel.end);
-			// The same paste step Ctrl+V runs.
-			await clipboard.insertMarkdown(raw);
+			await menuClipboard.pasteTarget()?.(clip);
 			return;
 		}
 		// A range the editor holds stays as it is, as for a paste.
@@ -845,7 +821,6 @@
 	onclick={onClick}
 	oncopy={onCopy}
 	oncut={onCut}
-	onpaste={onPaste}
 	onfocus={onFocus}
 	onblur={onBlur}
 	oncompositionstart={editableSurface.onCompositionStart}

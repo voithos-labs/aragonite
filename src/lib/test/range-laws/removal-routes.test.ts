@@ -28,7 +28,7 @@ import { rangeClipboard } from '#lib/selection/range-clipboard.js';
 import { caretTargetFor, type RemovalGesture } from '#lib/selection/caret-target.js';
 import { CORE_GESTURE } from '#lib/selection/cross-block/range-removal.js';
 import type { SpliceCaret } from '#lib/action-contracts.js';
-import { landingAt } from '#lib/editor-actions/commit/byte-splice.js';
+import { landingAt } from '#lib/selection/range-bytes.js';
 import { CURSOR_END, CURSOR_START } from '#lib/block-component.js';
 import { caretOf } from './through-splice';
 import {
@@ -55,6 +55,7 @@ import {
 	type Editor
 } from './gestures';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
+import { letterLanding } from './letter-landing';
 
 beforeAll(installLayoutStubs);
 beforeEach(() => {
@@ -334,14 +335,18 @@ describe('every whole-block route leaves the core’s bytes', () => {
 
 // Miss-analysis: the core's caret table holds every kit kind's byte, and R1 each route's landing of
 // it, but nothing held that byte, landed, to where the kind itself puts a caret it is entered at.
-describe('a rule removed whole lands where the kind beside it takes a caret, or in the gap', () => {
-	// `gap`: the kinds a route leaves the gap above, where the core names the boundary the rule
-	// left and a letter there would go into the kind's syntax.
+describe('a rule removed whole lands where the kind beside it takes a caret, off its syntax', () => {
+	// Where the kind's own entry puts a letter on its syntax the route goes to its nearest text, or
+	// to the gap beside it (`gap`): a cut's nearest text is on the kind's first line.
 	const sides = {
 		'above the rule, by Backspace': { route: { key: 'Backspace' }, above: true, gap: [] },
 		'above the rule, by the block menu’s Remove': { route: { menu: true }, above: true, gap: [] },
-		'below the rule, by Delete': { route: { key: 'Delete' }, above: false, gap: [] },
-		'below the rule, by Mod+X': { route: { cut: true }, above: false, gap: ['fencedCode'] }
+		'below the rule, by Delete': { route: { key: 'Delete' }, above: false, gap: ['toc'] },
+		'below the rule, by Mod+X': {
+			route: { cut: true },
+			above: false,
+			gap: ['fencedCode', 'directiveContainer', 'toc', 'mathBlock', 'mathFence']
+		}
 	} satisfies Record<string, { route: WholeRoute; above: boolean; gap: string[] }>;
 	for (const mode of ['source', 'live'] as const) {
 		it.each(Object.entries(sides))(`${mode}, every kit kind %s`, async (_, side) => {
@@ -357,45 +362,55 @@ describe('a rule removed whole lands where the kind beside it takes a caret, or 
 				const editor = mountCase(source, mode);
 				await editor.settle();
 				if (editor.instance.__test.getDocument().children.length !== 3) continue;
-				if (mode === 'live' && !above && TITLE_ROW_KINDS.has(kind)) continue;
 				if (!(await driveWhole(editor, [1], route))) out.push(`${kind}: the route took no action`);
 				const removed = editor.source();
 				const held = editor.instance.__test.getGapCaret()?.held;
 				const left = { caret: heldCaret(editor), typed: await typedAt(editor) };
 				if (held) {
 					gaps.push(kind);
-					const own = above ? `${block}\n\nx\n\nbelow\n` : `above\n\nx\n\n${block}\n`;
-					if (left.typed !== own) out.push(`${kind}: ${left.typed}`);
+					const alone = above ? `${block}\n\nx\n\nbelow\n` : `above\n\nx\n\n${block}\n`;
+					if (left.typed !== alone) out.push(`${kind}: ${left.typed}`);
 					continue;
 				}
+				// Unruled: a `::name`'s text starts at the name's end, so the core's text start renames it.
+				if (!above && kind === 'directiveLeaf') continue;
+				const path = above ? [0] : [1];
 				const fresh = mountCase(removed, mode);
 				await fresh.settle();
-				fresh.instance.__test.getBlockComponent(above ? [0] : [1])!.focus(edge(above));
+				fresh.instance.__test.getBlockComponent(path)!.focus(edge(above));
 				await fresh.settle();
 				const own = { caret: heldCaret(fresh), typed: await typedAt(fresh) };
 				// Two raw offsets of one screen position, as live mode's hidden markers make, are one place.
-				if (left.caret !== own.caret && left.typed !== own.typed)
-					out.push(`${kind}: ${left.caret}, not ${own.caret}`);
+				const same = left.caret === own.caret || left.typed === own.typed;
+				const letter = letterLanding(editor, removed, left.typed, 'x');
+				const beside = !!letter?.offSyntax && (letter.within(path) || letter.after(path));
+				// Null where jsdom types nothing at the kind's own entry (a picture of its source).
+				const ownLetter = letterLanding(fresh, removed, own.typed, 'x');
+				const booked = BOOKED[above ? 'above' : 'below'].has(kind);
+				const stands = booked || ownLetter?.offSyntax;
+				if (stands ? !same : ownLetter ? !beside : !same && !beside)
+					out.push(`${kind}: ${left.typed} at ${left.caret}, not ${own.typed} at ${own.caret}`);
 			}
 			expect(out).toEqual([]);
-			expect(gaps, 'the kinds the gap is held above').toEqual(side.gap);
+			expect(gaps, 'the kinds the gap is held beside').toEqual(side.gap);
 		});
 	}
 });
 
 const edge = (above: boolean) => (above ? CURSOR_END : CURSOR_START);
 
-// A live title row's own start caret reads raw 0, before its hidden `:::` marker, so a letter goes
-// in front of the marker; the removal's caret types into the title, where Delete means it.
-const TITLE_ROW_KINDS = new Set(['directiveContainer', 'directiveLeaf', 'admonition']);
+/** Booked, not ruled: a letter at these kinds' edge re-kinds or renames them wherever a caret
+ *  enters (a source setext underline, a definition, a `::name`, an indent, an HTML tag). */
+const BOOKED = {
+	above: new Set(['setextHeading', 'linkReferenceDefinition', 'directiveLeaf']),
+	below: new Set(['indentedCode', 'htmlBlock', 'linkReferenceDefinition'])
+};
 
 /** The source once a letter is typed at the editor's caret, read before the editor loses focus. */
 async function typedAt(editor: Editor): Promise<string> {
-	const before = editor.source();
 	await pressHardwareKey(document.activeElement as HTMLElement, { key: 'x' });
 	await editor.settle();
-	const typed = editor.source();
-	return typed === before ? 'nothing typed' : typed;
+	return editor.source();
 }
 
 // ── The place the core names ─────────────────────────────────────────────────
@@ -614,12 +629,13 @@ describe('a removal’s caret sits among the children of the block the core name
 		for (const route of PLACE_ROUTES) {
 			const title = `${mode}, ${route}: $shape, $depth deep in a $wrap, $ending`;
 			it.each(rows)(title, async ({ shape, wrap, source, take }) => {
-				// In live mode a code block the caret lands in with no body line writes one on arrival
-				// (`CodeBlock.svelte` :: `bareFenceCompletion`), a byte the core's answer doesn't hold.
+				// A live code block the caret lands in with no body line writes one on arrival, a byte the
+				// core's answer doesn't hold; Backspace with nothing before the range lands as Delete does.
 				const diverges =
 					mode === 'live' &&
 					shape === 'a cut across two fences' &&
 					((route === 'Delete' && (wrap === 'callout' || wrap === 'details')) ||
+						(route === 'Backspace' && wrap === 'callout') ||
 						(route !== 'Backspace' && route !== 'a letter' && wrap === 'directive'));
 				if (diverges) return;
 				const editor = mountCase(source, mode);

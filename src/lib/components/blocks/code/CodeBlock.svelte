@@ -190,7 +190,6 @@
 		// not, since an empty fence gets one either way.
 		el.toggleAttribute(CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome(el));
 		lastRenderedRaw = node.raw;
-		heldBody ||= !isBlankText(bodyText());
 	}
 
 	$effect(() => {
@@ -248,18 +247,19 @@
 	 *  language its picker on first focus: an insert command's block mounts after that commit. */
 	let autoOpenLanguage = $state(false);
 	let languageOffered = false;
-	// A fence that has held a body is being edited rather than authored, so a removal that empties
-	// it and lands there opens no picker.
-	let heldBody = false;
 	function onSurfaceFocus(): void {
 		if (readOnly || !showRail) return;
 		const firstFocus = !languageOffered;
 		languageOffered = true;
 		// A caret that stepped into an existing fence is passing through, and a picker would trap
-		// it; a click or an insert command is the user authoring.
+		// it; a click or an insert command is the user authoring, and a removal's landing is an edit.
 		const steppedIn = metadataOf(node, 'fencedCode').closed && caretMemory.arrivedByKey();
 		const offerLanguage =
-			firstFocus && !heldBody && infoString === '' && isBlankText(bodyText()) && !steppedIn;
+			firstFocus &&
+			!caretMemory.arrivedByRemoval() &&
+			infoString === '' &&
+			isBlankText(bodyText()) &&
+			!steppedIn;
 		// Deferred past the commit's own caret placement, which focuses this block a second time
 		// and would blur a picker opened on the first. A bare fence is completed before it opens.
 		void tick().then(async () => {
@@ -707,8 +707,7 @@
 		parkCaret,
 		getCursorOffset,
 		focusAtColumn,
-		insertMarkdown,
-		insertPlainText,
+		preparePaste,
 		runCommand,
 		afterSelectionRemoved
 	} satisfies BlockComponent);
@@ -746,26 +745,13 @@
 
 	const clipboard = editableSurface.clipboard({
 		removeRange: (range: RawRange) => void removeRange(range, 'cut'),
-		pasteTail: (pastedText, { range }) => {
-			// Paste refuses where typing refuses; the tree-op owns the splice.
-			const span = editSpan(node, range ?? { start: 0, end: 0 }, fenceLinesShown);
-			if (!span) return;
-			return editableSurface.pasteInline({
-				pastedText,
-				offset: span.start,
-				preDelete: span.start !== span.end ? span : undefined,
-				caretBefore: editableSurface.caret.getPreEditOffset()
-			});
-		}
+		// A paste is refused where typing is.
+		pasteRange: (selection) => editSpan(node, selection ?? { start: 0, end: 0 }, fenceLinesShown)
 	});
-	const { onCopy, onCut, onPaste } = clipboard;
+	const { onCopy, onCut } = clipboard;
 
-	export function insertMarkdown(md: string): Promise<boolean> {
-		return clipboard.insertMarkdown(md);
-	}
-
-	export function insertPlainText(text: string): Promise<boolean> {
-		return clipboard.insertPlainText(text);
+	export function preparePaste() {
+		return clipboard.preparePaste();
 	}
 </script>
 
@@ -781,7 +767,6 @@
 	onbeforeinput={editableSurface.onBeforeInput}
 	oncopy={onCopy}
 	oncut={onCut}
-	onpaste={onPaste}
 	onpointerdown={onPointerDown}
 	oncompositionstart={onCompositionStart}
 	oncompositionend={onCompositionEnd}

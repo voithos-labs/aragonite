@@ -60,10 +60,12 @@ function harness(
 	const placeMenuCaret = vi.fn(() => true);
 	const insertMarkdown = vi.fn(async () => true);
 	const aimedInserts: string[] = [];
-	const aimInsertAtFocus = vi.fn(() => ({
-		markdown: async (md: string) => (aimedInserts.push(md), true),
-		plainText: async (text: string) => (aimedInserts.push(`plain:${text}`), true)
-	}));
+	const aimInsertAtFocus = vi.fn(
+		() => async (clip: { text: string; plain: boolean }) => (
+			aimedInserts.push(clip.plain ? `plain:${clip.text}` : clip.text),
+			true
+		)
+	);
 	const order: string[] = [];
 	placeMenuCaret.mockImplementation(() => (order.push('place'), true));
 	const editLinkAtCaret = vi.fn();

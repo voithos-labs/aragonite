@@ -5,7 +5,7 @@
  * views only, never a node read before it.
  */
 
-import type { CommitLanding } from '../../action-contracts';
+import type { CommitLanding, ContainerScope } from '../../action-contracts';
 import { metadataOf, type CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import type { GrammarView } from '../../schema/block-openers';
@@ -155,6 +155,7 @@ export function liftNestedItem(
 		}
 	];
 	let promotedAt = parentItemIdx + 1;
+	const at = { parentItemIdx, nestedIdxInParent, nestedItemIdx };
 
 	return commits.commitMultiScope({
 		scopes,
@@ -165,47 +166,22 @@ export function liftNestedItem(
 		},
 		mutate: (scopeViews) => {
 			const [outerScope, nestedScope, parentScope] = scopeViews;
-			return keepingListOrder(
-				() => [outerScope.node],
-				() => {
-					const sharing = outerScope.sharing;
-					// Opened before the move, since the cleanup below can splice any of the three lists.
-					const ledgers = scopeViews.map((v) => trackChildIds(v.node));
-
-					// The promoted item is moved and written (marker normalization, renumbering), so copy
-					// it before it leaves the nested list.
-					const item = ensureUnsharedChild(nestedScope.node, nestedItemIdx, sharing);
-					const laterItems = nestedScope.children.slice(nestedItemIdx + 1);
-					spliceChildren(nestedScope.node, nestedItemIdx, 1 + laterItems.length, []);
-					const laterBlocks = parentScope.children.slice(nestedIdxInParent + 1);
-					spliceChildren(parentScope.node, nestedIdxInParent + 1, laterBlocks.length, []);
-					const ordered = metadataOf(nestedScope.node, 'list').ordered;
-					adoptAsLastChildren(item, laterItems, ordered, sharing, grammar, outerScope.rebuild);
-					appendLaterBlocks(item, laterBlocks, sharing);
-					if (laterItems.length + laterBlocks.length > 0) outerScope.rebuild(item);
-					normalizeItemMarkerToList(item, outerScope.node, grammar);
-					spliceChildren(outerScope.node, promotedAt, 0, [item]);
-
-					// What the move emptied goes, up to this list, which now holds the promoted item.
-					const outerCount = outerScope.children.length;
-					cascadeCleanupEmptyAncestors(outerScope.node, outerScope, [
-						parentItemIdx,
-						nestedIdxInParent,
-						nestedItemIdx
-					]);
-					promotedAt -= outerCount - outerScope.children.length;
-
-					if (nestedScope.children.length > 0)
-						renumberOrderedList(nestedScope.node, 1, sharing, grammar);
-					renumberOrderedList(outerScope.node, promotedAt, sharing, grammar);
-
-					return ledgers.map((ledger) => {
-						const change = ledger.read();
-						ledger.release();
-						return change;
-					});
-				}
-			);
+			// Opened before the move, since the cleanup in it can splice any of the three lists.
+			const ledgers = scopeViews.map((v) => trackChildIds(v.node));
+			const writes = {
+				outer: outerScope.node,
+				nested: nestedScope.node,
+				parent: parentScope.node,
+				sharing: outerScope.sharing,
+				rebuild: outerScope.rebuild,
+				splice: outerScope.splice
+			};
+			promotedAt = liftItemOut(at, writes, grammar);
+			return ledgers.map((ledger) => {
+				const change = ledger.read();
+				ledger.release();
+				return change;
+			});
 		},
 		op: {
 			kind: 'replaceBlock',
@@ -214,6 +190,62 @@ export function liftNestedItem(
 		},
 		landing: () => landing(promotedAt)
 	});
+}
+
+/** Where a nested item stands: item `nestedItemIdx` of the sublist at child `nestedIdxInParent` of
+ *  item `parentItemIdx` of the outer list. */
+export interface NestedItemAt {
+	parentItemIdx: number;
+	nestedIdxInParent: number;
+	nestedItemIdx: number;
+}
+
+/** The three containers a lift writes, each one the caller owns, and how it writes the rest: through
+ *  `sharing`, rebuilding a node off the caller's chain with `rebuild`, splicing below `outer` with
+ *  `splice`. */
+export interface LiftWrites extends Pick<ContainerScope, 'sharing' | 'rebuild' | 'splice'> {
+	outer: CstNode;
+	nested: CstNode;
+	parent: CstNode;
+}
+
+/** The moves of `liftNestedItem`, made on `writes`: the item at `at` follows its parent item in
+ *  `outer`, holding everything after it. Returns where it then stands in `outer`. */
+export function liftItemOut(at: NestedItemAt, writes: LiftWrites, grammar: GrammarView): number {
+	const { parentItemIdx, nestedIdxInParent, nestedItemIdx } = at;
+	const { outer, nested, parent, sharing, rebuild } = writes;
+	return keepingListOrder(
+		() => [outer],
+		() => {
+			// The promoted item is moved and written (marker normalization, renumbering), so copy it
+			// before it leaves the nested list.
+			const item = ensureUnsharedChild(nested, nestedItemIdx, sharing);
+			const laterItems = nested.children!.slice(nestedItemIdx + 1);
+			spliceChildren(nested, nestedItemIdx, 1 + laterItems.length, []);
+			const laterBlocks = parent.children!.slice(nestedIdxInParent + 1);
+			spliceChildren(parent, nestedIdxInParent + 1, laterBlocks.length, []);
+			const ordered = metadataOf(nested, 'list').ordered;
+			adoptAsLastChildren(item, laterItems, ordered, sharing, grammar, rebuild);
+			appendLaterBlocks(item, laterBlocks, sharing);
+			if (laterItems.length + laterBlocks.length > 0) rebuild(item);
+			normalizeItemMarkerToList(item, outer, grammar);
+			let promotedAt = parentItemIdx + 1;
+			spliceChildren(outer, promotedAt, 0, [item]);
+
+			// What the move emptied goes, up to this list, which now holds the promoted item.
+			const outerCount = outer.children!.length;
+			cascadeCleanupEmptyAncestors(outer, writes, [
+				parentItemIdx,
+				nestedIdxInParent,
+				nestedItemIdx
+			]);
+			promotedAt -= outerCount - outer.children!.length;
+
+			if (nested.children!.length > 0) renumberOrderedList(nested, 1, sharing, grammar);
+			renumberOrderedList(outer, promotedAt, sharing, grammar);
+			return promotedAt;
+		}
+	);
 }
 
 /** The siblings after a lifted item become its last children: in its last child when that's a

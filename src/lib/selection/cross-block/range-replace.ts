@@ -2,13 +2,14 @@
  * The one replace every destructive gesture over a live range goes through: Backspace, Delete, cut,
  * typing, an IME composition, paste, and a command key such as Enter. It removes what the range
  * covers, puts the insertion where the removal left the caret (a line of text inside one cell is
- * one write instead) and lands one caret, all as one undo entry. A composition over a widget
- * selected whole removes the widget through it too. The rules by gesture and coverage are
- * `docs/design/selection.md` § Cross-block selection.
+ * one write instead) and lands one caret, all as one undo entry; a paste is one answer of the
+ * range-edit core over the range's bytes. A composition over a widget selected whole removes the
+ * widget through it too. The rules by gesture and coverage are `docs/design/selection.md`
+ * § Cross-block selection.
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
-import { documentLineEnding } from '../../core/lines';
+import { documentLineEnding, firstLineEnding, isBlankText } from '../../core/lines';
 import { CURSOR_END } from '../../block-component';
 import type { HeldLanding } from '../../action-contracts';
 import type { CrossBlockDispatchContext } from './dispatch';
@@ -24,13 +25,37 @@ import {
 	breaksLine,
 	commandGesture,
 	commandLandingKind,
+	commitRemoval,
 	emptiedPlace,
+	pasteRemovalAnswer,
+	removedIn,
 	removeThroughCore,
+	splitsParagraph,
 	writeInCell,
 	type Removed
 } from './range-removal';
-import { pasteDispatch } from '../../tree-operations/paste/dispatch';
-import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
+import {
+	answeredAhead,
+	landAnswer,
+	pasteAnswer,
+	pasteInBlock,
+	pasteThroughCore,
+	stillOn,
+	type Clip
+} from './range-paste';
+import {
+	answeredBytes,
+	endsOf,
+	gapOfPlace,
+	placeInBlock,
+	placeOfGap,
+	placeOverRange,
+	type DocumentBytes,
+	type PastePlace
+} from '../range-bytes';
+import { answeredDocument } from '../../range-edit/host';
+import { splicedBytes } from '../../tree-operations/spliced-openers';
+import { hidesDelimitersAtCaret } from '../../presentation-mode';
 import { parseReplacement } from '../../tree-operations/paste/replacement-parse';
 import { slotReaderAt } from '../../tree-operations/list/task-paragraph';
 import { dispatchKeyCommand } from '../../schema/block-commands';
@@ -47,12 +72,15 @@ import { checkBreakLanding } from '../../invariants/range-break-landing';
 export type RangeInsertion =
 	| { kind: 'none'; gesture: RemovalGesture }
 	| { kind: 'text'; text: string }
-	| { kind: 'paste'; text: string }
+	| { kind: 'paste'; clip: Clip }
 	| { kind: 'composition' }
 	| { kind: 'command'; chord: string }
 	/** A line break that came as input, not as a key the range claimed: a soft keyboard's, or one a
 	 *  key's default sent. `chord` is the key it stands for. */
 	| { kind: 'break'; chord: 'Enter' | 'Shift+Enter' };
+
+/** Every insertion but a paste, which the range-edit core answers whole. */
+type KeyedInsertion = Exclude<RangeInsertion, { kind: 'paste' }>;
 
 /** `refused`: reading mode, a document a `source` swap replaced, or a paragraph that couldn't open. */
 export type RangeReplaceOutcome = 'written' | 'nothing' | 'refused';
@@ -127,18 +155,25 @@ async function replaceHeld(
 	if (!ctx.controller.admitsGesture(refusalName(insertion))) return 'refused';
 	ctx.caretMemory.forget();
 	ctx.selection.resetSelectAllCount();
-	if (insertion.kind === 'paste' && !insertion.text) return 'nothing';
+	if (insertion.kind === 'paste' && !insertion.clip.text) return 'nothing';
 
 	const doc = ctx.getDoc();
 	const coverage = rangeCoverage(doc, coverRange(doc, held.anchor, held.focus));
 	// Widened, since the step assigns it inside a callback the compiler can't follow.
 	let outcome = 'nothing' as RangeReplaceOutcome;
-	// Seeded with the selection, so one Ctrl+Z puts it back as it stood.
-	await ctx.controller.undoStep(deleteSnapshot(held.start.path, held.start.offset), async () => {
+	const step = async () => {
 		// The step has read the selection for its entry by now, so a selected widget ends here.
 		ctx.selection.clearWidget();
-		outcome = await replaceInStep(ctx, coverage, insertion);
-	});
+		outcome =
+			insertion.kind === 'paste'
+				? await pasteOver(ctx, coverage, insertion.clip, held.start)
+				: await replaceInStep(ctx, coverage, insertion);
+	};
+	const seed = deleteSnapshot(held.start.path, held.start.offset);
+	// Text over the editor's own range inside one block undoes to where it began, as the browser's
+	// range does; anything else puts the selection back as it stood.
+	if (textInOneBlock(ctx, insertion)) await ctx.controller.undoStepFrom(seed, step);
+	else await ctx.controller.undoStep(seed, step);
 	// After the step, whose end starts a new typing batch: the composed text joins the removal.
 	if (insertion.kind === 'composition' && outcome === 'written') {
 		ctx.controller.continueTypingBurst();
@@ -146,12 +181,19 @@ async function replaceHeld(
 	return outcome;
 }
 
+/** Typed, composed or one-line pasted text over a range the editor holds inside one block. */
+function textInOneBlock(ctx: CrossBlockMutationContext, insertion: RangeInsertion): boolean {
+	if (!ctx.selection.ownsRange || !ctx.selection.rangeInOneBlock) return false;
+	if (insertion.kind === 'paste') return !/[\r\n]/.test(insertion.clip.text);
+	return insertion.kind === 'text' || insertion.kind === 'composition';
+}
+
 /** Every commit's caret is held, so the replace puts down one: the last commit's that wrote, else
  *  the removal's. A command key is the removal and then the key, so its block lands its own too. */
 async function replaceInStep(
 	ctx: CrossBlockMutationContext,
 	coverage: RangeCoverage,
-	insertion: RangeInsertion
+	insertion: KeyedInsertion
 ): Promise<RangeReplaceOutcome> {
 	const family = familyOf(insertion);
 	const removal = REMOVAL[family][reachOf(coverage)];
@@ -174,14 +216,24 @@ async function replaceInStep(
 	);
 	if (!removed.wrote && !removed.caret) return 'nothing';
 	const removalCaret = held ?? (removed.wrote ? null : caretAt(ctx, removed.caret!));
-	const place = family !== 'structural' ? emptiedPlace(ctx.bytes.measured(), removed) : null;
-	if (place) return insertInEmptiedPlace(ctx, coverage, insertion, place, removalCaret);
+	// A composition over one block held whole writes in any prose, its landing waiting on a device.
+	const anyProse = family === 'composition' && reachOf(coverage) === 'unit';
+	const place =
+		family !== 'structural' ? emptiedPlace(ctx.bytes.measured(), removed, anyProse) : null;
+	if (place) return insertInEmptiedPlace(ctx, insertion, place, removalCaret);
 
 	const at = removed.caret;
 	if (keyed) {
+		const landed = removed.landed;
+		if (gesture === 'break' && removed.taken && landed?.holds === 'boundary') {
+			const { parentPath, index } = gapOfPlace(ctx.bytes.measured(), landed);
+			return breakWhereRangeWas(ctx, [...parentPath, index], keyed.chord);
+		}
 		// Before the command runs, since the block reads the caret to run it.
 		await removalCaret?.place();
 		const gap = ctx.selection.gapCaret;
+		if (gap && gesture === 'break')
+			return breakWhereRangeWas(ctx, [...gap.parentPath, gap.index], keyed.chord);
 		if (gap) return keyAtGap(ctx, [...gap.parentPath, gap.index], keyed.chord);
 		const path = at?.path ?? coverage.range.start.path;
 		const ran = () => kindOfPath(path, ctx.getDoc());
@@ -204,7 +256,7 @@ async function replaceInStep(
 		await removalCaret?.place();
 		return 'written';
 	}
-	return insertAtCaret(ctx, coverage, insertion, at, removalCaret);
+	return insertAtCaret(ctx, insertion, at, removalCaret);
 }
 
 /** A command key where the removal left the caret in a gap, at `slot`, with no block to run in:
@@ -216,6 +268,21 @@ async function keyAtGap(
 ): Promise<RangeReplaceOutcome> {
 	if (chord === 'Enter' || chord === 'Shift+Enter')
 		await ctx.pasteCoordinator.insertParagraph(slot, '');
+	return 'written';
+}
+
+/** A line break with no block to run in lands in an empty paragraph at `slot`, one an emptied
+ *  document or container keeps or a new one; any break but Enter's split then runs there. */
+async function breakWhereRangeWas(
+	ctx: CrossBlockMutationContext,
+	slot: number[],
+	chord: string
+): Promise<RangeReplaceOutcome> {
+	const there = blockNodeAt(ctx.getDoc(), slot);
+	if (there?.kind === 'paragraph' && isBlankText(there.raw))
+		await caretAt(ctx, { path: slot, offset: 0 }).place();
+	else await ctx.pasteCoordinator.insertParagraph(slot, '');
+	if (!splitsParagraph(chord, ctx.commands)) await runCommandAt(ctx, slot, chord);
 	return 'written';
 }
 
@@ -232,8 +299,7 @@ function caretAt(ctx: CrossBlockMutationContext, point: SelectionPoint): HeldLan
 /** The insertion at `at`, where the removal, or the paragraph opened after it, left the caret. */
 async function insertAtCaret(
 	ctx: CrossBlockMutationContext,
-	coverage: RangeCoverage,
-	insertion: RangeInsertion,
+	insertion: KeyedInsertion,
 	at: SelectionPoint | null,
 	caretLanding: HeldLanding | null
 ): Promise<RangeReplaceOutcome> {
@@ -242,18 +308,9 @@ async function insertAtCaret(
 			? await typedByBlock(ctx, at, insertion.text, caretLanding)
 			: null;
 	if (typed) return typed;
-	const text = insertion.kind === 'text' || insertion.kind === 'paste' ? insertion.text : '';
-	const [, insertionLanding] = await ctx.controller.holdLandings(() =>
-		insertAt(ctx, at, insertion, text)
-	);
+	const text = insertion.kind === 'text' ? insertion.text : '';
+	const [, insertionLanding] = await ctx.controller.holdLandings(() => insertAt(ctx, at, text));
 	await (insertionLanding ?? caretLanding)?.place();
-	if (text && !at && insertion.kind === 'paste') {
-		// Consumed with nowhere to go: an imported image isn't on the clipboard, so say so.
-		emitClipboardError(ctx.events, {
-			error: new Error('cross-block paste resolved no caret; nothing inserted'),
-			path: coverage.range.start.path.slice()
-		});
-	}
 	return 'written';
 }
 
@@ -261,15 +318,14 @@ async function insertAtCaret(
  *  can't open drops the text, since the removal's caret sits on a block's syntax. */
 async function insertInEmptiedPlace(
 	ctx: CrossBlockMutationContext,
-	coverage: RangeCoverage,
-	insertion: RangeInsertion,
+	insertion: KeyedInsertion,
 	place: number[],
 	removalCaret: HeldLanding | null
 ): Promise<RangeReplaceOutcome> {
 	const [opened, landing] = await ctx.controller.holdLandings(() =>
 		ctx.pasteCoordinator.insertParagraph(place, '')
 	);
-	if (opened) return insertAtCaret(ctx, coverage, insertion, { path: place, offset: 0 }, landing);
+	if (opened) return insertAtCaret(ctx, insertion, { path: place, offset: 0 }, landing);
 	devWarn('range-replace', 'no paragraph opened where the range was, so the text was dropped', {
 		place
 	});
@@ -315,14 +371,13 @@ const REMOVAL: Record<Family, Record<Reach, Removal>> = {
 };
 
 /** Typing nothing is a keyless delete. */
-function familyOf(insertion: RangeInsertion): Family {
+function familyOf(insertion: KeyedInsertion): Family {
 	switch (insertion.kind) {
 		case 'none':
 		case 'command':
 		case 'break':
 			return 'structural';
 		case 'text':
-		case 'paste':
 			return insertion.text ? 'content' : 'structural';
 		case 'composition':
 			return 'composition';
@@ -358,14 +413,13 @@ const inCell = (caret: SelectionPoint | null): Removed => ({
 	taken: null
 });
 
-/** How the core names the removal any other gesture makes (`commandGesture` names a key's): typed
- *  or pasted text as a cut, a composition as Delete, a delete no key asked for as Backspace. */
-function coreGestureOf(insertion: RangeInsertion): CoreGesture {
+/** How the core names the removal any other gesture makes (`commandGesture` names a key's): a
+ *  delete no key asked for removes as a command key does, from the side Backspace takes. */
+function coreGestureOf(insertion: KeyedInsertion): CoreGesture {
 	switch (insertion.kind) {
 		case 'none':
 			return CORE_GESTURE[insertion.gesture];
 		case 'text':
-		case 'paste':
 			return insertion.text ? 'type' : 'command';
 		case 'composition':
 			return 'compose';
@@ -378,31 +432,25 @@ function coreGestureOf(insertion: RangeInsertion): CoreGesture {
 
 // ── The insertion ──────────────────────────────────────────────────────────
 
-/** The text parsed in the unit's slot, read as a reload reads it there, so a marker typed or
- *  pasted over the unit makes its kind. */
+/** The text parsed in the unit's slot, read as a reload reads it there, so a marker typed over
+ *  the unit makes its kind. */
 async function replaceUnit(
 	ctx: CrossBlockMutationContext,
 	unitPath: number[],
-	insertion: RangeInsertion
+	insertion: KeyedInsertion
 ): Promise<RangeReplaceOutcome> {
 	const doc = ctx.getDoc();
 	const unit = blockNodeAt(doc, unitPath);
-	if (!unit || (insertion.kind !== 'text' && insertion.kind !== 'paste')) return 'nothing';
-	// This route skips `pasteDispatch`, so a paste runs the editor's transforms here.
-	const bytes =
-		insertion.kind === 'paste'
-			? applyPasteTransforms(insertion.text, ctx.activePlugins)
-			: insertion.text;
+	if (!unit || insertion.kind !== 'text') return 'nothing';
 	const read = slotReaderAt(doc, unitPath, ctx.reading.grammar);
-	const parsed = parseReplacement(unit, bytes, documentLineEnding(doc), read);
+	const parsed = parseReplacement(unit, insertion.text, documentLineEnding(doc), read);
 	if (!parsed) return 'nothing';
 	ctx.selection.collapse();
 	const landed = await ctx.pasteCoordinator.replaceBlock(
 		unitPath,
 		parsed.replacement,
 		{ replacementIndex: parsed.replacement.length - 1, offset: CURSOR_END },
-		// A clipboard's trailing blank line comes in as is, since nothing follows the text; the
-		// undo step records the range, so the offset is never read.
+		// The undo step records the range, so the offset is never read.
 		{ source: 'cross-block-covered-block', trailingBlank: parsed.suffix !== '', snapshotOffset: 0 }
 	);
 	return landed === null ? 'nothing' : 'written';
@@ -413,20 +461,15 @@ async function replaceUnit(
 async function replaceInCell(
 	ctx: CrossBlockMutationContext,
 	coverage: RangeCoverage,
-	insertion: RangeInsertion
+	insertion: KeyedInsertion
 ): Promise<RangeReplaceOutcome | null> {
-	if (insertion.kind !== 'text' && insertion.kind !== 'paste') return null;
+	if (insertion.kind !== 'text') return null;
 	const { start, end } = coverage.range;
 	const row = blockNodeAt(ctx.getDoc(), start.path.slice(0, -1));
 	if (!row || !pathsEqual(start.path, end.path) || blockFacts(row.kind).lines !== 'cells')
 		return null;
-	// This route skips `pasteDispatch`, so a paste runs the editor's transforms here.
-	const text =
-		insertion.kind === 'paste'
-			? applyPasteTransforms(insertion.text, ctx.activePlugins)
-			: insertion.text;
 	const [wrote, landing] = await ctx.controller.holdLandings(() =>
-		writeInCell(ctx, coverage, text)
+		writeInCell(ctx, coverage, insertion.text)
 	);
 	if (wrote === null) return null;
 	await landing?.place();
@@ -453,34 +496,15 @@ async function typedByBlock(
 	return wrote ? 'written' : 'refused';
 }
 
-/** A paste goes through the paste dispatch, and text into a block with no typing write of its own
- *  through the reparsing commit, so a marker at offset 0 still makes the kind. */
+/** Text into a block with no typing write of its own goes through the reparsing commit, so a
+ *  marker at offset 0 still makes the kind. */
 async function insertAt(
 	ctx: CrossBlockMutationContext,
 	caret: SelectionPoint | null,
-	insertion: RangeInsertion,
 	text: string
 ): Promise<void> {
 	const leaf = caret && blockNodeAt(ctx.getDoc(), caret.path);
 	if (!text || !caret || !leaf) return;
-	if (insertion.kind === 'paste') {
-		await pasteDispatch(
-			{
-				pastedText: text,
-				targetPath: caret.path,
-				offset: charOffsetOf(caret, 'range-replace:paste')
-			},
-			{
-				doc: ctx.getDoc(),
-				blockEdit: ctx.blockEdit,
-				controller: ctx.pasteCoordinator,
-				crossBlock: true,
-				reading: ctx.reading,
-				activePlugins: ctx.activePlugins
-			}
-		);
-		return;
-	}
 	const at = charOffsetOf(caret, 'range-replace:type');
 	await ctx.pasteCoordinator.commitLeafText(
 		caret.path,
@@ -491,6 +515,106 @@ async function insertAt(
 			landing: (landed) => landed.caret
 		}
 	);
+}
+
+// ── A paste ────────────────────────────────────────────────────────────────
+
+/** A paste over the range, the range-edit core's one answer over its bytes. Cells of one table
+ *  are the grid's to clear first, unless their kind answers the paste itself. */
+async function pasteOver(
+	ctx: CrossBlockMutationContext,
+	coverage: RangeCoverage,
+	clip: Clip,
+	started: SelectionPoint
+): Promise<RangeReplaceOutcome> {
+	const undo = deleteSnapshot(started.path, started.offset);
+	const { start, end } = coverage.range;
+	const grid = coverage.grid;
+	if (grid && grid.kind !== 'table') {
+		const { rect } = grid;
+		if (await answeredAhead(ctx, [...grid.path, rect.top, rect.left], clip, rect)) {
+			ctx.selection.collapse();
+			return 'written';
+		}
+		const [cell, cleared] = await ctx.controller.holdLandings(() =>
+			commitGridClear(ctx, coverage, grid)
+		);
+		if (!cell) return 'nothing';
+		const wrote = await pasteInBlock(ctx, { path: cell.path, start: 0, end: 0 }, clip, undo);
+		if (!wrote) await cleared?.place();
+		return 'written';
+	}
+	const inOneBlock = pathsEqual(start.path, end.path) && coverage.wholeRoots.length === 0;
+	if (inOneBlock && !grid) {
+		const within = { path: start.path, start: start.offset, end: end.offset };
+		return (await pasteInBlock(ctx, within, clip, undo)) ? 'written' : 'refused';
+	}
+	// One block held whole gives its line to the paste, in one answer of the core.
+	if (pathsEqual(start.path, end.path) || grid) {
+		const aim = { named: endsOf(coverage), place: () => placeOverRange(ctx.bytes, coverage) };
+		return (await pasteThroughCore(ctx, aim, clip, undo)) ? 'written' : 'refused';
+	}
+	// The pair is answered whole before either commits, so the removal goes only with a paste.
+	const pair = pairOver(ctx, coverage, clip);
+	if (!pair) return 'nothing';
+	const [removed, removalCaret] = await ctx.controller.holdLandings(() =>
+		commitRemoval(ctx, coverage, 'type', pair.removal)
+	);
+	if (!removed.wrote && !removed.caret) return 'nothing';
+	// The paste's own commit names a block of the document the removal left.
+	const left = removed.caret ?? { path: [0], offset: 0 };
+	const after = deleteSnapshot(left.path, left.offset);
+	// A write between the two commits (a listener to the removal's edit) leaves the paste no place.
+	const moved = pair.lands && !stillOn(ctx, pair.left.source);
+	const wrote =
+		pair.lands && !moved && (await landAnswer(ctx, pair.left.source, pair.paste, after));
+	if (!wrote) await (removalCaret ?? (removed.caret && caretAt(ctx, removed.caret)))?.place();
+	if (moved) {
+		const error = new Error('the document changed after the range went; nothing was pasted');
+		emitClipboardError(ctx.events, { error, path: [...left.path] });
+	}
+	return 'written';
+}
+
+/** The removal the paste makes first, then the paste at the place the editor would hold on the
+ *  bytes it leaves, both answered before either commits; null where the paste has no place. */
+function pairOver(ctx: CrossBlockMutationContext, coverage: RangeCoverage, clip: Clip) {
+	const removal = pasteRemovalAnswer(ctx, coverage, clip.text);
+	if (!removal) return null;
+	const { read, answer } = removal;
+	const { source } = read;
+	const { grammar } = ctx.reading;
+	const written = splicedBytes(read.measured, source, answer.source, grammar);
+	const left = answeredDocument(ctx.reading, read, written);
+	const bytes = answeredBytes(left);
+	const removed = removedIn(bytes, answer, written !== source);
+	const at = placeAfterRemoval(bytes, removed, hidesDelimitersAtCaret(ctx.reading.mode()));
+	if (!at) return null;
+	// Read before the removal, which may take every line ending the document has.
+	const ending = firstLineEnding(source) ?? undefined;
+	const kept = removal.answer.inPlace && { inPlace: removal.answer.inPlace };
+	const paste = pasteAnswer(ctx, left, { ...at, ending, ...kept }, clip);
+	return { removal, left, paste, lands: paste.source !== left.source };
+}
+
+/** Where a paste goes on `bytes`, what the removal leaves: the boundary the editor holds its caret
+ *  at, else the caret's text, else the place the core named for a caret on a block. */
+function placeAfterRemoval(
+	bytes: DocumentBytes,
+	removed: Removed,
+	live: boolean
+): PastePlace | null {
+	const slot = emptiedPlace(bytes.measured(), removed, false);
+	if (slot) return placeOfGap(bytes, { parentPath: slot.slice(0, -1), index: slot.at(-1)! });
+	const { landed, caret } = removed;
+	// A document the removal emptied has no block to hold a caret, so the core's landing is the place.
+	if (landed?.holds === 'block' || (landed && bytes.doc().children.length === 0)) {
+		const { at, ...held } = landed;
+		return { range: { from: at, to: at }, ...held };
+	}
+	if (!caret) return null;
+	const at = charOffsetOf(caret, 'range-replace:paste');
+	return placeInBlock(bytes, caret.path, at, at, live);
 }
 
 /** At the caret the removal left, never over stale block indices: a table's endpoint caret is a

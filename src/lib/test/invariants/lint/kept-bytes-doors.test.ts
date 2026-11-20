@@ -17,6 +17,8 @@ const TEXT_READERS: Record<string, string> = {
 		'`rangeRead`, the one read a range gesture starts from, vouches the blocks it names and reaches',
 	'src/lib/selection/cross-block/range-removal.ts':
 		'the changes it makes from that read land through the byte splice',
+	'src/lib/selection/cross-block/range-paste.ts':
+		'a paste lands only on the text it was answered on, its leaf write once the leaf’s block is vouched',
 	'src/lib/editor-actions/commit/byte-splice.ts':
 		'the byte splice vouches the blocks its reading took before it installs them',
 	'src/lib/editor-actions/commit/history.ts':
@@ -29,6 +31,8 @@ const TEXT_READERS: Record<string, string> = {
 const CORE_HOSTS: Record<string, string> = {
 	'src/lib/range-edit/host.ts': 'the declaration',
 	'src/lib/selection/cross-block/range-removal.ts': 'over a `rangeRead`',
+	'src/lib/selection/cross-block/range-paste.ts':
+		'over a `placeRead`, or the bytes a removal answered over a `rangeRead` leaves',
 	'src/lib/selection/range-clipboard.ts': 'over a `rangeRead`'
 };
 
@@ -49,6 +53,8 @@ const POSITION_READERS: Record<string, string> = {
 		'places the caret a removal leaves, after its `rangeRead`',
 	'src/lib/selection/cross-block/range-replace.ts':
 		'names the place a removal emptied, for the caret',
+	'src/lib/selection/cross-block/range-paste.ts':
+		'the dev check after a landing, and the caret a paste that wrote nothing ends at',
 	'src/lib/components/Editor.svelte': 'the overlay’s paint and the test door, which write no byte',
 	'src/lib/editor-actions/commit/document-read.ts':
 		'a plugin’s reads, which write no byte; a draft made from one vouches its ranges as it commits',

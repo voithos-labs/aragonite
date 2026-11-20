@@ -118,14 +118,9 @@ const ALLOWLIST: Record<string, Exemption> = {
 		specifiers: [
 			'#lib/editor-actions/commit/undo-controller.js',
 			'#lib/editor-actions/paste-coordinator.js',
-			'#lib/invariants/node-shape.js',
-			'#lib/block-lists/state-registry.js',
-			'#lib/schema/editor-grammar.js',
-			'#lib/tree-operations/paste/dispatch.js'
+			'#lib/block-lists/state-registry.js'
 		],
-		reason:
-			'the paste pipeline publishes applyPasteTransforms alone: no dispatch, and no headless ' +
-			'environment to run it against'
+		reason: 'no headless environment publishes the commit that writes pasted blocks'
 	},
 	'src/lib/test/plugins/details/terminator-collision-structural.test.ts': {
 		specifiers: [

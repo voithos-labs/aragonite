@@ -5,9 +5,7 @@ import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { selectWidgetWhole } from '#lib/selection/place-caret.js';
 import { registerEditor, __resetActiveEditorForTests } from '#lib/active-editor.js';
 import { parse } from '#lib/core/parser.js';
-import { createEditorEvents, type EditorError } from '#lib/editor-events.js';
 import type { BlockComponent } from '#lib/block-component.js';
-import type { PasteImageHook } from '#lib/host-hooks.js';
 import type { CrossBlockHandlers } from '#lib/selection/cross-block/dispatch.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { freshBytes } from '#lib/test/harness/copied-text.js';
@@ -18,10 +16,6 @@ import { WHOLE_BLOCK_INPUT_ATTR } from '#lib/selection/whole-block-input.js';
 // has no caret, at a cross-block endpoint or a selected widget; driven through `target`.
 
 interface HarnessOptions {
-	onPasteImage?: PasteImageHook;
-	/** What the cross-block handling answers; false stands in for a selection that
-	 *  collapsed while a host import was still running. */
-	crossBlockClaims?: boolean;
 	/** Stands in for the block owning an inline widget, selected whole in block 0. */
 	widgetBlock?: BlockComponent;
 }
@@ -46,41 +40,26 @@ function harness(options: HarnessOptions = {}) {
 		);
 	}
 	const doc = parse('hello\n\nworld\n');
-	const pasted: (string | undefined)[] = [];
 	const deleted = vi.fn(async () => {});
 	const crossBlock = {
-		handlePaste: async (_e: ClipboardEvent, replacement?: string) => {
-			pasted.push(replacement);
-			if (options.crossBlockClaims ?? true) return true;
-			// The real code refuses only by re-reading a collapsed selection; a range left in
-			// place would make a `selection.start` read at refusal time look correct.
-			selection.collapse();
-			return false;
-		},
 		performCrossBlockCut: deleted,
 		reading: fixtureReading(),
 		bytes: freshBytes(() => doc)
 	} as unknown as CrossBlockHandlers;
-
-	const events = createEditorEvents();
-	const errors: EditorError[] = [];
-	events.on('error', (e) => errors.push(e));
 
 	const header = document.createElement('header');
 	const clipboard = createEditorRootClipboard({
 		selection,
 		getDoc: () => doc,
 		crossBlock,
-		onPasteImage: () => options.onPasteImage,
-		events,
 		getBlockComponent: (path) => (path[0] === 0 ? (options.widgetBlock ?? null) : null),
 		isHostChrome: (node) => !!node && header.contains(node)
 	});
 
 	function fire(
-		type: 'copy' | 'cut' | 'paste',
+		type: 'copy' | 'cut',
 		target: EventTarget | null,
-		{ prevented = false, files = [] as File[] } = {}
+		{ prevented = false } = {}
 	): { written: Map<string, string>; preventCount: number } {
 		const written = new Map<string, string>();
 		let preventCount = prevented ? 1 : 0;
@@ -94,21 +73,17 @@ function harness(options: HarnessOptions = {}) {
 				preventCount++;
 			},
 			clipboardData: {
-				files,
 				setData: (t: string, v: string) => written.set(t, v),
 				getData: () => ''
 			}
 		} as unknown as ClipboardEvent;
 		if (type === 'copy') clipboard.handleCopy(event, root);
 		if (type === 'cut') clipboard.handleCut(event, root);
-		if (type === 'paste') clipboard.handlePaste(event, root);
 		return { written, preventCount };
 	}
 
-	return { root, header, selection, clipboard, fire, pasted, deleted, errors };
+	return { root, header, selection, clipboard, fire, deleted };
 }
-
-const pngFile = () => new File([new Uint8Array([137, 80])], 'shot.png', { type: 'image/png' });
 
 describe('editor-root clipboard routing', () => {
 	beforeEach(() => {
@@ -146,7 +121,7 @@ describe('editor-root clipboard routing', () => {
 			return block;
 		}
 
-		it('takes a copy, a cut and a paste aimed at a block element that left it alone', async () => {
+		it('takes a copy and a cut aimed at a block element that left it alone', async () => {
 			const h = harness();
 			h.selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 5 });
 			const block = blockElement(h.root);
@@ -154,8 +129,6 @@ describe('editor-root clipboard routing', () => {
 			expect(h.fire('copy', block).written.get('text/plain')).toContain('hello');
 			expect(h.fire('cut', block).written.get('text/plain')).toContain('hello');
 			await vi.waitFor(() => expect(h.deleted).toHaveBeenCalledOnce());
-			h.fire('paste', block);
-			expect(h.pasted).toEqual([undefined]);
 		});
 
 		it('forwards one aimed at a block element to the block holding a selected widget', () => {
@@ -242,14 +215,6 @@ describe('editor-root clipboard routing', () => {
 		await vi.waitFor(() => expect(h.deleted).toHaveBeenCalledOnce());
 	});
 
-	it('paste routes to the cross-block handler', () => {
-		const h = harness();
-		h.selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 5 });
-
-		h.fire('paste', document.body);
-		expect(h.pasted).toEqual([undefined]);
-	});
-
 	// A selected inline widget is the second state whose event lands here: selecting one
 	// clears the native selection, and in a block with no text position nothing restores it.
 	describe('selected-widget branch', () => {
@@ -261,7 +226,7 @@ describe('editor-root clipboard routing', () => {
 			return { block, seen };
 		}
 
-		for (const type of ['copy', 'cut', 'paste'] as const) {
+		for (const type of ['copy', 'cut'] as const) {
 			it(`forwards a ${type} to the owning block with no cross-block selection live`, () => {
 				const { block, seen } = widgetBlock();
 				const h = harness({ widgetBlock: block });
@@ -270,7 +235,7 @@ describe('editor-root clipboard routing', () => {
 
 				expect(seen).toEqual([type]);
 				// The cross-block handlers must not also run: they would write the empty range.
-				expect(h.pasted).toEqual([]);
+				expect(h.deleted).not.toHaveBeenCalled();
 			});
 		}
 
@@ -292,56 +257,6 @@ describe('editor-root clipboard routing', () => {
 			h.fire('copy', document.body, { prevented: true });
 
 			expect(seen).toEqual([]);
-		});
-	});
-
-	// The host hook must be offered the files before the cross-block handling, which
-	// throws an image-only paste away for having no text/plain.
-	describe('image-bearing paste', () => {
-		it('offers the files to the host hook before the cross-block branch', async () => {
-			const imported: string[] = [];
-			const h = harness({
-				onPasteImage: async (image) => {
-					imported.push(image.suggestedName ?? '');
-					return '![[shot.png]]';
-				}
-			});
-			h.selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 5 });
-
-			const { preventCount } = h.fire('paste', document.body, { files: [pngFile()] });
-
-			// Prevented before the hook is awaited, or the browser's own paste fires
-			// during the import and injects DOM the CST never sees.
-			expect(preventCount).toBe(1);
-			await vi.waitFor(() => expect(h.pasted).toEqual(['![[shot.png]]']));
-			expect(imported).toEqual(['shot.png']);
-		});
-
-		it('reports the decline when nothing claims the imported markdown', async () => {
-			// `claims` required a cross-block selection, but the hook is awaited: a
-			// selection that collapsed meanwhile leaves the root nowhere to insert.
-			const h = harness({
-				onPasteImage: async () => '![[shot.png]]',
-				crossBlockClaims: false
-			});
-			h.selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 5 });
-
-			h.fire('paste', document.body, { files: [pngFile()] });
-
-			await vi.waitFor(() => expect(h.errors.map((e) => e.origin)).toEqual(['clipboard']));
-			// Captured synchronously with the event: a collapsed selection has no start,
-			// and collapsing is the only way to reach this decline.
-			expect(h.errors[0].context?.path).toEqual([0]);
-		});
-
-		it('leaves an image paste on the text route when no hook is installed', async () => {
-			const h = harness();
-			h.selection.enterCrossBlock({ path: [0], offset: 0 }, { path: [1], offset: 5 });
-
-			h.fire('paste', document.body, { files: [pngFile()] });
-
-			await vi.waitFor(() => expect(h.pasted).toEqual([undefined]));
-			expect(h.errors).toEqual([]);
 		});
 	});
 });

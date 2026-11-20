@@ -397,7 +397,8 @@ const SPLICE_READS: FileRule = {
 	population: under(SOURCE_DIR.library, SOURCE_DIR.plugins),
 	matches: /(?<!function )\bspliceReading\(/,
 	allowed: {
-		[SOURCE.byteSplice]: 'the byte splice, which gives an opener its changes write a closer first',
+		[SOURCE.splicedOpeners]:
+			'the byte splice’s read, which gives an opener its changes write a closer first',
 		[SOURCE.historyActions]:
 			"an undo puts back its entry's exact bytes, which were legal when written",
 		[SOURCE.rangeHost]:
@@ -405,7 +406,7 @@ const SPLICE_READS: FileRule = {
 	},
 	reason:
 		'a route that reads bytes into the tree itself skips the closer every write gives an opener it puts above a block that would close it; hand the bytes to `commitSource` instead',
-	reaches: [SOURCE.byteSplice, SOURCE.historyActions, SOURCE.rangeHost],
+	reaches: [SOURCE.splicedOpeners, SOURCE.historyActions, SOURCE.rangeHost],
 	hits: [
 		at('src/lib/x.ts', 'const reading = spliceReading(deps.doc, before, changes, grammar);'),
 		at('src/lib/x.ts', 'installReading(deps, spliceReading(doc, text, [change], grammar)!);')
@@ -538,23 +539,16 @@ const RULES: FileRule[] = [
 		misses: ['registerBlockKind(kind, { rawWrite: fencedCodeWrite });', 'rawWrite: mathBlockWrite,']
 	},
 	{
-		id: 'G4.194 a block reaches the clipboard steps and the inline paste through its surface',
-		matches: /(?<!function\s)\b(?:createClipboardHandlers|pasteDispatch)\s*\(/,
+		id: 'G4.194 a block reaches the clipboard steps through its surface',
+		matches: /(?<!function\s)\bcreateClipboardHandlers\s*\(/,
 		allowed: {
 			'src/lib/components/blocks/editable/editable-surface.ts':
-				'`clipboard`: the surface fills in the editor-wide half for every block',
-			'src/lib/components/blocks/editable/surface-clipboard.ts':
-				'`pasteIntoBlock`: the one paste into a block’s own text, which the surface’s `pasteInline` calls',
-			'src/lib/selection/cross-block/range-replace.ts':
-				'a paste over a range across blocks, which lands where the range’s delete left the caret'
+				'`clipboard`: the surface fills in the editor-wide half for every block'
 		},
 		reason:
-			'a block that builds its own clipboard or dispatches its own paste copies the editor-wide fields and the caret park, and a copy drifts: go through `editableSurface.clipboard` and `pasteInline`',
-		hits: ['const c = createClipboardHandlers({ rangeArm });', 'await pasteDispatch(input, ctx);'],
-		misses: [
-			'export function createClipboardHandlers(deps) {}',
-			'export async function pasteDispatch(\n\tinput,'
-		]
+			'a block that builds its own clipboard copies the editor-wide fields and the caret park, and a copy drifts: go through `editableSurface.clipboard`; a paste goes through the editor’s one entry (`editor-root/paste.ts`), where the block only answers `preparePaste`',
+		hits: ['const c = createClipboardHandlers({ rangeArm });'],
+		misses: ['export function createClipboardHandlers(deps) {}']
 	},
 	{
 		id: 'G4.201 one painter puts the selection wash on a widget',
@@ -684,11 +678,28 @@ const RULES: FileRule[] = [
 		misses: ['import { caretRectAt } from "./lines";', 'caretRectAt,']
 	},
 	{
+		id: 'G4.344 a paste makes one clipboard read, in one module',
+		matches: /[!?]?\.\s*getData\s*\(|clipboard\s*[!?]?\s*\.\s*read(?:Text)?\s*\(/,
+		allowed: {
+			'src/lib/browser/clipboard.ts':
+				'`readPasteEvent` and `readClipboard`: every type of a paste event’s data and the system clipboard’s text, read once and handed on whole',
+			'src/lib/debug/input-recorder.ts':
+				'copies a paste or drop payload into an input recording; nothing is written'
+		},
+		reason:
+			'a second read of the clipboard sees less than the first (the editor’s own entry, the plain-paste chord, the files) and a later read may find another clipboard: take the `ClipboardRead` the one read returns',
+		hits: [
+			"const text = e.clipboardData?.getData('text/plain') ?? '';",
+			'raw = await navigator.clipboard.readText();'
+		],
+		misses: ['const clip = readPasteEvent(event, plain);', 'const clip = await readClipboard();']
+	},
+	{
 		id: 'G4.221 a paste with no paste event calls the paste step, never a constructed event',
 		matches: /\bnew\s+(?:\w+\.)?ClipboardEvent\s*\(/,
 		allowed: {},
 		reason:
-			'Firefox empties `clipboardData` on a constructed `ClipboardEvent`, so a paste dispatched as one pastes nothing: hand the text to the focused block’s `insertMarkdown`',
+			'Firefox empties `clipboardData` on a constructed `ClipboardEvent`, so a paste dispatched as one pastes nothing: read the clipboard (`browser/clipboard.ts :: readClipboard`) and hand the read to the editor’s paste entry',
 		hits: [
 			"el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data }));",
 			"const e = new ClipboardEvent ('copy');",
@@ -1516,7 +1527,7 @@ const RULES: FileRule[] = [
 				'renumbers an ordered list, and asks whether two items read as one list',
 			'src/lib/tree-operations/list/task-paragraph.ts':
 				'measures how far a new item’s first line widens its marker, for the item to take it',
-			'src/lib/editor-actions/list-context.ts': 'gives a new item the next marker',
+			'src/lib/tree-operations/list/list-builders.ts': 'gives the item Enter opens the next marker',
 			'src/lib/components/blocks/list/ListItemBlock.svelte': 'draws a bullet or a number',
 			'src/lib/components/blocks/list/task-checkbox.ts': 'paints the marker before the checkbox',
 			'src/lib/debug/dump-tree.ts': 'prints it in the tree dump'
@@ -1817,7 +1828,7 @@ const RULES: FileRule[] = [
 	}
 ];
 
-// ── G4.89, G4.90 one in-leaf range replace ─────────────────────────────────
+// ── G4.89 one in-leaf range replace ──────────────────────────────────────────
 
 /** The directories and files holding live editing paths; a fenced code body has no inline constructs. */
 const SPLICE_PATHS = [
@@ -1835,10 +1846,6 @@ const SPLICE_PROBE = `${SOURCE_DIR.textBlock}probe.ts`;
 
 /** One variable's bytes before a cut joined to the same variable's bytes after it. */
 const SAME_SOURCE_SPLICE = /\b([\w.]+)\.slice\(\s*0\s*,[^;]{0,200}?\+[^;]{0,200}?\b\1\.slice\(/s;
-
-/** A file naming the paste's selection that cuts nothing through the in-leaf range replace. */
-const namesPasteRangeWithoutReplace = (file: SourceFile): boolean =>
-	/(?<![\w.'"])preDelete\b/.test(file.code) && !/(?<![\w.])replaceDrawnRange\s*\(/.test(file.code);
 
 const LEAF_RANGE_RULES: FileRule[] = [
 	{
@@ -1931,27 +1938,6 @@ const LEAF_RANGE_RULES: FileRule[] = [
 			at(SPLICE_PROBE, 'const out = head.slice(0, a) + tail.slice(b);'),
 			at(SPLICE_PROBE, 'const edit = replaceRangeInLeaf(node, range, text, store);'),
 			at(`${SOURCE_DIR.codeBlock}probe.ts`, 'const out = raw.slice(0, a) + raw.slice(b);')
-		]
-	},
-	{
-		id: 'G4.90 a paste’s selection is cut through the in-leaf range replace',
-		matches: namesPasteRangeWithoutReplace,
-		allowed: {
-			'src/lib/tree-operations/paste-surfaces.ts': 'declares the parameter and cuts nothing',
-			'src/lib/components/blocks/code/CodeBlock.svelte':
-				'makes the range from its selection and hands it to the dispatch',
-			'src/lib/components/blocks/code/code-paste-surface.ts':
-				'the one literal splice: a fence body has no inline constructs to clean'
-		},
-		reason:
-			'a paste writes what typing writes over the same selection, so its cut is `replaceDrawnRange` with the pasted text; a cut of its own strands the runs typing keeps',
-		hits: [
-			'return display.slice(0, preDelete.start) + text + display.slice(preDelete.end);',
-			'const cut = cutRange(node, preDelete, store);'
-		],
-		misses: [
-			'const edit = replaceDrawnRange(node, preDelete, text, store);',
-			'// preDelete is the range the paste cuts first'
 		]
 	}
 ];
@@ -2670,17 +2656,20 @@ const ITEM_MOVES_HOME = SOURCE.listItemMoves;
 const RANGE_INDENT: ManifestRule[] = [
 	{
 		id: 'G4.112 a list item nests or lifts through the shared item moves only',
-		matches: /(?<![\w.'])(?:nestListItem|liftNestedItem)\s*\(/,
+		matches: /(?<![\w.'])(?:nestListItem|liftNestedItem|liftItemOut)\s*\(/,
 		declared: {
-			[ITEM_MOVES_HOME]: 'defines the two moves',
+			[ITEM_MOVES_HOME]: 'defines the two moves, and the lift’s moves that one makes',
 			'src/lib/editor-actions/list-context.ts': 'one item, from a caret’s own Tab or Shift+Tab',
-			'src/lib/selection/cross-block/range-indent.ts': 'every item a range touches, from its Tab'
+			'src/lib/selection/cross-block/range-indent.ts': 'every item a range touches, from its Tab',
+			'src/lib/tree-operations/list/enter-out.ts':
+				'Enter on an empty nested item, on a copy, for a paste’s later line endings'
 		},
 		reason:
-			'a route that moves list items itself splits what Tab means: a range’s items would nest one way and a caret’s another; call `nestListItem` or `liftNestedItem`',
+			'a route that moves list items itself splits what Tab means: a range’s items would nest one way and a caret’s another; call `nestListItem` or `liftNestedItem`, or `liftItemOut` off to the side',
 		hits: [
 			at(ROGUE_INDENT_ROUTE, 'await nestListItem(commits, list, 1);'),
-			at(ROGUE_INDENT_ROUTE, 'void liftNestedItem(commits, outer, 0, nested, 1, grammar);')
+			at(ROGUE_INDENT_ROUTE, 'void liftNestedItem(commits, outer, 0, nested, 1, grammar);'),
+			at(ROGUE_INDENT_ROUTE, 'const at = liftItemOut(nested, writes);')
 		],
 		misses: [
 			at(ROGUE_INDENT_ROUTE, 'await listContext.promoteNestedItem(0, nested, 1);'),
@@ -2982,9 +2971,7 @@ const ITEM_PIECES: ManifestRule[] = [
 		population: under(SOURCE_DIR.library, SOURCE_DIR.plugins),
 		matches: /(?<![\w.])(?<!function\s+)assembleListHalf\s*\(/,
 		declared: {
-			[DISSOLVE_HOME]: '`dissolveItem`, the list halves around a dissolving item',
-			'src/lib/tree-operations/paste/list-break-out.ts':
-				'a paste splits the list around the pasted blocks, and no item dissolves'
+			[DISSOLVE_HOME]: '`dissolveItem`, the list halves around a dissolving item'
 		},
 		reason:
 			'a route that dissolves an item has to rebuild the list around it, and one that does so outside `dissolveItem` splits the item’s children its own way: call `dissolveItem`',

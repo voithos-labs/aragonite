@@ -85,7 +85,7 @@ describe('registerBlockKind normalizes the container group', () => {
 		expect(d.rebuildRaw).toBeUndefined();
 		expect(d.containerContract).toBeUndefined();
 		expect(d.reservedChrome).toBeUndefined();
-		expect(d.containerPaste).toBeUndefined();
+		expect(d.merges).toBeUndefined();
 		expect(d.unwrapRole).toBeUndefined();
 	});
 

@@ -201,7 +201,9 @@ function readRun(run: Run, text: string): RunRead | 'moved' | 'mismatch' {
 	const end = headText.length + text.length;
 	let m = head;
 	while (m < container.children.length && readSpans[m * 2 + 1] < end) m++;
-	if (m >= container.children.length || readSpans[m * 2 + 1] !== end) return 'moved';
+	// The container closes inside the run's text, as it would in any wider run: the top level reads it.
+	if (m >= container.children.length) return 'mismatch';
+	if (readSpans[m * 2 + 1] !== end) return 'moved';
 	const blocks = container.children.slice(head, m + 1);
 	blocks[0] = { ...blocks[0], leadingTrivia: kids[run.lo].leadingTrivia + blocks[0].leadingTrivia };
 	const runSpans = readSpans.slice(head * 2, (m + 1) * 2).map((at) => at - headText.length);

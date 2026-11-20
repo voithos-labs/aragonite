@@ -53,8 +53,9 @@ export type CommitLanding = () => Landing | GapCaretSelection | null;
 
 /** Where the caret lands in a byte splice's new bytes: at byte `at`, in a block's text, on the
  *  block starting there focused whole, or between two of `parent`'s children, the block whose
- *  children the place sits between (the range-edit core's `Place`). */
-export type SpliceCaret = { at: number } & (
+ *  children the place sits between (the range-edit core's `Place`). `line` marks the line a pasted
+ *  last line ending opened, where the caret lands as Enter's does. */
+export type SpliceCaret = { at: number; line?: true } & (
 	{ holds: 'text' } | { holds: 'block' | 'boundary'; parent: readonly number[] }
 );
 
@@ -68,6 +69,8 @@ export interface SourceSplice {
 	snapshot: CommitSnapshotArg;
 	history?: UndoGrouping;
 	reveal?: RevealPolicy;
+	/** The splice removes, so its caret lands as a removal's: no block takes it as someone writing. */
+	removal?: true;
 }
 
 /** A commit's caret kept by `holdLandings` instead of put down; `place` puts it down, unless an
@@ -343,6 +346,9 @@ export interface CommitController {
 	/** Make every write made while `run` is pending one undo entry, restoring the selection the step
 	 *  opened with (`seed` when unfocused). Ends when `run` settles or at the author's next input. */
 	undoStep(seed: CommitSnapshotArg, run: () => Promise<unknown>): Promise<void>;
+	/** `undoStep` restoring a caret at `at` whatever the selection, for a gesture that knows where its
+	 *  edit began: text over a range inside one block undoes to the range's start. */
+	undoStepFrom(at: CommitSnapshotArg, run: () => Promise<unknown>): Promise<void>;
 	/** Called on the author's own input: every later write opens its own entry, even while a
 	 *  step's run is still pending. */
 	endUndoStep(): void;
@@ -357,9 +363,9 @@ export interface CommitController {
 	/** Whether a gesture may write now: not in reading mode (a dev warning names a non-null `op`),
 	 *  for a swapped-out document, or while another write is open, which `error` hears. */
 	admitsGesture(op: string | null): boolean;
-	/** The keystroke that keeps its leaf's kind, written in place through the commit frame;
-	 *  `relanding` is null when the browser's caret stays where it is. */
-	typeLeaf(leafPath: DocPath, write: LegalWrite, caret: number): InPlaceResult;
+	/** The write that keeps its leaf's kind, in place through the commit frame: a keystroke, or the
+	 *  edit `op` names. `relanding` is null when the browser's caret stays where it is. */
+	typeLeaf(leafPath: DocPath, write: LegalWrite, caret: number, op?: OpDescriptor): InPlaceResult;
 }
 
 /** What a container reaches the editor root for, forwarded unchanged through nested containers.
@@ -367,6 +373,9 @@ export interface CommitController {
 export interface ContainerEditActions {
 	/** The document's line ending, which every line a write below the root creates takes. */
 	lineEnding(): LineEnding;
+	/** Whether a blank line or the document's end stands under the container at `path`, so its own
+	 *  trailing blank line is not what keeps the block after it from reading on. */
+	partedBelow(path: readonly number[]): boolean;
 	/** Change a container's structure as one undo entry. `mutate` receives the copied container
 	 *  with its working children attached; write through it, never through a captured node. */
 	commitContainer(args: CommitContainerStructuralArgs): Promise<boolean>;
@@ -374,7 +383,7 @@ export interface ContainerEditActions {
 	typingKeystroke: CommitController['typingKeystroke'];
 	/** The keystroke's write in place, through the commit frame, for a write that keeps the
 	 *  leaf's kind. */
-	typeLeaf(leafPath: DocPath, write: LegalWrite, caret: number): InPlaceResult;
+	typeLeaf: CommitController['typeLeaf'];
 	/** Put the caret at a document position through the editor's caret landing, for an edit that
 	 *  moves the caret without a commit. */
 	land(pos: CaretPosition): Promise<LandingOutcome>;
@@ -385,6 +394,9 @@ export interface ContainerEditActions {
 		gesture: RemovalGesture,
 		commit: Pick<SourceSplice, 'op' | 'snapshot'>
 	): Promise<boolean>;
+	/** Where Backspace at the start of the block at `path` (`dir` -1), or Delete at its end (1),
+	 *  lands when it joins nothing, as the range-edit core places a removal's caret there. */
+	beside(path: DocPath, dir: -1 | 1): Landing | GapCaretSelection | null;
 	/** Report a write refused before its commit to the editor's `error` event. */
 	reportCommitError(error: unknown, op: OperationKind, path: DocPath): void;
 }
@@ -440,8 +452,11 @@ export interface ReplaceOptions {
 	snapshotOffset: number;
 	/** A clipboard's own trailing blank line, landed as the document's when nothing follows. */
 	trailingBlank?: boolean;
-	/** The route a paste or a drop names in the edit event, in place of the block count. */
+	/** The route a drop or text typed over a block names in the edit event, in place of the block
+	 *  count. */
 	source?: ReplaceSource;
+	/** How many blocks a paste landed: the edit event is then `paste` with that count. */
+	pasted?: number;
 }
 
 export type ReplaceSource = Extract<
@@ -510,9 +525,6 @@ export interface TableContext {
 	cycleAlignment(colIdx: number): Promise<void>;
 	/** Set a column's alignment directly, as opposed to cycling it. */
 	setColumnAlignment(colIdx: number, alignment: TableAlignment): Promise<void>;
-	/** Write a grid of cell texts from `origin`, appending the rows and columns it needs, as one
-	 *  commit: a spreadsheet-like paste. Empty grids are a no-op. */
-	pasteGrid(origin: { rowIdx: number; colIdx: number }, grid: string[][]): Promise<void>;
 }
 
 /**

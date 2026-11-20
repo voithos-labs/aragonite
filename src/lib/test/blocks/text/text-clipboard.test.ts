@@ -181,15 +181,12 @@ describe('createTextClipboard: selected-widget cut', () => {
 // Miss-analysis: the widget's paste moved onto the paste dispatch and no test read the undo caret
 // it handed over, so the paste's end took the place of the offset the widget was selected from.
 describe('createTextClipboard: selected-widget paste', () => {
-	it('records the offset the widget was selected from as the undo caret', async () => {
-		const { handlers, commits } = harness('lead![cat](x)\n', 4, {
+	it('answers the widget’s bytes, and the offset it was selected from as the undo caret', () => {
+		const { handlers } = harness('lead![cat](x)\n', 4, {
 			crossBlockDeclines: true,
 			preSelectOffset: 13
 		});
-		const e = capturingEvent();
-		e.clipboardData.setData('text/plain', 'PASTED');
-		await handlers.onPaste(e as never);
-		expect(commits[0]).toEqual({ index: 0, raw: 'leadPASTED\n', before: 13, after: 10 });
+		expect(handlers.preparePaste()).toMatchObject({ start: 4, end: 13, caretBefore: 13 });
 	});
 });
 
@@ -209,13 +206,6 @@ describe('createTextClipboard: claimRootClipboard', () => {
 		await tick();
 		expect(cutEvent.payload()).toBe('![cat](x)');
 		expect(cut.commits[0]).toEqual({ index: 0, raw: 'lead\n', before: 4, after: 4 });
-
-		const paste = harness('lead![cat](x)\n', 4, { crossBlockDeclines: true });
-		const pasteEvent = capturingEvent();
-		pasteEvent.clipboardData.setData('text/plain', 'PASTED');
-		paste.handlers.claimRootClipboard({ ...pasteEvent, type: 'paste' } as never);
-		await tick();
-		expect(paste.commits[0].raw).toBe('leadPASTED\n');
 	});
 
 	// The trap dependencies prove it: the check must not reach a handler, or the block would
@@ -330,18 +320,18 @@ describe('createTextClipboard: a mutation waits for the reveal fold it triggered
 		expect(order).toEqual(['fold-write', 'seam-commit']);
 	});
 
-	it('holds the paste splice until the fold’s write settles', async () => {
+	it('a paste’s answer settles only once the fold’s write has', async () => {
 		const { handlers, order, releaseWrite } = foldSettleHarness();
-		const e = capturingEvent();
-		e.clipboardData.setData('text/plain', 'pasted');
-		const paste = handlers.onPaste(e as never);
+		let settled = false;
+		const answer = handlers.preparePaste();
+		void answer?.settled?.then(() => (settled = true));
 		await tick();
 		await tick();
 
-		expect(order).toEqual([]);
+		expect(settled).toBe(false);
 
 		releaseWrite();
-		await paste;
-		expect(order).toEqual(['fold-write', 'seam-commit']);
+		await answer?.settled;
+		expect(order).toEqual(['fold-write']);
 	});
 });

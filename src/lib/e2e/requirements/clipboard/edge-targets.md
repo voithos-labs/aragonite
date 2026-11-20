@@ -6,7 +6,7 @@ Paste / cut into unusual positions: empty document, heterogeneous clipboard, cut
 
 - Paste into an empty document places the clipboard content.
 - Paste multi-block clipboard into empty document preserves block structure.
-- Paste heading into a fully-selected list item produces the heading (structural path).
+- Paste a heading and its line ending over a list item's whole text: the item holds the heading's line, and the line ending opens the next item, empty.
 - Cut across two list items removes selection, leaves surviving items intact, puts removed content on clipboard.
 - Cut-then-paste round-trip restores the original content.
 - Paste at end of last block appends correctly.

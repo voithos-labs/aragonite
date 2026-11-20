@@ -86,6 +86,16 @@ describe('a cut inside a symmetric pair closes it and reopens it', () => {
 			secondRaw: '**ld**\n'
 		});
 	});
+
+	// Miss-analysis: every row at a run's close ended the block there, so none had a soft break
+	// right past the closer, which the second half then started with and failed to read back.
+	it('at a run’s close with a soft break past it, the break ends the first half', () => {
+		const node = parse('*oneo*\ntwo\n', { scope: 'fragment' }).children[0];
+		expect(rebalanceLiveSplit(node, 5, '*oneo\n', '*\ntwo\n', topLevelSplit(node))).toEqual({
+			firstRaw: '*oneo*\n',
+			secondRaw: 'two\n'
+		});
+	});
 });
 
 describe('a split link duplicates its destination', () => {

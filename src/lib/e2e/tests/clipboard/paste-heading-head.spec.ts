@@ -14,8 +14,12 @@ test.describe('a multi-block paste at the start of a heading’s text', () => {
 		await editor.setPresentationMode('live');
 	});
 
-	for (const heading of ['# Hi', '# Hi #']) {
-		test(`the heading moves below the pasted blocks whole (${heading})`, async () => {
+	const PASTED: Array<[heading: string, after: string]> = [
+		['# Hi', '# abc\n\ndefHi\n'],
+		['# Hi #', '# abc #\n\ndefHi\n']
+	];
+	for (const [heading, after] of PASTED) {
+		test(`the first pasted block takes the heading, the text joins the last (${heading})`, async () => {
 			await editor.loadContent(`${heading}\n`);
 			await editor.focusBlockAtPath([0], heading.length);
 			await editor.page.keyboard.press(edgeKey('lineStart'));
@@ -23,7 +27,7 @@ test.describe('a multi-block paste at the start of a heading’s text', () => {
 			await editor.paste();
 			await editor.bridge.waitForSourceContains('def');
 
-			expect(asLf(await editor.bridge.getSource())).toBe(`abc\n\ndef\n${heading}\n`);
+			expect(asLf(await editor.bridge.getSource())).toBe(after);
 			expect(await editor.parseConverged()).toBe(true);
 		});
 	}

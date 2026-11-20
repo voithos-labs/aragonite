@@ -84,6 +84,17 @@ describe('a title row with no text', () => {
 	});
 });
 
+// Miss-analysis: an empty cell sat right past its pipe, where no letter typed into it goes, and a
+// paste into one took the cell's own write, whose row rebuild hid the core's bytes.
+describe('an empty cell', () => {
+	it('sits past the space a letter typed into it keeps before it', () => {
+		const source = '| a | b |\n| --- | --- |\n|  | 2 |\n';
+		const map = documentByteMap(measured(parse(source)));
+		expect(map.byteOf([0, 1, 0], 0)).toBe(source.indexOf('|  |') + 2);
+		expect(map.byteOf([0, 1, 1], 0)).toBe(source.indexOf('2'));
+	});
+});
+
 // The byte map reads a list's offsets as its items' own, without splitting its lines, which holds
 // only while a list's bytes are its items' and nothing else: tabs, lazy lines and loose items too.
 describe('a list holds its items’ bytes and nothing else', () => {

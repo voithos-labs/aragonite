@@ -39,6 +39,8 @@ export interface CaretMemory {
 	/** Whether the caret's last move was a navigation key (an arrow, Page, Home, End), not a click,
 	 *  a write or a command. */
 	arrivedByKey(): boolean;
+	/** Whether the caret's last move was a removal's landing, where the removed bytes left it. */
+	arrivedByRemoval(): boolean;
 	/** The marks a toggle at a collapsed caret promised the next insertion in a block; a toggle
 	 *  ends a held space instead when it is that space's own construct's chord. */
 	readonly pendingMarks: { forBlock(block: object): BlockPendingMarks };
@@ -62,6 +64,8 @@ export interface CaretMemory {
 	noteKey(e: CaretKey, command: AnyCommandId | null, measureX?: () => EditorX | null): void;
 	/** A committed keystroke: the next byte follows the one just typed. */
 	noteTyping(): void;
+	/** The caret was put down where a removal left it, after the landing forgot the rest. */
+	noteRemovalLanding(): void;
 	/** The next letter types outside every construct at the caret's hidden edge, until the caret
 	 *  moves: a fresh start (Enter, a click past a line's end) or a typed closer. */
 	noteOutside(): void;
@@ -88,7 +92,7 @@ export function createCaretMemory(deps: CaretMemoryDeps = {}): CaretMemory {
 	let column: EditorX | null = null;
 	let changes = 0;
 	let side: EdgeAffinity | null = null;
-	let arrivedByKey = false;
+	let arrival: 'key' | 'removal' | null = null;
 	let arriving: { key: CaretKey; offset: number } | null = null;
 	const pendingMarks = createPendingMarks();
 	const pendingBreak = createPendingBreak();
@@ -125,7 +129,8 @@ export function createCaretMemory(deps: CaretMemoryDeps = {}): CaretMemory {
 	return {
 		column: () => column,
 		side: () => side,
-		arrivedByKey: () => arrivedByKey,
+		arrivedByKey: () => arrival === 'key',
+		arrivedByRemoval: () => arrival === 'removal',
 		pendingMarks: {
 			forBlock: (block) => ({
 				toggle: (kind) => {
@@ -198,26 +203,29 @@ export function createCaretMemory(deps: CaretMemoryDeps = {}): CaretMemory {
 			// A preserved key left the caret where it was: the chord that pends a mark and the
 			// character that spends it both preserve, so neither may clear the marks.
 			if (keyAction === 'preserve') return;
-			arrivedByKey = keyAction === 'navigate';
+			arrival = keyAction === 'navigate' ? 'key' : null;
 			settleSide(keyAction === 'navigate' && landing !== null ? { offset: landing } : null);
 		},
 		noteTyping: () => {
 			dropColumn();
-			arrivedByKey = false;
+			arrival = null;
 			settleSide(null);
 		},
+		noteRemovalLanding: () => {
+			arrival = 'removal';
+		},
 		noteOutside: () => {
-			arrivedByKey = false;
+			arrival = null;
 			settleSide('outside');
 		},
 		pin: (offset) => {
-			arrivedByKey = true;
+			arrival = 'key';
 			settleSide({ offset });
 		},
 		captureColumn,
 		forget: () => {
 			dropColumn();
-			arrivedByKey = false;
+			arrival = null;
 			settleSide(null);
 			if (records.end()) changed();
 		}

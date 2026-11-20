@@ -1,5 +1,5 @@
 // Text over a range that took the block it started in opens a paragraph where the range was when the
-// caret the removal left sits on a block's syntax, and joins the block when that caret is on text.
+// caret the removal left sits on a block's syntax, and joins the block it ended in at its text.
 // Miss-analysis: the landing rows asked only which block's keymap a command key reads, never whether
 // text written at the landing caret lands inside its block's text or in front of its opener.
 import { describe, it, expect } from 'vitest';
@@ -26,7 +26,7 @@ function placeAfterRemoval(source: string, start: SelectionPoint, end: Selection
 	const result = deleteRange(parse(source), start, end, { gesture: 'Delete' });
 	const caret = result.caret(result.newDoc);
 	if (!caret) throw new Error('the removal left no caret');
-	return emptiedPlace(measured(result.newDoc), { ...result.removed, caret });
+	return emptiedPlace(measured(result.newDoc), { ...result.removed, caret }, false);
 }
 
 const TABLE = '| c |\n| - |\n\n';
@@ -116,9 +116,9 @@ describe('a range that took the table row it started in', () => {
 			wrote: true,
 			caret: at([1], 0),
 			landed: { at: 17, holds: 'text' as const },
-			taken: { at: 12, parent: [0] }
+			taken: { at: 12, parent: [0], own: false }
 		};
-		expect(emptiedPlace(measured(doc), removed)).toEqual([1]);
+		expect(emptiedPlace(measured(doc), removed, false)).toEqual([1]);
 	});
 });
 
@@ -137,10 +137,14 @@ function cutThenPlace(source: string, from: string, to: string) {
 	const end = pointAtByte(m, source.indexOf(to) + (to.endsWith('\n') ? to.length : 0));
 	if (!start || !end) throw new Error('no point at the range');
 	const result = deleteRange(doc, start, end, { gesture: 'cut' });
-	const place = emptiedPlace(measured(result.newDoc), {
-		...result.removed,
-		caret: result.caret(result.newDoc)
-	});
+	const place = emptiedPlace(
+		measured(result.newDoc),
+		{
+			...result.removed,
+			caret: result.caret(result.newDoc)
+		},
+		false
+	);
 	return { bytes: serialize(result.newDoc), place };
 }
 

@@ -12,7 +12,7 @@ import { rebuildAncestryRaw } from '../schema/container-raw';
 import { unchangedEnds } from '../block-id';
 import { recordSiblingsCompared } from '../perf/instruments';
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
-import { applied, type SpliceReading } from './byte-splice';
+import { applied, spliceReading, type SpliceReading } from './byte-splice';
 import { changedBytes, changesBetween, narrowed, type ByteChange } from './byte-changes';
 import { fragmentReaderAt } from './list/task-paragraph';
 import { withClosers, writtenOpenerClosers, type WrittenCloser } from './written-openers';
@@ -64,6 +64,32 @@ export function splicedOpenerClosers(
 		shift += grown;
 	}
 	return out;
+}
+
+/** `changes` to `before`, the bytes of `was`, as the byte splice writes them: the closing lines they
+ *  need written in, and the splice's read of the result. */
+export function closedSplice(
+	was: Measured,
+	before: string,
+	changes: readonly ByteChange[],
+	grammar: GrammarView
+): { changes: readonly ByteChange[]; closers: WrittenCloser[]; reading: SpliceReading | null } {
+	const read = spliceReading(was, before, changes, grammar);
+	const closers = read ? splicedOpenerClosers(was, before, changes, read, grammar) : [];
+	if (closers.length === 0) return { changes, closers, reading: read };
+	const closed = withSplicedClosers(before, changes, closers);
+	return { changes: closed, closers, reading: spliceReading(was, before, closed, grammar) };
+}
+
+/** `after` as the byte splice writes it over `before`, the bytes of `was`: its closing lines in. */
+export function splicedBytes(
+	was: Measured,
+	before: string,
+	after: string,
+	grammar: GrammarView
+): string {
+	const { changes } = closedSplice(was, before, changesBetween(before, after), grammar);
+	return changedBytes(before, 0, before.length, changes);
 }
 
 /** `changes` to `before` with `closers`, at bytes of the changed text, written in, each into the

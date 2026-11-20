@@ -43,42 +43,29 @@ const TRANSFORMS_CALL = /(?<!function\s)\bapplyPasteTransforms\s*\(/;
 /** Pulling a payload off a clipboard or a drop, keyed on the read and the carrier type rather
  *  than a receiver's name; `!.` tolerated, since that is how a new route is most often written. */
 const CLIPBOARD_READ_RE =
-	/[!?]?\.\s*getData\s*\(|[!?]?\.\s*files\b|\bDataTransfer\b|clipboard\s*[!?]?\s*\.\s*read(?:Text)?\s*\(|\breadClipboardText\s*\(/;
+	/[!?]?\.\s*getData\s*\(|[!?]?\.\s*files\b|\bDataTransfer\b|clipboard\s*[!?]?\s*\.\s*read(?:Text)?\s*\(|\bread(?:Clipboard|PasteEvent)\s*\(/;
 
-/** Each site reading external text, and the name that carries its text to a declared route.
- *  `editor-root/clipboard.ts` forwards the carrier and reads no payload of its own. */
+/** Each site reading external text, and the name that carries its text to a declared route. */
 const READ_SITE_ROUTES: Record<string, { handoff: string; why: string }> = {
-	'src/lib/components/blocks/editable/surface-clipboard.ts': {
-		handoff: 'pasteTail',
-		why: 'the shared paste handler hands the text to the block’s pasteTail, which dispatches through the paste tree-op'
-	},
 	'src/lib/browser/clipboard.ts': {
-		handoff: 'return await navigator.clipboard.readText()',
-		why: 'the one reader of the system clipboard outside a paste event; it returns the text to the read sites below, each carrying its own handoff'
+		handoff: 'clipOf(',
+		why: 'the one reader of a paste event’s data and of the system clipboard; it returns the read to the sites below, each carrying its own handoff'
+	},
+	'src/lib/components/editor-root/paste.ts': {
+		handoff: 'pasteThroughCore',
+		why: 'the editor’s one paste entry reads a paste event once and hands the read to the range-edit core, whose host runs the transforms where the clipboard lands as blocks'
 	},
 	'src/lib/components/menu/default-context-actions.ts': {
 		handoff: 'transformPaste',
-		why: 'the block menu’s "Replace with clipboard" reads through navigator.clipboard and runs the editor’s transforms (`BlockActionContext.transformPaste`) before writing the block’s bytes'
+		why: 'the block menu’s "Replace with clipboard" reads the system clipboard and runs the editor’s transforms (`BlockActionContext.transformPaste`) before writing the block’s bytes'
 	},
 	'src/lib/components/menu/clipboard-actions.ts': {
-		handoff: 'paste.markdown(text)',
-		why: 'the menu paste reads through navigator.clipboard and hands the text to the focused block’s `insertMarkdown` or `insertPlainText`, the editable-surface route above'
+		handoff: 'paste(clip)',
+		why: 'a menu’s Paste reads the system clipboard and hands the read to the paste entry it aimed at its press'
 	},
 	'src/lib/components/blocks/table/TableCellBlock.svelte': {
-		handoff: 'clipboard.insertMarkdown(raw)',
-		why: 'the cell’s right-click menu paste reads through navigator.clipboard and hands the text to the cell’s `insertMarkdown`, the editable-surface route above'
-	},
-	'src/lib/components/paste-image-arm.ts': {
-		handoff: 'handlePaste',
-		why: 'the image-import handler reads the attachment payload and hands the hook’s markdown to the cross-block paste route'
-	},
-	'src/lib/editor-actions/caret-host-input.ts': {
-		handoff: 'paste(text)',
-		why: 'a paste at the gap caret or on a block focused whole hands its text to `pasteAsBlocks`, which pastes it into the paragraph it opens through that block’s `insertMarkdown`, the editable-surface route above'
-	},
-	'src/lib/selection/cross-block/dispatch.ts': {
-		handoff: 'replaceRange',
-		why: 'a paste over a range hands its text to the range replace, which runs the transforms or hands it to the paste tree-op'
+		handoff: 'pasteTarget()?.(clip)',
+		why: 'the cell’s right-click menu Paste reads the system clipboard and hands the read to the paste entry'
 	}
 };
 
@@ -211,25 +198,7 @@ const REWRITE_MODULES: Record<string, string> = {
 	'src/lib/components/blocks/text/pending-mark-insert.ts': 'the pending-mark resolver',
 	'src/lib/core/inline/format-toggle.ts': 'the format toggle',
 	'src/lib/core/inline/live-edit/read-back.ts':
-		'what a removing rewrite’s candidate shows, read where it is stored',
-	'src/lib/tree-operations/paste/hooks.ts':
-		'whether anything shows after a pasted line on its own line, so its ending goes or stays'
-};
-
-/** Every file permitted to name `preDelete` at all; matching the bare name also catches an
- *  aliased import, a bracket access and a helper that forwards it. */
-const PRE_DELETE_NAMERS: Record<string, string> = {
-	'src/lib/tree-operations/paste-surfaces.ts': 'the surface contract declaring the parameter',
-	'src/lib/tree-operations/paste/dispatch.ts':
-		'the request entry carrying the field to the hooks, and the text-less cut the container routes read',
-	'src/lib/tree-operations/paste/hooks.ts':
-		'the prose replacing the range with its text through replaceRangeInLeaf',
-	'src/lib/components/blocks/table/table-cell-paste.ts':
-		'the cell replacing the range with its text through replaceRangeInLeaf, ahead of the escaping',
-	'src/lib/components/blocks/text/text-clipboard.ts': 'creates the range from its selection',
-	'src/lib/components/blocks/code/CodeBlock.svelte': 'creates the range from its selection',
-	'src/lib/components/blocks/code/code-paste-surface.ts':
-		'the one splicer: a fenced body has no inline constructs to clean'
+		'what a removing rewrite’s candidate shows, read where it is stored'
 };
 
 /** Only the render-path reader in `visibility.ts` answers which marker spans a hiding mode drops.
@@ -301,20 +270,16 @@ const PLAIN_READS: Record<string, string> = {
 		'probe: reads the bytes a byte splice writes at their slot to close an opener in them; the splice then reads its changes again with `readAsOpened`, and installs that',
 	'src/lib/tree-operations/stored-as.ts':
 		'probe: answers how a slot reads bytes, for the write rules and the live join’s comparisons; nothing it reads is installed here',
-	'src/lib/tree-operations/paste/paste-replacement.ts':
-		'installs after backfill: a pasted block ended on the cut line keeps the kind the clipboard’s parse gave it, as every other pasted block does; what it does to a checkbox it lands behind is #624’s question',
 	'src/lib/tree-operations/paste/body-write.ts':
 		'installs after backfill: re-reads a body-rule container’s escaped child; no list item declares a body rule',
-	'src/lib/tree-operations/paste/dispatch.ts':
-		'hands on: reads the clipboard’s own blocks to pick the paste strategy, which a childless container steers; the routes that land them fill in at the splice',
 	'src/lib/tree-operations/fix-up/editor-host.ts':
 		'installs after backfill: the list fix-up reads a body’s blocks at their slot, and its writer gives each block it installs a paragraph to type in (`fix-up/apply.ts :: adopt`)',
-	'src/lib/tree-operations/list/list-builders.ts':
-		'hands on: a split item’s halves are read at the slot and land through list absorb and list break-out, which fill in at the splice',
 	'src/lib/tree-operations/list/reconcile-task.ts':
 		'hands on: the blocks read behind a bare bullet land through `replaceBlock`, which fills in',
 	'src/lib/selection/cross-block/range-replace.ts':
 		'hands on: a block a range holds whole is replaced by its text read at the slot, through `replaceBlock`, which fills in',
+	'src/lib/components/blocks/table/table-cell-paste.ts':
+		'hands on: reads the clipboard’s own blocks to pick the cell’s slice, which lands them through `replaceBlock`, which fills in',
 	'src/lib/selection/selection-drop.ts':
 		'hands on: the dragged-out block’s rest is read at its slot and lands through `replaceBlock`, which fills in',
 	'src/lib/invariants/node-shape.ts':
@@ -474,12 +439,12 @@ const MANIFESTS: ManifestRule[] = [
 		declared: {
 			'src/lib/components/editor-root/menus.ts':
 				'the block menu hands its actions the editor’s transforms, which "Replace with clipboard" runs before it replaces the block’s bytes',
-			'src/lib/selection/cross-block/range-replace.ts':
-				'a paste over a block a range holds whole parses the pasted text in its place',
+			'src/lib/selection/cross-block/range-paste.ts':
+				'the paste through the range-edit core hands the core the transforms, which it runs where the clipboard lands as blocks',
+			'src/lib/components/blocks/table/table-cell-paste.ts':
+				'a clipboard of blocks pasted in a table cell slices the table, ahead of the core, and takes the same rewrite',
 			'src/lib/selection/selection-drop.ts':
-				'a dropped selection is a cut and a paste in one commit, so the moved bytes take the same rewrite',
-			'src/lib/tree-operations/paste/dispatch.ts':
-				'the paste tree-op parses the pasted text into blocks'
+				'a dropped selection is a cut and a paste in one commit, so the moved bytes take the same rewrite'
 		},
 		reason:
 			'every clipboard-to-parse route runs applyPasteTransforms; a new site routes through a declared one or joins the list with a call',
@@ -503,7 +468,7 @@ const MANIFESTS: ManifestRule[] = [
 			"e.clipboardData!.getData('text/plain')",
 			'await navigator.clipboard!.readText()',
 			'const items = await navigator.clipboard.read();',
-			'const text = await readClipboardText();'
+			'const clip = await readClipboard();'
 		],
 		// `deps.readText()` is `el.textContent`, not a clipboard read.
 		misses: ['const text = deps.readText();']
@@ -620,21 +585,6 @@ const MANIFESTS: ManifestRule[] = [
 		misses: ['// rebalanceLiveSplit() answers']
 	},
 	{
-		id: 'G4.33 the files naming preDelete are the declared ones',
-		matches: /(?<![\w.'"])preDelete\b/,
-		declared: PRE_DELETE_NAMERS,
-		reason:
-			'naming the range at all is the tripwire: an alias, a bracket index and a helper forward all still spell it once',
-		hits: [
-			'raw.slice(0, preDelete.start) + raw.slice(preDelete.end)',
-			'const { start, end } = preDelete;',
-			'const pd = preDelete; use(pd.start);',
-			"const s = preDelete['start'];",
-			'const cut = applyPreDelete(node, display, preDelete, offset, seam);'
-		],
-		misses: ['// preDelete is the range the paste deletes first', 'const myPreDelete = ranges;']
-	},
-	{
 		id: 'G4.12 exactly the declared files intercept a plain destructive key under blocks/text',
 		population: (file) => file.relPath.startsWith(TEXT_BLOCK_DIR),
 		matches: (file) => DESTRUCTIVE_KEY_RE.test(file.code) && PREVENT_DEFAULT_RE.test(file.code),
@@ -695,11 +645,11 @@ const OBLIGATIONS: FileRule[] = [
 		matches: (file) => !file.code.includes(READ_SITE_ROUTES[file.relPath].handoff),
 		reason: 'a read site that lost its handoff reads external text into nothing the transforms see',
 		reaches: keys(readSiteRoles),
-		hits: [at('src/lib/components/menu/clipboard-actions.ts', 'navigator.clipboard.readText();')],
+		hits: [at('src/lib/components/menu/clipboard-actions.ts', 'await readClipboard();')],
 		misses: [
 			at(
 				'src/lib/components/menu/clipboard-actions.ts',
-				'navigator.clipboard.readText(); await paste.markdown(text);'
+				'const clip = await readClipboard(); await paste(clip);'
 			)
 		]
 	},

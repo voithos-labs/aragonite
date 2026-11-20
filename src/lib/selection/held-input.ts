@@ -11,8 +11,8 @@ export type HeldInput =
 	| { readonly kind: 'text'; readonly text: string }
 	| { readonly kind: 'delete'; readonly direction: DeleteDirection }
 	| { readonly kind: 'break'; readonly paragraph: boolean }
-	/** A spellcheck replacement, a format command, any input an engine invents: no key matches
-	 *  one, so the selection's owner refuses it. */
+	/** A spellcheck replacement, the browser's own formatting, any input an engine invents: no key
+	 *  matches one, so the selection's owner refuses it. */
 	| { readonly kind: 'other' };
 
 /** Null for input that is not the selection's: an IME's, undo and redo, a paste or a drop, and
@@ -22,7 +22,9 @@ export function heldInputOf(e: InputEvent): HeldInput | null {
 	const read = readInput(e);
 	if (read.kind === 'insert') return { kind: 'text', text: e.data ?? '' };
 	if (read.kind === 'break') return read;
-	if (read.kind === 'replace' || read.kind === 'other') return { kind: 'other' };
+	if (read.kind === 'replace' || read.kind === 'format' || read.kind === 'other') {
+		return { kind: 'other' };
+	}
 	if (read.kind !== 'delete' || read.source !== 'keys') return null;
 	return { kind: 'delete', direction: read.decided?.direction ?? 'backward' };
 }

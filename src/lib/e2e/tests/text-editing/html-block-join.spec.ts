@@ -77,10 +77,7 @@ test('a comment inside a list item that loses its closer reads on past the blank
 	expect(await editor.parseConverged()).toBe(true);
 });
 
-// An HTML block registers no paste handling, so the paste dispatch reports its fallthrough.
 test.describe('a paste into an HTML block', () => {
-	test.use({ expectWarns: ['paste-dispatch'] });
-
 	test('a pre pasted over a div reads on past the blank line', async ({ page }) => {
 		const editor = await open(page, '<div>\n\nfoo\n');
 		await selectTagName(page, editor, [0]);

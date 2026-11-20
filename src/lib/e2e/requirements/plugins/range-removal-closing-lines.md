@@ -10,8 +10,9 @@ Miss-analysis: no drawn fenced container held a block a range takes whole from i
 ## Happy paths
 
 - An open details whose body starts with a table, then a paragraph and a heading after it; select
-  from the first cell to the paragraph's end; Backspace: the details stays, emptied, with its
-  closing line, and the heading stays after it, outside the details. In live and source mode.
+  from the first cell to the paragraph's end; Backspace: the details stays, holding the emptied
+  line, with its closing line, and the heading stays after it, outside the details. In live and
+  source mode.
 - A tip inside a note, the tip's body starting with a table, a paragraph in the note after the
   tip; select from the first cell to that paragraph's end; cut: the tip's closing line comes
   before the note's. In live and source mode.
@@ -24,6 +25,13 @@ a later container, where the caret stopped on that container's opening line.
 - A note whose body starts with a table, a tip after it; select from the first cell into the tip's
   first line; Delete, then type a letter: the letter lands at the start of what is left of that
   line, not on the tip's `:::tip`. In live and source mode.
+
+Miss-analysis: every row's first block led its container, so none stood under a blank line, where
+the removal kept a second blank line above the tip and the caret stopped on it.
+
+- A paragraph, a table, a paragraph and a tip; select from the table's first cell into the tip's
+  first line; Delete, then type a letter: one blank line stays between the first paragraph and the
+  tip, and the letter lands at the start of what is left of the tip's line. In live and source mode.
 
 ## A range ending at a line's end
 
@@ -47,8 +55,9 @@ Miss-analysis: every Enter row pressed a key the block it ended in binds, and a 
 Shift+Enter, so its break reached the range as input and took Backspace's side onto the opening.
 
 - A table, a paragraph, then a tip with a title; select from the first cell into the title;
-  Shift+Enter, then type a letter: an empty line opens above the tip, as Enter's does, and the
-  letter lands there, never on the tip's `:::tip`. In live and source mode.
+  Shift+Enter, then type a letter: an empty line opens above the tip, as Enter's does, Shift+Enter
+  breaks it as any empty line, and the letter lands on the line under the break, never on the tip's
+  `:::tip`. In live and source mode.
 
 ## A composition over the range
 
@@ -60,3 +69,12 @@ where the text joined the next row's first cell.
   cell to the end of the second table's first body row; compose a letter and commit it: the text
   lands where the same letter typed over the range does, in its own paragraph in the details, and
   the row after stays as it was. In live and source mode, Chromium only, whose IME runs over CDP.
+
+Miss-analysis: the composition's undo was counted in jsdom, whose IME wrote partway through the
+replace, so a composition that opened a paragraph in a container read as two undo steps there, and
+no real row pressed Ctrl+Z after one.
+
+- A note holding a paragraph, a rule and a paragraph, then a paragraph after the note; select from
+  the rule to the end of the paragraph after; compose a letter and commit it: the text opens its own
+  paragraph in the note, under the first one, and one Ctrl+Z puts back the document and the range.
+  In live and source mode, Chromium only.

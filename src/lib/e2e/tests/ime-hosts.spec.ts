@@ -179,7 +179,14 @@ const toRow = (anchor: number[], table: number[]): EditorSelection => ({
 
 /** Ranges that end at a leaf's end, where text written over them stands where a typed key's does;
  *  `click` is a text block the caret goes into first. */
-const OVER_A_RANGE: { name: string; source: string; click: number[]; select: EditorSelection }[] = [
+const OVER_A_RANGE: {
+	name: string;
+	source: string;
+	click: number[];
+	select: EditorSelection;
+	/** The document once the text is in, where a ruling pins it. */
+	lands?: string;
+}[] = [
 	{
 		name: 'from a rule in a quote to a table row’s end',
 		source: `> above\n>\n> ***\n>\n> body\n\n${TABLE}`,
@@ -193,16 +200,38 @@ const OVER_A_RANGE: { name: string; source: string; click: number[]; select: Edi
 		select: toRow([0], [2])
 	},
 	{
-		name: 'from a rule to a paragraph’s end, a gap held before the fence below',
+		name: 'from a rule to a paragraph’s end before a fence, on the line it emptied',
 		source: 'first\n\n***\n\npara\n\n```\ncode\n```\n',
 		click: [0],
-		select: { anchor: { path: [1], offset: 0 }, focus: { path: [2], offset: 4 } }
+		select: { anchor: { path: [1], offset: 0 }, focus: { path: [2], offset: 4 } },
+		lands: 'first\n\nQ\n\n```\ncode\n```\n'
 	},
 	{
 		name: 'from a rule to an item’s end before the next item',
 		source: 'first\n\n***\n\nbody\n\n- one\n- two\n',
 		click: [0],
 		select: { anchor: { path: [1], offset: 0 }, focus: { path: [3, 0, 0], offset: 3 } }
+	},
+	{
+		name: 'from a rule to a heading’s end before a paragraph, in a paragraph of its own',
+		source: 'first\n\n***\n\n# head\n\nlast\n',
+		click: [0],
+		select: { anchor: { path: [1], offset: 0 }, focus: { path: [2], offset: 6 } },
+		lands: 'first\n\nQ\n\nlast\n'
+	},
+	{
+		name: 'from a rule right under a quote’s first line to a heading’s end',
+		source: '> above\n> ***\n>\n> # head\n\nlast\n',
+		click: [1],
+		select: { anchor: { path: [0, 1], offset: 0 }, focus: { path: [0, 2], offset: 6 } },
+		lands: '> above\n>\n> Q\n\nlast\n'
+	},
+	{
+		name: 'from a rule to a heading’s end before a fence, at the gap held there',
+		source: 'first\n\n***\n\n# head\n\n```\nc\n```\n',
+		click: [0],
+		select: { anchor: { path: [1], offset: 0 }, focus: { path: [2], offset: 6 } },
+		lands: 'first\n\nQ\n\n```\nc\n```\n'
 	}
 ];
 
@@ -226,7 +255,9 @@ async function overTheRange(
 test.describe('a composition over a range ending at a leaf’s end', () => {
 	for (const mode of ['source', 'live'] as const)
 		for (const row of OVER_A_RANGE) {
-			test(`${mode}: ${row.name}: the text lands where a typed key does`, async ({ page }) => {
+			test(`${mode}: ${row.name}: the text lands where a typed key does, one undo step`, async ({
+				page
+			}) => {
 				test.skip(!isChromium(page), 'only Chromium drives a real IME, over CDP');
 				const editor = new EditorPage(page);
 				await editor.goto();
@@ -238,6 +269,11 @@ test.describe('a composition over a range ending at a leaf’s end', () => {
 				});
 				expect(composed).toBe(typed);
 				expect(composed.split('Q').length - 1).toBe(1);
+				if (row.lands) expect(composed).toBe(row.lands);
+				await editor.undo();
+				await editor.waitForNoSourceMutation();
+				expect(await editor.bridge.getSource()).toBe(row.source);
+				expect(await editor.bridge.getSelection()).toEqual(row.select);
 			});
 		}
 });

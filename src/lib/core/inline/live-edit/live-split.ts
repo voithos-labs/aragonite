@@ -203,11 +203,14 @@ interface RebalancedHalves {
 function seamParts(bytes: SplitBytes, chain: readonly CutConstruct[], offset: number): SeamParts {
 	const left = closeBefore(bytes.raw, chain, offset);
 	const right = reopenAfter(bytes.raw, chain, bytes.cut);
+	const tail = bytes.raw.slice(right.start, bytes.contentEnd);
+	// A line ending right past the closers ends the first half, as a cut on a line ending does.
+	const ended = right.openers === '' ? (/^\r?\n/.exec(tail)?.[0] ?? '') : '';
 	return {
 		head: bytes.raw.slice(0, left.end),
 		closers: left.closers,
 		openers: right.openers,
-		tail: bytes.raw.slice(right.start, bytes.contentEnd),
+		tail: tail.slice(ended.length),
 		closed: left.closed.map((link) => link.kind),
 		reopened: right.reopened.map((link) => link.kind)
 	};

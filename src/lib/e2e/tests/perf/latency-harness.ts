@@ -755,6 +755,57 @@ export async function measureRangeRemoval(
 	return { loadMs, samples, p50Ms: percentileMs(samples, 50), p95Ms: percentileMs(samples, 95) };
 }
 
+// ── A paste ──────────────────────────────────────────────────────────────────
+
+/** Where each shape's pasted block sits: a list item's paragraph, a quote's, a top-level one. */
+const PASTE_LEAF: Record<string, (child: number) => number[]> = {
+	'giant-single-list': (child) => [0, child, 0],
+	'giant-single-blockquote': (child) => [0, child],
+	'many-small-blocks': (child) => [child]
+};
+
+/** `clip` pasted at a block's end, its middle, or over a range from there into the second block
+ *  after it, each timed from the call to its promise and undone. No sample reads the source. */
+export async function measurePaste(
+	page: Page,
+	editor: EditorPage,
+	shape: keyof typeof PASTE_LEAF & FixtureShape,
+	bytes: number,
+	clip: string,
+	at: 'end' | 'middle' | 'range',
+	pastes: number
+): Promise<LatencyMeasurement> {
+	await editor.goto();
+	const loadMs = await loadFixture(page, editor, generateFixture(shape, bytes));
+	const leaf = PASTE_LEAF[shape](6);
+	const far = PASTE_LEAF[shape](8);
+	const length = await leafRawLength(page, leaf);
+	const offset = at === 'end' ? length : length >> 1;
+	const focus = { path: far, offset: (await leafRawLength(page, far)) >> 1 };
+	const before = await page.evaluate(docLengthInPage);
+	const samples: number[] = [];
+	// One unmeasured paste first: the first range edit after a load pays for the document's layout.
+	for (let i = -1; i < pastes; i++) {
+		await editor.focusBlockAtPath(leaf, offset);
+		if (at === 'range') {
+			const range = { anchor: { path: leaf, offset }, focus };
+			const held = await page.evaluate((r) => (window as any).__test.setSelection(r), range);
+			if (!held) throw new Error('no range held for the paste');
+		}
+		await editor.waitForRenderFlush();
+		const ms = await page.evaluate(async (text) => {
+			const start = performance.now();
+			if (!(await (window as any).__test.insertMarkdown(text))) throw new Error('nothing pasted');
+			return performance.now() - start;
+		}, clip);
+		if (i >= 0) samples.push(ms);
+		await editor.undo();
+		await waitForDocLength(page, before, KEYSTROKE_TIMEOUT_MS);
+		await editor.waitForRenderFlush();
+	}
+	return { loadMs, samples, p50Ms: percentileMs(samples, 50), p95Ms: percentileMs(samples, 95) };
+}
+
 // ── The first range edit after a write inside a giant container ─────────────
 
 /** A shape whose first copy after a write is timed: a giant container, or top-level paragraphs. */

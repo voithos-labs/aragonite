@@ -2,7 +2,7 @@
 // Miss-analysis: every menu Paste row ran in Chromium, which keeps `clipboardData` on a constructed paste event that Firefox empties.
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { runClipboardAction, type MenuClipboard } from '#lib/components/menu/clipboard-actions.js';
-import type { AimedInsert } from '#lib/components/editor-root/focused-surface.js';
+import type { AimedPaste } from '#lib/components/editor-root/paste.js';
 import type { ClipboardWrite } from '#lib/browser/clipboard.js';
 
 function seedClipboard(text: string): void {
@@ -12,16 +12,13 @@ function seedClipboard(text: string): void {
 	});
 }
 
-/** Records which of the block's two entries each paste reached, with the text it was handed. */
-function aimed(pasted: string[]): AimedInsert {
-	return {
-		markdown: async (md) => (pasted.push(`markdown:${md}`), true),
-		plainText: async (text) => (pasted.push(`plain:${text}`), true)
-	};
+/** Records each clip the paste entry was handed: its text, and whether it goes in as plain text. */
+function aimed(pasted: string[]): AimedPaste {
+	return async (clip) => (pasted.push(`${clip.plain ? 'plain' : 'markdown'}:${clip.text}`), true);
 }
 
 const menu = (
-	pasteTarget: AimedInsert | null,
+	pasteTarget: AimedPaste | null,
 	take: MenuClipboard['take'] = () => null
 ): MenuClipboard => ({ take, pasteTarget: () => pasteTarget });
 
@@ -43,8 +40,8 @@ describe('a menu Paste hands the clipboard text to the paste step', () => {
 		expect(events).toEqual([]);
 	});
 
-	// The block escapes it where it reads Markdown, so the menu passes it untouched.
-	it('Paste as plain text passes the text unescaped to the plain-text entry', async () => {
+	// The core escapes it where it lands as Markdown, so the menu passes it untouched.
+	it('Paste as plain text passes the text unescaped, marked plain', async () => {
 		seedClipboard('**a**\n# b');
 		const pasted: string[] = [];
 		await runClipboardAction('paste-plain', menu(aimed(pasted)));

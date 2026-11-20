@@ -25,7 +25,7 @@ import type { BlockOpener } from './block-openers';
 import type { LineShape, MarkedLines } from '../core/strip-lines';
 
 /**
- * The Backspace-merge roles (`docs/design/structural-edits.md` § Merge eligibility: roles, not pairs).
+ * The Backspace-merge roles (`docs/design/structural-edits.md` Â§ Merge eligibility: roles, not pairs).
  * The runtime role check reads its list from this tuple, so the type and the check agree (G1.30).
  */
 export const MERGE_ROLES = [
@@ -122,20 +122,6 @@ export interface ReservedChrome {
 	expandPatch?: (node: NodeView) => Record<string, unknown> | null;
 }
 
-/**
- * How a clipboard whose top block is this kind merges into a same-kind ancestor instead of
- * nesting as a sub-container. Absent means always nest.
- */
-export interface ContainerPaste {
-	/** Confirms the merge against the candidate ancestor (e.g. equal list ordered flags). */
-	matchesAncestor: (clipboardTop: CstNode, ancestor: CstNode) => boolean;
-	/**
-	 * Pasting into a non-empty single block: splice the clipboard items as siblings into the
-	 * enclosing container when it matches, split it when it does not (the list paste shape).
-	 */
-	siblingAbsorb: boolean;
-}
-
 export interface BlockKindDescriptor {
 	mergeRole: MergeRole;
 	editable: boolean;
@@ -161,7 +147,7 @@ export interface BlockKindDescriptor {
 	gapEdges: 'before' | 'after' | 'both' | 'none';
 	isContainer: boolean;
 	/**
-	 * How `raw` relates to the children: `docs/design/syntax-tree.md` § The container contract.
+	 * How `raw` relates to the children: `docs/design/syntax-tree.md` Â§ The container contract.
 	 * A grid's cell index is `row * width + column`, every row as wide as row 0.
 	 */
 	containerContract?: 'strip' | 'grid' | 'opaque';
@@ -189,12 +175,11 @@ export interface BlockKindDescriptor {
 	 */
 	bodyWrite?: WriteRule;
 	reservedChrome?: ReservedChrome;
-	containerPaste?: ContainerPaste;
 	/** How the container's lines are written: the editor writes its bytes from this and its
 	 *  children, and reads its markers, lazy lines and contract from it. */
 	lines?: LineShape<unknown>;
-	/** Two containers of this kind are one when they share metadata field `key` (any two, with no key).
-	 *  Quote and list repeat it in `containerPaste` until `tree-operations/paste/` reads this field. */
+	/** Two containers of this kind are one when they share metadata field `key` (any two, with no key):
+	 *  a pasted one joins the one it lands in. Not for a kind closed by a line of its own. */
 	merges?: { key?: string };
 	unwrapRole?: UnwrapRole;
 	/**
@@ -246,7 +231,7 @@ export interface BlockKindDescriptor {
 	 */
 	estimateHeight?: (node: NodeView, env: HeightEstimateEnv) => number;
 
-	// ── Presentation ──────────────────────────────────────────────────────────
+	// â”€â”€ Presentation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 	/**
 	 * `'prose'` is text the user writes in: no drag handle, and a right-click opens clipboard rows.
@@ -277,7 +262,6 @@ export const DESCRIPTOR_FIELDS = [
 	'rawWrite',
 	'bodyWrite',
 	'reservedChrome',
-	'containerPaste',
 	'lines',
 	'merges',
 	'unwrapRole',
@@ -305,7 +289,7 @@ type MissingDescriptorField = Exclude<
 const _descriptorFieldsAreComplete: MissingDescriptorField extends never ? true : never = true;
 void _descriptorFieldsAreComplete;
 
-// ── Registration ────────────────────────────────────────────────────────────
+// â”€â”€ Registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * Where a prose kind's content starts, for one whose markers take a prefix of its raw. The
@@ -316,7 +300,7 @@ export interface ContentStart {
 	range: (node: NodeView) => { start: number; end: number };
 	/**
 	 * In modes that hide markers, Backspace at the content start strips this kind's markers before
-	 * merging (`docs/design/live-mode.md` § 4.4 Cutting a construct open).
+	 * merging (`docs/design/live-mode.md` Â§ 4.4 Cutting a construct open).
 	 */
 	backspace?: 'demote-first';
 }
@@ -324,7 +308,6 @@ export interface ContentStart {
 /** Container-only fields as one unit, so a leaf can't carry any of them. Each is documented on
  *  `BlockKindDescriptor`, the flat read shape this group normalizes into. */
 interface ContainerFields {
-	containerPaste?: ContainerPaste;
 	merges?: BlockKindDescriptor['merges'];
 	contentStartSpace?: 'complete-marker';
 	reorderChildren?: ReorderChildrenRole;
@@ -377,7 +360,6 @@ export const CONTAINER_ONLY_KEYS = [
 	'lastLineChild',
 	'rebuildRaw',
 	'reservedChrome',
-	'containerPaste',
 	'lines',
 	'merges',
 	'unwrapRole',
@@ -498,7 +480,7 @@ export type BlockKindAugmentation = Partial<RegistrationBase> & {
 	container?: Partial<ContainerBase> & { [Key in FixedContainerKey]?: never };
 };
 
-// ── Registry ────────────────────────────────────────────────────────────────
+// â”€â”€ Registry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface KindEntry {
 	descriptor: BlockKindDescriptor;
@@ -519,7 +501,7 @@ const registry = createBlockKindRegistry<KindEntry>({
 	}
 });
 
-// ── Public API ──────────────────────────────────────────────────────────────
+// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function registerBlockKind(kind: AnyBlockKind, registration: BlockKindRegistration): void {
 	const { view, ...fields } = registration;
@@ -606,7 +588,7 @@ function storeKind(
 ): void {
 	rejectBlankLabel(entry, kind, 'label', registration.label);
 	rejectBlankLabel(entry, kind, 'dragLabel', registration.dragLabel);
-	rejectIncoherentPairs(kind, registration);
+	rejectIncoherentPairs(entry, kind, registration);
 	const { opener } = registration;
 	const descriptor = normalizeRegistration(kind, registration);
 	if (descriptor.keymap) descriptor.keymap = registeredKeymap(entry, kind, descriptor.keymap);
@@ -614,9 +596,9 @@ function storeKind(
 	registry.register(
 		kind,
 		{ descriptor, ...(view ? { view } : {}), ...(opener ? { opener } : {}) },
-		`${entry}: "${kind}" is already registered. Kinds are register-once — ` +
+		`${entry}: "${kind}" is already registered. Kinds are register-once â€” ` +
 			`use augmentBlockKind to merge fields into an existing registration.` +
-			(owner ? ` — first declared by plugin '${owner}'` : '')
+			(owner ? ` â€” first declared by plugin '${owner}'` : '')
 	);
 	enqueueRegistrationCheck(kind, opener ? 'opener' : 'descriptor');
 }
@@ -757,6 +739,9 @@ function mergeBlockKindFields(
 			next,
 			Object.fromEntries(Object.entries(group).filter(([, value]) => value !== undefined))
 		);
+		// The one pair an augment can still complete: every other pair holds a field fixed above.
+		const { merges, bodyWrap } = next;
+		rejectIncoherentPairs(entry, kind, { container: { merges, bodyWrap } });
 	}
 	// The entry keeps its view: a built-in's augment runs after the view attaches.
 	registry.update(kind, { ...existing, descriptor: next }, entry);
@@ -778,7 +763,7 @@ export function augmentBlockKind(kind: AnyBlockKind, fields: BlockKindAugmentati
 	const installer = currentInstallingPlugin();
 	if (owner !== null && owner !== installer) {
 		throw new Error(
-			`augmentBlockKind: "${kind}" is owned by plugin '${owner}' — ` +
+			`augmentBlockKind: "${kind}" is owned by plugin '${owner}' â€” ` +
 				(installer
 					? `plugin '${installer}' may not augment another plugin's kind.`
 					: `only plugin '${owner}' may augment its own kind, from its setup.`)
@@ -864,7 +849,7 @@ export function registeredKinds(activation: PluginActivation): AnyBlockKind[] {
 	return registry.entries(activation).map(([kind]) => kind);
 }
 
-// ── Plugin block types held by mounted editors ──────────────────────────────
+// â”€â”€ Plugin block types held by mounted editors â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface HeldKind {
 	descriptor: BlockKindDescriptor;
@@ -896,7 +881,7 @@ export function holdBlockKind(
 			);
 		}
 	} else {
-		rejectIncoherentPairs(kind, registration);
+		rejectIncoherentPairs('block type', kind, registration);
 		held.set(kind, { descriptor, hasOpener, editors: 1 });
 	}
 	let released = false;

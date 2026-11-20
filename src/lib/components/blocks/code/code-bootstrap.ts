@@ -1,12 +1,9 @@
 /**
- * Sets up the code-block languages and the fencedCode paste handling; safe to call twice. These
- * are built-ins, so the test reset keeps them. Adding a language is one import plus one
- * `registerBuiltinLanguage` call.
+ * Sets up the code-block languages; safe to call twice. These are built-ins, so the test reset
+ * keeps them. Adding a language is one import plus one `registerBuiltinLanguage` call.
  */
 
 import { registerBuiltinLanguage } from './code-languages';
-import { registerPasteSurface } from '../../../tree-operations/paste-surfaces';
-import { codePasteSurface } from './code-paste-surface';
 
 import javascript from 'highlight.js/lib/languages/javascript';
 import typescript from 'highlight.js/lib/languages/typescript';
@@ -67,6 +64,4 @@ export function bootstrapCodeLanguages(): void {
 	registerBuiltinLanguage('php', php);
 	registerBuiltinLanguage('powershell', powershell, ['ps1']);
 	registerBuiltinLanguage('dockerfile', dockerfile, ['docker']);
-
-	registerPasteSurface(codePasteSurface);
 }

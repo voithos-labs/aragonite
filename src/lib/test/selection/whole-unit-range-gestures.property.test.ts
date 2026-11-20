@@ -12,12 +12,7 @@ import { describeConvergence } from '#lib/testing/parse-convergence.js';
 import { MATH_BLOCK, registerMathBlock } from '#packages/latex/src/latex-kind.js';
 import { crossBlockClipboardArm } from '#lib/selection/cross-block/clipboard.js';
 import { runClipboardCut } from '#lib/components/blocks/editable/clipboard-step.js';
-import {
-	makeEnv,
-	makeHandlers,
-	makeBeforeInputEvent,
-	makePasteEvent
-} from './cross-block/typed-char-env';
+import { makeEnv, makeHandlers, makeBeforeInputEvent } from './cross-block/typed-char-env';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
 import { testView } from '#lib/test/harness/test-view.js';
 
@@ -79,7 +74,7 @@ async function applyGesture(
 	if (gesture === 'printable') {
 		await handlers.handleBeforeInput(makeBeforeInputEvent(TYPED));
 	} else if (gesture === 'paste') {
-		await handlers.handlePaste(makePasteEvent(PASTED));
+		await handlers.pasteOverRange({ text: PASTED, plain: false });
 	} else {
 		const event = {
 			preventDefault: () => {},

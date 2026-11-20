@@ -1,11 +1,11 @@
 # Clipboard: a multi-block paste at the start of a heading's text
 
-Pasting several blocks with the caret right before a heading's text puts the blocks above the heading. The `# ` stays with the heading's text, the same way Enter there moves the whole heading down a line.
+Pasting several blocks with the caret right before a heading's text cuts the heading there as a split does. The heading's marker and its closing run stay on the first half, so the first pasted block becomes the heading, and the heading's old text joins the last pasted block.
 
 ## Happy paths
 
-- `# Hi`, live mode, End then Home (the caret sits before `Hi`, the `# ` hidden), paste `abc\n\ndef`: the source is `abc\n\ndef\n# Hi\n`, and a reload reads the same tree.
-- The same with a closing run, `# Hi #`: the source is `abc\n\ndef\n# Hi #\n`, closing run and all.
+- `# Hi`, live mode, End then Home (the caret sits before `Hi`, the `# ` hidden), paste `abc\n\ndef`: the source is `# abc\n\ndefHi\n`, and a reload reads the same tree.
+- The same with a closing run, `# Hi #`: the source is `# abc #\n\ndefHi\n`, the closing run on the first half with the marker.
 
 ## Undo
 

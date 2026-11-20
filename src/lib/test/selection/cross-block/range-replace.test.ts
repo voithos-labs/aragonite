@@ -10,7 +10,7 @@ import { cellPoint, type SelectionEndpoint } from '#lib/selection/primitives.js'
 import { registerPasteTransform } from '#lib/tree-operations/paste/paste-transforms.js';
 import { makeTableStateAt, stubBlockComponent } from '../../harness/editor-actions';
 import { settleEditor } from '../../harness/settle';
-import { makeEnv, makeHandlers, makeBeforeInputEvent, makePasteEvent } from './typed-char-env';
+import { makeEnv, makeHandlers, makeBeforeInputEvent } from './typed-char-env';
 import { press } from './keydown-env';
 import { ensurePasteSurface } from '#lib/test/harness/paste-surface.js';
 import { tableCellPasteSurface } from '#lib/components/blocks/table/table-cell-paste.js';
@@ -117,7 +117,7 @@ const OUTCOMES: Record<string, Record<Removal, Outcome>> = {
 	}
 };
 
-async function perform(gesture: Gesture, shape: Shape) {
+async function perform(gesture: Gesture, shape: Shape, pasted = 'P') {
 	// The cell's paste rules, which the editor registers with its built-in blocks.
 	ensurePasteSurface(tableCellPasteSurface);
 	const env = makeEnv(shape.source);
@@ -138,7 +138,7 @@ async function perform(gesture: Gesture, shape: Shape) {
 		await handlers.handleKeyDown(press(gesture));
 	} else if (gesture === 'cut') await handlers.performCrossBlockCut();
 	else if (gesture === 'type') await handlers.handleBeforeInput(makeBeforeInputEvent('x'));
-	else if (gesture === 'paste') await handlers.handlePaste(makePasteEvent('P'));
+	else if (gesture === 'paste') await handlers.pasteOverRange({ text: pasted, plain: false });
 	else handlers.handleCompositionStart();
 	await settleEditor();
 	return env;
@@ -163,6 +163,22 @@ describe('a destructive gesture over a live range', () => {
 	}
 });
 
+// Miss-analysis: the one composition row over a block held whole stood before a paragraph, whose
+// text starts its line, so a caret moved past a heading's `# ` took the composed text into the heading.
+describe('a composition over one block held whole right before a heading', () => {
+	const BEFORE_HEADING: [string, string, number[], string][] = [
+		['a rule', 'lead\n\n---\n\n# tail\n', [1], 'lead\n\n\n# tail\n'],
+		['a rule that opens the document', '---\n\n## tail\n', [0], '\n## tail\n']
+	];
+	for (const [name, source, path, bytes] of BEFORE_HEADING)
+		it(`${name}: the caret lands in an empty paragraph where the block was`, async () => {
+			const env = await perform('compose', { source, anchor: whole(path), focus: whole(path) });
+
+			expect(serialize(env.doc)).toBe(bytes);
+			expect(landedAt(env)).toEqual([[path, 0]]);
+		});
+});
+
 // Tab indents what a range holds, and none of these holds a list item or a code line.
 describe('Tab over a range with nothing to indent', () => {
 	for (const [shapeName, shape] of Object.entries(SHAPES)) {
@@ -177,9 +193,10 @@ describe('Tab over a range with nothing to indent', () => {
 });
 
 describe('a gesture whose insertion writes nothing lands at the removal’s caret', () => {
-	it('a paste a transform empties, over prose', async () => {
+	// Blocks, since one line after text goes in as text and no transform sees it.
+	it('a paste of blocks a transform empties, over prose', async () => {
 		registerPasteTransform({ name: 'drops-everything', transform: () => '' });
-		const env = await perform('paste', SHAPES['plain prose']);
+		const env = await perform('paste', SHAPES['plain prose'], 'P\n\nQ');
 
 		expect(serialize(env.doc)).toBe('alma\n');
 		expect(landedAt(env)).toEqual([[[0], 2]]);

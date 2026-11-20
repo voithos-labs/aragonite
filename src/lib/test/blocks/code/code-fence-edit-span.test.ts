@@ -3,12 +3,11 @@
 // mode paints the fence lines, its body part where it hides them, and nothing without a body part.
 // Miss-analysis: each route kept its own copy of the span and its own tests, and the removal row
 // ran a no-op command, so the line break Enter writes after a declined removal went unseen.
-import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { asDomTextOffset } from '#lib/core/coordinate-spaces.js';
 import { createRangeAtDomTextOffsets } from '#lib/browser/offsets.js';
-import { codePasteSurface } from '#lib/components/blocks/code/code-paste-surface.js';
+import type { BlockComponent } from '#lib/block-component.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
-import { ensurePasteSurface } from '#lib/test/harness/paste-surface.js';
 import { settleEditor } from '#lib/test/harness/settle.js';
 import { mountCode, type MountedCode } from './mount-code';
 
@@ -51,7 +50,7 @@ function input(inputType: string, data?: string): Event {
 	);
 }
 
-function clipboard(type: 'cut' | 'paste', text = ''): Event {
+function clipboard(type: 'cut', text = ''): Event {
 	const data = new Map([['text/plain', text]]);
 	const e = new Event(type, { bubbles: true, cancelable: true });
 	Object.defineProperty(e, 'clipboardData', {
@@ -122,13 +121,6 @@ const ROUTES: Route[] = [
 		browserWhereShown: false
 	},
 	{
-		name: 'paste',
-		act: () => clipboard('paste', 'Y'),
-		write: () => 'Y',
-		caret: 1,
-		browserWhereShown: false
-	},
-	{
 		// Enter is a command, so the selection's removal is the first of its two writes.
 		name: 'Enter',
 		act: () =>
@@ -157,7 +149,6 @@ function firstWrite(): { text: string; caret: number } | null {
 	return call ? { text: (call[1] as string).replace(/\n$/, ''), caret: call[5] as number } : null;
 }
 
-beforeAll(() => ensurePasteSurface(codePasteSurface));
 afterEach(async () => {
 	await mounted.dispose();
 	document.body.innerHTML = '';
@@ -196,4 +187,12 @@ describe.each(MODES)('code block write routes, fence lines $label', ({ mode, sho
 			}
 		});
 	}
+
+	// A paste arrives at the editor root, which asks the block which of its bytes it replaces.
+	it.each(shapes)('a paste over a range $name is aimed at the span', ({ range, hidden }) => {
+		mounted = mountCode(`${DISPLAY}\n`, { mode: () => mode });
+		select(range);
+		const answer = (mounted.instance as BlockComponent).preparePaste?.();
+		expect(answer ? [answer.start, answer.end] : null).toEqual(shown ? range : hidden);
+	});
 });

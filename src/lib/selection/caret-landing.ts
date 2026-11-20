@@ -43,6 +43,8 @@ export interface LandOptions {
 	reveal?: RevealPolicy;
 	/** The tree generation the caller aimed at; read at the call when absent. */
 	stamp?: number;
+	/** The caret goes where a removal left it, which caret memory records past its forget. */
+	removal?: true;
 }
 
 type Reveal = RevealPolicy | 'held';
@@ -92,7 +94,7 @@ export interface CaretLandingDeps {
 	selectionState: SelectionState;
 	/** The editor's caret writer, which every landing's caret and range goes through. */
 	caretWriter: CaretWriter;
-	caretMemory: Pick<CaretMemory, 'forget' | 'noteOutside'>;
+	caretMemory: Pick<CaretMemory, 'forget' | 'noteOutside' | 'noteRemovalLanding'>;
 	getBlockElByPath: BlockElLookup;
 	/** The element a block shows whole by, chrome included. */
 	getBlockBoxByPath: BlockElLookup;
@@ -124,6 +126,12 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 	let generation = 0;
 	/** True while the tree generation `stamp` names is still the one in place. */
 	const at = (stamp: number) => () => generation === stamp;
+
+	/** A landing starts the caret's memory over, keeping only that a removal put it there. */
+	function forgetFor(opts: LandOptions): void {
+		deps.caretMemory.forget();
+		if (opts.removal) deps.caretMemory.noteRemovalLanding();
+	}
 
 	/** Runs the landing's focus and DOM placement, which scroll nothing (G1.45). */
 	function placeWithoutScrolling<T>(place: () => T): T {
@@ -252,7 +260,8 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 		pos: CaretPosition,
 		stamp: number,
 		reveal: Reveal,
-		open: { openCollapsed?: boolean }
+		open: { openCollapsed?: boolean },
+		opts: LandOptions = {}
 	): Promise<{ outcome: LandingOutcome; leafPath?: readonly number[] }> {
 		const target = caretTargetFor(deps.getDoc(), pos, open);
 		if (!target) return { outcome: 'unresolvable' };
@@ -260,7 +269,7 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 		// A descent cut short by a swap reports 'stale', not 'unresolvable'.
 		if (generation !== stamp) return { outcome: 'stale' };
 		if (!component) return { outcome: 'unresolvable' };
-		deps.caretMemory.forget();
+		forgetFor(opts);
 		const reading = deps.isReading();
 		placeWithoutScrolling(() =>
 			reading
@@ -283,7 +292,7 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 
 	return {
 		land: async (pos, opts = {}) =>
-			(await landAt(pos, opts.stamp ?? generation, opts.reveal ?? 'into-view', {})).outcome,
+			(await landAt(pos, opts.stamp ?? generation, opts.reveal ?? 'into-view', {}, opts)).outcome,
 		navigate: async (pos) =>
 			(await landAt(pos, generation, 'held', { openCollapsed: true })).leafPath ?? null,
 
@@ -317,7 +326,7 @@ export function createCaretLanding(deps: CaretLandingDeps): CaretLanding {
 			const mountPath = holdsCaret ? caretAt(focus).path : focus.path;
 			const mounted = await descendTo(deps.root, mountPath, { current: at(stamp) });
 			if (generation !== stamp) return 'unplaced';
-			deps.caretMemory.forget();
+			forgetFor(opts);
 			// Reading mode has no caret, so a stored one lands as focus on its block, as a jump does.
 			const readingCaret = deps.isReading() && route === 'collapsed' ? caretAt(focus) : null;
 			const readingTarget = readingCaret && componentAt(deps.root, readingCaret.path);

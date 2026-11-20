@@ -1,94 +1,70 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, type Mock } from 'vitest';
-import { registerBlockListState } from '#lib/block-lists/state-registry.js';
-import { parse } from '#lib/core/parser.js';
+// G2.9: every paste reaches an `edit` listener as one `paste` op whose count is the blocks it
+// landed as, whichever commit took it, and a range across blocks is removed first. A cell's rows
+// are in `blocks/table/cell-paste-routing.test.ts`.
+// Miss-analysis: these rows drove the dispatcher the range-edit core replaced, so they held the
+// three op kinds it emitted and nothing read the op a paste in a running editor names.
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { measured } from '#lib/tree-operations/top-level-starts.js';
+import { pointAtByte } from '#lib/selection/range-bytes.js';
 import {
-	makeBlockListState,
-	runPasteDispatch,
-	makePasteCommit
-} from '#lib/test/harness/editor-actions.js';
-import type { EditEvent } from '#lib/editor-events.js';
-import type { BlockListState } from '#lib/block-lists/block-list-state.svelte.js';
+	destroyMountedEditors,
+	installLayoutStubs
+} from '#lib/test/harness/mount-editor.svelte.js';
+import {
+	installClipboardEvents,
+	installSystemClipboard
+} from '#lib/test/harness/clipboard-events.js';
+import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { mountCase, pasteGesture, placeRange, PASTE_ROUTES } from '../range-laws/gestures';
 
-// A paste surfaces under more than one op kind, chosen by the paste strategy rather than the
-// target's depth, so a consumer counting pastes must watch all three (G2.9).
+beforeAll(installLayoutStubs);
+beforeEach(() => {
+	installClipboardEvents();
+	installSystemClipboard();
+});
+afterEach(async () => {
+	await destroyMountedEditors();
+	takeDevWarns();
+});
 
-function editOps(handler: Mock<(e: EditEvent) => void>): string[] {
-	return handler.mock.calls.map(([event]) => event.op);
+/** Each op an `edit` listener hears, with its detail, for `clip` pasted over `⟦…⟧` or at `‸`. */
+async function opsOf(marked: string, clip: string, route = PASTE_ROUTES[0]): Promise<unknown[]> {
+	const source = marked.replace(/[‸⟦⟧]/g, '');
+	const editor = mountCase(source, 'source');
+	await editor.settle();
+	const doc = measured(editor.instance.__test.getDocument());
+	const from = marked.indexOf('‸') >= 0 ? marked.indexOf('‸') : marked.indexOf('⟦');
+	const to = marked.indexOf('⟧') >= 0 ? marked.indexOf('⟧') - 1 : from;
+	const range = { anchor: pointAtByte(doc, from)!, focus: pointAtByte(doc, to)! };
+	expect(await placeRange(editor, range)).toBe(true);
+	const ops: unknown[] = [];
+	editor.instance.getEvents().on('edit', (event) => ops.push([event.op, event.detail]));
+	await pasteGesture(editor, { 'text/plain': clip }, route);
+	expect(editor.source()).not.toBe(source);
+	return ops;
 }
 
-describe('G2.9 paste op-kind emission', () => {
-	it('a default structural paste emits replaceBlock, not paste', async () => {
-		const h = makePasteCommit([parse('hello world\n').children[0]]);
-
-		const onEdit = vi.fn<(e: EditEvent) => void>();
-		h.events.on('edit', onEdit);
-
-		await runPasteDispatch(h, { pastedText: '# heading\n\nbody\n', targetPath: [0], offset: 6 });
-
-		const ops = editOps(onEdit);
-		expect(ops).toContain('replaceBlock');
-		expect(ops).not.toContain('paste');
-	});
-
-	// Miss-analysis: the routing tests stubbed the coordinator, so none read the event a real
-	// replace names.
+describe('G2.9 a paste is one `paste` op', () => {
 	it.each([
-		['at the top level', 'first\n\nhello world\n', [1]],
-		['inside a quote', '> first\n>\n> hello world\n', [0, 1]]
-	])('a default structural paste %s names the replaced block', async (_where, source, path) => {
-		const h = makePasteCommit(parse(source));
-		const onEdit = vi.fn<(e: EditEvent) => void>();
-		h.events.on('edit', onEdit);
+		['text in a top-level block, its own write', 'abc‸def\n', 'x', 0],
+		['text in a quoted block, a byte splice', '> abc‸def\n', 'x', 0],
+		['blocks mid-paragraph', 'abc‸def\n', 'one\n\ntwo', 2],
+		['a block on an empty line', 'abc\n\n‸\n', '# h', 1],
+		['text over a range inside one block', 'a⟦bc⟧def\n', 'x', 0]
+	])('%s', async (_, marked, clip, count) => {
+		expect(await opsOf(marked, clip)).toEqual([['paste', { count }]]);
+	});
 
-		await runPasteDispatch(h, { pastedText: '# heading\n\nbody\n', targetPath: path, offset: 6 });
+	it.each(PASTE_ROUTES)('by the %s route', async (route) => {
+		expect(await opsOf('abc‸def\n', 'one\n\ntwo', route)).toEqual([['paste', { count: 2 }]]);
+	});
 
-		expect(onEdit.mock.calls.map(([event]) => event)).toEqual([
-			expect.objectContaining({
-				op: 'replaceBlock',
-				path,
-				detail: { source: 'paste-dispatch' }
-			})
+	it('over a range across blocks, the removal’s `delete` comes first', async () => {
+		const ops = await opsOf('al⟦pha\n\nbe⟧ta\n', 'x');
+		expect(ops).toEqual([
+			['delete', { crossBlock: true }],
+			['paste', { count: 0 }]
 		]);
-	});
-
-	it('a list-absorb paste emits paste, not replaceBlock', async () => {
-		const h = makePasteCommit([parse('1. one\n2. two\n').children[0]]);
-
-		// list-absorb commits on the outer list scope, resolved through the registry.
-		const liveList = () => h.doc.children[0];
-		const listState = makeBlockListState(liveList, ['item-0', 'item-1']);
-		registerBlockListState(liveList(), listState as unknown as BlockListState);
-
-		const onEdit = vi.fn<(e: EditEvent) => void>();
-		h.events.on('edit', onEdit);
-
-		await runPasteDispatch(h, {
-			pastedText: '1. INSERTED\n',
-			targetPath: [0, 0, 0],
-			offset: 'one'.length
-		});
-
-		const ops = editOps(onEdit);
-		expect(ops).toContain('paste');
-		expect(ops).not.toContain('replaceBlock');
-	});
-
-	it('a cross-block inline paste emits updateContent, not paste or replaceBlock', async () => {
-		const h = makePasteCommit(parse('hello world\n').children);
-
-		const onEdit = vi.fn<(e: EditEvent) => void>();
-		h.events.on('edit', onEdit);
-
-		await runPasteDispatch(
-			h,
-			{ pastedText: 'XYZ\nsecond', targetPath: [0], offset: 5 },
-			{ crossBlock: true }
-		);
-
-		const ops = editOps(onEdit);
-		expect(ops).toContain('updateContent');
-		expect(ops).not.toContain('paste');
-		expect(ops).not.toContain('replaceBlock');
 	});
 });

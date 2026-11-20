@@ -25,7 +25,8 @@ import type { DocumentStamps } from './commit/document-stamp';
 import type { CaretMemory } from '../caret/caret-memory';
 import { containerScopeState } from '../tree-operations/paste/parent-scope';
 import { asDocPath, type DocPath, docPathFrom, extendDocPath } from '../core/coordinate-spaces';
-import type { CaretPosition } from '../selection/primitives';
+import type { CaretPosition, Landing } from '../selection/primitives';
+import type { GapCaretSelection } from '../selection/gap-caret';
 import type { LandingOutcome, RevealPolicy } from '../selection/caret-landing';
 import type { RemovalGesture } from '../selection/caret-target';
 import { removeWholeBlock } from '../selection/cross-block/range-removal';
@@ -33,7 +34,7 @@ import { getStateForNode } from '../block-lists/state-registry';
 import type { EditorActionsDeps, EditorRoot, UndoController } from './deps';
 import type { NestedActionsDeps } from './nested/nested-actions';
 import type { BlockListState } from '../block-lists/block-list-state.svelte';
-import { createContainerEditActions } from './container-edit';
+import { createContainerEditActions, landingBeside } from './container-edit';
 
 /** The copied children the core's `mutate` writes through, the same shape at both levels. */
 export interface MutationView {
@@ -93,6 +94,8 @@ export interface CommitScope {
 	): Promise<boolean>;
 	/** An empty replaceBlock emits `delete` (container) or `replaceBlock{count:0}` (top-level). */
 	collapseEmptyReplaceToDelete: boolean;
+	/** Whether a blank line or the document's end stands under this list's container. */
+	partedBelow(): boolean;
 	/** Resolves to whether bytes landed. */
 	commit(args: ScopeCommitArgs): Promise<boolean>;
 	/** One keystroke into child `i`: its undo entry (`history` says whose) is pushed before `work`
@@ -104,11 +107,14 @@ export interface CommitScope {
 		work: () => Promise<T>
 	): Promise<T>;
 	/** The keystroke's in-place write, for a write the trial reparse keeps in its block. */
-	typeLeaf(i: number, write: LegalWrite, caret: number): InPlaceResult;
+	typeLeaf(i: number, write: LegalWrite, caret: number, op?: OpDescriptor): InPlaceResult;
 	/** A position below child `i`. */
 	at(i: number, subPath: readonly number[], offset: number): CaretPosition;
 	/** Put the caret at `pos` through the editor's caret landing, for an edit with no commit. */
 	land(pos: CaretPosition): Promise<LandingOutcome>;
+	/** Where Backspace at child `i`'s start (`dir` -1), or Delete at its end (1), lands when it joins
+	 *  nothing, read when asked (`ContainerEditActions.beside`). */
+	beside(i: number, dir: -1 | 1): Landing | GapCaretSelection | null;
 	/** Report a write to child `i` that was refused before its commit to the `error` event. */
 	reportCommitError(error: unknown, op: OperationKind, i: number): void;
 }
@@ -135,6 +141,7 @@ export function createTopLevelScope(
 				op: { ...op, eventPath: asDocPath([i]) }
 			}),
 		collapseEmptyReplaceToDelete: false,
+		partedBelow: () => true,
 		commit({
 			snapshot,
 			eventTarget,
@@ -167,9 +174,10 @@ export function createTopLevelScope(
 		},
 		typeIn: (i, preEditOffset, history, work) =>
 			controller.typingKeystroke(docPathFrom([i]), preEditOffset, deps.blockIds[i], history, work),
-		typeLeaf: (i, write, caret) => controller.typeLeaf(docPathFrom([i]), write, caret),
+		typeLeaf: (i, write, caret, op) => controller.typeLeaf(docPathFrom([i]), write, caret, op),
 		at: (i, subPath, offset) => ({ path: docPathFrom([i, ...subPath]), offset }),
 		land: (pos) => deps.caretLanding.land(pos),
+		beside: (i, dir) => landingBeside(deps, [i], dir),
 		reportCommitError: (error, op, i) => emitCommitError(deps.events, { error, op, path: [i] })
 	};
 }
@@ -243,6 +251,7 @@ function containerScope(parts: ContainerParts): CommitScope {
 				op: { ...op, eventPath: extendDocPath(parts.path(), i) }
 			}),
 		collapseEmptyReplaceToDelete: true,
+		partedBelow: () => parts.containerEdit.partedBelow(parts.path()),
 		commit({
 			snapshot,
 			eventTarget,
@@ -284,12 +293,13 @@ function containerScope(parts: ContainerParts): CommitScope {
 				history,
 				work
 			),
-		typeLeaf: (i, write, caret) =>
-			parts.containerEdit.typeLeaf(extendDocPath(parts.path(), i), write, caret),
+		typeLeaf: (i, write, caret, op) =>
+			parts.containerEdit.typeLeaf(extendDocPath(parts.path(), i), write, caret, op),
 		at: (i, subPath, offset) => ({ path: docPathFrom([...parts.path(), i, ...subPath]), offset }),
 		// Through the editor root rather than this list's refs: a write that changed this
 		// container's kind replaced its component, and its refs with it.
 		land: (pos) => parts.containerEdit.land(pos),
+		beside: (i, dir) => parts.containerEdit.beside(extendDocPath(parts.path(), i), dir),
 		reportCommitError: (error, op, i) =>
 			parts.containerEdit.reportCommitError(error, op, extendDocPath(parts.path(), i))
 	};

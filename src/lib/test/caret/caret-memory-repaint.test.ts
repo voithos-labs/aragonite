@@ -84,6 +84,8 @@ const EXEMPT: Record<string, string> = {
 	column: 'a read',
 	side: 'a read',
 	arrivedByKey: 'a read, and nothing the drawn caret shows',
+	arrivedByRemoval: 'a read, and nothing the drawn caret shows',
+	noteRemovalLanding: 'how the caret arrived, which the drawn caret never shows',
 	'pendingBreak.forBlock().lines': 'a read',
 	'pendingBreak.forBlock().at': 'a read',
 	'heldSpace.forBlock().at': 'a read',

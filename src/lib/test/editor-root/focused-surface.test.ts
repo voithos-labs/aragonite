@@ -2,7 +2,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createFocusedSurface } from '#lib/components/editor-root/focused-surface.js';
 import { parse } from '#lib/core/parser.js';
-import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
 import type { BlockComponent } from '#lib/block-component.js';
 import type { GapCaretPosition } from '#lib/selection/gap-caret.js';
 
@@ -12,84 +11,27 @@ beforeEach(() => {
 	document.body.replaceChildren();
 });
 
-/** A focusable surface inside a block host at `path`. */
-function surfaceAt(path: number[]): { host: HTMLElement; surface: HTMLElement } {
+function harness(component: Partial<BlockComponent> = {}) {
+	const root = document.createElement('div');
 	const host = document.createElement('div');
-	host.setAttribute('data-block-path', JSON.stringify(path));
+	host.setAttribute('data-block-path', '[1]');
 	const surface = document.createElement('div');
 	surface.tabIndex = 0;
 	host.append(surface);
-	return { host, surface };
-}
-
-/** `writes: false` has the block answer for an insert without moving a byte. */
-function harness(component: Partial<BlockComponent> = {}, opts: { writes?: boolean } = {}) {
-	const root = document.createElement('div');
-	const { host, surface } = surfaceAt([1]);
-	// The paragraph a `below` insert creates, which takes focus the way a new block does.
-	const created = surfaceAt([2]);
-	const nested = surfaceAt([1, 0]);
-	host.append(nested.host);
 	const outside = document.createElement('button');
-	root.append(host, created.host);
+	root.append(host);
 	document.body.append(root, outside);
-	const selection = { gapCaret: null as GapCaretPosition | null, ownsRange: false };
+	const selection = { gapCaret: null as GapCaretPosition | null };
 	const doc = parse('# a\n\nprose\n');
-	let reading = false;
-	let version = 0;
-	const calls: string[] = [];
-	const stamps = createDocumentStamps();
-	const insertParagraph = vi.fn(async (boundary: number) => {
-		calls.push(`paragraph at ${boundary}`);
-		created.surface.focus();
-		return true;
-	});
 	const focused = createFocusedSurface({
 		get editorEl() {
 			return root;
 		},
 		selection,
-		pasteOverRange: async (md) => {
-			calls.push(`range ${md}`);
-			if (opts.writes !== false) version++;
-			return true;
-		},
 		getDoc: () => doc,
-		getBlockComponent: (path) => {
-			const logged = (name: string, insert?: (text: string) => boolean | Promise<boolean>) =>
-				insert &&
-				((text: string) => {
-					calls.push(`${name} ${text.trim()} at ${JSON.stringify(path)}`);
-					if (opts.writes !== false) version++;
-					return insert(text);
-				});
-			return {
-				...component,
-				insertMarkdown: logged('insert', component.insertMarkdown),
-				insertPlainText: logged('plain', component.insertPlainText)
-			} as BlockComponent;
-		},
-		isReading: () => reading,
-		insertParagraph,
-		undoStep: async (_path, _offset, run) => {
-			calls.push('join opens');
-			await run();
-			calls.push('join closes');
-		},
-		contentVersion: () => version,
-		stamps
+		getBlockComponent: () => component as BlockComponent
 	});
-	return {
-		surface,
-		nestedSurface: nested.surface,
-		outside,
-		selection,
-		focused,
-		calls,
-		insertParagraph,
-		stamps,
-		setReading: (next: boolean) => (reading = next)
-	};
+	return { surface, outside, selection, focused };
 }
 
 describe('editor-root focused surface', () => {
@@ -109,92 +51,6 @@ describe('editor-root focused surface', () => {
 		expect(h.focused.path()).toBeNull();
 	});
 
-	it('insertMarkdown routes to the focused surface and reports its answer', async () => {
-		const insertMarkdown = vi.fn(async () => true);
-		const h = harness({ insertMarkdown });
-		expect(await h.focused.insertMarkdown('- ')).toBe(false);
-		h.surface.focus();
-		expect(await h.focused.insertMarkdown('- ')).toBe(true);
-		expect(insertMarkdown).toHaveBeenCalledWith('- ');
-	});
-
-	// Miss-analysis: every stub that answered true also wrote, so `true` never meant bytes moved.
-	it('insertMarkdown answers false when the block handled it but no byte moved', async () => {
-		const h = harness({ insertMarkdown: async () => true }, { writes: false });
-		h.surface.focus();
-		expect(await h.focused.insertMarkdown('- ')).toBe(false);
-	});
-
-	it('an aimed insert lands in the block focused when it was aimed, wherever focus went since', async () => {
-		const h = harness({ insertMarkdown: async () => true });
-		expect(h.focused.aimInsertAtFocus()).toBeNull();
-		h.surface.focus();
-		const insert = h.focused.aimInsertAtFocus()!;
-		h.outside.focus();
-		expect(await insert.markdown('- ')).toBe(true);
-		expect(h.calls).toEqual(['insert - at [1]']);
-	});
-
-	// Miss-analysis: #820, every aimed insert had a block focused; a range holding one block whole
-	// parks focus on the root, where the menu's Paste found nothing to aim at.
-	it('with no block focused, an aimed insert pastes over the range the editor holds', async () => {
-		const h = harness({ insertMarkdown: async () => true });
-		h.selection.ownsRange = true;
-		const insert = h.focused.aimInsertAtFocus()!;
-		expect(await insert.markdown('- ')).toBe(true);
-		expect(await insert.plainText('*a*')).toBe(true);
-		expect(h.calls).toEqual(['range - ', 'range \\*a\\*']);
-	});
-
-	it('an aimed plain-text insert reaches the block’s plain-text entry, not its Markdown one', async () => {
-		const h = harness({ insertMarkdown: async () => true, insertPlainText: async () => true });
-		h.surface.focus();
-		expect(await h.focused.aimInsertAtFocus()!.plainText('*a*')).toBe(true);
-		expect(h.calls).toEqual(['plain *a* at [1]']);
-	});
-
-	// Miss-analysis: the plain-text entry is optional on a hand-built block, and no row had one
-	// without it.
-	it('a block with no plain-text entry gets the text escaped through its Markdown one', async () => {
-		const h = harness({ insertMarkdown: async () => true });
-		h.surface.focus();
-		expect(await h.focused.aimInsertAtFocus()!.plainText('*a*')).toBe(true);
-		expect(h.calls).toEqual(['insert \\*a\\* at [1]']);
-	});
-
-	it('an aimed insert a swap outran writes nothing and never reaches the block', async () => {
-		const h = harness({ insertMarkdown: async () => true });
-		h.surface.focus();
-		const insert = h.focused.aimInsertAtFocus()!;
-		h.stamps.retire();
-		expect(await insert.markdown('- ')).toBe(false);
-		expect(await insert.plainText('- ')).toBe(false);
-		expect(h.calls).toEqual([]);
-	});
-
-	it('insertMarkdown below makes a paragraph and inserts there, both in one undo join', async () => {
-		const h = harness({ insertMarkdown: async () => true });
-		h.surface.focus();
-		expect(await h.focused.insertMarkdown('> ', { placement: 'below' })).toBe(true);
-		expect(h.calls).toEqual(['join opens', 'paragraph at 2', 'insert > at [2]', 'join closes']);
-	});
-
-	it('insertMarkdown below from a nested block goes after its top-level block', async () => {
-		const h = harness({ insertMarkdown: async () => true });
-		h.nestedSurface.focus();
-		expect(await h.focused.insertMarkdown('> ', { placement: 'below' })).toBe(true);
-		expect(h.calls).toEqual(['join opens', 'paragraph at 2', 'insert > at [2]', 'join closes']);
-	});
-
-	it('insertMarkdown below declines with no caret and in reading mode, making nothing', async () => {
-		const h = harness({ insertMarkdown: async () => true });
-		expect(await h.focused.insertMarkdown('> ', { placement: 'below' })).toBe(false);
-		h.surface.focus();
-		h.setReading(true);
-		expect(await h.focused.insertMarkdown('> ', { placement: 'below' })).toBe(false);
-		expect(h.insertParagraph).not.toHaveBeenCalled();
-	});
-
 	it('the command target carries the node kind and forwards to the block', () => {
 		const runCommand = vi.fn(() => true);
 		const isCommandActive = vi.fn(() => true);
@@ -210,7 +66,7 @@ describe('editor-root focused surface', () => {
 	// A block with no command bodies of its own still moves: the dispatch runs its reorder
 	// against the path, and every other built-in id declines for want of a `runCommand`.
 	it('a block with no command bodies is a target that only carries its path', () => {
-		const h = harness({ insertMarkdown: async () => true });
+		const h = harness({ focusable: true });
 		h.surface.focus();
 		const target = h.focused.commandTarget()!;
 		expect(target.runCommand).toBeUndefined();

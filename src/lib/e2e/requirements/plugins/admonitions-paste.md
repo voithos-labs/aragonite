@@ -22,6 +22,5 @@ The tests write the real clipboard and press `Mod+V`, then read the tree by path
   lands the top-level one as a native `githubAlert` while the fenced `> [!NOTE]` stays inside a
   `fencedCode` block. Neither is rewritten to directive source (no `:::` anywhere)
 - whole-table-selection paste: selecting an entire table (a second Ctrl+A inside a cell) and
-  pasting alert text replaces the table with a native `githubAlert`. That route does not go
-  through the shared paste dispatch and parses the clipboard itself, so the alert has to land
-  there too; the result round-trips stable
+  pasting alert text replaces the table with a native `githubAlert`; the result round-trips
+  stable

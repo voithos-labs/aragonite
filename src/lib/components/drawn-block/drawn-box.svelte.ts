@@ -48,12 +48,6 @@ export function createDrawnBox(deps: DrawnBoxDeps) {
 		getLabel: () => blockAccessibleName(deps.getNode()),
 		holdTabStop: (proxy) => readingFocus.hold(proxy, deps.getPath),
 		mint: (text) => blockEdit.insertParagraph(deps.getIndex() + 1, text),
-		paste: (md) =>
-			wiring.services.pasteAsBlocks(
-				() => blockEdit.insertParagraph(deps.getIndex() + 1, ''),
-				md,
-				deps.getPath()
-			),
 		composition
 	});
 

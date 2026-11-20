@@ -16,3 +16,10 @@ export function isItemUserEmpty(item: NodeView): boolean {
 	}
 	return true;
 }
+
+/** Whether Enter in `item` takes it out of its list: its first block is a blank paragraph. Looser
+ *  than `isItemUserEmpty`, since what follows that paragraph goes along with the item. */
+export function leavesOnEnter(item: NodeView): boolean {
+	const first = item.children?.[0];
+	return first?.kind === 'paragraph' && isBlankText(first.raw);
+}

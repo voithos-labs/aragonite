@@ -73,7 +73,7 @@ export type {
 export type { EditorPlugin, EditorPluginEntry } from './schema/plugin-install';
 // `setup(ctx)` registers `onEditor` callbacks that receive a per-instance `EditorContext`.
 export type { PluginSetupContext, OnEditorCallback, EditorContext } from './schema/plugin-install';
-// `EditorContext.insertMarkdown`'s options: at the caret, or in a new paragraph below its block.
+// `EditorContext.insertMarkdown`'s options: at the caret, or as a block of its own.
 export type { InsertMarkdownOptions } from './editor-props';
 // `EditorContext.edit()`'s write, in the document's bytes, and what its commit came to.
 export type { Draft, DraftResult } from './schema/drafts';
@@ -105,8 +105,8 @@ export type {
 export type { PluginView, PluginViewHandle } from './plugin-view';
 
 // ── Block-kind descriptor registry ───────────────────────────────────────────
-// `BlockKindRegistration` is the shape you register, the view that draws the kind included; fields
-// that only mean something together are declared together, so an incoherent pair fails to compile.
+// `BlockKindRegistration` is the shape you register, the view that draws the kind included. A pair
+// of fields that mean nothing together fails to compile, or throws where the types can't see it.
 export { registerBlockKind, augmentBlockKind } from './schema/block-kind-descriptor';
 export type {
 	BlockKindRegistration,
@@ -152,7 +152,8 @@ export type {
 	AmbientPrefix,
 	BlockComponent,
 	BlockComponentExports,
-	BlockComponentProps
+	BlockComponentProps,
+	PreparedPaste
 } from './block-component';
 
 // ── Parser openers ───────────────────────────────────────────────────────────
@@ -398,8 +399,8 @@ export type {
 export { createScanIndex } from './scan-index';
 
 // ── Paste transforms (pre-freeze) ────────────────────────────────────────────
-// A pre-parse clipboard rewrite: inspect the raw pasted text, replace it or decline
-// (null). Transforms run in install order at every paste, never on load or while typing.
+// A pre-parse clipboard rewrite: inspect the raw pasted text, replace it or decline (null).
+// Transforms run in install order where a paste lands as blocks, never on load or while typing.
 export { registerPasteTransform } from './tree-operations/paste/paste-transforms';
 export type { PasteTransform } from './tree-operations/paste/paste-transforms';
 

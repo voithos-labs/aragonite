@@ -16,7 +16,7 @@ No runtime check sees these; the test suite is the whole enforcement. Test files
 | G2.6  | Serialization ignores metadata and editor-level fields                       | P     |
 | G2.7  | The range coverage partitions a selection cleanly, and the overlay reads it  | P     |
 | G2.8  | Split and merge round-trip; ids, refs and children stay aligned              | P·N   |
-| G2.9  | Paste emits its op kind by strategy, never by target depth                   | P     |
+| G2.9  | A paste emits one `paste` op, after a `delete` over a range across blocks    | P     |
 | G2.10 | Every keydown path hands its key to the caret memory's classifier            | P·A   |
 | G2.11 | The inline scan covers every byte with known construct kinds, tiled          | P     |
 | G2.12 | A caret placement ends every editor-owned selection, unless it's an extend   | L     |
@@ -58,10 +58,10 @@ block. `walkBetween` visits the blocks in order. How the overlay paints the rang
 **G2.8 · Structural alignment.** Split and merge round-trip, and the id, ref and children arrays
 stay aligned, in all scopes. `structural-id-ref-alignment.test.ts`.
 
-**G2.9 · Paste op kinds.** Paste emits its op kind by strategy, never by target depth: the default
-structural paste emits `replaceBlock`, container absorb and merge emit `paste`, and the cross-block
-inline paste emits `updateContent`. A consumer counting pastes watches all three.
-`paste-op-kind.test.ts`.
+**G2.9 · Paste op kinds.** Every paste emits one `paste` op whose `count` is the number of blocks
+it landed as, 0 where it went in as text, whichever commit took it. A grid pasted into cells emits
+`tablePasteGrid`, and a paste over a range across blocks emits the removal's `delete` first, both in
+one undo step. `paste-op-kind.test.ts`, `blocks/table/cell-paste-routing.test.ts`.
 
 **G2.10 · Sticky-column keys.** The sticky column (the X position a vertical caret walk tries to
 keep across shorter lines) is captured by a vertical arrow, kept through PageUp, PageDown and a

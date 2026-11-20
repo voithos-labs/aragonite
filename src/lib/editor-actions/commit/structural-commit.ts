@@ -115,6 +115,8 @@ export interface CommitArgs extends FrameWrite {
 	history: UndoGrouping;
 	landing?: CommitLanding;
 	reveal?: RevealPolicy;
+	/** The landing is a removal's (`LandOptions.removal`). */
+	removal?: true;
 	announce?: CommitAnnouncement;
 }
 

@@ -37,6 +37,11 @@ const boundary = (at: number, parent: number[] = []): RangeEditResult['caret'] =
 	holds: 'boundary',
 	parent
 });
+/** The empty line a pasted last line ending opened, which a letter typed there keeps its own. */
+const ownLine = (at: number, parent: number[] = []): RangeEditResult['caret'] => ({
+	...boundary(at, parent),
+	line: true
+});
 const block = (at: number, parent: number[] = []): RangeEditResult['caret'] => ({
 	at,
 	holds: 'block',
@@ -113,7 +118,7 @@ export const NAMED_ROWS: NamedRow[] = [
 		}
 	},
 	{
-		name: 'L3 from a fenced container out: its closing line stays, and the paste back takes it',
+		name: 'L3 from a fenced container out: its closing line stays, and the paste back nests',
 		source: ':::note\nalpha ⟦bravo\ncharlie\n:::\n\ndelta ⟧echo\n',
 		gesture: 'cut',
 		expect: {
@@ -123,6 +128,16 @@ export const NAMED_ROWS: NamedRow[] = [
 		},
 		then: {
 			gesture: 'paste back',
+			expect: { source: '::::note\nalpha \n\n:::note\nbravo\ncharlie\n:::\n\ndelta echo\n::::\n' }
+		}
+	},
+	{
+		name: 'L12 from a fenced container out: its own entry gives the bytes back',
+		source: ':::note\nalpha ⟦bravo\ncharlie\n:::\n\ndelta ⟧echo\n',
+		gesture: 'cut',
+		expect: { source: ':::note\nalpha echo\n:::\n', caret: text(14) },
+		then: {
+			gesture: 'paste back with own',
 			expect: backToStart(':::note\nalpha bravo\ncharlie\n:::\n\ndelta echo\n')
 		}
 	},
@@ -171,12 +186,14 @@ export const NAMED_ROWS: NamedRow[] = [
 		expect: { source: 'see item  x\n', clipboard: '1. then', caret: text(9) },
 		then: { gesture: 'paste back', expect: backToStart('see item 1. then x\n') }
 	},
+	// The emptied item keeps a blank line from the paragraph above, or it would read as an underline;
+	// plain text pasted back leaves it there, the own entry gives the bytes back.
 	{
 		name: 'L3 inside a nested list, the outer item indent stays behind',
 		source: '- i0\n  - ⟦i1\n    - i2\n  - i3⟧\n',
 		gesture: 'cut',
-		expect: { source: '- i0\n  - \n', clipboard: '- i1\n  - i2\n- i3', caret: text(9) },
-		then: { gesture: 'paste back', expect: backToStart('- i0\n  - i1\n    - i2\n  - i3\n') }
+		expect: { source: '- i0\n\n  - \n', clipboard: '- i1\n  - i2\n- i3', caret: text(10) },
+		then: { gesture: 'paste back', expect: backToStart('- i0\n\n  - i1\n    - i2\n  - i3\n') }
 	},
 	// Miss-analysis: the merge ran only for a clipboard whose last block takes joined text, and no
 	// row emptied a container and pasted a container ending in code back on its line.
@@ -277,10 +294,10 @@ export const NAMED_ROWS: NamedRow[] = [
 		expect: { source: '>x\n>ya\n' }
 	},
 	{
-		name: 'L9 a paste into the empty paragraph above a fence adds no line',
+		name: 'L9 a paste into the empty paragraph above a fence gives the fence its blank line back',
 		source: '    code\n\n⟦⟧\n```\n```\n\n    code\n',
 		gesture: paste('x'),
-		expect: { source: '    code\n\nx\n```\n```\n\n    code\n' }
+		expect: { source: '    code\n\nx\n\n```\n```\n\n    code\n' }
 	},
 	{
 		name: 'L9 a heading pasted mid-paragraph stays a heading',
@@ -324,6 +341,13 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: paste('a\n\nb'),
 		expect: { source: '    coa\n\n    bde\n', caret: text(14) }
 	},
+	// A shown math source drafts the paste; `latex-block.spec.ts` holds it to these bytes at blur.
+	{
+		name: 'L9 a table pasted into a math block’s body is text of the body, on lines of its own',
+		source: 'Before\n\n$$x⟦⟧^2$$\n\nAfter\n',
+		gesture: paste('| a |\n| - |'),
+		expect: { source: 'Before\n\n$$\nx| a |\n| - |^2\n$$\n\nAfter\n' }
+	},
 	{
 		name: 'L9 a fence pasted on indented code’s last line stays code, and opens nothing',
 		source: '    code\n\t⟦⟧\n\nnext\n',
@@ -348,6 +372,54 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: plain('x\ny'),
 		expect: { source: '- a\n\n      cx\n      yode\n' }
 	},
+	// ── A paste that leaves a block held whole blank gives up the blank line under it ──
+	// Miss-analysis: the held-whole rows pasted text, which keeps the line apart from the block
+	// under it, so no row typed blank text over a block, which empties it as its own write does.
+	{
+		name: 'L5 a space pasted over a whole ATX heading leaves its line, not the blank line under it',
+		source: '⟦# Plan⟧\n\nnext\n',
+		gesture: paste(' '),
+		expect: { source: ' \nnext\n', caret: text(1) }
+	},
+	{
+		name: 'L5 the same over an ATX heading with a closing run',
+		source: '⟦# Plan #⟧\n\nnext\n',
+		gesture: paste(' '),
+		expect: { source: ' \nnext\n', caret: text(1) }
+	},
+	{
+		name: 'L5 the same over a setext title and its underline',
+		source: '⟦Plan\n---⟧\n\nnext\n',
+		gesture: paste(' '),
+		expect: { source: ' \nnext\n', caret: text(1) }
+	},
+	{
+		name: 'L5 the same in a quote, CRLF',
+		source: '> ⟦# Plan⟧\r\n>\r\n> next\r\n',
+		gesture: paste('\t'),
+		expect: { source: '> \t\r\n> next\r\n', caret: text(3) }
+	},
+	{
+		name: 'L5 the same under a paragraph, whose blank line above stays',
+		source: 'before\n\n⟦# Plan⟧\n\nnext\n',
+		gesture: paste(' '),
+		expect: { source: 'before\n\n \nnext\n', caret: text(9) }
+	},
+	{
+		name: 'L5 text and its line ending pasted over a whole heading keep the blank line under it',
+		source: '⟦# Plan⟧\n\nnext\n',
+		gesture: paste('x\n'),
+		expect: {
+			source: 'x\n\n\nnext\n',
+			caret: { at: 2, holds: 'boundary', parent: [], line: true }
+		}
+	},
+	{
+		name: 'L5 text pasted over a whole heading keeps the blank line under it',
+		source: '⟦# Plan⟧\n\nnext\n',
+		gesture: paste('x'),
+		expect: { source: 'x\n\nnext\n', caret: text(1) }
+	},
 	// ── A list pasted into a list of the other kind breaks out of it (C8) ──
 	// Miss-analysis: the merge fact's mismatch rule was read by neither the core nor the law's
 	// expectation, and every list row pasted a list of the caret's own kind.
@@ -361,7 +433,7 @@ export const NAMED_ROWS: NamedRow[] = [
 		name: 'C8 an ordered list pasted in a bullet item does the same, CRLF',
 		source: '> - a⟦⟧b\r\n> - c\r\n',
 		gesture: paste('1. q\n2. r\n'),
-		expect: { source: '> - a\r\n> 1. q\r\n> 2. r\r\n> - b\r\n> - c\r\n' }
+		expect: { source: '> - a\r\n> 1. q\r\n> 2. r\r\n> - \r\n> - b\r\n> - c\r\n' }
 	},
 	{
 		name: 'C8 at an item’s first text byte the item opens the second half as it stands',
@@ -495,7 +567,7 @@ export const NAMED_ROWS: NamedRow[] = [
 		name: 'L9 a table pasted mid-paragraph keeps the text after it a paragraph',
 		source: 'ab⟦⟧cd\n',
 		gesture: paste('| a |\n| - |'),
-		expect: { source: 'ab\n\n| a |\n| - |\n\ncd\n', caret: boundary(15) }
+		expect: { source: 'ab\n\n| a |\n| - |\n\ncd\n', caret: text(7) }
 	},
 	{
 		name: 'L9 and at the paragraph’s start, in a quote',
@@ -578,13 +650,13 @@ export const NAMED_ROWS: NamedRow[] = [
 		name: 'L9 in the gap after a quote, a pasted paragraph stays out of it',
 		source: '> a\n⟦⟧',
 		gesture: between('x'),
-		expect: { source: '> a\n\nx' }
+		expect: { source: '> a\n\nx\n' }
 	},
 	{
 		name: 'L9 with nothing after the gap, the clipboard’s last line ending stays',
 		source: '# h\n⟦⟧',
 		gesture: between('x\n'),
-		expect: { source: '# h\n\nx\n', caret: boundary(7) }
+		expect: { source: '# h\n\nx\n', caret: ownLine(7) }
 	},
 	// ── A place between blocks names the block whose children it sits between (ruled 2026-11-10) ──
 	// Miss-analysis: a place was a byte alone, and at a container's end one byte ends every container
@@ -593,25 +665,25 @@ export const NAMED_ROWS: NamedRow[] = [
 		name: 'L9 at a quote’s end, among the quote’s children, the paste lands inside it',
 		source: '> | a |\n> | - |\n⟦⟧',
 		gesture: between('x', [0]),
-		expect: { source: '> | a |\n> | - |\n>\n> x', caret: text(21) }
+		expect: { source: '> | a |\n> | - |\n>\n> x\n', caret: text(21) }
 	},
 	{
 		name: 'L9 at the same byte among an item’s children it lands in the item',
 		source: '> - a\n⟦⟧',
 		gesture: between('x', [0, 0, 0]),
-		expect: { source: '> - a\n>\n>   x' }
+		expect: { source: '> - a\n>\n>   x\n' }
 	},
 	{
 		name: 'L9 and among the quote’s, in the quote under its list',
 		source: '> - a\n⟦⟧',
 		gesture: between('x', [0]),
-		expect: { source: '> - a\n>\n> x' }
+		expect: { source: '> - a\n>\n> x\n' }
 	},
 	{
 		name: 'L9 and among the document’s, under the quote',
 		source: '> - a\n⟦⟧',
 		gesture: between('x'),
-		expect: { source: '> - a\n\nx' }
+		expect: { source: '> - a\n\nx\n' }
 	},
 	{
 		name: 'L9 at the end of a quote with no last line ending it opens a line of its own',
@@ -671,6 +743,26 @@ export const NAMED_ROWS: NamedRow[] = [
 		source: '# h\n⟦⟧para\n',
 		gesture: between('\nx\n\n'),
 		expect: { source: '# h\n\nx\n\npara\n' }
+	},
+	// Miss-analysis: the editor's paste kept the document's last line ending by hand (G1.41), so no
+	// row asked the core for it after the last block.
+	{
+		name: 'L9 after the last block, the document keeps its last line ending',
+		source: 'abc\n⟦⟧',
+		gesture: between('- x'),
+		expect: { source: 'abc\n\n- x\n', caret: text(8) }
+	},
+	{
+		name: 'L9 and in its own line ending',
+		source: 'abc\r\n⟦⟧',
+		gesture: between('- x'),
+		expect: { source: 'abc\r\n\r\n- x\r\n' }
+	},
+	{
+		name: 'L9 a document with no last line ending gains none',
+		source: 'abc⟦⟧',
+		gesture: between('- x'),
+		expect: { source: 'abc\n\n- x' }
 	},
 	{
 		name: 'L9 under a container’s title line the pasted block takes no blank line above',
@@ -1005,7 +1097,7 @@ export const NAMED_ROWS: NamedRow[] = [
 		name: 'L9 the caret lands after everything pasted, its last line ending too',
 		source: 'abc⟦⟧\n',
 		gesture: paste('x\n'),
-		expect: { source: 'abcx\n\n', caret: boundary(5) }
+		expect: { source: 'abcx\n\n', caret: ownLine(5) }
 	},
 	{
 		name: 'L9 a document with no line break takes LF, whatever the clipboard held',
@@ -1168,11 +1260,11 @@ export const NAMED_ROWS: NamedRow[] = [
 		expect: { clipboard: '\n\n`' }
 	},
 	{
-		name: 'L9 a nested item cut out pastes back into the item it left, as any paste there lands',
+		name: 'L9 a nested item cut out pastes back as the item’s Enter, then the item',
 		source: '- a⟦\n  - b⟧\n',
 		gesture: 'cut',
 		expect: { source: '- a\n', clipboard: '\n- b', caret: text(3) },
-		then: { gesture: 'paste back', expect: { source: '- ab\n' } }
+		then: { gesture: 'paste back', expect: { source: '- a\n- b\n' } }
 	},
 	{
 		name: 'L4 a cut into a fenced code block keeps its opening line, never its closing line alone',
@@ -1978,6 +2070,29 @@ export const NAMED_ROWS: NamedRow[] = [
 		source: '> - x\n> y⟦\n\n- > 1.⟧ n\n  > m\n',
 		gesture: 'backspace',
 		expect: { source: '> - x\n>\n> y n\n  > m\n' }
+	},
+	// ── A link definition holds no pasted line: a range in it goes, then lines land under it ──
+	// Miss-analysis: the definition rows pasted at carets, so none asked whether the range went.
+	{
+		name: 'L5 lines pasted over a range in a definition take the range out first',
+		source: '[ref]: /⟦url⟧\n\nAfter [ref]\n',
+		gesture: paste('- one\n- two'),
+		expect: { source: '[ref]: /\n\n- one\n- two\n\nAfter [ref]\n' }
+	},
+	// ── Line endings alone over a heading's whole text: it gives way, its line kept empty ──
+	// Miss-analysis: the core left a textless heading the editor's blur then rewrote, and no row
+	// pasted endings alone over a range.
+	{
+		name: 'L9 a line ending over a heading’s whole text leaves its line empty, the caret under it',
+		source: '# ⟦Title⟧\n\nAfter\n',
+		gesture: paste('\n'),
+		expect: { source: '\n\nAfter\n', caret: { ...text(1), line: true } }
+	},
+	{
+		name: 'L9 two over a setext title add nothing more, its underline gone with it',
+		source: '⟦Title⟧\n===\n\nAfter\n',
+		gesture: paste('\n\n'),
+		expect: { source: '\n\nAfter\n', caret: { ...text(1), line: true } }
 	},
 	...SPLIT_ROWS,
 	...CLOSER_ROWS

@@ -1,15 +1,11 @@
 /**
  * The clipboard rows a menu offers: cut and copy as Ctrl+C would write them, and paste as the
- * clipboard's text handed to the focused block's paste step, as Markdown or as plain text, which
- * the block escapes where it reads Markdown. Run a row inside its press's click.
+ * clipboard's text handed to the editor's paste entry, as Markdown or as plain text. Run a row
+ * inside its press's click.
  */
 
-import {
-	readClipboardText,
-	writeClipboardPayload,
-	type ClipboardWrite
-} from '../../browser/clipboard';
-import type { AimedInsert } from '../editor-root/focused-surface';
+import { readClipboard, writeClipboardPayload, type ClipboardWrite } from '../../browser/clipboard';
+import type { AimedPaste } from '../editor-root/paste';
 
 export type ClipboardAction = 'cut' | 'copy' | 'paste' | 'paste-plain';
 
@@ -24,8 +20,8 @@ export interface MenuClipboard {
 	/** The range the editor holds (`EditorRootClipboard.takeForMenu`), or null for a range the
 	 *  browser holds, which its own command copies. */
 	take(): MenuTake | null;
-	/** The block a Paste inserts into, aimed now; null with none focused. */
-	pasteTarget(): AimedInsert | null;
+	/** A Paste aimed now at the editor's caret or range; null with neither. */
+	pasteTarget(): AimedPaste | null;
 }
 
 export async function runClipboardAction(
@@ -47,9 +43,8 @@ export async function runClipboardAction(
 		case 'paste-plain': {
 			const paste = clipboard.pasteTarget();
 			if (!paste) return;
-			const text = await readClipboardText();
-			if (!text) return;
-			await (action === 'paste-plain' ? paste.plainText(text) : paste.markdown(text));
+			const clip = await readClipboard(action === 'paste-plain');
+			if (clip?.text) await paste(clip);
 		}
 	}
 }

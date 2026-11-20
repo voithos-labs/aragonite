@@ -4,14 +4,14 @@ A paste of several blocks splits the paragraph at the caret. Everything after th
 
 ## Happy paths
 
-- `abc\nAfter\n`, caret at the end of `abc` (End from the paragraph start), paste `x\n\ny`: the source is `abc\n\nx\n\ny\nAfter\n`; `After` stays after the pasted blocks, the line break before it where it was.
-- The same paste of `> q`: `After` stays, as a line of the quote (`abc\n\n> q\nAfter\n`), which is how a reload reads those bytes.
+- `abc\nAfter\n`, caret at the end of `abc` (End from the paragraph start), paste `x\n\ny`: the source is `abcx\n\ny\nAfter\n`; the first paragraph joins `abc`, and `After` stays after the pasted blocks, the line break before it where it was.
+- The same paste of `> q`, one line after text, goes in as that text: `abc> q\nAfter\n`, and `After` stays.
 
 ## Caret placement
 
 - After the paste, a typed character lands at the end of the pasted `y`, before the line break that leads to `After`.
-- After the `> q` paste, a typed character lands after `q`, where the pasted text ends, and not after `After`, the line the quote took in, which keeps its bytes: the source reads `abc\n\n> qZ\nAfter\n`.
-- The same with `- q`: the item takes `After` in, and a typed character lands after `q`, giving `abc\n\n- qZ\nAfter\n`.
+- After the `> q` paste, a typed character lands after `q`, where the pasted text ends: `abc> qZ\nAfter\n`.
+- The same with `- q`: `abc- qZ\nAfter\n`.
 
 ## Undo
 

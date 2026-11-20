@@ -44,7 +44,12 @@ async function pasteAt(editor: MountedEditor, el: HTMLElement, caret: number, te
 	placeCaret(el, caret);
 	const e = new Event('paste', { bubbles: true, cancelable: true });
 	Object.defineProperty(e, 'clipboardData', {
-		value: { getData: (type: string) => (type === 'text/plain' ? text : ''), files: [], items: [] }
+		value: {
+			types: ['text/plain'],
+			getData: (type: string) => (type === 'text/plain' ? text : ''),
+			files: [],
+			items: []
+		}
 	});
 	el.dispatchEvent(e);
 	await editor.settle();

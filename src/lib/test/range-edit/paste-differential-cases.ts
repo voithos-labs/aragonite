@@ -22,6 +22,9 @@ interface Named {
 	routes?: DiffRoute[];
 	/** A place the marks can't say: a block focused whole, the gap caret, a cell rectangle. */
 	via?: Place;
+	/** The bytes every route and mode of the case must leave. */
+	pin?: string;
+	drafted?: string;
 }
 
 const CRLF = (text: string) => text.replace(/\n/g, '\r\n');
@@ -51,10 +54,12 @@ const NAMED: Named[] = [
 	{ name: 'a lazy quote line', marked: '> a\nla‸zy\n', clips: ['x\n\ny'] },
 	{ name: '#819 a footnote line', marked: '  [^n]: ‸a\n', clips: ['line one\nline two\n'] },
 	{
+		// Ruling 40: the paste takes the side of the hidden edge a typed letter takes.
 		name: '#819 hidden bold before the caret',
 		marked: 'a **b**‸\n',
 		clips: ['x'],
-		modes: ['live']
+		modes: ['live'],
+		pin: 'a **bx**\n'
 	},
 	{ name: '#819 after an autolink', marked: '<http://a.b>‸\n', clips: ['1. one'], modes: ['live'] },
 	{ name: '#819 an empty quote line', marked: '> [!NOTE]\n>‸\n>\n> two words\n', clips: ['a\nb'] },
@@ -81,13 +86,37 @@ const NAMED: Named[] = [
 		clips: ['x', '```\ninner\n```\n', '# T', 'a\n\nb']
 	},
 	{ name: 'an indented code body', marked: '    co‸de\n', clips: ['# not a heading', 'a\nb'] },
-	{ name: 'a math block', marked: '$$\nx‸\n$$\n', clips: ['y', '$$\n'] },
+	{
+		name: 'a math block',
+		marked: '$$\nx‸\n$$\n',
+		clips: ['y', '$$\n'],
+		drafted: 'a shown source is the block’s draft, which the document holds once it hides'
+	},
 	{
 		name: 'a table cell',
 		marked: '| a‸ | b |\n| - | - |\n| 1 | 2 |\n',
-		clips: ['x', 'one\ntwo', 'one\n\ntwo', '| p | q |\n| - | - |\n| 3 | 4 |']
+		clips: ['x', 'one\ntwo']
+	},
+	{
+		// Ruling 6: the cell answers ahead of the core.
+		name: 'blocks pasted in a cell slice its table',
+		marked: '| a‸ | b |\n| - | - |\n| 1 | 2 |\n',
+		clips: ['one\n\ntwo'],
+		pin: '| a | b |\n| - | - |\n\none\n\ntwo\n\n| 1 | 2 |\n| - | - |\n'
+	},
+	{
+		name: 'a grid pasted in a cell fills cells from it',
+		marked: '| a‸ | b |\n| - | - |\n| 1 | 2 |\n',
+		clips: ['| p | q |\n| - | - |\n| 3 | 4 |'],
+		routes: ['key', 'menu', 'insertMarkdown'],
+		pin: '| p | q |\n| - | - |\n| 3 | 4 |\n'
 	},
 	{ name: 'a range inside one cell', marked: '| a⟦bc⟧ | b |\n| - | - |\n', clips: ['x', 'p\nq'] },
+	{
+		name: 'a range over a cell’s whole text',
+		marked: '| A | B |\n| --- | --- |\n| ⟦one⟧ | 2 |\n',
+		clips: ['two', 'first\nsecond']
+	},
 	{
 		name: 'a rectangle of cells',
 		marked: '| a | b |\n| - | - |\n| 1 | 2 |\n',
@@ -101,6 +130,11 @@ const NAMED: Named[] = [
 	{ name: 'a callout body', marked: ':::note\nbo‸dy\n:::\n', clips: ['x', 'one\n\ntwo'] },
 	{ name: 'a callout title row', marked: ':::note Ti‸tle\nbody\n:::\n', clips: ['x\ny', 'a\n\nb'] },
 	{ name: 'a callout body a delete emptied', marked: ':::note\n‸\n:::\n', clips: ['xy', 'a\n\nb'] },
+	{
+		name: 'a definition over a heading under a started title',
+		marked: "[a]: /u\n    'code\n# ⟦h⟧\ntext\nend'\n",
+		clips: ['[c]: /w']
+	},
 	{
 		name: 'a details summary',
 		marked: '<details>\n<summary>S‸S</summary>\n\nbody\n\n</details>\n',
@@ -158,7 +192,42 @@ const NAMED: Named[] = [
 		via: { gap: { parentPath: [0], index: 1 } },
 		routes: ['key']
 	},
+	{
+		// G1.41: a block pasted at the document's end keeps the line break the document ended in.
+		name: 'the gap caret at the document’s end',
+		marked: '| a |\n| - |\n',
+		clips: ['x'],
+		via: { gap: { parentPath: [], index: 1 } },
+		routes: ['key'],
+		pin: '| a |\n| - |\n\nx\n'
+	},
 	{ name: 'an empty document', marked: '‸', clips: ['x', 'one\n\ntwo'] },
+	// ── A range that ends past a container, on a block that joins no text ──
+	{
+		name: 'a range from a paragraph through an open details into a heading',
+		marked: 'al⟦pha\n\n<details open>\n<summary>S</summary>\n\nbody\n\n</details>\n\n# He⟧ad\n',
+		clips: ['x', 'one\n\ntwo']
+	},
+	{
+		name: 'a range from a paragraph through a callout into a heading',
+		marked: 'al⟦pha\n\n:::note\nbody\n:::\n\n# He⟧ad\n',
+		clips: ['x', 'one\n\ntwo']
+	},
+	{
+		name: 'a range from a paragraph through a quote ending in a blank line into a fence',
+		marked: 'al⟦pha\n\n> q\n>\n\n```\nco⟧de\n```\n',
+		clips: ['x', 'one\n\ntwo']
+	},
+	{
+		name: 'a range from a paragraph through an item ending in a blank line into a heading',
+		marked: 'al⟦pha\n\n- a\n\n  b\n\n# He⟧ad\n',
+		clips: ['x', 'one\n\ntwo']
+	},
+	{
+		name: 'a range from a closed details’ summary to the next block’s start',
+		marked: '<details>\n<summary>S⟦S</summary>\n\nbody\n\n</details>\n\n⟧after\n',
+		clips: ['x', 'one\n\ntwo', ' ', '\n']
+	},
 	// ── A cut, then a paste of it back ──
 	{
 		name: '#818 cut and paste back',
@@ -194,7 +263,52 @@ const NAMED: Named[] = [
 		marked: 'para\n\n---\n\n```\ncode\n```\n',
 		clips: [''],
 		via: { whole: [1] },
-		routes: ['cut then key']
+		routes: ['cut then key'],
+		pin: 'para\n\n---\n\n```\ncode\n```\n'
+	},
+	// ── Where the place the paste is named at decides the bytes ──
+	{
+		name: 'a rule cut under a quoted table, its caret held as no gap, pasted back',
+		marked: '> | b |\n> | - |\n---\n\nafter\n',
+		clips: [''],
+		via: { whole: [1] },
+		routes: ['cut then key'],
+		pin: '> | b |\n> | - |\n---\n\nafter\n'
+	},
+	{
+		name: 'a rule cut from an item’s end under a table, a tight item below, pasted back',
+		marked: '- > a\n  >\n  > | b |\n  > | - |\n  >\n  > ---\n- c\n',
+		clips: [''],
+		via: { whole: [0, 0, 0, 2] },
+		routes: ['cut then key'],
+		pin: '- > a\n  >\n  > | b |\n  > | - |\n  >\n  > ---\n- c\n'
+	},
+	{
+		name: 'a live heading’s text start takes one line as text',
+		marked: '# ‸Hi\n',
+		clips: ['x'],
+		modes: ['live'],
+		pin: '# xHi\n'
+	},
+	// Miss-analysis: no cut started in a details body, so none left its caret at the summary's end,
+	// where the paste back went into the summary as one title line.
+	...['', ' open'].flatMap((open): Named[] =>
+		[
+			['the next block’s start', '⟧next para'],
+			['the next block’s middle', 'next⟧ para']
+		].map(([end, next]) => ({
+			name: `a cut from a details${open || ' closed'} body’s first line to ${end}, pasted back`,
+			marked: `<details${open}>\n<summary>S</summary>\n⟦one\n</details>\n\n${next}\n`,
+			clips: [''],
+			routes: ['cut then key'],
+			pin: `<details${open}>\n<summary>S</summary>\none\n</details>\n\nnext para\n`
+		}))
+	),
+	{
+		name: 'a cut pasted back as plain text ignores the editor’s own entry',
+		marked: 'a **b⟦old** text\n\n# next⟧ one\n',
+		clips: [''],
+		routes: ['cut then plain', 'cut then shift key']
 	}
 ];
 
@@ -229,7 +343,16 @@ export function namedCases(grammar: GrammarView): PasteCase[] {
 		if (!via) return [];
 		return (named.modes ?? (['source', 'live'] as const)).flatMap((mode) =>
 			(named.routes ?? TEXT_ROUTES).flatMap((route) =>
-				named.clips.map((clip) => ({ name: named.name, source, mode, via, clip, route }))
+				named.clips.map((clip) => ({
+					name: named.name,
+					source,
+					mode,
+					via,
+					clip,
+					route,
+					...(named.pin !== undefined && { pin: named.pin }),
+					...(named.drafted !== undefined && { drafted: named.drafted })
+				}))
 			)
 		);
 	});

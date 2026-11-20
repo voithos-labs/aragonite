@@ -304,7 +304,6 @@ export const TYPE_EDGES: readonly string[] = [
 	'testing -> action-contracts.ts',
 	'testing -> block-component.ts',
 	'tree-operations -> action-contracts.ts',
-	'tree-operations -> caret',
 	'undo -> core',
 	'undo -> selection',
 	'windowing -> caret',

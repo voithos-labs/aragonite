@@ -648,19 +648,6 @@ export function checkDeclarationSanity(
 		}
 	}
 
-	if (descriptor.containerPaste) {
-		assertIs(
-			typeof descriptor.containerPaste.matchesAncestor,
-			'function',
-			`${kind} containerPaste.matchesAncestor is callable`
-		);
-		assertIs(
-			typeof descriptor.containerPaste.siblingAbsorb,
-			'boolean',
-			`${kind} containerPaste.siblingAbsorb is boolean`
-		);
-	}
-
 	assert(
 		descriptor.lines !== undefined || typeof descriptor.rebuildRaw === 'function',
 		`${kind} declares its lines or a rebuildRaw`

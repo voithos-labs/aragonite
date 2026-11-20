@@ -11,7 +11,7 @@ import type { NodeView } from '../../core/node-views';
 import { pictureImageCount } from '../../core/inline/picture';
 import type { InlineReading } from '../../core/inline/inline-cache';
 import type { MenuIconName } from '../../menu-icons';
-import { copyBlockToClipboard, readClipboardText } from '../../browser/clipboard';
+import { copyBlockToClipboard, readClipboard } from '../../browser/clipboard';
 import { codeBlockActions } from '../blocks/code/code-context-actions';
 
 export interface BlockActionContext {
@@ -71,8 +71,8 @@ function everyBlockRows(node: NodeView, noun: string): BlockContextAction[] {
 			label: 'Replace with clipboard',
 			icon: 'clipboard',
 			run: async (ctx) => {
-				const text = await readClipboardText();
-				if (text === null || text.trim() === '') return;
+				const text = (await readClipboard())?.text ?? '';
+				if (text.trim() === '') return;
 				// The paste transforms first, as any paste gets, so a plugin's rewrite applies.
 				const md = ctx.transformPaste(text);
 				await ctx.replaceRaw(md.endsWith('\n') ? md : md + '\n');

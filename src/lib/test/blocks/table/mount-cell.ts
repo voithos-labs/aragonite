@@ -2,6 +2,7 @@
 // asked its table for (`mount-table.ts` mounts the real table instead). Read-only questions and
 // single gestures only: a commit replaces the node and nothing above re-renders with it.
 
+import type { MenuClipboard } from '#lib/components/menu/clipboard-actions.js';
 import { NO_PAINT } from '#lib/decorations/block-paint.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
 import { vi } from 'vitest';
@@ -49,8 +50,7 @@ function makeStubTableContext(): StubTableContext {
 		moveColumnLeft: vi.fn(),
 		moveColumnRight: vi.fn(),
 		cycleAlignment: vi.fn(),
-		setColumnAlignment: vi.fn(),
-		pasteGrid: vi.fn()
+		setColumnAlignment: vi.fn()
 	};
 }
 
@@ -79,7 +79,7 @@ function documentAround(node: CstNode): Document {
 /** The cell sits in the last row of a 2x2 table, so a vertical move exits the table. */
 export function mountCell(
 	raw: string,
-	options: Pick<MountContextOverrides, 'mode'> = {}
+	options: Pick<MountContextOverrides, 'mode'> & { menuClipboard?: MenuClipboard } = {}
 ): MountedCell {
 	const node: CstNode = { kind: 'tableCell', leadingTrivia: '', raw };
 	const selection = createSelectionState();
@@ -91,10 +91,11 @@ export function mountCell(
 		path: [0, 1, 0],
 		props: { rowIdx: 1, columnCount: 2, rowCount: 2, slots: refSlotsOver(refs) },
 		overrides: {
-			...options,
+			mode: options.mode,
 			services: {
 				decorations: noIslands,
-				selection
+				selection,
+				...(options.menuClipboard && { menuClipboard: options.menuClipboard })
 			}
 		},
 		context: [[TABLE_CONTEXT_KEY, tableContext]]

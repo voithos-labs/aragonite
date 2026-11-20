@@ -69,8 +69,6 @@ export function registerBuiltInBlocks(): void {
 	registerBuiltInDescriptors();
 	attachBuiltinViews(BUILT_IN_VIEWS);
 
-	// The default loop in `paste/hooks.ts` skips `tableCell`, so registration order cannot
-	// revert cell paste to the plain inline default.
 	registerPasteSurface(tableCellPasteSurface);
 
 	// A code block's emptiness is its body's, which the code renderer slices.

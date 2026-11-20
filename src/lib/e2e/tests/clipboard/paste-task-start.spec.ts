@@ -14,25 +14,44 @@ test.describe('a block pasted at the start of a to-do’s text', () => {
 		await editor.goto();
 	});
 
-	test('a line the bare bullet reads as a divider stays the to-do’s text', async () => {
+	test('a line the bare bullet reads as a divider stays the to-do’s text, on a line of its own', async ({
+		page
+	}) => {
 		await editor.loadContent('- [ ] bc\n');
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.seedClipboard('---');
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('---');
 
-		expect(asLf(await editor.bridge.getSource())).toBe('- [ ] ---\n  bc\n');
+		expect(asLf(await editor.bridge.getSource())).toBe('- [ ] ---\n\n  bc\n');
+		await expect(page.locator('.task-checkbox')).toHaveCount(1);
 		expect(await editor.parseConverged()).toBe(true);
 	});
 
-	test('a heading takes the text’s place and the to-do gives its box up', async () => {
+	test('a heading goes in as text beside the box, which stays', async ({ page }) => {
 		await editor.loadContent('- [ ] bc\n');
 		await editor.focusBlockAtPath([0, 0, 0], 0);
 		await editor.seedClipboard('# h');
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('# h');
 
-		expect(asLf(await editor.bridge.getSource())).toBe('- # h\n  bc\n');
+		expect(asLf(await editor.bridge.getSource())).toBe('- [ ] # hbc\n');
+		await expect(page.locator('.task-checkbox')).toHaveCount(1);
+		expect(await editor.parseConverged()).toBe(true);
+	});
+
+	test('a code block takes the text’s place in the bullet, the list one list', async ({ page }) => {
+		await editor.loadContent('- [x] z\n- [ ] alpha\n- [x] c\n');
+		await editor.focusBlockAtPath([0, 1, 0], 0);
+		await editor.seedClipboard('```\ncode\n```');
+		await editor.paste();
+		await editor.bridge.waitForSourceContains('code');
+
+		expect(asLf(await editor.bridge.getSource())).toBe(
+			'- [x] z\n- ```\n  code\n  ```\n  alpha\n- [x] c\n'
+		);
+		expect(await editor.bridge.getBlockCount()).toBe(1);
+		await expect(page.locator('.task-checkbox')).toHaveCount(2);
 		expect(await editor.parseConverged()).toBe(true);
 	});
 });

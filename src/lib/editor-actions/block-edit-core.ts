@@ -5,7 +5,7 @@
  */
 
 import { tick } from 'svelte';
-import { CURSOR_END, CURSOR_START } from '../block-component';
+import { CURSOR_END } from '../block-component';
 import type { CstNode } from '../core/nodes';
 import {
 	displayLength,
@@ -13,6 +13,7 @@ import {
 	ownTrailingLineEnding,
 	withLineEnding
 } from '../core/lines';
+import { takeBareLastLine } from '../schema/child-spans';
 import type { BodyParent } from '../tree-operations/node-primitives';
 import type { OpDescriptor } from '../schema/operations';
 import { normalizeReplacementForBody } from '../tree-operations/paste/body-write';
@@ -49,7 +50,6 @@ import type {
 	LeafWriteResult,
 	ReplaceFocus,
 	ReplaceOptions,
-	ReplaceSource,
 	UndoGrouping
 } from '../action-contracts';
 import {
@@ -61,7 +61,7 @@ import {
 } from '../tree-operations/content-write';
 import { createPathScope, type CommitScope } from './block-edit-scope';
 import type { EditorRoot } from './deps';
-import { docPathFrom, extendDocPath } from '../core/coordinate-spaces';
+import { docPathFrom } from '../core/coordinate-spaces';
 import { mergedElseNext, mergedElsePrevious } from './merge-fallback';
 import { previewContentReparse, unlessFocusMoved } from './replacement-focus';
 import type { CaretPosition, Landing } from '../selection/primitives';
@@ -86,10 +86,16 @@ async function handleIneligibleNeighbor(
 		await scope.land(scope.at(neighbor, [], 0));
 		return false;
 	}
-	if (isBlockEditable(neighborKind)) {
-		await scope.land(scope.at(neighbor, [], dir < 0 ? CURSOR_END : CURSOR_START));
-		return false;
-	}
+	// Joins nothing: the commit changes no byte and only lands the caret beside the neighbour.
+	if (isBlockEditable(neighborKind))
+		return scope.commit({
+			snapshot: { index: i, offset: dir < 0 ? 0 : CURSOR_END },
+			eventTarget: i,
+			op: { kind: 'merge', detail: { direction: dir < 0 ? 'prev' : 'next' } },
+			mutate: () => ({ op: 'noop' }),
+			landing: () => scope.beside(i, dir),
+			discardIfNoop: true
+		});
 	// The caret stays in the block the key was pressed in, on the removed block's far side.
 	return scope.removeWhole(neighbor, dir < 0 ? 'Delete' : 'Backspace', {
 		snapshot: { index: i, offset: dir < 0 ? 0 : CURSOR_END },
@@ -97,11 +103,22 @@ async function handleIneligibleNeighbor(
 	});
 }
 
+/** The blank text past a body's last block: the document's own, or its container's. */
+const trailingText = (body: BodyParent): string => body.suffix ?? body.owner?.innerSuffix ?? '';
+
+function setTrailingText(body: BodyParent, text: string): void {
+	if (body.suffix !== undefined) body.suffix = text;
+	else if (body.owner) body.owner.innerSuffix = text;
+}
+
 // ── The keystroke ────────────────────────────────────────────────────────────
 
 /** Every level's `updateBlockContent`: a commit when the trial reparse sees the block change, an
- *  in-place write otherwise, both in the entry `typeIn` pushed before the work's first await. */
-export function contentUpdate(scope: CommitScope): BlockEditActions['updateBlockContent'] {
+ *  in-place write otherwise, both in `typeIn`'s entry. `op` names a write that is no keystroke. */
+export function contentUpdate(
+	scope: CommitScope,
+	op?: OpDescriptor
+): BlockEditActions['updateBlockContent'] {
 	return (index, text, mode, history, preEditOffset, postEditFocusOffset) => {
 		scope.caretMemory.forget();
 		assertInvariant('caret-in-written-text', () =>
@@ -120,11 +137,12 @@ export function contentUpdate(scope: CommitScope): BlockEditActions['updateBlock
 					snapshotOffset: preEditOffset,
 					caret,
 					landing: unlessFocusMoved,
-					history: 'join-typing'
+					history: 'join-typing',
+					op
 				});
 				return landed.wrote;
 			}
-			const written = scope.typeLeaf(index, write, caret);
+			const written = scope.typeLeaf(index, write, caret, op);
 			if (!written.wrote) return false;
 			keepsCaret = !written.relanding;
 			if (!written.relanding) return true;
@@ -155,6 +173,7 @@ export async function commitLeafText(
 		reveal?: RevealPolicy;
 		/** `join-typing` for a keystroke, whose typing push already made the entry. */
 		history?: UndoGrouping;
+		op?: OpDescriptor;
 	}
 ): Promise<LeafWriteResult> {
 	let readSettled = (): FixedUpWrite | null => null;
@@ -179,7 +198,7 @@ export async function commitLeafText(
 	const wrote = await scope.commit({
 		snapshot: { index, offset: opts.snapshotOffset },
 		eventTarget: index,
-		op: { kind: 'updateContent', detail: { length: write.text.length } },
+		op: opts.op ?? { kind: 'updateContent', detail: { length: write.text.length } },
 		mutate: (view) => {
 			const settled = view.writeLeaf([index], write);
 			readSettled = () => settled;
@@ -243,13 +262,11 @@ export interface BlockEditCore {
 	): Promise<number | null>;
 }
 
-/** The edit event a replace names: a paste route's source, else how many blocks landed. A
- *  container reports an empty replace as the delete it is. */
-function replaceOp(
-	scope: CommitScope,
-	count: number,
-	source: ReplaceSource | undefined
-): OpDescriptor {
+/** The edit event a replace names: a paste and the blocks it landed, a drop's or a draft's source,
+ *  else how many blocks landed. A container reports an empty replace as the delete it is. */
+function replaceOp(scope: CommitScope, count: number, options?: ReplaceOptions): OpDescriptor {
+	const { pasted, source } = options ?? {};
+	if (pasted !== undefined) return { kind: 'paste', detail: { count: pasted } };
 	if (source) return { kind: 'replaceBlock', detail: { source } };
 	if (count === 0 && scope.collapseEmptyReplaceToDelete) return { kind: 'delete' };
 	return { kind: 'replaceBlock', detail: { count } };
@@ -328,11 +345,16 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 
 		async descendToBody(i) {
 			const children = scope.children();
-			// A body child already exists: a focus move, no undo entry.
-			if (i + 1 < children.length) {
-				await scope.land(scope.at(i + 1, [], CURSOR_START));
-				return false;
-			}
+			// A body child already exists: the caret goes on as Delete at the row's end lands, no undo entry.
+			if (i + 1 < children.length)
+				return scope.commit({
+					snapshot: { index: i, offset: CURSOR_END },
+					eventTarget: i,
+					op: { kind: 'appendBlock' },
+					mutate: () => ({ op: 'noop' }),
+					landing: () => scope.beside(i, 1),
+					discardIfNoop: true
+				});
 			return scope.commit({
 				snapshot: { index: i, offset: 0 },
 				eventTarget: i + 1,
@@ -360,11 +382,13 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				mutate: (view) => {
 					const { body } = view;
 					const lineEnding = body.lineEnding;
-					// Past the last block, a trailing blank line is the separator, or it would read
-					// as an empty paragraph after the new one.
-					const trailing =
-						i > 0 && i === body.children.length ? /^[ \t]*\r?\n/.exec(body.suffix ?? '') : null;
-					if (trailing) body.suffix = body.suffix!.slice(trailing[0].length);
+					// A container's own blank last line stays where it alone parts it from the block after it.
+					const atEnd = i > 0 && i === body.children.length && scope.partedBelow();
+					// Past the last block, the body's trailing blank line is the separator, or it would
+					// stay under the new one as an empty paragraph or a blank container line.
+					const trailing = atEnd ? /^[ \t]*\r?\n/.exec(trailingText(body)) : null;
+					if (trailing) setTrailingText(body, trailingText(body).slice(trailing[0].length));
+					if (atEnd && !trailing && body.owner) takeBareLastLine(body.owner, body.children.at(-1));
 					// Only a list's first block has no separator; anywhere else the new paragraph needs
 					// a blank line after its predecessor, whatever the displaced sibling carried.
 					const trivia = trailing
@@ -411,7 +435,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				trackCaret: tracked,
 				// The primitive's answer, since the fix-up after the delete can merge the joined
 				// block into the one above it.
-				landing: () => mergedElsePrevious(joinedAt(), extendDocPath(scope.path, i - 1)),
+				landing: () => mergedElsePrevious(joinedAt(), () => scope.beside(i, -1)),
 				// A merge with no target changes nothing; discard the undo entry, and the landing
 				// still moves the caret.
 				discardIfNoop: true
@@ -438,10 +462,8 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					return merged.change;
 				},
 				landing: () =>
-					mergedElseNext(
-						merged.change,
-						scope.at(i, [], merged.joinOffset),
-						extendDocPath(scope.path, i + 1)
+					mergedElseNext(merged.change, scope.at(i, [], merged.joinOffset), () =>
+						scope.beside(i, 1)
 					),
 				discardIfNoop: true
 			});
@@ -513,7 +535,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				? trackedPasteCaret(replacement, i, focusIndex, caret.offset)
 				: undefined;
 			const snapshot = { index: i, offset: options.snapshotOffset };
-			const op = replaceOp(scope, replacement.length, options?.source);
+			const op = replaceOp(scope, replacement.length, options);
 			if (replacement.length === 0) {
 				// None is `deleteBlock`, a delete no key asked for.
 				return (await scope.removeWhole(i, 'keyless', { snapshot, op })) ? 0 : null;

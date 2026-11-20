@@ -19,14 +19,6 @@ export function orderedBaseOf(item: NodeView | undefined): number {
 	return Number.isFinite(n) && n > 0 ? n : 1;
 }
 
-/** The punctuation suffix (`. ` or `) `) from a list's first item; defaults to `. `. */
-export function readOrderedSuffix(list: NodeView): string {
-	const first = list.children?.[0];
-	if (!first) return '. ';
-	const marker = metadataOf(first, 'listItem')?.marker ?? '1. ';
-	return marker.replace(/^\d+/, '') || '. ';
-}
-
 /** Whether GFM reads `lower` as continuing `upper`'s list once nothing parts the two items: the
  *  same bullet character, or the same ordered delimiter. A task item is a bullet item. */
 export function itemsShareList(upper: NodeView | undefined, lower: NodeView | undefined): boolean {
@@ -148,29 +140,4 @@ function keepingWidth(target: string, current: string): string {
 	const own = / *$/.exec(current)![0];
 	const theirs = / *$/.exec(target)![0];
 	return own.length > theirs.length ? target.slice(0, target.length - theirs.length) + own : target;
-}
-
-/**
- * Rewrite pasted items' markers to the enclosing list's style before the splice, since `$state`
- * wraps entries lazily and a marker written to an item already spliced would bypass reactivity.
- */
-export function templatePastedItemMarkers(
-	items: CstNode[],
-	outer: CstNode,
-	firstIndex: number,
-	grammar: GrammarView
-): void {
-	if (outer.kind !== 'list') return;
-	if (metadataOf(outer, 'list')?.ordered) {
-		const suffix = readOrderedSuffix(outer);
-		const base = orderedBaseOf(outer.children?.[0]);
-		items.forEach((item, i) => {
-			const meta = metadataOf(item, 'listItem');
-			if (!meta) return;
-			meta.marker = keepingWidth(String(base + firstIndex + i) + suffix, meta.marker);
-			writeContainerRaw(item, grammar);
-		});
-	} else {
-		for (const item of items) normalizeItemMarkerToList(item, outer, grammar);
-	}
 }

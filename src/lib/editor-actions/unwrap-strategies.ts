@@ -148,7 +148,10 @@ async function listItemCascadeMiddle(
 			detail: { direction: 'prev' },
 			eventPath: extendDocPath(deps.path, itemIndex)
 		},
-		landing: () => mergedElsePrevious(joinedAt(), extendDocPath(deps.path, itemIndex - 1)),
+		landing: () =>
+			mergedElsePrevious(joinedAt(), () =>
+				deps.parent.containerEdit.beside(extendDocPath(deps.path, itemIndex), -1)
+			),
 		// A merge with no target changes nothing; discard the undo entry, and the landing still
 		// moves the caret.
 		discardIfNoop: true

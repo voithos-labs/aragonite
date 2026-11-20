@@ -295,3 +295,31 @@ describe('a draft refused', () => {
 		if (reason !== 'unloaded') expect(editor.source()).toBe(before);
 	});
 });
+
+// Miss-analysis: `insertBelow` was the editor's own, so no row wrote a block of its own from a draft.
+describe('a draft’s block of its own', () => {
+	it('lands under the caret’s block, in the same undo step as its replacements', async () => {
+		const editor = await mounted('alpha\n\nomega\n');
+		placeCaret(surfaceAt(editor, [0]), 2);
+		await editor.settle();
+
+		const draft = editor.instance.edit().replace({ from: 7, to: 12 }, 'OMEGA');
+		const result = await draft.insertBelow('# h\n').commit();
+		await editor.settle();
+
+		expect(result).toEqual({ ok: true });
+		expect(editor.source()).toBe('alpha\n\n# h\n\nOMEGA\n');
+		expect(await undo(editor)).toBe('alpha\n\nomega\n');
+	});
+
+	it('of nothing is a draft with nothing in it, as an insert of nothing is', async () => {
+		const editor = await mounted('alpha\n');
+		placeCaret(surfaceAt(editor, [0]), 2);
+		await editor.settle();
+
+		const result = await editor.instance.edit().insertBelow('').commit();
+
+		expect(result).toMatchObject({ ok: false, reason: 'empty' });
+		expect(editor.source()).toBe('alpha\n');
+	});
+});

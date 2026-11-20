@@ -93,7 +93,7 @@ test.describe('a paste keeps the joins between the clipboard’s own blocks', ()
 		await editor.bridge.waitForSourceContains('body');
 
 		const asLf = (await editor.bridge.getSource()).replace(/\r\n/g, '\n');
-		expect(asLf).toBe('hello\n\n# T\nbody\n world\n');
+		expect(asLf).toBe('hello\n\n# T\nbody world\n');
 		expect(await editor.parseConverged()).toBe(true);
 	});
 });

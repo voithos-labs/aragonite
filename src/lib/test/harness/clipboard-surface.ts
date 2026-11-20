@@ -4,7 +4,6 @@
 import type { BlockEditActions } from '#lib/action-contracts.js';
 import {
 	createClipboardHandlers,
-	pasteIntoBlock,
 	type SurfaceClipboardContext
 } from '#lib/components/blocks/editable/surface-clipboard.js';
 import type { TextClipboardDeps } from '#lib/components/blocks/text/text-clipboard.js';
@@ -37,19 +36,6 @@ export function clipboardSurface(parts: ClipboardSurfaceParts): TextClipboardDep
 			return parts.blockEdit;
 		},
 		copyRange,
-		clipboard: (block) => createClipboardHandlers({ ...parts, ...block, copyRange }),
-		pasteInline: (paste) =>
-			pasteIntoBlock(
-				{
-					getMyPath: () => parts.myPath,
-					getDoc: parts.getDoc,
-					blockEdit: parts.blockEdit,
-					controller: parts.pasteCoordinator,
-					reading: parts.reading,
-					activePlugins: parts.activePlugins,
-					requestCaret: (at) => parts.setPendingCursor(at)
-				},
-				paste
-			)
+		clipboard: (block) => createClipboardHandlers({ ...parts, ...block, copyRange })
 	};
 }

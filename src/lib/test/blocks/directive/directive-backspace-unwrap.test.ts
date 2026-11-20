@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
-// Backspace at the start of a plain directive container's first body block goes to its opener
-// line, as it does in an admonition: the line is the container's first child and is kept.
+// Backspace at the start of a plain directive container's first body block holds the gap under its
+// opener line, whose end is the name a letter would rename; the line is the container's first
+// child and is kept.
 // Miss-analysis: no test pressed Backspace at the start of a directive body.
 import { describe, it, expect, afterEach, beforeEach, beforeAll } from 'vitest';
 import { activateDirectives } from '#lib/plugin.js';
+import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
 import {
 	installLayoutStubs,
 	mountEditor,
@@ -12,7 +14,7 @@ import {
 
 beforeAll(installLayoutStubs);
 
-let mounted: ReturnType<typeof mountEditor>;
+let mounted: ReturnType<typeof mountEditor<EditorTestSurface>>;
 
 beforeEach(() => {
 	activateDirectives();
@@ -24,19 +26,23 @@ afterEach(async () => {
 
 const BACKSPACE = { key: 'Backspace' };
 
-function editor(source: string): ReturnType<typeof mountEditor> {
-	mounted = mountEditor({ source });
+function editor(source: string): ReturnType<typeof mountEditor<EditorTestSurface>> {
+	mounted = mountEditor<EditorTestSurface>({ source });
 	return mounted;
 }
 
 describe('directive container Backspace at the body start', () => {
-	it('goes to the end of the opener line and keeps the container', async () => {
+	it('holds the gap under the opener line and keeps the container', async () => {
 		editor(':::spoiler\n\nfirst\n\nsecond\n\n:::\n');
 
 		await pressKeyAt(mounted, [0, 1], 0, BACKSPACE);
 
 		expect(mounted.source()).toBe(':::spoiler\n\nfirst\n\nsecond\n\n:::\n');
-		expect(mounted.instance.getSelection()?.focus).toEqual({ path: [0, 0], offset: 10 });
+		expect(mounted.instance.__test.getGapCaret()).toEqual({
+			parentPath: [0],
+			index: 1,
+			held: true
+		});
 	});
 
 	// Also proves a Backspace at offset 0 inside the body reaches the container at all: a caret

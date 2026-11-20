@@ -11,6 +11,7 @@ Copy + paste across container boundaries. Catches asymmetries between the copy-s
 ## Cut pasted back in place
 
 A cut, then a paste at the caret it left, gives the document back: two paragraphs, a paragraph
-into a nested quote, a quote out to a paragraph, a list item out to a paragraph. The copy half
-holds; the paste half doesn't join its first and last blocks to the text around the caret yet
-(#818), so these rows are marked to fail until it does.
+into a nested quote, a quote out to a paragraph, a list item out to a paragraph (#818).
+
+Miss-analysis: each paste route had its own bytes, and no row pasted a cut back where it was cut
+from until #818 reported the paragraphs split.

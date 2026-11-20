@@ -8,7 +8,7 @@ import type { Draft, DraftResult } from './drafts';
 import type { Editor } from './plugin-unit';
 import type { Command } from './plugin-command';
 
-// ── Public API ───────────────────────────────────────────────────────────────
+// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface CaretMenu<R> {
 	/** Announced to screen readers when the list opens. */
@@ -78,7 +78,7 @@ export function menu<R>(spec: CaretMenu<R>): CaretMenu<R> {
 	return spec;
 }
 
-// ── The pick ─────────────────────────────────────────────────────────────────
+// â”€â”€ The pick â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /** The parts of a draft a pick builds on: the paste below the caret's block, and where a byte
  *  it opened on sits now. */
@@ -138,6 +138,10 @@ export function createMenuPick(spec: {
 		},
 		insert(markdown) {
 			draft.insert(markdown);
+			return pick;
+		},
+		insertBelow(markdown) {
+			draft.insertBelow(markdown);
 			return pick;
 		},
 		data(block, data) {

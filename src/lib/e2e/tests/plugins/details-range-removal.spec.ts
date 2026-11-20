@@ -87,7 +87,7 @@ test.describe('a selection out of a closed summary', () => {
 		await editor.bridge.waitForSourceEquals(':::note\n\nxpara\n:::\n');
 	});
 
-	test('(live) inside an untitled `:::note`, Enter opens a line above the paragraph', async ({
+	test('(live) inside an untitled `:::note`, Enter opens a line above the paragraph and stays on it', async ({
 		page
 	}) => {
 		await open('live', `:::note\n${CLOSED}\n\npara\n:::\n`);
@@ -96,7 +96,7 @@ test.describe('a selection out of a closed summary', () => {
 		await page.keyboard.press('Enter');
 		await page.keyboard.type('x');
 		await editor.bridge.waitForSourceContains('x');
-		expect(await editor.bridge.getSource()).toBe(':::note\n\n\nxpara\n:::\n');
+		expect(await editor.bridge.getSource()).toBe(':::note\n\nx\n\npara\n:::\n');
 	});
 });
 

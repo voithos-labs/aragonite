@@ -158,6 +158,30 @@ export interface BlockComponentProps {
 
 // ── BlockComponent ─────────────────────────────────────────────────────────
 
+/** What a block answers a paste with: the raw range of its own bytes the paste replaces, a caret
+ *  where `start === end`. A block showing a source the document doesn't hold yet takes the text
+ *  through `draft` instead, and the document changes when that source is written. `spend` and
+ *  `finish` are the editor's own leaf's; a hand-built block leaves them out. */
+export interface PreparedPaste {
+	start: number;
+	end: number;
+	/** Settles once the block's view is ready for the write. */
+	settled?: Promise<unknown>;
+	/** Where undo puts the caret back, where that isn't `start`. */
+	caretBefore?: number;
+	draft?(text: string): void;
+	/** What the caret memory kept for the block's next insertion, spent on the pasted text. */
+	spend?(
+		before: string,
+		edit: { text: string; caretAfter: number }
+	): {
+		text: string;
+		caretAfter: number;
+	};
+	/** Lets those records go once the paste is over; `changed` is whether it wrote. */
+	finish?(changed: boolean): void;
+}
+
 export interface BlockComponent {
 	/**
 	 * Place the caret at `offset`, focus the element, and end whatever the editor had selected (a
@@ -295,7 +319,7 @@ export interface BlockComponent {
 	 */
 	getSelectionOffsets?(): { start: number; end: number } | null;
 	/**
-	 * Take a copy, cut or paste the editor root received because a selection this block owns
+	 * Take a copy or a cut the editor root received because a selection this block owns
 	 * puts no caret in the DOM: a selected inline widget in a block with no text position
 	 * leaves the browser's selection empty, so the event fires at `<body>`. Taking it always
 	 * succeeds once the root has picked this block, so there is nothing to report back: the
@@ -303,19 +327,12 @@ export interface BlockComponent {
 	 */
 	claimRootClipboard?(event: ClipboardEvent): void;
 	/**
-	 * Insert markdown at this block's caret exactly as pasting it would, minus the clipboard:
-	 * the block half of `EditorInstance.insertMarkdown`. Return a promise that resolves once
-	 * the insert has landed, so the editor can keep it in the undo entry of the gesture that
-	 * asked for it; a plain true means only that the text was taken.
-	 * Omitted by non-editable blocks.
+	 * Get this block ready for a paste and say which of its bytes the paste replaces, as raw
+	 * offsets: its selection, or its caret as an empty range. The block may hide a source it shows;
+	 * it writes nothing to the document, and the editor pastes once `settled` resolves. Null
+	 * refuses the paste. Omitted by a block that takes no text.
 	 */
-	insertMarkdown?(md: string): boolean | Promise<boolean>;
-	/**
-	 * Paste `text` as plain text at this block's caret: escaped where the block reads Markdown, as
-	 * is where it takes text literally (a code body). The block half of the menu's Paste as plain
-	 * text; resolves as `insertMarkdown` does. Omitted by non-editable blocks.
-	 */
-	insertPlainText?(text: string): boolean | Promise<boolean>;
+	preparePaste?(): PreparedPaste | null;
 	/**
 	 * Type `text` at raw `offset` as a keystroke would: the write a typed character makes, with the
 	 * name a new block kind gets and the line an on-type completer finishes. The editor calls it
@@ -365,8 +382,7 @@ export type ContainerBlockComponent = BlockComponent &
 /** The optional `BlockComponent` members every editable surface publishes, a hand-built one and
  *  the editable leaf alike: each is an entry point a route reaches only through the instance. */
 export const EDITABLE_SURFACE_MEMBERS = [
-	'insertMarkdown',
-	'insertPlainText',
+	'preparePaste',
 	'typeText',
 	'afterSelectionRemoved'
 ] as const satisfies readonly (keyof BlockComponent)[];

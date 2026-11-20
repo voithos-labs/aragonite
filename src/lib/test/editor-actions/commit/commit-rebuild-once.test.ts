@@ -14,9 +14,10 @@ import {
 	makeListContextAt
 } from '#lib/test/harness/editor-actions.js';
 import { makeTableMutations } from '../table-mutations-harness';
+import { pasteTableGrid } from '#lib/editor-actions/table-context.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { asDocPath } from '#lib/core/coordinate-spaces.js';
-import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { takeDevWarnsOf } from '#lib/test/support/warn-gate.js';
 import { createSharingState } from '#lib/tree-operations/sharing.js';
 import { coverRange } from '#lib/selection/range-coverage.js';
 import {
@@ -53,9 +54,9 @@ const TABLE = '| a | b |\n| - | - |\n| c | d |\n| e | f |\n';
 
 describe('a multi-scope commit rebuilds each node once', () => {
 	it('a grid paste over a table and its mounted rows', async () => {
-		const { deps, mutations } = makeTableMutations(TABLE, { mountedRows: [0, 1, 2] });
+		const { deps, table } = makeTableMutations(TABLE, { mountedRows: [0, 1, 2] });
 
-		await mutations.pasteGrid({ rowIdx: 2, colIdx: 1 }, [['x'], ['y']]);
+		await pasteTableGrid(table, { rowIdx: 2, colIdx: 1 }, [['x'], ['y']]);
 
 		expect(serialize(deps.doc)).toBe('| a | b |\n| - | - |\n| c | d |\n| e | x |\n|  | y |\n');
 		expect(repeatedRebuilds()).toEqual([]);
@@ -144,6 +145,6 @@ describe('a mutation’s own rebuild stays off the commit’s chain', () => {
 			}
 		});
 
-		expect(takeDevWarns().map((w) => w.tag)).toContain('invariant:scope-rebuild-off-chain');
+		expect(takeDevWarnsOf('invariant:scope-rebuild-off-chain')).not.toEqual([]);
 	});
 });

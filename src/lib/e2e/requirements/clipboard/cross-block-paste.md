@@ -4,7 +4,7 @@
 
 - Ctrl+V with cross-block selection deletes the range then pastes clipboard content.
 - Pasting two paragraphs at a single caret creates multiple top-level blocks.
-- Multi-block paste with an active intra-block selection replaces the selected text with the pasted blocks.
+- Multi-block paste with an active intra-block selection replaces the selected text with the pasted blocks, the first joining the text before the selection: `Hello ⟦World⟧` with `First`, a blank line, `Second` gives `Hello First`, then `Second`.
 - Pasting a markdown list at the end of a paragraph creates a list block below the paragraph with no items dropped.
 - Pasting a markdown list inside a list item preserves all pasted items alongside the original items.
 - Pasting a heading at the end of a paragraph creates a heading block below the paragraph.

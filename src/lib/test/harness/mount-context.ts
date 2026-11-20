@@ -132,7 +132,6 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 		// Filled in by `editorMountContext`, which reads the mode off the document group.
 		readingFocus: {} as EditorServices['readingFocus'],
 		containerChords: {} as EditorServices['containerChords'],
-		pasteAsBlocks: () => Promise.resolve(false),
 		// A bare mount has no editor root to take a range's copy, and no block to paste into.
 		menuClipboard: { take: () => null, pasteTarget: () => null },
 		stamps,

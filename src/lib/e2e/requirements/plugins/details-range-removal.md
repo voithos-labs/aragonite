@@ -17,7 +17,9 @@ Shift+ArrowRight, which ends it at the start of `para`.
 ## Edge cases
 
 - Inside a `:::note` with no title, live mode: Backspace leaves the note holding `para`, and a
-  letter joins `para` instead of going into the hidden name. Enter opens a line above `para`
+  letter joins `para` instead of going into the hidden name. Enter, with nothing above the range,
+  opens an empty line where it was and leaves the caret there, so a letter stands on its own
+  above `para`
 - A selection from a paragraph across an open details or a `:::note` to a heading's start takes the
   container whole, closing line included, and leaves the heading alone
 - A selection out of an open summary keeps the details: the selected text and the body go

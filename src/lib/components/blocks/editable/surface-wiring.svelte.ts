@@ -51,7 +51,6 @@ export type SharedSurfaceDeps = Pick<
 	| 'bytes'
 	| 'commands'
 	| 'placeholder'
-	| 'onPasteImage'
 	| 'readingFocus'
 	| 'scrollOwner'
 	| 'containerChords'
@@ -103,7 +102,7 @@ export function wireSurfaceContexts(): SurfaceWiring {
 		reading,
 		bytes
 	} = doc;
-	const { placeholder, onPasteImage } = policies;
+	const { placeholder } = policies;
 
 	const deps: SharedSurfaceDeps = {
 		selection,
@@ -129,7 +128,6 @@ export function wireSurfaceContexts(): SurfaceWiring {
 		bytes,
 		commands,
 		placeholder,
-		onPasteImage,
 		readingFocus,
 		scrollOwner,
 		containerChords

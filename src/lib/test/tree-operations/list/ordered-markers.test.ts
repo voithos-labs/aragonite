@@ -3,7 +3,6 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import {
 	orderedBaseOf,
-	readOrderedSuffix,
 	renumberOrderedList,
 	renumberOrderedListFrom
 } from '#lib/tree-operations/list/ordered-markers.js';
@@ -31,11 +30,6 @@ describe('ordered-markers reads', () => {
 			} as CstNode)
 		).toBe(1);
 		expect(orderedBaseOf(undefined)).toBe(1);
-	});
-
-	it('readOrderedSuffix reads suffix from list first item', () => {
-		const list = parse('1. a\n').children[0];
-		expect(readOrderedSuffix(list)).toBe('. ');
 	});
 });
 

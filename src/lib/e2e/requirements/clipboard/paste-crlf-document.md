@@ -9,8 +9,8 @@ a lone CR shows in the diff.
 ## Happy paths
 
 - `abc\r\nAfter\r\n`, caret at the end of `abc`, paste `x\n\ny`: the source is
-  `abc\r\n\r\nx\r\n\r\ny\r\nAfter\r\n`, with no LF-only line anywhere, and a reload reads the same
-  blocks
+  `abcx\r\n\r\ny\r\nAfter\r\n` (the first paragraph joins `abc`, the last the line after it), with
+  no LF-only line anywhere, and a reload reads the same blocks
 - the same caret, paste `x\ny`: the one paragraph takes both lines, `abcx\r\ny\r\nAfter\r\n`
 
 ## Miss-analysis

@@ -383,6 +383,41 @@
 			"keystrokeP50Ms": 31.3,
 			"keystrokeP95Ms": 32.6
 		},
+		"many-small-blocks-1MB-paste-text": {
+			"loadMs": 189.1,
+			"keystrokeP50Ms": 19.5,
+			"keystrokeP95Ms": 21.0
+		},
+		"giant-single-list-1MB-paste-text": {
+			"loadMs": 226.2,
+			"keystrokeP50Ms": 32.9,
+			"keystrokeP95Ms": 37.0
+		},
+		"giant-single-blockquote-1MB-paste-text": {
+			"loadMs": 151.8,
+			"keystrokeP50Ms": 22.8,
+			"keystrokeP95Ms": 26.4
+		},
+		"many-small-blocks-1MB-paste-blocks": {
+			"loadMs": 180.1,
+			"keystrokeP50Ms": 54.9,
+			"keystrokeP95Ms": 58.2
+		},
+		"giant-single-list-1MB-paste-blocks": {
+			"loadMs": 229.2,
+			"keystrokeP50Ms": 35.0,
+			"keystrokeP95Ms": 38.8
+		},
+		"giant-single-blockquote-1MB-paste-blocks": {
+			"loadMs": 152.9,
+			"keystrokeP50Ms": 25.0,
+			"keystrokeP95Ms": 30.9
+		},
+		"many-small-blocks-1MB-paste-over-range": {
+			"loadMs": 188.8,
+			"keystrokeP50Ms": 57.4,
+			"keystrokeP95Ms": 62.8
+		},
 		"single-giant-paragraph-100KB": {
 			"loadMs": 40.4,
 			"keystrokeP50Ms": 14.7,

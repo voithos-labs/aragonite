@@ -33,7 +33,7 @@ These press the plain-prose keys over a range across two blocks, without a page:
 
 ### 1. Command key with a table-start cross-block selection reaches the cell
 
-Drag from a mid-row table cell out to a paragraph below so the table is the
+Drag from a mid-row table cell out to a heading below so the table is the
 start of the cross-block range; press Enter. The range deletes (the covered
 body rows are removed) and the dispatcher mounts the caret the delete left,
 a cell deep in the table, so the cell's Enter command runs

@@ -1,6 +1,6 @@
 # Clipboard: a pasted blank line is the block a typed or loaded one is
 
-Paste parses the clipboard, so blank lines on it follow the parser's rule and nothing else: in a run of blank lines the first separates and every later one is an empty-paragraph block. The same bytes therefore render the same blocks whether they are typed, loaded, or pasted: the divergence tracked as issue #20, where structural paste created an extra empty row per separator.
+Paste parses the clipboard, so blank lines on it follow the parser's rule and nothing else: in a run of blank lines the first separates and every later one is an empty-paragraph block. The same bytes therefore render the same blocks whether they are typed, loaded, or pasted: the divergence tracked as issue #20, where a paste created an extra empty row per separator.
 
 ## Happy paths
 
@@ -12,7 +12,7 @@ Paste parses the clipboard, so blank lines on it follow the parser's rule and no
 
 - CRLF: a Windows clipboard writes `\r\n`, which is blank the same way `\n` is, so the block counts do not change with the line ending.
 - Pasted content with adjacent blocks that no blank line separates: retains existing block-separation behavior (no empty paragraphs inserted).
-- A heading and a paragraph the clipboard holds flush (`# T\nbody`), pasted into `hello world` after `hello`, land flush as the clipboard held them: `hello\n\n# T\nbody\n world\n`. Only the join with the text above gets a blank line (regression #554; miss-analysis: every multi-block clipboard in these rows had a blank line between its blocks, so no paste met a flush pair the clipboard's own parse had already read as two blocks).
+- A heading and a paragraph the clipboard holds flush (`# T\nbody`), pasted into `hello world` after `hello`, land flush as the clipboard held them, and the paragraph joins the text after the caret: `hello\n\n# T\nbody world\n`. Only the join with the text above gets a blank line (regression #554; miss-analysis: every multi-block clipboard in these rows had a blank line between its blocks, so no paste met a flush pair the clipboard's own parse had already read as two blocks).
 
 ## Caret placement
 
