@@ -216,21 +216,17 @@ const lineAboveOpening = (d: Draw) =>
 const restRunsOn = (d: Draw) =>
 	d.end === 'a leaf’s middle' && d.above === 'right under a paragraph';
 
-/** `bytes` less its blank lines, a quote's and an item's included. */
-const nonBlank = (bytes: string) =>
-	bytes
-		.split('\n')
-		.filter((line) => line.replace(/[>\s]/g, '') !== '')
-		.join('\n');
-
-/** `bytes` with no spaces ending a line: a separator a paste writes back keeps its container's
- *  markers without them, where a typed letter may keep them (`> `, an item's indent). */
-const unspaced = (bytes: string) => bytes.replace(/[ \t]+$/gm, '');
+/** `bytes` with no spaces ending a line that holds only its containers' markers: a separator a
+ *  paste writes back keeps them bare, where a typed letter may keep a space (`> `, an indent). */
+const unspaced = (bytes: string) => bytes.replace(/^[ \t>]+$/gm, (line) => line.trimEnd());
 
 /** Booked, not ruled: where a range empties a callout to its end from its first line, the typed key
  *  opens its paragraph under a blank line below the opening row, and a paste doesn't. */
 const underOpeningRow = (d: Draw) =>
 	d.wrap === 'a callout' && d.above === 'first in its container' && !(d.end in RESTS) && toEnd(d);
+
+/** `bytes` less the one blank line right under the wrapping callout's opening row. */
+const rowClosed = (bytes: string) => bytes.replace(/^(::::note\n)\n/, '$1');
 
 type Block = { raw: string; children?: readonly Block[] };
 
@@ -402,7 +398,8 @@ describe('the landing law', () => {
 				const composed = await land(text, d.mode, 'a composition');
 				expect(composed.bytes, JSON.stringify(text)).toBe(typed.bytes);
 				const pasted = await land(text, d.mode, 'a one-line paste');
-				const seen = underOpeningRow(d) ? nonBlank : unspaced;
+				const seen = (bytes: string) =>
+					underOpeningRow(d) ? rowClosed(unspaced(bytes)) : unspaced(bytes);
 				expect(seen(pasted.bytes), `a paste over ${JSON.stringify(text)}`).toBe(seen(typed.bytes));
 			}),
 			params()
