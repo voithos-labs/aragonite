@@ -57,7 +57,7 @@ export function createDocumentRead(deps: {
 		},
 		end(node, path) {
 			const at = find(node, path);
-			return at && layout().map.endOf(at, node.raw.length);
+			return at && layout().map.ownEnd(at);
 		},
 		inline: (node) => resolvedInlineContent(node, deps.reading)
 	};

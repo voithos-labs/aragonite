@@ -54,6 +54,9 @@ export interface DocumentByteMap {
 	/** Where the bytes of the block at `path` before `offset` end. Bytes ending on a line ending end
 	 *  past it, behind a title's closing tag too, where `byteOf` answers past the next line's marker. */
 	endOf(path: readonly number[], offset: number): number | null;
+	/** Where the block at `path` ends with no byte of its container behind it: past its line ending,
+	 *  or at its text's end where its container closes the line, as a summary's tag does. */
+	ownEnd(path: readonly number[]): number | null;
 	/** The offset into the raw of the block at `path` that byte `at` reads as: a byte before or past
 	 *  the block clamps to its nearer end, a byte on a marker around it goes to that line's text. */
 	offsetIn(path: readonly number[], at: number): number;
@@ -101,9 +104,13 @@ export function documentByteMap({ doc, starts }: Measured): DocumentByteMap {
 		const inBlock = byteIn(top, path.slice(1), offset, false, mapOf);
 		return inBlock === null ? null : starts.rawStart(path[0]) + inBlock;
 	};
-	const endOf = (path: readonly number[], offset: number): number | null => {
+	const nodeAt = (path: readonly number[]): NodeView | undefined => {
 		let node: NodeView | undefined = tops[path[0]];
 		for (let depth = 1; depth < path.length; depth++) node = node?.children?.[path[depth]];
+		return node;
+	};
+	const endOf = (path: readonly number[], offset: number): number | null => {
+		const node = nodeAt(path);
 		if (!node || !node.raw.endsWith('\n', offset)) return node ? byteOf(path, offset) : null;
 		// The map puts a line ending where its line's text ends, before a title's closing tag.
 		const at = byteOf(path, offset - 1);
@@ -120,6 +127,14 @@ export function documentByteMap({ doc, starts }: Measured): DocumentByteMap {
 		},
 		byteOf,
 		endOf,
+		ownEnd(path) {
+			const node = nodeAt(path);
+			const end = node ? endOf(path, node.raw.length) : null;
+			const text = node ? byteOf(path, displayLength(node.raw)) : null;
+			if (end === null || text === null) return end;
+			const base = starts.rawStart(path[0]);
+			return /^\r?\n?$/.test(tops[path[0]].raw.slice(text - base, end - base)) ? end : text;
+		},
 		offsetIn(path, at) {
 			let node = tops[path[0]];
 			let offset = Math.min(Math.max(at - starts.rawStart(path[0]), 0), node.raw.length);

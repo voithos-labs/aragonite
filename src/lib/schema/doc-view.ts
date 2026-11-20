@@ -61,8 +61,8 @@ export interface BlockReading {
 	/** Maps an offset of `node.raw` to its document byte; null once `node` has left the document.
 	 *  `path` is where it was last seen, tried before a search. */
 	place(node: NodeView, path?: readonly number[]): ((offset: number) => number | null) | null;
-	/** Where `node`'s bytes end in the document, past the line ending they end on (and a title's
-	 *  closing tag); null once `node` has left the document. */
+	/** Where `node`'s own bytes end in the document: past its line ending, or at its text where its
+	 *  container closes the line (a summary's tag); null once `node` has left the document. */
 	end(node: NodeView, path?: readonly number[]): number | null;
 	inline(node: NodeView): readonly InlineNode[];
 }

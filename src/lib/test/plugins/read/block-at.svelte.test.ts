@@ -6,6 +6,7 @@ import { builtin } from '#lib/components/block-makers/builtin.js';
 import { definePluginUnit, type Editor } from '#lib/schema/plugin-unit.js';
 import type { PluginsProp } from '#lib/schema/plugin-install.js';
 import { detailsPlugin } from '#packages/details/src/index.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
@@ -27,7 +28,7 @@ afterEach(async () => {
 const QUOTE = '> one\n> two `code` [link](https://x.dev)\n';
 const DOC = `intro\n\n- item\n\n${QUOTE}\n| Name | Role |\n| - | - |\n| Ada Lovelace | dev |\n`;
 
-async function editorOn(source: string, plugins: PluginsProp = []): Promise<Editor> {
+async function mountedOn(source: string, plugins: PluginsProp = []) {
 	let editor: Editor | undefined;
 	const reader = definePluginUnit({
 		name: 'unit-reader',
@@ -37,8 +38,43 @@ async function editorOn(source: string, plugins: PluginsProp = []): Promise<Edit
 	});
 	const m = mountEditor({ source, plugins: [reader, ...plugins] });
 	await m.settle();
-	return editor!;
+	return { editor: editor!, read: () => m.source() };
 }
+
+const editorOn = async (source: string): Promise<Editor> => (await mountedOn(source)).editor;
+
+const SUMMARY = '<details>\n<summary>Title</summary>\n\nbody\n\n</details>\n';
+
+/** A title row's pair is the bytes its node holds: a summary's tags are its container's. */
+const TITLE_ROWS = [
+	{ name: 'in tags', source: SUMMARY, held: 'Title', write: 'New' },
+	{
+		name: 'in tags under CRLF',
+		source: SUMMARY.replaceAll('\n', '\r\n'),
+		held: 'Title',
+		write: 'New'
+	},
+	{
+		name: 'in tags inside a quote',
+		source: SUMMARY.replace(/^(?=.)/gm, '> ')
+			.replace(/^$/gm, '>')
+			.replace(/>$/, ''),
+		held: 'Title',
+		write: 'New'
+	},
+	{
+		name: 'in empty tags',
+		source: SUMMARY.replace('Title', ''),
+		held: '',
+		write: 'New'
+	},
+	{
+		name: 'that is a `:::` line',
+		source: ':::note Title\nbody\n:::\n',
+		held: ':::note Title\n',
+		write: ':::note New\n'
+	}
+];
 
 describe('Editor.blockAt', () => {
 	it('finds the deepest block at a byte, through a list, a quote and a table', async () => {
@@ -107,13 +143,21 @@ describe("a block's positions", () => {
 	});
 
 	// Miss-analysis: no row ended a title in tags, whose line ending the byte map puts before the
-	// closing tag, so one past it fell inside `</summary>`.
-	it("end a summary's title past its closing tag and line ending", async () => {
-		const source = '<details>\n<summary>Title</summary>\n\nbody\n\n</details>\n';
-		const editor = await editorOn(source, [detailsPlugin()]);
-		const title = editor.blockAt(source.indexOf('Title'))!;
-		expect(source.slice(title.from, title.to)).toBe('Title</summary>\n');
-	});
+	// closing tag, and none wrote over the pair, so an end inside or past `</summary>` passed.
+	it.each(TITLE_ROWS)(
+		'hold a title row $name, and a write over the pair keeps its container',
+		async ({ source, held, write }) => {
+			const { editor, read } = await mountedOn(source, [detailsPlugin(), admonitionsPlugin()]);
+			const title = editor.blockAt(source.indexOf(held || '</summary>'))!;
+			const kind = title.type.name;
+			expect(source.slice(title.from, title.to)).toBe(held);
+			const range = { from: title.from, to: title.to };
+			expect(await editor.edit().replace(range, write).commit()).toEqual({ ok: true });
+			const after = source.slice(0, range.from) + write + source.slice(range.to);
+			expect(read()).toBe(after);
+			expect(editor.blockAt(after.indexOf('New'))!.type.name).toBe(kind);
+		}
+	);
 
 	it('gives each piece its document bytes, a text piece one line at most', async () => {
 		const editor = await editorOn(DOC);
