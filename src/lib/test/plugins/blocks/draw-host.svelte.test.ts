@@ -11,6 +11,12 @@ import { POINTER_GESTURE_ATTR } from '#lib/selection/pointer-gesture.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { pressKey } from '#lib/test/harness/settle.js';
 import {
+	StubDataTransfer,
+	dispatchClipboardEvent,
+	installClipboardEvents,
+	installSystemClipboard
+} from '#lib/test/harness/clipboard-events.js';
+import {
 	blockHostAt,
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -324,6 +330,26 @@ describe('a box (edit: box)', () => {
 		await pressKey(field, { key: 'Escape' });
 		await editor.settle();
 		expect(document.activeElement).toBe(field);
+	});
+
+	// Miss-analysis: a box's whole focus once had a paste route of its own; the rows after it moved to
+	// the editor root deleted it, and no row pasted on a box focused whole.
+	it('takes a paste while focused whole as blocks after it, one undo step', async () => {
+		installClipboardEvents();
+		installSystemClipboard();
+		const editor = mountEditor({ source: SOURCE, plugins: [fieldAndButton()] });
+		await editor.settle();
+		blockHostAt(editor, NOTE).querySelector('textarea')!.focus();
+		blockHostAt(editor, NOTE).querySelector('button')!.click();
+		await editor.settle();
+		const whole = document.activeElement as HTMLElement;
+		dispatchClipboardEvent(whole, 'paste', new StubDataTransfer({ 'text/plain': 'new\n' }));
+		await editor.settle();
+		expect(editor.source()).toBe('intro\n\n%%note abcd\n\nnew\n\noutro\n');
+
+		await pressKey(document.activeElement as HTMLElement, { key: 'z', ctrlKey: true });
+		await editor.settle();
+		expect(editor.source()).toBe(SOURCE);
 	});
 
 	it('takes whole focus back through ctx.focusWhole', async () => {
