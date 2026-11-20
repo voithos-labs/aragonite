@@ -488,7 +488,7 @@ One call runs the whole paste route:
 
 The caret is read when you call, and the promise resolves once the edit has landed and the caret is placed, so `getSource()` after an `await` sees it. `false` means nothing changed: no caret in this editor, or reading mode. A caret parked between two blocks takes the insert as blocks there.
 
-`placement: 'below'` is what the right-click "Insert block" rows do: an empty paragraph goes in after the top-level block holding the caret, and the text is pasted into it, so a sentence is never split around a new block. On an empty line, an empty item or an empty to-do it goes in right there instead. The paragraph and the insert are one undo entry.
+`placement: 'below'` is what the right-click "Insert block" rows do: an empty paragraph goes in after the top-level block holding the caret, and the text is pasted into it, so a sentence is never split around a new block. On an empty line, an empty item or an empty to-do it goes in right there instead. The paragraph and the insert are one undo entry. An `edit` listener hears the two as `insertBlock` and then `paste`, and on an empty line just the `paste`.
 
 `getInsertCatalogue()` lists the blocks those rows offer, in their order: an `id`, a `label`, an `icon` name, `keywords`, the `markdown` to hand this call, and on some an optional `withArgument(word)` that answers the Markdown for a typed argument (`/table 3x4`). A plugin's block is in the list while this editor lists its plugin, so a `+` button or a menu of your own shows it without naming it. Hand an entry over with `placement: 'below'`: an entry such as `- ` is one line, and one line after text goes in as text.
 
