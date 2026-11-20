@@ -41,7 +41,12 @@ type Editor = MountedEditor<EditorTestSurface>;
 function paste(target: EventTarget, text: string): void {
 	const e = new Event('paste', { bubbles: true, cancelable: true });
 	Object.defineProperty(e, 'clipboardData', {
-		value: { getData: (type: string) => (type === 'text/plain' ? text : ''), files: [], items: [] }
+		value: {
+			types: ['text/plain'],
+			getData: (type: string) => (type === 'text/plain' ? text : ''),
+			files: [],
+			items: []
+		}
 	});
 	target.dispatchEvent(e);
 }
@@ -148,6 +153,14 @@ describe('a paste’s undo caret is where it began, after a key at another caret
 		at: number;
 	}[] = [
 		{ name: 'a paragraph', source: 'abcd\n', surface: (e) => surfaceAt(e, [0]), path: [0], at: 1 },
+		// Below the top level a paste commits as a byte splice, whose entry the live range can't fill.
+		{
+			name: 'a list item',
+			source: '- abcd\n',
+			surface: (e) => surfaceAt(e, [0, 0, 0]),
+			path: [0, 0, 0],
+			at: 1
+		},
 		{
 			name: 'a table cell',
 			source: '| h |\n| --- |\n| abcd |\n',
@@ -186,4 +199,18 @@ describe('a paste’s undo caret is where it began, after a key at another caret
 			expect(newestEntryCaret(editor)).toEqual({ path, offset: at });
 		});
 	}
+
+	// The block's own write can't land a title the paste leaves blank, so the splice takes it.
+	it('a top-level block the splice writes, at a range', async () => {
+		const editor: Editor = mountEditor({ source: 'Plan\n---\n\nnext\n' });
+		await editor.settle();
+		const el = surfaceAt(editor, [0]);
+		selectRange(el, 0, 4);
+
+		paste(el, ' ');
+		await editor.settle();
+
+		expect(editor.source()).toBe(' \nnext\n');
+		expect(newestEntryCaret(editor)).toEqual({ path: [0], offset: 0 });
+	});
 });

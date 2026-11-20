@@ -261,10 +261,11 @@ test('live mode: the closing run stays on the heading', async ({ page }) => {
 		});
 	}
 
+	// The first paragraph joins the heading's text, and the run or underline stays on that half.
 	for (const [source, written] of [
-		['# Hi\n\nnext\n', '# Hi\n\nabc\n\ndef\n\nnext\n'],
-		['# Hi #\n\nnext\n', '# Hi #\n\nabc\n\ndef\n\nnext\n'],
-		['Hi\n===\n\nnext\n', 'Hi\n===\n\nabc\n\ndef\n\nnext\n']
+		['# Hi\n\nnext\n', '# Hiabc\n\ndef\n\nnext\n'],
+		['# Hi #\n\nnext\n', '# Hiabc #\n\ndef\n\nnext\n'],
+		['Hi\n===\n\nnext\n', 'Hiabc\n===\n\ndef\n\nnext\n']
 	]) {
 		await test.step(`pasting two paragraphs at the end of ${JSON.stringify(source)}`, async () => {
 			await nextRow(ep, source);

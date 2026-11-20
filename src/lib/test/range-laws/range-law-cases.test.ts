@@ -124,8 +124,9 @@ describe('law 3’s exception for the lines a copy carries from before its range
 	const seed = { a: { site: 0, at: 'inside', inside: 1 }, b: { site: 2, at: 'inside', inside: 2 } };
 	const DECLARED = 'L3 lines before the range copied and kept';
 	const DETAILS = '<details open>\n<summary>OOOO</summary>\n\nPPPP\n\n</details>\n\nAAAA\n';
+	// Pasted back by `insertMarkdown`, which carries no entry of the editor's own to restore from.
 	const law3 = (source: string, mode: string) =>
-		LAW_SPECS.find((s) => s.law === 'L3')!.run([{ source, mode, seed }, 'key', 'key']);
+		LAW_SPECS.find((s) => s.law === 'L3')!.run([{ source, mode, seed }, 'key', 'insertMarkdown']);
 
 	it.each([
 		['a details summary, source', DETAILS, 'source'],
@@ -141,9 +142,9 @@ describe('law 3’s exception for the lines a copy carries from before its range
 		30_000
 	);
 
-	it('a paragraph start never hides its violation behind it', async () => {
+	it('a paragraph start declares nothing, and gets its bytes back', async () => {
 		const run = await law3('MMMM\n\nPPPP\n\nAAAA\n', 'source');
 		expect(run.declared).not.toContain(DECLARED);
-		expect(run.lines).not.toEqual([]);
+		expect(run.lines).toEqual([]);
 	}, 30_000);
 });

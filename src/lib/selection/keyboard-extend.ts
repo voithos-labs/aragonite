@@ -350,8 +350,8 @@ export function selectWholeDocument(
 		return true;
 	}
 
-	// A collapsed caret for paste dispatch, as in `enterCrossBlockFromKeyboard`. A table focus
-	// names the table block, whose wrapper holds no caret, so the caret goes in the cell.
+	// A collapsed caret for a paste event to arrive at, as in `enterCrossBlockFromKeyboard`. A table
+	// focus names the table block, whose wrapper holds no caret, so the caret goes in the cell.
 	const focus = selection.focus;
 	const parkPoint = focus && selection.cellLandingFor(focus);
 	const focusBlockEl = parkPoint ? getBlockElByPath?.(parkPoint.path) : null;

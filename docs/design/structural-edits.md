@@ -17,7 +17,7 @@ Every edit that changes which blocks there are, rather than the text inside one:
 
 Every container provides its own block-editing and focus bundles (their indices are local to its children), passes container editing through from above unless it changes it, and overrides single functions inside any of the three rather than whole bundles. That's why each bundle has a key of its own. History stays its own key that only the editor root provides, so undo/redo resolve to one stack. Everything else resolves by walking up the context tree to the nearest ancestor that provides it, so a container that changes nothing writes no code to pass it along.
 
-**Downward.** The editor reaches down through component refs (the `BlockComponent` interface in `src/lib/block-component.ts`), mostly for focus and caret reads; the rest serves selection paint, pointer hit-testing, clipboard routing, windowed descent, commands and `insertMarkdown`. After a structural mutation and `await tick()`, the caret landing (`commit-and-undo.md` § The commit primitive) calls `focus(offset)` on the target block, the range-ending verb, so a landing after a cross-block operation can't leave the old range painted.
+**Downward.** The editor reaches down through component refs (the `BlockComponent` interface in `src/lib/block-component.ts`), mostly for focus and caret reads; the rest serves selection paint, pointer hit-testing, clipboard routing, windowed descent, commands and naming the bytes a paste replaces. After a structural mutation and `await tick()`, the caret landing (`commit-and-undo.md` § The commit primitive) calls `focus(offset)` on the target block, the range-ending verb, so a landing after a cross-block operation can't leave the old range painted.
 
 ## Structural operations
 

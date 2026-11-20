@@ -2,6 +2,7 @@
 // input, and returns a line per broken law. A check that can't decide (the package declined, the
 // shape is one the rows hold) says nothing.
 
+import { ownTrailingLineEnding } from '#lib/core/lines.js';
 import { sharedPrefixLength, sharedSuffixLength } from '#lib/core/written-span.js';
 import type {
 	Gesture,
@@ -15,6 +16,7 @@ import type { LaidBlock } from '#lib/range-edit/layout.js';
 import type { CheckHost } from './test-host';
 import { gluedStart, movedLine } from './kept-lines';
 import {
+	blankTail,
 	endingOf,
 	expectedCopy,
 	expectedPaste,
@@ -25,6 +27,7 @@ import {
 	leavesLiteralBlock,
 	liveCutAt,
 	inConstructAt,
+	itemTextAt,
 	cellAt,
 	containersHolding,
 	reopensNowhere,
@@ -34,13 +37,19 @@ import {
 	overEmptied,
 	startsLaterLine,
 	opensWithoutClosing,
+	leavesFencedContainer,
+	bodyOpenedAt,
 	mixedEndings,
 	plainPasteHolds,
 	readOf,
 	sameBlocks,
 	sameDocument,
 	shownDelimiters,
+	spacesOverCode,
 	copiesLinesBeforeRange,
+	unboxedAt,
+	endsInListBeside,
+	takesOtherGlyph,
 	type Read
 } from './expected';
 
@@ -71,9 +80,9 @@ const q = (text: string) => JSON.stringify(text);
 const caretRange = (at: number): Range => ({ from: at, to: at });
 const TEXT: Held = { holds: 'text' };
 const paste = (text: string, held: Held = TEXT): Extract<Gesture, { paste: string }> => ({
+	...held,
 	paste: text,
-	plain: false,
-	...held
+	plain: false
 });
 /** What a caret an answer left holds, apart from its byte. */
 export const heldBy = (caret: Place): Held =>
@@ -111,6 +120,15 @@ export function headingTextReadsAsBlock(read: Read, range: Range, host: CheckHos
 	);
 	const text = lf(read.source.slice(range.from, range.to));
 	return !!heading && range.from < range.to && readOf(host, text).blocks[0]?.type !== 'paragraph';
+}
+
+/** A range from a line's end in an item's own text that takes more of that item: its leading line
+ *  ending pastes back as the item's Enter, so what it took comes back as the next item. */
+export function takesMoreOfItem(read: Read, { from, to }: Range, host: CheckHost): boolean {
+	const item = itemTextAt(read, from, host);
+	if (!item || !/^\r?\n/.test(read.source.slice(from, to))) return false;
+	const taken = read.source.slice(from, Math.min(to, item.to));
+	return /\S/.test(taken.replace(/^[ \t>]+/gm, ''));
 }
 
 /** A range inside one block's text covering all of it, in live mode: the owner's rule there is that
@@ -190,6 +208,7 @@ export function cutPasteBack(call: Call, host: CheckHost, input: RangeInput): st
 	if (liveWholeText(read, input.range, input.mode)) return [];
 	if (input.mode === 'live' && cutsLiveRun(read, input.range, host)) return [];
 	if (opensWithoutClosing(read, input.range.from, input.range.to, host)) return [];
+	if (leavesFencedContainer(read, input.range.from, input.range.to, host)) return [];
 	if (leavesLiteralBlock(read, input.range.from, input.range.to, host, input.mode)) return [];
 	if (copiesLinesBeforeRange(read, input.range.from, host)) return [];
 	if (headingTextReadsAsBlock(read, input.range, host)) return [];
@@ -211,6 +230,8 @@ export function cutPasteBack(call: Call, host: CheckHost, input: RangeInput): st
 	const pinned =
 		want.shape !== 'other' && want.shape !== 'on a line' && !(want.shape === 'apart' && whole);
 	if (pinned && held.holds === 'text' && !want.bytes.includes(input.source)) return [];
+	// A cut that leaves its caret in a cell: the cell holds one line, which law 9 holds there.
+	if (held.holds === 'text' && cellAt(readOf(host, cut.source), cut.caret.at, host)) return [];
 	// A part of one block's text cut out, the caret left in no text: pasted there, it is no part of
 	// that block.
 	if (cut.caret.holds !== 'text' && !whole && oneTextBlock(read, input.range, host)) return [];
@@ -226,6 +247,8 @@ export function cutPasteBack(call: Call, host: CheckHost, input: RangeInput): st
 	// A block taken whole takes a blank line beside it, which plain text can't give back (spec § 4).
 	const taken = source.length - norm(cut.source).length - (at(to) - at(from));
 	if (taken > endingOf(source).length && sameBlocks(host, source, got)) return [];
+	// The item's Enter stands where the cut's leading line ending was (rulings 34 and 79).
+	if (held.holds === 'text' && takesMoreOfItem(read, input.range, host)) return [];
 	return [`L3 cut ${q(cut.source)}, pasted back ${q(back.source)}`];
 }
 
@@ -250,8 +273,9 @@ export function keepsOutside(call: Call, host: CheckHost, input: RangeInput): st
 		const got = call(source, input.range, key, input.mode);
 		if (!got) continue;
 		const runless = (text: string) => (input.mode === 'live' ? text.replace(/[*_~`]/g, '') : text);
+		const parted = withoutLineAbove(source, from, got.source);
 		const kept = [from, lineGoes].some((at) =>
-			runless(got.source).startsWith(runless(source.slice(0, at)))
+			runless(parted).startsWith(runless(source.slice(0, at)))
 		);
 		if (!kept || (tail !== '' && got.source.indexOf(tail, from) < 0))
 			out.push(`L4 ${key} changed bytes outside the range: ${q(got.source)}`);
@@ -260,6 +284,26 @@ export function keepsOutside(call: Call, host: CheckHost, input: RangeInput): st
 		if (moved) out.push(`L4 ${key} ${moved}: ${q(got.source)}`);
 	}
 	return out;
+}
+
+/** `got` less a blank line a removal put right above `from`'s line, where it left that line blank:
+ *  the start's block stays a block of its own under the one above (an emptied item's list). */
+function withoutLineAbove(source: string, from: number, got: string): string {
+	const line = source.lastIndexOf('\n', from - 1) + 1;
+	const blank = /^[ \t>]*\r?\n/.exec(got.slice(line))?.[0];
+	if (!blank || /^[ \t>]*\r?\n/.test(source.slice(line))) return got;
+	// The start's line under it holds its markers alone, an item's last.
+	const left = /^[^\n]*/.exec(got.slice(line + blank.length))![0];
+	const emptied = /^[ \t>]*(?:[-*+]|\d{1,9}[.)])[ \t]*\r?$/.test(left);
+	return emptied ? got.slice(0, line) + got.slice(line + blank.length) : got;
+}
+
+/** What takes the blank line a removal put above `from`'s line out of bytes built on that removal,
+ *  where it left the line blank (`withoutLineAbove`); null where it put none. */
+function lineAboveOf(source: string, from: number, removal: string) {
+	const width = removal.length - withoutLineAbove(source, from, removal).length;
+	const line = source.lastIndexOf('\n', from - 1) + 1;
+	return width === 0 ? null : (bytes: string) => bytes.slice(0, line) + bytes.slice(line + width);
 }
 
 /** `from`'s line start where its block goes whole out of its container at a line's end, a block
@@ -292,10 +336,18 @@ export function deleteLaws(call: Call, input: RangeInput): string[] {
 	return out;
 }
 
+/** `bytes` with every ordered item's number that opens a line read as one digit. */
+const numbersAside = (bytes: string) =>
+	bytes.replace(/^([ \t>]*)\d{1,9}(?=[.)][ \t\r\n])/gm, (_, lead: string) => `${lead}0`);
+
 /** `then`, a paste after the cut, is `over`, the one gesture's answer, save in line endings where
  *  the cut took the source's first: `over` writes that one, `then` the one it finds, LF for none. */
 function sameAfterCut(then: string, over: string, source: string, cut: string): boolean {
 	const ending = endingOf(source);
+	// A range to the end of a document with no last line ending leaves a cut that ends in one,
+	// which a paste keeps: the paste over the range keeps the open last line instead.
+	const closed = ownTrailingLineEnding(cut);
+	if (closed && !ownTrailingLineEnding(source) && then === over + closed) return true;
 	if (ending === endingOf(cut)) return then === over;
 	// With no line ending left, every one in `then` is the paste's own.
 	return cut.includes('\n') ? lf(then) === lf(over) : lf(then).replace(/\n/g, ending) === over;
@@ -358,7 +410,10 @@ function oneWrite(
 	}
 	const runless = (bytes: string) => (input.mode === 'live' ? bytes.replace(/[*_~`]/g, '') : bytes);
 	const [got, before, after] = [over.source, source.slice(0, from), source.slice(to)].map(runless);
-	const kept = got.startsWith(before) && got.endsWith(after);
+	// A last line ending in an ordered item is Enter, which numbers the items under it on.
+	const numbered = /\n$/.test(text) && inItemText(read, from, host);
+	const tail = numbered ? numbersAside : (bytes: string) => bytes;
+	const kept = got.startsWith(before) && tail(got).endsWith(tail(after));
 	// Blocks pasted from a later line's start cut the block there, and the first half ends before
 	// the line break above, as a split's does.
 	const cutAbove =
@@ -385,7 +440,29 @@ function oneWrite(
 		if (!kept)
 			return [`L5 paste over text in one block changed bytes outside it: ${q(over.source)}`];
 		const lines = (bytes: string) => bytes.split('\n').length;
-		if (lines(got.slice(before.length, got.length - after.length)) !== lines(text))
+		const mid = got.slice(before.length, got.length - after.length);
+		// The container's empty line, and a closing line's blank line, a last line ending writes.
+		const extra = lines(mid) - lines(text);
+		const blanks = lf(mid)
+			.split('\n')
+			.slice(-extra - 1);
+		const opened = /\n$/.test(text) && extra > 0 && extra <= 2 && containerLines(blanks, after);
+		// At the end of a file with no last line break, the ending opens Enter's empty paragraph.
+		const ended = /\n$/.test(text);
+		const open = ended && after === '' && !/\n$/.test(source);
+		const atOpenEnd = open && lf(mid) === lf(text) + '\n\n';
+		// In an item there the ending is Enter's next item, an empty last line that keeps its break.
+		const itemAtOpenEnd =
+			open && /\n$/.test(mid) && lines(mid) === lines(text) + 1 && inItemText(read, from, host);
+		// Over code a line of only spaces is an empty line, and what lands there keeps a blank line,
+		// unless the spaces indent it into the code.
+		const landed = leafAt(readOf(host, over.source), from);
+		const overCode =
+			extra === 1 &&
+			/\n$/.test(lf(mid)) &&
+			spacesOverCode(read, block, host) &&
+			(!landed || host.facts(landed.type).body !== 'literal');
+		if (lines(mid) !== lines(text) && !opened && !atOpenEnd && !itemAtOpenEnd && !overCode)
 			return [`L5 paste over text in one block added a line: ${q(over.source)}`];
 	}
 	if (then && sameAfterCut(then.source, over.source, source, cut.source)) return [];
@@ -424,6 +501,9 @@ export function replaceLaws(
 	const unit = blockHeldWhole(read, input.range);
 	const over = call(input.source, input.range, paste(text), input.mode);
 	const cut = call(input.source, input.range, 'cut', input.mode);
+	// Text typed or pasted there at once leaves no blank line where the cut's empties a first line.
+	const apart = cut && lineAboveOf(input.source, input.range.from, cut.source);
+	const atOnce = (bytes: string, cutBytes: string) => apart?.(cutBytes) === bytes;
 	if (over && unit) {
 		// A pasted list joins a list of its own type over the block, the blank lines between gone.
 		const before = overEmptied(read, unit, text, host);
@@ -449,7 +529,12 @@ export function replaceLaws(
 		const block = oneTextBlock(read, input.range, host);
 		const flat = () => call(input.source, input.range, paste(text), 'source');
 		if (block) out.push(...oneWrite(host, input, block, text, { over, cut, then, flat }));
-		else if (then && !sameAfterCut(then.source, over.source, input.source, cut.source))
+		else if (
+			then &&
+			!sameAfterCut(then.source, over.source, input.source, cut.source) &&
+			!openEndEntered(input.source, input.range, text, over.source, then.source) &&
+			!atOnce(over.source, then.source)
+		)
 			out.push(`L5 paste over gave ${q(over.source)}, cut then paste ${q(then.source)}`);
 	}
 	const pairs: [Gesture, Gesture][] = [
@@ -466,7 +551,10 @@ export function replaceLaws(
 			const kept = input.source.slice(0, unit.from) + input.source.slice(input.range.to);
 			if (got.source !== kept)
 				out.push(`L5 type over a block held whole left ${q(got.source)}, not ${q(kept)}`);
-		} else if (got.source !== removal.source && !(gesture === 'type' && onSyntax(host, removal))) {
+		} else if (
+			got.source !== removal.source &&
+			!(gesture === 'type' && (onSyntax(host, removal) || atOnce(got.source, removal.source)))
+		) {
 			out.push(`L5 ${gesture} removed to ${q(got.source)}, ${like} to ${q(removal.source)}`);
 		}
 	}
@@ -534,6 +622,60 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 	if (input.mode === 'live' && /[*_`~[\]<]/.test(input.text)) return [];
 	const got = call(input.source, caretRange(input.at), paste(input.text, input.held), input.mode);
 	if (!got) return [];
+	const opened = onOpenedBody(call, host, input, got, false, pasteAtCaret);
+	if (opened) return opened;
+	const text = blankTail(read, input.at, input.text, host);
+	if (text !== input.text) return pasteAtCaret(call, host, { ...input, text });
+	// A pasted line that could close a fenced container around the caret stays inside it, whatever
+	// else the law holds: the container still ends past everything that followed the caret.
+	const shut = closedEarly(read, input.at, input.text, got.source, host);
+	if (shut) return [`L9 a pasted line closed the ${shut} around it: ${q(got.source)}`];
+	// A last line ending pasted in a list item's text, or ending a list the paste joins, is Enter
+	// (`paste-ending-enter.test.ts`): it leaves the bytes before it, and the law holds the rest.
+	const ended = /\r?\n$/.exec(input.text);
+	const rest = ended && input.text.slice(0, ended.index);
+	// An ending on the empty line the one before it opened adds nothing: the law holds one fewer.
+	if (rest !== null && /\n$/.test(rest) && input.held.holds === 'text') {
+		const fewer = call(input.source, caretRange(input.at), paste(rest, input.held), input.mode);
+		if (fewer?.source === got.source && onBlankLine(got.source, fewer.caret.at))
+			return pasteAtCaret(call, host, { ...input, text: rest });
+	}
+	const bare =
+		rest !== null &&
+		input.held.holds === 'text' &&
+		(inItemText(read, input.at, host) || endsInListBeside(read, input.at, rest, host))
+			? call(input.source, caretRange(input.at), paste(rest, input.held), input.mode)
+			: null;
+	const enters = (read: Read, at: number) => inItemText(read, at, host) || endsItem(read, at, host);
+	// A list that breaks out of the caret's item ends on blocks of its own: there the ending opens an
+	// item of the host's kind under them (`paste-ending-broken-out.test.ts`).
+	const breaksOut =
+		rest !== null &&
+		bare !== null &&
+		inItemText(read, input.at, host) &&
+		expectedPaste(read, input.at, rest, host, input.held).shape === 'broken out';
+	if (rest !== null && bare && (breaksOut || enters(readOf(host, bare.source), bare.caret.at))) {
+		// Up to the caret's line: the cut there may step out of a construct no part of which stands alone.
+		const line = bare.source.lastIndexOf('\n', bare.caret.at - 1) + 1;
+		const kept = got.source.slice(0, line) === bare.source.slice(0, line);
+		if (!kept)
+			return [`L9 a last line ending in an item changed the lines before it: ${q(got.source)}`];
+		return pasteAtCaret(call, host, { ...input, text: rest });
+	}
+	const unboxed = unboxedAt(read, input.at, input.text, host);
+	if (unboxed) {
+		const gesture = paste(input.text, input.held);
+		const bare = call(unboxed.source, caretRange(unboxed.at), gesture, input.mode);
+		if (bare && bare.source !== got.source)
+			return [
+				`L9 a to-do kept its box under a block of lines: ${q(got.source)}, not ${q(bare.source)}`
+			];
+		return pasteAtCaret(call, host, { ...input, ...unboxed });
+	}
+	// A last line ending where a run closes right after the text cuts the block as a split cuts it,
+	// the run closed before the ending, by bytes the rows hold.
+	if (input.mode === 'live' && input.text.endsWith('\n') && closesAt(read, input.at, host))
+		return [];
 	// In a hidden run pasted blocks cut the block as a split cuts it, by bytes the rows hold.
 	const closed =
 		input.mode === 'live' && inHiddenRun(read, input.at, host)
@@ -543,12 +685,199 @@ export function pasteAtCaret(call: Call, host: CheckHost, input: CaretInput): st
 	const stranded = strandedInBody(read, input.at, got.source, host);
 	if (stranded !== undefined)
 		return [`L9 left ${q(stranded)} alone on a line its container reads as its own syntax`];
+	// A one-line source shown while it's edited, given a line break, takes the shape its write rule
+	// gives it (a `$$` block's fence lines of its own), by bytes the rows hold.
+	if (shapedOnBreak(read, input.at, input.text, host)) return [];
 	const want = expectedPaste(read, input.at, input.text, host, input.held);
 	if (want.shape === 'other' || want.bytes.includes(got.source)) return [];
+	// Pasted items joining a list written with another glyph take its glyph (`paste-list-glyph.test.ts`):
+	// the answer is the law’s but for the glyphs.
+	const glyphs = takesOtherGlyph(read, input.at, input.text, host);
+	const spelled = glyphs && twoGlyphRuns(got.source) <= twoGlyphRuns(input.source);
+	if (spelled && want.bytes.some((b) => oneGlyph(b) === oneGlyph(got.source))) return [];
+	// A line that could close a fenced container around the caret grows its fence, as its kind writes
+	// it (`paste-fence-growth.test.ts`): the answer shows the longer opening line.
+	if (fenceGrew(read, input.at, input.text, got.source, host)) return [];
+	// A last line ending at a container's last block writes the container's empty line under the caret's.
+	const caret = got.caret.at;
+	if (/\n$/.test(input.text) && want.bytes.some((b) => containerLineAdded(b, got.source, caret)))
+		return [];
+	// At the end of a file with no last line break, the ending opens Enter's empty paragraph.
+	if (/\n$/.test(input.text) && want.bytes.some((b) => enterAtOpenEnd(read, b, got.source, caret)))
+		return [];
 	// A cell holds one line, which its row writes: the paste adds none and moves no other line.
 	if (cellAt(read, input.at, host) && onOneLine(input.source, input.at, got.source)) return [];
 	if (want.bytes.some((bytes) => oneLineInBody(read, input.at, bytes, got.source, host))) return [];
+	if (asClosed(call, host, input, got)) return [];
 	return [`L9 (${want.shape}) gave ${q(got.source)}, not ${q(want.bytes[0])}`];
+}
+
+/** Whether `got`, a paste in a file with no last line break, is the paste in that file ended with
+ *  one, which the law holds: the same bytes, or those less that break (`syntax-tree.md` § The last line). */
+function asClosed(call: Call, host: CheckHost, input: CaretInput, got: Result): boolean {
+	const { source } = input;
+	// Only a clipboard's last line ending may end an open file on a line break, a blank last line's.
+	if (source === '' || /\n$/.test(source) || !/\n$/.test(input.text)) return false;
+	const ended = { ...input, source: source + eolOf(source) };
+	const closed = call(
+		ended.source,
+		caretRange(input.at),
+		paste(input.text, input.held),
+		input.mode
+	);
+	if (!closed || ![got.source, got.source + eolOf(source)].includes(closed.source)) return false;
+	return pasteAtCaret(call, host, ended).length === 0;
+}
+
+/** At an alert's marker line over its empty body block (`bodyOpenedAt`): the paste is the paste on
+ *  the body line a typed letter opens, and `law` holds that document; null anywhere else. */
+function onOpenedBody(
+	call: Call,
+	host: CheckHost,
+	input: CaretInput,
+	got: Result,
+	plain: boolean,
+	law: (call: Call, host: CheckHost, input: CaretInput) => string[]
+): string[] | null {
+	const opened = bodyOpenedAt(readOf(host, input.source), input.at, host);
+	if (!opened) return null;
+	const gesture = { paste: input.text, plain, ...input.held };
+	const there = call(opened.source, caretRange(opened.at), gesture, input.mode);
+	if (!there) return [];
+	const want = opened.open ? there.source.replace(/\r?\n$/, '') : there.source;
+	if (want !== got.source) return [`L9 at a marker line gave ${q(got.source)}, not ${q(want)}`];
+	return law(call, host, { ...input, source: opened.source, at: opened.at });
+}
+
+/** Whether `line` holds container markers alone. */
+const isMarkersOnly = (line: string) => /^[ \t>]*\r?$/.test(line);
+
+/** Whether `lines`, blank lines a last line ending wrote, are a container's: they keep its markers,
+ *  or stand over its closing line; a bare line at the top level is not. */
+const containerLines = (lines: string[], below: string) =>
+	lines.every(isMarkersOnly) &&
+	(lines.some((line) => line.replace(/\r$/, '') !== '') ||
+		/^[ \t>]*(?::{3,}[ \t]*\r?(?:\n|$)|<\/)/.test(below));
+
+/** Whether `got` is `bytes`, ending the open file `read` on a written line, with Enter's empty
+ *  paragraph under it and the caret on that (`syntax-tree.md` § The last line). */
+function enterAtOpenEnd(read: Read, bytes: string, got: string, caret: number): boolean {
+	const eol = eolOf(read.source);
+	if (/\n$/.test(read.source)) return false;
+	// A container's empty last line keeps its break, as Enter's does.
+	const last = bytes.slice(bytes.lastIndexOf('\n') + 1);
+	if (last !== '' && isMarkersOnly(last)) return got === bytes + eol;
+	if (!bytes.endsWith(eol) || bytes.endsWith(eol + eol)) return false;
+	return got === bytes + eol + eol && caret === bytes.length + eol.length;
+}
+
+const eolOf = (source: string) => (/\r\n/.test(source.match(/\r?\n/)?.[0] ?? '') ? '\r\n' : '\n');
+
+/** Whether `over`, a paste over a range to the end of the open file `source`, is `then`, its cut
+ *  then its paste, with the line Enter opens there: the cut alone ends the file on a line break. */
+function openEndEntered(
+	source: string,
+	range: Range,
+	text: string,
+	over: string,
+	then: string
+): boolean {
+	const eol = eolOf(source);
+	if (/\n$/.test(source) || range.to !== source.length || !/\n$/.test(text)) return false;
+	return over === then + eol + eol || over === then + eol;
+}
+
+/** Whether `got` is `bytes` with the empty line a last line ending opens at a container's last
+ *  block put in where the caret is, and a closing line's blank line under it. */
+function containerLineAdded(bytes: string, got: string, caret: number): boolean {
+	const start = got.lastIndexOf('\n', caret - 1) + 1;
+	let end = start;
+	for (let count = 1; count <= 2 && end < got.length; count++) {
+		end = got.indexOf('\n', end) + 1 || got.length;
+		const lines = got.slice(start, end).split('\n').slice(0, count);
+		if (got.slice(0, start) + got.slice(end) === bytes && containerLines(lines, got.slice(end)))
+			return true;
+	}
+	return false;
+}
+
+/** Whether the line holding `at` has nothing past its markers. */
+function onBlankLine(source: string, at: number): boolean {
+	const line = source.slice(
+		source.lastIndexOf('\n', at - 1) + 1,
+		(source + '\n').indexOf('\n', at)
+	);
+	return /^[ \t>]*\r?$/.test(line);
+}
+
+/** Whether `text` gives a line break to the one-line source shown while edited that holds `at`. */
+function shapedOnBreak(read: Read, at: number, text: string, host: CheckHost): boolean {
+	const leaf = leafAt(read, at);
+	if (!leaf || host.facts(leaf.type).textPosition !== 'while-source-shows') return false;
+	return text.includes('\n') && !read.source.slice(leaf.from, leaf.to).trimEnd().includes('\n');
+}
+
+/** The type of a fenced container at `at`, closed by its own line, that a line of `text` could close
+ *  and that ends in `got` before the bytes that followed it; a container the clipboard opens aside. */
+function closedEarly(read: Read, at: number, text: string, got: string, host: CheckHost) {
+	const clip = readOf(host, lf(text));
+	const opens = clip.blocks.some(
+		(b) => b.path.length === 1 && host.facts(b.type).lines === 'fenced'
+	);
+	if (opens) return undefined;
+	const lines = clip.source.split('\n');
+	const grown = got.length - read.source.length;
+	return containersHolding(read, at).find((c) => {
+		const fence = host.facts(c.type).lines === 'fenced' ? fenceOf(read, c, host) : null;
+		if (!fence || fence.closer === null || !lines.some((line) => fence.mayClose(line)))
+			return false;
+		const now = readOf(host, got).blocks.find((b) => b.from === c.from && b.type === c.type);
+		return !now || now.to < c.to + grown;
+	})?.type;
+}
+
+/** Whether a line of `text` could close a fenced container holding byte `at`, and `got` wrote that
+ *  container another opening line for it. */
+function fenceGrew(read: Read, at: number, text: string, got: string, host: CheckHost): boolean {
+	const lines = lf(text).split('\n');
+	const opening = (source: string, from: number) =>
+		source.slice(from, (source + '\n').indexOf('\n', from));
+	return containersHolding(read, at).some((c) => {
+		const fence = host.facts(c.type).lines === 'fenced' ? fenceOf(read, c, host) : null;
+		const closes = !!fence && lines.some((line) => fence.mayClose(line));
+		return closes && opening(read.source, c.from) !== opening(got, c.from);
+	});
+}
+
+/** How many lines of `source` open an item right under an item of the same indent and type that
+ *  writes another glyph: items a paste wrote into a list without taking its glyph show as one. */
+function twoGlyphRuns(source: string): number {
+	const marker = (line: string) => /^([ \t>]*)(?:([-+*])|\d+([.)]))(?=[ \t\r]|$)/.exec(line);
+	const lines = source.split('\n');
+	return lines.filter((line, i) => {
+		const [above, here] = [marker(lines[i - 1] ?? ''), marker(line)];
+		if (!above || !here || above[1] !== here[1] || !above[2] !== !here[2]) return false;
+		return (above[2] ?? above[3]) !== (here[2] ?? here[3]);
+	}).length;
+}
+
+/** `source` with every list marker that starts a line spelled with one bullet and one delimiter. */
+const oneGlyph = (source: string) =>
+	source.replace(/^([ \t>]*)(?:[-+*]|(\d+)[.)])(?=[ \t\r]|$)/gm, (_, lead: string, n?: string) =>
+		n ? `${lead}${n}.` : `${lead}-`
+	);
+
+/** Whether byte `at` stands in the text of a list item's own block, text that isn't literal. */
+const inItemText = (read: Read, at: number, host: CheckHost) => itemTextAt(read, at, host) !== null;
+
+/** Whether byte `at` ends a list item's content, past a block that holds none of its text. */
+function endsItem(read: Read, at: number, host: CheckHost): boolean {
+	const item = containersHolding(read, at).findLast((c) => {
+		const list = read.blocks.find((b) => b.path.join() === c.path.slice(0, -1).join());
+		return c.path.length > 1 && !!list && host.facts(list.type).lines === 'items';
+	});
+	const ending = item && /\r?\n$/.exec(read.source.slice(item.from, item.to));
+	return !!item && item.to - (ending?.[0].length ?? 0) === at;
 }
 
 /** The half of the caret's line that `got` leaves alone on a line of its own, where a container
@@ -600,6 +929,15 @@ function inHiddenRun(read: Read, at: number, host: CheckHost): boolean {
 		liveCutAt(read, at, host) !== null ||
 		inConstructAt(read, at, host)
 	);
+}
+
+/** Whether a format run of the caret's prose block ends its text at `at`, its closer after it. */
+function closesAt(read: Read, at: number, host: CheckHost): boolean {
+	const leaf = leafAt(read, at);
+	if (!leaf?.text) return false;
+	const text = read.source.slice(leaf.text.from, leaf.text.to);
+	const offset = at - leaf.text.from;
+	return host.heldAt(text, offset) && host.runsAt(text, offset).length === 0;
 }
 
 /** Whether the caret's block holds three of one delimiter in a row: a closer or an opener beside
@@ -684,11 +1022,23 @@ export function plainPaste(call: Call, host: CheckHost, input: CaretInput): stri
 		input.mode
 	);
 	if (!got) return [];
+	const opened = onOpenedBody(call, host, input, got, true, plainPaste);
+	if (opened) return opened;
 	const read = readOf(host, input.source);
 	if (plainPasteHolds(read, input.at, input.text, got.source, host, input.mode)) return [];
+	const escaped = host.escaped(lf(input.text));
+	// A last line ending where a run closes right after the text: the run closes before the break,
+	// so the answer shows the delimiters its text typed there on one line shows, none left bare.
+	if (input.mode === 'live' && input.text.endsWith('\n') && closesAt(read, input.at, host)) {
+		const letters = escaped.replace(/\s*\n\s*/g, '');
+		const typed = read.source.slice(0, input.at) + letters + read.source.slice(input.at);
+		const [was, now] = [shownDelimiters(host, typed), shownDelimiters(host, got.source)];
+		return was === now
+			? []
+			: [`L11 live shows ${now} format delimiters, not ${was}: ${q(got.source)}`];
+	}
 	// A blank line in the text cuts the block as a pasted block boundary does: law 9 holds the
 	// escaped text's bytes, and in a hidden run the rows do.
-	const escaped = host.escaped(lf(input.text));
 	const closed =
 		input.mode === 'live' && inHiddenRun(read, input.at, host)
 			? runsStayClosed(read, input.at, escaped, got.source, host)

@@ -7,8 +7,10 @@
 
 import { assertInvariant, devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 import { makeBlockNode, type CstNode } from '../core/nodes';
+import type { NodeView } from '../core/node-views';
 import { perfEnabled, recordJoinedChildReads } from '../perf/instruments';
-import { isBlankText } from '../core/lines';
+import { isBlankText, ownTrailingLineEnding, trimTrailingLineEnding } from '../core/lines';
+import { tryGetBlockKindDescriptor } from './block-kind-descriptor';
 
 /** The child a rebuild is re-rendering, and the bytes its region currently holds. */
 export interface ChildRawChange {
@@ -20,6 +22,18 @@ export interface ChildRawChange {
  *  child behind the marker; the next rebuild keeps the line as written. */
 export function writeMarkerSpace(container: CstNode, at: number): void {
 	container.raw = container.raw.slice(0, at) + ' ' + container.raw.slice(at);
+	dropChildSpans(container);
+}
+
+/** Where a line-prefixed container ends on a marker line with no text and no line break (an open
+ *  quote's last `>`), drops that line from its own bytes, so a block placed after `last` takes it. */
+export function takeBareLastLine(container: CstNode, last: NodeView | undefined): void {
+	if (!last || container.innerSuffix) return;
+	// Any other container (`:::`, `</details>`) ends on a closing line of its own.
+	if (tryGetBlockKindDescriptor(container.kind)?.containerContract !== 'strip') return;
+	if (ownTrailingLineEnding(last.raw) === '' || ownTrailingLineEnding(container.raw) !== '') return;
+	const lastLine = container.raw.lastIndexOf('\n') + 1;
+	container.raw = trimTrailingLineEnding(container.raw.slice(0, lastLine));
 	dropChildSpans(container);
 }
 

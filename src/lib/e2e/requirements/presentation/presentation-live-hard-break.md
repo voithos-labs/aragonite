@@ -12,7 +12,8 @@ rendered view leaves of it, which for trailing spaces was nothing in every mode.
 
 ## Happy paths
 
-- `one  \ntwo` pasted into live mode draws no glyph, and the block's text is still the bytes.
+- `one  \ntwo` and its line ending pasted into live mode draws no glyph, the block's text is
+  still the bytes, and the ending opens an empty line under the paragraph, as Enter does.
 - Live and preview-block (an unfocused block, markers hidden) draw no glyph for the backslash
   form or the trailing-space form.
 - The empty line Shift+Enter opens at a block's end draws no glyph, in live mode and in source

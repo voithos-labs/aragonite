@@ -42,7 +42,7 @@ export function makeTableMutations(
 	const edits: EditEvent[] = [];
 	events.on('edit', (e) => edits.push(e));
 	const focusedCell = opts.focusedCell === undefined ? { rowIdx: 1, colIdx: 1 } : opts.focusedCell;
-	const mutations = createTableMutationsContext({
+	const table = {
 		get node() {
 			return liveTable();
 		},
@@ -58,6 +58,7 @@ export function makeTableMutations(
 		parentContainerEdit: createContainerEditActions(deps, controller),
 		controller,
 		reading: deps.reading
-	});
-	return { deps, mutations, edits, landings, announceEdit };
+	};
+	const mutations = createTableMutationsContext(table);
+	return { deps, table, mutations, edits, landings, announceEdit };
 }

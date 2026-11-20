@@ -4,7 +4,6 @@
 // Miss-analysis: the widget and decoration deletes were tested for their undo anchor and caret, always
 // outside a construct, so their literal splice never had a delimiter run beside it.
 import { describe, expect, it, vi } from 'vitest';
-import { tick } from 'svelte';
 import { parse } from '#lib/core/parser.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { trimTrailingLineEnding } from '#lib/core/lines.js';
@@ -83,12 +82,10 @@ describe('a selected widget', () => {
 		expect(writes()).toEqual(['**ac**\n']);
 	});
 
-	// The same route a paste over any selection takes, so the pasted line's own ending goes here.
-	it('a paste over it ending the line drops the pasted line’s ending', async () => {
-		const { handlers, writes } = clipboardOver('x ![a](b.png)\n', 2);
-		await handlers.onPaste(clipboardEvent('z\n') as never);
-		await tick();
-		expect(writes()).toEqual(['x z\n']);
+	// A paste replaces the widget's bytes, as it replaces any selection the block answers with.
+	it('a paste over it is aimed at the widget’s bytes', () => {
+		const { handlers } = clipboardOver('x ![a](b.png)\n', 2);
+		expect(handlers.preparePaste()).toMatchObject({ start: 2, end: 13 });
 	});
 });
 

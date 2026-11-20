@@ -31,9 +31,7 @@ import {
 	makeContainerHarness,
 	makeEditorActionsDeps,
 	makeListContextAt,
-	makeStubBlockEdit,
-	runPasteDispatch,
-	makePasteCommit
+	makeStubBlockEdit
 } from '../harness/editor-actions';
 import { withStoredCaret } from '#lib/editor-actions/stored-caret.js';
 import { createCaretMemory, type CaretMemory } from '#lib/caret/caret-memory.js';
@@ -125,7 +123,6 @@ const CALLOUT = ':::callout T\nbody\n:::\n';
 const X = { start: 2, end: 3 };
 
 /** `x` and the closer after it in `#**x** y`: the opener left behind goes, so `#` meets the text. */
-const HASH_RUN = { start: 3, end: 6 };
 
 // ── The entries ──────────────────────────────────────────────────────────────
 
@@ -442,18 +439,6 @@ async function removeInline(place: Place, range: typeof X): Promise<string> {
 	return serialize(harness.deps.doc);
 }
 
-/** Pastes `text` over `range`: the bytes the leaf's commit writes. */
-async function pasteOver(place: Place, range: typeof X, text: string): Promise<string[]> {
-	const h = makePasteCommit(place.source, { reading: LIVE });
-	const blockEdit = makeStubBlockEdit();
-	await runPasteDispatch(
-		h,
-		{ pastedText: text, targetPath: place.leaf, offset: range.start, preDelete: range },
-		{ blockEdit }
-	);
-	return vi.mocked(blockEdit.updateBlockContent).mock.calls.map((call) => call[1]);
-}
-
 // ── The routes ───────────────────────────────────────────────────────────────
 
 interface Row {
@@ -723,7 +708,7 @@ const FAMILIES: Family[] = [
 	{
 		// Deleting `x` empties the bold, so its runs go; in a to-do or a cell `# y` then reads as text.
 		name: 'the range-edit core’s in-block writes',
-		stores: { 'range-edit/host.ts': 8 },
+		stores: { 'range-edit/host.ts': 10 },
 		rows: [
 			{
 				shape: 'a to-do',
@@ -754,6 +739,30 @@ const FAMILIES: Family[] = [
 						{ ...rangeHost(LIVE), transformPaste: (text) => text }
 					).source,
 				want: '- [ ] # **boone**\n\n  **twold** z\n'
+			},
+			{
+				shape: 'a last line ending pasted at a to-do’s bold run’s end',
+				run: () =>
+					editRange(
+						'- [ ] # **bold** z\n',
+						{ from: 14, to: 14 },
+						{ paste: 'one\n', plain: false, holds: 'text' },
+						'live',
+						{ ...rangeHost(LIVE), transformPaste: (text) => text }
+					).source,
+				want: '- [ ] # **boldone**\n- [ ]  z\n'
+			},
+			{
+				shape: 'a last paragraph’s line ending joined at a to-do’s bold run’s end',
+				run: () =>
+					editRange(
+						'- [ ] # **bold** z\n',
+						{ from: 14, to: 14 },
+						{ paste: 'one\n\ntwo\n', plain: false, holds: 'text' },
+						'live',
+						{ ...rangeHost(LIVE), transformPaste: (text) => text }
+					).source,
+				want: '- [ ] # **boldone**\n\n  **two**\n- [ ]  z\n'
 			}
 		]
 	},
@@ -832,35 +841,6 @@ const FAMILIES: Family[] = [
 						{ start: 2, end: 13 }
 					),
 				want: '- ****[ ] y\n'
-			}
-		]
-	},
-	{
-		name: 'a paste over a selection',
-		stores: { 'tree-operations/paste/dispatch.ts': 1 },
-		passesOn: ['tree-operations/paste/hooks.ts', 'components/blocks/table/table-cell-paste.ts'],
-		rows: [
-			// The pasted text lands after a run the cut empties, so the join still has something to drop.
-			{
-				shape: 'a to-do',
-				run: () => pasteOver({ source: '- [ ] #**x** y\n', leaf: [0, 0, 0] }, HASH_RUN, ' a'),
-				want: ['# a y\n']
-			},
-			{
-				shape: 'a plain item',
-				run: () =>
-					pasteOver({ source: '- [x](u) ] y\n', leaf: [0, 0, 0] }, { start: 1, end: 6 }, '['),
-				want: ['[[ ] y\n']
-			},
-			{
-				shape: 'a table cell',
-				run: () =>
-					pasteOver(
-						{ source: '| h |\n| - |\n| # [x](u) y |\n', leaf: [0, 1, 0] },
-						{ start: 3, end: 8 },
-						'a'
-					),
-				want: ['# a y']
 			}
 		]
 	}

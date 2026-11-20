@@ -42,6 +42,7 @@ import { lineEndingCounts } from '../core/line-ending-pairs';
 import { concatChildren } from '../core/serializer';
 import { checkWrittenUnshared } from './written-unshared';
 import { checkDefinitionsKept } from './definitions-kept';
+import { checkPasteLanded } from './paste-landed';
 import type { SharingState } from '../tree-operations/sharing';
 
 /** Checks only the nodes a commit touched. Call it after the commit's `rebuildRaw`, so a strip
@@ -121,6 +122,13 @@ export function documentLineEndings(doc: Document): LineEndingCounts | null {
 /** G1.41, after every commit publishes: `before` is `lastLineOf` read before it mutated. */
 export function assertLastLineKept(doc: Document, before: LastLine): void {
 	assertInvariant('last-line-kept', () => checkLastLineKept(doc, before));
+}
+
+/** G1.218, after a paste commits: `expected` writes the core's answer as the byte splice does,
+ *  `after` reads the document. Off under the perf instruments, since both read the whole document. */
+export function assertPasteLanded(expected: () => string, after: () => string): void {
+	if (!devChecksOn || perfEnabled()) return;
+	assertInvariant('paste-lands-core-answer', () => checkPasteLanded(expected(), after()));
 }
 
 /** G1.55, after a keystroke's or a commit's rebuild: each top-level block in `tops`, the ones now

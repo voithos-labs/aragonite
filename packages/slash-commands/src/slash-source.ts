@@ -5,8 +5,6 @@
  */
 
 import {
-	blockNodeAt,
-	isBlankText,
 	type EditorContext,
 	type InlineMenuCommit,
 	type InlineMenuSource,
@@ -105,12 +103,9 @@ export function createSlashSource(editor: EditorContext<SlashCommandsOptions>): 
 				// Awaited, so what a waiting run writes lands inside the pick's undo entry.
 				await action.run(pick, argument ?? undefined);
 			} else {
-				// An empty line becomes the block; a line with text keeps it and gets the block below.
-				const empty = isBlankText(blockNodeAt(pick.document, range.path)?.raw ?? '');
-				// Awaited, so the block lands inside the pick's undo entry.
-				await pick.insertMarkdown(action.build(argument).markdown, {
-					placement: empty ? 'caret' : 'below'
-				});
+				// A block of its own: an empty line becomes it, a line with text gets it below. Awaited,
+				// so the block lands inside the pick's undo entry.
+				await pick.insertMarkdown(action.build(argument).markdown, { placement: 'below' });
 			}
 		}
 	};

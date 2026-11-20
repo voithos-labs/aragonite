@@ -81,7 +81,6 @@ type Shape =
 
 const ROUTES: Record<string, Shape[]> = {
 	'components/blocks/editable/surface-write.ts': ['a selection deleted', 'a selection typed over'],
-	'components/blocks/table/table-cell-paste.ts': ['a selection typed over'],
 	'components/blocks/table/TableCellBlock.svelte': ['a selection deleted'],
 	'components/blocks/text/composition-seat.ts': ['a selection typed over'],
 	'components/blocks/text/edge-policy-dispatch.ts': [
@@ -97,9 +96,7 @@ const ROUTES: Record<string, Shape[]> = {
 	'components/blocks/text/widget-interaction.ts': ['a selection typed over'],
 	'editor-actions/inline-range-commit.ts': ['a link rewritten whole'],
 	'range-edit/host.ts': ['typed at a caret', 'a selection deleted'],
-	'selection/selection-drop.ts': ['typed at a caret', 'a selection deleted'],
-	'tree-operations/paste/dispatch.ts': ['a selection deleted'],
-	'tree-operations/paste/hooks.ts': ['typed at a caret', 'a selection typed over']
+	'selection/selection-drop.ts': ['typed at a caret', 'a selection deleted']
 };
 
 const DRAWN_RANGE_EDIT = /\b(?:replaceDrawnRange|drawnRangeWrite|selectionRemoval)\s*\(/;

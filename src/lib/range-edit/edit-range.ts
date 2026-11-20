@@ -6,7 +6,7 @@
  */
 
 import { getContentRange, structuralSuffix } from '../core/inline';
-import { isBlankText } from '../core/lines';
+import { isBlankText, ownTrailingLineEnding, type LineEnding } from '../core/lines';
 import type { Mode, PasteHost, RangeHost } from './host';
 import { copyOf } from './copy';
 import {
@@ -29,12 +29,12 @@ import {
 	type Place
 } from './document';
 import type { LaidBlock } from './layout';
-import { byteAt, writeText, type Edit } from './leaf-splice';
+import { blankedApart, byteAt, writeText, type Edit, type LeafEdit } from './leaf-splice';
 import { ownEntry, restored } from './own-entry';
 import { numberedOn } from './list-numbers';
-import { pasteAt, type Pasted } from './paste';
-import { entersOpening, removeRange, type Removal } from './removal';
-import { fenceBody, holdsText, literalBody } from './removal-range';
+import { asPasted, pasteAt, type Pasted } from './paste';
+import { entersOpening, removeLeavingBlank, removeRange, type Removal } from './removal';
+import { fenceBody, holdsText, lastPlaceAt, literalBody } from './removal-range';
 
 /** Two byte offsets, `from <= to`, after the editor widened the range to every block it takes
  *  whole; a caret is a range with `from === to`. */
@@ -58,9 +58,9 @@ export type RemovalGesture =
 export type Gesture =
 	| 'copy'
 	| RemovalGesture
-	/** Clipboard text with LF line endings, the editor's own entry while the clipboard still holds
-	 *  it, and what the caret holds: anywhere but in text the clipboard lands as blocks of its own. */
-	| ({ paste: string; plain: boolean; own?: string } & Held)
+	/** Clipboard text with LF line endings, the editor's own entry, what the caret holds (anywhere
+	 *  but in text the clipboard lands as blocks), and the line ending a removal before it took. */
+	| ({ paste: string; plain: boolean; own?: string; ending?: LineEnding } & Held & PlaceKept)
 	/** The range dragged and dropped at byte `drop`: moved, or copied. */
 	| { drop: number; copy: boolean };
 
@@ -73,6 +73,11 @@ export interface RangeEditResult {
 	clipboard?: string;
 	/** The editor's own clipboard entry a copy or a cut writes beside it. */
 	own?: string;
+	/** Set where a paste was one write of one text block of `source`: the editor may commit it as
+	 *  that block's write, which leaves these bytes. */
+	leaf?: LeafEdit;
+	/** How many blocks a paste landed as; 0 where it went in as text. */
+	blocks?: number;
 }
 
 export function editRange(
@@ -82,15 +87,17 @@ export function editRange(
 	mode: Mode,
 	host: PasteHost
 ): RangeEditResult {
-	const doc = readDoc(source, host, mode);
+	const asRead = readDoc(source, host, mode);
+	const carried = typeof gesture === 'object' && 'paste' in gesture ? gesture.ending : undefined;
+	const doc = carried ? { ...asRead, ending: carried } : asRead;
 	const { from, to } = range;
 	// What the gesture leaves is read with the line ending its source started with.
 	const read = (edit: Edit) => ({ ...readDoc(edit.source, host, mode), ending: doc.ending });
 	const inside = typeof gesture === 'object' && 'parent' in gesture ? gesture.parent : from;
 	const started = () => startedIn(doc, inside);
-	const answer = (edit: Removal): RangeEditResult => ({
+	const answer = (edit: Removal, result = read(edit)): RangeEditResult => ({
 		source: edit.source,
-		caret: caretOf(edit, read(edit), besideOf(gesture, doc, range), started, from)
+		caret: caretOf(edit, result, besideOf(gesture, doc, range), started, from)
 	});
 	if (gesture === 'copy' || gesture === 'cut') {
 		const { removed, clipboard, own } = taken(doc, from, to);
@@ -98,32 +105,80 @@ export function editRange(
 		return { source, caret: { at: to, holds: 'text' }, clipboard, own };
 	}
 	if (typeof gesture === 'string') return answer(removalEdit(doc, from, to, gesture));
+	// A line ending landing on a last line that has none lands as on one that has, then the break
+	// comes back off unless the line left last is blank (`syntax-tree.md` § The last line).
+	const reclosed = (at: number, text: string): RangeEditResult | null => {
+		if (!opensLastLine(doc, from, to, at, text)) return null;
+		const closed = editRange(source + doc.ending, range, gesture, mode, host);
+		const last = (body: string) => lastLineOf(readDoc(body, host, mode));
+		// Literal text recloses where the line left last is the code's or blank: never over one with text.
+		if (literalAt(doc, from, to, at) && last(closed.source) === 'text') return null;
+		return reopened(closed, doc.ending, last);
+	};
 	if ('paste' in gesture) {
+		// The document's last line keeps the line ending it had, which blocks pasted after it spend.
+		const ending = ownTrailingLineEnding(source);
+		const keepLastEnding = (result: RangeEditResult): RangeEditResult =>
+			!ending || !result.source || ownTrailingLineEnding(result.source)
+				? result
+				: { ...result, source: result.source + ending };
 		const own = gesture.plain ? undefined : gesture.own;
 		const back = own === undefined ? null : restored(source, from, to, own);
 		if (back) return answer(back);
+		const onClosed = reclosed(to, gesture.paste);
+		if (onClosed) return onClosed;
 		// A clipboard that carries the editor's own entry is the editor's own bytes: no transform runs.
 		const transform: Pasted['transform'] =
 			gesture.own === undefined ? (text, blocks) => host.transformPaste(text, blocks) : null;
-		const pasted = (held: Held): Pasted => ({
+		const pasted = (held: Held, inPlace = gesture.inPlace): Pasted => ({
 			text: gesture.paste,
 			plain: gesture.plain,
 			held,
-			transform
+			transform,
+			...(inPlace && { inPlace })
 		});
-		if (from === to) return answer(pasteAt(doc, from, to, pasted(gesture)));
-		if (inOneText(doc, from, to)) return answer(pasteAt(doc, from, to, pasted(TEXT)));
+		const ended = asPasted(doc, from, to, gesture.paste).endsWith('\n');
+		// The empty line a last line ending opens is the caret's own, never the block below it, and
+		// the caret the ending left as Enter is on a line it opened too.
+		const lined = (result: RangeEditResult, edit: Edit): RangeEditResult =>
+			(ended && result.caret.holds === 'boundary') || edit.entered
+				? { ...result, caret: { ...result.caret, line: true } }
+				: result;
+		// Without that ending the caret stays in the last block pasted, at the last place it takes.
+		const landed = (edit: Edit): RangeEditResult => {
+			const result = read(edit);
+			const last = ended || !edit.blocks ? null : lastPlaceAt(result, edit.caret);
+			return lined(answer(last === null ? edit : { ...edit, caret: last }, result), edit);
+		};
+		// One write of one block of `source` is named where the caret stays on the text it wrote, so
+		// the editor can make it as that block does.
+		const inPlace = (edit: Edit): RangeEditResult => {
+			const named = { ...landed(edit), blocks: edit.blocks ?? 0 };
+			const { caret } = named;
+			const kept = edit.leaf && caret.holds === 'text' && caret.at === edit.caret;
+			return kept ? { ...named, leaf: edit.leaf } : named;
+		};
+		if (from === to) return keepLastEnding(inPlace(pasteAt(doc, from, to, pasted(gesture))));
+		if (inOneText(doc, from, to))
+			return keepLastEnding(inPlace(pasteAt(doc, from, to, pasted(TEXT))));
 		// Across blocks the paste lands where the removal's caret does, as a cut's then a paste's
 		// would, and over one block held whole takes its place, as typed text does.
-		const removed = removalEdit(doc, from, to, 'type');
+		const removed = pasteRemoval(doc, from, to, gesture.paste);
 		const after = read(removed);
 		const caret = caretOf(removed, after, 'start after', () => startedIn(doc, from), from);
-		const place = heldAlone(doc, from, to) ? TEXT : caret;
-		return answer(pasteAt(after, caret.at, caret.at, pasted(place)));
+		const over = pasteAt(
+			after,
+			caret.at,
+			caret.at,
+			pasted(removed.inPlace ? TEXT : caret, removed.inPlace)
+		);
+		return keepLastEnding({ ...landed(over), blocks: over.blocks ?? 0 });
 	}
 	const { removed, clipboard, own } = taken(doc, from, to);
 	const { drop } = gesture;
 	const dropped: Pasted = { text: clipboard, plain: false, held: TEXT, transform: null };
+	const onClosed = reclosed(drop, clipboard);
+	if (onClosed) return onClosed;
 	if (gesture.copy) return answer(pasteAt(doc, drop, drop, dropped));
 	// A moving drop is a cut, then a paste of its text and own entry at the drop point.
 	const after = read(removed);
@@ -134,6 +189,107 @@ export function editRange(
 }
 
 const TEXT: Held = { holds: 'text' };
+
+/** The removal a paste of `text` over `[from, to)` across blocks makes first: blank text leaves the
+ *  place blank, as a cut does; other text goes in at once, as a typed character does (`inPlace`). */
+function pasteRemoval(doc: Doc, from: number, to: number, text: string): Removal & PlaceKept {
+	const alone = heldAlone(doc, from, to);
+	const blank = text !== '' && isBlankText(text);
+	const removed =
+		alone && blank
+			? blankedOut(doc, alone, to)
+			: removalEdit(doc, from, to, blank ? 'cut' : 'type');
+	return alone ? { ...removed, inPlace: true } : removed;
+}
+
+/** Where a paste's removal left a block held whole its line for the text: the blank line under that
+ *  line is the block's separator, never an empty row. */
+export interface PlaceKept {
+	inPlace?: true;
+}
+
+/** The removal a paste over `range` makes first (`pasteRemoval`), for an editor that lands it in a
+ *  commit of its own and then pastes at its caret, handing `inPlace` back with that paste. */
+export function pasteRemovalOf(
+	source: string,
+	range: Range,
+	text: string,
+	mode: Mode,
+	host: RangeHost
+): RemovalAnswer {
+	const doc = readDoc(source, host, mode);
+	const removed = pasteRemoval(doc, range.from, range.to, text);
+	const answer = answerOf(removed, 'type', doc, range);
+	return removed.inPlace ? { ...answer, inPlace: true } : answer;
+}
+
+/** Whether text ending in a line ending lands at `at` on a last line with none, in no literal
+ *  text and over no range that empties the document, which has no last line to keep. */
+function opensLastLine(doc: Doc, from: number, to: number, at: number, text: string): boolean {
+	const { source } = doc;
+	if (!source || ownTrailingLineEnding(source) || !asPasted(doc, at, at, text).endsWith('\n'))
+		return false;
+	if (from === 0 && to === source.length) return false;
+	// The ending lands at the block's end where text is pasted in a block that holds more lines
+	// (a setext underline): the last line is the block's, literal text's too.
+	const leaf = leafHolding(doc, at, at)?.leaf;
+	return !source.includes('\n', leaf ? contentEnd(doc, leaf) : at);
+}
+
+/** Whether `at` is in literal text the paste writes in, not a literal block held whole. */
+function literalAt(doc: Doc, from: number, to: number, at: number): boolean {
+	const held = leafHolding(doc, at, at);
+	if (!held || factsOf(doc, held.leaf).body !== 'literal') return false;
+	// A fence's closing line is no text of it.
+	const fence = doc.host.fence(nodeAt(doc, held.leaf.path).raw);
+	if (fence && fence.closer !== null && held.to >= fence.closer) return false;
+	return !(at === to && heldAlone(doc, from, to));
+}
+
+/** `closed`, a paste into the document given the last line ending it lacked: the ending goes
+ *  again unless the line left last is blank, which keeps it as Enter's does. */
+function reopened(
+	closed: RangeEditResult,
+	eol: string,
+	last: (source: string) => LastLine
+): RangeEditResult {
+	// The one write of a block was the closed document's.
+	const result: RangeEditResult = { ...closed, leaf: undefined };
+	const { source, caret } = result;
+	if (!source.endsWith(eol)) return result;
+	const body = source.slice(0, -eol.length);
+	const line = body.lastIndexOf('\n') + 1;
+	const kind = last(source);
+	if (kind === 'text') {
+		return { ...result, source: body, caret: { ...caret, at: Math.min(caret.at, body.length) } };
+	}
+	// A code block's empty last line is its own line: no paragraph opens under it.
+	if (kind === 'literal') return result;
+	// An empty last line right under a block's last line is Enter's empty paragraph there.
+	const under = line > 0 && !isBlankText(body.slice(body.lastIndexOf('\n', line - 2) + 1, line));
+	if (line < body.length || caret.at !== line || !under) return result;
+	const at = line + eol.length;
+	return { ...result, source: body + eol + eol, caret: { at, holds: 'text', line: true } };
+}
+
+/** What the last line of `doc`, which ends in a line ending, holds: blank is an empty block's (an
+ *  empty item's or quote's paragraph) or an empty line; a container's own marker line is text. */
+function lastLineOf(doc: Doc): LastLine {
+	const { source } = doc;
+	const end = source.length - ownTrailingLineEnding(source).length;
+	const leaf = leafHolding(doc, end, end)?.leaf;
+	const text = leaf?.text && source.slice(leaf.text.from, leaf.text.to);
+	if (text === undefined) {
+		const line = source.slice(source.lastIndexOf('\n', end - 1) + 1, end);
+		return /^\r?$/.test(line) ? 'blank' : 'text';
+	}
+	// Literal text's last line is a line of its own, its other lines no matter.
+	if (factsOf(doc, leaf!).body !== 'literal') return isBlankText(text) ? 'blank' : 'text';
+	return isBlankText(text.slice(text.lastIndexOf('\n') + 1)) ? 'literal' : 'text';
+}
+
+/** A last line with text, a blank one, or a code block's empty last line. */
+type LastLine = 'text' | 'blank' | 'literal';
 
 /** Whether the range sits in one block's text, between its fence lines where it has them: a paste
  *  over it is that block's one write. A block held whole gives way to the text instead. */
@@ -160,7 +316,7 @@ export function removalOf(
 /** A removal's answer, and where the block the range started in stood when it went whole, read on
  *  the bytes after. `own` where some of the leaf the range ended in follows it, the one text that
  *  text written over the range may join. */
-export interface RemovalAnswer extends RangeEditResult {
+export interface RemovalAnswer extends RangeEditResult, PlaceKept {
 	taken?: { at: number; parent: readonly number[]; own: boolean };
 }
 
@@ -204,7 +360,7 @@ export function wholeBlocksRemovalOf(
 	host: RangeHost
 ): RangeEditResult {
 	const doc = { ...readDoc(source, host, mode), wholeBlocks: true };
-	return answerOf(removeRange(doc, range.from, range.to), gesture, doc, range);
+	return answerOf(removeLeavingBlank(doc, range.from, range.to), gesture, doc, range);
 }
 
 function answerOf(
@@ -284,11 +440,20 @@ const entersAtEnd = (doc: Doc, { from, to }: Range): boolean =>
 	) !== undefined;
 
 /** What a removal gesture leaves: text typed over one block held whole takes its place, and the
- *  line stays. */
+ *  line stays; text typed elsewhere goes in at once, so the line it lands on is never left blank. */
 function removalEdit(doc: Doc, from: number, to: number, gesture: RemovalGesture): Removal {
-	if (gesture !== 'type' || !heldAlone(doc, from, to)) return removeRange(doc, from, to);
+	if (gesture !== 'type') return removeLeavingBlank(doc, from, to);
+	if (!heldAlone(doc, from, to)) return removeRange(doc, from, to);
 	const out = doc.source.slice(0, from) + doc.source.slice(to);
 	return { source: numberedOn(doc, from, to, out), caret: from };
+}
+
+/** What blank text pasted over `block`, held whole up to `to`, leaves before it lands: the block's
+ *  line blank, less the blank line under it, as the block's emptying write leaves them. */
+function blankedOut(doc: Doc, block: LaidBlock, to: number): Removal {
+	const out = doc.source.slice(0, block.from) + doc.source.slice(to);
+	const { source, caret } = blankedApart(doc, block, { source: out, caret: block.from });
+	return { source: numberedOn(doc, block.from, to, source), caret };
 }
 
 /** What a copy of `range` writes, the copy gesture alone: it reads nothing but `source`, so an
@@ -306,18 +471,21 @@ export function copyRange(
 /** What a removal of `[from, to)` takes, as a copy and a cut both write it; a range holding no text
  *  that it takes nothing from (a hidden fence, markers alone) copies blank lines at most. */
 function taken(doc: Doc, from: number, to: number) {
-	const removed = removeRange(doc, from, to);
+	const removed = removeLeavingBlank(doc, from, to);
 	const copy = copyOf(doc, from, to);
 	const copies = removed.source !== doc.source || isBlankText(copy) || holdsText(doc, from, to);
 	return { removed, clipboard: copies ? copy : '', own: ownEntry(doc.source, from, to, removed) };
 }
 
-/** The range is exactly one block other than a paragraph, from its first byte to the end of its
- *  last line. */
-function heldAlone(doc: Doc, from: number, to: number): boolean {
+/** The block the range is exactly, one other than a paragraph, from its first byte to the end of
+ *  its last line. A cell's whole text is text of its table, never a block held alone. */
+function heldAlone(doc: Doc, from: number, to: number): LaidBlock | undefined {
 	const alone = (b: LaidBlock) =>
-		b.from === from && contentEnd(doc, b) === to && factsOf(doc, b).joins !== 'text';
-	return from < to && findWithin(doc, from, from, alone) !== undefined;
+		b.from === from &&
+		contentEnd(doc, b) === to &&
+		factsOf(doc, b).joins !== 'text' &&
+		!isCell(doc, b);
+	return from < to ? findWithin(doc, from, from, alone) : undefined;
 }
 
 /** The caret of a range from byte `from`, named by what the new bytes hold there: text, a block

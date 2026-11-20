@@ -15,7 +15,7 @@ const SURFACE_FACTORY_RE = /\bcreateEditableSurface\s*\(/;
 /** The exported member: an instance export, not a mention. */
 const exportOf = (member: string) =>
 	new RegExp(String.raw`\bexport\s+(?:const|function)\s+${member}\b`);
-const PUBLISHES_DOOR_RE = exportOf('insertMarkdown');
+const PUBLISHES_DOOR_RE = exportOf('preparePaste');
 
 const rule = (member: string) =>
 	`every component mounting an editable surface must publish \`${member}\` where its own ` +
@@ -53,7 +53,7 @@ function publishes(code: string, member: string): boolean {
 	return published ? published.includes(member) : exportOf(member).test(code);
 }
 
-const publishesDoor = (code: string) => publishes(code, 'insertMarkdown');
+const publishesDoor = (code: string) => publishes(code, 'preparePaste');
 
 describe('G4.38 insertion entry-point surface parity', () => {
 	const components = surfaceComponents();
@@ -90,11 +90,11 @@ describe('G4.38 insertion entry-point surface parity', () => {
 	});
 
 	it('the publish matcher demands an export, not a mention', () => {
-		expect(PUBLISHES_DOOR_RE.test('export const insertMarkdown = leaf.insertMarkdown;')).toBe(true);
-		expect(PUBLISHES_DOOR_RE.test('export function insertMarkdown(md: string): boolean {')).toBe(
+		expect(PUBLISHES_DOOR_RE.test('export const preparePaste = leaf.preparePaste;')).toBe(true);
+		expect(PUBLISHES_DOOR_RE.test('export function preparePaste(): PreparedPaste | null {')).toBe(
 			true
 		);
-		expect(PUBLISHES_DOOR_RE.test('const x = clipboard.insertMarkdown;')).toBe(false);
+		expect(PUBLISHES_DOOR_RE.test('const x = clipboard.preparePaste;')).toBe(false);
 		expect(exportOf('typeText').test('export const typeText = surface.typeText;')).toBe(true);
 		expect(exportOf('typeText').test('export const typeTextLater = x;')).toBe(false);
 	});
@@ -104,27 +104,23 @@ describe('G4.38 insertion entry-point surface parity', () => {
 			'const self = {',
 			'	focus,',
 			'	measurePartialRects: (r) => ({ rects: [] }),',
-			'	insertMarkdown: clipboard.insertMarkdown',
+			'	preparePaste: clipboard.preparePaste',
 			'} satisfies BlockComponent;',
 			'return publishRefSlot(slots, index, self);'
 		].join('\n');
-		expect(publishedSurfaceMembers(src)).toEqual([
-			'focus',
-			'measurePartialRects',
-			'insertMarkdown'
-		]);
+		expect(publishedSurfaceMembers(src)).toEqual(['focus', 'measurePartialRects', 'preparePaste']);
 	});
 
 	it('the literal reader reads past a brace inside a string member', () => {
 		const src = [
-			"const self = { label: '}', focus, insertMarkdown } satisfies BlockComponent;",
+			"const self = { label: '}', focus, preparePaste } satisfies BlockComponent;",
 			'return publishRefSlot(slots, index, self);'
 		].join('\n');
-		expect(publishedSurfaceMembers(src)).toEqual(['label', 'focus', 'insertMarkdown']);
+		expect(publishedSurfaceMembers(src)).toEqual(['label', 'focus', 'preparePaste']);
 	});
 
 	it('a literal nothing publishes is not a channel', () => {
-		const decoy = 'const decoy = {\n\tinsertMarkdown\n} satisfies BlockComponent;';
+		const decoy = 'const decoy = {\n\tpreparePaste\n} satisfies BlockComponent;';
 		expect(publishedSurfaceMembers(decoy)).toBeNull();
 		expect(publishesDoor(`${decoy}\nreturn publishRefSlot(slots, index, other);`)).toBe(false);
 		expect(publishesDoor('void ({ focus } satisfies BlockComponent);')).toBe(false);
@@ -132,7 +128,7 @@ describe('G4.38 insertion entry-point surface parity', () => {
 
 	it('an omitted member fails the literal channel rather than falling back to the export', () => {
 		const withoutMember = [
-			'export function insertMarkdown(md) { return clipboard.insertMarkdown(md); }',
+			'export function preparePaste() { return clipboard.preparePaste(); }',
 			'const self = { focus } satisfies BlockComponent;',
 			'return publishRefSlot(slots, index, self);'
 		].join('\n');

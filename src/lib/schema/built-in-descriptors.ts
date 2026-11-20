@@ -4,7 +4,6 @@
  * `registerBuiltInDescriptors()`, since tree-shaking keeps only a called binding.
  */
 
-import { metadataOf } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { displayLength } from '../core/lines';
 import { matchHeading } from '../core/parsers/heading';
@@ -555,7 +554,6 @@ function registerBuiltIns(): void {
 		container: {
 			contract: 'strip',
 			rebuildRaw: rebuildBlockquoteRaw,
-			containerPaste: { matchesAncestor: () => true, siblingAbsorb: false },
 			lines: { marker: 'every-line', lazy: true },
 			merges: {},
 			unwrapRole: {
@@ -576,7 +574,7 @@ function registerBuiltIns(): void {
 			undo: { mode: 'inherit-default' },
 			clipboard: {
 				mode: 'implemented',
-				via: 'containerPaste.matchesAncestor — clipboard top merges into a same-kind ancestor'
+				via: 'merges — a pasted quote joins the quote it lands in'
 			},
 			simOracle: { mode: 'implemented', via: 'note-taking simulation (nested blockquote edits)' }
 		})
@@ -593,12 +591,6 @@ function registerBuiltIns(): void {
 		container: {
 			contract: 'strip',
 			rebuildRaw: rebuildListRaw,
-			containerPaste: {
-				matchesAncestor: (top, ancestor) =>
-					(metadataOf(top, 'list')?.ordered ?? false) ===
-					(metadataOf(ancestor, 'list')?.ordered ?? false),
-				siblingAbsorb: true
-			},
 			merges: { key: 'ordered' },
 			unwrapRole: {
 				firstChildBackspace: 'list-item-cascade',
@@ -617,7 +609,7 @@ function registerBuiltIns(): void {
 			undo: { mode: 'inherit-default' },
 			clipboard: {
 				mode: 'implemented',
-				via: 'containerPaste.siblingAbsorb — clipboard items splice as siblings, ordered-flag matched'
+				via: 'merges.key=ordered — pasted items join a list of their type and split the other'
 			},
 			simOracle: { mode: 'implemented', via: 'note-taking simulation (list edits)' }
 		})

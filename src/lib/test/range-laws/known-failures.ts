@@ -5,7 +5,6 @@
 
 import type { LawRun } from './laws';
 import type { LawSpec } from './law-specs';
-import { ISSUE_DOCUMENTS } from './shapes';
 
 export interface KnownViolation {
 	/** The issue the class is filed as, or `new: <slug>` until it is. */
@@ -65,53 +64,20 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 	{
 		issue: '#818',
 		lane: 'rebuild',
-		defect: 'a cut across blocks, pasted back at the caret it left, splits what the cut joined',
-		lines: /^L3 \[[^\]]*→/,
+		defect:
+			'a cut across blocks, pasted back by `insertMarkdown` with no entry of the editor’s own, leaves a blank line too many',
+		lines: /^L3 \[[^\]]*→[^\]]*\] cut:[^:]+ paste:insertMarkdown /,
 		keeps: sameBesideBreaks,
 		repro: {
 			law: 'L3',
 			args: [
 				{
-					source: ISSUE_DOCUMENTS['#818'],
+					source: 'a\n# h\n---\n',
 					mode: 'source',
-					seed: { a: end(0, 'inside', 4), b: end(1, 'inside', 6) }
+					seed: { a: end(1, 'start', 4), b: end(18, 'start', 60) }
 				},
-				'key',
-				'key'
-			]
-		}
-	},
-	{
-		issue: '#818',
-		lane: 'rebuild',
-		defect: 'a cut across a container edge, pasted back, puts the container’s lines back wrong',
-		lines: /^L3 \[[^\]]*→/,
-		keeps: sameWords,
-		repro: {
-			law: 'L3',
-			args: [
-				{
-					source: ISSUE_DOCUMENTS['#815'],
-					mode: 'source',
-					seed: { a: end(0, 'inside', 4), b: end(2, 'inside', 5) }
-				},
-				'key',
-				'key'
-			]
-		}
-	},
-	{
-		issue: '#818',
-		lane: 'rebuild',
-		defect: 'blocks pasted at a caret in text join neither to the text before nor the text after',
-		lines: /^L9(?:\.prefix)? \[[^\]]*\] paste:\S+ blocks/,
-		keeps: sameWords,
-		repro: {
-			law: 'L9',
-			args: [
-				{ source: 'alpha bravo\n', mode: 'source', caret: end(0, 'inside', 4) },
-				'one\n\ntwo',
-				'key'
+				'menu',
+				'insertMarkdown'
 			]
 		}
 	},
@@ -198,22 +164,6 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		issue: '#819',
 		lane: 'rebuild',
 		defect:
-			'a paste at a caret rewrites the container prefix of the line it lands on (`  [^n]: ` to `[^n]: `, `>a` to `> a`, a tab to spaces)',
-		lines: /^L9\.prefix /,
-		keeps: sameWords,
-		repro: {
-			law: 'L9',
-			args: [
-				{ source: '  [^n]: a\n', mode: 'source', caret: end(0, 'start') },
-				'line one\nline two\n',
-				'menu'
-			]
-		}
-	},
-	{
-		issue: '#819',
-		lane: 'rebuild',
-		defect:
 			'in live mode, text pasted at a caret past a hidden closing run goes inside the run, not at the offset the selection reports',
 		lines: /^L9 \[[^\]]*\] paste:\S+ text live\//,
 		keeps: sameCharacters,
@@ -259,35 +209,6 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 		issue: '#819',
 		lane: 'rebuild',
 		defect:
-			'Paste as plain text rewrites bytes away from the caret (a line’s container prefix, a live autolink’s hidden `>`) or escapes text in an indented code block',
-		lines:
-			/^L11 \[[^\]]*\] paste:plain \S+: "(?:[^"\\]|\\.)*" into (?:indentedCode put in|\w+ changed bytes away)/,
-		repro: {
-			law: 'L11',
-			args: [{ source: '<http://a.b>\n', mode: 'live', caret: end(62, 'end', 48) }, '1. one']
-		}
-	},
-	{
-		issue: '#819',
-		lane: 'rebuild',
-		defect: 'a paste into indented code or a link definition fires the `paste-dispatch` dev check',
-		lines: /^L8 .*: fired paste-dispatch$/,
-		repro: {
-			law: 'L8',
-			args: [
-				{
-					source: '    code\r\n\r\n> | H0 |\r\n> | --- |\r\n',
-					mode: 'source',
-					caret: end(0, 'start')
-				},
-				{ replacement: { pasted: 'x', route: 'key' } }
-			]
-		}
-	},
-	{
-		issue: '#819',
-		lane: 'rebuild',
-		defect:
 			'a copy that starts inside a quote and leaves it writes the markers of the start line it starts past, and drops the markers before the end',
 		lines: /^L10 \[[^|\]]*\| [^\]]*blockquote>paragraph → /,
 		keeps: sameBesideMarkers,
@@ -315,45 +236,6 @@ export const KNOWN_VIOLATIONS: readonly KnownViolation[] = [
 			args: [
 				{ source: '- a\n\n> a\n', mode: 'source', seed: { a: end(0, 'end'), b: end(1, 'start') } },
 				'key'
-			]
-		}
-	},
-	{
-		issue: '#819',
-		lane: 'rebuild',
-		defect:
-			'a paste in a mixed-ending document swaps the caret line’s ending with the pasted line’s',
-		lines: /^L9 \[[^\]]*\] paste:\S+ text \w+\/mixed: /,
-		keeps: (got, wanted) =>
-			got !== wanted && got.replace(/\r\n/g, '\n') === wanted.replace(/\r\n/g, '\n'),
-		repro: {
-			law: 'L9',
-			args: [
-				{
-					source: '- a\r\n  - x\n\r\n  a\n\r\n  a\na\r\n  > q\n',
-					mode: 'source',
-					caret: end(12, 'start')
-				},
-				'a\nb',
-				'menu'
-			]
-		}
-	},
-	{
-		issue: '#819',
-		lane: 'rebuild',
-		defect:
-			'a paste at the start of a paragraph just above a fence adds a blank line after the text',
-		lines: /^L9 \[document \| paragraph\] paste:\S+ text /,
-		keeps: (got, wanted) =>
-			got.length === wanted.length + 1 &&
-			[...got].some((ch, i) => ch === '\n' && got.slice(0, i) + got.slice(i + 1) === wanted),
-		repro: {
-			law: 'L9',
-			args: [
-				{ source: '    code\n\n\n```\n```\n\n    code\n', mode: 'source', caret: end(1, 'start') },
-				'x',
-				'menu'
 			]
 		}
 	},

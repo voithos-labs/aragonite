@@ -20,7 +20,7 @@ import { isBlankText } from '#lib/core/lines.js';
 import type { DocumentView } from '#lib/core/node-views.js';
 import { editRange, removalOf } from '#lib/range-edit/edit-range.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
-import { lineHead, lineRest } from '#lib/range-edit/leaf-splice.js';
+import { lineHead, lineRest } from '#lib/range-edit/lines.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
 import { normalizeCharEndpoint } from '#lib/selection/char-endpoint-snap.js';
 import { pathsEqual } from '#lib/selection/path-math.js';

@@ -44,9 +44,7 @@ const RULES: FileRule[] = [
 			'src/lib/editor-actions/replacement-focus.ts':
 				'the keystroke’s trial reparse, on a copy that is never installed',
 			'src/lib/editor-actions/commit/scope-writes.ts':
-				'`writeLeaf`, the commit scope’s write of a leaf below it',
-			'src/lib/tree-operations/paste/container-match.ts':
-				'the container-matching paste’s residue, written into a pasted item before it is spliced in'
+				'`writeLeaf`, the commit scope’s write of a leaf below it'
 		},
 		reason:
 			'a leaf’s new text is written by `commitLeafText` or the in-place keystroke write; call one of them rather than the content write, which fixes up its own body and so must stay out of a commit that settles that body again',

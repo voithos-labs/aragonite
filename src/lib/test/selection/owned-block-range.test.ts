@@ -23,7 +23,7 @@ import { writtenBelow } from '#lib/test/harness/settle-funnel.js';
 import { takeDevWarns } from '../support/warn-gate';
 import { freshBytes } from '#lib/test/harness/copied-text.js';
 import { rangeHandlers, rangeKey, rangeKeyEnv } from './cross-block/range-key-env';
-import { makeBeforeInputEvent, makePasteEvent } from './cross-block/typed-char-env';
+import { makeBeforeInputEvent } from './cross-block/typed-char-env';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
 
 const at = (path: number[], offset: number): SelectionPoint => ({ path, offset });
@@ -107,7 +107,7 @@ describe('what acts on a finger range inside one block', () => {
 		const took =
 			typeof text === 'string'
 				? await handlers.handleBeforeInput(makeBeforeInputEvent(text))
-				: await handlers.handlePaste(makePasteEvent(text.paste));
+				: await handlers.pasteOverRange({ text: text.paste, plain: false });
 		expect(took).toBe(true);
 		expect(serialize(env.h.deps.doc)).toBe(`${row}\n| --- | --- |\n`);
 	});

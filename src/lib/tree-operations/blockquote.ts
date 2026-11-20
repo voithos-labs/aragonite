@@ -5,7 +5,7 @@ import { cloneNode } from './clone';
 import { rebuildContainerRaw } from '../schema/container-raw';
 import { assignIds } from '../block-id';
 import { emptyParagraph } from './node-primitives';
-import { firstLineEnding } from '../core/lines';
+import { firstLineEnding, isBlankText } from '../core/lines';
 import type { RemainderBuilder } from './container-lift';
 
 /** A quote-shaped container's remainder is always a plain blockquote, since a marker like
@@ -26,6 +26,13 @@ export function plainQuote(grammar: GrammarView): RemainderBuilder {
 		rebuildContainerRaw(remaining, grammar);
 		return remaining;
 	};
+}
+
+/** Whether Enter on child `index` of `container` takes it out: an empty paragraph, its last child. */
+export function exitsOnEnter(container: NodeView, index: number): boolean {
+	const children = container.children ?? [];
+	const child = children[index];
+	return index === children.length - 1 && child?.kind === 'paragraph' && isBlankText(child.raw);
 }
 
 /**

@@ -24,9 +24,7 @@ test.describe('a paste into a CRLF document', () => {
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('y');
 
-		expect(escaped(await editor.bridge.getSource())).toBe(
-			escaped('abc\r\n\r\nx\r\n\r\ny\r\nAfter\r\n')
-		);
+		expect(escaped(await editor.bridge.getSource())).toBe(escaped('abcx\r\n\r\ny\r\nAfter\r\n'));
 		expect(await editor.parseConverged()).toBe(true);
 	});
 

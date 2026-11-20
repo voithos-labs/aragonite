@@ -127,7 +127,6 @@ export interface EditableLeafSurfaceProps extends EditableSurfaceAttributes {
 	onkeydown: (e: KeyboardEvent) => void | Promise<void>;
 	oncopy: (e: ClipboardEvent) => void;
 	oncut: (e: ClipboardEvent) => Promise<void>;
-	onpaste: (e: ClipboardEvent) => Promise<void>;
 	onpointerdown: (e: PointerEvent) => void;
 	onfocusout: () => void;
 	oncompositionstart: () => void;
@@ -619,11 +618,14 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 
 	const clipboard = editableSurface.clipboard({
 		removeRange,
-		pasteTail: (pastedText, { range }) => {
+		pasteRange: (selection) => {
 			const el = deps.getEl();
-			if (!el) return;
+			if (!el || !isRevealed()) return null;
 			const end = (el.textContent ?? '').length;
-			spliceSourceText(el, range?.start ?? end, range?.end ?? end, pastedText);
+			const range = { start: selection?.start ?? end, end: selection?.end ?? end };
+			if (mode === 'plain') return range;
+			// A shown source is the leaf's draft until it hides, so its paste is a splice of that text.
+			return { ...range, draft: (text) => spliceSourceText(el, range.start, range.end, text) };
 		}
 	});
 
@@ -814,7 +816,6 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		onkeydown: editableSurface.onKeyDown,
 		oncopy: clipboard.onCopy,
 		oncut: clipboard.onCut,
-		onpaste: clipboard.onPaste,
 		onpointerdown: onPointerDown,
 		onfocusout: () => void commitReveal(),
 		oncompositionstart: editableSurface.onCompositionStart,
@@ -871,8 +872,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			const box = getBlockElByPath(deps.getPath());
 			return box ? [box.getBoundingClientRect()] : [];
 		},
-		insertMarkdown: clipboard.insertMarkdown,
-		insertPlainText: clipboard.insertPlainText,
+		preparePaste: clipboard.preparePaste,
 		typeText: surface.typeText,
 		afterSourceCommit,
 		afterSelectionRemoved: editableSurface.afterSelectionRemoved,

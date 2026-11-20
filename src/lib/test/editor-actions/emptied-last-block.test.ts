@@ -146,7 +146,8 @@ describe('a blank block opened under the last block takes no second line', () =>
 			'- ab\n\n\n',
 			'- ab\n\nx\n'
 		],
-		['two line breaks pasted', 'ab\n\n', MODES, [[0], 2], ['paste'], 'ab\n\n\n\n', 'ab\n\n\nx\n']
+		// The second ending lands on the empty line the first opened, where Enter would only stack one.
+		['two line breaks pasted', 'ab\n\n', MODES, [[0], 2], ['paste'], 'ab\n\n\n', 'ab\n\nx\n']
 	];
 	for (const [name, source, modes, [path, offset], steps, opened, typed] of ROWS)
 		for (const mode of modes)

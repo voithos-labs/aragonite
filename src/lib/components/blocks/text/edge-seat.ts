@@ -103,12 +103,32 @@ export function hiddenEdges(
 				{ grammar }
 			);
 		const before = (shownBefore ??= shown(raw, content.end));
-		const holds = (offset: number): boolean => {
-			const candidate = raw.slice(0, offset) + typed + raw.slice(offset);
-			return insertsExactly(before, shown(candidate, content.end + typed.length), typed);
-		};
-		const position = screenPosition(run, runs);
-		return candidateOffsets(position, record, caret, raw, inlines).find(holds) ?? null;
+		const alone = renderedText(
+			readInline(typed, 0, typed.length, reading.resolver, grammar),
+			typed,
+			CONTENT_VISIBILITY,
+			{ grammar }
+		);
+		// Text holding syntax shows less than its bytes, so an offset where the screen gains what
+		// those bytes show on their own holds too.
+		const holdsFor =
+			(text: string, shows: string) =>
+			(offset: number): boolean => {
+				const after = shown(
+					raw.slice(0, offset) + text + raw.slice(offset),
+					content.end + text.length
+				);
+				return (
+					insertsExactly(before, after, text) ||
+					(shows !== text && insertsExactly(before, after, shows))
+				);
+			};
+		const holds = holdsFor(typed, alone);
+		const candidates = candidateOffsets(screenPosition(run, runs), record, caret, raw, inlines);
+		// A paste holding syntax goes where a letter goes, wherever the screen holds it there too.
+		const letter = alone === typed ? undefined : candidates.find(holdsFor(PROBE_BYTE, PROBE_BYTE));
+		if (letter !== undefined && holds(letter)) return letter;
+		return candidates.find(holds) ?? null;
 	}
 	const typingOffset = (caret: number, record: EdgeAffinity | null, typed = PROBE_BYTE): number =>
 		seat(caret, record, typed) ?? caret;

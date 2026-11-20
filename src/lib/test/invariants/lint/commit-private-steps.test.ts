@@ -43,6 +43,11 @@ const OUTSIDE: Record<string, { imports: string[]; why: string; until: string }>
 		why: 'the range-edit core asks the fix-up’s join question of the pair a removal leaves, and whether a wait from above reads it, before it writes bytes, so the splice lands bytes that already keep both readings; it writes nothing',
 		until: 'never: the core answers in bytes, which the commit installs as read, with no fix-up'
 	},
+	'src/lib/tree-operations/list/enter-out.ts': {
+		imports: ['src/lib/tree-operations/fix-up/apply.ts'],
+		why: 'Enter’s exit and lift run for a paste on a copy no commit holds, so the splice fix-up their commits run runs on the copy',
+		until: 'never: the range-edit core answers in bytes, which the commit installs as read'
+	},
 	'src/lib/editor-actions/search-replace.ts': {
 		imports: ['src/lib/tree-operations/chain-rebuild.ts'],
 		why: 'replace-all rebuilds a private clone before its commits',

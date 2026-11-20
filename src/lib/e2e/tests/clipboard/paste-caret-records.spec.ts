@@ -1,0 +1,186 @@
+// A paste spends what the caret memory holds at the caret as a typed letter does: a held space, a
+// pending bold, a typed closer, a chip stop on either side of a code span's edge, a click past the
+// line's end. One line, a line with its line ending and two paragraphs each take it, and a letter
+// typed next follows the paste. In a list item or a quote, where the paste commits as a byte splice
+// rather than the block's own write, one line takes each record the same way.
+import type { Page } from '@playwright/test';
+import { test, expect } from '../../fixtures';
+import { EditorPage } from '../../editor-page';
+import { edgeKey } from '../../platform-keys';
+
+interface Spot {
+	name: string;
+	line: string;
+	/** Puts the caret where the record holds, in the text block at `path` whose bytes are `raw`. */
+	place(page: Page, editor: EditorPage, raw: string, path: number[]): Promise<void>;
+	/** The bytes after the paste of each clipboard, then after a typed `Z`. */
+	want: Record<'one' | 'one⏎' | 'one, two', [string, string]>;
+}
+
+const at = (raw: string, needle: string, delta = 0) => raw.indexOf(needle) + delta;
+
+const SPOTS: Spot[] = [
+	{
+		name: 'a held space after a run',
+		line: 'a **bc**',
+		async place(page, editor, raw, path) {
+			await editor.focusBlockAtPath(path, at(raw, 'a '));
+			await page.keyboard.press(edgeKey('lineEnd'));
+			await page.keyboard.type(' ');
+		},
+		want: {
+			one: ['a **bc one**\n\nAfter\n', 'a **bc oneZ**\n\nAfter\n'],
+			'one⏎': ['a **bc one**\n\n\nAfter\n', 'a **bc one**\n\nZ\n\nAfter\n'],
+			'one, two': ['a **bc one**\n\n**two**\n\nAfter\n', 'a **bc one**\n\n**twoZ**\n\nAfter\n']
+		}
+	},
+	{
+		name: 'a pending bold',
+		line: 'alpha',
+		async place(page, editor, _raw, path) {
+			await editor.focusBlockAtPath(path, 0);
+			await page.keyboard.press(edgeKey('lineEnd'));
+			await page.keyboard.press('ControlOrMeta+b');
+		},
+		want: {
+			one: ['alpha**one**\n\nAfter\n', 'alpha**oneZ**\n\nAfter\n'],
+			'one⏎': ['alpha**one**\n\n\nAfter\n', 'alpha**one**\n\nZ\n\nAfter\n'],
+			'one, two': ['alpha**one**\n\n**two**\n\nAfter\n', 'alpha**one**\n\n**twoZ**\n\nAfter\n']
+		}
+	},
+	{
+		name: 'a typed closer',
+		line: 'a **bc** d',
+		async place(page, editor, raw, path) {
+			await editor.focusBlockAtPath(path, at(raw, 'c**', 1));
+			await page.keyboard.type('**');
+		},
+		want: {
+			one: ['a **bc**one d\n\nAfter\n', 'a **bc**oneZ d\n\nAfter\n'],
+			'one⏎': ['a **bc**one\n d\n\nAfter\n', 'a **bc**one\nZ d\n\nAfter\n'],
+			'one, two': ['a **bc**one\n\ntwo d\n\nAfter\n', 'a **bc**one\n\ntwoZ d\n\nAfter\n']
+		}
+	},
+	{
+		name: 'a chip stop past a code span',
+		line: 'a `bc` d',
+		async place(page, editor, raw, path) {
+			await editor.focusBlockAtPath(path, at(raw, 'c`', 1));
+			await page.keyboard.press('ArrowRight');
+		},
+		want: {
+			one: ['a `bc`one d\n\nAfter\n', 'a `bc`oneZ d\n\nAfter\n'],
+			'one⏎': ['a `bc`one\n d\n\nAfter\n', 'a `bc`one\nZ d\n\nAfter\n'],
+			'one, two': ['a `bc`one\n\ntwo d\n\nAfter\n', 'a `bc`one\n\ntwoZ d\n\nAfter\n']
+		}
+	},
+	{
+		name: 'a chip stop inside a code span',
+		line: 'a `bc` d',
+		async place(page, editor, raw, path) {
+			await editor.focusBlockAtPath(path, at(raw, 'c`', 1));
+			await page.keyboard.press('ArrowRight');
+			await page.keyboard.press('ArrowLeft');
+		},
+		want: {
+			one: ['a `bcone` d\n\nAfter\n', 'a `bconeZ` d\n\nAfter\n'],
+			'one⏎': ['a `bcone`\n d\n\nAfter\n', 'a `bcone`\nZ d\n\nAfter\n'],
+			'one, two': ['a `bcone`\n\n`two` d\n\nAfter\n', 'a `bcone`\n\n`twoZ` d\n\nAfter\n']
+		}
+	},
+	{
+		name: 'a click past the line’s end',
+		line: 'a **bc**',
+		async place(page, editor, raw, path) {
+			const p = await page.evaluate(
+				([leaf, o]) => (window as any).__test.pointAtRaw(leaf, o, 'before'),
+				[path, at(raw, 'c**', 1)] as const
+			);
+			await page.mouse.click(p.x + 30, p.y);
+			await editor.waitForRenderFlush();
+		},
+		want: {
+			one: ['a **bc**one\n\nAfter\n', 'a **bc**oneZ\n\nAfter\n'],
+			'one⏎': ['a **bc**one\n\n\nAfter\n', 'a **bc**one\n\nZ\n\nAfter\n'],
+			'one, two': ['a **bc**one\n\ntwo\n\nAfter\n', 'a **bc**one\n\ntwoZ\n\nAfter\n']
+		}
+	}
+];
+
+const CLIPS = { one: 'one', 'one⏎': 'one\n', 'one, two': 'one\n\ntwo' } as const;
+
+test.describe('a paste spends the caret memory as a typed letter does (live)', () => {
+	for (const spot of SPOTS)
+		for (const [name, clip] of Object.entries(CLIPS) as [keyof typeof CLIPS, string][])
+			test(`${spot.name}: ${name}`, async ({ page }) => {
+				const editor = new EditorPage(page);
+				await editor.goto();
+				await editor.setPresentationMode('live');
+				const source = `${spot.line}\n\nAfter\n`;
+				await editor.loadContent(source);
+				await spot.place(page, editor, spot.line, [0]);
+				await editor.waitForRenderFlush();
+				const placed = await editor.bridge.getSource();
+				await editor.seedClipboard(clip);
+				await editor.paste();
+				const [pasted, typed] = spot.want[name];
+				await editor.bridge.waitForSource((s) => s !== placed);
+				await expect.poll(() => editor.bridge.getSource()).toBe(pasted);
+				await page.keyboard.type('Z');
+				await expect.poll(() => editor.bridge.getSource()).toBe(typed);
+			});
+});
+
+/** A host around the line, and the path of the line's own block in it. */
+const HOSTS = [
+	{ name: 'a list item', marker: '- ', path: [0, 0, 0] },
+	{ name: 'a quote', marker: '> ', path: [0, 0] }
+];
+
+const RECORDS = [
+	'a held space after a run',
+	'a pending bold',
+	'a typed closer',
+	'a chip stop past a code span'
+];
+
+test.describe('and in a container, where the paste is a byte splice (live)', () => {
+	for (const spot of SPOTS.filter((s) => RECORDS.includes(s.name)))
+		for (const host of HOSTS)
+			test(`${spot.name}, in ${host.name}: one`, async ({ page }) => {
+				const editor = new EditorPage(page);
+				await editor.goto();
+				await editor.setPresentationMode('live');
+				await editor.loadContent(`${host.marker}${spot.line}
+
+After
+`);
+				await spot.place(page, editor, spot.line, host.path);
+				await editor.waitForRenderFlush();
+				const placed = await editor.bridge.getSource();
+				await editor.seedClipboard(CLIPS.one);
+				await editor.paste();
+				const [pasted, typed] = spot.want.one.map((bytes) => host.marker + bytes);
+				await editor.bridge.waitForSource((s) => s !== placed);
+				await expect.poll(() => editor.bridge.getSource()).toBe(pasted);
+				await page.keyboard.type('Z');
+				await expect.poll(() => editor.bridge.getSource()).toBe(typed);
+			});
+});
+
+// Miss-analysis: the item rows pasted one line, so no row typed after a last line ending, which
+// Enter takes, where the new item starts with a hidden run.
+test('a line ending pasted mid-item before a run leaves a letter plain, as Enter does (live)', async ({
+	page
+}) => {
+	const editor = new EditorPage(page);
+	await editor.goto();
+	await editor.setPresentationMode('live');
+	await editor.loadContent('- al **b** c\n- after\n');
+	await editor.focusBlockAtPath([0, 0, 0], 2);
+	await editor.seedClipboard('one\n');
+	await editor.paste();
+	await editor.bridge.waitForSourceEquals('- alone\n-  **b** c\n- after\n');
+	await page.keyboard.type('Z');
+	await expect.poll(() => editor.bridge.getSource()).toBe('- alone\n-  Z**b** c\n- after\n');
+});

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { serialize } from '#lib/core/serializer.js';
-import { makeEnv, makeHandlers, makePasteEvent, selectAcross } from './typed-char-env';
+import { makeEnv, makeHandlers, selectAcross } from './typed-char-env';
 
 // A paste that demotes the survivor merges the block above in, so the caret lands in that block.
 // Miss-analysis: GH #21; the fixed-up caret was tested at the primitive only, never at the paste.
@@ -12,7 +12,7 @@ describe('cross-block paste: a fold above the pasted bytes', () => {
 		const handlers = makeHandlers(env, [1]);
 
 		selectAcross(env.selectionState, [1], [2], 1);
-		await handlers.handlePaste(makePasteEvent('x'));
+		await handlers.pasteOverRange({ text: 'x', plain: false });
 
 		expect(serialize(env.doc)).toBe('a\nxkk\n');
 		expect(env.doc.children).toHaveLength(1);

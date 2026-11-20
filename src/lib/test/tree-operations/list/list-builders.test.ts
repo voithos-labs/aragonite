@@ -2,19 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import {
 	assembleListHalf,
-	buildListItemWithContent,
-	splitLeafForPaste
+	buildListItemWithContent
 } from '#lib/tree-operations/list/list-builders.js';
-import { fragmentReaderAt } from '#lib/tree-operations/list/task-paragraph.js';
 import { fixtureGrammar } from '#lib/test/harness/fixture-grammar.js';
 import type { CstNode } from '#lib/core/nodes.js';
-import { defaultGrammarView } from '#lib/schema/block-openers.js';
-
-/** Both halves read as plain fragments, as they do outside a task item. */
-const plainHalves = {
-	leading: fragmentReaderAt(undefined, 0, defaultGrammarView),
-	trailing: fragmentReaderAt(undefined, 0, defaultGrammarView)
-};
 
 describe('list-builders', () => {
 	it('buildListItemWithContent inherits template metadata + sets marker raw via rebuild', () => {
@@ -62,61 +53,5 @@ describe('list-builders', () => {
 		const half = assembleListHalf(tplList, items, 7);
 		expect(half.children![0].metadata).toMatchObject({ marker: '- ' });
 		expect(half.children![1].metadata).toMatchObject({ marker: '- ' });
-	});
-
-	it('splitLeafForPaste splits raw at offset and keeps every byte', () => {
-		const leaf: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: 'Hello world\n' };
-		const { leadingNode, trailingNodes, lineEnding } = splitLeafForPaste(
-			leaf,
-			5,
-			'\n',
-			undefined,
-			plainHalves
-		);
-		expect(leadingNode!.raw).toBe('Hello\n');
-		expect(trailingNodes[0].raw).toBe(' world\n');
-		expect(lineEnding).toBe('\n');
-	});
-
-	it('splitLeafForPaste at offset 0 returns null leadingNode and full trailing slice', () => {
-		const leaf: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: 'Hello\n' };
-		const { leadingNode, trailingNodes, lineEnding } = splitLeafForPaste(
-			leaf,
-			0,
-			'\n',
-			undefined,
-			plainHalves
-		);
-		expect(leadingNode).toBeNull();
-		expect(trailingNodes[0].raw).toBe('Hello\n');
-		expect(lineEnding).toBe('\n');
-	});
-
-	it('splitLeafForPaste at end of content returns no trailing nodes and the full leading slice', () => {
-		const leaf: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: 'Hello\n' };
-		const { leadingNode, trailingNodes, lineEnding } = splitLeafForPaste(
-			leaf,
-			5,
-			'\n',
-			undefined,
-			plainHalves
-		);
-		expect(leadingNode!.raw).toBe('Hello\n');
-		expect(trailingNodes).toEqual([]);
-		expect(lineEnding).toBe('\n');
-	});
-
-	it('splitLeafForPaste preserves \\r\\n line ending when leaf raw is CRLF', () => {
-		const leaf: CstNode = { kind: 'paragraph', leadingTrivia: '', raw: 'Hello world\r\n' };
-		const { leadingNode, trailingNodes, lineEnding } = splitLeafForPaste(
-			leaf,
-			5,
-			'\n',
-			undefined,
-			plainHalves
-		);
-		expect(lineEnding).toBe('\r\n');
-		expect(leadingNode!.raw.endsWith('\r\n')).toBe(true);
-		expect(trailingNodes[0].raw.endsWith('\r\n')).toBe(true);
 	});
 });

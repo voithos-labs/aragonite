@@ -83,7 +83,7 @@ const GESTURES: Gesture[] = [
 		source: `intro\n${LIST}`,
 		async fill(editor, page) {
 			await enterAfterIntro(editor, page);
-			await editor.seedClipboard('- [ ] start\n');
+			await editor.seedClipboard('- [ ] start');
 			await editor.paste();
 		},
 		joined: `intro\n\n- [ ] start\n${LIST}`,

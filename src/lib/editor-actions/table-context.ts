@@ -105,8 +105,91 @@ export type TableMutationsContext = Pick<
 	| 'moveColumnRight'
 	| 'cycleAlignment'
 	| 'setColumnAlignment'
-	| 'pasteGrid'
 >;
+
+/** What a write to every row of a table reads: the table, where it sits and its rows' state. */
+export type TableScopeDeps = Pick<TableMutationsContextDeps, 'node' | 'myPath'> & {
+	rowsState: MultiScopeTarget['state'];
+};
+
+/** The table scope plus one per row holding ids, mounted or not, so every row's ids follow the
+ *  splice; a never-mounted row holds none, and the table scope carries the bytes to every row. */
+function columnScopes(deps: TableScopeDeps): { scopes: MultiScopeTarget[]; rowIndices: number[] } {
+	const { node, myPath, rowsState } = deps;
+	const scopes: MultiScopeTarget[] = [{ node, state: rowsState, path: [...myPath] }];
+	const rowIndices: number[] = [];
+	(node.children ?? []).forEach((row, i) => {
+		const state = scopeStateFor(row);
+		if (!state) return;
+		scopes.push({ node: row, state, path: [...myPath, i] });
+		rowIndices.push(i);
+	});
+	return { scopes, rowIndices };
+}
+
+/** Fills cells from `origin` with `grid` as one commit, a spreadsheet-like paste. The table grows
+ *  only at the bottom and right, and each cell's text takes the cell kind's raw rule. */
+export async function pasteTableGrid(
+	deps: TableScopeDeps & {
+		controller: Pick<UndoController, 'commitMultiScope'>;
+		reading: Reading;
+	},
+	origin: { rowIdx: number; colIdx: number },
+	grid: string[][]
+): Promise<void> {
+	const { myPath, controller } = deps;
+	const rows = grid.length;
+	let cols = 0;
+	for (const line of grid) cols = Math.max(cols, line.length);
+	if (rows === 0 || cols === 0) return;
+	const { scopes, rowIndices } = columnScopes(deps);
+	await controller.commitMultiScope({
+		scopes,
+		snapshot: { path: docPathFrom(myPath), offset: 0 },
+		mutate: ([tableScope, ...rowScopes]) => {
+			// The subtree, not just the children: cell writes land at depth two, and cells still
+			// shared with the undo snapshot would carry the paste into it.
+			ensureUnsharedSubtree(tableScope.node, tableScope.sharing);
+			assertInvariant('column-scope-alignment', () =>
+				rowScopes.every((s, i) => s.node === tableScope.node.children?.[rowIndices[i]])
+					? null
+					: {
+							code: 'column-scope-alignment',
+							message: 'pasteGrid: row scopes misaligned with owned table children'
+						}
+			);
+			const table = tableScope.node;
+			const oldRows = table.children?.length ?? 0;
+			const oldCols = metadataOf(table, 'table').columnCount;
+			const needRows = origin.rowIdx + rows;
+			const needCols = origin.colIdx + cols;
+			for (let r = oldRows; r < needRows; r++) insertEmptyRow(table, r - 1, 'below');
+			for (let c = oldCols; c < needCols; c++) insertEmptyColumn(table, c - 1, 'right');
+			grid.forEach((line, r) => {
+				const cells = table.children![origin.rowIdx + r].children!;
+				line.forEach((text, c) =>
+					writeOwnRaw(cells[origin.colIdx + c], text, tableScope.lineEnding, deps.reading.grammar)
+				);
+			});
+			const addedRows = needRows - oldRows;
+			const addedCols = needCols - oldCols;
+			const tableChange: StructuralChange =
+				addedRows > 0 ? { op: 'insert', at: oldRows, count: addedRows } : { op: 'noop' };
+			const rowChange: StructuralChange =
+				addedCols > 0 ? { op: 'insert', at: oldCols, count: addedCols } : { op: 'noop' };
+			return [tableChange, ...rowScopes.map(() => rowChange)];
+		},
+		op: {
+			kind: 'tablePasteGrid',
+			detail: { rowIdx: origin.rowIdx, colIdx: origin.colIdx, rows, cols },
+			eventPath: docPathFrom(myPath)
+		},
+		landing: () => ({
+			path: docPathFrom([...myPath, origin.rowIdx + rows - 1, origin.colIdx + cols - 1]),
+			offset: CURSOR_END
+		})
+	});
+}
 
 export function createTableMutationsContext(
 	deps: TableMutationsContextDeps
@@ -144,21 +227,6 @@ export function createTableMutationsContext(
 		});
 	}
 
-	/** The table scope plus one per row holding ids, mounted or not, so every row's ids follow the
-	 *  splice; a never-mounted row holds none, and the table scope carries the bytes to every row. */
-	function columnScopes(): { scopes: MultiScopeTarget[]; rowIndices: number[] } {
-		const { node, myPath, rowsState } = deps;
-		const scopes: MultiScopeTarget[] = [{ node, state: rowsState, path: [...myPath] }];
-		const rowIndices: number[] = [];
-		(node.children ?? []).forEach((row, i) => {
-			const state = scopeStateFor(row);
-			if (!state) return;
-			scopes.push({ node: row, state, path: [...myPath, i] });
-			rowIndices.push(i);
-		});
-		return { scopes, rowIndices };
-	}
-
 	async function commitColumnEdit(opts: {
 		mutateColumns: (table: CstNode) => StructuralChange[];
 		op: Extract<
@@ -169,7 +237,7 @@ export function createTableMutationsContext(
 		announce: CommitAnnouncement;
 	}): Promise<void> {
 		const { myPath, controller } = deps;
-		const { scopes, rowIndices } = columnScopes();
+		const { scopes, rowIndices } = columnScopes(deps);
 		await controller.commitMultiScope({
 			scopes,
 			// Columns are not nodes: undo restores to the table itself.
@@ -195,63 +263,6 @@ export function createTableMutationsContext(
 			op: { ...opts.op, eventPath: docPathFrom(myPath) },
 			landing: opts.landing,
 			announce: opts.announce
-		});
-	}
-
-	// The table grows only at the bottom and right, so each scope's change is one contiguous
-	// insert; cell texts take the cell kind's raw rule in place, and the commit rebuilds the table.
-	async function pasteGrid(
-		origin: { rowIdx: number; colIdx: number },
-		grid: string[][]
-	): Promise<void> {
-		const { myPath, controller } = deps;
-		const rows = grid.length;
-		let cols = 0;
-		for (const line of grid) cols = Math.max(cols, line.length);
-		if (rows === 0 || cols === 0) return;
-		const { scopes, rowIndices } = columnScopes();
-		await controller.commitMultiScope({
-			scopes,
-			snapshot: { path: docPathFrom(myPath), offset: 0 },
-			mutate: ([tableScope, ...rowScopes]) => {
-				// The subtree, not just the children: cell writes land at depth two, and cells still
-				// shared with the undo snapshot would carry the paste into it.
-				ensureUnsharedSubtree(tableScope.node, tableScope.sharing);
-				assertInvariant('column-scope-alignment', () =>
-					rowScopes.every((s, i) => s.node === tableScope.node.children?.[rowIndices[i]])
-						? null
-						: {
-								code: 'column-scope-alignment',
-								message: 'pasteGrid: row scopes misaligned with owned table children'
-							}
-				);
-				const table = tableScope.node;
-				const oldRows = table.children?.length ?? 0;
-				const oldCols = metadataOf(table, 'table').columnCount;
-				const needRows = origin.rowIdx + rows;
-				const needCols = origin.colIdx + cols;
-				for (let r = oldRows; r < needRows; r++) insertEmptyRow(table, r - 1, 'below');
-				for (let c = oldCols; c < needCols; c++) insertEmptyColumn(table, c - 1, 'right');
-				grid.forEach((line, r) => {
-					const cells = table.children![origin.rowIdx + r].children!;
-					line.forEach((text, c) =>
-						writeOwnRaw(cells[origin.colIdx + c], text, tableScope.lineEnding, deps.reading.grammar)
-					);
-				});
-				const addedRows = needRows - oldRows;
-				const addedCols = needCols - oldCols;
-				const tableChange: StructuralChange =
-					addedRows > 0 ? { op: 'insert', at: oldRows, count: addedRows } : { op: 'noop' };
-				const rowChange: StructuralChange =
-					addedCols > 0 ? { op: 'insert', at: oldCols, count: addedCols } : { op: 'noop' };
-				return [tableChange, ...rowScopes.map(() => rowChange)];
-			},
-			op: {
-				kind: 'tablePasteGrid',
-				detail: { rowIdx: origin.rowIdx, colIdx: origin.colIdx, rows, cols },
-				eventPath: docPathFrom(myPath)
-			},
-			landing: () => cellAt(origin.rowIdx + rows - 1, origin.colIdx + cols - 1, CURSOR_END)
 		});
 	}
 
@@ -322,7 +333,6 @@ export function createTableMutationsContext(
 	return {
 		insertRowAbove: (rowIdx) => insertRow(rowIdx, 'above'),
 		insertRowBelow: (rowIdx) => insertRow(rowIdx, 'below'),
-		pasteGrid,
 		insertColumnLeft: (colIdx) => insertColumn(colIdx, 'left'),
 		insertColumnRight: (colIdx) => insertColumn(colIdx, 'right'),
 		reorderRowTo,

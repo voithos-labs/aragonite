@@ -25,7 +25,6 @@ import type { ClipboardWrite } from '../../../browser/clipboard';
 import { blockRangeClipboard } from '../../../selection/range-clipboard';
 import type { DocumentGetter } from '../../../editor-keys';
 import type { BlockElLookup } from '../../../caret/block-el-lookup';
-import type { PasteImageHook } from '../../../host-hooks';
 import { emitCommandError, type EditorEvents } from '../../../editor-events';
 import type { InlineMenuCombobox } from '../../../inline-menu/inline-menu-state.svelte';
 import type { NodeView } from '../../../core/node-views';
@@ -66,7 +65,7 @@ import {
 	type LineEnding
 } from '../../../core/lines';
 import { keepLineEndingPairs, lineEndingPairBeside } from '../../../core/line-ending-pairs';
-import { getContentRange, isProseKind, sameLineSuffix } from '../../../core/inline';
+import { getContentRange, sameLineSuffix } from '../../../core/inline';
 import { droppedOpenLines } from '../../../tree-operations/content-write';
 import type { KindCue } from '../../kind-cue.svelte';
 import type { BlockAutoPairs } from '../text/auto-pair-record';
@@ -79,9 +78,7 @@ import {
 	createClipboardHandlers,
 	type BlockClipboard,
 	type ClipboardCaretIO,
-	type ClipboardHandlers,
-	type InlinePaste,
-	pasteIntoBlock
+	type ClipboardHandlers
 } from './surface-clipboard';
 import { collapsedCaretIn, shownSelectionText } from '../../../browser/selection-read';
 import {
@@ -254,8 +251,6 @@ export interface EditableSurfaceDeps {
 	activePlugins: PluginActivation;
 	/** This editor's events, for the clipboard's error reports. */
 	events: EditorEvents;
-	/** Host image-import hook from the policies context, read at each paste. */
-	onPasteImage: () => PasteImageHook | undefined;
 	/** Names a new block kind a typed write made, in the modes that hide markers. */
 	kindCue: KindCue;
 	/** The `placeholder` prop as the editor hands it down, read live. */
@@ -371,9 +366,6 @@ export interface EditableSurface {
 	clipboard(block: BlockClipboard): ClipboardHandlers;
 	/** What a copy of `range` of the block's own bytes writes. */
 	copyRange(range: RawRange): ClipboardWrite | null;
-	/** Pastes into the block's own text through the paste dispatch, then puts the caret where the
-	 *  paste left it. */
-	pasteInline(paste: InlinePaste): Promise<void>;
 	/** Wraps the block's `runCommand` (or a clipboard edit), so a command dispatched from
 	 *  anywhere, a key or a toolbar, anchors undo on the caret it found. */
 	command<A extends unknown[], R>(run: (...args: A) => R): (...args: A) => R;
@@ -941,10 +933,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 	}
 
 	const caret: ClipboardCaretIO = {
-		getEl: deps.getEl,
-		getCursorOffset,
-		focus,
 		recordPreEditOffset,
+
 		getPreEditOffset: () => preEditOffset,
 		getSelection: () => {
 			const at = deps.backend.getRaw();
@@ -965,27 +955,10 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 			crossBlock,
 			isReadOnly: () => deps.reading.mode() === 'reading',
 			caret,
-			events: deps.events,
-			onPasteImage: deps.onPasteImage,
 			endTypingBurst: () => deps.controller.flushDebouncedCheckpoint(),
-			readsMarkdown: () => isProseKind(deps.getNode().kind),
 			...block
 		});
 	}
-
-	const pasteInline = (paste: InlinePaste): Promise<void> =>
-		pasteIntoBlock(
-			{
-				getMyPath: deps.getMyPath,
-				getDoc: deps.getDoc,
-				blockEdit,
-				controller: deps.pasteCoordinator,
-				reading: deps.reading,
-				activePlugins: deps.activePlugins,
-				requestCaret: deps.requestCaret
-			},
-			paste
-		);
 
 	// The element, not the binding: a torn-down host drops out of the document before Svelte's
 	// `bind:this` teardown nulls the reference a resuming handler still holds.
@@ -1081,7 +1054,6 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		nextByte,
 		clipboard,
 		copyRange,
-		pasteInline,
 		command,
 		afterSelectionRemoved,
 		onKeyDown,

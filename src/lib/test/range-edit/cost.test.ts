@@ -13,6 +13,8 @@ import { editRange, type Gesture, type Range } from '#lib/range-edit/edit-range.
 import { rangeHost, type RangeHost } from '#lib/range-edit/host.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
+import { changesBetween } from '#lib/tree-operations/byte-changes.js';
+import { closedSplice } from '#lib/tree-operations/spliced-openers.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
@@ -37,13 +39,14 @@ const SHAPES: Record<string, (n: number) => string> = {
 		Array.from({ length: n }, (_, i) => `| cell ${i} with | words |\n`).join('')
 };
 
-const GESTURES: (Gesture | 'caret paste' | 'moving drop')[] = [
+const GESTURES: (Gesture | 'caret paste' | 'ended paste' | 'moving drop')[] = [
 	'copy',
 	'cut',
 	'backspace',
 	'delete',
 	{ paste: 'one\n\ntwo', plain: false, holds: 'text' },
 	'caret paste',
+	'ended paste',
 	'moving drop'
 ];
 
@@ -51,6 +54,8 @@ const GESTURES: (Gesture | 'caret paste' | 'moving drop')[] = [
  *  block bytes its in-block writes are handed. */
 function counted(host: RangeHost, current: DocumentView) {
 	const work = { reads: 0, laid: 0, bytes: 0 };
+	// The host reads a document once per gesture, however often the gesture asks for its bytes.
+	const sources = new Set<string>();
 	const handed = (doc: DocumentView, path: readonly number[]) =>
 		(work.bytes += blockNodeAt(doc, path)!.raw.length);
 	const { leaf } = host;
@@ -58,7 +63,8 @@ function counted(host: RangeHost, current: DocumentView) {
 		...host,
 		read: (source) => {
 			const tree = host.read(source);
-			if (tree !== current) work.reads++;
+			if (tree !== current && !sources.has(source)) work.reads++;
+			sources.add(source);
 			return tree;
 		},
 		layout: (doc) => {
@@ -77,6 +83,8 @@ function counted(host: RangeHost, current: DocumentView) {
 				leaf.join(doc, head, tail, mode)
 			),
 			cut: (doc, path, ...rest) => (handed(doc, path), leaf.cut(doc, path, ...rest)),
+			broken: (doc, path, ...rest) => (handed(doc, path), leaf.broken(doc, path, ...rest)),
+			typed: (doc, path, ...rest) => (handed(doc, path), leaf.typed(doc, path, ...rest)),
 			carried: (doc, path, ...rest) => (handed(doc, path), leaf.carried(doc, path, ...rest))
 		}
 	};
@@ -85,16 +93,19 @@ function counted(host: RangeHost, current: DocumentView) {
 
 /** What one gesture over a range across two blocks in the middle of `source` costs; a caret
  *  paste writes two lines at the range's start, a moving drop takes the range to the line above. */
-function cost(source: string, named: (typeof GESTURES)[number], over?: Range) {
+function cost(source: string, named: (typeof GESTURES)[number], atLineEnd = false, over?: Range) {
 	const start = source.indexOf('with', Math.floor(source.length / 2));
-	const from = over?.from ?? start;
-	const to = over?.to ?? (named === 'caret paste' ? start : source.indexOf('with', from + 10) + 2);
+	const from = over?.from ?? (atLineEnd ? source.indexOf('\n', start) : start);
+	const caretOnly = named === 'caret paste' || named === 'ended paste';
+	const to = over?.to ?? (caretOnly ? from : source.indexOf('with', from + 10) + 2);
 	const gesture: Gesture =
 		named === 'caret paste'
 			? { paste: 'one\ntwo', plain: false, holds: 'text' }
-			: named === 'moving drop'
-				? { drop: source.lastIndexOf('with', from - 1), copy: false }
-				: named;
+			: named === 'ended paste'
+				? { paste: 'one\n\n', plain: false, holds: 'text' }
+				: named === 'moving drop'
+					? { drop: source.lastIndexOf('with', from - 1), copy: false }
+					: named;
 	const reading = testReading();
 	const tree = readAsOpened(source, { grammar: reading.grammar, scope: 'document' });
 	const { work, host } = counted(rangeHost(reading, { source, measured: measured(tree) }), tree);
@@ -132,9 +143,9 @@ describe('work per gesture', () => {
 			it(`${shape}, ${JSON.stringify(gesture)}`, () => {
 				const small = cost(make(500), gesture);
 				const large = cost(make(2000), gesture);
-				expect(large.reads, 'documents read beside the editor’s own').toBeLessThanOrEqual(
-					gesture === 'copy' ? 0 : 3
-				);
+				// An ended paste reads its clipboard with and without the ending, and what each Enter left.
+				const reads = gesture === 'copy' ? 0 : gesture === 'ended paste' ? 5 : 3;
+				expect(large.reads, 'documents read beside the editor’s own').toBeLessThanOrEqual(reads);
 				const declared = DECLARED[shape] ?? {};
 				// A copy reads no answer, so it parses nothing whatever the shape.
 				const parses = gesture === 'copy' ? undefined : declared.parsed;
@@ -152,6 +163,24 @@ describe('work per gesture', () => {
 			});
 		}
 	}
+
+	// Miss-analysis: the ended paste stood mid-text, where no ending is Enter's exit from a list, so
+	// no row saw the answer of that exit read again from its bytes.
+	it('two endings at an item’s end read the list Enter’s exit split no more than the exit does', () => {
+		const source = SHAPES.list(2000);
+		// The exit's own rebuild parses the list about twice; each read of its answer is a parse more.
+		expect(cost(source, 'ended paste', true).parsed).toBeLessThanOrEqual(source.length * 2.5);
+	});
+
+	// Miss-analysis, the commit: the rows counted the core alone, and the commit reads the exit's
+	// bytes again, where the splice grew its window over the broken list to its end.
+	it('two endings at an item’s end: the commit reads the list the exit split once', () => {
+		const source = SHAPES.list(2000);
+		const from = source.indexOf('\n', source.indexOf('item 6 '));
+		const gesture: Gesture = { paste: 'x\n\n', plain: false, holds: 'text' };
+		// The top-level read of the two lists and the line between parses the list's bytes once.
+		expect(committedCost(source, from, gesture).commit).toBeLessThanOrEqual(source.length * 1.5);
+	});
 });
 
 // Miss-analysis: every costed range crossed two paragraphs, so the read-back that decides whether a
@@ -165,7 +194,7 @@ describe('a range from a block taken whole to the end of a paragraph it empties'
 	};
 	for (const gesture of ['backspace', 'delete', 'cut'] as const) {
 		it(`${gesture} reads back only the blocks near it`, () => {
-			const [small, large] = [500, 2000].map((n) => cost(make(n), gesture, over(make(n))));
+			const [small, large] = [500, 2000].map((n) => cost(make(n), gesture, false, over(make(n))));
 			expect(large.reads, 'documents read beside the editor’s own').toBeLessThanOrEqual(3);
 			holds('bytes parsed', small.parsed, large.parsed, 64);
 			expect(large.laid, `blocks laid out: ${small.laid}, ${large.laid}`).toBeLessThanOrEqual(
@@ -174,3 +203,20 @@ describe('a range from a block taken whole to the end of a paragraph it empties'
 		});
 	}
 });
+
+/** The bytes parsed by `gesture` at a caret at `at`, and then by the commit landing its answer,
+ *  which takes the core's reading of those bytes where it made one and reads them where it didn't. */
+function committedCost(source: string, at: number, gesture: Gesture) {
+	const reading = testReading();
+	const tree = readAsOpened(source, { grammar: reading.grammar, scope: 'document' });
+	const current = { source, measured: measured(tree) };
+	enablePerfInstruments();
+	resetPerfInstruments();
+	const host = noTransforms(rangeHost(reading, current));
+	const answer = editRange(source, { from: at, to: at }, gesture, 'source', host).source;
+	const core = perfSnapshot().parseBytes;
+	closedSplice(current.measured, source, changesBetween(source, answer), reading.grammar);
+	const commit = perfSnapshot().parseBytes - core;
+	disablePerfInstruments();
+	return { core, commit };
+}

@@ -123,6 +123,17 @@ describe.each(INSERTION_ROUTES)(
 	}
 );
 
+// The core lands two line endings mid-text twice (tried as Enter, then as pasted); the mark is
+// spent once, so the landing it keeps wraps the text too.
+it('a paste ending in two line breaks mid-text keeps the bold chord’s mark', async () => {
+	const editor = mountEditor({ source: 'plain\n', presentationMode: 'live' });
+	const el = surfaceAt(editor, [0]);
+	placeCaret(el, 3);
+	await pressKey(el, BOLD);
+	await insertBy('paste', el, 'XY\n\n');
+	expect(editor.source()).toBe('pla**XY**\n\nin\n');
+});
+
 // A drop drops only the marks: the open line waits at one place, and a drop landing there is its
 // insertion. Miss-analysis: the drop row ran at a plain caret, so no row saw a drop lose the break.
 it('a drop onto the line Shift+Enter opened writes the break, without the chord’s mark', async () => {

@@ -1,6 +1,6 @@
 # Feature: Virtual rendering, post-paste caret under container windowing
 
-A structural paste lands the caret at the end of the pasted run. That landing index
+A structural paste lands the caret just past the pasted run. That landing index
 scales with the clipboard's item count, not with where the caret was, so a paste
 larger than the container window's overscan targets an unmounted item. The landing
 scrolls to and mounts the target before placing the caret (VR-12).
@@ -10,9 +10,14 @@ assertion cannot cover this: the pasted bytes are identical whatever the caret d
 
 ## User interactions
 
-- Paste a list of many items into an item near the top of a windowed list: after the
-  paste, the caret is in the last pasted item (never the split residue) and typing
-  appends there.
+- Paste a list of many items, with no last line ending, into the middle of an item near the top
+  of a windowed list: the first item joins the text before the caret, the last takes the text
+  after it, and the caret lands in that last pasted item, after its own text, where typing goes
+  in (`- pasted 39ZZ word…`).
+- Paste a list of many items, ending in a line ending, into the middle of an item near the
+  top of a windowed list: the clipboard's ending is Enter, so the text after the caret
+  becomes the item under the pasted run, the caret at the start of its text (where Enter
+  leaves it, past the padding a leading space becomes), and typing goes in there.
 
 ## Error cases
 

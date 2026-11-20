@@ -71,7 +71,7 @@ The editor's own bar is this recipe, built out (`src/lib/components/menu/Selecti
 ```
 
 1. **Don't let the button take focus.** The call inserts at the caret, and a button that focuses on press has already destroyed it, so the call resolves `false`. Cancel the press default, as above, so focus never leaves the document, or stash a `getSelection()` snapshot and `setSelection` it back before inserting.
-2. **Hand it canonical bytes.** A table button inserts `'| Column | Column |\n| --- | --- |\n|  |  |\n'`; a fence button `'```lang\n\n```\n'`. (A table is also typeable: a lone header row completed with `Enter` creates the same thing, per [Keyboard shortcuts](../consumer-guide.md#keyboard-shortcuts).)
+2. **Hand it canonical bytes.** A table button inserts `'| Column | Column |\n| --- | --- |\n|  |  |\n'`; a fence button `'```lang\n\n```\n'`. A block of one line, such as a rule's `'---\n'`, goes in as text after text, so pass `{ placement: 'below' }` with it. (A table is also typeable: a lone header row completed with `Enter` creates the same thing, per [Keyboard shortcuts](../consumer-guide.md#keyboard-shortcuts).)
 3. **Position with `getRects()`.** `caretRect()` anchors a bar to the insertion point, `blockRect(path)` to the block. Both are viewport-space snapshots; re-read on the next `selectionChange`.
 4. **Await the call before reading the result**, or read it on the `edit` channel: the commit lands on the editor's own flush, not on the line after the call.
 

@@ -649,19 +649,6 @@ export function checkDeclarationSanity(
 		}
 	}
 
-	if (descriptor.containerPaste) {
-		assertIs(
-			typeof descriptor.containerPaste.matchesAncestor,
-			'function',
-			`${kind} containerPaste.matchesAncestor is callable`
-		);
-		assertIs(
-			typeof descriptor.containerPaste.siblingAbsorb,
-			'boolean',
-			`${kind} containerPaste.siblingAbsorb is boolean`
-		);
-	}
-
 	assertIs(typeof descriptor.rebuildRaw, 'function', `${kind} declares rebuildRaw`);
 	const node = subjectNode(parse(profile.deepNesting.source), kind, 'first', 'deepNesting');
 	assertLastLineChildHoldsIt(kind, node);

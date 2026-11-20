@@ -27,13 +27,6 @@ import {
 	type MoveFocusScope
 } from '#lib/editor-actions/focus/focus-dispatch.js';
 import type { PasteCommitCoordinator } from '#lib/tree-operations/paste/paste-deps.js';
-import {
-	pasteDispatch,
-	type PasteDispatchContext,
-	type PasteDispatchInput,
-	type PasteDispatchResult
-} from '#lib/tree-operations/paste/dispatch.js';
-import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import type { ReplacedBlocks } from '#lib/editor-actions/commit/emit-edit.js';
 import { createBlockEditActions } from '#lib/editor-actions/block-edit.js';
@@ -181,6 +174,7 @@ export function makeCommitScopeStub(
 		removeWhole: vi.fn(async () => false),
 		beside: () => null,
 		collapseEmptyReplaceToDelete: opts.collapse ?? true,
+		partedBelow: () => true,
 		async commit(args) {
 			commits.push(args);
 			const list = { kind: 'document' as const, prefix: '', suffix: '', children };
@@ -316,6 +310,7 @@ export function makeStubContainerEdit(): ContainerEditActions {
 	return {
 		commitContainer: vi.fn(),
 		lineEnding: () => '\n',
+		partedBelow: () => true,
 		typingKeystroke: vi.fn((_path, _offset, _key, _history, work) => work()),
 		typeLeaf: vi.fn(() => ({ wrote: false as const })),
 		land: vi.fn(async () => 'placed' as const),
@@ -390,25 +385,6 @@ export function makePasteCommit(
 	return { ...harness, controller: createPasteCoordinator(harness.deps, undo), undo };
 }
 
-/** A paste through `h`'s coordinator, reading as `h` does, with stub block edits unless `fields`
- *  names its own; a stub records an inline paste's write without making it. */
-export function runPasteDispatch(
-	h: PasteCommitHarness,
-	input: PasteDispatchInput,
-	fields: Partial<Omit<PasteDispatchContext, 'doc' | 'controller'>> = {}
-): Promise<PasteDispatchResult> {
-	return pasteDispatch(
-		input,
-		pasteContext({
-			doc: h.doc,
-			controller: h.controller,
-			blockEdit: makeStubBlockEdit(),
-			reading: h.deps.reading,
-			...fields
-		})
-	);
-}
-
 // ── EditorActionsDeps factory ────────────────────────────────────────────────
 
 export interface EditorActionsHarness extends HeadlessActions {
@@ -417,15 +393,6 @@ export interface EditorActionsHarness extends HeadlessActions {
 	contentVersion: () => number;
 	/** What each write that emitted `edit` said it replaced, in order. */
 	replaced: readonly ReplacedBlocks[];
-}
-
-/** A paste context for an editor with no `plugins` or `syntax` prop: every installed plugin and
- *  the fixture reading, unless the fixture names its own. */
-export function pasteContext(
-	fields: Omit<PasteDispatchContext, 'reading' | 'activePlugins'> &
-		Partial<Pick<PasteDispatchContext, 'reading' | 'activePlugins'>>
-): PasteDispatchContext {
-	return { reading: fixtureReading(), activePlugins: everyInstalledPlugin, ...fields };
 }
 
 /** A byte write made the way every writer makes one, saying nothing of what it changed. */

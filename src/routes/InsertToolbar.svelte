@@ -4,19 +4,28 @@
 	 * construct is a Markdown snippet passed to `insertMarkdown`, a plugin's included, so the bar
 	 * needs no API of its own per construct (consumer-guide/recipes.md § Recipe: an insert toolbar).
 	 */
-	import type { EditorInstance } from '#lib';
+	import type { EditorInstance, InsertMarkdownOptions } from '#lib';
 
-	const SNIPPETS = [
+	type Snippet = { name: string; title: string; md: string; options?: InsertMarkdownOptions };
+
+	// One line after text goes in as text, so the rule, the one snippet of one line, asks for a
+	// block of its own: an empty line becomes it, a line with text gets it below.
+	const SNIPPETS: Snippet[] = [
 		{
 			name: 'table',
 			title: 'Insert a table',
 			md: '| Column | Column |\n| --- | --- |\n|  |  |\n'
 		},
-		{ name: 'rule', title: 'Insert a horizontal rule', md: '---\n' },
+		{
+			name: 'rule',
+			title: 'Insert a horizontal rule',
+			md: '---\n',
+			options: { placement: 'below' }
+		},
 		{ name: 'code', title: 'Insert a code fence', md: '```\n\n```\n' },
 		{ name: 'note', title: 'Insert a note admonition', md: ':::note\n\n:::\n' },
 		{ name: 'math', title: 'Insert a math block', md: '$$\n\n$$\n' }
-	] as const;
+	];
 
 	let { editor }: { editor: EditorInstance | undefined } = $props();
 
@@ -38,7 +47,7 @@
 			title={snippet.title}
 			disabled={!hasCaret}
 			onmousedown={(e) => e.preventDefault()}
-			onclick={() => editor?.insertMarkdown(snippet.md)}
+			onclick={() => editor?.insertMarkdown(snippet.md, snippet.options)}
 		>
 			+ {snippet.name}
 		</button>

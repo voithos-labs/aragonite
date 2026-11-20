@@ -1,9 +1,9 @@
-# Feature: One Edit Event per Op, Paste Sites
+# Feature: One Edit Event per Op, Paste
 
-Paste-dispatch sites that route through `applyStructuralResult`, `applyContainerMatchingPaste`, and `applyContainerMatchingMerge` each emit a deterministic event count.
+A paste is one commit and one edit event. A paste over a range across blocks is two: the range's removal, then the paste.
 
-## Migrated sites covered
+## Routes covered
 
-- Paste structural content inside a list item (nested paste): exactly one edit event, the nested-paste commit.
-- Paste a matching list into a list with a matching ancestor and empty target (container-matching paste): exactly one edit event, the container-matching commit.
-- Paste a matching list over a non-empty target in a cross-block context (container-matching merge): exactly two edit events, the cross-block range delete then the merge-paste commit. Each commit is one op.
+- Blocks pasted at the end of a list item's text: exactly one edit event.
+- A list pasted over a list item's whole text: exactly one edit event.
+- A list pasted over a range across two list items: exactly two edit events, the removal then the paste. Each commit is one op.

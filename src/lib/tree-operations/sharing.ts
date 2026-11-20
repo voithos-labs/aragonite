@@ -54,3 +54,15 @@ export function createSharingState(): SharingState {
 		}
 	};
 }
+
+/** The sharing of a copy no undo entry holds, which a computation writes off to the side: every
+ *  node it didn't stamp counts as shared, so the first write to one copies it. */
+export function detachedSharing(): SharingState {
+	const owned = new WeakSet<object>();
+	return {
+		markSnapshotTaken() {},
+		isShared: (node) => !owned.has(node),
+		stamp: (node) => void owned.add(node),
+		watchOwned: () => () => {}
+	};
+}

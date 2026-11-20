@@ -1,14 +1,14 @@
 /**
  * The clipboard of a block whose text takes inline constructs, a paragraph's or a table cell's: a
  * selected widget, then the block's own range, on the surface's shared steps. The component keeps
- * the oncopy/oncut/onpaste bindings.
+ * the oncopy and oncut bindings; a paste arrives at the editor root, which asks `preparePaste`.
  */
 
 import type { NodeView } from '../../../core/node-views';
 import type { SurfaceBackend } from '../editable/surface-backend';
 import type { SelectionState } from '../../../selection/selection-state.svelte';
 import type { EditableSurface } from '../editable/editable-surface';
-import type { BlockClipboard, ClipboardHandlers, RevealFold } from '../editable/surface-clipboard';
+import type { ClipboardHandlers, RevealFold } from '../editable/surface-clipboard';
 import type { ClipboardTake } from '../editable/clipboard-step';
 import { replaceDrawnRange } from '../../../tree-operations/leaf-range';
 import { replaceSelectedWidget } from './widget-interaction';
@@ -24,7 +24,7 @@ export interface TextClipboardDeps {
 	/** Local caret reads go through `cursor`; the surface's `caret` is read only for the caret
 	 *  undo puts back after a cut. */
 	cursor: SurfaceBackend;
-	surface: Pick<EditableSurface, 'clipboard' | 'copyRange' | 'pasteInline' | 'caret' | 'blockEdit'>;
+	surface: Pick<EditableSurface, 'clipboard' | 'copyRange' | 'caret' | 'blockEdit'>;
 	selection: SelectionState;
 	setPendingCursor: (offset: number | null) => void;
 	/** Close a widget's shown source before a cut or paste, so it lands in the rendered block.
@@ -35,8 +35,6 @@ export interface TextClipboardDeps {
 	get reading(): Reading;
 	/** Where the block's bytes are stored, read when a cut writes. */
 	storedAs: () => StoredAs;
-	/** A paste step the block takes before any other: a table cell fills cells from a pasted grid. */
-	pastePreHook?: BlockClipboard['pastePreHook'];
 }
 
 interface SelectedWidget {
@@ -46,7 +44,7 @@ interface SelectedWidget {
 }
 
 export interface TextClipboard extends ClipboardHandlers {
-	/** The block's handler for a clipboard event the editor root received: a selected widget clears
+	/** The block's handler for a copy or a cut the editor root received: a selected widget clears
 	 *  the browser selection, so the event arrives at `<body>`, past the block's own binding. */
 	claimRootClipboard(event: ClipboardEvent): void;
 }
@@ -103,20 +101,12 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 		foldReveal: deps.foldRevealBeforeMutation,
 		selectionArms: [{ copy: copyWidget, remove: removeWidget }],
 		removeRange,
-		pastePreHook: deps.pastePreHook,
-		pasteTail: (pastedText, { range, held }) => {
-			// A selected widget is the selection a paste replaces, through the same route as any.
+		pasteRange: (selection) => {
+			// A selected widget is the selection a paste replaces, and it ends with the paste.
 			const widget = selectedWidgetOnThisBlock();
-			if (widget !== null) deps.selection.clearWidget();
-			const replaced = widget?.inline ?? (range && range.start < range.end ? range : null);
-			return deps.surface.pasteInline({
-				pastedText,
-				// Placed across a hidden edge by `held.spend`, as every insertion is.
-				offset: replaced ? replaced.start : (range?.start ?? 0),
-				preDelete: replaced ? { start: replaced.start, end: replaced.end } : undefined,
-				caretBefore: widget?.preSelectOffset ?? deps.surface.caret.getPreEditOffset(),
-				spend: held.spend
-			});
+			if (widget === null) return selection ?? { start: 0, end: 0 };
+			deps.selection.clearWidget();
+			return { ...widget.inline, caretBefore: widget.preSelectOffset };
 		}
 	});
 
@@ -128,7 +118,6 @@ export function createTextClipboard(deps: TextClipboardDeps): TextClipboard {
 			if (selectedWidgetOnThisBlock() === null) return;
 			if (event.type === 'copy') handlers.onCopy(event);
 			else if (event.type === 'cut') void handlers.onCut(event);
-			else if (event.type === 'paste') void handlers.onPaste(event);
 		}
 	};
 }

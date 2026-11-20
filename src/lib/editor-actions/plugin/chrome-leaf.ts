@@ -1,16 +1,11 @@
 /**
  * Register a title-row leaf kind: editable text at a reserved child index of a plugin
  * container (a details summary). The container declares the index via `reservedChrome`; this
- * registers the leaf and its paste surface. The child is one line of plain text.
+ * registers the leaf. The child is one line of plain text.
  */
 
 import type { BlockView } from '../../schema/block-view';
 import { registerTitleRowLeaf, type ChromeLeafOptions } from '../../schema/title-row-leaf';
-import {
-	isPasteSurfaceRegistered,
-	registerPasteSurface
-} from '../../tree-operations/paste-surfaces';
-import { defaultInlineHook } from '../../tree-operations/paste/hooks';
 import { makeBlockNode, type AnyBlockKind, type CstNode } from '../../core/nodes';
 
 /**
@@ -30,12 +25,4 @@ export function registerChromeLeaf(
 	opts: Omit<ChromeLeafOptions, 'blockClass'> = {}
 ): void {
 	registerTitleRowLeaf(kind, view, opts);
-	registerTitleRowPasteSurface(kind);
-}
-
-/** Inline-only, so `surfaceForcesInline` holds if a paste ever reaches the paste-target lookup: a
- *  second line of defense behind the check that already flattens title-row pastes. */
-export function registerTitleRowPasteSurface(kind: AnyBlockKind): void {
-	if (isPasteSurfaceRegistered(kind)) return;
-	registerPasteSurface({ kind, onInlinePaste: defaultInlineHook });
 }

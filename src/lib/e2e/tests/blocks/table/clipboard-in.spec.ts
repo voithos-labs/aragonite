@@ -145,6 +145,19 @@ test.describe('table block: paste in', () => {
 		});
 	});
 
+	// ── Text ────────────────────────────────────────────────────────────
+
+	test('pasted text joins its lines with spaces and loses its blank edges', async ({ page }) => {
+		await editor.loadContent(TABLE_2BODY);
+		await page.locator('.table-cell').nth(2).click(); // "1": row 1, col 0
+		await page.keyboard.press(edgeKey('lineEnd'));
+		await editor.seedClipboard('  \nhello\nworld\n  ');
+		await editor.paste();
+		await editor.bridge.waitForSourceContains('hello world');
+		expect((await editor.bridge.getSource()).split(/\r?\n/)[2]).toBe('| 1hello world | 2 |');
+		expect(await editor.bridge.getBlockCount()).toBe(1);
+	});
+
 	// ── Undo ────────────────────────────────────────────────────────────
 
 	test('Ctrl+Z undoes a paste in a single press', async ({ page }) => {
@@ -250,9 +263,10 @@ test.describe('table block: paste in', () => {
 			focus: { path: [0], offset: 5, cellCoordinate: true }
 		});
 
+		// The clipboard's last line ending is Enter: an empty line under the paragraph.
 		await editor.redo();
 		await editor.bridge.waitForSourceNotContains('| --- | --- |');
-		expect(await editor.bridge.getSource()).toBe('replaced text\n');
+		expect(await editor.bridge.getSource()).toBe('replaced text\n\n');
 		await editor.waitForCrossBlock(false);
 	});
 });

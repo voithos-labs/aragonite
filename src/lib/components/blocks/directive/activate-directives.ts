@@ -6,9 +6,6 @@
  */
 
 import { activateDirectiveGrammar } from '#lib/core/directive/activate.js';
-import { DIRECTIVE_OPENER_LINE } from '#lib/core/directive/kinds.js';
-import { declaredPluginKind } from '#lib/schema/plugin-kind.js';
-import { registerTitleRowPasteSurface } from '#lib/editor-actions/plugin/chrome-leaf.js';
 import { svelteBlockView } from '#lib/components/svelte-block-view.js';
 import { registerAsCore } from '#lib/schema/plugin-install.js';
 import DirectiveContainerBlock from './DirectiveContainerBlock.svelte';
@@ -25,6 +22,5 @@ export function activateDirectives(): void {
 			// Live mode shows the line's source while the caret is on it, its container's look otherwise.
 			openerLine: textBlockView({ blockClass: 'directive-opener-line', sourceAtCaret: true })
 		});
-		registerTitleRowPasteSurface(declaredPluginKind(DIRECTIVE_OPENER_LINE));
 	});
 }
