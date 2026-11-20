@@ -450,11 +450,17 @@ describe('the range-edit core answers a named quote row alike under the box’s 
 			plugins: PLUGINS.filter((plugin) => plugin !== boxes)
 		});
 		await editor.settle();
-		const host = noTransforms(
-			rangeHost(fixtureReading({ grammar: editor.instance.__test.getGrammar() }))
-		);
+		const reading = fixtureReading({ grammar: editor.instance.__test.getGrammar() });
 		const marked = '%> a\n%> ⟦***⟧\n%>     code\n';
-		const answer = () => editRange(unmark(marked), rangeOf(marked), 'backspace', 'source', host);
+		// A host per gesture, as the editor builds one: it keeps the trees it read by their bytes.
+		const answer = () =>
+			editRange(
+				unmark(marked),
+				rangeOf(marked),
+				'backspace',
+				'source',
+				noTransforms(rangeHost(reading))
+			);
 		answer();
 		editor.instance.use(PLUGINS);
 		await editor.settle();

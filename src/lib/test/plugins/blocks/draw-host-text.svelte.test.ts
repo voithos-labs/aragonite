@@ -30,6 +30,8 @@ import type { LineBlockSpec } from '#lib/schema/block-shapes.js';
 import { svelteBlockView } from '#lib/svelte.js';
 import type { BlockComponent } from '#lib/block-component.js';
 import {
+	StubDataTransfer,
+	dispatchClipboardEvent,
 	installClipboardEvents,
 	installSystemClipboard
 } from '#lib/test/harness/clipboard-events.js';
@@ -91,14 +93,6 @@ type AnyPlugin = EditorPlugin | ReturnType<typeof marked>;
 const mount = (plugin: AnyPlugin, source = SOURCE) =>
 	mountEditor({ source, plugins: [plugin] }) as MountedEditor<Seam>;
 
-function paste(target: EventTarget, text: string): void {
-	const e = new Event('paste', { bubbles: true, cancelable: true });
-	Object.defineProperty(e, 'clipboardData', {
-		value: { getData: (type: string) => (type === 'text/plain' ? text : ''), files: [], items: [] }
-	});
-	target.dispatchEvent(e);
-}
-
 const FORMS: { form: string; plugin: () => AnyPlugin }[] = [
 	{ form: 'a Svelte component', plugin: () => markerLeafPlugin(svelteBlockView(PlainLeafBlock)) },
 	{ form: 'draw', plugin: () => marked({ edit: 'text', draw: (_block, ctx) => badged(ctx) }) }
@@ -146,7 +140,7 @@ describe.each(FORMS)('a plain text block drawn by $form', ({ plugin }) => {
 		placeCaret(el, 6);
 		dispatchKey(el, { key: 'Shift' });
 		selectRange(el, 4, 6);
-		paste(el, 'Z');
+		dispatchClipboardEvent(el, 'paste', new StubDataTransfer({ 'text/plain': 'Z' }));
 		await editor.settle();
 		expect(editor.source()).toBe(SOURCE.replace('abcd', 'aZd'));
 		expect(newestEntryCaret(editor)).toEqual({ path: LEAF, offset: 4 });
