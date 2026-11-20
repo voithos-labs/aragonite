@@ -354,8 +354,8 @@ export function leavesFencedContainer(
 	return read.blocks.some((b) => {
 		const lines = host.facts(b.type).lines === 'fenced' ? linesOf(b) : undefined;
 		const closing = lines && lines.length > 1 ? lines.at(-1)! : undefined;
-		if (!closing?.own || to <= closing.from || from <= b.from) return false;
-		return lines!.some((line) => !line.own && line.from <= from && from < line.to);
+		if (!closing?.own || to <= closing.from) return false;
+		return lines!.some((l) => !l.own && l.from > b.from && l.from <= from && from < l.to);
 	});
 }
 

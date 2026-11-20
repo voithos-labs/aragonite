@@ -14,7 +14,7 @@ interface RegistrationFields {
 	container?: {
 		reservedChrome?: unknown;
 		unwrapRole?: { firstChildBackspace?: string };
-		bodyWrap?: { beforeCloserLine?: boolean };
+		bodyWrap?: { beforeCloserLine?: unknown };
 		merges?: unknown;
 	};
 	contextDependentKind?: boolean;
@@ -91,8 +91,7 @@ export const INCOHERENT_REGISTRATION_PAIRS = [
 		fields: 'container.merges with container.bodyWrap.beforeCloserLine',
 		reason:
 			"a pasted one always nests, since plain text can't say which container a pasted closing line ends; drop merges",
-		holds: (r) =>
-			r.container?.merges !== undefined && r.container.bodyWrap?.beforeCloserLine === true,
+		holds: (r) => r.container?.merges !== undefined && !!r.container.bodyWrap?.beforeCloserLine,
 		// A body wrap is mostly passed as a typed constant, whose `boolean` the types can't read.
 		untyped: true
 	}

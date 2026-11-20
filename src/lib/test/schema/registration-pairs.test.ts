@@ -119,6 +119,19 @@ describe('registerBlockKind refuses an incoherent pair the types refuse', () => 
 		expect(tryGetBlockKindDescriptor(merging)?.bodyWrap).toBeUndefined();
 	});
 
+	// The paste reads the closing line by truthiness, so plain JavaScript's `1` is one too.
+	it('refuses the closing line however a plain-JavaScript caller spells it', () => {
+		const kind = declarePluginKind('pair-truthy-closer');
+		const truthy = {
+			...leaf,
+			container: { ...group, bodyWrap: { beforeCloserLine: 1 }, merges: {} }
+		};
+		expect(() => registerBlockKind(kind, truthy as unknown as BlockKindRegistration)).toThrow(
+			'declares container.merges with container.bodyWrap.beforeCloserLine;'
+		);
+		expect(tryGetBlockKindDescriptor(kind)).toBeUndefined();
+	});
+
 	it('keeps a coherent registration of each shape', () => {
 		const chrome = declarePluginKind('pair-ok-chrome');
 		registerBlockKind(chrome, {

@@ -56,8 +56,8 @@ export type {
 export type { PluginView, PluginViewHandle } from './plugin-view';
 
 // ── Block-kind descriptor registry ───────────────────────────────────────────
-// `BlockKindRegistration` is the shape you register, the view that draws the kind included; fields
-// that only mean something together are declared together, so an incoherent pair fails to compile.
+// `BlockKindRegistration` is the shape you register, the view that draws the kind included. A pair
+// of fields that mean nothing together fails to compile, or throws where the types can't see it.
 export { registerBlockKind, augmentBlockKind } from './schema/block-kind-descriptor';
 export type {
 	BlockKindRegistration,
