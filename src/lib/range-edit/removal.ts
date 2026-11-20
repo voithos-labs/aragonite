@@ -308,17 +308,22 @@ function across(
 		...(end && rest !== null && { lower: { block: place ?? end.leaf, raw: rest } })
 	};
 	const numbered = numberedOn(doc, from, to, closed);
-	const parted = apartAt(doc, numbered, at, { from, to, upper, lower, rewritten }, !joins);
+	// The end leaf's rest is the lower side of the pair where it takes a held block's place.
+	const restLine = rest !== null && rest !== '' ? end?.leaf.from : undefined;
+	const stood = joins && stoodApart(doc, from, to, upper, restLine);
+	const parted = apartAt(doc, numbered, at, { from, to, upper, lower, rewritten }, !joins || stood);
 	const gone = held && (!!lines || !joins || isBlankText(lineRest(tail, 0)));
 	const out = joins ? movedMarkers(doc, from, to, parted, to) : parted;
 	const caret = lines?.caret ?? start?.caret ?? lineFrom;
-	// A caret past the markers of the lower block's line stays on the blank line opened there.
+	// A caret past the markers of the lower block's line stays on the blank line opened there, save
+	// on a rest that stood apart from what the range took, whose text keeps it.
 	const opened = caret > at ? parted.length - numbered.length : 0;
+	const onRest = stood && caret >= at ? caret + parted.length - numbered.length : null;
 	// The numbering writes only past that byte; a blank line opened at or before it moves it on.
 	const after = resumes + (at <= resumes ? parted.length - numbered.length : 0);
 	return {
 		source: out,
-		caret: opened > 0 ? at + opened - doc.ending.length : caret,
+		caret: onRest ?? (opened > 0 ? at + opened - doc.ending.length : caret),
 		...(gone && { after }),
 		...(held && first && { took: lineFrom })
 	};
@@ -484,19 +489,31 @@ function joinedLeaves(doc: Doc, from: number, to: number, head: LeafPoint, end: 
 			lower: deepestAt(doc, pastMarkers(source, end.leaf.to)),
 			rewritten: { upper: { block: head.leaf, raw: upper, kind: head.leaf.type } }
 		},
-		tookBlankUnder(doc, head.leaf, to)
+		stoodApart(doc, from, to, head.leaf, undefined)
 	);
 	const closerAt = leafEnd - ownTrailingLineEnding(write.bytes).length;
 	const closed = withClosers(doc, from, to, parted, closerAt);
 	return { source: movedMarkers(doc, from, to, closed, end.leaf.to), caret: written.caret };
 }
 
-/** Whether the range, ending at `to`, took the blank line right under `block`, the block it started
- *  in: that block then keeps a blank line where flush the pair left behind would read as one. */
-function tookBlankUnder(doc: Doc, block: LaidBlock, to: number): boolean {
+/** Whether the range took a blank line right under `upper` or right over the line starting `lower`'s
+ *  first byte: the pair the removal leaves touching then keeps one where flush it would read as one. */
+function stoodApart(
+	doc: Doc,
+	from: number,
+	to: number,
+	upper: LaidBlock | undefined,
+	lower: number | undefined
+): boolean {
 	const { source } = doc;
-	const below = lineEnd(source, contentEnd(doc, block)) + 1;
-	return lineEnd(source, below) < to && lineRest(source, pastMarkers(source, below)) === '';
+	const taken = (line: number) =>
+		line >= from &&
+		lineEnd(source, line) < to &&
+		lineRest(source, pastMarkers(source, line)) === '';
+	if (upper && taken(lineEnd(source, contentEnd(doc, upper)) + 1)) return true;
+	if (lower === undefined) return false;
+	const lineStart = source.lastIndexOf('\n', lower - 1) + 1;
+	return lineStart > 0 && taken(source.lastIndexOf('\n', lineStart - 2) + 1);
 }
 
 /** `joined` with the closing lines the range starts inside and leaves put back at `at`. */
