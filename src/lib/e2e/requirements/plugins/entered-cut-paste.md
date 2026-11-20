@@ -8,10 +8,8 @@ the keys.
 
 ## Happy paths
 
-- A cut into a titled tip's title, then Mod+V: the divider, the paragraph and a tip holding the
-  title's first part stand above the tip that kept the rest, as on `next`
-- A cut into a table's first row, then Mod+V: the blocks and a table holding the cut row stand above
-  the table that kept the rest, its header intact
+- A cut into a titled tip's title, then Mod+V: the document comes back as it was
+- A cut into a table's first row, then Mod+V: the document comes back as it was, one table
 
 ## User interactions
 
