@@ -4,7 +4,7 @@
 // removal route, both modes: Backspace, Delete, a cut, a typed key, a composition, a one-line paste
 // and Enter. Without that blank line the pair still runs on, and so does the end's own rest.
 // Miss-analysis: no mounted row took the blank line under the start's block, so a paragraph flush
-// under a heading the range took ran on into the paragraph above, where 0.11.5 kept them apart.
+// under a heading the range took ran on into the paragraph above and nothing failed.
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
@@ -125,7 +125,7 @@ const RUNNING_ON: Row[] = [
 		written: 'aQ\nc d\n',
 		broken: 'a\n\nc d\n'
 	},
-	// The lower side stays as ruled: the end leaf's rest takes a held block's place and runs on.
+	// The rule reads the start's side only: an end leaf's rest in a held block's place runs on.
 	{
 		name: 'a rest flush under the block above',
 		marked: 'first\n⟦***\n\npa⟧ra\n',

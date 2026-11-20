@@ -148,7 +148,7 @@ const ROWS: [name: string, marked: string, left: string, blocks: string][] = [
 		'list(listItem(paragraph)) fencedCode'
 	],
 	// Miss-analysis: no row started in a block's text and took the blank line under it, so a block
-	// left flush under the start's ran on into it where 0.11.5 kept the blank line.
+	// left flush under the start's ran on into it and nothing failed.
 	[
 		'the start keeps the blank line the range took, over a heading',
 		'a⟦ b\n\n## h⟧\nc d\n',
@@ -194,7 +194,13 @@ const ROWS: [name: string, marked: string, left: string, blocks: string][] = [
 		'paragraph'
 	],
 	['the end’s rest still joins', 'alpha ⟦bravo\n\ncharlie ⟧delta\n', 'alpha delta\n', 'paragraph'],
-	// The lower side stays as ruled: the end leaf's rest takes a held block's place and runs on.
+	[
+		'a heading’s rest joins, and the start keeps its blank line under it',
+		'a⟦ b\n\n## ⟧h\nc d\n',
+		'ah\n\nc d\n',
+		'paragraph paragraph'
+	],
+	// The rule reads the start's side only: an end leaf's rest in a held block's place runs on.
 	[
 		'a rest flush under the block above runs on',
 		'first\n⟦***\n\npa⟧ra\n',
