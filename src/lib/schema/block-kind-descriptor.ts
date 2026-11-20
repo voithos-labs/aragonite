@@ -25,7 +25,7 @@ import type { BlockOpener } from './block-openers';
 import type { LineShape, MarkedLines } from '../core/strip-lines';
 
 /**
- * The Backspace-merge roles (`docs/design/structural-edits.md` Â§ Merge eligibility: roles, not pairs).
+ * The Backspace-merge roles (`docs/design/structural-edits.md` § Merge eligibility: roles, not pairs).
  * The runtime role check reads its list from this tuple, so the type and the check agree (G1.30).
  */
 export const MERGE_ROLES = [
@@ -147,7 +147,7 @@ export interface BlockKindDescriptor {
 	gapEdges: 'before' | 'after' | 'both' | 'none';
 	isContainer: boolean;
 	/**
-	 * How `raw` relates to the children: `docs/design/syntax-tree.md` Â§ The container contract.
+	 * How `raw` relates to the children: `docs/design/syntax-tree.md` § The container contract.
 	 * A grid's cell index is `row * width + column`, every row as wide as row 0.
 	 */
 	containerContract?: 'strip' | 'grid' | 'opaque';
@@ -231,7 +231,7 @@ export interface BlockKindDescriptor {
 	 */
 	estimateHeight?: (node: NodeView, env: HeightEstimateEnv) => number;
 
-	// â”€â”€ Presentation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+	// ── Presentation ──────────────────────────────────────────────────────────
 
 	/**
 	 * `'prose'` is text the user writes in: no drag handle, and a right-click opens clipboard rows.
@@ -289,7 +289,7 @@ type MissingDescriptorField = Exclude<
 const _descriptorFieldsAreComplete: MissingDescriptorField extends never ? true : never = true;
 void _descriptorFieldsAreComplete;
 
-// â”€â”€ Registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Registration ────────────────────────────────────────────────────────────
 
 /**
  * Where a prose kind's content starts, for one whose markers take a prefix of its raw. The
@@ -300,7 +300,7 @@ export interface ContentStart {
 	range: (node: NodeView) => { start: number; end: number };
 	/**
 	 * In modes that hide markers, Backspace at the content start strips this kind's markers before
-	 * merging (`docs/design/live-mode.md` Â§ 4.4 Cutting a construct open).
+	 * merging (`docs/design/live-mode.md` § 4.4 Cutting a construct open).
 	 */
 	backspace?: 'demote-first';
 }
@@ -480,7 +480,7 @@ export type BlockKindAugmentation = Partial<RegistrationBase> & {
 	container?: Partial<ContainerBase> & { [Key in FixedContainerKey]?: never };
 };
 
-// â”€â”€ Registry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Registry ────────────────────────────────────────────────────────────────
 
 interface KindEntry {
 	descriptor: BlockKindDescriptor;
@@ -501,7 +501,7 @@ const registry = createBlockKindRegistry<KindEntry>({
 	}
 });
 
-// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Public API ──────────────────────────────────────────────────────────────
 
 export function registerBlockKind(kind: AnyBlockKind, registration: BlockKindRegistration): void {
 	const { view, ...fields } = registration;
@@ -596,9 +596,9 @@ function storeKind(
 	registry.register(
 		kind,
 		{ descriptor, ...(view ? { view } : {}), ...(opener ? { opener } : {}) },
-		`${entry}: "${kind}" is already registered. Kinds are register-once â€” ` +
+		`${entry}: "${kind}" is already registered. Kinds are register-once — ` +
 			`use augmentBlockKind to merge fields into an existing registration.` +
-			(owner ? ` â€” first declared by plugin '${owner}'` : '')
+			(owner ? ` — first declared by plugin '${owner}'` : '')
 	);
 	enqueueRegistrationCheck(kind, opener ? 'opener' : 'descriptor');
 }
@@ -763,7 +763,7 @@ export function augmentBlockKind(kind: AnyBlockKind, fields: BlockKindAugmentati
 	const installer = currentInstallingPlugin();
 	if (owner !== null && owner !== installer) {
 		throw new Error(
-			`augmentBlockKind: "${kind}" is owned by plugin '${owner}' â€” ` +
+			`augmentBlockKind: "${kind}" is owned by plugin '${owner}' — ` +
 				(installer
 					? `plugin '${installer}' may not augment another plugin's kind.`
 					: `only plugin '${owner}' may augment its own kind, from its setup.`)
@@ -849,7 +849,7 @@ export function registeredKinds(activation: PluginActivation): AnyBlockKind[] {
 	return registry.entries(activation).map(([kind]) => kind);
 }
 
-// â”€â”€ Plugin block types held by mounted editors â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Plugin block types held by mounted editors ──────────────────────────────
 
 interface HeldKind {
 	descriptor: BlockKindDescriptor;

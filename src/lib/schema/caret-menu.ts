@@ -8,7 +8,7 @@ import type { Draft, DraftResult } from './drafts';
 import type { Editor } from './plugin-unit';
 import type { Command } from './plugin-command';
 
-// â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Public API ───────────────────────────────────────────────────────────────
 
 export interface CaretMenu<R> {
 	/** Announced to screen readers when the list opens. */
@@ -78,7 +78,7 @@ export function menu<R>(spec: CaretMenu<R>): CaretMenu<R> {
 	return spec;
 }
 
-// â”€â”€ The pick â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── The pick ─────────────────────────────────────────────────────────────────
 
 /** The parts of a draft a pick builds on: the paste below the caret's block, and where a byte
  *  it opened on sits now. */
