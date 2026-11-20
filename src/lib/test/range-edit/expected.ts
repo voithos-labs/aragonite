@@ -886,9 +886,10 @@ function separatorBack(read: Read, at: number, bytes: string, clip: string, host
 	if (fence && fenceRun(fence) && !closesItsFence(fence)) return bytes;
 	if (listsJoined(read, at, pasted, host)?.below) return bytes;
 	const line = target.to + bytes.length - read.source.length;
-	// An item's own sublist stays right under the item's first line, where it still starts its line.
+	// A block that is no empty row stays right under its item's first line, where it still starts
+	// its line.
 	const item = target.path.at(-1) === 0 && itemTextAt(read, at, host);
-	if (item && host.facts(below.type).lines === 'items') {
+	if (item && !blank(below)) {
 		const starts = readOf(host, bytes).blocks.some(
 			(b) => b.type === below.type && lineStartOf(bytes, b.from) === line
 		);

@@ -164,8 +164,9 @@ for (const mode of ['source', 'live'] as const)
 			expect((await filled(marked, mode, 'paste', clip))[0]).toBe(left);
 		});
 
-// A paste writes no blank line over the caret item's own sublist, where a typed letter still writes
-// one and turns the list loose. Miss-analysis: every only row lay over a sibling, none over a sublist.
+// A paste writes no blank line between an item's first line and the item's next block, where a
+// typed letter still writes one and turns the list loose; a block the text would read into is set
+// apart. Miss-analysis: every only row lay over a sibling, none over a block of the item's own.
 const SUBLIST: [string, string, string][] = [
 	['a bullet over its sublist', '- ‸\n  - b\n', '- X\n  - b\n'],
 	['an ordered item over its sublist', '1. ‸\n   - b\n', '1. X\n   - b\n'],
@@ -179,7 +180,14 @@ const SUBLIST: [string, string, string][] = [
 	['a quoted bullet over its sublist', '> - ‸\n>   - b\n', '> - X\n>   - b\n'],
 	['an item over a sublist numbered from 2', '1. ‸\n   2. b\n', '1. X\n\n   2. b\n'],
 	['a bullet that has text, over its sublist', '- x‸\n  - b\n', '- xX\n  - b\n'],
-	['a bullet over a quote of its own', '- ‸\n  > b\n', '- X\n  \n  > b\n'],
+	['a bullet over a quote of its own', '- ‸\n  > b\n', '- X\n  > b\n'],
+	['a bullet over a heading of its own', '- ‸\n  # b\n', '- X\n  # b\n'],
+	['a bullet over a fence of its own', '- ‸\n  ```\n  c\n  ```\n', '- X\n  ```\n  c\n  ```\n'],
+	['a quoted bullet over a quote of its own', '> - ‸\n>   > b\n', '> - X\n>   > b\n'],
+	['a bullet over a line that would underline it', '- ‸\n  ---\n', '- X\n\n  ---\n'],
+	['a bullet over indented code of its own', '- ‸\n      c\n', '- X\n\n      c\n'],
+	['a bullet over a paragraph of its own', '- ‸\n  b\n', '- X\n\n  b\n'],
+	['a bullet right over a heading outside the list', '- ‸\n# b\n', '- X\n# b\n'],
 	['an item’s later empty line, over a list', '- a\n\n  ‸\n  - b\n', '- a\n\n  X\n  \n  - b\n']
 ];
 
@@ -202,6 +210,13 @@ for (const mode of ['source', 'live'] as const)
 		it(`${mode}: ${name} in a bullet over its sublist writes no blank line over it`, async () => {
 			expect((await filled('- ‸\n  - b\n', mode, 'paste', clip))[0]).toBe(left);
 		});
+
+it.each(['source', 'live'] as const)(
+	'%s: text and its line ending in a bullet over a quote of its own opens the next item',
+	async (mode) => {
+		expect((await filled('- ‸\n  > b\n', mode, 'paste', 'X\n'))[0]).toBe('- X\n- \n  > b\n');
+	}
+);
 
 // Blocks on an empty heading's line take the heading's place: the blank line under it was its
 // separator, never a row. Miss-analysis: every row's empty line was a blank paragraph's.

@@ -477,9 +477,9 @@ function bytesLanded(
 	if (titleOwner(doc, leaf) || factsOf(doc, leaf).joins !== 'text') return landing;
 	const edit = read && !plain ? joinedAbove(doc, leaf, joined, read) : landing;
 	const below = leaf.to + edit.source.length - doc.source.length;
-	// The empty line was the separator of the block under it, which gets one back unless it takes
-	// what was pasted in as items, an open fence takes it in, or it is the caret item's own sublist.
-	const kept = flush && !pasted.inPlace && !joinsBelow && !ownSublist(doc, leaf, flush);
+	// The empty line was the separator of the block under it, which gets one back unless it joins
+	// the pasted items, an open fence takes it in, or it stands under its item's first line.
+	const kept = flush && !pasted.inPlace && !joinsBelow && !underItemText(doc, leaf, flush);
 	if (!kept || (read && endsOpen(read))) return setApart(edit);
 	// Over an empty row the empty line a last line ending opens after text is a row of its own;
 	// over any other block it stands for the separator.
@@ -487,12 +487,13 @@ function bytesLanded(
 	return separatorKept(doc, leaf, edit, below, opens);
 }
 
-/** Whether `lower` is the sublist of the item whose first line is `leaf`'s: a blank line between
- *  the two would turn the list loose. */
-function ownSublist(doc: Doc, leaf: LaidBlock, lower: LaidBlock): boolean {
+/** Whether `lower`, no empty row, stands under the first line of a list item, `leaf`: a blank line
+ *  between the two would turn the list loose. */
+function underItemText(doc: Doc, leaf: LaidBlock, lower: LaidBlock): boolean {
 	const item = leaf.path.at(-1) === 0 ? parentOf(doc, leaf) : undefined;
 	const list = item && parentOf(doc, item);
-	return !!list && [list, lower].every((b) => factsOf(doc, b).lines === 'items');
+	if (!list || factsOf(doc, list).lines !== 'items') return false;
+	return !isBlankText(nodeAt(doc, lower.path).raw);
 }
 
 /** `edit`, a paste into the empty paragraph `leaf`: a bare marker in front of text it put on the
