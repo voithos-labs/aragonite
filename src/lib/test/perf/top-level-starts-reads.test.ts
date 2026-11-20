@@ -38,7 +38,7 @@ const LONG = 400;
 /** Top-level blocks measured over `route`'s write in a document of `n`, with a listener asking a
  *  position's byte on every edit and once more when the write has settled. */
 async function blocksMeasured(route: WriteRoute, n: number): Promise<number> {
-	const m = mountEditor<EditorTestSurface>({ source: route.source(n) });
+	const m = mountEditor<EditorTestSurface>({ source: route.source(n), plugins: route.plugins });
 	await m.settle();
 	await route.setUp?.(m, n);
 	const { path, offset } = route.asks(n);
@@ -59,7 +59,7 @@ async function blocksMeasured(route: WriteRoute, n: number): Promise<number> {
 
 /** Top-level blocks measured over `route`'s set-up and write when nothing asks for a position. */
 async function measuredUnasked(route: WriteRoute): Promise<number> {
-	const m = mountEditor<EditorTestSurface>({ source: route.source(N) });
+	const m = mountEditor<EditorTestSurface>({ source: route.source(N), plugins: route.plugins });
 	await m.settle();
 	const before = perfSnapshot().topBlocksMeasured;
 	await route.setUp?.(m, N);

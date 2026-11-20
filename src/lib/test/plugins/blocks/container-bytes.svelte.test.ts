@@ -321,7 +321,13 @@ const TWIN_ROWS: [name: string, marked: string, gesture: Gesture, depths?: numbe
 		{ paste: 'p', plain: false, holds: 'text' }
 	],
 	['a box in a quote', '> > ⟦a⟧\n> >\n> > b\n>\n> c\n', 'backspace', [1]],
-	['a quote in a box', '> > ⟦a⟧\n> >\n> > b\n>\n> c\n', 'backspace', [0]]
+	['a quote in a box', '> > ⟦a⟧\n> >\n> > b\n>\n> c\n', 'backspace', [0]],
+	// The start's line goes where a blank line of the box around parts it from the block below.
+	[
+		'out of a box in a box to its end, a blank line below',
+		'> > above\n> > ⟦# text\n> > below⟧\n>\n> more\n',
+		'backspace'
+	]
 ];
 
 describe('the range-edit core answers a named quote row alike under the box’s marker', () => {

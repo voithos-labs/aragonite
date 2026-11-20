@@ -28,17 +28,16 @@ const N = 12;
 
 describe('an undo entry is pushed from the list the tree holds', () => {
 	it.each(WRITE_ROUTES)('$name', async (route) => {
-		const m = mountEditor<EditorTestSurface>({ source: route.source(N) });
+		const m = mountEditor<EditorTestSurface>({ source: route.source(N), plugins: route.plugins });
 		await m.settle();
 		// A letter elsewhere first: its push reads the list, and its write copies the block.
 		const first = surfaceAt(m, [0]);
 		typeInto(first, first.textContent + 'x');
 		await m.settle();
-		// After the route's own setup, which can read the document again (a `use`).
-		await route.setUp?.(m, N);
 		const held = [...m.instance.__test.getDocument().children];
 		const depth = m.instance.__test.getUndoStack().undo.length;
 
+		await route.setUp?.(m, N);
 		await route.write(m, N);
 
 		const pushed = m.instance.__test.getUndoStack().undo[depth];

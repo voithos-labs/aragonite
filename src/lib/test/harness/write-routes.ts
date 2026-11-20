@@ -4,6 +4,7 @@
 
 import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
 import { container, definePlugin, lineBlock, type Block } from '#lib/plugin.js';
+import type { PluginsProp } from '#lib/schema/plugin-install.js';
 import { pressKey } from '#lib/test/harness/settle.js';
 import { dispatchPaste, pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
 import { dispatchClipboardEvent, StubDataTransfer } from '#lib/test/harness/clipboard-events.js';
@@ -21,6 +22,8 @@ export interface WriteRoute {
 	name: string;
 	/** A document of `n` top-level blocks. */
 	source(n: number): string;
+	/** The plugins the document is read with from the mount. */
+	plugins?: PluginsProp;
 	/** Writes that come first and aren't the route's own. */
 	setUp?(m: Mounted, n: number): Promise<void>;
 	write(m: Mounted, n: number): Promise<void>;
@@ -535,7 +538,7 @@ export const WRITE_ROUTES: WriteRoute[] = [
 	{
 		name: 'a draft setting the data of a plugin block type',
 		source: withBlock('%%1 hello\n'),
-		setUp: withBlockTypes,
+		plugins: [blockTypes()],
 		async write(m) {
 			const block = m.instance.blockAt(m.source().indexOf('%%1'))!;
 			await m.instance
@@ -552,10 +555,8 @@ export const WRITE_ROUTES: WriteRoute[] = [
 	{
 		name: 'a second letter in a paragraph inside a plugin block type’s container',
 		source: withBlock('%> alpha\n%> beta\n'),
-		async setUp(m) {
-			await withBlockTypes(m);
-			await typeLetter(m, QUOTED);
-		},
+		plugins: [blockTypes()],
+		setUp: (m) => typeLetter(m, QUOTED),
 		write: (m) => typeLetter(m, QUOTED),
 		asks: () => ({ path: QUOTED, offset: 0 }),
 		announces: 'exact'

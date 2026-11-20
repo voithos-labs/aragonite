@@ -75,7 +75,7 @@ function placed(m: Mounted) {
 
 describe('G1.209 the kept starts are the document’s after every write route', () => {
 	it.each(WRITE_ROUTES)('$name', async (route) => {
-		const m = mountEditor<EditorTestSurface>({ source: route.source(N) });
+		const m = mountEditor<EditorTestSurface>({ source: route.source(N), plugins: route.plugins });
 		await m.settle();
 		await route.setUp?.(m, N);
 		const { path, offset } = route.asks(N);
