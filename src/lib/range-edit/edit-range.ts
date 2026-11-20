@@ -165,7 +165,7 @@ export function editRange(
 		// would, and over one block held whole takes its place, as typed text does.
 		const removed = pasteRemoval(doc, from, to, gesture.paste);
 		const after = read(removed);
-		const caret = caretOf(removed, after, 'start after', () => startedIn(doc, from), from);
+		const caret = caretOf(removed, after, 'cut', () => startedIn(doc, from), from);
 		const over = pasteAt(
 			after,
 			caret.at,
@@ -413,24 +413,18 @@ function startedIn(doc: Doc, inside: number | readonly number[]): LaidBlock[] {
 
 /** Where a caret goes beside blocks the range took whole, no text left at its start: the end before,
  *  the text or first byte after, the gap above a block it entered, or a line break's place. */
-type Beside =
-	| 'end before'
-	| 'text after'
-	| 'cut'
-	| 'gap above'
-	| 'start after'
-	| 'break inside'
-	| 'break between';
+type Beside = 'end before' | 'text after' | 'cut' | 'gap above' | 'break inside' | 'break between';
 
 function besideOf(gesture: Gesture, doc: Doc, range: Range): Beside {
 	if (gesture === 'break') return entersAtEnd(doc, range) ? 'break inside' : 'break between';
 	if (gesture === 'backspace' || gesture === 'command') return 'end before';
-	// Typed or composed text joins the text after only where that text is the end leaf's own.
+	// Typed or composed text joins the text after only where that text is the end leaf's own, and
+	// elsewhere opens its paragraph where a cut's paste would go back.
 	if (gesture === 'type' || gesture === 'compose')
-		return entersAtEnd(doc, range) ? 'text after' : 'start after';
+		return entersAtEnd(doc, range) ? 'text after' : 'cut';
 	// A cut's paste goes back above the opening the range entered, a title or a header included.
 	if (gesture === 'cut') return entersOpening(doc, range.from, range.to) ? 'gap above' : 'cut';
-	return gesture === 'delete' ? 'text after' : 'start after';
+	return gesture === 'delete' ? 'text after' : 'cut';
 }
 
 /** Whether the range ends before the end of a leaf that starts inside it, so that leaf's text
@@ -517,16 +511,14 @@ function caretOf(
 					? startAfter(result, at, after)
 					: beside === 'cut' || beside === 'gap above'
 						? (beside === 'gap above' && gapBefore(result, at)) || firstPlace(result, at)
-						: beside === 'start after'
-							? beforeFence(result, at)
-							: lineBreakAt(result, at, after, beside === 'break inside', boundary);
+						: lineBreakAt(result, at, after, beside === 'break inside', boundary);
 	if (side) return side;
 	let text = at;
 	const lineStart = edit.source.lastIndexOf('\n', at - 1) + 1;
 	while (text > lineStart && !result.layout.pointAt(text)) text--;
 	// A removal that left the caret before where the range started left it at the end of a block
 	// the range never reached, which a landing asks as it asks any block before.
-	const before = at < from && beside !== 'start after';
+	const before = at < from;
 	if (edit.source === '' || result.layout.pointAt(text))
 		return (before && pastSyntax(result, text)) || { at: text, holds: 'text' };
 	const block = findWithin(result, at, at, (b) => b.from === at);
@@ -646,12 +638,6 @@ function lineBreakAt(
 	const leaf = leafAt(doc, caret)?.leaf;
 	const emptied = !!leaf?.text && leaf.text.from === leaf.text.to && !isBlankText(doc.source);
 	return emptied ? null : where();
-}
-
-/** The boundary before the fenced block starting at byte `at`, whose fence line takes no caret. */
-function beforeFence(doc: Doc, at: number): Place | null {
-	const block = pointedBlock(doc, at);
-	return block?.from === at && fenceBody(doc, block) ? { at, ...held('boundary', block) } : null;
 }
 
 /** A place where `block` starts, among its parent's children. */
