@@ -16,6 +16,7 @@ import { tryGetBlockKindDescriptor, type WriteRule } from '../schema/block-kind-
 import { assertInvariant, devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 import { checkWriteRuleKeepsBytes } from '../invariants/write-rule-keeps-bytes';
 import { adoptParsedMetadata } from '../schema/container-raw';
+import { writeContainerRaw } from '../schema/container-writer';
 import { spliceMany } from './splice-many';
 
 // ── Parent shapes and the kind's write rules ──
@@ -148,10 +149,10 @@ export function kindWriteRule(node: NodeView): WriteRule | undefined {
 	};
 }
 
-/** `raw`, container `node` after an edit in its body, its own lines as its kind's `rebuildRaw` writes
- *  them for that body (a `:::` fence grows past a closing line); the rule writes a copy. */
-export function ownLinesRewritten(node: NodeView, raw: string): string {
-	const rebuild = tryGetBlockKindDescriptor(node.kind)?.rebuildRaw;
+/** `raw`, container `node` after an edit in its body, its own lines as its kind writes them for that
+ *  body under `grammar` (a `:::` fence grows past a closing line); the writer writes a copy. */
+export function ownLinesRewritten(node: NodeView, raw: string, grammar: GrammarView): string {
+	const container = tryGetBlockKindDescriptor(node.kind)?.containerContract !== undefined;
 	const children = node.children ?? [];
 	const chrome = reservedChromeKindOf(node.kind) !== undefined ? children.slice(0, 1) : [];
 	const inner =
@@ -161,7 +162,7 @@ export function ownLinesRewritten(node: NodeView, raw: string): string {
 	// The body runs from past the opening lines, which the edit left as they were, to the last line.
 	const start = lastLineStart(node.raw) - inner.length;
 	const end = lastLineStart(raw);
-	if (!rebuild || start < 0 || end < start || raw.slice(0, start) !== node.raw.slice(0, start))
+	if (!container || start < 0 || end < start || raw.slice(0, start) !== node.raw.slice(0, start))
 		return raw;
 	const body = makeBlockNode({ kind: 'paragraph', leadingTrivia: '', raw: raw.slice(start, end) });
 	const copy = {
@@ -171,7 +172,7 @@ export function ownLinesRewritten(node: NodeView, raw: string): string {
 		innerSuffix: ''
 	} as CstNode;
 	if (node.metadata) copy.metadata = { ...node.metadata } as CstNode['metadata'];
-	rebuild(copy);
+	writeContainerRaw(copy, grammar);
 	return copy.raw;
 }
 

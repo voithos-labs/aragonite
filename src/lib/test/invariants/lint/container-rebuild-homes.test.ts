@@ -43,6 +43,10 @@ const PINNED: Record<string, Pin> = {
 		calls: { writeContainerRaw: 1 },
 		why: 'writes new data into a scratch clone to read its bytes back, which a draft then writes'
 	},
+	'src/lib/tree-operations/node-primitives.ts': {
+		calls: { writeContainerRaw: 1 },
+		why: 'writes a copy of a container no tree holds, to read the lines its kind writes around an edited body'
+	},
 	'src/lib/tree-operations/list/enter-out.ts': {
 		calls: { rebuildContainerRaw: 1, rebuildOwnedContainer: 1 },
 		why: 'rebuilds the copy Enter’s exit or lift wrote off to the side for a paste, which no commit holds'

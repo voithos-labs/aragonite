@@ -415,7 +415,7 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 				reading.grammar.interruptsParagraph(rest)
 			);
 		},
-		rewritten: (doc, path, raw) => ownLinesRewritten(blockNodeAt(doc, path)!, raw)
+		rewritten: (doc, path, raw) => ownLinesRewritten(blockNodeAt(doc, path)!, raw, reading.grammar)
 	};
 
 	/** `node`, read at `path`'s slot through `store`, broken at `at`: a split's cut where the split
