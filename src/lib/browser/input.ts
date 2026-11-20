@@ -31,7 +31,10 @@ export type InputIntent =
 	| { readonly kind: 'compose'; readonly final: boolean }
 	| { readonly kind: 'history'; readonly redo: boolean }
 	| { readonly kind: 'transfer'; readonly via: 'paste' | 'drop' | 'yank' }
-	/** Formatting, lists, links, a transpose, and any type an engine invents. */
+	/** The browser's own character formatting: bold, italic, underline, strikethrough, super- and
+	 *  subscript. The editor writes its marks as bytes, so it takes none of these. */
+	| { readonly kind: 'format' }
+	/** Lists, links, a transpose, alignment, direction, and any type an engine invents. */
 	| { readonly kind: 'other' };
 
 type Intent<K extends InputIntent['kind']> = Extract<InputIntent, { kind: K }>;
@@ -46,6 +49,7 @@ const declined = (source: Intent<'delete'>['source']): Intent<'delete'> =>
 
 const OTHER: InputIntent = intent({ kind: 'other' });
 const INSERT: InputIntent = intent({ kind: 'insert' });
+const FORMAT: InputIntent = intent({ kind: 'format' });
 
 const INTENTS: ReadonlyMap<string, InputIntent> = new Map<string, InputIntent>([
 	['insertText', INSERT],
@@ -60,6 +64,12 @@ const INTENTS: ReadonlyMap<string, InputIntent> = new Map<string, InputIntent>([
 	['insertFromPasteAsQuotation', intent({ kind: 'transfer', via: 'paste' })],
 	['insertFromDrop', intent({ kind: 'transfer', via: 'drop' })],
 	['insertFromYank', intent({ kind: 'transfer', via: 'yank' })],
+	['formatBold', FORMAT],
+	['formatItalic', FORMAT],
+	['formatUnderline', FORMAT],
+	['formatStrikeThrough', FORMAT],
+	['formatSuperscript', FORMAT],
+	['formatSubscript', FORMAT],
 	['deleteContentBackward', decided('character', 'backward')],
 	['deleteContentForward', decided('character', 'forward')],
 	['deleteWordBackward', decided('word', 'backward')],
@@ -81,6 +91,24 @@ const INTENTS: ReadonlyMap<string, InputIntent> = new Map<string, InputIntent>([
 export function readInput(e: Pick<InputEvent, 'inputType'>): InputIntent {
 	// Typing is nine inputs in ten, and the compare is a third the cost of the map's lookup.
 	return e.inputType === 'insertText' ? INSERT : (INTENTS.get(e.inputType) ?? OTHER);
+}
+
+// ── The typed tail ──────────────────────────────────────────────────────────
+
+// Two zero bits at its foot, so a character leaves the sum sixteen folds on.
+const MIX = 0x78dde6c4;
+let tail = 0;
+
+/** Folds the text `e` types into {@link typedTail}; any other input leaves it. */
+export function noteTyped(e: Pick<InputEvent, 'inputType' | 'data'>): void {
+	const text = e.inputType === 'insertText' ? e.data : null;
+	if (!text) return;
+	for (let i = 0; i < text.length; i++) tail = (Math.imul(tail, MIX) + text.charCodeAt(i)) | 0;
+}
+
+/** A digest of the last sixteen characters typed, equal for equal tails whatever came before. */
+export function typedTail(): number {
+	return tail;
 }
 
 // ── Questions about one input ───────────────────────────────────────────────
