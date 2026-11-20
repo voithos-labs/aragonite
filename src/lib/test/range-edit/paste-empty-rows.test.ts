@@ -179,7 +179,8 @@ const SUBLIST: [string, string, string][] = [
 	['a quoted bullet over its sublist', '> - ‸\n>   - b\n', '> - X\n>   - b\n'],
 	['an item over a sublist numbered from 2', '1. ‸\n   2. b\n', '1. X\n\n   2. b\n'],
 	['a bullet that has text, over its sublist', '- x‸\n  - b\n', '- xX\n  - b\n'],
-	['a bullet over a quote of its own', '- ‸\n  > b\n', '- X\n  \n  > b\n']
+	['a bullet over a quote of its own', '- ‸\n  > b\n', '- X\n  \n  > b\n'],
+	['an item’s later empty line, over a list', '- a\n\n  ‸\n  - b\n', '- a\n\n  X\n  \n  - b\n']
 ];
 
 for (const mode of ['source', 'live'] as const)
