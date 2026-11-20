@@ -294,10 +294,10 @@ export const NAMED_ROWS: NamedRow[] = [
 		expect: { source: '>x\n>ya\n' }
 	},
 	{
-		name: 'L9 a paste into the empty paragraph above a fence adds no line',
+		name: 'L9 a paste into the empty paragraph above a fence gives the fence its blank line back',
 		source: '    code\n\n⟦⟧\n```\n```\n\n    code\n',
 		gesture: paste('x'),
-		expect: { source: '    code\n\nx\n```\n```\n\n    code\n' }
+		expect: { source: '    code\n\nx\n\n```\n```\n\n    code\n' }
 	},
 	{
 		name: 'L9 a heading pasted mid-paragraph stays a heading',

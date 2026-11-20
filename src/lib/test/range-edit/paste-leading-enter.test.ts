@@ -69,9 +69,6 @@ for (const mode of ['source', 'live'] as const)
 			['\n', 1],
 			['\n\n', 2]
 		] as const) {
-			// Two Enters at an item's end leave the list; the text there then keeps no blank line from the
-			// list under it (flag 7's ruling), where typed it does: spelled below.
-			if (name === 'an item’s text end' && enters === 2) continue;
 			it(`${mode}: ${JSON.stringify(lead + 'x')} at ${name} is Enter there, then the text`, async () => {
 				expect(await put(marked, mode, `${lead}x`)).toBe(await put(marked, mode, 'x', enters));
 			});
@@ -81,8 +78,7 @@ for (const mode of ['source', 'live'] as const)
 const SPELLED: [string, string, string, string][] = [
 	['a heading item’s text start', '- # ‸Title\n- After\n', '\nx', '- \n- # xTitle\n- After\n'],
 	['a setext line', '- # ‸Title\n- After\n', '\n===', '- \n- # ===Title\n- After\n'],
-	['a quote the item holds', '- > ‸alpha\n- b\n', '\nx', '- > \n  > xalpha\n- b\n'],
-	['two endings at an item’s end', '- alpha‸\n- b\n', '\n\nx', '- alpha\n\nx\n- b\n']
+	['a quote the item holds', '- > ‸alpha\n- b\n', '\nx', '- > \n  > xalpha\n- b\n']
 ];
 
 for (const mode of ['source', 'live'] as const)

@@ -76,7 +76,7 @@ const PASTED: [string, string, string][] = [
 	['two lines', 'two\nlines', '> a\n>\n> two\n> lines\n>\n> b\n'],
 	['a quote', '> X', '> a\n>\n> X\n>\n> b\n'],
 	['a quote of two paragraphs', '> X\n>\n> Y', '> a\n>\n> X\n>\n> Y\n>\n> b\n'],
-	['a quote holding a fence', '> ```\n> code\n> ```', '> a\n>\n> ```\n> code\n> ```\n> b\n']
+	['a quote holding a fence', '> ```\n> code\n> ```', '> a\n>\n> ```\n> code\n> ```\n>\n> b\n']
 ];
 
 for (const mode of ['source', 'live'] as const)

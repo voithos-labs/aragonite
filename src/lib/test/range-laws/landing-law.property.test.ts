@@ -221,6 +221,15 @@ const nonBlank = (bytes: string) =>
 		.filter((line) => line.replace(/[>\s]/g, '') !== '')
 		.join('\n');
 
+/** `bytes` with no spaces ending a line: a separator a paste writes back keeps its container's
+ *  markers without them, where a typed letter may keep them (`> `, an item's indent). */
+const unspaced = (bytes: string) => bytes.replace(/[ \t]+$/gm, '');
+
+/** Booked, not ruled: where a range empties a callout's first line, the typed key opens its
+ *  paragraph under a blank line below the opening row, and a paste doesn't. */
+const underOpeningRow = (d: Draw) =>
+	d.wrap === 'a callout' && d.above === 'first in its container' && !(d.end in RESTS);
+
 type Block = { raw: string; children?: readonly Block[] };
 
 /** The text of the leaf holding what a gesture wrote. */
@@ -390,12 +399,9 @@ describe('the landing law', () => {
 				const typed = await land(text, d.mode, 'a typed key');
 				const composed = await land(text, d.mode, 'a composition');
 				expect(composed.bytes, JSON.stringify(text)).toBe(typed.bytes);
-				// A paste on the only empty row over a block adds no blank line under it, where a typed
-				// letter adds one back, so the paste is held to the typed key's blocks.
 				const pasted = await land(text, d.mode, 'a one-line paste');
-				expect(nonBlank(pasted.bytes), `a paste over ${JSON.stringify(text)}`).toBe(
-					nonBlank(typed.bytes)
-				);
+				const seen = underOpeningRow(d) ? nonBlank : unspaced;
+				expect(seen(pasted.bytes), `a paste over ${JSON.stringify(text)}`).toBe(seen(typed.bytes));
 			}),
 			params()
 		);

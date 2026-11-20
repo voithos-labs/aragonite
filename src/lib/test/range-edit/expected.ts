@@ -605,9 +605,9 @@ export function expectedPaste(
 	const container = !!last?.children?.length && want.shape !== 'absorbed';
 	const apart = (bytes: string) => apartBelow(read, at, bytes, host, container);
 	const joined = (bytes: string) => joinedLists(read, at, bytes, readOf(host, lf(text)), host);
-	const row = (bytes: string) => rowKeptBelow(read, at, bytes, lf(text), host);
+	const back = (bytes: string) => separatorBack(read, at, bytes, lf(text), host);
 	const spaced = (bytes: string) => markerSpacedAt(read, at, bytes, host);
-	return { ...want, bytes: want.bytes.flatMap(apart).map(joined).map(spaced).map(row).map(ended) };
+	return { ...want, bytes: want.bytes.flatMap(apart).map(joined).map(spaced).map(back).map(ended) };
 
 	/** `bytes` with the line ending the document's last line had, which a paste keeps. */
 	function ended(bytes: string): string {
@@ -863,29 +863,33 @@ function markerSpacedAt(read: Read, at: number, bytes: string, host: CheckHost) 
 	return bytes.slice(0, target.from) + spelled.slice(head.length) + bytes.slice(target.from);
 }
 
-/** `bytes`, a paste of `clip` into an empty paragraph with an empty row flush under it, with a blank
- *  line over that row where the paste gave the paragraph's line text: the row stays a row. */
-function rowKeptBelow(read: Read, at: number, bytes: string, clip: string, host: CheckHost) {
+/** `bytes`, a paste of `clip` into an empty paragraph with a block flush under it, with a blank line
+ *  over that block where the paste gave the paragraph's line text: the empty line was its separator. */
+function separatorBack(read: Read, at: number, bytes: string, clip: string, host: CheckHost) {
 	const target = leafAt(read, at);
 	const blank = (b: LaidBlock | null | undefined) =>
 		b?.type === 'paragraph' && treeNodeAt(read.tree, b.path)!.raw.trim() === '';
 	const empty = target && /^\r?\n?$/.test(treeNodeAt(read.tree, target.path)!.raw);
 	if (!target || !empty || !blank(target) || inTitleRow(read, at, host)) return bytes;
 	const next = [...target.path.slice(0, -1), target.path.at(-1)! + 1].join();
-	const row = read.blocks.find((b) => b.path.join() === next);
-	if (!blank(row) || lineStartOf(read.source, row!.from) !== target.to) return bytes;
+	const below = read.blocks.find((b) => b.path.join() === next);
+	if (!below || lineStartOf(read.source, below.from) !== target.to) return bytes;
 	const own = (source: string) =>
 		(source + '\n').slice(target.from, (source + '\n').indexOf('\n', target.from));
 	if (own(bytes).trim() === '') return bytes;
-	const last = readOf(host, clip)
-		.blocks.filter((b) => b.path.length === 1 && clip.slice(b.from, b.to).trim() !== '')
+	const pasted = readOf(host, clip);
+	const last = pasted.blocks
+		.filter((b) => b.path.length === 1 && clip.slice(b.from, b.to).trim() !== '')
 		.at(-1);
-	// An open fence takes the row into its body; a last line ending after text opens the caret's line.
+	// An open fence takes the block into its body; a list of its type takes the pasted list in.
 	const fence = last && clip.slice(last.from);
 	if (fence && fenceRun(fence) && !closesItsFence(fence)) return bytes;
+	if (listsJoined(read, at, pasted, host)?.below) return bytes;
 	const line = target.to + bytes.length - read.source.length;
 	const above = bytes.slice(lineStartOf(bytes, line - 1), line);
-	const opened = clip.endsWith('\n') && (!last || host.facts(last.type).joins === 'text');
+	// Over an empty row the line a last line ending opens after text is a row of its own.
+	const textEnds = clip.endsWith('\n') && (!last || host.facts(last.type).joins === 'text');
+	const opened = blank(below) && textEnds;
 	if (/^[ \t>]*\r?\n$/.test(above) && !opened) return bytes;
 	const marks = continuationAt(read, at, host);
 	return (
@@ -902,8 +906,8 @@ export function spacesOverCode(read: Read, block: LaidBlock, host: CheckHost): b
 	return !!next && host.facts(next.type).body === 'literal' && host.facts(next.type).holdsLines;
 }
 
-/** `bytes`, or `bytes` with a blank line over the block flush under an empty paragraph the paste
- *  landed in: required where only that keeps the block starting its line. */
+/** `bytes`, or `bytes` with a blank line over the code flush under a paragraph of only spaces the
+ *  paste landed in: required where only that keeps the code starting its line. */
 export function apartBelow(
 	read: Read,
 	at: number,
@@ -912,8 +916,6 @@ export function apartBelow(
 	pastedContainer = false
 ): string[] {
 	const target = leafAt(read, at);
-	const raw = target ? (treeNodeAt(read.tree, target.path)?.raw ?? '-') : '-';
-	const empty = /^\r?\n?$/.test(raw);
 	if (target?.type !== 'paragraph' || inTitleRow(read, at, host)) return [bytes];
 	// A pasted container that stands as a block of its own is set apart from nothing.
 	if (pastedContainer) return [bytes];
@@ -923,7 +925,7 @@ export function apartBelow(
 	const textStart = target.to + /^[ \t>]*/.exec(lineBelow)![0].length;
 	const sibling = [...target.path.slice(0, -1), target.path.at(-1)! + 1].join();
 	const next = read.blocks.find((b) => b.path.join() === sibling && b.from <= textStart);
-	if (!next || !(empty || spacesOverCode(read, target, host))) return [bytes];
+	if (!next || !spacesOverCode(read, target, host)) return [bytes];
 	const shift = bytes.length - read.source.length;
 	const line = target.to + shift;
 	const marks = read.source.slice(target.to, next.from).trimEnd() + endingOf(read.source);
@@ -1579,11 +1581,11 @@ export function plainPasteHolds(
 	const below = got.length - (read.source.length - (leafAt(read, at)?.to ?? at));
 	const blank = /(?:^|\n)([ \t>]*\r?\n)$/.exec(got.slice(0, below))?.[1];
 	const bare = blank ? got.slice(0, below - blank.length) + got.slice(below) : got;
-	return (
-		bare !== got &&
-		insertedOnly(read, at, text, bare, host, mode) &&
-		apartBelow(read, at, bare, host).includes(got)
-	);
+	const apart = [
+		...apartBelow(read, at, bare, host),
+		separatorBack(read, at, bare, lf(text), host)
+	];
+	return bare !== got && insertedOnly(read, at, text, bare, host, mode) && apart.includes(got);
 }
 
 function insertedOnly(

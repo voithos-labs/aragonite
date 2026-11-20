@@ -455,7 +455,9 @@ function bytesLanded(
 	const landing = empty ? markerSpaced(doc, leaf, written) : written;
 	const lower = doc.layout.block([...leaf.path.slice(0, -1), leaf.path.at(-1)! + 1]);
 	const flush = lower && lower.from <= pastMarkers(doc.source, leaf.to) ? lower : undefined;
-	const joined = read && !plain && flush ? joinedBelow(doc, flush, landing, read) : landing;
+	const last = read && !plain && flush ? landingBlocks(doc, flush.from, read).at(-1) : undefined;
+	const joinsBelow = joinsList(doc, flush, last);
+	const joined = joinsBelow ? joinedBelow(doc, flush!, landing) : landing;
 	// What lands on an empty line stays apart from the block under it, where the two would read as one.
 	const setApart = (edit: Edit): Edit => {
 		const raw = flush ? lastPasted(doc, leaf, read?.source ?? lf, plain) : null;
@@ -475,10 +477,13 @@ function bytesLanded(
 	if (titleOwner(doc, leaf) || factsOf(doc, leaf).joins !== 'text') return landing;
 	const edit = read && !plain ? joinedAbove(doc, leaf, joined, read) : landing;
 	const below = leaf.to + edit.source.length - doc.source.length;
-	const row = flush && !pasted.inPlace && isBlankText(nodeAt(doc, flush.path).raw);
-	if (row && !(read && endsOpen(read)))
-		return rowKept(doc, leaf, edit, below, plain || !read || endsOnText(read));
-	return setApart(edit);
+	// The empty line was the separator of the block under it, which gets one back unless it takes
+	// what was pasted in as items or an open fence takes it in.
+	if (!flush || pasted.inPlace || joinsBelow || (read && endsOpen(read))) return setApart(edit);
+	// Over an empty row the empty line a last line ending opens after text is a row of its own;
+	// over any other block it stands for the separator.
+	const opens = isBlankText(nodeAt(doc, flush.path).raw) && (plain || !read || endsOnText(read));
+	return separatorKept(doc, leaf, edit, below, opens);
 }
 
 /** `edit`, a paste into the empty paragraph `leaf`: a bare marker in front of text it put on the
@@ -493,14 +498,13 @@ function markerSpaced(doc: Doc, leaf: LaidBlock, edit: Edit): Edit {
 	return { source, caret: edit.caret < leaf.from ? edit.caret : edit.caret + grown };
 }
 
-/** `edit`, text pasted into the empty paragraph `leaf` over another empty row, whose line starts at
- *  `below`: the row keeps the blank line `leaf` was to it, as typed text does (`syntax-tree.md`). */
-function rowKept(doc: Doc, leaf: LaidBlock, edit: Edit, below: number, onText: boolean): Edit {
+/** `edit` with the blank line `leaf`, the empty paragraph a paste filled, was to the block whose
+ *  line starts at `below` (`syntax-tree.md`); `opens`: the caret's empty line is a row of its own. */
+function separatorKept(doc: Doc, leaf: LaidBlock, edit: Edit, below: number, opens: boolean) {
 	if (isBlankText(lineRest(edit.source, leaf.from))) return edit;
-	// A blank line the paste left over the row parts them already, save the empty line a last line
-	// ending after text opened for the caret, which is a block of its own.
+	// A blank line the paste left over the block parts them already.
 	const above = edit.source.lastIndexOf('\n', below - 2) + 1;
-	const opened = onText && edit.caret >= above && edit.caret < below;
+	const opened = opens && edit.caret >= above && edit.caret < below;
 	if (!opened && /^[ \t>]*\r?$/.test(lineHead(edit.source, below - 1))) return edit;
 	const marks = continuation(doc, leaf.from);
 	const line = (marks.trimEnd() || marks) + doc.ending;
@@ -625,11 +629,9 @@ function linesWritten(edit: Edit, start: number, raw: string, written: string): 
 	return { ...edit, source: parts.join(''), caret };
 }
 
-/** `edit` with the list `pasted` ends on joined, as items, to `lower`, a list of its own type flush
+/** `edit` with the list a paste ends on joined, as items, to `lower`, a list of its own type flush
  *  under the caret's line: the empty line between the two goes. */
-function joinedBelow(doc: Doc, lower: LaidBlock, edit: Edit, pasted: Doc): Edit {
-	const last = landingBlocks(doc, lower.from, pasted).at(-1);
-	if (!joinsList(doc, lower, last)) return edit;
+function joinedBelow(doc: Doc, lower: LaidBlock, edit: Edit): Edit {
 	const { source } = edit;
 	const line = lineStart(doc, lower.from) + source.length - doc.source.length;
 	const above = source.lastIndexOf('\n', line - 2) + 1;

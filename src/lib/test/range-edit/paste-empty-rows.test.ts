@@ -1,10 +1,12 @@
 // @vitest-environment jsdom
-// A paste that fills an empty line keeps every other empty row of the document, as a typed letter
-// there does: the empty line was the separator of the row under it too, so that row gets one of
-// its own. One, two and three rows, at the top level, in an item, a quote and a callout, CRLF;
-// text, plain text, blocks, line endings. After each, the tree equals a fresh read of the bytes.
+// A paste that fills an empty line gives the block under it back its separator, as a typed letter
+// there does: the empty line was that block's separator, a row or any other block. One, two and
+// three rows, the only row over a heading, a quote, a list or a fence, the line a range keeps; at
+// the top level, in an item, a quote and a callout, CRLF; text by every paste route, blocks, line
+// endings. After each, the tree equals a fresh read of the bytes.
 // Miss-analysis: the rows filled an empty line with one row under it or none, where the pasted
-// block's own blank line is the follower's separator, so none asked what a second row becomes.
+// block's own blank line is the follower's separator, so none asked what a second row becomes;
+// and the one only row they pasted on lay over a paragraph, which takes the blank line anyway.
 import { afterEach, beforeAll, beforeEach, expect, it } from 'vitest';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
@@ -22,7 +24,13 @@ import { insertBy, pressHardwareKey } from '#lib/test/harness/insertion-routes.j
 import { describeConvergence } from '#lib/test/harness/parse-converged.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { editRange } from '#lib/range-edit/edit-range.js';
-import { mountCase, pasteGesture, pastePlainGesture, placeRange } from '../range-laws/gestures';
+import {
+	mountCase,
+	pasteGesture,
+	pastePlainGesture,
+	placeRange,
+	shiftPaste
+} from '../range-laws/gestures';
 import { checkHost } from './test-host';
 
 beforeAll(installLayoutStubs);
@@ -36,10 +44,11 @@ afterEach(async () => {
 	takeDevWarns();
 });
 
-type Gesture = 'paste' | 'plain' | 'type';
+/** A paste by the key, the menu's plain row, Ctrl+Shift+V or `insertMarkdown`, or a typed key. */
+type Gesture = 'paste' | 'plain' | 'shift' | 'markdown' | 'type';
 
-/** `text` put in at `‸` by `gesture`, then `enters` presses of Enter: the bytes, then the bytes once
- *  `Z` is typed, with no dev check and a tree a fresh read of its bytes gives. */
+/** `text` put in at `‸`, or over `⟦⟧`, by `gesture`, then `enters` presses of Enter: the bytes, then
+ *  the bytes once `Z` is typed, with no dev check and a tree a fresh read of its bytes gives. */
 async function filled(
 	marked: string,
 	mode: PresentationMode,
@@ -47,13 +56,19 @@ async function filled(
 	text: string,
 	enters = 0
 ) {
-	const editor = mountCase(marked.replace('‸', ''), mode);
+	const editor = mountCase(marked.replace(/[‸⟦⟧]/g, ''), mode);
 	await editor.settle();
-	const at = pointAtByte(measured(editor.instance.__test.getDocument()), marked.indexOf('‸'))!;
-	expect(await placeRange(editor, { anchor: at, focus: at })).toBe(true);
+	const from = marked.search(/[‸⟦]/);
+	const to = marked.includes('⟧') ? marked.indexOf('⟧') - 1 : from;
+	const doc = measured(editor.instance.__test.getDocument());
+	const [anchor, focus] = [pointAtByte(doc, from)!, pointAtByte(doc, to)!];
+	expect(await placeRange(editor, { anchor, focus })).toBe(true);
 	const focused = () => document.activeElement as HTMLElement;
 	if (gesture === 'paste') await pasteGesture(editor, { 'text/plain': text }, 'key');
+	else if (gesture === 'markdown')
+		await pasteGesture(editor, { 'text/plain': text }, 'insertMarkdown');
 	else if (gesture === 'plain') await pastePlainGesture(editor, text);
+	else if (gesture === 'shift') await shiftPaste(editor, text);
 	else await insertBy('hardware key', focused(), text);
 	await editor.settle();
 	for (let i = 0; i < enters; i++) {
@@ -80,21 +95,36 @@ const HOSTS: [string, string][] = [
 	['two empty rows in an item', '- a\n\n  ‸\n\n  b\n'],
 	['two empty rows in a callout', ':::note\na\n\n‸\n\nb\n:::\n'],
 	['two empty rows in a CRLF document', 'a\r\n\r\n‸\r\n\r\nb\r\n'],
-	['two empty rows in a quote', '> a\n>\n>‸\n>\n> b\n'],
-	['the only empty row, over a paragraph', 'a\n\n‸\nb\n']
+	['two empty rows in a quote', '> a\n>\n>‸\n>\n> b\n']
+];
+
+// The only empty row over a block, and the line a range keeps after a blank line (the range took
+// the blank line under it): a block of any kind gets its separator back.
+const ONLY_ROW: [string, string][] = [
+	['the only empty row, over a paragraph', 'a\n\n‸\nb\n'],
+	['the only empty row, over a heading', 'a\n\n‸\n# b\n'],
+	['the only empty row, over a quote', 'a\n\n‸\n> b\n'],
+	['the only empty row, over a list', 'a\n\n‸\n- b\n'],
+	['the only empty row, over a fence', 'a\n\n‸\n```\nc\n```\n'],
+	['the only empty row in a quote, over a heading', '> a\n>\n>‸\n> # b\n'],
+	['the line a range keeps, before a heading', 'first\n\n⟦zero\n\npara⟧\n\n# next\n'],
+	['the line a range keeps, before a fence', 'first\n\n⟦zero\n\npara⟧\n\n```\nc\n```\n'],
+	['the line a range keeps, before a list', 'first\n\n⟦zero\n\npara⟧\n\n- x\n'],
+	['the line a range from a rule keeps', 'first\n\n⟦***\n\npara⟧\n\n# next\n'],
+	['a range inside one paragraph, before a heading', 'first\n\n⟦para⟧\n\n# next\n']
 ];
 
 for (const mode of ['source', 'live'] as const)
-	for (const [name, marked] of HOSTS)
-		for (const gesture of ['paste', 'plain'] as const)
-			it(`${mode}: text by ${gesture} on ${name} keeps the rows a typed letter keeps`, async () => {
+	for (const [name, marked] of [...HOSTS, ...ONLY_ROW])
+		for (const gesture of ['paste', 'plain', 'shift', 'markdown'] as const)
+			it(`${mode}: text by ${gesture} on ${name} writes what a typed letter writes`, async () => {
 				const typed = await filled(marked, mode, 'type', 'X');
 				expect(await filled(marked, mode, gesture, 'X')).toEqual(typed);
 			});
 
 // A last line ending at the text's end is Enter there (ruling 79).
 for (const mode of ['source', 'live'] as const)
-	for (const [name, marked] of HOSTS.slice(0, -1))
+	for (const [name, marked] of HOSTS)
 		it(`${mode}: text and its line ending on ${name} is the text, then Enter`, async () => {
 			const entered = await filled(marked, mode, 'paste', 'X', 1);
 			expect(await filled(marked, mode, 'paste', 'X\n')).toEqual(entered);
@@ -112,7 +142,20 @@ const BLOCKS: [string, string, string, string][] = [
 	['a heading', 'a\n\n‸\n\n\nb\n', '# h', 'a\n\n# h\n\n\n\nb\n'],
 	['a list', 'a\n\n‸\n\nb\n', '- l', 'a\n\n- l\n\n\nb\n'],
 	['a quote in an item', '- a\n\n  ‸\n\n  b\n', '> q', '- a\n\n  > q\n  \n\n  b\n'],
-	['a list that joins the one under it', 'a\n\n‸\n- b\n', '- l', 'a\n\n- l\n- b\n']
+	['a list that joins the one under it', 'a\n\n‸\n- b\n', '- l', 'a\n\n- l\n- b\n'],
+	['two paragraphs', 'a\n\n‸\n# b\n', 'x\n\ny', 'a\n\nx\n\ny\n\n# b\n'],
+	[
+		'two paragraphs',
+		'first\n\n⟦zero\n\npara⟧\n\n# next\n',
+		'x\n\ny',
+		'first\n\nx\n\ny\n\n# next\n'
+	],
+	['a heading', 'a\n\n‸\n# b\n', '# h', 'a\n\n# h\n\n# b\n'],
+	['a quote', 'a\n\n‸\n# b\n', '> q', 'a\n\n> q\n\n# b\n'],
+	['a list', 'a\n\n‸\n# b\n', '- l', 'a\n\n- l\n\n# b\n'],
+	['a fence', 'a\n\n‸\n# b\n', '```\nc\n```', 'a\n\n```\nc\n```\n\n# b\n'],
+	// Over a block that is no row, the empty line the ending opens stands for its separator.
+	['text and its line ending', 'a\n\n‸\n# b\n', 'X\n', 'a\n\nX\n\n# b\n']
 ];
 
 for (const mode of ['source', 'live'] as const)
