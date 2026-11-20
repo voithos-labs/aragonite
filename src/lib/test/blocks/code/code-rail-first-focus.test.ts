@@ -18,9 +18,10 @@ afterEach(async () => {
 	document.body.innerHTML = '';
 });
 
-async function focusFence(arrival: 'step' | 'seat'): Promise<void> {
+async function focusFence(arrival: 'step' | 'seat' | 'removal'): Promise<void> {
 	const caretMemory = createCaretMemory();
 	if (arrival === 'step') caretMemory.noteKey({ key: 'ArrowRight' }, null);
+	if (arrival === 'removal') caretMemory.noteRemovalLanding();
 	mounted = mountCode(BARE_FENCE, {
 		mode: () => 'live',
 		services: { caretMemory }
@@ -77,17 +78,21 @@ describe('a bare fence taking the caret', () => {
 		expect(picker()).not.toBeNull();
 	});
 
-	it('completes but keeps the caret when the caret stepped in from a neighbour', async () => {
-		await focusFence('step');
+	// A step from a neighbour passes through; a removal's landing is an edit, not someone authoring.
+	it.each(['step', 'removal'] as const)(
+		'completes but keeps the caret when the caret arrived by a %s',
+		async (arrival) => {
+			await focusFence(arrival);
 
-		expect(completions()).toHaveBeenCalledWith(
-			0,
-			'```\n\n```\n',
-			'authored',
-			'join-typing',
-			expect.anything(),
-			4
-		);
-		expect(picker()).toBeNull();
-	});
+			expect(completions()).toHaveBeenCalledWith(
+				0,
+				'```\n\n```\n',
+				'authored',
+				'join-typing',
+				expect.anything(),
+				4
+			);
+			expect(picker()).toBeNull();
+		}
+	);
 });

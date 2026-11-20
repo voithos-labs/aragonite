@@ -58,7 +58,7 @@ const ROWS: [string, string, string, string][] = [
 	['a list, the quote’s last line', '> a\n>\n>‸\n', '> - l', '> a\n>\n> - lZ\n'],
 	['two items', '> a\n>\n>‸\n> b\n', '> - l\n> - m', '> a\n>\n> - l\n> - mZ\n>\n> b\n'],
 	['an ordered list', '> a\n>\n>‸\n> b\n', '> 1. l', '> a\n>\n> 1. lZ\n>\n> b\n'],
-	['a heading', '> a\n>\n>‸\n> b\n', '> # h', '> a\n>\n> # hZ\n> b\n'],
+	['a heading', '> a\n>\n>‸\n> b\n', '> # h', '> a\n>\n> # hZ\n>\n> b\n'],
 	['a nested quote', '> a\n>\n> ‸\n> b\n', '> > q', '> a\n>\n> > qZ\n>\n> b\n'],
 	['a list, a quote in a quote', '> > a\n> >\n> >‸\n', '> > - l', '> > a\n> >\n> > - lZ\n'],
 	['a list, a quote in an item', '- > a\n  >\n  >‸\n', '> - l', '- > a\n  >\n  > - lZ\n'],

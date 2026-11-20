@@ -6,6 +6,7 @@
 // the insert is done here, replacing the DOM selection as a browser does.
 
 import { settleEditor } from './settle';
+import { microtaskCheckpoint } from './microtask-settle';
 import { surfaceAt, type MountedEditor } from './mount-editor.svelte';
 import { cellAt } from '../blocks/table/mount-table';
 
@@ -171,7 +172,7 @@ async function inputEvent(el: HTMLElement, inputType: string, data: string): Pro
  *  the rest to whatever holds focus by then, which a range's removal may have moved. */
 async function compose(el: HTMLElement, text: string): Promise<void> {
 	el.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
-	await settleEditor();
+	await microtaskCheckpoint();
 	const at = document.activeElement instanceof HTMLElement ? document.activeElement : el;
 	insertAtCaret(text);
 	at.dispatchEvent(

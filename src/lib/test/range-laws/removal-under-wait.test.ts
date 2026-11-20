@@ -200,7 +200,11 @@ describe('a key over the range is the removal, then the key', () => {
 		expect(await placeOwnedRange(stepwise, row.take)).toBe(true);
 		await press(stepwise, 'Backspace');
 		await press(stepwise, gesture);
-		const want = reads(stepwise);
+		// A definition takes no caret, so Enter, with no block before it, opens a line where the range
+		// began and stays on it, where Backspace then Enter splits the paragraph below.
+		const start = row.take.anchor;
+		const opened = gesture === 'Enter' ? { caret: { anchor: start, focus: start } } : {};
+		const want = { ...reads(stepwise), ...opened };
 		await destroyMountedEditors();
 
 		const editor = await over(row, mode, gesture);

@@ -19,10 +19,10 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 		page
 	}) => {
 		await editor.loadContent(
-			'| h1 | h2 | h3 |\n| --- | --- | --- |\n| aaa | bbb | ccc |\n| ddd | eee | fff |\n\nAfter.\n'
+			'| h1 | h2 | h3 |\n| --- | --- | --- |\n| aaa | bbb | ccc |\n| ddd | eee | fff |\n\n# After.\n'
 		);
-		// Drag from body cell "bbb" (mid-row, mid-col) out to the paragraph below so
-		// the table is the start endpoint of the cross-block range.
+		// Drag from body cell "bbb" (mid-row, mid-col) out to the heading below so the table is
+		// the start endpoint; a paragraph there would keep its emptied line, which takes the key.
 		const from = page.locator('.table-cell').nth(4);
 		const to = page.getByText('After.');
 		const fromBox = await from.boundingBox();

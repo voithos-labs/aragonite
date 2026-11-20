@@ -69,6 +69,8 @@ export interface SourceSplice {
 	snapshot: CommitSnapshotArg;
 	history?: UndoGrouping;
 	reveal?: RevealPolicy;
+	/** The splice removes, so its caret lands as a removal's: no block takes it as someone writing. */
+	removal?: true;
 }
 
 /** A commit's caret kept by `holdLandings` instead of put down; `place` puts it down, unless an
@@ -344,6 +346,9 @@ export interface CommitController {
 	/** Make every write made while `run` is pending one undo entry, restoring the selection the step
 	 *  opened with (`seed` when unfocused). Ends when `run` settles or at the author's next input. */
 	undoStep(seed: CommitSnapshotArg, run: () => Promise<unknown>): Promise<void>;
+	/** `undoStep` restoring a caret at `at` whatever the selection, for a gesture that knows where its
+	 *  edit began: text over a range inside one block undoes to the range's start. */
+	undoStepFrom(at: CommitSnapshotArg, run: () => Promise<unknown>): Promise<void>;
 	/** Called on the author's own input: every later write opens its own entry, even while a
 	 *  step's run is still pending. */
 	endUndoStep(): void;
@@ -389,6 +394,9 @@ export interface ContainerEditActions {
 		gesture: RemovalGesture,
 		commit: Pick<SourceSplice, 'op' | 'snapshot'>
 	): Promise<boolean>;
+	/** Where Backspace at the start of the block at `path` (`dir` -1), or Delete at its end (1),
+	 *  lands when it joins nothing, as the range-edit core places a removal's caret there. */
+	beside(path: DocPath, dir: -1 | 1): Landing | GapCaretSelection | null;
 	/** Report a write refused before its commit to the editor's `error` event. */
 	reportCommitError(error: unknown, op: OperationKind, path: DocPath): void;
 }

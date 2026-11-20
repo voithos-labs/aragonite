@@ -29,7 +29,7 @@ test.beforeEach(({ page }) => {
 });
 
 for (const mode of ['live', 'source'] as const) {
-	test(`(${mode}) Backspace out of an open details keeps its closing line above the heading after it`, async ({
+	test(`(${mode}) Backspace out of an open details keeps the emptied line and its closing line above the heading after it`, async ({
 		page
 	}) => {
 		await open(
@@ -40,7 +40,7 @@ for (const mode of ['live', 'source'] as const) {
 
 		await page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceEquals(
-			'<details open>\n<summary>Sum</summary>\n\n</details>\n\n# h\n'
+			'<details open>\n<summary>Sum</summary>\n\n\n</details>\n\n# h\n'
 		);
 	});
 
@@ -64,6 +64,18 @@ for (const mode of ['live', 'source'] as const) {
 		await editor.bridge.waitForSourceEquals(':::note\n:::\n\n:::tip\nner\nmore\n:::\n\n# h\n');
 		await page.keyboard.type('x');
 		await editor.bridge.waitForSourceEquals(':::note\n:::\n\n:::tip\nxner\nmore\n:::\n\n# h\n');
+	});
+
+	test(`(${mode}) Delete from a table under a paragraph into a tip's body leaves one blank line and types at the tip's text`, async ({
+		page
+	}) => {
+		await open(mode, `lead\n\n${TABLE}\n\nbody\n\n:::tip\ninner\nmore\n:::\n\n# h\n`);
+		await selectFromFirstCell([1, 0, 0], [3, 1], 2);
+
+		await page.keyboard.press('Delete');
+		await editor.bridge.waitForSourceEquals('lead\n\n:::tip\nner\nmore\n:::\n\n# h\n');
+		await page.keyboard.type('x');
+		await editor.bridge.waitForSourceEquals('lead\n\n:::tip\nxner\nmore\n:::\n\n# h\n');
 	});
 
 	test(`(${mode}) Delete to a code line's end in a quote keeps one marker on the line after`, async ({
@@ -90,7 +102,7 @@ for (const mode of ['live', 'source'] as const) {
 		await editor.bridge.waitForSourceEquals('::::note\n:::tip\n\n\nxner\nmore\n:::\n::::\n');
 	});
 
-	test(`(${mode}) Shift+Enter into a tip's title opens a line above the tip, as Enter does`, async ({
+	test(`(${mode}) Shift+Enter into a tip's title opens a line above the tip and breaks it`, async ({
 		page
 	}) => {
 		await open(mode, `${TABLE}\n\nbody\n\n:::tip Title\nbody\n:::\n`);
@@ -99,7 +111,7 @@ for (const mode of ['live', 'source'] as const) {
 		await page.keyboard.press('Shift+Enter');
 		await editor.bridge.waitForSourceEquals('\n:::tip tle\nbody\n:::\n');
 		await page.keyboard.type('x');
-		await editor.bridge.waitForSourceEquals('x\n\n:::tip tle\nbody\n:::\n');
+		await editor.bridge.waitForSourceEquals('\\\nx\n\n:::tip tle\nbody\n:::\n');
 	});
 
 	test(`(${mode}) a composition out of an open details to a table row's end lands as a typed key`, async ({
@@ -122,5 +134,25 @@ for (const mode of ['live', 'source'] as const) {
 		});
 		expect(composed).toBe(typed);
 		expect(composed).toContain('\n| 3 | 4 |');
+	});
+
+	test(`(${mode}) a composition out of a note from a rule opens its paragraph in the note, one undo step`, async ({
+		page
+	}) => {
+		test.skip(!isChromium(page), 'only Chromium drives a real IME, over CDP');
+		const source = ':::note\nabove\n\n***\n\nbody\n:::\n\npara\n';
+		const select = { anchor: { path: [0, 2], offset: 0 }, focus: { path: [1], offset: 4 } };
+		await open(mode, source);
+		await editor.focusBlockAtPath([0, 1], 0);
+		await editor.bridge.setSelection(select);
+		await editor.waitForCrossBlock(true);
+		const ime = await attachIme(page);
+		await ime.compose('Q');
+		await ime.commit('Q');
+		await editor.bridge.waitForSourceEquals(':::note\nabove\n\nQ\n:::\n');
+
+		await editor.undo();
+		await editor.bridge.waitForSourceEquals(source);
+		expect(await editor.bridge.getSelection()).toEqual(select);
 	});
 }

@@ -91,6 +91,85 @@ for (const mode of ['live', 'source'] as const)
 		}
 	});
 
+interface KeyedRow {
+	name: string;
+	doc: string;
+	/** A divider taken whole, and the end of the fence body after it. */
+	from: { path: number[]; offset: number };
+	to: { path: number[]; offset: number };
+	elsewhere: number[];
+	/** The source after each key and `q`. */
+	after: Partial<Record<'Delete' | 'Backspace' | 'Enter' | 'Shift+Enter', string>>;
+}
+
+// The fence the range empties takes the divider's slot, so it mounts fresh. Live mode only, since
+// source mode has no picker.
+const FROM_A_RULE: KeyedRow[] = [
+	{
+		name: 'nothing above',
+		doc: '***\n\n```\ncode\n```\n\nafter\n',
+		from: { path: [0], offset: 0 },
+		to: { path: [1], offset: 8 },
+		elsewhere: [2],
+		after: {
+			Delete: '```\nq\n```\n\nafter\n',
+			Backspace: '```\nq\n```\n\nafter\n',
+			Enter: '```\n\nq\n```\n\nafter\n',
+			'Shift+Enter': '```\n\nq\n```\n\nafter\n'
+		}
+	},
+	{
+		name: 'a heading right above',
+		doc: '# top\n***\n\n```\ncode\n```\n\nafter\n',
+		from: { path: [1], offset: 0 },
+		to: { path: [2], offset: 8 },
+		elsewhere: [3],
+		after: {
+			Delete: '# top\n\n```\nq\n```\n\nafter\n',
+			Enter: '# top\n\n```\n\nq\n```\n\nafter\n',
+			'Shift+Enter': '# top\n\n```\n\nq\n```\n\nafter\n'
+		}
+	},
+	{
+		name: "under a note's opening row",
+		doc: ':::note\n***\n\n```\ncode\n```\n:::\n\nafter\n',
+		from: { path: [0, 1], offset: 0 },
+		to: { path: [0, 2], offset: 8 },
+		elsewhere: [1],
+		after: {
+			Delete: ':::note\n```\nq\n```\n:::\n\nafter\n',
+			Enter: ':::note\n```\n\nq\n```\n:::\n\nafter\n',
+			'Shift+Enter': ':::note\n```\n\nq\n```\n:::\n\nafter\n'
+		}
+	},
+	{
+		name: 'a paragraph above, under a blank line',
+		doc: 'first\n\n***\n\nbody\n\n```\ncode\n```\n\nafter\n',
+		from: { path: [1], offset: 0 },
+		to: { path: [3], offset: 8 },
+		elsewhere: [4],
+		after: {
+			Delete: 'first\n\n```\nq\n```\n\nafter\n',
+			Enter: 'first\n\n```\n\nq\n```\n\nafter\n',
+			'Shift+Enter': 'first\n\n```\n\nq\n```\n\nafter\n'
+		}
+	}
+];
+
+test.describe('a range from a divider that empties a fence, live', () => {
+	for (const row of FROM_A_RULE)
+		for (const [key, after] of Object.entries(row.after))
+			test(`${row.name}, ${key}`, async ({ page }) => {
+				const editor = await load(page, 'live', row.doc);
+				await editor.focusBlockAtPath(row.elsewhere, 0);
+				await editor.bridge.setSelection({ anchor: row.from, focus: row.to });
+				await page.keyboard.press(key);
+				await page.keyboard.type('q');
+				await editor.bridge.waitForSourceEquals(after);
+				await expect(picker(page)).toHaveCount(0);
+			});
+});
+
 // Typing a fence's opener is authoring it: live mode opens the picker on the new fence, and the
 // letters after a language and Enter land in the body.
 test.describe('typing a fence opener, live', () => {

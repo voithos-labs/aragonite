@@ -113,19 +113,20 @@ describeManifests(
 			misses: ['const affinity = edgeAffinityOf(kind);']
 		},
 		{
-			id: 'G4.150 only the code block’s language picker asks whether a key moved the caret',
-			matches: /\barrivedByKey\b/,
+			id: 'G4.150 only the code block’s language picker asks how the caret arrived',
+			matches: /\barrivedBy(Key|Removal)\b/,
 			declared: {
 				'src/lib/caret/caret-memory.ts': 'answers it',
 				'src/lib/testing/headless-actions.ts': 'answers no for a block with no caret',
 				'src/lib/components/blocks/code/CodeBlock.svelte':
-					'offers the language picker only to a caret the user didn’t arrow into the fence'
+					'offers the language picker only to a caret neither arrowed in nor left by a removal'
 			},
 			reason:
 				'how the caret arrived decides no hidden edge; a placement reading it brings the arrival side back',
 			hits: [
 				'const record = deps.caretMemory.arrivedByKey() ? null : deps.caretMemory.side();',
-				'const keyed = deps.caretMemory.arrivedByKey?.();'
+				'const keyed = deps.caretMemory.arrivedByKey?.();',
+				'if (deps.caretMemory.arrivedByRemoval()) return null;'
 			],
 			misses: ['const arrived = arrivedByKeyCount;']
 		}

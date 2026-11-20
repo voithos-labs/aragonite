@@ -190,7 +190,6 @@
 		// not, since an empty fence gets one either way.
 		el.toggleAttribute(CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome(el));
 		lastRenderedRaw = node.raw;
-		heldBody ||= !isBlankText(bodyText());
 	}
 
 	$effect(() => {
@@ -248,18 +247,19 @@
 	 *  language its picker on first focus: an insert command's block mounts after that commit. */
 	let autoOpenLanguage = $state(false);
 	let languageOffered = false;
-	// A fence that has held a body is being edited rather than authored, so a removal that empties
-	// it and lands there opens no picker.
-	let heldBody = false;
 	function onSurfaceFocus(): void {
 		if (readOnly || !showRail) return;
 		const firstFocus = !languageOffered;
 		languageOffered = true;
 		// A caret that stepped into an existing fence is passing through, and a picker would trap
-		// it; a click or an insert command is the user authoring.
+		// it; a click or an insert command is the user authoring, and a removal's landing is an edit.
 		const steppedIn = metadataOf(node, 'fencedCode').closed && caretMemory.arrivedByKey();
 		const offerLanguage =
-			firstFocus && !heldBody && infoString === '' && isBlankText(bodyText()) && !steppedIn;
+			firstFocus &&
+			!caretMemory.arrivedByRemoval() &&
+			infoString === '' &&
+			isBlankText(bodyText()) &&
+			!steppedIn;
 		// Deferred past the commit's own caret placement, which focuses this block a second time
 		// and would blur a picker opened on the first. A bare fence is completed before it opens.
 		void tick().then(async () => {

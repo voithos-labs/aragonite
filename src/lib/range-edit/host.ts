@@ -159,6 +159,8 @@ export interface RangeHost {
 	inBodies(doc: DocumentView, path: readonly number[], text: string): string;
 	/** The fence a block's bytes open, by the openers of the editor's grammar; null for none. */
 	fence(raw: string): Fence | null;
+	/** The body the block's kind declares between its own fences (`bodyRange`), on one line too. */
+	body(node: NodeView): { start: number; end: number } | null;
 	/** `raw`, the bytes of the container at `path` once an edit in its body landed, with its own lines
 	 *  as its kind writes them around that body: a `:::` fence one colon past a closing line in it. */
 	rewritten(doc: DocumentView, path: readonly number[], raw: string): string;
@@ -366,6 +368,7 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 			return { source, caret: block.text.from };
 		},
 		escaped: escapeMarkdownLiteral,
+		body: (node) => tryGetBlockKindDescriptor(node.kind)?.bodyRange?.(node) ?? null,
 		inBodies(doc, path, text) {
 			const ending = documentLineEnding(doc);
 			return path.reduceRight(

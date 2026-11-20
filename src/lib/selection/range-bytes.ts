@@ -1,7 +1,8 @@
 /**
  * A selection read as the bytes the range-edit core takes (`range-edit/edit-range.ts :: Range`):
  * each end's byte in the document, kept off a block its start can't join, then widened to every
- * block the coverage holds whole (G1.212). Copy, cut and the overlay read a range through here.
+ * block the coverage holds whole (G1.212) and through a heading the range holds to its text's end.
+ * Copy, cut and the overlay read a range through here.
  * The other way, a place the core names reads back as the caret the editor puts down there
  * (`landingAt`, `heldGapOf`), and a paste is named a place (`placeInBlock` and its siblings, read
  * through `placeRead`).
@@ -25,7 +26,7 @@ import {
 	type GapCaretSelection
 } from './gap-caret';
 import { blockFacts } from '../schema/block-facts';
-import { getContentRange, isProseKind } from '../core/inline';
+import { getContentRange, isProseKind, structuralSuffix } from '../core/inline';
 import type { Held, PlaceKept, Range } from '../range-edit/edit-range';
 import type { SpliceCaret } from '../action-contracts';
 import { documentLayout, type LaidBlock, type Layout } from '../range-edit/layout';
@@ -45,9 +46,9 @@ export interface DocumentBytes {
 	layout(): Layout;
 	/** The document with the starts of its top-level blocks, kept across writes. */
 	measured(): Measured;
-	/** The caret the core named for the last cut and the measure the cut left, which a paste back
-	 *  at that caret reads; null once anything else is known to have written. */
-	cut: { caret: SpliceCaret; of: Measured } | null;
+	/** The caret the core named for the last cut, the byte its entry fits at and the bytes the cut
+	 *  left (`of`): a paste back at that caret reads them only while the document holds those bytes. */
+	cut: { caret: SpliceCaret; fits: number; of: string } | null;
 	/** Whether what is kept of top-level blocks `[from, to]` is what the tree holds; a record found
 	 *  wrong is forgotten, so the next read is fresh (`KeptStarts.vouch`). */
 	vouch(from: number, to: number): boolean;
@@ -147,6 +148,7 @@ export function rangeBytes(
 		from = Math.min(from, span.from);
 		to = Math.max(to, span.to);
 	}
+	to = Math.max(to, suffixEnd(doc, layout, end, from, to));
 	// A range across blocks from the first caret position to the last is select-all's, which takes
 	// every container's markers with it.
 	const edges = !pathsEqual(start.path, end.path) && caretEdges(doc, layout);
@@ -233,8 +235,24 @@ function heldSpans(doc: DocumentView, coverage: RangeCoverage, layout: Layout): 
 	return spans;
 }
 
-/** A text end's byte; a cell end's row, or its whole table where the range enters by the first row
- *  or leaves by the last; any other block's own edge, since its offsets address no text. */
+/** Where the heading `end` sits in ends, underline or closing run included, when the range holds it
+ *  from its first byte through its text: the removal takes that heading whole. Else 0. */
+function suffixEnd(
+	doc: DocumentView,
+	layout: Layout,
+	end: SelectionPoint,
+	from: number,
+	to: number
+): number {
+	const node = blockNodeAt(doc, end.path);
+	const block = layout.block(end.path);
+	if (!node || !block || end.cellCoordinate || block.from <= from) return 0;
+	if (structuralSuffix(node) === '') return 0;
+	return to >= layout.byteOf(end.path, getContentRange(node).end)! ? textEnd(doc, block) : 0;
+}
+
+/** A text end's byte; a cell end's row, its line ending but the last row's (the table's), or its
+ *  whole table where the range enters by the first row or leaves by the last; else the block's edge. */
 function endByte(
 	doc: DocumentView,
 	layout: Layout,
@@ -252,10 +270,12 @@ function endByte(
 	const row = point.cellCoordinate
 		? Math.floor(point.offset / metadataOf(node, 'table').columnCount)
 		: null;
-	const whole = row !== null && row === (side === 'end' ? 0 : (node.children?.length ?? 0) - 1);
+	const last = (node.children?.length ?? 0) - 1;
+	const whole = row !== null && row === (side === 'end' ? 0 : last);
 	const block = layout.block(row === null || whole ? point.path : [...point.path, row]);
 	if (!block) return null;
-	return side === 'start' ? block.from : row === null || whole ? textEnd(doc, block) : block.to;
+	if (side === 'start') return block.from;
+	return row === null || whole || row === last ? textEnd(doc, block) : block.to;
 }
 
 /** An end on the first byte of a block the start's block can't join moves back to the text before
@@ -395,21 +415,21 @@ export function placeAfterBlock(bytes: DocumentBytes, path: readonly number[]): 
 	const block = bytes.layout().block(path);
 	const cut = bytes.cut;
 	// A cut that left the caret on this block took from above it, where its entry goes back.
-	if (place && block && cut?.of === bytes.measured() && cut.caret.holds === 'block')
+	if (place && block && cut?.of === bytes.source() && cut.caret.holds === 'block')
 		if (cut.caret.at === block.from) return { ...place, back: cut.caret };
 	return place;
 }
 
-/** The core's own caret for the last cut, where a caret at byte `at` stands where that cut left it.
- *  Null for any other byte, or once the document moved on. */
+/** The last cut's caret, at the byte its entry fits, where a caret at byte `at` stands where that
+ *  cut left it. Null for any other byte, or while the document holds other bytes than the cut left. */
 function cutCaretAt(bytes: DocumentBytes, at: number): SpliceCaret | null {
 	const cut = bytes.cut;
-	if (!cut || cut.of !== bytes.measured() || cut.caret.holds === 'block') return null;
+	if (!cut || cut.of !== bytes.source() || cut.caret.holds === 'block') return null;
 	const measured = bytes.measured();
 	const landing = landingAt(measured, cut.caret);
 	if (!landing || landedByte(measured, landing) !== at) return null;
-	// A gap stands where its line starts, which the core's byte for a container's end comes before.
-	return 'gapCaret' in landing ? { ...cut.caret, at } : cut.caret;
+	// The landing can stand past the removal's own byte (a heading's text, a gap's line start).
+	return { ...cut.caret, at: cut.fits };
 }
 
 /** The byte the editor puts a landing down at: a gap's, a stored caret's, or where the block's own
@@ -500,8 +520,22 @@ export function heldGapOf(
 	const rootEnd = gap.parentPath.length === 0 && gap.index === doc.children.length;
 	const docEnd = rootEnd || place.at === measured.starts.length;
 	if (!docEnd && joinsProse(measured, place.at, gap.parentPath, place.line)) return null;
+	return standingGap(doc, gap);
+}
+
+/** The gap a key that removed nothing holds at a boundary place, beside prose too, where giving
+ *  way to that text would leave the key doing nothing; null where no caret can stand. */
+export function keyGapOf(
+	measured: Measured,
+	place: { at: number; parent: readonly number[] }
+): GapCaretPosition | null {
+	return standingGap(measured.doc, gapOfPlace(measured, place));
+}
+
+/** `gap` marked `held`, or null where a closed container hides it or it falls among a list's
+ *  items, which no paragraph stands among. */
+function standingGap(doc: DocumentView, gap: GapCaretPosition): GapCaretPosition | null {
 	if (boundaryHidden(doc, gap.parentPath, gap.index)) return null;
-	// A list's children are its items, which no paragraph stands among.
 	const parent = blockNodeAt(doc, gap.parentPath);
 	if (parent && blockFacts(parent.kind).lines === 'items') return null;
 	return { ...gap, held: true };
@@ -526,6 +560,17 @@ export function landingAt(
 	const exact = caret.holds === 'text' && kind && blockFacts(kind).textPosition === 'always';
 	// Put down as a stored caret is, since a kind's own landing rule would move it off the byte.
 	return exact ? { anchor: point, focus: point } : point;
+}
+
+/** A key's caret at `caret` when it removed nothing: a boundary is held as the gap there
+ *  (`keyGapOf`); null where no caret can stand at it. */
+export function keyLandingAt(
+	measured: Measured,
+	caret: SpliceCaret
+): Landing | GapCaretSelection | null {
+	if (caret.holds !== 'boundary') return landingAt(measured, caret);
+	const gap = keyGapOf(measured, caret);
+	return gap && { gapCaret: gap };
 }
 
 /** Whether a letter typed on a line of its own at byte `at` joins a prose block's text inside

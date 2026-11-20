@@ -5,7 +5,7 @@
  */
 
 import { tick } from 'svelte';
-import { CURSOR_END, CURSOR_START } from '../block-component';
+import { CURSOR_END } from '../block-component';
 import type { CstNode } from '../core/nodes';
 import {
 	displayLength,
@@ -61,7 +61,7 @@ import {
 } from '../tree-operations/content-write';
 import { createPathScope, type CommitScope } from './block-edit-scope';
 import type { EditorRoot } from './deps';
-import { docPathFrom, extendDocPath } from '../core/coordinate-spaces';
+import { docPathFrom } from '../core/coordinate-spaces';
 import { mergedElseNext, mergedElsePrevious } from './merge-fallback';
 import { previewContentReparse, unlessFocusMoved } from './replacement-focus';
 import type { CaretPosition, Landing } from '../selection/primitives';
@@ -86,10 +86,16 @@ async function handleIneligibleNeighbor(
 		await scope.land(scope.at(neighbor, [], 0));
 		return false;
 	}
-	if (isBlockEditable(neighborKind)) {
-		await scope.land(scope.at(neighbor, [], dir < 0 ? CURSOR_END : CURSOR_START));
-		return false;
-	}
+	// Joins nothing: the commit changes no byte and only lands the caret beside the neighbour.
+	if (isBlockEditable(neighborKind))
+		return scope.commit({
+			snapshot: { index: i, offset: dir < 0 ? 0 : CURSOR_END },
+			eventTarget: i,
+			op: { kind: 'merge', detail: { direction: dir < 0 ? 'prev' : 'next' } },
+			mutate: () => ({ op: 'noop' }),
+			landing: () => scope.beside(i, dir),
+			discardIfNoop: true
+		});
 	// The caret stays in the block the key was pressed in, on the removed block's far side.
 	return scope.removeWhole(neighbor, dir < 0 ? 'Delete' : 'Backspace', {
 		snapshot: { index: i, offset: dir < 0 ? 0 : CURSOR_END },
@@ -339,11 +345,16 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 
 		async descendToBody(i) {
 			const children = scope.children();
-			// A body child already exists: a focus move, no undo entry.
-			if (i + 1 < children.length) {
-				await scope.land(scope.at(i + 1, [], CURSOR_START));
-				return false;
-			}
+			// A body child already exists: the caret goes on as Delete at the row's end lands, no undo entry.
+			if (i + 1 < children.length)
+				return scope.commit({
+					snapshot: { index: i, offset: CURSOR_END },
+					eventTarget: i,
+					op: { kind: 'appendBlock' },
+					mutate: () => ({ op: 'noop' }),
+					landing: () => scope.beside(i, 1),
+					discardIfNoop: true
+				});
 			return scope.commit({
 				snapshot: { index: i, offset: 0 },
 				eventTarget: i + 1,
@@ -424,7 +435,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				trackCaret: tracked,
 				// The primitive's answer, since the fix-up after the delete can merge the joined
 				// block into the one above it.
-				landing: () => mergedElsePrevious(joinedAt(), extendDocPath(scope.path, i - 1)),
+				landing: () => mergedElsePrevious(joinedAt(), () => scope.beside(i, -1)),
 				// A merge with no target changes nothing; discard the undo entry, and the landing
 				// still moves the caret.
 				discardIfNoop: true
@@ -451,10 +462,8 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 					return merged.change;
 				},
 				landing: () =>
-					mergedElseNext(
-						merged.change,
-						scope.at(i, [], merged.joinOffset),
-						extendDocPath(scope.path, i + 1)
+					mergedElseNext(merged.change, scope.at(i, [], merged.joinOffset), () =>
+						scope.beside(i, 1)
 					),
 				discardIfNoop: true
 			});

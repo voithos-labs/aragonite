@@ -1,5 +1,6 @@
 import { type CDPSession, type Page } from '@playwright/test';
 import { isChromium } from '../browser-engine';
+import { MICROTASK_CHECKPOINT_TURNS } from '../../test/harness/microtask-settle';
 
 // The one IME driver, shared by the simulation gestures and the specs. Chromium composes through
 // CDP's `Input.imeSetComposition` and `Input.insertText`, which fire real composition events;
@@ -68,9 +69,6 @@ interface ImeRun {
 	length: number;
 	created: boolean;
 }
-
-// Far more turns than the longest chain of ticks the editor awaits inside a listener.
-const MICROTASK_CHECKPOINT_TURNS = 1000;
 
 /**
  * The branch for WebKit and Firefox writes the composed text into the DOM the way an IME does and

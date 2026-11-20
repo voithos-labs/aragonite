@@ -20,7 +20,7 @@ import { isBlankText } from '#lib/core/lines.js';
 import type { DocumentView } from '#lib/core/node-views.js';
 import { editRange, removalOf } from '#lib/range-edit/edit-range.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
-import { lineRest } from '#lib/range-edit/lines.js';
+import { lineHead, lineRest } from '#lib/range-edit/lines.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
 import { normalizeCharEndpoint } from '#lib/selection/char-endpoint-snap.js';
 import { pathsEqual } from '#lib/selection/path-math.js';
@@ -69,7 +69,8 @@ const WRAPS: Record<string, (body: string[]) => string[]> = {
 	quote: quoted,
 	item: under('- ', '  '),
 	footnote: under('[^1]: ', '    '),
-	'no container': (b) => b
+	'no container': (b) => b,
+	'no container, a paragraph above': (b) => ['lead', '', ...b]
 };
 
 /** The container's body: `⟦` at the first byte of a block the range takes whole, inside a block's
@@ -192,20 +193,12 @@ function rangeOf(doc: DocumentView, source: string, from: number, to: number, ce
 /** The ends between blocks, where the range enters nothing that stays. */
 const BETWEEN = new Set(['a paragraph’s start', 'a paragraph’s end', 'the document’s end']);
 
-/** A range the adapter ends past a table's last line ending, which the removal glues to the next
- *  line: its fix waits on the paste back of a cut that ends at a table's text end. */
-const pastTable = (source: string, doc: DocumentView, to: number) =>
-	[...documentLayout(measured(doc)).within(to, to)].some(
-		(b) => b.type === 'table' && b.to === to && source[to - 1] === '\n'
-	);
-
 describe('G4.350 a removal keeps the lines after its range', () => {
 	it('in place, each in the fenced containers that held it', () => {
 		const reading = testReading();
 		const host = checkHost(reading);
 		const fails: string[] = [];
 		const landings: string[] = [];
-		let waiting = 0;
 		let landed = 0;
 		fc.assert(
 			fc.property(arbCase, (c) => {
@@ -216,7 +209,6 @@ describe('G4.350 a removal keeps the lines after its range', () => {
 				const doc = readAsOpened(source, { grammar: reading.grammar, scope: 'document' });
 				const range = rangeOf(doc, source, from, to, cell);
 				if (!range) return;
-				if (pastTable(source, doc, range.to)) return void waiting++;
 				// A document with no final line ending loses a line emptied at its end, a defect apart.
 				if (!c.final && c.end === 'the document’s end' && c.body.startsWith('from a')) return;
 				const read = readOf(host, source);
@@ -243,7 +235,12 @@ describe('G4.350 a removal keeps the lines after its range', () => {
 				let emptied = false;
 				for (const g of ['delete', 'compose'] as const) {
 					const { caret, source: got } = caretOf(g);
-					emptied = caret.at <= range.from && isBlankText(lineRest(got, caret.at));
+					// An emptied line holds the caret behind a container's marker alone: a block taken whole
+					// goes with its line, under a blank line or an opening row too.
+					emptied =
+						caret.at <= range.from &&
+						lineHead(got, caret.at) !== '' &&
+						isBlankText(lineRest(got, caret.at));
 					// The text after stays the kind of block it was, so an opening the removal lost shows.
 					const after =
 						got.startsWith(rest, caret.at) && leafAt(readOf(host, got), caret.at)?.type === kind;
@@ -268,28 +265,26 @@ describe('G4.350 a removal keeps the lines after its range', () => {
 		expect(landings.slice(0, 10), 'G4.351 Delete and a line break land on the text after').toEqual(
 			[]
 		);
-		expect(waiting).toBeGreaterThan(0);
 		expect(landed).toBeGreaterThan(0);
 	});
 
-	// The draws above skip that range; this row goes red the day its fix lands.
-	it('still glues the line after a table’s last row where the adapter ends past it', () => {
+	// Miss-analysis: the draws skipped a range out of a table's last row, whose end took the row's
+	// line ending, so the line after it was glued on and no row read it.
+	it.each([
+		['at the top level', `fir⟦st\n\n${TABLE.join('\n')}⟧\n\nafter\n`, 'fir\n\nafter\n'],
+		[
+			'in a note',
+			`:::note\nfir⟦st\n\n${TABLE.join('\n')}⟧\n:::\n\nafter\n`,
+			':::note\nfir\n:::\n\nafter\n'
+		]
+	])('keeps the line after a table’s last row, %s', (_, marked, kept) => {
 		const reading = testReading();
 		const host = checkHost(reading);
-		const { marked, cell } = sourceOf({
-			wrap: 'note',
-			body: 'from mid-text',
-			end: 'a table’s last row',
-			eol: '\n',
-			final: true,
-			mode: 'source'
-		});
 		const source = marked.replace('⟦', '').replace('⟧', '');
 		const doc = readAsOpened(source, { grammar: reading.grammar, scope: 'document' });
-		const range = rangeOf(doc, source, marked.indexOf('⟦'), marked.indexOf('⟧') - 1, cell)!;
-		const got = editRange(source, range, 'cut', 'source', host).source;
-		expect(pastTable(source, doc, range.to)).toBe(true);
-		expect(movedLine(host, readOf(host, source), range.from, range.to, got)).not.toBeNull();
+		const range = rangeOf(doc, source, marked.indexOf('⟦'), marked.indexOf('⟧') - 1, 4)!;
+		for (const g of ['cut', 'backspace', 'delete'] as const)
+			expect(editRange(source, range, g, 'source', host).source, g).toBe(kept);
 	});
 
 	// The law's own reading, on bytes no removal gives today: each is a way a kept line goes wrong.

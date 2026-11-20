@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
 import { serialize } from '#lib/core/serializer.js';
-import { CURSOR_END, CURSOR_START } from '#lib/block-component.js';
 import { makeTopHarness, stubBlockComponent } from '#lib/test/harness/editor-actions.js';
 
 // Miss-analysis (GH #166): no case joined across a boundary whose joined bytes read as two blocks.
@@ -24,7 +23,7 @@ describe('a refused join moves the caret instead of merging', () => {
 		await h.actions.mergeWithNext(0);
 
 		expect(serialize(h.deps.doc)).toBe(HEADING_OVER_TWO_LINES);
-		expect(h.focuses[1]).toHaveBeenCalledWith(CURSOR_START);
+		expect(h.landings.at(-1)).toMatchObject({ leafPath: [1], offset: 0 });
 		expect(h.focuses[0]).not.toHaveBeenCalled();
 	});
 
@@ -34,7 +33,7 @@ describe('a refused join moves the caret instead of merging', () => {
 		await h.actions.mergeWithPrevious(1);
 
 		expect(serialize(h.deps.doc)).toBe(HEADING_OVER_TWO_LINES);
-		expect(h.focuses[0]).toHaveBeenCalledWith(CURSOR_END);
+		expect(h.landings.at(-1)).toMatchObject({ leafPath: [0], offset: 3 });
 	});
 
 	it('creates no undo entry for either refusal', async () => {
@@ -44,6 +43,7 @@ describe('a refused join moves the caret instead of merging', () => {
 		await h.actions.mergeWithPrevious(1);
 
 		expect(h.deps.undoManager.canUndo).toBe(false);
+		expect(h.edits).toEqual([]);
 	});
 
 	// Control: the ordinary join still merges and still puts the caret at the join.

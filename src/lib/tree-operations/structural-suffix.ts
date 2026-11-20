@@ -42,6 +42,13 @@ function headingTextStart(node: NodeView): number {
 	return headingLevel(node) === null ? 0 : getContentRange(node).start;
 }
 
+/** Where a caret cut at `offset` lands in the heading the cut moves down whole: its text start when
+ *  it stood there, past the `#` a letter would re-kind; null where it stood elsewhere. */
+export function movedHeadingLanding(node: NodeView, offset: number): number | null {
+	const start = headingTextStart(node);
+	return start > 0 && offset === start && headingHeadCut(node, offset) === 0 ? start : null;
+}
+
 function headingHeadCut(node: NodeView, cut: number): number {
 	if (headingLevel(node) === null) return cut;
 	const content = getContentRange(node);

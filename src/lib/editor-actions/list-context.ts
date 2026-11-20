@@ -198,7 +198,12 @@ export function createListContext(deps: ListContextDeps): ListContext {
 					detail: { at: offset, itemIndex, innerIndex },
 					eventPath: docPathFrom(deps.scope.path)
 				},
-				landing: () => ({ ...itemAt(itemIndex + 1, secondHalfLanding), fresh: true })
+				// In the second half's first block, whose bytes the split's offset counts.
+				landing: () => ({
+					path: extendDocPath(extendDocPath(deps.scope.path, itemIndex + 1), 0),
+					offset: secondHalfLanding,
+					fresh: true
+				})
 			});
 		},
 

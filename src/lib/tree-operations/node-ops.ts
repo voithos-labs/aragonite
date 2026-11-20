@@ -44,7 +44,7 @@ import { ensureEditableContainers } from '../schema/opened-reading';
 import { retireChildSpans } from './separator-writes';
 import { holdOrderedNumbering } from './list/ordered-markers';
 import { mergeJoinsAt, type TrackedPosition } from './fix-up/apply';
-import { cutKeepingStructure } from './structural-suffix';
+import { cutKeepingStructure, movedHeadingLanding } from './structural-suffix';
 import { leafAtRawOffset, rawOffsetOfLeaf } from './container-offsets';
 import { CURSOR_END, CURSOR_EXACT_START, CURSOR_START } from '../block-component';
 import {
@@ -65,9 +65,9 @@ import { joinLeaves } from './leaf-range';
 export interface SplitResult {
 	change: StructuralChange;
 	secondHalfIndex: number;
-	/** Where the caret lands in the second half: inside a construct the split reopened there, so
-	 *  typing carries on in it, else at the start like any structural landing (outside). */
-	landingOffset: typeof CURSOR_EXACT_START | typeof CURSOR_START;
+	/** Where the caret lands in the second half: inside a construct the split reopened there, at a
+	 *  moved heading's text start where it stood, else at the start (outside every construct). */
+	landingOffset: number;
 }
 
 /**
@@ -163,7 +163,9 @@ export function splitNode(
 	return {
 		change: replacePreservingFirst(blockIndex, 1 + eaten, nodes.length),
 		secondHalfIndex: blockIndex + first.nodes.length,
-		landingOffset: reopened ? CURSOR_EXACT_START : CURSOR_START
+		landingOffset: reopened
+			? CURSOR_EXACT_START
+			: (movedHeadingLanding(node, offset) ?? CURSOR_START)
 	};
 }
 

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 // A range from a block taken whole to a line's end, its block running on below, mounted in both
-// modes: each removal leaves the next line behind its own markers once, and a letter typed after it
-// lands at that line's text. Rows whose Backspace or cut lands on a container's opening line type
-// their letter after Delete and over the range alone.
+// modes: each removal leaves the next line behind its own markers once, and a letter typed after it,
+// or over the range, lands at that line's text, code included. A cut holds the gap above the fence
+// it entered, and rows whose Backspace lands on a container's opening line type after Delete alone.
 // Miss-analysis: every mounted row ended mid-line, so none ended at a line's end, where the removal
 // wrote that line's markers in front of the next line's.
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -60,8 +60,7 @@ const ROWS: Row[] = [
 		typed: {
 			Backspace: '> ```\n> xmore\n> ```\n',
 			Delete: '> ```\n> xmore\n> ```\n',
-			cut: '> ```\n> xmore\n> ```\n',
-			'a typed key': 'x\n\n> ```\n> more\n> ```\n'
+			'a typed key': '> ```\n> xmore\n> ```\n'
 		}
 	},
 	{
@@ -72,8 +71,7 @@ const ROWS: Row[] = [
 		typed: {
 			Backspace: '- ```\n  xmore\n  ```\n',
 			Delete: '- ```\n  xmore\n  ```\n',
-			cut: '- ```\n  xmore\n  ```\n',
-			'a typed key': 'x\n\n- ```\n  more\n  ```\n'
+			'a typed key': '- ```\n  xmore\n  ```\n'
 		}
 	},
 	{
@@ -84,8 +82,7 @@ const ROWS: Row[] = [
 		typed: {
 			Backspace: '> > ```\r\n> > xmore\r\n> > ```\r\n',
 			Delete: '> > ```\r\n> > xmore\r\n> > ```\r\n',
-			cut: '> > ```\r\n> > xmore\r\n> > ```\r\n',
-			'a typed key': 'x\r\n\r\n> > ```\r\n> > more\r\n> > ```\r\n'
+			'a typed key': '> > ```\r\n> > xmore\r\n> > ```\r\n'
 		}
 	},
 	{
@@ -95,7 +92,7 @@ const ROWS: Row[] = [
 		removed: ':::note\n> more\n:::\n',
 		typed: {
 			Delete: ':::note\n> xmore\n:::\n',
-			'a typed key': 'x\n\n:::note\n> more\n:::\n'
+			'a typed key': ':::note\n> xmore\n:::\n'
 		}
 	},
 	{
@@ -105,7 +102,7 @@ const ROWS: Row[] = [
 		removed: '[^1]: :::tip\n    more\n    :::\n',
 		typed: {
 			Delete: '[^1]: :::tip\n    xmore\n    :::\n',
-			'a typed key': 'x\n\n[^1]: :::tip\n    more\n    :::\n'
+			'a typed key': '[^1]: :::tip\n    xmore\n    :::\n'
 		}
 	},
 	{
@@ -115,7 +112,7 @@ const ROWS: Row[] = [
 		removed: ':::tip\n```\n\nmore\n```\n:::\n',
 		typed: {
 			Delete: ':::tip\n```\nx\nmore\n```\n:::\n',
-			'a typed key': 'x\n\n:::tip\n```\n\nmore\n```\n:::\n'
+			'a typed key': ':::tip\n```\nx\nmore\n```\n:::\n'
 		}
 	}
 ];

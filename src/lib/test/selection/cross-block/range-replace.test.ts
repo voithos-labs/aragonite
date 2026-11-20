@@ -163,6 +163,22 @@ describe('a destructive gesture over a live range', () => {
 	}
 });
 
+// Miss-analysis: the one composition row over a block held whole stood before a paragraph, whose
+// text starts its line, so a caret moved past a heading's `# ` took the composed text into the heading.
+describe('a composition over one block held whole right before a heading', () => {
+	const BEFORE_HEADING: [string, string, number[], string][] = [
+		['a rule', 'lead\n\n---\n\n# tail\n', [1], 'lead\n\n\n# tail\n'],
+		['a rule that opens the document', '---\n\n## tail\n', [0], '\n## tail\n']
+	];
+	for (const [name, source, path, bytes] of BEFORE_HEADING)
+		it(`${name}: the caret lands in an empty paragraph where the block was`, async () => {
+			const env = await perform('compose', { source, anchor: whole(path), focus: whole(path) });
+
+			expect(serialize(env.doc)).toBe(bytes);
+			expect(landedAt(env)).toEqual([[path, 0]]);
+		});
+});
+
 // Tab indents what a range holds, and none of these holds a list item or a code line.
 describe('Tab over a range with nothing to indent', () => {
 	for (const [shapeName, shape] of Object.entries(SHAPES)) {

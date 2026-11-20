@@ -78,18 +78,20 @@ export function holdsText(doc: Doc, from: number, to: number): boolean {
 /** The body of a fenced block a caret can enter, between its fence lines; null for any other block.
  *  A block drawn as a picture of its source is held whole, never entered. */
 export function fenceBody(doc: Doc, leaf: LaidBlock): { from: number; to: number } | null {
-	const facts = factsOf(doc, leaf);
-	if (facts.body !== 'literal' || facts.textPosition !== 'always') return null;
-	return bodyBetweenFences(doc, leaf);
+	return factsOf(doc, leaf).textPosition === 'always' ? literalBody(doc, leaf) : null;
 }
 
-/** The body between a text block's fence lines, a picture's source included; null for a block
- *  with none. */
-export function bodyBetweenFences(doc: Doc, leaf: LaidBlock): { from: number; to: number } | null {
+/** The bytes between a literal block's fence lines, a picture of its source's too, or the body its
+ *  kind declares where no fence line opens it (a one-line `$$x^2$$`); null for none. */
+export function literalBody(doc: Doc, leaf: LaidBlock): { from: number; to: number } | null {
 	// A `:::` title row's line reads as an opening fence too, but it has no body to stay inside.
-	if (titleOwner(doc, leaf)) return null;
-	const raw = nodeAt(doc, leaf.path).raw;
+	if (factsOf(doc, leaf).body !== 'literal' || titleOwner(doc, leaf)) return null;
+	const node = nodeAt(doc, leaf.path);
+	const { raw } = node;
 	const fence = doc.host.fence(raw);
+	const declared = fence ? null : doc.host.body(node);
+	if (declared)
+		return { from: byteAt(doc, leaf, declared.start), to: byteAt(doc, leaf, declared.end) };
 	if (!fence) return null;
 	const { body, closer } = fence;
 	const end =
@@ -103,13 +105,13 @@ export function bodyBetweenFences(doc: Doc, leaf: LaidBlock): { from: number; to
  *  or a table's last text; null for text that ends there, or a block with no text place (a rule). */
 export function lastPlaceAt(doc: Doc, at: number): number | null {
 	const block = [...doc.layout.within(at, at)].filter((b) => contentEnd(doc, b) === at).at(-1);
-	if (!block || (block.text && !bodyBetweenFences(doc, block))) return null;
+	if (!block || (block.text && !literalBody(doc, block))) return null;
 	return lastPlaceIn(doc, block);
 }
 
 function lastPlaceIn(doc: Doc, block: LaidBlock): number | null {
 	if (factsOf(doc, block).textPosition === 'never') return null;
-	if (block.text) return bodyBetweenFences(doc, block)?.to ?? block.text.to;
+	if (block.text) return literalBody(doc, block)?.to ?? block.text.to;
 	const count = nodeAt(doc, block.path).children?.length ?? 0;
 	const last = count > 0 ? doc.layout.block([...block.path, count - 1]) : undefined;
 	return last ? lastPlaceIn(doc, last) : null;
