@@ -38,7 +38,7 @@ import { apartAt, deepestAt, openedApart, pastMarkers, type Join } from './apart
 import { numberedOn } from './list-numbers';
 import { heldAt, heldWhole, removalRange } from './removal-range';
 import { byteAt, lineTextStart, writeLeaf, type Edit } from './leaf-splice';
-import { lineEndBefore, lineHead, lineRest } from './lines';
+import { lineEnd, lineEndBefore, lineHead, lineRest } from './lines';
 
 /** A removal's new bytes. `after` is set when the blocks at its start went whole and no text stayed:
  *  the byte where what followed the range begins, so Backspace's caret goes to the block before and
@@ -484,11 +484,19 @@ function joinedLeaves(doc: Doc, from: number, to: number, head: LeafPoint, end: 
 			lower: deepestAt(doc, pastMarkers(source, end.leaf.to)),
 			rewritten: { upper: { block: head.leaf, raw: upper, kind: head.leaf.type } }
 		},
-		false
+		tookBlankUnder(doc, head.leaf, to)
 	);
 	const closerAt = leafEnd - ownTrailingLineEnding(write.bytes).length;
 	const closed = withClosers(doc, from, to, parted, closerAt);
 	return { source: movedMarkers(doc, from, to, closed, end.leaf.to), caret: written.caret };
+}
+
+/** Whether the range, ending at `to`, took the blank line right under `block`, the block it started
+ *  in: that block then keeps a blank line where flush the pair left behind would read as one. */
+function tookBlankUnder(doc: Doc, block: LaidBlock, to: number): boolean {
+	const { source } = doc;
+	const below = lineEnd(source, contentEnd(doc, block)) + 1;
+	return lineEnd(source, below) < to && lineRest(source, pastMarkers(source, below)) === '';
 }
 
 /** `joined` with the closing lines the range starts inside and leaves put back at `at`. */
