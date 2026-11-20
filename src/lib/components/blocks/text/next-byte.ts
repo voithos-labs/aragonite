@@ -17,7 +17,7 @@ import { listInlineMarks, type InlineMarkKind } from '../../../schema/inline-con
 import type { Reading } from '../../../schema/reading';
 import { recordCaretLook } from '../../../perf/instruments';
 import { PROBE_BYTE, constructsCovering } from './edge-seat';
-import { withOwnEnding } from '../editable/surface-write';
+import { keepingReferenceLabels, withOwnEnding } from '../editable/surface-write';
 import { constructChainAt } from './pending-mark-insert';
 
 /** What the answer reads off one block at one moment. */
@@ -30,6 +30,8 @@ export interface NextByteBlock {
 	preview: PreviewInsertion;
 	/** The inline tree of a rewritten `display`. */
 	inlinesOf(display: string): readonly InlineNode[];
+	/** A trial edit as the block's write would write it, a reference label it changes spelled out. */
+	respelled(edit: TextEdit): TextEdit;
 }
 
 /** The marks a letter typed at raw offset `caret` would carry. */
@@ -46,7 +48,7 @@ export function nextByte(caret: number, block: NextByteBlock): NextByte {
 		text: display.slice(0, caret) + PROBE_BYTE + display.slice(caret),
 		caretAfter: caret + PROBE_BYTE.length
 	};
-	return marksOfLetter(block.preview.spend(display, typed, caret), block);
+	return marksOfLetter(block.respelled(block.preview.spend(display, typed, caret)), block);
 }
 
 /** One block's live reads, for `createNextByte`. */
@@ -71,12 +73,14 @@ export function createNextByte(source: NextByteSource): (caret: number) => NextB
 		if (last && key.every((part, i) => part === last!.key[i])) return last.next;
 		recordCaretLook('caretLookComputes');
 		const node = source.getNode();
+		const display = trimTrailingLineEnding(node.raw);
 		const next = nextByte(caret, {
-			display: trimTrailingLineEnding(node.raw),
+			display,
 			inlines,
 			preview: source.preview(),
 			inlinesOf: (text) =>
-				resolvedInlineContent({ ...node, raw: withOwnEnding(node, text) }, source.reading)
+				resolvedInlineContent({ ...node, raw: withOwnEnding(node, text) }, source.reading),
+			respelled: (edit) => keepingReferenceLabels(node, display, edit, source.reading)
 		});
 		last = { key, next };
 		return next;

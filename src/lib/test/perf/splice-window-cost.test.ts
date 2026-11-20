@@ -1,6 +1,7 @@
 // A byte splice inside a long list, quote or table, or among many blocks with a definition far
 // above, reads only the blocks its change reaches: the bytes it parses, the children its commit
-// joins and compares, and the lines it pairs to put the caret down, are the same at N and 4N.
+// joins and compares, and the lines it pairs to put the caret down, are the same at N and 4N. A
+// commit after a reading of its bytes parses nothing more.
 import { describe, it, expect, afterEach } from 'vitest';
 import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { serialize } from '#lib/core/serializer.js';
@@ -32,6 +33,14 @@ const SHAPES = {
 	quote: {
 		source: (n: number) => Array.from({ length: n }, (_, i) => `> ${word(i)}\n>\n`).join(''),
 		line: (c: number) => 2 * c,
+		pasted: 'one\n> two'
+	},
+	// Miss-analysis: every container stood first, where its first byte and its blank lines' first
+	// byte are both 0, so a window counted from either, or from 0, read the same bytes.
+	'quote under a paragraph': {
+		source: (n: number) =>
+			'intro\n\n' + Array.from({ length: n }, (_, i) => `> ${word(i)}\n>\n`).join(''),
+		line: (c: number) => 2 * c + 2,
 		pasted: 'one\n> two'
 	},
 	table: {
@@ -114,6 +123,8 @@ async function cost(shape: keyof typeof SHAPES, n: number, edit: 'paste' | 'remo
 	});
 	expect(wrote).toBe(true);
 	const { parseBytes, joinedChildReads, siblingsCompared, linesPaired } = perfSnapshot();
+	const [{ from, to, insert }] = changes;
+	expect(serialize(deps.doc)).toBe(before.slice(0, from) + insert + before.slice(to));
 	return {
 		read,
 		commit: parseBytes,
@@ -134,7 +145,8 @@ describe('a byte splice among many blocks', () => {
 				expect(small.read).toBeGreaterThan(0);
 				expect(small.read).toBeLessThan(400);
 				expect(large).toEqual(small);
-				expect(small.commit).toBe(small.read);
+				// The commit takes the reading made of the same bytes just before it.
+				expect(small.commit).toBe(0);
 				expect(small.joined).toBe(0);
 			});
 		}

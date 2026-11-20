@@ -10,20 +10,13 @@ import { getContentRange } from '../core/inline';
 import { blockNodeAt } from '../tree-operations/node-primitives';
 import {
 	childTriviaStart,
-	containerLines,
-	documentByteMap
+	documentByteMap,
+	type ContainerLine,
+	type LineBytes
 } from '../tree-operations/container-offsets';
 import type { Measured } from '../tree-operations/top-level-starts';
 
-export interface LaidLine {
-	from: number;
-	/** Where the container's marker on the line ends; `from` on a line with none. */
-	markerTo: number;
-	/** Past the line's ending. */
-	to: number;
-	/** The line holds none of the container's children: a line that opens or closes it, a title. */
-	own: boolean;
-}
+export type LaidLine = LineBytes;
 
 export interface LaidBlock {
 	path: number[];
@@ -35,9 +28,14 @@ export interface LaidBlock {
 	to: number;
 	/** A block without children: where its text sits, inside its own markers. */
 	text?: { from: number; to: number };
-	/** A container whose children sit on lines of its own; its `lines` are read when asked. */
+	/** A container whose children sit on lines of its own; each of its lines is laid out when asked. */
 	container: boolean;
-	readonly lines?: LaidLine[];
+	/** The container's line holding `byte`, or its last for a byte past them: one line, laid out
+	 *  once and the same object at each ask. */
+	lineAt?(byte: number): LaidLine;
+	/** The container's lines from the one holding `from` through the one holding `to`, which is its
+	 *  end unless given. */
+	linesIn?(from: number, to?: number): Iterable<LaidLine>;
 }
 
 export interface Layout {
@@ -56,15 +54,6 @@ export function documentLayout(measured: Measured): Layout {
 	const { doc, starts } = measured;
 	const map = documentByteMap(measured);
 	const laid = new Map<string, LaidBlock>();
-	// A block's last line runs to the end of its line in the source, past a title's closing tag too.
-	const pastLine = (path: readonly number[], raw: string, end: number): number => {
-		if (!raw.endsWith('\n', end)) return map.byteOf(path, end)!;
-		const top = path[0];
-		const byte = map.byteOf(path, end - (raw.endsWith('\r\n', end) ? 2 : 1))!;
-		return (
-			starts.rawStart(top) + doc.children[top].raw.indexOf('\n', byte - starts.rawStart(top)) + 1
-		);
-	};
 	const leaf = (path: readonly number[]): NodeView | null => {
 		const node = blockNodeAt(doc, path);
 		return node && childless(node) ? node : null;
@@ -91,25 +80,31 @@ export function documentLayout(measured: Measured): Layout {
 			type: node.kind,
 			start,
 			from: map.byteOf(path, 0)!,
-			to: pastLine(path, node.raw, node.raw.length),
-			container: own !== null && 'rawLines' in own
+			to: map.endOf(path, node.raw.length)!,
+			container: own?.lineAt !== undefined
 		};
 		if (childless(node)) {
 			const text = getContentRange(node);
 			laidBlock.text = { from: map.byteOf(path, text.start)!, to: map.byteOf(path, text.end)! };
-		} else if (laidBlock.container) {
-			let lines: LaidLine[] | undefined;
-			Object.defineProperty(laidBlock, 'lines', {
-				get: () =>
-					(lines ??= (containerLines(own!) ?? []).map((line) => ({
-						from: map.byteOf(path, line.start)!,
-						markerTo: line.own
-							? pastLine(path, node.raw, line.end)
-							: map.byteOf(path, line.markerEnd)!,
-						to: pastLine(path, node.raw, line.end),
-						own: line.own
-					})))
-			});
+		} else if (own?.lineAt) {
+			const lineAt = own.lineAt;
+			const lines = new Map<number, LaidLine>();
+			// Keyed by the line's first byte in the container's raw, so a line asked twice is one object.
+			const laidLine = (line: ContainerLine): LaidLine => {
+				let made = lines.get(line.start);
+				if (!made) lines.set(line.start, (made = map.lineBytes(path, line)));
+				return made;
+			};
+			laidBlock.lineAt = (byte) => laidLine(lineAt(map.offsetIn(path, byte)));
+			laidBlock.linesIn = function* (from, to = laidBlock.to) {
+				const length = node.raw.length;
+				for (let line = lineAt(map.offsetIn(path, from)); ; line = lineAt(line.end)) {
+					const made = laidLine(line);
+					if (made.from > to) return;
+					yield made;
+					if (line.end >= length) return;
+				}
+			};
 		}
 		laid.set(key, laidBlock);
 		return laidBlock;

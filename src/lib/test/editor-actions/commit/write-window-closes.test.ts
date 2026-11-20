@@ -73,7 +73,10 @@ function swapDoor(write: (swap: DocumentSwap, source: string) => void, draftThro
 	};
 	const starts = createKeptStarts(
 		() => doc,
-		() => {}
+		() => {},
+		(error) => {
+			throw error;
+		}
 	);
 	const selection = createSelectionState({ onChange: () => heard++, getDoc: () => doc });
 	const swap = createDocumentSwap({

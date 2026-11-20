@@ -116,6 +116,15 @@ export function collapsedContainerHiding(
 	return null;
 }
 
+/** Whether a closed container hides the boundary before child `index` of the block at `parentPath`. */
+export function boundaryHidden(
+	doc: DocumentView,
+	parentPath: readonly number[],
+	index: number
+): boolean {
+	return collapsedContainerHiding(doc, [...parentPath, index]) !== null;
+}
+
 function descendToCaretLeaf(
 	doc: DocumentView,
 	path: readonly number[],

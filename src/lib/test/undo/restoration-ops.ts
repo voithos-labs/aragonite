@@ -1,15 +1,21 @@
 /**
- * The operations the undo-restoration property test uses, and the driver that runs them. Every
- * operation goes through the real action factories, never the commit call directly, so the run
- * exercises the paths a user reaches. What stays out: focus by cell coordinate and IME, which
- * need a DOM and live in the e2e suites.
+ * Drawn editing operations and the driver that runs them, shared by the properties over real
+ * writes. Every operation goes through the real action factories, never the commit call directly,
+ * so the run exercises the paths a user reaches, and a typed write takes the block's own line
+ * ending, as the keystroke does. What stays out: focus by cell coordinate and IME, which need a
+ * DOM and live in the e2e suites.
  */
 
 import fc from 'fast-check';
 import { parse } from '../../core/parser';
 import type { CstNode } from '../../core/nodes';
 import { metadataOf } from '../../core/nodes';
-import { displayLength, documentLineEnding, trimTrailingLineEnding } from '../../core/lines';
+import {
+	displayLength,
+	documentLineEnding,
+	trimTrailingLineEnding,
+	withLineEnding
+} from '../../core/lines';
 import { createUndoController } from '../../editor-actions/commit/undo-controller';
 import { createBlockEditActions } from '../../editor-actions/block-edit';
 import { createContainerEditActions } from '../../editor-actions/container-edit';
@@ -21,6 +27,7 @@ import {
 import { createListContext } from '../../editor-actions/list-context';
 import { createTableMutationsContext } from '../../editor-actions/table-context';
 import { replaceRange } from '../../selection/cross-block/range-replace';
+import { withOwnEnding } from '../../components/blocks/editable/surface-write';
 import { rangeContext } from '../selection/cross-block/range-context';
 import type { SelectionPoint } from '../../selection/primitives';
 import { registerBlockListState } from '../../block-lists/state-registry';
@@ -100,16 +107,21 @@ export const arbOp: fc.Arbitrary<Op> = fc.oneof(
 	fc.record({ t: fc.constant('redo' as const) })
 );
 
-// Sources with CRLF, astral characters and combining marks join the plain ASCII ones because
-// line endings and code points are part of where the tree and the bytes come apart.
-export const arbSource = fc.constantFrom(
+// Astral characters and combining marks join the plain ASCII sources because code points are part
+// of where the tree and the bytes come apart.
+const LF_SOURCES = [
 	'alpha\n\n- one\n- two\n- three\n\nomega\n',
 	'1. first\n2. second\n3. third\n',
 	'- a\n  - b\n- c\n\npara\n',
 	'lead\n\n> quoted\n\n- x\n- y\n',
 	'intro\n\n| h1 | h2 |\n| --- | --- |\n| a | b |\n| c | d |\n\n- one\n- two\n',
-	'lead\r\n\r\n- one\r\n- two\r\n- three\r\n\r\ntail\r\n',
 	'álpha\n\n- \u{1D52C}\u{1D52D}\u{1D52E}\n- two\n- three\n\nomegä\n'
+];
+
+/** Every source in LF and in CRLF: half the draws meet the ending a hand-written `\n` breaks. */
+export const arbSource = fc.constantFrom(
+	...LF_SOURCES,
+	...LF_SOURCES.map((source) => withLineEnding(source, '\r\n'))
 );
 
 // ── Harness ──────────────────────────────────────────────────────────────────
@@ -200,7 +212,7 @@ async function runTopOp(
 	if (paragraphs.length === 0) return;
 	const { c, i } = paragraphs[op.i % paragraphs.length];
 	if (op.t === 'typeTop') {
-		const text = trimTrailingLineEnding(c.raw) + 'x'.repeat(op.n + 1) + '\n';
+		const text = withOwnEnding(c, trimTrailingLineEnding(c.raw) + 'x'.repeat(op.n + 1));
 		await h.blockEdit.updateBlockContent(i, text, 'authored', 'join-typing', 0);
 	} else if (op.t === 'splitTop') {
 		await h.blockEdit.splitBlock(i, Math.min(op.off, displayLength(c.raw)));
@@ -226,7 +238,7 @@ async function runTypeChar(h: Harness, op: Extract<Op, { t: 'typeChar' }>): Prom
 	const utf16At = cps.slice(0, at).join('').length;
 	await h.blockEdit.updateBlockContent(
 		i,
-		next + '\n',
+		withOwnEnding(c, next),
 		'authored',
 		'join-typing',
 		utf16At,
@@ -304,7 +316,7 @@ async function runListOp(
 				parent: bundle
 			})
 		);
-		const text = trimTrailingLineEnding(leaf.raw) + 'y'.repeat(op.n + 1) + '\n';
+		const text = withOwnEnding(leaf, trimTrailingLineEnding(leaf.raw) + 'y'.repeat(op.n + 1));
 		await itemBundle.blockEdit.updateBlockContent(0, text, 'authored', 'join-typing', 0);
 	}
 }
@@ -319,7 +331,7 @@ async function runQuoteOp(h: Harness, op: { i: number; n: number }): Promise<voi
 	const leaf = quote.children[innerIdx];
 	if (leaf.kind !== 'paragraph') return;
 	const bundle = nestedBundleAt(h, quoteIndex);
-	const text = trimTrailingLineEnding(leaf.raw) + 'q'.repeat(op.n + 1) + '\n';
+	const text = withOwnEnding(leaf, trimTrailingLineEnding(leaf.raw) + 'q'.repeat(op.n + 1));
 	await bundle.blockEdit.updateBlockContent(innerIdx, text, 'authored', 'join-typing', 0);
 }
 

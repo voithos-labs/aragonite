@@ -5,6 +5,7 @@ import { tick } from 'svelte';
 import { devWarn, setDevWarnSink } from '@voithos-labs/aragonite/dev-checks';
 import {
 	takeDevWarns,
+	takeDevWarnsOf,
 	allowDevWarns,
 	auditWarnDeclarations,
 	enforceWarnGate,
@@ -72,6 +73,20 @@ describe('warn-gate declared-fire drain', () => {
 		devWarn('probe', 'undeclared');
 		devWarn('other', 'declared');
 		expect(() => allowDevWarns(['other'])).toThrow(/declared \[other\][\s\S]*\[probe\]/);
+	});
+});
+
+// Miss-analysis: a test took every warning and kept its own tag's, so another guard's fire in the
+// same run was dropped with nothing to say so.
+describe('warn-gate one-tag take', () => {
+	it('takes the named tag in order and leaves the others for the verdict', async () => {
+		devWarn('probe', 'first');
+		devWarn('other', 'another guard’s');
+		devWarn('probe', 'second');
+
+		expect(takeDevWarnsOf('probe').map((w) => w.message)).toEqual(['first', 'second']);
+		expect(takeDevWarnsOf('probe')).toEqual([]);
+		await expect(enforceWarnGate()).rejects.toThrow(/1 unclaimed[\s\S]*\[other\]/);
 	});
 });
 

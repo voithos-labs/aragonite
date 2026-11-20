@@ -14,6 +14,7 @@ import {
 	factsOf,
 	findWithin,
 	isCell,
+	joinsName,
 	leafHolding,
 	nodeAt,
 	pointedBlock,
@@ -365,11 +366,7 @@ function intoTitle(
 ): Edit {
 	const flat = oneLine(text);
 	const title = plain ? plainText(doc, row, flat) : flat;
-	const atName =
-		factsOf(doc, owner).titleRow!.nameNeverEntered &&
-		from === row.text!.from &&
-		/\S/.test(doc.source[from - 1] ?? ' ');
-	const line = (atName && title !== '' ? ' ' : '') + title;
+	const line = (joinsName(doc, owner, row, from) && title !== '' ? ' ' : '') + title;
 	return {
 		source: doc.source.slice(0, from) + line + doc.source.slice(to),
 		caret: from + line.length

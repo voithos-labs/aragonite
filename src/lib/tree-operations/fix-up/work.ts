@@ -65,6 +65,11 @@ export class Blocks {
 		spliceMany(this.origins, k, removed, origins);
 	}
 
+	/** The blocks a write has reached so far, as `[from, to)`, or null before the first one. */
+	touched(): [number, number] | null {
+		return this.taken === 0 && this.mid.length === 0 ? null : [this.lo, this.lo + this.mid.length];
+	}
+
 	/** The window that differs from the list as given, its unchanged edges left out. */
 	window(): Pick<ListResult, 'at' | 'removed' | 'blocks' | 'keeps'> {
 		let start = 0;

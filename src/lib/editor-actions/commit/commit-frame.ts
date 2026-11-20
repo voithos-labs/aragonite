@@ -25,6 +25,7 @@ import {
 	assertListMarkerWidths,
 	assertReadsBack
 } from '../../invariants/install';
+import { lastLineOf } from '../../invariants/open-tail';
 import type { UndoManager } from '../../undo/types';
 import { captureChange, changeAfter, type BlockReach } from './change-record';
 import { admitsWrite, failWrite, startsAlone } from './reading-write-gate';
@@ -141,6 +142,7 @@ export function createCommitFrame(
 				// Inside the try: the push reads the live selection through plugin block refs.
 				undo.push(write.snapshot, write.history);
 				const wasOpen = endsOpen(deps.doc);
+				const lastLine = devChecksOn ? lastLineOf(deps.doc) : null;
 				deps.starts.duringWrite(() => {
 					const changed = owned.during(() => write.apply(wasOpen));
 					if (write.discardIfNoop && !changed) {
@@ -151,7 +153,7 @@ export function createCommitFrame(
 					if (devChecksOn) {
 						const written = write.written();
 						assertCommittedNodes(written.nodes, deps.reading.grammar);
-						assertLastLineKept(deps.doc, wasOpen);
+						if (lastLine) assertLastLineKept(deps.doc, lastLine);
 						assertKeepsABlock(deps.doc, written.nodes);
 						assertReadsBack(written.tops, deps.reading.grammar);
 						assertListMarkerWidths(written.tops);
@@ -191,11 +193,18 @@ export function createCommitFrame(
 	/** The write's `prepare`, run before anything is written: null when the write goes ahead. */
 	function prepared(write: FrameWrite): FrameOutcome | null {
 		try {
-			return !write.prepare || write.prepare() ? null : 'refused';
+			if (!write.prepare || write.prepare()) return null;
 		} catch (err) {
+			stoodStill();
 			return failed(write, err);
 		}
+		stoodStill();
+		return 'refused';
 	}
+
+	// A prepare may copy the path it will write into the tree's slots. One that goes no further
+	// leaves those copies, so the list read before it ends here, as it does at every write.
+	const stoodStill = () => void deps.starts.duringWrite(() => ({ touched: 'unchanged' as const }));
 
 	function failed(write: FrameWrite, err: unknown): 'failed' {
 		failWrite(deps, err, write.op);

@@ -17,7 +17,8 @@ export function freshBytes(getDoc: () => DocumentView): DocumentBytes {
 		version: () => ++reads,
 		doc: getDoc,
 		source: () => serialize(getDoc()),
-		measured: () => measured(getDoc())
+		measured: () => measured(getDoc()),
+		vouch: () => true
 	});
 }
 

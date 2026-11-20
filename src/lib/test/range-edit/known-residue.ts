@@ -6,10 +6,14 @@
 
 import type { Mode } from '#lib/range-edit/host.js';
 import type { Place, Range } from '#lib/range-edit/edit-range.js';
-import type { LaidBlock } from '#lib/range-edit/layout.js';
+import type { LaidBlock, LaidLine } from '#lib/range-edit/layout.js';
 import { containersAt, containersHolding, leafAt, readOf, type Read } from './expected';
 import { blockHeldWhole } from './laws';
 import type { CheckHost } from './test-host';
+
+/** Every line of a container from its first; undefined for a block with no lines of its own. */
+const linesOf = (block: LaidBlock): LaidLine[] | undefined =>
+	block.linesIn && [...block.linesIn(block.from)];
 
 export interface KnownResidue {
 	/** What plain text can't carry back, in one line. */
@@ -57,7 +61,7 @@ function atSplitTab(read: Read, at: number): boolean {
 
 /** Whether a line the range touches has such a tab, or a line of a container holding its start. */
 function coversSplitTab(read: Read, { from, to }: Range): boolean {
-	const around = containersHolding(read, from).flatMap((c) => c.lines ?? []);
+	const around = containersHolding(read, from).flatMap((c) => linesOf(c) ?? []);
 	if (around.some((line) => atSplitTab(read, line.from))) return true;
 	for (let at = from; ;) {
 		if (atSplitTab(read, at)) return true;
@@ -95,7 +99,9 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 			named(left) &&
 			/^[ \t]/.test(read.source.slice(range.to)) &&
 			read.source.slice(range.from, range.to).includes('\n') &&
-			containersHolding(read, range.from).some((c) => (c.lines ?? [])[0]?.markerTo === range.from),
+			containersHolding(read, range.from).some(
+				(c) => (linesOf(c) ?? [])[0]?.markerTo === range.from
+			),
 		repro: { source: '- x\n- y z\n', mode: 'source', range: { from: 2, to: 7 } }
 	},
 	{
@@ -202,7 +208,7 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 			const marked = (type: string) =>
 				['every-line', 'first-line'].includes(host.facts(type).lines);
 			return read.blocks.some((b) =>
-				(marked(b.type) ? (b.lines ?? []) : []).some(
+				(marked(b.type) ? (linesOf(b) ?? []) : []).some(
 					(line) =>
 						!line.own &&
 						line.markerTo === line.from &&
@@ -251,7 +257,7 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 					.filter((b) => besides(b, c) && b.from >= c.to && b.to <= range.to)
 					.at(-1);
 				const fromText = first?.text?.from === range.from && (endTakesNone || takesNone(last));
-				return c.to < range.to && (c.lines!.at(0)!.own || fromText);
+				return c.to < range.to && (linesOf(c)![0].own || fromText);
 			});
 		},
 		repro: {
@@ -295,7 +301,8 @@ export const KNOWN_RESIDUE: KnownResidue[] = [
 			);
 			return left.some((outer) =>
 				left.some(
-					(inner) => inner !== outer && inner.from < outer.lines![0].to && inner.from > outer.from
+					(inner) =>
+						inner !== outer && inner.from < linesOf(outer)![0].to && inner.from > outer.from
 				)
 			);
 		},

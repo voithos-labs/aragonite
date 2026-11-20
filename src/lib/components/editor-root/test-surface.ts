@@ -65,4 +65,6 @@ export interface EditorTestSurface {
 	/** The document byte offset `offset` of the text block at `path` sits at, read as a range
 	 *  gesture reads it: what a listener asking where the caret is on every edit costs. */
 	byteOf(path: readonly number[], offset: number): number | null;
+	/** The text a gesture works its bytes out from, read off what the editor keeps across writes. */
+	keptSource(): string;
 }

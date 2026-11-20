@@ -21,6 +21,7 @@ import { spliceReading } from '#lib/tree-operations/byte-splice.js';
 import { splicedOpenerClosers, withSplicedClosers } from '#lib/tree-operations/spliced-openers.js';
 import { offsetPastClosers } from '#lib/tree-operations/written-openers.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
+import { emptyParagraph } from '#lib/tree-operations/node-primitives.js';
 import { hidesDelimitersAtCaret } from '#lib/presentation-mode.js';
 import type { SharingState } from '#lib/tree-operations/sharing.js';
 import { fixtureReading } from './fixture-grammar';
@@ -37,8 +38,8 @@ export interface RangeDeleteOptions {
 export interface RangeDeleteResult {
 	newDoc: Document;
 	caret: (committed: DocumentView) => SelectionPoint | null;
-	/** What `removeThroughCore` reports beside its caret: the core's caret and the block it took. */
-	removed: Pick<Removed, 'wrote' | 'landed' | 'took'>;
+	/** What `removeThroughCore` reports beside its caret: the core's caret and the place it took. */
+	removed: Pick<Removed, 'wrote' | 'landed' | 'taken'>;
 }
 
 export function deleteRange(
@@ -62,12 +63,14 @@ export function deleteRange(
 	const written = withSplicedClosers(source, changes, closers);
 	const bytes = changedBytes(source, 0, source.length, written);
 	const opened = readAsOpened(bytes, { grammar: reading.grammar, scope: 'document' }) as Document;
+	// The commit gives an emptied document one empty paragraph (G1.44).
+	if (opened.children.length === 0) opened.children.push(emptyParagraph('', ''));
 	Object.assign(doc, { prefix: opened.prefix, children: opened.children, suffix: opened.suffix });
 	const at = offsetPastClosers(answer.caret.at, closers);
 	const removed = {
 		wrote: true,
 		landed: { ...answer.caret, at },
-		took: answer.took ?? null
+		taken: answer.taken ?? null
 	};
 	return { newDoc: doc, caret: (committed) => pointAtByte(measured(committed), at), removed };
 }

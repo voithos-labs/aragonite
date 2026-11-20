@@ -28,6 +28,15 @@ describe('a structural commit invalidates the gap caret it edits under', () => {
 		expect(h.selection.gapCaret).toBeNull();
 	});
 
+	it('ends a gap a removal held, as any other', async () => {
+		const h = makeTop(TABLE_THEN_FENCE);
+		h.selection.setGapCaret({ parentPath: [], index: 4, held: true });
+
+		await h.actions.insertParagraph(0, 'x');
+
+		expect(h.selection.gapCaret).toBeNull();
+	});
+
 	it('ends a gap when a block is removed ahead of it', async () => {
 		const h = makeTop(TABLE_THEN_FENCE);
 		h.selection.setGapCaret(GAP);

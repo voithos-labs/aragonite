@@ -75,7 +75,7 @@ A fire that turns no gate red is a bug in the gate, so file it. Under Vitest a d
 
 Four ways, narrowest first. Use the first that fits. The helpers are in `src/lib/test/support/warn-gate.ts`.
 
-1. **The fire is what the test is about.** Assert on what `takeDevWarns()` returns.
+1. **The fire is what the test is about.** Assert on what `takeDevWarns()` returns. If the test is about one guard only, read `takeDevWarnsOf(tag)`: it leaves every other guard's fire to fail the test, where a filtered `takeDevWarns()` throws them away (a scan rejects that).
 2. **The fixture is noisy ahead of the part you assert on.** Call `drainDevWarns()` after the setup.
 3. **The fixture provokes a fire the test isn't about.** Allow the tag for the file, as in `afterEach(() => allowDevWarns(['block-host']))`, with the reason on the line above.
 4. **The run-wide list**, `src/lib/test/support/warn-allowlist.json`. It's empty. A first entry needs a maintainer to agree, and a guard fire never qualifies. It's that strict because an entry hides every fire of that tag at that site, the real ones included.
@@ -172,7 +172,7 @@ The suites that don't fit "one behavior, one test". Most run inside `npm test` a
 | Suite | What it catches | Command | Know this |
 | --- | --- | --- | --- |
 | Conformance differ | The inline parser drifting from a pinned reference parser | `npm run test:editor:conformance` | The baseline can only shrink, both ways: a new divergence is red, and so is a listed one that stopped diverging. Bumping the reference is a deliberate re-bless plus a changelog note. |
-| Property suites | Inputs nobody thought to write down | `npm run test:editor:property:fresh` | The gate's seed is fixed. This script draws random ones: run it when you change the inline parser, the tree or the generators. A find only lasts once its counterexample is committed as a regression case. |
+| Property suites | Inputs nobody thought to write down | `npm run test:editor:property:fresh` | The gate's seed is fixed. This script draws random ones: run it when you change the inline parser, the tree or the generators. `PROPERTY_SEED=<n>` replays a printed seed. A find only lasts once its counterexample is committed as a regression case. |
 | Generator floor | A shared generator going tame | `npx vitest run src/lib/test/invariants/corpus-coverage.test.ts` | Red when a shared generator stops producing non-ASCII, astral characters, combining clusters or CRLF. If one guard's check chokes on a generated shape, improve the check. Removing the shape from the generator is the last option, because every suite loses it. |
 | Live-mode gesture fuzzer | Live mode writing bytes source mode wouldn't | `npm run test:editor:simulation` | Random typing and deleting near hidden markers, each gesture replayed in source mode from identical bytes. A live-only divergence is red, a shared one is capped by a ceiling, and a lone surrogate the editor wrote is always red. |
 | Note-taking simulation | Document corruption | `npm run test:e2e:simulation` | Whole notes typed key by key, with typos, undo, paste and resize, checked throughout. It's the strongest corruption detector in the repo, and blind to anything it doesn't type. Predict printable typing only, and re-read the document after anything the editor does automatically. Some notes exist to type one construct mid-session, so keep those constructs. |

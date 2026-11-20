@@ -46,7 +46,11 @@ export function apartAt(doc: Doc, out: string, at: number, join: Join, placed: b
 	const containers = holdingBoth(doc, join);
 	if (doc.host.blankIn(containers, line) || doc.host.blankIn(containers, lineAbove)) return out;
 	const pair = siblingsAt(doc, join, out, at);
-	if (!pair || !doc.host.parts(doc.tree, pair.parent, pair.index, pair.upper, pair.lower, placed))
+	const stood = pair?.below.path.at(-1) ?? null;
+	if (
+		!pair ||
+		!doc.host.parts(doc.tree, pair.parent, pair.index, pair.upper, pair.lower, placed, stood)
+	)
 		return out;
 	const run = line.slice(0, doc.host.pastMarkers(line, 0));
 	// The markers of the containers holding both, never the lower block's own, which would take the
@@ -111,7 +115,7 @@ function siblingsAt(doc: Doc, join: Join, out: string, at: number): Pair | null 
 }
 
 /** `out` from `block`'s start to `at`, its parent's markers off each unchanged line (those starting
- *  by `last`); null where the parent lays out no lines (a list, whose items mark their own). */
+ *  by `last`), where a list's lines carry none; null under a table row, whose cells share a line. */
 function ownBytes(
 	doc: Doc,
 	block: LaidBlock,
@@ -121,9 +125,9 @@ function ownBytes(
 ): string | null {
 	const parent = block.path.length > 1 ? doc.layout.block(block.path.slice(0, -1)) : undefined;
 	if (!parent) return out.slice(block.from, at);
-	if (!parent.lines) return null;
+	if (!parent.linesIn) return null;
 	let raw = '';
-	for (const line of parent.lines) {
+	for (const line of parent.linesIn(block.from, last)) {
 		if (line.to <= block.from || line.from > last) continue;
 		const end = out.indexOf('\n', line.from) + 1 || out.length;
 		raw += out.slice(Math.max(line.markerTo, block.from), Math.min(end, at));

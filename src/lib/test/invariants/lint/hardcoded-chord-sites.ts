@@ -132,19 +132,15 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 		note: 'A plain Backspace or ArrowLeft, and any Delete, ends the pending break and stops there; Backspace or ArrowLeft with a modifier ends it and runs as usual.'
 	},
 	{
+		file: 'components/blocks/text/selected-widget-keys.ts',
+		keys: ['Arrow*', 'ArrowLeft', 'ArrowRight'],
+		note: 'Says which keys a selected widget keeps; Shift reads whether a sideways arrow resizes it, and the keydown that reads it takes the chords: no keystroke is claimed here.'
+	},
+	{
 		file: 'components/blocks/text/widget-interaction.ts',
 		takes: ['Shift+ArrowLeft', 'Shift+ArrowRight'],
-		keys: [
-			'Arrow*',
-			'ArrowDown',
-			'ArrowLeft',
-			'ArrowRight',
-			'ArrowUp',
-			'Backspace',
-			'Delete',
-			'Escape'
-		],
-		note: 'Extends a selection into a widget. A modified arrow is also swallowed while a widget is selected, but that is a caret-coherence guard in a transient state, not a binding; a plain vertical arrow, a line-edge key or a page key places a caret and declines.'
+		keys: ['ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'Backspace', 'Delete', 'Escape'],
+		note: 'Extends a selection into a widget. A modified arrow that reads a caret is also swallowed while a widget is selected, but that is a caret-coherence guard in a transient state, not a binding; a plain vertical arrow, a line-edge key or a page key places a caret and declines.'
 	},
 	{
 		file: 'components/image/ImageProperties.svelte',

@@ -4,10 +4,14 @@
 // text written at the landing caret lands inside its block's text or in front of its opener.
 import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
+import { serialize } from '#lib/core/serializer.js';
 import type { SelectionPoint } from '#lib/selection/primitives.js';
 import { emptiedPlace } from '#lib/selection/cross-block/range-removal.js';
 import { deleteRange } from '../harness/range-delete';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
+import { pointAtByte } from '#lib/selection/range-bytes.js';
+import { installPlugins } from '#lib/schema/plugin-install.js';
+import { SYNTAX_PLUGINS } from '#lib/test/behavior/corpus.js';
 
 const cell = (path: number[], offset = 0): SelectionPoint => ({
 	path,
@@ -92,8 +96,87 @@ describe('a removal whose caret sits between blocks', () => {
 	});
 });
 
+// Miss-analysis: every boundary row named a gap caret or the document's end, so a boundary that
+// takes neither returned before the rule for a range that took its start block was asked.
+describe('a range that took its start block, ending on a boundary no gap caret takes', () => {
+	const DETAILS =
+		'one\n\n> [!NOTE]\n> :::note\n> <details>\n> <summary>S</summary>\n>\n> ```\n> x\n> ```\n> ---\n> <div>\n> h\n> </div>\n>\n> </details>\n> :::\n\nafter';
+	it('opens a paragraph where the start block was, not on the rule beside it', () => {
+		installPlugins(SYNTAX_PLUGINS);
+		expect(placeAfterRemoval(DETAILS, at([1, 0, 1, 3], 0), at([2], 5))).toEqual([1, 0, 1, 3]);
+	});
+});
+
+// Miss-analysis: every range that took its start block started on a table held whole, so a start
+// in a row the removal took named a slot among the table's rows, where opening a paragraph throws.
+describe('a range that took the table row it started in', () => {
+	it('opens a paragraph after the table, never among its rows', () => {
+		const doc = parse('| A |\n| - |\n| 1 |\n\n```\nx\n```\n');
+		const removed = {
+			wrote: true,
+			caret: at([1], 0),
+			landed: { at: 17, holds: 'text' as const },
+			taken: { at: 12, parent: [0] }
+		};
+		expect(emptiedPlace(measured(doc), removed)).toEqual([1]);
+	});
+});
+
 describe('a range whose start block survives', () => {
 	it('keeps its caret where the range started, even beside a fence', () => {
 		expect(placeAfterRemoval('alpha\n\n```js\nbody\n```\n', at([0], 2), at([1], 0))).toBeNull();
 	});
+});
+
+/** The bytes a cut of the text from `from` to `to` in `source` leaves, and the place
+ *  `emptiedPlace` names then. */
+function cutThenPlace(source: string, from: string, to: string) {
+	const doc = parse(source);
+	const m = measured(doc);
+	const start = pointAtByte(m, source.indexOf(from));
+	const end = pointAtByte(m, source.indexOf(to) + (to.endsWith('\n') ? to.length : 0));
+	if (!start || !end) throw new Error('no point at the range');
+	const result = deleteRange(doc, start, end, { gesture: 'cut' });
+	const place = emptiedPlace(measured(result.newDoc), {
+		...result.removed,
+		caret: result.caret(result.newDoc)
+	});
+	return { bytes: serialize(result.newDoc), place };
+}
+
+// Miss-analysis: no row's commit joined the text below the range to a block above it, so the start
+// block's old path always still named the right slot on the tree the commit leaves.
+describe('a removal under a title a definition started above', () => {
+	const TITLE = "[a]: /u\n    'code\n# h\ntext\nend'\n\nlast\n";
+	// The removal parts the blocks the title would take, and the text joins the lower one at the
+	// caret, as the cut and then the text do; a title the definition starts itself takes it in.
+	const ROWS: Array<[string, string, string, string, string]> = [
+		['the heading line', TITLE, '# h', '# h\n', "[a]: /u\n    'code\n\ntext\nend'\n\nlast\n"],
+		[
+			'the heading to the middle of the line below',
+			TITLE,
+			'# h',
+			'xt',
+			"[a]: /u\n    'code\n\nxt\nend'\n\nlast\n"
+		],
+		[
+			'the heading line under a second definition',
+			"[a]: /u\n    'code\n[b]: /v\n# h\nend'\n\nlast\n",
+			'# h',
+			'# h\n',
+			"[a]: /u\n    'code\n[b]: /v\n\nend'\n\nlast\n"
+		],
+		[
+			'the heading line between a definition and its title',
+			'[a]: /u\n# h\n"t"\n\nlast\n',
+			'# h',
+			'# h\n',
+			'[a]: /u\n"t"\n\nlast\n'
+		]
+	];
+	for (const [name, source, from, to, left] of ROWS) {
+		it(`${name}: the text joins the block under the range, where no boundary stands`, () => {
+			expect(cutThenPlace(source, from, to)).toEqual({ bytes: left, place: null });
+		});
+	}
 });

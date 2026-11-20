@@ -20,7 +20,10 @@ import {
 	markedChars,
 	type MarkedChar
 } from '#lib/test/harness/live-oracles.js';
-import { renderOptions } from '../harness/fixture-grammar';
+import { parse } from '#lib/core/parser.js';
+import { hiddenEdges } from '#lib/components/blocks/text/edge-seat.js';
+import { insertsExactly } from '#lib/components/blocks/text/screen-diff.js';
+import { fixtureReading, renderOptions } from '../harness/fixture-grammar';
 
 /** A prose leaf and the path that addresses it. */
 export interface ProseLeaf {
@@ -52,21 +55,44 @@ export function chromePaints(node: CstNode): boolean {
 /** The content behind every marker, for before/after comparisons: a block's markers stop painting
  *  once content arrives, which a screen diff would call bytes lost. */
 export function documentContentText(holder: Document | CstNode): string {
-	return (holder.children ?? [])
-		.map((child) => {
-			if (child.children !== undefined) return documentContentText(child);
-			if (!readable(child)) return child.raw;
-			const range = getContentRange(child);
-			const nodes = parseInline(child.raw, range.start, range.end);
-			return renderedText(nodes, child.raw, CONTENT_VISIBILITY, renderOptions());
-		})
-		.join('\n');
+	return (
+		(holder.children ?? [])
+			.map((child) => {
+				if (child.children !== undefined) return documentContentText(child);
+				if (!readable(child)) return child.raw;
+				const range = getContentRange(child);
+				const nodes = parseInline(child.raw, range.start, range.end);
+				return renderedText(nodes, child.raw, CONTENT_VISIBILITY, renderOptions());
+			})
+			.join('\n')
+			// A CRLF pair draws as the one line break LF draws.
+			.replace(/\r\n/g, '\n')
+	);
 }
 
-/** Every character the document's prose shows, in order, with the constructs it is drawn in. */
+/** Every character the document's prose shows, in order, with the constructs it is drawn in; a pair
+ *  around nothing paints the glyphs a literal run shows, a block's own chrome is the screen check's. */
 export function documentMarkedChars(holder: Document | CstNode): MarkedChar[] {
 	const leaves = proseLeaves(holder).filter(({ node }) => readable(node));
-	return markedChars(leaves.map(({ node }) => ({ raw: node.raw, content: getContentRange(node) })));
+	return markedChars(
+		leaves.map(({ node }) => {
+			const painted = paintedBytes(node, false);
+			return { raw: node.raw, content: getContentRange(node), painted: (at) => painted[at] };
+		})
+	);
+}
+
+/** Which of a readable leaf's bytes live mode draws, with or without the block's own chrome. */
+function paintedBytes(node: CstNode, blockChrome = chromePaints(node)): boolean[] {
+	const range = getContentRange(node);
+	const nodes = parseInline(node.raw, range.start, range.end);
+	const ctx = screenVisibility('live', { chromePaints: blockChrome });
+	const painted = new Array<boolean>(node.raw.length).fill(false);
+	for (const run of visibleRuns(nodes, node.raw, ctx, renderOptions())) {
+		if (!run.visible) continue;
+		for (let at = run.start; at < run.end; at++) painted[at] = true;
+	}
+	return painted;
 }
 
 /** Delimiter pairs enclosing nothing whose every byte goes unpainted (live-mode.md § 4.1); the
@@ -76,13 +102,7 @@ export function unpaintedResidue(holder: Document | CstNode): number {
 		if (child.children !== undefined) return total + unpaintedResidue(child);
 		if (!readable(child)) return total;
 		const range = getContentRange(child);
-		const nodes = parseInline(child.raw, range.start, range.end);
-		const ctx = screenVisibility('live', { chromePaints: chromePaints(child) });
-		const painted = new Array<boolean>(child.raw.length).fill(false);
-		for (const run of visibleRuns(nodes, child.raw, ctx, renderOptions())) {
-			if (!run.visible) continue;
-			for (let at = run.start; at < run.end; at++) painted[at] = true;
-		}
+		const painted = paintedBytes(child);
 		const hidden = emptyConstructSpans(child.raw, range).filter(
 			(span) => !painted.slice(span.start, span.end).includes(true)
 		);
@@ -97,6 +117,35 @@ export const normalizeScreen = (text: string): string =>
 		.split('\n')
 		.map((line) => line.replace(/[ \t]+$/, ''))
 		.join('\n');
+
+/** The offsets the caret's screen position admits when none takes `typed` with the screen and the
+ *  block's kind kept, else none: where live-mode.md § 4.2 lets the write stand (§ 4.8 cues it). */
+export function unkeptSeats(node: CstNode, caret: number, typed: string): readonly number[] {
+	if (!readable(node)) return [];
+	const range = getContentRange(node);
+	const screen = screenVisibility('live', { chromePaints: chromePaints(node) });
+	const reading = fixtureReading({}, 'live');
+	const offsets = hiddenEdges(
+		parseInline(node.raw, range.start, range.end),
+		node.raw,
+		screen,
+		reading
+	).seatOffsets(caret);
+	const shown = (raw: string, end: number) =>
+		renderedText(parseInline(raw, range.start, end), raw, CONTENT_VISIBILITY, renderOptions());
+	const before = shown(node.raw, range.end);
+	// Read alone, as the bytes before: a cell's or an item's text needn't read as its kind out there.
+	const shape = (raw: string) => (parse(raw).children ?? []).map((block) => block.kind).join(',');
+	const shapeBefore = shape(node.raw);
+	const keeps = (at: number) => {
+		const candidate = node.raw.slice(0, at) + typed + node.raw.slice(at);
+		return (
+			shape(candidate) === shapeBefore &&
+			insertsExactly(before, shown(candidate, range.end + typed.length), typed)
+		);
+	};
+	return offsets.some(keeps) ? [] : offsets;
+}
 
 /** Every boundary of a run the user cannot see, plus the content's ends: the positions live-mode.md
  *  § 1 calls ambiguous, which an even draw reaches too rarely. */

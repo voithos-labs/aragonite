@@ -7,7 +7,12 @@
 
 import type { NodeView } from '../core/node-views';
 import { type InvariantViolation } from '@voithos-labs/aragonite/dev-checks';
-import { unfinishedReadings, waitingReading, type GrammarView } from '../schema/block-openers';
+import {
+	closed,
+	unfinishedReadings,
+	waitingReading,
+	type GrammarView
+} from '../schema/block-openers';
 import { splitLines } from '../core/lines';
 import { describeShapeDivergence } from '../core/shape-divergence';
 import { readAsOpened } from '../schema/opened-reading';
@@ -63,20 +68,42 @@ export function checkRunReadsBack(
 		: { code: 'reads-back', message: `${kinds}'s bytes read as another tree: ${divergence}` };
 }
 
-/** The runs a byte splice's windows read back as: each window with the block on either side, and
- *  on to the document's end (or start) around an opener still waiting for its closer. */
+/** The runs a byte splice's windows read back as: each with the block on either side, out to the
+ *  blank lines where it stands flush against them, and to the far end around a waiting opener. */
 export function spliceRuns(
 	top: readonly NodeView[],
 	windows: readonly { at: number; count: number }[],
 	grammar: GrammarView
 ): NodeView[][] {
 	const readings = unfinishedReadings(grammar);
+	const closing = closed(readings).filter((reading) => !reading.readsOn);
 	const closes = (node: NodeView) =>
-		splitLines(node.raw).some((line) => readings.some((r) => !r.readsOn && r.mayClose(line.text)));
+		splitLines(node.raw).some((line) => closing.some((r) => r.mayClose(line.text)));
 	return windows.map(({ at, count }) => {
 		const run = top.slice(Math.max(at - 1, 0), at + count + 1);
 		const waits = run.some((node) => waitingReading(node.raw, readings));
 		const from = run.some(closes) ? 0 : Math.max(at - 1, 0);
-		return top.slice(from, waits ? top.length : at + count + 1);
+		const to = waits ? top.length : at + count + 1;
+		const flush = flushRun(top, at, count);
+		const wide = top.slice(Math.min(from, flush.from), Math.max(to, flush.to));
+		// A run past the limit is read with its neighbours alone, which the check can afford.
+		return bytesIn(wide) > READ_BACK_LIMIT ? top.slice(from, to) : wide;
 	});
 }
+
+/** The blocks around `[at, at + count)` that no blank line parts from them, as `[from, to)`. Found
+ *  by blank lines alone, never by a look for a wait, so a read cut short of one shows. */
+export function flushRun(
+	blocks: readonly NodeView[],
+	at: number,
+	count: number
+): { from: number; to: number } {
+	let from = Math.min(at, blocks.length - 1);
+	while (from > 0 && blocks[from].leadingTrivia === '') from--;
+	let to = at + count;
+	while (to < blocks.length && blocks[to].leadingTrivia === '') to++;
+	return { from: Math.max(from, 0), to };
+}
+
+export const bytesIn = (run: readonly NodeView[]): number =>
+	run.reduce((bytes, node) => bytes + node.leadingTrivia.length + node.raw.length, 0);

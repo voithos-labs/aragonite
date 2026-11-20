@@ -4,7 +4,16 @@
  */
 
 import type { LaidBlock } from './layout';
-import { containersHolding, factsOf, nodeAt, titleOwner, type Doc } from './document';
+import {
+	containersHolding,
+	factsOf,
+	firstBodyLine,
+	lastLine,
+	multiline,
+	nodeAt,
+	titleOwner,
+	type Doc
+} from './document';
 import { continuation } from './markers';
 import { lineHead, type Edit } from './leaf-splice';
 
@@ -44,7 +53,7 @@ export function leftBy(
 export function emptiedRest(doc: Doc, at: number, pasted: Doc): string | null {
 	const blocks = [...pasted.layout.within(0, pasted.source.length)];
 	const first = blocks.find((b) => factsOf(pasted, b).lines === 'first-line');
-	const line = first?.lines!.find((l) => !l.own);
+	const line = first && firstBodyLine(first);
 	if (!first || !line || first.from !== blocks[0].from) return null;
 	const marker = pasted.source.slice(line.from, line.markerTo);
 	return lineHead(doc.source, at) === continuation(doc, at) + marker
@@ -68,10 +77,9 @@ export function closedBy(
 	taker: LaidBlock,
 	edit: Edit
 ): Edit {
-	const lines = first.lines ?? [];
-	if (factsOf(pasted, first).lines !== 'fenced' || lines.length < 2 || !lines.at(-1)!.own)
-		return edit;
-	const last = taker.lines!.at(-1)!;
+	if (factsOf(pasted, first).lines !== 'fenced' || !first.lineAt || !multiline(first)) return edit;
+	if (!lastLine(first).own) return edit;
+	const last = lastLine(taker);
 	const shift = edit.source.length - doc.source.length;
 	const end = last.to + shift;
 	// A closing line with no line ending of its own takes the one before it.

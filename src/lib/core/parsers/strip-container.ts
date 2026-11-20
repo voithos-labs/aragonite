@@ -100,7 +100,7 @@ function openingLine<D>(
 }
 
 /** Where each child's lines sit in the container's bytes, its body being lines `[from, end)`; none
- *  where a child opens on a lazy line or a line holds no child, which only a full rebuild writes. */
+ *  where a child opens on a lazy line or a line holds no child but a closing bare marker. */
 function childLineSpans(
 	ctx: OpenContext,
 	from: number,
@@ -130,8 +130,10 @@ function childLineSpans(
 		spans[i * 2 + 1] = at(line);
 	}
 	pass(body.suffix);
-	// A last bare marker with no line ending holds no byte of the body.
-	return line === end ? spans : undefined;
+	// A last bare marker with no line ending holds no byte of the body, and a rebuild keeps it as it is.
+	const closing = lines[end - 1];
+	const closes = closing?.lineEnding === '' && codec.read(closing.text, INNER_LINE)?.text === '';
+	return line === end || (line === end - 1 && closes) ? spans : undefined;
 }
 
 /** The index past a container's last line. */

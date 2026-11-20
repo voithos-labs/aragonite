@@ -5,6 +5,7 @@
 import type { Gesture, RangeEditResult } from '#lib/range-edit/edit-range.js';
 import type { Mode } from '#lib/range-edit/host.js';
 import { SPLIT_ROWS } from './named-rows-split';
+import { CLOSER_ROWS } from './named-rows-closers';
 
 export interface NamedRow {
 	name: string;
@@ -1978,5 +1979,6 @@ export const NAMED_ROWS: NamedRow[] = [
 		gesture: 'backspace',
 		expect: { source: '> - x\n>\n> y n\n  > m\n' }
 	},
-	...SPLIT_ROWS
+	...SPLIT_ROWS,
+	...CLOSER_ROWS
 ];

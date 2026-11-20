@@ -51,7 +51,7 @@ export function numberedAfterSplit(
 	let next = (own?.number ?? 1) + 1;
 	if (copyAt !== null && own) {
 		const insert = String(next++);
-		const at = copyAt + own.from - items[index].lines![0].from - shift;
+		const at = copyAt + own.from - items[index].lineAt!(items[index].from).from - shift;
 		edits.push({ at, remove: own.to - own.from, insert });
 		indented(edits, source, items[index], insert.length - (own.to - own.from), to);
 	}
@@ -92,7 +92,7 @@ interface Marker {
 
 /** An ordered item's number and where its digits sit; null for an item opening with none. */
 function markerOf(source: string, item: LaidBlock): Marker | null {
-	const line = item.lines?.[0];
+	const line = item.lineAt?.(item.from);
 	if (!line) return null;
 	const digits = /^[ \t]*(\d+)/.exec(source.slice(line.from, line.markerTo));
 	if (!digits) return null;
@@ -110,9 +110,10 @@ function renumber(edits: Edit[], source: string, item: LaidBlock, marker: Marker
 /** Adds the edits that move the item's later lines starting past byte `from` to its text column,
  *  where its number grew `widened` digits wider. */
 function indented(edits: Edit[], source: string, item: LaidBlock, widened: number, from: number) {
-	const lines = item.lines!;
-	const column = lines[0].markerTo - lines[0].from;
-	for (const line of widened === 0 ? [] : lines.slice(1)) {
+	if (widened === 0) return;
+	const [first, ...rest] = item.linesIn!(item.from);
+	const column = first.markerTo - first.from;
+	for (const line of rest) {
 		if (line.from < from || line.markerTo - line.from !== column) continue;
 		if (widened > 0) edits.push({ at: line.markerTo, remove: 0, insert: ' '.repeat(widened) });
 		else if (/^ +$/.test(source.slice(line.markerTo + widened, line.markerTo)))

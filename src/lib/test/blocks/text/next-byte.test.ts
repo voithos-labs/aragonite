@@ -105,7 +105,8 @@ function answer(
 		display,
 		inlines: parse(display),
 		preview: counted.preview,
-		inlinesOf: parse
+		inlinesOf: parse,
+		respelled: (edit) => edit
 	});
 	return { marks: next.marks, trials: counted.trials() };
 }

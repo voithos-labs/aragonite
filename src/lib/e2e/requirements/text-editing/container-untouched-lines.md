@@ -15,6 +15,8 @@ Typing or Enter inside a quote or a list item changes the lines it edits. Every 
 
 - `> a\nlazy\n`, start of `lazy`, type `- `: the line can't continue a paragraph as a list, so it takes the quote's `> ` and the list lands inside the quote (`> a\n> - lazy\n`), which is what a reload reads too (miss-analysis: every lazy row edited the line above it, never the lazy line itself)
 
+- `- one\n- item\ntext\n`, start of `item`, type `>q`: the item gives `text` up and `q` lands right after the `>` (`- one\n- >qitem\ntext\n`), and the same inside a quote (regression: `q` landed at the start of the list, `- qone`; miss-analysis: every row whose list gave a line up typed in its first item, where the list's start is also where the caret belongs, and none typed a second key)
+
 ## Miss-analysis
 
 - Every container rebuild respelled the whole container in its canonical form, and every container fixture was already written that way, so no spec ever watched an untouched line move.

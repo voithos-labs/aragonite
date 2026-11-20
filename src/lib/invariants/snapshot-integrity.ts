@@ -22,6 +22,19 @@ export function checkSnapshotIntegrity(entry: SnapshotEntry): InvariantViolation
 	};
 }
 
+/** An undo snapshot copies the version's plain list, which a reader may have made before the
+ *  push: both must hold the same nodes, or an undo installs a node the tree had replaced. */
+export function checkSnapshotList(
+	pushed: readonly unknown[],
+	live: readonly unknown[]
+): InvariantViolation | null {
+	if (pushed.length === live.length && pushed.every((node, i) => node === live[i])) return null;
+	return {
+		code: 'snapshot-list-stale',
+		message: 'a snapshot was pushed from a top-level list the tree has changed since it was read'
+	};
+}
+
 export function digestDoc(doc: Document): number {
 	let hash = 0x811c9dc5;
 	const mix = (s: string): void => {

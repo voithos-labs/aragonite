@@ -9,7 +9,7 @@ import { READING_WRITE_TAG } from '#lib/editor-actions/commit/reading-write-gate
 import { makeEditorActionsDeps, stubBlockComponent } from '#lib/test/harness/editor-actions.js';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
-import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { takeDevWarnsOf } from '#lib/test/support/warn-gate.js';
 
 const SOURCE = 'one\n\ntwo\n';
 
@@ -25,7 +25,7 @@ function harnessFor(mode: PresentationMode) {
 	return { deps, focused, moveDown: () => focus.moveFocus(doc.children.length, 'start') };
 }
 
-const readingWrites = () => takeDevWarns().filter((w) => w.tag === READING_WRITE_TAG);
+const readingWrites = () => takeDevWarnsOf(READING_WRITE_TAG);
 
 describe('moveFocus past the last block', () => {
 	it('stops at the last block in reading mode, writing nothing', async () => {

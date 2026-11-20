@@ -69,6 +69,20 @@ export async function pressHardwareKey(
 	return before.defaultPrevented ? 'beforeinput' : 'browser';
 }
 
+/** A Backspace or Delete the way a browser delivers it: where the editor takes neither the keydown
+ *  nor `beforeinput`, the browser's own removal and its `input`, which jsdom doesn't perform. */
+export async function deleteBy(el: HTMLElement, key: 'Backspace' | 'Delete'): Promise<void> {
+	if ((await pressHardwareKey(el, { key })) !== 'browser') return;
+	const range = window.getSelection()!.getRangeAt(0);
+	if (range.collapsed && key === 'Backspace')
+		range.setStart(range.startContainer, range.startOffset - 1);
+	else if (range.collapsed) range.setEnd(range.endContainer, range.endOffset + 1);
+	range.deleteContents();
+	const inputType = key === 'Backspace' ? 'deleteContentBackward' : 'deleteContentForward';
+	el.dispatchEvent(new InputEvent('input', { inputType, bubbles: true }));
+	await settleEditor();
+}
+
 async function keydownTaken(el: HTMLElement, init: KeyboardEventInit): Promise<boolean> {
 	const key = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...init });
 	el.dispatchEvent(key);

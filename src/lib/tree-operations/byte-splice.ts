@@ -1,16 +1,18 @@
 /**
  * What a document's tree becomes when runs of its bytes change: the top-level blocks each change
  * reaches, read again from the new bytes, so the tree is what opening them gives. A read starts at
- * the last block before the change with text of its own, or at a definition above that still
- * waiting on its title, and runs on past the change until the next block with text still starts
- * where it stood; inside a list, quote or table it reads only the children the change reaches
- * (`docs/design/commit-and-undo.md` § The byte splice).
+ * the last block before the change with text of its own, or at a block above whose wait (a
+ * definition's, on its title) reaches the change. It runs on until the next block with text still
+ * starts where it stood and no block read still waits past it; inside a list, quote or table it
+ * reads only the children the change reaches (`docs/design/commit-and-undo.md` § The byte splice).
  */
 
 import type { CstNode } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import {
+	closed,
 	unfinishedReadings,
+	waitRunsPast,
 	waitingAboveClosedBy,
 	type GrammarView
 } from '../schema/block-openers';
@@ -21,6 +23,7 @@ import { assignChildIdsDeep, keepUnchangedDeep } from '../block-id';
 import { changedBytes, narrowed, writtenLines, type ByteChange } from './byte-changes';
 import { containerWindow, standsBelow, textAfter, windowStart } from './container-window';
 import { spliceMany } from './splice-many';
+import { recordSpliceRead } from '../perf/instruments';
 import type { Measured, TopLevelChange } from './top-level-starts';
 
 /** Top-level blocks `[at, at + count)` give way to `blocks`; the first new block keeps the first
@@ -37,6 +40,9 @@ export interface SpliceWindow {
 export interface SpliceReading {
 	windows: SpliceWindow[];
 	suffix: string;
+	/** Top-level blocks `[from, to]` whose bytes each read took from the text: the blocks it read
+	 *  again and those it read past them, which a caller compares with the tree before it installs. */
+	took: { from: number; to: number }[];
 }
 
 /** The windows as the runs of top-level blocks a reading's install changes. */
@@ -62,15 +68,40 @@ export function applied(doc: DocumentView, reading: SpliceReading): DocumentView
 }
 
 /** `measured`'s document, whose bytes are `before`, read again with `changes` made (sorted, none
- *  overlapping), each in its own window unless they grow into each other; null when none changes. */
+ *  overlapping), once for the same bytes of the same document; null when none changes. */
 export function spliceReading(
 	measured: Measured,
 	before: string,
 	changes: readonly ByteChange[],
 	grammar: GrammarView
 ): SpliceReading | null {
-	return readAgain(measured, before, changes, grammar, true);
+	const last = lastReading.get(measured);
+	const kept =
+		last?.before === before && last.grammar === grammar && sameChanges(last.changes, changes)
+			? last
+			: undefined;
+	recordSpliceRead(kept !== undefined);
+	if (kept) return kept.reading;
+	const reading = readAgain(measured, before, changes, grammar, true);
+	lastReading.set(measured, { before, changes, grammar, reading });
+	return reading;
 }
+
+// The last reading of each document, so the commit landing the core's answer takes the core's
+// reading of it. A write announces a new `Measured`, so none outlives the bytes it read.
+const lastReading = new WeakMap<
+	Measured,
+	{
+		before: string;
+		changes: readonly ByteChange[];
+		grammar: GrammarView;
+		reading: SpliceReading | null;
+	}
+>();
+
+const sameChanges = (a: readonly ByteChange[], b: readonly ByteChange[]) =>
+	a.length === b.length &&
+	a.every((c, i) => c.from === b[i].from && c.to === b[i].to && c.insert === b[i].insert);
 
 /** {@link spliceReading} with every window at the top level, never inside a container: what the
  *  windows inside one must come out equal to. */
@@ -99,7 +130,7 @@ function readAgain(
 	const pending: Span[] = [];
 	for (const change of made) {
 		const first = starts.holding(change.from);
-		const lo = windowStart(children, first, 0, readings, grammar);
+		const lo = windowStart(children, first, 0, readings);
 		// A closer the change writes finishes a block above it that waits on one.
 		const lines = writtenLines(before, change);
 		const waiting = waitingAboveClosedBy(lines, (i) => children[i].raw, lo, readings);
@@ -117,13 +148,13 @@ function readAgain(
 		pending.push(span);
 	}
 	const windows: SpliceWindow[] = [];
+	const took: SpliceReading['took'] = [];
 	let suffix = doc.suffix;
 	const top = {
 		doc,
 		starts,
 		before,
 		readings,
-		grammar,
 		read: (t: string) => readOpened(t, grammar)
 	};
 	while (pending.length > 0) {
@@ -132,6 +163,7 @@ function readAgain(
 		const read = within && containerWindow(top, within.block, within.changes);
 		if (read) {
 			windows.push(read.window);
+			took.push({ from: within!.block, to: Math.min(last, textAfter(children, within!.block)) });
 			if (read.suffix !== undefined) suffix = read.suffix;
 			continue;
 		}
@@ -149,15 +181,16 @@ function readAgain(
 			}
 			const read = span.hi === last ? readTail(start, span.changes) : readUpTo(span, start, k);
 			if (!read) span.hi = Math.min(last, span.hi + grow);
-			else if ('closerAt' in read) span.hi = read.closerAt;
+			else if ('readTo' in read) span.hi = read.readTo;
 			else {
 				if (read.suffix !== undefined) suffix = read.suffix;
 				windows.push(trimmed(doc, span.lo, span.hi, carried, read.blocks));
+				took.push({ from: span.lo, to: k });
 				break;
 			}
 		}
 	}
-	return { windows, suffix };
+	return { windows, suffix, took };
 
 	/** The top-level block every byte `changes` change lies in, past its blank lines, and those
 	 *  bytes; null when they reach more than one block. */
@@ -183,7 +216,7 @@ function readAgain(
 		span: Span,
 		start: number,
 		k: number
-	): { blocks: CstNode[]; suffix?: undefined } | { closerAt: number } | null {
+	): { blocks: CstNode[]; suffix?: undefined } | { readTo: number } | null {
 		const { hi } = span;
 		if (isBlankParagraph(children[k])) return null;
 		const head = changedBytes(before, start, starts.end(hi), span.changes);
@@ -197,16 +230,19 @@ function readAgain(
 		while (m < blocks.length && at < head.length)
 			at += blocks[m].leadingTrivia.length + blocks[m++].raw.length;
 		if (at !== head.length || !standsBelow(children, hi, k, blocks.slice(m))) return null;
+		// A block still waiting past the read's end reads on as far as its wait can run.
+		const runsTo = waitRunsPast(blocks, (i) => children[i], k, last, readings);
+		if (runsTo >= 0) return k === last ? null : { readTo: runsTo };
 		// A block the window leaves waiting on a closer reads on to the first line below that may be it.
 		const closerAt = closerBelow(blocks.slice(0, m), hi);
-		return closerAt < 0 ? { blocks: blocks.slice(0, m) } : { closerAt };
+		return closerAt < 0 ? { blocks: blocks.slice(0, m) } : { readTo: closerAt };
 	}
 
 	/** The first block below `hi` with a line that may close one `read` leaves waiting, or -1. */
 	function closerBelow(read: readonly CstNode[], hi: number): number {
-		// A reading no line closes (a link definition's) waits on nothing below.
-		const waiting = readings.filter(
-			(reading) => reading.closer !== null && read.some((block) => reading.notFinal(block.raw))
+		// A wait no line closes was read on above, as far as it runs.
+		const waiting = closed(readings).filter((reading) =>
+			read.some((block) => reading.notFinal(block.raw))
 		);
 		if (waiting.length === 0) return -1;
 		const closes = (line: { text: string }) => waiting.some((r) => r.mayClose(line.text));

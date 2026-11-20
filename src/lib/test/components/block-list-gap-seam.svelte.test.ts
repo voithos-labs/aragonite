@@ -48,12 +48,13 @@ afterEach(async () => {
 const FENCE = '```\ncode\n```\n';
 const PARAGRAPH = 'para\n';
 
-/** A windowed BlockList over `BLOCK_COUNT` blocks with the gap caret at `gapIndex`. */
-function mountWindowedList(gapIndex: number, blockSource = FENCE): Mounted {
+/** A windowed BlockList over `BLOCK_COUNT` blocks with the gap caret at `gapIndex`, held there by
+ *  a removal when `held`. */
+function mountWindowedList(gapIndex: number, blockSource = FENCE, held?: true): Mounted {
 	const doc = parse(Array.from({ length: BLOCK_COUNT }, () => blockSource).join('\n'));
 	expect(doc.children).toHaveLength(BLOCK_COUNT);
 	const selection = createSelectionState();
-	selection.setGapCaret({ parentPath: [], index: gapIndex });
+	selection.setGapCaret({ parentPath: [], index: gapIndex, held });
 
 	const refs: (BlockComponent | undefined)[] = [];
 	const target = document.createElement('div');
@@ -113,5 +114,12 @@ describe('the gap indicator at a windowed slice boundary', () => {
 		mounted = mountWindowedList(SLICE_END, PARAGRAPH);
 
 		expect(mounted.target.querySelectorAll('[data-gap-caret]')).toHaveLength(0);
+	});
+
+	// A removal's landing holds a gap where no arrow stops, and the caret has nowhere else to show.
+	it('paints a gap a removal held there, whatever kinds face it', () => {
+		mounted = mountWindowedList(SLICE_END, PARAGRAPH, true);
+
+		expect(mounted.target.querySelectorAll('[data-gap-caret]')).toHaveLength(1);
 	});
 });

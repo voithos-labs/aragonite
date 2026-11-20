@@ -119,12 +119,15 @@ export function createDevice(out) {
 
 	// Gboard's keys by their accessibility labels, from a dump of every window; an empty map when the
 	// keyboard isn't on screen, which includes Gboard's hardware mode (no keys, input still connected).
+	// Its backspace key is labelled Delete, and a letter key reads as a capital while Shift is on (at a
+	// sentence's start, say), so each letter is keyed by its lowercase.
 	function gboardKeys(name) {
 		const keys = new Map();
 		for (const n of dumpNodes(name, '--windows')) {
 			if (!n.pkg.includes('inputmethod')) continue;
-			const label = n.desc === 'Space' ? ' ' : n.desc;
-			if (/^[a-z ]$/.test(label)) keys.set(label, centre(n.box));
+			const label = n.desc === 'Space' ? ' ' : n.desc === 'Delete' ? 'Backspace' : n.desc;
+			if (/^([a-z ]|Backspace)$/i.test(label))
+				keys.set(label.length === 1 ? label.toLowerCase() : label, centre(n.box));
 		}
 		return keys;
 	}

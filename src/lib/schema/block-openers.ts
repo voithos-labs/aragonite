@@ -57,21 +57,51 @@ export interface BlockOpener {
 	readingNotFinal?: UnfinishedReading;
 }
 
-/** The two halves of {@link BlockOpener.readingNotFinal}, declared together. */
-export interface UnfinishedReading {
-	/** Given a block's own bytes, read in the editor's grammar: my reading of them isn't final, a
-	 *  line below could change it. */
+/** The two halves of {@link BlockOpener.readingNotFinal}, declared together: a reading a line
+ *  closes names that line, and one no line closes may say which lines its wait stops at. */
+export type UnfinishedReading = ClosedReading | UnclosedReading;
+
+interface ReadingNotFinal {
+	/** Given a block's bytes from its first line on, read in the editor's grammar: my reading of
+	 *  them isn't final, a line below could change it. Once final, it stays final with more lines. */
 	notFinal: (raw: string, grammar: GrammarView) => boolean;
+}
+
+export interface ClosedReading extends ReadingNotFinal {
 	/** Whether a line could be the one that changes it. A cheap candidate test, not a match: true
 	 *  for every line this opener accepts as its closer, wider is fine, narrower breaks the edit. */
 	mayClose: (lineText: string) => boolean;
 	/** The line that closes a waiting block whose bytes are `raw`, which an opener typed on its own
-	 *  line is given so it takes in no block below it; null where no line closes it. */
-	closer: ((raw: string) => string) | null;
+	 *  line is given so it takes in no block below it. */
+	closer: (raw: string) => string;
 	/** The block takes in every line below it until its closer, as an unclosed fence does: it never
 	 *  stands above another block, and with no closer below it reads to the body's end. */
 	readsOn?: boolean;
 }
+
+/** A reading no line closes, as a link definition waits on a title: `notFinal` is also asked of a
+ *  block's bytes together with the blocks under it, and a blank line always ends the wait. Both
+ *  answers must follow from the bytes asked about alone, since the editor keeps them. */
+export interface UnclosedReading extends ReadingNotFinal {
+	closer: null;
+	/** Whether the wait runs on across a block under the waiting one that opens with this line.
+	 *  Absent: across every line, to the blank line. */
+	crosses?: (lineText: string, grammar: GrammarView) => boolean;
+}
+
+/** A reading as one grammar hands it out, which reads a block's bytes in that grammar. */
+export type GrammarReading = ClosedInGrammar | UnclosedInGrammar;
+
+export type ClosedInGrammar = Omit<ClosedReading, 'notFinal'> & { notFinal(raw: string): boolean };
+
+export type UnclosedInGrammar = Omit<UnclosedReading, 'notFinal' | 'crosses'> & {
+	notFinal(raw: string): boolean;
+	crosses?(lineText: string): boolean;
+};
+
+/** The readings a line closes, which alone say `mayClose` and `readsOn`. */
+export const closed = (readings: readonly GrammarReading[]): ClosedInGrammar[] =>
+	readings.filter((reading): reading is ClosedInGrammar => reading.closer !== null);
 
 export type OpenerRecord = RegistryRecord<AnyBlockKind, BlockOpener>;
 
@@ -122,25 +152,27 @@ export function unfinishedReadings(grammar: GrammarView): readonly GrammarReadin
 	if (!readings) {
 		// Kinds sharing one grammar (every fence) share one reading, asked once.
 		readings = [...new Set(openers.flatMap((opener) => opener.readingNotFinal ?? []))].map(
-			(reading) => ({ ...reading, notFinal: (raw: string) => reading.notFinal(raw, grammar) })
+			(reading) => inGrammar(reading, grammar)
 		);
 		readingsByOpeners.set(openers, readings);
 	}
 	return readings;
 }
 
-/** A reading as one grammar hands it out, which reads a block's bytes in that grammar. */
-export type GrammarReading = Omit<UnfinishedReading, 'notFinal'> & {
-	notFinal(raw: string): boolean;
-};
+function inGrammar(reading: UnfinishedReading, grammar: GrammarView): GrammarReading {
+	const notFinal = (raw: string): boolean => reading.notFinal(raw, grammar);
+	if (reading.closer !== null) return { ...reading, notFinal };
+	const { crosses } = reading;
+	return { ...reading, notFinal, crosses: crosses && ((line: string) => crosses(line, grammar)) };
+}
 
-/** The reading under which a block of these bytes waits on a line below that closes it, or null:
- *  a reading with no closing line (a link definition's) never takes in the blocks below. */
+/** The reading under which a block of these bytes waits on a line below that closes it, or null.
+ *  A wait no line closes is {@link waitingAboveThrough}'s to find. */
 export function waitingReading(
 	raw: string,
 	readings: readonly GrammarReading[]
-): GrammarReading | null {
-	return readings.find((reading) => reading.closer !== null && reading.notFinal(raw)) ?? null;
+): ClosedInGrammar | null {
+	return closed(readings).find((reading) => reading.notFinal(raw)) ?? null;
 }
 
 /** The topmost of the `count` blocks above that a line of `written` closes by the same reading, the
@@ -151,7 +183,7 @@ export function waitingAboveClosedBy(
 	count: number,
 	readings: readonly GrammarReading[]
 ): number {
-	const closing = readings.filter(
+	const closing = closed(readings).filter(
 		(reading) => !reading.readsOn && written.some((line) => reading.mayClose(line))
 	);
 	if (closing.length === 0) return -1;
@@ -160,6 +192,145 @@ export function waitingAboveClosedBy(
 		if (closing.some((reading) => reading.notFinal(rawAbove(i)))) top = i;
 	}
 	return top;
+}
+
+/** A block's bytes and the blank lines above it, all the look for a wait reads of it. */
+interface Held {
+	readonly raw: string;
+	readonly leadingTrivia: string;
+}
+
+const unclosed = (readings: readonly GrammarReading[]): UnclosedInGrammar[] =>
+	readings.filter((reading): reading is UnclosedInGrammar => reading.closer === null);
+
+/** Whether a wait under `reading` runs on into `below`, the block right under the waiting one. */
+function reaches(reading: UnclosedInGrammar, below: Held): boolean {
+	if (below.leadingTrivia !== '') return false;
+	const end = below.raw.indexOf('\n');
+	const line = (end < 0 ? below.raw : below.raw.slice(0, end)).replace(/\r$/, '');
+	return reading.crosses?.(line) ?? true;
+}
+
+/** The highest block above `from` that a reading no line closes leaves waiting past `from`'s end:
+ *  read from its first line down to there, a line below could still change it. -1 when none. */
+export function waitingAboveThrough(
+	block: (index: number) => Held,
+	from: number,
+	floor: number,
+	readings: readonly GrammarReading[]
+): number {
+	return waitingPast(block, from, floor, unclosed(readings));
+}
+
+/** The highest block above `at` whose wait, under a reading no line closes, is still open where
+ *  block `at` starts and runs on into it, so a line of `at` could still change it. -1 when none. */
+export function waitingInto(
+	block: (index: number) => Held,
+	at: number,
+	floor: number,
+	readings: readonly GrammarReading[]
+): number {
+	if (at <= floor) return -1;
+	const live = unclosed(readings).filter((reading) => reaches(reading, block(at)));
+	if (live.length === 0) return -1;
+	const above = waitingPast(block, at - 1, floor, live);
+	if (above >= 0) return above;
+	return live.some((reading) => reading.notFinal(block(at - 1).raw)) ? at - 1 : -1;
+}
+
+/** What a block answered with the first line of the block under it, kept on that lower block. */
+interface FirstAsk {
+	above: string;
+	raw: string;
+	leadingTrivia: string;
+	live: UnclosedInGrammar[];
+	reached: UnclosedInGrammar[];
+	waiting: UnclosedInGrammar[];
+}
+
+const firstAsks = new WeakMap<Held, FirstAsk>();
+
+// A walk up a long run asks each pair once while both blocks hold the bytes and blank lines they
+// did and the same readings ask: a reading is bound to one opener list, interrupts and all.
+function firstAsk(
+	above: string,
+	node: Held,
+	raw: string,
+	leadingTrivia: string,
+	live: UnclosedInGrammar[]
+): FirstAsk {
+	const kept = firstAsks.get(node);
+	if (
+		kept?.above === above &&
+		kept.raw === raw &&
+		kept.leadingTrivia === leadingTrivia &&
+		askedBy(kept, live)
+	)
+		return kept;
+	const below = { raw, leadingTrivia };
+	const reached = live.filter((reading) => reaches(reading, below));
+	const line = raw.slice(0, raw.indexOf('\n') + 1 || raw.length);
+	const waiting = reached.filter((reading) => reading.notFinal(above + line));
+	const asked = { above, raw, leadingTrivia, live, reached, waiting };
+	firstAsks.set(node, asked);
+	return asked;
+}
+
+/** Whether these readings asked `kept`. It keeps the list it matched, which a walk hands it again. */
+function askedBy(kept: FirstAsk, live: UnclosedInGrammar[]): boolean {
+	if (kept.live === live) return true;
+	if (kept.live.length !== live.length || kept.live.some((reading, k) => reading !== live[k]))
+		return false;
+	kept.live = live;
+	return true;
+}
+
+function waitingPast(
+	block: (index: number) => Held,
+	from: number,
+	floor: number,
+	live: UnclosedInGrammar[]
+): number {
+	if (from <= floor || live.length === 0) return -1;
+	let top = -1;
+	// One read of a block's bytes a walk, a pair's upper block being the next pair's lower: over the
+	// editor's tree each read goes through a proxy, and a long run pays for every one.
+	let below = block(from);
+	let raw = below.raw;
+	for (let i = from; i > floor && live.length > 0; i--) {
+		const above = block(i - 1);
+		const aboveRaw = above.raw;
+		const first = firstAsk(aboveRaw, below, raw, below.leadingTrivia, live);
+		live = first.reached;
+		let bytes = aboveRaw;
+		// Asked with the next line alone, then with twice the blocks each time: a block a few lines
+		// settle stays settled with more under them, so it is never handed the whole run.
+		let waiting = first.waiting;
+		for (let k = i, step = 1; k <= from && waiting.length > 0; step *= 2) {
+			for (const end = Math.min(from, k + step - 1); k <= end; k++) bytes += block(k).raw;
+			waiting = waiting.filter((reading) => reading.notFinal(bytes));
+		}
+		if (waiting.length > 0) top = i - 1;
+		below = above;
+		raw = aboveRaw;
+	}
+	return top;
+}
+
+/** Where a read has to run on to: the last block from `from` that a wait still open past the end
+ *  of `read` can reach, or -1 when no block of `read` still waits there. */
+export function waitRunsPast(
+	read: readonly Held[],
+	block: (index: number) => Held,
+	from: number,
+	last: number,
+	readings: readonly GrammarReading[]
+): number {
+	if (waitingAboveThrough((i) => read[i], read.length - 1, 0, readings) < 0) return -1;
+	const live = unclosed(readings);
+	let to = from;
+	while (to < last && live.some((reading) => reaches(reading, block(to + 1)))) to++;
+	return to;
 }
 
 /**

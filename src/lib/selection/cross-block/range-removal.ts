@@ -7,7 +7,6 @@
 import type { SourceSplice, SpliceCaret } from '../../action-contracts';
 import type { DocumentView } from '../../core/node-views';
 import type { AnyBlockKind } from '../../core/nodes';
-import { getContentRange, isProseKind } from '../../core/inline';
 import { hidesDelimitersAtCaret } from '../../presentation-mode';
 import {
 	removalOf,
@@ -16,14 +15,25 @@ import {
 	type RemovalGesture
 } from '../../range-edit/edit-range';
 import { rangeHost } from '../../range-edit/host';
+import type { CommandDispatchContext } from '../../schema/block-commands';
+import { LINE_BREAK_COMMAND_IDS, resolveBinding } from '../../schema/commands';
 import { changesBetween } from '../../tree-operations/byte-changes';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import type { Measured } from '../../tree-operations/top-level-starts';
 import { deleteSnapshot, type SelectionPoint } from '../primitives';
-import { liveSlot, type RemovalGesture as BlockGesture } from '../caret-target';
+import type { RemovalGesture as BlockGesture } from '../caret-target';
 
 import { firstCaretLeafFrom, previousCaretPath } from '../path-lookup';
-import { gapAtByte, pointAtByte, removalBytes, wholeBlockBytes } from '../range-bytes';
+import {
+	endsOf,
+	heldGapOf,
+	pointAtByte,
+	rangeRead,
+	readsAsText,
+	removalBytes,
+	takenGapOf,
+	wholeBlockBytes
+} from '../range-bytes';
 import type { RangeCoverage } from '../range-coverage';
 import type { CrossBlockDispatchContext } from './dispatch';
 
@@ -44,8 +54,9 @@ export interface Removed {
 	caret: SelectionPoint | null;
 	/** The core's caret: its byte, and whether text, a block held whole or a boundary sits there. */
 	landed: SpliceCaret | null;
-	/** The block the range started in, by its path before the removal, when the removal took it. */
-	took: readonly number[] | null;
+	/** Where the block the range started in stood, read on the bytes after, when the removal took
+	 *  it. */
+	taken: { at: number; parent: readonly number[] } | null;
 }
 
 /** How the core names the removal each block gesture makes: a delete no key asked for removes as
@@ -57,6 +68,31 @@ export const CORE_GESTURE: Record<BlockGesture, RemovalGesture> = {
 	keyless: 'command'
 };
 
+type Keymap = Pick<CommandDispatchContext, 'keybindingOverrides' | 'activation'>;
+
+/** How the core names a command key's removal, by what its chord runs in `kind`, where it was
+ *  claimed: a line break, else Backspace's side. A break input that runs nothing is a break. */
+export function commandGesture(
+	kind: AnyBlockKind,
+	insertion: { kind: 'command' | 'break'; chord: string },
+	commands: Keymap
+): RemovalGesture {
+	const command = boundCommand(kind, insertion.chord, commands);
+	if (command === undefined) return insertion.kind === 'break' ? 'break' : 'command';
+	return LINE_BREAK_COMMAND_IDS.has(command) ? 'break' : 'command';
+}
+
+/** Whether `chord` runs a line break in a block of `kind`. */
+export function breaksLine(kind: AnyBlockKind, chord: string, commands: Keymap): boolean {
+	const command = boundCommand(kind, chord, commands);
+	return command !== undefined && LINE_BREAK_COMMAND_IDS.has(command);
+}
+
+function boundCommand(kind: AnyBlockKind, chord: string, commands: Keymap) {
+	const overrides = commands.keybindingOverrides();
+	return resolveBinding(chord, kind, overrides, commands.activation)?.command;
+}
+
 /** Removes what `coverage` holds as `gesture` does, in one commit. */
 export async function removeThroughCore(
 	ctx: RemovalContext,
@@ -64,10 +100,12 @@ export async function removeThroughCore(
 	gesture: RemovalGesture
 ): Promise<Removed> {
 	const tree = ctx.bytes.doc();
-	const range = removalBytes(tree, coverage, ctx.bytes.layout());
-	if (!range) return { wrote: false, caret: null, landed: null, took: null };
-	const source = ctx.bytes.source();
-	const answer = removalOf(source, range, gesture, modeOf(ctx), hostOf(ctx));
+	const read = rangeRead(ctx.bytes, endsOf(coverage), (layout) =>
+		removalBytes(tree, coverage, layout)
+	);
+	if (!read) return { wrote: false, caret: null, landed: null, taken: null };
+	const { source, range } = read;
+	const answer = removalOf(source, range, gesture, modeOf(ctx), rangeHost(ctx.reading, read));
 	const landed = answer.caret;
 	// A range holding nothing to take (an end narrowed to the text before it) is a caret there.
 	if (answer.source === source)
@@ -75,7 +113,7 @@ export async function removeThroughCore(
 			wrote: false,
 			caret: pointAtByte(ctx.bytes.measured(), landed.at),
 			landed,
-			took: null
+			taken: null
 		};
 	const { start } = coverage.range;
 	const wrote = await commitBytes(ctx, answer.source, {
@@ -84,7 +122,7 @@ export async function removeThroughCore(
 		snapshot: deleteSnapshot(start.path, start.offset)
 	});
 	const caret = wrote ? pointAtByte(ctx.bytes.measured(), landed.at) : null;
-	return { wrote, caret, landed, took: answer.took ?? null };
+	return { wrote, caret, landed, taken: answer.taken ?? null };
 }
 
 /** Removes the block at `path` whole, as the block menu's Delete does, in one commit whose edit
@@ -95,15 +133,15 @@ export function removeWholeBlock(
 	gesture: BlockGesture,
 	commit: Omit<RemovalCommit, 'caret'>
 ): Promise<boolean> {
-	const range = wholeBlockBytes(ctx.bytes.doc(), ctx.bytes.layout(), path);
-	if (!range) return Promise.resolve(false);
-	const source = ctx.bytes.source();
+	const tree = ctx.bytes.doc();
+	const read = rangeRead(ctx.bytes, [path], (layout) => wholeBlockBytes(tree, layout, path));
+	if (!read) return Promise.resolve(false);
 	const answer = wholeBlocksRemovalOf(
-		source,
-		range,
+		read.source,
+		read.range,
 		CORE_GESTURE[gesture],
 		modeOf(ctx),
-		hostOf(ctx)
+		rangeHost(ctx.reading, read)
 	);
 	return commitBytes(ctx, answer.source, { ...commit, caret: answer.caret });
 }
@@ -116,10 +154,13 @@ export async function writeInCell(
 	text: string
 ): Promise<boolean | null> {
 	const tree = ctx.bytes.doc();
-	const source = ctx.bytes.source();
-	const range = removalBytes(tree, coverage, ctx.bytes.layout());
-	const answer = range && textInCell(source, range, text, modeOf(ctx), hostOf(ctx));
-	if (!answer) return null;
+	const read = rangeRead(ctx.bytes, endsOf(coverage), (layout) =>
+		removalBytes(tree, coverage, layout)
+	);
+	const answer =
+		read && textInCell(read.source, read.range, text, modeOf(ctx), rangeHost(ctx.reading, read));
+	if (!answer || !read) return null;
+	const { source } = read;
 	const { start } = coverage.range;
 	const length =
 		(blockNodeAt(tree, start.path)?.raw.length ?? 0) + answer.source.length - source.length;
@@ -138,13 +179,6 @@ function commitBytes(ctx: CommitContext, after: string, splice: RemovalCommit): 
 
 const modeOf = (ctx: CommitContext) =>
 	hidesDelimitersAtCaret(ctx.reading.mode()) ? 'live' : 'source';
-
-const hostOf = (ctx: CommitContext) =>
-	rangeHost(ctx.reading, {
-		source: ctx.bytes.source(),
-		measured: ctx.bytes.measured(),
-		layout: ctx.bytes.layout()
-	});
 
 // ── Where the removal leaves the caret, read around it ───────────────────────
 
@@ -166,29 +200,26 @@ export function commandLandingKind(doc: DocumentView, coverage: RangeCoverage): 
 	return beside ? kindAt(doc, beside) : 'paragraph';
 }
 
-/** Where text over the range opens a paragraph, by the core's answer: the boundary its caret sits
- *  on, or the block the range started in, taken, with the caret off prose. Null types in place. */
+/** Where text over the range opens a paragraph: the boundary the core's place is held at, or the
+ *  block the range started in, taken, with the caret off prose. Null types in place. */
 export function emptiedPlace(measured: Measured, removed: Removed): number[] | null {
-	const { doc: committed, starts } = measured;
-	const { landed, caret, took } = removed;
+	const { doc: committed } = measured;
+	const { landed, caret, taken } = removed;
 	if (!landed || !removed.wrote) return null;
 	if (landed.holds === 'boundary') {
-		const gap = gapAtByte(measured, landed.at);
+		const gap = heldGapOf(measured, landed);
 		if (gap) return [...gap.parentPath, gap.index];
-		// The root's trailing boundary takes no gap caret, but a paragraph opens there all the same.
-		const end = starts.length - committed.suffix.length;
-		return landed.at >= end ? [committed.children.length] : null;
 	}
-	if (!took || (caret && landed.holds === 'text' && inProse(committed, caret))) return null;
-	return liveSlot(committed, took);
+	// A boundary held as no gap leaves the caret on the text at its byte.
+	if (!taken || (caret && landed.holds !== 'block' && inProse(committed, caret))) return null;
+	const gap = takenGapOf(measured, taken);
+	return gap && [...gap.parentPath, gap.index];
 }
 
-/** Whether text written at `point` reads as its block's text: a prose block, inside its content. */
+/** Whether text written at `point` reads as its block's text. */
 function inProse(doc: DocumentView, point: SelectionPoint): boolean {
 	const leaf = blockNodeAt(doc, point.path);
-	if (!leaf) return true;
-	const content = getContentRange(leaf);
-	return isProseKind(leaf.kind) && point.offset >= content.start && point.offset <= content.end;
+	return !leaf || readsAsText(leaf, point.offset);
 }
 
 function kindAt(doc: DocumentView, path: readonly number[]): AnyBlockKind {

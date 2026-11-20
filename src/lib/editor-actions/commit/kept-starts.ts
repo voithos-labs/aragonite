@@ -1,24 +1,30 @@
 /**
- * The editor's own record of where its top-level blocks start, kept across writes: each write says
- * which blocks it changed, and only those are measured again. A write that can't say forgets the
- * record, and the next question measures every block once. Nothing is measured until a position is
- * asked for, so a document nobody asks about pays nothing. The record answers for the live document
- * between two announcements. From a write's first change to the tree until it announces, the
- * record is behind the tree, so a read there is answered from a fresh measure and fails a dev build.
+ * The editor's own record of its top-level blocks, kept across writes: each block's two strings,
+ * so where it starts and what it holds are one reading. Each write says which blocks it changed,
+ * and only those are read again. A write that can't say forgets the record, and the next question
+ * reads every block once. Nothing is read until a position or a save asks, so a document nobody
+ * asks about pays nothing. From a write's first change to the tree until it announces, the record
+ * is behind the tree, so a read there is answered from a fresh measure and fails a dev build.
  * `duringWrite` is the one way into that window, so no writer can leave it open or open a second.
+ * A write that named too few blocks leaves the record wrong with nothing to say so: `vouch`
+ * compares the blocks a caller is about to take with the tree, and a save reads the tree itself.
  */
 
 import { untrack } from 'svelte';
 import { assertInvariant, devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 import type { DocumentView } from '../../core/node-views';
+import { serialize } from '../../core/serializer';
 import { checkKeptStarts } from '../../invariants/kept-starts';
-import { perfEnabled } from '../../perf/instruments';
+import { perfEnabled, recordTextRead } from '../../perf/instruments';
 import {
 	applyChanges,
-	blockLengths,
+	blockBytes,
+	holdsBytes,
 	measured,
+	piecesOf,
 	startsOver,
-	type BlockLengths,
+	topsOf,
+	type BlockBytes,
 	type Measured,
 	type TopLevelChange
 } from '../../tree-operations/top-level-starts';
@@ -38,6 +44,15 @@ export interface KeptStarts {
 	read(): Measured;
 	/** Whether a position has been asked for since the record last forgot. */
 	isMeasured(): boolean;
+	/** Whether the record holds, for top-level blocks `[from, to]`, the bytes the tree holds: asked
+	 *  before bytes read off the record leave it. When not, the record is forgotten and reported. */
+	vouch(from: number, to: number): boolean;
+	/** The document's text read off the tree, never off the record; a record that held other
+	 *  bytes is forgotten and reported. Asked only while every write has announced. */
+	saved(): string;
+	/** The document's text as the record holds it, joined once per read pair: what a gesture works
+	 *  its bytes out from, which `vouch` then compares with the tree. Never what a save writes. */
+	source(): string;
 	/** Whether the tree may hold bytes no announcement covers: a write is open, or one threw and
 	 *  none has announced since. Whatever is kept of the document steps aside while it holds. */
 	unannounced(): boolean;
@@ -51,10 +66,16 @@ export interface KeptStarts {
 /** A run wider than this forgets the record, so no write measures more than a few hundred blocks. */
 const WIDEST_RUN = 512;
 
-/** `announce` tells the editor its bytes changed (the content version), once the record has moved. */
-export function createKeptStarts(doc: () => DocumentView, announce: () => void): KeptStarts {
-	let kept: BlockLengths | null = null;
+/** `announce` tells the editor its bytes changed (the content version), once the record has moved.
+ *  `report` hears a record found holding bytes the tree doesn't, in production too. */
+export function createKeptStarts(
+	doc: () => DocumentView,
+	announce: () => void,
+	report: (error: Error) => void
+): KeptStarts {
+	let kept: BlockBytes | null = null;
 	let view: Measured | null = null;
+	let joined: { of: Measured; text: string } | null = null;
 	let open = false;
 	let threw = false;
 
@@ -63,13 +84,19 @@ export function createKeptStarts(doc: () => DocumentView, announce: () => void):
 	const unannounced = () => open || threw;
 	// Nothing vouches for the rollback of a write that threw, so the record goes with it.
 	const forget = () => {
-		kept = view = null;
+		kept = view = joined = null;
 		threw = true;
+	};
+	// A write named too few of the blocks it changed. The next read measures the tree again.
+	const stale = (message: string) => {
+		kept = view = joined = null;
+		assertInvariant('kept-starts-current', () => ({ code: 'kept-starts-stale', message }));
+		report(new Error(`aragonite: ${message}`));
 	};
 	/** Moves the record past a write's runs, or forgets it when the write can't say. */
 	const place = (runsOf: ChangedRuns) => {
 		threw = false;
-		view = null;
+		view = joined = null;
 		if (!kept) return;
 		const runs = runsOf?.();
 		if (!runs || runs.some((run) => run.inserted > WIDEST_RUN)) {
@@ -80,7 +107,7 @@ export function createKeptStarts(doc: () => DocumentView, announce: () => void):
 		untrack(() => {
 			applyChanges(doc(), record, runs);
 			if (devChecksOn && !perfEnabled()) {
-				assertInvariant('kept-starts-current', () => checkKeptStarts(record.lengths, doc(), runs));
+				assertInvariant('kept-starts-current', () => checkKeptStarts(record.pieces, doc(), runs));
 			}
 		});
 	};
@@ -88,16 +115,29 @@ export function createKeptStarts(doc: () => DocumentView, announce: () => void):
 		if (devChecksOn && open) misused('a position was read between a write and its announcement');
 		return unannounced();
 	};
+	/** The pair for the document as it stands, which every read of the record starts from: one
+	 *  the tree has left by a block is forgotten, and reported, before anything is served. */
+	const current = (): Measured => {
+		if (kept && kept.lengths.length !== doc().children.length) {
+			const message = 'the document changed its blocks with no write announced';
+			if (devChecksOn) misused(message);
+			kept = view = joined = null;
+			report(new Error(`aragonite: ${message}`));
+		}
+		return (view ??= pinned());
+	};
+	// Off the version's plain list, so the list is walked once for every reader.
+	const measure = (of: Measured) => (kept = blockBytes(topsOf(of)));
 	const pinned = (): Measured => {
 		const at = { ...doc() };
-		let own: BlockLengths | undefined;
-		const lengths = (): BlockLengths => {
+		let own: BlockBytes | undefined;
+		const lengths = (): BlockBytes => {
 			if (view === made && kept) return kept;
 			// Untracked, so a reactive reader subscribes to the content version and not to every block.
 			return untrack(() => {
 				// A view kept past the next announcement measures its own document, once.
-				if (view !== made) return (own ??= blockLengths(at));
-				return inWrite() ? blockLengths(at) : (kept = blockLengths(at));
+				if (view !== made) return (own ??= blockBytes(at.children));
+				return inWrite() ? blockBytes(at.children) : measure(made);
 			});
 		};
 		const made: Measured = { doc: at, starts: startsOver(at, lengths) };
@@ -105,17 +145,35 @@ export function createKeptStarts(doc: () => DocumentView, announce: () => void):
 	};
 
 	return {
-		read: () =>
-			untrack(() => {
-				if (inWrite()) return measured(doc());
-				if (kept && kept.lengths.length !== doc().children.length) {
-					if (devChecksOn) misused('the document changed its blocks with no write announced');
-					kept = null;
-					view = null;
-				}
-				return (view ??= pinned());
-			}),
+		read: () => untrack(() => (inWrite() ? measured(doc()) : current())),
 		isMeasured: () => kept !== null,
+		vouch: (from, to) =>
+			untrack(() => {
+				if (!kept || unannounced() || holdsBytes(kept, doc().children, from, to)) return true;
+				stale(`the kept bytes of blocks ${from} to ${to} are not the document's`);
+				return false;
+			}),
+		saved: () =>
+			untrack(() => {
+				const now = current();
+				const tops = topsOf(now);
+				recordTextRead();
+				const fresh = piecesOf(tops, 0, tops.length);
+				const was = kept?.pieces;
+				if (was && !(was.length === fresh.length && fresh.every((s, i) => s === was[i])))
+					stale('a save read bytes the kept record did not hold');
+				return now.doc.prefix + fresh.join('') + now.doc.suffix;
+			}),
+		source: () =>
+			untrack(() => {
+				if (unannounced()) return serialize(doc());
+				const now = current();
+				if (joined?.of !== now) {
+					const { pieces } = kept ?? measure(now);
+					joined = { of: now, text: now.doc.prefix + pieces.join('') + now.doc.suffix };
+				}
+				return joined.text;
+			}),
 		unannounced,
 		writing: () => open,
 		duringWrite(write) {
@@ -127,6 +185,10 @@ export function createKeptStarts(doc: () => DocumentView, announce: () => void):
 				if (written.touched !== 'unchanged') {
 					place(written.touched);
 					announce();
+				} else {
+					// The bytes stand, but the write may have left copies in the tree's slots, so
+					// whatever the outgoing view cached of the list (`topsOf`) goes with it.
+					view = joined = null;
 				}
 				return written;
 			} catch (err) {

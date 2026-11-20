@@ -62,13 +62,14 @@
 		return isProseKind(node.kind) ? ambientPrefixForFirst : '';
 	}
 
-	// The gap caret's index in this list, re-checked against the current children, since an
-	// edit can change the kinds either side of a stored gap.
+	// A gap an arrow, a click or an undo stored draws only while the kinds now beside it still open
+	// it, since a write can change them under it; one a removal held stands whatever faces it.
 	let gapIndex = $derived.by(() => {
 		const gap = selection?.gapCaret;
 		if (!gap || !pathsEqual(gap.parentPath, parentPath)) return null;
 		if (gap.index < start || gap.index > end) return null;
-		return gapEligibleAmong(children, gap.index, parentPath.length > 0) ? gap.index : null;
+		const open = gap.held || gapEligibleAmong(children, gap.index, parentPath.length > 0);
+		return open ? gap.index : null;
 	});
 </script>
 

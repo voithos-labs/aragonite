@@ -146,6 +146,50 @@ const ROWS: [name: string, marked: string, left: string, blocks: string][] = [
 		'- a⟦\n```\nx⟧\n```\n',
 		'- a\n```\n\n```\n',
 		'list(listItem(paragraph)) fencedCode'
+	],
+	// Miss-analysis: every pair here read the same alone and under the blocks above it; none stood
+	// under a definition whose title had started, which reads the pair into itself.
+	[
+		'code and the line that closes a started title stay apart',
+		"[a]: /u\n    'code\n⟦# h\n⟧text\nend'\n",
+		"[a]: /u\n    'code\n\ntext\nend'\n",
+		'linkReferenceDefinition indentedCode paragraph'
+	],
+	[
+		'the same, from the code’s end',
+		"[a]: /u\n    'code⟦\n# h⟧\ntext\nend'\n",
+		"[a]: /u\n    'code\n\ntext\nend'\n",
+		'linkReferenceDefinition indentedCode paragraph'
+	],
+	[
+		'the same inside a quote',
+		"> [a]: /u\n>     'code\n> ⟦# h\n> ⟧text\n> end'\n",
+		"> [a]: /u\n>     'code\n>\n> text\n> end'\n",
+		'blockquote(linkReferenceDefinition indentedCode paragraph)'
+	],
+	[
+		'two paragraphs under a title on its own line stay apart',
+		"[a]: /u\n'title\n⟦# h\n⟧text\nend'\n",
+		"[a]: /u\n'title\n\ntext\nend'\n",
+		'linkReferenceDefinition paragraph paragraph'
+	],
+	[
+		'a definition and a paragraph under a definition that waits stay apart',
+		"[a]: /u\n    'code\n[b]: /v\n⟦# h\n⟧end'\n",
+		"[a]: /u\n    'code\n[b]: /v\n\nend'\n",
+		'linkReferenceDefinition indentedCode linkReferenceDefinition paragraph'
+	],
+	[
+		'a title the upper definition starts itself folds in, as the pair reads',
+		'[a]: /u\n⟦# h\n⟧"t"\n',
+		'[a]: /u\n"t"\n',
+		'linkReferenceDefinition'
+	],
+	[
+		'a blank line above the upper block ends the wait',
+		"[a]: /u\n    'code\n\nx\n⟦# h\n⟧text\nend'\n",
+		"[a]: /u\n    'code\n\nx\ntext\nend'\n",
+		'linkReferenceDefinition indentedCode paragraph'
 	]
 ];
 

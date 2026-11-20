@@ -8,7 +8,7 @@
 import type { DocumentView, NodeView } from '../../core/node-views';
 import { sharedPrefixLength, sharedSuffixLength, writtenSpan } from '../../core/written-span';
 import { documentByteMap } from '../../tree-operations/container-offsets';
-import { measured } from '../../tree-operations/top-level-starts';
+import { measured, type Measured } from '../../tree-operations/top-level-starts';
 import { splitLines } from '../../core/lines';
 import { walkBlocks } from '../../core/paths';
 import { unfinishedReadings, type GrammarView } from '../../schema/block-openers';
@@ -97,7 +97,9 @@ export function pairsStay(before: string, after: string, grammar: GrammarView): 
 	const pairing = (text: string) =>
 		splitLines(text)
 			.map((line) => line.text)
-			.filter((line) => readings.some((r) => r.mayClose(line) || r.notFinal(line + '\n')));
+			.filter((line) =>
+				readings.some((r) => (r.closer !== null && r.mayClose(line)) || r.notFinal(line + '\n'))
+			);
 	const [was, now] = [pairing(before), pairing(after)];
 	return was.length === now.length && was.every((line, i) => line === now[i]);
 }
@@ -134,6 +136,15 @@ export function positionAt(lengths: readonly number[], at: number): PartPosition
 	return { part, offset: at };
 }
 
+/** Position `at` as a byte of `of`'s document by its kept starts, the coordinates the byte splice
+ *  reads its text in, so a commit's offsets and the bytes it changes come from one record. */
+export function byteIn(of: Measured, at: PartPosition): number {
+	const blocks = of.doc.children.length;
+	if (at.part === 0) return at.offset;
+	// The part past the blocks is the suffix, and the one past that the document's end.
+	return (at.part <= blocks + 1 ? of.starts.start(at.part - 1) : of.starts.length) + at.offset;
+}
+
 export function byteAt(lengths: readonly number[], at: PartPosition): number {
 	let byte = at.offset;
 	for (let part = 0; part < at.part; part++) byte += lengths[part];
@@ -156,10 +167,8 @@ export function blockRange(doc: DocumentView, path: readonly number[]): PartRang
 	const node = blockAt(top, path.slice(1));
 	if (!node) return null;
 	const start = alone.byteOf(inner, 0);
-	// Past its last byte: the offset after that one sits beyond the next line's marker.
-	const last = node.raw === '' ? start : alone.byteOf(inner, node.raw.length - 1);
-	if (start === null || last === null) return null;
-	const end = node.raw === '' ? last : last + 1;
+	const end = alone.endOf(inner, node.raw.length);
+	if (start === null || end === null) return null;
 	const to = end === blank + top.raw.length ? { part: part + 1, offset: 0 } : { part, offset: end };
 	return { from: { part, offset: start }, to };
 }

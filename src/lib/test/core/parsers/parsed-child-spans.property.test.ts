@@ -54,6 +54,11 @@ function expectSpansHold(source: string): void {
 	expect(found.length, JSON.stringify(source)).toBeGreaterThan(0);
 	for (const node of found) {
 		const spans = node.childSpans;
+		// A quote with no child yet has no child to find; the opened reading fills it.
+		if (node.children!.length === 0) {
+			expect(spans, JSON.stringify(node.raw)).toBeUndefined();
+			continue;
+		}
 		const rebuilt = { ...node, childSpans: undefined } as CstNode;
 		if (node.kind === 'table') rebuildTableRaw(rebuilt);
 		else writeContainerRaw(rebuilt, defaultGrammarView);
@@ -82,6 +87,8 @@ describe('a parsed quote and table keep their child spans', () => {
 		['a quote in an item of a quoted list', '> - > a\n>   >\n>   > b\n'],
 		['no final line break', '> a\n>\n> b'],
 		['CRLF', '> a\r\n>\r\n> b\r\n'],
+		['a quote with no child yet', 'a\n>'],
+		['a bare quote below a lazy line', '> first\n> > nested\nlazy line\n>'],
 		['a table', '| h |\n| - |\n| a |\n| b |\n'],
 		['a table with no body', '| h |\n| - |\n'],
 		['a table with no final line break', '| h |\n| - |\n| a |']
@@ -95,15 +102,16 @@ describe('a parsed quote and table keep their child spans', () => {
 		expect(quote.childSpans).toBeUndefined();
 	});
 
-	// Miss-analysis: the property held each span to its child and to the full rebuild's spans, but
-	// never asked that rebuild for the bytes, which drops a last bare `>` holding none of the body.
+	// A last bare `>` with no line break holds none of the body, and a full rebuild writes it back as
+	// it stands, so the quote keeps spans that agree with that rebuild.
 	it.each([
 		['a last bare marker', '> first\n>\n>'],
 		['a last marker and space', '> first\n>\n> '],
 		['CRLF', '> first\r\n> \r\n> '],
 		['an open fence', '> first\n> ```\n> code\n>']
-	])('leaves a quote ending on %s with no line break no spans', (_name, source) => {
-		expect(parse(source).children[0].childSpans).toBeUndefined();
+	])('keeps the spans of a quote ending on %s with no line break', (_name, source) => {
+		expect(parse(source).children[0].childSpans).toBeInstanceOf(Uint32Array);
+		expectSpansHold(source);
 	});
 
 	it('over generated quotes and tables', () => {

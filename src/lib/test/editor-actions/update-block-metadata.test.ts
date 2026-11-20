@@ -132,7 +132,8 @@ function makeContainerSetup(containerIndex: number, container: keyof typeof CONT
 	const spec = CONTAINERS[container]();
 	const containerNode: any = {
 		kind: spec.kind,
-		leadingTrivia: '',
+		// A blank line above, as a list under paragraph text needs to stand as one.
+		leadingTrivia: '\n',
 		raw: spec.raw,
 		...('metadata' in spec ? { metadata: spec.metadata } : {}),
 		children: [spec.inner],

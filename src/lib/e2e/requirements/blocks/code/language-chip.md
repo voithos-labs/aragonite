@@ -18,7 +18,8 @@ row otherwise, which is also how a language the registry does not know can still
 away both cancel, byte for byte. Only Enter and a pick from the list write. A bare fence that has
 just taken the caret with no language opens the picker itself, unless the caret stepped in from a
 neighbour: moving through an existing fence with the keyboard is not the moment its author picks
-a language, and a picker taking focus there would trap that movement.
+a language, and a picker taking focus there would trap that movement. A fence a removal emptied
+opens none either, since it once held a body (`removal-landing.md`).
 
 It comes and goes rather than sitting there: hidden until the pointer hovers the block or the
 caret sits inside it, following the same quiet-by-default rule as the drag handle. It renders

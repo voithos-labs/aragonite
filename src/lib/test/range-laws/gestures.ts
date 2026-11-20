@@ -6,6 +6,7 @@ import type { PresentationMode } from '#lib/presentation-mode.js';
 import type { EditorSelection } from '#lib/selection/primitives.js';
 import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
 import {
+	destroyMountedEditors,
 	mountEditor,
 	selectRange,
 	surfaceAt,
@@ -27,6 +28,10 @@ import {
 	type InsertionRoute
 } from '#lib/test/harness/insertion-routes.js';
 import { SYNTAX_PLUGINS } from '#lib/test/behavior/corpus.js';
+import {
+	getAllRegisteredKinds,
+	getBlockKindDescriptor
+} from '#lib/schema/block-kind-descriptor.js';
 import { throughSplice } from './through-splice';
 
 export type Editor = MountedEditor<EditorTestSurface>;
@@ -82,6 +87,29 @@ export async function placeRange(editor: Editor, range: EditorSelection): Promis
 	}
 	await editor.settle();
 	return sameSelection(editor.instance.getSelection(), range);
+}
+
+/** Puts a range inside one block down as a finger's long press leaves it, the editor's own, so the
+ *  editor's keys take it; a range across blocks goes down as `placeRange` puts it. */
+export async function placeOwnedRange(editor: Editor, range: EditorSelection): Promise<boolean> {
+	const { anchor, focus } = range;
+	if (JSON.stringify(anchor.path) !== JSON.stringify(focus.path)) return placeRange(editor, range);
+	const el = surfaceAt(editor, anchor.path);
+	const press = (type: string) => {
+		const event = new MouseEvent(type, { bubbles: true, cancelable: true, button: 0 });
+		Object.defineProperties(event, {
+			pointerType: { value: 'touch' },
+			pointerId: { value: 7 },
+			isPrimary: { value: true }
+		});
+		el.dispatchEvent(event);
+	};
+	press('pointerdown');
+	selectRange(el, anchor.offset, focus.offset);
+	el.dispatchEvent(new Event('selectstart', { bubbles: true }));
+	press('pointerup');
+	await editor.settle();
+	return editor.instance.__test.ownsRange();
 }
 
 const focused = (): HTMLElement => (document.activeElement as HTMLElement | null) ?? document.body;
@@ -234,4 +262,29 @@ export async function runHistory(editor: Editor, command: 'undo' | 'redo') {
 	if (took === 'browser') editor.instance.runCommand(`history.${command}`);
 	await editor.settle();
 	await settleEditor();
+}
+
+// ── Reads ────────────────────────────────────────────────────────────────────
+
+type Block = { kind: string; raw: string; children?: readonly Block[] };
+
+/** The blocks an editor holds, the blank lines between and inside them left out. */
+export const blocksIn = (editor: Editor) => blocksOf(editor.instance.__test.getDocument().children);
+
+export function blocksOf(nodes: readonly Block[]): unknown[] {
+	return nodes.flatMap((node) => {
+		if (node.children?.length) return [[node.kind, blocksOf(node.children)]];
+		const lines = node.raw.split(/\r?\n/).filter((line) => line.trim() !== '');
+		return lines.length === 0 && node.kind === 'paragraph' ? [] : [[node.kind, lines.join('\n')]];
+	});
+}
+
+/** Every registered kind with a conformance fixture, read once an editor has installed its plugins. */
+export async function kitFixtures(): Promise<[string, string][]> {
+	mountCase('', 'source');
+	await destroyMountedEditors();
+	return getAllRegisteredKinds().flatMap((kind) => {
+		const fixture = getBlockKindDescriptor(kind).conformanceFixture;
+		return fixture ? [[kind, fixture] as [string, string]] : [];
+	});
 }

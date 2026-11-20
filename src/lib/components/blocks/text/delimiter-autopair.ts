@@ -113,6 +113,8 @@ export function resolveDelimiterAutoPair(
 		}
 		return null;
 	}
+	// A byte that leaves its span's closer a run that cannot close the span pairs with nothing.
+	if (before === typed && !closerEndsAt(paired, pairedContent, caret, typed, reading)) return null;
 	if (!policy.single || (policy.notAfterWord && isWordByte(before))) return null;
 	const opened = text.slice(0, caret) + typed + typed + text.slice(caret);
 	return pair(opened, { start: caret, end: caret + 2 });

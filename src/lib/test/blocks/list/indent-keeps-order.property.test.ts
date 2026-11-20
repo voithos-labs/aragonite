@@ -234,7 +234,12 @@ async function exitTopLevelItem(
 	const caret = { path: found.path, offset: found.offset };
 	await editor.instance.setSelection({ anchor: caret, focus: caret });
 	await editor.settle();
-	await pressKeyAt(editor, found.path, found.offset + token.length, { key: 'Enter' });
+	// The text's end, not the token's: a Backspace join may have carried another item's text after it.
+	const leaf = found.path.reduce<Document | CstNode>(
+		(node, i) => node.children![i],
+		doc
+	) as CstNode;
+	await pressKeyAt(editor, found.path, leaf.raw.replace(/\r?\n$/, '').length, { key: 'Enter' });
 	await pressKeyAt(editor, found.path.with(-2, found.path.at(-2)! + 1), 0, { key: 'Enter' });
 }
 
@@ -289,4 +294,15 @@ describe('pinned examples', () => {
 
 		expect(editor.source()).toBe('- i0\n- i1\n  - i2\n- i3\n- i4\n- i5\n');
 	});
+});
+
+// Miss-analysis: the exit press took its token's end for the text's end, which holds only until a
+// Backspace joins the next item's text onto it.
+it('a Backspace join, then the presses that leave the list, keep the order', async () => {
+	const editor = mountEditor<Seam>({ source: '- i0\n- i1\n' });
+	mounted = editor;
+	const order = () => readOrder(editor.instance.__test.getDocument());
+	await press(editor, { kind: 'backspace', at: 1 }, order());
+	await press(editor, { kind: 'exit', at: 0 }, order());
+	expect(order()).toEqual(['i0', 'i1']);
 });

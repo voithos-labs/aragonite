@@ -5,12 +5,15 @@ import { type FixtureShape } from '../../../test/perf/fixtures/generate';
 import {
 	measureContainerEdit,
 	measureContainerInteriorTyping,
+	measureContainerRangeRemoval,
+	measureFirstCopy,
 	measureListCopy,
 	measureNewParagraphLetter,
 	measureRangeRemoval,
 	measureStructuralRebuild,
 	measureTypingLatency,
 	measureTypingWithPositionReads,
+	type FirstCopyShape,
 	type GiantContainer
 } from './latency-harness';
 
@@ -250,6 +253,56 @@ test.describe('perf gate: a removal over a range across small blocks', () => {
 	test('many small blocks 1MB range removal', async ({ page }) => {
 		const key = 'many-small-blocks-1MB-range-removal';
 		const m = await measureRangeRemoval(page, new EditorPage(page), SIZE_BYTES['1MB'], 20);
+		// Printed ahead of the gate, so a run still shows the row while its baseline waits a bless.
+		console.log(
+			`PERF-GATE ${key} p50=${m.p50Ms.toFixed(1)}ms p95=${m.p95Ms.toFixed(1)}ms ` +
+				`first=${m.samples[0].toFixed(1)}ms load=${m.loadMs.toFixed(1)}ms`
+		);
+		const { baselineMs, ceilingMs } = gateFor(key);
+		console.log(`PERF-GATE ${key} ceiling=${ceilingMs.toFixed(1)}ms (baseline ${baselineMs}ms)`);
+		expect(m.p50Ms, `${key} p50 regressed past baseline+budget`).toBeLessThanOrEqual(ceilingMs);
+	});
+});
+
+// A copy right after a write, held to the same copy made again: one that reads the whole
+// container after each write, or every block of a long flat document, reds its row.
+const FIRST_COPY_ROWS: Array<[shape: FirstCopyShape, size: string]> = [
+	['many-small-blocks', '1MB'],
+	['giant-single-blockquote', '1MB'],
+	['giant-single-list', '1MB'],
+	['giant-single-list', '10MB']
+];
+
+test.describe('perf gate: the first copy after a write', () => {
+	for (const [shape, size] of FIRST_COPY_ROWS) {
+		const key = `${shape}-${size}-copy-first`;
+		test(key.replace(/-/g, ' '), async ({ page }) => {
+			const m = await measureFirstCopy(page, new EditorPage(page), shape, SIZE_BYTES[size], 12);
+			// The twin ran on this machine, so the runner's scale widens the millisecond floor alone.
+			const ceilingMs = m.again.p50Ms * TOLERANCE + FLOOR_MS * RUNNER_SCALE;
+			console.log(
+				`PERF-GATE ${key} p50=${m.first.p50Ms.toFixed(1)}ms ` +
+					`ceiling=${ceilingMs.toFixed(1)}ms (again ${m.again.p50Ms.toFixed(1)}ms) ` +
+					`p95=${m.first.p95Ms.toFixed(1)}ms`
+			);
+			expect(m.first.p50Ms, `${key} p50 past the same copy made again`).toBeLessThanOrEqual(
+				ceilingMs
+			);
+		});
+	}
+});
+
+// A removal over a range inside a giant quote, which a layout of the quote's every line made slow.
+test.describe('perf gate: a removal over a range inside a giant quote', () => {
+	test('giant single blockquote 1MB range removal', async ({ page }) => {
+		const key = 'giant-single-blockquote-1MB-range-removal';
+		const m = await measureContainerRangeRemoval(
+			page,
+			new EditorPage(page),
+			'giant-single-blockquote',
+			SIZE_BYTES['1MB'],
+			20
+		);
 		// Printed ahead of the gate, so a run still shows the row while its baseline waits a bless.
 		console.log(
 			`PERF-GATE ${key} p50=${m.p50Ms.toFixed(1)}ms p95=${m.p95Ms.toFixed(1)}ms ` +

@@ -1,8 +1,10 @@
 /**
  * Where a caret can sit between two sibling blocks: the boundaries no block's own editable
- * element can reach, read off the kinds' `gapEdges`. The eligibility checks are pure (document
- * in, boolean out); `tryGapStop` is the one call that places the caret. A gap is deliberately
- * not a `SelectionPoint`: it is never a cross-block endpoint.
+ * element can reach, read off the kinds' `gapEdges`, where an arrow or a click stops. A removal
+ * may leave the caret at a boundary those edges don't open, marked `held`
+ * (`range-bytes.ts :: heldGapOf`). The eligibility checks are pure (document in, boolean out);
+ * `tryGapStop` is the arrows' one call that places the caret. A gap is deliberately not a
+ * `SelectionPoint`: it is never a cross-block endpoint.
  */
 
 import type { DocumentView, NodeView } from '../core/node-views';
@@ -18,6 +20,8 @@ import type { SelectionState } from './selection-state.svelte';
 export interface GapCaretPosition {
 	parentPath: number[];
 	index: number;
+	/** A removal left the caret at this boundary, so it stands where no arrow would stop. */
+	held?: true;
 }
 
 /**

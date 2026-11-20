@@ -33,7 +33,7 @@ export async function checkMenuPickAcrossSwap(c: MenuPickCase): Promise<void> {
 	const drafts = createDraftRegistry({
 		stamps,
 		// No write is open while a pick commits.
-		starts: { writing: () => false },
+		starts: { writing: () => false, vouch: () => true },
 		events: { emit() {} },
 		doc: () => document,
 		measured: () => measured(document),

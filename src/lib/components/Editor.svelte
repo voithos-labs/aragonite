@@ -331,17 +331,24 @@
 	// Bumped by every path that writes bytes. Inline widgets derive on it directly, and the
 	// decoration engine's `editEpoch` follows it a tick later.
 	const contentVersion = createContentVersion();
-	const starts = createKeptStarts(() => doc, contentVersion.bump);
+	const starts = createKeptStarts(
+		() => doc,
+		contentVersion.bump,
+		// Read when a record is found stale, long after `events` is made below.
+		(error) => emitCommitError(events, { error })
+	);
 	const currentSource = createCurrentSource({
 		version: contentVersion.read,
 		doc: () => doc,
+		saved: starts.saved,
 		unannounced: starts.unannounced
 	});
 	const bytes = documentBytes({
 		version: contentVersion.read,
 		doc: () => doc,
-		source: currentSource.read,
-		measured: starts.read
+		source: starts.source,
+		measured: starts.read,
+		vouch: starts.vouch
 	});
 	let currentResolver = $state<LinkReferenceResolver>(initial.resolver);
 	let currentSignature = $state<string>(initial.signature);
@@ -502,7 +509,7 @@
 		events,
 		doc: () => doc,
 		measured: starts.read,
-		source: currentSource.read,
+		source: bytes.source,
 		isReading: () => reading.mode() === 'reading',
 		isOn: (plugin) => activePlugins.isActive(plugin),
 		grammar: editorGrammar,
@@ -1880,12 +1887,13 @@
 		getCaretWriter: () => caretWriter,
 		spliceSource: (source, caret, op) =>
 			controller.commitSource({
-				changes: changesBetween(currentSource.read(), source),
+				changes: changesBetween(bytes.source(), source),
 				caret,
 				op,
 				snapshot: { path: docPathFrom([0]), offset: 0 }
 			}),
-		byteOf: (path, offset) => bytes.layout().byteOf(path, offset)
+		byteOf: (path, offset) => bytes.layout().byteOf(path, offset),
+		keptSource: bytes.source
 	};
 </script>
 

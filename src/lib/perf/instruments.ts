@@ -25,9 +25,17 @@ export interface PerfSnapshot {
 	siblingsCompared: number;
 	/** Lines a byte map paired between a container's bytes and its children's, to find a leaf or a byte. */
 	linesPaired: number;
+	/** Container lines a range edit's layout placed in the document's bytes, each counted once. */
+	linesLaid: number;
+	/** Windows the byte splice read from a document's bytes; a reading a caller took from the one
+	 *  its document kept is `spliceReadsKept`. */
+	spliceReads: number;
+	spliceReadsKept: number;
 	/** Top-level blocks read to find where one starts in the document's bytes: flat per edit,
 	 *  however long the document. */
 	topBlocksMeasured: number;
+	/** Times the document's text was read off the tree, every top-level block's strings once. */
+	textReads: number;
 	/** List items whose marker the marker-width counts read, the column's own cost. */
 	listMarkerReads: number;
 	parseCount: number;
@@ -111,7 +119,11 @@ function emptySnapshot(): PerfSnapshot {
 		joinedChildReads: 0,
 		siblingsCompared: 0,
 		linesPaired: 0,
+		linesLaid: 0,
+		spliceReads: 0,
+		spliceReadsKept: 0,
 		topBlocksMeasured: 0,
+		textReads: 0,
 		listMarkerReads: 0,
 		parseCount: 0,
 		parseMsTotal: 0,
@@ -231,9 +243,25 @@ export function recordLinesPaired(lines: number): void {
 	counters.linesPaired += lines;
 }
 
+export function recordLinesLaid(lines: number): void {
+	if (!enabled) return;
+	counters.linesLaid += lines;
+}
+
+export function recordSpliceRead(kept: boolean): void {
+	if (!enabled) return;
+	if (kept) counters.spliceReadsKept += 1;
+	else counters.spliceReads += 1;
+}
+
 export function recordTopBlocksMeasured(blocks: number): void {
 	if (!enabled) return;
 	counters.topBlocksMeasured += blocks;
+}
+
+export function recordTextRead(): void {
+	if (!enabled) return;
+	counters.textReads += 1;
 }
 
 export function recordListMarkerReads(items: number): void {

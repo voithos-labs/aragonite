@@ -36,3 +36,14 @@ here.
   admonition and leaves the fenced `> [!NOTE]` byte-identical (never `:::note`, since only a
   real top-level blockquote alert converts), then disables itself because nothing convertible is
   left; the converted document round-trips stable
+
+## Regressions
+
+- Letters typed at the start of an opener line, reached by ArrowDown from a paragraph flush above
+  the admonition: in source mode they land where they were typed (`qw:::tip`); in both modes every
+  other line stands once, the tree is the one a reload reads, and undo restores the document. The
+  admonition's lines were written twice and the heading under it was lost. Miss-analysis: no test
+  typed in an opener line's `:::name` with a block flush against the container; every row typed
+  in the title, or had a blank line above.
+- Backspace or Delete inside the opener line's marker, same document: in source mode the one
+  character goes (`::tip`); in both modes no line is doubled and the tree is the one a reload reads.

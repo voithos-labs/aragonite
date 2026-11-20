@@ -78,7 +78,11 @@ describe('a byte splice', () => {
 
 	it('focuses a block held whole on its first byte', async () => {
 		const editor = await mounted('a\n\n---\n\nb\n');
-		await editor.instance.__test.spliceSource('ax\n\n---\n\nb\n', { at: 4, holds: 'block' }, OP);
+		await editor.instance.__test.spliceSource(
+			'ax\n\n---\n\nb\n',
+			{ at: 4, holds: 'block', parent: [] },
+			OP
+		);
 		await editor.settle();
 		expect(editor.instance.getSelection()?.focus.path).toEqual([1]);
 	});
@@ -91,7 +95,8 @@ describe('a byte splice', () => {
 			`${table}\n${fence}`,
 			{
 				at: table.length + 1,
-				holds: 'boundary'
+				holds: 'boundary',
+				parent: []
 			},
 			OP
 		);

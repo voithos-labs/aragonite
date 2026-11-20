@@ -8,6 +8,7 @@ import {
 	containersHolding,
 	factsOf,
 	firstBodyLine,
+	firstLine,
 	lineOf,
 	titleRowOf,
 	type Doc
@@ -55,8 +56,15 @@ function lazyMarked(
 ): LaidLine | undefined {
 	// Under a first-line marker, an indent with no marker is one a block inside holds as its own.
 	if (shape === 'first-line' && /[ \t]/.test(doc.source[line.from] ?? '')) return undefined;
-	const marked = container.lines!.filter((l) => !l.own && l.markerTo > l.from);
-	return marked.filter((l) => l.from < line.from).at(-1) ?? marked[0];
+	const marked = (l: LaidLine) => !l.own && l.markerTo > l.from;
+	// Up a line at a time from the line ending above, which a nested container's markers can't hide.
+	for (let above = line; ;) {
+		const end = doc.source.lastIndexOf('\n', above.from - 1);
+		if (end < container.from) break;
+		above = container.lineAt!(end);
+		if (marked(above)) return above;
+	}
+	return firstLine(container, marked);
 }
 
 /** The lines a container opens with before its body: an alert's title line, a `:::` line, a
@@ -64,12 +72,16 @@ function lazyMarked(
 function openingLines(doc: Doc, container: LaidBlock): string {
 	const row = titleRowOf(doc, container);
 	if (row) {
-		const line = container.lines!.find((l) => l.from <= row.from && row.from < l.to);
-		return doc.source.slice(container.from, line ? line.to : row.to);
+		const line = container.lineAt!(row.from);
+		const holds = line.from <= row.from && row.from < line.to;
+		return doc.source.slice(container.from, holds ? line.to : row.to);
 	}
-	const first = container.lines!.findIndex((l) => !l.own);
-	const lines = first < 0 ? container.lines! : container.lines!.slice(0, first);
-	return lines.map((l) => doc.source.slice(l.from, l.to)).join('');
+	let opening = '';
+	for (const line of container.linesIn!(container.from)) {
+		if (!line.own) break;
+		opening += doc.source.slice(line.from, line.to);
+	}
+	return opening;
 }
 
 /** What a copy starting inside `container` at `from` opens with. */

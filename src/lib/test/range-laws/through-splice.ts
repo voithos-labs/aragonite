@@ -9,6 +9,7 @@ import type { Editor } from './gestures';
 import type { SelectionPoint } from '#lib/selection/primitives.js';
 import { appendFileSync } from 'node:fs';
 import { byteOfLeaf } from '#lib/tree-operations/container-offsets.js';
+import { byteOfGap } from '#lib/selection/range-bytes.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { isWholeBlockUnit } from '#lib/schema/whole-block-unit.js';
 import { isBlankParagraph } from '#lib/core/parser.js';
@@ -90,17 +91,8 @@ export function caretOf(editor: Editor): SpliceCaret | null {
 	const doc = editor.instance.__test.getDocument();
 	const gap = editor.instance.__test.getGapCaret();
 	if (gap) {
-		const { parentPath, index } = gap;
-		const parent = parentPath.length === 0 ? doc : blockNodeAt(doc, parentPath);
-		if (!parent?.children) return null;
-		if (index < parent.children.length) {
-			const at = byteOfLeaf(measured(doc), [...parentPath, index], 0);
-			return at === null ? null : { at, holds: 'boundary' };
-		}
-		const start = parentPath.length === 0 ? 0 : byteOfLeaf(measured(doc), parentPath, 0);
-		const length =
-			parentPath.length === 0 ? editor.source().length : (parent as { raw: string }).raw.length;
-		return start === null ? null : { at: start + length, holds: 'boundary' };
+		const at = byteOfGap(measured(doc), gap);
+		return at === null ? null : { at, holds: 'boundary', parent: gap.parentPath };
 	}
 	const selection = editor.instance.getSelection();
 	if (!selection) return null;
@@ -110,5 +102,7 @@ export function caretOf(editor: Editor): SpliceCaret | null {
 	const node = blockNodeAt(doc, anchor.path);
 	const at = byteOfLeaf(measured(doc), anchor.path, anchor.offset);
 	if (!node || at === null) return null;
-	return { at, holds: isWholeBlockUnit(node) ? 'block' : 'text' };
+	return isWholeBlockUnit(node)
+		? { at, holds: 'block', parent: anchor.path.slice(0, -1) }
+		: { at, holds: 'text' };
 }
