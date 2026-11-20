@@ -58,8 +58,8 @@ export interface MenuPick extends Draft {
 	readonly range: { readonly from: number; readonly to: number };
 	/** Replaces the trigger and the query with one line of inline bytes, the caret after them. */
 	write(inline: string): Promise<DraftResult>;
-	/** Removes the trigger and the query and inserts blocks there the way a paste would: where the
-	 *  line holds other text, into a new paragraph below it. */
+	/** Removes the trigger and the query and inserts blocks the way `insertBelow` does: where the
+	 *  line holds other text, into a new paragraph below it, else on that line. */
 	insertBlock(markdown: string): Promise<DraftResult>;
 	/** Removes the trigger and the query, then runs `command` at the caret, as one undo step; false
 	 *  when the removal is refused or the command declines. */
@@ -80,10 +80,8 @@ export function menu<R>(spec: CaretMenu<R>): CaretMenu<R> {
 
 // ── The pick ─────────────────────────────────────────────────────────────────
 
-/** The parts of a draft a pick builds on: the paste below the caret's block, and where a byte
- *  it opened on sits now. */
+/** The draft a pick builds on, which knows where a byte it opened on sits now. */
 export interface PickDraft extends Draft {
-	insertBelow(markdown: string): this;
 	now(at: number): number | null;
 }
 
@@ -95,7 +93,7 @@ export function createMenuPick(spec: {
 	range: { from: number; to: number };
 	/** Takes the trigger and the query out through the editor's own write, wherever byte `at`
 	 *  (where they start now) puts them; null when those bytes aren't there any more. */
-	removeQuery(at: number | null): Promise<{ lineHasText: boolean } | null>;
+	removeQuery(at: number | null): Promise<boolean>;
 	editor(): Editor | undefined;
 	/** Groups the removal and what follows it into one undo step. */
 	undoStep(run: () => Promise<unknown>): Promise<void>;
@@ -109,15 +107,14 @@ export function createMenuPick(spec: {
 	// Set while a removal waits on the editor, so a pick that didn't await it isn't ended under it.
 	let removing = false;
 	// The removal is the editor's leaf write, which keeps an emptied line one empty paragraph.
-	async function removeThen(next: (lineHasText: boolean) => Promise<DraftResult>) {
+	async function removeThen(next: () => Promise<DraftResult>) {
 		// A stale draft's own commit says why: the note replaced, or the query changed.
 		if (draft.stale) return draft.replace(range, '').commit();
 		let result = refused('moved', 'the trigger and the query are gone');
 		removing = true;
 		try {
 			await spec.undoStep(async () => {
-				const removed = await spec.removeQuery(draft.now(range.from));
-				if (removed) result = await next(removed.lineHasText);
+				if (await spec.removeQuery(draft.now(range.from))) result = await next();
 			});
 		} finally {
 			removing = false;
@@ -157,10 +154,7 @@ export function createMenuPick(spec: {
 			const at = draft.replace(range, inline).now(range.from);
 			return draft.commit(at === null ? undefined : { caret: at + inline.length });
 		},
-		insertBlock: (markdown) =>
-			removeThen((lineHasText) =>
-				(lineHasText ? draft.insertBelow(markdown) : draft.insert(markdown)).commit()
-			),
+		insertBlock: (markdown) => removeThen(() => draft.insertBelow(markdown).commit()),
 		async run(command: Command<unknown> | string, arg?: unknown) {
 			const editor = spec.editor();
 			if (!editor) return false;

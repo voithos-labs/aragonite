@@ -40,7 +40,6 @@ import {
 	type PickDraft
 } from '../schema/caret-menu';
 import type { Editor } from '../schema/plugin-unit';
-import { isBlankText } from '../core/lines';
 import { byteOfLeaf, leafAtByte } from '../tree-operations/container-offsets';
 import type { Measured } from '../tree-operations/top-level-starts';
 import type { PluginView } from '../plugin-view';
@@ -520,12 +519,10 @@ export function createInlineMenuState(deps: InlineMenuStateDeps): InlineMenuStat
 		const leaf = at === null ? null : leafAtByte(deps.measured(), at);
 		const raw = leaf ? nodeRaw(leaf.path) : '';
 		const end = leaf ? leaf.offset + typed.length : 0;
-		if (!leaf || raw.slice(leaf.offset, end) !== typed) return null;
-		const lineHasText = !isBlankText(raw.slice(0, leaf.offset)) || !isBlankText(raw.slice(end));
+		if (!leaf || raw.slice(leaf.offset, end) !== typed) return false;
 		writing = true;
 		try {
-			const landed = await deps.commitRange(leaf.path, leaf.offset, end, '', leaf.offset);
-			return landed ? { lineHasText } : null;
+			return await deps.commitRange(leaf.path, leaf.offset, end, '', leaf.offset);
 		} finally {
 			writing = false;
 			resnap();

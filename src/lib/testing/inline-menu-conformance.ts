@@ -63,7 +63,7 @@ export async function checkMenuPickAcrossSwap(c: MenuPickCase): Promise<void> {
 		trigger: menu.trigger,
 		query,
 		range,
-		removeQuery: async () => (writes.push('a removal of the query'), { lineHasText: false }),
+		removeQuery: async () => (writes.push('a removal of the query'), true),
 		editor: () => editor,
 		undoStep: (run) => run().then(() => {})
 	});

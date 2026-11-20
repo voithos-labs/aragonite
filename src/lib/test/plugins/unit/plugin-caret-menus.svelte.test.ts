@@ -307,6 +307,29 @@ describe("a plugin value's caret menu", () => {
 		expect(m.source()).toBe(landed);
 	});
 
+	// Miss-analysis: the pick chose between the caret and below by the line's text, a second copy of
+	// the rule `insertBelow` holds, and no row picked in an empty item, where the two could part.
+	it.each([
+		['an empty item', '- x\n', '- > q\n'],
+		['an empty to-do', '- [ ] x\n', '- [ ] > q\n'],
+		['an item with text', '- top x\n', '- top \n\n> q\n']
+	])('lands a block in %s as `insertBelow` does', async (_, source, landed) => {
+		const onPick = (pick: MenuPick) => void pick.insertBlock('> q\n');
+		const m = mountEditor({ source, plugins: [slashPlugin(onPick)] });
+		await m.settle();
+		const item = surfaceAt(m, [0, 0, 0]);
+		const kept = item.textContent!.slice(0, -1).trimEnd();
+		placeCaret(item, kept.length + 2);
+		typeAt(item, kept ? `${kept} ` : '', kept ? kept.length + 1 : 0);
+		await m.settle();
+		typeAt(item, `${kept ? `${kept} ` : ''}/r`, kept.length + (kept ? 3 : 2));
+		await m.settle();
+		await pressKey(item, { key: 'Enter' });
+		await m.settle();
+
+		expect(m.source()).toBe(landed);
+	});
+
 	it('opens by value with the query typed, and not for a menu the editor does not list', async () => {
 		const slash = slashMenu(() => {});
 		const m = mountEditor({ source: 'x\n', plugins: [slashPlugin(() => {}, slash)] });
