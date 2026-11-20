@@ -413,8 +413,8 @@ const inCell = (caret: SelectionPoint | null): Removed => ({
 	taken: null
 });
 
-/** How the core names the removal any other gesture makes (`commandGesture` names a key's): typed
- *  text as a cut, a composition as Delete, a delete no key asked for as Backspace. */
+/** How the core names the removal any other gesture makes (`commandGesture` names a key's): a
+ *  delete no key asked for removes as a command key does, from the side Backspace takes. */
 function coreGestureOf(insertion: KeyedInsertion): CoreGesture {
 	switch (insertion.kind) {
 		case 'none':

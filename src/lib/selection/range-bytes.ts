@@ -47,7 +47,7 @@ export interface DocumentBytes {
 	/** The document with the starts of its top-level blocks, kept across writes. */
 	measured(): Measured;
 	/** The caret the core named for the last cut, the byte its entry fits at and the measure the cut
-	 *  left, which a paste back at that caret reads; null once anything else is known to have written. */
+	 *  left (`of`): a paste back at that caret reads them only while `of` is still the document's. */
 	cut: { caret: SpliceCaret; fits: number; of: Measured } | null;
 	/** Whether what is kept of top-level blocks `[from, to]` is what the tree holds; a record found
 	 *  wrong is forgotten, so the next read is fresh (`KeptStarts.vouch`). */
