@@ -20,13 +20,15 @@ import { measured } from '#lib/tree-operations/top-level-starts.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
-	mountEditor
+	mountEditor,
+	selectRange,
+	surfaceAt
 } from '#lib/test/harness/mount-editor.svelte.js';
 import {
 	installClipboardEvents,
 	installSystemClipboard
 } from '#lib/test/harness/clipboard-events.js';
-import { pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
+import { deleteBy, pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import { SYNTAX_PLUGINS } from '../../behavior/corpus';
@@ -166,6 +168,23 @@ describe('the byte map finds the text of a container under its own marker', () =
 	});
 });
 
+describe('a container under its own marker keeps its child spans as a quote does', () => {
+	// Miss-analysis: the span rows drew quotes, so a closing line read by the quote's own pattern
+	// kept every drawn container's spans and dropped a box's.
+	it.each([
+		['ending on a marker with no line ending', '> one\n>\n> two\n> '],
+		['ending on a bare marker with none', '> one\n>\n> two\n>'],
+		['ending on a line of text', '> one\n>\n> two\n']
+	])('%s', async (_name, source) => {
+		const spans = async (text: string) => {
+			const doc = (await mounted(text)).instance.__test.getDocument();
+			return doc.children[0].childSpans?.length;
+		};
+		expect(await spans(source)).toBe(4);
+		expect(await spans(boxed(source))).toBe(4);
+	});
+});
+
 const at = (path: number[], offset: number) => ({ path, offset });
 
 /** `text` with each line's opening run of quote markers, behind a list marker too, written as the
@@ -209,6 +228,23 @@ const RANGES: Record<
 		[[0, 1, 1, 0], 2]
 	],
 	CRLF: ['para\r\n\r\n> one\r\n>\r\n> two\r\n\r\ntail\r\n', [[1, 0], 1], [[1, 1], 2]],
+	// Each of the next three reads a line of markers alone: the closing line a fence keeps, the
+	// blank line above the start, and the blank line of the container around under the end.
+	'out of a fenced block it holds': [
+		'> :::note\n> ***\n>\n> body\n> :::\n>\n> para\n> more\n',
+		[[0, 0, 1], 0],
+		[[0, 1], 4]
+	],
+	'from a block under its blank line': [
+		'intro\n\n> above\n>\n> # text\n> below\n\n# h\n',
+		[[1, 1], 0],
+		[[1, 2], 5]
+	],
+	'to the end of one inside another, a blank line below': [
+		'> > above\n> > # text\n> > below\n>\n> more\n',
+		[[0, 0, 1], 0],
+		[[0, 0, 2], 5]
+	],
 	'under a head line, all its text': [ALERT, [[1, 0], 0], [[1, 1], 3], headed],
 	'under a head line, into the paragraph below': [ALERT, [[1, 1], 1], [[2], 2], headed],
 	'indented, part of two children': [FOOTNOTE, [[1, 0], 5], [[1, 1], 2], noted],
@@ -242,6 +278,55 @@ describe('a range in a container under its own marker goes as under a built-inâ€
 			expect(known.source, 'the range went').not.toBe(source);
 			const own = await removed(twin(source), from, to, route);
 			expect(own).toEqual({ source: twin(known.source), copy: twin(known.copy) });
+		});
+	}
+});
+
+type Key = 'x' | 'Enter' | 'Backspace' | 'Delete';
+
+/** A selection in a container's text that a key then writes over, each ending or emptying its
+ *  container where the writer reads a line of markers alone. */
+const WRITES: Record<
+	string,
+	[source: string, path: number[], from: number, to: number, twin?: (text: string) => string]
+> = {
+	'ending on a marker with no line ending': ['> ab\n>\n> ', [0, 0], 1, 1],
+	'ending on a bare marker line, its text emptied': ['> ab\n>\n', [0, 0], 0, 2],
+	'indented, ending on its indent with no line ending': ['[^a]: ab\n\n    ', [0, 0], 1, 1, noted],
+	'indented, its text emptied over a table': ['[^a]: ab\n \t \n| H |\n| - |\n', [0, 0], 0, 2, noted]
+};
+
+/** `source` after `key` over `from`..`to` of the block at `path`, and after a letter typed next. */
+async function written(
+	source: string,
+	path: number[],
+	from: number,
+	to: number,
+	key: Key
+): Promise<string[]> {
+	await destroyMountedEditors();
+	const editor = await mounted(source);
+	selectRange(surfaceAt(editor, path), from, to);
+	await editor.settle();
+	const focused = () => document.activeElement as HTMLElement;
+	if (key === 'Backspace' || key === 'Delete') await deleteBy(focused(), key);
+	else await pressHardwareKey(focused(), { key });
+	await editor.settle();
+	const after = editor.source();
+	await pressHardwareKey(focused(), { key: 'y' });
+	await editor.settle();
+	return [after, editor.source()];
+}
+
+// Miss-analysis: the twin rows removed ranges and none typed, so a writer reading a quote's `>`
+// by hand at a container's last line or first line passed under every box.
+describe('a key in a container under its own marker writes as under a built-inâ€™s', () => {
+	for (const key of ['x', 'Enter', 'Backspace', 'Delete'] as const) {
+		it.each(Object.entries(WRITES))(`${key}: %s`, async (_name, row) => {
+			const [source, path, from, to, twin = boxed] = row;
+			const known = await written(source, path, from, to, key);
+			expect(known[0], 'the key wrote').not.toBe(source);
+			expect(await written(twin(source), path, from, to, key)).toEqual(known.map(twin));
 		});
 	}
 });
