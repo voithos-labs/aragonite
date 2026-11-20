@@ -886,6 +886,15 @@ function separatorBack(read: Read, at: number, bytes: string, clip: string, host
 	if (fence && fenceRun(fence) && !closesItsFence(fence)) return bytes;
 	if (listsJoined(read, at, pasted, host)?.below) return bytes;
 	const line = target.to + bytes.length - read.source.length;
+	// An item's own sublist stays right under the item's first line, where it still starts its line.
+	const item = target.path.at(-1) === 0 && itemTextAt(read, at, host);
+	if (item && host.facts(below.type).lines === 'items') {
+		const starts = readOf(host, bytes).blocks.some(
+			(b) => b.type === below.type && lineStartOf(bytes, b.from) === line
+		);
+		const marks = read.source.slice(target.to, below.from).trimEnd() + endingOf(read.source);
+		return starts ? bytes : bytes.slice(0, line) + marks + bytes.slice(line);
+	}
 	const above = bytes.slice(lineStartOf(bytes, line - 1), line);
 	// Over an empty row the line a last line ending opens after text is a row of its own.
 	const textEnds = clip.endsWith('\n') && (!last || host.facts(last.type).joins === 'text');

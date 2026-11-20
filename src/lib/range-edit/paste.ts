@@ -478,12 +478,21 @@ function bytesLanded(
 	const edit = read && !plain ? joinedAbove(doc, leaf, joined, read) : landing;
 	const below = leaf.to + edit.source.length - doc.source.length;
 	// The empty line was the separator of the block under it, which gets one back unless it takes
-	// what was pasted in as items or an open fence takes it in.
-	if (!flush || pasted.inPlace || joinsBelow || (read && endsOpen(read))) return setApart(edit);
+	// what was pasted in as items, an open fence takes it in, or it is the caret item's own sublist.
+	const kept = flush && !pasted.inPlace && !joinsBelow && !ownSublist(doc, leaf, flush);
+	if (!kept || (read && endsOpen(read))) return setApart(edit);
 	// Over an empty row the empty line a last line ending opens after text is a row of its own;
 	// over any other block it stands for the separator.
 	const opens = isBlankText(nodeAt(doc, flush.path).raw) && (plain || !read || endsOnText(read));
 	return separatorKept(doc, leaf, edit, below, opens);
+}
+
+/** Whether `lower` is the sublist of the item whose first line is `leaf`'s: a blank line between
+ *  the two would turn the list loose. */
+function ownSublist(doc: Doc, leaf: LaidBlock, lower: LaidBlock): boolean {
+	const item = leaf.path.at(-1) === 0 ? parentOf(doc, leaf) : undefined;
+	const list = item && parentOf(doc, item);
+	return !!list && [list, lower].every((b) => factsOf(doc, b).lines === 'items');
 }
 
 /** `edit`, a paste into the empty paragraph `leaf`: a bare marker in front of text it put on the

@@ -164,6 +164,44 @@ for (const mode of ['source', 'live'] as const)
 			expect((await filled(marked, mode, 'paste', clip))[0]).toBe(left);
 		});
 
+// A paste writes no blank line over the caret item's own sublist, where a typed letter still writes
+// one and turns the list loose. Miss-analysis: every only row lay over a sibling, none over a sublist.
+const SUBLIST: [string, string, string][] = [
+	['a bullet over its sublist', '- ‸\n  - b\n', '- X\n  - b\n'],
+	['an ordered item over its sublist', '1. ‸\n   - b\n', '1. X\n   - b\n'],
+	['an ordered item over its ordered sublist', '1. ‸\n   1. b\n', '1. X\n   1. b\n'],
+	['a to-do over its sublist', '- [ ] ‸\n  - b\n', '- [ ] X\n  - b\n'],
+	[
+		'a nested item over its sublist',
+		'- x\n  - y\n  - ‸\n    - b\n',
+		'- x\n  - y\n  - X\n    - b\n'
+	],
+	['a quoted bullet over its sublist', '> - ‸\n>   - b\n', '> - X\n>   - b\n'],
+	['an item over a sublist numbered from 2', '1. ‸\n   2. b\n', '1. X\n\n   2. b\n'],
+	['a bullet that has text, over its sublist', '- x‸\n  - b\n', '- xX\n  - b\n'],
+	['a bullet over a quote of its own', '- ‸\n  > b\n', '- X\n  \n  > b\n']
+];
+
+for (const mode of ['source', 'live'] as const)
+	for (const [name, marked, left] of SUBLIST)
+		for (const gesture of ['paste', 'plain', 'shift', 'markdown'] as const)
+			it(`${mode}: text by ${gesture} in ${name} keeps the list as it reads`, async () => {
+				expect((await filled(marked, mode, gesture, 'X'))[0]).toBe(left);
+			});
+
+// Text with its line ending is the text, then Enter: the item it opens takes the sublist.
+const SUBLIST_BLOCKS: [string, string, string][] = [
+	['two paragraphs', 'X\n\nY', '- X\n\n  Y\n  - b\n'],
+	['a heading', '# h', '- # h\n  - b\n'],
+	['text and its line ending', 'X\n', '- X\n- \n  - b\n']
+];
+
+for (const mode of ['source', 'live'] as const)
+	for (const [name, clip, left] of SUBLIST_BLOCKS)
+		it(`${mode}: ${name} in a bullet over its sublist writes no blank line over it`, async () => {
+			expect((await filled('- ‸\n  - b\n', mode, 'paste', clip))[0]).toBe(left);
+		});
+
 // Blocks on an empty heading's line take the heading's place: the blank line under it was its
 // separator, never a row. Miss-analysis: every row's empty line was a blank paragraph's.
 const HEADING: [string, string, string][] = [
