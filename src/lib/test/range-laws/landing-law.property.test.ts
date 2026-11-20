@@ -211,11 +211,6 @@ const RESTS: Record<string, string> = {
 const lineAboveOpening = (d: Draw) =>
 	d.end === 'inside a callout it enters' && (d.wrap === 'a quote' || d.wrap === 'an item');
 
-/** The end leaf's rest takes the place of a block taken whole right under a paragraph and runs on
- *  into it, as two paragraphs a removal leaves flush rejoin: text over the range opens that rest. */
-const restRunsOn = (d: Draw) =>
-	d.end === 'a leaf’s middle' && d.above === 'right under a paragraph';
-
 /** `bytes` with no spaces ending a line that holds only its containers' markers: a separator a
  *  paste writes back keeps them bare, where a typed letter may keep a space (`> `, an indent). */
 const unspaced = (bytes: string) => bytes.replace(/^[ \t>]+$/gm, (line) => line.trimEnd());
@@ -378,10 +373,7 @@ describe('the landing law', () => {
 				takeDevWarns();
 				const rest = RESTS[d.end] ?? '';
 				const leaf = writtenLeaf(editor.instance.__test.getDocument().children);
-				// Where the rest runs on into the paragraph above, the text still opens the rest's line.
-				const stands = restRunsOn(d)
-					? leaf?.endsWith(`\n${WRITTEN}${rest}`)
-					: leaf === WRITTEN || leaf === WRITTEN + rest;
+				const stands = leaf === WRITTEN || leaf === WRITTEN + rest;
 				expect(stands, `${g} over ${JSON.stringify(text)} wrote in ${JSON.stringify(leaf)}`).toBe(
 					true
 				);
@@ -520,20 +512,21 @@ describe('the landing law', () => {
 
 // ── The row with no twin ─────────────────────────────────────────────────────
 
-// A paragraph right above the range with no blank line has no twin: the same range from a paragraph
-// would read as that paragraph's next line. The emptied line still stays, under a blank line.
-describe('a range from a block taken whole right under a paragraph', () => {
+// Right under a paragraph a twin from a paragraph's start would read as its next line; what the
+// range leaves stays apart from that paragraph, so it lands as the range under a blank line does.
+describe('a range from a block taken whole right under a paragraph lands as under a blank line', () => {
+	const ROWS: [string, string][] = [
+		['ending at a paragraph’s end', 'above\n⟦***\n\npara⟧\n\nnext\n'],
+		['ending in a leaf’s middle', 'above\n⟦***\n\npa⟧ra\n\nnext\n']
+	];
 	for (const mode of ['source', 'live'] as const)
-		for (const g of GESTURES)
-			it(`${mode}: ${g} leaves the emptied line and lands on it`, async () => {
-				const got = await land('above\n⟦***\n\npara⟧\n\nnext\n', mode, g);
-				const written = g === 'a typed key' || g === 'a composition' || g === 'a one-line paste';
-				const line = written ? WRITTEN : g === 'Mod+2' ? '## ' : '';
-				const lines = g === 'Enter' ? '\n\n' : line ? `${line}\n\n` : '\n';
-				expect(got.bytes).toBe(`above\n\n${lines}next\n`);
-				const typed = g === 'Shift+Enter' ? '\\\nx' : g === 'Enter' ? '\nx' : `${line}x`;
-				expect(got.lettered).toBe(`above\n\n${typed}\n\nnext\n`);
-			});
+		for (const [name, text] of ROWS)
+			for (const g of GESTURES)
+				it(`${mode}: ${g}, ${name}`, async () => {
+					const got = await land(text, mode, g);
+					const want = await land(text.replace('above\n', 'above\n\n'), mode, g);
+					expect({ ...got, warns: [] }).toEqual({ ...want, warns: [] });
+				});
 });
 
 // Miss-analysis: P1b's fixed draws never ended a range at the document's last paragraph under a

@@ -1,10 +1,11 @@
 // @vitest-environment jsdom
-// A range that starts in a block's text and takes the blank line under it leaves that block a blank
-// line apart from what followed the range, where flush the two would read as one block. Every
-// removal route, both modes: Backspace, Delete, a cut, a typed key, a composition, a one-line paste
-// and Enter. Without that blank line the pair still runs on, and so does the end's own rest.
+// The two blocks a removal leaves touching stay a blank line apart where the range took a blank line
+// right under the upper one or right over the lower one, and flush they would read as one block.
+// Every removal route, both modes: Backspace, Delete, a cut, a typed key, a composition, a one-line
+// paste and Enter. Flush on both sides of what the range took, the pair rejoins as prose.
 // Miss-analysis: no mounted row took the blank line under the start's block, so a paragraph flush
-// under a heading the range took ran on into the paragraph above and nothing failed.
+// under a heading the range took ran on into the paragraph above and nothing failed; the lower side
+// was pinned as running on, so a paragraph's rest ran into the paragraph above the range.
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { PresentationMode } from '#lib/presentation-mode.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
@@ -104,7 +105,67 @@ const KEPT_APART: Row[] = [
 		lettered: '> a\n>\n> bx\n>\n> c\n',
 		written: '> a\n>\n> bQ\n>\n> c\n',
 		broken: '> a\n>\n> b\n>\n>\n> c\n'
+	},
+	{
+		name: 'a rest flush under the block above, past a divider',
+		marked: 'first\n⟦***\n\npa⟧ra\n',
+		removed: 'first\n\nra\n',
+		lettered: 'first\n\nxra\n',
+		written: 'first\n\nQra\n',
+		broken: 'first\n\n\nra\n'
+	},
+	{
+		name: 'a rest flush under the block above, past a fence',
+		marked: 'Run this:\n⟦```sh\nnpm i\n```\n\nThen ⟧do that.\n',
+		removed: 'Run this:\n\ndo that.\n',
+		lettered: 'Run this:\n\nxdo that.\n',
+		written: 'Run this:\n\nQdo that.\n',
+		broken: 'Run this:\n\n\ndo that.\n'
+	},
+	{
+		name: 'a rest flush under the block above, past a heading',
+		marked: 'first\n⟦# head\n\npa⟧ra\n',
+		removed: 'first\n\nra\n',
+		lettered: 'first\n\nxra\n',
+		written: 'first\n\nQra\n',
+		broken: 'first\n\n\nra\n'
+	},
+	{
+		name: 'a rest flush under the block above, in a quote',
+		marked: '> first\n> ⟦***\n>\n> pa⟧ra\n',
+		removed: '> first\n>\n> ra\n',
+		lettered: '> first\n>\n> xra\n',
+		written: '> first\n>\n> Qra\n',
+		broken: '> first\n>\n>\n> ra\n'
+	},
+	{
+		name: 'a rest flush under the block above, in an item',
+		marked: '- first\n  ⟦***\n\n  pa⟧ra\n',
+		removed: '- first\n\n  ra\n',
+		lettered: '- first\n\n  xra\n',
+		written: '- first\n\n  Qra\n',
+		broken: '- first\n\n  \n- ra\n'
+	},
+	{
+		name: 'a rest flush under the block above, in a callout',
+		marked: ':::note\nfirst\n⟦***\n\npa⟧ra\n:::\n',
+		removed: ':::note\nfirst\n\nra\n:::\n',
+		lettered: ':::note\nfirst\n\nxra\n:::\n',
+		written: ':::note\nfirst\n\nQra\n:::\n',
+		broken: ':::note\nfirst\n\n\nra\n:::\n'
 	}
+];
+
+/** The hosts the lower side moved: a cut over each, pasted back with its own entry, is exact. */
+const MOVED: string[] = [
+	'first\n⟦***\n\npa⟧ra\n',
+	'first\n⟦```\ncode\n```\n\npa⟧ra\n',
+	'first\n⟦# head\n\npa⟧ra\n',
+	'- first\n⟦```\ncode\n```\n\npa⟧ra\n',
+	'first\r\n⟦***\r\n\r\npa⟧ra\r\n',
+	'> first\n> ⟦***\n>\n> pa⟧ra\n',
+	'first\n⟦***\n\n# he⟧ad\n',
+	'first\n⟦***\n\n- it⟧em\n'
 ];
 
 /** Rows the rule doesn't reach, which must not move. */
@@ -125,10 +186,10 @@ const RUNNING_ON: Row[] = [
 		written: 'aQ\nc d\n',
 		broken: 'a\n\nc d\n'
 	},
-	// The rule reads the start's side only: an end leaf's rest in a held block's place runs on.
+	// Flush on both sides of what the range took, the pair rejoins as prose.
 	{
-		name: 'a rest flush under the block above',
-		marked: 'first\n⟦***\n\npa⟧ra\n',
+		name: 'a rest flush under a divider flush under the block above',
+		marked: 'first\n⟦***\npa⟧ra\n',
 		removed: 'first\nra\n',
 		lettered: 'first\nxra\n',
 		written: 'first\nQra\n',
@@ -230,3 +291,15 @@ for (const [group, rows] of [
 				});
 			}
 	});
+
+describe('a cut that leaves the pair apart pastes back exact', () => {
+	for (const mode of ['source', 'live'] as const)
+		for (const marked of MOVED)
+			it(`${mode}: ${JSON.stringify(marked)}`, async () => {
+				const editor = await mounted(marked, mode);
+				const wrote = await clipboardGesture(editor, 'cut', 'key');
+				await pasteGesture(editor, wrote, 'key');
+				expect(editor.source()).toBe(marked.replace(/[⟦⟧]/g, ''));
+				expect(takeDevWarns().map((w) => w.tag)).toEqual([]);
+			});
+});

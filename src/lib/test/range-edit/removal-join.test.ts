@@ -110,10 +110,10 @@ const ROWS: [name: string, marked: string, left: string, blocks: string][] = [
 		'table(tableRow(tableCell)) paragraph'
 	],
 	[
-		'a tail taking a heading’s place under prose folds in',
+		'a tail taking a heading’s place under prose stays apart, as it stood from the heading',
 		'a\n⟦# h\n\nal⟧pha\n',
-		'a\npha\n',
-		'paragraph'
+		'a\n\npha\n',
+		'paragraph paragraph'
 	],
 	[
 		'an ordered list the range shortened, numbered on, stays apart from the paragraph',
@@ -200,10 +200,15 @@ const ROWS: [name: string, marked: string, left: string, blocks: string][] = [
 		'ah\n\nc d\n',
 		'paragraph paragraph'
 	],
-	// The rule reads the start's side only: an end leaf's rest in a held block's place runs on.
 	[
-		'a rest flush under the block above runs on',
+		'a rest the range took the blank line above stays apart from the block above',
 		'first\n⟦***\n\npa⟧ra\n',
+		'first\n\nra\n',
+		'paragraph paragraph'
+	],
+	[
+		'a rest flush under a divider flush under the block above runs on',
+		'first\n⟦***\npa⟧ra\n',
 		'first\nra\n',
 		'paragraph'
 	],
