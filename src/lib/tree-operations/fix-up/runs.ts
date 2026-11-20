@@ -191,10 +191,11 @@ function blanksTaken(work: Work, edit: ListEdit, from: number, count: number): C
  *  break (`docs/design/syntax-tree.md` § The last line), so it never reads as the line above's. */
 export function endEmptiedLastLine(work: Work, host: Host): void {
 	const last = work.blocks.length - 1;
-	if (last <= bodyStart(work, host)) return;
+	if (last <= 0) return;
 	const node = work.blocks.at(last);
-	if (node.raw === '' && isBlankBlock(node))
-		work.blocks.set(last, { ...node, raw: work.list.lineEnding });
+	// The host is asked last, so a key that leaves the last block its text asks it nothing.
+	if (node.raw !== '' || !isBlankBlock(node) || last <= bodyStart(work, host)) return;
+	work.blocks.set(last, { ...node, raw: work.list.lineEnding });
 }
 
 /** An unended blank last line its block's reading leaves out is the body's trailing line. */
