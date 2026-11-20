@@ -316,8 +316,10 @@ export function emptiedPlace(
 	if (!taken || (taken.own && landed.holds === 'text')) return null;
 	// A boundary held as no gap leaves the caret on the text at its byte.
 	const prose = !!caret && landed.holds !== 'block' && inProse(committed, caret);
-	// The range's own: the rest of the leaf it ended in, or an empty line; any prose, for `anyProse`.
-	const own = anyProse || taken.own || (!!caret && emptyLine(committed, caret));
+	// The range's own: the rest of the leaf it ended in, or an empty line; for `anyProse`, any prose
+	// that starts where the taken block stood, not text past a block's own syntax (a heading's `# `).
+	const beside = anyProse && landed.at === taken.at;
+	const own = beside || taken.own || (!!caret && emptyLine(committed, caret));
 	if (prose && own) return null;
 	const gap = takenGapOf(measured, taken);
 	return gap && [...gap.parentPath, gap.index];
