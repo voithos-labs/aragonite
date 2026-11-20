@@ -1161,7 +1161,7 @@
 		actions: () => contributions.actions,
 		editorFor: (plugin) => pluginContexts.scoped(plugin),
 		measured: starts.read,
-		source: currentSource.readUnchecked,
+		source: bytes.source,
 		selection: () => selectedRange(),
 		hasRange: () => {
 			const selection = getSelection();

@@ -22,7 +22,7 @@ const TEXT_READERS: Record<string, string> = {
 	'src/lib/editor-actions/commit/history.ts':
 		'an undo read again under another grammar vouches its reading, and reads once more',
 	'src/lib/components/Editor.svelte':
-		'the wiring: a draft vouches the blocks it names, and it and the test door land through the byte splice'
+		'the wiring: a draft vouches the blocks it names, and it and the test door land through the byte splice; the selection toolbar hands its text to a plugin, which writes through a draft'
 };
 
 /** Each file that hands the range-edit core the editor's own document. */
@@ -49,7 +49,13 @@ const POSITION_READERS: Record<string, string> = {
 		'places the caret a removal leaves, after its `rangeRead`',
 	'src/lib/selection/cross-block/range-replace.ts':
 		'names the place a removal emptied, for the caret',
-	'src/lib/components/Editor.svelte': 'the overlay’s paint and the test door, which write no byte'
+	'src/lib/components/Editor.svelte': 'the overlay’s paint and the test door, which write no byte',
+	'src/lib/editor-actions/commit/document-read.ts':
+		'a plugin’s reads, which write no byte; a draft made from one vouches its ranges as it commits',
+	'src/lib/components/editor-root/selection-actions.ts':
+		'the selection toolbar’s box, which writes no byte',
+	'src/lib/inline-menu/inline-menu-state.svelte.ts':
+		'a pick’s draft vouches its range as it commits; a query taken out is written by its leaf’s path'
 };
 
 const sources = collectEditorSources();

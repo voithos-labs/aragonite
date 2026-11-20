@@ -52,7 +52,7 @@ export function createSelectionActions(deps: {
 	editorFor(plugin: string): Editor | undefined;
 	/** The document with the starts the editor keeps for it. */
 	measured(): Measured;
-	/** The document's bytes, serialized once per content version. */
+	/** The document's text as the kept record holds it, which `measured` places bytes in. */
 	source(): string;
 	/** The selection in document bytes, null for none or a cell selection. */
 	selection(): { from: number; to: number } | null;
