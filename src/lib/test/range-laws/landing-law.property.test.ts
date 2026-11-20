@@ -150,11 +150,13 @@ function marked(d: Draw, start: string[]): string {
 	return [...WRAPS[d.wrap](within), ...outside].join('\n') + '\n';
 }
 
+/** Whether the range runs to its container's end, nothing of the container after it. */
+const toEnd = (d: Draw) => !d.inside || d.after === 'nothing';
+
 /** Ruling 2's exception: the line the range empties goes where it runs to its container's end
  *  from right under a block or the callout's opening row, or ends a callout's body under a blank line. */
 function lineGoes(d: Draw): boolean {
-	const toEnd = !d.inside || d.after === 'nothing';
-	if (d.wrap === 'the top level' || !toEnd) return false;
+	if (d.wrap === 'the top level' || !toEnd(d)) return false;
 	if (d.wrap === 'a callout') return true;
 	return d.above !== 'under a blank line' && d.above !== 'first in its container';
 }
@@ -225,10 +227,10 @@ const nonBlank = (bytes: string) =>
  *  markers without them, where a typed letter may keep them (`> `, an item's indent). */
 const unspaced = (bytes: string) => bytes.replace(/[ \t]+$/gm, '');
 
-/** Booked, not ruled: where a range empties a callout's first line, the typed key opens its
- *  paragraph under a blank line below the opening row, and a paste doesn't. */
+/** Booked, not ruled: where a range empties a callout to its end from its first line, the typed key
+ *  opens its paragraph under a blank line below the opening row, and a paste doesn't. */
 const underOpeningRow = (d: Draw) =>
-	d.wrap === 'a callout' && d.above === 'first in its container' && !(d.end in RESTS);
+	d.wrap === 'a callout' && d.above === 'first in its container' && !(d.end in RESTS) && toEnd(d);
 
 type Block = { raw: string; children?: readonly Block[] };
 
