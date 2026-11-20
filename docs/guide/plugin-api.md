@@ -336,7 +336,7 @@ A declared title line already decides what Backspace does at its start, so its `
 | `BlockView` | What draws a kind, the registration's `view`. You can't look inside one: `defineBlockView`, `svelteBlockView` or `textBlockView` makes it, and `registerBlockKind` throws on anything else, a hand-built object included |
 | `BlockComponent`, `BlockComponentExports` | The surface a block component publishes: a factory leaf's single `blockApi` export, a container's single `containerApi` export, or a hand-built leaf's own members |
 | [`BlockComponentProps`](#blockcomponentprops) | The props every block component receives |
-| `PreparedPaste` | What a hand-built leaf's `preparePaste` answers: the raw range of its own bytes a paste replaces, or `draft` to take the text into a source it shows and hasn't written yet |
+| `PreparedPaste` | What a block's `preparePaste` answers: the raw range of its own bytes a paste replaces, or `draft` to take the text into a source it shows and hasn't written yet |
 
 #### `defineBlockView`
 

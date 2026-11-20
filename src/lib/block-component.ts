@@ -160,8 +160,8 @@ export interface BlockComponentProps {
 
 /** What a block answers a paste with: the raw range of its own bytes the paste replaces, a caret
  *  where `start === end`. A block showing a source the document doesn't hold yet takes the text
- *  through `draft` instead, and the document changes when that source is written. `spend` and
- *  `finish` are the editor's own leaf's; a hand-built block leaves them out. */
+ *  through `draft` instead, and the document changes when that source is written. Only the
+ *  editor's own text blocks answer one. */
 export interface PreparedPaste {
 	start: number;
 	end: number;
