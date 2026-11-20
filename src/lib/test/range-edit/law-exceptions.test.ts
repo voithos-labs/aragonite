@@ -172,7 +172,7 @@ describe('law 5', () => {
 	});
 });
 
-// Miss-analysis: the oracle found the alert's own line by a byte inside it, which the end of a file
+// Miss-analysis: the laws found the alert's own line by a byte inside it, which the end of a file
 // with no last line break is not, so laws 9 and 11 redded the core's right answer there.
 describe('laws 9 and 11 at an alert’s marker line with no body line under it', () => {
 	const at = (text: string, pasted = 'x') => ({

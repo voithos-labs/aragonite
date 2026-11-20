@@ -235,7 +235,8 @@ registerBuiltinBlockKind('blockquote', {
 	container: {
 		contract: 'strip',
 		rebuildRaw: rebuildBlockquoteRaw,
-		containerPaste: { matchesAncestor: () => true, siblingAbsorb: false },
+		lines: { marker: 'every-line', lazy: true },
+		merges: {},
 		unwrapRole: { firstChildBackspace: 'lift-first-child-drop-opener', middleChildBackspace: 'default-merge' },
 		contentStartSpace: 'complete-marker',
 		reorderChildren: {}

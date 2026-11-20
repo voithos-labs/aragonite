@@ -1,7 +1,8 @@
 /**
  * Field pairs a block-kind registration can't mean together. The registration types refuse each
- * one; this table refuses it again at runtime for a caller the types never reach (a cast, plain
- * JavaScript). A new row needs a `@ts-expect-error [id]` pin in `descriptor-groups.types.test.ts`.
+ * one they can; this table refuses it again at runtime for a caller the types never reach (a cast,
+ * plain JavaScript), and for an augment that would complete one. A new row needs a
+ * `@ts-expect-error [id]` pin in `descriptor-groups.types.test.ts`, unless it is `untyped`.
  */
 import type { AnyBlockKind } from '../core/nodes';
 
@@ -13,6 +14,8 @@ interface RegistrationFields {
 	container?: {
 		reservedChrome?: unknown;
 		unwrapRole?: { firstChildBackspace?: string };
+		bodyWrap?: { beforeCloserLine?: boolean };
+		merges?: unknown;
 	};
 	contextDependentKind?: boolean;
 	opener?: unknown;
@@ -23,6 +26,8 @@ interface IncoherentPair {
 	fields: string;
 	reason: string;
 	holds: (registration: RegistrationFields) => boolean;
+	/** The registration types can't refuse the pair, so it has no compile-time pin. */
+	untyped?: true;
 }
 
 const wholeBlock = (r: RegistrationFields): boolean => r.blockFocus === 'whole-block';
@@ -80,14 +85,28 @@ export const INCOHERENT_REGISTRATION_PAIRS = [
 		reason:
 			"the kind's container rebuilds its bytes and skips the reparse, so the opener could never re-derive the kind",
 		holds: (r) => r.contextDependentKind === true && r.opener !== undefined
+	},
+	{
+		id: 'closing-line-merges',
+		fields: 'container.merges with container.bodyWrap.beforeCloserLine',
+		reason:
+			"a pasted one always nests, since plain text can't say which container a pasted closing line ends; drop merges",
+		holds: (r) =>
+			r.container?.merges !== undefined && r.container.bodyWrap?.beforeCloserLine === true,
+		// A body wrap is mostly passed as a typed constant, whose `boolean` the types can't read.
+		untyped: true
 	}
 ] as const satisfies readonly IncoherentPair[];
 
 export type IncoherentPairId = (typeof INCOHERENT_REGISTRATION_PAIRS)[number]['id'];
 
-export function rejectIncoherentPairs(kind: AnyBlockKind, registration: RegistrationFields): void {
+export function rejectIncoherentPairs(
+	entry: string,
+	kind: AnyBlockKind,
+	registration: RegistrationFields
+): void {
 	for (const pair of INCOHERENT_REGISTRATION_PAIRS) {
 		if (!pair.holds(registration)) continue;
-		throw new Error(`registerBlockKind: "${kind}" declares ${pair.fields}; ${pair.reason}`);
+		throw new Error(`${entry}: "${kind}" declares ${pair.fields}; ${pair.reason}`);
 	}
 }

@@ -99,9 +99,7 @@ function mergesOf(
 	descriptor: BlockKindDescriptor | undefined,
 	lines: BlockFacts['lines']
 ): BlockFacts['merges'] {
-	// A container closed by a line of its own never joins one: plain text can't say which container
-	// a pasted closing line ends, so a pasted one nests.
-	const declared = lines === 'fenced' ? undefined : descriptor?.merges;
+	const declared = descriptor?.merges;
 	if (!declared) return { into: [], onMismatch: 'nest' };
 	// A list of the other kind splits the list it lands in rather than nesting.
 	const onMismatch = lines === 'items' ? 'break-out' : 'nest';
