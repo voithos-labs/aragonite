@@ -296,25 +296,27 @@ For a kind that holds its own fence, [`fenceRawWrite`](#fencerawwrite-fenceshape
 #### `ContainerDescriptorGroup`
 
 ```ts
-type ContainerDescriptorGroup = {
-	contract: 'strip' | 'grid' | 'opaque';
-	rebuildRaw: (node: CstNode, changed?: ChildRawChange) => void | StripRebuild;
-	// plus the optional fields below
-};
+type ContainerDescriptorGroup =
+	| { lines: LineShape<YourMetadata> }
+	| {
+			contract: 'strip' | 'grid' | 'opaque';
+			rebuildRaw: (node: CstNode, changed?: ChildRawChange) => void | StripRebuild;
+	  };
+// plus the optional fields below
 ```
 
-The descriptor's container-only half, declared as `container` on the registration. Two fields are required:
+The descriptor's container-only half, declared as `container` on the registration. It says who writes the container's bytes, one way or the other (both together won't compile):
 
-- `contract`: `'strip'`, `'grid'` or `'opaque'`.
-- `rebuildRaw`, the hook that recomputes a container's raw from its children after an edit ([the write hook](plugin-guide.md#rebuildraw-the-write-hook)).
+- `lines`, a [line shape](#lineshape-markedlines-indentedlines): the editor writes the bytes, and cut, copy and paste read your markers from it. Pick this one whenever a shape fits.
+- `contract` (`'strip'`, `'grid'` or `'opaque'`) with `rebuildRaw`, the hook that recomputes a container's raw from its children after an edit ([the write hook](plugin-guide.md#rebuildraw-the-write-hook)).
 
 The rest are optional:
 
-- the body wrap (`bodyWrap`) and the body write rule (`bodyWrite`);
+- the body wrap (`bodyWrap`), and which child holds its last line (`lastLineChild`), for a container whose own bytes end it, like a table holding only its header row. Both go beside `rebuildRaw` only, since a line shape already says them;
+- the body write rule (`bodyWrite`);
 - the reserved title line (`reservedChrome`) and unwrap behavior (`unwrapRole`);
-- how its marker rides its lines (`lines`: `{ marker: 'every-line' | 'first-line', lazy }`), and when two of it count as one container (`merges`: `{ key }` names the metadata field they share, `{}` means any two), which cut, copy and paste read. A container with a closing line of its own (a `fenced` or `colon` line shape, or `bodyWrap.beforeCloserLine`) can't declare `merges`: registering it throws, and a pasted one always nests;
+- when two of it count as one container (`merges`: `{ key }` names the metadata field they share, `{}` means any two), so a pasted one joins the one it lands in. A container with a closing line of its own (a `fenced` or `colon` line shape, or `bodyWrap.beforeCloserLine`) can't declare `merges`: registering it throws, and a pasted one always nests;
 - a content line's first space (`contentStartSpace`);
-- which child holds its last line (`lastLineChild`), for a container whose own bytes end it, like a table holding only its header row;
 - whether its children reorder among themselves (`reorderChildren`).
 
 A declared title line already decides what Backspace does at its start, so its `unwrapRole` names only `middleChildBackspace`.
