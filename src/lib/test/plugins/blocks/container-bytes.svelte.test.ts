@@ -53,8 +53,8 @@ const BOX = {
 	lazy: true
 } as const;
 
-/** One container type under each line shape, none of whose markers a built-in writes; `quiet`
- *  interrupts no paragraph. */
+/** One container type under each line shape, none of whose markers a built-in writes; `box` takes
+ *  a pasted box in as a quote takes a quote, and `quiet` interrupts no paragraph. */
 const boxes = definePlugin({
 	name: 'boxes',
 	version: '1.0.0',
@@ -65,6 +65,7 @@ const boxes = definePlugin({
 				name: 'box',
 				label: 'Box',
 				lines: BOX,
+				merges: {},
 				interrupts: true,
 				sample: '%> x',
 				insert: { none: 'a test block type' }
@@ -350,9 +351,11 @@ async function twinAnswers(
 	const quote = editRange(source, range, gesture, mode, host);
 	const moved = (text: string, at: number) => twinAt(twin, text, at);
 	const twinned =
-		typeof gesture !== 'string' && 'paste' in gesture
-			? { ...gesture, paste: twin(gesture.paste) }
-			: gesture;
+		typeof gesture === 'string'
+			? gesture
+			: 'paste' in gesture
+				? { ...gesture, paste: twin(gesture.paste) }
+				: { ...gesture, drop: moved(source, gesture.drop) };
 	const box = editRange(
 		twin(source),
 		{ from: moved(source, range.from), to: moved(source, range.to) },
@@ -383,6 +386,8 @@ const caretLine = (answer: { source: string; caret: { at: number; holds: string 
 		at: 0
 	}
 });
+
+const pasting = (paste: string): Gesture => ({ paste, plain: false, holds: 'text' });
 
 /** Shapes whose answer reads a line's markers: the blank line keeping two blocks apart, a paste into
  *  an empty block beside a blank line, and a box and a quote held one in the other. */
@@ -434,23 +439,51 @@ const TWIN_ROWS: [name: string, marked: string, gesture: Gesture, depths?: numbe
 		'a paste ending in a list into an empty line over a list',
 		'> a\n>\n> ⟦⟧\n> - b\n',
 		{ paste: '1. one\n', plain: false, holds: 'text' }
+	],
+	// Miss-analysis: no twin row pasted a line ending, or a box into a box (the box declared no
+	// merge), so the reads those make of the line under the caret were held by quote rows alone.
+	[
+		'a line ending pasted at a line’s end over more text',
+		'> one⟦⟧\n> two\n> three\n',
+		pasting('o\n')
+	],
+	[
+		'a line ending pasted at an item’s line end over its next line',
+		'> - one⟦⟧\n>   two\n> - b\n',
+		pasting('o\n')
+	],
+	['a heading pasted at a link definition’s end', '> [a]: /url⟦⟧\n>\n> text\n', pasting('# h\n')],
+	[
+		'a line ending and text pasted at a heading’s text start',
+		'> # ⟦⟧Title here\n>\n> After\n',
+		pasting('\nx')
+	],
+	[
+		'a box ending on a fence pasted at a line’s text start',
+		'> ⟦⟧a\n\n> b\n',
+		pasting('> q\n> ```\n> c\n> ```\n')
+	],
+	[
+		'a box ending on a bare marker pasted at a line’s text start',
+		'> ⟦⟧a\n\n> b\n',
+		pasting('> x\n>\n>     co\n> ')
+	],
+	['a box’s list pasted at an item’s empty row', '> - a\n>\n>   ⟦⟧\n', pasting('> - l')],
+	[
+		'a copy dropped at an item’s end, a blank line over its list',
+		'> one⟦\n>\n> - ⟧two\n> - three\n>\n> four\n',
+		{ drop: 15, copy: true }
 	]
 ];
 
 describe('the range-edit core answers a named quote row alike under the box’s marker', () => {
-	const rows = NAMED_ROWS.filter(
-		(row) =>
-			(typeof row.gesture === 'string' || 'paste' in row.gesture) &&
-			/^ {0,3}>/m.test(unmark(row.source)) &&
-			// An alert's head line is the quote's own; under `%>` it is text.
-			!row.source.includes('[!') &&
-			// A quote takes a pasted quote in; a `container` block type declares no such merge.
-			!(
-				typeof row.gesture === 'object' &&
-				'paste' in row.gesture &&
-				/^ {0,3}>/.test(row.gesture.paste)
-			)
-	);
+	const quoted = (text: string) => /^ {0,3}>/m.test(text);
+	const rows = NAMED_ROWS.filter((row) => {
+		if (typeof row.gesture !== 'string' && !('paste' in row.gesture)) return false;
+		const pasted = typeof row.gesture === 'string' ? '' : row.gesture.paste;
+		// An alert's head line is the quote's own; under `%>` it is text.
+		return (quoted(unmark(row.source)) || quoted(pasted)) && !(row.source + pasted).includes('[!');
+	});
 	for (const mode of ['source', 'live'] as const) {
 		it.each(rows)(`${mode}: $name`, async (row) => {
 			const { got, want } = await twinAnswers(row.source, row.gesture, row.mode ?? mode);
