@@ -137,7 +137,7 @@ function bodyOpened(doc: Doc, from: number, to: number, pasted: Pasted): Edit | 
 	const marked = parent && factsOf(doc, parent).lines === 'every-line';
 	const ownEnd = parent ? pastMarkers(doc.source, parent.from) : 0;
 	// The caret's line is the one the container starts on, holding more than its marker (`[!NOTE]`).
-	const first = !!parent && from - lineHead(doc.source, from).length <= parent.from;
+	const first = !!parent && lineStart(doc, from) <= parent.from;
 	const titled = marked && first && !isBlankText(doc.source.slice(ownEnd, from));
 	if (!titled || !isBlankText(nodeAt(doc, leaf!.path).raw)) return null;
 	// The body line takes the markers of the containers outside, then the container's own, bare.
@@ -145,19 +145,9 @@ function bodyOpened(doc: Doc, from: number, to: number, pasted: Pasted): Edit | 
 	const own = doc.source.slice(parent.from, ownEnd).trimEnd();
 	const end = lineEndBefore(doc.source, from);
 	const body = doc.ending + outside + own;
-	// A file's open last line is read as the line it opens once that line is closed, then opened again.
-	const open = end === doc.source.length ? doc.ending : '';
-	const source = doc.source.slice(0, end) + body + open + doc.source.slice(end);
+	const source = doc.source.slice(0, end) + body + doc.source.slice(end);
 	const at = end + body.length;
-	const edit = pasteAt(
-		{ ...readDoc(source, doc.host, doc.mode), ending: doc.ending },
-		at,
-		at,
-		pasted
-	);
-	if (!open || !edit.source.endsWith(open)) return edit;
-	const kept = edit.source.slice(0, -open.length);
-	return { ...edit, source: kept, caret: Math.min(edit.caret, kept.length), leaf: undefined };
+	return pasteAt({ ...readDoc(source, doc.host, doc.mode), ending: doc.ending }, at, at, pasted);
 }
 
 /** One line ending pasted as text, by a gesture that runs no transform. */
