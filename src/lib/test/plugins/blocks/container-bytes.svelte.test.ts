@@ -412,6 +412,28 @@ const TWIN_ROWS: [name: string, marked: string, gesture: Gesture, depths?: numbe
 		'out of a box in a box to its end, a blank line below',
 		'> > above\n> > ⟦# text\n> > below⟧\n>\n> more\n',
 		'backspace'
+	],
+	// Pastes ending in a list, whose landing reads the line the caret is left on and the one above
+	// the block below.
+	[
+		'a paste ending in a list over the text of a line',
+		'a\n> ⟦b⟧\n',
+		{ paste: 'para\n\n- a\n- b\n', plain: false, holds: 'text' }
+	],
+	[
+		'a paste ending in a list at a line’s text start',
+		'> ⟦⟧a\n> b\n',
+		{ paste: 'para\n\n- a\n- b\n', plain: false, holds: 'text' }
+	],
+	[
+		'a paste ending in a list into an empty line over text',
+		'> a\n>\n> ⟦⟧\n> b\n',
+		{ paste: 'para\n\n- a\n- b\n', plain: false, holds: 'text' }
+	],
+	[
+		'a paste ending in a list into an empty line over a list',
+		'> a\n>\n> ⟦⟧\n> - b\n',
+		{ paste: '1. one\n', plain: false, holds: 'text' }
 	]
 ];
 

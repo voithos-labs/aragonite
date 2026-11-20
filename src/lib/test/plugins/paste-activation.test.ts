@@ -6,6 +6,7 @@
 import { afterEach, beforeAll, beforeEach, describe, it, expect } from 'vitest';
 import { installPlugins } from '#lib';
 import { definePlugin, registerPasteTransform } from '#lib/plugin.js';
+import type { PluginsProp } from '#lib/schema/plugin-install.js';
 import { registerPasteSurface } from '#lib/tree-operations/paste-surfaces.js';
 import { cellAt } from '../blocks/table/mount-table';
 import {
@@ -22,6 +23,7 @@ import {
 import { pasteGesture } from '../range-laws/gestures';
 import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
 import { tocPlugin, TOC_BLOCK } from '#packages/toc/src/index.js';
+import { parrot as parrotBlock, parrotPlugin } from '#packages/parrot/src/index.js';
 import { normalizeReplacementForBody } from '#lib/tree-operations/paste/body-write.js';
 import { declaredPluginKind } from '#lib/schema/plugin-kind.js';
 import { DETAILS, registerDetailsKind } from '#packages/details/src/details-kind.js';
@@ -99,7 +101,7 @@ describe('a paste into a mounted editor reads that editor’s plugins', () => {
 	afterEach(destroyMountedEditors);
 
 	/** The empty document's one line, pasted into by the key route, in an editor listing `plugins`. */
-	async function pasted(plugins: readonly (typeof toc)[], text: string) {
+	async function pasted(plugins: PluginsProp, text: string) {
 		const editor = mountEditor<EditorTestSurface>({ source: '', plugins });
 		await editor.settle();
 		(editor.target.querySelector('[contenteditable="true"]') as HTMLElement).focus();
@@ -116,6 +118,19 @@ describe('a paste into a mounted editor reads that editor’s plugins', () => {
 			.getDocument()
 			.children.map((block) => block.kind as string);
 		expect(kinds.includes(TOC_BLOCK)).toBe(lands);
+	});
+
+	// Miss-analysis: the kind rows pasted a kind registered in a plugin's setup; a block type a
+	// maker builds joins an editor's grammar another way, when the editor installs its plugins.
+	it.each([
+		['lists it', true],
+		['lists another plugin, not it', false]
+	] as const)('lands a block type a maker built only where the editor %s', async (_, lands) => {
+		const editor = await pasted([lands ? parrotPlugin() : shouter], '%%parrot hi\n');
+		const kinds = editor.instance.__test
+			.getDocument()
+			.children.map((block) => block.kind as string);
+		expect(kinds.includes(parrotBlock.name)).toBe(lands);
 	});
 
 	it.each([
