@@ -35,7 +35,7 @@ import { SYNTAX_PLUGINS } from '../../behavior/corpus';
 import { NAMED_ROWS, rangeOf, unmark } from '../../range-edit/named-rows';
 import { noTransforms } from '../../range-edit/test-host';
 import { allBlockPaths } from '../../invariants/arbitraries/index';
-import { clipboardGesture, placeRange, type Editor } from '../../range-laws/gestures';
+import { clipboardGesture, pasteGesture, placeRange, type Editor } from '../../range-laws/gestures';
 
 beforeAll(installLayoutStubs);
 beforeEach(() => {
@@ -53,8 +53,8 @@ const BOX = {
 	lazy: true
 } as const;
 
-/** One container type under each line shape, none of whose markers a built-in writes; `box` takes
- *  a pasted box in as a quote takes a quote, and `quiet` interrupts no paragraph. */
+/** One container type under each line shape, none of whose markers a built-in writes; `joining`
+ *  takes a pasted one of its own in, as a quote does, and `quiet` interrupts no paragraph. */
 const boxes = definePlugin({
 	name: 'boxes',
 	version: '1.0.0',
@@ -65,9 +65,17 @@ const boxes = definePlugin({
 				name: 'box',
 				label: 'Box',
 				lines: BOX,
-				merges: {},
 				interrupts: true,
 				sample: '%> x',
+				insert: { none: 'a test block type' }
+			}),
+			container({
+				name: 'joining',
+				label: 'Joining',
+				lines: { ...BOX, first: '$> ', rest: '$> ', reads: /^ {0,3}\$>[ \t]?/ },
+				merges: {},
+				interrupts: true,
+				sample: '$> x',
 				insert: { none: 'a test block type' }
 			}),
 			container({
@@ -188,20 +196,21 @@ describe('a container under its own marker keeps its child spans as a quote does
 
 const at = (path: number[], offset: number) => ({ path, offset });
 
-/** `text` with each line's opening run of quote markers, behind a list marker too, written as the
- *  box's, or only the markers at `depths` of each run, outermost 0. */
+/** `text` with each line's opening run of quote markers, behind a list marker too, written as
+ *  `mark` (the box's), or only the markers at `depths` of each run, outermost 0. */
 const boxing =
-	(depths?: readonly number[]) =>
+	(depths?: readonly number[], mark = '%>') =>
 	(text: string): string =>
 		text.replace(
 			/^( {0,3}(?:[-*+]|\d{1,9}[.)])[ \t]+)?((?: {0,3}>[ \t]?)+)/gm,
 			(_line, item: string | undefined, run: string) => {
 				let depth = 0;
-				const marks = run.replace(/>/g, () => (!depths || depths.includes(depth++) ? '%>' : '>'));
+				const marks = run.replace(/>/g, () => (!depths || depths.includes(depth++) ? mark : '>'));
 				return (item ?? '') + marks;
 			}
 		);
 const boxed = boxing();
+const quoted = (text: string) => /^ {0,3}>/m.test(text);
 const headed = (text: string) => text.replace(/^>/gm, '%!');
 const noted = (text: string) => text.replace(/\[\^a\]:/g, '@a:');
 
@@ -281,6 +290,52 @@ describe('a range in a container under its own marker goes as under a built-in�
 			expect(own).toEqual({ source: twin(known.source), copy: twin(known.copy) });
 		});
 	}
+});
+
+/** A clipboard pasted by key at a caret in a quote's text. One holding a quote runs again under
+ *  `$>`, the container that takes a pasted one of its own in; the others under `%>`. */
+const PASTES: Record<string, [source: string, caret: Point, clip: string]> = {
+	'a line ending at a line’s end over more text': ['> one\n> two\n> three\n', [[0, 0], 3], 'o\n'],
+	'a line ending at an item’s line end over its next line': [
+		'> - one\n>   two\n> - b\n',
+		[[0, 0, 0, 0], 3],
+		'o\n'
+	],
+	'a heading at a link definition’s end': ['> [a]: /url\n>\n> text\n', [[0, 0], 9], '# h\n'],
+	'one ending on a fence at a line’s text start': [
+		'> a\n\n> b\n',
+		[[0, 0], 0],
+		'> q\n> ```\n> c\n> ```\n'
+	],
+	'one ending on a bare marker at a line’s text start': [
+		'> a\n\n> b\n',
+		[[0, 0], 0],
+		'> x\n>\n>     co\n> '
+	]
+};
+
+/** `source` after `clip` is pasted by key at `caret`, and after a letter typed next. */
+async function pasted(source: string, caret: Point, clip: string): Promise<string[]> {
+	await destroyMountedEditors();
+	const editor = await mounted(source);
+	expect(await placeRange(editor, { anchor: at(...caret), focus: at(...caret) })).toBe(true);
+	await pasteGesture(editor, { 'text/plain': clip }, 'key');
+	await editor.settle();
+	const after = editor.source();
+	await pressHardwareKey(document.activeElement as HTMLElement, { key: 'y' });
+	await editor.settle();
+	return [after, editor.source()];
+}
+
+// Miss-analysis: the mounted twin rows removed ranges and typed keys, and none pasted, so the reads
+// a pasted line ending and a pasted container make were held under a quote's marker alone.
+describe('a paste in a container under its own marker lands as under a built-in’s', () => {
+	it.each(Object.entries(PASTES))('%s', async (_name, [source, caret, clip]) => {
+		const twin = quoted(clip) ? boxing(undefined, '$>') : boxed;
+		const known = await pasted(source, caret, clip);
+		expect(known[0], 'the paste landed').not.toBe(source);
+		expect(await pasted(twin(source), caret, twin(clip))).toEqual(known.map(twin));
+	});
 });
 
 type Key = 'x' | 'Enter' | 'Backspace' | 'Delete';
@@ -440,8 +495,8 @@ const TWIN_ROWS: [name: string, marked: string, gesture: Gesture, depths?: numbe
 		'> a\n>\n> ⟦⟧\n> - b\n',
 		{ paste: '1. one\n', plain: false, holds: 'text' }
 	],
-	// Miss-analysis: no twin row pasted a line ending, or a box into a box (the box declared no
-	// merge), so the reads those make of the line under the caret were held by quote rows alone.
+	// Miss-analysis: no twin row pasted a line ending, and no twin container took a pasted one in,
+	// so the reads those make of the line under the caret were held by quote rows alone.
 	[
 		'a line ending pasted at a line’s end over more text',
 		'> one⟦⟧\n> two\n> three\n',
@@ -476,27 +531,45 @@ const TWIN_ROWS: [name: string, marked: string, gesture: Gesture, depths?: numbe
 	]
 ];
 
-describe('the range-edit core answers a named quote row alike under the box’s marker', () => {
-	const quoted = (text: string) => /^ {0,3}>/m.test(text);
-	const rows = NAMED_ROWS.filter((row) => {
-		if (typeof row.gesture !== 'string' && !('paste' in row.gesture)) return false;
-		const pasted = typeof row.gesture === 'string' ? '' : row.gesture.paste;
-		// An alert's head line is the quote's own; under `%>` it is text.
-		return (quoted(unmark(row.source)) || quoted(pasted)) && !(row.source + pasted).includes('[!');
-	});
-	for (const mode of ['source', 'live'] as const) {
-		it.each(rows)(`${mode}: $name`, async (row) => {
-			const { got, want } = await twinAnswers(row.source, row.gesture, row.mode ?? mode);
-			if (row.name === CARET_INSIDE_A_MARKER) expect(caretLine(got)).toEqual(caretLine(want));
-			else expect(got).toEqual(want);
-		});
+const clipOf = (gesture: Gesture) =>
+	typeof gesture === 'string' || !('paste' in gesture) ? '' : gesture.paste;
+
+describe.each([
+	['the box’s marker', '%>', false],
+	['the marker of a box that takes a pasted one in', '$>', true]
+] as const)(
+	'the range-edit core answers a named quote row alike under %s',
+	(_kind, mark, merges) => {
+		// A quote takes a pasted quote in, which only a container that declares `merges` mirrors.
+		const mirrored = (gesture: Gesture) => merges || !quoted(clipOf(gesture));
+		const rows = NAMED_ROWS.filter(
+			(row) =>
+				(typeof row.gesture === 'string' || 'paste' in row.gesture) &&
+				(quoted(unmark(row.source)) || quoted(clipOf(row.gesture))) &&
+				// An alert's head line is the quote's own; under another marker it is text.
+				!(row.source + clipOf(row.gesture)).includes('[!') &&
+				mirrored(row.gesture)
+		);
+		for (const mode of ['source', 'live'] as const) {
+			it.each(rows)(`${mode}: $name`, async (row) => {
+				const twin = boxing(undefined, mark);
+				const { got, want } = await twinAnswers(row.source, row.gesture, row.mode ?? mode, twin);
+				if (row.name === CARET_INSIDE_A_MARKER) expect(caretLine(got)).toEqual(caretLine(want));
+				else expect(got).toEqual(want);
+			});
+		}
+
+		it.each(TWIN_ROWS.filter((row) => mirrored(row[2])))(
+			'%s',
+			async (_name, marked, gesture, depths) => {
+				const { got, want } = await twinAnswers(marked, gesture, 'source', boxing(depths, mark));
+				expect(got).toEqual(want);
+			}
+		);
 	}
+);
 
-	it.each(TWIN_ROWS)('%s', async (_name, marked, gesture, depths) => {
-		const { got, want } = await twinAnswers(marked, gesture, 'source', boxing(depths));
-		expect(got).toEqual(want);
-	});
-
+describe('the range-edit core reads a marker the editor’s list turned on', () => {
 	// Miss-analysis: every twin row mounted its editor with the box on, so none read a marker the
 	// editor's list turned on after a range edit had read the markers once.
 	it('after `use` turns the box on in an editor that has made a range edit', async () => {
