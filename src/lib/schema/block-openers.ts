@@ -81,7 +81,7 @@ export interface ClosedReading extends ReadingNotFinal {
 
 /** A reading no line closes, as a link definition waits on a title: `notFinal` is also asked of a
  *  block's bytes together with the blocks under it, and a blank line always ends the wait. Both
- *  answers must follow from the bytes asked about alone, since the editor keeps them. */
+ *  answers must follow from the bytes and the grammar asked with alone: the editor keeps them. */
 export interface UnclosedReading extends ReadingNotFinal {
 	closer: null;
 	/** Whether the wait runs on across a block under the waiting one that opens with this line.
