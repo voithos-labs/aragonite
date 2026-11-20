@@ -4,6 +4,8 @@
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { builtin } from '#lib/components/block-makers/builtin.js';
 import { definePluginUnit, type Editor } from '#lib/schema/plugin-unit.js';
+import type { PluginsProp } from '#lib/schema/plugin-install.js';
+import { detailsPlugin } from '#packages/details/src/index.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
@@ -25,7 +27,7 @@ afterEach(async () => {
 const QUOTE = '> one\n> two `code` [link](https://x.dev)\n';
 const DOC = `intro\n\n- item\n\n${QUOTE}\n| Name | Role |\n| - | - |\n| Ada Lovelace | dev |\n`;
 
-async function editorOn(source: string): Promise<Editor> {
+async function editorOn(source: string, plugins: PluginsProp = []): Promise<Editor> {
 	let editor: Editor | undefined;
 	const reader = definePluginUnit({
 		name: 'unit-reader',
@@ -33,7 +35,7 @@ async function editorOn(source: string): Promise<Editor> {
 		editor: '*',
 		contributes: () => ({ setup: (e) => void (editor = e) })
 	});
-	const m = mountEditor({ source, plugins: [reader] });
+	const m = mountEditor({ source, plugins: [reader, ...plugins] });
 	await m.settle();
 	return editor!;
 }
@@ -102,6 +104,15 @@ describe("a block's positions", () => {
 			'cell',
 			'last'
 		]);
+	});
+
+	// Miss-analysis: no row ended a title in tags, whose line ending the byte map puts before the
+	// closing tag, so one past it fell inside `</summary>`.
+	it("end a summary's title past its closing tag and line ending", async () => {
+		const source = '<details>\n<summary>Title</summary>\n\nbody\n\n</details>\n';
+		const editor = await editorOn(source, [detailsPlugin()]);
+		const title = editor.blockAt(source.indexOf('Title'))!;
+		expect(source.slice(title.from, title.to)).toBe('Title</summary>\n');
 	});
 
 	it('gives each piece its document bytes, a text piece one line at most', async () => {

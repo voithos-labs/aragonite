@@ -61,6 +61,9 @@ export interface BlockReading {
 	/** Maps an offset of `node.raw` to its document byte; null once `node` has left the document.
 	 *  `path` is where it was last seen, tried before a search. */
 	place(node: NodeView, path?: readonly number[]): ((offset: number) => number | null) | null;
+	/** Where `node`'s bytes end in the document, past the line ending they end on (and a title's
+	 *  closing tag); null once `node` has left the document. */
+	end(node: NodeView, path?: readonly number[]): number | null;
 	inline(node: NodeView): readonly InlineNode[];
 }
 
@@ -68,6 +71,7 @@ export interface BlockReading {
 export const DETACHED_READING: BlockReading = {
 	typeOf: (kind) => ({ name: kind, label: kind }),
 	place: () => null,
+	end: () => null,
 	inline: () => []
 };
 
@@ -99,10 +103,7 @@ export function blockOf<D>(
 			return byteAt(0);
 		},
 		get to() {
-			// One past its last byte: the offset after that one sits behind the next line's marker.
-			const last = node.raw.length - 1;
-			const at = byteAt(Math.max(last, 0));
-			return at < 0 || last < 0 ? at : at + 1;
+			return reading.end(node, path) ?? -1;
 		},
 		get pieces() {
 			if (pieces) return pieces;

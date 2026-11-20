@@ -41,14 +41,23 @@ export function createDocumentRead(deps: {
 		return held;
 	}
 
+	/** Where `node` is now: `path` while it still holds the node, else a search. */
+	function find(node: NodeView, path: readonly number[] | undefined): readonly number[] | null {
+		const doc = deps.getDoc();
+		return path && blockNodeAt(doc, path) === node ? path : pathOfNode(doc, node);
+	}
+
 	const reading: BlockReading = {
 		typeOf: deps.typeOf,
 		place(node, path) {
-			const doc = deps.getDoc();
-			const at = path && blockNodeAt(doc, path) === node ? path : pathOfNode(doc, node);
+			const at = find(node, path);
 			if (!at) return null;
 			const { map } = layout();
 			return (offset) => map.byteOf(at, offset);
+		},
+		end(node, path) {
+			const at = find(node, path);
+			return at && layout().map.endOf(at, node.raw.length);
 		},
 		inline: (node) => resolvedInlineContent(node, deps.reading)
 	};
