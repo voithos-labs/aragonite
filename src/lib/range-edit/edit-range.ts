@@ -318,6 +318,8 @@ export function removalOf(
  *  text written over the range may join. */
 export interface RemovalAnswer extends RangeEditResult, PlaceKept {
 	taken?: { at: number; parent: readonly number[]; own: boolean };
+	/** The byte the removal left its caret at before it landed: where a cut's own entry fits. */
+	unlanded: number;
 }
 
 /** Text over a range inside one table cell, for a caller that never pastes elsewhere; null for any
@@ -358,7 +360,7 @@ export function wholeBlocksRemovalOf(
 	gesture: RemovalGesture,
 	mode: Mode,
 	host: RangeHost
-): RangeEditResult {
+): RemovalAnswer {
 	const doc = { ...readDoc(source, host, mode), wholeBlocks: true };
 	return answerOf(removeLeavingBlank(doc, range.from, range.to), gesture, doc, range);
 }
@@ -374,11 +376,13 @@ function answerOf(
 	const started = () => startedIn(doc, from);
 	const caret = caretOf(removed, result, besideOf(gesture, doc, range), started, from);
 	const at = removed.took;
-	if (at === undefined) return { source: removed.source, caret };
+	const unlanded = removed.caret;
+	if (at === undefined) return { source: removed.source, caret, unlanded };
 	const own = restAfter(doc, range.to);
 	return {
 		source: removed.source,
 		caret,
+		unlanded,
 		taken: { at, parent: parentAt(result, at, started), own }
 	};
 }

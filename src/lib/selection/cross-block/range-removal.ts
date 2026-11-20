@@ -177,7 +177,7 @@ export async function commitRemoval(
 		removal: true
 	});
 	if (!wrote) return { wrote, caret: null, landed, taken: null };
-	if (gesture === 'cut') rememberCut(ctx, landed);
+	if (gesture === 'cut') rememberCut(ctx, answer);
 	return removedIn(ctx.bytes, answer, true);
 }
 
@@ -211,13 +211,14 @@ export async function removeWholeBlock(
 		caret: answer.caret,
 		removal: true
 	});
-	if (wrote && gesture === 'cut') rememberCut(ctx, answer.caret);
+	if (wrote && gesture === 'cut') rememberCut(ctx, answer);
 	return wrote;
 }
 
-/** Keeps the caret the core named for a cut, for the paste that puts the cut back there. */
-function rememberCut(ctx: CommitContext, caret: SpliceCaret): void {
-	ctx.bytes.cut = { caret, of: ctx.bytes.measured() };
+/** Keeps the caret the core named for a cut, and the byte its entry fits at, for the paste that
+ *  puts the cut back there. */
+function rememberCut(ctx: CommitContext, { caret, unlanded }: RemovalAnswer): void {
+	ctx.bytes.cut = { caret, fits: unlanded, of: ctx.bytes.measured() };
 }
 
 /** Where Backspace at the start of the block at `path` (`dir` -1), or Delete at its end (1), lands

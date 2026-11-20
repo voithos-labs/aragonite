@@ -46,9 +46,9 @@ export interface DocumentBytes {
 	layout(): Layout;
 	/** The document with the starts of its top-level blocks, kept across writes. */
 	measured(): Measured;
-	/** The caret the core named for the last cut and the measure the cut left, which a paste back
-	 *  at that caret reads; null once anything else is known to have written. */
-	cut: { caret: SpliceCaret; of: Measured } | null;
+	/** The caret the core named for the last cut, the byte its entry fits at and the measure the cut
+	 *  left, which a paste back at that caret reads; null once anything else is known to have written. */
+	cut: { caret: SpliceCaret; fits: number; of: Measured } | null;
 	/** Whether what is kept of top-level blocks `[from, to]` is what the tree holds; a record found
 	 *  wrong is forgotten, so the next read is fresh (`KeptStarts.vouch`). */
 	vouch(from: number, to: number): boolean;
@@ -420,16 +420,16 @@ export function placeAfterBlock(bytes: DocumentBytes, path: readonly number[]): 
 	return place;
 }
 
-/** The core's own caret for the last cut, where a caret at byte `at` stands where that cut left it.
- *  Null for any other byte, or once the document moved on. */
+/** The last cut's caret, at the byte its entry fits, where a caret at byte `at` stands where that
+ *  cut left it. Null for any other byte, or once the document moved on. */
 function cutCaretAt(bytes: DocumentBytes, at: number): SpliceCaret | null {
 	const cut = bytes.cut;
 	if (!cut || cut.of !== bytes.measured() || cut.caret.holds === 'block') return null;
 	const measured = bytes.measured();
 	const landing = landingAt(measured, cut.caret);
 	if (!landing || landedByte(measured, landing) !== at) return null;
-	// A gap stands where its line starts, which the core's byte for a container's end comes before.
-	return 'gapCaret' in landing ? { ...cut.caret, at } : cut.caret;
+	// The landing can stand past the removal's own byte (a heading's text, a gap's line start).
+	return { ...cut.caret, at: cut.fits };
 }
 
 /** The byte the editor puts a landing down at: a gap's, a stored caret's, or where the block's own
