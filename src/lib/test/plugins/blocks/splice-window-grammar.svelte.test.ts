@@ -10,6 +10,9 @@ import { initDocument } from '#lib/components/editor-root/document-swap.js';
 import type { NodeView } from '#lib/core/node-views.js';
 import { serialize } from '#lib/core/serializer.js';
 import { definePlugin, lineBlock } from '#lib/plugin.js';
+import { definePlugin as installDefinePlugin } from '#lib/schema/plugin-install.js';
+import type { PluginsProp } from '#lib/schema/plugin-install.js';
+import { testLeaf } from '#lib/test/harness/test-kinds.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -68,8 +71,8 @@ const outline = (blocks: readonly NodeView[]): unknown[] =>
 const fresh = (m: Mounted) =>
 	outline(initDocument(m.source(), m.instance.__test.getGrammar()).doc.children);
 
-async function mounted(plugins: ReturnType<typeof ruleLine>[]): Promise<Mounted> {
-	const m = mountEditor<EditorTestSurface>({ source: BEFORE, plugins });
+async function mounted(plugins: PluginsProp, source = BEFORE): Promise<Mounted> {
+	const m = mountEditor<EditorTestSurface>({ source, plugins });
 	await m.settle();
 	return m;
 }
@@ -104,4 +107,48 @@ describe('the splice window under a definition waiting on its title', () => {
 		]);
 		expect(cutting.instance.__test.getDocument().children).toHaveLength(5);
 	});
+
+	// Miss-analysis: every row's rule line was a block type, which only its own editor's grammar
+	// holds. A reading asked of the page's grammar then read a wider window, and a window too wide
+	// still reads as a fresh parse.
+	it.each([
+		{ name: 'under the block above the change', source: BEFORE },
+		{ name: 'inside the block above the change', source: BEFORE.replace('%%rule', '    %%rule') }
+	])(
+		"reads past a line only another editor's kind cuts a paragraph at, $name",
+		async ({ source }) => {
+			const cutter = installDefinePlugin({
+				name: 'page-cutter',
+				setup() {
+					testLeaf('page-cutter-rule', (kind) => ({
+						opener: {
+							priority: 5,
+							interruptsParagraph: (line) => line.trim() === '%%rule',
+							tryOpen: ({ line, leadingTrivia }) =>
+								line.text === '%%rule'
+									? { node: { kind, leadingTrivia, raw: line.raw }, consumed: 1 }
+									: null
+						}
+					}));
+				}
+			});
+			const listing = await mounted([cutter], source);
+			// An editor with no list runs every installed plugin, so this one lists a bystander.
+			const bystander = installDefinePlugin({ name: 'bystander', setup() {} });
+			const plain = await mounted([bystander], source);
+			for (const m of [listing, plain]) {
+				const at = m.source().indexOf('end') + 3;
+				expect(await m.instance.edit().replace({ from: at, to: at }, "'").commit()).toEqual({
+					ok: true
+				});
+				await m.settle();
+				expect(outline(m.instance.__test.getDocument().children)).toEqual(fresh(m));
+			}
+			expect(plain.instance.__test.getDocument().children.map((b) => b.kind)).toEqual([
+				'linkReferenceDefinition',
+				'paragraph'
+			]);
+			expect(listing.instance.__test.getDocument().children.length).toBeGreaterThan(3);
+		}
+	);
 });
