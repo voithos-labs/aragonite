@@ -38,7 +38,7 @@ const POSITION_READERS: Record<string, string> = {
 	'src/lib/selection/range-bytes.ts':
 		'`rangeRead` vouches the blocks its paths name; the layout it hands on paints and places',
 	'src/lib/editor-actions/commit/draft-registry.svelte.ts':
-		'a commit vouches the blocks its ranges name before it reads a start',
+		'a commit vouches the blocks its ranges and its data name before it reads a start',
 	'src/lib/editor-actions/commit/byte-splice.ts':
 		'the splice vouches what its reading took; its other reads place a caret',
 	'src/lib/editor-actions/commit/history.ts':

@@ -17,6 +17,8 @@ import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
 import { blockRangeClipboard, rangeClipboard } from '#lib/selection/range-clipboard.js';
 import { draftRegistryOver } from '#lib/test/harness/drafts.js';
 import { makeTopHarness } from '#lib/test/harness/editor-actions.js';
+import { lineBlock } from '#lib/components/block-makers/line-block.js';
+import { blockOf, DETACHED_READING } from '#lib/schema/doc-view.js';
 import { allowDevWarns } from '../../support/warn-gate';
 
 const N = 12;
@@ -124,6 +126,32 @@ describe('G1.219 kept bytes leave the record through a vouch', () => {
 		expect(await draft.replace({ from: at, to: at + 1 }, 'Q').commit()).toEqual({ ok: true });
 		expect(serialize(h.deps.doc)).toContain(`${GROWN.slice(0, 30)}Q${GROWN.slice(31)}`);
 		expect(serialize(h.deps.doc)).toContain('line 5\n\nline 6\n');
+		expect(h.errors).toHaveLength(1);
+		allowDevWarns(FIXTURE_WARNS);
+	});
+
+	// Miss-analysis: the vouch rows wrote ranges, never a block's data, which a draft places by
+	// the block it names.
+	it('a draft writing a block’s data into the grown block writes there, off a fresh read', async () => {
+		const grown = `%%1 ${GROWN}`;
+		const h = await staleAtBlockTwo(grown);
+		const level = lineBlock({
+			name: 'level',
+			label: 'Level',
+			match: /^%%(?<n>\d) (?<text>.*)$/,
+			data: (m) => Number(m.groups!.n),
+			write: (n: number, text) => `%%${n} ${text}`,
+			sample: '%%1 hi',
+			insert: { none: 'a test block type' }
+		});
+		const block = blockOf<number>(
+			h.deps.doc.children[2],
+			{ ...DETACHED_READING, typeOf: () => level },
+			[2]
+		);
+		const draft = draftRegistryOver(h).edit();
+		expect(await draft.data(block, 2).commit()).toEqual({ ok: true });
+		expect(serialize(h.deps.doc)).toContain(`%%2 ${GROWN}`);
 		expect(h.errors).toHaveLength(1);
 		allowDevWarns(FIXTURE_WARNS);
 	});

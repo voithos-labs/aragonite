@@ -7,7 +7,7 @@
  */
 
 import type { Draft, DraftCloseCause, DraftResult, DraftSpec } from '../../schema/drafts';
-import type { DocumentView } from '../../core/node-views';
+import type { DocumentView, NodeView } from '../../core/node-views';
 import type { CommitSnapshotArg, SourceSplice } from '../../action-contracts';
 import type { ByteChange } from '../../tree-operations/byte-changes';
 import type { DocumentStamps } from './document-stamp';
@@ -70,7 +70,7 @@ export interface DraftWrites {
 
 /** `starts` and `events` refuse a commit started while another write is open. */
 export interface DraftRegistryDeps extends OpenWriteCheck {
-	/** `vouch` compares what is kept of the blocks a commit's ranges name with the tree. */
+	/** `vouch` compares what is kept of the blocks a commit's ranges and data name with the tree. */
 	readonly starts: Pick<KeptStarts, 'writing' | 'vouch'>;
 	stamps: Pick<DocumentStamps, 'current' | 'historySwapping'>;
 	doc(): DocumentView;
@@ -163,17 +163,25 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 				if (!at) return refused('moved', 'a write elsewhere changed bytes it replaces');
 				placed.push(at);
 			}
-			// A range's offsets count the tree's bytes, so its blocks are vouched before the kept
-			// starts place them: a record found wrong is forgotten, and the read below is fresh.
+			const owned: Owned[] = [];
+			for (const { block, data } of datas) {
+				const node = nodeOfBlock(block);
+				const path = node && pathOfNode(doc, node);
+				if (!node || !path) return refused('moved', 'its block was rewritten or removed');
+				owned.push({ block, node, path, data });
+			}
+			// The offsets of a range or of a block's data count the tree's bytes, so their blocks are
+			// vouched before the kept starts place them: a record found wrong is forgotten, read fresh.
 			for (const at of placed) deps.starts.vouch(at.from.part - 1, at.to.part - 1);
+			for (const { path } of owned) deps.starts.vouch(path[0], path[0]);
 			const now = deps.measured();
 			const unsorted: ByteChange[] = placed.map((at, i) => ({
 				from: byteIn(now, at.from),
 				to: byteIn(now, at.to),
 				insert: writes[i].text
 			}));
-			for (const { block, data } of datas) {
-				const changes = dataChanges(deps.measured(), block, data, deps.grammar);
+			for (const one of owned) {
+				const changes = dataChanges(now, one, deps.grammar);
 				if (!Array.isArray(changes)) return changes;
 				for (const change of changes) unsorted.push(change);
 			}
@@ -329,17 +337,21 @@ export function createDraftRegistry(deps: DraftRegistryDeps): DraftRegistry {
 
 // ── Internal ─────────────────────────────────────────────────────────────────
 
-/** The changes that write `data` into `block` as the document holds it now: one per line that
- *  differs, so the markers of the containers around it stay. */
+/** A block a draft writes data into, found where the document holds it now. */
+interface Owned {
+	block: Block<unknown>;
+	node: NodeView;
+	path: number[];
+	data: unknown;
+}
+
+/** The changes that write `data` into `block`: one per line that differs, so the markers of the
+ *  containers around it stay. */
 function dataChanges(
 	laid: Measured,
-	block: Block<unknown>,
-	data: unknown,
+	{ block, node, path, data }: Owned,
 	grammar: GrammarView
 ): ByteChange[] | DraftResult {
-	const node = nodeOfBlock(block);
-	const path = node && pathOfNode(laid.doc, node);
-	if (!node || !path) return refused('moved', 'its block was rewritten or removed');
 	const map = documentByteMap(laid);
 	const byteOf = (offset: number) => map.byteOf(path, offset);
 	const written = makingOf(block.type)?.writeData?.(node, data, grammar) ?? null;
