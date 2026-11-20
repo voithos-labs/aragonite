@@ -17,7 +17,7 @@ import type { ChildRawChange } from './child-spans';
 import type { StripRebuild } from './strip-rebuild';
 import { registeredChord, type KeyBinding } from './keybindings';
 import type { HeightEstimateEnv } from './height-estimates';
-import { rejectIncoherentPairs } from './registration-pairs';
+import { closesOwnLine, rejectIncoherentPairs } from './registration-pairs';
 import { blockViewForm, domViewSpec, isBlockView, type BlockView } from './block-view';
 import type { PluginActivation } from './plugin-activation';
 import type { RegistryRecord } from './plugin-registry';
@@ -693,9 +693,8 @@ function contractOf(lines: LineShape<unknown>): 'strip' | 'opaque' {
 
 /** The blank lines next to a shape's own lines that are the container's, not the body's. */
 function bodyWrapOf(lines: LineShape<unknown>): ContainerBodyWrap | undefined {
-	if (lines.shape === 'indented') return undefined;
-	if (lines.shape === 'marked') return 'head' in lines ? { afterOpenerLine: true } : undefined;
-	return { afterOpenerLine: true, beforeCloserLine: true };
+	if (closesOwnLine(lines)) return { afterOpenerLine: true, beforeCloserLine: true };
+	return lines.shape === 'marked' && 'head' in lines ? { afterOpenerLine: true } : undefined;
 }
 
 // A JavaScript caller or a cast gets past the augment types. Presence alone refuses, since an

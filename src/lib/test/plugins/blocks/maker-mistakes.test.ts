@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest';
 import { lineBlock } from '#lib/components/block-makers/line-block.js';
 import { fencedBlock } from '#lib/components/block-makers/fenced-block.js';
 import { builtin } from '#lib/components/block-makers/builtin.js';
+import { container } from '#lib/components/block-makers/container.js';
+import { COLON_LINES } from '#lib/schema/colon-lines.js';
 import type { Block } from '#lib/schema/doc-view.js';
 import type { Draft } from '#lib/schema/drafts.js';
 
@@ -45,6 +47,9 @@ function mistakes(draft: Draft, plain: Block<never>, numbered: Block<number>) {
 	// prettier-ignore
 	// @ts-expect-error a fenced block's lines carry no data
 	const h = fencedBlock({ ...line, name: 'h', fence: { info: 'h' }, data: () => 1, write: () => '' });
+	// A pasted closing line can't say which container it ends, so the maker takes no shape with one.
+	// @ts-expect-error a container's lines are marked or indented, never closed by a line
+	const j = container({ ...line, name: 'j', lines: COLON_LINES, merges: {} });
 	const fine = lineBlock({
 		...line,
 		name: 'f',
@@ -58,7 +63,7 @@ function mistakes(draft: Draft, plain: Block<never>, numbered: Block<number>) {
 	// @ts-expect-error a block not narrowed to its type can't be given data
 	draft.data(numbered.children[0], 1);
 	draft.data(numbered, 2);
-	return [a, b, c, d, e, f, g, h, i, fine];
+	return [a, b, c, d, e, f, g, h, i, j, fine];
 }
 
 describe('a block type mistake', () => {

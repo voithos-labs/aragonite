@@ -312,7 +312,7 @@ The rest are optional:
 
 - the body wrap (`bodyWrap`) and the body write rule (`bodyWrite`);
 - the reserved title line (`reservedChrome`) and unwrap behavior (`unwrapRole`);
-- how its marker rides its lines (`lines`: `{ marker: 'every-line' | 'first-line', lazy }`), and when two of it count as one container (`merges`: `{ key }` names the metadata field they share, `{}` means any two), which cut, copy and paste read. A container with a closing line of its own (`bodyWrap.beforeCloserLine`) can't declare `merges`: registering it throws, and a pasted one always nests;
+- how its marker rides its lines (`lines`: `{ marker: 'every-line' | 'first-line', lazy }`), and when two of it count as one container (`merges`: `{ key }` names the metadata field they share, `{}` means any two), which cut, copy and paste read. A container with a closing line of its own (a `fenced` or `colon` line shape, or `bodyWrap.beforeCloserLine`) can't declare `merges`: registering it throws, and a pasted one always nests;
 - a content line's first space (`contentStartSpace`);
 - which child holds its last line (`lastLineChild`), for a container whose own bytes end it, like a table holding only its header row;
 - whether its children reorder among themselves (`reorderChildren`).

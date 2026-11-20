@@ -15,11 +15,17 @@ interface RegistrationFields {
 		reservedChrome?: unknown;
 		unwrapRole?: { firstChildBackspace?: string };
 		bodyWrap?: { beforeCloserLine?: unknown };
+		lines?: { shape: string };
 		merges?: unknown;
 	};
 	contextDependentKind?: boolean;
 	opener?: unknown;
 }
+
+/** Whether a container's line shape writes a closing line of its own under the body, which the
+ *  body wrap a registration derives from the shape says too. */
+export const closesOwnLine = (lines: { shape: string }): boolean =>
+	lines.shape === 'fenced' || lines.shape === 'colon';
 
 interface IncoherentPair {
 	id: string;
@@ -88,10 +94,12 @@ export const INCOHERENT_REGISTRATION_PAIRS = [
 	},
 	{
 		id: 'closing-line-merges',
-		fields: 'container.merges with container.bodyWrap.beforeCloserLine',
+		fields: 'container.merges with a closing line of its own',
 		reason:
 			"a pasted one always nests, since plain text can't say which container a pasted closing line ends; drop merges",
-		holds: (r) => r.container?.merges !== undefined && !!r.container.bodyWrap?.beforeCloserLine,
+		holds: ({ container: c }) =>
+			c?.merges !== undefined &&
+			(!!c.bodyWrap?.beforeCloserLine || (c.lines !== undefined && closesOwnLine(c.lines))),
 		// A body wrap is mostly passed as a typed constant, whose `boolean` the types can't read.
 		untyped: true
 	}

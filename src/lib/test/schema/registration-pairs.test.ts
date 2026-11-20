@@ -15,6 +15,8 @@ import {
 	type IncoherentPairId
 } from '#lib/schema/registration-pairs.js';
 import { testView } from '#lib/test/harness/test-view.js';
+import { COLON_LINES } from '#lib/schema/colon-lines.js';
+import { fencedLines } from '#lib/schema/fenced-lines.js';
 
 const leaf = {
 	gapEdges: 'none',
@@ -94,7 +96,7 @@ describe('registerBlockKind refuses an incoherent pair the types refuse', () => 
 	// Miss-analysis: every pair was closed to an augment by fixing a field at registration, so no
 	// test built one from a registration and an augment that are each coherent alone.
 	it('refuses the pair an augment would complete, from either side, and merges nothing', () => {
-		const declares = 'declares container.merges with container.bodyWrap.beforeCloserLine;';
+		const declares = 'declares container.merges with a closing line of its own;';
 		const fenced = declarePluginKind('pair-augment-fenced');
 		registerBlockKind(fenced, {
 			...leaf,
@@ -125,7 +127,21 @@ describe('registerBlockKind refuses an incoherent pair the types refuse', () => 
 			container: { ...group, bodyWrap: { beforeCloserLine: 1 }, merges: {} }
 		};
 		expect(() => registerBlockKind(kind, truthy as unknown as BlockKindRegistration)).toThrow(
-			'declares container.merges with container.bodyWrap.beforeCloserLine;'
+			'declares container.merges with a closing line of its own;'
+		);
+		expect(tryGetBlockKindDescriptor(kind)).toBeUndefined();
+	});
+
+	// Miss-analysis: every closing-line row spelled `bodyWrap` out, where a line shape that writes a
+	// closing line implies it, after the pairs were read.
+	it.each([
+		['colon', COLON_LINES],
+		['fenced', fencedLines({ open: () => ['<x>'], close: () => '</x>' })]
+	])('refuses merges beside a %s line shape, which writes a closing line', (shape, lines) => {
+		const kind = declarePluginKind(`pair-shape-${shape}`);
+		const shaped = { ...leaf, container: { lines, merges: {} } };
+		expect(() => registerBlockKind(kind, shaped as unknown as BlockKindRegistration)).toThrow(
+			'declares container.merges with a closing line of its own;'
 		);
 		expect(tryGetBlockKindDescriptor(kind)).toBeUndefined();
 	});
