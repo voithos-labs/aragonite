@@ -1,12 +1,10 @@
 /**
- * Sets up the code-block languages and the fencedCode paste handling; safe to call twice. These
+ * Sets up the code-block languages and the code block's context actions; safe to call twice. These
  * are built-ins, so the test reset keeps them. Adding a language is one import plus one
  * `registerBuiltinLanguage` call.
  */
 
 import { registerBuiltinLanguage } from './code-languages';
-import { registerPasteSurface } from '../../../tree-operations/paste-surfaces';
-import { codePasteSurface } from './code-paste-surface';
 import { registerCodeContextActions } from './code-context-actions';
 
 import javascript from 'highlight.js/lib/languages/javascript';
@@ -69,6 +67,5 @@ export function bootstrapCodeLanguages(): void {
 	registerBuiltinLanguage('powershell', powershell, ['ps1']);
 	registerBuiltinLanguage('dockerfile', dockerfile, ['docker']);
 
-	registerPasteSurface(codePasteSurface);
 	registerCodeContextActions();
 }

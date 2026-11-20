@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// A paste over a range is a removal and then an insert in one undo step, so the insert writes the
-// list the removal left where it stands. When the insert fails, a mounted editor puts every block
-// back through its reactive tree, and the document is the removal's alone.
+// Enter over a range is a removal and then a split in one undo step, so the split writes the list
+// the removal left where it stands. When the split fails, a mounted editor puts every block back
+// through its reactive tree, and the document is the removal's alone.
 // Miss-analysis: the rollback rows ran over plain nodes, and no mounted row failed a write that
 // joined its undo entry.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
@@ -10,7 +10,7 @@ import type { EditorTestSurface } from '#lib/components/editor-root/test-surface
 import type { NodeView } from '#lib/core/node-views.js';
 import type { EditorError } from '#lib/editor-events.js';
 import { augmentBuiltin, tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
-import { dispatchClipboardEvent, StubDataTransfer } from '#lib/test/harness/clipboard-events.js';
+import { dispatchKey } from '#lib/test/harness/settle.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -34,11 +34,8 @@ function bytesOf(root: { children?: readonly NodeView[] }, path: number[] = []):
 	]);
 }
 
-describe('a paste over a range whose insert fails, in a mounted editor', () => {
-	it.each([
-		{ name: 'one line', text: 'X' },
-		{ name: 'a paragraph and a nested list', text: 'X\n\n- p\n  - q\n' }
-	])('$name: every block is as the removal left it', async ({ text }) => {
+describe('Enter over a range whose split fails, in a mounted editor', () => {
+	it('every block is as the removal left it', async () => {
 		const m = mountEditor<EditorTestSurface>({ source: 'top\n\n- one\n- two\n  - deep\n\nlast\n' });
 		await m.settle();
 		await m.instance.setSelection({
@@ -50,7 +47,7 @@ describe('a paste over a range whose insert fails, in a mounted editor', () => {
 		const errors: EditorError[] = [];
 		events.on('error', (error) => errors.push(error));
 		let removed: string[] = [];
-		// Armed once the removal has landed, so the insert is the write that fails.
+		// Armed once the removal has landed, so the split is the write that fails.
 		const off = events.on('edit', () => {
 			off();
 			removed = bytesOf(m.instance.__test.getDocument());
@@ -68,11 +65,7 @@ describe('a paste over a range whose insert fails, in a mounted editor', () => {
 		// A production build reports the throw on `error` instead of rethrowing it into the handler.
 		configureEditorEnv({ isDev: false });
 
-		dispatchClipboardEvent(
-			surfaceAt(m, [1, 0, 0]),
-			'paste',
-			new StubDataTransfer({ 'text/plain': text })
-		);
+		dispatchKey(surfaceAt(m, [1, 0, 0]), { key: 'Enter' });
 		await m.settle();
 
 		expect(errors.map((error) => error.origin)).toEqual(['commit']);

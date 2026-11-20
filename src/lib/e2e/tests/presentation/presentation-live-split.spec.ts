@@ -209,3 +209,33 @@ for (const mode of ['live', 'preview-inline'] as const) {
 		}
 	});
 }
+
+// Enter at a run's close with a soft line break after it closes the run on the kept half, as
+// anywhere else; the second half starts on the text after the break, and the letter lands plain.
+const BEFORE_A_BREAK: [name: string, doc: string, typed: string][] = [
+	['emphasis', '*oneo*\ntwo', '*oneo*\n\nXtwo'],
+	['bold', '**oneo**\ntwo', '**oneo**\n\nXtwo'],
+	['a link', '[oneo](u)\ntwo', '[oneo](u)\n\nXtwo'],
+	['a code span', '`oneo`\ntwo', '`oneo`\n\nXtwo'],
+	['strikethrough', '~~oneo~~\ntwo', '~~oneo~~\n\nXtwo'],
+	['emphasis in a quote', '> *oneo*\n> two', '> *oneo*\n>\n> Xtwo'],
+	['emphasis after text', 'a *oneo*\ntwo', 'a *oneo*\n\nXtwo'],
+	['emphasis before a hard break', '*oneo*\\\ntwo', '*oneo*\n\nX\\\ntwo']
+];
+
+test('live mode: Enter at a run’s close before a line break closes the run above', async ({
+	page
+}) => {
+	const ep = await enterMode(page, 'live');
+	for (const [name, doc, typed] of BEFORE_A_BREAK)
+		await test.step(`${name}: no closing marker is left on the next line`, async () => {
+			await nextRow(ep, doc);
+			await clickWordSettled(ep, page, 'oneo');
+			await page.keyboard.press(edgeKey('lineEnd'));
+			await ep.waitForRenderFlush();
+			await page.keyboard.press('Enter');
+			await ep.waitForRenderFlush();
+			await insertText(page, 'X');
+			await expect.poll(() => ep.bridge.getSource()).toBe(typed);
+		});
+});

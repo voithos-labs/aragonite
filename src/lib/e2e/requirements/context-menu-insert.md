@@ -3,13 +3,16 @@
 The right-click menu on a paragraph or heading carries the clipboard rows and, below a divider,
 an "Insert block" flyout listing the empty blocks the editor can add (lists, quote,
 divider, code block, table, and a plugin's blocks while it is installed). Choosing one creates an
-empty paragraph after the block under the pointer and puts the snippet in it, so the new block is
-empty and the caret is inside it.
+empty paragraph after the block under the pointer and puts the snippet in it (on an empty line,
+the line itself takes it), so the new block is empty and the caret is inside it.
 
 ## Happy paths
 
 - Right-click a paragraph, open the flyout (hover, click or ArrowRight), pick "Code block": an
   empty fence appears after that paragraph, before the next block.
+- Right-click an empty line and pick "Code block": the fence takes the line, with no empty line
+  left above it. Miss-analysis: every pick was made on a line with text, so no row saw the new
+  paragraph opened under an empty one.
 - One Ctrl+Z after a pick takes the new block and the paragraph made for it back together, leaving
   the document as it was. Miss-analysis: the flyout cases checked the bytes after a pick and never
   undid one, so the paragraph and the paste kept an undo entry each.

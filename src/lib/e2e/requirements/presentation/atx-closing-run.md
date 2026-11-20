@@ -28,8 +28,9 @@ every scenario typed headings without one (GH #568).
 - live mode: selecting the whole text and pressing Backspace leaves an empty paragraph too
 - live mode: Shift+Enter inside the text keeps the run on the heading's line (`# H\ #` over `wi`),
   as a heading with no run gives `# H\` over `wi`
-- live mode: pasting two paragraphs at the text's end keeps the run on the heading
-  (`# Hi #`, then `abc`, `def`), and a setext heading keeps its underline the same way
+- live mode: pasting two paragraphs at the text's end joins the first to the heading's text and
+  keeps the run on the heading (`# Hiabc #`, then `def`), and a setext heading keeps its
+  underline the same way (`Hiabc`, `===`, then `def`)
 
 Miss-analysis for the last four: the Backspace case deleted one of two characters, so the text
 never emptied, and no scenario broke or pasted into a heading with structure past its text.

@@ -4,7 +4,7 @@ import { edgeKey, extendKey } from '../../platform-keys';
 
 // `editor.insertMarkdown()`: the paste path entered without a clipboard
 // (`requirements/clipboard/insert-markdown-door.md`). Each case asserts the outcome the same
-// bytes pasted at the same caret produce, since that parity is the whole contract.
+// bytes pasted at the same caret produce, less the payload's last line ending, its terminator.
 
 const TABLE = '| a | b |\n| --- | --- |\n| 1 | 2 |\n';
 
@@ -30,6 +30,7 @@ test.describe('insertMarkdown: programmatic insertion', () => {
 		await editor.bridge.waitForSourceContains('| --- | --- |');
 		expect(await editor.bridge.getBlockKind(1)).toBe('table');
 
+		// The table's last line ending is the snippet's terminator: the next key lands in its last cell.
 		await editor.typeText('X');
 		await editor.bridge.waitForSourceMatches(/\| 1 \| 2X \|/);
 	});
@@ -43,7 +44,9 @@ test.describe('insertMarkdown: programmatic insertion', () => {
 
 		expect(await insert(TABLE)).toBe(true);
 		await editor.bridge.waitForSourceContains('| --- | --- |');
-		expect(await editor.bridge.getSource()).not.toContain('[ ]');
+		// The item keeps the table in its bullet, and the list stays one list.
+		expect(await editor.bridge.getSource()).toBe('- | a | b |\n  | --- | --- |\n  | 1 | 2 |\n');
+		expect(await editor.bridge.getBlockCount()).toBe(1);
 		await expect(editor.page.locator('.task-checkbox')).toHaveCount(0);
 	});
 

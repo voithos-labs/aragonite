@@ -3,7 +3,7 @@ import { EditorPage } from '../../editor-page';
 import { spacerCount } from './vr-helpers';
 
 /**
- * Where the caret lands after a structural paste (VR-12): at the end of the pasted run, an index
+ * Where the caret lands after a structural paste (VR-12): just past the pasted run, an index
  * that grows with the clipboard, so a long run lands it past the mounted window, where an
  * immediate lookup cannot mount it. Focus is checked by typing, since `getSource()` reads the same
  * whatever the caret did.
@@ -16,12 +16,13 @@ const LONG_LIST =
 
 // Well past the six extra items kept mounted, so the landing is far outside the window.
 const PASTED_ITEMS = 40;
-const CLIPBOARD = Array.from({ length: PASTED_ITEMS }, (_, i) => `- pasted ${i}`).join('\n') + '\n';
+const PASTED_RUN = Array.from({ length: PASTED_ITEMS }, (_, i) => `- pasted ${i}`).join('\n');
 
-// The paste splits the target at the caret into the text before it, the pasted items and the
-// text after, so the caret belongs on the last pasted item, never on the text after it.
+// The first pasted item joins the target's line, the last the text after the caret; a last line
+// ending is Enter, so that text becomes the item under the run, the caret at its start.
 const TARGET_ITEM = 2;
 const LANDING_ITEM = TARGET_ITEM + PASTED_ITEMS;
+const LAST_PASTED_ITEM = LANDING_ITEM - 1;
 const LAST_PASTED_TEXT = `pasted ${PASTED_ITEMS - 1}`;
 
 function cursorOffsetAt(page: EditorPage['page'], path: number[]): Promise<number | null> {
@@ -44,7 +45,9 @@ test.describe('VR-12: structural paste focus under container windowing', () => {
 		await editor.goto();
 	});
 
-	test('the caret lands in the last pasted item and typing continues there', async ({ page }) => {
+	/** The long list loaded, windowed, and `clipboard` pasted after `item 2`, near the top of the
+	 *  mounted window, so the landing, 40 items further on, is far below anything mounted. */
+	async function pasteIntoWindowedList(page: EditorPage['page'], clipboard: string) {
 		await editor.loadContent(LONG_LIST);
 		await editor.waitForRenderFlush();
 
@@ -55,19 +58,40 @@ test.describe('VR-12: structural paste focus under container windowing', () => {
 			'container windowing is not active: the fixture no longer clears the watermark'
 		).toBeGreaterThan(0);
 
-		await editor.seedClipboard(CLIPBOARD);
-
-		// Paste into an item near the top of the mounted window, so the landing, 40 items
-		// further on, is far below anything mounted.
+		await editor.seedClipboard(clipboard);
 		await editor.clickBlockAtPath([0, TARGET_ITEM, 0], 'item 2'.length);
 		await editor.paste();
 		await editor.bridge.waitForSourceContains(LAST_PASTED_TEXT);
+	}
+
+	test('without a last line ending, the caret lands in the last pasted item and typing continues there', async ({
+		page
+	}) => {
+		await pasteIntoWindowedList(page, PASTED_RUN);
+		expect(await editor.bridge.getSource()).toContain(`- ${LAST_PASTED_TEXT} word word`);
+
+		await expect
+			.poll(() => cursorOffsetAt(page, [0, LAST_PASTED_ITEM, 0]), {
+				message: 'the caret never reached the last pasted item (VR-12)'
+			})
+			.not.toBeNull();
+
+		await editor.typeSlowly('ZZ');
+		await editor.waitForRenderFlush();
+		expect(await editor.bridge.getSource()).toContain(`- ${LAST_PASTED_TEXT}ZZ word word`);
+	});
+
+	test('the caret lands in the item under the pasted run and typing continues there', async ({
+		page
+	}) => {
+		await pasteIntoWindowedList(page, `${PASTED_RUN}\n`);
+		expect(await editor.bridge.getSource()).toContain(`- ${LAST_PASTED_TEXT}\n-  word word`);
 
 		// The source is final at the commit, before the landing item has mounted, so waiting
 		// on the bytes would type into whatever still had focus.
 		await expect
 			.poll(() => cursorOffsetAt(page, [0, LANDING_ITEM, 0]), {
-				message: 'the caret never reached the last pasted item (VR-12)'
+				message: 'the caret never reached the item under the pasted run (VR-12)'
 			})
 			.not.toBeNull();
 
@@ -76,6 +100,6 @@ test.describe('VR-12: structural paste focus under container windowing', () => {
 
 		// The marker goes wherever the caret really is. A lost caret leaves it in the block
 		// pasted into, on <body>, where it reaches the source at all, or in the wrong item.
-		expect(await editor.bridge.getSource()).toContain(`- ${LAST_PASTED_TEXT}ZZ`);
+		expect(await editor.bridge.getSource()).toContain(`- ${LAST_PASTED_TEXT}\n-  ZZword word`);
 	});
 });

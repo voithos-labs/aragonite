@@ -96,6 +96,8 @@
 	import { normalizeKeybindingOverrides } from '../schema/keybinding-overrides';
 	import { createEditorRootKeydown } from './editor-root/keydown';
 	import { createEditorRootClipboard } from './editor-root/clipboard';
+	import { createRootPaste } from './editor-root/paste';
+	import { scriptedClip } from '../browser/clipboard';
 	import { createModeFlip } from './editor-root/mode-flip';
 	import { aroundRender } from '../around-render.svelte';
 	import { createFocusAttribution } from './editor-root/focus';
@@ -444,8 +446,7 @@
 		writes: () => ({
 			commitSource: controller.commitSource,
 			undoStep: (seed, run) => controller.undoStep(seed, run),
-			insert: (md, below) =>
-				focusedSurface.insertMarkdown(md, below ? { placement: 'below' } : undefined)
+			insert: (md, below) => rootPaste.paste(scriptedClip(md), { below })
 		})
 	});
 	const shownSource = createShownSourceState();
@@ -895,7 +896,7 @@
 	// Read at a row's press, when both halves exist.
 	const menuClipboard: MenuClipboard = {
 		take: () => rootClipboard.takeForMenu(),
-		pasteTarget: () => focusedSurface.aimInsertAtFocus()
+		pasteTarget: () => rootPaste.aim()
 	};
 
 	setContext(EDITOR_SERVICES_KEY, {
@@ -931,8 +932,7 @@
 		kindCue,
 		textMoves,
 		readingFocus,
-		containerChords,
-		pasteAsBlocks: (mint, md, at) => focusedSurface.pasteAsBlocks(mint, md, at)
+		containerChords
 	} satisfies EditorServices);
 
 	setContext(EDITOR_POLICIES_KEY, {
@@ -1168,20 +1168,48 @@
 	});
 
 	rootEffect((root) => {
-		return onRoot(root.ownerDocument, 'keydown', (e: KeyboardEvent) =>
-			rootKeydown.handleKeyDown(e, root)
+		return removeAll(
+			onRoot(root.ownerDocument, 'keydown', (e: KeyboardEvent) =>
+				rootKeydown.handleKeyDown(e, root)
+			),
+			onRoot(root.ownerDocument, 'keyup', rootKeydown.handleKeyUp)
 		);
 	});
 
+	// ── The paste entry ──────────────────────────────────────────────────
+	const rootPaste = createRootPaste({
+		get editorEl() {
+			return editorEl;
+		},
+		selection: selectionState,
+		context: {
+			bytes,
+			reading,
+			controller,
+			selection: selectionState,
+			getDoc,
+			activePlugins,
+			pasteCoordinator,
+			caretLanding
+		},
+		pasteOverRange: editorCrossBlock.pasteOverRange,
+		insertParagraph: (boundary, text) => blockEdit.insertParagraph(boundary, text),
+		getBlockComponent,
+		getBlockElByPath,
+		plainPaste: rootKeydown.plainPaste,
+		onPasteImage: () => onPasteImage,
+		events,
+		isHostChrome,
+		stamps
+	});
+
 	// ── Editor-root clipboard routing ────────────────────────────────────
-	// Copy, cut and paste that no block handled: an engine aims them at <body> or a block element
-	// when the selection's end has no text position.
+	// Copy and cut that no block handled: an engine aims them at <body> or a block element when the
+	// selection's end has no text position. Every paste arrives here.
 	const rootClipboard = createEditorRootClipboard({
 		selection: selectionState,
 		getDoc,
 		crossBlock: editorCrossBlock,
-		onPasteImage: () => onPasteImage,
-		events,
 		getBlockComponent,
 		isHostChrome
 	});
@@ -1191,7 +1219,7 @@
 		return removeAll(
 			onRoot(doc, 'copy', (e: ClipboardEvent) => rootClipboard.handleCopy(e, root)),
 			onRoot(doc, 'cut', (e: ClipboardEvent) => rootClipboard.handleCut(e, root)),
-			onRoot(doc, 'paste', (e: ClipboardEvent) => rootClipboard.handlePaste(e, root))
+			onRoot(doc, 'paste', (e: ClipboardEvent) => rootPaste.onPasteEvent(e, root))
 		);
 	});
 
@@ -1359,14 +1387,8 @@
 			return editorEl;
 		},
 		selection: selectionState,
-		pasteOverRange: (md) => editorCrossBlock.handlePaste(null, md),
 		getDoc,
-		getBlockComponent,
-		isReading: () => effectiveMode === 'reading',
-		insertParagraph: (boundary, text) => blockEdit.insertParagraph(boundary, text),
-		undoStep: (path, offset, run) => controller.undoStep({ path: docPathFrom(path), offset }, run),
-		contentVersion: contentVersion.read,
-		stamps
+		getBlockComponent
 	});
 
 	export function edit(): Draft {

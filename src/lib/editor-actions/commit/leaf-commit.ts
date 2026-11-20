@@ -21,6 +21,7 @@ import {
 	type FixedUpWrite
 } from '../../tree-operations/content-write';
 import { ensureUnsharedPath } from '../../tree-operations/unshare';
+import type { OpDescriptor } from '../../schema/operations';
 import {
 	documentBody,
 	type BodyParent,
@@ -52,13 +53,18 @@ import { unfinishedReadings, waitingInto, type GrammarView } from '../../schema/
 import type { EditorActionsDeps } from '../deps';
 import type { FrameOutcome, FrameWrite } from './commit-frame';
 
-export type TypeLeaf = (leafPath: DocPath, write: LegalWrite, caret: number) => InPlaceResult;
+export type TypeLeaf = (
+	leafPath: DocPath,
+	write: LegalWrite,
+	caret: number,
+	op?: OpDescriptor
+) => InPlaceResult;
 
 export function createLeafCommit(
 	deps: EditorActionsDeps,
 	runFrame: (write: FrameWrite) => FrameOutcome
 ): TypeLeaf {
-	return function typeLeaf(leafPath, write, caret) {
+	return function typeLeaf(leafPath, write, caret, op = { kind: 'input' }) {
 		const depth = leafPath.length;
 		const index = leafPath[depth - 1];
 		let chain: CstNode[] = [];
@@ -79,7 +85,7 @@ export function createLeafCommit(
 		const outcome = runFrame({
 			entry: 'updateContent',
 			// `input` promises a listener the leaf kept its kind, which the trial reparse checked.
-			op: { kind: 'input', eventPath: leafPath },
+			op: { ...op, eventPath: leafPath },
 			snapshot: { path: leafPath, offset: caret },
 			history: 'burst',
 			// A top-level write that opens, closes or moves a fence re-pairs blocks however far below,

@@ -47,10 +47,8 @@ export function applyPasteTransforms(text: string, activation: PluginActivation)
 	return result;
 }
 
-/**
- * The one place plugin `transform()` code runs. A throw becomes a decline, since on the
- * cross-block route the range delete has already committed and would leave nothing pasted.
- */
+/** The one place plugin `transform()` code runs. A throw becomes a decline, so one plugin's defect
+ *  leaves the paste to the others. */
 function runContained(
 	transform: PasteTransform,
 	text: string,

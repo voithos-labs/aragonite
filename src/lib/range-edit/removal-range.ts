@@ -79,9 +79,15 @@ export function holdsText(doc: Doc, from: number, to: number): boolean {
  *  A block drawn as a picture of its source is held whole, never entered. */
 export function fenceBody(doc: Doc, leaf: LaidBlock): { from: number; to: number } | null {
 	const facts = factsOf(doc, leaf);
+	if (facts.body !== 'literal' || facts.textPosition !== 'always') return null;
+	return bodyBetweenFences(doc, leaf);
+}
+
+/** The body between a text block's fence lines, a picture's source included; null for a block
+ *  with none. */
+export function bodyBetweenFences(doc: Doc, leaf: LaidBlock): { from: number; to: number } | null {
 	// A `:::` title row's line reads as an opening fence too, but it has no body to stay inside.
-	if (facts.body !== 'literal' || facts.textPosition !== 'always' || titleOwner(doc, leaf))
-		return null;
+	if (titleOwner(doc, leaf)) return null;
 	const raw = nodeAt(doc, leaf.path).raw;
 	const fence = doc.host.fence(raw);
 	if (!fence) return null;
@@ -91,4 +97,20 @@ export function fenceBody(doc: Doc, leaf: LaidBlock): { from: number; to: number
 			? raw.replace(/\r?\n$/, '').length
 			: closer - (raw[closer - 2] === '\r' ? 2 : 1);
 	return { from: byteAt(doc, leaf, body), to: byteAt(doc, leaf, Math.max(body, end)) };
+}
+
+/** The last place a caret takes in the block ending at `at`: a fenced block's body end, a container's
+ *  or a table's last text; null for text that ends there, or a block with no text place (a rule). */
+export function lastPlaceAt(doc: Doc, at: number): number | null {
+	const block = [...doc.layout.within(at, at)].filter((b) => contentEnd(doc, b) === at).at(-1);
+	if (!block || (block.text && !bodyBetweenFences(doc, block))) return null;
+	return lastPlaceIn(doc, block);
+}
+
+function lastPlaceIn(doc: Doc, block: LaidBlock): number | null {
+	if (factsOf(doc, block).textPosition === 'never') return null;
+	if (block.text) return bodyBetweenFences(doc, block)?.to ?? block.text.to;
+	const count = nodeAt(doc, block.path).children?.length ?? 0;
+	const last = count > 0 ? doc.layout.block([...block.path, count - 1]) : undefined;
+	return last ? lastPlaceIn(doc, last) : null;
 }

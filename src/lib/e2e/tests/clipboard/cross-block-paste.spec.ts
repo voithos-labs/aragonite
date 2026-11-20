@@ -70,8 +70,9 @@ test.describe('cross-block clipboard: multi-block paste at single caret', () => 
 		await editor.seedClipboard('First\n\nSecond');
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('Second');
+		// The first pasted paragraph joins the text before the selection.
 		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe(
-			['Hello ', '', 'First', '', 'Second'].join('\n')
+			['Hello First', '', 'Second'].join('\n')
 		);
 	});
 });

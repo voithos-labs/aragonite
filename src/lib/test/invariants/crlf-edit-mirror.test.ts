@@ -1,19 +1,16 @@
-/**
- * An edit's output bytes depend on the document's line ending only through that ending (G4.20).
- * Each gesture runs over one fixture written with LF and mirrored to CRLF, and the CRLF result has
- * to be the LF result mirrored. The outcome is checked rather than the source scanned, since most
- * breaches have no literal shape to scan for, and a new gesture is caught without being listed.
- */
+// @vitest-environment jsdom
+// An edit's output bytes depend on the document's line ending only through that ending (G4.20).
+// Each gesture runs over one fixture written with LF and mirrored to CRLF, and the CRLF result has
+// to be the LF result mirrored. The outcome is checked rather than the source scanned, since most
+// breaches have no literal shape to scan for, and a new gesture is caught without being listed.
 
-import { describe, it, expect } from 'vitest';
+import { afterEach, beforeAll, describe, it, expect } from 'vitest';
 import type { CstNode, Document } from '../../core/nodes';
 import { parse } from '../../core/parser';
 import { serialize } from '../../core/serializer';
 import { displayLength, documentLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import { insertHardBreak } from '../../components/blocks/text/text-keydown';
 import { computeFenceExit } from '../../components/blocks/code/code-fence-exit';
-import { codePasteSurface } from '../../components/blocks/code/code-paste-surface';
-import { tableCellPasteSurface } from '../../components/blocks/table/table-cell-paste';
 import { metadataOf } from '../../core/nodes';
 import {
 	rebuildBlockquoteRaw,
@@ -27,19 +24,21 @@ import { ensureEditableContainers } from '#lib/schema/opened-reading.js';
 import { buildExitReplacement } from '../../tree-operations/list/exit-replacement';
 import { parseReplacement } from '../../tree-operations/paste/replacement-parse';
 import { slotReaderAt } from '../../tree-operations/list/task-paragraph';
-import { createBlockEditActions } from '../../editor-actions/block-edit';
-import { fixtureReading, topLevelStore } from '../harness/fixture-grammar';
+import { fixtureReading } from '../harness/fixture-grammar';
+import { makeListContextAt, makeTopHarness } from '../harness/editor-actions';
 import {
-	makeListContextAt,
-	makeTopHarness,
-	runPasteDispatch,
-	makePasteCommit
-} from '../harness/editor-actions';
+	destroyMountedEditors,
+	installLayoutStubs,
+	mountEditor,
+	placeCaret,
+	surfaceAt
+} from '../harness/mount-editor.svelte';
+import { dispatchPaste } from '../harness/insertion-routes';
+import { cellAt } from '../blocks/table/mount-table';
 import { createFocusActions } from '../../editor-actions/focus/focus';
 import { blockContextActionsFor } from '../../schema/context-actions';
 import { everyInstalledPlugin } from '../../schema/plugin-activation';
 import { registerCodeContextActions } from '../../components/blocks/code/code-context-actions';
-import { ensurePasteSurface } from '#lib/test/harness/paste-surface.js';
 import { deleteRange } from '../harness/range-delete';
 
 interface EditGesture {
@@ -54,26 +53,29 @@ interface EditGesture {
 const serializeNodes = (nodes: CstNode[]) =>
 	nodes.map((n) => (n.leadingTrivia ?? '') + n.raw).join('');
 
-/** Paste through the real per-level bundle. The clipboard stays LF on both runs, as every paste
- *  entry point normalizes it, so the lines mirror only if written in the document's ending. */
+/** The bytes a paste by its event leaves in a mounted editor. The clipboard is LF on both runs,
+ *  so its lines mirror only if written in the document's ending. */
 async function pasteInto(
 	doc: Document,
 	targetPath: number[],
 	offset: number,
 	clipboard: string
-): Promise<Document> {
-	ensurePasteSurface(tableCellPasteSurface);
-	ensurePasteSurface(codePasteSurface);
+): Promise<string> {
 	const before = serialize(doc);
-	const h = makePasteCommit(doc);
-	await runPasteDispatch(
-		h,
-		{ pastedText: clipboard, targetPath, offset },
-		{ blockEdit: createBlockEditActions(h.deps, h.undo) }
-	);
+	const editor = mountEditor({ source: before });
+	await editor.settle();
+	// A cell is found through its table, which is the block the editor mounts.
+	const [row, column] = targetPath.slice(1);
+	const cell = targetPath.length === 3 && doc.children[targetPath[0]].kind === 'table';
+	placeCaret(cell ? cellAt(editor, row, column) : surfaceAt(editor, targetPath), offset);
+	await editor.settle();
+	dispatchPaste(document.activeElement as HTMLElement, clipboard);
+	await editor.settle();
+	const after = editor.source();
+	await destroyMountedEditors();
 	// A paste that wrote nothing mirrors trivially.
-	expect(serialize(h.doc), 'the paste left the document as it was').not.toBe(before);
-	return h.doc;
+	expect(after, 'the paste left the document as it was').not.toBe(before);
+	return after;
 }
 
 /** A range delete's emitted bytes. The grammar, mode and resolver arguments stay `undefined`:
@@ -199,19 +201,9 @@ const GESTURES: EditGesture[] = [
 		}
 	},
 	{
-		name: 'paste into a fenced code block',
-		source: '```\ncode\n```\n',
-		apply: (doc) => {
-			const node = doc.children[0];
-			const caret = node.raw.indexOf('code') + 'code'.length;
-			return codePasteSurface.onInlinePaste!(node, caret, 'X', undefined, topLevelStore(node), '\n')
-				.newRaw;
-		}
-	},
-	{
 		name: 'structural paste landing the clipboard’s trailing blank at the document tail',
 		source: 'x\n',
-		apply: async (doc) => serialize(await pasteInto(doc, [0], 1, '# h\n\n'))
+		apply: (doc) => pasteInto(doc, [0], 1, '# h\n\n')
 	},
 	{
 		name: 'fence exit on the empty line above the closer',
@@ -277,7 +269,7 @@ function unterminatedTail(): EditGesture[] {
 		{
 			name: 'paste of blocks at the end of an unterminated last line',
 			source: 'abc\n\nlast',
-			apply: async (doc) => serialize(await pasteInto(doc, [1], 'last'.length, 'x\n\ny'))
+			apply: (doc) => pasteInto(doc, [1], 'last'.length, 'x\n\ny')
 		},
 		{
 			name: 'Enter at the end of an unterminated last list item',
@@ -322,7 +314,7 @@ function pasteRoutes(): EditGesture[] {
 		(path: number[], offset: number | ((doc: Document) => number), clipboard: string) =>
 		async (doc: Document): Promise<string> => {
 			const at = typeof offset === 'number' ? offset : offset(doc);
-			return serialize(await pasteInto(doc, path, at, clipboard));
+			return pasteInto(doc, path, at, clipboard);
 		};
 	// A code block's offsets count its opening fence line, whose ending the mirror lengthens.
 	const afterCode = (doc: Document) => doc.children[0].raw.indexOf('code') + 'code'.length;
@@ -354,8 +346,8 @@ function pasteRoutes(): EditGesture[] {
 			source: '```\ncode\n```\n',
 			apply: paste([0], afterCode, 'x\ny')
 		},
-		// Miss-analysis: the rows below build their bytes outside `pasteDispatch`, and every row
-		// here went through it, so neither route met a document whose ending differed from LF.
+		// Miss-analysis: the rows below build their bytes outside the paste, and every row here
+		// went through it, so neither route met a document whose ending differed from LF.
 		{
 			name: 'blocks replacing a block the selection covers whole',
 			source: 'abc\n\nAfter\n',
@@ -384,6 +376,9 @@ function pasteRoutes(): EditGesture[] {
 const mirrorToCrlf = (bytes: string) => bytes.replace(/\n/g, '\r\n');
 
 describe('G4.20 CRLF-mirror check', () => {
+	beforeAll(installLayoutStubs);
+	afterEach(destroyMountedEditors);
+
 	for (const gesture of GESTURES) {
 		it(`${gesture.name} emits the CRLF mirror of its LF result`, async () => {
 			// Mirror-identity, not "contains no lone LF": an untouched line rewritten under a

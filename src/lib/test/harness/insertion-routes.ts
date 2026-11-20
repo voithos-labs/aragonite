@@ -1,8 +1,9 @@
 // Every way text reaches a prose block's caret, driven the way a browser delivers it: a hardware key
 // (keydown, then beforeinput, then the browser's own insert), a soft keyboard (beforeinput with no
 // keydown, or after one that names no key, as Android sends), an autocorrect replacement, an IME
-// commit, and a paste; plus any other hardware key, sent the same way. jsdom inserts nothing
-// itself, so the insert is done here, replacing the DOM selection as a browser does.
+// commit, a paste, and a paste the browser inserts itself with no paste event (a soft keyboard's
+// clipboard row); plus any other hardware key, sent the same way. jsdom inserts nothing itself, so
+// the insert is done here, replacing the DOM selection as a browser does.
 
 import { settleEditor } from './settle';
 import { surfaceAt, type MountedEditor } from './mount-editor.svelte';
@@ -14,7 +15,8 @@ export type InsertionRoute =
 	| 'soft key after an unnamed keydown'
 	| 'replacement'
 	| 'composition'
-	| 'paste';
+	| 'paste'
+	| 'browser paste';
 
 export const INSERTION_ROUTES: readonly InsertionRoute[] = [
 	'hardware key',
@@ -22,7 +24,8 @@ export const INSERTION_ROUTES: readonly InsertionRoute[] = [
 	'soft key after an unnamed keydown',
 	'replacement',
 	'composition',
-	'paste'
+	'paste',
+	'browser paste'
 ];
 
 /** Insert `text` at `el`'s caret by `route`, one character at a time where the route types, and
@@ -34,6 +37,7 @@ export async function insertBy(
 ): Promise<void> {
 	if (route === 'composition') return compose(el, text);
 	if (route === 'paste') return paste(el, text);
+	if (route === 'browser paste') return void (await inputEvent(el, 'insertFromPaste', text));
 	for (const ch of text) {
 		if (route === 'hardware key') {
 			await pressHardwareKey(el, { key: ch });

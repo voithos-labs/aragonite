@@ -123,13 +123,14 @@ describe('a key in the run of colons writes the colons typed', () => {
 
 describe('a body edit still grows the fence it needs', () => {
 	const F3 = ':::note Hi\nx\n:::\n';
-	// [name, source, steps, the source after the last step]
+	// [name, source, steps, the source after the last step]. A pasted opening line ending is the
+	// caret's line break, and the last one leaves the line under the pasted container empty.
 	const ROWS: [string, string, Step[], string][] = [
 		[
 			'a nested container pasted into a three-colon body',
 			F3,
 			[body, { paste: NESTED }],
-			'::::note Hi\nx\n\n\n:::warn\nw\n:::\n::::\n'
+			'::::note Hi\nx\n:::warn\nw\n:::\n\n::::\n'
 		],
 		[
 			'a closing run typed on a body line',
@@ -141,7 +142,7 @@ describe('a body edit still grows the fence it needs', () => {
 			'a nested container pasted after a colon was deleted',
 			F4,
 			[row(4), key('Backspace'), body, { paste: NESTED }],
-			'::::note Hi\nx\n\n\n:::warn\nw\n:::\n:::tip\nner\n::::\n::::\n'
+			'::::note Hi\nx\n:::warn\nw\n:::\n\n:::tip\nner\n::::\n::::\n'
 		],
 		[
 			'a body letter after a colon was typed',

@@ -28,7 +28,7 @@ import { rangeClipboard } from '#lib/selection/range-clipboard.js';
 import { caretTargetFor, type RemovalGesture } from '#lib/selection/caret-target.js';
 import { CORE_GESTURE } from '#lib/selection/cross-block/range-removal.js';
 import type { SpliceCaret } from '#lib/action-contracts.js';
-import { landingAt } from '#lib/editor-actions/commit/byte-splice.js';
+import { landingAt } from '#lib/selection/range-bytes.js';
 import { CURSOR_END, CURSOR_START } from '#lib/block-component.js';
 import { caretOf } from './through-splice';
 import { registerDefaultContextActions } from '#lib/components/menu/default-context-actions.js';

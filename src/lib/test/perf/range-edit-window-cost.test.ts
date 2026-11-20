@@ -136,9 +136,13 @@ describe('G4.342 a range edit reads the blocks its range reaches', () => {
 // Miss-analysis, the second read: the rows counted bytes parsed, which the commit's read of the
 // same window added in a small window, so nothing saw the answer's window read twice.
 describe('G4.342 a range edit reads its answer’s window once', () => {
+	// A paste over a range across blocks also takes the removal's reading for its closing lines and
+	// for the bytes its paste is answered on, before the removal commits.
+	const takenOf = (gesture: RangeGesture) => (gesture.name.startsWith('a paste over') ? 3 : 1);
+
 	it.each(RANGE_EDITS)('$name: the commit takes the core’s reading', async (gesture) => {
 		const { spliceReads, spliceReadsKept } = await readsOf(gesture, SMALL);
-		expect(spliceReadsKept, `readings taken, beside ${spliceReads} made`).toBe(1);
+		expect(spliceReadsKept, `readings taken, beside ${spliceReads} made`).toBe(takenOf(gesture));
 	});
 
 	it('a copy reads no window', async () => {

@@ -7,7 +7,8 @@
 
 import type { BlockEditActions, ListContext } from '../action-contracts';
 import { refusedWrite } from './stored-caret';
-import { displayLength, isBlankText } from '../core/lines';
+import { displayLength } from '../core/lines';
+import { leavesOnEnter } from '../tree-operations/list/empty-check';
 import type { NestedActionsOverrideFactory, NodeScope } from './nested/nested-actions';
 import type { CommandRun } from '../schema/block-commands';
 
@@ -54,12 +55,8 @@ export function createListItemOverrides(deps: ListItemOverridesDeps): NestedActi
 				const { node, index } = deps.scope;
 				if (!node.children) return false;
 
-				// Looser than `isItemUserEmpty`: trailing structural children stay until
-				// `exitListAtItem` moves them.
-				const firstChild = node.children[0];
-				if (!run?.afterRemoval && firstChild?.kind === 'paragraph' && isBlankText(firstChild.raw)) {
+				if (!run?.afterRemoval && leavesOnEnter(node))
 					return deps.listContext.exitListAtItem(index);
-				}
 
 				const lastChild = node.children[node.children.length - 1];
 				const atEnd =

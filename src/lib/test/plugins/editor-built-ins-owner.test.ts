@@ -12,7 +12,6 @@ import { registerEditorBuiltIns } from '#lib/components/editor-built-ins.js';
 const noPlugins = activationFor([]);
 const builtInsResolve = () => {
 	expect(blockViewFor('paragraph', noPlugins)).toBeDefined();
-	expect(getPasteSurface('fencedCode', noPlugins)).toBeDefined();
 	expect(getPasteSurface('tableCell', noPlugins)).toBeDefined();
 	expect(listLanguages(noPlugins)).toContain('python');
 };

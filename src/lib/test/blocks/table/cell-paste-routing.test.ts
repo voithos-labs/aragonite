@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-// Where a paste dropped on a cell ends up: through the cell's paste handler, the dispatcher and
-// the handling registered for `tableCell`. Either failure breaks the table silently: the generic
-// inline handling taking the paste, or a pasted newline reaching `cell.raw`.
+// Where a paste dropped on a cell ends up: the cell's own answer (a grid, or blocks around the
+// table) ahead of the range-edit core, else text on the cell's one line. Either failure breaks the
+// table silently: blocks written into the cell, or a pasted newline reaching `cell.raw`.
 import { describe, it, expect, beforeAll, afterEach } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { metadataOf } from '#lib/core/nodes.js';
@@ -22,12 +22,18 @@ afterEach(async () => {
 });
 
 const GRID = '| A | B |\n| --- | --- |\n| one | 2 |\n';
+// Spelled by its code, which a formatter would turn into the bare character.
+const NBSP = String.fromCharCode(0xa0);
 
 /** jsdom builds no ClipboardEvent, so the payload travels on a real dispatched event. */
 async function pasteInto(el: HTMLElement, text: string): Promise<void> {
 	const event = new Event('paste', { bubbles: true, cancelable: true });
 	Object.defineProperty(event, 'clipboardData', {
-		value: { getData: (type: string) => (type === 'text/plain' ? text : ''), setData: () => {} }
+		value: {
+			types: ['text/plain'],
+			getData: (type: string) => (type === 'text/plain' ? text : ''),
+			setData: () => {}
+		}
 	});
 	el.dispatchEvent(event);
 	await mounted!.settle();
@@ -36,7 +42,8 @@ async function pasteInto(el: HTMLElement, text: string): Promise<void> {
 /** Select `[start, end)` of the cell's rendered text, the way a drag would. */
 function selectInCell(el: HTMLElement, start: number, end: number): void {
 	el.focus();
-	const textNode = el.firstChild;
+	// An empty cell renders no text, so its one caret place is the cell's start.
+	const textNode = el.firstChild ?? (start === 0 && end === 0 ? el : null);
 	if (!textNode) throw new Error('cell has no rendered text to select');
 	const range = document.createRange();
 	range.setStart(textNode, start);
@@ -128,5 +135,148 @@ describe('a paste into a cell lands on the cell’s own paste surface', () => {
 		await pasteInto(el, '');
 
 		expect(mounted.source()).toBe(GRID);
+	});
+});
+
+// Miss-analysis: the trim was pinned through the dispatcher the range-edit core replaced, and the
+// one live row over a cell's text began at its edge, where the cell's own write trims anyway.
+describe('a cell trims the blank edges of pasted text, in both modes', () => {
+	// [name, cell's row and column, the cell text selected, clipboard, the row after]
+	const ROWS: [string, [number, number], [number, number] | null, string, string][] = [
+		['leading spaces', [1, 0], null, '  hello', '| onehello | 2 |'],
+		['trailing spaces', [1, 0], null, 'hello  ', '| onehello | 2 |'],
+		['spaces at both edges', [1, 0], null, '  hello  ', '| onehello | 2 |'],
+		['a tab at each edge, which makes a grid row', [1, 0], null, '\thello\t', '|  | hello |  |'],
+		['a line ending at each edge', [1, 0], null, '\nhello\n', '| onehello | 2 |'],
+		[
+			'text a copy wrapped in blank lines',
+			[1, 0],
+			null,
+			'  \nhello\nworld\n  ',
+			'| onehello world | 2 |'
+		],
+		['a header cell', [0, 0], null, '  x  ', '| Ax | B |'],
+		['text over a range in the cell', [1, 0], [1, 3], '  X  ', '| oX | 2 |'],
+		[
+			'a non-breaking space, which is content',
+			[1, 0],
+			null,
+			`${NBSP}hello `,
+			`| one${NBSP}hello | 2 |`
+		]
+	];
+	for (const mode of ['source', 'live'] as const)
+		for (const [name, [row, col], range, clip, after] of ROWS)
+			it(`${mode}: ${name}`, async () => {
+				mounted = mountEditor({ source: GRID, presentationMode: mode });
+				const el = cellAt(mounted!, row, col);
+				if (range) selectInCell(el, ...range);
+				else caretAtCellEnd(el);
+
+				await pasteInto(el, clip);
+
+				const line = row === 0 ? 0 : 2;
+				expect(mounted.source().split('\n')[line]).toBe(after);
+			});
+});
+
+// Miss-analysis: these rows drove the dispatcher the range-edit core replaced, so its deletion took
+// them, and no live row pasted blocks out of a cell or wrote beside an escaped pipe.
+describe('blocks pasted out of a cell, and the pipes a cell keeps escaped', () => {
+	const T = '| a | b |\n| --- | --- |\n';
+	// [name, source, row, column, the cell text's offset or its end, clipboard, the bytes after]
+	const ROWS: [string, string, number, number, number | null, string, string][] = [
+		[
+			'a quote lands under the table, the paragraph after it apart',
+			`${T}| c |  |\n\nAfter\n`,
+			1,
+			1,
+			null,
+			'> quoted\n',
+			`${T}| c |  |\n\n> quoted\n\nAfter\n`
+		],
+		[
+			'a list with no line ending ends its line all the same',
+			`${T}| c |  |\n\nAfter\n`,
+			1,
+			1,
+			null,
+			'- x',
+			`${T}| c |  |\n\n- x\n\nAfter\n`
+		],
+		[
+			'the rows under the cell stay a table of their own',
+			`${T}| c |  |\n| d | e |\n`,
+			1,
+			1,
+			null,
+			'x\n\ny',
+			`${T}| c |  |\n\nx\n\ny\n\n| d | e |\n| --- | --- |\n`
+		],
+		[
+			'a non-breaking space at a grid cell’s edge stays',
+			`${T}|  |  |\n`,
+			1,
+			0,
+			null,
+			`${NBSP}x\ty\n`,
+			`${T}| ${NBSP}x | y |\n`
+		],
+		[
+			'a pipe beside the text pasted stays escaped',
+			`${T}| a\\|b | c |\n`,
+			1,
+			0,
+			1,
+			'X',
+			`${T}| aX\\|b | c |\n`
+		]
+	];
+	for (const mode of ['source', 'live'] as const)
+		for (const [name, source, row, col, at, clip, after] of ROWS)
+			it(`${mode}: ${name}`, async () => {
+				mounted = mountEditor({ source, presentationMode: mode });
+				const el = cellAt(mounted!, row, col);
+				if (at === null) caretAtCellEnd(el);
+				else selectInCell(el, at, at);
+
+				await pasteInto(el, clip);
+
+				expect(mounted.source()).toBe(after);
+			});
+});
+
+// Miss-analysis: what a cell makes of a clipboard was held through the dispatcher the range-edit
+// core replaced, over a stubbed write, so no row read the cell's own answer or the op it names.
+describe('what a cell makes of a clipboard, and the op an `edit` listener hears', () => {
+	async function pasted(clip: string): Promise<{ source: string; ops: unknown[] }> {
+		mounted = mountEditor({ source: GRID });
+		const ops: unknown[] = [];
+		mounted.instance.getEvents().on('edit', (event) => ops.push([event.op, event.detail]));
+		const el = cellAt(mounted!, 1, 0);
+		caretAtCellEnd(el);
+		await pasteInto(el, clip);
+		return { source: mounted.source(), ops };
+	}
+
+	it('keeps text a copy wrapped in blank lines on the cell’s line, a paste of no blocks', async () => {
+		const { source, ops } = await pasted('  \nhello\nworld\n  ');
+		expect(parse(source).children.map((block) => block.kind)).toEqual(['table']);
+		expect(source).toContain('hello world |');
+		expect(ops).toEqual([['paste', { count: 0 }]]);
+	});
+
+	it.each([
+		['two paragraphs', 'a\n\nb\n', 2],
+		['one block that is no paragraph, wrapped in blank lines', '  \n# Hello\n  ', 1]
+	])('slices the table for %s, a paste of that many blocks', async (_name, clip, count) => {
+		const { source, ops } = await pasted(clip);
+		expect(parse(source).children.map((block) => block.kind)).not.toEqual(['table']);
+		expect(ops).toEqual([['paste', { count }]]);
+	});
+
+	it('fills cells from a grid as `tablePasteGrid`', async () => {
+		const { ops } = await pasted('p\tq');
+		expect(ops).toEqual([['tablePasteGrid', { rowIdx: 1, colIdx: 0, rows: 1, cols: 2 }]]);
 	});
 });

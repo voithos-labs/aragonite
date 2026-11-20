@@ -87,7 +87,8 @@ const ROUTES: Route[] = [
 			await editor.seedClipboard(o.opener);
 			await editor.paste();
 		},
-		after: (o) => writtenInto(o)
+		// Pasted blocks take the empty paragraph's line, so no extra blank line stays under them.
+		after: writtenAbove
 	},
 	{
 		name: 'pasted as the first of two blocks',
@@ -97,6 +98,7 @@ const ROUTES: Route[] = [
 			await editor.seedClipboard(`${o.opener}\n\nfoo`);
 			await editor.paste();
 		},
+		// The pair takes the empty paragraph's line, and `foo` keeps the row under it, as text does.
 		after: (o) => writtenInto(o, `${o.written}\n\nfoo`)
 	},
 	{

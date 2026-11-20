@@ -1,18 +1,15 @@
 /**
- * Editor-root clipboard routing: copy, cut and paste for a range across blocks or a selected widget
- * that no block handled. Where the selection's end holds no text position, Chromium dispatches at
+ * Editor-root clipboard routing: copy and cut for a range across blocks or a selected widget that
+ * no block handled. Where the selection's end holds no text position, Chromium dispatches at
  * `document.body` and Firefox at whatever block element holds it. The reading-mode checks live in
- * the handlers each route calls into, not here.
+ * the handlers each route calls into, not here. A paste is `paste.ts`'s.
  */
 
 import { claimsBodyChord, isTextEntrySurface } from '../../active-editor';
 import type { BlockComponent } from '../../block-component';
 import type { DocumentGetter } from '../../editor-keys';
-import type { PasteImageHook } from '../../host-hooks';
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import type { CrossBlockHandlers } from '../../selection/cross-block/dispatch';
-import { emitClipboardError, type EditorEvents } from '../../editor-events';
-import { createImagePasteArm } from '../paste-image-arm';
 import { runClipboardCut, takeArm, takeCopy } from '../blocks/editable/clipboard-step';
 import { crossBlockClipboardArm } from '../../selection/cross-block/clipboard';
 import { isWholeBlockInputProxy } from '../../selection/whole-block-input';
@@ -22,9 +19,6 @@ export interface EditorRootClipboardDeps {
 	selection: SelectionState;
 	getDoc: DocumentGetter;
 	crossBlock: CrossBlockHandlers;
-	/** Required, so this route cannot silently skip the image handling the blocks do. */
-	onPasteImage: () => PasteImageHook | undefined;
-	events: EditorEvents;
 	/** The mounted block at `path`, which takes a selected widget's clipboard events. */
 	getBlockComponent(path: number[]): BlockComponent | null;
 	/** Whether `node` is in the host's header, whose fields keep their own clipboard. */
@@ -35,7 +29,6 @@ export interface EditorRootClipboard {
 	/** `root` is the element the installing effect captured, not a live binding. */
 	handleCopy(event: ClipboardEvent, root: HTMLElement): void;
 	handleCut(event: ClipboardEvent, root: HTMLElement): void;
-	handlePaste(event: ClipboardEvent, root: HTMLElement): void;
 	/** A menu's Cut or Copy of the range the editor holds, taken as Ctrl+C takes it; null for
 	 *  anything else, which the browser's own command copies. */
 	takeForMenu(): MenuTake | null;
@@ -52,11 +45,6 @@ export function createEditorRootClipboard(deps: EditorRootClipboardDeps): Editor
 			crossBlock: deps.crossBlock
 		})
 	];
-	const imageArm = createImagePasteArm({
-		onPasteImage: deps.onPasteImage,
-		events: deps.events,
-		crossBlock: deps.crossBlock
-	});
 
 	/** Inside this root, or on the body with this instance holding the chord; a text field other
 	 *  than a block's whole-block input, and the host's header, keep their own clipboard. */
@@ -92,12 +80,6 @@ export function createEditorRootClipboard(deps: EditorRootClipboardDeps): Editor
 			if (target.arm === 'widget') target.block.claimRootClipboard?.(event);
 			else void runClipboardCut(event, crossBlockArms);
 		},
-		handlePaste(event, root) {
-			const target = targetOf(event, root);
-			if (!target) return;
-			if (target.arm === 'widget') target.block.claimRootClipboard?.(event);
-			else void paste(event);
-		},
 		takeForMenu() {
 			if (!deps.selection.ownsRange || deps.selection.widget) return null;
 			const taken = takeArm(crossBlockArms);
@@ -105,30 +87,4 @@ export function createEditorRootClipboard(deps: EditorRootClipboardDeps): Editor
 			return { write: taken.take.write, remove: async () => taken.arm.remove(taken.take.held) };
 		}
 	};
-
-	/** Images first, as a block does: an image-only paste has no `text/plain` for the
-	 *  cross-block branch to use. */
-	async function paste(event: ClipboardEvent): Promise<void> {
-		// Read the range synchronously with the event, while the cross-block handling still
-		// guarantees a selection: below the await, a read could only report nothing.
-		const rangeStartPath = deps.selection.start?.path.slice();
-		const images = imageArm.filesOf(event.clipboardData);
-		if (images.length === 0) {
-			await deps.crossBlock.handlePaste(event);
-			return;
-		}
-		// Prevent before awaiting the hook, as a block does: the browser's own paste would
-		// otherwise fire during the import and inject DOM the CST never sees.
-		event.preventDefault();
-		const markdown = await imageArm.run(event, images);
-		if (markdown === null) return;
-		// The selection collapsed mid-import, leaving an imported asset and no caret: the one
-		// thing this route cannot supply, having no block to fall back on.
-		emitClipboardError(deps.events, {
-			error: new Error(
-				'imported image had no insertion point at the editor root; nothing inserted'
-			),
-			...(rangeStartPath ? { path: rangeStartPath } : {})
-		});
-	}
 }

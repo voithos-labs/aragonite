@@ -27,7 +27,7 @@ function undoStack(editor: MountedEditor): UndoEntry[] {
 }
 
 /** An insert below the focused block: a new paragraph, then the paste into it, one entry. */
-async function insertBelowWhile(editor: MountedEditor, meanwhile: () => void): Promise<void> {
+async function writeTwiceWhile(editor: MountedEditor, meanwhile: () => void): Promise<void> {
 	placeCaret(surfaceAt(editor, [0]), 3);
 	const inserting = editor.instance.insertMarkdown('x', { placement: 'below' });
 	meanwhile();
@@ -44,7 +44,7 @@ describe('the author-input end of an open undo entry', () => {
 		const first = mountEditor({ source: 'one\n' });
 		const second = mountEditor({ source: 'two\n' });
 
-		await insertBelowWhile(first, () => keydownOn(surfaceAt(second, [0])));
+		await writeTwiceWhile(first, () => keydownOn(surfaceAt(second, [0])));
 
 		expect(first.source()).toBe('one\n\nx\n');
 		expect(undoStack(first)).toHaveLength(1);
@@ -53,7 +53,7 @@ describe('the author-input end of an open undo entry', () => {
 	it('still ends at input in its own editor', async () => {
 		const first = mountEditor({ source: 'one\n' });
 
-		await insertBelowWhile(first, () => keydownOn(surfaceAt(first, [0])));
+		await writeTwiceWhile(first, () => keydownOn(surfaceAt(first, [0])));
 
 		expect(first.source()).toBe('one\n\nx\n');
 		expect(undoStack(first)).toHaveLength(2);

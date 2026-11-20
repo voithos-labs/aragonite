@@ -7,16 +7,12 @@
 
 import type { CstNode } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
-import type { Landing } from '../../selection/primitives';
 import type { BlockComponent } from '../../block-component';
 import type { SourceSplice, SpliceCaret } from '../../action-contracts';
 import type { ScopedOpDescriptor } from '../../schema/operations';
-import { blockFacts } from '../../schema/block-facts';
-import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { docPathFrom } from '../../core/coordinate-spaces';
 import {
 	runsOf,
-	spliceReading,
 	withWindows,
 	type SpliceReading,
 	type SpliceWindow
@@ -27,20 +23,15 @@ import {
 	replacePreservingFirst,
 	type StructuralChange
 } from '../../tree-operations/structural-change';
-import { byteOfLeaf, leafAtByte } from '../../tree-operations/container-offsets';
-import { topsOf, type Measured } from '../../tree-operations/top-level-starts';
+import { byteOfLeaf } from '../../tree-operations/container-offsets';
+import { topsOf } from '../../tree-operations/top-level-starts';
 import { readCurrentSelection } from '../../selection/native-bridge';
 import type { BlockReach } from './change-record';
-import type { GapCaretSelection } from '../../selection/gap-caret';
-import { heldGapOf } from '../../selection/range-bytes';
+import { landingAt } from '../../selection/range-bytes';
 import { replaceRefs } from '../../block-lists/child-refs';
 import { assertIdsInLockstep, assertSpliceReadsBack } from '../../invariants/install';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
-import {
-	checkSplicedChangesClosed,
-	splicedOpenerClosers,
-	withSplicedClosers
-} from '../../tree-operations/spliced-openers';
+import { checkSplicedChangesClosed, closedSplice } from '../../tree-operations/spliced-openers';
 import { offsetPastClosers } from '../../tree-operations/written-openers';
 import type { EditorActionsDeps } from '../deps';
 import type { CommitArgs } from './structural-commit';
@@ -76,12 +67,10 @@ export function createByteSplice(
 			discardIfNoop: true,
 			// Inside the frame, so a block opener that throws on the new bytes fails the write.
 			prepare: () => {
-				const read = spliceReading(was, before, splice.changes, grammar);
-				const closers = read
-					? splicedOpenerClosers(was, before, splice.changes, read, grammar)
-					: [];
-				if (closers.length > 0) changes = withSplicedClosers(before, splice.changes, closers);
-				reading = closers.length > 0 ? spliceReading(was, before, changes, grammar) : read;
+				const closed = closedSplice(was, before, splice.changes, grammar);
+				const { closers } = closed;
+				changes = closed.changes;
+				reading = closed.reading;
 				// The record already reported what it found, so the write is refused with no second error.
 				if (reading && !tookTreeBytes(deps, reading)) return false;
 				windows = reading?.windows ?? [];
@@ -230,23 +219,4 @@ function placed(windows: readonly SpliceWindow[]): { at: number; count: number }
 		shift += blocks.length - count;
 		return span;
 	});
-}
-
-/** The caret at byte `caret.at`: the gap caret a boundary is held as, else text at that byte
- *  exactly, else the block's own landing (a block held whole, or a picture of its source). */
-export function landingAt(
-	measured: Measured,
-	caret: SpliceCaret
-): Landing | GapCaretSelection | null {
-	if (caret.holds === 'boundary') {
-		const gap = heldGapOf(measured, caret);
-		if (gap) return { gapCaret: gap };
-	}
-	const leaf = leafAtByte(measured, caret.at);
-	if (!leaf) return null;
-	const point = { path: docPathFrom(leaf.path), offset: leaf.offset };
-	const kind = blockNodeAt(measured.doc, leaf.path)?.kind;
-	const exact = caret.holds === 'text' && kind && blockFacts(kind).textPosition === 'always';
-	// Put down as a stored caret is, since a kind's own landing rule would move it off the byte.
-	return exact ? { anchor: point, focus: point } : point;
 }

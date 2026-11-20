@@ -180,7 +180,8 @@ async function paste(editor: Editor, payload: Payload, route: PasteRoute): Promi
 	systemClipboard.clear();
 	for (const [type, value] of Object.entries(payload)) systemClipboard.set(type, value);
 	if (route === 'insertMarkdown') {
-		await editor.instance.insertMarkdown(payload['text/plain'] ?? '');
+		// The call drops a snippet's last line ending, so the clipboard goes in with one more.
+		await editor.instance.insertMarkdown(`${payload['text/plain'] ?? ''}\n`);
 		await editor.settle();
 		return;
 	}
@@ -197,6 +198,18 @@ export async function pastePlainGesture(editor: Editor, text: string): Promise<v
 		systemClipboard.clear();
 		systemClipboard.set('text/plain', text);
 		await pickMenuRow(editor, 'Paste as plain text');
+	});
+}
+
+/** Ctrl+Shift+V over the editor's selection: the browser sends the paste event `text/plain` alone. */
+export async function shiftPaste(editor: Editor, clip: string): Promise<void> {
+	return throughSplice(editor, INSERTION, async () => {
+		systemClipboard.clear();
+		systemClipboard.set('text/plain', clip);
+		const at = focused();
+		if (dispatchKey(at, { ...chord('V'), shiftKey: true }).defaultPrevented) return editor.settle();
+		dispatchClipboardEvent(at, 'paste', new StubDataTransfer({ 'text/plain': clip }));
+		await editor.settle();
 	});
 }
 

@@ -42,7 +42,7 @@ test.describe('clipboard: edge targets', () => {
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('Big Heading');
 
-		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe('- # Big Heading');
+		expect((await editor.bridge.getSource()).replace(/\s+$/, '')).toBe('- # Big Heading\n-');
 	});
 
 	test('cut across two list items removes selection, clipboard holds removed content', async () => {

@@ -30,17 +30,18 @@ Later lines of the item still open blocks as they do in any list item.
     and the shape property keeps list-item bodies out of its split gesture, so no test split a
     to-do whose text would open a block on its own.
 
-- pasting two paragraphs right after `# b` in `- [ ] # bc` leaves `- [ ] # b` with its box and
-  no heading, the pasted text below it, and the tree reloads to the same shape (#666).
+- pasting two paragraphs right after `# b` in `- [ ] # bc` leaves `- [ ] # bx` with its box and
+  no heading, the last paragraph joining `c` below it (`- [ ] # bx\n\n  yc\n`), and the tree
+  reloads to the same shape (#666).
   - Miss-analysis: the paste re-read the text left before the cut on its own, where `# b` opens a
     heading, and the paste suites only ever split plain paragraphs and plain items.
-- pasting a list right after `# b` in `- [ ] # bc` splits the to-do around it: `- [ ] # b`, the
-  pasted items, then `- [ ] c`, each half text beside its box (#666). A list takes a different
-  route from paragraphs (it splits the item), so it gets a row of its own.
+- pasting a list right after `# b` in `- [ ] # bc` joins it as a list pasted mid-text joins any
+  item: the first item's text joins the to-do's line, beside its one box, and the last takes
+  `c`: `- [ ] # bp\n- qc\n` (#666). A list takes a different route from paragraphs, so it gets a
+  row of its own.
 
-- pasting `# x` at the very start of `- [ ] bc` lands the heading the clipboard held, with `bc`
-  below it, and the tree reloads to the same shape. (The checkbox goes, as it does for any
-  block that isn't a paragraph; #624 is where that gets decided for every route.)
+- pasting `# x` at the very start of `- [ ] bc` leaves `- [ ] # xbc`: the box stays, `# x` is
+  text beside it as a reload reads that line, and no heading is drawn.
   - Miss-analysis: every paste row left text before the cut, so no single pasted block landed at a
     to-do's text start, where its re-read took the to-do's reader and split one line into two.
 - Enter and a typed letter in the item below a loaded `- [ ] |b|` over a delimiter row land

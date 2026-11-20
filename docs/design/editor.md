@@ -118,7 +118,7 @@ A block's own editable element doesn't call it by hand for typing, though. The i
 
 If you add a new place that reads the browser's own edits back, pass them through `src/lib/core/line-ending-pairs.ts` :: `keepLineEndingPairs` first, since WebKit and Firefox will happily put a typed letter between a CRLF's `\r` and `\n` (G1.117 warns when a pair gets split anyway).
 
-A few commands (the format toggle, a cut inside one block) still call `updateBlockContent` themselves and keep the line ending through `withOwnEnding` from the same file. A paste inside one block goes through the paste dispatch instead (`docs/design/selection.md` § The paste pipeline).
+A few commands (the format toggle, a cut inside one block) still call `updateBlockContent` themselves and keep the line ending through `withOwnEnding` from the same file. A paste of text inside one block ends in the write a keystroke does (`docs/design/selection.md` § The paste pipeline).
 
 `structural-edits.md` § Orchestration says who provides these bundles, and § Containers there says what a local index means inside a container.
 
@@ -180,7 +180,7 @@ readonly editable: boolean     // a report: mirrors the descriptor's editable de
 readonly focusable: boolean    // the flag focus dispatch reads before landing anything
 ```
 
-Everything else is optional, and a block implements what its surface can honestly answer: selection reads (`getSelectedText`, `setSelection`), pixel-column landing (`focusAtColumn`), selection-rect measurement (`measurePartialRects`, `docs/design/selection.md` § Cross-block selection), path descent for nested surfaces (`focusByPath`), command dispatch (`runCommand`), and `afterSourceCommit` for a block that can show a source the tree hasn't seen yet, so a command from outside it waits until that source is written. Every editable surface also publishes `afterSelectionRemoved` (§ A line break over a selection), `insertMarkdown` and `typeText`; the list is `src/lib/block-component.ts` :: `EDITABLE_SURFACE_MEMBERS`.
+Everything else is optional, and a block implements what its surface can honestly answer: selection reads (`getSelectedText`, `setSelection`), pixel-column landing (`focusAtColumn`), selection-rect measurement (`measurePartialRects`, `docs/design/selection.md` § Cross-block selection), path descent for nested surfaces (`focusByPath`), command dispatch (`runCommand`), and `afterSourceCommit` for a block that can show a source the tree hasn't seen yet, so a command from outside it waits until that source is written. Every editable surface also publishes `afterSelectionRemoved` (§ A line break over a selection), `preparePaste` and `typeText`; the list is `src/lib/block-component.ts` :: `EDITABLE_SURFACE_MEMBERS`.
 
 **Caret placement is two verbs.** `focus` places a caret and ends any live cross-block range. That's the safe default, since a caret landing inside a range left live is content the next keystroke type-replaces. The optional `parkCaret` is the same landing _without_ the range-ending, and it's for the selection-extend paths only, where the dispatcher parks a caret in an endpoint it has just revealed (to reveal a block: mount it while it's off screen, so its DOM exists before something touches it) while the extend is still growing the range. Its callers are an allowlist a lint holds.
 
@@ -235,7 +235,8 @@ registerBuiltinBlockKind('blockquote', {
 	container: {
 		contract: 'strip',
 		rebuildRaw: rebuildBlockquoteRaw,
-		containerPaste: { matchesAncestor: () => true, siblingAbsorb: false },
+		lines: { marker: 'every-line', lazy: true },
+		merges: {},
 		unwrapRole: { firstChildBackspace: 'lift-first-child-drop-opener', middleChildBackspace: 'default-merge' },
 		contentStartSpace: 'complete-marker',
 		reorderChildren: {}
@@ -341,7 +342,7 @@ These the editor owns, not the browser:
 | --- | --- | --- |
 | Enter | `keydown` → `preventDefault` | Split the CST node at the cursor offset |
 | Backspace at start | `keydown` → `preventDefault` | Merge, unwrap, delete, or focus (`structural-edits.md` § Backspace at the start of a block) |
-| Paste | `paste` → `preventDefault` | Read `text/plain`, dispatch through the paste pipeline |
+| Paste | `paste` at the editor root → `preventDefault` | Read the clipboard once, then the range-edit core (`docs/design/selection.md` § The paste pipeline) |
 | Copy / Cut | `copy` / `cut` → `preventDefault` | Slice the selected range out of the CST's `raw`; cut then deletes it |
 | Undo / Redo | `keydown`, or the browser's own Undo (`beforeinput`) → `preventDefault` | Pop/push the editor's own undo stack in every editable element, a plugin leaf's included; a shown painted source steps through its own edits first |
 
@@ -397,8 +398,8 @@ So the rule is **decide, don't delegate, and read the browser in one place per k
 | A caret key (an arrow, a word key, Home, End, Mod+Home, Mod+End) | `caret/caret-motion.ts` :: `motionTarget`, at the keydown in `selection/motion-keys.ts`: a move ends where the delete of the same unit does. Home and End run the browser's own line move first, since it knows which side of a soft wrap the caret shows on, and the editor writes `lineEdgeOffset`'s edge instead only where a widget or a hard line break sits between the two or a widget touches the caret (a block that draws no widget never measures it). The landed caret is scrolled into view in `selection/show-caret.ts`, sideways in a scrolled block, then on the page, as the browser's own key would. Declined over a range across blocks, near right-to-left text, and for a Mac's Cmd+Shift+Arrow over a range; a plain arrow with nothing beside it is the browser's | G1.163, G4.275, `motion-class` |
 | Input that arrives under a selection the editor holds (a range across blocks, a widget selected whole) | `selection/held-input.ts` :: `heldInputOf`, asked first at `beforeinput` (`components/blocks/editable/editable-surface.ts` :: `runSharedBeforeInput`): text replaces the selection, a delete removes it, a break does what Enter or Shift+Enter does there, and input no key matches (a spellcheck replacement, a format command) is refused, so nothing edits at the caret hidden under it | G4.274, `keyless-input-over-selection` |
 | A letter typed at a caret | `components/blocks/editable/typed-insert.ts` :: `decideTypedInsert`, at `beforeinput`: beside a widget, or where the engine aims the letter away from the caret, the block writes it at its caret; a caret in a text node keeps the browser's insert. `decideTypedKey` answers the spot beside a widget at its keydown too, a fallback for an engine that sends no `beforeinput` there (none we've measured does) | G1.161, G4.274, `typed-insert-class` |
-| The clipboard, every write and a read outside a paste event | `browser/clipboard.ts` | G4.220, G4.314 |
-| A paste with no paste event (menu Paste) | the focused block's `insertMarkdown`, or the range's own paste where a range holding one block whole parks focus on the root, never a constructed `ClipboardEvent` | G4.221 |
+| The clipboard, every write and every read | `browser/clipboard.ts` | G4.220, G4.314, G4.344 |
+| A paste with no paste event (a menu's Paste, `insertMarkdown`) | `components/editor-root/paste.ts`, the entry a paste event takes too, never a constructed `ClipboardEvent` | G4.221 |
 | A selection's text | `browser/selection-read.ts` :: `shownSelectionText` | G4.221 |
 | A popover closing | `components/menu/menu-presence.svelte.ts` :: `track`, never focus leaving | G4.219, G1.121 |
 | Which line the caret is on, where a line soft-wraps | `browser/visual-lines.ts` holds the checks an arrow uses to decide whether it leaves the block, `lineEdgeOffset` (where a soft-line delete stops) and the column. Where one spot in the text is on two lines at once, they ask the caret writer's `focusEndsLine`, and the caret writer is the only code that calls `Selection.modify`. Beside a widget nobody's asked: a text position is on its text's line and an element position on the widget's, since Chromium answers that one wrong (and an arrow there is the editor's, `lineStepBesideWidget`) | G4.243, G4.270, G1.141, `caret-line-at-wrap` |

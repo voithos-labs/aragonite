@@ -21,38 +21,37 @@ test.describe('a multi-block paste keeps the lines after the caret', () => {
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('y');
 
-		expect(asLf(await editor.bridge.getSource())).toBe('abc\n\nx\n\ny\nAfter\n');
+		expect(asLf(await editor.bridge.getSource())).toBe('abcx\n\ny\nAfter\n');
 		expect(await editor.parseConverged()).toBe(true);
 
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceContains('yZ');
-		expect(asLf(await editor.bridge.getSource())).toBe('abc\n\nx\n\nyZ\nAfter\n');
+		expect(asLf(await editor.bridge.getSource())).toBe('abcx\n\nyZ\nAfter\n');
 	});
 
+	// One line pasted after text goes in as that text, whatever it would open on a line of its own.
 	test('pasting a quote at a line break keeps the next line', async () => {
 		await editor.seedClipboard('> q');
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('> q');
 
-		expect(asLf(await editor.bridge.getSource())).toBe('abc\n\n> q\nAfter\n');
+		expect(asLf(await editor.bridge.getSource())).toBe('abc> q\nAfter\n');
 		expect(await editor.parseConverged()).toBe(true);
 
-		// The quote took `After` in, and the caret stays after the pasted `q`.
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceContains('qZ');
-		expect(asLf(await editor.bridge.getSource())).toBe('abc\n\n> qZ\nAfter\n');
+		expect(asLf(await editor.bridge.getSource())).toBe('abc> qZ\nAfter\n');
 	});
 
-	// The same through a list, whose item holds the pasted paragraph two levels down.
 	test('pasting a list item at a line break keeps the caret after the item text', async () => {
 		await editor.seedClipboard('- q');
 		await editor.paste();
 		await editor.bridge.waitForSourceContains('- q');
-		expect(asLf(await editor.bridge.getSource())).toBe('abc\n\n- q\nAfter\n');
+		expect(asLf(await editor.bridge.getSource())).toBe('abc- q\nAfter\n');
 
 		await editor.typeText('Z');
 		await editor.bridge.waitForSourceContains('qZ');
-		expect(asLf(await editor.bridge.getSource())).toBe('abc\n\n- qZ\nAfter\n');
+		expect(asLf(await editor.bridge.getSource())).toBe('abc- qZ\nAfter\n');
 	});
 
 	test('one undo gives the paragraph back', async () => {

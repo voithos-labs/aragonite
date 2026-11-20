@@ -120,20 +120,6 @@ export interface ReservedChrome {
 	expandPatch?: (node: NodeView) => Record<string, unknown> | null;
 }
 
-/**
- * How a clipboard whose top block is this kind merges into a same-kind ancestor instead of
- * nesting as a sub-container. Absent means always nest.
- */
-export interface ContainerPaste {
-	/** Confirms the merge against the candidate ancestor (e.g. equal list ordered flags). */
-	matchesAncestor: (clipboardTop: CstNode, ancestor: CstNode) => boolean;
-	/**
-	 * Pasting into a non-empty single block: splice the clipboard items as siblings into the
-	 * enclosing container when it matches, split it when it does not (the list paste shape).
-	 */
-	siblingAbsorb: boolean;
-}
-
 export interface BlockKindDescriptor {
 	mergeRole: MergeRole;
 	editable: boolean;
@@ -192,12 +178,11 @@ export interface BlockKindDescriptor {
 	 */
 	bodyWrite?: WriteRule;
 	reservedChrome?: ReservedChrome;
-	containerPaste?: ContainerPaste;
 	/** How a strip container's lines carry its marker: on every line, or the first (later lines take
 	 *  `indent` columns, else the marker's width); `lazy`: an unmarked line continues its paragraph. */
 	lines?: { marker: 'every-line' | 'first-line'; lazy: boolean; indent?: number };
-	/** Two containers of this kind are one when they share metadata field `key` (any two, with no key).
-	 *  Quote and list repeat it in `containerPaste` until `tree-operations/paste/` reads this field. */
+	/** Two containers of this kind are one when they share metadata field `key` (any two, with no key):
+	 *  a pasted one joins the one it lands in. Not for a kind closed by a line of its own. */
 	merges?: { key?: string };
 	unwrapRole?: UnwrapRole;
 	/**
@@ -281,7 +266,6 @@ export const DESCRIPTOR_FIELDS = [
 	'rawWrite',
 	'bodyWrite',
 	'reservedChrome',
-	'containerPaste',
 	'lines',
 	'merges',
 	'unwrapRole',
@@ -332,7 +316,6 @@ interface ContainerBase {
 	rebuildRaw: (node: CstNode, changed?: ChildRawChange) => void | StripRebuild;
 	bodyWrap?: ContainerBodyWrap;
 	lastLineChild?: (node: NodeView) => number;
-	containerPaste?: ContainerPaste;
 	lines?: BlockKindDescriptor['lines'];
 	merges?: BlockKindDescriptor['merges'];
 	contentStartSpace?: 'complete-marker';
@@ -366,7 +349,6 @@ export const CONTAINER_ONLY_KEYS = [
 	'lastLineChild',
 	'rebuildRaw',
 	'reservedChrome',
-	'containerPaste',
 	'lines',
 	'merges',
 	'unwrapRole',
@@ -595,7 +577,7 @@ function storeKind(
 ): void {
 	rejectBlankLabel(entry, kind, 'label', registration.label);
 	rejectBlankLabel(entry, kind, 'dragLabel', registration.dragLabel);
-	rejectIncoherentPairs(kind, registration);
+	rejectIncoherentPairs(entry, kind, registration);
 	const { opener } = registration;
 	const descriptor = normalizeRegistration(registration);
 	if (view && opensTextOnClick(view)) descriptor.textPosition = 'while-source-shows';
@@ -716,6 +698,9 @@ function mergeBlockKindFields(
 			next,
 			Object.fromEntries(Object.entries(group).filter(([, value]) => value !== undefined))
 		);
+		// The one pair an augment can still complete: every other pair holds a field fixed above.
+		const { merges, bodyWrap } = next;
+		rejectIncoherentPairs(entry, kind, { container: { merges, bodyWrap } });
 	}
 	// The entry keeps its view: a built-in's augment runs after the view attaches.
 	registry.update(kind, { ...existing, descriptor: next }, entry);

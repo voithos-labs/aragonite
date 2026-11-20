@@ -41,6 +41,10 @@ carries it):
 
 ## Edge cases
 
+- Enter at a run's close with a line break after it (`*oneo*` then `two` on the next line): the run
+  closes above the cut, the second block starts at `two`, and a letter there types plain, for
+  emphasis, bold, a link, a code span and strikethrough, in a quote, after text, and before a hard
+  break
 - Enter at a construct's content end hands the construct over whole: it stays balanced above and
   the text after it opens the second block, with no `****` residue written at any point
 - the content-start mirror is pinned by the unit suite, not here: the offset traversal resolves
@@ -91,6 +95,9 @@ leaves the block boundary where it was. A gesture that moves the boundary was th
 The list item row: every split here cut a top-level paragraph, where both halves read the same as
 a fragment, so nothing split inside a list item, where the second half becomes a new item's first
 line and a leading space widens its marker.
+
+Miss-analysis (the line break): every split row cut a paragraph of one line, so none had a soft
+line break right after the run, where the closer stayed behind on the next line.
 
 Miss-analysis (real Firefox): these scenarios ran on Chromium alone, which never leaves a caret on
 a hidden run's far side, where Firefox's ArrowLeft and a click beside the run do.

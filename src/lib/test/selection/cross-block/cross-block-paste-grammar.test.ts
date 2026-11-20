@@ -1,10 +1,9 @@
 // @vitest-environment jsdom
-// The cross-block paste caller must forward the instance grammar onto the PasteDispatchContext it
-// builds, so the join-paste reparse honors per-instance enablement. The apply path's side is
-// `test/tree-operations/paste/dispatch-commit.test.ts`.
+// A paste over a range across blocks reads the editor's own grammar, so the join's reparse
+// honors what that editor switched on.
 import { describe, it, expect } from 'vitest';
 import { createGrammarView } from '#lib/schema/block-openers.js';
-import { makeEnv, makeHandlers, makePasteEvent, selectAcross } from './typed-char-env';
+import { makeEnv, makeHandlers, selectAcross } from './typed-char-env';
 import { fixtureReading } from '../../harness/fixture-grammar';
 
 // A cross-block paste whose collapsed caret lands at offset 0 of a `. item` block: pasting `1`
@@ -16,7 +15,7 @@ describe('a cross-block paste forwards the instance grammar to the join reparse'
 		selectAcross(env.selectionState, [0], [1]);
 
 		const handlers = makeHandlers(env, [0], { grammar });
-		await handlers.handlePaste(makePasteEvent('1'));
+		await handlers.pasteOverRange({ text: '1', plain: false });
 
 		expect(env.doc.children).toHaveLength(1);
 		expect(env.doc.children[0].raw.trimEnd()).toBe('1. item');
@@ -30,7 +29,7 @@ describe('a cross-block paste forwards the instance grammar to the join reparse'
 		selectAcross(env.selectionState, [0], [1]);
 
 		const handlers = makeHandlers(env, [0]);
-		await handlers.handlePaste(makePasteEvent('1'));
+		await handlers.pasteOverRange({ text: '1', plain: false });
 
 		expect(env.doc.children[0].raw.trimEnd()).toBe('1. item');
 		expect(env.doc.children[0].kind).toBe('list');

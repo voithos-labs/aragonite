@@ -1,18 +1,19 @@
 /**
- * The ordered lists a removal shortened, numbered on from where they were
- * (`docs/design/structural-edits.md` § Structural operations). It runs on the removal's bytes
+ * The ordered lists a removal shortened or a paste split or grew, numbered on from where they were
+ * (`docs/design/structural-edits.md` § Structural operations). A removal's runs on its bytes
  * before the join question, which reads the numbers a list will show.
  */
 
 import { metadataIfKind } from '../core/nodes';
-import { nodeAt, type Doc } from './document';
+import { nodeAt, readDoc, type Doc } from './document';
 import type { LaidBlock } from './layout';
+import type { Edit } from './leaf-splice';
 
 /** `out`, the removal of `[from, to)` from `doc`, each ordered list it shortened numbered on. Every
  *  byte `out` changed sits before `to`'s, so the bytes after it are the source's, shifted. */
 export function numberedOn(doc: Doc, from: number, to: number, out: string): string {
 	const { source, layout } = doc;
-	const edits: Edit[] = [];
+	const edits: Renumbering[] = [];
 	for (const list of layout.within(from, to)) {
 		const node = nodeAt(doc, list.path);
 		if (!node.children || !metadataIfKind(node, 'list')?.ordered) continue;
@@ -46,7 +47,7 @@ export function numberedAfterSplit(
 	if (!metadataIfKind(node, 'list')?.ordered) return out;
 	const items = node.children!.map((_, i) => layout.block([...list.path, i])!);
 	const shift = out.length - source.length;
-	const edits: Edit[] = [];
+	const edits: Renumbering[] = [];
 	const own = markerOf(source, items[index]);
 	let next = (own?.number ?? 1) + 1;
 	if (copyAt !== null && own) {
@@ -63,8 +64,51 @@ export function numberedAfterSplit(
 	return written(out, edits, shift);
 }
 
+/** `edit`, a paste whose items the ordered list at `list` took in after its item `index`, with the
+ *  items from there on numbered on from that item's number. */
+export function numberedAfterTaking(doc: Doc, list: LaidBlock, index: number, edit: Edit): Edit {
+	const after = (items: LaidBlock[], source: string) =>
+		(markerOf(source, items[index])?.number ?? 1) + 1;
+	return numberedFrom(doc, list, edit, index + 1, after);
+}
+
+/** `edit`, which opened an item at the head of the ordered list at `list`, with every item
+ *  numbered on from the number the list started at. */
+export function numberedFromHead(doc: Doc, list: LaidBlock, edit: Edit): Edit {
+	const head = doc.layout.block([...list.path, 0]);
+	const start = (head && markerOf(doc.source, head)?.number) ?? 1;
+	return numberedFrom(doc, list, edit, 0, () => start);
+}
+
+/** `edit` with the items of the ordered list at `list` from item `from` on numbered on from the
+ *  number `first` reads off the new bytes. */
+function numberedFrom(
+	doc: Doc,
+	list: LaidBlock,
+	edit: Edit,
+	from: number,
+	first: (items: LaidBlock[], source: string) => number
+): Edit {
+	if (!metadataIfKind(nodeAt(doc, list.path), 'list')?.ordered) return edit;
+	const read = readDoc(edit.source, doc.host, doc.mode);
+	const node = nodeAt(read, list.path);
+	if (!metadataIfKind(node, 'list')?.ordered) return edit;
+	const items = node.children!.map((_, i) => read.layout.block([...list.path, i])!);
+	const edits: Renumbering[] = [];
+	let next = first(items, read.source);
+	for (const item of items.slice(from)) {
+		const marker = markerOf(read.source, item);
+		if (marker && marker.number !== next) renumber(edits, read.source, item, marker, next);
+		next++;
+	}
+	const grown = edits
+		.filter((e) => e.at < edit.caret)
+		.reduce((sum, e) => sum + e.insert.length - e.remove, 0);
+	return { source: written(edit.source, edits, 0), caret: edit.caret + grown };
+}
+
 /** `out` with `edits` made, each at its byte of the source plus `shift`. */
-function written(out: string, edits: Edit[], shift: number): string {
+function written(out: string, edits: Renumbering[], shift: number): string {
 	if (edits.length === 0) return out;
 	// One pass over the bytes: a long list renumbers every item after the range.
 	const parts: string[] = [];
@@ -77,7 +121,8 @@ function written(out: string, edits: Edit[], shift: number): string {
 	return parts.join('');
 }
 
-interface Edit {
+/** Digits rewritten at byte `at`, or an indent moved with them. */
+interface Renumbering {
 	at: number;
 	remove: number;
 	insert: string;
@@ -91,8 +136,8 @@ interface Marker {
 }
 
 /** An ordered item's number and where its digits sit; null for an item opening with none. */
-function markerOf(source: string, item: LaidBlock): Marker | null {
-	const line = item.lineAt?.(item.from);
+function markerOf(source: string, item: LaidBlock | undefined): Marker | null {
+	const line = item?.lineAt?.(item.from);
 	if (!line) return null;
 	const digits = /^[ \t]*(\d+)/.exec(source.slice(line.from, line.markerTo));
 	if (!digits) return null;
@@ -101,7 +146,13 @@ function markerOf(source: string, item: LaidBlock): Marker | null {
 }
 
 /** Adds the edits that rewrite the item's digits as `number`, its later lines moved with them. */
-function renumber(edits: Edit[], source: string, item: LaidBlock, marker: Marker, number: number) {
+function renumber(
+	edits: Renumbering[],
+	source: string,
+	item: LaidBlock,
+	marker: Marker,
+	number: number
+) {
 	const insert = String(number);
 	edits.push({ at: marker.from, remove: marker.to - marker.from, insert });
 	indented(edits, source, item, insert.length - (marker.to - marker.from), 0);
@@ -109,7 +160,13 @@ function renumber(edits: Edit[], source: string, item: LaidBlock, marker: Marker
 
 /** Adds the edits that move the item's later lines starting past byte `from` to its text column,
  *  where its number grew `widened` digits wider. */
-function indented(edits: Edit[], source: string, item: LaidBlock, widened: number, from: number) {
+function indented(
+	edits: Renumbering[],
+	source: string,
+	item: LaidBlock,
+	widened: number,
+	from: number
+) {
 	if (widened === 0) return;
 	const [first, ...rest] = item.linesIn!(item.from);
 	const column = first.markerTo - first.from;

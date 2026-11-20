@@ -11,18 +11,15 @@ import {
 	indentColumns,
 	isBlankLine,
 	trailingLineEnding,
-	trimTrailingLineEnding,
-	type LineEnding
+	trimTrailingLineEnding
 } from '../../core/lines';
 import { rebuildListItemRaw, rebuildListRaw } from '../../schema/container-rebuilders';
 import { readItemShape } from '../../core/parsers/list';
-import { cloneMetadata, cloneNode } from '../clone';
-import { parseCutResidue, parseFirstBlock } from '../parse-block';
-import { cutKeepingStructure } from '../structural-suffix';
-import { renumberOrderedListFrom } from './ordered-markers';
+import { cloneMetadata } from '../clone';
+import { bumpOrderedMarker, renumberOrderedListFrom } from './ordered-markers';
 import { createSharingState } from '../sharing';
 import { assignIds } from '../../block-id';
-import { fragmentReaderAt, markerLineWidening, type FragmentReader } from './task-paragraph';
+import { markerLineWidening } from './task-paragraph';
 import type { GrammarView } from '../../schema/block-openers';
 import { adoptOwnReading } from '../../schema/container-raw';
 import { emptyParagraph } from '../node-primitives';
@@ -55,6 +52,18 @@ export function assembleListHalf(
 	renumberOrderedListFrom(half, startNumber, createSharingState());
 	rebuildListRaw(half);
 	return half;
+}
+
+/** The marker and checkbox of the item Enter opens after an item: its marker bumped, its task
+ *  checkbox inherited unchecked. */
+export function followerMetadata(prevMeta: ListItemMetadata | undefined): ListItemMetadata {
+	const inheritTask = prevMeta?.taskItem === true;
+	return {
+		marker: bumpOrderedMarker(prevMeta?.marker ?? '- '),
+		taskItem: inheritTask,
+		taskChecked: false,
+		taskMarker: inheritTask ? '[ ] ' : null
+	};
 }
 
 /** A listItem mirroring `template`'s metadata, affixes and bytes, so lines it keeps keep their
@@ -167,71 +176,5 @@ export function buildListShell(ordered: boolean, children: CstNode[]): CstNode {
 		metadata,
 		children,
 		childIds: assignIds(children)
-	};
-}
-
-// ── Paste split ──────────────────────────────────────────────────────────────
-
-/** Split a leaf's raw at `offset` for a paste, each half read as its landing slot reads it and
- *  every byte kept. */
-export function splitLeafForPaste(
-	leaf: CstNode,
-	offset: number,
-	ending: LineEnding,
-	raw: string = leaf.raw,
-	read: { leading: FragmentReader; trailing: FragmentReader }
-): { leadingNode: CstNode | null; trailingNodes: CstNode[]; lineEnding: LineEnding } {
-	const lineEnding = trailingLineEnding(raw, ending);
-	const { head: leadingText, rest } = cutKeepingStructure({ ...leaf, raw }, offset);
-	const leadingNode =
-		leadingText.length > 0 ? parseFirstBlock(leadingText + lineEnding, read.leading) : null;
-	// The line the cut ended is dropped: the trailing item's marker starts a line of its own.
-	const trailingNodes = parseCutResidue(rest, lineEnding, read.trailing).blocks;
-
-	return { leadingNode, trailingNodes, lineEnding };
-}
-
-/**
- * The items replacing `item` when a paste splits it at `(innerIndex, offset)`; either is null when
- * the caret sits flush against a boundary.
- */
-export function buildSplitItems(
-	item: CstNode,
-	innerIndex: number,
-	offset: number,
-	ending: LineEnding,
-	targetRaw: string | undefined,
-	grammar: GrammarView
-): { leadingItem: CstNode | null; trailingItem: CstNode | null } {
-	if (!item.children) return { leadingItem: null, trailingItem: null };
-	const targetLeaf = item.children[innerIndex];
-	if (!targetLeaf) return { leadingItem: null, trailingItem: null };
-
-	// Both halves keep the item's marker, so the leading one stays at `innerIndex` under it and
-	// the trailing one opens its own copy of the item.
-	const { leadingNode, trailingNodes } = splitLeafForPaste(
-		targetLeaf,
-		offset,
-		ending,
-		targetRaw ?? targetLeaf.raw,
-		{
-			leading: fragmentReaderAt(item, innerIndex, grammar),
-			trailing: fragmentReaderAt(item, 0, grammar)
-		}
-	);
-
-	const leadingChildren: CstNode[] = item.children.slice(0, innerIndex).map(cloneNode);
-	if (leadingNode) leadingChildren.push(leadingNode);
-
-	const trailingChildren: CstNode[] = [];
-	for (const node of trailingNodes) trailingChildren.push(node);
-	for (const c of item.children.slice(innerIndex + 1)) trailingChildren.push(cloneNode(c));
-	if (trailingChildren[0]) trailingChildren[0].leadingTrivia = '';
-
-	return {
-		leadingItem:
-			leadingChildren.length > 0 ? buildListItemWithContent(item, leadingChildren, grammar) : null,
-		trailingItem:
-			trailingChildren.length > 0 ? buildListItemWithContent(item, trailingChildren, grammar) : null
 	};
 }

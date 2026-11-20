@@ -2,9 +2,9 @@ import { test, expect } from '../fixtures';
 import { EditorPage } from '../editor-page';
 
 // The right-click menu on prose carries an "Insert block" flyout, the one place empty blocks are
-// added from, and they land after the block under the pointer. Only top-level prose has it, since
-// inside a table cell, a code fence or a nested block a sibling is not what the user meant, so the
-// row is absent there. The source bytes are what is checked.
+// added from, and they land after the block under the pointer, or on it where it is an empty line.
+// Only top-level prose has it, since inside a table cell, a code fence or a nested block a sibling
+// is not what the user meant, so the row is absent there. The source bytes are what is checked.
 // Requirements: e2e/requirements/context-menu-insert.md.
 
 test.describe('right-click menu: Insert block', () => {
@@ -23,6 +23,19 @@ test.describe('right-click menu: Insert block', () => {
 		const row = page.getByRole('menuitem', { name: 'Insert block' });
 		await expect(row).toBeVisible();
 		await row.hover();
+		await page.getByRole('menuitem', { name: 'Code block' }).click();
+
+		await editor.bridge.waitForSourceContains('```');
+		expect(await editor.bridge.getSource()).toBe('first\n\n```\n\n```\n\nsecond\n');
+	});
+
+	test('on an empty line the picked block takes the line', async ({ page }) => {
+		await editor.loadContent('first\n\nsecond\n');
+		await editor.focusBlock(0, 'first'.length);
+		await page.keyboard.press('Enter');
+		await editor.bridge.waitForSourceEquals('first\n\n\nsecond\n');
+		await editor.getBlock(1).click({ button: 'right' });
+		await page.getByRole('menuitem', { name: 'Insert block' }).hover();
 		await page.getByRole('menuitem', { name: 'Code block' }).click();
 
 		await editor.bridge.waitForSourceContains('```');

@@ -56,7 +56,8 @@ test.describe('image popover draft discard', () => {
 		await editor.loadContent(`![two](${IMAGE})\n`);
 		await editor.focusBlockStart(0);
 		await page.evaluate((md) => (window as any).__test.insertMarkdown(md), `![one](${IMAGE})\n\n`);
-		await editor.bridge.waitForSourceEquals(`![one](${IMAGE})\n\n![two](${IMAGE})\n`);
+		// The payload's last line ending is its terminator; the other is a pasted line break.
+		await editor.bridge.waitForSourceEquals(`![one](${IMAGE})\n![two](${IMAGE})\n`);
 		await waitForAllImagesLoaded(page);
 		await page.locator('[data-image-widget]').first().click();
 		await (await openImageField(page)).fill('draft');

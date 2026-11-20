@@ -18,7 +18,8 @@ import {
 	type Doc
 } from './document';
 import { displayLength } from '../core/lines';
-import { byteAt, lineEnd } from './leaf-splice';
+import { byteAt } from './leaf-splice';
+import { lineEnd } from './lines';
 import { openingOf } from './markers';
 
 export function copyOf(doc: Doc, from: number, to: number): string {

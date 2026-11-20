@@ -63,7 +63,7 @@ _(pre-freeze / unstable)_ The installable package, and the per-editor context it
 | `PluginSetupContext` | What `setup(ctx)` receives; its `onEditor(cb)` registers a per-editor callback (call it from `setup`, synchronously) |
 | `OnEditorCallback` | The callback itself: receives the `EditorContext` of each mounted editor that listed your plugin, may return a cleanup function the editor runs at unmount |
 | [`EditorContext`](#editorcontext) | One editor's view for your plugin, handed to your `onEditor` callback |
-| `InsertMarkdownOptions` | `insertMarkdown`'s second argument: `placement: 'below'` puts the text into a new paragraph after the top-level block holding the caret, in one undo entry; the default inserts at the caret |
+| `InsertMarkdownOptions` | `insertMarkdown`'s second argument: `placement: 'below'` makes the text a block of its own: at a caret on an empty line, item or to-do, else in a new paragraph after the top-level block holding the caret, in one undo entry; the default inserts at the caret |
 | [`Draft`, `DraftResult`](#draft-draftresult) | A write in the document's bytes from `edit()`, and what its commit came to |
 | `PresentationMode` | The union of the editor's view modes (source, reading, the two previews, live). Switch on it with a default branch, since a new mode would join the union. [Presentation modes](plugin-guide/presentation-modes.md#presentation-modes) |
 | `ClickInput` | What `isActivationClick` reads off a click: its Ctrl and Cmd keys, its click count and its target. A `MouseEvent` is one, so pass the event |
@@ -128,6 +128,7 @@ interface Draft {
 	readonly stale: boolean;
 	replace(range: { from: number; to: number }, text: string): this;
 	insert(markdown: string): this;
+	insertBelow(markdown: string): this;
 	commit(options?: { caret?: number }): Promise<DraftResult>;
 	end(): void;
 }
@@ -147,7 +148,7 @@ if (!result.ok) console.warn(result.reason, result.message); // 'moved': they ty
 ```
 
 - `replace(range, text)` swaps bytes `from` to `to` for `text`. Chain as many as you like; two far-apart ranges are still one undo step. These are the document's bytes, markers and all, so a new line you write inside a container carries the container's marker (`> `, a list item's indent) in `text`. Write an opener on a line of its own (a `$$`, a fence, a `:::note`) above a block that would close it, and the editor adds its closing line under it, same as it does for one the author types.
-- `insert(markdown)` pastes Markdown at the caret once the replacements land, the way `insertMarkdown` does.
+- `insert(markdown)` pastes Markdown at the caret once the replacements land, the way `insertMarkdown` does. `insertBelow(markdown)` makes it a block of its own instead, as `placement: 'below'` does, in the same undo step.
 - `commit({ caret })` writes it all as one undo step, with the caret at byte `caret` of the text as you wrote it (a closing line the editor added above it pushes it down for you). Leave `caret` out and the author's caret stays where it is, since a write landing while they type shouldn't drag them anywhere.
 - `stale` turns true once a write elsewhere touches one of your ranges, or the host loads another document. It's reactive, so a Svelte effect reading it reruns.
 - `end()` drops the draft without writing. One you just let go of is dropped eventually too, but ending it stops the editor tracking writes for it right away.
@@ -271,8 +272,7 @@ The rest are optional:
 
 - the body wrap (`bodyWrap`) and the body write rule (`bodyWrite`);
 - the reserved title line (`reservedChrome`) and unwrap behavior (`unwrapRole`);
-- paste merging (`containerPaste`);
-- how its marker rides its lines (`lines`: `{ marker: 'every-line' | 'first-line', lazy }`), and when two of it count as one container (`merges`: `{ key }` names the metadata field they share, `{}` means any two), which cut, copy and paste read;
+- how its marker rides its lines (`lines`: `{ marker: 'every-line' | 'first-line', lazy }`), and when two of it count as one container (`merges`: `{ key }` names the metadata field they share, `{}` means any two), which cut, copy and paste read. A container with a closing line of its own (`bodyWrap.beforeCloserLine`) can't declare `merges`: registering it throws, and a pasted one always nests;
 - a content line's first space (`contentStartSpace`);
 - which child holds its last line (`lastLineChild`), for a container whose own bytes end it, like a table holding only its header row;
 - whether its children reorder among themselves (`reorderChildren`).
@@ -301,6 +301,7 @@ A declared title line already decides what Backspace does at its start, so its `
 | `BlockView` | What draws a kind, the registration's `view`. You can't look inside one: `defineBlockView`, `svelteBlockView` or `textBlockView` makes it, and `registerBlockKind` throws on anything else, a hand-built object included |
 | `BlockComponent`, `BlockComponentExports` | The surface a block component publishes: a factory leaf's single `blockApi` export, a container's single `containerApi` export, or a hand-built leaf's own members |
 | [`BlockComponentProps`](#blockcomponentprops) | The props every block component receives |
+| `PreparedPaste` | What a hand-built leaf's `preparePaste` answers: the raw range of its own bytes a paste replaces, or `draft` to take the text into a source it shows and hasn't written yet |
 
 #### `defineBlockView`
 
@@ -1013,7 +1014,7 @@ _(pre-freeze / unstable)_ The recipe: [Paste transforms](plugin-guide/paste-tran
 
 | Export | Role |
 | --- | --- |
-| `registerPasteTransform` | Register a pre-parse rewrite of pasted text; transforms run at every paste site, in install order, each seeing the previous one's output (the first gets CRLF already turned to LF), and never on load or typing |
+| `registerPasteTransform` | Register a pre-parse rewrite of pasted text; transforms run wherever a paste lands as blocks, in install order, each seeing the previous one's output (the first gets CRLF already turned to LF), and never on load or typing |
 | `PasteTransform` | The unit: a process-unique `name`, plus `transform(text)` returning the replacement or null for "not mine" |
 
 ### Decorations

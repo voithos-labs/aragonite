@@ -6,7 +6,7 @@
 
 import type { BlockEditActions, FocusActions, ListContext } from '../action-contracts';
 import { CURSOR_START } from '../block-component';
-import type { CstNode, ListItemMetadata } from '../core/nodes';
+import type { CstNode } from '../core/nodes';
 import type { DocumentView, NodeView } from '../core/node-views';
 import { metadataOf } from '../core/nodes';
 import type { LineEnding } from '../core/lines';
@@ -20,8 +20,8 @@ import {
 } from '../tree-operations/structural-change';
 import { splitNode, emptyParagraph, type SplitResult } from '../tree-operations';
 import { lastCaretLeaf } from '../selection/path-lookup';
-import { renumberOrderedList, bumpOrderedMarker } from '../tree-operations/list/ordered-markers';
-import { buildListItem } from '../tree-operations/list/list-builders';
+import { renumberOrderedList } from '../tree-operations/list/ordered-markers';
+import { buildListItem, followerMetadata } from '../tree-operations/list/list-builders';
 import { storedAsIn } from '../tree-operations/stored-as';
 import { buildExitReplacement } from '../tree-operations/list/exit-replacement';
 import {
@@ -44,18 +44,6 @@ export interface ListContextDeps {
 	controller: UndoController;
 	/** The editor's reading, for the mid-item split's reparse and marker rebalance. */
 	reading: Reading;
-}
-
-/** The marker and checkbox of the item Enter creates: the previous item's marker bumped, its
- *  task checkbox inherited unchecked. */
-function followerMetadata(prevMeta: ListItemMetadata | undefined): ListItemMetadata {
-	const inheritTask = prevMeta?.taskItem === true;
-	return {
-		marker: bumpOrderedMarker(prevMeta?.marker ?? '- '),
-		taskItem: inheritTask,
-		taskChecked: false,
-		taskMarker: inheritTask ? '[ ] ' : null
-	};
 }
 
 export function createListContext(deps: ListContextDeps): ListContext {

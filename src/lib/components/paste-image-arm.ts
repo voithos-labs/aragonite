@@ -1,55 +1,38 @@
 /**
- * Hands a paste's images to the host's import hook, for the blocks' clipboard code and the
- * editor-root fallback alike. Files are read before the first await, since `clipboardData` may
- * not stay live, and a multi-block selection is deleted only after the hook answers.
+ * Hands a paste's images to the host's import hook and answers the Markdown it returns, which the
+ * editor's paste entry lands where the paste was aimed.
  */
 
 import type { PasteImageHook } from '../host-hooks';
 import { emitClipboardError, type EditorEvents } from '../editor-events';
-import type { CrossBlockHandlers } from '../selection/cross-block/dispatch';
 
 export interface ImagePasteArmDeps {
 	/** Read at each paste; undefined leaves a paste carrying images on the text/plain path. */
 	onPasteImage: () => PasteImageHook | undefined;
 	/** A failed import reports here rather than vanishing. */
 	events: EditorEvents;
-	crossBlock: CrossBlockHandlers;
 }
 
 export interface ImagePasteArm {
-	/** Call before the handler's first await; empty when no hook is installed. */
-	filesOf(data: DataTransfer | null): File[];
-	/** Imports `files` in clipboard order and offers the markdown to the cross-block paste; null
-	 *  when nothing is left to do, the markdown when no selection took it. */
-	run(e: ClipboardEvent, files: File[]): Promise<string | null>;
+	/** The images among a paste's files; empty when no hook is installed. */
+	filesOf(files: readonly File[]): File[];
+	/** Imports `files` in clipboard order: the Markdown the host answered, joined, or ''. */
+	run(files: File[]): Promise<string>;
 }
 
 export function createImagePasteArm(deps: ImagePasteArmDeps): ImagePasteArm {
 	return {
-		filesOf: (data) => (deps.onPasteImage() ? imageFilesOf(data) : []),
-
-		async run(e, files) {
+		// A paste can carry a plain attachment beside its text; only images are the host's.
+		filesOf: (files) =>
+			deps.onPasteImage() ? files.filter((file) => file.type.startsWith('image/')) : [],
+		async run(files) {
 			const importImage = deps.onPasteImage();
-			if (!importImage) return null;
-			const markdown = await importAll(deps, importImage, files);
-			// Empty markdown ends this the same way no markdown does, and keeps the
-			// cross-block paste from being handed an empty string.
-			if (!markdown) return null;
-			// The ordinary paste route, which reads `ownsRange` live, since the delete can
-			// collapse or merge away the receiving block.
-			if (await deps.crossBlock.handlePaste(e, markdown)) return null;
-			return markdown;
+			return importImage ? importAll(deps, importImage, files) : '';
 		}
 	};
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
-
-/** A paste can carry a plain attachment alongside its text; only images belong to
- *  the host hook, the rest stays on the text/plain path. */
-function imageFilesOf(data: DataTransfer | null): File[] {
-	return Array.from(data?.files ?? []).filter((file) => file.type.startsWith('image/'));
-}
 
 /** One insertion for every image: multi-line markdown can split the block out from under a
  *  second insertion, and one paste is one undo entry. */

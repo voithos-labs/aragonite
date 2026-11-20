@@ -394,12 +394,6 @@ const KNOWN: Record<string, Known> = {
 			r.over.source === r.built.source &&
 			/^over the range|dropped$/.test(line),
 		example: draw('tableHalves', 'rule', 'item', 'cell..middle', 'composition')
-	},
-	'a paste into a block with no paste surface': {
-		cause:
-			'the paste dispatch names the default hooks it takes in indented code, HTML, a definition',
-		matches: (d, _r, line) => d.gesture === 'paste' && line === 'warn: paste-dispatch',
-		example: draw('htmlBlocks', 'rule', 'quote', 'upper mid..lower', 'paste')
 	}
 };
 
@@ -439,10 +433,22 @@ const REACH: Record<string, Draw> = {
 	}
 };
 
+/** Draws whose paste lands where a letter typed over the range does: on the text the removal's
+ *  caret stands on, whatever caret the core named. */
+const LANDS_AS_TYPED: Record<string, Draw> = {
+	// Miss-analysis: no fixed draw pasted where the core names a boundary the editor holds as prose,
+	// so a paste there landed as a block, and after a cut it took the cut's caret with no entry.
+	'a paste over a rule held whole, the text under it prose': {
+		...draw('setextUnderline', 'rule', 'item', 'edge..lower', 'paste', 'live'),
+		lead: 2
+	}
+};
+
 /** Every draw the fixed run always takes, by name. */
 const EXAMPLES: Record<string, Draw> = {
 	...Object.fromEntries(Object.entries(KNOWN).map(([name, k]) => [name, k.example])),
-	...REACH
+	...REACH,
+	...LANDS_AS_TYPED
 };
 
 // ── The property ─────────────────────────────────────────────────────────────
@@ -458,8 +464,7 @@ const FIXED_TALLY = {
 	'a letter where two indented code blocks join': 1,
 	'a live caret past a hidden marker': 1,
 	'Enter from a table in a container': 1,
-	'a gesture that reached nothing': 1,
-	'a paste into a block with no paste surface': 2
+	'a gesture that reached nothing': 1
 };
 
 /** What each example leaves over the range. */
@@ -470,7 +475,6 @@ const LANDED: Record<string, string> = {
 	'a live caret past a hidden marker': 'intro\n\n汉\n\n# h\n| 2 |\n\nlast\n',
 	'Enter from a table in a container': '- \n- \n  ```\n  x\n  ```\n  | 2 |\n\nlast\n',
 	'a gesture that reached nothing': 'intro\n\n- | a |\n  | - |\n  | 1 |\n  ***\n  | 2 |\n\nlast\n',
-	'a paste into a block with no paste surface': 'intro\n\n> <!-- ж\n> <div>\n> x\n\nlast\n',
 	'before an HTML block': 'intro\n\n<!-- a -->\n\n汉\n\n<div>\nx\n\nlast\n',
 	'before an HTML block in a quote': 'intro\n\n> text\n>\n> 汉\n>\n> <span class="x">\n\nlast\n',
 	'under a started title': "intro\n\n[a]: /u\n    'code\n\nжxt\nend'\n\nlast\n",
@@ -478,7 +482,9 @@ const LANDED: Record<string, string> = {
 		"intro\n\n[a]: /u\n    'code\n\n汉text\nend'\n\nlast\n",
 	'Enter under a started title': "intro\n\n[a]: /u\n    'code\n\n\nxt\nend'\n\nlast\n",
 	'two containers deep, out past both': 'intro\n\n- > above\n  >\n  > 汉\n\n```\nlast\n```\n',
-	'past the rows of a table': '| a |\n| - |\n\n汉\n\n```\nx\n```\n| 2 |\n\nlast\n'
+	'past the rows of a table': '| a |\n| - |\n\n汉\n\n```\nx\n```\n| 2 |\n\nlast\n',
+	'a paste over a rule held whole, the text under it prose':
+		'intro\n\nmore\n\n- text\n  \n  ж===\n\nlast\n'
 };
 
 describe('text and Enter over a range whose removal reads a neighbour again', () => {

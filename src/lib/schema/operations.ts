@@ -22,26 +22,8 @@ export interface OperationDetailMap {
 				parentItemIdx?: number;
 				nestedItemIdx?: number;
 		  }
-		| {
-				source:
-					| 'paste-dispatch'
-					| 'paste-dispatch-table-cell'
-					| 'cross-block-covered-block'
-					| 'selection-drop'
-					| 'draft';
-		  };
-	paste:
-		| { count: number }
-		| {
-				source:
-					| 'list-absorb'
-					| 'list-break-out'
-					| 'container-matching'
-					| 'container-matching-merge'
-					| 'container-matching-merge-singleton';
-				listPath?: number[];
-				outerPath?: number[];
-		  };
+		| { source: 'cross-block-covered-block' | 'selection-drop' | 'draft' };
+	paste: { count: number };
 	appendBlock: { itemIndex?: number } | undefined;
 	/** Insert at an index inside the list; `appendBlock`'s sibling for a block created between two. */
 	insertBlock: undefined;

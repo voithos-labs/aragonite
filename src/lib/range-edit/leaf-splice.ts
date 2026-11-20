@@ -1,19 +1,37 @@
 /**
  * Putting a text block's new bytes back into the source: the host's in-block writes answer in the
  * block's own bytes, its container markers stripped, and the changed part goes back behind the
- * markers of the lines it lands on.
+ * markers of the lines it lands on. A write or a paste that leaves a block blank gives up the blank
+ * line under it, as the block's emptying write does (`blankedApart`), and one that leaves its first
+ * line blank keeps it apart from the block above (`openedApart`).
  */
 
 import { displayLines, isBlankText, ownTrailingLineEnding } from '../core/lines';
 import { sharedPrefixLength, sharedSuffixLength } from '../core/written-span';
 import type { Joined, LeafWrite } from './host';
 import type { LaidBlock } from './layout';
-import { nodeAt, type Doc } from './document';
+import { openedApart } from './apart';
+import { isCell, lineOf, nodeAt, parentOf, titleOwner, type Doc } from './document';
+import { lineEnd, lineRest } from './lines';
 import { continuation } from './markers';
 
 /** New bytes for the whole document and the caret's byte in them. */
 export interface Edit {
 	source: string;
+	caret: number;
+	/** Set where the edit is one write of one text block: the block, its finished bytes and the
+	 *  caret in them. */
+	leaf?: LeafEdit;
+	/** For a paste that read the clipboard as blocks and landed it so: how many it read. */
+	blocks?: number;
+	/** Set where a paste's last line ending was Enter: the caret is on the line it opened. */
+	entered?: true;
+}
+
+/** One text block's finished bytes, as its own write stores them, and the caret's offset there. */
+export interface LeafEdit {
+	path: readonly number[];
+	raw: string;
 	caret: number;
 }
 
@@ -46,7 +64,99 @@ export function writeText(
 		from === to
 			? host.leaf.insert(tree, leaf.path, from, text, mode)
 			: host.leaf.replace(tree, leaf.path, from, to, text, mode);
-	return writeLeaf(doc, leaf, write, from, to, keep);
+	return writtenText(doc, leaf, write, from, to, keep);
+}
+
+/** `write`, the block's own write over `[from, to)` of its bytes, landed in the source, the block
+ *  named where the caret stays on its text. */
+export function writtenText(
+	doc: Doc,
+	leaf: LaidBlock,
+	write: LeafWrite,
+	from: number,
+	to: number,
+	keep?: (c: LaidBlock) => boolean
+): Edit {
+	const written = writeLeaf(doc, leaf, write, from, to, keep);
+	const edit = isBlankText(write.bytes)
+		? blankedApart(doc, leaf, written)
+		: openedApart(doc, leaf, written);
+	// A caret past the block's last line ending stands on no text of it, so the write names none.
+	if (write.caret === write.bytes.length && write.bytes.endsWith('\n')) return edit;
+	return { ...edit, leaf: { path: leaf.path, ...inDocumentEnding(doc, leaf, write, from, to) } };
+}
+
+/** `edit`, which left `leaf`, a block of `doc`, blank: less the blank line under it where text
+ *  follows in its container, and apart from the block above where its line would read into it. */
+export function blankedApart(doc: Doc, leaf: LaidBlock, edit: Edit): Edit {
+	return openedApart(doc, leaf, underGivenUp(doc, leaf, edit));
+}
+
+/** `edit` less the blank line under `leaf`; under an opening line of its own that line moves above. */
+function underGivenUp(doc: Doc, leaf: LaidBlock, edit: Edit): Edit {
+	const { source } = doc;
+	if (isBlankText(nodeAt(doc, leaf.path).raw) || isCell(doc, leaf) || titleOwner(doc, leaf))
+		return edit;
+	const next = textSibling(doc, leaf, 1);
+	const lineStart = (at: number) => source.lastIndexOf('\n', at - 1) + 1;
+	if (!next || lineStart(next.from) <= leaf.to) return edit;
+	const shift = edit.source.length - source.length;
+	const [under, below] = [leaf.to + shift, lineEnd(source, leaf.to) + 1 + shift];
+	const out = edit.source;
+	if (!underOpenerLine(doc, leaf))
+		return { ...edit, source: out.slice(0, under) + out.slice(below) };
+	const head = lineStart(leaf.from);
+	const line = out.slice(under, below);
+	return {
+		...edit,
+		source: out.slice(0, head) + line + out.slice(head, under) + out.slice(below),
+		caret: edit.caret >= head ? edit.caret + line.length : edit.caret
+	};
+}
+
+/** The nearest sibling of `leaf` with text, `step` away and on in that direction. */
+function textSibling(doc: Doc, leaf: LaidBlock, step: 1 | -1): LaidBlock | undefined {
+	const parent = leaf.path.slice(0, -1);
+	let at: LaidBlock | undefined;
+	for (let i = leaf.path.at(-1)! + step; (at = doc.layout.block([...parent, i])); i += step)
+		if (!isBlankText(nodeAt(doc, at.path).raw)) return at;
+	return undefined;
+}
+
+/** Whether no text stands between `leaf` and its container's opening line of its own (a callout's
+ *  `[!NOTE]`, a title row), whose body reads the blank line under it as its own. */
+function underOpenerLine(doc: Doc, leaf: LaidBlock): boolean {
+	const above = textSibling(doc, leaf, -1);
+	if (above) return titleOwner(doc, above) !== undefined;
+	const parent = parentOf(doc, leaf);
+	return !!parent?.lineAt && lineOf(parent, parent.from).own;
+}
+
+/** `write`'s bytes and caret with the line breaks it put over `[from, to)` in the document's line
+ *  ending, as the source holds them; the block's own endings stay. */
+function inDocumentEnding(
+	doc: Doc,
+	leaf: LaidBlock,
+	write: LeafWrite,
+	from: number,
+	to: number
+): Pick<LeafEdit, 'raw' | 'caret'> {
+	const { bytes, caret } = write;
+	if (doc.ending === '\n') return { raw: bytes, caret };
+	const raw = nodeAt(doc, leaf.path).raw;
+	const head = sharedPrefixLength(raw, bytes, Math.min(from, bytes.length));
+	const tail = sharedSuffixLength(raw, bytes, Math.min(raw.length - to, bytes.length - head));
+	const ended = (text: string) => text.replace(/\r?\n/g, doc.ending);
+	const end = bytes.length - tail;
+	const written = ended(bytes.slice(head, end));
+	const grown = written.length - (end - head);
+	const at =
+		caret <= head
+			? caret
+			: caret >= end
+				? caret + grown
+				: head + ended(bytes.slice(head, caret)).length;
+	return { raw: bytes.slice(0, head) + written + bytes.slice(end), caret: at };
 }
 
 /** `write` replaced `[from, to)` of the block's bytes: what changed goes into the source, each new
@@ -169,22 +279,4 @@ export function spliced(
 				return (blank ? prefix.trimEnd() : prefix) + line;
 			})
 			.join(eol);
-}
-
-export const lineHead = (source: string, at: number) =>
-	source.slice(source.lastIndexOf('\n', at - 1) + 1, at);
-
-/** The text from `at` to the end of its line, the line ending left out. */
-export const lineRest = (source: string, at: number) =>
-	source.slice(at, lineEnd(source, at)).replace(/\r$/, '');
-
-/** Where the line holding \`at\` ends, before its \`\r\n\` as well as its \`\n\`. */
-export function lineEndBefore(source: string, at: number): number {
-	const end = lineEnd(source, at);
-	return source[end - 1] === '\r' && end > at ? end - 1 : end;
-}
-
-export function lineEnd(source: string, at: number): number {
-	const end = source.indexOf('\n', at);
-	return end < 0 ? source.length : end;
 }

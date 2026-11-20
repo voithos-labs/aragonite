@@ -1,13 +1,16 @@
 /**
  * Whether two blocks an edit leaves touching keep a blank line between them: the fix-up's join
- * question (`RangeHost.parts`), asked by a removal and by a paste of the pair each leaves touching.
+ * question (`RangeHost.parts`), asked by a removal and by a paste of the pair each leaves touching,
+ * and of the pair above a block whose first line an edit left blank (`openedApart`).
  * The core adds a blank line to keep two readings nowhere else.
  */
 
-import { contentEnd, nodeAt, type Doc } from './document';
+import { isBlankText } from '../core/lines';
+import { contentEnd, nodeAt, parentOf, type Doc } from './document';
 import type { JoinSide } from './host';
 import type { LaidBlock } from './layout';
-import { lineRest } from './leaf-splice';
+import type { Edit } from './leaf-splice';
+import { lineHead, lineRest } from './lines';
 import { continuation } from './markers';
 
 /** A block the edit rewrote, with its bytes after the write; a kind it may have lost is read. */
@@ -57,6 +60,32 @@ export function apartAt(doc: Doc, out: string, at: number, join: Join, placed: b
 	const holding = (c: LaidBlock) => c.path.length <= pair.parent.length;
 	const marks = at + run.length < join.from ? run : continuation(doc, pair.below.from, holding);
 	return out.slice(0, at) + marks.trimEnd() + doc.ending + out.slice(at);
+}
+
+/** `edit`, which may leave `leaf`'s first line blank: where that line opens a block under a sibling
+ *  (an item's list under a paragraph), a blank line between the two where they would read as one. */
+export function openedApart(doc: Doc, leaf: LaidBlock, edit: Edit): Edit {
+	const { source } = edit;
+	let top = leaf;
+	for (let up = parentOf(doc, top); up && top.path.at(-1) === 0; up = parentOf(doc, up)) top = up;
+	const index = top.path.at(-1)!;
+	const at = leaf.from - lineHead(doc.source, leaf.from).length;
+	// The leaf's line still stands, its head as it was, and the block it opens starts on it.
+	const stands = top.from >= at && source.slice(at, leaf.from) === doc.source.slice(at, leaf.from);
+	if (index === 0 || !stands || !isBlankText(lineRest(source, leaf.from))) return edit;
+	const upper = doc.layout.block([...top.path.slice(0, -1), index - 1]);
+	// The block's own first line is all a reader asks of it under the block above.
+	const raw = lineRest(source, top.from) + doc.ending;
+	const join = {
+		from: top.from,
+		to: top.from,
+		upper,
+		lower: top,
+		rewritten: { lower: { block: top, raw } }
+	};
+	const out = apartAt(doc, source, at, join, false);
+	const caret = edit.caret >= at ? edit.caret + out.length - source.length : edit.caret;
+	return out === source ? edit : { ...edit, source: out, caret };
 }
 
 /** Where the text of the line starting at `at` starts, past its container markers. */

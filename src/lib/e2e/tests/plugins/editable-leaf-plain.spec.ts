@@ -185,8 +185,6 @@ test.describe('plain-mode editable leaf: the %% memo kind', () => {
 	// memo registers no paste handling, so the dispatch takes the default hooks and reports that;
 	// declaring it is what makes the fallthrough an asserted path rather than an assumption.
 	test.describe('paste over a cross-block selection anchored in the memo', () => {
-		test.use({ expectWarns: ['paste-dispatch'] });
-
 		test('clears it and lands the text', async ({ page }) => {
 			await editor.memo.click();
 			await page.keyboard.press(edgeKey('lineEnd'));

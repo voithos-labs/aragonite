@@ -18,7 +18,7 @@ import { ensureEditableContainers } from '../../schema/opened-reading';
 
 export interface ParsedReplacement {
 	replacement: CstNode[];
-	/** The parse's own trailing blank, for a caller that lands one (`paste/dispatch.ts`). */
+	/** The parse's own trailing blank, for a caller that lands one. */
 	suffix: string;
 }
 

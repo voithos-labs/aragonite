@@ -80,6 +80,26 @@ describe('a paste on a block focused whole', () => {
 	});
 });
 
+// Miss-analysis: every `placement: 'below'` row put the caret in a block's text, so none asked what a
+// block of its own does where the place already lands blocks, and it was refused there.
+describe("insertMarkdown with `placement: 'below'` where no text holds the caret", () => {
+	it('lands as blocks at a gap caret, as the caret placement does', async () => {
+		const editor = await atGapAboveCode('```\ncode\n```\n\npara\n');
+		expect(await editor.instance.insertMarkdown('---\n', { placement: 'below' })).toBe(true);
+		await editor.settle();
+		expect(editor.source()).toBe('---\n\n```\ncode\n```\n\npara\n');
+	});
+
+	it('lands under a block focused whole, as the caret placement does', async () => {
+		const editor = await onRuleFocusedWhole('a\n\n---\n\nb\n');
+		expect(await editor.instance.insertMarkdown('| x |\n| - |\n', { placement: 'below' })).toBe(
+			true
+		);
+		await editor.settle();
+		expect(editor.source()).toBe('a\n\n---\n\n| x |\n| - |\n\nb\n');
+	});
+});
+
 // Miss-analysis: every boundary-paste row mounted an editable document, so none saw the reading-mode
 // check that the paste route skipped.
 describe('a paste on a block focused whole in reading mode', () => {
