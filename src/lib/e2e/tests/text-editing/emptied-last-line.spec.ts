@@ -42,6 +42,25 @@ test.describe('text editing, a last line erased to nothing', () => {
 		});
 	}
 
+	// With no final line break, the emptied last paragraph is a blank last line, which keeps its
+	// break, so the next key stands alone instead of joining the paragraph above.
+	for (const [name, source, path, emptied, typed] of [
+		['a paragraph under a blank line', 'Plan\n\nmore', [1], 'Plan\n\n\n', 'Plan\n\nx\n'],
+		['a quote’s last paragraph', '> Plan\n>\n> more', [0, 1], '> Plan\n>\n>\n', '> Plan\n>\n> x\n']
+	] as const)
+		for (const mode of MODES)
+			test(`no final line break: ${name} erased keeps its line (${mode})`, async ({ page }) => {
+				await editor.setPresentationMode(mode);
+				await editor.loadContent(source);
+				await editor.focusBlockAtPath([...path], 4);
+				for (let i = 0; i < 4; i++) await page.keyboard.press('Backspace');
+				await expect.poll(() => editor.bridge.getSource()).toBe(emptied);
+				await page.keyboard.type('x');
+
+				await expect.poll(() => editor.bridge.getSource()).toBe(typed);
+				expect(await editor.parseConverged()).toBe(true);
+			});
+
 	test('a setext underline erased above a blank line keeps one blank line (source)', async ({
 		page
 	}) => {

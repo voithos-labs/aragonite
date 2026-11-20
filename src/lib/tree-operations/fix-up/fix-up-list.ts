@@ -7,6 +7,7 @@ import { joinSameLists, partJoin, type Role } from './joins';
 import { mergeAcross } from './merge';
 import { isBlankBlock } from './reading';
 import {
+	endEmptiedLastLine,
 	layOutRun,
 	lineGivenBack,
 	releaseOpenBlankLine,
@@ -37,6 +38,7 @@ export function fixUpList(
 	if (!edit.span && !edit.written) return finish(work);
 	const typed = !!edit.written && !edit.before;
 	const [from, count] = placed(edit);
+	if (from + count >= work.blocks.length) endEmptiedLastLine(work, host);
 	if (!typed) endPlaced(work, edit, from, count, host);
 	takeRemovedLines(work, edit, from);
 	returnFenceLine(work, edit, from, count, host);
