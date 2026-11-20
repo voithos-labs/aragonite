@@ -71,7 +71,13 @@ const ROWS: [string, InputIntent][] = [
 	['insertHorizontalRule', { kind: 'other' }],
 	['insertLink', { kind: 'other' }],
 	['insertTranspose', { kind: 'other' }],
-	['formatBold', { kind: 'other' }],
+	['formatBold', { kind: 'format' }],
+	['formatItalic', { kind: 'format' }],
+	['formatUnderline', { kind: 'format' }],
+	['formatStrikeThrough', { kind: 'format' }],
+	['formatSuperscript', { kind: 'format' }],
+	['formatSubscript', { kind: 'format' }],
+	['formatJustifyCenter', { kind: 'other' }],
 	['formatSetBlockTextDirection', { kind: 'other' }],
 	['', { kind: 'other' }],
 	['toString', { kind: 'other' }]
@@ -89,7 +95,8 @@ describe('readInput: what each input type asks for', () => {
 		expect(readInput(at('insertText'))).toBe(first);
 		expect(Object.isFrozen(first)).toBe(true);
 		expect(Object.isFrozen(decidedDelete(at('deleteWordBackward')))).toBe(true);
-		expect(readInput(at('formatItalic'))).toBe(readInput(at('insertLink')));
+		expect(readInput(at('insertTranspose'))).toBe(readInput(at('insertLink')));
+		expect(readInput(at('formatItalic'))).toBe(readInput(at('formatBold')));
 	});
 });
 
