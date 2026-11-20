@@ -164,9 +164,8 @@ for (const mode of ['source', 'live'] as const)
 			expect((await filled(marked, mode, 'paste', clip))[0]).toBe(left);
 		});
 
-// A paste writes no blank line between an item's first line and the item's next block, where a
-// typed letter still writes one and turns the list loose; a block the text would read into is set
-// apart. Miss-analysis: every only row lay over a sibling, none over a block of the item's own.
+// Under an item's first line a paste writes a blank line only where the text would read into the
+// next block (a typed letter always does). Miss-analysis: no only row lay over an item's own block.
 const SUBLIST: [string, string, string][] = [
 	['a bullet over its sublist', '- ‸\n  - b\n', '- X\n  - b\n'],
 	['an ordered item over its sublist', '1. ‸\n   - b\n', '1. X\n   - b\n'],
