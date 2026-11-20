@@ -739,8 +739,8 @@ function mergeBlockKindFields(
 			Object.fromEntries(Object.entries(group).filter(([, value]) => value !== undefined))
 		);
 		// The one pair an augment can still complete: every other pair holds a field fixed above.
-		const { merges, bodyWrap } = next;
-		rejectIncoherentPairs(entry, kind, { container: { merges, bodyWrap } });
+		const { merges, bodyWrap, lines } = next;
+		rejectIncoherentPairs(entry, kind, { container: { merges, bodyWrap, lines } });
 	}
 	// The entry keeps its view: a built-in's augment runs after the view attaches.
 	registry.update(kind, { ...existing, descriptor: next }, entry);

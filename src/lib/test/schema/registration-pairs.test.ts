@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { declarePluginKind } from '#lib/schema/plugin-kind.js';
 import {
 	augmentBlockKind,
+	holdBlockKind,
 	registerBlockKind,
 	tryGetBlockKindDescriptor,
 	type BlockKindAugmentation,
@@ -134,16 +135,40 @@ describe('registerBlockKind refuses an incoherent pair the types refuse', () => 
 
 	// Miss-analysis: every closing-line row spelled `bodyWrap` out, where a line shape that writes a
 	// closing line implies it, after the pairs were read.
-	it.each([
+	describe.each([
 		['colon', COLON_LINES],
 		['fenced', fencedLines({ open: () => ['<x>'], close: () => '</x>' })]
-	])('refuses merges beside a %s line shape, which writes a closing line', (shape, lines) => {
-		const kind = declarePluginKind(`pair-shape-${shape}`);
-		const shaped = { ...leaf, container: { lines, merges: {} } };
-		expect(() => registerBlockKind(kind, shaped as unknown as BlockKindRegistration)).toThrow(
-			'declares container.merges with a closing line of its own;'
-		);
-		expect(tryGetBlockKindDescriptor(kind)).toBeUndefined();
+	])('a %s line shape, which writes a closing line', (shape, lines) => {
+		const declares = 'declares container.merges with a closing line of its own;';
+		const shaped = (over: object) =>
+			({ ...leaf, container: { lines, ...over } }) as unknown as BlockKindRegistration;
+
+		it('is refused beside merges, registered or held as a block type', () => {
+			const kind = declarePluginKind(`pair-shape-${shape}`);
+			expect(() => registerBlockKind(kind, shaped({ merges: {} }))).toThrow(declares);
+			expect(() => holdBlockKind(kind, shaped({ merges: {} }), true)).toThrow(
+				`block type: "pair-shape-${shape}" ${declares}`
+			);
+			expect(tryGetBlockKindDescriptor(kind)).toBeUndefined();
+		});
+
+		// Miss-analysis: the augment rows spelled `bodyWrap` out too, so an augment that brought the
+		// shape to a kind already merging read no closing line and went through.
+		it('is refused by an augment that completes the pair, from either side', () => {
+			const closing = declarePluginKind(`pair-shape-closing-${shape}`);
+			registerBlockKind(closing, shaped({}));
+			expect(() => augmentBlockKind(closing, { container: { merges: {} } })).toThrow(declares);
+			expect(tryGetBlockKindDescriptor(closing)?.merges).toBeUndefined();
+
+			const merging = declarePluginKind(`pair-shape-merging-${shape}`);
+			registerBlockKind(merging, {
+				...leaf,
+				container: { ...group, merges: {} }
+			} as BlockKindRegistration);
+			const shapes = { container: { lines } } as BlockKindAugmentation;
+			expect(() => augmentBlockKind(merging, shapes)).toThrow(declares);
+			expect(tryGetBlockKindDescriptor(merging)?.lines).toBeUndefined();
+		});
 	});
 
 	it('keeps a coherent registration of each shape', () => {
