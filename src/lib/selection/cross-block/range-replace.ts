@@ -397,11 +397,10 @@ async function completedOnType(ctx: CrossBlockMutationContext, caret: SpliceCare
 	await block?.typeText?.('', point.offset);
 }
 
-/** A range across blocks, or one holding a block whole, that no grid of cells answers: the core's.
- *  A paragraph is never held whole: its whole text is text inside one leaf, the block's own. */
+/** A range across blocks, or one holding a block whole: the core's. A table's rows and cells share
+ *  its path and hold no block whole, and neither does a paragraph's whole text. */
 function overBlocks(coverage: RangeCoverage): boolean {
 	const { start, end } = coverage.range;
-	if (coverage.grid && coverage.grid.kind !== 'table') return false;
 	return !pathsEqual(start.path, end.path) || coverage.wholeRoots.length === 1;
 }
 
