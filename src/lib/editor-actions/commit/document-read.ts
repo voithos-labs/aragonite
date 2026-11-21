@@ -130,15 +130,15 @@ export function createDocumentRead(deps: {
 		});
 	}
 
-	function blockOf(node: NodeView, path: readonly number[] | null): Block {
+	function blockOf(node: NodeView, path: readonly number[] | null, at?: number): Block {
 		follow();
 		recordBlockRead();
 		const known = blocks.get(node);
 		if (known) {
-			seenAt(known, path);
+			seenAt(known, path, at);
 			return known;
 		}
-		const made = makeBlock(node, reading, path);
+		const made = makeBlock(node, reading, path, at);
 		blocks.set(node, made);
 		return made;
 	}
