@@ -82,15 +82,12 @@ describe('an overlay', () => {
 		expect([called.isConnected, plugin.isConnected]).toEqual([false, true]);
 		m.instance.use([]);
 		await m.settle();
-		const added = vi.spyOn(window, 'addEventListener');
 		m.instance.view.overlay(handle, m.instance.doc.blocks[1]);
 		expect([plugin.isConnected, handle.isConnected]).toEqual([false, true]);
-		const removed = vi.spyOn(window, 'removeEventListener');
+		// The unmount stops the watch the overlay started, with nothing left listening.
+		const stopped = vi.spyOn(MutationObserver.prototype, 'disconnect');
 		await m.destroy();
-		const [, listen] = added.mock.calls.find(([type]) => type === 'resize')!;
-		expect(removed.mock.calls.some(([type, gone]) => type === 'resize' && gone === listen)).toBe(
-			true
-		);
+		expect([handle.isConnected, stopped.mock.calls.length]).toEqual([false, 1]);
 	});
 
 	it('sits in the layer the editor reads as the host’s', async () => {

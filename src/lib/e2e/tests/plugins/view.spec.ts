@@ -146,6 +146,30 @@ test.describe('editor.view', () => {
 		await expect.poll(offset).toEqual({ dy: 0, dx: 0 });
 	});
 
+	test('an overlay follows its block when the blocks above change size with no write', async ({
+		page
+	}) => {
+		await editor.loadLargeFixture('flat-prose', FIXTURE_BYTES);
+		await view(page, 'hold', 3);
+		await view(page, 'overlay', null, '<span>pinned over block three</span>');
+		const drift = async () => {
+			const [pinned, block] = [await overlayBox(page), await view<Box>(page, 'boxOf')];
+			return pinned && block && Math.round(pinned.top - block.top);
+		};
+		expect(await drift()).toBe(0);
+		// Taller by style alone, as a picture is once it loads: no node mounted, no key, no scroll.
+		await page.evaluate(() => {
+			const first = document.querySelector<HTMLElement>('.editor [data-block-path]')!;
+			first.style.paddingBottom = '120px';
+		});
+		await expect.poll(drift).toBe(0);
+		// Narrower with the window as it was, as a host's side panel makes it: the text wraps anew.
+		await page.evaluate(() => {
+			document.querySelector<HTMLElement>('.editor')!.style.width = '420px';
+		});
+		await expect.poll(drift).toBe(0);
+	});
+
 	test('typing in an input inside an overlay leaves the document alone', async ({ page }) => {
 		await editor.loadContent('first\n\nsecond\n');
 		await editor.focusBlockEnd(1);

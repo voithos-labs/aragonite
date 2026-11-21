@@ -88,6 +88,7 @@
 	import type { DecorationRegistry } from '../decorations/types';
 	import { createEditorRects, type EditorRects } from '../editor-rects';
 	import { createEditorView } from '../editor-view';
+	import { observeResize } from '../windowing/observe-resize';
 	import { createCaretLanding } from '../selection/caret-landing';
 	import { installReorderDrag } from '../editor-actions/reorder-drag';
 	import { createPasteCoordinator } from '../editor-actions/paste-coordinator';
@@ -859,6 +860,10 @@
 		root: () => editorEl ?? null,
 		layer: () => overlayLayerEl ?? null,
 		caretTargetAt: (root, x, y) => rootGestures.caretTargetAtPoint(root, x, y),
+		resized(listen) {
+			const list = editorEl?.querySelector(':scope > .block-list');
+			return list ? observeResize(list, listen) : () => {};
+		},
 		events
 	});
 	onDestroy(editorView.dispose);

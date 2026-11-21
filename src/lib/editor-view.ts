@@ -26,6 +26,9 @@ export function createEditorView(deps: {
 	layer(): HTMLElement | null;
 	/** Where a click at a viewport point would land, placing nothing. */
 	caretTargetAt(root: HTMLElement, x: number, y: number): CaretTarget | null;
+	/** Tells `listen` when the blocks' own box changes size (a picture loads, the editor narrows),
+	 *  which moves blocks with no write and no node mounted; returns the way out. */
+	resized(listen: () => void): () => void;
 	events: Pick<EditorEvents, 'on'>;
 }): EditorView {
 	const { rects, read } = deps;
@@ -57,11 +60,10 @@ export function createEditorView(deps: {
 		const unhear = [deps.events.on('edit', settle), deps.events.on('sourceSwap', settle)];
 		const mounts = new MutationObserver(settle);
 		mounts.observe(root, { childList: true, subtree: true });
-		window.addEventListener('resize', placeAll);
+		unhear.push(deps.resized(settle));
 		return () => {
 			for (const stop of unhear) stop();
 			mounts.disconnect();
-			window.removeEventListener('resize', placeAll);
 		};
 	}
 

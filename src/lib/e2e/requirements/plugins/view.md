@@ -13,3 +13,4 @@
 
 - A held block after the first key typed inside it: `reveal` resolves false and its overlay comes off, while the block read again reveals
 - Typing in an input inside an overlay: the input keeps every key, Backspace and Enter included, and the document doesn't change
+- The blocks above change size with no write: a block above grows taller with no node mounted (a picture finishing its load), then the editor narrows with the window as it was, and the overlay stays on its block both times. Miss-analysis: every overlay row moved the block by a key, a scroll or windowing, the three things the overlay listened for; none moved it by layout alone, so it stayed 120 px off after the growth and 325 px off after the narrowing.
