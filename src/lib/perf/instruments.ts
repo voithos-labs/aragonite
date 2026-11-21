@@ -326,9 +326,9 @@ export function recordByteMapRead(): void {
 	counters.byteMapReads++;
 }
 
-export function recordDocumentWalk(): void {
-	if (!enabled) return;
-	counters.documentWalks++;
+/** Counts a walk whose `root` is a whole document; asks `root` nothing while recording is off. */
+export function recordDocumentWalk(root: object): void {
+	if (enabled && 'suffix' in root) counters.documentWalks++;
 }
 
 export function recordHintRunsLogged(): void {
