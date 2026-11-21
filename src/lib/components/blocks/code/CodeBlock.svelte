@@ -193,16 +193,11 @@
 		lastRenderedRaw = node.raw;
 	}
 
-	// Tokens arrived after the block painted plain: the same text, so the selection goes back where
-	// it was. A composition's commit repaints on its own.
+	// Tokens arrived after the block painted plain. A composition's commit repaints on its own.
 	const painter = createCodePainter(() => activePlugins, repaintWhenReady);
 	function repaintWhenReady(): void {
 		if (!el?.isConnected || !isStillCode() || editableSurface.composing()) return;
-		const range = backend.getRawSelection();
-		const caret = range ? null : backend.getRaw();
-		paintCode();
-		if (range) caretWriter.selectRawRange(el, range.start, range.end);
-		else if (caret !== null) backend.setRaw(caret, { clamp: 'exact' });
+		backend.repaintKeepingSelection(paintCode);
 	}
 
 	$effect(() => {

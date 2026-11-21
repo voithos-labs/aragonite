@@ -7,12 +7,6 @@ import { registerChromeLeaf as bindChromeLeaf } from './editor-actions/plugin/ch
 import { textBlockView } from './components/blocks/text/text-block-view';
 import { computeInlineContent as parseLeafInline } from './core/inline';
 import { defaultGrammarView } from './schema/editor-grammar';
-import { everyInstalledPlugin } from './schema/plugin-activation';
-import {
-	getLanguageAliases as aliasesIn,
-	listLanguages as languagesIn
-} from './components/blocks/code/code-languages';
-import { tokenizeBody } from './components/blocks/code/code-renderer';
 import type { AnyBlockKind, InlineNode } from './core/nodes';
 import type { NodeView } from './core/node-views';
 import type { ChromeLeafOptions } from './editor-actions/plugin/chrome-leaf';
@@ -179,34 +173,14 @@ export { registerBlockCompleter } from './schema/block-completions';
 export type { BlockCompleter, CompletionResult } from './schema/block-completions';
 
 // ── Code-block languages (pre-freeze) ────────────────────────────────────────
-// The registry behind fenced-code highlighting: register extra languages before mounting (an
-// unregistered one round-trips untokenized). The reads below see every installed plugin's.
-export { registerLanguage } from './components/blocks/code/code-languages';
-export type { LanguageGrammar } from './components/blocks/code/code-languages';
-/** Every language once, under its canonical name, sorted. */
-export function listLanguages(): string[] {
-	return languagesIn(everyInstalledPlugin);
-}
-/** The other spellings a language answers to, asked by any of them. */
-export function getLanguageAliases(name: string): readonly string[] {
-	return aliasesIn(name, everyInstalledPlugin);
-}
-/** The code block's own tokenizer, for a plugin's own source view (block math paints its LaTeX
- *  with it). Text-preserving: the fragment's `textContent` is `body`. */
-export function highlightCode(body: string, language: string): DocumentFragment {
-	return tokenizeBody(body, language, everyInstalledPlugin);
-}
-// What `contributes(...).code` answers, the editor drawing the tokens; a source view's
-// `renderSource` paints its code through the `CodePainter` it is handed.
+// What `contributes(...).code` answers, the editor drawing the tokens; a fence no plugin highlights
+// paints plain. A source view's `renderSource` paints its code through the `CodePainter` it gets.
 export type {
 	CodeHighlighter,
 	CodeLanguage,
 	CodePainter,
 	CodeToken
 } from './schema/code-highlighter';
-// Re-exported so a host names the grammar type without importing highlight.js itself, which
-// it holds only transitively.
-export type { LanguageFn } from 'highlight.js';
 // The code block's own drawing of a fenced source, for a kind that holds its own fence: split
 // with `sliceFencedSource`, draw with `renderFencedSource` and your body painter.
 export {

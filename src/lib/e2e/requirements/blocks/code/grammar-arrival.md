@@ -17,6 +17,8 @@ the user is doing may notice: the caret, the selection and the block's height st
   lands it, the block then paints tokens, and the height is unchanged
 - a grammar arriving during a drag selection: the selection the drag ends with covers the text the
   pointer moved over, and the height is unchanged
+- a grammar arriving while a block math source is selected whole (Ctrl+A, `?seed=mathblock-highlight`):
+  the selection holds, so Ctrl+X cuts the whole source
 
 ## Error cases
 
@@ -27,3 +29,5 @@ the user is doing may notice: the caret, the selection and the block's height st
 
 - Nothing could have caught this: grammars loaded eagerly before the highlight package, so no paint
   ever arrived late.
+- The select-all row: the arrival rows ran on the code block alone, whose repaint kept a range; a
+  source view's repaint went through the native-edit path, which keeps only a caret.

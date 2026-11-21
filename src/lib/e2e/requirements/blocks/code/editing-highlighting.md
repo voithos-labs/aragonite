@@ -1,6 +1,6 @@
 # Feature: Code Block Highlighting
 
-Syntax highlighting for code blocks: the token spans a known language produces, the styling of the info string, what an unknown language falls back to, and alias resolution.
+Syntax highlighting for code blocks, through the highlight package the harness lists: the token spans a known language produces, the styling of the info string, what an unknown language falls back to, and alias resolution.
 
 ## Highlighting
 

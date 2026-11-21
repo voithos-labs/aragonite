@@ -5,6 +5,7 @@
 		DEMO_DETAILS,
 		DEMO_EMOJI,
 		DEMO_FOOTNOTES,
+		DEMO_HIGHLIGHT,
 		DEMO_HIGHLIGHT_OCCURRENCES,
 		DEMO_LATEX,
 		DEMO_MERMAID,
@@ -78,6 +79,9 @@
 		// an interval; kept to its own seed so neither reaches another suite.
 		parrot: [DEMO_PARROT],
 		hloccur: [DEMO_HIGHLIGHT_OCCURRENCES],
+		// The multi-line block math with the highlight package listed, for a grammar that lands while the
+		// source is selected. Kept to its own seed: the package's languages fill every code picker.
+		'mathblock-highlight': [DEMO_HIGHLIGHT],
 		// A counting wrapper around the same shipped createOccurrenceSource, so the suite can
 		// read off `window` how often the index rebuilds.
 		'hloccur-memo': [hloccurScanProbePlugin],
@@ -187,6 +191,8 @@
 		// A multi-line `aligned` fence: the render must survive the `\n`s inside it (A7), and
 		// the shown source must stay one text node so the offset walk is exact.
 		'mathblock-multiline':
+			'Before\n\n$$\n\\begin{aligned}\na &= b \\\\\nc &= d\n\\end{aligned}\n$$\n\nAfter\n',
+		'mathblock-highlight':
 			'Before\n\n$$\n\\begin{aligned}\na &= b \\\\\nc &= d\n\\end{aligned}\n$$\n\nAfter\n',
 		// Inline math inside a table cell: the cell's render reuses component widgets, so the
 		// mount id stays the same while typing.

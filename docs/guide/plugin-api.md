@@ -30,7 +30,7 @@ The groups, in page order:
 | [Directive authoring](#directive-authoring) | Owning a `:::name` block without writing your own parsing |
 | [Container authoring](#container-authoring) | Blocks that hold other blocks, plus their title line |
 | [Editable-leaf authoring](#editable-leaf-authoring) | A text-editing block with the editor's own caret, undo, and selection |
-| [Code-block languages](#code-block-languages) | Adding syntax-highlighting grammars beyond the bundled set |
+| [Code-block languages](#code-block-languages) | What highlights fenced code, and drawing a fenced source of your own |
 | [Plugin views](#plugin-views) | What an inline widget, a decoration's widget and an inline menu row are drawn with |
 | [Inline authoring](#inline-authoring) | Your own syntax inside a paragraph, rendered as a widget |
 | [Commands and keybindings](#commands-and-keybindings) | Keyboard shortcuts and commands, per block type or editor-wide |
@@ -736,34 +736,32 @@ The factory's inputs. The required ones are live getters, for the node, the inde
 
 ### Code-block languages
 
-_(pre-freeze / unstable)_ The syntax-highlighting registry behind fenced code. The editor ships a curated couple dozen (the usual suspects: javascript, python, rust, bash, sql, the C family, and friends) plus their aliases, since every grammar is bundle weight for every host. `listLanguages()` tells you exactly which ones you have.
-
-Register **before mounting an editor**: a block already on screen re-tokenizes only when its own bytes next change. An unregistered language is not an error: the fence still authors, commits and round-trips, and its body renders untokenized. A language your plugin's `setup` registers highlights, and shows in the picker, only in the editors that list your plugin. `listLanguages`, `getLanguageAliases` and `highlightCode` have no editor to ask, so they answer for every installed plugin.
+_(pre-freeze / unstable)_ What highlights fenced code. The editor ships no grammars: a fence paints plain until a plugin value contributes a `code` highlighter. The first-party one is the `highlight` package (`@voithos-labs/aragonite-highlight`), with every highlight.js grammar on demand; its README (`packages/highlight/README.md`) has its options. A language no listed highlighter knows isn't an error: the fence still authors, commits and round-trips, and its body paints plain.
 
 | Export | Role |
 | --- | --- |
 | `CodeHighlighter` | What `contributes(...).code` answers: `highlight(body, language)` gives the body's tokens, `null` for plain, or a promise of either, and `languages()` lists what it answers. Several plugins may contribute one; for each spelling the first plugin listing it is asked. The `highlight` package is one |
 | `CodeToken`, `CodeLanguage` | A token is `{ from, to, class }` in body offsets (tokens nest or don't overlap); a language is `{ name, aliases }`, one picker row with its search keys |
 | `CodePainter` | `renderSource`'s second argument: `code(body, language)` paints a body through the editor's highlighters, plain where none answers, and repaints when a late answer arrives |
-| `registerLanguage` | Add a grammar under a name, with optional aliases; register-once, so a repeat call with the same name throws |
-| `listLanguages` | Every registered language once, under its canonical name, sorted: the rows a picker with every installed plugin offers |
-| `getLanguageAliases` | The other spellings a language answers to, asked by any of them: what a picker's filter matches on |
-| `highlightCode` | The code block's tokenizer: `(body, language)` to a text-preserving fragment of `code-tok-*` spans, for a plugin's own source surface |
-| `LanguageGrammar` | The registry's read shape: the resolved name and its definition |
-| `LanguageFn` | highlight.js's grammar-definition type, re-exported so you needn't import highlight.js directly (you hold it only as a transitive dep) |
 | `sliceFencedSource`, `FencedSource` | A fenced source split into its opener line, body and closer line, each keeping its own ending; null when the first line opens no fence |
-| `renderFencedSource` | The code block's own drawing of a fenced source: the fence lines as markers the marker-hiding modes collapse, and the body through the painter you pass (`highlightCode`, say). Text-preserving, and it keeps a line for the caret under an empty last body line |
+| `renderFencedSource` | The code block's own drawing of a fenced source: the fence lines as markers the marker-hiding modes collapse, and the body through the painter you pass (`paint.code`, say). Text-preserving, and it keeps a line for the caret under an empty last body line |
 | `fenceBodyAsDrawn` | The body as `renderFencedSource` draws it: the line break before the closer belongs to the closer's line, unless the body is blank or nothing closes the fence |
 | `fencedBodyRange` | Where the body sits in a fenced source, its line ending left out, or null while the fence has no body line yet. It's what a fenced kind returns from its descriptor's `bodyRange` |
 
-```ts
-import { registerLanguage } from '@voithos-labs/aragonite/plugin';
-import elixir from 'highlight.js/lib/languages/elixir';
+A grammar highlight.js doesn't ship (one you wrote, say) goes on the package's engine, loaded the first time a fence names it:
 
-registerLanguage('elixir', elixir, ['ex', 'exs']);
+```ts
+import { highlight } from '@voithos-labs/aragonite-highlight';
+import { highlightJs } from '@voithos-labs/aragonite-highlight/renderer';
+
+const code = highlight({
+	renderer: highlightJs({
+		languages: { mylang: { load: () => import('./mylang-grammar'), aliases: ['mlg'] } }
+	})
+});
 ```
 
-The picker shows `elixir` once, and `ex` and `exs` are search keys for that row, so a user typing `ex` finds it without knowing the full name.
+The picker shows `mylang` once, and `mlg` is a search key for that row, so a user typing `mlg` finds it without knowing the full name.
 
 ### Plugin views
 

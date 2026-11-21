@@ -96,10 +96,17 @@ function withOwnLanguages(
 		name: name.toLowerCase(),
 		aliases: typeof source === 'function' ? [] : [...(source.aliases ?? [])]
 	}));
+	// A spelling of the host's own leaves the bundled grammars, so each spelling names one language.
+	const taken = new Set(ownLanguages.flatMap((language) => [language.name, ...language.aliases]));
 	return {
 		languages: [
 			...ownLanguages,
-			...resolver.languages.filter((language) => !names.includes(language.name))
+			...resolver.languages
+				.filter((language) => !taken.has(language.name))
+				.map(({ name, aliases }) => ({
+					name,
+					aliases: aliases.filter((alias) => !taken.has(alias))
+				}))
 		],
 		resolve: (name) => own(name.toLowerCase()) ?? resolver.resolve(name)
 	};

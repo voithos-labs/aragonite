@@ -67,8 +67,8 @@ import { probeEditor, setProbePaint } from './paint-probe-plugin';
 type EditorInstance = ReturnType<typeof Editor>;
 
 // A kind whose component throws on render: a throwing stub isn't a full BlockComponent, but it
-// throws before any method is read.
-const throwProbePlugin = definePlugin({
+// throws before any method is read. A route lists it for its blocks to resolve in its editor.
+export const throwProbePlugin = definePlugin({
 	name: 'throw-probe',
 	setup() {
 		registerBlockKind(declarePluginKind('throwTest'), {

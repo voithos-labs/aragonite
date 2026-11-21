@@ -326,7 +326,7 @@ I am feeling :smile: and :tada: today!
 [View the logo](../assets/logo.png)
 ```
 
-- **Syntax Highlighting Aliases:** GitHub leans on Linguist for highlighting, so a fence's language tag accepts hundreds of identifiers and aliases. The editor's code block does the same with highlight.js's grammars and their aliases, read off the first token of the info string (`js {1-3}` still highlights as JavaScript).
+- **Syntax Highlighting Aliases:** GitHub leans on Linguist for highlighting, so a fence's language tag accepts hundreds of identifiers and aliases. With the highlight package listed, the editor's code block does the same with highlight.js's grammars and their aliases, read off the first token of the info string (`js {1-3}` still highlights as JavaScript).
 
 ```text
 (e.g., using `js` or `javascript`, `py` or `python`, `sh` or `bash`)

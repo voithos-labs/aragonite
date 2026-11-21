@@ -4,9 +4,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { definePlugin, type CodeHighlighter, type CodeToken } from '#lib/plugin.js';
 import { installPluginList, type PluginError } from '#lib/schema/plugin-unit.js';
 import { createEditorContributions } from '#lib/schema/editor-contributions.js';
-import { createEditorActivation } from '#lib/schema/plugin-activation.js';
+import { createEditorActivation, everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { createCodePainter } from '#lib/components/blocks/code/code-painter.js';
-import { highlighterLanguages } from '#lib/components/blocks/code/code-languages.js';
+import { highlighterLanguages, languageOwner } from '#lib/components/blocks/code/code-languages.js';
+import { registerEditorBuiltIns } from '#lib/components/editor-built-ins.js';
 import { takeDevWarnsOf } from '#lib/test/support/warn-gate.js';
 import { microtaskCheckpoint } from '#lib/test/harness/microtask-settle.js';
 
@@ -106,6 +107,38 @@ describe('createCodePainter', () => {
 		});
 		expect(html(painter.code('let a', 'x'))).toBe('let a');
 		expect(errors.map((error) => error.plugin)).toEqual(['throws']);
+	});
+
+	// The editor's own registrations run first, as a mount runs them.
+	it('paints a language no highlighter lists plain, asking and reporting nothing', () => {
+		registerEditorBuiltIns();
+		const highlight = vi.fn(() => [{ from: 0, to: 3, class: 'kw' }]);
+		const { painter, errors } = editorWith({
+			name: 'one',
+			code: { languages: () => [{ name: 'x', aliases: [] }], highlight }
+		});
+		expect(html(painter.code('def f(): pass', 'python'))).toBe('def f(): pass');
+		expect(highlight).not.toHaveBeenCalled();
+		expect(errors).toEqual([]);
+	});
+
+	it('paints plain in an editor that lists no highlighter', () => {
+		registerEditorBuiltIns();
+		const painter = createCodePainter(
+			() => everyInstalledPlugin,
+			() => {}
+		);
+		expect(html(painter.code('const x = 1;', 'javascript'))).toBe('const x = 1;');
+	});
+
+	it("finds a fence's owner by its first word, in any case", () => {
+		const { activation } = editorWith({
+			name: 'one',
+			code: { languages: () => [{ name: 'javascript', aliases: ['js'] }], highlight: () => null }
+		});
+		expect(languageOwner('JS {1-3}', activation)?.name).toBe('javascript');
+		expect(languageOwner('JavaScript title="a"', activation)?.name).toBe('javascript');
+		expect(languageOwner('', activation)).toBeNull();
 	});
 
 	it('asks only the first plugin listing a spelling, and lists the union in list order', () => {

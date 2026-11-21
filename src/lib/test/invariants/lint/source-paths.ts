@@ -183,7 +183,7 @@ export const SOURCE = {
 export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	// ── Published entry points and root modules ─────────────────────────────
 	publicBarrel: 'export { createEditor',
-	pluginBarrel: 'export function highlightCode',
+	pluginBarrel: 'export { definePlugin, isPluginInstalled }',
 	svelteBarrel: 'export { default as Editor }',
 	testingBarrel: 'export function applyPasteTransforms',
 	editorProps: 'export interface EditorOptions',

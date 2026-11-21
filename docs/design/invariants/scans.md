@@ -254,6 +254,8 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.353 | Every reader of the text a write is worked out from names the vouch its bytes pass | L |
 | G4.355 | The chain rebuild reports a fold in one place, which checks it | L |
 | G4.357 | A test takes one guard's warnings and leaves the rest to the gate | L |
+| G4.372 | A core-only editor's production page carries no highlight.js | harness |
+| G4.373 | The core imports no highlight.js | L |
 
 ### The entries
 
@@ -414,7 +416,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.77 · One way to belong to no plugin.** `registerAsCore` (`schema/plugin-install.ts`) runs registrations as if no plugin were installing. Its callers are the editor's bootstrap (`registerEditorBuiltIns`) and a registry's `registerCore` for a key it can't recognize itself, both kept by the test reset; `activateDirectives`, which the reset drops; and `registerBuiltInDescriptors` with the modules that register at load. The scan matches the bare name, so an aliased import is caught at its import line. `lint/file-rules.test.ts`.
 
-**G4.78 · The editor's built-ins come in one way.** `registerBuiltInBlocks` and `bootstrapCodeLanguages` are called only from `src/lib/components/editor-built-ins.ts` :: `registerEditorBuiltIns`, which runs them as no plugin (G4.77). Called anywhere else, whichever plugin's setup gets there first owns the paragraph component or the code languages. Shipped source only; unit tests may call the bootstraps directly. `lint/file-rules.test.ts`.
+**G4.78 · The editor's built-ins come in one way.** `registerBuiltInBlocks` is called only from `src/lib/components/editor-built-ins.ts` :: `registerEditorBuiltIns`, which runs it as no plugin (G4.77). Called anywhere else, whichever plugin's setup gets there first owns the paragraph component. Shipped source only; unit tests may call the bootstrap directly. `lint/file-rules.test.ts`.
 
 **G4.79 · One way to ask whether it's a grid.** Ask through `src/lib/schema/block-kind-descriptor.ts` :: `isGridKind` (or `isGridDescriptor` with a descriptor in hand). Any other file with a `'grid'` string in its code fails, a list check like `['strip', 'grid'].includes(contract)` included; declaring the contract, naming it in the type, `role="grid"`, and the insert menu's search keyword are left alone. `lint/file-rules.test.ts`.
 
@@ -739,3 +741,7 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.355 · One push for a fold.** `src/lib/tree-operations/chain-rebuild.ts :: foldWrite` is where a fold is reported and where G1.220 reads it. The scan fails a `folds.push` anywhere else, and a `foldWrite` that stops calling the check. `lint/fold-doors.test.ts`.
 
 **G4.357 · One guard's warnings, taken alone.** A test about one guard reads its fires through `takeDevWarnsOf(tag)` (`test/support/warn-gate.ts`), which leaves every other tag for the gate. A `takeDevWarns()` narrowed to one tag (a `filter`, a `some`) drops the rest unseen: a property did, and hid a check that fired on its every run. `lint/suite-file-rules.test.ts`.
+
+**G4.372 · A core-only page carries no highlight.js.** A core-only editor paints code plain, so `scripts/pack/verify-dev-strip.mjs` fails when its production page's source maps name a highlight.js module, through either build (the prebuilt one while the core leaves highlight.js external). Highlighting is the highlight package's, which an editor lists.
+
+**G4.373 · The core imports no highlight.js.** No module under `src/lib/` imports it, so the page G4.372 builds can't start carrying it again; the highlight package and the tests may. `lint/file-rules.test.ts`.

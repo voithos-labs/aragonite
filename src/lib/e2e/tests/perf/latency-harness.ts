@@ -217,7 +217,7 @@ function codeFenceFixture(lines: number): string {
 
 /**
  * Letters typed at the end of a fence's last line, in live mode, where the fence lines hide; the
- * highlight package is listed where the build reads `?highlight=on` and ignored where it doesn't.
+ * harness highlights it through the package, as 0.11.5's did through the core.
  */
 export async function measureCodeFenceTyping(
 	page: Page,
@@ -225,7 +225,7 @@ export async function measureCodeFenceTyping(
 	lines: number,
 	keystrokes: number
 ): Promise<LatencyMeasurement> {
-	await editor.goto('?presentationMode=live&highlight=on');
+	await editor.goto('?presentationMode=live');
 	const fixture = codeFenceFixture(lines);
 	const loadMs = await loadFixture(page, editor, fixture);
 	const lastLineEnd = fixture.indexOf('\n```\n');

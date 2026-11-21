@@ -465,10 +465,14 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		noteShownSource();
 	}
 
-	// Tokens that arrive after the source painted plain repaint it, the caret kept.
+	// Tokens that arrive after the source painted plain repaint the same text, the selection kept.
 	const painter = createCodePainter(
 		() => activePlugins,
-		() => repaintSource()
+		() => {
+			const el = deps.getEl();
+			if (!el?.isConnected || !deps.renderSource || editableSurface.composing()) return;
+			backend.repaintKeepingSelection(() => paintSource(el, el.textContent ?? ''));
+		}
 	);
 
 	// The browser's own edits (an IME commit, a drop) skip the leaf's splice, so they repaint and

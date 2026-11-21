@@ -1,5 +1,5 @@
-// A host's production build carries none of the editor's dev checks (G4.247) and no dev-only module
-// (G4.265). Vite builds a page that imports the editor, through the Svelte build and the prebuilt
+// A host's production build carries none of the editor's dev checks (G4.247), no dev-only module
+// (G4.265) and no highlight.js (G4.372). Vite builds a page that imports the editor, through the Svelte build and the prebuilt
 // one, in development and in production: every check tag the development build carries must be gone
 // from the production one. The production page's first-load and total JS and its chunk count are
 // budget rows in `size-budget.json`. Run by verify-pack.mjs after `npm run package`;
@@ -77,6 +77,7 @@ export async function verifyDevStrip(root = '.') {
 			}
 			// The prebuilt page's maps name the prebuilt chunks, not the editor's modules.
 			if (route === 'svelte') failures.push(...devOnlyModules(production.outDir));
+			failures.push(...highlightJs(production.outDir, route));
 		}
 	} finally {
 		rmSync(page, { recursive: true, force: true });
@@ -103,6 +104,28 @@ function devOnlyModules(outDir) {
 			([source, bytes]) =>
 				`the svelte production build carries ${bytes} B of ${source.slice(source.lastIndexOf('dist/'))}, a dev-only module: reach it only inside an \`assertInvariant\` check or behind \`devChecksOn\``
 		);
+}
+
+// ── highlight.js ─────────────────────────────────────────────────────────────
+
+/** A module of highlight.js, as a source map spells its path. */
+const HIGHLIGHT_JS = /(^|[\\/])node_modules[\\/]highlight\.js[\\/]/;
+
+/**
+ * A failure when the production page carries highlight.js, which a core-only editor never loads
+ * (G4.372). While the core's prebuilt leaves highlight.js external, the prebuilt page maps it too.
+ * @param {string} outDir
+ * @param {'svelte' | 'prebuilt'} route
+ */
+function highlightJs(outDir, route) {
+	const bytes = [...bytesBySource(outDir)]
+		.filter(([source]) => HIGHLIGHT_JS.test(source))
+		.reduce((sum, [, owned]) => sum + owned, 0);
+	return bytes === 0
+		? []
+		: [
+				`the ${route} production page carries ${bytes} B of highlight.js: a core-only editor paints code plain, and highlighting is the highlight package's`
+			];
 }
 
 // ── The tags ─────────────────────────────────────────────────────────────────

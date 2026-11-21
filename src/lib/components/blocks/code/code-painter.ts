@@ -1,7 +1,8 @@
 /**
  * Paints a code body through the editor's highlighters: the code block's body and every plugin
- * source view (`renderSource`'s `paint`) come here. An answer that arrives later is drawn only
- * while the surface still shows the body and language it was asked for.
+ * source view (`renderSource`'s `paint`) come here. A language no highlighter lists paints plain.
+ * An answer that arrives later is drawn only while the surface still shows the body and language
+ * it was asked for.
  */
 
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
@@ -9,7 +10,6 @@ import type { CodePainter, CodeToken } from '../../../schema/code-highlighter';
 import type { PluginActivation } from '../../../schema/plugin-activation';
 import { isThenable } from '../../../schema/editor-contributions';
 import { languageOwner } from './code-languages';
-import { tokenizeBody } from './code-renderer';
 
 /** A painter for one surface; `repaint` draws the surface again once a waited answer arrives. */
 export function createCodePainter(
@@ -24,9 +24,7 @@ export function createCodePainter(
 			asked = key;
 			if (arrived?.key === key) return drawTokens(body, arrived.tokens);
 			const owner = languageOwner(language, activation());
-			// A language no plugin highlights takes the editor's own languages until they move out.
-			if (!owner) return tokenizeBody(body, language, activation());
-			const answer = body === '' ? null : owner.highlight(body);
+			const answer = !owner || body === '' ? null : owner.highlight(body);
 			if (!isThenable(answer)) return answer ? drawTokens(body, answer) : plain(body);
 			void answer.then((tokens) => {
 				if (asked !== key || !tokens) return;

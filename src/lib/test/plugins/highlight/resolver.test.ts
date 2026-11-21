@@ -33,6 +33,18 @@ describe('the default resolver', () => {
 	it('knows no made-up name', () => {
 		expect(defaultResolver.resolve('no-such-language')).toBeNull();
 	});
+
+	// Miss-analysis: the core's 24 grammars left with their spelling test, so nothing held the
+	// package to the spellings a 0.11.5 document already uses.
+	it('answers every spelling the core highlighted before the package', () => {
+		const spellings = [
+			...['bash', 'sh', 'shell', 'c', 'cpp', 'c++', 'csharp', 'cs', 'c#', 'css', 'diff'],
+			...['dockerfile', 'docker', 'go', 'html', 'htm', 'java', 'javascript', 'js', 'json'],
+			...['kotlin', 'kt', 'latex', 'tex', 'markdown', 'md', 'php', 'powershell', 'ps1'],
+			...['python', 'py', 'ruby', 'rust', 'rs', 'sql', 'swift', 'typescript', 'ts', 'yaml', 'yml']
+		];
+		expect(spellings.filter((spelling) => defaultResolver.resolve(spelling) === null)).toEqual([]);
+	});
 });
 
 describe('the catalog', () => {
@@ -58,5 +70,28 @@ describe('tokensOf', () => {
 			['"<&>"', 'code-tok-string'],
 			['// done', 'code-tok-comment']
 		]);
+	});
+
+	it('keeps a CRLF inside the one run that crosses it', () => {
+		const hljs = HighlightJS.newInstance();
+		hljs.registerLanguage('javascript', defaultResolver.resolve('js') as never);
+		const body = 'const s = `a\r\nb`;';
+		const runs = tokensOf(hljs, body, 'javascript').map((t) => body.slice(t.from, t.to));
+		expect(runs).toContain('`a\r\nb`');
+	});
+
+	it("maps highlight.js's scopes onto the theme's classes, an unmapped one to unknown", () => {
+		const hljs = HighlightJS.newInstance();
+		for (const name of ['css', 'markdown', 'javascript'])
+			hljs.registerLanguage(name, defaultResolver.resolve(name) as never);
+		const classes = (body: string, language: string) =>
+			tokensOf(hljs, body, language).map((t) => `${body.slice(t.from, t.to)}:${t.class}`);
+		expect(classes('a.b#c {}', 'css')).toEqual([
+			'a:code-tok-type',
+			'.b:code-tok-attr',
+			'#c:code-tok-attr'
+		]);
+		expect(classes('# Title', 'markdown')).toEqual(['# Title:code-tok-heading']);
+		expect(classes('x.y', 'javascript')).toEqual(['y:code-tok-unknown']);
 	});
 });

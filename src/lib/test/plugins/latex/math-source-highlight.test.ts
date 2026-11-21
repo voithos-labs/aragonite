@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Block math's shown source paints its LaTeX through the editor's highlighters: tokens once the
-// highlight package's LaTeX grammar arrives.
+// highlight package's LaTeX grammar arrives, plain with latex alone.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
 	destroyMountedEditors,
@@ -52,9 +52,10 @@ describe('block math source painting', () => {
 		expect(mounted.source()).toBe(SOURCE);
 	});
 
-	it("paints with the core's own languages without the highlight package", async () => {
+	it('paints the source plain without the highlight package', async () => {
 		const { source } = await enterMathSource(false);
 		expect(source.textContent).toBe(SOURCE.trimEnd());
-		expect(tokenClasses(source)).toContain('code-tok-comment');
+		expect(source.querySelector('.md-fence-line')).not.toBeNull();
+		expect(tokenClasses(source)).toEqual([]);
 	});
 });

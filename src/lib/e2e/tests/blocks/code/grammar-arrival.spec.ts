@@ -4,6 +4,7 @@ import { EditorPage } from '../../../editor-page';
 import { attachIme } from '../../../simulation/ime';
 import { isChromium } from '../../../browser-engine';
 import { edgeKey } from '../../../platform-keys';
+import { BlockMathPage } from '../../plugins/latex-reveal-helpers';
 
 // Haskell is outside the package's eager set, so its grammar is a chunk of its own: the first
 // script the page asks for once the fence is loaded. The build names chunks by hash alone.
@@ -31,7 +32,7 @@ test.describe('a grammar that arrives after the fence painted', () => {
 
 	test.beforeEach(async ({ page }) => {
 		editor = new EditorPage(page);
-		await editor.goto('?highlight=on');
+		await editor.goto();
 	});
 
 	const tokens = () => editor.getBlock(0).locator('[class^="code-tok-"]');
@@ -128,5 +129,28 @@ test.describe('a grammar that arrives after the fence painted', () => {
 			getComputedStyle(el.closest('[contenteditable]')!).color
 		]);
 		expect(painted).not.toBe(text);
+	});
+});
+
+// Miss-analysis: the arrival rows ran on the code block alone, whose repaint kept a range; a source
+// view's repaint went through the native-edit path, which keeps only a caret.
+test.describe("a grammar that arrives in a source view's selection", () => {
+	test('a select-all in the block math source survives it, so a cut takes it all', async ({
+		page
+	}) => {
+		const math = new BlockMathPage(page);
+		await math.gotoMathSeed('mathblock-highlight');
+		await math.setPresentationMode('live');
+		const grammar = await holdGrammar(page);
+		await math.getBlock(0).click();
+		await page.keyboard.press(edgeKey('lineEnd'));
+		await page.keyboard.press('ArrowRight');
+		await expect(math.source).toBeFocused();
+		await page.keyboard.press('ControlOrMeta+a');
+
+		grammar.release();
+		await expect(math.source.locator('[class^="code-tok-"]').first()).toBeVisible();
+		await page.keyboard.press('ControlOrMeta+x');
+		await expect.poll(() => math.sourceText()).toBe('');
 	});
 });

@@ -19,21 +19,13 @@ import { parse } from '../../core/parser';
 import type { CstNode } from '../../core/nodes';
 import { createTextRender } from '../../components/blocks/text/text-render';
 import { renderCodeBlock } from '../../components/blocks/code/code-renderer';
-import { createCodePainter } from '#lib/components/blocks/code/code-painter.js';
-import type { PluginActivation } from '#lib/schema/plugin-activation.js';
+import { stubPainter } from '#lib/test/harness/code-highlighters.js';
 import { makeRenderHarness } from '#lib/test/harness/text-render.js';
-import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { createCaretMemory } from '#lib/caret/caret-memory.js';
 import { commandContext } from '#lib/test/harness/command-context.js';
 import { testCaretWriter } from '#lib/test/harness/caret-writer.js';
 import { marksPending, pendMark } from '#lib/test/harness/pending-marks.js';
-
-const painterOf = (activation: PluginActivation) =>
-	createCodePainter(
-		() => activation,
-		() => {}
-	);
 
 const toPrev = vi.mocked(extendFocusToPreviousBlock);
 
@@ -46,8 +38,7 @@ interface Env {
  *  would answer for a document that never rendered. */
 function render(node: CstNode): HTMLElement {
 	const { el, deps } = makeRenderHarness(node, { mode: 'live' });
-	if (node.kind === 'fencedCode')
-		el.replaceChildren(renderCodeBlock(node, painterOf(everyInstalledPlugin)));
+	if (node.kind === 'fencedCode') el.replaceChildren(renderCodeBlock(node, stubPainter()));
 	else createTextRender(deps).render();
 	return el;
 }
