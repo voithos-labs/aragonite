@@ -60,7 +60,7 @@ import {
 import { buildImageWidget } from '../../image/widget-dom';
 import type { InlineNode } from '../../../core/nodes';
 import { getBlockKindDescriptor } from '../../../schema/block-kind-descriptor';
-import { createViewWidgetPool } from '../widget-portal';
+import { createViewWidgetPool, type OwnWidgetContext } from '../widget-portal';
 
 export interface TextRenderDeps {
 	get el(): HTMLElement | null;
@@ -89,6 +89,8 @@ export interface TextRenderDeps {
 	navigateTo: (path: number[]) => Promise<boolean>;
 	/** Whether a click follows what it lands on, passed on to widgets that go somewhere. */
 	activationClick: ActivationClick;
+	/** What an `inline()` widget's props read beyond the block. */
+	ownWidgets: OwnWidgetContext;
 	/** Decoration widgets, sorted by position. A getter read inside the render pass on
 	 *  purpose: that read is the dependency that re-renders the block when one changes. */
 	get islands(): readonly IndexedDecoration<WidgetDecoration | ReplaceDecoration>[];
@@ -151,7 +153,8 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		getContentVersion: deps.getContentVersion,
 		navigateTo: deps.navigateTo,
 		reading: deps.reading,
-		activationClick: deps.activationClick
+		activationClick: deps.activationClick,
+		own: deps.ownWidgets
 	});
 	let islandViews = NO_ISLAND_VIEWS;
 
@@ -288,6 +291,8 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		// Always included, unlike the reference and image parts: a mode change re-renders
 		// every mounted block. '' in source mode keeps the default key byte-identical.
 		const mode = deps.reading.mode();
+		// Read for its dependency alone: a theme change runs the render, which tells the widgets.
+		deps.getTheme();
 		const modeKeyPart = mode === 'source' ? '' : mode;
 		const islands = deps.islands;
 		const pendingBreaks = deps.pendingBreakLines();
@@ -304,6 +309,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		if (isProseKind(node.kind)) {
 			if (renderKey === lastRenderedKey && !forceRebuild) {
 				islandViews.update(islands);
+				widgetPool.refresh();
 				return;
 			}
 			// Working out which parts differ allocates, so it stays behind the trace check.

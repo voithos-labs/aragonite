@@ -83,6 +83,12 @@ export function makeRenderHarness(
 		getContentVersion: () => ++version,
 		navigateTo: async () => false,
 		activationClick: () => false,
+		ownWidgets: {
+			editorFor: () => {
+				throw new Error('no plugin editor in a fixture');
+			},
+			byteAt: () => -1
+		},
 		reportRenderError: () => {},
 		brokenUrlCache: new Set<string>()
 	};

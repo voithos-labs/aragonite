@@ -16,6 +16,8 @@ import { registerAsCore } from '../../schema/plugin-install';
 import type { GrammarView } from '../../schema/block-openers';
 import { inlineDescendants } from './walk';
 import type { PluginView } from '../../plugin-view';
+import type { WidgetProps } from '../../schema/inline-type';
+import type { Editor } from '../../schema/plugin-unit';
 
 /** The inline-widget element whose source starts at `start`, or null. The only place this
  *  selector is written: a mistyped copy would fail silently as a null `querySelector`. */
@@ -141,11 +143,23 @@ export interface InlineWidgetDescriptor {
 	frame?: boolean;
 }
 
+/** A widget's editing policy as the editor reads it: `revealOn` names the one route that shows the
+ *  source, where an `inline()` widget shows it on an arrow or on a click alone. */
+export type WidgetEditing = InlineWidgetEditingPolicy & { revealOn?: 'arrows' | 'click' };
+
 /** The editor's own kinds draw without a view: a builder here, or none for the image, which the
- *  render builds per block. */
-interface WidgetEntry extends Omit<InlineWidgetDescriptor, 'view'> {
+ *  render builds per block. An `inline()` widget draws through `own`, which gets `WidgetProps`. */
+export interface WidgetEntry extends Omit<InlineWidgetDescriptor, 'view' | 'editing'> {
 	view?: InlineWidgetDescriptor['view'];
+	editing?: WidgetEditing;
 	draw?(node: InlineNode, raw: string): HTMLElement;
+	own?: {
+		draw: PluginView<WidgetProps<unknown>>;
+		follow?(data: unknown, editor: Editor): void;
+		key?(event: KeyboardEvent, props: WidgetProps<unknown>): boolean;
+		/** The plugin whose editor the drawing gets. */
+		plugin: string;
+	};
 }
 
 const registry = createInlineKindRegistry<WidgetEntry>({
@@ -153,11 +167,19 @@ const registry = createInlineKindRegistry<WidgetEntry>({
 	isBuiltin: isBuiltinInlineKind
 });
 
-/** The kind's descriptor under an editor's grammar: absent where the editor left out the plugin
- *  the entry answers to, so a node of that kind renders as its source. */
-function widgetOf(kind: AnyInlineKind, grammar: GrammarView): WidgetEntry | undefined {
-	return registry.get(kind, grammar.activation);
+/** The kind's descriptor under an editor's grammar: the editor's own construct's, else the
+ *  registry's, absent where the editor left out its plugin, so a node of that kind shows its source. */
+export function widgetOf(kind: AnyInlineKind, grammar: GrammarView): WidgetEntry | undefined {
+	return grammar.inlines?.().get(kind)?.widget ?? registry.get(kind, grammar.activation);
 }
+
+/** Whether a click on the widget shows its source. */
+export const revealsOnClick = (editing: WidgetEditing | undefined): boolean =>
+	editing?.revealSource === true && editing.revealOn !== 'arrows';
+
+/** Whether an arrow into the widget shows its source. */
+export const revealsOnArrow = (editing: WidgetEditing | undefined): boolean =>
+	editing?.revealSource === true && editing.revealOn !== 'click';
 
 /** The message a plugin gets when it passes a drawing field where a `view` belongs. */
 export const UPGRADE_HINT =
@@ -241,7 +263,7 @@ function matchesWidget(
 export function getInlineWidgetEditing(
 	kind: AnyInlineKind,
 	grammar: GrammarView
-): InlineWidgetEditingPolicy | undefined {
+): WidgetEditing | undefined {
 	return widgetOf(kind, grammar)?.editing;
 }
 
@@ -254,13 +276,6 @@ export function isCharacterLikeWidget(kind: AnyInlineKind, grammar: GrammarView)
 /** Whether the kind's widget stands in its line as a picture does (its descriptor's `frame`). */
 export function isFrameWidget(kind: AnyInlineKind, grammar: GrammarView): boolean {
 	return widgetOf(kind, grammar)?.frame === true;
-}
-
-export function getInlineWidgetView(
-	kind: AnyInlineKind,
-	grammar: GrammarView
-): InlineWidgetDescriptor['view'] | undefined {
-	return widgetOf(kind, grammar)?.view;
 }
 
 /** Descends into non-widget parents (the `image` inside `[![alt][ref]][repo]`) but never into a
@@ -318,7 +333,7 @@ export function buildCoreInlineWidget(
 	const entry = widgetOf(node.kind, opts.grammar);
 	if (!entry || !matchesWidget(entry, node, raw, opts.reportWidgetError)) return null;
 	if (entry.draw) return entry.draw(node, raw);
-	return entry.view ? (opts.acquireViewWidget?.(node, raw) ?? null) : null;
+	return entry.view || entry.own ? (opts.acquireViewWidget?.(node, raw) ?? null) : null;
 }
 
 registerCoreInlineWidget('image', {

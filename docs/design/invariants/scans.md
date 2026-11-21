@@ -254,6 +254,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.353 | Every reader of the text a write is worked out from names the vouch its bytes pass | L |
 | G4.355 | The chain rebuild reports a fold in one place, which checks it | L |
 | G4.357 | A test takes one guard's warnings and leaves the rest to the gate | L |
+| G4.365 | Inside the library, every parse names the grammar it reads | L |
 
 ### The entries
 
@@ -568,7 +569,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.209 · The list item's marker stays in its cell.** A prefix handed to a child block paints only on text, so an item that opened with a code block, a table or another list once drew no marker and hid its bytes. `ambientPrefixForFirst` is named only where a plugin container offers its prefix and where `BlockList` hands it on. `lint/file-rules.test.ts`.
 
-**G4.211 · Every source-showing kind gets the caret rows.** `widget-reveal-caret.spec.ts` types each kind's opening byte before a body that completes it, in source and live mode, and expects the caret one past the byte with the source shown (G1.115 is the runtime half). The scan fails a file registering `revealSource: true` with no row there, or, for a kind with a content span (inline math), a row whose spec is gone. `e2e/lint/reveal-kinds-covered.test.ts`.
+**G4.211 · Every source-showing kind gets the caret rows.** `widget-reveal-caret.spec.ts` types each kind's opening byte before a body that completes it, in source and live mode, and expects the caret one past the byte with the source shown (G1.115 is the runtime half). The scan fails a file whose widget shows its source (`revealSource: true`, or an `inline()` widget's `arrows: 'into'` or `click: 'source'`) with no row there, or, for a kind with a content span (inline math), a row whose spec is gone. `e2e/lint/reveal-kinds-covered.test.ts`.
 
 **G4.212 · The shared clipboard helper.** A spec that calls `navigator.clipboard` or presses the paste chord itself only works where the real clipboard answers the page, which WebKit's doesn't, so both fail the scan outside `e2e/clipboard-arm.ts`. The helper is where each engine's clipboard lives: the system clipboard in Chromium, an in-page store the `page` fixture installs in WebKit. `e2e/lint/e2e-drivers.test.ts`.
 
@@ -739,3 +740,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.355 · One push for a fold.** `src/lib/tree-operations/chain-rebuild.ts :: foldWrite` is where a fold is reported and where G1.220 reads it. The scan fails a `folds.push` anywhere else, and a `foldWrite` that stops calling the check. `lint/fold-doors.test.ts`.
 
 **G4.357 · One guard's warnings, taken alone.** A test about one guard reads its fires through `takeDevWarnsOf(tag)` (`test/support/warn-gate.ts`), which leaves every other tag for the gate. A `takeDevWarns()` narrowed to one tag (a `filter`, a `some`) drops the rest unseen: a property did, and hid a check that fired on its every run. `lint/suite-file-rules.test.ts`.
+
+**G4.365 · A parse names its grammar.** Inside `src/lib`, every call of `parse`, `parseInline` or `blockquoteExtent` passes a grammar. Without one they read every installed plugin's syntax and none of an editor's own `inline()` constructs, so a construct would read as text on that path. The published kits and the three entry points are excluded. `lint/call-site-rules.test.ts`; the runtime half is the `everyPluginTableReads` counter row in `test/plugins/inline/inline-widget.svelte.test.ts`.

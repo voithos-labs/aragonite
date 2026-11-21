@@ -146,15 +146,18 @@ function readSplitBytes(
 
 // ── The chain ────────────────────────────────────────────────────────────────
 
-/** What a cut inside `node` does: its kind's row, else `whole` for a widget, no part of which
- *  stands alone. Undefined for a node with no say. */
+/** What a cut inside `node` does: an `inline()` construct's `split`, else its kind's row, else
+ *  `whole` for a widget, no part of which stands alone. Undefined for a node with no say. */
 export function splitBehaviorOf(
 	node: InlineNode,
 	raw: string,
 	grammar: GrammarView
 ): SplitBehavior | undefined {
-	const row = getInlineConstructPolicy(node.kind)?.splitBehavior;
-	if (row) return row;
+	const declared =
+		node.syntaxClaim?.split ??
+		getInlineConstructPolicy(node.kind)?.splitBehavior ??
+		grammar.inlines?.().get(node.kind)?.split;
+	if (declared) return declared;
 	return isInlineWidget(node, raw, grammar) ? 'whole' : undefined;
 }
 

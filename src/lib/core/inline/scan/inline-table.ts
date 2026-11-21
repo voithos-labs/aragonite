@@ -1,11 +1,15 @@
 /**
  * One editor's inline syntax, as its parse reads it: the handlers it asks at each character, in
  * order, the characters the parse stops at, and the triggers that pair as they're typed. Built
- * from the editor's own grammar (the core's handlers, and the registrar's records for the plugins
- * it runs) once per change, so the parse never asks which plugin a handler answers to.
+ * from the editor's own grammar (its plugins' `inline()` constructs first, then the core's handlers
+ * and the registrar's records for the plugins it runs) once per change, so the parse never asks
+ * which plugin a handler answers to.
  */
 import type { GrammarView } from '../../../schema/block-openers';
-import { resolvesIn } from '../../../schema/plugin-activation';
+import type { InstalledInline } from '../../../schema/inline-type';
+import type { AnyInlineKind } from '../../nodes';
+import { everyInstalledPlugin, resolvesIn } from '../../../schema/plugin-activation';
+import { recordEveryPluginTable } from '../../../perf/instruments';
 import { pluginInstallGeneration } from '../../../schema/plugin-install';
 import { enrollTestReset } from '../../../schema/registry-reset';
 import {
@@ -29,21 +33,25 @@ export interface InlineTable {
 /** The table `grammar` reads; the same object until a handler, a plugin or its list changes. */
 export function inlineTable(grammar: GrammarView): InlineTable {
 	const { activation } = grammar;
+	if (activation === everyInstalledPlugin) recordEveryPluginTable();
 	const held = tables.get(grammar);
+	const own = grammar.inlines?.() ?? NO_INLINES;
 	if (
 		held &&
 		held.registry === registryVersion() &&
 		held.core === coreVersion &&
 		held.installs === pluginInstallGeneration() &&
-		held.list === activation.generation
+		held.list === activation.generation &&
+		held.own === own
 	)
 		return held.table;
-	const table = buildTable(grammar);
+	const table = buildTable(grammar, own);
 	tables.set(grammar, {
 		registry: registryVersion(),
 		core: coreVersion,
 		installs: pluginInstallGeneration(),
 		list: activation.generation,
+		own,
 		table
 	});
 	return table;
@@ -75,13 +83,19 @@ interface Held {
 	core: number;
 	installs: number;
 	list: number | undefined;
+	own: ReadonlyMap<AnyInlineKind, InstalledInline>;
 	table: InlineTable;
 }
+
+const NO_INLINES: ReadonlyMap<AnyInlineKind, InstalledInline> = new Map();
 
 const tables = new WeakMap<GrammarView, Held>();
 const NONE: readonly InlineHandler[] = [];
 
-function buildTable(grammar: GrammarView): InlineTable {
+function buildTable(
+	grammar: GrammarView,
+	own: ReadonlyMap<AnyInlineKind, InstalledInline>
+): InlineTable {
 	const byChar = new Map<string, InlineHandler[]>();
 	const pairing = new Set<string>();
 	for (const { trigger, autoPair, handler } of [...core, ...registeredHandlers()]) {
@@ -90,6 +104,10 @@ function buildTable(grammar: GrammarView): InlineTable {
 		if (autoPair) pairing.add(trigger);
 	}
 	for (const list of byChar.values()) list.sort(byHandlerOrder);
+	for (const [trigger, constructs] of ownByChar(own)) {
+		byChar.set(trigger, [...constructs.map((c) => c.handler), ...(byChar.get(trigger) ?? [])]);
+		if (constructs.some((c) => c.pair)) pairing.add(trigger);
+	}
 	const triggers = [...byChar.keys()].map((c) => c.replace(/[\\\]^-]/, '\\$&')).join('');
 	return {
 		handlers: (char) => byChar.get(char) ?? NONE,
@@ -98,4 +116,37 @@ function buildTable(grammar: GrammarView): InlineTable {
 			: BUILT_IN_SPECIALS,
 		pairs: (char) => pairing.has(char)
 	};
+}
+
+/** The editor's own constructs per character, in the order they're tried: the longer prefix, then
+ *  the name, then each placed after the ones its `after` names. */
+function ownByChar(
+	own: ReadonlyMap<AnyInlineKind, InstalledInline>
+): Map<string, InstalledInline[]> {
+	const byChar = new Map<string, InstalledInline[]>();
+	for (const construct of own.values()) {
+		byChar.set(construct.trigger, [...(byChar.get(construct.trigger) ?? []), construct]);
+	}
+	for (const [trigger, list] of byChar) {
+		list.sort(
+			(a, b) => b.handler.prefix.length - a.handler.prefix.length || (a.kind < b.kind ? -1 : 1)
+		);
+		byChar.set(trigger, afterOrder(list));
+	}
+	return byChar;
+}
+
+// Stable: each round takes the first construct whose `after` names are all placed; a cycle keeps
+// the rest in their sorted order.
+function afterOrder(list: InstalledInline[]): InstalledInline[] {
+	const placed: InstalledInline[] = [];
+	const waiting = [...list];
+	const names = new Set(list.map((c) => c.kind as string));
+	while (waiting.length > 0) {
+		const ready = waiting.findIndex((c) =>
+			c.after.every(({ name }) => !names.has(name) || placed.some((p) => p.kind === name))
+		);
+		placed.push(waiting.splice(ready < 0 ? 0 : ready, 1)[0]);
+	}
+	return placed;
 }

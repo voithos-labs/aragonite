@@ -1,5 +1,5 @@
 /**
- * G4.211: every inline widget kind registered with `revealSource` is a row of the typed-opener
+ * G4.211: every inline widget kind that shows its source is a row of the typed-opener
  * spec (`plugins/widget-reveal-caret.spec.ts`), so a new kind that shows its source gets the
  * caret rows the day it is registered. A kind with a content span names the spec that holds it.
  */
@@ -13,21 +13,24 @@ const REGISTRATIONS: Record<string, { kind: string } | { coveredBy: string }> = 
 	'src/lib/core/directive/kinds.ts': { kind: 'directiveText' },
 	'packages/footnotes/src/footnote-reference.ts': { kind: 'footnote-ref' },
 	'src/routes/test/plugins/tags/tag-plugin.ts': { kind: 'harness-tag' },
-	'src/routes/test/plugins/wikilinks/link-plugin.ts': { kind: 'harness-wikilink' },
+	'src/routes/test/plugins/wikilinks/link-plugin.ts': { kind: 'harness-wikilinks/wikilink' },
 	'packages/latex/src/latex-kind.ts': {
 		coveredBy: 'src/lib/e2e/tests/plugins/inline-delimiter-autopair.spec.ts'
 	}
 };
 
-const REVEALS = /\brevealSource:\s*true\b/;
+// The registrar's flag, or an `inline()` widget's arrow or click that shows the source.
+const REVEALS = /\brevealSource:\s*true\b|\barrows:\s*'into'|\bclick:\s*'source'/;
 // Directory names, skipped wherever they sit: the suites and the published test kit.
 const TEST_DIRS = ['test', 'e2e', 'testing'];
+// The maker and its types name those fields, and register no kind of their own.
+const MAKER = ['src/lib/schema/inline-maker.ts', 'src/lib/schema/inline-type.ts'];
 
 function registeringFiles(): string[] {
 	return [...LIBRARY_ROOTS, 'src/routes/test/plugins']
 		.flatMap((root) => collectFiles(root, { extensions: ['.ts', '.svelte'], skip: TEST_DIRS }))
 		.map(readSource)
-		.filter((file) => REVEALS.test(file.code))
+		.filter((file) => !MAKER.includes(file.relPath) && REVEALS.test(file.code))
 		.map((file) => file.relPath)
 		.sort();
 }

@@ -46,6 +46,8 @@ export interface PerfSnapshot {
 	inlineComputeCount: number;
 	/** Inline parses that built scan state: the ones plain text could not skip. */
 	inlineScanCount: number;
+	/** Inline tables read for every installed plugin, which no editor's own parse should ask. */
+	everyPluginTableReads: number;
 	/** Inline-format coverage reads that actually parsed: what a toolbar's pressed state costs. */
 	formatCoverageReads: number;
 	/** Renders of inline content read back for what the screen shows: what a hidden edge costs. */
@@ -131,6 +133,7 @@ function emptySnapshot(): PerfSnapshot {
 		parseBytes: 0,
 		inlineComputeCount: 0,
 		inlineScanCount: 0,
+		everyPluginTableReads: 0,
 		formatCoverageReads: 0,
 		screenReads: 0,
 		markerRunReads: 0,
@@ -285,6 +288,11 @@ export function recordInlineCompute(): void {
 export function recordInlineScan(): void {
 	if (!enabled) return;
 	counters.inlineScanCount++;
+}
+
+export function recordEveryPluginTable(): void {
+	if (!enabled) return;
+	counters.everyPluginTableReads++;
 }
 
 export function recordFormatCoverageRead(): void {

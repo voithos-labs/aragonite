@@ -28,7 +28,7 @@ import type { ReplaceDecoration, WidgetDecoration } from '../../../decorations/t
 import { mountDecorationWidget } from '../../../decorations/widget-dom';
 import { devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { getBlockKindDescriptor } from '../../../schema/block-kind-descriptor';
-import { createViewWidgetPool } from '../widget-portal';
+import { createViewWidgetPool, type OwnWidgetContext } from '../widget-portal';
 import type { Reading } from '../../../schema/reading';
 
 export interface CellRenderDeps {
@@ -50,6 +50,8 @@ export interface CellRenderDeps {
 	navigateTo: (path: number[]) => Promise<boolean>;
 	/** Whether a click follows what it lands on, passed on to widgets that go somewhere. */
 	activationClick: ActivationClick;
+	/** What an `inline()` widget's props read beyond the block. */
+	ownWidgets: OwnWidgetContext;
 	/** Decoration widgets, sorted by position. A getter read inside the render pass on
 	 *  purpose: that read is the dependency that re-renders the cell when one changes. */
 	get islands(): readonly IndexedDecoration<WidgetDecoration | ReplaceDecoration>[];
@@ -86,7 +88,8 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 		getContentVersion: deps.getContentVersion,
 		navigateTo: deps.navigateTo,
 		reading: deps.reading,
-		activationClick: deps.activationClick
+		activationClick: deps.activationClick,
+		own: deps.ownWidgets
 	});
 	let islandViews = NO_ISLAND_VIEWS;
 
@@ -112,6 +115,8 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 		// Always included, unlike the reference part: a mode change re-renders every mounted
 		// cell. '' in source mode keeps the default key byte-identical, as text-render does.
 		const mode = deps.reading.mode();
+		// Read for its dependency alone: a theme change runs the render, which tells the widgets.
+		deps.getTheme();
 		const modeKeyPart = mode === 'source' ? '' : mode;
 		const islands = deps.islands;
 		const shown = deps.shownSource();
@@ -120,6 +125,7 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 		const forceRebuild = opts?.forceRebuild ?? false;
 		if (renderKey === lastRenderedKey && !forceRebuild) {
 			islandViews.update(islands);
+			widgetPool.refresh();
 			return;
 		}
 

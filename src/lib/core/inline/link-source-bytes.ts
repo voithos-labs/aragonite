@@ -35,7 +35,7 @@ export function buildLinkEditBytes(
 	fields: LinkFields,
 	reading: Reading
 ): string | null {
-	if (declineClaimed(link, 'edit')) return null;
+	if (link.syntaxClaim) return claimedLinkBytes(link, fields, 'edit');
 	if (link.kind === 'autolink') return autolinkBytes(link, display, fields.url, reading);
 	return verified(buildLinkSourceBytes(fields), link.start, link.end, display, reading);
 }
@@ -97,7 +97,7 @@ export function buildLinkUnwrapBytes(
 	display: string,
 	reading: Reading
 ): string | null {
-	if (declineClaimed(link, 'remove')) return null;
+	if (link.syntaxClaim && !link.syntaxClaim.link) return claimedLinkBytes(link, null, 'remove');
 	const [textStart, textEnd] = linkTextRange(link, display);
 	const plain = display.slice(textStart, textEnd);
 	return verified(
@@ -141,7 +141,11 @@ export function buildLinkRetitleBytes(
 	url: string,
 	reading: Reading
 ): string | null {
-	if (declineClaimed(link, 'edit') || text === '') return null;
+	if (text === '') return null;
+	if (link.syntaxClaim) {
+		const title = link.title === undefined ? {} : { title: link.title };
+		return claimedLinkBytes(link, { text, url, ...title }, 'edit');
+	}
 	// An autolink's text is its URL, so a text naming the URL (an email without `mailto:` too) keeps
 	// it an autolink.
 	if (link.kind === 'autolink' && (text === url || text === schemeless(link, display, url))) {
@@ -255,14 +259,22 @@ function buildLinkSourceBytes(fields: LinkFields): string {
 
 // ── Verification ────────────────────────────────────────────────────────────
 
-function declineClaimed(link: InlineNode, what: string): boolean {
-	const claim = link.syntaxClaim;
-	if (!claim) return false;
-	devWarn(
-		'link-edit',
-		`${what} declined: the "${claim.prefix}" inline syntax handler owns these bytes and registered no link rewriter`
-	);
-	return true;
+/** A claimed link's bytes from its construct's writer; null, with a dev warning, where it has none
+ *  or can't hold the edit, since GFM written over the claim would destroy its syntax. */
+function claimedLinkBytes(
+	link: InlineNode,
+	fields: { text: string; url: string; title?: string } | null,
+	what: string
+): string | null {
+	const claim = link.syntaxClaim!;
+	const bytes = fields && claim.rewriteLink ? claim.rewriteLink(fields) : null;
+	if (bytes === null) {
+		devWarn(
+			'link-edit',
+			`${what} declined: the "${claim.prefix}" inline syntax owns these bytes and ${claim.rewriteLink ? 'its writer cannot hold this edit' : 'has no link writer'}`
+		);
+	}
+	return bytes;
 }
 
 /** What the user sees for `raw` in the content reading: the link editor may edit a destination

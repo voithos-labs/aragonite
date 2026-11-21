@@ -2,9 +2,9 @@ import { test, expect } from '../../fixtures';
 import { PluginsPage, capturedErrors } from './helpers';
 
 /**
- * An inline syntax handler turning `![[path|width]]` into the built-in `image` node. Every read
- * path treats it as an image and the write paths must not: without `rewriteImage` a resize
- * replaces the embed with a plain inline image, which round-trips perfectly as something else.
+ * An `inline()` construct reading `![[path|width]]` as the built-in `image` node. Every read path
+ * treats it as an image and the write paths must not: a resize goes through its `write`, never a
+ * plain inline image, which would round-trip perfectly as something else.
  */
 
 const EMBED = '![[/test-fixtures/sample.png|400]]';

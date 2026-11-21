@@ -21,6 +21,8 @@ import { eventToChord } from '../../../schema/keybindings';
 import { dispatchKeyCommand, type KindCommandTarget } from '../../../schema/block-commands';
 import { commandForKey } from '../../../schema/commands';
 import type { AnyBlockKind } from '../../../core/nodes';
+import type { NodeView } from '../../../core/node-views';
+import type { OwnWidgetContext } from '../widget-portal';
 import type { AnyCommandId } from '../../../schema/command-id';
 import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';
 import type { EditableSurfaceDeps } from './editable-surface';
@@ -67,6 +69,9 @@ export interface SurfaceWiring {
 	dispatchChord(e: KeyboardEvent, target: KindCommandTarget): boolean;
 	/** The command a keypress names at `kind`, overrides included, without running it. */
 	resolveChord(e: KeyboardEvent, kind: AnyBlockKind): AnyCommandId | null;
+	/** What an `inline()` widget in the block reads: its plugin's editor, and where a byte of the
+	 *  block sits in the document. */
+	ownWidgets(node: () => NodeView, path: () => readonly number[]): OwnWidgetContext;
 }
 
 export function wireSurfaceContexts(): SurfaceWiring {
@@ -143,7 +148,11 @@ export function wireSurfaceContexts(): SurfaceWiring {
 	const resolveChord = (e: KeyboardEvent, kind: AnyBlockKind): AnyCommandId | null =>
 		commandForKey(e, kind, commands);
 
-	return { deps, services, policies, doc, dispatchChord, resolveChord };
+	const ownWidgets = (node: () => NodeView, path: () => readonly number[]): OwnWidgetContext => ({
+		editorFor: doc.scopedEditor,
+		byteAt: (offset) => services.read.blockOf(node(), path()).byteAt(offset)
+	});
+	return { deps, services, policies, doc, dispatchChord, resolveChord, ownWidgets };
 }
 
 // Windowed out while focused: hand focus to the editor root so the next keystroke

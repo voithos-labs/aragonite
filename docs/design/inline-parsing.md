@@ -156,6 +156,8 @@ registerInlineSyntax('%%', recognizer);
 
 The contract is deliberately narrow: a recognizer that returns a node not starting at the trigger, or that fails to advance, throws right there (`inline-syntax "^" returned a node starting at 3, not at its trigger 2`) rather than producing a tree with a gap or an overlap in its coverage.
 
+A plugin value lists an `inline()` construct instead (`src/lib/schema/inline-maker.ts`): a prefix, a matcher (a sticky regex, or a function for a match a regex would make slow) and one of four drawings. Its editor names it `plugin/local` and asks it first on its character, ahead of the core's handlers and the registrar's records. Constructs on one character go longer prefix first, then by name, then behind whatever their `after` names. The prefix rules above hold for it, and another editor on the page doesn't read it.
+
 ### Separation from the block parser
 
 The block parser never calls the inline parser. The editor layer triggers inline parsing after block parsing, because:

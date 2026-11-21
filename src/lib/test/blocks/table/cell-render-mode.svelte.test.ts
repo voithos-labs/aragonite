@@ -59,6 +59,12 @@ function mountCell(raw: string) {
 		getContentVersion: () => 0,
 		navigateTo: async () => false,
 		activationClick: () => false,
+		ownWidgets: {
+			editorFor: () => {
+				throw new Error('no plugin editor in a fixture');
+			},
+			byteAt: () => -1
+		},
 		reportRenderError: () => {},
 		get islands() {
 			return [];

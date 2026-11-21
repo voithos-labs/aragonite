@@ -1,8 +1,8 @@
-# Feature: an inline handler that creates a built-in image keeps its own bytes
+# Feature: an inline construct that reads as a built-in image keeps its own bytes
 
-The `wiki-embed` dogfood takes `![[path|width]]` through an inline handler on the `![[` prefix
-and creates a built-in `image` node, so the embed is an image as far as the whole editor is
-concerned. Its `rewriteImage` hook is what lets an edit come back as `![[…]]` rather than as
+The `wiki-embed` dogfood reads `![[path|width]]` through an `inline()` construct on the `![[`
+prefix with `as: 'image'`, which makes a built-in `image` node, so the embed is an image as far as the whole editor is
+concerned. Its `write` is what lets an edit come back as `![[…]]` rather than as
 GFM. Seed `wiki-embed`: block 0 `Before`, block 1 the embed at width 400, block 2 `After`.
 
 ## Happy paths
@@ -21,6 +21,6 @@ GFM. Seed `wiki-embed`: block 0 `Before`, block 1 the embed at width 400, block 
 
 ## Error cases
 
-- The overlapping case it declines is a unit concern (`handler-claims.test.ts`): the
-  handler declines `![[a]](u)`, which is a built-in image the editor still owns. Both resize
-  gestures assert that no console errors were captured.
+- The overlapping case is a unit concern (`inline/inline-reads.test.ts`): the editor declines the
+  claim on `![[a]](u)`, which is a built-in image it still owns. Both resize gestures assert that
+  no console errors were captured.

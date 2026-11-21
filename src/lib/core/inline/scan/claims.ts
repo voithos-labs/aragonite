@@ -15,9 +15,10 @@ export function checkClaim(node: InlineNode, prefix: string, pos: number, end: n
 	}
 }
 
-/** Marks every built-in node the handler built, so the editor's writers keep its syntax. */
+/** Marks every built-in node the handler built, so the editor's writers keep its syntax; an
+ *  `inline()` construct sets its node's claim itself, its writer bound to the node's data. */
 export function stampClaim(node: InlineNode, handler: InlineHandler): void {
-	const claim = {
+	const claim = node.syntaxClaim ?? {
 		prefix: handler.prefix,
 		...(handler.rewriteImage ? { rewriteImage: handler.rewriteImage } : {})
 	};

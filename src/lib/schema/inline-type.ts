@@ -1,0 +1,230 @@
+/**
+ * A plugin's inline construct as an editor installs it. `inline(...)` (`inline-maker.ts`) builds
+ * everything the construct needs when it's called; an editor running the plugin names it after
+ * the plugin (`wikilinks/note`), asks its claim from the editor's own inline table and keeps its
+ * drawing on the editor's grammar, so another editor on the page reads the same bytes without it.
+ */
+import type { AnyInlineKind, InlineNode, PluginInlineKind } from '../core/nodes';
+import type { InlineHandler } from '../core/inline/scan/plugin-syntax';
+import type { WidgetEntry } from '../core/inline/inline-widgets';
+import type { DrawContext } from './drawing';
+import type { InlineType } from './doc-view';
+import type { Editor, InstalledPlugin, PluginError } from './plugin-unit';
+import { qualifiedName } from './plugin-name';
+
+// ── Public API ───────────────────────────────────────────────────────────────
+
+/** An inline construct as a plugin lists it in `Contribution.inlines`: `name` is its kind, qualified
+ *  by its plugin's name once an editor runs the plugin. */
+export interface Inline<D = unknown> extends InlineType {
+	readonly name: string;
+	readonly label: string;
+	readonly '~data'?: D;
+}
+
+interface InlineCommon<D> {
+	/** Lowercase letters, digits and hyphens. */
+	name: string;
+	label: string;
+	/** What every claim starts with: one character, or two or more where the first is one the editor
+	 *  reads itself (`[[`, `![[`). */
+	prefix: string;
+	/** Bytes the construct reads, for the published checks. */
+	sample: string | readonly string[];
+	/** Constructs on the same character this one is tried after; any construct is tried before the
+	 *  editor's own reading of its character. */
+	after?: InlineType | readonly InlineType[];
+	/** Typing the one-character prefix writes a second one after the caret. */
+	pair?: boolean;
+	/** A cut inside a claim (Enter, a paste) moves to its nearer edge, or cuts its bytes where it
+	 *  falls. Default `'whole'`. */
+	split?: 'whole' | 'plain';
+	/** `D`'s witness for a type check; never read. */
+	readonly '~data'?: D;
+}
+
+/** A regex matched at the prefix (made sticky); `read` turns its match into the claim's data, null
+ *  to leave the bytes to the editor. */
+export interface RegexMatcher<D> {
+	match: RegExp;
+	read(match: RegExpExecArray): D | null;
+}
+
+/** For a match a regex would make slow: where the claim at `at` ends (at most `end`), or -1 for
+ *  none; `read` gets the claim's bytes. */
+export interface FunctionMatcher<D> {
+	match(text: string, at: number, end: number): number;
+	read(claim: string): D | null;
+}
+
+/** How a claim draws: a widget, a built-in image or link written in the plugin's own syntax, or its
+ *  bytes with a class. */
+export type InlineArm<D> =
+	| {
+			widget: Widget;
+			/** Draws into the element the editor made, as a `PluginView` does (`svelteView`, `reactView`). */
+			draw(
+				target: HTMLElement,
+				props: WidgetProps<D>
+			): { update?(props: WidgetProps<D>): void; destroy?(): void | Promise<void> };
+			/** Runs on the click the host picked for links, with `click: 'follow'`. */
+			follow?(data: D, editor: Editor): void;
+			/** A key pressed while the widget is selected whole: true takes it. Write through
+			 *  `props.editor.edit()`; the key's target is the editable it sits in. */
+			key?(event: KeyboardEvent, props: WidgetProps<D>): boolean;
+	  }
+	| {
+			as: 'image';
+			image(data: D): ImagePiece;
+			/** The claim's bytes holding `image`, or null for an edit the syntax can't hold. Without
+			 *  it every edit of the image is refused. */
+			write?(image: ImagePiece, data: D): string | null;
+	  }
+	| {
+			as: 'link';
+			/** `text` is a run of the claim's bytes: the link shows it and hides the rest in live mode,
+			 *  and a claim whose text isn't there is left to the editor's own reading. */
+			link(data: D): LinkPiece;
+			/** The claim's bytes holding `link`, or null; without it the link card's edits are refused. */
+			write?(link: LinkPiece, data: D): string | null;
+	  }
+	| { class: string };
+
+export type InlineSpec<D> = InlineCommon<D> & (RegexMatcher<D> | FunctionMatcher<D>) & InlineArm<D>;
+
+/** How a widget edits. `arrows: 'into'` and `click: 'source'` each show its bytes for editing;
+ *  `click: 'follow'` runs `follow` on the host's link click, and another click acts as `'source'`
+ *  where `arrows` is `'into'`, else as `'none'`. */
+export interface Widget {
+	/** One key deletes it, or the first selects it and the second deletes. */
+	delete: 'whole' | 'select-first';
+	/** An arrow steps over it like a character, selects it whole, or shows its bytes. */
+	arrows: 'over' | 'select' | 'into';
+	click: 'source' | 'follow' | 'none';
+	/** `'tall'` stands it in its line as a picture does; a caret beside it draws at the text's height. */
+	height?: 'line' | 'tall';
+	/** Where the caret may sit in the shown bytes (`$x$` gives `{ start: 1, end: 2 }`). */
+	inner?(source: string): { start: number; end: number } | null;
+	/** The offset into the bytes a click at `point` names, for a drawing only the plugin can map. */
+	caret?(el: HTMLElement, point: { x: number; y: number }): number | null;
+}
+
+/** What a widget's drawing gets, updated when its bytes, position, mode or theme change. `from` and
+ *  `to` are its document bytes, read when asked. */
+export interface WidgetProps<D> {
+	readonly data: D;
+	readonly source: string;
+	readonly from: number;
+	readonly to: number;
+	readonly mode: DrawContext['mode'];
+	readonly theme: string;
+	readonly editor: Editor;
+}
+
+export interface ImagePiece {
+	readonly src: string;
+	readonly alt: string;
+	readonly title: string | null;
+	readonly width: number | null;
+	readonly height: number | null;
+}
+
+export interface LinkPiece {
+	readonly href: string;
+	readonly text: string;
+	readonly title: string | null;
+}
+
+// ── What an editor installs ──────────────────────────────────────────────────
+
+/** What `inline()` built: everything an editor needs once it names the construct. */
+export interface InlineMaking {
+	readonly local: string;
+	readonly label: string;
+	readonly prefix: string;
+	readonly after: readonly InlineType[];
+	readonly pair: boolean;
+	readonly split: 'whole' | 'plain';
+	/** The node claimed at `pos` in `[pos, end)`; a widget's or a class's takes `kind`. */
+	claim(raw: string, pos: number, end: number, kind: PluginInlineKind): InlineNode | null;
+	/** A widget's entry, its plugin named at install; null for the other arms. */
+	readonly widget:
+		(Omit<WidgetEntry, 'own'> & { own: Omit<NonNullable<WidgetEntry['own']>, 'plugin'> }) | null;
+	readonly className: string | null;
+}
+
+/** One of an editor's own inline constructs, named and ready to read. */
+export interface InstalledInline {
+	readonly kind: PluginInlineKind;
+	readonly trigger: string;
+	readonly handler: InlineHandler;
+	readonly pair: boolean;
+	/** The constructs it is tried after on its character, read once every construct is named. */
+	readonly after: readonly InlineType[];
+	readonly split: 'whole' | 'plain';
+	readonly widget: WidgetEntry | null;
+	readonly className: string | null;
+}
+
+/** An inline construct a maker made; `name` is its local name until an editor names it. */
+export function madeInline<D>(making: InlineMaking): Inline<D> {
+	const made = { [MAKING]: making, [OWNER]: null as string | null, label: making.label };
+	return Object.defineProperty(made, 'name', {
+		enumerable: true,
+		get: () => (made[OWNER] === null ? making.local : qualifiedName(made[OWNER], making.local))
+	}) as unknown as Inline<D>;
+}
+
+/** Names the inline constructs one editor's plugins contribute; a construct is the first listing
+ *  plugin's, and a clash is reported and left out. */
+export function installInlines(
+	units: readonly InstalledPlugin[],
+	report: (error: PluginError) => void
+): { readonly inlines: ReadonlyMap<AnyInlineKind, InstalledInline>; release(): void } {
+	const inlines = new Map<AnyInlineKind, InstalledInline>();
+	for (const { name: plugin, contribution } of units) {
+		for (const listed of contribution.inlines ?? []) {
+			const made = listed as unknown as Partial<Made>;
+			const making = made[MAKING];
+			const problem = !making
+				? `lists '${listed.name}', which \`inline\` didn't make; it's left out`
+				: made[OWNER] !== null && made[OWNER] !== plugin
+					? `lists the inline '${listed.name}', which plugin '${made[OWNER]}' made; it's left out`
+					: inlines.has(qualifiedName(plugin, making.local) as PluginInlineKind)
+						? `has two inlines named '${making.local}'; the second is left out`
+						: null;
+			if (problem || !making) {
+				report({ plugin, doing: 'install', cause: new Error(`plugin '${plugin}' ${problem}`) });
+				continue;
+			}
+			made[OWNER] = plugin;
+			const kind = listed.name as PluginInlineKind;
+			inlines.set(kind, {
+				kind,
+				trigger: making.prefix[0],
+				handler: {
+					prefix: making.prefix,
+					priority: 0,
+					recognizer: (raw, pos, end) => making.claim(raw, pos, end, kind),
+					owner: plugin
+				},
+				pair: making.pair,
+				after: making.after,
+				split: making.split,
+				widget: making.widget && { ...making.widget, own: { ...making.widget.own, plugin } },
+				className: making.className
+			});
+		}
+	}
+	return { inlines, release: () => {} };
+}
+
+// ── Internal ─────────────────────────────────────────────────────────────────
+
+const MAKING = Symbol('Inline.making');
+const OWNER = Symbol('Inline.owner');
+
+interface Made {
+	readonly [MAKING]: InlineMaking;
+	[OWNER]: string | null;
+}

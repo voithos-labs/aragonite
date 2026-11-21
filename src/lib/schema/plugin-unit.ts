@@ -15,6 +15,7 @@ import type { SelectionAction } from './selection-action';
 import type { Draft } from './drafts';
 import type { Block } from './doc-view';
 import type { BlockPaint, Paint } from '../decorations/paint';
+import type { Inline } from './inline-type';
 import { isValidPluginName } from './plugin-name';
 import { satisfiesRange } from './version-range';
 
@@ -58,6 +59,8 @@ export interface Contribution {
 	/** Its block types, made by `lineBlock`, `fencedBlock` or `container`; each is named after the
 	 *  plugin (`callouts/callout`) when an editor first runs it. */
 	blocks?: readonly BlockType<unknown>[];
+	/** Its inline constructs, made by `inline`; each is named after the plugin as a block type is. */
+	inlines?: readonly Inline<unknown>[];
 	/** Runs once the editor is mounted; what it adds through `editor` goes away with the plugin.
 	 *  A function it returns runs once, when the plugin is turned off or the editor unmounts. */
 	setup?(editor: Editor): void | (() => void);

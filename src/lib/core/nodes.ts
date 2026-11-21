@@ -449,6 +449,8 @@ export interface InlineNode {
 	 * persisted. Write paths read it to re-serialize in the claiming syntax, not built-in GFM.
 	 */
 	syntaxClaim?: InlineSyntaxClaim;
+	/** What an `inline()` construct's `read` returned for these bytes, derived per scan. */
+	data?: unknown;
 }
 
 /**
@@ -489,4 +491,10 @@ export interface InlineSyntaxClaim {
 	/** The claiming handler's prefix: its bare trigger, or its multi-character prefix. */
 	prefix: string;
 	rewriteImage?: ImageSyntaxRewriter;
+	/** An `inline()` link's writer: the bytes showing `text` and linking to `url`, or null. */
+	rewriteLink?: (fields: { text: string; url: string; title?: string }) => string | null;
+	/** What a cut inside an `inline()` claim of a built-in kind does, which its kind's row can't say. */
+	split?: 'whole' | 'plain';
+	/** Set on a link an `inline()` construct made: the generic unwrap may write its text. */
+	link?: true;
 }

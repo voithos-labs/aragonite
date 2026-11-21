@@ -40,7 +40,7 @@ const KINDS: KindRow[] = [
 		source: '[^a]'
 	},
 	{
-		kind: 'harness-wikilink',
+		kind: 'harness-wikilinks/wikilink',
 		seed: 'wikilinks',
 		doc: 'See [Meeting notes]] today\n',
 		at: 4,

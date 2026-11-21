@@ -389,7 +389,7 @@ function renderNode(
 				return null;
 			}
 			// An invisible entity renders no widget and keeps its literal-source span, as does any
-			// kind the registry does not own, so every byte round-trips.
+			// kind the registry does not own, so every byte round-trips; a construct's `class` styles it.
 			const widget = buildCoreInlineWidget(node, raw, opts);
 			container.appendChild(
 				(widget && stampFrame(widget, node, opts)) ??
@@ -400,7 +400,7 @@ function renderNode(
 							? 'md-entity'
 							: node.kind === 'rawHtml'
 								? 'md-raw-html'
-								: 'md-unknown-inline'
+								: (opts.grammar.inlines?.().get(node.kind)?.className ?? 'md-unknown-inline')
 					)
 			);
 			return null;

@@ -59,6 +59,20 @@ export type {
 	LineBlockSpec
 } from './schema/block-shapes';
 export type { Block, InlineType, Piece } from './schema/doc-view';
+// A plugin lists its inline constructs in `contributes(...).inlines`: claimed at a prefix, drawn as
+// a widget, a built-in image or link in its own syntax, or its bytes with a class.
+export { inline } from './schema/inline-maker';
+export type {
+	FunctionMatcher,
+	ImagePiece,
+	Inline,
+	InlineArm,
+	InlineSpec,
+	LinkPiece,
+	RegexMatcher,
+	Widget,
+	WidgetProps
+} from './schema/inline-type';
 // What `contributes(...).paint` lays over a block, in document bytes; `editor.repaint` asks again.
 export type { BlockPaint, MarkAt, Paint } from './decorations/paint';
 // What a block type's `draw` gets and hands back; the editor makes every editable element.
