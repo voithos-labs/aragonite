@@ -216,7 +216,10 @@ function edited(
 			typed && place.holds === 'text' && !!pastedOver.blocks && !/\n/.test(gesture.paste);
 		const at = marker ? leafHolding(after, place.at, place.at) : null;
 		const written = at && writeText(after, at.leaf, at.from, at.to, gesture.paste);
-		const over = written ? filledApart(after, at!.leaf, written) : pastedOver;
+		// A block held whole left its own blank line under its line: only a line the range emptied
+		// was the separator of the block under it.
+		const filled = written && (removed.inPlace ? written : filledApart(after, at!.leaf, written));
+		const over = filled || pastedOver;
 		return keepLastEnding({ ...landed(over), blocks: over.blocks ?? 0, ...into });
 	}
 	const { removed, clipboard, own } = taken(doc, from, to);

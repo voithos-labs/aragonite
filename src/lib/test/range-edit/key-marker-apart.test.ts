@@ -54,6 +54,13 @@ describe('a block’s marker over whole blocks', () => {
 	});
 });
 
+describe('a block’s marker over one block held whole', () => {
+	it('keeps the one blank line that stood under the block', () => {
+		expect(over('first\n\n⟦***⟧\n\nlast\n', key('>'))).toBe('first\n\n>‸\n\nlast\n');
+		expect(over('⟦***⟧\n\nlast\n', key('#'))).toBe('#‸\n\nlast\n');
+	});
+});
+
 describe('a block’s marker on a line the range emptied', () => {
 	for (const [name, below] of Object.entries(BELOW))
 		for (const marker of ['>', '#'])
