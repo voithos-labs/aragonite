@@ -110,10 +110,10 @@ const ROWS: [name: string, marked: string, left: string, blocks: string][] = [
 		'table(tableRow(tableCell)) paragraph'
 	],
 	[
-		'a tail taking a heading’s place under prose folds in',
+		'a tail taking a heading’s place under prose stays apart, as it stood from the heading',
 		'a\n⟦# h\n\nal⟧pha\n',
-		'a\npha\n',
-		'paragraph'
+		'a\n\npha\n',
+		'paragraph paragraph'
 	],
 	[
 		'an ordered list the range shortened, numbered on, stays apart from the paragraph',
@@ -146,6 +146,71 @@ const ROWS: [name: string, marked: string, left: string, blocks: string][] = [
 		'- a⟦\n```\nx⟧\n```\n',
 		'- a\n```\n\n```\n',
 		'list(listItem(paragraph)) fencedCode'
+	],
+	// Miss-analysis: no row started in a block's text and took the blank line under it, so a block
+	// left flush under the start's ran on into it and nothing failed.
+	[
+		'the start keeps the blank line the range took, over a heading',
+		'a⟦ b\n\n## h⟧\nc d\n',
+		'a\n\nc d\n',
+		'paragraph paragraph'
+	],
+	[
+		'the same in a quote',
+		'> a⟦ *b\n\n## h⟧\nc* d\n',
+		'> a\n\nc* d\n',
+		'blockquote(paragraph) paragraph'
+	],
+	[
+		'the same in an item',
+		'- a⟦ b\n\n## h⟧\nc d\n',
+		'- a\n\nc d\n',
+		'list(listItem(paragraph)) paragraph'
+	],
+	['the same over a fence', 'a⟦ b\n\n```\nx\n```⟧\nc d\n', 'a\n\nc d\n', 'paragraph paragraph'],
+	[
+		'the same where the range ends on an empty line',
+		'a\n\nb⟦*foo*\n\n⟧\nc\n',
+		'a\n\nb\n\nc\n',
+		'paragraph paragraph paragraph'
+	],
+	[
+		'an empty line of spaces makes no hard break',
+		'a\r\n\r\nb⟦*foo*\r\n\r\n⟧  \r\nc\r\n',
+		'a\r\n\r\nb  \r\n\r\nc\r\n',
+		'paragraph paragraph paragraph'
+	],
+	[
+		'an empty quote line likewise',
+		'> a\n>\n> b⟦*foo*\n>\n> ⟧\n> c\n',
+		'> a\n>\n> b\n>\n> c\n',
+		'blockquote(paragraph paragraph paragraph)'
+	],
+	['a start flush over the heading still runs on', 'a⟦ b\n## h⟧\nc d\n', 'a\nc d\n', 'paragraph'],
+	[
+		'a blank line further into the range is not the start’s',
+		'a⟦ b\n## h\n\nmid\n## k⟧\nc d\n',
+		'a\nc d\n',
+		'paragraph'
+	],
+	['the end’s rest still joins', 'alpha ⟦bravo\n\ncharlie ⟧delta\n', 'alpha delta\n', 'paragraph'],
+	[
+		'a heading’s rest joins, and the start keeps its blank line under it',
+		'a⟦ b\n\n## ⟧h\nc d\n',
+		'ah\n\nc d\n',
+		'paragraph paragraph'
+	],
+	[
+		'a rest the range took the blank line above stays apart from the block above',
+		'first\n⟦***\n\npa⟧ra\n',
+		'first\n\nra\n',
+		'paragraph paragraph'
+	],
+	[
+		'a rest flush under a divider flush under the block above runs on',
+		'first\n⟦***\npa⟧ra\n',
+		'first\nra\n',
+		'paragraph'
 	],
 	// Miss-analysis: every pair here read the same alone and under the blocks above it; none stood
 	// under a definition whose title had started, which reads the pair into itself.

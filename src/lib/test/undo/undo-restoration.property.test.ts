@@ -2,6 +2,7 @@
 // The main test of structural sharing in undo: random runs of real action-factory operations
 // with undo and redo mixed in, since one missed copy-before-write corrupts one entry. Bytes are
 // compared only once fully unwound, since a mid-paragraph split may serialize as one paragraph.
+// The model passes over an entry whose install changes nothing, as the undo stack does.
 
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
@@ -19,6 +20,12 @@ import {
 } from './restoration-ops';
 
 const PARAMS = { numRuns: 40, seed: freshOrFixedSeed(20260611) } as const;
+
+/** Drops the modelled entries on top that equal `text`, as the stack passes over an entry whose
+ *  install would change nothing (a swap of two identical rows). */
+function passOver(stack: string[], text: string): void {
+	while (stack.at(-1) === text) stack.pop();
+}
 
 describe('undo restoration property (structural sharing)', () => {
 	it('every undo/redo step restores its captured serialization byte-exactly', async () => {
@@ -44,11 +51,13 @@ describe('undo restoration property (structural sharing)', () => {
 
 						if (op.t === 'undo') {
 							if (stacks().undo.length < undoLenBefore) {
+								passOver(expectedUndo, before);
 								expect(serialize(h.deps.doc)).toBe(expectedUndo.pop());
 								expectedRedo.push(before);
 							}
 						} else if (op.t === 'redo') {
 							if (stacks().redo.length < redoLenBefore) {
+								passOver(expectedRedo, before);
 								expect(serialize(h.deps.doc)).toBe(expectedRedo.pop());
 								expectedUndo.push(before);
 							}
@@ -65,8 +74,9 @@ describe('undo restoration property (structural sharing)', () => {
 					expect(expectedRedo.length).toBe(stacks().redo.length);
 
 					// Phase A: undo everything back to the original source.
-					while (stacks().undo.length > 0) {
+					while (h.deps.undoManager.canUndo) {
 						const before = serialize(h.deps.doc);
+						passOver(expectedUndo, before);
 						const target = expectedUndo.pop()!;
 						await h.history.requestUndo();
 						expect(serialize(h.deps.doc)).toBe(target);
@@ -76,8 +86,9 @@ describe('undo restoration property (structural sharing)', () => {
 
 					// Phase B: redo everything back up. A random redo mid-run almost never lands on a
 					// non-empty redo stack, so this phase is what tests redo.
-					while (stacks().redo.length > 0) {
+					while (h.deps.undoManager.canRedo) {
 						const before = serialize(h.deps.doc);
+						passOver(expectedRedo, before);
 						const target = expectedRedo.pop()!;
 						await h.history.requestRedo();
 						expect(serialize(h.deps.doc)).toBe(target);
@@ -85,7 +96,8 @@ describe('undo restoration property (structural sharing)', () => {
 					}
 
 					// Phase C: unwind once more to the original.
-					while (stacks().undo.length > 0) {
+					while (h.deps.undoManager.canUndo) {
+						passOver(expectedUndo, serialize(h.deps.doc));
 						const target = expectedUndo.pop()!;
 						await h.history.requestUndo();
 						expect(serialize(h.deps.doc)).toBe(target);

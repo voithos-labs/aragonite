@@ -19,4 +19,7 @@ container's children, never the document root, and round-trips byte for byte.
 
 - A letter typed in the colons of `::::foo Hi` holding a nested `:::tip` container, in live and source mode: the line takes the colons as typed (`::xw::foo Hi`) and the tree is the one a reload reads. The rebuild grew the opener back to the four colons the nested body asks for, over the colons typed, and Backspace there wrote nothing. Miss-analysis: every opener-line row edited a three-colon fence, whose body asks no growth.
 
+- In live mode, `:::foo Hi` with its title erased letter by letter, then a letter: `:::foo x`, the container standing. Backspace over the title's last letter took the `:::foo` with it, the closing line stood alone, and the letter landed in a paragraph above it. Miss-analysis: the whole-text rule's rows emptied headings, whose markers go with their text, and no row emptied a title row, whose name opens its container.
+- The same title selected with Shift+ArrowLeft and deleted: `:::foo `, then `:::foo x`.
+
 - Letters typed at the start of the `:::foo` line, the container holding two blocks and standing flush under a paragraph: they land where they were typed and the tree is the one a reload reads. The container's first lines were written twice, with no plugin involved. Miss-analysis: the generic container's rows typed in its body or its title, never in its `:::name`, and never with a block flush above it.
