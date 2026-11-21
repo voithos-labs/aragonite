@@ -118,31 +118,35 @@ export function createDocumentRead(deps: {
 		return made;
 	}
 
-	/** `top` moved through the writes from version `from` to `to`; null past a write that
-	 *  couldn't say. `touched` says whether a write reported changing its block. */
+	/** `top` moved through the writes from version `from` to `to`, kept where a write couldn't say
+	 *  for the node there to confirm; `touched` says a write reported changing its block. */
 	function moved(top: number, from: number, to: number): Moved {
 		let touched = false;
+		let covered = true;
 		for (let v = from; v < to; v++) {
 			const runs = v >= logFrom ? log[v - logFrom] : undefined;
-			if (!runs) return { top: null, touched, covered: false };
+			if (!runs) {
+				covered = false;
+				continue;
+			}
 			const next = shifted(top, runs);
 			touched ||= next.inside;
 			top = next.at;
 		}
-		return { top, touched, covered: true };
+		return { top, touched, covered };
 	}
 
 	function find(node: NodeView, seen: Seen): readonly number[] | null {
 		if (!seen.path) return null;
 		const now = deps.version();
 		const doc = deps.getDoc();
-		let path: readonly number[] | null = seen.path;
+		let path: readonly number[] = seen.path;
 		let move: Moved | null = null;
 		if (seen.at !== now) {
 			move = moved(path[0], seen.at, now);
-			path = move.top === null ? null : [move.top, ...path.slice(1)];
+			path = [move.top, ...path.slice(1)];
 		}
-		const answer = path && blockNodeAt(doc, path) === node ? path : null;
+		const answer = blockNodeAt(doc, path) === node ? path : null;
 		if (move && devChecksOn && !perfEnabled() && seen.checked !== now) {
 			seen.checked = now;
 			assertInvariant('held-block-place', () => checkHeldBlockPlace(doc, node, answer, move));
@@ -237,7 +241,7 @@ interface Layout {
 }
 
 interface Moved {
-	top: number | null;
+	top: number;
 	touched: boolean;
 	covered: boolean;
 }

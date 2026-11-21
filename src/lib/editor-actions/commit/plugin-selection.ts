@@ -14,25 +14,29 @@ type Reads = Pick<DocumentRead, 'byteOf' | 'leafAt' | 'blockOf'> & {
 	nodeAt(path: readonly number[]): NodeView | null;
 };
 
-/** `selection` as a plugin reads it; null for none, or for a point the document doesn't place. */
+/** `selection` as a plugin reads it; null for none, or for a point the document doesn't place.
+ *  A cell end reads as the byte its cell's text starts at. */
 export function selectionOf(reads: Reads, selection: EditorSelection | null): Selection | null {
 	if (!selection) return null;
-	const { anchor, focus } = selection;
-	const cells =
-		anchor.cellCoordinate && focus.cellCoordinate ? cellsOf(reads, anchor, focus) : null;
-	const a = cells ? cells.anchorByte : reads.byteOf(anchor.path, anchor.offset);
-	const h = cells ? cells.headByte : reads.byteOf(focus.path, focus.offset);
-	if (a === null || h === null) return null;
-	const leaf = cells ? cells.headPath : focus.path;
-	const node = reads.nodeAt(leaf);
+	const anchor = placed(reads, selection.anchor);
+	const head = placed(reads, selection.focus);
+	if (!anchor || !head) return null;
+	const node = reads.nodeAt(head.path);
+	const sameTable = anchor.cell && head.cell && anchor.table === head.table;
 	return {
-		anchor: a,
-		head: h,
-		from: Math.min(a, h),
-		to: Math.max(a, h),
-		empty: a === h,
-		block: node ? reads.blockOf(node, leaf) : null,
-		cells: cells && { table: cells.table, anchor: cells.anchor, head: cells.head }
+		anchor: anchor.byte,
+		head: head.byte,
+		from: Math.min(anchor.byte, head.byte),
+		to: Math.max(anchor.byte, head.byte),
+		empty: anchor.byte === head.byte,
+		block: node ? reads.blockOf(node, head.path) : null,
+		cells: sameTable
+			? {
+					table: reads.blockOf(head.table!, selection.focus.path),
+					anchor: anchor.cell!,
+					head: head.cell!
+				}
+			: null
 	};
 }
 
@@ -64,19 +68,17 @@ export function selectionTarget(reads: Reads, input: SelectionInput): EditorSele
 	return pair(point(input.anchor), point(input.head));
 }
 
-function cellsOf(reads: Reads, anchor: SelectionPoint, focus: SelectionPoint) {
-	const table = reads.nodeAt(anchor.path);
+/** Where one end of the selection sits: its byte, its block's path, and its cell for a cell end. */
+function placed(reads: Reads, point: SelectionPoint) {
+	if (!point.cellCoordinate) {
+		const byte = reads.byteOf(point.path, point.offset);
+		return byte === null ? null : { byte, path: point.path, cell: null, table: null };
+	}
+	const table = reads.nodeAt(point.path);
 	if (!table || table.kind !== 'table') return null;
 	const columns = metadataOf(table, 'table').columnCount;
-	const at = (index: number) => [Math.floor(index / columns), index % columns] as const;
-	const [anchorCell, headCell] = [at(anchor.offset), at(focus.offset)];
-	const headPath = [...anchor.path, ...headCell];
-	return {
-		table: reads.blockOf(table, anchor.path),
-		anchor: anchorCell,
-		head: headCell,
-		anchorByte: reads.byteOf([...anchor.path, ...anchorCell], 0),
-		headByte: reads.byteOf(headPath, 0),
-		headPath
-	};
+	const cell = [Math.floor(point.offset / columns), point.offset % columns] as const;
+	const path = [...point.path, ...cell];
+	const byte = reads.byteOf(path, 0);
+	return byte === null ? null : { byte, path, cell, table };
 }

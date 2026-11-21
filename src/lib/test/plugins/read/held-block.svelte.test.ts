@@ -8,6 +8,11 @@ import type { DocumentView } from '#lib/core/node-views.js';
 import { parse } from '#lib/core/parser.js';
 import { grammar } from '#lib/components/editor-root/headless-grammar.js';
 import { checkHeldBlockPlace } from '#lib/invariants/held-block.js';
+import { makeTopHarness } from '#lib/test/harness/editor-actions.js';
+import { createDocumentRead } from '#lib/editor-actions/commit/document-read.js';
+import { docPathFrom } from '#lib/core/coordinate-spaces.js';
+import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
+import { serialize } from '#lib/core/serializer.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
@@ -171,6 +176,34 @@ describe('a key no plugin reads', () => {
 		void editor.blockAt(0);
 		await typeAt(m, [2], 'para oneXY');
 		expect(perfSnapshot()).toMatchObject({ hintRunsLogged: 1, blocksBuilt: 1, documentWalks: 0 });
+	});
+});
+
+describe('a held block, through a write whose runs went unread', () => {
+	// Miss-analysis: every held-block row read a position first, so the record was measured and
+	// each write said what it changed; with nothing measured a write says nothing.
+	it('keeps its place where its node still stands', async () => {
+		const h = makeTopHarness('zero\n\none\n\ntwo\n');
+		const read = createDocumentRead({
+			getDoc: () => h.deps.doc,
+			measured: h.deps.starts.read,
+			typeOf: (kind) => ({ name: kind, label: kind }),
+			reading: { grammar: defaultGrammarView, resolver: undefined, resolverSignature: '' },
+			version: h.contentVersion,
+			source: () => serialize(h.deps.doc),
+			follow: h.deps.starts.follow
+		});
+		const two = read.blockOf(h.deps.doc.children[2], [2]);
+		const at = { path: docPathFrom([0]), offset: 0 };
+		await h.controller.commitStructural({
+			snapshot: at,
+			mutate(_, scope) {
+				scope.own([0])[0].raw = 'ZERO!\n';
+				return { op: 'noop' };
+			},
+			op: { kind: 'input', eventPath: at.path }
+		});
+		expect(two.from).toBe(serialize(h.deps.doc).indexOf('two'));
 	});
 });
 

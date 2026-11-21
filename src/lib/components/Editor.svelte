@@ -1177,9 +1177,12 @@
 		editorFor: (plugin) => pluginContexts.scoped(plugin),
 		measured: starts.read,
 		source: bytes.source,
+		// A range with a cell at either end offers no rows: the actions read text, not a grid.
 		selection: () => {
+			const at = getSelection();
+			if (!at || at.anchor.cellCoordinate || at.focus.cellCoordinate) return null;
 			const now = pluginSelection();
-			return now && !now.cells ? { from: now.from, to: now.to } : null;
+			return now && { from: now.from, to: now.to };
 		},
 		hasRange: () => {
 			const selection = getSelection();
