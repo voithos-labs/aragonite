@@ -28,6 +28,11 @@ default `text`, so each side gives a letter typed at it to the text between them
 - Backspace at a line opening with a side joins the line to the one above, the side kept.
 - Enter at a side leaves the side whole, on the half holding its text; Enter at the end of a line
   closing a pair opens an empty line, with no side on it.
+- Enter at a side that closes against a bold keeps the side with the bold, from either direction:
+  the arrows leave the caret inside the bold's hidden closer, beside the side. The same at a side
+  closing against a link.
+- Two anchors opening and closing on one word: a letter at their start lands inside both, and
+  Enter at either end leaves all four sides with the word.
 - A side with no partner draws nothing and takes a letter on its text side.
 
 ## User interactions
@@ -38,3 +43,8 @@ default `text`, so each side gives a letter typed at it to the text between them
 
 Miss-analysis: a plugin construct could only draw something before this lane, so nothing asked
 the edge rule about one that draws nothing.
+
+Miss-analysis (Enter against a bold, two anchors on one word): every Enter and letter row held
+one side at its screen position with plain text beside it, so the caret only ever had the side's
+own two raw offsets. A second hidden run at the position (a bold's closer, another side) gave it
+a third, where Enter left a side on the half without its text and a letter landed outside both.

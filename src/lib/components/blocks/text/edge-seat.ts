@@ -364,9 +364,12 @@ function outsideOffset(position: ScreenPosition): number {
 	return position.offsets.reduce((best, offset) => (depth(offset) < depth(best) ? offset : best));
 }
 
-/** Whether a letter typed at `offset` lands in `run`'s construct. */
-const joins = (run: MarkerRun, offset: number): boolean =>
-	run.content.start <= offset && offset <= run.content.end;
+/** Whether a letter typed at `offset` lands in `run`'s construct: for a marker side, anywhere on
+ *  its text's side of it, so sides stacked at one position share an offset. */
+const joins = (run: MarkerRun, offset: number): boolean => {
+	if (run.marker) return run.leading ? offset >= run.content.start : offset <= run.content.end;
+	return run.content.start <= offset && offset <= run.content.end;
+};
 
 /** Whether `offset` lies outside every never-extend construct meeting at the position, which is all
  *  such a row allows: half a URL is not a URL, and half an escape is a literal backslash. */

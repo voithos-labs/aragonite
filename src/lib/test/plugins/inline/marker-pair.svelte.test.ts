@@ -21,8 +21,12 @@ import type { DeleteDirection } from '#lib/browser/input.js';
 import type { EdgeAffinity } from '#lib/caret/edge-affinity.js';
 import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
 import { installInlines } from '#lib/schema/inline-type.js';
-import { getInlineConstructPolicy } from '#lib/schema/inline-construct-policy.js';
-import { makeBlockNode, type AnyInlineKind } from '#lib/core/nodes.js';
+import {
+	getInlineConstructPolicy,
+	holdInlineConstructPolicy,
+	markerSideEdge
+} from '#lib/schema/inline-construct-policy.js';
+import { makeBlockNode, type AnyInlineKind, type InlineNode } from '#lib/core/nodes.js';
 import { splitHalves } from '#lib/tree-operations/node-ops.js';
 import { fixtureReading, topLevelSplit, topLevelStore } from '#lib/test/harness/fixture-grammar.js';
 import {
@@ -119,6 +123,33 @@ describe('a marker pair, read', () => {
 		expect(row('cm/anchor-open')).toBeUndefined();
 	});
 
+	// Miss-analysis: the counter rows counted marker-run reads and table builds, never the row a
+	// side question read for each construct of a block in an editor listing no pair.
+	it('asks no row for a side while no editor lists a pair', () => {
+		let read = 0;
+		const release = holdInlineConstructPolicy('probe/counted' as AnyInlineKind, {
+			get edgeAffinity() {
+				read++;
+				return 'left-sticky' as const;
+			},
+			autoUnwrapOnEmpty: false,
+			splitBehavior: 'plain',
+			revealable: false
+		});
+		const node = (kind: string) => ({ kind, start: 2, end: 7 }) as InlineNode;
+		const first = installed();
+		const second = installed();
+		first.release();
+		expect(markerSideEdge(node('cm/anchor-open'))).toEqual({ start: 7, end: 7 });
+		second.release();
+		expect(markerSideEdge(node('cm/anchor-open'))).toBeNull();
+		// Both editors gone: the count is back at none, and no row is read.
+		read = 0;
+		expect(markerSideEdge(node('probe/counted'))).toBeNull();
+		expect(read).toBe(0);
+		release();
+	});
+
 	it('draws nothing where markers hide, and its bytes where they show', () => {
 		const { read, grammar } = installed();
 		const nodes = read(PAIR);
@@ -190,6 +221,16 @@ describe('a letter typed at a side', () => {
 		expect(both('text{<<c}', [4, 9])).toEqual([4, 4]);
 	});
 
+	// Miss-analysis: every landing row held one side a position; two anchors on one word, sides at
+	// [2,7) [7,12) and [16,21) [21,26), were never drawn, and mid-line the letter missed both.
+	it('joins the text of every side stacked at one position', () => {
+		const source = 'x {>>a}{>>b}text{<<b}{<<a} y';
+		expect(both(source, [2, 7, 12])).toEqual([12, 12, 12]);
+		expect(both(source, [16, 21, 26])).toEqual([16, 16, 16]);
+		expect(seat(source, 12, 'outside')).toBe(2);
+		expect(seat(source, 16, 'outside')).toBe(26);
+	});
+
 	// `a {>>c}**bold**{<<c} z`: the open side [2,7) meets the bold's opener [7,9), its closer
 	// [13,15) meets the close side [15,20).
 	it('joins the text and leaves a bold beside it to the character before', () => {
@@ -252,6 +293,37 @@ describe('a key beside a side', () => {
 		for (const at of [2, 7]) expect(enter(at)).toEqual(['a \n', '{>>c}text{<<c} z\n']);
 		for (const at of [11, 16]) expect(enter(at)).toEqual(['a {>>c}text{<<c}\n', ' z\n']);
 	});
+
+	// Miss-analysis: the Enter rows cut at a lone side's two offsets, never at the third that a
+	// bold, a code span, a link or a second side gives the position, where a side lost its text.
+	it.each<[string, number[], number[]]>([
+		['x {>>a}{>>b}text{<<b}{<<a} y', [2, 7, 12], [16, 21, 26]],
+		['a {>>c}**bold**{<<c} z', [2, 7, 9], [13, 15, 20]],
+		['a {>>c}`code`{<<c} z', [2, 7, 8], [12, 13, 18]],
+		['a {>>c}<http://x.dev>{<<c} z', [2, 7, 9], [19, 21, 26]],
+		['x {>>a}[link](u){<<a} y', [2, 7, 8], [12, 16, 21]]
+	])(
+		'Enter at any offset of the position of a side in %s strands none',
+		(source, opens, closes) => {
+			const { reading } = installed();
+			const live = fixtureReading({ grammar: reading.grammar }, 'live');
+			const node = makeBlockNode({ kind: 'paragraph', leadingTrivia: '', raw: `${source}\n` });
+			const enter = (at: number) => {
+				const halves = splitHalves(node, at, undefined, '\n', topLevelSplit(node, live));
+				return [halves.firstRaw, halves.secondRaw];
+			};
+			const cut = source.length - 2;
+			for (const at of opens) {
+				expect(enter(at), `at ${at}`).toEqual([`${source.slice(0, 2)}\n`, `${source.slice(2)}\n`]);
+			}
+			for (const at of closes) {
+				expect(enter(at), `at ${at}`).toEqual([
+					`${source.slice(0, cut)}\n`,
+					`${source.slice(cut)}\n`
+				]);
+			}
+		}
+	);
 
 	// `**a {>>c}b**`: the open side [4,9) sits inside the bold, which a cut there closes and reopens.
 	it('inside a bold, a letter joins both, and Enter reopens the bold around the side', () => {

@@ -84,7 +84,14 @@ const policyOf = (kind: AnyInlineKind) =>
 // A plugin mark's row, page-wide by its qualified name while any editor runs it, so every reader
 // that takes a kind answers for it.
 const held = new Map<AnyInlineKind, { policy: InlineConstructPolicy; editors: number }>();
-enrollTestReset(() => held.clear());
+// How many held rows are a marker side's, so a page with none answers a side question unread.
+let heldSides = 0;
+const sideRows = (policy: InlineConstructPolicy): number =>
+	policy.edgeAffinity === 'joins-after' || policy.edgeAffinity === 'joins-before' ? 1 : 0;
+enrollTestReset(() => {
+	held.clear();
+	heldSides = 0;
+});
 
 /** Lends a plugin mark's row to the page while one editor runs it; call the result when that
  *  editor stops. A second editor's differing row is warned of, and the first one's stands. */
@@ -101,13 +108,18 @@ export function holdInlineConstructPolicy(
 				`"${kind}" reads differently in two editors: a mark's row can't depend on its options, so the first editor's stands`
 			);
 		}
-	} else held.set(kind, { policy, editors: 1 });
+	} else {
+		held.set(kind, { policy, editors: 1 });
+		heldSides += sideRows(policy);
+	}
 	let released = false;
 	return () => {
 		const entry = held.get(kind);
 		if (released || !entry) return;
 		released = true;
-		if (--entry.editors === 0) held.delete(kind);
+		if (--entry.editors > 0) return;
+		held.delete(kind);
+		heldSides -= sideRows(entry.policy);
 	};
 }
 
@@ -159,7 +171,8 @@ export function isRevealableInlineKind(kind: AnyInlineKind): boolean {
 /** A marker side's text edge, the empty range where a letter typed at the side lands; null for
  *  any construct that isn't all marker. */
 export function markerSideEdge(node: InlineNode): ContentRange | null {
-	const edge = node.kind === 'text' ? undefined : policyOf(node.kind)?.edgeAffinity;
+	if (heldSides === 0 || node.kind === 'text') return null;
+	const edge = held.get(node.kind)?.policy.edgeAffinity;
 	if (edge === 'joins-after') return { start: node.end, end: node.end };
 	return edge === 'joins-before' ? { start: node.start, end: node.start } : null;
 }

@@ -140,6 +140,38 @@ test.describe('a marker pair in live mode', () => {
 		await expect.poll(source).toContain('\nblocks{<<b}\n\n end\n');
 	});
 
+	// The arrows leave the caret inside the bold's hidden closer, beside the side.
+	for (const from of ['left', 'right'] as const) {
+		test(`Enter at a side closing against a bold keeps the side, from the ${from}`, async ({
+			page
+		}) => {
+			if (from === 'left') await walkTo(3, 'Some bold'.length);
+			else await walkBackTo(3, ' text'.length);
+			await page.keyboard.press('Enter');
+			await expect.poll(source).toContain('Some {>>c}**bold**{<<c}\n\n text\n');
+		});
+	}
+
+	test('Enter at a side closing against a link keeps the side', async ({ page }) => {
+		await editor.loadContent('x {>>a}[link](https://x.dev){<<a} y\n');
+		await walkTo(0, 'x link'.length);
+		await page.keyboard.press('Enter');
+		await expect.poll(source).toBe('x {>>a}[link](https://x.dev){<<a}\n\n y\n');
+	});
+
+	test('two anchors on one word take a letter and Enter as one does', async ({ page }) => {
+		await editor.loadContent('x {>>a}{>>b}text{<<b}{<<a} y\n');
+		await walkTo(0, 'x '.length);
+		await page.keyboard.type('X');
+		await expect.poll(source).toBe('x {>>a}{>>b}Xtext{<<b}{<<a} y\n');
+		await walkTo(0, 'x Xtext'.length);
+		await page.keyboard.press('Enter');
+		await expect.poll(source).toBe('x {>>a}{>>b}Xtext{<<b}{<<a}\n\n y\n');
+		await walkTo(0, 'x '.length);
+		await page.keyboard.press('Enter');
+		await expect.poll(source).toBe('x \n\n{>>a}{>>b}Xtext{<<b}{<<a}\n\n y\n');
+	});
+
 	test('Enter at the end of a line closing a pair opens an empty line', async ({ page }) => {
 		await walkBackTo(4, 0);
 		await page.keyboard.press('Enter');
