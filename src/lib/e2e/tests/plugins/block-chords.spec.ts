@@ -129,16 +129,16 @@ test.describe("a block type's menu rows", () => {
 		await blockMenu(page).getByRole('menuitem').first().hover();
 		const row = page.getByRole('menuitem', { name: 'Next kind' });
 		await expect(row).toBeDisabled();
-		if (process.env.L5BR_SHOTS)
-			await page.screenshot({ path: `${process.env.L5BR_SHOTS}/greyed-flyout-row.png` });
 		await page.keyboard.press('Enter');
 		await row.click({ force: true });
 		expect(await editor.bridge.getSource()).toBe(locked);
 		await page.keyboard.press('Escape');
 		await page.getByText('shut').click();
+		await page.keyboard.press(edgeKey('lineEnd'));
 		await page.keyboard.press('ControlOrMeta+7');
+		// The letter lands after the key, so a cycle the key made would show beside it.
 		await page.keyboard.type('x');
-		await expect.poll(() => editor.bridge.getSource()).toContain('%> [!LOCKED]\n');
+		await expect.poll(() => editor.bridge.getSource()).toBe('intro\n\n%> [!LOCKED]\n%> shutx\n');
 	});
 
 	for (const [where, source, text, cycled] of [
