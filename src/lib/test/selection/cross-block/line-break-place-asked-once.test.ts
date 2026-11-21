@@ -83,4 +83,19 @@ describe('a line break over a range asks for its place once a keydown', () => {
 		expect(env.source()).toBe('first\n\n\nlater\n');
 		expect(asks.count).toBe(2);
 	});
+
+	it('a claim whose range moved before the gesture ran is asked again, never used', async () => {
+		const env = rangeOver('text at both ends');
+		const event = press('Enter');
+		rangeOwnsKey(event, env.ctx);
+		// A handler between the claim and the gesture selects another range and leaves the key.
+		env.selection.enterCrossBlock({ path: [0], offset: 2 }, { path: [1], offset: 2 });
+		await env.keydown.handleKeyDown(event);
+
+		const fresh = makeKeydownEnv(TEXT);
+		fresh.selection.enterCrossBlock({ path: [0], offset: 2 }, { path: [1], offset: 2 });
+		await fresh.keydown.handleKeyDown(press('Enter'));
+		expect(env.source()).toBe(fresh.source());
+		expect(env.source()).toContain('gamma');
+	});
 });

@@ -188,13 +188,17 @@ export function overRangeAnswer(
 }
 
 /** The core's place for text over what `coverage` holds: `claimed`, asked by a key's claim, while
- *  the document holds the text it was read on, else asked now. */
+ *  the document holds the text it was read on and `coverage` the same bytes, else asked now. */
 export function currentPlace(
 	ctx: Pick<CommitContext, 'bytes' | 'reading'>,
 	coverage: RangeCoverage,
 	claimed: PlaceAnswer | null
 ): PlaceAnswer | null {
-	if (claimed?.read.source === ctx.bytes.source()) return claimed;
+	if (claimed?.read.source === ctx.bytes.source()) {
+		const { range, layout } = claimed.read;
+		const held = removalBytes(ctx.bytes.doc(), coverage, layout);
+		if (held?.from === range.from && held.to === range.to) return claimed;
+	}
 	return overRangeAnswer(ctx, coverage, 'place');
 }
 
