@@ -35,7 +35,7 @@ function languageTable(activation: PluginActivation): LanguageTable {
 	const union: CodeLanguage[] = [];
 	lists.forEach((list, i) => {
 		for (const language of list) {
-			const spellings = [language.name, ...language.aliases].map((s) => s.toLowerCase());
+			const spellings = [language.name, ...(language.aliases ?? [])].map((s) => s.toLowerCase());
 			const taken = spellings.filter((spelling) => owners.has(spelling));
 			if (taken.length > 0)
 				devWarn(
@@ -71,11 +71,10 @@ export function highlighterLanguages(activation: PluginActivation): readonly Cod
 	return languageTable(activation).union;
 }
 
-/** The code block picker's rows: every language the plugins highlight, once each, sorted. */
+/** The code block picker's rows: every language the plugins highlight, once each, in the order
+ *  they list them. */
 export function pickerLanguages(activation: PluginActivation): string[] {
-	return highlighterLanguages(activation)
-		.map((language) => language.name)
-		.sort();
+	return highlighterLanguages(activation).map((language) => language.name);
 }
 
 /** The other spellings of the language a spelling names, so the picker's filter matches `rs` to

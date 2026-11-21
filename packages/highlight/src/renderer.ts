@@ -7,23 +7,16 @@ import HighlightJS from 'highlight.js/lib/core';
 import type { LanguageFn } from 'highlight.js';
 import type { CodeHighlighter, CodeLanguage } from '@voithos-labs/aragonite/plugin';
 import type { HighlightRenderer } from './highlight-plugin';
-import { defaultResolver, type LanguageResolver } from './renderer/resolver';
+import { defaultResolver, type LanguageResolver, type LanguageSource } from './renderer/resolver';
 import { tokensOf } from './renderer/tokens';
 
 export { defaultResolver } from './renderer/resolver';
-export type { LanguageResolver } from './renderer/resolver';
+export type { LanguageResolver, LanguageSource } from './renderer/resolver';
 export type { LanguageFn } from 'highlight.js';
 
-/** A grammar `languages` adds: the grammar itself, or a loader called the first time it's named. */
-export type LanguageSource =
-	| LanguageFn
-	| {
-			load(): Promise<LanguageFn | { default: LanguageFn }>;
-			readonly aliases?: readonly string[];
-	  };
-
 export interface HighlightJsOptions {
-	/** Grammars asked before the resolver, by name: one you wrote, or one highlight.js lacks. */
+	/** Grammars asked before the resolver, by name: one you wrote, one the default languages lack,
+	 *  or `allLanguages` from `/languages` for every grammar highlight.js ships. */
 	languages?: Readonly<Record<string, LanguageSource>>;
 	/** Answers every name `languages` doesn't; `defaultResolver` unless you bring your own. */
 	resolver?: LanguageResolver;
@@ -59,7 +52,7 @@ function createHighlighter(options: Readonly<HighlightJsOptions>): CodeHighlight
 		if (answer === null) return null;
 		if (typeof answer === 'function') return register(name, answer);
 		const loading = answer.then(
-			(grammar) => register(name, grammar),
+			(grammar) => register(name, typeof grammar === 'function' ? grammar : grammar.default),
 			(cause: unknown) => {
 				grammars.set(name, null);
 				throw cause;
@@ -86,30 +79,31 @@ function withOwnLanguages(
 ): LanguageResolver {
 	const names = Object.keys(sources).map((name) => name.toLowerCase());
 	if (names.length === 0) return resolver;
-	const own = (name: string): LanguageFn | Promise<LanguageFn> | null => {
+	const own = (name: string): ReturnType<LanguageResolver['resolve']> => {
 		const source = Object.entries(sources).find(([key]) => key.toLowerCase() === name)?.[1];
 		if (!source) return null;
-		if (typeof source === 'function') return source;
-		return source
-			.load()
-			.then((grammar) => (typeof grammar === 'function' ? grammar : grammar.default));
+		return typeof source === 'function' ? source : source.load();
 	};
-	const ownLanguages: CodeLanguage[] = Object.entries(sources).map(([name, source]) => ({
+	const ownLanguages = Object.entries(sources).map(([name, source]) => ({
 		name: name.toLowerCase(),
 		aliases: typeof source === 'function' ? [] : [...(source.aliases ?? [])]
 	}));
 	// A spelling of the host's own leaves the bundled grammars, so each spelling names one language.
 	const taken = new Set(ownLanguages.flatMap((language) => [language.name, ...language.aliases]));
+	// The resolver's rows keep their places, a host's row takes the place of one it replaces, and
+	// the rest follow alphabetically.
+	const place = new Map(resolver.languages.map((language, i) => [language.name, i]));
+	const at = (language: CodeLanguage) => place.get(language.name) ?? place.size;
 	return {
 		languages: [
 			...ownLanguages,
 			...resolver.languages
 				.filter((language) => !taken.has(language.name))
-				.map(({ name, aliases }) => ({
+				.map(({ name, aliases = [] }) => ({
 					name,
 					aliases: aliases.filter((alias) => !taken.has(alias))
 				}))
-		],
+		].sort((a, b) => at(a) - at(b) || (a.name < b.name ? -1 : 1)),
 		resolve: (name) => own(name.toLowerCase()) ?? resolver.resolve(name)
 	};
 }

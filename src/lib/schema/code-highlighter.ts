@@ -15,7 +15,7 @@ export interface CodeToken {
 /** A language the picker offers: one row under `name`, with `aliases` as search keys. */
 export interface CodeLanguage {
 	readonly name: string;
-	readonly aliases: readonly string[];
+	readonly aliases?: readonly string[];
 }
 
 /** What a source view paints its code with (`renderSource`'s second argument): `body` drawn in
@@ -32,6 +32,7 @@ export interface CodeHighlighter {
 		body: string,
 		language: string
 	): readonly CodeToken[] | null | Promise<readonly CodeToken[] | null>;
-	/** The languages it answers; for each spelling, the first plugin listing it is the one asked. */
+	/** The languages it answers, in the order the picker lists them after the plugins listed before
+	 *  it; for each spelling, the first plugin listing it is the one asked. */
 	languages(): readonly CodeLanguage[];
 }

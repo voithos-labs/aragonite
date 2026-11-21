@@ -6,10 +6,10 @@ import { isChromium } from '../../../browser-engine';
 import { edgeKey } from '../../../platform-keys';
 import { BlockMathPage } from '../../plugins/latex-reveal-helpers';
 
-// Haskell is outside the package's eager set, so its grammar is a chunk of its own: the first
-// script the page asks for once the fence is loaded. The build names chunks by hash alone.
+// Ruby is a default language outside the eager set, so its grammar is a chunk of its own: the
+// first script the page asks for once the fence is loaded. The build names chunks by hash alone.
 const LAZY_CHUNK = /\/_app\/immutable\/chunks\/[^/]+\.js(\?.*)?$/;
-const FENCE = '```haskell\nmain = putStrLn "hi"\n```\n';
+const FENCE = '```ruby\nmain = putStrLn "hi"\n```\n';
 
 /** Holds the next chunk the page asks for until `release` runs; `requests` counts its asks. */
 async function holdGrammar(page: Page, fail = false) {
@@ -59,7 +59,7 @@ test.describe('a grammar that arrives after the fence painted', () => {
 		await page.keyboard.type('b');
 
 		const source = await page.evaluate(() => (window as any).__test.getSource() as string);
-		expect(source).toBe('```haskell\nmain = putStrLn "hi"ab\n```\n');
+		expect(source).toBe('```ruby\nmain = putStrLn "hi"ab\n```\n');
 		expect(await caretByte(page)).toBe(source.indexOf('ab') + 2);
 		expect(grammar.requests).toBe(1);
 	});
@@ -80,7 +80,7 @@ test.describe('a grammar that arrives after the fence painted', () => {
 
 		await expect(tokens().first()).toBeVisible();
 		const source = await page.evaluate(() => (window as any).__test.getSource() as string);
-		expect(source).toBe('```haskell\nmain = putStrLn "hi"か\n```\n');
+		expect(source).toBe('```ruby\nmain = putStrLn "hi"か\n```\n');
 		expect(await caretByte(page)).toBe(source.indexOf('か') + 1);
 		expect(await height()).toBe(before);
 	});
@@ -124,7 +124,7 @@ test.describe('a grammar that arrives after the fence painted', () => {
 
 	test('a chunk that fails leaves the fence plain, with one error', async ({ page }) => {
 		const grammar = await holdGrammar(page, true);
-		await editor.loadContent('```haskell\nmain = 1\n```\n\n```haskell\nx = 2\n```\n');
+		await editor.loadContent('```ruby\nmain = 1\n```\n\n```ruby\nx = 2\n```\n');
 		grammar.release();
 		await expect
 			.poll(() => page.evaluate(() => (window as any).__test.errorPlugins() as string[]))

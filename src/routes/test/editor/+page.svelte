@@ -1,10 +1,12 @@
 <script module lang="ts">
 	import { highlight } from '@voithos-labs/aragonite-highlight';
 	import { highlightJs } from '@voithos-labs/aragonite-highlight/renderer';
+	import { allLanguages } from '@voithos-labs/aragonite-highlight/languages';
 
-	// The harness highlights code as a host listing the package does. `?extraLanguage=on` hands the
-	// engine a grammar of the host's own, loaded on first use, which beats the bundled copy.
+	// The harness highlights code as a host listing the package does. `?languages=all` opts into
+	// every grammar; `?extraLanguage=on` hands the engine one of the host's own, loaded on first use.
 	const highlightPlugin = highlight({ renderer: highlightJs() });
+	const allLanguagesPlugin = highlight({ renderer: highlightJs({ languages: allLanguages }) });
 	const extraLanguagePlugin = highlight({
 		renderer: highlightJs({
 			languages: {
@@ -80,7 +82,11 @@
 	const paintPlugins = param('paint') === 'on' ? [paintProbePlugin] : [];
 	// The throw probe is listed so `__test.makeBlockThrowOnRender` resolves its block in this editor.
 	const pagePlugins = [
-		param('extraLanguage') === 'on' ? extraLanguagePlugin : highlightPlugin,
+		param('extraLanguage') === 'on'
+			? extraLanguagePlugin
+			: param('languages') === 'all'
+				? allLanguagesPlugin
+				: highlightPlugin,
 		throwProbePlugin,
 		...slashPlugins,
 		...actionPlugins,

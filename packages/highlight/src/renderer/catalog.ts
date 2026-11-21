@@ -3,9 +3,8 @@ import type { LanguageFn } from 'highlight.js';
 
 type Load = () => Promise<{ default: LanguageFn }>;
 
-/** Every highlight.js grammar by name: its other spellings, space-separated, and its loader (null
- *  for one the package loads eagerly). */
-export const CATALOG: Readonly<Record<string, readonly [string, Load | null]>> = {
+/** Every highlight.js grammar by name: its other spellings, space-separated, and its loader. */
+export const CATALOG: Readonly<Record<string, readonly [string, Load]>> = {
 	'1c': ['', () => import('highlight.js/lib/languages/1c')],
 	abnf: ['', () => import('highlight.js/lib/languages/abnf')],
 	accesslog: ['', () => import('highlight.js/lib/languages/accesslog')],
@@ -24,7 +23,7 @@ export const CATALOG: Readonly<Record<string, readonly [string, Load | null]>> =
 	avrasm: ['', () => import('highlight.js/lib/languages/avrasm')],
 	awk: ['', () => import('highlight.js/lib/languages/awk')],
 	axapta: ['x++', () => import('highlight.js/lib/languages/axapta')],
-	bash: ['sh zsh', null],
+	bash: ['sh zsh', () => import('highlight.js/lib/languages/bash')],
 	basic: ['', () => import('highlight.js/lib/languages/basic')],
 	bnf: ['', () => import('highlight.js/lib/languages/bnf')],
 	brainfuck: ['bf', () => import('highlight.js/lib/languages/brainfuck')],
@@ -44,7 +43,7 @@ export const CATALOG: Readonly<Record<string, readonly [string, Load | null]>> =
 	crystal: ['cr', () => import('highlight.js/lib/languages/crystal')],
 	csharp: ['cs c#', () => import('highlight.js/lib/languages/csharp')],
 	csp: ['', () => import('highlight.js/lib/languages/csp')],
-	css: ['', null],
+	css: ['', () => import('highlight.js/lib/languages/css')],
 	d: ['', () => import('highlight.js/lib/languages/d')],
 	dart: ['', () => import('highlight.js/lib/languages/dart')],
 	delphi: ['dpr dfm pas pascal', () => import('highlight.js/lib/languages/delphi')],
@@ -94,9 +93,9 @@ export const CATALOG: Readonly<Record<string, readonly [string, Load | null]>> =
 	irpf90: ['', () => import('highlight.js/lib/languages/irpf90')],
 	isbl: ['', () => import('highlight.js/lib/languages/isbl')],
 	java: ['jsp', () => import('highlight.js/lib/languages/java')],
-	javascript: ['js jsx mjs cjs', null],
+	javascript: ['js jsx mjs cjs', () => import('highlight.js/lib/languages/javascript')],
 	'jboss-cli': ['wildfly-cli', () => import('highlight.js/lib/languages/jboss-cli')],
-	json: ['jsonc json5', null],
+	json: ['jsonc json5', () => import('highlight.js/lib/languages/json')],
 	julia: ['', () => import('highlight.js/lib/languages/julia')],
 	'julia-repl': ['jldoctest', () => import('highlight.js/lib/languages/julia-repl')],
 	kotlin: ['kt kts ktm ktx', () => import('highlight.js/lib/languages/kotlin')],
@@ -112,7 +111,7 @@ export const CATALOG: Readonly<Record<string, readonly [string, Load | null]>> =
 	lsl: ['', () => import('highlight.js/lib/languages/lsl')],
 	lua: ['pluto', () => import('highlight.js/lib/languages/lua')],
 	makefile: ['mk mak make', () => import('highlight.js/lib/languages/makefile')],
-	markdown: ['md mkdown mkd', null],
+	markdown: ['md mkdown mkd', () => import('highlight.js/lib/languages/markdown')],
 	mathematica: ['mma wl', () => import('highlight.js/lib/languages/mathematica')],
 	matlab: ['', () => import('highlight.js/lib/languages/matlab')],
 	maxima: ['', () => import('highlight.js/lib/languages/maxima')],
@@ -153,7 +152,7 @@ export const CATALOG: Readonly<Record<string, readonly [string, Load | null]>> =
 	protobuf: ['proto', () => import('highlight.js/lib/languages/protobuf')],
 	puppet: ['pp', () => import('highlight.js/lib/languages/puppet')],
 	purebasic: ['pb pbi', () => import('highlight.js/lib/languages/purebasic')],
-	python: ['py gyp ipython', null],
+	python: ['py gyp ipython', () => import('highlight.js/lib/languages/python')],
 	'python-repl': ['pycon', () => import('highlight.js/lib/languages/python-repl')],
 	q: ['k kdb', () => import('highlight.js/lib/languages/q')],
 	qml: ['qt', () => import('highlight.js/lib/languages/qml')],
@@ -189,7 +188,7 @@ export const CATALOG: Readonly<Record<string, readonly [string, Load | null]>> =
 	thrift: ['', () => import('highlight.js/lib/languages/thrift')],
 	tp: ['', () => import('highlight.js/lib/languages/tp')],
 	twig: ['craftcms', () => import('highlight.js/lib/languages/twig')],
-	typescript: ['ts tsx mts cts', null],
+	typescript: ['ts tsx mts cts', () => import('highlight.js/lib/languages/typescript')],
 	vala: ['', () => import('highlight.js/lib/languages/vala')],
 	vbnet: ['vb', () => import('highlight.js/lib/languages/vbnet')],
 	vbscript: ['vbs', () => import('highlight.js/lib/languages/vbscript')],
@@ -201,7 +200,10 @@ export const CATALOG: Readonly<Record<string, readonly [string, Load | null]>> =
 	wren: ['', () => import('highlight.js/lib/languages/wren')],
 	x86asm: ['', () => import('highlight.js/lib/languages/x86asm')],
 	xl: ['tao', () => import('highlight.js/lib/languages/xl')],
-	xml: ['html xhtml rss atom xjb xsd xsl plist wsf svg', null],
+	xml: [
+		'html xhtml rss atom xjb xsd xsl plist wsf svg',
+		() => import('highlight.js/lib/languages/xml')
+	],
 	xquery: ['xpath xq xqm', () => import('highlight.js/lib/languages/xquery')],
 	yaml: ['yml', () => import('highlight.js/lib/languages/yaml')],
 	zephir: ['zep', () => import('highlight.js/lib/languages/zephir')]

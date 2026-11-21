@@ -23,7 +23,7 @@ const PAINTED_BY_0_11_5: [language: string, body: string, painted: string][] = [
 		'punctuation { | attr "a" | punctuation : | number 1 | punctuation , | attr "b" | punctuation : | punctuation [ | literal true | keyword true | punctuation , | literal null | keyword null | punctuation ] | punctuation }'
 	],
 	[
-		'xml',
+		'html',
 		'<p class="x">hi &amp; bye</p>\n<!-- c -->',
 		'punctuation <p class="x"> | type p | attr class | string "x" | symbol &amp; | punctuation </p> | type p | comment <!-- c -->'
 	],
@@ -46,6 +46,20 @@ const PAINTED_BY_0_11_5: [language: string, body: string, painted: string][] = [
 	]
 ];
 
+// The languages 0.11.5's picker listed, in its order, `html` among them.
+const ROWS_0_11_5 = [
+	...['bash', 'c', 'cpp', 'csharp', 'css', 'diff', 'dockerfile', 'go', 'html', 'java'],
+	...['javascript', 'json', 'kotlin', 'latex', 'markdown', 'php', 'powershell', 'python', 'ruby'],
+	...['rust', 'sql', 'swift', 'typescript', 'yaml']
+];
+
+const grammarOf = async (answer: unknown) => {
+	const grammar = await answer;
+	return (
+		typeof grammar === 'function' ? grammar : (grammar as { default: unknown }).default
+	) as never;
+};
+
 describe('the default resolver', () => {
 	it('answers an eager grammar at once, under any spelling', () => {
 		expect(typeof defaultResolver.resolve('JS')).toBe('function');
@@ -54,35 +68,43 @@ describe('the default resolver', () => {
 	});
 
 	it('answers any other grammar with a promise of it, under any spelling', async () => {
-		const first = defaultResolver.resolve('golang');
+		const first = defaultResolver.resolve('rs');
 		expect(typeof (first as Promise<unknown>).then).toBe('function');
-		expect(await defaultResolver.resolve('go')).toBe(await first);
+		expect(await grammarOf(defaultResolver.resolve('rust'))).toBe(await grammarOf(first));
 	});
 
-	it('lists each grammar once, each spelling under one name', () => {
-		const names = defaultResolver.languages.map((language) => language.name);
-		expect(new Set(names).size).toBe(names.length);
-		expect(names).toContain('xml');
-		expect(names).toContain('console');
-		expect(names).not.toContain('html');
-		expect(names).not.toContain('shell');
-		expect(names.length).toBeGreaterThan(190);
+	// Miss-analysis: the default set grew to every highlight.js grammar and no row said which
+	// languages a default install lists, so the picker's 25 rows became 194 unnoticed.
+	it("lists the 24 languages 0.11.5's picker listed, by its names and in its order", () => {
+		expect(defaultResolver.languages.map((language) => language.name)).toEqual(ROWS_0_11_5);
 	});
 
-	it('knows no made-up name', () => {
+	it('knows no made-up name, and no grammar outside the default set', () => {
 		expect(defaultResolver.resolve('no-such-language')).toBeNull();
+		for (const name of ['nix', 'haskell', 'elixir', 'console', 'zig'])
+			expect(defaultResolver.resolve(name), name).toBeNull();
 	});
 
 	// Miss-analysis: the core's 24 grammars left with their spelling test, so nothing held the
-	// package to the spellings a 0.11.5 document already uses.
-	it('answers every spelling the core highlighted before the package', () => {
+	// package to 0.11.5's spellings, which are the picker's search keys too, so the list is exact.
+	it('answers exactly the spellings the core highlighted before the package', async () => {
 		const spellings = [
 			...['bash', 'sh', 'shell', 'c', 'cpp', 'c++', 'csharp', 'cs', 'c#', 'css', 'diff'],
 			...['dockerfile', 'docker', 'go', 'html', 'htm', 'java', 'javascript', 'js', 'json'],
 			...['kotlin', 'kt', 'latex', 'tex', 'markdown', 'md', 'php', 'powershell', 'ps1'],
 			...['python', 'py', 'ruby', 'rust', 'rs', 'sql', 'swift', 'typescript', 'ts', 'yaml', 'yml']
 		];
-		expect(spellings.filter((spelling) => defaultResolver.resolve(spelling) === null)).toEqual([]);
+		const listed = defaultResolver.languages.flatMap((language) => [
+			language.name,
+			...(language.aliases ?? [])
+		]);
+		expect(listed.sort()).toEqual([...spellings].sort());
+		for (const spelling of spellings)
+			expect(typeof (await grammarOf(defaultResolver.resolve(spelling))), spelling).toBe(
+				'function'
+			);
+		for (const spelling of ['tsx', 'jsx', 'xml', 'golang', 'zsh'])
+			expect(defaultResolver.resolve(spelling), spelling).toBeNull();
 	});
 });
 
@@ -123,7 +145,7 @@ describe('tokensOf', () => {
 	// four classes, so a scope moved to another colour stayed green.
 	it.each(PAINTED_BY_0_11_5)('paints %s as 0.11.5 painted it', async (language, body, painted) => {
 		const hljs = HighlightJS.newInstance();
-		hljs.registerLanguage(language, (await defaultResolver.resolve(language)) as never);
+		hljs.registerLanguage(language, await grammarOf(defaultResolver.resolve(language)));
 		const runs = tokensOf(hljs, body, language).map(
 			(t) => `${t.class.replace('code-tok-', '')} ${body.slice(t.from, t.to)}`
 		);

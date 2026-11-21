@@ -2,9 +2,11 @@
 // (G4.265) and no highlight.js (G4.372). Vite builds a page that imports the editor, through the
 // Svelte build and the prebuilt one, in development and in production: every check tag the
 // development build carries must be gone from the production one. A second page lists the highlight
-// package, and at least 150 of its grammars must load outside its first load. Each production page's
-// first-load and total JS and its chunk count are budget rows in `size-budget.json`. Run by
-// verify-pack.mjs after `npm run package`; `node scripts/pack/verify-dev-strip.mjs [root] [--bless]`.
+// package as installed, which loads exactly its sixteen default grammars on demand and no others; a
+// third opts into every grammar, and at least 150 of them must load outside its first load. Each
+// production page's first-load and total JS and its chunk count are budget rows in
+// `size-budget.json`. Run by verify-pack.mjs after `npm run package`;
+// `node scripts/pack/verify-dev-strip.mjs [root] [--bless]`.
 import {
 	mkdirSync,
 	mkdtempSync,
@@ -32,7 +34,11 @@ const DEV_ONLY_MODULE = /(^|\/)dist\/(invariants\/|debug\/dump-tree\.js$)/;
 /** Fewer mapped editor modules than this means the source maps stopped naming them. */
 const MAPPED_FLOOR = 300;
 
-/** Fewer grammars outside the highlight page's first load means they stopped loading on demand. */
+/** The default languages that load on demand; any other count means the opt-in's catalog leaked
+ *  into a default install, or the default grammars stopped loading on demand. */
+const DEFAULT_LAZY_GRAMMARS = 16;
+
+/** Fewer grammars outside the opted-in page's first load means they stopped loading on demand. */
 const LAZY_GRAMMAR_FLOOR = 150;
 
 const CHECK_CALL = /\b(?:assertInvariant|devWarn)\(\s*(['"`])([^'"`$\\]+)\1/g;
@@ -54,6 +60,7 @@ export async function verifyDevStrip(root = '.') {
 	const sizes = {};
 	const page = mkdtempSync(path.join(tmpdir(), 'dev-strip-'));
 	const highlightPage = mkdtempSync(path.join(tmpdir(), 'dev-strip-highlight-'));
+	const allLanguagesPage = mkdtempSync(path.join(tmpdir(), 'dev-strip-all-languages-'));
 	try {
 		writePage(page, path.resolve(root), CORE_MAIN);
 		for (const route of /** @type {const} */ (['svelte', 'prebuilt'])) {
@@ -85,27 +92,39 @@ export async function verifyDevStrip(root = '.') {
 			failures.push(...highlightJs(production.outDir, route));
 		}
 		writePage(highlightPage, path.resolve(root), HIGHLIGHT_MAIN);
-		for (const route of /** @type {const} */ (['svelte', 'prebuilt'])) {
-			const production = await buildPage(highlightPage, route, 'production');
-			const name = route === 'svelte' ? 'highlightAppSvelte' : 'highlightAppPrebuilt';
-			sizes[`${name}FirstLoadGzip`] = production.firstLoadGzipped;
-			sizes[`${name}TotalGzip`] = production.gzipped;
-			sizes[`${name}Chunks`] = production.chunks;
-			const grammars = lazyGrammars(production.outDir);
-			console.log(
-				`verify-dev-strip: ${route} with the highlight package ${production.firstLoadGzipped} B ` +
-					`gzipped at first load and ${production.gzipped} B in all over ${production.chunks} ` +
-					`chunks in production, ${grammars} grammars loaded later`
-			);
-			if (grammars < LAZY_GRAMMAR_FLOOR) {
-				failures.push(
-					`the ${route} page with the highlight package loads ${grammars} grammars outside its first load, under ${LAZY_GRAMMAR_FLOOR}: are they still loaded on demand?`
+		writePage(allLanguagesPage, path.resolve(root), ALL_LANGUAGES_MAIN);
+		for (const [dir, prefix, label] of /** @type {const} */ ([
+			[highlightPage, 'highlightApp', 'with the highlight package'],
+			[allLanguagesPage, 'allLanguagesApp', 'with every grammar opted in']
+		])) {
+			for (const route of /** @type {const} */ (['svelte', 'prebuilt'])) {
+				const production = await buildPage(dir, route, 'production');
+				const name = `${prefix}${route === 'svelte' ? 'Svelte' : 'Prebuilt'}`;
+				sizes[`${name}FirstLoadGzip`] = production.firstLoadGzipped;
+				sizes[`${name}TotalGzip`] = production.gzipped;
+				sizes[`${name}Chunks`] = production.chunks;
+				const grammars = lazyGrammars(production.outDir);
+				console.log(
+					`verify-dev-strip: ${route} ${label} ${production.firstLoadGzipped} B gzipped at ` +
+						`first load and ${production.gzipped} B in all over ${production.chunks} chunks ` +
+						`in production, ${grammars} grammars loaded later`
 				);
+				if (dir === highlightPage && grammars !== DEFAULT_LAZY_GRAMMARS) {
+					failures.push(
+						`the ${route} page with the highlight package loads ${grammars} grammars outside its first load, not its ${DEFAULT_LAZY_GRAMMARS} default ones: did the opt-in's catalog reach a default install?`
+					);
+				}
+				if (dir === allLanguagesPage && grammars < LAZY_GRAMMAR_FLOOR) {
+					failures.push(
+						`the ${route} page with every grammar opted in loads ${grammars} grammars outside its first load, under ${LAZY_GRAMMAR_FLOOR}: are they still loaded on demand?`
+					);
+				}
 			}
 		}
 	} finally {
 		rmSync(page, { recursive: true, force: true });
 		rmSync(highlightPage, { recursive: true, force: true });
+		rmSync(allLanguagesPage, { recursive: true, force: true });
 	}
 	return { failures, sizes };
 }
@@ -215,6 +234,16 @@ const HIGHLIGHT_MAIN = [
 	"import { highlight } from '@voithos-labs/aragonite-highlight';",
 	"import { highlightJs } from '@voithos-labs/aragonite-highlight/renderer';",
 	'window.editorApi = { createEditor, plugins: [highlight({ renderer: highlightJs() })] };'
+];
+
+/** The entry of a host that opts the highlight package into every grammar. */
+const ALL_LANGUAGES_MAIN = [
+	"import { createEditor } from '@voithos-labs/aragonite';",
+	"import { highlight } from '@voithos-labs/aragonite-highlight';",
+	"import { highlightJs } from '@voithos-labs/aragonite-highlight/renderer';",
+	"import { allLanguages } from '@voithos-labs/aragonite-highlight/languages';",
+	'const renderer = highlightJs({ languages: allLanguages });',
+	'window.editorApi = { createEditor, plugins: [highlight({ renderer })] };'
 ];
 
 /** A page running `main`, with the editor and the highlight package linked the way an install

@@ -177,6 +177,14 @@ describe('createCodePainter', () => {
 		expect(languageOwner('', activation)).toBeNull();
 	});
 
+	it('asks a language listed with no other spellings by its name', () => {
+		const { painter } = editorWith({
+			name: 'one',
+			code: { languages: () => [{ name: 'x' }], highlight: () => [{ from: 0, to: 1, class: 'k' }] }
+		});
+		expect(html(painter.code('a b', 'X'))).toBe('<span class="k">a</span> b');
+	});
+
 	it('asks only the first plugin listing a spelling, and lists the union in list order', () => {
 		const ones = [{ name: 'x', aliases: ['ex'] }];
 		const twos = [

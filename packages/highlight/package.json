@@ -39,6 +39,11 @@
 			"svelte": "./dist/renderer.js",
 			"default": "./dist/prebuilt/renderer.js"
 		},
+		"./languages": {
+			"types": "./dist/renderer/all-languages.d.ts",
+			"svelte": "./dist/renderer/all-languages.js",
+			"default": "./dist/prebuilt/renderer/all-languages.js"
+		},
 		"./package.json": "./package.json"
 	},
 	"files": [

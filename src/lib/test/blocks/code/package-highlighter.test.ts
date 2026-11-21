@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import javascript from 'highlight.js/lib/languages/javascript';
 import python from 'highlight.js/lib/languages/python';
 import { highlightJs, type HighlightJsOptions } from '#packages/highlight/src/renderer.js';
+import { allLanguages } from '#packages/highlight/src/renderer/all-languages.js';
 import { createCodePainter } from '#lib/components/blocks/code/code-painter.js';
 import { pickerAliases } from '#lib/components/blocks/code/code-languages.js';
 import { activationWith } from '#lib/test/harness/code-highlighters.js';
@@ -24,6 +25,28 @@ const tokens = (node: Node) => {
 	box.append(node);
 	return [...box.querySelectorAll('span')].map((s) => `${s.className}:${s.textContent}`);
 };
+
+// Miss-analysis: every row asked a language the package bundled, so none showed which languages a
+// default install leaves plain.
+describe('the default set and the opt-in', () => {
+	const NIX = 'let a = 1; in a';
+
+	it('leaves a language outside the default set plain, asking and reporting nothing', async () => {
+		const { painter, repaint, errors } = editorRunning({});
+		expect(tokens(painter.code(NIX, 'nix'))).toEqual([]);
+		await microtaskCheckpoint();
+		await microtaskCheckpoint();
+		expect(repaint).not.toHaveBeenCalled();
+		expect(errors).toEqual([]);
+	});
+
+	it('paints it once its chunk lands, with every grammar opted in', async () => {
+		const { painter, repaint } = editorRunning({ languages: allLanguages });
+		expect(tokens(painter.code(NIX, 'nix'))).toEqual([]);
+		await vi.waitFor(() => expect(repaint).toHaveBeenCalledTimes(1));
+		expect(tokens(painter.code(NIX, 'nix'))).toContain('code-tok-keyword:let');
+	});
+});
 
 describe('highlightJs({ languages })', () => {
 	it('asks a grammar of the host’s own by its name and its aliases, once it loads', async () => {
@@ -72,6 +95,14 @@ describe('highlightJs({ resolver })', () => {
 		await vi.waitFor(() => expect(repaint).toHaveBeenCalledTimes(1));
 		expect(tokens(painter.code('const b', 'snake'))).toEqual(['code-tok-keyword:const']);
 		expect(resolve).toHaveBeenCalledTimes(1);
+	});
+
+	it('takes a grammar’s module from a host resolver, as `import()` answers it', async () => {
+		const resolve = () => import('highlight.js/lib/languages/javascript');
+		const { painter, repaint } = editorRunning({ resolver: { languages: snake, resolve } });
+		expect(tokens(painter.code('const a', 'snake'))).toEqual([]);
+		await vi.waitFor(() => expect(repaint).toHaveBeenCalledTimes(1));
+		expect(tokens(painter.code('const b', 'snake'))).toEqual(['code-tok-keyword:const']);
 	});
 
 	it('leaves a language plain once a host resolver’s load fails, asking and reporting once', async () => {

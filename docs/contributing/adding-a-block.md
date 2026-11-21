@@ -59,4 +59,4 @@ The order is requirements, then tests, then code. `docs/contributing/testing.md`
 
 ## A code-block language
 
-Not a kind, but people look here. The core has no languages: highlighting comes from a plugin's `code` highlighter, and the first-party one is `packages/highlight`, which answers every highlight.js grammar by itself. A spelling that grammar doesn't know goes in its resolver's kept spellings (`packages/highlight/src/renderer/resolver.ts`), with the reason beside it.
+Not a kind, but people look here. The core has no languages: highlighting comes from a plugin's `code` highlighter, and the first-party one is `packages/highlight`. Its default languages and their spellings are one list (`packages/highlight/src/renderer/default-languages.ts`), a spelling highlight.js doesn't know carrying its reason beside it; every other highlight.js grammar is the opt-in's (`packages/highlight/src/renderer/all-languages.ts`).

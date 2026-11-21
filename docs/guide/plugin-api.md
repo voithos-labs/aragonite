@@ -736,19 +736,19 @@ The factory's inputs. The required ones are live getters, for the node, the inde
 
 ### Code-block languages
 
-_(pre-freeze / unstable)_ What highlights fenced code. The editor ships no grammars: a fence paints plain until a plugin value contributes a `code` highlighter. The first-party one is the `highlight` package (`@voithos-labs/aragonite-highlight`), with every highlight.js grammar on demand; its README (`packages/highlight/README.md`) has its options. A language no listed highlighter knows isn't an error: the fence still authors, commits and round-trips, and its body paints plain.
+_(pre-freeze / unstable)_ What highlights fenced code. The editor ships no grammars: a fence paints plain until a plugin value contributes a `code` highlighter. The first-party one is the `highlight` package (`@voithos-labs/aragonite-highlight`), with 24 common languages by default and every highlight.js grammar for a host that passes `allLanguages`; its README (`packages/highlight/README.md`) has its options. A language no listed highlighter knows isn't an error: the fence still authors, commits and round-trips, and its body paints plain.
 
 | Export | Role |
 | --- | --- |
-| `CodeHighlighter` | What `contributes(...).code` answers: `highlight(body, language)` gives the body's tokens, `null` for plain, or a promise of either, and `languages()` lists what it answers. Several plugins may contribute one; for each spelling the first plugin listing it is asked. The `highlight` package is one |
-| `CodeToken`, `CodeLanguage` | A token is `{ from, to, class }` in body offsets (tokens nest or don't overlap, and of two over one range the first listed is outside); a language is `{ name, aliases }`, one picker row with its search keys |
+| `CodeHighlighter` | What `contributes(...).code` answers: `highlight(body, language)` gives the body's tokens, `null` for plain, or a promise of either, and `languages()` lists what it answers, in the order the picker shows them. Several plugins may contribute one; the picker lists each plugin's rows after the ones before it, and for each spelling the first plugin listing it is asked. The `highlight` package is one |
+| `CodeToken`, `CodeLanguage` | A token is `{ from, to, class }` in body offsets (tokens nest or don't overlap, and of two over one range the first listed is outside); a language is `{ name, aliases? }`, one picker row with its search keys |
 | `CodePainter` | `renderSource`'s second argument: `code(body, language)` paints a body through the editor's highlighters, plain where none answers, and repaints when a late answer arrives |
 | `sliceFencedSource`, `FencedSource` | A fenced source split into its opener line, body and closer line, each keeping its own ending; null when the first line opens no fence |
 | `renderFencedSource` | The code block's own drawing of a fenced source: the fence lines as markers the marker-hiding modes collapse, and the body through the painter you pass (`paint.code`, say). Text-preserving, and it keeps a line for the caret under an empty last body line |
 | `fenceBodyAsDrawn` | The body as `renderFencedSource` draws it: the line break before the closer belongs to the closer's line, unless the body is blank or nothing closes the fence |
 | `fencedBodyRange` | Where the body sits in a fenced source, its line ending left out, or null while the fence has no body line yet. It's what a fenced kind returns from its descriptor's `bodyRange` |
 
-A grammar highlight.js doesn't ship (one you wrote, say) goes on the package's engine, loaded the first time a fence names it:
+A grammar the package doesn't highlight (one you wrote, say) goes on its engine, loaded the first time a fence names it:
 
 ```ts
 import { highlight } from '@voithos-labs/aragonite-highlight';
@@ -761,7 +761,7 @@ const code = highlight({
 });
 ```
 
-The picker shows `mylang` once, and `mlg` is a search key for that row, so a user typing `mlg` finds it without knowing the full name.
+The picker shows `mylang` once, after the package's own rows, and `mlg` is a search key for that row, so a user typing `mlg` finds it without knowing the full name.
 
 A plugin with a language of its own contributes a highlighter for that language alone, and an editor may list it beside the `highlight` package:
 

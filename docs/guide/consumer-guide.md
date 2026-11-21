@@ -67,7 +67,7 @@ A few things in the above example snippet are decently important; you might want
 
 Two more that aren't in the snippet but bite early: plugins install once, app-wide, but each editor only runs the ones its own `plugins` prop lists ([Plugins](#plugins)); and `editor.__test.*` is internal and will move, so don't build on it.
 
-One more if you're upgrading: code blocks paint plain until an editor lists the highlight package. 0.11.5 highlighted them out of the box, so run `npm install @voithos-labs/aragonite-highlight highlight.js` and add `highlight({ renderer: highlightJs() })` to `plugins` to keep them colored ([Bundled plugins](#bundled-plugins)). A math block's source under latex shows plain without it too.
+One more if you're upgrading: code blocks paint plain until an editor lists the highlight package. 0.11.5 highlighted them out of the box, so run `npm install @voithos-labs/aragonite-highlight highlight.js` and add `highlight({ renderer: highlightJs() })` to `plugins` to keep them colored ([Bundled plugins](#bundled-plugins)). That highlights the same 24 languages 0.11.5 did, under the same spellings, and the picker lists the same rows. A math block's source under latex shows plain without it too.
 
 ## What your build needs
 
@@ -839,7 +839,7 @@ import { spellcheckPlugin } from '@voithos-labs/aragonite-spellcheck';
 | `tocPlugin()` | A `[[toc]]` line becomes a live table of contents: every heading in the document, indented by level, each entry navigating to its heading on click or on Enter from the keyboard |
 | `footnotesPlugin()` | GFM footnotes: `[^label]: content` definitions render as an editable block, and `[^label]` references render as superscript numbers in first-reference order |
 | `emojiPlugin()` | GitHub `:shortcode:` emoji: a bare `:name:` renders as a glyph, with the literal `:name:` still in the source |
-| `highlight({ renderer? })` | Fenced code highlights in its language: every highlight.js grammar, eight with the page and each other one the first time a fence names it. The code block's picker offers them all. Without a renderer, code stays plain, which is also what an editor without this plugin shows |
+| `highlight({ renderer? })` | Fenced code highlights in its language: 24 common ones, eight with the page and each other one the first time a fence names it, or every highlight.js grammar if you opt in (**Code highlighting**, below). The code block's picker offers the ones it highlights. Without a renderer, code stays plain, which is also what an editor without this plugin shows |
 | `highlightOccurrencesPlugin()` | Every occurrence of the word under the caret, the one you're on included, is highlighted across the document's prose blocks once you stop typing, as a view-only decoration, never a byte change. The plugin picks no color: style `.decoration-overlay.hl-occurrence` to see it |
 | `latexPlugin({ renderer?, blockLayout? })` | All three GitHub math forms through one injected engine: inline `$…$`, block `$$…$$`, and the fenced ` ```math ` form; without an engine each formula shows its source. `blockLayout` (`'split'` default, `'stacked'`, `'source'`) is how a block opens for editing; an editor's `{ plugin, options: { blockLayout } }` entry overrides it per instance |
 | `mermaidPlugin({ renderer? })` | A ` ```mermaid ` fence renders as a diagram through an injected engine; without one, the fence renders statically (the source, styled) |
@@ -881,7 +881,7 @@ import { highlightJs } from '@voithos-labs/aragonite-highlight/renderer';
 highlight({ renderer: highlightJs() });
 ```
 
-Eight common grammars load with the page (JavaScript, TypeScript, JSON, shell, Python, HTML, CSS and Markdown), and every other one is a chunk of its own, fetched the first time a fence names it. Your bundler splits those chunks out of highlight.js, so serve them with the rest of your build. The colors come from the editor's theme, so there's no stylesheet to import. A grammar highlight.js doesn't ship goes in `highlightJs({ languages })`, and the package's README has the rest.
+It highlights 24 common languages, the ones the code block's picker lists. Eight load with the page (JavaScript, TypeScript, JSON, bash, Python, HTML, CSS and Markdown), and the other sixteen are chunks of their own, fetched the first time a fence names one. Your bundler splits those chunks out of highlight.js, so serve them with the rest of your build. The colors come from the editor's theme, so there's no stylesheet to import. For every grammar highlight.js ships, pass `highlightJs({ languages: allLanguages })`, with `allLanguages` from `@voithos-labs/aragonite-highlight/languages`: each is still fetched only when a fence names it, and the picker lists them after the 24. A grammar of your own goes in `languages` too, and the package's README has the rest.
 
 **Math and diagrams.** latex and mermaid render through injected engines that never ride the main bundle: each package has a `/renderer` subpath adapter, and its engine (`katex` / `mermaid`) is an optional peer dependency you install only if you use it.
 
