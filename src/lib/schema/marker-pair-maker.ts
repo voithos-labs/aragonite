@@ -8,20 +8,16 @@ import { checkLocalName } from './block-shapes';
 import { inline } from './inline-maker';
 import { asMarkerSide, type FunctionMatcher, type Inline, type RegexMatcher } from './inline-type';
 
-/** What a side reads off its bytes: the pair's name or id, for the plugin to match sides by. */
-export type MarkerData = Readonly<Record<string, string | undefined>>;
+/** One side: what every claim of it starts with, and the matcher that claims it there. `D` is
+ *  what `read` returns: the pair's name or id, for the plugin to match sides by. */
+export type MarkerSide<D> = { prefix: string } & (RegexMatcher<D> | FunctionMatcher<D>);
 
-type SideMatcher = RegexMatcher<MarkerData> | FunctionMatcher<MarkerData>;
-
-/** One side: what every claim of it starts with, and the matcher that claims it there. */
-export type MarkerSide<M extends SideMatcher = SideMatcher> = { prefix: string } & M;
-
-export interface MarkerPairSpec<O extends SideMatcher = SideMatcher, C extends SideMatcher = O> {
+export interface MarkerPairSpec<D> {
 	/** Lowercase letters, digits and hyphens; the sides are named `name-open` and `name-close`. */
 	name: string;
 	label: string;
-	open: MarkerSide<O>;
-	close: MarkerSide<C>;
+	open: MarkerSide<D>;
+	close: MarkerSide<D>;
 	/** The side of each marker a letter typed at it joins; by default the text between them. */
 	text?: { open: 'after' | 'before'; close: 'before' | 'after' };
 	/** Bytes the pair reads, for the published checks. */
@@ -29,27 +25,31 @@ export interface MarkerPairSpec<O extends SideMatcher = SideMatcher, C extends S
 }
 
 /** A marker pair as a plugin lists it in `Contribution.inlines`; `piece.is(pair.open)` finds a side. */
-export interface MarkerPair {
+export interface MarkerPair<D = unknown> {
 	readonly name: string;
-	readonly open: Inline<MarkerData>;
-	readonly close: Inline<MarkerData>;
+	readonly open: Inline<D>;
+	readonly close: Inline<D>;
 }
 
-type R = RegexMatcher<MarkerData>;
-type F = FunctionMatcher<MarkerData>;
+type Sides<D, O, C> = Omit<MarkerPairSpec<D>, 'open' | 'close'> & {
+	open: { prefix: string } & O;
+	close: { prefix: string } & C;
+};
+type R<D> = RegexMatcher<D>;
+type F<D> = FunctionMatcher<D>;
 
 /** Makes a marker pair; each side is claimed where the text starts with its `prefix`. */
-export function markerPair(spec: MarkerPairSpec<R, R>): MarkerPair;
-export function markerPair(spec: MarkerPairSpec<R, F>): MarkerPair;
-export function markerPair(spec: MarkerPairSpec<F, R>): MarkerPair;
-export function markerPair(spec: MarkerPairSpec<F, F>): MarkerPair;
-export function markerPair(spec: MarkerPairSpec): MarkerPair;
-export function markerPair(spec: MarkerPairSpec): MarkerPair {
+export function markerPair<D>(spec: Sides<D, R<D>, R<D>>): MarkerPair<D>;
+export function markerPair<D>(spec: Sides<D, R<D>, F<D>>): MarkerPair<D>;
+export function markerPair<D>(spec: Sides<D, F<D>, R<D>>): MarkerPair<D>;
+export function markerPair<D>(spec: Sides<D, F<D>, F<D>>): MarkerPair<D>;
+export function markerPair<D>(spec: MarkerPairSpec<D>): MarkerPair<D>;
+export function markerPair<D>(spec: MarkerPairSpec<D>): MarkerPair<D> {
 	checkLocalName('markerPair', spec.name);
 	const text = spec.text ?? { open: 'after', close: 'before' };
 	const side = (which: 'open' | 'close') =>
 		asMarkerSide(
-			inline<MarkerData>({
+			inline<D>({
 				...spec[which],
 				name: `${spec.name}-${which}`,
 				label: spec.label,
@@ -64,5 +64,5 @@ export function markerPair(spec: MarkerPairSpec): MarkerPair {
 	return Object.defineProperty({ open, close }, 'name', {
 		enumerable: true,
 		get: () => open.name.slice(0, -'-open'.length)
-	}) as MarkerPair;
+	}) as MarkerPair<D>;
 }

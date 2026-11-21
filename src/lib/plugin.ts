@@ -67,7 +67,6 @@ export { mark, type Mark, type MarkSpec } from './schema/mark-maker';
 // A marker pair: two markers around text, in one block or two, drawn as nothing in live mode.
 export {
 	markerPair,
-	type MarkerData,
 	type MarkerPair,
 	type MarkerPairSpec,
 	type MarkerSide

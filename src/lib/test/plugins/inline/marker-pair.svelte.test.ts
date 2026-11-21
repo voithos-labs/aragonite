@@ -46,7 +46,7 @@ import { expectBoundedGrowth, measureScanGrowth } from '../../harness/scan-growt
 beforeEach(() => installLayoutStubs());
 afterEach(() => destroyMountedEditors());
 
-type Text = NonNullable<MarkerPairSpec['text']>;
+type Text = NonNullable<MarkerPairSpec<unknown>['text']>;
 
 /** A comment anchor: `{>>id}` opens, `{<<id}` closes, the id is what the plugin pairs them by. */
 const anchor = (text?: Text) =>
@@ -104,17 +104,17 @@ describe('a marker pair, read', () => {
 		]);
 	});
 
-	// Miss-analysis: every row passed its spec as a literal, so nothing passed one typed as the
-	// exported `MarkerPairSpec`, which no overload took.
-	it('takes a spec typed as `MarkerPairSpec`', () => {
-		const side = (prefix: string): MarkerSide => ({
+	// Miss-analysis: every row passed its spec as a literal reading a string id, so nothing passed
+	// one typed as the exported `MarkerPairSpec`, which no overload took, or read another shape.
+	it('takes a spec typed as `MarkerPairSpec`, reading data of any shape', () => {
+		const side = (prefix: string): MarkerSide<{ n: number }> => ({
 			prefix,
 			match: new RegExp(`\\{${prefix.slice(1)}(\\d+)\\}`),
-			read: (m: RegExpExecArray) => ({ id: m[1] })
+			read: (m: RegExpExecArray) => ({ n: Number(m[1]) })
 		});
-		const spec: MarkerPairSpec = {
+		const spec: MarkerPairSpec<{ n: number }> = {
 			name: 'anchor',
-			label: 'Typed anchor',
+			label: 'Numbered anchor',
 			open: side('{>>'),
 			close: side('{<<'),
 			sample: 'a {>>7}text{<<7} z'
@@ -122,9 +122,9 @@ describe('a marker pair, read', () => {
 		const { read } = installed(undefined, markerPair(spec));
 		expect(read('a {>>7}text{<<7} z').map((n) => n.data)).toEqual([
 			undefined,
-			{ id: '7' },
+			{ n: 7 },
 			undefined,
-			{ id: '7' },
+			{ n: 7 },
 			undefined
 		]);
 	});
