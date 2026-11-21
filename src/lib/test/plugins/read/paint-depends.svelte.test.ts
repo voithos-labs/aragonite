@@ -103,7 +103,9 @@ describe('a paint with paintDepends', () => {
 			await route.write(m, N);
 			await m.settle();
 			if (!m.instance.plugins.includes('painter')) return;
-			const said = (answers: readonly string[]) => answers.filter(Boolean);
+			// Up to the last answer that says something, kept at its index (a slot past it is none).
+			const said = (answers: readonly string[]) =>
+				answers.slice(0, answers.findLastIndex(Boolean) + 1);
 			const now = said(editor!.doc.blocks.map(depends));
 			const painted = [...editor!.doc.walk()].filter((block) => handed.has(block));
 			expect(painted.length).toBeGreaterThan(0);
