@@ -197,17 +197,6 @@ export interface CurrentDocument {
 	layout?: Layout;
 }
 
-/** `source` read as the editor's document `now` would be once it holds those bytes, for a second
- *  half answered before the first commits; it is never put in the tree. */
-export function answeredDocument(
-	reading: Reading,
-	now: CurrentDocument,
-	source: string
-): CurrentDocument {
-	const measured = readOff(reading, now, source);
-	return { source, measured, layout: documentLayout(measured) };
-}
-
 const parsedIn = (reading: Reading, source: string) =>
 	readAsOpened(source, { grammar: reading.grammar, scope: 'document' });
 

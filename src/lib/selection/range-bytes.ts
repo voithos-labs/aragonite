@@ -27,11 +27,10 @@ import {
 } from './gap-caret';
 import { blockFacts } from '../schema/block-facts';
 import { getContentRange, structuralSuffix } from '../core/inline';
-import type { Held, PlaceKept, Range } from '../range-edit/edit-range';
+import type { Held, Range } from '../range-edit/edit-range';
 import type { SpliceCaret } from '../action-contracts';
 import { documentLayout, type LaidBlock, type Layout } from '../range-edit/layout';
 import { readsAsText } from '../range-edit/document';
-import type { CurrentDocument } from '../range-edit/host';
 import { pathsEqual } from './path-math';
 import { boundaryHidden, previousCaretPath } from './path-lookup';
 import type { Landing, SelectionPoint } from './primitives';
@@ -77,20 +76,6 @@ export function documentBytes(deps: {
 			if (laid?.of !== of) laid = { of, layout: documentLayout(of) };
 			return laid.layout;
 		}
-	};
-}
-
-/** `doc`, bytes a gesture answered and has not committed, read as the editor reads its own; no cut
- *  is remembered there. */
-export function answeredBytes(doc: CurrentDocument): DocumentBytes {
-	const layout = doc.layout ?? documentLayout(doc.measured);
-	return {
-		doc: () => doc.measured.doc,
-		source: () => doc.source,
-		layout: () => layout,
-		measured: () => doc.measured,
-		cut: null,
-		vouch: () => true
 	};
 }
 
@@ -342,8 +327,7 @@ export function byteOfGap(
  *  sits there. Made only by the readers below, so a caret on a block's syntax is never called text.
  *  `back`, on a caret where the last cut left it, is that cut's own caret: the one place the entry
  *  the cut wrote fits, so only a paste of that entry goes there. */
-export type PastePlace = { range: Range; ending?: LineEnding; back?: SpliceCaret } & Held &
-	PlaceKept;
+export type PastePlace = { range: Range; ending?: LineEnding; back?: SpliceCaret } & Held;
 
 /** A paste's place as one of the readers below finds it, and the paths it was asked by, which
  *  `placeRead` vouches with the place's own blocks. */

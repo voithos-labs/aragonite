@@ -69,7 +69,7 @@ export type Gesture =
 	| { text: string }
 	/** Clipboard text with LF line endings, the editor's own entry, what the caret holds (anywhere
 	 *  but in text the clipboard lands as blocks), and the line ending a removal before it took. */
-	| ({ paste: string; plain: boolean; own?: string; ending?: LineEnding } & Held & PlaceKept)
+	| ({ paste: string; plain: boolean; own?: string; ending?: LineEnding } & Held)
 	/** The range dragged and dropped at byte `drop`: moved, or copied. */
 	| { drop: number; copy: boolean };
 
@@ -170,7 +170,7 @@ function edited(
 			gesture.own === undefined && !typed
 				? (text, blocks) => host.transformPaste(text, blocks)
 				: null;
-		const pasted = (held: Held, inPlace = gesture.inPlace): Pasted => ({
+		const pasted = (held: Held, inPlace?: true): Pasted => ({
 			text: gesture.paste,
 			plain: gesture.plain,
 			held,
@@ -377,23 +377,8 @@ function childAt(doc: Doc, place: { at: number; parent: readonly number[] }): nu
 
 /** Where a paste's removal left a block held whole its line for the text: the blank line under that
  *  line is the block's separator, never an empty row. */
-export interface PlaceKept {
+interface PlaceKept {
 	inPlace?: true;
-}
-
-/** The removal a paste over `range` makes first (`pasteRemoval`), for an editor that lands it in a
- *  commit of its own and then pastes at its caret, handing `inPlace` back with that paste. */
-export function pasteRemovalOf(
-	source: string,
-	range: Range,
-	text: string,
-	mode: Mode,
-	host: RangeHost
-): RemovalAnswer {
-	const doc = readDoc(source, host, mode);
-	const removed = pasteRemoval(doc, range.from, range.to, text);
-	const answer = answerOf(removed, 'type', doc, range);
-	return removed.inPlace ? { ...answer, inPlace: true } : answer;
 }
 
 /** Whether text ending in a line ending lands at `at` on a last line with none, in no literal
@@ -489,7 +474,7 @@ export function removalOf(
 /** A removal's answer, and where the block the range started in stood when it went whole, read on
  *  the bytes after. `own` where some of the leaf the range ended in follows it, the one text that
  *  text written over the range may join. */
-export interface RemovalAnswer extends RangeEditResult, PlaceKept {
+export interface RemovalAnswer extends RangeEditResult {
 	taken?: { at: number; parent: readonly number[]; own: boolean };
 	/** The byte the removal left its caret at before it landed: where a cut's own entry fits. */
 	unlanded: number;

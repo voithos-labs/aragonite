@@ -11,7 +11,6 @@ import { isBlankText } from '../../core/lines';
 import { hidesDelimitersAtCaret } from '../../presentation-mode';
 import {
 	besideEdge,
-	pasteRemovalOf,
 	removalOf,
 	textInCell,
 	wholeBlocksRemovalOf,
@@ -130,33 +129,13 @@ export function removalAnswer(
 	coverage: RangeCoverage,
 	gesture: RemovalGesture
 ): RemovalRead | null {
-	return answeredOn(ctx, coverage, (read, host) =>
-		removalOf(read.source, read.range, gesture, modeOf(ctx), host)
-	);
-}
-
-/** The core's answer for the removal a paste of `text` over what `coverage` holds makes first. */
-export function pasteRemovalAnswer(
-	ctx: RemovalContext,
-	coverage: RangeCoverage,
-	text: string
-): RemovalRead | null {
-	return answeredOn(ctx, coverage, (read, host) =>
-		pasteRemovalOf(read.source, read.range, text, modeOf(ctx), host)
-	);
-}
-
-function answeredOn(
-	ctx: RemovalContext,
-	coverage: RangeCoverage,
-	answer: (read: RangeRead, host: ReturnType<typeof rangeHost>) => RemovalAnswer
-): RemovalRead | null {
 	const tree = ctx.bytes.doc();
 	const read = rangeRead(ctx.bytes, endsOf(coverage), (layout) =>
 		removalBytes(tree, coverage, layout)
 	);
 	if (!read) return null;
-	return { read, answer: answer(read, rangeHost(ctx.reading, read)) };
+	const host = rangeHost(ctx.reading, read);
+	return { read, answer: removalOf(read.source, read.range, gesture, modeOf(ctx), host) };
 }
 
 /** `removal`, of what `coverage` holds as `gesture` does, in one commit. */
@@ -181,9 +160,8 @@ export async function commitRemoval(
 	return removedIn(ctx.bytes, answer, true);
 }
 
-/** What `answer` left, read on `bytes`, the document holding its bytes: committed, or answered
- *  ahead of its commit. */
-export function removedIn(bytes: DocumentBytes, answer: RemovalAnswer, wrote: boolean): Removed {
+/** What `answer` left, read on `bytes`, the document holding its bytes. */
+function removedIn(bytes: DocumentBytes, answer: RemovalAnswer, wrote: boolean): Removed {
 	const caret = pointAtByte(bytes.measured(), answer.caret.at);
 	return { wrote, caret, landed: answer.caret, taken: wrote ? (answer.taken ?? null) : null };
 }

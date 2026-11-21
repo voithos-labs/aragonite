@@ -142,9 +142,8 @@ export async function pasteThroughCore(
 	return landAnswer(ctx, read.source, answer, undo);
 }
 
-/** The core's answer for `clip` pasted at `place` in `doc`: the editor's document, or the bytes a
- *  removal not yet committed leaves. */
-export function pasteAnswer(
+/** The core's answer for `clip` pasted at `place` in `doc`. */
+function pasteAnswer(
 	ctx: PasteContext,
 	doc: CurrentDocument,
 	place: PastePlace,
@@ -177,12 +176,9 @@ export function overRangeAnswer(
 	return { read, answer: editRange(read.source, read.range, gesture, modeOf(ctx), host), host };
 }
 
-/** Whether the document is still `base`, the text a paste was answered on. */
-export const stillOn = (ctx: PasteContext, base: string): boolean => ctx.bytes.source() === base;
-
 /** `answer`, the core's paste over `base`, landed in one commit: the block's own write where it
  *  leaves the answer's bytes, else a byte splice. The document must still be `base`. */
-export async function landAnswer(
+async function landAnswer(
 	ctx: PasteContext,
 	base: string,
 	answer: RangeEditResult,

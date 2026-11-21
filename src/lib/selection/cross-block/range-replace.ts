@@ -10,7 +10,7 @@
  */
 
 import type { AnyBlockKind, CstNode, Document } from '../../core/nodes';
-import { firstLineEnding, isBlankText } from '../../core/lines';
+import { isBlankText } from '../../core/lines';
 import type { HeldLanding, SpliceCaret } from '../../action-contracts';
 import type { CrossBlockDispatchContext } from './dispatch';
 import { charOffsetOf, deleteSnapshot, type SelectionPoint } from '../primitives';
@@ -29,8 +29,6 @@ import {
 	commitBytes,
 	commitRemoval,
 	emptiedPlace,
-	pasteRemovalAnswer,
-	removedIn,
 	removeThroughCore,
 	splitsParagraph,
 	writeInCell,
@@ -39,32 +37,16 @@ import {
 } from './range-removal';
 import {
 	answeredAhead,
-	landAnswer,
 	overRangeAnswer,
-	pasteAnswer,
 	pasteInBlock,
 	pasteThroughCore,
-	stillOn,
 	type Clip
 } from './range-paste';
-import {
-	answeredBytes,
-	endsOf,
-	gapOfPlace,
-	placeInBlock,
-	placeOfGap,
-	placeOverRange,
-	pointAtByte,
-	type DocumentBytes,
-	type PastePlace
-} from '../range-bytes';
-import { answeredDocument, type RangeHost } from '../../range-edit/host';
-import { splicedBytes } from '../../tree-operations/spliced-openers';
-import { hidesDelimitersAtCaret } from '../../presentation-mode';
+import { endsOf, gapOfPlace, placeOverRange, pointAtByte } from '../range-bytes';
+import type { RangeHost } from '../../range-edit/host';
 import { dispatchKeyCommand } from '../../schema/block-commands';
 import { completeLineOnType } from '../../schema/block-completions';
 import { blockFacts } from '../../schema/block-facts';
-import { emitClipboardError } from '../../editor-events';
 import { assertInvariant, devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { checkCommandLanding } from '../../invariants/command-key-landing';
 import { checkBreakLanding } from '../../invariants/range-break-landing';
@@ -598,77 +580,13 @@ async function pasteOver(
 		if (!wrote) await cleared?.place();
 		return 'written';
 	}
-	const inOneBlock = pathsEqual(start.path, end.path) && coverage.wholeRoots.length === 0;
-	if (inOneBlock && !grid) {
+	if (pathsEqual(start.path, end.path) && coverage.wholeRoots.length === 0 && !grid) {
 		const within = { path: start.path, start: start.offset, end: end.offset };
 		return (await pasteInBlock(ctx, within, clip, undo)) ? 'written' : 'refused';
 	}
-	// One block held whole gives its line to the paste, in one answer of the core.
-	if (pathsEqual(start.path, end.path) || grid) {
-		const aim = { named: endsOf(coverage), place: () => placeOverRange(ctx.bytes, coverage) };
-		return (await pasteThroughCore(ctx, aim, clip, undo)) ? 'written' : 'refused';
-	}
-	// The pair is answered whole before either commits, so the removal goes only with a paste.
-	const pair = pairOver(ctx, coverage, clip);
-	if (!pair) return 'nothing';
-	const [removed, removalCaret] = await ctx.controller.holdLandings(() =>
-		commitRemoval(ctx, coverage, 'type', pair.removal)
-	);
-	if (!removed.wrote && !removed.caret) return 'nothing';
-	// The paste's own commit names a block of the document the removal left.
-	const left = removed.caret ?? { path: [0], offset: 0 };
-	const after = deleteSnapshot(left.path, left.offset);
-	// A write between the two commits (a listener to the removal's edit) leaves the paste no place.
-	const moved = pair.lands && !stillOn(ctx, pair.left.source);
-	const wrote =
-		pair.lands && !moved && (await landAnswer(ctx, pair.left.source, pair.paste, after));
-	if (!wrote) await (removalCaret ?? (removed.caret && caretAt(ctx, removed.caret)))?.place();
-	if (moved) {
-		const error = new Error('the document changed after the range went; nothing was pasted');
-		emitClipboardError(ctx.events, { error, path: [...left.path] });
-	}
-	return 'written';
-}
-
-/** The removal the paste makes first, then the paste at the place the editor would hold on the
- *  bytes it leaves, both answered before either commits; null where the paste has no place. */
-function pairOver(ctx: CrossBlockMutationContext, coverage: RangeCoverage, clip: Clip) {
-	const removal = pasteRemovalAnswer(ctx, coverage, clip.text);
-	if (!removal) return null;
-	const { read, answer } = removal;
-	const { source } = read;
-	const { grammar } = ctx.reading;
-	const written = splicedBytes(read.measured, source, answer.source, grammar);
-	const left = answeredDocument(ctx.reading, read, written);
-	const bytes = answeredBytes(left);
-	const removed = removedIn(bytes, answer, written !== source);
-	const at = placeAfterRemoval(bytes, removed, hidesDelimitersAtCaret(ctx.reading.mode()));
-	if (!at) return null;
-	// Read before the removal, which may take every line ending the document has.
-	const ending = firstLineEnding(source) ?? undefined;
-	const kept = removal.answer.inPlace && { inPlace: removal.answer.inPlace };
-	const paste = pasteAnswer(ctx, left, { ...at, ending, ...kept }, clip);
-	return { removal, left, paste, lands: paste.source !== left.source };
-}
-
-/** Where a paste goes on `bytes`, what the removal leaves: the boundary the editor holds its caret
- *  at, else the caret's text, else the place the core named for a caret on a block. */
-function placeAfterRemoval(
-	bytes: DocumentBytes,
-	removed: Removed,
-	live: boolean
-): PastePlace | null {
-	const slot = emptiedPlace(bytes.measured(), removed, false);
-	if (slot) return placeOfGap(bytes, { parentPath: slot.slice(0, -1), index: slot.at(-1)! });
-	const { landed, caret } = removed;
-	// A document the removal emptied has no block to hold a caret, so the core's landing is the place.
-	if (landed?.holds === 'block' || (landed && bytes.doc().children.length === 0)) {
-		const { at, ...held } = landed;
-		return { range: { from: at, to: at }, ...held };
-	}
-	if (!caret) return null;
-	const at = charOffsetOf(caret, 'range-replace:paste');
-	return placeInBlock(bytes, caret.path, at, at, live);
+	// Across blocks, or over one block held whole, the paste lands where text over the range goes.
+	const aim = { named: endsOf(coverage), place: () => placeOverRange(ctx.bytes, coverage) };
+	return (await pasteThroughCore(ctx, aim, clip, undo)) ? 'written' : 'refused';
 }
 
 /** At the caret the removal left, never over stale block indices: a table's endpoint caret is a
