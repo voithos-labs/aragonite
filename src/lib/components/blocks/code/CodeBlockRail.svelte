@@ -72,7 +72,7 @@
 	let filtering = $state(false);
 	let activeIndex = $state(0);
 	/** The user moved the highlight, so the row it sits on wins over whatever they typed. */
-	let highlightMoved = false;
+	let highlightMoved = $state(false);
 	let copied = $state(false);
 	let openMenuItems = $state<readonly CodeMenuItem[]>([]);
 
@@ -85,30 +85,38 @@
 	let menuButtonEl: HTMLElement | undefined = $state();
 
 	// The picker offers what the renderer can highlight. `text` is always offered: it is how a
-	// user clears a language, and no grammar registers under that name.
-	const suggestions = $derived.by(() => {
+	// user clears a language, and no highlighter answers to that name.
+	const listing = $derived.by(() => {
 		const all = ['text', ...pickerLanguages(activation).filter((name) => name !== 'text')];
 		const needle = filtering ? draft.trim().toLowerCase() : '';
 		if (needle.length > 0) {
 			// An alternate spelling is a search key, never a row of its own: `rs` finds `rust`,
 			// and the list still carries one entry per language.
 			const spellings = (name: string) => [name, ...pickerAliases(name, activation)];
-			const starts = all.filter((name) => spellings(name).some((s) => s.startsWith(needle)));
-			const seated = new Set(starts);
+			// A spelling typed whole leads, then the rows it starts, then the rows that merely
+			// contain it, which are never marked until the user moves the highlight.
+			const exact = all.filter((name) => spellings(name).includes(needle));
+			const starts = all.filter(
+				(name) => !exact.includes(name) && spellings(name).some((s) => s.startsWith(needle))
+			);
+			const seated = new Set([...exact, ...starts]);
 			const contains = all.filter(
 				(name) => !seated.has(name) && spellings(name).some((s) => s.includes(needle))
 			);
-			return [...starts, ...contains];
+			return { rows: [...exact, ...starts, ...contains], marksTop: seated.size > 0 };
 		}
 		// Unfiltered, the block's own language leads, spelled as the fence spells it, so the
 		// row that matters is where the eye already is and its canonical form is not below it.
 		const current = language;
 		const rest = all.filter((name) => name !== current && !isCurrentLanguage(name));
-		return [current, ...rest];
+		return { rows: [current, ...rest], marksTop: true };
 	});
+	const suggestions = $derived(listing.rows);
+	/** Enter takes the marked row; with none marked, it writes the text as typed. */
+	const rowMarked = $derived(highlightMoved || listing.marksTop);
 
-	/** One language in two spellings is still the block's own, so the check compares what the
-	 *  registry resolves rather than the text. */
+	/** One language in two spellings is still the block's own, so the check compares the
+	 *  language each spelling names rather than the text. */
 	function isCurrentLanguage(name: string): boolean {
 		const canonical = (spelling: string) =>
 			languageOwner(spelling, activation)?.name ?? spelling.toLowerCase();
@@ -189,24 +197,26 @@
 		if (neverACommand(e)) return;
 		if (e.key === 'Enter') {
 			e.preventDefault();
-			// A spelling the registry resolves is a name, not a search: it commits as typed, so
+			// A spelling a highlighter answers is a name, not a search: it commits as typed, so
 			// `js` survives a picker whose rows are canonical. A moved highlight takes the row.
 			const typed = draft.trim();
 			const namesLanguage =
 				!highlightMoved && typed !== '' && languageOwner(typed, activation) !== null;
-			commit(
-				namesLanguage ? typed : (suggestions[activeIndex] ?? (typed === '' ? language : typed))
-			);
+			const row = rowMarked ? suggestions[activeIndex] : undefined;
+			commit(namesLanguage ? typed : (row ?? (typed === '' ? language : typed)));
 		} else if (e.key === 'ArrowDown') {
 			e.preventDefault();
+			// With nothing marked yet, the first press marks the top row.
+			const next = rowMarked ? activeIndex + 1 : 0;
+			activeIndex = suggestions.length === 0 ? 0 : next % suggestions.length;
 			highlightMoved = true;
-			activeIndex = suggestions.length === 0 ? 0 : (activeIndex + 1) % suggestions.length;
 			scrollActiveIntoView();
 		} else if (e.key === 'ArrowUp') {
 			e.preventDefault();
-			highlightMoved = true;
+			const previous = rowMarked ? activeIndex - 1 : -1;
 			activeIndex =
-				suggestions.length === 0 ? 0 : (activeIndex - 1 + suggestions.length) % suggestions.length;
+				suggestions.length === 0 ? 0 : (previous + suggestions.length) % suggestions.length;
+			highlightMoved = true;
 			scrollActiveIntoView();
 		}
 	}
@@ -448,7 +458,7 @@
 							type="button"
 							role="option"
 							aria-selected={isCurrentLanguage(name)}
-							data-active={i === activeIndex}
+							data-active={rowMarked && i === activeIndex}
 							tabindex="-1"
 							onmouseenter={() => {
 								highlightMoved = true;
