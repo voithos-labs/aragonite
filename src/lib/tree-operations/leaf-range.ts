@@ -185,17 +185,18 @@ function spliceInLeaf(
 	};
 }
 
-/** The bytes `[start, end)` of `node` carry out of it: the leaf cut down to the range by two in-leaf
- *  cuts, so a format run the range cuts through leaves closed at its edges, as the kept half does. */
+/** The bytes `[start, end)` of `node` carry out of it, cut down by two in-leaf cuts so a run they
+ *  cut through closes at their edges; `alone` unless they are one end of a range across blocks. */
 export function bytesLeavingLeaf(
 	whole: NodeView,
 	drawn: { start: number; end: number },
-	store: StoredAs
+	store: StoredAs,
+	alone: boolean
 ): string {
 	// A cut of the block's whole text takes every marker side in it, so the piece carries them all.
 	const { node, range } = wholeTextInside(whole, drawn, store)
 		? { node: whole, range: drawn }
-		: withoutKeptSides(whole, drawn, store.reading);
+		: withoutKeptSides(whole, drawn, store.reading, alone);
 	// Cut inside the text: the cleanup reads no side that starts in a heading's marker.
 	const content = getContentRange(node);
 	const tail = replaceRangeInLeaf(

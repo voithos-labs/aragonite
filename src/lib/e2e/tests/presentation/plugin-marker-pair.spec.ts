@@ -338,6 +338,28 @@ test.describe('a live removal across a side', () => {
 		await expect.poll(async () => (await source()).split('{<<a}').length).toBe(2);
 	});
 
+	test('a cut across one end of a pair spanning two blocks, pasted back, holds that end once', async () => {
+		await walk(2, 0);
+		await press('Shift+ArrowRight', 'blocks '.length);
+		await press('ControlOrMeta+x');
+		await expect.poll(() => line(2)).toBe('{<<b}end');
+		expect(await editor.readClipboard()).toBe('blocks ');
+		await editor.paste();
+		await expect.poll(async () => (await source()).split('{<<b}').length).toBe(2);
+	});
+
+	test('a dragged range across one end of a pair spanning two blocks holds that end once', async ({
+		page
+	}) => {
+		await walk(2, 0);
+		await press('Shift+ArrowRight', 'blocks '.length);
+		const grab = await pointAtRaw(page, [2], 'blo'.length);
+		const drag = await holdSelectionDrag(page, grab, await textRunStart(page, 'empty pair'));
+		await drag.release();
+		await expect.poll(() => line(2)).toBe('{<<b}end');
+		await expect.poll(async () => (await source()).split('{<<b}').length).toBe(2);
+	});
+
 	test('formatted text pasted into a bold a pair holds writes no second pair', async () => {
 		await editor.seedClipboard('**x** y');
 		await walk(3, 'Some bo'.length);

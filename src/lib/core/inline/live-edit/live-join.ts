@@ -402,24 +402,29 @@ function sidesAtJoin(join: JoinSeam, left: Side, right: Side): JoinSides {
 	};
 }
 
-/** `node` and `range` as a live piece carries them off: a piece carries a pair only with both its
- *  sides, so each side whose partner the document keeps is cut out of both first (§ 4.5). */
+/** `node` and `range` as a live piece carries them off, each side the removal puts back cut out of
+ *  both (§ 4.5); `alone` where the piece is the whole removal, inside one block. */
 export function withoutKeptSides(
 	node: NodeView,
 	range: Span,
-	reading: Reading
+	reading: Reading,
+	alone: boolean
 ): { node: NodeView; range: Span } {
 	if (!reading.hidesDelimitersAtCaret()) return { node, range };
 	const { sides } = classifyConstructs(resolvedInlineContent(node, reading));
 	if (sides.length === 0) return { node, range };
-	const from = Math.min(pastSides(sides, range.start, 'before'), range.end);
-	const to = Math.max(pastSides(sides, range.end, 'after'), from);
+	// One end of a range across blocks runs on past its block's text, so a side at that edge goes.
+	const text = alone ? null : getContentRange(node);
+	const head = text && range.start <= text.start ? range.start : null;
+	const tail = text && range.end >= text.end ? range.end : null;
+	const from = Math.min(head ?? pastSides(sides, range.start, 'before'), range.end);
+	const to = Math.max(tail ?? pastSides(sides, range.end, 'after'), from);
 	let { raw } = node;
 	let { start, end } = range;
 	const read = pairSides(sides.map((s) => readSideAt(s, raw, s.start >= from && s.end <= to)));
 	// Last side first, so the offsets before each cut still stand.
 	for (const { node: side, taken, partner } of read.reverse()) {
-		if (taken && partner?.taken !== false) continue;
+		if (taken && (partner ? partner.taken : !alone)) continue;
 		raw = raw.slice(0, side.start) + raw.slice(side.end);
 		if (side.end <= start) start -= side.end - side.start;
 		if (side.end <= end) end -= side.end - side.start;

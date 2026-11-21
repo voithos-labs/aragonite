@@ -148,21 +148,23 @@ function carriedEnds(doc: Doc, from: number, to: number, bytes: string): string 
 	if (doc.mode !== 'live') return bytes;
 	const start = leafAt(doc, from);
 	const end = leafAt(doc, to);
-	const carried = (at: NonNullable<typeof start>, a: number, b: number) =>
-		doc.host.leaf.carried(doc.tree, at.leaf.path, a, b, doc.mode);
-	if (start && end && start.leaf === end.leaf) return carried(start, start.offset, end.offset);
+	const carried = (at: NonNullable<typeof start>, a: number, b: number, alone: boolean) =>
+		doc.host.leaf.carried(doc.tree, at.leaf.path, a, b, doc.mode, alone);
+	if (start && end && start.leaf === end.leaf)
+		return carried(start, start.offset, end.offset, true);
 	let out = bytes;
 	// Each end's own text, where the source spells it as the block does (no marker inside it).
 	const raw = (at: NonNullable<typeof start>) => nodeAt(doc, at.leaf.path).raw;
 	if (start) {
 		const tail = raw(start).slice(start.offset, displayLength(raw(start)));
 		if (out.startsWith(tail))
-			out = carried(start, start.offset, start.offset + tail.length) + out.slice(tail.length);
+			out =
+				carried(start, start.offset, start.offset + tail.length, false) + out.slice(tail.length);
 	}
 	if (end) {
 		const head = raw(end).slice(0, end.offset);
 		if (out.endsWith(head))
-			out = out.slice(0, out.length - head.length) + carried(end, 0, end.offset);
+			out = out.slice(0, out.length - head.length) + carried(end, 0, end.offset, false);
 	}
 	return out;
 }

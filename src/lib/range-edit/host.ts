@@ -138,13 +138,15 @@ export interface RangeHost {
 		/** The block holding `raw`, its caret at `caret`, as its write rule stores text typed there,
 		 *  as a shown source's draft lands: a one-line `$$` given a line break takes fence lines. */
 		typed(doc: DocumentView, path: readonly number[], raw: string, caret: number): LeafWrite;
-		/** The bytes `[from, to)` of the block carry out of it, a format run they cut closed. */
+		/** The bytes `[from, to)` of the block carry out of it, a format run they cut closed; `alone`
+		 *  where they are the whole range, not one end of a range across blocks. */
 		carried(
 			doc: DocumentView,
 			path: readonly number[],
 			from: number,
 			to: number,
-			mode: Mode
+			mode: Mode,
+			alone: boolean
 		): string;
 	};
 	/** What the item Enter opens after the list item at `path` starts with: its marker one on, and
@@ -349,9 +351,9 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 			},
 			typed: (doc, path, raw, caret) =>
 				stored(doc, path, { raw, caret, afterRange: caret }, 'authored'),
-			carried(doc, path, from, to, mode) {
+			carried(doc, path, from, to, mode, alone) {
 				const store = storedAsAt(doc, path, readingIn(mode));
-				return bytesLeavingLeaf(leafAt(doc, path), { start: from, end: to }, store);
+				return bytesLeavingLeaf(leafAt(doc, path), { start: from, end: to }, store, alone);
 			}
 		},
 		itemAfter(doc, path) {

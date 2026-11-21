@@ -63,6 +63,8 @@ a third, where Enter left a side on the half without its text and a letter lande
 - A word delete across one end of a pair spanning two blocks keeps that end: `{<<b}end`.
 - A word delete inside a pair around a bold keeps both sides.
 - A cut pasted back gives the original bytes; a dragged range carries no side its pair keeps.
+- A cut across one end of a pair spanning two blocks keeps that end and leaves it off the
+  clipboard (`blocks `), so pasted back the end is there once; a drag of the same range moves no copy.
 - Formatted text pasted into a bold a pair holds writes no second pair:
   `Some {>>c}**box** y**ld**{<<c} text`.
 - A cut of the whole line a pair wraps carries the pair, and a paste brings it back.
@@ -85,3 +87,7 @@ brings its own bold, whose two joins move bytes aside without removing any.
 Miss-analysis (a whole line cut): the cut rows selected inside a line, where the removal keeps a
 side at the selection's edge. Select-all in a block takes its whole text, sides and all, and the
 clipboard still left them out.
+
+Miss-analysis (a side doubled by a cut or drag in one block): each change to the pair's removal
+rule came with rows for its own gesture, and none moved the text across a side whose partner sits
+in another block, which the removal keeps and the piece carried too.

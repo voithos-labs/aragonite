@@ -502,7 +502,7 @@ export function liveSplitsRun(read: Read, from: number, to: number, host: CheckH
 		const plain = (a: number, b: number) =>
 			read.source.slice(read.layout.byteOf(point.path, a)!, read.layout.byteOf(point.path, b)!);
 		const carried = (a: number, b: number) =>
-			host.leaf.carried(read.tree, point.path, a, b, 'live');
+			host.leaf.carried(read.tree, point.path, a, b, 'live', false);
 		return (
 			carried(0, point.offset) !== plain(0, point.offset) ||
 			carried(point.offset, end.offset) !== plain(point.offset, end.offset)

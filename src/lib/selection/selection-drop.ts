@@ -272,7 +272,7 @@ export function movedText(
 	const node = blockNodeAt(deps.getDoc(), from.path);
 	if (!node) return null;
 	const store = storedAsAt(deps.getDoc(), from.path, deps.reading);
-	const raw = bytesLeavingLeaf(node, { start: from.start, end: from.end }, store);
+	const raw = bytesLeavingLeaf(node, { start: from.start, end: from.end }, store, true);
 	const text = applyPasteTransforms(raw, deps.activePlugins);
 	return text && !/[\r\n]/.test(text) ? text : null;
 }

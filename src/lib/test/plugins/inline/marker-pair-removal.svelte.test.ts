@@ -231,9 +231,9 @@ describe('a live removal across two blocks', () => {
 
 // After a cut, the sides in the document and on the clipboard are the sides there were before.
 describe('what a live range carries off', () => {
-	const carried = (raw: string, start: number, end: number, mode?: 'source') => {
+	const carried = (raw: string, start: number, end: number, mode?: 'source', alone = true) => {
 		const at = store(raw, mode);
-		return bytesLeavingLeaf(at.node, { start, end }, at.store);
+		return bytesLeavingLeaf(at.node, { start, end }, at.store, alone);
 	};
 
 	it.each<[string, number, number, string]>([
@@ -246,15 +246,26 @@ describe('what a live range carries off', () => {
 		expect(carried(PAIR, start, end, 'source')).toBe(PAIR.slice(start, end));
 	});
 
-	// Limits, as recorded: a piece reads its block alone, so it carries a side whose partner the
-	// block lacks, as a range across two blocks needs, even where the removal puts that side back.
-	it('carries a side whose partner the block lacks, which a removal inside it keeps', () => {
-		expect(carried('blocks{<<b} end', 0, 12)).toBe('blocks{<<b} ');
+	// Miss-analysis: the piece read its block alone and carried a side whose partner the block
+	// lacks, which a removal inside the block puts back, so a drag there held the side twice.
+	it('leaves out a side whose partner the block lacks, which a removal inside it keeps', () => {
+		expect(carried('blocks{<<b} end', 0, 12)).toBe('blocks ');
 		expect(removed('blocks{<<b} end', 0, 12)).toBe('{<<b}end');
+		expect(carried('blocks{<<b} end', 0, 12, undefined, false)).toBe('blocks{<<b} ');
 	});
 
+	// Miss-analysis: the conservation property's first find; every end-piece row cut inside the
+	// text, so none met a side at the edge the range runs on past, which the join takes.
+	it('takes the side at the edge an end piece runs on past', () => {
+		expect(carried('two{>>b}', 1, 8, undefined, false)).toBe('wo{>>b}');
+		expect(carried('{<<b}end', 0, 6, undefined, false)).toBe('{<<b}e');
+		expect(carried('two{>>b}', 1, 8)).toBe('wo');
+	});
+
+	// Issue C, as recorded: an end piece reads its block alone, so it carries a side the join of
+	// the two blocks puts back.
 	it('carries a side of a pair over two blocks that the join of the two keeps', () => {
-		expect(carried('Across {>>b}two', 3, 15)).toBe('oss {>>b}two');
+		expect(carried('Across {>>b}two', 3, 15, undefined, false)).toBe('oss {>>b}two');
 	});
 
 	// Miss-analysis: the clipboard rows cut inside a line, where the removal keeps a side at the
@@ -269,7 +280,7 @@ describe('what a live range carries off', () => {
 
 	it('a cut pasted back where it was keeps one pair', () => {
 		const at = store(PAIR);
-		const off = bytesLeavingLeaf(at.node, { start: 9, end: 17 }, at.store);
+		const off = bytesLeavingLeaf(at.node, { start: 9, end: 17 }, at.store, true);
 		const cut = replaceDrawnRange(at.node, { start: 9, end: 17 }, '', at.store);
 		const left = para(text(cut.raw));
 		const back = replaceDrawnRange(left, { start: cut.caret, end: cut.caret }, off, {
