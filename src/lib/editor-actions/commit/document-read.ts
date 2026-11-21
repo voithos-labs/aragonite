@@ -70,7 +70,8 @@ export interface DocumentRead {
 	editInfo(event: EditEvent): EditInfo;
 	/** Counts an `edit` listener in, so each write keeps what `changes` needs; returns the way out. */
 	listenForEdits(): () => void;
-	/** Asks `depends` of every top-level block now, then of the blocks each write replaced. */
+	/** Asks `depends` of every top-level block, then of the blocks each write replaced: one watch
+	 *  per function, shared by every caller that passes it, so `report` is the first caller's. */
 	keys(depends: (block: Block) => string, report: (cause: unknown) => void): KeyWatch;
 }
 
@@ -102,6 +103,8 @@ export function createDocumentRead(deps: {
 	let chained = 0;
 	const changes = createEditChanges();
 	const infos = new WeakMap<EditEvent, EditInfo>();
+	// A block type's drawings, mounted or not, share its watch: a remount asks nothing it holds.
+	const watches = new WeakMap<(block: Block) => string, KeyWatch>();
 
 	function layout(): Layout {
 		const of = deps.measured();
@@ -280,8 +283,14 @@ export function createDocumentRead(deps: {
 			follow();
 			return changes.listen();
 		},
-		keys: (depends, report) =>
-			watchKeys({ follow: deps.follow ?? (() => () => {}), blocks: () => top }, depends, report)
+		keys(depends, report) {
+			let watch = watches.get(depends);
+			if (!watch) {
+				const source = { follow: deps.follow ?? (() => () => {}), blocks: () => top };
+				watches.set(depends, (watch = watchKeys(source, depends, report)));
+			}
+			return watch;
+		}
 	};
 }
 

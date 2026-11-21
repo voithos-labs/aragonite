@@ -34,6 +34,7 @@ export const contents = definePlugin({
 				sample: '[[toc]]',
 				insert: { label: 'Contents', icon: 'list-tree', insert: '[[toc]]\n' },
 				edit: 'box',
+				depends: headingsIn,
 				draw(_block, ctx) {
 					const dom = document.createElement('nav');
 					const show = (answers: readonly string[]) =>
@@ -49,8 +50,8 @@ export const contents = definePlugin({
 									return row;
 								})
 						);
-					show(ctx.depends); // empty here: the update right after brings the answers
-					return { dom, depends: headingsIn, update: (_block, next) => show(next.depends) };
+					show(ctx.depends);
+					return { dom, update: (_block, next) => show(next.depends) };
 				}
 			})
 		]

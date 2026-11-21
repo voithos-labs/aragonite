@@ -1,5 +1,5 @@
 <script lang="ts">
-	// A `svelteBlock` component that lists the answers its drawing's `depends` gave.
+	// A `svelteBlock` component that lists the answers its block type's `depends` gave.
 	import type { SvelteBlockProps } from '#lib/svelte.js';
 
 	let { ctx }: SvelteBlockProps = $props();

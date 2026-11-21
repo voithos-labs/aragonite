@@ -63,8 +63,6 @@ export function createPaintSource<B extends PaintedBlock>(deps: PaintSourceDeps<
 	let queued: PaintError[] = [];
 	const { paintDepends } = deps.contribution;
 	let keys: Answers | null = null;
-	let keyed = 0;
-	let keysAt = -1;
 
 	// Inside a derived, where a listener that writes state would throw, so it waits for the flush.
 	function reportLater(error: PaintError): void {
@@ -80,17 +78,13 @@ export function createPaintSource<B extends PaintedBlock>(deps: PaintSourceDeps<
 	 *  blocks it replaced; a change paints every block again. */
 	function answersVersion(): number {
 		if (!paintDepends) return 0;
-		const at = deps.contentVersion();
-		if (at === keysAt) return keyed;
-		keysAt = at;
-		untrack(() => {
-			if (!keys)
-				keys = deps.keys(paintDepends, (cause) =>
-					reportLater({ plugin, doing: 'paintDepends', cause })
-				);
-			else if (keys.changed()) keyed++;
+		deps.contentVersion();
+		return untrack(() => {
+			keys ??= deps.keys(paintDepends, (cause) =>
+				reportLater({ plugin, doing: 'paintDepends', cause })
+			);
+			return keys.version();
 		});
-		return keyed;
 	}
 
 	function decorationsOf(node: NodeView, path: readonly number[]): readonly Decoration[] {
@@ -263,7 +257,7 @@ export function paintBehind(dec: Decoration): Paint | undefined {
 
 /** The answers of the paint's `paintDepends`, kept across writes by the editor's document read. */
 interface Answers {
-	changed(): boolean;
+	version(): number;
 	keys(): readonly string[];
 }
 

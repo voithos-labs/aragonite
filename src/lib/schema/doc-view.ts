@@ -125,11 +125,11 @@ export interface BlockReading {
 
 /** What a surface's `depends(block)` answers for each top-level block, kept across writes. */
 export interface KeyWatch {
-	/** Whether an answer that says something came, went or changed since the last call. */
-	changed(): boolean;
+	/** Moves on whenever an answer that says something comes, goes, changes or stands at another
+	 *  index; a reader compares it with the one it last saw. */
+	version(): number;
 	/** One answer per top-level block, in order; an array handed out is never changed after. */
 	keys(): readonly string[];
-	stop(): void;
 }
 
 /** A block read outside any editor: types named by their kinds, no positions, no pieces. */

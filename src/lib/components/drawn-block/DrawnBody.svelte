@@ -3,13 +3,27 @@
   focused whole, its focus and keys, calls the plugin's `draw`, and keeps the drawing told through
   `update`. A throw in `draw` or `update` reaches BlockHost's error boundary.
 -->
+<script module lang="ts">
+	import type { AnyBlockKind } from '../../core/nodes';
+	import type { EditorServices } from '../../editor-keys';
+	import { warnIfForeignRuntime } from '../../foreign-runtime';
+
+	// Outside the component: a block type's watch outlives every drawing that started it.
+	function dependsReport(services: EditorServices, kind: AnyBlockKind) {
+		return (error: unknown) => {
+			warnIfForeignRuntime(error, `block ${kind}`);
+			services.events.emit('error', { origin: 'render', error, context: { kind } });
+		};
+	}
+</script>
+
 <script lang="ts">
 	import { getAllContexts, getContext, mount, unmount, untrack } from 'svelte';
 	import { on } from 'svelte/events';
 	import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 	import type { BlockComponent } from '../../block-component';
 	import type { NodeView } from '../../core/node-views';
-	import { makeBlock, DETACHED_READING, type KeyWatch } from '../../schema/doc-view';
+	import { makeBlock, DETACHED_READING } from '../../schema/doc-view';
 	import { modeOf } from '../../presentation-mode';
 	import { pluginOfKind } from '../../schema/plugin-name';
 	import {
@@ -27,13 +41,11 @@
 		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
 		type EditorDoc,
-		type EditorPolicies,
-		type EditorServices
+		type EditorPolicies
 	} from '../../editor-keys';
 	import { VIEW_TEXT_ATTR, VIEW_TEXT_HOST_ATTR } from '../../caret/block-content-selector';
 	import { editorXOf } from '../../caret/sticky-measure';
 	import { checkDomViewContent } from '../../invariants/dom-view-content';
-	import { warnIfForeignRuntime } from '../../foreign-runtime';
 	import { createEditableLeaf } from '../blocks/editable/editable-leaf';
 	import { bindLeafSurface } from './leaf-surface-binding.svelte';
 	import { createDrawnBox } from './drawn-box.svelte';
@@ -72,9 +84,14 @@
 	let typed: string | null = $state(null);
 	let generation = $state(0);
 	let drawn: Drawn<unknown> | null = null;
-	// The answers of the drawing's `depends`, kept while it's mounted.
-	let keys: KeyWatch | null = null;
-	let keyed = $state(false);
+	// The block type's answers, one watch for all its drawings, so a mount asks nothing it holds.
+	const keys = untrack(() =>
+		view.depends && services
+			? services.read.keys(view.depends, dependsReport(services, node.kind))
+			: null
+	);
+	// The answers' version the drawing last saw.
+	let heard = 0;
 
 	// Functions over state, not deriveds: a key handler resuming after the block unmounted still
 	// reads them, and a derived read past its effect warns.
@@ -214,16 +231,11 @@
 			const list =
 				container &&
 				mount(BlockList, { target: childBox!, props: container.blockListProps, context: contexts });
+			heard = keys?.version() ?? 0;
 			const made = view.draw(read(), ctx);
 			drawn = made;
 			el.append(made.dom);
 			target = el;
-			if (made.depends && services) {
-				keys = services.read.keys((block) => made.depends!(block), report);
-				keyed = true;
-				// Before the first paint, so no frame shows what `draw` drew with no answers.
-				made.update?.(read(), ctx);
-			}
 			const host = el.parentElement as (HTMLElement & { [CARET_AT]?: unknown }) | null;
 			if (host) host[CARET_AT] = (x: number, y: number) => clickedAt(made, x, y);
 			seen = watched();
@@ -238,9 +250,6 @@
 			];
 			return () => {
 				offs.forEach((off) => off());
-				keys?.stop();
-				keys = null;
-				keyed = false;
 				drawn = null;
 				target = null;
 				if (list) void unmount(list);
@@ -282,11 +291,13 @@
 	$effect(() => {
 		const now = watched();
 		// Every write, for a drawing with `depends`: its answers say whether `update` runs.
-		if (keyed) editorDoc.contentVersion();
+		if (keys) editorDoc.contentVersion();
 		untrack(() => {
-			const moved = keys?.changed() ?? false;
-			if (!drawn || (!moved && now.every((value, i) => Object.is(value, seen[i])))) return;
+			const answered = keys?.version() ?? 0;
+			if (!drawn || (answered === heard && now.every((value, i) => Object.is(value, seen[i]))))
+				return;
 			seen = now;
+			heard = answered;
 			const restore = keepScroll();
 			if (drawn.update?.(read(), ctx) === false) generation++;
 			void restore();

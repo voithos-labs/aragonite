@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-// A block drawn by a component declares `depends` through its helper's option, as a plain drawing
-// does, and the component reads the answers as `ctx.depends`: listed before the first frame and
-// again after a heading's key, in React, Vue and Svelte.
-// Miss-analysis: a new option; the helpers' `Drawn` carried only `focus`, `keep` and `caret`.
+// A block type drawn by a component declares `depends` beside `draw`, as any block type does, and
+// the component reads the answers as `ctx.depends`: listed as it first renders and again after a
+// heading's key, in React, Vue and Svelte.
+// Miss-analysis: the answers reached a helper only through an option of its own.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { flushSync } from 'svelte';
 import { createElement, type ComponentType } from 'react';
@@ -25,8 +25,7 @@ import DependsList from '../plugins/fixtures/DependsList.svelte';
 // The React helper is TSX, which the root type check doesn't compile and Vitest does.
 const REACT_BLOCK = '../../../../packages/react/src/block.tsx';
 type Draw = (block: Block, ctx: DrawContext) => Drawn<unknown>;
-type Options = { depends?(block: Block): string };
-let reactBlock: (component: ComponentType<{ ctx: DrawContext }>, options: Options) => Draw;
+let reactBlock: (component: ComponentType<{ ctx: DrawContext }>) => Draw;
 
 beforeAll(async () => {
 	installLayoutStubs();
@@ -46,9 +45,9 @@ const VueList = defineComponent({
 });
 
 const HELPERS: [string, () => Draw][] = [
-	['reactBlock', () => reactBlock(ReactList, { depends: headingsIn })],
-	['vueBlock', () => vueBlock(VueList, { depends: headingsIn }) as Draw],
-	['svelteBlock', () => svelteBlock(DependsList, { depends: headingsIn }) as Draw]
+	['reactBlock', () => reactBlock(ReactList)],
+	['vueBlock', () => vueBlock(VueList) as Draw],
+	['svelteBlock', () => svelteBlock(DependsList) as Draw]
 ];
 
 describe.each(HELPERS)('a block drawn with %s and depends', (_name, draw) => {
@@ -66,6 +65,7 @@ describe.each(HELPERS)('a block drawn with %s and depends', (_name, draw) => {
 						sample: '[[keys]]',
 						insert: { none: 'a test block type' },
 						edit: 'box',
+						depends: headingsIn,
 						draw: draw()
 					})
 				]

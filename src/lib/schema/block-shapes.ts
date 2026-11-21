@@ -79,9 +79,8 @@ export type LeafCommon<D> = BlockCommon<D> & {
  * caret enters; it's focused whole. Default `text` without `draw`, `source` with it.
  */
 export type LeafDraw<D> =
-	| {
+	| ({
 			edit?: 'text' | 'source';
-			draw?(block: Block<NoInfer<D>>, ctx: TextDrawContext): Drawn<NoInfer<D>, TextDrawContext>;
 			/** Draws the shown text as DOM (fence lines to hide, highlight tokens); the fragment's
 			 *  `textContent` must stay `text`. */
 			renderSource?(text: string): DocumentFragment;
@@ -92,11 +91,23 @@ export type LeafDraw<D> =
 				caret: number,
 				lineEnding: LineEnding
 			): { text: string; caret: number } | null;
-	  }
-	| {
+	  } & (
+			| { draw?: never; depends?: never }
+			| ({
+					draw(block: Block<NoInfer<D>>, ctx: TextDrawContext): Drawn<NoInfer<D>, TextDrawContext>;
+			  } & DrawDepends)
+	  ))
+	| ({
 			edit: 'box';
 			draw(block: Block<NoInfer<D>>, ctx: BoxDrawContext): Drawn<NoInfer<D>, BoxDrawContext>;
-	  };
+	  } & DrawDepends);
+
+/** What a block type with a `draw` may add: what its drawings read of the rest of the document. */
+export interface DrawDepends {
+	/** What a drawing reads of `block`, a top-level block (its headings, say), handed to `draw`
+	 *  and `update` as `ctx.depends`. It runs on keys, so keep it cheap. */
+	depends?(block: Block): string;
+}
 
 /** A block that's exactly one line, matched whole by `match`; a `text` named group is the text the
  *  author writes, the rest its marker. Data read from the line comes with the writer that puts it back. */
@@ -199,10 +210,11 @@ export function leafDrawing(
 	singleLine: boolean
 ): Drawing | null {
 	if (!spec.draw) return null;
+	const { depends } = spec;
 	const draw = spec.draw as Drawing['draw'];
-	if (spec.edit === 'box') return { type, edit: 'box', singleLine, draw };
+	if (spec.edit === 'box') return { type, edit: 'box', singleLine, draw, depends };
 	const { renderSource, reshapeSource } = spec;
-	return { type, edit: editOf(spec), singleLine, draw, renderSource, reshapeSource };
+	return { type, edit: editOf(spec), singleLine, draw, depends, renderSource, reshapeSource };
 }
 
 /** The completer a block type's `complete` makes, refusing what `claims` wouldn't read as it. */

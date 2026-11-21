@@ -4,7 +4,7 @@ Part of the [plugin guide](../plugin-guide.md).
 
 A block gets its own text, which is fine right up until it isn't: a table of contents needs every heading, and a footnote reference needs to know it's the third one. Walking the whole document on every keystroke works until the document is long. So say what you read instead.
 
-`depends(block)` answers one string per top-level block: what your drawing reads of it. The editor asks every top-level block once as your block mounts, then only the blocks a keystroke changed, and hands you the answers as `ctx.depends`, one per block, in `editor.doc.blocks`' order. `update` runs when an answer that says something (anything but `''`) comes, goes or changes, so typing in a paragraph asks one block and redraws nothing.
+Your block type's `depends(block)`, beside its `draw`, answers one string per top-level block: what your drawing reads of it. The editor asks every top-level block once, for all your drawings together, then only the blocks a keystroke changed. `draw` and `update` get the answers as `ctx.depends`, one per block, in `editor.doc.blocks`' order. `update` runs when an answer that says something (anything but `''`) comes, goes or changes, so typing in a paragraph asks one block and redraws nothing.
 
 ## A table of contents
 
@@ -41,6 +41,7 @@ export const contents = definePlugin({
 				sample: '[[toc]]',
 				insert: { label: 'Contents', icon: 'list-tree', insert: '[[toc]]\n' },
 				edit: 'box',
+				depends: headingsIn,
 				draw(_block, ctx) {
 					const dom = document.createElement('nav');
 					const show = (answers: readonly string[]) =>
@@ -56,16 +57,14 @@ export const contents = definePlugin({
 									return row;
 								})
 						);
-					show(ctx.depends); // empty here: the update right after brings the answers
-					return { dom, depends: headingsIn, update: (_block, next) => show(next.depends) };
+					show(ctx.depends);
+					return { dom, update: (_block, next) => show(next.depends) };
 				}
 			})
 		]
 	})
 });
 ```
-
-`draw` sees an empty `ctx.depends`, since the editor learns your `depends` from what `draw` returns. The `update` with the answers follows before anything is shown, so nobody sees the empty list.
 
 The text check at the top is the part that keeps typing cheap. A block whose text can't hold a heading answers without walking. The check has to let every heading through, or one drops out of the list: `#` anywhere covers `# Title`, and a line ending in `=` or `-` covers an underlined heading, inside a quote or a plugin's container too.
 
@@ -137,7 +136,7 @@ A paint is asked only for blocks on screen, and kept while a block's bytes and t
 
 ## In React or Vue
 
-`reactBlock(Component, { depends: headingsIn })` and `vueBlock(component, { depends: headingsIn })` take the same function; the component reads `ctx.depends`. Since an array handed over never changes, it keys a memo: `useMemo(() => outline(ctx.depends), [ctx.depends])` in React, a `computed` over `props.ctx.depends` in Vue.
+`depends` sits on the block type there too: `lineBlock({ ..., depends: headingsIn, draw: reactBlock(Toc) })`, and the component reads `ctx.depends`. Since an array handed over never changes, it keys a memo: `useMemo(() => outline(ctx.depends), [ctx.depends])` in React, a `computed` over `props.ctx.depends` in Vue.
 
 ## Getting there from what you read
 

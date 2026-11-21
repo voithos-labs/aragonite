@@ -33,14 +33,11 @@ export interface VueBlockOptions {
 	className?: string;
 	/** Renders inside this app's context: its `provide`s, global components and plugins. */
 	app?: App;
-	/** The drawing's `depends`: what it reads of each top-level block, handed back as
-	 *  `ctx.depends`. */
-	depends?(block: Block): string;
 }
 
 export function vueBlock<D = never, C extends DrawContext = DrawContext>(
 	component: Component,
-	{ className, app, depends }: VueBlockOptions = {}
+	{ className, app }: VueBlockOptions = {}
 ): (block: Block<D>, ctx: C) => Drawn<D, C> {
 	const context = withSlot(app);
 	return (block, ctx) => {
@@ -61,7 +58,6 @@ export function vueBlock<D = never, C extends DrawContext = DrawContext>(
 			dom,
 			update: render,
 			destroy: root.unmount,
-			depends,
 			get focus() {
 				return declared.parts().focus;
 			},

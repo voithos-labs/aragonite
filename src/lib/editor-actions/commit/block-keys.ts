@@ -27,7 +27,8 @@ export function watchKeys(
 	let slots: string[] = [];
 	// Handed out, so the next change copies first.
 	let shared = false;
-	let moved = false;
+	// Each reader keeps the version it last saw, so one watch serves several.
+	let version = 0;
 	// Null while it follows nothing: the next read asks every block.
 	let writes: (readonly TopLevelChange[] | null)[] | null = null;
 	let unfollow: (() => void) | null = null;
@@ -47,7 +48,8 @@ export function watchKeys(
 		unfollow = source.follow({
 			heard({ runs }) {
 				writes?.push(runs);
-				// One nobody reads (its plugin turned off) lets go, and asks again if it's read.
+				// One nobody reads (its plugin turned off, its drawings gone) lets go, and asks again
+				// if it's read.
 				if (writes && writes.length > LAPSE) lapse();
 			},
 			// A write says which blocks it replaced only while the record is measured.
@@ -60,40 +62,41 @@ export function watchKeys(
 		unfollow = writes = null;
 	}
 
-	function askAll(list: readonly Block[]): void {
-		const was = slots;
+	function askAll(list: readonly Block[], was: readonly string[]): void {
 		slots = Array.from({ length: list.length }, (_, i) => ask(list[i]));
 		shared = false;
-		if (!sameSaying(was, slots)) moved = true;
+		if (!sameSaying(was, slots)) version++;
 	}
 
 	function settle(): void {
 		if (!writes) {
 			follow();
-			askAll(source.blocks());
+			askAll(source.blocks(), slots);
 			return;
 		}
 		if (writes.length === 0) return;
 		const done = writes;
 		writes = [];
 		const list = source.blocks();
+		const was = slots;
 		const moves = done.includes(null) ? null : replaced(done as (readonly TopLevelChange[])[]);
 		// A write that couldn't say, or runs that don't add up, ask every block.
-		if (!moves || slots.length !== list.length) askAll(list);
+		if (!moves || slots.length !== list.length) askAll(list, was);
 		else {
 			const came: string[] = [];
+			let changed = false;
 			for (const i of moves.asks) {
 				const key = ask(list[i]);
 				if (moves.fresh.has(i)) {
 					if (key) came.push(key);
-				} else if (key !== slots[i]) moved = true;
+				} else if (key !== slots[i]) changed = true;
 				if (key === slots[i]) continue;
 				if (shared) slots = slots.slice();
 				shared = false;
 				slots[i] = key;
 			}
 			// Blocks put in or taken out move only what they say, in order (an Enter in prose, none).
-			if (!sameSaying(came, moves.gone)) moved = true;
+			if (changed || !sameSaying(came, moves.gone)) version++;
 		}
 		if (devChecksOn && !perfEnabled() && list.length <= CHECKED_UP_TO) {
 			assertInvariant('kept-keys', () => checkKeptKeys(slots, list.map(quietly(depends))));
@@ -128,21 +131,17 @@ export function watchKeys(
 	}
 
 	follow();
-	askAll(source.blocks());
-	moved = false;
+	askAll(source.blocks(), slots);
 	return {
-		changed() {
+		version() {
 			settle();
-			const was = moved;
-			moved = false;
-			return was;
+			return version;
 		},
 		keys() {
 			settle();
 			shared = true;
 			return slots;
-		},
-		stop: lapse
+		}
 	};
 }
 

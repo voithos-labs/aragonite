@@ -37,7 +37,7 @@ function boxes<D>(spec: Partial<ContainerSpec<D>> & Pick<ContainerSpec<D>, 'line
 					sample: '%> x',
 					insert: { none: 'a test block type' },
 					...spec
-				})
+				} as ContainerSpec<D>)
 			]
 		})
 	});

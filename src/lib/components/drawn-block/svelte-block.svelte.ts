@@ -15,20 +15,13 @@ export interface SvelteBlockProps<D = never, C extends DrawContext = DrawContext
 	Slot: typeof DrawnSlot;
 }
 
-export interface SvelteBlockOptions {
-	/** The drawing's `depends`: what it reads of each top-level block, handed back as
-	 *  `ctx.depends`. */
-	depends?(block: Block): string;
-}
-
 /** What a component adds to its block's drawing, read each time the editor needs it. */
 type DrawnParts = Pick<Drawn<never>, 'focus' | 'keep' | 'caret'>;
 
 const DRAWN_CONTEXT = Symbol('drawn-parts');
 
 export function svelteBlock<D = never, C extends DrawContext = DrawContext>(
-	Component: Component<SvelteBlockProps<D, C>>,
-	options: SvelteBlockOptions = {}
+	Component: Component<SvelteBlockProps<D, C>>
 ): (block: Block<D>, ctx: C) => Drawn<D, C> {
 	return (block, ctx) => {
 		const dom = document.createElement('div');
@@ -59,7 +52,6 @@ export function svelteBlock<D = never, C extends DrawContext = DrawContext>(
 				flushSync();
 			},
 			destroy: () => void unmount(instance),
-			depends: options.depends,
 			get focus() {
 				return declared.parts().focus;
 			},
