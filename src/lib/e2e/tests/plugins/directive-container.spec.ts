@@ -103,6 +103,25 @@ test.describe('plugin container: generic :::name directive', () => {
 		expect(await editor.parseConverged()).toBe(true);
 	});
 
+	// Live mode shows the row's `:::foo` while the caret is on it, so an emptied title leaves the
+	// name standing and the next letter starts a new title.
+	for (const [how, empty] of [
+		['erased letter by letter', ['Backspace', 'Backspace']],
+		['selected and deleted', ['Shift+ArrowLeft', 'Shift+ArrowLeft', 'Delete']]
+	] as const)
+		test(`live: a title ${how} keeps the :::foo line`, async ({ page }) => {
+			await editor.setPresentationMode('live');
+			await editor.loadContent(':::foo Hi\nhello\n:::\n');
+			await editor.focusBlockAtPath([0, 0], 9);
+
+			for (const key of empty) await page.keyboard.press(key);
+			await editor.bridge.waitForSourceEquals(':::foo \nhello\n:::\n');
+			await page.keyboard.type('x');
+
+			await editor.bridge.waitForSourceEquals(':::foo x\nhello\n:::\n');
+			expect(await editor.parseConverged()).toBe(true);
+		});
+
 	// A nested `:::` container asks the outer fence for four colons, which the row's own write must
 	// not put back over the colons typed. Live mode shows the colons with the caret on the row.
 	for (const mode of ['live', 'source'] as const)

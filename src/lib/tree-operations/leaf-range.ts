@@ -96,9 +96,9 @@ export function replaceDrawnRange(
 ): LeafRangeEdit {
 	const inside = wholeTextInside(node, range, store);
 	if (!inside) return replaceRangeInLeaf(node, range, typed, store);
-	// No block's text opens with whitespace, so the block's markers go with a deleted or
-	// space-led whole text, and what is left is a paragraph holding what was typed.
-	if (!/^\S/.test(typed)) return asWholeBlock(node, typed);
+	// No block's text opens with whitespace, so a deleted or space-led whole text takes the runs
+	// around it, and the markers too wherever the block's bytes make its kind.
+	if (!/^\S/.test(typed)) return asWholeText(node, typed, store);
 	return replaceRangeInLeaf(node, inside, typed, store);
 }
 
@@ -125,14 +125,18 @@ function wholeTextInside(
 	return { start, end };
 }
 
-function asWholeBlock(node: NodeView, typed: string): LeafRangeEdit {
+/** The block's whole text replaced by `typed`, its markers with it, except where the position
+ *  stores text and keeps its kind whatever it holds: a title row keeps its `:::name`. */
+function asWholeText(node: NodeView, typed: string, store: StoredAs): LeafRangeEdit {
+	const start = store.surface === 'inline' ? getContentRange(node).start : 0;
 	const end = displayLength(node.raw);
+	const caret = start + typed.length;
 	return {
-		raw: typed + ownTrailingLineEnding(node.raw),
-		caret: typed.length,
-		range: { start: 0, end },
-		afterRange: typed.length,
-		mapOffset: (offset) => (offset >= end ? typed.length + offset - end : 0)
+		raw: node.raw.slice(0, start) + typed + ownTrailingLineEnding(node.raw),
+		caret,
+		range: { start, end },
+		afterRange: caret,
+		mapOffset: (offset) => (offset >= end ? caret + offset - end : Math.min(offset, start))
 	};
 }
 
