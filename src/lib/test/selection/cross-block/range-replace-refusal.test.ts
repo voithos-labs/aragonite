@@ -28,7 +28,7 @@ const readingWarns = () => takeDevWarnsOf(READING_WRITE_TAG).length;
 const GESTURES: [name: string, insertion: RangeInsertion, warns: boolean][] = [
 	['Backspace', { kind: 'none', gesture: 'Backspace' }, true],
 	['a typed character', { kind: 'text', text: 'x' }, true],
-	['Enter', { kind: 'command', chord: 'Enter' }, true],
+	['Enter', { kind: 'command', chord: 'Enter', place: null }, true],
 	['a composition', { kind: 'composition' }, true],
 	['a cut', { kind: 'none', gesture: 'cut' }, false],
 	['a paste', { kind: 'paste', clip: { text: 'P', plain: false } }, false]

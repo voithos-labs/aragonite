@@ -4,7 +4,7 @@ import type { CrossBlockDispatchContext } from './dispatch';
 import type { AnyBlockKind, Document } from '../../core/nodes';
 import { kindOfPath, replaceRange, replaceWidget } from './range-replace';
 import { bindsLineBreak, commandLandingKind } from './range-removal';
-import { overRangeAnswer, placeKind } from './range-paste';
+import { overRangeAnswer, placeKind, type PlaceAnswer } from './range-paste';
 import { bindsIndentAt, coversIndentBinding, indentFormsFor, indentRange } from './range-indent';
 import { coverRange, rangeCoverage } from '../range-coverage';
 import type { SelectionState } from '../selection-state.svelte';
@@ -140,7 +140,7 @@ async function handleCrossBlockActive(
 		case 'command': {
 			const chord = eventToChord(e);
 			if (chord && !isReadingMode(ctx.reading.mode)) {
-				await replaceRange(ctx, { kind: 'command', chord });
+				await replaceRange(ctx, { kind: 'command', chord, place: placesByEvent.get(e) ?? null });
 			}
 			return true;
 		}
@@ -254,13 +254,6 @@ async function dispatchOverRange(
 	);
 }
 
-/** A key bound to a command that runs after a range's removal, read in the keymap of the block the
- *  command then runs in (`boundCommand`). */
-export function isCommandCandidateKey(e: KeyboardEvent, reads: RangeKeyReads): boolean {
-	const bound = boundCommand(e, reads);
-	return bound !== null && runsAfterRemoval(bound, reads);
-}
-
 /** The command the key runs in the keymap of the block it runs in: for a line break, the block at
  *  the core's place for text over the range; for any other key, where the removal leaves the caret. */
 function boundCommand(
@@ -274,6 +267,7 @@ function boundCommand(
 	const coverage = rangeCoverage(doc, coverRange(doc, anchor, focus));
 	const over = bindsLineBreak(chord, reads.commands) && overRangeAnswer(reads, coverage, 'place');
 	if (over) {
+		placesByEvent.set(e, over);
 		const kind = placeKind(over);
 		const command = commandForKey(e, kind, reads.commands);
 		// The place binding no key is a break input's to answer; any other command goes the usual way.
@@ -320,6 +314,8 @@ type RangeKeyRole =
 
 // Each container the key bubbles through asks, and then the range's handler: one answer per event.
 const rolesByEvent = new WeakMap<KeyboardEvent, RangeKeyRole | null>();
+// The place a line break's claim asked the core for, which the key's gesture then runs on.
+const placesByEvent = new WeakMap<KeyboardEvent, PlaceAnswer>();
 
 /** What the range's handler does with a key, or null when it leaves the key to the block. */
 function rangeKeyRole(e: KeyboardEvent, reads: RangeKeyReads): RangeKeyRole | null {

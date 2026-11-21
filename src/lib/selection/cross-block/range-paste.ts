@@ -187,6 +187,17 @@ export function overRangeAnswer(
 	return { read, answer: editRange(read.source, read.range, asked, modeOf(ctx), host), host };
 }
 
+/** The core's place for text over what `coverage` holds: `claimed`, asked by a key's claim, while
+ *  the document holds the text it was read on, else asked now. */
+export function currentPlace(
+	ctx: Pick<CommitContext, 'bytes' | 'reading'>,
+	coverage: RangeCoverage,
+	claimed: PlaceAnswer | null
+): PlaceAnswer | null {
+	if (claimed?.read.source === ctx.bytes.source()) return claimed;
+	return overRangeAnswer(ctx, coverage, 'place');
+}
+
 /** The host a core answer that writes text reads through, every write of text into a block spent
  *  by `spend`, the step of the block the text lands in; null where no block's step takes it. */
 function textHost(

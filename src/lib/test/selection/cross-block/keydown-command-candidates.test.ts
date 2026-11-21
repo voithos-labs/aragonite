@@ -5,7 +5,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { stubBlockComponent } from '../../harness/editor-actions';
 import { makeKeydownEnv, press } from './keydown-env';
-import { isCommandCandidateKey, isIndentKey } from '#lib/selection/cross-block/keydown.js';
+import { isIndentKey, rangeOwnsKey } from '#lib/selection/cross-block/keydown.js';
 import type { SelectionEndpoint } from '#lib/selection/primitives.js';
 
 const SOURCE = 'alpha\n\nbeta\n\ngamma\n';
@@ -136,12 +136,16 @@ gamma
 	});
 
 	// Tab over a range indents what it holds; as a candidate it would remove the range first.
-	it('Tab and Shift+Tab are indent keys, never candidates', () => {
-		const { env } = envWithCommandTarget();
+	it('Tab and Shift+Tab are indent keys, never candidates', async () => {
+		const { env, runCommand } = envWithCommandTarget();
 		for (const init of [{}, { shiftKey: true }]) {
-			expect(isCommandCandidateKey(press('Tab', init), env.ctx)).toBe(false);
 			expect(isIndentKey(press('Tab', init), env.ctx)).toBe(true);
+			expect(await env.keydown.handleKeyDown(press('Tab', init))).toBe(true);
 		}
+
+		expect(env.source()).toBe(SOURCE);
+		expect(env.selection.ownsRange).toBe(true);
+		expect(runCommand).not.toHaveBeenCalled();
 	});
 });
 
@@ -157,7 +161,7 @@ describe('a line break over whole blocks is claimed by the keymap of the place t
 		});
 		env.selection.enterCrossBlock(rule, headingEnd);
 
-		expect(isCommandCandidateKey(press('Enter', { shiftKey: true }), env.ctx)).toBe(true);
+		expect(rangeOwnsKey(press('Enter', { shiftKey: true }), env.ctx)).toBe(true);
 	});
 
 	it('Enter is no candidate where paragraphs unbind it, though the heading it ends in binds it', () => {
@@ -166,6 +170,6 @@ describe('a line break over whole blocks is claimed by the keymap of the place t
 		});
 		env.selection.enterCrossBlock(rule, headingEnd);
 
-		expect(isCommandCandidateKey(press('Enter'), env.ctx)).toBe(false);
+		expect(rangeOwnsKey(press('Enter'), env.ctx)).toBe(false);
 	});
 });

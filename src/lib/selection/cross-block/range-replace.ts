@@ -37,6 +37,7 @@ import {
 } from './range-removal';
 import {
 	answeredAhead,
+	currentPlace,
 	overRangeAnswer,
 	pasteInBlock,
 	pasteThroughCore,
@@ -62,7 +63,9 @@ export type RangeInsertion =
 	| { kind: 'text'; text: string }
 	| { kind: 'paste'; clip: Clip }
 	| { kind: 'composition' }
-	| { kind: 'command'; chord: string }
+	/** `place`: the core's place the key's claim asked for, run on while the document holds the
+	 *  bytes it read. */
+	| { kind: 'command'; chord: string; place: PlaceAnswer | null }
 	/** A line break that came as input, not as a key the range claimed: a soft keyboard's, or one a
 	 *  key's default sent. `chord` is the key it stands for. */
 	| { kind: 'break'; chord: 'Enter' | 'Shift+Enter' };
@@ -201,7 +204,7 @@ async function replaceInStep(
 	// A cell's rows or columns have no place for text: their keys run in the cell the removal leaves.
 	const over =
 		keyed && (keyed.kind === 'break' || bindsLineBreak(keyed.chord, ctx.commands))
-			? overRangeAnswer(ctx, coverage, 'place')
+			? currentPlace(ctx, coverage, keyed.kind === 'command' ? keyed.place : null)
 			: null;
 	// A key the place binds to anything but a line break runs as any other command key does.
 	if (keyed && over && breaksIn(placeKind(over), keyed, ctx.commands))
