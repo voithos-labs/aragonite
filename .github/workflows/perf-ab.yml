@@ -1,0 +1,64 @@
+name: Perf A/B
+# Times the perf A/B probe's gestures on several refs on one runner, alternating the refs round by
+# round (`scripts/ci/perf-ab.mjs`), since two separate CI runs swing by a factor of two on one row.
+# Fired by hand: `gh workflow run perf-ab.yml -f refs="v0.11.5 next <branch>"`. The comparison
+# lands in the job summary and the raw samples in the `perf-ab-results` artifact.
+on:
+  workflow_dispatch:
+    inputs:
+      refs:
+        description: Refs to compare, space-separated (tags, branches or shas); the first is the baseline
+        required: true
+        type: string
+      rounds:
+        description: Rounds, each timing every ref once in turn
+        default: '6'
+        type: string
+      grep:
+        description: Only the rows whose full title (file, group and row id) matches this regex, as `range-` or `blocks-letter$`
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+# Third-party actions are pinned to commit SHAs with the version in a trailing comment, as in ci.yml.
+jobs:
+  # The probe runs on this checkout's Playwright, so the timing job runs in that version's image.
+  playwright:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: version
+        run: echo "version=$(node -p "require('./package-lock.json').packages['node_modules/@playwright/test'].version")" >> "$GITHUB_OUTPUT"
+
+  perf-ab:
+    needs: playwright
+    runs-on: ubuntu-latest
+    # Three refs of six rounds run about two hours; GitHub stops any job at six.
+    timeout-minutes: 240
+    container:
+      image: mcr.microsoft.com/playwright:v${{ needs.playwright.outputs.version }}-noble
+      options: --user 1001
+    env:
+      REFS: ${{ inputs.refs }}
+      ROUNDS: ${{ inputs.rounds }}
+      GREP: ${{ inputs.grep }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Every compared ref is checked out from this clone.
+          fetch-depth: 0
+      - uses: ./.github/actions/e2e-setup
+        timeout-minutes: 10
+        with:
+          engine: chromium
+      - run: node scripts/ci/perf-ab.mjs --work "$RUNNER_TEMP/perf-ab" --rounds "$ROUNDS" --grep "$GREP" --summary "$GITHUB_STEP_SUMMARY" --results perf-ab-results.json $REFS
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: perf-ab-results
+          path: perf-ab-results.json
