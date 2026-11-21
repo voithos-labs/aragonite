@@ -92,8 +92,9 @@ export function createDocumentRead(deps: {
 	let following = false;
 	let current: VersionDoc | null = null;
 	// The latest write's replaced strings, chained on from the first write that replaced a `Doc`
-	// handed out unread, so that `Doc` rebuilds its text when asked; null until then.
+	// handed out unread, so that `Doc` rebuilds its text when asked; null while no chain runs.
 	let undone: Undone | null = null;
+	let chained = 0;
 	const changes = createEditChanges();
 	const infos = new WeakMap<EditEvent, EditInfo>();
 
@@ -111,7 +112,14 @@ export function createDocumentRead(deps: {
 			heard(write) {
 				const { runs, before } = write;
 				const replaced = current?.version === deps.version() && current.unread ? current : null;
-				if (replaced || undone) undone = undoneBy(undone, deps.version(), runs, before, replaced);
+				if (replaced || undone) {
+					if (!undone) chained = 0;
+					undone = undoneBy(undone, deps.version(), runs, before, replaced);
+					// The `Doc` the write replaced is its holder's now, not the read's to keep.
+					if (replaced) current = null;
+					// Past this many writes a `Doc` from before them reads the text as it stands.
+					if (++chained > LOG_LIMIT) undone = null;
+				}
 				changes.heard(write, deps.getDoc());
 				log.push(runs);
 				recordHintRunsLogged();
