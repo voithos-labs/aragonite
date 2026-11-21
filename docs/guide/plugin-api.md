@@ -850,7 +850,7 @@ _(pre-freeze / unstable)_ Which tier dispatches what: [Block commands](plugin-gu
 | `Command` | What `command` hands back. Its `id` reads `yourplugin/id` once an editor installs your plugin |
 | `CommandSpec` | What `command` takes: `id`, `title`, an optional `chord`, `when(editor, arg)` and `run(editor, arg)`, both handed your plugin's own `Editor` |
 | `Chord` | A chord as a type: `Mod`, `Alt` and `Shift` in any combination, then the key. Only a command that can run without its argument takes one, since a key can't hand it anything; a block type's `chords` hand theirs the block |
-| [`registerBlockCommand`](#registerblockcommand) | Create a `(kind, name)` command and get back its id, for a keymap binding to target |
+| [`registerBlockCommand`](#registerblockcommand) | A `setup` plugin's way to create a `(kind, name)` command and get back its id, for a keymap binding to target. A plugin value puts a `command` in its block type's `chords` or `actions` instead |
 | `CommandId` | A built-in command's id; a vocabulary your keymaps may bind too. `decorations.activateAtCaret` ships with no chord at all: it runs the `onActivate` of the mark under the caret ([Interactive marks](plugin-guide/decorations.md#interactive-marks-click-hover-and-the-keyboard)) |
 | `KeyBinding` | One keymap entry: a chord (`Mod` / `Alt` / `Shift` plus the key, normalized to that order), a command id, an optional baked argument. A chord with an unknown modifier or no key throws when the kind registers or is augmented |
 | [`CommandRun`](#commandrun) | The third argument a block's `runCommand` gets: `afterRemoval` |
@@ -899,7 +899,7 @@ function registerBlockCommand(
 ): PluginCommandId;
 ```
 
-Creates a `(kind, name)` command and gets back its id, for a keymap binding to target. The fourth argument says what a key bound to it does over a selection:
+A `setup` plugin's way: it creates a `(kind, name)` command and gets back its id, for a keymap binding to target. The fourth argument says what a key bound to it does over a selection:
 
 - `{ overRange: 'afterRemoval' }` removes a selection spanning blocks first, then runs the command.
 - `{ overSelection: 'afterRemoval' }` does the same over a selection inside the block.

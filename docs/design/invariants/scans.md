@@ -254,6 +254,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.353 | Every reader of the text a write is worked out from names the vouch its bytes pass | L |
 | G4.355 | The chain rebuild reports a fold in one place, which checks it | L |
 | G4.357 | A test takes one guard's warnings and leaves the rest to the gate | L |
+| G4.369 | The process-wide block-command and paste-transform names gain no caller | L |
 
 ### The entries
 
@@ -739,3 +740,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.355 · One push for a fold.** `src/lib/tree-operations/chain-rebuild.ts :: foldWrite` is where a fold is reported and where G1.220 reads it. The scan fails a `folds.push` anywhere else, and a `foldWrite` that stops calling the check. `lint/fold-doors.test.ts`.
 
 **G4.357 · One guard's warnings, taken alone.** A test about one guard reads its fires through `takeDevWarnsOf(tag)` (`test/support/warn-gate.ts`), which leaves every other tag for the gate. A `takeDevWarns()` narrowed to one tag (a `filter`, a `some`) drops the rest unseen: a property did, and hid a check that fired on its every run. `lint/suite-file-rules.test.ts`.
+
+**G4.369 · Retiring plugin names, frozen.** `registerBlockCommand`, the `BlockCommand*` types, `CommandRun`, `PluginCommandId`, `AnyCommandId`, `registerPasteTransform`, `PasteTransform` and `applyPasteTransforms` are named only in the production files that name them today. A new command goes on a block type's `chords` or `actions`, or in `commands`, and a new paste rewrite in `rewrites`. `lint/retiring-plugin-names.test.ts`.
