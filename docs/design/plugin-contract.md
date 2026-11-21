@@ -404,7 +404,7 @@ What stays prose-only is the class no declaration can decide: whether a kind's s
 1. the live `presentationMode` prop, reflected as `data-presentation` on the editor root (absent in source, so the default DOM is unchanged);
 2. an internal getter on the block context that joins the prose render key, so a mode flip re-renders every mounted prose block (the previews then reveal markers with CSS alone, never rebuilding the inline DOM on a focus or caret move);
 3. `EditorContext.presentationMode` (a live getter) plus the `presentationModeChange` event;
-4. the leaf and widget tiers: `EditableLeaf.getPresentationMode()`, the live `getPresentationMode` getter in an inline widget view's props, and `InlineWidgetEditingContext.presentationMode`.
+4. the leaf and widget tiers: `EditableLeaf.getPresentationMode()`, an `inline()` widget's `mode` prop (updated on a flip), and on a registrar widget the live `getPresentationMode` getter in its view's props and `InlineWidgetEditingContext.presentationMode`.
 
 **Mode litmus: handle non-exhaustively.** The union has grown once already, so a plugin that switches exhaustively over it is wrong by construction: the next mode is an addition to the union, not an API break. Read the one property your rendering depends on (most often "does this mode paint markers", or "does it write bytes") and default the rest. The platform's own read sites are written that way, which is why live mode arrived with no plugin-facing change.
 

@@ -252,6 +252,20 @@ describe('a key beside a side', () => {
 		for (const at of [2, 7]) expect(enter(at)).toEqual(['a \n', '{>>c}text{<<c} z\n']);
 		for (const at of [11, 16]) expect(enter(at)).toEqual(['a {>>c}text{<<c}\n', ' z\n']);
 	});
+
+	// `**a {>>c}b**`: the open side [4,9) sits inside the bold, which a cut there closes and reopens.
+	it('inside a bold, a letter joins both, and Enter reopens the bold around the side', () => {
+		const { read, reading } = installed();
+		const source = '**a {>>c}b**';
+		const live = fixtureReading({ grammar: reading.grammar }, 'live');
+		const node = makeBlockNode({ kind: 'paragraph', leadingTrivia: '', raw: `${source}\n` });
+		const edges = hiddenEdges(read(source), source, LIVE, reading);
+		for (const at of [4, 9]) {
+			expect(edges.typingOffset(at, null)).toBe(9);
+			const halves = splitHalves(node, at, undefined, '\n', topLevelSplit(node, live));
+			expect([halves.firstRaw, halves.secondRaw]).toEqual(['**a** \n', '**{>>c}b**\n']);
+		}
+	});
 });
 
 describe('a marker pair in a mounted editor', () => {

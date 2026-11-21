@@ -32,7 +32,7 @@ The groups, in page order:
 | [Editable-leaf authoring](#editable-leaf-authoring) | A text-editing block with the editor's own caret, undo, and selection |
 | [Code-block languages](#code-block-languages) | Adding syntax-highlighting grammars beyond the bundled set |
 | [Plugin views](#plugin-views) | What an inline widget, a decoration's widget and an inline menu row are drawn with |
-| [Inline authoring](#inline-authoring) | Your own syntax inside a paragraph, rendered as a widget |
+| [Inline authoring](#inline-authoring) | A `setup` plugin's registrars for syntax inside a paragraph, on their way out |
 | [Commands and keybindings](#commands-and-keybindings) | Keyboard shortcuts and commands, per block type or editor-wide |
 | [Paste transforms](#paste-transforms) | Rewriting pasted text before the editor parses it |
 | [Decorations](#decorations) | View-only annotations over content your plugin does not own |

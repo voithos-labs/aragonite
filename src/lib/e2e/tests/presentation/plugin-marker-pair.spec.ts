@@ -66,7 +66,7 @@ test.describe('a marker pair in live mode', () => {
 		await expect.poll(source).toContain('blocksX{<<b} end');
 	});
 
-	// The typed letter leaves the caret past the hidden side, where the browser never puts it.
+	// The arrows may leave the caret on either side of the hidden side; the typed letter, past it.
 	test('Backspace beside a side takes the character shown, never the side', async ({ page }) => {
 		await walkTo(0, 'A '.length);
 		await page.keyboard.type('X');
