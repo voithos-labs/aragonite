@@ -96,8 +96,8 @@ const LINE_BREAKS: CommandId[] = [
 	'chrome.descendToBody'
 ];
 
-/** The built-in commands Enter and Shift+Enter run. Over a range the break writes forward, so the
- *  removal before it leaves the caret at what is left of the text the range ended in. */
+/** The built-in commands Enter and Shift+Enter run. Over a range they run where text over it would
+ *  go, read in the keymap of the block there. */
 export const LINE_BREAK_COMMAND_IDS: ReadonlySet<AnyCommandId> = new Set<CommandId>(LINE_BREAKS);
 
 /**

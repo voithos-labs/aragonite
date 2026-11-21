@@ -2,7 +2,7 @@
 // input, and returns a line per broken law. A check that can't decide (the package declined, the
 // shape is one the rows hold) says nothing.
 
-import { ownTrailingLineEnding } from '#lib/core/lines.js';
+import { isBlankText, ownTrailingLineEnding } from '#lib/core/lines.js';
 import { sharedPrefixLength, sharedSuffixLength } from '#lib/core/written-span.js';
 import type {
 	Gesture,
@@ -488,8 +488,8 @@ function oneWrite(
 		: [`L5 paste over a cut run changed its block’s kind: ${q(over.source)}`];
 }
 
-/** L5: a paste over a range is the cut then the paste, or one write of the block whose text holds
- *  it; a typed character, a composition and a command remove as the cut, Delete and Backspace do. */
+/** L5: a paste across blocks lands where the core places text, a key's text as its paste, in one
+ *  block's text as one write; a key, a composition and a command remove as cut, Delete, Backspace. */
 export function replaceLaws(
 	call: Call,
 	host: CheckHost,
@@ -501,6 +501,12 @@ export function replaceLaws(
 	const unit = blockHeldWhole(read, input.range);
 	const over = call(input.source, input.range, paste(text), input.mode);
 	const cut = call(input.source, input.range, 'cut', input.mode);
+	// No transform runs in these checks, so a key's text lands as a paste of it, save one line the
+	// paste reads as blocks at text (a marker), which goes in as that block's own write.
+	const typed = isBlankText(text) ? null : call(input.source, input.range, { text }, input.mode);
+	const marker = !!over?.blocks && !/\n/.test(text);
+	if (over && typed && typed.source !== over.source && !marker)
+		out.push(`L5 a key's text gave ${q(typed.source)}, a paste of it ${q(over.source)}`);
 	// Text typed or pasted there at once leaves no blank line where the cut's empties a first line.
 	const apart = cut && lineAboveOf(input.source, input.range.from, cut.source);
 	const atOnce = (bytes: string, cutBytes: string) => apart?.(cutBytes) === bytes;
@@ -520,28 +526,31 @@ export function replaceLaws(
 		} else if (!over.source.startsWith(before) || !over.source.endsWith(after))
 			out.push(`L5 paste over a block held whole changed bytes outside it: ${q(over.source)}`);
 	} else if (over && cut) {
-		const then = call(
-			cut.source,
-			caretRange(cut.caret.at),
-			paste(text, heldBy(cut.caret)),
-			input.mode
-		);
 		const block = oneTextBlock(read, input.range, host);
 		const flat = () => call(input.source, input.range, paste(text), 'source');
-		if (block) out.push(...oneWrite(host, input, block, text, { over, cut, then, flat }));
-		else if (
-			then &&
-			!sameAfterCut(then.source, over.source, input.source, cut.source) &&
-			!openEndEntered(input.source, input.range, text, over.source, then.source) &&
-			!atOnce(over.source, then.source)
-		)
-			out.push(`L5 paste over gave ${q(over.source)}, cut then paste ${q(then.source)}`);
+		if (block) {
+			const after = paste(text, heldBy(cut.caret));
+			const then = call(cut.source, caretRange(cut.caret.at), after, input.mode);
+			out.push(...oneWrite(host, input, block, text, { over, cut, then, flat }));
+		} else {
+			// Across blocks the text goes where the core places text over the range; the removal there
+			// may leave a blank line's spaces where the paste's keeps them.
+			const place = call(input.source, input.range, 'place', input.mode);
+			const at = place && paste(text, heldBy(place.caret));
+			const then = place && at && call(place.source, caretRange(place.caret.at), at, input.mode);
+			if (
+				place &&
+				then &&
+				!sameAfterCut(bare(then.source), bare(over.source), input.source, place.source) &&
+				!openEndEntered(input.source, input.range, text, over.source, then.source)
+			)
+				out.push(`L5 paste over gave ${q(over.source)}, the paste at its place ${q(then.source)}`);
+		}
 	}
 	const pairs: [Gesture, Gesture][] = [
 		['type', 'cut'],
 		['compose', 'delete'],
-		['command', 'backspace'],
-		['break', 'delete']
+		['command', 'backspace']
 	];
 	for (const [gesture, like] of pairs) {
 		const got = call(input.source, input.range, gesture, input.mode);
@@ -560,6 +569,9 @@ export function replaceLaws(
 	}
 	return out;
 }
+
+/** `bytes` with spaces ending a line of container markers alone dropped: blank lines either way. */
+const bare = (bytes: string) => bytes.replace(/^[ \t>]+(?=\r?$)/gm, (line) => line.trimEnd());
 
 /** A removal that leaves its caret on a block's syntax (a fence line, a heading's marker), where a
  *  typed or pasted text opens a paragraph of its own; the rows hold those bytes. */

@@ -447,6 +447,7 @@
 	export const setSelection = editableSurface.surface.setSelection;
 	export const measurePartialRects = editableSurface.surface.measurePartialRects;
 	export const typeText = editableSurface.surface.typeText;
+	export const holdInsertion = editableSurface.caret.holdInsertion;
 
 	export function isVerticallyTransparent(): boolean {
 		return widgetInteraction.isVerticallyTransparent();

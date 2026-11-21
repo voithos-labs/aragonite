@@ -274,6 +274,19 @@ export class EditorPage {
 		}
 	}
 
+	/** A held drag across the middle of a block with no caret position (a divider, an equation)
+	 *  holds it whole as a range. */
+	async holdBlockWhole(selector: string): Promise<void> {
+		const box = await this.page.locator(selector).boundingBox();
+		if (!box) throw new Error(`no box for ${selector}`);
+		const y = box.y + box.height / 2;
+		await this.page.mouse.move(box.x + 8, y);
+		await this.page.mouse.down();
+		await this.page.mouse.move(box.x + box.width - 8, y, { steps: 8 });
+		await this.page.mouse.up();
+		await this.waitForCrossBlock(true);
+	}
+
 	async shiftClickBlock(path: number[], offset: number): Promise<void> {
 		const point = await pointAtRaw(this.page, path, offset);
 		await this.page.keyboard.down('Shift');

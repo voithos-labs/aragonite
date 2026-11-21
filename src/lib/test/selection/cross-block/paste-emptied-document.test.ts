@@ -47,7 +47,7 @@ it.each([
 		await pasteGesture(editor, { 'text/plain': clip }, 'key');
 
 		expect(editor.source(), mode).toBe(pasted);
-		expect(ops, mode).toEqual(['delete', 'paste']);
+		expect(ops, mode).toEqual(['paste']);
 		await runHistory(editor, 'undo');
 		expect(editor.source(), mode).toBe(source);
 		await destroyMountedEditors();

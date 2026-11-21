@@ -21,7 +21,8 @@ const marked = (text: string, mode: Mode = 'source') => ({
 	mode,
 	range: { from: text.indexOf('⟦'), to: text.indexOf('⟧') - 1 }
 });
-const isPaste = (gesture: Gesture) => typeof gesture === 'object' && 'paste' in gesture;
+const isPaste = (gesture: Gesture) =>
+	typeof gesture === 'object' && ('paste' in gesture || 'text' in gesture);
 const paste = (text: string): Gesture => ({ paste: text, plain: false, holds: 'text' });
 
 /** The core, and the core with every paste (`over`: only a paste over a range; `only`: in that

@@ -27,6 +27,7 @@ const ALLOWED: Record<string, string> = {
 	'src/lib/selection/range-bytes.ts':
 		'the blocks a range paints whole, which law 10 leaves open at their edges (a read)',
 	'src/lib/range-edit/layout.ts': 'where those blocks sit in the bytes (a read)',
+	'src/lib/range-edit/document.ts': 'whether text at a block’s offset reads as its text (a read)',
 	'src/lib/tree-operations/top-level-starts.ts':
 		'the one measure of a parsed document a layout or a byte read takes (a read)',
 	'src/lib/core/inline/link-source-bytes.ts': 'the text a block shows, which law 11 reads',
@@ -45,7 +46,8 @@ const ALLOWED: Record<string, string> = {
 	'src/lib/test/range-edit/expected.ts':
 		'law 3’s declared exceptions, which both law harnesses read from the same predicate',
 	'src/lib/schema/block-facts.ts': 'the block facts that exception reads (a read)',
-	'src/lib/range-edit/edit-range.ts': 'the core’s answer for a block removed whole (a read)',
+	'src/lib/range-edit/edit-range.ts':
+		'the core’s answer for a block removed whole, and whether a removal took a range’s start block (a read)',
 	'src/lib/range-edit/host.ts': 'the host that answer reads the document through',
 	'src/lib/selection/cross-block/range-removal.ts': 'the core’s name for each block gesture',
 	'src/lib/editor-actions/commit/byte-splice.ts':

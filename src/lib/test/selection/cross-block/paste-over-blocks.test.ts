@@ -1,10 +1,6 @@
 // @vitest-environment jsdom
-// A paste over a range across blocks is the removal typing makes there, then the paste, both
-// answered before either commits: the removal goes only with a paste to land, and a write that
-// comes between the two (a listener to the removal's edit) leaves the paste unlanded, said once
-// on the `error` channel.
-// Miss-analysis: the pair committed its removal before it asked where the paste went, and every
-// row pasted into an editor no listener wrote to between the two commits.
+// A paste over a range across blocks is one answer of the range-edit core: one commit, one `paste`
+// edit, one undo step back to the range; a fault in that answer commits nothing.
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { registerDefaultContextActions } from '#lib/components/menu/default-context-actions.js';
 import type { Gesture } from '#lib/range-edit/edit-range.js';
@@ -19,7 +15,7 @@ import {
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { mountCase, placeRange, runHistory, type Editor } from '../../range-laws/gestures';
 
-/** Set to make the core's answer for a paste throw, as a defect in the paste half would. */
+/** Set to make the core's answer for a paste throw, as a defect in it would. */
 const fault = vi.hoisted(() => ({ paste: false }));
 
 vi.mock('#lib/range-edit/edit-range.js', async (original) => {
@@ -33,7 +29,6 @@ vi.mock('#lib/range-edit/edit-range.js', async (original) => {
 });
 
 const SOURCE = 'alpha\n\nbeta\n\ngamma\n';
-const REMOVED = 'alma\n';
 
 beforeAll(installLayoutStubs);
 beforeEach(() => {
@@ -64,46 +59,14 @@ async function heldOverBlocks(): Promise<{ editor: Editor; ops: string[] }> {
 const sourceOf = (editor: Editor) => editor.instance.getSource();
 
 describe('a paste over a range across blocks', () => {
-	it('reaches a listener as the removal and then the paste, and one undo takes both back', async () => {
+	it('reaches a listener as one paste, and one undo takes it back', async () => {
 		const { editor, ops } = await heldOverBlocks();
 		expect(await editor.instance.insertMarkdown('X')).toBe(true);
 		await editor.settle();
 		expect(sourceOf(editor)).toBe('alXma\n');
-		expect(ops).toEqual(['delete', 'paste']);
+		expect(ops).toEqual(['paste']);
 		await runHistory(editor, 'undo');
 		expect(sourceOf(editor)).toBe(SOURCE);
-	});
-
-	// Miss-analysis: the row checked the bytes alone, so the paste it dropped went unreported.
-	it('lands nowhere once a listener to the removal writes, keeps that write and says so once', async () => {
-		const { editor, ops } = await heldOverBlocks();
-		const errors: unknown[] = [];
-		editor.instance.getEvents().on('error', (error) => errors.push(error));
-		editor.instance.getEvents().on('edit', (event) => {
-			if (event.op === 'delete')
-				void editor.instance.edit().replace({ from: 0, to: 0 }, '!').commit();
-		});
-		// True, since the removal changed the document.
-		expect(await editor.instance.insertMarkdown('X')).toBe(true);
-		await editor.settle();
-		expect(sourceOf(editor)).toBe(`!${REMOVED}`);
-		expect(ops).not.toContain('paste');
-		expect(ops[0]).toBe('delete');
-		expect(errors).toEqual([expect.objectContaining({ origin: 'clipboard' })]);
-		await runHistory(editor, 'undo');
-		expect(sourceOf(editor)).toBe(SOURCE);
-	});
-
-	it('lands nowhere once a listener to the removal turns reading mode on', async () => {
-		const { editor, ops } = await heldOverBlocks();
-		editor.instance.getEvents().on('edit', (event) => {
-			if (event.op === 'delete') editor.props.presentationMode = 'reading';
-		});
-		await editor.instance.insertMarkdown('X');
-		await editor.settle();
-		expect(sourceOf(editor)).toBe(REMOVED);
-		expect(ops).toEqual(['delete']);
-		takeDevWarns();
 	});
 
 	it('commits nothing where the paste half fails', async () => {

@@ -123,7 +123,10 @@ describe('the container walk', () => {
 			commands: commandContext(),
 			getBlockComponent: () => null,
 			selection: { ownsRange: false, rangeInOneBlock: false, anchor: null, focus: null },
-			getDoc: () => parse('')
+			getDoc: () => parse(''),
+			// No range is held, so nothing reads its bytes.
+			bytes: undefined as never,
+			reading: undefined as never
 		});
 		expect(chords.mayTake(new KeyboardEvent('keydown', { key: 'x' }))).toBe(false);
 		expect(chords.mayTake(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true }))).toBe(true);

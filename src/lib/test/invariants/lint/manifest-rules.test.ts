@@ -276,8 +276,6 @@ const PLAIN_READS: Record<string, string> = {
 		'installs after backfill: the list fix-up reads a body’s blocks at their slot, and its writer gives each block it installs a paragraph to type in (`fix-up/apply.ts :: adopt`)',
 	'src/lib/tree-operations/list/reconcile-task.ts':
 		'hands on: the blocks read behind a bare bullet land through `replaceBlock`, which fills in',
-	'src/lib/selection/cross-block/range-replace.ts':
-		'hands on: a block a range holds whole is replaced by its text read at the slot, through `replaceBlock`, which fills in',
 	'src/lib/components/blocks/table/table-cell-paste.ts':
 		'hands on: reads the clipboard’s own blocks to pick the cell’s slice, which lands them through `replaceBlock`, which fills in',
 	'src/lib/selection/selection-drop.ts':
