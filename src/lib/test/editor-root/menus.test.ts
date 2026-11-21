@@ -16,6 +16,10 @@ import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { noBlockTypes, noSelectionActions } from '#lib/test/harness/no-selection-actions.js';
+import { fencedBlock, lineBlock } from '#lib/plugin.js';
+import { container } from '#lib/components/block-makers/container.js';
+import type { MenuIconName } from '#lib/menu-icons.js';
+import type { BlockType } from '#lib/schema/plugin-unit.js';
 
 // Miss-analysis: which menu a right-click opens was tested only through Playwright.
 
@@ -325,9 +329,12 @@ describe('editor-root menus: the right-click', () => {
 // they sit or what they run on.
 describe("editor-root menus: a plugin block type's rows", () => {
 	/** Two rows on `kind`, the second one its command refuses, and the calls they make. */
-	function typeRows(kind: string) {
+	function typeRows(
+		kind: string,
+		type: BlockType<unknown> = { name: 'alerts/alert', label: 'Alert' }
+	) {
 		const ran: unknown[] = [];
-		const block = { type: { name: 'alerts/alert', label: 'Alert' } };
+		const block = { type };
 		const command = (id: string) => ({ id }) as never;
 		const blockTypes: RootMenusDeps['blockTypes'] = {
 			blockActions: (k) =>
@@ -382,5 +389,31 @@ describe("editor-root menus: a plugin block type's rows", () => {
 		]);
 		h.menu()!.pick('block-type.0');
 		expect(rows.ran).toEqual([['next', rows.block]]);
+	});
+
+	// Miss-analysis: a block type's `icon` was read nowhere, and no row asked what the flyout draws.
+	const common = { name: 'alert', label: 'Alert', insert: { none: 'a test block type' } };
+	const makers = {
+		lineBlock: (icon?: MenuIconName) =>
+			lineBlock({ ...common, match: /^@@ (?<text>.*)$/, sample: '@@ x', icon }),
+		fencedBlock: (icon?: MenuIconName) =>
+			fencedBlock({ ...common, fence: { info: 'alert' }, sample: '```alert\nx\n```', icon }),
+		container: (icon?: MenuIconName) =>
+			container({
+				...common,
+				sample: '%> x',
+				lines: { shape: 'marked', first: '%> ', rest: '%> ', reads: /^%> ?/, lazy: true },
+				icon
+			})
+	};
+	it.each(
+		Object.entries(makers).flatMap(([maker, make]) => [
+			[maker, 'the icon it declares', make('text-quote'), 'text-quote'],
+			[maker, 'the fixed one, with none declared', make(), 'ellipsis-vertical']
+		])
+	)('draw the flyout of a %s type with %s', (_maker, _, type, icon) => {
+		const h = harness({ blockTypes: typeRows('paragraph', type as BlockType<unknown>).blockTypes });
+		h.rightClick(h.nested.firstElementChild!);
+		expect(h.menu()!.items[0].icon).toBe(icon);
 	});
 });

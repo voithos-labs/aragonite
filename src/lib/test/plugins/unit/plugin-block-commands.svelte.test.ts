@@ -385,6 +385,18 @@ describe('the install pass', () => {
 		expect(editor.instance.plugins).not.toContain(left);
 	});
 
+	// Miss-analysis: a block type's icon was read nowhere, so nothing checked one it declared.
+	it('leaves out a block type whose icon the menu cannot draw', async () => {
+		const { editor, errors } = await mounted(
+			DOC,
+			makeAlerts(() => ({ icon: 'nope' as never }))
+		);
+		expect(errors.map((e) => (e.cause as Error).message)).toEqual([
+			"plugin 'alerts' has a block type that names icon 'nope', which the menu cannot draw"
+		]);
+		expect(editor.instance.plugins).not.toContain('alerts');
+	});
+
 	it("keeps a chord off every editor that doesn't list the plugin", async () => {
 		const { editor } = await mounted(DOC);
 		const other = mountEditor({ source: 'plain\n' });

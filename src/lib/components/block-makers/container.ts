@@ -34,6 +34,7 @@ export function container<D = never>(spec: ContainerSpec<D>): BlockType<D> {
 	const type: BlockType<D> = madeBlockType<D>({
 		local: spec.name,
 		label: spec.label,
+		icon: spec.icon,
 		insert: spec.insert,
 		chords: spec.chords,
 		actions: spec.actions,

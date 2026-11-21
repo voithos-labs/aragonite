@@ -35,6 +35,7 @@ import type { Reading } from '../../schema/reading';
 import { readBlockPath } from '../../selection/path-lookup';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import type { EditorContributions } from '../../schema/editor-contributions';
+import { makingOf } from '../../schema/block-type';
 import { holdsSelection, selectionCoversPoint } from '../../selection/held-selection';
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import { documentLineEnding } from '../../core/lines';
@@ -245,9 +246,10 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 			const node = blockNodeAt(deps.getDoc(), at);
 			const rows = node ? typeRows(node, at) : [];
 			if (!node || rows.length === 0) continue;
-			const label = deps.blockTypes.blockOf(node, at).type.label;
+			const { type } = deps.blockTypes.blockOf(node, at);
+			const icon = makingOf(type)?.icon ?? 'ellipsis-vertical';
 			const children = rows.map(({ id, label, icon, disabled }) => ({ id, label, icon, disabled }));
-			return { entry: { id: 'block-type', label, icon: 'ellipsis-vertical', children }, rows };
+			return { entry: { id: 'block-type', label: type.label, icon, children }, rows };
 		}
 		return null;
 	}

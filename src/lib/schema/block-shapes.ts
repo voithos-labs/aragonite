@@ -35,6 +35,7 @@ export interface BlockCommon<D> {
 	name: string;
 	/** What a screen reader and the block menu call it. */
 	label: string;
+	/** The glyph beside its name where its menu rows come as a flyout. */
 	icon?: MenuIconName;
 	/** Markdown holding this block, which the published checks parse and drive. */
 	sample: string | readonly string[];

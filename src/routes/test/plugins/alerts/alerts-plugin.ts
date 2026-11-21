@@ -23,6 +23,7 @@ export const cycleAlert = command<Block<AlertData>>({
 export const alertType = container<AlertData>({
 	name: 'alert',
 	label: 'Alert',
+	icon: 'text-quote',
 	sample: '%> [!NOTE]\n%> x',
 	insert: { none: 'a test block type' },
 	lines: {

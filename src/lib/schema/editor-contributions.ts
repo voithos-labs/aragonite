@@ -368,6 +368,8 @@ function actionProblem(unit: InstalledPlugin): string | null {
 		if (problem) return `has a selection action that ${problem}`;
 	}
 	for (const { making } of blockTypesOf(unit)) {
+		const problem = iconProblem(making.icon);
+		if (problem) return `has a block type that ${problem}`;
 		for (const action of making.actions ?? []) {
 			const problem = iconProblem(action.icon);
 			if (problem) return `has a block action that ${problem}`;

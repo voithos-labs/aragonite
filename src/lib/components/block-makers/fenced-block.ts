@@ -30,6 +30,7 @@ export function fencedBlock(spec: FencedBlockSpec): BlockType<never> {
 	const type: BlockType<never> = madeBlockType<never>({
 		local: spec.name,
 		label: spec.label,
+		icon: spec.icon,
 		insert: spec.insert,
 		chords: spec.chords,
 		actions: spec.actions,

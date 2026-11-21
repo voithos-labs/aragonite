@@ -19,6 +19,7 @@ import type { BlockType, InstalledPlugin, PluginError } from './plugin-unit';
 export interface BlockMaking {
 	readonly local: string;
 	readonly label: string;
+	readonly icon?: BlockCommon<unknown>['icon'];
 	/** Lower is tried first, as `OPENER_PRIORITIES` orders the built-ins. */
 	readonly priority: number;
 	readonly registration: BuiltinRegistration;
