@@ -12,15 +12,16 @@ import { prebuiltExternals } from './pack-manifest.mjs';
 const PREBUILT_DIR = 'dist/prebuilt';
 
 // Gzipped bytes per entry, each about 4 KB above what it measured (a small entry a few hundred
-// bytes): a tripwire, not a target. 19,297 of CSS. A group owns the files its entry loads that no
-// earlier group does. Measured: index 564,930, plugin 23,232, svelte 1,320, runtime/svelte 154,
-// runtime/svelte/internal/client 332, testing 21,673. The plugin packages' budgets are in
+// bytes): a tripwire, not a target. 19,377 of CSS. A group owns the files its entry loads that no
+// earlier group does. Measured: index 578,006, plugin 23,370, plugin/grammar 339, svelte 1,319,
+// runtime/svelte 155, runtime/svelte/internal/client 332, testing 21,840. The plugin packages' budgets are in
 // verify-plugin-package.mjs.
 /** @type {{ js: Record<string, number>, css: number }} */
 const BUDGET = {
 	js: {
-		index: 569_000,
+		index: 582_000,
 		plugin: 23_700,
+		'plugin/grammar': 700,
 		svelte: 1_550,
 		'runtime/svelte': 250,
 		'runtime/svelte/internal/client': 450,
@@ -157,7 +158,7 @@ function overBudget(files) {
 }
 
 /**
- * Budget name to the JS files it owns: the root closure, then /plugin, /svelte, the two runtime
+ * Budget name to the JS files it owns: the root closure, then /plugin, /plugin/grammar, /svelte, the two runtime
  * subpaths and /testing, each owning what no earlier group loads.
  * @param {string[]} files
  * @returns {Map<string, string[]>}
@@ -169,6 +170,7 @@ function budgetGroups(files) {
 	const order = [
 		['index', [at('index.js')]],
 		['plugin', [at('plugin.js')]],
+		['plugin/grammar', [at('plugin/grammar.js')]],
 		['svelte', [at('svelte.js')]],
 		['runtime/svelte', [at('runtime/svelte.js')]],
 		['runtime/svelte/internal/client', [at('runtime/svelte/internal/client.js')]],
