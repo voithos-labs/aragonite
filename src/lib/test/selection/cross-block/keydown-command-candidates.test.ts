@@ -143,3 +143,28 @@ gamma
 		}
 	});
 });
+
+// Miss-analysis: every candidate row ranged over text, where the place a break takes and the block
+// the removal leaves the caret in are one block, so none read the claim off the place.
+describe('a line break over whole blocks is claimed by the keymap of the place text would take', () => {
+	const rule = { path: [1], wholeBlock: true } as const;
+	const headingEnd = { path: [2], offset: 6 };
+
+	it('Shift+Enter is a candidate where the headings around the range unbind it', () => {
+		const env = makeKeydownEnv('# head\n\n---\n\n## two\n\nlast\n', {
+			keybindings: [{ chord: 'Shift+Enter', command: null, kind: 'heading' }]
+		});
+		env.selection.enterCrossBlock(rule, headingEnd);
+
+		expect(isCommandCandidateKey(press('Enter', { shiftKey: true }), env.ctx)).toBe(true);
+	});
+
+	it('Enter is no candidate where paragraphs unbind it, though the heading it ends in binds it', () => {
+		const env = makeKeydownEnv('first\n\n---\n\n# head\n\nlast\n', {
+			keybindings: [{ chord: 'Enter', command: null, kind: 'paragraph' }]
+		});
+		env.selection.enterCrossBlock(rule, headingEnd);
+
+		expect(isCommandCandidateKey(press('Enter'), env.ctx)).toBe(false);
+	});
+});
