@@ -48,3 +48,27 @@ Miss-analysis (Enter against a bold, two anchors on one word): every Enter and l
 one side at its screen position with plain text beside it, so the caret only ever had the side's
 own two raw offsets. A second hidden run at the position (a bold's closer, another side) gave it
 a third, where Enter left a side on the half without its text and a letter landed outside both.
+
+## A live removal across a side
+
+- A word delete after a commented word keeps both sides, an empty pair: `A {>>a}{<<a}word`.
+- A word delete forward from outside the open side keeps both sides the same way.
+- A word delete of the whole commented word leaves an empty pair, and the next letter lands in it.
+- A range across the open side puts the side back before the kept text: `A{>>a}ted{<<a} word`.
+- A range across the close side puts it back after the kept text: `A {>>a}not{<<a}word`.
+- A letter typed over a range across the open side joins the pair: `A{>>a}Qted{<<a} word`.
+- A letter typed over the commented text exactly stays in the pair.
+- A range reaching past both sides takes the pair.
+- A range across two blocks keeps a pair spanning them: `Acr{>>b}cks{<<b} end`.
+- A word delete inside a pair around a bold keeps both sides.
+- A cut pasted back gives the original bytes; a dragged range carries no side its pair keeps.
+- Source mode takes the bytes selected, sides with them.
+- Undo gives the bytes back after each.
+
+Limits, recorded: the join sees a partner only in the blocks a range joins. A word delete across
+one end of a pair spanning two blocks takes that end, and so do a range taking that end's block
+whole and select-all then Delete in it. A range over three blocks taking a whole pair leaves no
+side.
+
+Miss-analysis (a removal across one side): every removal row took one character beside a side,
+never a range across one, so the join every range removal shares had no row.

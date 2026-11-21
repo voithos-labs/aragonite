@@ -146,9 +146,13 @@ describe('a marker pair, read', () => {
 			autoUnwrapOnEmpty: false,
 			splitBehavior: 'whole',
 			revealable: true,
-			prose: 'none'
+			prose: 'none',
+			pair: { of: 'cm/anchor-open', opens: true }
 		});
-		expect(row('cm/anchor-close')?.edgeAffinity).toBe('joins-before');
+		expect(row('cm/anchor-close')).toMatchObject({
+			edgeAffinity: 'joins-before',
+			pair: { of: 'cm/anchor-open', opens: false }
+		});
 		release();
 		expect(row('cm/anchor-open')).toBeUndefined();
 	});

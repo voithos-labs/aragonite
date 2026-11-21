@@ -81,7 +81,7 @@ const POLICY_ARMS: Record<string, string> = {
 	'src/lib/components/blocks/text/next-byte.ts':
 		'the caret look: the mark column, for which constructs a typed letter would carry',
 	'src/lib/core/inline/live-edit/live-join.ts':
-		'the join cleaner: autoUnwrapOnEmpty for a construct the cut emptied, and edgeAffinity for where typed text lands',
+		"the join cleaner: autoUnwrapOnEmpty for a construct the cut emptied, edgeAffinity for where typed text lands, and a marker side's edge and pair, which a removal puts back",
 	'src/lib/core/inline/live-edit/live-split.ts':
 		"the split rebalancer: splitBehavior, for a construct a cut takes whole, and a marker side's edge, which a cut leaves on the half holding its text",
 	'src/lib/components/blocks/text/pending-mark-insert.ts':

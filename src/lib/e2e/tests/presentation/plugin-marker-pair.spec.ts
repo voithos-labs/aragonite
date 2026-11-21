@@ -1,6 +1,8 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage } from '../plugins/helpers';
-import { edgeKey } from '../../platform-keys';
+import { WORD_MODIFIER, edgeKey } from '../../platform-keys';
+import { pointAtRaw, textRunStart } from '../../text-runs';
+import { holdSelectionDrag } from '../../selection-drag';
 
 /** A plugin's marker pair (a comment anchor, `{>>id}` and `{<<id}`, on the harness's
  *  `comment-anchor` seed): its sides draw nothing in live mode and give a typed letter to the text
@@ -208,4 +210,167 @@ test('preview-inline shows a side at the caret, and hides it away from it', asyn
 	await expect.poll(() => page.locator(block(1)).innerText()).toBe('Across two');
 	await page.keyboard.press('ArrowRight');
 	await expect.poll(() => page.locator(block(1)).innerText()).toBe('Across {>>b}two');
+});
+
+// A removal across a side, with real keys: the half kept keeps its pair (`live-mode.md` § 4.5).
+// Block 0 is `A {>>a}noted{<<a} word`.
+test.describe('a live removal across a side', () => {
+	let editor: PluginsPage;
+	const SEED_LINE = 'A {>>a}noted{<<a} word\n';
+
+	test.beforeEach(async ({ page }) => {
+		editor = new PluginsPage(page);
+		await editor.gotoPlugins('comment-anchor');
+		await editor.setPresentationMode('live');
+	});
+
+	const source = () => editor.bridge.getSource();
+	const line = async (i: number) => (await source()).split('\n\n')[i];
+	async function walk(i: number, steps: number, from: 'lineStart' | 'lineEnd' = 'lineStart') {
+		await editor.focusBlockAtPath([i], 0);
+		await editor.page.keyboard.press(edgeKey(from));
+		const key = from === 'lineStart' ? 'ArrowRight' : 'ArrowLeft';
+		for (let n = 0; n < steps; n++) await editor.page.keyboard.press(key);
+	}
+	async function press(key: string, times = 1) {
+		for (let n = 0; n < times; n++) await editor.page.keyboard.press(key);
+	}
+	/** Undo gives the seed's first line back. */
+	async function undone() {
+		await press('ControlOrMeta+z');
+		await expect.poll(async () => (await source()).startsWith(SEED_LINE)).toBe(true);
+	}
+
+	test('a word delete after the commented word keeps both sides', async () => {
+		await walk(0, 'word'.length, 'lineEnd');
+		await press(`${WORD_MODIFIER}+Backspace`);
+		await expect.poll(() => line(0)).toBe('A {>>a}{<<a}word');
+		await undone();
+	});
+
+	test('a word delete forward from outside the open side keeps both sides', async () => {
+		await walk(0, 'A '.length);
+		await press(`${WORD_MODIFIER}+Delete`);
+		await expect.poll(() => line(0)).toMatch(/^A \{>>a\}\{<<a\} ?word$/);
+		await undone();
+	});
+
+	test('a word delete of the whole commented word leaves an empty pair a letter lands in', async () => {
+		await walk(0, 'A noted'.length);
+		await press(`${WORD_MODIFIER}+Backspace`);
+		await expect.poll(() => line(0)).toBe('A {>>a}{<<a} word');
+		await editor.page.keyboard.type('Q');
+		await expect.poll(() => line(0)).toBe('A {>>a}Q{<<a} word');
+	});
+
+	test('a range across the open side puts the side back before the kept text', async () => {
+		await walk(0, 'A no'.length);
+		await press('Shift+ArrowLeft', 3);
+		await press('Backspace');
+		await expect.poll(() => line(0)).toBe('A{>>a}ted{<<a} word');
+		await undone();
+	});
+
+	test('a range across the close side puts the side back after the kept text', async () => {
+		await walk(0, 'A not'.length);
+		await press('Shift+ArrowRight', 3);
+		await press('Backspace');
+		await expect.poll(() => line(0)).toBe('A {>>a}not{<<a}word');
+		await undone();
+	});
+
+	test('a letter typed over a range across the open side joins the pair', async () => {
+		await walk(0, 'A no'.length);
+		await press('Shift+ArrowLeft', 3);
+		await editor.page.keyboard.type('Q');
+		await expect.poll(() => line(0)).toBe('A{>>a}Qted{<<a} word');
+		await undone();
+	});
+
+	test('a letter typed over the commented text exactly stays in the pair', async () => {
+		await walk(0, 'A '.length);
+		await press('Shift+ArrowRight', 'noted'.length);
+		await editor.page.keyboard.type('Q');
+		await expect.poll(() => line(0)).toBe('A {>>a}Q{<<a} word');
+		await undone();
+	});
+
+	test('a range past both sides takes the pair', async () => {
+		await walk(0, 'A'.length);
+		await press('Shift+ArrowRight', ' noted '.length);
+		await press('Backspace');
+		await expect.poll(() => line(0)).toBe('Aword');
+		await undone();
+	});
+
+	test('a range across two blocks keeps a pair spanning them', async ({ page }) => {
+		await walk(1, 'Acr'.length);
+		const end = await pointAtRaw(page, [2], 'blo'.length);
+		await page.keyboard.down('Shift');
+		await page.mouse.click(end.x, end.y);
+		await page.keyboard.up('Shift');
+		await press('Backspace');
+		await expect.poll(() => line(1)).toBe('Acr{>>b}cks{<<b} end');
+	});
+
+	test('a word delete inside a pair around a bold keeps both sides', async () => {
+		await walk(3, ' text'.length, 'lineEnd');
+		await press(`${WORD_MODIFIER}+Backspace`);
+		await expect.poll(() => line(3)).toBe('Some {>>c}{<<c} text');
+	});
+
+	test('a cut pasted back keeps one pair', async () => {
+		await walk(0, 'A not'.length);
+		await press('Shift+ArrowRight', 3);
+		await press('ControlOrMeta+x');
+		await expect.poll(() => line(0)).toBe('A {>>a}not{<<a}word');
+		await editor.paste();
+		await expect.poll(() => line(0)).toBe('A {>>a}noted{<<a} word');
+	});
+
+	test('a dragged range carries no side its pair keeps', async ({ page }) => {
+		await walk(0, 'A not'.length);
+		await press('Shift+ArrowRight', 3);
+		const grab = await pointAtRaw(page, [0], 'A {>>a}note'.length);
+		const drag = await holdSelectionDrag(page, grab, await textRunStart(page, 'empty pair'));
+		await drag.release();
+		await expect.poll(() => line(0)).toBe('A {>>a}not{<<a}word');
+		await expect.poll(async () => (await source()).split('{<<a}').length).toBe(2);
+	});
+
+	test('source mode takes the bytes selected, sides with them', async () => {
+		await editor.setPresentationMode('source');
+		await walk(0, 'A {>>a}not'.length);
+		await press('Shift+ArrowRight', 'ed{<<a} '.length);
+		await press('Backspace');
+		await expect.poll(() => line(0)).toBe('A {>>a}notword');
+	});
+
+	// Limits, as recorded: the join sees a pair's partner only in the blocks a range joins.
+	test('a word delete across one end of a pair spanning two blocks takes that end', async () => {
+		await walk(2, 'end'.length, 'lineEnd');
+		await press(`${WORD_MODIFIER}+Backspace`);
+		await expect.poll(() => line(2)).toBe('end');
+	});
+
+	test('a range taking the block holding a pair end whole takes that end', async () => {
+		await walk(1, 0, 'lineEnd');
+		await press('Shift+ArrowRight', 2);
+		await press('Backspace');
+		await expect.poll(source).not.toContain('{<<b}');
+	});
+
+	test('select-all then Delete in the block holding a pair end takes that end', async () => {
+		await walk(2, 0);
+		await press('ControlOrMeta+a');
+		await press('Delete');
+		await expect.poll(source).not.toContain('{<<b}');
+	});
+
+	test('a range over three blocks taking a whole pair leaves no side', async () => {
+		await walk(1, 'Acr'.length);
+		await press('Shift+ArrowRight', 'oss two'.length + 2);
+		await press('Backspace');
+		await expect.poll(() => line(1)).toBe('AcrSome {>>c}**bold**{<<c} text');
+	});
 });

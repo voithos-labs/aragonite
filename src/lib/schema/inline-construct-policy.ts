@@ -58,6 +58,8 @@ export interface InlineConstructPolicy {
 	 * Absent reads as `'all'`, or `'none'` for an inline widget kind.
 	 */
 	prose?: InlineProseExtent;
+	/** A marker side's pair, named by its open side's kind, and whether this side opens it. */
+	pair?: { of: AnyInlineKind; opens: boolean; key?: (data: unknown) => string };
 }
 
 export type InlineProseExtent = 'none' | 'content' | 'all';

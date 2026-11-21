@@ -27,6 +27,7 @@ import {
 } from '../core/lines';
 import {
 	cleanLiveJoinSeam,
+	sidesStayingBehind,
 	type CleanedJoin,
 	type JoinEndpoint,
 	type JoinSeam
@@ -187,10 +188,18 @@ function spliceInLeaf(
 /** The bytes `[start, end)` of `node` carry out of it: the leaf cut down to the range by two in-leaf
  *  cuts, so a format run the range cuts through leaves closed at its edges, as the kept half does. */
 export function bytesLeavingLeaf(
-	node: NodeView,
-	range: { start: number; end: number },
+	whole: NodeView,
+	{ start, end }: { start: number; end: number },
 	store: StoredAs
 ): string {
+	// A marker side the document keeps doesn't leave with the piece too (live-mode.md § 4.5).
+	const stray = store.reading.hidesDelimitersAtCaret()
+		? sidesStayingBehind(whole.raw, resolvedInlineContent(whole, store.reading), { start, end })
+		: [];
+	const gone = (at: number) => stray.reduce((n, s) => n + (s.end <= at ? s.end - s.start : 0), 0);
+	const raw = stray.reduceRight((out, s) => out.slice(0, s.start) + out.slice(s.end), whole.raw);
+	const node = { ...whole, raw };
+	const range = { start: start - gone(start), end: end - gone(end) };
 	// Cut inside the text: the cleanup reads no side that starts in a heading's marker.
 	const content = getContentRange(node);
 	const tail = replaceRangeInLeaf(

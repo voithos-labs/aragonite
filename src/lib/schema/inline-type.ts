@@ -165,6 +165,8 @@ export interface InlineMaking {
 	readonly mark?: MarkMaking | null;
 	/** A marker side's text: the side of it a letter typed there joins. */
 	readonly marker?: 'after' | 'before';
+	/** What a marker side shares with its partner, read off its data. */
+	readonly pairKey?: (data: unknown) => string;
 }
 
 /** What `mark()` built: its run, the element its text is drawn in, and its toggle. */
@@ -203,8 +205,8 @@ export function madeInline<D>(making: InlineMaking): Inline<D> {
 
 /** `made`, a class construct, as one side of a marker pair: drawn as a marker, its letters
  *  joining its `text` side. */
-export function asMarkerSide<D>(made: Inline<D>, text: 'after' | 'before'): Inline<D> {
-	return madeInline<D>({ ...(made as unknown as Made)[MAKING], className: null, marker: text });
+export function asMarkerSide<D>(made: Inline<D>, side: Pick<InlineMaking, 'marker' | 'pairKey'>) {
+	return madeInline<D>({ ...(made as unknown as Made)[MAKING], className: null, ...side });
 }
 
 /** Names the inline constructs one editor's plugins contribute; a construct is the first listing
@@ -217,11 +219,11 @@ export function installInlines(
 	const marks = new Map<string, { mark: MarkMaking; after: InlineType | undefined }>();
 	const releases: (() => void)[] = [];
 	for (const { name: plugin, contribution } of units) {
-		// A marker pair lists as its two sides.
-		const listing = (contribution.inlines ?? []).flatMap((listed) =>
-			'open' in listed ? [listed.open, listed.close] : [listed]
+		// A marker pair lists as its two sides, each knowing its open side.
+		const listing = (contribution.inlines ?? []).flatMap((listed): [Inline, Inline?][] =>
+			'open' in listed ? [listed.open, listed.close].map((side) => [side, listed.open]) : [[listed]]
 		);
-		for (const listed of listing) {
+		for (const [listed, opener] of listing) {
 			const made = listed as unknown as Partial<Made>;
 			const making = made[MAKING];
 			const problem = !making
@@ -243,7 +245,14 @@ export function installInlines(
 				claimCommand(mark.toggle, plugin);
 				marks.set(kind, { mark, after: making.after[0] });
 			}
-			if (making.marker) releases.push(holdInlineConstructPolicy(kind, markerRow(making.marker)));
+			if (making.marker && opener) {
+				const pair = {
+					of: opener.name as PluginInlineKind,
+					opens: listed === opener,
+					key: making.pairKey
+				};
+				releases.push(holdInlineConstructPolicy(kind, { ...markerRow(making.marker), pair }));
+			}
 			inlines.set(kind, {
 				kind,
 				trigger: making.prefix[0],

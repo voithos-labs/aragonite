@@ -255,6 +255,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.355 | The chain rebuild reports a fold in one place, which checks it | L |
 | G4.357 | A test takes one guard's warnings and leaves the rest to the gate | L |
 | G4.365 | Inside the library, every parse names the grammar it reads | L |
+| G4.366 | Which marker sides pair is read in the live join alone | L |
 
 ### The entries
 
@@ -742,3 +743,5 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.357 · One guard's warnings, taken alone.** A test about one guard reads its fires through `takeDevWarnsOf(tag)` (`test/support/warn-gate.ts`), which leaves every other tag for the gate. A `takeDevWarns()` narrowed to one tag (a `filter`, a `some`) drops the rest unseen: a property did, and hid a check that fired on its every run. `lint/suite-file-rules.test.ts`.
 
 **G4.365 · A parse names its grammar.** Inside `src/lib`, every call of `parse`, `parseInline` or `blockquoteExtent` passes a grammar. Without one they read every installed plugin's syntax and none of an editor's own `inline()` constructs, so a construct would read as text on that path. The published kits and the three entry points are excluded. `lint/call-site-rules.test.ts`; the runtime half is the `everyPluginTableReads` counter row in `test/plugins/inline/inline-widget.svelte.test.ts`.
+
+**G4.366 · Marker sides pair in one place.** Which side of a `markerPair()` opens or closes which pair, by its `key` or by nesting order, decides what a live removal puts back and what a range carries off. Only `core/inline/live-edit/live-join.ts` reads a side's `pair` from its policy row, so the removal and the clipboard can't disagree. `lint/marker-pair-home.test.ts`; the behaviour rows are `test/plugins/inline/marker-pair-removal.svelte.test.ts`.
