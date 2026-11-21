@@ -201,10 +201,9 @@ export function createDocumentRead(deps: {
 		version: deps.version
 	};
 
-	const top = lazyList(
-		() => deps.getDoc().children.length,
-		(i) => blockOf(deps.getDoc().children[i], [i])
-	);
+	const count = () => deps.getDoc().children.length;
+	const topAt = (i: number) => blockOf(deps.getDoc().children[i], [i]);
+	const top = lazyList(count, topAt);
 
 	// Null outside the document: the byte map alone would answer with its last text.
 	function leafAt(at: number): LeafPosition | null {
@@ -286,7 +285,7 @@ export function createDocumentRead(deps: {
 		keys(depends, report) {
 			let watch = watches.get(depends);
 			if (!watch) {
-				const source = { follow: deps.follow ?? (() => () => {}), blocks: () => top };
+				const source = { follow: deps.follow ?? (() => () => {}), count, block: topAt };
 				watches.set(depends, (watch = watchKeys(source, depends, report)));
 			}
 			return watch;

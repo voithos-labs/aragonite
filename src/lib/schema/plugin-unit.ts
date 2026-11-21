@@ -81,8 +81,8 @@ export interface Contribution {
 	/** Classes and a badge for a block holding other blocks (a list, a quote, a table row), asked
 	 *  the same way. Its text is all of its children's, so read its type rather than scan it. */
 	paintContainer?(block: Block, ctx: PaintContext): readonly BlockPaint[];
-	/** What the paint reads of `block`, a top-level block (the footnotes it references, say), handed
-	 *  back as `ctx.depends`; a change to an answer paints the blocks on screen again. */
+	/** What the paint reads of `block`, a top-level block, from its content alone (the footnotes it
+	 *  references, say), handed back as `ctx.depends`; a changed answer paints the screen again. */
 	paintDepends?(block: Block): string;
 }
 

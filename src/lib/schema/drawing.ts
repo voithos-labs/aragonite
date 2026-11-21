@@ -61,8 +61,8 @@ export interface Drawn<D, C extends DrawContext = DrawContext> {
 	/** Where a click on a picture of the text lands: an element whose text is the block's text, or a
 	 *  point to an offset in that text. */
 	caret?: HTMLElement | ((point: { x: number; y: number }) => number);
-	/** The bytes, position, mode, theme, focus or typed text changed, or an answer of `depends`;
-	 *  false draws it again. */
+	/** The bytes, position, mode, theme, focus, typed text or `depends` answers changed; false draws
+	 *  it again. Without it, what `draw` drew stays. */
 	update?(block: Block<D>, ctx: C): boolean | void;
 	/** Events the editor leaves to the drawing (a drag that pans a diagram). */
 	keep?(event: Event): boolean;

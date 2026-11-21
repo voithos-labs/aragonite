@@ -13,13 +13,15 @@ import { checkKeptKeys } from '../../invariants/kept-keys';
 import { perfEnabled, recordKeyAsked, recordKeyWriteHeard } from '../../perf/instruments';
 import type { WriteFollower } from './kept-starts';
 
-/** The writes a watch follows and the blocks it asks. */
+/** The writes a watch follows and the blocks it asks, read by index. */
 export interface KeySource {
 	follow(follower: WriteFollower): () => void;
-	blocks(): readonly Block[];
+	count(): number;
+	block(i: number): Block;
 }
 
-/** Starts asking now; a throw in `depends` reaches `report` and answers ''. */
+/** Starts asking now; a throw in `depends` reaches `report` and answers '', as a nullish answer
+ *  does. */
 export function watchKeys(
 	source: KeySource,
 	depends: (block: Block) => string,
@@ -37,7 +39,7 @@ export function watchKeys(
 	const ask = (block: Block): string => {
 		recordKeyAsked();
 		try {
-			return String(depends(block));
+			return String(depends(block) ?? '');
 		} catch (cause) {
 			report(cause);
 			return '';
@@ -65,8 +67,8 @@ export function watchKeys(
 		slots = [];
 	}
 
-	function askAll(list: readonly Block[], was: readonly string[]): void {
-		slots = Array.from({ length: list.length }, (_, i) => ask(list[i]));
+	function askAll(was: readonly string[]): void {
+		slots = Array.from({ length: source.count() }, (_, i) => ask(source.block(i)));
 		shared = false;
 		if (!sameFrom(was, slots, 0)) version++;
 	}
@@ -74,22 +76,21 @@ export function watchKeys(
 	function settle(): void {
 		if (!writes) {
 			follow();
-			askAll(source.blocks(), slots);
+			askAll(slots);
 			return;
 		}
 		if (writes.length === 0) return;
 		const done = writes;
 		writes = [];
-		const list = source.blocks();
 		const was = slots;
 		const moves = done.includes(null) ? null : replaced(done as (readonly TopLevelChange[])[]);
 		// A write that couldn't say, or runs that don't add up, ask every block.
-		if (!moves || slots.length !== list.length) askAll(list, was);
+		if (!moves || slots.length !== source.count()) askAll(was);
 		else {
 			const resized = slots !== was;
 			let changed = false;
 			for (const i of moves.asks) {
-				const key = ask(list[i]);
+				const key = ask(source.block(i));
 				if (key === slots[i]) continue;
 				if (shared) slots = slots.slice();
 				shared = false;
@@ -99,8 +100,10 @@ export function watchKeys(
 			// Blocks put in or taken out move every answer after them.
 			if (resized ? !sameFrom(was, slots, moves.from) : changed) version++;
 		}
-		if (devChecksOn && !perfEnabled() && list.length <= CHECKED_UP_TO) {
-			assertInvariant('kept-keys', () => checkKeptKeys(slots, list.map(quietly(depends))));
+		if (devChecksOn && !perfEnabled() && slots.length <= CHECKED_UP_TO) {
+			const fresh = () =>
+				Array.from({ length: source.count() }, (_, i) => quietly(depends, source.block(i)));
+			assertInvariant('kept-keys', () => checkKeptKeys(slots, fresh()));
 		}
 	}
 
@@ -129,7 +132,7 @@ export function watchKeys(
 	}
 
 	follow();
-	askAll(source.blocks(), slots);
+	askAll(slots);
 	return {
 		version() {
 			settle();
@@ -152,13 +155,13 @@ const LAPSE = 64;
 const CHECKED_UP_TO = 2000;
 
 // The check's own asks: uncounted, and a throw already reported answers ''.
-const quietly = (depends: (block: Block) => string) => (block: Block) => {
+function quietly(depends: (block: Block) => string, block: Block): string {
 	try {
-		return String(depends(block));
+		return String(depends(block) ?? '');
 	} catch {
 		return '';
 	}
-};
+}
 
 /** Whether two lists of answers say the same at every index from `from` on, '' and no slot alike. */
 function sameFrom(a: readonly string[], b: readonly string[], from: number): boolean {

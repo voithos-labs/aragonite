@@ -6,6 +6,8 @@ A block gets its own text, which is fine right up until it isn't: a table of con
 
 Your block type's `depends(block)`, beside its `draw`, answers one string per top-level block: what your drawing reads of it. The editor asks every top-level block once, for all your drawings together, then only the blocks a keystroke changed. `draw` and `update` get the answers as `ctx.depends`, one per block, in `editor.doc.blocks`' order. `update` runs when an answer that says something (anything but `''`) comes, goes, changes or moves to another block, so typing in a paragraph asks one block and redraws nothing.
 
+Answer from the block's own content, never from where it sits or from another block: the editor asks a block again only when that block is written.
+
 ## A table of contents
 
 ```ts

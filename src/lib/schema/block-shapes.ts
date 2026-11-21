@@ -104,8 +104,8 @@ export type LeafDraw<D> =
 
 /** What a block type with a `draw` may add: what its drawings read of the rest of the document. */
 export interface DrawDepends {
-	/** What a drawing reads of `block`, a top-level block (its headings, say), handed to `draw`
-	 *  and `update` as `ctx.depends`. It runs on keys, so keep it cheap. */
+	/** What a drawing reads of `block`, a top-level block, from its content alone (never its place
+	 *  or another block), handed back as `ctx.depends`. It runs on keys, so keep it cheap. */
 	depends?(block: Block): string;
 }
 

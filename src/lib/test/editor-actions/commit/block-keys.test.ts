@@ -1,5 +1,6 @@
 // A watch nobody reads lets go of the writes after 64 of them and asks every block when it's read
-// again; its answers change when one that says something leaves its index, and only then.
+// again; a nullish answer says nothing; the answers change when one that says something leaves
+// its index, and only then.
 // Miss-analysis: a follower kept alive asks nothing, so no counter row saw a watch never let go.
 import { describe, expect, it } from 'vitest';
 import { watchKeys } from '#lib/editor-actions/commit/block-keys.js';
@@ -14,6 +15,8 @@ function document(texts: string[]) {
 	return {
 		followers,
 		blocks: () => blocks.map((text) => ({ text }) as unknown as Block),
+		count: () => blocks.length,
+		block: (i: number) => ({ text: blocks[i] }) as unknown as Block,
 		/** Writes `inserted` over `removed` blocks at `at`, announced as one run. */
 		write(at: number, removed: number, inserted: string[] = []) {
 			blocks = [...blocks.slice(0, at), ...inserted, ...blocks.slice(at + removed)];
@@ -42,6 +45,15 @@ describe('a watch nobody reads', () => {
 		expect(doc.followers.length).toBe(0);
 		expect(watch.keys()).toEqual(['# A', '# New', '# B']);
 		expect(doc.followers.length).toBe(1);
+	});
+});
+
+describe('an answer', () => {
+	it('that is nullish says nothing', () => {
+		const doc = document(['# A', 'p']);
+		const nothing = (block: Block) => (block.text.startsWith('#') ? block.text : undefined);
+		const watch = watchKeys(doc, nothing as (block: Block) => string, () => {});
+		expect(watch.keys()).toEqual(['# A', '']);
 	});
 });
 

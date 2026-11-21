@@ -17,6 +17,7 @@ import {
 	resetPerfInstruments
 } from '#lib/perf/instruments.js';
 import { dispatchPaste } from '#lib/test/harness/insertion-routes.js';
+import { takeDevWarnsOf } from '#lib/test/support/warn-gate.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -87,6 +88,44 @@ const counting = () => {
 	resetPerfInstruments();
 };
 
+// `# X` taken out and put back in above `para c`, across `# Z` or with nothing said between.
+const ACROSS = '[[keys]]\n\n# X\n\npara a\n\n# Z\n\npara b\n\npara c\n';
+const ALONE = '[[keys]]\n\n# X\n\npara a\n\npara b\n\npara c\n';
+const X_LINE = '# X\n\n';
+const takeX = (m: Mounted) => {
+	const x = m.source().indexOf(X_LINE);
+	return { from: x, to: x + X_LINE.length };
+};
+const aboveC = (m: Mounted) => {
+	const c = m.source().indexOf('para c');
+	return { from: c, to: c };
+};
+const oneDraft = (m: Mounted) =>
+	m.instance.edit().replace(takeX(m), '').replace(aboveC(m), X_LINE).commit();
+const MOVES: [string, string, (m: Mounted) => Promise<unknown>][] = [
+	['by one draft of two ranges, across a heading', ACROSS, oneDraft],
+	[
+		'by a write and a second one from an edit listener',
+		ACROSS,
+		async (m) => {
+			const off = m.instance.on('edit', () => {
+				off();
+				void m.instance.edit().replace(aboveC(m), X_LINE).commit();
+			});
+			await m.instance.edit().replace(takeX(m), '').commit();
+		}
+	],
+	[
+		'by two host drafts with no flush between',
+		ACROSS,
+		(m) => {
+			const out = m.instance.edit().replace(takeX(m), '').commit();
+			return Promise.all([out, m.instance.edit().replace(aboveC(m), X_LINE).commit()]);
+		}
+	],
+	['two blocks lower by one draft, with nothing said between', ALONE, oneDraft]
+];
+
 describe('a drawing with depends', () => {
 	it('is handed the answers in draw, so nothing shows without them', () => {
 		const log: string[][] = [];
@@ -126,12 +165,47 @@ describe('a drawing with depends', () => {
 		expect(m.instance.doc.blocks[held.indexOf('# B')].text).toBe('# B\n');
 	});
 
+	it.each(MOVES)('updates when a heading moves %s', async (_name, source, move) => {
+		const { m, log } = await mounted(source);
+		const calls = log.length;
+		await move(m);
+		await m.settle();
+		expect(m.source()).toBe(source.replace(X_LINE, '').replace('para c', `${X_LINE}para c`));
+		expect(log.length).toBeGreaterThan(calls);
+		expect(log.at(-1)).toEqual(m.instance.doc.blocks.map(headingsIn));
+	});
+
 	it('runs no update on an Enter below the last heading', async () => {
 		const { m, log } = await mounted();
 		const calls = log.length;
 		await pressKeyAt(m, [4], 4, { key: 'Enter' });
 		await m.settle();
 		expect(log.length).toBe(calls);
+	});
+
+	it('warns once, in a dev build, when its drawing has no update to hear the answers', async () => {
+		const plugin = definePlugin({
+			name: 'deaf',
+			version: '1.0.0',
+			editor: '*',
+			contributes: () => ({
+				blocks: [
+					lineBlock({
+						name: 'deaf',
+						label: 'Deaf',
+						match: /^\[\[deaf\]\]$/,
+						sample: '[[deaf]]',
+						insert: { none: 'a test block type' },
+						edit: 'box',
+						depends: headingsIn,
+						draw: () => ({ dom: document.createElement('nav') })
+					})
+				]
+			})
+		});
+		const m = mountEditor({ source: '[[deaf]]\n\n[[deaf]]\n\n# Top\n', plugins: [plugin] });
+		await m.settle();
+		expect(takeDevWarnsOf('depends-unheard').length).toBe(1);
 	});
 
 	it('hands an array it never changes after', async () => {
