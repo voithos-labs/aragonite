@@ -27,7 +27,8 @@ export function container<D = never>(spec: ContainerSpec<D>): BlockType<D> {
 		edit: 'container',
 		singleLine: false,
 		draw: (spec.draw as Drawing['draw'] | undefined) ?? ((_block, ctx) => ({ dom: children(ctx) })),
-		depends: spec.depends,
+		// The editor's own drawing reads no answers, so a spec with no `draw` starts no watch.
+		depends: spec.draw && spec.depends,
 		...(lines.shape === 'indented' ? { ambientPrefix: (node) => ambientMarker(lines, node) } : {})
 	};
 	const type: BlockType<D> = madeBlockType<D>({
