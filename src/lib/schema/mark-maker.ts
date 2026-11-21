@@ -12,7 +12,8 @@ export interface MarkSpec {
 	label: string;
 	/** The run on each side (`==`): one character, once or twice; a run of another length stays text. */
 	marker: string;
-	/** The mark it nests inside when several are written at once; with none, just outside code. */
+	/** The mark it nests inside when several are written at once; with none, just outside code.
+	 *  Two marks at one place nest by name, so say the order here. */
 	after?: InlineType;
 	/** Required: where the markers are hidden, a letter typed at the mark's edge joins it, so the
 	 *  chord is the only way out of it there. */
