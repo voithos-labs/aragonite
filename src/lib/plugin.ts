@@ -49,8 +49,10 @@ export { fencedBlock } from './components/block-makers/fenced-block';
 export { container } from './components/block-makers/container';
 export type { ContainerLines, ContainerSpec } from './schema/container-block';
 export type {
+	BlockAction,
 	BlockCommon,
 	BlockInsert,
+	BlockKey,
 	Completion,
 	Fence,
 	FencedBlockSpec,

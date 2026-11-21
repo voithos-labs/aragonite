@@ -72,7 +72,7 @@ export interface Contribution {
 	menus?: readonly CaretMenu<unknown>[];
 	/** Rows over the selection, or a range captured around the caret, in the right-click menu, the
 	 *  selection toolbar and `openRows`. */
-	actions?: readonly SelectionAction[];
+	selectionActions?: readonly SelectionAction[];
 	/** What to lay over `block`, a block of text (one holding no other blocks), asked while it's on
 	 *  screen and kept while its bytes hold. */
 	paint?(block: Block): readonly Paint[];
@@ -97,8 +97,12 @@ export interface Editor {
 	/** Runs a command, by value or by id; false, with nothing written, where `can` would say no or
 	 *  the command declines. */
 	run<A>(command: Command<A>, arg: A): boolean;
+	/** A block type's command with no block: run on the nearest block at the caret whose type
+	 *  places it in its keys or menu rows; false with none. */
+	run<D>(command: Command<Block<D>>): boolean;
 	run(command: Command | string, arg?: unknown): boolean;
 	can<A>(command: Command<A>, arg: A): boolean;
+	can<D>(command: Command<Block<D>>): boolean;
 	can(command: Command | string, arg?: unknown): boolean;
 	/** Whether the editor acts on this key, so a host's own shortcut handler can stand back. */
 	claims(event: KeyboardEvent): boolean;

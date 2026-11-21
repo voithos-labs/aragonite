@@ -272,7 +272,9 @@
 	// Commands reach their plugin's scoped editor, which exists once the plugin contexts below do.
 	const contributions = createEditorContributions({
 		editorFor: (plugin) => pluginContexts.scoped(plugin),
-		report: reportPluginError
+		report: reportPluginError,
+		blockAround: (kinds) => placingBlockAtCaret(kinds),
+		blockOf: (node) => documentRead.blockOf(node)
 	});
 	const installList = (values: PluginList, previous?: readonly InstalledPlugin[]) =>
 		contributions.read(installPluginList(values, reportPluginError, previous));
@@ -292,7 +294,9 @@
 		spellcheck && !units.some((unit) => unit.contribution.checksSpelling)
 	);
 
-	const overridesMap = $derived(normalizeKeybindingOverrides(keybindings));
+	// Compiled again when `use` changes the list: an entry naming a block type or a command by value
+	// reads its qualified name once the editor runs its plugin.
+	const overridesMap = $derived((void units, normalizeKeybindingOverrides(keybindings)));
 
 	// The one mode every reader reports, and the one place effective and requested could differ.
 	const effectiveMode = $derived(presentationMode);
@@ -1158,7 +1162,7 @@
 	});
 
 	const selectionActions = createSelectionActions({
-		actions: () => contributions.actions,
+		actions: () => contributions.selectionActions,
 		editorFor: (plugin) => pluginContexts.scoped(plugin),
 		measured: starts.read,
 		source: bytes.source,
@@ -1509,6 +1513,18 @@
 		const selection = readCurrentSelection(selectionState, blockRefs);
 		if (!selection || reading.mode() !== 'reading') return selection;
 		return !selection.focus.cellCoordinate && isCollapsed(selection) ? null : selection;
+	}
+
+	/** The block a block type's command runs on with none given: the nearest around the caret whose
+	 *  type is one of `kinds`. */
+	function placingBlockAtCaret(kinds: ReadonlySet<string>): Block | null {
+		const path = getSelection()?.focus.path ?? [];
+		for (let depth = path.length; depth >= 1; depth--) {
+			const at = path.slice(0, depth);
+			const node = blockNodeAt(doc, at);
+			if (node && kinds.has(node.kind)) return documentRead.blockOf(node, at);
+		}
+		return null;
 	}
 
 	function caretAt(path: number[], offset = 0): EditorSelection {

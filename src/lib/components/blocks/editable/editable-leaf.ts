@@ -636,6 +636,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			return deps.getNode().kind;
 		},
 		getCommandContext,
+		getNode: deps.getNode,
 		getPath: deps.getPath,
 		afterSourceCommit,
 		afterSelectionRemoved: editableSurface.afterSelectionRemoved

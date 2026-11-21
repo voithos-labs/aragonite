@@ -56,6 +56,8 @@ export interface PerfSnapshot {
 	referenceWalks: number;
 	/** Walks up a block's containers for a chord one of them may bind: none for a typed letter. */
 	containerChordWalks: number;
+	/** Asks whether a block type places a command a key resolved: none for a typed letter. */
+	placedLookups: number;
 	/** Containers whose lines the document byte map paired to place one byte. A caret move pairs
 	 *  none. */
 	byteMapReads: number;
@@ -136,6 +138,7 @@ function emptySnapshot(): PerfSnapshot {
 		markerRunReads: 0,
 		referenceWalks: 0,
 		containerChordWalks: 0,
+		placedLookups: 0,
 		byteMapReads: 0,
 		undoLiveBytes: 0,
 		undoEntryCount: 0,
@@ -310,6 +313,11 @@ export function recordReferenceWalk(): void {
 export function recordContainerChordWalk(): void {
 	if (!enabled) return;
 	counters.containerChordWalks++;
+}
+
+export function recordPlacedLookup(): void {
+	if (!enabled) return;
+	counters.placedLookups++;
 }
 
 export function recordByteMapRead(): void {

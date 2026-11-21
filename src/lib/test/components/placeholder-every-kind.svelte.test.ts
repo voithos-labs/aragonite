@@ -54,7 +54,8 @@ const EMPTY_FIXTURES: Record<string, { source: string; path: number[]; openAt?: 
 		path: [0, 0]
 	},
 	mathBlock: { source: '$$\n\n$$\n', path: [0], openAt: 3 },
-	mathFence: { source: '```math\n\n```\n', path: [0], openAt: 8 }
+	mathFence: { source: '```math\n\n```\n', path: [0], openAt: 8 },
+	'parrot/parrot': { source: '%%parrot\n', path: [0], openAt: 8 }
 };
 
 const CONTAINER = 'a container: its empty child blocks are asked under their own kinds';

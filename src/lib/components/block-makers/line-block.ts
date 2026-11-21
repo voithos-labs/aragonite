@@ -23,6 +23,8 @@ export function lineBlock<D = never>(spec: LineBlockSpec<D>): BlockType<D> {
 		local: spec.name,
 		label: spec.label,
 		insert: spec.insert,
+		chords: spec.chords,
+		actions: spec.actions,
 		priority,
 		registration: leafRegistration(spec as LineBlockSpec<unknown>, {
 			range: shape.range,

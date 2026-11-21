@@ -2,9 +2,45 @@
 
 Part of the [plugin guide](../plugin-guide.md). The worked command, `conspiracy.setVerdict`, comes from [the container walkthrough](container-walkthrough.md#the-registration-module).
 
+**A block type's `chords` and `actions`**
+
+A plugin value gives its block type keys and menu rows that act on one block. Each names a `command` whose argument is the block:
+
+```ts
+const cycle = command<Block<AlertData>>({
+	id: 'cycle',
+	title: 'Next kind',
+	run: (editor, block) => void editor.edit().data(block, { type: next(block.data.type) }).commit()
+});
+
+const alert = container<AlertData>({
+	// name, label, lines, sample, insert ...
+	chords: { 'Mod+7': cycle },
+	actions: [{ label: 'Next kind', icon: 'info', command: cycle }]
+});
+```
+
+Listing the block type is enough; the editor lists `cycle` with your commands. The key works in the alert and in any block inside it, where a key that block binds itself runs first: `Enter` in the alert's paragraph still splits it. `editor.run(cycle)` with no block runs on the nearest alert around the caret, and comes back `false` with none. A host moves the key with `keybindings: [{ kind: alert, chord: 'Mod+Shift+7', command: cycle }]`. `Tab` stays the page's.
+
+A command takes no argument but its block. For "set the kind to one of eight", make one command per kind:
+
+```ts
+const setKind = Object.fromEntries(
+	KINDS.map((kind) => [
+		kind,
+		command<Block<AlertData>>({
+			id: `set-${kind.toLowerCase()}`,
+			title: `Make it a ${kind.toLowerCase()}`,
+			run: (editor, block) => void editor.edit().data(block, { type: kind }).commit()
+		})
+	])
+);
+// actions: KINDS.map((kind) => ({ label: kind, command: setKind[kind] }))
+```
+
 **`registerBlockCommand(kind, name, handler, options?)`**
 
-Creates a `(kind, name)` command and returns its id, which a keymap binding then targets; the walkthrough's `conspiracy.setVerdict` is the worked example. The optional `options` say what the command does over a selection (**Over a selection**, below). The name is dot-separated words that each start with a lowercase letter (`conspiracy.setVerdict`), and it can't be a built-in command's id. Your plugin may reuse one name across several of its own kinds (one `conspiracy.setVerdict` on every kind it ships), as long as the registrations run inside its `setup`. A name already taken by a **different** plugin is rejected, and so is a reuse from outside any plugin's setup.
+A `setup` plugin's way, for a kind it registers: it creates a `(kind, name)` command and returns its id, which a keymap binding then targets; the walkthrough's `conspiracy.setVerdict` is the worked example. The optional `options` say what the command does over a selection (**Over a selection**, below). The name is dot-separated words that each start with a lowercase letter (`conspiracy.setVerdict`), and it can't be a built-in command's id. Your plugin may reuse one name across several of its own kinds (one `conspiracy.setVerdict` on every kind it ships), as long as the registrations run inside its `setup`. A name already taken by a **different** plugin is rejected, and so is a reuse from outside any plugin's setup.
 
 ```ts
 const setVerdict = registerBlockCommand(conspiracy, 'conspiracy.setVerdict', (ctx) => {

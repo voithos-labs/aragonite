@@ -54,7 +54,7 @@ const actionPlugin = (action: SelectionAction) =>
 		name: 'acts',
 		version: '1.0.0',
 		editor: '*',
-		contributes: () => ({ actions: [action] })
+		contributes: () => ({ selectionActions: [action] })
 	});
 
 /** The browser's report of a selection it moved, which reaches the editor on a later task. */

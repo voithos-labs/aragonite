@@ -18,8 +18,8 @@ export interface DocumentRead {
 	/** The deepest block holding document byte `at`: a byte of a marker or a container's own line
 	 *  goes to the text on its line, as the caret does. Null outside the document. */
 	blockAt(at: number): Block | null;
-	/** The block view of `node`, last seen at `path`. */
-	blockOf(node: NodeView, path: readonly number[]): Block;
+	/** The block view of `node`, last seen at `path`, or found where no path is given. */
+	blockOf(node: NodeView, path?: readonly number[]): Block;
 	/** `selection` in document bytes, `from` first; null for none or a cell selection. */
 	rangeOf(selection: EditorSelection | null): { from: number; to: number } | null;
 	/** The path of the deepest block holding byte `at` of a range already in the document. */

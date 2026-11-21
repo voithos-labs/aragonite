@@ -25,7 +25,7 @@ const withActions = (...actions: SelectionAction[]) =>
 		name: 'acts',
 		version: '1.0.0',
 		editor: '*',
-		contributes: () => ({ actions })
+		contributes: () => ({ selectionActions: actions })
 	});
 
 /** The open block menu's row labels, dividers as `|`. */

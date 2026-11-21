@@ -6,17 +6,19 @@
 import type { AnyBlockKind } from '../core/nodes';
 import { normalizeChordStrict, type KeyBinding } from './keybindings';
 import type { AnyCommandId } from './command-id';
+import type { Command } from './plugin-command';
+import type { BlockType } from './plugin-unit';
 
 /** A consumer override of the default keymap for one mounted editor (the `keybindings` prop). */
 export interface KeybindingOverride {
 	/** Chord string in the public format (Mod/Alt/Shift + key). See keybindings.ts. */
 	chord: string;
-	/** A command to bind (built-in or plugin id), or `null` to disable the chord, which then reaches
-	 *  the page; a disabled undo or redo is still swallowed, so the browser's own undo never runs. */
-	command: AnyCommandId | null;
-	/** One block kind's keymap, a plugin kind named by its exported (branded) constant. Omit for
-	 *  the editor-global scope. */
-	kind?: AnyBlockKind;
+	/** A command to bind (built-in or plugin id, or a plugin's command value), or `null` to disable
+	 *  the chord, which then reaches the page; a disabled undo or redo is still swallowed. */
+	command: AnyCommandId | Command<unknown> | null;
+	/** One block kind's keymap: a built-in kind, a plugin kind's exported constant, or a block type.
+	 *  Omit for the editor-global scope. */
+	kind?: AnyBlockKind | BlockType<unknown>;
 	/**
 	 * Static argument baked into the binding. `unknown` to match `KeyBinding.arg`: a plugin
 	 * command's non-number arg survives normalization, and the handler type-guards it.
@@ -49,17 +51,24 @@ export function normalizeKeybindingOverrides(
 		const chord = normalizeChordStrict(o.chord);
 		if (chord === null) continue;
 		chords.add(chord);
+		// A value reads its name now, qualified once the editor runs its plugin.
+		const command = typeof o.command === 'object' && o.command ? o.command.id : o.command;
+		const kind = typeof o.kind === 'object' ? o.kind.name : o.kind;
 		const value: OverrideValue =
-			o.command === null
+			command === null
 				? 'disabled'
-				: { chord, command: o.command, ...(o.arg !== undefined ? { arg: o.arg } : {}) };
-		if (o.kind === undefined) {
+				: {
+						chord,
+						command: command as AnyCommandId,
+						...(o.arg !== undefined ? { arg: o.arg } : {})
+					};
+		if (kind === undefined) {
 			global.set(chord, value);
 		} else {
-			let kindMap = byKind.get(o.kind);
+			let kindMap = byKind.get(kind as AnyBlockKind);
 			if (!kindMap) {
 				kindMap = new Map();
-				byKind.set(o.kind, kindMap);
+				byKind.set(kind as AnyBlockKind, kindMap);
 			}
 			kindMap.set(chord, value);
 		}

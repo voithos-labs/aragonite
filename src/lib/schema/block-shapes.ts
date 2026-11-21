@@ -6,7 +6,8 @@
 import { setPluginMetadata, type CstNode, type PluginBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { trimTrailingLineEnding } from '../core/lines';
-import type { MenuIconName } from '../menu-icons';
+import type { Icon, MenuIconName } from '../menu-icons';
+import type { Chord, Command } from './plugin-command';
 import type { InsertRow } from './insert-catalogue';
 import type { BlockOpener } from './block-openers';
 import type { BuiltinRegistration, WriteRule } from './block-kind-descriptor';
@@ -50,6 +51,23 @@ export interface BlockCommon<D> {
 	height?(block: Block<NoInfer<D>>): number;
 	/** A line typed, or entered, that this block type completes into its full form. */
 	complete?: Completion;
+	/** Keys that act in this block type and the blocks it holds, each running its command on the
+	 *  block; a host rebinds one with `keybindings: [{ kind: thisType, … }]`. */
+	chords?: { readonly [K in BlockKey]?: Command<Block<NoInfer<D>>> };
+	/** Rows of the block's own menu. */
+	actions?: readonly BlockAction<NoInfer<D>>[];
+}
+
+/** A key a block type takes: a chord, or a bare key the editor binds in text blocks itself. A key a
+ *  block inside binds runs there first. */
+export type BlockKey = Chord | 'Enter' | 'Backspace' | 'Delete';
+
+/** A row of a block type's own menu: runs its command on the block the menu opened over. */
+export interface BlockAction<D> {
+	label: string;
+	icon?: Icon;
+	/** Its `when` greys the row. */
+	command: Command<Block<D>>;
 }
 
 /** A block type's insert row, its id the block type's own name; or why it can't be inserted. */

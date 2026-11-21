@@ -79,7 +79,9 @@ const presentationFactEntries = (kinds: readonly AnyBlockKind[]): PresentationFa
 		};
 	});
 
-const isKnownCommandId = (id: string): boolean => isBuiltinCommandId(id) || isPluginCommandId(id);
+// A `plugin/id` is a plugin value's command, which the editor running it checks at install.
+const isKnownCommandId = (id: string): boolean =>
+	isBuiltinCommandId(id) || isPluginCommandId(id) || id.includes('/');
 
 /**
  * Run the registry checks. Later calls check only the kinds registered since the last, plus the

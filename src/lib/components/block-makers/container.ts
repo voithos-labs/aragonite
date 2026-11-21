@@ -33,6 +33,8 @@ export function container<D = never>(spec: ContainerSpec<D>): BlockType<D> {
 		local: spec.name,
 		label: spec.label,
 		insert: spec.insert,
+		chords: spec.chords,
+		actions: spec.actions,
 		priority,
 		registration: containerRegistration(spec as ContainerSpec<unknown>, lines),
 		view: drawnView(drawing),

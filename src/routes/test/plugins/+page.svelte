@@ -30,6 +30,7 @@
 	import { heldCommitMenuPlugin } from './inline-menu/held-commit-menu-plugin';
 	import { drawnPlugin } from './drawn/drawn-plugin';
 	import { draftWriterPlugin } from './draft-writer/draft-writer-plugin';
+	import { alertsPlugin } from './alerts/alerts-plugin';
 	import '../../../../examples/showcase/tag-marks.css';
 	import type { PluginsProp } from '#lib';
 
@@ -87,6 +88,8 @@
 		badge: [blockBadgePlugin],
 		// Blocks drawn by a block type's `draw`; their types open only in this seed.
 		drawn: [drawnPlugin],
+		// A container whose type takes a key and offers a menu row of its own.
+		alerts: [alertsPlugin],
 		// A command that writes through `edit()`; the openers suite runs on this seed.
 		math: [draftWriterPlugin],
 		// `?seed=sim` puts long-lived decoration sources under the simulation's corruption
@@ -220,6 +223,7 @@
 		badge: '# Title\n\nfirst para\n\n## Sub\n\nsecond para\n',
 		// A field box between two lines to walk in from and out to, a fence drawn as a preview, and
 		// a container drawn as a box.
+		alerts: 'intro\n\n%> [!NOTE]\n%> inside\n\nafter\n',
 		drawn:
 			'above the field, a line\n\n```field\nfirst line here\nsecond line here\n```\n\nbelow the field, a line\n\n```shown\nhello\n```\n\n%> aside text\n',
 		// A footnote definition whose body is one editable paragraph: the container's editing,

@@ -13,7 +13,7 @@ export const countActionPlugin = definePlugin({
 	version: '1.0.0',
 	editor: '*',
 	contributes: () => ({
-		actions: [
+		selectionActions: [
 			{
 				label: 'Shout',
 				icon: 'type',

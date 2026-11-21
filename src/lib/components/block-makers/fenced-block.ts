@@ -31,6 +31,8 @@ export function fencedBlock(spec: FencedBlockSpec): BlockType<never> {
 		local: spec.name,
 		label: spec.label,
 		insert: spec.insert,
+		chords: spec.chords,
+		actions: spec.actions,
 		priority,
 		registration: leafRegistration(spec, shape),
 		view: drawing ? drawnView(drawing) : textBlockView(),

@@ -146,7 +146,7 @@ describe('registerBlockKind refuses an incoherent pair the types refuse', () => 
 		it('is refused beside merges, registered or held as a block type', () => {
 			const kind = declarePluginKind(`pair-shape-${shape}`);
 			expect(() => registerBlockKind(kind, shaped({ merges: {} }))).toThrow(declares);
-			expect(() => holdBlockKind(kind, shaped({ merges: {} }), true)).toThrow(
+			expect(() => holdBlockKind(kind, shaped({ merges: {} }), true, 'shapes')).toThrow(
 				`block type: "pair-shape-${shape}" ${declares}`
 			);
 			expect(tryGetBlockKindDescriptor(kind)).toBeUndefined();

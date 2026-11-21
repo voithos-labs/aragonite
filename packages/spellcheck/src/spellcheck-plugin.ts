@@ -38,7 +38,7 @@ export const spellcheckPlugin = definePlugin<SpellcheckOptions>({
 		};
 		return {
 			checksSpelling: true,
-			actions: [action],
+			selectionActions: [action],
 			paint: (block) => paintWaves(block, verdicts, typing, handlers),
 			setup(mounted) {
 				editor = mounted;

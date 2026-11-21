@@ -34,7 +34,7 @@ function spellingAction(options: Partial<SpellcheckOptions> = {}): SelectionActi
 	const [installed] = installPluginList([plugin], (error) => {
 		throw error.cause;
 	});
-	const [action] = installed.contribution.actions ?? [];
+	const [action] = installed.contribution.selectionActions ?? [];
 	return action;
 }
 

@@ -8,8 +8,10 @@ import type { NodeView } from '../core/node-views';
 import type { BlockOpener, GrammarView } from './block-openers';
 import type { BlockCompleter } from './block-completions';
 import type { BlockView } from './block-view';
-import type { BlockInsert } from './block-shapes';
+import type { BlockCommon, BlockInsert } from './block-shapes';
 import { holdBlockKind, type BuiltinRegistration } from './block-kind-descriptor';
+import { normalizeChord, type KeyBinding } from './keybindings';
+import type { Command } from './plugin-command';
 import { qualifiedName } from './plugin-name';
 import type { BlockType, InstalledPlugin, PluginError } from './plugin-unit';
 
@@ -29,6 +31,8 @@ export interface BlockMaking {
 	readonly bodyRange?: ((node: NodeView) => { start: number; end: number }) | null;
 	/** The block's bytes with `data` written into them; null where the type has no writer for it. */
 	readonly writeData?: (node: NodeView, data: unknown, grammar: GrammarView) => string | null;
+	readonly chords?: BlockCommon<unknown>['chords'];
+	readonly actions?: BlockCommon<unknown>['actions'];
 }
 
 /** One of an editor's own block types, named and ready to read. */
@@ -79,11 +83,26 @@ export function installBlockTypes(
 			const making = made[MAKING];
 			const kind = type.name as PluginBlockKind;
 			const opener = making.opener(kind);
-			releases.push(holdBlockKind(kind, making.registration, opener !== null));
+			const registration = withChords(making.registration, making.chords);
+			releases.push(holdBlockKind(kind, registration, opener !== null, plugin));
 			blocks.push({ kind, opener, view: making.view, completer: making.completer });
 		}
 	}
 	return { blocks, release: () => releases.forEach((release) => release()) };
+}
+
+/** The type's keymap with its own keys first, each bound to its command's id; the install pass
+ *  claimed those commands for the plugin before this runs, so the ids are qualified. */
+function withChords(
+	registration: BuiltinRegistration,
+	chords: BlockMaking['chords']
+): BuiltinRegistration {
+	const own: KeyBinding[] = Object.entries(chords ?? {}).flatMap(([key, value]) => {
+		const command = (value as Command<unknown> | undefined)?.id as KeyBinding['command'];
+		return command ? [{ chord: normalizeChord(key), command }] : [];
+	});
+	if (own.length === 0) return registration;
+	return { ...registration, keymap: [...own, ...(registration.keymap ?? [])] };
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────

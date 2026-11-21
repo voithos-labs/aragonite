@@ -42,6 +42,7 @@ const EMPTY: PerfSnapshot = {
 	containerReparseBytes: 0,
 	openerLineReads: 0,
 	containerChordWalks: 0,
+	placedLookups: 0,
 	byteMapReads: 0,
 	stripLinesRead: 0,
 	joinedChildReads: 0,

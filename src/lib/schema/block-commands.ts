@@ -31,6 +31,8 @@ import type { KeybindingOverrideMap } from './keybinding-overrides';
 import { pluginEditorFor, type EditorContext } from './plugin-install';
 import { isReadingMode, type PresentationMode } from '../presentation-mode';
 import type { MarkActivation } from '../decorations/mark-activation';
+import type { ContributedCommand } from './editor-contributions';
+import { recordPlacedLookup } from '../perf/instruments';
 
 export interface BlockCommandContext extends CommandRun {
 	/** A read-only view of the node; a command changes it through one of the writes below. */
@@ -223,6 +225,9 @@ export interface KindCommandTarget {
 	// What a plugin block command runs against, supplied by the focused block; without it no
 	// plugin command resolves, and both dispatch and the "can this run" read fall to `runCommand`.
 	getCommandContext?(): BlockCommandTarget;
+	/** The block's node, which a command its block type places runs on. Absent, such a command
+	 *  runs on the nearest block at the caret whose type places it. */
+	getNode?(): NodeView;
 	/** Whether the id is toggled on at this block's caret or selection, which a toolbar shows as
 	 *  pressed. Absent means the block has no toggle state to report, which reads as inactive. */
 	isCommandActive?(id: AnyCommandId): boolean;
@@ -263,6 +268,7 @@ type BlockLocalResolution =
 			owner: string | null;
 	  }
 	| { tier: 'builtin'; target: KindCommandTarget }
+	| { tier: 'placed'; target: KindCommandTarget; entry: ContributedCommand }
 	| { tier: 'move'; target: KindCommandTarget; path: () => number[]; dir: -1 | 1 }
 	| { tier: 'dead' }
 	| { tier: 'no-surface' }
@@ -271,8 +277,8 @@ type BlockLocalResolution =
 type CommandResolution = { tier: 'global'; run: GlobalCommandRun } | BlockLocalResolution;
 
 /**
- * The block-level lookups, in dispatch order. A global id resolves as dead here, since the leaf
- * already ran it and a container must never re-fire the focused leaf's undo.
+ * The block-level lookups in dispatch order, the target's block type's command first. A global id
+ * resolves as dead here: the leaf already ran it, and a container must never re-fire its undo.
  */
 function resolveBlockLocalCommand(
 	id: AnyCommandId,
@@ -280,6 +286,25 @@ function resolveBlockLocalCommand(
 	activation: PluginActivation
 ): BlockLocalResolution {
 	if (!target) return { tier: 'no-surface' };
+	return placedAt(id, target, activation) ?? resolveUnplaced(id, target, activation);
+}
+
+/** A command the target's block type places in its keys or menu rows, which runs on that block. */
+function placedAt(
+	id: AnyCommandId,
+	target: KindCommandTarget,
+	activation: PluginActivation
+): BlockLocalResolution | null {
+	recordPlacedLookup();
+	const entry = activation.contributions?.placedAt(id, target.kind);
+	return entry ? { tier: 'placed', target, entry } : null;
+}
+
+function resolveUnplaced(
+	id: AnyCommandId,
+	target: KindCommandTarget,
+	activation: PluginActivation
+): BlockLocalResolution {
 	if (getCommand(id, activation)) return { tier: 'dead' };
 	const handler = getBlockCommand(target.kind, id, activation);
 	// A context is built only where a handler matched, so a built-in id costs nothing extra on the
@@ -298,16 +323,18 @@ function resolveBlockLocalCommand(
 	return installedElsewhere && !handler ? { tier: 'unlisted' } : { tier: 'dead' };
 }
 
-/** The full lookup: global commands first, then the block-level ones. Both the dispatch and the
- *  "can this run" read use it, so a greyed-out button cannot disagree with the click under it. */
+/** The full lookup, a command the target's block type places first, then global commands. The
+ *  dispatch and the "can this run" read both use it, so a greyed button agrees with its click. */
 function resolveCommand(
 	id: AnyCommandId,
 	target: KindCommandTarget | null,
 	activation: PluginActivation
 ): CommandResolution {
+	const placed = target && placedAt(id, target, activation);
+	if (placed) return placed;
 	const globalRun = getCommand(id, activation);
 	if (globalRun) return { tier: 'global', run: globalRun };
-	return resolveBlockLocalCommand(id, target, activation);
+	return target ? resolveUnplaced(id, target, activation) : { tier: 'no-surface' };
 }
 
 /** Run a resolved block-level command, after removing the block's own selection where the command
@@ -362,6 +389,15 @@ function runAtCaret(
 		}
 		case 'builtin':
 			return resolved.target.runCommand?.(id, arg, run) ?? false;
+		case 'placed': {
+			const { target, entry } = resolved;
+			// Run once a shown source is written, so the command reads those bytes.
+			const runIt = () => runPlaced(entry, target, ctx.activation);
+			if (!target.afterSourceCommit) return runIt();
+			let answer = true;
+			target.afterSourceCommit(() => void (answer = runIt()));
+			return answer;
+		}
 		case 'move': {
 			const { target, path, dir } = resolved;
 			const move = () => void ctx.reorder.nudgeReorderUnit(path(), dir);
@@ -376,6 +412,29 @@ function runAtCaret(
 		case 'unlisted':
 			return false;
 	}
+}
+
+/** A placed command on the target's block, or on the nearest placing one where the target names
+ *  no node; the table runs it under its plugin, a throw reported. */
+function runPlaced(
+	entry: ContributedCommand,
+	target: KindCommandTarget,
+	activation: PluginActivation
+): boolean {
+	const contributions = activation.contributions!;
+	const node = target.getNode?.();
+	return contributions.run(entry, node ? contributions.blockOf(node) : undefined);
+}
+
+/** {@link runPlaced}'s "can this run" read. */
+function canRunPlaced(
+	entry: ContributedCommand,
+	target: KindCommandTarget,
+	activation: PluginActivation
+): boolean {
+	const contributions = activation.contributions!;
+	const node = target.getNode?.();
+	return contributions.can(entry, node ? contributions.blockOf(node) : undefined);
 }
 
 /** A plugin's handler under its own editor context, a throw caught and reported. */
@@ -448,12 +507,15 @@ export function canRunCommandById(
 	if (route.kind !== 'block-local') return route.kind === 'cross-block';
 	const resolved = resolveCommand(id, target, gates.activation);
 	if (resolved.tier === 'global') return canRunGlobalCommand(id, gates.activation, gates, arg);
+	if (resolved.tier === 'placed')
+		return canRunPlaced(resolved.entry, resolved.target, gates.activation);
 	return reachesHandler(resolved);
 }
 
 /** A block-level resolution with a handler to run, rather than one that declines. */
 function reachesHandler(resolved: BlockLocalResolution): boolean {
-	return resolved.tier === 'minted' || resolved.tier === 'builtin' || resolved.tier === 'move';
+	const { tier } = resolved;
+	return tier === 'minted' || tier === 'builtin' || tier === 'placed' || tier === 'move';
 }
 
 /** The read behind `EditorInstance.isCommandActive`: state, not permission, so a disabled button

@@ -12,6 +12,9 @@ export interface PluginClaims {
 	readonly colons?: readonly string[];
 	readonly prefixes?: readonly string[];
 	readonly chords?: readonly string[];
+	/** Keys the plugin's block types take in themselves: refused as a chord is, though two plugins'
+	 *  types may share one. */
+	readonly blockKeys?: readonly string[];
 }
 
 /** The plugins to leave out, each reported once with the claim it lost. */
@@ -35,7 +38,8 @@ export function refusedClaims(
 const CLAIMED = [
 	['colons', 'the `:::` name'],
 	['prefixes', 'the inline prefix'],
-	['chords', 'the chord']
+	['chords', 'the chord'],
+	['blockKeys', 'the block key']
 ] as const;
 
 interface Claim {
@@ -49,8 +53,9 @@ interface Claim {
 function claimList(claims: PluginClaims): Claim[] {
 	return CLAIMED.flatMap(([field, label]) =>
 		(claims[field] ?? []).map((raw) => {
-			const defect = field === 'chords' ? chordDefect(raw) : null;
-			const key = field === 'chords' && defect === null ? normalizeChord(raw) : raw;
+			const keyed = field === 'chords' || field === 'blockKeys';
+			const defect = keyed ? chordDefect(raw) : null;
+			const key = keyed && defect === null ? normalizeChord(raw) : raw;
 			return { label, raw, key, defect };
 		})
 	);
@@ -58,16 +63,21 @@ function claimList(claims: PluginClaims): Claim[] {
 
 function problemWith({ label, raw, key, defect }: Claim): string | null {
 	if (defect !== null) return `claims ${label} "${raw}", which isn't one: ${defect}`;
-	if (label === 'the chord' && isReservedUiChord(key))
-		return `claims ${label} "${raw}", which search takes`;
-	if (label === 'the chord' && GLOBAL_KEYMAP.some((binding) => binding.chord === key))
+	if (label !== 'the chord' && label !== 'the block key') return null;
+	if (isReservedUiChord(key)) return `claims ${label} "${raw}", which search takes`;
+	if (GLOBAL_KEYMAP.some((binding) => binding.chord === key))
 		return `claims ${label} "${raw}", which undo or redo takes`;
+	// Tab moves focus on from a block focused whole and through reading mode; no type may hold it.
+	if (label === 'the block key' && (key === 'Tab' || key === 'Shift+Tab'))
+		return `claims ${label} "${raw}", which the page keeps for moving focus`;
 	return null;
 }
 
+// Each block type takes its own keys in itself, so two plugins' types never contest one.
 function sharedClaim(later: { list: Claim[] }, first: { list: Claim[] }): string | null {
-	const shared = later.list.find((c) =>
-		first.list.some((o) => o.label === c.label && o.key === c.key)
+	const shared = later.list.find(
+		(c) =>
+			c.label !== 'the block key' && first.list.some((o) => o.label === c.label && o.key === c.key)
 	);
 	return shared ? `shares ${shared.label} "${shared.raw}" with` : null;
 }

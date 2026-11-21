@@ -490,15 +490,16 @@ interface KindEntry {
 }
 
 const changeListeners = new Set<() => void>();
+const announceKindChange = () => {
+	for (const listener of changeListeners) listener();
+};
 
 // The descriptor is never filtered by activation: a kind an editor left out still needs it to
 // degrade. The view is read only through `blockViewFor`, which filters.
 const registry = createBlockKindRegistry<KindEntry>({
 	label: 'registerBlockKind',
 	isBuiltin: isBuiltinBlockKind,
-	onChange: () => {
-		for (const listener of changeListeners) listener();
-	}
+	onChange: announceKindChange
 });
 
 // ── Public API ──────────────────────────────────────────────────────────────
@@ -574,8 +575,8 @@ export function openerRecords(): RegistryRecord<AnyBlockKind, BlockOpener>[] {
 		);
 }
 
-/** Runs `listener` after every registration change, the test reset included, so a cache derived
- *  from the openers can drop itself without asking on every read. */
+/** Runs `listener` after every registration change, a block type held or let go and the test reset
+ *  included, so a cache derived from the kinds can drop itself without asking on every read. */
 export function onBlockKindChange(listener: () => void): void {
 	changeListeners.add(listener);
 }
@@ -838,14 +839,16 @@ export function isBlockKindRegistered(kind: string): boolean {
 	return registry.has(kind as AnyBlockKind) || held.has(kind as AnyBlockKind);
 }
 
-/** Every kind currently registered. Caller must not mutate. */
+/** Every kind the page knows: each registered kind, then each block type a mounted editor runs. */
 export function getAllRegisteredKinds(): AnyBlockKind[] {
-	return registry.records().map((r) => r.key);
+	return [...registry.records().map((r) => r.key), ...held.keys()];
 }
 
-/** The kinds an editor with this activation resolves: a kind its plugin left out isn't one. */
+/** The kinds an editor with this activation resolves: a kind its plugin left out isn't one, and
+ *  a block type is one where its plugin runs. */
 export function registeredKinds(activation: PluginActivation): AnyBlockKind[] {
-	return registry.entries(activation).map(([kind]) => kind);
+	const own = [...held].filter(([, entry]) => activation.isActive(entry.owner));
+	return [...registry.entries(activation).map(([kind]) => kind), ...own.map(([kind]) => kind)];
 }
 
 // ── Plugin block types held by mounted editors ──────────────────────────────
@@ -854,19 +857,25 @@ interface HeldKind {
 	descriptor: BlockKindDescriptor;
 	hasOpener: boolean;
 	editors: number;
+	/** The plugin whose block type it is. */
+	owner: string;
 }
 
 // A plugin block type's facts, page-wide by its qualified name while any editor runs it, so every
 // descriptor read answers for it; its opener and view stay with each editor.
 const held = new Map<AnyBlockKind, HeldKind>();
-enrollTestReset(() => held.clear());
+enrollTestReset(() => {
+	held.clear();
+	announceKindChange();
+});
 
-/** Lends a plugin block type's facts to the page while one editor runs it; call the result when
+/** Lends `owner`'s block type's facts to the page while one editor runs it; call the result when
  *  that editor stops running it. */
 export function holdBlockKind(
 	kind: AnyBlockKind,
 	registration: BuiltinRegistration,
-	hasOpener: boolean
+	hasOpener: boolean,
+	owner: string
 ): () => void {
 	const descriptor = normalizeRegistration(kind, registration);
 	const existing = held.get(kind);
@@ -881,14 +890,17 @@ export function holdBlockKind(
 		}
 	} else {
 		rejectIncoherentPairs('block type', kind, registration);
-		held.set(kind, { descriptor, hasOpener, editors: 1 });
+		held.set(kind, { descriptor, hasOpener, editors: 1, owner });
+		announceKindChange();
 	}
 	let released = false;
 	return () => {
 		const entry = held.get(kind);
 		if (released || !entry) return;
 		released = true;
-		if (--entry.editors === 0) held.delete(kind);
+		if (--entry.editors > 0) return;
+		held.delete(kind);
+		announceKindChange();
 	};
 }
 

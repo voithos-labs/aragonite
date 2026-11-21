@@ -256,7 +256,8 @@ export function buildContainerKindTarget(
 		get kind() {
 			return deps.getNode().kind;
 		},
-		getCommandContext: () => blockCommandTarget(deps, parentBlockEdit)
+		getCommandContext: () => blockCommandTarget(deps, parentBlockEdit),
+		getNode: deps.getNode
 	};
 }
 
@@ -423,6 +424,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			return kindTarget.kind;
 		},
 		getCommandContext: kindTarget.getCommandContext,
+		getNode: deps.getNode,
 		getPath: deps.getPath
 	};
 

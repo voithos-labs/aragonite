@@ -3,6 +3,9 @@
  * by chord, their insert rows (their block types' among them), caret menus and paint. Read from each
  * installed list, so `use` rebuilds it, and reached through the editor's activation, which every
  * command lookup already takes, so no route that runs or lists a command can miss a plugin's.
+ *
+ * A block type's keys and menu rows place their commands here too: such a command runs on a block
+ * whose type places it, the one handed to it or else the nearest at the caret.
  */
 import type { Contribution, Editor, InstalledPlugin, PluginError } from './plugin-unit';
 import { claimCommand, commandSpec, type Command, type CommandSpec } from './plugin-command';
@@ -11,8 +14,11 @@ import { isMotionChord, normalizeChord } from './keybindings';
 import { refusedClaims } from './plugin-claims';
 import { insertRowProblem, type InsertRow } from './insert-catalogue';
 import { makingOf } from './block-type';
+import { qualifiedName } from './plugin-name';
+import { nodeOfBlock, type Block } from './doc-view';
+import type { NodeView } from '../core/node-views';
 import type { ContributedMenu } from './caret-menu';
-import { iconProblem } from '../menu-icons';
+import { iconProblem, type Icon } from '../menu-icons';
 import type { ContributedAction } from './selection-action';
 
 export interface ContributedCommand {
@@ -22,18 +28,33 @@ export interface ContributedCommand {
 	/** The chord as the keymap spells it, or null. */
 	readonly chord: string | null;
 	readonly spec: CommandSpec<unknown>;
+	/** The kinds whose block types place it in their keys or menu rows. */
+	readonly placedBy: ReadonlySet<string>;
+}
+
+/** A row of a block type's menu, as an editor holds it. */
+export interface ContributedBlockAction {
+	readonly label: string;
+	readonly icon?: Icon;
+	readonly command: ContributedCommand;
 }
 
 export interface EditorContributions {
 	command(command: Command<unknown> | string): ContributedCommand | undefined;
 	atChord(chord: string): ContributedCommand | undefined;
+	/** The command `id` where block type `kind` places it. */
+	placedAt(id: string, kind: string): ContributedCommand | undefined;
+	/** The rows block type `kind` adds to its menu. */
+	blockActions(kind: string): readonly ContributedBlockAction[];
+	/** `node` as a placed command reads it. */
+	blockOf(node: NodeView): Block;
 	readonly commands: readonly ContributedCommand[];
 	/** Each plugin's rows in list order, ids as `plugin/id`. */
 	readonly inserts: readonly InsertRow[];
 	/** Each plugin's caret menus, in list order. */
 	readonly menus: readonly ContributedMenu[];
 	/** Each plugin's selection actions, in list order. */
-	readonly actions: readonly ContributedAction[];
+	readonly selectionActions: readonly ContributedAction[];
 	/** The plugins that paint, in list order. */
 	readonly paints: readonly { readonly plugin: string; readonly contribution: Contribution }[];
 	/** Runs a command against its plugin's scoped editor; false where `when` or the command declines.
@@ -48,14 +69,18 @@ export interface EditorContributions {
 export function createEditorContributions(deps: {
 	editorFor(plugin: string): Editor | undefined;
 	report(error: PluginError): void;
+	/** The nearest block holding the caret whose type is one of `kinds`; null with none. */
+	blockAround(kinds: ReadonlySet<string>): Block | null;
+	blockOf(node: NodeView): Block;
 }): EditorContributions {
 	let commands: ContributedCommand[] = [];
 	let byValue = new Map<Command<unknown>, ContributedCommand>();
 	let byId = new Map<string, ContributedCommand>();
 	let byChord = new Map<string, ContributedCommand>();
+	let actionsByKind = new Map<string, readonly ContributedBlockAction[]>();
 	let inserts: readonly InsertRow[] = [];
 	let menus: readonly ContributedMenu[] = [];
-	let actions: readonly ContributedAction[] = [];
+	let selectionActions: readonly ContributedAction[] = [];
 	let paints: EditorContributions['paints'] = [];
 
 	function guarded<T>(entry: ContributedCommand, fallback: T, call: () => T): T {
@@ -75,17 +100,35 @@ export function createEditorContributions(deps: {
 			return !problem;
 		});
 		const refused = refusedClaims(
-			usable.map((unit) => ({ plugin: unit.name, claims: { chords: chordsOf(unit) } })),
+			usable.map((unit) => ({
+				plugin: unit.name,
+				claims: { chords: chordsOf(unit), blockKeys: blockKeysOf(unit) }
+			})),
 			deps.report
 		);
 		const kept = usable.filter((unit) => !refused.has(unit.name));
-		const listed = kept.flatMap((unit) =>
-			(unit.contribution.commands ?? []).map((value) => [value, entryOf(unit.name, value)] as const)
-		);
+		const listed = kept.flatMap((unit) => {
+			const placed = placementsOf(unit);
+			return commandsOf(unit).map(
+				(value) => [value, entryOf(unit.name, value, placed.get(value))] as const
+			);
+		});
 		commands = listed.map(([, entry]) => entry);
 		byValue = new Map(listed);
 		byId = new Map(commands.map((entry) => [entry.id, entry]));
 		byChord = new Map(commands.flatMap((entry) => (entry.chord ? [[entry.chord, entry]] : [])));
+		actionsByKind = new Map(
+			kept.flatMap((unit) =>
+				blockTypesOf(unit).map(({ kind, making }) => [
+					kind,
+					(making.actions ?? []).map(({ label, icon, command }) => ({
+						label,
+						icon,
+						command: byValue.get(command as Command<unknown>)!
+					}))
+				])
+			)
+		);
 		for (const { chord, plugin } of commands) {
 			if (chord && isMotionChord(chord))
 				devWarn(
@@ -99,8 +142,8 @@ export function createEditorContributions(deps: {
 		menus = kept.flatMap((unit) =>
 			(unit.contribution.menus ?? []).map((menu) => ({ plugin: unit.name, menu }))
 		);
-		actions = kept.flatMap((unit) =>
-			(unit.contribution.actions ?? []).map((action) => ({ plugin: unit.name, action }))
+		selectionActions = kept.flatMap((unit) =>
+			(unit.contribution.selectionActions ?? []).map((action) => ({ plugin: unit.name, action }))
 		);
 		paints = kept.flatMap(({ name, contribution }) =>
 			contribution.paint || contribution.paintContainer ? [{ plugin: name, contribution }] : []
@@ -108,17 +151,27 @@ export function createEditorContributions(deps: {
 		return kept;
 	}
 
+	/** The argument a command runs with: a placed command handed no block runs on the nearest
+	 *  block at the caret whose type places it, and doesn't run with none. */
+	function argumentOf(entry: ContributedCommand, arg: unknown): { arg: unknown } | null {
+		if (entry.placedBy.size === 0 || isBlock(arg)) return { arg };
+		const block = deps.blockAround(entry.placedBy);
+		return block ? { arg: block } : null;
+	}
+
 	function can(entry: ContributedCommand, arg: unknown): boolean {
 		const editor = deps.editorFor(entry.plugin);
+		const given = argumentOf(entry, arg);
 		const { when } = entry.spec;
-		return !!editor && (!when || guarded(entry, false, () => when(editor, arg)));
+		return !!editor && !!given && (!when || guarded(entry, false, () => when(editor, given.arg)));
 	}
 
 	function run(entry: ContributedCommand, arg: unknown): boolean {
 		const editor = deps.editorFor(entry.plugin);
-		if (!editor || !can(entry, arg)) return false;
+		const given = argumentOf(entry, arg);
+		if (!editor || !given || !can(entry, given.arg)) return false;
 		return guarded(entry, true, () => {
-			const answer = entry.spec.run(editor, arg);
+			const answer = entry.spec.run(editor, given.arg);
 			if (isThenable(answer)) {
 				answer.then(undefined, (cause: unknown) =>
 					deps.report({ plugin: entry.plugin, doing: `run ${entry.id}`, cause })
@@ -131,6 +184,12 @@ export function createEditorContributions(deps: {
 	return {
 		command: (command) => (typeof command === 'string' ? byId.get(command) : byValue.get(command)),
 		atChord: (chord) => byChord.get(chord),
+		placedAt(id, kind) {
+			const entry = byId.get(id);
+			return entry?.placedBy.has(kind) ? entry : undefined;
+		},
+		blockActions: (kind) => actionsByKind.get(kind) ?? [],
+		blockOf: deps.blockOf,
 		get commands() {
 			return commands;
 		},
@@ -140,8 +199,8 @@ export function createEditorContributions(deps: {
 		get menus() {
 			return menus;
 		},
-		get actions() {
-			return actions;
+		get selectionActions() {
+			return selectionActions;
 		},
 		get paints() {
 			return paints;
@@ -154,24 +213,57 @@ export function createEditorContributions(deps: {
 
 // ── Internal ─────────────────────────────────────────────────────────────────
 
+/** Each block type a plugin lists, with the kind an editor names it and what its maker built. */
+function blockTypesOf(unit: InstalledPlugin) {
+	return (unit.contribution.blocks ?? []).flatMap((type) => {
+		const making = makingOf(type);
+		return making ? [{ kind: qualifiedName(unit.name, making.local), making }] : [];
+	});
+}
+
+/** The commands a plugin's block types place, each with the kinds placing it. */
+function placementsOf(unit: InstalledPlugin): Map<Command<unknown>, Set<string>> {
+	const placed = new Map<Command<unknown>, Set<string>>();
+	for (const { kind, making } of blockTypesOf(unit)) {
+		const values = [
+			...Object.values(making.chords ?? {}),
+			...(making.actions ?? []).map((action) => action.command)
+		] as Command<unknown>[];
+		for (const value of values) {
+			if (!placed.has(value)) placed.set(value, new Set());
+			placed.get(value)!.add(kind);
+		}
+	}
+	return placed;
+}
+
+/** A plugin's commands: those it lists, then those only its block types place. */
+function commandsOf(unit: InstalledPlugin): Command<unknown>[] {
+	const listed = unit.contribution.commands ?? [];
+	return [...new Set([...listed, ...placementsOf(unit).keys()])];
+}
+
 /** Why a plugin's commands can't run, qualifying each one's id on the way; null when they can. */
 function commandProblem(unit: InstalledPlugin): string | null {
 	const ids = new Set<string>();
-	for (const value of unit.contribution.commands ?? []) {
+	const placed = placementsOf(unit);
+	for (const value of commandsOf(unit)) {
 		const problem = claimCommand(value, unit.name);
 		if (problem) return problem;
 		if (ids.has(value.id)) return `lists two commands with the id "${value.id}"`;
 		ids.add(value.id);
+		// A key in the type runs it on its block; a chord of its own would run it in every block.
+		if (placed.has(value) && commandSpec(value)?.chord)
+			return `has a block type's command "${value.id}" with a chord of its own`;
 	}
 	return null;
 }
 
 /** A plugin's insert rows: its block types' first, each under the type's own name. */
 function rowsOf(unit: InstalledPlugin): InsertRow[] {
-	const blockRows = (unit.contribution.blocks ?? []).flatMap((type) => {
-		const making = makingOf(type);
-		return making && !('none' in making.insert) ? [{ ...making.insert, id: making.local }] : [];
-	});
+	const blockRows = blockTypesOf(unit).flatMap(({ making }) =>
+		'none' in making.insert ? [] : [{ ...making.insert, id: making.local }]
+	);
 	return [...blockRows, ...(unit.contribution.inserts ?? [])];
 }
 
@@ -194,25 +286,43 @@ function menuProblem(unit: InstalledPlugin): string | null {
 }
 
 function actionProblem(unit: InstalledPlugin): string | null {
-	for (const action of unit.contribution.actions ?? []) {
+	for (const action of unit.contribution.selectionActions ?? []) {
 		const problem = iconProblem(action.icon);
 		if (problem) return `has a selection action that ${problem}`;
+	}
+	for (const { making } of blockTypesOf(unit)) {
+		for (const action of making.actions ?? []) {
+			const problem = iconProblem(action.icon);
+			if (problem) return `has a block action that ${problem}`;
+		}
 	}
 	return null;
 }
 
-function entryOf(plugin: string, value: Command<unknown>): ContributedCommand {
+function entryOf(
+	plugin: string,
+	value: Command<unknown>,
+	placedBy: ReadonlySet<string> = new Set()
+): ContributedCommand {
 	const spec = commandSpec(value)!;
-	return { plugin, id: value.id, chord: spec.chord ? normalizeChord(spec.chord) : null, spec };
+	const chord = spec.chord ? normalizeChord(spec.chord) : null;
+	return { plugin, id: value.id, chord, spec, placedBy };
 }
 
 function chordsOf(unit: InstalledPlugin): string[] {
 	return (unit.contribution.commands ?? []).flatMap((value) => commandSpec(value)?.chord ?? []);
 }
 
+function blockKeysOf(unit: InstalledPlugin): string[] {
+	return blockTypesOf(unit).flatMap(({ making }) => Object.keys(making.chords ?? {}));
+}
+
 function installError(plugin: string, problem: string): PluginError {
 	return { plugin, doing: 'install', cause: new Error(`plugin '${plugin}' ${problem}`) };
 }
+
+const isBlock = (value: unknown): value is Block =>
+	typeof value === 'object' && value !== null && nodeOfBlock(value as Block) !== undefined;
 
 export function isThenable(value: unknown): value is PromiseLike<unknown> {
 	return typeof (value as PromiseLike<unknown> | null)?.then === 'function';
