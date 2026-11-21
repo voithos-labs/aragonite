@@ -5,6 +5,7 @@
  */
 
 import type { BlockComponent } from '../../block-component';
+import type { CaretTarget } from '../../schema/block-kind-descriptor';
 import type { CaretMemory } from '../../caret/caret-memory';
 import type { CaretWriter } from '../../browser/caret-writer';
 import type { CaretLanding } from '../../selection/caret-landing';
@@ -85,6 +86,8 @@ export interface RootGestures {
 	install(root: HTMLElement): () => void;
 	/** Where a click on empty space puts the caret, for a point the caller chose to answer. */
 	placeCaretAtPoint(root: HTMLElement, x: number, y: number): boolean;
+	/** Where `placeCaretAtPoint` would put the caret, placing nothing. */
+	caretTargetAtPoint(root: HTMLElement, x: number, y: number): CaretTarget | null;
 	/** The caret a context menu opens over: where its press pointed, read at the press, or at the
 	 *  menu event's point when no press opened it (the keyboard's menu key). */
 	placeMenuCaret(root: HTMLElement, x: number, y: number): boolean;
@@ -349,6 +352,7 @@ export function createRootGestures(deps: RootGesturesDeps): RootGestures {
 	return {
 		install,
 		placeCaretAtPoint: (root, x, y) => deadSpaceCaret.placeAtPoint(root, x, y),
+		caretTargetAtPoint: (root, x, y) => deadSpaceCaret.positionAt(root, x, y),
 		placeMenuCaret: (root, x, y) => {
 			const place = contextPress ? contextPress.atPoint : deadSpaceCaret.planAtPoint(root, x, y);
 			place?.();

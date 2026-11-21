@@ -3,19 +3,46 @@
   focused whole, its focus and keys, calls the plugin's `draw`, and keeps the drawing told through
   `update`. A throw in `draw` or `update` reaches BlockHost's error boundary.
 -->
+<script module lang="ts">
+	import { devWarn } from '@voithos-labs/aragonite/dev-checks';
+	import type { AnyBlockKind } from '../../core/nodes';
+	import type { EditorServices } from '../../editor-keys';
+	import type { Drawing } from '../../schema/drawing';
+	import { warnIfForeignRuntime } from '../../foreign-runtime';
+
+	// Outside the component: a block type's watch outlives every drawing that started it.
+	function dependsReport(services: EditorServices, kind: AnyBlockKind) {
+		return (error: unknown) => {
+			warnIfForeignRuntime(error, `block ${kind}`);
+			services.events.emit('error', { origin: 'render', error, context: { kind } });
+		};
+	}
+
+	const unheard = new WeakSet<Drawing>();
+	// Once per block type, and only with dev checks on, so the sentence stays out of production.
+	function warnUnheard(drawing: Drawing, kind: AnyBlockKind): void {
+		if (unheard.has(drawing)) return;
+		unheard.add(drawing);
+		devWarn(
+			'depends-unheard',
+			`block type '${kind}' declares depends, but its drawing has no update to hear it`
+		);
+	}
+</script>
+
 <script lang="ts">
 	import { getAllContexts, getContext, mount, unmount, untrack } from 'svelte';
 	import { on } from 'svelte/events';
-	import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
+	import { assertInvariant, devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 	import type { BlockComponent } from '../../block-component';
 	import type { NodeView } from '../../core/node-views';
-	import { blockOf, DETACHED_READING } from '../../schema/doc-view';
+	import { makeBlock, DETACHED_READING, type KeyWatch } from '../../schema/doc-view';
+	import { modeOf } from '../../presentation-mode';
 	import { pluginOfKind } from '../../schema/plugin-name';
 	import {
 		CARET_AT,
 		type BoxDrawContext,
 		type ContainerDrawContext,
-		type Drawing,
 		type Drawn,
 		type TextDrawContext
 	} from '../../schema/drawing';
@@ -26,13 +53,11 @@
 		EDITOR_POLICIES_KEY,
 		EDITOR_SERVICES_KEY,
 		type EditorDoc,
-		type EditorPolicies,
-		type EditorServices
+		type EditorPolicies
 	} from '../../editor-keys';
 	import { VIEW_TEXT_ATTR, VIEW_TEXT_HOST_ATTR } from '../../caret/block-content-selector';
 	import { editorXOf } from '../../caret/sticky-measure';
 	import { checkDomViewContent } from '../../invariants/dom-view-content';
-	import { warnIfForeignRuntime } from '../../foreign-runtime';
 	import { createEditableLeaf } from '../blocks/editable/editable-leaf';
 	import { bindLeafSurface } from './leaf-surface-binding.svelte';
 	import { createDrawnBox } from './drawn-box.svelte';
@@ -71,6 +96,10 @@
 	let typed: string | null = $state(null);
 	let generation = $state(0);
 	let drawn: Drawn<unknown> | null = null;
+	// The block type's answers, one watch for all its drawings, so a mount asks nothing it holds.
+	let keys: KeyWatch | null = null;
+	// The answers' version the drawing last saw.
+	let heard = 0;
 
 	// Functions over state, not deriveds: a key handler resuming after the block unmounted still
 	// reads them, and a derived read past its effect warns.
@@ -164,13 +193,16 @@
 			return editorDoc.scopedEditor(pluginOfKind(node.kind));
 		},
 		get mode() {
-			return editorDoc.reading.mode();
+			return modeOf(editorDoc.reading.mode());
 		},
 		get theme() {
 			return policies.theme();
 		},
 		get focused() {
 			return focused();
+		},
+		get depends() {
+			return keys?.keys() ?? NO_ANSWERS;
 		},
 		source,
 		get typed() {
@@ -188,7 +220,8 @@
 	};
 
 	const read = () =>
-		services ? services.read.blockOf(node, myPath) : blockOf(node, DETACHED_READING);
+		services ? services.read.blockOf(node, myPath) : makeBlock(node, DETACHED_READING, null);
+	const NO_ANSWERS: readonly string[] = Object.freeze([]);
 
 	// ── Mount, update, destroy ────────────────────────────────────────────────
 
@@ -206,7 +239,12 @@
 			const list =
 				container &&
 				mount(BlockList, { target: childBox!, props: container.blockListProps, context: contexts });
+			if (view.depends && services) {
+				keys ??= services.read.keys(view.depends, dependsReport(services, node.kind));
+				heard = keys.version();
+			}
 			const made = view.draw(read(), ctx);
+			if (devChecksOn && keys && !made.update) warnUnheard(view, node.kind);
 			drawn = made;
 			el.append(made.dom);
 			target = el;
@@ -264,9 +302,14 @@
 	let seen: unknown[] = [];
 	$effect(() => {
 		const now = watched();
+		// Every write, for a drawing with `depends`: its answers say whether `update` runs.
+		if (view.depends) editorDoc.contentVersion();
 		untrack(() => {
-			if (!drawn || now.every((value, i) => Object.is(value, seen[i]))) return;
+			const answered = keys?.version() ?? 0;
+			if (!drawn || (answered === heard && now.every((value, i) => Object.is(value, seen[i]))))
+				return;
 			seen = now;
+			heard = answered;
 			const restore = keepScroll();
 			if (drawn.update?.(read(), ctx) === false) generation++;
 			void restore();

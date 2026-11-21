@@ -1,7 +1,7 @@
 /** What draws a block kind, opaque here so this module's types name no UI framework. Only a
  *  function that builds a view brands one, and registration refuses anything unbranded. */
 
-import type { AmbientPrefix, BlockComponent } from '../block-component';
+import type { AmbientPrefix } from '../block-component';
 import type { NodeView } from '../core/node-views';
 import type { PresentationMode } from '../presentation-mode';
 import type { BlockCommandContext } from './block-commands';
@@ -42,30 +42,19 @@ export function viewHost(view: BlockView): unknown {
 
 // ── DOM block views ─────────────────────────────────────────────────────────
 
-/** What the editor builds around a DOM view: nothing, or child blocks. */
+/** What the editor builds around a DOM view: a container's children. */
 export type BlockSurface = BlockViewSpec['surface'];
 
 /**
  * A block drawn into an element the editor makes for it. The view fills `target` itself (classes,
  * children) and never wraps a second box inside, because the editor measures `target` as the
- * block. `surface` says what the editor wires in: nothing, or a container's children.
+ * block.
  */
-export type BlockViewSpec = HandBuiltViewSpec | ContainerViewSpec;
-
-interface ViewSpecBase {
-	/** Calls `update` on every change to the document, not only to this block. */
-	watchDocument?: boolean;
-}
-
-/** A block the view draws whole, handing over what the editor calls on it with `ctx.block.publish`. */
-export interface HandBuiltViewSpec extends ViewSpecBase {
-	surface: 'none';
-	mount(target: HTMLElement, ctx: HandBuiltViewContext): BlockViewHandle;
-}
+export type BlockViewSpec = ContainerViewSpec;
 
 /** A block holding child blocks, which the editor mounts into the box the view names; or, for a
  *  kind declaring `blockFocus: 'whole-block'`, none, with an editing surface of the view's own. */
-export interface ContainerViewSpec extends ViewSpecBase {
+export interface ContainerViewSpec {
 	surface: 'container';
 	/** The read-only marker drawn before the first child's text, like a footnote's `[^1]: `. Read
 	 *  live, so a marker taken from the node follows an edit. */
@@ -88,10 +77,6 @@ export interface BlockViewContext {
 	readonly editor: EditorContext;
 }
 
-export interface HandBuiltViewContext extends BlockViewContext {
-	readonly block: HandBuiltSurface;
-}
-
 export interface ContainerViewContext extends BlockViewContext {
 	readonly container: ContainerSurface;
 }
@@ -100,12 +85,6 @@ export interface CommandHooksSurface {
 	/** What a block command running on this block gets as `ctx.hooks` (opening the view's own
 	 *  editor, say); the last value set wins, and a view that never sets one hands `undefined`. */
 	setCommandHooks(hooks: BlockCommandContext['hooks']): void;
-}
-
-export interface HandBuiltSurface {
-	/** What the editor calls on the block from now on, replacing the last. Before the first call
-	 *  and after `null`, the block publishes nothing: it takes no focus, and arrows pass over it. */
-	publish(block: HandBuiltBlock | null): void;
 }
 
 export interface ContainerSurface extends CommandHooksSurface {
@@ -133,59 +112,6 @@ export interface BlockViewHandle {
 	/** A promise it returns (a framework's unmount) is watched for a rejection. */
 	destroy?(): void | Promise<void>;
 }
-
-// ── Where a DOM view's members come from ────────────────────────────────────
-
-/** Who supplies a `BlockComponent` member for a DOM view: what it publishes, its host (from the kind's
- *  registration), the container surface, or nobody outside the editor. */
-export type MemberSource = 'view' | 'host' | 'container-surface' | 'editor';
-
-/** G3.18: every `BlockComponent` member has a source, so a new member fails `npm run check`
- *  until it's given one. */
-export const MEMBER_SOURCES = {
-	focus: 'view',
-	getCursorOffset: 'view',
-	focusable: 'view',
-	parkCaret: 'view',
-	focusAtColumn: 'view',
-	getSelectedText: 'view',
-	setSelection: 'view',
-	measurePartialRects: 'view',
-	caretBounds: 'editor',
-	getCommandContext: 'view',
-	isCommandActive: 'view',
-	runCommand: 'view',
-	editable: 'host',
-	preparePaste: 'editor',
-	typeText: 'editor',
-	afterSourceCommit: 'editor',
-	afterSelectionRemoved: 'editor',
-	childList: 'container-surface',
-	focusByPath: 'container-surface',
-	getCursorPosition: 'container-surface',
-	enterEdgeWidget: 'container-surface',
-	isVerticallyTransparent: 'container-surface',
-	readSnapAtPoint: 'editor',
-	startDragAtPoint: 'editor',
-	cellRect: 'editor',
-	mountedRowWindow: 'editor',
-	getSelectionOffsets: 'editor',
-	applyMenuClipboard: 'editor',
-	claimRootClipboard: 'editor',
-	containerChordTarget: 'editor'
-} as const satisfies Record<keyof BlockComponent, MemberSource>;
-
-type HandBuiltMember = {
-	[K in keyof typeof MEMBER_SOURCES]: (typeof MEMBER_SOURCES)[K] extends 'view' ? K : never;
-}[keyof typeof MEMBER_SOURCES];
-
-/** The members a hand-built view may publish, read off `MEMBER_SOURCES`. */
-export const HAND_BUILT_MEMBERS = (
-	Object.keys(MEMBER_SOURCES) as (keyof typeof MEMBER_SOURCES)[]
-).filter((key): key is HandBuiltMember => MEMBER_SOURCES[key] === 'view');
-
-/** What the editor calls on a hand-built block; `editable` comes from the kind's registration. */
-export type HandBuiltBlock = Pick<BlockComponent, HandBuiltMember>;
 
 /** The spec behind a DOM view. */
 export function domViewSpec(view: BlockView): BlockViewSpec {

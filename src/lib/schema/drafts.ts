@@ -35,8 +35,8 @@ export interface Draft {
 	/** Insert Markdown at the caret the way `insertMarkdown` does, its last line ending dropped,
 	 *  once the replacements land. */
 	insert(markdown: string): this;
-	/** Set a block's data, rewriting only the bytes that carry it; refused as `moved` when the
-	 *  block's bytes changed since it was read. A block not narrowed to a type with data takes none. */
+	/** Set a block's data, rewriting only the bytes that carry it; refused as `moved` once they
+	 *  change and as `illegal` on a built-in. A block not narrowed to a type with data takes none. */
 	data<D>(block: Block<D>, data: unknown extends D ? never : D): this;
 	/** Insert Markdown as a block of its own, as `insertMarkdown` with `placement: 'below'` does. */
 	insertBelow(markdown: string): this;

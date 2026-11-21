@@ -16,7 +16,7 @@ export interface HoverCard {
 export function createHoverCard(editor: Editor, action: SelectionAction): HoverCard {
 	let menusOpen = false;
 	let onCard = false;
-	editor.on('menuChange', (open) => (menusOpen = open));
+	editor.on('menu', (open) => (menusOpen = open));
 
 	const card = createSpellHover({
 		open(misspelling, anchor) {
@@ -29,8 +29,8 @@ export function createHoverCard(editor: Editor, action: SelectionAction): HoverC
 		},
 		menusOpen: () => menusOpen,
 		rangeSelected() {
-			const range = editor.selectedRange();
-			return !!range && range.from < range.to;
+			const selection = editor.selection;
+			return !!selection && !selection.empty && !selection.cells;
 		},
 		pointerOnMenu: () => onCard
 	});

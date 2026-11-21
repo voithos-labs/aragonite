@@ -18,8 +18,7 @@ const KEYDOWN_ENTRY_FILES: string[] = [
 	SOURCE.sharedKeydown,
 	SOURCE.crossBlockKeydown,
 	SOURCE.containerBlockComponent,
-	SOURCE.pluginContainer,
-	SOURCE.domBlockView
+	SOURCE.pluginContainer
 ];
 
 const isKeydownFile = (relPath: string) => /keydown/i.test(relPath);

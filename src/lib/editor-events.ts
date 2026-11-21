@@ -1,14 +1,102 @@
 /**
- * The event subscription object reached through `getEvents()`. Events fire synchronously and a
- * handler must not mutate the document; an `edit` event fires after its change is written and
- * announced, so its handler sees the updated document.
+ * The editor's events, on two maps over one channel: `Events`, which `editor.on` hears, and the
+ * older `EditorEventMap`, reached through `getEvents()`. Events fire synchronously, and an `edit`
+ * fires after its change is written and announced, so its handler sees the updated document.
  */
 
 import type { AnyBlockKind } from './core/nodes';
 import { devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';
-import type { PresentationMode } from './presentation-mode';
+import { modeOf, type Mode, type PresentationMode } from './presentation-mode';
 import type { EditorSelection } from './selection/primitives';
 import type { OpDescriptor, OperationDetailMap, OperationKind } from './schema/operations';
+import type { Doc } from './schema/doc-view';
+import type { Selection } from './schema/selection-read';
+
+// ── What `Editor.on` hears ───────────────────────────────────────────────
+
+/** Bytes `from` to `to` of the document before a write gave way to `insert`. */
+export interface Change {
+	readonly from: number;
+	readonly to: number;
+	readonly insert: string;
+}
+
+/** One write as it lands: its operation and detail, the document after it, and what it replaced,
+ *  worked out only when `changes` is read. */
+export type EditInfo = {
+	[K in OperationKind]: {
+		readonly op: K;
+		readonly detail: OperationDetailMap[K];
+		readonly doc: Doc;
+		readonly changes: readonly Change[];
+		readonly timestamp: number;
+	};
+}[OperationKind];
+
+/** The event map a plugin listens on, each event with what its listener gets. */
+export interface Events {
+	edit: EditInfo;
+	selection: { readonly selection: Selection | null };
+	mode: Mode;
+	theme: string;
+	menu: boolean;
+	/** A whole document replaced the last: a `source` change or `load`. No `edit` fires for it. */
+	load: { readonly doc: Doc; readonly generation: number };
+	search: void;
+	error: EditorError;
+}
+
+/** What the editor's reads make of its channel's payloads for `Editor.on`. */
+export interface PluginEventReads {
+	edit(event: EditEvent): EditInfo;
+	selection(): Selection | null;
+	doc(): Doc;
+	/** Counts an `edit` listener in, so each write keeps what `changes` needs; returns the way out. */
+	listenForEdits(): () => void;
+}
+
+/** Hears `event` of `Events` on the editor's channel, handing `listen` what it reads as. */
+export function onPluginEvent<K extends keyof Events>(
+	channel: Pick<EditorEvents, 'on'>,
+	reads: PluginEventReads,
+	event: K,
+	listen: (payload: Events[K]) => void
+): () => void {
+	const { on, read } = HEARD_ON[event] as unknown as Heard<K>;
+	const leave = event === 'edit' ? reads.listenForEdits() : null;
+	const off = channel.on(on, (payload) => listen(read(payload, reads)));
+	return () => {
+		off();
+		leave?.();
+	};
+}
+
+interface Heard<K extends keyof Events> {
+	on: keyof EditorEventMap;
+	read(payload: unknown, reads: PluginEventReads): Events[K];
+}
+
+// The selection is read when asked, so a listener that never asks places no byte.
+const HEARD_ON: { [K in keyof Events]: Heard<K> } = {
+	edit: { on: 'edit', read: (event, reads) => reads.edit(event as EditEvent) },
+	selection: {
+		on: 'selectionChange',
+		read: (_, reads) => ({
+			get selection() {
+				return reads.selection();
+			}
+		})
+	},
+	mode: { on: 'presentationModeChange', read: (mode) => modeOf(mode as PresentationMode) },
+	theme: { on: 'themeChange', read: (theme) => theme as string },
+	menu: { on: 'menuChange', read: (open) => open as boolean },
+	load: {
+		on: 'sourceSwap',
+		read: (swap, reads) => ({ doc: reads.doc(), generation: (swap as SourceSwapEvent).generation })
+	},
+	search: { on: 'searchChange', read: () => undefined },
+	error: { on: 'error', read: (error) => error as EditorError }
+};
 
 // ── Edit event union ─────────────────────────────────────────────────────
 

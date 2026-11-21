@@ -14,6 +14,8 @@ import {
 import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { registerBuiltInBlocks } from '#lib/components/built-in-blocks.js';
 import { blockViewEntry } from '#lib/components/block-view-entry.js';
+import { defineBlockView } from '#lib/components/dom-block-view/define-block-view.js';
+import type { BlockViewSpec } from '#lib/schema/block-view.js';
 import CodeBlock from '#lib/components/blocks/code/CodeBlock.svelte';
 import TableBlock from '#lib/components/blocks/table/TableBlock.svelte';
 
@@ -51,5 +53,26 @@ describe('a built-in keeps its view through the augments that follow it', () => 
 	] as const)('%s still draws through its own component', (kind, component) => {
 		const view = blockViewFor(kind, everyInstalledPlugin);
 		expect(view && blockViewEntry(view).component).toBe(component);
+	});
+});
+
+// Miss-analysis: these refusals' rows sat in the hand-built surface's file and went with it,
+// though a DOM view still draws containers only.
+describe('a DOM view draws a container kind only', () => {
+	it('is refused on a kind with no container group', () => {
+		const kind = declarePluginKind('dom-view-on-a-leaf');
+		const view = defineBlockView({ surface: 'container', mount: () => ({}) });
+		expect(() => registerBlockKind(kind, { ...leaf, view })).toThrow(
+			/"dom-view-on-a-leaf" has no container group, but `defineBlockView` draws a container kind/
+		);
+	});
+
+	it.each([
+		['an unknown surface', { surface: 'popover', mount: () => ({}) }],
+		['the hand-built surface, gone', { surface: 'none', mount: () => ({}) }],
+		['no surface', { mount: () => ({}) }],
+		['a mount that is not a function', { surface: 'container', mount: 'draw' }]
+	])('defineBlockView refuses %s', (_name, spec) => {
+		expect(() => defineBlockView(spec as unknown as BlockViewSpec)).toThrow(/defineBlockView/);
 	});
 });

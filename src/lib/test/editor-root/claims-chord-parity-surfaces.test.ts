@@ -4,7 +4,7 @@
 // and an open menu, which takes Escape at the document wherever the caret is.
 import { afterEach, beforeAll, expect, it } from 'vitest';
 import { IMAGE_ALT_FIELD, IMAGE_CROP, IMAGE_CROP_APPLY } from '#lib/a11y-strings.js';
-import { defineBlockView, definePlugin, lineBlock } from '#lib/plugin.js';
+import { definePlugin, lineBlock } from '#lib/plugin.js';
 import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import { registerBuiltInDescriptors } from '#lib/schema/built-in-descriptors.js';
 import {
@@ -15,7 +15,6 @@ import {
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { pressKey } from '#lib/test/harness/settle.js';
 import { cellAt } from '../blocks/table/mount-table';
-import { markerLeafPlugin } from '../plugins/fixtures/dom-views';
 import {
 	describeKeyless,
 	describeParity,
@@ -31,21 +30,8 @@ registerBuiltInDescriptors();
 
 const PROSE = 'para text here\n\n# heading text\n\n| A | B |\n| --- | --- |\n| 1 | middle |\n';
 
-// A hand-built block holding a button and a text field, the shape a plugin's own editor takes.
-const badge = markerLeafPlugin(
-	defineBlockView({
-		surface: 'none',
-		mount(target) {
-			const button = document.createElement('button');
-			button.textContent = 'badge';
-			target.append(button, document.createElement('textarea'));
-			return { destroy: () => target.replaceChildren() };
-		}
-	}),
-	'claims-badge'
-);
-
-// A box with a field of its own, which leaves its keys to the field and its Escape to the editor.
+// A box with a button and a field of its own, the shape a plugin's own editor takes: it leaves
+// its keys to the field and its Escape to the editor.
 const fieldBox = definePlugin({
 	name: 'claims-box',
 	version: '1.0.0',
@@ -61,7 +47,9 @@ const fieldBox = definePlugin({
 				edit: 'box',
 				draw: () => {
 					const dom = document.createElement('div');
-					dom.append(document.createElement('textarea'));
+					const button = document.createElement('button');
+					button.textContent = 'badge';
+					dom.append(button, document.createElement('textarea'));
 					return { dom };
 				}
 			})
@@ -224,18 +212,10 @@ const CONTEXTS: ClaimContext[] = [
 		}
 	},
 	{
-		name: 'hand-built block button',
-		source: 'intro\n\n@@ badge\n\noutro\n',
-		plugins: [badge],
+		name: 'drawn box button',
+		source: 'intro\n\n%%field\n\noutro\n',
+		plugins: [fieldBox],
 		enter: async (editor) => focusIn(editor.target.querySelector('[data-block-path="[1]"] button'))
-	},
-	{
-		name: 'hand-built block text field',
-		focus: { at: 'field', path: [1] },
-		source: 'intro\n\n@@ badge\n\noutro\n',
-		plugins: [badge],
-		enter: async (editor) =>
-			focusIn(editor.target.querySelector('[data-block-path="[1]"] textarea'))
 	},
 	{
 		name: 'drawn box text field',

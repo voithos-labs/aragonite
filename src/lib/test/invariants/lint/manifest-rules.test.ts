@@ -254,6 +254,8 @@ const BACKFILL_CALL = /\b(?:ensureEditableContainers|readAsOpened)\s*\(/;
 const PLAIN_READS: Record<string, string> = {
 	'src/lib/schema/opened-reading.ts':
 		'opened reading: defines `readAsOpened`, the parse every reader of nodes the editor holds goes through',
+	'src/lib/components/editor-root/headless-grammar.ts':
+		'hands on: `grammar(plugins).parse` reads through `initDocument`, which reads with `readAsOpened`; the name is the published method, not a plain read',
 	'src/lib/schema/container-raw.ts':
 		'probe: reads one line alone to name the kind it opens; a container’s own bytes go through `parseContainerRaw`, which fills in',
 	'src/lib/tree-operations/list/task-paragraph.ts':

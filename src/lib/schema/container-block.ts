@@ -7,7 +7,7 @@ import type { NodeView } from '../core/node-views';
 import type { IndentedLines, MarkedLines } from '../core/strip-lines';
 import type { ContainerLines } from '../core/parsers/strip-container';
 import type { BuiltinRegistration } from './block-kind-descriptor';
-import { fixtureOf, heightEstimate, type BlockCommon } from './block-shapes';
+import { fixtureOf, heightEstimate, type BlockCommon, type DrawDepends } from './block-shapes';
 import type { Block } from './doc-view';
 import type { ContainerDrawContext, Drawn } from './drawing';
 
@@ -16,18 +16,22 @@ export type { ContainerLines } from '../core/parsers/strip-container';
 // ── Spec ─────────────────────────────────────────────────────────────────────
 
 /** A block holding other blocks; the editor writes its bytes from `lines`, never the plugin. */
-export interface ContainerSpec<D> extends BlockCommon<D> {
+export type ContainerSpec<D> = BlockCommon<D> & {
 	lines: ContainerLines<D>;
 	/** Text joined to its end from below lands in its deepest text block; default true. */
 	joins?: boolean;
 	/** A pasted container of this type joins one it lands in, where `key` names a data field the
 	 *  two must share; absent, it nests. */
 	merges?: { key?: keyof NoInfer<D> & string };
-	draw?(
-		block: Block<NoInfer<D>>,
-		ctx: ContainerDrawContext
-	): Drawn<NoInfer<D>, ContainerDrawContext>;
-}
+} & (
+		| { draw?: never; depends?: never }
+		| ({
+				draw(
+					block: Block<NoInfer<D>>,
+					ctx: ContainerDrawContext
+				): Drawn<NoInfer<D>, ContainerDrawContext>;
+		  } & DrawDepends)
+	);
 
 // ── Derived ──────────────────────────────────────────────────────────────────
 

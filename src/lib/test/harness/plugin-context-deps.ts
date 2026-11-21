@@ -6,8 +6,20 @@ import type { InlineMenuRegistry } from '#lib/inline-menu/types.js';
 import type { InsertMarkdownOptions } from '#lib/editor-props.js';
 import { kitReading } from '#lib/testing/kit-reading.js';
 import type { InstalledPlugin, PluginError } from '#lib/schema/plugin-unit.js';
+import type { Doc } from '#lib/schema/doc-view.js';
+import type { View } from '#lib/schema/view.js';
+import type { PluginEventReads } from '#lib/editor-events.js';
 import type { Command } from '#lib/schema/plugin-command.js';
 import { idleDraftRegistry } from './drafts';
+
+const INERT_VIEW: View = {
+	boxOf: () => null,
+	boxesOf: () => [],
+	caretBox: () => null,
+	posAt: () => null,
+	reveal: async () => false,
+	overlay: () => () => {}
+};
 
 export const noopDecorations: DecorationRegistry = {
 	addSource: () => ({ invalidate() {}, dispose() {} })
@@ -51,8 +63,27 @@ export const pluginContextDeps = (
 	claims: (() => false) as (event: KeyboardEvent) => boolean,
 	openMenu: () => false,
 	openRows: () => ({ isOpen: false, close() {} }),
+	doc: (): Doc => {
+		throw new Error('the inert plugin context holds no document');
+	},
+	selection: () => null,
+	select: async () => false,
+	view: {
+		view: INERT_VIEW,
+		overlay: () => () => {},
+		dispose: () => {}
+	},
+	pluginEvents: (): PluginEventReads => ({
+		edit: () => {
+			throw new Error('the inert plugin context writes nothing');
+		},
+		selection: () => null,
+		doc: () => {
+			throw new Error('the inert plugin context holds no document');
+		},
+		listenForEdits: () => () => {}
+	}),
 	blockAt: () => null,
-	selectedRange: () => null,
 	repaint: () => {},
 	units: (): readonly InstalledPlugin[] => [],
 	pluginNames: (): readonly string[] => [],

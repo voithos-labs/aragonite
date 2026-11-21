@@ -57,8 +57,8 @@ export function createTypingWord(): TypingWord {
  *  it's let go. A keystroke lands before the editor paints its block, so the word never shows. */
 export function followTyping(editor: Editor, typing: TypingWord): void {
 	const caret = (): number | null => {
-		const range = editor.selectedRange();
-		return range && range.from === range.to ? range.from : null;
+		const selection = editor.selection;
+		return selection?.empty && !selection.cells ? selection.head : null;
 	};
 	const show = (word: Span | null): void => {
 		const block = word && editor.blockAt(word.from);
@@ -68,6 +68,6 @@ export function followTyping(editor: Editor, typing: TypingWord): void {
 		if (event.op === 'input') typing.typed(caret());
 		else show(typing.release());
 	});
-	editor.on('selectionChange', () => show(typing.moved(caret())));
-	editor.on('sourceSwap', () => void typing.release());
+	editor.on('selection', () => show(typing.moved(caret())));
+	editor.on('load', () => void typing.release());
 }

@@ -18,7 +18,7 @@ import type { StripRebuild } from './strip-rebuild';
 import { registeredChord, type KeyBinding } from './keybindings';
 import type { HeightEstimateEnv } from './height-estimates';
 import { closesOwnLine, rejectIncoherentPairs } from './registration-pairs';
-import { blockViewForm, domViewSpec, isBlockView, type BlockView } from './block-view';
+import { blockViewForm, isBlockView, type BlockView } from './block-view';
 import type { PluginActivation } from './plugin-activation';
 import type { RegistryRecord } from './plugin-registry';
 import type { BlockOpener } from './block-openers';
@@ -516,15 +516,12 @@ export function registerBlockKind(kind: AnyBlockKind, registration: BlockKindReg
 	storeKind('registerBlockKind', kind, fields, view);
 }
 
-/** A DOM view builds child blocks exactly when its kind declares a container group. */
+/** A DOM view builds child blocks, so only a kind declaring a container group takes one. */
 function rejectSurfaceMismatch(kind: AnyBlockKind, view: BlockView, isContainer: boolean): void {
-	if (blockViewForm(view) !== 'dom') return;
-	const { surface } = domViewSpec(view);
-	if ((surface === 'container') === isContainer) return;
+	if (blockViewForm(view) !== 'dom' || isContainer) return;
 	throw new TypeError(
-		`registerBlockKind: "${kind}" ${isContainer ? 'is a container' : 'has no container group'}, ` +
-			`but its view's surface is '${surface}': a container kind takes ` +
-			"`defineBlockView({ surface: 'container', ... })`, any other kind 'none'"
+		`registerBlockKind: "${kind}" has no container group, but \`defineBlockView\` draws a ` +
+			'container kind: draw it with `textBlockView()` or `svelteBlockView(Component)`'
 	);
 }
 
