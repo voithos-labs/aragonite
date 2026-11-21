@@ -8,6 +8,7 @@ import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { flushSync } from 'svelte';
 import { definePlugin } from '#lib/schema/plugin-install.js';
 import { lineBlock } from '#lib/components/block-makers/line-block.js';
+import { container } from '#lib/components/block-makers/container.js';
 import type { Block } from '#lib/schema/doc-view.js';
 import type { BoxDrawContext } from '#lib/schema/drawing.js';
 import {
@@ -305,6 +306,40 @@ describe('an editor with no drawing that declares depends', () => {
 		typeInto(surfaceAt(m, [2]), 'para oneX');
 		await m.settle();
 		expect(asked()).toBe(0);
+	});
+
+	// Miss-analysis: the types refuse `depends` without `draw`, so no row ran an untyped spec, and
+	// a container kept it under the editor's own drawing: its watch asked every block for nobody.
+	const BARE = { label: 'Bare', insert: { none: 'a test block type' }, depends: headingsIn };
+	const MARKED = {
+		shape: 'marked',
+		first: '%> ',
+		rest: '%> ',
+		reads: /^ {0,3}%>[ \t]?/,
+		lazy: true
+	};
+	it.each([
+		[
+			'a text block',
+			() => lineBlock({ ...BARE, name: 'bare', match: /^%%bare$/, sample: '%%bare' } as never),
+			'%%bare\n\n# Top\n'
+		],
+		[
+			'a container',
+			() => container({ ...BARE, name: 'bare', lines: MARKED, sample: '%> x' } as never),
+			'%> x\n\n# Top\n'
+		]
+	])('asks nothing for %s given depends with no draw', async (_name, type, source) => {
+		const plugin = definePlugin({
+			name: 'bare',
+			version: '1.0.0',
+			editor: '*',
+			contributes: () => ({ blocks: [type()] })
+		});
+		counting();
+		const m = mountEditor({ source, plugins: [plugin] });
+		await m.settle();
+		expect([asked(), takeDevWarnsOf('depends-unheard').length]).toEqual([0, 0]);
 	});
 });
 

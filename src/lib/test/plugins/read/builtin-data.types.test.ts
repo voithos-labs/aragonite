@@ -1,11 +1,26 @@
 /**
- * A built-in block's `data` as a plugin reads it, typed per kind from what the tree holds: a heading
- * narrowed with `is` reads `data.level` as a number, read-only, and each kind's typed fields are the
- * ones its block carries. The `@ts-expect-error` lines are assertions `npm run check` holds.
+ * A built-in block's `data` as a plugin reads it, a published type per kind: a heading narrowed with
+ * `is` reads `data.level` as a number, read-only, and each kind's typed fields are the ones its block
+ * carries, so a field the parser gains or renames fails a row. The `@ts-expect-error` lines are
+ * assertions `npm run check` holds.
  * Miss-analysis: no row read a built-in's data through its type, so the table typed it `never`.
  */
 import { describe, expect, it } from 'vitest';
-import { builtin, grammar, type Block, type BlockType } from '#lib/plugin.js';
+import {
+	builtin,
+	grammar,
+	type Block,
+	type BlockType,
+	type FencedCodeData,
+	type HeadingData,
+	type LinkReferenceDefinitionData,
+	type ListData,
+	type ListItemData,
+	type SetextHeadingData,
+	type TableData,
+	type TableRowData,
+	type ThematicBreakData
+} from '#lib/plugin.js';
 import { makeBlockNode, type BlockKind } from '#lib/core/nodes.js';
 import { DETACHED_READING, makeBlock } from '#lib/schema/doc-view.js';
 
@@ -28,6 +43,10 @@ export const typePins = (block: Block): void => {
 		// @ts-expect-error nor can a table's alignments be pushed to
 		block.data.alignments.push('left');
 	}
+	if (block.is(builtin.blocks.blockquote)) {
+		// @ts-expect-error a quote's count of its first line's `>` isn't published: it reads as a depth backwards
+		void block.data.quoteDepth;
+	}
 	if (block.is(builtin.blocks.paragraph)) {
 		const nothing: undefined = block.data;
 		// @ts-expect-error a paragraph carries no data
@@ -40,10 +59,27 @@ export const typePins = (block: Block): void => {
 
 type DataOf<K extends BlockKind> =
 	(typeof builtin.blocks)[K] extends BlockType<infer D> ? D : never;
+type Same<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
 
-// A document per kind and what its last block of that kind holds, typed by the table: a field the
-// type lacks fails to compile, and one the block holds that the type lacks fails the row.
-const CARRIES: { [K in BlockKind]: { source: string | null; data: DataOf<K> } } = {
+// The table hands out the published types, not the parser's own.
+export const published: [
+	Same<DataOf<'heading'>, HeadingData>,
+	Same<DataOf<'setextHeading'>, SetextHeadingData>,
+	Same<DataOf<'fencedCode'>, FencedCodeData>,
+	Same<DataOf<'thematicBreak'>, ThematicBreakData>,
+	Same<DataOf<'linkReferenceDefinition'>, LinkReferenceDefinitionData>,
+	Same<DataOf<'list'>, ListData>,
+	Same<DataOf<'listItem'>, ListItemData>,
+	Same<DataOf<'table'>, TableData>,
+	Same<DataOf<'tableRow'>, TableRowData>,
+	Same<DataOf<'blockquote'>, undefined>
+] = [true, true, true, true, true, true, true, true, true, true];
+
+// A document per kind and its last block's data, typed by the table; what the parser keeps and the
+// type leaves out is named in `held`, so a field the parser gains or renames fails the row.
+const CARRIES: {
+	[K in BlockKind]: { source: string | null; data: DataOf<K>; held?: object };
+} = {
 	heading: { source: '### Three\n', data: { level: 3 } },
 	setextHeading: { source: 'Two\n---\n', data: { level: 2 } },
 	paragraph: { source: 'plain\n', data: undefined },
@@ -61,7 +97,7 @@ const CARRIES: { [K in BlockKind]: { source: string | null; data: DataOf<K> } } 
 	tableCell: { source: '| a |\n| - |\n| 1 |\n', data: undefined },
 	// The parser makes no unrecognized block from text, so its row reads a node made by hand.
 	unrecognized: { source: null, data: undefined },
-	blockquote: { source: '> quoted\n', data: { quoteDepth: 1 } },
+	blockquote: { source: '> quoted\n', data: undefined, held: { quoteDepth: 1 } },
 	list: { source: '1. one\n', data: { ordered: true } },
 	listItem: {
 		source: '- [x] done\n',
@@ -88,11 +124,11 @@ function lastOfKind(kind: BlockKind, source: string | null): Block {
 describe("a built-in block's data", () => {
 	it.each(Object.entries(CARRIES) as [BlockKind, (typeof CARRIES)[BlockKind]][])(
 		'holds the fields its type names: %s',
-		(kind, { source, data }) => {
+		(kind, { source, data, held }) => {
 			const block = lastOfKind(kind, source);
 			// A type picked by a kind in hand is one of several, which `is` takes without narrowing.
 			expect(block.is(builtin.blocks[kind])).toBe(true);
-			expect(block.data).toStrictEqual(data);
+			expect(block.data).toStrictEqual(held ? { ...(data ?? {}), ...held } : data);
 		}
 	);
 });
