@@ -137,8 +137,9 @@ function devOnlyModules(outDir) {
 const HIGHLIGHT_JS = /(^|[\\/])node_modules[\\/]highlight\.js[\\/]/;
 
 /**
- * A failure when the production page carries highlight.js, which a core-only editor never loads
- * (G4.372). While the core's prebuilt leaves highlight.js external, the prebuilt page maps it too.
+ * A failure when the production page's maps name a highlight.js module, which a core-only editor
+ * never loads (G4.372). The core's prebuilt inlines what it imports, out of the maps' sight, so on
+ * that route G4.373's scan of the source is what holds.
  * @param {string} outDir
  * @param {'svelte' | 'prebuilt'} route
  */

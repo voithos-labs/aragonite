@@ -742,6 +742,6 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.357 · One guard's warnings, taken alone.** A test about one guard reads its fires through `takeDevWarnsOf(tag)` (`test/support/warn-gate.ts`), which leaves every other tag for the gate. A `takeDevWarns()` narrowed to one tag (a `filter`, a `some`) drops the rest unseen: a property did, and hid a check that fired on its every run. `lint/suite-file-rules.test.ts`.
 
-**G4.372 · A core-only page carries no highlight.js.** A core-only editor paints code plain, so `scripts/pack/verify-dev-strip.mjs` fails when its production page's source maps name a highlight.js module, through either build (the prebuilt one while the core leaves highlight.js external). Highlighting is the highlight package's, which an editor lists.
+**G4.372 · A core-only page carries no highlight.js.** A core-only editor paints code plain, so `scripts/pack/verify-dev-strip.mjs` fails when its production page's source maps name a highlight.js module, through either build. The core's prebuilt inlines what it imports, which the maps can't see, so on that route G4.373 is the guard. Highlighting is the highlight package's, which an editor lists.
 
 **G4.373 · The core imports no highlight.js.** No module under `src/lib/` imports it, so the page G4.372 builds can't start carrying it again; the highlight package and the tests may. `lint/file-rules.test.ts`.

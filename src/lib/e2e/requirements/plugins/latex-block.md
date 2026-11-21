@@ -2,7 +2,8 @@
 
 A `mathBlock` leaf renders its KaTeX display by default and shows the raw `$$…$$` source in a
 contenteditable on focus or click, re-rendering on blur. That source is painted like a code
-block's, with fence lines the marker-hiding modes collapse and LaTeX highlight tokens, and its
+block's, with fence lines the marker-hiding modes collapse (and LaTeX tokens where the highlight
+package is listed; these pages list latex alone, so the body is plain), and its
 `textContent` is the bytes. In the default `split` layout the render stays up beside it as a
 live preview, `stacked` puts the preview below, and `source` shows none. The block never merges
 with a neighbor and can take focus, and while its source is shown it behaves like a code block
@@ -48,7 +49,7 @@ prove.
   which `latex-block-click-caret.md` owns, rather than being pushed to a block edge by the
   reactive re-render; a character then typed inside the formula lands at the caret
 - **A7** a multiline `aligned` fence renders, and the source shown for it, painted as fence
-  lines and highlight spans, has a `textContent` equal to the raw text byte for byte, with its
+  lines and its body, has a `textContent` equal to the raw text byte for byte, with its
   internal `\n`s intact and nothing added, so the offset traversal is exact
 - A selection extended across the boundary of the shown source becomes a cross-block selection,
   and the source stays shown while the selection is live, since a widget the caret cannot enter
