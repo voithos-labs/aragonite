@@ -118,7 +118,7 @@ export function createDocumentRead(deps: {
 					// The `Doc` the write replaced is its holder's now, not the read's to keep.
 					if (replaced) current = null;
 					// Past this many writes a `Doc` from before them reads the text as it stands.
-					if (++chained > LOG_LIMIT) undone = null;
+					if (++chained >= LOG_LIMIT) undone = null;
 				}
 				changes.heard(write, deps.getDoc());
 				log.push(runs);

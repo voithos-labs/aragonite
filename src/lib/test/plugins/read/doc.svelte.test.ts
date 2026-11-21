@@ -154,6 +154,27 @@ describe('Doc', () => {
 		}
 	);
 
+	// Miss-analysis: the bound came after the chain's rows, and no row made more than a few writes.
+	it.each([
+		[1024, 'its own text'],
+		[1025, 'the text as it stands, with the stale warning']
+	])(
+		'past %i writes from an unread version, reads %s',
+		async (writes) => {
+			const { editor, m } = await mounted('one\n');
+			const held = editor.doc;
+			const el = surfaceAt(m, [0]);
+			for (let i = 1; i <= writes; i++) {
+				typeInto(el, `one${'x'.repeat(i)}`);
+				await m.settle();
+			}
+			const rebuilt = writes <= 1024;
+			expect(held.text).toBe(rebuilt ? 'one\n' : m.source());
+			expect(takeDevWarnsOf('stale-doc').length).toBe(rebuilt ? 0 : 1);
+		},
+		60_000
+	);
+
 	// Miss-analysis: a new home; no plugin read a document a write had replaced before.
 	it('warns once when a replaced version reads its blocks, which are the document as it stands', async () => {
 		const { editor, m } = await mounted(DOC);
