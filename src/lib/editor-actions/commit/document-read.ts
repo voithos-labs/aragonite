@@ -366,8 +366,11 @@ function textBefore(head: Undone, doc: DocumentView, now: number): string[] | nu
 			delta += run.inserted - run.removed;
 			return at;
 		});
-		for (let r = runs!.length - 1; r >= 0; r--)
-			pieces.splice(2 * after[r], 2 * runs![r].inserted, ...gone[r]);
+		// Joined, not spread into `splice`: a run can replace a document's worth of blocks.
+		for (let r = runs!.length - 1; r >= 0; r--) {
+			const at = 2 * after[r];
+			pieces = pieces.slice(0, at).concat(gone[r], pieces.slice(at + 2 * runs![r].inserted));
+		}
 	}
 	return pieces;
 }
