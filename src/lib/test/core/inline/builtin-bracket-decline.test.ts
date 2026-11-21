@@ -1,11 +1,12 @@
 // The editor declines a plugin's claim at `[` or `![` wherever the built-in reading of that
 // bracket closes it as a link or image inside the claim, so no plugin decides the overlap itself.
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import fc from 'fast-check';
 import type { InlineNode } from '#lib';
 import { parseInline } from '#lib';
 import { INLINE_PRIORITIES, registerInlineSyntax } from '#lib/plugin.js';
 import { resetPluginPlatformForTests } from '#lib/testing.js';
+import { Scan } from '#lib/core/inline/scan/scan.js';
 import { arbInlineSource } from '../../invariants/arbitraries/inline';
 import { freshOrFixedSeed } from '../../invariants/arbitraries/property-seed';
 import { expectBoundedGrowth, measureScanGrowth } from '../../harness/scan-growth';
@@ -61,6 +62,30 @@ describe('a plugin claim at a bracket a built-in link or image completes from', 
 		wiki();
 		const [link] = parseInline('[see [[note]]](u)', 0, 17);
 		expect(link.children?.map((n) => n.kind)).toEqual(['text', 'wiki']);
+	});
+});
+
+// Miss-analysis: the decline's rows checked what a claim reads as, never what it cost, so a
+// footnote reference probed its bracket with no definition that could make it a link.
+describe('the probe behind the decline', () => {
+	const probes = () => vi.spyOn(Scan.prototype as unknown as { completes(): boolean }, 'completes');
+	const noteDefined = (label: string) => (label === '^1' ? { url: '/n' } : undefined);
+
+	it.each([
+		['no `[^`', 'plain words, a [link](u) and [x]'],
+		['four `[^` claims', 'a [^1] b [^2] c [^3] d [^4]']
+	])('runs for none of %s, as no probe did before the decline', (_name, raw) => {
+		footnote();
+		const counted = probes();
+		kinds(raw, () => undefined);
+		expect(counted).not.toHaveBeenCalled();
+	});
+
+	it('runs for a claim whose label a definition names, which reads as the link', () => {
+		footnote();
+		const counted = probes();
+		expect(kinds('[^1] and [^2]', noteDefined)).toEqual(['link', 'text', 'note']);
+		expect(counted).toHaveBeenCalledTimes(1);
 	});
 });
 

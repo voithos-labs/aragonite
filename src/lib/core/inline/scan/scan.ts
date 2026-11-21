@@ -233,11 +233,15 @@ export class Scan {
 	}
 
 	private builtinCompletes(pos: number, until: number): boolean {
-		const { readers } = this;
+		const { readers, raw } = this;
 		if (readers.askedAt === pos && readers.askedUntil === until) return readers.answer;
-		const textOpensBracket = this.raw[pos + (this.raw[pos] === '!' ? 2 : 1)] === '[';
-		if (textOpensBracket && !holdsLinkTail(this.raw, pos, until)) return false;
-		readers.probe ??= new Scan(this.raw, pos, this.end, this.resolver, this.grammar, {
+		const text = pos + (raw[pos] === '!' ? 2 : 1);
+		const tail = holdsLinkTail(raw, pos, until);
+		if (raw[text] === '[' && !tail) return false;
+		// Its one `]` ending the claim, the bracket closes there with no tail only as a reference.
+		const oneClose = raw[until - 1] === ']' && raw.indexOf(']', text) === until - 1;
+		if (oneClose && !tail && !this.resolver?.(raw.slice(text, until - 1))) return false;
+		readers.probe ??= new Scan(raw, pos, this.end, this.resolver, this.grammar, {
 			readers,
 			until
 		});
