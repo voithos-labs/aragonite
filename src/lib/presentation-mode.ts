@@ -58,6 +58,32 @@ export function tagsConstructMarkers(mode: PresentationMode): boolean {
 	return mode === 'preview-inline';
 }
 
+/** A presentation mode as a plugin reads it: its name, whether the author can write in it, and
+ *  where Markdown's markers show (always, never, in the caret's block, or in the construct under
+ *  the caret). One object per mode, so two reads of one mode are equal. */
+export interface Mode {
+	readonly name: PresentationMode;
+	readonly editable: boolean;
+	readonly markers: 'shown' | 'hidden' | 'caret-block' | 'caret-construct';
+}
+
+/** The `Mode` named `name`, its facets read off the checks above so the two can't disagree. */
+export function modeOf(name: PresentationMode): Mode {
+	return (FACETS[name] ??= Object.freeze({
+		name,
+		editable: !isReadingMode(() => name),
+		markers: !hidesMarkers(name)
+			? 'shown'
+			: tagsConstructMarkers(name)
+				? 'caret-construct'
+				: isPreviewMode(name)
+					? 'caret-block'
+					: 'hidden'
+	}));
+}
+
+const FACETS: Partial<Record<PresentationMode, Mode>> = {};
+
 /** The read-only check every dispatch path keys off. A plain getter type keeps `schema/` and
  *  `selection/` off `editor-keys`; the getter is required, since only the editor picks the default. */
 export function isReadingMode(getMode: () => PresentationMode): boolean {

@@ -53,6 +53,9 @@ export interface DeadSpaceCaret {
 	/** {@link placeAtPoint} read now and placed when the returned call runs, for a gesture that
 	 *  places later than its press; null where the point places nothing. */
 	planAtPoint(root: HTMLElement, x: number, y: number): (() => void) | null;
+	/** Where {@link placeAtPoint} would put the caret, placing nothing: the start of the block
+	 *  below a gap; null where it places nothing, or only once an unmounted tail mounts. */
+	positionAt(root: HTMLElement, x: number, y: number): CaretTarget | null;
 	/** Whether a click target is the editor's dead space (the root, or a block list inside it). */
 	isDeadSpaceTarget(root: HTMLElement, target: EventTarget | null): boolean;
 	/** Where a click at the point would land, as a drag anchor: a text offset, or the whole block
@@ -86,25 +89,15 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 		return place !== null;
 	}
 
-	// Every read happens before the returned call places anything: placing a caret can close a
-	// shown source, which redraws the line the point was read against.
-	function planAtPoint(root: HTMLElement, x: number, y: number): (() => void) | null {
+	/** What a click at the point lands on, read and nothing placed: a root-level gap, the
+	 *  unmounted tail, or a block and the caret target in it. */
+	function targetAt(root: HTMLElement, x: number, y: number): PointTarget | null {
 		// One measuring pass, so the gap check and the nearest-block clamp read the same boxes.
 		const blocks = measureBlocks(root);
 		const boundary = rootBoundaryOutsideBands(blocks, y);
-		if (boundary !== null && canGapStop(deps.gapScope, [], boundary)) {
-			return () => {
-				// The reset runs first, as for a block below: it clears the gap caret, so nothing may
-				// run between it and `placeGapCaret`, which also ends a live range (G2.12).
-				deps.resetSelectionForClick();
-				placeGapCaret(deps.gapScope.selection, deps.gapScope.caretWriter, {
-					parentPath: [],
-					index: boundary
-				});
-			};
-		}
+		if (boundary !== null && canGapStop(deps.gapScope, [], boundary)) return { gap: boundary };
 		const near = hitAtDocumentPoint(root, blocks, x, y, deps.lastBlockIndex());
-		if (near === UNMOUNTED_TAIL) return () => void landAtDocumentEnd(root, x);
+		if (near === UNMOUNTED_TAIL) return { tail: true };
 		if (!near) return null;
 		const { hit, x: probeX, y: probeY } = near;
 		// A block with no text line (an equation, a table, source shown only while editing) takes
@@ -113,16 +106,34 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 		if ((!hit.charSurface || transient) && !pressedOnBlockContent(root, x, y)) return null;
 		const landing = landingFor(hit, probeX, probeY);
 		if (!landing) return null;
-
 		const component = deps.getBlockComponent(hit.path);
 		if (!component?.focusable) return null;
 		// A caret target inside a grid needs `focusByPath`; declining a block that lacks it keeps
 		// the selection intact.
 		if (landing.path.length > 0 && !component.focusByPath) return null;
+		return { path: hit.path, landing, component, probeX, probeY };
+	}
+
+	// Every read happens before the returned call places anything: placing a caret can close a
+	// shown source, which redraws the line the point was read against.
+	function planAtPoint(root: HTMLElement, x: number, y: number): (() => void) | null {
+		const target = targetAt(root, x, y);
+		if (!target) return null;
+		if ('gap' in target) {
+			return () => {
+				// The reset runs first, as for a block below: it clears the gap caret, so nothing may
+				// run between it and `placeGapCaret`, which also ends a live range (G2.12).
+				deps.resetSelectionForClick();
+				placeGapCaret(deps.gapScope.selection, deps.gapScope.caretWriter, {
+					parentPath: [],
+					index: target.gap
+				});
+			};
+		}
+		if ('tail' in target) return () => void landAtDocumentEnd(root, x);
+		const { path, landing, component, probeX, probeY } = target;
 		const leaf =
-			landing.path.length === 0
-				? component
-				: deps.getBlockComponent([...hit.path, ...landing.path]);
+			landing.path.length === 0 ? component : deps.getBlockComponent([...path, ...landing.path]);
 		// The block's own snap answers the clamped point as a click there, so a caret beside a
 		// non-editable widget is painted rather than showing nothing.
 		const snap = leaf?.readSnapAtPoint?.(probeX, probeY);
@@ -137,6 +148,13 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 			else component.focusByPath!(landing.path, landing.offset);
 			snap?.();
 		};
+	}
+
+	function positionAt(root: HTMLElement, x: number, y: number): CaretTarget | null {
+		const target = targetAt(root, x, y);
+		if (!target || 'tail' in target) return null;
+		if ('gap' in target) return { path: [target.gap], offset: 0 };
+		return { path: [...target.path, ...target.landing.path], offset: target.landing.offset };
 	}
 
 	/** The nearest block's hit for a press; a point below an unmounted tail names none. */
@@ -188,11 +206,23 @@ export function createDeadSpaceCaret(deps: DeadSpaceCaretDeps): DeadSpaceCaret {
 		},
 
 		placeAtPoint,
-		planAtPoint
+		planAtPoint,
+		positionAt
 	};
 }
 
 // ── Internal ───────────────────────────────────────────────────────────────
+
+type PointTarget =
+	| { gap: number }
+	| { tail: true }
+	| {
+			path: number[];
+			landing: CaretTarget;
+			component: BlockComponent;
+			probeX: number;
+			probeY: number;
+	  };
 
 /** The root-level gap a `y` outside every block's box names. Below the last block is excluded:
  *  that click means end of document, and the last mounted block may not be the last block. */

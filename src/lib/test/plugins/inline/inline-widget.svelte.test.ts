@@ -77,7 +77,11 @@ describe('an inline() widget in a mounted editor', () => {
 		await editor.settle();
 		expect(shellIn(blockHostAt(editor, [1])).textContent).toBe('note');
 		const [props] = drawn;
-		expect(props).toMatchObject({ data: { target: 'note' }, source: '[[note]]', mode: 'live' });
+		expect(props).toMatchObject({
+			data: { target: 'note' },
+			source: '[[note]]',
+			mode: { name: 'live', editable: true }
+		});
 		expect(props.theme).toBeTypeOf('string');
 		expect(props.editor.plugins).toContain('wiki');
 		expect([props.from, props.to]).toEqual([11, 19]);
@@ -102,7 +106,7 @@ describe('an inline() widget in a mounted editor', () => {
 		await editor.settle();
 		editor.props.presentationMode = 'reading';
 		await editor.settle();
-		expect(drawn.at(-1)!.mode).toBe('reading');
+		expect(drawn.at(-1)!.mode.name).toBe('reading');
 	});
 
 	it("runs `follow` on the host's link click, and not on a double click", async () => {

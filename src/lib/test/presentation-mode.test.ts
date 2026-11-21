@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
 	hidesDelimitersAtCaret,
 	isReadingMode,
+	modeOf,
+	type Mode,
 	type PresentationMode
 } from '#lib/presentation-mode.js';
 import type { InlineWidgetComponentProps } from '#lib/plugin.js';
@@ -27,6 +29,23 @@ describe('hidesDelimitersAtCaret', () => {
 			expect(hidesDelimitersAtCaret(mode as PresentationMode)).toBe(hides);
 		});
 	}
+});
+
+// Keyed by the union, so a new mode fails `npm run check` here until its facets are decided.
+const FACETS: Record<PresentationMode, Omit<Mode, 'name'>> = {
+	source: { editable: true, markers: 'shown' },
+	'preview-block': { editable: true, markers: 'caret-block' },
+	'preview-inline': { editable: true, markers: 'caret-construct' },
+	live: { editable: true, markers: 'hidden' },
+	reading: { editable: false, markers: 'hidden' }
+};
+
+describe('modeOf', () => {
+	it.each(Object.entries(FACETS))('%s reads its facets, one object per mode', (name, facets) => {
+		const mode = modeOf(name as PresentationMode);
+		expect(mode).toEqual({ name, ...facets });
+		expect(modeOf(name as PresentationMode)).toBe(mode);
+	});
 });
 
 // Every route that hands down a value the editor owns (its theme, its mode, its document reads)

@@ -21,6 +21,7 @@ import type { Editor } from '../../schema/plugin-unit';
 import { mintWidgetShell, widgetSourceRange } from '../../core/inline/widget-shell';
 import type { ActivationClick, ClickInput } from '../../activation-click';
 import type { Reading } from '../../schema/reading';
+import { modeOf } from '../../presentation-mode';
 import { tracePoolPass } from '../../debug/interaction-trace';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 import { checkPoolBracket } from '../../invariants/inline-transitions';
@@ -283,7 +284,7 @@ export function createViewWidgetPool(deps: ViewWidgetPoolDeps): WidgetPool {
 			get to() {
 				return deps.own.byteAt(at.end);
 			},
-			mode: reading.mode(),
+			mode: modeOf(reading.mode()),
 			theme: getTheme(),
 			editor
 		});
@@ -312,7 +313,7 @@ export function createViewWidgetPool(deps: ViewWidgetPoolDeps): WidgetPool {
 				props = propsAt(at);
 				return mounted.update(props);
 			},
-			stale: () => props.mode !== reading.mode() || props.theme !== getTheme()
+			stale: () => props.mode.name !== reading.mode() || props.theme !== getTheme()
 		};
 	}
 }

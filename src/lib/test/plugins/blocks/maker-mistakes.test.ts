@@ -10,6 +10,7 @@ import type { Block } from '#lib/schema/doc-view.js';
 import type { Draft } from '#lib/schema/drafts.js';
 
 const line = { label: 'L', sample: '%%l', insert: { none: 'a compile row' } };
+const MARKED = { shape: 'marked', first: '%> ', rest: '%> ', reads: /^%> ?/, lazy: true } as const;
 
 // Never called: a mistaken spec is only ever read by the type checker.
 function mistakes(draft: Draft, plain: Block<never>, numbered: Block<number>) {
@@ -58,12 +59,24 @@ function mistakes(draft: Draft, plain: Block<never>, numbered: Block<number>) {
 		write: (n) => `%%f ${n}`,
 		before: builtin.blocks.heading
 	});
+	// What a block type reads of the document is handed to its drawings, so one needs a `draw`.
+	// @ts-expect-error `depends` without `draw`
+	const k = lineBlock({ ...line, name: 'k', match: /^%%k$/, depends: () => '' });
+	// @ts-expect-error a container's `depends` needs its own `draw` too
+	const l = container({ ...line, name: 'l', lines: MARKED, depends: () => '' });
+	const reads = lineBlock({
+		...line,
+		name: 'reads',
+		match: /^%%reads$/,
+		depends: (block) => block.text,
+		draw: (_block, ctx) => ({ dom: ctx.source })
+	});
 	// @ts-expect-error a block type whose lines carry no data can't be given any
 	draft.data(plain, 1);
 	// @ts-expect-error a block not narrowed to its type can't be given data
 	draft.data(numbered.children[0], 1);
 	draft.data(numbered, 2);
-	return [a, b, c, d, e, f, g, h, i, j, fine];
+	return [a, b, c, d, e, f, g, h, i, j, k, l, reads, fine];
 }
 
 describe('a block type mistake', () => {

@@ -2,6 +2,12 @@ import { describe, it, expect } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { ancestorsOf, walkBlocks } from '#lib/core/paths.js';
 import type { NodeView } from '#lib/core/node-views.js';
+import {
+	disablePerfInstruments,
+	enablePerfInstruments,
+	perfSnapshot,
+	resetPerfInstruments
+} from '#lib/perf/instruments.js';
 
 // A quote holding a list, then a top-level paragraph: three levels deep, siblings at each.
 const SOURCE = '> - a\n> - b\n>\n> c\n\nd\n';
@@ -44,6 +50,29 @@ describe('walkBlocks', () => {
 		expect(stopped).toBe(true);
 		expect(seen).toEqual(['0', '0.0', '0.0.0']);
 		expect(walkBlocks(parse(SOURCE), () => {})).toBe(false);
+	});
+
+	// Miss-analysis: the walk counter's rows asked how many walks ran, never what counting one
+	// read: on the editor's tree a question to the root is a tracked read, in production too.
+	it('asks its root for its children and nothing else while the counters are off', () => {
+		const asked: (string | symbol)[] = [];
+		const root = new Proxy(parse(SOURCE), {
+			get: (target, key, receiver) => (asked.push(key), Reflect.get(target, key, receiver)),
+			has: (target, key) => (asked.push(key), Reflect.has(target, key))
+		});
+		walkBlocks(root, () => {});
+		expect(asked).toEqual(['children']);
+	});
+
+	it('counts a walk of a whole document, and not one of a block inside it', () => {
+		const doc = parse(SOURCE);
+		resetPerfInstruments();
+		enablePerfInstruments();
+		walkBlocks(doc, () => {});
+		walkBlocks(doc.children[0], () => {});
+		const { documentWalks } = perfSnapshot();
+		disablePerfInstruments();
+		expect(documentWalks).toBe(1);
 	});
 
 	it('prefixes every path with basePath when walking a subtree', () => {

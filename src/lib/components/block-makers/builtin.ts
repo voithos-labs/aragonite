@@ -7,11 +7,12 @@ import {
 	type InlineNodeKind
 } from '../../core/nodes';
 import type { InlineType } from '../../schema/doc-view';
+import type { BuiltinData } from '../../schema/builtin-data';
 import { blockKindLabel } from '../../a11y-strings';
 import type { BlockType } from '../../schema/plugin-unit';
 
 export const builtin: {
-	readonly blocks: Readonly<Record<BlockKind, BlockType>>;
+	readonly blocks: { readonly [K in BlockKind]: BlockType<BuiltinData<K>> };
 	readonly inlines: Readonly<Record<InlineNodeKind, InlineType>>;
 } = {
 	// Marked pure so a build that never reads the table leaves it out.
@@ -20,7 +21,7 @@ export const builtin: {
 			kind,
 			{ name: kind, label: blockKindLabel(kind) }
 		])
-	) as Record<BlockKind, BlockType>,
+	) as { [K in BlockKind]: BlockType<BuiltinData<K>> },
 	inlines: /* @__PURE__ */ Object.fromEntries(
 		/* @__PURE__ */ Object.keys(INLINE_KIND_TABLE).map((kind) => [kind, { name: kind }])
 	) as Record<InlineNodeKind, InlineType>

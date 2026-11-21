@@ -6,7 +6,12 @@
 	import type { EditorProps } from './editor-component-props';
 	import type { EditorInstance, EditorDiagnostics, InsertMarkdownOptions } from '../editor-props';
 	import type { Draft } from '../schema/drafts';
-	import type { EditorEventMap, EditorEvents } from '../editor-events';
+	import {
+		onPluginEvent,
+		type EditorEvents,
+		type Events,
+		type PluginEventReads
+	} from '../editor-events';
 	import {
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
@@ -46,7 +51,7 @@
 	import { createKeptStarts } from '../editor-actions/commit/kept-starts';
 	import { findSurfacePathForElement } from '../selection/path-lookup';
 	import { createSelectionDescription } from '../selection/selection-description';
-	import { EDITOR_LABEL, blockKindLabel } from '../a11y-strings';
+	import { EDITOR_LABEL } from '../a11y-strings';
 	import TailInsert from './TailInsert.svelte';
 	import BlockMenu from './menu/BlockMenu.svelte';
 	import { createMenuPresence } from './menu/menu-presence.svelte';
@@ -55,10 +60,11 @@
 	import { createShownSourceState } from './blocks/text/shown-source.svelte';
 	import { createDocumentStamps } from '../editor-actions/commit/document-stamp';
 	import { failWrite, startsAlone } from '../editor-actions/commit/reading-write-gate';
-	import { isCollapsed, type EditorSelection } from '../selection/primitives';
+	import { isCollapsed, selectionsEqual, type EditorSelection } from '../selection/primitives';
 	import { widgetSpanAt } from './blocks/text/widget-adjacency';
 	import { assignIds } from '../block-id';
 	import { createDocumentSwap, initDocument } from './editor-root/document-swap';
+	import { blockTypeIn } from './editor-root/headless-grammar';
 	import { blockNodeAt } from '../tree-operations/node-primitives';
 	import { defaultLinkActivation } from '../core/url-policy';
 	import { bindActivationClick, createPressTracker } from '../activation-click';
@@ -81,6 +87,8 @@
 	import { paintedMarkRects, passPointerThrough } from '../decorations/mark-interactions';
 	import type { DecorationRegistry } from '../decorations/types';
 	import { createEditorRects, type EditorRects } from '../editor-rects';
+	import { createEditorView } from '../editor-view';
+	import { observeResize } from '../windowing/observe-resize';
 	import { createCaretLanding } from '../selection/caret-landing';
 	import { installReorderDrag } from '../editor-actions/reorder-drag';
 	import { createPasteCoordinator } from '../editor-actions/paste-coordinator';
@@ -163,7 +171,7 @@
 		type PluginError,
 		type PluginList
 	} from '../schema/plugin-unit';
-	import { nodeOfBlock, type Block } from '../schema/doc-view';
+	import { nodeOfBlock, type Block, type Doc } from '../schema/doc-view';
 	import { createPaintSources } from '../decorations/plugin-paint.svelte';
 	import { createDocumentRead } from '../editor-actions/commit/document-read';
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
@@ -172,7 +180,10 @@
 	import { installBlockTypes } from '../schema/block-type';
 	import { installInlines } from '../schema/inline-type';
 	import type { Reading } from '../schema/reading';
-	import { hidesDelimitersAtCaret, type PresentationMode } from '../presentation-mode';
+	import { hidesDelimitersAtCaret, modeOf, type PresentationMode } from '../presentation-mode';
+	import { selectionOf, selectionTarget } from '../editor-actions/commit/plugin-selection';
+	import type { Selection, SelectionInput } from '../schema/selection-read';
+	import type { NodeView } from '../core/node-views';
 	import BlockList from './BlockList.svelte';
 	import SearchBar from './SearchBar.svelte';
 	import SelectionToolbar from './menu/SelectionToolbar.svelte';
@@ -398,6 +409,7 @@
 	// shadow the host's tokens.
 	const inThemedScope = $derived(!!editorEl?.closest('.aragonite-editor-theme'));
 	let headerEl: HTMLDivElement | undefined = $state();
+	let overlayLayerEl: HTMLDivElement | undefined = $state();
 	let findBarEl: HTMLDivElement | undefined = $state();
 	let typeScaleProbeEl: HTMLDivElement | undefined = $state();
 	let widthProbeEl: HTMLDivElement | undefined = $state();
@@ -408,10 +420,15 @@
 	const autoPairs = createAutoPairRecord();
 	const operationsLog = createOperationsLog();
 	const events = createEditorEvents();
+	// Counts announced selection changes, so the handle's `selection` reads again after one.
+	let selectionMoves = $state(0);
 	// getSelection is function-hoisted below, so every read here is a fresh snapshot.
 	const selectionAnnouncer = createSelectionAnnouncer({
 		read: () => getSelection(),
-		emit: (selection) => events.emit('selectionChange', selection)
+		emit: (selection) => {
+			selectionMoves++;
+			events.emit('selectionChange', selection);
+		}
 	});
 	const selectionState = createSelectionState({
 		onChange: ({ placementOnly }) => {
@@ -591,10 +608,10 @@
 		untrack(() => documentSwap.swapTo(next));
 	});
 
-	/** Whether `node` is in the host's header; every "is this editor content" check asks here.
-	 *  Focus tracking uses `contains` instead, since the header counts as part of the editor. */
+	/** Whether `node` is in the host's header or a view overlay; every "is this editor content"
+	 *  check asks here. Focus tracking uses `contains` instead, since both count as the editor. */
 	function isHostChrome(node: Node | null): boolean {
-		return !!node && !!headerEl && headerEl.contains(node);
+		return !!node && (!!headerEl?.contains(node) || !!overlayLayerEl?.contains(node));
 	}
 
 	function isFindBar(node: Node | null): boolean {
@@ -779,7 +796,10 @@
 		getDoc,
 		measured: starts.read,
 		typeOf: blockTypeOf,
-		reading
+		reading,
+		version: () => untrack(contentVersion.read),
+		source: starts.source,
+		follow: starts.follow
 	});
 
 	const paints = createPaintSources({
@@ -791,7 +811,9 @@
 			return node ? documentRead.blockOf(node, path) : null;
 		},
 		rectsOf: (dec) => paintedMarkRects(dec, getBlockComponent),
-		report: reportPluginError
+		report: reportPluginError,
+		keys: documentRead.keys,
+		contentVersion: contentVersion.read
 	});
 	const paintSources = $derived(paints.list);
 	// The find bar's highlights come first while it's open.
@@ -807,13 +829,8 @@
 		);
 	}
 
-	// A plugin's own block type, else one named by its kind, which `is` matches to `builtin.blocks`.
 	function blockTypeOf(kind: AnyBlockKind): BlockType<unknown> {
-		for (const unit of units) {
-			const own = unit.contribution.blocks?.find((type) => type.name === kind);
-			if (own) return own;
-		}
-		return { name: kind, label: blockKindLabel(kind) };
+		return blockTypeIn(units, kind);
 	}
 	const markActivation = createMarkActivation({
 		caret: () => {
@@ -845,6 +862,20 @@
 		caretRectAt,
 		readSelection: readNativeSelection
 	});
+
+	const editorView = createEditorView({
+		rects,
+		read: documentRead,
+		root: () => editorEl ?? null,
+		layer: () => overlayLayerEl ?? null,
+		caretTargetAt: (root, x, y) => rootGestures.caretTargetAtPoint(root, x, y),
+		resized(listen) {
+			const list = editorEl?.querySelector(':scope > .block-list');
+			return list ? observeResize(list, listen) : () => {};
+		},
+		events
+	});
+	onDestroy(editorView.dispose);
 
 	const editorId = mintEditorId();
 
@@ -892,8 +923,12 @@
 		claims: (event) => claimsChord(event),
 		openMenu: (menu, query) => inlineMenu.openMenu(menu, query),
 		openRows: (action, range, anchor, pointer) => openRows(action, range, anchor, pointer),
+		doc: () => documentRead.doc(),
+		selection: () => pluginSelection(),
+		select: (input) => select(input),
+		view: editorView,
+		pluginEvents: () => pluginEvents,
 		blockAt: (at) => blockAt(at),
-		selectedRange: () => selectedRange(),
 		repaint: (plugin, blocks) => repaintPlugin(plugin, blocks),
 		edit: (plugin) => drafts.edit(plugin),
 		reading,
@@ -1171,7 +1206,13 @@
 		editorFor: (plugin) => pluginContexts.scoped(plugin),
 		measured: starts.read,
 		source: bytes.source,
-		selection: () => selectedRange(),
+		// A range with a cell at either end offers no rows: the actions read text, not a grid.
+		selection: () => {
+			const at = getSelection();
+			if (!at || at.anchor.cellCoordinate || at.focus.cellCoordinate) return null;
+			const now = pluginSelection();
+			return now && { from: now.from, to: now.to };
+		},
 		hasRange: () => {
 			const selection = getSelection();
 			return !!selection && !isCollapsed(selection);
@@ -1642,17 +1683,82 @@
 	// ── The editor object a plugin's `setup` also gets ────────────────────
 
 	const pluginList = $derived(pluginNames);
-	const mode = $derived(effectiveMode);
+	const mode = $derived(modeOf(effectiveMode));
 	const themeName = $derived(theme);
 	// Read again whenever `use` changes the list.
 	const inserts = $derived.by(() => (void pluginNames, insertRows(activePlugins)));
-	export { pluginList as plugins, mode, themeName as theme, inserts };
+	// A new `Doc` at each write; the read keeps one per version.
+	const currentDoc = $derived.by(() => (void contentVersion.read(), documentRead.doc()));
+	const currentSelection = $derived.by(
+		() => (void contentVersion.read(), void selectionMoves, pluginSelection())
+	);
+	const rootElement = $derived(editorEl!);
+	export {
+		pluginList as plugins,
+		mode,
+		themeName as theme,
+		inserts,
+		currentDoc as doc,
+		currentSelection as selection,
+		rootElement as element
+	};
 
-	export function on<K extends keyof EditorEventMap>(
+	const pluginEvents: PluginEventReads = {
+		edit: (event) => documentRead.editInfo(event),
+		selection: () => pluginSelection(),
+		doc: () => documentRead.doc(),
+		listenForEdits: () => documentRead.listenForEdits()
+	};
+
+	export function on<K extends keyof Events>(
 		event: K,
-		listen: (payload: EditorEventMap[K]) => void
+		listen: (payload: Events[K]) => void
 	): () => void {
-		return events.on(event, listen);
+		return onPluginEvent(events, pluginEvents, event, listen);
+	}
+
+	const selectionReads = {
+		byteOf: (path: readonly number[], offset: number) => documentRead.byteOf(path, offset),
+		leafAt: (at: number) => documentRead.leafAt(at),
+		blockOf: (node: NodeView, path: readonly number[]) => documentRead.blockOf(node, path),
+		pathOf: (block: Block) => documentRead.pathOf(block),
+		nodeAt: (path: readonly number[]) => blockNodeAt(doc, path)
+	};
+	let selectionRead: {
+		version: number;
+		at: EditorSelection | null;
+		read: Selection | null;
+	} | null = null;
+
+	// One object until the next write or selection change.
+	function pluginSelection(): Selection | null {
+		const at = getSelection();
+		const version = untrack(contentVersion.read);
+		if (selectionRead?.version !== version || !selectionsEqual(selectionRead.at, at)) {
+			selectionRead = { version, at, read: selectionOf(selectionReads, at) };
+		}
+		return selectionRead.read;
+	}
+
+	export function select(input: SelectionInput): Promise<boolean> {
+		const target = selectionTarget(selectionReads, input);
+		return target ? setSelection(target) : Promise.resolve(false);
+	}
+
+	export const view = editorView.view;
+
+	export function load(text: string): Doc {
+		documentSwap.load(text);
+		return documentRead.doc();
+	}
+
+	// A local write the prop's next change replaces.
+	export function setMode(next: PresentationMode): void {
+		presentationMode = next;
+	}
+
+	export function setTheme(next: string): void {
+		theme = next;
 	}
 
 	// A command value runs by the id this editor gave it; one this editor doesn't run, nowhere.
@@ -1682,10 +1788,6 @@
 
 	export function blockAt(at: number): Block | null {
 		return documentRead.blockAt(at);
-	}
-
-	export function selectedRange(): { from: number; to: number } | null {
-		return documentRead.rangeOf(getSelection());
 	}
 
 	export function repaint(blocks?: readonly Block[]): void {
@@ -1884,6 +1986,19 @@
 		get inserts() {
 			return inserts;
 		},
+		get doc() {
+			return documentRead.doc();
+		},
+		get selection() {
+			return pluginSelection();
+		},
+		get element() {
+			return editorEl!;
+		},
+		view,
+		load,
+		setMode,
+		setTheme,
 		on,
 		run,
 		can,
@@ -1891,7 +2006,7 @@
 		openMenu,
 		openRows,
 		blockAt,
-		selectedRange,
+		select,
 		repaint
 	} satisfies EditorInstance);
 
@@ -1979,6 +2094,8 @@
 		window={topWindowing.window}
 		reorderable={true}
 	/>
+	<!-- Where `view.overlay` puts a plugin's element: in the scroll content, outside the blocks. -->
+	<div class="editor-overlays" data-host-content bind:this={overlayLayerEl}></div>
 	<SelectionGapFill getEditorEl={() => editorEl ?? null} />
 	{#if effectiveMode !== 'reading'}
 		<SelectionHandles finger={() => fingerPress} {getBlockComponent} />
@@ -2114,6 +2231,16 @@
 	   anchor candidates (VR-2). */
 	.editor[data-scroll-mode='host'][data-windowing='active'] {
 		overflow-anchor: none;
+	}
+
+	/* A zero-height origin at the scroll content's corner, which each overlay is placed from. Root
+	   wide, so an overlay sizes to its content rather than to a zero-width box. */
+	.editor-overlays {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		z-index: 4;
 	}
 
 	/* Out of layout, but never `display: none`, which stops a ResizeObserver reporting. */

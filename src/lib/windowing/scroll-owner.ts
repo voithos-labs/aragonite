@@ -11,7 +11,7 @@ import type { UserScrollport } from './scroll-ancestors';
 import { createScrollport, type Scrollport, type ScrollportReader } from './scrollport';
 import { createSharedResizeWatch } from './observe-resize';
 
-export type PlaceBlock = 'nearest' | 'center';
+export type PlaceBlock = 'nearest' | 'center' | 'start';
 
 export interface PlaceOptions {
 	block: PlaceBlock;

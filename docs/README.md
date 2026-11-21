@@ -50,7 +50,7 @@ The published pack: the docs people outside the repo read, on GitHub. Its links 
 | [`guide/plugin-guide/editable-content.md`](guide/plugin-guide/editable-content.md) | The four ways a block hosts editable content, and the text-leaf factory in depth |
 | [`guide/plugin-guide/render-primary.md`](guide/plugin-guide/render-primary.md) | A diagram-shaped block: a rendered picture, edited through the plugin's own UI |
 | [`guide/plugin-guide/presentation-modes.md`](guide/plugin-guide/presentation-modes.md) | Rendering right in reading, preview and live modes |
-| [`guide/plugin-guide/reading-the-document.md`](guide/plugin-guide/reading-the-document.md) | A block built from the rest of the document, like a table of contents |
+| [`guide/plugin-guide/reading-the-document.md`](guide/plugin-guide/reading-the-document.md) | A block or a paint built from the rest of the document, like a table of contents |
 | [`guide/plugin-guide/inline-kinds.md`](guide/plugin-guide/inline-kinds.md) | Your own syntax inside a paragraph, rendered as a widget |
 | [`guide/plugin-guide/decorations.md`](guide/plugin-guide/decorations.md) | View-only highlights, ghost text and badges over content a plugin doesn't own |
 | [`guide/plugin-guide/commands.md`](guide/plugin-guide/commands.md) | Keyboard shortcuts, commands and right-click rows, for one block kind or the whole editor |

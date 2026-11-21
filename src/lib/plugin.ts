@@ -58,7 +58,7 @@ export type {
 	LeafDraw,
 	LineBlockSpec
 } from './schema/block-shapes';
-export type { Block, InlineType, Piece } from './schema/doc-view';
+export type { Block, Doc, InlineType, Piece } from './schema/doc-view';
 // A plugin lists its inline constructs in `contributes(...).inlines`: claimed at a prefix, drawn as
 // a widget, a built-in image or link in its own syntax, or its bytes with a class.
 export { inline } from './schema/inline-maker';
@@ -82,8 +82,24 @@ export type {
 	Widget,
 	WidgetProps
 } from './schema/inline-type';
+export type {
+	FencedCodeData,
+	HeadingData,
+	LinkReferenceDefinitionData,
+	ListData,
+	ListItemData,
+	SetextHeadingData,
+	TableData,
+	TableRowData,
+	ThematicBreakData
+} from './schema/builtin-data';
+export type { Mode } from './presentation-mode';
+export type { View } from './schema/view';
+// Text read as an editor running these plugins reads it, with no editor mounted.
+export { grammar } from './components/editor-root/headless-grammar';
+export type { Grammar } from './components/editor-root/headless-grammar';
 // What `contributes(...).paint` lays over a block, in document bytes; `editor.repaint` asks again.
-export type { BlockPaint, MarkAt, Paint } from './decorations/paint';
+export type { BlockPaint, MarkAt, Paint, PaintContext } from './decorations/paint';
 // What a block type's `draw` gets and hands back; the editor makes every editable element.
 export type {
 	BoxDrawContext,
@@ -155,17 +171,13 @@ export type {
 	BlockView,
 	BlockSurface,
 	BlockViewSpec,
-	HandBuiltViewSpec,
 	ContainerViewSpec,
 	BlockViewState,
 	BlockViewContext,
-	HandBuiltViewContext,
 	ContainerViewContext,
 	CommandHooksSurface,
-	HandBuiltSurface,
 	ContainerSurface,
-	BlockViewHandle,
-	HandBuiltBlock
+	BlockViewHandle
 } from './schema/block-view';
 // The editor's plain editable text block, for a kind drawn as plain text; `blockClass` lands on
 // its element.
@@ -446,8 +458,10 @@ export type {
 } from './decorations/types';
 
 // ── Events (pre-freeze) ──────────────────────────────────────────────────────
-// The payloads `EditorContext.events` delivers. `EditEvent` pairs each operation name with its
-// detail, so an `edit` handler narrows `op` against the real set of names.
+// What `editor.on` hears (`Events`), and the payloads the older `EditorContext.events` delivers.
+// `EditEvent` pairs each operation name with its detail, so a handler narrows `op` against them.
+export type { Change, EditInfo, Events } from './editor-events';
+export type { Selection, SelectionInput } from './schema/selection-read';
 export type {
 	EditEvent,
 	EditorEventMap,

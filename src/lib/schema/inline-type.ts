@@ -7,7 +7,7 @@
 import type { AnyInlineKind, InlineNode, PluginInlineKind } from '../core/nodes';
 import type { InlineHandler } from '../core/inline/scan/plugin-syntax';
 import type { WidgetEntry } from '../core/inline/inline-widgets';
-import type { DrawContext } from './drawing';
+import type { Mode } from '../presentation-mode';
 import type { InlineType } from './doc-view';
 import type { Contribution, Editor, InstalledPlugin, PluginError } from './plugin-unit';
 import { qualifiedName } from './plugin-name';
@@ -123,7 +123,7 @@ export interface WidgetProps<D> {
 	readonly source: string;
 	readonly from: number;
 	readonly to: number;
-	readonly mode: DrawContext['mode'];
+	readonly mode: Mode;
 	readonly theme: string;
 	readonly editor: Editor;
 }

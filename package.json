@@ -58,6 +58,11 @@
 			"svelte": "./dist/plugin.js",
 			"default": "./dist/prebuilt/plugin.js"
 		},
+		"./plugin/grammar": {
+			"types": "./dist/plugin/grammar.d.ts",
+			"svelte": "./dist/plugin/grammar.js",
+			"default": "./dist/prebuilt/plugin/grammar.js"
+		},
 		"./svelte": {
 			"types": "./dist/svelte.d.ts",
 			"svelte": "./dist/svelte.js",

@@ -256,6 +256,8 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.357 | A test takes one guard's warnings and leaves the rest to the gate | L |
 | G4.365 | Inside the library, every parse names the grammar it reads | L |
 | G4.366 | Which marker sides pair is read in the live join alone | L |
+| G4.367 | A plugin's read of the document walks no block it wasn't asked for | L |
+| G4.368 | Reading a block, held or at the caret, walks nothing and costs as much at 2,000 blocks as at 400 | harness |
 
 ### The entries
 
@@ -716,7 +718,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.338 · One emit for `edit`.** `editor-actions/commit/emit-edit.ts :: emitEdit` takes the blocks the write replaced as a required argument and hands them to `refreshDefinitions` before it emits, so a route that emitted `edit` itself would leave the editor serving stale reference links. The writes G4.107 lists call it. `lint/edit-emitters.test.ts`.
 
-**G4.339 · A caret move reads no whole list.** Nothing the editor runs on a typed letter or the `selectionchange` after it places a byte: the selection toolbar measures only a range with an action listed (`components/editor-root/selection-actions.ts`). A plugin reading `selectedRange()` on each caret move and edit asks the kept starts (G4.340), and in a quote, list or table pairs one child's lines, at 40 siblings as at 400. `test/perf/caret-move-byte-reads.test.ts` on `byteMapReads`, `topBlocksMeasured` and `linesPaired`; `test/editor-root/selection-actions.test.ts`.
+**G4.339 · A caret move reads no whole list.** Nothing the editor runs on a typed letter or the `selectionchange` after it places a byte: the selection toolbar measures only a range with an action listed (`components/editor-root/selection-actions.ts`). A plugin reading `editor.selection` on each caret move and edit asks the kept starts (G4.340), and in a quote, list or table pairs one child's lines, at 40 siblings as at 400. `test/perf/caret-move-byte-reads.test.ts` on `byteMapReads`, `topBlocksMeasured` and `linesPaired`; `test/editor-root/selection-actions.test.ts`.
 
 **G4.340 · A position costs its path.** Every write route (`test/harness/write-routes.ts`), with a listener asking a position on every edit, measures as many top-level blocks at 400 as at 40, unless it names no blocks; with no listener, none, unless the write reads positions to make itself. A byte splice measures as many at 400 as at 40. `measured(doc)` measures every block it's handed, so its callers are a declared list. `test/perf/top-level-starts-reads.test.ts`, `splice-top-level-cost.test.ts`, `lint/measured-callers.test.ts`.
 
@@ -745,3 +747,7 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.365 · A parse names its grammar.** Inside `src/lib`, every call of `parse`, `parseInline` or `blockquoteExtent` passes a grammar. Without one they read every installed plugin's syntax and none of an editor's own `inline()` constructs, so a construct would read as text on that path. The published kits and the three entry points are excluded. `lint/call-site-rules.test.ts`; the runtime half is the `everyPluginTableReads` counter row in `test/plugins/inline/inline-widget.svelte.test.ts`.
 
 **G4.366 · Marker sides pair in one place.** Which side of a `markerPair()` opens or closes which pair, by its `key` or by nesting order, decides what a live removal puts back and what a range carries off. Only `core/inline/live-edit/live-join.ts` reads a side's `pair` from its policy row, so the removal and the clipboard can't disagree. `lint/marker-pair-home.test.ts`; the behaviour rows are `test/plugins/inline/marker-pair-removal.svelte.test.ts`.
+
+**G4.367 · A read walks nothing.** `schema/doc-view.ts` and `editor-actions/commit/document-read.ts` name no `walkBlocks` or `pathOfNode`: a held block finds its node through the runs each write reports (G4.371), and a lost one reads -1. `lint/file-rules.test.ts`.
+
+**G4.368 · A block read costs its block.** A plugin reading the block at the caret, a block by index and a block it holds, on every edit, walks no document and builds and measures as many blocks at 2,000 as at 400. A key no plugin reads logs no runs and builds no block. `test/plugins/read/held-block.svelte.test.ts` on `documentWalks`, `blocksBuilt`, `hintRunsLogged`.
