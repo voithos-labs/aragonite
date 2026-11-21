@@ -56,10 +56,19 @@ const CALLERS: readonly string[] = [
 	'src/routes/test/plugins/memo/memo-kind.ts'
 ];
 
+/** How often each file calls a registering name today, the two definitions included. */
+const REGISTERING: Readonly<Record<string, number>> = {
+	'packages/admonitions/src/admonition-kind.ts': 2,
+	'packages/mermaid/src/mermaid-kind.ts': 2,
+	'src/lib/schema/block-commands.ts': 1,
+	'src/lib/tree-operations/paste/paste-transforms.ts': 1,
+	'src/routes/test/plugins/callout/callout-kind.ts': 1,
+	'src/routes/test/plugins/memo/memo-kind.ts': 2
+};
+
 describe('G4.369 the retiring plugin names gain no caller', () => {
-	const naming = collectEditorSources([...REPO_WIDE_ROOTS, ROUTES_SRC])
-		.filter((file) => RETIRING.test(file.code))
-		.map((file) => file.relPath);
+	const sources = collectEditorSources([...REPO_WIDE_ROOTS, ROUTES_SRC]);
+	const naming = sources.filter((file) => RETIRING.test(file.code)).map((file) => file.relPath);
 
 	it('are named in exactly the files listed', () => {
 		const added = naming.filter((path) => !CALLERS.includes(path));
@@ -67,6 +76,15 @@ describe('G4.369 the retiring plugin names gain no caller', () => {
 		const reason =
 			'build a new command on a block type’s `chords` or `actions`, or a `command` in `commands`, and a paste rewrite on `rewrites`; a file that no longer names one leaves CALLERS';
 		expect({ added, gone }, reason).toEqual({ added: [], gone: [] });
+	});
+
+	// Miss-analysis: the list freezes files, so a second registration in a listed file passed.
+	it('register through them no more often than today', () => {
+		const calls = sources.flatMap((file) => {
+			const count = file.code.match(/\bregister(?:BlockCommand|PasteTransform)\(/g)?.length;
+			return count ? [[file.relPath, count] as const] : [];
+		});
+		expect(Object.fromEntries(calls)).toEqual(REGISTERING);
 	});
 
 	it('count a name in code, whole, and not in a comment', () => {
