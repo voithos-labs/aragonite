@@ -17,6 +17,8 @@ the user is doing may notice: the caret, the selection and the block's height st
   lands it, the block then paints tokens, and the height is unchanged
 - a grammar arriving during a drag selection: the selection the drag ends with covers the text the
   pointer moved over, and the height is unchanged
+- a grammar arriving under a selection made backward (Shift+ArrowLeft): the selection keeps its
+  direction, so the next Shift+ArrowLeft extends it
 - a grammar arriving while a block math source is selected whole (Ctrl+A, `?seed=mathblock-highlight`):
   the selection holds, so Ctrl+X cuts the whole source
 
@@ -31,3 +33,5 @@ the user is doing may notice: the caret, the selection and the block's height st
   ever arrived late.
 - The select-all row: the arrival rows ran on the code block alone, whose repaint kept a range; a
   source view's repaint went through the native-edit path, which keeps only a caret.
+- The backward row: every selection row selected forward (a drag to the right, Ctrl+A), and a
+  range read as start and end says nothing of which end moves.

@@ -106,6 +106,22 @@ test.describe('a grammar that arrives after the fence painted', () => {
 		expect(await height()).toBe(before);
 	});
 
+	test('under a selection made backward, the next Shift+ArrowLeft still extends it', async ({
+		page
+	}) => {
+		const grammar = await holdGrammar(page);
+		await editor.loadContent(FENCE);
+		await caretAtLineEnd(page);
+		for (let i = 0; i < 4; i++) await page.keyboard.press('Shift+ArrowLeft');
+
+		grammar.release();
+		await expect(tokens().first()).toBeVisible();
+		await page.keyboard.press('Shift+ArrowLeft');
+
+		const selected = await page.evaluate(() => window.getSelection()?.toString() ?? '');
+		expect(selected).toBe(' "hi"');
+	});
+
 	test('a chunk that fails leaves the fence plain, with one error', async ({ page }) => {
 		const grammar = await holdGrammar(page, true);
 		await editor.loadContent('```haskell\nmain = 1\n```\n\n```haskell\nx = 2\n```\n');

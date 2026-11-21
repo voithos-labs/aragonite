@@ -101,11 +101,15 @@ export function createSurfaceBackend(deps: SurfaceBackendDeps): SurfaceBackend {
 
 	function repaintKeepingSelection(paint: () => void): void {
 		const range = getRawSelection();
+		// A range made backward goes back with its moving end first, so the next Shift+arrow extends it.
+		const backward = range !== null && getFocusOffset() === range.start;
 		const caret = range ? null : getRaw();
 		paint();
 		const el = deps.getEl();
-		if (range && el) deps.caretWriter.selectRawRange(el, range.start, range.end);
-		else if (caret !== null) setRaw(caret, { clamp: 'exact' });
+		if (range && el) {
+			const [anchor, focus] = backward ? [range.end, range.start] : [range.start, range.end];
+			deps.caretWriter.selectRawRange(el, anchor, focus);
+		} else if (caret !== null) setRaw(caret, { clamp: 'exact' });
 	}
 
 	return {
