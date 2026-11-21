@@ -54,6 +54,8 @@ const plugins = [highlight({ renderer: highlightJs({ languages: allLanguages }) 
 
 Each one is still a chunk fetched the first time a fence names it, so the page grows only by the list of names (about 4 KB gzipped). The picker shows the 24 above first, then the rest alphabetically. Adding grammars of your own too: `languages: { ...allLanguages, mylang }`.
 
+The 24 keep the spellings above in either case, so a fence spelled `xml`, `tsx` or `jsx` stays plain. Write those? Name them yourself, say `languages: { ...allLanguages, tsx: typescript }` with `typescript` from `highlight.js/lib/languages/typescript`, and each gets a picker row of its own.
+
 ## More
 
 The [consumer guide](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/consumer-guide.md#bundled-plugins) lists the first party plugins, and the [plugin guide](https://github.com/voithos-labs/aragonite/blob/main/docs/guide/plugin-guide.md) is where to go if you'd rather write your own.
