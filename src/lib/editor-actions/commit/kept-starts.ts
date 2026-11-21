@@ -98,7 +98,8 @@ export function createKeptStarts(
 	let joined: { of: Measured; text: string } | null = null;
 	let open = false;
 	let threw = false;
-	const followers: WriteFollower[] = [];
+	// The list is replaced, never changed in place: a follower may let go as it hears.
+	let followers: readonly WriteFollower[] = [];
 
 	const misused = (message: string) =>
 		assertInvariant('kept-starts-current', () => ({ code: 'kept-starts-misused', message }));
@@ -120,8 +121,7 @@ export function createKeptStarts(
 		view = joined = null;
 		if (!kept && followers.length === 0) return;
 		const runs = runsOf?.() ?? null;
-		// A copy: a follower may let go as it hears.
-		for (const follower of followers.slice()) follower.heard({ runs, before: kept });
+		for (const follower of followers) follower.heard({ runs, before: kept });
 		if (!kept) return;
 		if (!runs || runs.some((run) => run.inserted > WIDEST_RUN)) {
 			kept = null;
@@ -227,10 +227,9 @@ export function createKeptStarts(
 			}
 		},
 		follow(follower) {
-			followers.push(follower);
+			followers = [...followers, follower];
 			return () => {
-				const at = followers.indexOf(follower);
-				if (at >= 0) followers.splice(at, 1);
+				followers = followers.filter((each) => each !== follower);
 			};
 		}
 	};
