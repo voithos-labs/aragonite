@@ -158,3 +158,17 @@ export function languageOwner(
 export function highlighterLanguages(activation: PluginActivation): readonly CodeLanguage[] {
 	return languageTable(activation).union;
 }
+
+/** The code block picker's rows: every language the plugins highlight, once each, sorted. */
+export function pickerLanguages(activation: PluginActivation): string[] {
+	return highlighterLanguages(activation)
+		.map((language) => language.name)
+		.sort();
+}
+
+/** The other spellings of the language a spelling names, so the picker's filter matches `rs` to
+ *  `rust` without a table of its own. */
+export function pickerAliases(spelling: string, activation: PluginActivation): readonly string[] {
+	const name = languageOwner(spelling, activation)?.name;
+	return highlighterLanguages(activation).find((language) => language.name === name)?.aliases ?? [];
+}

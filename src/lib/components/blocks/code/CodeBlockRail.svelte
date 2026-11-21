@@ -14,7 +14,7 @@
 	import type { MenuCloseCause, MenuPresence } from '../../menu/menu-presence.svelte';
 	import type { Draft, DraftSpec } from '../../../schema/drafts';
 	import type { PluginActivation } from '../../../schema/plugin-activation';
-	import { getLanguageAliases, getLanguageGrammar, listLanguages } from './code-languages';
+	import { languageOwner, pickerAliases, pickerLanguages } from './code-languages';
 	import { fenceLanguage } from '../../../core/parsers/fence-syntax';
 	import MenuIcon from '../../menu/MenuIcon.svelte';
 
@@ -87,12 +87,12 @@
 	// The picker offers what the renderer can highlight. `text` is always offered: it is how a
 	// user clears a language, and no grammar registers under that name.
 	const suggestions = $derived.by(() => {
-		const all = ['text', ...listLanguages(activation).filter((name) => name !== 'text')];
+		const all = ['text', ...pickerLanguages(activation).filter((name) => name !== 'text')];
 		const needle = filtering ? draft.trim().toLowerCase() : '';
 		if (needle.length > 0) {
 			// An alternate spelling is a search key, never a row of its own: `rs` finds `rust`,
 			// and the list still carries one entry per language.
-			const spellings = (name: string) => [name, ...getLanguageAliases(name, activation)];
+			const spellings = (name: string) => [name, ...pickerAliases(name, activation)];
 			const starts = all.filter((name) => spellings(name).some((s) => s.startsWith(needle)));
 			const seated = new Set(starts);
 			const contains = all.filter(
@@ -111,7 +111,7 @@
 	 *  registry resolves rather than the text. */
 	function isCurrentLanguage(name: string): boolean {
 		const canonical = (spelling: string) =>
-			getLanguageGrammar(spelling, activation)?.name ?? spelling.toLowerCase();
+			languageOwner(spelling, activation)?.name ?? spelling.toLowerCase();
 		return canonical(name) === canonical(language);
 	}
 
@@ -193,7 +193,7 @@
 			// `js` survives a picker whose rows are canonical. A moved highlight takes the row.
 			const typed = draft.trim();
 			const namesLanguage =
-				!highlightMoved && typed !== '' && getLanguageGrammar(typed, activation) !== null;
+				!highlightMoved && typed !== '' && languageOwner(typed, activation) !== null;
 			commit(
 				namesLanguage ? typed : (suggestions[activeIndex] ?? (typed === '' ? language : typed))
 			);

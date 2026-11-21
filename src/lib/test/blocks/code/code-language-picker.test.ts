@@ -2,12 +2,16 @@
 // Miss-analysis: picker tests read rows via `listLanguages()`, never asking one row per language.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
-import type { LanguageFn } from 'highlight.js';
-import { registerLanguage } from '#lib/components/blocks/code/code-languages.js';
+import { activationHighlighting } from '#lib/test/harness/code-highlighters.js';
 import { mountCode, type MountedCode } from './mount-code';
 import { dispatchKey } from '#lib/test/harness/settle.js';
 
-const stubGrammar = (() => ({ name: 'stub' })) as unknown as LanguageFn;
+const activePlugins = activationHighlighting([
+	{ name: 'javascript', aliases: ['js'] },
+	{ name: 'rust', aliases: ['rs'] },
+	{ name: 'c', aliases: [] },
+	{ name: 'cpp', aliases: ['c++'] }
+]);
 const FENCE = '```js\nconst x = 1\n```\n';
 
 let mounted: MountedCode;
@@ -47,11 +51,7 @@ function commits(): string[] {
 }
 
 beforeEach(() => {
-	registerLanguage('javascript', stubGrammar, ['js']);
-	registerLanguage('rust', stubGrammar, ['rs']);
-	registerLanguage('c', stubGrammar);
-	registerLanguage('cpp', stubGrammar, ['c++']);
-	mounted = mountCode(FENCE, { mode: () => 'live' });
+	mounted = mountCode(FENCE, { mode: () => 'live', services: { activePlugins } });
 });
 afterEach(async () => {
 	await mounted.dispose();
