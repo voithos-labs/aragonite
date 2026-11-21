@@ -22,6 +22,7 @@ type Common<D> = Omit<InlineSpec<D>, 'match' | 'read'> & InlineArm<D>;
  *  matcher takes there. */
 export function inline<D>(spec: Common<D> & RegexMatcher<D>): Inline<D>;
 export function inline<D>(spec: Common<D> & FunctionMatcher<D>): Inline<D>;
+export function inline<D>(spec: InlineSpec<D>): Inline<D>;
 export function inline<D>(spec: InlineSpec<D>): Inline<D> {
 	checkLocalName('inline', spec.name);
 	const refuse = (why: string): never => {

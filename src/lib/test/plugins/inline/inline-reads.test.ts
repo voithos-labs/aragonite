@@ -9,6 +9,7 @@ import {
 	registerInlineSyntax,
 	type ImagePiece,
 	type Inline,
+	type InlineSpec,
 	type LinkPiece,
 	type PluginError
 } from '#lib/plugin.js';
@@ -323,6 +324,19 @@ describe('inline(): installing and making', () => {
 		]
 	])('refuses %s when it is made', (_name, override, message) => {
 		expect(() => inline({ ...wikiWidgetSpec(), ...override } as never)).toThrow(message);
+	});
+
+	it('takes a spec an author typed as `InlineSpec`', () => {
+		const spec: InlineSpec<string> = {
+			name: 'typed',
+			label: 'Typed',
+			prefix: '%',
+			match: /%\w+/,
+			read: (m: RegExpExecArray) => m[0],
+			sample: '%a',
+			class: 'typed'
+		};
+		expect(inline(spec).name).toBe('typed');
 	});
 
 	it('the table keeps its identity while the list does', () => {
