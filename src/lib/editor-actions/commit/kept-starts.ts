@@ -30,8 +30,25 @@ import {
 } from '../../tree-operations/top-level-starts';
 
 /** What a write says it changed: its runs of top-level blocks, in document order, asked only
- *  while the record is measured; null, or a null answer, when the write can't say. */
+ *  while the record is measured or a follower listens; null, or a null answer, when the write
+ *  can't say. */
 export type ChangedRuns = (() => readonly TopLevelChange[] | null) | null;
+
+/** What a follower hears of each announced write. */
+export interface HeardWrite {
+	/** The runs it changed, in document order; null where it can't say. */
+	readonly runs: readonly TopLevelChange[] | null;
+	/** The record as it stood before the write, handed over to keep, where a follower asked for it
+	 *  and the record was measured. */
+	readonly before: BlockBytes | null;
+}
+
+/** One reader that follows the writes, from the first it hears. */
+export interface WriteFollower {
+	heard(write: HeardWrite): void;
+	/** Whether it wants the record as it stood before the next write, which costs a copy of it. */
+	keepsBefore(): boolean;
+}
 
 /** What a write hands back: the runs it changed, or `unchanged` when the tree stands as it did. */
 export interface Written {
@@ -61,6 +78,8 @@ export interface KeptStarts {
 	/** Runs one write to the tree, then announces what it touched; one opened inside another throws
 	 *  first. A throw counts the tree unannounced until the next write announces. */
 	duringWrite<T extends Written>(write: () => T): T;
+	/** Tells `follower` of every write from here on, before the record moves past it. */
+	follow(follower: WriteFollower): void;
 }
 
 /** A run wider than this forgets the record, so no write measures more than a few hundred blocks. */
@@ -78,6 +97,7 @@ export function createKeptStarts(
 	let joined: { of: Measured; text: string } | null = null;
 	let open = false;
 	let threw = false;
+	const followers: WriteFollower[] = [];
 
 	const misused = (message: string) =>
 		assertInvariant('kept-starts-current', () => ({ code: 'kept-starts-misused', message }));
@@ -97,13 +117,22 @@ export function createKeptStarts(
 	const place = (runsOf: ChangedRuns) => {
 		threw = false;
 		view = joined = null;
+		if (!kept && followers.length === 0) return;
+		const runs = runsOf?.() ?? null;
+		let before: BlockBytes | null = null;
+		if (kept && followers.some((follower) => follower.keepsBefore())) {
+			// The record handed over stays as it was; the write moves a copy of it.
+			before = kept;
+			const { pieces, lengths, sums, summed } = before;
+			kept = { pieces: pieces.slice(), lengths: lengths.slice(), sums: sums.slice(), summed };
+		}
+		for (const follower of followers) follower.heard({ runs, before });
 		if (!kept) return;
-		const runs = runsOf?.();
 		if (!runs || runs.some((run) => run.inserted > WIDEST_RUN)) {
 			kept = null;
 			return;
 		}
-		const record = kept;
+		const record: BlockBytes = kept;
 		untrack(() => {
 			applyChanges(doc(), record, runs);
 			if (devChecksOn && !perfEnabled()) {
@@ -179,6 +208,10 @@ export function createKeptStarts(
 		duringWrite(write) {
 			// The outer write would publish over the inner one's bytes (G1.211).
 			if (open) throw new Error('aragonite: a write started inside another write');
+			// A follower keeping the bytes as they stood needs them read before the tree changes.
+			if (!kept && followers.some((follower) => follower.keepsBefore())) {
+				untrack(() => measure(current()));
+			}
 			open = true;
 			try {
 				const written = write();
@@ -197,6 +230,7 @@ export function createKeptStarts(
 			} finally {
 				open = false;
 			}
-		}
+		},
+		follow: (follower) => void followers.push(follower)
 	};
 }

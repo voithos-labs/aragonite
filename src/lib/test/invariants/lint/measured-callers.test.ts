@@ -21,6 +21,8 @@ describeManifests(
 				'src/lib/tree-operations/spliced-openers.ts': 'one container’s run of children',
 				'src/lib/range-edit/host.ts':
 					'a parse of a document no editor holds: a host with none of its own, or one left with no bytes',
+				'src/lib/components/editor-root/headless-grammar.ts':
+					'`grammar(plugins).parse`, a document no editor holds and no write changes',
 				'src/lib/testing/conformance-core.ts': 'the conformance kit’s own parse',
 				'src/lib/testing/inline-menu-conformance.ts': 'the kit’s stand-in host document'
 			},

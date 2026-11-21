@@ -143,6 +143,7 @@ These checks run in three kinds of place:
 | G1.219 | Bytes read off the kept record are compared with the tree before they leave it | A·N·P |
 | G1.220 | A fold of the chain rebuild spells the lines its list spelled before it | A·N |
 | G1.223 | A line break over a range that took its start block runs where its key breaks a line, never on a title row | A·N |
+| G4.371 | A block a plugin holds answers only where its node stands, and loses it only where a write said it changed | A·N |
 
 ### The entries
 
@@ -397,3 +398,5 @@ These checks run in three kinds of place:
 **G1.220 · A fold keeps its lines** (`fold-keeps-lines`). A fold re-reads blocks where they stand: a container's new bytes placed as the blocks they read as, a join merged, a wait read again. It writes and takes blank lines and nothing else, so its list spells the same lines in the same order afterwards, blank ones aside. No read-back holds that, because lines written twice can read as the tree does. When it fires, a fold wrote at an index that had moved. Skipped past 1 MB. `checkFoldKeepsLines` · `chain-rebuild.ts :: foldWrite` · `fold-keeps-lines.test.ts`, `container-slot-reading.test.ts`.
 
 **G1.223 · A line break over a range breaks a line** (`range-break-landing`). Where a range took its start block, the block its line break runs in must bind the key to a line break (`range-removal.ts :: breaksLine`) and be no title row, whose Enter goes into the body. The core keeps the caret off that row, in the gap beside it (`range-edit/edit-range.ts :: lineBreakAt`). A rule, math block or toc left under the caret still fires. `checkBreakLanding` (`range-break-landing.ts`) · `selection/cross-block/range-replace.ts` · `range-break-landing.test.ts`, `test/range-laws/enter-landing.test.ts`.
+
+**G4.371 · A held block reads only its node's place** (`held-block-place`). A held block moves where it was last seen through the runs each write reports and answers only where its own node stands, so a block a write replaced reads -1, never a neighbour. Dev compares each moved read with a fresh walk once per version: a read the walk disagrees with, or a block lost from a slot no run named, means a write under-reported. `checkHeldBlockPlace` · `commit/document-read.ts` · `held-block.svelte.test.ts`, `held-block-routes.svelte.test.ts`.

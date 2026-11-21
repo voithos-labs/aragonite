@@ -115,6 +115,7 @@ export const RUNTIME_EDGES: readonly string[] = [
 	'invariants -> presentation-mode.ts',
 	'invariants -> schema',
 	'perf -> dev-checks.ts',
+	'plugin -> core',
 	'plugin-view.ts -> core',
 	'plugin-view.ts -> foreign-runtime.ts',
 	'plugin.ts -> block-component.ts',

@@ -84,6 +84,7 @@ export function createEditorPluginContexts(deps: {
 	claims: (event: KeyboardEvent) => boolean;
 	openMenu: (menu: CaretMenu<unknown>, query?: string) => boolean;
 	openRows: Editor['openRows'];
+	doc: () => Editor['doc'];
 	blockAt: Editor['blockAt'];
 	selectedRange: Editor['selectedRange'];
 	/** Asks `plugin`'s paint again. */
@@ -179,6 +180,9 @@ export function createEditorPluginContexts(deps: {
 			},
 			get inserts() {
 				return insertRows(deps.activation);
+			},
+			get doc() {
+				return deps.doc();
 			},
 			on(event, listen) {
 				const disposer = { plugin, dispose: listenAs(plugin, event, listen) };

@@ -18,7 +18,7 @@ import { blockRangeClipboard, rangeClipboard } from '#lib/selection/range-clipbo
 import { draftRegistryOver } from '#lib/test/harness/drafts.js';
 import { makeTopHarness } from '#lib/test/harness/editor-actions.js';
 import { lineBlock } from '#lib/components/block-makers/line-block.js';
-import { blockOf, DETACHED_READING } from '#lib/schema/doc-view.js';
+import { makeBlock, DETACHED_READING } from '#lib/schema/doc-view.js';
 import { allowDevWarns } from '../../support/warn-gate';
 
 const N = 12;
@@ -144,7 +144,7 @@ describe('G1.219 kept bytes leave the record through a vouch', () => {
 			sample: '%%1 hi',
 			insert: { none: 'a test block type' }
 		});
-		const block = blockOf<number>(
+		const block = makeBlock<number>(
 			h.deps.doc.children[2],
 			{ ...DETACHED_READING, typeOf: () => level },
 			[2]

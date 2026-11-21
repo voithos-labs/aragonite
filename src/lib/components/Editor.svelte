@@ -46,7 +46,7 @@
 	import { createKeptStarts } from '../editor-actions/commit/kept-starts';
 	import { findSurfacePathForElement } from '../selection/path-lookup';
 	import { createSelectionDescription } from '../selection/selection-description';
-	import { EDITOR_LABEL, blockKindLabel } from '../a11y-strings';
+	import { EDITOR_LABEL } from '../a11y-strings';
 	import TailInsert from './TailInsert.svelte';
 	import BlockMenu from './menu/BlockMenu.svelte';
 	import { createMenuPresence } from './menu/menu-presence.svelte';
@@ -59,6 +59,7 @@
 	import { widgetSpanAt } from './blocks/text/widget-adjacency';
 	import { assignIds } from '../block-id';
 	import { createDocumentSwap, initDocument } from './editor-root/document-swap';
+	import { blockTypeIn } from './editor-root/headless-grammar';
 	import { blockNodeAt } from '../tree-operations/node-primitives';
 	import { defaultLinkActivation } from '../core/url-policy';
 	import { bindActivationClick, createPressTracker } from '../activation-click';
@@ -770,7 +771,10 @@
 		getDoc,
 		measured: starts.read,
 		typeOf: blockTypeOf,
-		reading
+		reading,
+		version: () => untrack(contentVersion.read),
+		source: starts.source,
+		follow: starts.follow
 	});
 
 	const paints = createPaintSources({
@@ -798,13 +802,8 @@
 		);
 	}
 
-	// A plugin's own block type, else one named by its kind, which `is` matches to `builtin.blocks`.
 	function blockTypeOf(kind: AnyBlockKind): BlockType<unknown> {
-		for (const unit of units) {
-			const own = unit.contribution.blocks?.find((type) => type.name === kind);
-			if (own) return own;
-		}
-		return { name: kind, label: blockKindLabel(kind) };
+		return blockTypeIn(units, kind);
 	}
 	const markActivation = createMarkActivation({
 		caret: () => {
@@ -883,6 +882,7 @@
 		claims: (event) => claimsChord(event),
 		openMenu: (menu, query) => inlineMenu.openMenu(menu, query),
 		openRows: (action, range, anchor, pointer) => openRows(action, range, anchor, pointer),
+		doc: () => documentRead.doc(),
 		blockAt: (at) => blockAt(at),
 		selectedRange: () => selectedRange(),
 		repaint: (plugin, blocks) => repaintPlugin(plugin, blocks),
@@ -1637,7 +1637,9 @@
 	const themeName = $derived(theme);
 	// Read again whenever `use` changes the list.
 	const inserts = $derived.by(() => (void pluginNames, insertRows(activePlugins)));
-	export { pluginList as plugins, mode, themeName as theme, inserts };
+	// A new `Doc` at each write; the read keeps one per version.
+	const currentDoc = $derived.by(() => (void contentVersion.read(), documentRead.doc()));
+	export { pluginList as plugins, mode, themeName as theme, inserts, currentDoc as doc };
 
 	export function on<K extends keyof EditorEventMap>(
 		event: K,
@@ -1874,6 +1876,9 @@
 		},
 		get inserts() {
 			return inserts;
+		},
+		get doc() {
+			return documentRead.doc();
 		},
 		on,
 		run,

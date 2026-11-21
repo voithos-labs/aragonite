@@ -59,6 +59,12 @@ export interface PerfSnapshot {
 	/** Containers whose lines the document byte map paired to place one byte. A caret move pairs
 	 *  none. */
 	byteMapReads: number;
+	/** Walks of a whole document's blocks; a plugin's read of a block makes none. */
+	documentWalks: number;
+	/** Writes whose runs the document read logged to move a held block: none until a plugin holds one. */
+	hintRunsLogged: number;
+	/** Block views made for a plugin: one per node read, never one per block of a list nobody reads. */
+	blocksBuilt: number;
 	undoLiveBytes: number;
 	undoEntryCount: number;
 	blockRenderCount: number;
@@ -137,6 +143,9 @@ function emptySnapshot(): PerfSnapshot {
 		referenceWalks: 0,
 		containerChordWalks: 0,
 		byteMapReads: 0,
+		documentWalks: 0,
+		hintRunsLogged: 0,
+		blocksBuilt: 0,
 		undoLiveBytes: 0,
 		undoEntryCount: 0,
 		blockRenderCount: 0,
@@ -315,6 +324,21 @@ export function recordContainerChordWalk(): void {
 export function recordByteMapRead(): void {
 	if (!enabled) return;
 	counters.byteMapReads++;
+}
+
+export function recordDocumentWalk(): void {
+	if (!enabled) return;
+	counters.documentWalks++;
+}
+
+export function recordHintRunsLogged(): void {
+	if (!enabled) return;
+	counters.hintRunsLogged++;
+}
+
+export function recordBlockBuilt(): void {
+	if (!enabled) return;
+	counters.blocksBuilt++;
 }
 
 export function setUndoGauge(liveBytes: number, entryCount: number): void {

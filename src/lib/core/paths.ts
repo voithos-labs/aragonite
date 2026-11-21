@@ -2,6 +2,7 @@
 
 import type { CstNode, Document } from './nodes';
 import type { DocumentView, NodeView } from './node-views';
+import { recordDocumentWalk } from '../perf/instruments';
 
 export type WalkControl = void | 'skip' | 'stop';
 type Parent<N> = { readonly children?: readonly N[] };
@@ -23,6 +24,7 @@ export function walkBlocks<N extends Parent<N>>(
 	visit: (node: N, path: number[]) => WalkControl,
 	basePath: readonly number[] = []
 ): boolean {
+	if ('suffix' in root) recordDocumentWalk();
 	return walkChildren(root.children, [...basePath], visit);
 }
 

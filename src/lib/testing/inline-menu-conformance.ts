@@ -12,6 +12,7 @@ import { createDocumentStamps } from '../editor-actions/commit/document-stamp';
 import { createMenuPick } from '../schema/caret-menu';
 import { installPluginList, type Editor, type PluginList } from '../schema/plugin-unit';
 import { defaultGrammarView } from '../schema/editor-grammar';
+import type { Doc } from '../schema/doc-view';
 
 export interface MenuPickCase {
 	/** The plugin value whose first caret menu is picked from; its `setup` runs first. */
@@ -89,6 +90,15 @@ export async function checkMenuPickAcrossSwap(c: MenuPickCase): Promise<void> {
 
 // ── Internal ────────────────────────────────────────────────────────────────
 
+const EMPTY_DOC: Doc = {
+	text: '',
+	eol: '\n',
+	blocks: [],
+	current: true,
+	blockAt: () => null,
+	walk: () => [][Symbol.iterator]()
+};
+
 /** An editor whose writes are recorded; the rest answers as an empty editor would. */
 function recordingEditor(writes: string[], edit: Editor['edit'], plugin: string): Editor {
 	return {
@@ -96,6 +106,7 @@ function recordingEditor(writes: string[], edit: Editor['edit'], plugin: string)
 		mode: 'source',
 		theme: 'light',
 		inserts: [],
+		doc: EMPTY_DOC,
 		on: () => () => {},
 		run: (command: { id: string } | string) => (
 			writes.push(`a run of ${typeof command === 'string' ? command : command.id}`),

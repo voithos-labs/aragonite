@@ -6,6 +6,7 @@ import type { InlineMenuRegistry } from '#lib/inline-menu/types.js';
 import type { InsertMarkdownOptions } from '#lib/editor-props.js';
 import { kitReading } from '#lib/testing/kit-reading.js';
 import type { InstalledPlugin, PluginError } from '#lib/schema/plugin-unit.js';
+import type { Doc } from '#lib/schema/doc-view.js';
 import type { Command } from '#lib/schema/plugin-command.js';
 import { idleDraftRegistry } from './drafts';
 
@@ -51,6 +52,9 @@ export const pluginContextDeps = (
 	claims: (() => false) as (event: KeyboardEvent) => boolean,
 	openMenu: () => false,
 	openRows: () => ({ isOpen: false, close() {} }),
+	doc: (): Doc => {
+		throw new Error('the inert plugin context holds no document');
+	},
 	blockAt: () => null,
 	selectedRange: () => null,
 	repaint: () => {},

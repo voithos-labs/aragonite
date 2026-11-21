@@ -6,9 +6,45 @@
 
 import type { AnyBlockKind } from './core/nodes';
 import { devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';
-import type { PresentationMode } from './presentation-mode';
+import type { Mode, PresentationMode } from './presentation-mode';
 import type { EditorSelection } from './selection/primitives';
 import type { OpDescriptor, OperationDetailMap, OperationKind } from './schema/operations';
+import type { Doc } from './schema/doc-view';
+import type { Selection } from './schema/selection-read';
+
+// ── What `Editor.on` hears ───────────────────────────────────────────────
+
+/** Bytes `from` to `to` of the document before a write gave way to `insert`. */
+export interface Change {
+	readonly from: number;
+	readonly to: number;
+	readonly insert: string;
+}
+
+/** One write as it lands: its operation and detail, the document after it, and what it replaced,
+ *  worked out only when `changes` is read. */
+export type EditInfo = {
+	[K in OperationKind]: {
+		readonly op: K;
+		readonly detail: OperationDetailMap[K];
+		readonly doc: Doc;
+		readonly changes: readonly Change[];
+		readonly timestamp: number;
+	};
+}[OperationKind];
+
+/** The event map a plugin listens on, each event with what its listener gets. */
+export interface Events {
+	edit: EditInfo;
+	selection: { readonly selection: Selection | null };
+	mode: Mode;
+	theme: string;
+	menu: boolean;
+	/** A whole document replaced the last: a `source` change or `load`. No `edit` fires for it. */
+	load: { readonly doc: Doc; readonly generation: number };
+	search: void;
+	error: EditorError;
+}
 
 // ── Edit event union ─────────────────────────────────────────────────────
 

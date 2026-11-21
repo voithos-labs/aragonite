@@ -352,6 +352,7 @@ You set the editor up with props when it mounts. After that you talk to it throu
 | Method | What it answers |
 | --- | --- |
 | `getSource()` | The live document, serialized back to Markdown |
+| `doc` | The document as it stands, in document bytes: its text, its blocks and the block at a byte (see [`Doc`](plugin-api.md#the-plugin-unit)) |
 | `getSelection()` | A frozen snapshot of the current selection, or `null` |
 | `selectedRange()` | The same selection as `{ from, to }` in document bytes, the positions a plugin's own functions take (`null` with table cells selected) |
 | `getBlockKindAt(path)` | What kind of block sits at a path, or `null` |

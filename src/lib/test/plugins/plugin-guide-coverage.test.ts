@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { readSource } from '../invariants/lint/scan-source';
 
-// Drift guard: every export of the three published author barrels must appear in the docs pack,
+// Drift guard: every export of the published author barrels must appear in the docs pack,
 // so a new export can't ship undocumented, and every name the consumer guide's export table lists
 // must be a real main-barrel export. Names match in backtick form, so incidental prose can't stand
 // in for an entry. Each section is found by its heading, so rename a heading in both places.
@@ -88,6 +88,20 @@ describe('plugin-api § API reference catalogs the whole aragonite/svelte surfac
 	it('is not vacuous: a dropped catalog entry is detected', () => {
 		const withoutOne = section.replaceAll('`createContainerBlock`', '`__dropped__`');
 		expect(undocumented(exportNames, withoutOne)).toEqual(['createContainerBlock']);
+	});
+});
+
+describe('plugin-api § API reference catalogs the aragonite/plugin/grammar surface', () => {
+	const exportNames = barrelExports('src/lib/plugin/grammar.ts');
+	const section = guideSection(CATALOG_DOC, CATALOG_HEADING);
+
+	it('finds the helpers', () => {
+		expect(exportNames).toContain('escalatedRun');
+		expect(exportNames).toContain('splitLines');
+	});
+
+	it('lists every export verbatim in the catalog', () => {
+		expect(undocumented(exportNames, section)).toEqual([]);
 	});
 });
 

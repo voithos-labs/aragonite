@@ -254,6 +254,8 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.353 | Every reader of the text a write is worked out from names the vouch its bytes pass | L |
 | G4.355 | The chain rebuild reports a fold in one place, which checks it | L |
 | G4.357 | A test takes one guard's warnings and leaves the rest to the gate | L |
+| G4.367 | A plugin's read of the document walks no block it wasn't asked for | L |
+| G4.368 | Reading a block, held or at the caret, walks nothing and costs as much at 2,000 blocks as at 400 | harness |
 
 ### The entries
 
@@ -739,3 +741,7 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.355 · One push for a fold.** `src/lib/tree-operations/chain-rebuild.ts :: foldWrite` is where a fold is reported and where G1.220 reads it. The scan fails a `folds.push` anywhere else, and a `foldWrite` that stops calling the check. `lint/fold-doors.test.ts`.
 
 **G4.357 · One guard's warnings, taken alone.** A test about one guard reads its fires through `takeDevWarnsOf(tag)` (`test/support/warn-gate.ts`), which leaves every other tag for the gate. A `takeDevWarns()` narrowed to one tag (a `filter`, a `some`) drops the rest unseen: a property did, and hid a check that fired on its every run. `lint/suite-file-rules.test.ts`.
+
+**G4.367 · A read walks nothing.** `schema/doc-view.ts` and `editor-actions/commit/document-read.ts` name no `walkBlocks` or `pathOfNode`: a held block finds its node through the runs each write reports (G4.371), and a lost one reads -1. `lint/file-rules.test.ts`.
+
+**G4.368 · A block read costs its block.** A plugin reading the block at the caret, a block by index and a block it holds, on every edit, walks no document and builds and measures as many blocks at 2,000 as at 400. A key no plugin reads logs no runs and builds no block. `test/plugins/read/held-block.svelte.test.ts` on `documentWalks`, `blocksBuilt`, `hintRunsLogged`.

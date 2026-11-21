@@ -13,7 +13,7 @@ import type { InsertRow } from './insert-catalogue';
 import type { CaretMenu } from './caret-menu';
 import type { SelectionAction } from './selection-action';
 import type { Draft } from './drafts';
-import type { Block } from './doc-view';
+import type { Block, Doc } from './doc-view';
 import type { BlockPaint, Paint } from '../decorations/paint';
 import { isValidPluginName } from './plugin-name';
 import { satisfiesRange } from './version-range';
@@ -89,6 +89,8 @@ export interface Editor {
 	readonly theme: string;
 	/** Every row this editor's insert menus offer, live. */
 	readonly inserts: readonly InsertRow[];
+	/** The document as it stands, a new `Doc` after each write. */
+	readonly doc: Doc;
 	/** Listens until `dispose` is called, the plugin is turned off, or the editor unmounts. */
 	on<K extends keyof EditorEventMap>(
 		event: K,

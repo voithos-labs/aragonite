@@ -58,7 +58,11 @@ export type {
 	LeafDraw,
 	LineBlockSpec
 } from './schema/block-shapes';
-export type { Block, InlineType, Piece } from './schema/doc-view';
+export type { Block, Doc, InlineType, Piece } from './schema/doc-view';
+export type { Mode } from './presentation-mode';
+// Text read as an editor running these plugins reads it, with no editor mounted.
+export { grammar } from './components/editor-root/headless-grammar';
+export type { Grammar } from './components/editor-root/headless-grammar';
 // What `contributes(...).paint` lays over a block, in document bytes; `editor.repaint` asks again.
 export type { BlockPaint, MarkAt, Paint } from './decorations/paint';
 // What a block type's `draw` gets and hands back; the editor makes every editable element.
