@@ -342,8 +342,13 @@ async function textOverRange(
 	if (!over || over.answer.source === over.read.source) return 'nothing';
 	const { answer, host } = over;
 	const { start, end } = coverage.range;
+	// One block held whole is replaced where it stands, so its event names it, nested or not.
 	const op: CoreCommit['op'] = pathsEqual(start.path, end.path)
-		? { kind: 'replaceBlock', detail: { source: 'cross-block-covered-block' } }
+		? {
+				kind: 'replaceBlock',
+				detail: { source: 'cross-block-covered-block' },
+				eventPath: docPathFrom(start.path)
+			}
 		: typedOp(host, answer);
 	const snapshot = deleteSnapshot(start.path, start.offset);
 	const [wrote, landing] = await ctx.controller.holdLandings(() =>

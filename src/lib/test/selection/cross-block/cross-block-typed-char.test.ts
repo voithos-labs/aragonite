@@ -67,11 +67,29 @@ describe('cross-block typed character: A2/A3 event symmetry', () => {
 		expect((env.doc.children[0] as CstNode).raw).toBe('> Xworld\n');
 	});
 
+	// Miss-analysis: no row read the event a key over a block held whole emits, so inside a
+	// container its path moved from the block to the container unseen.
+	it.each([
+		['at the top level', 'lead\n\n---\n\ntail\n', [1]],
+		['inside a quote', '> lead\n>\n> ---\n>\n> tail\n', [0, 1]]
+	])('names the block a key replaces, held whole %s', async (_where, source, path) => {
+		const env = makeEnv(source);
+		const editEvents: EditEvent[] = [];
+		env.events.on('edit', (e) => editEvents.push(e));
+		const held = { path, wholeBlock: true } as const;
+		env.selectionState.enterCrossBlock(held, held);
+
+		await makeHandlers(env, path).handleBeforeInput(makeBeforeInputEvent('X'));
+
+		expect(editEvents.map((e) => [e.op, e.path, e.detail])).toEqual([
+			['replaceBlock', path, { source: 'cross-block-covered-block' }]
+		]);
+	});
+
 	it('typed character lands in the merged target raw', async () => {
 		const env = makeEnv('hello\n\nworld\n');
 
-		// Selecting only the paragraph break, [0] offset 5 to [1] offset 0: typing should still produce
-		// delete+input and leave a single merged block.
+		// Only the paragraph break is selected, [0] offset 5 to [1] offset 0: the text joins the two.
 		env.selectionState.enterCrossBlock({ path: [0], offset: 5 }, { path: [1], offset: 0 });
 
 		const handlers = makeHandlers(env, [0]);
