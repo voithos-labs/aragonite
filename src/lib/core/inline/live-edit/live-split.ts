@@ -17,7 +17,7 @@ import { CONTENT_VISIBILITY, paintsOnlyChrome, renderedText } from '../visibilit
 import { readBack, shownOf } from './read-back';
 import type { Reading } from '../../../schema/reading';
 import type { StoredAs } from '../../../schema/stored-as';
-import { isBuiltinInlineKind, type AnyInlineKind, type InlineNode } from '../../nodes';
+import type { AnyInlineKind, InlineNode } from '../../nodes';
 import type { NodeView } from '../../node-views';
 import { isBlankText, readsAsBlankLine, trimTrailingLineEnding } from '../../lines';
 import {
@@ -146,8 +146,8 @@ function readSplitBytes(
 
 // ── The chain ────────────────────────────────────────────────────────────────
 
-/** What a cut inside `node` does: its kind's row, else `whole` for a plugin's widget, no part of
- *  which stands alone. Undefined for a node with no say. */
+/** What a cut inside `node` does: its kind's row, else `whole` for a widget, no part of which
+ *  stands alone. Undefined for a node with no say. */
 export function splitBehaviorOf(
 	node: InlineNode,
 	raw: string,
@@ -155,9 +155,7 @@ export function splitBehaviorOf(
 ): SplitBehavior | undefined {
 	const row = getInlineConstructPolicy(node.kind)?.splitBehavior;
 	if (row) return row;
-	return !isBuiltinInlineKind(node.kind) && isInlineWidget(node, raw, grammar)
-		? 'whole'
-		: undefined;
+	return isInlineWidget(node, raw, grammar) ? 'whole' : undefined;
 }
 
 /** Where a cut inside a construct split whole (a URL, an escape, a widget) moves to: the edge the

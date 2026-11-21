@@ -494,6 +494,8 @@ const RUN_ROWS: NamedRow[] = [
 	),
 	live('and inline math', 'a $x+⟦⟧y$ z\n', paste('one\n\ntwo'), 'a $x+y$one\n\ntwo z\n'),
 	live('and a footnote reference', 'a [^⟦⟧n] z\n', paste('one\n\ntwo'), 'a one\n\ntwo[^n] z\n'),
+	live('and an entity', 'a &am⟦⟧p; z\n', paste('one\n\ntwo'), 'a &amp;one\n\ntwo z\n'),
+	live('and a line break tag', 'a <b⟦⟧r> z\n', paste('one\n\ntwo'), 'a one\n\ntwo<br> z\n'),
 	{
 		name: 'source mode writes the same paste where the caret is',
 		source: 'a $x+⟦⟧y$ z\n',
