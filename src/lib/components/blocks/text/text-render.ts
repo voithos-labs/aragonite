@@ -209,6 +209,7 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 				buildImageWidget: (imgNode, imgRaw, imgOpts) =>
 					buildImageWidget(imgNode, imgRaw, { ...imgOpts, brokenUrlCache: deps.brokenUrlCache }),
 				acquireViewWidget,
+				followText: widgetPool.followText,
 				reportWidgetError: deps.reportRenderError,
 				grammar: deps.reading.grammar,
 				tagConstructMarkers: tagsConstructMarkers(deps.reading.mode()),

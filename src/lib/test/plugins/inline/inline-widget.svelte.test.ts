@@ -53,9 +53,10 @@ function wiki() {
 		label: 'Tag',
 		prefix: '#',
 		match: /#\w+/,
-		read: () => true,
+		read: (m) => m[0],
 		sample: '#tag',
-		class: 'harness-tag'
+		class: 'harness-tag',
+		follow: (tag) => void followed.push(tag)
 	});
 	const plugin = definePlugin({
 		name: 'wiki',
@@ -109,21 +110,29 @@ describe('an inline() widget in a mounted editor', () => {
 		expect(drawn.at(-1)!.mode.name).toBe('reading');
 	});
 
-	it("runs `follow` on the host's link click, and not on a double click", async () => {
-		const { plugin, followed } = wiki();
-		const editor = mountEditor({
-			source: SOURCE,
-			plugins: [plugin],
-			presentationMode: 'live',
-			linkClick: 'plain'
-		});
-		await editor.settle();
-		const shell = shellIn(blockHostAt(editor, [1]));
-		shell.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 2 }));
-		expect(followed).toEqual([]);
-		shell.dispatchEvent(new MouseEvent('click', { bubbles: true, detail: 1 }));
-		expect(followed).toEqual(['note']);
-	});
+	// Miss-analysis: `follow` was the widget arm's alone, so a class construct took it and ignored it.
+	it.each([
+		['a widget', '[data-inline-widget]', 'note'],
+		['styled text', '.harness-tag', '#tag']
+	])(
+		"runs `follow` on the host's link click on %s, and not on a double click",
+		async (_arm, at, data) => {
+			const { plugin, followed } = wiki();
+			const editor = mountEditor({ source: SOURCE, plugins: [plugin], presentationMode: 'live' });
+			await editor.settle();
+			const el = blockHostAt(editor, [1]).querySelector<HTMLElement>(at)!;
+			const click = (init: MouseEventInit) =>
+				el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, ...init }));
+			click({ detail: 1 });
+			click({ detail: 2, ctrlKey: true });
+			expect(followed).toEqual([]);
+			click({ detail: 1, ctrlKey: true });
+			editor.props.presentationMode = 'reading';
+			await editor.settle();
+			blockHostAt(editor, [1]).querySelector<HTMLElement>(at)!.click();
+			expect(followed).toEqual([data, data]);
+		}
+	);
 
 	it('draws a class construct as its bytes with its class', async () => {
 		const { plugin } = wiki();

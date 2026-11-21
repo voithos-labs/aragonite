@@ -75,7 +75,7 @@ export function inline<D>(spec: InlineSpec<D>): Inline<D> {
 	if ('class' in spec) {
 		const claim: InlineMaking['claim'] = (raw, pos, end, kind) =>
 			plainClaim(take(raw, pos, end), pos, kind);
-		return madeInline<D>({ ...making, claim, className: spec.class });
+		return madeInline<D>({ ...making, claim, className: spec.class, follow: spec.follow as never });
 	}
 	if (spec.as === 'image') {
 		const { image, write } = spec;

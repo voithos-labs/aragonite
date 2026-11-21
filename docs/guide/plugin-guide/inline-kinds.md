@@ -127,11 +127,14 @@ const tag = inline({
 	label: 'Tag',
 	prefix: '#',
 	match: /#[\p{L}\p{N}_/-]+/u,
-	read: () => ({}),
+	read: (m) => ({ tag: m[0].slice(1) }),
 	sample: 'filed under #work',
-	class: 'tag'
+	class: 'tag',
+	follow: ({ tag }) => openTag(tag)
 });
 ```
+
+`follow` runs on the click the host picked for links, as it does on a widget. Any other click puts the caret in the tag, so it stays text you edit.
 
 ## Your syntax, a built-in image or link
 

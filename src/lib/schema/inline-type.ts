@@ -83,22 +83,32 @@ export type InlineArm<D> =
 			 *  `props.editor.edit()`; the key's target is the editable it sits in. */
 			key?(event: KeyboardEvent, props: WidgetProps<D>): boolean;
 	  }
-	| {
+	| ({
 			as: 'image';
 			image(data: D): ImagePiece;
 			/** The claim's bytes holding `image`, or null for an edit the syntax can't hold. Without
 			 *  it every edit of the image is refused. */
 			write?(image: ImagePiece, data: D): string | null;
-	  }
-	| {
+			follow?: never;
+	  } & DrawsNothing)
+	| ({
 			as: 'link';
 			/** `text` is a run of the claim's bytes, at `at` or its one run after the prefix: the link
 			 *  shows it and hides the rest in live mode. A claim whose text isn't there is the editor's. */
 			link(data: D): LinkPiece;
 			/** The claim's bytes holding `link`, or null; without it the link card's edits are refused. */
 			write?(link: LinkPiece, data: D): string | null;
-	  }
-	| { class: string };
+			follow?: never;
+	  } & DrawsNothing)
+	| ({
+			class: string;
+			/** Runs on the click the host picked for links, as a widget's does; the text stays
+			 *  editable. */
+			follow?(data: D, editor: Editor): void;
+	  } & DrawsNothing);
+
+/** What only a widget's drawing uses, refused on the arms that draw nothing of their own. */
+type DrawsNothing = { draw?: never; key?: never; depends?: never };
 
 export type InlineSpec<D> = InlineCommon<D> & (RegexMatcher<D> | FunctionMatcher<D>) & InlineArm<D>;
 
@@ -167,6 +177,8 @@ export interface InlineMaking {
 	readonly widget:
 		(Omit<WidgetEntry, 'own'> & { own: Omit<NonNullable<WidgetEntry['own']>, 'plugin'> }) | null;
 	readonly className: string | null;
+	/** A class construct's `follow`. */
+	readonly follow?: (data: unknown, editor: Editor) => void;
 	/** A mark's run and drawing; null for the other constructs, which claim through `claim`. */
 	readonly mark?: MarkMaking | null;
 	/** A marker side's text: the side of it a letter typed there joins. */
@@ -195,6 +207,8 @@ export interface InstalledInline {
 	readonly split: 'whole' | 'plain';
 	readonly widget: WidgetEntry | null;
 	readonly className: string | null;
+	/** A class construct's `follow`, and the plugin whose editor it gets. */
+	readonly follow: { run(data: unknown, editor: Editor): void; plugin: string } | null;
 	readonly mark: Omit<MarkMaking, 'toggle'> | null;
 	/** A marker side's text side; null for any other construct. */
 	readonly marker: 'after' | 'before' | null;
@@ -276,6 +290,7 @@ export function installInlines(
 				split: making.split,
 				widget: making.widget && { ...making.widget, own: { ...making.widget.own, plugin } },
 				className: making.className,
+				follow: making.follow ? { run: making.follow, plugin } : null,
 				mark: mark && { marker: mark.marker, tag: mark.tag, className: mark.className },
 				marker: making.marker ?? null
 			});

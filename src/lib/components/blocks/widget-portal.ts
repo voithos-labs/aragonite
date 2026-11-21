@@ -13,7 +13,6 @@ import {
 	widgetActivates,
 	widgetOf,
 	type InlineWidgetComponentProps,
-	type WidgetEditing,
 	type WidgetEntry
 } from '../../core/inline/inline-widgets';
 import type { WidgetProps } from '../../schema/inline-type';
@@ -216,15 +215,20 @@ export interface OwnWidgetContext {
 	keys(depends: (block: Block) => string, report: (cause: unknown) => void): KeyWatch;
 }
 
+export interface ViewWidgetPool extends WidgetPool {
+	/** Runs a class construct's `follow` on the click a widget's would take, its text left as is. */
+	followText(node: InlineNode, el: HTMLElement): void;
+}
+
 /** A view that throws is reported and its widget falls back to the raw span. */
-export function createViewWidgetPool(deps: ViewWidgetPoolDeps): WidgetPool {
+export function createViewWidgetPool(deps: ViewWidgetPoolDeps): ViewWidgetPool {
 	const { reportError, getTheme, getDocument, getContentVersion, navigateTo, reading } = deps;
 	const { activationClick } = deps;
 	const { grammar } = reading;
-	return createWidgetPool<ViewHandle>({
+	const pool = createWidgetPool<ViewHandle>({
 		create(kind, inline, source) {
 			const entry = widgetOf(kind, grammar);
-			if (entry?.own) return ownHandle(entry.own, entry.editing, kind, inline, source);
+			if (entry?.own) return ownHandle(entry.own, kind, inline, source);
 			const view = entry?.view;
 			if (!view) return null;
 			// Read per click: a pooled widget outlives a mode switch and a policy augment.
@@ -271,10 +275,25 @@ export function createViewWidgetPool(deps: ViewWidgetPoolDeps): WidgetPool {
 			return handle.shell;
 		}
 	});
+	return {
+		...pool,
+		followText(node, el) {
+			const follow = grammar.inlines?.().get(node.kind)?.follow;
+			if (follow) onFollow(el, () => follow.run(node.data, deps.own.editorFor(follow.plugin)));
+		}
+	};
+
+	// The editor decides the click, by the rule every followed click asks.
+	function onFollow(el: HTMLElement, follow: () => void): void {
+		el.addEventListener('click', (e) => {
+			if (!activationClick(e)) return;
+			e.preventDefault();
+			follow();
+		});
+	}
 
 	function ownHandle(
 		own: NonNullable<WidgetEntry['own']>,
-		editing: WidgetEditing | undefined,
 		kind: AnyInlineKind,
 		inline: InlineNode,
 		source: string
@@ -314,15 +333,8 @@ export function createViewWidgetPool(deps: ViewWidgetPoolDeps): WidgetPool {
 		});
 		if (!mounted) return null;
 		ownProps.set(shell, { props: () => props, key: own.key });
-		// The editor decides the click, by the rule every followed click asks.
-		if (own.follow) {
-			const follow = own.follow;
-			shell.addEventListener('click', (e) => {
-				if (!widgetActivates(editing, e, activationClick)) return;
-				e.preventDefault();
-				follow(props.data, editor);
-			});
-		}
+		const { follow } = own;
+		if (follow) onFollow(shell, () => follow(props.data, editor));
 		return {
 			shell,
 			view: mounted as MountedPluginView<never>,

@@ -47,6 +47,8 @@ export interface RenderInlineOptions extends WidgetBuildOptions {
 	shownSource?: { start: number; end: number };
 	/** Keeps the pooled instance of a widget drawn as its source alive for when it draws again. */
 	retainViewWidget?: (node: InlineNode, raw: string) => void;
+	/** Hands a construct's own text that goes somewhere to the click the host picked for links. */
+	followText?: (node: InlineNode, el: HTMLElement) => void;
 }
 
 // ── Marker helpers ──────────────────────────────────────────────────────────
@@ -404,18 +406,19 @@ function renderNode(
 			// An invisible entity renders no widget and keeps its literal-source span, as does any
 			// kind the registry does not own, so every byte round-trips; a construct's `class` styles it.
 			const widget = buildCoreInlineWidget(node, raw, opts);
-			container.appendChild(
+			const drawn =
 				(widget && stampFrame(widget, node, opts)) ??
-					sourceSpan(
-						raw,
-						node,
-						node.kind === 'entityReference'
-							? 'md-entity'
-							: node.kind === 'rawHtml'
-								? 'md-raw-html'
-								: (own?.className ?? 'md-unknown-inline')
-					)
-			);
+				sourceSpan(
+					raw,
+					node,
+					node.kind === 'entityReference'
+						? 'md-entity'
+						: node.kind === 'rawHtml'
+							? 'md-raw-html'
+							: (own?.className ?? 'md-unknown-inline')
+				);
+			if (own?.follow) opts.followText?.(node, drawn);
+			container.appendChild(drawn);
 			return null;
 		}
 	}
