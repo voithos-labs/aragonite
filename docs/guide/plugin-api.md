@@ -741,7 +741,7 @@ _(pre-freeze / unstable)_ What highlights fenced code. The editor ships no gramm
 | Export | Role |
 | --- | --- |
 | `CodeHighlighter` | What `contributes(...).code` answers: `highlight(body, language)` gives the body's tokens, `null` for plain, or a promise of either, and `languages()` lists what it answers. Several plugins may contribute one; for each spelling the first plugin listing it is asked. The `highlight` package is one |
-| `CodeToken`, `CodeLanguage` | A token is `{ from, to, class }` in body offsets (tokens nest or don't overlap); a language is `{ name, aliases }`, one picker row with its search keys |
+| `CodeToken`, `CodeLanguage` | A token is `{ from, to, class }` in body offsets (tokens nest or don't overlap, and of two over one range the first listed is outside); a language is `{ name, aliases }`, one picker row with its search keys |
 | `CodePainter` | `renderSource`'s second argument: `code(body, language)` paints a body through the editor's highlighters, plain where none answers, and repaints when a late answer arrives |
 | `sliceFencedSource`, `FencedSource` | A fenced source split into its opener line, body and closer line, each keeping its own ending; null when the first line opens no fence |
 | `renderFencedSource` | The code block's own drawing of a fenced source: the fence lines as markers the marker-hiding modes collapse, and the body through the painter you pass (`paint.code`, say). Text-preserving, and it keeps a line for the caret under an empty last body line |
