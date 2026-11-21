@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 // A paint that reads the rest of the document declares `paintDepends`: it's handed the answers as
 // `ctx.depends`, equal to asking every block again after every write route, a paragraph's key
-// paints no other block again, and a plugin turned off asks nothing.
+// paints no other block again, an answer moved paints every block again, and a plugin turned off
+// asks nothing.
 // Miss-analysis: a new home; a paint that read the document had only `editor.repaint` to call.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
@@ -17,6 +18,7 @@ import {
 	destroyMountedEditors,
 	installLayoutStubs,
 	mountEditor,
+	pressKeyAt,
 	surfaceAt,
 	typeInto
 } from '#lib/test/harness/mount-editor.svelte.js';
@@ -88,6 +90,19 @@ describe('a paint with paintDepends', () => {
 		await m.settle();
 		expect(log.slice(calls).length).toBe(4);
 		expect(log.at(-1)!.depends).toEqual(['# TopX', '', '', '## Mid']);
+	});
+
+	it('paints every block again on an Enter above a heading, each handed answers that index the blocks', async () => {
+		const { plugin, log, editor } = painter(headings);
+		const m = mountEditor({ source: DOC, plugins: [plugin] });
+		await m.settle();
+		const calls = log.length;
+		await pressKeyAt(m, [1], 4, { key: 'Enter' });
+		await m.settle();
+		const after = log.slice(calls);
+		const blocks = editor().doc.blocks;
+		expect(new Set(after.map((c) => c.text))).toEqual(new Set(blocks.map((block) => block.text)));
+		for (const call of after) expect(call.depends).toEqual(blocks.map(headings));
 	});
 
 	it('asks nothing once its plugin is turned off', async () => {

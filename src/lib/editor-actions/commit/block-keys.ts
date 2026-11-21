@@ -3,7 +3,8 @@
  * says of each top-level block (a toc, the headings in it; footnote numbering, the references).
  * A watch asks every block once as it starts, then only the blocks a write's runs replaced, and
  * asks them after the write, when the answers are read: a position read inside a write fails a
- * dev build. An answer that says something (not '') coming, going or changing is a change.
+ * dev build. The answers change when one that says something (not '') leaves its index, so an
+ * Enter in prose below the last such answer changes nothing.
  */
 import { assertInvariant, devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 import type { Block, KeyWatch } from '../../schema/doc-view';
@@ -65,7 +66,7 @@ export function watchKeys(
 	function askAll(list: readonly Block[], was: readonly string[]): void {
 		slots = Array.from({ length: list.length }, (_, i) => ask(list[i]));
 		shared = false;
-		if (!sameSaying(was, slots)) version++;
+		if (!sameFrom(was, slots, 0)) version++;
 	}
 
 	function settle(): void {
@@ -83,20 +84,18 @@ export function watchKeys(
 		// A write that couldn't say, or runs that don't add up, ask every block.
 		if (!moves || slots.length !== list.length) askAll(list, was);
 		else {
-			const came: string[] = [];
+			const resized = slots !== was;
 			let changed = false;
 			for (const i of moves.asks) {
 				const key = ask(list[i]);
-				if (moves.fresh.has(i)) {
-					if (key) came.push(key);
-				} else if (key !== slots[i]) changed = true;
 				if (key === slots[i]) continue;
 				if (shared) slots = slots.slice();
 				shared = false;
 				slots[i] = key;
+				changed = true;
 			}
-			// Blocks put in or taken out move only what they say, in order (an Enter in prose, none).
-			if (changed || !sameSaying(came, moves.gone)) version++;
+			// Blocks put in or taken out move every answer after them.
+			if (resized ? !sameFrom(was, slots, moves.from) : changed) version++;
 		}
 		if (devChecksOn && !perfEnabled() && list.length <= CHECKED_UP_TO) {
 			assertInvariant('kept-keys', () => checkKeptKeys(slots, list.map(quietly(depends))));
@@ -104,30 +103,27 @@ export function watchKeys(
 	}
 
 	/** Moves the slots past each write's runs, '' where a block is new, and names the slots to
-	 *  ask: `fresh` the new ones, `gone` what the blocks taken out said. */
+	 *  ask and the first index any run reached. */
 	function replaced(done: readonly (readonly TopLevelChange[])[]) {
 		let asks: number[] = [];
-		let fresh: number[] = [];
-		const gone: string[] = [];
+		let from = slots.length;
 		for (const runs of done) {
 			asks = shiftedPast(asks, runs);
-			fresh = shiftedPast(fresh, runs);
+			if (runs.length) from = Math.min(from, runs[0].at);
 			let delta = 0;
 			for (const run of runs) {
 				const at = run.at + delta;
 				if (run.removed !== run.inserted) {
-					for (let i = at; i < at + run.removed; i++) if (slots[i]) gone.push(slots[i]);
 					const made = new Array<string>(run.inserted).fill('');
 					// Joined, never spliced in: a run can put in a document's worth of blocks.
 					slots = slots.slice(0, at).concat(made, slots.slice(at + run.removed));
 					shared = false;
-					for (let i = at; i < at + run.inserted; i++) fresh.push(i);
 				}
 				for (let i = at; i < at + run.inserted; i++) asks.push(i);
 				delta += run.inserted - run.removed;
 			}
 		}
-		return { asks: [...new Set(asks)].sort((a, b) => a - b), fresh: new Set(fresh), gone };
+		return { asks: [...new Set(asks)].sort((a, b) => a - b), from };
 	}
 
 	follow();
@@ -162,11 +158,12 @@ const quietly = (depends: (block: Block) => string) => (block: Block) => {
 	}
 };
 
-/** Whether two lists of answers say the same things in the same order, '' left out. */
-function sameSaying(a: readonly string[], b: readonly string[]): boolean {
-	const said = (keys: readonly string[]) => keys.filter(Boolean);
-	const [x, y] = [said(a), said(b)];
-	return x.length === y.length && x.every((key, i) => key === y[i]);
+/** Whether two lists of answers say the same at every index from `from` on, '' and no slot alike. */
+function sameFrom(a: readonly string[], b: readonly string[], from: number): boolean {
+	for (let i = from, end = Math.max(a.length, b.length); i < end; i++) {
+		if ((a[i] ?? '') !== (b[i] ?? '')) return false;
+	}
+	return true;
 }
 
 /** The indices `at` still standing past one write's runs, moved by what each run put in. */

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 // A block type that reads the rest of the document declares `depends`: `draw` is handed the
 // answers, each top-level block is asked once for every drawing of the type and then only the
-// blocks a write changed, `update` runs when an answer that says something comes, goes or
-// changes, and the answers it's handed equal asking every block again after every kind of write.
+// blocks a write changed, `update` runs when an answer that says something comes, goes, changes or
+// moves, and the answers it's handed equal asking every block again after every kind of write.
 // Miss-analysis: a new home; a drawing that read the document walked it on every key instead.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { flushSync } from 'svelte';
@@ -113,6 +113,17 @@ describe('a drawing with depends', () => {
 		typeInto(surfaceAt(m, [1]), '# TopX');
 		await m.settle();
 		expect([asked(), log.length, nav(m).textContent]).toEqual([1, calls + 1, '# TopX|## Mid']);
+	});
+
+	it('updates on an Enter above a heading, holding answers that index the blocks', async () => {
+		const { m, log } = await mounted('[[keys]]\n\n# A\n\nparagraph\n\n# B\n');
+		const calls = log.length;
+		await pressKeyAt(m, [2], 4, { key: 'Enter' });
+		await m.settle();
+		const held = log.at(-1)!;
+		expect(log.length).toBe(calls + 1);
+		expect(held).toEqual(m.instance.doc.blocks.map(headingsIn));
+		expect(m.instance.doc.blocks[held.indexOf('# B')].text).toBe('# B\n');
 	});
 
 	it('runs no update on an Enter below the last heading', async () => {

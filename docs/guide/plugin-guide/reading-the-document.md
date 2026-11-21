@@ -4,7 +4,7 @@ Part of the [plugin guide](../plugin-guide.md).
 
 A block gets its own text, which is fine right up until it isn't: a table of contents needs every heading, and a footnote reference needs to know it's the third one. Walking the whole document on every keystroke works until the document is long. So say what you read instead.
 
-Your block type's `depends(block)`, beside its `draw`, answers one string per top-level block: what your drawing reads of it. The editor asks every top-level block once, for all your drawings together, then only the blocks a keystroke changed. `draw` and `update` get the answers as `ctx.depends`, one per block, in `editor.doc.blocks`' order. `update` runs when an answer that says something (anything but `''`) comes, goes or changes, so typing in a paragraph asks one block and redraws nothing.
+Your block type's `depends(block)`, beside its `draw`, answers one string per top-level block: what your drawing reads of it. The editor asks every top-level block once, for all your drawings together, then only the blocks a keystroke changed. `draw` and `update` get the answers as `ctx.depends`, one per block, in `editor.doc.blocks`' order. `update` runs when an answer that says something (anything but `''`) comes, goes, changes or moves to another block, so typing in a paragraph asks one block and redraws nothing.
 
 ## A table of contents
 
@@ -132,7 +132,7 @@ export const noteNumbers = definePlugin({
 }
 ```
 
-A paint is asked only for blocks on screen, and kept while a block's bytes and the answers stand. When an answer changes (a reference added above), the blocks on screen paint again; a key that changes no answer paints only the block it was typed in.
+A paint is asked only for blocks on screen, and kept while a block's bytes and the answers stand. When an answer changes or moves (a reference added above, a new line typed above one), the blocks on screen paint again; a key that changes no answer paints only the block it was typed in.
 
 ## In React or Vue
 
