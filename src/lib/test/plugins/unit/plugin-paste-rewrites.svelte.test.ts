@@ -1,15 +1,18 @@
 // @vitest-environment jsdom
 // A plugin value's paste rewrites in a mounted editor: the block a rewrite reads, a paste that lands
-// as text, the editor's own entry, and a rewrite that throws.
+// as text, the editor's own entry, a rewrite that throws, and each place a paste lands blocks, where
+// a rewrite is asked once, beside the text it is never asked about.
 // Miss-analysis: paste rewrites were process-wide text transforms, and no row read a pasted block the
 // way a plugin reads it.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { definePlugin } from '#lib/plugin.js';
+import { builtin, definePlugin, type EditorPlugin } from '#lib/plugin.js';
 import { container } from '#lib/components/block-makers/container.js';
 import { rewrite, type PasteRewrite } from '#lib/schema/paste-rewrite.js';
 import { OWN_CLIPBOARD_TYPE } from '#lib/browser/clipboard.js';
+import { admonitionsPlugin } from '#packages/admonitions/src/index.js';
 import type { Block } from '#lib/schema/doc-view.js';
 import type { PluginError } from '#lib/schema/plugin-unit.js';
+import type { SelectionPoint } from '#lib/selection/primitives.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -18,6 +21,7 @@ import {
 	surfaceAt
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { pressKey } from '#lib/test/harness/settle.js';
+import { dispatchBeforeInput, insertBy } from '#lib/test/harness/insertion-routes.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
@@ -35,8 +39,9 @@ interface AlertData {
 	type: string;
 }
 
-/** An alerts plugin whose one rewrite answers with `into`, recording every block it reads. */
-function makeAlerts(into: (block: Block<AlertData>) => string | null) {
+/** An alerts plugin whose one rewrite answers with `into`, recording every block it reads: pasted
+ *  alerts, or with `ofParagraphs` pasted paragraphs. */
+function makeAlerts(into: (block: Block<AlertData>) => string | null, ofParagraphs = false) {
 	const read: Block<AlertData>[] = [];
 	const alert = container<AlertData>({
 		name: 'alert',
@@ -56,8 +61,9 @@ function makeAlerts(into: (block: Block<AlertData>) => string | null) {
 			}
 		}
 	});
+	const from = ofParagraphs ? (builtin.blocks.paragraph as unknown as typeof alert) : alert;
 	const rewrites: PasteRewrite<unknown>[] = [
-		rewrite({ from: alert, into: (block) => (read.push(block), into(block)) })
+		rewrite({ from, into: (block) => (read.push(block), into(block)) })
 	];
 	const plugin = definePlugin({
 		name: 'alerts',
@@ -68,15 +74,17 @@ function makeAlerts(into: (block: Block<AlertData>) => string | null) {
 	return { plugin, read };
 }
 
+/** `source` in an editor running the alerts plugin, after the plugins `beside` it. */
 async function mounted(
 	into: (block: Block<AlertData>) => string | null,
-	source = 'intro\n\nafter\n'
+	source = 'intro\n\nafter\n',
+	{ ofParagraphs = false, beside = [] as EditorPlugin[] } = {}
 ) {
 	const errors: PluginError[] = [];
-	const alerts = makeAlerts(into);
+	const alerts = makeAlerts(into, ofParagraphs);
 	const editor = mountEditor({
 		source,
-		plugins: [alerts.plugin],
+		plugins: [...beside, alerts.plugin],
 		onError: (error: PluginError) => errors.push(error)
 	});
 	await editor.settle();
@@ -92,8 +100,16 @@ async function pasteAfterIntro(editor: Mounted, text: string, own?: string) {
 	await pasteOn(editor, surface, text, own);
 }
 
-/** Pastes `text` on `surface`, where the caret already is. */
-async function pasteOn(editor: Mounted, surface: HTMLElement, text: string, own?: string) {
+/** Pastes `text` on `surface`, where the caret already is; `plain` sends the plain-paste chord
+ *  first, as the browser does. */
+async function pasteOn(
+	editor: Mounted,
+	surface: HTMLElement,
+	text: string,
+	own?: string,
+	plain = false
+) {
+	if (plain) await pressKey(surface, { key: 'V', ctrlKey: true, shiftKey: true });
 	const event = new Event('paste', { bubbles: true, cancelable: true });
 	const types = own ? ['text/plain', OWN_CLIPBOARD_TYPE] : ['text/plain'];
 	Object.defineProperty(event, 'clipboardData', {
@@ -188,5 +204,171 @@ describe('a paste rewrite in a mounted editor', () => {
 		expect(errors.map(({ plugin, doing }) => [plugin, doing])).toEqual([
 			['alerts', 'rewrite paste']
 		]);
+	});
+});
+
+type Place = (editor: Mounted) => Promise<HTMLElement>;
+const point = (path: number[], offset: number): SelectionPoint => ({ path, offset });
+
+/** The selection from `anchor` to `focus`, a caret where they are one point; resolves to the
+ *  element that holds focus, which a paste arrives on. */
+const select =
+	(anchor: SelectionPoint, focus = anchor): Place =>
+	async (editor) => {
+		await editor.instance.setSelection({ anchor, focus });
+		await editor.settle();
+		return document.activeElement as HTMLElement;
+	};
+
+/** A caret in the first body cell of the table that is top-level block `table`. */
+const inCell = (table: number): Place => select(point([table, 1, 0], 1));
+
+const TEXT = 'intro\n\nmiddle\n\nafter\n';
+const DIVIDED = 'intro\n\n***\n\nmid\n\n***\n\nafter\n';
+const TABLE = '| a | b |\n| - | - |\n| c | d |\n';
+const CLIP = 'x\n\n%> [!TIP]\n%> pasted\n';
+const acrossText = select(point([0], 2), point([2], 2));
+const overDividers = select(point([1], 0), point([3], 0));
+
+/** An alert again, of another type: asked about its own answer, the rewrite would write `[!TIPXX]`. */
+const again = (block: Block<AlertData>) => `%> [!${block.data.type}X]\n%> again`;
+const AGAIN = 'x\n\n%> [!TIPX]\n%> again\n';
+const three = () => 'one\n\ntwo\n\n- three';
+
+// Miss-analysis: the rows' answers were no alert, so a second ask on any route left the same bytes;
+// only a caret and one selection were pasted over.
+describe('a paste rewrite where pasted blocks land', () => {
+	const LANDINGS: [string, string, Place, string, typeof again | (() => string), string][] = [
+		['at a caret after text', 'intro\n\nafter\n', select(point([0], 5)), CLIP, again, AGAIN],
+		[
+			'at the end of an open last line',
+			'intro\n\nafter',
+			select(point([1], 5)),
+			CLIP,
+			again,
+			AGAIN
+		],
+		['over a selection across blocks', TEXT, acrossText, CLIP, again, AGAIN],
+		['from a clipboard ending in a blank line', TEXT, acrossText, CLIP + '\n', again, AGAIN + '\n'],
+		['over whole blocks', DIVIDED, overDividers, CLIP, again, AGAIN],
+		['in a list item', '- item\n- two\n', select(point([0, 0, 0], 4)), CLIP, again, AGAIN],
+		['in a table cell', TABLE, inCell(0), '%> [!TIP]\n%> p\n', again, '%> [!TIPX]\n%> again\n'],
+		['as three blocks for one', TEXT, acrossText, CLIP, three, 'x\n\none\n\ntwo\n\n- three\n'],
+		[
+			'as three blocks inside a pasted quote',
+			TEXT,
+			acrossText,
+			'x\n\n> %> [!TIP]\n> %> pasted\n',
+			three,
+			'x\n\n> one\n>\n> two\n>\n> - three\n'
+		],
+		['as nothing, the block left out', TEXT, acrossText, CLIP, () => '', 'x\n']
+	];
+
+	it.each(LANDINGS)(
+		'is asked once and lands what a paste of its answer lands, %s, as one undo step',
+		async (_, doc, place, clip, into, answered) => {
+			const { editor, read } = await mounted(into, doc);
+			await pasteOn(editor, await place(editor), clip);
+			const landed = editor.source();
+			expect(read).toHaveLength(1);
+			expect(landed).not.toBe(doc);
+			// Focus follows the caret a tick after the paste, and undo is pressed where it landed.
+			await editor.settle();
+			await pressKey(document.activeElement!, { key: 'z', ctrlKey: true });
+			await editor.settle();
+			expect(editor.source()).toBe(doc);
+			await destroyMountedEditors();
+			const control = await mounted(() => null, doc);
+			await pasteOn(control.editor, await place(control.editor), answered);
+			expect(landed).toBe(control.editor.source());
+		}
+	);
+});
+
+/** What a copy or a cut of the selection puts on the clipboard. */
+async function clipboardOf(editor: Mounted, type: 'copy' | 'cut') {
+	const data: Record<string, string> = {};
+	const event = new Event(type, { bubbles: true, cancelable: true });
+	Object.defineProperty(event, 'clipboardData', {
+		value: { types: [], getData: () => '', setData: (t: string, v: string) => void (data[t] = v) }
+	});
+	document.activeElement!.dispatchEvent(event);
+	await editor.settle();
+	return { text: data['text/plain'], own: data[OWN_CLIPBOARD_TYPE] };
+}
+
+// Miss-analysis: the own-entry row pasted a made-up entry at one caret, and no row typed over a
+// range under a rewrite of paragraphs, the only type a key's text reads as.
+describe('a paste rewrite is never asked', () => {
+	const OWN = 'intro\n\n%> [!NOTE]\n%> inside\n\nafter\n\nlast\n\n' + TABLE;
+	const alertRange = select(point([0], 0), point([1, 0], 6));
+
+	it.each<[string, Place]>([
+		['at a caret', select(point([2], 5))],
+		['over a selection across blocks', select(point([2], 2), point([3], 2))],
+		['in a table cell', inCell(4)]
+	])("about the editor's own copy pasted %s", async (_, place) => {
+		const { editor, read } = await mounted(again, OWN);
+		await alertRange(editor);
+		const { text, own } = await clipboardOf(editor, 'copy');
+		expect(own).toBeTruthy();
+		await pasteOn(editor, await place(editor), text, own);
+		expect(read).toEqual([]);
+		expect(editor.source().match(/%> \[!NOTE\]\n%> inside/g)).toHaveLength(2);
+	});
+
+	it("about the editor's own cut pasted elsewhere", async () => {
+		const { editor, read } = await mounted(again, OWN);
+		await alertRange(editor);
+		const { text, own } = await clipboardOf(editor, 'cut');
+		expect(editor.source()).not.toContain('[!NOTE]');
+		await pasteOn(editor, await select(point([2], 4))(editor), text, own);
+		expect(read).toEqual([]);
+		expect(editor.source()).toContain('%> [!NOTE]\n%> inside');
+	});
+
+	it("about blocks pasted in a callout's title, which takes them as its one line of text", async () => {
+		const doc = ':::note Title\nbody\n:::\n';
+		const { editor, read } = await mounted(again, doc, { beside: [admonitionsPlugin()] });
+		const title = surfaceAt(editor, [0, 0]);
+		placeCaret(title, ':::note Ti'.length);
+		await pasteOn(editor, title, CLIP);
+		expect(read).toEqual([]);
+		expect(editor.source()).toBe(':::note Tix %> [!TIP] %> pastedtle\nbody\n:::\n');
+	});
+
+	// A rewrite of paragraphs, the type plain text and a key's text read as.
+	const shout = (block: Block<AlertData>) => block.text.trimEnd() + '!';
+
+	it.each<[string, string, Place]>([
+		['at a caret', TEXT, select(point([0], 5))],
+		['over a selection across blocks', TEXT, acrossText],
+		['in a table cell', TABLE, inCell(0)]
+	])('about a plain paste %s', async (_, doc, place) => {
+		const { editor, read } = await mounted(shout, doc, { ofParagraphs: true });
+		await pasteOn(editor, await place(editor), 'Q\n\nR', undefined, true);
+		expect(read).toEqual([]);
+		expect(editor.source()).toContain('Q');
+		expect(editor.source()).not.toContain('!');
+	});
+
+	const softText = async (el: HTMLElement) =>
+		void dispatchBeforeInput(el, 'insertText', { data: 'Q\n\nR' });
+
+	it.each<[string, string, Place, (el: HTMLElement) => Promise<void>]>([
+		['a key over whole blocks', DIVIDED, overDividers, (el) => insertBy('hardware key', el, 'Q')],
+		["a soft keyboard's lines over a selection across blocks", TEXT, acrossText, softText]
+	])('about %s, text a paste there is asked about', async (_, doc, place, type) => {
+		const { editor, read } = await mounted(shout, doc, { ofParagraphs: true });
+		await type(await place(editor));
+		await editor.settle();
+		expect(read).toEqual([]);
+		expect(editor.source()).toContain('Q');
+		expect(editor.source()).not.toContain('!');
+		await destroyMountedEditors();
+		const pasted = await mounted(shout, doc, { ofParagraphs: true });
+		await pasteOn(pasted.editor, await place(pasted.editor), 'Q\n\nR');
+		expect(pasted.editor.source()).toContain('Q!');
 	});
 });
