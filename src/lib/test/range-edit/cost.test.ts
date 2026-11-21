@@ -221,6 +221,31 @@ function committedCost(source: string, at: number, gesture: Gesture) {
 	return { core, commit };
 }
 
+// Miss-analysis: every costed range left text at both ends, so the walk to the slot a line of its
+// own opens at, which laid out every block before a range that took whole blocks, went uncounted.
+describe('text, a paste and a place over blocks taken whole', () => {
+	const WHOLE: Record<string, (n: number) => string> = {
+		paragraphs: (n) => SHAPES.paragraphs(n / 2) + '\n***\n\n# head\n\n' + SHAPES.paragraphs(n / 2),
+		quote: (n) => SHAPES.quote(n / 2) + '> ***\n>\n> # head\n>\n' + SHAPES.quote(n / 2)
+	};
+	const over = (source: string): Range => ({
+		from: source.indexOf('***'),
+		to: source.indexOf('# head') + '# head'.length
+	});
+	const OVER: Gesture[] = ['place', { text: 'x' }, { paste: 'x', plain: false, holds: 'text' }];
+	for (const [shape, make] of Object.entries(WHOLE))
+		for (const gesture of OVER)
+			it(`${shape}, ${JSON.stringify(gesture)}`, () => {
+				const [small, large] = [500, 2000].map((n) => cost(make(n), gesture, false, over(make(n))));
+				expect(large.laid, `blocks laid out: ${small.laid}, ${large.laid}`).toBeLessThanOrEqual(
+					small.laid * 1.5 + 64
+				);
+				holds('bytes parsed', small.parsed, large.parsed, 64);
+				holds('container lines laid out', small.lines, large.lines, 64);
+				holds('container lines paired', small.paired, large.paired, 64);
+			});
+});
+
 // Miss-analysis: the rows costed the gestures a key, a cut or a paste makes, never the place a line
 // break over a range takes, whose empty paragraph is spelled off a copy of the whole document.
 describe('the place a line break over whole blocks takes', () => {
