@@ -9,7 +9,7 @@ import type { GrammarView } from '../../../schema/block-openers';
 import type { InstalledInline } from '../../../schema/inline-type';
 import type { AnyInlineKind } from '../../nodes';
 import { everyInstalledPlugin, resolvesIn } from '../../../schema/plugin-activation';
-import { recordEveryPluginTable } from '../../../perf/instruments';
+import { recordEveryPluginTable, recordInlineTableBuild } from '../../../perf/instruments';
 import { pluginInstallGeneration } from '../../../schema/plugin-install';
 import { enrollTestReset } from '../../../schema/registry-reset';
 import {
@@ -96,6 +96,7 @@ function buildTable(
 	grammar: GrammarView,
 	own: ReadonlyMap<AnyInlineKind, InstalledInline>
 ): InlineTable {
+	recordInlineTableBuild();
 	const byChar = new Map<string, InlineHandler[]>();
 	const pairing = new Set<string>();
 	for (const { trigger, autoPair, handler } of [...core, ...registeredHandlers()]) {

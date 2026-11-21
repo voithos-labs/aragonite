@@ -19,6 +19,11 @@ import { buildImageEditBytes } from '#lib/core/inline/image-source-bytes.js';
 import { buildLinkRetitleBytes, buildLinkUnwrapBytes } from '#lib/core/inline/link-source-bytes.js';
 import { splitBehaviorOf } from '#lib/core/inline/live-edit/live-split.js';
 import { inlineTable } from '#lib/core/inline/scan/inline-table.js';
+import {
+	revealsOnArrow,
+	revealsOnClick,
+	type WidgetEditing
+} from '#lib/core/inline/inline-widgets.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { expectBoundedGrowth, measureScanGrowth } from '../../harness/scan-growth';
 
@@ -224,6 +229,47 @@ describe('inline(): an `as` claim writes through `write`', () => {
 		const { read, grammar } = editorReading([['chips', [plainWidget, embed()]]]);
 		expect(splitBehaviorOf(read('{ab}')[0], '{ab}', grammar)).toBe('plain');
 		expect(splitBehaviorOf(read('![[a.png]]')[0], '![[a.png]]', grammar)).toBe('whole');
+	});
+});
+
+describe("inline(): what a widget's arrows and click do", () => {
+	type Cell = [arrows: 'over' | 'select' | 'into', click: 'source' | 'follow' | 'none'];
+	const cells: Cell[] = [];
+	for (const arrows of ['over', 'select', 'into'] as const)
+		for (const click of ['source', 'follow', 'none'] as const) cells.push([arrows, click]);
+	// What each cell answers: an arrow shows the bytes, a click shows them, the edge policy, a follow.
+	const expected: Record<string, [boolean, boolean, string | undefined, boolean]> = {
+		'over source': [false, true, 'step-over', false],
+		'over follow': [false, false, 'step-over', true],
+		'over none': [false, false, 'step-over', false],
+		'select source': [false, true, 'select', false],
+		'select follow': [false, false, 'select', true],
+		'select none': [false, false, 'select', false],
+		'into source': [true, true, undefined, false],
+		'into follow': [true, true, undefined, true],
+		'into none': [true, false, undefined, false]
+	};
+	it.each(cells)('arrows %s, click %s', (arrows, click) => {
+		const chip = inline({
+			name: 'chip',
+			label: 'Chip',
+			prefix: '{',
+			match: /{[^}]*}/,
+			read: () => 1,
+			sample: '{x}',
+			widget: { delete: 'whole', arrows, click },
+			draw: () => ({}),
+			...(click === 'follow' && { follow: () => {} })
+		} as never);
+		const { grammar } = editorReading([['chips', [chip]]]);
+		const editing = grammar.inlines!().get('chips/chip' as never)!.widget!.editing as WidgetEditing;
+		const answer = [
+			revealsOnArrow(editing),
+			revealsOnClick(editing),
+			editing.onEdge,
+			editing.claimsActivationClick === true
+		];
+		expect(answer).toEqual(expected[`${arrows} ${click}`]);
 	});
 });
 

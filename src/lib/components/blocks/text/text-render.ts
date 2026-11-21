@@ -291,8 +291,6 @@ export function createTextRender(deps: TextRenderDeps): TextRender {
 		// Always included, unlike the reference and image parts: a mode change re-renders
 		// every mounted block. '' in source mode keeps the default key byte-identical.
 		const mode = deps.reading.mode();
-		// Read for its dependency alone: a theme change runs the render, which tells the widgets.
-		deps.getTheme();
 		const modeKeyPart = mode === 'source' ? '' : mode;
 		const islands = deps.islands;
 		const pendingBreaks = deps.pendingBreakLines();

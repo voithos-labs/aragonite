@@ -24,6 +24,7 @@
 	import { wikiEmbedPlugin } from './wiki-embed/wiki-embed-plugin';
 	import { tagsPlugin } from './tags/tag-plugin';
 	import { wikiLinksPlugin } from './wikilinks/link-plugin';
+	import { inlineLinkPlugin } from './inline-link/link-plugin';
 	import { chipsPlugin } from './chips/chip-plugin';
 	import { tagMarksPlugin, TAG_MENU } from '../../demo-tags/tag-marks-plugin';
 	import { docLinkMenu, docLinkMenuPlugin } from './inline-menu/doc-link-menu-plugin';
@@ -68,6 +69,8 @@
 		tags: [tagsPlugin()],
 		// `[[` takes `[` ahead of the built-in link in every other seed's prose; kept to its own.
 		wikilinks: [wikiLinksPlugin()],
+		// `[[` again, read as a built-in link in its own syntax; kept to its own seed.
+		'inline-link': [inlineLinkPlugin],
 		// `{{` would take `{` in every other seed's prose; kept to its own.
 		chips: [chipsPlugin()],
 		// The same tags as mark decorations over plain text: no widget, no source to show.
@@ -234,6 +237,8 @@
 		// The handler creates a built-in image; the explicit size makes one resize step visible
 		// in the bytes, with prose either side to click away to and to put the caret in.
 		'wiki-embed': 'Before\n\n![[/test-fixtures/sample.png|400]]\n\nAfter\n',
+		// A link in its own syntax mid-prose (block 0) and a block to click away to.
+		'inline-link': 'See [[note|Shown]] here\n\nAfter\n',
 		// The caption is the bytes after the marker, so block 0 is the caption to edit and
 		// block 1 is there to click away to.
 		parrot: '%%parrot party responsibly\n\nAfter\n',

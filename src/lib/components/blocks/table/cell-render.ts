@@ -115,8 +115,6 @@ export function createCellRender(deps: CellRenderDeps): CellRender {
 		// Always included, unlike the reference part: a mode change re-renders every mounted
 		// cell. '' in source mode keeps the default key byte-identical, as text-render does.
 		const mode = deps.reading.mode();
-		// Read for its dependency alone: a theme change runs the render, which tells the widgets.
-		deps.getTheme();
 		const modeKeyPart = mode === 'source' ? '' : mode;
 		const islands = deps.islands;
 		const shown = deps.shownSource();

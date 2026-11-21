@@ -48,6 +48,8 @@ export interface PerfSnapshot {
 	inlineScanCount: number;
 	/** Inline tables read for every installed plugin, which no editor's own parse should ask. */
 	everyPluginTableReads: number;
+	/** Inline tables built: once per change to what an editor reads, never per keystroke. */
+	inlineTableBuilds: number;
 	/** Inline-format coverage reads that actually parsed: what a toolbar's pressed state costs. */
 	formatCoverageReads: number;
 	/** Renders of inline content read back for what the screen shows: what a hidden edge costs. */
@@ -134,6 +136,7 @@ function emptySnapshot(): PerfSnapshot {
 		inlineComputeCount: 0,
 		inlineScanCount: 0,
 		everyPluginTableReads: 0,
+		inlineTableBuilds: 0,
 		formatCoverageReads: 0,
 		screenReads: 0,
 		markerRunReads: 0,
@@ -293,6 +296,11 @@ export function recordInlineScan(): void {
 export function recordEveryPluginTable(): void {
 	if (!enabled) return;
 	counters.everyPluginTableReads++;
+}
+
+export function recordInlineTableBuild(): void {
+	if (!enabled) return;
+	counters.inlineTableBuilds++;
 }
 
 export function recordFormatCoverageRead(): void {

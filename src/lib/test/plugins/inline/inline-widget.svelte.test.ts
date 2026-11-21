@@ -67,6 +67,7 @@ function wiki() {
 }
 
 const SOURCE = 'intro\n\nsee [[note]] and #tag\n';
+const CELL_SOURCE = 'see [[note]]\n\n| a |\n| - |\n| x [[cell]] |\n';
 const shellIn = (host: HTMLElement) => host.querySelector<HTMLElement>('[data-inline-widget]')!;
 
 describe('an inline() widget in a mounted editor', () => {
@@ -136,6 +137,42 @@ describe('an inline() widget in a mounted editor', () => {
 		await tick();
 		expect(blockHostAt(listed, [1]).querySelector('[data-inline-widget]')).not.toBeNull();
 		expect(blockHostAt(unlisted, [1]).querySelector('[data-inline-widget]')).toBeNull();
+	});
+
+	it('is told the new theme, in a paragraph and in a table cell', async () => {
+		const { plugin, drawn } = wiki();
+		const editor = mountEditor({ source: CELL_SOURCE, plugins: [plugin], theme: 'light' });
+		await editor.settle();
+		editor.props.theme = 'dark';
+		await editor.settle();
+		const latest = new Map(drawn.map((props) => [props.source, props]));
+		expect(latest.get('[[note]]')!.theme).toBe('dark');
+		expect(latest.get('[[cell]]')!.theme).toBe('dark');
+	});
+
+	it('reads its document bytes in a table cell', async () => {
+		const { plugin, drawn } = wiki();
+		const editor = mountEditor({ source: CELL_SOURCE, plugins: [plugin] });
+		await editor.settle();
+		const cell = drawn.find((props) => props.source === '[[cell]]')!;
+		expect(editor.source().slice(cell.from, cell.to)).toBe('[[cell]]');
+	});
+
+	it('builds no inline table on a keystroke, with constructs listed or none', async () => {
+		for (const plugins of [[wiki().plugin], []]) {
+			const editor = mountEditor({ source: SOURCE, plugins });
+			await editor.settle();
+			resetPerfInstruments();
+			enablePerfInstruments();
+			try {
+				for (let i = 1; i <= 20; i++) typeInto(surfaceAt(editor, [0]), 'intro' + 'x'.repeat(i));
+				await editor.settle();
+				expect(perfSnapshot().inlineTableBuilds).toBe(0);
+			} finally {
+				disablePerfInstruments();
+			}
+			await editor.destroy();
+		}
 	});
 
 	it('use() turns the construct off and on again', async () => {
