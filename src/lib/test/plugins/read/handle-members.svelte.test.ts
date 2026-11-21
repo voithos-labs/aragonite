@@ -3,7 +3,8 @@
 // A mode or theme set through the handle stands until its prop next changes, so a host that hands
 // every prop over again on each render (the React and Vue wrappers) keeps it.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { flushSync } from 'svelte';
+import { flushSync, mount, unmount } from 'svelte';
+import BoundEditorHost from './fixtures/BoundEditorHost.svelte';
 import {
 	createEditor,
 	type Block,
@@ -58,6 +59,21 @@ describe('the handle', () => {
 		const m = mountEditor({ source: DOC });
 		await m.settle();
 		expect(m.instance.element).toBe(m.target.querySelector('.editor'));
+	});
+
+	// Miss-analysis: the component row read `element` after a flush, never at the host's binding.
+	it("names the root element by the time a Svelte host's bind:this lands", async () => {
+		const target = document.body.appendChild(document.createElement('div'));
+		const landed: (HTMLElement | undefined)[] = [];
+		const host = mount(BoundEditorHost, { target, props: { landed: (el) => landed.push(el) } });
+		flushSync();
+		try {
+			expect(landed).toEqual([target.querySelector('.editor')]);
+			expect(landed[0]).toBeInstanceOf(HTMLElement);
+		} finally {
+			await unmount(host);
+			await settleEditor();
+		}
 	});
 
 	// A compile-time row too: a type dropped from the main entry fails the type check here.
