@@ -39,6 +39,10 @@ const ROWS = {
 	},
 	'range-enter': { label: 'Enter over the range', key: ['range-delete'] },
 	'range-shift-enter': { label: 'Shift+Enter over the range', key: ['range-delete'] },
+	'whole-delete': { label: 'Delete over a divider held whole and the two paragraphs under it' },
+	'whole-letter': { label: 'a letter typed over those blocks', key: ['whole-delete'] },
+	'whole-enter': { label: 'Enter over those blocks', key: ['whole-delete'] },
+	'whole-paste-line': { label: 'a paste of "one" over those blocks', key: ['whole-delete'] },
 	'caret-letter': { label: 'a letter typed mid-paragraph (the control)' },
 	'caret-enter': { label: 'Enter at a paragraph end' },
 	'caret-paste-paragraphs': { label: 'a paste of "one\\n\\ntwo" mid-paragraph' },
@@ -354,17 +358,35 @@ const TYPED_KEYS = 40;
 
 const smallBlocks = () => generateFixture('many-small-blocks', FIXTURE_BYTES);
 
-/** Loads the small-blocks document and returns the middle top-level index, the first of three
- *  paragraphs every range and caret row there lands in. */
-async function loadMiddle(page: Page, id: RowId): Promise<{ editor: EditorPage; middle: number }> {
-	const editor = await load(page, id, smallBlocks());
-	const { middle, kinds } = await page.evaluate(() => {
+/** The small-blocks document with its middle block a divider, so a range from it to the end of the
+ *  paragraph two below holds every block it touches whole. */
+function dividedBlocks(): string {
+	const blocks = smallBlocks().split('\n\n');
+	// What follows the last blank line is empty, and no block.
+	blocks[Math.floor((blocks.length - 1) / 2)] = '***';
+	return blocks.join('\n\n');
+}
+
+const PARAGRAPHS = ['paragraph', 'paragraph', 'paragraph'];
+
+/** Loads `source` and returns the middle top-level index, the first of three blocks of `kinds`
+ *  every range and caret row there lands in. */
+async function loadMiddle(
+	page: Page,
+	id: RowId,
+	source = smallBlocks(),
+	kinds: readonly string[] = PARAGRAPHS
+): Promise<{ editor: EditorPage; middle: number }> {
+	const editor = await load(page, id, source);
+	const { middle, found } = await page.evaluate(() => {
 		const children = (window as any).__test.getDocument().children;
 		const middle = Math.floor(children.length / 2);
-		return { middle, kinds: [0, 1, 2].map((k) => children[middle + k].kind as string) };
+		return { middle, found: [0, 1, 2].map((k) => children[middle + k].kind as string) };
 	});
-	if (kinds.some((kind) => kind !== 'paragraph'))
-		throw new Error(`blocks ${middle}..${middle + 2} are ${kinds.join(', ')}, not paragraphs`);
+	if (found.join() !== kinds.join())
+		throw new Error(
+			`blocks ${middle}..${middle + 2} are ${found.join(', ')}, not ${kinds.join(', ')}`
+		);
 	return { editor, middle };
 }
 
@@ -430,13 +452,18 @@ function splicedAt(
 	);
 }
 
-/** Selects from the middle of block `first` to the middle of the block two below, reading the
- *  selection back, since `setSelection` answers only true or false. */
-async function selectRange(page: Page, first: number, from: number, to: number): Promise<void> {
+/** Selects `from` in block `first` to `to` two blocks below, the caret at `caret` first; what it
+ *  reads back as where that isn't the range asked, since `setSelection` answers only a boolean. */
+async function misselected(
+	page: Page,
+	first: number,
+	from: number,
+	to: number,
+	caret: [block: number, offset: number]
+): Promise<string | null> {
 	const last = first + 2;
 	await bringIntoView(page, first, last);
-	const editor = new EditorPage(page);
-	await editor.focusBlockAtPath([first], from);
+	await new EditorPage(page).focusBlockAtPath([caret[0]], caret[1]);
 	const got = await page.evaluate(
 		async ({ first, last, from, to }) => {
 			const t = (window as any).__test;
@@ -453,7 +480,7 @@ async function selectRange(page: Page, first: number, from: number, to: number):
 		{ first, last, from, to }
 	);
 	const wanted = `${first}@${from} to ${last}@${to}`;
-	if (got !== wanted) throw new Error(`the selection is ${got}, wanted ${wanted}`);
+	return got === wanted ? null : `the selection is ${got}, wanted ${wanted}`;
 }
 
 interface RangeGesture {
@@ -464,16 +491,70 @@ interface RangeGesture {
 	clip?: string;
 }
 
-async function rangeRow(page: Page, id: RowId, gesture: RangeGesture): Promise<void> {
-	const { editor, middle } = await loadMiddle(page, id);
+/** Where a range row's range runs, how it is drawn, and the bytes its edit may change (`changes`,
+ *  from `at`, whitespace aside). */
+interface Span {
+	source: () => string;
+	kinds: readonly string[];
+	ends: (first: number, third: number) => [from: number, to: number];
+	select: (page: Page, id: RowId, first: number, from: number, to: number) => Promise<void>;
+	changes: (
+		page: Page,
+		first: number,
+		from: number,
+		to: number
+	) => Promise<[at: number, remove: number]>;
+}
+
+/** The middle of one paragraph to the middle of the paragraph two below. */
+const MIDDLES: Span = {
+	source: smallBlocks,
+	kinds: PARAGRAPHS,
+	ends: (first, third) => [Math.floor(first / 2), Math.floor(third / 2)],
+	async select(page, _id, first, from, to) {
+		const wrong = await misselected(page, first, from, to, [first, from]);
+		if (wrong !== null) throw new Error(wrong);
+	},
+	async changes(page, first, from, to) {
+		const at = await byteAt(page, first, from);
+		return [at, (await byteAt(page, first + 2, to)) - at];
+	}
+};
+
+/** A divider held whole to the end of the paragraph two below: no text kept at either end. A build
+ *  that reads the range back otherwise can't run the row. */
+const WHOLE: Span = {
+	source: dividedBlocks,
+	kinds: ['thematicBreak', 'paragraph', 'paragraph'],
+	ends: (_first, third) => [0, third],
+	async select(page, id, first, from, to) {
+		const wrong = await misselected(page, first, from, to, [first + 2, to]);
+		if (wrong !== null) absent(id, wrong);
+	},
+	// A block taken whole takes a blank line beside it, so the blank lines around the range count.
+	async changes(page, first) {
+		const above = await page.evaluate(
+			(block) => (window as any).__test.getDocument().children[block].raw.replace(/\r?\n$/, ''),
+			first - 1
+		);
+		const at = await byteAt(page, first - 1, above.length);
+		return [at, (await byteAt(page, first + 3, 0)) - at];
+	}
+};
+
+async function rangeRow(
+	page: Page,
+	id: RowId,
+	gesture: RangeGesture,
+	span: Span = MIDDLES
+): Promise<void> {
+	const { editor, middle } = await loadMiddle(page, id, span.source(), span.kinds);
 	const [firstLength, , thirdLength] = await bringIntoView(page, middle, middle + 2);
-	const from = Math.floor(firstLength / 2);
-	const to = Math.floor(thirdLength / 2);
-	const at = await byteAt(page, middle, from);
-	const remove = (await byteAt(page, middle + 2, to)) - at;
+	const [from, to] = span.ends(firstLength, thirdLength);
+	const [at, remove] = await span.changes(page, middle, from, to);
 	if (gesture.clip !== undefined) await editor.seedClipboard(gesture.clip);
 	await editRow(editor, id, {
-		place: () => selectRange(page, middle, from, to),
+		place: () => span.select(page, id, middle, from, to),
 		key: gesture.key,
 		press: () => gesture.press(editor),
 		watch: { path: [middle], span: 3 },
@@ -531,6 +612,27 @@ test.describe('perf a/b: over a range across three paragraphs, 1 MB of small blo
 			press: pressing('Shift+Enter'),
 			inks: ['', '\\']
 		});
+	});
+});
+
+test.describe('perf a/b: over a divider held whole and two paragraphs, 1 MB of small blocks', () => {
+	test('whole-delete', async ({ page }) => {
+		const gesture = { key: 'delete', press: pressing('Delete'), inks: [''] };
+		await rangeRow(page, 'whole-delete', gesture, WHOLE);
+	});
+
+	test('whole-letter', async ({ page }) => {
+		await rangeRow(page, 'whole-letter', { key: 'x', press: pressing('x'), inks: ['x'] }, WHOLE);
+	});
+
+	test('whole-enter', async ({ page }) => {
+		const gesture = { key: 'enter', press: pressing('Enter'), inks: [''] };
+		await rangeRow(page, 'whole-enter', gesture, WHOLE);
+	});
+
+	test('whole-paste-line', async ({ page }) => {
+		const gesture = { key: 'v', press: pasting, inks: ['one'], clip: 'one' };
+		await rangeRow(page, 'whole-paste-line', gesture, WHOLE);
 	});
 });
 
