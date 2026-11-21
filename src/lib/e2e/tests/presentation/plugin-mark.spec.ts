@@ -1,5 +1,6 @@
 import { test, expect } from '../../fixtures';
 import { PluginsPage } from '../plugins/helpers';
+import { multiClick } from '../../multi-click';
 
 /** A plugin mark (`==`, on the harness's `highlight-mark` seed) edits as `**` does in live mode. */
 
@@ -35,7 +36,7 @@ test.describe('a plugin mark in live mode', () => {
 	test('Enter inside it closes it and reopens it after the cut', async ({ page }) => {
 		await editor.focusBlockAtPath([0], 7);
 		await page.keyboard.press('Enter');
-		await expect.poll(source).toBe('A ==bri==\n\n==ght== word\n\nplain words here\n');
+		await expect.poll(source).toMatch(/^A ==bri==\n\n==ght== word\n\nplain words here\n/);
 	});
 
 	test('a letter at its end joins it', async ({ page }) => {
@@ -49,5 +50,30 @@ test.describe('a plugin mark in live mode', () => {
 		await page.keyboard.type(' ==');
 		await page.keyboard.type('hi');
 		await expect.poll(source).toContain('plain words here ==hi==');
+	});
+
+	test('at a caret it nests inside strong, by its place', async ({ page }) => {
+		await editor.focusBlockAtPath([1], 'plain words here'.length);
+		await page.keyboard.type(' ');
+		await page.keyboard.press('ControlOrMeta+Shift+h');
+		await page.keyboard.press('ControlOrMeta+b');
+		await page.keyboard.type('x');
+		await expect.poll(source).toContain('plain words here **==x==**');
+	});
+
+	test('its chord wraps a word in a table cell', async ({ page }) => {
+		const box = (await page.getByText('cell words').boundingBox())!;
+		await multiClick(page, { x: box.x + 4, y: box.y + box.height / 2 }, 2);
+		await page.keyboard.press('ControlOrMeta+Shift+h');
+		await expect.poll(source).toContain('| ==cell== words |');
+	});
+
+	test('its chord wraps a range across two blocks in each', async ({ page }) => {
+		await editor.focusBlockAtPath([0], 13);
+		for (let i = 0; i < 'word'.length + 1 + 'plain'.length; i++)
+			await page.keyboard.press('Shift+ArrowRight');
+		await page.keyboard.press('ControlOrMeta+Shift+h');
+		await expect.poll(source).toContain('A ==bright== ==word==\n');
+		expect(await source()).toContain('\n==plain');
 	});
 });

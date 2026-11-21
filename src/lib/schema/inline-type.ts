@@ -202,7 +202,6 @@ export function installInlines(
 ): { readonly inlines: ReadonlyMap<AnyInlineKind, InstalledInline>; release(): void } {
 	const inlines = new Map<AnyInlineKind, InstalledInline>();
 	const releases: (() => void)[] = [];
-	const ranks = new Map<string, number>();
 	for (const { name: plugin, contribution } of units) {
 		for (const listed of contribution.inlines ?? []) {
 			const made = listed as unknown as Partial<Made>;
@@ -224,8 +223,7 @@ export function installInlines(
 			if (mark) {
 				// Named here too, so its row names the command whatever reads the list first.
 				claimCommand(mark.toggle, plugin);
-				const nestingRank = rankAfter(making.after[0]?.name, ranks) + ranks.size / 1000;
-				ranks.set(kind, nestingRank);
+				const nestingRank = rankAfter(making.after[0]?.name) + nameFraction(kind);
 				releases.push(holdInlineConstructPolicy(kind, markRow(mark, nestingRank)));
 			}
 			inlines.set(kind, {
@@ -258,11 +256,18 @@ export function togglesOf(inlines: readonly Inline<unknown>[] | undefined): Comm
 
 // ── Internal ─────────────────────────────────────────────────────────────────
 
-// A mark nests just inside the one it names, else just outside code; a mark listed earlier in the
-// editor answers before a built-in of the same name could.
-function rankAfter(name: string | undefined, ranks: ReadonlyMap<string, number>): number {
-	const after = name === undefined ? 'strikethrough' : name;
-	return (ranks.get(after) ?? getInlineMarkPolicy(after as AnyInlineKind)?.nestingRank ?? 2) + 0.5;
+// A mark nests just inside the one it names (a built-in, or a mark an editor already holds), else
+// just outside code.
+function rankAfter(name: string | undefined): number {
+	return (getInlineMarkPolicy((name ?? 'strikethrough') as AnyInlineKind)?.nestingRank ?? 2) + 0.5;
+}
+
+// Marks at one place nest in an order their names fix, so the row reads the same in every editor
+// whatever its list's order.
+function nameFraction(kind: string): number {
+	let hash = 0;
+	for (let i = 0; i < kind.length; i++) hash = (hash * 31 + kind.charCodeAt(i)) % 999983;
+	return hash / 1e7;
 }
 
 // A mark edits as `**` does: its letters stick left, it unwraps when emptied and Enter closes and

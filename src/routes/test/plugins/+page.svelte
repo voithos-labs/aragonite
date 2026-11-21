@@ -243,7 +243,7 @@
 		// A link in its own syntax mid-prose (block 0) and a block to click away to.
 		'inline-link': 'See [[note|Shown]] here\n\nAfter\n',
 		// A highlight mid-prose (block 0), plain words to toggle one on (block 1).
-		'highlight-mark': 'A ==bright== word\n\nplain words here\n',
+		'highlight-mark': 'A ==bright== word\n\nplain words here\n\n| a |\n| - |\n| cell words |\n',
 		// The caption is the bytes after the marker, so block 0 is the caption to edit and
 		// block 1 is there to click away to.
 		parrot: '%%parrot party responsibly\n\nAfter\n',

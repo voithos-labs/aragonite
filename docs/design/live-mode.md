@@ -57,7 +57,7 @@ The details:
 
 ## 3. Policy is data
 
-How a construct behaves at its hidden edges is one row in the inline-construct policy table (`schema/inline-construct-policy.ts`). The rewrites read rows, never lists of kinds, so a new markable construct costs a row and not a new case at every toggle surface.
+How a construct behaves at its hidden edges is one row in the inline-construct policy table (`schema/inline-construct-policy.ts`). The rewrites read rows, never lists of kinds, so a new markable construct costs a row and not a new case at every toggle surface. A plugin's `mark()` holds a row of the same shape while an editor runs it.
 
 ```ts
 getInlineConstructPolicy('strong');

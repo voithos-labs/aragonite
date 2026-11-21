@@ -281,7 +281,7 @@ function resolveBlockLocalCommand(
 	activation: PluginActivation
 ): BlockLocalResolution {
 	if (!target) return { tier: 'no-surface' };
-	const marks = inlineMarkForCommand(id) !== null;
+	const marks = marksHere(id, activation);
 	if (!marks && getCommand(id, activation)) return { tier: 'dead' };
 	const handler = getBlockCommand(target.kind, id, activation);
 	// A context is built only where a handler matched, so a built-in id costs nothing extra on the
@@ -300,6 +300,12 @@ function resolveBlockLocalCommand(
 	return installedElsewhere && !handler ? { tier: 'unlisted' } : { tier: 'dead' };
 }
 
+/** Whether `id` is a plugin mark's toggle in this editor: a row names it and the editor's own
+ *  plugins list it, so another editor on the page leaves it dead. */
+function marksHere(id: AnyCommandId, activation: PluginActivation): boolean {
+	return inlineMarkForCommand(id) !== null && activation.contributions?.command(id) !== undefined;
+}
+
 /** The full lookup: global commands first, then the block-level ones. Both the dispatch and the
  *  "can this run" read use it, so a greyed-out button cannot disagree with the click under it. */
 function resolveCommand(
@@ -308,7 +314,7 @@ function resolveCommand(
 	activation: PluginActivation
 ): CommandResolution {
 	// A plugin mark's toggle runs at the block, as Mod+B does, though its plugin lists it.
-	const globalRun = !inlineMarkForCommand(id) && getCommand(id, activation);
+	const globalRun = !marksHere(id, activation) && getCommand(id, activation);
 	if (globalRun) return { tier: 'global', run: globalRun };
 	return resolveBlockLocalCommand(id, target, activation);
 }
@@ -412,7 +418,7 @@ function rangeRouteFor(id: AnyCommandId, gates: CommandGates): RangeRoute {
 	if (!gates.ownsRange() || runsOnItsBlock(id, gates.rangeInOneBlock()))
 		return { kind: 'block-local', ranged: false };
 	if (RANGE_DECLINED_COMMAND_IDS.has(id)) return { kind: 'decline' };
-	if (!CROSS_BLOCK_RANGE_COMMAND_IDS.has(id) && !inlineMarkForCommand(id))
+	if (!CROSS_BLOCK_RANGE_COMMAND_IDS.has(id) && !marksHere(id, gates.activation))
 		return { kind: 'block-local', ranged: true };
 	const router = gates.crossBlockCommands;
 	return router.canRun(id) ? { kind: 'cross-block', router } : { kind: 'decline' };

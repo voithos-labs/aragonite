@@ -10,7 +10,7 @@ export interface MarkSpec {
 	/** Lowercase letters, digits and hyphens. */
 	name: string;
 	label: string;
-	/** The run on each side (`==`): one character, repeated; a run of another length stays text. */
+	/** The run on each side (`==`): one character, once or twice; a run of another length stays text. */
 	marker: string;
 	/** The mark it nests inside when several are written at once; with none, just outside code. */
 	after?: InlineType;
@@ -37,7 +37,9 @@ export function mark(spec: MarkSpec): Mark {
 	};
 	const { marker } = spec;
 	const char = marker[0] ?? '';
-	if (!char || [...marker].some((c) => c !== char)) refuse('the marker is one character, repeated');
+	if (!char || marker.length > 2 || [...marker].some((c) => c !== char)) {
+		refuse('the marker is one character, once or twice');
+	}
 	if (isBuiltInTrigger(char) || /[\s\p{L}\p{N}]/u.test(char)) {
 		refuse(`"${char}" can't open a mark: the editor reads it itself, or it's a letter or a space`);
 	}

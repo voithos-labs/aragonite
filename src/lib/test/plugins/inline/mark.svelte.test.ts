@@ -88,6 +88,13 @@ describe('a plugin mark, read', () => {
 		expect(getInlineMarkPolicy('hl/highlight' as AnyInlineKind)?.markerBytes).toBe('==');
 	});
 
+	it('reads the same row whatever order an editor lists it in', () => {
+		const under = () => highlight({ name: 'under', marker: '++', after: builtin.inlines.emphasis });
+		installed([highlight()]);
+		installed([under(), highlight()]);
+		expect(takeDevWarnsOf('inline-type-facts')).toEqual([]);
+	});
+
 	it('nests just outside code, or just inside the mark `after` names', () => {
 		installed([
 			highlight(),
@@ -100,7 +107,8 @@ describe('a plugin mark, read', () => {
 	});
 
 	it.each([
-		['a marker of two characters', { marker: '=+' }, 'one character, repeated'],
+		['a marker of two characters', { marker: '=+' }, 'one character, once or twice'],
+		['a run of three', { marker: '===' }, 'one character, once or twice'],
 		['a character the editor reads', { marker: '**' }, "can't open a mark"],
 		['a letter', { marker: 'xx' }, "can't open a mark"],
 		['no chord', { chord: '' as never }, 'needs a chord']
@@ -110,7 +118,8 @@ describe('a plugin mark, read', () => {
 
 	it('an unclosed = flood scans within a bounded growth ratio', () => {
 		const { read } = installed([highlight()]);
-		expectBoundedGrowth(measureScanGrowth((raw) => void read(raw), '==a ', [16, 64]));
+		// Closers only, so every run searches back for an opener the per-length floor must bound.
+		expectBoundedGrowth(measureScanGrowth((raw) => void read(raw), 'a== ', [16, 64]));
 	}, 300_000);
 });
 
@@ -142,6 +151,22 @@ describe('a plugin mark in a mounted editor', () => {
 		expect(editor.instance.run(m.toggle)).toBe(true);
 		await editor.settle();
 		expect(editor.source()).toBe('a ==word== here\n');
+	});
+
+	const WORDS = 'a word here\n';
+
+	it('is dead in an editor whose plugins list no mark', async () => {
+		const m = highlight();
+		const listing = mountEditor({ source: WORDS, plugins: [plugin(m)] });
+		const other = mountEditor({ source: WORDS, plugins: [] });
+		await listing.settle();
+		await other.settle();
+		selectRange(surfaceAt(other, [0]), 2, 6);
+		expect(other.instance.can('hl/toggle-highlight')).toBe(false);
+		expect(other.instance.run('hl/toggle-highlight')).toBe(false);
+		await other.settle();
+		expect(other.source()).toBe(WORDS);
+		expect(takeDevWarnsOf('commands')).toHaveLength(1);
 	});
 
 	it('its chord is claimed, and a host rebinds it', async () => {

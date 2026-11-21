@@ -9,6 +9,8 @@ is a policy row and a delimiter run, so in live mode it should behave as `**` do
 - In live mode the `==` runs are hidden and the text shows in the mark's element; source mode
   shows them.
 - Selecting words and pressing the chord writes `==words==`; pressing it again unwraps them.
+- The chord wraps a word in a table cell, and a range across two blocks in each block it covers.
+- At a caret, the chord then Mod+B and a letter write `**==x==**`: a mark with no `after` nests inside strong.
 
 ## Edge cases
 
