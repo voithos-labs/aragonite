@@ -43,6 +43,20 @@ test.describe('footnote numbers painted from paintDepends', () => {
 		expect(await numbersIn(page, FIRST)).toEqual(['1', '2']);
 	});
 
+	test('Enter above the references paints the blocks below again, their numbers standing', async ({
+		page
+	}) => {
+		const ep = new PluginsPage(page);
+		await ep.focusBlock(FIRST, 0);
+		await countPaints(page);
+		await page.keyboard.press('Enter');
+		await ep.waitForRenderFlush();
+		// The blocks nobody typed in, each a block further down: their answers stand at new indexes.
+		const painted = new Set(await paintedPaths(page));
+		expect([painted.has(String(SECOND + 1)), painted.has(String(PLAIN + 1))]).toEqual([true, true]);
+		expect(await numbersIn(page, SECOND + 1)).toEqual(['2', '1']);
+	});
+
 	test('a key that changes no answer paints only its own block', async ({ page }) => {
 		const ep = new PluginsPage(page);
 		await ep.focusBlockEnd(PLAIN);

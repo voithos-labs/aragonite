@@ -15,6 +15,9 @@ Miss-analysis: no real browser had run `paintDepends`; its rows ran in jsdom.
 - `[^a] ` typed at the start of the first block: the second block, never typed in, now reads 1
   and 2, and the first block reads 1 and 2.
 
+- Enter at the start of the first block: the blocks below, never typed in, are painted again with
+  answers that index the blocks, and their numbers stand.
+
 ## User interactions
 
 - A letter typed in the plain paragraph: only that block is painted again, and the numbers stand.

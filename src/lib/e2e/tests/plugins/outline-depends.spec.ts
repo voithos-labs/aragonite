@@ -34,6 +34,7 @@ const kindAt = (page: Page, index: number): Promise<string> =>
 const OUTLINE = ['Alpha', 'Beta', 'Omega'];
 const ALPHA = 1;
 const PARA_ONE = 2;
+const BETA = 3;
 const PARA_TWO = 4;
 // `## Beta` once an Enter in the paragraph above it has split that paragraph in two.
 const BETA_AFTER_ENTER = 4;
@@ -85,6 +86,21 @@ test.describe('an outline drawn from depends', () => {
 		expect(await kindAt(page, BETA_AFTER_ENTER)).toBe('heading');
 		await clickInPlace(outline(page).filter({ hasText: 'Beta' }));
 		await expect.poll(() => caretPath(page)).toEqual([BETA_AFTER_ENTER]);
+	});
+
+	test('takes the caret to a heading from its row after an Enter above it is undone', async ({
+		page
+	}) => {
+		const ep = new PluginsPage(page);
+		await ep.gotoPlugins('outline');
+		await ep.focusBlock(PARA_ONE, 4);
+		await page.keyboard.press('Enter');
+		await ep.waitForRenderFlush();
+		await page.keyboard.press('ControlOrMeta+z');
+		await ep.waitForRenderFlush();
+		expect(await kindAt(page, BETA)).toBe('heading');
+		await clickInPlace(outline(page).filter({ hasText: 'Beta' }));
+		await expect.poll(() => caretPath(page)).toEqual([BETA]);
 	});
 
 	test('scrolled out of the window and back, shows the same outline and asks no block', async ({
