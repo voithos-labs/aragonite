@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // G2.9: every paste reaches an `edit` listener as one `paste` op whose count is the blocks it
-// landed as, whichever commit took it, and a range across blocks is removed first. A cell's rows
-// are in `blocks/table/cell-paste-routing.test.ts`.
+// landed as, whichever commit took it, over a range across blocks too. A cell's rows are in
+// `blocks/table/cell-paste-routing.test.ts`.
 // Miss-analysis: these rows drove the dispatcher the range-edit core replaced, so they held the
 // three op kinds it emitted and nothing read the op a paste in a running editor names.
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -60,11 +60,8 @@ describe('G2.9 a paste is one `paste` op', () => {
 		expect(await opsOf('abc‸def\n', 'one\n\ntwo', route)).toEqual([['paste', { count: 2 }]]);
 	});
 
-	it('over a range across blocks, the removal’s `delete` comes first', async () => {
+	it('over a range across blocks, one `paste` takes the removal too', async () => {
 		const ops = await opsOf('al⟦pha\n\nbe⟧ta\n', 'x');
-		expect(ops).toEqual([
-			['delete', { crossBlock: true }],
-			['paste', { count: 0 }]
-		]);
+		expect(ops).toEqual([['paste', { count: 0 }]]);
 	});
 });

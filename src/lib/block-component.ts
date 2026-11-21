@@ -341,6 +341,13 @@ export interface BlockComponent {
 	 */
 	typeText?(text: string, offset: number): Promise<boolean>;
 	/**
+	 * Hold the step text written into this block passes, as a typed letter's write does: `spend`
+	 * moves it across a hidden edge and spends the caret memory's records on it, and `finish` lets
+	 * them go once the write is over. The editor holds it for text written over a range that lands
+	 * here. Omitted by a block that takes no text.
+	 */
+	holdInsertion?(): Required<Pick<PreparedPaste, 'spend' | 'finish'>>;
+	/**
 	 * Run a clipboard action from the table cell's right-click menu against the offsets
 	 * captured at menu-open (focus/selection may have moved since).
 	 */
@@ -384,6 +391,7 @@ export type ContainerBlockComponent = BlockComponent &
 export const EDITABLE_SURFACE_MEMBERS = [
 	'preparePaste',
 	'typeText',
+	'holdInsertion',
 	'afterSelectionRemoved'
 ] as const satisfies readonly (keyof BlockComponent)[];
 

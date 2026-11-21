@@ -1068,7 +1068,9 @@
 		commands,
 		getBlockComponent,
 		selection: selectionState,
-		getDoc
+		getDoc,
+		bytes,
+		reading
 	});
 
 	// Read at a row's press, when both halves exist.
@@ -1348,7 +1350,8 @@
 		commands,
 		pasteCoordinator,
 		activePlugins,
-		events
+		events,
+		kindCue
 	});
 
 	// Every handler checks for this instance: the document listener sees every editor's keys,
@@ -1671,6 +1674,8 @@
 		containerChords,
 		selection: selectionState,
 		getDoc,
+		bytes,
+		reading,
 		commands,
 		isHostChrome,
 		isFindBar

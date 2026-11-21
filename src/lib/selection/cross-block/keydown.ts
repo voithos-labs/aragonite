@@ -3,7 +3,8 @@
 import type { CrossBlockDispatchContext } from './dispatch';
 import type { AnyBlockKind, Document } from '../../core/nodes';
 import { kindOfPath, replaceRange, replaceWidget } from './range-replace';
-import { commandLandingKind } from './range-removal';
+import { bindsLineBreak, commandLandingKind } from './range-removal';
+import { overRangeAnswer, placeKind, type PlaceAnswer } from './range-paste';
 import { bindsIndentAt, coversIndentBinding, indentFormsFor, indentRange } from './range-indent';
 import { coverRange, rangeCoverage } from '../range-coverage';
 import type { SelectionState } from '../selection-state.svelte';
@@ -24,6 +25,7 @@ import {
 	type CommandDispatchContext
 } from '../../schema/block-commands';
 import {
+	LINE_BREAK_COMMAND_IDS,
 	chordsBoundTo,
 	commandForKey,
 	containerMayBind,
@@ -138,7 +140,7 @@ async function handleCrossBlockActive(
 		case 'command': {
 			const chord = eventToChord(e);
 			if (chord && !isReadingMode(ctx.reading.mode)) {
-				await replaceRange(ctx, { kind: 'command', chord });
+				await replaceRange(ctx, { kind: 'command', chord, place: placesByEvent.get(e) ?? null });
 			}
 			return true;
 		}
@@ -252,14 +254,8 @@ async function dispatchOverRange(
 	);
 }
 
-/** A key bound to a command that runs after a range's removal, read in the keymap of the block the
- *  removal leaves the caret in, where the command then runs. */
-export function isCommandCandidateKey(e: KeyboardEvent, reads: RangeKeyReads): boolean {
-	const bound = boundCommand(e, reads);
-	return bound !== null && runsAfterRemoval(bound, reads);
-}
-
-/** The command the key runs in the keymap of the block the range's removal leaves the caret in. */
+/** The command the key runs in the keymap of the block it runs in: for a line break, the block at
+ *  the core's place for text over the range; for any other key, where the removal leaves the caret. */
 function boundCommand(
 	e: KeyboardEvent,
 	reads: RangeKeyReads
@@ -268,7 +264,17 @@ function boundCommand(
 	const { anchor, focus } = reads.selection;
 	if (!chord || !anchor || !focus) return null;
 	const doc = reads.getDoc();
-	const kind = commandLandingKind(doc, rangeCoverage(doc, coverRange(doc, anchor, focus)));
+	const coverage = rangeCoverage(doc, coverRange(doc, anchor, focus));
+	const over = bindsLineBreak(chord, reads.commands) && overRangeAnswer(reads, coverage, 'place');
+	if (over) {
+		placesByEvent.set(e, over);
+		const kind = placeKind(over);
+		const command = commandForKey(e, kind, reads.commands);
+		// The place binding no key is a break input's to answer; any other command goes the usual way.
+		if (command === null) return null;
+		if (LINE_BREAK_COMMAND_IDS.has(command)) return { kind, command };
+	}
+	const kind = commandLandingKind(doc, coverage);
 	const command = commandForKey(e, kind, reads.commands);
 	return command === null ? null : { kind, command };
 }
@@ -281,8 +287,8 @@ function runsAfterRemoval(
 	return commandOverRange(kind, command, reads.commands.activation) !== undefined;
 }
 
-/** What reading a key over a live range takes: the range, its document and the keymap. */
-export interface RangeKeyReads {
+/** What reading a key over a live range takes: the range, its document and its bytes, and the keymap. */
+export interface RangeKeyReads extends Pick<CrossBlockDispatchContext, 'bytes' | 'reading'> {
 	selection: Pick<SelectionState, 'ownsRange' | 'rangeInOneBlock' | 'anchor' | 'focus'>;
 	getDoc: () => Document;
 	commands: Pick<CommandDispatchContext, 'keybindingOverrides' | 'activation'>;
@@ -308,6 +314,8 @@ type RangeKeyRole =
 
 // Each container the key bubbles through asks, and then the range's handler: one answer per event.
 const rolesByEvent = new WeakMap<KeyboardEvent, RangeKeyRole | null>();
+// The place a line break's claim asked the core for, which the key's gesture then runs on.
+const placesByEvent = new WeakMap<KeyboardEvent, PlaceAnswer>();
 
 /** What the range's handler does with a key, or null when it leaves the key to the block. */
 function rangeKeyRole(e: KeyboardEvent, reads: RangeKeyReads): RangeKeyRole | null {

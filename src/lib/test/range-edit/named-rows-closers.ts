@@ -545,13 +545,13 @@ const LINE_END_ROWS: NamedRow[] = [
 	)
 ];
 
-/** A line break's rows in both modes: Enter and Shift+Enter over the range remove it this way. */
+/** A line break's rows in both modes: Enter and Shift+Enter over the range run at this place. */
 const broken = (name: string, source: string, out: string, caret: Caret) =>
 	(['source', 'live'] as const).map((mode): NamedRow => ({
 		name: `${name}, a line break, ${mode}`,
 		source,
 		mode,
-		gesture: 'break',
+		gesture: 'place',
 		expect: { source: out, caret }
 	}));
 
@@ -628,16 +628,16 @@ const LINE_BREAK_ROWS: NamedRow[] = [
 		{ at: 10, holds: 'text' }
 	),
 	...broken(
-		'L8 a range ending at a block’s end breaks at the end of the block before',
+		'L8 a range ending at a block’s end breaks in an empty paragraph where it was',
 		'first\n\n⟦***\n\n# end⟧\n\n> quote\n',
-		'first\n\n> quote\n',
-		{ at: 5, holds: 'text' }
+		'first\n\n\n> quote\n',
+		{ at: 7, holds: 'text' }
 	),
 	...broken(
 		'L8 the same before a code block',
 		'first\n\n⟦***\n\n# end⟧\n\n```\ncode\n```\n',
-		'first\n\n```\ncode\n```\n',
-		{ at: 5, holds: 'text' }
+		'first\n\n\n```\ncode\n```\n',
+		{ at: 7, holds: 'text' }
 	),
 	...broken(
 		'L8 a range ending at a paragraph’s end breaks on the line it emptied',
@@ -646,10 +646,10 @@ const LINE_BREAK_ROWS: NamedRow[] = [
 		{ at: 7, holds: 'text' }
 	),
 	...broken(
-		'L8 a tip’s opening line after the range takes no break, so the gap before the tip does',
+		'L8 nothing before the range, above a tip’s opening line, the same',
 		'⟦***\n\n# end⟧\n\n:::tip\nbody\n:::\n',
-		':::tip\nbody\n:::\n',
-		{ at: 0, holds: 'boundary', parent: [] }
+		'\n:::tip\nbody\n:::\n',
+		{ at: 0, holds: 'text' }
 	),
 	...broken(
 		'L8 at the document’s start the line the range emptied takes the break, not the tip’s',
@@ -664,10 +664,10 @@ const LINE_BREAK_ROWS: NamedRow[] = [
 		{ at: 10, holds: 'text' }
 	),
 	...broken(
-		'L8 and for a title the range ends in',
+		'L8 a title the range ends in takes it before its rest, where the row runs its own Enter',
 		'⟦***\n\nbody\n\n:::tip Ti⟧tle\ninner\n:::\n',
 		':::tip tle\ninner\n:::\n',
-		{ at: 0, holds: 'boundary', parent: [] }
+		{ at: 7, holds: 'text' }
 	),
 	{
 		name: 'L8 any other command key’s removal still lands at the end of the block before',
@@ -870,6 +870,20 @@ const ENTERED_CUT_ROWS: NamedRow[] = [
 	)
 ];
 
+// Miss-analysis: every row of text on a line of its own stood where the removal's byte is the next
+// block's first, so none held that line under the blank line an opening row keeps over that block.
+const OWN_LINE_ROWS: NamedRow[] = (
+	[
+		['a key’s text', { text: 'ж' }],
+		['a paste', { paste: 'ж', plain: false, holds: 'text' }]
+	] as const
+).map(([name, gesture]) => ({
+	name: `L5 ${name} over blocks under an opening row stands under the blank line the row keeps`,
+	source: '::::note\n⟦***\n\n# end⟧\n\nnext\n::::\n',
+	gesture,
+	expect: { source: '::::note\n\nж\n\nnext\n::::\n', caret: { at: 11, holds: 'text' } }
+}));
+
 export const CLOSER_ROWS: NamedRow[] = [
 	...CLOSING_LINE_ROWS,
 	...LINE_ROWS,
@@ -887,5 +901,6 @@ export const CLOSER_ROWS: NamedRow[] = [
 	...LINE_BREAK_ROWS,
 	...EMPTIED_LINE_ROWS,
 	...BARE_START_ROWS,
-	...ENTERED_CUT_ROWS
+	...ENTERED_CUT_ROWS,
+	...OWN_LINE_ROWS
 ];

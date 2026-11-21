@@ -2,7 +2,8 @@
 // A composition over a range, mounted in both modes, lands where a key typed over the range does
 // where the range ended at a leaf's end or between blocks, and where Delete then a key do where it
 // ended inside a leaf's text, before the rest of that text. Either way it joins only text of the
-// leaf the range ended in.
+// leaf the range ended in. Under a container's opening row (a callout's, a details summary) and on
+// an item's emptied first row it keeps a blank line the key's text does not.
 // Miss-analysis: the composition rows ran a range into a container's body alone, so none ended at a
 // table row's end, where a composition paired with Delete joined the next row's first cell.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
@@ -30,6 +31,9 @@ interface Row {
 	as: 'a typed key' | 'Delete';
 	/** The document once `x` is in. */
 	typed: string;
+	/** A composition's, where the typing path it writes through keeps a blank line the key's text
+	 *  does not: under a container's opening row, on an item's emptied first row. */
+	composed?: string;
 }
 
 const toRow = (anchor: EditorSelection['anchor'], table: number[]): EditorSelection => ({
@@ -43,14 +47,16 @@ const ROWS: Row[] = [
 		source: `<details open>\n<summary>Sum</summary>\n\n***\n\nbody\n\n</details>\n\n${TABLE}`,
 		select: toRow({ path: [0, 1], offset: 0 }, [1]),
 		as: 'a typed key',
-		typed: `<details open>\n<summary>Sum</summary>\n\nx\n</details>\n\n${KEPT_ROW}`
+		typed: `<details open>\n<summary>Sum</summary>\nx\n</details>\n\n${KEPT_ROW}`,
+		composed: `<details open>\n<summary>Sum</summary>\n\nx\n</details>\n\n${KEPT_ROW}`
 	},
 	{
 		name: 'from a table in a note to a table row’s end',
 		source: `:::note\n| a | b |\n|---|---|\n| 1 | 2 |\n| 3 | 4 |\n\nbody\n:::\n\n${TABLE}`,
 		select: toRow({ path: [0, 1], offset: 0, cellCoordinate: true }, [1]),
 		as: 'a typed key',
-		typed: `:::note\n\nx\n:::\n\n${KEPT_ROW}`
+		typed: `:::note\nx\n:::\n\n${KEPT_ROW}`,
+		composed: `:::note\n\nx\n:::\n\n${KEPT_ROW}`
 	},
 	{
 		name: 'from the document’s first block to a table row’s end',
@@ -64,14 +70,24 @@ const ROWS: Row[] = [
 		source: ':::note\n***\n\nbody\n:::\n\npara\n\n# h\n',
 		select: { anchor: { path: [0, 1], offset: 0 }, focus: { path: [1], offset: 4 } },
 		as: 'a typed key',
-		typed: ':::note\n\nx\n:::\n\n# h\n'
+		typed: ':::note\nx\n:::\n\n# h\n',
+		composed: ':::note\n\nx\n:::\n\n# h\n'
 	},
 	{
 		name: 'from a rule in a note to an item’s end before the next item',
 		source: ':::note\n***\n\nbody\n:::\n\n- one\n- two\n',
 		select: { anchor: { path: [0, 1], offset: 0 }, focus: { path: [1, 0, 0], offset: 3 } },
 		as: 'a typed key',
-		typed: ':::note\n\nx\n:::\n- two\n'
+		typed: ':::note\nx\n:::\n- two\n',
+		composed: ':::note\n\nx\n:::\n- two\n'
+	},
+	{
+		name: 'from a rule that opens an item to a paragraph’s end before a quote',
+		source: '- ***\n\n  para\n  > b\n',
+		select: { anchor: { path: [0, 0, 0], offset: 0 }, focus: { path: [0, 0, 1], offset: 4 } },
+		as: 'a typed key',
+		typed: '- x\n  > b\n',
+		composed: '- x\n\n  > b\n'
 	},
 	{
 		name: 'out of a quote from a block taken whole, a heading after',
@@ -115,7 +131,7 @@ describe('a composition over a range lands as the typed key or Delete does', () 
 				const editor = await placed(row, mode);
 				await insertBy('composition', focused(), 'x');
 				await editor.settle();
-				expect(editor.source()).toBe(row.typed);
+				expect(editor.source()).toBe(row.composed ?? row.typed);
 			});
 		}
 });

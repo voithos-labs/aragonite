@@ -48,6 +48,11 @@ const OUTSIDE: Record<string, { imports: string[]; why: string; until: string }>
 		why: 'Enter’s exit and lift run for a paste on a copy no commit holds, so the splice fix-up their commits run runs on the copy',
 		until: 'never: the range-edit core answers in bytes, which the commit installs as read'
 	},
+	'src/lib/tree-operations/opened-paragraph.ts': {
+		imports: ['src/lib/tree-operations/fix-up/apply.ts'],
+		why: 'the empty paragraph the caret between blocks opens is written for the range-edit core on a copy no commit holds, so the fix-up its commit runs runs on the copy',
+		until: 'never: the range-edit core answers in bytes, which the commit installs as read'
+	},
 	'src/lib/editor-actions/search-replace.ts': {
 		imports: ['src/lib/tree-operations/chain-rebuild.ts'],
 		why: 'replace-all rebuilds a private clone before its commits',

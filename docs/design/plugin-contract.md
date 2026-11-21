@@ -454,9 +454,10 @@ A plugin command's throw, or its rejected promise, is reported under the plugin'
 
 **Over a selection.** A few pre-freeze additions let a plugin's command join what built-in keys do over a selection, each additive-later:
 
-- `registerBlockCommand`'s optional fourth argument, `BlockCommandOptions`, with `{ overRange: 'afterRemoval' }`: a key bound to the command removes a cross-block selection first, the way Backspace would, then runs it at the caret that's left. An options bag on a signature plugins already bind, so another value later is one more addition.
+- `registerBlockCommand`'s optional fourth argument, `BlockCommandOptions`, with `{ overRange: 'afterRemoval' }`: a key bound to the command removes a cross-block selection first, the way Backspace would, then runs it at the caret that's left; a chord some keymap binds to a line break runs where text typed over the selection would land. An options bag on a signature plugins already bind, so another value later is one more addition.
 - `BlockCommandOptions.overSelection: 'afterRemoval'`, the same over a selection inside the command's own block, with `ctx.afterRemoval` true so an "empty line" branch can tell the removal's emptiness from the user's.
 - `BlockComponent.getCommandContext` (returning a `BlockCommandTarget`) and `BlockComponent.afterSelectionRemoved`: how the editor runs a plugin's command at a block after a removal. Optional members on a published type; the editable leaf supplies both, and a hand-built component that leaves them out gets a dev warning (or, for the second, a command run with the selection still there).
+- `BlockComponent.holdInsertion`, the block's own insertion step: text typed or pasted over a selection goes in through the step of the block it lands in, so it crosses a hidden edge as a typed letter would (optional on the published type, required of every editable leaf by `src/lib/block-component.ts` :: `EDITABLE_SURFACE_MEMBERS`).
 - `CommandRun`, the record of how a command came to run, with one field so far, `afterRemoval`: an optional third parameter to a block's `runCommand`, and extended by `BlockCommandContext`. A new field on it is an addition.
 
 ### The root document, in a component
