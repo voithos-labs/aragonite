@@ -60,14 +60,14 @@ describe("the component's own handle", () => {
 
 	// Miss-analysis: every cell row selected cells at both ends; a range from text into a table
 	// has one, which read as a byte of the table rather than a cell's.
-	it('reads a range from text into a table, the cell end at its text', async () => {
+	it('reads a range from text into a table, the cell end past its text', async () => {
 		const m = mountEditor({ source: DOC });
 		await m.settle();
 		await m.instance.setSelection({ anchor: { path: [0], offset: 1 }, focus: cellPoint([1], 3) });
 		await m.settle();
 		expect(m.instance.selection).toMatchObject({
 			anchor: 1,
-			head: DOC.indexOf('22'),
+			head: DOC.indexOf('22') + 2,
 			cells: null
 		});
 		expect(m.instance.selection!.block!.text).toBe('22');
@@ -78,7 +78,10 @@ describe("the component's own handle", () => {
 		await m.settle();
 		await m.instance.setSelection({ anchor: cellPoint([1], 3), focus: cellPoint([2], 1) });
 		await m.settle();
-		expect(m.instance.selection).toMatchObject({ head: m.source().indexOf('3 |'), cells: null });
+		expect(m.instance.selection).toMatchObject({
+			head: m.source().indexOf('3 |') + 1,
+			cells: null
+		});
 	});
 });
 

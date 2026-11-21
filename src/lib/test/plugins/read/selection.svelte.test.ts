@@ -110,7 +110,22 @@ describe('editor.select', () => {
 		await editor.select({ cells: table, anchor: [0, 1], head: [1, 1] });
 		const { cells, head } = editor.selection!;
 		expect(cells).toEqual({ table, anchor: [0, 1], head: [1, 1] });
-		expect(head).toBe(DOC.indexOf('2 |'));
+		expect(head).toBe(DOC.indexOf('2 |') + 1);
+	});
+
+	// Miss-analysis: the cell rows read an end only at its cell's start, so a range over cells left
+	// the last cell's text out of `from`..`to`.
+	it('covers the cells selected, the lower end at its text start and the upper at its end', async () => {
+		const { editor } = await editorOn(DOC);
+		const table = editor.doc.blocks[2];
+		await editor.select({ cells: table, anchor: [1, 1], head: [0, 0] });
+		const { anchor, head, from, to } = editor.selection!;
+		expect([anchor, head, from, to]).toEqual([
+			DOC.indexOf('2 |') + 1,
+			DOC.indexOf('a |'),
+			DOC.indexOf('a |'),
+			DOC.indexOf('2 |') + 1
+		]);
 	});
 
 	// Miss-analysis: the cell rows named cells the table has; one past a row's end counted on into

@@ -15,7 +15,7 @@ type Reads = Pick<DocumentRead, 'byteOf' | 'leafAt' | 'blockOf'> & {
 };
 
 /** `selection` as a plugin reads it; null for none, or for a point the document doesn't place.
- *  A cell end reads as the byte its cell's text starts at. */
+ *  An end in a cell covers that cell: the lower end at its text's start, the upper at its end. */
 export function selectionOf(reads: Reads, selection: EditorSelection | null): Selection | null {
 	if (!selection) return null;
 	const anchor = placed(reads, selection.anchor);
@@ -23,12 +23,14 @@ export function selectionOf(reads: Reads, selection: EditorSelection | null): Se
 	if (!anchor || !head) return null;
 	const node = reads.nodeAt(head.path);
 	const sameTable = anchor.cell && head.cell && anchor.table === head.table;
+	const forward = anchor.byte <= head.byte;
+	const [from, to] = forward ? [anchor.byte, head.end] : [head.byte, anchor.end];
 	return {
-		anchor: anchor.byte,
-		head: head.byte,
-		from: Math.min(anchor.byte, head.byte),
-		to: Math.max(anchor.byte, head.byte),
-		empty: anchor.byte === head.byte,
+		anchor: forward ? from : to,
+		head: forward ? to : from,
+		from,
+		to,
+		empty: from === to,
 		block: node ? reads.blockOf(node, head.path) : null,
 		cells: sameTable
 			? {
@@ -68,17 +70,20 @@ export function selectionTarget(reads: Reads, input: SelectionInput): EditorSele
 	return pair(point(input.anchor), point(input.head));
 }
 
-/** Where one end of the selection sits: its byte, its block's path, and its cell for a cell end. */
+/** Where one end of the selection sits: its byte (a cell's text start, with `end` past its text),
+ *  its block's path, and its cell for a cell end. */
 function placed(reads: Reads, point: SelectionPoint) {
 	if (!point.cellCoordinate) {
 		const byte = reads.byteOf(point.path, point.offset);
-		return byte === null ? null : { byte, path: point.path, cell: null, table: null };
+		return byte === null ? null : { byte, end: byte, path: point.path, cell: null, table: null };
 	}
 	const table = reads.nodeAt(point.path);
 	if (!table || table.kind !== 'table') return null;
 	const columns = metadataOf(table, 'table').columnCount;
 	const cell = [Math.floor(point.offset / columns), point.offset % columns] as const;
 	const path = [...point.path, ...cell];
+	const node = reads.nodeAt(path);
 	const byte = reads.byteOf(path, 0);
-	return byte === null ? null : { byte, path, cell, table };
+	const end = node ? reads.blockOf(node, path).to : -1;
+	return byte === null || end < 0 ? null : { byte, end, path, cell, table };
 }
