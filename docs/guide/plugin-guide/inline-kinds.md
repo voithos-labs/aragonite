@@ -18,7 +18,7 @@ Every `inline()` starts with three fields:
 - **`match`**: a regex, matched right at the prefix, or a function `(text, at, end)` that returns where the claim ends (-1 for none).
 - **`read`**: turns the match into the claim's data. Return `null` and the bytes go back to the editor, read as if your plugin weren't there.
 
-Keep a miss short: your matcher runs at every prefix in the paragraph. For anything bracketed, use the function form, as the recipes here do: it reads only as far as it must, and its `read` gets the claim's bytes. A regex matcher goes quadratic on a long line of unclosed prefixes.
+Keep a miss short: your matcher runs at every prefix in the paragraph. For anything bracketed, use the function form, as the recipes here do: it reads only as far as it must, and its `read` gets the claim's bytes. A regex that can read past the next prefix (`\[\[[^\]]*\]\]` runs to the end of the block on every unclosed `[[`) goes quadratic on a long line of them.
 
 Three optional fields: `after` (constructs on the same character yours is tried after), `pair` (a one-character prefix writes its twin as it's typed, the way `$` does in the math plugin), and `split` (`'whole'` by default: Enter or a paste inside a claim moves to its nearer edge; `'plain'` cuts its bytes where the caret is).
 
