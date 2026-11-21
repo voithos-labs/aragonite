@@ -199,6 +199,28 @@ describe('inline(): an `as` claim writes through `write`', () => {
 		expect(buildLinkUnwrapBytes(read(raw)[0], raw, reading)).toBe('Shown');
 	});
 
+	// Miss-analysis: every link row's text appeared once in its claim, so none asked which run of
+	// the bytes is the text, and the first one won: a letter typed in the alias wrote the target.
+	it('a link whose text also spells part of its target shows the run `at` names', () => {
+		const aliased = (at: (target: string) => number) =>
+			inline({
+				name: 'link',
+				label: 'Link',
+				prefix: '[[',
+				match: /\[\[([^\]|\n]+)\|([^\]\n]+)\]\]/,
+				read: (m) => ({ target: m[1], text: m[2], at: at(m[1]) }),
+				sample: '[[note|Shown]]',
+				as: 'link',
+				link: (d) => ({ href: d.target, text: d.text, at: d.at, title: null })
+			});
+		const { read } = editorReading([['wiki', [aliased((target) => target.length + 3)]]]);
+		expect(read('[[notebook|note]]')[0].children).toMatchObject([
+			{ kind: 'text', start: 11, end: 15, text: 'note' }
+		]);
+		const wrong = editorReading([['wiki', [aliased(() => 3)]]]);
+		expect(wrong.read('[[notebook|note]]').some((n) => n.syntaxClaim)).toBe(false);
+	});
+
 	it('a link whose text is not in its bytes is left to the editor', () => {
 		const odd = inline({
 			name: 'odd',

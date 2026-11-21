@@ -11,6 +11,7 @@ import {
 	type InlineArm,
 	type InlineMaking,
 	type InlineSpec,
+	type LinkPiece,
 	type RegexMatcher,
 	type Widget
 } from './inline-type';
@@ -105,7 +106,7 @@ export function inline<D>(spec: InlineSpec<D>): Inline<D> {
 			const taken = take(raw, pos, end);
 			if (!taken) return null;
 			const piece = link(taken.data);
-			const at = piece.text === '' ? -1 : raw.indexOf(piece.text, pos + prefix.length);
+			const at = textStart(raw, pos, prefix.length, piece);
 			if (at < 0 || at + piece.text.length > taken.end) return null;
 			const rewriteLink =
 				write &&
@@ -148,6 +149,14 @@ function matcherOf<D>(spec: InlineSpec<D>): ClaimEnd {
 		const found = sticky.exec(end < raw.length ? raw.slice(0, end) : raw);
 		return found ? { end: pos + found[0].length, match: found } : null;
 	};
+}
+
+// Where a link's text sits in the block: at `at` in the claim where the piece says so, else its
+// first run after the prefix; -1 where those bytes aren't the text.
+function textStart(raw: string, pos: number, prefix: number, piece: LinkPiece): number {
+	if (piece.text === '') return -1;
+	if (piece.at === undefined) return raw.indexOf(piece.text, pos + prefix);
+	return raw.startsWith(piece.text, pos + piece.at) ? pos + piece.at : -1;
 }
 
 function plainClaim<D>(

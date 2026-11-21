@@ -18,6 +18,9 @@ block 1 `After`, in live mode.
 - A range from inside the text past its end deletes only what shows: `[[note|Sh]]re`.
 - A letter typed at either edge of the text lands outside the link, as at a built-in link.
 - Mod+B over a range crossing the link's edge writes no GFM over the claim.
+- A letter typed in a text that also spells the start of its target (`[[notebook|note]]`) lands in the text: `[[notebook|noXte]]`.
 
 Miss-analysis: the arm's first rows called the byte writers directly, so nothing drove the card,
-the live split or the edge rule over a link whose bytes aren't GFM.
+the live split or the edge rule over a link whose bytes aren't GFM. And every row's text appeared
+once in its claim, so none asked which run of the bytes is the text: the first one won, and a
+letter typed in `[[notebook|note]]` wrote the target.

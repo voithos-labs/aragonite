@@ -89,8 +89,8 @@ export type InlineArm<D> =
 	  }
 	| {
 			as: 'link';
-			/** `text` is a run of the claim's bytes: the link shows it and hides the rest in live mode,
-			 *  and a claim whose text isn't there is left to the editor's own reading. */
+			/** `text` is a run of the claim's bytes, at `at` or its first after the prefix: the link shows
+			 *  it and hides the rest in live mode. A claim whose text isn't there is left to the editor. */
 			link(data: D): LinkPiece;
 			/** The claim's bytes holding `link`, or null; without it the link card's edits are refused. */
 			write?(link: LinkPiece, data: D): string | null;
@@ -140,6 +140,9 @@ export interface LinkPiece {
 	readonly href: string;
 	readonly text: string;
 	readonly title: string | null;
+	/** Where `text` starts in the claim, for one that spells those characters before its text too
+	 *  (`[[notebook|note]]`): without it the first run after the prefix is taken. Unset in `write`. */
+	readonly at?: number;
 }
 
 // ── What an editor installs ──────────────────────────────────────────────────

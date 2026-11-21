@@ -84,6 +84,16 @@ test.describe('an inline construct read as a link', () => {
 		});
 	}
 
+	test('a letter typed in a text that also starts its target lands in the text', async ({
+		page
+	}) => {
+		await editor.loadContent('See [[notebook|note]] here\n');
+		// Raw 17 is between `no` and `te` of the text, past the target that spells them too.
+		await editor.focusBlockAtPath([0], 17);
+		await page.keyboard.type('X');
+		await expect.poll(source).toBe('See [[notebook|noXte]] here\n');
+	});
+
 	test('Mod+B across its edge writes no GFM over it', async ({ page }) => {
 		await selectFrom(page, 2, 5);
 		await page.keyboard.press('ControlOrMeta+b');
