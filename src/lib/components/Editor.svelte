@@ -801,7 +801,9 @@
 			return node ? documentRead.blockOf(node, path) : null;
 		},
 		rectsOf: (dec) => paintedMarkRects(dec, getBlockComponent),
-		report: reportPluginError
+		report: reportPluginError,
+		keys: documentRead.keys,
+		contentVersion: contentVersion.read
 	});
 	const paintSources = $derived(paints.list);
 	// The find bar's highlights come first while it's open.

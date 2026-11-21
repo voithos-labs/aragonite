@@ -9,7 +9,7 @@
 	import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
 	import type { BlockComponent } from '../../block-component';
 	import type { NodeView } from '../../core/node-views';
-	import { makeBlock, DETACHED_READING } from '../../schema/doc-view';
+	import { makeBlock, DETACHED_READING, type KeyWatch } from '../../schema/doc-view';
 	import { modeOf } from '../../presentation-mode';
 	import { pluginOfKind } from '../../schema/plugin-name';
 	import {
@@ -72,6 +72,9 @@
 	let typed: string | null = $state(null);
 	let generation = $state(0);
 	let drawn: Drawn<unknown> | null = null;
+	// The answers of the drawing's `depends`, kept while it's mounted.
+	let keys: KeyWatch | null = null;
+	let keyed = $state(false);
 
 	// Functions over state, not deriveds: a key handler resuming after the block unmounted still
 	// reads them, and a derived read past its effect warns.
@@ -173,6 +176,9 @@
 		get focused() {
 			return focused();
 		},
+		get depends() {
+			return keys?.keys() ?? NO_ANSWERS;
+		},
 		source,
 		get typed() {
 			return typed;
@@ -190,6 +196,7 @@
 
 	const read = () =>
 		services ? services.read.blockOf(node, myPath) : makeBlock(node, DETACHED_READING, null);
+	const NO_ANSWERS: readonly string[] = Object.freeze([]);
 
 	// ── Mount, update, destroy ────────────────────────────────────────────────
 
@@ -211,6 +218,12 @@
 			drawn = made;
 			el.append(made.dom);
 			target = el;
+			if (made.depends && services) {
+				keys = services.read.keys((block) => made.depends!(block), report);
+				keyed = true;
+				// Before the first paint, so no frame shows what `draw` drew with no answers.
+				made.update?.(read(), ctx);
+			}
 			const host = el.parentElement as (HTMLElement & { [CARET_AT]?: unknown }) | null;
 			if (host) host[CARET_AT] = (x: number, y: number) => clickedAt(made, x, y);
 			seen = watched();
@@ -225,6 +238,9 @@
 			];
 			return () => {
 				offs.forEach((off) => off());
+				keys?.stop();
+				keys = null;
+				keyed = false;
 				drawn = null;
 				target = null;
 				if (list) void unmount(list);
@@ -265,8 +281,11 @@
 	let seen: unknown[] = [];
 	$effect(() => {
 		const now = watched();
+		// Every write, for a drawing with `depends`: its answers say whether `update` runs.
+		if (keyed) editorDoc.contentVersion();
 		untrack(() => {
-			if (!drawn || now.every((value, i) => Object.is(value, seen[i]))) return;
+			const moved = keys?.changed() ?? false;
+			if (!drawn || (!moved && now.every((value, i) => Object.is(value, seen[i])))) return;
 			seen = now;
 			const restore = keepScroll();
 			if (drawn.update?.(read(), ctx) === false) generation++;

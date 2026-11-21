@@ -16,7 +16,7 @@ import type { SelectionAction } from './selection-action';
 import type { Draft } from './drafts';
 import type { Block, Doc } from './doc-view';
 import type { Selection, SelectionInput } from './selection-read';
-import type { BlockPaint, Paint } from '../decorations/paint';
+import type { BlockPaint, Paint, PaintContext } from '../decorations/paint';
 import { isValidPluginName } from './plugin-name';
 import { satisfiesRange } from './version-range';
 
@@ -76,11 +76,14 @@ export interface Contribution {
 	 *  selection toolbar and `openRows`. */
 	actions?: readonly SelectionAction[];
 	/** What to lay over `block`, a block of text (one holding no other blocks), asked while it's on
-	 *  screen and kept while its bytes hold. */
-	paint?(block: Block): readonly Paint[];
+	 *  screen and kept while its bytes hold and `paintDepends`' answers stand. */
+	paint?(block: Block, ctx: PaintContext): readonly Paint[];
 	/** Classes and a badge for a block holding other blocks (a list, a quote, a table row), asked
 	 *  the same way. Its text is all of its children's, so read its type rather than scan it. */
-	paintContainer?(block: Block): readonly BlockPaint[];
+	paintContainer?(block: Block, ctx: PaintContext): readonly BlockPaint[];
+	/** What the paint reads of `block`, a top-level block (the footnotes it references, say), handed
+	 *  back as `ctx.depends`; a change to an answer paints the blocks on screen again. */
+	paintDepends?(block: Block): string;
 }
 
 /** The editor as a plugin's `setup` and a host's handle both see it. */

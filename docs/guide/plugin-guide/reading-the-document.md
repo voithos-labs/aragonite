@@ -1,107 +1,144 @@
-# Recipe: reading the document above your block
+# Recipe: reading the rest of the document
 
 Part of the [plugin guide](../plugin-guide.md).
 
-A block view gets its own node, which is fine right up until it isn't: a table-of-contents block needs the headings above it, and a cross-reference needs an id defined somewhere else entirely. Set `watchDocument: true` and your view's `update` runs on every change to the document, not just to its own block; the document itself is `ctx.editor.document`, read-only and always current:
+A block gets its own text, which is fine right up until it isn't: a table of contents needs every heading, and a footnote reference needs to know it's the third one. Walking the whole document on every keystroke works until the document is long. So say what you read instead.
+
+`depends(block)` answers one string per top-level block: what your drawing reads of it. The editor asks every top-level block once as your block mounts, then only the blocks a keystroke changed, and hands you the answers as `ctx.depends`, one per block, in `editor.doc.blocks`' order. `update` runs when an answer that says something (anything but `''`) comes, goes or changes, so typing in a paragraph asks one block and redraws nothing.
+
+## A table of contents
 
 ```ts
-import {
-	defineBlockView,
-	getContentRange,
-	walkBlocks,
-	type DocumentView
-} from '@voithos-labs/aragonite/plugin';
+import { builtin, definePlugin, lineBlock, type Block } from '@voithos-labs/aragonite/plugin';
 
-function headingsOf(document: DocumentView): string[] {
-	const found: string[] = [];
-	walkBlocks(document, (block) => {
-		if (block.kind !== 'heading' && block.kind !== 'setextHeading') return;
-		const { start, end } = getContentRange(block); // drop the `#` / underline markers
-		found.push(block.raw.slice(start, end));
-	});
-	return found;
+const isHeading = (block: Block) =>
+	block.is(builtin.blocks.heading) || block.is(builtin.blocks.setextHeading);
+
+/** This block's headings, one `level text` line each. */
+function headingsIn(block: Block): string {
+	// Most blocks hold no heading: skip the walk unless a `#` or an underline could start one.
+	if (!/#|[=-][ \t]*\r?$/m.test(block.text)) return '';
+	let lines = '';
+	for (const inside of block.walk()) {
+		if (!isHeading(inside)) continue;
+		const atx = /^ {0,3}(#{1,6})/.exec(inside.text);
+		const level = atx ? atx[1].length : inside.text.trimEnd().endsWith('=') ? 1 : 2;
+		lines += `${level} ${inside.body}\n`;
+	}
+	return lines;
 }
 
-export const contentsView = defineBlockView({
-	surface: 'none',
-	watchDocument: true,
-	mount(target, ctx) {
-		const draw = () =>
-			target.replaceChildren(
-				...headingsOf(ctx.editor.document).map((text) => {
-					const row = document.createElement('div');
-					row.textContent = text;
-					return row;
-				})
-			);
-		draw();
-		// A list to read, not a place for the caret: it publishes nothing, so focus passes over it.
-		return { update: draw };
-	}
+export const contents = definePlugin({
+	name: 'contents',
+	version: '1.0.0',
+	editor: '^0.12.0',
+	contributes: () => ({
+		blocks: [
+			lineBlock({
+				name: 'toc',
+				label: 'Contents',
+				match: /^\[\[toc\]\]$/,
+				sample: '[[toc]]',
+				insert: { label: 'Contents', insert: '[[toc]]\n' },
+				edit: 'box',
+				draw(_block, ctx) {
+					const dom = document.createElement('nav');
+					const show = (answers: readonly string[]) =>
+						dom.replaceChildren(
+							...answers
+								.join('')
+								.split('\n')
+								.filter(Boolean)
+								.map((line) => {
+									const row = document.createElement('div');
+									row.dataset.level = line.slice(0, line.indexOf(' '));
+									row.textContent = line.slice(line.indexOf(' ') + 1);
+									return row;
+								})
+						);
+					show(ctx.depends); // empty here: the update right after brings the answers
+					return { dom, depends: headingsIn, update: (_block, next) => show(next.depends) };
+				}
+			})
+		]
+	})
 });
 ```
 
-Every edit anywhere now redraws the list, so keep the walk cheap (this one is).
+`draw` sees an empty `ctx.depends`, since the editor learns your `depends` from what `draw` returns. The `update` with the answers follows before anything is shown, so nobody sees the empty list.
 
-**Already in Svelte?** `BlockComponentProps.document` delivers the same document to every component, at any nesting depth, and a `$derived` over it re-runs only when it changes:
+The text check at the top is the part that keeps typing cheap. A block whose text can't hold a heading answers without walking. The check has to let every heading through, or one drops out of the list: `#` anywhere covers `# Title`, and a line ending in `=` or `-` covers an underlined heading, inside a quote or a plugin's container too.
 
-```svelte
-<script lang="ts">
-	import { getContentRange, walkBlocks, type DocumentView } from '@voithos-labs/aragonite/plugin';
+**The limit.** A key inside a block re-asks that whole block. Typing in one list of 25,000 items walks the list on every key, about 45 to 50 ms, which is what walking the whole document cost before. A list that holds no `#` skips that walk.
 
-	// A component receives its own node too; this block needs only the document.
-	let { document }: { document?: DocumentView } = $props();
+## Footnote numbers
 
-	// A $derived over the prop re-runs when the document changes, so editing a
-	// heading above updates the list live.
-	const headings = $derived.by(() => {
-		const found: { path: number[]; text: string }[] = [];
-		if (!document) return found;
-		walkBlocks(document, (block, path) => {
-			if (block.kind !== 'heading' && block.kind !== 'setextHeading') return;
-			const { start, end } = getContentRange(block); // drop the `#` / underline markers
-			found.push({ path, text: block.raw.slice(start, end) });
-		});
-		return found;
-	});
-</script>
-
-<nav>
-	{#each headings as heading}<div>{heading.text}</div>{/each}
-</nav>
-```
-
-Either way the document is a **`DocumentView`**, read-only by type ([Views](../plugin-guide.md#views-what-you-read-what-you-own)).
-
-Reading `document.children` gets you the top-level blocks and nothing else, so a heading inside a quote or a list item would go missing. That's what `walkBlocks` is for.
-
-**`walkBlocks(root, visit, basePath?)`**
-
-Calls `visit(block, path)` for every block under `root` (a document, or any block you hold), parents before their children, in the order they sit in the document. `root` itself isn't visited. The path is the list of child indices from `root` down to the block, a fresh array per call, so keep it if you like. What `visit` returns steers the walk:
-
-- nothing: carry on, children included
-- `'skip'`: leave this block's children out
-- `'stop'`: end the walk right here, and `walkBlocks` returns `true` (it returns `false` when it ran to the end)
-
-Walking a block you found at some path? Pass that path as `basePath`, and every path you get back is a document path again.
+A paint can read the rest of the document the same way: `paintDepends(block)` answers per top-level block, and `paint(block, ctx)` gets the answers as `ctx.depends`. Here each block answers with the footnotes it references, in order, so a number is the order a label first appears in:
 
 ```ts
-const doc = parse('# Top\n\n> ## Quoted\n> text\n');
-walkBlocks(doc, (block, path) => console.log(path, block.kind));
-// [0] 'heading'
-// [1] 'blockquote'
-// [1, 0] 'heading'
-// [1, 1] 'paragraph'
+// `[^a]` is a reference; `[^a]:` starts the note itself.
+const LABEL = /\[\^([^\]\s]+)\]:?/g;
+const references = (text: string) =>
+	[...text.matchAll(LABEL)].filter((match) => !match[0].endsWith(':'));
+
+/** The labels this block references, in order, one a line. */
+function referencesIn(block: Block): string {
+	if (!block.text.includes('[^')) return '';
+	let labels = '';
+	for (const inside of block.walk()) {
+		if (inside.prose) for (const [, label] of references(inside.text)) labels += `${label}\n`;
+	}
+	return labels;
+}
+
+// The answers never change once handed over, so they key a cache: one numbering per edit.
+const numberings = new WeakMap<readonly string[], Map<string, number>>();
+function numbering(depends: readonly string[]): Map<string, number> {
+	let numbers = numberings.get(depends);
+	if (!numbers) {
+		numbers = new Map();
+		for (const label of depends.join('').split('\n')) {
+			if (label && !numbers.has(label)) numbers.set(label, numbers.size + 1);
+		}
+		numberings.set(depends, numbers);
+	}
+	return numbers;
+}
+
+export const noteNumbers = definePlugin({
+	name: 'note-numbers',
+	version: '1.0.0',
+	editor: '^0.12.0',
+	contributes: () => ({
+		paintDepends: referencesIn,
+		paint(block, ctx) {
+			const numbers = numbering(ctx.depends);
+			return references(block.text).map((match) => ({
+				type: 'mark' as const,
+				from: block.byteAt(match.index),
+				to: block.byteAt(match.index + match[0].length - 1) + 1,
+				class: 'note-ref',
+				attrs: { 'data-note': String(numbers.get(match[1])) }
+			}));
+		}
+	})
+});
 ```
 
-The other direction, a path you already have to its block, is `blockNodeAt`. It answers `null` for a path that leads nowhere, and for the empty path too (that's the document, which isn't a block). Here it is next to the recipe's other calls:
-
-```ts
-blockNodeAt(doc, [1, 0])?.raw; // '## Quoted\n'
-blockNodeAt(doc, []); // null
-getContentRange(parse('# Hi\n').children[0]); // { start: 2, end: 4 }: the two bytes of 'Hi', markers skipped
-getContentRange(parse('plain text\n').children[0]); // { start: 0, end: 10 }: a paragraph has no markers to skip
-await rects.navigateTo([1, 0]); // true once the quoted heading is in view with the caret at its start
+```css
+.note-ref::after {
+	content: attr(data-note);
+	vertical-align: super;
+	font-size: 0.75em;
+}
 ```
 
-A block that needs to _navigate_ to what it read (a table-of-contents entry jumping to its heading) gets the editor's geometry as **`ctx.editor.rects`** (a Svelte component also gets it as `BlockComponentProps.rects`), the same object your per-instance callback gets. `rects.navigateTo(path, offset?)` scrolls to the target and lands the caret there; an affordance that only scrolled would leave focus on its own button, where the editor's chords don't reach. Use `scrollTo(path)` where the viewport should move but the selection shouldn't. Both work in reading mode too. The bundled **toc** plugin is this recipe end to end.
+A paint is asked only for blocks on screen, and kept while a block's bytes and the answers stand. When an answer changes (a reference added above), the blocks on screen paint again; a key that changes no answer paints only the block it was typed in.
+
+## In React or Vue
+
+`reactBlock(Component, { depends: headingsIn })` and `vueBlock(component, { depends: headingsIn })` take the same function; the component reads `ctx.depends`. Since an array handed over never changes, it keys a memo: `useMemo(() => outline(ctx.depends), [ctx.depends])` in React, a `computed` over `props.ctx.depends` in Vue.
+
+## Getting there from what you read
+
+A table-of-contents row that jumps to its heading wants the heading's place: `ctx.editor.doc.blocks[i]` is the top-level block answer `i` came from, its `walk()` finds the heading inside it, and `ctx.editor.select(heading.from)` puts the caret at its start, scrolled into view.

@@ -1,70 +1,29 @@
 /**
- * Type pins for `defineBlockView`: a hand-built view publishes `focus` and its members through
- * `ctx.block`, never its handle, each surface's `ctx` carries only that surface, and a publication
- * can't carry an editor-internal member. The
- * `@ts-expect-error` lines are the assertions, so `npm run check` fails if one starts compiling.
+ * Type pins for `defineBlockView`: it draws a container, whose `ctx` carries the container surface
+ * and nothing else; a block of text or a box is a block type's `draw`. The `@ts-expect-error`
+ * lines are the assertions, so `npm run check` fails if one starts compiling.
  */
 import { it, expect } from 'vitest';
-import { defineBlockView, type HandBuiltBlock } from '#lib/plugin.js';
-import { MEMBER_SOURCES, type MemberSource } from '#lib/schema/block-view.js';
-import type { BlockComponent } from '#lib/block-component.js';
-
-export const handBuilt = defineBlockView({
-	surface: 'none',
-	mount(_target, ctx) {
-		ctx.block.publish({ focus() {}, getCursorOffset: () => null, focusable: true });
-		return {};
-	}
-});
-
-export const noFocus = defineBlockView({
-	surface: 'none',
-	mount(_target, ctx) {
-		// @ts-expect-error a publication carries `focus`; nothing else can focus the block
-		ctx.block.publish({ getCursorOffset: () => null, focusable: true });
-		return {};
-	}
-});
-
-export const onTheHandle = defineBlockView({
-	surface: 'none',
-	// @ts-expect-error the members go through `ctx.block.publish`, never the handle
-	mount: () => ({ focus() {}, getCursorOffset: () => null, focusable: true })
-});
-
-export const none = defineBlockView({
-	surface: 'none',
-	mount(_target, ctx) {
-		// @ts-expect-error a hand-built view has no container surface
-		void ctx.container;
-		return {};
-	}
-});
+import { defineBlockView } from '#lib/plugin.js';
 
 export const container = defineBlockView({
 	surface: 'container',
 	mount(target, ctx) {
 		ctx.container.mountChildren(target);
-		// @ts-expect-error a container view publishes nothing by hand
+		// @ts-expect-error a container view hands the editor nothing by hand
 		void ctx.block;
 		return {};
 	}
 });
 
-export const internal: HandBuiltBlock = {
-	focus() {},
-	getCursorOffset: () => null,
-	focusable: true,
-	// @ts-expect-error snapping the caret at a point is the editor's own, never a view's
-	readSnapAtPoint() {
-		return () => {};
-	}
-};
-
-// G3.18: a `BlockComponent` member with no source is a compile error at `MEMBER_SOURCES`; the
-// record's keys are exactly the interface's.
-export const everyMember: Record<keyof BlockComponent, MemberSource> = MEMBER_SOURCES;
+// Never called: `defineBlockView` throws on the surface the type refuses.
+export const drawnWhole = () =>
+	defineBlockView({
+		// @ts-expect-error a block drawn whole is a block type's `draw`, not a DOM view
+		surface: 'none',
+		mount: () => ({})
+	});
 
 it('compiles the pins above', () => {
-	expect(handBuilt && noFocus && onTheHandle && none && container && internal).toBeTruthy();
+	expect(container && drawnWhole).toBeTruthy();
 });

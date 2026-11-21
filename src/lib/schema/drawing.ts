@@ -19,6 +19,9 @@ export interface DrawContext {
 	readonly theme: string;
 	/** The caret is in the block. */
 	readonly focused: boolean;
+	/** Your `depends`' answer per top-level block, in `editor.doc.blocks`' order, never changed
+	 *  after; empty in `draw`, whose first `update` brings them before anything shows. */
+	readonly depends: readonly string[];
 	/** Fills `el` with what `produce` makes, cached per block bytes and theme; a throw or a rejection
 	 *  shows the block's source with the error instead. */
 	render(el: HTMLElement, produce: (theme: string) => Node | Promise<Node>): void;
@@ -58,8 +61,12 @@ export interface Drawn<D, C extends DrawContext = DrawContext> {
 	/** Where a click on a picture of the text lands: an element whose text is the block's text, or a
 	 *  point to an offset in that text. */
 	caret?: HTMLElement | ((point: { x: number; y: number }) => number);
-	/** The bytes, position, mode, theme, focus or typed text changed; false draws it again. */
+	/** The bytes, position, mode, theme, focus or typed text changed, or an answer of `depends`;
+	 *  false draws it again (not on the first call, right after `draw`). */
 	update?(block: Block<D>, ctx: C): boolean | void;
+	/** What this drawing reads of `block`, a top-level block (its headings, say); asked of every
+	 *  block as it mounts, then of each block a write changes. Keep it cheap: it runs on keys. */
+	depends?(block: Block): string;
 	/** Events the editor leaves to the drawing (a drag that pans a diagram). */
 	keep?(event: Event): boolean;
 	/** A box with an editing surface of its own takes the caret through this. */

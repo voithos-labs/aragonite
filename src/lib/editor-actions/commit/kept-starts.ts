@@ -78,8 +78,9 @@ export interface KeptStarts {
 	/** Runs one write to the tree, then announces what it touched; one opened inside another throws
 	 *  first. A throw counts the tree unannounced until the next write announces. */
 	duringWrite<T extends Written>(write: () => T): T;
-	/** Tells `follower` of every write from here on, before the record moves past it. */
-	follow(follower: WriteFollower): void;
+	/** Tells `follower` of every write from here on, before the record moves past it, until the
+	 *  returned call. */
+	follow(follower: WriteFollower): () => void;
 }
 
 /** A run wider than this forgets the record, so no write measures more than a few hundred blocks. */
@@ -119,7 +120,8 @@ export function createKeptStarts(
 		view = joined = null;
 		if (!kept && followers.length === 0) return;
 		const runs = runsOf?.() ?? null;
-		for (const follower of followers) follower.heard({ runs, before: kept });
+		// A copy: a follower may let go as it hears.
+		for (const follower of followers.slice()) follower.heard({ runs, before: kept });
 		if (!kept) return;
 		if (!runs || runs.some((run) => run.inserted > WIDEST_RUN)) {
 			kept = null;
@@ -224,6 +226,12 @@ export function createKeptStarts(
 				open = false;
 			}
 		},
-		follow: (follower) => void followers.push(follower)
+		follow(follower) {
+			followers.push(follower);
+			return () => {
+				const at = followers.indexOf(follower);
+				if (at >= 0) followers.splice(at, 1);
+			};
+		}
 	};
 }

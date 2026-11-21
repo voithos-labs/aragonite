@@ -32,6 +32,7 @@ import {
 	type Block,
 	type BlockReading,
 	type Doc,
+	type KeyWatch,
 	type Seen
 } from '../../schema/doc-view';
 import type { BlockType } from '../../schema/plugin-unit';
@@ -45,6 +46,7 @@ import {
 } from '../../perf/instruments';
 import type { WriteFollower } from './kept-starts';
 import { createEditChanges } from './edit-changes';
+import { watchKeys } from './block-keys';
 
 export interface DocumentRead {
 	/** The document at `version`, the current one by default: one `Doc` per version. One a write
@@ -68,6 +70,8 @@ export interface DocumentRead {
 	editInfo(event: EditEvent): EditInfo;
 	/** Counts an `edit` listener in, so each write keeps what `changes` needs; returns the way out. */
 	listenForEdits(): () => void;
+	/** Asks `depends` of every top-level block now, then of the blocks each write replaced. */
+	keys(depends: (block: Block) => string, report: (cause: unknown) => void): KeyWatch;
 }
 
 export function createDocumentRead(deps: {
@@ -80,8 +84,9 @@ export function createDocumentRead(deps: {
 	version(): number;
 	/** The document's text as it stands. */
 	source(): string;
-	/** Tells a follower of every later write; absent for a document nothing writes to. */
-	follow?(follower: WriteFollower): void;
+	/** Tells a follower of every later write until the returned call; absent for a document
+	 *  nothing writes to. */
+	follow?(follower: WriteFollower): () => void;
 }): DocumentRead {
 	let held: Layout | null = null;
 	const blocks = new WeakMap<NodeView, Block>();
@@ -274,7 +279,9 @@ export function createDocumentRead(deps: {
 		listenForEdits() {
 			follow();
 			return changes.listen();
-		}
+		},
+		keys: (depends, report) =>
+			watchKeys({ follow: deps.follow ?? (() => () => {}), blocks: () => top }, depends, report)
 	};
 }
 

@@ -21,7 +21,7 @@ This page is the first read: [a working plugin in fifteen minutes](#the-first-fi
 | [Recipe: a render-primary block](plugin-guide/render-primary.md) | Your block is a picture (a diagram, a chart) that's edited through your own UI |
 | [React and Vue blocks](plugin-guide/react-and-vue.md) | Your app is React or Vue, and you'd rather draw your blocks with its components |
 | [Presentation modes](plugin-guide/presentation-modes.md) | Your block has to render right in reading, preview, or live mode, or owns a button that should go inert there |
-| [Recipe: reading the document above your block](plugin-guide/reading-the-document.md) | Your block is built from the rest of the document, like a table of contents |
+| [Recipe: reading the rest of the document](plugin-guide/reading-the-document.md) | Your block or paint is built from the rest of the document, like a table of contents or footnote numbers |
 | [Inline kinds](plugin-guide/inline-kinds.md) | Your syntax lives mid-paragraph (`:shortcode:`, `[^1]`, `$x$`) |
 | [Decorations](plugin-guide/decorations.md) | You want to paint over content you don't own: highlights, ghost text, badges |
 | [Block commands](plugin-guide/commands.md) | Your block (or the whole editor) needs keyboard shortcuts or commands |
@@ -465,7 +465,7 @@ One rule holds either way: an edit to one child rewrites that child's lines and 
 | **aragonite plugins** | Anything touching the document or the editing surface: kinds, grammar, decorations, commands over the document, presentation |
 | **The embedding app's plugins** | Anything touching the app: ribbon, sidebar, status bar, settings tabs, modals, the command palette UI, the vault, sync |
 
-Vault-wide indexing sits on the app's side of that line: aragonite hands you the raw material (`getEvents()` and `parse()`) and never the index. It's not simply "editor = view", though. Derived state over the _one_ document you're editing (a table of contents, footnote numbering, the tasks in this note) is an editor plugin's to build, which is why a block component is handed its document ([the document recipe](plugin-guide/reading-the-document.md#recipe-reading-the-document-above-your-block)).
+Vault-wide indexing sits on the app's side of that line: aragonite hands you the raw material (`getEvents()` and `parse()`) and never the index. It's not simply "editor = view", though. Derived state over the _one_ document you're editing (a table of contents, footnote numbering, the tasks in this note) is an editor plugin's to build, which is why a drawing or a paint can say what it reads of the document ([the document recipe](plugin-guide/reading-the-document.md)).
 
 Everything the sections above show is fair game. A plugin **may not**:
 

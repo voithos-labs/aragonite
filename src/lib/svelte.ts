@@ -15,7 +15,8 @@ export { svelteBlockView } from './components/svelte-block-view';
 export {
 	svelteBlock,
 	useDrawn,
-	type SvelteBlockProps
+	type SvelteBlockProps,
+	type SvelteBlockOptions
 } from './components/drawn-block/svelte-block.svelte';
 export { svelteView } from './svelte-view.svelte';
 

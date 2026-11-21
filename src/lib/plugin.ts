@@ -65,7 +65,7 @@ export type { View } from './schema/view';
 export { grammar } from './components/editor-root/headless-grammar';
 export type { Grammar } from './components/editor-root/headless-grammar';
 // What `contributes(...).paint` lays over a block, in document bytes; `editor.repaint` asks again.
-export type { BlockPaint, MarkAt, Paint } from './decorations/paint';
+export type { BlockPaint, MarkAt, Paint, PaintContext } from './decorations/paint';
 // What a block type's `draw` gets and hands back; the editor makes every editable element.
 export type {
 	BoxDrawContext,
@@ -137,17 +137,13 @@ export type {
 	BlockView,
 	BlockSurface,
 	BlockViewSpec,
-	HandBuiltViewSpec,
 	ContainerViewSpec,
 	BlockViewState,
 	BlockViewContext,
-	HandBuiltViewContext,
 	ContainerViewContext,
 	CommandHooksSurface,
-	HandBuiltSurface,
 	ContainerSurface,
-	BlockViewHandle,
-	HandBuiltBlock
+	BlockViewHandle
 } from './schema/block-view';
 // The editor's plain editable text block, for a kind drawn as plain text; `blockClass` lands on
 // its element.

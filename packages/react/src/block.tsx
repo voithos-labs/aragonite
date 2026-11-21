@@ -31,11 +31,14 @@ export interface ReactBlockOptions {
 	/** Wraps the component, for providers: the block renders in a React root of its own, which a
 	 *  provider in the host app doesn't reach. */
 	wrap?: (block: ReactNode) => ReactNode;
+	/** The drawing's `depends`: what it reads of each top-level block, handed back as
+	 *  `ctx.depends`. */
+	depends?(block: Block): string;
 }
 
 export function reactBlock<D = never, C extends DrawContext = DrawContext>(
 	Component: ComponentType<BlockProps<D, C>>,
-	{ className, wrap }: ReactBlockOptions = {}
+	{ className, wrap, depends }: ReactBlockOptions = {}
 ): (block: Block<D>, ctx: C) => Drawn<D, C> {
 	return (block, ctx) => {
 		const dom = document.createElement('div');
@@ -55,6 +58,7 @@ export function reactBlock<D = never, C extends DrawContext = DrawContext>(
 			dom,
 			update: render,
 			destroy: root.unmount,
+			depends,
 			get focus() {
 				return declared.parts().focus;
 			},

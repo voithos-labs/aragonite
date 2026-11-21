@@ -123,6 +123,15 @@ export interface BlockReading {
 	version(): number;
 }
 
+/** What a surface's `depends(block)` answers for each top-level block, kept across writes. */
+export interface KeyWatch {
+	/** Whether an answer that says something came, went or changed since the last call. */
+	changed(): boolean;
+	/** One answer per top-level block, in order; an array handed out is never changed after. */
+	keys(): readonly string[];
+	stop(): void;
+}
+
 /** A block read outside any editor: types named by their kinds, no positions, no pieces. */
 export const DETACHED_READING: BlockReading = {
 	typeOf: (kind) => ({ name: kind, label: kind }),

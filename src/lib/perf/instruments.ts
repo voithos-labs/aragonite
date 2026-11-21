@@ -69,6 +69,8 @@ export interface PerfSnapshot {
 	blocksRead: number;
 	/** Top-level strings a write kept so a `Doc` it replaced can still read its text. */
 	stringsKept: number;
+	/** Blocks a surface's `depends` was asked about: one per key typed, none with no surface. */
+	keysAsked: number;
 	undoLiveBytes: number;
 	undoEntryCount: number;
 	blockRenderCount: number;
@@ -152,6 +154,7 @@ function emptySnapshot(): PerfSnapshot {
 		blocksBuilt: 0,
 		blocksRead: 0,
 		stringsKept: 0,
+		keysAsked: 0,
 		undoLiveBytes: 0,
 		undoEntryCount: 0,
 		blockRenderCount: 0,
@@ -344,6 +347,10 @@ export function recordHintRunsLogged(): void {
 
 export function recordStringsKept(count: number): void {
 	if (enabled) counters.stringsKept += count;
+}
+
+export function recordKeyAsked(): void {
+	if (enabled) counters.keysAsked++;
 }
 
 export function recordBlockBuilt(): void {
