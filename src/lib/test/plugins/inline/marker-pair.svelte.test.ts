@@ -10,7 +10,13 @@ import {
 	placeCaret,
 	surfaceAt
 } from '#lib/test/harness/mount-editor.svelte.js';
-import { definePlugin, markerPair, type MarkerPairSpec } from '#lib/plugin.js';
+import {
+	definePlugin,
+	markerPair,
+	type MarkerPair,
+	type MarkerPairSpec,
+	type MarkerSide
+} from '#lib/plugin.js';
 import { readInline } from '#lib/core/inline/scan/index.js';
 import { renderInlineNodes } from '#lib/core/inline-render.js';
 import { paintsOnlyChrome, renderedText, screenVisibility } from '#lib/core/inline/visibility.js';
@@ -53,8 +59,7 @@ const anchor = (text?: Text) =>
 		sample: 'a {>>c}text{<<c} z'
 	});
 
-function installed(text?: Text) {
-	const pair = anchor(text);
+function installed(text?: Text, pair: MarkerPair = anchor(text)) {
 	const { inlines, release } = installInlines(
 		[
 			{
@@ -96,6 +101,31 @@ describe('a marker pair, read', () => {
 			'cm/anchor-close',
 			'text',
 			'cm/anchor-open'
+		]);
+	});
+
+	// Miss-analysis: every row passed its spec as a literal, so nothing passed one typed as the
+	// exported `MarkerPairSpec`, which no overload took.
+	it('takes a spec typed as `MarkerPairSpec`', () => {
+		const side = (prefix: string): MarkerSide => ({
+			prefix,
+			match: new RegExp(`\\{${prefix.slice(1)}(\\d+)\\}`),
+			read: (m: RegExpExecArray) => ({ id: m[1] })
+		});
+		const spec: MarkerPairSpec = {
+			name: 'anchor',
+			label: 'Typed anchor',
+			open: side('{>>'),
+			close: side('{<<'),
+			sample: 'a {>>7}text{<<7} z'
+		};
+		const { read } = installed(undefined, markerPair(spec));
+		expect(read('a {>>7}text{<<7} z').map((n) => n.data)).toEqual([
+			undefined,
+			{ id: '7' },
+			undefined,
+			{ id: '7' },
+			undefined
 		]);
 	});
 

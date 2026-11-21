@@ -6,13 +6,7 @@
  */
 import { checkLocalName } from './block-shapes';
 import { inline } from './inline-maker';
-import {
-	asMarkerSide,
-	type FunctionMatcher,
-	type Inline,
-	type InlineSpec,
-	type RegexMatcher
-} from './inline-type';
+import { asMarkerSide, type FunctionMatcher, type Inline, type RegexMatcher } from './inline-type';
 
 /** What a side reads off its bytes: the pair's name or id, for the plugin to match sides by. */
 export type MarkerData = Readonly<Record<string, string | undefined>>;
@@ -49,14 +43,13 @@ export function markerPair(spec: MarkerPairSpec<R, R>): MarkerPair;
 export function markerPair(spec: MarkerPairSpec<R, F>): MarkerPair;
 export function markerPair(spec: MarkerPairSpec<F, R>): MarkerPair;
 export function markerPair(spec: MarkerPairSpec<F, F>): MarkerPair;
+export function markerPair(spec: MarkerPairSpec): MarkerPair;
 export function markerPair(spec: MarkerPairSpec): MarkerPair {
 	checkLocalName('markerPair', spec.name);
 	const text = spec.text ?? { open: 'after', close: 'before' };
-	// Either matcher form, which the overloads of `inline` take one at a time.
-	const make = inline as (side: InlineSpec<MarkerData>) => Inline<MarkerData>;
 	const side = (which: 'open' | 'close') =>
 		asMarkerSide(
-			make({
+			inline<MarkerData>({
 				...spec[which],
 				name: `${spec.name}-${which}`,
 				label: spec.label,
