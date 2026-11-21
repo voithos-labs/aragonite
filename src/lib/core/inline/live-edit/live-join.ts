@@ -382,24 +382,24 @@ function sidesAtJoin(join: JoinSeam, left: Side, right: Side): JoinSides {
 	const to = wholeTail
 		? right.cut
 		: Math.max(pastSides(right.sides, right.cut, 'after'), sameLeaf ? from : 0);
-	const head = left.sides.map((s) =>
-		readSideAt(s, left.raw, s.start >= from && (!sameLeaf || s.end <= to))
-	);
-	const tail = sameLeaf ? [] : right.sides.map((s) => readSideAt(s, right.raw, s.end <= to));
-	pairSides([...head, ...tail]);
-	// Of the sides in the bytes the cut spans, those at its own edges and those it took whose
-	// partner it kept.
-	const written = [
-		...head.filter(({ node }) => node.start >= left.cut && (!sameLeaf || node.end <= right.cut)),
-		...tail.filter(({ node }) => node.end <= right.cut)
-	].filter((s) => !s.taken || s.partner?.taken === false);
+	const all = pairSides([
+		...left.sides.map((s) =>
+			readSideAt(s, left.raw, s.start >= from && (!sameLeaf || s.end <= to))
+		),
+		...(sameLeaf ? [] : right.sides.map((s) => readSideAt(s, right.raw, s.end <= to)))
+	]);
+	const back = all.filter((s) => s.taken && s.partner?.taken === false);
+	const held = left.raw.slice(left.cut, from);
 	// A letter at a side joins its text (§ 4.2): past the sides whose text follows them.
-	let typedAt = 0;
-	for (const { node, bytes } of written) {
+	let typedAt = held.length;
+	for (const { node, bytes } of back) {
 		if (markerSideEdge(node)?.start !== node.end) break;
 		typedAt += bytes.length;
 	}
-	return { bytes: written.map((s) => s.bytes).join(''), typedAt };
+	return {
+		bytes: held + back.map((s) => s.bytes).join('') + right.raw.slice(to, right.cut),
+		typedAt
+	};
 }
 
 /** `node` and `range` as a live piece carries them off: a piece carries a pair only with both its
@@ -610,8 +610,10 @@ function keepingReading(
 		space = (before ? ' ' : '') + (after ? ' ' : '');
 	}
 
-	// A run can't open against a marker side, so the sides the kept half starts with go before it.
-	const lead = openers === '' ? rightStart : pastSides(right.sides, rightStart, 'before');
+	// A run opens before a letter, so the sides the kept half starts with go before it, unless a
+	// space follows them, where it can only open against the side.
+	const past = openers === '' ? rightStart : pastSides(right.sides, rightStart, 'before');
+	const lead = /\S/.test(right.raw[past] ?? '') ? past : rightStart;
 	const written = closers + space + sides.bytes + right.raw.slice(rightStart, lead) + openers;
 	const edits: Edit[] = [{ start: join.seam, end: join.seam, insert: written }];
 	if (leftEnd < left.cut) edits.push(dropped({ start: leftEnd, end: left.cut }));

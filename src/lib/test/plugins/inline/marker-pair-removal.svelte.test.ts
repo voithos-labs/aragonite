@@ -91,6 +91,16 @@ describe('a live removal across a marker side', () => {
 		['a bold inside a pair', 'a {>>c}x **bold** y{<<c} z', 13, 25, '', 'a {>>c}x **bo**{<<c}z'],
 		['a pair crossing a bold', '**a {>>c}bold** text{<<c} z', 11, 26, '', '**a {>>c}bo**{<<c}z'],
 		['two pairs', 'x {>>a}pq{<<a} y {>>b}rs{<<b} w', 8, 23, '', 'x {>>a}p{<<a}{>>b}s{<<b} w'],
+		// Miss-analysis: the reopened runs all met a letter past the kept side; one meeting a space
+		// can't open there, and the side had moved before it, so the kept text lost its bold.
+		[
+			'a bold reopened at a side a space follows',
+			'p {>>c}q **rs{<<c} tu** v',
+			9,
+			13,
+			'',
+			'p {>>c}q **{<<c} tu** v'
+		],
 		// p0 {>>a}2-6 x7 {>>b}9-13 y14 {<<a}15-19 z21 {<<b}22-26: overlapping comments.
 		[
 			'crossed pairs, by key',
@@ -118,17 +128,13 @@ describe('a live removal across a marker side', () => {
 		expect(removed(PAIR, 9, 17, 'Q', undefined, outside)).toBe('a {>>c}te{<<c}Qz');
 	});
 
-	// Miss-analysis: every typed row crossed its side, so none ended a range at one, where the
-	// side stays as the cut's own edge and the letter landed outside the pair.
-	it('lands a letter typed over a range ending at a side as a letter typed there lands', () => {
-		expect(removed(PAIR, 11, 17, 'Q')).toBe('a {>>c}textQ{<<c}z');
-		expect(removed(PAIR, 1, 7, 'Q')).toBe('a{>>c}Qtext{<<c} z');
-	});
-
-	it('lands it outside a pair whose text is outside', () => {
-		const outside: Spec = { text: { open: 'before', close: 'after' } };
-		expect(removed(PAIR, 11, 17, 'Q', undefined, outside)).toBe('a {>>c}text{<<c}Qz');
-		expect(removed(PAIR, 1, 7, 'Q', undefined, outside)).toBe('aQ{>>c}text{<<c} z');
+	// A range that stops at a side replaces text outside the pair. A selection begun at the side
+	// reads its outer offset and one extended onto it the inner, and both draw the same range.
+	it('keeps a letter typed over a range that stops at a side on the range’s side of it', () => {
+		expect(removed(PAIR, 11, 17, 'Q')).toBe('a {>>c}text{<<c}Qz');
+		expect(removed(PAIR, 16, 17, 'Q')).toBe('a {>>c}text{<<c}Qz');
+		expect(removed(PAIR, 1, 7, 'Q')).toBe('aQ{>>c}text{<<c} z');
+		expect(removed(PAIR, 1, 2, 'Q')).toBe('aQ{>>c}text{<<c} z');
 	});
 
 	// Limits, as recorded: the join sees no partner past its blocks, and refuses an uncut URL.
