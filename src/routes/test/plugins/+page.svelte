@@ -25,6 +25,7 @@
 	import { tagsPlugin } from './tags/tag-plugin';
 	import { wikiLinksPlugin } from './wikilinks/link-plugin';
 	import { inlineLinkPlugin } from './inline-link/link-plugin';
+	import { inlineKeyPlugin } from './inline-key/key-plugin';
 	import { highlightPlugin } from './highlight-mark/mark-plugin';
 	import { anchorPlugin } from './comment-anchor/anchor-plugin';
 	import { chipsPlugin } from './chips/chip-plugin';
@@ -73,6 +74,8 @@
 		wikilinks: [wikiLinksPlugin()],
 		// `[[` again, read as a built-in link in its own syntax; kept to its own seed.
 		'inline-link': [inlineLinkPlugin],
+		// `{{` as a widget that takes a key of its own; kept to its own seed, as `chips` is.
+		'inline-key': [inlineKeyPlugin],
 		// `==` pairs as a mark wherever it's installed; kept to its own seed.
 		'highlight-mark': [highlightPlugin],
 		// `{>>` and `{<<` would take `{` in every other seed's prose; kept to its own.
@@ -245,6 +248,8 @@
 		'wiki-embed': 'Before\n\n![[/test-fixtures/sample.png|400]]\n\nAfter\n',
 		// A link in its own syntax mid-prose (block 0) and a block to click away to.
 		'inline-link': 'See [[note|Shown]] here\n\nAfter\n',
+		// The widget under a block of its own, so its document bytes aren't its block's.
+		'inline-key': 'Before\n\nan {{chip}} here\n',
 		// A highlight mid-prose (block 0), plain words to toggle one on (block 1).
 		'highlight-mark': 'A ==bright== word\n\nplain words here\n\n| a |\n| - |\n| cell words |\n',
 		// Anchors in one block (0), across two (1 and 2), around a bold (3), at a line's start and

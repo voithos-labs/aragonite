@@ -9,6 +9,7 @@ import {
 	registerInlineSyntax,
 	type ImagePiece,
 	type Inline,
+	type InlineSpec,
 	type LinkPiece,
 	type PluginError
 } from '#lib/plugin.js';
@@ -17,7 +18,8 @@ import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
 import { installInlines } from '#lib/schema/inline-type.js';
 import { buildImageEditBytes } from '#lib/core/inline/image-source-bytes.js';
 import { buildLinkRetitleBytes, buildLinkUnwrapBytes } from '#lib/core/inline/link-source-bytes.js';
-import { splitBehaviorOf } from '#lib/core/inline/live-edit/live-split.js';
+import { cutOutsideWhole, splitBehaviorOf } from '#lib/core/inline/live-edit/live-split.js';
+import { parse } from '#lib/core/parser.js';
 import { inlineTable } from '#lib/core/inline/scan/inline-table.js';
 import {
 	revealsOnArrow,
@@ -199,6 +201,28 @@ describe('inline(): an `as` claim writes through `write`', () => {
 		expect(buildLinkUnwrapBytes(read(raw)[0], raw, reading)).toBe('Shown');
 	});
 
+	// Miss-analysis: every link row's text appeared once in its claim, so none asked which run of
+	// the bytes is the text, and the first one won: a letter typed in the alias wrote the target.
+	it('a link whose text also spells part of its target shows the run `at` names', () => {
+		const aliased = (at: (target: string) => number) =>
+			inline({
+				name: 'link',
+				label: 'Link',
+				prefix: '[[',
+				match: /\[\[([^\]|\n]+)\|([^\]\n]+)\]\]/,
+				read: (m) => ({ target: m[1], text: m[2], at: at(m[1]) }),
+				sample: '[[note|Shown]]',
+				as: 'link',
+				link: (d) => ({ href: d.target, text: d.text, at: d.at, title: null })
+			});
+		const { read } = editorReading([['wiki', [aliased((target) => target.length + 3)]]]);
+		expect(read('[[notebook|note]]')[0].children).toMatchObject([
+			{ kind: 'text', start: 11, end: 15, text: 'note' }
+		]);
+		const wrong = editorReading([['wiki', [aliased(() => 3)]]]);
+		expect(wrong.read('[[notebook|note]]').some((n) => n.syntaxClaim)).toBe(false);
+	});
+
 	it('a link whose text is not in its bytes is left to the editor', () => {
 		const odd = inline({
 			name: 'odd',
@@ -229,6 +253,50 @@ describe('inline(): an `as` claim writes through `write`', () => {
 		const { read, grammar } = editorReading([['chips', [plainWidget, embed()]]]);
 		expect(splitBehaviorOf(read('{ab}')[0], '{ab}', grammar)).toBe('plain');
 		expect(splitBehaviorOf(read('![[a.png]]')[0], '![[a.png]]', grammar)).toBe('whole');
+	});
+
+	// Miss-analysis: the split rows asked a claim's own node, never a byte in a link's text, whose
+	// node carries the claim too: the cut moved to the text's edge, and a paste there tore the claim.
+	it('a cut inside an own-syntax link’s text moves to the claim’s edge, not the text’s', () => {
+		const raw = 'See [[note|Shown]] here\n';
+		const { grammar } = editorReading([['wiki', [wikiLink()]]]);
+		const reading = { grammar, resolver: undefined } as never;
+		const node = parse(raw, { scope: 'fragment', grammar }).children[0];
+		// The side is the half of the text the caret is in, the hidden target's bytes aside.
+		expect(cutOutsideWhole(node, 15, reading)).toBe(18);
+		expect(cutOutsideWhole(node, 12, reading)).toBe(4);
+		expect(cutOutsideWhole(node, 6, reading)).toBe(4);
+		expect(cutOutsideWhole(node, 2, reading)).toBe(2);
+	});
+
+	it('a construct inside a claim that says no `split` still answers by its own row', () => {
+		registerInlineSyntax(
+			'[',
+			(raw, pos): InlineNode | null =>
+				raw.startsWith('[[\\*x]]', pos)
+					? {
+							kind: 'link',
+							start: pos,
+							end: pos + 7,
+							url: 'u',
+							children: [
+								{ kind: 'escape', start: pos + 2, end: pos + 4 },
+								{ kind: 'text', start: pos + 4, end: pos + 5, text: 'x' }
+							]
+						}
+					: null,
+			{ prefix: '[[', priority: INLINE_PRIORITIES.prefixOverride }
+		);
+		const raw = 'a [[\\*x]] z\n';
+		const { grammar } = editorReading([]);
+		const node = parse(raw, { scope: 'fragment', grammar }).children[0];
+		expect(cutOutsideWhole(node, 5, { grammar, resolver: undefined } as never)).toBe(4);
+	});
+
+	it('a link whose text its claim spells twice is left to the editor until `at` says which', () => {
+		const { read } = editorReading([['wiki', [wikiLink()]]]);
+		expect(read('[[notebook|note]]').some((n) => n.syntaxClaim)).toBe(false);
+		expect(read('[[page|note]]')[0]).toMatchObject({ kind: 'link', url: 'page' });
 	});
 });
 
@@ -301,6 +369,19 @@ describe('inline(): installing and making', () => {
 		]
 	])('refuses %s when it is made', (_name, override, message) => {
 		expect(() => inline({ ...wikiWidgetSpec(), ...override } as never)).toThrow(message);
+	});
+
+	it('takes a spec an author typed as `InlineSpec`', () => {
+		const spec: InlineSpec<string> = {
+			name: 'typed',
+			label: 'Typed',
+			prefix: '%',
+			match: /%\w+/,
+			read: (m: RegExpExecArray) => m[0],
+			sample: '%a',
+			class: 'typed'
+		};
+		expect(inline(spec).name).toBe('typed');
 	});
 
 	it('the table keeps its identity while the list does', () => {

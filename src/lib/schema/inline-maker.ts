@@ -11,6 +11,7 @@ import {
 	type InlineArm,
 	type InlineMaking,
 	type InlineSpec,
+	type LinkPiece,
 	type RegexMatcher,
 	type Widget
 } from './inline-type';
@@ -21,6 +22,7 @@ type Common<D> = Omit<InlineSpec<D>, 'match' | 'read'> & InlineArm<D>;
  *  matcher takes there. */
 export function inline<D>(spec: Common<D> & RegexMatcher<D>): Inline<D>;
 export function inline<D>(spec: Common<D> & FunctionMatcher<D>): Inline<D>;
+export function inline<D>(spec: InlineSpec<D>): Inline<D>;
 export function inline<D>(spec: InlineSpec<D>): Inline<D> {
 	checkLocalName('inline', spec.name);
 	const refuse = (why: string): never => {
@@ -105,8 +107,8 @@ export function inline<D>(spec: InlineSpec<D>): Inline<D> {
 			const taken = take(raw, pos, end);
 			if (!taken) return null;
 			const piece = link(taken.data);
-			const at = piece.text === '' ? -1 : raw.indexOf(piece.text, pos + prefix.length);
-			if (at < 0 || at + piece.text.length > taken.end) return null;
+			const at = textStart(raw.slice(pos, taken.end), prefix.length, piece);
+			if (at < 0) return null;
 			const rewriteLink =
 				write &&
 				((fields: { text: string; url: string; title?: string }) =>
@@ -117,7 +119,9 @@ export function inline<D>(spec: InlineSpec<D>): Inline<D> {
 				end: taken.end,
 				url: piece.href,
 				...(piece.title !== null && { title: piece.title }),
-				children: [{ kind: 'text', start: at, end: at + piece.text.length, text: piece.text }],
+				children: [
+					{ kind: 'text', start: pos + at, end: pos + at + piece.text.length, text: piece.text }
+				],
 				syntaxClaim: { prefix, split, link: true, ...(rewriteLink && { rewriteLink }) }
 			};
 		}
@@ -148,6 +152,16 @@ function matcherOf<D>(spec: InlineSpec<D>): ClaimEnd {
 		const found = sticky.exec(end < raw.length ? raw.slice(0, end) : raw);
 		return found ? { end: pos + found[0].length, match: found } : null;
 	};
+}
+
+// Where a link's text starts in its claim: at `at` where the piece says so, else its one run
+// after the prefix. -1 where the text isn't there, or is there twice with no `at` to say which.
+function textStart(claim: string, prefix: number, piece: LinkPiece): number {
+	const { text, at } = piece;
+	if (text === '') return -1;
+	if (at !== undefined) return claim.startsWith(text, at) ? at : -1;
+	const first = claim.indexOf(text, prefix);
+	return first < 0 || claim.includes(text, first + 1) ? -1 : first;
 }
 
 function plainClaim<D>(

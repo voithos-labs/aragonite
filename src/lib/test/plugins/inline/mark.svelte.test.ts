@@ -2,21 +2,25 @@
 // A plugin mark: its runs pair like `~~` at their own length, its row edits like `**`, it nests by
 // `after`, its toggle runs as Mod+B does, and its chord is the editor's to claim and rebind.
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { configureEditorEnv, resetEditorEnv } from '@voithos-labs/aragonite/dev-checks';
 import {
 	blockHostAt,
 	destroyMountedEditors,
 	installLayoutStubs,
 	mountEditor,
+	placeCaret,
 	selectRange,
 	surfaceAt
 } from '#lib/test/harness/mount-editor.svelte.js';
+import { pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
 import { builtin, definePlugin, mark, type Mark } from '#lib/plugin.js';
 import { readInline } from '#lib/core/inline/scan/index.js';
 import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
 import { installInlines } from '#lib/schema/inline-type.js';
 import {
 	getInlineConstructPolicy,
-	getInlineMarkPolicy
+	getInlineMarkPolicy,
+	holdInlineConstructPolicy
 } from '#lib/schema/inline-construct-policy.js';
 import type { AnyInlineKind } from '#lib/core/nodes.js';
 import { expectBoundedGrowth, measureScanGrowth } from '../../harness/scan-growth';
@@ -106,6 +110,27 @@ describe('a plugin mark, read', () => {
 		expect(rank('hl/under')).toBeLessThan(rank('strikethrough')!);
 	});
 
+	// Miss-analysis: the nesting rows named built-in marks only, so none asked for a plugin mark
+	// named before it was listed, or for a chain of two.
+	it('nests inside the plugin mark `after` names, whichever is listed first', () => {
+		const outer = highlight();
+		const inner = highlight({ name: 'under', marker: '++', after: outer });
+		installed([inner, outer]);
+		expect(rank('hl/under')).toBeGreaterThan(rank('hl/highlight')!);
+		installed([outer, inner]);
+		expect(takeDevWarnsOf('inline-type-facts')).toEqual([]);
+	});
+
+	it('keeps a chain of marks between the built-in marks it started from', () => {
+		const one = highlight();
+		const two = highlight({ name: 'two', marker: '++', after: one });
+		const three = highlight({ name: 'three', marker: '%%', after: two });
+		installed([three, one, two]);
+		expect(rank('hl/two')).toBeGreaterThan(rank('hl/highlight')!);
+		expect(rank('hl/three')).toBeGreaterThan(rank('hl/two')!);
+		expect(rank('hl/three')).toBeLessThan(rank('inlineCode')!);
+	});
+
 	it.each([
 		['a marker of two characters', { marker: '=+' }, 'one character, once or twice'],
 		['a run of three', { marker: '===' }, 'one character, once or twice'],
@@ -167,6 +192,38 @@ describe('a plugin mark in a mounted editor', () => {
 		await other.settle();
 		expect(other.source()).toBe(WORDS);
 		expect(takeDevWarnsOf('commands')).toHaveLength(1);
+	});
+
+	// Miss-analysis: the toggle's route was pinned by what it ran, never by what a key that names no
+	// mark paid to ask it: each command lookup listed and sorted every mark row first.
+	it('a key that toggles no mark lists no mark row', async () => {
+		let listed = 0;
+		const release = holdInlineConstructPolicy('probe/counted' as AnyInlineKind, {
+			edgeAffinity: 'left-sticky',
+			autoUnwrapOnEmpty: true,
+			splitBehavior: 'close-and-reopen',
+			revealable: true,
+			// Every listing of the mark rows reads each row's mark.
+			get mark() {
+				listed++;
+				return undefined;
+			}
+		});
+		const editor = mountEditor({ source: 'plain words\n', plugins: [plugin(highlight())] });
+		await editor.settle();
+		const el = surfaceAt(editor, [0]);
+		configureEditorEnv({ isDev: false });
+		try {
+			for (const key of ['Backspace', 'Tab', 'ArrowLeft']) {
+				placeCaret(el, 5);
+				listed = 0;
+				await pressHardwareKey(el, { key });
+				expect(listed, key).toBe(0);
+			}
+		} finally {
+			resetEditorEnv();
+			release();
+		}
 	});
 
 	it('its chord is claimed, and a host rebinds it', async () => {

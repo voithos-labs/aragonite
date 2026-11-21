@@ -61,6 +61,24 @@ test.describe('an inline construct read as a link', () => {
 		expect(src.split('\n').some((line) => line.includes(LINK))).toBe(true);
 	});
 
+	for (const [half, at, expected] of [
+		['first', TEXT_START + 1, 'See one\n\ntwo[[note|Shown]] here\n\nAfter\n'],
+		['second', TEXT_END - 1, 'See [[note|Shown]]one\n\ntwo here\n\nAfter\n']
+	] as const) {
+		test(`two paragraphs pasted in the text's ${half} half land at that edge of the claim`, async () => {
+			await editor.focusBlockAtPath([0], at);
+			await editor.clipboard.seed('one\n\ntwo');
+			await editor.clipboard.paste();
+			await expect.poll(source).toBe(expected);
+		});
+	}
+
+	test('Enter in the text’s first half sends the claim whole to the new line', async ({ page }) => {
+		await editor.focusBlockAtPath([0], TEXT_START + 1);
+		await page.keyboard.press('Enter');
+		await expect.poll(source).toBe('See \n\n[[note|Shown]] here\n\nAfter\n');
+	});
+
 	test('Backspace through the whole text takes the claim whole', async ({ page }) => {
 		await editor.focusBlockAtPath([0], TEXT_END);
 		for (let i = 0; i < 'Shown'.length; i++) await page.keyboard.press('Backspace');
@@ -83,6 +101,16 @@ test.describe('an inline construct read as a link', () => {
 			await expect.poll(source).toBe(expected);
 		});
 	}
+
+	test('a letter typed in a text that also starts its target lands in the text', async ({
+		page
+	}) => {
+		await editor.loadContent('See [[notebook|note]] here\n');
+		// Raw 17 is between `no` and `te` of the text, past the target that spells them too.
+		await editor.focusBlockAtPath([0], 17);
+		await page.keyboard.type('X');
+		await expect.poll(source).toBe('See [[notebook|noXte]] here\n');
+	});
 
 	test('Mod+B across its edge writes no GFM over it', async ({ page }) => {
 		await selectFrom(page, 2, 5);

@@ -300,10 +300,10 @@ function resolveBlockLocalCommand(
 	return installedElsewhere && !handler ? { tier: 'unlisted' } : { tier: 'dead' };
 }
 
-/** Whether `id` is a plugin mark's toggle in this editor: a row names it and the editor's own
- *  plugins list it, so another editor on the page leaves it dead. */
+/** Whether `id` is a plugin mark's toggle in this editor: its own plugins list it and a row names
+ *  it. The list is asked first, since every key that runs a command ends here at that one lookup. */
 function marksHere(id: AnyCommandId, activation: PluginActivation): boolean {
-	return inlineMarkForCommand(id) !== null && activation.contributions?.command(id) !== undefined;
+	return activation.contributions?.command(id) !== undefined && inlineMarkForCommand(id) !== null;
 }
 
 /** The full lookup: global commands first, then the block-level ones. Both the dispatch and the
