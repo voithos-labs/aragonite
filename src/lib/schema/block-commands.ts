@@ -28,6 +28,7 @@ import {
 	type GlobalCommandRun
 } from './commands';
 import type { KeybindingOverrideMap } from './keybinding-overrides';
+import { inlineMarkForCommand } from './inline-construct-policy';
 import { pluginEditorFor, type EditorContext } from './plugin-install';
 import { isReadingMode, type PresentationMode } from '../presentation-mode';
 import type { MarkActivation } from '../decorations/mark-activation';
@@ -280,7 +281,8 @@ function resolveBlockLocalCommand(
 	activation: PluginActivation
 ): BlockLocalResolution {
 	if (!target) return { tier: 'no-surface' };
-	if (getCommand(id, activation)) return { tier: 'dead' };
+	const marks = inlineMarkForCommand(id) !== null;
+	if (!marks && getCommand(id, activation)) return { tier: 'dead' };
 	const handler = getBlockCommand(target.kind, id, activation);
 	// A context is built only where a handler matched, so a built-in id costs nothing extra on the
 	// read a host may run per selection change.
@@ -291,7 +293,7 @@ function resolveBlockLocalCommand(
 	}
 	const dir = MOVE_STEP[id];
 	if (dir && target.getPath) return { tier: 'move', target, path: target.getPath, dir };
-	if (isBuiltinCommandId(id)) {
+	if (marks || isBuiltinCommandId(id)) {
 		return target.runCommand ? { tier: 'builtin', target } : { tier: 'no-surface' };
 	}
 	const installedElsewhere = blockCommands.has(compositeKey(target.kind, id));
@@ -305,7 +307,8 @@ function resolveCommand(
 	target: KindCommandTarget | null,
 	activation: PluginActivation
 ): CommandResolution {
-	const globalRun = getCommand(id, activation);
+	// A plugin mark's toggle runs at the block, as Mod+B does, though its plugin lists it.
+	const globalRun = !inlineMarkForCommand(id) && getCommand(id, activation);
 	if (globalRun) return { tier: 'global', run: globalRun };
 	return resolveBlockLocalCommand(id, target, activation);
 }
@@ -409,7 +412,8 @@ function rangeRouteFor(id: AnyCommandId, gates: CommandGates): RangeRoute {
 	if (!gates.ownsRange() || runsOnItsBlock(id, gates.rangeInOneBlock()))
 		return { kind: 'block-local', ranged: false };
 	if (RANGE_DECLINED_COMMAND_IDS.has(id)) return { kind: 'decline' };
-	if (!CROSS_BLOCK_RANGE_COMMAND_IDS.has(id)) return { kind: 'block-local', ranged: true };
+	if (!CROSS_BLOCK_RANGE_COMMAND_IDS.has(id) && !inlineMarkForCommand(id))
+		return { kind: 'block-local', ranged: true };
 	const router = gates.crossBlockCommands;
 	return router.canRun(id) ? { kind: 'cross-block', router } : { kind: 'decline' };
 }

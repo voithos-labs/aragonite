@@ -28,6 +28,8 @@ export interface InlineTable {
 	readonly specials: RegExp;
 	/** Whether typing `char` writes its closer after the caret. */
 	pairs(char: string): boolean;
+	/** The plugin mark whose runs `char` writes, and their length; undefined for any other. */
+	mark(char: string): { readonly kind: AnyInlineKind; readonly length: number } | undefined;
 }
 
 /** The table `grammar` reads; the same object until a handler, a plugin or its list changes. */
@@ -105,17 +107,25 @@ function buildTable(
 		if (autoPair) pairing.add(trigger);
 	}
 	for (const list of byChar.values()) list.sort(byHandlerOrder);
+	const marks = new Map<string, { kind: AnyInlineKind; length: number }>();
+	for (const { kind, trigger, mark } of own.values()) {
+		if (mark) marks.set(trigger, { kind, length: mark.marker.length });
+	}
 	for (const [trigger, constructs] of ownByChar(own)) {
-		byChar.set(trigger, [...constructs.map((c) => c.handler), ...(byChar.get(trigger) ?? [])]);
+		const handlers = constructs.flatMap((c) => c.handler ?? []);
+		byChar.set(trigger, [...handlers, ...(byChar.get(trigger) ?? [])]);
 		if (constructs.some((c) => c.pair)) pairing.add(trigger);
 	}
-	const triggers = [...byChar.keys()].map((c) => c.replace(/[\\\]^-]/, '\\$&')).join('');
+	const triggers = [...new Set([...byChar.keys(), ...marks.keys()])]
+		.map((c) => c.replace(/[\\\]^-]/, '\\$&'))
+		.join('');
 	return {
 		handlers: (char) => byChar.get(char) ?? NONE,
 		specials: triggers
 			? new RegExp(`${BUILT_IN_SPECIALS.source}|[${triggers}]`, 'g')
 			: BUILT_IN_SPECIALS,
-		pairs: (char) => pairing.has(char)
+		pairs: (char) => pairing.has(char),
+		mark: (char) => marks.get(char)
 	};
 }
 
@@ -126,11 +136,12 @@ function ownByChar(
 ): Map<string, InstalledInline[]> {
 	const byChar = new Map<string, InstalledInline[]>();
 	for (const construct of own.values()) {
+		if (!construct.handler) continue;
 		byChar.set(construct.trigger, [...(byChar.get(construct.trigger) ?? []), construct]);
 	}
 	for (const [trigger, list] of byChar) {
 		list.sort(
-			(a, b) => b.handler.prefix.length - a.handler.prefix.length || (a.kind < b.kind ? -1 : 1)
+			(a, b) => b.handler!.prefix.length - a.handler!.prefix.length || (a.kind < b.kind ? -1 : 1)
 		);
 		byChar.set(trigger, afterOrder(list));
 	}

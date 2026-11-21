@@ -139,7 +139,8 @@ function openWrapped(
 	raw: string,
 	tag: string,
 	opts: RenderInlineOptions,
-	container: Node
+	container: Node,
+	className: string | null = null
 ): RenderFrame {
 	const children = node.children ?? [];
 
@@ -158,6 +159,7 @@ function openWrapped(
 
 	container.appendChild(tagConstruct(markerSpan(raw.slice(node.start, openEnd)), node, opts));
 	const wrapper = document.createElement(tag);
+	if (className) wrapper.className = className;
 	const closeMarker = tagConstruct(markerSpan(raw.slice(closeStart, node.end)), node, opts);
 
 	return {
@@ -383,6 +385,9 @@ function renderNode(
 		case 'entityReference':
 		case 'rawHtml':
 		default: {
+			// A plugin mark wraps its text as `**` does, in its own element.
+			const mark = opts.grammar.inlines?.().get(node.kind)?.mark;
+			if (mark) return openWrapped(node, raw, mark.tag, opts, container, mark.className);
 			if (overlapsShownSource(node, opts.shownSource)) {
 				opts.retainViewWidget?.(node, raw);
 				container.appendChild(document.createTextNode(raw.slice(node.start, node.end)));

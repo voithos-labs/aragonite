@@ -11,6 +11,13 @@ import type { DrawContext } from './drawing';
 import type { InlineType } from './doc-view';
 import type { Editor, InstalledPlugin, PluginError } from './plugin-unit';
 import { qualifiedName } from './plugin-name';
+import { claimCommand, type Command } from './plugin-command';
+import type { AnyCommandId } from './command-id';
+import {
+	getInlineMarkPolicy,
+	holdInlineConstructPolicy,
+	type InlineConstructPolicy
+} from './inline-construct-policy';
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
@@ -151,19 +158,31 @@ export interface InlineMaking {
 	readonly widget:
 		(Omit<WidgetEntry, 'own'> & { own: Omit<NonNullable<WidgetEntry['own']>, 'plugin'> }) | null;
 	readonly className: string | null;
+	/** A mark's run and drawing; null for the other constructs, which claim through `claim`. */
+	readonly mark?: MarkMaking | null;
+}
+
+/** What `mark()` built: its run, the element its text is drawn in, and its toggle. */
+export interface MarkMaking {
+	readonly marker: string;
+	readonly tag: string;
+	readonly className: string | null;
+	readonly toggle: Command<void>;
 }
 
 /** One of an editor's own inline constructs, named and ready to read. */
 export interface InstalledInline {
 	readonly kind: PluginInlineKind;
 	readonly trigger: string;
-	readonly handler: InlineHandler;
+	/** Null for a mark, which the scan reads as a delimiter run. */
+	readonly handler: InlineHandler | null;
 	readonly pair: boolean;
 	/** The constructs it is tried after on its character, read once every construct is named. */
 	readonly after: readonly InlineType[];
 	readonly split: 'whole' | 'plain';
 	readonly widget: WidgetEntry | null;
 	readonly className: string | null;
+	readonly mark: Omit<MarkMaking, 'toggle'> | null;
 }
 
 /** An inline construct a maker made; `name` is its local name until an editor names it. */
@@ -182,6 +201,8 @@ export function installInlines(
 	report: (error: PluginError) => void
 ): { readonly inlines: ReadonlyMap<AnyInlineKind, InstalledInline>; release(): void } {
 	const inlines = new Map<AnyInlineKind, InstalledInline>();
+	const releases: (() => void)[] = [];
+	const ranks = new Map<string, number>();
 	for (const { name: plugin, contribution } of units) {
 		for (const listed of contribution.inlines ?? []) {
 			const made = listed as unknown as Partial<Made>;
@@ -199,27 +220,63 @@ export function installInlines(
 			}
 			made[OWNER] = plugin;
 			const kind = listed.name as PluginInlineKind;
+			const mark = making.mark ?? null;
+			if (mark) {
+				// Named here too, so its row names the command whatever reads the list first.
+				claimCommand(mark.toggle, plugin);
+				const nestingRank = rankAfter(making.after[0]?.name, ranks) + ranks.size / 1000;
+				ranks.set(kind, nestingRank);
+				releases.push(holdInlineConstructPolicy(kind, markRow(mark, nestingRank)));
+			}
 			inlines.set(kind, {
 				kind,
 				trigger: making.prefix[0],
-				handler: {
-					prefix: making.prefix,
-					priority: 0,
-					recognizer: (raw, pos, end) => making.claim(raw, pos, end, kind),
-					owner: plugin
-				},
+				handler: mark
+					? null
+					: {
+							prefix: making.prefix,
+							priority: 0,
+							recognizer: (raw, pos, end) => making.claim(raw, pos, end, kind),
+							owner: plugin
+						},
 				pair: making.pair,
 				after: making.after,
 				split: making.split,
 				widget: making.widget && { ...making.widget, own: { ...making.widget.own, plugin } },
-				className: making.className
+				className: making.className,
+				mark: mark && { marker: mark.marker, tag: mark.tag, className: mark.className }
 			});
 		}
 	}
-	return { inlines, release: () => {} };
+	return { inlines, release: () => releases.forEach((release) => release()) };
+}
+
+/** The toggles of the marks in a contribution's `inlines`, which join its commands. */
+export function togglesOf(inlines: readonly Inline<unknown>[] | undefined): Command<void>[] {
+	return (inlines ?? []).flatMap((listed) => (listed as Partial<Made>)[MAKING]?.mark?.toggle ?? []);
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────
+
+// A mark nests just inside the one it names, else just outside code; a mark listed earlier in the
+// editor answers before a built-in of the same name could.
+function rankAfter(name: string | undefined, ranks: ReadonlyMap<string, number>): number {
+	const after = name === undefined ? 'strikethrough' : name;
+	return (ranks.get(after) ?? getInlineMarkPolicy(after as AnyInlineKind)?.nestingRank ?? 2) + 0.5;
+}
+
+// A mark edits as `**` does: its letters stick left, it unwraps when emptied and Enter closes and
+// reopens it.
+function markRow(mark: MarkMaking, nestingRank: number): InlineConstructPolicy {
+	return {
+		edgeAffinity: 'left-sticky',
+		autoUnwrapOnEmpty: true,
+		splitBehavior: 'close-and-reopen',
+		revealable: true,
+		prose: 'all',
+		mark: { nestingRank, markerBytes: mark.marker, command: mark.toggle.id as AnyCommandId }
+	};
+}
 
 const MAKING = Symbol('Inline.making');
 const OWNER = Symbol('Inline.owner');

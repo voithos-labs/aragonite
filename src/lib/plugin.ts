@@ -62,6 +62,8 @@ export type { Block, InlineType, Piece } from './schema/doc-view';
 // A plugin lists its inline constructs in `contributes(...).inlines`: claimed at a prefix, drawn as
 // a widget, a built-in image or link in its own syntax, or its bytes with a class.
 export { inline } from './schema/inline-maker';
+// A mark: a run of one character around text, drawn in its own element, toggled by its chord.
+export { mark, type Mark, type MarkSpec } from './schema/mark-maker';
 export type {
 	FunctionMatcher,
 	ImagePiece,

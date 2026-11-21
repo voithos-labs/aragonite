@@ -95,7 +95,11 @@ const POLICY_ARMS: Record<string, string> = {
 	'src/lib/schema/registration-checks.ts': 'the registration-time coherence check over every row',
 	'src/lib/selection/cross-block/format-toggle.ts':
 		'the cross-block arm: which mark a format command toggles',
-	'src/lib/inline-menu/inline-menu-session.ts': 'whether a trigger sits in prose: prose'
+	'src/lib/inline-menu/inline-menu-session.ts': 'whether a trigger sits in prose: prose',
+	'src/lib/schema/block-commands.ts':
+		'the command dispatch: which mark a command toggles, so a plugin mark runs at the block as Mod+B does',
+	'src/lib/schema/inline-type.ts':
+		'the mark install: the nesting rank of the mark a plugin mark is placed after'
 };
 
 /** A file asking both tables, and why. Only a whole block legitimately does, hosting every inline

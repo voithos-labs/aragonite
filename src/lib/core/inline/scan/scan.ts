@@ -286,7 +286,7 @@ export class Scan {
 			case 'H':
 				return this.bareUrl(pos);
 			default:
-				return pos + 1;
+				return this.readers.table.mark(raw[pos]) ? this.delimiterRun(pos) : pos + 1;
 		}
 	}
 
@@ -324,6 +324,9 @@ export class Scan {
 		while (after < this.end && raw[after] === char) after++;
 		const length = after - pos;
 		if (char === '~' && length > 2) return after;
+		// A plugin mark's run pairs only at its own length, flanking as `*` does.
+		const mark = this.readers.table.mark(char);
+		if (mark && length !== mark.length) return after;
 		const before = codePointBefore(raw, pos);
 		const next = codePointAt(raw, after);
 		const [spaceBefore, spaceAfter] = [isUnicodeWhitespace(before), isUnicodeWhitespace(next)];
@@ -335,7 +338,15 @@ export class Scan {
 		if (!canOpen && !canClose) return after;
 		const t = token(pos, after);
 		this.push(t, char === '_');
-		this.delimiters.push({ token: t, char, length, count: length, canOpen, canClose });
+		this.delimiters.push({
+			token: t,
+			char,
+			length,
+			count: length,
+			canOpen,
+			canClose,
+			...(mark && { kind: mark.kind })
+		});
 		return after;
 	}
 

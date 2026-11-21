@@ -57,9 +57,13 @@ const BUILTIN: Record<string, PairPolicy> = {
 
 const isWordByte = (ch: string | undefined) => ch !== undefined && /[\p{L}\p{N}]/u.test(ch);
 
-// A plugin's delimiter pairs only in an editor that lists the plugin.
+// A plugin's delimiter pairs only in an editor that lists the plugin; a mark's grows as `~` does.
 function policyOf(ch: string, grammar: GrammarView): PairPolicy | null {
-	return BUILTIN[ch] ?? (inlineTable(grammar).pairs(ch) ? STEP : null);
+	if (BUILTIN[ch]) return BUILTIN[ch];
+	const table = inlineTable(grammar);
+	const mark = table.mark(ch);
+	if (mark) return { single: mark.length === 1, inside: 'grow' };
+	return table.pairs(ch) ? STEP : null;
 }
 
 // ── The resolver ─────────────────────────────────────────────────────────────

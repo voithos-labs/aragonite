@@ -11,6 +11,7 @@ import { isMotionChord, normalizeChord } from './keybindings';
 import { refusedClaims } from './plugin-claims';
 import { insertRowProblem, type InsertRow } from './insert-catalogue';
 import { makingOf } from './block-type';
+import { togglesOf } from './inline-type';
 import type { ContributedMenu } from './caret-menu';
 import { iconProblem } from '../menu-icons';
 import type { ContributedAction } from './selection-action';
@@ -80,7 +81,7 @@ export function createEditorContributions(deps: {
 		);
 		const kept = usable.filter((unit) => !refused.has(unit.name));
 		const listed = kept.flatMap((unit) =>
-			(unit.contribution.commands ?? []).map((value) => [value, entryOf(unit.name, value)] as const)
+			commandsOf(unit).map((value) => [value, entryOf(unit.name, value)] as const)
 		);
 		commands = listed.map(([, entry]) => entry);
 		byValue = new Map(listed);
@@ -157,7 +158,7 @@ export function createEditorContributions(deps: {
 /** Why a plugin's commands can't run, qualifying each one's id on the way; null when they can. */
 function commandProblem(unit: InstalledPlugin): string | null {
 	const ids = new Set<string>();
-	for (const value of unit.contribution.commands ?? []) {
+	for (const value of commandsOf(unit)) {
 		const problem = claimCommand(value, unit.name);
 		if (problem) return problem;
 		if (ids.has(value.id)) return `lists two commands with the id "${value.id}"`;
@@ -207,7 +208,15 @@ function entryOf(plugin: string, value: Command<unknown>): ContributedCommand {
 }
 
 function chordsOf(unit: InstalledPlugin): string[] {
-	return (unit.contribution.commands ?? []).flatMap((value) => commandSpec(value)?.chord ?? []);
+	return commandsOf(unit).flatMap((value) => commandSpec(value)?.chord ?? []);
+}
+
+// A mark's toggle is one of its plugin's commands, so its chord binds, rebinds and is claimed as
+// theirs are.
+function commandsOf(unit: InstalledPlugin): readonly Command<unknown>[] {
+	const toggles = togglesOf(unit.contribution.inlines);
+	const listed = unit.contribution.commands ?? [];
+	return toggles.length === 0 ? listed : [...listed, ...toggles];
 }
 
 function installError(plugin: string, problem: string): PluginError {
