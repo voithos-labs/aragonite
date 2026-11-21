@@ -178,25 +178,46 @@ function drift(before: Map<string, number>, after: Map<string, number>) {
 	return { more, fewer };
 }
 
-/** The block holding the partner of `token`, a side of block `i` or `j`, as the join of those two
- *  blocks pairs their sides: by id where the pair is keyed, else by nesting order. -1 for none. */
-function joinPartner(d: Drawn, i: number, j: number, token: string): number {
-	const opens: { token: string; block: number }[] = [];
-	for (const block of [i, j]) {
-		for (const [side] of d.blocks[block].matchAll(/\{(?:>>|<<)\w\}/g)) {
+interface Place {
+	block: number;
+	at: number;
+}
+
+/** Where the partner of `token`, a side of block `i` or `j`, stands as the join of those blocks
+ *  pairs their sides (by id where the pair is keyed, else by nesting order); null for none. */
+function joinPartner(d: Drawn, i: number, j: number, token: string): Place | null {
+	const opens: (Place & { token: string })[] = [];
+	for (const block of new Set([i, j])) {
+		for (const { 0: side, index } of d.blocks[block].matchAll(/\{(?:>>|<<)\w\}/g)) {
 			if (side[1] === '>') {
-				opens.push({ token: side, block });
+				opens.push({ token: side, block, at: index });
 				continue;
 			}
-			const at = opens.findLastIndex((o) => !d.keyed || o.token[3] === side[3]);
-			if (at < 0) continue;
-			const [open] = opens.splice(at, 1);
-			if (side === token) return open.block;
-			if (open.token === token) return block;
+			const found = opens.findLastIndex((o) => !d.keyed || o.token[3] === side[3]);
+			if (found < 0) continue;
+			const [open] = opens.splice(found, 1);
+			if (side === token) return open;
+			if (open.token === token) return { block, at: index };
 		}
 	}
-	return -1;
+	return null;
 }
+
+/** Whether a cut over `[from, to)` keeps the side at `place`: outside it, or in the run of sides
+ *  standing at either edge, which a cut never takes (`live-mode.md` § 4.2). */
+function kept(d: Drawn, place: Place, from: Place, to: Place): boolean {
+	const sideAt = new Set([...sourceOf(d).matchAll(/\{(?:>>|<<)\w\}/g)].map((m) => m.index));
+	let [start, end] = [startOf(d, from.block) + from.at, startOf(d, to.block) + to.at];
+	while (sideAt.has(start) && start < end) start += SIDE;
+	while (sideAt.has(end - SIDE) && end - SIDE >= start) end -= SIDE;
+	const at = startOf(d, place.block) + place.at;
+	return at + SIDE <= start || at >= end;
+}
+const SIDE = '{>>a}'.length;
+const placeOf = (d: Drawn, token: string): Place => {
+	const block = d.blocks.findIndex((b) => b.includes(token));
+	return { block, at: d.blocks[block].indexOf(token) };
+};
 
 interface Run {
 	gesture: 'cut' | 'paste back' | 'drag';
@@ -219,16 +240,32 @@ const EXCLUSIONS: { issue: string; text: string; holds(run: Run): boolean }[] = 
 			from.block !== to.block &&
 			fewer.length === 0 &&
 			more.every((token) => {
-				const home = d.blocks.findIndex((block) => block.includes(token));
+				const { block } = placeOf(d, token);
 				const partner = joinPartner(d, from.block, to.block, token);
 				const ends = [from.block, to.block];
-				return ends.includes(home) && ends.includes(partner) && home !== partner;
+				return (
+					ends.includes(block) &&
+					partner !== null &&
+					ends.includes(partner.block) &&
+					block !== partner.block &&
+					kept(d, partner, from, to)
+				);
 			})
 	},
 	{
 		issue: 'D',
 		text: 'A cut the join can’t verify takes a marker side: where the join declines, the literal splice stands and takes the side with it.',
-		holds: ({ more, fewer, literal }) => more.length === 0 && fewer.length > 0 && literal
+		// Only a side the join would have kept or written back: at the cut's edge, its partner kept,
+		// or no partner in its one block.
+		holds: ({ d, from, to, more, fewer, literal }) =>
+			more.length === 0 &&
+			literal &&
+			fewer.length > 0 &&
+			fewer.every((token) => {
+				const partner = joinPartner(d, from.block, to.block, token);
+				if (kept(d, placeOf(d, token), from, to)) return true;
+				return partner ? kept(d, partner, from, to) : from.block === to.block;
+			})
 	}
 ];
 
