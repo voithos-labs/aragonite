@@ -107,8 +107,8 @@ export function inline<D>(spec: InlineSpec<D>): Inline<D> {
 			const taken = take(raw, pos, end);
 			if (!taken) return null;
 			const piece = link(taken.data);
-			const at = textStart(raw, pos, prefix.length, piece);
-			if (at < 0 || at + piece.text.length > taken.end) return null;
+			const at = textStart(raw.slice(pos, taken.end), prefix.length, piece);
+			if (at < 0) return null;
 			const rewriteLink =
 				write &&
 				((fields: { text: string; url: string; title?: string }) =>
@@ -119,7 +119,9 @@ export function inline<D>(spec: InlineSpec<D>): Inline<D> {
 				end: taken.end,
 				url: piece.href,
 				...(piece.title !== null && { title: piece.title }),
-				children: [{ kind: 'text', start: at, end: at + piece.text.length, text: piece.text }],
+				children: [
+					{ kind: 'text', start: pos + at, end: pos + at + piece.text.length, text: piece.text }
+				],
 				syntaxClaim: { prefix, split, link: true, ...(rewriteLink && { rewriteLink }) }
 			};
 		}
@@ -152,12 +154,14 @@ function matcherOf<D>(spec: InlineSpec<D>): ClaimEnd {
 	};
 }
 
-// Where a link's text sits in the block: at `at` in the claim where the piece says so, else its
-// first run after the prefix; -1 where those bytes aren't the text.
-function textStart(raw: string, pos: number, prefix: number, piece: LinkPiece): number {
-	if (piece.text === '') return -1;
-	if (piece.at === undefined) return raw.indexOf(piece.text, pos + prefix);
-	return raw.startsWith(piece.text, pos + piece.at) ? pos + piece.at : -1;
+// Where a link's text starts in its claim: at `at` where the piece says so, else its one run
+// after the prefix. -1 where the text isn't there, or is there twice with no `at` to say which.
+function textStart(claim: string, prefix: number, piece: LinkPiece): number {
+	const { text, at } = piece;
+	if (text === '') return -1;
+	if (at !== undefined) return claim.startsWith(text, at) ? at : -1;
+	const first = claim.indexOf(text, prefix);
+	return first < 0 || claim.includes(text, first + 1) ? -1 : first;
 }
 
 function plainClaim<D>(

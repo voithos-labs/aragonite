@@ -292,6 +292,12 @@ describe('inline(): an `as` claim writes through `write`', () => {
 		const node = parse(raw, { scope: 'fragment', grammar }).children[0];
 		expect(cutOutsideWhole(node, 5, { grammar, resolver: undefined } as never)).toBe(4);
 	});
+
+	it('a link whose text its claim spells twice is left to the editor until `at` says which', () => {
+		const { read } = editorReading([['wiki', [wikiLink()]]]);
+		expect(read('[[notebook|note]]').some((n) => n.syntaxClaim)).toBe(false);
+		expect(read('[[page|note]]')[0]).toMatchObject({ kind: 'link', url: 'page' });
+	});
 });
 
 describe("inline(): what a widget's arrows and click do", () => {
