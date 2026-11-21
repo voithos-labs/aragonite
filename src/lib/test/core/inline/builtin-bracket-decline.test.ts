@@ -133,7 +133,9 @@ describe('the decline’s cost grows with the text', () => {
 			}
 		],
 		// The tag hides the claim's `]]`, so neither bracket ever closes.
-		['tags across wiki brackets', wiki, '[[a<b title="]]"> ']
+		['tags across wiki brackets', wiki, '[[a<b title="]]"> '],
+		// A `[^` claim always probes, so only the stop at the claim's end bounds this one.
+		['tags across footnote-shaped claims', footnote, '[^a<b title="]"> ']
 	])(
 		'%s scan within a bounded growth ratio',
 		(_name, register, shape) => {
