@@ -62,7 +62,7 @@ _(pre-freeze / unstable)_ The installable package, and the per-editor context it
 | `Plugin` | The plugin value that comes back. Call it with options (`math({ render })`) to give one editor different ones |
 | `PluginList` | A list of plugin values, whatever their options, as `needs` takes it |
 | `Contribution` | What `contributes` hands back for one editor: its `blocks`, a `setup(editor)` that runs once that editor mounts (a function it returns runs when the plugin's turned off or the editor goes), the `commands` it runs, its `inserts` rows, its caret `menus`, its selection `actions`, a `paint(block)` that says what to lay over a block of text, a `paintContainer(block)` for the classes and badge of a block holding other blocks (a list, a quote, a table row), and `checksSpelling: true` if your plugin underlines misspelled words itself (the editor turns the browser's checker off on its prose while your plugin runs) |
-| `Editor` | What `setup` and your commands get: the plugins on, the mode, the theme, the `inserts` rows, `doc` (the document as it stands), `on`, `run` and `can` (a command by value or id, with its argument), `claims`, `openMenu` (types a caret menu's trigger at the caret and opens it), `openRows` (opens a selection action's rows over a range), `edit`, `blockAt(at)` (the deepest block holding a document byte: a list item's paragraph, a table cell), `selectedRange()` (the selection as `{ from, to }` in document bytes, equal at a caret, null with nothing selected or with table cells selected) and `repaint(blocks?)`, which asks your `paint` again for those blocks, or every one on screen. It's one object per plugin per editor, and a listener you add there goes away with your plugin |
+| `Editor` | What `setup` and your commands get: the plugins on, the `mode` (a `Mode`), the theme, the `inserts` rows, `doc` (the document as it stands), `selection` (a `Selection`, or null), `on` (the `Events` map), `run` and `can` (a command by value or id, with its argument), `claims`, `openMenu` (types a caret menu's trigger at the caret and opens it), `openRows` (opens a selection action's rows over a range), `edit`, `blockAt(at)` (the deepest block holding a document byte: a list item's paragraph, a table cell), `select(input)` (a caret's byte, a range, a block whole or table cells, scrolled into view first) and `repaint(blocks?)`, which asks your `paint` again for those blocks, or every one on screen. It's one object per plugin per editor, and a listener you add there goes away with your plugin |
 | `PluginError` | An error your plugin caused: its name, what the editor was doing with it (`install`, `validate`, `contributes`, `setup`, `dispose`, `run shout/hello` for a command, or `on('edit')` for a listener that threw), and the cause |
 | `BlockType` | A block type: its `name` (yours read `plugin/local` once an editor runs your plugin) and its `label` |
 | `builtin` | The built-in block types by kind (`builtin.blocks.paragraph`), to place yours relative to one or tell what a block is, and the built-in inline types (`builtin.inlines.inlineCode`) for `piece.is` |
@@ -80,7 +80,7 @@ _(pre-freeze / unstable)_ The installable package, and the per-editor context it
 | `LeafCommon` | What a block holding text adds: `body` (`markdown` or `literal`) and how it draws (`LeafDraw`) |
 | `LeafDraw` | `edit` and `draw`. `edit: 'text'` keeps the text always editable, writing every keystroke; `edit: 'source'` shows your drawing until the caret comes in and writes the text once as it leaves; `edit: 'box'` lets no caret in. Without `draw` a block is plain text; with it the default is `'source'`. `renderSource` and `reshapeSource` paint and reshape the shown text |
 | `Drawn` | What `draw(block, ctx)` hands back: your `dom`, and optionally `caret` (where a click on your picture of the text lands), `update`, `keep` (events the editor leaves to you), `focus` and `destroy` |
-| `DrawContext` | What every drawing gets: `editor`, `mode`, `theme`, `focused`, `render(el, produce)` (a renderer's output cached per bytes and theme, the source and the error when it throws) and `keepScroll()` |
+| `DrawContext` | What every drawing gets: `editor`, `mode` (a `Mode`), `theme`, `focused`, `render(el, produce)` (a renderer's output cached per bytes and theme, the source and the error when it throws) and `keepScroll()` |
 | `TextDrawContext` | Adds `source`, the editor's element for the block's text, for you to place, and `typed`, the text as typed before an `edit: 'source'` block writes it |
 | `ContainerDrawContext` | Adds `children`, the editor's element holding the block's children, for you to place, and `title`, its title row's element, or null |
 | `BoxDrawContext` | Adds `leave(edge, x?)`, which hands the caret to the neighbour past `edge` from an editing surface of your own, and `focusWhole()`, which gives the box whole-block focus back from a surface of your own. An Escape in a field of yours does that too, unless your handler calls `preventDefault` |
@@ -1150,10 +1150,14 @@ _(pre-freeze / unstable)_ The blocks the insert menus offer: the built-in lists,
 
 ### Events
 
-_(pre-freeze / unstable)_ The payloads `EditorContext.events` delivers to an `on(name, handler)` subscription. The channel itself: [The plugin unit](plugin-guide.md#the-plugin-unit).
+_(pre-freeze / unstable)_ What `editor.on(name, listen)` hears, and the older map `EditorContext.events` delivers. The channel itself: [The plugin unit](plugin-guide.md#the-plugin-unit).
 
 | Export | Role |
 | --- | --- |
+| `Events` | Event name to what `editor.on` hands its listener: `edit`, `selection`, `mode`, `theme`, `menu`, `load` (a whole document replaced the last; no `edit` fires for it), `search` and `error` |
+| `EditInfo` | The `edit` payload: `op` and its `detail`, the `doc` after the write, its `changes` and a `timestamp`. `changes` is worked out only when you read it, so read it in the listener |
+| `Change` | One change in the document before the write: bytes `from` to `to` gave way to `insert`. Apply a write's changes last first and you have the text after it |
+| `Selection`, `SelectionInput` | The selection in document bytes (`anchor`, `head`, `from`, `to`, `empty`, the `block` holding the head, and `cells` with table cells selected), and what `editor.select` takes. `editor.selection` stays one object until the next write or selection change |
 | `EditorEventMap` | Event name to payload, so a handler you declare apart from the `on` call still types |
 | `EditEvent` | The `edit` payload: `op`, the `path` it landed at, a per-op `detail`, and a `timestamp`. `op` and `detail` are correlated, so narrowing `op` narrows `detail` with it |
 | `OperationKind` | The structural-operation vocabulary `EditEvent.op` draws from |

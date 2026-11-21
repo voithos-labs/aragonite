@@ -10,6 +10,7 @@
 	import type { BlockComponent } from '../../block-component';
 	import type { NodeView } from '../../core/node-views';
 	import { makeBlock, DETACHED_READING } from '../../schema/doc-view';
+	import { modeOf } from '../../presentation-mode';
 	import { pluginOfKind } from '../../schema/plugin-name';
 	import {
 		CARET_AT,
@@ -164,7 +165,7 @@
 			return editorDoc.scopedEditor(pluginOfKind(node.kind));
 		},
 		get mode() {
-			return editorDoc.reading.mode();
+			return modeOf(editorDoc.reading.mode());
 		},
 		get theme() {
 			return policies.theme();

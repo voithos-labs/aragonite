@@ -5,7 +5,7 @@
  */
 import type { LineEnding } from '../core/lines';
 import type { NodeView } from '../core/node-views';
-import type { PresentationMode } from '../presentation-mode';
+import type { Mode } from '../presentation-mode';
 import type { Block } from './doc-view';
 import type { BlockView } from './block-view';
 import type { BlockType, Editor } from './plugin-unit';
@@ -15,7 +15,7 @@ import type { BlockType, Editor } from './plugin-unit';
 /** What every drawing gets. */
 export interface DrawContext {
 	readonly editor: Editor;
-	readonly mode: PresentationMode;
+	readonly mode: Mode;
 	readonly theme: string;
 	/** The caret is in the block. */
 	readonly focused: boolean;

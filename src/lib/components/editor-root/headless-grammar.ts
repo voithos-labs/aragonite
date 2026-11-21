@@ -35,7 +35,7 @@ export function grammar(plugins: PluginList, options: { syntax?: SyntaxOptions }
 		blocks: () => types.blocks
 	});
 	return {
-		parse(text) {
+		parse: (text) => {
 			const { doc, resolver, signature } = initDocument(text, view);
 			const of = measured(doc);
 			return createDocumentRead({

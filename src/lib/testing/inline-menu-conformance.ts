@@ -13,6 +13,7 @@ import { createMenuPick } from '../schema/caret-menu';
 import { installPluginList, type Editor, type PluginList } from '../schema/plugin-unit';
 import { defaultGrammarView } from '../schema/editor-grammar';
 import type { Doc } from '../schema/doc-view';
+import { modeOf } from '../presentation-mode';
 
 export interface MenuPickCase {
 	/** The plugin value whose first caret menu is picked from; its `setup` runs first. */
@@ -103,10 +104,11 @@ const EMPTY_DOC: Doc = {
 function recordingEditor(writes: string[], edit: Editor['edit'], plugin: string): Editor {
 	return {
 		plugins: [plugin],
-		mode: 'source',
+		mode: modeOf('source'),
 		theme: 'light',
 		inserts: [],
 		doc: EMPTY_DOC,
+		selection: null,
 		on: () => () => {},
 		run: (command: { id: string } | string) => (
 			writes.push(`a run of ${typeof command === 'string' ? command : command.id}`),
@@ -118,7 +120,7 @@ function recordingEditor(writes: string[], edit: Editor['edit'], plugin: string)
 		openRows: () => ({ isOpen: false, close() {} }),
 		edit,
 		blockAt: () => null,
-		selectedRange: () => null,
+		select: async () => false,
 		repaint: () => {}
 	};
 }

@@ -287,7 +287,7 @@ The table is the exports you'll actually reach for, grouped by job. It's not eve
 
 ### Loading another document
 
-Switching notes is a `source` write: hand it the new text and the editor replaces the document, clears undo, and says so on `sourceSwap` (not on `edit`). It compares the write with `getSource()`, not with whatever the prop held last, so writing the text it already holds does nothing and undo survives.
+Switching notes is a `source` write: hand it the new text and the editor replaces the document, clears undo, and says so on `sourceSwap` (not on `edit`; the handle's own `on` hears it as `load`). It compares the write with `getSource()`, not with whatever the prop held last, so writing the text it already holds does nothing and undo survives.
 
 One Svelte thing to watch for: a `$state` ignores a write equal to what it already holds, so that write never reaches the editor at all. Say `source` still holds the text you loaded and the user has typed since. Writing that same text back (to revert, say) does nothing, because as far as Svelte's concerned nothing changed. Hold the loaded document in an object you replace on each load, and the prop re-reads on every load, same text or not:
 
@@ -354,7 +354,7 @@ You set the editor up with props when it mounts. After that you talk to it throu
 | `getSource()` | The live document, serialized back to Markdown |
 | `doc` | The document as it stands, in document bytes: its text, its blocks and the block at a byte (see [`Doc`](plugin-api.md#the-plugin-unit)) |
 | `getSelection()` | A frozen snapshot of the current selection, or `null` |
-| `selectedRange()` | The same selection as `{ from, to }` in document bytes, the positions a plugin's own functions take (`null` with table cells selected) |
+| `selection` | The same selection in document bytes, the positions a plugin's own functions take (see `Selection` in the [plugin API](plugin-api.md#events)) |
 | `getBlockKindAt(path)` | What kind of block sits at a path, or `null` |
 | `canRunCommand(id)` / `isCommandActive(id)` | Whether a toolbar button should be enabled, and whether it should paint pressed (see [Toolbar commands](#toolbar-commands)) |
 | `getEvents()` | The subscription surface (see [Events](#events)) |
@@ -373,6 +373,7 @@ And what you can write:
 | Method | What it does |
 | --- | --- |
 | `setSelection(snapshot)` | Puts a `getSelection()` snapshot back on the document (see [Restoring a selection](#restoring-a-selection)) |
+| `select(input)` | Selects in document bytes: a caret's byte, a range, a block whole or table cells, scrolled into view first |
 | `placeCaretAtPoint(x, y)` | Lands the caret at a viewport point, exactly as a click there would (see [Placing the caret at a point](#placing-the-caret-at-a-point)) |
 | `insertMarkdown(md, options?)` | Inserts Markdown at the caret, or as a block of its own, exactly as pasting it would, less its last line ending (see [Inserting Markdown at the caret](#inserting-markdown-at-the-caret)) |
 | `edit()` | Writes byte ranges of the document as one undo step, now or after a wait, and is refused with a reason if the author wrote over them meanwhile (see [`Draft`](plugin-api.md#draft-draftresult)) |

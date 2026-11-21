@@ -6,14 +6,15 @@
 import { assertInvariant, devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 import { checkDefinedByThisCopy, type CoreCopy } from '../invariants/one-core-copy';
 import { ARAGONITE_VERSION } from '../version';
-import type { EditorEventMap } from '../editor-events';
-import type { PresentationMode } from '../presentation-mode';
+import type { Events } from '../editor-events';
+import type { Mode } from '../presentation-mode';
 import type { Command } from './plugin-command';
 import type { InsertRow } from './insert-catalogue';
 import type { CaretMenu } from './caret-menu';
 import type { SelectionAction } from './selection-action';
 import type { Draft } from './drafts';
 import type { Block, Doc } from './doc-view';
+import type { Selection, SelectionInput } from './selection-read';
 import type { BlockPaint, Paint } from '../decorations/paint';
 import { isValidPluginName } from './plugin-name';
 import { satisfiesRange } from './version-range';
@@ -85,17 +86,17 @@ export interface Contribution {
 export interface Editor {
 	/** Names of the plugins on in this editor. */
 	readonly plugins: readonly string[];
-	readonly mode: PresentationMode;
+	readonly mode: Mode;
 	readonly theme: string;
 	/** Every row this editor's insert menus offer, live. */
 	readonly inserts: readonly InsertRow[];
 	/** The document as it stands, a new `Doc` after each write. */
 	readonly doc: Doc;
+	/** The selection in document bytes, one object until the next write or selection change;
+	 *  null with none. */
+	readonly selection: Selection | null;
 	/** Listens until `dispose` is called, the plugin is turned off, or the editor unmounts. */
-	on<K extends keyof EditorEventMap>(
-		event: K,
-		listen: (payload: EditorEventMap[K]) => void
-	): () => void;
+	on<K extends keyof Events>(event: K, listen: (payload: Events[K]) => void): () => void;
 	/** Runs a command, by value or by id; false, with nothing written, where `can` would say no or
 	 *  the command declines. */
 	run<A>(command: Command<A>, arg: A): boolean;
@@ -122,9 +123,9 @@ export interface Editor {
 	/** The deepest block holding document byte `at` (a list item's paragraph, a table cell): a
 	 *  marker's byte goes to the text on its line. Null outside the document. */
 	blockAt(at: number): Block | null;
-	/** The selection in document bytes, `from` first (equal at a caret); null with none, or with
-	 *  table cells selected. */
-	selectedRange(): { readonly from: number; readonly to: number } | null;
+	/** Selects a caret's byte, a range, a block whole or table cells, scrolling it into view
+	 *  first; true once it's placed and in view. */
+	select(input: SelectionInput): Promise<boolean>;
 	/** Asks the plugin's `paint` again for `blocks` (one that left the document is skipped), or
 	 *  for every block on screen; a host's handle asks every plugin's. */
 	repaint(blocks?: readonly Block[]): void;

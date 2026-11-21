@@ -8,6 +8,7 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { definePlugin } from '#lib/schema/plugin-install.js';
 import type { SelectionAction } from '#lib/schema/selection-action.js';
+import type { Editor } from '#lib/schema/plugin-unit.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
@@ -147,15 +148,14 @@ const SIBLINGS: {
  *  there, with a plugin asking where the selection is on every caret move and every edit. */
 async function linesPairedFollowing(place: (typeof SIBLINGS)[number], n: number): Promise<number> {
 	const seen: ({ from: number; to: number } | null)[] = [];
-	const ask = (editor: { selectedRange(): (typeof seen)[number] }) => () =>
-		seen.push(editor.selectedRange());
+	const ask = (editor: Pick<Editor, 'selection'>) => () => seen.push(editor.selection);
 	const follower = definePlugin({
 		name: 'follows-typing',
 		version: '1.0.0',
 		editor: '*',
 		contributes: () => ({
 			setup(editor) {
-				const offs = [editor.on('selectionChange', ask(editor)), editor.on('edit', ask(editor))];
+				const offs = [editor.on('selection', ask(editor)), editor.on('edit', ask(editor))];
 				return () => offs.forEach((off) => off());
 			}
 		})
@@ -181,7 +181,7 @@ async function linesPairedFollowing(place: (typeof SIBLINGS)[number], n: number)
 
 // Miss-analysis: the rows above hold the editor's own listeners at no read at all, so nothing
 // priced a read a plugin makes, least of all in a quote no keystroke had rebuilt yet.
-describe('G4.339 a plugin reading selectedRange() on every caret move and edit maps no whole container', () => {
+describe('G4.339 a plugin reading editor.selection on every caret move and edit maps no whole container', () => {
 	it.each(SIBLINGS)(
 		"in $name it pairs one child's lines, at 40 siblings as at 400",
 		async (place) => {

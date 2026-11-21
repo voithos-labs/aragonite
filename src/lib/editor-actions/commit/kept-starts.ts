@@ -38,15 +38,17 @@ export type ChangedRuns = (() => readonly TopLevelChange[] | null) | null;
 export interface HeardWrite {
 	/** The runs it changed, in document order; null where it can't say. */
 	readonly runs: readonly TopLevelChange[] | null;
-	/** The record as it stood before the write, handed over to keep, where a follower asked for it
-	 *  and the record was measured. */
+	/** The record as it stood before the write, where it was measured: a follower's to keep past
+	 *  `heard` only where it asked to, since the record moves on from it. */
 	readonly before: BlockBytes | null;
 }
 
 /** One reader that follows the writes, from the first it hears. */
 export interface WriteFollower {
 	heard(write: HeardWrite): void;
-	/** Whether it wants the record as it stood before the next write, which costs a copy of it. */
+	/** Whether it reads the record in `heard`, which keeps the record measured before each write. */
+	readsBefore(): boolean;
+	/** Whether it keeps that record past `heard`, which costs a copy of it. */
 	keepsBefore(): boolean;
 }
 
@@ -119,11 +121,10 @@ export function createKeptStarts(
 		view = joined = null;
 		if (!kept && followers.length === 0) return;
 		const runs = runsOf?.() ?? null;
-		let before: BlockBytes | null = null;
+		const before = kept;
 		if (kept && followers.some((follower) => follower.keepsBefore())) {
 			// The record handed over stays as it was; the write moves a copy of it.
-			before = kept;
-			const { pieces, lengths, sums, summed } = before;
+			const { pieces, lengths, sums, summed } = kept;
 			kept = { pieces: pieces.slice(), lengths: lengths.slice(), sums: sums.slice(), summed };
 		}
 		for (const follower of followers) follower.heard({ runs, before });
@@ -209,7 +210,7 @@ export function createKeptStarts(
 			// The outer write would publish over the inner one's bytes (G1.211).
 			if (open) throw new Error('aragonite: a write started inside another write');
 			// A follower keeping the bytes as they stood needs them read before the tree changes.
-			if (!kept && followers.some((follower) => follower.keepsBefore())) {
+			if (!kept && followers.some((f) => f.readsBefore() || f.keepsBefore())) {
 				untrack(() => measure(current()));
 			}
 			open = true;

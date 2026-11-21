@@ -5,7 +5,13 @@
  * once, through the editor's own report.
  */
 import type { DocumentView } from '../core/node-views';
-import type { EditorEventMap } from '../editor-events';
+import {
+	onPluginEvent,
+	type EditorEventMap,
+	type EditorEvents,
+	type PluginEventReads
+} from '../editor-events';
+import { modeOf } from '../presentation-mode';
 import { inlineReaderFor } from '../core/inline';
 import type { DecorationRegistry } from '../decorations/types';
 import type { EditorRects } from '../editor-rects';
@@ -85,8 +91,11 @@ export function createEditorPluginContexts(deps: {
 	openMenu: (menu: CaretMenu<unknown>, query?: string) => boolean;
 	openRows: Editor['openRows'];
 	doc: () => Editor['doc'];
+	selection: () => Editor['selection'];
+	select: Editor['select'];
+	/** What `Editor.on` makes of the channel's payloads. */
+	pluginEvents: () => PluginEventReads;
 	blockAt: Editor['blockAt'];
-	selectedRange: Editor['selectedRange'];
 	/** Asks `plugin`'s paint again. */
 	repaint: (plugin: string, blocks?: Parameters<Editor['repaint']>[0]) => void;
 	/** A draft; `plugin` names the plugin it's refused for once that plugin is off. */
@@ -173,7 +182,7 @@ export function createEditorPluginContexts(deps: {
 				return deps.pluginNames();
 			},
 			get mode() {
-				return deps.getPresentationMode();
+				return modeOf(deps.getPresentationMode());
 			},
 			get theme() {
 				return deps.getTheme();
@@ -184,8 +193,15 @@ export function createEditorPluginContexts(deps: {
 			get doc() {
 				return deps.doc();
 			},
+			get selection() {
+				return deps.selection();
+			},
 			on(event, listen) {
-				const disposer = { plugin, dispose: listenAs(plugin, event, listen) };
+				const channel: Pick<EditorEvents, 'on'> = {
+					on: (name, hear) => listenAs(plugin, name, hear)
+				};
+				const dispose = onPluginEvent(channel, deps.pluginEvents(), event, listen);
+				const disposer = { plugin, dispose };
 				disposers.push(disposer);
 				return () => reportThrown(disposeOne(disposer));
 			},
@@ -196,7 +212,7 @@ export function createEditorPluginContexts(deps: {
 			openRows: (action, range, anchor, pointer) => deps.openRows(action, range, anchor, pointer),
 			edit: () => deps.edit(plugin),
 			blockAt: (at) => deps.blockAt(at),
-			selectedRange: () => deps.selectedRange(),
+			select: (input) => deps.select(input),
 			repaint: (blocks) => deps.repaint(plugin, blocks)
 		};
 	}

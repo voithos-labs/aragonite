@@ -1,7 +1,7 @@
 /**
- * One document's read for plugins: the `Doc` of each version, the block at a document byte, and
- * the one block view of each node. Lazy: nothing is measured until a plugin reads a position, and
- * the byte map is built once per write, over the starts the editor keeps.
+ * One document's read for plugins: the `Doc` of each version, the block at a document byte, the
+ * one block view of each node, and what an `edit` listener gets. Lazy: nothing is measured until a
+ * plugin reads a position, and the byte map is built once per write, over the kept starts.
  *
  * A held block finds its node again without walking the document. It keeps where it was last
  * seen, moves that top-level index through the runs each write reports, and answers only where the
@@ -12,7 +12,11 @@ import type { DocumentView, NodeView } from '../../core/node-views';
 import type { AnyBlockKind } from '../../core/nodes';
 import { documentLineEnding } from '../../core/lines';
 import { resolvedInlineContent, type InlineReading } from '../../core/inline/inline-cache';
-import { documentByteMap, type DocumentByteMap } from '../../tree-operations/container-offsets';
+import {
+	documentByteMap,
+	type DocumentByteMap,
+	type LeafPosition
+} from '../../tree-operations/container-offsets';
 import type { BlockBytes, Measured, TopLevelChange } from '../../tree-operations/top-level-starts';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import {
@@ -26,23 +30,31 @@ import {
 	type Seen
 } from '../../schema/doc-view';
 import type { BlockType } from '../../schema/plugin-unit';
-import type { EditorSelection } from '../../selection/primitives';
+import type { EditEvent, EditInfo } from '../../editor-events';
 import { checkHeldBlockPlace } from '../../invariants/held-block';
 import { perfEnabled, recordHintRunsLogged } from '../../perf/instruments';
 import type { WriteFollower } from './kept-starts';
+import { createEditChanges } from './edit-changes';
 
 export interface DocumentRead {
-	/** The document as it stands: one `Doc` per version. */
-	doc(): Doc;
+	/** The document at `version`, the current one by default: one `Doc` per version. One a write
+	 *  has replaced reads the document as it stands, and has only that text. */
+	doc(version?: number): Doc;
 	/** The deepest block holding document byte `at`: a byte of a marker or a container's own line
 	 *  goes to the text on its line, as the caret does. Null outside the document. */
 	blockAt(at: number): Block | null;
 	/** The block view of `node`, seen at `path`. */
 	blockOf(node: NodeView, path: readonly number[]): Block;
-	/** `selection` in document bytes, `from` first; null for none or a cell selection. */
-	rangeOf(selection: EditorSelection | null): { from: number; to: number } | null;
+	/** Offset `offset` of the block at `path` as a document byte; null where it isn't placed. */
+	byteOf(path: readonly number[], offset: number): number | null;
+	/** The text position holding document byte `at`, as a caret lands there. */
+	leafAt(at: number): LeafPosition | null;
 	/** The path of the deepest block holding byte `at` of a range already in the document. */
 	pathAt(at: number): number[] | null;
+	/** What an `edit` listener gets for one emitted edit: one object for every listener. */
+	editInfo(event: EditEvent): EditInfo;
+	/** Counts an `edit` listener in, so each write keeps what `changes` needs; returns the way out. */
+	listenForEdits(): () => void;
 }
 
 export function createDocumentRead(deps: {
@@ -66,6 +78,8 @@ export function createDocumentRead(deps: {
 	let logFrom = 0;
 	let following = false;
 	let current: VersionDoc | null = null;
+	const changes = createEditChanges();
+	const infos = new WeakMap<EditEvent, EditInfo>();
 
 	function layout(): Layout {
 		const of = deps.measured();
@@ -78,13 +92,16 @@ export function createDocumentRead(deps: {
 		following = true;
 		logFrom = deps.version();
 		deps.follow({
-			heard({ runs, before }) {
-				if (before && current?.version === deps.version()) current.keep(before);
+			heard(write) {
+				const { runs, before } = write;
+				if (before && current?.version === deps.version() && current.unread) current.keep(before);
+				changes.heard(write, deps.getDoc());
 				log.push(runs);
 				recordHintRunsLogged();
 				// Past this many writes a block held from before them reads -1 unless it stood still.
 				if (log.length > LOG_LIMIT) logFrom += log.splice(0, log.length - LOG_LIMIT / 2).length;
 			},
+			readsBefore: () => changes.listening(),
 			keepsBefore: () => current !== null && current.version === deps.version() && current.unread
 		});
 	}
@@ -167,24 +184,46 @@ export function createDocumentRead(deps: {
 		blockAt
 	};
 
+	function doc(version = deps.version()): Doc {
+		follow();
+		if (version !== deps.version()) return new VersionDoc(versions, deps.getDoc(), version);
+		if (current?.version !== version) current = new VersionDoc(versions, deps.getDoc(), version);
+		return current;
+	}
+
 	return {
-		doc() {
-			follow();
-			const version = deps.version();
-			if (current?.version !== version) current = new VersionDoc(versions, deps.getDoc());
-			return current;
-		},
+		doc,
 		blockAt,
 		blockOf,
-		rangeOf(selection) {
-			if (!selection || selection.anchor.cellCoordinate || selection.focus.cellCoordinate)
-				return null;
-			const { map } = layout();
-			const a = map.byteOf(selection.anchor.path, selection.anchor.offset);
-			const f = map.byteOf(selection.focus.path, selection.focus.offset);
-			return a === null || f === null ? null : { from: Math.min(a, f), to: Math.max(a, f) };
+		byteOf: reading.byteOf,
+		leafAt: (at) => layout().map.leafAt(at),
+		pathAt: (at) => layout().map.leafAt(at)?.path ?? null,
+		editInfo(event) {
+			let info = infos.get(event);
+			if (!info) {
+				const version = deps.version();
+				let read: Doc | undefined;
+				const docOf = () => (read ??= doc(version));
+				const worked = changes.take(() => docOf().text);
+				info = {
+					op: event.op,
+					detail: event.detail,
+					timestamp: event.timestamp,
+					get doc() {
+						return docOf();
+					},
+					get changes() {
+						return worked();
+					}
+				} as EditInfo;
+				infos.set(event, info);
+			}
+			return info;
 		},
-		pathAt: (at) => layout().map.leafAt(at)?.path ?? null
+		listenForEdits() {
+			follow();
+			return changes.listen();
+		}
 	};
 }
 
@@ -237,9 +276,9 @@ class VersionDoc implements Doc {
 	#before: BlockBytes | null = null;
 	#warned = false;
 
-	constructor(reads: VersionReads, doc: DocumentView) {
+	constructor(reads: VersionReads, doc: DocumentView, version: number) {
 		this.#reads = reads;
-		this.version = reads.version();
+		this.version = version;
 		this.eol = documentLineEnding(doc);
 		this.#prefix = doc.prefix;
 		this.#suffix = doc.suffix;

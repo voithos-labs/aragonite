@@ -7,6 +7,7 @@ import type { InsertMarkdownOptions } from '#lib/editor-props.js';
 import { kitReading } from '#lib/testing/kit-reading.js';
 import type { InstalledPlugin, PluginError } from '#lib/schema/plugin-unit.js';
 import type { Doc } from '#lib/schema/doc-view.js';
+import type { PluginEventReads } from '#lib/editor-events.js';
 import type { Command } from '#lib/schema/plugin-command.js';
 import { idleDraftRegistry } from './drafts';
 
@@ -55,8 +56,19 @@ export const pluginContextDeps = (
 	doc: (): Doc => {
 		throw new Error('the inert plugin context holds no document');
 	},
+	selection: () => null,
+	select: async () => false,
+	pluginEvents: (): PluginEventReads => ({
+		edit: () => {
+			throw new Error('the inert plugin context writes nothing');
+		},
+		selection: () => null,
+		doc: () => {
+			throw new Error('the inert plugin context holds no document');
+		},
+		listenForEdits: () => () => {}
+	}),
 	blockAt: () => null,
-	selectedRange: () => null,
 	repaint: () => {},
 	units: (): readonly InstalledPlugin[] => [],
 	pluginNames: (): readonly string[] => [],

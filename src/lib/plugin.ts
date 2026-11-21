@@ -427,8 +427,10 @@ export type {
 } from './decorations/types';
 
 // ── Events (pre-freeze) ──────────────────────────────────────────────────────
-// The payloads `EditorContext.events` delivers. `EditEvent` pairs each operation name with its
-// detail, so an `edit` handler narrows `op` against the real set of names.
+// What `editor.on` hears (`Events`), and the payloads the older `EditorContext.events` delivers.
+// `EditEvent` pairs each operation name with its detail, so a handler narrows `op` against them.
+export type { Change, EditInfo, Events } from './editor-events';
+export type { Selection, SelectionInput } from './schema/selection-read';
 export type {
 	EditEvent,
 	EditorEventMap,

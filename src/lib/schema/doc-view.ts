@@ -149,6 +149,11 @@ export function nodeOfBlock(block: Block<unknown>): NodeView | undefined {
 	return block instanceof NodeBlock ? block[STATE].node : undefined;
 }
 
+/** Where `block`'s node stands now; null once it has left the document. */
+export function pathOfBlock(block: Block<unknown>): readonly number[] | null {
+	return block instanceof NodeBlock ? pathOf(block[STATE]) : null;
+}
+
 /** Tells `block` where its node stands now, as a caller holding the path sees it. */
 export function seenAt(block: Block<unknown>, path: readonly number[] | null): void {
 	if (!(block instanceof NodeBlock) || !path) return;

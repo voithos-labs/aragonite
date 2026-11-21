@@ -6,7 +6,12 @@
 	import type { EditorProps } from './editor-component-props';
 	import type { EditorInstance, EditorDiagnostics, InsertMarkdownOptions } from '../editor-props';
 	import type { Draft } from '../schema/drafts';
-	import type { EditorEventMap, EditorEvents } from '../editor-events';
+	import {
+		onPluginEvent,
+		type EditorEvents,
+		type Events,
+		type PluginEventReads
+	} from '../editor-events';
 	import {
 		BLOCK_EDIT_KEY,
 		CONTAINER_EDIT_KEY,
@@ -55,7 +60,7 @@
 	import { createShownSourceState } from './blocks/text/shown-source.svelte';
 	import { createDocumentStamps } from '../editor-actions/commit/document-stamp';
 	import { failWrite, startsAlone } from '../editor-actions/commit/reading-write-gate';
-	import { isCollapsed, type EditorSelection } from '../selection/primitives';
+	import { isCollapsed, selectionsEqual, type EditorSelection } from '../selection/primitives';
 	import { widgetSpanAt } from './blocks/text/widget-adjacency';
 	import { assignIds } from '../block-id';
 	import { createDocumentSwap, initDocument } from './editor-root/document-swap';
@@ -172,7 +177,10 @@
 	import { createEditorGrammar } from '../schema/editor-grammar';
 	import { installBlockTypes } from '../schema/block-type';
 	import type { Reading } from '../schema/reading';
-	import { hidesDelimitersAtCaret, type PresentationMode } from '../presentation-mode';
+	import { hidesDelimitersAtCaret, modeOf, type PresentationMode } from '../presentation-mode';
+	import { selectionOf, selectionTarget } from '../editor-actions/commit/plugin-selection';
+	import type { Selection, SelectionInput } from '../schema/selection-read';
+	import type { NodeView } from '../core/node-views';
 	import BlockList from './BlockList.svelte';
 	import SearchBar from './SearchBar.svelte';
 	import SelectionToolbar from './menu/SelectionToolbar.svelte';
@@ -400,10 +408,15 @@
 	const autoPairs = createAutoPairRecord();
 	const operationsLog = createOperationsLog();
 	const events = createEditorEvents();
+	// Counts announced selection changes, so the handle's `selection` reads again after one.
+	let selectionMoves = $state(0);
 	// getSelection is function-hoisted below, so every read here is a fresh snapshot.
 	const selectionAnnouncer = createSelectionAnnouncer({
 		read: () => getSelection(),
-		emit: (selection) => events.emit('selectionChange', selection)
+		emit: (selection) => {
+			selectionMoves++;
+			events.emit('selectionChange', selection);
+		}
 	});
 	const selectionState = createSelectionState({
 		onChange: ({ placementOnly }) => {
@@ -883,8 +896,10 @@
 		openMenu: (menu, query) => inlineMenu.openMenu(menu, query),
 		openRows: (action, range, anchor, pointer) => openRows(action, range, anchor, pointer),
 		doc: () => documentRead.doc(),
+		selection: () => pluginSelection(),
+		select: (input) => select(input),
+		pluginEvents: () => pluginEvents,
 		blockAt: (at) => blockAt(at),
-		selectedRange: () => selectedRange(),
 		repaint: (plugin, blocks) => repaintPlugin(plugin, blocks),
 		edit: (plugin) => drafts.edit(plugin),
 		reading,
@@ -1162,7 +1177,10 @@
 		editorFor: (plugin) => pluginContexts.scoped(plugin),
 		measured: starts.read,
 		source: bytes.source,
-		selection: () => selectedRange(),
+		selection: () => {
+			const now = pluginSelection();
+			return now && !now.cells ? { from: now.from, to: now.to } : null;
+		},
 		hasRange: () => {
 			const selection = getSelection();
 			return !!selection && !isCollapsed(selection);
@@ -1633,19 +1651,63 @@
 	// ── The editor object a plugin's `setup` also gets ────────────────────
 
 	const pluginList = $derived(pluginNames);
-	const mode = $derived(effectiveMode);
+	const mode = $derived(modeOf(effectiveMode));
 	const themeName = $derived(theme);
 	// Read again whenever `use` changes the list.
 	const inserts = $derived.by(() => (void pluginNames, insertRows(activePlugins)));
 	// A new `Doc` at each write; the read keeps one per version.
 	const currentDoc = $derived.by(() => (void contentVersion.read(), documentRead.doc()));
-	export { pluginList as plugins, mode, themeName as theme, inserts, currentDoc as doc };
+	const currentSelection = $derived.by(
+		() => (void contentVersion.read(), void selectionMoves, pluginSelection())
+	);
+	export {
+		pluginList as plugins,
+		mode,
+		themeName as theme,
+		inserts,
+		currentDoc as doc,
+		currentSelection as selection
+	};
 
-	export function on<K extends keyof EditorEventMap>(
+	const pluginEvents: PluginEventReads = {
+		edit: (event) => documentRead.editInfo(event),
+		selection: () => pluginSelection(),
+		doc: () => documentRead.doc(),
+		listenForEdits: () => documentRead.listenForEdits()
+	};
+
+	export function on<K extends keyof Events>(
 		event: K,
-		listen: (payload: EditorEventMap[K]) => void
+		listen: (payload: Events[K]) => void
 	): () => void {
-		return events.on(event, listen);
+		return onPluginEvent(events, pluginEvents, event, listen);
+	}
+
+	const selectionReads = {
+		byteOf: (path: readonly number[], offset: number) => documentRead.byteOf(path, offset),
+		leafAt: (at: number) => documentRead.leafAt(at),
+		blockOf: (node: NodeView, path: readonly number[]) => documentRead.blockOf(node, path),
+		nodeAt: (path: readonly number[]) => blockNodeAt(doc, path)
+	};
+	let selectionRead: {
+		version: number;
+		at: EditorSelection | null;
+		read: Selection | null;
+	} | null = null;
+
+	// One object until the next write or selection change.
+	function pluginSelection(): Selection | null {
+		const at = getSelection();
+		const version = untrack(contentVersion.read);
+		if (selectionRead?.version !== version || !selectionsEqual(selectionRead.at, at)) {
+			selectionRead = { version, at, read: selectionOf(selectionReads, at) };
+		}
+		return selectionRead.read;
+	}
+
+	export function select(input: SelectionInput): Promise<boolean> {
+		const target = selectionTarget(selectionReads, input);
+		return target ? setSelection(target) : Promise.resolve(false);
 	}
 
 	// A command value runs by the id this editor gave it; one this editor doesn't run, nowhere.
@@ -1675,10 +1737,6 @@
 
 	export function blockAt(at: number): Block | null {
 		return documentRead.blockAt(at);
-	}
-
-	export function selectedRange(): { from: number; to: number } | null {
-		return documentRead.rangeOf(getSelection());
 	}
 
 	export function repaint(blocks?: readonly Block[]): void {
@@ -1880,6 +1938,9 @@
 		get doc() {
 			return documentRead.doc();
 		},
+		get selection() {
+			return pluginSelection();
+		},
 		on,
 		run,
 		can,
@@ -1887,7 +1948,7 @@
 		openMenu,
 		openRows,
 		blockAt,
-		selectedRange,
+		select,
 		repaint
 	} satisfies EditorInstance);
 
