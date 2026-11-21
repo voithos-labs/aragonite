@@ -368,8 +368,8 @@ interface JoinSides {
 
 const NO_SIDES: JoinSides = { bytes: '', typedAt: 0 };
 
-/** The sides the cut took whose partner it kept go back at the join, in order. A side at the
- *  cut's own screen position was never taken (§ 4.2: the screen decides, not the raw offset). */
+/** The sides the cut took whose partner it kept, or inside one block can't see, go back at the join
+ *  in order. A side at the cut's own screen position was never taken (§ 4.2: the screen decides). */
 function sidesAtJoin(join: JoinSeam, left: Side, right: Side): JoinSides {
 	if (!join.removes || left.sides.length + right.sides.length === 0) return NO_SIDES;
 	const sameLeaf = join.start.node === join.end.node;
@@ -388,7 +388,7 @@ function sidesAtJoin(join: JoinSeam, left: Side, right: Side): JoinSides {
 		),
 		...(sameLeaf ? [] : right.sides.map((s) => readSideAt(s, right.raw, s.end <= to)))
 	]);
-	const back = all.filter((s) => s.taken && s.partner?.taken === false);
+	const back = all.filter((s) => s.taken && (s.partner ? !s.partner.taken : sameLeaf));
 	const held = left.raw.slice(left.cut, from);
 	// A letter at a side joins its text (§ 4.2): past the sides whose text follows them.
 	let typedAt = held.length;
@@ -403,7 +403,7 @@ function sidesAtJoin(join: JoinSeam, left: Side, right: Side): JoinSides {
 }
 
 /** `node` and `range` as a live piece carries them off: a piece carries a pair only with both its
- *  sides, so each side the document keeps is cut out of both first (§ 4.5). */
+ *  sides, so each side whose partner the document keeps is cut out of both first (§ 4.5). */
 export function withoutKeptSides(
 	node: NodeView,
 	range: Span,

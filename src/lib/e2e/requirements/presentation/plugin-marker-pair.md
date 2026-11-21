@@ -60,6 +60,7 @@ a third, where Enter left a side on the half without its text and a letter lande
 - A letter typed over the commented text exactly stays in the pair.
 - A range reaching past both sides takes the pair.
 - A range across two blocks keeps a pair spanning them: `Acr{>>b}cks{<<b} end`.
+- A word delete across one end of a pair spanning two blocks keeps that end: `{<<b}end`.
 - A word delete inside a pair around a bold keeps both sides.
 - A cut pasted back gives the original bytes; a dragged range carries no side its pair keeps.
 - Formatted text pasted into a bold a pair holds writes no second pair:
@@ -68,10 +69,12 @@ a third, where Enter left a side on the half without its text and a letter lande
 - Source mode takes the bytes selected, sides with them.
 - Undo gives the bytes back after each.
 
-Limits, recorded: the join sees a partner only in the blocks a range joins. A word delete across
-one end of a pair spanning two blocks takes that end, and so do a range taking that end's block
-whole and select-all then Delete in it. A range over three blocks taking a whole pair leaves no
-side.
+Limits, recorded: the join sees a partner only in the blocks a range joins, and inside one block it
+keeps a side whose partner it can't see. A pair spanning two blocks loses the end a range takes
+with its whole block, and the end select-all then Delete takes in its block. A range over
+three blocks taking a whole pair leaves no side. A selection across a lone side inside its block
+leaves the side (`A lo{<<x}ide`), and a range from a paragraph into a table holding the partner
+leaves a lone side (`Pa{>>p}`).
 
 Miss-analysis (a removal across one side): every removal row took one character beside a side,
 never a range across one, so the join every range removal shares had no row.

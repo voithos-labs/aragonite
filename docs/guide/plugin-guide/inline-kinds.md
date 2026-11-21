@@ -196,7 +196,7 @@ A side draws nothing in live mode and its bytes in source mode; in preview-inlin
 
 The editor pairs the sides for one thing, a removal in live mode. A selection or a word delete that crosses one side puts that side back where the cut ends, so the anchor shrinks to the text that's left. One that crosses both takes the anchor. A copy or a cut carries an anchor only with both its sides, and a paragraph cut whole takes the anchor it wraps along. `key` says which sides belong together, so overlapping anchors keep their own; without it the editor pairs by nesting order, which gets `{>>a}x{>>b}y{<<a}z{<<b}` wrong. Source mode takes the bytes selected.
 
-That pairing reaches one paragraph, or the two a selection joins. So an anchor over two paragraphs loses an end when a removal inside one of them crosses that end, or takes that paragraph whole. Expect a lone side now and then, and clear or repair it in your plugin.
+That pairing reaches one paragraph, or the two a selection joins. Inside one paragraph a side whose partner it can't see stays, so an anchor over two paragraphs keeps its end when a word delete crosses it, and a side with no partner can't be deleted in live mode (source mode deletes it). An anchor over two paragraphs still loses an end when a selection takes that paragraph whole, and a selection from a paragraph into a table can leave a lone side. Expect one now and then, and clear or repair it in your plugin.
 
 `text` changes which side of each marker a letter typed at it joins. The default is `{ open: 'after', close: 'before' }`, the text between them; `{ open: 'before', close: 'after' }` makes an anchor that never grows at its ends.
 

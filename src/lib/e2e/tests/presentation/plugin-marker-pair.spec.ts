@@ -364,11 +364,34 @@ test.describe('a live removal across a side', () => {
 		await expect.poll(() => line(0)).toBe('A {>>a}notword');
 	});
 
-	// Limits, as recorded: the join sees a pair's partner only in the blocks a range joins.
-	test('a word delete across one end of a pair spanning two blocks takes that end', async () => {
+	test('a word delete across one end of a pair spanning two blocks keeps that end', async () => {
 		await walk(2, 'end'.length, 'lineEnd');
 		await press(`${WORD_MODIFIER}+Backspace`);
-		await expect.poll(() => line(2)).toBe('end');
+		await expect.poll(() => line(2)).toBe('{<<b}end');
+		await press('ControlOrMeta+z');
+		await expect.poll(() => line(2)).toBe('blocks{<<b} end');
+	});
+
+	// Limits, as recorded: the join sees a pair's partner only in the blocks a range joins, and
+	// inside one block it keeps a side whose partner it can't see.
+	test('a selection across a lone side inside its block leaves the side', async () => {
+		await walk(6, 'A lo'.length);
+		await press('Shift+ArrowRight', 'ne si'.length);
+		await press('Backspace');
+		await expect.poll(source).toContain('\n\nA lo{<<x}ide\n');
+	});
+
+	test('a range from a paragraph into a table holding its partner leaves a lone side', async ({
+		page
+	}) => {
+		await editor.loadContent('Para {>>p}one\n\n| a |\n| - |\n| cell{<<p} two |\n');
+		await walk(0, 'Pa'.length);
+		const box = (await page.locator('.table-cell').nth(1).boundingBox())!;
+		await page.keyboard.down('Shift');
+		await page.mouse.click(box.x + box.width - 6, box.y + box.height / 2);
+		await page.keyboard.up('Shift');
+		await press('Backspace');
+		await expect.poll(source).toBe('Pa{>>p}\n');
 	});
 
 	test('a range taking the block holding a pair end whole takes that end', async () => {

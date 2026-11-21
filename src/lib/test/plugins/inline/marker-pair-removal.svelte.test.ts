@@ -137,12 +137,18 @@ describe('a live removal across a marker side', () => {
 		expect(removed(PAIR, 1, 2, 'Q')).toBe('aQ{>>c}text{<<c} z');
 	});
 
-	// Limits, as recorded: the join sees no partner past its blocks, and refuses an uncut URL.
-	it('takes a side whose partner the block lacks, one in another block or none', () => {
-		expect(removed('blocks{<<b} end', 0, 12)).toBe('end');
-		expect(removed('A lone {<<x} side', 1, 13)).toBe('Aside');
+	// Its partner may stand in another block. Recorded limits: a lone side can't be deleted inside
+	// its block, and a range into a table cuts its paragraph alone, the partner gone with the table.
+	it.each<[string, string, number, number, string]>([
+		['a word delete across one end of a two-block pair', 'blocks{<<b} end', 0, 12, '{<<b}end'],
+		['a range across a side with no partner anywhere', 'A lone {<<x} side', 1, 13, 'A{<<x}side'],
+		['the paragraph a range into a table cuts alone', 'Para {>>p}one', 2, 13, 'Pa{>>p}']
+	])('puts back a side whose partner the block lacks: %s', (_name, raw, start, end, live) => {
+		expect(removed(raw, start, end)).toBe(live);
+		expect(removed(raw, start, end, '', 'source')).toBe(raw.slice(0, start) + raw.slice(end));
 	});
 
+	// A limit, as recorded: the join refuses a cut inside a URL.
 	it('takes a side when its cut falls inside a URL no reading can cut', () => {
 		expect(removed('a {>>c}<https://x.dev>{<<c} z', 14, 28)).toBe('a {>>c}<https:z');
 	});
@@ -240,12 +246,13 @@ describe('what a live range carries off', () => {
 		expect(carried(PAIR, start, end, 'source')).toBe(PAIR.slice(start, end));
 	});
 
-	it('carries a side whose partner the block lacks, which the removal takes', () => {
+	// Limits, as recorded: a piece reads its block alone, so it carries a side whose partner the
+	// block lacks, as a range across two blocks needs, even where the removal puts that side back.
+	it('carries a side whose partner the block lacks, which a removal inside it keeps', () => {
 		expect(carried('blocks{<<b} end', 0, 12)).toBe('blocks{<<b} ');
+		expect(removed('blocks{<<b} end', 0, 12)).toBe('{<<b}end');
 	});
 
-	// A limit, as recorded: a piece reads its block alone, so a range across two blocks carries the
-	// side the join of the two puts back.
 	it('carries a side of a pair over two blocks that the join of the two keeps', () => {
 		expect(carried('Across {>>b}two', 3, 15)).toBe('oss {>>b}two');
 	});
