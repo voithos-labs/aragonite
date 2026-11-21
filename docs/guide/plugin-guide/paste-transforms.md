@@ -20,7 +20,7 @@ Write it with `rewrite()`, so `block.data` has `from`'s type; a bare object lite
 
 A rewrite runs where a paste lands as blocks, at any depth: a block inside a pasted list item gets the item's indent on each line of its answer. The outermost block of a listed type is the one asked, and the first listed rewrite that answers takes it. Its answer is never offered to a rewrite again, so it can't loop. A rewrite that throws reaches `onError` as `rewrite paste`, and the block stays as pasted.
 
-A paste that goes in as text is never rewritten: one line pasted after text on its line, text pasted into a table cell, anything pasted into a title row or a code block, and Paste as plain text. Nor is the editor's own copy, whether Ctrl+V or Replace with clipboard pastes it, and nor is anything dragged and dropped. (Blocks pasted into a table cell split the table and land between the halves, so they are rewritten.)
+A paste that goes in as text is never rewritten: one line pasted after text on its line, text pasted into a table cell, anything pasted into a title row or a code block, and Paste as plain text. Nor is a copy or cut the editor made with the keyboard, whether Ctrl+V or Replace with clipboard pastes it, and nor is anything dragged and dropped. `insertMarkdown` and a draft's `insert` land the way a paste does, so they're rewritten too. (Blocks pasted into a table cell split the table and land between the halves, so they are rewritten.)
 
 **`registerPasteTransform`**
 

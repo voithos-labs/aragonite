@@ -62,6 +62,14 @@ describe('a paste rewrite by block type', () => {
 		);
 	});
 
+	it('writes two claimed blocks under one container, each in its own item', () => {
+		const text = '- one\n\n  > a\n\n- two\n\n  > b\n';
+		const { activation } = listing(['blockquote', () => 'X']);
+		expect(rewrittenPaste(outside(text), reader(text), activation, grammar)).toBe(
+			'- one\n\n  X\n\n- two\n\n  X\n'
+		);
+	});
+
 	it('takes the first listed answer, and offers no answer again', () => {
 		const { activation, answer } = listing(
 			['blockquote', () => null],
