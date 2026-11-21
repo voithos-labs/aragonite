@@ -313,22 +313,27 @@ An inline widget, a decoration's widget or badge, and an inline menu row don't t
 
 ```tsx
 import { reactView } from '@voithos-labs/aragonite-react';
-import { registerInlineWidgetKind, type InlineWidgetComponentProps } from '@voithos-labs/aragonite/plugin';
+import { inline, type WidgetProps } from '@voithos-labs/aragonite/plugin';
 
-function Chip({ source }: InlineWidgetComponentProps) {
-	return <span className="chip">{source.slice(2, -2)}</span>;
+function Chip({ data }: WidgetProps<{ name: string }>) {
+	return <span className="chip">{data.name}</span>;
 }
 
-registerInlineWidgetKind(chip, {
-	isWidget: () => true,
-	view: reactView(Chip),
-	editing: { deleteGranularity: 'atomic', onEdge: 'step-over' }
+const chip = inline({
+	name: 'chip',
+	label: 'Chip',
+	prefix: '{{',
+	match: /\{\{(\w+)\}\}/,
+	read: ([, name]) => ({ name }),
+	sample: 'a {{pebble}} chip',
+	widget: { delete: 'whole', arrows: 'over', click: 'none' },
+	draw: reactView(Chip)
 });
 ```
 
-`a {{pebble}} chip` now reads as `a [pebble] chip`, with `pebble` drawn by `Chip`, and the caret steps over it as one character. (The `chip` kind and its trigger are the `:shortcode:` recipe from that page with `{` as the trigger.)
+List `chip` in your plugin's `contributes(...).inlines`, and `a {{pebble}} chip` reads as `a [pebble] chip`, with `pebble` drawn by `Chip`, and the caret steps over it as one character.
 
-The component re-renders on every `update` with the slot's new props (typing before the chip moves its `inline.start`, say), and its root unmounts when the slot drops it. There's no per-prop tracking like `svelteView` has, so keep the render cheap.
+The component re-renders on every `update` with the slot's new props (typing before the chip moves its `from`, say), and its root unmounts when the slot drops it. There's no per-prop tracking like `svelteView` has, so keep the render cheap.
 
 Vue is `vueView(component)`, and it hands the component only the props it declares, so the slot's other props (a widget gets a handful of functions, too) don't land on your root element as attributes. A badge on the first block, as a single-file component:
 

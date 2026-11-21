@@ -27,7 +27,7 @@ And a map, so you can jump straight at your question:
 | [The conformance kits](#the-conformance-kits) | The checks the built-in blocks are held to, pointed at yours, and the vocabulary the three kits share |
 | [The kind checkup](#the-kind-checkup-runkindconformance) | The checks every block kind has to pass: bytes survive, one edit is one undo step, copying invents nothing |
 | [The container checkup](#the-container-checkup-runcontainerconformance) | Extra checks for a block that holds other blocks, starring the body line that ends the container early |
-| [The inline checkup](#the-inline-checkup-runinlinekindconformance) | Checks for syntax recognized mid-sentence: claiming your own bytes, declining everyone else's |
+| [The inline checkup](#the-inline-checkup-runinlinekindconformance) | Checks for a `setup` plugin's recognizer: claiming your own bytes, declining everyone else's |
 | [A menu pick across a note switch](#a-menu-pick-across-a-note-switch-checkmenupickacrossswap) | One cell for a caret menu: a pick that waits writes nothing into a note the host loaded meanwhile |
 | [The whole plugin at once](#the-whole-plugin-at-once-runpluginconformance) | Every kit over every kind your plugin declares, the check a listing runs |
 | [The check a listing runs](#the-check-a-listing-runs-aragonite-plugin-check) | The same run over your built package, from a terminal or your CI |
@@ -422,7 +422,9 @@ Two rules of thumb from that container. Ask the **grammar**, not your own spelli
 
 **`runInlineKindConformance(profile)`**
 
-The same idea one layer down: register your recognizer (the `registerInlineSyntax` call, one of possibly several asked in priority order at your trigger character), then point the kit at it and it drives the behaviors a recognizer can break without moving a byte. The profile's fields, before the cells:
+This kit checks a `setup` plugin's recognizer, the `registerInlineSyntax` call. A construct made by `inline()`, `mark()` or `markerPair()` reads only in an editor running your plugin, which the kit doesn't mount yet, so test one by mounting an editor with your plugin ([Mounting the editor under jsdom](#mounting-the-editor-under-jsdom)) and checking its bytes and what it draws.
+
+The same idea one layer down: register your recognizer (one of possibly several asked in priority order at your trigger character), then point the kit at it and it drives the behaviors a recognizer can break without moving a byte. The profile's fields, before the cells:
 
 - `trigger`: the single character you registered on.
 - `prefix`: your multi-character opener. Omit it for a bare-trigger registration.
@@ -442,7 +444,7 @@ The cells:
 | `imageClaim` | A recognizer that builds built-in nodes comes with the `rewriteImage` hook the write paths need |
 | `registration` | Your recognizer is registered the way your profile says, alone at its prefix and priority |
 
-`claims`, `roundTrip`, and `registration` always run; the other four you declare. Here's a profile for an `![[…]]` embed like the [guide's](plugin-guide/inline-kinds.md#inline-kinds), in a variant that declares its own `EMBED` kind and renders it with a Svelte component (the guide's own builds built-in images instead):
+`claims`, `roundTrip`, and `registration` always run; the other four you declare. Here's a profile for an `![[…]]` embed recognizer that declares its own `EMBED` kind and renders it with a Svelte component:
 
 ```ts
 import { runInlineKindConformance } from '@voithos-labs/aragonite/testing';
@@ -462,7 +464,7 @@ it('the embed recognizer conforms', async () => {
 });
 ```
 
-(The guide's own embed, the one that builds real built-in images, asserts `imageClaim` instead, and excuses `widget` and `editingPolicy`, since a built-in kind renders through the built-in widget.)
+(An embed recognizer that builds real built-in images asserts `imageClaim` instead, and excuses `widget` and `editingPolicy`, since a built-in kind renders through the built-in widget.)
 
 Its `detail` strings say how much each cell actually chewed through. For that profile:
 

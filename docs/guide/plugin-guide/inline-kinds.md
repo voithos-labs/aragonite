@@ -2,149 +2,199 @@
 
 Part of the [plugin guide](../plugin-guide.md). The block tier it mirrors is in [the quickstart](../plugin-guide.md#the-first-fifteen-minutes).
 
-Blocks are only half the story. An inline kind does the same three jobs as a block kind (declare it, recognize it, say how it draws), one call each:
+Syntax inside a paragraph is an inline construct your plugin lists in `contributes(...).inlines`. Three makers, all on `@voithos-labs/aragonite/plugin`:
 
-- **`declarePluginInlineKind(name)`** creates the inline kind and returns it, exactly as `declarePluginKind` does one level up; `declaredPluginInlineKind(name)` recovers it in a module that didn't create it.
-- **`registerInlineSyntax(trigger, recognizer, options?)`** hooks the inline scanner on a single **trigger** character: at each occurrence of the trigger, your recognizer claims the syntax by returning a node, or declines with `null`. The options carry the prefix and rewrite machinery this section works through.
-- **`registerInlineWidgetKind(kind, descriptor)`** says how the kind renders and edits: as a live **atomic widget**, one indivisible rendered thing the caret can sit beside but not inside, with the editing policy this section closes on.
+- **`inline()`**: your own syntax, claimed at a prefix and drawn as a widget, as a built-in image or link, or as its own bytes with a class.
+- **`mark()`**: a rich-text mark like a highlight, edited the way `**` is.
+- **`markerPair()`**: two markers around ordinary text, like a comment's anchor, which draw nothing.
 
-The three together, for a `:shortcode:` kind:
+A construct reads only in an editor running your plugin; another editor on the page sees plain text. The editor names it after your plugin (`wiki/note`), and that name is what `piece.is` takes.
+
+## A claim
+
+Every `inline()` starts with three fields:
+
+- **`prefix`**: what every claim starts with. One character the editor doesn't read itself (`#`, `{`, `%`), or two or more that start with one it does (`[[`, `![[`). A bare `[` or `*` is refused, since the editor reads those first.
+- **`match`**: a regex, matched right at the prefix, or a function `(text, at, end)` that returns where the claim ends (-1 for none).
+- **`read`**: turns the match into the claim's data. Return `null` and the bytes go back to the editor, read as if your plugin weren't there.
+
+Keep a miss short: your matcher runs at every prefix in the paragraph. A sticky `\[\[[^\]]*\]\]` reads to the end of the block on every unclosed `[[`, which goes quadratic on a long paragraph; leave `[` out of the class and each miss stops at the next prefix. Where no regex stops early enough, use the function form, whose `read` gets the claim's bytes instead of a match.
+
+Three optional fields: `after` (constructs on the same character yours is tried after), `pair` (a one-character prefix writes its twin as it's typed, the way `$` does in the math plugin), and `split` (`'whole'` by default: Enter or a paste inside a claim moves to its nearer edge; `'plain'` cuts its bytes where the caret is).
+
+## A wiki link: a widget
 
 ```ts
-const shortcode = declarePluginInlineKind('shortcode'); // 'shortcode', branded
-// A bare trigger. Once directives or the bundled emoji are on, `:` is shared with the
-// directive text tier (the default, INLINE_PRIORITIES.plugin) and emoji (plugin + 10).
-registerInlineSyntax(':', recognizeShortcode, { priority: INLINE_PRIORITIES.plugin + 20 });
-registerInlineWidgetKind(shortcode, {
-	isWidget: (node) => node.kind === shortcode,
-	view: svelteView(ShortcodeWidget),
-	editing: { deleteGranularity: 'atomic', onEdge: 'step-over' }
+import { definePlugin, inline } from '@voithos-labs/aragonite/plugin';
+import { svelteView } from '@voithos-labs/aragonite/svelte';
+import WikiLink from './WikiLink.svelte';
+
+const note = inline({
+	name: 'note',
+	label: 'Wiki link',
+	prefix: '[[',
+	match: /\[\[([^[\]\n]+)\]\]/,
+	read: ([, target]) => ({ target }),
+	sample: '[[Groceries]]',
+	widget: { delete: 'select-first', arrows: 'into', click: 'follow' },
+	draw: svelteView(WikiLink),
+	follow: ({ target }) => openNote(target)
+});
+
+export const wiki = definePlugin({
+	name: 'wiki',
+	version: '1.0.0',
+	editor: '^0.11.6',
+	contributes: () => ({ inlines: [note] })
 });
 ```
 
-The inline tier isn't the block surface in miniature, though: **no keymap, no commands of its own, and no per-node metadata** (unlike a block kind, it stores nothing on the node beyond its bytes).
+`see [[Groceries]] later` now draws `Groceries` through your component. The arrows show its bytes for editing, and the click the host picked for links runs `follow`.
+
+One overlap the editor settles for you: where a built-in link or image closes inside your claim, the link wins. `[[a]](https://x.dev)` is a link whose text is `[a]`, as GitHub reads it, however eager your `[[` is. A claim that ends first keeps its bytes.
 
 ## Rendering it as a widget
 
-The descriptor's `view` draws the widget. The editor makes a span for it (the span carries which source bytes the widget stands for, so the caret walks it as one unit) and hands that span to your view along with the props below. A view is a plain function that fills the span and says what to do later:
+`draw` fills an element the editor made for the widget. The editor marks that element with the bytes it stands for, so the caret walks it as one unit and you can't get that wrong. `svelteView(Component)` mounts a Svelte component; React and Vue have their own helpers, below. A view is also just a function, `(target, props) => ({ update?, destroy? })`, and decoration widgets and inline menu rows take the same shape.
 
-```ts
-const shortcodeView: PluginView<InlineWidgetComponentProps> = (span, { inline }) => {
-	span.textContent = glyphFor(inline);
-	return {
-		update: ({ inline }) => {
-			/* typing moved the widget: `inline` has its new offsets */
-		},
-		destroy: () => {
-			/* drop a listener, unmount a framework root */
-		}
-	};
-};
-```
-
-Both are optional. Leave out `update` and what you drew stays; leave out `destroy` if there's nothing to release. Typing next to a widget keeps its view, which is only mounted again when the widget's own source text changes, so `source` never shifts under it. Already writing Svelte? `view: svelteView(ShortcodeWidget)` (from `@voithos-labs/aragonite/svelte`) mounts the component into the span with these props live, so on `update` it re-renders only what reads a prop that changed. In React or Vue, `reactView(ShortcodeWidget)` and `vueView(ShortcodeWidget)` do the same from your component ([React and Vue](react-and-vue.md#widgets-decorations-and-menu-rows)). Decoration widgets and inline menu rows take this same shape, so you learn it once.
-
-Beside `{ inline, source }`, a view gets these props, every one of them always passed. A test that mounts your widget by hand passes its own (a fixed mode, a stub `navigateTo`), and the types won't let it forget one.
+The props, `WidgetProps<D>`:
 
 | Prop | What it's for |
 | --- | --- |
-| `getPresentationMode`, `getTheme` | The effective presentation mode and the theme name. Getters, like the next two, because an instance outlives a mode switch and edits elsewhere, and a captured value would go stale |
-| `getDocument` | The read-only root document |
-| `getContentVersion` | A number that changes whenever the document's bytes change, and is stable otherwise |
-| `navigateTo(path, offset?)` | The editor's jump route: it reveals that block, scrolls it into view, and lands the caret in it (at a raw offset, if you pass one). A container path lands at the start of its first line (a quote's first paragraph, a list's first item), and a closed `<details>` on the way gets opened. For a widget that points somewhere else, the way a footnote reference points at its definition. Reading mode has no caret, so there it focuses the widget whose source ends at the offset, if that widget has a tab stop (it's how the jump back lands on a footnote reference), and the block otherwise. It resolves false when there's nowhere to land |
-| `computeInlineContent` | The same parse `EditorContext.computeInlineContent` gives a plugin. Walk inline nodes through it and syntax the editor left out comes back as plain text |
-| `isActivationClick(e)` | Whether a click is your widget's to act on. Pass it the click event; it says no unless your policy claims the activation click, and then answers with the host's link gesture in the current mode (the last habit below has the how) |
+| `data` | What your `read` returned |
+| `source` | The claim's bytes |
+| `from`, `to` | Its bytes in the document, read when you ask, so they're right after edits above it |
+| `mode`, `theme` | The presentation mode and the theme name; the drawing gets an update when either changes |
+| `editor` | The editor, for anything else, like `editor.edit()` |
 
-Three habits for those props:
+A drawing gets an update when its bytes, its place, the mode or the theme change. A changed `source` mounts a fresh one.
 
-- **Key a cache on `computeInlineContent` too.** Editing a link reference definition (a line like `[r]: /x`) can change how a block parses without touching that block's bytes, and the editor hands you a new function whenever the definitions change. The bundled footnotes plugin does exactly this, since `[t [^x]][q]` hides its footnote until `[q]` gets a definition (brackets are fun like that).
-- **Memoize a whole-document read on the content version.** Read the version inside the same `$derived` and use it as your memo key. The document itself isn't a usable key: the editor mutates it in place, so its identity never changes, and an identity-keyed memo hits forever on a stale answer. Reading the version inside the derived is also what subscribes your widget to edits anywhere.
-- **Act on a click only when `isActivationClick` says so.** If your `revealSource` widget goes somewhere on a click (jumps to a definition, opens a note), set `claimsActivationClick` in its editing policy and ask the prop in your handler: `if (isActivationClick(e)) openNote()`. Which click that is belongs to the host, not to you: Ctrl/Cmd-click by default, any click in live mode if the host set `linkClick: 'plain'`, any click at all in reading mode. The editor skips showing the source for exactly the clicks the prop says yes to, so your widget isn't swapped for its bytes under a click meant to navigate. To edit it, a user arrows in, presses `Mod+K` beside it, or picks "Edit link" from its right-click menu, and each of those shows the source.
+**Lay it out inline.** `inline-block` for a box. A block-level `display` leaves no line beside it, so a letter typed next to it lands on the line below. A box taller than the text (a card, a chart) sets `height: 'tall'`, and the editor draws the caret beside it at the text's height.
 
-**Your widget sits in its line.** Lay it out inline: `inline-block` for a box. A block-level `display` leaves no line beside it, so a letter typed next to it lands on the line below and some input methods can't compose there at all; a dev build warns as soon as the editor puts a caret beside one. If your widget is a box taller than the text beside it (a chart, a card, anything the way a picture is), set `frame: true` on the registration. The browser paints its own caret the whole line box tall beside a box like that, so with `frame` the editor draws the caret at the text's height instead, where the next letter actually goes.
+**A throw costs only the widget.** A throw while it mounts, updates or goes away is caught: the claim shows its bytes and the `error` event gets one report. A runtime error after that is yours, so draw bad input as an error instead of throwing.
 
-**Errors in a widget are half yours.** A throw while your view mounts, updates or gets destroyed is caught (the widget falls back to its raw source and an `error` event fires), but nothing catches a runtime error after that, a Svelte component's own re-render included. Render a legible error for bad input instead of throwing (the KaTeX widget shows the formula's source in red, with the parser's message on hover). A renderer slot catches a throw and hands it to your `failed`, and `renderSourceFallback(source, message)` gets you most of that view: the source in the code font and the message on hover, with the red left to you.
+### In React and Vue
 
-## Choosing a trigger
+A chip for every `{{name}}`, drawn by a React component:
 
-**A bare trigger must be a character no built-in scanner claims.** Registering a bare recognizer on a reserved trigger (`` ` ``, `&`, `<`, `*`, `_`, `~`, `[`, `]`, `!`, `\`, or newline) throws, since built-in dispatch runs first and a bare recognizer there would never fire. The trigger is one character; anything longer throws too.
+```tsx
+import { inline, type WidgetProps } from '@voithos-labs/aragonite/plugin';
+import { reactView } from '@voithos-labs/aragonite-react';
 
-**Several recognizers can share one trigger**, as long as each sits at its own priority or prefix (the same trigger, prefix and priority twice throws). The bundled **emoji** plugin (`@voithos-labs/aragonite-emoji`) is the bare-trigger recipe end to end: `:shortcode:` recognizes on the bare `:` trigger at `INLINE_PRIORITIES.plugin + 10`, next to the directive text tier's `:` at the default, draws its glyph with a plain DOM view, and carries the `{ deleteGranularity: 'atomic', onEdge: 'step-over' }` edge policy so Backspace removes the whole `:name:` in one press and an arrow steps over it. A name it doesn't know declines and falls through to the next recognizer.
+function Chip({ data }: WidgetProps<{ name: string }>) {
+	return <span className="chip">{data.name}</span>;
+}
 
-**A symmetric delimiter can close itself as it is typed.** Pass `autoPair: true` on a bare trigger whose construct opens and closes on the same byte, the way the bundled latex plugin does for `$…$`: typing the trigger lands its twin after the caret, typing it again over that twin steps past it, and a first body byte that leaves the pair no construct (`$5` is a price) drops the twin again. The one place it doesn't pair is where the pair would make a line that opens a block (a `$` on an empty line would make `$$`), so there the trigger types alone. Without it a lone `$` typed ahead of an existing formula pairs with that formula's closer and wraps the prose between them. The built-in backtick, `*`, `_` and `~~` behave this way without registration. (`autoPair` with a `prefix` throws; it's for bare triggers.)
-
-**To claim syntax that begins on a reserved trigger, register a prefix handler.** A **prefix** handler is only asked where its multi-character prefix matches at the cursor. A GFM (GitHub Flavored Markdown) `[^label]` footnote reference starts on `[`, which the link scanner owns. Pass a `prefix` of two or more characters that begins with the trigger, and a `priority` below `INLINE_PRIORITIES.builtin`, the inline mirror of an opener pricing below a built-in (the order is `{ prefixOverride: 40, builtin: 50, plugin: 100 }`, and a reserved-trigger handler at or above `builtin` throws):
-
-```ts
-registerInlineSyntax('[', recognizeFootnote, {
-	prefix: '[^',
-	priority: INLINE_PRIORITIES.prefixOverride
+const chip = inline({
+	name: 'chip',
+	label: 'Chip',
+	prefix: '{{',
+	match: /\{\{(\w+)\}\}/,
+	read: ([, name]) => ({ name }),
+	sample: 'a {{pebble}} chip',
+	widget: { delete: 'whole', arrows: 'over', click: 'none' },
+	draw: reactView(Chip)
 });
 ```
 
-The scanner asks your handler ahead of the built-in `[` case, but only when `[^` matches at the cursor, so a plain `[` that opens a link is untouched. Your recognizer claims `[^label]` by returning a node, or declines with `null`, and a `[^` that never closes should decline so the built-in link reading gets it back. One claim the editor declines for you: where the bracket your claim starts on closes as a link inside it, as `[^1](https://x.dev)` and `[^1][ref]` do, the link stands, as GitHub reads them. Handlers on one trigger are asked by priority ascending, then longer prefixes first, then lexicographic, never by registration order. Reach for a replace decoration ([Decorations](decorations.md#decorations)) only to annotate bytes you do **not** own; syntax that's genuinely your kind's belongs in a prefix handler.
-
-The bundled **footnotes** plugin (`@voithos-labs/aragonite-footnotes`) is this recipe end to end and the worked reference to read against your own inline kind: `[^label]` recognizes through a `[^` prefix handler at `INLINE_PRIORITIES.prefixOverride`, renders as a superscript widget whose number comes from a walk of the whole document (memoized on the content version, the habit above), reveals its source to edit, and jumps to its definition on the activation click.
-
-**`!` takes a prefix handler; `]` doesn't.** A prefix handler on `!` is what lets an Obsidian-style `![[embed]]` be a real inline kind. A prefix handler on `]` throws.
-
-A handler on `!` is asked ahead of the built-in `!` case, so it outranks the image grammar wherever its prefix matches. The two grammars do overlap: an image whose alt text opens with `[` starts on `![[` as well, so `![[a.png]]` carrying a parenthesized destination after it is a built-in image with the alt text `[a.png]`, not an embed. **The editor decides that overlap, not your recognizer.** A claim on `[` or `![` gives way wherever the built-in reading of that bracket closes it as a link or an image before your claim ends, so the image keeps its bytes however eager your `![[` recognizer is. A claim that ends first keeps its bytes: a bare `[^` claim over `[^x](https://x.dev)` stays yours.
-
-## Keeping a decline cheap
-
-**Bound the decline, not just the claim.** Your recognizer is asked at every occurrence of its trigger, so a decline that searches to the end of the block costs one block scan per trigger, which goes quadratic on a large paragraph, and the trigger is often ordinary prose (`$HOME $PATH …` for `$`). Stop at the first character your grammar can't contain, the way the emoji recognizer stops at the first non-shortcode byte. Where the grammar has no such character, index the candidate positions once per block with `createScanIndex` (hand it your position collector, get back a "first candidate at or after this offset" lookup), the way the bundled math recognizer indexes every `$` and the footnote one its closers:
-
-```ts
-const dollarAt = createScanIndex((raw) => {
-	const hits: number[] = [];
-	for (let i = 0; i < raw.length; i++) if (raw[i] === '$') hits.push(i);
-	return Int32Array.from(hits);
-});
-dollarAt('pay $HOME $5 for $x$', 5); // 10, the first candidate at or after offset 5
-dollarAt('pay $HOME $5 for $x$', 20); // -1, none left
-```
-
-## Building a built-in node
-
-**If your handler builds a built-in kind's node, it owns writing those bytes back.** A handler may return a node of a kind the editor already has, say an `![[cat.png|300]]` that is a real `image`, so the widget renders it, the caret addresses it, and the resize handles appear. The catch is writing: when an edit (a resize, say) rewrites the node, the editor writes an image the only way it knows, so `![[cat.png|300]]` comes back as a GFM image (bracketed alt, parenthesized destination) and your syntax is gone. Supply a `rewriteImage` hook and the edit comes back to you instead:
-
-```ts
-registerInlineSyntax('!', recognizeEmbed, {
-	prefix: '![[',
-	priority: INLINE_PRIORITIES.prefixOverride,
-	rewriteImage: (source, fields) => {
-		if (!source.startsWith('![[')) return null; // bytes this handler did not shape
-		// Decline what this grammar cannot store rather than dropping it silently: it
-		// holds a target and an optional width and nothing else. The alt line is THIS
-		// recognizer's version of that rule: it fills alt and url from the one target,
-		// so an alt that no longer matches is an edit with no form here. Write yours
-		// against however your own recognizer fills the node.
-		if (fields.title !== undefined || fields.label !== undefined) return null;
-		if (fields.height !== undefined || fields.crop !== undefined) return null;
-		if (fields.alt !== fields.url) return null;
-		return `![[${fields.url}${fields.width !== undefined ? `|${fields.width}` : ''}]]`;
-	}
-});
-```
-
-`source` is the node's current bytes; return their replacement in your grammar. Return **`null` when the edit has no form in your syntax** (an embed has nowhere to put a title) and the editor declines the edit rather than writing something you didn't author. **A handler with no hook declines every such edit**, which is the safe default: the affordance visibly does nothing, and a dev build logs which handler declined and why.
-
-Three edges the snippet above is shaped by, and each one bites if you drop it:
-
-- **Read every field, or decline it.** A hook that ignores a field the user edited returns the same bytes, and an edit that changes nothing is dropped **silently, with no dev warning**. The Alt row of the editor's image-properties popover then simply does nothing, and so does an unlocked resize (it writes `height`) or a crop. Decline instead, and the dev build at least tells you.
-- **Guard every optional field you interpolate.** `fields.width` is absent on an embed that never carried one, and an unguarded template writes the literal `|undefined` into the document.
-- **Bound the hook to bytes you shaped.** The claim reaches _descendants_ of the node your recognizer returned, so a handler that returns its own kind wrapping a built-in `image` gets called with the **inner** node's slice, not the whole construct. Checking `source` before rewriting is what keeps that from nesting your syntax inside itself.
+In Vue it's `draw: vueView(Chip)`, with a single-file component that declares `defineProps<WidgetProps<{ name: string }>>()`. `vueView` hands it only the props it declares. Both helpers come from the React and Vue packages ([React and Vue](react-and-vue.md#widgets-decorations-and-menu-rows)).
 
 ## The editing policy
 
-The policy on your widget registration says how the caret and the delete keys treat it. Its fields, all optional:
+`widget` says how the caret and the delete keys treat it:
 
 | Field | What it decides |
 | --- | --- |
-| `revealSource` | Open the source (the `$…$` bytes) for editing on caret entry; inline math's model. It also opens when an edit leaves the caret inside the widget, like a `#` typed in front of `tag`. Without it, that caret lands past the widget |
-| `revealContentSpan` | Where the editable content sits inside the source (`$x$` answers `{ start: 1, end: 2 }`), so a caret entering the source stays between the delimiters; absent, a click lands at the leading edge and an edit's caret can sit anywhere in the source |
-| `revealOffsetAtPoint` | Which source offset a press on the rendered widget names, so a click puts the caret where it landed; inline math walks its KaTeX glyphs for this, and `null` falls back to the content span's end |
-| `onSelectedKey` | A handler for keys while the widget is selected; return `true` to take the key, and the editor prevents its default. It only sees keys, so text a soft keyboard sends with no key replaces the widget. Image resize rides it |
-| `onEdge` | `'select' \| 'step-over'`: an edge press selects the whole widget (the editor tints it with the selection color, so you don't draw a selected look), or steps transparently over it; `'step-over'` also makes a press on the widget put the caret at the edge it landed by, where `'select'` leaves the widget its own click; and Up or Down onto a block holding only a step-over widget puts the caret beside it, one press in and one out |
-| `deleteGranularity` | `'atomic' \| 'select-then-delete'`: one press deletes the whole widget, or the first press selects and the second deletes |
-| `claimsActivationClick` | Your widget goes somewhere on a click, the way a link does, so the click the host picked for links (its `linkClick` prop) is your view's and opens no source; the footnote jump's model |
+| `delete` | `'whole'`: one press deletes it. `'select-first'`: the first press selects it, the second deletes |
+| `arrows` | `'over'`: an arrow steps over it like a character. `'select'`: an arrow selects it whole. `'into'`: an arrow shows its bytes for editing |
+| `click` | `'source'`: a click shows its bytes. `'follow'`: the host's link click runs your `follow` (the two go together). `'none'`: a click puts the caret beside it |
+| `height` | `'tall'` for a box taller than its line |
+| `inner(source)` | Where the caret may sit in the shown bytes: `$x$` answers `{ start: 1, end: 2 }` |
+| `caret(el, point)` | The offset into the bytes a click on your drawing names, for a drawing only you can map |
+
+With `click: 'follow'`, another click shows the bytes if `arrows` is `'into'`, and puts the caret beside the widget otherwise. Which click follows is the host's call: Ctrl or Cmd-click by default, any click in live mode under `linkClick: 'plain'`, any click in reading mode.
+
+A widget that should take keys while it's selected (a resize, say) adds `key(event, props)`: return `true` to take the key, and write through `props.editor.edit()`.
+
+## A hashtag: styled text
+
+Not everything needs a component. The `class` arm draws a claim as its own bytes in a span with your class, and the caret edits it like text:
+
+```ts
+const tag = inline({
+	name: 'tag',
+	label: 'Tag',
+	prefix: '#',
+	match: /#[\p{L}\p{N}_/-]+/u,
+	read: () => ({}),
+	sample: 'filed under #work',
+	class: 'tag'
+});
+```
+
+## Your syntax, a built-in image or link
+
+`as: 'image'` and `as: 'link'` read your bytes as a real image or link, so the resize handles, the link card and Mod+K all work. Since the editor writes a GFM image or link back, an edit comes back to your `write` instead, to put in your syntax:
+
+```ts
+const embed = inline({
+	name: 'embed',
+	label: 'Embed',
+	prefix: '![[',
+	match: /!\[\[([^[\]|\n]+)(?:\|(\d+))?\]\]/,
+	read: ([, src, width]) => ({ src, width: width ? Number(width) : null }),
+	sample: '![[cat.png|300]]',
+	as: 'image',
+	image: ({ src, width }) => ({ src, alt: src, title: null, width, height: null }),
+	write: (image) =>
+		image.title === null && image.height === null && image.alt === image.src
+			? `![[${image.src}${image.width === null ? '' : `|${image.width}`}]]`
+			: null
+});
+```
+
+Return `null` for an edit your syntax can't hold (here a title, a height, or alt text that isn't the file name), and the editor refuses the edit instead of writing something you didn't author. Read every field the edit can set, or refuse it: a field you ignore writes the same bytes, and that edit just does nothing. With no `write`, every edit is refused. A link's `text` must be a run of your bytes: it's what the caret edits, while the rest hides in live mode.
+
+## A highlight: `mark()`
+
+```ts
+import { mark } from '@voithos-labs/aragonite/plugin';
+
+const highlight = mark({
+	name: 'highlight',
+	label: 'Highlight',
+	marker: '==',
+	chord: 'Mod+Shift+h',
+	tag: 'mark',
+	class: 'highlight',
+	sample: 'a ==bright== word'
+});
+```
+
+`==bright==` draws `bright` in a `<mark class="highlight">`. It edits as `**` does: its runs hide in live mode, a letter typed at its end joins it, Enter inside closes it and reopens it, and typing `==` pairs. A run of another length stays text, as `~~~` does. The marker is one character, once or twice, that the editor doesn't read itself.
+
+The `chord` is required, because where the runs hide it's the only way out of the mark at its edge. It runs `highlight.toggle`, a command like any other, so a host rebinds it by its id (`your-plugin/toggle-highlight`). Two marks written at one place nest by `after`, which names the mark yours sits inside.
+
+## A comment anchor: `markerPair()`
+
+```ts
+import { markerPair } from '@voithos-labs/aragonite/plugin';
+
+const anchor = markerPair({
+	name: 'anchor',
+	label: 'Comment anchor',
+	open: { prefix: '{>>', match: /\{>>([\w-]+)\}/, read: ([, id]) => ({ id }) },
+	close: { prefix: '{<<', match: /\{<<([\w-]+)\}/, read: ([, id]) => ({ id }) },
+	sample: 'a {>>c1}noted{<<c1} word'
+});
+```
+
+Each side is its own construct, claimed wherever it stands, in one block or in two. The editor never pairs them: find the sides with `piece.is(anchor.open)` and `piece.is(anchor.close)`, and match them up by their bytes (`piece.text` holds the id). A side with no partner is still a side.
+
+A side draws nothing in live mode and its bytes in source mode; in preview-inline it shows once the caret is beside it. A letter typed at a side joins its pair's text, so `a noted word` with the caret before `noted` types inside the anchor, and so does the end of `noted`. Emptying the text keeps both sides, and the next letter lands between them. Backspace beside a side takes the character you see, never the side.
+
+`text` changes which side of each marker a letter typed at it joins. The default is `{ open: 'after', close: 'before' }`, the text between them; `{ open: 'before', close: 'after' }` makes an anchor that never grows at its ends.
+
+## The `setup` registrars
+
+`registerInlineSyntax`, `registerInlineWidgetKind` and `declarePluginInlineKind` still work on a `setup` plugin, and they're on their way out. New syntax belongs in the makers above.

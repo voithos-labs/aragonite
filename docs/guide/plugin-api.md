@@ -80,10 +80,10 @@ _(pre-freeze / unstable)_ The installable package, and the per-editor context it
 | `mark` | A rich-text mark, like a highlight: a run of one character on each side (`==`) that pairs like `~~`, edits like `**` in live mode (hidden runs, letters at its end join it, Enter closes and reopens it) and draws its text in `tag` with `class`. List it in `contributes(...).inlines` |
 | `MarkSpec` | What `mark` takes: `name`, `label`, `marker`, `chord` (required: where its runs are hidden, it's the only way out of the mark at its edge), `after` (the mark it nests inside), `tag`, `class` and `sample` |
 | `Mark` | A mark as you list it, with `toggle`, the command its chord runs. A host rebinds the chord by that command's id (`plugin/toggle-name`), and `editor.claims` answers for it |
-| `markerPair` | Two markers around ordinary text, in one block or in two, like a comment's anchor. Each side is claimed by its own matcher and draws nothing in live mode; you match the sides up by what they read. A letter typed at a side joins its pair's text. List it in `contributes(...).inlines` |
+| `markerPair` | Two markers around ordinary text, in one block or in two, like a comment's anchor. Each side is claimed by its own matcher and draws nothing in live mode; you match the sides up by their bytes. A letter typed at a side joins its pair's text. List it in `contributes(...).inlines` |
 | `MarkerPairSpec` | What `markerPair` takes: `name`, `label`, `open` and `close` (each a `prefix` and a matcher), `sample`, and `text`, the side of each marker a letter typed at it joins (by default the text between them) |
 | `MarkerPair` | A marker pair as you list it: `open` and `close`, each an `Inline` that `piece.is` takes, named `plugin/name-open` and `plugin/name-close` |
-| `MarkerSide`, `MarkerData` | One side as `open` and `close` take it, and the data its `read` returns: the strings your plugin pairs the sides by |
+| `MarkerSide`, `MarkerData` | One side as `open` and `close` take it, and what its `read` returns from a side's bytes |
 | `ImagePiece`, `LinkPiece` | What an `as` arm's `image(data)` or `link(data)` returns, and what its `write` gets back after a resize or a link card edit. Without `write` those edits are refused. A link's `text` is a run of its bytes |
 | `ContainerSpec` | What `container` takes: `lines`, plus `joins` (default true: text joined to its end from below lands in its deepest text block), `merges` (the data field a pasted one must share with the one it lands in to join it, rather than nest) and `draw` |
 | `ContainerLines` | The line shapes a `container` takes: a `marked` one (a marker on every line, with a `head` line or not) or an `indented` one, the same shapes as [`LineShape`](#lineshape-markedlines-indentedlines). An indented container shows its marker ahead of its first child's text, read-only |
@@ -791,7 +791,7 @@ _(pre-freeze / unstable)_ What an inline widget, a decoration's widget or badge,
 
 ### Inline authoring
 
-_(pre-freeze / unstable)_ Syntax inside a paragraph: recognize it at a trigger character, render it as an **atomic widget** (one indivisible rendered thing the caret can sit beside but not inside), give it an editing policy. Several recognizers can share one trigger character; the editor asks them in priority order, and a **prefix handler** is one that's only asked where its multi-character prefix matches. The render paths and the tier's limits: [Inline kinds](plugin-guide/inline-kinds.md#inline-kinds). A plugin value lists an `inline` construct instead ([The plugin unit](#the-plugin-unit)); the registrars here are a `setup` plugin's.
+_(pre-freeze / unstable)_ A `setup` plugin's registrars for syntax inside a paragraph, on their way out: a recognizer at a trigger character, asked in priority order (a **prefix handler** only where its multi-character prefix matches), drawn as an **atomic widget** with an editing policy. New syntax is a plugin value's `inline`, `mark` or `markerPair` instead ([The plugin unit](#the-plugin-unit), [Inline kinds](plugin-guide/inline-kinds.md#inline-kinds)).
 
 | Export | Role |
 | --- | --- |
@@ -850,8 +850,6 @@ The policy, the descriptor's `editing` field. Every field is optional:
 - `onEdge`, the edge behavior: `'select'` or `'step-over'`;
 - `onSelectedKey`, a selected-key handler, which receives an `InlineWidgetEditingContext`;
 - `claimsActivationClick`, whether the widget goes somewhere on a click the way a link does.
-
-The policy field by field: [The editing policy](plugin-guide/inline-kinds.md#the-editing-policy).
 
 ### Commands and keybindings
 
