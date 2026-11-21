@@ -185,13 +185,18 @@ const anchor = markerPair({
 	label: 'Comment anchor',
 	open: { prefix: '{>>', match: /\{>>([\w-]+)\}/, read: ([, id]) => ({ id }) },
 	close: { prefix: '{<<', match: /\{<<([\w-]+)\}/, read: ([, id]) => ({ id }) },
+	key: ({ id }) => id,
 	sample: 'a {>>c1}noted{<<c1} word'
 });
 ```
 
-Each side is its own construct, claimed wherever it stands, in one block or in two. The editor never pairs them: find the sides with `piece.is(anchor.open)` and `piece.is(anchor.close)`, and match them up by their bytes (`piece.text` holds the id). A side with no partner is still a side.
+Each side is its own construct, claimed wherever it stands, in one block or in two. Pairing them is yours: find the sides with `piece.is(anchor.open)` and `piece.is(anchor.close)`, and match them up by their bytes (`piece.text` holds the id). A side with no partner is still a side.
 
-A side draws nothing in live mode and its bytes in source mode; in preview-inline it shows once the caret is beside it. A letter typed at a side joins its pair's text, so `a noted word` with the caret before `noted` types inside the anchor, and so does the end of `noted`. Emptying the text keeps both sides, and the next letter lands between them. Backspace beside a side takes the character you see, never the side.
+A side draws nothing in live mode and its bytes in source mode; in preview-inline it shows once the caret is beside it. A letter typed at a side joins its pair's text, so `a noted word` with the caret before `noted` types inside the anchor, and so does the end of `noted`. Backspace beside a side takes the character you see, never the side. Emptying the text keeps both sides, whether it goes key by key, by a word delete or as a selection, and the next letter lands between them.
+
+The editor pairs the sides for one thing, a removal in live mode. A selection or a word delete that crosses one side puts that side back where the cut ends, so the anchor shrinks to the text that's left. One that crosses both takes the anchor. A copy or a cut carries an anchor only with both its sides, and a paragraph cut whole takes the anchor it wraps along. `key` says which sides belong together, so overlapping anchors keep their own; without it the editor pairs by nesting order, which gets `{>>a}x{>>b}y{<<a}z{<<b}` wrong. Source mode takes the bytes selected.
+
+That pairing reaches one paragraph, or the two a selection joins. So an anchor over two paragraphs loses an end when a removal inside one of them crosses that end, or takes that paragraph whole. Expect a lone side now and then, and clear or repair it in your plugin.
 
 `text` changes which side of each marker a letter typed at it joins. The default is `{ open: 'after', close: 'before' }`, the text between them; `{ open: 'before', close: 'after' }` makes an anchor that never grows at its ends.
 

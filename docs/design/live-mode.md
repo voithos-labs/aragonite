@@ -93,7 +93,7 @@ Two things stay outside the table on purpose, and a lint records both with their
 
 Two prohibitions, and every rule below applies them:
 
-- **No invisible residue.** A delimiter pair enclosing nothing paints as nothing, so live never writes one, and removes one wherever an edit would create it. A plugin's marker pair is the exception: its sides are two constructs only the plugin pairs, so emptying the text between them keeps both (§ 4.2).
+- **No invisible residue.** A delimiter pair enclosing nothing paints as nothing, so live never writes one, and removes one wherever an edit would create it. A plugin's marker pair is the exception: emptying the text between its sides keeps both, and a removal that takes one side and keeps the other puts it back (§ 4.5).
 - **No unverified drop.** Bytes leave the document only when the painter confirms the reader never saw them (§ 2).
 
 A document can already hold such residue when it loads: a `#` typed before its heading has a word, a fence before its first body line, a loaded `[](url)`. There the prohibition falls on the paint rather than the bytes. Chrome may hide only while it stands over content, so a construct with none shows its markers dimmed, exactly as source mode shows them.
@@ -294,6 +294,7 @@ Every destructive join crosses one call, `cleanJoinedRaw` in `tree-operations/le
 
 - closes a format run the cut went through on the half before the cut, and reopens it on the half after, the same close-and-reopen Enter does (`core/inline/live-edit/close-reopen.ts`). A half that keeps none of the run's text takes none of its delimiters, since live never writes a pair around nothing;
 - drops the closer/opener chain a join brings back to back around nothing, which is the split's inverse. Matching runs from the outside in stay one run, so cutting the middle out of one bold word leaves one bold word;
+- puts back a plugin's marker side the cut took when it kept the side's partner, so the half you kept keeps its pair (Marker pairs, below);
 - drops a survivor that's only whitespace, which would reparse as a blank line.
 
 ```ts
@@ -355,6 +356,14 @@ Links:
 
 - A link's text types the way Google Docs does it (Daniel checked, so this one's his ruling). A selection inside the text that touches neither end, typed over, stays linked, since the cut keeps link text on both sides. One touching either end gives text that isn't linked: replace all of it and the link goes, replace part of it and the rest keeps its destination. With `see [here](u) now`, typing `X` over `he` writes `see X[re](u) now`.
 - A reference whose label is its own text (`[foo]`, `[foo][]`) would lose its definition the moment its text changed, so any live edit of that text spells it in full first: `[foo]` typed into gives `[foZo][foo]`, and the definition stays as written. A keystroke at a caret doesn't come through here, so the block's text write does the same for it (`core/inline/link-source-bytes.ts` :: `spellReferenceLabels`).
+
+Marker pairs (a plugin's `markerPair()`, two hidden sides around ordinary text):
+
+- A cut that takes one side and keeps its partner writes the side back where the cut began: delete `xt{<<c} ` from `a {>>c}text{<<c} z` and you get `a {>>c}te{<<c}z`. A cut that takes both sides takes the pair. Sides pair by the pair's `key`, else by nesting order, and nowhere but here (G4.366 in `invariants/scans.md`).
+- A side at the cut's own screen position was never taken, whichever side of its hidden bytes the selection's end fell (§ 4.2), so deleting exactly `text` leaves `{>>c}{<<c}`, and a letter typed over a range lands where one typed at the side would. A range that takes a block's whole text is the exception (a triple click then a cut, a range across two blocks that starts at one's first byte): it takes the sides at its edges, the way it takes a bold around all of it.
+- A copy or a cut carries a pair only with both its sides. A side whose partner stays behind stays too, so a cut inside one block, pasted back, never leaves two of one side.
+- Only a removal writes a side. Text that lands with runs of its own (a paste of bold text) moves bytes aside and puts them back, which is why a join says whether its bytes leave the document (`JoinSeam.removes`).
+- The limits: the cleanup sees one block, or the two a range joins, and what a range carries off is read a block at a time. A side whose partner is in neither block goes with the cut, so a word delete across one end of a pair spanning two blocks strands the other end, and a cut across both carries a side the join put back. Where no reading verifies, the literal join stands and takes the side.
 
 ### 4.6 The link card
 
