@@ -286,6 +286,8 @@ class VersionDoc implements Doc {
 		this.eol = documentLineEnding(doc);
 		this.#prefix = doc.prefix;
 		this.#suffix = doc.suffix;
+		// Frozen, as a block is: a proxy over a `Doc` can't read its private fields.
+		Object.freeze(this);
 	}
 
 	get unread(): boolean {
