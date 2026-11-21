@@ -2,10 +2,12 @@
  * The chords the containers holding a key take, run from the keydown of the block the key is in as
  * its last step rather than from each container's element, so no container's handler, or lack of
  * one, or a plugin's `stopPropagation` decides whether a container chord runs. One attempt per key.
+ * Over a selection across blocks, a key none of them takes runs the command a covered block's type
+ * binds it to.
  */
 
 import type { BlockComponent } from '../block-component';
-import type { Document } from '../core/nodes';
+import type { AnyBlockKind, Document } from '../core/nodes';
 import { recordContainerChordWalk } from '../perf/instruments';
 import {
 	dispatchKindCommand,
@@ -13,8 +15,10 @@ import {
 	type CommandDispatchContext,
 	type KindCommandTarget
 } from '../schema/block-commands';
-import { containerMayBind } from '../schema/commands';
+import { containerMayBind, resolveKindBinding } from '../schema/commands';
+import type { ContributedCommand } from '../schema/editor-contributions';
 import { eventToChord } from '../schema/keybindings';
+import { isReadingMode } from '../presentation-mode';
 import { rangeOwnsKey } from '../selection/cross-block/keydown';
 import type { SelectionState } from '../selection/selection-state.svelte';
 
@@ -57,6 +61,20 @@ export function createContainerChords(deps: ContainerChordDeps): ContainerChords
 		return rangeOwns ? null : chord;
 	}
 
+	/** Over a selection across blocks, the command some block type binds `chord` to in its own
+	 *  blocks, which runs on each such block the selection covers wherever the key landed. */
+	function coveredCommand(chord: string): ContributedCommand | undefined {
+		const { activation, keybindingOverrides, getPresentationMode } = deps.commands;
+		const { ownsRange, rangeInOneBlock } = deps.selection;
+		if (!ownsRange || rangeInOneBlock || isReadingMode(getPresentationMode)) return undefined;
+		const overrides = keybindingOverrides();
+		const binds = (kind: string, id: string) =>
+			resolveKindBinding(chord, kind as AnyBlockKind, overrides)?.command === id;
+		return activation.contributions?.commands.find((entry) =>
+			[...entry.placedBy].some((kind) => binds(kind, entry.id))
+		);
+	}
+
 	return {
 		take(e, from) {
 			if (e.defaultPrevented || attempted.has(e)) return false;
@@ -69,7 +87,11 @@ export function createContainerChords(deps: ContainerChordDeps): ContainerChords
 					return true;
 				}
 			}
-			return false;
+			const covered = coveredCommand(chord);
+			if (!covered || !deps.commands.activation.contributions!.run(covered, undefined))
+				return false;
+			e.preventDefault();
+			return true;
 		},
 		takes(e, from) {
 			const chord = containerChordOf(e);
@@ -77,7 +99,8 @@ export function createContainerChords(deps: ContainerChordDeps): ContainerChords
 			for (const target of targetsAround(chord, from)) {
 				if (kindChordRuns(chord, target, deps.commands)) return true;
 			}
-			return false;
+			const covered = coveredCommand(chord);
+			return !!covered && deps.commands.activation.contributions!.can(covered, undefined);
 		},
 		mayTake: (e) => !e.defaultPrevented && !attempted.has(e) && containerChordOf(e) !== null
 	};

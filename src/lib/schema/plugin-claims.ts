@@ -12,8 +12,8 @@ export interface PluginClaims {
 	readonly colons?: readonly string[];
 	readonly prefixes?: readonly string[];
 	readonly chords?: readonly string[];
-	/** Keys the plugin's block types take in themselves: refused as a chord is, though two plugins'
-	 *  types may share one. */
+	/** Keys the plugin's block types take in themselves: refused as a chord is, and contested with
+	 *  another plugin's chord, though two plugins' types may share one. */
 	readonly blockKeys?: readonly string[];
 }
 
@@ -73,11 +73,16 @@ function problemWith({ label, raw, key, defect }: Claim): string | null {
 	return null;
 }
 
-// Each block type takes its own keys in itself, so two plugins' types never contest one.
 function sharedClaim(later: { list: Claim[] }, first: { list: Claim[] }): string | null {
-	const shared = later.list.find(
-		(c) =>
-			c.label !== 'the block key' && first.list.some((o) => o.label === c.label && o.key === c.key)
+	const shared = later.list.find((c) =>
+		first.list.some((o) => o.key === c.key && contested(c.label, o.label))
 	);
 	return shared ? `shares ${shared.label} "${shared.raw}" with` : null;
+}
+
+// Each block type takes its own keys in itself, so two plugins' types never contest one; a type's
+// key and a command's chord are one key inside that type's blocks.
+function contested(a: Claim['label'], b: Claim['label']): boolean {
+	if (a === b) return a !== 'the block key';
+	return [a, b].every((label) => label === 'the chord' || label === 'the block key');
 }

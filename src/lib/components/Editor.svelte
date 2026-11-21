@@ -153,7 +153,7 @@
 		type PluginsProp
 	} from '../schema/plugin-install';
 	import { createEditorActivation } from '../schema/plugin-activation';
-	import { createEditorContributions } from '../schema/editor-contributions';
+	import { createEditorContributions, type PlacingBlocks } from '../schema/editor-contributions';
 	import type { Command } from '../schema/plugin-command';
 	import type { CaretMenu } from '../schema/caret-menu';
 	import {
@@ -277,14 +277,6 @@
 		editorFor: (plugin) => pluginContexts.scoped(plugin),
 		report: reportPluginError,
 		blocksAround: (kinds) => placingBlocks(kinds),
-		// The selection the step opened over comes back once its writes land, as Mod+B's does.
-		undoStep: (run) => {
-			const held = getSelection();
-			const { path, offset } = held?.focus ?? { path: [0], offset: 0 };
-			void controller
-				.undoStep({ path: docPathFrom(path), offset }, async () => run())
-				.then(() => held && caretLanding.restore(held));
-		},
 		blockOf: (node) => documentRead.blockOf(node),
 		clipboardBlocks: (clip) => {
 			const of = measured(clip);
@@ -1533,17 +1525,17 @@
 
 	/** The blocks a block type's command runs on with none given: the nearest around the caret whose
 	 *  type is one of `kinds`, or over a selection across blocks each covered one's outermost. */
-	function placingBlocks(kinds: ReadonlySet<string>): Block[] {
+	function placingBlocks(kinds: ReadonlySet<string>): PlacingBlocks {
 		const selection = getSelection();
 		const focus = selection?.focus.path ?? [];
 		const anchor = selection?.anchor.path ?? focus;
-		if (pathsEqual(anchor, focus)) {
+		if (!selection || pathsEqual(anchor, focus)) {
 			for (let depth = focus.length; depth >= 1; depth--) {
 				const at = focus.slice(0, depth);
 				const node = blockNodeAt(doc, at);
-				if (node && kinds.has(node.kind)) return [documentRead.blockOf(node, at)];
+				if (node && kinds.has(node.kind)) return { blocks: [documentRead.blockOf(node, at)] };
 			}
-			return [];
+			return { blocks: [] };
 		}
 		const [from, to] = comparePaths(anchor, focus) < 0 ? [anchor, focus] : [focus, anchor];
 		const found: Block[] = [];
@@ -1555,7 +1547,14 @@
 			node.children?.forEach((child, i) => visit(child, [...at, i]));
 		};
 		for (let i = from[0]; i <= to[0]; i++) visit(doc.children[i], [i]);
-		return found;
+		// The selection the step opened over comes back once its writes land, as Mod+B's does.
+		const step = (run: () => void) => {
+			const { path, offset } = selection.focus;
+			void controller
+				.undoStep({ path: docPathFrom(path), offset }, async () => run())
+				.then(() => caretLanding.restore(selection));
+		};
+		return { blocks: found, step };
 	}
 
 	function caretAt(path: number[], offset = 0): EditorSelection {

@@ -101,8 +101,8 @@ export interface Editor {
 	/** Runs a command, by value or by id; false, with nothing written, where `can` would say no or
 	 *  the command declines. */
 	run<A>(command: Command<A>, arg: A): boolean;
-	/** A block type's command with no block: run on the nearest block at the caret whose type
-	 *  places it in its keys or menu rows; false with none. */
+	/** A block type's command with no block: run on the nearest block at the caret whose type places
+	 *  it, or on each such block a selection across blocks covers; false with none. */
 	run<D>(command: Command<Block<D>>): boolean;
 	run(command: Command | string, arg?: unknown): boolean;
 	can<A>(command: Command<A>, arg: A): boolean;

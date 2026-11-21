@@ -59,7 +59,8 @@ export interface BlockCommon<D> {
 }
 
 /** A key a block type takes: a chord, or a bare key the editor binds in text blocks itself. A key a
- *  block inside binds runs there first. */
+ *  block inside binds runs there first, and reaches the type where that block leaves it: Backspace
+ *  and Delete do in the middle of its text. */
 export type BlockKey = Chord | 'Enter' | 'Backspace' | 'Delete';
 
 /** A row of a block type's own menu: runs its command on the block the menu opened over. */

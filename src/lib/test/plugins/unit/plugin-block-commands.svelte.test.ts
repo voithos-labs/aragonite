@@ -10,6 +10,7 @@ import type { Block } from '#lib/schema/doc-view.js';
 import type { BlockCommon } from '#lib/schema/block-shapes.js';
 import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
 import type { PluginError } from '#lib/schema/plugin-unit.js';
+import type { Draft } from '#lib/schema/drafts.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -41,7 +42,9 @@ const next = (type: string) => TYPES[(TYPES.indexOf(type) + 1) % TYPES.length];
 /** A fresh alerts plugin each call, so its block type and commands carry no earlier install. */
 function makeAlerts(
 	more: (cycle: Command<Block<AlertData>>) => Partial<BlockCommon<AlertData>> = () => ({}),
-	when?: () => boolean
+	when?: () => boolean,
+	write: (draft: Draft, block: Block<AlertData>) => Draft = (draft, block) =>
+		draft.data(block, { type: next(block.data.type) })
 ) {
 	const ran: Block<AlertData>[] = [];
 	const cycle = command<Block<AlertData>>({
@@ -50,10 +53,7 @@ function makeAlerts(
 		when: when && (() => when()),
 		run(editor, block) {
 			ran.push(block);
-			void editor
-				.edit()
-				.data(block, { type: next(block.data.type) })
-				.commit();
+			void write(editor.edit(), block).commit();
 		}
 	});
 	const alert = container<AlertData>({
@@ -123,6 +123,18 @@ describe('a placed command run from the caret', () => {
 		await editor.settle();
 		expect(ran).toEqual([]);
 		expect(editor.source()).toBe(DOC);
+	});
+
+	// Miss-analysis: every row handed a placed command a block of its own type, or none; an id
+	// carries no type, so a host could hand it any block.
+	it('refuses a block whose type does not place it, by id', async () => {
+		const { editor, ran, errors } = await mounted(DOC);
+		const paragraph = editor.instance.blockAt(1)!;
+		expect(editor.instance.can('alerts/cycle', paragraph)).toBe(false);
+		expect(editor.instance.run('alerts/cycle', paragraph)).toBe(false);
+		await editor.settle();
+		expect(ran).toEqual([]);
+		expect(errors).toEqual([]);
 	});
 
 	it('greys and refuses where `when` says no', async () => {
@@ -220,6 +232,32 @@ describe('the install pass', () => {
 		}
 	);
 
+	// Miss-analysis: a block key was checked against the editor's own chords and never against
+	// another plugin's, whose editor-wide chord then ran inside the type's blocks with nobody told.
+	it.each([
+		['the block type', 'alerts'],
+		['the command', 'other']
+	])('leaves out %s listed after the plugin whose key it takes', async (_, left) => {
+		const other = definePlugin({
+			name: 'other',
+			version: '1.0.0',
+			editor: '*',
+			contributes: () => ({
+				commands: [command({ id: 'hit', title: 'Hit', chord: 'Mod+7', run: () => {} })]
+			})
+		});
+		const alerts = makeAlerts().plugin;
+		const errors: PluginError[] = [];
+		const editor = mountEditor({
+			source: DOC,
+			plugins: left === 'alerts' ? [other, alerts] : [alerts, other],
+			onError: (error: PluginError) => errors.push(error)
+		});
+		await editor.settle();
+		expect(errors.map((e) => e.plugin)).toEqual([left]);
+		expect(editor.instance.plugins).not.toContain(left);
+	});
+
 	it("keeps a chord off every editor that doesn't list the plugin", async () => {
 		const { editor } = await mounted(DOC);
 		const other = mountEditor({ source: 'plain\n' });
@@ -259,6 +297,65 @@ describe('a placed command over a selection across blocks', () => {
 		await pressKey(surface, { key: 'a', ctrlKey: true });
 		await editor.settle();
 	}
+
+	// Miss-analysis: the range rows wrote data only, which leaves every other block's bytes alone; a
+	// write that takes its block out re-reads the block after it, whose handle then finds nothing.
+	it('runs a command that removes its block on every covered block, one undo step', async () => {
+		const m = await mounted(
+			TWO,
+			makeAlerts(undefined, undefined, (draft, block) =>
+				draft.replace({ from: block.from, to: block.to }, '')
+			)
+		);
+		await selectEverything(m.editor);
+		m.editor.instance.run(m.cycle);
+		await m.editor.settle();
+		expect(m.editor.source()).not.toContain('%>');
+		await pressKey(surfaceAt(m.editor, [0]), { key: 'z', ctrlKey: true });
+		expect(m.editor.source()).toBe(TWO);
+	});
+
+	// Miss-analysis: the range rows covered two alerts; with one covered, the run took the caret's
+	// path, whose write collapses the selection.
+	it.each([
+		[
+			'`run` with no block',
+			(m: Awaited<ReturnType<typeof mounted>>) => m.editor.instance.run(m.cycle)
+		],
+		[
+			'its key',
+			(m: Awaited<ReturnType<typeof mounted>>) => void pressKey(surfaceAt(m.editor, [1, 0]), CTRL_7)
+		]
+	])('%s keeps a selection that covers one alert among paragraphs', async (_, go) => {
+		const m = await mounted('intro\n\n%> [!NOTE]\n%> one\n\nlast\n');
+		await selectEverything(m.editor);
+		const held = m.editor.instance.getSelection();
+		go(m);
+		await m.editor.settle();
+		expect(m.editor.source()).toBe('intro\n\n%> [!TIP]\n%> one\n\nlast\n');
+		expect(m.editor.instance.getSelection()).toEqual(held);
+	});
+
+	// Miss-analysis: the key rows ended their selection inside an alert, so the key always landed
+	// in a block that binds it; a selection that ends in a plain paragraph ran nothing.
+	it('runs its key on each covered block when the key lands in a block that binds none', async () => {
+		const source = '%> [!NOTE]\n%> one\n\n%> [!TIP]\n%> two\n\nlast\n';
+		const m = await mounted(source);
+		const surface = surfaceAt(m.editor, [0, 0]);
+		placeCaret(surface, 1);
+		await pressKey(surface, { key: 'a', ctrlKey: true });
+		await pressKey(surface, { key: 'a', ctrlKey: true });
+		await m.editor.settle();
+		const last = surfaceAt(m.editor, [2]);
+		last.focus();
+		const press = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...CTRL_7 });
+		expect(m.editor.instance.claimsChord(press)).toBe(true);
+		await pressKey(last, CTRL_7);
+		await m.editor.settle();
+		expect(m.editor.source()).toBe('%> [!TIP]\n%> one\n\n%> [!WARNING]\n%> two\n\nlast\n');
+		await pressKey(last, { key: 'z', ctrlKey: true });
+		expect(m.editor.source()).toBe(source);
+	});
 
 	it.each([
 		[

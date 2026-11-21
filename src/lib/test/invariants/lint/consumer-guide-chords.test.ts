@@ -63,8 +63,7 @@ installPlugins(BUNDLED_PLUGINS);
 // resolve beside the installed plugins' keymaps.
 const contributions = createEditorContributions({
 	editorFor: () => undefined,
-	blocksAround: () => [],
-	undoStep: (run) => run(),
+	blocksAround: () => ({ blocks: [] }),
 	blockOf: () => {
 		throw new Error('no block is read here');
 	},

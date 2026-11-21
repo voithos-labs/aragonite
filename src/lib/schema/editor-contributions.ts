@@ -47,6 +47,13 @@ export interface ContributedBlockAction {
 	readonly command: ContributedCommand;
 }
 
+/** The blocks a placed command runs on; `step`, set over a selection across blocks, runs their
+ *  writes as one undo step and keeps the selection. */
+export interface PlacingBlocks<B = Block> {
+	readonly blocks: readonly B[];
+	readonly step?: (run: () => void) => void;
+}
+
 export interface EditorContributions {
 	command(command: Command<unknown> | string): ContributedCommand | undefined;
 	atChord(chord: string): ContributedCommand | undefined;
@@ -89,10 +96,8 @@ export function createEditorContributions(deps: {
 	editorFor(plugin: string): Editor | undefined;
 	report(error: PluginError): void;
 	/** The nearest block holding the caret whose type is one of `kinds`, or over a selection across
-	 *  blocks each covered block's outermost such block; empty with none. */
-	blocksAround(kinds: ReadonlySet<string>): readonly Block[];
-	/** Runs `run`'s writes as one undo step. */
-	undoStep(run: () => void): void;
+	 *  blocks each covered block's outermost such block, with the step their runs share. */
+	blocksAround(kinds: ReadonlySet<string>): PlacingBlocks;
 	blockOf(node: NodeView): Block;
 	clipboardBlocks: EditorContributions['clipboardBlocks'];
 }): EditorContributions {
@@ -182,15 +187,18 @@ export function createEditorContributions(deps: {
 		return kept;
 	}
 
-	/** What a command runs on: its argument, and for a placed command handed no block, the
-	 *  blocks around the caret or the selection whose type places it. */
-	function argumentsOf(entry: ContributedCommand, arg: unknown): readonly unknown[] {
-		return entry.placedBy.size === 0 || isBlock(arg) ? [arg] : deps.blocksAround(entry.placedBy);
+	/** What a command runs on: its argument. A placed command takes a block only of a type that
+	 *  places it, and with none the blocks around the caret or the selection whose type does. */
+	function argumentsOf(entry: ContributedCommand, arg: unknown): PlacingBlocks<unknown> {
+		if (entry.placedBy.size === 0) return { blocks: [arg] };
+		const kind = kindOfBlock(arg);
+		if (kind === undefined) return deps.blocksAround(entry.placedBy);
+		return { blocks: entry.placedBy.has(kind) ? [arg] : [] };
 	}
 
-	/** A key's block, unless a selection across blocks covers more than one that places it. */
+	/** A key's block, unless the selection runs across blocks, which decides the blocks itself. */
 	function keyed(entry: ContributedCommand, block: Block | undefined): unknown {
-		return deps.blocksAround(entry.placedBy).length > 1 ? undefined : block;
+		return deps.blocksAround(entry.placedBy).step ? undefined : block;
 	}
 
 	function canOne(entry: ContributedCommand, arg: unknown): boolean {
@@ -200,13 +208,17 @@ export function createEditorContributions(deps: {
 	}
 
 	const can = (entry: ContributedCommand, arg: unknown): boolean =>
-		argumentsOf(entry, arg).some((one) => canOne(entry, one));
+		argumentsOf(entry, arg).blocks.some((one) => canOne(entry, one));
 
 	function run(entry: ContributedCommand, arg: unknown): boolean {
-		const args = argumentsOf(entry, arg).filter((one) => canOne(entry, one));
-		if (args.length < 2) return args.length === 1 && runOne(entry, args[0]);
-		// Over a selection across blocks: once on each, one undo step, the selection kept.
-		deps.undoStep(() => args.forEach((one) => runOne(entry, one)));
+		const { blocks, step } = argumentsOf(entry, arg);
+		const args = blocks.filter((one) => canOne(entry, one));
+		if (!step || args.length === 0) return args.length === 1 && runOne(entry, args[0]);
+		// The last block first, so a write that re-reads the block after it leaves the blocks still
+		// to run.
+		step(() => {
+			for (let i = args.length - 1; i >= 0; i--) runOne(entry, args[i]);
+		});
 		return true;
 	}
 
@@ -389,8 +401,8 @@ function installError(plugin: string, problem: string): PluginError {
 	return { plugin, doing: 'install', cause: new Error(`plugin '${plugin}' ${problem}`) };
 }
 
-const isBlock = (value: unknown): value is Block =>
-	typeof value === 'object' && value !== null && nodeOfBlock(value as Block) !== undefined;
+const kindOfBlock = (value: unknown): string | undefined =>
+	typeof value === 'object' && value !== null ? nodeOfBlock(value as Block)?.kind : undefined;
 
 export function isThenable(value: unknown): value is PromiseLike<unknown> {
 	return typeof (value as PromiseLike<unknown> | null)?.then === 'function';

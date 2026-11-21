@@ -1,7 +1,7 @@
 // A plugin value whose `%> [!TYPE]` container takes Mod+7 and offers a menu row, both running one
-// command on the alert: the next type in the list, written into the head line. Its `[[flag on]]`
-// line is a block picked up whole, so its row sits in the block's own menu. A pasted alert lands
-// as a `:::type` callout.
+// command on the alert: the next type in the list, written into the head line; a `[!LOCKED]` alert
+// refuses it. Its `[[flag on]]` line is a block picked up whole, so its row sits in the block's own
+// menu. A pasted alert lands as a `:::type` callout.
 import { command, container, definePlugin, lineBlock, rewrite, type Block } from '#lib/plugin.js';
 
 interface AlertData {
@@ -13,6 +13,7 @@ const TYPES = ['NOTE', 'TIP', 'WARNING'];
 export const cycleAlert = command<Block<AlertData>>({
 	id: 'cycle',
 	title: 'Next kind',
+	when: (_editor, block) => block.data.type !== 'LOCKED',
 	run(editor, block) {
 		const type = TYPES[(TYPES.indexOf(block.data.type) + 1) % TYPES.length];
 		void editor.edit().data(block, { type }).commit();

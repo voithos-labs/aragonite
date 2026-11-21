@@ -50,6 +50,22 @@ test.describe("a block type's key", () => {
 		await expect.poll(() => editor.bridge.getSource()).toBe(two);
 	});
 
+	test('Mod+7 over a selection that ends in a plain paragraph cycles each alert it covers', async ({
+		page
+	}) => {
+		const two = '%> [!NOTE]\n%> one\n\n%> [!TIP]\n%> two\n\nlast\n';
+		await editor.loadContent(two);
+		await page.getByText('one').click();
+		await page.keyboard.press('ControlOrMeta+a');
+		await page.keyboard.press('ControlOrMeta+a');
+		await page.keyboard.press('ControlOrMeta+7');
+		await expect
+			.poll(() => editor.bridge.getSource())
+			.toBe('%> [!TIP]\n%> one\n\n%> [!WARNING]\n%> two\n\nlast\n');
+		await page.keyboard.press('ControlOrMeta+z');
+		await expect.poll(() => editor.bridge.getSource()).toBe(two);
+	});
+
 	test("Enter in the alert's paragraph still splits it, a key the paragraph binds itself", async ({
 		page
 	}) => {
@@ -89,6 +105,40 @@ test.describe("a block type's menu rows", () => {
 		]);
 		await blockMenu(page).getByRole('menuitem', { name: 'Toggle flag' }).click();
 		await expect.poll(() => editor.bridge.getSource()).toBe('intro\n\n[[flag on]]\n\nafter\n');
+		await expect(blockMenu(page)).toBeHidden();
+	});
+
+	test('the flyout opens and its row runs from the keyboard, and the menu closes', async ({
+		page
+	}) => {
+		await page.getByText('inside').click({ button: 'right' });
+		await expect(blockMenu(page)).toBeVisible();
+		await page.keyboard.press('ArrowRight');
+		await expect(page.getByRole('menuitem', { name: 'Next kind' })).toBeVisible();
+		await page.keyboard.press('Enter');
+		await expect.poll(() => editor.bridge.getSource()).toContain('%> [!TIP]\n%> inside\n');
+		await expect(blockMenu(page)).toBeHidden();
+	});
+
+	test('a row whose command cannot run is greyed, and picking it changes nothing', async ({
+		page
+	}) => {
+		const locked = 'intro\n\n%> [!LOCKED]\n%> shut\n';
+		await editor.loadContent(locked);
+		await page.getByText('shut').click({ button: 'right' });
+		await blockMenu(page).getByRole('menuitem').first().hover();
+		const row = page.getByRole('menuitem', { name: 'Next kind' });
+		await expect(row).toBeDisabled();
+		if (process.env.L5BR_SHOTS)
+			await page.screenshot({ path: `${process.env.L5BR_SHOTS}/greyed-flyout-row.png` });
+		await page.keyboard.press('Enter');
+		await row.click({ force: true });
+		expect(await editor.bridge.getSource()).toBe(locked);
+		await page.keyboard.press('Escape');
+		await page.getByText('shut').click();
+		await page.keyboard.press('ControlOrMeta+7');
+		await page.keyboard.type('x');
+		await expect.poll(() => editor.bridge.getSource()).toContain('%> [!LOCKED]\n');
 	});
 
 	for (const [where, source, text, cycled] of [
@@ -111,6 +161,7 @@ test.describe("a block type's menu rows", () => {
 			await rows.first().hover();
 			await page.getByRole('menuitem', { name: 'Next kind' }).click();
 			await expect.poll(() => editor.bridge.getSource()).toContain(cycled);
+			await expect(blockMenu(page)).toBeHidden();
 		});
 	}
 });
