@@ -262,9 +262,35 @@ describe('inline(): an `as` claim writes through `write`', () => {
 		const { grammar } = editorReading([['wiki', [wikiLink()]]]);
 		const reading = { grammar, resolver: undefined } as never;
 		const node = parse(raw, { scope: 'fragment', grammar }).children[0];
+		// The side is the half of the text the caret is in, the hidden target's bytes aside.
 		expect(cutOutsideWhole(node, 15, reading)).toBe(18);
+		expect(cutOutsideWhole(node, 12, reading)).toBe(4);
 		expect(cutOutsideWhole(node, 6, reading)).toBe(4);
 		expect(cutOutsideWhole(node, 2, reading)).toBe(2);
+	});
+
+	it('a construct inside a claim that says no `split` still answers by its own row', () => {
+		registerInlineSyntax(
+			'[',
+			(raw, pos): InlineNode | null =>
+				raw.startsWith('[[\\*x]]', pos)
+					? {
+							kind: 'link',
+							start: pos,
+							end: pos + 7,
+							url: 'u',
+							children: [
+								{ kind: 'escape', start: pos + 2, end: pos + 4 },
+								{ kind: 'text', start: pos + 4, end: pos + 5, text: 'x' }
+							]
+						}
+					: null,
+			{ prefix: '[[', priority: INLINE_PRIORITIES.prefixOverride }
+		);
+		const raw = 'a [[\\*x]] z\n';
+		const { grammar } = editorReading([]);
+		const node = parse(raw, { scope: 'fragment', grammar }).children[0];
+		expect(cutOutsideWhole(node, 5, { grammar, resolver: undefined } as never)).toBe(4);
 	});
 });
 

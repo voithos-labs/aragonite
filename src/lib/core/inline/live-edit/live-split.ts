@@ -170,14 +170,16 @@ function wholeConstructEdge(
 	grammar: GrammarView
 ): number | null {
 	let found: number | null = null;
-	let claim: InlineNode['syntaxClaim'];
+	let claimed: InlineNode | null = null;
 	for (const node of inlineDescendants(inlines)) {
-		// An own-syntax link's text carries its claim too; the edge is the claim's outermost node's.
-		if (node.syntaxClaim && node.syntaxClaim === claim) continue;
-		claim = node.syntaxClaim ?? claim;
+		const within = claimed !== null && node !== claimed && node.syntaxClaim === claimed.syntaxClaim;
+		if (node.syntaxClaim && !within) claimed = node;
 		const takesWhole = splitBehaviorOf(node, raw, grammar) === 'whole';
 		if (takesWhole && offset > node.start && offset < node.end) {
-			found = offset - node.start <= node.end - offset ? node.start : node.end;
+			// An own-syntax link's text carries its claim's `split`: the text says which side the
+			// caret is nearer, and the cut leaves the claim there, never at the text's own edge.
+			const whole = within && claimed!.syntaxClaim?.split === 'whole' ? claimed! : node;
+			found = offset - node.start <= node.end - offset ? whole.start : whole.end;
 		}
 	}
 	return found;

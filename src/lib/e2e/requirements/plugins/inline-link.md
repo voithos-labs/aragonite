@@ -14,8 +14,11 @@ block 1 `After`, in live mode.
 ## Edge cases
 
 - Enter inside the text cuts at the claim's edge, its bytes whole in one block.
-- Two paragraphs pasted inside the text land at the claim's edge, its bytes whole:
-  `See [[note|Shown]]one` over `two here`.
+- Enter in the text's first half sends the claim whole to the new line: `See ` over
+  `[[note|Shown]] here`.
+- Two paragraphs pasted inside the text land at the claim's edge on the side of the text the caret
+  was nearer, its bytes whole: `See one` over `two[[note|Shown]] here` from the first half,
+  `See [[note|Shown]]one` over `two here` from the second.
 - Backspace through the whole text takes the claim whole, leaving no bracket behind.
 - A range from inside the text past its end deletes only what shows: `[[note|Sh]]re`.
 - A letter typed at either edge of the text lands outside the link, as at a built-in link.

@@ -61,11 +61,22 @@ test.describe('an inline construct read as a link', () => {
 		expect(src.split('\n').some((line) => line.includes(LINK))).toBe(true);
 	});
 
-	test('two paragraphs pasted inside the text land at its edge, the claim whole', async () => {
-		await editor.focusBlockAtPath([0], TEXT_END - 1);
-		await editor.clipboard.seed('one\n\ntwo');
-		await editor.clipboard.paste();
-		await expect.poll(source).toBe('See [[note|Shown]]one\n\ntwo here\n\nAfter\n');
+	for (const [half, at, expected] of [
+		['first', TEXT_START + 1, 'See one\n\ntwo[[note|Shown]] here\n\nAfter\n'],
+		['second', TEXT_END - 1, 'See [[note|Shown]]one\n\ntwo here\n\nAfter\n']
+	] as const) {
+		test(`two paragraphs pasted in the text's ${half} half land at that edge of the claim`, async () => {
+			await editor.focusBlockAtPath([0], at);
+			await editor.clipboard.seed('one\n\ntwo');
+			await editor.clipboard.paste();
+			await expect.poll(source).toBe(expected);
+		});
+	}
+
+	test('Enter in the text’s first half sends the claim whole to the new line', async ({ page }) => {
+		await editor.focusBlockAtPath([0], TEXT_START + 1);
+		await page.keyboard.press('Enter');
+		await expect.poll(source).toBe('See \n\n[[note|Shown]] here\n\nAfter\n');
 	});
 
 	test('Backspace through the whole text takes the claim whole', async ({ page }) => {
