@@ -21,7 +21,9 @@ const BOTH: Row[] = [
 	['sol', null, 'sol'],
 	['conf', null, 'conf'],
 	['log', null, 'log'],
-	['zzlang', null, 'zzlang']
+	['zzlang', null, 'zzlang'],
+	// javascript and typescript only contain it, so they stay listed but unmarked.
+	['script', null, 'script']
 ];
 const INSTALLS: { name: string; query: '' | '?languages=all'; rows: Row[] }[] = [
 	{

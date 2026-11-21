@@ -23,8 +23,8 @@ stay listed, for an arrow key or a click. Each row runs by default and with ever
 
 ## User interactions
 
-- typing `script` marks nothing; ArrowDown marks javascript, the first row containing it, and
-  Enter writes `javascript`
+- typing `script` marks nothing though javascript and typescript are listed, and Enter writes
+  `script`; ArrowDown marks javascript, the first row containing it, and Enter writes `javascript`
 - typing `script` and clicking typescript writes `typescript`
 
 ## Miss-analysis
