@@ -153,7 +153,7 @@ const embed = inline({
 });
 ```
 
-Return `null` for an edit your syntax can't hold (here a title, a height, or alt text that isn't the file name), and the editor refuses the edit instead of writing something you didn't author. Read every field the edit can set, or refuse it: a field you ignore writes the same bytes, and that edit just does nothing. With no `write`, every edit is refused. A link's `text` must be a run of your bytes: it's what the caret edits, while the rest hides in live mode.
+Return `null` for an edit your syntax can't hold (here a title, a height, or alt text that isn't the file name), and the editor refuses the edit instead of writing something you didn't author. Read every field the edit can set, or refuse it: a field you ignore writes the same bytes, and that edit just does nothing. With no `write`, every edit is refused. A link's `text` must be a run of your bytes: it's what the caret edits, while the rest hides in live mode. Where your syntax can spell it twice (`[[notebook|note]]`), return `at`, where the text starts in the claim; without it such a claim stays plain text.
 
 ## A highlight: `mark()`
 
