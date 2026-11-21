@@ -106,7 +106,9 @@ const BOTH_TABLE_READERS: Record<string, string> = {
 	'src/lib/inline-menu/inline-menu-session.ts':
 		'a row declares how much of a construct is prose; a widget kind with no row shows source, not prose',
 	'src/lib/components/blocks/text/link-at-point.ts':
-		'what a click follows and Edit link edits is a construct whose row declares followEdit or a widget whose kind claims the activation click, one answer across both tables'
+		'what a click follows and Edit link edits is a construct whose row declares followEdit or a widget whose kind claims the activation click, one answer across both tables',
+	'src/lib/core/inline/live-edit/live-split.ts':
+		'where a cut goes is a row’s splitBehavior, or the nearer edge of a widget no row covers, one answer across both tables'
 };
 
 // ── The branches that answer by hand ─────────────────────────────────────────

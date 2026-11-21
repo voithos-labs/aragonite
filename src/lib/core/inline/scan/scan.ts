@@ -3,7 +3,6 @@
 // is a flat token list the tree is built from.
 import type { InlineNode } from '../../nodes';
 import type { GrammarView } from '../../../schema/block-openers';
-import { resolvesIn } from '../../../schema/plugin-activation';
 import { recordInlineScan } from '../../../perf/instruments';
 import {
 	emailEnd,
@@ -26,12 +25,8 @@ import { DelimiterStack, type Delimiter } from './emphasis';
 import { matchCharRef } from './entities';
 import { labelEnd, labelKey, readInlineTail, STILL_OPEN } from './link-grammar';
 import { rawHtmlReader } from './raw-html';
-import {
-	handlersFor,
-	registeredTriggers,
-	registryVersion,
-	type InlineHandler
-} from './plugin-syntax';
+import { inlineTable, type InlineTable } from './inline-table';
+import type { InlineHandler } from './plugin-syntax';
 import { readSizeHint } from './size-hint';
 import { closeWrapper, openWrapper, token, type Token } from './token';
 
@@ -73,25 +68,14 @@ interface Target {
 	end: number;
 }
 
-const BUILT_IN_SPECIALS = /[\\`&\n*_~[\]!<@]|[wW]{3}\.|[hH][tT]{2}[pP][sS]?:\/\//g;
-let specials = { version: -1, pattern: BUILT_IN_SPECIALS };
-
-/** Every position the parse may read: the built-in characters, bare url starts, and triggers. */
-function specialPattern(): RegExp {
-	if (specials.version !== registryVersion()) {
-		const triggers = [...registeredTriggers()].map((c) => c.replace(/[\\\]^-]/, '\\$&')).join('');
-		const source = triggers
-			? `${BUILT_IN_SPECIALS.source}|[${triggers}]`
-			: BUILT_IN_SPECIALS.source;
-		specials = { version: registryVersion(), pattern: new RegExp(source, 'g') };
-	}
-	return specials.pattern;
-}
-
 /** The next position at or after `from` the parse may read, or -1. The search stops at `end`, so
  *  a short range of a long block costs the range, not the rest of the block. */
-export function specialFinder(raw: string, end: number): (from: number) => number {
-	const pattern = specialPattern();
+export function specialFinder(
+	raw: string,
+	end: number,
+	table: InlineTable
+): (from: number) => number {
+	const pattern = table.specials;
 	const searched = end < raw.length ? raw.slice(0, end) : raw;
 	return (from) => {
 		pattern.lastIndex = from;
@@ -106,6 +90,7 @@ export class Scan {
 	private readonly brackets: Bracket[] = [];
 	private readonly bareEmails = new Set<Token>();
 	private readonly rawHtml: (pos: number) => number;
+	private readonly table: InlineTable;
 	private closers?: (from: number, length: number) => number;
 	/** Where the literal text not yet in a token starts. */
 	private pending: number;
@@ -126,10 +111,11 @@ export class Scan {
 		recordInlineScan();
 		this.pending = this.emailFloor = start;
 		this.rawHtml = rawHtmlReader(raw, end);
+		this.table = inlineTable(grammar);
 	}
 
 	run(): this {
-		const next = specialFinder(this.raw, this.end);
+		const next = specialFinder(this.raw, this.end, this.table);
 		for (let at = next(this.start); at >= 0;) at = next(this.claim(at) || this.read(at));
 		if (this.pending < this.end) this.tokens.push(token(this.pending, this.end));
 		this.delimiters.process(null);
@@ -158,19 +144,13 @@ export class Scan {
 	}
 
 	private handlerClaim(pos: number): { node: InlineNode; handler: InlineHandler } | null {
-		for (const handler of handlersFor(this.raw[pos])) {
+		for (const handler of this.table.handlers(this.raw[pos])) {
 			const { prefix } = handler;
 			if (pos + prefix.length > this.end || !this.raw.startsWith(prefix, pos)) continue;
-			if (!this.reads(handler)) continue;
 			const node = handler.recognizer(this.raw, pos, this.end, this.grammar);
 			if (node) return { node, handler };
 		}
 		return null;
-	}
-
-	/** Whether this editor reads the handler's plugin. */
-	private reads(handler: InlineHandler): boolean {
-		return resolvesIn(this.grammar.activation, handler.owner);
 	}
 
 	private read(pos: number): number {

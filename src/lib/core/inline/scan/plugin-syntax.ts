@@ -1,11 +1,10 @@
 /**
- * Plugin inline syntax handlers: a trigger character plus an optional longer prefix, consulted
- * lowest priority first at every position the parse reads. A handler on a built-in trigger runs
- * before the built-in reading there, so it must decline the built-in construct it also opens.
+ * The `registerInlineSyntax` registrar: plugin inline syntax handlers, each a trigger character plus
+ * an optional longer prefix, consulted lowest priority first. Its records feed each editor's inline
+ * table (`inline-table.ts`), which is what the parse reads.
  */
 import type { ImageSyntaxRewriter, InlineNode } from '../../nodes';
 import type { GrammarView } from '../../../schema/block-openers';
-import { resolvesIn } from '../../../schema/plugin-activation';
 import { createPluginRegistry } from '../../../schema/plugin-registry';
 
 /**
@@ -41,7 +40,7 @@ export interface InlineSyntaxOptions {
 }
 
 /** The parse hands its grammar on as a fourth argument, which only the core text directive reads. */
-type ScopedRecognizer = (
+export type ScopedRecognizer = (
 	raw: string,
 	pos: number,
 	end: number,
@@ -57,6 +56,13 @@ export interface InlineHandler {
 	owner: string | null;
 }
 
+/** A handler as an inline table holds it: its trigger, and whether typing the trigger pairs it. */
+export interface HandlerRecord {
+	trigger: string;
+	autoPair: boolean;
+	handler: InlineHandler;
+}
+
 interface Registration extends Omit<InlineHandler, 'owner'> {
 	trigger: string;
 	autoPair: boolean;
@@ -70,28 +76,26 @@ const registrations = createPluginRegistry<string, Registration>({
 	onChange: rebuild
 });
 
-// Derived from the registrations on every change, in the order the parse consults them.
-const handlers = new Map<string, InlineHandler[]>();
-const autoPairOwners = new Map<string, (string | null)[]>();
+// Derived from the registrations on every change, so a table reads them without a copy per read.
+let records: readonly HandlerRecord[] = [];
 let version = 0;
 
 function rebuild(): void {
-	handlers.clear();
-	autoPairOwners.clear();
-	for (const { value, owner } of registrations.records()) {
+	records = registrations.records().map(({ value, owner }) => {
 		const { trigger, autoPair, ...handler } = value;
-		handlers.set(trigger, [...(handlers.get(trigger) ?? []), { ...handler, owner }]);
-		if (autoPair) autoPairOwners.set(trigger, [...(autoPairOwners.get(trigger) ?? []), owner]);
-	}
-	for (const list of handlers.values()) {
-		list.sort(
-			(a, b) =>
-				a.priority - b.priority ||
-				b.prefix.length - a.prefix.length ||
-				(a.prefix < b.prefix ? -1 : a.prefix > b.prefix ? 1 : 0)
-		);
-	}
+		return { trigger, autoPair, handler: { ...handler, owner } };
+	});
 	version++;
+}
+
+/** The order the parse asks handlers on one character in: lower priority, then the longer
+ *  prefix, then the prefix itself. */
+export function byHandlerOrder(a: InlineHandler, b: InlineHandler): number {
+	return (
+		a.priority - b.priority ||
+		b.prefix.length - a.prefix.length ||
+		(a.prefix < b.prefix ? -1 : a.prefix > b.prefix ? 1 : 0)
+	);
 }
 
 export function registerInlineSyntax(
@@ -133,22 +137,17 @@ export function registerInlineSyntax(
 	);
 }
 
-const NO_HANDLERS: readonly InlineHandler[] = [];
+/** Every registration, unfiltered, for an inline table to filter by its editor's plugins. */
+export const registeredHandlers = (): readonly HandlerRecord[] => records;
 
+/** Every registered handler on `trigger`, whatever plugin it answers to, in the parse's order. */
 export const handlersFor = (trigger: string): readonly InlineHandler[] =>
-	handlers.get(trigger) ?? NO_HANDLERS;
+	records
+		.filter((record) => record.trigger === trigger)
+		.map((record) => record.handler)
+		.sort(byHandlerOrder);
 
-export const registeredTriggers = () => handlers.keys();
-
-/** Bumped on every registry change, so the parse can cache what it derives from the registry. */
+/** Bumped on every registry change, so a table can cache what it derives from the registry. */
 export const registryVersion = () => version;
 
 export const isBuiltInTrigger = (char: string) => BUILT_IN_TRIGGERS.has(char);
-
-/** Whether the parse visits a bare handler's own character in plain prose. */
-export const isWatchedTrigger = (char: string) =>
-	!isBuiltInTrigger(char) && handlersFor(char).some((h) => h.prefix === char);
-
-/** Whether a plugin the grammar lists asked for `char` to close itself as it is typed. */
-export const pairsItself = (char: string, grammar: GrammarView) =>
-	(autoPairOwners.get(char) ?? []).some((owner) => resolvesIn(grammar.activation, owner));

@@ -12,7 +12,7 @@ import {
 	readInline,
 	type ContentRange
 } from '../../../core/inline';
-import { pairsItself } from '../../../core/inline/scan/plugin-syntax';
+import { inlineTable } from '../../../core/inline/scan/inline-table';
 import { isCharacterBackspace, readInput } from '../../../browser/input';
 import type { GrammarView } from '../../../schema/block-openers';
 import type { Reading } from '../../../schema/reading';
@@ -59,7 +59,7 @@ const isWordByte = (ch: string | undefined) => ch !== undefined && /[\p{L}\p{N}]
 
 // A plugin's delimiter pairs only in an editor that lists the plugin.
 function policyOf(ch: string, grammar: GrammarView): PairPolicy | null {
-	return BUILTIN[ch] ?? (pairsItself(ch, grammar) ? STEP : null);
+	return BUILTIN[ch] ?? (inlineTable(grammar).pairs(ch) ? STEP : null);
 }
 
 // ── The resolver ─────────────────────────────────────────────────────────────

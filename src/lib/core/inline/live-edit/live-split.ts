@@ -17,7 +17,7 @@ import { CONTENT_VISIBILITY, paintsOnlyChrome, renderedText } from '../visibilit
 import { readBack, shownOf } from './read-back';
 import type { Reading } from '../../../schema/reading';
 import type { StoredAs } from '../../../schema/stored-as';
-import type { AnyInlineKind, InlineNode } from '../../nodes';
+import { isBuiltinInlineKind, type AnyInlineKind, type InlineNode } from '../../nodes';
 import type { NodeView } from '../../node-views';
 import { isBlankText, readsAsBlankLine, trimTrailingLineEnding } from '../../lines';
 import {
@@ -27,7 +27,12 @@ import {
 	reopenAfter,
 	type CutConstruct
 } from './close-reopen';
-import { getInlineConstructPolicy } from '../../../schema/inline-construct-policy';
+import {
+	getInlineConstructPolicy,
+	type SplitBehavior
+} from '../../../schema/inline-construct-policy';
+import type { GrammarView } from '../../../schema/block-openers';
+import { isInlineWidget } from '../inline-widgets';
 
 // ── The rewrite ──────────────────────────────────────────────────────────────
 
@@ -62,7 +67,7 @@ export function rebalanceLiveSplit(
 	// Markers standing over nothing are all on screen (live-mode.md § 4.1), so closing and
 	// reopening them would move delimiters the user is looking at: the literal cut stands.
 	if (paintsOnlyChrome(inlines, read.raw, { grammar: reading.grammar })) return null;
-	const moved = wholeConstructEdge(inlines, offset);
+	const moved = wholeConstructEdge(inlines, offset, read.raw, reading.grammar);
 	const at = moved ?? offset;
 	const bytes = moved === null ? read : { ...read, cut: moved };
 	const chain = splittableChainAt(inlines, at);
@@ -92,7 +97,7 @@ export function cutOutsideWhole(node: NodeView, offset: number, reading: Reading
 	if (!isProseKind(node.kind)) return offset;
 	const { start, end } = getContentRange(node);
 	const inlines = readInline(node.raw, start, end, reading.resolver, reading.grammar);
-	return wholeConstructEdge(inlines, offset) ?? offset;
+	return wholeConstructEdge(inlines, offset, node.raw, reading.grammar) ?? offset;
 }
 
 // ── What the caller already decided ──────────────────────────────────────────
@@ -141,12 +146,31 @@ function readSplitBytes(
 
 // ── The chain ────────────────────────────────────────────────────────────────
 
-/** Where a cut inside a construct split whole (a URL, an escape) moves to: the edge the caret was
- *  nearer, so the construct goes whole to one half (`docs/design/live-mode.md` § 4.4). */
-function wholeConstructEdge(inlines: readonly InlineNode[], offset: number): number | null {
+/** What a cut inside `node` does: its kind's row, else `whole` for a plugin's widget, no part of
+ *  which stands alone. Undefined for a node with no say. */
+export function splitBehaviorOf(
+	node: InlineNode,
+	raw: string,
+	grammar: GrammarView
+): SplitBehavior | undefined {
+	const row = getInlineConstructPolicy(node.kind)?.splitBehavior;
+	if (row) return row;
+	return !isBuiltinInlineKind(node.kind) && isInlineWidget(node, raw, grammar)
+		? 'whole'
+		: undefined;
+}
+
+/** Where a cut inside a construct split whole (a URL, an escape, a widget) moves to: the edge the
+ *  caret was nearer, so the construct goes whole to one half (`docs/design/live-mode.md` § 4.4). */
+function wholeConstructEdge(
+	inlines: readonly InlineNode[],
+	offset: number,
+	raw: string,
+	grammar: GrammarView
+): number | null {
 	let found: number | null = null;
 	for (const node of inlineDescendants(inlines)) {
-		const takesWhole = getInlineConstructPolicy(node.kind)?.splitBehavior === 'whole';
+		const takesWhole = splitBehaviorOf(node, raw, grammar) === 'whole';
 		if (takesWhole && offset > node.start && offset < node.end) {
 			found = offset - node.start <= node.end - offset ? node.start : node.end;
 		}

@@ -23,11 +23,10 @@ import {
 } from '../core/inline/inline-widgets';
 import {
 	INLINE_PRIORITIES,
-	handlersFor,
 	isBuiltInTrigger,
-	isWatchedTrigger,
 	type InlineHandler
 } from '../core/inline/scan/plugin-syntax';
+import { inlineTable } from '../core/inline/scan/inline-table';
 import {
 	assert,
 	assertIs,
@@ -184,8 +183,11 @@ function assertSingleLine(source: string, label: string): void {
 	);
 }
 
+/** The handlers a parse with no editor asks on `trigger`, the core's included. */
+const handlersOn = (trigger: string) => inlineTable(defaultGrammarView).handlers(trigger);
+
 function locateRung(profile: InlineConformanceProfile, prefix: string): InlineHandler {
-	const matches = handlersFor(profile.trigger).filter(
+	const matches = handlersOn(profile.trigger).filter(
 		(r) =>
 			r.prefix === prefix && (profile.priority === undefined || r.priority === profile.priority)
 	);
@@ -581,7 +583,7 @@ function checkRegistrationHygiene(
 	const reserved = isBuiltInTrigger(profile.trigger);
 	// Two handlers may share a prefix at different priorities (emoji and directive text both
 	// live on `:`), but two at the same priority could not be ordered by the dispatch.
-	const sameRung = handlersFor(profile.trigger).filter(
+	const sameRung = handlersOn(profile.trigger).filter(
 		(r) => r.prefix === prefix && r.priority === rung.priority
 	);
 	assertIs(
@@ -600,7 +602,7 @@ function checkRegistrationHygiene(
 	} else {
 		// The parse reads a character in plain prose only while a bare handler is registered on it.
 		assert(
-			isWatchedTrigger(profile.trigger),
+			handlersOn(profile.trigger).some((h) => h.prefix === profile.trigger),
 			`the parse visits ${JSON.stringify(profile.trigger)} in plain text — a trigger it skips ` +
 				`makes the recognizer unreachable there`
 		);

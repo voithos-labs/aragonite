@@ -475,8 +475,14 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 			text !== '' &&
 			reading.hidesDelimitersAtCaret() &&
 			cutOutsideWhole({ ...node, raw: edit.raw }, edit.caret - last, reading) !== edit.caret - last;
-		// A construct that splits whole takes the paste at its nearer edge, never torn around it.
-		const moved = torn();
+		// A construct that splits whole takes the paste at its nearer edge, never torn around it,
+		// even where the pasted text would unmake it (an emoji's name, a space in a URL).
+		const atCaretInWhole =
+			text !== '' &&
+			from === to &&
+			reading.hidesDelimitersAtCaret() &&
+			cutOutsideWhole(node, from, reading) !== from;
+		const moved = atCaretInWhole || torn();
 		if (moved) {
 			const gone = replaceRangeInLeaf(node, { start: from, end: to }, '', store);
 			const kept = { ...node, raw: gone.raw };
