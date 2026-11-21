@@ -6,11 +6,11 @@ Miss-analysis: the break rows ran in jsdom only and pinned the break at the end 
 
 ## Happy paths
 
-- Shift+Enter over a divider and a heading held whole, a paragraph before them: the break and the letter stand in an empty paragraph where they were (`first\n\n\\\nx`), as 0.11.5 left them; never `first\` and the letter on its next line.
-- Enter over the same blocks under a fence: an empty paragraph where they were takes the letter (0.11.5 left one empty line more); no line goes into the code.
-- Shift+Enter over the same blocks under a fence: the break stands in that paragraph, as 0.11.5 left it.
+- Shift+Enter over a divider and a heading held whole, a paragraph before them: the break and the letter stand in an empty paragraph where they were (`first\n\n\\\nx`); never `first\` and the letter on its next line.
+- Enter over the same blocks under a fence: an empty paragraph where they were takes the letter; no line goes into the code.
+- Shift+Enter over the same blocks under a fence: the break stands in that paragraph.
 
 ## Edge cases
 
-- Shift+Enter over a quote's last blocks, the quote tight: the break stays inside the quote, on a line of its own under the paragraph above (`> above\n>\n> \\\n> x`), as 0.11.5 left it.
-- Shift+Enter over a divider held whole between two paragraphs: the break stands in an empty paragraph where the divider was; 0.11.5 wrote it at the end of the paragraph above.
+- Shift+Enter over a quote's last blocks, the quote tight: the break stays inside the quote, on a line of its own under the paragraph above (`> above\n>\n> \\\n> x`).
+- Shift+Enter over a divider held whole between two paragraphs: the break stands in an empty paragraph where the divider was, never at the end of the paragraph above.

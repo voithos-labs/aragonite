@@ -218,6 +218,7 @@ export const MEMBER_SOURCES = {
 	editable: 'host',
 	preparePaste: 'leaf-surface',
 	typeText: 'leaf-surface',
+	holdInsertion: 'leaf-surface',
 	afterSourceCommit: 'leaf-surface',
 	afterSelectionRemoved: 'leaf-surface',
 	childList: 'container-surface',

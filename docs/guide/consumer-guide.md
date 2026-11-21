@@ -600,7 +600,7 @@ events.on('edit', (e) => e);
 // { op: 'delete', path: [1], detail: { crossBlock: true }, timestamp: 1788390004120 }
 ```
 
-A keystroke fires its `input` as it's written, one per key, with no `detail` (read the block if you need its text). A key that changes its block's kind (the space that makes `#` a heading, say) fires `updateContent` instead of `input`. Undo still groups a burst of typing into one step, but `edit` doesn't wait for the burst to end. So if you save on `edit`, that's a save per keystroke: debounce your own, say a second after the last `edit`.
+A keystroke fires its `input` as it's written, one per key, with no `detail` (read the block if you need its text). A key that changes its block's kind (the space that makes `#` a heading, say) fires `updateContent` instead of `input`. So does a key typed over a selection spanning blocks: one `updateContent` with `detail.crossBlock`, naming the top-level block the text landed in. Undo still groups a burst of typing into one step, but `edit` doesn't wait for the burst to end. So if you save on `edit`, that's a save per keystroke: debounce your own, say a second after the last `edit`.
 
 `path` always walks from the document root to the block operated on, nested blocks and typing included. One event names one path even when the write spanned several blocks; a `delete`, `updateContent`, `tableDeleteRow` or `tableDeleteColumn` that did carries `detail.crossBlock: true`, and a host that reconciles incrementally should re-read the whole affected range on those rather than just `path`.
 
