@@ -29,6 +29,7 @@ import {
 } from './close-reopen';
 import {
 	getInlineConstructPolicy,
+	markerSideEdge,
 	type SplitBehavior
 } from '../../../schema/inline-construct-policy';
 import type { GrammarView } from '../../../schema/block-openers';
@@ -67,7 +68,9 @@ export function rebalanceLiveSplit(
 	// Markers standing over nothing are all on screen (live-mode.md § 4.1), so closing and
 	// reopening them would move delimiters the user is looking at: the literal cut stands.
 	if (paintsOnlyChrome(inlines, read.raw, { grammar: reading.grammar })) return null;
-	const moved = wholeConstructEdge(inlines, offset, read.raw, reading.grammar);
+	const moved =
+		wholeConstructEdge(inlines, offset, read.raw, reading.grammar) ??
+		sideOuterEdge(inlines, offset);
 	const at = moved ?? offset;
 	const bytes = moved === null ? read : { ...read, cut: moved };
 	const chain = splittableChainAt(inlines, at);
@@ -177,6 +180,16 @@ function wholeConstructEdge(
 		}
 	}
 	return found;
+}
+
+/** Where a cut at a marker side's text edge moves to: its other edge, so the side stays on the half
+ *  that holds its text, as a fresh start lands outside it (`live-mode.md` § 4.2). */
+function sideOuterEdge(inlines: readonly InlineNode[], offset: number): number | null {
+	for (const node of inlineDescendants(inlines)) {
+		const edge = markerSideEdge(node);
+		if (edge?.start === offset) return offset === node.end ? node.start : node.end;
+	}
+	return null;
 }
 
 /** Every construct holding `offset`, outermost first, or null when one cannot be cut open, since

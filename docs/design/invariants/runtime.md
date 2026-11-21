@@ -143,7 +143,7 @@ These checks run in three kinds of place:
 | G1.219 | Bytes read off the kept record are compared with the tree before they leave it | A·N·P |
 | G1.220 | A fold of the chain rebuild spells the lines its list spelled before it | A·N |
 | G1.223 | A line break over a range that took its start block runs where its key breaks a line, never on a title row | A·N |
-| G1.229 | One plugin mark name reads the same row in every editor running it | A·N |
+| G1.229 | One plugin mark or marker side name reads the same row in every editor running it | A·N |
 
 ### The entries
 
@@ -399,4 +399,4 @@ These checks run in three kinds of place:
 
 **G1.223 · A line break over a range breaks a line** (`range-break-landing`). Where a range took its start block, the block its line break runs in must bind the key to a line break (`range-removal.ts :: breaksLine`) and be no title row, whose Enter goes into the body. The core keeps the caret off that row, in the gap beside it (`range-edit/edit-range.ts :: lineBreakAt`). A rule, math block or toc left under the caret still fires. `checkBreakLanding` (`range-break-landing.ts`) · `selection/cross-block/range-replace.ts` · `range-break-landing.test.ts`, `test/range-laws/enter-landing.test.ts`.
 
-**G1.229 · A plugin mark's row is page-wide** (`inline-type-facts`). The readers of a construct's row take its kind, so a mark lends its row to the page by its `plugin/name` while an editor runs it, and takes it back when the last one stops. A second editor holding the name with another row (its marker or nesting came from options) is warned of, and the first row stands. `holdInlineConstructPolicy` (`schema/inline-construct-policy.ts`) · `test/plugins/inline/mark.svelte.test.ts`.
+**G1.229 · A plugin mark's row is page-wide** (`inline-type-facts`). The readers of a construct's row take its kind, so a mark, or a marker pair's side, lends its row to the page by its `plugin/name` while an editor runs it, and takes it back when the last one stops. A second editor holding the name with another row (its marker or nesting came from options) is warned of, and the first row stands. `holdInlineConstructPolicy` (`schema/inline-construct-policy.ts`) · `test/plugins/inline/mark.svelte.test.ts`.

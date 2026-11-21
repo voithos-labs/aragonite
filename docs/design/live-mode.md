@@ -57,7 +57,7 @@ The details:
 
 ## 3. Policy is data
 
-How a construct behaves at its hidden edges is one row in the inline-construct policy table (`schema/inline-construct-policy.ts`). The rewrites read rows, never lists of kinds, so a new markable construct costs a row and not a new case at every toggle surface. A plugin's `mark()` holds a row of the same shape while an editor runs it.
+How a construct behaves at its hidden edges is one row in the inline-construct policy table (`schema/inline-construct-policy.ts`). The rewrites read rows, never lists of kinds, so a new markable construct costs a row and not a new case at every toggle surface. A plugin's `mark()` holds a row of the same shape while an editor runs it, and so does each side of a `markerPair()`.
 
 ```ts
 getInlineConstructPolicy('strong');
@@ -93,7 +93,7 @@ Two things stay outside the table on purpose, and a lint records both with their
 
 Two prohibitions, and every rule below applies them:
 
-- **No invisible residue.** A delimiter pair enclosing nothing paints as nothing, so live never writes one, and removes one wherever an edit would create it.
+- **No invisible residue.** A delimiter pair enclosing nothing paints as nothing, so live never writes one, and removes one wherever an edit would create it. A plugin's marker pair is the exception: its sides are two constructs only the plugin pairs, so emptying the text between them keeps both (§ 4.2).
 - **No unverified drop.** Bytes leave the document only when the painter confirms the reader never saw them (§ 2).
 
 A document can already hold such residue when it loads: a `#` typed before its heading has a word, a fence before its first body line, a loaded `[](url)`. There the prohibition falls on the paint rather than the bytes. Chrome may hide only while it stands over content, so a construct with none shows its markers dimmed, exactly as source mode shows them.
@@ -131,6 +131,7 @@ It doesn't matter how the text got there. A hardware key, a soft keyboard, an au
 
 - A `never-extend` kind (link, autolink, image, escape, hard break) takes nothing at its edge, so the byte lands outside its delimiters, whichever side that is. Two halves of a URL are not two URLs, and a byte between an autolink's brackets would rewrite where the link goes.
 - A `left-sticky` kind (emphasis, strong, strike) takes the letter when the character before the caret is its own. Arrows move the caret like anywhere else, with no stop at the edge: the caret's shape is how you tell (`docs/design/selection.md` § The drawn caret).
+- A side of a plugin's marker pair (`joins-after` or `joins-before`) is all marker and draws nothing. A letter typed at it goes to the side its pair calls its text, by default the text between the two, so an empty pair holds the caret between its sides. Backspace beside one takes the character you see, and Enter there leaves it on the half holding its text.
 - A `boxed` kind (inline code) paints a chip, and its border is something you can see, so its edge gets two caret stops: inside the padding and 2px past the border. A plain ArrowLeft or ArrowRight at the edge moves the bar across the border before it moves the caret through the text (`components/blocks/text/edge-step.ts`), a click lands on the side of the border it hit, ArrowLeft into a chip from the text after it stops outside the border first, and End on a line ending in a chip lands outside. Shift, Ctrl, Alt and Meta arrows skip the stop.
 - A record on the caret memory (`caret/caret-memory.ts`) can say otherwise, until the caret moves:
   - a **fresh start**, outside every construct at the caret: Enter's new block (even mid-bold, so `**bo|ld**` then Enter and `X` gives `X**ld**`) and a click in the blank space past a line's end;

@@ -385,9 +385,17 @@ function renderNode(
 		case 'entityReference':
 		case 'rawHtml':
 		default: {
+			const own = opts.grammar.inlines?.().get(node.kind);
 			// A plugin mark wraps its text as `**` does, in its own element.
-			const mark = opts.grammar.inlines?.().get(node.kind)?.mark;
-			if (mark) return openWrapped(node, raw, mark.tag, opts, container, mark.className);
+			if (own?.mark)
+				return openWrapped(node, raw, own.mark.tag, opts, container, own.mark.className);
+			// A marker pair's side is all marker, tagged so preview-inline shows it at the caret.
+			if (own?.marker) {
+				container.appendChild(
+					tagConstruct(markerSpan(raw.slice(node.start, node.end)), node, opts)
+				);
+				return null;
+			}
 			if (overlapsShownSource(node, opts.shownSource)) {
 				opts.retainViewWidget?.(node, raw);
 				container.appendChild(document.createTextNode(raw.slice(node.start, node.end)));
@@ -405,7 +413,7 @@ function renderNode(
 							? 'md-entity'
 							: node.kind === 'rawHtml'
 								? 'md-raw-html'
-								: (opts.grammar.inlines?.().get(node.kind)?.className ?? 'md-unknown-inline')
+								: (own?.className ?? 'md-unknown-inline')
 					)
 			);
 			return null;

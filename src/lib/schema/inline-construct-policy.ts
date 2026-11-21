@@ -5,7 +5,8 @@
  * functions the component layer registers here.
  */
 
-import { isBuiltinInlineKind, type AnyInlineKind } from '../core/nodes';
+import { isBuiltinInlineKind, type AnyInlineKind, type InlineNode } from '../core/nodes';
+import type { ContentRange } from '../core/inline';
 import type { AnyCommandId } from './command-id';
 import { isBuiltinCommandId } from './commands';
 import { everyInstalledPlugin } from './plugin-activation';
@@ -38,8 +39,9 @@ export interface InlineMarkPolicy {
 }
 
 /** How a hidden edge decides where a letter typed at it goes: with the character before the caret,
- *  at one of two drawn stops either side of a painted box, or never inside the construct. */
-export type EdgePolicy = 'left-sticky' | 'boxed' | 'never-extend';
+ *  at one of two drawn stops either side of a painted box, never inside the construct, or always
+ *  on one side of a plugin's marker, the side its pair declares as its text. */
+export type EdgePolicy = 'left-sticky' | 'boxed' | 'never-extend' | 'joins-after' | 'joins-before';
 
 export interface InlineConstructPolicy {
 	edgeAffinity: EdgePolicy;
@@ -152,6 +154,14 @@ export function getInlineConstructPolicy(kind: AnyInlineKind): InlineConstructPo
 /** Whether the preview-inline mode may show this kind's markers. */
 export function isRevealableInlineKind(kind: AnyInlineKind): boolean {
 	return policyOf(kind)?.revealable === true;
+}
+
+/** A marker side's text edge, the empty range where a letter typed at the side lands; null for
+ *  any construct that isn't all marker. */
+export function markerSideEdge(node: InlineNode): ContentRange | null {
+	const edge = node.kind === 'text' ? undefined : policyOf(node.kind)?.edgeAffinity;
+	if (edge === 'joins-after') return { start: node.end, end: node.end };
+	return edge === 'joins-before' ? { start: node.start, end: node.start } : null;
 }
 
 /** How Edit link edits a construct of this kind a click follows, or undefined for one it doesn't. */

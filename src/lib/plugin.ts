@@ -64,6 +64,14 @@ export type { Block, InlineType, Piece } from './schema/doc-view';
 export { inline } from './schema/inline-maker';
 // A mark: a run of one character around text, drawn in its own element, toggled by its chord.
 export { mark, type Mark, type MarkSpec } from './schema/mark-maker';
+// A marker pair: two markers around text, in one block or two, drawn as nothing in live mode.
+export {
+	markerPair,
+	type MarkerData,
+	type MarkerPair,
+	type MarkerPairSpec,
+	type MarkerSide
+} from './schema/marker-pair-maker';
 export type {
 	FunctionMatcher,
 	ImagePiece,

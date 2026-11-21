@@ -34,7 +34,7 @@ const WIDGET_REGISTRY = SOURCE.inlineWidgets;
 
 /** Every function that reads the policy table, the table's own module excluded. */
 const POLICY_READ =
-	/(?<![\w.])(getInlineConstructPolicy|getInlineMarkPolicy|inlineMarkForCommand|followEditOf|isRevealableInlineKind|listInlineConstructPolicies|listInlineMarks)\s*\(/;
+	/(?<![\w.])(getInlineConstructPolicy|getInlineMarkPolicy|inlineMarkForCommand|followEditOf|isRevealableInlineKind|listInlineConstructPolicies|listInlineMarks|markerSideEdge)\s*\(/;
 
 const readsPolicyTable = (file: SourceFile): boolean =>
 	file.relPath !== POLICY_TABLE && POLICY_READ.test(file.code);
@@ -68,9 +68,10 @@ const KIND_LITERAL = new RegExp(`['"](${ROWED_KINDS.join('|')})['"]`);
  *  reader is a decision rather than one more silent opinion on a row's meaning. */
 const POLICY_ARMS: Record<string, string> = {
 	'src/lib/components/blocks/text/construct-edge-delete.ts':
-		'the destructive arm: autoUnwrapOnEmpty, the mark column to say which unwrapped construct a chord can write again, and splitBehavior for a construct no part of which stands alone',
+		"the destructive arm: autoUnwrapOnEmpty, the mark column to say which unwrapped construct a chord can write again, splitBehavior for a construct no part of which stands alone, and a marker side's edge, so a key skips it as a hidden run",
 	'src/lib/components/blocks/text/construct-reveal.ts': "preview-inline's reveal chain: revealable",
-	'src/lib/components/blocks/text/edge-seat.ts': 'the typing seat: edgeAffinity',
+	'src/lib/components/blocks/text/edge-seat.ts':
+		"the typing seat: edgeAffinity, and a marker side's edge, where a letter typed at it goes",
 	'src/lib/caret/caret-look.ts':
 		'the look: edgeAffinity, whether the next letter sits inside a box whose border has two stops',
 	'src/lib/components/blocks/text/link-at-point.ts':
@@ -82,7 +83,7 @@ const POLICY_ARMS: Record<string, string> = {
 	'src/lib/core/inline/live-edit/live-join.ts':
 		'the join cleaner: autoUnwrapOnEmpty for a construct the cut emptied, and edgeAffinity for where typed text lands',
 	'src/lib/core/inline/live-edit/live-split.ts':
-		'the split rebalancer: splitBehavior, for a construct a cut takes whole',
+		"the split rebalancer: splitBehavior, for a construct a cut takes whole, and a marker side's edge, which a cut leaves on the half holding its text",
 	'src/lib/components/blocks/text/pending-mark-insert.ts':
 		'the pending-mark resolver: the mark nesting order',
 	'src/lib/components/blocks/table/TableCellBlock.svelte':

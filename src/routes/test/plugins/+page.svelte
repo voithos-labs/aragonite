@@ -26,6 +26,7 @@
 	import { wikiLinksPlugin } from './wikilinks/link-plugin';
 	import { inlineLinkPlugin } from './inline-link/link-plugin';
 	import { highlightPlugin } from './highlight-mark/mark-plugin';
+	import { anchorPlugin } from './comment-anchor/anchor-plugin';
 	import { chipsPlugin } from './chips/chip-plugin';
 	import { tagMarksPlugin, TAG_MENU } from '../../demo-tags/tag-marks-plugin';
 	import { docLinkMenu, docLinkMenuPlugin } from './inline-menu/doc-link-menu-plugin';
@@ -74,6 +75,8 @@
 		'inline-link': [inlineLinkPlugin],
 		// `==` pairs as a mark wherever it's installed; kept to its own seed.
 		'highlight-mark': [highlightPlugin],
+		// `{>>` and `{<<` would take `{` in every other seed's prose; kept to its own.
+		'comment-anchor': [anchorPlugin],
 		// `{{` would take `{` in every other seed's prose; kept to its own.
 		chips: [chipsPlugin()],
 		// The same tags as mark decorations over plain text: no widget, no source to show.
@@ -244,6 +247,10 @@
 		'inline-link': 'See [[note|Shown]] here\n\nAfter\n',
 		// A highlight mid-prose (block 0), plain words to toggle one on (block 1).
 		'highlight-mark': 'A ==bright== word\n\nplain words here\n\n| a |\n| - |\n| cell words |\n',
+		// Anchors in one block (0), across two (1 and 2), around a bold (3), at a line's start and
+		// end (4), around nothing (5), and a side with no partner (6).
+		'comment-anchor':
+			'A {>>a}noted{<<a} word\n\nAcross {>>b}two\n\nblocks{<<b} end\n\nSome {>>c}**bold**{<<c} text\n\n{>>d}whole line{<<d}\n\nAn {>>e}{<<e} empty pair\n\nA lone {<<x} side\n',
 		// The caption is the bytes after the marker, so block 0 is the caption to edit and
 		// block 1 is there to click away to.
 		parrot: '%%parrot party responsibly\n\nAfter\n',

@@ -9,7 +9,7 @@ import type { InlineHandler } from '../core/inline/scan/plugin-syntax';
 import type { WidgetEntry } from '../core/inline/inline-widgets';
 import type { DrawContext } from './drawing';
 import type { InlineType } from './doc-view';
-import type { Editor, InstalledPlugin, PluginError } from './plugin-unit';
+import type { Contribution, Editor, InstalledPlugin, PluginError } from './plugin-unit';
 import { qualifiedName } from './plugin-name';
 import { claimCommand, type Command } from './plugin-command';
 import type { AnyCommandId } from './command-id';
@@ -160,6 +160,8 @@ export interface InlineMaking {
 	readonly className: string | null;
 	/** A mark's run and drawing; null for the other constructs, which claim through `claim`. */
 	readonly mark?: MarkMaking | null;
+	/** A marker side's text: the side of it a letter typed there joins. */
+	readonly marker?: 'after' | 'before';
 }
 
 /** What `mark()` built: its run, the element its text is drawn in, and its toggle. */
@@ -183,6 +185,8 @@ export interface InstalledInline {
 	readonly widget: WidgetEntry | null;
 	readonly className: string | null;
 	readonly mark: Omit<MarkMaking, 'toggle'> | null;
+	/** A marker side's text side; null for any other construct. */
+	readonly marker: 'after' | 'before' | null;
 }
 
 /** An inline construct a maker made; `name` is its local name until an editor names it. */
@@ -194,6 +198,12 @@ export function madeInline<D>(making: InlineMaking): Inline<D> {
 	}) as unknown as Inline<D>;
 }
 
+/** `made`, a class construct, as one side of a marker pair: drawn as a marker, its letters
+ *  joining its `text` side. */
+export function asMarkerSide<D>(made: Inline<D>, text: 'after' | 'before'): Inline<D> {
+	return madeInline<D>({ ...(made as unknown as Made)[MAKING], className: null, marker: text });
+}
+
 /** Names the inline constructs one editor's plugins contribute; a construct is the first listing
  *  plugin's, and a clash is reported and left out. */
 export function installInlines(
@@ -203,7 +213,11 @@ export function installInlines(
 	const inlines = new Map<AnyInlineKind, InstalledInline>();
 	const releases: (() => void)[] = [];
 	for (const { name: plugin, contribution } of units) {
-		for (const listed of contribution.inlines ?? []) {
+		// A marker pair lists as its two sides.
+		const listing = (contribution.inlines ?? []).flatMap((listed) =>
+			'open' in listed ? [listed.open, listed.close] : [listed]
+		);
+		for (const listed of listing) {
 			const made = listed as unknown as Partial<Made>;
 			const making = made[MAKING];
 			const problem = !making
@@ -226,6 +240,7 @@ export function installInlines(
 				const nestingRank = rankAfter(making.after[0]?.name) + nameFraction(kind);
 				releases.push(holdInlineConstructPolicy(kind, markRow(mark, nestingRank)));
 			}
+			if (making.marker) releases.push(holdInlineConstructPolicy(kind, markerRow(making.marker)));
 			inlines.set(kind, {
 				kind,
 				trigger: making.prefix[0],
@@ -242,7 +257,8 @@ export function installInlines(
 				split: making.split,
 				widget: making.widget && { ...making.widget, own: { ...making.widget.own, plugin } },
 				className: making.className,
-				mark: mark && { marker: mark.marker, tag: mark.tag, className: mark.className }
+				mark: mark && { marker: mark.marker, tag: mark.tag, className: mark.className },
+				marker: making.marker ?? null
 			});
 		}
 	}
@@ -250,7 +266,7 @@ export function installInlines(
 }
 
 /** The toggles of the marks in a contribution's `inlines`, which join its commands. */
-export function togglesOf(inlines: readonly Inline<unknown>[] | undefined): Command<void>[] {
+export function togglesOf(inlines: Contribution['inlines']): Command<void>[] {
 	return (inlines ?? []).flatMap((listed) => (listed as Partial<Made>)[MAKING]?.mark?.toggle ?? []);
 }
 
@@ -280,6 +296,18 @@ function markRow(mark: MarkMaking, nestingRank: number): InlineConstructPolicy {
 		revealable: true,
 		prose: 'all',
 		mark: { nestingRank, markerBytes: mark.marker, command: mark.toggle.id as AnyCommandId }
+	};
+}
+
+// A marker side is all marker: a letter typed at it joins its text, a key beside it takes the
+// visible character, and emptying the text between two sides leaves both.
+function markerRow(text: 'after' | 'before'): InlineConstructPolicy {
+	return {
+		edgeAffinity: text === 'after' ? 'joins-after' : 'joins-before',
+		autoUnwrapOnEmpty: false,
+		splitBehavior: 'whole',
+		revealable: true,
+		prose: 'none'
 	};
 }
 
