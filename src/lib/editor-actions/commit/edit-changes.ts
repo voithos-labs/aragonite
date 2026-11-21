@@ -7,6 +7,7 @@
 import type { DocumentView } from '../../core/node-views';
 import {
 	piecesOf,
+	sumTo,
 	type BlockBytes,
 	type TopLevelChange
 } from '../../tree-operations/top-level-starts';
@@ -101,14 +102,6 @@ function capture(
 	const oldHi = changes[changes.length - 1].to;
 	const grew = changes.reduce((sum, c) => sum + c.insert.length - (c.to - c.from), 0);
 	return { changes, lo, oldHi, newHi: oldHi + grew };
-}
-
-/** The bytes of blocks `[0, index)`, from the sums the record keeps, extended as far as asked. */
-function sumTo(record: BlockBytes, index: number): number {
-	const { lengths, sums } = record;
-	for (let i = record.summed; i < index; i++) sums[i] = (i > 0 ? sums[i - 1] : 0) + lengths[i];
-	record.summed = Math.max(record.summed, index);
-	return index > 0 ? sums[index - 1] : 0;
 }
 
 /** The writes' changes: one write's own, or one change over the span they cover together. */

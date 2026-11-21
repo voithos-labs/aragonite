@@ -362,6 +362,7 @@ You set the editor up with props when it mounts. After that you talk to it throu
 | `getBlockKindAt(path)` | What kind of block sits at a path, or `null` |
 | `canRunCommand(id)` / `isCommandActive(id)` | Whether a toolbar button should be enabled, and whether it should paint pressed (see [Toolbar commands](#toolbar-commands)) |
 | `getEvents()` | The subscription surface (see [Events](#events)) |
+| `on(event, listen)` | Listens the way a plugin does, in document bytes: `edit` hands you the `doc` after the write and its `changes`, and a replaced document is `load`. Returns the function that stops it (see `Events` in the [plugin API](plugin-api.md#events)) |
 | `getSearch()` | The find/replace controller (see [Driving search yourself](#driving-search-yourself)) |
 | `view` | Where things are on screen, in document bytes (see [Screen geometry](#screen-geometry)) |
 | `getRects()` | The same, by path and offset |

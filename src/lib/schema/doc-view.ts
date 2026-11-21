@@ -213,6 +213,8 @@ class NodeBlock {
 
 	constructor(node: NodeView, reading: BlockReading, path: readonly number[] | null) {
 		this[STATE] = { node, reading, path, at: reading.version() };
+		// Frozen, so a framework's reactive state (Vue's `ref`) holds the block itself, not a proxy.
+		Object.freeze(this);
 		recordBlockBuilt();
 	}
 

@@ -24,7 +24,7 @@ export function walkBlocks<N extends Parent<N>>(
 	visit: (node: N, path: number[]) => WalkControl,
 	basePath: readonly number[] = []
 ): boolean {
-	if ('suffix' in root) recordDocumentWalk();
+	recordDocumentWalk(root);
 	return walkChildren(root.children, [...basePath], visit);
 }
 

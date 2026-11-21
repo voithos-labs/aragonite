@@ -1,7 +1,7 @@
 /**
- * The event subscription object reached through `getEvents()`. Events fire synchronously and a
- * handler must not mutate the document; an `edit` event fires after its change is written and
- * announced, so its handler sees the updated document.
+ * The editor's events, on two maps over one channel: `Events`, which `editor.on` hears, and the
+ * older `EditorEventMap`, reached through `getEvents()`. Events fire synchronously, and an `edit`
+ * fires after its change is written and announced, so its handler sees the updated document.
  */
 
 import type { AnyBlockKind } from './core/nodes';

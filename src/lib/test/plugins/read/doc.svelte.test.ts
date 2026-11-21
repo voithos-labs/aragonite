@@ -45,6 +45,18 @@ async function mounted(source: string, plugins: PluginsProp = []) {
 
 const kinds = (blocks: Iterable<Block>) => [...blocks].map((block) => block.type.name);
 
+/** What a framework's reactive state makes of a value held in it (Vue's `ref` and `reactive`): a
+ *  proxy over every extensible object reached through it, and a frozen one left as it is. */
+function heldReactive<T extends object>(value: T): T {
+	if (!Object.isExtensible(value)) return value;
+	return new Proxy(value, {
+		get(target, key, receiver) {
+			const read: unknown = Reflect.get(target, key, receiver);
+			return typeof read === 'object' && read !== null ? heldReactive(read) : read;
+		}
+	});
+}
+
 describe('Doc', () => {
 	it('lists its top-level blocks as an array, building each only when read', async () => {
 		const { editor } = await mounted(DOC);
@@ -58,6 +70,7 @@ describe('Doc', () => {
 		expect(blocks.map((block) => block.type.name)).toEqual(kinds(blocks));
 		expect(kinds([...blocks])).toEqual(['paragraph', 'list', 'blockquote', 'table']);
 		expect(blocks.indexOf(blocks[3])).toBe(3);
+		expect([Object.keys(blocks), blocks]).toEqual([['0', '1', '2', '3'], [...blocks]]);
 		expect(blocks[4]).toBeUndefined();
 		expect(() => ((blocks as Block[])[0] = blocks[1])).toThrow(TypeError);
 	});
@@ -119,6 +132,26 @@ describe('Doc', () => {
 		void [...doc.walk()];
 		expect(takeDevWarnsOf('stale-doc').map((w) => w.message)).toEqual([
 			'Doc.blocks read a document a write has replaced; read `editor.doc` again after an await'
+		]);
+	});
+});
+
+describe('a block and a doc held in reactive state', () => {
+	// Miss-analysis: every row held the read surface in plain variables, never in a framework's
+	// state, where a proxy over a block lost its node and one over a doc threw on a private field.
+	it('read as they do held plainly', async () => {
+		const { editor } = await mounted(DOC);
+		const block = editor.blockAt(DOC.indexOf('bee'))!;
+		const held = heldReactive({ block, doc: editor.doc, blocks: editor.doc.blocks });
+		expect([held.block.from, held.block.parent, held.blocks[1].from]).toEqual([
+			DOC.indexOf('bee'),
+			block.parent,
+			DOC.indexOf('- ant')
+		]);
+		expect([held.doc.text, held.doc.current, held.doc.blockAt(0)]).toEqual([
+			DOC,
+			true,
+			editor.doc.blocks[0]
 		]);
 	});
 });

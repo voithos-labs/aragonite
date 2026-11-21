@@ -32,7 +32,7 @@ import {
 import type { BlockType } from '../../schema/plugin-unit';
 import type { EditEvent, EditInfo } from '../../editor-events';
 import { checkHeldBlockPlace } from '../../invariants/held-block';
-import { perfEnabled, recordHintRunsLogged } from '../../perf/instruments';
+import { perfEnabled, recordBlockRead, recordHintRunsLogged } from '../../perf/instruments';
 import type { WriteFollower } from './kept-starts';
 import { createEditChanges } from './edit-changes';
 
@@ -47,7 +47,8 @@ export interface DocumentRead {
 	blockOf(node: NodeView, path: readonly number[]): Block;
 	/** Offset `offset` of the block at `path` as a document byte; null where it isn't placed. */
 	byteOf(path: readonly number[], offset: number): number | null;
-	/** The text position holding document byte `at`, as a caret lands there. */
+	/** The text position holding document byte `at`, as a caret lands there. Null outside the
+	 *  document. */
 	leafAt(at: number): LeafPosition | null;
 	/** The path of the deepest block holding byte `at` of a range already in the document. */
 	pathAt(at: number): number[] | null;
@@ -110,6 +111,7 @@ export function createDocumentRead(deps: {
 
 	function blockOf(node: NodeView, path: readonly number[] | null): Block {
 		follow();
+		recordBlockRead();
 		const known = blocks.get(node);
 		if (known) {
 			seenAt(known, path);
@@ -175,10 +177,15 @@ export function createDocumentRead(deps: {
 		(i) => blockOf(deps.getDoc().children[i], [i])
 	);
 
-	function blockAt(at: number): Block | null {
+	// Null outside the document: the byte map alone would answer with its last text.
+	function leafAt(at: number): LeafPosition | null {
 		const laid = layout();
 		if (!Number.isInteger(at) || at < 0 || at > laid.of.starts.length) return null;
-		const leaf = laid.map.leafAt(at);
+		return laid.map.leafAt(at);
+	}
+
+	function blockAt(at: number): Block | null {
+		const leaf = leafAt(at);
 		const node = leaf && blockNodeAt(deps.getDoc(), leaf.path);
 		return node ? blockOf(node, leaf.path) : null;
 	}
@@ -202,13 +209,13 @@ export function createDocumentRead(deps: {
 		blockAt,
 		blockOf,
 		byteOf: reading.byteOf,
-		leafAt: (at) => layout().map.leafAt(at),
-		pathAt: (at) => layout().map.leafAt(at)?.path ?? null,
+		leafAt,
+		pathAt: (at) => leafAt(at)?.path ?? null,
 		leavesIn(from, to) {
 			const { map } = layout();
 			const out: { path: number[]; start: number; end: number }[] = [];
-			for (let at = from; at < to;) {
-				const leaf = map.leafAt(at);
+			for (let at = from; at < to; ) {
+				const leaf = leafAt(at);
 				const end = leaf && map.ownEnd(leaf.path);
 				if (!leaf || end === null) break;
 				// A container's own closing line reads as the child before it, already taken.
@@ -296,7 +303,6 @@ class VersionDoc implements Doc {
 	readonly #suffix: string;
 	#text: string | null = null;
 	#before: BlockBytes | null = null;
-	#warned = false;
 
 	constructor(reads: VersionReads, doc: DocumentView, version: number) {
 		this.#reads = reads;
@@ -304,6 +310,8 @@ class VersionDoc implements Doc {
 		this.eol = documentLineEnding(doc);
 		this.#prefix = doc.prefix;
 		this.#suffix = doc.suffix;
+		// Frozen, as a block is: a proxy over a `Doc` can't read its private fields.
+		Object.freeze(this);
 	}
 
 	get unread(): boolean {
@@ -322,7 +330,7 @@ class VersionDoc implements Doc {
 		if (this.#text === null) {
 			const before = this.#before;
 			// A version a write replaced unkept (a load, or a throw) has only the text as it stands.
-			if (!before) this.#stale('text');
+			if (!before) warnStale(this, 'text');
 			this.#text = before
 				? this.#prefix + before.pieces.join('') + this.#suffix
 				: this.#reads.source();
@@ -332,28 +340,29 @@ class VersionDoc implements Doc {
 	}
 
 	get blocks(): readonly Block[] {
-		this.#stale('blocks');
+		warnStale(this, 'blocks');
 		return this.#reads.blocks;
 	}
 
 	blockAt(at: number): Block | null {
-		this.#stale('blockAt');
+		warnStale(this, 'blockAt');
 		return this.#reads.blockAt(at);
 	}
 
 	walk(): IterableIterator<Block> {
-		this.#stale('walk');
+		warnStale(this, 'walk');
 		return walkFrom(this.#reads.blocks);
 	}
+}
 
-	#stale(read: string): void {
-		if (this.#warned || this.current) return;
-		this.#warned = true;
-		if (devChecksOn) {
-			devWarn(
-				'stale-doc',
-				`Doc.${read} read a document a write has replaced; read \`editor.doc\` again after an await`
-			);
-		}
-	}
+const warned = new WeakSet<Doc>();
+
+// Once per `Doc`, in a dev build: a production build carries neither the check nor its words.
+function warnStale(doc: Doc, read: string): void {
+	if (!devChecksOn || doc.current || warned.has(doc)) return;
+	warned.add(doc);
+	devWarn(
+		'stale-doc',
+		`Doc.${read} read a document a write has replaced; read \`editor.doc\` again after an await`
+	);
 }
