@@ -42,7 +42,7 @@ test.describe('edit events per paste op', () => {
 			expect(count).toBe(1);
 		});
 
-		await test.step('a list pasted over a range across two items emits exactly two', async () => {
+		await test.step('a list pasted over a range across two items emits exactly one', async () => {
 			await nextRow(editor, '- alpha\n- beta\n');
 			const before = await editor.bridge.getSource();
 			const first = editor.page.locator('[contenteditable="true"]', { hasText: 'alpha' });
@@ -58,8 +58,7 @@ test.describe('edit events per paste op', () => {
 				await editor.bridge.waitForSourceWith((s, b) => s !== b && s.includes('y'), before);
 			});
 
-			// The removal and the paste each emit one event.
-			expect(count).toBe(2);
+			expect(count).toBe(1);
 		});
 	});
 });

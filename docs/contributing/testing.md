@@ -202,6 +202,7 @@ When a job you've never heard of fails your PR, this is the table to search. The
 - `examples/consumer` is a test, not documentation. If something can only be learned from that folder, that's a docs bug to file. Its plugin folder is generated, so hands off.
 - A new example app joins the adapter suite's list in `examples/adapter-suite/apps.mjs`. Outside CI the suite reuses whatever server already holds an app's port, so stop leftovers first.
 - On the plugins test route (`src/routes/test/plugins/`), the callout fixture's two directive names, `callout` and `aside`, are reserved. A name two plugins want is settled by install order, which differs between the shared server and a fresh tab. A fixture whose trigger takes a common character (`#`, `:`, `[[`) installs only when the route's `?seed=` names it.
+- To ask whether a branch made a gesture slower, run `gh workflow run perf-ab.yml -f refs="v0.11.5 next <branch>"` (add `--ref <branch>` for that branch's rows, in `src/lib/e2e/perf-ab/gestures.spec.ts`) and read the job summary. Two CI runs disagree by up to a factor of two on one row, so only builds timed in the same job compare.
 
 ## Size budgets
 

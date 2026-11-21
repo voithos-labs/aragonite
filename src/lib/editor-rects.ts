@@ -5,7 +5,7 @@
  * the geometry and a unit test covers the answers that are not geometry.
  */
 import type { BlockComponent } from './block-component';
-import type { ScrollOwner } from './windowing/scroll-owner';
+import type { PlaceBlock, ScrollOwner } from './windowing/scroll-owner';
 import type { NativeSelectionRead } from './browser/selection-read';
 
 export interface EditorRects {
@@ -26,7 +26,7 @@ export interface EditorRects {
 	 *  true, keeps it where it landed against later layout shifts. True once in view and settled. */
 	scrollTo(
 		path: readonly number[],
-		opts?: { block?: 'nearest' | 'center'; hold?: boolean }
+		opts?: { block?: PlaceBlock; hold?: boolean }
 	): Promise<boolean>;
 	/** Mount `path` (opening a closed `<details>`), scroll there and land the caret at `offset`, default
 	 *  0, as an edit does. Reading mode moves focus there instead. True once in view. */

@@ -20,6 +20,7 @@ import type { Reading } from '../../schema/reading';
 import type { DocumentBytes } from '../range-bytes';
 import type { PluginActivation } from '../../schema/plugin-activation';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
+import type { KindCue } from '../../components/kind-cue.svelte';
 import { isReadingMode } from '../../presentation-mode';
 import { replaceRange, type RangeInsertion } from './range-replace';
 import type { Clip } from './range-paste';
@@ -68,6 +69,8 @@ export interface CrossBlockDispatchContext {
 	/** The editor's event emitter, the paste handler's only channel for a gesture it consumed but
 	 *  could not land. Non-nullable: skipping it drops a paste in silence. */
 	events: EditorEvents;
+	/** Names the new kind a key's text over the range turns its block into, as a typed letter does. */
+	kindCue: Pick<KindCue, 'afterTypedWrite'>;
 }
 
 /** What the block handling a press knows about it that the shared pointer handler cannot read. */

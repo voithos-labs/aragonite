@@ -254,6 +254,8 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.353 | Every reader of the text a write is worked out from names the vouch its bytes pass | L |
 | G4.355 | The chain rebuild reports a fold in one place, which checks it | L |
 | G4.357 | A test takes one guard's warnings and leaves the rest to the gate | L |
+| G4.367 | A plugin's read of the document walks no block it wasn't asked for | L |
+| G4.368 | Reading a block, held or at the caret, walks nothing and costs as much at 2,000 blocks as at 400 | harness |
 | G4.372 | A core-only editor's production page carries no highlight.js | harness |
 | G4.373 | The core imports no highlight.js | L |
 
@@ -716,7 +718,7 @@ A route copying any step fails with that step's reason. The content version and 
 
 **G4.338 · One emit for `edit`.** `editor-actions/commit/emit-edit.ts :: emitEdit` takes the blocks the write replaced as a required argument and hands them to `refreshDefinitions` before it emits, so a route that emitted `edit` itself would leave the editor serving stale reference links. The writes G4.107 lists call it. `lint/edit-emitters.test.ts`.
 
-**G4.339 · A caret move reads no whole list.** Nothing the editor runs on a typed letter or the `selectionchange` after it places a byte: the selection toolbar measures only a range with an action listed (`components/editor-root/selection-actions.ts`). A plugin reading `selectedRange()` on each caret move and edit asks the kept starts (G4.340), and in a quote, list or table pairs one child's lines, at 40 siblings as at 400. `test/perf/caret-move-byte-reads.test.ts` on `byteMapReads`, `topBlocksMeasured` and `linesPaired`; `test/editor-root/selection-actions.test.ts`.
+**G4.339 · A caret move reads no whole list.** Nothing the editor runs on a typed letter or the `selectionchange` after it places a byte: the selection toolbar measures only a range with an action listed (`components/editor-root/selection-actions.ts`). A plugin reading `editor.selection` on each caret move and edit asks the kept starts (G4.340), and in a quote, list or table pairs one child's lines, at 40 siblings as at 400. `test/perf/caret-move-byte-reads.test.ts` on `byteMapReads`, `topBlocksMeasured` and `linesPaired`; `test/editor-root/selection-actions.test.ts`.
 
 **G4.340 · A position costs its path.** Every write route (`test/harness/write-routes.ts`), with a listener asking a position on every edit, measures as many top-level blocks at 400 as at 40, unless it names no blocks; with no listener, none, unless the write reads positions to make itself. A byte splice measures as many at 400 as at 40. `measured(doc)` measures every block it's handed, so its callers are a declared list. `test/perf/top-level-starts-reads.test.ts`, `splice-top-level-cost.test.ts`, `lint/measured-callers.test.ts`.
 
@@ -741,6 +743,10 @@ A route copying any step fails with that step's reason. The content version and 
 **G4.355 · One push for a fold.** `src/lib/tree-operations/chain-rebuild.ts :: foldWrite` is where a fold is reported and where G1.220 reads it. The scan fails a `folds.push` anywhere else, and a `foldWrite` that stops calling the check. `lint/fold-doors.test.ts`.
 
 **G4.357 · One guard's warnings, taken alone.** A test about one guard reads its fires through `takeDevWarnsOf(tag)` (`test/support/warn-gate.ts`), which leaves every other tag for the gate. A `takeDevWarns()` narrowed to one tag (a `filter`, a `some`) drops the rest unseen: a property did, and hid a check that fired on its every run. `lint/suite-file-rules.test.ts`.
+
+**G4.367 · A read walks nothing.** `schema/doc-view.ts` and `editor-actions/commit/document-read.ts` name no `walkBlocks` or `pathOfNode`: a held block finds its node through the runs each write reports (G4.371), and a lost one reads -1. `lint/file-rules.test.ts`.
+
+**G4.368 · A block read costs its block.** A plugin reading the block at the caret, a block by index and a block it holds, on every edit, walks no document and builds and measures as many blocks at 2,000 as at 400. A key no plugin reads logs no runs and builds no block. `test/plugins/read/held-block.svelte.test.ts` on `documentWalks`, `blocksBuilt`, `hintRunsLogged`.
 
 **G4.372 · A core-only page carries no highlight.js.** A core-only editor paints code plain, so `scripts/pack/verify-dev-strip.mjs` fails when its production page's source maps name a highlight.js module, through either build. The core's prebuilt inlines what it imports, which the maps can't see, so on that route G4.373 is the guard. Highlighting is the highlight package's, which an editor lists.
 

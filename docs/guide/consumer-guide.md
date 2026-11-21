@@ -237,6 +237,7 @@ The table is the exports you'll actually reach for, grouped by job. It's not eve
 | Group | Exports | What for |
 | --- | --- | --- |
 | **Mounting** | `createEditor`, `CreateEditorOptions`, `EditorHandle`, `EditorOptions`, `EditorInstance`, `EDITOR_OPTION_SPECS` | Mounting without Svelte, and the handle you talk to (`EditorInstance` is the `bind:this` one). `EDITOR_OPTION_SPECS` says whether each option is live or set once, and whether it's a boolean, in case you're writing a wrapper of your own |
+| **Reading the document** | `Doc`, `Block`, `Piece`, `Selection`, `SelectionInput`, `View`, `Mode`, `Events`, `EditInfo`, `Change`, `HeadingData` and the other built-in kinds' data types | What the handle's `doc`, `selection`, `view`, `mode` and `on` hand back, every position in document bytes |
 | **Prop shapes** | `SyntaxOptions`, `PresentationMode`, `LinkClick`, `PlaceholderBlock`, `KeybindingOverride`, `CommandId`, `InsertMarkdownOptions` | What the `syntax`, `presentationMode`, `linkClick`, `placeholder` and `keybindings` props take, and `insertMarkdown()`'s second argument |
 | **Host hooks** | `ResolveImageUrl`, `ResolveLinkUrl`, `ImageLoadPolicy`, `PastedImage`, `PasteImageHook`, `CodeRunRequest`, `RunCodeHook`, `CodeMenuItem`, `CodeMenuItemsHook` | The URL and image props, the image-import hook, and the code-block hooks |
 | **Plugins** | `installPlugins`, `EditorPlugin`, `EditorPluginEntry` | A parse-only pipeline with no editor mounted; the unit a plugin exports, and one `plugins` entry (a bare unit, or `{ plugin, options }`) |
@@ -289,7 +290,7 @@ The table is the exports you'll actually reach for, grouped by job. It's not eve
 
 ### Loading another document
 
-Switching notes is a `source` write: hand it the new text and the editor replaces the document, clears undo, and says so on `sourceSwap` (not on `edit`). It compares the write with `getSource()`, not with whatever the prop held last, so writing the text it already holds does nothing and undo survives.
+Switching notes is a `source` write: hand it the new text and the editor replaces the document, clears undo, and says so on `sourceSwap` (not on `edit`; the handle's own `on` hears it as `load`). It compares the write with `getSource()`, not with whatever the prop held last, so writing the text it already holds does nothing and undo survives.
 
 One Svelte thing to watch for: a `$state` ignores a write equal to what it already holds, so that write never reaches the editor at all. Say `source` still holds the text you loaded and the user has typed since. Writing that same text back (to revert, say) does nothing, because as far as Svelte's concerned nothing changed. Hold the loaded document in an object you replace on each load, and the prop re-reads on every load, same text or not:
 
@@ -306,6 +307,8 @@ One Svelte thing to watch for: a `$state` ignores a write equal to what it alrea
 ```
 
 Echoing `getSource()` back into `source` on every `edit` works too. It reads the whole document every keystroke though, so the object is cheaper.
+
+Or skip the prop and call `load(text)` on the handle. It loads every time, even text the editor already holds, clears undo, and is heard as `load` too. A `source` prop you keep passing takes over again the next time its value changes.
 
 ### Switching a syntax off
 
@@ -354,13 +357,17 @@ You set the editor up with props when it mounts. After that you talk to it throu
 | Method | What it answers |
 | --- | --- |
 | `getSource()` | The live document, serialized back to Markdown |
+| `doc` | The document as it stands, in document bytes: its text, its blocks and the block at a byte (see [`Doc`](plugin-api.md#the-plugin-unit)) |
+| `element` | The editor's root element |
 | `getSelection()` | A frozen snapshot of the current selection, or `null` |
-| `selectedRange()` | The same selection as `{ from, to }` in document bytes, the positions a plugin's own functions take (`null` with table cells selected) |
+| `selection` | The same selection in document bytes, the positions a plugin's own functions take (see `Selection` in the [plugin API](plugin-api.md#events)) |
 | `getBlockKindAt(path)` | What kind of block sits at a path, or `null` |
 | `canRunCommand(id)` / `isCommandActive(id)` | Whether a toolbar button should be enabled, and whether it should paint pressed (see [Toolbar commands](#toolbar-commands)) |
 | `getEvents()` | The subscription surface (see [Events](#events)) |
+| `on(event, listen)` | Listens the way a plugin does, in document bytes: `edit` hands you the `doc` after the write and its `changes`, and a replaced document is `load`. Returns the function that stops it (see `Events` in the [plugin API](plugin-api.md#events)) |
 | `getSearch()` | The find/replace controller (see [Driving search yourself](#driving-search-yourself)) |
-| `getRects()` | Where things are on screen (see [Screen geometry](#screen-geometry)) |
+| `view` | Where things are on screen, in document bytes (see [Screen geometry](#screen-geometry)) |
+| `getRects()` | The same, by path and offset |
 | `getDecorations()` | The registry for your own view-only annotations (see [Decorations](#decorations)) |
 | `openMenu(menu, query?)` | Types a caret menu's trigger (and the query) at the caret and opens it, the way a shortcut or a toolbar button does; `false`, writing nothing, in a table cell, in reading mode, or for a menu this editor doesn't list |
 | `openRows(action, range, anchor, pointer?)` | Opens a plugin's selection action rows over `range`, just under `anchor` (a rect) or at it (a point), taking no focus, for a hover card over a mark; hands back `{ isOpen, close() }`, and tells `pointer` as the pointer comes onto the menu (`true`) and leaves it (`false`) |
@@ -374,6 +381,9 @@ And what you can write:
 | Method | What it does |
 | --- | --- |
 | `setSelection(snapshot)` | Puts a `getSelection()` snapshot back on the document (see [Restoring a selection](#restoring-a-selection)) |
+| `select(input)` | Selects in document bytes: a caret's byte, a range, a block whole or table cells, scrolled into view first |
+| `load(text)` | Replaces the document, clearing undo, and hands back the new `doc` (see [Loading another document](#loading-another-document)) |
+| `setMode(mode)` / `setTheme(theme)` | Switches the presentation mode or the theme until the prop of that name next changes, so a wrapper re-rendering with the same prop keeps it |
 | `placeCaretAtPoint(x, y)` | Lands the caret at a viewport point, exactly as a click there would (see [Placing the caret at a point](#placing-the-caret-at-a-point)) |
 | `insertMarkdown(md, options?)` | Inserts Markdown at the caret, or as a block of its own, exactly as pasting it would, less its last line ending (see [Inserting Markdown at the caret](#inserting-markdown-at-the-caret)) |
 | `edit()` | Writes byte ranges of the document as one undo step, now or after a wait, and is refused with a reason if the author wrote over them meanwhile (see [`Draft`](plugin-api.md#draft-draftresult)) |
@@ -608,7 +618,7 @@ events.on('edit', (e) => e);
 // { op: 'delete', path: [1], detail: { crossBlock: true }, timestamp: 1788390004120 }
 ```
 
-A keystroke fires its `input` as it's written, one per key, with no `detail` (read the block if you need its text). A key that changes its block's kind (the space that makes `#` a heading, say) fires `updateContent` instead of `input`. Undo still groups a burst of typing into one step, but `edit` doesn't wait for the burst to end. So if you save on `edit`, that's a save per keystroke: debounce your own, say a second after the last `edit`.
+A keystroke fires its `input` as it's written, one per key, with no `detail` (read the block if you need its text). A key that changes its block's kind (the space that makes `#` a heading, say) fires `updateContent` instead of `input`. So does a key typed over a selection spanning blocks: one `updateContent` with `detail.crossBlock`, naming the top-level block the text landed in. Undo still groups a burst of typing into one step, but `edit` doesn't wait for the burst to end. So if you save on `edit`, that's a save per keystroke: debounce your own, say a second after the last `edit`.
 
 `path` always walks from the document root to the block operated on, nested blocks and typing included. One event names one path even when the write spanned several blocks; a `delete`, `updateContent`, `tableDeleteRow` or `tableDeleteColumn` that did carries `detail.crossBlock: true`, and a host that reconciles incrementally should re-read the whole affected range on those rather than just `path`.
 
@@ -1090,7 +1100,7 @@ The `keybindings` prop rebinds (or disables, with `command: null`) chords that g
 
 An override's `kind` scope takes a plugin kind too; name it through the plugin's exported kind constant, which is a branded string, so a raw literal won't typecheck. A bind reaches every surface the editor owns, including the ones with no focused block for a kind scope to apply to: the caret between two blocks, a block focused as a whole (a thematic break, a plugin diagram), and the document with nothing focused inside it. A disable unbinds the command and lets the press through to the page, undo and redo aside, as [Which shortcuts the editor consumes](#which-shortcuts-the-editor-consumes) explains.
 
-**Over a selection spanning blocks, a chord goes by what you bound it to.** If the key is bound to something that happens at a caret (splitting a block, a hard line break, a heading level), it first removes the selection, then does its thing where that leaves the caret: where `Backspace` would leave it, except that a line break goes before the rest of the text the selection ended in, if any is left. So rebind the heading to `Mod+Alt+1` and that chord makes a heading over a selection too, while a disabled `Mod+1` leaves the selection alone. The binding that counts is the one in the block the caret lands in after the removal, so a binding scoped to one kind works here too. The indent keys follow the same rule: a chord you bind to `list.indent` indents a selection's list items, like Tab. That's the keyboard, mind you; `runCommand` with a heading level still declines over a selection spanning blocks, as [Toolbar commands](#toolbar-commands) says.
+**Over a selection spanning blocks, a chord goes by what you bound it to.** If the key is bound to something that happens at a caret (splitting a block, a hard line break, a heading level), it first removes the selection, then does its thing there. A line break goes where text typed over the selection would: before the rest of the text the selection ended in, else on a line it emptied, else in an empty paragraph where the selection was. Anything else goes where `Backspace` would leave the caret. So rebind the heading to `Mod+Alt+1` and that chord makes a heading over a selection too, while a disabled `Mod+1` leaves the selection alone. The binding that counts is the one in the block where the key then runs, so a binding scoped to one kind works here too. The indent keys follow the same rule: a chord you bind to `list.indent` indents a selection's list items, like Tab. That's the keyboard, mind you; `runCommand` with a heading level still declines over a selection spanning blocks, as [Toolbar commands](#toolbar-commands) says.
 
 **`Backspace` and `Delete` speak for every delete at a block's edge.** A word or line delete (`Ctrl+Backspace`, `Option+Backspace`, `Cmd+Backspace` and their `Delete` twins) or a phone keyboard's delete that lands at a block's start runs whatever plain `Backspace` is bound to there, and at its end whatever `Delete` is. So disabling `Backspace` stops all of them merging, and rebinding it rebinds all of them. In a table cell the chords move to the next cell over, like the plain keys do.
 
@@ -1250,7 +1260,20 @@ A mark's `onActivate` (the keyboard's way into a hover definition, say) has no k
 
 ### Screen geometry
 
-`getRects()` answers "where is that, on screen?" in viewport coordinates.
+`view` answers "where is that, on screen?" in viewport coordinates, for positions in document bytes, the ones `doc` and `selection` use:
+
+```ts
+const block = editor.doc.blocks[3];
+editor.view.boxOf(block); // DOMRect, or null while it isn't mounted
+editor.view.boxesOf({ from: 120, to: 180 }); // [DOMRect, ...], one per line of text
+editor.view.posAt({ x: 300, y: 412 }); // 131, the byte a click there would land on
+await editor.view.reveal(block, { align: 'center' }); // true once it's on screen
+const unpin = editor.view.overlay(badge, block); // your element, at the block's top-left corner
+```
+
+An overlay moves with its block through scrolls and edits, and comes off at `unpin()` or once its block is replaced (typing inside it does that), so pin again on the block you read next. Keys and right-clicks inside it are yours.
+
+`getRects()` answers the same by path and offset.
 
 ```ts
 const rects = editor.getRects();

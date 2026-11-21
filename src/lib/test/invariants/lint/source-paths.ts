@@ -37,6 +37,7 @@ export const SOURCE = {
 	linkSourceBytes: 'src/lib/core/inline/link-source-bytes.ts',
 	tableLine: 'src/lib/core/parsers/table-line.ts',
 	tableParser: 'src/lib/core/parsers/table.ts',
+	builtinData: 'src/lib/schema/builtin-data.ts',
 
 	// ── Block-kind registries, commands and raw rules ───────────────────────
 	blockOpeners: 'src/lib/schema/block-openers.ts',
@@ -211,6 +212,7 @@ export const SOURCE_ANCHORS: Record<keyof typeof SOURCE, string> = {
 	linkSourceBytes: 'export interface LinkFields',
 	tableLine: 'export function tableRowLine(',
 	tableParser: 'export function matchTableOpening(',
+	builtinData: 'export interface HeadingData',
 
 	// ── Block-kind registries, commands and raw rules ───────────────────────
 	blockOpeners: 'export interface OpenContext',
@@ -391,6 +393,7 @@ export const SOURCE_DIR = {
 	e2e: 'src/lib/e2e/',
 	e2eTests: 'src/lib/e2e/tests/',
 	e2ePerfTests: 'src/lib/e2e/tests/perf/',
+	e2ePerfAb: 'src/lib/e2e/perf-ab/',
 	e2eLint: 'src/lib/e2e/lint/',
 	e2eRequirements: 'src/lib/e2e/requirements/',
 	routes: 'src/routes/',
@@ -440,6 +443,7 @@ export const SOURCE_DIR_ANCHORS: Record<keyof typeof SOURCE_DIR, string> = {
 	e2e: 'browser-engine.ts',
 	e2eTests: 'perf',
 	e2ePerfTests: 'attribution.perf.spec.ts',
+	e2ePerfAb: 'gestures.spec.ts',
 	e2eLint: 'e2e-drivers.test.ts',
 	e2eRequirements: 'block-error-boundary.md',
 	routes: '+layout.svelte',

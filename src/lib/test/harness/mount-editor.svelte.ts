@@ -37,7 +37,7 @@ export function mountEditor<Seam = unknown>(initial: EditorProps): MountedEditor
 	const target = document.createElement('div');
 	document.body.appendChild(target);
 	const props = createReactiveProps(initial);
-	const instance = mount(Editor, { target, props }) as MountedEditor<Seam>['instance'];
+	const instance = mount(Editor, { target, props }) as unknown as MountedEditor<Seam>['instance'];
 	flushSync();
 	const mounted: MountedEditor<Seam> = {
 		instance,

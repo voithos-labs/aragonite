@@ -162,10 +162,11 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 		}
 	}
 
-	/** A paste at a place between blocks, whose undo puts the caret back on the block at `beside`. */
+	/** A paste at a place between blocks, whose undo puts the caret back on the block at `beside`.
+	 *  It lands in blocks of its own, so no block's step spends it. */
 	function atPlace(aim: PasteAim, beside: number[]): AimedPaste {
 		const undo = { path: docPathFrom(beside), offset: 0 };
-		return (clip) => pasteThroughCore(ctx, aim, clip, undo);
+		return (clip) => pasteThroughCore(ctx, aim, clip, undo, null);
 	}
 
 	/** The paste into a paragraph opened under top-level block `top`, both one undo entry: the
@@ -177,7 +178,8 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 		await ctx.controller.undoStep({ path: docPathFrom([top]), offset: 0 }, async () => {
 			if (!(await deps.insertParagraph(top + 1, '')) || !madeFor.live) return;
 			const at = { path: opened, start: 0, end: 0 };
-			landed = await pasteInBlock(ctx, at, clip, { path: opened, offset: 0 });
+			// An empty paragraph has no hidden edge for a step to move the text across.
+			landed = await pasteInBlock(ctx, at, clip, { path: opened, offset: 0 }, null);
 		});
 		return landed && madeFor.live;
 	}
@@ -199,7 +201,7 @@ export function createRootPaste(deps: RootPasteDeps): RootPaste {
 			if (answer.draft) return (answer.draft(clip.text), true);
 			const undo = { path: docPathFrom(path), offset: answer.caretBefore ?? start };
 			ctx.controller.flushDebouncedCheckpoint();
-			return await pasteInBlock(ctx, { path, start, end }, clip, undo, answer.spend);
+			return await pasteInBlock(ctx, { path, start, end }, clip, undo, answer.spend ?? null);
 		} finally {
 			ctx.controller.flushDebouncedCheckpoint();
 			answer.finish?.(true);

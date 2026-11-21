@@ -19,7 +19,7 @@ function cardOverEditor() {
 	const text = { kind: 'text', from: 0, to: 4, text: 'tset', children: [], is: () => false };
 	const editor = {
 		blockAt: () => ({ pieces: [text] }),
-		selectedRange: () => null,
+		selection: null,
 		on: () => () => {},
 		openRows(_action: SelectionAction, range: unknown, _anchor: unknown, pointer?: () => void) {
 			opened.push({ range, pointer });

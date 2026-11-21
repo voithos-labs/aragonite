@@ -887,6 +887,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		},
 		preparePaste: clipboard.preparePaste,
 		typeText: surface.typeText,
+		holdInsertion: editableSurface.caret.holdInsertion,
 		afterSourceCommit,
 		afterSelectionRemoved: editableSurface.afterSelectionRemoved,
 		getCommandContext

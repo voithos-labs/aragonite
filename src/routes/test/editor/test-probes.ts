@@ -16,6 +16,7 @@ import { nodeAt } from '#lib/tree-operations/node-primitives.js';
 import { spliceChildren } from '#lib/tree-operations/children.js';
 import { getStateForNode, isUnmountedBlockListState } from '#lib/block-lists/state-registry.js';
 import type { CstNode, Document, PluginBlockKind } from '#lib/core/nodes.js';
+import type { Block } from '#lib/schema/doc-view.js';
 import type { GapCaretPosition } from '#lib/selection/gap-caret.js';
 import type { EditorSelection } from '#lib/selection/primitives.js';
 import type { DecorationSource, DecorationSourceHandle } from '#lib/decorations/types.js';
@@ -390,6 +391,7 @@ export async function harnessPasteImage(image: PastedImage): Promise<string | nu
 }
 
 let capturedBlockRef: ReturnType<EditorInstance['__test']['getBlockComponent']> = null;
+const viewProbe: { held: Block | null; drop: (() => void) | null } = { held: null, drop: null };
 // Handles kept by source name so a spec can dispose or invalidate a source it registered:
 // the handle holds functions and cannot cross page.evaluate.
 const decorationHandles = new Map<string, DecorationSourceHandle>();
@@ -702,6 +704,32 @@ export function installTestProbes({
 				editor.getRects().scrollTo(path, opts),
 			navigateTo: (path: number[], offset?: number): Promise<boolean> =>
 				editor.getRects().navigateTo(path, offset)
+		},
+		// ── The view probe (drives `editor.view` from e2e) ──────────────────
+		// A held block and an overlay can't cross page.evaluate, so the probe keeps them.
+		view: {
+			hold: (index: number): void => void (viewProbe.held = editor.doc.blocks[index] ?? null),
+			head: (): number | null => editor.selection?.head ?? null,
+			posAt: (x: number, y: number): number | null => editor.view.posAt({ x, y }),
+			caretBox: (): PlainRect | null => {
+				const box = editor.view.caretBox();
+				return box && plainRect(box);
+			},
+			boxOf: (): PlainRect | null => {
+				const box = viewProbe.held && editor.view.boxOf(viewProbe.held);
+				return box ? plainRect(box) : null;
+			},
+			boxesOf: (from: number, to: number): PlainRect[] =>
+				editor.view.boxesOf({ from, to }).map(plainRect),
+			reveal: (at: number | null, align?: 'nearest' | 'center' | 'start'): Promise<boolean> =>
+				editor.view.reveal(at ?? viewProbe.held!, { align }),
+			overlay: (at: number | null, html = 'pinned'): void => {
+				const el = document.createElement('div');
+				el.dataset.testid = 'view-overlay';
+				el.innerHTML = html;
+				viewProbe.drop = editor.view.overlay(el, at ?? viewProbe.held!);
+			},
+			dropOverlay: (): void => viewProbe.drop?.()
 		},
 		// ── Cross-block caretRect timing probe ─────────────────────────────
 		// Read inside the synchronous handler, before the data-painted-range attribute updates, so

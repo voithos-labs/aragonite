@@ -11,6 +11,7 @@ import { svelteBlockView } from '#lib/components/svelte-block-view.js';
 import { defineBlockView, type BlockView } from '#lib/plugin.js';
 import { installEditorDomStubsForTests } from '#lib/testing.js';
 import { testLeaf } from '#lib/test/harness/test-kinds.js';
+import type { PluginBlockKind } from '#lib/core/nodes.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { mountBlockHost, type MountedHost } from './mount-host';
 import ThrowingAtMountBlock from './fixtures/ThrowingAtMountBlock.svelte';
@@ -34,17 +35,39 @@ const throwing = (raw: string, word: string) => {
 	if (raw.includes(word)) throw new TypeError(THROWN_MESSAGE);
 };
 
-const FORMS: { form: string; atMount: () => BlockView; onChange: () => BlockView }[] = [
+interface Form {
+	form: string;
+	atMount: () => BlockView;
+	onChange: () => BlockView;
+	/** The kind the view draws, and how its text reads as that kind. */
+	kind: (view: BlockView) => PluginBlockKind;
+	raw: (text: string) => string;
+}
+
+const leaf = (view: BlockView) => testLeaf('throwing-view', { view });
+// A DOM view draws a container, so its block is a quote read as one.
+const quote = (view: BlockView) =>
+	testLeaf('throwing-quote', {
+		view,
+		mergeRole: 'container',
+		container: { contract: 'opaque', rebuildRaw: () => {} }
+	});
+
+const FORMS: Form[] = [
 	{
 		form: 'a Svelte component',
 		atMount: () => svelteBlockView(ThrowingAtMountBlock),
-		onChange: () => svelteBlockView(ThrowingOnChangeBlock)
+		onChange: () => svelteBlockView(ThrowingOnChangeBlock),
+		kind: leaf,
+		raw: (text) => text
 	},
 	{
 		form: 'a DOM view',
+		kind: quote,
+		raw: (text) => `> ${text}`,
 		atMount: () =>
 			defineBlockView({
-				surface: 'none',
+				surface: 'container',
 				mount(target, ctx) {
 					throwing(ctx.state().node.raw, 'boom');
 					target.textContent = ctx.state().node.raw;
@@ -53,7 +76,7 @@ const FORMS: { form: string; atMount: () => BlockView; onChange: () => BlockView
 			}),
 		onChange: () =>
 			defineBlockView({
-				surface: 'none',
+				surface: 'container',
 				mount(target, ctx) {
 					target.textContent = ctx.state().node.raw;
 					return { update: (state) => throwing(state.node.raw, 'bang') };
@@ -62,9 +85,9 @@ const FORMS: { form: string; atMount: () => BlockView; onChange: () => BlockView
 	}
 ];
 
-function mountHost(view: BlockView, raw: string) {
+function mountHost(view: BlockView, raw: string, kind: Form['kind'] = leaf) {
 	const doc = parse(raw);
-	doc.children[0].kind = testLeaf('throwing-view', { view });
+	doc.children[0].kind = kind(view);
 	const node: CstNode = $state(doc.children[0]);
 	doc.children[0] = node;
 	const events = createEditorEvents();
@@ -84,18 +107,18 @@ function expectFailedBlock(host: MountedHost, errors: ErrorReport[], raw: string
 	expect(takeDevWarns().map((w) => w.tag)).toEqual(['foreign-runtime']);
 }
 
-describe.each(FORMS)('a block drawn by $form', ({ atMount, onChange }) => {
+describe.each(FORMS)('a block drawn by $form', ({ atMount, onChange, kind, raw }) => {
 	it('shows the failed-block notice, reports and names the cause when it throws mounting', () => {
-		const { host, errors } = mountHost(atMount(), 'boom text\n');
-		expectFailedBlock(host, errors, 'boom text\n');
+		const { host, errors } = mountHost(atMount(), raw('boom text\n'), kind);
+		expectFailedBlock(host, errors, raw('boom text\n'));
 	});
 
 	it('does the same when it throws on a change to its bytes', () => {
-		const { host, node, errors } = mountHost(onChange(), 'calm text\n');
+		const { host, node, errors } = mountHost(onChange(), raw('calm text\n'), kind);
 		expect(host.el.querySelector('[data-failed-block]')).toBeNull();
-		node.raw = 'bang text\n';
+		node.raw = raw('bang text\n');
 		flushSync();
-		expectFailedBlock(host, errors, 'bang text\n');
+		expectFailedBlock(host, errors, raw('bang text\n'));
 	});
 });
 
@@ -112,13 +135,13 @@ describe.each([
 ])('a DOM view whose destroy %s', (_name, destroy) => {
 	it('is reported, and the block still tears down', async () => {
 		const view = defineBlockView({
-			surface: 'none',
+			surface: 'container',
 			mount(target) {
 				target.textContent = 'drawn';
 				return { destroy };
 			}
 		});
-		const { host, errors } = mountHost(view, 'text\n');
+		const { host, errors } = mountHost(view, '> text\n', quote);
 		const el = host.el;
 		await host.dispose();
 		await Promise.resolve();

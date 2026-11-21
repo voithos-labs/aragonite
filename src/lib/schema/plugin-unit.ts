@@ -6,15 +6,17 @@
 import { assertInvariant, devChecksOn } from '@voithos-labs/aragonite/dev-checks';
 import { checkDefinedByThisCopy, type CoreCopy } from '../invariants/one-core-copy';
 import { ARAGONITE_VERSION } from '../version';
-import type { EditorEventMap } from '../editor-events';
-import type { PresentationMode } from '../presentation-mode';
+import type { Events } from '../editor-events';
+import type { Mode } from '../presentation-mode';
+import type { View } from './view';
 import type { Command } from './plugin-command';
 import type { InsertRow } from './insert-catalogue';
 import type { CaretMenu } from './caret-menu';
 import type { SelectionAction } from './selection-action';
 import type { Draft } from './drafts';
-import type { Block } from './doc-view';
-import type { BlockPaint, Paint } from '../decorations/paint';
+import type { Block, Doc } from './doc-view';
+import type { Selection, SelectionInput } from './selection-read';
+import type { BlockPaint, Paint, PaintContext } from '../decorations/paint';
 import type { CodeHighlighter } from './code-highlighter';
 import { isValidPluginName } from './plugin-name';
 import { satisfiesRange } from './version-range';
@@ -75,11 +77,14 @@ export interface Contribution {
 	 *  selection toolbar and `openRows`. */
 	actions?: readonly SelectionAction[];
 	/** What to lay over `block`, a block of text (one holding no other blocks), asked while it's on
-	 *  screen and kept while its bytes hold. */
-	paint?(block: Block): readonly Paint[];
+	 *  screen and kept while its bytes hold and `paintDepends`' answers stand. */
+	paint?(block: Block, ctx: PaintContext): readonly Paint[];
 	/** Classes and a badge for a block holding other blocks (a list, a quote, a table row), asked
 	 *  the same way. Its text is all of its children's, so read its type rather than scan it. */
-	paintContainer?(block: Block): readonly BlockPaint[];
+	paintContainer?(block: Block, ctx: PaintContext): readonly BlockPaint[];
+	/** What the paint reads of `block`, a top-level block, from its content alone (the footnotes it
+	 *  references, say), handed back as `ctx.depends`; a changed answer paints the screen again. */
+	paintDepends?(block: Block): string;
 	/** Highlights fenced code in the languages it lists, which the code block's picker offers. */
 	code?: CodeHighlighter;
 }
@@ -88,15 +93,19 @@ export interface Contribution {
 export interface Editor {
 	/** Names of the plugins on in this editor. */
 	readonly plugins: readonly string[];
-	readonly mode: PresentationMode;
+	readonly mode: Mode;
 	readonly theme: string;
 	/** Every row this editor's insert menus offer, live. */
 	readonly inserts: readonly InsertRow[];
+	/** The document as it stands, a new `Doc` after each write. */
+	readonly doc: Doc;
+	/** The selection in document bytes, one object until the next write or selection change;
+	 *  null with none. */
+	readonly selection: Selection | null;
+	/** Where the document sits on screen, in document bytes; one object for the editor's life. */
+	readonly view: View;
 	/** Listens until `dispose` is called, the plugin is turned off, or the editor unmounts. */
-	on<K extends keyof EditorEventMap>(
-		event: K,
-		listen: (payload: EditorEventMap[K]) => void
-	): () => void;
+	on<K extends keyof Events>(event: K, listen: (payload: Events[K]) => void): () => void;
 	/** Runs a command, by value or by id; false, with nothing written, where `can` would say no or
 	 *  the command declines. */
 	run<A>(command: Command<A>, arg: A): boolean;
@@ -123,9 +132,9 @@ export interface Editor {
 	/** The deepest block holding document byte `at` (a list item's paragraph, a table cell): a
 	 *  marker's byte goes to the text on its line. Null outside the document. */
 	blockAt(at: number): Block | null;
-	/** The selection in document bytes, `from` first (equal at a caret); null with none, or with
-	 *  table cells selected. */
-	selectedRange(): { readonly from: number; readonly to: number } | null;
+	/** Selects a caret's byte, a range, a block whole or table cells, scrolling it into view
+	 *  first; true once it's placed and in view. */
+	select(input: SelectionInput): Promise<boolean>;
 	/** Asks the plugin's `paint` again for `blocks` (one that left the document is skipped), or
 	 *  for every block on screen; a host's handle asks every plugin's. */
 	repaint(blocks?: readonly Block[]): void;

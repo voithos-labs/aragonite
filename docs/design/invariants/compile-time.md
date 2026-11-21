@@ -21,9 +21,9 @@ The strongest level: the violation doesn't compile. Enforced by `npm run check`.
 | G3.13 | A Vue wrapper prop that isn't an editor option, or a boolean Vue would read as false | T |
 | G3.14 | A Svelte view whose component wants a prop its slot never passes | T |
 | G3.15 | A block kind registered without the view that draws it | T |
-| G3.18 | A block member with no word on who supplies it for a DOM block view | T |
+| G3.18 | _Retired_: the DOM `'none'` surface went, and with it the table of who supplies each block member to one | T |
 | G3.19 | A leaf or container factory input a DOM block view has no way to supply | T |
-| G3.20 | A required hand-built block member with no answer before the view publishes | T |
+| G3.20 | _Retired_: no block view publishes members by hand once the `'none'` surface went | T |
 
 ### The entries
 
@@ -57,8 +57,4 @@ The strongest level: the violation doesn't compile. Enforced by `npm run check`.
 
 **G3.15 · A kind comes with its view.** `BlockKindRegistration` requires `view`; only a built-in may use the viewless `registerBuiltinBlockKind`, and built-ins get views through `attachBuiltinViews`, typed over every kind BlockHost mounts, so one missing from `built-in-blocks.ts` fails to compile. For a cast or plain JS, `registerBlockKind` refuses a missing or unbranded view and `augmentBlockKind` any `view`. `descriptor-groups.types.test.ts`, `kind-view-registration.test.ts`, `augment-guard.test.ts`. G1.2's and G1.18's component halves retired here.
 
-**G3.18 · Every block member says who supplies it.** `schema/block-view.ts :: MEMBER_SOURCES` is a `Record<keyof BlockComponent, MemberSource>`, so a member added to `BlockComponent` fails to compile until it says who supplies it for a DOM view: a hand-built view's handle, the view's host, the container surface, or only the editor. `HAND_BUILT_MEMBERS` and `HandBuiltBlock` read off it, so the publication's type and the members its ref carries can't drift apart. `block-view.types.test.ts`, `block-view-none.test.ts`.
-
 **G3.19 · Every factory input has a route outside Svelte.** `components/dom-block-view/factory-inputs.ts` says where a `defineBlockView` view gets each input of `createContainerBlock`, and `components/drawn-block/factory-inputs.ts` where the draw host gets each input of `createEditableLeaf` (or that a drawing has no route to it yet). A new input fails to compile until it's given one, so a feature reached only through Svelte (whole-block focus and the ambient prefix were) can't come back. `block-view-whole-block.test.ts`, `draw-host-text.svelte.test.ts`.
-
-**G3.20 · A hand-built block answers before it publishes.** A `'none'` view hands its members over with `ctx.block.publish`, and until it does (or after `publish(null)`) the ref answers from `NOTHING_PUBLISHED` in `components/dom-block-view/hand-built-ref.ts`: no focus, no caret, and a `focus` that does nothing. The constant `satisfies HandBuiltBlock`, so a new required member fails to compile until it has an answer, and focus dispatch never calls a member that isn't there. `block-view-none.test.ts`.

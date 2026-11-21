@@ -18,8 +18,9 @@ const text = (raw: string, from: number, to: number): Piece => ({
 	from,
 	to,
 	text: raw.slice(from, to),
+	data: undefined,
 	children: [],
-	is: () => false
+	is: ((): boolean => false) as unknown as Piece['is']
 });
 
 describe('wordSpans', () => {

@@ -8,7 +8,7 @@ A plugin value paints with `paint(block)`, up next. A `setup` plugin registers a
 
 ## Paint from a plugin value
 
-`paint(block)` sits in your contribution beside `commands` and the rest. The editor calls it for each block of text it has on screen (a paragraph, a heading, a table cell, the paragraph inside a list item) and keeps the answer while that block's bytes stay the same, so typing in a paragraph asks that paragraph again and nothing else. A block off screen isn't asked until it scrolls in.
+`paint(block)` sits in your contribution beside `commands` and the rest. The editor calls it for each block of text it has on screen (a paragraph, a heading, a table cell, the paragraph inside a list item) and keeps the answer while that block's bytes stay the same, so typing in a paragraph asks that paragraph again and nothing else. A block off screen isn't asked until it scrolls in. A paint that reads other blocks (footnote numbers) says so with `paintDepends` and gets what it read as `paint`'s second argument: [the document recipe](reading-the-document.md).
 
 ```ts
 import { definePlugin, type MarkAt, type Paint } from '@voithos-labs/aragonite/plugin';

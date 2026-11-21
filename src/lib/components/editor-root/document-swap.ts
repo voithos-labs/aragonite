@@ -1,6 +1,7 @@
 /**
- * The `source` prop's whole-document replacement, and the re-read of the same bytes a changed
- * plugin list makes. The incoming bytes are read first, so a read that throws changes nothing;
+ * The whole-document replacement a `source` prop or the handle's `load` makes, and the re-read of
+ * the same bytes a changed plugin list makes. The incoming bytes are read first, so a read that
+ * throws changes nothing;
  * then every piece of per-document state resets in one fixed order, so neither can skip a step.
  */
 
@@ -80,6 +81,8 @@ export interface DocumentSwap {
 	/** Replaces the document, unless `source` is the text it already holds: a host echoing
 	 *  `getSource()` back keeps its undo history. */
 	swapTo(source: string): void;
+	/** Replaces the document with `source` whatever it holds, as the handle's `load` asks. */
+	load(source: string): void;
 	/** Reads the same bytes again under a changed grammar, keeping the undo history. */
 	reparse(): void;
 	/** Counts whole-document replacements, which `editEpoch` cannot tell from a keystroke. */
@@ -91,13 +94,19 @@ export function createDocumentSwap(deps: DocumentSwapDeps): DocumentSwap {
 	// must register no dependency.
 	let generation = 0;
 
+	function replace(source: string): void {
+		adopt(() => source, 'clear');
+		generation++;
+		// Last, so a subscriber reading the document sees the new tree, selection and resolver.
+		deps.events.emit('sourceSwap', { generation });
+	}
+
 	return {
 		swapTo(source) {
-			if (source === deps.currentSource() || !startsAlone(deps)) return;
-			adopt(() => source, 'clear');
-			generation++;
-			// Last, so a subscriber reading the document sees the new tree, selection and resolver.
-			deps.events.emit('sourceSwap', { generation });
+			if (source !== deps.currentSource() && startsAlone(deps)) replace(source);
+		},
+		load(source) {
+			if (startsAlone(deps)) replace(source);
 		},
 		reparse() {
 			if (startsAlone(deps)) adopt(deps.currentSource, 'keep');

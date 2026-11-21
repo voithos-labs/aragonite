@@ -5,7 +5,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { stubBlockComponent } from '../../harness/editor-actions';
 import { makeKeydownEnv, press } from './keydown-env';
-import { isCommandCandidateKey, isIndentKey } from '#lib/selection/cross-block/keydown.js';
+import { isIndentKey, rangeOwnsKey } from '#lib/selection/cross-block/keydown.js';
+import type { SelectionEndpoint } from '#lib/selection/primitives.js';
 
 const SOURCE = 'alpha\n\nbeta\n\ngamma\n';
 
@@ -135,11 +136,40 @@ gamma
 	});
 
 	// Tab over a range indents what it holds; as a candidate it would remove the range first.
-	it('Tab and Shift+Tab are indent keys, never candidates', () => {
-		const { env } = envWithCommandTarget();
+	it('Tab and Shift+Tab are indent keys, never candidates', async () => {
+		const { env, runCommand } = envWithCommandTarget();
 		for (const init of [{}, { shiftKey: true }]) {
-			expect(isCommandCandidateKey(press('Tab', init), env.ctx)).toBe(false);
 			expect(isIndentKey(press('Tab', init), env.ctx)).toBe(true);
+			expect(await env.keydown.handleKeyDown(press('Tab', init))).toBe(true);
 		}
+
+		expect(env.source()).toBe(SOURCE);
+		expect(env.selection.ownsRange).toBe(true);
+		expect(runCommand).not.toHaveBeenCalled();
+	});
+});
+
+// Miss-analysis: every candidate row ranged over text, where the place a break takes and the block
+// the removal leaves the caret in are one block, so none read the claim off the place.
+describe('a line break over whole blocks is claimed by the keymap of the place text would take', () => {
+	const rule: SelectionEndpoint = { path: [1], wholeBlock: true };
+	const headingEnd: SelectionEndpoint = { path: [2], offset: 6 };
+
+	it('Shift+Enter is a candidate where the headings around the range unbind it', () => {
+		const env = makeKeydownEnv('# head\n\n---\n\n## two\n\nlast\n', {
+			keybindings: [{ chord: 'Shift+Enter', command: null, kind: 'heading' }]
+		});
+		env.selection.enterCrossBlock(rule, headingEnd);
+
+		expect(rangeOwnsKey(press('Enter', { shiftKey: true }), env.ctx)).toBe(true);
+	});
+
+	it('Enter is no candidate where paragraphs unbind it, though the heading it ends in binds it', () => {
+		const env = makeKeydownEnv('first\n\n---\n\n# head\n\nlast\n', {
+			keybindings: [{ chord: 'Enter', command: null, kind: 'paragraph' }]
+		});
+		env.selection.enterCrossBlock(rule, headingEnd);
+
+		expect(rangeOwnsKey(press('Enter'), env.ctx)).toBe(false);
 	});
 });

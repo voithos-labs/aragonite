@@ -2,11 +2,18 @@
  * What a plugin's `paint` lays over one block: marks, widgets, replaced ranges and the block's own
  * classes, every position in document bytes. The editor asks only about blocks it has on screen and
  * keeps an answer while the block's bytes hold, so a paint that reads anything else asks again
- * through `editor.repaint`.
+ * through `editor.repaint`, or declares what it reads of the document with `paintDepends`.
  */
 import type { PluginView } from '../plugin-view';
 
 type Attrs = Readonly<Record<string, string>>;
+
+/** What `paint` and `paintContainer` get beside the block. */
+export interface PaintContext {
+	/** What `paintDepends` answered for each top-level block, in `editor.doc.blocks`' order;
+	 *  never changed after it's handed over, so it can key a cache. Empty without `paintDepends`. */
+	readonly depends: readonly string[];
+}
 
 /** One thing `paint` lays over its block. */
 export type Paint = MarkPaint | WidgetPaint | ReplacePaint | BlockPaint;

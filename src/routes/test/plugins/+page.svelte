@@ -30,6 +30,8 @@
 	import { docLinkMenu, docLinkMenuPlugin } from './inline-menu/doc-link-menu-plugin';
 	import { heldCommitMenuPlugin } from './inline-menu/held-commit-menu-plugin';
 	import { drawnPlugin } from './drawn/drawn-plugin';
+	import { outlinePlugin } from './outline/outline-plugin';
+	import { noteNumbersPlugin } from './note-numbers/note-numbers-plugin';
 	import { draftWriterPlugin } from './draft-writer/draft-writer-plugin';
 	import '../../../../examples/showcase/tag-marks.css';
 	import type { PluginsProp } from '#lib';
@@ -91,6 +93,10 @@
 		badge: [blockBadgePlugin],
 		// Blocks drawn by a block type's `draw`; their types open only in this seed.
 		drawn: [drawnPlugin],
+		// A table of contents on `depends`; its type opens only in this seed.
+		outline: [outlinePlugin],
+		// Footnote numbers as a paint on `paintDepends`; its references paint only in this seed.
+		'note-numbers': [noteNumbersPlugin],
 		// A command that writes through `edit()`; the openers suite runs on this seed.
 		math: [draftWriterPlugin],
 		// `?seed=sim` puts long-lived decoration sources under the simulation's corruption
@@ -228,6 +234,20 @@
 		// a container drawn as a box.
 		drawn:
 			'above the field, a line\n\n```field\nfirst line here\nsecond line here\n```\n\nbelow the field, a line\n\n```shown\nhello\n```\n\n%> aside text\n',
+		// Three headings under an outline, the last far enough down that the outline leaves the
+		// window when the editor scrolls to its end.
+		outline:
+			[
+				'[[outline]]',
+				'# Alpha',
+				'para one',
+				'## Beta',
+				'para two',
+				...Array.from({ length: 200 }, (_, i) => `filler ${i}`),
+				'## Omega'
+			].join('\n\n') + '\n',
+		// References to number: `b` first, then `a`, then `b` again; the last paragraph says none.
+		'note-numbers': 'A first[^b] reference.\n\nA second[^a] and[^b] again.\n\nPlain paragraph.\n',
 		// A footnote definition whose body is one editable paragraph: the container's editing,
 		// Backspace and undo case.
 		footnotes: 'A note reference [^a] in prose.\n\n[^a]: The note body.\n',

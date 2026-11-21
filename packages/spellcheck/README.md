@@ -92,7 +92,7 @@ If you draw your own spelling UI, two functions do the reading and the writing, 
 ```ts
 import { misspellingAt, replaceWord } from '@voithos-labs/aragonite-spellcheck';
 
-const caret = editor.selectedRange(); // { from, to } in document bytes, or null
+const caret = editor.selection; // { from, to, ... } in document bytes, or null
 const word = caret && (await misspellingAt(editor, caret.from, dictionary));
 // { from: 14, to: 17, word: 'teh' }, or null when the word there is spelled right
 

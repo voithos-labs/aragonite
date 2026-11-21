@@ -41,7 +41,10 @@ export function createEditor(target: HTMLElement, options: CreateEditorOptions =
 	const instance = mount(Editor, { target, props });
 	let mounted = true;
 	// Copied as accessors, not spread, so `plugins`, `mode` and `theme` read the editor live.
-	const handle = Object.defineProperties({}, Object.getOwnPropertyDescriptors(instance));
+	const accessors = Object.getOwnPropertyDescriptors(instance);
+	// The component binds its root on its first flush; `mount` has appended it already.
+	accessors.element = { value: target.lastElementChild as HTMLDivElement, enumerable: true };
+	const handle = Object.defineProperties({}, accessors);
 	return Object.assign(handle, {
 		update(next: Partial<CreateEditorOptions>) {
 			for (const key of propKeys(next)) {
