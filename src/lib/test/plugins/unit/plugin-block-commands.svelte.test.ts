@@ -3,7 +3,7 @@
 // caret, by the type's key from a block inside it, and by a host's rebinding of that key.
 // Miss-analysis: block commands ran only through the process-wide `registerBlockCommand` registry,
 // and no row ran a plugin block command by id from a value plugin (N17).
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
 	command,
 	definePlugin,
@@ -37,6 +37,7 @@ import {
 
 beforeEach(installLayoutStubs);
 afterEach(async () => {
+	vi.restoreAllMocks();
 	await destroyMountedEditors();
 	document.body.innerHTML = '';
 });
@@ -318,6 +319,25 @@ describe("a block type's key", () => {
 		} finally {
 			disablePerfInstruments();
 		}
+	});
+
+	// Miss-analysis: the keys a container keeps as text keys of one platform only were installed and
+	// never pressed under that platform's conventions, where the claim is they never reach it.
+	it.each([
+		['Alt+Q', 'a Mac, where Option types', 'MacIntel', { key: 'œ', altKey: true }, 0, false],
+		['Alt+ArrowLeft', 'a Mac, where it moves a word', 'MacIntel', { key: 'ArrowLeft' }, 0, true],
+		['Alt+Q', 'Windows', 'Win32', { key: 'q' }, 1, true],
+		['Alt+ArrowLeft', 'Windows', 'Win32', { key: 'ArrowLeft' }, 1, true]
+	])("a container's %s on %s", async (key, _, platform, press, runs, taken) => {
+		vi.spyOn(navigator, 'platform', 'get').mockReturnValue(platform);
+		const taking = makeAlerts((cycle) => ({
+			chords: { [key]: cycle } as BlockCommon<AlertData>['chords']
+		}));
+		const { editor, ran } = await mounted(DOC, taking);
+		const event = await pressKeyAt(editor, [1, 0], 2, { altKey: true, ...press });
+		await editor.settle();
+		expect(ran).toHaveLength(runs);
+		expect(event.defaultPrevented).toBe(taken);
 	});
 });
 
