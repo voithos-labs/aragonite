@@ -224,11 +224,11 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 	}
 
 	/** The rows `node`'s block type adds to its menu, each running its command on that block. */
-	function typeRows(node: NodeView): TypeRow[] {
+	function typeRows(node: NodeView, path: readonly number[]): TypeRow[] {
 		const { blockActions, blockOf, run, can } = deps.blockTypes;
 		const rows = blockActions(node.kind);
 		if (rows.length === 0) return [];
-		const block = blockOf(node);
+		const block = blockOf(node, path);
 		return rows.map(({ label, icon, command }, i) => ({
 			id: `block-type.${i}`,
 			label,
@@ -241,10 +241,11 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 	/** The rows of the nearest block from `path` up whose type adds any, under its type's name. */
 	function typeFlyout(path: readonly number[]): { entry: MenuEntry; rows: TypeRow[] } | null {
 		for (let depth = path.length; depth >= 1; depth--) {
-			const node = blockNodeAt(deps.getDoc(), path.slice(0, depth));
-			const rows = node ? typeRows(node) : [];
+			const at = path.slice(0, depth);
+			const node = blockNodeAt(deps.getDoc(), at);
+			const rows = node ? typeRows(node, at) : [];
 			if (!node || rows.length === 0) continue;
-			const label = deps.blockTypes.blockOf(node).type.label;
+			const label = deps.blockTypes.blockOf(node, at).type.label;
 			const children = rows.map(({ id, label, icon, disabled }) => ({ id, label, icon, disabled }));
 			return { entry: { id: 'block-type', label, icon: 'ellipsis-vertical', children }, rows };
 		}
@@ -306,7 +307,7 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 
 	function openBlockActions(point: Point, host: HTMLElement, path: number[], node: NodeView): void {
 		const noun = blockNoun(node, deps.reading);
-		const actions = blockActionsFor(node, noun, typeRows(node));
+		const actions = blockActionsFor(node, noun, typeRows(node, path));
 		const index = path[0];
 		// A row may write after a slow clipboard read; one the block changed under, or a `source`
 		// swap outran, writes nothing.

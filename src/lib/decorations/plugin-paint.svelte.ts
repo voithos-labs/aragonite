@@ -7,7 +7,7 @@
 import { devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { tick, untrack } from 'svelte';
 import type { NodeView } from '../core/node-views';
-import type { MarkAt, MarkPaint, Paint } from './paint';
+import type { MarkAt, MarkPaint, Paint, PaintContext } from './paint';
 import type { PluginView } from '../plugin-view';
 import { inlineWidgetMiss, paintsOnlyClasses } from './paint-lands';
 import { recordPaintCall } from '../perf/instruments';
@@ -18,6 +18,9 @@ import type { Decoration, DecorationWidgetSpec, MarkDecoration, MarkInteractions
 export interface PaintSource extends BlockSource {
 	/** Asks again for `nodes`, or for every block once each is next read. */
 	repaint(nodes?: readonly NodeView[]): void;
+	/** Asks `paintDepends` of the blocks the writes since the last call replaced; true when an
+	 *  answer changed. */
+	settle(): boolean;
 }
 
 /** What a paint source maps positions through: a block as a plugin reads it. */
@@ -30,14 +33,20 @@ export interface PaintSourceDeps<B extends PaintedBlock> {
 	plugin: string;
 	/** The plugin's contribution, whose `paint` and `paintContainer` only this source calls. */
 	contribution: {
-		paint?(block: B): readonly Paint[];
-		paintContainer?(block: B): readonly Paint[];
+		paint?(block: B, ctx: PaintContext): readonly Paint[];
+		paintContainer?(block: B, ctx: PaintContext): readonly Paint[];
+		paintDepends?(block: B): string;
 	};
 	blockOf(node: NodeView, path: readonly number[]): B;
 	/** The block at `path` in the document now, which a handler reads its range through. */
 	blockAt(path: readonly number[]): B | null;
 	/** The viewport rects a mark paints, empty while its block is off screen. */
 	rectsOf(dec: MarkDecoration): DOMRect[];
+	/** Asks `depends` of every top-level block, then of the blocks each write replaced. */
+	keys(depends: (block: B) => string, report: (cause: unknown) => void): Answers;
+	/** A reactive read that settles the answers once per write and tells its reader only when one
+	 *  changed, so a key that changes none looks up no other block's paint. */
+	settled(): void;
 	report(error: PaintError): void;
 }
 
@@ -56,6 +65,10 @@ export function createPaintSource<B extends PaintedBlock>(deps: PaintSourceDeps<
 	const warned = new Set<string>();
 	const handlers = createHandlers(deps);
 	let queued: PaintError[] = [];
+	const { paintDepends } = deps.contribution;
+	let keys: Answers | null = null;
+	// The answers' version the paints last saw.
+	let keyed = 0;
 
 	// Inside a derived, where a listener that writes state would throw, so it waits for the flush.
 	function reportLater(error: PaintError): void {
@@ -67,6 +80,21 @@ export function createPaintSource<B extends PaintedBlock>(deps: PaintSourceDeps<
 		});
 	}
 
+	function settle(): boolean {
+		if (!paintDepends) return false;
+		if (!keys) {
+			keys = deps.keys(paintDepends, (cause) =>
+				reportLater({ plugin, doing: 'paintDepends', cause })
+			);
+			keyed = keys.version();
+			return false;
+		}
+		const now = keys.version();
+		if (now === keyed) return false;
+		keyed = now;
+		return true;
+	}
+
 	function decorationsOf(node: NodeView, path: readonly number[]): readonly Decoration[] {
 		// A block with children is asked only by a plugin that paints containers, so a keystroke deep
 		// in a long list doesn't hand every plugin the whole list's text.
@@ -74,16 +102,25 @@ export function createPaintSource<B extends PaintedBlock>(deps: PaintSourceDeps<
 		if (!(container ? deps.contribution.paintContainer : deps.contribution.paint)) return NONE;
 		const raw = node.raw;
 		const asked = version;
+		// A change of answers paints every block again.
+		if (paintDepends) deps.settled();
+		const answers = keyed;
 		let stamp = stamps.get(node);
 		if (!stamp) stamps.set(node, (stamp = new Stamp()));
 		const repainted = stamp.n;
 		const key = pathKey(path);
 		const was = held.get(node);
-		if (was && was.raw === raw && was.version === asked && was.stamp === repainted) {
+		if (
+			was &&
+			was.raw === raw &&
+			was.version === asked &&
+			was.stamp === repainted &&
+			was.answers === answers
+		) {
 			return atPath(was, path, key);
 		}
 		const decs = untrack(() => painted(container, node, path, was));
-		held.set(node, { raw, version: asked, stamp: repainted, key, decs });
+		held.set(node, { raw, version: asked, stamp: repainted, answers, key, decs });
 		return decs;
 	}
 
@@ -98,8 +135,11 @@ export function createPaintSource<B extends PaintedBlock>(deps: PaintSourceDeps<
 		let paints: readonly Paint[];
 		try {
 			const { contribution } = deps;
+			const ctx: PaintContext = keys ? { depends: keys.keys() } : NO_ANSWERS;
 			paints =
-				(container ? contribution.paintContainer?.(block) : contribution.paint?.(block)) ?? NONE;
+				(container
+					? contribution.paintContainer?.(block, ctx)
+					: contribution.paint?.(block, ctx)) ?? NONE;
 		} catch (cause) {
 			// The block keeps what it painted last; the same bytes aren't asked again.
 			reportLater({ plugin, doing: 'paint', cause });
@@ -179,6 +219,7 @@ export function createPaintSource<B extends PaintedBlock>(deps: PaintSourceDeps<
 	return {
 		name: `paint:${plugin}`,
 		decorationsOf,
+		settle,
 		repaint(nodes) {
 			if (!nodes) {
 				version++;
@@ -195,14 +236,34 @@ export function createPaintSource<B extends PaintedBlock>(deps: PaintSourceDeps<
 /** One editor's paint sources, one per contribution that paints, so a plugin `use` keeps holds on
  *  to what it painted. */
 export function createPaintSources<B extends PaintedBlock>(
-	deps: Omit<PaintSourceDeps<B>, 'plugin' | 'contribution'> & {
+	deps: Omit<PaintSourceDeps<B>, 'plugin' | 'contribution' | 'settled'> & {
 		/** The plugins that paint, in list order; a reactive read. */
 		paints(): readonly { plugin: string; contribution: PaintSourceDeps<B>['contribution'] }[];
+		/** Bumped by every write that changes the bytes: a reactive read. */
+		contentVersion(): number;
 	}
 ) {
 	const sources = new WeakMap<object, PaintSource>();
-	const sourceOf = ({ plugin, contribution }: ReturnType<typeof deps.paints>[number]) =>
-		cached(sources, contribution, () => createPaintSource({ ...deps, plugin, contribution }));
+	let changes = 0;
+	const sourcesNow = () => deps.paints().map(sourceOf);
+	function settle(list: readonly PaintSource[]): number {
+		for (const source of list) if (source.settle()) changes++;
+		return changes;
+	}
+	// Worked out by the first block read after a write. Its value moves only with an answer, so the
+	// blocks that read it are asked again only then.
+	const settled = $derived.by(() => {
+		deps.contentVersion();
+		const list = sourcesNow();
+		return untrack(() => settle(list));
+	});
+	// A handler asks outside any render, even past the unmount, where the derived would warn.
+	const settledNow = () => void ($effect.tracking() ? settled : settle(sourcesNow()));
+	function sourceOf({ plugin, contribution }: ReturnType<typeof deps.paints>[number]) {
+		return cached(sources, contribution, () =>
+			createPaintSource({ ...deps, plugin, contribution, settled: settledNow })
+		);
+	}
 	return {
 		/** Every painting plugin's source, in list order. */
 		get list(): readonly PaintSource[] {
@@ -225,6 +286,12 @@ export function paintBehind(dec: Decoration): Paint | undefined {
 
 // ── Internal ─────────────────────────────────────────────────────────────────
 
+/** The answers of the paint's `paintDepends`, kept across writes by the editor's document read. */
+interface Answers {
+	version(): number;
+	keys(): readonly string[];
+}
+
 type PaintMiss = 'container' | 'outside' | 'non-prose' | 'past-content';
 
 function missed(paint: Paint, problem: PaintMiss, node: NodeView): string {
@@ -242,12 +309,14 @@ function missed(paint: Paint, problem: PaintMiss, node: NodeView): string {
 }
 
 const NONE: readonly never[] = Object.freeze([]);
+const NO_ANSWERS: PaintContext = Object.freeze({ depends: NONE });
 const PAINT = Symbol('paint');
 
 interface Held {
 	raw: string;
 	version: number;
 	stamp: number;
+	answers: number;
 	key: string;
 	decs: readonly Decoration[];
 }

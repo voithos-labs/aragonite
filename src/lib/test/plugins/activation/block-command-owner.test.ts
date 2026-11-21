@@ -47,7 +47,10 @@ const targets: [string, () => KindCommandTarget][] = [
 			getCommandContext: () => blockCommandTarget({ getNode: node, getIndex: () => 0 }, writes)
 		})
 	],
-	['a container', () => buildContainerKindTarget({ getNode: node, getIndex: () => 0 }, writes)]
+	[
+		'a container',
+		() => buildContainerKindTarget({ getNode: node, getIndex: () => 0, getPath: () => [0] }, writes)
+	]
 ];
 
 describe('a block command answers to the plugin that registered it, on another plugin’s kind', () => {

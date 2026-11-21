@@ -266,7 +266,7 @@ test.describe('perf gate: a removal over a range across small blocks', () => {
 });
 
 // A paste is the range-edit core's answer: the block's own write for text, one byte splice for
-// blocks that cut it, and over a range across blocks the removal's splice first.
+// blocks that cut it or for a range across blocks.
 type PasteLands = 'text' | 'blocks' | 'over-range';
 const PASTE_ROWS: Array<[shape: Parameters<typeof measurePaste>[2], lands: PasteLands]> = [
 	['many-small-blocks', 'text'],

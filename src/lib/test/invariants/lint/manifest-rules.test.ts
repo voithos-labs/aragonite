@@ -257,6 +257,8 @@ const PLAIN_READS: Record<string, string> = {
 		'probe: reads the clipboard Replace with clipboard holds, so the paste rewrites see its blocks; the row writes the rewritten bytes through `replaceRaw`',
 	'src/lib/schema/opened-reading.ts':
 		'opened reading: defines `readAsOpened`, the parse every reader of nodes the editor holds goes through',
+	'src/lib/components/editor-root/headless-grammar.ts':
+		'hands on: `grammar(plugins).parse` reads through `initDocument`, which reads with `readAsOpened`; the name is the published method, not a plain read',
 	'src/lib/schema/container-raw.ts':
 		'probe: reads one line alone to name the kind it opens; a container’s own bytes go through `parseContainerRaw`, which fills in',
 	'src/lib/tree-operations/list/task-paragraph.ts':
@@ -279,8 +281,6 @@ const PLAIN_READS: Record<string, string> = {
 		'installs after backfill: the list fix-up reads a body’s blocks at their slot, and its writer gives each block it installs a paragraph to type in (`fix-up/apply.ts :: adopt`)',
 	'src/lib/tree-operations/list/reconcile-task.ts':
 		'hands on: the blocks read behind a bare bullet land through `replaceBlock`, which fills in',
-	'src/lib/selection/cross-block/range-replace.ts':
-		'hands on: a block a range holds whole is replaced by its text read at the slot, through `replaceBlock`, which fills in',
 	'src/lib/components/blocks/table/table-cell-paste.ts':
 		'hands on: reads the clipboard’s own blocks to pick the cell’s slice, which lands them through `replaceBlock`, which fills in',
 	'src/lib/selection/selection-drop.ts':

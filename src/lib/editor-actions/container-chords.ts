@@ -19,10 +19,10 @@ import { containerMayBind, resolveKindBinding } from '../schema/commands';
 import type { ContributedCommand } from '../schema/editor-contributions';
 import { eventToChord } from '../schema/keybindings';
 import { isReadingMode } from '../presentation-mode';
-import { rangeOwnsKey } from '../selection/cross-block/keydown';
+import { rangeOwnsKey, type RangeKeyReads } from '../selection/cross-block/keydown';
 import type { SelectionState } from '../selection/selection-state.svelte';
 
-export interface ContainerChordDeps {
+export interface ContainerChordDeps extends Pick<RangeKeyReads, 'bytes' | 'reading'> {
 	commands: CommandDispatchContext;
 	getBlockComponent(path: number[]): BlockComponent | null;
 	selection: Pick<SelectionState, 'ownsRange' | 'rangeInOneBlock' | 'anchor' | 'focus'>;

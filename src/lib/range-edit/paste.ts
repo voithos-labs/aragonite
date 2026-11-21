@@ -489,6 +489,17 @@ function bytesLanded(
 	return separatorKept(doc, leaf, edit, below, opens);
 }
 
+/** `edit`, a block's own write into `leaf`: where `leaf` was an empty paragraph, the blank line
+ *  its line was to the block flush under it comes back, as after a paste that fills it. */
+export function filledApart(doc: Doc, leaf: LaidBlock, edit: Edit): Edit {
+	const lower = doc.layout.block([...leaf.path.slice(0, -1), leaf.path.at(-1)! + 1]);
+	const flush = lower && lower.from <= doc.host.pastMarkers(doc.source, leaf.to);
+	const empty = isBlankText(nodeAt(doc, leaf.path).raw);
+	if (!empty || !flush || underItemText(doc, leaf, lower)) return edit;
+	const below = leaf.to + edit.source.length - doc.source.length;
+	return separatorKept(doc, leaf, edit, below, false);
+}
+
 /** Whether `lower`, no empty row, stands under the first line of a list item, `leaf`: a blank line
  *  between the two would turn the list loose. */
 function underItemText(doc: Doc, leaf: LaidBlock, lower: LaidBlock): boolean {
@@ -514,10 +525,12 @@ function markerSpaced(doc: Doc, leaf: LaidBlock, edit: Edit): Edit {
  *  line starts at `below` (`syntax-tree.md`); `opens`: the caret's empty line is a row of its own. */
 function separatorKept(doc: Doc, leaf: LaidBlock, edit: Edit, below: number, opens: boolean) {
 	if (isBlankText(lineRest(edit.source, leaf.from))) return edit;
-	// A blank line the paste left over the block parts them already.
+	// A blank line the paste left over the block parts them already; the filled line itself is none,
+	// though it reads as markers alone (a `>` with no text).
 	const above = edit.source.lastIndexOf('\n', below - 2) + 1;
 	const opened = opens && edit.caret >= above && edit.caret < below;
-	if (!opened && markersOnly(doc, lineHead(edit.source, below - 1), 0)) return edit;
+	const blank = above > leaf.from && markersOnly(doc, lineHead(edit.source, below - 1), 0);
+	if (!opened && blank) return edit;
 	const marks = continuation(doc, leaf.from);
 	const line = (marks.trimEnd() || marks) + doc.ending;
 	const source = edit.source.slice(0, below) + line + edit.source.slice(below);

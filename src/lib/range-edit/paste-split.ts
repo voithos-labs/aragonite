@@ -34,7 +34,7 @@ import {
 	numberedFromHead,
 	numberedOn
 } from './list-numbers';
-import { continuation } from './markers';
+import { continuation, markersOnly } from './markers';
 import { cutLeaf, spliced, type Cut, type Edit } from './leaf-splice';
 import { lineEnd, lineHead, lineRest } from './lines';
 
@@ -295,6 +295,10 @@ interface Touching {
 	upper: string;
 	lower: string;
 	placed: boolean;
+	/** The two stay apart whatever they read as. */
+	always?: boolean;
+	/** The upper one is the clipboard whole and its markers alone (a `>` with no text). */
+	bare?: boolean;
 }
 
 /** `out` with a blank line behind `marks` opened at `line`, where the lower block's line starts,
@@ -302,13 +306,16 @@ interface Touching {
 function parted(doc: Doc, out: string, line: number, marks: string, pair: Touching | null): string {
 	const above = out.lastIndexOf('\n', line - 2) + 1;
 	const ended = (raw: string) => ({ raw: raw.replace(/\n?$/, '\n') });
+	// A bare upper block's line is no blank line over the lower one: with text typed in it, it takes
+	// the line under it as its own.
 	const touching =
 		line > 0 &&
 		!isBlankText(lineRest(out, doc.host.pastMarkers(out, line))) &&
-		!isBlankText(out.slice(doc.host.pastMarkers(out, above), line));
+		(!!pair?.bare || !isBlankText(out.slice(doc.host.pastMarkers(out, above), line)));
 	const apart =
 		touching &&
 		(!pair ||
+			pair.always ||
 			(!isBlankText(pair.lower) &&
 				doc.host.parts(
 					doc.tree,
@@ -504,7 +511,9 @@ function setApart(
 			lower: lowerRaw,
 			placed: placed(blocks.at(-1)!, lower)
 		};
-		out = parted(doc, out, under, edit.under, always && pair.placed ? null : pair);
+		const oneLine = !/\n./.test(pair.upper);
+		const bare = blocks.length === 1 && oneLine && markersOnly(doc, pair.upper, 0);
+		out = parted(doc, out, under, edit.under, { ...pair, always: always && pair.placed, bare });
 	} else if (always && under > 0 && !closes(doc, edit.follows ? place : next)) {
 		// What follows the holder's last child is no child of it, yet a last pasted paragraph would
 		// read it as its own next line: a blank line keeps it out, unless that line reads as a block.
@@ -529,7 +538,10 @@ function setApart(
 	// took the blank line over the lower block, that block stands flush under it.
 	const taken = lower && out === edit.source && nodeAt(doc, lower.path).leadingTrivia !== '';
 	const asLeft = taken ? { ...doc, tree: flushAt(doc.tree, path, lower.path.at(-1)!) } : doc;
-	const grown = parted(asLeft, out, edit.line, edit.marks, always && pair.placed ? null : pair);
+	const grown = parted(asLeft, out, edit.line, edit.marks, {
+		...pair,
+		always: always && pair.placed
+	});
 	return { source: grown, caret: edit.caret + grown.length - out.length };
 }
 

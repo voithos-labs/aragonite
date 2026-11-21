@@ -10,7 +10,7 @@ import {
 } from '../../schema/block-view';
 import DomBlockHost from './DomBlockHost.svelte';
 
-const SURFACES: readonly BlockSurface[] = ['none', 'container'];
+const SURFACES: readonly BlockSurface[] = ['container'];
 
 /** A block view drawn by `spec`. Throws on a `surface` or `mount` it can't use. */
 export function defineBlockView(spec: BlockViewSpec): BlockView {

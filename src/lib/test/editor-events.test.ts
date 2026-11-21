@@ -1,5 +1,14 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createEditorEvents, emitCommandError, type EditorError } from '#lib/editor-events.js';
+import {
+	createEditorEvents,
+	emitCommandError,
+	onPluginEvent,
+	type EditorError,
+	type EditorEventMap,
+	type Events,
+	type PluginEventReads
+} from '#lib/editor-events.js';
+import { modeOf } from '#lib/presentation-mode.js';
 import { takeDevWarns } from './support/warn-gate';
 import { configureEditorEnv } from '@voithos-labs/aragonite/dev-checks';
 import { asDocPath } from '#lib/core/coordinate-spaces.js';
@@ -123,6 +132,65 @@ describe('createEditorEvents', () => {
 		});
 
 		expect(editCount).toBe(1);
+	});
+});
+
+describe('onPluginEvent', () => {
+	const failure: EditorError = { origin: 'command', error: new Error('x') };
+	const EMITTED: { [K in keyof EditorEventMap]: EditorEventMap[K] } = {
+		edit: { op: 'split', path: [0], detail: { at: 1 }, timestamp: 0 },
+		selectionChange: null,
+		error: failure,
+		presentationModeChange: 'live',
+		themeChange: 'dark',
+		menuChange: true,
+		sourceSwap: { generation: 3 },
+		searchChange: undefined
+	};
+	const reads = {
+		edit: () => 'the edit',
+		selection: () => null,
+		doc: () => 'the doc',
+		listenForEdits: () => () => {}
+	} as unknown as PluginEventReads;
+	const HEARS: { [K in keyof Events]: [keyof EditorEventMap, unknown] } = {
+		edit: ['edit', 'the edit'],
+		selection: ['selectionChange', { selection: null }],
+		mode: ['presentationModeChange', modeOf('live')],
+		theme: ['themeChange', 'dark'],
+		menu: ['menuChange', true],
+		load: ['sourceSwap', { doc: 'the doc', generation: 3 }],
+		search: ['searchChange', undefined],
+		error: ['error', failure]
+	};
+
+	// Miss-analysis: `edit`, `load`, `mode` and `selection` each had a mounted row; the other four
+	// names had none, so one heard on another's channel event passed.
+	it.each(Object.entries(HEARS))('%s hears its own channel event and no other', (name, hears) => {
+		const [on, payload] = hears;
+		const channel = createEditorEvents();
+		const heard: [string, unknown][] = [];
+		let sent = '';
+		onPluginEvent(channel, reads, name as keyof Events, (got) => void heard.push([sent, got]));
+		for (const event of Object.keys(EMITTED) as (keyof EditorEventMap)[]) {
+			sent = event;
+			channel.emit(event, EMITTED[event]);
+		}
+		expect(heard).toEqual([[on, payload]]);
+	});
+
+	// A listener still counted after it's gone keeps every later write's bytes for nobody.
+	it('counts an edit listener in while it listens, and a listener of no other event', () => {
+		let counted = 0;
+		const counting = { ...reads, listenForEdits: () => (counted++, () => void counted--) };
+		const channel = createEditorEvents();
+		const offTheme = onPluginEvent(channel, counting, 'theme', () => {});
+		expect(counted).toBe(0);
+		const offEdit = onPluginEvent(channel, counting, 'edit', () => {});
+		expect(counted).toBe(1);
+		offTheme();
+		offEdit();
+		expect(counted).toBe(0);
 	});
 });
 

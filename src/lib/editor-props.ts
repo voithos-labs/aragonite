@@ -24,6 +24,7 @@ import type { EditorRects } from './editor-rects';
 import type { InlineMenuRegistry } from './inline-menu/types';
 import type { PluginsProp } from './schema/plugin-install';
 import type { Editor, PluginError } from './schema/plugin-unit';
+import type { Doc } from './schema/doc-view';
 import type { SyntaxOptions } from './schema/editor-grammar';
 import type { InteractionTraceEntry } from './debug/interaction-trace';
 import type { InputRecordingHandle, InputRecordingOptions } from './debug/input-recorder';
@@ -192,6 +193,15 @@ export interface InsertMarkdownOptions {
 
 /** The `bind:this` handle a consumer can name and hold a ref to. */
 export interface EditorInstance extends Editor {
+	/** The editor's root element. */
+	readonly element: HTMLElement;
+	/** Replaces the document with `text`, even text it already holds, clearing undo; heard as
+	 *  `load`, never `edit`. Returns the new document. */
+	load(text: string): Doc;
+	/** Switches the presentation mode until the `presentationMode` prop next changes. */
+	setMode(mode: PresentationMode): void;
+	/** Switches the theme until the `theme` prop next changes. */
+	setTheme(theme: string): void;
 	/** Turns plugins on and off in this editor and reads the document again; undo history stays.
 	 *  What a plugin turned off added goes away with it. A call that fails part way leaves the
 	 *  editor running the list it ran and says so on `error`. */

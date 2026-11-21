@@ -469,6 +469,16 @@ export const WRITE_ROUTES: WriteRoute[] = [
 		rangeEdit: true
 	},
 	{
+		name: 'a block moved up by its chord',
+		source: paragraphs,
+		async write(m) {
+			await pressKeyAt(m, [AT], 2, { key: 'ArrowUp', altKey: true });
+			await m.settle();
+		},
+		asks: () => ({ path: [AT - 1], offset: 0 }),
+		announces: 'exact'
+	},
+	{
 		name: 'undo',
 		source: paragraphs,
 		setUp: (m) => typeLetter(m, [AT]),

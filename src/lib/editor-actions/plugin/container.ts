@@ -249,7 +249,7 @@ export function composeCollapseGates(
 /** The kind-command target a plugin container hands to `dispatchKindCommand`. It has no
  *  `runCommand`, since a plugin container owns no built-in kind commands. */
 export function buildContainerKindTarget(
-	deps: Pick<ContainerBlockDeps, 'getNode' | 'getIndex' | 'commandHooks'>,
+	deps: Pick<ContainerBlockDeps, 'getNode' | 'getIndex' | 'getPath' | 'commandHooks'>,
 	parentBlockEdit: BlockCommandWrites
 ): KindCommandTarget {
 	return {
@@ -257,7 +257,7 @@ export function buildContainerKindTarget(
 			return deps.getNode().kind;
 		},
 		getCommandContext: () => blockCommandTarget(deps, parentBlockEdit),
-		getNode: deps.getNode
+		getBlockPlace: () => ({ node: deps.getNode(), path: deps.getPath() })
 	};
 }
 
@@ -424,7 +424,7 @@ export function createContainerBlock(deps: ContainerBlockDeps): ContainerBlock {
 			return kindTarget.kind;
 		},
 		getCommandContext: kindTarget.getCommandContext,
-		getNode: deps.getNode,
+		getBlockPlace: kindTarget.getBlockPlace,
 		getPath: deps.getPath
 	};
 

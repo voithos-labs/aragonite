@@ -636,7 +636,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 			return deps.getNode().kind;
 		},
 		getCommandContext,
-		getNode: deps.getNode,
+		getBlockPlace: () => ({ node: deps.getNode(), path: deps.getPath() }),
 		getPath: deps.getPath,
 		afterSourceCommit,
 		afterSelectionRemoved: editableSurface.afterSelectionRemoved
@@ -875,6 +875,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		},
 		preparePaste: clipboard.preparePaste,
 		typeText: surface.typeText,
+		holdInsertion: editableSurface.caret.holdInsertion,
 		afterSourceCommit,
 		afterSelectionRemoved: editableSurface.afterSelectionRemoved,
 		getCommandContext

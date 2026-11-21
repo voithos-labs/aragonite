@@ -204,7 +204,7 @@ const walksInsideATest = (code: string): boolean =>
 	);
 
 const SUITE_DIRS = [SOURCE_DIR.unitTests, SOURCE_DIR.e2e];
-const PERF_DIRS = [SOURCE_DIR.unitPerfTests, SOURCE_DIR.e2ePerfTests];
+const PERF_DIRS = [SOURCE_DIR.unitPerfTests, SOURCE_DIR.e2ePerfTests, SOURCE_DIR.e2ePerfAb];
 const LINT_DIRS = [SOURCE_DIR.unitLint, SOURCE_DIR.e2eLint];
 
 /** One test file and one library file, so a walk that lost either half reads as unreached. */

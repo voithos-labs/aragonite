@@ -135,6 +135,7 @@
 	export const measurePartialRects = editableSurface.surface.measurePartialRects;
 	export const caretBounds = editableSurface.surface.caretBounds;
 	export const typeText = editableSurface.surface.typeText;
+	export const holdInsertion = editableSurface.caret.holdInsertion;
 
 	// ── Render pipeline ───────────────────────────────────────────────────────
 

@@ -436,6 +436,7 @@
 			preparePaste: clipboard.preparePaste,
 			claimRootClipboard: clipboard.claimRootClipboard,
 			typeText: editableSurface.surface.typeText,
+			holdInsertion: editableSurface.caret.holdInsertion,
 			afterSelectionRemoved: editableSurface.afterSelectionRemoved,
 			landRestoredCaret: (offset: number) => widgetInteraction.restoreCaret(offset, 'reachable')
 		} satisfies BlockComponent & LandsRestoredCaret;

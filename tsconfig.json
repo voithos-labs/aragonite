@@ -9,6 +9,7 @@
 		"paths": {
 			"@voithos-labs/aragonite": ["./src/lib/index.ts"],
 			"@voithos-labs/aragonite/plugin": ["./src/lib/plugin.ts"],
+			"@voithos-labs/aragonite/plugin/grammar": ["./src/lib/plugin/grammar.ts"],
 			"@voithos-labs/aragonite/svelte": ["./src/lib/svelte.ts"],
 			"@voithos-labs/aragonite/runtime/svelte": ["./src/lib/runtime/svelte.ts"],
 			"@voithos-labs/aragonite/runtime/svelte/internal/client": [

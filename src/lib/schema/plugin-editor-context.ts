@@ -5,10 +5,17 @@
  * once, through the editor's own report.
  */
 import type { DocumentView } from '../core/node-views';
-import type { EditorEventMap } from '../editor-events';
+import {
+	onPluginEvent,
+	type EditorEventMap,
+	type EditorEvents,
+	type PluginEventReads
+} from '../editor-events';
+import { modeOf } from '../presentation-mode';
 import { inlineReaderFor } from '../core/inline';
 import type { DecorationRegistry } from '../decorations/types';
 import type { EditorRects } from '../editor-rects';
+import type { EditorView, View } from './view';
 import type { InsertMarkdownOptions } from '../editor-props';
 import type { InlineMenuRegistry } from '../inline-menu/types';
 import type { PresentationMode } from '../presentation-mode';
@@ -84,8 +91,13 @@ export function createEditorPluginContexts(deps: {
 	claims: (event: KeyboardEvent) => boolean;
 	openMenu: (menu: CaretMenu<unknown>, query?: string) => boolean;
 	openRows: Editor['openRows'];
+	doc: () => Editor['doc'];
+	selection: () => Editor['selection'];
+	select: Editor['select'];
+	view: EditorView;
+	/** What `Editor.on` makes of the channel's payloads. */
+	pluginEvents: () => PluginEventReads;
 	blockAt: Editor['blockAt'];
-	selectedRange: Editor['selectedRange'];
 	/** Asks `plugin`'s paint again. */
 	repaint: (plugin: string, blocks?: Parameters<Editor['repaint']>[0]) => void;
 	/** A draft; `plugin` names the plugin it's refused for once that plugin is off. */
@@ -166,13 +178,27 @@ export function createEditorPluginContexts(deps: {
 		return editor;
 	}
 
+	// An overlay comes off with its plugin, as a listener does.
+	function scopedView(plugin: string): View {
+		return {
+			...deps.view.view,
+			overlay(el, at) {
+				const disposer = { plugin, dispose: () => {} };
+				disposers.push(disposer);
+				disposer.dispose = deps.view.overlay(el, at, () => void disposeOne(disposer));
+				return () => reportThrown(disposeOne(disposer));
+			}
+		};
+	}
+
 	function scopedEditor(plugin: string): Editor {
+		const view = scopedView(plugin);
 		return {
 			get plugins() {
 				return deps.pluginNames();
 			},
 			get mode() {
-				return deps.getPresentationMode();
+				return modeOf(deps.getPresentationMode());
 			},
 			get theme() {
 				return deps.getTheme();
@@ -180,8 +206,19 @@ export function createEditorPluginContexts(deps: {
 			get inserts() {
 				return insertRows(deps.activation);
 			},
+			get doc() {
+				return deps.doc();
+			},
+			get selection() {
+				return deps.selection();
+			},
+			view,
 			on(event, listen) {
-				const disposer = { plugin, dispose: listenAs(plugin, event, listen) };
+				const channel: Pick<EditorEvents, 'on'> = {
+					on: (name, hear) => listenAs(plugin, name, hear)
+				};
+				const dispose = onPluginEvent(channel, deps.pluginEvents(), event, listen);
+				const disposer = { plugin, dispose };
 				disposers.push(disposer);
 				return () => reportThrown(disposeOne(disposer));
 			},
@@ -192,7 +229,7 @@ export function createEditorPluginContexts(deps: {
 			openRows: (action, range, anchor, pointer) => deps.openRows(action, range, anchor, pointer),
 			edit: () => deps.edit(plugin),
 			blockAt: (at) => deps.blockAt(at),
-			selectedRange: () => deps.selectedRange(),
+			select: (input) => deps.select(input),
 			repaint: (blocks) => deps.repaint(plugin, blocks)
 		};
 	}

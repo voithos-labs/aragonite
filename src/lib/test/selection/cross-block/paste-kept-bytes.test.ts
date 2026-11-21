@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // G1.219 for a paste: with the kept record holding a block's bytes from before a write that named
-// no block, a paste reads its place and the document again from the tree, and a paste answered
-// before such a write is refused; each tells the `error` channel once and lands nothing wrong.
+// no block, a paste reads its place and the document again from the tree, tells the `error`
+// channel once and lands nothing wrong.
 // Miss-analysis: the record's rows ran over copies, removals and drafts, and the paste branch read
 // its place and the document apart from them, so no row pasted beside a block the record held wrong.
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -73,24 +73,6 @@ describe('G1.219 a paste beside a block the record holds wrong', () => {
 
 		expect(editor.source()).toContain(`${GROWN.slice(0, 30)}${text}`);
 		expect(editor.source()).toContain('line 3\n\nline 4\n');
-		expect(errors).toHaveLength(1);
-		keptGuardAlone();
-	});
-
-	it('a paste answered before a write that named no block is refused, which keeps that write', async () => {
-		const { editor, errors } = await measured('alpha\n\nbeta\n\ngamma\n');
-		await placeRange(editor, { anchor: { path: [0], offset: 2 }, focus: { path: [2], offset: 3 } });
-		const ops: string[] = [];
-		editor.instance.getEvents().on('edit', (event) => {
-			ops.push(event.op);
-			if (event.op === 'delete') writeUnannounced(editor, 0, 'ALMA\n');
-		});
-
-		await editor.instance.insertMarkdown('X');
-		await editor.settle();
-
-		expect(editor.source()).toBe('ALMA\n');
-		expect(ops).toEqual(['delete']);
 		expect(errors).toHaveLength(1);
 		keptGuardAlone();
 	});

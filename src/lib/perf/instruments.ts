@@ -61,6 +61,20 @@ export interface PerfSnapshot {
 	/** Containers whose lines the document byte map paired to place one byte. A caret move pairs
 	 *  none. */
 	byteMapReads: number;
+	/** Walks of a whole document's blocks; a plugin's read of a block makes none. */
+	documentWalks: number;
+	/** Writes whose runs the document read logged to move a held block: none until a plugin holds one. */
+	hintRunsLogged: number;
+	/** Block views made for a plugin: one per node read, never one per block of a list nobody reads. */
+	blocksBuilt: number;
+	/** Block views handed to a plugin, one already built included: what a walk of the document costs. */
+	blocksRead: number;
+	/** Top-level strings a write kept so a `Doc` it replaced can still read its text. */
+	stringsKept: number;
+	/** Blocks a surface's `depends` was asked about: one per key typed, none with no surface. */
+	keysAsked: number;
+	/** Writes a watch of `depends` answers heard: none from one nobody reads any more. */
+	keyWritesHeard: number;
 	undoLiveBytes: number;
 	undoEntryCount: number;
 	blockRenderCount: number;
@@ -140,6 +154,13 @@ function emptySnapshot(): PerfSnapshot {
 		containerChordWalks: 0,
 		placedLookups: 0,
 		byteMapReads: 0,
+		documentWalks: 0,
+		hintRunsLogged: 0,
+		blocksBuilt: 0,
+		blocksRead: 0,
+		stringsKept: 0,
+		keysAsked: 0,
+		keyWritesHeard: 0,
 		undoLiveBytes: 0,
 		undoEntryCount: 0,
 		blockRenderCount: 0,
@@ -323,6 +344,38 @@ export function recordPlacedLookup(): void {
 export function recordByteMapRead(): void {
 	if (!enabled) return;
 	counters.byteMapReads++;
+}
+
+/** Counts a walk whose `root` is a whole document; asks `root` nothing while recording is off. */
+export function recordDocumentWalk(root: object): void {
+	if (enabled && 'suffix' in root) counters.documentWalks++;
+}
+
+export function recordHintRunsLogged(): void {
+	if (!enabled) return;
+	counters.hintRunsLogged++;
+}
+
+export function recordStringsKept(count: number): void {
+	if (enabled) counters.stringsKept += count;
+}
+
+export function recordKeyAsked(): void {
+	if (enabled) counters.keysAsked++;
+}
+
+export function recordKeyWriteHeard(): void {
+	if (enabled) counters.keyWritesHeard++;
+}
+
+export function recordBlockBuilt(): void {
+	if (!enabled) return;
+	counters.blocksBuilt++;
+}
+
+export function recordBlockRead(): void {
+	if (!enabled) return;
+	counters.blocksRead++;
 }
 
 export function setUndoGauge(liveBytes: number, entryCount: number): void {

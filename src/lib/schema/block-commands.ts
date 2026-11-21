@@ -225,9 +225,9 @@ export interface KindCommandTarget {
 	// What a plugin block command runs against, supplied by the focused block; without it no
 	// plugin command resolves, and both dispatch and the "can this run" read fall to `runCommand`.
 	getCommandContext?(): BlockCommandTarget;
-	/** The block's node, which a command its block type places runs on. Absent, such a command
-	 *  runs on the nearest block at the caret whose type places it. */
-	getNode?(): NodeView;
+	/** The block's node and path, the block a command its block type places runs on. Absent, such a
+	 *  command runs on the nearest block at the caret whose type places it. */
+	getBlockPlace?(): { node: NodeView; path: readonly number[] };
 	/** Whether the id is toggled on at this block's caret or selection, which a toolbar shows as
 	 *  pressed. Absent means the block has no toggle state to report, which reads as inactive. */
 	isCommandActive?(id: AnyCommandId): boolean;
@@ -422,8 +422,8 @@ function runPlaced(
 	activation: PluginActivation
 ): boolean {
 	const contributions = activation.contributions!;
-	const node = target.getNode?.();
-	return contributions.runAtKey(entry, node ? contributions.blockOf(node) : undefined);
+	const place = target.getBlockPlace?.();
+	return contributions.runAtKey(entry, place && contributions.blockOf(place.node, place.path));
 }
 
 /** {@link runPlaced}'s "can this run" read. */
@@ -433,8 +433,8 @@ function canRunPlaced(
 	activation: PluginActivation
 ): boolean {
 	const contributions = activation.contributions!;
-	const node = target.getNode?.();
-	return contributions.canAtKey(entry, node ? contributions.blockOf(node) : undefined);
+	const place = target.getBlockPlace?.();
+	return contributions.canAtKey(entry, place && contributions.blockOf(place.node, place.path));
 }
 
 /** A plugin's handler under its own editor context, a throw caught and reported. */

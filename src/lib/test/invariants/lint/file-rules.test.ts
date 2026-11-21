@@ -2473,7 +2473,9 @@ const TYPED_WRITE_ASKS: ManifestRule[] = [
 		matches: /\.(?:afterTypedWrite|completeLineOnType)\s*\(/,
 		declared: {
 			'src/lib/components/blocks/editable/surface-write.ts':
-				'`writeText`, which asks both for a `typed` write and for no other'
+				'`writeText`, which asks both for a `typed` write and for no other',
+			'src/lib/selection/cross-block/range-replace.ts':
+				'`textOverRange`, the one write a key’s text over a range across blocks makes, where no block’s surface write runs; it asks the kind cue for that text alone'
 		},
 		reason:
 			'a surface route that asks the kind cue or the on-type completer itself gets them for a command, a paste or a repair too, or misses them for a key: write through `writeText` with the typed intent',
@@ -2697,8 +2699,6 @@ const RANGE_INDENT: ManifestRule[] = [
 				'a command key, run at the caret the range’s removal leaves',
 			'src/lib/editor-actions/plugin/container.ts':
 				'reads what a key means for the caret memory, and never runs it',
-			'src/lib/components/dom-block-view/DomBlockView.svelte':
-				'reads what an arrow leaving a hand-built block means for the caret memory, and never runs it',
 			'src/lib/components/link-card/opens-card.ts':
 				'asks only whether the key is the one that opens the link card'
 		},
@@ -3383,6 +3383,26 @@ const PAINT_CALLERS: FileRule = {
 	]
 };
 
+// ── G4.367 a plugin's read of the document walks nothing ─────────────────────
+
+const DOC_VIEW = `${SOURCE_DIR.schema}doc-view.ts`;
+const DOCUMENT_READ = `${SOURCE_DIR.editorActions}commit/document-read.ts`;
+
+const READS_WALK_NOTHING: FileRule = {
+	id: 'G4.367 a plugin’s read of the document walks no block it was not asked for',
+	population: (file) => file.relPath === DOC_VIEW || file.relPath === DOCUMENT_READ,
+	matches: /\b(?:walkBlocks|pathOfNode)\b/,
+	reaches: [DOC_VIEW, DOCUMENT_READ],
+	atLeast: 2,
+	reason:
+		'a held block finds its node through the runs each write reports, and reads -1 where they lose it: a walk there costs the whole document on every read of a block a write moved',
+	hits: [
+		at(DOC_VIEW, 'walkBlocks(doc, (node, path) => (node === held ? "stop" : undefined));'),
+		at(DOCUMENT_READ, 'return path ?? pathOfNode(doc, node);')
+	],
+	misses: [at(DOCUMENT_READ, 'return walkFrom(this.#reads.blocks);')]
+};
+
 const SOURCES = collectEditorSources();
 describeFileRules(
 	[
@@ -3400,7 +3420,8 @@ describeFileRules(
 		ONE_VIEW_WRAPPER,
 		ONE_WRITE,
 		SPLICE_READS,
-		PAINT_CALLERS
+		PAINT_CALLERS,
+		READS_WALK_NOTHING
 	],
 	SOURCES
 );

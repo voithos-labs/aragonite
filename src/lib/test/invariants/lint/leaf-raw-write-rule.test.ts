@@ -32,7 +32,9 @@ const ESCALATION_SITES: Record<string, string> = {
 		'sizes the section fences of a field report whose bodies routinely carry fences of their own',
 	'packages/mermaid/src/mermaid-kind.ts':
 		'sizes the fence its metadata body is rebuilt inside — the body is never re-parsed here',
-	'src/lib/plugin.ts': 'the author barrel: a plugin rebuilding its own raw needs the same rule'
+	'src/lib/plugin.ts': 'the author barrel: a plugin rebuilding its own raw needs the same rule',
+	'src/lib/core/escalated-run.ts':
+		'one helper over the fence and `:::` runs, for a plugin writing either around text'
 };
 
 // ── The bare write: a byte write that names neither function ─────────────────

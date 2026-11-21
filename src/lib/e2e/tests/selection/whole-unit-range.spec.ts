@@ -13,18 +13,6 @@ import { pointAtRaw } from '../../text-runs';
 
 const DOC = 'above\n\n---\n\nbelow\n';
 
-/** A held drag across the block's middle: the block joins the range as soon as the pointer moves. */
-async function dragInside(editor: EditorPage, selector: string): Promise<void> {
-	const box = await editor.page.locator(selector).boundingBox();
-	if (!box) throw new Error(`no box for ${selector}`);
-	const y = box.y + box.height / 2;
-	await editor.page.mouse.move(box.x + 8, y);
-	await editor.page.mouse.down();
-	await editor.page.mouse.move(box.x + box.width - 8, y, { steps: 8 });
-	await editor.page.mouse.up();
-	await editor.waitForCrossBlock(true);
-}
-
 test.describe('a whole-unit range: thematic break', () => {
 	let editor: EditorPage;
 
@@ -35,7 +23,7 @@ test.describe('a whole-unit range: thematic break', () => {
 	});
 
 	test('a printable key replaces the rule with a paragraph holding the character', async () => {
-		await dragInside(editor, '.thematic-break-block');
+		await editor.holdBlockWhole('.thematic-break-block');
 
 		await editor.typeSlowly('x');
 		await editor.bridge.waitForSourceEquals('above\n\nx\n\nbelow\n');
@@ -49,7 +37,7 @@ test.describe('a whole-unit range: thematic break', () => {
 	});
 
 	test('the undo puts the rule back held whole, so the next key replaces it again', async () => {
-		await dragInside(editor, '.thematic-break-block');
+		await editor.holdBlockWhole('.thematic-break-block');
 		await editor.typeSlowly('x');
 		await editor.bridge.waitForSourceContains('\nx\n');
 
@@ -67,7 +55,7 @@ test.describe('a whole-unit range: thematic break', () => {
 
 	test('a paste replaces the rule with the clipboard', async () => {
 		await editor.seedClipboard('pasted');
-		await dragInside(editor, '.thematic-break-block');
+		await editor.holdBlockWhole('.thematic-break-block');
 
 		await editor.paste();
 		await editor.bridge.waitForSourceEquals('above\n\npasted\n\nbelow\n');
@@ -75,7 +63,7 @@ test.describe('a whole-unit range: thematic break', () => {
 	});
 
 	test('a cut writes the rule to the clipboard and takes it out of the document', async () => {
-		await dragInside(editor, '.thematic-break-block');
+		await editor.holdBlockWhole('.thematic-break-block');
 
 		await editor.page.keyboard.press('ControlOrMeta+x');
 		await editor.bridge.waitForSourceEquals('above\n\nbelow\n');
@@ -103,7 +91,7 @@ test.describe('a whole-unit range: where each key leaves the caret', () => {
 		for (const { key, lands, typed } of SIDES) {
 			await test.step(`${key} ${lands}`, async () => {
 				await nextRow(editor, DOC);
-				await dragInside(editor, '.thematic-break-block');
+				await editor.holdBlockWhole('.thematic-break-block');
 				await editor.page.keyboard.press(key);
 				await editor.bridge.waitForSourceEquals('above\n\nbelow\n');
 
@@ -114,7 +102,7 @@ test.describe('a whole-unit range: where each key leaves the caret', () => {
 
 		await test.step('in the first item of a list below, with nothing above', async () => {
 			await nextRow(editor, '---\n\n- a\n');
-			await dragInside(editor, '.thematic-break-block');
+			await editor.holdBlockWhole('.thematic-break-block');
 			await editor.page.keyboard.press('Backspace');
 			await editor.bridge.waitForSourceEquals('- a\n');
 
@@ -139,7 +127,7 @@ test.describe('a whole-unit range: the only block', () => {
 	]) {
 		test(`Backspace over ${JSON.stringify(doc)} leaves one empty paragraph to type into`, async () => {
 			await editor.loadContent(doc);
-			await dragInside(editor, '.thematic-break-block');
+			await editor.holdBlockWhole('.thematic-break-block');
 			await editor.page.keyboard.press('Backspace');
 			await editor.bridge.waitForSourceEquals(removed);
 
@@ -150,7 +138,7 @@ test.describe('a whole-unit range: the only block', () => {
 
 	test('one undo brings the rule back', async () => {
 		await editor.loadContent('---\n');
-		await dragInside(editor, '.thematic-break-block');
+		await editor.holdBlockWhole('.thematic-break-block');
 		await editor.page.keyboard.press('Backspace');
 		await editor.bridge.waitForSourceEquals('\n');
 
@@ -165,7 +153,7 @@ test.describe('a whole-unit range: block math', () => {
 		await editor.gotoPlugins('mathblock');
 		await editor.loadContent('above\n\n$$x^2$$\n\nbelow\n');
 
-		await dragInside(editor, '.math-block-render');
+		await editor.holdBlockWhole('.math-block-render');
 
 		await editor.page.keyboard.press('ControlOrMeta+x');
 		await editor.bridge.waitForSourceEquals('above\n\nbelow\n');

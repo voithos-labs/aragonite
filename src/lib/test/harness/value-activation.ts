@@ -1,7 +1,7 @@
 // An activation carrying what these plugin values contribute, read the way one editor reads its
 // list, so the command lookups resolve their commands and chords without a mounted editor.
 import { createEditorContributions } from '#lib/schema/editor-contributions.js';
-import { blockOf, DETACHED_READING } from '#lib/schema/doc-view.js';
+import { DETACHED_READING } from '#lib/schema/doc-view.js';
 import { everyInstalledPlugin, type PluginActivation } from '#lib/schema/plugin-activation.js';
 import { installPluginList, type Editor, type PluginList } from '#lib/schema/plugin-unit.js';
 
@@ -17,8 +17,8 @@ export function valueActivation(
 		editorFor: () => editor,
 		report: thrown,
 		blocksAround: () => ({ blocks: [] }),
-		blockOf: (node) => blockOf(node, DETACHED_READING),
-		clipboardBlocks: () => (node) => blockOf(node, DETACHED_READING)
+		blockOf: (node) => DETACHED_READING.blockOf(node, null),
+		clipboardBlocks: () => (node) => DETACHED_READING.blockOf(node, null)
 	});
 	contributions.read(installPluginList(plugins, thrown));
 	return { isActive: base.isActive, contributions };

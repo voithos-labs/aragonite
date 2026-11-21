@@ -3,32 +3,34 @@
 // neighbour again: a block's line between two table halves, two indented code blocks or two HTML
 // blocks, above a setext underline or a lazy line, under a title a definition started; at top
 // level, in a quote, in an item; the range from that block's edge, mid-line or a table row.
-// Enter over the range leaves what Delete then Enter leave where the range ends inside the block it
-// entered, and Backspace then Enter where it ends between blocks. Text over it (a letter, a
-// composition or a paste, whose removal is Delete's where the range ends inside a block's text,
-// else a cut's) leaves what the removal then the text leave where that removal's caret is a gap,
-// text the range left of its own, or no block boundary stands where the range started; anywhere
-// else the text stands in a paragraph of its own there, the rest as the removal left it
-// (`docs/design/selection.md`). Before other prose a cut keeps the text start.
+// Text or Enter over it (a letter, a composition, a paste, whose removal is Delete's where the range
+// ends inside a block's text, else a cut's) leaves what the removal then the gesture leave where
+// that removal's caret is a gap, text the range left of its own, or no block boundary stands where
+// the range started; anywhere else the text stands in a paragraph of its own there, the rest as the
+// removal left it, and Enter opens an empty one (`docs/design/selection.md`). Before other prose a
+// cut keeps the text start.
 // Every violation must match a class declared below, and the fixed run pins the counts.
 // Miss-analysis: the law's rows were named shapes whose commit never moved the blocks above the
 // range, so a place read before the commit always still named the right block.
 // Deep and fresh: `node scripts/run-with-env.mjs PROPERTY_FRESH=1 HELD_GAP_DRAWS=2000 -- vitest run`
 // and this file's path.
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import { appendFileSync } from 'node:fs';
 import type { PresentationMode } from '#lib/presentation-mode.js';
-import type { Measured } from '#lib/tree-operations/top-level-starts.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
 import { cellPoint } from '#lib/selection/primitives.js';
-import { pointAtByte, readsAsText, removalBytes } from '#lib/selection/range-bytes.js';
+import { pointAtByte, removalBytes } from '#lib/selection/range-bytes.js';
+import { readsAsText } from '#lib/range-edit/document.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
-import { documentLayout } from '#lib/range-edit/layout.js';
+import { documentLayout, type Layout } from '#lib/range-edit/layout.js';
+import { blockFacts } from '#lib/schema/block-facts.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { reloadDivergence } from '#lib/test/exhaustive/edit-driver.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
-import type { Removed } from '#lib/selection/cross-block/range-removal.js';
+import { removalOf, type RemovalGesture } from '#lib/range-edit/edit-range.js';
+import { rangeHost } from '#lib/range-edit/host.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs
@@ -50,20 +52,6 @@ import {
 	type Editor
 } from './gestures';
 import { MIDDLES, NEIGHBOURS } from './shapes';
-
-/** Each `emptiedPlace` call in a draw: whether its removal took the block the range started in. */
-const seen: { took: boolean }[] = [];
-vi.mock('#lib/selection/cross-block/range-removal.js', async (importOriginal) => {
-	const actual =
-		await importOriginal<typeof import('#lib/selection/cross-block/range-removal.js')>();
-	return {
-		...actual,
-		emptiedPlace: vi.fn((m: Measured, removed: Removed, anyProse: boolean) => {
-			seen.push({ took: removed.taken !== null });
-			return actual.emptiedPlace(m, removed, anyProse);
-		})
-	};
-});
 
 beforeAll(installLayoutStubs);
 beforeEach(() => {
@@ -236,6 +224,25 @@ function startIn(source: string, removed: string, start: number): number {
 		: source.lastIndexOf('\n', start - 1) + 1;
 }
 
+/** The removal each gesture makes first, as the range-edit core names it. */
+const REMOVAL: Record<Draw['gesture'], RemovalGesture> = {
+	letter: 'type',
+	paste: 'type',
+	composition: 'compose',
+	// Enter's place removes as a composition's does.
+	Enter: 'compose'
+};
+
+/** Whether `range` holds one block whole other than prose, whose line text over it takes. */
+function heldWhole(layout: Layout, source: string, range: { from: number; to: number }): boolean {
+	return [...layout.within(range.from, range.from)].some((b) => {
+		const ending = /\r?\n$/.exec(source.slice(b.from, b.to))?.[0].length ?? 0;
+		return (
+			b.from === range.from && b.to - ending === range.to && blockFacts(b.type).joins !== 'text'
+		);
+	});
+}
+
 /** Mounts `source` and puts the drawn range down; null where the editor won't hold it. */
 async function placed(d: Draw, built: Built) {
 	const editor = mountCase(built.source, d.mode);
@@ -251,21 +258,28 @@ async function placed(d: Draw, built: Built) {
 	const end = range && layout.pointAt(range.to);
 	const text = end && layout.block(end.path)?.text;
 	const rest = !!range && !!text && range.to >= text.from && range.to < text.to;
+	// Whether the gesture's removal took the block the range started in, read off the core's answer;
+	// a block held whole goes too, its line the text's.
+	const mode = d.mode === 'live' ? 'live' : 'source';
+	const host = rangeHost(fixtureReading({ grammar: editor.instance.__test.getGrammar() }, mode));
+	const source = editor.source();
+	const removal = range && removalOf(source, range, REMOVAL[d.gesture], mode, host);
+	const taken = !!removal && removal.source !== source && removal.taken !== undefined;
+	const took = taken || (!!range && heldWhole(layout, source, range));
 	takeDevWarns();
-	return { editor, start: range?.from ?? -1, rest };
+	return { editor, start: range?.from ?? -1, rest, took };
 }
 
-/** Whether the range ends partway through a block's text, where Enter's and text's removal are
- *  Delete's, which goes on to that text; elsewhere Enter's is Backspace's, text's a cut's. */
+/** Whether the range ends partway through a block's text, where the removal is Delete's, which goes
+ *  on to that text; elsewhere it is a cut's, whose caret stands where the range was. */
 const endsInText = (d: Draw) => d.range === 'edge..lower mid';
 
 async function run(d: Draw): Promise<Run | 'unplaced'> {
 	const built = build(d);
 	const over = await placed(d, built);
 	if (!over) return 'unplaced';
-	seen.length = 0;
 	await gesture(over.editor, d.gesture);
-	const took = seen.some((s) => s.took);
+	const { took } = over;
 	const overSide = sideOf(over.editor);
 	const grammar = over.editor.instance.__test.getGrammar();
 	const read = (source: string) =>
@@ -273,10 +287,8 @@ async function run(d: Draw): Promise<Run | 'unplaced'> {
 	await destroyMountedEditors();
 	const step = await placed(d, built);
 	if (!step) return 'unplaced';
-	const written = d.gesture !== 'Enter';
-	if (written && !endsInText(d)) await clipboardGesture(step.editor, 'cut', 'key');
-	else if (d.gesture === 'Enter' && !endsInText(d)) await key(step.editor, { key: 'Backspace' });
-	else await key(step.editor, { key: 'Delete' });
+	if (endsInText(d)) await key(step.editor, { key: 'Delete' });
+	else await clipboardGesture(step.editor, 'cut', 'key');
 	const removedSide = sideOf(step.editor);
 	const removed = {
 		...removedSide,
@@ -313,9 +325,16 @@ function violations(d: Draw, r: Run): string[] {
 	// Prose takes the text where the range left it of its own.
 	const ownProse = landing === 'prose' && (!r.took || r.rest);
 	// With no boundary where the range started, the text joins the text there, as after the removal.
-	if (d.gesture === 'Enter' || landing === 'gap' || ownProse || !boundary) {
+	if (landing === 'gap' || ownProse || !boundary) {
 		if (r.over.blocks !== r.step.blocks)
 			out.push('over the range is not the removal, then the gesture');
+		return out;
+	}
+	// An empty paragraph reads as no block, so Enter's leaves the blocks the removal left.
+	if (d.gesture === 'Enter') {
+		if (r.over.blocks !== r.removed.blocks) out.push('the break changed what the removal left');
+		if (!r.over.source.startsWith(unmarked(r.built.source.slice(0, r.start))))
+			out.push('the break moved the lines above the range');
 		return out;
 	}
 	const text = TEXT[d.gesture];
@@ -354,8 +373,8 @@ const draw = (
 const KNOWN: Record<string, Known> = {
 	"a lone block's emptied line": {
 		cause:
-			'text over a rule or a fence held alone between two lines keeps its emptied line, and the ' +
-			'text joins the line below, which no longer joins the line above (minor)',
+			'text over a rule or a fence held alone between two lines stands on a line of its own, and ' +
+			'the line below no longer joins the line above (minor)',
 		matches: (d, _r, line) =>
 			texts(d) &&
 			d.range === 'edge..lower' &&
@@ -375,6 +394,20 @@ const KNOWN: Record<string, Known> = {
 			(d.gesture === 'letter' || d.gesture === 'paste') &&
 			line.startsWith('over the range'),
 		example: draw('indentedCode', 'heading', 'top', 'edge..lower', 'letter')
+	},
+	'a composition where two indented code blocks join': {
+		cause:
+			'a composition over a block held whole between two indented code lines, which its removal ' +
+			'joins into one, waits in a paragraph opened after that code (minor)',
+		matches: (d, _r, line) =>
+			d.shape === 'indentedCode' &&
+			d.range === 'edge..lower' &&
+			d.gesture === 'composition' &&
+			line.startsWith('over the range'),
+		example: {
+			...draw('indentedCode', 'rule', 'top', 'edge..lower', 'composition', 'live'),
+			eol: '\r\n'
+		}
 	},
 	'Enter from a table in a container': {
 		cause: "Enter from a table's cell in a quote or an item to the block below (minor)",
@@ -442,8 +475,8 @@ const REACH: Record<string, Draw> = {
 	}
 };
 
-/** Draws whose paste lands where a letter typed over the range does: on the text the removal's
- *  caret stands on, whatever caret the core named. */
+/** Draws whose paste lands where a letter typed over the range does: the core's one place for text,
+ *  here a line of its own above the prose the range ended at the first byte of. */
 const LANDS_AS_TYPED: Record<string, Draw> = {
 	// Miss-analysis: no fixed draw pasted where the core names a boundary the editor holds as prose,
 	// so a paste there landed as a block, and after a cut it took the cut's caret with no entry.
@@ -468,9 +501,10 @@ const FIXED = DRAWS === 40 && SEED === 20261112;
 /** The fixed run's draws by what they met: a class here going to 0 or growing is a change to read. */
 const FIXED_TALLY = {
 	unplaced: 0,
-	'took the start block': 30,
+	'took the start block': 48,
 	"a lone block's emptied line": 2,
 	'a letter where two indented code blocks join': 1,
+	'a composition where two indented code blocks join': 1,
 	'Enter from a table in a container': 1,
 	'a gesture that reached nothing': 1
 };
@@ -478,8 +512,10 @@ const FIXED_TALLY = {
 /** What each example leaves over the range. */
 const LANDED: Record<string, string> = {
 	'an opener kept in an item': '-     a\n  ```\nж\n  ```\n    b\n\nlast\n',
-	"a lone block's emptied line": 'intro\n\n> quoted\n\nжlazy\n\nlast\n',
+	"a lone block's emptied line": 'intro\n\n> quoted\n\nж\n\nlazy\n\nlast\n',
 	'a letter where two indented code blocks join': 'intro\n\n    a\nж\n    b\n\nlast\n',
+	'a composition where two indented code blocks join':
+		'intro\r\n\r\n    a\r\n    b\r\n\r\n汉\r\n\r\nlast\r\n',
 	'before a heading, live': 'intro\n\n汉\n\n# h\n| 2 |\n\nlast\n',
 	'Enter from a table in a container': '- \n- \n  ```\n  x\n  ```\n  | 2 |\n\nlast\n',
 	'a gesture that reached nothing': 'intro\n\n- | a |\n  | - |\n  | 1 |\n  ***\n  | 2 |\n\nlast\n',
@@ -492,7 +528,7 @@ const LANDED: Record<string, string> = {
 	'two containers deep, out past both': 'intro\n\n- > above\n  >\n  > 汉\n\n```\nlast\n```\n',
 	'past the rows of a table': '| a |\n| - |\n\n汉\n\n```\nx\n```\n| 2 |\n\nlast\n',
 	'a paste over a rule held whole, the text under it prose':
-		'intro\n\nmore\n\n- text\n  \n  ж===\n\nlast\n'
+		'intro\n\nmore\n\n- text\n\n  ж\n\n  ===\n\nlast\n'
 };
 
 describe('text and Enter over a range whose removal reads a neighbour again', () => {

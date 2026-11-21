@@ -101,6 +101,31 @@ async function mounted(source: string, alerts = makeAlerts(), keybindings?: Keyb
 	return { editor, errors, ...alerts };
 }
 
+/** A leaf type `@@ `, its placed command `mark` logging the text of each block it runs on. */
+function makeMemos(place: (mark: Command<Block<never>>) => Partial<BlockCommon<never>>) {
+	const marked: string[] = [];
+	const mark = command<Block<never>>({
+		id: 'mark',
+		title: 'Mark',
+		run: (_, block) => void marked.push(`${block.text}@${block.from}`)
+	});
+	const memo = lineBlock({
+		name: 'memo',
+		label: 'Memo',
+		match: /^@@ (?<text>.*)$/,
+		sample: '@@ x',
+		insert: { none: 'a test block type' },
+		...place(mark)
+	});
+	const plugin = definePlugin({
+		name: 'memos',
+		version: '1.0.0',
+		editor: '*',
+		contributes: () => ({ blocks: [memo] })
+	});
+	return { plugin, mark, marked };
+}
+
 describe('a placed command run from the caret', () => {
 	it('runs by id, by value and through runCommand on the alert holding the caret', async () => {
 		const { editor, cycle } = await mounted(DOC);
@@ -151,6 +176,49 @@ describe('a placed command run from the caret', () => {
 	});
 });
 
+// Miss-analysis: every key and menu row wrote through a draft, which finds a node by identity, so a
+// block from a second reading of the document, placed nowhere (`from` at -1), still wrote.
+describe("a placed command's block", () => {
+	type Mounted = Awaited<ReturnType<typeof mounted>>['editor'];
+	const openRow = async (editor: Mounted, label: string) => {
+		const surface = surfaceAt(editor, [1, 0]);
+		surface.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+		await editor.settle();
+		const rows = () => [...document.querySelectorAll<HTMLElement>('.block-menu .md-menu-item')];
+		rows()
+			.find((el) => el.textContent?.trim() === 'Alert')!
+			.dispatchEvent(new Event('pointerenter'));
+		await editor.settle();
+		rows()
+			.find((el) => el.textContent?.trim() === label)!
+			.click();
+	};
+
+	it.each([
+		['its key, from the paragraph inside', (m: Mounted) => pressKeyAt(m, [1, 0], 2, CTRL_7)],
+		['its menu row', (m: Mounted) => openRow(m, 'Next kind')]
+	])('is placed, and the block the document hands out, run by %s', async (_, go) => {
+		const places: number[][] = [];
+		const alerts = makeAlerts(undefined, undefined, (draft, block) => {
+			places.push([block.from, block.to]);
+			return draft;
+		});
+		const { editor, ran } = await mounted(DOC, alerts);
+		await go(editor);
+		await editor.settle();
+		expect(places).toEqual([[7, DOC.length]]);
+		expect(ran[0]).toBe(editor.instance.doc.blocks[1]);
+	});
+
+	it("is placed when a leaf type's key runs it", async () => {
+		const { plugin, marked } = makeMemos((mark) => ({ chords: { 'Mod+7': mark } }));
+		const editor = mountEditor({ source: 'intro\n\n@@ note\n', plugins: [plugin] });
+		await editor.settle();
+		await pressKeyAt(editor, [1], 4, CTRL_7);
+		expect(marked).toEqual(['@@ note\n@7']);
+	});
+});
+
 describe("a block type's key", () => {
 	it('runs from the paragraph inside the alert, and nowhere else', async () => {
 		const { editor } = await mounted(DOC);
@@ -190,26 +258,7 @@ describe("a block type's key", () => {
 	});
 
 	it("runs a leaf type's Backspace in its own text, mid-text included", async () => {
-		const ran: string[] = [];
-		const wipe = command<Block<never>>({
-			id: 'wipe',
-			title: 'Wipe',
-			run: () => void ran.push('wipe')
-		});
-		const memo = lineBlock({
-			name: 'memo',
-			label: 'Memo',
-			match: /^@@ (?<text>.*)$/,
-			sample: '@@ x',
-			insert: { none: 'a test block type' },
-			chords: { Backspace: wipe }
-		});
-		const plugin = definePlugin({
-			name: 'memos',
-			version: '1.0.0',
-			editor: '*',
-			contributes: () => ({ blocks: [memo] })
-		});
+		const { plugin, marked } = makeMemos((mark) => ({ chords: { Backspace: mark } }));
 		const errors: PluginError[] = [];
 		const editor = mountEditor({
 			source: '@@ note\n',
@@ -219,7 +268,7 @@ describe("a block type's key", () => {
 		await editor.settle();
 		await pressKeyAt(editor, [0], 5, { key: 'Backspace' });
 		expect(errors).toEqual([]);
-		expect(ran).toEqual(['wipe']);
+		expect(marked).toEqual(['@@ note\n@0']);
 	});
 
 	it('asks the placed lookup nothing for typed letters inside an alert', async () => {
@@ -412,6 +461,22 @@ describe('a placed command over a selection across blocks', () => {
 		await m.editor.settle();
 		expect(m.editor.source()).toBe('intro\n\n%> [!TIP]\n%> one\n\nlast\n');
 		expect(m.editor.instance.getSelection()).toEqual(held);
+	});
+
+	// Miss-analysis: every range row ended inside a block's text; an end at a leaf's first byte
+	// holds none of it, as Tab over a range and a block's own bytes read it.
+	it("leaves out a leaf type's block the range ends at the first byte of", async () => {
+		const { plugin, mark, marked } = makeMemos((mark) => ({
+			actions: [{ label: 'Mark', command: mark }]
+		}));
+		const editor = mountEditor({ source: 'intro\n\n@@ one\n\n@@ two\n', plugins: [plugin] });
+		await editor.settle();
+		await editor.instance.setSelection({
+			anchor: { path: [1], offset: 4 },
+			focus: { path: [2], offset: 0 }
+		});
+		expect(editor.instance.run(mark)).toBe(true);
+		expect(marked).toEqual(['@@ one\n@7']);
 	});
 
 	// Miss-analysis: the key rows ended their selection inside an alert, so the key always landed

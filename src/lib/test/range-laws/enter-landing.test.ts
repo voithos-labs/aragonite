@@ -2,8 +2,9 @@
 // A line break over a range, then a letter, mounted in both modes, by Enter and Shift+Enter and a
 // soft keyboard's two breaks: where the range ended in a leaf's text, the break goes before what is
 // left of it and the letter lands there; where it emptied a paragraph, that line takes the break;
-// elsewhere the break stands at the end of the block before, and with no block before the range (an
-// opening line takes none) it lands in an empty paragraph where the range was.
+// elsewhere it lands in an empty paragraph where the range was, never in a block before the range.
+// The block at that place runs its own key: a title row's Enter goes into the body, its Shift+Enter
+// breaks nothing.
 // Miss-analysis: the mounted rows typed after Delete alone, and Enter's removal landed as Backspace's,
 // so its key pressed on a kept opening line and descended onto the next one.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
@@ -101,14 +102,14 @@ const ROWS: Row[] = [
 		source: 'first\n\n***\n\nbody\n\n- a\n- b\n',
 		select: range([1], [3, 0, 0], 1),
 		entered: 'first\n\nx\n\n- b\n',
-		shifted: 'first\\\nx\n\n- b\n'
+		shifted: 'first\n\n\\\nx\n\n- b\n'
 	},
 	{
 		name: 'a range ending at a heading’s end, before a quote',
 		source: 'first\n\n***\n\n# end\n\n> quote\n',
 		select: range([1], [2], 5),
 		entered: 'first\n\nx\n\n> quote\n',
-		shifted: 'first\\\nx\n\n> quote\n'
+		shifted: 'first\n\n\\\nx\n\n> quote\n'
 	},
 	// Miss-analysis: the rows ending at a paragraph's end pinned the bytes the removal gave, which
 	// took the line the range emptied, so a break on that line went unseen.
@@ -139,15 +140,15 @@ const ROWS: Row[] = [
 		name: 'a title the range ends in, at the document’s start',
 		source: '***\n\nbody\n\n:::tip Title\nbody\n:::\n',
 		select: range([0], [2, 0], 9),
-		entered: 'x\n\n:::tip tle\nbody\n:::\n',
-		shifted: '\\\nx\n\n:::tip tle\nbody\n:::\n'
+		entered: ':::tip tle\nxbody\n:::\n',
+		shifted: ':::tip xtle\nbody\n:::\n'
 	},
 	{
 		name: 'a summary the range ends in, at the document’s start',
 		source: '***\n\nbody\n\n<details open>\n<summary>Sum</summary>\n\nbody\n\n</details>\n',
 		select: range([0], [2, 0], 2),
-		entered: 'x\n\n<details open>\n<summary>m</summary>\n\nbody\n\n</details>\n',
-		shifted: '\\\nx\n\n<details open>\n<summary>m</summary>\n\nbody\n\n</details>\n'
+		entered: '<details open>\n<summary>m</summary>\n\nxbody\n\n</details>\n',
+		shifted: '<details open>\n<summary>xm</summary>\n\nbody\n\n</details>\n'
 	},
 	// Miss-analysis: every row with nothing above the range ended beside a title row, which takes no
 	// break, so a break that ran in the block after (a cell, a code line, the next paragraph) went unseen.
@@ -162,7 +163,8 @@ const ROWS: Row[] = [
 		name: 'nothing above, a heading’s end, nothing after',
 		source: '***\n\nbody\n\n# head\n',
 		select: range([0], [2], 6),
-		entered: 'x\n',
+		// The emptied document's one paragraph is the line the range emptied, which Enter leaves.
+		entered: '\nx\n',
 		shifted: '\\\nx\n'
 	},
 	{
@@ -191,7 +193,7 @@ const ROWS: Row[] = [
 		source: 'first\n\n***\n\nbody\n\n:::tip\nbody\n:::\n',
 		select: range([1], [3, 0], 6),
 		entered: 'first\n\nx\n\n:::tip\nbody\n:::\n',
-		shifted: 'first\\\nx\n\n:::tip\nbody\n:::\n'
+		shifted: 'first\n\n\\\nx\n\n:::tip\nbody\n:::\n'
 	},
 	// Miss-analysis: every row took the block its range started in, so a break that ran where the
 	// range began, on a title row the core never picked, went unseen and its guard warned there.
@@ -295,12 +297,15 @@ describe('a line break over a range goes by the command its key runs', () => {
 
 // Miss-analysis: no row sent a break as input where its key runs nothing, or began at the first byte
 // of a block the removal takes whole, so a check read off the removal's name or the edge passed.
-describe('G1.223 reads the keymap of the block a line break ran in', () => {
-	it('a soft paragraph break left on a rule, which binds no Enter, fires it', async () => {
+describe('a soft paragraph break over whole blocks under a rule', () => {
+	it('opens an empty paragraph where they were, never on the rule, which binds no Enter', async () => {
 		const editor = mountCase('---\n***\n\n# h\n\nafter\n', 'source');
 		await editor.settle();
 		await placeRange(editor, range([1], [2], 3));
 		await lineBreak(editor, 'a soft paragraph break');
-		expect(takeDevWarnsOf('invariant:range-break-landing')).toHaveLength(1);
+		await pressHardwareKey(focused(), { key: 'x' });
+		await editor.settle();
+		expect(editor.source()).toBe('---\n\nx\n\nafter\n');
+		expect(takeDevWarnsOf('invariant:command-key-landing')).toEqual([]);
 	});
 });

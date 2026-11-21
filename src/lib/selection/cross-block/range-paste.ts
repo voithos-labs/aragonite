@@ -2,9 +2,10 @@
  * A paste through the range-edit core: the clipboard over a place read as bytes, and the core's
  * answer landed in one commit. A paste that is one write of a top-level text block commits as that
  * block's own write, the one a typed letter ends in, where that write leaves the core's bytes; any
- * other lands as a byte splice. The caret memory's records are spent where the core writes text,
- * before either. A kind that answers a paste itself (a table cell's grid and slice) goes first.
- * Every paste route ends here, whatever brought the clipboard.
+ * other lands as a byte splice. Wherever the core writes text into a block, a paste's or a key's
+ * over a range, the step of the block it lands in spends it (`textHost`), before either. A kind
+ * that answers a paste itself (a table cell's grid and slice) goes first. Every paste route ends
+ * here, whatever brought the clipboard.
  */
 
 import type { CommitSnapshotArg, UndoGrouping } from '../../action-contracts';
@@ -12,6 +13,7 @@ import type { TextEdit } from '../../caret/next-insertion';
 import { docPathFrom } from '../../core/coordinate-spaces';
 import { ownTrailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import type { DocumentView } from '../../core/node-views';
+import type { AnyBlockKind } from '../../core/nodes';
 import type { DocumentGetter } from '../../editor-keys';
 import { assertPasteLanded } from '../../invariants/install';
 import { withLeafBytes } from '../../range-edit/document';
@@ -26,6 +28,7 @@ import {
 } from '../../range-edit/host';
 import type { LeafEdit } from '../../range-edit/leaf-splice';
 import type { PluginActivation } from '../../schema/plugin-activation';
+import type { Reading } from '../../schema/reading';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { getPasteSurface, type ClipPasteInput } from '../../tree-operations/paste-surfaces';
 import { splicedBytes } from '../../tree-operations/spliced-openers';
@@ -33,12 +36,17 @@ import { rewrittenPaste } from '../../tree-operations/paste/paste-rewrites';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 import type { CaretLanding } from '../caret-landing';
 import {
+	endsOf,
 	placeInBlock,
 	placeRead,
 	pointAtByte,
+	rangeRead,
+	removalBytes,
 	type PasteAim,
-	type PastePlace
+	type PastePlace,
+	type RangeRead
 } from '../range-bytes';
+import type { RangeCoverage } from '../range-coverage';
 import type { SelectionState } from '../selection-state.svelte';
 import { commitBytes, modeOf, type CommitContext } from './range-removal';
 
@@ -59,8 +67,8 @@ export interface Clip {
 	own?: string;
 }
 
-/** What the caret memory holds for the block a paste starts in (a pending mark, the side of a
- *  hidden edge), spent on the block's text as a typed letter spends it. */
+/** The step of the block text lands in (`BlockComponent.holdInsertion`): its hidden edge and what
+ *  the caret memory holds for it, spent on the block's text as a typed letter's write spends them. */
 export type SpendInsertion = (before: string, edit: TextEdit) => TextEdit;
 
 /** Raw offsets `[start, end]` of the text block at `path`, a caret where they meet. */
@@ -77,7 +85,7 @@ export async function pasteInBlock(
 	span: BlockSpan,
 	clip: Clip,
 	undo: CommitSnapshotArg,
-	spend?: SpendInsertion
+	spend: SpendInsertion | null
 ): Promise<boolean> {
 	if (await answeredAhead(ctx, span.path, clip, null)) return true;
 	const live = modeOf(ctx) === 'live';
@@ -116,14 +124,14 @@ export async function answeredAhead(
 	});
 }
 
-/** Pastes `clip` at the place `aim` finds in one commit, whose undo puts the caret back at `undo`.
- *  False where the paste changed nothing or the commit refused it. */
+/** Pastes `clip` at the place `aim` finds in one commit, whose undo puts the caret back at `undo`;
+ *  `spend` is the step of the block it lands in. False where it changed nothing or was refused. */
 export async function pasteThroughCore(
 	ctx: PasteContext,
 	aim: PasteAim,
 	clip: Clip,
 	undo: CommitSnapshotArg,
-	spend?: SpendInsertion
+	spend: SpendInsertion | null
 ): Promise<boolean> {
 	const read = placeRead(ctx.bytes, aim);
 	if (!read) return false;
@@ -137,32 +145,86 @@ export async function pasteThroughCore(
 	return landAnswer(ctx, read.source, answer, undo);
 }
 
-/** The core's answer for `clip` pasted at `place` in `doc`: the editor's document, or the bytes a
- *  removal not yet committed leaves. */
-export function pasteAnswer(
+/** The core's answer for `clip` pasted at `place` in `doc`. */
+function pasteAnswer(
 	ctx: PasteContext,
 	doc: CurrentDocument,
 	place: PastePlace,
 	clip: Clip,
-	spend?: SpendInsertion
+	spend: SpendInsertion | null
 ): RangeEditResult {
-	const core = rangeHost(ctx.reading, doc);
-	const host: PasteHost = {
-		...(spend ? spending(core, spend) : core),
-		transformPaste: (text, blocks) =>
-			rewrittenPaste({ ...clip, text }, () => blocks, ctx.activePlugins, ctx.reading.grammar)
-	};
+	const host = textHost(ctx.reading, doc, spend, (text, blocks) =>
+		rewrittenPaste({ ...clip, text }, () => blocks, ctx.activePlugins, ctx.reading.grammar)
+	);
 	const { range, ...held } = puttingBack(place, clip, doc.source);
 	const gesture = { paste: clip.text, plain: clip.plain, own: clip.own, ...held };
 	return editRange(doc.source, range, gesture, modeOf(ctx), host);
 }
 
-/** Whether the document is still `base`, the text a paste was answered on. */
-export const stillOn = (ctx: PasteContext, base: string): boolean => ctx.bytes.source() === base;
+/** The core's answer over a range, the read it was answered on and the host that read it. */
+export interface PlaceAnswer {
+	read: RangeRead;
+	answer: RangeEditResult;
+	host: RangeHost;
+}
+
+/** The core's answer for a key's text, spent by the step of the block it lands in, or the place text
+ *  would take, over what `coverage` holds; nothing committed, null where it reads as no bytes. */
+export function overRangeAnswer(
+	ctx: Pick<CommitContext, 'bytes' | 'reading'>,
+	coverage: RangeCoverage,
+	gesture: 'place' | { text: string; spend: SpendInsertion | null }
+): PlaceAnswer | null {
+	const tree = ctx.bytes.doc();
+	const read = rangeRead(ctx.bytes, endsOf(coverage), (layout) =>
+		removalBytes(tree, coverage, layout)
+	);
+	if (!read) return null;
+	const key = gesture === 'place' ? null : gesture;
+	// A key's text runs no paste transform.
+	const host = textHost(ctx.reading, read, key?.spend ?? null, (text) => text);
+	const asked = key ? { text: key.text } : 'place';
+	return { read, answer: editRange(read.source, read.range, asked, modeOf(ctx), host), host };
+}
+
+/** The core's place for text over what `coverage` holds: `claimed`, asked by a key's claim, while
+ *  the document holds the text it was read on and `coverage` the same bytes, else asked now. */
+export function currentPlace(
+	ctx: Pick<CommitContext, 'bytes' | 'reading'>,
+	coverage: RangeCoverage,
+	claimed: PlaceAnswer | null
+): PlaceAnswer | null {
+	if (claimed?.read.source === ctx.bytes.source()) {
+		const { range, layout } = claimed.read;
+		const held = removalBytes(ctx.bytes.doc(), coverage, layout);
+		if (held?.from === range.from && held.to === range.to) return claimed;
+	}
+	return overRangeAnswer(ctx, coverage, 'place');
+}
+
+/** The host a core answer that writes text reads through, every write of text into a block spent
+ *  by `spend`, the step of the block the text lands in; null where no block's step takes it. */
+function textHost(
+	reading: Reading,
+	doc: CurrentDocument,
+	spend: SpendInsertion | null,
+	transformPaste: PasteHost['transformPaste']
+): PasteHost {
+	const core = rangeHost(reading, doc);
+	return { ...(spend ? spending(core, spend) : core), transformPaste };
+}
+
+/** The kind of the block at the core's place for text, whose keymap a line break over the range
+ *  runs in: an opened paragraph, or a gap, where Enter opens one, reads as a paragraph. */
+export function placeKind({ answer, host }: PlaceAnswer): AnyBlockKind {
+	const tree = host.read(answer.source);
+	const point = answer.opened ? null : host.layout(tree).leafAt(answer.caret.at);
+	return (point && blockNodeAt(tree, point.path)?.kind) || 'paragraph';
+}
 
 /** `answer`, the core's paste over `base`, landed in one commit: the block's own write where it
  *  leaves the answer's bytes, else a byte splice. The document must still be `base`. */
-export async function landAnswer(
+async function landAnswer(
 	ctx: PasteContext,
 	base: string,
 	answer: RangeEditResult,

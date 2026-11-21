@@ -27,6 +27,7 @@ import type { CommandDispatchContext } from '#lib/schema/block-commands.js';
 import type { DocumentView } from '#lib/core/node-views.js';
 import { createDecorationEngine } from '#lib/decorations/decoration-state.svelte.js';
 import { createDocumentRead } from '#lib/editor-actions/commit/document-read.js';
+import { serialize } from '#lib/core/serializer.js';
 import {
 	createLinkCardState,
 	linkCardGates
@@ -109,7 +110,9 @@ function stubbedServices(getDoc: () => DocumentView): EditorServices {
 			getDoc,
 			measured: () => measured(getDoc()),
 			typeOf: (kind) => ({ name: kind, label: kind }),
-			reading: { grammar: defaultGrammarView, resolver: undefined, resolverSignature: '' }
+			reading: { grammar: defaultGrammarView, resolver: undefined, resolverSignature: '' },
+			version: () => 0,
+			source: () => serialize(getDoc())
 		}),
 		selection,
 		rangeCoverage: () => null,

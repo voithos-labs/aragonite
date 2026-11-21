@@ -11,8 +11,8 @@ describeManifests(
 	[
 		{
 			id: 'G4.170 only the parser and the table rebuild write a row’s header flag',
-			// The type declares the field.
-			population: except(SOURCE.cstNodes),
+			// The node's type and the published one declare the field.
+			population: except(SOURCE.cstNodes, SOURCE.builtinData),
 			matches: /\bisHeader\s*:(?!:)|[{,]\s*isHeader\s*[,}]|\.isHeader\s*=(?!=)/,
 			declared: {
 				[SOURCE.tableParser]: 'reads each row at its line',

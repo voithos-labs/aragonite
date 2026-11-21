@@ -17,6 +17,7 @@ import {
 	placeCaret,
 	surfaceAt
 } from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey } from '#lib/test/harness/settle.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
@@ -119,6 +120,21 @@ describe('a paste rewrite in a mounted editor', () => {
 		expect(block.data.type).toBe('TIP');
 		expect(block.children.map((child) => child.text)).toEqual(['pasted\n']);
 		expect([block.from, block.to]).toEqual([3, 23]);
+	});
+
+	// Miss-analysis: the cross-block row read the bytes, which a rewrite asked twice leaves the same.
+	it('asks once over a selection across blocks, and lands the answer in its place', async () => {
+		const { editor, read } = await mounted(() => 'REWRITTEN', 'intro\n\nmiddle\n\nafter\n');
+		const surface = surfaceAt(editor, [0]);
+		placeCaret(surface, 2);
+		await pressKey(surface, { key: 'a', ctrlKey: true });
+		await pressKey(surface, { key: 'a', ctrlKey: true });
+		const held = editor.instance.getSelection()!;
+		expect(held.anchor.path).not.toEqual(held.focus.path);
+		await pasteOn(editor, surface, 'x\n\n%> [!TIP]\n%> pasted\n');
+		expect(read).toHaveLength(1);
+		expect(editor.source()).toContain('REWRITTEN');
+		expect(editor.source()).not.toContain('[!TIP]');
 	});
 
 	it('asks nothing for one line pasted after text, which lands as text', async () => {

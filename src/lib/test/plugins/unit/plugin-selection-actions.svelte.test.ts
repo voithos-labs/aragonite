@@ -9,6 +9,7 @@ import { definePlugin } from '#lib/schema/plugin-install.js';
 import type { ActionRow, Captured, SelectionAction } from '#lib/schema/selection-action.js';
 import type { DraftResult } from '#lib/schema/drafts.js';
 import type { PluginError } from '#lib/schema/plugin-unit.js';
+import { cellPoint } from '#lib/selection/primitives.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -98,6 +99,27 @@ describe('selection action rows in the right-click menu', () => {
 		release([{ label: 'deaf', run: () => {} }]);
 		await m.settle();
 		expect(menuRows().slice(0, 2)).toEqual(['deaf', '|']);
+	});
+
+	// Miss-analysis: the rule had a sentence and no row: the byte read it rode on said null for
+	// cells, and the row that replaced that read holds only a caret and a range of text.
+	it.each([
+		['table cells', cellPoint([1], 0), cellPoint([1], 3)],
+		['a range from text into a cell', { path: [0], offset: 1 }, cellPoint([1], 3)]
+	])('offers no row over %s', async (_, anchor, focus) => {
+		const seen: Captured[] = [];
+		const shout: SelectionAction = {
+			label: 'Shout',
+			rows: (captured) => (seen.push(captured), [{ label: 'Upper', run: () => {} }])
+		};
+		const source = 'abc def\n\n| a | b |\n| - | - |\n| 1 | 2 |\n';
+		const m = mountEditor({ source, plugins: [withActions(shout)] });
+		await m.settle();
+		await m.instance.setSelection({ anchor, focus });
+		await m.settle();
+		rightClick(m);
+		await m.settle();
+		expect([seen, menuRows().includes('Upper')]).toEqual([[], false]);
 	});
 
 	it('captures nothing at a bare caret unless the action captures a range there', async () => {

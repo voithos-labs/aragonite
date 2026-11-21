@@ -48,7 +48,10 @@ describe('plugin container kind-command target', () => {
 
 		const handled = dispatchKindCommand(
 			'Mod+Shift+K',
-			buildContainerKindTarget({ getNode: () => node, getIndex: () => 2 }, writes),
+			buildContainerKindTarget(
+				{ getNode: () => node, getIndex: () => 2, getPath: () => [2] },
+				writes
+			),
 			commandContextWith(overrides)
 		);
 
@@ -71,7 +74,7 @@ describe('plugin container kind-command target', () => {
 		const handled = dispatchKindCommand(
 			'Mod+Shift+K',
 			buildContainerKindTarget(
-				{ getNode: () => node, getIndex: () => 0, commandHooks: () => hooks },
+				{ getNode: () => node, getIndex: () => 0, getPath: () => [0], commandHooks: () => hooks },
 				blockWrites()
 			),
 			commandContextWith(overrides)
@@ -90,7 +93,10 @@ describe('plugin container kind-command target', () => {
 
 		dispatchKindCommand(
 			'Mod+Shift+K',
-			buildContainerKindTarget({ getNode: () => node, getIndex: () => 0 }, blockWrites()),
+			buildContainerKindTarget(
+				{ getNode: () => node, getIndex: () => 0, getPath: () => [0] },
+				blockWrites()
+			),
 			commandContextWith(overrides)
 		);
 
@@ -100,7 +106,7 @@ describe('plugin container kind-command target', () => {
 	it('reads getNode() live so a node swap is observed, never snapshotted (thunks, never values)', () => {
 		let node = noteNode();
 		const target = buildContainerKindTarget(
-			{ getNode: () => node, getIndex: () => 0 },
+			{ getNode: () => node, getIndex: () => 0, getPath: () => [0] },
 			blockWrites()
 		);
 

@@ -61,8 +61,8 @@ export interface EditorContributions {
 	placedAt(id: string, kind: string): ContributedCommand | undefined;
 	/** The rows block type `kind` adds to its menu. */
 	blockActions(kind: string): readonly ContributedBlockAction[];
-	/** `node` as a placed command reads it. */
-	blockOf(node: NodeView): Block;
+	/** `node`, seen at `path`, as a placed command reads it. */
+	blockOf(node: NodeView, path: readonly number[]): Block;
 	readonly commands: readonly ContributedCommand[];
 	/** Each plugin's rows in list order, ids as `plugin/id`. */
 	readonly inserts: readonly InsertRow[];
@@ -98,7 +98,7 @@ export function createEditorContributions(deps: {
 	/** The nearest block holding the caret whose type is one of `kinds`, or over a selection across
 	 *  blocks each covered block's outermost such block, with the step their runs share. */
 	blocksAround(kinds: ReadonlySet<string>): PlacingBlocks;
-	blockOf(node: NodeView): Block;
+	blockOf(node: NodeView, path: readonly number[]): Block;
 	clipboardBlocks: EditorContributions['clipboardBlocks'];
 }): EditorContributions {
 	let commands: ContributedCommand[] = [];

@@ -5,7 +5,7 @@
  */
 import type { LineEnding } from '../core/lines';
 import type { NodeView } from '../core/node-views';
-import type { PresentationMode } from '../presentation-mode';
+import type { Mode } from '../presentation-mode';
 import type { Block } from './doc-view';
 import type { BlockView } from './block-view';
 import type { BlockType, Editor } from './plugin-unit';
@@ -15,10 +15,13 @@ import type { BlockType, Editor } from './plugin-unit';
 /** What every drawing gets. */
 export interface DrawContext {
 	readonly editor: Editor;
-	readonly mode: PresentationMode;
+	readonly mode: Mode;
 	readonly theme: string;
 	/** The caret is in the block. */
 	readonly focused: boolean;
+	/** Your block type's `depends` answer per top-level block, in `editor.doc.blocks`' order,
+	 *  never changed after it's handed to you. */
+	readonly depends: readonly string[];
 	/** Fills `el` with what `produce` makes, cached per block bytes and theme; a throw or a rejection
 	 *  shows the block's source with the error instead. */
 	render(el: HTMLElement, produce: (theme: string) => Node | Promise<Node>): void;
@@ -58,7 +61,8 @@ export interface Drawn<D, C extends DrawContext = DrawContext> {
 	/** Where a click on a picture of the text lands: an element whose text is the block's text, or a
 	 *  point to an offset in that text. */
 	caret?: HTMLElement | ((point: { x: number; y: number }) => number);
-	/** The bytes, position, mode, theme, focus or typed text changed; false draws it again. */
+	/** The bytes, position, mode, theme, focus, typed text or `depends` answers changed; false draws
+	 *  it again. Without it, what `draw` drew stays. */
 	update?(block: Block<D>, ctx: C): boolean | void;
 	/** Events the editor leaves to the drawing (a drag that pans a diagram). */
 	keep?(event: Event): boolean;
@@ -85,6 +89,7 @@ export interface Drawing {
 	readonly edit: 'text' | 'source' | 'box' | 'container';
 	readonly singleLine: boolean;
 	draw(block: Block<unknown>, ctx: DrawContext): Drawn<unknown, DrawContext>;
+	depends?(block: Block): string;
 	renderSource?(text: string): DocumentFragment;
 	reshapeSource?(
 		text: string,

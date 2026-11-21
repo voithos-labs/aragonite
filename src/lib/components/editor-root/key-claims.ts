@@ -23,7 +23,7 @@ import {
 } from '../../schema/commands';
 import { eventToChord, isCharacterKey, isPasteKey, textKeyRole } from '../../schema/keybindings';
 import { wholeBlockChord } from '../../editor-actions/container-block-component';
-import { rangeOwnsKey } from '../../selection/cross-block/keydown';
+import { rangeOwnsKey, type RangeKeyReads } from '../../selection/cross-block/keydown';
 import { findSurfacePathForElement } from '../../selection/path-lookup';
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
@@ -39,7 +39,7 @@ import {
 	type KeyFocusDeps
 } from './key-focus';
 
-export interface KeyClaimsDeps extends KeyFocusDeps {
+export interface KeyClaimsDeps extends KeyFocusDeps, Pick<RangeKeyReads, 'bytes' | 'reading'> {
 	/** Getters, never values: each reads the live instance. */
 	root(): HTMLElement | undefined;
 	searchBarEnabled(): boolean;
