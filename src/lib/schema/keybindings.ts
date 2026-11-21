@@ -172,11 +172,13 @@ export function isMotionChord(chord: string): boolean {
 	return motionKey(chordKeys(chord, usesMacEditingConventions())) !== null;
 }
 
-/** Whether a normalized chord types, deletes, cuts, pastes or moves the caret in text on a Mac or
- *  elsewhere, Enter's break included: a key the text inside a container keeps. */
+/** Whether a normalized chord types, deletes, cuts, pastes or moves the caret in text, Enter's break
+ *  included, on a Mac and elsewhere alike: a key the text inside a container keeps. */
 export function isTextKey(chord: string): boolean {
 	if (chord === 'Enter' || chord === 'Shift+Enter') return true;
-	return [true, false].some((mac) => textKeyRole(chordKeys(chord, mac), mac) !== null);
+	// Where only one platform's text takes it, the keydown there names the typed character, or the
+	// keymaps yield the caret key, so the chord never reaches a container.
+	return [true, false].every((mac) => textKeyRole(chordKeys(chord, mac), mac) !== null);
 }
 
 /** The keydown that spells a normalized chord, `Mod` as Cmd on a Mac and Ctrl elsewhere. */

@@ -284,9 +284,7 @@ describe('the install pass', () => {
 		'Shift+Q',
 		'Mod+V',
 		'Shift+ArrowUp',
-		// A Mac types with Option and moves a word with Option+Arrow; the refusal is the same here.
-		'Alt+Q',
-		'Alt+ArrowLeft'
+		'Alt+Backspace'
 	])('leaves out a container taking %s, a key the text inside edits with', async (key) => {
 		const taking = makeAlerts((cycle) => ({
 			chords: { [key]: cycle } as BlockCommon<AlertData>['chords']
@@ -297,6 +295,20 @@ describe('the install pass', () => {
 		]);
 		expect(editor.instance.plugins).not.toContain('alerts');
 	});
+
+	// Each edits text on one platform only: Option types and moves a word on a Mac, AltGr is Ctrl+Alt
+	// on Windows. There the keydown names the typed character or the keymaps yield it.
+	it.each(['Alt+Q', 'Mod+Alt+Q', 'Alt+ArrowLeft'])(
+		'keeps a container taking %s, a text key on one platform only',
+		async (key) => {
+			const taking = makeAlerts((cycle) => ({
+				chords: { [key]: cycle } as BlockCommon<AlertData>['chords']
+			}));
+			const { editor, errors } = await mounted(DOC, taking);
+			expect(errors).toEqual([]);
+			expect(editor.instance.plugins).toContain('alerts');
+		}
+	);
 
 	// Miss-analysis: a block key was checked against the editor's own chords and never against
 	// another plugin's, whose editor-wide chord then ran inside the type's blocks with nobody told.
