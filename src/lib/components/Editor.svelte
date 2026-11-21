@@ -1712,6 +1712,7 @@
 		byteOf: (path: readonly number[], offset: number) => documentRead.byteOf(path, offset),
 		leafAt: (at: number) => documentRead.leafAt(at),
 		blockOf: (node: NodeView, path: readonly number[]) => documentRead.blockOf(node, path),
+		pathOf: (block: Block) => documentRead.pathOf(block),
 		nodeAt: (path: readonly number[]) => blockNodeAt(doc, path)
 	};
 	let selectionRead: {

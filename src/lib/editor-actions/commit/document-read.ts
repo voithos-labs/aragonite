@@ -27,6 +27,8 @@ import { blockNodeAt } from '../../tree-operations/node-primitives';
 import {
 	lazyList,
 	makeBlock,
+	nodeOfBlock,
+	pathOfBlock,
 	seenAt,
 	walkFrom,
 	type Block,
@@ -57,6 +59,9 @@ export interface DocumentRead {
 	blockAt(at: number): Block | null;
 	/** The block view of `node`, seen at `path`. */
 	blockOf(node: NodeView, path: readonly number[]): Block;
+	/** Where `block` stands in this document; null where it isn't placed, or where it was read from
+	 *  another editor or a parsed document, which a dev build warns of once. */
+	pathOf(block: Block): readonly number[] | null;
 	/** Offset `offset` of the block at `path` as a document byte; null where it isn't placed. */
 	byteOf(path: readonly number[], offset: number): number | null;
 	/** The text position holding document byte `at`, as a caret lands there. Null outside the
@@ -190,6 +195,23 @@ export function createDocumentRead(deps: {
 		return answer;
 	}
 
+	let warnedForeign = false;
+
+	// Another document's block stands at a path in its own document, where this one holds another node.
+	function pathOf(block: Block): readonly number[] | null {
+		const path = pathOfBlock(block);
+		if (!path || blockNodeAt(deps.getDoc(), path) === nodeOfBlock(block)) return path;
+		if (devChecksOn && !warnedForeign) {
+			warnedForeign = true;
+			devWarn(
+				'foreign-block',
+				"a block read from another editor or a parsed document isn't placed in this one; " +
+					"read it from this editor's `doc`"
+			);
+		}
+		return null;
+	}
+
 	const reading: BlockReading = {
 		typeOf: deps.typeOf,
 		blockOf,
@@ -247,6 +269,7 @@ export function createDocumentRead(deps: {
 		doc,
 		blockAt,
 		blockOf,
+		pathOf,
 		byteOf: reading.byteOf,
 		leafAt,
 		pathAt: (at) => leafAt(at)?.path ?? null,

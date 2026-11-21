@@ -9,7 +9,7 @@
  * holds its block as a plugin holds one: once a write replaces the block, it comes off.
  */
 import { tick } from 'svelte';
-import { pathOfBlock, type Block } from './schema/doc-view';
+import type { Block } from './schema/doc-view';
 import type { EditorView, View } from './schema/view';
 import type { EditorRects } from './editor-rects';
 import type { DocumentRead } from './editor-actions/commit/document-read';
@@ -20,7 +20,7 @@ import type { EditorEvents } from './editor-events';
 
 export function createEditorView(deps: {
 	rects: Pick<EditorRects, 'blockRect' | 'rangeRects' | 'caretRect' | 'scrollTo'>;
-	read: Pick<DocumentRead, 'blockAt' | 'byteOf' | 'leavesIn'>;
+	read: Pick<DocumentRead, 'blockAt' | 'byteOf' | 'leavesIn' | 'pathOf'>;
 	root(): HTMLElement | null;
 	/** The element overlays go in, which the editor reads as the host's. */
 	layer(): HTMLElement | null;
@@ -72,13 +72,13 @@ export function createEditorView(deps: {
 		const offset = typeof at === 'number' ? (block?.offsetAt(at) ?? null) : null;
 		const layer = deps.layer();
 		const root = deps.root();
-		if (!block || !layer || !root || !pathOfBlock(block)) {
+		if (!block || !layer || !root || !read.pathOf(block)) {
 			gone?.();
 			return () => {};
 		}
 
 		const measure: Measure = (origin) => {
-			const path = pathOfBlock(block);
+			const path = read.pathOf(block);
 			if (!path) return off;
 			const box =
 				(offset === null ? null : rects.rangeRects([...path], offset, offset + 1)[0]) ??
@@ -110,7 +110,7 @@ export function createEditorView(deps: {
 
 	const view: View = {
 		boxOf(block) {
-			const path = pathOfBlock(block);
+			const path = read.pathOf(block);
 			return path ? rects.blockRect([...path]) : null;
 		},
 		boxesOf({ from, to }) {
@@ -129,7 +129,7 @@ export function createEditorView(deps: {
 		},
 		async reveal(target, options) {
 			const block = typeof target === 'number' ? read.blockAt(target) : target;
-			const path = block && pathOfBlock(block);
+			const path = block && read.pathOf(block);
 			return path ? rects.scrollTo(path, { block: options?.align ?? 'nearest' }) : false;
 		},
 		overlay: (el, at) => overlay(el, at)

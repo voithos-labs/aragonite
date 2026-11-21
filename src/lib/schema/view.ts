@@ -5,7 +5,8 @@
 import type { Block } from './doc-view';
 
 /** Where the document sits on screen: every position a document byte, every box a viewport
- *  rect. A block not mounted (scrolled far off) has no box until `reveal` brings it in. */
+ *  rect. A block not mounted (scrolled far off) has no box until `reveal` brings it in. A block
+ *  read from another editor or a parsed document isn't placed here, as one that left isn't. */
 export interface View {
 	/** The block's box; null while it isn't mounted, or once it has left the document. */
 	boxOf(block: Block): DOMRect | null;

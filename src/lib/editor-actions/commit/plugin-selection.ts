@@ -6,11 +6,10 @@
 import { metadataOf } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import { cellPoint, type EditorSelection, type SelectionPoint } from '../../selection/primitives';
-import { pathOfBlock } from '../../schema/doc-view';
 import type { Selection, SelectionInput } from '../../schema/selection-read';
 import type { DocumentRead } from './document-read';
 
-type Reads = Pick<DocumentRead, 'byteOf' | 'leafAt' | 'blockOf'> & {
+type Reads = Pick<DocumentRead, 'byteOf' | 'leafAt' | 'blockOf' | 'pathOf'> & {
 	nodeAt(path: readonly number[]): NodeView | null;
 };
 
@@ -54,10 +53,10 @@ export function selectionTarget(reads: Reads, input: SelectionInput): EditorSele
 	if ('block' in input) {
 		const { block } = input;
 		const end = block.text.length - (block.text.match(/\r?\n$/)?.[0].length ?? 0);
-		return block.from < 0 ? null : pair(point(block.from), point(block.byteAt(end)));
+		return reads.pathOf(block) ? pair(point(block.from), point(block.byteAt(end))) : null;
 	}
 	if ('cells' in input) {
-		const path = pathOfBlock(input.cells);
+		const path = reads.pathOf(input.cells);
 		const table = path && reads.nodeAt(path);
 		if (!path || !table || table.kind !== 'table') return null;
 		const columns = metadataOf(table, 'table').columnCount;

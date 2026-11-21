@@ -22,7 +22,8 @@ export interface Selection {
 }
 
 /** What `select` takes: a caret's byte, a range, a block to take whole, or a table's cells by row
- *  and column. */
+ *  and column. A block this editor doesn't place (gone, or read from another document) selects
+ *  nothing. */
 export type SelectionInput =
 	| number
 	| { anchor: number; head: number }
