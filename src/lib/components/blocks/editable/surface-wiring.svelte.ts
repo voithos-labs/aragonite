@@ -4,7 +4,7 @@
  * Call it during component init, since it reads `getContext`.
  */
 
-import { getContext } from 'svelte';
+import { getContext, untrack } from 'svelte';
 import type { BlockEditActions, FocusActions, HistoryActions } from '../../../action-contracts';
 import {
 	BLOCK_EDIT_KEY,
@@ -23,6 +23,7 @@ import { commandForKey } from '../../../schema/commands';
 import type { AnyBlockKind } from '../../../core/nodes';
 import type { NodeView } from '../../../core/node-views';
 import type { OwnWidgetContext } from '../widget-portal';
+import type { KeyWatch } from '../../../schema/doc-view';
 import type { AnyCommandId } from '../../../schema/command-id';
 import { parkFocusOnEditorRoot } from '../../../selection/native-bridge';
 import type { EditableSurfaceDeps } from './editable-surface';
@@ -151,9 +152,25 @@ export function wireSurfaceContexts(): SurfaceWiring {
 	const ownWidgets = (node: () => NodeView, path: () => readonly number[]): OwnWidgetContext => ({
 		editorFor: doc.scopedEditor,
 		byteAt: (offset) => services.read.blockOf(node(), path()).byteAt(offset),
-		keys: (depends, report) => services.read.keys(depends, report)
+		keys: (depends, report) => heardWatch(services.read.keys(depends, report), doc.contentVersion)
 	});
 	return { deps, services, policies, doc, dispatchChord, resolveChord, ownWidgets };
+}
+
+const heard = new WeakMap<KeyWatch, KeyWatch>();
+
+// A watch whose version a render reads: the render runs again only when an answer moves.
+function heardWatch(watch: KeyWatch, contentVersion: () => number): KeyWatch {
+	let held = heard.get(watch);
+	if (held) return held;
+	let version = watch.version;
+	// A root of its own: made in the first block's render, it would go stale once that block unmounts.
+	$effect.root(() => {
+		const moved = $derived.by(() => (contentVersion(), untrack(watch.version)));
+		version = () => moved;
+	});
+	heard.set(watch, (held = { version: () => version(), keys: watch.keys }));
+	return held;
 }
 
 // Windowed out while focused: hand focus to the editor root so the next keystroke

@@ -211,7 +211,8 @@ export interface ViewWidgetPoolDeps {
 export interface OwnWidgetContext {
 	editorFor(plugin: string): Editor;
 	byteAt(offset: number): number;
-	/** The kept answers of a widget's `depends`, one watch per function in the editor. */
+	/** The kept answers of a widget's `depends`, one watch per function in the editor; its version,
+	 *  read in a render, runs the render again only when an answer moves. */
 	keys(depends: (block: Block) => string, report: (cause: unknown) => void): KeyWatch;
 }
 
@@ -281,15 +282,13 @@ export function createViewWidgetPool(deps: ViewWidgetPoolDeps): WidgetPool {
 		const editor = deps.own.editorFor(own.plugin);
 		const { depends } = own;
 		const watch = depends ? untrack(() => deps.own.keys(depends, reportError)) : null;
-		// The answers' version the drawing last got.
+		// The answers' version the drawing last got, read in the render pass, so a moved answer runs
+		// the pass again.
 		let heard = 0;
-		// Read in the render pass, so every write runs it again for a widget with `depends`, and
-		// only for one; what the watch reads of the document stays out of the pass.
-		const listen = (held: KeyWatch) => (getContentVersion(), untrack(held.version));
-		const answersMoved = () => watch !== null && listen(watch) !== heard;
+		const answersMoved = () => watch !== null && watch.version() !== heard;
 		const answers = () => {
 			if (!watch) return NO_ANSWERS;
-			heard = listen(watch);
+			heard = watch.version();
 			return untrack(watch.keys);
 		};
 		const propsAt = (at: InlineNode): WidgetProps<unknown> => ({

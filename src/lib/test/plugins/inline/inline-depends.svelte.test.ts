@@ -112,6 +112,29 @@ describe('an inline widget with depends', () => {
 		expect(m.instance.doc.blocks[held.indexOf('# B')].text).toBe('# B\n');
 	});
 
+	it('renders no other block on a key that changes no answer, a widget in each', async () => {
+		const source = 'plain\n\n' + Array.from({ length: 8 }, (_, i) => `p${i} [^a]`).join('\n\n');
+		const { m, log } = await mounted(source);
+		const calls = log.length;
+		counting();
+		typeInto(surfaceAt(m, [0]), 'plainX');
+		await m.settle();
+		const others = perfSnapshot().blockRenderPaths.filter((path) => path !== '0');
+		expect([asked(), others, log.length]).toEqual([1, [], calls]);
+	});
+
+	it('keeps hearing once the block whose widget asked first is gone', async () => {
+		const { m } = await mounted('plain\n\n[^a] two\n\n# Top\n');
+		typeInto(surfaceAt(m, [0]), '[^a] plain');
+		await m.settle();
+		await pressKeyAt(m, [1], 0, { key: 'Backspace' });
+		await m.settle();
+		typeInto(surfaceAt(m, [1]), '# TopX');
+		await m.settle();
+		const widgets = [...m.target.querySelectorAll('[data-inline-widget]')];
+		expect(widgets.map((widget) => widget.textContent)).toEqual(['# TopX', '# TopX']);
+	});
+
 	it('hears a key in a table cell beside it', async () => {
 		const { m, log } = await mounted('| a |\n| - |\n| [^a] |\n\n# Top\n');
 		const calls = log.length;
