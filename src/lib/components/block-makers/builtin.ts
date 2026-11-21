@@ -4,19 +4,12 @@ import {
 	ALL_BLOCK_KINDS,
 	INLINE_KIND_TABLE,
 	type BlockKind,
-	type BlockMetadataByKind,
 	type InlineNodeKind
 } from '../../core/nodes';
-import type { BytesView } from '../../core/node-views';
 import type { InlineType } from '../../schema/doc-view';
+import type { BuiltinData } from '../../schema/builtin-data';
 import { blockKindLabel } from '../../a11y-strings';
 import type { BlockType } from '../../schema/plugin-unit';
-
-/** What a built-in block of kind `K` holds as its `data`, read-only: the tree's own facts about its
- *  bytes (a heading's level, a list's `ordered`), or undefined for a kind that carries none. */
-type BuiltinData<K extends BlockKind> = K extends keyof BlockMetadataByKind
-	? BytesView<BlockMetadataByKind[K]>
-	: undefined;
 
 export const builtin: {
 	readonly blocks: { readonly [K in BlockKind]: BlockType<BuiltinData<K>> };

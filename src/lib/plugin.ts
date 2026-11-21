@@ -59,6 +59,17 @@ export type {
 	LineBlockSpec
 } from './schema/block-shapes';
 export type { Block, Doc, InlineType, Piece } from './schema/doc-view';
+export type {
+	FencedCodeData,
+	HeadingData,
+	LinkReferenceDefinitionData,
+	ListData,
+	ListItemData,
+	SetextHeadingData,
+	TableData,
+	TableRowData,
+	ThematicBreakData
+} from './schema/builtin-data';
 export type { Mode } from './presentation-mode';
 export type { View } from './schema/view';
 // Text read as an editor running these plugins reads it, with no editor mounted.
