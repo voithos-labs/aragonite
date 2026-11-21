@@ -6,8 +6,7 @@
 import { definePlugin, inline, type Block, type WidgetProps } from '#lib/plugin.js';
 
 // `[^a]` is a reference; `[^a]:` starts the note itself.
-const REFERENCE = /\[\^([^\]\s]+)\](?!:)/;
-const REFERENCES = new RegExp(REFERENCE.source, 'g');
+const REFERENCES = /\[\^([^\]\s]+)\](?!:)/g;
 
 /** The labels this block references, in order, one a line. */
 function referencesIn(block: Block): string {
@@ -42,8 +41,9 @@ export const noteRef = inline({
 	name: 'ref',
 	label: 'Footnote reference',
 	prefix: '[^',
-	match: REFERENCE,
-	read: (match) => ({ label: match[1] }),
+	// The guide's matcher: a note's own `[^a]:` is no reference, and null leaves it to the editor.
+	match: /\[\^([^\]\s]+)\]:?/,
+	read: ([claim, label]) => (claim.endsWith(':') ? null : { label }),
 	sample: 'a note[^a] here',
 	widget: { delete: 'whole', arrows: 'over', click: 'none' },
 	depends: referencesIn,

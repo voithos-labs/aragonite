@@ -13,7 +13,7 @@ How each tier reads it:
 | Plugin instance logic | `editor.presentationMode` on your `EditorContext` (a live getter); subscribe to the `presentationModeChange` event for flips |
 | Editable leaf | `leaf.getPresentationMode()` on the `createEditableLeaf` surface |
 | Container block (factory) | `container.getPresentationMode()` on the `createContainerBlock` surface |
-| Inline widget | `mode` on the `WidgetProps` your `draw` gets, which gets an update when the mode flips; `key(event, props)` gets the same props ([Inline kinds](inline-kinds.md#rendering-it-as-a-widget)) |
+| Inline widget | `mode` on the `WidgetProps` your `draw` gets, a `Mode` whose `name` is the mode, which gets an update when the mode flips; `key(event, props)` gets the same props ([Inline kinds](inline-kinds.md#rendering-it-as-a-widget)) |
 | Block component (DOM tier) | The `data-presentation` attribute on the editor root (`el.closest('[data-presentation]')`); **absent means `'source'`**. The fallback for a component holding only a DOM handle, and the one read that isn't live ([What is live, what is point-in-time](#what-is-live-what-is-point-in-time)) |
 
 ```ts
