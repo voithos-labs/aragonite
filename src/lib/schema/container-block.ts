@@ -9,6 +9,7 @@ import type { ContainerLines } from '../core/parsers/strip-container';
 import type { BuiltinRegistration } from './block-kind-descriptor';
 import { fixtureOf, heightEstimate, type BlockCommon, type DrawDepends } from './block-shapes';
 import type { Block } from './doc-view';
+import type { Chord } from './plugin-command';
 import type { ContainerDrawContext, Drawn } from './drawing';
 
 export type { ContainerLines } from '../core/parsers/strip-container';
@@ -16,7 +17,7 @@ export type { ContainerLines } from '../core/parsers/strip-container';
 // ── Spec ─────────────────────────────────────────────────────────────────────
 
 /** A block holding other blocks; the editor writes its bytes from `lines`, never the plugin. */
-export type ContainerSpec<D> = BlockCommon<D> & {
+export type ContainerSpec<D> = BlockCommon<D, Chord> & {
 	lines: ContainerLines<D>;
 	/** Text joined to its end from below lands in its deepest text block; default true. */
 	joins?: boolean;

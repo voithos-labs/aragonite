@@ -29,8 +29,8 @@ import type { LineEnding } from '../core/lines';
 
 // ── Specs ────────────────────────────────────────────────────────────────────
 
-/** What every block type answers, whatever its shape. */
-export interface BlockCommon<D> {
+/** What every block type answers, whatever its shape; `K` is the keys its `chords` may take. */
+export interface BlockCommon<D, K extends string = BlockKey> {
 	/** Lowercase letters, digits and hyphens; an editor qualifies it with the plugin's name. */
 	name: string;
 	/** What a screen reader and the block menu call it. */
@@ -54,14 +54,14 @@ export interface BlockCommon<D> {
 	complete?: Completion;
 	/** Keys that act in this block type and the blocks it holds, each running its command on the
 	 *  block; a host rebinds one with `keybindings: [{ kind: thisType, … }]`. */
-	chords?: { readonly [K in BlockKey]?: Command<Block<NoInfer<D>>> };
+	chords?: { readonly [P in K]?: Command<Block<NoInfer<D>>> };
 	/** Rows of the block's own menu. */
 	actions?: readonly BlockAction<NoInfer<D>>[];
 }
 
-/** A key a block type takes: a chord, or a bare key the editor binds in text blocks itself. A key a
- *  block inside binds runs there first, and a container type takes no key the text inside it
- *  edits with. */
+/** A key a leaf type takes: a chord, or a bare key the editor binds in text blocks itself. A
+ *  container type takes chords alone, and none the text inside it edits with; a key a block inside
+ *  binds runs there first. */
 export type BlockKey = Chord | 'Enter' | 'Backspace' | 'Delete';
 
 /** A row of a block type's own menu: runs its command on the block the menu opened over. */
