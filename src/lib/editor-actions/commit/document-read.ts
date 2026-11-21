@@ -47,7 +47,8 @@ export interface DocumentRead {
 	blockOf(node: NodeView, path: readonly number[]): Block;
 	/** Offset `offset` of the block at `path` as a document byte; null where it isn't placed. */
 	byteOf(path: readonly number[], offset: number): number | null;
-	/** The text position holding document byte `at`, as a caret lands there. */
+	/** The text position holding document byte `at`, as a caret lands there. Null outside the
+	 *  document. */
 	leafAt(at: number): LeafPosition | null;
 	/** The path of the deepest block holding byte `at` of a range already in the document. */
 	pathAt(at: number): number[] | null;
@@ -174,10 +175,15 @@ export function createDocumentRead(deps: {
 		(i) => blockOf(deps.getDoc().children[i], [i])
 	);
 
-	function blockAt(at: number): Block | null {
+	// Null outside the document: the byte map alone would answer with its last text.
+	function leafAt(at: number): LeafPosition | null {
 		const laid = layout();
 		if (!Number.isInteger(at) || at < 0 || at > laid.of.starts.length) return null;
-		const leaf = laid.map.leafAt(at);
+		return laid.map.leafAt(at);
+	}
+
+	function blockAt(at: number): Block | null {
+		const leaf = leafAt(at);
 		const node = leaf && blockNodeAt(deps.getDoc(), leaf.path);
 		return node ? blockOf(node, leaf.path) : null;
 	}
@@ -201,8 +207,8 @@ export function createDocumentRead(deps: {
 		blockAt,
 		blockOf,
 		byteOf: reading.byteOf,
-		leafAt: (at) => layout().map.leafAt(at),
-		pathAt: (at) => layout().map.leafAt(at)?.path ?? null,
+		leafAt,
+		pathAt: (at) => leafAt(at)?.path ?? null,
 		editInfo(event) {
 			let info = infos.get(event);
 			if (!info) {

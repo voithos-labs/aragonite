@@ -43,7 +43,7 @@ export function selectionOf(reads: Reads, selection: EditorSelection | null): Se
 /** The editor selection `input` names; null where it names no place in the document. */
 export function selectionTarget(reads: Reads, input: SelectionInput): EditorSelection | null {
 	const point = (at: number): SelectionPoint | null => {
-		const leaf = Number.isInteger(at) && at >= 0 ? reads.leafAt(at) : null;
+		const leaf = reads.leafAt(at);
 		return leaf && { path: leaf.path, offset: leaf.offset };
 	};
 	const pair = (a: SelectionPoint | null, h: SelectionPoint | null) =>
@@ -59,11 +59,11 @@ export function selectionTarget(reads: Reads, input: SelectionInput): EditorSele
 		const table = path && reads.nodeAt(path);
 		if (!path || !table || table.kind !== 'table') return null;
 		const columns = metadataOf(table, 'table').columnCount;
-		const index = ([row, column]: readonly [number, number]) => row * columns + column;
-		return {
-			anchor: cellPoint(path, index(input.anchor)),
-			focus: cellPoint(path, index(input.head))
-		};
+		const rows = table.children?.length ?? 0;
+		const within = (n: number, count: number) => Number.isInteger(n) && n >= 0 && n < count;
+		const cell = ([row, column]: readonly [number, number]) =>
+			within(row, rows) && within(column, columns) ? cellPoint(path, row * columns + column) : null;
+		return pair(cell(input.anchor), cell(input.head));
 	}
 	return pair(point(input.anchor), point(input.head));
 }
