@@ -183,6 +183,29 @@ describe('a drawing with depends', () => {
 		expect(log.length).toBe(calls);
 	});
 
+	// Miss-analysis: the letting-go rows unmount the drawing first; none wrote past the bound in
+	// one flush under a mounted one, which then kept the headings the writes took out.
+	it('updates when one flush of 70 writes takes every heading out', async () => {
+		const { m } = await mounted();
+		const writes: Promise<unknown>[] = [];
+		for (let i = 0; i < 68; i++) {
+			const at = m.source().indexOf('para two');
+			writes.push(m.instance.edit().replace({ from: at, to: at }, 'x').commit());
+		}
+		for (const heading of ['# Top\n\n', '## Mid\n\n']) {
+			const at = m.source().indexOf(heading);
+			writes.push(
+				m.instance
+					.edit()
+					.replace({ from: at, to: at + heading.length }, '')
+					.commit()
+			);
+		}
+		await Promise.all(writes);
+		await m.settle();
+		expect([m.source().includes('#'), nav(m).textContent]).toEqual([false, '']);
+	});
+
 	it('warns once, in a dev build, when its drawing has no update to hear the answers', async () => {
 		const plugin = definePlugin({
 			name: 'deaf',

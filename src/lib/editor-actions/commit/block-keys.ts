@@ -64,6 +64,8 @@ export function watchKeys(
 	function lapse(): void {
 		unfollow?.();
 		unfollow = writes = null;
+		// A reader that comes back hears of what went, whatever the blocks say by then.
+		if (!sameFrom(slots, [], 0)) version++;
 		slots = [];
 	}
 

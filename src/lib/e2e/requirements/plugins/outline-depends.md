@@ -19,6 +19,8 @@ their index, so an Enter above a heading left the rows pointing a block off.
 
 - Enter inside the paragraph above `## Beta`, then a click on Beta's row: the caret lands in
   `## Beta`, now one block further down.
+- Enter inside the paragraph above `## Beta`, undone, then a click on Beta's row: the caret lands
+  in `## Beta`, back where it was.
 - The editor scrolled to its end, so the outline leaves the window, then back to its top: the
   outline is drawn again with the same rows, and no block's `depends` is asked.
 
