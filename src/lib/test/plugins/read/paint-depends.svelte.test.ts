@@ -165,6 +165,26 @@ describe('a paint with paintDepends', () => {
 		expect(lookups).toBeGreaterThanOrEqual(blocks);
 	});
 
+	// A mark's activation asks for a block's paint from a handler, which can run past the unmount.
+	// Miss-analysis: every row read a paint from a mounted block, never from outside a render.
+	it('is looked up outside a render, and past the unmount, with no warning', async () => {
+		const { plugin, log } = painter(headings);
+		const m = mountEditor<EditorTestSurface>({ source: DOC, plugins: [plugin] });
+		await m.settle();
+		const engine = m.instance.__test.getDecorationEngine();
+		const doc = m.instance.__test.getDocument();
+		typeInto(surfaceAt(m, [0]), '# TopX');
+		engine.paintOf(doc.children[1], [1]);
+		expect(log.at(-1)!.depends).toEqual(['# TopX', '', '', '## Mid']);
+		await m.settle();
+		typeInto(surfaceAt(m, [1]), 'para oneX');
+		await m.settle();
+		engine.paintOf(doc.children[0], [0]);
+		await m.destroy();
+		expect(engine.paintOf(doc.children[0], [0]).marks).toEqual([]);
+		expect(engine.paintOf(doc.children[2], [2]).marks).toEqual([]);
+	});
+
 	it('asks nothing once its plugin is turned off', async () => {
 		const { plugin } = painter(headings);
 		const m = mountEditor({ source: DOC, plugins: [plugin] });

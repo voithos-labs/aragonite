@@ -242,19 +242,23 @@ export function createPaintSources<B extends PaintedBlock>(
 ) {
 	const sources = new WeakMap<object, PaintSource>();
 	let changes = 0;
+	const sourcesNow = () => deps.paints().map(sourceOf);
+	function settle(list: readonly PaintSource[]): number {
+		for (const source of list) if (source.settle()) changes++;
+		return changes;
+	}
 	// Worked out by the first block read after a write. Its value moves only with an answer, so the
 	// blocks that read it are asked again only then.
 	const settled = $derived.by(() => {
 		deps.contentVersion();
-		const list = deps.paints().map(sourceOf);
-		return untrack(() => {
-			for (const source of list) if (source.settle()) changes++;
-			return changes;
-		});
+		const list = sourcesNow();
+		return untrack(() => settle(list));
 	});
+	// A handler asks outside any render, even past the unmount, where the derived would warn.
+	const settledNow = () => void ($effect.tracking() ? settled : settle(sourcesNow()));
 	function sourceOf({ plugin, contribution }: ReturnType<typeof deps.paints>[number]) {
 		return cached(sources, contribution, () =>
-			createPaintSource({ ...deps, plugin, contribution, settled: () => void settled })
+			createPaintSource({ ...deps, plugin, contribution, settled: settledNow })
 		);
 	}
 	return {
