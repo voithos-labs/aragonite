@@ -65,6 +65,8 @@ export interface PerfSnapshot {
 	hintRunsLogged: number;
 	/** Block views made for a plugin: one per node read, never one per block of a list nobody reads. */
 	blocksBuilt: number;
+	/** Block views handed to a plugin, one already built included: what a walk of the document costs. */
+	blocksRead: number;
 	undoLiveBytes: number;
 	undoEntryCount: number;
 	blockRenderCount: number;
@@ -146,6 +148,7 @@ function emptySnapshot(): PerfSnapshot {
 		documentWalks: 0,
 		hintRunsLogged: 0,
 		blocksBuilt: 0,
+		blocksRead: 0,
 		undoLiveBytes: 0,
 		undoEntryCount: 0,
 		blockRenderCount: 0,
@@ -339,6 +342,11 @@ export function recordHintRunsLogged(): void {
 export function recordBlockBuilt(): void {
 	if (!enabled) return;
 	counters.blocksBuilt++;
+}
+
+export function recordBlockRead(): void {
+	if (!enabled) return;
+	counters.blocksRead++;
 }
 
 export function setUndoGauge(liveBytes: number, entryCount: number): void {

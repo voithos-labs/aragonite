@@ -32,7 +32,7 @@ import {
 import type { BlockType } from '../../schema/plugin-unit';
 import type { EditEvent, EditInfo } from '../../editor-events';
 import { checkHeldBlockPlace } from '../../invariants/held-block';
-import { perfEnabled, recordHintRunsLogged } from '../../perf/instruments';
+import { perfEnabled, recordBlockRead, recordHintRunsLogged } from '../../perf/instruments';
 import type { WriteFollower } from './kept-starts';
 import { createEditChanges } from './edit-changes';
 
@@ -108,6 +108,7 @@ export function createDocumentRead(deps: {
 
 	function blockOf(node: NodeView, path: readonly number[] | null): Block {
 		follow();
+		recordBlockRead();
 		const known = blocks.get(node);
 		if (known) {
 			seenAt(known, path);

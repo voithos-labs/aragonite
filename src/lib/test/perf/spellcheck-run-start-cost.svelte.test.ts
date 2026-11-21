@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 // A key that starts a typing run with the spell check on reads no whole document through it: no
-// byte map pairing, no walk, no text read, and as many blocks measured and built at 400 as at 40.
+// byte map pairing, no walk, no text read, and as many blocks measured, built and read at 400 as
+// at 40.
 // Miss-analysis: the typing pause was timed in a production page, never counted, so nothing said
-// whether the plugin's own reads were part of it.
+// whether the plugin's own reads were part of it. Blocks built counted no `doc.walk()` past the
+// first either, since a node's block is built once.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { spellcheckPlugin } from '#packages/spellcheck/src/index.js';
 import type { Dictionary } from '#packages/spellcheck/src/dictionary.js';
@@ -39,10 +41,11 @@ async function runStartCost(n: number) {
 	enablePerfInstruments();
 	typeInto(surfaceAt(m, [3]), 'line 3x');
 	await m.settle();
-	const { byteMapReads, documentWalks, textReads, topBlocksMeasured, blocksBuilt } = perfSnapshot();
+	const { byteMapReads, documentWalks, textReads, topBlocksMeasured, blocksBuilt, blocksRead } =
+		perfSnapshot();
 	disablePerfInstruments();
 	await m.destroy();
-	return { byteMapReads, documentWalks, textReads, topBlocksMeasured, blocksBuilt };
+	return { byteMapReads, documentWalks, textReads, topBlocksMeasured, blocksBuilt, blocksRead };
 }
 
 describe('the spell check on a key that starts a typing run', () => {
