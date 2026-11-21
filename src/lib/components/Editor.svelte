@@ -87,6 +87,7 @@
 	import { paintedMarkRects, passPointerThrough } from '../decorations/mark-interactions';
 	import type { DecorationRegistry } from '../decorations/types';
 	import { createEditorRects, type EditorRects } from '../editor-rects';
+	import { createEditorView } from '../editor-view';
 	import { createCaretLanding } from '../selection/caret-landing';
 	import { installReorderDrag } from '../editor-actions/reorder-drag';
 	import { createPasteCoordinator } from '../editor-actions/paste-coordinator';
@@ -169,7 +170,7 @@
 		type PluginError,
 		type PluginList
 	} from '../schema/plugin-unit';
-	import { nodeOfBlock, type Block } from '../schema/doc-view';
+	import { nodeOfBlock, type Block, type Doc } from '../schema/doc-view';
 	import { createPaintSources } from '../decorations/plugin-paint.svelte';
 	import { createDocumentRead } from '../editor-actions/commit/document-read';
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
@@ -398,6 +399,7 @@
 	// shadow the host's tokens.
 	const inThemedScope = $derived(!!editorEl?.closest('.aragonite-editor-theme'));
 	let headerEl: HTMLDivElement | undefined = $state();
+	let overlayLayerEl: HTMLDivElement | undefined = $state();
 	let findBarEl: HTMLDivElement | undefined = $state();
 	let typeScaleProbeEl: HTMLDivElement | undefined = $state();
 	let widthProbeEl: HTMLDivElement | undefined = $state();
@@ -596,10 +598,10 @@
 		untrack(() => documentSwap.swapTo(next));
 	});
 
-	/** Whether `node` is in the host's header; every "is this editor content" check asks here.
-	 *  Focus tracking uses `contains` instead, since the header counts as part of the editor. */
+	/** Whether `node` is in the host's header or a view overlay; every "is this editor content"
+	 *  check asks here. Focus tracking uses `contains` instead, since both count as the editor. */
 	function isHostChrome(node: Node | null): boolean {
-		return !!node && !!headerEl && headerEl.contains(node);
+		return !!node && (!!headerEl?.contains(node) || !!overlayLayerEl?.contains(node));
 	}
 
 	function isFindBar(node: Node | null): boolean {
@@ -849,6 +851,16 @@
 		readSelection: readNativeSelection
 	});
 
+	const editorView = createEditorView({
+		rects,
+		read: documentRead,
+		root: () => editorEl ?? null,
+		layer: () => overlayLayerEl ?? null,
+		caretTargetAt: (root, x, y) => rootGestures.caretTargetAtPoint(root, x, y),
+		events
+	});
+	onDestroy(editorView.dispose);
+
 	const editorId = mintEditorId();
 
 	// The typed-trigger menus (`#tag`, `[[link`); a pick commits as one undo step, like the
@@ -898,6 +910,7 @@
 		doc: () => documentRead.doc(),
 		selection: () => pluginSelection(),
 		select: (input) => select(input),
+		view: editorView,
 		pluginEvents: () => pluginEvents,
 		blockAt: (at) => blockAt(at),
 		repaint: (plugin, blocks) => repaintPlugin(plugin, blocks),
@@ -1663,13 +1676,15 @@
 	const currentSelection = $derived.by(
 		() => (void contentVersion.read(), void selectionMoves, pluginSelection())
 	);
+	const rootElement = $derived(editorEl!);
 	export {
 		pluginList as plugins,
 		mode,
 		themeName as theme,
 		inserts,
 		currentDoc as doc,
-		currentSelection as selection
+		currentSelection as selection,
+		rootElement as element
 	};
 
 	const pluginEvents: PluginEventReads = {
@@ -1711,6 +1726,22 @@
 	export function select(input: SelectionInput): Promise<boolean> {
 		const target = selectionTarget(selectionReads, input);
 		return target ? setSelection(target) : Promise.resolve(false);
+	}
+
+	export const view = editorView.view;
+
+	export function load(text: string): Doc {
+		documentSwap.load(text);
+		return documentRead.doc();
+	}
+
+	// A local write the prop's next change replaces.
+	export function setMode(next: PresentationMode): void {
+		presentationMode = next;
+	}
+
+	export function setTheme(next: string): void {
+		theme = next;
 	}
 
 	// A command value runs by the id this editor gave it; one this editor doesn't run, nowhere.
@@ -1944,6 +1975,13 @@
 		get selection() {
 			return pluginSelection();
 		},
+		get element() {
+			return editorEl!;
+		},
+		view,
+		load,
+		setMode,
+		setTheme,
 		on,
 		run,
 		can,
@@ -2039,6 +2077,8 @@
 		window={topWindowing.window}
 		reorderable={true}
 	/>
+	<!-- Where `view.overlay` puts a plugin's element: in the scroll content, outside the blocks. -->
+	<div class="editor-overlays" data-host-content bind:this={overlayLayerEl}></div>
 	<SelectionGapFill getEditorEl={() => editorEl ?? null} />
 	{#if effectiveMode !== 'reading'}
 		<SelectionHandles finger={() => fingerPress} {getBlockComponent} />
@@ -2174,6 +2214,16 @@
 	   anchor candidates (VR-2). */
 	.editor[data-scroll-mode='host'][data-windowing='active'] {
 		overflow-anchor: none;
+	}
+
+	/* A zero-height origin at the scroll content's corner, which each overlay is placed from. Root
+	   wide, so an overlay sizes to its content rather than to a zero-width box. */
+	.editor-overlays {
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		z-index: 4;
 	}
 
 	/* Out of layout, but never `display: none`, which stops a ResizeObserver reporting. */

@@ -13,6 +13,7 @@ import { createMenuPick } from '../schema/caret-menu';
 import { installPluginList, type Editor, type PluginList } from '../schema/plugin-unit';
 import { defaultGrammarView } from '../schema/editor-grammar';
 import type { Doc } from '../schema/doc-view';
+import type { View } from '../schema/view';
 import { modeOf } from '../presentation-mode';
 
 export interface MenuPickCase {
@@ -91,6 +92,15 @@ export async function checkMenuPickAcrossSwap(c: MenuPickCase): Promise<void> {
 
 // ── Internal ────────────────────────────────────────────────────────────────
 
+const INERT_VIEW: View = {
+	boxOf: () => null,
+	boxesOf: () => [],
+	caretBox: () => null,
+	posAt: () => null,
+	reveal: async () => false,
+	overlay: () => () => {}
+};
+
 const EMPTY_DOC: Doc = {
 	text: '',
 	eol: '\n',
@@ -109,6 +119,7 @@ function recordingEditor(writes: string[], edit: Editor['edit'], plugin: string)
 		inserts: [],
 		doc: EMPTY_DOC,
 		selection: null,
+		view: INERT_VIEW,
 		on: () => () => {},
 		run: (command: { id: string } | string) => (
 			writes.push(`a run of ${typeof command === 'string' ? command : command.id}`),

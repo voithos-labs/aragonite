@@ -235,6 +235,7 @@ The table is the exports you'll actually reach for, grouped by job. It's not eve
 | Group | Exports | What for |
 | --- | --- | --- |
 | **Mounting** | `createEditor`, `CreateEditorOptions`, `EditorHandle`, `EditorOptions`, `EditorInstance`, `EDITOR_OPTION_SPECS` | Mounting without Svelte, and the handle you talk to (`EditorInstance` is the `bind:this` one). `EDITOR_OPTION_SPECS` says whether each option is live or set once, and whether it's a boolean, in case you're writing a wrapper of your own |
+| **Reading the document** | `Doc`, `Block`, `Piece`, `Selection`, `SelectionInput`, `View`, `Mode`, `Events`, `EditInfo`, `Change` | What the handle's `doc`, `selection`, `view`, `mode` and `on` hand back, every position in document bytes |
 | **Prop shapes** | `SyntaxOptions`, `PresentationMode`, `LinkClick`, `PlaceholderBlock`, `KeybindingOverride`, `CommandId`, `InsertMarkdownOptions` | What the `syntax`, `presentationMode`, `linkClick`, `placeholder` and `keybindings` props take, and `insertMarkdown()`'s second argument |
 | **Host hooks** | `ResolveImageUrl`, `ResolveLinkUrl`, `ImageLoadPolicy`, `PastedImage`, `PasteImageHook`, `CodeRunRequest`, `RunCodeHook`, `CodeMenuItem`, `CodeMenuItemsHook` | The URL and image props, the image-import hook, and the code-block hooks |
 | **Plugins** | `installPlugins`, `EditorPlugin`, `EditorPluginEntry` | A parse-only pipeline with no editor mounted; the unit a plugin exports, and one `plugins` entry (a bare unit, or `{ plugin, options }`) |
@@ -305,6 +306,8 @@ One Svelte thing to watch for: a `$state` ignores a write equal to what it alrea
 
 Echoing `getSource()` back into `source` on every `edit` works too. It reads the whole document every keystroke though, so the object is cheaper.
 
+Or skip the prop and call `load(text)` on the handle. It loads every time, even text the editor already holds, clears undo, and is heard as `load` too. A `source` prop you keep passing takes over again the next time its value changes.
+
 ### Switching a syntax off
 
 Two GFM syntaxes catch people out in a rendered view, because the markers that would explain them are hidden: a line that starts with a tab (or four spaces) becomes a code block, and `---` right under a line of text turns that line into a heading. An editor can leave either one out of its grammar:
@@ -353,13 +356,15 @@ You set the editor up with props when it mounts. After that you talk to it throu
 | --- | --- |
 | `getSource()` | The live document, serialized back to Markdown |
 | `doc` | The document as it stands, in document bytes: its text, its blocks and the block at a byte (see [`Doc`](plugin-api.md#the-plugin-unit)) |
+| `element` | The editor's root element |
 | `getSelection()` | A frozen snapshot of the current selection, or `null` |
 | `selection` | The same selection in document bytes, the positions a plugin's own functions take (see `Selection` in the [plugin API](plugin-api.md#events)) |
 | `getBlockKindAt(path)` | What kind of block sits at a path, or `null` |
 | `canRunCommand(id)` / `isCommandActive(id)` | Whether a toolbar button should be enabled, and whether it should paint pressed (see [Toolbar commands](#toolbar-commands)) |
 | `getEvents()` | The subscription surface (see [Events](#events)) |
 | `getSearch()` | The find/replace controller (see [Driving search yourself](#driving-search-yourself)) |
-| `getRects()` | Where things are on screen (see [Screen geometry](#screen-geometry)) |
+| `view` | Where things are on screen, in document bytes (see [Screen geometry](#screen-geometry)) |
+| `getRects()` | The same, by path and offset |
 | `getDecorations()` | The registry for your own view-only annotations (see [Decorations](#decorations)) |
 | `openMenu(menu, query?)` | Types a caret menu's trigger (and the query) at the caret and opens it, the way a shortcut or a toolbar button does; `false`, writing nothing, in a table cell, in reading mode, or for a menu this editor doesn't list |
 | `openRows(action, range, anchor, pointer?)` | Opens a plugin's selection action rows over `range`, just under `anchor` (a rect) or at it (a point), taking no focus, for a hover card over a mark; hands back `{ isOpen, close() }`, and tells `pointer` as the pointer comes onto the menu (`true`) and leaves it (`false`) |
@@ -374,6 +379,8 @@ And what you can write:
 | --- | --- |
 | `setSelection(snapshot)` | Puts a `getSelection()` snapshot back on the document (see [Restoring a selection](#restoring-a-selection)) |
 | `select(input)` | Selects in document bytes: a caret's byte, a range, a block whole or table cells, scrolled into view first |
+| `load(text)` | Replaces the document, clearing undo, and hands back the new `doc` (see [Loading another document](#loading-another-document)) |
+| `setMode(mode)` / `setTheme(theme)` | Switches the presentation mode or the theme until the prop of that name next changes, so a wrapper re-rendering with the same prop keeps it |
 | `placeCaretAtPoint(x, y)` | Lands the caret at a viewport point, exactly as a click there would (see [Placing the caret at a point](#placing-the-caret-at-a-point)) |
 | `insertMarkdown(md, options?)` | Inserts Markdown at the caret, or as a block of its own, exactly as pasting it would, less its last line ending (see [Inserting Markdown at the caret](#inserting-markdown-at-the-caret)) |
 | `edit()` | Writes byte ranges of the document as one undo step, now or after a wait, and is refused with a reason if the author wrote over them meanwhile (see [`Draft`](plugin-api.md#draft-draftresult)) |
@@ -1237,7 +1244,20 @@ A mark's `onActivate` (the keyboard's way into a hover definition, say) has no k
 
 ### Screen geometry
 
-`getRects()` answers "where is that, on screen?" in viewport coordinates.
+`view` answers "where is that, on screen?" in viewport coordinates, for positions in document bytes, the ones `doc` and `selection` use:
+
+```ts
+const block = editor.doc.blocks[3];
+editor.view.boxOf(block); // DOMRect, or null while it isn't mounted
+editor.view.boxesOf({ from: 120, to: 180 }); // [DOMRect, ...], one per line of text
+editor.view.posAt({ x: 300, y: 412 }); // 131, the byte a click there would land on
+await editor.view.reveal(block, { align: 'center' }); // true once it's on screen
+const unpin = editor.view.overlay(badge, block); // your element, at the block's top-left corner
+```
+
+An overlay moves with its block through scrolls and edits, and comes off at `unpin()` or once its block is replaced (typing inside it does that), so pin again on the block you read next. Keys and right-clicks inside it are yours.
+
+`getRects()` answers the same by path and offset.
 
 ```ts
 const rects = editor.getRects();

@@ -51,6 +51,8 @@ export interface DocumentRead {
 	leafAt(at: number): LeafPosition | null;
 	/** The path of the deepest block holding byte `at` of a range already in the document. */
 	pathAt(at: number): number[] | null;
+	/** The text blocks bytes `[from, to)` cross, in order, each with the offsets of its part. */
+	leavesIn(from: number, to: number): { path: number[]; start: number; end: number }[];
 	/** What an `edit` listener gets for one emitted edit: one object for every listener. */
 	editInfo(event: EditEvent): EditInfo;
 	/** Counts an `edit` listener in, so each write keeps what `changes` needs; returns the way out. */
@@ -202,6 +204,22 @@ export function createDocumentRead(deps: {
 		byteOf: reading.byteOf,
 		leafAt: (at) => layout().map.leafAt(at),
 		pathAt: (at) => layout().map.leafAt(at)?.path ?? null,
+		leavesIn(from, to) {
+			const { map } = layout();
+			const out: { path: number[]; start: number; end: number }[] = [];
+			for (let at = from; at < to;) {
+				const leaf = map.leafAt(at);
+				const end = leaf && map.ownEnd(leaf.path);
+				if (!leaf || end === null) break;
+				// A container's own closing line reads as the child before it, already taken.
+				if (end > at) {
+					const stop = map.offsetIn(leaf.path, Math.min(to, end));
+					out.push({ path: leaf.path, start: leaf.offset, end: stop });
+				}
+				at = Math.max(end, at + 1);
+			}
+			return out;
+		},
 		editInfo(event) {
 			let info = infos.get(event);
 			if (!info) {

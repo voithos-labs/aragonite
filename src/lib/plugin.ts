@@ -60,6 +60,7 @@ export type {
 } from './schema/block-shapes';
 export type { Block, Doc, InlineType, Piece } from './schema/doc-view';
 export type { Mode } from './presentation-mode';
+export type { View } from './schema/view';
 // Text read as an editor running these plugins reads it, with no editor mounted.
 export { grammar } from './components/editor-root/headless-grammar';
 export type { Grammar } from './components/editor-root/headless-grammar';

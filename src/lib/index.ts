@@ -18,6 +18,13 @@ export type {
 // `edit()`'s write, in the document's bytes, and what its commit came to.
 export type { Draft, DraftResult } from './schema/drafts';
 
+// What the handle's `doc`, `selection`, `view`, `mode` and `on` hand back, in the document's bytes.
+export type { Block, Doc, Piece } from './schema/doc-view';
+export type { Selection, SelectionInput } from './schema/selection-read';
+export type { View } from './schema/view';
+export type { Mode } from './presentation-mode';
+export type { Change, EditInfo, Events } from './editor-events';
+
 export type {
 	EditorDiagnostics,
 	InteractionTraceEntry,

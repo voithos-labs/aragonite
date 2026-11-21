@@ -24,7 +24,7 @@ const ANNOUNCERS: Record<string, string> = {
 	'src/lib/editor-actions/commit/history.ts': 'the undo/redo tree swap',
 	'src/lib/components/Editor.svelte': 'the wiring, which hands the window the content version',
 	'src/lib/components/editor-root/document-swap.ts':
-		'the `source` prop swap, and the re-read a changed plugin list makes',
+		'the `source` prop swap, `load` on the handle, and the re-read a changed plugin list makes',
 	'src/lib/testing/headless-actions.ts': 'the published harness counts what its doors announced'
 };
 
@@ -64,7 +64,7 @@ const READING_CHECKED: Record<string, Partial<Record<DoorCheck, string[]>>> = {
 const ALONE_CHECKED: Record<string, Partial<Record<DoorCheck, string[]>>> = {
 	'src/lib/editor-actions/commit/commit-frame.ts': { startsAlone: ['runFrame'] },
 	'src/lib/editor-actions/commit/history.ts': { startsAlone: ['requestUndo', 'requestRedo'] },
-	'src/lib/components/editor-root/document-swap.ts': { startsAlone: ['swapTo', 'reparse'] }
+	'src/lib/components/editor-root/document-swap.ts': { startsAlone: ['swapTo', 'load', 'reparse'] }
 };
 
 /** Announcers that start no write of their own. */

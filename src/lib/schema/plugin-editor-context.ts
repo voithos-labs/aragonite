@@ -15,6 +15,7 @@ import { modeOf } from '../presentation-mode';
 import { inlineReaderFor } from '../core/inline';
 import type { DecorationRegistry } from '../decorations/types';
 import type { EditorRects } from '../editor-rects';
+import type { EditorView, View } from './view';
 import type { InsertMarkdownOptions } from '../editor-props';
 import type { InlineMenuRegistry } from '../inline-menu/types';
 import type { PresentationMode } from '../presentation-mode';
@@ -93,6 +94,7 @@ export function createEditorPluginContexts(deps: {
 	doc: () => Editor['doc'];
 	selection: () => Editor['selection'];
 	select: Editor['select'];
+	view: EditorView;
 	/** What `Editor.on` makes of the channel's payloads. */
 	pluginEvents: () => PluginEventReads;
 	blockAt: Editor['blockAt'];
@@ -176,7 +178,21 @@ export function createEditorPluginContexts(deps: {
 		return editor;
 	}
 
+	// An overlay comes off with its plugin, as a listener does.
+	function scopedView(plugin: string): View {
+		return {
+			...deps.view.view,
+			overlay(el, at) {
+				const disposer = { plugin, dispose: () => {} };
+				disposers.push(disposer);
+				disposer.dispose = deps.view.overlay(el, at, () => void disposeOne(disposer));
+				return () => reportThrown(disposeOne(disposer));
+			}
+		};
+	}
+
 	function scopedEditor(plugin: string): Editor {
+		const view = scopedView(plugin);
 		return {
 			get plugins() {
 				return deps.pluginNames();
@@ -196,6 +212,7 @@ export function createEditorPluginContexts(deps: {
 			get selection() {
 				return deps.selection();
 			},
+			view,
 			on(event, listen) {
 				const channel: Pick<EditorEvents, 'on'> = {
 					on: (name, hear) => listenAs(plugin, name, hear)

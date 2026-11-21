@@ -8,6 +8,7 @@ import { checkDefinedByThisCopy, type CoreCopy } from '../invariants/one-core-co
 import { ARAGONITE_VERSION } from '../version';
 import type { Events } from '../editor-events';
 import type { Mode } from '../presentation-mode';
+import type { View } from './view';
 import type { Command } from './plugin-command';
 import type { InsertRow } from './insert-catalogue';
 import type { CaretMenu } from './caret-menu';
@@ -95,6 +96,8 @@ export interface Editor {
 	/** The selection in document bytes, one object until the next write or selection change;
 	 *  null with none. */
 	readonly selection: Selection | null;
+	/** Where the document sits on screen, in document bytes; one object for the editor's life. */
+	readonly view: View;
 	/** Listens until `dispose` is called, the plugin is turned off, or the editor unmounts. */
 	on<K extends keyof Events>(event: K, listen: (payload: Events[K]) => void): () => void;
 	/** Runs a command, by value or by id; false, with nothing written, where `can` would say no or
