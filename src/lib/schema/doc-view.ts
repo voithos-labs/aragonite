@@ -28,7 +28,7 @@ export interface Doc {
 	/** The deepest block holding document byte `at` (a list item's paragraph, a table cell): a
 	 *  marker's byte goes to the text on its line. Null outside the document. */
 	blockAt(at: number): Block | null;
-	/** Every block, depth first, each built when reached. */
+	/** Every block, depth first, each built when reached; a title row comes after its container. */
 	walk(): IterableIterator<Block>;
 }
 
@@ -67,7 +67,7 @@ export interface Block<D = unknown> {
 	offsetAt(at: number): number | null;
 	/** Narrows the block to `type`'s data. */
 	is<E>(type: BlockType<E>): this is Block<E>;
-	/** It and every block inside it, depth first. */
+	/** It and every block inside it, depth first, a title row right after its container. */
 	walk(): IterableIterator<Block>;
 }
 
@@ -333,7 +333,7 @@ const pathOf = (state: BlockState) => state.reading.find(state.node, state);
 const titled = (node: NodeView): number =>
 	node.children?.length && isReservedChromeChild(node, 0) ? 1 : 0;
 
-/** `blocks` and everything inside them, depth first, title rows left to their containers. */
+/** `blocks` and everything inside them, depth first, a title row right after its container. */
 export function* walkFrom(blocks: readonly Block[]): Generator<Block> {
 	const stack = [...blocks].reverse();
 	while (stack.length > 0) {
@@ -341,7 +341,17 @@ export function* walkFrom(blocks: readonly Block[]): Generator<Block> {
 		yield block;
 		const children = block.children;
 		for (let i = children.length - 1; i >= 0; i--) stack.push(children[i]);
+		const row = titleRowOf(block);
+		if (row) stack.push(row);
 	}
+}
+
+/** The block a title row reads as; null for a block with none, or one not placed. */
+function titleRowOf(block: Block): Block | null {
+	if (!(block instanceof NodeBlock)) return null;
+	const state = block[STATE];
+	const path = titled(state.node) ? pathOf(state) : null;
+	return path && state.reading.blockOf(state.node.children![0], [...path, 0]);
 }
 
 /** Offsets `[start, end)` of a block's bytes in document bytes, both -1 where they aren't placed. */

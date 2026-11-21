@@ -4,7 +4,7 @@
 // Miss-analysis: the block positions were checked at a handful of hand-picked bytes, never over
 // every block of the corpus, nor outside an editor.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
-import type { DocumentView, NodeView } from '#lib/core/node-views.js';
+import type { DocumentView } from '#lib/core/node-views.js';
 import { parse } from '#lib/core/parser.js';
 import { walkBlocks } from '#lib/core/paths.js';
 import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
@@ -13,8 +13,7 @@ import { lineBlock } from '#lib/components/block-makers/line-block.js';
 import { container } from '#lib/components/block-makers/container.js';
 import { definePluginUnit, type Editor } from '#lib/schema/plugin-unit.js';
 import type { PluginsProp } from '#lib/schema/plugin-install.js';
-import type { Block, Doc } from '#lib/schema/doc-view.js';
-import { isReservedChromeChild } from '#lib/schema/reserved-chrome.js';
+import type { Doc } from '#lib/schema/doc-view.js';
 import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
 import { createEditorActivation } from '#lib/schema/plugin-activation.js';
 import { documentLayout } from '#lib/range-edit/layout.js';
@@ -44,32 +43,21 @@ async function mounted(source: string, plugins: PluginsProp) {
 	return { editor: editor!, tree: m.instance.__test.getDocument() as DocumentView };
 }
 
-/** Where `doc` puts each block it walks and each title row, against the layout of `tree`. */
+/** Where `doc` puts each block it walks, title rows included, against the layout of `tree`. */
 function misplaced(doc: Doc, tree: DocumentView): string[] {
 	const layout = documentLayout(measured(tree));
 	const paths: number[][] = [];
-	const rows: number[][] = [];
-	walkBlocks(tree, (_node, path) => void (isTitleRow(tree, path) ? rows : paths).push(path));
+	walkBlocks(tree, (_node, path) => void paths.push(path));
 	const walked = [...doc.walk()];
 	const out: string[] = [];
 	if (walked.length !== paths.length) out.push(`walked ${walked.length} of ${paths.length}`);
-	const check = (block: Block | null, path: number[]) => {
+	paths.forEach((path, i) => {
+		const block = walked[i] ?? null;
 		const laid = layout.block(path);
 		if (!block || laid?.from !== block.from || laid.to !== block.to)
 			out.push(`${path}: ${block?.from}-${block?.to}, laid ${laid?.from}-${laid?.to}`);
-	};
-	paths.forEach((path, i) => check(walked[i] ?? null, path));
-	for (const path of rows) {
-		const holder = walked[paths.findIndex((p) => p.join() === path.slice(0, -1).join())];
-		check(holder?.title ? doc.blockAt(holder.title.from) : null, path);
-	}
+	});
 	return out;
-}
-
-function isTitleRow(tree: DocumentView, path: number[]): boolean {
-	let node: NodeView | DocumentView = tree;
-	for (const index of path.slice(0, -1)) node = node.children![index];
-	return path.length > 1 && isReservedChromeChild(node as NodeView, path[path.length - 1]);
 }
 
 describe("every block's from and to are the layout's", () => {

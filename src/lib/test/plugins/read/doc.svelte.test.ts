@@ -235,7 +235,9 @@ describe("a block's place", () => {
 		]);
 	});
 
-	it('leaves a title row out of its children and walk, and carries it as its title', async () => {
+	// Miss-analysis: the walk left a title row out, so a reader found no reference in a callout's
+	// title; no row asked a walk for one.
+	it('leaves a title row out of its children, walks it after its container, and carries it as its title', async () => {
 		const { editor } = await mounted(DETAILS, [detailsPlugin()]);
 		const details = editor.doc.blocks[1];
 		expect(details.title).toEqual({
@@ -244,8 +246,14 @@ describe("a block's place", () => {
 			to: DETAILS.indexOf('Title') + 'Title'.length
 		});
 		expect(kinds(details.children)).toEqual(['paragraph']);
-		expect(kinds(details.walk())).toEqual([details.type.name, 'paragraph']);
 		const row = editor.blockAt(DETAILS.indexOf('Title'))!;
+		expect([...details.walk()]).toEqual([details, row, details.children[0]]);
+		expect([...editor.doc.walk()]).toEqual([
+			editor.doc.blocks[0],
+			details,
+			row,
+			details.children[0]
+		]);
 		expect([row.parent, row.index, details.children[0].index]).toEqual([details, -1, 0]);
 		expect(editor.doc.blocks[0].title).toBeNull();
 	});
