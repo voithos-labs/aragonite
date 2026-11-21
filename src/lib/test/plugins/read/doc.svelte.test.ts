@@ -70,6 +70,7 @@ describe('Doc', () => {
 		expect(blocks.map((block) => block.type.name)).toEqual(kinds(blocks));
 		expect(kinds([...blocks])).toEqual(['paragraph', 'list', 'blockquote', 'table']);
 		expect(blocks.indexOf(blocks[3])).toBe(3);
+		expect([Object.keys(blocks), blocks]).toEqual([['0', '1', '2', '3'], [...blocks]]);
 		expect(blocks[4]).toBeUndefined();
 		expect(() => ((blocks as Block[])[0] = blocks[1])).toThrow(TypeError);
 	});
