@@ -1,28 +1,19 @@
 import { test, expect } from '../../fixtures';
 import { EditorPage } from '../../editor-page';
+import { PluginsPage } from '../plugins/helpers';
 
 // Requirements: `e2e/requirements/selection/range-break-place.md`.
-
-/** A drag across the one divider holds it whole; a Shift+click at `to` then carries the range on. */
-async function fromDivider(editor: EditorPage, to?: [number[], number]): Promise<void> {
-	const rule = await editor.page.locator('.thematic-break-block').boundingBox();
-	if (!rule) throw new Error('no box for the divider');
-	const y = rule.y + rule.height / 2;
-	await editor.page.mouse.move(rule.x + 8, y);
-	await editor.page.mouse.down();
-	await editor.page.mouse.move(rule.x + rule.width - 8, y, { steps: 8 });
-	await editor.page.mouse.up();
-	await editor.waitForCrossBlock(true);
-	if (to) await editor.shiftClickBlock(...to);
-}
 
 interface Row {
 	name: string;
 	source: string;
+	/** Where a Shift+click carries the range on from the divider held whole. */
 	to?: [number[], number];
 	key: 'Enter' | 'Shift+Enter';
 	/** The bytes after the key and then `x`. */
 	lettered: string;
+	/** The route whose plugins read the block as its kind; the built-in harness otherwise. */
+	plugins?: true;
 }
 
 const ROWS: Row[] = [
@@ -59,23 +50,39 @@ const ROWS: Row[] = [
 		source: 'first\n\n***\n\nlast\n',
 		key: 'Shift+Enter',
 		lettered: 'first\n\n\\\nx\n\nlast\n'
+	},
+	{
+		name: "a divider held whole, a list item's only block",
+		source: '- a\n- ***\n- last\n',
+		key: 'Enter',
+		lettered: '- a\n- x\n- last\n'
+	},
+	{
+		name: "a divider held whole, a quote's last block",
+		source: '> a\n>\n> ***\n\nafter\n',
+		key: 'Enter',
+		lettered: '> a\n>\n> x\n\nafter\n'
+	},
+	{
+		name: "a divider held whole, a callout's last block",
+		source: ':::note\nfirst\n\n***\n:::\n',
+		key: 'Enter',
+		lettered: ':::note\nfirst\n\nx\n:::\n',
+		plugins: true
 	}
 ];
 
 test.describe('a line break over a range writes in no block the range did not reach', () => {
-	let editor: EditorPage;
-
-	test.beforeEach(async ({ page }) => {
-		editor = new EditorPage(page);
-		await editor.goto();
-	});
-
 	for (const row of ROWS)
 		for (const mode of ['source', 'live'] as const) {
-			test(`${row.key} over ${row.name} (${mode})`, async () => {
+			test(`${row.key} over ${row.name} (${mode})`, async ({ page }) => {
+				const editor = row.plugins ? new PluginsPage(page) : new EditorPage(page);
+				if (editor instanceof PluginsPage) await editor.gotoPlugins();
+				else await editor.goto();
 				await editor.setPresentationMode(mode);
 				await editor.loadContent(row.source);
-				await fromDivider(editor, row.to);
+				await editor.holdBlockWhole('.thematic-break-block');
+				if (row.to) await editor.shiftClickBlock(...row.to);
 
 				await editor.page.keyboard.press(row.key);
 				await editor.typeSlowly('x');
