@@ -317,11 +317,13 @@ interface VersionReads {
 	textBefore(head: Undone): string[] | null;
 }
 
-/** One write's runs and the strings each run replaced, chained to the next write. */
+/** One write's runs and the strings each run replaced, chained to the next write. A write that
+ *  couldn't say keeps the whole record before it instead, which the kept starts then let go of. */
 interface Undone {
 	readonly from: number;
 	readonly runs: readonly TopLevelChange[] | null;
 	readonly gone: readonly (readonly string[])[];
+	readonly whole: readonly string[] | null;
 	next: Undone | null;
 }
 
@@ -336,23 +338,26 @@ function undoneBy(
 	const gone =
 		runs && before ? runs.map((r) => before.pieces.slice(2 * r.at, 2 * (r.at + r.removed))) : [];
 	recordStringsKept(gone.reduce((sum, strings) => sum + strings.length, 0));
-	const next: Undone = { from, runs: before ? runs : null, gone, next: null };
+	const whole = !runs && before ? before.pieces : null;
+	const next: Undone = { from, runs: before ? runs : null, gone, whole, next: null };
 	if (tail) tail.next = next;
 	replaced?.since(next);
 	return next;
 }
 
-/** The document's top-level strings as they stood before `head`'s write, rebuilt from the tree by
- *  undoing every write chained since, latest first. */
+/** The document's top-level strings as they stood before `head`'s write, rebuilt by undoing every
+ *  write chained since, latest first, from the tree or from the next whole record. */
 function textBefore(head: Undone, doc: DocumentView, now: number): string[] | null {
 	const chain: Undone[] = [];
-	for (let at: Undone | null = head; at; at = at.next) {
-		if (!at.runs) return null;
-		chain.push(at);
+	let pieces: string[] | null = null;
+	for (let at: Undone | null = head; at && !pieces; at = at.next) {
+		if (at.whole) pieces = [...at.whole];
+		else if (!at.runs) return null;
+		else chain.push(at);
 	}
 	// Every announced write is heard, so a gap means the chain can't be trusted.
-	if (head.from + chain.length !== now) return null;
-	const pieces = piecesOf(doc.children, 0, doc.children.length);
+	if (!pieces && head.from + chain.length !== now) return null;
+	pieces ??= piecesOf(doc.children, 0, doc.children.length);
 	for (let k = chain.length - 1; k >= 0; k--) {
 		const { runs, gone } = chain[k];
 		let delta = 0;
