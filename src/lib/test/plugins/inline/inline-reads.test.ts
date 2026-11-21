@@ -255,9 +255,8 @@ describe('inline(): an `as` claim writes through `write`', () => {
 		expect(splitBehaviorOf(read('![[a.png]]')[0], '![[a.png]]', grammar)).toBe('whole');
 	});
 
-	// Miss-analysis: the split rows asked a claim's own node, never a byte inside the text of a
-	// link, whose text node carries the claim too: the cut moved to the text's edge, inside the
-	// claim, and a paste there tore it.
+	// Miss-analysis: the split rows asked a claim's own node, never a byte in a link's text, whose
+	// node carries the claim too: the cut moved to the text's edge, and a paste there tore the claim.
 	it('a cut inside an own-syntax link’s text moves to the claim’s edge, not the text’s', () => {
 		const raw = 'See [[note|Shown]] here\n';
 		const { grammar } = editorReading([['wiki', [wikiLink()]]]);
