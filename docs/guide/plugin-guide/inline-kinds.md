@@ -190,7 +190,7 @@ const anchor = markerPair({
 });
 ```
 
-Each side is its own construct, claimed wherever it stands, in one block or in two. Pairing them is yours: find the sides with `piece.is(anchor.open)` and `piece.is(anchor.close)`, and match them up by their bytes (`piece.text` holds the id). A side with no partner is still a side.
+Each side is its own construct, claimed wherever it stands, in one block or in two. Pairing them is yours: find the sides with `piece.is(anchor.open)` and `piece.is(anchor.close)`, and match them up by their data (`piece.data` holds what the side's `read` returned, here the id). A side with no partner is still a side.
 
 A side draws nothing in live mode and its bytes in source mode; in preview-inline it shows once the caret is beside it. A letter typed at a side joins its pair's text, so `a noted word` with the caret before `noted` types inside the anchor, and so does the end of `noted`. Backspace beside a side takes the character you see, never the side. Emptying the text keeps both sides, whether it goes key by key, by a word delete or as a selection, and the next letter lands between them.
 
