@@ -242,7 +242,7 @@ async function dissolveBlock(doc: Document, index: number): Promise<string> {
 		path: [index],
 		deleteBlock: async () => {},
 		replaceRaw: async (raw) => (written.push(raw), true),
-		transformPaste: (text) => text,
+		transformPaste: (clip) => clip.text,
 		lineEnding: documentLineEnding(doc)
 	});
 	return written.join('');

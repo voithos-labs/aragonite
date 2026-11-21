@@ -38,7 +38,7 @@ function context(node: NodeView): BlockActionContext & { deleted: number; replac
 		replaced: [] as string[],
 		deleteBlock: async () => void ctx.deleted++,
 		replaceRaw: async (raw: string) => (ctx.replaced.push(raw), true),
-		transformPaste: (text: string) => text,
+		transformPaste: (clip: { text: string }) => clip.text,
 		lineEnding: '\n' as const
 	};
 	return ctx;

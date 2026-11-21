@@ -1,7 +1,8 @@
 // A plugin value whose `%> [!TYPE]` container takes Mod+7 and offers a menu row, both running one
 // command on the alert: the next type in the list, written into the head line. Its `[[flag on]]`
-// line is a block picked up whole, so its row sits in the block's own menu.
-import { command, container, definePlugin, lineBlock, type Block } from '#lib/plugin.js';
+// line is a block picked up whole, so its row sits in the block's own menu. A pasted alert lands
+// as a `:::type` callout.
+import { command, container, definePlugin, lineBlock, rewrite, type Block } from '#lib/plugin.js';
 
 interface AlertData {
 	type: string;
@@ -67,5 +68,16 @@ export const alertsPlugin = definePlugin({
 	name: 'alerts',
 	version: '1.0.0',
 	editor: '*',
-	contributes: () => ({ blocks: [alertType, flagType] })
+	contributes: () => ({
+		blocks: [alertType, flagType],
+		rewrites: [
+			rewrite({
+				from: alertType,
+				into: (block) => {
+					const body = block.children.map((child) => child.text).join('');
+					return `:::${block.data.type.toLowerCase()}\n${body}:::`;
+				}
+			})
+		]
+	})
 });

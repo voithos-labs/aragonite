@@ -39,6 +39,8 @@ export { menu } from './schema/caret-menu';
 export type { CaretMenu, MenuPick, MenuRow, MenuRowProps } from './schema/caret-menu';
 // Rows over the selection, or a range captured around the caret, in the editor's menus.
 export type { ActionRow, Captured, SelectionAction } from './schema/selection-action';
+export { rewrite } from './schema/paste-rewrite';
+export type { PasteRewrite } from './schema/paste-rewrite';
 export type { Icon } from './menu-icons';
 
 // ── Block types (pre-freeze) ─────────────────────────────────────────────────

@@ -5,7 +5,8 @@
  * command lookup already takes, so no route that runs or lists a command can miss a plugin's.
  *
  * A block type's keys and menu rows place their commands here too: such a command runs on a block
- * whose type places it, the one handed to it or else the nearest at the caret.
+ * whose type places it, the one handed to it or else the nearest at the caret. The plugins' paste
+ * rewrites are read here, and answered for a pasted block (`tree-operations/paste/paste-rewrites.ts`).
  */
 import type { Contribution, Editor, InstalledPlugin, PluginError } from './plugin-unit';
 import { claimCommand, commandSpec, type Command, type CommandSpec } from './plugin-command';
@@ -16,7 +17,8 @@ import { insertRowProblem, type InsertRow } from './insert-catalogue';
 import { makingOf } from './block-type';
 import { qualifiedName } from './plugin-name';
 import { nodeOfBlock, type Block } from './doc-view';
-import type { NodeView } from '../core/node-views';
+import type { DocumentView, NodeView } from '../core/node-views';
+import type { PasteRewrite } from './paste-rewrite';
 import type { ContributedMenu } from './caret-menu';
 import { iconProblem, type Icon } from '../menu-icons';
 import type { ContributedAction } from './selection-action';
@@ -30,6 +32,12 @@ export interface ContributedCommand {
 	readonly spec: CommandSpec<unknown>;
 	/** The kinds whose block types place it in their keys or menu rows. */
 	readonly placedBy: ReadonlySet<string>;
+}
+
+/** A plugin's paste rewrite, as an editor holds it. */
+export interface ContributedRewrite {
+	readonly plugin: string;
+	readonly rewrite: PasteRewrite<unknown>;
 }
 
 /** A row of a block type's menu, as an editor holds it. */
@@ -57,6 +65,16 @@ export interface EditorContributions {
 	readonly selectionActions: readonly ContributedAction[];
 	/** The plugins that paint, in list order. */
 	readonly paints: readonly { readonly plugin: string; readonly contribution: Contribution }[];
+	/** Each plugin's paste rewrites, in list order. */
+	readonly rewrites: readonly ContributedRewrite[];
+	/** `entry`'s Markdown for `node` at `path` in `clip`, a clipboard read as blocks; null where it
+	 *  keeps the block or throws, which is reported. */
+	answer(
+		entry: ContributedRewrite,
+		clip: DocumentView,
+		node: NodeView,
+		path: readonly number[]
+	): string | null;
 	/** Runs a command against its plugin's scoped editor; false where `when` or the command declines.
 	 *  A throw counts as run, so the key goes no further, and is reported. */
 	run(command: ContributedCommand, arg: unknown): boolean;
@@ -72,6 +90,8 @@ export function createEditorContributions(deps: {
 	/** The nearest block holding the caret whose type is one of `kinds`; null with none. */
 	blockAround(kinds: ReadonlySet<string>): Block | null;
 	blockOf(node: NodeView): Block;
+	/** `node` at `path` in `clip`, a clipboard read as blocks, with positions from its start. */
+	clipboardBlock(clip: DocumentView, node: NodeView, path: readonly number[]): Block;
 }): EditorContributions {
 	let commands: ContributedCommand[] = [];
 	let byValue = new Map<Command<unknown>, ContributedCommand>();
@@ -82,6 +102,7 @@ export function createEditorContributions(deps: {
 	let menus: readonly ContributedMenu[] = [];
 	let selectionActions: readonly ContributedAction[] = [];
 	let paints: EditorContributions['paints'] = [];
+	let rewrites: readonly ContributedRewrite[] = [];
 
 	function guarded<T>(entry: ContributedCommand, fallback: T, call: () => T): T {
 		try {
@@ -95,7 +116,11 @@ export function createEditorContributions(deps: {
 	function read(units: readonly InstalledPlugin[]): InstalledPlugin[] {
 		const usable = units.filter((unit) => {
 			const problem =
-				commandProblem(unit) ?? insertProblem(unit) ?? menuProblem(unit) ?? actionProblem(unit);
+				commandProblem(unit) ??
+				insertProblem(unit) ??
+				menuProblem(unit) ??
+				actionProblem(unit) ??
+				rewriteProblem(unit);
 			if (problem) deps.report(installError(unit.name, problem));
 			return !problem;
 		});
@@ -148,6 +173,9 @@ export function createEditorContributions(deps: {
 		paints = kept.flatMap(({ name, contribution }) =>
 			contribution.paint || contribution.paintContainer ? [{ plugin: name, contribution }] : []
 		);
+		rewrites = kept.flatMap(({ name, contribution }) =>
+			(contribution.rewrites ?? []).map((rewrite) => ({ plugin: name, rewrite }))
+		);
 		return kept;
 	}
 
@@ -181,6 +209,23 @@ export function createEditorContributions(deps: {
 		});
 	}
 
+	function answer(
+		entry: ContributedRewrite,
+		clip: DocumentView,
+		node: NodeView,
+		path: readonly number[]
+	): string | null {
+		const editor = deps.editorFor(entry.plugin);
+		if (!editor) return null;
+		try {
+			const out = entry.rewrite.into(deps.clipboardBlock(clip, node, path), { editor });
+			return typeof out === 'string' ? out : null;
+		} catch (cause) {
+			deps.report({ plugin: entry.plugin, doing: 'rewrite paste', cause });
+			return null;
+		}
+	}
+
 	return {
 		command: (command) => (typeof command === 'string' ? byId.get(command) : byValue.get(command)),
 		atChord: (chord) => byChord.get(chord),
@@ -205,6 +250,10 @@ export function createEditorContributions(deps: {
 		get paints() {
 			return paints;
 		},
+		get rewrites() {
+			return rewrites;
+		},
+		answer,
 		run,
 		can,
 		read
@@ -315,6 +364,13 @@ function chordsOf(unit: InstalledPlugin): string[] {
 
 function blockKeysOf(unit: InstalledPlugin): string[] {
 	return blockTypesOf(unit).flatMap(({ making }) => Object.keys(making.chords ?? {}));
+}
+
+function rewriteProblem(unit: InstalledPlugin): string | null {
+	const bad = (unit.contribution.rewrites ?? []).some(
+		(r) => typeof r?.from?.name !== 'string' || typeof r.into !== 'function'
+	);
+	return bad ? 'has a paste rewrite with no block type in `from` or no `into`' : null;
 }
 
 function installError(plugin: string, problem: string): PluginError {

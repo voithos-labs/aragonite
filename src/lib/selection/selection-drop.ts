@@ -5,7 +5,6 @@
 
 import type { CstNode, Document } from '../core/nodes';
 import type { Reading } from '../schema/reading';
-import type { PluginActivation } from '../schema/plugin-activation';
 import type { CommitController } from '../action-contracts';
 import type { PasteCommitCoordinator } from '../tree-operations/paste/paste-deps';
 import { emitClipboardError, type EditorEvents } from '../editor-events';
@@ -26,7 +25,6 @@ import {
 	replaceRangeInLeaf
 } from '../tree-operations/leaf-range';
 import { rebuildAncestryRaw } from '../schema/container-raw';
-import { applyPasteTransforms } from '../tree-operations/paste/paste-transforms';
 import { parseReplacement } from '../tree-operations/paste/replacement-parse';
 import { slotReaderAt } from '../tree-operations/list/task-paragraph';
 import { blockNearPoint } from './nearest-block';
@@ -43,7 +41,6 @@ export interface SelectionDropDeps {
 	coordinator: PasteCommitCoordinator;
 	/** How the editor reads its bytes: the cut is a join, and the reparse reads its grammar. */
 	reading: Reading;
-	activePlugins: PluginActivation;
 	/** The editor's event emitter: a move that throws halfway has nowhere else to report. */
 	events: EditorEvents;
 	/** Draws the caret saying where a release lands; null takes it away again. */
@@ -263,17 +260,16 @@ function isInside(el: HTMLElement, clientX: number, clientY: number): boolean {
 	return clientX >= box.left && clientX <= box.right && clientY >= box.top && clientY <= box.bottom;
 }
 
-/** The bytes the range takes out of the source element, cut as its cut is, after the paste
- *  transforms. Null for text this module does not handle: a line break needs the structural paste. */
+/** The bytes the range takes out of the source element, cut as its cut is, which no paste rewrite
+ *  runs on. Null for text holding a line break, which needs the structural paste. */
 export function movedText(
-	deps: Pick<SelectionDropDeps, 'getDoc' | 'reading' | 'activePlugins'>,
+	deps: Pick<SelectionDropDeps, 'getDoc' | 'reading'>,
 	from: Omit<DragSource, 'text'>
 ): string | null {
 	const node = blockNodeAt(deps.getDoc(), from.path);
 	if (!node) return null;
 	const store = storedAsAt(deps.getDoc(), from.path, deps.reading);
-	const raw = bytesLeavingLeaf(node, { start: from.start, end: from.end }, store);
-	const text = applyPasteTransforms(raw, deps.activePlugins);
+	const text = bytesLeavingLeaf(node, { start: from.start, end: from.end }, store);
 	return text && !/[\r\n]/.test(text) ? text : null;
 }
 

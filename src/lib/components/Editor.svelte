@@ -166,6 +166,7 @@
 	import { nodeOfBlock, type Block } from '../schema/doc-view';
 	import { createPaintSources } from '../decorations/plugin-paint.svelte';
 	import { createDocumentRead } from '../editor-actions/commit/document-read';
+	import { measured } from '../tree-operations/top-level-starts';
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
 	import { insertRows } from '../schema/insert-catalogue';
 	import { createEditorGrammar } from '../schema/editor-grammar';
@@ -274,7 +275,12 @@
 		editorFor: (plugin) => pluginContexts.scoped(plugin),
 		report: reportPluginError,
 		blockAround: (kinds) => placingBlockAtCaret(kinds),
-		blockOf: (node) => documentRead.blockOf(node)
+		blockOf: (node) => documentRead.blockOf(node),
+		clipboardBlock: (clip, node, path) => {
+			const of = measured(clip);
+			const read = { getDoc: () => clip, measured: () => of, typeOf: blockTypeOf, reading };
+			return createDocumentRead(read).blockOf(node, path);
+		}
 	});
 	const installList = (values: PluginList, previous?: readonly InstalledPlugin[]) =>
 		contributions.read(installPluginList(values, reportPluginError, previous));
@@ -1153,7 +1159,6 @@
 				controller,
 				coordinator: pasteCoordinator,
 				reading,
-				activePlugins,
 				events,
 				setDropCaret: (rect) => (dropCaret = rect),
 				isReadOnly: () => effectiveMode === 'reading'

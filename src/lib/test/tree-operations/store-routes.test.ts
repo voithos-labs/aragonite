@@ -424,7 +424,7 @@ async function dropCopy(place: Place, offset: number, text: string): Promise<str
 /** The bytes a drag of `range` carries out of the leaf at `place`. */
 function dragText(place: Place, range: typeof X): string | null {
 	const { deps } = makeEditorActionsDeps(place.source, { reading: LIVE });
-	const drop = { getDoc: () => deps.doc, reading: LIVE, activePlugins: everyInstalledPlugin };
+	const drop = { getDoc: () => deps.doc, reading: LIVE };
 	return movedText(drop, { path: place.leaf, ...range, inCell: false });
 }
 

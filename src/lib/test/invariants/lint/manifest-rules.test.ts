@@ -35,10 +35,11 @@ const IMAGE_POPOVER = SOURCE.imageProperties;
 
 const namesToken = (token: string): RegExp => new RegExp(`(?<![\\w'"])${token}\\b`);
 
-// ── G4.11 paste transforms ───────────────────────────────────────────────────
+// ── G4.11 paste rewrites ─────────────────────────────────────────────────────
 
 /** A call, excluding the declaration in the module that defines it. */
 const TRANSFORMS_CALL = /(?<!function\s)\bapplyPasteTransforms\s*\(/;
+const REWRITES_CALL = /(?<!function\s)\brewrittenPaste\s*\(/;
 
 /** Pulling a payload off a clipboard or a drop, keyed on the read and the carrier type rather
  *  than a receiver's name; `!.` tolerated, since that is how a new route is most often written. */
@@ -57,7 +58,7 @@ const READ_SITE_ROUTES: Record<string, { handoff: string; why: string }> = {
 	},
 	'src/lib/components/menu/default-context-actions.ts': {
 		handoff: 'transformPaste',
-		why: 'the block menu’s "Replace with clipboard" reads the system clipboard and runs the editor’s transforms (`BlockActionContext.transformPaste`) before writing the block’s bytes'
+		why: 'the block menu’s "Replace with clipboard" reads the system clipboard and runs the paste rewrites on the read (`BlockActionContext.transformPaste`) before writing the block’s bytes'
 	},
 	'src/lib/components/menu/clipboard-actions.ts': {
 		handoff: 'paste(clip)',
@@ -252,6 +253,8 @@ const BACKFILLS_HERE = /^(?:installs after backfill|opened reading): /;
 const BACKFILL_CALL = /\b(?:ensureEditableContainers|readAsOpened)\s*\(/;
 
 const PLAIN_READS: Record<string, string> = {
+	'src/lib/components/editor-root/menus.ts':
+		'probe: reads the clipboard Replace with clipboard holds, so the paste rewrites see its blocks; the row writes the rewritten bytes through `replaceRaw`',
 	'src/lib/schema/opened-reading.ts':
 		'opened reading: defines `readAsOpened`, the parse every reader of nodes the editor holds goes through',
 	'src/lib/schema/container-raw.ts':
@@ -434,20 +437,33 @@ const MANIFESTS: ManifestRule[] = [
 		]
 	},
 	{
-		id: 'G4.11 exactly the declared sites call applyPasteTransforms',
-		matches: TRANSFORMS_CALL,
+		id: 'G4.11 exactly the declared sites call rewrittenPaste',
+		matches: REWRITES_CALL,
 		declared: {
 			'src/lib/components/editor-root/menus.ts':
-				'the block menu hands its actions the editor’s transforms, which "Replace with clipboard" runs before it replaces the block’s bytes',
+				'the block menu hands its actions the paste rewrites, which "Replace with clipboard" runs before it replaces the block’s bytes',
 			'src/lib/selection/cross-block/range-paste.ts':
-				'the paste through the range-edit core hands the core the transforms, which it runs where the clipboard lands as blocks',
+				'the paste through the range-edit core hands the core the rewrites, which it runs where the clipboard lands as blocks',
 			'src/lib/components/blocks/table/table-cell-paste.ts':
-				'a clipboard of blocks pasted in a table cell slices the table, ahead of the core, and takes the same rewrite',
-			'src/lib/selection/selection-drop.ts':
-				'a dropped selection is a cut and a paste in one commit, so the moved bytes take the same rewrite'
+				'a clipboard of blocks pasted in a table cell slices the table, ahead of the core, and takes the same rewrite'
 		},
 		reason:
-			'every clipboard-to-parse route runs applyPasteTransforms; a new site routes through a declared one or joins the list with a call',
+			'every route that lands a paste as blocks runs rewrittenPaste; a new site routes through a declared one or joins the list with a call',
+		hits: ['const out = rewrittenPaste(clip, read, activation, grammar);'],
+		misses: [
+			'export function rewrittenPaste(',
+			"import { rewrittenPaste } from './paste-rewrites';"
+		]
+	},
+	{
+		id: 'G4.11 the process-wide paste transforms run only inside rewrittenPaste',
+		matches: TRANSFORMS_CALL,
+		declared: {
+			'src/lib/tree-operations/paste/paste-rewrites.ts':
+				'the one function every paste route calls, which runs the transforms after the value rewrites'
+		},
+		reason:
+			'a direct call skips the value rewrites and the decline on plain text and the editor’s own copy',
 		hits: ['const out = applyPasteTransforms(text);', 'parse(applyPasteTransforms(pasted))'],
 		misses: [
 			'export function applyPasteTransforms(text: string): string {',

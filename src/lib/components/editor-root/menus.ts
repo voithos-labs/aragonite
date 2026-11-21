@@ -15,7 +15,8 @@ import type { InsertMarkdownOptions } from '../../editor-props';
 import type { PresentationMode } from '../../presentation-mode';
 import type { PluginActivation } from '../../schema/plugin-activation';
 import type { Draft, DraftSpec } from '../../schema/drafts';
-import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
+import { rewrittenPaste } from '../../tree-operations/paste/paste-rewrites';
+import { readBlocks } from '../../core/parser';
 import { rowMarkdown, type InsertRow } from '../../schema/insert-catalogue';
 import type { MenuEntry } from '../menu/BlockMenu.svelte';
 import {
@@ -80,7 +81,7 @@ export interface RootMenusDeps {
 	clipboard: MenuClipboard;
 	/** The insert rows this editor lists, read fresh per menu. */
 	inserts(): readonly InsertRow[];
-	/** The plugins this editor lists, whose paste transforms the menu applies. */
+	/** The plugins this editor lists, whose paste rewrites Replace with clipboard runs. */
 	activation: PluginActivation;
 	/** The editor's reading, which tells a paragraph of pictures from prose. */
 	reading: Reading;
@@ -319,7 +320,11 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 					},
 					replaceRaw: async (raw: string) =>
 						!closed() && !draft.stale && (await deps.blockEdit.replaceRaw(index, raw)),
-					transformPaste: (text) => applyPasteTransforms(text, deps.activation),
+					transformPaste: (clip) => {
+						const { grammar } = deps.reading;
+						const read = () => readBlocks(clip.text, { grammar, scope: 'document' });
+						return rewrittenPaste(clip, read, deps.activation, grammar);
+					},
 					lineEnding: documentLineEnding(deps.getDoc())
 				},
 				deps.stamps.current(),

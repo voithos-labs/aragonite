@@ -29,7 +29,7 @@ import type { PluginActivation } from '../../schema/plugin-activation';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import { getPasteSurface, type ClipPasteInput } from '../../tree-operations/paste-surfaces';
 import { splicedBytes } from '../../tree-operations/spliced-openers';
-import { applyPasteTransforms } from '../../tree-operations/paste/paste-transforms';
+import { rewrittenPaste } from '../../tree-operations/paste/paste-rewrites';
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 import type { CaretLanding } from '../caret-landing';
 import {
@@ -45,7 +45,7 @@ import { commitBytes, modeOf, type CommitContext } from './range-removal';
 export type PasteContext = CommitContext & {
 	getDoc: DocumentGetter;
 	selection: Pick<SelectionState, 'collapse'>;
-	/** The plugins this editor activated, whose paste transforms run where a paste lands as blocks. */
+	/** The plugins this editor activated, whose paste rewrites run where a paste lands as blocks. */
 	activePlugins: PluginActivation;
 	pasteCoordinator: PasteCommitCoordinator;
 	caretLanding: Pick<CaretLanding, 'restore'>;
@@ -149,7 +149,8 @@ export function pasteAnswer(
 	const core = rangeHost(ctx.reading, doc);
 	const host: PasteHost = {
 		...(spend ? spending(core, spend) : core),
-		transformPaste: (text) => applyPasteTransforms(text, ctx.activePlugins)
+		transformPaste: (text, blocks) =>
+			rewrittenPaste({ ...clip, text }, () => blocks, ctx.activePlugins, ctx.reading.grammar)
 	};
 	const { range, ...held } = puttingBack(place, clip, doc.source);
 	const gesture = { paste: clip.text, plain: clip.plain, own: clip.own, ...held };

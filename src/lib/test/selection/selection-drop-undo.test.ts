@@ -6,9 +6,14 @@ import { describe, it, expect } from 'vitest';
 import { serialize } from '#lib/core/serializer.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
-import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import type { PasteCommitCoordinator } from '#lib/tree-operations/paste/paste-deps.js';
-import { runDrop, type DragSource, type SelectionDropDeps } from '#lib/selection/selection-drop.js';
+import {
+	movedText,
+	runDrop,
+	type DragSource,
+	type SelectionDropDeps
+} from '#lib/selection/selection-drop.js';
+import { registerPasteTransform } from '#lib/plugin.js';
 import { makeEditorActionsDeps } from '../harness/editor-actions';
 import { fixtureReading } from '../harness/fixture-grammar';
 
@@ -33,7 +38,6 @@ function makeDrop(declined = 0) {
 		controller,
 		coordinator,
 		reading: fixtureReading(),
-		activePlugins: everyInstalledPlugin,
 		events: harness.events,
 		setDropCaret: () => {},
 		isReadOnly: () => false
@@ -71,5 +75,15 @@ describe('dropping a selection into another block', () => {
 
 		expect(serialize(deps.getDoc())).toBe(SOURCE);
 		expect(undo()).toHaveLength(0);
+	});
+});
+
+// Miss-analysis: the drop ran the paste transforms over the editor's own bytes, and no row dragged
+// text a transform claims.
+describe('the bytes a drag moves', () => {
+	it("are the editor's own, which no paste transform rewrites", () => {
+		registerPasteTransform({ name: 'shout', transform: (text) => text.toUpperCase() });
+		const { deps } = makeDrop();
+		expect(movedText(deps, { path: [0], start: 6, end: 10, inCell: false })).toBe('beta');
 	});
 });

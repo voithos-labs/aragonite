@@ -17,6 +17,8 @@ describeManifests(
 				'src/lib/editor-actions/commit/kept-starts.ts':
 					'the record’s answer to a read inside a write, which the record can’t give',
 				'src/lib/editor-actions/commit/history.ts': 'an undo entry’s snapshot',
+				'src/lib/components/Editor.svelte':
+					'a clipboard read as blocks, whose block a paste rewrite reads',
 				'src/lib/editor-actions/commit/change-record.ts': 'one top-level block, alone',
 				'src/lib/tree-operations/spliced-openers.ts': 'one container’s run of children',
 				'src/lib/range-edit/host.ts':

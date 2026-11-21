@@ -57,6 +57,10 @@ const BARE_RAW_WRITE_ALLOWLIST: Record<string, { count: number; why: string }> =
 		count: 5,
 		why: 'the reparse path every write takes: each one is re-read from a parse, restores bytes the slot already held, or re-attaches the blank line that parse stripped (GH #97)'
 	},
+	'src/lib/tree-operations/paste/paste-rewrites.ts': {
+		count: 1,
+		why: 'a rewrite’s answer written into a copy of the clipboard’s blocks, which the paste reads again from its text; no commit holds the copy'
+	},
 	'src/lib/tree-operations/node-ops.ts': {
 		count: 3,
 		why: 'the split re-attaches the blank line that parse stripped (GH #97); both branches of `joinIntoLeaf` land bytes that already crossed `legalizeWrite` and a fragment reparse (GH #54)'

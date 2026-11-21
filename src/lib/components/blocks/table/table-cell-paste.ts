@@ -16,7 +16,7 @@ import { isBlankParagraph, readBlocks } from '../../../core/parser';
 import { pasteTableGrid } from '../../../editor-actions/table-context';
 import { normalizeClipboardForBody } from '../../../tree-operations/paste/body-write';
 import { escapeMarkdownLiteral } from '../../../tree-operations/paste/markdown-literal';
-import { applyPasteTransforms } from '../../../tree-operations/paste/paste-transforms';
+import { rewrittenPaste } from '../../../tree-operations/paste/paste-rewrites';
 import { parseClipboardGrid, tileGridTo } from '../../../tree-operations/table-grid-clipboard';
 
 // ── Public API ─────────────────────────────────────────────────────────────
@@ -45,8 +45,8 @@ async function pasteGridInto(input: ClipPasteInput): Promise<boolean> {
 	return true;
 }
 
-/** The slice is picked on the clipboard as it came: anything but one paragraph is blocks. The paste
- *  transforms run after, and never on the editor's own entry. */
+/** The slice is picked on the clipboard as it came: anything but one paragraph is blocks, which
+ *  take the paste's rewrites. */
 async function pasteBlocksAround(input: ClipPasteInput): Promise<boolean> {
 	const { doc, targetPath, clip, reading } = input;
 	const ending = documentLineEnding(doc);
@@ -59,8 +59,9 @@ async function pasteBlocksAround(input: ClipPasteInput): Promise<boolean> {
 		);
 	const raw = clip.plain ? escapeMarkdownLiteral(clip.text) : clip.text;
 	if (isText(read(raw))) return false;
-	const transforms = !clip.plain && clip.own === undefined;
-	const text = transforms ? applyPasteTransforms(raw, input.activePlugins) : raw;
+	const { grammar } = reading;
+	const clipboard = () => readBlocks(raw, { grammar, scope: 'fragment' });
+	const text = rewrittenPaste({ ...clip, text: raw }, clipboard, input.activePlugins, grammar);
 	const blocks = text === raw ? read(raw) : read(text);
 	if (blocks.length === 0) return false;
 	return (await sliceTableForBlocks(input, blocks)) !== null;

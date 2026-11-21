@@ -146,7 +146,7 @@ One prerequisite: warnings and invariant checks only run while the editor believ
 
 ### Proving a paste transform is wired
 
-`applyPasteTransforms(text)` is the very function every clipboard-to-parse route runs, so driving it proves your transform is **wired**, not merely that your pure function works. By default it runs every installed plugin's transforms, the way an editor with no `plugins` prop would. Pass a list of plugin names, `applyPasteTransforms(text, ['parrot'])`, to run it as an editor listing only those (so a transform your plugin's setup registered runs only when your plugin is in the list).
+`applyPasteTransforms(text)` is the very function every clipboard-to-parse route runs for a `setup` plugin's transforms, so driving it proves your transform is **wired**, not merely that your pure function works. A plugin value's `rewrites` aren't on it: they need the editor's read of where the paste lands, so test one by pasting into a mounted editor. By default it runs every installed plugin's transforms, the way an editor with no `plugins` prop would. Pass a list of plugin names, `applyPasteTransforms(text, ['parrot'])`, to run it as an editor listing only those (so a transform your plugin's setup registered runs only when your plugin is in the list).
 
 With a transform that shouts pasted headings (in a real suite it's your unit's setup that registers it, from the `beforeEach` in [a blank slate per test](#a-blank-slate-per-test)):
 

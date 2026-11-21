@@ -14,6 +14,7 @@ import type { CaretMenu } from './caret-menu';
 import type { SelectionAction } from './selection-action';
 import type { Draft } from './drafts';
 import type { Block } from './doc-view';
+import type { PasteRewrite } from './paste-rewrite';
 import type { BlockPaint, Paint } from '../decorations/paint';
 import { isValidPluginName } from './plugin-name';
 import { satisfiesRange } from './version-range';
@@ -73,6 +74,9 @@ export interface Contribution {
 	/** Rows over the selection, or a range captured around the caret, in the right-click menu, the
 	 *  selection toolbar and `openRows`. */
 	selectionActions?: readonly SelectionAction[];
+	/** Rewrites of pasted blocks by type, made with `rewrite()`; the first listed that answers a
+	 *  block takes it. */
+	rewrites?: readonly PasteRewrite<unknown>[];
 	/** What to lay over `block`, a block of text (one holding no other blocks), asked while it's on
 	 *  screen and kept while its bytes hold. */
 	paint?(block: Block): readonly Paint[];

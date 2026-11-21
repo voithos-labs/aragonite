@@ -8,7 +8,6 @@ import { serialize } from '#lib/core/serializer.js';
 import type { CstNode } from '#lib/core/nodes.js';
 import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
 import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
-import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { runDrop, type SelectionDropDeps } from '#lib/selection/selection-drop.js';
 import { makeEditorActionsDeps } from '../harness/editor-actions';
 import { fixtureReading } from '../harness/fixture-grammar';
@@ -22,7 +21,6 @@ function makeDrop(source: string) {
 		controller,
 		coordinator: createPasteCoordinator(harness.deps, controller),
 		reading: fixtureReading(),
-		activePlugins: everyInstalledPlugin,
 		events: harness.events,
 		setDropCaret: () => {},
 		isReadOnly: () => false

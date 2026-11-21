@@ -414,7 +414,9 @@ Reading mode is enforced where the bytes are written: every commit, typing write
 
 ### Paste transforms
 
-`registerPasteTransform` records a content-keyed, pre-parse rewrite of pasted plain text: named, register-once (a duplicate throws, attributed to the owning plugin), run in install order at every paste site before the parse. It's **content-keyed**, distinct from the internal, target-kind-keyed `registerPasteSurface` (which stays unexposed, see [Explicitly excluded](#explicitly-excluded)): a transform keys off the clipboard _content_ it recognizes, not the block kind the paste lands in, which is the shape the GitHub-alert-to-admonition conversion needs.
+A plugin value's `rewrites` are keyed by the **pasted block's type**: each answers Markdown for the outermost block of its `from` type, the first listed answer taking it, its answer never offered again. They run in one function, `tree-operations/paste/paste-rewrites.ts :: rewrittenPaste`, which every route that lands a paste as blocks calls: the range-edit core's host, a table cell, and the block menu's Replace with clipboard. It declines plain text and the editor's own copy itself, and a drop never reaches it.
+
+`registerPasteTransform` records a content-keyed, pre-parse rewrite of pasted plain text: named, register-once (a duplicate throws, attributed to the owning plugin), run in install order by `rewrittenPaste` after the value rewrites, before the parse. It's **content-keyed**, distinct from the internal, target-kind-keyed `registerPasteSurface` (which stays unexposed, see [Explicitly excluded](#explicitly-excluded)): a transform keys off the clipboard _content_ it recognizes, not the block kind the paste lands in, which is the shape the GitHub-alert-to-admonition conversion needs.
 
 ### Inline authoring
 

@@ -11,7 +11,7 @@ import type { NodeView } from '../../core/node-views';
 import { pictureImageCount } from '../../core/inline/picture';
 import type { InlineReading } from '../../core/inline/inline-cache';
 import type { Icon } from '../../menu-icons';
-import { copyBlockToClipboard, readClipboard } from '../../browser/clipboard';
+import { copyBlockToClipboard, readClipboard, type ClipboardRead } from '../../browser/clipboard';
 import { codeBlockActions } from '../blocks/code/code-context-actions';
 
 export interface BlockActionContext {
@@ -24,8 +24,8 @@ export interface BlockActionContext {
 	replaceRaw(raw: string): Promise<boolean>;
 	/** The document's line ending, for a line rebuilt from the block's own bytes. */
 	lineEnding: LineEnding;
-	/** Pasted text through the paste transforms of the plugins this editor lists. */
-	transformPaste(text: string): string;
+	/** A clipboard read's text as the paste rewrites of the plugins this editor lists leave it. */
+	transformPaste(clip: ClipboardRead): string;
 }
 
 export interface BlockContextAction {
@@ -78,10 +78,10 @@ function everyBlockRows(node: NodeView, noun: string): BlockContextAction[] {
 			label: 'Replace with clipboard',
 			icon: 'clipboard',
 			run: async (ctx) => {
-				const text = (await readClipboard())?.text ?? '';
-				if (text.trim() === '') return;
-				// The paste transforms first, as any paste gets, so a plugin's rewrite applies.
-				const md = ctx.transformPaste(text);
+				const clip = await readClipboard();
+				if (!clip || clip.text.trim() === '') return;
+				// Rewritten as Ctrl+V rewrites it: never the editor's own copy.
+				const md = ctx.transformPaste(clip);
 				await ctx.replaceRaw(md.endsWith('\n') ? md : md + '\n');
 			}
 		},

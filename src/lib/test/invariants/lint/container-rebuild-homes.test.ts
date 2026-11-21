@@ -107,6 +107,10 @@ const PINNED: Record<string, Pin> = {
 		calls: { rebuildAncestryRaw: 1 },
 		why: 'the deep Backspace join reads its caret offset off the rebuilt ancestors inside its mutation, before the commit could rebuild them; it goes once the commit places a tracked caret after rebuilding what the mutation owned'
 	},
+	'src/lib/tree-operations/paste/paste-rewrites.ts': {
+		calls: { rebuildAncestryRaw: 1 },
+		why: 'writes the containers around a rewritten block in a copy of the clipboard’s blocks, which the paste reads again from its text'
+	},
 	'src/lib/tree-operations/paste/table-slice.ts': {
 		calls: { rebuildTableRaw: 2 },
 		why: 'builds the two halves of a split table'

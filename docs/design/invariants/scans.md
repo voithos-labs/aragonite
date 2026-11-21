@@ -20,7 +20,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 | G4.8 | Every documented chord resolves in the surface that dispatches it | L |
 | G4.9 | Every published theme token is declared, with light and dark values | L |
 | G4.10 | _Retired upward_: each plugin is its own package, held to that package's shape (G4.277) | L |
-| G4.11 | Exactly the allowed paste routes apply paste transforms | L |
+| G4.11 | Exactly the allowed paste routes run the paste rewrites | L |
 | G4.12 | Caret-edge destructive keys route through the one edge-policy dispatch | L |
 | G4.13 | No view-stripping cast outside `tree-operations/` and the undo controller | T·L |
 | G4.14 | Every component prop reading the CST is typed as a readonly view | L |
@@ -277,7 +277,7 @@ This is the catalogued set, not the whole of `test/invariants/lint/`: a scan hol
 
 **G4.10 · Retired upward.** Each bundled plugin is a package of its own now, whose manifest and pack G4.277 and `scripts/pack/verify-plugin-package.mjs` check.
 
-**G4.11 · Paste-transform site parity.** Exactly the allowed clipboard-to-parse routes call `applyPasteTransforms`, since a new route without it drops plugin transforms. A route that never names the symbol is caught too: every clipboard or drop read must reach an allowed route. `lint/manifest-rules.test.ts`.
+**G4.11 · Paste-rewrite site parity.** Exactly the allowed routes that land a paste as blocks call `rewrittenPaste`, since a new route without it drops plugin rewrites, and `applyPasteTransforms` runs only inside it. A route that never names the symbol is caught too: every clipboard or drop read must reach an allowed route. `lint/manifest-rules.test.ts`.
 
 **G4.12 · Caret-edge destructive keys.** Every plain Backspace or Delete intercepted at a caret edge in a prose block routes through the one edge-policy dispatch, which resolves what sits at the edge against declarative policies and commits through `surface-write.ts :: writeText` or `updateBlockContent`. The only other interceptors are the selected-widget second-press delete and the pending break's Backspace (`pending-break-keys.ts`). `lint/manifest-rules.test.ts`.
 

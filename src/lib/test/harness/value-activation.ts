@@ -17,7 +17,8 @@ export function valueActivation(
 		editorFor: () => editor,
 		report: thrown,
 		blockAround: () => null,
-		blockOf: (node) => blockOf(node, DETACHED_READING)
+		blockOf: (node) => blockOf(node, DETACHED_READING),
+		clipboardBlock: (_, node) => blockOf(node, DETACHED_READING)
 	});
 	contributions.read(installPluginList(plugins, thrown));
 	return { isActive: base.isActive, contributions };
