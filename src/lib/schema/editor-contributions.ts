@@ -14,6 +14,7 @@ import { makingOf } from './block-type';
 import type { ContributedMenu } from './caret-menu';
 import { iconProblem } from '../menu-icons';
 import type { ContributedAction } from './selection-action';
+import type { CodeHighlighter, CodeLanguage, CodeToken } from './code-highlighter';
 
 export interface ContributedCommand {
 	readonly plugin: string;
@@ -36,6 +37,8 @@ export interface EditorContributions {
 	readonly actions: readonly ContributedAction[];
 	/** The plugins that paint, in list order. */
 	readonly paints: readonly { readonly plugin: string; readonly contribution: Contribution }[];
+	/** Each plugin's code highlighter in list order, guarded. */
+	readonly highlighters: readonly ContributedHighlighter[];
 	/** Runs a command against its plugin's scoped editor; false where `when` or the command declines.
 	 *  A throw counts as run, so the key goes no further, and is reported. */
 	run(command: ContributedCommand, arg: unknown): boolean;
@@ -43,6 +46,17 @@ export interface EditorContributions {
 	/** Reads a freshly installed list, leaving out and reporting each plugin whose contribution is
 	 *  unusable or claims what one listed before it holds; returns the plugins kept. */
 	read(units: readonly InstalledPlugin[]): InstalledPlugin[];
+}
+
+/** A plugin's code highlighter as the editor asks it: a throw or a rejection paints plain and is
+ *  reported, one rejection reason once. */
+export interface ContributedHighlighter {
+	readonly plugin: string;
+	languages(): readonly CodeLanguage[];
+	highlight(
+		body: string,
+		language: string
+	): readonly CodeToken[] | null | Promise<readonly CodeToken[] | null>;
 }
 
 export function createEditorContributions(deps: {
@@ -57,6 +71,7 @@ export function createEditorContributions(deps: {
 	let menus: readonly ContributedMenu[] = [];
 	let actions: readonly ContributedAction[] = [];
 	let paints: EditorContributions['paints'] = [];
+	let highlighters: readonly ContributedHighlighter[] = [];
 
 	function guarded<T>(entry: ContributedCommand, fallback: T, call: () => T): T {
 		try {
@@ -105,6 +120,9 @@ export function createEditorContributions(deps: {
 		paints = kept.flatMap(({ name, contribution }) =>
 			contribution.paint || contribution.paintContainer ? [{ plugin: name, contribution }] : []
 		);
+		highlighters = kept.flatMap(({ name, contribution }) =>
+			contribution.code ? [guardedHighlighter(name, contribution.code, deps.report)] : []
+		);
 		return kept;
 	}
 
@@ -145,6 +163,9 @@ export function createEditorContributions(deps: {
 		},
 		get paints() {
 			return paints;
+		},
+		get highlighters() {
+			return highlighters;
 		},
 		run,
 		can,
@@ -208,6 +229,43 @@ function entryOf(plugin: string, value: Command<unknown>): ContributedCommand {
 
 function chordsOf(unit: InstalledPlugin): string[] {
 	return (unit.contribution.commands ?? []).flatMap((value) => commandSpec(value)?.chord ?? []);
+}
+
+function guardedHighlighter(
+	plugin: string,
+	code: CodeHighlighter,
+	report: (error: PluginError) => void
+): ContributedHighlighter {
+	// Blocks waiting on one failed load share its reason, so the failure is reported once.
+	const heard = new WeakSet<object>();
+	const fail = (cause: unknown) => {
+		if (typeof cause === 'object' && cause !== null) {
+			if (heard.has(cause)) return;
+			heard.add(cause);
+		}
+		report({ plugin, doing: 'highlight', cause });
+	};
+	return {
+		plugin,
+		languages() {
+			try {
+				return code.languages();
+			} catch (cause) {
+				fail(cause);
+				return [];
+			}
+		},
+		highlight(body, language) {
+			try {
+				const answer = code.highlight(body, language);
+				if (!isThenable(answer)) return answer;
+				return Promise.resolve(answer).catch((cause: unknown) => (fail(cause), null));
+			} catch (cause) {
+				fail(cause);
+				return null;
+			}
+		}
+	};
 }
 
 function installError(plugin: string, problem: string): PluginError {

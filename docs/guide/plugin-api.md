@@ -742,6 +742,9 @@ Register **before mounting an editor**: a block already on screen re-tokenizes o
 
 | Export | Role |
 | --- | --- |
+| `CodeHighlighter` | What `contributes(...).code` answers: `highlight(body, language)` gives the body's tokens, `null` for plain, or a promise of either, and `languages()` lists what it answers. Several plugins may contribute one; for each spelling the first plugin listing it is asked. The `highlight` package is one |
+| `CodeToken`, `CodeLanguage` | A token is `{ from, to, class }` in body offsets (tokens nest or don't overlap); a language is `{ name, aliases }`, one picker row with its search keys |
+| `CodePainter` | `renderSource`'s second argument: `code(body, language)` paints a body through the editor's highlighters, plain where none answers, and repaints when a late answer arrives |
 | `registerLanguage` | Add a grammar under a name, with optional aliases; register-once, so a repeat call with the same name throws |
 | `listLanguages` | Every registered language once, under its canonical name, sorted: the rows a picker with every installed plugin offers |
 | `getLanguageAliases` | The other spellings a language answers to, asked by any of them: what a picker's filter matches on |

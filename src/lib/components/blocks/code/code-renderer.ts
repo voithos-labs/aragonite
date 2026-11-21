@@ -12,7 +12,7 @@ import {
 	ownTrailingLineEnding,
 	trimTrailingLineEnding
 } from '../../../core/lines';
-import { fenceAnatomy, type FenceRun } from '../../../core/parsers/fence-syntax';
+import { fenceAnatomy, fenceLanguage, type FenceRun } from '../../../core/parsers/fence-syntax';
 import { createCaretAnchor } from '../../../browser/painted';
 import { assertInvariant, devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { checkRenderedTextFidelity } from '../../../invariants/render-fidelity';
@@ -20,6 +20,7 @@ import hljs from 'highlight.js/lib/core';
 import type { LanguageFn } from 'highlight.js';
 import type { PluginActivation } from '../../../schema/plugin-activation';
 import { getLanguageGrammar } from './code-languages';
+import type { CodePainter } from '../../../schema/code-highlighter';
 
 // ── Public API ───────────────────────────────────────────────────────────────
 
@@ -267,16 +268,16 @@ function openerParts(opener: string): Node[] {
 
 // ── Top-level render ─────────────────────────────────────────────────────
 
-/** `activation` is the editor's, so a language whose plugin it left out renders untokenized. */
-export function renderCodeBlock(node: NodeView, activation: PluginActivation): DocumentFragment {
+/** The body goes through `painter`, the block's own, which knows the editor's highlighters. */
+export function renderCodeBlock(node: NodeView, painter: CodePainter): DocumentFragment {
 	const display = trimTrailingLineEnding(node.raw);
-	const info = metadataOf(node, 'fencedCode').info ?? '';
+	const language = fenceLanguage(metadataOf(node, 'fencedCode').info ?? '');
 	const source = sliceFencedSource(display, codeFenceRun(node)) ?? {
 		opener: display,
 		body: '',
 		closer: ''
 	};
-	const frag = renderFencedSource(source, (body) => tokenizeBody(body, info, activation));
+	const frag = renderFencedSource(source, (body) => painter.code(body, language));
 
 	assertInvariant('rendered-text-fidelity', () =>
 		checkRenderedTextFidelity(frag.textContent ?? '', display)

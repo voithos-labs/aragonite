@@ -25,6 +25,7 @@ import {
 	type TextDrawContext
 } from './drawing';
 import type { LineEnding } from '../core/lines';
+import type { CodePainter } from './code-highlighter';
 
 // ── Specs ────────────────────────────────────────────────────────────────────
 
@@ -82,9 +83,9 @@ export type LeafDraw<D> =
 	| {
 			edit?: 'text' | 'source';
 			draw?(block: Block<NoInfer<D>>, ctx: TextDrawContext): Drawn<NoInfer<D>, TextDrawContext>;
-			/** Draws the shown text as DOM (fence lines to hide, highlight tokens); the fragment's
-			 *  `textContent` must stay `text`. */
-			renderSource?(text: string): DocumentFragment;
+			/** Draws the shown text as DOM (fence lines to hide, highlight tokens through `paint`);
+			 *  the fragment's `textContent` must stay `text`. */
+			renderSource?(text: string, paint: CodePainter): DocumentFragment;
 			/** The text as the block type keeps it, asked on show and after each edit, with the caret
 			 *  carried; an added line takes `lineEnding`. Null keeps it. */
 			reshapeSource?(

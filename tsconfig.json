@@ -25,6 +25,9 @@
 			"@voithos-labs/aragonite-emoji/conformance": ["./packages/emoji/src/conformance.ts"],
 			"@voithos-labs/aragonite-footnotes": ["./packages/footnotes/src/index.ts"],
 			"@voithos-labs/aragonite-footnotes/conformance": ["./packages/footnotes/src/conformance.ts"],
+			"@voithos-labs/aragonite-highlight": ["./packages/highlight/src/index.ts"],
+			"@voithos-labs/aragonite-highlight/conformance": ["./packages/highlight/src/conformance.ts"],
+			"@voithos-labs/aragonite-highlight/renderer": ["./packages/highlight/src/renderer.ts"],
 			"@voithos-labs/aragonite-highlight-occurrences": [
 				"./packages/highlight-occurrences/src/index.ts"
 			],

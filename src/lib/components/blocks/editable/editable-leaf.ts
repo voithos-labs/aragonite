@@ -62,6 +62,8 @@ import type { EditorContext } from '../../../schema/plugin-install';
 import { componentPluginEditor, componentPluginOptions } from '../../../schema/block-kind-plugin';
 import { createTextBatch } from '../../../editor-actions/commit/text-batch';
 import type { Draft } from '../../../schema/drafts';
+import type { CodePainter } from '../../../schema/code-highlighter';
+import { createCodePainter } from '../code/code-painter';
 
 export type EditableLeafMode = 'plain' | 'render-primary';
 
@@ -97,9 +99,9 @@ interface LeafDepsBase {
 	/** The component's view-state hooks, handed to a block command as `ctx.hooks` and read at
 	 *  dispatch, so return live values. Typed `unknown`; the plugin casts it. */
 	commandHooks?: () => unknown;
-	/** Draws the source as DOM (hidden fence lines, highlight tokens) instead of one text node.
-	 *  Must keep `fragment.textContent === text`, or caret offsets drift (G1.28). */
-	renderSource?(text: string): DocumentFragment;
+	/** Draws the source as DOM (hidden fence lines, highlight tokens through `paint`) instead of one
+	 *  text node. Must keep `fragment.textContent === text`, or caret offsets drift (G1.28). */
+	renderSource?(text: string, paint: CodePainter): DocumentFragment;
 	/** The shown source's text once after each change, the browser's included, never mid-composition:
 	 *  a live preview reads it, since the CST sees a render-primary edit only on blur. */
 	onSourceEdit?(text: string): void;
@@ -207,7 +209,8 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		getBlockElByPath,
 		getEditorRoot,
 		reading,
-		commands
+		commands,
+		activePlugins
 	} = wiring.deps;
 	const { pluginEditor } = commands;
 	const { inlineMenuCombobox, drafts, presses } = wiring.services;
@@ -448,7 +451,7 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 	// source takes the code block's empty-content attribute, so its markers show while focused.
 	function paintSource(el: HTMLElement, text: string): void {
 		if (deps.renderSource) {
-			const painted = deps.renderSource(text);
+			const painted = deps.renderSource(text, painter);
 			assertInvariant('rendered-text-fidelity', () =>
 				checkRenderedTextFidelity(painted.textContent ?? '', text)
 			);
@@ -461,6 +464,12 @@ export function createEditableLeaf(deps: EditableLeafDeps): EditableLeaf {
 		reported = text;
 		noteShownSource();
 	}
+
+	// Tokens that arrive after the source painted plain repaint it, the caret kept.
+	const painter = createCodePainter(
+		() => activePlugins,
+		() => repaintSource()
+	);
 
 	// The browser's own edits (an IME commit, a drop) skip the leaf's splice, so they repaint and
 	// report here.

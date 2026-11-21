@@ -26,6 +26,7 @@
 	import { wireSurfaceContexts, useParkFocusOnUnmount } from '../editable/surface-wiring.svelte';
 	import { anchorTrailingNewline, plainTextOf } from '../editable/plain-text-backend';
 	import { renderCodeBlock, sliceFencedCode } from './code-renderer';
+	import { createCodePainter } from './code-painter';
 	import {
 		getCloserFor,
 		getLineLeadingWhitespace,
@@ -184,12 +185,24 @@
 
 	function paintCode(): void {
 		if (!el) return;
-		el.replaceChildren(renderCodeBlock(node, activePlugins));
+		el.replaceChildren(renderCodeBlock(node, painter));
 		anchorTrailingNewline(el);
 		// The marker-hiding CSS and the caret traversal read this attribute; the side gutter does
 		// not, since an empty fence gets one either way.
 		el.toggleAttribute(CONTENT_EMPTY_ATTR, holdsOnlyMarkerChrome(el));
 		lastRenderedRaw = node.raw;
+	}
+
+	// Tokens arrived after the block painted plain: the same text, so the selection goes back where
+	// it was. A composition's commit repaints on its own.
+	const painter = createCodePainter(() => activePlugins, repaintWhenReady);
+	function repaintWhenReady(): void {
+		if (!el?.isConnected || !isStillCode() || editableSurface.composing()) return;
+		const range = backend.getRawSelection();
+		const caret = range ? null : backend.getRaw();
+		paintCode();
+		if (range) caretWriter.selectRawRange(el, range.start, range.end);
+		else if (caret !== null) backend.setRaw(caret, { clamp: 'exact' });
 	}
 
 	$effect(() => {

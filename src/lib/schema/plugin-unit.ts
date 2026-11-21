@@ -15,6 +15,7 @@ import type { SelectionAction } from './selection-action';
 import type { Draft } from './drafts';
 import type { Block } from './doc-view';
 import type { BlockPaint, Paint } from '../decorations/paint';
+import type { CodeHighlighter } from './code-highlighter';
 import { isValidPluginName } from './plugin-name';
 import { satisfiesRange } from './version-range';
 
@@ -79,6 +80,8 @@ export interface Contribution {
 	/** Classes and a badge for a block holding other blocks (a list, a quote, a table row), asked
 	 *  the same way. Its text is all of its children's, so read its type rather than scan it. */
 	paintContainer?(block: Block): readonly BlockPaint[];
+	/** Highlights fenced code in the languages it lists, which the code block's picker offers. */
+	code?: CodeHighlighter;
 }
 
 /** The editor as a plugin's `setup` and a host's handle both see it. */

@@ -116,7 +116,7 @@ export function collectEditorSources(
 
 /** The bundled plugins that are plugin values: they install per editor, so a table of the plugins
  *  a test installs page-wide leaves them out. */
-export const PLUGIN_VALUE_DIRS: readonly string[] = ['spellcheck'];
+export const PLUGIN_VALUE_DIRS: readonly string[] = ['highlight', 'spellcheck'];
 
 /** The bundled plugins, by directory name under `packages/`. */
 export function bundledPluginDirs(): string[] {

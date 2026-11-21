@@ -1,19 +1,19 @@
 /**
  * The block form's source as DOM, drawn the way a code block draws its own: the fence lines as
- * markers the marker-hiding modes collapse, the body as highlighted LaTeX tokens. It emits exactly
+ * markers the marker-hiding modes collapse, the body as the editor's LaTeX tokens. It emits exactly
  * the source's text, so the DOM-to-offset traversal stays exact (G1.28). Anything not shaped like
  * a fence paints as plain tokens.
  */
 import {
 	fenceBodyAsDrawn,
 	fencedBodyRange,
-	highlightCode,
 	isBlankText,
 	ownTrailingLineEnding,
 	renderFencedSource,
 	sliceFencedSource,
 	trimTrailingLineEnding,
 	trimWhitespace,
+	type CodePainter,
 	type LineEnding,
 	type NodeView
 } from '@voithos-labs/aragonite/plugin';
@@ -74,10 +74,11 @@ function completeBareMathSource(text: string, lineEnding: LineEnding): MathEdit 
 	};
 }
 
-/** What follows the closer is outside the block, so it paints as plain text. */
-export function renderMathSource(text: string): DocumentFragment {
+/** The body paints as LaTeX through the editor's highlighters (plain with none); what follows the
+ *  closer is outside the block, so it paints as plain text. */
+export function renderMathSource(text: string, paint: CodePainter): DocumentFragment {
 	const source = sliceMathSource(text);
-	const frag = renderFencedSource(source, (body) => highlightCode(body, 'latex'));
+	const frag = renderFencedSource(source, (body) => paint.code(body, 'latex'));
 	if (source.after) frag.append(source.after);
 	return frag;
 }

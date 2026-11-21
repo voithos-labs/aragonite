@@ -196,6 +196,14 @@ export function getLanguageAliases(name: string): readonly string[] {
 export function highlightCode(body: string, language: string): DocumentFragment {
 	return tokenizeBody(body, language, everyInstalledPlugin);
 }
+// What `contributes(...).code` answers, the editor drawing the tokens; a source view's
+// `renderSource` paints its code through the `CodePainter` it is handed.
+export type {
+	CodeHighlighter,
+	CodeLanguage,
+	CodePainter,
+	CodeToken
+} from './schema/code-highlighter';
 // Re-exported so a host names the grammar type without importing highlight.js itself, which
 // it holds only transitively.
 export type { LanguageFn } from 'highlight.js';

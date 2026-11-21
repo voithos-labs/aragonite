@@ -64,8 +64,11 @@ function boundaryProblem(
 		(name) => specifier === name || specifier.startsWith(`${name}/`)
 	);
 	if (peer === undefined) return 'a package it does not declare as a peer';
-	// The rendering engine stays off the plugin's main entry, so a host that brings none loads none.
-	return path.posix.basename(relPath) === 'renderer.ts' ? null : 'its engine outside renderer.ts';
+	// The rendering engine stays off the plugin's main entry, so a host that brings none loads none;
+	// an engine too big for one file keeps the rest in `renderer/` beside it.
+	const engine =
+		path.posix.basename(relPath) === 'renderer.ts' || relPath.startsWith(`${source}/renderer/`);
+	return engine ? null : 'its engine outside renderer.ts';
 }
 
 /** Every way `pkg`'s manifest strays from the shape every plugin package shares. */

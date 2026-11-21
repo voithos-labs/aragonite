@@ -426,8 +426,15 @@ export function installTestProbes({
 			ops.push(e.op);
 		});
 
+	// The plugin each `error` event names, from mount on, so a spec counts one failure's reports.
+	const errorPlugins: (string | null)[] = [];
+	editor.getEvents().on('error', (e: { context?: { plugin?: string } }) => {
+		errorPlugins.push(e.context?.plugin ?? null);
+	});
+
 	(window as any).__test = {
 		getSource: () => editor.getSource(),
+		errorPlugins: () => [...errorPlugins],
 		getDocument: () => editor.__test.getDocument(),
 		// The height guesses a windowed list's spacers are built from, so a spec can recompute them.
 		getHeightOracle: () => editor.__test.getHeightOracle(),

@@ -1,5 +1,7 @@
 <script module lang="ts">
 	import { installPlugins } from '#lib';
+	import { highlight } from '@voithos-labs/aragonite-highlight';
+	import { highlightJs } from '@voithos-labs/aragonite-highlight/renderer';
 	import { definePlugin, registerLanguage } from '#lib/plugin.js';
 	import elixir from 'highlight.js/lib/languages/elixir';
 
@@ -75,7 +77,16 @@
 				: [];
 	// `?paint=on` lists a plugin whose `paint` a spec sets through `__test.paint`.
 	const paintPlugins = param('paint') === 'on' ? [paintProbePlugin] : [];
-	const pagePlugins = [...slashPlugins, ...actionPlugins, ...spellPlugins, ...paintPlugins];
+	// `?highlight=on` lists the highlight package; without it, code paints with the core's languages.
+	const highlightPlugins =
+		param('highlight') === 'on' ? [highlight({ renderer: highlightJs() })] : [];
+	const pagePlugins = [
+		...slashPlugins,
+		...actionPlugins,
+		...spellPlugins,
+		...paintPlugins,
+		...highlightPlugins
+	];
 
 	// Stand-in host hooks, so the code block gutter's run and overflow buttons render. Off by
 	// default, since the block specs measure that gutter's width.
