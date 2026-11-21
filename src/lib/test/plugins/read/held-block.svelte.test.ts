@@ -8,7 +8,7 @@ import type { DocumentView } from '#lib/core/node-views.js';
 import { parse } from '#lib/core/parser.js';
 import { grammar } from '#lib/components/editor-root/headless-grammar.js';
 import { checkHeldBlockPlace } from '#lib/invariants/held-block.js';
-import { makeTopHarness } from '#lib/test/harness/editor-actions.js';
+import { makeNode, makeTopHarness } from '#lib/test/harness/editor-actions.js';
 import { createDocumentRead } from '#lib/editor-actions/commit/document-read.js';
 import { docPathFrom } from '#lib/core/coordinate-spaces.js';
 import { defaultGrammarView } from '#lib/schema/editor-grammar.js';
@@ -204,6 +204,31 @@ describe('a held block, through a write whose runs went unread', () => {
 			op: { kind: 'input', eventPath: at.path }
 		});
 		expect(two.from).toBe(serialize(h.deps.doc).indexOf('two'));
+	});
+});
+
+describe('a held block, read as the writes go by, past what the log of runs holds', () => {
+	// Miss-analysis: no row made more writes than the log keeps, so nothing ran the step that
+	// drops its oldest half and moves the version its first entry stands for.
+	it('keeps its place', () => {
+		const h = makeTopHarness('zero\n\none\n\ntwo\n');
+		const read = createDocumentRead({
+			getDoc: () => h.deps.doc,
+			measured: h.deps.starts.read,
+			typeOf: (kind) => ({ name: kind, label: kind }),
+			reading: { grammar: defaultGrammarView, resolver: undefined, resolverSignature: '' },
+			version: h.contentVersion,
+			source: () => serialize(h.deps.doc),
+			follow: h.deps.starts.follow
+		});
+		const two = read.blockOf(h.deps.doc.children[2], [2]);
+		for (let i = 0; i < 1100; i++) {
+			h.deps.starts.duringWrite(() => {
+				h.deps.doc.children.unshift(makeNode('paragraph', 'new\n'));
+				return { touched: () => [{ at: 0, removed: 0, inserted: 1 }] };
+			});
+			if (i % 100 === 99) expect(two.from).toBe(serialize(h.deps.doc).indexOf('two'));
+		}
 	});
 });
 

@@ -50,6 +50,20 @@ describe('editor.selection', () => {
 		expect(bytes(editor)).toEqual([at + 4, at, at, at + 4, false]);
 	});
 
+	// Miss-analysis: every row moved the caret itself; a write above it moves its byte and leaves
+	// its path and offset where they were, which alone told the read to look again.
+	it('reads the caret at its new byte after a write above it', async () => {
+		const { editor, m } = await editorOn(DOC);
+		const at = DOC.indexOf('three');
+		await editor.select(at);
+		const before = editor.selection;
+		await m.instance.edit().replace({ from: 0, to: 0 }, 'XY').commit();
+		await m.settle();
+		expect(m.instance.getSource()).toBe('XY' + DOC);
+		expect(bytes(editor)).toEqual([at + 2, at + 2, at + 2, at + 2, true]);
+		expect(editor.selection).not.toBe(before);
+	});
+
 	it('is one object while nothing moves, and null with nothing selected', async () => {
 		const { editor, m } = await editorOn(DOC);
 		expect(editor.selection).toBeNull();
@@ -69,6 +83,12 @@ describe('editor.select', () => {
 		expect(bytes(editor)).toEqual([at, at, at, at, true]);
 		await editor.select({ anchor: at + 5, head: DOC.indexOf('one') });
 		expect(bytes(editor)).toEqual([at + 5, DOC.indexOf('one'), DOC.indexOf('one'), at + 5, false]);
+	});
+
+	it('leaves a CRLF ending out of a block taken whole', async () => {
+		const { editor } = await editorOn('one\r\n\r\ntwo\r\n');
+		await editor.select({ block: editor.doc.blocks[0] });
+		expect(bytes(editor)).toEqual([0, 3, 0, 3, false]);
 	});
 
 	// Miss-analysis: the outside byte's row read only what `select` resolved, which is false for

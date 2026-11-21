@@ -72,6 +72,14 @@ describe("the component's own handle", () => {
 		});
 		expect(m.instance.selection!.block!.text).toBe('22');
 	});
+
+	it('reads no cells for a range from one table into another', async () => {
+		const m = mountEditor({ source: DOC + '\n| c |\n| - |\n| 3 |\n' });
+		await m.settle();
+		await m.instance.setSelection({ anchor: cellPoint([1], 3), focus: cellPoint([2], 1) });
+		await m.settle();
+		expect(m.instance.selection).toMatchObject({ head: m.source().indexOf('3 |'), cells: null });
+	});
 });
 
 describe('the handle createEditor hands back', () => {
