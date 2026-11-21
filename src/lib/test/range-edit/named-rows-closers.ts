@@ -870,6 +870,20 @@ const ENTERED_CUT_ROWS: NamedRow[] = [
 	)
 ];
 
+// Miss-analysis: every row of text on a line of its own stood where the removal's byte is the next
+// block's first, so none held that line under the blank line an opening row keeps over that block.
+const OWN_LINE_ROWS: NamedRow[] = (
+	[
+		['a key’s text', { text: 'ж' }],
+		['a paste', { paste: 'ж', plain: false, holds: 'text' }]
+	] as const
+).map(([name, gesture]) => ({
+	name: `L5 ${name} over blocks under an opening row stands under the blank line the row keeps`,
+	source: '::::note\n⟦***\n\n# end⟧\n\nnext\n::::\n',
+	gesture,
+	expect: { source: '::::note\n\nж\n\nnext\n::::\n', caret: { at: 11, holds: 'text' } }
+}));
+
 export const CLOSER_ROWS: NamedRow[] = [
 	...CLOSING_LINE_ROWS,
 	...LINE_ROWS,
@@ -887,5 +901,6 @@ export const CLOSER_ROWS: NamedRow[] = [
 	...LINE_BREAK_ROWS,
 	...EMPTIED_LINE_ROWS,
 	...BARE_START_ROWS,
-	...ENTERED_CUT_ROWS
+	...ENTERED_CUT_ROWS,
+	...OWN_LINE_ROWS
 ];
