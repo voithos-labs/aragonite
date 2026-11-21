@@ -110,6 +110,27 @@ describe('a plugin mark, read', () => {
 		expect(rank('hl/under')).toBeLessThan(rank('strikethrough')!);
 	});
 
+	// Miss-analysis: the nesting rows named built-in marks only, so none asked for a plugin mark
+	// named before it was listed, or for a chain of two.
+	it('nests inside the plugin mark `after` names, whichever is listed first', () => {
+		const outer = highlight();
+		const inner = highlight({ name: 'under', marker: '++', after: outer });
+		installed([inner, outer]);
+		expect(rank('hl/under')).toBeGreaterThan(rank('hl/highlight')!);
+		installed([outer, inner]);
+		expect(takeDevWarnsOf('inline-type-facts')).toEqual([]);
+	});
+
+	it('keeps a chain of marks between the built-in marks it started from', () => {
+		const one = highlight();
+		const two = highlight({ name: 'two', marker: '++', after: one });
+		const three = highlight({ name: 'three', marker: '%%', after: two });
+		installed([three, one, two]);
+		expect(rank('hl/two')).toBeGreaterThan(rank('hl/highlight')!);
+		expect(rank('hl/three')).toBeGreaterThan(rank('hl/two')!);
+		expect(rank('hl/three')).toBeLessThan(rank('inlineCode')!);
+	});
+
 	it.each([
 		['a marker of two characters', { marker: '=+' }, 'one character, once or twice'],
 		['a run of three', { marker: '===' }, 'one character, once or twice'],

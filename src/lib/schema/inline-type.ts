@@ -201,7 +201,7 @@ export function installInlines(
 	report: (error: PluginError) => void
 ): { readonly inlines: ReadonlyMap<AnyInlineKind, InstalledInline>; release(): void } {
 	const inlines = new Map<AnyInlineKind, InstalledInline>();
-	const releases: (() => void)[] = [];
+	const marks = new Map<string, { mark: MarkMaking; after: InlineType | undefined }>();
 	for (const { name: plugin, contribution } of units) {
 		for (const listed of contribution.inlines ?? []) {
 			const made = listed as unknown as Partial<Made>;
@@ -223,8 +223,7 @@ export function installInlines(
 			if (mark) {
 				// Named here too, so its row names the command whatever reads the list first.
 				claimCommand(mark.toggle, plugin);
-				const nestingRank = rankAfter(making.after[0]?.name) + nameFraction(kind);
-				releases.push(holdInlineConstructPolicy(kind, markRow(mark, nestingRank)));
+				marks.set(kind, { mark, after: making.after[0] });
 			}
 			inlines.set(kind, {
 				kind,
@@ -246,6 +245,11 @@ export function installInlines(
 			});
 		}
 	}
+	// Ranked once every construct is named, so a mark may name one listed after it.
+	const ranks = markRanks(marks);
+	const releases = [...marks].map(([kind, { mark }]) =>
+		holdInlineConstructPolicy(kind as PluginInlineKind, markRow(mark, ranks.get(kind)!))
+	);
 	return { inlines, release: () => releases.forEach((release) => release()) };
 }
 
@@ -256,18 +260,36 @@ export function togglesOf(inlines: readonly Inline<unknown>[] | undefined): Comm
 
 // ── Internal ─────────────────────────────────────────────────────────────────
 
-// A mark nests just inside the one it names (a built-in, or a mark an editor already holds), else
-// just outside code.
-function rankAfter(name: string | undefined): number {
-	return (getInlineMarkPolicy((name ?? 'strikethrough') as AnyInlineKind)?.nestingRank ?? 2) + 0.5;
+// Each mark's rank: just inside the mark its `after` names, else just outside code. A hop is a
+// quarter of the one before it, so a chain stays between the built-in marks it started from.
+function markRanks(
+	marks: ReadonlyMap<string, { after: InlineType | undefined }>
+): Map<string, number> {
+	const placed = new Map<string, { rank: number; step: number }>();
+	const place = (kind: string, path: readonly string[]): { rank: number; step: number } => {
+		const done = placed.get(kind);
+		if (done) return done;
+		const after = marks.get(kind)!.after?.name;
+		const own = after !== undefined && marks.has(after) && !path.includes(after);
+		const base = own
+			? place(after, [...path, kind])
+			: { rank: rankOf(after ?? 'strikethrough') ?? rankOf('strikethrough')!, step: 1 };
+		const step = base.step / 4;
+		const at = { rank: base.rank + step * (1 + nameFraction(kind)), step };
+		placed.set(kind, at);
+		return at;
+	};
+	return new Map([...marks.keys()].map((kind) => [kind, place(kind, []).rank]));
 }
+
+const rankOf = (kind: string) => getInlineMarkPolicy(kind as AnyInlineKind)?.nestingRank;
 
 // Marks at one place nest in an order their names fix, so the row reads the same in every editor
 // whatever its list's order.
 function nameFraction(kind: string): number {
 	let hash = 0;
 	for (let i = 0; i < kind.length; i++) hash = (hash * 31 + kind.charCodeAt(i)) % 999983;
-	return hash / 1e7;
+	return hash / 999983;
 }
 
 // A mark edits as `**` does: its letters stick left, it unwraps when emptied and Enter closes and
