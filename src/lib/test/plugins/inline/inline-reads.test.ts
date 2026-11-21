@@ -18,7 +18,8 @@ import { createEditorGrammar } from '#lib/schema/editor-grammar.js';
 import { installInlines } from '#lib/schema/inline-type.js';
 import { buildImageEditBytes } from '#lib/core/inline/image-source-bytes.js';
 import { buildLinkRetitleBytes, buildLinkUnwrapBytes } from '#lib/core/inline/link-source-bytes.js';
-import { splitBehaviorOf } from '#lib/core/inline/live-edit/live-split.js';
+import { cutOutsideWhole, splitBehaviorOf } from '#lib/core/inline/live-edit/live-split.js';
+import { parse } from '#lib/core/parser.js';
 import { inlineTable } from '#lib/core/inline/scan/inline-table.js';
 import {
 	revealsOnArrow,
@@ -252,6 +253,19 @@ describe('inline(): an `as` claim writes through `write`', () => {
 		const { read, grammar } = editorReading([['chips', [plainWidget, embed()]]]);
 		expect(splitBehaviorOf(read('{ab}')[0], '{ab}', grammar)).toBe('plain');
 		expect(splitBehaviorOf(read('![[a.png]]')[0], '![[a.png]]', grammar)).toBe('whole');
+	});
+
+	// Miss-analysis: the split rows asked a claim's own node, never a byte inside the text of a
+	// link, whose text node carries the claim too: the cut moved to the text's edge, inside the
+	// claim, and a paste there tore it.
+	it('a cut inside an own-syntax link’s text moves to the claim’s edge, not the text’s', () => {
+		const raw = 'See [[note|Shown]] here\n';
+		const { grammar } = editorReading([['wiki', [wikiLink()]]]);
+		const reading = { grammar, resolver: undefined } as never;
+		const node = parse(raw, { scope: 'fragment', grammar }).children[0];
+		expect(cutOutsideWhole(node, 15, reading)).toBe(18);
+		expect(cutOutsideWhole(node, 6, reading)).toBe(4);
+		expect(cutOutsideWhole(node, 2, reading)).toBe(2);
 	});
 });
 

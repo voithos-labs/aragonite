@@ -14,6 +14,8 @@ block 1 `After`, in live mode.
 ## Edge cases
 
 - Enter inside the text cuts at the claim's edge, its bytes whole in one block.
+- Two paragraphs pasted inside the text land at the claim's edge, its bytes whole:
+  `See [[note|Shown]]one` over `two here`.
 - Backspace through the whole text takes the claim whole, leaving no bracket behind.
 - A range from inside the text past its end deletes only what shows: `[[note|Sh]]re`.
 - A letter typed at either edge of the text lands outside the link, as at a built-in link.
@@ -23,4 +25,5 @@ block 1 `After`, in live mode.
 Miss-analysis: the arm's first rows called the byte writers directly, so nothing drove the card,
 the live split or the edge rule over a link whose bytes aren't GFM. And every row's text appeared
 once in its claim, so none asked which run of the bytes is the text: the first one won, and a
-letter typed in `[[notebook|note]]` wrote the target.
+letter typed in `[[notebook|note]]` wrote the target. The Enter row passed for a claim cut at its
+text's edge, inside it, which a link survives and a paste doesn't: no row pasted there.

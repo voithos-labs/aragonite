@@ -61,6 +61,13 @@ test.describe('an inline construct read as a link', () => {
 		expect(src.split('\n').some((line) => line.includes(LINK))).toBe(true);
 	});
 
+	test('two paragraphs pasted inside the text land at its edge, the claim whole', async () => {
+		await editor.focusBlockAtPath([0], TEXT_END - 1);
+		await editor.clipboard.seed('one\n\ntwo');
+		await editor.clipboard.paste();
+		await expect.poll(source).toBe('See [[note|Shown]]one\n\ntwo here\n\nAfter\n');
+	});
+
 	test('Backspace through the whole text takes the claim whole', async ({ page }) => {
 		await editor.focusBlockAtPath([0], TEXT_END);
 		for (let i = 0; i < 'Shown'.length; i++) await page.keyboard.press('Backspace');
