@@ -42,8 +42,13 @@ export const noteRef = inline({
 	label: 'Footnote reference',
 	prefix: '[^',
 	// The guide's matcher: a note's own `[^a]:` is no reference, and null leaves it to the editor.
-	match: /\[\^([^\]\s]+)\]:?/,
-	read: ([claim, label]) => (claim.endsWith(':') ? null : { label }),
+	match: (text, at, end) => {
+		let i = at + 2;
+		while (i < end && text[i] !== ']' && !/\s/.test(text[i])) i++;
+		if (i === at + 2 || i >= end || text[i] !== ']') return -1;
+		return text[i + 1] === ':' && i + 1 < end ? i + 2 : i + 1;
+	},
+	read: (claim) => (claim.endsWith(':') ? null : { label: claim.slice(2, claim.indexOf(']')) }),
 	sample: 'a note[^a] here',
 	widget: { delete: 'whole', arrows: 'over', click: 'none' },
 	depends: referencesIn,

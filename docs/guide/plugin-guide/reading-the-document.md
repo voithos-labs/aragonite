@@ -138,9 +138,15 @@ const ref = inline({
 	name: 'ref',
 	label: 'Footnote reference',
 	prefix: '[^',
-	match: /\[\^([^\]\s]+)\]:?/,
+	// Past the `]` that ends the label, and a `:` after it.
+	match: (text, at, end) => {
+		let i = at + 2;
+		while (i < end && text[i] !== ']' && !/\s/.test(text[i])) i++;
+		if (i === at + 2 || i >= end || text[i] !== ']') return -1;
+		return text[i + 1] === ':' && i + 1 < end ? i + 2 : i + 1;
+	},
 	// A note's own `[^a]:` is no reference: null leaves it to the editor.
-	read: ([claim, label]) => (claim.endsWith(':') ? null : { label }),
+	read: (claim) => (claim.endsWith(':') ? null : { label: claim.slice(2, claim.indexOf(']')) }),
 	sample: 'a note[^a] here',
 	widget: { delete: 'whole', arrows: 'over', click: 'none' },
 	depends: referencesIn,

@@ -26,7 +26,7 @@ import {
 	revealsOnClick,
 	type WidgetEditing
 } from '#lib/core/inline/inline-widgets.js';
-import { takeDevWarns } from '#lib/test/support/warn-gate.js';
+import { takeDevWarns, takeDevWarnsOf } from '#lib/test/support/warn-gate.js';
 import { expectBoundedGrowth, measureScanGrowth } from '../../harness/scan-growth';
 
 type Listing = readonly (readonly [plugin: string, inlines: readonly Inline<unknown>[]])[];
@@ -293,10 +293,17 @@ describe('inline(): an `as` claim writes through `write`', () => {
 		expect(cutOutsideWhole(node, 5, { grammar, resolver: undefined } as never)).toBe(4);
 	});
 
+	// Miss-analysis: the row checked the decline and never asked whether the author heard of it,
+	// and a link that silently reads as text is a bug report nobody can place.
 	it('a link whose text its claim spells twice is left to the editor until `at` says which', () => {
 		const { read } = editorReading([['wiki', [wikiLink()]]]);
 		expect(read('[[notebook|note]]').some((n) => n.syntaxClaim)).toBe(false);
+		expect(read('[[notebook|note]] [[scratchpad|pad]]').some((n) => n.syntaxClaim)).toBe(false);
 		expect(read('[[page|note]]')[0]).toMatchObject({ kind: 'link', url: 'page' });
+		const warned = takeDevWarnsOf('inline-link-text');
+		expect(warned.map((w) => w.message)).toEqual([
+			'inline \'wiki/link\': the link text "note" shows up twice in "[[notebook|note]]", so the claim reads as text; give its LinkPiece an `at`'
+		]);
 	});
 });
 

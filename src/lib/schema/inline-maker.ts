@@ -3,6 +3,7 @@ import type { ImageFields, InlineNode, PluginInlineKind } from '../core/nodes';
 import { isBuiltInTrigger } from '../core/inline/scan/plugin-syntax';
 import type { WidgetEditing } from '../core/inline/inline-widgets';
 import { checkLocalName } from './block-shapes';
+import { devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';
 import {
 	madeInline,
 	type FunctionMatcher,
@@ -102,13 +103,23 @@ export function inline<D>(spec: InlineSpec<D>): Inline<D> {
 		});
 	}
 	const { link, write } = spec;
+	let warned = false;
 	return madeInline<D>({
 		...making,
-		claim(raw, pos, end) {
+		claim(raw, pos, end, kind) {
 			const taken = take(raw, pos, end);
 			if (!taken) return null;
 			const piece = link(taken.data);
-			const at = textStart(raw.slice(pos, taken.end), prefix.length, piece);
+			const claim = raw.slice(pos, taken.end);
+			const at = textStart(claim, prefix.length, piece);
+			if (at === TWICE && devChecksOn && !warned) {
+				warned = true;
+				const { text } = piece;
+				devWarn(
+					'inline-link-text',
+					`inline '${kind}': the link text "${text}" shows up twice in "${claim}", so the claim reads as text; give its LinkPiece an \`at\``
+				);
+			}
 			if (at < 0) return null;
 			const rewriteLink =
 				write &&
@@ -156,14 +167,16 @@ function matcherOf<D>(spec: InlineSpec<D>): ClaimEnd {
 }
 
 // Where a link's text starts in its claim: at `at` where the piece says so, else its one run
-// after the prefix. -1 where the text isn't there, or is there twice with no `at` to say which.
+// after the prefix. -1 where the text isn't there, `TWICE` where it is twice with no `at`.
 function textStart(claim: string, prefix: number, piece: LinkPiece): number {
 	const { text, at } = piece;
 	if (text === '') return -1;
 	if (at !== undefined) return claim.startsWith(text, at) ? at : -1;
 	const first = claim.indexOf(text, prefix);
-	return first < 0 || claim.includes(text, first + 1) ? -1 : first;
+	return first < 0 ? -1 : claim.includes(text, first + 1) ? TWICE : first;
 }
+
+const TWICE = -2;
 
 function plainClaim<D>(
 	taken: { end: number; data: D } | null,

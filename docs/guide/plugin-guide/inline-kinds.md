@@ -18,7 +18,7 @@ Every `inline()` starts with three fields:
 - **`match`**: a regex, matched right at the prefix, or a function `(text, at, end)` that returns where the claim ends (-1 for none).
 - **`read`**: turns the match into the claim's data. Return `null` and the bytes go back to the editor, read as if your plugin weren't there.
 
-Keep a miss short: your matcher runs at every prefix in the paragraph. A sticky `\[\[[^\]]*\]\]` reads to the end of the block on every unclosed `[[`, which goes quadratic on a long paragraph; leave `[` out of the class and each miss stops at the next prefix. Where no regex stops early enough, use the function form, whose `read` gets the claim's bytes instead of a match.
+Keep a miss short: your matcher runs at every prefix in the paragraph. For anything bracketed, use the function form, as the recipes here do: it reads only as far as it must, and its `read` gets the claim's bytes. A regex matcher goes quadratic on a long line of unclosed prefixes.
 
 Three optional fields: `after` (constructs on the same character yours is tried after), `pair` (a one-character prefix writes its twin as it's typed, the way `$` does in the math plugin), and `split` (`'whole'` by default: Enter or a paste inside a claim moves to its nearer edge; `'plain'` cuts its bytes where the caret is).
 
@@ -33,8 +33,15 @@ const note = inline({
 	name: 'note',
 	label: 'Wiki link',
 	prefix: '[[',
-	match: /\[\[([^[\]\n]+)\]\]/,
-	read: ([, target]) => ({ target }),
+	// Past the first ]], with no bracket or line break before it.
+	match: (text, at, end) => {
+		for (let i = at + 2; i + 1 < end; i++) {
+			if (text.startsWith(']]', i)) return i > at + 2 ? i + 2 : -1;
+			if ('[]\n'.includes(text[i])) return -1;
+		}
+		return -1;
+	},
+	read: (claim) => ({ target: claim.slice(2, -2) }),
 	sample: '[[Groceries]]',
 	widget: { delete: 'select-first', arrows: 'into', click: 'follow' },
 	draw: svelteView(WikiLink),
@@ -51,7 +58,7 @@ export const wiki = definePlugin({
 
 `see [[Groceries]] later` now draws `Groceries` through your component. The arrows show its bytes for editing, and the click the host picked for links runs `follow`.
 
-One overlap the editor settles for you: where a built-in link or image closes inside your claim, the link wins. `[[a]](https://x.dev)` is a link whose text is `[a]`, as GitHub reads it, however eager your `[[` is. A claim that ends first keeps its bytes.
+One overlap the editor settles for you: where the bracket your claim starts on closes as a built-in link or image inside your claim, the link wins. `[[a]](https://x.dev)` is a link whose text is `[a]`, as GitHub reads it. A claim that ends first keeps its bytes, so a matcher that lets a `[` inside keeps `[[[[deep]]` of `[[[[deep]]]](https://x.dev)`. Only that first bracket counts: `[[ref]]` stays yours with a `[ref]` link defined.
 
 ## Rendering it as a widget
 
@@ -157,7 +164,7 @@ const embed = inline({
 });
 ```
 
-Return `null` for an edit your syntax can't hold (here a title, a height, or alt text that isn't the file name), and the editor refuses the edit instead of writing something you didn't author. Read every field the edit can set, or refuse it: a field you ignore writes the same bytes, and that edit just does nothing. With no `write`, every edit is refused. A link's `text` must be a run of your bytes: it's what the caret edits, while the rest hides in live mode. Where your syntax can spell it twice (`[[notebook|note]]`), return `at`, where the text starts in the claim; without it such a claim stays plain text.
+Return `null` for an edit your syntax can't hold (here a title, a height, or alt text that isn't the file name), and the editor refuses the edit instead of writing something you didn't author. Read every field the edit can set, or refuse it: a field you ignore writes the same bytes, and that edit just does nothing. With no `write`, every edit is refused. A link's `text` must be a run of your bytes: it's what the caret edits, while the rest hides in live mode. Give `at`, where the text starts in the claim, whenever the text can appear elsewhere in it (an alias: `[[notebook|note]]`). Without it such a claim stays plain text, and a dev build warns.
 
 ## A highlight: `mark()`
 
@@ -184,11 +191,19 @@ The `chord` is required, because where the runs hide it's the only way out of th
 ```ts
 import { markerPair } from '@voithos-labs/aragonite/plugin';
 
+// A side: its prefix, an id of letters, digits and hyphens, then }.
+const side = (text: string, at: number, end: number) => {
+	let i = at + 3;
+	while (i < end && /[\w-]/.test(text[i])) i++;
+	return i > at + 3 && i < end && text[i] === '}' ? i + 1 : -1;
+};
+const id = (claim: string) => ({ id: claim.slice(3, -1) });
+
 const anchor = markerPair({
 	name: 'anchor',
 	label: 'Comment anchor',
-	open: { prefix: '{>>', match: /\{>>([\w-]+)\}/, read: ([, id]) => ({ id }) },
-	close: { prefix: '{<<', match: /\{<<([\w-]+)\}/, read: ([, id]) => ({ id }) },
+	open: { prefix: '{>>', match: side, read: id },
+	close: { prefix: '{<<', match: side, read: id },
 	key: ({ id }) => id,
 	sample: 'a {>>c1}noted{<<c1} word'
 });
