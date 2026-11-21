@@ -87,7 +87,10 @@ export function makeRenderHarness(
 			editorFor: () => {
 				throw new Error('no plugin editor in a fixture');
 			},
-			byteAt: () => -1
+			byteAt: () => -1,
+			keys: () => {
+				throw new Error('no document read in a fixture');
+			}
 		},
 		reportRenderError: () => {},
 		brokenUrlCache: new Set<string>()

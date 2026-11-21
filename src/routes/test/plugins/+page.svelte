@@ -35,6 +35,7 @@
 	import { drawnPlugin } from './drawn/drawn-plugin';
 	import { outlinePlugin } from './outline/outline-plugin';
 	import { noteNumbersPlugin } from './note-numbers/note-numbers-plugin';
+	import { noteRefsPlugin } from './note-refs/note-refs-plugin';
 	import { draftWriterPlugin } from './draft-writer/draft-writer-plugin';
 	import '../../../../examples/showcase/tag-marks.css';
 	import type { PluginsProp } from '#lib';
@@ -105,6 +106,8 @@
 		outline: [outlinePlugin],
 		// Footnote numbers as a paint on `paintDepends`; its references paint only in this seed.
 		'note-numbers': [noteNumbersPlugin],
+		// Footnote references as inline widgets on `depends`; they draw only in this seed.
+		'note-refs': [noteRefsPlugin],
 		// A command that writes through `edit()`; the openers suite runs on this seed.
 		math: [draftWriterPlugin],
 		// `?seed=sim` puts long-lived decoration sources under the simulation's corruption
@@ -254,6 +257,8 @@
 			].join('\n\n') + '\n',
 		// References to number: `b` first, then `a`, then `b` again; the last paragraph says none.
 		'note-numbers': 'A first[^b] reference.\n\nA second[^a] and[^b] again.\n\nPlain paragraph.\n',
+		// The same references, drawn as widgets.
+		'note-refs': 'A first[^b] reference.\n\nA second[^a] and[^b] again.\n\nPlain paragraph.\n',
 		// A footnote definition whose body is one editable paragraph: the container's editing,
 		// Backspace and undo case.
 		footnotes: 'A note reference [^a] in prose.\n\n[^a]: The note body.\n',

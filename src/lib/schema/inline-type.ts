@@ -8,7 +8,7 @@ import type { AnyInlineKind, InlineNode, PluginInlineKind } from '../core/nodes'
 import type { InlineHandler } from '../core/inline/scan/plugin-syntax';
 import type { WidgetEntry } from '../core/inline/inline-widgets';
 import type { Mode } from '../presentation-mode';
-import type { InlineType } from './doc-view';
+import type { Block, InlineType } from './doc-view';
 import type { Contribution, Editor, InstalledPlugin, PluginError } from './plugin-unit';
 import { qualifiedName } from './plugin-name';
 import { claimCommand, type Command } from './plugin-command';
@@ -74,6 +74,9 @@ export type InlineArm<D> =
 				target: HTMLElement,
 				props: WidgetProps<D>
 			): { update?(props: WidgetProps<D>): void; destroy?(): void | Promise<void> };
+			/** What the drawing reads of a top-level block, from its content alone (the footnotes it
+			 *  references), handed back as `props.depends`; a changed answer draws the widget again. */
+			depends?(block: Block): string;
 			/** Runs on the click the host picked for links, with `click: 'follow'`. */
 			follow?(data: D, editor: Editor): void;
 			/** A key pressed while the widget is selected whole: true takes it. Write through
@@ -126,6 +129,9 @@ export interface WidgetProps<D> {
 	readonly mode: Mode;
 	readonly theme: string;
 	readonly editor: Editor;
+	/** What `depends` answered for each top-level block, in `editor.doc.blocks`' order, never changed
+	 *  after it's handed over; empty without `depends`. */
+	readonly depends: readonly string[];
 }
 
 export interface ImagePiece {

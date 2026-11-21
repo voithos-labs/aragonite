@@ -150,7 +150,8 @@ export function wireSurfaceContexts(): SurfaceWiring {
 
 	const ownWidgets = (node: () => NodeView, path: () => readonly number[]): OwnWidgetContext => ({
 		editorFor: doc.scopedEditor,
-		byteAt: (offset) => services.read.blockOf(node(), path()).byteAt(offset)
+		byteAt: (offset) => services.read.blockOf(node(), path()).byteAt(offset),
+		keys: (depends, report) => services.read.keys(depends, report)
 	});
 	return { deps, services, policies, doc, dispatchChord, resolveChord, ownWidgets };
 }

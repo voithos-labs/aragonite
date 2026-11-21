@@ -66,7 +66,8 @@ export function inline<D>(spec: InlineSpec<D>): Inline<D> {
 				own: {
 					draw: spec.draw as never,
 					follow: spec.follow as never,
-					key: spec.key as never
+					key: spec.key as never,
+					depends: spec.depends
 				}
 			}
 		});

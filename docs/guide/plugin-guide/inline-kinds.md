@@ -66,8 +66,9 @@ The props, `WidgetProps<D>`:
 | `from`, `to` | Its bytes in the document, read when you ask, so they're right after edits above it |
 | `mode`, `theme` | The presentation mode and the theme name; the drawing gets an update when either changes |
 | `editor` | The editor, for anything else, like `editor.edit()` |
+| `depends` | What your `depends(block)`, beside `draw`, answered for each top-level block; empty without one ([reading the document](reading-the-document.md)) |
 
-A drawing gets an update when its bytes, its place, the mode or the theme change. A changed `source` mounts a fresh one.
+A drawing gets an update when its bytes, its place, the mode, the theme or its `depends` answers change. A changed `source` mounts a fresh one.
 
 **Lay it out inline.** `inline-block` for a box. A block-level `display` leaves no line beside it, so a letter typed next to it lands on the line below. A box taller than the text (a card, a chart) sets `height: 'tall'`, and the editor draws the caret beside it at the text's height.
 

@@ -18,9 +18,11 @@ import {
 } from '../../core/inline/inline-widgets';
 import type { WidgetProps } from '../../schema/inline-type';
 import type { Editor } from '../../schema/plugin-unit';
+import type { Block, KeyWatch } from '../../schema/doc-view';
 import { mintWidgetShell, widgetSourceRange } from '../../core/inline/widget-shell';
 import type { ActivationClick, ClickInput } from '../../activation-click';
 import type { Reading } from '../../schema/reading';
+import { untrack } from 'svelte';
 import { modeOf } from '../../presentation-mode';
 import { tracePoolPass } from '../../debug/interaction-trace';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
@@ -209,6 +211,8 @@ export interface ViewWidgetPoolDeps {
 export interface OwnWidgetContext {
 	editorFor(plugin: string): Editor;
 	byteAt(offset: number): number;
+	/** The kept answers of a widget's `depends`, one watch per function in the editor. */
+	keys(depends: (block: Block) => string, report: (cause: unknown) => void): KeyWatch;
 }
 
 /** A view that throws is reported and its widget falls back to the raw span. */
@@ -275,6 +279,19 @@ export function createViewWidgetPool(deps: ViewWidgetPoolDeps): WidgetPool {
 		source: string
 	): ViewHandle | null {
 		const editor = deps.own.editorFor(own.plugin);
+		const { depends } = own;
+		const watch = depends ? untrack(() => deps.own.keys(depends, reportError)) : null;
+		// The answers' version the drawing last got.
+		let heard = 0;
+		// Read in the render pass, so every write runs it again for a widget with `depends`, and
+		// only for one; what the watch reads of the document stays out of the pass.
+		const listen = (held: KeyWatch) => (getContentVersion(), untrack(held.version));
+		const answersMoved = () => watch !== null && listen(watch) !== heard;
+		const answers = () => {
+			if (!watch) return NO_ANSWERS;
+			heard = listen(watch);
+			return untrack(watch.keys);
+		};
 		const propsAt = (at: InlineNode): WidgetProps<unknown> => ({
 			data: at.data,
 			source,
@@ -286,7 +303,8 @@ export function createViewWidgetPool(deps: ViewWidgetPoolDeps): WidgetPool {
 			},
 			mode: modeOf(reading.mode()),
 			theme: getTheme(),
-			editor
+			editor,
+			depends: answers()
 		});
 		let props = propsAt(inline);
 		const shell = mintWidgetShell(inline);
@@ -313,7 +331,8 @@ export function createViewWidgetPool(deps: ViewWidgetPoolDeps): WidgetPool {
 				props = propsAt(at);
 				return mounted.update(props);
 			},
-			stale: () => props.mode.name !== reading.mode() || props.theme !== getTheme()
+			stale: () =>
+				props.mode.name !== reading.mode() || props.theme !== getTheme() || answersMoved()
 		};
 	}
 }
@@ -324,6 +343,8 @@ export function keyOwnWidget(shell: HTMLElement, event: KeyboardEvent): boolean 
 	if (!held) return null;
 	return held.key?.(event, held.props()) ?? false;
 }
+
+const NO_ANSWERS: readonly string[] = Object.freeze([]);
 
 // The props each mounted `inline()` widget drew with, which its `key` gets too.
 const ownProps = new WeakMap<

@@ -18,6 +18,7 @@ import { inlineDescendants } from './walk';
 import type { PluginView } from '../../plugin-view';
 import type { WidgetProps } from '../../schema/inline-type';
 import type { Editor } from '../../schema/plugin-unit';
+import type { Block } from '../../schema/doc-view';
 
 /** The inline-widget element whose source starts at `start`, or null. The only place this
  *  selector is written: a mistyped copy would fail silently as a null `querySelector`. */
@@ -157,6 +158,7 @@ export interface WidgetEntry extends Omit<InlineWidgetDescriptor, 'view' | 'edit
 		draw: PluginView<WidgetProps<unknown>>;
 		follow?(data: unknown, editor: Editor): void;
 		key?(event: KeyboardEvent, props: WidgetProps<unknown>): boolean;
+		depends?(block: Block): string;
 		/** The plugin whose editor the drawing gets. */
 		plugin: string;
 	};
