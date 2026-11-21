@@ -82,15 +82,12 @@ describe('an overlay', () => {
 		expect([called.isConnected, plugin.isConnected]).toEqual([false, true]);
 		m.instance.use([]);
 		await m.settle();
-		const added = vi.spyOn(window, 'addEventListener');
 		m.instance.view.overlay(handle, m.instance.doc.blocks[1]);
 		expect([plugin.isConnected, handle.isConnected]).toEqual([false, true]);
-		const removed = vi.spyOn(window, 'removeEventListener');
+		// The unmount stops the watch the overlay started, with nothing left listening.
+		const stopped = vi.spyOn(MutationObserver.prototype, 'disconnect');
 		await m.destroy();
-		const [, listen] = added.mock.calls.find(([type]) => type === 'resize')!;
-		expect(removed.mock.calls.some(([type, gone]) => type === 'resize' && gone === listen)).toBe(
-			true
-		);
+		expect([handle.isConnected, stopped.mock.calls.length]).toEqual([false, 1]);
 	});
 
 	it('sits in the layer the editor reads as the host’s', async () => {
@@ -99,6 +96,24 @@ describe('an overlay', () => {
 		editor.view.overlay(el, editor.doc.blocks[0]);
 		expect(el.parentElement?.hasAttribute('data-host-content')).toBe(true);
 		expect(m.target.querySelector('.editor')!.contains(el)).toBe(true);
+	});
+
+	// Miss-analysis: every row pinned one overlay, and none counted how often a key placed it:
+	// each overlay heard the key and the render for itself, three passes a key apiece.
+	it('places every overlay in one pass a key, however many are pinned', async () => {
+		const { editor, m } = await mounted();
+		const pins = [1, 2].map((i) => {
+			const el = pinned();
+			editor.view.overlay(el, editor.doc.blocks[i]);
+			return el;
+		});
+		await m.settle();
+		const layer = pins[0].parentElement!;
+		const origin = vi.spyOn(layer, 'getBoundingClientRect');
+		typeInto(surfaceAt(m, [0]), 'introX');
+		await m.settle();
+		expect(origin.mock.calls.length).toBe(1);
+		expect(pins.map((el) => el.isConnected)).toEqual([true, true]);
 	});
 
 	it('watches nothing until one is attached', async () => {

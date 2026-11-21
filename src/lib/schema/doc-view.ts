@@ -345,7 +345,7 @@ const titled = (node: NodeView): number =>
 
 /** `blocks` and everything inside them, depth first, a title row (its container's child 0) right
  *  after its container. */
-export function* walkFrom(blocks: readonly Block[]): Generator<Block> {
+export function* walkFrom(blocks: Iterable<Block>): Generator<Block> {
 	for (const block of blocks) {
 		yield block;
 		// A leaf asks nothing: a document of small blocks walks at the cost of reading them.

@@ -218,10 +218,20 @@ export function createDocumentRead(deps: {
 		return node ? blockOf(node, leaf.path) : null;
 	}
 
+	// By index, off the document's own list: the lazy list pays a trap and a string for each read.
+	function* tops(): Generator<Block> {
+		for (let i = 0; ; i++) {
+			const { children } = deps.getDoc();
+			if (i >= children.length) return;
+			yield blockOf(children[i], [i]);
+		}
+	}
+
 	const versions: VersionReads = {
 		version: deps.version,
 		source: deps.source,
 		blocks: top,
+		tops,
 		blockAt,
 		textBefore: (head) => textBefore(head, deps.getDoc(), deps.version())
 	};
@@ -327,6 +337,8 @@ interface VersionReads {
 	version(): number;
 	source(): string;
 	blocks: readonly Block[];
+	/** Those blocks in order, for a walk. */
+	tops(): Iterable<Block>;
 	blockAt(at: number): Block | null;
 	/** The top-level strings before the writes chained from `head`; null where one couldn't say. */
 	textBefore(head: Undone): string[] | null;
@@ -447,7 +459,7 @@ class VersionDoc implements Doc {
 
 	walk(): IterableIterator<Block> {
 		warnStale(this, 'walk');
-		return walkFrom(this.#reads.blocks);
+		return walkFrom(this.#reads.tops());
 	}
 }
 

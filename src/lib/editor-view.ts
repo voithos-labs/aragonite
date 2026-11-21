@@ -26,10 +26,46 @@ export function createEditorView(deps: {
 	layer(): HTMLElement | null;
 	/** Where a click at a viewport point would land, placing nothing. */
 	caretTargetAt(root: HTMLElement, x: number, y: number): CaretTarget | null;
+	/** Tells `listen` when the blocks' own box changes size (a picture loads, the editor narrows),
+	 *  which moves blocks with no write and no node mounted; returns the way out. */
+	resized(listen: () => void): () => void;
 	events: Pick<EditorEvents, 'on'>;
 }): EditorView {
 	const { rects, read } = deps;
-	const overlays = new Set<() => void>();
+	const overlays = new Map<() => void, Measure>();
+	let unwatch: (() => void) | null = null;
+	let pending = false;
+
+	// Every box is read before any place is written, so a pass lays the page out once.
+	function placeAll(): void {
+		const layer = deps.layer();
+		if (!layer || overlays.size === 0) return;
+		const origin = layer.getBoundingClientRect();
+		const writes = [...overlays.values()].map((measure) => measure(origin));
+		for (const write of writes) write();
+	}
+
+	// A write lays the blocks out once it renders; a scroll moves the layer with them, unless it
+	// windows a block in or out, which the observer hears. One pass follows however many ask.
+	function settle(): void {
+		if (pending) return;
+		pending = true;
+		void tick().then(() => {
+			pending = false;
+			placeAll();
+		});
+	}
+
+	function watch(root: HTMLElement): () => void {
+		const unhear = [deps.events.on('edit', settle), deps.events.on('sourceSwap', settle)];
+		const mounts = new MutationObserver(settle);
+		mounts.observe(root, { childList: true, subtree: true });
+		unhear.push(deps.resized(settle));
+		return () => {
+			for (const stop of unhear) stop();
+			mounts.disconnect();
+		};
+	}
 
 	function overlay(el: HTMLElement, at: Block | number, gone?: () => void): () => void {
 		const block = typeof at === 'number' ? read.blockAt(at) : at;
@@ -41,38 +77,34 @@ export function createEditorView(deps: {
 			return () => {};
 		}
 
-		function place(): void {
-			const path = pathOfBlock(block!);
-			if (!path) return off();
+		const measure: Measure = (origin) => {
+			const path = pathOfBlock(block);
+			if (!path) return off;
 			const box =
 				(offset === null ? null : rects.rangeRects([...path], offset, offset + 1)[0]) ??
 				rects.blockRect([...path]);
-			el.style.visibility = box ? '' : 'hidden';
-			if (!box) return;
-			const origin = layer!.getBoundingClientRect();
-			el.style.left = `${box.left - origin.left}px`;
-			el.style.top = `${box.top - origin.top}px`;
-		}
-		// A write lays the blocks out once it renders; a scroll moves the layer with them, unless it
-		// windows a block in or out, which the observer hears.
-		const settle = () => void tick().then(place);
-		const unhear = [deps.events.on('edit', settle), deps.events.on('sourceSwap', settle)];
-		const mounts = new MutationObserver(settle);
-		mounts.observe(root, { childList: true, subtree: true });
-		window.addEventListener('resize', place);
+			return () => {
+				el.style.visibility = box ? '' : 'hidden';
+				if (!box) return;
+				el.style.left = `${box.left - origin.left}px`;
+				el.style.top = `${box.top - origin.top}px`;
+			};
+		};
 
 		function off(): void {
 			if (!overlays.delete(off)) return;
-			for (const stop of unhear) stop();
-			mounts.disconnect();
-			window.removeEventListener('resize', place);
+			if (overlays.size === 0) {
+				unwatch?.();
+				unwatch = null;
+			}
 			el.remove();
 			gone?.();
 		}
-		overlays.add(off);
+		overlays.set(off, measure);
+		unwatch ??= watch(root);
 		el.style.position = 'absolute';
 		layer.append(el);
-		place();
+		measure(layer.getBoundingClientRect())();
 		return off;
 	}
 
@@ -107,7 +139,12 @@ export function createEditorView(deps: {
 		view,
 		overlay,
 		dispose() {
-			for (const off of [...overlays]) off();
+			for (const off of [...overlays.keys()]) off();
 		}
 	};
 }
+
+// ── Internal ─────────────────────────────────────────────────────────────────
+
+/** Reads where one overlay goes, against the layer's box; the returned call writes it there. */
+type Measure = (origin: DOMRect) => () => void;
