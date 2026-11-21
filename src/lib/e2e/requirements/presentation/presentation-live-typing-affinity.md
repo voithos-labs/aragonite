@@ -57,6 +57,22 @@ byte position is the whole contract.
 - after a typed closer, a composition commits past the closing `**`, since the commit reads the
   same record a keystroke does
 
+## Over a selection across blocks
+
+The range runs from a construct's end, the anchor put there by End or by a click, to the start
+of the next block, by Shift+Down or a Shift+click. Each row also removes the same range with
+Delete and types the key at the caret, and the key over the range writes those bytes.
+
+- from a link's end: the key lands after the link, `a [link](u)Qapple`, and the next letter
+  follows it
+- from a bold's end: the key joins the bold, `a **boldQ**cherry`
+- from an autolink's end: the key writes what Delete and then the key write
+- an IME composition over each of those selections commits where the key's letter landed
+- in source mode the key lands where the selection started, every byte shown: `a [linkQapple`
+
+Miss-analysis: every scenario typed at a caret and the range rows started in plain text, so the
+range's one answer, which wrote the key at the raw offset with no block's edge rule, went unseen.
+
 ## User interactions
 
 - Real keyboard, real clicks and a real CDP composition only: the side is decided in the write

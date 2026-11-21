@@ -42,7 +42,8 @@ import {
 	pasteThroughCore,
 	placeKind,
 	type Clip,
-	type PlaceAnswer
+	type PlaceAnswer,
+	type SpendInsertion
 } from './range-paste';
 import { endsOf, placeOverRange, pointAtByte } from '../range-bytes';
 import type { RangeHost } from '../../range-edit/host';
@@ -188,8 +189,10 @@ async function replaceInStep(
 	const inCell = family === 'content' ? await replaceInCell(ctx, coverage, insertion) : null;
 	if (inCell !== null) return inCell;
 	if (overBlocks(coverage)) {
-		if (insertion.kind === 'text' && insertion.text)
-			return textOverRange(ctx, coverage, insertion.text);
+		if (insertion.kind === 'text' && insertion.text) {
+			const { text } = insertion;
+			return withLandingStep(ctx, coverage, (spend) => textOverRange(ctx, coverage, text, spend));
+		}
 		// A table held whole keeps its cells for the IME, emptied, the first one taking the text.
 		if (insertion.kind === 'composition' && !coverage.grid) return compositionPlace(ctx, coverage);
 	}
@@ -331,14 +334,33 @@ async function insertInEmptiedPlace(
 	return 'refused';
 }
 
+/** `write`, the core's text over the range, through the step of the block it lands in, held once: the
+ *  block the range starts in where it keeps its head, else the one it ends in where it keeps its tail. */
+async function withLandingStep(
+	ctx: CrossBlockMutationContext,
+	coverage: RangeCoverage,
+	write: (spend: SpendInsertion | null) => Promise<RangeReplaceOutcome>
+): Promise<RangeReplaceOutcome> {
+	const path = coverage.startEdge?.path ?? coverage.endEdge?.path;
+	const step = path ? (await ctx.caretLanding.mount(path))?.holdInsertion?.() : undefined;
+	let outcome: RangeReplaceOutcome = 'nothing';
+	try {
+		outcome = await write(step?.spend ?? null);
+	} finally {
+		step?.finish(outcome === 'written');
+	}
+	return outcome;
+}
+
 /** Text over a range across blocks or over a block it holds whole, as one answer of the core in one
  *  commit; a key's line an on-type completer takes then completes as the block's own write. */
 async function textOverRange(
 	ctx: CrossBlockMutationContext,
 	coverage: RangeCoverage,
-	text: string
+	text: string,
+	spend: SpendInsertion | null
 ): Promise<RangeReplaceOutcome> {
-	const over = overRangeAnswer(ctx, coverage, { text });
+	const over = overRangeAnswer(ctx, coverage, { text, spend });
 	if (!over || over.answer.source === over.read.source) return 'nothing';
 	const { answer, host } = over;
 	const { start, end } = coverage.range;
@@ -584,17 +606,22 @@ async function pasteOver(
 			commitGridClear(ctx, coverage, grid)
 		);
 		if (!cell) return 'nothing';
-		const wrote = await pasteInBlock(ctx, { path: cell.path, start: 0, end: 0 }, clip, undo);
+		// An emptied cell has no hidden edge for a block's step to move the text across.
+		const at = { path: cell.path, start: 0, end: 0 };
+		const wrote = await pasteInBlock(ctx, at, clip, undo, null);
 		if (!wrote) await cleared?.place();
 		return 'written';
 	}
 	if (pathsEqual(start.path, end.path) && coverage.wholeRoots.length === 0 && !grid) {
+		// Inside one block the join places the text (`live-mode.md` § 4.5).
 		const within = { path: start.path, start: start.offset, end: end.offset };
-		return (await pasteInBlock(ctx, within, clip, undo)) ? 'written' : 'refused';
+		return (await pasteInBlock(ctx, within, clip, undo, null)) ? 'written' : 'refused';
 	}
 	// Across blocks, or over one block held whole, the paste lands where text over the range goes.
 	const aim = { named: endsOf(coverage), place: () => placeOverRange(ctx.bytes, coverage) };
-	return (await pasteThroughCore(ctx, aim, clip, undo)) ? 'written' : 'refused';
+	return withLandingStep(ctx, coverage, async (spend) =>
+		(await pasteThroughCore(ctx, aim, clip, undo, spend)) ? 'written' : 'refused'
+	);
 }
 
 /** At the caret the removal left, never over stale block indices: a table's endpoint caret is a

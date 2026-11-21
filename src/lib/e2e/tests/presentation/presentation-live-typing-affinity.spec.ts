@@ -7,6 +7,7 @@ import {
 	clickWordSettled,
 	enterPresentationMode,
 	focusOffset,
+	focusPath,
 	nextRow,
 	stepTo
 } from './helpers';
@@ -304,4 +305,115 @@ test.describe('live mode: an IME commit takes the same caret position as a keyst
 			await ep.bridge.waitForSourceContains('Some **bold**かん text');
 		});
 	});
+});
+
+// A selection from a construct's end to the start of the block after it, written over. The key, an
+// IME's commit and Delete then the key all end in the write that moves text across a hidden edge.
+const RANGE_DOC = [
+	'a [link](u)',
+	'',
+	'apple',
+	'',
+	'a <https://x.example>',
+	'',
+	'berry',
+	'',
+	'a **bold**',
+	'',
+	'cherry'
+].join('\n');
+
+interface RangeHost {
+	name: string;
+	block: number;
+	/** The raw offset End, or a click, leaves the caret at on the host's line. */
+	end: number;
+	/** What `Q` typed over the range leaves of the host's line, where it is pinned. */
+	typed?: string;
+}
+
+const RANGE_HOSTS: RangeHost[] = [
+	{ name: 'a link', block: 0, end: 7, typed: 'a [link](u)Qapple' },
+	{ name: 'an autolink', block: 2, end: 20 },
+	{ name: 'a bold', block: 4, end: 8, typed: 'a **boldQ**cherry' }
+];
+
+/** A fresh copy of the document with the range drawn from `host`'s line end to the start of the
+ *  block after it: by End and Shift+Down, or by a click and a Shift+click. */
+async function rangeFrom(ep: EditorPage, page: Page, host: RangeHost, by: 'keys' | 'mouse') {
+	await nextRow(ep, RANGE_DOC);
+	const next = [host.block + 1];
+	if (by === 'keys') {
+		await clickBlockSettled(ep, host.block);
+		await page.keyboard.press(edgeKey('lineEnd'));
+		await stepTo(ep, page, 'ArrowLeft', host.end);
+		// Source mode's last line takes the first press to its end.
+		for (let i = 0; i < 3 && (await focusPath(ep)).join() !== next.join(); i++) {
+			await page.keyboard.press('Shift+ArrowDown');
+			await ep.waitForRenderFlush();
+		}
+	} else {
+		await ep.clickBlockAtPath([host.block], host.end);
+		await expect.poll(() => focusOffset(ep), { timeout: 5000 }).toBe(host.end);
+		await ep.shiftClickBlock(next, 0);
+	}
+	expect(await ep.bridge.getSelectionPaths()).toEqual({
+		anchor: { path: [host.block], offset: host.end },
+		focus: { path: next, offset: 0 }
+	});
+}
+
+/** The host's line once the range over it and the block after it is written over. */
+async function hostLine(ep: EditorPage, host: RangeHost): Promise<string> {
+	return (await ep.bridge.getSource()).split('\n\n')[host.block];
+}
+
+test.describe('live mode: text over a selection across blocks', () => {
+	for (const host of RANGE_HOSTS)
+		for (const by of ['keys', 'mouse'] as const) {
+			test(`from ${host.name}’s end, the anchor placed by ${by}`, async ({ page }) => {
+				const ep = await enterPresentationMode(page, 'live', RANGE_DOC);
+				const blocks = RANGE_DOC.split('\n\n').length;
+
+				await rangeFrom(ep, page, host, by);
+				await page.keyboard.press('Delete');
+				await ep.bridge.waitForBlockCount(blocks - 1);
+				await page.keyboard.type('Q');
+				await ep.bridge.waitForSourceContains('Q');
+				const deleted = await hostLine(ep, host);
+				if (host.typed) expect(deleted).toBe(host.typed);
+
+				await test.step('a key writes what Delete and then the key write', async () => {
+					await rangeFrom(ep, page, host, by);
+					await page.keyboard.type('Q');
+					await ep.bridge.waitForSourceContains('Q');
+					expect(await hostLine(ep, host)).toBe(deleted);
+
+					await page.keyboard.type('R');
+					await ep.bridge.waitForSourceContains('R');
+					expect(await hostLine(ep, host)).toBe(deleted.replace('Q', 'QR'));
+				});
+
+				await test.step('an IME commits where the key’s letter landed', async () => {
+					await rangeFrom(ep, page, host, by);
+					const ime = await attachIme(page);
+					await ime.compose('か');
+					await ime.commit('かん');
+					await ep.bridge.waitForSourceContains('かん');
+					expect(await hostLine(ep, host)).toBe(deleted.replace('Q', 'かん'));
+				});
+			});
+		}
+});
+
+test('source mode: text over a selection across blocks lands where it started', async ({
+	page
+}) => {
+	const ep = await enterPresentationMode(page, 'source', RANGE_DOC);
+	const [link] = RANGE_HOSTS;
+
+	await rangeFrom(ep, page, link, 'keys');
+	await page.keyboard.type('Q');
+	await ep.bridge.waitForSourceContains('Q');
+	expect(await hostLine(ep, link)).toBe('a [linkQapple');
 });

@@ -46,6 +46,8 @@ A handler that throws doesn't take the editor down: the gesture does nothing and
 
 Over a selection spanning blocks, a key bound to your command does nothing by default: your handler isn't called and the selection stays. Pass `{ overRange: 'afterRemoval' }` as a fourth argument and the key removes the selection first, the way Backspace would, then runs your command at the caret that's left, as the built-in Enter and Mod+1 do. The binding the editor reads is the one in the block the removal leaves the caret in, so your command runs when that block is one of yours.
 
+A chord some keymap binds to a line break (Enter, say) is read somewhere else: at the place text typed over the selection would land. Your command runs if that place is in your block, and nothing runs if the block there binds the chord to nothing. Over whole blocks after your block, that place is a new paragraph, so Enter opens a line there instead of running your command.
+
 Over a selection inside your block, your command runs at the caret with the selection still there, which is right for most commands (a toggle reads the selection, it doesn't want it gone). A command that breaks the line wants what Enter does: pass `overSelection: 'afterRemoval'` too, and the selected text goes first, then your handler runs at the caret it left, with `ctx.node` already holding the shorter text. The removal and whatever your handler writes before it returns undo as one step (a write after an `await` lands in a step of its own).
 
 ```ts
