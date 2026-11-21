@@ -114,8 +114,8 @@ const FROM_A_RULE: KeyedRow[] = [
 		after: {
 			Delete: '```\nq\n```\n\nafter\n',
 			Backspace: '```\nq\n```\n\nafter\n',
-			Enter: '```\n\nq\n```\n\nafter\n',
-			'Shift+Enter': '```\n\nq\n```\n\nafter\n'
+			Enter: 'q\n\n```\n```\n\nafter\n',
+			'Shift+Enter': '\\\nq\n\n```\n```\n\nafter\n'
 		}
 	},
 	{
@@ -126,8 +126,8 @@ const FROM_A_RULE: KeyedRow[] = [
 		elsewhere: [3],
 		after: {
 			Delete: '# top\n\n```\nq\n```\n\nafter\n',
-			Enter: '# top\n\n```\n\nq\n```\n\nafter\n',
-			'Shift+Enter': '# top\n\n```\n\nq\n```\n\nafter\n'
+			Enter: '# top\n\nq\n\n```\n```\n\nafter\n',
+			'Shift+Enter': '# top\n\n\\\nq\n\n```\n```\n\nafter\n'
 		}
 	},
 	{
@@ -138,8 +138,8 @@ const FROM_A_RULE: KeyedRow[] = [
 		elsewhere: [1],
 		after: {
 			Delete: ':::note\n```\nq\n```\n:::\n\nafter\n',
-			Enter: ':::note\n```\n\nq\n```\n:::\n\nafter\n',
-			'Shift+Enter': ':::note\n```\n\nq\n```\n:::\n\nafter\n'
+			Enter: ':::note\n\nq\n\n```\n```\n:::\n\nafter\n',
+			'Shift+Enter': ':::note\n\n\\\nq\n\n```\n```\n:::\n\nafter\n'
 		}
 	},
 	{
@@ -150,8 +150,8 @@ const FROM_A_RULE: KeyedRow[] = [
 		elsewhere: [4],
 		after: {
 			Delete: 'first\n\n```\nq\n```\n\nafter\n',
-			Enter: 'first\n\n```\n\nq\n```\n\nafter\n',
-			'Shift+Enter': 'first\n\n```\n\nq\n```\n\nafter\n'
+			Enter: 'first\n\nq\n\n```\n```\n\nafter\n',
+			'Shift+Enter': 'first\n\n\\\nq\n\n```\n```\n\nafter\n'
 		}
 	}
 ];

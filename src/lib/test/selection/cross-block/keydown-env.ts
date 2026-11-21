@@ -116,7 +116,8 @@ export function makeKeydownEnv(source: string | Document, opts: KeydownEnvOption
 			onCommandError
 		}),
 		activePlugins: everyInstalledPlugin,
-		bytes: freshBytes(() => harness.deps.doc)
+		bytes: freshBytes(() => harness.deps.doc),
+		kindCue: { afterTypedWrite: async () => {} }
 	} as unknown as CrossBlockDispatchContext;
 
 	return {

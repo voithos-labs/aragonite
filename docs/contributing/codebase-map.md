@@ -157,7 +157,7 @@ The blank line between two blocks isn't a node. It's stored on the lower block, 
 
 Hand calls are rare, and most give their reason at the call site:
 
-- `insertParagraph` in `src/lib/editor-actions/block-edit-core.ts`, which the gap caret and the trailing insert row use, calls `restoreSeparatorOnFill`. The fix-up can't infer that the block pushed off the first position now needs a separator.
+- `openParagraph` in `src/lib/tree-operations/opened-paragraph.ts`, the paragraph the gap caret, the trailing insert row and the range-edit core's empty place open, calls `restoreSeparatorOnFill`. The fix-up can't infer that the block pushed off the first position now needs a separator.
 - The list item moves in `src/lib/tree-operations/list/item-moves.ts` call `settleSublistSeparator`. A move can leave a sublist whose first marker line is empty, which can't interrupt the paragraph above (the pair reloads as a setext heading), and the new sublist sits below what the commit rebuilds.
 - `splitNode` in `src/lib/tree-operations/node-ops.ts` calls `mergeJoinsAt` on the join its second half makes. The commit loses sight of that join once a list item's split moves the second half into a new item.
 - The range-edit core asks `src/lib/tree-operations/fix-up/unfinished.ts` :: `waitTakesPair` through `src/lib/range-edit/host.ts` :: `parts`. It answers in bytes the commit installs with no fix-up, so a removal writes the blank line a started title above would otherwise read through.

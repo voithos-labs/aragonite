@@ -20,14 +20,7 @@ const HOSTS: Host[] = [
 		source: 'first\n***\n\npara\n',
 		select: async (e) => {
 			// A drag across the divider holds it whole; a Shift+click then carries the range on.
-			const rule = await e.page.locator('.thematic-break-block').boundingBox();
-			if (!rule) throw new Error('no box for the divider');
-			const y = rule.y + rule.height / 2;
-			await e.page.mouse.move(rule.x + 8, y);
-			await e.page.mouse.down();
-			await e.page.mouse.move(rule.x + rule.width - 8, y, { steps: 8 });
-			await e.page.mouse.up();
-			await e.waitForCrossBlock(true);
+			await e.holdBlockWhole('.thematic-break-block');
 			await e.shiftClickBlock([2], 2);
 		},
 		removed: 'first\n\nra\n',

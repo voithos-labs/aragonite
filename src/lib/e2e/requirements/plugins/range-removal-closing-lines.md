@@ -55,8 +55,8 @@ Miss-analysis: every Enter row pressed a key the block it ended in binds, and a 
 Shift+Enter, so its break reached the range as input and took Backspace's side onto the opening.
 
 - A table, a paragraph, then a tip with a title; select from the first cell into the title;
-  Shift+Enter, then type a letter: an empty line opens above the tip, as Enter's does, Shift+Enter
-  breaks it as any empty line, and the letter lands on the line under the break, never on the tip's
+  Shift+Enter, then type a letter: the break goes before what is left of the title, where the title
+  row binds no Shift+Enter, so nothing breaks and the letter joins the title text, never the tip's
   `:::tip`. In live and source mode.
 
 ## A composition over the range
@@ -68,7 +68,8 @@ where the text joined the next row's first cell.
 - A table in an open details, a paragraph, then a table after the details; select from the first
   cell to the end of the second table's first body row; compose a letter and commit it: the text
   lands where the same letter typed over the range does, in its own paragraph in the details, and
-  the row after stays as it was. In live and source mode, Chromium only, whose IME runs over CDP.
+  the row after stays as it was; under the summary row it keeps the blank line typing leaves, where
+  the key takes the tight line. In live and source mode, Chromium only, whose IME runs over CDP.
 
 Miss-analysis: the composition's undo was counted in jsdom, whose IME wrote partway through the
 replace, so a composition that opened a paragraph in a container read as two undo steps there, and

@@ -51,6 +51,10 @@ const PINNED: Record<string, Pin> = {
 		calls: { rebuildContainerRaw: 1, rebuildOwnedContainer: 1 },
 		why: 'rebuilds the copy Enter’s exit or lift wrote off to the side for a paste, which no commit holds'
 	},
+	'src/lib/tree-operations/opened-paragraph.ts': {
+		calls: { rebuildContainerRaw: 1 },
+		why: 'rebuilds the copy an empty paragraph was opened on for the range-edit core, which no commit holds'
+	},
 	'src/lib/editor-actions/search-replace.ts': {
 		calls: { rebuildContainerRaw: 1 },
 		why: 'rebuilds a scratch clone to read the replacement back before any commit'

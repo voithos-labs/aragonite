@@ -27,9 +27,9 @@ function trackLrdResolver(env: ReturnType<typeof makeEnv>): () => LinkReferenceR
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 describe('cross-block typed character: A2/A3 event symmetry', () => {
-	// The commit re-derives the leaf's kind, so it declares `updateContent`, not `input` — matching
-	// the single-block kind-changing branch, with the post-edit block's full text length as detail.
-	it.each(['X', 'ABC'])('emits op:delete then op:updateContent for a typed "%s"', async (typed) => {
+	// Text over a range is one answer of the core, so one commit declares `updateContent`, as the
+	// single-block kind-changing branch does, naming the block the text landed in and its length.
+	it.each(['X', 'ABC'])('emits one op:updateContent for a typed "%s"', async (typed) => {
 		const env = makeEnv('hello\n\nworld\n');
 		const editEvents: EditEvent[] = [];
 		env.events.on('edit', (e) => editEvents.push(e));
@@ -41,20 +41,55 @@ describe('cross-block typed character: A2/A3 event symmetry', () => {
 		const handled = await handlers.handleBeforeInput(makeBeforeInputEvent(typed));
 		expect(handled).toBe(true);
 
-		expect(editEvents.map((e) => e.op)).toEqual(['delete', 'updateContent']);
+		expect(editEvents.map((e) => e.op)).toEqual(['updateContent']);
 
-		const update = editEvents[1] as Extract<EditEvent, { op: 'updateContent' }>;
+		const update = editEvents[0] as Extract<EditEvent, { op: 'updateContent' }>;
+		expect(update.path).toEqual([0]);
 		// Both checks: the block-length contract, and the arithmetic that pins it; the first
 		// alone would pass against a survivor that is not what we think.
 		expect(update.detail.length).toBe((env.doc.children[0] as CstNode).raw.length);
 		expect(update.detail.length).toBe('world\n'.length + typed.length);
 	});
 
+	// The event's path resolves in the document before the write, so inside a container it names
+	// the top-level block the text landed in, the way every byte splice's event does.
+	it('names the top-level block over a range inside a quote', async () => {
+		const env = makeEnv('> hello\n>\n> world\n');
+		const editEvents: EditEvent[] = [];
+		env.events.on('edit', (e) => editEvents.push(e));
+		env.selectionState.enterCrossBlock({ path: [0, 0], offset: 0 }, { path: [0, 1], offset: 0 });
+
+		await makeHandlers(env, [0, 0]).handleBeforeInput(makeBeforeInputEvent('X'));
+
+		expect(editEvents.map((e) => [e.op, e.path])).toEqual([['updateContent', [0]]]);
+		const update = editEvents[0] as Extract<EditEvent, { op: 'updateContent' }>;
+		expect(update.detail.length).toBe((env.doc.children[0] as CstNode).raw.length);
+		expect((env.doc.children[0] as CstNode).raw).toBe('> Xworld\n');
+	});
+
+	// Miss-analysis: no row read the event a key over a block held whole emits, so inside a
+	// container its path moved from the block to the container unseen.
+	it.each([
+		['at the top level', 'lead\n\n---\n\ntail\n', [1]],
+		['inside a quote', '> lead\n>\n> ---\n>\n> tail\n', [0, 1]]
+	])('names the block a key replaces, held whole %s', async (_where, source, path) => {
+		const env = makeEnv(source);
+		const editEvents: EditEvent[] = [];
+		env.events.on('edit', (e) => editEvents.push(e));
+		const held = { path, wholeBlock: true } as const;
+		env.selectionState.enterCrossBlock(held, held);
+
+		await makeHandlers(env, path).handleBeforeInput(makeBeforeInputEvent('X'));
+
+		expect(editEvents.map((e) => [e.op, e.path, e.detail])).toEqual([
+			['replaceBlock', path, { source: 'cross-block-covered-block' }]
+		]);
+	});
+
 	it('typed character lands in the merged target raw', async () => {
 		const env = makeEnv('hello\n\nworld\n');
 
-		// Selecting only the paragraph break, [0] offset 5 to [1] offset 0: typing should still produce
-		// delete+input and leave a single merged block.
+		// Only the paragraph break is selected, [0] offset 5 to [1] offset 0: the text joins the two.
 		env.selectionState.enterCrossBlock({ path: [0], offset: 5 }, { path: [1], offset: 0 });
 
 		const handlers = makeHandlers(env, [0]);
@@ -110,6 +145,18 @@ describe('cross-block typed character: kind re-derivation at offset 0', () => {
 		const survivor = env.doc.children[0] as CstNode;
 		expect(survivor.kind).toBe('heading');
 		expect(survivor.raw.replace(/\s+$/, '')).toBe('#');
+	});
+
+	// Miss-analysis: every marker row sat at the top level, where a paste of `>` reads as a quote too;
+	// inside a quote that paste lands as an empty quote and the typed `>` went with it.
+	it('a `>` typed at a quote survivor’s text start nests a quote, never vanishes', async () => {
+		const env = makeEnv('> hello\n\nworld\n');
+		env.selectionState.enterCrossBlock({ path: [0, 0], offset: 0 }, { path: [1], offset: 2 });
+
+		await makeHandlers(env, [0, 0]).handleBeforeInput(makeBeforeInputEvent('>'));
+
+		expect(serialize(env.deps.doc)).toBe('> >rld\n');
+		expect((env.doc.children[0] as CstNode).children?.[0]?.kind).toBe('blockquote');
 	});
 
 	it('a non-marker character keeps the kind: the fast path stays in place', async () => {

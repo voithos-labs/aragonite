@@ -64,7 +64,7 @@ const GRID_CLEARED = '|  |  | c |\n| --- | --- | --- |\n|  |  | 3 |\n| 4 | 5 | 6
 const TABLE_CLEARED = 'lead\n\n|  |  |\n| --- | --- |\n|  |  |\n\ntail\n';
 
 // Backspace, cut and command keys remove a whole table, row or column; typing and paste replace a
-// table and clear a row's cells; a composition only clears.
+// table and clear a row's cells; a composition clears cells, elsewhere waiting where a key's text goes.
 const OUTCOMES: Record<string, Record<Removal, Outcome>> = {
 	'plain prose': {
 		Backspace: ['alma\n', [[0], 2]],
@@ -79,9 +79,10 @@ const OUTCOMES: Record<string, Record<Removal, Outcome>> = {
 		cut: [GONE, [[1], 0]],
 		type: ['lead\n\nx\n\ntail\n', [[1], 1]],
 		paste: ['lead\n\nP\n\ntail\n', [[1], 1]],
-		// A composition removes as Delete does, so the caret lands after what went.
-		compose: [GONE, [[1], 0]],
-		Enter: [GONE, [[0], 4]]
+		// A composition's and Enter's place is the line a typed key's text takes: an empty paragraph
+		// where the rule was.
+		compose: ['lead\n\n\ntail\n', [[1], 0]],
+		Enter: ['lead\n\n\ntail\n', [[1], 0]]
 	},
 	'a whole table': {
 		Backspace: [GONE, [[0], 4]],
@@ -89,7 +90,7 @@ const OUTCOMES: Record<string, Record<Removal, Outcome>> = {
 		type: ['lead\n\nx\n\ntail\n', [[1], 1]],
 		paste: ['lead\n\nP\n\ntail\n', [[1], 1]],
 		compose: [TABLE_CLEARED, [[1, 0, 0], 0]],
-		Enter: [GONE, [[0], 4]]
+		Enter: ['lead\n\n\ntail\n', [[1], 0]]
 	},
 	'a whole row': {
 		Backspace: [ROW_GONE, [[0, 1, 0], 0]],
@@ -201,4 +202,29 @@ describe('a gesture whose insertion writes nothing lands at the removal’s care
 		expect(serialize(env.doc)).toBe('alma\n');
 		expect(landedAt(env)).toEqual([[[0], 2]]);
 	});
+});
+
+// Miss-analysis: every row over a block held whole held a rule or a table, so none set a heading's
+// or a code block's text beside the paragraph flush under it, where the key joined that paragraph.
+describe('text over a heading or a code block the editor holds whole', () => {
+	const HELD: [name: string, source: string][] = [
+		['a heading flush over a paragraph', '# head\nlast\n'],
+		['a code block flush over a paragraph', '```\ncode\n```\nlast\n']
+	];
+	for (const [name, source] of HELD) {
+		const shape = { source, anchor: whole([0]), focus: whole([0]) };
+		for (const gesture of ['type', 'paste'] as const)
+			it(`${name}: ${gesture} takes its line, a blank line over the paragraph`, async () => {
+				const env = await perform(gesture, shape, 'x');
+
+				expect(serialize(env.doc)).toBe('x\n\nlast\n');
+				expect(landedAt(env)).toEqual([[[0], 1]]);
+			});
+		it(`${name}: a composition waits in an empty paragraph where it was`, async () => {
+			const env = await perform('compose', shape);
+
+			expect(serialize(env.doc)).toBe('\nlast\n');
+			expect(landedAt(env)).toEqual([[[0], 0]]);
+		});
+	}
 });

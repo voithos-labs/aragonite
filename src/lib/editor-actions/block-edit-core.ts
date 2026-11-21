@@ -13,7 +13,6 @@ import {
 	ownTrailingLineEnding,
 	withLineEnding
 } from '../core/lines';
-import { takeBareLastLine } from '../schema/child-spans';
 import type { BodyParent } from '../tree-operations/node-primitives';
 import type { OpDescriptor } from '../schema/operations';
 import { normalizeReplacementForBody } from '../tree-operations/paste/body-write';
@@ -25,9 +24,7 @@ import {
 	type MergeResult,
 	mergeIntoPrevDeepLeaf,
 	normalizeReplacementTrivia,
-	restoreSeparatorOnFill,
 	emptyParagraph,
-	paragraphNode,
 	landAtTaskStart,
 	writeKeepingTaskMarker
 } from '../tree-operations';
@@ -38,6 +35,7 @@ import {
 	type StructuralChange
 } from '../tree-operations/structural-change';
 import { spliceMany } from '../tree-operations/splice-many';
+import { openParagraph } from '../tree-operations/opened-paragraph';
 import type { TrackedPosition } from '../tree-operations/fix-up/apply';
 import type { TaskStartLanding } from '../tree-operations/list/reconcile-task';
 import { isMergeEligible, isBlockEditable } from '../schema/merge-rules';
@@ -101,14 +99,6 @@ async function handleIneligibleNeighbor(
 		snapshot: { index: i, offset: dir < 0 ? 0 : CURSOR_END },
 		op: { kind: 'delete' }
 	});
-}
-
-/** The blank text past a body's last block: the document's own, or its container's. */
-const trailingText = (body: BodyParent): string => body.suffix ?? body.owner?.innerSuffix ?? '';
-
-function setTrailingText(body: BodyParent, text: string): void {
-	if (body.suffix !== undefined) body.suffix = text;
-	else if (body.owner) body.owner.innerSuffix = text;
 }
 
 // ── The keystroke ────────────────────────────────────────────────────────────
@@ -379,31 +369,7 @@ export function createBlockEditCore(scope: CommitScope): BlockEditCore {
 				snapshot: { index: i, offset: 0 },
 				eventTarget: i,
 				op: { kind: 'insertBlock' },
-				mutate: (view) => {
-					const { body } = view;
-					const lineEnding = body.lineEnding;
-					// A container's own blank last line stays where it alone parts it from the block after it.
-					const atEnd = i > 0 && i === body.children.length && scope.partedBelow();
-					// Past the last block, the body's trailing blank line is the separator, or it would
-					// stay under the new one as an empty paragraph or a blank container line.
-					const trailing = atEnd ? /^[ \t]*\r?\n/.exec(trailingText(body)) : null;
-					if (trailing) setTrailingText(body, trailingText(body).slice(trailing[0].length));
-					if (atEnd && !trailing && body.owner) takeBareLastLine(body.owner, body.children.at(-1));
-					// Only a list's first block has no separator; anywhere else the new paragraph needs
-					// a blank line after its predecessor, whatever the displaced sibling carried.
-					const trivia = trailing
-						? trailing[0]
-						: i > 0
-							? lineEnding
-							: (body.children[0]?.leadingTrivia ?? '');
-					view.body.children.splice(i, 0, paragraphNode(trivia, text, lineEnding));
-					const change: StructuralChange = { op: 'insert', at: i, count: 1 };
-					stampStructuralChange(view.body.children, change, view.sharing);
-					// The commit's blank-line fix-up cannot infer that the displaced sibling, pushed off
-					// the first position, needs a separator.
-					restoreSeparatorOnFill(view.body, i + 1, view.sharing);
-					return change;
-				},
+				mutate: (view) => openParagraph(view.body, i, text, view.sharing, scope.partedBelow()),
 				landing: () => scope.at(i, [], displayLength(text))
 			});
 		},

@@ -30,6 +30,10 @@ import {
 } from '#lib/test/harness/clipboard-events.js';
 import { deleteBy, pressHardwareKey } from '#lib/test/harness/insertion-routes.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
+import { makeEditorActionsDeps } from '#lib/test/harness/editor-actions.js';
+import { createUndoController } from '#lib/editor-actions/commit/undo-controller.js';
+import { createPasteCoordinator } from '#lib/editor-actions/paste-coordinator.js';
+import { readAsOpened } from '#lib/schema/opened-reading.js';
 import { mermaidPlugin } from '#packages/mermaid/src/index.js';
 import { SYNTAX_PLUGINS } from '../../behavior/corpus';
 import { NAMED_ROWS, rangeOf, unmark } from '../../range-edit/named-rows';
@@ -410,7 +414,9 @@ async function twinAnswers(
 			? gesture
 			: 'paste' in gesture
 				? { ...gesture, paste: twin(gesture.paste) }
-				: { ...gesture, drop: moved(source, gesture.drop) };
+				: 'text' in gesture
+					? { text: twin(gesture.text) }
+					: { ...gesture, drop: moved(source, gesture.drop) };
 	const box = editRange(
 		twin(source),
 		{ from: moved(source, range.from), to: moved(source, range.to) },
@@ -524,6 +530,15 @@ const TWIN_ROWS: [name: string, marked: string, gesture: Gesture, depths?: numbe
 		pasting('> x\n>\n>     co\n> ')
 	],
 	['a box’s list pasted at an item’s empty row', '> - a\n>\n>   ⟦⟧\n', pasting('> - l')],
+	// Miss-analysis: no twin row typed text over a range or pasted a list into an empty line over a
+	// nested block, so the marker reads those make were held by quote rows alone.
+	[
+		'a typed `>` over a box’s text, between blank lines',
+		'> x\n>\n> ⟦a\n>\n> b⟧\n>\n> c\n',
+		{ text: '>' }
+	],
+	['a typed `>` over a rule flush above a box', '⟦***\n\n⟧> one\n', { text: '>' }],
+	['a list pasted into a box’s empty line over a box in it', '> ⟦⟧\n> > b\n', pasting('1. one')],
 	[
 		'a copy dropped at an item’s end, a blank line over its list',
 		'> one⟦\n>\n> - ⟧two\n> - three\n>\n> four\n',
@@ -532,7 +547,13 @@ const TWIN_ROWS: [name: string, marked: string, gesture: Gesture, depths?: numbe
 ];
 
 const clipOf = (gesture: Gesture) =>
-	typeof gesture === 'string' || !('paste' in gesture) ? '' : gesture.paste;
+	typeof gesture === 'string'
+		? ''
+		: 'paste' in gesture
+			? gesture.paste
+			: 'text' in gesture
+				? gesture.text
+				: '';
 
 describe.each([
 	['the box’s marker', '%>', false],
@@ -636,5 +657,29 @@ describe('a box that interrupts no paragraph stays a box under the block an edit
 		const out = editRange(source, rangeOf(marked), gesture, 'source', host).source;
 		const kinds = (text: string) => outline(parse(text, { grammar }).children as CstNode[]);
 		expect(kinds(out), out).toBe(kinds(source).replace(' thematicBreak', left));
+	});
+});
+
+// Miss-analysis: the parity rows for the core's empty paragraph held built-in and `:::` containers,
+// none under a marker of its own, so nothing set the core's spelling beside the editor's in a box.
+describe('the core opens the paragraph the caret between blocks opens, in a box', () => {
+	it.each([
+		['marked', 'para\n\n%> first\n%>\n%> ***\n%>\n%> last\n\nafter\n', 'boxes/box'],
+		['indented', 'para\n\n@a: first\n\n    ***\n\n    last\n\nafter\n', 'boxes/note']
+	])('%s', async (_name, source, kind) => {
+		const grammar = (await mounted('x\n')).instance.__test.getGrammar();
+		const reading = fixtureReading({ grammar });
+		const read = () => readAsOpened(source, { grammar, scope: 'document' });
+		const doc = read();
+		expect(doc.children[1].kind).toBe(kind);
+		for (let index = 0; index <= doc.children[1].children!.length; index++) {
+			const core = rangeHost(reading).openedAt(doc, [1], index);
+			const harness = makeEditorActionsDeps(read(), { reading });
+			const coordinator = createPasteCoordinator(harness.deps, createUndoController(harness.deps));
+			const opened = await coordinator.insertParagraph([1, index], '');
+			expect(core?.source ?? null, `slot ${index}`).toBe(
+				opened ? serialize(harness.deps.doc) : null
+			);
+		}
 	});
 });

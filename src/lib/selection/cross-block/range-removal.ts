@@ -11,16 +11,16 @@ import { isBlankText } from '../../core/lines';
 import { hidesDelimitersAtCaret } from '../../presentation-mode';
 import {
 	besideEdge,
-	pasteRemovalOf,
 	removalOf,
 	textInCell,
 	wholeBlocksRemovalOf,
 	type RemovalAnswer,
 	type RemovalGesture
 } from '../../range-edit/edit-range';
+import { readsAsText } from '../../range-edit/document';
 import { rangeHost } from '../../range-edit/host';
 import type { CommandDispatchContext } from '../../schema/block-commands';
-import { LINE_BREAK_COMMAND_IDS, resolveBinding } from '../../schema/commands';
+import { LINE_BREAK_COMMAND_IDS, chordsBoundTo, resolveBinding } from '../../schema/commands';
 import { changesBetween } from '../../tree-operations/byte-changes';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import type { Measured } from '../../tree-operations/top-level-starts';
@@ -33,7 +33,6 @@ import {
 	heldGapOf,
 	pointAtByte,
 	rangeRead,
-	readsAsText,
 	removalBytes,
 	takenGapOf,
 	wholeBlockBytes,
@@ -78,33 +77,30 @@ export const CORE_GESTURE: Record<BlockGesture, RemovalGesture> = {
 
 type Keymap = Pick<CommandDispatchContext, 'keybindingOverrides' | 'activation'>;
 
-/** How the core names a command key's removal, by what its chord runs in `kind`, where it was
- *  claimed: a line break, else Backspace's side. A break input that runs nothing is a break. */
-export function commandGesture(
+/** Whether some keymap binds `chord` to a line break, which over a range runs at the core's place
+ *  for text instead of where the removal leaves the caret. */
+export function bindsLineBreak(chord: string, commands: Keymap): boolean {
+	return chordsBoundTo(LINE_BREAK_COMMAND_IDS, commands).has(chord);
+}
+
+/** Whether a key, or a break that came as input, runs as a line break in a block of `kind`: by what
+ *  its chord is bound to there, and a break input bound to nothing still counts as one. */
+export function breaksIn(
 	kind: AnyBlockKind,
 	insertion: { kind: 'command' | 'break'; chord: string },
 	commands: Keymap
-): RemovalGesture {
-	const command = boundCommand(kind, insertion.chord, commands);
-	if (command === undefined) return insertion.kind === 'break' ? 'break' : 'command';
-	return LINE_BREAK_COMMAND_IDS.has(command) ? 'break' : 'command';
-}
-
-/** Whether `chord` runs a line break in a block of `kind`. */
-export function breaksLine(kind: AnyBlockKind, chord: string, commands: Keymap): boolean {
-	const command = boundCommand(kind, chord, commands);
-	return command !== undefined && LINE_BREAK_COMMAND_IDS.has(command);
+): boolean {
+	const command = boundIn(kind, insertion.chord, commands);
+	return command === undefined ? insertion.kind === 'break' : LINE_BREAK_COMMAND_IDS.has(command);
 }
 
 /** Whether `chord` runs Enter's split in a paragraph, which an empty paragraph opened for it is. */
 export function splitsParagraph(chord: string, commands: Keymap): boolean {
-	return boundCommand('paragraph', chord, commands) === 'block.split';
+	return boundIn('paragraph', chord, commands) === 'block.split';
 }
 
-function boundCommand(kind: AnyBlockKind, chord: string, commands: Keymap) {
-	const overrides = commands.keybindingOverrides();
-	return resolveBinding(chord, kind, overrides, commands.activation)?.command;
-}
+const boundIn = (kind: AnyBlockKind, chord: string, commands: Keymap) =>
+	resolveBinding(chord, kind, commands.keybindingOverrides(), commands.activation)?.command;
 
 /** Removes what `coverage` holds as `gesture` does, in one commit. */
 export async function removeThroughCore(
@@ -130,33 +126,13 @@ export function removalAnswer(
 	coverage: RangeCoverage,
 	gesture: RemovalGesture
 ): RemovalRead | null {
-	return answeredOn(ctx, coverage, (read, host) =>
-		removalOf(read.source, read.range, gesture, modeOf(ctx), host)
-	);
-}
-
-/** The core's answer for the removal a paste of `text` over what `coverage` holds makes first. */
-export function pasteRemovalAnswer(
-	ctx: RemovalContext,
-	coverage: RangeCoverage,
-	text: string
-): RemovalRead | null {
-	return answeredOn(ctx, coverage, (read, host) =>
-		pasteRemovalOf(read.source, read.range, text, modeOf(ctx), host)
-	);
-}
-
-function answeredOn(
-	ctx: RemovalContext,
-	coverage: RangeCoverage,
-	answer: (read: RangeRead, host: ReturnType<typeof rangeHost>) => RemovalAnswer
-): RemovalRead | null {
 	const tree = ctx.bytes.doc();
 	const read = rangeRead(ctx.bytes, endsOf(coverage), (layout) =>
 		removalBytes(tree, coverage, layout)
 	);
 	if (!read) return null;
-	return { read, answer: answer(read, rangeHost(ctx.reading, read)) };
+	const host = rangeHost(ctx.reading, read);
+	return { read, answer: removalOf(read.source, read.range, gesture, modeOf(ctx), host) };
 }
 
 /** `removal`, of what `coverage` holds as `gesture` does, in one commit. */
@@ -181,9 +157,8 @@ export async function commitRemoval(
 	return removedIn(ctx.bytes, answer, true);
 }
 
-/** What `answer` left, read on `bytes`, the document holding its bytes: committed, or answered
- *  ahead of its commit. */
-export function removedIn(bytes: DocumentBytes, answer: RemovalAnswer, wrote: boolean): Removed {
+/** What `answer` left, read on `bytes`, the document holding its bytes. */
+function removedIn(bytes: DocumentBytes, answer: RemovalAnswer, wrote: boolean): Removed {
 	const caret = pointAtByte(bytes.measured(), answer.caret.at);
 	return { wrote, caret, landed: answer.caret, taken: wrote ? (answer.taken ?? null) : null };
 }

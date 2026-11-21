@@ -18,7 +18,7 @@ const TEXT_READERS: Record<string, string> = {
 	'src/lib/selection/cross-block/range-removal.ts':
 		'the changes it makes from that read land through the byte splice',
 	'src/lib/selection/cross-block/range-paste.ts':
-		'a paste lands only on the text it was answered on, its leaf write once the leaf’s block is vouched',
+		'a paste, or a place a key’s claim asked for, lands only on the text it was answered on, its leaf write once the leaf’s block is vouched',
 	'src/lib/editor-actions/commit/byte-splice.ts':
 		'the byte splice vouches the blocks its reading took before it installs them',
 	'src/lib/editor-actions/commit/history.ts':

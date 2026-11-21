@@ -13,9 +13,9 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 		await editor.goto();
 	});
 
-	// A selection starting in a table must reach the cell's `runCommand`, not the `TableBlock`
-	// wrapper: the target is resolved from the caret the delete leaves, a deep cell path.
-	test('Enter with a table-start cross-block selection reaches the cell, not the wrapper', async ({
+	// A line break over a selection starting in a table goes where text over it would, as one
+	// answer of the range-edit core: no row of the table takes it, and the wrapper drops nothing.
+	test('Enter with a table-start cross-block selection lands where text would', async ({
 		page
 	}) => {
 		await editor.loadContent(
@@ -43,16 +43,10 @@ test.describe('cross-block destructive-key dispatch (A1)', () => {
 
 		await page.keyboard.press('Enter');
 		await editor.waitForCrossBlock(false);
-		// The inserted empty body row is the observable proof the command reached the cell: a
-		// command dropped at the table wrapper leaves only the header row.
-		await editor.bridge.waitForSourceContains('| --- | --- | --- |\n|  |  |  |');
-
-		// The caret lands in the new cell: the next keystroke writes into the grid,
-		// and the table stays well-formed.
 		await editor.typeText('Z');
-		await editor.bridge.waitForSourceContains('| Z |');
-		const source = await editor.bridge.getSource();
-		expect(source).toContain('| h1 | h2 | h3 |');
+		// The letter stands in the empty paragraph under the header row the removal kept.
+		await editor.bridge.waitForSourceContains('| h1 | h2 | h3 |\n| --- | --- | --- |\n\nZ');
+		expect(await editor.parseConverged()).toBe(true);
 	});
 });
 

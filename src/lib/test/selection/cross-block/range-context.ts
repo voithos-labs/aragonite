@@ -33,7 +33,8 @@ export function rangeContext(
 		pasteCoordinator: createPasteCoordinator(deps, controller),
 		activePlugins: everyInstalledPlugin,
 		commands: commandContext({ ownsRange: () => deps.selectionState.ownsRange }),
-		bytes: freshBytes(() => deps.doc)
+		bytes: freshBytes(() => deps.doc),
+		kindCue: { afterTypedWrite: async () => {} }
 	};
 }
 
