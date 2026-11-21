@@ -18,6 +18,7 @@ import {
 	type RemovalAnswer,
 	type RemovalGesture
 } from '../../range-edit/edit-range';
+import { readsAsText } from '../../range-edit/document';
 import { rangeHost } from '../../range-edit/host';
 import type { CommandDispatchContext } from '../../schema/block-commands';
 import { LINE_BREAK_COMMAND_IDS, resolveBinding } from '../../schema/commands';
@@ -33,7 +34,6 @@ import {
 	heldGapOf,
 	pointAtByte,
 	rangeRead,
-	readsAsText,
 	removalBytes,
 	takenGapOf,
 	wholeBlockBytes,

@@ -15,7 +15,7 @@ import { emitCommitError } from '../editor-events';
 import type { EditorActionsDeps, UndoController } from './deps';
 import { placeBeside, removeWholeBlock } from '../selection/cross-block/range-removal';
 import { keyLandingAt } from '../selection/range-bytes';
-import { blockNodeAt } from '../tree-operations/node-primitives';
+import { partedBelow } from '../tree-operations/opened-paragraph';
 
 /** Where a key that joins nothing lands beside the block at `path` (`ContainerEditActions.beside`). */
 export function landingBeside(
@@ -38,17 +38,7 @@ export function createContainerEditActions(
 ): ContainerEditActions {
 	return {
 		lineEnding: () => documentLineEnding(deps.doc),
-		partedBelow(path) {
-			// The first block after the container, at whatever depth one stands, is what reads on.
-			for (let depth = path.length; depth > 0; depth--) {
-				const above = path.slice(0, depth - 1);
-				const siblings =
-					above.length === 0 ? deps.doc.children : blockNodeAt(deps.doc, above)?.children;
-				const next = siblings?.[path[depth - 1] + 1];
-				if (next) return /^[ \t]*\r?\n/.test(next.leadingTrivia ?? '');
-			}
-			return true;
-		},
+		partedBelow: (path) => partedBelow(deps.doc, path),
 		commitContainer: (args) => controller.commitContainerStructural(args),
 		typingKeystroke: (leafPath, preEditOffset, batchKey, history, work) =>
 			controller.typingKeystroke(leafPath, preEditOffset, batchKey, history, work),

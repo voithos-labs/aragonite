@@ -46,7 +46,7 @@ const HAND_SETTLE_CALLERS: Record<string, string> = {
 	'src/lib/tree-operations/list/sublist-separator.ts': 'defines the empty-marker sublist door',
 	'src/lib/tree-operations/chain-rebuild.ts':
 		'the chain rebuild is where a list rebuilt down to an empty marker becomes visible',
-	'src/lib/editor-actions/block-edit-core.ts':
+	'src/lib/tree-operations/opened-paragraph.ts':
 		'the gap-caret paragraph is a block of its own on both sides, which a splice window cannot say: the displaced follower’s line is the join rule’s placed row',
 	'src/lib/tree-operations/list/item-moves.ts':
 		'the nesting move settles the sublist it creates, and a lift the blocks it carries in'

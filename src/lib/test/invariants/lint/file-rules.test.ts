@@ -2477,7 +2477,9 @@ const TYPED_WRITE_ASKS: ManifestRule[] = [
 		matches: /\.(?:afterTypedWrite|completeLineOnType)\s*\(/,
 		declared: {
 			'src/lib/components/blocks/editable/surface-write.ts':
-				'`writeText`, which asks both for a `typed` write and for no other'
+				'`writeText`, which asks both for a `typed` write and for no other',
+			'src/lib/selection/cross-block/range-replace.ts':
+				'`textOverRange`, the one write a key’s text over a range across blocks makes, where no block’s surface write runs; it asks the kind cue for that text alone'
 		},
 		reason:
 			'a surface route that asks the kind cue or the on-type completer itself gets them for a command, a paste or a repair too, or misses them for a key: write through `writeText` with the typed intent',

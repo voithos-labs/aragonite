@@ -47,6 +47,9 @@ export interface Layout {
 	byteOf(path: readonly number[], offset: number): number | null;
 	/** The text position at `byte`, or null where the byte belongs to no text (a marker, a closer). */
 	pointAt(byte: number): { path: number[]; offset: number } | null;
+	/** The leaf the byte map reads `byte` in, a marker's or a closing line's byte too, as the editor's
+	 *  caret placement reads it; null past every leaf. */
+	leafAt(byte: number): { path: number[]; offset: number } | null;
 }
 
 /** Reads nothing until asked, so a layout made ahead of its first question costs nothing. */
@@ -147,7 +150,8 @@ export function documentLayout(measured: Measured): Layout {
 			return point && leaf(point.path) && map.byteOf(point.path, point.offset) === byte
 				? point
 				: null;
-		}
+		},
+		leafAt: (byte) => map.leafAt(byte)
 	};
 }
 

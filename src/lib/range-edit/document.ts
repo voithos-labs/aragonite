@@ -4,6 +4,7 @@
  */
 
 import type { DocumentView, NodeView } from '../core/node-views';
+import { getContentRange, isProseKind } from '../core/inline';
 import { firstLineEnding, ownTrailingLineEnding, type LineEnding } from '../core/lines';
 import type { BlockFacts } from '../schema/block-facts';
 import { blockNodeAt } from '../tree-operations/node-primitives';
@@ -58,6 +59,12 @@ export function findWithin(
 }
 
 export const nodeAt = (doc: Doc, path: readonly number[]): NodeView => blockNodeAt(doc.tree, path)!;
+
+/** Whether text written at `offset` of `node` reads as its text: a prose block, inside its content. */
+export function readsAsText(node: NodeView, offset: number): boolean {
+	const content = getContentRange(node);
+	return isProseKind(node.kind) && offset >= content.start && offset <= content.end;
+}
 
 export const parentOf = (doc: Doc, block: LaidBlock): LaidBlock | undefined =>
 	doc.layout.block(block.path.slice(0, -1));

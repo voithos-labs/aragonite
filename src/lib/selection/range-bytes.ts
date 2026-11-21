@@ -10,7 +10,7 @@
 
 import { untrack } from 'svelte';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
-import type { DocumentView, NodeView } from '../core/node-views';
+import type { DocumentView } from '../core/node-views';
 import { displayLength, isBlankText, ownTrailingLineEnding, type LineEnding } from '../core/lines';
 import { metadataOf } from '../core/nodes';
 import { docPathFrom, type DocPath } from '../core/coordinate-spaces';
@@ -26,10 +26,11 @@ import {
 	type GapCaretSelection
 } from './gap-caret';
 import { blockFacts } from '../schema/block-facts';
-import { getContentRange, isProseKind, structuralSuffix } from '../core/inline';
+import { getContentRange, structuralSuffix } from '../core/inline';
 import type { Held, PlaceKept, Range } from '../range-edit/edit-range';
 import type { SpliceCaret } from '../action-contracts';
 import { documentLayout, type LaidBlock, type Layout } from '../range-edit/layout';
+import { readsAsText } from '../range-edit/document';
 import type { CurrentDocument } from '../range-edit/host';
 import { pathsEqual } from './path-math';
 import { boundaryHidden, previousCaretPath } from './path-lookup';
@@ -589,12 +590,6 @@ function joinsProse(
 	// An empty paragraph there is that line itself.
 	if (line && map.byteOf(leaf.path, leaf.offset)! > at && !isBlankText(node.raw)) return false;
 	return blockFacts(node.kind).joins === 'text' && readsAsText(node, leaf.offset);
-}
-
-/** Whether text written at `offset` of `node` reads as its text: a prose block, inside its content. */
-export function readsAsText(node: NodeView, offset: number): boolean {
-	const content = getContentRange(node);
-	return isProseKind(node.kind) && offset >= content.start && offset <= content.end;
 }
 
 /** The deepest boundary a gap caret may take where a block starts, or a container ends, at byte

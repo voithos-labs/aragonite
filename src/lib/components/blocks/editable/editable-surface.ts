@@ -433,7 +433,8 @@ export function createEditableSurface(deps: EditableSurfaceDeps): EditableSurfac
 		commands: deps.commands,
 		pasteCoordinator: deps.pasteCoordinator,
 		activePlugins: deps.activePlugins,
-		events: deps.events
+		events: deps.events,
+		kindCue: deps.kindCue
 	});
 
 	const caretUnits: CaretUnitSource = {

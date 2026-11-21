@@ -33,12 +33,17 @@ import { applyPasteTransforms } from '../../tree-operations/paste/paste-transfor
 import type { PasteCommitCoordinator } from '../../tree-operations/paste/paste-deps';
 import type { CaretLanding } from '../caret-landing';
 import {
+	endsOf,
 	placeInBlock,
 	placeRead,
 	pointAtByte,
+	rangeRead,
+	removalBytes,
 	type PasteAim,
-	type PastePlace
+	type PastePlace,
+	type RangeRead
 } from '../range-bytes';
+import type { RangeCoverage } from '../range-coverage';
 import type { SelectionState } from '../selection-state.svelte';
 import { commitBytes, modeOf, type CommitContext } from './range-removal';
 
@@ -154,6 +159,22 @@ export function pasteAnswer(
 	const { range, ...held } = puttingBack(place, clip, doc.source);
 	const gesture = { paste: clip.text, plain: clip.plain, own: clip.own, ...held };
 	return editRange(doc.source, range, gesture, modeOf(ctx), host);
+}
+
+/** The core's answer for a key's text, or the place text would take, over what `coverage` holds,
+ *  with the host that read it; nothing committed, null where the coverage reads as no bytes. */
+export function overRangeAnswer(
+	ctx: CommitContext,
+	coverage: RangeCoverage,
+	gesture: 'place' | { text: string }
+): { read: RangeRead; answer: RangeEditResult; host: RangeHost } | null {
+	const tree = ctx.bytes.doc();
+	const read = rangeRead(ctx.bytes, endsOf(coverage), (layout) =>
+		removalBytes(tree, coverage, layout)
+	);
+	if (!read) return null;
+	const host: PasteHost = { ...rangeHost(ctx.reading, read), transformPaste: (text) => text };
+	return { read, answer: editRange(read.source, read.range, gesture, modeOf(ctx), host), host };
 }
 
 /** Whether the document is still `base`, the text a paste was answered on. */

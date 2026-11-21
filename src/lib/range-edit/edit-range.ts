@@ -6,6 +6,8 @@
  */
 
 import { getContentRange, structuralSuffix } from '../core/inline';
+import type { AnyBlockKind } from '../core/nodes';
+import { shownKind } from '../core/parsers/heading';
 import { isBlankText, ownTrailingLineEnding, type LineEnding } from '../core/lines';
 import type { Mode, PasteHost, RangeHost } from './host';
 import { copyOf } from './copy';
@@ -23,6 +25,7 @@ import {
 	nodeAt,
 	pointedBlock,
 	readDoc,
+	readsAsText,
 	titleOwner,
 	type Doc,
 	type Held,
@@ -58,6 +61,12 @@ export type RemovalGesture =
 export type Gesture =
 	| 'copy'
 	| RemovalGesture
+	/** Where text over the range would go, with nothing written: a composition's place, which the
+	 *  IME then writes at, and a line break's or a command's, which the block then runs at. */
+	| 'place'
+	/** A typed key's or a soft keyboard's text: what a one-line paste of it writes at the place, with
+	 *  no paste transform; text holding a line ending lands as that paste's lines do. */
+	| { text: string }
 	/** Clipboard text with LF line endings, the editor's own entry, what the caret holds (anywhere
 	 *  but in text the clipboard lands as blocks), and the line ending a removal before it took. */
 	| ({ paste: string; plain: boolean; own?: string; ending?: LineEnding } & Held & PlaceKept)
@@ -78,6 +87,11 @@ export interface RangeEditResult {
 	leaf?: LeafEdit;
 	/** How many blocks a paste landed as; 0 where it went in as text. */
 	blocks?: number;
+	/** Set on a place that is an empty paragraph opened where the range was: Enter's whole answer. */
+	opened?: true;
+	/** For a key's text: the block it went into and the kind that block showed before it, which a
+	 *  cue of a new kind compares against. */
+	into?: { path: number[]; kind: AnyBlockKind };
 }
 
 export function editRange(
@@ -86,6 +100,28 @@ export function editRange(
 	gesture: Gesture,
 	mode: Mode,
 	host: PasteHost
+): RangeEditResult {
+	if (typeof gesture !== 'object' || !('text' in gesture))
+		return edited(source, range, gesture, mode, host, false);
+	return edited(
+		source,
+		range,
+		{ paste: gesture.text, plain: false, holds: 'text' },
+		mode,
+		host,
+		true
+	);
+}
+
+/** `editRange`, where `typed` says a paste stands for a key's text: it runs no paste transform and
+ *  writes blank text where the range was, as typing it does. */
+function edited(
+	source: string,
+	range: Range,
+	gesture: Exclude<Gesture, { text: string }>,
+	mode: Mode,
+	host: PasteHost,
+	typed: boolean
 ): RangeEditResult {
 	const asRead = readDoc(source, host, mode);
 	const carried = typeof gesture === 'object' && 'paste' in gesture ? gesture.ending : undefined;
@@ -104,12 +140,13 @@ export function editRange(
 		if (gesture === 'cut') return { ...answer(removed), clipboard, own };
 		return { source, caret: { at: to, holds: 'text' }, clipboard, own };
 	}
+	if (gesture === 'place') return placeAnswer(doc, range);
 	if (typeof gesture === 'string') return answer(removalEdit(doc, from, to, gesture));
 	// A line ending landing on a last line that has none lands as on one that has, then the break
 	// comes back off unless the line left last is blank (`syntax-tree.md` § The last line).
 	const reclosed = (at: number, text: string): RangeEditResult | null => {
 		if (!opensLastLine(doc, from, to, at, text)) return null;
-		const closed = editRange(source + doc.ending, range, gesture, mode, host);
+		const closed = edited(source + doc.ending, range, gesture, mode, host, typed);
 		const last = (body: string) => lastLineOf(readDoc(body, host, mode));
 		// Literal text recloses where the line left last is the code's or blank: never over one with text.
 		if (literalAt(doc, from, to, at) && last(closed.source) === 'text') return null;
@@ -127,9 +164,12 @@ export function editRange(
 		if (back) return answer(back);
 		const onClosed = reclosed(to, gesture.paste);
 		if (onClosed) return onClosed;
-		// A clipboard that carries the editor's own entry is the editor's own bytes: no transform runs.
+		// A clipboard that carries the editor's own entry is the editor's own bytes, and a key's text
+		// no clipboard's: no transform runs.
 		const transform: Pasted['transform'] =
-			gesture.own === undefined ? (text, blocks) => host.transformPaste(text, blocks) : null;
+			gesture.own === undefined && !typed
+				? (text, blocks) => host.transformPaste(text, blocks)
+				: null;
 		const pasted = (held: Held, inPlace = gesture.inPlace): Pasted => ({
 			text: gesture.paste,
 			plain: gesture.plain,
@@ -161,18 +201,19 @@ export function editRange(
 		if (from === to) return keepLastEnding(inPlace(pasteAt(doc, from, to, pasted(gesture))));
 		if (inOneText(doc, from, to))
 			return keepLastEnding(inPlace(pasteAt(doc, from, to, pasted(TEXT))));
-		// Across blocks the paste lands where the removal's caret does, as a cut's then a paste's
-		// would, and over one block held whole takes its place, as typed text does.
-		const removed = pasteRemoval(doc, from, to, gesture.paste);
-		const after = read(removed);
-		const caret = caretOf(removed, after, 'cut', () => startedIn(doc, from), from);
-		const over = pasteAt(
-			after,
-			caret.at,
-			caret.at,
-			pasted(removed.inPlace ? TEXT : caret, removed.inPlace)
-		);
-		return keepLastEnding({ ...landed(over), blocks: over.blocks ?? 0 });
+		// Across blocks the paste lands at the place text over the range takes, and over one block held
+		// whole takes its place.
+		const { removed, after, place } = textPlace(doc, range, typed ? '' : gesture.paste);
+		const held = pasted(removed.inPlace ? TEXT : place, removed.inPlace);
+		const pastedOver = pasteAt(after, place.at, place.at, held);
+		// A key's one line that a paste would read as blocks at text (a marker) is that block's own
+		// write instead, so the marker makes its kind there, as typing it does.
+		const marker =
+			typed && place.holds === 'text' && !!pastedOver.blocks && !/\n/.test(gesture.paste);
+		const at = marker ? leafHolding(after, place.at, place.at) : null;
+		const over = at ? writeText(after, at.leaf, at.from, at.to, gesture.paste) : pastedOver;
+		const into = typed ? { into: intoOf(after, place) } : {};
+		return keepLastEnding({ ...landed(over), blocks: over.blocks ?? 0, ...into });
 	}
 	const { removed, clipboard, own } = taken(doc, from, to);
 	const { drop } = gesture;
@@ -200,6 +241,138 @@ function pasteRemoval(doc: Doc, from: number, to: number, text: string): Removal
 			? blankedOut(doc, alone, to)
 			: removalEdit(doc, from, to, blank ? 'cut' : 'type');
 	return alone ? { ...removed, inPlace: true } : removed;
+}
+
+/** The place text over a range takes once a typed key's removal ran: before the end leaf's rest, on
+ *  text the range left or a line it emptied, else a line of its own where the range was (`opens`). */
+function textPlace(doc: Doc, range: Range, text: string | null) {
+	const { from, to } = range;
+	// A place nothing is written at yet removes as a key that writes nothing does.
+	const removed: Removal & PlaceKept =
+		text === null ? removalEdit(doc, from, to, 'compose') : pasteRemoval(doc, from, to, text);
+	const after = { ...readDoc(removed.source, doc.host, doc.mode), ending: doc.ending };
+	const started = () => startedIn(doc, from);
+	const caret = caretOf(removed, after, besideOf('type', doc, range), started, from);
+	// A block held whole gives its own line to the text: the caret is that line's.
+	if (removed.inPlace) return { removed, after, place: caret, opens: false };
+	const own = ownLine(doc, after, removed, caret, to, started);
+	const place = own ? atGap(after, own) : onText(after, caret);
+	return { removed, after, place, opens: own !== null };
+}
+
+/** The block text at `place` goes into, read on `doc` before it does: the leaf there, else the new
+ *  paragraph a line of its own opens. */
+function intoOf(doc: Doc, place: Place): { path: number[]; kind: AnyBlockKind } {
+	const point = place.holds === 'text' ? doc.layout.leafAt(place.at) : null;
+	if (point) return { path: point.path, kind: shownKind(nodeAt(doc, point.path)) };
+	const parent = place.holds === 'text' ? [] : [...place.parent];
+	return { path: [...parent, childAt(doc, { at: place.at, parent })], kind: 'paragraph' };
+}
+
+/** A line of its own at the byte the caret between blocks stands at there: the first byte of the
+ *  block after it, past the blank lines above that block. */
+function atGap(doc: Doc, own: Place): Place {
+	if (own.holds === 'text') return own;
+	const next = doc.layout.block([...own.parent, childAt(doc, own)]);
+	return next ? { ...own, at: next.from } : own;
+}
+
+/** `caret`, or where it is a boundary text takes no line of its own at, the prose there a letter
+ *  joins: a line it emptied, or text starting there; prose ending before it leaves it standing. */
+function onText(doc: Doc, caret: Place): Place {
+	if (caret.holds !== 'boundary') return caret;
+	const point = doc.layout.leafAt(caret.at);
+	const node = point && nodeAt(doc, point.path);
+	const reads =
+		node && doc.host.facts(node.kind).joins === 'text' && readsAsText(node, point.offset);
+	const at = reads ? doc.layout.byteOf(point.path, point.offset) : null;
+	if (at === null || (at < caret.at && !isBlankText(node!.raw))) return caret;
+	return { at, holds: 'text' };
+}
+
+/** Where text opens a line of its own: a boundary the caret holds there, or where the start block
+ *  stood when the removal took it and the caret is on no text the range left of its own. */
+function ownLine(
+	doc: Doc,
+	after: Doc,
+	removed: Removal,
+	caret: Place,
+	to: number,
+	started: () => LaidBlock[]
+): Place | null {
+	if (caret.holds === 'boundary' && heldAsGap(after, caret)) return caret;
+	const took = removed.took;
+	if (took === undefined) return null;
+	const own = restAfter(doc, to);
+	if (own && caret.holds === 'text') return null;
+	const point = after.layout.leafAt(caret.at);
+	const leaf = point && nodeAt(after, point.path);
+	const prose = !!point && caret.holds !== 'block' && (!leaf || readsAsText(leaf, point.offset));
+	if (prose && (own || (!!leaf && isBlankText(leaf.raw)))) return null;
+	if (joinedAcross(after, took)) return null;
+	return { at: took, holds: 'boundary', parent: parentAt(after, took, started) };
+}
+
+/** Whether the text below joined a block above across byte `at`, so no boundary stands there. */
+function joinedAcross(doc: Doc, at: number): boolean {
+	const joined = doc.layout.leafAt(at);
+	const across = joined && nodeAt(doc, joined.path);
+	return !!across && joined.offset > 0 && joined.offset < across.raw.trimEnd().length;
+}
+
+/** Whether a caret holds the boundary `place` as a gap: at the document's end, else not where a
+ *  letter typed there joins the prose the byte map reads it in, nor among a list's items. */
+function heldAsGap(doc: Doc, place: { at: number; parent: readonly number[] }): boolean {
+	const parent = doc.layout.block(place.parent);
+	if (parent && factsOf(doc, parent).lines === 'items') return false;
+	const below = findWithin(doc, place.at, doc.source.length, (b) => b.from >= place.at);
+	if ((place.parent.length === 0 && !below) || place.at >= doc.source.length) return true;
+	const point = doc.layout.leafAt(place.at);
+	const inside = point && place.parent.every((index, depth) => point.path[depth] === index);
+	const leaf = inside ? doc.layout.block(point.path) : undefined;
+	if (!leaf) return true;
+	return !(
+		factsOf(doc, leaf).joins === 'text' && readsAsText(nodeAt(doc, leaf.path), point!.offset)
+	);
+}
+
+/** The place a composition, a line break or a command takes over the range: the removal's bytes and
+ *  the text place, or, where text would open a line of its own, an empty paragraph there. */
+function placeAnswer(doc: Doc, range: Range): RangeEditResult {
+	const alone = heldAlone(doc, range.from, range.to);
+	const { removed, after, place, opens } = alone
+		? goneAlone(doc, range)
+		: textPlace(doc, range, null);
+	if (!opens || place.holds !== 'boundary')
+		return { source: removed.source, caret: onText(after, place) };
+	// An emptied document keeps one empty paragraph, the line the range emptied.
+	if (isBlankText(removed.source))
+		return { source: removed.source, caret: { at: 0, holds: 'text' } };
+	const index = childAt(after, place);
+	const line = doc.host.openedAt(after.tree, place.parent, index);
+	if (!line) return { source: removed.source, caret: place };
+	return { source: line.source, caret: { at: line.caret, holds: 'text' }, opened: true };
+}
+
+/** The place over one block held whole: the block gone with its line, as Backspace takes it, and a
+ *  paragraph to open where it stood, unless prose below joined the block above there. */
+function goneAlone(doc: Doc, range: Range) {
+	const removed = removeLeavingBlank(doc, range.from, range.to);
+	const after = { ...readDoc(removed.source, doc.host, doc.mode), ending: doc.ending };
+	const took = removed.took ?? removed.caret;
+	const parent = parentAt(after, took, () => startedIn(doc, range.from));
+	const place: Place = { at: took, holds: 'boundary', parent };
+	// Prose below that joined the block above there takes the composed text where it runs on.
+	const runsOn = joinedAcross(after, took) && onText(after, place).holds === 'text';
+	return { removed, after, place, opens: !runsOn };
+}
+
+/** The index among `place.parent`'s children of the first one starting at or past its byte. */
+function childAt(doc: Doc, place: { at: number; parent: readonly number[] }): number {
+	let index = 0;
+	for (let child = doc.layout.block([...place.parent, 0]); child && child.from < place.at;)
+		child = doc.layout.block([...place.parent, ++index]);
+	return index;
 }
 
 /** Where a paste's removal left a block held whole its line for the text: the blank line under that

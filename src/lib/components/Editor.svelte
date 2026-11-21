@@ -1136,7 +1136,8 @@
 		commands,
 		pasteCoordinator,
 		activePlugins,
-		events
+		events,
+		kindCue
 	});
 
 	// Every handler checks for this instance: the document listener sees every editor's keys,

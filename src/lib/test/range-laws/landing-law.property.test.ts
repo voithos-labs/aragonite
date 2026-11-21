@@ -211,12 +211,12 @@ const RESTS: Record<string, string> = {
 const lineAboveOpening = (d: Draw) =>
 	d.end === 'inside a callout it enters' && (d.wrap === 'a quote' || d.wrap === 'an item');
 
-/** `bytes` with no spaces ending a line that holds only its containers' markers: a separator a
- *  paste writes back keeps them bare, where a typed letter may keep a space (`> `, an indent). */
+/** `bytes` with no spaces ending a line of only its containers' markers: a key or a paste keeps such
+ *  a separator bare, where the typing path a composition takes may keep a space (`> `, an indent). */
 const unspaced = (bytes: string) => bytes.replace(/^[ \t>]+$/gm, (line) => line.trimEnd());
 
-/** Booked, not ruled: where a range empties a callout to its end from its first line, the typed key
- *  opens its paragraph under a blank line below the opening row, and a paste doesn't. */
+/** The composition's one exemption: where a range empties a callout to its end from its first line,
+ *  the typing path keeps a blank line under the opening row that the key's text and a paste don't. */
 const underOpeningRow = (d: Draw) =>
 	d.wrap === 'a callout' && d.above === 'first in its container' && !(d.end in RESTS) && toEnd(d);
 
@@ -387,12 +387,13 @@ describe('the landing law', () => {
 			fc.asyncProperty(arbDraw, async (d) => {
 				const text = marked(d, STARTS[d.start]);
 				const typed = await land(text, d.mode, 'a typed key');
-				const composed = await land(text, d.mode, 'a composition');
-				expect(composed.bytes, JSON.stringify(text)).toBe(typed.bytes);
 				const pasted = await land(text, d.mode, 'a one-line paste');
-				const seen = (bytes: string) =>
-					underOpeningRow(d) ? rowClosed(unspaced(bytes)) : unspaced(bytes);
-				expect(seen(pasted.bytes), `a paste over ${JSON.stringify(text)}`).toBe(seen(typed.bytes));
+				expect(pasted.bytes, `a paste over ${JSON.stringify(text)}`).toBe(typed.bytes);
+				const composed = await land(text, d.mode, 'a composition');
+				const seen = unspaced(composed.bytes);
+				expect(underOpeningRow(d) ? rowClosed(seen) : seen, JSON.stringify(text)).toBe(
+					unspaced(typed.bytes)
+				);
 			}),
 			params()
 		);

@@ -72,7 +72,8 @@ export function makeHandlers(
 		commands: commandContext({ ownsRange: () => env.selectionState.ownsRange }),
 		pasteCoordinator: createPasteCoordinator(env.deps, env.controller),
 		activePlugins: everyInstalledPlugin,
-		events: env.events
+		events: env.events,
+		kindCue: { afterTypedWrite: async () => {} }
 	});
 }
 

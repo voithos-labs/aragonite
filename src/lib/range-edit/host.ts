@@ -27,6 +27,7 @@ import {
 } from '../tree-operations/leaf-range';
 import { splitHalves } from '../tree-operations/node-ops';
 import { enteredOut, exitedOut } from '../tree-operations/list/enter-out';
+import { openedIn } from '../tree-operations/opened-paragraph';
 import { followerMetadata } from '../tree-operations/list/list-builders';
 import {
 	blockNodeAt,
@@ -151,6 +152,13 @@ export interface RangeHost {
 	/** Enter on the block at `path` where it takes it out (an item out of its list, an empty last
 	 *  paragraph out of its quote): the bytes and caret byte the editor's Enter leaves; else null. */
 	enterOut(doc: DocumentView, path: readonly number[]): { source: string; caret: number } | null;
+	/** An empty paragraph opened as child `index` of the block at `parent`, as the caret between
+	 *  blocks opens one: the bytes and its line's byte; null where `parent` holds no blocks. */
+	openedAt(
+		doc: DocumentView,
+		parent: readonly number[],
+		index: number
+	): { source: string; caret: number } | null;
 	/** `text` escaped so a block that reads Markdown shows every character of it: Paste as plain
 	 *  text. A block whose text is literal takes the text as written, which the core checks. */
 	escaped(text: string): string;
@@ -365,6 +373,14 @@ export function rangeHost(reading: Reading, current?: CurrentDocument): RangeHos
 			if (!block?.text) return null;
 			const source = serialize(out.doc);
 			known.set(source, out.doc);
+			return { source, caret: block.text.from };
+		},
+		openedAt(doc, parent, index) {
+			const out = openedIn(doc, parent, index, reading.grammar);
+			const block = out && documentLayout(measured(out)).block([...parent, index]);
+			if (!out || !block?.text) return null;
+			const source = serialize(out);
+			known.set(source, out);
 			return { source, caret: block.text.from };
 		},
 		escaped: escapeMarkdownLiteral,

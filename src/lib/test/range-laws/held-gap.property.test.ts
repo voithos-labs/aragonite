@@ -15,20 +15,23 @@
 // range, so a place read before the commit always still named the right block.
 // Deep and fresh: `node scripts/run-with-env.mjs PROPERTY_FRESH=1 HELD_GAP_DRAWS=2000 -- vitest run`
 // and this file's path.
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import { appendFileSync } from 'node:fs';
 import type { PresentationMode } from '#lib/presentation-mode.js';
-import type { Measured } from '#lib/tree-operations/top-level-starts.js';
 import { measured } from '#lib/tree-operations/top-level-starts.js';
 import { cellPoint } from '#lib/selection/primitives.js';
-import { pointAtByte, readsAsText, removalBytes } from '#lib/selection/range-bytes.js';
+import { pointAtByte, removalBytes } from '#lib/selection/range-bytes.js';
+import { readsAsText } from '#lib/range-edit/document.js';
 import { coverRange, rangeCoverage } from '#lib/selection/range-coverage.js';
-import { documentLayout } from '#lib/range-edit/layout.js';
+import { documentLayout, type Layout } from '#lib/range-edit/layout.js';
+import { blockFacts } from '#lib/schema/block-facts.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import { reloadDivergence } from '#lib/test/exhaustive/edit-driver.js';
 import { readAsOpened } from '#lib/schema/opened-reading.js';
-import type { Removed } from '#lib/selection/cross-block/range-removal.js';
+import { removalOf, type RemovalGesture } from '#lib/range-edit/edit-range.js';
+import { rangeHost } from '#lib/range-edit/host.js';
+import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { registerDefaultContextActions } from '#lib/components/menu/default-context-actions.js';
 import {
 	destroyMountedEditors,
@@ -51,20 +54,6 @@ import {
 	type Editor
 } from './gestures';
 import { MIDDLES, NEIGHBOURS } from './shapes';
-
-/** Each `emptiedPlace` call in a draw: whether its removal took the block the range started in. */
-const seen: { took: boolean }[] = [];
-vi.mock('#lib/selection/cross-block/range-removal.js', async (importOriginal) => {
-	const actual =
-		await importOriginal<typeof import('#lib/selection/cross-block/range-removal.js')>();
-	return {
-		...actual,
-		emptiedPlace: vi.fn((m: Measured, removed: Removed, anyProse: boolean) => {
-			seen.push({ took: removed.taken !== null });
-			return actual.emptiedPlace(m, removed, anyProse);
-		})
-	};
-});
 
 beforeAll(installLayoutStubs);
 beforeEach(() => {
@@ -238,6 +227,24 @@ function startIn(source: string, removed: string, start: number): number {
 		: source.lastIndexOf('\n', start - 1) + 1;
 }
 
+/** The removal each gesture makes first, as the range-edit core names it. */
+const REMOVAL: Record<Draw['gesture'], RemovalGesture> = {
+	letter: 'type',
+	paste: 'type',
+	composition: 'compose',
+	Enter: 'break'
+};
+
+/** Whether `range` holds one block whole other than prose, whose line text over it takes. */
+function heldWhole(layout: Layout, source: string, range: { from: number; to: number }): boolean {
+	return [...layout.within(range.from, range.from)].some((b) => {
+		const ending = /\r?\n$/.exec(source.slice(b.from, b.to))?.[0].length ?? 0;
+		return (
+			b.from === range.from && b.to - ending === range.to && blockFacts(b.type).joins !== 'text'
+		);
+	});
+}
+
 /** Mounts `source` and puts the drawn range down; null where the editor won't hold it. */
 async function placed(d: Draw, built: Built) {
 	const editor = mountCase(built.source, d.mode);
@@ -253,8 +260,16 @@ async function placed(d: Draw, built: Built) {
 	const end = range && layout.pointAt(range.to);
 	const text = end && layout.block(end.path)?.text;
 	const rest = !!range && !!text && range.to >= text.from && range.to < text.to;
+	// Whether the gesture's removal took the block the range started in, read off the core's answer;
+	// a block held whole goes too, its line the text's.
+	const mode = d.mode === 'live' ? 'live' : 'source';
+	const host = rangeHost(fixtureReading({ grammar: editor.instance.__test.getGrammar() }, mode));
+	const source = editor.source();
+	const removal = range && removalOf(source, range, REMOVAL[d.gesture], mode, host);
+	const taken = !!removal && removal.source !== source && removal.taken !== undefined;
+	const took = taken || (!!range && heldWhole(layout, source, range));
 	takeDevWarns();
-	return { editor, start: range?.from ?? -1, rest };
+	return { editor, start: range?.from ?? -1, rest, took };
 }
 
 /** Whether the range ends partway through a block's text, where Enter's and text's removal are
@@ -265,9 +280,8 @@ async function run(d: Draw): Promise<Run | 'unplaced'> {
 	const built = build(d);
 	const over = await placed(d, built);
 	if (!over) return 'unplaced';
-	seen.length = 0;
 	await gesture(over.editor, d.gesture);
-	const took = seen.some((s) => s.took);
+	const { took } = over;
 	const overSide = sideOf(over.editor);
 	const grammar = over.editor.instance.__test.getGrammar();
 	const read = (source: string) =>
@@ -356,8 +370,8 @@ const draw = (
 const KNOWN: Record<string, Known> = {
 	"a lone block's emptied line": {
 		cause:
-			'text over a rule or a fence held alone between two lines keeps its emptied line, and the ' +
-			'text joins the line below, which no longer joins the line above (minor)',
+			'text over a rule or a fence held alone between two lines stands on a line of its own, and ' +
+			'the line below no longer joins the line above (minor)',
 		matches: (d, _r, line) =>
 			texts(d) &&
 			d.range === 'edge..lower' &&
@@ -378,6 +392,20 @@ const KNOWN: Record<string, Known> = {
 			line.startsWith('over the range'),
 		example: draw('indentedCode', 'heading', 'top', 'edge..lower', 'letter')
 	},
+	'a composition where two indented code blocks join': {
+		cause:
+			'a composition over a block held whole between two indented code lines, which its removal ' +
+			'joins into one, waits in a paragraph opened after that code (minor)',
+		matches: (d, _r, line) =>
+			d.shape === 'indentedCode' &&
+			d.range === 'edge..lower' &&
+			d.gesture === 'composition' &&
+			line.startsWith('over the range'),
+		example: {
+			...draw('indentedCode', 'rule', 'top', 'edge..lower', 'composition', 'live'),
+			eol: '\r\n'
+		}
+	},
 	'Enter from a table in a container': {
 		cause: "Enter from a table's cell in a quote or an item to the block below (minor)",
 		matches: (d, _r, line) =>
@@ -395,6 +423,16 @@ const KNOWN: Record<string, Known> = {
 			r.over.source === r.built.source &&
 			/^over the range|dropped$/.test(line),
 		example: draw('tableHalves', 'rule', 'item', 'cell..middle', 'composition')
+	},
+	'a paste from a block held whole to the prose under it': {
+		cause:
+			'a paste over a range from a block to the first byte of the prose right under it removes, then ' +
+			'lands on that prose, where a key’s text over the same bytes stands on a line of its own',
+		matches: (d, _r, line) =>
+			d.gesture === 'paste' &&
+			d.range === 'edge..lower' &&
+			line.startsWith('the text joined a block'),
+		example: draw('setextUnderline', 'rule', 'item', 'edge..lower', 'paste')
 	}
 };
 
@@ -470,18 +508,22 @@ const FIXED = DRAWS === 40 && SEED === 20261112;
 /** The fixed run's draws by what they met: a class here going to 0 or growing is a change to read. */
 const FIXED_TALLY = {
 	unplaced: 0,
-	'took the start block': 30,
+	'took the start block': 49,
 	"a lone block's emptied line": 2,
 	'a letter where two indented code blocks join': 1,
+	'a composition where two indented code blocks join': 1,
 	'Enter from a table in a container': 1,
-	'a gesture that reached nothing': 1
+	'a gesture that reached nothing': 1,
+	'a paste from a block held whole to the prose under it': 2
 };
 
 /** What each example leaves over the range. */
 const LANDED: Record<string, string> = {
 	'an opener kept in an item': '-     a\n  ```\nж\n  ```\n    b\n\nlast\n',
-	"a lone block's emptied line": 'intro\n\n> quoted\n\nжlazy\n\nlast\n',
+	"a lone block's emptied line": 'intro\n\n> quoted\n\nж\n\nlazy\n\nlast\n',
 	'a letter where two indented code blocks join': 'intro\n\n    a\nж\n    b\n\nlast\n',
+	'a composition where two indented code blocks join':
+		'intro\r\n\r\n    a\r\n    b\r\n\r\n汉\r\n\r\nlast\r\n',
 	'before a heading, live': 'intro\n\n汉\n\n# h\n| 2 |\n\nlast\n',
 	'Enter from a table in a container': '- \n- \n  ```\n  x\n  ```\n  | 2 |\n\nlast\n',
 	'a gesture that reached nothing': 'intro\n\n- | a |\n  | - |\n  | 1 |\n  ***\n  | 2 |\n\nlast\n',
@@ -493,6 +535,7 @@ const LANDED: Record<string, string> = {
 	'Enter under a started title': "intro\n\n[a]: /u\n    'code\n\n\nxt\nend'\n\nlast\n",
 	'two containers deep, out past both': 'intro\n\n- > above\n  >\n  > 汉\n\n```\nlast\n```\n',
 	'past the rows of a table': '| a |\n| - |\n\n汉\n\n```\nx\n```\n| 2 |\n\nlast\n',
+	'a paste from a block held whole to the prose under it': 'intro\n\n- text\n  \n  ж===\n\nlast\n',
 	'a paste over a rule held whole, the text under it prose':
 		'intro\n\nmore\n\n- text\n  \n  ж===\n\nlast\n'
 };
