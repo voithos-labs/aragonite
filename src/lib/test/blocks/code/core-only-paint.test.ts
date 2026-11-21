@@ -38,6 +38,18 @@ describe('a code block in a core-only editor', () => {
 		expect(mounted.source()).toBe(SOURCE);
 	});
 
+	// Miss-analysis: the mounted rows compared flat token lists, which say nothing of which of two
+	// spans over one word is inside, and the inner one's colour is the one painted.
+	it('paints a JSON literal as 0.11.5 did, the keyword inside the literal', async () => {
+		const mounted = mountEditor({
+			source: '```json\n[true]\n```\n',
+			plugins: [highlight({ renderer: highlightJs() })]
+		});
+		await mounted.settle();
+		const inner = mounted.target.querySelector('.code-tok-literal > .code-tok-keyword');
+		expect(inner?.textContent).toBe('true');
+	});
+
 	it('paints tokens once the highlight package is listed', async () => {
 		const { block } = await codeBody(true);
 		expect(tokens(block)).toEqual([

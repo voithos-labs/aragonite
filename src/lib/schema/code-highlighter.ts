@@ -4,7 +4,8 @@
  * picker; with no such plugin, code paints plain.
  */
 
-/** A run of a code body drawn with `class`, in offsets into the body; runs nest or don't overlap. */
+/** A run of a code body drawn with `class`, in offsets into the body; runs nest or don't overlap,
+ *  and of two over one range the one listed first is drawn outside. */
 export interface CodeToken {
 	readonly from: number;
 	readonly to: number;

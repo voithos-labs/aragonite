@@ -51,6 +51,20 @@ describe('createCodePainter', () => {
 		expect(html(node)).toBe('<span class="outer"><span class="inner">let</span> a = 1</span>;');
 	});
 
+	it('nests two tokens over one range in the order given, the first outside', () => {
+		const tokens: CodeToken[] = [
+			{ from: 1, to: 5, class: 'outer' },
+			{ from: 1, to: 5, class: 'inner' }
+		];
+		const { painter } = editorWith({
+			name: 'one',
+			code: { languages: () => [{ name: 'x', aliases: [] }], highlight: () => tokens }
+		});
+		expect(html(painter.code('[true]', 'x'))).toBe(
+			'[<span class="outer"><span class="inner">true</span></span>]'
+		);
+	});
+
 	it('paints an always-async answer plain, asks once per change, and draws it on arrival', async () => {
 		const highlight = vi.fn(async (body: string) => keyword(body));
 		const { painter, repaint } = editorWith({

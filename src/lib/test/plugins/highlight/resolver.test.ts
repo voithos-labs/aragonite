@@ -78,6 +78,16 @@ describe('tokensOf', () => {
 		expect(runs).toContain('`a\r\nb`');
 	});
 
+	// Miss-analysis: no row held two scopes over one range (JSON's `true` is a literal holding a
+	// keyword), so which of them ends up inside, and colours the text, went unpinned.
+	it('lists the outer of two scopes over one range first', () => {
+		const hljs = HighlightJS.newInstance();
+		hljs.registerLanguage('json', defaultResolver.resolve('json') as never);
+		const body = '[true]';
+		const runs = tokensOf(hljs, body, 'json').filter((t) => body.slice(t.from, t.to) === 'true');
+		expect(runs.map((t) => t.class)).toEqual(['code-tok-literal', 'code-tok-keyword']);
+	});
+
 	it("maps highlight.js's scopes onto the theme's classes, an unmapped one to unknown", () => {
 		const hljs = HighlightJS.newInstance();
 		for (const name of ['css', 'markdown', 'javascript'])

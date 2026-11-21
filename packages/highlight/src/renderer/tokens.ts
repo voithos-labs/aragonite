@@ -50,19 +50,26 @@ const MARKUP = /<span class="([^"]*)">|<\/span>|&(?:amp|lt|gt|quot|#x27);/g;
 /** `body`'s tokens under `language`, a name `hljs` has registered. */
 export function tokensOf(hljs: HLJSApi, body: string, language: string): CodeToken[] {
 	const html = hljs.highlight(body, { language, ignoreIllegals: true }).value;
-	const tokens: CodeToken[] = [];
-	const open: { from: number; class: string }[] = [];
+	// Listed as each scope opens, so of two over one range the outer comes first and is drawn outside.
+	const tokens: { from: number; to: number; class: string }[] = [];
+	const open: typeof tokens = [];
 	let at = 0;
 	let read = 0;
 	for (const match of html.matchAll(MARKUP)) {
 		at += match.index - read;
 		read = match.index + match[0].length;
 		if (match[1] !== undefined) {
-			open.push({ from: at, class: CLASS_OF[match[1].split(' ')[0]] ?? 'code-tok-unknown' });
+			const token = {
+				from: at,
+				to: at,
+				class: CLASS_OF[match[1].split(' ')[0]] ?? 'code-tok-unknown'
+			};
+			tokens.push(token);
+			open.push(token);
 		} else if (match[0] === '</span>') {
-			const span = open.pop();
-			if (span && at > span.from) tokens.push({ from: span.from, to: at, class: span.class });
+			const token = open.pop();
+			if (token) token.to = at;
 		} else at += 1;
 	}
-	return tokens;
+	return tokens.filter((token) => token.to > token.from);
 }
