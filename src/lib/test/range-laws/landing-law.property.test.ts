@@ -172,13 +172,6 @@ const unclaimed = (d: Draw, g: Gesture) => ['fence', 'callout'].includes(d.start
 /** Lane 5a's count: a command key over a range that runs in a block of another kind than claimed it. */
 const LANE_5A = 'invariant:command-key-landing';
 
-/** Ruling 9 leaves a line break on the block before the range where no emptied line is kept; on a
- *  rule, held whole and no syntax to move off, that break breaks no line and warns (G1.223). */
-const breaksOnRule = (d: Draw, g: Gesture) =>
-	(g === 'Enter' || g === 'Shift+Enter') &&
-	d.above === 'right under a rule' &&
-	(d.end !== 'a paragraph’s end' || lineGoes(d));
-
 // ── One gesture, then a letter ───────────────────────────────────────────────
 
 const GESTURES = [
@@ -197,7 +190,7 @@ type Gesture = (typeof GESTURES)[number];
 /** What a written gesture types: no drawn document holds it. */
 const WRITTEN = 'ж';
 
-/** The gestures P2 and P3 bind; Shift+Enter and Mod+digit wait for ruling 9. */
+/** The gestures P2 and P3 bind; a line break is P4's. */
 const WRITES = ['a typed key', 'a composition', 'a one-line paste'] as const;
 
 /** The text left of the leaf the range ended in, which written text may stand before. */
@@ -326,8 +319,8 @@ async function land(text: string, mode: PresentationMode, gesture: Gesture): Pro
 	return { bytes, caret, lettered: editor.source(), warns };
 }
 
-/** The gestures whose own landing P5 binds: written text is P2's and P3's, Shift+Enter ruling 9's. */
-const LANDS = ['Backspace', 'Delete', 'a cut', 'Enter', 'Mod+2'] as const;
+/** The gestures whose own landing P5 binds: written text is P2's and P3's. */
+const LANDS = ['Backspace', 'Delete', 'a cut', 'Enter', 'Shift+Enter', 'Mod+2'] as const;
 
 /** A letter a `:::` name takes, which `WRITTEN` isn't: typed at a name's end it renames the container. */
 const NAMING = 'q';
@@ -400,13 +393,9 @@ describe('the landing law', () => {
 	}, 600_000);
 
 	it('P4: the letter after a line break stands alone or before the end leaf’s rest', async () => {
-		// Shift+Enter is held to it with nothing before the range: elsewhere ruling 9 leaves its break
-		// on the block before.
-		const breaks = (d: Draw) =>
-			d.above === 'first in its container' ? ['Enter', 'Shift+Enter'] : ['Enter'];
 		await fc.assert(
 			fc.asyncProperty(
-				arbDraw.chain((d) => fc.tuple(fc.constant(d), fc.constantFrom(...breaks(d)))),
+				arbDraw.chain((d) => fc.tuple(fc.constant(d), fc.constantFrom('Enter', 'Shift+Enter'))),
 				async ([d, g]) => {
 					const text = marked(d, STARTS[d.start]);
 					const { editor } = await mounted(text, d.mode);
@@ -501,9 +490,7 @@ describe('the landing law', () => {
 			fc.asyncProperty(arbDraw, fc.constantFrom(...GESTURES), async (d, g) => {
 				const text = marked(d, STARTS[d.start]);
 				const { warns } = await land(text, d.mode, g);
-				const ruled = (tag: string) =>
-					tag === LANE_5A || (tag === 'invariant:range-break-landing' && breaksOnRule(d, g));
-				const own = warns.filter((tag) => !ruled(tag));
+				const own = warns.filter((tag) => tag !== LANE_5A);
 				expect(own, `${g} over ${JSON.stringify(text)}`).toEqual([]);
 			}),
 			params(1.5)

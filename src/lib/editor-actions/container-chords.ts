@@ -15,10 +15,10 @@ import {
 } from '../schema/block-commands';
 import { containerMayBind } from '../schema/commands';
 import { eventToChord } from '../schema/keybindings';
-import { rangeOwnsKey } from '../selection/cross-block/keydown';
+import { rangeOwnsKey, type RangeKeyReads } from '../selection/cross-block/keydown';
 import type { SelectionState } from '../selection/selection-state.svelte';
 
-export interface ContainerChordDeps {
+export interface ContainerChordDeps extends Pick<RangeKeyReads, 'bytes' | 'reading'> {
 	commands: CommandDispatchContext;
 	getBlockComponent(path: number[]): BlockComponent | null;
 	selection: Pick<SelectionState, 'ownsRange' | 'rangeInOneBlock' | 'anchor' | 'focus'>;

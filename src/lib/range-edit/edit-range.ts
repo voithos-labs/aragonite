@@ -54,15 +54,13 @@ export type RemovalGesture =
 	/** The removal a typed character, a composition or a command key makes first. */
 	| 'type'
 	| 'compose'
-	| 'command'
-	/** The removal a line break makes first (Enter, Shift+Enter), which writes forward. */
-	| 'break';
+	| 'command';
 
 export type Gesture =
 	| 'copy'
 	| RemovalGesture
 	/** Where text over the range would go, with nothing written: a composition's place, which the
-	 *  IME then writes at, and a line break's or a command's, which the block then runs at. */
+	 *  IME then writes at, and a line break's, which the block then runs at. */
 	| 'place'
 	/** A typed key's or a soft keyboard's text: what a one-line paste of it writes at the place, with
 	 *  no paste transform; text holding a line ending lands as that paste's lines do. */
@@ -345,9 +343,9 @@ function placeAnswer(doc: Doc, range: Range): RangeEditResult {
 		: textPlace(doc, range, null);
 	if (!opens || place.holds !== 'boundary')
 		return { source: removed.source, caret: onText(after, place) };
-	// An emptied document keeps one empty paragraph, the line the range emptied.
+	// An emptied document keeps one empty paragraph: the one text would open there.
 	if (isBlankText(removed.source))
-		return { source: removed.source, caret: { at: 0, holds: 'text' } };
+		return { source: removed.source, caret: { at: 0, holds: 'text' }, opened: true };
 	const index = childAt(after, place);
 	const line = doc.host.openedAt(after.tree, place.parent, index);
 	if (!line) return { source: removed.source, caret: place };
@@ -570,11 +568,10 @@ function startedIn(doc: Doc, inside: number | readonly number[]): LaidBlock[] {
 }
 
 /** Where a caret goes beside blocks the range took whole, no text left at its start: the end before,
- *  the text or first byte after, the gap above a block it entered, or a line break's place. */
-type Beside = 'end before' | 'text after' | 'cut' | 'gap above' | 'break inside' | 'break between';
+ *  the text or first byte after, or the gap above a block it entered. */
+type Beside = 'end before' | 'text after' | 'cut' | 'gap above';
 
 function besideOf(gesture: Gesture, doc: Doc, range: Range): Beside {
-	if (gesture === 'break') return entersAtEnd(doc, range) ? 'break inside' : 'break between';
 	if (gesture === 'backspace' || gesture === 'command') return 'end before';
 	// Typed or composed text joins the text after only where that text is the end leaf's own, and
 	// elsewhere opens its paragraph where a cut's paste would go back.
@@ -667,9 +664,7 @@ function caretOf(
 				? (endBefore(result, at) ?? startAfter(result, at, after))
 				: beside === 'text after'
 					? startAfter(result, at, after)
-					: beside === 'cut' || beside === 'gap above'
-						? (beside === 'gap above' && gapBefore(result, at)) || firstPlace(result, at)
-						: lineBreakAt(result, at, after, beside === 'break inside', boundary);
+					: (beside === 'gap above' && gapBefore(result, at)) || firstPlace(result, at);
 	if (side) return side;
 	let text = at;
 	const lineStart = edit.source.lastIndexOf('\n', at - 1) + 1;
@@ -773,29 +768,6 @@ function underRow(owner: LaidBlock, row: LaidBlock, at: number): Place {
 	const line = lineOf(owner, at);
 	const closes = line.own && line.from > row.from;
 	return { at: closes ? Math.min(at, line.from) : at, holds: 'boundary', parent: owner.path };
-}
-
-/** Where a line break goes: before the end leaf's rest, else at the end before, else where the range
- *  was; beside a title row, which takes none, in the gap on the range's side. */
-function lineBreakAt(
-	doc: Doc,
-	caret: number,
-	after: number,
-	inside: boolean,
-	where: () => Place
-): Place | null {
-	const before = inside ? null : endBefore(doc, caret);
-	const place = before ?? startAfter(doc, caret, after);
-	const row = place?.holds === 'text' ? pointedBlock(doc, place.at) : undefined;
-	const owner = row && titleOwner(doc, row);
-	if (owner)
-		return before ? underRow(owner, row, caret) : { at: owner.from, ...held('boundary', owner) };
-	if (inside || before) return place;
-	// A line the removal emptied takes the break as any empty line does; an emptied document's one
-	// empty block stands where the range was.
-	const leaf = leafAt(doc, caret)?.leaf;
-	const emptied = !!leaf?.text && leaf.text.from === leaf.text.to && !isBlankText(doc.source);
-	return emptied ? null : where();
 }
 
 /** A place where `block` starts, among its parent's children. */

@@ -12,6 +12,7 @@ import type { TextEdit } from '../../caret/next-insertion';
 import { docPathFrom } from '../../core/coordinate-spaces';
 import { ownTrailingLineEnding, trimTrailingLineEnding } from '../../core/lines';
 import type { DocumentView } from '../../core/node-views';
+import type { AnyBlockKind } from '../../core/nodes';
 import type { DocumentGetter } from '../../editor-keys';
 import { assertPasteLanded } from '../../invariants/install';
 import { withLeafBytes } from '../../range-edit/document';
@@ -160,13 +161,20 @@ function pasteAnswer(
 	return editRange(doc.source, range, gesture, modeOf(ctx), host);
 }
 
-/** The core's answer for a key's text, or the place text would take, over what `coverage` holds,
- *  with the host that read it; nothing committed, null where the coverage reads as no bytes. */
+/** The core's answer over a range, the read it was answered on and the host that read it. */
+export interface PlaceAnswer {
+	read: RangeRead;
+	answer: RangeEditResult;
+	host: RangeHost;
+}
+
+/** The core's answer for a key's text, or the place text would take, over what `coverage` holds;
+ *  nothing committed, null where the coverage reads as no bytes (a table's rows or cells). */
 export function overRangeAnswer(
-	ctx: CommitContext,
+	ctx: Pick<CommitContext, 'bytes' | 'reading'>,
 	coverage: RangeCoverage,
 	gesture: 'place' | { text: string }
-): { read: RangeRead; answer: RangeEditResult; host: RangeHost } | null {
+): PlaceAnswer | null {
 	const tree = ctx.bytes.doc();
 	const read = rangeRead(ctx.bytes, endsOf(coverage), (layout) =>
 		removalBytes(tree, coverage, layout)
@@ -174,6 +182,14 @@ export function overRangeAnswer(
 	if (!read) return null;
 	const host: PasteHost = { ...rangeHost(ctx.reading, read), transformPaste: (text) => text };
 	return { read, answer: editRange(read.source, read.range, gesture, modeOf(ctx), host), host };
+}
+
+/** The kind of the block at the core's place for text, whose keymap a line break over the range
+ *  runs in: an opened paragraph, or a gap, where Enter opens one, reads as a paragraph. */
+export function placeKind({ answer, host }: PlaceAnswer): AnyBlockKind {
+	const tree = host.read(answer.source);
+	const point = answer.opened ? null : host.layout(tree).leafAt(answer.caret.at);
+	return (point && blockNodeAt(tree, point.path)?.kind) || 'paragraph';
 }
 
 /** `answer`, the core's paste over `base`, landed in one commit: the block's own write where it

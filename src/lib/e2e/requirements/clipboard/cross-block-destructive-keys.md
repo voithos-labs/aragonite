@@ -31,14 +31,14 @@ These press the plain-prose keys over a range across two blocks, without a page:
 
 ## Scenarios
 
-### 1. Command key with a table-start cross-block selection reaches the cell
+### 1. A line break with a table-start cross-block selection lands where text would
 
 Drag from a mid-row table cell out to a heading below so the table is the
 start of the cross-block range; press Enter. The range deletes (the covered
-body rows are removed) and the dispatcher mounts the caret the delete left,
-a cell deep in the table, so the cell's Enter command runs
-(a row is inserted below) instead of being silently dropped at the table
-wrapper. The grid stays well-formed and the next keystroke lands in a cell.
+body rows are removed) and the break lands where text typed over the range
+would: an empty paragraph under the header row the removal kept, never a row
+of the table and never dropped at the table wrapper. The grid stays
+well-formed and the next keystroke writes in that paragraph.
 
 ### 2. A command key over a whole table, row or column removes it first
 

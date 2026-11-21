@@ -220,3 +220,34 @@ function committedCost(source: string, at: number, gesture: Gesture) {
 	disablePerfInstruments();
 	return { core, commit };
 }
+
+// Miss-analysis: the rows costed the gestures a key, a cut or a paste makes, never the place a line
+// break over a range takes, whose empty paragraph is spelled off a copy of the whole document.
+describe('the place a line break over whole blocks takes', () => {
+	/** The bytes `openedAt` serializes for the place over a rule and a heading amid `n` paragraphs. */
+	function spelled(n: number): number {
+		const source = SHAPES.paragraphs(n / 2) + '\n***\n\n# head\n\n' + SHAPES.paragraphs(n / 2);
+		const range = { from: source.indexOf('***'), to: source.indexOf('# head') + '# head'.length };
+		const reading = testReading();
+		const tree = readAsOpened(source, { grammar: reading.grammar, scope: 'document' });
+		const host = rangeHost(reading, { source, measured: measured(tree) });
+		let bytes = 0;
+		const counting: RangeHost = {
+			...host,
+			openedAt: (doc, parent, index) => {
+				const out = host.openedAt(doc, parent, index);
+				bytes += out?.source.length ?? 0;
+				return out;
+			}
+		};
+		const answer = editRange(source, range, 'place', 'source', noTransforms(counting));
+		expect(answer.opened, 'the place is an empty paragraph opened where the range was').toBe(true);
+		return bytes;
+	}
+
+	// Declared: the empty paragraph's one writer serializes the copied document to spell it
+	// (`tree-operations/opened-paragraph.ts`), so a fix that ends that reds this row.
+	it('spells its empty paragraph off the whole document', () => {
+		expect(spelled(2000)).toBeGreaterThan(spelled(500) * 3);
+	});
+});

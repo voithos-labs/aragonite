@@ -890,7 +890,9 @@
 		commands,
 		getBlockComponent,
 		selection: selectionState,
-		getDoc
+		getDoc,
+		bytes,
+		reading
 	});
 
 	// Read at a row's press, when both halves exist.
@@ -1465,6 +1467,8 @@
 		containerChords,
 		selection: selectionState,
 		getDoc,
+		bytes,
+		reading,
 		commands,
 		isHostChrome,
 		isFindBar

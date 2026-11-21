@@ -23,8 +23,8 @@ import { blockNodeAt, isBlockNode } from '../../tree-operations/node-primitives'
 import { commitGridClear, commitGridLineDelete } from './grid-removal';
 import {
 	CORE_GESTURE,
-	breaksLine,
-	commandGesture,
+	bindsLineBreak,
+	breaksIn,
 	commandLandingKind,
 	commitBytes,
 	commitRemoval,
@@ -40,16 +40,17 @@ import {
 	overRangeAnswer,
 	pasteInBlock,
 	pasteThroughCore,
-	type Clip
+	placeKind,
+	type Clip,
+	type PlaceAnswer
 } from './range-paste';
-import { endsOf, gapOfPlace, placeOverRange, pointAtByte } from '../range-bytes';
+import { endsOf, placeOverRange, pointAtByte } from '../range-bytes';
 import type { RangeHost } from '../../range-edit/host';
 import { dispatchKeyCommand } from '../../schema/block-commands';
 import { completeLineOnType } from '../../schema/block-completions';
 import { blockFacts } from '../../schema/block-facts';
 import { assertInvariant, devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { checkCommandLanding } from '../../invariants/command-key-landing';
-import { checkBreakLanding } from '../../invariants/range-break-landing';
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -194,11 +195,17 @@ async function replaceInStep(
 	}
 
 	const keyed = 'chord' in insertion ? insertion : null;
+	// A cell's rows or columns have no place for text: their keys run in the cell the removal leaves.
+	const over =
+		keyed && (keyed.kind === 'break' || bindsLineBreak(keyed.chord, ctx.commands))
+			? overRangeAnswer(ctx, coverage, 'place')
+			: null;
+	// A key the place binds to anything but a line break runs as any other command key does.
+	if (keyed && over && breaksIn(placeKind(over), keyed, ctx.commands))
+		return breakAtPlace(ctx, coverage, over, keyed.chord);
 	const claimed = keyed ? commandLandingKind(ctx.getDoc(), coverage) : null;
-	const gesture =
-		keyed && claimed ? commandGesture(claimed, keyed, ctx.commands) : coreGestureOf(insertion);
 	const [removed, held] = await ctx.controller.holdLandings(() =>
-		removeRange(ctx, coverage, removal, gesture)
+		removeRange(ctx, coverage, removal, coreGestureOf(insertion))
 	);
 	if (!removed.wrote && !removed.caret) return 'nothing';
 	const removalCaret = held ?? (removed.wrote ? null : caretAt(ctx, removed.caret!));
@@ -210,30 +217,14 @@ async function replaceInStep(
 	if (place) return insertInEmptiedPlace(ctx, insertion, place, removalCaret);
 	const at = removed.caret;
 	if (keyed) {
-		const landed = removed.landed;
-		if (gesture === 'break' && removed.taken && landed?.holds === 'boundary') {
-			const { parentPath, index } = gapOfPlace(ctx.bytes.measured(), landed);
-			return breakWhereRangeWas(ctx, [...parentPath, index], keyed.chord);
-		}
 		// Before the command runs, since the block reads the caret to run it.
 		await removalCaret?.place();
-		const gap = ctx.selection.gapCaret;
-		if (gap && gesture === 'break')
-			return breakWhereRangeWas(ctx, [...gap.parentPath, gap.index], keyed.chord);
-		if (gap) return keyAtGap(ctx, [...gap.parentPath, gap.index], keyed.chord);
+		// At a gap there is no block to run the command in, so the key stops at the removal.
+		if (ctx.selection.gapCaret) return 'written';
 		const path = at?.path ?? coverage.range.start.path;
-		const ran = () => kindOfPath(path, ctx.getDoc());
-		// A line break can land past the block it was claimed in (an emptied line, a block read
-		// again), so it is held to breaking a line where it runs instead.
-		if (gesture === 'break') {
-			// A start block the removal kept holds the caret where the range began: no landing to check.
-			if (!removed.wrote || removed.taken) {
-				assertInvariant('range-break-landing', () =>
-					checkBreakLanding(ctx.getDoc(), path, breaksLine(ran(), keyed.chord, ctx.commands))
-				);
-			}
-		} else if (claimed) {
-			assertInvariant('command-key-landing', () => checkCommandLanding(claimed, ran()));
+		if (claimed) {
+			const ran = kindOfPath(path, ctx.getDoc());
+			assertInvariant('command-key-landing', () => checkCommandLanding(claimed, ran));
 		}
 		await runCommandAt(ctx, path, keyed.chord);
 		return 'written';
@@ -245,16 +236,37 @@ async function replaceInStep(
 	return insertAtCaret(ctx, insertion, at, removalCaret);
 }
 
-/** A command key where the removal left the caret in a gap, at `slot`, with no block to run in:
- *  Enter opens an empty paragraph there, as `GapCaret.svelte` answers it, and no other key runs. */
-async function keyAtGap(
+/** A line break at the core's place for text over the range, then the key's own command there, in
+ *  one undo step; Enter's split is a paragraph the place opened already. */
+async function breakAtPlace(
 	ctx: CrossBlockMutationContext,
-	slot: number[],
+	coverage: RangeCoverage,
+	over: PlaceAnswer,
 	chord: string
 ): Promise<RangeReplaceOutcome> {
-	if (chord === 'Enter' || chord === 'Shift+Enter')
-		await ctx.pasteCoordinator.insertParagraph(slot, '');
+	const placed = await commitPlace(ctx, coverage, over);
+	if (!placed) return 'nothing';
+	if (over.answer.opened && splitsParagraph(chord, ctx.commands)) return 'written';
+	const gap = ctx.selection.gapCaret;
+	if (gap) return breakWhereRangeWas(ctx, [...gap.parentPath, gap.index], chord);
+	await runCommandAt(ctx, placed.caret?.path ?? coverage.range.start.path, chord);
 	return 'written';
+}
+
+/** The core's place for text over the range committed as its removal is, the caret put down there:
+ *  where a composition waits and a line break runs. Null where it took nothing and no caret stands. */
+async function commitPlace(
+	ctx: CrossBlockMutationContext,
+	coverage: RangeCoverage,
+	{ read, answer }: PlaceAnswer
+): Promise<Removed | null> {
+	const unlanded = { ...answer, unlanded: answer.caret.at };
+	const [removed, held] = await ctx.controller.holdLandings(() =>
+		commitRemoval(ctx, coverage, 'compose', { read, answer: unlanded })
+	);
+	if (!removed.wrote && !removed.caret) return null;
+	await (held ?? (removed.caret && caretAt(ctx, removed.caret)))?.place();
+	return removed;
 }
 
 /** A line break with no block to run in lands in an empty paragraph at `slot`, one an emptied
@@ -362,14 +374,7 @@ async function compositionPlace(
 	coverage: RangeCoverage
 ): Promise<RangeReplaceOutcome> {
 	const over = overRangeAnswer(ctx, coverage, 'place');
-	if (!over) return 'nothing';
-	const answer = { ...over.answer, unlanded: over.answer.caret.at };
-	const [removed, held] = await ctx.controller.holdLandings(() =>
-		commitRemoval(ctx, coverage, 'compose', { read: over.read, answer })
-	);
-	if (!removed.wrote && !removed.caret) return 'nothing';
-	await (held ?? (removed.caret && caretAt(ctx, removed.caret)))?.place();
-	return 'written';
+	return over && (await commitPlace(ctx, coverage, over)) ? 'written' : 'nothing';
 }
 
 /** The line a typed key left at `caret`, completed as the block completes a line typed there where
@@ -473,8 +478,8 @@ const inCell = (caret: SelectionPoint | null): Removed => ({
 	taken: null
 });
 
-/** How the core names the removal any other gesture makes (`commandGesture` names a key's): a
- *  delete no key asked for removes as a command key does, from the side Backspace takes. */
+/** How the core names the removal a gesture makes: a delete no key asked for removes as a command
+ *  key does, from the side Backspace takes. */
 function coreGestureOf(insertion: KeyedInsertion): CoreGesture {
 	switch (insertion.kind) {
 		case 'none':
@@ -484,9 +489,8 @@ function coreGestureOf(insertion: KeyedInsertion): CoreGesture {
 		case 'composition':
 			return 'compose';
 		case 'command':
-			return 'command';
 		case 'break':
-			return 'break';
+			return 'command';
 	}
 }
 

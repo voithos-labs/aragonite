@@ -31,7 +31,7 @@ import { measured } from '#lib/tree-operations/top-level-starts.js';
 import { freshOrFixedSeed } from '../invariants/arbitraries/property-seed';
 import { leafAt, readOf } from './expected';
 import { gluedStart, movedLine, rewrittenAfter, textBelow } from './kept-lines';
-import { checkHost, testReading } from './test-host';
+import { checkHost, noTransforms, testReading } from './test-host';
 
 const TABLE = ['| a | b |', '|---|---|', '| 1 | 2 |', '| 3 | 4 |'];
 const quoted = (lines: string[]) => lines.map((l) => (l ? `> ${l}` : '>'));
@@ -230,14 +230,12 @@ describe('G4.350 a removal keeps the lines after its range', () => {
 				if (!c.body.endsWith('taken whole') || cell !== undefined || isBlankText(rest)) return;
 				landed++;
 				const kind = leafAt(read, range.to)?.type;
-				const caretOf = (g: 'delete' | 'compose' | 'backspace' | 'break') =>
-					removalOf(source, range, g, c.mode, host);
-				let emptied = false;
+				const caretOf = (g: 'delete' | 'compose') => removalOf(source, range, g, c.mode, host);
 				for (const g of ['delete', 'compose'] as const) {
 					const { caret, source: got } = caretOf(g);
 					// An emptied line holds the caret behind a container's marker alone: a block taken whole
 					// goes with its line, under a blank line or an opening row too.
-					emptied =
+					const emptied =
 						caret.at <= range.from &&
 						lineHead(got, caret.at) !== '' &&
 						isBlankText(lineRest(got, caret.at));
@@ -249,12 +247,12 @@ describe('G4.350 a removal keeps the lines after its range', () => {
 							`${g} landed at ${caret.at}: ${JSON.stringify(got)}\n    ${JSON.stringify(c)}`
 						);
 				}
-				// A line break lands where Delete does where the range ends partway through a block's text,
-				// and where Backspace does at a block's end or between blocks; a title row takes none.
-				const broke = caretOf('break').caret;
-				const titled = c.end === 'a later container’s title row' && !emptied;
-				const like = caretOf(BETWEEN.has(c.end) ? 'backspace' : 'delete').caret;
-				if (titled ? broke.holds !== 'boundary' : JSON.stringify(broke) !== JSON.stringify(like))
+				// A line break goes where text does: where Delete lands where the range ends partway through a
+				// block's text, else never in a block before the range.
+				const broke = editRange(source, range, 'place', c.mode, noTransforms(host)).caret;
+				const inside = !BETWEEN.has(c.end) && c.end !== 'a later container’s title row';
+				const like = caretOf('delete').caret;
+				if (inside ? JSON.stringify(broke) !== JSON.stringify(like) : broke.at < range.from)
 					landings.push(
 						`a line break landed at ${JSON.stringify(broke)}\n    ${JSON.stringify(c)}`
 					);

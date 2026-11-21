@@ -79,9 +79,10 @@ const OUTCOMES: Record<string, Record<Removal, Outcome>> = {
 		cut: [GONE, [[1], 0]],
 		type: ['lead\n\nx\n\ntail\n', [[1], 1]],
 		paste: ['lead\n\nP\n\ntail\n', [[1], 1]],
-		// A composition's place is the line a typed key's text takes: an empty paragraph where the rule was.
+		// A composition's and Enter's place is the line a typed key's text takes: an empty paragraph
+		// where the rule was.
 		compose: ['lead\n\n\ntail\n', [[1], 0]],
-		Enter: [GONE, [[0], 4]]
+		Enter: ['lead\n\n\ntail\n', [[1], 0]]
 	},
 	'a whole table': {
 		Backspace: [GONE, [[0], 4]],
@@ -89,7 +90,7 @@ const OUTCOMES: Record<string, Record<Removal, Outcome>> = {
 		type: ['lead\n\nx\n\ntail\n', [[1], 1]],
 		paste: ['lead\n\nP\n\ntail\n', [[1], 1]],
 		compose: [TABLE_CLEARED, [[1, 0, 0], 0]],
-		Enter: [GONE, [[0], 4]]
+		Enter: ['lead\n\n\ntail\n', [[1], 0]]
 	},
 	'a whole row': {
 		Backspace: [ROW_GONE, [[0, 1, 0], 0]],

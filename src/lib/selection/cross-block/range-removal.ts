@@ -20,7 +20,7 @@ import {
 import { readsAsText } from '../../range-edit/document';
 import { rangeHost } from '../../range-edit/host';
 import type { CommandDispatchContext } from '../../schema/block-commands';
-import { LINE_BREAK_COMMAND_IDS, resolveBinding } from '../../schema/commands';
+import { LINE_BREAK_COMMAND_IDS, chordsBoundTo, resolveBinding } from '../../schema/commands';
 import { changesBetween } from '../../tree-operations/byte-changes';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import type { Measured } from '../../tree-operations/top-level-starts';
@@ -77,33 +77,30 @@ export const CORE_GESTURE: Record<BlockGesture, RemovalGesture> = {
 
 type Keymap = Pick<CommandDispatchContext, 'keybindingOverrides' | 'activation'>;
 
-/** How the core names a command key's removal, by what its chord runs in `kind`, where it was
- *  claimed: a line break, else Backspace's side. A break input that runs nothing is a break. */
-export function commandGesture(
+/** Whether some keymap binds `chord` to a line break, which over a range runs at the core's place
+ *  for text instead of where the removal leaves the caret. */
+export function bindsLineBreak(chord: string, commands: Keymap): boolean {
+	return chordsBoundTo(LINE_BREAK_COMMAND_IDS, commands).has(chord);
+}
+
+/** Whether a key, or a break that came as input, runs as a line break in a block of `kind`: by what
+ *  its chord is bound to there, and a break input bound to nothing still counts as one. */
+export function breaksIn(
 	kind: AnyBlockKind,
 	insertion: { kind: 'command' | 'break'; chord: string },
 	commands: Keymap
-): RemovalGesture {
-	const command = boundCommand(kind, insertion.chord, commands);
-	if (command === undefined) return insertion.kind === 'break' ? 'break' : 'command';
-	return LINE_BREAK_COMMAND_IDS.has(command) ? 'break' : 'command';
-}
-
-/** Whether `chord` runs a line break in a block of `kind`. */
-export function breaksLine(kind: AnyBlockKind, chord: string, commands: Keymap): boolean {
-	const command = boundCommand(kind, chord, commands);
-	return command !== undefined && LINE_BREAK_COMMAND_IDS.has(command);
+): boolean {
+	const command = boundIn(kind, insertion.chord, commands);
+	return command === undefined ? insertion.kind === 'break' : LINE_BREAK_COMMAND_IDS.has(command);
 }
 
 /** Whether `chord` runs Enter's split in a paragraph, which an empty paragraph opened for it is. */
 export function splitsParagraph(chord: string, commands: Keymap): boolean {
-	return boundCommand('paragraph', chord, commands) === 'block.split';
+	return boundIn('paragraph', chord, commands) === 'block.split';
 }
 
-function boundCommand(kind: AnyBlockKind, chord: string, commands: Keymap) {
-	const overrides = commands.keybindingOverrides();
-	return resolveBinding(chord, kind, overrides, commands.activation)?.command;
-}
+const boundIn = (kind: AnyBlockKind, chord: string, commands: Keymap) =>
+	resolveBinding(chord, kind, commands.keybindingOverrides(), commands.activation)?.command;
 
 /** Removes what `coverage` holds as `gesture` does, in one commit. */
 export async function removeThroughCore(
