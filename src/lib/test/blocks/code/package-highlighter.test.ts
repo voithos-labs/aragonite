@@ -60,6 +60,34 @@ describe('highlightJs({ languages })', () => {
 	});
 });
 
+// Miss-analysis: every row asked the default resolver, which remembers its own loads, so none
+// showed what a host's resolver pays when it answers a new promise each time.
+describe('highlightJs({ resolver })', () => {
+	const snake = [{ name: 'snake', aliases: [] }];
+
+	it('asks a host resolver for a grammar once, then paints that language at once', async () => {
+		const resolve = vi.fn(() => Promise.resolve(javascript));
+		const { painter, repaint } = editorRunning({ resolver: { languages: snake, resolve } });
+		expect(tokens(painter.code('const a', 'snake'))).toEqual([]);
+		await vi.waitFor(() => expect(repaint).toHaveBeenCalledTimes(1));
+		expect(tokens(painter.code('const b', 'snake'))).toEqual(['code-tok-keyword:const']);
+		expect(resolve).toHaveBeenCalledTimes(1);
+	});
+
+	it('leaves a language plain once a host resolver’s load fails, asking and reporting once', async () => {
+		const resolve = vi.fn(() => Promise.reject(new Error('chunk 404')));
+		const { painter, repaint, errors } = editorRunning({ resolver: { languages: snake, resolve } });
+		for (const body of ['const a', 'const b']) {
+			expect(tokens(painter.code(body, 'snake'))).toEqual([]);
+			await microtaskCheckpoint();
+			await microtaskCheckpoint();
+		}
+		expect(repaint).not.toHaveBeenCalled();
+		expect(resolve).toHaveBeenCalledTimes(1);
+		expect(errors).toHaveLength(1);
+	});
+});
+
 // Miss-analysis: reset isolation was tested on the global language registry, which is gone.
 describe('one highlight.js per editor', () => {
 	it('paints each editor with its own grammar under one name', () => {

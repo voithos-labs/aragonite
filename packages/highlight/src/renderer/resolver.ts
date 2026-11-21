@@ -1,7 +1,7 @@
 /**
  * Which grammar a fence's language gets. The default resolver answers every highlight.js grammar:
- * the eager set at once, and any other as a promise of its own chunk, fetched once, the first time
- * a fence names it. A chunk that fails to load leaves its language plain for the page's life.
+ * the eager set at once, and any other as a promise of its own chunk. The engine asks once per
+ * language and keeps the answer, so a resolver needs no memory of its own.
  */
 import type { LanguageFn } from 'highlight.js';
 import type { CodeLanguage } from '@voithos-labs/aragonite/plugin';
@@ -10,7 +10,8 @@ import { EAGER } from './eager';
 
 /** Answers which grammar a language gets, and lists what it answers. */
 export interface LanguageResolver {
-	/** The grammar for a language in any spelling: now, once it loads, or null for none. */
+	/** The grammar for a language in any spelling: now, once it loads, or null for none. An editor
+	 *  asks once per language; a rejection leaves that language plain there. */
 	resolve(name: string): LanguageFn | Promise<LanguageFn> | null;
 	/** Every language `resolve` answers, once each with its other spellings: the picker's rows. */
 	readonly languages: readonly CodeLanguage[];
@@ -50,7 +51,6 @@ function createDefaultResolver(): LanguageResolver {
 	const byName = new Map<string, Entry>();
 	for (const entry of entries) for (const alias of entry.aliases) byName.set(alias, entry);
 	for (const entry of entries) byName.set(entry.name, entry);
-	const loaded = new Map<string, LanguageFn | Promise<LanguageFn> | null>();
 	return {
 		languages: entries.map(({ name, aliases }, i) => ({
 			name,
@@ -59,19 +59,7 @@ function createDefaultResolver(): LanguageResolver {
 		resolve(name) {
 			const entry = byName.get(name.toLowerCase());
 			if (!entry) return null;
-			const eager = EAGER[entry.file];
-			if (eager) return eager;
-			if (loaded.has(entry.file)) return loaded.get(entry.file)!;
-			const load = CATALOG[entry.file][1]!;
-			const loading = load().then(
-				(module) => (loaded.set(entry.file, module.default), module.default),
-				(cause: unknown) => {
-					loaded.set(entry.file, null);
-					throw cause;
-				}
-			);
-			loaded.set(entry.file, loading);
-			return loading;
+			return EAGER[entry.file] ?? CATALOG[entry.file][1]!().then((module) => module.default);
 		}
 	};
 }

@@ -42,25 +42,40 @@ export function listLanguages(options: Readonly<HighlightJsOptions> = {}): reado
 function createHighlighter(options: Readonly<HighlightJsOptions>): CodeHighlighter {
 	const hljs = HighlightJS.newInstance();
 	const resolver = withOwnLanguages(options.languages ?? {}, options.resolver ?? defaultResolver);
-	const registered = new Map<string, LanguageFn>();
-	const tokens = (grammar: LanguageFn, body: string, name: string) => {
-		if (registered.get(name) !== grammar) {
-			hljs.registerLanguage(name, grammar);
-			// Another grammar's sublanguage names it by any spelling (`xml` inside a `php` fence).
-			const aliases = resolver.languages.find((entry) => entry.name === name)?.aliases ?? [];
-			hljs.registerAliases([...aliases], { languageName: name });
-			registered.set(name, grammar);
-		}
-		return tokensOf(hljs, body, name);
+	// Each name's grammar once asked for: in hand, on its way, or null after a load that failed. The
+	// resolver is asked once per name, so one that answers a new promise each time costs no more.
+	const grammars = new Map<string, LanguageFn | Promise<LanguageFn> | null>();
+	const register = (name: string, grammar: LanguageFn): LanguageFn => {
+		hljs.registerLanguage(name, grammar);
+		// Another grammar's sublanguage names it by any spelling (`xml` inside a `php` fence).
+		const aliases = resolver.languages.find((entry) => entry.name === name)?.aliases ?? [];
+		hljs.registerAliases([...aliases], { languageName: name });
+		grammars.set(name, grammar);
+		return grammar;
+	};
+	const grammarOf = (name: string): LanguageFn | Promise<LanguageFn> | null => {
+		if (grammars.has(name)) return grammars.get(name)!;
+		const answer = resolver.resolve(name);
+		if (answer === null) return null;
+		if (typeof answer === 'function') return register(name, answer);
+		const loading = answer.then(
+			(grammar) => register(name, grammar),
+			(cause: unknown) => {
+				grammars.set(name, null);
+				throw cause;
+			}
+		);
+		grammars.set(name, loading);
+		return loading;
 	};
 	return {
 		languages: () => resolver.languages,
 		highlight(body, language) {
 			const name = language.toLowerCase();
-			const grammar = resolver.resolve(name);
+			const grammar = grammarOf(name);
 			if (grammar === null) return null;
-			if (typeof grammar === 'function') return tokens(grammar, body, name);
-			return grammar.then((loaded) => tokens(loaded, body, name));
+			if (typeof grammar === 'function') return tokensOf(hljs, body, name);
+			return grammar.then(() => tokensOf(hljs, body, name));
 		}
 	};
 }
@@ -71,26 +86,13 @@ function withOwnLanguages(
 ): LanguageResolver {
 	const names = Object.keys(sources).map((name) => name.toLowerCase());
 	if (names.length === 0) return resolver;
-	const loaded = new Map<string, LanguageFn | Promise<LanguageFn> | null>();
 	const own = (name: string): LanguageFn | Promise<LanguageFn> | null => {
 		const source = Object.entries(sources).find(([key]) => key.toLowerCase() === name)?.[1];
 		if (!source) return null;
 		if (typeof source === 'function') return source;
-		if (!loaded.has(name)) {
-			const loading = source.load().then(
-				(grammar) => {
-					const fn = typeof grammar === 'function' ? grammar : grammar.default;
-					loaded.set(name, fn);
-					return fn;
-				},
-				(cause: unknown) => {
-					loaded.set(name, null);
-					throw cause;
-				}
-			);
-			loaded.set(name, loading);
-		}
-		return loaded.get(name)!;
+		return source
+			.load()
+			.then((grammar) => (typeof grammar === 'function' ? grammar : grammar.default));
 	};
 	const ownLanguages: CodeLanguage[] = Object.entries(sources).map(([name, source]) => ({
 		name: name.toLowerCase(),

@@ -12,12 +12,10 @@ describe('the default resolver', () => {
 		expect(defaultResolver.resolve('htm')).toBe(defaultResolver.resolve('html'));
 	});
 
-	it('answers any other grammar with one promise, then at once', async () => {
+	it('answers any other grammar with a promise of it, under any spelling', async () => {
 		const first = defaultResolver.resolve('golang');
 		expect(typeof (first as Promise<unknown>).then).toBe('function');
-		expect(defaultResolver.resolve('go')).toBe(first);
-		const grammar = await first;
-		expect(defaultResolver.resolve('go')).toBe(grammar);
+		expect(await defaultResolver.resolve('go')).toBe(await first);
 	});
 
 	it('lists each grammar once, each spelling under one name', () => {
