@@ -10,7 +10,9 @@
 	},
 	"dependencies": {
 		"@voithos-labs/aragonite": "file:../..",
+		"@voithos-labs/aragonite-highlight": "file:../../packages/highlight",
 		"@voithos-labs/aragonite-vue": "file:../../packages/vue",
+		"highlight.js": "^11.12.0",
 		"vue": "^3.5.44"
 	},
 	"devDependencies": {

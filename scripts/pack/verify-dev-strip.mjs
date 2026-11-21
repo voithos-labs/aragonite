@@ -1,9 +1,10 @@
 // A host's production build carries none of the editor's dev checks (G4.247), no dev-only module
-// (G4.265) and no highlight.js (G4.372). Vite builds a page that imports the editor, through the Svelte build and the prebuilt
-// one, in development and in production: every check tag the development build carries must be gone
-// from the production one. The production page's first-load and total JS and its chunk count are
-// budget rows in `size-budget.json`. Run by verify-pack.mjs after `npm run package`;
-// `node scripts/pack/verify-dev-strip.mjs [root] [--bless]`.
+// (G4.265) and no highlight.js (G4.372). Vite builds a page that imports the editor, through the
+// Svelte build and the prebuilt one, in development and in production: every check tag the
+// development build carries must be gone from the production one. A second page lists the highlight
+// package, and at least 150 of its grammars must load outside its first load. Each production page's
+// first-load and total JS and its chunk count are budget rows in `size-budget.json`. Run by
+// verify-pack.mjs after `npm run package`; `node scripts/pack/verify-dev-strip.mjs [root] [--bless]`.
 import {
 	mkdirSync,
 	mkdtempSync,
@@ -31,6 +32,9 @@ const DEV_ONLY_MODULE = /(^|\/)dist\/(invariants\/|debug\/dump-tree\.js$)/;
 /** Fewer mapped editor modules than this means the source maps stopped naming them. */
 const MAPPED_FLOOR = 300;
 
+/** Fewer grammars outside the highlight page's first load means they stopped loading on demand. */
+const LAZY_GRAMMAR_FLOOR = 150;
+
 const CHECK_CALL = /\b(?:assertInvariant|devWarn)\(\s*(['"`])([^'"`$\\]+)\1/g;
 const QUOTED = /(['"`])([^'"`$\\\n]+)\1/g;
 const CODE_FIELD = /\bcode:\s*(['"`])([^'"`$\\\n]+)\1/g;
@@ -49,8 +53,9 @@ export async function verifyDevStrip(root = '.') {
 	/** @type {Record<string, number>} */
 	const sizes = {};
 	const page = mkdtempSync(path.join(tmpdir(), 'dev-strip-'));
+	const highlightPage = mkdtempSync(path.join(tmpdir(), 'dev-strip-highlight-'));
 	try {
-		writePage(page, path.resolve(root));
+		writePage(page, path.resolve(root), CORE_MAIN);
 		for (const route of /** @type {const} */ (['svelte', 'prebuilt'])) {
 			const development = await buildPage(page, route, 'development');
 			const production = await buildPage(page, route, 'production');
@@ -79,8 +84,28 @@ export async function verifyDevStrip(root = '.') {
 			if (route === 'svelte') failures.push(...devOnlyModules(production.outDir));
 			failures.push(...highlightJs(production.outDir, route));
 		}
+		writePage(highlightPage, path.resolve(root), HIGHLIGHT_MAIN);
+		for (const route of /** @type {const} */ (['svelte', 'prebuilt'])) {
+			const production = await buildPage(highlightPage, route, 'production');
+			const name = route === 'svelte' ? 'highlightAppSvelte' : 'highlightAppPrebuilt';
+			sizes[`${name}FirstLoadGzip`] = production.firstLoadGzipped;
+			sizes[`${name}TotalGzip`] = production.gzipped;
+			sizes[`${name}Chunks`] = production.chunks;
+			const grammars = lazyGrammars(production.outDir);
+			console.log(
+				`verify-dev-strip: ${route} with the highlight package ${production.firstLoadGzipped} B ` +
+					`gzipped at first load and ${production.gzipped} B in all over ${production.chunks} ` +
+					`chunks in production, ${grammars} grammars loaded later`
+			);
+			if (grammars < LAZY_GRAMMAR_FLOOR) {
+				failures.push(
+					`the ${route} page with the highlight package loads ${grammars} grammars outside its first load, under ${LAZY_GRAMMAR_FLOOR}: are they still loaded on demand?`
+				);
+			}
+		}
 	} finally {
 		rmSync(page, { recursive: true, force: true });
+		rmSync(highlightPage, { recursive: true, force: true });
 	}
 	return { failures, sizes };
 }
@@ -175,22 +200,62 @@ const carries = (code, tag) =>
 
 // ── The page ─────────────────────────────────────────────────────────────────
 
-/** A page importing the editor, with the package linked the way an install puts it. It imports
- *  `configureEditorEnv` too, so a bundler can't prove the switch stays off without the swap. */
-function writePage(/** @type {string} */ page, /** @type {string} */ packageRoot) {
+/** The page's entry: the editor, and `configureEditorEnv` too, so a bundler can't prove the switch
+ *  stays off without the swap. */
+const CORE_MAIN = [
+	"import { createEditor } from '@voithos-labs/aragonite';",
+	"import { configureEditorEnv } from '@voithos-labs/aragonite/testing';",
+	'window.editorApi = { createEditor, configureEditorEnv };'
+];
+
+/** The entry of a host that lists the highlight package. */
+const HIGHLIGHT_MAIN = [
+	"import { createEditor } from '@voithos-labs/aragonite';",
+	"import { highlight } from '@voithos-labs/aragonite-highlight';",
+	"import { highlightJs } from '@voithos-labs/aragonite-highlight/renderer';",
+	'window.editorApi = { createEditor, plugins: [highlight({ renderer: highlightJs() })] };'
+];
+
+/** A page running `main`, with the editor and the highlight package linked the way an install
+ *  puts them. */
+function writePage(
+	/** @type {string} */ page,
+	/** @type {string} */ packageRoot,
+	/** @type {string[]} */ main
+) {
 	const scope = path.join(page, 'node_modules/@voithos-labs');
 	mkdirSync(scope, { recursive: true });
 	symlinkSync(packageRoot, path.join(scope, 'aragonite'), 'junction');
+	symlinkSync(
+		path.join(packageRoot, 'packages/highlight'),
+		path.join(scope, 'aragonite-highlight'),
+		'junction'
+	);
 	const html = '<!doctype html><script type="module" src="./main.js"></script>';
-	const main = [
-		"import { createEditor } from '@voithos-labs/aragonite';",
-		"import { configureEditorEnv } from '@voithos-labs/aragonite/testing';",
-		'window.editorApi = { createEditor, configureEditorEnv };'
-	].join('\n');
 	writeFileSync(path.join(page, 'index.html'), html);
-	writeFileSync(path.join(page, 'main.js'), main);
+	writeFileSync(path.join(page, 'main.js'), main.join('\n'));
 	writeFileSync(path.join(page, 'package.json'), '{ "type": "module" }');
 }
+
+/**
+ * The page's JS files outside its first load whose source map names a highlight.js grammar.
+ * @param {string} outDir
+ */
+function lazyGrammars(outDir) {
+	const first = new Set(firstLoad(outDir));
+	return readdirSync(outDir, { recursive: true, withFileTypes: true })
+		.filter((entry) => entry.isFile() && entry.name.endsWith('.js.map'))
+		.map((entry) => path.join(entry.parentPath, entry.name))
+		.filter((map) => !first.has(path.relative(outDir, map.slice(0, -'.map'.length))))
+		.filter((map) =>
+			JSON.parse(readFileSync(map, 'utf8')).sources.some((/** @type {string} */ source) =>
+				GRAMMAR.test(source)
+			)
+		).length;
+}
+
+/** A grammar module of highlight.js, as a source map spells its path. */
+const GRAMMAR = /highlight\.js[\\/](?:lib|es)[\\/]languages[\\/]/;
 
 /**
  * The built page: its JS, the gzipped bytes of all of it and of what the entry loads before it runs
@@ -211,6 +276,8 @@ async function buildPage(page, route, mode) {
 			logLevel: 'silent',
 			mode,
 			plugins: route === 'svelte' ? [svelte({ configFile: false })] : [],
+			// One copy of each for the page and the highlight package it links.
+			resolve: { dedupe: ['@voithos-labs/aragonite', 'highlight.js'] },
 			build: {
 				outDir,
 				emptyOutDir: true,

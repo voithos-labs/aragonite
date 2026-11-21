@@ -9,6 +9,8 @@
 	import { highlightOccurrencesPlugin } from '@voithos-labs/aragonite-highlight-occurrences';
 	import { emojiPlugin } from '@voithos-labs/aragonite-emoji';
 	import { footnotesPlugin } from '@voithos-labs/aragonite-footnotes';
+	import { highlight } from '@voithos-labs/aragonite-highlight';
+	import { highlightJs } from '@voithos-labs/aragonite-highlight/renderer';
 
 	// Module scope so the factories run once per process, not once per (SSR) render: a
 	// re-render minting fresh same-name plugins trips installPlugins' first-wins dev-warn.
@@ -25,7 +27,8 @@
 		// Trigger bytes shared with the seed's `:::name` and `[[toc]]`: installed here to prove
 		// the recognizer rungs coexist rather than contest a claim.
 		emojiPlugin(),
-		footnotesPlugin()
+		footnotesPlugin(),
+		highlight({ renderer: highlightJs() })
 	];
 </script>
 

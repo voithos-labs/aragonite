@@ -2,12 +2,16 @@
 <script setup lang="ts">
 import { ref, version } from 'vue';
 import { Aragonite, type AragoniteInstance } from '@voithos-labs/aragonite-vue';
+import { highlight } from '@voithos-labs/aragonite-highlight';
+import { highlightJs } from '@voithos-labs/aragonite-highlight/renderer';
 
 defineProps<{ uncontrolled: boolean }>();
 
 const FIRST = '# First note\n\nHello from the first note.\n';
 const SECOND = '# Second note\n\nA different document.\n';
 const LONG = Array.from({ length: 300 }, (_, i) => `Paragraph ${i + 1}.`).join('\n\n') + '\n';
+// Code fences highlight as they did when the editor bundled its own grammars.
+const plugins = [highlight({ renderer: highlightJs() })];
 
 const loaded = ref(FIRST);
 const value = ref(FIRST);
@@ -40,6 +44,7 @@ function load() {
 			ref="editor"
 			v-bind="uncontrolled ? { defaultValue: FIRST } : { modelValue: value }"
 			:theme="themed ? theme : undefined"
+			:plugins="plugins"
 			style="height: 60vh"
 			@update:model-value="value = $event"
 		>
