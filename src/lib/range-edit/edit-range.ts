@@ -367,10 +367,16 @@ function goneAlone(doc: Doc, range: Range) {
 
 /** The index among `place.parent`'s children of the first one starting at or past its byte. */
 function childAt(doc: Doc, place: { at: number; parent: readonly number[] }): number {
-	let index = 0;
-	for (let child = doc.layout.block([...place.parent, 0]); child && child.from < place.at;)
-		child = doc.layout.block([...place.parent, ++index]);
-	return index;
+	const { parent, at } = place;
+	const holder = parent.length ? nodeAt(doc, parent) : doc.tree;
+	// Children lie in byte order, so the search lays out a few of them, never every one before.
+	let [low, high] = [0, holder.children?.length ?? 0];
+	while (low < high) {
+		const middle = (low + high) >> 1;
+		if (doc.layout.block([...parent, middle])!.from < at) low = middle + 1;
+		else high = middle;
+	}
+	return low;
 }
 
 /** Where a paste's removal left a block held whole its line for the text: the blank line under that
