@@ -93,6 +93,28 @@ describe('createCodePainter', () => {
 		expect(html(painter.code('let ab', 'x'))).toBe('<span class="kw">let</span> ab');
 	});
 
+	// Miss-analysis: the stale rows changed the body alone, so an answer for the language the fence
+	// had before went unasked.
+	it('drops an answer for a language the surface no longer shows, the body unchanged', async () => {
+		const answers: ((tokens: CodeToken[]) => void)[] = [];
+		const { painter, repaint } = editorWith({
+			name: 'late',
+			code: {
+				languages: () => [
+					{ name: 'x', aliases: [] },
+					{ name: 'y', aliases: [] }
+				],
+				highlight: () => new Promise<CodeToken[]>((resolve) => answers.push(resolve))
+			}
+		});
+		painter.code('let a', 'x');
+		painter.code('let a', 'y');
+		answers[0]([{ from: 0, to: 3, class: 'for-x' }]);
+		await settle();
+		expect(repaint).not.toHaveBeenCalled();
+		expect(html(painter.code('let a', 'y'))).toBe('let a');
+	});
+
 	it('paints a rejected answer plain and reports one failure once', async () => {
 		const failure = new Error('chunk 404');
 		const { painter, repaint, errors } = editorWith({
