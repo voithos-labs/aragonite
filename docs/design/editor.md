@@ -486,7 +486,7 @@ The built-in kinds and what the editor does with each. A kind with no dedicated 
 | `paragraph` | The primary text block. Contenteditable, inline-parsed. |
 | `heading` | Styled ATX heading. Contenteditable, inline-parsed. A closing `#` run is drawn as a marker after the text. Where the markers hide, an edit that takes the hidden `# ` takes the run too; where they show, the run stays unless the selection covered it. |
 | `setextHeading` | Identical to `heading` for editing purposes. Not normalized to ATX: that would rewrite bytes the user typed. A title any edit leaves blank loses its underline, which would otherwise read as a block of its own. |
-| `fencedCode` | Live syntax-highlighted code surface. Dimmed fence and info-string markers, editable wherever the mode paints them and out of reach where it hides them. Participates in sticky-column traversal. |
+| `fencedCode` | Code surface, highlighted where a listed plugin highlights its language. Dimmed fence and info-string markers, editable wherever the mode paints them and out of reach where it hides them. Participates in sticky-column traversal. |
 | `thematicBreak` | Non-editable, focusable, reorderable. The one built-in on the whole-block focus model (`structural-edits.md` § Whole-block focus). |
 | `indentedCode` | Raw-editable. Not mergeable. |
 | `htmlBlock` | Raw-editable. Not mergeable. |

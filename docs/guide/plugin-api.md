@@ -763,6 +763,36 @@ const code = highlight({
 
 The picker shows `mylang` once, and `mlg` is a search key for that row, so a user typing `mlg` finds it without knowing the full name.
 
+A plugin with a language of its own contributes a highlighter for that language alone, and an editor may list it beside the `highlight` package:
+
+```ts
+import { definePlugin, type CodeToken } from '@voithos-labs/aragonite/plugin';
+
+const LANGUAGES = [{ name: 'recipe', aliases: ['rcp'] }];
+
+export const recipe = definePlugin({
+	name: 'recipe',
+	version: '1.0.0',
+	editor: '*',
+	contributes: () => ({
+		code: {
+			languages: () => LANGUAGES,
+			highlight: (body: string): CodeToken[] =>
+				[...body.matchAll(/\b(?:mix|bake|rest)\b/g)].map((step) => ({
+					from: step.index,
+					to: step.index + step[0].length,
+					class: 'code-tok-keyword'
+				}))
+		}
+	})
+});
+```
+
+- **The theme colors these classes:** `code-tok-keyword`, `-string`, `-number`, `-literal`, `-comment`, `-type`, `-function`, `-variable`, `-operator`, `-punctuation`, `-meta`, `-attr`, `-regexp`, `-symbol`, `-subst`, `-added`, `-removed`, `-heading` and `-link`, in light and dark. Any other class is yours to style.
+- **Hand back the same `languages()` array** while the list holds; the editor rebuilds its language table when it gets a new one.
+- **Answer at once when you can.** A promise leaves the fence plain until it settles, on every edit, so an engine that always answers later (a worker, say) unpaints the fence at each key.
+- **Only a plugin value contributes one.** A `setup` plugin ships its highlighter as a second plugin, a value, for hosts to list beside it.
+
 ### Plugin views
 
 _(pre-freeze / unstable)_ What an inline widget, a decoration's widget or badge, and an inline menu row are drawn with. The editor makes an element, hands it to your view with that slot's props, calls `update` when the props change and `destroy` when the slot drops it. A view that throws anywhere in there costs only itself: its slot draws the fallback (the source, no widget, the default row) and the `error` event gets one report. The recipe: [Rendering it as a widget](plugin-guide/inline-kinds.md#rendering-it-as-a-widget).
