@@ -6,6 +6,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { stubBlockComponent } from '../../harness/editor-actions';
 import { makeKeydownEnv, press } from './keydown-env';
 import { isCommandCandidateKey, isIndentKey } from '#lib/selection/cross-block/keydown.js';
+import type { SelectionEndpoint } from '#lib/selection/primitives.js';
 
 const SOURCE = 'alpha\n\nbeta\n\ngamma\n';
 
@@ -147,8 +148,8 @@ gamma
 // Miss-analysis: every candidate row ranged over text, where the place a break takes and the block
 // the removal leaves the caret in are one block, so none read the claim off the place.
 describe('a line break over whole blocks is claimed by the keymap of the place text would take', () => {
-	const rule = { path: [1], wholeBlock: true } as const;
-	const headingEnd = { path: [2], offset: 6 };
+	const rule: SelectionEndpoint = { path: [1], wholeBlock: true };
+	const headingEnd: SelectionEndpoint = { path: [2], offset: 6 };
 
 	it('Shift+Enter is a candidate where the headings around the range unbind it', () => {
 		const env = makeKeydownEnv('# head\n\n---\n\n## two\n\nlast\n', {
