@@ -238,13 +238,14 @@ export const HARDCODED_CHORD_SITES: readonly HardcodedChordSite[] = [
 			'Backspace',
 			'Delete',
 			'End',
+			'Enter',
 			'Home',
 			'Insert',
 			'PageDown',
 			'PageUp',
 			'V'
 		],
-		note: "The normalizer every other site reads, the select-all predicate every block asks, the caret-edge reader every edge site asks, and the page-key reader, which leaves Ctrl, Cmd and Alt with a page key to the browser. Its sites take Shift+Home and Mod+Home behind a marker or a leading widget, Mod+End before a trailing widget, Cmd+Right past a code chip and Cmd+Left from a selected widget; Mod+Shift+Home and Mod+Shift+End always extend to the document's edge. Its Cmd+Arrow chords (macOS's Home and End) are `schema/reserved-chords.ts :: CMD_EDGE_CHORDS`, since the chord form cannot tell Cmd from Ctrl."
+		note: "The normalizer every other site reads, the select-all predicate every block asks, the caret-edge reader every edge site asks, and the page-key reader, which leaves Ctrl, Cmd and Alt with a page key to the browser. Its Enter is a chord the install pass refuses on a container, never a key it takes. Its sites take Shift+Home and Mod+Home behind a marker or a leading widget, Mod+End before a trailing widget, Cmd+Right past a code chip and Cmd+Left from a selected widget; Mod+Shift+Home and Mod+Shift+End always extend to the document's edge. Its Cmd+Arrow chords (macOS's Home and End) are `schema/reserved-chords.ts :: CMD_EDGE_CHORDS`, since the chord form cannot tell Cmd from Ctrl."
 	},
 	{
 		file: 'selection/cross-block/keydown.ts',

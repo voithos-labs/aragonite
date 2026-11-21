@@ -135,7 +135,11 @@ export function createEditorContributions(deps: {
 		const refused = refusedClaims(
 			usable.map((unit) => ({
 				plugin: unit.name,
-				claims: { chords: chordsOf(unit), blockKeys: blockKeysOf(unit) }
+				claims: {
+					chords: chordsOf(unit),
+					blockKeys: blockKeysOf(unit, false),
+					containerKeys: blockKeysOf(unit, true)
+				}
 			})),
 			deps.report
 		);
@@ -386,8 +390,11 @@ function chordsOf(unit: InstalledPlugin): string[] {
 	return (unit.contribution.commands ?? []).flatMap((value) => commandSpec(value)?.chord ?? []);
 }
 
-function blockKeysOf(unit: InstalledPlugin): string[] {
-	return blockTypesOf(unit).flatMap(({ making }) => Object.keys(making.chords ?? {}));
+/** The keys a plugin's container types take, or its leaf types'. */
+function blockKeysOf(unit: InstalledPlugin, containers: boolean): string[] {
+	return blockTypesOf(unit)
+		.filter(({ making }) => (making.registration.container !== undefined) === containers)
+		.flatMap(({ making }) => Object.keys(making.chords ?? {}));
 }
 
 function rewriteProblem(unit: InstalledPlugin): string | null {

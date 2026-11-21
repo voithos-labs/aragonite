@@ -3,6 +3,7 @@ import { checkKeymapCoherence } from '#lib/invariants/registry.js';
 import { ALL_BLOCK_KINDS } from '#lib/core/nodes.js';
 import { tryGetBlockKindDescriptor } from '#lib/schema/block-kind-descriptor.js';
 import { GLOBAL_COMMAND_IDS, BLOCK_COMMAND_IDS } from '#lib/schema/commands.js';
+import { isTextKey } from '#lib/schema/keybindings.js';
 
 const knownCommands = new Set<string>([...GLOBAL_COMMAND_IDS, ...BLOCK_COMMAND_IDS]);
 const isKnown = (id: string) => knownCommands.has(id);
@@ -17,6 +18,17 @@ describe('G1.11 keymap coherence', () => {
 			keymap: tryGetBlockKindDescriptor(kind)?.keymap
 		}));
 		expect(check(entries)).toBeNull();
+	});
+
+	// A container's key reaches it from a paragraph inside wherever the paragraph leaves the key, so
+	// one the text edits with would run mid-text and edit nothing, as a plugin container's would.
+	it('binds no key the text inside edits with on a built-in container', () => {
+		const taken = ALL_BLOCK_KINDS.flatMap((kind) => {
+			const descriptor = tryGetBlockKindDescriptor(kind);
+			if (!descriptor?.containerContract) return [];
+			return (descriptor.keymap ?? []).filter((b) => isTextKey(b.chord)).map((b) => b.chord);
+		});
+		expect(taken).toEqual([]);
 	});
 
 	it('flags a keymap binding to an unknown command', () => {

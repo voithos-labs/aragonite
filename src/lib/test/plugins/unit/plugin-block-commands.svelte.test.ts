@@ -4,7 +4,7 @@
 // Miss-analysis: block commands ran only through the process-wide `registerBlockCommand` registry,
 // and no row ran a plugin block command by id from a value plugin (N17).
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { command, definePlugin, type Command } from '#lib/plugin.js';
+import { command, definePlugin, lineBlock, type Command } from '#lib/plugin.js';
 import { container } from '#lib/components/block-makers/container.js';
 import type { Block } from '#lib/schema/doc-view.js';
 import type { BlockCommon } from '#lib/schema/block-shapes.js';
@@ -170,15 +170,56 @@ describe("a block type's key", () => {
 		expect(editor.source()).toBe('%> [!NOTE]\n%> %> [!NOTE]\n%> %> deep\n');
 	});
 
-	it("yields to a key the paragraph binds itself: bold and Enter stay the paragraph's", async () => {
-		const bolded = makeAlerts((cycle) => ({ chords: { 'Mod+B': cycle, Enter: cycle } }));
+	it("yields to a key the paragraph binds itself: bold stays the paragraph's", async () => {
+		const bolded = makeAlerts((cycle) => ({ chords: { 'Mod+B': cycle } }));
 		const { editor, ran } = await mounted(DOC, bolded);
 		await pressKeyAt(editor, [1, 0], 2, { key: 'b', ctrlKey: true });
-		await pressKeyAt(editor, [1, 0], 2, { key: 'Enter' });
 		await editor.settle();
+		expect(editor.instance.plugins).toContain('alerts');
 		expect(ran).toEqual([]);
-		// The paragraph split, under the same head line.
-		expect(editor.source()).toMatch(/^intro\n\n%> \[!NOTE\]\n%> in\n/);
+		expect(editor.source()).not.toBe(DOC);
+	});
+
+	it('runs a key no text edits with, Mod+Enter, from the paragraph inside', async () => {
+		const entered = makeAlerts((cycle) => ({ chords: { 'Mod+Enter': cycle } }));
+		const { editor, errors } = await mounted(DOC, entered);
+		await pressKeyAt(editor, [1, 0], 2, { key: 'Enter', ctrlKey: true });
+		await editor.settle();
+		expect(errors).toEqual([]);
+		expect(editor.source()).toBe('intro\n\n%> [!TIP]\n%> inside\n');
+	});
+
+	it("runs a leaf type's Backspace in its own text, mid-text included", async () => {
+		const ran: string[] = [];
+		const wipe = command<Block<never>>({
+			id: 'wipe',
+			title: 'Wipe',
+			run: () => void ran.push('wipe')
+		});
+		const memo = lineBlock({
+			name: 'memo',
+			label: 'Memo',
+			match: /^@@ (?<text>.*)$/,
+			sample: '@@ x',
+			insert: { none: 'a test block type' },
+			chords: { Backspace: wipe }
+		});
+		const plugin = definePlugin({
+			name: 'memos',
+			version: '1.0.0',
+			editor: '*',
+			contributes: () => ({ blocks: [memo] })
+		});
+		const errors: PluginError[] = [];
+		const editor = mountEditor({
+			source: '@@ note\n',
+			plugins: [plugin],
+			onError: (e) => errors.push(e)
+		});
+		await editor.settle();
+		await pressKeyAt(editor, [0], 5, { key: 'Backspace' });
+		expect(errors).toEqual([]);
+		expect(ran).toEqual(['wipe']);
 	});
 
 	it('asks the placed lookup nothing for typed letters inside an alert', async () => {
@@ -231,6 +272,31 @@ describe('the install pass', () => {
 			expect(editor.instance.plugins).not.toContain('alerts');
 		}
 	);
+
+	// Miss-analysis: a container's key was checked against the editor's own chords only, and no row
+	// pressed it mid-text in a paragraph inside, where it ran the command and deleted nothing.
+	it.each([
+		'Backspace',
+		'Delete',
+		'Enter',
+		'Shift+Enter',
+		'Mod+Backspace',
+		'Shift+Q',
+		'Mod+V',
+		'Shift+ArrowUp',
+		// A Mac types with Option and moves a word with Option+Arrow; the refusal is the same here.
+		'Alt+Q',
+		'Alt+ArrowLeft'
+	])('leaves out a container taking %s, a key the text inside edits with', async (key) => {
+		const taking = makeAlerts((cycle) => ({
+			chords: { [key]: cycle } as BlockCommon<AlertData>['chords']
+		}));
+		const { editor, errors } = await mounted(DOC, taking);
+		expect(errors.map((e) => (e.cause as Error).message)).toEqual([
+			`plugin 'alerts' claims the block key "${key}" on a container, which the text inside it keeps`
+		]);
+		expect(editor.instance.plugins).not.toContain('alerts');
+	});
 
 	// Miss-analysis: a block key was checked against the editor's own chords and never against
 	// another plugin's, whose editor-wide chord then ran inside the type's blocks with nobody told.

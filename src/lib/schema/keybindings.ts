@@ -145,7 +145,7 @@ export interface MotionKey {
 
 /** The one reading of a horizontal caret key: an arrow, the word chord (Option on a Mac, Ctrl
  *  elsewhere), or a line or block edge; null for any other key, a document edge included. */
-export function motionKey(e: EdgeKeys): MotionKey | null {
+export function motionKey(e: EdgeKeys, mac = usesMacEditingConventions()): MotionKey | null {
 	const edge = caretEdgeKey(e);
 	if (edge) {
 		if (edge.to === 'doc') return null;
@@ -159,7 +159,7 @@ export function motionKey(e: EdgeKeys): MotionKey | null {
 	if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return null;
 	const direction = e.key === 'ArrowLeft' ? 'backward' : 'forward';
 	const extend = e.shiftKey === true;
-	const word = usesMacEditingConventions() ? e.altKey && !e.ctrlKey : e.ctrlKey && !e.altKey;
+	const word = mac ? e.altKey && !e.ctrlKey : e.ctrlKey && !e.altKey;
 	if (e.metaKey) return null;
 	if (word) return { unit: 'word', direction, extend, arrow: false };
 	if (e.ctrlKey || e.altKey) return null;
@@ -169,19 +169,23 @@ export function motionKey(e: EdgeKeys): MotionKey | null {
 /** Whether a normalized chord is a caret key `motionKey` reads on this platform, which the built-in
  *  and plugin keymaps yield to the caret; a consumer's own `keybindings` entry may still take one. */
 export function isMotionChord(chord: string): boolean {
+	return motionKey(chordKeys(chord, usesMacEditingConventions())) !== null;
+}
+
+/** Whether a normalized chord types, deletes, cuts, pastes or moves the caret in text on a Mac or
+ *  elsewhere, Enter's break included: a key the text inside a container keeps. */
+export function isTextKey(chord: string): boolean {
+	if (chord === 'Enter' || chord === 'Shift+Enter') return true;
+	return [true, false].some((mac) => textKeyRole(chordKeys(chord, mac), mac) !== null);
+}
+
+/** The keydown that spells a normalized chord, `Mod` as Cmd on a Mac and Ctrl elsewhere. */
+function chordKeys(chord: string, mac: boolean): ChordKeys {
 	const parts = chord.split('+');
 	const key = parts.pop() ?? '';
 	const mod = parts.includes('Mod');
-	const mac = usesMacEditingConventions();
-	return (
-		motionKey({
-			key,
-			ctrlKey: mod && !mac,
-			metaKey: mod && mac,
-			altKey: parts.includes('Alt'),
-			shiftKey: parts.includes('Shift')
-		}) !== null
-	);
+	const [altKey, shiftKey] = [parts.includes('Alt'), parts.includes('Shift')];
+	return { key, ctrlKey: mod && !mac, metaKey: mod && mac, altKey, shiftKey };
 }
 
 /** What a key does by a focused text field's own default, whatever a keymap binds: `writes` types,
@@ -249,25 +253,25 @@ export function isPasteKey(e: ChordKeys): boolean {
 }
 
 /** The role a key plays in a text field, or null for a key no text field acts on by default. */
-export function textKeyRole(e: ChordKeys): TextKeyRole | null {
+export function textKeyRole(e: ChordKeys, mac = usesMacEditingConventions()): TextKeyRole | null {
 	// Alt+ArrowUp and Down are no text field's: the editor's keymaps move blocks with them.
 	const vertical = (e.key === 'ArrowUp' || e.key === 'ArrowDown') && !e.altKey;
-	if (vertical || caretEdgeKey(e) || pageKey(e) || motionKey(e)) return 'reads';
+	if (vertical || caretEdgeKey(e) || pageKey(e) || motionKey(e, mac)) return 'reads';
 	const chord = eventToChord(e);
 	if (chord === null) return null;
 	if (TEXT_READ_CHORDS.has(chord)) return 'reads';
 	if (TEXT_WRITE_CHORDS.has(chord) || e.key === 'Backspace' || e.key === 'Delete') return 'writes';
-	return typesCharacter(e) ? 'writes' : null;
+	return typesCharacter(e, mac) ? 'writes' : null;
 }
 
 /** Whether a keydown types its character: with no command modifier, with Option on a Mac, or with
  *  AltGr, which Windows reports as Ctrl+Alt. A key an IME owns is turned away before this is asked. */
 export function typesCharacter(
-	e: ChordKeys & Partial<Pick<KeyboardEvent, 'getModifierState'>>
+	e: ChordKeys & Partial<Pick<KeyboardEvent, 'getModifierState'>>,
+	mac = usesMacEditingConventions()
 ): boolean {
 	if (!isCharacterKey(e.key) || e.metaKey) return false;
 	if (!e.ctrlKey && !e.altKey) return true;
-	const mac = usesMacEditingConventions();
 	// Ctrl on a Mac is a command, whatever AltGr state an engine reports beside it.
 	if (e.ctrlKey && mac) return false;
 	if (e.getModifierState?.('AltGraph')) return true;
