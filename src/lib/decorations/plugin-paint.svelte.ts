@@ -18,6 +18,9 @@ import type { Decoration, DecorationWidgetSpec, MarkDecoration, MarkInteractions
 export interface PaintSource extends BlockSource {
 	/** Asks again for `nodes`, or for every block once each is next read. */
 	repaint(nodes?: readonly NodeView[]): void;
+	/** Asks `paintDepends` of the blocks the writes since the last call replaced; true when an
+	 *  answer changed. */
+	settle(): boolean;
 }
 
 /** What a paint source maps positions through: a block as a plugin reads it. */
@@ -41,8 +44,9 @@ export interface PaintSourceDeps<B extends PaintedBlock> {
 	rectsOf(dec: MarkDecoration): DOMRect[];
 	/** Asks `depends` of every top-level block, then of the blocks each write replaced. */
 	keys(depends: (block: B) => string, report: (cause: unknown) => void): Answers;
-	/** Bumped by every write that changes the bytes: a reactive read. */
-	contentVersion(): number;
+	/** A reactive read that settles the answers once per write and tells its reader only when one
+	 *  changed, so a key that changes none looks up no other block's paint. */
+	settled(): void;
 	report(error: PaintError): void;
 }
 
@@ -64,7 +68,6 @@ export function createPaintSource<B extends PaintedBlock>(deps: PaintSourceDeps<
 	const { paintDepends } = deps.contribution;
 	let keys: Answers | null = null;
 	let keyed = 0;
-	let keysAt = -1;
 
 	// Inside a derived, where a listener that writes state would throw, so it waits for the flush.
 	function reportLater(error: PaintError): void {
@@ -76,21 +79,17 @@ export function createPaintSource<B extends PaintedBlock>(deps: PaintSourceDeps<
 		});
 	}
 
-	/** How often `paintDepends`' answers have changed. The first block read after a write asks the
-	 *  blocks it replaced; a change paints every block again. */
-	function answersVersion(): number {
-		if (!paintDepends) return 0;
-		const at = deps.contentVersion();
-		if (at === keysAt) return keyed;
-		keysAt = at;
-		untrack(() => {
-			if (!keys)
-				keys = deps.keys(paintDepends, (cause) =>
-					reportLater({ plugin, doing: 'paintDepends', cause })
-				);
-			else if (keys.changed()) keyed++;
-		});
-		return keyed;
+	function settle(): boolean {
+		if (!paintDepends) return false;
+		if (!keys) {
+			keys = deps.keys(paintDepends, (cause) =>
+				reportLater({ plugin, doing: 'paintDepends', cause })
+			);
+			return false;
+		}
+		if (!keys.changed()) return false;
+		keyed++;
+		return true;
 	}
 
 	function decorationsOf(node: NodeView, path: readonly number[]): readonly Decoration[] {
@@ -100,7 +99,9 @@ export function createPaintSource<B extends PaintedBlock>(deps: PaintSourceDeps<
 		if (!(container ? deps.contribution.paintContainer : deps.contribution.paint)) return NONE;
 		const raw = node.raw;
 		const asked = version;
-		const answers = answersVersion();
+		// A change of answers paints every block again.
+		if (paintDepends) deps.settled();
+		const answers = keyed;
 		let stamp = stamps.get(node);
 		if (!stamp) stamps.set(node, (stamp = new Stamp()));
 		const repainted = stamp.n;
@@ -215,6 +216,7 @@ export function createPaintSource<B extends PaintedBlock>(deps: PaintSourceDeps<
 	return {
 		name: `paint:${plugin}`,
 		decorationsOf,
+		settle,
 		repaint(nodes) {
 			if (!nodes) {
 				version++;
@@ -231,14 +233,30 @@ export function createPaintSource<B extends PaintedBlock>(deps: PaintSourceDeps<
 /** One editor's paint sources, one per contribution that paints, so a plugin `use` keeps holds on
  *  to what it painted. */
 export function createPaintSources<B extends PaintedBlock>(
-	deps: Omit<PaintSourceDeps<B>, 'plugin' | 'contribution'> & {
+	deps: Omit<PaintSourceDeps<B>, 'plugin' | 'contribution' | 'settled'> & {
 		/** The plugins that paint, in list order; a reactive read. */
 		paints(): readonly { plugin: string; contribution: PaintSourceDeps<B>['contribution'] }[];
+		/** Bumped by every write that changes the bytes: a reactive read. */
+		contentVersion(): number;
 	}
 ) {
 	const sources = new WeakMap<object, PaintSource>();
-	const sourceOf = ({ plugin, contribution }: ReturnType<typeof deps.paints>[number]) =>
-		cached(sources, contribution, () => createPaintSource({ ...deps, plugin, contribution }));
+	let changes = 0;
+	// Worked out by the first block read after a write. Its value moves only with an answer, so the
+	// blocks that read it are asked again only then.
+	const settled = $derived.by(() => {
+		deps.contentVersion();
+		const list = deps.paints().map(sourceOf);
+		return untrack(() => {
+			for (const source of list) if (source.settle()) changes++;
+			return changes;
+		});
+	});
+	function sourceOf({ plugin, contribution }: ReturnType<typeof deps.paints>[number]) {
+		return cached(sources, contribution, () =>
+			createPaintSource({ ...deps, plugin, contribution, settled: () => void settled })
+		);
+	}
 	return {
 		/** Every painting plugin's source, in list order. */
 		get list(): readonly PaintSource[] {
