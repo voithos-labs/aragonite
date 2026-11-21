@@ -8,6 +8,7 @@ import {
 	command,
 	definePlugin,
 	lineBlock,
+	type BoxDrawContext,
 	type Command,
 	type TextDrawContext
 } from '#lib/plugin.js';
@@ -251,6 +252,25 @@ describe("a placed command's block", () => {
 		await pressKey(text, CTRL_7);
 		await editor.settle();
 		expect(marked).toEqual(['@@ note grown\n@9']);
+	});
+
+	// Miss-analysis: no row ran a key on a block held whole, and each block found from the caret
+	// stood at the top level, where a path cut short still places it.
+	it('is placed when its key lands on a box held whole, inside a quote', async () => {
+		const { plugin, marked } = makeMemos((mark) => {
+			const draw = (_: unknown, ctx: BoxDrawContext) => {
+				const dom = document.createElement('button');
+				dom.addEventListener('click', () => ctx.focusWhole());
+				return { dom };
+			};
+			return { chords: { 'Mod+7': mark }, edit: 'box', draw } as Partial<BlockCommon<never>>;
+		});
+		const editor = mountEditor({ source: 'intro\n\n> @@ note\n', plugins: [plugin] });
+		await editor.settle();
+		blockHostAt(editor, [1, 0]).querySelector('button')!.click();
+		await editor.settle();
+		await pressKey(document.activeElement!, CTRL_7);
+		expect(marked).toEqual(['@@ note\n@9']);
 	});
 });
 
