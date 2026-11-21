@@ -108,8 +108,8 @@ export interface Seen {
 export interface BlockReading {
 	typeOf(kind: AnyBlockKind): BlockType<unknown>;
 	/** The block of `node`, the same one for as long as it's the document's; `path` is where the
-	 *  caller sees it now. */
-	blockOf(node: NodeView, path: readonly number[] | null): Block;
+	 *  caller sees it now, at version `at`. */
+	blockOf(node: NodeView, path: readonly number[] | null, at?: number): Block;
 	/** Where `node` stands now, moved on from `seen`; null once it has left the document. */
 	find(node: NodeView, seen: Seen): readonly number[] | null;
 	nodeAt(path: readonly number[]): NodeView | null;
@@ -139,9 +139,10 @@ export const DETACHED_READING: BlockReading = {
 export function makeBlock<D>(
 	node: NodeView,
 	reading: BlockReading,
-	path: readonly number[] | null
+	path: readonly number[] | null,
+	at = reading.version()
 ): Block<D> {
-	return new NodeBlock(node, reading, path) as unknown as Block<D>;
+	return new NodeBlock(node, reading, path, at) as unknown as Block<D>;
 }
 
 /** The node a block was read from, which a draft finds again in the document it commits to. */
@@ -155,11 +156,11 @@ export function pathOfBlock(block: Block<unknown>): readonly number[] | null {
 }
 
 /** Tells `block` where its node stands now, as a caller holding the path sees it. */
-export function seenAt(block: Block<unknown>, path: readonly number[] | null): void {
+export function seenAt(block: Block<unknown>, path: readonly number[] | null, at?: number): void {
 	if (!(block instanceof NodeBlock) || !path) return;
 	const state = block[STATE];
 	state.path = path;
-	state.at = state.reading.version();
+	state.at = at ?? state.reading.version();
 }
 
 /** A read-only array whose element `i` is made by `at(i)` when read, over a length read live. */
@@ -211,8 +212,8 @@ interface BlockState extends Seen {
 class NodeBlock {
 	readonly [STATE]: BlockState;
 
-	constructor(node: NodeView, reading: BlockReading, path: readonly number[] | null) {
-		this[STATE] = { node, reading, path, at: reading.version() };
+	constructor(node: NodeView, reading: BlockReading, path: readonly number[] | null, at: number) {
+		this[STATE] = { node, reading, path, at };
 		// Frozen, so a framework's reactive state (Vue's `ref`) holds the block itself, not a proxy.
 		Object.freeze(this);
 		recordBlockBuilt();
@@ -333,25 +334,36 @@ const pathOf = (state: BlockState) => state.reading.find(state.node, state);
 const titled = (node: NodeView): number =>
 	node.children?.length && isReservedChromeChild(node, 0) ? 1 : 0;
 
-/** `blocks` and everything inside them, depth first, a title row right after its container. */
+/** `blocks` and everything inside them, depth first, a title row (its container's child 0) right
+ *  after its container. */
 export function* walkFrom(blocks: readonly Block[]): Generator<Block> {
-	const stack = [...blocks].reverse();
-	while (stack.length > 0) {
-		const block = stack.pop()!;
+	for (const block of blocks) {
 		yield block;
-		const children = block.children;
-		for (let i = children.length - 1; i >= 0; i--) stack.push(children[i]);
-		const row = titleRowOf(block);
-		if (row) stack.push(row);
+		if (block instanceof NodeBlock) yield* inside(block[STATE]);
 	}
 }
 
-/** The block a title row reads as; null for a block with none, or one not placed. */
-function titleRowOf(block: Block): Block | null {
-	if (!(block instanceof NodeBlock)) return null;
-	const state = block[STATE];
-	const path = titled(state.node) ? pathOf(state) : null;
-	return path && state.reading.blockOf(state.node.children![0], [...path, 0]);
+// Off the nodes, each path in hand and the version read once, so no block asks where its parent
+// stands.
+function* inside(state: BlockState): Generator<Block> {
+	const { reading } = state;
+	const at = reading.version();
+	const nodes: NodeView[] = [];
+	const paths: (readonly number[] | null)[] = [];
+	const push = (node: NodeView, path: readonly number[] | null) => {
+		const children = node.children ?? [];
+		for (let i = children.length - 1; i >= 0; i--) {
+			nodes.push(children[i]);
+			paths.push(path && [...path, i]);
+		}
+	};
+	push(state.node, pathOf(state));
+	while (nodes.length > 0) {
+		const node = nodes.pop()!;
+		const path = paths.pop()!;
+		yield reading.blockOf(node, path, at);
+		push(node, path);
+	}
 }
 
 /** Offsets `[start, end)` of a block's bytes in document bytes, both -1 where they aren't placed. */
