@@ -31,7 +31,7 @@ function headingsIn(block: Block): string {
 export const contents = definePlugin({
 	name: 'contents',
 	version: '1.0.0',
-	editor: '^0.12.0',
+	editor: '^0.11.6',
 	contributes: () => ({
 		blocks: [
 			lineBlock({
@@ -39,7 +39,7 @@ export const contents = definePlugin({
 				label: 'Contents',
 				match: /^\[\[toc\]\]$/,
 				sample: '[[toc]]',
-				insert: { label: 'Contents', insert: '[[toc]]\n' },
+				insert: { label: 'Contents', icon: 'list-tree', insert: '[[toc]]\n' },
 				edit: 'box',
 				draw(_block, ctx) {
 					const dom = document.createElement('nav');
@@ -108,7 +108,7 @@ function numbering(depends: readonly string[]): Map<string, number> {
 export const noteNumbers = definePlugin({
 	name: 'note-numbers',
 	version: '1.0.0',
-	editor: '^0.12.0',
+	editor: '^0.11.6',
 	contributes: () => ({
 		paintDepends: referencesIn,
 		paint(block, ctx) {
