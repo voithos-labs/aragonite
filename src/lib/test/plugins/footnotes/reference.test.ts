@@ -64,12 +64,11 @@ describe('[^label] recognizer grammar', () => {
 		expect(nodes[nodes.length - 1]).toMatchObject({ kind: 'text', text: ']' });
 	});
 
-	// A trailing `(...)` is not part of the reference: it is atomic and the following
-	// bytes rescan as ordinary inline content (a GFM footnote, not a link).
-	it('does not consume a trailing (...) after the reference', () => {
+	// GitHub reads a reference followed by a destination as a link, footnote defined or not.
+	it('leaves [^1](x) to the link it closes as', () => {
 		const nodes = scan('[^1](x)');
-		expect(nodes[0]).toMatchObject({ kind: FOOTNOTE_REF_KIND, start: 0, end: 4, label: '1' });
-		expect(nodes.some((n) => n.kind === 'link')).toBe(false);
+		expect(nodes).toMatchObject([{ kind: 'link', start: 0, end: 7, url: 'x' }]);
+		expect(nodes.some(isRef)).toBe(false);
 	});
 });
 

@@ -1,6 +1,7 @@
 // One forward pass over `[start, end)`: handlers first at each position, then the built-in reading
 // of the character there. Brackets and delimiter runs are resolved as in commonmark.js; the result
-// is a flat token list the tree is built from.
+// is a flat token list the tree is built from. A handler's claim at `[` or `![` stands only where
+// a probe, a second pass from that bracket, finds no built-in link or image closing inside it.
 import type { InlineNode } from '../../nodes';
 import type { GrammarView } from '../../../schema/block-openers';
 import { recordInlineScan } from '../../../perf/instruments';
@@ -83,15 +84,56 @@ export function specialFinder(
 	};
 }
 
+/** What a scan and the probes it runs share: one reader per range, built once from its start. */
+interface Readers {
+	start: number;
+	table: InlineTable;
+	next: (from: number) => number;
+	rawHtml: (pos: number) => number;
+	closers?: (from: number, length: number) => number;
+	/** The one probe the range's brackets are asked through; probes never nest. */
+	probe?: Scan;
+	/** The last question a probe answered, which a bare url and the claim after it both ask. */
+	askedAt: number;
+	askedUntil: number;
+	answer: boolean;
+}
+
+function readersFor(raw: string, start: number, end: number, table: InlineTable): Readers {
+	return {
+		start,
+		table,
+		next: specialFinder(raw, end, table),
+		rawHtml: rawHtmlReader(raw, end),
+		askedAt: -1,
+		askedUntil: -1,
+		answer: false
+	};
+}
+
+/** Whether a `](` or a `][` starts in `[from, until)`: where a bracket whose text opens with
+ *  another can close as a link, since it can be no shortcut reference. */
+function holdsLinkTail(raw: string, from: number, until: number): boolean {
+	for (let i = from; i < until; i++) {
+		if (raw[i] === ']' && (raw[i + 1] === '(' || raw[i + 1] === '[')) return true;
+	}
+	return false;
+}
+
+/** Whether a plugin prefix opens the same bracket a built-in link or image opens. */
+const opensBuiltinBracket = (prefix: string) => prefix[0] === '[' || prefix.startsWith('![');
+
 export class Scan {
 	readonly tokens: Token[] = [];
 	readonly shapes: Shape[] = [];
 	private readonly delimiters = new DelimiterStack();
 	private readonly brackets: Bracket[] = [];
 	private readonly bareEmails = new Set<Token>();
-	private readonly rawHtml: (pos: number) => number;
-	private readonly table: InlineTable;
-	private closers?: (from: number, length: number) => number;
+	private readonly readers: Readers;
+	/** On a probe, where the claim it asks about ends; -1 on a scan. */
+	private until: number;
+	/** Set on a probe: the answer once the bracket it opened at `start` resolves. */
+	private probed?: boolean;
 	/** Where the literal text not yet in a token starts. */
 	private pending: number;
 	/** An email's local part reaches back no further than this. */
@@ -103,23 +145,54 @@ export class Scan {
 
 	constructor(
 		private readonly raw: string,
-		private readonly start: number,
+		private start: number,
 		private readonly end: number,
 		private readonly resolver: LinkReferenceResolver | undefined,
-		private readonly grammar: GrammarView
+		private readonly grammar: GrammarView,
+		/** Set on a probe: its parent's readers, and where the claim it asks about ends. */
+		probe?: { readers: Readers; until: number }
 	) {
-		recordInlineScan();
 		this.pending = this.emailFloor = start;
-		this.rawHtml = rawHtmlReader(raw, end);
-		this.table = inlineTable(grammar);
+		this.until = probe?.until ?? -1;
+		if (!probe) recordInlineScan();
+		this.readers = probe?.readers ?? readersFor(raw, start, end, inlineTable(grammar));
+	}
+
+	private get isProbe(): boolean {
+		return this.until >= 0;
 	}
 
 	run(): this {
-		const next = specialFinder(this.raw, this.end, this.table);
+		const { next } = this.readers;
 		for (let at = next(this.start); at >= 0;) at = next(this.claim(at) || this.read(at));
 		if (this.pending < this.end) this.tokens.push(token(this.pending, this.end));
 		this.delimiters.process(null);
 		return this;
+	}
+
+	/** Points a probe at the bracket at `start`, its state as a new scan's. */
+	private restart(start: number, until: number): this {
+		this.tokens.length = this.shapes.length = this.brackets.length = 0;
+		this.delimiters.top = null;
+		this.awaitingLabel = this.probed = undefined;
+		this.bareEmails.clear();
+		this.start = this.pending = this.emailFloor = start;
+		this.until = until;
+		this.bracketIds = this.linksBefore = 0;
+		return this;
+	}
+
+	/** Whether the bracket a built-in link or image opens at `start` closes as one before `until`. */
+	private completes(): boolean {
+		const { next } = this.readers;
+		for (let at = this.start; at >= 0 && at < this.until && this.probed === undefined;) {
+			at = next(this.claim(at) || this.read(at));
+		}
+		return this.probed === true;
+	}
+
+	private get rawHtml() {
+		return this.readers.rawHtml;
 	}
 
 	private push(t: Token, crossable = false): void {
@@ -144,13 +217,34 @@ export class Scan {
 	}
 
 	private handlerClaim(pos: number): { node: InlineNode; handler: InlineHandler } | null {
-		for (const handler of this.table.handlers(this.raw[pos])) {
+		for (const handler of this.readers.table.handlers(this.raw[pos])) {
 			const { prefix } = handler;
+			const bracket = opensBuiltinBracket(prefix);
+			// A probe reads a bracket claim as the brackets it spells, so probes never nest.
+			if (bracket && this.isProbe) continue;
 			if (pos + prefix.length > this.end || !this.raw.startsWith(prefix, pos)) continue;
 			const node = handler.recognizer(this.raw, pos, this.end, this.grammar);
-			if (node) return { node, handler };
+			if (!node) continue;
+			// The editor declines for the plugin where a built-in link or image closes in its claim.
+			if (bracket && this.builtinCompletes(pos, node.end)) return null;
+			return { node, handler };
 		}
 		return null;
+	}
+
+	private builtinCompletes(pos: number, until: number): boolean {
+		const { readers } = this;
+		if (readers.askedAt === pos && readers.askedUntil === until) return readers.answer;
+		const textOpensBracket = this.raw[pos + (this.raw[pos] === '!' ? 2 : 1)] === '[';
+		if (textOpensBracket && !holdsLinkTail(this.raw, pos, until)) return false;
+		readers.probe ??= new Scan(this.raw, pos, this.end, this.resolver, this.grammar, {
+			readers,
+			until
+		});
+		readers.answer = readers.probe.restart(pos, until).completes();
+		readers.askedAt = pos;
+		readers.askedUntil = until;
+		return readers.answer;
 	}
 
 	private read(pos: number): number {
@@ -211,8 +305,9 @@ export class Scan {
 	private backtickRun(pos: number): [after: number, close: number] {
 		let after = pos;
 		while (after < this.end && this.raw[after] === '`') after++;
-		this.closers ??= backtickRuns(this.raw, this.start, this.end);
-		return [after, this.closers(after, after - pos)];
+		const { readers } = this;
+		const closers = (readers.closers ??= backtickRuns(this.raw, readers.start, this.end));
+		return [after, closers(after, after - pos)];
 	}
 
 	private backticks(pos: number): number {
@@ -281,6 +376,10 @@ export class Scan {
 		const target = active
 			? (readInlineTail(this.raw, pos + 1, this.end) ?? this.resolve(reference))
 			: null;
+		if (this.isProbe && opener.start === this.start) {
+			this.probed = target !== null;
+			return pos + 1;
+		}
 		const closing = token(pos, target ? target.end : pos + 1);
 		if (!target) {
 			this.push(closing);

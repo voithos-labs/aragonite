@@ -26,8 +26,8 @@ export const INLINE_PRIORITIES = {
 } as const;
 
 export interface InlineSyntaxOptions {
-	/** Two or more characters starting with the trigger; required for a reserved trigger, where it
-	 *  runs before the built-in handler, so decline a built-in construct it also opens. */
+	/** Two or more characters starting with the trigger; required for a reserved trigger. At `[`
+	 *  or `![`, the editor declines a claim a built-in link or image closes inside. */
 	prefix?: string;
 	/** Lower is consulted first. Defaults to `INLINE_PRIORITIES.plugin`. */
 	priority?: number;

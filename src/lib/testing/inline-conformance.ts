@@ -359,24 +359,15 @@ function assertScanTiles(raw: string, end: number): void {
 
 // ── overlapDecline ───────────────────────────────────────────────────────────
 
-/** At every position the scan would consult this handler the recognizer returns null, so the
- *  built-in construct sees byte-identical input. */
+/** Every overlap fixture parses to the built-in construct its bytes spell, the handler's claim
+ *  declined, and round-trips. */
 function checkOverlapDecline(profile: InlineConformanceProfile, rung: InlineHandler): string {
 	const fixtures = profile.overlapFixtures ?? [];
 	let consulted = 0;
 	for (const source of fixtures) {
 		let positions = 0;
 		for (let pos = 0; pos < source.length; pos++) {
-			if (!source.startsWith(rung.prefix, pos)) continue;
-			positions++;
-			const claimed = rung.recognizer(source, pos, source.length, defaultGrammarView);
-			if (claimed !== null) {
-				fail(
-					`the "${rung.prefix}" rung swallowed the overlap in ${JSON.stringify(source)} at ` +
-						`offset ${pos} — it claimed [${claimed.start}, ${claimed.end}) as "${claimed.kind}", ` +
-						`so the built-in construct those bytes spell never reaches the scanner`
-				);
-			}
+			if (source.startsWith(rung.prefix, pos)) positions++;
 		}
 		assert(
 			positions > 0,
@@ -389,7 +380,8 @@ function checkOverlapDecline(profile: InlineConformanceProfile, rung: InlineHand
 		assertIs(
 			minted.length,
 			0,
-			`the parse of ${JSON.stringify(source)} holds no node the "${rung.prefix}" rung claimed`
+			`the parse of ${JSON.stringify(source)} holds no node the "${rung.prefix}" rung claimed ` +
+				`(one that does spells no built-in construct, so it is no overlap)`
 		);
 
 		const withEnding = `${source}\n`;

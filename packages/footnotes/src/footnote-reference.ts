@@ -2,7 +2,9 @@
  * The worked example of an inline syntax handler: `[^label]` registers on the `[^` prefix, so
  * it is tried before the built-in `[` handler. The literal bytes stay in the block's raw and
  * the number is worked out rather than stored. Recognition starts only once the plugin
- * registers: without it, `[` runs the built-in bracket handling instead.
+ * registers: without it, `[` runs the built-in bracket handling instead. A reference followed by
+ * a destination or a label (`[^1](x)`, `[^1][ref]`) is a link, as GitHub reads it: the editor
+ * declines the claim there.
  */
 
 import {
@@ -31,10 +33,7 @@ function indexLabelTerminators(raw: string): Int32Array {
 // only by reaching the end, so a paragraph full of them would cost a block scan each.
 const firstTerminatorFrom = createScanIndex(indexLabelTerminators);
 
-/**
- * Every decline falls through to the built-in bracket handler byte-identically. The reference
- * is atomic, so a trailing `(...)` rescans as ordinary inline content, never a destination.
- */
+/** Every decline falls through to the built-in bracket handler byte-identically. */
 function recognizeFootnoteReference(
 	raw: string,
 	pos: number,

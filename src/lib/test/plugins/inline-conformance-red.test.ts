@@ -36,9 +36,9 @@ const run = (profile: InlineConformanceProfile) => runInlineKindConformance(prof
 
 // ── overlapDecline: the flagship ─────────────────────────────────────────────
 
-describe('overlapDecline reds an inline syntax handler that swallows the grammar overlap', () => {
-	// `![[a]](u)` is a built-in image, and a handler on the `!` prefix is asked first, so one
-	// taking every `![[…]]` still round-trips, as a wiki embed the author never wrote.
+describe('overlapDecline holds the editor’s decline over the grammar overlap', () => {
+	// `![[a]](u)` is a built-in image, and the editor declines a claim it closes inside, so even a
+	// handler taking every `![[…]]` leaves it an image.
 	const swallowEverything = (raw: string, pos: number, end: number): InlineNode | null => {
 		const close = raw.indexOf(']]', pos + 3);
 		if (!raw.startsWith('![[', pos) || close < 0 || close + 2 > end) return null;
@@ -51,13 +51,24 @@ describe('overlapDecline reds an inline syntax handler that swallows the grammar
 		};
 	};
 
-	it('fails the overlap cell, naming the claim it should have refused', async () => {
+	const registerSwallower = () =>
 		registerInlineSyntax('!', swallowEverything, {
 			prefix: '![[',
 			priority: INLINE_PRIORITIES.prefixOverride,
 			rewriteImage: rewriteWikiImage
 		});
-		await expect(run(wikiProfile())).rejects.toThrow(/overlapDecline: .*swallowed the overlap/s);
+
+	it('passes a handler that swallows the overlap, which the editor declines for it', async () => {
+		registerSwallower();
+		const report = await runInlineKindConformance(wikiProfile());
+		expect(report.cells.find((c) => c.cell === 'overlapDecline')?.status).toBe('asserted');
+	});
+
+	it('fails an overlap fixture that spells no built-in construct', async () => {
+		registerSwallower();
+		await expect(run(wikiProfile({ overlapFixtures: ['![[a.png]]'] }))).rejects.toThrow(
+			/overlapDecline: .*no overlap/s
+		);
 	});
 
 	it('passes for the same inline syntax handler once it declines the overlap itself', async () => {
