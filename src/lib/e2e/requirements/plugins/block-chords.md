@@ -21,6 +21,7 @@ pressed a value plugin's block key, and a container type's key never reached the
 ## Edge cases
 
 - `Mod+7` in a paragraph outside any alert changes nothing
+- `Mod+7` over a selection across two alerts cycles each once, and one undo puts both back
 - `Enter` in the alert's paragraph splits the paragraph, since a key the paragraph binds itself runs
   before its container's
 

@@ -36,6 +36,20 @@ test.describe("a block type's key", () => {
 		await expect.poll(() => editor.bridge.getSource()).toBe(SEED);
 	});
 
+	test('Mod+7 over a selection across two alerts cycles each, one undo step', async ({ page }) => {
+		const two = 'intro\n\n%> [!NOTE]\n%> one\n\n%> [!TIP]\n%> two\n';
+		await editor.loadContent(two);
+		await page.getByText('one').click();
+		await page.keyboard.press('ControlOrMeta+a');
+		await page.keyboard.press('ControlOrMeta+a');
+		await page.keyboard.press('ControlOrMeta+7');
+		await expect
+			.poll(() => editor.bridge.getSource())
+			.toBe('intro\n\n%> [!TIP]\n%> one\n\n%> [!WARNING]\n%> two\n');
+		await page.keyboard.press('ControlOrMeta+z');
+		await expect.poll(() => editor.bridge.getSource()).toBe(two);
+	});
+
 	test("Enter in the alert's paragraph still splits it, a key the paragraph binds itself", async ({
 		page
 	}) => {

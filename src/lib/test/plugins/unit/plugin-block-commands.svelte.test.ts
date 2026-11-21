@@ -18,6 +18,7 @@ import {
 	pressKeyAt,
 	surfaceAt
 } from '#lib/test/harness/mount-editor.svelte.js';
+import { pressKey } from '#lib/test/harness/settle.js';
 import {
 	disablePerfInstruments,
 	enablePerfInstruments,
@@ -242,4 +243,45 @@ describe('the install pass', () => {
 		await pressKeyAt(editor, [1, 0], 2, CTRL_7);
 		expect(errors.map((e) => e.doing)).toEqual(['run alerts/boom']);
 	});
+});
+
+// Miss-analysis: a placed command ran once, on the block around the selection's end, and no row
+// held a selection across two blocks that both place it.
+describe('a placed command over a selection across blocks', () => {
+	const TWO = 'intro\n\n%> [!NOTE]\n%> one\n\n%> [!TIP]\n%> two\n';
+	const BOTH = 'intro\n\n%> [!TIP]\n%> one\n\n%> [!WARNING]\n%> two\n';
+
+	/** The whole document selected from the first alert's paragraph: Mod+A twice. */
+	async function selectEverything(editor: Awaited<ReturnType<typeof mounted>>['editor']) {
+		const surface = surfaceAt(editor, [1, 0]);
+		placeCaret(surface, 1);
+		await pressKey(surface, { key: 'a', ctrlKey: true });
+		await pressKey(surface, { key: 'a', ctrlKey: true });
+		await editor.settle();
+	}
+
+	it.each([
+		[
+			'`run` with no block',
+			(m: Awaited<ReturnType<typeof mounted>>) => m.editor.instance.run(m.cycle)
+		],
+		[
+			'its key',
+			(m: Awaited<ReturnType<typeof mounted>>) => void pressKey(surfaceAt(m.editor, [1, 0]), CTRL_7)
+		]
+	])(
+		'%s runs once on each covered block, as one undo step, and keeps the selection',
+		async (_, go) => {
+			const m = await mounted(TWO);
+			await selectEverything(m.editor);
+			const held = m.editor.instance.getSelection();
+			go(m);
+			await m.editor.settle();
+			expect(m.editor.source()).toBe(BOTH);
+			expect(m.ran).toHaveLength(2);
+			expect(m.editor.instance.getSelection()).toEqual(held);
+			await pressKey(surfaceAt(m.editor, [1, 0]), { key: 'z', ctrlKey: true });
+			expect(m.editor.source()).toBe(TWO);
+		}
+	);
 });

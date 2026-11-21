@@ -79,6 +79,10 @@ export interface EditorContributions {
 	 *  A throw counts as run, so the key goes no further, and is reported. */
 	run(command: ContributedCommand, arg: unknown): boolean;
 	can(command: ContributedCommand, arg: unknown): boolean;
+	/** `run` for a key that landed in `block`: over a selection across blocks, on each placing
+	 *  block it covers instead. */
+	runAtKey(command: ContributedCommand, block: Block | undefined): boolean;
+	canAtKey(command: ContributedCommand, block: Block | undefined): boolean;
 	/** Reads a freshly installed list, leaving out and reporting each plugin whose contribution is
 	 *  unusable or claims what one listed before it holds; returns the plugins kept. */
 	read(units: readonly InstalledPlugin[]): InstalledPlugin[];
@@ -87,8 +91,11 @@ export interface EditorContributions {
 export function createEditorContributions(deps: {
 	editorFor(plugin: string): Editor | undefined;
 	report(error: PluginError): void;
-	/** The nearest block holding the caret whose type is one of `kinds`; null with none. */
-	blockAround(kinds: ReadonlySet<string>): Block | null;
+	/** The nearest block holding the caret whose type is one of `kinds`, or over a selection across
+	 *  blocks each covered block's outermost such block; empty with none. */
+	blocksAround(kinds: ReadonlySet<string>): readonly Block[];
+	/** Runs `run`'s writes as one undo step. */
+	undoStep(run: () => void): void;
 	blockOf(node: NodeView): Block;
 	/** `node` at `path` in `clip`, a clipboard read as blocks, with positions from its start. */
 	clipboardBlock(clip: DocumentView, node: NodeView, path: readonly number[]): Block;
@@ -179,27 +186,38 @@ export function createEditorContributions(deps: {
 		return kept;
 	}
 
-	/** The argument a command runs with: a placed command handed no block runs on the nearest
-	 *  block at the caret whose type places it, and doesn't run with none. */
-	function argumentOf(entry: ContributedCommand, arg: unknown): { arg: unknown } | null {
-		if (entry.placedBy.size === 0 || isBlock(arg)) return { arg };
-		const block = deps.blockAround(entry.placedBy);
-		return block ? { arg: block } : null;
+	/** What a command runs on: its argument, and for a placed command handed no block, the
+	 *  blocks around the caret or the selection whose type places it. */
+	function argumentsOf(entry: ContributedCommand, arg: unknown): readonly unknown[] {
+		return entry.placedBy.size === 0 || isBlock(arg) ? [arg] : deps.blocksAround(entry.placedBy);
 	}
 
-	function can(entry: ContributedCommand, arg: unknown): boolean {
-		const editor = deps.editorFor(entry.plugin);
-		const given = argumentOf(entry, arg);
-		const { when } = entry.spec;
-		return !!editor && !!given && (!when || guarded(entry, false, () => when(editor, given.arg)));
+	/** A key's block, unless a selection across blocks covers more than one that places it. */
+	function keyed(entry: ContributedCommand, block: Block | undefined): unknown {
+		return deps.blocksAround(entry.placedBy).length > 1 ? undefined : block;
 	}
+
+	function canOne(entry: ContributedCommand, arg: unknown): boolean {
+		const editor = deps.editorFor(entry.plugin);
+		const { when } = entry.spec;
+		return !!editor && (!when || guarded(entry, false, () => when(editor, arg)));
+	}
+
+	const can = (entry: ContributedCommand, arg: unknown): boolean =>
+		argumentsOf(entry, arg).some((one) => canOne(entry, one));
 
 	function run(entry: ContributedCommand, arg: unknown): boolean {
-		const editor = deps.editorFor(entry.plugin);
-		const given = argumentOf(entry, arg);
-		if (!editor || !given || !can(entry, given.arg)) return false;
+		const args = argumentsOf(entry, arg).filter((one) => canOne(entry, one));
+		if (args.length < 2) return args.length === 1 && runOne(entry, args[0]);
+		// Over a selection across blocks: once on each, one undo step, the selection kept.
+		deps.undoStep(() => args.forEach((one) => runOne(entry, one)));
+		return true;
+	}
+
+	function runOne(entry: ContributedCommand, arg: unknown): boolean {
+		const editor = deps.editorFor(entry.plugin)!;
 		return guarded(entry, true, () => {
-			const answer = entry.spec.run(editor, given.arg);
+			const answer = entry.spec.run(editor, arg);
 			if (isThenable(answer)) {
 				answer.then(undefined, (cause: unknown) =>
 					deps.report({ plugin: entry.plugin, doing: `run ${entry.id}`, cause })
@@ -256,6 +274,8 @@ export function createEditorContributions(deps: {
 		answer,
 		run,
 		can,
+		runAtKey: (entry, block) => run(entry, keyed(entry, block)),
+		canAtKey: (entry, block) => can(entry, keyed(entry, block)),
 		read
 	};
 }

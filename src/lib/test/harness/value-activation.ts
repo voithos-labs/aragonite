@@ -16,7 +16,8 @@ export function valueActivation(
 	const contributions = createEditorContributions({
 		editorFor: () => editor,
 		report: thrown,
-		blockAround: () => null,
+		blocksAround: () => [],
+		undoStep: (run) => run(),
 		blockOf: (node) => blockOf(node, DETACHED_READING),
 		clipboardBlock: (_, node) => blockOf(node, DETACHED_READING)
 	});

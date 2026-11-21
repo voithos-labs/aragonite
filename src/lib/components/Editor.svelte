@@ -167,6 +167,8 @@
 	import { createPaintSources } from '../decorations/plugin-paint.svelte';
 	import { createDocumentRead } from '../editor-actions/commit/document-read';
 	import { measured } from '../tree-operations/top-level-starts';
+	import { comparePaths, pathHasPrefix, pathsEqual } from '../selection/path-math';
+	import type { NodeView } from '../core/node-views';
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
 	import { insertRows } from '../schema/insert-catalogue';
 	import { createEditorGrammar } from '../schema/editor-grammar';
@@ -274,7 +276,15 @@
 	const contributions = createEditorContributions({
 		editorFor: (plugin) => pluginContexts.scoped(plugin),
 		report: reportPluginError,
-		blockAround: (kinds) => placingBlockAtCaret(kinds),
+		blocksAround: (kinds) => placingBlocks(kinds),
+		// The selection the step opened over comes back once its writes land, as Mod+B's does.
+		undoStep: (run) => {
+			const held = getSelection();
+			const { path, offset } = held?.focus ?? { path: [0], offset: 0 };
+			void controller
+				.undoStep({ path: docPathFrom(path), offset }, async () => run())
+				.then(() => held && caretLanding.restore(held));
+		},
 		blockOf: (node) => documentRead.blockOf(node),
 		clipboardBlock: (clip, node, path) => {
 			const of = measured(clip);
@@ -1521,16 +1531,31 @@
 		return !selection.focus.cellCoordinate && isCollapsed(selection) ? null : selection;
 	}
 
-	/** The block a block type's command runs on with none given: the nearest around the caret whose
-	 *  type is one of `kinds`. */
-	function placingBlockAtCaret(kinds: ReadonlySet<string>): Block | null {
-		const path = getSelection()?.focus.path ?? [];
-		for (let depth = path.length; depth >= 1; depth--) {
-			const at = path.slice(0, depth);
-			const node = blockNodeAt(doc, at);
-			if (node && kinds.has(node.kind)) return documentRead.blockOf(node, at);
+	/** The blocks a block type's command runs on with none given: the nearest around the caret whose
+	 *  type is one of `kinds`, or over a selection across blocks each covered one's outermost. */
+	function placingBlocks(kinds: ReadonlySet<string>): Block[] {
+		const selection = getSelection();
+		const focus = selection?.focus.path ?? [];
+		const anchor = selection?.anchor.path ?? focus;
+		if (pathsEqual(anchor, focus)) {
+			for (let depth = focus.length; depth >= 1; depth--) {
+				const at = focus.slice(0, depth);
+				const node = blockNodeAt(doc, at);
+				if (node && kinds.has(node.kind)) return [documentRead.blockOf(node, at)];
+			}
+			return [];
 		}
-		return null;
+		const [from, to] = comparePaths(anchor, focus) < 0 ? [anchor, focus] : [focus, anchor];
+		const found: Block[] = [];
+		// A block is covered unless all of it lies before `from` or after `to`.
+		const visit = (node: NodeView, at: number[]): void => {
+			const before = comparePaths(at, from) < 0 && !pathHasPrefix(from, at);
+			if (before || comparePaths(at, to) > 0) return;
+			if (kinds.has(node.kind)) return void found.push(documentRead.blockOf(node, at));
+			node.children?.forEach((child, i) => visit(child, [...at, i]));
+		};
+		for (let i = from[0]; i <= to[0]; i++) visit(doc.children[i], [i]);
+		return found;
 	}
 
 	function caretAt(path: number[], offset = 0): EditorSelection {

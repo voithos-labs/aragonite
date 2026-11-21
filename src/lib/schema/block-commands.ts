@@ -423,7 +423,7 @@ function runPlaced(
 ): boolean {
 	const contributions = activation.contributions!;
 	const node = target.getNode?.();
-	return contributions.run(entry, node ? contributions.blockOf(node) : undefined);
+	return contributions.runAtKey(entry, node ? contributions.blockOf(node) : undefined);
 }
 
 /** {@link runPlaced}'s "can this run" read. */
@@ -434,7 +434,7 @@ function canRunPlaced(
 ): boolean {
 	const contributions = activation.contributions!;
 	const node = target.getNode?.();
-	return contributions.can(entry, node ? contributions.blockOf(node) : undefined);
+	return contributions.canAtKey(entry, node ? contributions.blockOf(node) : undefined);
 }
 
 /** A plugin's handler under its own editor context, a throw caught and reported. */
