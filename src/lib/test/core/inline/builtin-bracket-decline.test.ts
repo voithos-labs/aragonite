@@ -58,6 +58,16 @@ describe('a plugin claim at a bracket a built-in link or image completes from', 
 		expect(kinds(raw)).toEqual(expected);
 	});
 
+	// The guide's two examples: a claim that ends before the bracket around it closes, and a
+	// defined label inside a claim, whose bracket isn't the one the claim starts on.
+	it('keeps a claim that ends before its link closes, and one around a defined label', () => {
+		wiki();
+		expect(kinds('[[[[deep]]]](https://x.dev)')[0]).toBe('wiki');
+		expect(kinds('[[ref]]', (label) => (label === 'ref' ? { url: '/r' } : undefined))).toEqual([
+			'wiki'
+		]);
+	});
+
 	it('keeps the plugin’s node inside the link its bracket sits in', () => {
 		wiki();
 		const [link] = parseInline('[see [[note]]](u)', 0, 17);
