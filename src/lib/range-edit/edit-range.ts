@@ -201,7 +201,13 @@ function edited(
 			return keepLastEnding(inPlace(pasteAt(doc, from, to, pasted(TEXT))));
 		// Across blocks the paste lands at the place text over the range takes, and over one block held
 		// whole takes its place.
-		const { removed, after, place } = textPlace(doc, range, typed ? '' : gesture.paste);
+		const { removed, after, place, opens } = textPlace(doc, range, typed ? '' : gesture.paste);
+		const into = typed ? { into: intoOf(after, place) } : {};
+		// A key's blank text reads as no block, so a paste of it would go in at the first byte of the
+		// block under the place: it takes the paragraph a line of its own opens instead.
+		const blank = typed && opens && isBlankText(gesture.paste);
+		const spaced = blank ? intoOpened(doc, after, place, gesture.paste) : null;
+		if (spaced) return keepLastEnding({ ...landed(spaced), blocks: 0, ...into });
 		const held = pasted(removed.inPlace ? TEXT : place, removed.inPlace);
 		const pastedOver = pasteAt(after, place.at, place.at, held);
 		// A key's one line that a paste would read as blocks at text (a marker) is that block's own
@@ -210,7 +216,6 @@ function edited(
 			typed && place.holds === 'text' && !!pastedOver.blocks && !/\n/.test(gesture.paste);
 		const at = marker ? leafHolding(after, place.at, place.at) : null;
 		const over = at ? writeText(after, at.leaf, at.from, at.to, gesture.paste) : pastedOver;
-		const into = typed ? { into: intoOf(after, place) } : {};
 		return keepLastEnding({ ...landed(over), blocks: over.blocks ?? 0, ...into });
 	}
 	const { removed, clipboard, own } = taken(doc, from, to);
@@ -256,6 +261,17 @@ function textPlace(doc: Doc, range: Range, text: string | null) {
 	const own = ownLine(doc, after, removed, caret, to, started);
 	const place = own ? atGap(after, own) : onText(after, caret);
 	return { removed, after, place, opens: own !== null };
+}
+
+/** `text` written in an empty paragraph opened at the boundary `place` of `after`; null where no
+ *  paragraph opens there. */
+function intoOpened(doc: Doc, after: Doc, place: Place, text: string): Edit | null {
+	if (place.holds !== 'boundary') return null;
+	const line = doc.host.openedAt(after.tree, place.parent, childAt(after, place));
+	if (!line) return null;
+	const opened = { ...readDoc(line.source, doc.host, doc.mode), ending: doc.ending };
+	const held = leafHolding(opened, line.caret, line.caret);
+	return held && writeText(opened, held.leaf, held.from, held.to, text);
 }
 
 /** The block text at `place` goes into, read on `doc` before it does: the leaf there, else the new
