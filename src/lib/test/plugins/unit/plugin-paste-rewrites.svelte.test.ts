@@ -133,8 +133,8 @@ describe('a paste rewrite in a mounted editor', () => {
 		expect(held.anchor.path).not.toEqual(held.focus.path);
 		await pasteOn(editor, surface, 'x\n\n%> [!TIP]\n%> pasted\n');
 		expect(read).toHaveLength(1);
-		expect(editor.source()).toContain('REWRITTEN');
-		expect(editor.source()).not.toContain('[!TIP]');
+		// The bytes a paste of the answer itself lands over the same selection.
+		expect(editor.source()).toBe('x\n\nREWRITTEN\n\n');
 	});
 
 	it('asks nothing for one line pasted after text, which lands as text', async () => {
