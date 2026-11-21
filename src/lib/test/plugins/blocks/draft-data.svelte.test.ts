@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { definePlugin } from '#lib/schema/plugin-install.js';
 import { lineBlock } from '#lib/components/block-makers/line-block.js';
 import { container } from '#lib/components/block-makers/container.js';
+import { builtin } from '#lib/components/block-makers/builtin.js';
 import type { Block } from '#lib/schema/doc-view.js';
 import type { TextDrawContext } from '#lib/schema/drawing.js';
 import {
@@ -156,5 +157,15 @@ describe('Draft.data', () => {
 		const block = seen.get('%%u hello') as Block<number>;
 		const result = await editor.instance.edit().data(block, 2).commit();
 		expect(result).toMatchObject({ ok: false, reason: 'illegal' });
+	});
+
+	// Miss-analysis: a built-in's data was typed `never`, so no row could hand one to `data`.
+	it('is refused as illegal for a built-in block, whose markers are its data', async () => {
+		const editor = await mounted('# Title\n');
+		const heading = editor.instance.doc.blocks[0];
+		if (!heading.is(builtin.blocks.heading)) throw new Error('a heading reads as one');
+		const result = await editor.instance.edit().data(heading, { level: 2 }).commit();
+		expect(result).toMatchObject({ ok: false, reason: 'illegal' });
+		expect(editor.source()).toBe('# Title\n');
 	});
 });

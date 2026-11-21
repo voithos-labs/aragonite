@@ -5,6 +5,7 @@
 // Miss-analysis: the recipe was prose no row ran; the rows used toy keys.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { grammar } from '#lib/components/editor-root/headless-grammar.js';
+import { builtin } from '#lib/components/block-makers/builtin.js';
 import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
 import { blockNodeAt } from '#lib/tree-operations/node-primitives.js';
 import type { Block } from '#lib/schema/doc-view.js';
@@ -28,6 +29,8 @@ const DOC = [
 	'- # In a list',
 	'> ## In a quote',
 	'A ref[^b] and[^a] again[^b].',
+	// Miss-analysis: every heading row's markers spelled its level, so reading it from the text passed.
+	'####### Seven\n===',
 	''
 ].join('\n\n');
 
@@ -44,7 +47,8 @@ describe("the guide's recipe", () => {
 			['1', 'One'],
 			['1', 'Setext'],
 			['1', 'In a list'],
-			['2', 'In a quote']
+			['2', 'In a quote'],
+			['1', '####### Seven']
 		]);
 		typeInto(surfaceAt(m, [1]), '# OneX');
 		await m.settle();
@@ -69,10 +73,8 @@ describe("the guide's recipe", () => {
 	const unchecked = (block: Block) => {
 		let lines = '';
 		for (const inside of block.walk()) {
-			if (inside.type.name !== 'heading' && inside.type.name !== 'setextHeading') continue;
-			const atx = /^ {0,3}(#{1,6})/.exec(inside.text);
-			const level = atx ? atx[1].length : inside.text.trimEnd().endsWith('=') ? 1 : 2;
-			lines += `${level} ${inside.body}\n`;
+			if (inside.is(builtin.blocks.heading) || inside.is(builtin.blocks.setextHeading))
+				lines += `${inside.data.level} ${inside.body}\n`;
 		}
 		return lines;
 	};

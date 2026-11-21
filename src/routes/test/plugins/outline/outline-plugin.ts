@@ -23,10 +23,8 @@ function headingsIn(block: Block): string {
 	if (!/#|[=-][ \t]*\r?$/m.test(block.text)) return '';
 	let lines = '';
 	for (const inside of block.walk()) {
-		if (!isHeading(inside)) continue;
-		const atx = /^ {0,3}(#{1,6})/.exec(inside.text);
-		const level = atx ? atx[1].length : inside.text.trimEnd().endsWith('=') ? 1 : 2;
-		lines += `${level} ${inside.body}\n`;
+		if (inside.is(builtin.blocks.heading) || inside.is(builtin.blocks.setextHeading))
+			lines += `${inside.data.level} ${inside.body}\n`;
 	}
 	return lines;
 }

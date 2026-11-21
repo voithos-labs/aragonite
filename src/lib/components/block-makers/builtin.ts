@@ -4,14 +4,22 @@ import {
 	ALL_BLOCK_KINDS,
 	INLINE_KIND_TABLE,
 	type BlockKind,
+	type BlockMetadataByKind,
 	type InlineNodeKind
 } from '../../core/nodes';
+import type { BytesView } from '../../core/node-views';
 import type { InlineType } from '../../schema/doc-view';
 import { blockKindLabel } from '../../a11y-strings';
 import type { BlockType } from '../../schema/plugin-unit';
 
+/** What a built-in block of kind `K` holds as its `data`, read-only: the tree's own facts about its
+ *  bytes (a heading's level, a list's `ordered`), or undefined for a kind that carries none. */
+type BuiltinData<K extends BlockKind> = K extends keyof BlockMetadataByKind
+	? BytesView<BlockMetadataByKind[K]>
+	: undefined;
+
 export const builtin: {
-	readonly blocks: Readonly<Record<BlockKind, BlockType>>;
+	readonly blocks: { readonly [K in BlockKind]: BlockType<BuiltinData<K>> };
 	readonly inlines: Readonly<Record<InlineNodeKind, InlineType>>;
 } = {
 	// Marked pure so a build that never reads the table leaves it out.
@@ -20,7 +28,7 @@ export const builtin: {
 			kind,
 			{ name: kind, label: blockKindLabel(kind) }
 		])
-	) as Record<BlockKind, BlockType>,
+	) as { [K in BlockKind]: BlockType<BuiltinData<K>> },
 	inlines: /* @__PURE__ */ Object.fromEntries(
 		/* @__PURE__ */ Object.keys(INLINE_KIND_TABLE).map((kind) => [kind, { name: kind }])
 	) as Record<InlineNodeKind, InlineType>

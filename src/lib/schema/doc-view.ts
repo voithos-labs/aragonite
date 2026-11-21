@@ -67,6 +67,8 @@ export interface Block<D = unknown> {
 	offsetAt(at: number): number | null;
 	/** Narrows the block to `type`'s data. */
 	is<E>(type: BlockType<E>): this is Block<E>;
+	/** Whether it's of `type` where that's one of several (`builtin.blocks[kind]`), not narrowed. */
+	is(type: BlockType<unknown>): boolean;
 	/** It and every block inside it, depth first, a title row right after its container. */
 	walk(): IterableIterator<Block>;
 }

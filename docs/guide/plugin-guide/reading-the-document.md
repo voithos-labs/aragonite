@@ -13,19 +13,14 @@ Answer from the block's own content, never from where it sits or from another bl
 ```ts
 import { builtin, definePlugin, lineBlock, type Block } from '@voithos-labs/aragonite/plugin';
 
-const isHeading = (block: Block) =>
-	block.is(builtin.blocks.heading) || block.is(builtin.blocks.setextHeading);
-
 /** This block's headings, one `level text` line each. */
 function headingsIn(block: Block): string {
 	// Most blocks hold no heading: skip the walk unless a `#` or an underline could start one.
 	if (!/#|[=-][ \t]*\r?$/m.test(block.text)) return '';
 	let lines = '';
 	for (const inside of block.walk()) {
-		if (!isHeading(inside)) continue;
-		const atx = /^ {0,3}(#{1,6})/.exec(inside.text);
-		const level = atx ? atx[1].length : inside.text.trimEnd().endsWith('=') ? 1 : 2;
-		lines += `${level} ${inside.body}\n`;
+		if (inside.is(builtin.blocks.heading) || inside.is(builtin.blocks.setextHeading))
+			lines += `${inside.data.level} ${inside.body}\n`;
 	}
 	return lines;
 }
@@ -70,7 +65,7 @@ export const contents = definePlugin({
 
 The text check at the top is the part that keeps typing cheap. A block whose text can't hold a heading answers without walking. The check has to let every heading through, or one drops out of the list: `#` anywhere covers `# Title`, and a line ending in `=` or `-` covers an underlined heading, inside a quote or a plugin's container too.
 
-**The limit.** A key inside a block re-asks that whole block. Typing in one list of 25,000 items walks the list on every key, about 45 to 50 ms, which is what walking the whole document cost before. A list that holds no `#` skips that walk.
+**The limit.** A key inside a block re-asks that whole block. Typing in one list of 25,000 items walks the list on every key, about 45 to 50 ms, which is what walking the whole document cost before. A list with no `#` and no line ending in `=` or `-` skips that walk (an empty `-` item ends in one).
 
 ## Footnote numbers
 
