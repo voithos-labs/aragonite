@@ -339,7 +339,9 @@ const titled = (node: NodeView): number =>
 export function* walkFrom(blocks: readonly Block[]): Generator<Block> {
 	for (const block of blocks) {
 		yield block;
-		if (block instanceof NodeBlock) yield* inside(block[STATE]);
+		// A leaf asks nothing: a document of small blocks walks at the cost of reading them.
+		if (block instanceof NodeBlock && block[STATE].node.children?.length)
+			yield* inside(block[STATE]);
 	}
 }
 
