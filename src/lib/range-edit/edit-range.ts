@@ -35,7 +35,7 @@ import type { LaidBlock } from './layout';
 import { blankedApart, byteAt, writeText, type Edit, type LeafEdit } from './leaf-splice';
 import { ownEntry, restored } from './own-entry';
 import { numberedOn } from './list-numbers';
-import { asPasted, pasteAt, type Pasted } from './paste';
+import { asPasted, filledApart, pasteAt, type Pasted } from './paste';
 import { entersOpening, removeLeavingBlank, removeRange, type Removal } from './removal';
 import { fenceBody, holdsText, lastPlaceAt, literalBody } from './removal-range';
 
@@ -215,7 +215,8 @@ function edited(
 		const marker =
 			typed && place.holds === 'text' && !!pastedOver.blocks && !/\n/.test(gesture.paste);
 		const at = marker ? leafHolding(after, place.at, place.at) : null;
-		const over = at ? writeText(after, at.leaf, at.from, at.to, gesture.paste) : pastedOver;
+		const written = at && writeText(after, at.leaf, at.from, at.to, gesture.paste);
+		const over = written ? filledApart(after, at!.leaf, written) : pastedOver;
 		return keepLastEnding({ ...landed(over), blocks: over.blocks ?? 0, ...into });
 	}
 	const { removed, clipboard, own } = taken(doc, from, to);
