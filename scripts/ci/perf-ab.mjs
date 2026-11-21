@@ -8,9 +8,10 @@
 //   node scripts/ci/perf-ab.mjs --table tmp/perf-ab/results.json    (print a saved run again)
 //
 // A ref is a tag, a sha, or a branch, read as `origin/<branch>` when no local one exists.
-// `--grep` keeps the rows whose name matches. Prints one table, also appended to `--summary` when
+// `--grep` keeps the rows whose full title (file, group and row id) matches: `range-` keeps the
+// range rows, `blocks-letter$` that row alone. Prints one table, also appended to `--summary` when
 // given, and saves the raw samples to `--results`. Exits non-zero when a ref, a round or a row
-// measured nothing; a row a ref can't run ("not on this ref") is a result, not a failure.
+// measured nothing; a row some ref can't run ("not on this ref") is a result, unless none can.
 import { spawn, spawnSync } from 'node:child_process';
 import {
 	appendFileSync,
@@ -18,6 +19,7 @@ import {
 	mkdirSync,
 	readFileSync,
 	readdirSync,
+	rmSync,
 	writeFileSync
 } from 'node:fs';
 import path from 'node:path';
@@ -102,6 +104,9 @@ function abTable(run) {
 		const { label, key } = rows.get(id);
 		const keyed = key.length > 0 ? key.join(' + ') : '';
 		lines.push(`| ${id}: ${label} | ${keyed} | ${refs.map((ref) => cell(ref, id)).join(' | ')} |`);
+		// A row no ref can run is more likely the probe's own fault than every build's.
+		if (refs.every((ref) => of.get(ref.name).get(id).absent.length === run.rounds))
+			failures.push(`${id}: not on any ref`);
 	}
 	lines.push(
 		'',
@@ -254,6 +259,8 @@ function listRows(options) {
 function probe(ref, round, options) {
 	const tag = `${fileName(ref.name)}-r${round}`;
 	const results = path.join(options.work, 'results', tag);
+	// A reused `--work` holds an earlier run's rows, which would read as this round's.
+	rmSync(results, { recursive: true, force: true });
 	console.log(`\n== round ${round}: ${ref.name} ==`);
 	const status = spawnSync(process.execPath, probeArgs(options), {
 		cwd: ROOT,
@@ -317,10 +324,14 @@ async function main() {
 	listRows(options);
 	const results = options.results ?? path.join(options.work, 'results.json');
 	const run = { refs: [], rounds: options.rounds, grep: options.grep, runs: [] };
+	// Saved after every round too, so a job stopped at its time limit still leaves its numbers.
+	const save = () => {
+		mkdirSync(path.dirname(results), { recursive: true });
+		writeFileSync(results, JSON.stringify(run, null, 1) + '\n');
+	};
 	const servers = [];
 	const checkouts = [];
 	try {
-		// Every ref resolves before the first install, so a mistyped one fails in seconds.
 		for (const { name, dir } of options.refs) {
 			const ref = { name, dir };
 			run.refs.push(ref);
@@ -330,6 +341,8 @@ async function main() {
 				ref.error = error.message;
 			}
 		}
+		// Before the first install, so a mistyped or unpushed ref costs seconds, not the whole job.
+		if (run.refs.some((ref) => ref.error)) return;
 		for (const [i, ref] of run.refs.entries()) {
 			if (ref.error) continue;
 			try {
@@ -347,6 +360,7 @@ async function main() {
 		}
 		for (let round = 1; round <= options.rounds; round++) {
 			for (const ref of run.refs) if (!ref.error) run.runs.push(probe(ref, round, options));
+			save();
 		}
 	} finally {
 		for (const server of servers) stop(server);
@@ -354,8 +368,7 @@ async function main() {
 			const removed = spawnSync('git', ['worktree', 'remove', '--force', dir], { cwd: ROOT });
 			if (removed.status !== 0) console.warn(`git kept the worktree at ${dir}; remove it by hand`);
 		}
-		mkdirSync(path.dirname(results), { recursive: true });
-		writeFileSync(results, JSON.stringify(run, null, 1) + '\n');
+		save();
 		report(run, options);
 	}
 }

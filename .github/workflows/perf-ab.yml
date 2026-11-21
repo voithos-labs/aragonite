@@ -15,7 +15,7 @@ on:
         default: '6'
         type: string
       grep:
-        description: Only the rows whose name matches this pattern
+        description: Only the rows whose full title (file, group and row id) matches this regex, as `range-` or `blocks-letter$`
         default: ''
         type: string
 
