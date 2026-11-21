@@ -1,9 +1,11 @@
-# Feature: a block type's key
+# Feature: a block type's keys and menu rows
 
-A plugin value's block type lists `chords`, each running a command on its block. The alerts plugin's
-`%> [!TYPE]` container binds `Mod+7` to a command that moves the head line to the next type. Every
-scenario runs on `/test/plugins?seed=alerts` with real clicks and keys. The host's rebinding and
-`claimsChord` are held by `plugin-block-commands.svelte.test.ts`.
+A plugin value's block type lists `chords` and `actions`, each running a command on its block. The
+alerts plugin's `%> [!TYPE]` container binds `Mod+7` and offers a "Next kind" row, both moving the
+head line to the next type; its `[[flag on]]` line, a block picked up whole, offers "Toggle flag".
+Every scenario runs on `/test/plugins?seed=alerts` with real clicks and keys. The host's rebinding
+and `claimsChord` are held by `plugin-block-commands.svelte.test.ts`, a greyed row by
+`editor-root/menus.test.ts`.
 
 Miss-analysis: block commands ran only through the process-wide `registerBlockCommand`, so no spec
 pressed a value plugin's block key, and a container type's key never reached the container walk.
@@ -11,6 +13,10 @@ pressed a value plugin's block key, and a container type's key never reached the
 ## Happy paths
 
 - `Mod+7` in the paragraph inside the alert moves `[!NOTE]` to `[!TIP]`, and one undo puts it back
+- A right-click on the flag line lists "Toggle flag" before "Copy flag", and the row flips the flag
+- A right-click in the alert's paragraph leads with an "Alert" flyout above Cut; its "Next kind"
+  moves `[!NOTE]` to `[!TIP]`
+- The same flyout over an alert inside a list item cycles that alert
 
 ## Edge cases
 

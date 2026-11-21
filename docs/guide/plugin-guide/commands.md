@@ -22,6 +22,8 @@ const alert = container<AlertData>({
 
 Listing the block type is enough; the editor lists `cycle` with your commands. The key works in the alert and in any block inside it, where a key that block binds itself runs first: `Enter` in the alert's paragraph still splits it. `editor.run(cycle)` with no block runs on the nearest alert around the caret, and comes back `false` with none. A host moves the key with `keybindings: [{ kind: alert, chord: 'Mod+Shift+7', command: cycle }]`. `Tab` stays the page's.
 
+The rows show in the right-click menu. A block picked up whole lists them above Copy. Right-click in text inside the alert and they come as one flyout named for the type, above Cut. A row is greyed where the command's `when` says no.
+
 A command takes no argument but its block. For "set the kind to one of eight", make one command per kind:
 
 ```ts

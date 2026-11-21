@@ -1,6 +1,6 @@
 /**
- * What a non-prose block's context menu offers: its kind's own rows, then copy it (its Markdown),
- * replace it with the clipboard and remove it, each named for what the block is ("Remove code
+ * What a non-prose block's context menu offers: its kind's own rows and its plugin type's, then
+ * copy it (its Markdown), replace it with the clipboard and remove it, each named for what the block is ("Remove code
  * block", "Copy image"). Plain, not red: every one is a Ctrl+Z away. Prose blocks are the page's
  * background and take the clipboard rows instead (`editor-root/menus.ts`).
  */
@@ -10,7 +10,7 @@ import type { BlockKind } from '../../core/nodes';
 import type { NodeView } from '../../core/node-views';
 import { pictureImageCount } from '../../core/inline/picture';
 import type { InlineReading } from '../../core/inline/inline-cache';
-import type { MenuIconName } from '../../menu-icons';
+import type { Icon } from '../../menu-icons';
 import { copyBlockToClipboard, readClipboard } from '../../browser/clipboard';
 import { codeBlockActions } from '../blocks/code/code-context-actions';
 
@@ -31,7 +31,8 @@ export interface BlockActionContext {
 export interface BlockContextAction {
 	id: string;
 	label: string;
-	icon?: MenuIconName;
+	icon?: Icon;
+	disabled?: boolean;
 	run(ctx: BlockActionContext): void | Promise<unknown>;
 }
 
@@ -45,9 +46,15 @@ export function blockNoun(node: NodeView, reading: InlineReading): string {
 	return /^.[A-Z]/.test(label) ? label : label.charAt(0).toLowerCase() + label.slice(1);
 }
 
-/** The rows a right-click on `node` offers, read on every open so they see the block as it is. */
-export function blockActionsFor(node: NodeView, noun: string): BlockContextAction[] {
-	return [...(KIND_ROWS[node.kind as BlockKind]?.(node) ?? []), ...everyBlockRows(node, noun)];
+/** The rows a right-click on `node` offers, read on every open so they see the block as it is;
+ *  `typeRows` are its plugin type's, between its kind's rows and the rows every block has. */
+export function blockActionsFor(
+	node: NodeView,
+	noun: string,
+	typeRows: readonly BlockContextAction[]
+): BlockContextAction[] {
+	const kindRows = KIND_ROWS[node.kind as BlockKind]?.(node) ?? [];
+	return [...kindRows, ...typeRows, ...everyBlockRows(node, noun)];
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────

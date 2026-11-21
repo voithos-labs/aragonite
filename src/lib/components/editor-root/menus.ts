@@ -1,7 +1,8 @@
 /**
- * Editor-root menus: the block context menu (a right-click on a block runs its kind's registered
- * actions; prose and a selection get the clipboard rows, the plugins' selection action rows, and
- * prose an insert flyout; over a link or a widget that goes somewhere, an "Edit link" row first).
+ * Editor-root menus: the block context menu (a right-click on a block runs its kind's actions and
+ * its plugin type's rows; prose and a selection get the clipboard rows, the plugins' selection
+ * action rows, and prose an insert flyout; over a link or a widget that goes somewhere, an "Edit
+ * link" row first, and inside a plugin type's block, that type's rows as one flyout).
  * The open menu is `$state` in `Editor.svelte`, written through `setMenu`; a menu takes no focus,
  * so the caret it acts on stays exactly where it is.
  */
@@ -31,6 +32,8 @@ import {
 import { isProseLeaf } from '../../schema/page-role';
 import type { Reading } from '../../schema/reading';
 import { readBlockPath } from '../../selection/path-lookup';
+import { blockNodeAt } from '../../tree-operations/node-primitives';
+import type { EditorContributions } from '../../schema/editor-contributions';
 import { holdsSelection, selectionCoversPoint } from '../../selection/held-selection';
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import { documentLineEnding } from '../../core/lines';
@@ -91,6 +94,8 @@ export interface RootMenusDeps {
 	currentMenu(): BlockMenuModel | null;
 	/** The plugins' selection actions, whose rows join the clipboard menu. */
 	actions: SelectionActions;
+	/** The rows a plugin's block type adds to its block's menu, and the commands they run. */
+	blockTypes: Pick<EditorContributions, 'blockActions' | 'blockOf' | 'run' | 'can'>;
 }
 
 export interface RootMenus {
@@ -112,6 +117,9 @@ export interface OpenRows {
 }
 
 const EDIT_LINK = 'link.edit';
+
+/** A row a plugin's block type adds to its block's menu. */
+type TypeRow = BlockContextAction & { run(): void };
 
 const isBlockHost = (node: EventTarget): node is HTMLElement =>
 	node instanceof HTMLElement && node.matches('.block-host[data-block-path]');
@@ -214,21 +222,53 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		);
 	}
 
+	/** The rows `node`'s block type adds to its menu, each running its command on that block. */
+	function typeRows(node: NodeView): TypeRow[] {
+		const { blockActions, blockOf, run, can } = deps.blockTypes;
+		const rows = blockActions(node.kind);
+		if (rows.length === 0) return [];
+		const block = blockOf(node);
+		return rows.map(({ label, icon, command }, i) => ({
+			id: `block-type.${i}`,
+			label,
+			icon,
+			disabled: !can(command, block),
+			run: () => void run(command, block)
+		}));
+	}
+
+	/** The rows of the nearest block from `path` up whose type adds any, under its type's name. */
+	function typeFlyout(path: readonly number[]): { entry: MenuEntry; rows: TypeRow[] } | null {
+		for (let depth = path.length; depth >= 1; depth--) {
+			const node = blockNodeAt(deps.getDoc(), path.slice(0, depth));
+			const rows = node ? typeRows(node) : [];
+			if (!node || rows.length === 0) continue;
+			const label = deps.blockTypes.blockOf(node).type.label;
+			const children = rows.map(({ id, label, icon, disabled }) => ({ id, label, icon, disabled }));
+			return { entry: { id: 'block-type', label, icon: 'ellipsis-vertical', children }, rows };
+		}
+		return null;
+	}
+
 	/** `withInsert` adds the "Insert block" flyout, whose rows land below the block the caret was
 	 *  just placed in; false leaves the menu to the clipboard rows alone. */
 	function openClipboardMenu(
 		root: HTMLElement,
 		point: Point,
 		anchorEl: Element,
+		path: readonly number[],
 		withInsert: boolean
 	): void {
 		const rows = deps.inserts();
-		const editLink: MenuEntry[] = deps.canEditLinkAtCaret()
-			? [
-					{ id: EDIT_LINK, label: 'Edit link', icon: 'link' },
-					{ id: 'sep-edit', label: '', divider: true }
-				]
-			: [];
+		const flyout = typeFlyout(path);
+		const leading: MenuEntry[] = [
+			...(deps.canEditLinkAtCaret()
+				? [{ id: EDIT_LINK, label: 'Edit link', icon: 'link' as const }]
+				: []),
+			...(flyout ? [flyout.entry] : [])
+		];
+		const editLink: MenuEntry[] =
+			leading.length > 0 ? [...leading, { id: 'sep-edit', label: '', divider: true }] : [];
 		const insert: MenuEntry[] = !withInsert
 			? []
 			: [
@@ -256,6 +296,8 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		showMenu(point, anchor, deps.actions.atSelection(), BLOCK_ACTIONS_LABEL, build, (id) => {
 			if (id === EDIT_LINK) return deps.editLinkAtCaret();
 			if (runClipboardRow(id)) return;
+			const typeRow = flyout?.rows.find((r) => r.id === id);
+			if (typeRow) return void (typeRow.disabled || typeRow.run());
 			const row = rows.find((r) => r.id === id);
 			if (row && withInsert) void deps.insertMarkdown(rowMarkdown(row), { placement: 'below' });
 		});
@@ -263,7 +305,7 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 
 	function openBlockActions(point: Point, host: HTMLElement, path: number[], node: NodeView): void {
 		const noun = blockNoun(node, deps.reading);
-		const actions = blockActionsFor(node, noun);
+		const actions = blockActionsFor(node, noun, typeRows(node));
 		const index = path[0];
 		// A row may write after a slow clipboard read; one the block changed under, or a `source`
 		// swap outran, writes nothing.
@@ -286,12 +328,12 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		deps.setMenu({
 			...point,
 			anchor: anchorOn(host, point),
-			items: actions.map(({ id, label, icon }) => ({ id, label, icon })),
+			items: actions.map(({ id, label, icon, disabled }) => ({ id, label, icon, disabled })),
 			label: BLOCK_ACTIONS_LABEL,
 			pick: (id) => {
 				deps.setMenu(null);
 				const action = actions.find((a: BlockContextAction) => a.id === id);
-				if (!action) return;
+				if (!action || action.disabled) return;
 				// Opened at the pick, so an edit to the block before the row writes refuses it.
 				let closed = false;
 				const draft = deps.openDraft({ close: () => (closed = true) }, path);
@@ -331,7 +373,7 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 				deps.placeMenuCaret(e.clientX, e.clientY);
 			}
 			// Top-level prose is where a sibling block makes sense.
-			openClipboardMenu(root, point, host, !selected && prose);
+			openClipboardMenu(root, point, host, path, !selected && prose);
 			return;
 		}
 		if (holdsSelection(deps.selection, root)) deps.placeMenuCaret(e.clientX, e.clientY);

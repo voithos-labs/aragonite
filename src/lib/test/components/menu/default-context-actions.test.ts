@@ -45,7 +45,7 @@ function context(node: NodeView): BlockActionContext & { deleted: number; replac
 }
 
 const ids = (actions: BlockContextAction[]) => actions.map((a) => a.id);
-const actionsFor = (node: NodeView) => blockActionsFor(node, blockNoun(node, fixtureReading()));
+const actionsFor = (node: NodeView) => blockActionsFor(node, blockNoun(node, fixtureReading()), []);
 const row = (node: NodeView, id: string) => actionsFor(node).find((a) => a.id === id)!;
 
 describe("the noun a block's menu uses", () => {

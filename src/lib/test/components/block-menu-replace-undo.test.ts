@@ -13,7 +13,7 @@ import { everyInstalledPlugin } from '#lib/schema/plugin-activation.js';
 import { fixtureReading } from '../harness/fixture-grammar';
 import { makeTopHarness } from '../harness/editor-actions';
 import { settleEditor } from '../harness/settle';
-import { noSelectionActions } from '#lib/test/harness/no-selection-actions.js';
+import { noBlockTypes, noSelectionActions } from '#lib/test/harness/no-selection-actions.js';
 
 const TYPED = '```\ncodex\n```\n';
 
@@ -77,7 +77,8 @@ function fenceMenu(source: string) {
 		editLinkAtCaret: () => {},
 		setMenu: (next) => (menu = next),
 		currentMenu: () => menu,
-		actions: noSelectionActions
+		actions: noSelectionActions,
+		blockTypes: noBlockTypes
 	});
 	root.addEventListener('contextmenu', menus.onRootContextMenu);
 	const pick = (id: string) => {

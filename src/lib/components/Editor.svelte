@@ -1211,7 +1211,8 @@
 		editLinkAtCaret: () => void runCommand('link.openCard'),
 		setMenu: swapMenu,
 		currentMenu: () => blockMenu,
-		actions: selectionActions
+		actions: selectionActions,
+		blockTypes: contributions
 	});
 
 	// Announced for plugins that paint their own colors and cannot see a theme change in CSS.

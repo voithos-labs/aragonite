@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { createRootMenus, type BlockMenuModel } from '#lib/components/editor-root/menus.js';
+import {
+	createRootMenus,
+	type BlockMenuModel,
+	type RootMenusDeps
+} from '#lib/components/editor-root/menus.js';
 import { createSelectionState } from '#lib/selection/selection-state.svelte.js';
 import { idleDraftRegistry } from '#lib/test/harness/drafts.js';
 import { BLOCK_ACTIONS_LABEL } from '#lib/a11y-strings.js';
@@ -11,7 +15,7 @@ import type { PresentationMode } from '#lib/presentation-mode.js';
 import { fixtureReading } from '#lib/test/harness/fixture-grammar.js';
 import { createDocumentStamps } from '#lib/editor-actions/commit/document-stamp.js';
 import { takeDevWarns } from '#lib/test/support/warn-gate.js';
-import { noSelectionActions } from '#lib/test/harness/no-selection-actions.js';
+import { noBlockTypes, noSelectionActions } from '#lib/test/harness/no-selection-actions.js';
 
 // Miss-analysis: which menu a right-click opens was tested only through Playwright.
 
@@ -36,6 +40,7 @@ function harness(
 		editsLink?: boolean;
 		rangeAtPress?: boolean;
 		finger?: boolean;
+		blockTypes?: RootMenusDeps['blockTypes'];
 	} = {}
 ) {
 	const root = document.createElement('div');
@@ -95,7 +100,8 @@ function harness(
 		editLinkAtCaret,
 		setMenu: (next) => (menu = next),
 		currentMenu: () => menu,
-		actions: noSelectionActions
+		actions: noSelectionActions,
+		blockTypes: opts.blockTypes ?? noBlockTypes
 	});
 	root.addEventListener('contextmenu', menus.onRootContextMenu);
 
@@ -312,5 +318,69 @@ describe('editor-root menus: the right-click', () => {
 		expect(h.menu()).toBeNull();
 		expect(h.rightClick(h.menuRow).defaultPrevented).toBe(true);
 		expect(h.menu()).toBeNull();
+	});
+});
+
+// Miss-analysis: a plugin block type's rows had no route into either menu, so nothing tested where
+// they sit or what they run on.
+describe("editor-root menus: a plugin block type's rows", () => {
+	/** Two rows on `kind`, the second one its command refuses, and the calls they make. */
+	function typeRows(kind: string) {
+		const ran: unknown[] = [];
+		const block = { type: { name: 'alerts/alert', label: 'Alert' } };
+		const command = (id: string) => ({ id }) as never;
+		const blockTypes: RootMenusDeps['blockTypes'] = {
+			blockActions: (k) =>
+				k === kind
+					? [
+							{ label: 'Next kind', command: command('next') },
+							{ label: 'Never', command: command('never') }
+						]
+					: [],
+			blockOf: () => block as never,
+			run: (entry, arg) => (ran.push([(entry as { id: string }).id, arg]), true),
+			can: (entry) => (entry as { id: string }).id !== 'never'
+		};
+		return { blockTypes, ran, block };
+	}
+
+	it("sit between a block's kind rows and Copy, greyed where the command can't run", () => {
+		const rows = typeRows('fencedCode');
+		const h = harness({ blockTypes: rows.blockTypes });
+		h.rightClick(h.fence.firstElementChild!);
+		const ids = h.ids();
+		expect(ids.slice(ids.indexOf('block-type.0'))).toEqual([
+			'block-type.0',
+			'block-type.1',
+			'block.copy',
+			'block.replace',
+			'block.remove'
+		]);
+		expect(ids.indexOf('block-type.0')).toBeGreaterThan(0);
+		expect(
+			h
+				.menu()!
+				.items.map((item) => !!item.disabled)
+				.slice(-5, -3)
+		).toEqual([false, true]);
+		h.menu()!.pick('block-type.1');
+		h.rightClick(h.fence.firstElementChild!);
+		h.menu()!.pick('block-type.0');
+		expect(rows.ran).toEqual([['next', rows.block]]);
+	});
+
+	it('come as one flyout named for the type in a block inside it, ahead of the clipboard rows', () => {
+		const rows = typeRows('paragraph');
+		const h = harness({ blockTypes: rows.blockTypes });
+		h.rightClick(h.nested.firstElementChild!);
+		expect(h.ids().slice(0, 3)).toEqual(['block-type', 'sep-edit', 'clip.cut']);
+		const flyout = h.menu()!.items[0];
+		expect(flyout.label).toBe('Alert');
+		expect(flyout.children?.map((row) => [row.label, !!row.disabled])).toEqual([
+			['Next kind', false],
+			['Never', true]
+		]);
+		h.menu()!.pick('block-type.0');
+		expect(rows.ran).toEqual([['next', rows.block]]);
 	});
 });

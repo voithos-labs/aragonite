@@ -151,7 +151,7 @@
 					return;
 				case 'Enter':
 					claim(e);
-					if (open) onPick(children[open.child].id);
+					if (open) pick(children[open.child]);
 					else pick(items[activeIndex]);
 					return;
 			}
@@ -216,11 +216,12 @@
 								role="menuitem"
 								tabindex="-1"
 								class="md-menu-item block-menu-item"
+								disabled={child.disabled}
 								data-active={flyout.child === j ? 'true' : undefined}
 								data-testid="block-menu-{child.id}"
 								onmousedown={(e) => e.preventDefault()}
 								onpointerenter={() => (flyout = { row: i, child: j })}
-								onclick={() => onPick(child.id)}
+								onclick={() => pick(child)}
 							>
 								{#if child.icon}<span class="md-menu-icon"><MenuIcon name={child.icon} /></span
 									>{/if}

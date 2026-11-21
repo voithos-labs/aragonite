@@ -1,6 +1,7 @@
 // A plugin value whose `%> [!TYPE]` container takes Mod+7 and offers a menu row, both running one
-// command on the alert: the next type in the list, written into the head line.
-import { command, container, definePlugin, type Block } from '#lib/plugin.js';
+// command on the alert: the next type in the list, written into the head line. Its `[[flag on]]`
+// line is a block picked up whole, so its row sits in the block's own menu.
+import { command, container, definePlugin, lineBlock, type Block } from '#lib/plugin.js';
 
 interface AlertData {
 	type: string;
@@ -38,9 +39,33 @@ export const alertType = container<AlertData>({
 	actions: [{ label: 'Next kind', icon: 'info', command: cycleAlert }]
 });
 
+interface FlagData {
+	on: boolean;
+}
+
+export const toggleFlag = command<Block<FlagData>>({
+	id: 'toggle-flag',
+	title: 'Toggle flag',
+	run(editor, block) {
+		void editor.edit().data(block, { on: !block.data.on }).commit();
+	}
+});
+
+export const flagType = lineBlock<FlagData>({
+	name: 'flag',
+	label: 'Flag',
+	match: /^\[\[flag (on|off)\]\]$/,
+	data: (match) => ({ on: match[1] === 'on' }),
+	write: (data) => `[[flag ${data.on ? 'on' : 'off'}]]`,
+	sample: '[[flag off]]',
+	insert: { none: 'a test block type' },
+	role: 'object',
+	actions: [{ label: 'Toggle flag', icon: 'check', command: toggleFlag }]
+});
+
 export const alertsPlugin = definePlugin({
 	name: 'alerts',
 	version: '1.0.0',
 	editor: '*',
-	contributes: () => ({ blocks: [alertType] })
+	contributes: () => ({ blocks: [alertType, flagType] })
 });
