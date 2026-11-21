@@ -4,7 +4,13 @@
 // Miss-analysis: block commands ran only through the process-wide `registerBlockCommand` registry,
 // and no row ran a plugin block command by id from a value plugin (N17).
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { command, definePlugin, lineBlock, type Command } from '#lib/plugin.js';
+import {
+	command,
+	definePlugin,
+	lineBlock,
+	type Command,
+	type TextDrawContext
+} from '#lib/plugin.js';
 import { container } from '#lib/components/block-makers/container.js';
 import type { Block } from '#lib/schema/doc-view.js';
 import type { BlockCommon } from '#lib/schema/block-shapes.js';
@@ -12,12 +18,14 @@ import type { KeybindingOverride } from '#lib/schema/keybinding-overrides.js';
 import type { PluginError } from '#lib/schema/plugin-unit.js';
 import type { Draft } from '#lib/schema/drafts.js';
 import {
+	blockHostAt,
 	destroyMountedEditors,
 	installLayoutStubs,
 	mountEditor,
 	placeCaret,
 	pressKeyAt,
-	surfaceAt
+	surfaceAt,
+	typeInto
 } from '#lib/test/harness/mount-editor.svelte.js';
 import { pressKey } from '#lib/test/harness/settle.js';
 import {
@@ -216,6 +224,32 @@ describe("a placed command's block", () => {
 		await editor.settle();
 		await pressKeyAt(editor, [1], 4, CTRL_7);
 		expect(marked).toEqual(['@@ note\n@7']);
+	});
+
+	// Miss-analysis: the leaf row's block draws as plain text, which names no place, so its key falls
+	// to the block nearest the caret; no key ran in a leaf the plugin draws, which hands over its own.
+	it('is the drawn leaf its key landed in, the text typed in its opened picture written first', async () => {
+		const { plugin, marked } = makeMemos((mark) => {
+			const draw = (_: unknown, ctx: TextDrawContext) => {
+				const dom = document.createElement('div');
+				dom.append(document.createElement('span'), ctx.source);
+				return { dom };
+			};
+			return { chords: { 'Mod+7': mark }, edit: 'source', draw } as Partial<BlockCommon<never>>;
+		});
+		const source = 'intro\n\n> @@ note\n';
+		const editor = mountEditor({ source, plugins: [plugin] });
+		await editor.settle();
+		const picture = blockHostAt(editor, [1, 0]).querySelector('span')!;
+		picture.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+		picture.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		await editor.settle();
+		const text = surfaceAt(editor, [1, 0]);
+		typeInto(text, '@@ note grown');
+		expect(editor.source()).toBe(source);
+		await pressKey(text, CTRL_7);
+		await editor.settle();
+		expect(marked).toEqual(['@@ note grown\n@9']);
 	});
 });
 
