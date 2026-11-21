@@ -55,6 +55,13 @@ const HOSTS: Record<string, Host> = {
 		live: ['a [link](u)Qxt\n', 'a [link](u)Q\n\nRxt\n'],
 		source: ['a [linkQxt\n', 'a [linkQ\n\nRxt\n']
 	},
+	'from a link’s end in a list item': {
+		doc: '- a [link](u)\n- b\n\nnext\n',
+		anchor: at([0, 0, 0], 7),
+		focus: at([1], 2),
+		live: ['- a [link](u)Qxt\n', '- a [link](u)Q\n\n  Rxt\n'],
+		source: ['- a [linkQxt\n', '- a [linkQ\n\n  Rxt\n']
+	},
 	'from an autolink’s end': {
 		doc: 'a <https://x.example>\n\nnext\n',
 		anchor: at([0], 21),

@@ -307,8 +307,8 @@ test.describe('live mode: an IME commit takes the same caret position as a keyst
 	});
 });
 
-// A selection from a construct's end to the start of the block after it, written over. The key, an
-// IME's commit and Delete then the key all end in the write that moves text across a hidden edge.
+// A selection from a construct's end into the next block, written over: a key, a paste, an IME and
+// Delete then the key all end in the write that moves text across a hidden edge.
 const RANGE_DOC = [
 	'a [link](u)',
 	'',
@@ -326,7 +326,7 @@ const RANGE_DOC = [
 interface RangeHost {
 	name: string;
 	block: number;
-	/** The raw offset End, or a click, leaves the caret at on the host's line. */
+	/** The raw offset End, or a click, leaves the caret at on the host's line (in Chromium). */
 	end: number;
 	/** What `Q` typed over the range leaves of the host's line, where it is pinned. */
 	typed?: string;
@@ -338,15 +338,21 @@ const RANGE_HOSTS: RangeHost[] = [
 	{ name: 'a bold', block: 4, end: 8, typed: 'a **boldQ**cherry' }
 ];
 
-/** A fresh copy of the document with the range drawn from `host`'s line end to the start of the
- *  block after it: by End and Shift+Down, or by a click and a Shift+click. */
-async function rangeFrom(ep: EditorPage, page: Page, host: RangeHost, by: 'keys' | 'mouse') {
+/** The range from `host`'s line end to the next block's start, by End and Shift+Down or a click and
+ *  a Shift+click, on a fresh copy; `exact` holds the anchor at `host.end`, which live mode needn't. */
+async function rangeFrom(
+	ep: EditorPage,
+	page: Page,
+	host: RangeHost,
+	by: 'keys' | 'mouse',
+	exact = false
+) {
 	await nextRow(ep, RANGE_DOC);
 	const next = [host.block + 1];
 	if (by === 'keys') {
 		await clickBlockSettled(ep, host.block);
 		await page.keyboard.press(edgeKey('lineEnd'));
-		await stepTo(ep, page, 'ArrowLeft', host.end);
+		if (exact) await stepTo(ep, page, 'ArrowLeft', host.end);
 		// Source mode's last line takes the first press to its end.
 		for (let i = 0; i < 3 && (await focusPath(ep)).join() !== next.join(); i++) {
 			await page.keyboard.press('Shift+ArrowDown');
@@ -354,13 +360,13 @@ async function rangeFrom(ep: EditorPage, page: Page, host: RangeHost, by: 'keys'
 		}
 	} else {
 		await ep.clickBlockAtPath([host.block], host.end);
-		await expect.poll(() => focusOffset(ep), { timeout: 5000 }).toBe(host.end);
+		await expect.poll(() => focusPath(ep), { timeout: 5000 }).toEqual([host.block]);
 		await ep.shiftClickBlock(next, 0);
 	}
-	expect(await ep.bridge.getSelectionPaths()).toEqual({
-		anchor: { path: [host.block], offset: host.end },
-		focus: { path: next, offset: 0 }
-	});
+	const range = await ep.bridge.getSelectionPaths();
+	expect(range?.anchor.path).toEqual([host.block]);
+	if (exact) expect(range?.anchor.offset).toBe(host.end);
+	expect(range?.focus).toEqual({ path: next, offset: 0 });
 }
 
 /** The host's line once the range over it and the block after it is written over. */
@@ -394,6 +400,14 @@ test.describe('live mode: text over a selection across blocks', () => {
 					expect(await hostLine(ep, host)).toBe(deleted.replace('Q', 'QR'));
 				});
 
+				await test.step('a one-line paste writes what the key writes', async () => {
+					await ep.seedClipboard('Q');
+					await rangeFrom(ep, page, host, by);
+					await ep.paste();
+					await ep.bridge.waitForSourceContains('Q');
+					expect(await hostLine(ep, host)).toBe(deleted);
+				});
+
 				await test.step('an IME commits where the key’s letter landed', async () => {
 					await rangeFrom(ep, page, host, by);
 					const ime = await attachIme(page);
@@ -412,7 +426,7 @@ test('source mode: text over a selection across blocks lands where it started', 
 	const ep = await enterPresentationMode(page, 'source', RANGE_DOC);
 	const [link] = RANGE_HOSTS;
 
-	await rangeFrom(ep, page, link, 'keys');
+	await rangeFrom(ep, page, link, 'keys', true);
 	await page.keyboard.type('Q');
 	await ep.bridge.waitForSourceContains('Q');
 	expect(await hostLine(ep, link)).toBe('a [linkQapple');
