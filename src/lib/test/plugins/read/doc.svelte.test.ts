@@ -16,6 +16,7 @@ import {
 	destroyMountedEditors,
 	installLayoutStubs,
 	mountEditor,
+	pressKeyAt,
 	surfaceAt,
 	typeInto
 } from '#lib/test/harness/mount-editor.svelte.js';
@@ -120,6 +121,38 @@ describe('Doc', () => {
 			m.source()
 		]);
 	});
+
+	it("rebuilds an unread version's text past several writes, blocks added and taken out", async () => {
+		const { editor, m } = await mounted(DOC);
+		const unread = editor.doc;
+		typeInto(surfaceAt(m, [0]), 'introX');
+		await m.settle();
+		await pressKeyAt(m, [0], 'introX'.length, { key: 'Enter' });
+		await m.settle();
+		const second = editor.doc;
+		await pressKeyAt(m, [2, 0, 0], 'ant'.length, { key: 'Enter' });
+		await m.settle();
+		expect(m.source()).not.toBe(DOC);
+		expect([unread.text, second.text]).toEqual([DOC, DOC.replace('intro\n', 'introX\n\n')]);
+	});
+
+	// Miss-analysis: every row read a replaced version's text once, so none timed what holding an
+	// unread `Doc` costs each later key: a copy of the whole record per key.
+	it.each([40, 400])(
+		"keeps only the replaced block's strings on a key after the doc was read, at %i blocks",
+		async (count) => {
+			const source = Array.from({ length: count }, (_, i) => `para ${i}`).join('\n\n') + '\n';
+			const { editor, m } = await mounted(source);
+			void editor.doc.blocks[0];
+			enablePerfInstruments();
+			resetPerfInstruments();
+			typeInto(surfaceAt(m, [1]), 'para 1X');
+			await m.settle();
+			typeInto(surfaceAt(m, [1]), 'para 1XY');
+			await m.settle();
+			expect(perfSnapshot().stringsKept).toBeLessThanOrEqual(4);
+		}
+	);
 
 	// Miss-analysis: a new home; no plugin read a document a write had replaced before.
 	it('warns once when a replaced version reads its blocks, which are the document as it stands', async () => {

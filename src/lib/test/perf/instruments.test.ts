@@ -47,6 +47,7 @@ const EMPTY: PerfSnapshot = {
 	hintRunsLogged: 0,
 	blocksBuilt: 0,
 	blocksRead: 0,
+	stringsKept: 0,
 	stripLinesRead: 0,
 	joinedChildReads: 0,
 	siblingsCompared: 0,

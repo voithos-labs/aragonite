@@ -17,7 +17,12 @@ import {
 	type DocumentByteMap,
 	type LeafPosition
 } from '../../tree-operations/container-offsets';
-import type { BlockBytes, Measured, TopLevelChange } from '../../tree-operations/top-level-starts';
+import {
+	piecesOf,
+	type BlockBytes,
+	type Measured,
+	type TopLevelChange
+} from '../../tree-operations/top-level-starts';
 import { blockNodeAt } from '../../tree-operations/node-primitives';
 import {
 	lazyList,
@@ -32,7 +37,12 @@ import {
 import type { BlockType } from '../../schema/plugin-unit';
 import type { EditEvent, EditInfo } from '../../editor-events';
 import { checkHeldBlockPlace } from '../../invariants/held-block';
-import { perfEnabled, recordBlockRead, recordHintRunsLogged } from '../../perf/instruments';
+import {
+	perfEnabled,
+	recordBlockRead,
+	recordHintRunsLogged,
+	recordStringsKept
+} from '../../perf/instruments';
 import type { WriteFollower } from './kept-starts';
 import { createEditChanges } from './edit-changes';
 
@@ -81,6 +91,9 @@ export function createDocumentRead(deps: {
 	let logFrom = 0;
 	let following = false;
 	let current: VersionDoc | null = null;
+	// The latest write's replaced strings, chained on from the first write that replaced a `Doc`
+	// handed out unread, so that `Doc` rebuilds its text when asked; null until then.
+	let undone: Undone | null = null;
 	const changes = createEditChanges();
 	const infos = new WeakMap<EditEvent, EditInfo>();
 
@@ -97,15 +110,15 @@ export function createDocumentRead(deps: {
 		deps.follow({
 			heard(write) {
 				const { runs, before } = write;
-				if (before && current?.version === deps.version() && current.unread) current.keep(before);
+				const replaced = current?.version === deps.version() && current.unread ? current : null;
+				if (replaced || undone) undone = undoneBy(undone, deps.version(), runs, before, replaced);
 				changes.heard(write, deps.getDoc());
 				log.push(runs);
 				recordHintRunsLogged();
 				// Past this many writes a block held from before them reads -1 unless it stood still.
 				if (log.length > LOG_LIMIT) logFrom += log.splice(0, log.length - LOG_LIMIT / 2).length;
 			},
-			readsBefore: () => changes.listening(),
-			keepsBefore: () => current !== null && current.version === deps.version() && current.unread
+			readsBefore: () => changes.listening() || undone !== null || current?.unread === true
 		});
 	}
 
@@ -194,7 +207,8 @@ export function createDocumentRead(deps: {
 		version: deps.version,
 		source: deps.source,
 		blocks: top,
-		blockAt
+		blockAt,
+		textBefore: (head) => textBefore(head, deps.getDoc(), deps.version())
 	};
 
 	function doc(version = deps.version()): Doc {
@@ -214,7 +228,7 @@ export function createDocumentRead(deps: {
 		leavesIn(from, to) {
 			const { map } = layout();
 			const out: { path: number[]; start: number; end: number }[] = [];
-			for (let at = from; at < to; ) {
+			for (let at = from; at < to;) {
 				const leaf = leafAt(at);
 				const end = leaf && map.ownEnd(leaf.path);
 				if (!leaf || end === null) break;
@@ -291,10 +305,62 @@ interface VersionReads {
 	source(): string;
 	blocks: readonly Block[];
 	blockAt(at: number): Block | null;
+	/** The top-level strings before the writes chained from `head`; null where one couldn't say. */
+	textBefore(head: Undone): string[] | null;
 }
 
-/** One version of an editor's document. Its text is read once; a write that replaces it while
- *  unread hands it the record of the bytes it had. */
+/** One write's runs and the strings each run replaced, chained to the next write. */
+interface Undone {
+	readonly from: number;
+	readonly runs: readonly TopLevelChange[] | null;
+	readonly gone: readonly (readonly string[])[];
+	next: Undone | null;
+}
+
+function undoneBy(
+	tail: Undone | null,
+	from: number,
+	runs: readonly TopLevelChange[] | null,
+	before: BlockBytes | null,
+	replaced: VersionDoc | null
+): Undone {
+	// A record holds two strings a block: its leading trivia and its bytes.
+	const gone =
+		runs && before ? runs.map((r) => before.pieces.slice(2 * r.at, 2 * (r.at + r.removed))) : [];
+	recordStringsKept(gone.reduce((sum, strings) => sum + strings.length, 0));
+	const next: Undone = { from, runs: before ? runs : null, gone, next: null };
+	if (tail) tail.next = next;
+	replaced?.since(next);
+	return next;
+}
+
+/** The document's top-level strings as they stood before `head`'s write, rebuilt from the tree by
+ *  undoing every write chained since, latest first. */
+function textBefore(head: Undone, doc: DocumentView, now: number): string[] | null {
+	const chain: Undone[] = [];
+	for (let at: Undone | null = head; at; at = at.next) {
+		if (!at.runs) return null;
+		chain.push(at);
+	}
+	// Every announced write is heard, so a gap means the chain can't be trusted.
+	if (head.from + chain.length !== now) return null;
+	const pieces = piecesOf(doc.children, 0, doc.children.length);
+	for (let k = chain.length - 1; k >= 0; k--) {
+		const { runs, gone } = chain[k];
+		let delta = 0;
+		const after = runs!.map((run) => {
+			const at = run.at + delta;
+			delta += run.inserted - run.removed;
+			return at;
+		});
+		for (let r = runs!.length - 1; r >= 0; r--)
+			pieces.splice(2 * after[r], 2 * runs![r].inserted, ...gone[r]);
+	}
+	return pieces;
+}
+
+/** One version of an editor's document. Its text is read once; read after a write replaced it,
+ *  it's rebuilt from the tree and the strings each write since replaced. */
 class VersionDoc implements Doc {
 	readonly version: number;
 	readonly eol: '\n' | '\r\n';
@@ -302,7 +368,7 @@ class VersionDoc implements Doc {
 	readonly #prefix: string;
 	readonly #suffix: string;
 	#text: string | null = null;
-	#before: BlockBytes | null = null;
+	#undone: Undone | null = null;
 
 	constructor(reads: VersionReads, doc: DocumentView, version: number) {
 		this.#reads = reads;
@@ -315,11 +381,12 @@ class VersionDoc implements Doc {
 	}
 
 	get unread(): boolean {
-		return this.#text === null && this.#before === null;
+		return this.#text === null && this.#undone === null;
 	}
 
-	keep(before: BlockBytes): void {
-		this.#before = before;
+	/** The write that replaced this version, the first of those its text is rebuilt past. */
+	since(write: Undone): void {
+		this.#undone = write;
 	}
 
 	get current(): boolean {
@@ -328,13 +395,11 @@ class VersionDoc implements Doc {
 
 	get text(): string {
 		if (this.#text === null) {
-			const before = this.#before;
-			// A version a write replaced unkept (a load, or a throw) has only the text as it stands.
-			if (!before) warnStale(this, 'text');
-			this.#text = before
-				? this.#prefix + before.pieces.join('') + this.#suffix
-				: this.#reads.source();
-			this.#before = null;
+			const pieces = this.#undone && this.#reads.textBefore(this.#undone);
+			// A version past a write that couldn't say (a load, or a throw) has only the text as it stands.
+			if (!pieces) warnStale(this, 'text');
+			this.#text = pieces ? this.#prefix + pieces.join('') + this.#suffix : this.#reads.source();
+			this.#undone = null;
 		}
 		return this.#text;
 	}

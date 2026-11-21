@@ -67,6 +67,8 @@ export interface PerfSnapshot {
 	blocksBuilt: number;
 	/** Block views handed to a plugin, one already built included: what a walk of the document costs. */
 	blocksRead: number;
+	/** Top-level strings a write kept so a `Doc` it replaced can still read its text. */
+	stringsKept: number;
 	undoLiveBytes: number;
 	undoEntryCount: number;
 	blockRenderCount: number;
@@ -149,6 +151,7 @@ function emptySnapshot(): PerfSnapshot {
 		hintRunsLogged: 0,
 		blocksBuilt: 0,
 		blocksRead: 0,
+		stringsKept: 0,
 		undoLiveBytes: 0,
 		undoEntryCount: 0,
 		blockRenderCount: 0,
@@ -337,6 +340,10 @@ export function recordDocumentWalk(root: object): void {
 export function recordHintRunsLogged(): void {
 	if (!enabled) return;
 	counters.hintRunsLogged++;
+}
+
+export function recordStringsKept(count: number): void {
+	if (enabled) counters.stringsKept += count;
 }
 
 export function recordBlockBuilt(): void {
