@@ -357,14 +357,17 @@ function placeAnswer(doc: Doc, range: Range): RangeEditResult {
 	const { removed, after, place, opens } = alone
 		? goneAlone(doc, range)
 		: textPlace(doc, range, null);
-	if (!opens || place.holds !== 'boundary')
-		return { source: removed.source, caret: onText(after, place) };
+	const { source } = removed;
+	const kept = onText(after, place);
+	// The line a block held whole left blank in its container is the paragraph that would open there.
+	const leaf = alone && kept.holds === 'text' ? after.layout.leafAt(kept.at) : null;
+	if (leaf && isBlankText(nodeAt(after, leaf.path).raw))
+		return { source, caret: kept, opened: true };
+	if (!opens || place.holds !== 'boundary') return { source, caret: kept };
 	// An emptied document keeps one empty paragraph: the one text would open there.
-	if (isBlankText(removed.source))
-		return { source: removed.source, caret: { at: 0, holds: 'text' }, opened: true };
-	const index = childAt(after, place);
-	const line = doc.host.openedAt(after.tree, place.parent, index);
-	if (!line) return { source: removed.source, caret: place };
+	if (isBlankText(source)) return { source, caret: { at: 0, holds: 'text' }, opened: true };
+	const line = doc.host.openedAt(after.tree, place.parent, childAt(after, place));
+	if (!line) return { source, caret: place };
 	return { source: line.source, caret: { at: line.caret, holds: 'text' }, opened: true };
 }
 
