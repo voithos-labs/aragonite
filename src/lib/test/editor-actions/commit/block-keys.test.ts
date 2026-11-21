@@ -1,6 +1,6 @@
-// A watch's answers change when one that says something leaves its index, and only then.
-// Miss-analysis: the rows held the answers' order, never their index, so an Enter above a heading
-// left a drawing's answers a block off.
+// A watch nobody reads lets go of the writes after 64 of them and asks every block when it's read
+// again; its answers change when one that says something leaves its index, and only then.
+// Miss-analysis: a follower kept alive asks nothing, so no counter row saw a watch never let go.
 import { describe, expect, it } from 'vitest';
 import { watchKeys } from '#lib/editor-actions/commit/block-keys.js';
 import type { WriteFollower } from '#lib/editor-actions/commit/kept-starts.js';
@@ -32,6 +32,18 @@ const watched = (texts: string[]) => {
 	const doc = document(texts);
 	return { doc, watch: watchKeys(doc, headings, () => {}) };
 };
+
+describe('a watch nobody reads', () => {
+	it('follows 64 writes, lets go at the 65th, and reads again as a fresh evaluation', () => {
+		const { doc, watch } = watched(['# A', 'p', '# B']);
+		for (let i = 0; i < 64; i++) doc.write(1, 1, [`p${i}`]);
+		expect(doc.followers.length).toBe(1);
+		doc.write(1, 1, ['# New']);
+		expect(doc.followers.length).toBe(0);
+		expect(watch.keys()).toEqual(['# A', '# New', '# B']);
+		expect(doc.followers.length).toBe(1);
+	});
+});
 
 describe('its answers change', () => {
 	const ROWS: [string, number, number, string[], boolean][] = [

@@ -465,7 +465,7 @@ One rule holds either way: an edit to one child rewrites that child's lines and 
 | **aragonite plugins** | Anything touching the document or the editing surface: kinds, grammar, decorations, commands over the document, presentation |
 | **The embedding app's plugins** | Anything touching the app: ribbon, sidebar, status bar, settings tabs, modals, the command palette UI, the vault, sync |
 
-Vault-wide indexing sits on the app's side of that line: aragonite hands you the raw material (`getEvents()` and `parse()`) and never the index. It's not simply "editor = view", though. Derived state over the _one_ document you're editing (a table of contents, footnote numbering, the tasks in this note) is an editor plugin's to build, which is why a drawing or a paint can say what it reads of the document ([the document recipe](plugin-guide/reading-the-document.md)).
+Vault-wide indexing sits on the app's side of that line: aragonite hands you the raw material (`getEvents()` and `parse()`) and never the index. It's not simply "editor = view", though. Derived state over the _one_ document you're editing (a table of contents, footnote numbering, the tasks in this note) is an editor plugin's to build, which is why a block type or a paint can say what it reads of the document ([the document recipe](plugin-guide/reading-the-document.md)).
 
 Everything the sections above show is fair game. A plugin **may not**:
 

@@ -10,7 +10,7 @@ import { assertInvariant, devChecksOn } from '@voithos-labs/aragonite/dev-checks
 import type { Block, KeyWatch } from '../../schema/doc-view';
 import type { TopLevelChange } from '../../tree-operations/top-level-starts';
 import { checkKeptKeys } from '../../invariants/kept-keys';
-import { perfEnabled, recordKeyAsked } from '../../perf/instruments';
+import { perfEnabled, recordKeyAsked, recordKeyWriteHeard } from '../../perf/instruments';
 import type { WriteFollower } from './kept-starts';
 
 /** The writes a watch follows and the blocks it asks. */
@@ -48,6 +48,7 @@ export function watchKeys(
 		writes = [];
 		unfollow = source.follow({
 			heard({ runs }) {
+				recordKeyWriteHeard();
 				writes?.push(runs);
 				// One nobody reads (its plugin turned off, its drawings gone) lets go, and asks again
 				// if it's read.
@@ -61,6 +62,7 @@ export function watchKeys(
 	function lapse(): void {
 		unfollow?.();
 		unfollow = writes = null;
+		slots = [];
 	}
 
 	function askAll(list: readonly Block[], was: readonly string[]): void {

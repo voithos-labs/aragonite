@@ -71,6 +71,8 @@ export interface PerfSnapshot {
 	stringsKept: number;
 	/** Blocks a surface's `depends` was asked about: one per key typed, none with no surface. */
 	keysAsked: number;
+	/** Writes a watch of `depends` answers heard: none from one nobody reads any more. */
+	keyWritesHeard: number;
 	undoLiveBytes: number;
 	undoEntryCount: number;
 	blockRenderCount: number;
@@ -155,6 +157,7 @@ function emptySnapshot(): PerfSnapshot {
 		blocksRead: 0,
 		stringsKept: 0,
 		keysAsked: 0,
+		keyWritesHeard: 0,
 		undoLiveBytes: 0,
 		undoEntryCount: 0,
 		blockRenderCount: 0,
@@ -351,6 +354,10 @@ export function recordStringsKept(count: number): void {
 
 export function recordKeyAsked(): void {
 	if (enabled) counters.keysAsked++;
+}
+
+export function recordKeyWriteHeard(): void {
+	if (enabled) counters.keyWritesHeard++;
 }
 
 export function recordBlockBuilt(): void {

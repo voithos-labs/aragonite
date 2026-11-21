@@ -2,7 +2,7 @@
 // A paint that reads the rest of the document declares `paintDepends`: it's handed the answers as
 // `ctx.depends`, equal to asking every block again after every write route, a paragraph's key
 // paints no other block again, an answer moved paints every block again, and a plugin turned off
-// asks nothing.
+// asks nothing and soon lets go of the writes.
 // Miss-analysis: a new home; a paint that read the document had only `editor.repaint` to call.
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { EditorTestSurface } from '#lib/components/editor-root/test-surface.js';
@@ -116,6 +116,30 @@ describe('a paint with paintDepends', () => {
 		typeInto(surfaceAt(m, [1]), 'para oneX');
 		await m.settle();
 		expect(perfSnapshot().keysAsked).toBe(0);
+	});
+
+	it('lets go of the writes once 65 pass with its plugin off, then asks every block afresh', async () => {
+		const { plugin, log, editor } = painter(headings);
+		const m = mountEditor<EditorTestSurface>({ source: DOC, plugins: [plugin] });
+		await m.settle();
+		m.instance.use([]);
+		await m.settle();
+		for (let i = 0; i < 65; i++) {
+			typeInto(surfaceAt(m, [1]), `para one${'x'.repeat(i + 1)}`);
+			await m.settle();
+		}
+		await m.instance.load(m.source().replace('para two', '# Two'));
+		await m.settle();
+		enablePerfInstruments();
+		resetPerfInstruments();
+		typeInto(surfaceAt(m, [1]), 'para oneY');
+		await m.settle();
+		expect(perfSnapshot().keyWritesHeard).toBe(0);
+		disablePerfInstruments();
+		m.instance.use([plugin]);
+		await m.settle();
+		expect(log.at(-1)!.depends).toEqual(editor().doc.blocks.map(headings));
+		expect(log.at(-1)!.depends).toContain('# Two');
 	});
 
 	it('hands every paint the same answers, empty without paintDepends', async () => {

@@ -168,6 +168,26 @@ describe("a block type's drawings", () => {
 		expect([nav(m) !== null, asked()]).toEqual([true, 2]);
 		expect(log.at(-1)).toEqual(m.instance.doc.blocks.map(headingsIn));
 	});
+
+	it('let go of the writes once 65 pass with none drawn, then ask every block afresh', async () => {
+		const { m, log } = await mounted();
+		await m.instance.edit().replace({ from: 0, to: KEYS_LINE.length }, '').commit();
+		await m.settle();
+		for (let i = 0; i < 65; i++) {
+			typeInto(surfaceAt(m, [1]), `para one${'x'.repeat(i + 1)}`);
+			await m.settle();
+		}
+		await m.instance.load(m.source().replace('para two', '# Two'));
+		await m.settle();
+		counting();
+		typeInto(surfaceAt(m, [1]), 'para oneY');
+		await m.settle();
+		expect(perfSnapshot().keyWritesHeard).toBe(0);
+		await m.instance.edit().replace({ from: 0, to: 0 }, KEYS_LINE).commit();
+		await m.settle();
+		expect(log.at(-1)).toEqual(m.instance.doc.blocks.map(headingsIn));
+		expect(nav(m).textContent).toBe('# Top|## Mid|# Two');
+	});
 });
 
 describe('an editor with no drawing that declares depends', () => {
