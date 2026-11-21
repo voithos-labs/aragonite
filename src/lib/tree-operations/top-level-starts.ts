@@ -84,13 +84,7 @@ export function holdsBytes(
 
 /** The answers about `doc` that `kept`, asked at each question, gives from its blocks' lengths. */
 export function startsOver(doc: DocumentView, kept: () => BlockBytes): TopLevelStarts {
-	const end = (index: number): number => {
-		const own = kept();
-		const { lengths, sums } = own;
-		for (let i = own.summed; i <= index; i++) sums[i] = (i > 0 ? sums[i - 1] : 0) + lengths[i];
-		own.summed = Math.max(own.summed, index + 1);
-		return doc.prefix.length + sums[index];
-	};
+	const end = (index: number): number => doc.prefix.length + sumTo(kept(), index + 1);
 	const start = (index: number) => (index === 0 ? doc.prefix.length : end(index - 1));
 	return {
 		get length() {
@@ -116,6 +110,14 @@ export function startsOver(doc: DocumentView, kept: () => BlockBytes): TopLevelS
 			return startsOver(next, () => own);
 		}
 	};
+}
+
+/** The bytes of `record`'s blocks `[0, index)`, off its running sums, extended as far as asked. */
+export function sumTo(record: BlockBytes, index: number): number {
+	const { lengths, sums } = record;
+	for (let i = record.summed; i < index; i++) sums[i] = (i > 0 ? sums[i - 1] : 0) + lengths[i];
+	record.summed = Math.max(record.summed, index);
+	return index > 0 ? sums[index - 1] : 0;
 }
 
 const plainTops = new WeakMap<Measured, readonly NodeView[]>();

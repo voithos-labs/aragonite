@@ -278,7 +278,6 @@ class VersionDoc implements Doc {
 	readonly #suffix: string;
 	#text: string | null = null;
 	#before: BlockBytes | null = null;
-	#warned = false;
 
 	constructor(reads: VersionReads, doc: DocumentView, version: number) {
 		this.#reads = reads;
@@ -304,7 +303,7 @@ class VersionDoc implements Doc {
 		if (this.#text === null) {
 			const before = this.#before;
 			// A version a write replaced unkept (a load, or a throw) has only the text as it stands.
-			if (!before) this.#stale('text');
+			if (!before) warnStale(this, 'text');
 			this.#text = before
 				? this.#prefix + before.pieces.join('') + this.#suffix
 				: this.#reads.source();
@@ -314,28 +313,29 @@ class VersionDoc implements Doc {
 	}
 
 	get blocks(): readonly Block[] {
-		this.#stale('blocks');
+		warnStale(this, 'blocks');
 		return this.#reads.blocks;
 	}
 
 	blockAt(at: number): Block | null {
-		this.#stale('blockAt');
+		warnStale(this, 'blockAt');
 		return this.#reads.blockAt(at);
 	}
 
 	walk(): IterableIterator<Block> {
-		this.#stale('walk');
+		warnStale(this, 'walk');
 		return walkFrom(this.#reads.blocks);
 	}
+}
 
-	#stale(read: string): void {
-		if (this.#warned || this.current) return;
-		this.#warned = true;
-		if (devChecksOn) {
-			devWarn(
-				'stale-doc',
-				`Doc.${read} read a document a write has replaced; read \`editor.doc\` again after an await`
-			);
-		}
-	}
+const warned = new WeakSet<Doc>();
+
+// Once per `Doc`, in a dev build: a production build carries neither the check nor its words.
+function warnStale(doc: Doc, read: string): void {
+	if (!devChecksOn || doc.current || warned.has(doc)) return;
+	warned.add(doc);
+	devWarn(
+		'stale-doc',
+		`Doc.${read} read a document a write has replaced; read \`editor.doc\` again after an await`
+	);
 }
