@@ -8,6 +8,7 @@ import {
 	destroyMountedEditors,
 	installLayoutStubs,
 	mountEditor,
+	pressKeyAt,
 	surfaceAt,
 	typeInto
 } from '#lib/test/harness/mount-editor.svelte.js';
@@ -19,8 +20,9 @@ afterEach(async () => {
 });
 
 const DOC = 'intro\n\npara one\n\npara two\n';
+const LIST = '- ant\n- bee\n';
 
-async function mounted() {
+async function mounted(source = DOC) {
 	let editor: Editor | undefined;
 	const viewer = definePluginUnit({
 		name: 'unit-viewer',
@@ -28,7 +30,7 @@ async function mounted() {
 		editor: '*',
 		contributes: () => ({ setup: (e) => void (editor = e) })
 	});
-	const m = mountEditor({ source: DOC, plugins: [viewer] });
+	const m = mountEditor({ source, plugins: [viewer] });
 	await m.settle();
 	return { editor: editor!, m };
 }
@@ -56,6 +58,20 @@ describe('an overlay', () => {
 		gone.push(byte.isConnected ? 'kept' : 'off');
 		expect(gone).toEqual(['off', 'kept', 'off']);
 		expect(await editor.view.reveal(block)).toBe(false);
+	});
+
+	// A held block reads -1 while its node stands once a sibling is put in above it in its list
+	// (it fails closed); the overlay comes off there too, and the block read again pins again.
+	it('comes off once a sibling is put in above its block, and pins again on the block read anew', async () => {
+		const { editor, m } = await mounted(LIST);
+		const el = pinned();
+		const bee = editor.blockAt(LIST.indexOf('bee'))!;
+		editor.view.overlay(el, bee);
+		await pressKeyAt(m, [0, 0, 0], 'ant'.length, { key: 'Enter' });
+		await m.settle();
+		expect([el.isConnected, await editor.view.reveal(bee)]).toEqual([false, false]);
+		editor.view.overlay(el, editor.blockAt(m.source().indexOf('bee'))!);
+		expect(el.isConnected).toBe(true);
 	});
 
 	it('comes off at its call, when its plugin is turned off, and when the editor unmounts', async () => {

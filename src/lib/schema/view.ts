@@ -17,13 +17,13 @@ export interface View {
 	 *  the editor, or where such a click places nothing. */
 	posAt(point: { readonly x: number; readonly y: number }): number | null;
 	/** Scrolls the block, or the block holding byte `target`, into view, mounting it first; true
-	 *  once it's in view, false for a block that has left the document. */
+	 *  once it's in view, false for a block that isn't placed (its `from` is -1). */
 	reveal(
 		target: Block | number,
 		options?: { readonly align?: 'nearest' | 'center' | 'start' }
 	): Promise<boolean>;
 	/** Pins `el` at the top-left of the block's box (or of a byte's character) through scrolls and
-	 *  edits, until the returned call or until a write replaces the block, as typing in it does. */
+	 *  edits, until the returned call or until the block isn't placed, as typing in it makes it. */
 	overlay(el: HTMLElement, at: Block | number): () => void;
 }
 

@@ -46,21 +46,21 @@ export interface Block<D = unknown> {
 	/** The block holding it; null at the top level, or once it has left the document. */
 	readonly parent: Block | null;
 	/** Where it sits among its parent's children or the document's blocks; -1 for a title row,
-	 *  and once it has left the document. */
+	 *  and where it isn't placed. */
 	readonly index: number;
 	/** Whether its text reads as inline Markdown (a paragraph, a heading, a cell). */
 	readonly prose: boolean;
 	/** Its title row's title (`<summary>`, `:::note Title`) and where it sits; null for a block
 	 *  with no title row. */
 	readonly title: { readonly text: string; readonly from: number; readonly to: number } | null;
-	/** Its bytes in the document, read when asked (an edit above moves them with no `update`);
-	 *  both -1 once it has left the document, as a key typed in it can make it: read it again. */
+	/** Its bytes in the document, read when asked (an edit above moves them with no `update`).
+	 *  Both -1 means not placed (a key typed in it can do that): ask the document again. */
 	readonly from: number;
 	readonly to: number;
 	/** Its inline content (code spans, links, emphasis, text), in document bytes; empty for a
 	 *  block whose text isn't inline Markdown. */
 	readonly pieces: readonly Piece[];
-	/** The document byte offset `offset` of `text` sits at; -1 once it has left the document. */
+	/** The document byte offset `offset` of `text` sits at; -1 where it isn't placed. */
 	byteAt(offset: number): number;
 	/** The offset into `text` document byte `at` sits at; null where `at` isn't its text (another
 	 *  block, or a container's marker between its lines). */
