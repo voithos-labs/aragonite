@@ -5,6 +5,47 @@ import HighlightJS from 'highlight.js/lib/core';
 import { defaultResolver } from '#packages/highlight/src/renderer/resolver.js';
 import { tokensOf } from '#packages/highlight/src/renderer/tokens.js';
 
+// A body per grammar and the runs the 0.11.5 core painted for it, as `class text` joined by ` | `.
+const PAINTED_BY_0_11_5: [language: string, body: string, painted: string][] = [
+	[
+		'diff',
+		'+ added\n- removed\n@@ -1 +1 @@',
+		'added + added | removed - removed | meta @@ -1 +1 @@'
+	],
+	[
+		'yaml',
+		'key: value\nlist:\n  - 1\n  - "two" # c',
+		'attr key: | string value | attr list: | punctuation - | number 1 | punctuation - | string "two" | comment # c'
+	],
+	[
+		'json',
+		'{"a": 1, "b": [true, null]}',
+		'punctuation { | attr "a" | punctuation : | number 1 | punctuation , | attr "b" | punctuation : | punctuation [ | literal true | keyword true | punctuation , | literal null | keyword null | punctuation ] | punctuation }'
+	],
+	[
+		'xml',
+		'<p class="x">hi &amp; bye</p>\n<!-- c -->',
+		'punctuation <p class="x"> | type p | attr class | string "x" | symbol &amp; | punctuation </p> | type p | comment <!-- c -->'
+	],
+	['markdown', '## H2\n[link](http://x)', 'heading ## H2 | string link | link http://x'],
+	['php', '<?php echo "x"; ?>', 'meta <?php | keyword echo | string "x" | meta ?>'],
+	[
+		'sql',
+		'SELECT a FROM b WHERE c = 1;',
+		'keyword SELECT | keyword FROM | keyword WHERE | operator = | number 1'
+	],
+	[
+		'bash',
+		'for i in 1 2; do echo $i; done',
+		'keyword for | keyword in | keyword do | function echo | variable $i | keyword done'
+	],
+	[
+		'java',
+		'class A { int x = 1; }',
+		'keyword class | function A | type int | variable x | operator = | number 1'
+	]
+];
+
 describe('the default resolver', () => {
 	it('answers an eager grammar at once, under any spelling', () => {
 		expect(typeof defaultResolver.resolve('JS')).toBe('function');
@@ -76,6 +117,17 @@ describe('tokensOf', () => {
 		const body = 'const s = `a\r\nb`;';
 		const runs = tokensOf(hljs, body, 'javascript').map((t) => body.slice(t.from, t.to));
 		expect(runs).toContain('`a\r\nb`');
+	});
+
+	// Miss-analysis: the class map's own rows went with the core's grammars, and what was left named
+	// four classes, so a scope moved to another colour stayed green.
+	it.each(PAINTED_BY_0_11_5)('paints %s as 0.11.5 painted it', async (language, body, painted) => {
+		const hljs = HighlightJS.newInstance();
+		hljs.registerLanguage(language, (await defaultResolver.resolve(language)) as never);
+		const runs = tokensOf(hljs, body, language).map(
+			(t) => `${t.class.replace('code-tok-', '')} ${body.slice(t.from, t.to)}`
+		);
+		expect(runs.join(' | ')).toBe(painted);
 	});
 
 	// Miss-analysis: no row held two scopes over one range (JSON's `true` is a literal holding a
