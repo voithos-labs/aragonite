@@ -438,6 +438,7 @@ describe('joinLeaves across two leaves', () => {
 						start: { node: head, offset: plain.start },
 						end: { node: tail, offset: plain.end },
 						typed: '',
+						removes: true,
 						store
 					});
 					const got = joinLeaves(

@@ -1,5 +1,5 @@
 // A comment anchor as a marker pair: `{>>id}` opens it, `{<<id}` closes it, in one block or in two.
-// Both sides draw nothing in live mode; the id is what a real plugin would pair them by.
+// Both sides draw nothing in live mode; the id pairs them, for the plugin and for a removal.
 import { definePlugin, markerPair } from '#lib/plugin.js';
 
 export const anchor = markerPair({
@@ -7,6 +7,7 @@ export const anchor = markerPair({
 	label: 'Comment anchor',
 	open: { prefix: '{>>', match: /\{>>([\w-]+)\}/, read: (m) => ({ id: m[1] }) },
 	close: { prefix: '{<<', match: /\{<<([\w-]+)\}/, read: (m) => ({ id: m[1] }) },
+	key: ({ id }) => id,
 	sample: 'A {>>a}noted{<<a} word'
 });
 

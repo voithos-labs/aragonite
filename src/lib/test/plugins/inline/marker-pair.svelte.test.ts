@@ -157,6 +157,25 @@ describe('a marker pair, read', () => {
 		expect(row('cm/anchor-open')).toBeUndefined();
 	});
 
+	// Miss-analysis: every row listed the pair whole, so a side listed alone lost its row once
+	// the install took a side's pair from the pair's listing.
+	it('holds a row for a side listed alone, paired with nothing', () => {
+		const { release } = installInlines(
+			[
+				{
+					name: 'cm',
+					plugin: { name: 'cm', version: '1.0.0', editor: '*' },
+					contribution: { inlines: [anchor().open] }
+				}
+			],
+			() => {}
+		);
+		const row = getInlineConstructPolicy('cm/anchor-open' as AnyInlineKind);
+		expect(row).toMatchObject({ edgeAffinity: 'joins-after', splitBehavior: 'whole' });
+		expect(row?.pair).toBeUndefined();
+		release();
+	});
+
 	// Miss-analysis: the counter rows counted marker-run reads and table builds, never the row a
 	// side question read for each construct of a block in an editor listing no pair.
 	it('asks no row for a side while no editor lists a pair', () => {

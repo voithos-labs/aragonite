@@ -22,6 +22,7 @@ function merge(first: string, second: string): string | null {
 			start: { node: start, offset: seam },
 			end: { node: end, offset: 0 },
 			typed: '',
+			removes: true,
 			store: topLevelStore(start)
 		})?.raw ?? null
 	);
@@ -43,6 +44,7 @@ function deleteBetween(
 			start: { node: start, offset: startOffset },
 			end: { node: end, offset: endOffset },
 			typed: '',
+			removes: true,
 			store: topLevelStore(start)
 		})?.raw ?? null
 	);
@@ -60,6 +62,7 @@ function typeOver(source: string, from: number, to: number, typed: string): stri
 		start: { node, offset: from },
 		end: { node, offset: to },
 		typed,
+		removes: true,
 		store: topLevelStore(node)
 	});
 	return join && join.raw.slice(0, join.seam) + typed + join.raw.slice(join.seam);
@@ -217,6 +220,7 @@ describe('a truncation keeps the format on the half that stays', () => {
 				start: { node, offset: 9 },
 				end: { node, offset: 16 },
 				typed: '',
+				removes: true,
 				store: topLevelStore(node)
 			})
 		).toMatchObject({ raw: 'Some **bo**d words tail\n', seam: 9, seamEnd: 11 });
@@ -232,6 +236,7 @@ describe('a truncation keeps the format on the half that stays', () => {
 				start: { node, offset: 4 },
 				end: { node, offset: 5 },
 				typed: '',
+				removes: true,
 				store: topLevelStore(node)
 			})
 		).toMatchObject({ raw: '**a** \n', seam: 6, seamEnd: 6 });
@@ -295,6 +300,7 @@ describe('a join whose survivors are only terminal hard-break blank lines', () =
 				start: { node, offset: 0 },
 				end: { node, offset: 5 },
 				typed: '',
+				removes: true,
 				store: topLevelStore(node)
 			})
 		).toMatchObject({ raw: '\n', seam: 0 });
@@ -320,6 +326,7 @@ describe('a join that would leave a construct enclosing nothing unwraps it', () 
 				start: { node, offset: 1 },
 				end: { node, offset: 5 },
 				typed: '',
+				removes: true,
 				store: topLevelStore(node)
 			})
 		).toMatchObject({ raw: ' more\n', seam: 0 });
@@ -361,6 +368,7 @@ describe('what the cleanup refuses to be asked', () => {
 				start: { node: heading, offset: 1 },
 				end: { node: heading, offset: 3 },
 				typed: '',
+				removes: true,
 				store: topLevelStore(heading)
 			})
 		).toBeNull();
@@ -377,6 +385,7 @@ describe('what the cleanup refuses to be asked', () => {
 				start: { node: start, offset: displayLength(start.raw) },
 				end: { node: end, offset: 0 },
 				typed: '',
+				removes: true,
 				store: topLevelStore(start)
 			})
 		).toBeNull();
@@ -392,6 +401,7 @@ describe('what the cleanup refuses to be asked', () => {
 				start: { node: fence, offset: 3 },
 				end: { node: para, offset: 0 },
 				typed: '',
+				removes: true,
 				store: topLevelStore(fence)
 			})
 		).toBeNull();

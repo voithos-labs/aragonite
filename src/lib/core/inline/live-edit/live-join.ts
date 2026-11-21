@@ -13,6 +13,7 @@ import {
 	readInline
 } from '../index';
 import { CONTENT_VISIBILITY, paintsOnlyChrome, renderedText, visibleRuns } from '../visibility';
+import { resolvedInlineContent } from '../inline-cache';
 import { readBack, readSource, shownRunsOf } from './read-back';
 import {
 	chordSpelling,
@@ -49,6 +50,9 @@ export interface JoinSeam {
 	/** Text the caller will insert at the join after the cleanup, `''` for a plain delete. The
 	 *  cleanup checks it too, since typed text changes what a surviving delimiter pairs against. */
 	typed: string;
+	/** Whether the bytes the two sides leave out of the join leave the document. Text landing at
+	 *  a caret joins them back in, so its joins take no marker side. */
+	removes: boolean;
 	/** Where the joined bytes will be stored, with the editor's reading: the cleanup reads each
 	 *  candidate back there, a list item's marker line or a cell's text included. */
 	store: StoredAs;
@@ -367,44 +371,60 @@ const NO_SIDES: JoinSides = { bytes: '', typedAt: 0 };
 /** The sides the cut took whose partner it kept go back at the join, in order. A side at the
  *  cut's own screen position was never taken (§ 4.2: the screen decides, not the raw offset). */
 function sidesAtJoin(join: JoinSeam, left: Side, right: Side): JoinSides {
-	if (left.sides.length + right.sides.length === 0) return NO_SIDES;
+	if (!join.removes || left.sides.length + right.sides.length === 0) return NO_SIDES;
 	const sameLeaf = join.start.node === join.end.node;
-	const from = Math.min(pastSides(left.sides, left.cut, 'before'), sameLeaf ? right.cut : Infinity);
-	const to = Math.max(pastSides(right.sides, right.cut, 'after'), sameLeaf ? from : 0);
-	const all = pairSides([
-		...left.sides.map((s) =>
-			readSideAt(s, left.raw, s.start >= from && (!sameLeaf || s.end <= to))
-		),
-		...(sameLeaf ? [] : right.sides.map((s) => readSideAt(s, right.raw, s.end <= to)))
-	]);
-	const back = all.filter((s) => s.taken && s.partner?.taken === false);
-	const held = left.raw.slice(left.cut, from);
+	// A block whose whole text a range across two takes gives up the sides at its edges too.
+	const wholeHead = !sameLeaf && left.cut <= left.content.start;
+	const wholeTail = !sameLeaf && right.cut >= right.content.end;
+	const from = wholeHead
+		? left.cut
+		: Math.min(pastSides(left.sides, left.cut, 'before'), sameLeaf ? right.cut : Infinity);
+	const to = wholeTail
+		? right.cut
+		: Math.max(pastSides(right.sides, right.cut, 'after'), sameLeaf ? from : 0);
+	const head = left.sides.map((s) =>
+		readSideAt(s, left.raw, s.start >= from && (!sameLeaf || s.end <= to))
+	);
+	const tail = sameLeaf ? [] : right.sides.map((s) => readSideAt(s, right.raw, s.end <= to));
+	pairSides([...head, ...tail]);
+	// Of the sides in the bytes the cut spans, those at its own edges and those it took whose
+	// partner it kept.
+	const written = [
+		...head.filter(({ node }) => node.start >= left.cut && (!sameLeaf || node.end <= right.cut)),
+		...tail.filter(({ node }) => node.end <= right.cut)
+	].filter((s) => !s.taken || s.partner?.taken === false);
 	// A letter at a side joins its text (§ 4.2): past the sides whose text follows them.
-	let typedAt = held.length;
-	for (const { node, bytes } of back) {
+	let typedAt = 0;
+	for (const { node, bytes } of written) {
 		if (markerSideEdge(node)?.start !== node.end) break;
 		typedAt += bytes.length;
 	}
-	return {
-		bytes: held + back.map((s) => s.bytes).join('') + right.raw.slice(to, right.cut),
-		typedAt
-	};
+	return { bytes: written.map((s) => s.bytes).join(''), typedAt };
 }
 
-/** The sides of `inlines` that don't leave whole with `range` of `raw`: a piece carries a pair
- *  only with both its sides, so no side leaves that the document also keeps (§ 4.5). */
-export function sidesStayingBehind(
-	raw: string,
-	inlines: readonly InlineNode[],
-	range: Span
-): Span[] {
-	const { sides } = classifyConstructs(inlines);
-	if (sides.length === 0) return [];
+/** `node` and `range` as a live piece carries them off: a piece carries a pair only with both its
+ *  sides, so each side the document keeps is cut out of both first (§ 4.5). */
+export function withoutKeptSides(
+	node: NodeView,
+	range: Span,
+	reading: Reading
+): { node: NodeView; range: Span } {
+	if (!reading.hidesDelimitersAtCaret()) return { node, range };
+	const { sides } = classifyConstructs(resolvedInlineContent(node, reading));
+	if (sides.length === 0) return { node, range };
 	const from = Math.min(pastSides(sides, range.start, 'before'), range.end);
 	const to = Math.max(pastSides(sides, range.end, 'after'), from);
-	return pairSides(sides.map((s) => readSideAt(s, raw, s.start >= from && s.end <= to)))
-		.filter((s) => !s.taken || s.partner?.taken === false)
-		.map(({ node }) => ({ start: node.start, end: node.end }));
+	let { raw } = node;
+	let { start, end } = range;
+	const read = pairSides(sides.map((s) => readSideAt(s, raw, s.start >= from && s.end <= to)));
+	// Last side first, so the offsets before each cut still stand.
+	for (const { node: side, taken, partner } of read.reverse()) {
+		if (taken && partner?.taken !== false) continue;
+		raw = raw.slice(0, side.start) + raw.slice(side.end);
+		if (side.end <= start) start -= side.end - side.start;
+		if (side.end <= end) end -= side.end - side.start;
+	}
+	return { node: { ...node, raw }, range: { start, end } };
 }
 
 /** A marker side as a removal reads it: whether it went, and its partner once paired. */
@@ -590,11 +610,13 @@ function keepingReading(
 		space = (before ? ' ' : '') + (after ? ' ' : '');
 	}
 
-	const written = closers + space + sides.bytes + openers;
+	// A run can't open against a marker side, so the sides the kept half starts with go before it.
+	const lead = openers === '' ? rightStart : pastSides(right.sides, rightStart, 'before');
+	const written = closers + space + sides.bytes + right.raw.slice(rightStart, lead) + openers;
 	const edits: Edit[] = [{ start: join.seam, end: join.seam, insert: written }];
 	if (leftEnd < left.cut) edits.push(dropped({ start: leftEnd, end: left.cut }));
-	if (rightStart > right.cut) {
-		edits.push(dropped(rightSpan(join, right, { start: right.cut, end: rightStart })));
+	if (lead > right.cut) {
+		edits.push(dropped(rightSpan(join, right, { start: right.cut, end: lead })));
 	}
 	const leftMerged = closing.slice(0, merged).filter((c) => leftTouching.includes(c));
 	const rightMerged = opening.slice(0, merged).filter((c) => rightTouching.includes(c));

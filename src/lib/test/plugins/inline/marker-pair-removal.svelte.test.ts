@@ -10,7 +10,8 @@ import { fixtureReading, topLevelStore } from '#lib/test/harness/fixture-grammar
 import {
 	bytesLeavingLeaf,
 	joinLeaves,
-	replaceDrawnRange
+	replaceDrawnRange,
+	replaceRangeInLeaf
 } from '#lib/tree-operations/leaf-range.js';
 
 type Spec = Partial<MarkerPairSpec<{ id: string }>>;
@@ -117,6 +118,19 @@ describe('a live removal across a marker side', () => {
 		expect(removed(PAIR, 9, 17, 'Q', undefined, outside)).toBe('a {>>c}te{<<c}Qz');
 	});
 
+	// Miss-analysis: every typed row crossed its side, so none ended a range at one, where the
+	// side stays as the cut's own edge and the letter landed outside the pair.
+	it('lands a letter typed over a range ending at a side as a letter typed there lands', () => {
+		expect(removed(PAIR, 11, 17, 'Q')).toBe('a {>>c}textQ{<<c}z');
+		expect(removed(PAIR, 1, 7, 'Q')).toBe('a{>>c}Qtext{<<c} z');
+	});
+
+	it('lands it outside a pair whose text is outside', () => {
+		const outside: Spec = { text: { open: 'before', close: 'after' } };
+		expect(removed(PAIR, 11, 17, 'Q', undefined, outside)).toBe('a {>>c}text{<<c}Qz');
+		expect(removed(PAIR, 1, 7, 'Q', undefined, outside)).toBe('aQ{>>c}text{<<c} z');
+	});
+
 	// Limits, as recorded: the join sees no partner past its blocks, and refuses an uncut URL.
 	it('takes a side whose partner the block lacks, one in another block or none', () => {
 		expect(removed('blocks{<<b} end', 0, 12)).toBe('end');
@@ -125,6 +139,27 @@ describe('a live removal across a marker side', () => {
 
 	it('takes a side when its cut falls inside a URL no reading can cut', () => {
 		expect(removed('a {>>c}<https://x.dev>{<<c} z', 14, 28)).toBe('a {>>c}<https:z');
+	});
+});
+
+// Miss-analysis: every row removed bytes, so the join read the bytes a landing only moves aside as
+// taken, and a paste of bold text inside a pair wrote a second pair around it.
+describe('text landing with runs of its own', () => {
+	function landed(raw: string, start: number, end: number, pasted: string) {
+		const at = store(raw);
+		return text(replaceRangeInLeaf(at.node, { start, end }, pasted, at.store).raw);
+	}
+	const AROUND = 'Some {>>c}**bold**{<<c} text';
+	const INSIDE = '**a {>>c}text{<<c} b**';
+
+	it.each<[string, string, number, number, string, string]>([
+		['in a bold a pair holds', AROUND, 14, 14, '**x** y', 'Some {>>c}**box** y**ld**{<<c} text'],
+		['over a range of that bold', AROUND, 13, 15, '**x** y', 'Some {>>c}**bx** y**d**{<<c} text'],
+		['in a pair a bold holds', INSIDE, 11, 11, '**ld** an', '**a {>>c}teld** an**xt{<<c} b**'],
+		// The range's own cut puts the close side back, and the text lands before it.
+		['over a range across a side', INSIDE, 11, 19, '**ld** an', '**a {>>c}teld** an{<<c}**b**']
+	])('%s, writes no side', (_name, raw, start, end, pasted, want) => {
+		expect(landed(raw, start, end, pasted)).toBe(want);
 	});
 });
 
@@ -165,7 +200,18 @@ describe('a live removal across two blocks', () => {
 			'Acrend'
 		],
 		// The join sees two blocks, so a partner in a third keeps today's bytes.
-		['a side whose partner is in a third block', 'x {>>c}a', 1, 'z', 0, 'xz']
+		['a side whose partner is in a third block', 'x {>>c}a', 1, 'z', 0, 'xz'],
+		// A block's whole text goes with the sides at its edges, as a cut inside one block takes it.
+		['the head block’s whole text', '{>>d}whole line{<<d}', 0, 'next para', 0, 'next para'],
+		['the tail block’s whole text', 'first', 5, '{>>d}whole line{<<d}', 20, 'first'],
+		[
+			'a head’s whole text, its pair closing in the tail',
+			'{>>d}who',
+			0,
+			'le{<<d} z',
+			1,
+			'{>>d}e{<<d} z'
+		]
 	])('%s', (_name, head, at, tail, to, want) => {
 		expect(joined(head, at, tail, to)).toBe(want);
 	});
@@ -190,6 +236,22 @@ describe('what a live range carries off', () => {
 
 	it('carries a side whose partner the block lacks, which the removal takes', () => {
 		expect(carried('blocks{<<b} end', 0, 12)).toBe('blocks{<<b} ');
+	});
+
+	// A limit, as recorded: a piece reads its block alone, so a range across two blocks carries the
+	// side the join of the two puts back.
+	it('carries a side of a pair over two blocks that the join of the two keeps', () => {
+		expect(carried('Across {>>b}two', 3, 15)).toBe('oss {>>b}two');
+	});
+
+	// Miss-analysis: the clipboard rows cut inside a line, where the removal keeps a side at the
+	// cut's edge; a cut of a block's whole text takes those sides, and no row cut one.
+	it('carries the sides a cut of the block’s whole text takes', () => {
+		const LINE = '{>>d}whole line{<<d}';
+		expect(removed(LINE, 0, 20)).toBe('');
+		expect(carried(LINE, 0, 20)).toBe(LINE);
+		expect(removed(LINE, 0, 10)).toBe('{>>d} line{<<d}');
+		expect(carried(LINE, 0, 10)).toBe('whole');
 	});
 
 	it('a cut pasted back where it was keeps one pair', () => {

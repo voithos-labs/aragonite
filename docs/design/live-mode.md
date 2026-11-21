@@ -306,6 +306,7 @@ const join = (reading: Reading) => ({
 	start: { node: first, offset: 11 },
 	end: { node: second, offset: 0 },
 	typed: '',
+	removes: true,
 	store: storedAsAt(doc, [0], reading) // where the joined bytes land: the first block's slot
 });
 cleanJoinedRaw(join(liveReading)); // { raw: 'Some **bold** text\n', seam: 9 }: the split's inverse
@@ -320,6 +321,7 @@ const gone = (from: number, to: number, mergedRaw: string) => ({
 	start: { node, offset: from },
 	end: { node, offset: to },
 	typed: '',
+	removes: true,
 	store: storedAsAt(one, [0], liveReading)
 });
 cleanJoinedRaw(gone(9, 18, 'Some **bo\n')); // { raw: 'Some **bo**\n', seam: 9, seamEnd: 11 }: the bold closes where the cut began

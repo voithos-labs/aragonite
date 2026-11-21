@@ -245,8 +245,9 @@ export function installInlines(
 				claimCommand(mark.toggle, plugin);
 				marks.set(kind, { mark, after: making.after[0] });
 			}
-			if (making.marker && opener) {
-				const pair = {
+			if (making.marker) {
+				// A side listed without its pair keeps its row and pairs with nothing.
+				const pair = opener && {
 					of: opener.name as PluginInlineKind,
 					opens: listed === opener,
 					key: making.pairKey

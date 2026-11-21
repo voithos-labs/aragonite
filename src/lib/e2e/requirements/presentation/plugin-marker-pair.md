@@ -62,6 +62,9 @@ a third, where Enter left a side on the half without its text and a letter lande
 - A range across two blocks keeps a pair spanning them: `Acr{>>b}cks{<<b} end`.
 - A word delete inside a pair around a bold keeps both sides.
 - A cut pasted back gives the original bytes; a dragged range carries no side its pair keeps.
+- Formatted text pasted into a bold a pair holds writes no second pair:
+  `Some {>>c}**box** y**ld**{<<c} text`.
+- A cut of the whole line a pair wraps carries the pair, and a paste brings it back.
 - Source mode takes the bytes selected, sides with them.
 - Undo gives the bytes back after each.
 
@@ -72,3 +75,10 @@ side.
 
 Miss-analysis (a removal across one side): every removal row took one character beside a side,
 never a range across one, so the join every range removal shares had no row.
+
+Miss-analysis (a second pair on a paste): every row removed bytes, so nothing landed text that
+brings its own bold, whose two joins move bytes aside without removing any.
+
+Miss-analysis (a whole line cut): the cut rows selected inside a line, where the removal keeps a
+side at the selection's edge. Select-all in a block takes its whole text, sides and all, and the
+clipboard still left them out.

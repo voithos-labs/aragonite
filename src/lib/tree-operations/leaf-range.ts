@@ -27,7 +27,7 @@ import {
 } from '../core/lines';
 import {
 	cleanLiveJoinSeam,
-	sidesStayingBehind,
+	withoutKeptSides,
 	type CleanedJoin,
 	type JoinEndpoint,
 	type JoinSeam
@@ -189,17 +189,13 @@ function spliceInLeaf(
  *  cuts, so a format run the range cuts through leaves closed at its edges, as the kept half does. */
 export function bytesLeavingLeaf(
 	whole: NodeView,
-	{ start, end }: { start: number; end: number },
+	drawn: { start: number; end: number },
 	store: StoredAs
 ): string {
-	// A marker side the document keeps doesn't leave with the piece too (live-mode.md § 4.5).
-	const stray = store.reading.hidesDelimitersAtCaret()
-		? sidesStayingBehind(whole.raw, resolvedInlineContent(whole, store.reading), { start, end })
-		: [];
-	const gone = (at: number) => stray.reduce((n, s) => n + (s.end <= at ? s.end - s.start : 0), 0);
-	const raw = stray.reduceRight((out, s) => out.slice(0, s.start) + out.slice(s.end), whole.raw);
-	const node = { ...whole, raw };
-	const range = { start: start - gone(start), end: end - gone(end) };
+	// A cut of the block's whole text takes every marker side in it, so the piece carries them all.
+	const { node, range } = wholeTextInside(whole, drawn, store)
+		? { node: whole, range: drawn }
+		: withoutKeptSides(whole, drawn, store.reading);
 	// Cut inside the text: the cleanup reads no side that starts in a heading's marker.
 	const content = getContentRange(node);
 	const tail = replaceRangeInLeaf(
@@ -296,6 +292,7 @@ function landRuns(
 		start: { node: leaf, offset: at },
 		end: { node: textLeaf, offset: 0 },
 		typed: '',
+		removes: false,
 		store
 	});
 	const textEnd = first.map(at + text.length);
@@ -305,6 +302,7 @@ function landRuns(
 		start: { node: { ...leaf, raw: first.raw }, offset: textEnd },
 		end: { node: leaf, offset: at },
 		typed: '',
+		removes: false,
 		store
 	});
 	if (!readsInParts(second.raw, parts, store)) return null;
@@ -352,6 +350,7 @@ function cleanJoin(
 		start: { node: head.node, offset: merged.start },
 		end: { node: tail.node, offset: merged.end },
 		typed,
+		removes: true,
 		store
 	});
 	return { joined, cleaned: joined.raw !== merged.raw || joined.seam !== merged.start };

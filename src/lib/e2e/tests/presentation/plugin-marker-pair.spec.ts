@@ -338,6 +338,24 @@ test.describe('a live removal across a side', () => {
 		await expect.poll(async () => (await source()).split('{<<a}').length).toBe(2);
 	});
 
+	test('formatted text pasted into a bold a pair holds writes no second pair', async () => {
+		await editor.seedClipboard('**x** y');
+		await walk(3, 'Some bo'.length);
+		await editor.paste();
+		await expect.poll(() => line(3)).toBe('Some {>>c}**box** y**ld**{<<c} text');
+	});
+
+	test('a cut of the whole line a pair wraps carries the pair, and a paste brings it back', async () => {
+		await walk(4, 'who'.length);
+		await press('ControlOrMeta+a');
+		await press('ControlOrMeta+x');
+		await expect.poll(source).not.toContain('{>>d}');
+		expect(await editor.readClipboard()).toBe('{>>d}whole line{<<d}');
+		await walk(6, 0, 'lineEnd');
+		await editor.paste();
+		await expect.poll(source).toContain('A lone {<<x} side{>>d}whole line{<<d}');
+	});
+
 	test('source mode takes the bytes selected, sides with them', async () => {
 		await editor.setPresentationMode('source');
 		await walk(0, 'A {>>a}not'.length);
