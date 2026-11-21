@@ -286,16 +286,16 @@ function startsBlock(doc: Doc, out: string, line: number, depth: number): boolea
 }
 
 /** Two blocks a paste leaves touching, children `index` and `index + 1` of the block at `path`
- *  once it lands, each by its own bytes; `placed` where the lower one must stay a block of its own,
- *  `always` where the two stay apart whatever they read as, `bare` where the upper one is the
- *  clipboard whole and its markers alone (a `>` with no text). */
+ *  once it lands, each by its own bytes; `placed` where the lower one must stay a block of its own. */
 interface Touching {
 	path: readonly number[];
 	index: number;
 	upper: string;
 	lower: string;
 	placed: boolean;
+	/** The two stay apart whatever they read as. */
 	always?: boolean;
+	/** The upper one is the clipboard whole and its markers alone (a `>` with no text). */
 	bare?: boolean;
 }
 

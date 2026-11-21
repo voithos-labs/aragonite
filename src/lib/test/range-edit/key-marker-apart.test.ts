@@ -3,7 +3,7 @@
 // line apart from the block under it: an empty quote would take a paragraph there as its own line
 // with the next letter typed in it.
 // Miss-analysis: the landing law types a letter and the pair characters, never a block's marker, so
-// no row asked the seam under a block that lands empty.
+// no row asked the join under a block that lands empty.
 import { describe, expect, it } from 'vitest';
 import { editRange, type Gesture } from '#lib/range-edit/edit-range.js';
 import { rangeHost } from '#lib/range-edit/host.js';
