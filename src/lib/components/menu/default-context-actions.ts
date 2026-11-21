@@ -82,6 +82,7 @@ function everyBlockRows(node: NodeView, noun: string): BlockContextAction[] {
 				if (!clip || clip.text.trim() === '') return;
 				// Rewritten as Ctrl+V rewrites it: never the editor's own copy.
 				const md = ctx.transformPaste(clip);
+				if (md.trim() === '') return;
 				await ctx.replaceRaw(md.endsWith('\n') ? md : md + '\n');
 			}
 		},

@@ -153,4 +153,14 @@ describe('the default context actions', () => {
 		await row(node, 'block.replace').run(ctx);
 		expect(ctx.replaced).toEqual(['plain\n']);
 	});
+
+	// Miss-analysis: the blank check read the clipboard as it came, and no row held a rewrite that
+	// leaves every pasted block out.
+	it('declines a clipboard the paste rewrites leave nothing of', async () => {
+		const node = block(FENCE);
+		clipboard('> dropped\n');
+		const ctx = { ...context(node), transformPaste: () => '' };
+		await row(node, 'block.replace').run(ctx);
+		expect(ctx.replaced).toEqual([]);
+	});
 });

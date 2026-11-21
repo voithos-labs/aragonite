@@ -63,7 +63,8 @@ async function pasteBlocksAround(input: ClipPasteInput): Promise<boolean> {
 	const clipboard = () => readBlocks(raw, { grammar, scope: 'fragment' });
 	const text = rewrittenPaste({ ...clip, text: raw }, clipboard, input.activePlugins, grammar);
 	const blocks = text === raw ? read(raw) : read(text);
-	if (blocks.length === 0) return false;
+	// Blocks the rewrites left nothing of land nothing: never their own lines as the cell's text.
+	if (blocks.length === 0) return true;
 	return (await sliceTableForBlocks(input, blocks)) !== null;
 }
 

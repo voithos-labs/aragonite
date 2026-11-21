@@ -19,7 +19,7 @@ function reader(text: string) {
 /** An editor whose plugins list `rewrites`, each keyed by a kind and answering from the node. */
 function listing(...rewrites: [kind: string, into: (node: NodeView) => string | null][]) {
 	const answer = vi.fn(
-		(entry: { rewrite: { into(node: NodeView): string | null } }, _clip: unknown, node: NodeView) =>
+		(entry: { rewrite: { into(node: NodeView): string | null } }, node: NodeView) =>
 			entry.rewrite.into(node)
 	);
 	const contributions = {
@@ -27,6 +27,8 @@ function listing(...rewrites: [kind: string, into: (node: NodeView) => string | 
 			plugin: `p${i}`,
 			rewrite: { from: { name: kind, label: kind }, into }
 		})),
+		// The rewrites here read the node itself.
+		clipboardBlocks: () => (node: NodeView) => node,
 		answer
 	};
 	return {

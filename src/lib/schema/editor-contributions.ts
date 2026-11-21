@@ -67,14 +67,11 @@ export interface EditorContributions {
 	readonly paints: readonly { readonly plugin: string; readonly contribution: Contribution }[];
 	/** Each plugin's paste rewrites, in list order. */
 	readonly rewrites: readonly ContributedRewrite[];
-	/** `entry`'s Markdown for `node` at `path` in `clip`, a clipboard read as blocks; null where it
-	 *  keeps the block or throws, which is reported. */
-	answer(
-		entry: ContributedRewrite,
-		clip: DocumentView,
-		node: NodeView,
-		path: readonly number[]
-	): string | null;
+	/** Reads the blocks of `clip`, a clipboard read as blocks, with positions from its start. */
+	clipboardBlocks(clip: DocumentView): (node: NodeView, path: readonly number[]) => Block;
+	/** `entry`'s Markdown for a pasted `block`; null where it keeps the block or throws, which is
+	 *  reported. */
+	answer(entry: ContributedRewrite, block: Block): string | null;
 	/** Runs a command against its plugin's scoped editor; false where `when` or the command declines.
 	 *  A throw counts as run, so the key goes no further, and is reported. */
 	run(command: ContributedCommand, arg: unknown): boolean;
@@ -97,8 +94,7 @@ export function createEditorContributions(deps: {
 	/** Runs `run`'s writes as one undo step. */
 	undoStep(run: () => void): void;
 	blockOf(node: NodeView): Block;
-	/** `node` at `path` in `clip`, a clipboard read as blocks, with positions from its start. */
-	clipboardBlock(clip: DocumentView, node: NodeView, path: readonly number[]): Block;
+	clipboardBlocks: EditorContributions['clipboardBlocks'];
 }): EditorContributions {
 	let commands: ContributedCommand[] = [];
 	let byValue = new Map<Command<unknown>, ContributedCommand>();
@@ -227,16 +223,11 @@ export function createEditorContributions(deps: {
 		});
 	}
 
-	function answer(
-		entry: ContributedRewrite,
-		clip: DocumentView,
-		node: NodeView,
-		path: readonly number[]
-	): string | null {
+	function answer(entry: ContributedRewrite, block: Block): string | null {
 		const editor = deps.editorFor(entry.plugin);
 		if (!editor) return null;
 		try {
-			const out = entry.rewrite.into(deps.clipboardBlock(clip, node, path), { editor });
+			const out = entry.rewrite.into(block, { editor });
 			return typeof out === 'string' ? out : null;
 		} catch (cause) {
 			deps.report({ plugin: entry.plugin, doing: 'rewrite paste', cause });
@@ -271,6 +262,7 @@ export function createEditorContributions(deps: {
 		get rewrites() {
 			return rewrites;
 		},
+		clipboardBlocks: deps.clipboardBlocks,
 		answer,
 		run,
 		can,

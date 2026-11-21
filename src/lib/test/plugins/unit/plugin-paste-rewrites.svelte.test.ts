@@ -17,6 +17,12 @@ import {
 	placeCaret,
 	surfaceAt
 } from '#lib/test/harness/mount-editor.svelte.js';
+import {
+	disablePerfInstruments,
+	enablePerfInstruments,
+	perfSnapshot,
+	resetPerfInstruments
+} from '#lib/perf/instruments.js';
 
 beforeEach(installLayoutStubs);
 afterEach(async () => {
@@ -61,11 +67,14 @@ function makeAlerts(into: (block: Block<AlertData>) => string | null) {
 	return { plugin, read };
 }
 
-async function mounted(into: (block: Block<AlertData>) => string | null) {
+async function mounted(
+	into: (block: Block<AlertData>) => string | null,
+	source = 'intro\n\nafter\n'
+) {
 	const errors: PluginError[] = [];
 	const alerts = makeAlerts(into);
 	const editor = mountEditor({
-		source: 'intro\n\nafter\n',
+		source,
 		plugins: [alerts.plugin],
 		onError: (error: PluginError) => errors.push(error)
 	});
@@ -73,14 +82,17 @@ async function mounted(into: (block: Block<AlertData>) => string | null) {
 	return { editor, errors, ...alerts };
 }
 
+type Mounted = Awaited<ReturnType<typeof mounted>>['editor'];
+
 /** Pastes `text` at the end of the first paragraph, carrying `own` as the editor's own entry. */
-async function pasteAfterIntro(
-	editor: Awaited<ReturnType<typeof mounted>>['editor'],
-	text: string,
-	own?: string
-) {
+async function pasteAfterIntro(editor: Mounted, text: string, own?: string) {
 	const surface = surfaceAt(editor, [0]);
 	placeCaret(surface, 5);
+	await pasteOn(editor, surface, text, own);
+}
+
+/** Pastes `text` on `surface`, where the caret already is. */
+async function pasteOn(editor: Mounted, surface: HTMLElement, text: string, own?: string) {
 	const event = new Event('paste', { bubbles: true, cancelable: true });
 	const types = own ? ['text/plain', OWN_CLIPBOARD_TYPE] : ['text/plain'];
 	Object.defineProperty(event, 'clipboardData', {
@@ -121,6 +133,34 @@ describe('a paste rewrite in a mounted editor', () => {
 		await pasteAfterIntro(editor, '%> [!TIP]\n%> pasted\n', 'an entry that fits nowhere');
 		expect(editor.source()).toContain('%> [!TIP]\n%> pasted\n');
 		expect(read).toEqual([]);
+	});
+
+	// Miss-analysis: the cell's rows pasted blocks a rewrite answered with text; one it leaves out
+	// fell through to the cell's text arm, which wrote the alert's own lines into the cell.
+	it('writes nothing for an alert pasted in a table cell that its rewrite leaves out', async () => {
+		const TABLE = '| a | b |\n| - | - |\n| c | d |\n';
+		const { editor, read } = await mounted(() => '', TABLE);
+		const cell = editor.target.querySelectorAll<HTMLElement>('.table-cell')[2];
+		placeCaret(cell, 1);
+		await pasteOn(editor, cell, '%> [!TIP]\n%> pasted\n');
+		expect(read).toHaveLength(1);
+		expect(editor.source()).toBe(TABLE);
+	});
+
+	// Miss-analysis: no row counted what a rewrite's read of a position costs; each pasted block
+	// measured the whole clipboard again.
+	it('measures the clipboard once, however many blocks a rewrite reads a position of', async () => {
+		const { editor, read } = await mounted((block) => (block.from < 0 ? '' : null));
+		enablePerfInstruments();
+		resetPerfInstruments();
+		try {
+			await pasteAfterIntro(editor, 'x\n\n' + '%> [!TIP]\n%> pasted\n\n'.repeat(40));
+			expect(read).toHaveLength(40);
+			// The clipboard holds 81 top-level blocks; measured per alert it would be over 3,000.
+			expect(perfSnapshot().topBlocksMeasured).toBeLessThan(600);
+		} finally {
+			disablePerfInstruments();
+		}
 	});
 
 	it('reports a rewrite that throws as `rewrite paste`, and lands the block as pasted', async () => {

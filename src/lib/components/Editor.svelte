@@ -286,10 +286,10 @@
 				.then(() => held && caretLanding.restore(held));
 		},
 		blockOf: (node) => documentRead.blockOf(node),
-		clipboardBlock: (clip, node, path) => {
+		clipboardBlocks: (clip) => {
 			const of = measured(clip);
 			const read = { getDoc: () => clip, measured: () => of, typeOf: blockTypeOf, reading };
-			return createDocumentRead(read).blockOf(node, path);
+			return createDocumentRead(read).blockOf;
 		}
 	});
 	const installList = (values: PluginList, previous?: readonly InstalledPlugin[]) =>

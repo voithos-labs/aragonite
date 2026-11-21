@@ -19,7 +19,7 @@ export function valueActivation(
 		blocksAround: () => [],
 		undoStep: (run) => run(),
 		blockOf: (node) => blockOf(node, DETACHED_READING),
-		clipboardBlock: (_, node) => blockOf(node, DETACHED_READING)
+		clipboardBlocks: () => (node) => blockOf(node, DETACHED_READING)
 	});
 	contributions.read(installPluginList(plugins, thrown));
 	return { isActive: base.isActive, contributions };

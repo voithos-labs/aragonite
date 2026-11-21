@@ -53,10 +53,11 @@ function byType(
 		byKind.set(kind, [...(byKind.get(kind) ?? []), entry]);
 	}
 	const clip = read();
+	const blockOf = contributions.clipboardBlocks(clip);
 	const claims: { path: number[]; out: string }[] = [];
 	const visit = (node: NodeView, path: number[]): void => {
 		for (const entry of byKind.get(node.kind) ?? []) {
-			const out = contributions.answer(entry, clip, node, path);
+			const out = contributions.answer(entry, blockOf(node, path));
 			if (out !== null) return void claims.push({ path, out });
 		}
 		node.children?.forEach((child, i) => visit(child, [...path, i]));
