@@ -1148,6 +1148,7 @@
 		announceSelection: selectionAnnouncer.announce,
 		getBlockElByPath,
 		isHostChrome,
+		caretWriter,
 		takeReadingCaret: readingFocus.takeExitCaret,
 		caretMemory,
 		// Built below; a mode switch runs after init, so the getter reads past the TDZ.
