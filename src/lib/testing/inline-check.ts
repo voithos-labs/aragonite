@@ -201,10 +201,12 @@ function checkRoundTrip(
 		);
 	}
 	let sources = 0;
-	const lines = new Map(claims.map((claim) => [lineOf(claim), claim.part]));
-	for (const [line, part] of lines) {
+	// A line once per part on it, so a pair's two sides on one line each get their own prefix cut.
+	const lines = new Map(claims.map((claim) => [`${claim.part.kind}\n${lineOf(claim)}`, claim]));
+	for (const claim of lines.values()) {
+		const line = lineOf(claim);
 		if (!line.includes('\n'))
-			sources += assertLineRoundTrips(context, line, part.trigger, prefixOf(part));
+			sources += assertLineRoundTrips(context, line, claim.part.trigger, prefixOf(claim.part));
 	}
 	return `${subject.samples.length} sample(s) and ${sources} line(s) around a claim read back to their bytes`;
 }

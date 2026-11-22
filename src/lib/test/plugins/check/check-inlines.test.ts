@@ -205,6 +205,26 @@ describe('check over inline constructs', () => {
 		});
 	});
 
+	// Both sides share the sample's one line, so only a cut after the open's own prefix reaches it.
+	it("fails roundTrip for a pair's open side that reads past its range", async () => {
+		const overrun = comment({
+			sample: '{>>a}text{<<a}',
+			open: {
+				prefix: '{>>',
+				match: (text: string, at: number) => {
+					const close = text.indexOf('}', at);
+					return text.startsWith('{>>', at) && close > at + 3 ? close + 1 : -1;
+				},
+				read: (claim: string) => claim.slice(3, -1)
+			}
+		});
+		const report = await reportOf(check(pluginOf('pairs', () => [overrun])));
+		expect(rowOf(report, 'pairs/cm', 'roundTrip')).toMatchObject({
+			status: 'failed',
+			detail: expect.stringMatching(/past the scan range end/)
+		});
+	});
+
 	it('fails inlineWriter for an image write that drops the width', async () => {
 		const report = await reportOf(check(pluginOf('pics', () => [embed((i) => `![[${i.src}]]`)])));
 		expect(rowOf(report, 'pics/embed', 'inlineWriter')).toMatchObject({
