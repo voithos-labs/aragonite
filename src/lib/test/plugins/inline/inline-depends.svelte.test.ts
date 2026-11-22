@@ -11,7 +11,7 @@ import {
 	perfSnapshot,
 	resetPerfInstruments
 } from '#lib/perf/instruments.js';
-import { dispatchPaste } from '#lib/test/harness/insertion-routes.js';
+import { WRITE_ROUTES } from '#lib/test/harness/write-routes.js';
 import {
 	destroyMountedEditors,
 	installLayoutStubs,
@@ -155,40 +155,47 @@ describe('an editor whose widgets declare no depends', () => {
 	});
 });
 
-const fresh = (m: Mounted) => m.instance.doc.blocks.map((block) => block.text);
-
-const WRITES: [string, (m: Mounted) => Promise<unknown>][] = [
-	['a key', async (m) => typeInto(surfaceAt(m, [2]), 'para oneX')],
-	['Enter', (m) => pressKeyAt(m, [2], 2, { key: 'Enter' })],
-	[
-		'a paste across blocks',
-		async (m) => {
-			await m.instance.setSelection({
-				anchor: { path: [2], offset: 2 },
-				focus: { path: [4], offset: 2 }
-			});
-			await m.settle();
-			dispatchPaste(surfaceAt(m, [2]), 'pasted\n\nmore');
-		}
-	],
-	[
-		'an undo',
-		async (m) => {
-			typeInto(surfaceAt(m, [2]), 'para oneX');
-			await m.settle();
-			m.instance.runCommand('history.undo');
-		}
-	]
+const N = 12;
+// A block no route writes in, as a paragraph and as a table's cell: the two pools.
+const HOSTS: [string, string][] = [
+	['a paragraph', 'line 7 [^a]\n'],
+	['a table cell', '| h |\n| - |\n| line 7 [^a] |\n']
 ];
+const fewSay = (block: Block) => (/line (1|6|10)\r?\n/.test(block.text) ? block.text : '');
+
+/** Whether two lists of answers say the same at every index, '' and no slot alike. */
+function aligned(a: readonly string[], b: readonly string[]): boolean {
+	for (let i = 0, end = Math.max(a.length, b.length); i < end; i++) {
+		if ((a[i] ?? '') !== (b[i] ?? '')) return false;
+	}
+	return true;
+}
 
 describe('the answers a widget is handed', () => {
-	it.each(WRITES)('equal a fresh evaluation after %s', async (_name, write) => {
-		const { m, log } = await mounted(DOC, (block) => block.text);
-		const calls = log.length;
-		await write(m);
-		await m.settle();
-		expect(log.length).toBeGreaterThan(calls);
-		expect(log.at(-1)).toEqual(fresh(m));
+	// Miss-analysis: the widget's rows wrote by four routes beside one host, where the paint's and
+	// the drawing's run every route; a route or a pool that left the widget untold had no row.
+	describe.each(HOSTS)('in %s, after every write route', (_host, hostText) => {
+		it.each(WRITE_ROUTES)('$name', async (route) => {
+			const log: string[][] = [];
+			const plugins = [refPlugin(fewSay, log), ...((route.plugins ?? []) as [])];
+			const base = route.source(N);
+			const eol = base.includes('\r\n') ? '\r\n' : '\n';
+			const source = base.replace(/line 7\r?\n/, hostText.replaceAll('\n', eol));
+			const m = mountEditor<EditorTestSurface>({ source, plugins, presentationMode: 'live' });
+			await m.settle();
+			await route.setUp?.(m, N);
+			const was = m.instance.doc.blocks.map(fewSay);
+			const calls = log.length;
+			await route.write(m, N);
+			await m.settle();
+			// A route that reads the document again without the plugin or the block leaves no widget.
+			if (!m.target.querySelector('[data-inline-widget]')) return;
+			const now = m.instance.doc.blocks.map(fewSay);
+			expect(aligned(log.at(-1)!, now), 'the answers held').toBe(true);
+			const drawn = log.length - calls;
+			if (!aligned(was, now)) expect(drawn, 'an answer moved').toBeGreaterThan(0);
+			else if (route.announces === 'exact') expect(drawn, 'no answer moved').toBe(0);
+		});
 	});
 
 	it('are never changed after they are handed over', async () => {
