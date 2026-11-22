@@ -59,4 +59,4 @@ The order is requirements, then tests, then code. `docs/contributing/testing.md`
 
 ## A code-block language
 
-Not a kind, but people look here. It's one import and one `registerBuiltinLanguage` call in `src/lib/components/blocks/code/code-bootstrap.ts`. Use that built-in form, since it survives the test reset. A host's own languages go through the public `registerLanguage`.
+Not a kind, but people look here. The core has no languages: highlighting comes from a plugin's `code` highlighter, and the first-party one is `packages/highlight`. Its default languages and their spellings are one list (`packages/highlight/src/renderer/default-languages.ts`), a spelling highlight.js doesn't know carrying its reason beside it; every other highlight.js grammar is the opt-in's (`packages/highlight/src/renderer/all-languages.ts`).

@@ -1,13 +1,21 @@
 <script module lang="ts">
-	import { installPlugins } from '#lib';
-	import { definePlugin, registerLanguage } from '#lib/plugin.js';
-	import elixir from 'highlight.js/lib/languages/elixir';
+	import { highlight } from '@voithos-labs/aragonite-highlight';
+	import { highlightJs } from '@voithos-labs/aragonite-highlight/renderer';
+	import { allLanguages } from '@voithos-labs/aragonite-highlight/languages';
 
-	// `?extraLanguage=on` installs a grammar the editor doesn't bundle, the way a host would; off by
-	// default, since the picker specs count languages. One unit, so a later visit's install is a no-op.
-	const elixirPlugin = definePlugin({
-		name: 'harness-elixir',
-		setup: () => registerLanguage('elixir', elixir, ['ex', 'exs'])
+	// The harness highlights code as a host listing the package does. `?languages=all` opts into
+	// every grammar; `?extraLanguage=on` hands the engine one of the host's own, loaded on first use.
+	const highlightPlugin = highlight({ renderer: highlightJs() });
+	const allLanguagesPlugin = highlight({ renderer: highlightJs({ languages: allLanguages }) });
+	const extraLanguagePlugin = highlight({
+		renderer: highlightJs({
+			languages: {
+				elixir: {
+					load: () => import('highlight.js/lib/languages/elixir'),
+					aliases: ['ex', 'exs']
+				}
+			}
+		})
 	});
 </script>
 
@@ -20,7 +28,7 @@
 	import { createPanelState } from '../../debug-panel/panel-state.svelte';
 	import { createDebugPanelFeed } from '../../debug-panel/panel-feed.svelte';
 	import InsertToolbar from '../../InsertToolbar.svelte';
-	import { harnessPasteImage, installTestProbes } from './test-probes';
+	import { harnessPasteImage, installTestProbes, throwProbePlugin } from './test-probes';
 	import { HarnessSource } from './harness-source.svelte';
 	import { trackParityDocument } from '../../parity-documents.svelte';
 	import { slashCommands } from '@voithos-labs/aragonite-slash-commands';
@@ -56,9 +64,6 @@
 	const headerOn = param('header') === 'on';
 	let headerTall = $state(false);
 
-	const extraLanguagesOn = param('extraLanguage') === 'on';
-	if (extraLanguagesOn) installPlugins([elixirPlugin]);
-
 	// Off by default: `/` would open a menu in every spec that types one after a space. Created
 	// here because the showcase's plugin module would load KaTeX's stylesheet into this page.
 	const slashPlugins = param('slash') === 'on' ? [slashCommands] : [];
@@ -75,7 +80,19 @@
 				: [];
 	// `?paint=on` lists a plugin whose `paint` a spec sets through `__test.paint`.
 	const paintPlugins = param('paint') === 'on' ? [paintProbePlugin] : [];
-	const pagePlugins = [...slashPlugins, ...actionPlugins, ...spellPlugins, ...paintPlugins];
+	// The throw probe is listed so `__test.makeBlockThrowOnRender` resolves its block in this editor.
+	const pagePlugins = [
+		param('extraLanguage') === 'on'
+			? extraLanguagePlugin
+			: param('languages') === 'all'
+				? allLanguagesPlugin
+				: highlightPlugin,
+		throwProbePlugin,
+		...slashPlugins,
+		...actionPlugins,
+		...spellPlugins,
+		...paintPlugins
+	];
 
 	// Stand-in host hooks, so the code block gutter's run and overflow buttons render. Off by
 	// default, since the block specs measure that gutter's width.
@@ -272,7 +289,7 @@
 					header={headerOn ? documentHero : undefined}
 					theme={editorTheme}
 					searchBarAnchor={anchorAttached ? searchAnchorEl : null}
-					plugins={pagePlugins.length > 0 ? pagePlugins : undefined}
+					plugins={pagePlugins}
 				/>
 			{/key}
 		</div>

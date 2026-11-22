@@ -3,6 +3,7 @@
 	"@voithos-labs/aragonite-details",
 	"@voithos-labs/aragonite-emoji",
 	"@voithos-labs/aragonite-footnotes",
+	"@voithos-labs/aragonite-highlight",
 	"@voithos-labs/aragonite-highlight-occurrences",
 	"@voithos-labs/aragonite-latex",
 	"@voithos-labs/aragonite-mermaid",

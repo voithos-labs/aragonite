@@ -10,7 +10,9 @@
 	},
 	"dependencies": {
 		"@voithos-labs/aragonite": "file:../..",
+		"@voithos-labs/aragonite-highlight": "file:../../packages/highlight",
 		"@voithos-labs/aragonite-react": "file:../../packages/react",
+		"highlight.js": "^11.12.0",
 		"react": "^19.3.1",
 		"react-dom": "^19.3.1"
 	},

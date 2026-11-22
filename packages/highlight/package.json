@@ -1,0 +1,77 @@
+{
+	"name": "@voithos-labs/aragonite-highlight",
+	"version": "0.11.5",
+	"description": "code highlighting for aragonite, the cute markdown editor lib",
+	"keywords": [
+		"aragonite-plugin",
+		"aragonite",
+		"markdown-editor",
+		"syntax-highlighting",
+		"highlight.js"
+	],
+	"homepage": "https://aragonite.dev",
+	"bugs": {
+		"url": "https://github.com/voithos-labs/aragonite/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/voithos-labs/aragonite.git",
+		"directory": "packages/highlight"
+	},
+	"author": "voithos-labs",
+	"type": "module",
+	"license": "MPL-2.0",
+	"svelte": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"svelte": "./dist/index.js",
+			"default": "./dist/prebuilt/index.js"
+		},
+		"./conformance": {
+			"types": "./dist/conformance.d.ts",
+			"svelte": "./dist/conformance.js",
+			"default": "./dist/prebuilt/conformance.js"
+		},
+		"./renderer": {
+			"types": "./dist/renderer.d.ts",
+			"svelte": "./dist/renderer.js",
+			"default": "./dist/prebuilt/renderer.js"
+		},
+		"./languages": {
+			"types": "./dist/renderer/all-languages.d.ts",
+			"svelte": "./dist/renderer/all-languages.js",
+			"default": "./dist/prebuilt/renderer/all-languages.js"
+		},
+		"./package.json": "./package.json"
+	},
+	"files": [
+		"dist"
+	],
+	"sideEffects": false,
+	"scripts": {
+		"build": "svelte-package -i src -o dist && node ../../scripts/pack/strip-declaration-css.mjs dist && vite build",
+		"prepack": "npm run build",
+		"catalog": "node scripts/catalog.mjs"
+	},
+	"peerDependencies": {
+		"@voithos-labs/aragonite": "0.11.5",
+		"highlight.js": "^11.12.0",
+		"svelte": "^5.29.0"
+	},
+	"peerDependenciesMeta": {
+		"highlight.js": {
+			"optional": true
+		},
+		"svelte": {
+			"optional": true
+		}
+	},
+	"devDependencies": {
+		"@voithos-labs/aragonite": "file:../.."
+	},
+	"publishConfig": {
+		"access": "public"
+	}
+}

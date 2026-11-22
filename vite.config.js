@@ -1,4 +1,4 @@
-import { realpathSync } from 'node:fs';
+import { readFileSync, realpathSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import {
@@ -79,6 +79,14 @@ const e2eBuild = process.env.ARAGONITE_E2E_BUILD === '1';
 const previewOnly = { name: 'e2e-preview', adapt() {} };
 const e2eOutDir = process.env.E2E_BUILD_DIR ?? '.svelte-kit/e2e';
 
+/** The highlight package's on-demand grammars, read off its generated catalog. */
+function highlightGrammars() {
+	const catalog = readFileSync('packages/highlight/src/renderer/catalog.ts', 'utf8');
+	return [...catalog.matchAll(/import\('(highlight\.js\/lib\/languages\/[\w-]+)'\)/g)].map(
+		([, specifier]) => specifier
+	);
+}
+
 export default defineConfig({
 	plugins: [
 		silenceBrokenImageFixture,
@@ -100,7 +108,7 @@ export default defineConfig({
 	...(depsOutsideRoot ? { cacheDir: '.svelte-kit/vite-cache' } : {}),
 	// Every package the app imports with `import()`, so it is bundled at startup even where the
 	// scan can't follow the import (`dev-prebundle.test.ts` holds this list to the source).
-	optimizeDeps: { include: ['mermaid'] },
+	optimizeDeps: { include: ['mermaid', ...highlightGrammars()] },
 	server: {
 		port: 1420,
 		strictPort: true,

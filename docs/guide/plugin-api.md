@@ -30,7 +30,7 @@ The groups, in page order:
 | [Directive authoring](#directive-authoring) | Owning a `:::name` block without writing your own parsing |
 | [Container authoring](#container-authoring) | Blocks that hold other blocks, plus their title line |
 | [Editable-leaf authoring](#editable-leaf-authoring) | A text-editing block with the editor's own caret, undo, and selection |
-| [Code-block languages](#code-block-languages) | Adding syntax-highlighting grammars beyond the bundled set |
+| [Code-block languages](#code-block-languages) | What highlights fenced code, and drawing a fenced source of your own |
 | [Plugin views](#plugin-views) | What an inline widget, a decoration's widget and an inline menu row are drawn with |
 | [Inline authoring](#inline-authoring) | Your own syntax inside a paragraph, rendered as a widget |
 | [Commands and keybindings](#commands-and-keybindings) | Keyboard shortcuts and commands, per block type or editor-wide |
@@ -61,7 +61,7 @@ _(pre-freeze / unstable)_ The installable package, and the per-editor context it
 | `PluginSpec` | What you hand `definePlugin` to get a plugin value instead: `name`, `version`, the `editor` range it runs on, `defaults`, `validate`, `needs`, `conflicts`, and `contributes(options)`, which each editor calls with its own options |
 | `Plugin` | The plugin value that comes back. Call it with options (`math({ render })`) to give one editor different ones |
 | `PluginList` | A list of plugin values, whatever their options, as `needs` takes it |
-| `Contribution` | What `contributes` hands back for one editor: its `blocks`, a `setup(editor)` that runs once that editor mounts (a function it returns runs when the plugin's turned off or the editor goes), the `commands` it runs, its `inserts` rows, its caret `menus`, its selection `actions`, a `paint(block, ctx)` that says what to lay over a block of text, a `paintContainer(block, ctx)` for the classes and badge of a block holding other blocks (a list, a quote, a table row), a `paintDepends(block)` when your paint reads other blocks, answered from each block's own content (footnote numbers: [the document recipe](plugin-guide/reading-the-document.md)), and `checksSpelling: true` if your plugin underlines misspelled words itself (the editor turns the browser's checker off on its prose while your plugin runs) |
+| `Contribution` | What `contributes` hands back for one editor: its `blocks`, a `setup(editor)` that runs once that editor mounts (a function it returns runs when the plugin's turned off or the editor goes), the `commands` it runs, its `inserts` rows, its caret `menus`, its selection `actions`, a `paint(block, ctx)` that says what to lay over a block of text, a `paintContainer(block, ctx)` for the classes and badge of a block holding other blocks (a list, a quote, a table row), a `paintDepends(block)` when your paint reads other blocks, answered from each block's own content (footnote numbers: [the document recipe](plugin-guide/reading-the-document.md)), a `code` highlighter for fenced code ([Code-block languages](#code-block-languages)), and `checksSpelling: true` if your plugin underlines misspelled words itself (the editor turns the browser's checker off on its prose while your plugin runs) |
 | `Editor` | What `setup` and your commands get: the plugins on, the `mode` (a `Mode`), the theme, the `inserts` rows, `doc` (the document as it stands), `selection` (a `Selection`, or null), `view` (a `View`), `on` (the `Events` map), `run` and `can` (a command by value or id, with its argument), `claims`, `openMenu` (types a caret menu's trigger at the caret and opens it), `openRows` (opens a selection action's rows over a range), `edit`, `blockAt(at)` (the deepest block holding a document byte: a list item's paragraph, a table cell), `select(input)` (a caret's byte, a range, a block whole or table cells, scrolled into view first) and `repaint(blocks?)`, which asks your `paint` again for those blocks, or every one on screen. It's one object per plugin per editor, and a listener you add there goes away with your plugin |
 | `PluginError` | An error your plugin caused: its name, what the editor was doing with it (`install`, `validate`, `contributes`, `setup`, `dispose`, `run shout/hello` for a command, or `on('edit')` for a listener that threw), and the cause |
 | `BlockType` | A block type: its `name` (yours read `plugin/local` once an editor runs your plugin) and its `label` |
@@ -711,31 +711,62 @@ The factory's inputs. The required ones are live getters, for the node, the inde
 
 ### Code-block languages
 
-_(pre-freeze / unstable)_ The syntax-highlighting registry behind fenced code. The editor ships a curated couple dozen (the usual suspects: javascript, python, rust, bash, sql, the C family, and friends) plus their aliases, since every grammar is bundle weight for every host. `listLanguages()` tells you exactly which ones you have.
-
-Register **before mounting an editor**: a block already on screen re-tokenizes only when its own bytes next change. An unregistered language is not an error: the fence still authors, commits and round-trips, and its body renders untokenized. A language your plugin's `setup` registers highlights, and shows in the picker, only in the editors that list your plugin. `listLanguages`, `getLanguageAliases` and `highlightCode` have no editor to ask, so they answer for every installed plugin.
+_(pre-freeze / unstable)_ What highlights fenced code. The editor ships no grammars: a fence paints plain until a plugin value contributes a `code` highlighter. The first-party one is the `highlight` package (`@voithos-labs/aragonite-highlight`), with 24 common languages by default and every highlight.js grammar for a host that passes `allLanguages`; its README (`packages/highlight/README.md`) has its options. A language no listed highlighter knows isn't an error: the fence still authors, commits and round-trips, and its body paints plain.
 
 | Export | Role |
 | --- | --- |
-| `registerLanguage` | Add a grammar under a name, with optional aliases; register-once, so a repeat call with the same name throws |
-| `listLanguages` | Every registered language once, under its canonical name, sorted: the rows a picker with every installed plugin offers |
-| `getLanguageAliases` | The other spellings a language answers to, asked by any of them: what a picker's filter matches on |
-| `highlightCode` | The code block's tokenizer: `(body, language)` to a text-preserving fragment of `code-tok-*` spans, for a plugin's own source surface |
-| `LanguageGrammar` | The registry's read shape: the resolved name and its definition |
-| `LanguageFn` | highlight.js's grammar-definition type, re-exported so you needn't import highlight.js directly (you hold it only as a transitive dep) |
+| `CodeHighlighter` | What `contributes(...).code` answers: `highlight(body, language)` gives the body's tokens, `null` for plain, or a promise of either, and `languages()` lists what it answers, in the order the picker shows them. Several plugins may contribute one; the picker lists each plugin's rows after the ones before it, and for each spelling the first plugin listing it is asked. The `highlight` package is one |
+| `CodeToken`, `CodeLanguage` | A token is `{ from, to, class }` in body offsets (tokens nest or don't overlap, and of two over one range the first listed is outside); a language is `{ name, aliases? }`, one picker row with its search keys |
+| `CodePainter` | `renderSource`'s second argument: `code(body, language)` paints a body through the editor's highlighters, plain where none answers, and repaints when a late answer arrives |
 | `sliceFencedSource`, `FencedSource` | A fenced source split into its opener line, body and closer line, each keeping its own ending; null when the first line opens no fence |
-| `renderFencedSource` | The code block's own drawing of a fenced source: the fence lines as markers the marker-hiding modes collapse, and the body through the painter you pass (`highlightCode`, say). Text-preserving, and it keeps a line for the caret under an empty last body line |
+| `renderFencedSource` | The code block's own drawing of a fenced source: the fence lines as markers the marker-hiding modes collapse, and the body through the painter you pass (`paint.code`, say). Text-preserving, and it keeps a line for the caret under an empty last body line |
 | `fenceBodyAsDrawn` | The body as `renderFencedSource` draws it: the line break before the closer belongs to the closer's line, unless the body is blank or nothing closes the fence |
 | `fencedBodyRange` | Where the body sits in a fenced source, its line ending left out, or null while the fence has no body line yet. It's what a fenced kind returns from its descriptor's `bodyRange` |
 
-```ts
-import { registerLanguage } from '@voithos-labs/aragonite/plugin';
-import elixir from 'highlight.js/lib/languages/elixir';
+A grammar the package doesn't highlight (one you wrote, say) goes on its engine, loaded the first time a fence names it:
 
-registerLanguage('elixir', elixir, ['ex', 'exs']);
+```ts
+import { highlight } from '@voithos-labs/aragonite-highlight';
+import { highlightJs } from '@voithos-labs/aragonite-highlight/renderer';
+
+const code = highlight({
+	renderer: highlightJs({
+		languages: { mylang: { load: () => import('./mylang-grammar'), aliases: ['mlg'] } }
+	})
+});
 ```
 
-The picker shows `elixir` once, and `ex` and `exs` are search keys for that row, so a user typing `ex` finds it without knowing the full name.
+The picker shows `mylang` once, after the package's own rows, and `mlg` is a search key for that row, so a user typing `mlg` finds it without knowing the full name.
+
+A plugin with a language of its own contributes a highlighter for that language alone, and an editor may list it beside the `highlight` package:
+
+```ts
+import { definePlugin, type CodeToken } from '@voithos-labs/aragonite/plugin';
+
+const LANGUAGES = [{ name: 'recipe', aliases: ['rcp'] }];
+
+export const recipe = definePlugin({
+	name: 'recipe',
+	version: '1.0.0',
+	editor: '*',
+	contributes: () => ({
+		code: {
+			languages: () => LANGUAGES,
+			highlight: (body: string): CodeToken[] =>
+				[...body.matchAll(/\b(?:mix|bake|rest)\b/g)].map((step) => ({
+					from: step.index,
+					to: step.index + step[0].length,
+					class: 'code-tok-keyword'
+				}))
+		}
+	})
+});
+```
+
+- **The theme colors these classes:** `code-tok-keyword`, `-string`, `-number`, `-literal`, `-comment`, `-type`, `-function`, `-variable`, `-operator`, `-punctuation`, `-meta`, `-attr`, `-regexp`, `-symbol`, `-subst`, `-added`, `-removed`, `-heading` and `-link`, in light and dark. Any other class is yours to style.
+- **Hand back the same `languages()` array** while the list holds; the editor rebuilds its language table when it gets a new one.
+- **Answer at once when you can.** A promise leaves the fence plain until it settles, on every edit, so an engine that always answers later (a worker, say) unpaints the fence at each key.
+- **Only a plugin value contributes one.** A `setup` plugin ships its highlighter as a second plugin, a value, for hosts to list beside it.
 
 ### Plugin views
 

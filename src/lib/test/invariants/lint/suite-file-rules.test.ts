@@ -568,7 +568,7 @@ const RULES: FileRule[] = [
 			),
 			at(
 				'src/lib/test/i.test.ts',
-				"const p = definePlugin({\n\tsetup() {\n\t\tregisterLanguage('x', g);\n\t}\n});"
+				'const p = definePlugin({\n\tsetup() {\n\t\tregisterPasteTransform(t);\n\t}\n});'
 			),
 			at(
 				'src/lib/test/j.test.ts',

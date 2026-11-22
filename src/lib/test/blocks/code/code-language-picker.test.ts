@@ -2,15 +2,28 @@
 // Miss-analysis: picker tests read rows via `listLanguages()`, never asking one row per language.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { flushSync } from 'svelte';
-import type { LanguageFn } from 'highlight.js';
-import { registerLanguage } from '#lib/components/blocks/code/code-languages.js';
+import { activationHighlighting } from '#lib/test/harness/code-highlighters.js';
 import { mountCode, type MountedCode } from './mount-code';
 import { dispatchKey } from '#lib/test/harness/settle.js';
 
-const stubGrammar = (() => ({ name: 'stub' })) as unknown as LanguageFn;
+const activePlugins = activationHighlighting([
+	{ name: 'c', aliases: [] },
+	{ name: 'cpp', aliases: ['c++'] },
+	{ name: 'javascript', aliases: ['js'] },
+	{ name: 'rust', aliases: ['rs'] }
+]);
 const FENCE = '```js\nconst x = 1\n```\n';
 
 let mounted: MountedCode;
+
+function rowsOver(languages: Parameters<typeof activationHighlighting>[0]): string[] {
+	mounted = mountCode(FENCE, {
+		mode: () => 'live',
+		services: { activePlugins: activationHighlighting(languages) }
+	});
+	openField();
+	return rows();
+}
 
 function openField(): HTMLInputElement {
 	const button = mounted.target.querySelector('.code-lang-button') as HTMLButtonElement;
@@ -47,11 +60,7 @@ function commits(): string[] {
 }
 
 beforeEach(() => {
-	registerLanguage('javascript', stubGrammar, ['js']);
-	registerLanguage('rust', stubGrammar, ['rs']);
-	registerLanguage('c', stubGrammar);
-	registerLanguage('cpp', stubGrammar, ['c++']);
-	mounted = mountCode(FENCE, { mode: () => 'live' });
+	mounted = mountCode(FENCE, { mode: () => 'live', services: { activePlugins } });
 });
 afterEach(async () => {
 	await mounted.dispose();
@@ -64,6 +73,19 @@ describe('CodeBlock: the language picker’s list', () => {
 		openField();
 
 		expect(rows()).toEqual(['js', 'text', 'c', 'cpp', 'rust']);
+	});
+
+	// Miss-analysis: every list was handed over sorted, so a picker that sorted its rows itself, and
+	// could not put a highlighter's common languages first, passed.
+	it('lists the rows in the order the highlighter lists its languages', async () => {
+		await mounted.dispose();
+		const order = rowsOver([
+			{ name: 'rust', aliases: ['rs'] },
+			{ name: 'javascript', aliases: ['js'] },
+			{ name: 'c' }
+		]);
+
+		expect(order).toEqual(['js', 'text', 'rust', 'c']);
 	});
 
 	it('finds a language by an alias typed into the filter', () => {

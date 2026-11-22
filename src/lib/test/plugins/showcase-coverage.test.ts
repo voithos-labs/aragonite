@@ -64,7 +64,9 @@ const PLUGIN_DEMONSTRATED_BY: Record<string, string[]> = {
 	// Declares no kind either: typing `/` opens it, which a document's bytes cannot show.
 	'slash-commands': [],
 	// Declares no kind: its marks paint over any prose, which a document's bytes cannot show.
-	spellcheck: []
+	spellcheck: [],
+	// Declares no kind: it paints the tour's code fences, which a document's bytes cannot show.
+	highlight: []
 };
 
 /** The inline kinds the bundled plugins add. No registry lists them, so the plugin
