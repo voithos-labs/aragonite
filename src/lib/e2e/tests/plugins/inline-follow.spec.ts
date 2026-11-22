@@ -64,20 +64,18 @@ test.describe('styled inline text that follows a click', () => {
 		await expect.poll(() => ep.bridge.getSource()).toContain('#work today.!');
 	});
 
-	test('a drag inside the tag selects and follows nothing, in reading mode too', async ({
-		page
-	}) => {
-		for (const mode of ['live', 'reading'] as const) {
+	for (const mode of ['live', 'reading'] as const) {
+		test(`a drag inside the tag selects and follows nothing, in ${mode} mode`, async ({ page }) => {
 			await ep.setPresentationMode(mode);
 			const box = (await page.locator(TAG).boundingBox())!;
 			const y = box.y + box.height / 2;
 			// Pressed and released on the tag, so the browser sends it a click after the drag.
 			await dragBetweenPoints(page, { x: box.x + 2, y }, { x: box.x + box.width - 2, y });
 			await ep.waitForRenderFlush();
-			expect(await followed(page), mode).toEqual([]);
-			expect(await page.evaluate(() => getSelection()?.toString()), mode).toContain('wor');
-		}
-	});
+			expect(await followed(page)).toEqual([]);
+			expect(await page.evaluate(() => getSelection()?.toString())).toContain('wor');
+		});
+	}
 
 	test('reading mode follows a plain click, and a typed tag follows with its new data', async ({
 		page

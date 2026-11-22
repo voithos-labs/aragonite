@@ -19,7 +19,10 @@ what a click, a double click or a drag does on the tag.
   its bytes.
 - A double click on the tag follows nothing and selects a word.
 - A drag that starts and ends inside the tag follows nothing and selects its letters, in live mode
-  and in reading mode.
+  and in reading mode, each on a fresh page.
+  (miss-analysis: the row ran both modes on one page and only in Chromium, so the range the live
+  drag left, which WebKit carried into reading over other text, read as a drag that selected the
+  wrong letters; `presentation-mode-flip-caret.md` now holds the switch)
 
 ## Edge cases
 

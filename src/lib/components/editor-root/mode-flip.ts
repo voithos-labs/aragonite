@@ -1,7 +1,8 @@
 /**
- * Keeps the caret across a presentation-mode switch. `beforeFlip` captures the caret, blurs the
- * block and closes open menus while the outgoing mode still owns the DOM; `afterFlip` drops the
- * outgoing markers' geometry, has the overlays measure again, and restores the caret.
+ * Keeps the caret across a presentation-mode switch. `beforeFlip` captures the caret, drops the
+ * browser's range, blurs the block and closes open menus while the outgoing mode still owns the
+ * DOM; `afterFlip` drops the outgoing markers' geometry, has the overlays measure again, and
+ * restores the caret.
  * Reading mode has no caret, so leaving it puts one where its focus last sat (`reading-focus`).
  */
 
@@ -17,6 +18,7 @@ import type { BlockElLookup } from '../../caret/block-el-lookup';
 import type { PresentationMode } from '../../presentation-mode';
 import { surfaceHolding } from '../../selection/path-lookup';
 import { readNativeSelection } from '../../browser/selection-read';
+import type { CaretWriter } from '../../browser/caret-writer';
 import type { EditorSelection } from '../../selection/primitives';
 import type { SelectionState } from '../../selection/selection-state.svelte';
 import type { TextMoves } from '../overlays/text-moves';
@@ -32,6 +34,7 @@ export interface ModeFlipDeps {
 	announceSelection(): void;
 	getBlockElByPath: BlockElLookup;
 	isHostChrome(node: Node | null): boolean;
+	caretWriter: Pick<CaretWriter, 'clear'>;
 	/** Where reading mode's focus sat, read and forgotten at each switch (`reading-focus.svelte.ts`). */
 	takeReadingCaret(): FlipCaret | null;
 	caretMemory: Pick<CaretMemory, 'forget'>;
@@ -94,6 +97,14 @@ export function createModeFlip(deps: ModeFlipDeps): ModeFlip {
 		await deps.restoreCaret(caret.path, caret.offset);
 	}
 
+	// The render replaces the nodes under the browser's range, and WebKit keeps it by child index,
+	// over text nobody chose; the editor writes any caret it keeps once the render is done.
+	function dropNativeRange(): void {
+		const anchor = readNativeSelection()?.anchor.node;
+		if (!anchor || !deps.editorEl?.contains(anchor) || deps.isHostChrome(anchor)) return;
+		deps.caretWriter.clear();
+	}
+
 	// A mode change blurs the block, so revealed markers and a composition close as on any blur;
 	// the host's header is exempt.
 	function blurForFlip(): void {
@@ -116,6 +127,7 @@ export function createModeFlip(deps: ModeFlipDeps): ModeFlip {
 				// Reading keeps its entry snapshot for when nothing in the editor took focus meanwhile.
 				const readingCaret = deps.takeReadingCaret();
 				flipCaret = from === 'reading' ? (readingCaret ?? flipCaret) : captureCaret();
+				dropNativeRange();
 				blurForFlip();
 				// A menu or draft still open saves here too, so its write lands in the mode it was
 				// typed in, as the blur's does: reading mode would decline it.

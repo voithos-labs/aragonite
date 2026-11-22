@@ -45,6 +45,7 @@ function harness(
 		textMoves: 0,
 		menuCloses: 0,
 		gapClears: 0,
+		rangeDrops: 0,
 		selectionEmits: 0,
 		modeEmits: [] as PresentationMode[],
 		restores: [] as [number[], number][],
@@ -72,6 +73,7 @@ function harness(
 		announceSelection: () => calls.selectionEmits++,
 		getBlockElByPath: () => null,
 		isHostChrome: (node) => !!node && header.contains(node),
+		caretWriter: { clear: () => calls.rangeDrops++ },
 		// Nothing took focus while reading, so leaving it keeps the entry snapshot.
 		takeReadingCaret: () => null,
 		caretMemory: {
@@ -189,6 +191,17 @@ describe('editor-root mode flip: the two halves', () => {
 		h.flip.beforeFlip('live');
 		expect(document.activeElement).not.toBe(h.leaf);
 		expect(h.calls.selectionEmits).toBe(1);
+	});
+
+	// Miss-analysis: every flip row placed a caret, never a range across several nodes, which
+	// WebKit keeps through the render, over other text.
+	it('the pre half drops a browser range in the document, not one in host chrome', () => {
+		const h = harness();
+		getSelection()!.selectAllChildren(h.headerField);
+		h.flip.beforeFlip('live');
+		getSelection()!.selectAllChildren(h.leaf);
+		h.flip.beforeFlip('reading');
+		expect(h.calls.rangeDrops).toBe(1);
 	});
 
 	it('the pre half leaves host chrome focused', () => {
