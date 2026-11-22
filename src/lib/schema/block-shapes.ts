@@ -6,7 +6,7 @@
 import { setPluginMetadata, type CstNode, type PluginBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { trimTrailingLineEnding } from '../core/lines';
-import type { Icon, MenuIconName } from '../menu-icons';
+import type { Icon } from '../menu-icons';
 import type { Chord, Command } from './plugin-command';
 import type { InsertRow } from './insert-catalogue';
 import type { BlockOpener } from './block-openers';
@@ -36,8 +36,8 @@ export interface BlockCommon<D, K extends string = BlockKey> {
 	name: string;
 	/** What a screen reader and the block menu call it. */
 	label: string;
-	/** The glyph beside its name where its menu rows come as a flyout. */
-	icon?: MenuIconName;
+	/** The glyph beside its name where its menu rows come as a flyout: a glyph's name, or your SVG. */
+	icon?: Icon;
 	/** Markdown holding this block, which the published checks parse and drive. */
 	sample: string | readonly string[];
 	/** Its row in the insert menus, listed as `plugin/name`, or why it has none. */

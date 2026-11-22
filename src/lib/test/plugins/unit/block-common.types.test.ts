@@ -1,8 +1,9 @@
 /**
  * Type pins for what every block type answers: a menu row's label may read the block it opened
- * over. The `@ts-expect-error` lines are the assertions, so `npm run check` fails if one starts
- * compiling, and so does a line above them that stops.
- * Miss-analysis: a row's label was a string alone, and no pin held the function an author writes.
+ * over, and a type's icon may be its own SVG. The `@ts-expect-error` lines are the assertions, so
+ * `npm run check` fails if one starts compiling, and so does a line above them that stops.
+ * Miss-analysis: a row's label was a string alone and a type's icon a glyph's name alone, and no
+ * pin held what an author writes beyond them.
  */
 import { expect, it } from 'vitest';
 import { command, container, type Block } from '#lib/plugin.js';
@@ -34,6 +35,13 @@ export const labels = () => [
 	container({ ...alert, lines, actions: [{ label: () => 42, command: cycle }] })
 ];
 
+export const icons = () => [
+	container({ ...alert, lines, icon: 'text-quote' }),
+	container({ ...alert, lines, icon: { svg: '<svg viewBox="0 0 24 24"></svg>' } }),
+	// @ts-expect-error an icon is a glyph's name or `{ svg }`
+	container({ ...alert, lines, icon: { path: 'M0 0' } })
+];
+
 it('compiles the pins above', () => {
-	expect(labels).toBeTypeOf('function');
+	expect([labels, icons]).toHaveLength(2);
 });
