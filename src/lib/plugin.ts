@@ -55,6 +55,8 @@ export type {
 	LineBlockSpec
 } from './schema/block-shapes';
 export type { Block, Doc, InlineType, Piece } from './schema/doc-view';
+// What a block type's `height` reads besides the block: the editor's width and type metrics.
+export type { HeightMetrics } from './schema/height-estimates';
 // A plugin lists its inline constructs in `contributes(...).inlines`: claimed at a prefix, drawn as
 // a widget, a built-in image or link in its own syntax, or its bytes with a class.
 export { inline } from './schema/inline-maker';
@@ -153,8 +155,8 @@ export type {
 	WriteContext,
 	WriteRule
 } from './schema/block-kind-descriptor';
-// What `estimateHeight` reads besides the block: the width and the editor's type metrics.
-export type { HeightEstimateEnv } from './schema/height-estimates';
+// `HeightMetrics`, under the name `estimateHeight` reads it by.
+export type { HeightMetrics as HeightEstimateEnv } from './schema/height-estimates';
 // `rebuildRaw`'s optional second argument, the one child whose raw moved (ignoring it is correct);
 // a rebuild returns `{ rereads: true }` when its bytes must then be read whole.
 export type { ChildRawChange } from './schema/child-spans';

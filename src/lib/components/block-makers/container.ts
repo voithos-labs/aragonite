@@ -18,7 +18,7 @@ import { cloneNode } from '../../tree-operations/clone';
 
 /** Makes a container block type; the editor reads and writes its lines from `lines`, so the plugin
  *  never writes its bytes. */
-export function container<D = never>(spec: ContainerSpec<D>): BlockType<D> {
+export function container<D extends object = never>(spec: ContainerSpec<D>): BlockType<D> {
 	checkLocalName('container', spec.name);
 	const priority = priorityBefore(spec.before);
 	const lines = writtenLines(spec.lines);
@@ -39,7 +39,7 @@ export function container<D = never>(spec: ContainerSpec<D>): BlockType<D> {
 		chords: spec.chords,
 		actions: spec.actions,
 		priority,
-		registration: containerRegistration(spec as ContainerSpec<unknown>, lines),
+		registration: containerRegistration(spec as ContainerSpec<object>, lines),
 		view: drawnView(drawing),
 		opener: (kind) => stripOpener(kind, spec.lines, priority, spec.interrupts ?? false),
 		completer: completerOf(spec.complete, (written) => stripClaims(spec.lines, written)),
@@ -56,6 +56,6 @@ export function container<D = never>(spec: ContainerSpec<D>): BlockType<D> {
 const children = (ctx: object): HTMLElement => (ctx as { children: HTMLElement }).children;
 
 // A head line brings its own writer.
-function writtenLines<D>(lines: ContainerLines<D>): MarkedLines | IndentedLines<D> {
+function writtenLines<D extends object>(lines: ContainerLines<D>): MarkedLines | IndentedLines<D> {
 	return lines.shape === 'marked' && 'head' in lines ? headedLines(lines) : lines;
 }

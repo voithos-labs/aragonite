@@ -7,11 +7,7 @@
 import type { NodeView } from '../core/node-views';
 import { isCollapsedByDescriptor } from '../schema/reserved-chrome';
 import { tryGetBlockKindDescriptor } from '../schema/block-kind-descriptor';
-import {
-	containerEstimate,
-	proseEstimate,
-	type HeightEstimateEnv
-} from '../schema/height-estimates';
+import { containerEstimate, proseEstimate, type HeightMetrics } from '../schema/height-estimates';
 
 export interface HeightOracleOptions {
 	lineHeight: number; // px per wrapped prose line
@@ -40,7 +36,7 @@ export function createHeightOracle(opts: HeightOracleOptions): MeasuredHeightOra
 
 	// One object for every call, since the height table estimates each block of the document: the
 	// metrics read through to `opts`, whose getters follow the editor's type scale.
-	const env: HeightEstimateEnv = {
+	const env = {
 		width: 0,
 		get lineHeight() {
 			return opts.lineHeight;
@@ -57,7 +53,7 @@ export function createHeightOracle(opts: HeightOracleOptions): MeasuredHeightOra
 		get imageBlockMinHeight() {
 			return opts.imageBlockMinHeight;
 		}
-	};
+	} satisfies HeightMetrics;
 
 	function estimate(node: NodeView, width: number): number {
 		const descriptor = tryGetBlockKindDescriptor(node.kind);

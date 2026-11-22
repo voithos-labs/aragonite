@@ -6,7 +6,7 @@
 import { setPluginMetadata, type CstNode, type PluginBlockKind } from '../core/nodes';
 import type { NodeView } from '../core/node-views';
 import { trimTrailingLineEnding } from '../core/lines';
-import type { Icon, MenuIconName } from '../menu-icons';
+import type { Icon } from '../menu-icons';
 import type { Chord, Command } from './plugin-command';
 import type { InsertRow } from './insert-catalogue';
 import type { BlockOpener } from './block-openers';
@@ -27,6 +27,7 @@ import {
 } from './drawing';
 import type { LineEnding } from '../core/lines';
 import type { CodePainter } from './code-highlighter';
+import type { HeightMetrics } from './height-estimates';
 
 // ── Specs ────────────────────────────────────────────────────────────────────
 
@@ -36,8 +37,8 @@ export interface BlockCommon<D, K extends string = BlockKey> {
 	name: string;
 	/** What a screen reader and the block menu call it. */
 	label: string;
-	/** The glyph beside its name where its menu rows come as a flyout. */
-	icon?: MenuIconName;
+	/** The glyph beside its name where its menu rows come as a flyout: a glyph's name, or your SVG. */
+	icon?: Icon;
 	/** Markdown holding this block, which the published checks parse and drive. */
 	sample: string | readonly string[];
 	/** Its row in the insert menus, listed as `plugin/name`, or why it has none. */
@@ -49,8 +50,9 @@ export interface BlockCommon<D, K extends string = BlockKey> {
 	interrupts?: boolean;
 	/** Block types tried after this one, by reference, so its place can't drift. */
 	before?: BlockType<unknown> | readonly BlockType<unknown>[];
-	/** The height to hold, in pixels, before the block is drawn. */
-	height?(block: Block<NoInfer<D>>): number;
+	/** The height to hold before the block is drawn, in pixels and without `metrics.blockChrome`,
+	 *  which the editor adds. */
+	height?(block: Block<NoInfer<D>>, metrics: HeightMetrics): number;
 	/** A line typed, or entered, that this block type completes into its full form. */
 	complete?: Completion;
 	/** Keys that act in this block type and the blocks it holds, each running its command on the
@@ -65,9 +67,11 @@ export interface BlockCommon<D, K extends string = BlockKey> {
  *  binds runs there first. */
 export type BlockKey = Chord | 'Enter' | 'Backspace' | 'Delete';
 
-/** A row of a block type's own menu: runs its command on the block the menu opened over. */
+/** A row of a block type's own menu: runs its command on the block the menu opened over. A label
+ *  function reads that block each time the menu opens; one that throws, or answers no text or
+ *  blank text, shows the command's `title` instead, and the editor reports it. */
 export interface BlockAction<D> {
-	label: string;
+	label: string | ((block: Block<D>) => string);
 	icon?: Icon;
 	/** Its `when` greys the row. */
 	command: Command<Block<D>>;
@@ -351,7 +355,8 @@ export function fixtureOf(sample: string | readonly string[] | undefined) {
 	return { conformanceFixture: first.endsWith('\n') ? first : `${first}\n` };
 }
 
-export function heightEstimate(height: (block: Block<never>) => number) {
+export function heightEstimate(height: (block: Block<never>, metrics: HeightMetrics) => number) {
 	// A type named by the kind is enough here: `is` compares names.
-	return (node: NodeView) => height(makeBlock<never>(node, DETACHED_READING, null));
+	return (node: NodeView, metrics: HeightMetrics) =>
+		height(makeBlock<never>(node, DETACHED_READING, null), metrics);
 }

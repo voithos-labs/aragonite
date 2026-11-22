@@ -10,7 +10,8 @@ import {
 	leafDrawing,
 	leafRegistration,
 	priorityBefore,
-	type FencedBlockSpec
+	type FencedBlockSpec,
+	type LeafCommon
 } from '../../schema/block-shapes';
 import { textBlockView } from '../blocks/text/text-block-view';
 
@@ -35,7 +36,7 @@ export function fencedBlock(spec: FencedBlockSpec): BlockType<never> {
 		chords: spec.chords,
 		actions: spec.actions,
 		priority,
-		registration: leafRegistration(spec, shape),
+		registration: leafRegistration(spec as LeafCommon<unknown>, shape),
 		view: drawing ? drawnView(drawing) : textBlockView(),
 		opener: shape.opener,
 		completer: completerOf(spec.complete, shape.claims),

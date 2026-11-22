@@ -22,7 +22,9 @@ const alert = container<AlertData>({
 
 Listing the block type is enough; the editor lists `cycle` with your commands. The key works in the alert and in any block inside it, where a key that block binds itself runs first: bound on the alert, `Mod+B` in its paragraph still bolds. A container type can't take a key the text inside edits with: `Enter`, `Backspace` and `Delete` don't compile there, and a letter, `Mod+V` or an arrow leaves its plugin out, with a message naming the key. `editor.run(cycle)` with no block runs on the nearest alert around the caret, and comes back `false` with none; over a selection across blocks, it and the key run once on each alert the selection covers, as one undo step, and the selection stays. A host moves the key with `keybindings: [{ kind: alert, chord: 'Mod+Shift+7', command: cycle }]`. `Tab` stays the page's. Where another plugin's command holds your key as its chord, the plugin listed later is left out.
 
-The rows show in the right-click menu. A block picked up whole lists them above Copy. Right-click in text inside the alert and they come as one flyout named for the type, with its `icon` where it has one, above Cut. A row is greyed where the command's `when` says no.
+The rows show in the right-click menu. A block picked up whole lists them above Copy. Right-click in text inside the alert and they come as one flyout named for the type, with its `icon` where it has one (a glyph's name, or `{ svg }` with your own markup), above Cut. A row is greyed where the command's `when` says no.
+
+A row's `label` can be a function of the block, asked each time the menu opens, so the row says what a click will do: ``label: (block) => `Make it ${next(block.data.type)}` ``. A label function that throws, or answers no text or blank text, shows the command's `title` instead and reaches `onError` under your plugin's name.
 
 A command takes no argument but its block. For "set the kind to one of eight", make one command per kind:
 

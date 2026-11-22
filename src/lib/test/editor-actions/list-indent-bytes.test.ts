@@ -9,6 +9,7 @@ import {
 	makeListContextAt
 } from '#lib/test/harness/editor-actions.js';
 import { expectParseConverged } from '#lib/test/harness/parse-converged.js';
+import { CURSOR_START } from '#lib/block-component.js';
 
 /** Tab on item 1 of the top-level list, with the item above and any sublist it holds mounted. */
 async function indentSecondItem(source: string): Promise<string> {
@@ -39,8 +40,18 @@ describe('indentItem writes the moved item under the item above', () => {
 		},
 		{
 			into: 'an ordered sublist it already holds',
-			source: '1. a\n   1. x\n2. b\n',
+			source: '1. a\n   1. x\n5. b\n',
 			bytes: '1. a\n   1. x\n   2. b\n'
+		},
+		{
+			into: 'one of another delimiter it already holds',
+			source: '1. a\n   1) x\n5. b\n',
+			bytes: '1. a\n   1) x\n   2) b\n'
+		},
+		{
+			into: 'a bullet sublist of another glyph it already holds',
+			source: '- a\n  * x\n- b\n',
+			bytes: '- a\n  * x\n  * b\n'
 		}
 	])('into $into', async ({ source, bytes }) => {
 		expect(await indentSecondItem(source)).toBe(bytes);
@@ -49,7 +60,12 @@ describe('indentItem writes the moved item under the item above', () => {
 
 /** Shift+Tab on the first item of the sublist under item 0, with both lists mounted. */
 async function liftFirstSubItem(source: string): Promise<string> {
-	const { deps } = makeEditorActionsDeps(source);
+	return (await liftLanding(source)).bytes;
+}
+
+/** `liftFirstSubItem`'s bytes, with the caret it lands. */
+async function liftLanding(source: string) {
+	const { deps, landings } = makeEditorActionsDeps(source);
 	const item = () => deps.doc.children[0].children![0];
 	const sublist = () => item().children![1];
 	registerBlockListState(sublist(), makeBlockListState(sublist));
@@ -58,7 +74,8 @@ async function liftFirstSubItem(source: string): Promise<string> {
 
 	expect(await listContext.promoteNestedItem(0, sublist(), 0)).toBe(true);
 	expectParseConverged(deps.doc);
-	return serialize(deps.doc);
+	const { leafPath, offset } = landings.at(-1)!;
+	return { bytes: serialize(deps.doc), caret: { leafPath, offset } };
 }
 
 // The glyph and number follow the destination list; the spaces after them are the item's own
@@ -77,5 +94,32 @@ describe('a list move keeps the item’s own wider spacing', () => {
 
 	it('Shift+Tab out of a sublist of another glyph', async () => {
 		expect(await liftFirstSubItem('- a\n  *  x\n')).toBe('- a\n-  x\n');
+	});
+});
+
+// Miss-analysis: the one adoption row kept its sublist's delimiter and numbers, where a taken
+// sibling left unstyled or unnumbered writes the bytes it read.
+describe('Shift+Tab hands the siblings after the item to the sublist it holds', () => {
+	it.each([
+		{
+			into: 'an ordered sublist',
+			source: '1. a\n   1. x\n      1. q\n   7. y\n   9. z\n',
+			bytes: '1. a\n2. x\n   1. q\n   2. y\n   3. z\n'
+		},
+		{
+			into: 'one of another delimiter, wider spaced',
+			source: '1. a\n   1. x\n      1) q\n   7.  y\n   9. z\n',
+			bytes: '1. a\n2. x\n   1) q\n   2)  y\n   3) z\n'
+		},
+		{
+			into: 'a bullet sublist of another glyph',
+			source: '- a\n  - x\n    * q\n  - y\n  - z\n',
+			bytes: '- a\n- x\n  * q\n  * y\n  * z\n'
+		}
+	])('into $into, each styled and numbered as it', async ({ source, bytes }) => {
+		expect(await liftLanding(source)).toEqual({
+			bytes,
+			caret: { leafPath: [0, 1, 0], offset: CURSOR_START }
+		});
 	});
 });

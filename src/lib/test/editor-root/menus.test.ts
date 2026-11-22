@@ -18,7 +18,7 @@ import { takeDevWarns } from '#lib/test/support/warn-gate.js';
 import { noBlockTypes, noSelectionActions } from '#lib/test/harness/no-selection-actions.js';
 import { fencedBlock, lineBlock } from '#lib/plugin.js';
 import { container } from '#lib/components/block-makers/container.js';
-import type { MenuIconName } from '#lib/menu-icons.js';
+import type { Icon } from '#lib/menu-icons.js';
 import type { BlockType } from '#lib/schema/plugin-unit.js';
 
 // Miss-analysis: which menu a right-click opens was tested only through Playwright.
@@ -340,8 +340,8 @@ describe("editor-root menus: a plugin block type's rows", () => {
 			blockActions: (k) =>
 				k === kind
 					? [
-							{ label: 'Next kind', command: command('next') },
-							{ label: 'Never', command: command('never') }
+							{ label: () => 'Next kind', command: command('next') },
+							{ label: () => 'Never', command: command('never') }
 						]
 					: [],
 			blockOf: () => block as never,
@@ -392,13 +392,14 @@ describe("editor-root menus: a plugin block type's rows", () => {
 	});
 
 	// Miss-analysis: a block type's `icon` was read nowhere, and no row asked what the flyout draws.
+	const OWN = { svg: '<svg viewBox="0 0 24 24"></svg>' };
 	const common = { name: 'alert', label: 'Alert', insert: { none: 'a test block type' } };
 	const makers = {
-		lineBlock: (icon?: MenuIconName) =>
+		lineBlock: (icon?: Icon) =>
 			lineBlock({ ...common, match: /^@@ (?<text>.*)$/, sample: '@@ x', icon }),
-		fencedBlock: (icon?: MenuIconName) =>
+		fencedBlock: (icon?: Icon) =>
 			fencedBlock({ ...common, fence: { info: 'alert' }, sample: '```alert\nx\n```', icon }),
-		container: (icon?: MenuIconName) =>
+		container: (icon?: Icon) =>
 			container({
 				...common,
 				sample: '%> x',
@@ -409,6 +410,7 @@ describe("editor-root menus: a plugin block type's rows", () => {
 	it.each(
 		Object.entries(makers).flatMap(([maker, make]) => [
 			[maker, 'the icon it declares', make('text-quote'), 'text-quote'],
+			[maker, 'its own SVG', make(OWN), OWN],
 			[maker, 'the fixed one, with none declared', make(), 'ellipsis-vertical']
 		])
 	)('draw the flyout of a %s type with %s', (_maker, _, type, icon) => {

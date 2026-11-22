@@ -5,6 +5,7 @@
  */
 
 import type { CstNode } from '../core/nodes';
+import { devChecksOn, devWarn } from '@voithos-labs/aragonite/dev-checks';
 import { firstDisplayLine } from '../core/lines';
 import {
 	codecFromShape,
@@ -29,7 +30,7 @@ export function writeContainerRaw(
 	return descriptor?.rebuildRaw?.(node, changed) ?? undefined;
 }
 
-function writeShapedRaw<D>(
+function writeShapedRaw<D extends object>(
 	node: CstNode,
 	shape: LineShape<D>,
 	grammar: GrammarView,
@@ -43,11 +44,29 @@ function writeShapedRaw<D>(
 
 /** The data a container is written under: its metadata, over what its old first line reads. */
 export function dataOver<D>(node: CstNode, read: D | undefined): D {
+	if (devChecksOn) {
+		const what = nonObjectData(read) ?? nonObjectData(node.metadata);
+		if (what) {
+			devWarn(
+				'container-data',
+				`${node.kind}: its data is ${what}, where a container's data must be an object`
+			);
+		}
+	}
 	return { ...read, ...node.metadata } as D;
 }
 
+/** What `data` is, where a container's writer can't lay its metadata over it: a primitive, null or
+ *  an array. Null for an object, or for no data at all. */
+export function nonObjectData(data: unknown): string | null {
+	if (data === undefined) return null;
+	if (Array.isArray(data)) return 'an array';
+	if (data === null) return 'null';
+	return typeof data === 'object' ? null : `a ${typeof data}`;
+}
+
 /** The previous bytes are read under the marker their own first line was written with. */
-function writeIndented<D>(
+function writeIndented<D extends object>(
 	node: CstNode,
 	shape: IndentedLines<D>,
 	grammar: GrammarView,
