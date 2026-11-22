@@ -23,6 +23,10 @@ import type { PasteRewrite } from './paste-rewrite';
 import { togglesOf } from './inline-type';
 import type { ContributedMenu } from './caret-menu';
 import { iconProblem, type Icon } from '../menu-icons';
+import type { BlockAction } from './block-shapes';
+import { openingData } from '../core/parsers/strip-container';
+import { nonObjectData } from './container-writer';
+import { firstDisplayLine } from '../core/lines';
 import type { ContributedAction } from './selection-action';
 import type { CodeHighlighter, CodeLanguage, CodeToken } from './code-highlighter';
 
@@ -45,7 +49,8 @@ export interface ContributedRewrite {
 
 /** A row of a block type's menu, as an editor holds it. */
 export interface ContributedBlockAction {
-	readonly label: string;
+	/** The row's text over `block`: the command's title where the plugin's label fails. */
+	label(block: Block): string;
 	readonly icon?: Icon;
 	readonly command: ContributedCommand;
 }
@@ -145,6 +150,7 @@ export function createEditorContributions(deps: {
 				insertProblem(unit) ??
 				menuProblem(unit) ??
 				actionProblem(unit) ??
+				containerDataProblem(unit) ??
 				rewriteProblem(unit);
 			if (problem) deps.report(installError(unit.name, problem));
 			return !problem;
@@ -175,11 +181,10 @@ export function createEditorContributions(deps: {
 			kept.flatMap((unit) =>
 				blockTypesOf(unit).map(({ kind, making }) => [
 					kind,
-					(making.actions ?? []).map(({ label, icon, command }) => ({
-						label,
-						icon,
-						command: byValue.get(command as Command<unknown>)!
-					}))
+					(making.actions ?? []).map(({ label, icon, command }) => {
+						const entry = byValue.get(command as Command<unknown>)!;
+						return { label: (block: Block) => labelOf(entry, label, block), icon, command: entry };
+					})
 				])
 			)
 		);
@@ -257,6 +262,24 @@ export function createEditorContributions(deps: {
 			}
 			return answer !== false;
 		});
+	}
+
+	/** A row's label over `block`; one that throws, or answers no text or blank text, reads as its
+	 *  command's title, and is reported. */
+	function labelOf(entry: ContributedCommand, label: BlockAction<unknown>['label'], block: Block) {
+		const fail = (cause: unknown) => {
+			deps.report({ plugin: entry.plugin, doing: `label for ${entry.id}`, cause });
+			return entry.spec.title;
+		};
+		let text: unknown;
+		try {
+			text = typeof label === 'function' ? label(block) : label;
+		} catch (cause) {
+			return fail(cause);
+		}
+		if (typeof text !== 'string')
+			return fail(new TypeError(`its label is a ${typeof text}, not text`));
+		return text.trim() ? text : fail(new TypeError('its label is blank'));
 	}
 
 	function answer(entry: ContributedRewrite, block: Block): string | null {
@@ -398,6 +421,27 @@ function actionProblem(unit: InstalledPlugin): string | null {
 		for (const action of making.actions ?? []) {
 			const problem = iconProblem(action.icon);
 			if (problem) return `has a block action that ${problem}`;
+		}
+	}
+	return null;
+}
+
+/** Why a plugin's container would write data that isn't an object, read off its own sample's
+ *  opening line, since its writer lays that data under the node's metadata; null when none would. */
+function containerDataProblem(unit: InstalledPlugin): string | null {
+	for (const { kind, making } of blockTypesOf(unit)) {
+		const lines = making.registration.container?.lines;
+		const sample = making.registration.conformanceFixture;
+		if (!sample || (lines?.shape !== 'marked' && lines?.shape !== 'indented')) continue;
+		let data: unknown;
+		try {
+			data = openingData(lines, firstDisplayLine(sample).text);
+		} catch (cause) {
+			return `has the block type '${kind}', which throws reading its sample (${String(cause)})`;
+		}
+		const what = nonObjectData(data);
+		if (what) {
+			return `has the block type '${kind}', whose data is ${what}: a container's data must be an object`;
 		}
 	}
 	return null;

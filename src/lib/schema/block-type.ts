@@ -8,15 +8,15 @@ import type { NodeView } from '../core/node-views';
 import type { BlockOpener, GrammarView } from './block-openers';
 import type { BlockCompleter } from './block-completions';
 import type { BlockView } from './block-view';
-import type { BlockCommon, BlockInsert } from './block-shapes';
+import type { BlockAction, BlockCommon, BlockInsert } from './block-shapes';
 import { holdBlockKind, type BuiltinRegistration } from './block-kind-descriptor';
 import { normalizeChord, type KeyBinding } from './keybindings';
 import type { Command } from './plugin-command';
 import { qualifiedName } from './plugin-name';
 import type { BlockType, InstalledPlugin, PluginError } from './plugin-unit';
 
-/** What a maker built for a block type. */
-export interface BlockMaking {
+/** What a maker built for a block type; `D` is the data its menu rows read. */
+export interface BlockMaking<D = unknown> {
 	readonly local: string;
 	readonly label: string;
 	readonly icon?: BlockCommon<unknown>['icon'];
@@ -33,7 +33,7 @@ export interface BlockMaking {
 	/** The block's bytes with `data` written into them; null where the type has no writer for it. */
 	readonly writeData?: (node: NodeView, data: unknown, grammar: GrammarView) => string | null;
 	readonly chords?: BlockCommon<unknown>['chords'];
-	readonly actions?: BlockCommon<unknown>['actions'];
+	readonly actions?: readonly BlockAction<D>[];
 }
 
 /** One of an editor's own block types, named and ready to read. */
@@ -45,7 +45,7 @@ export interface InstalledBlock {
 }
 
 /** A block type a maker made; `name` is its local name until an editor names it after its plugin. */
-export function madeBlockType<D>(making: BlockMaking): BlockType<D> {
+export function madeBlockType<D>(making: BlockMaking<D>): BlockType<D> {
 	const type = { [MAKING]: making, [OWNER]: null as string | null, label: making.label };
 	return Object.defineProperty(type, 'name', {
 		enumerable: true,

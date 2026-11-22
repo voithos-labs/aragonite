@@ -17,7 +17,7 @@ export type { ContainerLines } from '../core/parsers/strip-container';
 // ── Spec ─────────────────────────────────────────────────────────────────────
 
 /** A block holding other blocks; the editor writes its bytes from `lines`, never the plugin. */
-export type ContainerSpec<D> = BlockCommon<D, Chord> & {
+export type ContainerSpec<D extends object> = BlockCommon<D, Chord> & {
 	lines: ContainerLines<D>;
 	/** Text joined to its end from below lands in its deepest text block; default true. */
 	joins?: boolean;
@@ -38,8 +38,8 @@ export type ContainerSpec<D> = BlockCommon<D, Chord> & {
 
 /** The facts a container derives from its spec and its shape. */
 export function containerRegistration(
-	spec: ContainerSpec<unknown>,
-	lines: MarkedLines | IndentedLines<unknown>
+	spec: ContainerSpec<object>,
+	lines: MarkedLines | IndentedLines<object>
 ): BuiltinRegistration {
 	const marked = lines.shape === 'marked';
 	return {
@@ -68,6 +68,6 @@ export function containerRegistration(
 }
 
 /** The marker an indented container shows ahead of its first child's text, read-only. */
-export function ambientMarker<D>(lines: IndentedLines<D>, node: NodeView): string {
+export function ambientMarker<D extends object>(lines: IndentedLines<D>, node: NodeView): string {
 	return lines.first(getPluginMetadata<D>(node) as D);
 }

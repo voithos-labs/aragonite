@@ -8,19 +8,21 @@ import type { NodeView } from '../core/node-views';
 import { readSizeHint } from '../core/inline/scan/size-hint';
 import { isGridKind } from './block-kind-descriptor';
 
-/** What an estimate reads besides the block: the editor's width and its type metrics, in px. */
-export interface HeightEstimateEnv {
-	width: number;
+/** What a height estimate reads besides the block: the editor's width and its type metrics, in
+ *  px. The editor hands every block one object and moves its width between calls, so read it
+ *  during the call. */
+export interface HeightMetrics {
+	readonly width: number;
 	/** One wrapped line of prose. */
-	lineHeight: number;
+	readonly lineHeight: number;
 	/** One source line of code. */
-	codeLineHeight: number;
+	readonly codeLineHeight: number;
 	/** An average character, for how many fit on a line. */
-	avgCharWidth: number;
-	/** A block's margin and padding, which the estimator adds once per block. */
-	blockChrome: number;
+	readonly avgCharWidth: number;
+	/** A block's margin and padding, which the editor adds to every estimate itself. */
+	readonly blockChrome: number;
 	/** The floor for an image whose alt carries no height. */
-	imageBlockMinHeight: number;
+	readonly imageBlockMinHeight: number;
 }
 
 const NEWLINE = 10;
@@ -28,7 +30,7 @@ const NEWLINE = 10;
 // Any image form, capturing the alt, whose `|WxH` hint sizes the rendered image.
 const IMAGE_ALT = /!\[([^\]]*)\]/g;
 
-function wrappedLines(length: number, env: HeightEstimateEnv): number {
+function wrappedLines(length: number, env: HeightMetrics): number {
 	const perLine = Math.max(1, Math.floor(env.width / env.avgCharWidth));
 	return Math.max(1, Math.ceil(length / perLine));
 }
@@ -43,7 +45,7 @@ function sourceLines(raw: string): number {
 
 // Pictures sit side by side in their line, so each source line stands as tall as its tallest: an
 // image's hinted height, else the floor, since an unsized image is not knowable until it decodes.
-function imageHeights(raw: string, env: HeightEstimateEnv): number {
+function imageHeights(raw: string, env: HeightMetrics): number {
 	let total = 0;
 	let line = 0;
 	let lineStart = 0;
@@ -63,7 +65,7 @@ function imageHeights(raw: string, env: HeightEstimateEnv): number {
 // ── Estimates ───────────────────────────────────────────────────────────────
 
 /** Wrapped text, or the images it holds when they stand taller than it. */
-export function proseEstimate(node: NodeView, env: HeightEstimateEnv): number {
+export function proseEstimate(node: NodeView, env: HeightMetrics): number {
 	const text = wrappedLines(node.raw.length, env) * env.lineHeight;
 	// The substring test first: most prose holds no image, and the alt scan is the costly part.
 	if (!node.raw.includes('![')) return text;
@@ -72,12 +74,12 @@ export function proseEstimate(node: NodeView, env: HeightEstimateEnv): number {
 }
 
 /** One line, whatever the bytes: a divider. */
-export function singleLineEstimate(_node: NodeView, env: HeightEstimateEnv): number {
+export function singleLineEstimate(_node: NodeView, env: HeightMetrics): number {
 	return env.lineHeight;
 }
 
 /** One code line per source line: code does not wrap. */
-export function sourceLinesEstimate(node: NodeView, env: HeightEstimateEnv): number {
+export function sourceLinesEstimate(node: NodeView, env: HeightMetrics): number {
 	return sourceLines(node.raw) * env.codeLineHeight;
 }
 
@@ -85,7 +87,7 @@ export function sourceLinesEstimate(node: NodeView, env: HeightEstimateEnv): num
  * A grid takes the larger of its rows and its source wrapped; any other container the larger of a
  * line per child and its text wrapped, since the first ignores wrapping and the second margins.
  */
-export function containerEstimate(node: NodeView, env: HeightEstimateEnv): number {
+export function containerEstimate(node: NodeView, env: HeightMetrics): number {
 	const wrapped = wrappedLines(node.raw.length, env) * env.lineHeight;
 	if (isGridKind(node.kind)) {
 		return Math.max(sourceLines(node.raw) * env.lineHeight, wrapped);

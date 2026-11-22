@@ -18,12 +18,12 @@ import type { BlockOpener, OpenContext } from '../../schema/block-openers';
 
 /** How a container's lines look: a marker on every line, under a head line or not, or a marker on
  *  the first and an indent after. */
-export type ContainerLines<D> =
+export type ContainerLines<D extends object> =
 	MarkedLines | (MarkedLines & { head: HeadedLines<D>['head'] }) | IndentedLines<D>;
 
 /** The opener of a marked or indented container. A line with no marker continues it only as the
  *  lazy line of a paragraph open above; a blank line belongs to it only when one below does. */
-export function stripOpener<D>(
+export function stripOpener<D extends object>(
 	kind: AnyBlockKind,
 	lines: ContainerLines<D>,
 	priority: number,
@@ -68,11 +68,22 @@ export function stripOpener<D>(
 
 /** Whether lines a completion wrote read as this container: its opening line first, and a marker on
  *  every line after. */
-export function stripClaims<D>(lines: ContainerLines<D>, written: readonly string[]): boolean {
+export function stripClaims<D extends object>(
+	lines: ContainerLines<D>,
+	written: readonly string[]
+): boolean {
 	const open = written.length > 0 && openingLine(lines, written[0]);
 	return (
 		!!open && written.slice(1).every((line) => open.codec.read(line, INNER_LINE)?.lazy === false)
 	);
+}
+
+/** The data `text` opens a container of `lines` with; undefined where it opens none. */
+export function openingData<D extends object>(
+	lines: ContainerLines<D>,
+	text: string
+): D | undefined {
+	return openingLine(lines, text)?.data;
 }
 
 // ── Internal ─────────────────────────────────────────────────────────────────
@@ -80,7 +91,7 @@ export function stripClaims<D>(lines: ContainerLines<D>, written: readonly strin
 const BLANK_TAIL: LinePlace = { first: false, trailingBlank: true };
 
 /** The container's line syntax and data, if `text` opens one. */
-function openingLine<D>(
+function openingLine<D extends object>(
 	lines: ContainerLines<D>,
 	text: string
 ): { codec: LineCodec; data: D | undefined } | null {

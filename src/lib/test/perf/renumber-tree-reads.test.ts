@@ -1,12 +1,17 @@
-// Enter in a long ordered list renumbers every item below it, and writes each one before the tree
-// holds it: the page's tree is a `$state` proxy, where each read or write is a trap, and a renumber
-// pays every trap once per item.
+// Enter in a long ordered list renumbers every item below it, and Shift+Tab hands a lifted item
+// every sibling after it; both write each item before the tree holds it: the page's tree is a
+// `$state` proxy, where each read or write is a trap, and such a move pays every trap once per item.
 // Miss-analysis: the perf counters count rebuilds, parses and lines, never reads through the tree's
 // proxy, so a renumber that spread each item's metadata through it read the same on every counter.
 import { afterEach, describe, expect, it } from 'vitest';
 import { parse } from '#lib/core/parser.js';
 import { configureEditorEnv, resetEditorEnv } from '@voithos-labs/aragonite/dev-checks';
-import { makeEditorActionsDeps, makeListContextAt } from '#lib/test/harness/editor-actions.js';
+import { registerBlockListState } from '#lib/block-lists/state-registry.js';
+import {
+	makeBlockListState,
+	makeEditorActionsDeps,
+	makeListContextAt
+} from '#lib/test/harness/editor-actions.js';
 
 /* ---- A tree read through a counting proxy ---- */
 
@@ -76,6 +81,9 @@ function countingTree() {
 
 const ITEM = 6;
 
+// An item's cost through the tree when its writer reads metadata by name; a spread costs more.
+const ITEM_TRAPS = 113;
+
 function orderedList(items: number): string {
 	return Array.from({ length: items }, (_, i) => `${i + 1}. alpha beta gamma ${i}\n`).join('');
 }
@@ -100,7 +108,51 @@ describe('renumber: what each renumbered item costs through the tree', () => {
 		const [short, long] = [await enterTraps(400), await enterTraps(800)];
 		const grew = (key: string) => (long.counts.get(key) ?? 0) - (short.counts.get(key) ?? 0);
 		expect({ marker: grew('set marker'), raw: grew('set raw') }).toEqual({ marker: 0, raw: 0 });
-		// 113 is a renumbered item's cost through the tree when its writer reads metadata by name.
-		expect((long.total() - short.total()) / 400).toBeLessThanOrEqual(113);
+		expect((long.total() - short.total()) / 400).toBeLessThanOrEqual(ITEM_TRAPS);
 	});
+});
+
+/** A lifted item `x` whose own sublist starts `head`, with `later` siblings after it in `marker`'s
+ *  list, which Shift+Tab hands to that sublist, or to a new one where `x` holds none. */
+const ADOPTIONS = [
+	{ shape: 'a new sublist', head: null, marker: (n: number) => `${n}. ` },
+	{ shape: 'an ordered sublist', head: '1. q', marker: (n: number) => `${n}. ` },
+	{ shape: 'one of another delimiter', head: '1) q', marker: (n: number) => `${n}. ` },
+	{ shape: 'a bullet sublist of another glyph', head: '* q', marker: () => '- ' }
+];
+
+function liftSource(head: string | null, marker: (n: number) => string, later: number): string {
+	const items = Array.from({ length: later }, (_, i) => `   ${marker(i + 2)}y${i}`);
+	const own = head === null ? [] : [`      ${head}`];
+	return ['1. a', `   ${marker(1)}x`, ...own, ...items, ''].join('\n');
+}
+
+/** The traps Shift+Tab on `x` makes on the tree, with the item and its sublist mounted. */
+async function liftTraps({ head, marker }: (typeof ADOPTIONS)[number], later: number) {
+	const tree = countingTree();
+	const { deps } = makeEditorActionsDeps(parse(liftSource(head, marker, later)));
+	tree.hold(deps.doc);
+	const item = () => deps.doc.children[0].children![0];
+	const sublist = () => item().children![1];
+	registerBlockListState(item(), makeBlockListState(item));
+	registerBlockListState(sublist(), makeBlockListState(sublist));
+	const { listContext } = makeListContextAt(deps, 0);
+	tree.counts.clear();
+	expect(await listContext.promoteNestedItem(0, sublist(), 0)).toBe(true);
+	return tree;
+}
+
+// Miss-analysis: the row above drove Enter alone, and an outdent styled each sibling it handed on
+// through the tree, then numbered it through the tree again.
+describe('outdent: what each sibling the lifted item takes costs through the tree', () => {
+	it.each(ADOPTIONS)(
+		'takes each sibling at an item’s cost, writing none through the tree, into $shape',
+		async (adoption) => {
+			configureEditorEnv({ isDev: false });
+			const [short, long] = [await liftTraps(adoption, 400), await liftTraps(adoption, 800)];
+			const grew = (key: string) => (long.counts.get(key) ?? 0) - (short.counts.get(key) ?? 0);
+			expect({ marker: grew('set marker'), raw: grew('set raw') }).toEqual({ marker: 0, raw: 0 });
+			expect((long.total() - short.total()) / 400).toBeLessThanOrEqual(ITEM_TRAPS);
+		}
+	);
 });

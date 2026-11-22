@@ -8,6 +8,7 @@ import { container } from '#lib/components/block-makers/container.js';
 import { COLON_LINES } from '#lib/schema/colon-lines.js';
 import type { Block } from '#lib/schema/doc-view.js';
 import type { Draft } from '#lib/schema/drafts.js';
+import type { IndentedLines } from '#lib/core/strip-lines.js';
 
 const line = { label: 'L', sample: '%%l', insert: { none: 'a compile row' } };
 const MARKED = { shape: 'marked', first: '%> ', rest: '%> ', reads: /^%> ?/, lazy: true } as const;
@@ -51,6 +52,11 @@ function mistakes(draft: Draft, plain: Block<never>, numbered: Block<number>) {
 	// A pasted closing line can't say which container it ends, so the maker takes no shape with one.
 	// @ts-expect-error a container's lines are marked or indented, never closed by a line
 	const j = container({ ...line, name: 'j', lines: COLON_LINES, merges: {} });
+	// prettier-ignore
+	// @ts-expect-error a container's data is an object, which its writer lays its metadata over
+	const m = container({ ...line, name: 'm', lines: { ...MARKED, head: { match: /^!(\w+)$/, data: (x: RegExpExecArray) => x[1], write: (t: string) => t } } });
+	// @ts-expect-error and so is a line shape's
+	const n: IndentedLines<string> | null = null;
 	const fine = lineBlock({
 		...line,
 		name: 'f',
@@ -76,7 +82,7 @@ function mistakes(draft: Draft, plain: Block<never>, numbered: Block<number>) {
 	// @ts-expect-error a block not narrowed to its type can't be given data
 	draft.data(numbered.children[0], 1);
 	draft.data(numbered, 2);
-	return [a, b, c, d, e, f, g, h, i, j, k, l, reads, fine];
+	return [a, b, c, d, e, f, g, h, i, j, k, l, m, n, reads, fine];
 }
 
 describe('a block type mistake', () => {

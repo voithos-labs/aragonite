@@ -16,7 +16,7 @@ import { dataOver } from './container-writer';
 
 /** `lines` under a first line that holds no child: `head.match` reads it after the marker, `data`
  *  turns the match into the container's data, and `write` spells it. */
-export function headedLines<D>(
+export function headedLines<D extends object>(
 	lines: MarkedLines & { head: HeadedLines<D>['head'] }
 ): HeadedLines<D> {
 	const shape: HeadedLines<D> = {
@@ -28,7 +28,7 @@ export function headedLines<D>(
 
 /** The head line, kept as spelled while it writes the same data, the body as the shape's lines
  *  below it; an emptied body leaves the head line alone, which still opens the container. */
-function writeHeaded<D>(
+function writeHeaded<D extends object>(
 	node: CstNode,
 	shape: HeadedLines<D>,
 	grammar: GrammarView,
