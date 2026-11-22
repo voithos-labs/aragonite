@@ -30,17 +30,20 @@ import {
 
 const OF = ['plugin', 'block', 'inline', 'command', 'menu', 'rewrite'];
 const STATUSES = ['passed', 'failed', 'advisory', 'excused', 'not-applicable', 'unchecked'];
-// What reaches the gallery table is held to a shape no Markdown or HTML hides in.
-const SUBJECT = /^[^\r\n|`<>[\]]{1,120}$/;
+// What reaches the gallery table is held to a shape no Markdown or HTML hides in; a name outside it
+// shows as `(unshown)`, so one stray name never refuses the whole run.
+const SUBJECT = /^(?!.*\]\()[^\r\n|`<>]{1,120}$/;
 const CHECK = /^[A-Za-z]{1,40}$/;
+/** @param {string} text @param {RegExp} shape */
+const shown = (text, shape) => (shape.test(text) ? text : '(unshown)');
 const TAG = /^[\w:.-]{1,60}$/;
 
 /** @param {unknown} row */
 function rowProblem(row) {
 	const { of, subject, check, status } = /** @type {Partial<CheckRow>} */ (row ?? {});
 	if (!OF.includes(/** @type {string} */ (of))) return `a row of ${of}`;
-	if (typeof subject !== 'string' || !SUBJECT.test(subject)) return 'a row with no plain subject';
-	if (typeof check !== 'string' || !CHECK.test(check)) return 'a row with no check name';
+	if (typeof subject !== 'string' || typeof check !== 'string')
+		return 'a row with no subject or check';
 	if (!STATUSES.includes(/** @type {string} */ (status))) return `a row with status ${status}`;
 	return null;
 }
@@ -84,7 +87,9 @@ export function resultProblem(value) {
  */
 function failuresOf({ rows, warnings }) {
 	return [
-		...rows.filter((row) => row.status === 'failed').map((row) => `${row.subject}: ${row.check}`),
+		...rows
+			.filter((row) => row.status === 'failed')
+			.map((row) => `${shown(row.subject, SUBJECT)}: ${shown(row.check, CHECK)}`),
 		...warnings.map(({ tag }) => `dev warning [${tag}]`)
 	];
 }

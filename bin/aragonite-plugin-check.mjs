@@ -159,12 +159,10 @@ export async function main(argv, cwd) {
 	try {
 		outcome = await runSuite(suite);
 	} catch (error) {
-		outcome = {
-			result: 'fail',
-			rows: [],
-			warnings: [],
-			message: /** @type {Error} */ (error).message
-		};
+		const message = /** @type {Error} */ (error).message;
+		// A run that threw before it answered still names what failed, so a listing can show it.
+		const row = { of: 'plugin', subject: name, check: 'run', status: 'failed', detail: message };
+		outcome = { result: 'fail', rows: [row], warnings: [], message };
 	}
 	for (const line of rowLines(outcome.rows)) console.log(`  ${line}`);
 	if (outcome.message) console.error(outcome.message);

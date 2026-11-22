@@ -219,9 +219,7 @@ describe('recording a check', () => {
 		expect(resultProblem(result({ result: 'fail' }))).toMatch(/names what failed/);
 		expect(resultProblem(result({ rows: failure }))).toMatch(/names what failed/);
 		expect(resultProblem(result({ rows: undefined, failures: 'x' }))).toMatch(/before rows/);
-		// What a row names lands in the gallery table, so nothing that hides markup gets through.
-		expect(resultProblem(result({ rows: [row('a | <b>', 'undo', 'failed')] }))).toMatch(/subject/);
-		expect(resultProblem(result({ rows: [row('a/memo', 'un do', 'failed')] }))).toMatch(/check/);
+		expect(resultProblem(result({ rows: [{ of: 'block', status: 'failed' }] }))).toMatch(/subject/);
 		expect(resultProblem(result({ rows: [row('a/memo', 'undo', 'fine')] }))).toMatch(/status/);
 		expect(resultProblem(result({ warnings: [{ tag: '<x>', message: '' }] }))).toMatch(/warnings/);
 	});
@@ -260,6 +258,19 @@ describe('recording a check', () => {
 		expect(checks['aragonite-c'].editor).toBe('0.11.0');
 		// An out-of-range check installed nothing, so the newest version's manifest speaks for it.
 		expect(asked).toEqual(['aragonite-a@1.0.0', 'aragonite-b@latest']);
+	});
+
+	// What a row names lands in the gallery table, and an author's excuse or a trigger can name
+	// anything, so a name that could hide markup is shown as unshown and the run still records.
+	it('shows a failed row whose name could hide markup as unshown, keeping a plain bracket', () => {
+		const odd = [
+			row('p/ghost<b>', 'round-trip', 'failed'),
+			row('[x](https://evil)', 'undo', 'failed'),
+			row('[^', 'claims', 'failed')
+		];
+		expect(resultProblem(result({ result: 'fail', rows: odd }))).toBeNull();
+		const recordedOdd = recordFrom(result({ result: 'fail', rows: odd }), manifest());
+		expect(recordedOdd.failures).toEqual(['(unshown): (unshown)', '(unshown): undo', '[^: claims']);
 	});
 
 	it('refuses a result no single listed package uploads, or one whose manifest lost its keyword', () => {
