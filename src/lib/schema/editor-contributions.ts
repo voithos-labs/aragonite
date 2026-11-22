@@ -431,17 +431,18 @@ function actionProblem(unit: InstalledPlugin): string | null {
 function containerDataProblem(unit: InstalledPlugin): string | null {
 	for (const { kind, making } of blockTypesOf(unit)) {
 		const lines = making.registration.container?.lines;
-		const sample = making.registration.conformanceFixture;
-		if (!sample || (lines?.shape !== 'marked' && lines?.shape !== 'indented')) continue;
-		let data: unknown;
-		try {
-			data = openingData(lines, firstDisplayLine(sample).text);
-		} catch (cause) {
-			return `has the block type '${kind}', which throws reading its sample (${String(cause)})`;
-		}
-		const what = nonObjectData(data);
-		if (what) {
-			return `has the block type '${kind}', whose data is ${what}: a container's data must be an object`;
+		if (lines?.shape !== 'marked' && lines?.shape !== 'indented') continue;
+		for (const sample of making.registration.samples ?? []) {
+			let data: unknown;
+			try {
+				data = openingData(lines, firstDisplayLine(sample).text);
+			} catch (cause) {
+				return `has the block type '${kind}', which throws reading its sample (${String(cause)})`;
+			}
+			const what = nonObjectData(data);
+			if (what) {
+				return `has the block type '${kind}', whose data is ${what}: a container's data must be an object`;
+			}
 		}
 	}
 	return null;

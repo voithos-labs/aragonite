@@ -111,15 +111,15 @@ export const CONTAINER_DECLARED: KitCell<'containerDeclared', ContainerCellConte
 };
 
 // A marked shape's `reads` against its own markers is the install's to refuse (G1.191).
-function shapeReadsItsWriting(kind: AnyBlockKind, lines: LineShape<unknown>, data: unknown): void {
-	if (lines.shape === 'indented') indentedReadsBack(kind, lines, data);
+function shapeReadsItsWriting(kind: AnyBlockKind, lines: LineShape<object>, data: unknown): void {
+	if (lines.shape === 'indented') indentedReadsBack(kind, lines, data as object);
 	else if (lines.shape === 'marked' && 'head' in lines) {
-		headReadsBack(kind, lines as HeadedLines<unknown>, data);
+		headReadsBack(kind, lines as HeadedLines<object>, data as object);
 	}
 }
 
 /** A head line written from the data the sample was read as reads back as that data. */
-function headReadsBack(kind: AnyBlockKind, lines: HeadedLines<unknown>, data: unknown): void {
+function headReadsBack(kind: AnyBlockKind, lines: HeadedLines<object>, data: object): void {
 	const written = lines.head.write(data);
 	const again = lines.head.match.exec(written);
 	assert(
@@ -131,7 +131,7 @@ function headReadsBack(kind: AnyBlockKind, lines: HeadedLines<unknown>, data: un
 
 /** The first line's marker written from the data reads back through `open` as that data, and the
  *  lines after it indent with spaces only. */
-function indentedReadsBack(kind: AnyBlockKind, lines: IndentedLines<unknown>, data: unknown): void {
+function indentedReadsBack(kind: AnyBlockKind, lines: IndentedLines<object>, data: object): void {
 	const marker = lines.first(data);
 	const read = lines.open.exec(`${marker}probe`);
 	assert(
