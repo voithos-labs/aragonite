@@ -249,4 +249,35 @@ describe('a container whose data is not an object', () => {
 		expect(m.instance.plugins).not.toContain('boxes');
 		expect(m.instance.getSource()).toBe(source);
 	});
+
+	// Miss-analysis: the check runs the author's line reading at install, where nothing parses yet,
+	// and no row gave it a reading that throws.
+	it.each([
+		['its data', { ...NOTE_LINES, data: () => thrown('no data') }, 'Error: no data'],
+		['its first marker', { ...NOTE_LINES, first: () => thrown('no marker') }, 'Error: no marker']
+	])(
+		'whose sample throws in %s leaves its plugin out, the editor mounted',
+		async (_, lines, said) => {
+			const errors: PluginError[] = [];
+			const plugin = boxes({ lines: lines as never, sample: '[^a]: first' });
+			const m = mountEditor({
+				source: 'plain\n',
+				plugins: [plugin],
+				onError: (e) => errors.push(e)
+			});
+			await m.settle();
+			expect(errors.map((e) => [e.doing, (e.cause as Error).message])).toEqual([
+				[
+					'install',
+					`plugin 'boxes' has the block type 'boxes/box', which throws reading its sample (${said})`
+				]
+			]);
+			expect(m.instance.plugins).not.toContain('boxes');
+			expect(m.instance.getSource()).toBe('plain\n');
+		}
+	);
 });
+
+function thrown(message: string): never {
+	throw new Error(message);
+}

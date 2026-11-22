@@ -432,7 +432,12 @@ function containerDataProblem(unit: InstalledPlugin): string | null {
 		const lines = making.registration.container?.lines;
 		const sample = making.registration.conformanceFixture;
 		if (!sample || (lines?.shape !== 'marked' && lines?.shape !== 'indented')) continue;
-		const data: unknown = openingData(lines, firstDisplayLine(sample).text);
+		let data: unknown;
+		try {
+			data = openingData(lines, firstDisplayLine(sample).text);
+		} catch (cause) {
+			return `has the block type '${kind}', which throws reading its sample (${String(cause)})`;
+		}
 		if (data === undefined || (typeof data === 'object' && data !== null)) continue;
 		const what = data === null ? 'null' : `a ${typeof data}`;
 		return `has the block type '${kind}', whose data is ${what}: a container's data must be an object`;
