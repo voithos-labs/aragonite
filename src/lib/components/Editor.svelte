@@ -175,7 +175,7 @@
 	import { createPaintSources } from '../decorations/plugin-paint.svelte';
 	import { createDocumentRead } from '../editor-actions/commit/document-read';
 	import { measured } from '../tree-operations/top-level-starts';
-	import { comparePaths, pathHasPrefix, pathsEqual } from '../selection/path-math';
+	import { placingPaths } from '../selection/placing-blocks';
 	import { serialize } from '../core/serializer';
 	import { createEditorPluginContexts, mintEditorId } from '../schema/plugin-editor-context';
 	import { insertRows } from '../schema/insert-catalogue';
@@ -1573,34 +1573,14 @@
 		return !selection.focus.cellCoordinate && isCollapsed(selection) ? null : selection;
 	}
 
-	/** The blocks a block type's command runs on with none given: the nearest around the caret whose
-	 *  type is one of `kinds`, or over a selection across blocks each covered one's outermost. */
+	/** The blocks a block type's command runs on with none given, and over a selection across blocks
+	 *  the step their runs share. */
 	function placingBlocks(kinds: ReadonlySet<string>): PlacingBlocks {
 		const selection = getSelection();
-		const focus = selection?.focus.path ?? [];
-		const anchor = selection?.anchor.path ?? focus;
-		if (!selection || pathsEqual(anchor, focus)) {
-			for (let depth = focus.length; depth >= 1; depth--) {
-				const at = focus.slice(0, depth);
-				const node = blockNodeAt(doc, at);
-				if (node && kinds.has(node.kind)) return { blocks: [documentRead.blockOf(node, at)] };
-			}
-			return { blocks: [] };
-		}
-		const forward = comparePaths(anchor, focus) < 0;
-		const [from, to] = forward ? [anchor, focus] : [focus, anchor];
-		const end = forward ? selection.focus : selection.anchor;
-		// An end at a block's first byte holds none of it, as Tab over a range reads it.
-		const endsBefore = (at: number[]) => !end.cellCoordinate && !end.offset && pathsEqual(at, to);
-		const found: Block[] = [];
-		// A block is covered unless all of it lies before `from` or after `to`.
-		const visit = (node: NodeView, at: number[]): void => {
-			const before = comparePaths(at, from) < 0 && !pathHasPrefix(from, at);
-			if (before || comparePaths(at, to) > 0 || endsBefore(at)) return;
-			if (kinds.has(node.kind)) return void found.push(documentRead.blockOf(node, at));
-			node.children?.forEach((child, i) => visit(child, [...at, i]));
-		};
-		for (let i = from[0]; i <= to[0]; i++) visit(doc.children[i], [i]);
+		if (!selection) return { blocks: [] };
+		const { paths, across } = placingPaths(doc, selection, kinds);
+		const blocks = paths.map((at) => documentRead.blockOf(blockNodeAt(doc, at)!, at));
+		if (!across) return { blocks };
 		// The selection the step opened over comes back once its writes land, as Mod+B's does.
 		const step = (run: () => void) => {
 			const { path, offset } = selection.focus;
@@ -1608,7 +1588,7 @@
 				.undoStep({ path: docPathFrom(path), offset }, async () => run())
 				.then(() => caretLanding.restore(selection));
 		};
-		return { blocks: found, step };
+		return { blocks, step };
 	}
 
 	function caretAt(path: number[], offset = 0): EditorSelection {

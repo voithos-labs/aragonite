@@ -9,7 +9,7 @@ import type { DocumentView, NodeView } from '../core/node-views';
 import { displayLength } from '../core/lines';
 import { metadataOf } from '../core/nodes';
 import { assertInvariant } from '@voithos-labs/aragonite/dev-checks';
-import { cellIndexOf, normalize, type SelectionPoint } from './primitives';
+import { cellIndexOf, charOffsetOf, normalize, type SelectionPoint } from './primitives';
 import { snapCrossBlockTableEndpoints } from './table-endpoint-snap';
 import { collapsedContainerHiding } from './path-lookup';
 import {
@@ -25,7 +25,7 @@ import {
 	docPathFrom,
 	type CellRect
 } from '../core/coordinate-spaces';
-import { isBlockNode, nodeAt } from '../tree-operations/node-primitives';
+import { blockNodeAt, isBlockNode, nodeAt } from '../tree-operations/node-primitives';
 import { isBlankParagraph } from '../core/parser';
 import { countsCells, isGridKind, tableCellCount } from '../schema/block-kind-descriptor';
 import { isWholeBlockUnit } from '../schema/whole-block-unit';
@@ -187,6 +187,24 @@ export function walkBetween(
 	return result;
 }
 
+/** Each leaf the range covers, with the text offsets it covers, until `visit` answers true; Tab and
+ *  a block type's command both read it. A pair inside one table covers cells, so it visits none. */
+export function forEachCoveredLeaf(
+	doc: DocumentView,
+	coverage: RangeCoverage,
+	visit: (path: number[], from: number, to: number) => boolean
+): void {
+	if (coverage.grid) return;
+	const { start, end } = coverage.range;
+	if (coverage.startEdge && visit(start.path, textOffset(start), Infinity)) return;
+	for (const root of coverage.wholeRoots) {
+		for (const leaf of leavesUnder(doc, root)) if (visit(leaf, 0, Infinity)) return;
+	}
+	// An end at its block's first byte holds none of that block.
+	const endAt = textOffset(end);
+	if (coverage.endEdge && endAt !== 0) visit(end.path, 0, endAt);
+}
+
 // ── Title-line containers ───────────────────────────────────────────────────
 
 /** A container whose kind reserves its first child as a title row (a details block's summary). */
@@ -225,6 +243,21 @@ export function titleRowOwner(doc: DocumentView, path: readonly number[]): NodeV
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────
+
+/** A cell endpoint names no text offset; its table is covered from or to its edge. */
+const textOffset = (point: SelectionPoint): number =>
+	point.cellCoordinate ? Infinity : charOffsetOf(point, 'forEachCoveredLeaf');
+
+function leavesUnder(doc: DocumentView, root: readonly number[]): number[][] {
+	const leaves: number[][] = [];
+	const walk = (node: NodeView, path: number[]) => {
+		if (!node.children?.length) return void leaves.push(path);
+		node.children.forEach((child, i) => walk(child, [...path, i]));
+	};
+	const node = blockNodeAt(doc, root);
+	if (node) walk(node, [...root]);
+	return leaves;
+}
 
 function sealed(start: SelectionPoint, end: SelectionPoint, wholeUnits: DocPath[]): CoveredRange {
 	return new CoveredRange(SEAL, start, end, wholeUnits);

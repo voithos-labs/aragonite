@@ -8,9 +8,14 @@
 import type { CstNode, Document } from '../../core/nodes';
 import { ownTrailingLineEnding } from '../../core/lines';
 import type { CrossBlockDispatchContext } from './dispatch';
-import { charOffsetOf, deleteSnapshot, type SelectionPoint } from '../primitives';
+import { deleteSnapshot, type SelectionPoint } from '../primitives';
 import { comparePaths } from '../path-math';
-import { coverRange, rangeCoverage, type RangeCoverage } from '../range-coverage';
+import {
+	coverRange,
+	forEachCoveredLeaf,
+	rangeCoverage,
+	type RangeCoverage
+} from '../range-coverage';
 import { blockNodeAt, isBlockNode, nodeAt } from '../../tree-operations/node-primitives';
 import { containerScopeState } from '../../tree-operations/paste/parent-scope';
 import { nestListItem, liftNestedItem } from '../../tree-operations/list/item-moves';
@@ -160,39 +165,6 @@ export function coversIndentBinding(
 /** Whether the key indents the leaf at `path` or the item holding it. */
 export function bindsIndentAt(doc: Document, path: number[], formOf: IndentFormOf): boolean {
 	return indentTargetAt(doc, path, formOf) !== null;
-}
-
-/** Each leaf the range covers with the text offsets it covers, until `visit` answers true. A grid
- *  holds nothing to indent, so it visits none. */
-function forEachCoveredLeaf(
-	doc: Document,
-	coverage: RangeCoverage,
-	visit: (path: number[], from: number, to: number) => boolean
-): void {
-	if (coverage.grid) return;
-	const { start, end } = coverage.range;
-	if (coverage.startEdge && visit(start.path, textOffset(start), Infinity)) return;
-	for (const root of coverage.wholeRoots) {
-		for (const leaf of leavesUnder(doc, root)) if (visit(leaf, 0, Infinity)) return;
-	}
-	// An end at its block's first byte holds none of that block.
-	const endAt = textOffset(end);
-	if (coverage.endEdge && endAt !== 0) visit(end.path, 0, endAt);
-}
-
-/** A cell endpoint names no text offset, and no cell holds a line to shift. */
-const textOffset = (point: SelectionPoint): number =>
-	point.cellCoordinate ? Infinity : charOffsetOf(point, 'range-indent');
-
-function leavesUnder(doc: Document, root: readonly number[]): number[][] {
-	const leaves: number[][] = [];
-	const walk = (node: CstNode, path: number[]) => {
-		if (!node.children?.length) return void leaves.push(path);
-		node.children.forEach((child, i) => walk(child, [...path, i]));
-	};
-	const node = blockNodeAt(doc, [...root]);
-	if (node) walk(node, [...root]);
-	return leaves;
 }
 
 // ── The writes ─────────────────────────────────────────────────────────────

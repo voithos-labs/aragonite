@@ -549,20 +549,21 @@ describe('a placed command over a selection across blocks', () => {
 		expect(m.editor.instance.getSelection()).toEqual(held);
 	});
 
-	// Miss-analysis: every range row ended inside a block's text; an end at a leaf's first byte
-	// holds none of it, as Tab over a range and a block's own bytes read it.
-	it("leaves out a leaf type's block the range ends at the first byte of", async () => {
-		const { plugin, mark, marked } = makeMemos((mark) => ({
-			actions: [{ label: 'Mark', command: mark }]
-		}));
-		const editor = mountEditor({ source: 'intro\n\n@@ one\n\n@@ two\n', plugins: [plugin] });
-		await editor.settle();
-		await editor.instance.setSelection({
-			anchor: { path: [1], offset: 4 },
-			focus: { path: [2], offset: 0 }
+	// Miss-analysis: the range rows ended inside a block's text or at a leaf's first byte, never at
+	// the first byte of a container's text, which the key still ran on with nothing of it selected.
+	it('leaves out, by its key, the alert the range ends at the first byte of', async () => {
+		const source = 'intro\n\n%> [!NOTE]\n%> one\n\n%> [!TIP]\n%> two\n\nafter\n';
+		const m = await mounted(source);
+		await m.editor.instance.setSelection({
+			anchor: { path: [1, 0], offset: 0 },
+			focus: { path: [2, 0], offset: 0 }
 		});
-		expect(editor.instance.run(mark)).toBe(true);
-		expect(marked).toEqual(['@@ one\n@7']);
+		await m.editor.settle();
+		const held = m.editor.instance.getSelection();
+		await pressKey(surfaceAt(m.editor, [2, 0]), CTRL_7);
+		await m.editor.settle();
+		expect(m.editor.source()).toBe('intro\n\n%> [!TIP]\n%> one\n\n%> [!TIP]\n%> two\n\nafter\n');
+		expect(m.editor.instance.getSelection()).toEqual(held);
 	});
 
 	// Miss-analysis: the key rows ended their selection inside an alert, so the key always landed

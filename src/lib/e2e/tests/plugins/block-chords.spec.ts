@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures';
 import { PluginsPage, capturedErrors } from './helpers';
-import { edgeKey } from '../../platform-keys';
+import { edgeKey, extendKey } from '../../platform-keys';
 
 // The alerts plugin's `%> [!TYPE]` container takes Mod+7 and offers a menu row, each running its
 // command on the alert (requirements/plugins/block-chords.md).
@@ -64,6 +64,49 @@ test.describe("a block type's key", () => {
 			.toBe('%> [!TIP]\n%> one\n\n%> [!WARNING]\n%> two\n\nlast\n');
 		await page.keyboard.press('ControlOrMeta+z');
 		await expect.poll(() => editor.bridge.getSource()).toBe(two);
+	});
+
+	const TWO = 'intro\n\n%> [!NOTE]\n%> one\n\n%> [!TIP]\n%> two\n\nafter\n';
+	const at = (path: number[], offset: number) => ({ path, offset });
+
+	test('Mod+7 over a selection one step into the next alert cycles only the first, which it holds', async ({
+		page
+	}) => {
+		await editor.loadContent(TWO);
+		await page.getByText('one').click();
+		await page.keyboard.press(edgeKey('lineStart'));
+		await page.keyboard.press(extendKey('lineEnd'));
+		await page.keyboard.press('Shift+ArrowRight');
+		expect(await editor.bridge.getSelection()).toEqual({
+			anchor: at([1, 0], 0),
+			focus: at([2, 0], 0)
+		});
+		await page.keyboard.press('ControlOrMeta+7');
+		await expect
+			.poll(() => editor.bridge.getSource())
+			.toBe('intro\n\n%> [!TIP]\n%> one\n\n%> [!TIP]\n%> two\n\nafter\n');
+	});
+
+	test("Mod+7 over a selection that reaches only an alert's first character cycles nothing", async ({
+		page
+	}) => {
+		await editor.loadContent(TWO);
+		await page.getByText('intro').click();
+		await page.keyboard.press(edgeKey('lineEnd'));
+		await page.keyboard.press('Shift+ArrowLeft');
+		await page.keyboard.press('Shift+ArrowRight');
+		await page.keyboard.press('Shift+ArrowRight');
+		expect(await editor.bridge.getSelection()).toEqual({
+			anchor: at([0], 5),
+			focus: at([1, 0], 0)
+		});
+		await page.keyboard.press('ControlOrMeta+7');
+		// The second alert's key lands after the first, so a cycle the first made would show beside it.
+		await page.getByText('two').click();
+		await page.keyboard.press('ControlOrMeta+7');
+		await expect
+			.poll(() => editor.bridge.getSource())
+			.toBe('intro\n\n%> [!NOTE]\n%> one\n\n%> [!WARNING]\n%> two\n\nafter\n');
 	});
 
 	test("Enter in the alert's paragraph still splits it, a key the paragraph binds itself", async ({
