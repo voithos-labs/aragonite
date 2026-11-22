@@ -71,9 +71,13 @@ interface CheckSpec<C extends CheckName> {
 	};
 }
 
-const promise = (text: string): CellContract => ({ promise: text, anchor: ANCHOR });
+// Each helper the table calls is marked pure: a host importing `configureEditorEnv` from `/testing`
+// would otherwise ship the table (G4.375).
+/* @__NO_SIDE_EFFECTS__ */
+function promise(text: string): CellContract {
+	return { promise: text, anchor: ANCHOR };
+}
 
-// Marked pure: a host importing `configureEditorEnv` from `/testing` would otherwise ship the table.
 /* @__NO_SIDE_EFFECTS__ */
 function kitPromise<C extends string>(table: Record<C, CellContract>, cell: C): CellContract {
 	return promise(table[cell].promise);
