@@ -184,18 +184,47 @@ describe('the answers a widget is handed', () => {
 			const m = mountEditor<EditorTestSurface>({ source, plugins, presentationMode: 'live' });
 			await m.settle();
 			await route.setUp?.(m, N);
+			const widget = () => m.target.querySelector('[data-inline-widget]');
+			expect(widget(), 'a widget before the write').not.toBeNull();
 			const was = m.instance.doc.blocks.map(fewSay);
 			const calls = log.length;
 			await route.write(m, N);
 			await m.settle();
-			// A route that reads the document again without the plugin or the block leaves no widget.
-			if (!m.target.querySelector('[data-inline-widget]')) return;
+			// Only a route that reads the document again, without the plugin or the block, drops it.
+			if (route.announces === 'whole' && !widget()) return;
+			expect(widget(), 'a widget after the write').not.toBeNull();
 			const now = m.instance.doc.blocks.map(fewSay);
 			expect(aligned(log.at(-1)!, now), 'the answers held').toBe(true);
 			const drawn = log.length - calls;
 			if (!aligned(was, now)) expect(drawn, 'an answer moved').toBeGreaterThan(0);
 			else if (route.announces === 'exact') expect(drawn, 'no answer moved').toBe(0);
 		});
+	});
+
+	const BESIDE = definePlugin({
+		name: 'beside',
+		version: '1.0.0',
+		editor: '*',
+		contributes: () => ({})
+	});
+
+	// The two routes above that read the document again drop the widget; these keep it.
+	it.each<[string, (m: Mounted, plugin: ReturnType<typeof refPlugin>) => unknown]>([
+		['a load', (m) => m.instance.load(m.source().replace('para two', '## Low'))],
+		['a use that keeps the plugin', (m, plugin) => m.instance.use([plugin, BESIDE])]
+	])('equal a fresh evaluation after %s', async (_name, write) => {
+		const log: string[][] = [];
+		const plugin = refPlugin(headingsIn, log);
+		const m = mountEditor<EditorTestSurface>({
+			source: DOC,
+			plugins: [plugin],
+			presentationMode: 'live'
+		});
+		await m.settle();
+		await write(m, plugin);
+		await m.settle();
+		expect(shown(m)).not.toBeUndefined();
+		expect(log.at(-1)).toEqual(m.instance.doc.blocks.map(headingsIn));
 	});
 
 	it('are never changed after they are handed over', async () => {
