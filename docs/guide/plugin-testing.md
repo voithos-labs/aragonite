@@ -239,7 +239,7 @@ An inline construct is one subject, and so is a marker pair, both its sides. Eac
 - `inlineDecline`, for all but a mark: a claim at a bracket gives way where the editor's own link or image closes inside it.
 - `widget`, `editingPolicy` and `dependsContent`, for a widget: one unit over bytes that read alone; its fields, `inner` and a whole delete as the editor reads them; `depends` answering the same wherever the block stands.
 - `inlineWriter`, for `as: 'image'` or `'link'`: your `write` gives a claim's bytes back from what was read out of them.
-- `inlinePlace`, for an inline or a mark with `after`: it names a construct on its own character, or a mark.
+- `inlinePlace`, for an inline or a mark with `after`: an inline's names a construct on its own character, a mark's names a mark.
 - `pairSides`, for a marker pair: each side reads alone in a block, and both sides of one pair read one `key`.
 
 An excuse covers a check your block type or inline can't pass, with a reason of a sentence: `excuse: { blocks: { memo: { undo: '…' } } }`, or `{ inlines: { formula: { widget: '…' } } }`. It's a claim, not a waiver. One over a check that passed, a check that doesn't apply, or a subject you don't list fails the run, and a misspelt check or one no excuse covers doesn't compile. Your package's `./conformance` export is the same call as data, a `Conformance`: `{ plugin, options?, excuse? }`, the plugin value itself rather than a call of it.
