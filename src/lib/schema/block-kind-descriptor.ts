@@ -16,7 +16,7 @@ import { enrollTestReset } from './registry-reset';
 import type { ChildRawChange } from './child-spans';
 import type { StripRebuild } from './strip-rebuild';
 import { registeredChord, type KeyBinding } from './keybindings';
-import type { HeightEstimateEnv } from './height-estimates';
+import type { HeightMetrics } from './height-estimates';
 import { closesOwnLine, rejectIncoherentPairs } from './registration-pairs';
 import { blockViewForm, isBlockView, type BlockView } from './block-view';
 import type { PluginActivation } from './plugin-activation';
@@ -229,7 +229,7 @@ export interface BlockKindDescriptor {
 	 * O(1) content height in px for windowing, frame excluded; a measured height still wins.
 	 * `height-estimates.ts` has the common shapes. Absent: the container or prose estimate.
 	 */
-	estimateHeight?: (node: NodeView, env: HeightEstimateEnv) => number;
+	estimateHeight?: (node: NodeView, env: HeightMetrics) => number;
 
 	// ── Presentation ──────────────────────────────────────────────────────────
 

@@ -1,9 +1,10 @@
 /**
  * Type pins for what every block type answers: a menu row's label may read the block it opened
- * over, and a type's icon may be its own SVG. The `@ts-expect-error` lines are the assertions, so
- * `npm run check` fails if one starts compiling, and so does a line above them that stops.
- * Miss-analysis: a row's label was a string alone and a type's icon a glyph's name alone, and no
- * pin held what an author writes beyond them.
+ * over, a type's icon may be its own SVG, and its height may read the editor's metrics. The
+ * `@ts-expect-error` lines are the assertions, so `npm run check` fails if one starts compiling,
+ * and so does a line above them that stops.
+ * Miss-analysis: a row's label was a string alone, a type's icon a glyph's name alone and its
+ * height a function of the block alone, and no pin held what an author writes beyond them.
  */
 import { expect, it } from 'vitest';
 import { command, container, type Block } from '#lib/plugin.js';
@@ -42,6 +43,15 @@ export const icons = () => [
 	container({ ...alert, lines, icon: { path: 'M0 0' } })
 ];
 
+// A height written before it took the metrics still compiles.
+export const heights = () => [
+	container({ ...alert, lines, height: () => 320 }),
+	container({ ...alert, lines, height: (block) => block.text.length }),
+	container({ ...alert, lines, height: (_block, metrics) => metrics.width / 2 }),
+	// @ts-expect-error the editor's metrics are read-only
+	container({ ...alert, lines, height: (_block, metrics) => (metrics.width = 1) })
+];
+
 it('compiles the pins above', () => {
-	expect([labels, icons]).toHaveLength(2);
+	expect([labels, icons, heights]).toHaveLength(3);
 });

@@ -27,6 +27,7 @@ import {
 } from './drawing';
 import type { LineEnding } from '../core/lines';
 import type { CodePainter } from './code-highlighter';
+import type { HeightMetrics } from './height-estimates';
 
 // ── Specs ────────────────────────────────────────────────────────────────────
 
@@ -49,8 +50,9 @@ export interface BlockCommon<D, K extends string = BlockKey> {
 	interrupts?: boolean;
 	/** Block types tried after this one, by reference, so its place can't drift. */
 	before?: BlockType<unknown> | readonly BlockType<unknown>[];
-	/** The height to hold, in pixels, before the block is drawn. */
-	height?(block: Block<NoInfer<D>>): number;
+	/** The height to hold before the block is drawn, in pixels and without `metrics.blockChrome`,
+	 *  which the editor adds. */
+	height?(block: Block<NoInfer<D>>, metrics: HeightMetrics): number;
 	/** A line typed, or entered, that this block type completes into its full form. */
 	complete?: Completion;
 	/** Keys that act in this block type and the blocks it holds, each running its command on the
@@ -353,7 +355,8 @@ export function fixtureOf(sample: string | readonly string[] | undefined) {
 	return { conformanceFixture: first.endsWith('\n') ? first : `${first}\n` };
 }
 
-export function heightEstimate(height: (block: Block<never>) => number) {
+export function heightEstimate(height: (block: Block<never>, metrics: HeightMetrics) => number) {
 	// A type named by the kind is enough here: `is` compares names.
-	return (node: NodeView) => height(makeBlock<never>(node, DETACHED_READING, null));
+	return (node: NodeView, metrics: HeightMetrics) =>
+		height(makeBlock<never>(node, DETACHED_READING, null), metrics);
 }
