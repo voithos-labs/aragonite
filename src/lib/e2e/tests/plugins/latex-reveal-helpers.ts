@@ -25,7 +25,9 @@ export class BlockMathPage extends PluginsPage {
 		return (await this.source.textContent()) ?? '';
 	}
 
-	async gotoMathSeed(seed: 'mathblock' | 'mathblock-multiline' | 'mathfence'): Promise<void> {
+	async gotoMathSeed(
+		seed: 'mathblock' | 'mathblock-multiline' | 'mathblock-highlight' | 'mathfence'
+	): Promise<void> {
 		await this.gotoPlugins(seed);
 		await expect(this.render).toHaveCount(1);
 	}

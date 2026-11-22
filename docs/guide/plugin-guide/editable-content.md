@@ -83,7 +83,7 @@ const label = lineBlock({
 });
 ```
 
-**A painted source.** By default the text is one text node. Give the spec a `renderSource(text)` and it paints the text as DOM instead: fence lines the marker-hiding modes collapse, highlight tokens, whatever your block draws. `renderFencedSource` draws a fenced source the way the code block does, with `highlightCode` as its tokenizer. The editor checks `textContent === text` on every paint, so a painter that drops a byte fails loudly in dev rather than corrupting a commit.
+**A painted source.** By default the text is one text node. Give the spec a `renderSource(text, paint)` and it paints the text as DOM instead: fence lines the marker-hiding modes collapse, highlight tokens, whatever your block draws. `renderFencedSource` draws a fenced source the way the code block does, the body through `paint.code(body, language)`, which highlights with whatever highlighter the editor lists and paints plain without one. The editor checks `textContent === text` on every paint, so a painter that drops a byte fails loudly in dev rather than corrupting a commit.
 
 A painted source takes its plain-text edits from the leaf, not the browser: typing, Enter, deletes and pastes splice the text and repaint. Undo inside the open text walks those edits back before it reaches the document's history, whether you pressed the undo key or picked Undo from the browser's menu. An edit the browser makes itself (an IME commit) gets repainted too. Two more pieces go with a painter:
 

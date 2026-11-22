@@ -7,6 +7,7 @@ import type { LineEnding } from '../core/lines';
 import type { NodeView } from '../core/node-views';
 import type { Mode } from '../presentation-mode';
 import type { Block } from './doc-view';
+import type { CodePainter } from './code-highlighter';
 import type { BlockView } from './block-view';
 import type { BlockType, Editor } from './plugin-unit';
 
@@ -90,7 +91,7 @@ export interface Drawing {
 	readonly singleLine: boolean;
 	draw(block: Block<unknown>, ctx: DrawContext): Drawn<unknown, DrawContext>;
 	depends?(block: Block): string;
-	renderSource?(text: string): DocumentFragment;
+	renderSource?(text: string, paint: CodePainter): DocumentFragment;
 	reshapeSource?(
 		text: string,
 		caret: number,

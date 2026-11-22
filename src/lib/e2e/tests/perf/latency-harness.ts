@@ -209,6 +209,35 @@ export async function measureTypingLatency(
 	return measureTypingIntoDocument(page, editor, fixture, keystrokes);
 }
 
+/** A JavaScript fence of `lines` lines, then a paragraph, as one document. */
+function codeFenceFixture(lines: number): string {
+	const body = Array.from({ length: lines }, (_, i) => `const value${i} = compute(${i}, "row");`);
+	return '```js\n' + body.join('\n') + '\n```\n\nafter\n';
+}
+
+/**
+ * Letters typed at the end of a fence's last line, in live mode, where the fence lines hide; the
+ * harness highlights it through the package, as 0.11.5's did through the core.
+ */
+export async function measureCodeFenceTyping(
+	page: Page,
+	editor: EditorPage,
+	lines: number,
+	keystrokes: number
+): Promise<LatencyMeasurement> {
+	await editor.goto('?presentationMode=live');
+	const fixture = codeFenceFixture(lines);
+	const loadMs = await loadFixture(page, editor, fixture);
+	const lastLineEnd = fixture.indexOf('\n```\n');
+	await page.evaluate(
+		(offset) => (window as any).__test.parkCaretInBlockComponent([0], offset),
+		lastLineEnd
+	);
+	const base0 = await block0Length(page);
+	const samples = await sampleKeystrokes(page, editor, base0, keystrokes);
+	return { loadMs, samples, p50Ms: percentileMs(samples, 50), p95Ms: percentileMs(samples, 95) };
+}
+
 /**
  * {@link measureTypingLatency} with a listener that asks where the edited block starts on every
  * edit, the way a plugin following the caret does. A row whose listener placed no byte fails.

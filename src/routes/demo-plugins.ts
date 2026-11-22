@@ -1,4 +1,6 @@
 import { admonitionsPlugin } from '@voithos-labs/aragonite-admonitions';
+import { highlight } from '@voithos-labs/aragonite-highlight';
+import { highlightJs } from '@voithos-labs/aragonite-highlight/renderer';
 import { detailsPlugin } from '@voithos-labs/aragonite-details';
 import { tocPlugin } from '@voithos-labs/aragonite-toc';
 import { footnotesPlugin } from '@voithos-labs/aragonite-footnotes';
@@ -23,6 +25,7 @@ export const DEMO_EMOJI = emojiPlugin();
 export const DEMO_HIGHLIGHT_OCCURRENCES = highlightOccurrencesPlugin();
 export const DEMO_LATEX = latexPlugin({ renderer: katexRenderer });
 export const DEMO_MERMAID = mermaidPlugin({ renderer: mermaidRenderer });
+export const DEMO_HIGHLIGHT = highlight({ renderer: highlightJs() });
 export const DEMO_PARROT = parrotPlugin();
 // Opt-in for a consumer; the showcase opts in, so `/` lists the blocks there.
 export const DEMO_SLASH_COMMANDS = slashCommands;
@@ -40,5 +43,6 @@ export const DEMO_PLUGINS = [
 	DEMO_LATEX,
 	DEMO_MERMAID,
 	DEMO_PARROT,
-	DEMO_SLASH_COMMANDS
+	DEMO_SLASH_COMMANDS,
+	DEMO_HIGHLIGHT
 ];

@@ -68,8 +68,8 @@ import { probeEditor, setProbePaint } from './paint-probe-plugin';
 type EditorInstance = ReturnType<typeof Editor>;
 
 // A kind whose component throws on render: a throwing stub isn't a full BlockComponent, but it
-// throws before any method is read.
-const throwProbePlugin = definePlugin({
+// throws before any method is read. A route lists it for its blocks to resolve in its editor.
+export const throwProbePlugin = definePlugin({
 	name: 'throw-probe',
 	setup() {
 		registerBlockKind(declarePluginKind('throwTest'), {
@@ -428,8 +428,15 @@ export function installTestProbes({
 			ops.push(e.op);
 		});
 
+	// The plugin each `error` event names, from mount on, so a spec counts one failure's reports.
+	const errorPlugins: (string | null)[] = [];
+	editor.getEvents().on('error', (e: { context?: { plugin?: string } }) => {
+		errorPlugins.push(e.context?.plugin ?? null);
+	});
+
 	(window as any).__test = {
 		getSource: () => editor.getSource(),
+		errorPlugins: () => [...errorPlugins],
 		getDocument: () => editor.__test.getDocument(),
 		// The height guesses a windowed list's spacers are built from, so a spec can recompute them.
 		getHeightOracle: () => editor.__test.getHeightOracle(),

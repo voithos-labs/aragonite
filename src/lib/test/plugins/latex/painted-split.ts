@@ -1,11 +1,15 @@
 // The `$$` or ```math split the painter draws, read back off the DOM it builds.
 import { renderMathSource } from '#packages/latex/src/math-source.js';
 import type { MathSource } from '#packages/latex/src/math-shape.js';
+import type { CodePainter } from '#lib/plugin.js';
+
+/** Paints a body as its text, as an editor with no highlighter does. */
+export const plainPainter: CodePainter = { code: (body) => document.createTextNode(body) };
 
 /** Opener and closer read off the fence-line markers, the body and the text past the closer as
  *  painted; null when the painter draws no fence line. */
 export function paintedSplit(text: string): MathSource | null {
-	const nodes = Array.from(renderMathSource(text).childNodes);
+	const nodes = Array.from(renderMathSource(text, plainPainter).childNodes);
 	const fences = nodes.flatMap((node, i) =>
 		node instanceof Element && node.classList.contains('md-fence-line') ? [i] : []
 	);

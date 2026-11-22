@@ -291,6 +291,7 @@ const BUNDLED_INSTALLS: { dir: string; kind: string; install: (view: BlockView) 
 ];
 
 const NO_BLOCK_KIND_DIRS = new Set([
+	'highlight',
 	'highlight-occurrences',
 	'emoji',
 	'slash-commands',

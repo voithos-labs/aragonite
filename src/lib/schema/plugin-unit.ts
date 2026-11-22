@@ -17,6 +17,7 @@ import type { Draft } from './drafts';
 import type { Block, Doc } from './doc-view';
 import type { Selection, SelectionInput } from './selection-read';
 import type { BlockPaint, Paint, PaintContext } from '../decorations/paint';
+import type { CodeHighlighter } from './code-highlighter';
 import type { Inline } from './inline-type';
 import type { MarkerPair } from './marker-pair-maker';
 import { isValidPluginName } from './plugin-name';
@@ -89,6 +90,8 @@ export interface Contribution {
 	/** What the paint reads of `block`, a top-level block, from its content alone (the footnotes it
 	 *  references, say), handed back as `ctx.depends`; a changed answer paints the screen again. */
 	paintDepends?(block: Block): string;
+	/** Highlights fenced code in the languages it lists, which the code block's picker offers. */
+	code?: CodeHighlighter;
 }
 
 /** The editor as a plugin's `setup` and a host's handle both see it. */

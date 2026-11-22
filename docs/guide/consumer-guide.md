@@ -23,7 +23,7 @@ This is gonna be a long one, so here are the sections:
 | [Events](#events) | The eight channels an editor reports on, and what each one carries |
 | [Presentation modes](#presentation-modes) | One document shown five ways, from raw Markdown to fully rendered |
 | [Images and links](#images-and-links) | Rewriting URLs, importing pasted images, and which URLs the editor refuses to load |
-| [Plugins](#plugins) | Installing plugins, why the whole app should share one set, and the ten that ship in the box |
+| [Plugins](#plugins) | Installing plugins, why the whole app should share one set, and the twelve that ship in the box |
 | [Theming](#theming) | The CSS variables the editor reads, and three ways to restyle it |
 | [Keyboard shortcuts](#keyboard-shortcuts) | Every shortcut, how to rebind or disable one, and which keys the editor swallows |
 | [Embedding in a host layout](#embedding-in-a-host-layout) | Letting your page scroll the editor, and putting your own content above the document |
@@ -66,6 +66,8 @@ A few things in the above example snippet are decently important; you might want
 3. **`theme` should match your page.** The editor paints no background of its own. Its text takes your page's color, and everything it does paint (menus, the find bar, toolbars, code block fills) uses `theme`'s colors. A fresh app's page is white, hence `light`; on a dark page write `dark`, or nothing, dark being the default. Want the built-in colors and font around the editor too? Wrap it in a `div` with the `aragonite-editor-theme` class and the same `data-editor-theme`, which hands them to the editor's text and to anything of yours inside it. [Theming](#theming) has how to customize the rest.
 
 Two more that aren't in the snippet but bite early: plugins install once, app-wide, but each editor only runs the ones its own `plugins` prop lists ([Plugins](#plugins)); and `editor.__test.*` is internal and will move, so don't build on it.
+
+One more if you're upgrading: code blocks paint plain until an editor lists the highlight package. 0.11.5 highlighted them out of the box, so run `npm install @voithos-labs/aragonite-highlight highlight.js` and add `highlight({ renderer: highlightJs() })` to `plugins` to keep them colored ([Bundled plugins](#bundled-plugins)). That highlights the same 24 languages 0.11.5 did, under the same spellings, and the picker lists the same rows. A math block's source under latex shows plain without it too.
 
 ## What your build needs
 
@@ -715,7 +717,7 @@ Bytes only change where a rule above says so; a gesture that strands nothing wri
 
 </details>
 
-**The code rail.** Wherever a mode hides a fenced code block's fence, a small rail appears at the code box's top-right on hover or with the caret inside: the block's language (outside reading mode a click opens a picker over every registered language, and Enter or a pick commits as a single undoable edit), a copy button, and whatever your app installed through `onRunCode` and `codeMenuItems` (see [Running a code block](#running-a-code-block)). A fence that has just taken the caret with no language opens the picker by itself, unless the caret arrowed in from a neighbouring block. The rail is the only way to reach an info string (the text after the opening fence that names the language) in those modes; source mode shows the fence itself and gets no rail.
+**The code rail.** Wherever a mode hides a fenced code block's fence, a small rail appears at the code box's top-right on hover or with the caret inside: the block's language (outside reading mode a click opens a picker over every language the editor's highlighters list, and Enter or a pick commits as a single undoable edit), a copy button, and whatever your app installed through `onRunCode` and `codeMenuItems` (see [Running a code block](#running-a-code-block)). A fence that has just taken the caret with no language opens the picker by itself, unless the caret arrowed in from a neighbouring block. The rail is the only way to reach an info string (the text after the opening fence that names the language) in those modes; source mode shows the fence itself and gets no rail.
 
 The effective mode is reflected as `data-presentation` on the editor root (absent in source mode) and announced on the `presentationModeChange` channel.
 
@@ -817,7 +819,7 @@ The same rule covers [directive](directives.md) names. A plugin that claims an a
 
 ### Bundled plugins
 
-Eleven first-party plugins ship as packages of their own, one per plugin, named `@voithos-labs/aragonite-<plugin>` (plugins other people wrote are in the [plugin gallery](plugin-gallery.md)). Install the ones you want next to the editor:
+Twelve first-party plugins ship as packages of their own, one per plugin, named `@voithos-labs/aragonite-<plugin>` (plugins other people wrote are in the [plugin gallery](plugin-gallery.md)). Install the ones you want next to the editor:
 
 ```powershell
 npm install @voithos-labs/aragonite @voithos-labs/aragonite-latex @voithos-labs/aragonite-toc
@@ -831,6 +833,7 @@ import { detailsPlugin } from '@voithos-labs/aragonite-details';
 import { tocPlugin } from '@voithos-labs/aragonite-toc';
 import { footnotesPlugin } from '@voithos-labs/aragonite-footnotes';
 import { emojiPlugin } from '@voithos-labs/aragonite-emoji';
+import { highlight } from '@voithos-labs/aragonite-highlight';
 import { highlightOccurrencesPlugin } from '@voithos-labs/aragonite-highlight-occurrences';
 import { latexPlugin } from '@voithos-labs/aragonite-latex';
 import { mermaidPlugin } from '@voithos-labs/aragonite-mermaid';
@@ -846,6 +849,7 @@ import { spellcheckPlugin } from '@voithos-labs/aragonite-spellcheck';
 | `tocPlugin()` | A `[[toc]]` line becomes a live table of contents: every heading in the document, indented by level, each entry navigating to its heading on click or on Enter from the keyboard |
 | `footnotesPlugin()` | GFM footnotes: `[^label]: content` definitions render as an editable block, and `[^label]` references render as superscript numbers in first-reference order |
 | `emojiPlugin()` | GitHub `:shortcode:` emoji: a bare `:name:` renders as a glyph, with the literal `:name:` still in the source |
+| `highlight({ renderer? })` | Fenced code highlights in its language: 24 common ones, eight with the page and each other one the first time a fence names it, or every highlight.js grammar if you opt in (**Code highlighting**, below). The code block's picker offers the ones it highlights. Without a renderer, code stays plain, which is also what an editor without this plugin shows |
 | `highlightOccurrencesPlugin()` | Every occurrence of the word under the caret, the one you're on included, is highlighted across the document's prose blocks once you stop typing, as a view-only decoration, never a byte change. The plugin picks no color: style `.decoration-overlay.hl-occurrence` to see it |
 | `latexPlugin({ renderer?, blockLayout? })` | All three GitHub math forms through one injected engine: inline `$…$`, block `$$…$$`, and the fenced ` ```math ` form; without an engine each formula shows its source. `blockLayout` (`'split'` default, `'stacked'`, `'source'`) is how a block opens for editing; an editor's `{ plugin, options: { blockLayout } }` entry overrides it per instance |
 | `mermaidPlugin({ renderer? })` | A ` ```mermaid ` fence renders as a diagram through an injected engine; without one, the fence renders statically (the source, styled) |
@@ -877,6 +881,17 @@ The two options:
 - `exclude` hides built-in rows by id: `bullet`, `numbered`, `todo`, `quote`, `divider`, `code`, `table`, `h1`, `h2`, `h3`, plus whatever ids your installed plugins add to `inserts` (the bundled ones add `note`, `details`, `math`, `mermaid` and `toc`).
 
 Calling `slashCommands` with options again lays them over the first ones field by field. So `slashCommands({ entries: [stamp] })({ exclude: ['table'] })` still lists the stamp row, and `({ entries: [] })` is how one editor drops them. A row with both `insert` and `run`, or neither, is refused: the editor reports it (to `onError`, and on the `error` event) and runs the plugin on its defaults.
+
+**Code highlighting.** The editor ships no grammars, so a fence paints plain until an editor lists `highlight`. Its engine, highlight.js, is an optional peer behind a `/renderer` subpath, the way the math and diagram engines below are:
+
+```ts
+import { highlight } from '@voithos-labs/aragonite-highlight';
+import { highlightJs } from '@voithos-labs/aragonite-highlight/renderer';
+
+highlight({ renderer: highlightJs() });
+```
+
+It highlights 24 common languages, the ones the code block's picker lists. Eight load with the page (JavaScript, TypeScript, JSON, bash, Python, HTML, CSS and Markdown), and the other sixteen are chunks of their own, fetched the first time a fence names one. Your bundler splits those chunks out of highlight.js, so serve them with the rest of your build. The colors come from the editor's theme, so there's no stylesheet to import. For every grammar highlight.js ships, pass `highlightJs({ languages: allLanguages })`, with `allLanguages` from `@voithos-labs/aragonite-highlight/languages`: each is still fetched only when a fence names it, and the picker lists them after the 24. A grammar of your own goes in `languages` too, and the package's README has the rest.
 
 **Math and diagrams.** latex and mermaid render through injected engines that never ride the main bundle: each package has a `/renderer` subpath adapter, and its engine (`katex` / `mermaid`) is an optional peer dependency you install only if you use it.
 

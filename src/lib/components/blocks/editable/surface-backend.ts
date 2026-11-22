@@ -41,6 +41,9 @@ export interface SurfaceBackend extends CursorBackend {
 	rawRangeOf(range: AbstractRange): { start: RawOffset; end: RawOffset } | null;
 	/** Move a focused caret that sits inside the marker prefix to raw 0, just past the prefix. */
 	clampOutOfMarkerPrefix(): void;
+	/** Draws the element again through `paint`, which must keep its text, and puts the caret or the
+	 *  range it held back where it was: how a highlighter's late tokens land. */
+	repaintKeepingSelection(paint: () => void): void;
 }
 
 export function createSurfaceBackend(deps: SurfaceBackendDeps): SurfaceBackend {
@@ -96,7 +99,28 @@ export function createSurfaceBackend(deps: SurfaceBackendDeps): SurfaceBackend {
 			deps.caretWriter.placeCaretAtRaw(live.el, 0, { clamp: 'exact' });
 	}
 
-	return { getRaw, setRaw, getFocusOffset, getRawSelection, rawRangeOf, clampOutOfMarkerPrefix };
+	function repaintKeepingSelection(paint: () => void): void {
+		const range = getRawSelection();
+		// A range made backward goes back with its moving end first, so the next Shift+arrow extends it.
+		const backward = range !== null && getFocusOffset() === range.start;
+		const caret = range ? null : getRaw();
+		paint();
+		const el = deps.getEl();
+		if (range && el) {
+			const [anchor, focus] = backward ? [range.end, range.start] : [range.start, range.end];
+			deps.caretWriter.selectRawRange(el, anchor, focus);
+		} else if (caret !== null) setRaw(caret, { clamp: 'exact' });
+	}
+
+	return {
+		getRaw,
+		setRaw,
+		getFocusOffset,
+		getRawSelection,
+		rawRangeOf,
+		clampOutOfMarkerPrefix,
+		repaintKeepingSelection
+	};
 }
 
 // ── Internal ────────────────────────────────────────────────────────────────

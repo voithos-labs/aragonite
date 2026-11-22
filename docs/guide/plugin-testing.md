@@ -88,8 +88,8 @@ isPluginInstalled('conspiracy'); // false, and declaredPluginKind('conspiracy') 
 
 What that clears, and what it deliberately leaves alone:
 
-- Cleared: everything a plugin registered (kinds, components, openers, commands, languages, inline syntax, paste transforms, directive names and the rest), the renderer a plugin set on a renderer slot, and the installed-plugin set.
-- Built-in registrations survive, exactly as in production, the built-in paste surfaces and code languages included, so a case that pastes into a built-in block after a reset needs nothing re-registered.
+- Cleared: everything a plugin registered (kinds, components, openers, commands, inline syntax, paste transforms, directive names and the rest), the renderer a plugin set on a renderer slot, and the installed-plugin set.
+- Built-in registrations survive, exactly as in production, the built-in paste surfaces included, so a case that pastes into a built-in block after a reset needs nothing re-registered.
 - Runtime state is untouched. The undo stack, the selection, and any live document are yours to set up.
 - It's test-only and throws outside a detected test environment. Detection is Vitest-specific (it reads `process.env.VITEST`), so a suite on another runner (Jest, Playwright component tests, anything else) opts in first and puts the detected defaults back after. The same switch lets a test call a register function outside a plugin's setup, which throws in a dev build otherwise:
 
