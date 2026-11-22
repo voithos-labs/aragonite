@@ -24,6 +24,8 @@ Listing the block type is enough; the editor lists `cycle` with your commands. T
 
 The rows show in the right-click menu. A block picked up whole lists them above Copy. Right-click in text inside the alert and they come as one flyout named for the type, with its `icon` where it has one, above Cut. A row is greyed where the command's `when` says no.
 
+A row's `label` can be a function of the block, asked each time the menu opens, so the row says what a click will do: ``label: (block) => `Make it ${next(block.data.type)}` ``. A label function that throws, or answers anything but text, shows the command's `title` instead and reaches `onError` under your plugin's name.
+
 A command takes no argument but its block. For "set the kind to one of eight", make one command per kind:
 
 ```ts

@@ -232,7 +232,7 @@ export function createRootMenus(deps: RootMenusDeps): RootMenus {
 		const block = blockOf(node, path);
 		return rows.map(({ label, icon, command }, i) => ({
 			id: `block-type.${i}`,
-			label,
+			label: label(block),
 			icon,
 			disabled: !can(command, block),
 			run: () => void run(command, block)

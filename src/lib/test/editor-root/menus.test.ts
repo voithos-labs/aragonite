@@ -340,8 +340,8 @@ describe("editor-root menus: a plugin block type's rows", () => {
 			blockActions: (k) =>
 				k === kind
 					? [
-							{ label: 'Next kind', command: command('next') },
-							{ label: 'Never', command: command('never') }
+							{ label: () => 'Next kind', command: command('next') },
+							{ label: () => 'Never', command: command('never') }
 						]
 					: [],
 			blockOf: () => block as never,

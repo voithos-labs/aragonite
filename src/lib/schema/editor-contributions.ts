@@ -23,6 +23,7 @@ import type { PasteRewrite } from './paste-rewrite';
 import { togglesOf } from './inline-type';
 import type { ContributedMenu } from './caret-menu';
 import { iconProblem, type Icon } from '../menu-icons';
+import type { BlockAction } from './block-shapes';
 import type { ContributedAction } from './selection-action';
 import type { CodeHighlighter, CodeLanguage, CodeToken } from './code-highlighter';
 
@@ -45,7 +46,8 @@ export interface ContributedRewrite {
 
 /** A row of a block type's menu, as an editor holds it. */
 export interface ContributedBlockAction {
-	readonly label: string;
+	/** The row's text over `block`: the command's title where the plugin's label fails. */
+	label(block: Block): string;
 	readonly icon?: Icon;
 	readonly command: ContributedCommand;
 }
@@ -175,11 +177,10 @@ export function createEditorContributions(deps: {
 			kept.flatMap((unit) =>
 				blockTypesOf(unit).map(({ kind, making }) => [
 					kind,
-					(making.actions ?? []).map(({ label, icon, command }) => ({
-						label,
-						icon,
-						command: byValue.get(command as Command<unknown>)!
-					}))
+					(making.actions ?? []).map(({ label, icon, command }) => {
+						const entry = byValue.get(command as Command<unknown>)!;
+						return { label: (block: Block) => labelOf(entry, label, block), icon, command: entry };
+					})
 				])
 			)
 		);
@@ -257,6 +258,24 @@ export function createEditorContributions(deps: {
 			}
 			return answer !== false;
 		});
+	}
+
+	/** A row's label over `block`; one that throws or answers anything but text reads as its
+	 *  command's title, and is reported. */
+	function labelOf(entry: ContributedCommand, label: BlockAction<unknown>['label'], block: Block) {
+		const fail = (cause: unknown) => {
+			deps.report({ plugin: entry.plugin, doing: `label for ${entry.id}`, cause });
+			return entry.spec.title;
+		};
+		let text: unknown;
+		try {
+			text = typeof label === 'function' ? label(block) : label;
+		} catch (cause) {
+			return fail(cause);
+		}
+		return typeof text === 'string'
+			? text
+			: fail(new TypeError(`its label is a ${typeof text}, not text`));
 	}
 
 	function answer(entry: ContributedRewrite, block: Block): string | null {
