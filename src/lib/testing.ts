@@ -38,7 +38,7 @@ export { setDevWarnSink } from '@voithos-labs/aragonite/dev-checks';
 export type { DevWarnEntry, DevWarnSink } from '@voithos-labs/aragonite/dev-checks';
 
 // ── Checking a plugin value ──────────────────────────────────────────────────
-// Every check over every sample of every block type a plugin lists: what a plugin package's
+// Every check over every sample of every block type and inline a plugin lists: what a package's
 // `./conformance` export feeds, and what `aragonite-plugin-check` runs.
 
 export { check, CheckFailure, isCheckFailure } from './testing/check';

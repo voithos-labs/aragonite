@@ -63,8 +63,14 @@ export function inlineOutcomes(
 	const { context } = run;
 	const out: [InlineCheck, Outcome][] = [['sample', sampleOutcome(subject)]];
 	if (out[0][1].status === 'failed') return out;
-	const claims = subject.samples.map((sample) => claimsOf(context, subject, sample));
-	out.push(['claims', settle(() => checkClaims(subject, claims))]);
+	let claims: Claim[][] = [];
+	out.push([
+		'claims',
+		settle(() => {
+			claims = subject.samples.map((sample) => claimsOf(context, subject, sample));
+			return checkClaims(subject, claims);
+		})
+	]);
 	if (out[1][1].status === 'failed') return out;
 	const all = claims.flat();
 	const { shape } = subject;
@@ -73,13 +79,11 @@ export function inlineOutcomes(
 	if (shape === 'widget') {
 		out.push(['widget', settle(() => checkWidget(context, all))]);
 		out.push(['editingPolicy', settle(() => checkEditingPolicy(context, subject.parts[0], all))]);
+		out.push(['dependsContent', settle(() => checkDepends(run, subject))]);
 	}
 	if (shape === 'built-in') out.push(['inlineWriter', settle(() => checkWriter(all))]);
 	if (shape !== 'pair') {
 		out.push(['inlinePlace', settle(() => checkPlace(subject.parts[0], run.inlines))]);
-	}
-	if (shape === 'widget') {
-		out.push(['dependsContent', settle(() => checkDepends(run, subject))]);
 	}
 	if (shape === 'pair')
 		out.push(['pairSides', settle(() => checkPairSides(context, subject, claims))]);
@@ -90,12 +94,11 @@ export function inlineOutcomes(
 /*                               Reading claims                               */
 /* -------------------------------------------------------------------------- */
 
-/** A claim of one part in a sample: the block text it sits in, as the inline scan reads it. */
+/** A claim of one part, in the block text it sits in as the inline scan reads it. */
 interface Claim {
 	readonly part: InstalledInline;
 	readonly raw: string;
 	readonly node: InlineNode;
-	readonly sample: string;
 }
 
 function shapeOf(
@@ -128,7 +131,7 @@ function claimsOf(context: CheckContext, subject: InlineSubject, sample: string)
 	const visit = (nodes: readonly InlineNode[], raw: string) => {
 		for (const node of nodes) {
 			const part = subject.parts.find((candidate) => owns(candidate, node));
-			if (part) out.push({ part, raw, node, sample });
+			if (part) out.push({ part, raw, node });
 			else if (node.children) visit(node.children, raw);
 		}
 	};

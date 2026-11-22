@@ -180,6 +180,31 @@ describe('check over inline constructs', () => {
 		expect(statuses(report, 'some/mention')).toEqual({ sample: 'passed', claims: 'failed' });
 	});
 
+	it('fails claims, rather than throwing, for a matcher that claims past its text', async () => {
+		const runaway = formula({ match: (text: string) => text.length + 2, read: () => 'x' });
+		const report = await reportOf(check(pluginOf('runaway', () => [runaway])));
+		expect(rowOf(report, 'runaway/formula', 'claims')).toMatchObject({
+			status: 'failed',
+			detail: expect.stringMatching(/past the scan range end/)
+		});
+	});
+
+	// The match ignores `end`, so where a block's scan range stops short of its text it reads past.
+	it('fails roundTrip for a function matcher that reads past the range it was given', async () => {
+		const overrun = formula({
+			match: (text: string, at: number) => {
+				const close = text.indexOf('$', at + 1);
+				return close > at + 1 ? close + 1 : -1;
+			},
+			read: (claim: string) => claim.slice(1, -1)
+		});
+		const report = await reportOf(check(pluginOf('runs', () => [overrun])));
+		expect(rowOf(report, 'runs/formula', 'roundTrip')).toMatchObject({
+			status: 'failed',
+			detail: expect.stringMatching(/past the scan range end/)
+		});
+	});
+
 	it('fails inlineWriter for an image write that drops the width', async () => {
 		const report = await reportOf(check(pluginOf('pics', () => [embed((i) => `![[${i.src}]]`)])));
 		expect(rowOf(report, 'pics/embed', 'inlineWriter')).toMatchObject({
